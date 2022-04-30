@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.1.32421.90
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DWSIMCore", "DWSIMCore\DWSIMCore.csproj", "{EE2FA500-4109-4BA3-8919-52F991FA4995}"
+EndProject
+Project("{F184B08F-C81C-45F6-A57F-5ABD9991F28F}") = "DWSIMCore.Foundation", "DWSIMCore.Foundation\DWSIMCore.Foundation.vbproj", "{B70847D2-9C0A-4025-B69E-9C193D01ED09}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{EE2FA500-4109-4BA3-8919-52F991FA4995}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EE2FA500-4109-4BA3-8919-52F991FA4995}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EE2FA500-4109-4BA3-8919-52F991FA4995}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EE2FA500-4109-4BA3-8919-52F991FA4995}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B70847D2-9C0A-4025-B69E-9C193D01ED09}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B70847D2-9C0A-4025-B69E-9C193D01ED09}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B70847D2-9C0A-4025-B69E-9C193D01ED09}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B70847D2-9C0A-4025-B69E-9C193D01ED09}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {9EFDCF8A-0E9F-4538-A358-39D2EB8DD5D9}
+	EndGlobalSection
+EndGlobal
