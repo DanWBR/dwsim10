@@ -81,7 +81,7 @@ Namespace GraphicObjects
             If CalculatingImage Is Nothing Then
 
                 Dim assm = Me.GetType.Assembly
-                Using filestr As IO.Stream = assm.GetManifestResourceStream("DWSIM.Drawing.SkiaSharp.clock.png")
+                Using filestr As IO.Stream = assm.GetManifestResourceStream("DWSIMCore.Foundation.clock.png")
                     Using bitmap = SKBitmap.Decode(filestr)
                         CalculatingImage = SKImage.FromBitmap(bitmap)
                     End Using
@@ -111,7 +111,7 @@ Namespace GraphicObjects
             If AttentionImage Is Nothing Then
 
                 Dim assm = Me.GetType.Assembly
-                Using filestr As IO.Stream = assm.GetManifestResourceStream("DWSIM.Drawing.SkiaSharp.attention.png")
+                Using filestr As IO.Stream = assm.GetManifestResourceStream("DWSIMCore.Foundation.attention.png")
                     Using bitmap = SKBitmap.Decode(filestr)
                         AttentionImage = SKImage.FromBitmap(bitmap)
                     End Using
@@ -133,7 +133,7 @@ Namespace GraphicObjects
 
                     If VolumeImage Is Nothing Then
                         Dim assm = Me.GetType.Assembly
-                        Using filestr As IO.Stream = assm.GetManifestResourceStream("DWSIM.Drawing.SkiaSharp.volume.png")
+                        Using filestr As IO.Stream = assm.GetManifestResourceStream("DWSIMCore.Foundation.volume.png")
                             Using bitmap = SKBitmap.Decode(filestr)
                                 VolumeImage = SKImage.FromBitmap(bitmap)
                             End Using
@@ -141,7 +141,7 @@ Namespace GraphicObjects
                     End If
                     If WeightImage Is Nothing Then
                         Dim assm = Me.GetType.Assembly
-                        Using filestr As IO.Stream = assm.GetManifestResourceStream("DWSIM.Drawing.SkiaSharp.weight.png")
+                        Using filestr As IO.Stream = assm.GetManifestResourceStream("DWSIMCore.Foundation.weight.png")
                             Using bitmap = SKBitmap.Decode(filestr)
                                 WeightImage = SKImage.FromBitmap(bitmap)
                             End Using
@@ -149,7 +149,7 @@ Namespace GraphicObjects
                     End If
                     If ResidenceTimeImage Is Nothing Then
                         Dim assm = Me.GetType.Assembly
-                        Using filestr As IO.Stream = assm.GetManifestResourceStream("DWSIM.Drawing.SkiaSharp.clock2.png")
+                        Using filestr As IO.Stream = assm.GetManifestResourceStream("DWSIMCore.Foundation.clock2.png")
                             Using bitmap = SKBitmap.Decode(filestr)
                                 ResidenceTimeImage = SKImage.FromBitmap(bitmap)
                             End Using
@@ -373,7 +373,7 @@ Namespace GraphicObjects
                             If fo.DisplayMaterialStreamTemperatureValue Then
                                 If TemperatureImage Is Nothing Then
                                     Dim assm = Me.GetType.Assembly
-                                    Using filestr As IO.Stream = assm.GetManifestResourceStream("DWSIM.Drawing.SkiaSharp.temperature.png")
+                                    Using filestr As IO.Stream = assm.GetManifestResourceStream("DWSIMCore.Foundation.temperature.png")
                                         Using bitmap = SKBitmap.Decode(filestr)
                                             TemperatureImage = SKImage.FromBitmap(bitmap)
                                         End Using
@@ -396,7 +396,7 @@ Namespace GraphicObjects
                             If fo.DisplayMaterialStreamPressureValue Then
                                 If PressureImage Is Nothing Then
                                     Dim assm = Me.GetType.Assembly
-                                    Using filestr As IO.Stream = assm.GetManifestResourceStream("DWSIM.Drawing.SkiaSharp.pressure.png")
+                                    Using filestr As IO.Stream = assm.GetManifestResourceStream("DWSIMCore.Foundation.pressure.png")
                                         Using bitmap = SKBitmap.Decode(filestr)
                                             PressureImage = SKImage.FromBitmap(bitmap)
                                         End Using
@@ -419,7 +419,7 @@ Namespace GraphicObjects
                             If fo.DisplayMaterialStreamMassFlowValue Then
                                 If FlowImage Is Nothing Then
                                     Dim assm = Me.GetType.Assembly
-                                    Using filestr As IO.Stream = assm.GetManifestResourceStream("DWSIM.Drawing.SkiaSharp.flow.png")
+                                    Using filestr As IO.Stream = assm.GetManifestResourceStream("DWSIMCore.Foundation.flow.png")
                                         Using bitmap = SKBitmap.Decode(filestr)
                                             FlowImage = SKImage.FromBitmap(bitmap)
                                         End Using
@@ -442,7 +442,7 @@ Namespace GraphicObjects
                             If fo.DisplayMaterialStreamMolarFlowValue Then
                                 If FlowImage Is Nothing Then
                                     Dim assm = Me.GetType.Assembly
-                                    Using filestr As IO.Stream = assm.GetManifestResourceStream("DWSIM.Drawing.SkiaSharp.flow.png")
+                                    Using filestr As IO.Stream = assm.GetManifestResourceStream("DWSIMCore.Foundation.flow.png")
                                         Using bitmap = SKBitmap.Decode(filestr)
                                             FlowImage = SKImage.FromBitmap(bitmap)
                                         End Using
@@ -465,7 +465,7 @@ Namespace GraphicObjects
                             If fo.DisplayMaterialStreamVolFlowValue Then
                                 If FlowImage Is Nothing Then
                                     Dim assm = Me.GetType.Assembly
-                                    Using filestr As IO.Stream = assm.GetManifestResourceStream("DWSIM.Drawing.SkiaSharp.flow.png")
+                                    Using filestr As IO.Stream = assm.GetManifestResourceStream("DWSIMCore.Foundation.flow.png")
                                         Using bitmap = SKBitmap.Decode(filestr)
                                             FlowImage = SKImage.FromBitmap(bitmap)
                                         End Using
@@ -488,7 +488,7 @@ Namespace GraphicObjects
                             If fo.DisplayMaterialStreamEnergyFlowValue Then
                                 If LightningImage Is Nothing Then
                                     Dim assm = Me.GetType.Assembly
-                                    Using filestr As IO.Stream = assm.GetManifestResourceStream("DWSIM.Drawing.SkiaSharp.lightning_bolt.png")
+                                    Using filestr As IO.Stream = assm.GetManifestResourceStream("DWSIMCore.Foundation.lightning_bolt.png")
                                         Using bitmap = SKBitmap.Decode(filestr)
                                             LightningImage = SKImage.FromBitmap(bitmap)
                                         End Using
@@ -512,7 +512,7 @@ Namespace GraphicObjects
                             If fo.DisplayEnergyStreamPowerValue Then
                                 If LightningImage Is Nothing Then
                                     Dim assm = Me.GetType.Assembly
-                                    Using filestr As IO.Stream = assm.GetManifestResourceStream("DWSIM.Drawing.SkiaSharp.lightning_bolt.png")
+                                    Using filestr As IO.Stream = assm.GetManifestResourceStream("DWSIMCore.Foundation.lightning_bolt.png")
                                         Using bitmap = SKBitmap.Decode(filestr)
                                             LightningImage = SKImage.FromBitmap(bitmap)
                                         End Using

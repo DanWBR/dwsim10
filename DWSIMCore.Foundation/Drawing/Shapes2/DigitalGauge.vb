@@ -1,8 +1,4 @@
-﻿Imports Interfaces = DWSIM.Interfaces
-Imports DWSIM.Interfaces
-Imports DWSIM.Enums.GraphicObjects
-Imports DWSIM.DrawingTools.Point
-Imports SkiaSharp
+﻿Imports SkiaSharp
 Imports DWSIMCore.Foundation.Enums.GraphicObjects
 
 Namespace GraphicObjects
@@ -100,7 +96,7 @@ Namespace GraphicObjects
 
             If Font Is Nothing Then
                 Dim assm = Me.GetType.Assembly
-                Using filestr As IO.Stream = assm.GetManifestResourceStream("DWSIM.Drawing.SkiaSharp.digital7_mono.ttf")
+                Using filestr As IO.Stream = assm.GetManifestResourceStream("DWSIMCore.Foundation.digital7_mono.ttf")
                     Font = SKTypeface.FromStream(filestr)
                 End Using
             End If

@@ -1,8 +1,4 @@
-﻿Imports Interfaces = DWSIM.Interfaces
-Imports DWSIM.Interfaces
-Imports DWSIM.Enums.GraphicObjects
-Imports DWSIM.DrawingTools.Point
-Imports SkiaSharp
+﻿Imports SkiaSharp
 Imports DWSIMCore.Foundation.Enums.GraphicObjects
 
 Namespace GraphicObjects
@@ -76,7 +72,7 @@ Namespace GraphicObjects
                 If ImageOn Is Nothing Then
 
                     Dim assm = Me.GetType.Assembly
-                    Using filestr As IO.Stream = assm.GetManifestResourceStream("DWSIM.Drawing.SkiaSharp.switch_on.png")
+                    Using filestr As IO.Stream = assm.GetManifestResourceStream("DWSIMCore.Foundation.switch_on.png")
                         Using bitmap = SKBitmap.Decode(filestr)
                             ImageOn = SKImage.FromBitmap(bitmap)
                         End Using
@@ -93,7 +89,7 @@ Namespace GraphicObjects
                 If ImageOff Is Nothing Then
 
                     Dim assm = Me.GetType.Assembly
-                    Using filestr As IO.Stream = assm.GetManifestResourceStream("DWSIM.Drawing.SkiaSharp.switch_off.png")
+                    Using filestr As IO.Stream = assm.GetManifestResourceStream("DWSIMCore.Foundation.switch_off.png")
                         Using bitmap = SKBitmap.Decode(filestr)
                             ImageOff = SKImage.FromBitmap(bitmap)
                         End Using

@@ -24,7 +24,7 @@ Imports DWSIMCore.Foundation.Enums
 Imports DWSIMCore.Foundation.Enums.GraphicObjects
 Imports System.Data
 
-Namespace UnitOperations
+Namespace FlowsheetObjects
 
     <System.Serializable()> <ComVisible(True)> Public MustInherit Class BaseClass
 

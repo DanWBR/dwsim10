@@ -114,7 +114,7 @@ Namespace GraphicObjects.Shapes
             If Image Is Nothing Then
 
                 Dim assm = Me.GetType.Assembly
-                Using filestr As IO.Stream = assm.GetManifestResourceStream("DWSIM.Drawing.SkiaSharp.control_panel.png")
+                Using filestr As IO.Stream = assm.GetManifestResourceStream("DWSIMCore.Foundation.control_panel.png")
                     Using bitmap = SKBitmap.Decode(filestr)
                         Image = SKImage.FromBitmap(bitmap)
                     End Using

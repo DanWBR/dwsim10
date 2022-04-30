@@ -93,22 +93,22 @@ Public Class GraphicsSurface
 
         Dim assm = Me.GetType.Assembly
         If RegularTypeFace Is Nothing Then
-            Using filestr As IO.Stream = assm.GetManifestResourceStream("DWSIM.Drawing.SkiaSharp.Asap-Regular.ttf")
+            Using filestr As IO.Stream = assm.GetManifestResourceStream("DWSIMCore.Foundation.Asap-Regular.ttf")
                 RegularTypeFace = SKTypeface.FromStream(filestr)
             End Using
         End If
         If BoldTypeFace Is Nothing Then
-            Using filestr As IO.Stream = assm.GetManifestResourceStream("DWSIM.Drawing.SkiaSharp.Asap-SemiBold.ttf")
+            Using filestr As IO.Stream = assm.GetManifestResourceStream("DWSIMCore.Foundation.Asap-SemiBold.ttf")
                 BoldTypeFace = SKTypeface.FromStream(filestr)
             End Using
         End If
         If ItalicTypeFace Is Nothing Then
-            Using filestr As IO.Stream = assm.GetManifestResourceStream("DWSIM.Drawing.SkiaSharp.Asap-Italic.ttf")
+            Using filestr As IO.Stream = assm.GetManifestResourceStream("DWSIMCore.Foundation.Asap-Italic.ttf")
                 ItalicTypeFace = SKTypeface.FromStream(filestr)
             End Using
         End If
         If BoldItalicTypeFace Is Nothing Then
-            Using filestr As IO.Stream = assm.GetManifestResourceStream("DWSIM.Drawing.SkiaSharp.Asap-SemiBoldItalic.ttf")
+            Using filestr As IO.Stream = assm.GetManifestResourceStream("DWSIMCore.Foundation.Asap-SemiBoldItalic.ttf")
                 BoldItalicTypeFace = SKTypeface.FromStream(filestr)
             End Using
         End If
@@ -117,7 +117,7 @@ Public Class GraphicsSurface
         ItalicFonts = New List(Of String)
         BoldItalicFonts = New List(Of String)
         Dim value As String = ""
-        Using filestr As IO.Stream = assm.GetManifestResourceStream("DWSIM.Drawing.SkiaSharp.Fonts.txt")
+        Using filestr As IO.Stream = assm.GetManifestResourceStream("DWSIMCore.Foundation.Fonts.txt")
             Using reader As New IO.StreamReader(filestr)
                 While Not reader.EndOfStream
                     value = reader.ReadLine.Replace(".ttf", "")
@@ -137,25 +137,25 @@ Public Class GraphicsSurface
     End Sub
 
     Public Sub SetRegularFont(fontname As String)
-        Using filestr As IO.Stream = Me.GetType().Assembly.GetManifestResourceStream("DWSIM.Drawing.SkiaSharp." + fontname + ".ttf")
+        Using filestr As IO.Stream = Me.GetType().Assembly.GetManifestResourceStream("DWSIMCore.Foundation." + fontname + ".ttf")
             RegularTypeFace = SKTypeface.FromStream(filestr)
         End Using
     End Sub
 
     Public Sub SetBoldFont(fontname As String)
-        Using filestr As IO.Stream = Me.GetType().Assembly.GetManifestResourceStream("DWSIM.Drawing.SkiaSharp." + fontname + ".ttf")
+        Using filestr As IO.Stream = Me.GetType().Assembly.GetManifestResourceStream("DWSIMCore.Foundation." + fontname + ".ttf")
             BoldTypeFace = SKTypeface.FromStream(filestr)
         End Using
     End Sub
 
     Public Sub SetItalicFont(fontname As String)
-        Using filestr As IO.Stream = Me.GetType().Assembly.GetManifestResourceStream("DWSIM.Drawing.SkiaSharp." + fontname + ".ttf")
+        Using filestr As IO.Stream = Me.GetType().Assembly.GetManifestResourceStream("DWSIMCore.Foundation." + fontname + ".ttf")
             ItalicTypeFace = SKTypeface.FromStream(filestr)
         End Using
     End Sub
 
     Public Sub SetBoldItalicFont(fontname As String)
-        Using filestr As IO.Stream = Me.GetType().Assembly.GetManifestResourceStream("DWSIM.Drawing.SkiaSharp." + fontname + ".ttf")
+        Using filestr As IO.Stream = Me.GetType().Assembly.GetManifestResourceStream("DWSIMCore.Foundation." + fontname + ".ttf")
             BoldItalicTypeFace = SKTypeface.FromStream(filestr)
         End Using
     End Sub
