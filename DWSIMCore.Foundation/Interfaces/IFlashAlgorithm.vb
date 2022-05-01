@@ -16,6 +16,7 @@
 '    You should have received a copy of the GNU General Public License
 '    along with DWSIM.  If not, see <http://www.gnu.org/licenses/>.
 
+Imports DWSIMCore.Foundation.PropertyPackages
 ''' <summary>
 ''' This interface defines the basic properties of a flash algorithm, including an instance of the class which contains its current settings.
 ''' </summary>
@@ -38,7 +39,11 @@ Public Interface IFlashAlgorithm
     ReadOnly Property MobileCompatible As Boolean
 
     Property Order As Integer
-
+    Function Flash_PT(Vz() As Double, P As Double, T As Double, PP As PropertyPackage, Optional ReuseKI As Boolean = Nothing, Optional PrevKi() As Double = Nothing) As Object
+    Function Flash_PH(Vz() As Double, P As Double, H As Double, Tref As Double, PP As PropertyPackage, Optional ReuseKI As Boolean = Nothing, Optional PrevKi() As Double = Nothing) As Object
+    Function Flash_PS(Vz() As Double, P As Double, S As Double, Tref As Double, PP As PropertyPackage, Optional ReuseKI As Boolean = Nothing, Optional PrevKi() As Double = Nothing) As Object
+    Function Flash_PV(Vz() As Double, P As Double, V As Double, Tref As Double, PP As PropertyPackage, Optional ReuseKI As Boolean = Nothing, Optional PrevKi() As Double = Nothing) As Object
+    Function Flash_TV(Vz() As Double, T As Double, V As Double, Pref As Double, PP As PropertyPackage, Optional ReuseKI As Boolean = Nothing, Optional PrevKi() As Double = Nothing) As Object
 End Interface
 
 ''' <summary>

@@ -36,6 +36,8 @@ Imports cv = DWSIMCore.Foundation.SystemsOfUnits.Converter
 
 Imports props = DWSIMCore.Foundation.PropertyPackages.Auxiliary.PROPS
 Imports DWSIMCore.Foundation.Enums
+Imports DWSIMCore.Foundation.PropertyPackages.Auxiliary.FlashAlgorithms
+Imports DWSIMCore.Foundation.Streams
 
 Namespace PropertyPackages
 
@@ -1772,7 +1774,7 @@ Namespace PropertyPackages
             Dim P As Double = Me.CurrentMaterialStream.Phases(0).Properties.pressure.GetValueOrDefault
             Dim T As Double = Me.CurrentMaterialStream.Phases(0).Properties.temperature.GetValueOrDefault
 
-            If Not Settings.CAPEOPENMode And Not TypeOf Me Is CAPEOPENPropertyPackage Then
+            If Not Settings.CAPEOPENMode Then
                 If Me.FlashBase.FlashSettings(Enums.FlashSetting.CalculateBubbleAndDewPoints) Then
                     Try
                         Dim Vz As Double() = Me.RET_VMOL(Phase.Mixture)
@@ -2283,8 +2285,8 @@ Namespace PropertyPackages
                             T = Me.CurrentMaterialStream.Phases(0).Properties.temperature.GetValueOrDefault
                             P = Me.CurrentMaterialStream.Phases(0).Properties.pressure.GetValueOrDefault
 
-                            If Not T.IsValid Or Not P.IsValid Then Throw New ArgumentException("TP Flash: " & Calculator.GetLocalString("ErrorInvalidFlashSpecValue"))
-                            If Not T.IsPositive Or Not P.IsPositive Then Throw New ArgumentException("TP Flash: " & Calculator.GetLocalString("ErrorInvalidFlashSpecValue"))
+                            If Not T.IsValid Or Not P.IsValid Then Throw New ArgumentException("TP Flash: " & ("ErrorInvalidFlashSpecValue"))
+                            If Not T.IsPositive Or Not P.IsPositive Then Throw New ArgumentException("TP Flash: " & ("ErrorInvalidFlashSpecValue"))
 
                             Dim ige As Double = 0
                             Dim fge As Double = 0
@@ -2387,7 +2389,7 @@ Namespace PropertyPackages
                                     Dim dgtol As Double = Me.FlashBase.FlashSettings(Enums.FlashSetting.ValidationGibbsTolerance).ToDoubleFromInvariant()
 
                                     If dge > 0.0# And Math.Abs(dge / ige * 100) > Math.Abs(dgtol) Then
-                                        Dim ex As New Exception(Calculator.GetLocalString("InvalidFlashResult") & "(DGE = " & dge & " kJ/kg, " & Format(dge / ige * 100, "0.00") & "%)")
+                                        Dim ex As New Exception(("InvalidFlashResult") & "(DGE = " & dge & " kJ/kg, " & Format(dge / ige * 100, "0.00") & "%)")
                                         ex.Data.Add("DetailedDescription", "The calculated phase and composition distribution is invalid (increased Gibbs Free Energy).")
                                         ex.Data.Add("UserAction", "Try another Property Package and/or Flash Algorithm.")
                                         Throw ex
@@ -2539,11 +2541,11 @@ Namespace PropertyPackages
 
                         Case FlashSpec.H
 
-                            Throw New Exception(Calculator.GetLocalString("PropPack_FlashTHNotSupported"))
+                            Throw New Exception(("PropPack_FlashTHNotSupported"))
 
                         Case FlashSpec.S
 
-                            Throw New Exception(Calculator.GetLocalString("PropPack_FlashTSNotSupported"))
+                            Throw New Exception(("PropPack_FlashTSNotSupported"))
 
                         Case FlashSpec.VAP
 
@@ -2562,8 +2564,8 @@ Namespace PropertyPackages
                             T = Me.CurrentMaterialStream.Phases(0).Properties.temperature.GetValueOrDefault
                             P = Me.CurrentMaterialStream.Phases(0).Properties.pressure.GetValueOrDefault
 
-                            If Not T.IsValid Or Not xv.IsValid Then Throw New ArgumentException("TVF Flash: " & Calculator.GetLocalString("ErrorInvalidFlashSpecValue"))
-                            If Not T.IsPositive Or xv.IsNegative Then Throw New ArgumentException("TVF Flash: " & Calculator.GetLocalString("ErrorInvalidFlashSpecValue"))
+                            If Not T.IsValid Or Not xv.IsValid Then Throw New ArgumentException("TVF Flash: " & ("ErrorInvalidFlashSpecValue"))
+                            If Not T.IsPositive Or xv.IsNegative Then Throw New ArgumentException("TVF Flash: " & ("ErrorInvalidFlashSpecValue"))
 
                             If Double.IsNaN(P) Or Double.IsInfinity(P) Then P = 0.0#
 
@@ -2719,8 +2721,8 @@ Namespace PropertyPackages
 
                             If Double.IsNaN(H) Or Double.IsInfinity(H) Then H = Me.CurrentMaterialStream.Phases(0).Properties.molar_enthalpy.GetValueOrDefault / Me.CurrentMaterialStream.Phases(0).Properties.molecularWeight.GetValueOrDefault
 
-                            If Not T.IsValid Or Not H.IsValid Then Throw New ArgumentException("PH Flash: " & Calculator.GetLocalString("ErrorInvalidFlashSpecValue"))
-                            'If Not T.IsPositive Then Throw New ArgumentException("PH Flash: " & Calculator.GetLocalString("ErrorInvalidFlashSpecValue"))
+                            If Not T.IsValid Or Not H.IsValid Then Throw New ArgumentException("PH Flash: " & ("ErrorInvalidFlashSpecValue"))
+                            'If Not T.IsPositive Then Throw New ArgumentException("PH Flash: " & ("ErrorInvalidFlashSpecValue"))
 
 redirect:                   IObj?.SetCurrent()
                             result = Me.FlashBase.Flash_PH(RET_VMOL(Phase.Mixture), P, H, T, Me)
@@ -2846,8 +2848,8 @@ redirect:                   IObj?.SetCurrent()
 
                             If Double.IsNaN(S) Or Double.IsInfinity(S) Then S = Me.CurrentMaterialStream.Phases(0).Properties.molar_entropy.GetValueOrDefault / Me.CurrentMaterialStream.Phases(0).Properties.molecularWeight.GetValueOrDefault
 
-                            If Not T.IsValid Or Not S.IsValid Then Throw New ArgumentException("PS Flash: " & Calculator.GetLocalString("ErrorInvalidFlashSpecValue"))
-                            'If Not T.IsPositive Then Throw New ArgumentException("PS Flash: " & Calculator.GetLocalString("ErrorInvalidFlashSpecValue"))
+                            If Not T.IsValid Or Not S.IsValid Then Throw New ArgumentException("PS Flash: " & ("ErrorInvalidFlashSpecValue"))
+                            'If Not T.IsPositive Then Throw New ArgumentException("PS Flash: " & ("ErrorInvalidFlashSpecValue"))
 
 redirect2:                  IObj?.SetCurrent()
                             result = Me.FlashBase.Flash_PS(RET_VMOL(Phase.Mixture), P, S, T, Me)
@@ -2980,8 +2982,8 @@ redirect2:                  IObj?.SetCurrent()
                             T = Me.CurrentMaterialStream.Phases(0).Properties.temperature.GetValueOrDefault
                             P = Me.CurrentMaterialStream.Phases(0).Properties.pressure.GetValueOrDefault
 
-                            If Not P.IsValid Or Not xv.IsValid Then Throw New ArgumentException("PVF Flash: " & Calculator.GetLocalString("ErrorInvalidFlashSpecValue"))
-                            If Not P.IsPositive Or xv.IsNegative Then Throw New ArgumentException("PVF Flash: " & Calculator.GetLocalString("ErrorInvalidFlashSpecValue"))
+                            If Not P.IsValid Or Not xv.IsValid Then Throw New ArgumentException("PVF Flash: " & ("ErrorInvalidFlashSpecValue"))
+                            If Not P.IsPositive Or xv.IsNegative Then Throw New ArgumentException("PVF Flash: " & ("ErrorInvalidFlashSpecValue"))
 
                             Dim Vx, Vx2, Vy, Vs As Double()
 
@@ -3284,7 +3286,7 @@ redirect2:                  IObj?.SetCurrent()
         ''' <remarks></remarks>
         Public Overridable Function DW_ReturnPhaseEnvelope(ByVal peoptions As PhaseEnvelopeOptions, Optional ByVal bw As System.ComponentModel.BackgroundWorker = Nothing) As Object
 
-            If Settings.EnableGPUProcessing Then Calculator.InitComputeDevice()
+            'If Settings.EnableGPUProcessing Then Calculator.InitComputeDevice()
 
             Dim i As Integer
 
@@ -4026,7 +4028,7 @@ redirect2:                  IObj?.SetCurrent()
         ''' <remarks></remarks>
         Public Overridable Function DW_ReturnBinaryEnvelope(ByVal parameters As Object, Optional ByVal bw As System.ComponentModel.BackgroundWorker = Nothing) As Object
 
-            If Settings.EnableGPUProcessing Then Calculator.InitComputeDevice()
+            'If Settings.EnableGPUProcessing Then Calculator.InitComputeDevice()
 
             Dim n, i As Integer
 
@@ -4104,7 +4106,7 @@ redirect2:                  IObj?.SetCurrent()
                                     py1.Add(Test1)
                                 Catch ex As Exception
                                     py1.Add(Double.NaN)
-                                    SharedClasses.ExceptionProcessing.ExceptionParser.ProcessAndDisplayException(Flowsheet, ex)
+                                    'SharedClasses.ExceptionProcessing.ExceptionParser.ProcessAndDisplayException(Flowsheet, ex)
                                 End Try
                                 Try
                                     tmp2 = MyFlash.Flash_PV(New Double() {x, 1 - x}, P, 1.0#, 0.0#, Me)
@@ -4114,7 +4116,7 @@ redirect2:                  IObj?.SetCurrent()
                                     py2.Add(Test2)
                                 Catch ex As Exception
                                     py2.Add(Double.NaN)
-                                    SharedClasses.ExceptionProcessing.ExceptionParser.ProcessAndDisplayException(Flowsheet, ex)
+                                    'SharedClasses.ExceptionProcessing.ExceptionParser.ProcessAndDisplayException(Flowsheet, ex)
                                 End Try
                             Else
                                 Try
@@ -4125,7 +4127,7 @@ redirect2:                  IObj?.SetCurrent()
                                     py1.Add(calcT)
                                 Catch ex As Exception
                                     py1.Add(Double.NaN)
-                                    SharedClasses.ExceptionProcessing.ExceptionParser.ProcessAndDisplayException(Flowsheet, ex)
+                                    'SharedClasses.ExceptionProcessing.ExceptionParser.ProcessAndDisplayException(Flowsheet, ex)
                                 End Try
                                 Try
                                     tmp2 = MyFlash.Flash_PV(New Double() {x, 1 - x}, P, 1.0#, Test2, Me)
@@ -4135,7 +4137,7 @@ redirect2:                  IObj?.SetCurrent()
                                     py2.Add(calcT)
                                 Catch ex As Exception
                                     py2.Add(Double.NaN)
-                                    SharedClasses.ExceptionProcessing.ExceptionParser.ProcessAndDisplayException(Flowsheet, ex)
+                                    'SharedClasses.ExceptionProcessing.ExceptionParser.ProcessAndDisplayException(Flowsheet, ex)
                                 End Try
                             End If
 
@@ -4257,7 +4259,7 @@ redirect2:                  IObj?.SetCurrent()
                                 pxs1.Add(x)
                                 pys1.Add(y1)
                             Catch ex As Exception
-                                SharedClasses.ExceptionProcessing.ExceptionParser.ProcessAndDisplayException(Flowsheet, ex)
+                                'SharedClasses.ExceptionProcessing.ExceptionParser.ProcessAndDisplayException(Flowsheet, ex)
                             End Try
                             i = i + 1
                         Loop Until i > StepCount
@@ -4278,7 +4280,7 @@ redirect2:                  IObj?.SetCurrent()
                                 pxs2.Add(x)
                                 pys2.Add(y2)
                             Catch ex As Exception
-                                SharedClasses.ExceptionProcessing.ExceptionParser.ProcessAndDisplayException(Flowsheet, ex)
+                                'SharedClasses.ExceptionProcessing.ExceptionParser.ProcessAndDisplayException(Flowsheet, ex)
                             End Try
                             i = i + 1
                         Loop Until i > StepCount
@@ -4335,7 +4337,7 @@ redirect2:                  IObj?.SetCurrent()
                                     pyc.Add(TCR)
                                 End If
                             Catch ex As Exception
-                                SharedClasses.ExceptionProcessing.ExceptionParser.ProcessAndDisplayException(Flowsheet, ex)
+                                'SharedClasses.ExceptionProcessing.ExceptionParser.ProcessAndDisplayException(Flowsheet, ex)
                             End Try
                             i = i + 1
                         Loop Until i > StepCount
@@ -4390,7 +4392,7 @@ redirect2:                  IObj?.SetCurrent()
                                     py1(py1.Count - 1) = up(0)
                                 End If
                             Catch ex As Exception
-                                SharedClasses.ExceptionProcessing.ExceptionParser.ProcessAndDisplayException(Flowsheet, ex)
+                                'SharedClasses.ExceptionProcessing.ExceptionParser.ProcessAndDisplayException(Flowsheet, ex)
                             End Try
                             i = i + 1
                         Loop Until i > StepCount
@@ -9639,7 +9641,7 @@ Final3:
                                     End Select
                                     Dim ms = DirectCast(Me.CurrentMaterialStream, MaterialStream)
                                     Dim cres = DW_CalcdEnthalpydmoles(ms.GetPhaseComposition(pi.DWPhaseIndex), ms.GetTemperature, ms.GetPressure, st)
-                                    Me.CurrentMaterialStream.SetSinglePhaseProp(p, phaseLabel, "", cres)
+                                    'Me.CurrentMaterialStream.SetSinglePhaseProp(p, phaseLabel, "", cres)
                                 Case "entropyF.Dmoles"
                                     Dim st As State
                                     Select Case pi.DWPhaseID
@@ -9652,7 +9654,7 @@ Final3:
                                     End Select
                                     Dim ms = DirectCast(Me.CurrentMaterialStream, MaterialStream)
                                     Dim cres = DW_CalcdEntropydmoles(ms.GetPhaseComposition(pi.DWPhaseIndex), ms.GetTemperature, ms.GetPressure, st)
-                                    Me.CurrentMaterialStream.SetSinglePhaseProp(p, phaseLabel, "", cres)
+                                    'Me.CurrentMaterialStream.SetSinglePhaseProp(p, phaseLabel, "", cres)
                                 Case Else
                                     Me.DW_CalcProp(p, pi.DWPhaseID)
                             End Select
@@ -9666,22 +9668,22 @@ Final3:
                 Dim res As New ArrayList
                 Dim comps As New ArrayList
 
-                If TryCast(Me, PropertyPackages.CAPEOPENPropertyPackage) IsNot Nothing Then
-                    Dim complist As Object = Nothing
-                    Me.GetCompoundList(complist, Nothing, Nothing, Nothing, Nothing, Nothing)
-                    For Each s As String In complist
-                        For Each kvp As KeyValuePair(Of String, String) In CType(Me, PropertyPackages.CAPEOPENPropertyPackage)._mappings
-                            If kvp.Value = s Then
-                                comps.Add(kvp.Key)
-                                Exit For
-                            End If
-                        Next
-                    Next
-                Else
-                    For Each c As ICompound In Me.CurrentMaterialStream.Phases(0).Compounds.Values
+                'If TryCast(Me, PropertyPackages.CAPEOPENPropertyPackage) IsNot Nothing Then
+                '    Dim complist As Object = Nothing
+                '    Me.GetCompoundList(complist, Nothing, Nothing, Nothing, Nothing, Nothing)
+                '    For Each s As String In complist
+                '        For Each kvp As KeyValuePair(Of String, String) In CType(Me, PropertyPackages.CAPEOPENPropertyPackage)._mappings
+                '            If kvp.Value = s Then
+                '                comps.Add(kvp.Key)
+                '                Exit For
+                '            End If
+                '        Next
+                '    Next
+                'Else
+                For Each c As ICompound In Me.CurrentMaterialStream.Phases(0).Compounds.Values
                         comps.Add(c.Name)
                     Next
-                End If
+                'End If
 
                 Dim f As Integer = -1
                 Dim phs As PropertyPackages.Phase
@@ -11563,59 +11565,59 @@ Final3:
                     Catch ex As Exception
                     End Try
 
-                Case "Peng-Robinson-Stryjek-Vera 2 (PRSV2-M)", "Peng-Robinson-Stryjek-Vera 2 (PRSV2)"
+                'Case "Peng-Robinson-Stryjek-Vera 2 (PRSV2-M)", "Peng-Robinson-Stryjek-Vera 2 (PRSV2)"
 
-                    Dim pp As PRSV2PropertyPackage = Me
-                    'pp.m_pr.InteractionParameters.Clear()
-                    For Each xel As XElement In (From xel2 As XElement In data Select xel2 Where xel2.Name = "InteractionParameters").FirstOrDefault.Elements.ToList
-                        Dim ip As New Auxiliary.PRSV2_IPData() With {.id1 = xel.@Compound1, .id2 = xel.@Compound2, .kij = Double.Parse(xel.@Value, ci)}
-                        Dim dic As New Dictionary(Of String, Auxiliary.PRSV2_IPData)
-                        dic.Add(xel.@Compound2, ip)
-                        If Not pp.m_pr.InteractionParameters.ContainsKey(xel.@Compound1) Then
-                            If Not pp.m_pr.InteractionParameters.ContainsKey(xel.@Compound2) Then
-                                pp.m_pr.InteractionParameters.Add(xel.@Compound1, dic)
-                            Else
-                                If Not pp.m_pr.InteractionParameters(xel.@Compound2).ContainsKey(xel.@Compound1) Then
-                                    pp.m_pr.InteractionParameters(xel.@Compound2).Add(xel.@Compound1, ip)
-                                Else
-                                    pp.m_pr.InteractionParameters(xel.@Compound2)(xel.@Compound1) = ip
-                                End If
-                            End If
-                        Else
-                            If Not pp.m_pr.InteractionParameters(xel.@Compound1).ContainsKey(xel.@Compound2) Then
-                                pp.m_pr.InteractionParameters(xel.@Compound1).Add(xel.@Compound2, ip)
-                            Else
-                                pp.m_pr.InteractionParameters(xel.@Compound1)(xel.@Compound2) = ip
-                            End If
-                        End If
-                    Next
+                '    Dim pp As PRSV2PropertyPackage = Me
+                '    'pp.m_pr.InteractionParameters.Clear()
+                '    For Each xel As XElement In (From xel2 As XElement In data Select xel2 Where xel2.Name = "InteractionParameters").FirstOrDefault.Elements.ToList
+                '        Dim ip As New Auxiliary.PRSV2_IPData() With {.id1 = xel.@Compound1, .id2 = xel.@Compound2, .kij = Double.Parse(xel.@Value, ci)}
+                '        Dim dic As New Dictionary(Of String, Auxiliary.PRSV2_IPData)
+                '        dic.Add(xel.@Compound2, ip)
+                '        If Not pp.m_pr.InteractionParameters.ContainsKey(xel.@Compound1) Then
+                '            If Not pp.m_pr.InteractionParameters.ContainsKey(xel.@Compound2) Then
+                '                pp.m_pr.InteractionParameters.Add(xel.@Compound1, dic)
+                '            Else
+                '                If Not pp.m_pr.InteractionParameters(xel.@Compound2).ContainsKey(xel.@Compound1) Then
+                '                    pp.m_pr.InteractionParameters(xel.@Compound2).Add(xel.@Compound1, ip)
+                '                Else
+                '                    pp.m_pr.InteractionParameters(xel.@Compound2)(xel.@Compound1) = ip
+                '                End If
+                '            End If
+                '        Else
+                '            If Not pp.m_pr.InteractionParameters(xel.@Compound1).ContainsKey(xel.@Compound2) Then
+                '                pp.m_pr.InteractionParameters(xel.@Compound1).Add(xel.@Compound2, ip)
+                '            Else
+                '                pp.m_pr.InteractionParameters(xel.@Compound1)(xel.@Compound2) = ip
+                '            End If
+                '        End If
+                '    Next
 
-                Case "Peng-Robinson-Stryjek-Vera 2 (PRSV2-VL)"
+                'Case "Peng-Robinson-Stryjek-Vera 2 (PRSV2-VL)"
 
-                    Dim pp As PRSV2VLPropertyPackage = Me
-                    'pp.m_pr.InteractionParameters.Clear()
-                    For Each xel As XElement In (From xel2 As XElement In data Select xel2 Where xel2.Name = "InteractionParameters").FirstOrDefault.Elements.ToList
-                        Dim ip As New Auxiliary.PRSV2_IPData() With {.id1 = xel.@Compound1, .id2 = xel.@Compound2, .kij = Double.Parse(xel.@kij, ci), .kji = Double.Parse(xel.@kji, ci)}
-                        Dim dic As New Dictionary(Of String, Auxiliary.PRSV2_IPData)
-                        dic.Add(xel.@Compound2, ip)
-                        If Not pp.m_pr.InteractionParameters.ContainsKey(xel.@Compound1) Then
-                            If Not pp.m_pr.InteractionParameters.ContainsKey(xel.@Compound2) Then
-                                pp.m_pr.InteractionParameters.Add(xel.@Compound1, dic)
-                            Else
-                                If Not pp.m_pr.InteractionParameters(xel.@Compound2).ContainsKey(xel.@Compound1) Then
-                                    pp.m_pr.InteractionParameters(xel.@Compound2).Add(xel.@Compound1, ip)
-                                Else
-                                    pp.m_pr.InteractionParameters(xel.@Compound2)(xel.@Compound1) = ip
-                                End If
-                            End If
-                        Else
-                            If Not pp.m_pr.InteractionParameters(xel.@Compound1).ContainsKey(xel.@Compound2) Then
-                                pp.m_pr.InteractionParameters(xel.@Compound1).Add(xel.@Compound2, ip)
-                            Else
-                                pp.m_pr.InteractionParameters(xel.@Compound1)(xel.@Compound2) = ip
-                            End If
-                        End If
-                    Next
+                '    Dim pp As PRSV2VLPropertyPackage = Me
+                '    'pp.m_pr.InteractionParameters.Clear()
+                '    For Each xel As XElement In (From xel2 As XElement In data Select xel2 Where xel2.Name = "InteractionParameters").FirstOrDefault.Elements.ToList
+                '        Dim ip As New Auxiliary.PRSV2_IPData() With {.id1 = xel.@Compound1, .id2 = xel.@Compound2, .kij = Double.Parse(xel.@kij, ci), .kji = Double.Parse(xel.@kji, ci)}
+                '        Dim dic As New Dictionary(Of String, Auxiliary.PRSV2_IPData)
+                '        dic.Add(xel.@Compound2, ip)
+                '        If Not pp.m_pr.InteractionParameters.ContainsKey(xel.@Compound1) Then
+                '            If Not pp.m_pr.InteractionParameters.ContainsKey(xel.@Compound2) Then
+                '                pp.m_pr.InteractionParameters.Add(xel.@Compound1, dic)
+                '            Else
+                '                If Not pp.m_pr.InteractionParameters(xel.@Compound2).ContainsKey(xel.@Compound1) Then
+                '                    pp.m_pr.InteractionParameters(xel.@Compound2).Add(xel.@Compound1, ip)
+                '                Else
+                '                    pp.m_pr.InteractionParameters(xel.@Compound2)(xel.@Compound1) = ip
+                '                End If
+                '            End If
+                '        Else
+                '            If Not pp.m_pr.InteractionParameters(xel.@Compound1).ContainsKey(xel.@Compound2) Then
+                '                pp.m_pr.InteractionParameters(xel.@Compound1).Add(xel.@Compound2, ip)
+                '            Else
+                '                pp.m_pr.InteractionParameters(xel.@Compound1)(xel.@Compound2) = ip
+                '            End If
+                '        End If
+                '    Next
 
                 Case "Soave-Redlich-Kwong (SRK)"
 
@@ -11648,33 +11650,32 @@ Final3:
                     Catch ex As Exception
                     End Try
 
-                Case "Peng-Robinson / Lee-Kesler (PR/LK)"
+                'Case "Peng-Robinson / Lee-Kesler (PR/LK)"
 
-                    Dim pp As PengRobinsonLKPropertyPackage = Me
-                    'pp.m_pr.InteractionParameters.Clear()
-                    For Each xel As XElement In (From xel2 As XElement In data Select xel2 Where xel2.Name = "InteractionParameters").FirstOrDefault.Elements.ToList
-                        Dim ip As New Auxiliary.PR_IPData() With {.kij = Double.Parse(xel.@Value, ci)}
-                        Dim dic As New Dictionary(Of String, Auxiliary.PR_IPData)
-                        dic.Add(xel.@Compound2, ip)
-                        If Not pp.m_pr.InteractionParameters.ContainsKey(xel.@Compound1) Then
-                            If Not pp.m_pr.InteractionParameters.ContainsKey(xel.@Compound2) Then
-                                pp.m_pr.InteractionParameters.Add(xel.@Compound1, dic)
-                            Else
-                                If Not pp.m_pr.InteractionParameters(xel.@Compound2).ContainsKey(xel.@Compound1) Then
-                                    pp.m_pr.InteractionParameters(xel.@Compound2).Add(xel.@Compound1, ip)
-                                Else
-                                    pp.m_pr.InteractionParameters(xel.@Compound2)(xel.@Compound1) = ip
-                                End If
-                            End If
-                        Else
-                            If Not pp.m_pr.InteractionParameters(xel.@Compound1).ContainsKey(xel.@Compound2) Then
-                                pp.m_pr.InteractionParameters(xel.@Compound1).Add(xel.@Compound2, ip)
-                            Else
-                                pp.m_pr.InteractionParameters(xel.@Compound1)(xel.@Compound2) = ip
-                            End If
-                        End If
-                    Next
-
+                '    Dim pp As PengRobinsonLKPropertyPackage = Me
+                '    'pp.m_pr.InteractionParameters.Clear()
+                '    For Each xel As XElement In (From xel2 As XElement In data Select xel2 Where xel2.Name = "InteractionParameters").FirstOrDefault.Elements.ToList
+                '        Dim ip As New Auxiliary.PR_IPData() With {.kij = Double.Parse(xel.@Value, ci)}
+                '        Dim dic As New Dictionary(Of String, Auxiliary.PR_IPData)
+                '        dic.Add(xel.@Compound2, ip)
+                '        If Not pp.m_pr.InteractionParameters.ContainsKey(xel.@Compound1) Then
+                '            If Not pp.m_pr.InteractionParameters.ContainsKey(xel.@Compound2) Then
+                '                pp.m_pr.InteractionParameters.Add(xel.@Compound1, dic)
+                '            Else
+                '                If Not pp.m_pr.InteractionParameters(xel.@Compound2).ContainsKey(xel.@Compound1) Then
+                '                    pp.m_pr.InteractionParameters(xel.@Compound2).Add(xel.@Compound1, ip)
+                '                Else
+                '                    pp.m_pr.InteractionParameters(xel.@Compound2)(xel.@Compound1) = ip
+                '                End If
+                '            End If
+                '        Else
+                '            If Not pp.m_pr.InteractionParameters(xel.@Compound1).ContainsKey(xel.@Compound2) Then
+                '                pp.m_pr.InteractionParameters(xel.@Compound1).Add(xel.@Compound2, ip)
+                '            Else
+                '                pp.m_pr.InteractionParameters(xel.@Compound1)(xel.@Compound2) = ip
+                '            End If
+                '        End If
+                '    Next
 
                 Case "UNIFAC"
 
@@ -12059,40 +12060,40 @@ Final3:
                             Next
                         Next
 
-                    Case "Peng-Robinson-Stryjek-Vera 2 (PRSV2-M)", "Peng-Robinson-Stryjek-Vera 2 (PRSV2)"
+                    'Case "Peng-Robinson-Stryjek-Vera 2 (PRSV2-M)", "Peng-Robinson-Stryjek-Vera 2 (PRSV2)"
 
-                        Dim pp As PRSV2PropertyPackage = Me
+                    '    Dim pp As PRSV2PropertyPackage = Me
 
-                        .Add(New XElement("InteractionParameters"))
-                        For Each kvp As KeyValuePair(Of String, Dictionary(Of String, Auxiliary.PRSV2_IPData)) In pp.m_pr.InteractionParameters
-                            For Each kvp2 As KeyValuePair(Of String, Auxiliary.PRSV2_IPData) In kvp.Value
-                                If Not Me.CurrentMaterialStream Is Nothing Then
-                                    If Me.CurrentMaterialStream.Phases(0).Compounds.ContainsKey(kvp.Key) And Me.CurrentMaterialStream.Phases(0).Compounds.ContainsKey(kvp2.Key) Then
-                                        .Item(.Count - 1).Add(New XElement("InteractionParameter", New XAttribute("Compound1", kvp.Key),
-                                                                        New XAttribute("Compound2", kvp2.Key),
-                                                                        New XAttribute("Value", kvp2.Value.kij.ToString(ci))))
-                                    End If
-                                End If
-                            Next
-                        Next
+                    '    .Add(New XElement("InteractionParameters"))
+                    '    For Each kvp As KeyValuePair(Of String, Dictionary(Of String, Auxiliary.PRSV2_IPData)) In pp.m_pr.InteractionParameters
+                    '        For Each kvp2 As KeyValuePair(Of String, Auxiliary.PRSV2_IPData) In kvp.Value
+                    '            If Not Me.CurrentMaterialStream Is Nothing Then
+                    '                If Me.CurrentMaterialStream.Phases(0).Compounds.ContainsKey(kvp.Key) And Me.CurrentMaterialStream.Phases(0).Compounds.ContainsKey(kvp2.Key) Then
+                    '                    .Item(.Count - 1).Add(New XElement("InteractionParameter", New XAttribute("Compound1", kvp.Key),
+                    '                                                    New XAttribute("Compound2", kvp2.Key),
+                    '                                                    New XAttribute("Value", kvp2.Value.kij.ToString(ci))))
+                    '                End If
+                    '            End If
+                    '        Next
+                    '    Next
 
-                    Case "Peng-Robinson-Stryjek-Vera 2 (PRSV2-VL)"
+                    'Case "Peng-Robinson-Stryjek-Vera 2 (PRSV2-VL)"
 
-                        Dim pp As PRSV2VLPropertyPackage = Me
+                    '    Dim pp As PRSV2VLPropertyPackage = Me
 
-                        .Add(New XElement("InteractionParameters"))
-                        For Each kvp As KeyValuePair(Of String, Dictionary(Of String, Auxiliary.PRSV2_IPData)) In pp.m_pr.InteractionParameters
-                            For Each kvp2 As KeyValuePair(Of String, Auxiliary.PRSV2_IPData) In kvp.Value
-                                If Not Me.CurrentMaterialStream Is Nothing Then
-                                    If Me.CurrentMaterialStream.Phases(0).Compounds.ContainsKey(kvp.Key) And Me.CurrentMaterialStream.Phases(0).Compounds.ContainsKey(kvp2.Key) Then
-                                        .Item(.Count - 1).Add(New XElement("InteractionParameter", New XAttribute("Compound1", kvp.Key),
-                                                                        New XAttribute("Compound2", kvp2.Key),
-                                                                        New XAttribute("kij", kvp2.Value.kij.ToString(ci)),
-                                                                        New XAttribute("kji", kvp2.Value.kji.ToString(ci))))
-                                    End If
-                                End If
-                            Next
-                        Next
+                    '    .Add(New XElement("InteractionParameters"))
+                    '    For Each kvp As KeyValuePair(Of String, Dictionary(Of String, Auxiliary.PRSV2_IPData)) In pp.m_pr.InteractionParameters
+                    '        For Each kvp2 As KeyValuePair(Of String, Auxiliary.PRSV2_IPData) In kvp.Value
+                    '            If Not Me.CurrentMaterialStream Is Nothing Then
+                    '                If Me.CurrentMaterialStream.Phases(0).Compounds.ContainsKey(kvp.Key) And Me.CurrentMaterialStream.Phases(0).Compounds.ContainsKey(kvp2.Key) Then
+                    '                    .Item(.Count - 1).Add(New XElement("InteractionParameter", New XAttribute("Compound1", kvp.Key),
+                    '                                                    New XAttribute("Compound2", kvp2.Key),
+                    '                                                    New XAttribute("kij", kvp2.Value.kij.ToString(ci)),
+                    '                                                    New XAttribute("kji", kvp2.Value.kji.ToString(ci))))
+                    '                End If
+                    '            End If
+                    '        Next
+                    '    Next
 
                     Case "Soave-Redlich-Kwong (SRK)"
 
@@ -12111,23 +12112,23 @@ Final3:
                             Next
                         Next
 
-                    Case "Peng-Robinson / Lee-Kesler (PR/LK)"
+                    'Case "Peng-Robinson / Lee-Kesler (PR/LK)"
 
-                        Dim pp As PengRobinsonLKPropertyPackage = Me
+                    '    Dim pp As PengRobinsonLKPropertyPackage = Me
 
-                        .Add(New XElement("InteractionParameters"))
+                    '    .Add(New XElement("InteractionParameters"))
 
-                        For Each kvp As KeyValuePair(Of String, Dictionary(Of String, Auxiliary.PR_IPData)) In pp.m_pr.InteractionParameters
-                            For Each kvp2 As KeyValuePair(Of String, Auxiliary.PR_IPData) In kvp.Value
-                                If Not Me.CurrentMaterialStream Is Nothing Then
-                                    If Me.CurrentMaterialStream.Phases(0).Compounds.ContainsKey(kvp.Key) And Me.CurrentMaterialStream.Phases(0).Compounds.ContainsKey(kvp2.Key) Then
-                                        .Item(.Count - 1).Add(New XElement("InteractionParameter", New XAttribute("Compound1", kvp.Key),
-                                                                           New XAttribute("Compound2", kvp2.Key),
-                                                                           New XAttribute("Value", kvp2.Value.kij.ToString(ci))))
-                                    End If
-                                End If
-                            Next
-                        Next
+                    '    For Each kvp As KeyValuePair(Of String, Dictionary(Of String, Auxiliary.PR_IPData)) In pp.m_pr.InteractionParameters
+                    '        For Each kvp2 As KeyValuePair(Of String, Auxiliary.PR_IPData) In kvp.Value
+                    '            If Not Me.CurrentMaterialStream Is Nothing Then
+                    '                If Me.CurrentMaterialStream.Phases(0).Compounds.ContainsKey(kvp.Key) And Me.CurrentMaterialStream.Phases(0).Compounds.ContainsKey(kvp2.Key) Then
+                    '                    .Item(.Count - 1).Add(New XElement("InteractionParameter", New XAttribute("Compound1", kvp.Key),
+                    '                                                       New XAttribute("Compound2", kvp2.Key),
+                    '                                                       New XAttribute("Value", kvp2.Value.kij.ToString(ci))))
+                    '                End If
+                    '            End If
+                    '        Next
+                    '    Next
 
                     Case "UNIFAC"
 
@@ -12709,6 +12710,14 @@ Final3:
             Return deriv
 
         End Function
+
+        Public Function DisplayAdvancedEditingForm() As Object Implements IPropertyPackage.DisplayAdvancedEditingForm
+            Throw New NotImplementedException()
+        End Function
+
+        Public Sub DisplayGroupedEditingForm() Implements IPropertyPackage.DisplayGroupedEditingForm
+            Throw New NotImplementedException()
+        End Sub
 
 #End Region
 

@@ -330,11 +330,17 @@
     <None Remove="Assets\Thermo\wilson.ipd" />
     <None Remove="Assets\Thermo\wilson_bips.csv" />
     <None Remove="Libraries\CapeOpen.dll" />
+    <None Remove="Libraries\CoolPropInterface.dll" />
+    <None Remove="Libraries\Cureos.Numerics.dll" />
+    <None Remove="Libraries\DotNumerics.dll" />
     <None Remove="Libraries\Mapack.dll" />
   </ItemGroup>
 
   <ItemGroup>
     <Content Include="Libraries\CapeOpen.dll" />
+    <Content Include="Libraries\CoolPropInterface.dll" />
+    <Content Include="Libraries\Cureos.Numerics.dll" />
+    <Content Include="Libraries\DotNumerics.dll" />
     <Content Include="Libraries\Mapack.dll" />
   </ItemGroup>
 
@@ -684,6 +690,15 @@
   <ItemGroup>
     <Reference Include="CapeOpen">
       <HintPath>Libraries\CapeOpen.dll</HintPath>
+    </Reference>
+    <Reference Include="Cureos.Numerics">
+      <HintPath>Libraries\Cureos.Numerics.dll</HintPath>
+    </Reference>
+    <Reference Include="DWSIM.MathOps.DotNumerics">
+      <HintPath>Libraries\DotNumerics.dll</HintPath>
+    </Reference>
+    <Reference Include="DWSIM.Thermodynamics.CoolPropInterface">
+      <HintPath>Libraries\CoolPropInterface.dll</HintPath>
     </Reference>
     <Reference Include="Mapack">
       <HintPath>Libraries\Mapack.dll</HintPath>

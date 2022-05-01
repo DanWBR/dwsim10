@@ -17,7 +17,6 @@
 '    along with DWSIM.  If not, see <http://www.gnu.org/licenses/>.
 
 Imports System.Math
-Imports DWSIM.MathOps.MathEx
 Imports DWSIMCore.Foundation.MathEx
 
 Namespace PropertyPackages

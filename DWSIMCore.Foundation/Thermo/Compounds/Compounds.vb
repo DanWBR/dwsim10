@@ -166,7 +166,7 @@ Namespace BaseClasses
 
         Public Function LoadData(data As System.Collections.Generic.List(Of System.Xml.Linq.XElement)) As Boolean Implements ICustomXMLSerialization.LoadData
 
-            Deserialize(Me, data)
+            XMLSerializer.Deserialize(Me, data)
 
             Dim datac As List(Of XElement) = (From xel As XElement In data Select xel Where xel.Name = "Compounds").Elements.ToList
 
@@ -178,10 +178,10 @@ Namespace BaseClasses
 
             If (From xel As XElement In data Select xel Where xel.Name = "SPMProperties").Count > 0 Then
                 ' DWSIM 3
-                Deserialize(Me.Properties, (From xel As XElement In data Select xel Where xel.Name = "SPMProperties").Elements.ToList)
+                XMLSerializer.Deserialize(Me.Properties, (From xel As XElement In data Select xel Where xel.Name = "SPMProperties").Elements.ToList)
             Else
                 ' DWSIM 4
-                Deserialize(Me.Properties, (From xel As XElement In data Select xel Where xel.Name = "Properties").Elements.ToList)
+                XMLSerializer.Deserialize(Me.Properties, (From xel As XElement In data Select xel Where xel.Name = "Properties").Elements.ToList)
             End If
 
         End Function
@@ -495,7 +495,7 @@ Namespace BaseClasses
                 Case "Equilibrium_ConstantKeqValue"
                     Return ConstantKeqValue
                 Case "Conversion_Value"
-                    If Expression.IsValidDoubleExpression() Then Return Expression.ToDoubleFromInvariant Else Return 0.0
+                    Return Expression.ToDoubleFromInvariant
                 Case Else
                     Return 0.0
             End Select
@@ -1040,18 +1040,18 @@ Namespace BaseClasses
                                     Case KOpt.Constant
                                         .Kvalue = .ConstantKeqValue
                                     Case KOpt.Expression
-                                        If .ExpContext Is Nothing Then
-                                            .ExpContext = New Ciloci.Flee.ExpressionContext
-                                            .ExpContext.Options.ParseCulture = Globalization.CultureInfo.InvariantCulture
-                                            With .ExpContext
-                                                .Imports.AddType(GetType(System.Math))
-                                            End With
-                                        End If
-                                        .ExpContext.Options.ParseCulture = Globalization.CultureInfo.InvariantCulture
-                                        .ExpContext.Variables.Clear()
-                                        .ExpContext.Variables.Add("T", T)
-                                        .Expr = .ExpContext.CompileGeneric(Of Double)(.Expression)
-                                        .Kvalue = Math.Exp(.Expr.Evaluate)
+                                        'If .ExpContext Is Nothing Then
+                                        '    .ExpContext = New Ciloci.Flee.ExpressionContext
+                                        '    .ExpContext.Options.ParseCulture = Globalization.CultureInfo.InvariantCulture
+                                        '    With .ExpContext
+                                        '        .Imports.AddType(GetType(System.Math))
+                                        '    End With
+                                        'End If
+                                        '.ExpContext.Options.ParseCulture = Globalization.CultureInfo.InvariantCulture
+                                        '.ExpContext.Variables.Clear()
+                                        '.ExpContext.Variables.Add("T", T)
+                                        '.Expr = .ExpContext.CompileGeneric(Of Double)(.Expression)
+                                        '.Kvalue = Math.Exp(.Expr.Evaluate)
                                     Case KOpt.Gibbs
                                         Dim id(.Components.Count - 1) As String
                                         Dim stcoef(.Components.Count - 1) As Double
@@ -1395,7 +1395,7 @@ Namespace BaseClasses
 
         Public Function SaveData() As System.Collections.Generic.List(Of System.Xml.Linq.XElement) Implements ICustomXMLSerialization.SaveData
 
-            Dim elements As List(Of System.Xml.Linq.XElement) = Serialize(Me, True)
+            Dim elements As List(Of System.Xml.Linq.XElement) = XMLSerializer.Serialize(Me, True)
             Dim ci As CultureInfo = CultureInfo.InvariantCulture
 
             Return elements
