@@ -4,6 +4,11 @@
     <TargetFramework>net6.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <Authors>Daniel Medeiros</Authors>
+    <Product>DWSIM Core Library (.NET 6)</Product>
+    <Description>DWSIM Core Library containing Automation class and IFlowsheet/Flowsheetbase implementation.</Description>
+    <Copyright>Copyright 2022 Daniel Wagner Oliveira de Medeiros</Copyright>
+    <PackageProjectUrl>https://dwsim.org</PackageProjectUrl>
   </PropertyGroup>
 
   <ItemGroup>
