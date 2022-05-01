@@ -683,7 +683,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="UnitOperations\" />
     <Folder Include="Flowsheet\Base\" />
   </ItemGroup>
 
