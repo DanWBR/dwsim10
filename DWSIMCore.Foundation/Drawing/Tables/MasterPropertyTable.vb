@@ -23,6 +23,7 @@ Imports DWSIM.Extras
 Imports DWSIM.DrawingTools.Point
 Imports SkiaSharp
 Imports DWSIMCore.Foundation.Extras
+Imports DWSIMCore.Foundation.FlowsheetObjects
 
 Namespace GraphicObjects.Tables
 
@@ -233,7 +234,7 @@ Namespace GraphicObjects.Tables
             If m_objectfamily = Enums.GraphicObjects.ObjectType.MaterialStream AndAlso m_objectlist.Count > 0 Then
                 For Each kvp As KeyValuePair(Of String, Boolean) In m_objectlist
                     If kvp.Value = True Then
-                        Dim myobj As UnitOperations.BaseClass = Flowsheet.GetFlowsheetSimulationObject(kvp.Key)
+                        Dim myobj As BaseClass = Flowsheet.GetFlowsheetSimulationObject(kvp.Key)
                         If myobj.GraphicObject.ObjectType = Enums.GraphicObjects.ObjectType.MaterialStream Then
                             For Each kvp2 As KeyValuePair(Of String, Boolean) In m_propertylist
                                 Dim pval = myobj.GetPropertyValue(kvp2.Key)
@@ -253,7 +254,7 @@ Namespace GraphicObjects.Tables
 
             For Each kvp As KeyValuePair(Of String, Boolean) In m_objectlist
                 If kvp.Value = True Then
-                    Dim myobj As UnitOperations.BaseClass = Flowsheet.GetFlowsheetSimulationObject(kvp.Key)
+                    Dim myobj As BaseClass = Flowsheet.GetFlowsheetSimulationObject(kvp.Key)
                     m_items.Add(kvp.Key, New List(Of NodeItem))
                     m_items(kvp.Key).Add(New NodeItem(Flowsheet.GetTranslatedString("Objeto"), kvp.Key, "", 0, 0, ""))
                     If Me.HeaderText = "" Then Me.HeaderText = Flowsheet.GetTranslatedString("MasterTable")

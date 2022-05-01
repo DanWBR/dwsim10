@@ -781,7 +781,7 @@ Namespace FlowsheetObjects
 
         End Function
 
-        Function ObjectCopy(ByVal obj As UnitOperations.BaseClass) As Object
+        Function ObjectCopy(ByVal obj As BaseClass) As Object
 
             Return Me.CloneXML
 

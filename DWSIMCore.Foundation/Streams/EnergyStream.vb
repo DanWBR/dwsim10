@@ -16,6 +16,8 @@
 '    You should have received a copy of the GNU General Public License
 '    along with DWSIM.  If not, see <http://www.gnu.org/licenses/>.
 
+Imports CapeOpen
+Imports DWSIMCore.Foundation.Enums
 Imports DWSIMCore.Foundation.FlowsheetObjects
 
 Namespace Streams
@@ -28,8 +30,6 @@ Namespace Streams
 
         'CAPE-OPEN Error Interfaces
         Implements ECapeUser, ECapeUnknown, ECapeRoot
-
-        <NonSerialized> <Xml.Serialization.XmlIgnore> Public f As EditingForm_EnergyStream
 
         Private WithEvents m_work As CapeOpen.RealParameter
         Private WithEvents m_tLow As CapeOpen.RealParameter
@@ -101,7 +101,7 @@ Namespace Streams
 
         End Sub
 
-        Public Overrides Function GetPropertyValue(ByVal prop As String, Optional ByVal su As Interfaces.IUnitsOfMeasure = Nothing) As Object
+        Public Overrides Function GetPropertyValue(ByVal prop As String, Optional ByVal su As IUnitsOfMeasure = Nothing) As Object
 
             If su Is Nothing Then su = New SystemsOfUnits.SI
             Dim cv As New SystemsOfUnits.Converter
@@ -120,7 +120,7 @@ Namespace Streams
 
         End Function
 
-        Public Overloads Overrides Function GetProperties(ByVal proptype As Interfaces.Enums.PropertyType) As String()
+        Public Overloads Overrides Function GetProperties(ByVal proptype As Enums.PropertyType) As String()
             Dim i As Integer = 0
             Dim proplist As New ArrayList
             Select Case proptype
@@ -145,7 +145,7 @@ Namespace Streams
             proplist = Nothing
         End Function
 
-        Public Overrides Function SetPropertyValue(ByVal prop As String, ByVal propval As Object, Optional ByVal su As Interfaces.IUnitsOfMeasure = Nothing) As Boolean
+        Public Overrides Function SetPropertyValue(ByVal prop As String, ByVal propval As Object, Optional ByVal su As IUnitsOfMeasure = Nothing) As Boolean
             If su Is Nothing Then su = New SystemsOfUnits.SI
             Dim cv As New SystemsOfUnits.Converter
             Dim propidx As Integer = Convert.ToInt32(prop.Split("_")(2))
@@ -158,7 +158,7 @@ Namespace Streams
             Return 1
         End Function
 
-        Public Overrides Function GetPropertyUnit(ByVal prop As String, Optional ByVal su As Interfaces.IUnitsOfMeasure = Nothing) As String
+        Public Overrides Function GetPropertyUnit(ByVal prop As String, Optional ByVal su As IUnitsOfMeasure = Nothing) As String
             If su Is Nothing Then su = New SystemsOfUnits.SI
             Dim value As String = ""
             Dim propidx As Integer = Convert.ToInt32(prop.Split("_")(2))
@@ -219,52 +219,56 @@ Namespace Streams
 
         Public Overrides Sub DisplayEditForm()
 
-            If f Is Nothing Then
-                f = New EditingForm_EnergyStream With {.SimObject = Me}
-                f.ShowHint = GlobalSettings.Settings.DefaultEditFormLocation
-                f.Tag = "ObjectEditor"
-                Me.FlowSheet.DisplayForm(f)
-            Else
-                If f.IsDisposed Then
-                    f = New EditingForm_EnergyStream With {.SimObject = Me}
-                    f.ShowHint = GlobalSettings.Settings.DefaultEditFormLocation
-                    f.Tag = "ObjectEditor"
-                    Me.FlowSheet.DisplayForm(f)
-                Else
-                    f.UpdateInfo()
-                    f.Activate()
-                End If
-            End If
+            'If f Is Nothing Then
+            '    f = New EditingForm_EnergyStream With {.SimObject = Me}
+            '    f.ShowHint = GlobalSettings.Settings.DefaultEditFormLocation
+            '    f.Tag = "ObjectEditor"
+            '    Me.FlowSheet.DisplayForm(f)
+            'Else
+            '    If f.IsDisposed Then
+            '        f = New EditingForm_EnergyStream With {.SimObject = Me}
+            '        f.ShowHint = GlobalSettings.Settings.DefaultEditFormLocation
+            '        f.Tag = "ObjectEditor"
+            '        Me.FlowSheet.DisplayForm(f)
+            '    Else
+            '        f.UpdateInfo()
+            '        f.Activate()
+            '    End If
+            'End If
 
         End Sub
 
         Public Overrides Sub UpdateEditForm()
-            If f IsNot Nothing Then
-                If Not f.IsDisposed Then
-                    f.UIThread(Sub() f.UpdateInfo())
-                End If
-            End If
+            'If f IsNot Nothing Then
+            '    If Not f.IsDisposed Then
+            '        f.UIThread(Sub() f.UpdateInfo())
+            '    End If
+            'End If
         End Sub
 
         Public Overrides Function GetIconBitmap() As Object
-            Return My.Resources.stream_en_32
+            Using imgstream As IO.Stream = System.Reflection.Assembly.GetAssembly(Me.GetType).GetManifestResourceStream("DWSIMCore.Foundation.stream_en_32.png")
+                Using bitmap = SkiaSharp.SKBitmap.Decode(imgstream)
+                    Return SkiaSharp.SKImage.FromBitmap(bitmap)
+                End Using
+            End Using
         End Function
 
         Public Overrides Function GetDisplayDescription() As String
-            Return ResMan.GetLocalString("ESTR_Desc")
+            Return "Energy Stream"
         End Function
 
         Public Overrides Function GetDisplayName() As String
-            Return ResMan.GetLocalString("ESTR_Name")
+            Return "Energy Stream"
         End Function
 
         Public Overrides Sub CloseEditForm()
-            If f IsNot Nothing Then
-                If Not f.IsDisposed Then
-                    f.Close()
-                    f = Nothing
-                End If
-            End If
+            'If f IsNot Nothing Then
+            '    If Not f.IsDisposed Then
+            '        f.Close()
+            '        f = Nothing
+            '    End If
+            'End If
         End Sub
 
         Public Overrides ReadOnly Property MobileCompatible As Boolean
