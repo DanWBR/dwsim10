@@ -74,6 +74,8 @@ Public Interface IPropertyPackage
 
     Function RET_VMM() As Double()
 
+    Function AUX_DELGF_T(ByVal T1 As Double, ByVal T2 As Double, ByVal id As String, Optional ByVal mode2 As Boolean = False) As Double
+
 End Interface
 
 Public Interface IPhaseEnvelopeOptions

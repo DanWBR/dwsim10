@@ -7284,7 +7284,7 @@ Final3:
 
         End Function
 
-        Public Function AUX_DELGF_T(ByVal T1 As Double, ByVal T2 As Double, ByVal id As String, Optional ByVal mode2 As Boolean = False) As Double
+        Public Function AUX_DELGF_T(ByVal T1 As Double, ByVal T2 As Double, ByVal id As String, Optional ByVal mode2 As Boolean = False) As Double Implements IPropertyPackage.AUX_DELGF_T
 
             Dim dA As Double = 0
             Dim dB As Double = 0
