@@ -315,9 +315,11 @@ Namespace Reactors
 
                             Dim numval, denmval As Double
 
-                            Dim parser As YAMP.Parser = New YAMP.Parser()
-                            Dim vars As New Dictionary(Of String, YAMP.Value)
-                            vars.Add("T", New YAMP.ScalarValue(T))
+                            Dim ctxt = New Flee.PublicTypes.ExpressionContext
+                            ctxt.Imports.AddType(GetType(System.Math))
+                            ctxt.Variables.Clear()
+                            ctxt.Options.ParseCulture = Globalization.CultureInfo.InvariantCulture
+                            ctxt.Variables.Add("T", T)
 
                             Dim ir As Integer = 1
                             Dim ip As Integer = 1
@@ -326,22 +328,22 @@ Namespace Reactors
                             For Each sb As ReactionStoichBase In rxn.Components.Values
                                 If sb.StoichCoeff < 0.0# Then
                                     IObj2?.Paragraphs.Add(String.Format("R{0} ({1}): {2} {3}", ir.ToString, sb.CompName, C(sb.CompName) * convfactors(sb.CompName), rxn.ConcUnit))
-                                    vars.Add("R" & ir.ToString, New YAMP.ScalarValue(C(sb.CompName) * convfactors(sb.CompName)))
+                                    ctxt.Variables.Add("R" & ir.ToString, C(sb.CompName) * convfactors(sb.CompName))
                                     ir += 1
                                 ElseIf sb.StoichCoeff > 0.0# Then
                                     IObj2?.Paragraphs.Add(String.Format("P{0} ({1}): {2} {3}", ine.ToString, sb.CompName, C(sb.CompName) * convfactors(sb.CompName), rxn.ConcUnit))
-                                    vars.Add("P" & ip.ToString, New YAMP.ScalarValue(C(sb.CompName) * convfactors(sb.CompName)))
+                                    ctxt.Variables.Add("P" & ip.ToString, C(sb.CompName) * convfactors(sb.CompName))
                                     ip += 1
                                 Else
                                     IObj2?.Paragraphs.Add(String.Format("N{0} ({1}): {2} {3}", ine.ToString, sb.CompName, C(sb.CompName) * convfactors(sb.CompName), rxn.ConcUnit))
-                                    vars.Add("N" & ip.ToString, New YAMP.ScalarValue(C(sb.CompName) * convfactors(sb.CompName)))
+                                    ctxt.Variables.Add("N" & ip.ToString, C(sb.CompName) * convfactors(sb.CompName))
                                     ine += 1
                                 End If
                             Next
 
-                            numval = DirectCast(parser.Evaluate(rxn.RateEquationNumerator, vars), YAMP.ScalarValue).Value
+                            numval = ctxt.CompileGeneric(Of Double)(rxn.RateEquationNumerator).Evaluate()
 
-                            denmval = DirectCast(parser.Evaluate(rxn.RateEquationDenominator, vars), YAMP.ScalarValue).Value
+                            denmval = ctxt.CompileGeneric(Of Double)(rxn.RateEquationDenominator).Evaluate()
 
                             IObj2?.Paragraphs.Add(String.Format("Numerator Expression: {0}", rxn.RateEquationNumerator))
                             IObj2?.Paragraphs.Add(String.Format("Numerator Value: {0}", numval))
