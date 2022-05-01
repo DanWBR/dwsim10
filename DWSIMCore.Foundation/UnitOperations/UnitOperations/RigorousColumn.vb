@@ -3324,8 +3324,6 @@ Namespace UnitOperations
                         SetColumnSolver(New SolvingMethods.NaphtaliSandholmMethod())
                         so = Solver.SolveColumn(inputdata)
                         solvererror = False
-                    Catch oex As OperationCanceledException
-                        Throw oex
                     Catch ex As Exception
                     End Try
                     If solvererror Then

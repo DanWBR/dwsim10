@@ -1,4 +1,5 @@
 ﻿using System.Xml.Linq;
+using DWSIMCore.Flowsheet;
 using DWSIMCore.Foundation;
 
 namespace DWSIMCore.Automation
@@ -22,7 +23,7 @@ namespace DWSIMCore.Automation
             Settings.AutomationMode = true;
             Settings.CultureInfo = "en";
             Console.WriteLine("Initializing the Flowsheet, please wait...");
-            var fsheet = new Flowsheet();
+            var fsheet = new Flowsheet2();
             Console.WriteLine("Loading Flowsheet data, please wait...");
             if (System.IO.Path.GetExtension(filepath).ToLower().EndsWith("z"))
             {
@@ -43,7 +44,7 @@ namespace DWSIMCore.Automation
         public void SaveFlowsheet(IFlowsheet flowsheet, string filepath, bool compressed)
         {
             Console.WriteLine("Saving the Flowsheet, please wait...");
-            ((Flowsheet)flowsheet).SaveSimulation(filepath);
+            ((Flowsheet2)flowsheet).SaveSimulation(filepath);
         }
 
         public void CalculateFlowsheet(IFlowsheet flowsheet, ISimulationObject sender)
@@ -54,7 +55,7 @@ namespace DWSIMCore.Automation
             Settings.EnableGPUProcessing = false;
             Settings.EnableParallelProcessing = true;
             Console.WriteLine("Solving Flowsheet, please wait...");
-            ((Flowsheet)flowsheet).SolveFlowsheet2();
+            ((Flowsheet2)flowsheet).SolveFlowsheet2();
         }
 
         public List<Exception> CalculateFlowsheet2(IFlowsheet flowsheet)
@@ -88,7 +89,7 @@ namespace DWSIMCore.Automation
         {
             Settings.AutomationMode = true;
             Console.WriteLine("Initializing the Flowsheet, please wait...");
-            return new Flowsheet();
+            return new Flowsheet2();
         }
 
         public object GetMainWindow()

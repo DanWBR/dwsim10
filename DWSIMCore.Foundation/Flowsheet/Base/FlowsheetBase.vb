@@ -1,6 +1,23 @@
 ﻿Imports System.Dynamic
+Imports System.Globalization
+Imports System.IO
+Imports System.Reflection
+Imports System.Text
+Imports DWSIMCore.Foundation.BaseClasses
+Imports DWSIMCore.Foundation.Enums
 Imports DWSIMCore.Foundation.Enums.GraphicObjects
+Imports DWSIMCore.Foundation.Flowsheet
+Imports DWSIMCore.Foundation.FlowsheetObjects
 Imports DWSIMCore.Foundation.GraphicObjects
+Imports DWSIMCore.Foundation.GraphicObjects.Shapes
+Imports DWSIMCore.Foundation.GraphicObjects.Tables
+Imports DWSIMCore.Foundation.PropertyPackages
+Imports DWSIMCore.Foundation.Reactors
+Imports DWSIMCore.Foundation.SpecialOps
+Imports DWSIMCore.Foundation.Streams
+Imports DWSIMCore.Foundation.UnitOperations
+Imports ICSharpCode.SharpZipLib.Zip
+Imports Microsoft.Scripting.Hosting
 
 Public MustInherit Class FlowsheetBase
 
@@ -88,7 +105,7 @@ Public MustInherit Class FlowsheetBase
     End Sub
 
     Public Sub CheckStatus() Implements IFlowsheet.CheckStatus
-        FlowsheetSolver.FlowsheetSolver.CheckCalculatorStatus()
+        FlowsheetSolver.CheckCalculatorStatus()
     End Sub
 
     Public Sub ConnectObjects(gobjfrom As IGraphicObject, gobjto As IGraphicObject, fromidx As Integer, toidx As Integer) Implements IFlowsheet.ConnectObjects
@@ -344,12 +361,12 @@ Public MustInherit Class FlowsheetBase
             CalculationQueue.Enqueue(objargs)
 
             Task.Factory.StartNew(Sub()
-                                      FlowsheetSolver.FlowsheetSolver.SolveFlowsheet(Me, Settings.SolverMode, , True)
+                                      FlowsheetSolver.SolveFlowsheet(Me, Settings.SolverMode, , True)
                                   End Sub)
 
         Else
 
-            FlowsheetSolver.FlowsheetSolver.SolveFlowsheet(Me, Settings.SolverMode, ChangeCalcOrder:=ChangeCalculationOrder)
+            FlowsheetSolver.SolveFlowsheet(Me, Settings.SolverMode, ChangeCalcOrder:=ChangeCalculationOrder)
 
         End If
 
@@ -359,25 +376,25 @@ Public MustInherit Class FlowsheetBase
         Get
             Select Case Options.CompoundOrderingMode
                 Case CompoundOrdering.CAS_ASC
-                    Return Options.SelectedComponents.OrderBy(Function(c) c.Value.CAS_Number).ToDictionary(Of String, ICompoundConstantProperties)(Function(k) k.Key, Function(k) k.Value)
+                    Return Options.SelectedComponents.OrderBy(Function(c) c.Value.CAS_Number)
                 Case CompoundOrdering.CAS_DESC
-                    Return Options.SelectedComponents.OrderByDescending(Function(c) c.Value.CAS_Number).ToDictionary(Of String, ICompoundConstantProperties)(Function(k) k.Key, Function(k) k.Value)
+                    Return Options.SelectedComponents.OrderByDescending(Function(c) c.Value.CAS_Number)
                 Case CompoundOrdering.MW_ASC
-                    Return Options.SelectedComponents.OrderBy(Function(c) c.Value.Molar_Weight).ToDictionary(Of String, ICompoundConstantProperties)(Function(k) k.Key, Function(k) k.Value)
+                    Return Options.SelectedComponents.OrderBy(Function(c) c.Value.Molar_Weight)
                 Case CompoundOrdering.MW_DESC
-                    Return Options.SelectedComponents.OrderByDescending(Function(c) c.Value.Molar_Weight).ToDictionary(Of String, ICompoundConstantProperties)(Function(k) k.Key, Function(k) k.Value)
+                    Return Options.SelectedComponents.OrderByDescending(Function(c) c.Value.Molar_Weight)
                 Case CompoundOrdering.Name_ASC
-                    Return Options.SelectedComponents.OrderBy(Function(c) c.Value.Name).ToDictionary(Of String, ICompoundConstantProperties)(Function(k) k.Key, Function(k) k.Value)
+                    Return Options.SelectedComponents.OrderBy(Function(c) c.Value.Name)
                 Case CompoundOrdering.Name_DESC
-                    Return Options.SelectedComponents.OrderByDescending(Function(c) c.Value.Name).ToDictionary(Of String, ICompoundConstantProperties)(Function(k) k.Key, Function(k) k.Value)
+                    Return Options.SelectedComponents.OrderByDescending(Function(c) c.Value.Name)
                 Case CompoundOrdering.NBP_ASC
-                    Return Options.SelectedComponents.OrderBy(Function(c) c.Value.NBP.GetValueOrDefault).ToDictionary(Of String, ICompoundConstantProperties)(Function(k) k.Key, Function(k) k.Value)
+                    Return Options.SelectedComponents.OrderBy(Function(c) c.Value.NBP.GetValueOrDefault)
                 Case CompoundOrdering.NBP_DESC
-                    Return Options.SelectedComponents.OrderByDescending(Function(c) c.Value.NBP.GetValueOrDefault).ToDictionary(Of String, ICompoundConstantProperties)(Function(k) k.Key, Function(k) k.Value)
+                    Return Options.SelectedComponents.OrderByDescending(Function(c) c.Value.NBP.GetValueOrDefault)
                 Case CompoundOrdering.TAG_ASC
-                    Return Options.SelectedComponents.OrderBy(Function(c) c.Value.Tag).ToDictionary(Of String, ICompoundConstantProperties)(Function(k) k.Key, Function(k) k.Value)
+                    Return Options.SelectedComponents.OrderBy(Function(c) c.Value.Tag)
                 Case CompoundOrdering.TAG_DESC
-                    Return Options.SelectedComponents.OrderByDescending(Function(c) c.Value.Tag).ToDictionary(Of String, ICompoundConstantProperties)(Function(k) k.Key, Function(k) k.Value)
+                    Return Options.SelectedComponents.OrderByDescending(Function(c) c.Value.Tag)
                 Case Else
                     Return Options.SelectedComponents
             End Select
@@ -614,7 +631,7 @@ Public MustInherit Class FlowsheetBase
                 gObj.Name = "SW-" & Guid.NewGuid.ToString
                 If id <> "" Then gObj.Name = id
                 GraphicObjects.Add(gObj.Name, myGobj)
-                Dim myObj As UnitOperations.UnitOperations.Switch = New UnitOperations.UnitOperations.Switch(gObj.Name, "")
+                Dim myObj As Switch = New Switch(gObj.Name, "")
                 myObj.GraphicObject = myGobj
                 SimulationObjects.Add(myGobj.Name, myObj)
 
@@ -632,7 +649,7 @@ Public MustInherit Class FlowsheetBase
                 myObj.GraphicObject = myGobj
                 SimulationObjects.Add(myGobj.Name, myObj)
 
-                GraphicObjectControlPanelModeEditors.SetInputDelegate(myGobj, myObj)
+                'GraphicObjectControlPanelModeEditors.SetInputDelegate(myGobj, myObj)
 
             Case ObjectType.Controller_PID
 
@@ -648,7 +665,7 @@ Public MustInherit Class FlowsheetBase
                 myObj.GraphicObject = myGobj
                 SimulationObjects.Add(myGobj.Name, myObj)
 
-                GraphicObjectControlPanelModeEditors.SetPIDDelegate(myGobj, myObj)
+                'GraphicObjectControlPanelModeEditors.SetPIDDelegate(myGobj, myObj)
 
             Case ObjectType.LevelGauge
 
@@ -1183,50 +1200,35 @@ Public MustInherit Class FlowsheetBase
                 myCOCUO.GraphicObject = myCUO
                 SimulationObjects.Add(myCUO.Name, myCOCUO)
 
-            Case ObjectType.ExcelUO
+                'Case ObjectType.ExcelUO
 
-                Dim myEUO As New SpreadsheetGraphic(mpx, mpy, 25, 25)
-                myEUO.Tag = objname
-                If tag <> "" Then myEUO.Tag = tag
-                gObj = myEUO
-                CheckTag(gObj)
-                gObj.Name = "EXL-" & Guid.NewGuid.ToString
-                If id <> "" Then gObj.Name = id
-                GraphicObjects.Add(gObj.Name, myEUO)
-                'OBJETO DWSIM
-                Dim myCOEUO As ExcelUO = New ExcelUO(myEUO.Name, "ExcelUnitOp")
-                myCOEUO.GraphicObject = myEUO
-                SimulationObjects.Add(myEUO.Name, myCOEUO)
+                '    Dim myEUO As New SpreadsheetGraphic(mpx, mpy, 25, 25)
+                '    myEUO.Tag = objname
+                '    If tag <> "" Then myEUO.Tag = tag
+                '    gObj = myEUO
+                '    CheckTag(gObj)
+                '    gObj.Name = "EXL-" & Guid.NewGuid.ToString
+                '    If id <> "" Then gObj.Name = id
+                '    GraphicObjects.Add(gObj.Name, myEUO)
+                '    'OBJETO DWSIM
+                '    Dim myCOEUO As ExcelUO = New ExcelUO(myEUO.Name, "ExcelUnitOp")
+                '    myCOEUO.GraphicObject = myEUO
+                '    SimulationObjects.Add(myEUO.Name, myCOEUO)
 
-            Case ObjectType.FlowsheetUO
+                'Case ObjectType.FlowsheetUO
 
-                Dim myEUO As New FlowsheetGraphic(mpx, mpy, 25, 25)
-                myEUO.Tag = objname
-                If tag <> "" Then myEUO.Tag = tag
-                gObj = myEUO
-                CheckTag(gObj)
-                gObj.Name = "FS-" & Guid.NewGuid.ToString
-                If id <> "" Then gObj.Name = id
-                GraphicObjects.Add(gObj.Name, myEUO)
-                'OBJETO DWSIM
-                Dim myCOEUO As Flowsheet = New Flowsheet(myEUO.Name, "FlowsheetUnitOp")
-                myCOEUO.GraphicObject = myEUO
-                SimulationObjects.Add(myEUO.Name, myCOEUO)
-
-            Case ObjectType.CapeOpenUO
-
-                Dim myCUO As New CAPEOPENGraphic(mpx, mpy, 40, 40)
-                myCUO.Tag = objname
-                If tag <> "" Then myCUO.Tag = tag
-                gObj = myCUO
-                CheckTag(gObj)
-                gObj.Name = "COUO-" & Guid.NewGuid.ToString
-                If id <> "" Then gObj.Name = id
-                GraphicObjects.Add(gObj.Name, myCUO)
-                'OBJETO DWSIM
-                Dim myCOCUO As CapeOpenUO = New CapeOpenUO(myCUO.Name, "CapeOpenUnitOperation", gObj)
-                myCOCUO.GraphicObject = myCUO
-                SimulationObjects.Add(myCUO.Name, myCOCUO)
+                '    Dim myEUO As New FlowsheetGraphic(mpx, mpy, 25, 25)
+                '    myEUO.Tag = objname
+                '    If tag <> "" Then myEUO.Tag = tag
+                '    gObj = myEUO
+                '    CheckTag(gObj)
+                '    gObj.Name = "FS-" & Guid.NewGuid.ToString
+                '    If id <> "" Then gObj.Name = id
+                '    GraphicObjects.Add(gObj.Name, myEUO)
+                '    'OBJETO DWSIM
+                '    Dim myCOEUO As Flowsheet = New Flowsheet(myEUO.Name, "FlowsheetUnitOp")
+                '    myCOEUO.GraphicObject = myEUO
+                '    SimulationObjects.Add(myEUO.Name, myCOEUO)
 
         End Select
 
@@ -1640,16 +1642,6 @@ Public MustInherit Class FlowsheetBase
 
     End Sub
 
-    Public Sub LoadFromMXML(xdoc As XDocument)
-
-        Parallel.ForEach(xdoc.Descendants, Sub(xel1)
-                                               SharedClasses.Utility.UpdateElementForMobileXMLLoading_CrossPlatformUI(xel1)
-                                           End Sub)
-
-        LoadFromXML(xdoc)
-
-    End Sub
-
     Public Sub LoadFromXML(xdoc As XDocument) Implements IFlowsheet.LoadFromXML
 
         Dim ci As CultureInfo = CultureInfo.InvariantCulture
@@ -1667,7 +1659,7 @@ Public MustInherit Class FlowsheetBase
 
         If sver < New Version("5.0.0.0") Then
             Parallel.ForEach(xdoc.Descendants, Sub(xel1)
-                                                   SharedClasses.Utility.UpdateElement(xel1)
+                                                   Utility.UpdateElement(xel1)
                                                End Sub)
         End If
 
@@ -1683,7 +1675,7 @@ Public MustInherit Class FlowsheetBase
         If savedfromclui Then
             Try
                 Parallel.ForEach(xdoc.Descendants, Sub(xel1)
-                                                       SharedClasses.Utility.UpdateElementForNewUI(xel1)
+                                                       Utility.UpdateElementForNewUI(xel1)
                                                    End Sub)
             Catch ex As Exception
             End Try
@@ -1754,7 +1746,7 @@ Public MustInherit Class FlowsheetBase
 
         Parallel.ForEach(data, Sub(xel)
                                    Try
-                                       Options.SelectedComponents(xel.Element("Name").Value).LoadData(xel.Elements.ToList)
+                                       DirectCast(Options.SelectedComponents(xel.Element("Name").Value), ICustomXMLSerialization).LoadData(xel.Elements.ToList)
                                    Catch ex As Exception
                                        excs.Add(New Exception("Error Loading Compound Information", ex))
                                    End Try
@@ -1817,7 +1809,7 @@ Public MustInherit Class FlowsheetBase
                                               obj = ExternalUnitOperations(uokey).ReturnInstance(xel.Element("Type").Value)
                                           End Sub)
                     Else
-                        obj = CType(UnitOperations.ReturnInstance(xel.Element("Type").Value), ISimulationObject)
+                        obj = CType(ReturnInstance(xel.Element("Type").Value), ISimulationObject)
                     End If
                 End If
                 Dim gobj As IGraphicObject = (From go As IGraphicObject In
@@ -1833,18 +1825,18 @@ Public MustInherit Class FlowsheetBase
                                 phase.Compounds(c.Name).ConstantProperties = c
                             Next
                         Next
-                    ElseIf TypeOf obj Is CapeOpenUO Then
-                        If DirectCast(obj, CapeOpenUO)._seluo.Name.ToLower.Contains("chemsep") Then
-                            DirectCast(gobj, CAPEOPENGraphic).ChemSep = True
-                            If gobj.Height = 40 And gobj.Width = 40 Then
-                                gobj.Width = 144
-                                gobj.Height = 180
-                            End If
-                        End If
+                        'ElseIf TypeOf obj Is CapeOpenUO Then
+                        '    If DirectCast(obj, CapeOpenUO)._seluo.Name.ToLower.Contains("chemsep") Then
+                        '        DirectCast(gobj, CAPEOPENGraphic).ChemSep = True
+                        '        If gobj.Height = 40 And gobj.Width = 40 Then
+                        '            gobj.Width = 144
+                        '            gobj.Height = 180
+                        '        End If
+                        '    End If
                     ElseIf TypeOf obj Is Input Then
-                        GraphicObjectControlPanelModeEditors.SetInputDelegate(gobj, obj)
+                        'GraphicObjectControlPanelModeEditors.SetInputDelegate(gobj, obj)
                     ElseIf TypeOf obj Is PIDController Then
-                        GraphicObjectControlPanelModeEditors.SetPIDDelegate(gobj, obj)
+                        'GraphicObjectControlPanelModeEditors.SetPIDDelegate(gobj, obj)
                     End If
                 End If
                 objlist.Add(obj)
@@ -1966,23 +1958,23 @@ Public MustInherit Class FlowsheetBase
 
         Charts = New Dictionary(Of String, IChart)
 
-        If xdoc.Element("DWSIM_Simulation_Data").Element("ChartItems") IsNot Nothing Then
+        'If xdoc.Element("DWSIM_Simulation_Data").Element("ChartItems") IsNot Nothing Then
 
-            data = xdoc.Element("DWSIM_Simulation_Data").Element("ChartItems").Elements.ToList
+        '    data = xdoc.Element("DWSIM_Simulation_Data").Element("ChartItems").Elements.ToList
 
-            Dim i As Integer = 0
-            For Each xel As XElement In data
-                Try
-                    Dim obj As New SharedClasses.Charts.Chart()
-                    obj.LoadData(xel.Elements.ToList)
-                    Charts.Add(obj.ID, obj)
-                Catch ex As Exception
-                    excs.Add(New Exception("Error Loading Chart Item Information", ex))
-                End Try
-                i += 1
-            Next
+        '    Dim i As Integer = 0
+        '    For Each xel As XElement In data
+        '        Try
+        '            Dim obj As New SharedClasses.Charts.Chart()
+        '            obj.LoadData(xel.Elements.ToList)
+        '            Charts.Add(obj.ID, obj)
+        '        Catch ex As Exception
+        '            excs.Add(New Exception("Error Loading Chart Item Information", ex))
+        '        End Try
+        '        i += 1
+        '    Next
 
-        End If
+        'End If
 
         If Not Settings.AutomationMode Then
             If LoadSpreadsheetData IsNot Nothing Then LoadSpreadsheetData.Invoke(xdoc)
@@ -2005,7 +1997,7 @@ Public MustInherit Class FlowsheetBase
 
         Parallel.ForEach(xdoc.Descendants, Sub(xel1)
                                                Try
-                                                   SharedClasses.Utility.UpdateElementForMobileXMLSaving_CrossPlatformUI(xel1)
+                                                   Utility.UpdateElementForMobileXMLSaving_CrossPlatformUI(xel1)
                                                Catch ex As Exception
                                                End Try
                                            End Sub)
@@ -2025,14 +2017,15 @@ Public MustInherit Class FlowsheetBase
         xdoc.Element("DWSIM_Simulation_Data").Add(New XElement("GeneralInfo"))
         xel = xdoc.Element("DWSIM_Simulation_Data").Element("GeneralInfo")
 
-        If Not DWSIM.Settings.AutomationMode Then
-            xel.Add(New XElement("BuildVersion", My.Application.Info.Version.ToString))
-            xel.Add(New XElement("BuildDate", CType("01/01/2000", DateTime).AddDays(My.Application.Info.Version.Build).AddSeconds(My.Application.Info.Version.Revision * 2)))
-            If Settings.RunningPlatform() = Settings.Platform.Mac Then
-                xel.Add(New XElement("OSInfo", "macOS " + Environment.OSVersion.ToString()))
-            Else
-                xel.Add(New XElement("OSInfo", My.Computer.Info.OSFullName & ", Version " & My.Computer.Info.OSVersion & ", " & My.Computer.Info.OSPlatform & " Platform"))
-            End If
+        If Not Settings.AutomationMode Then
+            Dim version = Assembly.GetExecutingAssembly().GetName().Version
+            xel.Add(New XElement("BuildVersion", Assembly.GetExecutingAssembly().GetName().Version.ToString()))
+            xel.Add(New XElement("BuildDate", CType("01/01/2000", DateTime).AddDays(version.Build).AddSeconds(version.Revision * 2)))
+            'If Settings.RunningPlatform() = Settings.Platform.Mac Then
+            '    xel.Add(New XElement("OSInfo", "macOS " + Environment.OSVersion.ToString()))
+            'Else
+            '    xel.Add(New XElement("OSInfo", My.Computer.Info.OSFullName & ", Version " & My.Computer.Info.OSVersion & ", " & My.Computer.Info.OSPlatform & " Platform"))
+            'End If
         End If
         xel.Add(New XElement("SavedOn", Date.Now))
         xel.Add(New XElement("SavedFromClassicUI", False))
@@ -2160,9 +2153,9 @@ Public MustInherit Class FlowsheetBase
         xdoc.Element("DWSIM_Simulation_Data").Add(New XElement("ChartItems"))
         xel = xdoc.Element("DWSIM_Simulation_Data").Element("ChartItems")
 
-        For Each ch As SharedClasses.Charts.Chart In Charts.Values
-            xel.Add(New XElement("ChartItem", ch.SaveData().ToArray()))
-        Next
+        'For Each ch As SharedClasses.Charts.Chart In Charts.Values
+        '    xel.Add(New XElement("ChartItem", ch.SaveData().ToArray()))
+        'Next
 
         If Not Settings.AutomationMode Then
             If SaveSpreadsheetData IsNot Nothing Then SaveSpreadsheetData.Invoke(xdoc)
@@ -2195,7 +2188,7 @@ Public MustInherit Class FlowsheetBase
 
         Dim dlist As New List(Of XElement)
 
-        For Each so As SharedClasses.UnitOperations.BaseClass In SimulationObjects.Values
+        For Each so As BaseClass In SimulationObjects.Values
             so.SetFlowsheet(Me)
             dlist.Add(New XElement("SimulationObject", {so.SaveData().ToArray()}))
         Next
@@ -2209,7 +2202,7 @@ Public MustInherit Class FlowsheetBase
         For Each xel In data
             Dim id As String = xel.<Name>.Value
             Dim obj = SimulationObjects(id)
-            obj.LoadData(xel.Elements.ToList)
+            DirectCast(obj, ICustomXMLSerialization).LoadData(xel.Elements.ToList)
             If TypeOf obj Is Streams.MaterialStream Then
                 Dim stream = DirectCast(obj, Streams.MaterialStream)
                 For Each p In stream.Phases.Values
@@ -2239,11 +2232,11 @@ Public MustInherit Class FlowsheetBase
                 Dim t As Type = Type.GetType(xel.Element("Type").Value, False)
                 If Not t Is Nothing Then obj = CType(Activator.CreateInstance(t), GraphicObject)
                 If obj Is Nothing Then
-                    If xel.Element("Type").Value.Contains("OxyPlotGraphic") Then
-                        obj = CType(Extended.Shared.ReturnInstance(xel.Element("Type").Value.Replace("Shapes", "Charts")), GraphicObject)
-                    Else
-                        obj = CType(GraphicObject.ReturnInstance(xel.Element("Type").Value), GraphicObject)
-                    End If
+                    'If xel.Element("Type").Value.Contains("OxyPlotGraphic") Then
+                    '    obj = CType(Extended.Shared.ReturnInstance(xel.Element("Type").Value.Replace("Shapes", "Charts")), GraphicObject)
+                    'Else
+                    obj = CType(GraphicObject.ReturnInstance(xel.Element("Type").Value), GraphicObject)
+                    'End If
                 End If
                 If Not obj Is Nothing Then
                     obj.LoadData(xel.Elements.ToList)
@@ -2261,8 +2254,8 @@ Public MustInherit Class FlowsheetBase
                         DirectCast(obj, MasterTableGraphic).Flowsheet = Me
                     ElseIf TypeOf obj Is SpreadsheetTableGraphic Then
                         DirectCast(obj, SpreadsheetTableGraphic).Flowsheet = Me
-                    ElseIf TypeOf obj Is Charts.OxyPlotGraphic Then
-                        DirectCast(obj, Charts.OxyPlotGraphic).Flowsheet = Me
+                        'ElseIf TypeOf obj Is Charts.OxyPlotGraphic Then
+                        '    DirectCast(obj, Charts.OxyPlotGraphic).Flowsheet = Me
                     ElseIf TypeOf obj Is RigorousColumnGraphic Or TypeOf obj Is AbsorptionColumnGraphic Or TypeOf obj Is CAPEOPENGraphic Then
                         obj.CreateConnectors(xel.Element("InputConnectors").Elements.Count, xel.Element("OutputConnectors").Elements.Count)
                         obj.PositionConnectors()
@@ -2416,33 +2409,33 @@ Public MustInherit Class FlowsheetBase
                 If TryCast(so, Adjust) IsNot Nothing Then
                     Dim so2 As Adjust = CType(so, Adjust)
                     If SimulationObjects.ContainsKey(so2.ManipulatedObjectData.ID) Then
-                        so2.ManipulatedObject = CType(SimulationObjects(so2.ManipulatedObjectData.ID), SharedClasses.UnitOperations.BaseClass)
+                        so2.ManipulatedObject = CType(SimulationObjects(so2.ManipulatedObjectData.ID), BaseClass)
                         DirectCast(so2.GraphicObject, AdjustGraphic).ConnectedToMv = CType(so2.ManipulatedObject.GraphicObject, GraphicObject)
                     End If
                     If SimulationObjects.ContainsKey(so2.ControlledObjectData.ID) Then
-                        so2.ControlledObject = CType(SimulationObjects(so2.ControlledObjectData.ID), SharedClasses.UnitOperations.BaseClass)
+                        so2.ControlledObject = CType(SimulationObjects(so2.ControlledObjectData.ID), BaseClass)
                         DirectCast(so2.GraphicObject, AdjustGraphic).ConnectedToCv = CType(so2.ControlledObject.GraphicObject, GraphicObject)
                     End If
                     If SimulationObjects.ContainsKey(so2.ReferencedObjectData.ID) Then
-                        so2.ReferenceObject = CType(SimulationObjects(so2.ReferencedObjectData.ID), SharedClasses.UnitOperations.BaseClass)
+                        so2.ReferenceObject = CType(SimulationObjects(so2.ReferencedObjectData.ID), BaseClass)
                         DirectCast(so2.GraphicObject, AdjustGraphic).ConnectedToRv = CType(so2.ReferenceObject.GraphicObject, GraphicObject)
                     End If
                 End If
                 If TryCast(so, Spec) IsNot Nothing Then
                     Dim so2 As Spec = CType(so, Spec)
                     If SimulationObjects.ContainsKey(so2.TargetObjectData.ID) Then
-                        so2.TargetObject = CType(SimulationObjects(so2.TargetObjectData.ID), SharedClasses.UnitOperations.BaseClass)
+                        so2.TargetObject = CType(SimulationObjects(so2.TargetObjectData.ID), BaseClass)
                         DirectCast(so2.GraphicObject, SpecGraphic).ConnectedToTv = CType(so2.TargetObject.GraphicObject, GraphicObject)
                     End If
                     If SimulationObjects.ContainsKey(so2.SourceObjectData.ID) Then
-                        so2.SourceObject = CType(SimulationObjects(so2.SourceObjectData.ID), SharedClasses.UnitOperations.BaseClass)
+                        so2.SourceObject = CType(SimulationObjects(so2.SourceObjectData.ID), BaseClass)
                         DirectCast(so2.GraphicObject, SpecGraphic).ConnectedToSv = CType(so2.SourceObject.GraphicObject, GraphicObject)
                     End If
                 End If
-                If TryCast(so, CapeOpenUO) IsNot Nothing Then
-                    DirectCast(so, CapeOpenUO).UpdateConnectors2()
-                    DirectCast(so, CapeOpenUO).UpdatePortsFromConnectors()
-                End If
+                'If TryCast(so, CapeOpenUO) IsNot Nothing Then
+                '    DirectCast(so, CapeOpenUO).UpdateConnectors2()
+                '    DirectCast(so, CapeOpenUO).UpdatePortsFromConnectors()
+                'End If
             Catch ex As Exception
                 excs.Add(New Exception("Error Loading Unit Operation Connection Information", ex))
             End Try
@@ -2456,7 +2449,7 @@ Public MustInherit Class FlowsheetBase
 
         AddHandler AppDomain.CurrentDomain.AssemblyResolve, New ResolveEventHandler(AddressOf LoadFromExtensionsFolder)
 
-        FileDatabaseProvider.CreateDatabase()
+        'FileDatabaseProvider.CreateDatabase()
 
         DynamicsManager.ToggleDynamicMode = Function()
                                                 DynamicMode = Not DynamicMode
@@ -2543,7 +2536,7 @@ Public MustInherit Class FlowsheetBase
         GraphicObjects.Clear()
         FlowsheetSurface.DrawingObjects.Clear()
         SelectedCompounds.Clear()
-        Options = New SharedClasses.DWSIM.Flowsheet.FlowsheetVariables()
+        Options = New Flowsheet.FlowsheetVariables()
         FlowsheetSurface.Zoom = 1.0#
 
     End Sub
@@ -2609,8 +2602,6 @@ Public MustInherit Class FlowsheetBase
                 End If
                 If scr.PythonInterpreter = Enums.Scripts.Interpreter.IronPython Then
                     RunScript_IronPython(scr.ScriptText)
-                Else
-                    RunScript_PythonNET(scr.ScriptText)
                 End If
             End If
         Next
@@ -2620,7 +2611,7 @@ Public MustInherit Class FlowsheetBase
 
     Public Function LoadZippedXML(pathtofile As String) As XDocument
 
-        Dim pathtosave As String = Path.Combine(My.Computer.FileSystem.SpecialDirectories.Temp, Guid.NewGuid().ToString())
+        Dim pathtosave As String = Utility.GetTempFileName()
 
         Directory.CreateDirectory(pathtosave)
 
@@ -2661,14 +2652,14 @@ Label_00CC:
         LoadFromXML(xdoc)
         FilePath = pathtofile
         Options.FilePath = pathtofile
-        If File.Exists(dbfile) Then
-            Try
-                FileDatabaseProvider.LoadDatabase(dbfile)
-            Catch ex As Exception
-            Finally
-                File.Delete(dbfile)
-            End Try
-        End If
+        'If File.Exists(dbfile) Then
+        '    Try
+        '        FileDatabaseProvider.LoadDatabase(dbfile)
+        '    Catch ex As Exception
+        '    Finally
+        '        File.Delete(dbfile)
+        '    End Try
+        'End If
         File.Delete(fullname)
 
         Try
@@ -2682,7 +2673,7 @@ Label_00CC:
 
     Public Shared Function LoadZippedXMLDoc(pathtofile As String) As XDocument
 
-        Dim pathtosave As String = Path.Combine(My.Computer.FileSystem.SpecialDirectories.Temp, Guid.NewGuid().ToString())
+        Dim pathtosave As String = Utility.GetTempFileName()
 
         Directory.CreateDirectory(pathtosave)
 
@@ -2750,15 +2741,15 @@ Label_00CC:
                                     CPPP.ComponentName = "CoolProp"
                                     plist.Add(CPPP)
 
-                                    Dim CPIPP As New CoolPropIncompressiblePurePropertyPackage()
-                                    CPIPP.ComponentName = "CoolProp (Incompressible Fluids)"
-                                    CPIPP.ComponentDescription = "CoolProp (Incompressible Fluids)"
-                                    plist.Add(CPIPP)
+                                    'Dim CPIPP As New CoolPropIncompressiblePurePropertyPackage()
+                                    'CPIPP.ComponentName = "CoolProp (Incompressible Fluids)"
+                                    'CPIPP.ComponentDescription = "CoolProp (Incompressible Fluids)"
+                                    'plist.Add(CPIPP)
 
-                                    Dim CPIMPP As New CoolPropIncompressibleMixturePropertyPackage()
-                                    CPIMPP.ComponentName = "CoolProp (Incompressible Mixtures)"
-                                    CPIMPP.ComponentDescription = "CoolProp (Incompressible Mixtures)"
-                                    plist.Add(CPIMPP)
+                                    'Dim CPIMPP As New CoolPropIncompressibleMixturePropertyPackage()
+                                    'CPIMPP.ComponentName = "CoolProp (Incompressible Mixtures)"
+                                    'CPIMPP.ComponentDescription = "CoolProp (Incompressible Mixtures)"
+                                    'plist.Add(CPIMPP)
 
                                     Dim STPP As SteamTablesPropertyPackage = New SteamTablesPropertyPackage()
                                     STPP.ComponentName = "Steam Tables (IAPWS-IF97)"
@@ -2778,31 +2769,11 @@ Label_00CC:
 
                                 End Sub)
 
-        Dim t3 = TaskHelper.Run(Sub()
-
-                                    Dim PRSV2PP As PRSV2PropertyPackage = New PRSV2PropertyPackage()
-                                    PRSV2PP.ComponentName = "Peng-Robinson-Stryjek-Vera 2 (PRSV2-M)"
-                                    plist.Add(PRSV2PP)
-
-                                    Dim PRSV2PPVL As PRSV2VLPropertyPackage = New PRSV2VLPropertyPackage()
-                                    PRSV2PPVL.ComponentName = "Peng-Robinson-Stryjek-Vera 2 (PRSV2-VL)"
-                                    plist.Add(PRSV2PPVL)
-
-                                End Sub)
-
         Dim t4 = TaskHelper.Run(Sub()
 
                                     Dim SRKPP As SRKPropertyPackage = New SRKPropertyPackage()
                                     SRKPP.ComponentName = "Soave-Redlich-Kwong (SRK)"
                                     plist.Add(SRKPP)
-
-                                End Sub)
-
-        Dim t5 = TaskHelper.Run(Sub()
-
-                                    Dim PRLKPP As PengRobinsonLKPropertyPackage = New PengRobinsonLKPropertyPackage()
-                                    PRLKPP.ComponentName = "Peng-Robinson / Lee-Kesler (PR/LK)"
-                                    plist.Add(PRLKPP)
 
                                 End Sub)
 
@@ -2870,37 +2841,6 @@ Label_00CC:
 
                                  End Sub)
 
-        Dim t11 = TaskHelper.Run(Sub()
-
-
-                                     Dim EUQPP As ExUNIQUACPropertyPackage = New ExUNIQUACPropertyPackage()
-                                     EUQPP.ComponentName = "Extended UNIQUAC (Aqueous Electrolytes)"
-                                     plist.Add(EUQPP)
-
-                                     Dim ENQPP As New ElectrolyteNRTLPropertyPackage()
-                                     ENQPP.ComponentName = "Electrolyte NRTL (Aqueous Electrolytes)"
-                                     plist.Add(ENQPP)
-
-                                     Dim LIQPP As New LIQUAC2PropertyPackage()
-                                     LIQPP.ComponentName = "Modified LIQUAC (Aqueous Electrolytes)"
-                                     plist.Add(LIQPP)
-
-                                     Dim DHPP As New DebyeHuckelPropertyPackage()
-                                     DHPP.ComponentName = "Debye-Hückel (Aqueous Electrolytes)"
-                                     plist.Add(DHPP)
-
-                                     Dim BOPP As BlackOilPropertyPackage = New BlackOilPropertyPackage()
-                                     BOPP.ComponentName = "Black Oil"
-                                     plist.Add(BOPP)
-
-                                     Dim GERGPP As GERG2008PropertyPackage = New GERG2008PropertyPackage()
-                                     plist.Add(GERGPP)
-
-                                     Dim PCSAFTPP As PCSAFT2PropertyPackage = New PCSAFT2PropertyPackage()
-                                     plist.Add(PCSAFTPP)
-
-                                 End Sub)
-
         Dim t12 = TaskHelper.Run(Sub()
 
                                      Dim PR78PP As PengRobinson1978PropertyPackage = New PengRobinson1978PropertyPackage()
@@ -2909,48 +2849,27 @@ Label_00CC:
 
                                  End Sub)
 
-        Dim t13 = TaskHelper.Run(Sub()
-
-                                     Dim PR78Adv As PengRobinson1978AdvancedPropertyPackage = New PengRobinson1978AdvancedPropertyPackage()
-                                     plist.Add(PR78Adv)
-
-                                 End Sub)
-
-        Dim t14 = TaskHelper.Run(Sub()
-
-                                     Dim SRKAdv As SoaveRedlichKwongAdvancedPropertyPackage = New SoaveRedlichKwongAdvancedPropertyPackage()
-                                     plist.Add(SRKAdv)
-
-                                 End Sub)
-
-        Task.WaitAll(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14)
+        Task.WaitAll(t1, t2, t4, t6, t7, t8, t9, t10, t12)
 
         For Each pp In plist
             AvailablePropPacks.Add(DirectCast(pp, CapeOpen.ICapeIdentification).ComponentName, pp)
         Next
 
-        Dim otherpps = SharedClasses.Utility.LoadAdditionalPropertyPackages()
+        Dim otherpps = Utility.LoadAdditionalPropertyPackages()
 
         For Each pp In otherpps
             If Not AvailablePropPacks.ContainsKey(DirectCast(pp, CapeOpen.ICapeIdentification).ComponentName) Then
                 AvailablePropPacks.Add(DirectCast(pp, CapeOpen.ICapeIdentification).ComponentName, pp)
             Else
-                Console.WriteLine(String.Format("Error adding External Property Package '{0}'. Check the 'ppacks' and 'extenders' folders for duplicate items.", pp.ComponentName))
+                Console.WriteLine(String.Format("Error adding External Property Package '{0}'. Check the 'ppacks' and 'extenders' folders for duplicate items.", pp.Name))
             End If
         Next
-
-        'Check if DWSIM is running in Portable/Mono mode, if not then load the CAPE-OPEN Wrapper Property Package.
-        If Not Settings.IsRunningOnMono Then
-            Dim COPP As CAPEOPENPropertyPackage = New CAPEOPENPropertyPackage()
-            COPP.ComponentName = "CAPE-OPEN"
-            AvailablePropPacks.Add(COPP.ComponentName.ToString, COPP)
-        End If
 
     End Sub
 
     Sub AddExternalUOs()
 
-        Dim otheruos = SharedClasses.Utility.LoadAdditionalUnitOperations()
+        Dim otheruos = Utility.LoadAdditionalUnitOperations()
 
         For Each uo In otheruos
             If Not ExternalUnitOperations.ContainsKey(uo.Description) Then
@@ -2970,7 +2889,7 @@ Label_00CC:
         Try
             availableTypes.AddRange(assmbly.GetTypes())
         Catch ex As Exception
-            Logging.Logger.LogError("Property Package Loading (CPUI)", ex)
+            'Logger.LogError("Property Package Loading (CPUI)", ex)
         End Try
 
         Dim ppList As List(Of Type) = availableTypes.FindAll(Function(t) t.GetInterfaces().Contains(GetType(IPropertyPackage)) And Not t.IsAbstract)
@@ -3012,19 +2931,8 @@ Label_00CC:
 
         If Me.FlowsheetOptions.VisibleProperties.Count = 0 Then
 
-            Dim calculatorassembly = My.Application.Info.LoadedAssemblies.Where(Function(x) x.FullName.Contains("DWSIM.Thermodynamics,")).FirstOrDefault
-            Dim unitopassembly = My.Application.Info.LoadedAssemblies.Where(Function(x) x.FullName.Contains("DWSIM.UnitOperations")).FirstOrDefault
-
-            If calculatorassembly Is Nothing Then
-                calculatorassembly = AppDomain.CurrentDomain.Load("DWSIM.Thermodynamics")
-            End If
-            If unitopassembly Is Nothing Then
-                unitopassembly = AppDomain.CurrentDomain.Load("DWSIM.UnitOperations")
-            End If
-
             Dim aTypeList As New List(Of Type)
-            aTypeList.AddRange(calculatorassembly.GetTypes().Where(Function(x) If(x.GetInterface("DWSIM.ISimulationObject") IsNot Nothing, True, False)))
-            aTypeList.AddRange(unitopassembly.GetTypes().Where(Function(x) If(x.GetInterface("DWSIM.ISimulationObject") IsNot Nothing, True, False)))
+            aTypeList.AddRange(Assembly.GetExecutingAssembly().GetTypes().Where(Function(x) If(x.GetInterface("DWSIM.ISimulationObject") IsNot Nothing, True, False)))
 
             For Each item In aTypeList.OrderBy(Function(x) x.Name)
                 If Not item.IsAbstract Then
@@ -3035,10 +2943,10 @@ Label_00CC:
                 End If
             Next
 
-            For Each obj In ExternalUnitOperations.Values
-                obj.SetFlowsheet(Me)
-                Me.FlowsheetOptions.VisibleProperties(obj.GetType.Name) = DirectCast(obj, ISimulationObject).GetDefaultProperties().ToList()
-            Next
+            'For Each obj In ExternalUnitOperations.Values
+            '    obj.setflowsheet(Me)
+            '    Me.FlowsheetOptions.VisibleProperties(obj.GetType.Name) = DirectCast(obj, ISimulationObject).GetDefaultProperties().ToList()
+            'Next
 
         End If
 
@@ -3058,7 +2966,7 @@ Label_00CC:
 
     Public Property ExternalSolvers As Dictionary(Of String, IExternalSolverIdentification) = New Dictionary(Of String, IExternalSolverIdentification) Implements IFlowsheet.ExternalSolvers
 
-    Public Property FileDatabaseProvider As IFileDatabaseProvider = New FileStorage.FileDatabaseProvider Implements IFlowsheet.FileDatabaseProvider
+    'Public Property FileDatabaseProvider As IFileDatabaseProvider = New FileStorage.FileDatabaseProvider Implements IFlowsheet.FileDatabaseProvider
 
     Public Property WatchItems As List(Of IWatchItem) = New List(Of IWatchItem) Implements IFlowsheet.WatchItems
 
@@ -3067,8 +2975,6 @@ Label_00CC:
         PythonPreprocessor?.Invoke(script.ScriptText)
         If script.PythonInterpreter = Enums.Scripts.Interpreter.IronPython Then
             RunScript_IronPython(script.ScriptText)
-        Else
-            RunScript_PythonNET(script.ScriptText)
         End If
     End Sub
 
@@ -3085,8 +2991,8 @@ Label_00CC:
         opts("Frames") = Microsoft.Scripting.Runtime.ScriptingRuntimeHelpers.True
         engine = IronPython.Hosting.Python.CreateEngine(opts)
         engine.Runtime.LoadAssembly(GetType(System.String).Assembly)
-        engine.Runtime.LoadAssembly(GetType(Thermodynamics.BaseClasses.ConstantProperties).Assembly)
-        engine.Runtime.LoadAssembly(GetType(Drawing.SkiaSharp.GraphicsSurface).Assembly)
+        engine.Runtime.LoadAssembly(GetType(ConstantProperties).Assembly)
+        engine.Runtime.LoadAssembly(GetType(GraphicsSurface).Assembly)
         engine.Runtime.IO.SetOutput(New FlowsheetLogTextStream(Me), UTF8Encoding.UTF8)
         scope = engine.CreateScope()
         scope.SetVariable("Plugins", UtilityPlugins)
@@ -3095,7 +3001,7 @@ Label_00CC:
         If GetSpreadsheetObjectFunc IsNot Nothing Then
             scope.SetVariable("Spreadsheet", GetSpreadsheetObjectFunc.Invoke())
         End If
-        Dim Solver As New FlowsheetSolver.FlowsheetSolver
+        Dim Solver As New FlowsheetSolver
         scope.SetVariable("Solver", Solver)
         For Each obj As ISimulationObject In SimulationObjects.Values
             scope.SetVariable(obj.GraphicObject.Tag.Replace("-", "_"), obj)
@@ -3113,108 +3019,6 @@ Label_00CC:
             scope = Nothing
             source = Nothing
         End Try
-
-    End Sub
-
-    Private Sub RunScript_PythonNET(scripttext As String)
-
-        If Settings.RunningPlatform <> Settings.Platform.Windows Then
-
-            If Not Settings.PythonInitialized Then
-
-                PythonEngine.Initialize()
-                Settings.PythonInitialized = True
-                PythonEngine.BeginAllowThreads()
-
-            End If
-
-            Using Py.GIL
-
-                Try
-
-                    Dim sys As Object = Py.Import("sys")
-
-                    Dim codeToRedirectOutput As String = "import sys" & vbCrLf + "from io import BytesIO as StringIO" & vbCrLf + "sys.stdout = mystdout = StringIO()" & vbCrLf + "sys.stdout.flush()" & vbCrLf + "sys.stderr = mystderr = StringIO()" & vbCrLf + "sys.stderr.flush()"
-                    PythonEngine.RunSimpleString(codeToRedirectOutput)
-
-                    Dim locals As New PyDict()
-
-                    locals.SetItem("Plugins", UtilityPlugins.ToPython)
-                    locals.SetItem("Flowsheet", Me.ToPython)
-                    Try
-                        locals.SetItem("Spreadsheet", (GetSpreadsheetObjectFunc.Invoke()).ToPython)
-                    Catch ex As Exception
-                    End Try
-                    Dim Solver As New FlowsheetSolver.FlowsheetSolver
-                    locals.SetItem("Solver", Solver.ToPython)
-
-                    If Not Settings.IsRunningOnMono() Then
-                        locals.SetItem("Application", GetApplicationObject.ToPython)
-                    End If
-
-                    PythonEngine.Exec(scripttext, Nothing, locals)
-
-                    If Not Settings.IsRunningOnMono() Then
-                        ShowMessage(sys.stdout.getvalue().ToString, IFlowsheet.MessageType.Information)
-                    End If
-
-                Catch ex As Exception
-
-                    ShowMessage("Error running script: " & ex.Message.ToString, IFlowsheet.MessageType.GeneralError)
-
-                Finally
-
-                End Try
-
-            End Using
-
-        Else
-
-            Settings.InitializePythonEnvironment()
-
-            Using Py.GIL
-
-                Try
-
-                    Dim sys As Object = Py.Import("sys")
-
-                    'If Not Settings.IsRunningOnMono() Then
-                    Dim codeToRedirectOutput As String = "import sys" & vbCrLf + "from io import BytesIO as StringIO" & vbCrLf + "sys.stdout = mystdout = StringIO()" & vbCrLf + "sys.stdout.flush()" & vbCrLf + "sys.stderr = mystderr = StringIO()" & vbCrLf + "sys.stderr.flush()"
-                    PythonEngine.RunSimpleString(codeToRedirectOutput)
-                    'End If
-
-                    Dim locals As New PyDict()
-
-                    locals.SetItem("Plugins", UtilityPlugins.ToPython)
-                    locals.SetItem("Flowsheet", Me.ToPython)
-                    Try
-                        locals.SetItem("Spreadsheet", (GetSpreadsheetObjectFunc.Invoke()).ToPython)
-                    Catch ex As Exception
-                    End Try
-                    Dim Solver As New FlowsheetSolver.FlowsheetSolver
-                    locals.SetItem("Solver", Solver.ToPython)
-
-                    If Not Settings.IsRunningOnMono() Then
-                        locals.SetItem("Application", GetApplicationObject.ToPython)
-                    End If
-
-                    PythonEngine.Exec(scripttext, Nothing, locals)
-
-                    If Not Settings.IsRunningOnMono() Then
-                        ShowMessage(sys.stdout.getvalue().ToString, IFlowsheet.MessageType.Information)
-                    End If
-
-                Catch ex As Exception
-
-                    ShowMessage("Error running script: " & ex.ToString, IFlowsheet.MessageType.GeneralError)
-
-                Finally
-
-                End Try
-
-            End Using
-
-        End If
 
     End Sub
 
@@ -3249,17 +3053,7 @@ Label_00CC:
 
     Public Function ChangeCalculationOrder(objects As List(Of String)) As List(Of String) Implements IFlowsheet.ChangeCalculationOrder
 
-        Dim olist As List(Of String) = objects
-
-        RunCodeOnUIThread(Sub()
-                              Dim frm As New SharedClasses.FormCustomCalcOrder
-                              frm.Flowsheet = Me
-                              frm.ItemList = objects
-                              frm.ShowDialog()
-                              olist = frm.NewItemList
-                          End Sub)
-
-        Return olist
+        Throw New NotImplementedException()
 
     End Function
 
@@ -3289,7 +3083,7 @@ Label_00CC:
     End Function
 
     Public Sub AutoLayout() Implements IFlowsheet.AutoLayout
-        FlowsheetSurface.AutoArrange()
+        Throw New NotImplementedException()
     End Sub
 
     Public Sub RefreshInterface() Implements IFlowsheet.RefreshInterface
@@ -3341,11 +3135,11 @@ Label_00CC:
             If Not File.Exists(assemblyPath2) Then
                 Return Nothing
             Else
-                Dim assembly As Assembly = assembly.LoadFrom(assemblyPath2)
+                Dim assembly As Assembly = Assembly.LoadFrom(assemblyPath2)
                 Return assembly
             End If
         Else
-            Dim assembly As Assembly = assembly.LoadFrom(assemblyPath1)
+            Dim assembly As Assembly = Assembly.LoadFrom(assemblyPath1)
             Return assembly
         End If
 

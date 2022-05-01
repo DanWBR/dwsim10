@@ -1,4 +1,8 @@
 ﻿using DWSIMCore.Foundation;
+using ICSharpCode.SharpZipLib.Zip;
+using iTextSharp.text;
+using System.Xml.Linq;
+using static DWSIMCore.Foundation.Enums.Scripts;
 
 namespace DWSIMCore.Flowsheet
 {
@@ -43,7 +47,8 @@ namespace DWSIMCore.Flowsheet
             DynamicsManager.RunSchedule = (schname) =>
             {
                 DynamicsManager.CurrentSchedule = DynamicsManager.GetSchedule(schname).ID;
-                return DynamicsIntegratorControl.RunIntegrator(false, false, this, null);
+                return null;
+                //return DynamicsIntegratorControl.RunIntegrator(false, false, this, null);
             };
 
         }
@@ -103,9 +108,9 @@ namespace DWSIMCore.Flowsheet
                 return;
             }
 
-            DWSIM.GlobalSettings.Settings.CalculatorActivated = true;
-            DWSIM.GlobalSettings.Settings.SolverMode = 1;
-            DWSIM.GlobalSettings.Settings.SolverBreakOnException = true;
+            Settings.CalculatorActivated = true;
+            Settings.SolverMode = 1;
+            Settings.SolverBreakOnException = true;
 
             Task st = new Task(() =>
             {
@@ -115,9 +120,9 @@ namespace DWSIMCore.Flowsheet
 
             st.ContinueWith((t) =>
             {
-                DWSIM.GlobalSettings.Settings.CalculatorStopRequested = false;
-                DWSIM.GlobalSettings.Settings.CalculatorBusy = false;
-                DWSIM.GlobalSettings.Settings.TaskCancellationTokenSource = new System.Threading.CancellationTokenSource();
+                Settings.CalculatorStopRequested = false;
+                Settings.CalculatorBusy = false;
+                Settings.TaskCancellationTokenSource = new System.Threading.CancellationTokenSource();
 
             });
 
@@ -135,14 +140,14 @@ namespace DWSIMCore.Flowsheet
                     {
                             ShowMessage(ex2.ToString(), IFlowsheet.MessageType.GeneralError);
                     }
-                    DWSIM.GlobalSettings.Settings.CalculatorBusy = false;
-                    DWSIM.GlobalSettings.Settings.TaskCancellationTokenSource = new System.Threading.CancellationTokenSource();
+                    Settings.CalculatorBusy = false;
+                    Settings.TaskCancellationTokenSource = new System.Threading.CancellationTokenSource();
                 }
                 catch (Exception ex)
                 {
                         ShowMessage(ex.ToString(), IFlowsheet.MessageType.GeneralError);
-                    DWSIM.GlobalSettings.Settings.CalculatorBusy = false;
-                    DWSIM.GlobalSettings.Settings.TaskCancellationTokenSource = new System.Threading.CancellationTokenSource();
+                    Settings.CalculatorBusy = false;
+                    Settings.TaskCancellationTokenSource = new System.Threading.CancellationTokenSource();
                 }
             }
             else
@@ -155,7 +160,7 @@ namespace DWSIMCore.Flowsheet
         public void SolveFlowsheet2()
         {
 
-            var surface = ((DWSIM.Drawing.SkiaSharp.GraphicsSurface)this.GetSurface());
+            var surface = ((GraphicsSurface)this.GetSurface());
 
             if (PropertyPackages.Count == 0)
             {
@@ -169,7 +174,7 @@ namespace DWSIMCore.Flowsheet
                 return;
             }
 
-            DWSIM.GlobalSettings.Settings.CalculatorActivated = true;
+            Settings.CalculatorActivated = true;
 
             Task st = new Task(() =>
             {
@@ -178,9 +183,9 @@ namespace DWSIMCore.Flowsheet
 
             st.ContinueWith((t) =>
             {
-                DWSIM.GlobalSettings.Settings.CalculatorStopRequested = false;
-                DWSIM.GlobalSettings.Settings.CalculatorBusy = false;
-                DWSIM.GlobalSettings.Settings.TaskCancellationTokenSource = new System.Threading.CancellationTokenSource();
+                Settings.CalculatorStopRequested = false;
+                Settings.CalculatorBusy = false;
+                Settings.TaskCancellationTokenSource = new System.Threading.CancellationTokenSource();
             });
 
             try
@@ -194,14 +199,14 @@ namespace DWSIMCore.Flowsheet
                 {
                         ShowMessage(ex2.ToString(), IFlowsheet.MessageType.GeneralError);
                 }
-                DWSIM.GlobalSettings.Settings.CalculatorBusy = false;
-                DWSIM.GlobalSettings.Settings.TaskCancellationTokenSource = new System.Threading.CancellationTokenSource();
+                Settings.CalculatorBusy = false;
+                Settings.TaskCancellationTokenSource = new System.Threading.CancellationTokenSource();
             }
             catch (Exception ex)
             {
                     ShowMessage(ex.ToString(), IFlowsheet.MessageType.GeneralError);
-                DWSIM.GlobalSettings.Settings.CalculatorBusy = false;
-                DWSIM.GlobalSettings.Settings.TaskCancellationTokenSource = new System.Threading.CancellationTokenSource();
+                Settings.CalculatorBusy = false;
+                Settings.TaskCancellationTokenSource = new System.Threading.CancellationTokenSource();
             }
 
         }
@@ -299,26 +304,18 @@ namespace DWSIMCore.Flowsheet
 
                 SaveToXML().Save(xmlfile);
 
-                var dbfile = Path.ChangeExtension(xmlfile, ".db");
-
-                FileDatabaseProvider.ExportDatabase(dbfile);
-
                 var i_Files = new List<string>();
                 if (File.Exists(xmlfile))
                     i_Files.Add(xmlfile);
-                if (File.Exists(dbfile))
-                    i_Files.Add(dbfile);
 
-                ZipOutputStream strmZipOutputStream = default(ZipOutputStream);
-
-                strmZipOutputStream = new ZipOutputStream(File.Create(path));
+                var strmZipOutputStream = new ZipOutputStream(File.Create(path));
 
                 strmZipOutputStream.SetLevel(9);
 
                 if (Options.UsePassword)
                     strmZipOutputStream.Password = Options.Password;
 
-                string strFile = null;
+                string strFile = "";
 
                 foreach (string strFile_loopVariable in i_Files)
                 {
@@ -345,11 +342,11 @@ namespace DWSIMCore.Flowsheet
                     File.Delete(xmlfile);
                 }
                 catch { }
-                try
-                {
-                    File.Delete(dbfile);
-                }
-                catch { }
+                //try
+                //{
+                //    File.Delete(dbfile);
+                //}
+                //catch { }
             }
             else if (System.IO.Path.GetExtension(path).ToLower() == ".dwxml")
             {
@@ -360,7 +357,7 @@ namespace DWSIMCore.Flowsheet
                 SaveToMXML().Save(path);
             }
 
-            ProcessScripts(DWSIM.Interfaces.Enums.Scripts.EventType.SimulationSaved, DWSIM.Interfaces.Enums.Scripts.ObjectType.Simulation, "");
+            ProcessScripts(EventType.SimulationSaved,  ObjectType.Simulation, "");
 
         }
 

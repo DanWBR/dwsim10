@@ -32,7 +32,7 @@ Public Interface IFlowsheet
 
     Property DynamicMode As Boolean
 
-    Property FileDatabaseProvider As IFileDatabaseProvider
+    'Property FileDatabaseProvider As IFileDatabaseProvider
 
     Property DynamicsManager As IDynamicsManager
 
