@@ -3,6 +3,14 @@
   <PropertyGroup>
     <RootNamespace>DWSIMCore.Foundation</RootNamespace>
     <TargetFramework>net6.0</TargetFramework>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <Authors>Daniel Medeiros</Authors>
+    <Company>Daniel Medeiros</Company>
+    <Copyright>Copyright 2022 Daniel Wagner Oliveira de Medeiros</Copyright>
+    <PackageProjectUrl>https://dwsim.org</PackageProjectUrl>
+    <Product>DWSIM Simulator Core Library (.NET 6)</Product>
+    <Description>Core Library for DWSIM Simulator, including Base Classes (Compounds, Reactions, etc), Auxiliary Classes (Math, Optimizers, Units of Measure, XML Serializer), Streams, Unit Operations and Thermodynamic Models.</Description>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
   </PropertyGroup>
 
   <ItemGroup>
@@ -330,18 +338,54 @@
     <None Remove="Assets\Thermo\wilson.ipd" />
     <None Remove="Assets\Thermo\wilson_bips.csv" />
     <None Remove="Libraries\CapeOpen.dll" />
+    <None Remove="Libraries\CoolProp.dll" />
     <None Remove="Libraries\CoolPropInterface.dll" />
     <None Remove="Libraries\Cureos.Numerics.dll" />
     <None Remove="Libraries\DotNumerics.dll" />
+    <None Remove="Libraries\IpOpt39.dll" />
+    <None Remove="Libraries\IpOptFSS.dll" />
+    <None Remove="Libraries\libifcoremd.dll" />
+    <None Remove="Libraries\libiomp5md.dll" />
     <None Remove="Libraries\Mapack.dll" />
+    <None Remove="Libraries\msvcp140.dll" />
+    <None Remove="Libraries\PetAz.dll" />
+    <None Remove="Libraries\svml_dispmd.dll" />
+    <None Remove="Libraries\vcruntime140.dll" />
   </ItemGroup>
 
   <ItemGroup>
     <Content Include="Libraries\CapeOpen.dll" />
+    <Content Include="Libraries\CoolProp.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="Libraries\CoolPropInterface.dll" />
     <Content Include="Libraries\Cureos.Numerics.dll" />
     <Content Include="Libraries\DotNumerics.dll" />
+    <Content Include="Libraries\IpOpt39.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Libraries\IpOptFSS.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Libraries\libifcoremd.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Libraries\libiomp5md.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="Libraries\Mapack.dll" />
+    <Content Include="Libraries\msvcp140.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Libraries\PetAz.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Libraries\svml_dispmd.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Libraries\vcruntime140.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
   <ItemGroup>

@@ -18,7 +18,6 @@
 
 '   Reference: https://www.sciencedirect.com/science/article/abs/pii/S0378381206000835
 
-Imports DWSIM.Enums
 Imports DWSIMCore.Foundation.Enums
 
 Namespace PropertyPackages
@@ -60,19 +59,6 @@ Namespace PropertyPackages
         Public Overrides Sub ConfigParameters()
 
         End Sub
-
-        'Public Overrides Sub DisplayEditingForm()
-
-        '    If Settings.CAPEOPENMode Then
-        '        Dim f As New FormConfigPropertyPackage() With {._pp = Me, ._comps = _selectedcomps.ToDictionary(Of String, ICompoundConstantProperties)(Function(k) k.Key, Function(k) k.Value)}
-        '        f.ShowDialog()
-        '    Else
-        '        Dim f As New FormConfigPropertyPackage() With {._form = Me.Flowsheet, ._pp = Me, ._comps = Flowsheet.SelectedCompounds}
-        '        f.ShowDialog()
-        '    End If
-
-        'End Sub
-
 
 #Region "    DWSIM Functions"
 

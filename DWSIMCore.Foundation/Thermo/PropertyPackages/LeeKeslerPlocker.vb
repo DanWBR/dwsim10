@@ -51,24 +51,6 @@ Namespace PropertyPackages
             Return m_lk
         End Function
 
-        Public Overrides Sub DisplayEditingForm()
-
-            'If Settings.CAPEOPENMode Then
-            '    Dim f As New FormConfigLKP() With {._pp = Me, ._comps = _selectedcomps.ToDictionary(Of String, ICompoundConstantProperties)(Function(k) k.Key, Function(k) k.Value)}
-            '    f.ShowDialog()
-            'Else
-            '    Dim f As New FormConfigLKP() With {._pp = Me, ._comps = Flowsheet.SelectedCompounds}
-            '    f.ShowDialog()
-            'End If
-
-        End Sub
-
-        'Public Overrides Function GetEditingForm() As Form
-
-        '    Return New FormConfigLKP() With {._pp = Me, ._comps = Flowsheet.SelectedCompounds}
-
-        'End Function
-
         Public Overrides Sub ConfigParameters()
 
         End Sub

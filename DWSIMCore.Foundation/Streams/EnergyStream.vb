@@ -217,35 +217,6 @@ Namespace Streams
             Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of EnergyStream)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
         End Function
 
-        Public Overrides Sub DisplayEditForm()
-
-            'If f Is Nothing Then
-            '    f = New EditingForm_EnergyStream With {.SimObject = Me}
-            '    f.ShowHint = GlobalSettings.Settings.DefaultEditFormLocation
-            '    f.Tag = "ObjectEditor"
-            '    Me.FlowSheet.DisplayForm(f)
-            'Else
-            '    If f.IsDisposed Then
-            '        f = New EditingForm_EnergyStream With {.SimObject = Me}
-            '        f.ShowHint = GlobalSettings.Settings.DefaultEditFormLocation
-            '        f.Tag = "ObjectEditor"
-            '        Me.FlowSheet.DisplayForm(f)
-            '    Else
-            '        f.UpdateInfo()
-            '        f.Activate()
-            '    End If
-            'End If
-
-        End Sub
-
-        Public Overrides Sub UpdateEditForm()
-            'If f IsNot Nothing Then
-            '    If Not f.IsDisposed Then
-            '        f.UIThread(Sub() f.UpdateInfo())
-            '    End If
-            'End If
-        End Sub
-
         Public Overrides Function GetIconBitmap() As Object
             Using imgstream As IO.Stream = System.Reflection.Assembly.GetAssembly(Me.GetType).GetManifestResourceStream("DWSIMCore.Foundation.stream_en_32.png")
                 Using bitmap = SkiaSharp.SKBitmap.Decode(imgstream)
@@ -261,15 +232,6 @@ Namespace Streams
         Public Overrides Function GetDisplayName() As String
             Return "Energy Stream"
         End Function
-
-        Public Overrides Sub CloseEditForm()
-            'If f IsNot Nothing Then
-            '    If Not f.IsDisposed Then
-            '        f.Close()
-            '        f = Nothing
-            '    End If
-            'End If
-        End Sub
 
         Public Overrides ReadOnly Property MobileCompatible As Boolean
             Get

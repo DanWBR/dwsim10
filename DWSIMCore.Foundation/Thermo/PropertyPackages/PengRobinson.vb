@@ -57,18 +57,6 @@ Namespace PropertyPackages
 
         End Sub
 
-        Public Overrides Sub DisplayEditingForm()
-
-            'If Settings.CAPEOPENMode Then
-            '    Dim f As New FormConfigPropertyPackage() With {._pp = Me, ._comps = _selectedcomps.ToDictionary(Of String, ICompoundConstantProperties)(Function(k) k.Key, Function(k) k.Value)}
-            '    f.ShowDialog()
-            'Else
-            '    Dim f As New FormConfigPropertyPackage() With {._form = Me.Flowsheet, ._pp = Me, ._comps = Flowsheet.SelectedCompounds}
-            '    f.ShowDialog()
-            'End If
-
-        End Sub
-
 #Region "    DWSIM Functions"
 
         Public Overrides Function DW_CalcCp_ISOL(ByVal Phase1 As PropertyPackages.Phase, ByVal T As Double, ByVal P As Double) As Double

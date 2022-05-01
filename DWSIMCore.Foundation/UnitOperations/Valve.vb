@@ -1082,34 +1082,6 @@ Namespace UnitOperations
 
         End Function
 
-        Public Overrides Sub DisplayEditForm()
-
-            'If f Is Nothing Then
-            '    f = New EditingForm_Valve With {.SimObject = Me}
-            '    f.ShowHint = Settings.DefaultEditFormLocation
-            '    f.Tag = "ObjectEditor"
-            '    Me.FlowSheet.DisplayForm(f)
-            'Else
-            '    If f.IsDisposed Then
-            '        f = New EditingForm_Valve With {.SimObject = Me}
-            '        f.ShowHint = Settings.DefaultEditFormLocation
-            '        f.Tag = "ObjectEditor"
-            '        Me.FlowSheet.DisplayForm(f)
-            '    Else
-            '        f.Activate()
-            '    End If
-            'End If
-
-        End Sub
-
-        Public Overrides Sub UpdateEditForm()
-            'If f IsNot Nothing Then
-            '    If Not f.IsDisposed Then
-            '        f.UIThread(Sub() f.UpdateInfo())
-            '    End If
-            'End If
-        End Sub
-
         Public Overrides Function GetIconBitmap() As Object
             Using imgstream As IO.Stream = System.Reflection.Assembly.GetAssembly(Me.GetType).GetManifestResourceStream("DWSIMCore.Foundation.uo_valve_32.png")
                 Using bitmap = SkiaSharp.SKBitmap.Decode(imgstream)
@@ -1125,15 +1097,6 @@ Namespace UnitOperations
         Public Overrides Function GetDisplayName() As String
             Return "Valve"
         End Function
-
-        Public Overrides Sub CloseEditForm()
-            'If f IsNot Nothing Then
-            '    If Not f.IsDisposed Then
-            '        f.Close()
-            '        f = Nothing
-            '    End If
-            'End If
-        End Sub
 
         Public Overrides ReadOnly Property MobileCompatible As Boolean
             Get

@@ -43,18 +43,6 @@ Public Interface ISimulationObject
 
     Sub CreateDynamicProperties()
 
-    Sub DisplayEditForm()
-
-    Sub DisplayDynamicsEditForm()
-
-    Sub DisplayExtraPropertiesEditForm()
-
-    Sub UpdateEditForm()
-
-    Sub UpdateDynamicsEditForm()
-
-    Sub UpdateExtraPropertiesEditForm()
-
     Property PreferredFlashAlgorithmTag As String
 
     Property ErrorMessage() As String
@@ -207,10 +195,6 @@ Public Interface ISimulationObject
     Function GetDisplayName() As String
 
     Function GetDisplayDescription() As String
-
-    Sub CloseDynamicsEditForm()
-
-    Sub CloseEditForm()
 
     Function CloneXML() As Object
 

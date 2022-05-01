@@ -360,9 +360,11 @@ Namespace UnitOperations
 
             Select Case Me.SelectedFlowPackage
                 Case FlowPackage.Lockhart_Martinelli
-                    fpp = New FlowPackages.LockhartMartinelli
+                    fpp = New FlowPackages.LockhartMartinelli()
+                Case FlowPackage.Petalas_Aziz
+                    fpp = New FlowPackages.PetalasAziz()
                 Case Else
-                    fpp = New FlowPackages.BeggsBrill
+                    fpp = New FlowPackages.BeggsBrill()
             End Select
 
             Dim ims, oms As MaterialStream, es As Streams.EnergyStream
@@ -2233,34 +2235,6 @@ Final3:     T = bbb
             End If
         End Function
 
-        Public Overrides Sub DisplayEditForm()
-
-            'If f Is Nothing Then
-            '    f = New EditingForm_Pipe With {.SimObject = Me}
-            '    f.ShowHint = Settings.DefaultEditFormLocation
-            '    f.Tag = "ObjectEditor"
-            '    Me.FlowSheet.DisplayForm(f)
-            'Else
-            '    If f.IsDisposed Then
-            '        f = New EditingForm_Pipe With {.SimObject = Me}
-            '        f.ShowHint = Settings.DefaultEditFormLocation
-            '        f.Tag = "ObjectEditor"
-            '        Me.FlowSheet.DisplayForm(f)
-            '    Else
-            '        f.Activate()
-            '    End If
-            'End If
-
-        End Sub
-
-        Public Overrides Sub UpdateEditForm()
-            'If f IsNot Nothing Then
-            '    If Not f.IsDisposed Then
-            '        f.UIThread(Sub() f.UpdateInfo())
-            '    End If
-            'End If
-        End Sub
-
         Public Overrides Function GetIconBitmap() As Object
             Using imgstream As IO.Stream = System.Reflection.Assembly.GetAssembly(Me.GetType).GetManifestResourceStream("DWSIMCore.Foundation.uo_pipe_32.png")
                 Using bitmap = SkiaSharp.SKBitmap.Decode(imgstream)
@@ -2276,15 +2250,6 @@ Final3:     T = bbb
         Public Overrides Function GetDisplayName() As String
             Return "Pipe Segment"
         End Function
-
-        Public Overrides Sub CloseEditForm()
-            'If f IsNot Nothing Then
-            '    If Not f.IsDisposed Then
-            '        f.Close()
-            '        f = Nothing
-            '    End If
-            'End If
-        End Sub
 
         Public Overrides ReadOnly Property MobileCompatible As Boolean
             Get

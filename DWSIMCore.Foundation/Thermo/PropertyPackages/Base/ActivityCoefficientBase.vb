@@ -53,18 +53,6 @@ Namespace PropertyPackages
 
         End Function
 
-        Public Overrides Sub DisplayEditingForm()
-
-            'If Settings.CAPEOPENMode Then
-            '    Dim f As New FormConfigPropertyPackage() With {._form = Me.Flowsheet, ._pp = Me, ._comps = _selectedcomps.ToDictionary(Of String, ICompoundConstantProperties)(Function(k) k.Key, Function(k) k.Value)}
-            '    f.ShowDialog()
-            'Else
-            '    Dim f As New FormConfigPropertyPackage() With {._form = Me.Flowsheet, ._pp = Me, ._comps = Flowsheet.SelectedCompounds}
-            '    f.ShowDialog()
-            'End If
-
-        End Sub
-
 #End Region
 
 #Region "Functions to Calculate Isolated Properties"

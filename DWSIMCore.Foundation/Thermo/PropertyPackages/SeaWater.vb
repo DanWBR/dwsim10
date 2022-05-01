@@ -55,18 +55,6 @@ Namespace PropertyPackages
 
         End Sub
 
-        Public Overrides Sub DisplayEditingForm()
-
-            'If Settings.CAPEOPENMode Then
-            '    Dim f As New FormConfigPropertyPackage() With {._pp = Me, ._comps = _selectedcomps.ToDictionary(Of String, ICompoundConstantProperties)(Function(k) k.Key, Function(k) k.Value)}
-            '    f.ShowDialog()
-            'Else
-            '    Dim f As New FormConfigPropertyPackage() With {._pp = Me, ._comps = Flowsheet.SelectedCompounds}
-            '    f.ShowDialog()
-            'End If
-
-        End Sub
-
         Public Overrides ReadOnly Property FlashBase() As Auxiliary.FlashAlgorithms.FlashAlgorithm
             Get
                 Dim constprops As New List(Of ICompoundConstantProperties)

@@ -54,10 +54,6 @@ Public Interface IPropertyPackage
 
     Property Flowsheet As IFlowsheet
 
-    Sub DisplayEditingForm()
-
-    Function DisplayAdvancedEditingForm() As Object
-
     Sub CalcAdditionalPhaseProperties()
 
     ReadOnly Property MobileCompatible As Boolean
@@ -67,8 +63,6 @@ Public Interface IPropertyPackage
     ReadOnly Property ShouldUseKvalueMethod2 As Boolean
 
     Function ReturnInstance(typename As String) As Object
-
-    Sub DisplayGroupedEditingForm()
 
     Function AUX_CONVERT_MOL_TO_MASS(vs() As Double) As Double()
 
