@@ -728,10 +728,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Flowsheet\Base\" />
-  </ItemGroup>
-
-  <ItemGroup>
     <Reference Include="CapeOpen">
       <HintPath>Libraries\CapeOpen.dll</HintPath>
     </Reference>

@@ -12,4 +12,8 @@
     <PackageReference Include="SkiaSharp" Version="2.80.3" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\DWSIMCore.Foundation\DWSIMCore.Foundation.vbproj" />
+  </ItemGroup>
+
 </Project>
