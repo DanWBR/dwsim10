@@ -170,6 +170,32 @@ Public Module General
     End Function
 
     <System.Runtime.CompilerServices.Extension()>
+    Public Function ToArrayString(vector As Double(), ByVal ci As System.Globalization.CultureInfo) As String
+
+        If vector.Length > 1 Then
+
+            Dim retstr As String = "{"
+            For Each d As Double In vector
+                retstr += d.ToString("G6", ci) + "; "
+            Next
+            retstr = retstr.TrimEnd(New Char() {";"c, " "c})
+            retstr += "}"
+
+            Return retstr
+
+        ElseIf vector.Length > 0 Then
+
+            Return vector(0).ToString("G6", ci)
+
+        Else
+
+            Return ""
+
+        End If
+
+    End Function
+
+    <System.Runtime.CompilerServices.Extension()>
     Public Function ToString(sourcearray As String(), ci As CultureInfo) As String
 
         Dim sb As String = ""

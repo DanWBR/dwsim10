@@ -70,6 +70,10 @@ Public Interface IPropertyPackage
 
     Sub DisplayGroupedEditingForm()
 
+    Function AUX_CONVERT_MOL_TO_MASS(vs() As Double) As Double()
+
+    Function RET_VMM() As Double()
+
 End Interface
 
 Public Interface IPhaseEnvelopeOptions

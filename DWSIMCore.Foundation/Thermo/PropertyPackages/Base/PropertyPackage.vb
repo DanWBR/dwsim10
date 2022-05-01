@@ -7594,7 +7594,7 @@ Final3:
 
         End Function
 
-        Public Overridable Function RET_VMM() As Double()
+        Public Overridable Function RET_VMM() As Double() Implements IPropertyPackage.RET_VMM
 
             Return CurrentMaterialStream.Phases(0).Compounds.Values.Select(Function(x) x.ConstantProperties.Molar_Weight).ToArray
 
@@ -8282,7 +8282,7 @@ Final3:
 
         End Function
 
-        Public Overridable Function AUX_CONVERT_MOL_TO_MASS(ByVal Vz As Double()) As Double()
+        Public Overridable Function AUX_CONVERT_MOL_TO_MASS(ByVal Vz As Double()) As Double() Implements IPropertyPackage.AUX_CONVERT_MOL_TO_MASS
 
             Dim Vwe(Vz.Length - 1) As Double
             Dim mol_x_mm As Double = 0

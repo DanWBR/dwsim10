@@ -684,7 +684,6 @@
 
   <ItemGroup>
     <Folder Include="Flowsheet\Base\" />
-    <Folder Include="UnitOperations\RigorousColumnSolvers\" />
   </ItemGroup>
 
   <ItemGroup>
