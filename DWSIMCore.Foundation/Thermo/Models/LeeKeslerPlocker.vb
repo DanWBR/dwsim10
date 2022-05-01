@@ -752,11 +752,7 @@ Final3:
 
         Function CalcLnFug(ByVal TIPO As String, ByVal T As Double, ByVal P As Double, ByVal Vz As Object, ByVal VKij As Object, ByVal VTc As Object, ByVal VPc As Object, ByVal Vw As Object, ByVal VMM As Object, ByVal VVc As Object, ByVal Hid As Double) As Object
 
-            If Settings.EnableGPUProcessing Then
-                Return CalcLnFugGPU(TIPO, T, P, Vz, VKij, VTc, VPc, Vw, VMM, VVc, Hid)
-            Else
-                Return CalcLnFugCPU(TIPO, T, P, Vz, VKij, VTc, VPc, Vw, VMM, VVc, Hid)
-            End If
+            Return CalcLnFugCPU(TIPO, T, P, Vz, VKij, VTc, VPc, Vw, VMM, VVc, Hid)
 
         End Function
 
@@ -847,59 +843,6 @@ Final3:
                     End If
                 Next
             Next
-
-            For i = 0 To n
-                lnfi(i) = lnfugm - 1 / T * dHmRTcm * suma(i) + (zm - 1) / Pcm * sumb(i) - dlnfidwm * sumc(i)
-            Next
-
-            Return lnfi
-
-        End Function
-
-        Private Function CalcLnFugGPU(ByVal TIPO As String, ByVal T As Double, ByVal P As Double, ByVal Vz As Object, ByVal VKij As Object, ByVal VTc As Object, ByVal VPc As Object, ByVal Vw As Object, ByVal VMM As Object, ByVal VVc As Object, ByVal Hid As Double) As Object
-
-            'mixture critical properties
-            Dim Tcm, Pcm, Vcm, wm, Tr, Pr, zcm As Double
-            Dim obj = Me.MixCritProp_LK(Vz, VTc, VPc, Vw, VVc, VKij)
-            Tcm = obj(0)
-            Pcm = obj(1)
-            Vcm = obj(2)
-            wm = obj(3)
-            Tr = T / Tcm
-            Pr = P / Pcm
-            zcm = Pcm * Vcm / (8.314 * Tcm)
-
-            Dim i, n As Integer
-
-            n = Vz.Length - 1
-
-            i = 0
-            Dim MMm = 0.0#
-            Do
-                MMm += Vz(i) * VMM(i)
-                i += 1
-            Loop Until i = n + 1
-
-            Dim dHmRTcm As Double
-
-            dHmRTcm = Me.H_LK_MIX(TIPO, T, P, Vz, VKij, VTc, VPc, Vw, VMM, 0, VVc) / (8.314 * Tcm) * MMm
-
-            Dim lnfugm, lnfugs, lnfugh As Double, res As Double()
-
-            res = Me.LnFugM(TIPO, Tr, Pr, wm)
-            lnfugm = res(0)
-            lnfugs = res(1)
-            lnfugh = res(2)
-
-            Dim dlnfidwm, lnfi(n) As Double
-
-            dlnfidwm = 1 / 0.3978 * (lnfugh - lnfugs)
-
-            Dim suma(n), sumb(n), sumc(n) As Double
-
-            lkp_gpu_func(n, VVc, VTc, VKij, Vz, Vw, Tcm, Pcm, Vcm, zcm, suma, sumb, sumc)
-
-            Dim zm = Me.Z_LK(TIPO, Tr, Pr, wm)(0)
 
             For i = 0 To n
                 lnfi(i) = lnfugm - 1 / T * dHmRTcm * suma(i) + (zm - 1) / Pcm * sumb(i) - dlnfidwm * sumc(i)

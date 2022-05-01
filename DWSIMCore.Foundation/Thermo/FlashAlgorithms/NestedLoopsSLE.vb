@@ -17,6 +17,7 @@
 '    along with DWSIM.  If not, see <http://www.gnu.org/licenses/>.
 
 Imports System.Math
+Imports DWSIMCore.Foundation.MathEx
 
 Namespace PropertyPackages.Auxiliary.FlashAlgorithms
 

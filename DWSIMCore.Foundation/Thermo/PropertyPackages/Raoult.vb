@@ -729,9 +729,9 @@ Namespace PropertyPackages
 
         Public Overrides Function DW_CalcFugCoeff(ByVal Vx As System.Array, ByVal T As Double, ByVal P As Double, ByVal st As State) As Double()
 
-            'Calculator.WriteToConsole(Me.ComponentName & " fugacity coefficient calculation for phase '" & st.ToString & "' requested at T = " & T & " K and P = " & P & " Pa.", 2)
-            'Calculator.WriteToConsole("Compounds: " & Me.RET_VNAMES.ToArrayString, 2)
-            'Calculator.WriteToConsole("Mole fractions: " & Vx.ToArrayString(), 2)
+            ''Calculator.WriteToConsole(Me.ComponentName & " fugacity coefficient calculation for phase '" & st.ToString & "' requested at T = " & T & " K and P = " & P & " Pa.", 2)
+            ''Calculator.WriteToConsole("Compounds: " & Me.RET_VNAMES.ToArrayString, 2)
+            ''Calculator.WriteToConsole("Mole fractions: " & Vx.ToArrayString(), 2)
 
             Dim IObj As InspectorItem = Host.GetNewInspectorItem()
 
@@ -767,7 +767,7 @@ Namespace PropertyPackages
                 Next
             End If
 
-            'Calculator.WriteToConsole("Result: " & fugcoeff.ToArrayString(), 2)
+            ''Calculator.WriteToConsole("Result: " & fugcoeff.ToArrayString(), 2)
 
             IObj?.Paragraphs.Add(String.Format("<h2>Results</h2>"))
 

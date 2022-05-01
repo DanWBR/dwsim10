@@ -308,8 +308,6 @@ Namespace PropertyPackages
 
             If TypeOf Me Is NRTLPropertyPackage Then
                 Return DirectCast(Me, NRTLPropertyPackage).RET_VNAMES
-            ElseIf TypeOf Me Is SourWaterPropertyPackage Then
-                Return DirectCast(Me, SourWaterPropertyPackage).RET_VNAMES
             ElseIf TypeOf Me Is UNIQUACPropertyPackage Then
                 Return New Object() {DirectCast(Me, UNIQUACPropertyPackage).RET_VNAMES, DirectCast(Me, UNIQUACPropertyPackage).RET_VQ, DirectCast(Me, UNIQUACPropertyPackage).RET_VR}
             ElseIf TypeOf Me Is MODFACPropertyPackage Then
@@ -508,9 +506,9 @@ Namespace PropertyPackages
 
         Public Overrides Function DW_CalcFugCoeff(ByVal Vx As System.Array, ByVal T As Double, ByVal P As Double, ByVal st As State) As Double()
 
-            'Calculator.WriteToConsole(Me.ComponentName & " fugacity coefficient calculation for phase '" & st.ToString & "' requested at T = " & T & " K and P = " & P & " Pa.", 2)
-            'Calculator.WriteToConsole("Compounds: " & Me.RET_VNAMES.ToArrayString, 2)
-            'Calculator.WriteToConsole("Mole fractions: " & Vx.ToArrayString(), 2)
+            ''Calculator.WriteToConsole(Me.ComponentName & " fugacity coefficient calculation for phase '" & st.ToString & "' requested at T = " & T & " K and P = " & P & " Pa.", 2)
+            ''Calculator.WriteToConsole("Compounds: " & Me.RET_VNAMES.ToArrayString, 2)
+            ''Calculator.WriteToConsole("Mole fractions: " & Vx.ToArrayString(), 2)
 
             Dim IObj As InspectorItem = Host.GetNewInspectorItem()
 
@@ -627,7 +625,7 @@ Namespace PropertyPackages
                 fugcoeff(i) = Exp(lnfug(i))
             Next
 
-            'Calculator.WriteToConsole("Result: " & fugcoeff.ToArrayString(), 2)
+            ''Calculator.WriteToConsole("Result: " & fugcoeff.ToArrayString(), 2)
 
             IObj?.Paragraphs.Add(String.Format("<h2>Results</h2>"))
 

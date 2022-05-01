@@ -1,5 +1,4 @@
-﻿Imports DWSIM.DrawingTools.Point
-Imports System.Linq
+﻿
 
 Namespace MathEx
 
@@ -7,7 +6,7 @@ Namespace MathEx
 
         Public Shared Function FindIntersection(ByVal curve1 As List(Of Point), curve2 As List(Of Point), curve1fit As LMFit.FitType, curve2fit As LMFit.FitType, tolerance As Double, xmin As Double, xmax As Double, npoints As Integer) As List(Of Point)
 
-            Dim polyfit As New DWSIM.MathOps.MathEx.LMFit()
+            Dim polyfit As New MathEx.LMFit()
 
             Dim ie1, ie2 As Double()
 

@@ -364,8 +364,7 @@ Namespace Streams
         Public Overrides Sub Calculate(Optional ByVal args As Object = Nothing)
             If FlowSheet IsNot Nothing Then
                 If AtEquilibrium And Not FlowSheet.DynamicMode And
-                    FlowSheet.FlowsheetOptions.SkipEquilibriumCalculationOnDefinedStreams And
-                    Not TypeOf PropertyPackage Is CAPEOPENPropertyPackage Then
+                    FlowSheet.FlowsheetOptions.SkipEquilibriumCalculationOnDefinedStreams Then
                     Calculate(False, True)
                 Else
                     Calculate(True, True)
@@ -3186,37 +3185,9 @@ Namespace Streams
             End If
             Dim res As New ArrayList
             Dim length As Integer, i As Integer, comps As New ArrayList
-            If Not compIds Is Nothing Then
-                length = compIds.length
-                If TryCast(Me.PropertyPackage, PropertyPackages.CAPEOPENPropertyPackage) Is Nothing Then
-                    For i = 0 To length - 1
-                        comps.Add(compIds(i))
-                    Next
-                Else
-                    For Each kvp As KeyValuePair(Of String, String) In CType(Me.PropertyPackage, PropertyPackages.CAPEOPENPropertyPackage)._mappings
-                        For i = 0 To length - 1
-                            If kvp.Value = compIds(i) Then comps.Add(kvp.Key)
-                        Next
-                    Next
-                End If
-            Else
-                If TryCast(Me.PropertyPackage, PropertyPackages.CAPEOPENPropertyPackage) IsNot Nothing Then
-                    Dim complist As Object = Nothing
-                    Me.PropertyPackage.GetComponentList(complist, Nothing, Nothing, Nothing, Nothing, Nothing)
-                    For Each s As String In complist
-                        For Each kvp As KeyValuePair(Of String, String) In CType(Me.PropertyPackage, PropertyPackages.CAPEOPENPropertyPackage)._mappings
-                            If kvp.Value = s Then
-                                comps.Add(kvp.Key)
-                                Exit For
-                            End If
-                        Next
-                    Next
-                Else
-                    For Each c As Compound In Me.Phases(0).Compounds.Values
-                        comps.Add(c.Name)
-                    Next
-                End If
-            End If
+            For Each c As Compound In Me.Phases(0).Compounds.Values
+                comps.Add(c.Name)
+            Next
             Dim f As Integer = 0
             Dim phs As PropertyPackages.Phase
             Select Case phase.ToLower
@@ -3535,34 +3506,13 @@ Namespace Streams
             Dim length As Integer, i As Integer, comps As New ArrayList
             If Not compIds Is Nothing Then
                 length = compIds.length
-                If TryCast(Me.PropertyPackage, PropertyPackages.CAPEOPENPropertyPackage) IsNot Nothing Then
-                    For Each kvp As KeyValuePair(Of String, String) In CType(Me.PropertyPackage, PropertyPackages.CAPEOPENPropertyPackage)._mappings
-                        For i = 0 To length - 1
-                            If kvp.Value = compIds(i) Then comps.Add(kvp.Key)
-                        Next
-                    Next
-                Else
-                    For i = 0 To length - 1
-                        comps.Add(compIds(i))
-                    Next
-                End If
+                For i = 0 To length - 1
+                    comps.Add(compIds(i))
+                Next
             Else
-                If TryCast(Me.PropertyPackage, PropertyPackages.CAPEOPENPropertyPackage) IsNot Nothing Then
-                    Dim complist As Object = Nothing
-                    Me.PropertyPackage.GetComponentList(complist, Nothing, Nothing, Nothing, Nothing, Nothing)
-                    For Each s As String In complist
-                        For Each kvp As KeyValuePair(Of String, String) In CType(Me.PropertyPackage, PropertyPackages.CAPEOPENPropertyPackage)._mappings
-                            If kvp.Value = s Then
-                                comps.Add(kvp.Key)
-                                Exit For
-                            End If
-                        Next
-                    Next
-                Else
-                    For Each c As Compound In Me.Phases(0).Compounds.Values
-                        comps.Add(c.Name)
-                    Next
-                End If
+                For Each c As Compound In Me.Phases(0).Compounds.Values
+                    comps.Add(c.Name)
+                Next
             End If
             Dim f As Integer = -1
             Dim phs As PropertyPackages.Phase
@@ -4537,22 +4487,10 @@ Namespace Streams
 
             Dim res As New ArrayList
             Dim comps As New ArrayList
-            If TryCast(Me.PropertyPackage, PropertyPackages.CAPEOPENPropertyPackage) IsNot Nothing Then
-                Dim complist As Object = Nothing
-                Me.PropertyPackage.GetCompoundList(complist, Nothing, Nothing, Nothing, Nothing, Nothing)
-                For Each s As String In complist
-                    For Each kvp As KeyValuePair(Of String, String) In CType(Me.PropertyPackage, PropertyPackages.CAPEOPENPropertyPackage)._mappings
-                        If kvp.Value = s Then
-                            comps.Add(kvp.Key)
-                            Exit For
-                        End If
-                    Next
-                Next
-            Else
-                For Each c As Compound In Me.Phases(0).Compounds.Values
-                    comps.Add(c.Name)
-                Next
-            End If
+
+            For Each c As Compound In Me.Phases(0).Compounds.Values
+                comps.Add(c.Name)
+            Next
             Dim f As Integer = -1
             Dim phs As PropertyPackages.Phase
             Select Case phaseLabel.ToLower
@@ -4936,22 +4874,10 @@ Namespace Streams
 
             Dim arr As New ArrayList
             Dim comps As New ArrayList
-            If TryCast(Me.PropertyPackage, PropertyPackages.CAPEOPENPropertyPackage) IsNot Nothing Then
-                Dim complist As Object = Nothing
-                Me.PropertyPackage.GetCompoundList(complist, Nothing, Nothing, Nothing, Nothing, Nothing)
-                For Each s As String In complist
-                    For Each kvp As KeyValuePair(Of String, String) In CType(Me.PropertyPackage, PropertyPackages.CAPEOPENPropertyPackage)._mappings
-                        If kvp.Value = s Then
-                            comps.Add(kvp.Key)
-                            Exit For
-                        End If
-                    Next
-                Next
-            Else
-                For Each c As Compound In Me.Phases(0).Compounds.Values
-                    comps.Add(c.Name)
-                Next
-            End If
+
+            For Each c As Compound In Me.Phases(0).Compounds.Values
+                comps.Add(c.Name)
+            Next
             Select Case phaseLabel.ToLower
                 Case "overall"
                     For Each c As String In comps
@@ -5021,22 +4947,9 @@ Namespace Streams
             Dim res As New ArrayList
             Dim f As Integer = 0
             Dim comps As New ArrayList
-            If TryCast(Me.PropertyPackage, PropertyPackages.CAPEOPENPropertyPackage) IsNot Nothing Then
-                Dim complist As Object = Nothing
-                Me.PropertyPackage.GetCompoundList(complist, Nothing, Nothing, Nothing, Nothing, Nothing)
-                For Each s As String In complist
-                    For Each kvp As KeyValuePair(Of String, String) In CType(Me.PropertyPackage, PropertyPackages.CAPEOPENPropertyPackage)._mappings
-                        If kvp.Value = s Then
-                            comps.Add(kvp.Key)
-                            Exit For
-                        End If
-                    Next
-                Next
-            Else
-                For Each c As Compound In Me.Phases(0).Compounds.Values
-                    comps.Add(c.Name)
-                Next
-            End If
+            For Each c As Compound In Me.Phases(0).Compounds.Values
+                comps.Add(c.Name)
+            Next
             Select Case [property].ToLower
                 Case "kvalue"
                     For Each c As String In comps
@@ -5162,22 +5075,9 @@ Namespace Streams
         Public Sub SetSinglePhaseProp(ByVal [property] As String, ByVal phaseLabel As String, ByVal basis As String, ByVal values As Object) Implements ICapeThermoMaterial.SetSinglePhaseProp
 
             Dim comps As New ArrayList
-            If TryCast(Me.PropertyPackage, PropertyPackages.CAPEOPENPropertyPackage) IsNot Nothing Then
-                Dim complist As Object = Nothing
-                Me.PropertyPackage.GetCompoundList(complist, Nothing, Nothing, Nothing, Nothing, Nothing)
-                For Each s As String In complist
-                    For Each kvp As KeyValuePair(Of String, String) In CType(Me.PropertyPackage, PropertyPackages.CAPEOPENPropertyPackage)._mappings
-                        If kvp.Value = s Then
-                            comps.Add(kvp.Key)
-                            Exit For
-                        End If
-                    Next
-                Next
-            Else
-                For Each c As Compound In Me.Phases(0).Compounds.Values
-                    comps.Add(c.Name)
-                Next
-            End If
+            For Each c As Compound In Me.Phases(0).Compounds.Values
+                comps.Add(c.Name)
+            Next
             Dim f As Integer = -1
             Dim phs As PropertyPackages.Phase
             Select Case phaseLabel.ToLower
@@ -5477,22 +5377,10 @@ Namespace Streams
         ''' be called before calling SetTwoPhaseProp.</remarks>
         Public Sub SetTwoPhaseProp(ByVal [property] As String, ByVal phaseLabels As Object, ByVal basis As String, ByVal values As Object) Implements ICapeThermoMaterial.SetTwoPhaseProp
             Dim comps As New ArrayList
-            If TryCast(Me.PropertyPackage, PropertyPackages.CAPEOPENPropertyPackage) IsNot Nothing Then
-                Dim complist As Object = Nothing
-                Me.PropertyPackage.GetCompoundList(complist, Nothing, Nothing, Nothing, Nothing, Nothing)
-                For Each s As String In complist
-                    For Each kvp As KeyValuePair(Of String, String) In CType(Me.PropertyPackage, PropertyPackages.CAPEOPENPropertyPackage)._mappings
-                        If kvp.Value = s Then
-                            comps.Add(kvp.Key)
-                            Exit For
-                        End If
-                    Next
-                Next
-            Else
-                For Each c As Compound In Me.Phases(0).Compounds.Values
-                    comps.Add(c.Name)
-                Next
-            End If
+
+            For Each c As Compound In Me.Phases(0).Compounds.Values
+                comps.Add(c.Name)
+            Next
             Select Case [property].ToLower
                 Case "kvalue"
                     Dim i As Integer = 0

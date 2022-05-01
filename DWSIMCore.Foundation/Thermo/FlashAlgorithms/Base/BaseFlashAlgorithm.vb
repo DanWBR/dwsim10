@@ -138,7 +138,7 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
 
         Public Sub WriteDebugInfo(text As String)
 
-            'Calculator.WriteToConsole(text, 1)
+            ''Calculator.WriteToConsole(text, 1)
 
         End Sub
 

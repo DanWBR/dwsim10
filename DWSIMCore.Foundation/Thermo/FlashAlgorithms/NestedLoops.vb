@@ -17,6 +17,7 @@
 '    along with DWSIM.  If not, see <http://www.gnu.org/licenses/>.
 
 Imports System.Math
+Imports DotNumerics.Optimization
 Imports DWSIMCore.Foundation.MathEx
 Imports DWSIMCore.Foundation.MathEx.BrentOpt
 Imports DWSIMCore.Foundation.MathEx.Interpolation

@@ -792,9 +792,9 @@ Namespace PropertyPackages
 
         Public Overrides Function DW_CalcFugCoeff(ByVal Vx As System.Array, ByVal T As Double, ByVal P As Double, ByVal st As State) As Double()
 
-            'Calculator.WriteToConsole(Me.ComponentName & " fugacity coefficient calculation for phase '" & st.ToString & "' requested at T = " & T & " K and P = " & P & " Pa.", 2)
-            'Calculator.WriteToConsole("Compounds: " & Me.RET_VNAMES.ToArrayString, 2)
-            'Calculator.WriteToConsole("Mole fractions: " & Vx.ToArrayString(), 2)
+            ''Calculator.WriteToConsole(Me.ComponentName & " fugacity coefficient calculation for phase '" & st.ToString & "' requested at T = " & T & " K and P = " & P & " Pa.", 2)
+            ''Calculator.WriteToConsole("Compounds: " & Me.RET_VNAMES.ToArrayString, 2)
+            ''Calculator.WriteToConsole("Mole fractions: " & Vx.ToArrayString(), 2)
 
             Dim n As Integer = Vx.Length - 1
             Dim i As Integer
@@ -811,8 +811,8 @@ Namespace PropertyPackages
                 fugcoef = Me.m_cs.CalcVapFugCoeff(T, P, Vx, Me.RET_VTC, Me.RET_VPC, Me.RET_VW)
             End If
 
-            'Calculator.WriteToConsole("Chao-Seader fugacity calculation results at T = " & T & " K and P = " & P & " Pa: ", 2)
-            'Calculator.WriteToConsole(fugcoef.ToArrayString, 2)
+            ''Calculator.WriteToConsole("Chao-Seader fugacity calculation results at T = " & T & " K and P = " & P & " Pa: ", 2)
+            ''Calculator.WriteToConsole(fugcoef.ToArrayString, 2)
 
             Return fugcoef
 

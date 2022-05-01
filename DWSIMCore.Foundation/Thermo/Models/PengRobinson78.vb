@@ -115,8 +115,8 @@ Namespace PropertyPackages.Auxiliary
 
             IObj?.Paragraphs.Add(String.Format("<h2>Calculated Intermediate Parameters</h2>"))
 
-            'Calculator.WriteToConsole("PR cubic equation root finder (Z) for T = " & T & " K, P = " & P & " Pa and Phase = " & TIPO, 3)
-            'Calculator.WriteToConsole("Mole fractions: " & DirectCast(Vx, Double()).ToMathArrayString, 3)
+            ''Calculator.WriteToConsole("PR cubic equation root finder (Z) for T = " & T & " K, P = " & P & " Pa and Phase = " & TIPO, 3)
+            ''Calculator.WriteToConsole("Mole fractions: " & DirectCast(Vx, Double()).ToMathArrayString, 3)
 
             Dim n, R, coeff(3) As Double
 
@@ -230,7 +230,7 @@ Namespace PropertyPackages.Auxiliary
 
             IObj?.Close()
 
-            Calculator.WriteToConsole("Result: Z = " & Z_PR, 3)
+            'Calculator.WriteToConsole("Result: Z = " & Z_PR, 3)
 
         End Function
 
@@ -859,7 +859,7 @@ Namespace PropertyPackages.ThermoPlugs
 
         Shared Function ZtoMinG(ByVal Z_ As Double(), ByVal T As Double, ByVal P As Double, ByVal Vz As Double(), ByVal VKij As Object, ByVal VTc As Double(), ByVal VPc As Double(), ByVal Vw As Double()) As Object
 
-            Calculator.WriteToConsole("PR min-G root finder (Z) for T = " & T & " K, P = " & P & " Pa and Z = " & DirectCast(Z_, Double()).ToMathArrayString, 3)
+            'Calculator.WriteToConsole("PR min-G root finder (Z) for T = " & T & " K, P = " & P & " Pa and Z = " & DirectCast(Z_, Double()).ToMathArrayString, 3)
 
             Dim S, H, Z As Double
 
@@ -953,7 +953,7 @@ Namespace PropertyPackages.ThermoPlugs
 
             Next
 
-            Calculator.WriteToConsole("Result: Min-G Z Index = " & k, 3)
+            'Calculator.WriteToConsole("Result: Min-G Z Index = " & k, 3)
 
             Return New Object() {k, G(k)}
 
@@ -1568,7 +1568,7 @@ Namespace PropertyPackages.ThermoPlugs
                     Do
                         findZ = coeff(3) * Z ^ 3 + coeff(2) * Z ^ 2 + coeff(1) * Z + coeff(0)
                         Z -= 0.00001
-                        If Z < 0 Then Throw New Exception(Calculator.GetLocalString("PropPack_ZError"))
+                        If Z < 0 Then Throw New Exception(("PropPack_ZError"))
                     Loop Until Math.Abs(findZ) < 0.0001
 
                 Else
@@ -1577,7 +1577,7 @@ Namespace PropertyPackages.ThermoPlugs
                     Do
                         findZ = coeff(3) * Z ^ 3 + coeff(2) * Z ^ 2 + coeff(1) * Z + coeff(0)
                         Z += 0.00001
-                        If Z > 1 Then Throw New Exception(Calculator.GetLocalString("PropPack_ZError"))
+                        If Z > 1 Then Throw New Exception(("PropPack_ZError"))
                     Loop Until Math.Abs(findZ) < 0.0001
 
                 End If
@@ -1728,7 +1728,7 @@ Namespace PropertyPackages.ThermoPlugs
                     Do
                         findZ = coeff(3) * Z ^ 3 + coeff(2) * Z ^ 2 + coeff(1) * Z + coeff(0)
                         Z -= 0.00001
-                        If Z < 0 Then Throw New Exception(Calculator.GetLocalString("PropPack_ZError"))
+                        If Z < 0 Then Throw New Exception(("PropPack_ZError"))
                     Loop Until Math.Abs(findZ) < 0.0001
 
                 Else
@@ -1737,7 +1737,7 @@ Namespace PropertyPackages.ThermoPlugs
                     Do
                         findZ = coeff(3) * Z ^ 3 + coeff(2) * Z ^ 2 + coeff(1) * Z + coeff(0)
                         Z += 0.00001
-                        If Z > 1 Then Throw New Exception(Calculator.GetLocalString("PropPack_ZError"))
+                        If Z > 1 Then Throw New Exception(("PropPack_ZError"))
                     Loop Until Math.Abs(findZ) < 0.0001
 
                 End If
@@ -1900,7 +1900,7 @@ Namespace PropertyPackages.ThermoPlugs
                     Do
                         findZ = coeff(3) * Z ^ 3 + coeff(2) * Z ^ 2 + coeff(1) * Z + coeff(0)
                         Z -= 0.00001
-                        If Z < 0 Then Throw New Exception(Calculator.GetLocalString("PropPack_ZError"))
+                        If Z < 0 Then Throw New Exception(("PropPack_ZError"))
                     Loop Until Math.Abs(findZ) < 0.0001
 
                 Else
@@ -1909,7 +1909,7 @@ Namespace PropertyPackages.ThermoPlugs
                     Do
                         findZ = coeff(3) * Z ^ 3 + coeff(2) * Z ^ 2 + coeff(1) * Z + coeff(0)
                         Z += 0.00001
-                        If Z > 1 Then Throw New Exception(Calculator.GetLocalString("PropPack_ZError"))
+                        If Z > 1 Then Throw New Exception(("PropPack_ZError"))
                     Loop Until Math.Abs(findZ) < 0.0001
 
                 End If
@@ -2076,7 +2076,7 @@ Namespace PropertyPackages.ThermoPlugs
                     Do
                         findZ = coeff(3) * Z ^ 3 + coeff(2) * Z ^ 2 + coeff(1) * Z + coeff(0)
                         Z -= 0.00001
-                        If Z < 0 Then Throw New Exception(Calculator.GetLocalString("PropPack_ZError"))
+                        If Z < 0 Then Throw New Exception(("PropPack_ZError"))
                     Loop Until Math.Abs(findZ) < 0.0001
 
                 Else
@@ -2085,7 +2085,7 @@ Namespace PropertyPackages.ThermoPlugs
                     Do
                         findZ = coeff(3) * Z ^ 3 + coeff(2) * Z ^ 2 + coeff(1) * Z + coeff(0)
                         Z += 0.00001
-                        If Z > 1 Then Throw New Exception(Calculator.GetLocalString("PropPack_ZError"))
+                        If Z > 1 Then Throw New Exception(("PropPack_ZError"))
                     Loop Until Math.Abs(findZ) < 0.0001
 
                 End If
