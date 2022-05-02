@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="Flowsheets\BiodieselProduction.dwxmz" />
+    <None Remove="Flowsheets\CavettProblem.dwxml" />
+    <None Remove="Flowsheets\ExtractiveDistillation.dwxmz" />
+    <None Remove="Flowsheets\GibbsAndEquilibriumReactors.dwxml" />
+    <None Remove="Flowsheets\HeatExchangerSizingAndDesign.dwxml" />
+    <None Remove="Flowsheets\HydrocycloneCustomUnitOperation.dwxml" />
+    <None Remove="Flowsheets\HydrogenproductionthroughMethaneCatalyticSteamReforming.dwxml" />
+    <None Remove="Flowsheets\LiquidLiquidExtraction.dwxmz" />
+    <None Remove="Flowsheets\MembraneCustomUnitOperation.dwxml" />
+    <None Remove="Flowsheets\NaturalGasProcessingUnit.dwxml" />
+    <None Remove="Flowsheets\PetroleumDistillation.dwxml" />
+    <None Remove="Flowsheets\SimpleAbsorberSample.dwxml" />
+    <None Remove="Flowsheets\SimpleLNGExchangerCustomUnitOperation.dwxml" />
+    <None Remove="Flowsheets\ThreePhaseSeparator.dwxml" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Flowsheets\BiodieselProduction.dwxmz" />
+    <EmbeddedResource Include="Flowsheets\CavettProblem.dwxml" />
+    <EmbeddedResource Include="Flowsheets\ExtractiveDistillation.dwxmz" />
+    <EmbeddedResource Include="Flowsheets\GibbsAndEquilibriumReactors.dwxml" />
+    <EmbeddedResource Include="Flowsheets\HeatExchangerSizingAndDesign.dwxml" />
+    <EmbeddedResource Include="Flowsheets\HydrocycloneCustomUnitOperation.dwxml" />
+    <EmbeddedResource Include="Flowsheets\HydrogenproductionthroughMethaneCatalyticSteamReforming.dwxml" />
+    <EmbeddedResource Include="Flowsheets\LiquidLiquidExtraction.dwxmz" />
+    <EmbeddedResource Include="Flowsheets\MembraneCustomUnitOperation.dwxml" />
+    <EmbeddedResource Include="Flowsheets\NaturalGasProcessingUnit.dwxml" />
+    <EmbeddedResource Include="Flowsheets\PetroleumDistillation.dwxml" />
+    <EmbeddedResource Include="Flowsheets\SimpleAbsorberSample.dwxml" />
+    <EmbeddedResource Include="Flowsheets\SimpleLNGExchangerCustomUnitOperation.dwxml" />
+    <EmbeddedResource Include="Flowsheets\ThreePhaseSeparator.dwxml" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DWSIMCore.Foundation\DWSIMCore.Foundation.vbproj" />
+    <ProjectReference Include="..\DWSIMCore\DWSIMCore.csproj" />
+  </ItemGroup>
+
+</Project>
