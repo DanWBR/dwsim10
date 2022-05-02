@@ -45,4 +45,10 @@
     <ProjectReference Include="..\DWSIMCore\DWSIMCore.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Reference Include="CapeOpen">
+      <HintPath>..\DWSIMCore.Foundation\Libraries\CapeOpen.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
 </Project>
