@@ -7,7 +7,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DWSIMCore", "DWSIMCore\DWSI
 EndProject
 Project("{778DAE3C-4631-46EA-AA77-85C1314464D9}") = "DWSIMCore.Foundation", "DWSIMCore.Foundation\DWSIMCore.Foundation.vbproj", "{B70847D2-9C0A-4025-B69E-9C193D01ED09}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DWSIMCore.UI", "DWSIMCore.UI\DWSIMCore.UI.csproj", "{57F5E414-D9B3-47A4-83B1-25309EE86EF0}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DWSIMCore.UI.Interfaces", "DWSIMCore.UI\DWSIMCore.UI.Interfaces.csproj", "{57F5E414-D9B3-47A4-83B1-25309EE86EF0}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
