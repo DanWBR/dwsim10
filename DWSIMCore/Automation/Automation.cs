@@ -18,6 +18,24 @@ namespace DWSIMCore.Automation
             Console.WriteLine("DWSIM Automation Interface initialized successfully.");
         }
 
+        public IFlowsheet LoadFlowsheet(Stream filestream, bool isXMZ)
+        {
+            Settings.AutomationMode = true;
+            Settings.CultureInfo = "en";
+            Console.WriteLine("Initializing the Flowsheet, please wait...");
+            var fsheet = new Flowsheet2();
+            Console.WriteLine("Loading Flowsheet data, please wait...");
+            if (isXMZ)
+            {
+                fsheet.LoadZippedXML(filestream);
+            }
+            else
+            {
+                fsheet.LoadFromXML(XDocument.Load(filestream));
+            }
+            return fsheet;
+        }
+
         public IFlowsheet LoadFlowsheet(string filepath)
         {
             Settings.AutomationMode = true;

@@ -728,20 +728,21 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\DWSIMCore.Foundation.CSharp\DWSIMCore.Foundation.CSharp.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Reference Include="CapeOpen">
       <HintPath>Libraries\CapeOpen.dll</HintPath>
+      <CopyLocal>True</CopyLocal>
     </Reference>
     <Reference Include="Cureos.Numerics">
       <HintPath>Libraries\Cureos.Numerics.dll</HintPath>
-    </Reference>
-    <Reference Include="DWSIM.MathOps.DotNumerics">
-      <HintPath>Libraries\DotNumerics.dll</HintPath>
-    </Reference>
-    <Reference Include="DWSIM.Thermodynamics.CoolPropInterface">
-      <HintPath>Libraries\CoolPropInterface.dll</HintPath>
+      <CopyLocal>True</CopyLocal>
     </Reference>
     <Reference Include="Mapack">
       <HintPath>Libraries\Mapack.dll</HintPath>
+      <CopyLocal>True</CopyLocal>
     </Reference>
   </ItemGroup>
 

@@ -282,7 +282,7 @@ Public MustInherit Class FlowsheetBase
         End If
 
         If rm Is Nothing Then
-            rm = New Resources.ResourceManager("DWSIM.FlowsheetBase.Strings", MyBase.GetType.GetTypeInfo.BaseType.GetTypeInfo.Assembly)
+            rm = New Resources.ResourceManager("DWSIMCore.Foundation.Strings", MyBase.GetType.GetTypeInfo.BaseType.GetTypeInfo.Assembly)
         End If
 
         Dim ttext As String = rm.GetString(text)
@@ -291,7 +291,7 @@ Public MustInherit Class FlowsheetBase
             Return ttext
         Else
             If prm Is Nothing Then
-                prm = New Resources.ResourceManager("DWSIM.FlowsheetBase.Properties", MyBase.GetType.GetTypeInfo.BaseType.GetTypeInfo.Assembly)
+                prm = New Resources.ResourceManager("DWSIMCore.Foundation.Properties", MyBase.GetType.GetTypeInfo.BaseType.GetTypeInfo.Assembly)
             End If
             Try
                 If text.Split("/"c).Length = 2 Then
@@ -1648,38 +1648,9 @@ Public MustInherit Class FlowsheetBase
 
         Dim excs As New Concurrent.ConcurrentBag(Of Exception)
 
-        'check version
-
-        Dim sver = New Version("1.0.0.0")
-
-        Try
-            sver = New Version(xdoc.Element("DWSIM_Simulation_Data").Element("GeneralInfo").Element("BuildVersion").Value)
-        Catch ex As Exception
-        End Try
-
-        If sver < New Version("5.0.0.0") Then
-            Parallel.ForEach(xdoc.Descendants, Sub(xel1)
-                                                   Utility.UpdateElement(xel1)
-                                               End Sub)
-        End If
-
-        'check saved from Classic UI
-
-        Dim savedfromclui As Boolean = True
-
-        Try
-            savedfromclui = Boolean.Parse(xdoc.Element("DWSIM_Simulation_Data").Element("GeneralInfo").Element("SavedFromClassicUI").Value)
-        Catch ex As Exception
-        End Try
-
-        If savedfromclui Then
-            Try
-                Parallel.ForEach(xdoc.Descendants, Sub(xel1)
-                                                       Utility.UpdateElementForNewUI(xel1)
-                                                   End Sub)
-            Catch ex As Exception
-            End Try
-        End If
+        For Each xel1 In xdoc.Descendants
+            Utility.UpdateElement(xel1)
+        Next
 
         Dim data As List(Of XElement) = xdoc.Element("DWSIM_Simulation_Data").Element("Settings").Elements.ToList
 
@@ -1692,10 +1663,6 @@ Public MustInherit Class FlowsheetBase
 
             If Not AvailableSystemsOfUnits.Contains(Options.SelectedUnitSystem1) Then
                 AvailableSystemsOfUnits.Add(Options.SelectedUnitSystem1)
-            End If
-
-            If sver < New Version("6.3.0.0") Then
-                Options.SkipEquilibriumCalculationOnDefinedStreams = False
             End If
 
         Catch ex As Exception
@@ -2230,13 +2197,13 @@ Public MustInherit Class FlowsheetBase
                 xel.Element("ObjectType").Value = xel.Element("ObjectType").Value.Replace("GO_Figura", "GO_Image")
                 Dim obj As GraphicObject = Nothing
                 Dim t As Type = Type.GetType(xel.Element("Type").Value, False)
-                If Not t Is Nothing Then obj = CType(Activator.CreateInstance(t), GraphicObject)
+                If Not t Is Nothing Then
+                    obj = CType(Activator.CreateInstance(t), GraphicObject)
+                Else
+                    Throw New ArgumentNullException()
+                End If
                 If obj Is Nothing Then
-                    'If xel.Element("Type").Value.Contains("OxyPlotGraphic") Then
-                    '    obj = CType(Extended.Shared.ReturnInstance(xel.Element("Type").Value.Replace("Shapes", "Charts")), GraphicObject)
-                    'Else
                     obj = CType(GraphicObject.ReturnInstance(xel.Element("Type").Value), GraphicObject)
-                    'End If
                 End If
                 If Not obj Is Nothing Then
                     obj.LoadData(xel.Elements.ToList)
@@ -2512,13 +2479,13 @@ Public MustInherit Class FlowsheetBase
                                     For Each cp As BaseClasses.ConstantProperties In comps
                                         If Not AvailableCompounds.ContainsKey(cp.Name) Then AvailableCompounds.Add(cp.Name, cp)
                                     Next
-                                    Using filestr As Stream = Assembly.GetAssembly(elec.GetType).GetManifestResourceStream("DWSIM.Thermodynamics.FoodProp.xml")
-                                        Dim fcomps = Databases.UserDB.ReadComps(filestr)
-                                        For Each cp As BaseClasses.ConstantProperties In fcomps
-                                            cp.CurrentDB = "FoodProp"
-                                            If Not AvailableCompounds.ContainsKey(cp.Name) Then AvailableCompounds.Add(cp.Name, cp)
-                                        Next
-                                    End Using
+                                    'Using filestr As Stream = Assembly.GetAssembly(elec.GetType).GetManifestResourceStream("DWSIM.Thermodynamics.FoodProp.xml")
+                                    '    Dim fcomps = Databases.UserDB.ReadComps(filestr)
+                                    '    For Each cp As BaseClasses.ConstantProperties In fcomps
+                                    '        cp.CurrentDB = "FoodProp"
+                                    '        If Not AvailableCompounds.ContainsKey(cp.Name) Then AvailableCompounds.Add(cp.Name, cp)
+                                    '    Next
+                                    'End Using
                                     csdb.Dispose()
                                     cpdb.Dispose()
                                     chedl.Dispose()
@@ -2607,6 +2574,17 @@ Public MustInherit Class FlowsheetBase
         Next
 
     End Sub
+
+    Public Function LoadZippedXML(stream As Stream) As XDocument
+
+        Dim fn = Utility.GetTempFileName()
+
+        Using fs As New FileStream(fn, FileMode.Create)
+            stream.CopyTo(fs)
+            Return LoadZippedXML(fn)
+        End Using
+
+    End Function
 
 
     Public Function LoadZippedXML(pathtofile As String) As XDocument

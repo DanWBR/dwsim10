@@ -39,101 +39,151 @@ Public Class Utility
 
     Shared Sub UpdateElement(xel As XElement)
 
-        If xel.Name = "TipoObjeto" Then xel.Name = "ObjectType"
-        If xel.Name = "Nome" Then xel.Name = "Name"
-        If xel.Name = "Descricao" Then xel.Name = "Description"
-        If xel.Name = "Tipo" Then xel.Name = "Type"
-        If xel.Name = "FracaoMolar" Then xel.Name = "MoleFraction"
-        If xel.Name = "FracaoMassica" Then xel.Name = "MassFraction"
-        If xel.Name = "FracaoDePetroleo" Then xel.Name = "PetroleumFraction"
-        If xel.Value = "Nenhum" Then xel.Value = "None"
-        If xel.Value = "Destino" Then xel.Value = "Target"
-        If xel.Value = "Fonte" Then xel.Value = "Source"
-        If xel.Value = "Manipulada" Then xel.Value = "Manipulated"
-        If xel.Value = "Referencia" Then xel.Value = "Referenced"
-        If xel.Value = "Controlada" Then xel.Value = "Controlled"
+        If xel.Name.LocalName.Equals("Type") Then
 
-        If xel.Value.EndsWith("Streams.MaterialStream") Then xel.Value = "DWSIM.Thermodynamics.Streams.MaterialStream"
+            If xel.Value.StartsWith("DWSIM.Thermodynamics") Then
+                xel.Value = xel.Value.Replace("DWSIM.Thermodynamics", "DWSIMCore.Foundation")
+            End If
 
-        If xel.Value.EndsWith("Streams.EnergyStream") Then xel.Value = "DWSIM.UnitOperations.Streams.EnergyStream"
+            If xel.Name = "TipoObjeto" Then xel.Name = "ObjectType"
+            If xel.Name = "Nome" Then xel.Name = "Name"
+            If xel.Name = "Descricao" Then xel.Name = "Description"
+            If xel.Name = "Tipo" Then xel.Name = "Type"
+            If xel.Name = "FracaoMolar" Then xel.Name = "MoleFraction"
+            If xel.Name = "FracaoMassica" Then xel.Name = "MassFraction"
+            If xel.Name = "FracaoDePetroleo" Then xel.Name = "PetroleumFraction"
+            If xel.Value = "Nenhum" Then xel.Value = "None"
+            If xel.Value = "Destino" Then xel.Value = "Target"
+            If xel.Value = "Fonte" Then xel.Value = "Source"
+            If xel.Value = "Manipulada" Then xel.Value = "Manipulated"
+            If xel.Value = "Referencia" Then xel.Value = "Referenced"
+            If xel.Value = "Controlada" Then xel.Value = "Controlled"
 
-        If xel.Value.EndsWith("UnitOps.Vessel") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.Vessel"
-        If xel.Value.EndsWith("UnitOps.Compressor") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.Compressor"
-        If xel.Value.EndsWith("UnitOps.Expander") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.Expander"
-        If xel.Value.EndsWith("UnitOps.Heater") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.Heater"
-        If xel.Value.EndsWith("UnitOps.Cooler") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.Cooler"
-        If xel.Value.EndsWith("UnitOps.HeatExchanger") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.HeatExchanger"
-        If xel.Value.EndsWith("UnitOps.Filter") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.Filter"
-        If xel.Value.EndsWith("UnitOps.Mixer") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.Mixer"
-        If xel.Value.EndsWith("UnitOps.Splitter") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.Splitter"
-        If xel.Value.EndsWith("UnitOps.ComponentSeparator") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.ComponentSeparator"
-        If xel.Value.EndsWith("UnitOps.ShortcutColumn") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.ShortcutColumn"
-        If xel.Value.EndsWith("UnitOps.CustomUO") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.CustomUO"
-        If xel.Value.EndsWith("UnitOps.CapeOpenUO") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.CapeOpenUO"
-        If xel.Value.EndsWith("UnitOps.Flowsheet") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.Flowsheet"
-        If xel.Value.EndsWith("UnitOps.OrificePlate") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.OrificePlate"
-        If xel.Value.EndsWith("UnitOps.SolidsSeparator") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.SolidsSeparator"
-        If xel.Value.EndsWith("UnitOps.ExcelUO") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.ExcelUO"
-        If xel.Value.EndsWith("UnitOps.Tank") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.Tank"
-        If xel.Value.EndsWith("UnitOps.Valve") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.Valve"
-        If xel.Value.EndsWith("UnitOps.Pump") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.Pump"
-        If xel.Value.EndsWith("UnitOps.Pipe") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.Pipe"
-        If xel.Value.EndsWith("UnitOps.DistillationColumn") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.DistillationColumn"
-        If xel.Value.EndsWith("UnitOps.AbsorptionColumn") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.AbsorptionColumn"
-        If xel.Value.EndsWith("UnitOps.ReboiledAbsorber") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.ReboiledAbsorber"
-        If xel.Value.EndsWith("UnitOps.RefluxedAbsorber") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.RefluxedAbsorber"
+            If xel.Value.EndsWith("Streams.MaterialStream") Then xel.Value = "DWSIMCore.Foundation.Streams.MaterialStream"
 
-        If xel.Value.EndsWith("Reactors.Reactor_Conversion") Then xel.Value = "DWSIM.UnitOperations.Reactors.Reactor_Conversion"
-        If xel.Value.EndsWith("Reactors.Reactor_Equilibrium") Then xel.Value = "DWSIM.UnitOperations.Reactors.Reactor_Equilibrium"
-        If xel.Value.EndsWith("Reactors.Reactor_Gibbs") Then xel.Value = "DWSIM.UnitOperations.Reactors.Reactor_Gibbs"
-        If xel.Value.EndsWith("Reactors.Reactor_PFR") Then xel.Value = "DWSIM.UnitOperations.Reactors.Reactor_PFR"
-        If xel.Value.EndsWith("Reactors.Reactor_CSTR") Then xel.Value = "DWSIM.UnitOperations.Reactors.Reactor_CSTR"
+            If xel.Value.EndsWith("Streams.EnergyStream") Then xel.Value = "DWSIMCore.Foundation.Streams.EnergyStream"
 
-        If xel.Value.EndsWith("SpecialOps.Adjust") Then xel.Value = "DWSIM.UnitOperations.SpecialOps.Adjust"
-        If xel.Value.EndsWith("SpecialOps.Spec") Then xel.Value = "DWSIM.UnitOperations.SpecialOps.Spec"
-        If xel.Value.EndsWith("SpecialOps.Recycle") Then xel.Value = "DWSIM.UnitOperations.SpecialOps.Recycle"
-        If xel.Value.EndsWith("SpecialOps.EnergyRecycle") Then xel.Value = "DWSIM.UnitOperations.SpecialOps.EnergyRecycle"
+            If xel.Value.EndsWith("UnitOperations.Vessel") Then xel.Value = "DWSIMCore.Foundation.UnitOperations.Vessel"
+            If xel.Value.EndsWith("UnitOperations.Compressor") Then xel.Value = "DWSIMCore.Foundation.UnitOperations.Compressor"
+            If xel.Value.EndsWith("UnitOperations.Expander") Then xel.Value = "DWSIMCore.Foundation.UnitOperations.Expander"
+            If xel.Value.EndsWith("UnitOperations.Heater") Then xel.Value = "DWSIMCore.Foundation.UnitOperations.Heater"
+            If xel.Value.EndsWith("UnitOperations.Cooler") Then xel.Value = "DWSIMCore.Foundation.UnitOperations.Cooler"
+            If xel.Value.EndsWith("UnitOperations.HeatExchanger") Then xel.Value = "DWSIMCore.Foundation.UnitOperations.HeatExchanger"
+            If xel.Value.EndsWith("UnitOperations.Filter") Then xel.Value = "DWSIMCore.Foundation.UnitOperations.Filter"
+            If xel.Value.EndsWith("UnitOperations.Mixer") Then xel.Value = "DWSIMCore.Foundation.UnitOperations.Mixer"
+            If xel.Value.EndsWith("UnitOperations.Splitter") Then xel.Value = "DWSIMCore.Foundation.UnitOperations.Splitter"
+            If xel.Value.EndsWith("UnitOperations.ComponentSeparator") Then xel.Value = "DWSIMCore.Foundation.UnitOperations.ComponentSeparator"
+            If xel.Value.EndsWith("UnitOperations.ShortcutColumn") Then xel.Value = "DWSIMCore.Foundation.UnitOperations.ShortcutColumn"
+            If xel.Value.EndsWith("UnitOperations.CustomUO") Then xel.Value = "DWSIMCore.Foundation.UnitOperations.CustomUO"
+            If xel.Value.EndsWith("UnitOperations.CapeOpenUO") Then xel.Value = "DWSIMCore.Foundation.UnitOperations.CapeOpenUO"
+            If xel.Value.EndsWith("UnitOperations.Flowsheet") Then xel.Value = "DWSIMCore.Foundation.UnitOperations.Flowsheet"
+            If xel.Value.EndsWith("UnitOperations.OrificePlate") Then xel.Value = "DWSIMCore.Foundation.UnitOperations.OrificePlate"
+            If xel.Value.EndsWith("UnitOperations.SolidsSeparator") Then xel.Value = "DWSIMCore.Foundation.UnitOperations.SolidsSeparator"
+            If xel.Value.EndsWith("UnitOperations.ExcelUO") Then xel.Value = "DWSIMCore.Foundation.UnitOperations.ExcelUO"
+            If xel.Value.EndsWith("UnitOperations.Tank") Then xel.Value = "DWSIMCore.Foundation.UnitOperations.Tank"
+            If xel.Value.EndsWith("UnitOperations.Valve") Then xel.Value = "DWSIMCore.Foundation.UnitOperations.Valve"
+            If xel.Value.EndsWith("UnitOperations.Pump") Then xel.Value = "DWSIMCore.Foundation.UnitOperations.Pump"
+            If xel.Value.EndsWith("UnitOperations.Pipe") Then xel.Value = "DWSIMCore.Foundation.UnitOperations.Pipe"
+            If xel.Value.EndsWith("UnitOperations.DistillationColumn") Then xel.Value = "DWSIMCore.Foundation.UnitOperations.DistillationColumn"
+            If xel.Value.EndsWith("UnitOperations.AbsorptionColumn") Then xel.Value = "DWSIMCore.Foundation.UnitOperations.AbsorptionColumn"
+            If xel.Value.EndsWith("UnitOperations.ReboiledAbsorber") Then xel.Value = "DWSIMCore.Foundation.UnitOperations.ReboiledAbsorber"
+            If xel.Value.EndsWith("UnitOperations.RefluxedAbsorber") Then xel.Value = "DWSIMCore.Foundation.UnitOperations.RefluxedAbsorber"
 
-        If xel.Value.EndsWith("DWSIM.MaterialStream") Then xel.Value = "DWSIM.Thermodynamics.Streams.MaterialStream"
+            If xel.Value.EndsWith("Reactors.Reactor_Conversion") Then xel.Value = "DWSIMCore.Foundation.Reactors.Reactor_Conversion"
+            If xel.Value.EndsWith("Reactors.Reactor_Equilibrium") Then xel.Value = "DWSIMCore.Foundation.Reactors.Reactor_Equilibrium"
+            If xel.Value.EndsWith("Reactors.Reactor_Gibbs") Then xel.Value = "DWSIMCore.Foundation.Reactors.Reactor_Gibbs"
+            If xel.Value.EndsWith("Reactors.Reactor_PFR") Then xel.Value = "DWSIMCore.Foundation.Reactors.Reactor_PFR"
+            If xel.Value.EndsWith("Reactors.Reactor_CSTR") Then xel.Value = "DWSIMCore.Foundation.Reactors.Reactor_CSTR"
 
-        If xel.Value.EndsWith("DWSIM.EnergyStream") Then xel.Value = "DWSIM.UnitOperations.Streams.EnergyStream"
+            If xel.Value.EndsWith("SpecialOps.Adjust") Then xel.Value = "DWSIMCore.Foundation.SpecialOps.Adjust"
+            If xel.Value.EndsWith("SpecialOps.Spec") Then xel.Value = "DWSIMCore.Foundation.SpecialOps.Spec"
+            If xel.Value.EndsWith("SpecialOps.Recycle") Then xel.Value = "DWSIMCore.Foundation.SpecialOps.Recycle"
+            If xel.Value.EndsWith("SpecialOps.EnergyRecycle") Then xel.Value = "DWSIMCore.Foundation.SpecialOps.EnergyRecycle"
 
-        If xel.Value.EndsWith("DWSIM.Vessel") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.Vessel"
-        If xel.Value.EndsWith("DWSIM.Compressor") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.Compressor"
-        If xel.Value.EndsWith("DWSIM.Expander") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.Expander"
-        If xel.Value.EndsWith("DWSIM.Heater") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.Heater"
-        If xel.Value.EndsWith("DWSIM.Cooler") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.Cooler"
-        If xel.Value.EndsWith("DWSIM.HeatExchanger") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.HeatExchanger"
-        If xel.Value.EndsWith("DWSIM.Filter") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.Filter"
-        If xel.Value.EndsWith("DWSIM.Mixer") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.Mixer"
-        If xel.Value.EndsWith("DWSIM.Splitter") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.Splitter"
-        If xel.Value.EndsWith("DWSIM.ComponentSeparator") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.ComponentSeparator"
-        If xel.Value.EndsWith("DWSIM.ShortcutColumn") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.ShortcutColumn"
-        If xel.Value.EndsWith("DWSIM.CustomUO") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.CustomUO"
-        If xel.Value.EndsWith("DWSIM.CapeOpenUO") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.CapeOpenUO"
-        If xel.Value.EndsWith("DWSIM.Flowsheet") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.Flowsheet"
-        If xel.Value.EndsWith("DWSIM.OrificePlate") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.OrificePlate"
-        If xel.Value.EndsWith("DWSIM.SolidsSeparator") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.SolidsSeparator"
-        If xel.Value.EndsWith("DWSIM.ExcelUO") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.ExcelUO"
-        If xel.Value.EndsWith("DWSIM.Tank") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.Tank"
-        If xel.Value.EndsWith("DWSIM.Valve") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.Valve"
-        If xel.Value.EndsWith("DWSIM.Pump") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.Pump"
-        If xel.Value.EndsWith("DWSIM.Pipe") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.Pipe"
-        If xel.Value.EndsWith("DWSIM.DistillationColumn") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.DistillationColumn"
-        If xel.Value.EndsWith("DWSIM.AbsorptionColumn") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.AbsorptionColumn"
-        If xel.Value.EndsWith("DWSIM.ReboiledAbsorber") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.ReboiledAbsorber"
-        If xel.Value.EndsWith("DWSIM.RefluxedAbsorber") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.RefluxedAbsorber"
 
-        If xel.Value.EndsWith("DWSIM.Reactor_Conversion") Then xel.Value = "DWSIM.UnitOperations.Reactors.Reactor_Conversion"
-        If xel.Value.EndsWith("DWSIM.Reactor_Equilibrium") Then xel.Value = "DWSIM.UnitOperations.Reactors.Reactor_Equilibrium"
-        If xel.Value.EndsWith("DWSIM.Reactor_Gibbs") Then xel.Value = "DWSIM.UnitOperations.Reactors.Reactor_Gibbs"
-        If xel.Value.EndsWith("DWSIM.Reactor_PFR") Then xel.Value = "DWSIM.UnitOperations.Reactors.Reactor_PFR"
-        If xel.Value.EndsWith("DWSIM.Reactor_CSTR") Then xel.Value = "DWSIM.UnitOperations.Reactors.Reactor_CSTR"
+            If xel.Name = "Fill" Then xel.Value = "True"
 
-        If xel.Value.EndsWith("DWSIM.Adjust") Then xel.Value = "DWSIM.UnitOperations.SpecialOps.Adjust"
-        If xel.Value.EndsWith("DWSIM.Spec") Then xel.Value = "DWSIM.UnitOperations.SpecialOps.Spec"
-        If xel.Value.EndsWith("DWSIM.Recycle") Then xel.Value = "DWSIM.UnitOperations.SpecialOps.Recycle"
-        If xel.Value.EndsWith("DWSIM.EnergyRecycle") Then xel.Value = "DWSIM.UnitOperations.SpecialOps.EnergyRecycle"
+            If xel.Value.Equals("DWSIM.DrawingTools.GraphicObjects.ReactorEquilibriumGraphic") Then
+                xel.Value = "DWSIMCore.Foundation.GraphicObjects.Shapes.EquilibriumReactorGraphic"
+            ElseIf xel.Value.Equals("DWSIM.DrawingTools.GraphicObjects.ReactorConversionGraphic") Then
+                xel.Value = "DWSIMCore.Foundation.GraphicObjects.Shapes.ConversionReactorGraphic"
+            ElseIf xel.Value.Equals("DWSIM.DrawingTools.GraphicObjects.ReactorGibbsGraphic") Then
+                xel.Value = "DWSIMCore.Foundation.GraphicObjects.Shapes.GibbsReactorGraphic"
+            ElseIf xel.Value.Equals("DWSIM.DrawingTools.GraphicObjects.ReactorCSTRGraphic") Then
+                xel.Value = "DWSIMCore.Foundation.GraphicObjects.Shapes.CSTRGraphic"
+            ElseIf xel.Value.Equals("DWSIM.DrawingTools.GraphicObjects.ReactorPFRGraphic") Then
+                xel.Value = "DWSIMCore.Foundation.GraphicObjects.Shapes.PFRGraphic"
+            ElseIf xel.Value.Equals("DWSIM.DrawingTools.GraphicObjects.NodeInGraphic") Then
+                xel.Value = "DWSIMCore.Foundation.GraphicObjects.Shapes.MixerGraphic"
+            ElseIf xel.Value.Equals("DWSIM.DrawingTools.GraphicObjects.NodeOutGraphic") Then
+                xel.Value = "DWSIMCore.Foundation.GraphicObjects.Shapes.SplitterGraphic"
+            ElseIf xel.Value.Equals("DWSIM.DrawingTools.GraphicObjects.HeaterGraphic") Then
+                xel.Value = "DWSIMCore.Foundation.GraphicObjects.Shapes.HeaterGraphic"
+            ElseIf xel.Value.Equals("DWSIM.DrawingTools.GraphicObjects.CoolerGraphic") Then
+                xel.Value = "DWSIMCore.Foundation.GraphicObjects.Shapes.CoolerGraphic"
+            ElseIf xel.Value.Equals("DWSIM.DrawingTools.GraphicObjects.CompressorGraphic") Then
+                xel.Value = "DWSIMCore.Foundation.GraphicObjects.Shapes.CompressorGraphic"
+            ElseIf xel.Value.Equals("DWSIM.DrawingTools.GraphicObjects.ExpanderGraphic") Then
+                xel.Value = "DWSIMCore.Foundation.GraphicObjects.Shapes.ExpanderGraphic"
+            ElseIf xel.Value.Equals("DWSIM.DrawingTools.GraphicObjects.ShorcutColumnGraphic") Then
+                xel.Value = "DWSIMCore.Foundation.GraphicObjects.Shapes.ShortcutColumnGraphic"
+            ElseIf xel.Value.Equals("DWSIM.DrawingTools.GraphicObjects.DistillationColumnGraphic") Then
+                xel.Value = "DWSIMCore.Foundation.GraphicObjects.Shapes.RigorousColumnGraphic"
+            ElseIf xel.Value.Equals("DWSIM.DrawingTools.GraphicObjects.AbsorptionColumnGraphic") Then
+                xel.Value = "DWSIMCore.Foundation.GraphicObjects.Shapes.AbsorptionColumnGraphic"
+            ElseIf xel.Value.Equals("DWSIM.DrawingTools.GraphicObjects.FlowsheetUOGraphic") Then
+                xel.Value = "DWSIMCore.Foundation.GraphicObjects.Shapes.FlowsheetGraphic"
+            ElseIf xel.Value.Equals("DWSIM.DrawingTools.GraphicObjects.CustomUOGraphic") Then
+                xel.Value = "DWSIMCore.Foundation.GraphicObjects.Shapes.ScriptGraphic"
+            ElseIf xel.Value.Equals("DWSIM.DrawingTools.GraphicObjects.CapeOpenUOGraphic") Then
+                xel.Value = "DWSIMCore.Foundation.GraphicObjects.Shapes.CAPEOPENGraphic"
+            ElseIf xel.Value.Equals("DWSIM.DrawingTools.GraphicObjects.ExcelUOGraphic") Then
+                xel.Value = "DWSIMCore.Foundation.GraphicObjects.Shapes.SpreadsheetGraphic"
+            ElseIf xel.Value.Equals("DWSIM.DrawingTools.GraphicObjects.PipeGraphic") Then
+                xel.Value = "DWSIMCore.Foundation.GraphicObjects.Shapes.PipeSegmentGraphic"
+            ElseIf xel.Value.Equals("DWSIM.DrawingTools.GraphicObjects.MaterialStreamGraphic") Then
+                xel.Value = "DWSIMCore.Foundation.GraphicObjects.Shapes.MaterialStreamGraphic"
+            ElseIf xel.Value.Equals("DWSIM.DrawingTools.GraphicObjects.EnergyStreamGraphic") Then
+                xel.Value = "DWSIMCore.Foundation.GraphicObjects.Shapes.EnergyStreamGraphic"
+            ElseIf xel.Value.Equals("DWSIM.DrawingTools.GraphicObjects.VesselGraphic") Then
+                xel.Value = "DWSIMCore.Foundation.GraphicObjects.Shapes.VesselGraphic"
+            ElseIf xel.Value.Equals("DWSIM.DrawingTools.GraphicObjects.ValveGraphic") Then
+                xel.Value = "DWSIMCore.Foundation.GraphicObjects.Shapes.ValveGraphic"
+            ElseIf xel.Value.Equals("DWSIM.DrawingTools.GraphicObjects.RecycleGraphic") Then
+                xel.Value = "DWSIMCore.Foundation.GraphicObjects.Shapes.RecycleGraphic"
+            ElseIf xel.Value.Equals("DWSIM.DrawingTools.GraphicObjects.EnergyRecycleGraphic") Then
+                xel.Value = "DWSIMCore.Foundation.GraphicObjects.Shapes.EnergyRecycleGraphic"
+            ElseIf xel.Value.Equals("DWSIM.DrawingTools.GraphicObjects.SpecGraphic") Then
+                xel.Value = "DWSIMCore.Foundation.GraphicObjects.Shapes.SpecGraphic"
+            ElseIf xel.Value.Equals("DWSIM.DrawingTools.GraphicObjects.TextGraphic") Then
+                xel.Value = "DWSIMCore.Foundation.GraphicObjects.TextGraphic"
+            ElseIf xel.Value.Equals("DWSIM.DrawingTools.GraphicObjects.OrificePlateGraphic") Then
+                xel.Value = "DWSIMCore.Foundation.GraphicObjects.OrificePlateGraphic"
+            ElseIf xel.Value.Equals("DWSIM.DrawingTools.GraphicObjects.AdjustGraphic") Then
+                xel.Value = "DWSIMCore.Foundation.GraphicObjects.AdjustGraphic"
+            ElseIf xel.Value.Equals("DWSIM.DrawingTools.GraphicObjects.AnalogGaugeGraphic") Then
+                xel.Value = "DWSIMCore.Foundation.GraphicObjects.AnalogGaugeGraphic"
+            ElseIf xel.Value.Equals("DWSIM.DrawingTools.GraphicObjects.DigitalGaugeGraphic") Then
+                xel.Value = "DWSIMCore.Foundation.GraphicObjects.DigitalGaugeGraphic"
+            ElseIf xel.Value.Equals("DWSIM.DrawingTools.GraphicObjects.InputGraphic") Then
+                xel.Value = "DWSIMCore.Foundation.GraphicObjects.InputGraphic"
+            ElseIf xel.Value.Equals("DWSIM.DrawingTools.GraphicObjects.LevelGaugeGraphic") Then
+                xel.Value = "DWSIMCore.Foundation.GraphicObjects.LevelGaugeGraphic"
+            ElseIf xel.Value.Equals("DWSIM.DrawingTools.GraphicObjects.PIDControllerGraphic") Then
+                xel.Value = "DWSIMCore.Foundation.GraphicObjects.PIDControllerGraphic"
+            ElseIf xel.Value.Equals("DWSIM.DrawingTools.GraphicObjects.SwitchGraphic") Then
+                xel.Value = "DWSIMCore.Foundation.GraphicObjects.SwitchGraphic"
+            End If
+
+            If xel.Value.StartsWith("DWSIM.DrawingTools.GraphicObjects.Shapes") Then
+                xel.Value = xel.Value.Replace("DWSIM.DrawingTools.GraphicObjects", "DWSIMCore.Foundation.GraphicObjects.Shapes")
+            End If
+
+            If xel.Value.StartsWith("DWSIM.GraphicObjects.Tables") Then
+                xel.Value = xel.Value.Replace("DWSIM.GraphicObjects", "DWSIMCore.Foundation.GraphicObjects.Tables")
+            End If
+
+        End If
 
     End Sub
 

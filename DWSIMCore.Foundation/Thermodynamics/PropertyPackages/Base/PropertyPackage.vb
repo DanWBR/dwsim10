@@ -10988,9 +10988,9 @@ Final3:
 
             Dim HenryLines() As String
 
-            Dim t0 As Type = Type.GetType("DWSIM.Thermodynamics.PropertyPackages.PropertyPackage")
+            Dim t0 As Type = Type.GetType("DWSIMCore.Foundation.PropertyPackages.PropertyPackage")
 
-            Using filestr As Stream = Assembly.GetAssembly(t0).GetManifestResourceStream("DWSIM.Thermodynamics.henry.txt")
+            Using filestr As Stream = Assembly.GetAssembly(t0).GetManifestResourceStream("DWSIMCore.Foundation.henry.txt")
                 Using t As New StreamReader(filestr)
                     HenryLines = t.ReadToEnd().Split(vbLf)
                 End Using
@@ -12354,7 +12354,7 @@ Final3:
         Public MustOverride ReadOnly Property MobileCompatible As Boolean Implements IPropertyPackage.MobileCompatible
 
         Public Overridable Function ReturnInstance(typename As String) As Object Implements IPropertyPackage.ReturnInstance
-            If typename.StartsWith("PropertyPackage") Then typename = typename.Insert(0, "DWSIM.Thermodynamics.")
+            If typename.StartsWith("PropertyPackage") Then typename = typename.Insert(0, "DWSIMCore.Foundation.")
             typename = typename.Replace("SoaveRedlichKwong", "SRK")
             Dim t As Type = Type.GetType(typename, False)
             Return Activator.CreateInstance(t)
