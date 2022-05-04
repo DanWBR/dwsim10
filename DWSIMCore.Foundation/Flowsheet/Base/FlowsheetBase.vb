@@ -2200,7 +2200,7 @@ Public MustInherit Class FlowsheetBase
                 If Not t Is Nothing Then
                     obj = CType(Activator.CreateInstance(t), GraphicObject)
                 Else
-                    Throw New ArgumentNullException()
+                    'Throw New ArgumentNullException()
                 End If
                 If obj Is Nothing Then
                     obj = CType(GraphicObject.ReturnInstance(xel.Element("Type").Value), GraphicObject)
@@ -2581,8 +2581,14 @@ Public MustInherit Class FlowsheetBase
 
         Using fs As New FileStream(fn, FileMode.Create)
             stream.CopyTo(fs)
-            Return LoadZippedXML(fn)
         End Using
+
+        Return LoadZippedXML(fn)
+
+        Try
+            File.Delete(fn)
+        Catch ex As Exception
+        End Try
 
     End Function
 

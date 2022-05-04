@@ -11909,7 +11909,7 @@ Final3:
 
                 For Each xel3 In elf.Elements
                     Try
-                        Dim esname = [Enum].Parse(Enums.Helpers.GetEnumType("DWSIM.Enums.FlashSetting"), xel3.@Name)
+                        Dim esname = [Enum].Parse(Enums.Helpers.GetEnumType("DWSIMCore.Foundation.Enums.FlashSetting"), xel3.@Name)
                         If xel3.@Value = "0" And esname.ToString().Contains("tolerance") Then
                             FlashSettings.Add(esname, "0.0001")
                         Else

@@ -158,25 +158,31 @@ Public Class Utility
             ElseIf xel.Value.Equals("DWSIM.DrawingTools.GraphicObjects.TextGraphic") Then
                 xel.Value = "DWSIMCore.Foundation.GraphicObjects.TextGraphic"
             ElseIf xel.Value.Equals("DWSIM.DrawingTools.GraphicObjects.OrificePlateGraphic") Then
-                xel.Value = "DWSIMCore.Foundation.GraphicObjects.OrificePlateGraphic"
+                xel.Value = "DWSIMCore.Foundation.GraphicObjects.Shapes.OrificePlateGraphic"
             ElseIf xel.Value.Equals("DWSIM.DrawingTools.GraphicObjects.AdjustGraphic") Then
-                xel.Value = "DWSIMCore.Foundation.GraphicObjects.AdjustGraphic"
+                xel.Value = "DWSIMCore.Foundation.GraphicObjects.Shapes.AdjustGraphic"
             ElseIf xel.Value.Equals("DWSIM.DrawingTools.GraphicObjects.AnalogGaugeGraphic") Then
-                xel.Value = "DWSIMCore.Foundation.GraphicObjects.AnalogGaugeGraphic"
+                xel.Value = "DWSIMCore.Foundation.GraphicObjects.Shapes.AnalogGaugeGraphic"
             ElseIf xel.Value.Equals("DWSIM.DrawingTools.GraphicObjects.DigitalGaugeGraphic") Then
-                xel.Value = "DWSIMCore.Foundation.GraphicObjects.DigitalGaugeGraphic"
+                xel.Value = "DWSIMCore.Foundation.GraphicObjects.Shapes.DigitalGaugeGraphic"
             ElseIf xel.Value.Equals("DWSIM.DrawingTools.GraphicObjects.InputGraphic") Then
-                xel.Value = "DWSIMCore.Foundation.GraphicObjects.InputGraphic"
+                xel.Value = "DWSIMCore.Foundation.GraphicObjects.Shapes.InputGraphic"
             ElseIf xel.Value.Equals("DWSIM.DrawingTools.GraphicObjects.LevelGaugeGraphic") Then
-                xel.Value = "DWSIMCore.Foundation.GraphicObjects.LevelGaugeGraphic"
+                xel.Value = "DWSIMCore.Foundation.GraphicObjects.Shapes.LevelGaugeGraphic"
             ElseIf xel.Value.Equals("DWSIM.DrawingTools.GraphicObjects.PIDControllerGraphic") Then
-                xel.Value = "DWSIMCore.Foundation.GraphicObjects.PIDControllerGraphic"
+                xel.Value = "DWSIMCore.Foundation.GraphicObjects.Shapes.PIDControllerGraphic"
             ElseIf xel.Value.Equals("DWSIM.DrawingTools.GraphicObjects.SwitchGraphic") Then
-                xel.Value = "DWSIMCore.Foundation.GraphicObjects.SwitchGraphic"
+                xel.Value = "DWSIMCore.Foundation.GraphicObjects.Shapes.SwitchGraphic"
+            ElseIf xel.Value.Equals("DWSIM.DrawingTools.GraphicObjects.HeatExchangerGraphic") Then
+                xel.Value = "DWSIMCore.Foundation.GraphicObjects.Shapes.HeatExchangerGraphic"
             End If
 
             If xel.Value.StartsWith("DWSIM.DrawingTools.GraphicObjects.Shapes") Then
                 xel.Value = xel.Value.Replace("DWSIM.DrawingTools.GraphicObjects", "DWSIMCore.Foundation.GraphicObjects.Shapes")
+            End If
+
+            If xel.Value.StartsWith("DWSIM.Drawing.SkiaSharp") Then
+                xel.Value = xel.Value.Replace("DWSIM.Drawing.SkiaSharp", "DWSIMCore.Foundation")
             End If
 
             If xel.Value.StartsWith("DWSIM.GraphicObjects.Tables") Then

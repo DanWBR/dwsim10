@@ -19,10 +19,11 @@ class Test3
 
         foreach (var flowsheet in flowsheets)
         {
-            using (var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(flowsheet)
+            var extension = Path.GetExtension(flowsheet);
+            using (var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(flowsheet))
             {
-                var sim = autom.LoadFlowsheet(stream, false);
-                sim.SetMessageListener((msg, type) => Console.WriteLine(msg));
+                var sim = autom.LoadFlowsheet(stream, extension.EndsWith("xmz") ? true : false);
+                sim.SetMessageListener((msg, type) => Console.WriteLine(String.Format("[{0}] {1}", flowsheet, msg)));
                 autom.CalculateFlowsheet2(sim);
             }
         }
