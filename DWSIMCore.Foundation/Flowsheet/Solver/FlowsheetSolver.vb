@@ -302,17 +302,18 @@ Public Delegate Sub CustomEvent2(ByVal objinfo As CalculationArgs)
                                               Optional ByVal mode As Integer = 0,
                                               Optional orderedlist As Object = Nothing,
                                               Optional ByVal ct As Threading.CancellationToken = Nothing,
-                                              Optional ByVal Adjusting As Boolean = False) As List(Of Exception)
+                                              Optional ByVal Adjusting As Boolean = False,
+                                              Optional FeedBack As Action(Of String) = Nothing) As List(Of Exception)
 
         Dim exlist As New List(Of Exception)
 
         If mode = 0 Or mode = 1 Then
             'bg thread
-            exlist = ProcessQueueInternalAsync(fobj, ct)
+            exlist = ProcessQueueInternalAsync(fobj, ct, FeedBack)
             If Not Adjusting Then SolveSimultaneousAdjustsAsync(fobj, ct)
         ElseIf mode = 2 Then
             'bg parallel threads
-            exlist = ProcessQueueInternalAsyncParallel(fobj, orderedlist, ct)
+            exlist = ProcessQueueInternalAsyncParallel(fobj, orderedlist, ct, FeedBack)
             If Not Adjusting Then SolveSimultaneousAdjustsAsync(fobj, ct)
         End If
 
@@ -337,7 +338,11 @@ Public Delegate Sub CustomEvent2(ByVal objinfo As CalculationArgs)
     ''' <param name="FlowsheetSolverMode">Only objects added by the flowsheet solving routine to the queue will be calculated.</param>
     ''' <param name="ct">The cancellation token, used to listen for calculation cancellation requests from the user.</param>
     ''' <remarks></remarks>
-    Private Shared Function ProcessQueueInternal(ByVal fobj As Object, Optional ByVal Isolated As Boolean = False, Optional ByVal FlowsheetSolverMode As Boolean = False, Optional ByVal ct As Threading.CancellationToken = Nothing) As List(Of Exception)
+    Private Shared Function ProcessQueueInternal(ByVal fobj As Object,
+                                                 Optional ByVal Isolated As Boolean = False,
+                                                 Optional ByVal FlowsheetSolverMode As Boolean = False,
+                                                 Optional ByVal ct As Threading.CancellationToken = Nothing,
+                                                 Optional FeedBack As Action(Of String) = Nothing) As List(Of Exception)
 
         Dim fgui As IFlowsheet = TryCast(fobj, IFlowsheet)
         Dim fbag As IFlowsheet = TryCast(fobj, IFlowsheet)
@@ -356,6 +361,8 @@ Public Delegate Sub CustomEvent2(ByVal objinfo As CalculationArgs)
             RaiseEvent CalculatingObject(myinfo)
 
             If fbag.SimulationObjects.ContainsKey(myinfo.Name) Then
+
+                FeedBack.Invoke(String.Format("Calculating '{0}'", myinfo.Tag))
 
                 Dim myobj = fbag.SimulationObjects(myinfo.Name)
                 Try
@@ -454,7 +461,8 @@ Public Delegate Sub CustomEvent2(ByVal objinfo As CalculationArgs)
     ''' <param name="fobj">Flowsheet to be calculated (FormChild object)</param>
     ''' <param name="ct">The cancellation token, used to listen for calculation cancellation requests from the user.</param>
     ''' <remarks></remarks>
-    Private Shared Function ProcessQueueInternalAsync(ByVal fobj As Object, ByVal ct As Threading.CancellationToken) As List(Of Exception)
+    Private Shared Function ProcessQueueInternalAsync(ByVal fobj As Object, ByVal ct As Threading.CancellationToken,
+                                                      Optional FeedBack As Action(Of String) = Nothing) As List(Of Exception)
 
         Dim fgui As IFlowsheet = TryCast(fobj, IFlowsheet)
         Dim fbag As IFlowsheet = TryCast(fobj, IFlowsheet)
@@ -475,6 +483,8 @@ Public Delegate Sub CustomEvent2(ByVal objinfo As CalculationArgs)
             'fobj.UIThread(Sub() UpdateDisplayStatus(fobj, New String() {myinfo.Name}, True))
 
             Dim myobj = fbag.SimulationObjects(myinfo.Name)
+
+            FeedBack.Invoke(String.Format("Calculating '{0}'", myinfo.Tag))
 
             Dim IObj As InspectorItem = Host.GetNewInspectorItem()
 
@@ -567,7 +577,10 @@ Public Delegate Sub CustomEvent2(ByVal objinfo As CalculationArgs)
     ''' <param name="fobj">Flowsheet to be calculated (FormChild object)</param>
     ''' <param name="ct">The cancellation token, used to listen for calculation cancellation requests from the user.</param>
     ''' <remarks></remarks>
-    Private Shared Function ProcessQueueInternalAsyncParallel(ByVal fobj As Object, ByVal orderedlist As Dictionary(Of Integer, List(Of CalculationArgs)), ct As Threading.CancellationToken) As List(Of Exception)
+    Private Shared Function ProcessQueueInternalAsyncParallel(ByVal fobj As Object,
+                                                              ByVal orderedlist As Dictionary(Of Integer, List(Of CalculationArgs)),
+                                                              ct As Threading.CancellationToken,
+                                                              Optional FeedBack As Action(Of String) = Nothing) As List(Of Exception)
 
         Dim fgui As IFlowsheet = TryCast(fobj, IFlowsheet)
         Dim fbag As IFlowsheet = TryCast(fobj, IFlowsheet)
@@ -593,6 +606,7 @@ Public Delegate Sub CustomEvent2(ByVal objinfo As CalculationArgs)
                 objlist.Add(item.Name)
             Next
             Parallel.ForEach(li.Value, Sub(myinfo, state)
+                                           FeedBack.Invoke(String.Format("Calculating '{0}'", myinfo.Tag))
                                            If ct.IsCancellationRequested = True Then ct.ThrowIfCancellationRequested()
                                            Dim myobj = fbag.SimulationObjects(myinfo.Name)
                                            myobj.ErrorMessage = ""
@@ -1480,6 +1494,446 @@ Public Delegate Sub CustomEvent2(ByVal objinfo As CalculationArgs)
         End If
 
     End Function
+
+    Public Shared Function SolveFlowsheetSync(ByVal fobj As Object,
+                                            Optional Feedback As Action(Of String) = Nothing,
+                                            Optional Adjusting As Boolean = False,
+                                          Optional ByVal FinishSuccess As Action = Nothing,
+                                          Optional ByVal FinishWithErrors As Action = Nothing,
+                                          Optional ByVal FinishAny As Action = Nothing) As List(Of Exception)
+
+        If Settings.CalculatorActivated Then
+
+            Dim fs As IFlowsheet = TryCast(fobj, IFlowsheet)
+
+            If fs.MasterFlowsheet Is Nothing And Settings.CalculatorBusy And Not Adjusting Then
+                FinishAny?.Invoke()
+                Settings.CalculatorBusy = False
+                Return New List(Of Exception)
+            End If
+
+            Host.CurrentSolutionID = Date.Now.ToBinary
+
+            Settings.EnableParallelProcessing = False
+
+            'clears any previous calculation stop request.
+
+            Settings.CalculatorStopRequested = False
+
+            Dim IObj As InspectorItem = Host.GetNewInspectorItem()
+
+            Host.CheckAndAdd(IObj, "", "SolveFlowsheet", "Solver Call", "Flowsheet Solver Call Event")
+
+            IObj?.Paragraphs.Add("The Flowsheet Solver controls the calculation of the entire flowsheet.")
+
+            IObj?.Paragraphs.Add("When the user requests a flowsheet calculation, it tries to determine the order of the objects to be calculated.")
+
+            If fs.PropertyPackages.Count = 0 Then
+                Dim el = New List(Of Exception)
+                el.Add(New Exception(fs.GetTranslatedString("NoPropPackAdded")))
+                fs.ShowMessage(fs.GetTranslatedString("NoPropPackAdded"), IFlowsheet.MessageType.GeneralError)
+                Return el
+            End If
+
+            If fs.SelectedCompounds.Count = 0 Then
+                Dim el = New List(Of Exception)
+                el.Add(New Exception(fs.GetTranslatedString("NoCompoundsAdded")))
+                fs.ShowMessage(fs.GetTranslatedString("NoCompoundsAdded"), IFlowsheet.MessageType.GeneralError)
+                Return el
+            End If
+
+            If Not fs Is Nothing Then
+                If fs.MasterFlowsheet Is Nothing And Not Adjusting And Settings.CalculatorBusy Then
+                    FinishAny?.Invoke()
+                    Settings.CalculatorBusy = False
+                    Return New List(Of Exception)
+                End If
+            End If
+
+            Dim fgui As IFlowsheet = TryCast(fobj, IFlowsheet)
+            Dim fbag As IFlowsheet = TryCast(fobj, IFlowsheet)
+            Dim fqueue As IFlowsheetCalculationQueue = TryCast(fobj, IFlowsheetCalculationQueue)
+
+            'checks if the calculator is activated.
+
+            If fs.MasterFlowsheet Is Nothing Then Settings.CalculatorBusy = True
+
+            Dim objl As Object()
+            Try
+                objl = GetSolvingList(fobj, False)
+            Catch ex As Exception
+                FinishAny?.Invoke()
+                Settings.CalculatorBusy = False
+                Return New List(Of Exception)({ex})
+            End Try
+
+            'declare a filteredlist dictionary. this will hold the sequence of grouped objects that can be calculated 
+            'this way if the user selects the background parallel threads solver option
+
+            Dim filteredlist2 As New Dictionary(Of Integer, List(Of CalculationArgs))
+
+            'assign the list of objects, the filtered list (which contains no duplicate elements) and the object stack
+            'which contains the ordered list of objects to be calculated.
+
+            Dim lists As Dictionary(Of Integer, List(Of String)) = objl(1)
+            Dim filteredlist As Dictionary(Of Integer, List(Of String)) = objl(2)
+            Dim objstack As List(Of String) = objl(0)
+
+            If IObj IsNot Nothing Then
+                For Each item In objstack
+                    IObj.Paragraphs.Add(fbag.SimulationObjects(item).GraphicObject.Tag & " (" & fbag.SimulationObjects(item).GetDisplayName & ")")
+                Next
+            End If
+
+            If objstack.Count = 0 Then
+                Settings.CalculatorBusy = False
+                FinishAny?.Invoke()
+                Return New List(Of Exception)
+            End If
+
+            fs.Solved = False
+            fs.ErrorMessage = ""
+
+            'adds a message to the log window to indicate that the flowsheet started solving
+
+            fgui.ShowMessage(fgui.GetTranslatedString("FSstartedsolving"), IFlowsheet.MessageType.Information)
+
+            'process scripts associated with the solverstarted event
+
+            fgui.ProcessScripts(Scripts.EventType.SolverStarted, Scripts.ObjectType.Solver, "")
+
+            'call spreadsheet update to get values when in write mode
+
+            fs.UpdateSpreadsheet(Nothing)
+            fs.WriteSpreadsheetVariables(Nothing)
+
+            RaiseEvent FlowsheetCalculationStarted(fobj, New System.EventArgs(), Nothing)
+
+            'find recycles
+
+            IObj?.Paragraphs.Add("The solver will now check for Recycles connected to 'tear' Material Streams...")
+
+            Dim recycles As New List(Of String)
+            Dim totalv As Integer = 0
+            Dim totalr As Integer = 0
+
+            For Each r In objstack
+                If fbag.SimulationObjects.ContainsKey(r) Then
+                    Dim robj = fbag.SimulationObjects(r)
+                    If robj.GraphicObject.ObjectType = ObjectType.OT_Recycle Then
+                        recycles.Add(robj.Name)
+                        Dim rec As IRecycle = fbag.SimulationObjects(robj.Name)
+                        If rec.AccelerationMethod = AccelMethod.GlobalBroyden Then
+                            If rec.Values.Count = 0 Then fbag.SimulationObjects(robj.Name).Solve()
+                            totalv += rec.Values.Count
+                        End If
+                        totalr += 1
+                    End If
+                End If
+            Next
+
+            IObj?.Paragraphs.Add(String.Format("Number of Recycles found: {0}.", totalr))
+
+            'size hessian matrix, variables and error vectors for recycle simultaneous solving.
+
+            Dim rechess(totalv - 1, totalv - 1), recvars(totalv - 1), recdvars(totalv - 1), recerrs(totalv - 1), recvarsb(totalv - 1), recerrsb(totalv - 1) As Double
+
+            'identity matrix as first hessian.
+
+            For i As Integer = 0 To totalv - 1
+                rechess(i, i) = 1
+            Next
+
+            'define variable to check for flowsheet convergence if there are recycle ops
+
+            Dim converged As Boolean = False
+
+            Dim loopidx As Integer = 0
+
+            'process/calculate the queue.
+
+            If fqueue.CalculationQueue Is Nothing Then fqueue.CalculationQueue = New Queue(Of ICalculationArgs)
+
+            'My.Application.MasterCalculatorStopRequested = False
+
+            Dim objargs As CalculationArgs = Nothing
+
+            Dim icount As Integer = 0
+
+            Dim obj As ISimulationObject
+            Dim d1 As Date = Date.Now
+            Dim age As AggregateException = Nothing
+            Dim exlist As New List(Of Exception)
+
+            While Not converged
+
+                'add the objects to the calculation queue.
+
+                For Each o As String In objstack
+                    If fbag.SimulationObjects.ContainsKey(o) Then
+                        obj = fbag.SimulationObjects(o)
+                        If obj.GraphicObject.ObjectType = ObjectType.MaterialStream Then
+                            Dim ms As IMaterialStream = fbag.SimulationObjects(obj.Name)
+                            ms.AtEquilibrium = False
+                        End If
+                        objargs = New CalculationArgs
+                        With objargs
+                            .Sender = "FlowsheetSolver"
+                            .Calculated = True
+                            .Name = obj.Name
+                            .ObjectType = obj.GraphicObject.ObjectType
+                            .Tag = obj.GraphicObject.Tag
+                            fqueue.CalculationQueue.Enqueue(objargs)
+                        End With
+                    End If
+                Next
+
+                'set the flowsheet instance for all objects, this is required for the async threads
+
+                For Each o In fbag.SimulationObjects.Values
+                    o.SetFlowsheet(fobj)
+                Next
+
+                'set all objects' status to 'not calculated' (red) in the list
+
+                For Each o In objstack
+                    obj = fbag.SimulationObjects(o)
+                    With obj
+                        .Calculated = False
+                        If Not obj.GraphicObject Is Nothing Then
+                            If obj.GraphicObject.Active Then
+                                obj.GraphicObject.Calculated = False
+                            Else
+                                fgui.ShowMessage(obj.GraphicObject.Tag & ": " & fgui.GetTranslatedString("ObjDeactivated"), IFlowsheet.MessageType.Warning)
+                                obj.GraphicObject.Status = Status.Inactive
+                            End If
+                        End If
+                    End With
+                Next
+
+                filteredlist2.Clear()
+
+                For Each li In filteredlist
+                    Dim objcalclist As New List(Of CalculationArgs)
+                    For Each o In li.Value
+                        obj = fbag.SimulationObjects(o)
+                        objcalclist.Add(New CalculationArgs() With {.Sender = "FlowsheetSolver", .Name = obj.Name, .ObjectType = obj.GraphicObject.ObjectType, .Tag = obj.GraphicObject.Tag})
+                    Next
+                    filteredlist2.Add(li.Key, objcalclist)
+                Next
+
+                exlist = ProcessCalculationQueue(fobj, True, True, 0, filteredlist2,
+                                           Settings.TaskCancellationTokenSource.Token, Adjusting, Feedback)
+
+                'throws exceptions if any
+
+                If Settings.SolverBreakOnException And exlist.Count > 0 Then
+                    age = New AggregateException(exlist)
+                    Exit While
+                End If
+
+                'checks for recycle convergence.
+
+                converged = True
+                For Each r As String In recycles
+                    obj = fbag.SimulationObjects(r)
+                    converged = DirectCast(obj, IRecycle).Converged
+                    If Not converged Then Exit For
+                Next
+
+                'in dynamic mode, recycles are redundant
+
+                If fbag.DynamicMode Then converged = True
+
+                If Not converged Then
+
+                    Dim avgerr As Double = 0.0#
+                    Dim rcount As Integer = 0
+
+                    For Each r As String In recycles
+                        obj = fbag.SimulationObjects(r)
+                        With DirectCast(obj, IRecycle)
+                            avgerr += 0.33 * .ConvergenceHistory.TemperaturaE / .ConvergenceHistory.Temperatura
+                            avgerr += 0.33 * .ConvergenceHistory.PressaoE / .ConvergenceHistory.Pressao
+                            avgerr += 0.33 * .ConvergenceHistory.VazaoMassicaE / .ConvergenceHistory.VazaoMassica
+                        End With
+                        rcount += 1
+                    Next
+
+                    avgerr *= 100
+                    avgerr /= rcount
+
+                    fgui.ShowMessage("Recycle loop #" & (icount + 1) & ", average recycle error: " & Format(avgerr, "N") & "%", IFlowsheet.MessageType.Information)
+
+                    fgui.UpdateInterface()
+
+                End If
+
+                'process the scripts associated with the recycle loop event.
+
+                fgui.ProcessScripts(Scripts.EventType.SolverRecycleLoop, Scripts.ObjectType.Solver, "")
+
+                'if the all recycles have converged (if any), then exit the loop.
+
+                If converged Then
+
+                    Exit While
+
+                Else
+
+                    If totalv > 0 Then
+
+                        'update variables of all recycles set to global broyden.
+
+                        Dim i As Integer = 0
+                        For Each r As String In recycles
+                            Dim rec = DirectCast(fbag.SimulationObjects(r), IRecycle)
+                            If rec.AccelerationMethod = AccelMethod.GlobalBroyden Then
+                                For Each kvp In rec.Values
+                                    recvars(i) = kvp.Value
+                                    recerrs(i) = rec.Errors(kvp.Key)
+                                    i += 1
+                                Next
+                            End If
+                        Next
+
+                        MathEx.Broyden.broydn(totalv - 1, recvars, recerrs, recdvars, recvarsb, recerrsb, rechess, If(icount < 2, 0, 1))
+
+                        i = 0
+                        For Each r As String In recycles
+                            Dim rec = DirectCast(fbag.SimulationObjects(r), IRecycle)
+                            If rec.AccelerationMethod = AccelMethod.GlobalBroyden Then
+                                For Each kvp In rec.Errors
+                                    rec.Values(kvp.Key) = recvars(i) + 0.7 * recdvars(i)
+                                    i += 1
+                                Next
+                            End If
+                            rec.SetOutletStreamProperties()
+                        Next
+
+                    End If
+
+                End If
+
+                icount += 1
+
+            End While
+
+            'clears the calculation queue.
+
+            fqueue.CalculationQueue.Clear()
+
+            'clears the object lists.
+
+            objstack.Clear()
+            lists.Clear()
+            recycles.Clear()
+
+            'clears any calculation stop request.
+
+            Settings.CalculatorStopRequested = False
+
+            'updates the display status of all objects in the calculation list.
+
+            UpdateDisplayStatus(fobj, objstack.ToArray)
+
+            Settings.TaskCancellationTokenSource = Nothing
+
+            'checks if exceptions were thrown during the calculation and displays them in the log window.
+
+            If age Is Nothing Then
+
+                fgui.ShowMessage(fgui.GetTranslatedString("FSfinishedsolvingok"), IFlowsheet.MessageType.Information)
+                fgui.ShowMessage(fgui.GetTranslatedString("Runtime") & " (s): " & (Date.Now - d1).TotalSeconds.ToString("G4"), IFlowsheet.MessageType.Information)
+
+                IObj?.Paragraphs.Add(String.Format("Solver finished calculation of all objects in {0} seconds.", (Date.Now - d1).TotalSeconds))
+
+                fs.ErrorMessage = ""
+                fs.Solved = True
+
+            Else
+
+                Dim baseexception As Exception = Nothing
+
+                fgui.ShowMessage(fgui.GetTranslatedString("FSfinishedsolvingerror"), IFlowsheet.MessageType.GeneralError)
+
+                IObj?.Paragraphs.Add(fgui.GetTranslatedString("FSfinishedsolvingerror"))
+
+                For Each ex In age.Flatten().InnerExceptions
+                    If TypeOf ex Is AggregateException Then
+                        baseexception = ex.InnerException
+                        For Each iex In DirectCast(ex, AggregateException).Flatten().InnerExceptions
+                            While iex.InnerException IsNot Nothing
+                                baseexception = iex.InnerException
+                            End While
+                        Next
+                    Else
+                        baseexception = ex
+                        While baseexception.InnerException IsNot Nothing
+                            baseexception = baseexception.InnerException
+                        End While
+                    End If
+                    Dim message = baseexception.Message
+                    If baseexception.Source <> "" Then
+                        message = String.Format("Error in '{0}': {1}", baseexception.Source, baseexception.Message)
+                    End If
+                    Try
+                        Dim st As New StackTrace(baseexception, True)
+                        Dim frame As StackFrame = st.GetFrame(0)
+                        Dim line = frame.GetFileLineNumber().ToString()
+                        Dim dirName = New DirectoryInfo(frame.GetFileName).Name
+                        message += " (" + dirName + ", " + line + ")"
+                    Catch exs As Exception
+                    End Try
+                    fgui.ShowMessage(message, IFlowsheet.MessageType.GeneralError)
+                    'Console.WriteLine(baseexception.ToString)
+                    IObj?.Paragraphs.Add(baseexception.Message)
+                Next
+
+                fs.Solved = False
+                If baseexception IsNot Nothing Then fs.ErrorMessage = baseexception.ToString
+
+            End If
+
+            'updates the flowsheet display information if the fobj is visible.
+
+            fs.UpdateSpreadsheet(Nothing)
+            fs.UpdateSpreadsheet(Nothing)
+
+            fgui.UpdateInformation()
+
+            fgui.UpdateInterface()
+
+            fgui.RefreshInterface()
+
+            fgui.ProcessScripts(Scripts.EventType.SolverFinished, Scripts.ObjectType.Solver, "")
+
+            Settings.CalculatorBusy = False
+
+            IObj?.Close()
+
+            FinishAny?.Invoke()
+
+            If age Is Nothing Then
+                FinishSuccess?.Invoke()
+                RaiseEvent FlowsheetCalculationFinished(fobj, New System.EventArgs(), (Date.Now - d1).TotalSeconds)
+                Return New List(Of Exception)
+            Else
+                FinishWithErrors?.Invoke()
+                RaiseEvent FlowsheetCalculationFinished(fobj, New System.EventArgs(), age.InnerExceptions.ToList())
+                Return age.InnerExceptions.ToList()
+            End If
+
+        Else
+
+            FinishAny?.Invoke()
+
+            Return New List(Of Exception)
+
+        End If
+
+    End Function
+
 
     ''' <summary>
     ''' Calculates a single object in the Flowsheet.

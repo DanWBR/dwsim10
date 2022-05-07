@@ -18,20 +18,20 @@ namespace DWSIMCore.Automation
             Console.WriteLine("DWSIM Automation Interface initialized successfully.");
         }
 
-        public IFlowsheet LoadFlowsheet(Stream filestream, bool isXMZ)
+        public IFlowsheet LoadFlowsheet(Stream filestream, bool isXMZ, Action<int, string>? ProgressCallback = null)
         {
             Settings.AutomationMode = true;
             Settings.CultureInfo = "en";
             Console.WriteLine("Initializing the Flowsheet, please wait...");
-            var fsheet = new Flowsheet2();
+            var fsheet = new Flowsheet2(ProgressCallback);
             Console.WriteLine("Loading Flowsheet data, please wait...");
             if (isXMZ)
             {
-                fsheet.LoadZippedXML(filestream);
+                fsheet.LoadZippedXML(filestream, ProgressCallback);
             }
             else
             {
-                fsheet.LoadFromXML(XDocument.Load(filestream));
+                fsheet.LoadFromXML2(XDocument.Load(filestream), ProgressCallback);
             }
             return fsheet;
         }
@@ -65,7 +65,7 @@ namespace DWSIMCore.Automation
             ((Flowsheet2)flowsheet).SaveSimulation(filepath);
         }
 
-        public void CalculateFlowsheet(IFlowsheet flowsheet, ISimulationObject sender)
+        public void CalculateFlowsheet(IFlowsheet flowsheet, ISimulationObject sender, Action<string>? ProgressCallback = null)
         {
             Settings.CalculatorActivated = true;
             Settings.SolverBreakOnException = true;
@@ -73,7 +73,7 @@ namespace DWSIMCore.Automation
             Settings.EnableGPUProcessing = false;
             Settings.EnableParallelProcessing = true;
             Console.WriteLine("Solving Flowsheet, please wait...");
-            ((Flowsheet2)flowsheet).SolveFlowsheet2();
+            ((Flowsheet2)flowsheet).SolveFlowsheet2(ProgressCallback);
         }
 
         public List<Exception> CalculateFlowsheet2(IFlowsheet flowsheet)

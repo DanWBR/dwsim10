@@ -12,10 +12,10 @@ namespace DWSIMCore.Flowsheet
 
         public override bool SupressMessages { get; set; } = false;
 
-        public Flowsheet2()
+        public Flowsheet2(Action<int, string>? ProgressCallback = null)
         {
 
-            Initialize();
+            Initialize2(ProgressCallback);
 
             SaveSpreadsheetData = new Action<XDocument>((xdoc) =>
             {
@@ -157,7 +157,7 @@ namespace DWSIMCore.Flowsheet
 
         }
 
-        public void SolveFlowsheet2()
+        public void SolveFlowsheet2(Action<string>? ProgressCallback = null)
         {
 
             var surface = ((GraphicsSurface)this.GetSurface());
@@ -178,7 +178,7 @@ namespace DWSIMCore.Flowsheet
 
             Task st = new Task(() =>
             {
-                RequestCalculation();
+                RequestCalculation(null, false, ProgressCallback);
             });
 
             st.ContinueWith((t) =>
