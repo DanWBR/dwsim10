@@ -351,9 +351,9 @@ Public MustInherit Class FlowsheetBase
 
     End Sub
 
-    Public Sub RequestCalculation(Optional sender As ISimulationObject = Nothing,
+    Public Function RequestCalculation(Optional sender As ISimulationObject = Nothing,
                                   Optional ChangeCalculationOrder As Boolean = False,
-                                  Optional ProgressCallback As Action(Of String) = Nothing)
+                                  Optional ProgressCallback As Action(Of String) = Nothing) As Task(Of List(Of Exception))
 
         If Not sender Is Nothing Then
 
@@ -369,17 +369,18 @@ Public MustInherit Class FlowsheetBase
 
             CalculationQueue.Enqueue(objargs)
 
-            Task.Factory.StartNew(Sub()
-                                      FlowsheetSolver.SolveFlowsheetSync(Me, ProgressCallback, False)
-                                  End Sub)
+            Return Task.Run(Function()
+                                Return FlowsheetSolver.SolveFlowsheet(Me, 1, Feedback:=ProgressCallback)
+                            End Function)
 
         Else
-
-            FlowsheetSolver.SolveFlowsheet(Me, Settings.SolverMode, ChangeCalcOrder:=ChangeCalculationOrder)
+            Return Task.Run(Function()
+                                Return FlowsheetSolver.SolveFlowsheet(Me, Settings.SolverMode, ChangeCalcOrder:=ChangeCalculationOrder, Feedback:=ProgressCallback)
+                            End Function)
 
         End If
 
-    End Sub
+    End Function
 
     Public Property SelectedCompounds As Dictionary(Of String, ICompoundConstantProperties) Implements IFlowsheet.SelectedCompounds
         Get
@@ -1653,10 +1654,12 @@ Public MustInherit Class FlowsheetBase
 
     Public Sub LoadFromXML(xdoc As XDocument) Implements IFlowsheet.LoadFromXML
 
-        LoadFromXML2(xdoc)
+        Dim t = LoadFromXML2(xdoc)
+        t.Wait()
 
     End Sub
-    Public Sub LoadFromXML2(xdoc As XDocument, Optional ProgressCallback As Action(Of Integer, String) = Nothing)
+
+    Public Async Function LoadFromXML2(xdoc As XDocument, Optional ProgressCallback As Action(Of Integer, String) = Nothing) As Task
 
         Dim ci As CultureInfo = CultureInfo.InvariantCulture
 
@@ -1669,6 +1672,8 @@ Public MustInherit Class FlowsheetBase
         Dim data As List(Of XElement) = xdoc.Element("DWSIM_Simulation_Data").Element("Settings").Elements.ToList
 
         ProgressCallback?.Invoke(5, "Loading Settings")
+
+        Await Task.Delay(10)
 
         Try
 
@@ -1716,11 +1721,15 @@ Public MustInherit Class FlowsheetBase
 
         ProgressCallback?.Invoke(15, "Creating Graphic Objects")
 
+        Await Task.Delay(10)
+
         data = xdoc.Element("DWSIM_Simulation_Data").Element("GraphicObjects").Elements.ToList
 
         AddGraphicObjects(data, excs)
 
         ProgressCallback?.Invoke(25, "Loading Compounds")
+
+        Await Task.Delay(10)
 
         data = xdoc.Element("DWSIM_Simulation_Data").Element("Compounds").Elements.ToList
 
@@ -1740,6 +1749,8 @@ Public MustInherit Class FlowsheetBase
                                End Sub)
 
         ProgressCallback?.Invoke(40, "Loading Property Packages")
+
+        Await Task.Delay(10)
 
         data = xdoc.Element("DWSIM_Simulation_Data").Element("PropertyPackages").Elements.ToList
 
@@ -1782,6 +1793,8 @@ Public MustInherit Class FlowsheetBase
         Next
 
         ProgressCallback?.Invoke(60, "Loading Streams and Unit Operations")
+
+        Await Task.Delay(10)
 
         data = xdoc.Element("DWSIM_Simulation_Data").Element("SimulationObjects").Elements.ToList
 
@@ -1843,6 +1856,8 @@ Public MustInherit Class FlowsheetBase
         AddTables(data, excs)
 
         ProgressCallback?.Invoke(90, "Loading Reactions")
+
+        Await Task.Delay(10)
 
         data = xdoc.Element("DWSIM_Simulation_Data").Element("ReactionSets").Elements.ToList
 
@@ -1977,6 +1992,8 @@ Public MustInherit Class FlowsheetBase
 
         ProgressCallback?.Invoke(100, "Loading Complete")
 
+        Await Task.Delay(10)
+
         If excs.Count > 0 Then
             ShowMessage("Some errors where found while parsing the XML file. The simulation might not work as expected. Please read the subsequent messages for more details.", IFlowsheet.MessageType.GeneralError)
             For Each ex As Exception In excs
@@ -1986,7 +2003,7 @@ Public MustInherit Class FlowsheetBase
             ShowMessage("Data loaded successfully.", IFlowsheet.MessageType.Information)
         End If
 
-    End Sub
+    End Function
 
     Public Function SaveToMXML() As XDocument
 
@@ -2444,11 +2461,12 @@ Public MustInherit Class FlowsheetBase
 
     Public Sub Initialize() Implements IFlowsheet.Initialize
 
-        Initialize2()
+        Dim t = Initialize2()
+        t.Wait()
 
     End Sub
 
-    Public Sub Initialize2(Optional ProgressCallback As Action(Of Integer, String) = Nothing)
+    Public Async Function Initialize2(Optional ProgressCallback As Action(Of Integer, String) = Nothing) As Task
 
         AddHandler AppDomain.CurrentDomain.AssemblyResolve, New ResolveEventHandler(AddressOf LoadFromExtensionsFolder)
 
@@ -2484,6 +2502,8 @@ Public MustInherit Class FlowsheetBase
 
         ProgressCallback?.Invoke(35, "Loading CoolProp compounds")
 
+        Await Task.Delay(10)
+
         Dim cpdb As New Databases.CoolProp
         cpdb.Load()
         cpa = cpdb.Transfer()
@@ -2494,6 +2514,8 @@ Public MustInherit Class FlowsheetBase
 
         ProgressCallback?.Invoke(50, "Loading Biodiesel compounds")
 
+        Await Task.Delay(10)
+
         Dim bddb As New Databases.Biodiesel
         bddb.Load()
         cpa = bddb.Transfer()
@@ -2503,6 +2525,8 @@ Public MustInherit Class FlowsheetBase
         Next
 
         ProgressCallback?.Invoke(70, "Loading ChEDL compounds")
+
+        Await Task.Delay(10)
 
         Dim chedl As New Databases.ChEDL_Thermo
         chedl.Load()
@@ -2541,12 +2565,16 @@ Public MustInherit Class FlowsheetBase
 
         ProgressCallback?.Invoke(80, "Adding Systems of Units")
 
+        Await Task.Delay(10)
+
         AddSystemsOfUnits()
         AddDefaultProperties()
 
         ProgressCallback?.Invoke(100, "Flowsheet Initialization completed")
 
-    End Sub
+        Await Task.Delay(10)
+
+    End Function
 
     Public Sub Reset() Implements IFlowsheet.Reset
 
@@ -2626,7 +2654,7 @@ Public MustInherit Class FlowsheetBase
 
     End Sub
 
-    Public Function LoadZippedXML(stream As Stream, Optional ProgressCallback As Action(Of Integer, String) = Nothing) As XDocument
+    Public Async Function LoadZippedXML(stream As Stream, Optional ProgressCallback As Action(Of Integer, String) = Nothing) As Task
 
         Dim fn = Utility.GetTempFileName()
 
@@ -2634,17 +2662,17 @@ Public MustInherit Class FlowsheetBase
             stream.CopyTo(fs)
         End Using
 
-        Return LoadZippedXML(fn, ProgressCallback)
-
-        Try
-            File.Delete(fn)
-        Catch ex As Exception
-        End Try
+        Await LoadZippedXML(fn, ProgressCallback).ContinueWith(Sub(t)
+                                                                   Try
+                                                                       File.Delete(fn)
+                                                                   Catch ex As Exception
+                                                                   End Try
+                                                               End Sub)
 
     End Function
 
 
-    Public Function LoadZippedXML(pathtofile As String, Optional ProgressCallback As Action(Of Integer, String) = Nothing) As XDocument
+    Public Async Function LoadZippedXML(pathtofile As String, Optional ProgressCallback As Action(Of Integer, String) = Nothing) As Task
 
         Dim pathtosave As String = Utility.GetTempFileName()
 
@@ -2684,25 +2712,27 @@ Label_00CC:
         End Using
 
         Dim xdoc = XDocument.Load(fullname)
-        LoadFromXML(xdoc)
-        FilePath = pathtofile
-        Options.FilePath = pathtofile
-        'If File.Exists(dbfile) Then
-        '    Try
-        '        FileDatabaseProvider.LoadDatabase(dbfile)
-        '    Catch ex As Exception
-        '    Finally
-        '        File.Delete(dbfile)
-        '    End Try
-        'End If
-        File.Delete(fullname)
 
-        Try
-            Directory.Delete(pathtosave, True)
-        Catch ex As Exception
-        End Try
+        Await LoadFromXML2(xdoc, ProgressCallback).ContinueWith(Sub(t2)
+                                                                    FilePath = pathtofile
+                                                                    Options.FilePath = pathtofile
 
-        Return xdoc
+                                                                    'If File.Exists(dbfile) Then
+                                                                    '    Try
+                                                                    '        FileDatabaseProvider.LoadDatabase(dbfile)
+                                                                    '    Catch ex As Exception
+                                                                    '    Finally
+                                                                    '        File.Delete(dbfile)
+                                                                    '    End Try
+                                                                    'End If
+
+                                                                    File.Delete(fullname)
+
+                                                                    Try
+                                                                        Directory.Delete(pathtosave, True)
+                                                                    Catch ex As Exception
+                                                                    End Try
+                                                                End Sub)
 
     End Function
 

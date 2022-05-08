@@ -18,38 +18,42 @@ namespace DWSIMCore.Automation
             Console.WriteLine("DWSIM Automation Interface initialized successfully.");
         }
 
-        public IFlowsheet LoadFlowsheet(Stream filestream, bool isXMZ, Action<int, string>? ProgressCallback = null)
+        public async Task<IFlowsheet> LoadFlowsheet(Stream filestream, bool isXMZ, 
+            Action<string, IFlowsheet.MessageType> msgListener, 
+            Action<int, string>? ProgressCallback = null)
         {
             Settings.AutomationMode = true;
             Settings.CultureInfo = "en";
             Console.WriteLine("Initializing the Flowsheet, please wait...");
-            var fsheet = new Flowsheet2(ProgressCallback);
+            var fsheet = new Flowsheet2(msgListener);
+            await fsheet.Init(ProgressCallback);
             Console.WriteLine("Loading Flowsheet data, please wait...");
             if (isXMZ)
             {
-                fsheet.LoadZippedXML(filestream, ProgressCallback);
+                await fsheet.LoadZippedXML(filestream, ProgressCallback);
             }
             else
             {
-                fsheet.LoadFromXML2(XDocument.Load(filestream), ProgressCallback);
+                await fsheet.LoadFromXML2(XDocument.Load(filestream), ProgressCallback);
             }
             return fsheet;
         }
 
-        public IFlowsheet LoadFlowsheet(string filepath)
+        public async Task<IFlowsheet> LoadFlowsheet(string filepath)
         {
             Settings.AutomationMode = true;
             Settings.CultureInfo = "en";
             Console.WriteLine("Initializing the Flowsheet, please wait...");
-            var fsheet = new Flowsheet2();
+            var fsheet = new Flowsheet2(null);
+            await fsheet.Init();
             Console.WriteLine("Loading Flowsheet data, please wait...");
             if (System.IO.Path.GetExtension(filepath).ToLower().EndsWith("z"))
             {
-                fsheet.LoadZippedXML(filepath);
+                await fsheet.LoadZippedXML(filepath);
             }
             else
             {
-                fsheet.LoadFromXML(XDocument.Load(filepath));
+                await fsheet.LoadFromXML2(XDocument.Load(filepath));
             }
             return fsheet;
         }
@@ -76,15 +80,15 @@ namespace DWSIMCore.Automation
             ((Flowsheet2)flowsheet).SolveFlowsheet2(ProgressCallback);
         }
 
-        public List<Exception> CalculateFlowsheet2(IFlowsheet flowsheet)
+        public async Task<List<Exception>> CalculateFlowsheet2(IFlowsheet flowsheet, Action<string>? ProgressCallback = null)
         {
             Settings.CalculatorActivated = true;
             Settings.SolverBreakOnException = true;
             Settings.SolverMode = 1;
-            Settings.SolverTimeoutSeconds = 120;
+            Settings.SolverTimeoutSeconds = 10000000;
             Settings.EnableGPUProcessing = false;
-            Settings.EnableParallelProcessing = true;
-            return FlowsheetSolver.SolveFlowsheet(flowsheet, Settings.SolverMode);
+            Settings.EnableParallelProcessing = false;
+            return await ((Flowsheet2)flowsheet).SolveFlowsheet(ProgressCallback);
         }
 
         public List<Exception> CalculateFlowsheet3(IFlowsheet flowsheet, int timeout_seconds)
@@ -103,11 +107,13 @@ namespace DWSIMCore.Automation
             SaveFlowsheet(flowsheet, filepath, true);
         }
 
-        public IFlowsheet CreateFlowsheet()
+        public async Task<IFlowsheet> CreateFlowsheet()
         {
             Settings.AutomationMode = true;
             Console.WriteLine("Initializing the Flowsheet, please wait...");
-            return new Flowsheet2();
+            var f = new Flowsheet2(null);
+            await f.Init();
+            return f;
         }
 
         public object GetMainWindow()

@@ -12,10 +12,8 @@ namespace DWSIMCore.Flowsheet
 
         public override bool SupressMessages { get; set; } = false;
 
-        public Flowsheet2(Action<int, string>? ProgressCallback = null)
+        public Flowsheet2(Action<string, IFlowsheet.MessageType> messageListener)
         {
-
-            Initialize2(ProgressCallback);
 
             SaveSpreadsheetData = new Action<XDocument>((xdoc) =>
             {
@@ -43,7 +41,6 @@ namespace DWSIMCore.Flowsheet
                 //return Spreadsheet.GetDataFromRange(range);
             });
 
-
             DynamicsManager.RunSchedule = (schname) =>
             {
                 DynamicsManager.CurrentSchedule = DynamicsManager.GetSchedule(schname).ID;
@@ -51,11 +48,20 @@ namespace DWSIMCore.Flowsheet
                 //return DynamicsIntegratorControl.RunIntegrator(false, false, this, null);
             };
 
+            listeningaction = messageListener;
+
+        }
+
+        public async Task Init(Action<int, string>? ProgressCallback = null)
+        {
+
+            await Initialize2(ProgressCallback);
+
         }
 
         public override IFlowsheet GetNewInstance()
         {
-            var fs = new Flowsheet2();
+            var fs = new Flowsheet2(null);
             return fs;
         }
 
@@ -66,7 +72,7 @@ namespace DWSIMCore.Flowsheet
 
         public override void UpdateInterface()
         {
-           
+
         }
         public override void ShowDebugInfo(string text, int level)
         {
@@ -75,17 +81,17 @@ namespace DWSIMCore.Flowsheet
 
         public override void ShowMessage(string text, IFlowsheet.MessageType mtype, string exceptionid = "")
         {
-                if (listeningaction != null) listeningaction(text, mtype);
+            if (listeningaction != null) listeningaction(text, mtype);
         }
 
         public void WriteMessage(string text)
         {
-                listeningaction?.Invoke(text, IFlowsheet.MessageType.Information);
+            listeningaction?.Invoke(text, IFlowsheet.MessageType.Information);
         }
 
         public override void UpdateOpenEditForms()
         {
-           
+
         }
 
         public override object GetApplicationObject()
@@ -93,67 +99,24 @@ namespace DWSIMCore.Flowsheet
             return null;
         }
 
-        public void SolveFlowsheet(bool wait, ISimulationObject gobj = null, bool changecalcorder = false)
+        public Task<List<Exception>> SolveFlowsheet(Action<string>? progressCallback = null)
         {
 
             if (PropertyPackages.Count == 0)
             {
-                ShowMessage("Please select a Property Package before solving the flowsheet.", IFlowsheet.MessageType.GeneralError);
-                return;
+                throw new Exception("Please select a Property Package before solving the flowsheet.");
             }
 
             if (SelectedCompounds.Count == 0)
             {
-                ShowMessage("Please select a Compound before solving the flowsheet.", IFlowsheet.MessageType.GeneralError);
-                return;
+                throw new Exception("Please select a Compound before solving the flowsheet.");
             }
 
             Settings.CalculatorActivated = true;
             Settings.SolverMode = 1;
             Settings.SolverBreakOnException = true;
 
-            Task st = new Task(() =>
-            {
-                RequestCalculation(gobj, changecalcorder);
-                Task.Delay(1000).Wait();
-            });
-
-            st.ContinueWith((t) =>
-            {
-                Settings.CalculatorStopRequested = false;
-                Settings.CalculatorBusy = false;
-                Settings.TaskCancellationTokenSource = new System.Threading.CancellationTokenSource();
-
-            });
-
-
-            if (wait)
-            {
-                try
-                {
-                    st.Start(TaskScheduler.Default);
-                    st.Wait();
-                }
-                catch (AggregateException aex)
-                {
-                    foreach (Exception ex2 in aex.InnerExceptions)
-                    {
-                            ShowMessage(ex2.ToString(), IFlowsheet.MessageType.GeneralError);
-                    }
-                    Settings.CalculatorBusy = false;
-                    Settings.TaskCancellationTokenSource = new System.Threading.CancellationTokenSource();
-                }
-                catch (Exception ex)
-                {
-                        ShowMessage(ex.ToString(), IFlowsheet.MessageType.GeneralError);
-                    Settings.CalculatorBusy = false;
-                    Settings.TaskCancellationTokenSource = new System.Threading.CancellationTokenSource();
-                }
-            }
-            else
-            {
-                st.Start(TaskScheduler.Default);
-            }
+            return RequestCalculation(ProgressCallback: progressCallback);
 
         }
 
@@ -197,14 +160,14 @@ namespace DWSIMCore.Flowsheet
             {
                 foreach (Exception ex2 in aex.InnerExceptions)
                 {
-                        ShowMessage(ex2.ToString(), IFlowsheet.MessageType.GeneralError);
+                    ShowMessage(ex2.ToString(), IFlowsheet.MessageType.GeneralError);
                 }
                 Settings.CalculatorBusy = false;
                 Settings.TaskCancellationTokenSource = new System.Threading.CancellationTokenSource();
             }
             catch (Exception ex)
             {
-                    ShowMessage(ex.ToString(), IFlowsheet.MessageType.GeneralError);
+                ShowMessage(ex.ToString(), IFlowsheet.MessageType.GeneralError);
                 Settings.CalculatorBusy = false;
                 Settings.TaskCancellationTokenSource = new System.Threading.CancellationTokenSource();
             }
@@ -357,7 +320,7 @@ namespace DWSIMCore.Flowsheet
                 SaveToMXML().Save(path);
             }
 
-            ProcessScripts(EventType.SimulationSaved,  ObjectType.Simulation, "");
+            ProcessScripts(EventType.SimulationSaved, ObjectType.Simulation, "");
 
         }
 
