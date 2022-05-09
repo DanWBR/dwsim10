@@ -1052,7 +1052,6 @@ Public Delegate Sub CustomEvent2(ByVal objinfo As CalculationArgs)
             '4 = Network Computer
 
             Dim d1 As Date = Date.Now
-            Dim age As AggregateException = Nothing
             Dim exlist As New List(Of Exception)
 
             'gets a list of objects to be solved in the flowsheet
@@ -1245,7 +1244,7 @@ Public Delegate Sub CustomEvent2(ByVal objinfo As CalculationArgs)
                         'throws exceptions if any
 
                         If Settings.SolverBreakOnException And exlist.Count > 0 Then
-                            Throw New AggregateException(exlist)
+                            Exit While
                         End If
 
                         'checks for recycle convergence.
@@ -1414,14 +1413,14 @@ Public Delegate Sub CustomEvent2(ByVal objinfo As CalculationArgs)
 
             FinishAny?.Invoke()
 
-            If age Is Nothing Then
+            If exlist.Count = 0 Then
                 FinishSuccess?.Invoke()
                 RaiseEvent FlowsheetCalculationFinished(fobj, New System.EventArgs(), (Date.Now - d1).TotalSeconds)
                 Return New List(Of Exception)
             Else
                 FinishWithErrors?.Invoke()
-                RaiseEvent FlowsheetCalculationFinished(fobj, New System.EventArgs(), age.InnerExceptions.ToList())
-                Return age.InnerExceptions.ToList()
+                RaiseEvent FlowsheetCalculationFinished(fobj, New System.EventArgs(), exlist)
+                Return exlist
             End If
 
         Else
