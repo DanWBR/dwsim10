@@ -22,7 +22,6 @@ Public Class CAPEOPENManager
     Public Const EventsId As String = "cc6f7907-aad1-41a5-adab-24825cd73c05"
 
     Private _name, _description As String
-    Private _params As ParameterCollection
 
     Private _scontext As Object
 
@@ -94,7 +93,7 @@ Public Class CAPEOPENManager
                 '        pp.InitCO()
                 '        pp.Initialize()
                 '    Else
-                '        Throw New CapeBadArgumentException("Property Package not found.")
+                '        Throw New Exception("Property Package not found.")
                 '    End If
         End Select
         If Not pp Is Nothing Then pp.ComponentName = PackageName
@@ -135,7 +134,7 @@ Public Class CAPEOPENManager
     End Property
 
     Public Sub Edit() Implements ICapeUtilities.Edit
-        Throw New CapeNoImplException("Edit() not implemented.")
+        Throw New Exception("Edit() not implemented.")
     End Sub
 
     Public Sub Initialize() Implements ICapeUtilities.Initialize
@@ -143,8 +142,6 @@ Public Class CAPEOPENManager
         If Not Settings.InitializedCOPPM Then
 
             folderPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)
-
-            _params = New ParameterCollection()
 
             'handler for unhandled exceptions
 
@@ -212,7 +209,7 @@ Public Class CAPEOPENManager
 
     Public ReadOnly Property parameters() As Object Implements ICapeUtilities.parameters
         Get
-            Return _params
+            Return Nothing
         End Get
     End Property
 
@@ -268,7 +265,7 @@ Public Class CAPEOPENManager
         _operation = operation
         _scope = scope
 
-        Throw New CapeOpen.CapeUnknownException(ex.Message.ToArray, ex)
+        Throw New Exception(ex.Message.ToArray, ex)
 
     End Sub
 

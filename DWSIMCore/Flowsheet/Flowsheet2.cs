@@ -10,9 +10,11 @@ namespace DWSIMCore.Flowsheet
     {
         private Action<string, IFlowsheet.MessageType> listeningaction;
 
+        private Action updateUIaction;
+
         public override bool SupressMessages { get; set; } = false;
 
-        public Flowsheet2(Action<string, IFlowsheet.MessageType> messageListener)
+        public Flowsheet2(Action<string, IFlowsheet.MessageType> messageListener, Action updateUIhandler)
         {
 
             SaveSpreadsheetData = new Action<XDocument>((xdoc) =>
@@ -50,6 +52,8 @@ namespace DWSIMCore.Flowsheet
 
             listeningaction = messageListener;
 
+            updateUIaction = updateUIhandler;
+
         }
 
         public async Task Init(Action<int, string>? ProgressCallback = null)
@@ -61,7 +65,7 @@ namespace DWSIMCore.Flowsheet
 
         public override IFlowsheet GetNewInstance()
         {
-            var fs = new Flowsheet2(null);
+            var fs = new Flowsheet2(null, null);
             return fs;
         }
 
@@ -72,8 +76,9 @@ namespace DWSIMCore.Flowsheet
 
         public override void UpdateInterface()
         {
-
+            updateUIaction?.Invoke();
         }
+
         public override void ShowDebugInfo(string text, int level)
         {
             Console.WriteLine(text);

@@ -264,7 +264,7 @@ Namespace PropertyPackages
                 Case "surfacetension"
                     Me.CurrentMaterialStream.Phases(0).Properties.surfaceTension = Me.AUX_SURFTM(T)
                 Case Else
-                    Dim ex As Exception = New CapeOpen.CapeThrmPropertyNotAvailableException
+                    Dim ex As Exception = New Exception
                     ThrowCAPEException(ex, "Error", ex.Message, "ICapeThermoMaterial", ex.Source, ex.StackTrace, "CalcSinglePhaseProp/CalcTwoPhaseProp/CalcProp", ex.GetHashCode)
             End Select
 

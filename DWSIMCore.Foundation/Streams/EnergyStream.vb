@@ -26,14 +26,10 @@ Namespace Streams
 
         Inherits BaseClass
 
-        Implements ICapeIdentification, ICapeCollection, IEnergyStream
+        Implements ICapeIdentification, IEnergyStream
 
         'CAPE-OPEN Error Interfaces
         Implements ECapeUser, ECapeUnknown, ECapeRoot
-
-        Private WithEvents m_work As CapeOpen.RealParameter
-        Private WithEvents m_tLow As CapeOpen.RealParameter
-        Private WithEvents m_tUp As CapeOpen.RealParameter
 
         Private initialized As Boolean = False
 
@@ -74,10 +70,6 @@ Namespace Streams
         End Sub
 
         Sub CreateParamCol()
-
-            m_work = New CapeOpen.RealParameter("work", Me.EnergyFlow.GetValueOrDefault, 0.0#, "J/s")
-            m_tLow = New CapeOpen.RealParameter("temperatureLow", 0.0, 0.0#, "K")
-            m_tUp = New CapeOpen.RealParameter("temperatureHigh", 2000.0, 0.0#, "K")
 
         End Sub
 
@@ -177,32 +169,6 @@ Namespace Streams
 
 #End Region
 
-#Region "   CAPE-OPEN"
-
-        Private Sub m_work_OnParameterValueChanged(ByVal sender As Object, ByVal args As System.EventArgs) Handles m_work.ParameterValueChanged
-            Me.EnergyFlow = m_work.SIValue / 1000
-        End Sub
-
-        Public Function Count() As Integer Implements CapeOpen.ICapeCollection.Count
-            Return 3
-        End Function
-
-        Public Function Item(ByVal index As Object) As Object Implements CapeOpen.ICapeCollection.Item
-            If Not initialized Then Init()
-            Select Case index.ToString()
-                Case "1", "work"
-                    Return m_work
-                Case "2", "temperatureLow"
-                    Return m_tLow
-                Case "3", "temperatureHigh"
-                    Return m_tUp
-                Case Else
-                    Return m_work
-            End Select
-        End Function
-
-#End Region
-
         Public Overrides Sub RunDynamicModel()
 
         End Sub
@@ -285,7 +251,7 @@ Namespace Streams
             _operation = operation
             _scope = scope
 
-            Throw New CapeComputationException(ex.Message.ToString, ex)
+            Throw New Exception(ex.Message.ToString, ex)
 
         End Sub
 

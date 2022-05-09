@@ -1671,7 +1671,7 @@ Public MustInherit Class FlowsheetBase
 
         Dim data As List(Of XElement) = xdoc.Element("DWSIM_Simulation_Data").Element("Settings").Elements.ToList
 
-        ProgressCallback?.Invoke(5, "Loading Settings")
+        ProgressCallback?.Invoke(5, "Loading Settings...")
 
         Await Task.Delay(10)
 
@@ -1719,7 +1719,7 @@ Public MustInherit Class FlowsheetBase
 
         End If
 
-        ProgressCallback?.Invoke(15, "Creating Graphic Objects")
+        ProgressCallback?.Invoke(15, "Creating Graphic Objects...")
 
         Await Task.Delay(10)
 
@@ -1727,7 +1727,7 @@ Public MustInherit Class FlowsheetBase
 
         AddGraphicObjects(data, excs)
 
-        ProgressCallback?.Invoke(25, "Loading Compounds")
+        ProgressCallback?.Invoke(25, "Loading Compounds...")
 
         Await Task.Delay(10)
 
@@ -1740,15 +1740,15 @@ Public MustInherit Class FlowsheetBase
             Options.SelectedComponents.Add(obj.Name, obj)
         Next
 
-        Parallel.ForEach(data, Sub(xel)
-                                   Try
-                                       DirectCast(Options.SelectedComponents(xel.Element("Name").Value), ICustomXMLSerialization).LoadData(xel.Elements.ToList)
-                                   Catch ex As Exception
-                                       excs.Add(New Exception("Error Loading Compound Information", ex))
-                                   End Try
-                               End Sub)
+        For Each xel In data
+            Try
+                DirectCast(Options.SelectedComponents(xel.Element("Name").Value), ICustomXMLSerialization).LoadData(xel.Elements.ToList)
+            Catch ex As Exception
+                excs.Add(New Exception("Error Loading Compound Information", ex))
+            End Try
+        Next
 
-        ProgressCallback?.Invoke(40, "Loading Property Packages")
+        ProgressCallback?.Invoke(40, "Loading Property Packages...")
 
         Await Task.Delay(10)
 
@@ -1792,7 +1792,7 @@ Public MustInherit Class FlowsheetBase
             End Try
         Next
 
-        ProgressCallback?.Invoke(60, "Loading Streams and Unit Operations")
+        ProgressCallback?.Invoke(60, "Loading Streams and Unit Operations...")
 
         Await Task.Delay(10)
 
@@ -1855,7 +1855,7 @@ Public MustInherit Class FlowsheetBase
 
         AddTables(data, excs)
 
-        ProgressCallback?.Invoke(90, "Loading Reactions")
+        ProgressCallback?.Invoke(90, "Loading Reactions...")
 
         Await Task.Delay(10)
 
@@ -1885,7 +1885,7 @@ Public MustInherit Class FlowsheetBase
             End Try
         Next
 
-        ProgressCallback?.Invoke(95, "Loading Other Data")
+        ProgressCallback?.Invoke(95, "Loading Other Data...")
 
         If xdoc.Element("DWSIM_Simulation_Data").Element("StoredSolutions") IsNot Nothing Then
 
@@ -1990,7 +1990,7 @@ Public MustInherit Class FlowsheetBase
             If LoadSpreadsheetData IsNot Nothing Then LoadSpreadsheetData.Invoke(xdoc)
         End If
 
-        ProgressCallback?.Invoke(100, "Loading Complete")
+        ProgressCallback?.Invoke(100, "Loading Complete!")
 
         Await Task.Delay(10)
 
@@ -2482,7 +2482,9 @@ Public MustInherit Class FlowsheetBase
 
         ReactionSets.Add("DefaultSet", New ReactionSet("DefaultSet", "Default Set", ""))
 
-        ProgressCallback?.Invoke(10, "Adding Property Packages")
+        ProgressCallback?.Invoke(5, "Adding Property Packages")
+
+        Await Task.Delay(10)
 
         AddPropPacks()
         'AddExternalUOs()
@@ -2490,7 +2492,9 @@ Public MustInherit Class FlowsheetBase
         Dim addedcomps As New List(Of String)
         Dim casnumbers As New List(Of String)
 
-        ProgressCallback?.Invoke(15, "Loading ChemSep compounds")
+        ProgressCallback?.Invoke(25, "Loading ChemSep compounds...")
+
+        Await Task.Delay(10)
 
         Dim csdb As New Databases.ChemSep
         Dim cpa() As ConstantProperties
@@ -2500,7 +2504,7 @@ Public MustInherit Class FlowsheetBase
             If Not AvailableCompounds.ContainsKey(cp.Name) Then AvailableCompounds.Add(cp.Name, cp)
         Next
 
-        ProgressCallback?.Invoke(35, "Loading CoolProp compounds")
+        ProgressCallback?.Invoke(35, "Loading CoolProp compounds...")
 
         Await Task.Delay(10)
 
@@ -2512,7 +2516,7 @@ Public MustInherit Class FlowsheetBase
             If Not addedcomps.Contains(cp.Name.ToLower) Then AvailableCompounds.Add(cp.Name, cp)
         Next
 
-        ProgressCallback?.Invoke(50, "Loading Biodiesel compounds")
+        ProgressCallback?.Invoke(50, "Loading Biodiesel compounds...")
 
         Await Task.Delay(10)
 
@@ -2524,7 +2528,7 @@ Public MustInherit Class FlowsheetBase
             If Not addedcomps.Contains(cp.Name.ToLower) Then AvailableCompounds.Add(cp.Name, cp)
         Next
 
-        ProgressCallback?.Invoke(70, "Loading ChEDL compounds")
+        ProgressCallback?.Invoke(70, "Loading ChEDL compounds...")
 
         Await Task.Delay(10)
 
@@ -2563,14 +2567,14 @@ Public MustInherit Class FlowsheetBase
         chedl.Dispose()
 
 
-        ProgressCallback?.Invoke(80, "Adding Systems of Units")
+        ProgressCallback?.Invoke(80, "Adding Systems of Units...")
 
         Await Task.Delay(10)
 
         AddSystemsOfUnits()
         AddDefaultProperties()
 
-        ProgressCallback?.Invoke(100, "Flowsheet Initialization completed")
+        ProgressCallback?.Invoke(100, "Flowsheet Initialization completed!")
 
         Await Task.Delay(10)
 

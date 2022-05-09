@@ -8676,7 +8676,7 @@ Final3:
                 Case "vfp"
                     Me.DW_CalcEquilibrium(FlashSpec.P, FlashSpec.VAP)
                 Case Else
-                    Throw New CapeOpen.CapeNoImplException()
+                    Throw New Exception()
             End Select
 
         End Sub
@@ -8748,7 +8748,7 @@ Final3:
                         Case "chemicalformula"
                             vals.Add(c.ConstantProperties.Formula)
                         Case Else
-                            Throw New CapeOpen.CapeNoImplException
+                            Throw New Exception
                     End Select
                 Next
             Next
@@ -8972,7 +8972,7 @@ Final3:
         ''' can also be verified with PropList. It is advised not to use PropCheck.
         ''' DWSIM doesn't implement this interface.</remarks>
         Public Overridable Sub PropCheck1(ByVal materialObject As Object, ByVal flashType As String, ByVal props As Object, ByRef valid As Object) Implements CapeOpen.ICapeThermoEquilibriumServer.PropCheck
-            Throw New CapeOpen.CapeNoImplException
+            Throw New Exception
         End Sub
 
         ''' <summary>
@@ -8995,7 +8995,7 @@ Final3:
         End Sub
 
         Public Overridable Sub ValidityCheck1(ByVal materialObject As Object, ByVal props As Object, ByRef relList As Object) Implements CapeOpen.ICapeThermoEquilibriumServer.ValidityCheck
-            Throw New CapeOpen.CapeNoImplException
+            Throw New Exception
         End Sub
 
         Public Overridable Sub CalcProp1(ByVal materialObject As Object, ByVal props As Object, ByVal phases As Object, ByVal calcType As String) Implements CapeOpen.ICapeThermoCalculationRoutine.CalcProp
@@ -9536,7 +9536,7 @@ Final3:
         ''' in the Material Object.</remarks>
         Public Overridable Sub CalcAndGetLnPhi(ByVal phaseLabel As String, ByVal temperature As Double, ByVal pressure As Double, ByVal moleNumbers As Object, ByVal fFlags As Integer, ByRef lnPhi As Object, ByRef lnPhiDT As Object, ByRef lnPhiDP As Object, ByRef lnPhiDn As Object) Implements ICapeThermoPropertyRoutine.CalcAndGetLnPhi
             Select Case fFlags
-                Case CapeCalculationCode.CAPE_LOG_FUGACITY_COEFFICIENTS
+                Case 0
                     'normalize mole fractions
                     Dim tmols As Double
                     For i As Integer = 0 To moleNumbers.length - 1
@@ -9557,7 +9557,7 @@ Final3:
                         lnPhi(i) = Log(lnPhi(i))
                     Next
                 Case Else
-                    Throw New CapeOpen.CapeThrmPropertyNotAvailableException
+                    Throw New Exception
             End Select
         End Sub
 
@@ -9681,8 +9681,8 @@ Final3:
                 '    Next
                 'Else
                 For Each c As ICompound In Me.CurrentMaterialStream.Phases(0).Compounds.Values
-                        comps.Add(c.Name)
-                    Next
+                    comps.Add(c.Name)
+                Next
                 'End If
 
                 Dim f As Integer = -1
@@ -9712,7 +9712,7 @@ Final3:
                 End Select
 
                 If f = -1 Then
-                    Dim ex As New CapeOpen.CapeInvalidArgumentException("Invalid Phase ID", New ArgumentException, 0)
+                    Dim ex As New Exception("Invalid Phase ID")
                     Dim hcode As Integer = 0
                     ThrowCAPEException(ex, "Error", ex.Message, "ICapeThermoMaterial", ex.Source, ex.StackTrace, "CalcSinglePhaseProp", hcode)
                 End If
@@ -10029,7 +10029,7 @@ Final3:
                                     res.Add(Me.CurrentMaterialStream.Phases(f).Properties.massflow.GetValueOrDefault)
                             End Select
                         Case Else
-                            Dim ex = New CapeOpen.CapeThrmPropertyNotAvailableException
+                            Dim ex = New Exception
                             Dim hcode As Integer = 0
                             ThrowCAPEException(ex, "Error", ex.Message, "ICapeThermoMaterial", ex.Source, ex.StackTrace, "CalcSinglePhaseProp", hcode)
                     End Select
@@ -10105,7 +10105,7 @@ Final3:
                         Case "surfacetension"
                             res.Add(Me.CurrentMaterialStream.Phases(0).Properties.surfaceTension.GetValueOrDefault)
                         Case Else
-                            Dim ex = New CapeOpen.CapeThrmPropertyNotAvailableException
+                            Dim ex = New Exception
                             Dim hcode As Integer = 0
                             ThrowCAPEException(ex, "Error", ex.Message, "ICapeThermoMaterial", ex.Source, ex.StackTrace, "CalcTwoPhaseProp", hcode)
                     End Select
@@ -10420,7 +10420,7 @@ Final3:
                 spec1 = FlashSpec.T
                 spec2 = FlashSpec.VAP
             Else
-                Throw New CapeOpen.CapeLimitedImplException("Flash spec not supported.")
+                Throw New Exception("Flash spec not supported.")
             End If
 
             Dim T, P, Hm, Sm As Double
@@ -11031,8 +11031,7 @@ Final3:
         ''' no parameters, it should return a valid ICapeCollection reference exposing zero parameters.</remarks>
         Public Overridable ReadOnly Property parameters1() As Object Implements CapeOpen.ICapeUtilities.parameters
             Get
-                Dim parms As New CapeOpen.ParameterCollection
-                Return parms
+                Throw New NotImplementedException()
             End Get
         End Property
 
@@ -11309,7 +11308,7 @@ Final3:
 
             ExceptionLog += Date.Now + ": " + vbCrLf + vbCrLf + ex.ToString + vbCrLf + vbCrLf
 
-            Throw New CapeComputationException(ex.Message.ToString, ex)
+            Throw New Exception(ex.Message.ToString, ex)
 
         End Sub
 

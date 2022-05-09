@@ -3016,7 +3016,7 @@ Namespace Streams
         ''' <returns>Properties for which results are available.</returns>
         ''' <remarks>Not implemented in DWSIM.</remarks>
         Public Function AvailableProps() As Object Implements CapeOpen.ICapeThermoMaterialObject.AvailableProps
-            Throw New CapeOpen.CapeNoImplException
+            Throw New Exception
         End Function
 
         ''' <summary>
@@ -3149,7 +3149,7 @@ Namespace Streams
         ''' <returns>Values of independent variables.</returns>
         ''' <remarks>This method should not be used.</remarks>
         Public Function GetIndependentVar(ByVal indVars As Object) As Object Implements CapeOpen.ICapeThermoMaterialObject.GetIndependentVar
-            Throw New CapeOpen.CapeNoImplException
+            Throw New Exception
         End Function
 
         ''' <summary>
@@ -3181,7 +3181,7 @@ Namespace Streams
             Me.PropertyPackage.CurrentMaterialStream = Me
 
             If Not calcType Is Nothing Then
-                If calcType = "Pure" Then Throw New CapeLimitedImplException
+                If calcType = "Pure" Then Throw New Exception
             End If
             Dim res As New ArrayList
             Dim length As Integer, i As Integer, comps As New ArrayList
@@ -3398,7 +3398,7 @@ Namespace Streams
                 Case "surfacetension"
                     res.Add(Me.Phases(1).Properties.surfaceTension)
                 Case Else
-                    Dim ex As New CapeOpen.CapeThrmPropertyNotAvailableException
+                    Dim ex As New Exception
                     Dim hcode As Integer = 0
                     ThrowCAPEException(ex, "Error", ex.Message, "ICapeThermoMaterialObject", ex.Source, ex.StackTrace, "GetProp", hcode)
             End Select
@@ -3462,7 +3462,7 @@ Namespace Streams
         ''' can also be verified with PropList. It is advised not to use PropCheck.
         ''' The Material Object may or may not delegate this call to a Property Package.</remarks>
         Public Function PropCheck(ByVal props As Object) As Object Implements CapeOpen.ICapeThermoMaterialObject.PropCheck
-            Throw New CapeNoImplException
+            Throw New Exception
         End Function
 
         ''' <summary>
@@ -3471,7 +3471,7 @@ Namespace Streams
         ''' <param name="props">Properties to be removed. UNDEFINED to remove all properties.</param>
         ''' <remarks>Not implemented.</remarks>
         Public Sub RemoveResults(ByVal props As Object) Implements CapeOpen.ICapeThermoMaterialObject.RemoveResults
-            Throw New CapeOpen.CapeNoImplException
+            Throw New Exception
         End Sub
 
         ''' <summary>
@@ -3481,7 +3481,7 @@ Namespace Streams
         ''' <param name="values">Independent variables to be set</param>
         ''' <remarks>Values of independent variables.</remarks>
         Public Sub SetIndependentVar(ByVal indVars As Object, ByVal values As Object) Implements CapeOpen.ICapeThermoMaterialObject.SetIndependentVar
-            Throw New CapeNoImplException
+            Throw New Exception
         End Sub
 
         ''' <summary>
@@ -3500,7 +3500,7 @@ Namespace Streams
         Public Sub SetProp(ByVal [property] As String, ByVal phase As String, ByVal compIds As Object, ByVal calcType As String, ByVal basis As String, ByVal values As Object) Implements CapeOpen.ICapeThermoMaterialObject.SetProp
             Me.PropertyPackage.CurrentMaterialStream = Me
             If Not calcType Is Nothing Then
-                If calcType = "Pure" Then Throw New CapeLimitedImplException
+                If calcType = "Pure" Then Throw New Exception
             End If
             Dim res As New ArrayList
             Dim length As Integer, i As Integer, comps As New ArrayList
@@ -3714,7 +3714,7 @@ Namespace Streams
                 Case "surfacetension"
                     Me.Phases(0).Properties.surfaceTension = values(0)
                 Case Else
-                    Dim ex As New CapeOpen.CapeThrmPropertyNotAvailableException
+                    Dim ex As New Exception
                     Dim hcode As Integer = 0
                     ThrowCAPEException(ex, "Error", ex.Message, "ICapeThermoMaterialObject", ex.Source, ex.StackTrace, "ComponentIds", hcode)
             End Select
@@ -3781,7 +3781,7 @@ Namespace Streams
         End Sub
 
         Public Sub ValidityCheck2(ByVal materialObject As Object, ByVal props As Object, ByRef relList As Object) Implements CapeOpen.ICapeThermoEquilibriumServer.ValidityCheck
-            Throw New CapeNoImplException
+            Throw New Exception
         End Sub
 
         Public Sub CalcEquilibrium3(ByVal materialObject As Object, ByVal flashType As String, ByVal props As Object) Implements CapeOpen.ICapeThermoPropertyPackage.CalcEquilibrium
@@ -4508,7 +4508,7 @@ Namespace Streams
             End Select
 
             If f = -1 Then
-                Dim ex As New CapeOpen.CapeInvalidArgumentException("Invalid Phase ID", New ArgumentException, 0)
+                Dim ex As New Exception("Invalid Phase ID")
                 Dim hcode As Integer = 0
                 ThrowCAPEException(ex, "Error", ex.Message, "ICapeThermoMaterial", ex.Source, ex.StackTrace, "GetOverallTPFraction", hcode)
             End If
@@ -4756,7 +4756,7 @@ Namespace Streams
                             res.Add(Me.Phases(f).Properties.massflow.GetValueOrDefault)
                     End Select
                 Case Else
-                    Dim ex = New CapeOpen.CapeThrmPropertyNotAvailableException
+                    Dim ex = New Exception
                     Dim hcode As Integer = 0
                     ThrowCAPEException(ex, "Error", ex.Message, "ICapeThermoMaterial", ex.Source, ex.StackTrace, "GetSinglePhaseProp", hcode)
             End Select
@@ -4866,7 +4866,7 @@ Namespace Streams
         Public Sub GetTPFraction(ByVal phaseLabel As String, ByRef temperature As Double, ByRef pressure As Double, ByRef composition As Object) Implements ICapeThermoMaterial.GetTPFraction
 
             If Me.Phases(0).Properties.temperature Is Nothing Or Me.Phases(0).Properties.pressure Is Nothing Then
-                Throw New CapeBadArgumentException("Temperature and/or Pressure not set.", Nothing, 0)
+                Throw New Exception("Temperature and/or Pressure not set.")
             End If
 
             temperature = Me.Phases(0).Properties.temperature
@@ -4962,7 +4962,7 @@ Namespace Streams
                 Case "surfacetension"
                     res.Add(Me.Phases(0).Properties.surfaceTension.GetValueOrDefault)
                 Case Else
-                    Throw New CapeOpen.CapeThrmPropertyNotAvailableException
+                    Throw New Exception
             End Select
             Dim arr2(res.Count - 1) As Double
             Array.Copy(res.ToArray, arr2, res.Count)
@@ -5095,7 +5095,7 @@ Namespace Streams
             End Select
 
             If f = -1 Then
-                Dim ex As New CapeOpen.CapeInvalidArgumentException("Invalid Phase ID", New ArgumentException, 0)
+                Dim ex As New Exception("Invalid Phase ID")
                 Dim hcode As Integer = 0
                 ThrowCAPEException(ex, "Error", ex.Message, "ICapeThermoMaterial", ex.Source, ex.StackTrace, "GetOverallTPFraction", hcode)
             End If
@@ -5333,7 +5333,7 @@ Namespace Streams
                             'Me.Phases(f).Properties.molarflow = values(0)
                     End Select
                 Case Else
-                    Dim ex = New CapeOpen.CapeThrmPropertyNotAvailableException
+                    Dim ex = New Exception
                     Dim hcode As Integer = 0
                     ThrowCAPEException(ex, "Error", ex.Message, "ICapeThermoMaterial", ex.Source, ex.StackTrace, "GetSinglePhaseProp", hcode)
             End Select
@@ -5397,7 +5397,7 @@ Namespace Streams
                 Case "surfacetension"
                     Me.Phases(0).Properties.surfaceTension = values(0)
                 Case Else
-                    Dim ex = New CapeOpen.CapeThrmPropertyNotAvailableException
+                    Dim ex = New Exception
                     Dim hcode As Integer = 0
                     ThrowCAPEException(ex, "Error", ex.Message, "ICapeThermoMaterial", ex.Source, ex.StackTrace, "GetSinglePhaseProp", hcode)
             End Select
@@ -6034,7 +6034,7 @@ Namespace Streams
                 PropertyPackage.ExceptionLog += Date.Now + ": " + vbCrLf + vbCrLf + ex.ToString + vbCrLf + vbCrLf
             End If
 
-            Throw New CapeComputationException(ex.Message.ToString, ex)
+            Throw New Exception(ex.Message.ToString, ex)
 
         End Sub
 

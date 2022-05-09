@@ -20,12 +20,13 @@ namespace DWSIMCore.Automation
 
         public async Task<IFlowsheet> LoadFlowsheet(Stream filestream, bool isXMZ, 
             Action<string, IFlowsheet.MessageType> msgListener, 
-            Action<int, string>? ProgressCallback = null)
+            Action<int, string>? ProgressCallback = null,
+            Action UIUpdHandler = null)
         {
             Settings.AutomationMode = true;
             Settings.CultureInfo = "en";
             Console.WriteLine("Initializing the Flowsheet, please wait...");
-            var fsheet = new Flowsheet2(msgListener);
+            var fsheet = new Flowsheet2(msgListener, UIUpdHandler);
             await fsheet.Init(ProgressCallback);
             Console.WriteLine("Loading Flowsheet data, please wait...");
             if (isXMZ)
@@ -39,12 +40,12 @@ namespace DWSIMCore.Automation
             return fsheet;
         }
 
-        public async Task<IFlowsheet> LoadFlowsheet(string filepath)
+        public async Task<IFlowsheet> LoadFlowsheet(string filepath, Action UIUpdHandler = null)
         {
             Settings.AutomationMode = true;
             Settings.CultureInfo = "en";
             Console.WriteLine("Initializing the Flowsheet, please wait...");
-            var fsheet = new Flowsheet2(null);
+            var fsheet = new Flowsheet2(null, UIUpdHandler);
             await fsheet.Init();
             Console.WriteLine("Loading Flowsheet data, please wait...");
             if (System.IO.Path.GetExtension(filepath).ToLower().EndsWith("z"))
@@ -85,13 +86,13 @@ namespace DWSIMCore.Automation
             Settings.CalculatorActivated = true;
             Settings.SolverBreakOnException = true;
             Settings.SolverMode = 1;
-            Settings.SolverTimeoutSeconds = 10000000;
+            Settings.SolverTimeoutSeconds = 3600;
             Settings.EnableGPUProcessing = false;
             Settings.EnableParallelProcessing = false;
             return await ((Flowsheet2)flowsheet).SolveFlowsheet(ProgressCallback);
         }
 
-        public List<Exception> CalculateFlowsheet3(IFlowsheet flowsheet, int timeout_seconds)
+        public async Task<List<Exception>> CalculateFlowsheet3(IFlowsheet flowsheet, int timeout_seconds)
         {
             Settings.CalculatorActivated = true;
             Settings.SolverBreakOnException = true;
@@ -99,7 +100,7 @@ namespace DWSIMCore.Automation
             Settings.SolverTimeoutSeconds = timeout_seconds;
             Settings.EnableGPUProcessing = false;
             Settings.EnableParallelProcessing = true;
-            return FlowsheetSolver.SolveFlowsheet(flowsheet, Settings.SolverMode);
+            return await FlowsheetSolver.SolveFlowsheet(flowsheet, Settings.SolverMode);
         }
 
         public void SaveFlowsheet2(IFlowsheet flowsheet, string filepath)
@@ -111,7 +112,7 @@ namespace DWSIMCore.Automation
         {
             Settings.AutomationMode = true;
             Console.WriteLine("Initializing the Flowsheet, please wait...");
-            var f = new Flowsheet2(null);
+            var f = new Flowsheet2(null, null);
             await f.Init();
             return f;
         }
