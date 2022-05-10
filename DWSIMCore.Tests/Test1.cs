@@ -6,7 +6,7 @@ using DWSIMCore.Foundation.PropertyPackages;
 class Test1
 {
     [STAThread]
-    static void Main()
+    static async void Main()
     {
         //create automation manager
         var interf = new Automation();
@@ -16,7 +16,7 @@ class Test1
         //load *.dwxmz empty simulation file
         string fileName = "simulation_template.dwxmz";
 
-        sim = interf.LoadFlowsheet(fileName);
+        sim = await interf.LoadFlowsheet(fileName);
 
         var c1 = sim.AddObject(ObjectType.Cooler, 100, 100, "COOLER-001");
         var e1 = sim.AddObject(ObjectType.EnergyStream, 130, 150, "HEAT_OUT");

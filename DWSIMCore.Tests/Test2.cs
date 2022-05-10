@@ -8,13 +8,13 @@ using DWSIMCore.Foundation.UnitOperations;
 class Test2
 {
     [STAThread]
-    static void Main()
+    static async void Main()
     {
         //create automation manager
 
         var interf = new  Automation();
 
-        var sim = interf.CreateFlowsheet();
+        var sim = await interf.CreateFlowsheet();
 
         // add water
 

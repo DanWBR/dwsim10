@@ -1994,14 +1994,7 @@ Public MustInherit Class FlowsheetBase
 
         Await Task.Delay(10)
 
-        If excs.Count > 0 Then
-            ShowMessage("Some errors where found while parsing the XML file. The simulation might not work as expected. Please read the subsequent messages for more details.", IFlowsheet.MessageType.GeneralError)
-            For Each ex As Exception In excs
-                ShowMessage(ex.Message.ToString & ": " & ex.InnerException.ToString, IFlowsheet.MessageType.GeneralError)
-            Next
-        Else
-            ShowMessage("Data loaded successfully.", IFlowsheet.MessageType.Information)
-        End If
+        If excs.Count > 0 Then Throw New AggregateException(excs)
 
     End Function
 
@@ -2477,6 +2470,7 @@ Public MustInherit Class FlowsheetBase
                                                 Return DynamicMode
                                             End Function
 
+
         FlowsheetSurface.DrawPropertyList = Options.DisplayCornerPropertyList
         FlowsheetSurface.DrawFloatingTable = Options.DisplayFloatingPropertyTables
 
@@ -2492,82 +2486,96 @@ Public MustInherit Class FlowsheetBase
         Dim addedcomps As New List(Of String)
         Dim casnumbers As New List(Of String)
 
-        ProgressCallback?.Invoke(25, "Loading ChemSep compounds...")
+        ProgressCallback?.Invoke(25, "Loading compounds...")
 
         Await Task.Delay(10)
 
-        Dim csdb As New Databases.ChemSep
-        Dim cpa() As ConstantProperties
-        csdb.Load()
-        cpa = csdb.Transfer()
-        For Each cp As ConstantProperties In cpa
-            If Not AvailableCompounds.ContainsKey(cp.Name) Then AvailableCompounds.Add(cp.Name, cp)
-        Next
+        AvailableCompounds = New Dictionary(Of String, ICompoundConstantProperties)()
+        Using filestr As Stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("DWSIMCore.Foundation.allcomps.json")
+            Using t As New IO.StreamReader(filestr)
+                Dim contents = t.ReadToEnd()
+                Dim comps = Newtonsoft.Json.JsonConvert.DeserializeObject(Of List(Of ConstantProperties))(contents)
+                For Each c In comps
+                    AvailableCompounds.Add(c.Name, c)
+                Next
+            End Using
+        End Using
 
-        ProgressCallback?.Invoke(35, "Loading CoolProp compounds...")
+            'Dim csdb As New Databases.ChemSep
+            'Dim cpa() As ConstantProperties
+            'csdb.Load()
+            'cpa = csdb.Transfer()
+            'For Each cp As ConstantProperties In cpa
+            '    If Not AvailableCompounds.ContainsKey(cp.Name) Then AvailableCompounds.Add(cp.Name, cp)
+            'Next
 
-        Await Task.Delay(10)
+            'ProgressCallback?.Invoke(35, "Loading CoolProp compounds...")
 
-        Dim cpdb As New Databases.CoolProp
-        cpdb.Load()
-        cpa = cpdb.Transfer()
-        addedcomps = AvailableCompounds.Keys.Select(Function(x) x.ToLower).ToList()
-        For Each cp As ConstantProperties In cpa
-            If Not addedcomps.Contains(cp.Name.ToLower) Then AvailableCompounds.Add(cp.Name, cp)
-        Next
+            'Await Task.Delay(10)
 
-        ProgressCallback?.Invoke(50, "Loading Biodiesel compounds...")
+            'Dim cpdb As New Databases.CoolProp
+            'cpdb.Load()
+            'cpa = cpdb.Transfer()
+            'addedcomps = AvailableCompounds.Keys.Select(Function(x) x.ToLower).ToList()
+            'For Each cp As ConstantProperties In cpa
+            '    If Not addedcomps.Contains(cp.Name.ToLower) Then AvailableCompounds.Add(cp.Name, cp)
+            'Next
 
-        Await Task.Delay(10)
+            'ProgressCallback?.Invoke(50, "Loading Biodiesel compounds...")
 
-        Dim bddb As New Databases.Biodiesel
-        bddb.Load()
-        cpa = bddb.Transfer()
-        addedcomps = AvailableCompounds.Keys.Select(Function(x) x.ToLower).ToList()
-        For Each cp As ConstantProperties In cpa
-            If Not addedcomps.Contains(cp.Name.ToLower) Then AvailableCompounds.Add(cp.Name, cp)
-        Next
+            'Await Task.Delay(10)
 
-        ProgressCallback?.Invoke(70, "Loading ChEDL compounds...")
+            'Dim bddb As New Databases.Biodiesel
+            'bddb.Load()
+            'cpa = bddb.Transfer()
+            'addedcomps = AvailableCompounds.Keys.Select(Function(x) x.ToLower).ToList()
+            'For Each cp As ConstantProperties In cpa
+            '    If Not addedcomps.Contains(cp.Name.ToLower) Then AvailableCompounds.Add(cp.Name, cp)
+            'Next
 
-        Await Task.Delay(10)
+            'ProgressCallback?.Invoke(70, "Loading ChEDL compounds...")
 
-        Dim chedl As New Databases.ChEDL_Thermo
-        chedl.Load()
-        cpa = chedl.Transfer().ToArray()
-        addedcomps = AvailableCompounds.Keys.Select(Function(x) x.ToLower).ToList()
-        casnumbers = AvailableCompounds.Values.Select(Function(x) x.CAS_Number).ToList()
-        For Each cp As ConstantProperties In cpa
-            If Not addedcomps.Contains(cp.Name.ToLower) And Not addedcomps.Contains(cp.Name) Then
-                If Not casnumbers.Contains(cp.CAS_Number) Then
-                    If Not AvailableCompounds.ContainsKey(cp.Name) Then AvailableCompounds.Add(cp.Name, cp)
-                End If
-            End If
-        Next
-        'Dim elec As New Databases.Electrolyte
-        'elec.Load()
-        'cpa = elec.Transfer().ToArray()
-        'addedcomps = AvailableCompounds.Keys.Select(Function(x) x.ToLower).ToList()
-        'For Each cp As ConstantProperties In cpa
-        '    If Not addedcomps.Contains(cp.Name.ToLower) AndAlso Not AvailableCompounds.ContainsKey(cp.Name) Then AvailableCompounds.Add(cp.Name, cp)
-        'Next
-        'Dim comps = Databases.UserDB.LoadAdditionalCompounds()
-        'For Each cp As BaseClasses.ConstantProperties In comps
-        '    If Not AvailableCompounds.ContainsKey(cp.Name) Then AvailableCompounds.Add(cp.Name, cp)
-        'Next
-        'Using filestr As Stream = Assembly.GetAssembly(elec.GetType).GetManifestResourceStream("DWSIM.Thermodynamics.FoodProp.xml")
-        '    Dim fcomps = Databases.UserDB.ReadComps(filestr)
-        '    For Each cp As BaseClasses.ConstantProperties In fcomps
-        '        cp.CurrentDB = "FoodProp"
-        '        If Not AvailableCompounds.ContainsKey(cp.Name) Then AvailableCompounds.Add(cp.Name, cp)
-        '    Next
-        'End Using
-        csdb.Dispose()
-        cpdb.Dispose()
-        chedl.Dispose()
+            'Await Task.Delay(10)
 
+            'Dim chedl As New Databases.ChEDL_Thermo
+            'chedl.Load()
+            'cpa = chedl.Transfer().ToArray()
+            'addedcomps = AvailableCompounds.Keys.Select(Function(x) x.ToLower).ToList()
+            'casnumbers = AvailableCompounds.Values.Select(Function(x) x.CAS_Number).ToList()
+            'For Each cp As ConstantProperties In cpa
+            '    If Not addedcomps.Contains(cp.Name.ToLower) And Not addedcomps.Contains(cp.Name) Then
+            '        If Not casnumbers.Contains(cp.CAS_Number) Then
+            '            If Not AvailableCompounds.ContainsKey(cp.Name) Then AvailableCompounds.Add(cp.Name, cp)
+            '        End If
+            '    End If
+            'Next
 
-        ProgressCallback?.Invoke(80, "Adding Systems of Units...")
+            'Dim elec As New Databases.Electrolyte
+            'elec.Load()
+            'cpa = elec.Transfer().ToArray()
+            'addedcomps = AvailableCompounds.Keys.Select(Function(x) x.ToLower).ToList()
+            'For Each cp As ConstantProperties In cpa
+            '    If Not addedcomps.Contains(cp.Name.ToLower) AndAlso Not AvailableCompounds.ContainsKey(cp.Name) Then AvailableCompounds.Add(cp.Name, cp)
+            'Next
+
+            'Dim comps = Databases.UserDB.LoadAdditionalCompounds()
+            'For Each cp As BaseClasses.ConstantProperties In comps
+            '    If Not AvailableCompounds.ContainsKey(cp.Name) Then AvailableCompounds.Add(cp.Name, cp)
+            'Next
+
+            'Using filestr As Stream = Assembly.GetAssembly(elec.GetType).GetManifestResourceStream("DWSIM.Thermodynamics.FoodProp.xml")
+            '    Dim fcomps = Databases.UserDB.ReadComps(filestr)
+            '    For Each cp As BaseClasses.ConstantProperties In fcomps
+            '        cp.CurrentDB = "FoodProp"
+            '        If Not AvailableCompounds.ContainsKey(cp.Name) Then AvailableCompounds.Add(cp.Name, cp)
+            '    Next
+            'End Using
+
+            'csdb.Dispose()
+            'cpdb.Dispose()
+            'chedl.Dispose()
+
+            ProgressCallback?.Invoke(80, "Adding Systems of Units...")
 
         Await Task.Delay(10)
 
@@ -2586,6 +2594,11 @@ Public MustInherit Class FlowsheetBase
         GraphicObjects.Clear()
         FlowsheetSurface.DrawingObjects.Clear()
         SelectedCompounds.Clear()
+        Reactions.Clear()
+        ReactionSets.Clear()
+        ReactionSets.Add("DefaultSet", New ReactionSet("DefaultSet", "Default Set", "Default Set of Reactions"))
+        SensAnalysisCollection.Clear()
+        OptimizationCollection.Clear()
         Options = New Flowsheet.FlowsheetVariables()
         FlowsheetSurface.Zoom = 1.0#
 
@@ -2663,7 +2676,7 @@ Public MustInherit Class FlowsheetBase
         Dim fn = Utility.GetTempFileName()
 
         Using fs As New FileStream(fn, FileMode.Create)
-            stream.CopyTo(fs)
+            Await stream.CopyToAsync(fs)
         End Using
 
         Await LoadZippedXML(fn, ProgressCallback).ContinueWith(Sub(t)

@@ -11,6 +11,11 @@ class Test3
     [STAThread]
     static void Main()
     {
+        DoJob().GetAwaiter().GetResult();
+    }
+
+    static async Task DoJob()
+    {
         //create automation manager
 
         var autom = new Automation();
@@ -22,8 +27,10 @@ class Test3
             var extension = Path.GetExtension(flowsheet);
             using (var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(flowsheet))
             {
-                var sim = autom.LoadFlowsheet(stream, extension.EndsWith("xmz") ? true : false);
-                sim.SetMessageListener((msg, type) => Console.WriteLine(String.Format("[{0}] {1}", flowsheet, msg)));
+                var sim = await autom.LoadFlowsheet(stream, extension.EndsWith("xmz") ? true : false, 
+                    (msg, type) => Console.WriteLine(String.Format("[{0}] {1}", flowsheet, msg)));
+                //var comps = Newtonsoft.Json.JsonConvert.SerializeObject(sim.AvailableCompounds.Values, Newtonsoft.Json.Formatting.Indented);
+                //File.WriteAllText("C:\\Users\\Daniel\\allcomps.json", comps);
                 autom.CalculateFlowsheet2(sim);
             }
         }
