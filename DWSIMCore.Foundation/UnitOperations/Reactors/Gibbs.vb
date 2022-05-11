@@ -3,6 +3,7 @@ Imports DWSIMCore.Foundation.BaseClasses
 Imports DWSIMCore.Foundation.Enums
 Imports DWSIMCore.Foundation.MathEx
 Imports DWSIMCore.Foundation.Streams
+Imports Mapack
 
 Namespace Reactors
 
@@ -1190,11 +1191,6 @@ Namespace Reactors
                 If ival(i) < 0.000000001 Then ival(i) = 0.000000001
             Next
 
-            Dim ipo As New Optimization.IPOPTSolver
-            ipo.MaxIterations = MaximumInternalIterations
-            ipo.Tolerance = InternalTolerance
-            ipo.ReturnLowestObjFuncValue = True
-
             Dim esolv As IExternalNonLinearMinimizationSolver = Nothing
             If FlowSheet.ExternalSolvers.ContainsKey(ExternalSolverID) Then
                 esolv = FlowSheet.ExternalSolvers(ExternalSolverID)
@@ -1263,57 +1259,30 @@ Namespace Reactors
 
                             Else
 
-                                If UseIPOPTSolver Then
 
-                                    NFv = ipo.Solve(Function(xn)
-                                                        Dim gval = FunctionValue2G2(xn, T)
-                                                        Dim ebal_i As Double
-                                                        ebal = 0.0
-                                                        For i = 0 To els
-                                                            ebal_i = 0
-                                                            For j = 0 To c
-                                                                ebal_i += xn(j) * Me.ElementMatrix(i, j)
-                                                            Next
-                                                            ebal += ((TotalElements(i) - ebal_i) / TotalElements(i)) ^ 2
+                                Dim slv As New BFGSBMinimizer
+                                slv.MaxIterations = MaximumInternalIterations
+                                slv.Tolerance = InternalTolerance
+
+                                NFv = slv.Solve(Function(xn)
+                                                    Dim gval = FunctionValue2G2(xn, T)
+                                                    Dim ebal_i As Double
+                                                    ebal = 0.0
+                                                    For i = 0 To els
+                                                        ebal_i = 0
+                                                        For j = 0 To c
+                                                            ebal_i += xn(j) * Me.ElementMatrix(i, j)
                                                         Next
-                                                        icount += 1
-                                                        wbal = ((tms.GetMassFlow() - W0tot) / W0tot) ^ 2
-                                                        errval = Exp(gval) + wbal * 100 + ebal * 100
-                                                        IObj?.SetCurrent()
-                                                        IObj?.Paragraphs.Add(String.Format("<tr><td>{0}</td><td>{1}</td><td>{2}</td><td>{3}</td></tr>",
-                                                                            icount, errval, ebal, wbal))
-                                                        Return errval
-                                                    End Function, Nothing, ival, lbo, ubo)
-
-                                Else
-
-                                    Dim slv As New BFGSBMinimizer
-                                    slv.MaxIterations = MaximumInternalIterations
-                                    slv.Tolerance = InternalTolerance
-
-                                    NFv = slv.Solve(Function(xn)
-                                                        Dim gval = FunctionValue2G2(xn, T)
-                                                        Dim ebal_i As Double
-                                                        ebal = 0.0
-                                                        For i = 0 To els
-                                                            ebal_i = 0
-                                                            For j = 0 To c
-                                                                ebal_i += xn(j) * Me.ElementMatrix(i, j)
-                                                            Next
-                                                            ebal += ((TotalElements(i) - ebal_i) / TotalElements(i)) ^ 2
-                                                        Next
-                                                        icount += 1
-                                                        wbal = ((tms.GetMassFlow() - W0tot) / W0tot) ^ 2
-                                                        errval = Exp(gval) + wbal * 100 + ebal * 100
-                                                        IObj?.SetCurrent()
-                                                        IObj?.Paragraphs.Add(String.Format("<tr><td>{0}</td><td>{1}</td><td>{2}</td><td>{3}</td></tr>",
-                                                                            icount, errval, ebal, wbal))
-                                                        Return errval
-                                                    End Function, Nothing, ival, lbo, ubo)
-
-
-                                End If
-
+                                                        ebal += ((TotalElements(i) - ebal_i) / TotalElements(i)) ^ 2
+                                                    Next
+                                                    icount += 1
+                                                    wbal = ((tms.GetMassFlow() - W0tot) / W0tot) ^ 2
+                                                    errval = Exp(gval) + wbal * 100 + ebal * 100
+                                                    IObj?.SetCurrent()
+                                                    IObj?.Paragraphs.Add(String.Format("<tr><td>{0}</td><td>{1}</td><td>{2}</td><td>{3}</td></tr>",
+                                                                        icount, errval, ebal, wbal))
+                                                    Return errval
+                                                End Function, Nothing, ival, lbo, ubo)
 
                             End If
 
@@ -1904,7 +1873,7 @@ Namespace Reactors
             Next
 
             Try
-                mylags = mymat.Solve(mypot.Multiply(-1))
+                mylags = mymat.Solve(Matrix.Multiply(mypot, -1))
                 For i = 0 To e
                     lagrm(i) = mylags(i, 0)
                 Next

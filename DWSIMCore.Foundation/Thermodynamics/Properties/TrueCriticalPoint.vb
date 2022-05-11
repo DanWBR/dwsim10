@@ -506,7 +506,7 @@ Final:
             'solved = MathEx.SysLin.rsolve.rmatrixsolve(MA_, MB_, n, Dn0)
 
             Try
-                Dim trg As Mapack.ILuDecomposition = MA.GetLuDecomposition
+                Dim trg As Mapack.LuDecomposition = New Mapack.LuDecomposition(MA)
                 'Console.WriteLine(trg.UpperTriangularFactor.ToString)
                 i = 0
                 Do
@@ -1519,7 +1519,7 @@ Final:
             'solved = MathEx.SysLin.rsolve.rmatrixsolve(MA_, MB_, n, Dn0)
 
             Try
-                Dim trg As Mapack.ILuDecomposition = MA.GetLuDecomposition
+                Dim trg As Mapack.LuDecomposition = New Mapack.LuDecomposition(MA)
                 'Console.WriteLine(trg.UpperTriangularFactor.ToString)
                 i = 0
                 Do

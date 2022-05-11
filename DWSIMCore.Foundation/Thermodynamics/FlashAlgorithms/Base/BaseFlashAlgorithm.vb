@@ -686,8 +686,7 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
 
             Dim Vp(n), fi1(n), fi2(n), act1(n), act2(n), Vx1(n), Vx2(n) As Double
 
-            Dim result As Object = New GibbsMinimization3P() With {.ForceTwoPhaseOnly = False,
-                                                                   .StabSearchCompIDs = _pp.RET_VNAMES,
+            Dim result As Object = New NestedLoops3PV3() With {.StabSearchCompIDs = _pp.RET_VNAMES,
                                                                    .StabSearchSeverity = 0}.Flash_PT(_Vz, P, T, PP)
 
             Vx1 = result(2)

@@ -14,6 +14,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Thermodynamics\FlashAlgorithms\GibbsMinimization3P.vb" />
+    <Compile Remove="Thermodynamics\FlashAlgorithms\GibbsMinimizationMulti.vb" />
+    <Compile Remove="UnitOperations\PressureDropModels\PetalasAziz.vb" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Remove="Assets\Bitmaps\attention.png" />
     <None Remove="Assets\Bitmaps\clock.png" />
     <None Remove="Assets\Bitmaps\clock2.png" />
@@ -387,6 +393,9 @@
     <Content Include="Libraries\vcruntime140.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Content Include="Thermodynamics\FlashAlgorithms\GibbsMinimization3P.vb" />
+    <Content Include="Thermodynamics\FlashAlgorithms\GibbsMinimizationMulti.vb" />
+    <Content Include="UnitOperations\PressureDropModels\PetalasAziz.vb" />
   </ItemGroup>
 
   <ItemGroup>
@@ -731,17 +740,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DWSIMCore.Foundation.CSharp\DWSIMCore.Foundation.CSharp.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Reference Include="Cureos.Numerics">
-      <HintPath>Libraries\Cureos.Numerics.dll</HintPath>
-      <CopyLocal>True</CopyLocal>
-    </Reference>
-    <Reference Include="Mapack">
-      <HintPath>Libraries\Mapack.dll</HintPath>
-      <CopyLocal>True</CopyLocal>
-    </Reference>
   </ItemGroup>
 
 </Project>

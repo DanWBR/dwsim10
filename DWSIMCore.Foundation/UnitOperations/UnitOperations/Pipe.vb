@@ -361,8 +361,8 @@ Namespace UnitOperations
             Select Case Me.SelectedFlowPackage
                 Case FlowPackage.Lockhart_Martinelli
                     fpp = New FlowPackages.LockhartMartinelli()
-                Case FlowPackage.Petalas_Aziz
-                    fpp = New FlowPackages.PetalasAziz()
+                    'Case FlowPackage.Petalas_Aziz
+                    '    fpp = New FlowPackages.PetalasAziz()
                 Case Else
                     fpp = New FlowPackages.BeggsBrill()
             End Select

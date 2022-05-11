@@ -498,7 +498,7 @@ Namespace PropertyPackages
                     Return New SingleCompFlash() With {.FlashSettings = FlashSettings}
                 Else
                     If FlashCalculationApproach = FlashCalculationApproachType.GibbsMinimization Then
-                        Return New GibbsMinimizationMulti() With {.FlashSettings = FlashSettings}
+                        'Return New GibbsMinimizationMulti() With {.FlashSettings = FlashSettings}
                     Else
                         If FlashCalculationApproach = FlashCalculationApproachType.InsideOut Then
                             FlashSettings(FlashSetting.UseIOFlash) = True
@@ -510,7 +510,7 @@ Namespace PropertyPackages
                 End If
             Else
                 If FlashCalculationApproach = FlashCalculationApproachType.GibbsMinimization Then
-                    Return New GibbsMinimizationMulti() With {.FlashSettings = FlashSettings}
+                    'Return New GibbsMinimizationMulti() With {.FlashSettings = FlashSettings}
                 Else
                     If FlashCalculationApproach = FlashCalculationApproachType.InsideOut Then
                         FlashSettings(FlashSetting.UseIOFlash) = True

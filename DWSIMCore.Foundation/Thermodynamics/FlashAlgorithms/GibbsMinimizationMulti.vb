@@ -1068,20 +1068,6 @@ out:        Return result
 
         End Function
 
-        Public Function intermediate(ByVal alg_mod As IpoptAlgorithmMode, ByVal iter_count As Integer, ByVal obj_value As Double,
-                                     ByVal inf_pr As Double, ByVal inf_du As Double, ByVal mu As Double,
-                                     ByVal d_norm As Double, ByVal regularization_size As Double, ByVal alpha_du As Double,
-                                     ByVal alpha_pr As Double, ByVal ls_trials As Integer) As Boolean
-            objval0 = objval
-            objval = obj_value
-            If alg_mod = IpoptAlgorithmMode.RegularMode And Math.Abs(objval - objval0) <= 0.0000000001 Then
-                Return False
-            Else
-                Return True
-            End If
-            Return True
-        End Function
-
         Public Overrides Function Flash_PH(ByVal Vz As Double(), ByVal P As Double, ByVal H As Double, ByVal Tref As Double, ByVal PP As PropertyPackages.PropertyPackage, Optional ByVal ReuseKI As Boolean = False, Optional ByVal PrevKi As Double() = Nothing) As Object
 
             Dim nl = New NestedLoops With {.DisableParallelCalcs = True}
