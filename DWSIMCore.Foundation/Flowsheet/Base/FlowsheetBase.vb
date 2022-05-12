@@ -2168,6 +2168,9 @@ Public MustInherit Class FlowsheetBase
             If SaveSpreadsheetData IsNot Nothing Then SaveSpreadsheetData.Invoke(xdoc)
         End If
 
+        For Each xel1 In xdoc.Descendants
+            Utility.UpdateElementForSavingV7(xel1)
+        Next
 
         Return xdoc
 

@@ -193,6 +193,50 @@ Public Class Utility
 
     End Sub
 
+    Shared Sub UpdateElementForSavingV7(xel As XElement)
+
+        If xel.Name.LocalName.Equals("Type") Then
+
+            If xel.Value.Contains("PropertyPackages") Then
+                xel.Value = xel.Value.Replace("DWSIMCore.Foundation", "DWSIM.Thermodynamics")
+            End If
+
+            If xel.Value.Contains("FlashAlgorithms") Then
+                xel.Value = xel.Value.Replace("DWSIMCore.Foundation", "DWSIM.Thermodynamics")
+            End If
+
+            If xel.Value.Contains("Thermodynamics") Then
+                xel.Value = xel.Value.Replace("DWSIMCore.Foundation", "DWSIM.Thermodynamics")
+            End If
+
+            If xel.Value.Contains("UnitOperations") Then
+                xel.Value = xel.Value.Replace("DWSIMCore.Foundation", "DWSIM.UnitOperations")
+            End If
+
+            If xel.Value.Contains("SpecialOps") Then
+                xel.Value = xel.Value.Replace("DWSIMCore.Foundation", "DWSIM.UnitOperations")
+            End If
+
+            If xel.Value.Contains("Reactors") Then
+                xel.Value = xel.Value.Replace("DWSIMCore.Foundation", "DWSIM.UnitOperations")
+            End If
+
+            If xel.Value.Contains("Streams.EnergyStream") Then
+                xel.Value = "DWSIM.UnitOperations.Streams.EnergyStream"
+            End If
+
+            If xel.Value.Contains("Streams.MaterialStream") Then
+                xel.Value = "DWSIM.Thermodynamics.Streams.MaterialStream"
+            End If
+
+            If xel.Value.Contains("GraphicObjects") Then
+                xel.Value = xel.Value.Replace("DWSIMCore.Foundation.GraphicObjects", "DWSIM.Drawing.SkiaSharp.GraphicObjects")
+            End If
+
+        End If
+
+    End Sub
+
     Shared Sub UpdateElementForNewUI(xel As XElement)
 
         If xel.Name = "TipoObjeto" Then xel.Name = "ObjectType"

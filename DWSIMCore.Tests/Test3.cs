@@ -31,7 +31,8 @@ class Test3
                     (msg, type) => Console.WriteLine(String.Format("[{0}] {1}", flowsheet, msg)));
                 //var comps = Newtonsoft.Json.JsonConvert.SerializeObject(sim.AvailableCompounds.Values, Newtonsoft.Json.Formatting.Indented);
                 //File.WriteAllText("C:\\Users\\Daniel\\allcomps.json", comps);
-                autom.CalculateFlowsheet2(sim);
+                await autom.CalculateFlowsheet2(sim);
+                //autom.SaveFlowsheet2(sim, "C:\\Users\\Daniel\\out.dwxml");
             }
         }
 
