@@ -561,9 +561,9 @@ Namespace Reactors
 
             'Volume = PI * Diameter ^ 2 / 4 * Length
             If ReactorSizingType = SizingType.Length Then
-                Diameter = (4 * Volume / Length / PI) ^ 0.5
+                Diameter = (4 * Volume / NumberOfTubes / Length / PI) ^ 0.5
             Else
-                Length = 4 * Volume / PI / Diameter ^ 2
+                Length = 4 * Volume / NumberOfTubes / PI / Diameter ^ 2
             End If
 
             For Each astr In AccumulationStreams
