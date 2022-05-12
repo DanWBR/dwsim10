@@ -20,9 +20,6 @@ Namespace Reactors
 
         Private _IObj As InspectorItem
 
-        Protected m_vol As Double = 1.0
-        Protected m_dv As Double = 0.01
-
         Dim C0 As Dictionary(Of String, Double)
         Dim C As Dictionary(Of String, Double)
 
@@ -52,27 +49,15 @@ Namespace Reactors
 
         Private VolumeFraction As Double = 1.0
 
+        Public Property NumberOfTubes As Integer = 1
+
         Public Property Length As Double = 1.0
 
         Public Property Diameter As Double = 0.1
 
-        Public Property Volume() As Double
-            Get
-                Return m_vol
-            End Get
-            Set(ByVal value As Double)
-                m_vol = value
-            End Set
-        End Property
+        Public Property Volume As Double
 
-        Public Property dV() As Double
-            Get
-                Return m_dv
-            End Get
-            Set(ByVal value As Double)
-                m_dv = value
-            End Set
-        End Property
+        Public Property dV As Double
 
         Public Property CatalystLoading As Double = 0.0#
 
@@ -1147,9 +1132,9 @@ Namespace Reactors
 
                 'Volume = PI * Diameter ^ 2 / 4 * Length
                 If ReactorSizingType = SizingType.Length Then
-                    Diameter = (4 * Volume / Length / PI) ^ 0.5
+                    Diameter = (4 * Volume / NumberOfTubes / Length / PI) ^ 0.5
                 Else
-                    Length = 4 * Volume / PI / Diameter ^ 2
+                    Length = 4 * Volume / NumberOfTubes / PI / Diameter ^ 2
                 End If
 
                 If Not dynamics Then
@@ -1443,6 +1428,8 @@ Namespace Reactors
                             value = SystemsOfUnits.Converter.ConvertFromSI(su.heatflow, Me.DeltaQ.GetValueOrDefault)
                         Case 9
                             value = SystemsOfUnits.Converter.ConvertFromSI(su.diameter, Me.Diameter)
+                        Case 10
+                            value = NumberOfTubes
                     End Select
 
                 Else
@@ -1510,15 +1497,15 @@ Namespace Reactors
             If basecol.Length > 0 Then proplist.AddRange(basecol)
             Select Case proptype
                 Case PropertyType.RW
-                    For i = 0 To 9
+                    For i = 0 To 10
                         proplist.Add("PROP_PF_" + CStr(i))
                     Next
                 Case PropertyType.WR
-                    For i = 0 To 9
+                    For i = 0 To 10
                         proplist.Add("PROP_PF_" + CStr(i))
                     Next
                 Case PropertyType.ALL, PropertyType.RO
-                    For i = 0 To 9
+                    For i = 0 To 10
                         proplist.Add("PROP_PF_" + CStr(i))
                     Next
                     proplist.Add("Calculation Mode")
@@ -1566,6 +1553,8 @@ Namespace Reactors
                     Me.DeltaT = SystemsOfUnits.Converter.ConvertToSI(su.deltaT, propval)
                 Case 9
                     Me.Diameter = SystemsOfUnits.Converter.ConvertToSI(su.diameter, propval)
+                Case 10
+                    NumberOfTubes = propval
             End Select
             Return 1
         End Function
@@ -1607,6 +1596,8 @@ Namespace Reactors
                                 value = su.heatflow
                             Case 9
                                 value = su.diameter
+                            Case 10
+                                value = ""
                         End Select
 
                     Catch ex As Exception
