@@ -1727,7 +1727,7 @@ Public MustInherit Class FlowsheetBase
 
         AddGraphicObjects(data, excs)
 
-        ProgressCallback?.Invoke(25, "Loading Compounds...")
+        ProgressCallback?.Invoke(25, "Loading Simulation Compounds...")
 
         Await Task.Delay(10)
 
@@ -2489,7 +2489,7 @@ Public MustInherit Class FlowsheetBase
         Dim addedcomps As New List(Of String)
         Dim casnumbers As New List(Of String)
 
-        ProgressCallback?.Invoke(25, "Loading compounds...")
+        ProgressCallback?.Invoke(25, "Loading Compound Database...")
 
         Await Task.Delay(10)
 
