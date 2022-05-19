@@ -210,4 +210,7 @@ Public Interface ISimulationObject
 
     Function GetDynamicContents() As Double
 
+    Function GetAsObject() As Object
+
+
 End Interface

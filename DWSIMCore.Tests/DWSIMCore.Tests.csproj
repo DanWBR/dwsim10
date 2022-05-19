@@ -43,6 +43,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="2.80.3" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\DWSIMCore.Foundation\DWSIMCore.Foundation.vbproj" />
     <ProjectReference Include="..\DWSIMCore\DWSIMCore.csproj" />
   </ItemGroup>
