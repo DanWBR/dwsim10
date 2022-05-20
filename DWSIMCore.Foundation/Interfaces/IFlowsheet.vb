@@ -200,6 +200,8 @@ Public Interface IFlowsheet
 
     Sub ToggleFlowsheetAnimation()
 
+    Sub ResetAllObjects()
+
 End Interface
 
 ''' <summary>

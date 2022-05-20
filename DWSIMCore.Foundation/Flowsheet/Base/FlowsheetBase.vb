@@ -3196,5 +3196,20 @@ Label_00CC:
     Public Sub ToggleFlowsheetAnimation() Implements IFlowsheet.ToggleFlowsheetAnimation
         Throw New NotImplementedException()
     End Sub
+
+    Public Sub ResetAllObjects() Implements IFlowsheet.ResetAllObjects
+
+        For Each obj In SimulationObjects.Values
+            If obj.GraphicObject.ObjectType = ObjectType.MaterialStream Then
+                Dim ms As IMaterialStream = SimulationObjects(obj.Name)
+                ms.AtEquilibrium = False
+            End If
+            obj.Calculated = False
+            obj.GraphicObject.Calculated = False
+            obj.GraphicObject.Status = Status.NotCalculated
+        Next
+
+    End Sub
+
 End Class
 
