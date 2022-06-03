@@ -17,8 +17,9 @@ Namespace BaseClasses
 
         Public _Components As Dictionary(Of String, IReactionStoichBase)
 
-        <XmlIgnore> <NonSerialized> Private MEngine As Mages.Core.Engine
-        <XmlIgnore> <NonSerialized> Private KFunc As Mages.Core.Function
+
+        Private ec As New Flee.PublicTypes.ExpressionContext()
+
         <XmlIgnore> <NonSerialized> Private _ExpressionChanged As Boolean = True
 
 #Region "    DWSIM Specific"
@@ -35,16 +36,12 @@ Namespace BaseClasses
 
                 Case KOpt.Expression
 
-                    If MEngine Is Nothing Then
-                        MEngine = New Mages.Core.Engine()
-                        KFunc = MEngine.Interpret("(T) => " + Expression)
-                    End If
-                    If _ExpressionChanged Then
-                        _ExpressionChanged = False
-                        KFunc = MEngine.Interpret("(T) => " + Expression)
-                    End If
+                    ec.Variables.Clear()
+                    ec.Variables.Add("T", T)
 
-                    Return Math.Exp(KFunc.Call(Of Double)(T))
+                    Dim result As Double = ec.CompileGeneric(Of Double)(Expression).Evaluate()
+
+                    Return Math.Exp(result)
 
                 Case KOpt.Gibbs
 
@@ -71,6 +68,8 @@ Namespace BaseClasses
 
         Public Sub New()
             Me._Components = New Dictionary(Of String, IReactionStoichBase)
+            ec.Imports.AddType(GetType(System.Math))
+            ec.Options.ParseCulture = Globalization.CultureInfo.InvariantCulture
         End Sub
 
         Public Sub New(ByVal Name As String, ByVal Id As String)
