@@ -97,6 +97,8 @@ Public MustInherit Class FlowsheetBase
     End Function
 
     Public Sub AddPropertyPackage(obj As IPropertyPackage) Implements IFlowsheet.AddPropertyPackage
+        If obj.UniqueID = "" Then obj.UniqueID = Guid.NewGuid().ToString()
+        If obj.Tag = "" Then obj.Tag = obj.Tag = obj.GetType().Name
         Me.Options.PropertyPackages.Add(obj.UniqueID, obj)
     End Sub
 
