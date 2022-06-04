@@ -3,6 +3,7 @@ Imports System.Globalization
 Imports System.IO
 Imports System.Reflection
 Imports System.Text
+Imports System.Linq
 Imports DWSIMCore.Foundation.BaseClasses
 Imports DWSIMCore.Foundation.Enums
 Imports DWSIMCore.Foundation.Enums.GraphicObjects
@@ -37,17 +38,6 @@ Public MustInherit Class FlowsheetBase
 
     Public OptimizationCollection As New List(Of Flowsheet.Optimization.OptimizationCase)
 
-    Private Shared AvailablePropPacks As New Dictionary(Of String, IPropertyPackage)
-
-    Public Property AvailablePropertyPackages As Dictionary(Of String, IPropertyPackage) Implements IFlowsheet.AvailablePropertyPackages
-        Get
-            Return AvailablePropPacks
-        End Get
-        Set(value As Dictionary(Of String, IPropertyPackage))
-            AvailablePropPacks = value
-        End Set
-    End Property
-
     Public Property AvailableSystemsOfUnits As New List(Of IUnitsOfMeasure) Implements IFlowsheet.AvailableSystemsOfUnits
 
     Public Property ExternalUnitOperations As New Dictionary(Of String, IExternalUnitOperation)
@@ -67,6 +57,8 @@ Public MustInherit Class FlowsheetBase
     Public Property ScriptKeywordsU As String = ""
 
     Protected _translatefunction As Func(Of String, String)
+
+    Private CompoundsDB As LiteDB.LiteDatabase
 
     Public Sub AddCompoundsToMaterialStream(ms As IMaterialStream) Implements IFlowsheet.AddCompoundsToMaterialStream
         For Each phase As IPhase In ms.Phases.Values
@@ -1738,7 +1730,7 @@ Public MustInherit Class FlowsheetBase
         For Each xel As XElement In data
             Dim obj As New ConstantProperties
             obj.Name = xel.Element("Name").Value
-            If Not AvailableCompounds.ContainsKey(obj.Name) Then AvailableCompounds.Add(obj.Name, obj)
+            'If Not AvailableCompounds.Contains(obj.Name) Then AvailableCompounds.Add(obj.Name, obj)
             Options.SelectedComponents.Add(obj.Name, obj)
         Next
 
@@ -1761,27 +1753,18 @@ Public MustInherit Class FlowsheetBase
                 xel.Element("Type").Value = xel.Element("Type").Value.Replace("PortableDTL.DTL.SimulationObjects", "DWSIM.Thermodynamics")
                 xel.Element("Type").Value = xel.Element("Type").Value.Replace("DWSIM.DWSIM.SimulationObjects", "DWSIM.Thermodynamics")
                 Dim obj As PropertyPackage = Nothing
-                If xel.Element("Type").Value.Contains("ThermoC") Then
-                    Dim thermockey As String = "ThermoC Bridge"
-                    If AvailablePropertyPackages.ContainsKey(thermockey) Then
-                        obj = AvailablePropertyPackages(thermockey).ReturnInstance(xel.Element("Type").Value)
-                    Else
-                        Throw New Exception("The ThermoC bridge library was not found. Please download and install it in order to run this simulation.")
-                    End If
+                Dim ppkey As String = xel.Element("ComponentName").Value
+                If ppkey = "" Then
+                    obj = CType(New RaoultPropertyPackage().ReturnInstance(xel.Element("Type").Value), PropertyPackage)
                 Else
-                    Dim ppkey As String = xel.Element("ComponentName").Value
-                    If ppkey = "" Then
-                        obj = CType(New RaoultPropertyPackage().ReturnInstance(xel.Element("Type").Value), PropertyPackage)
+                    Dim ptype = xel.Element("Type").Value
+                    If ppkey.Contains("1978") And ptype.Contains("PengRobinsonPropertyPackage") Then
+                        ptype = ptype.Replace("PengRobinson", "PengRobinson1978")
+                    End If
+                    If AvailablePropertyPackages.Contains(ppkey) Then
+                        obj = GetPropertyPackage(ppkey).ReturnInstance(ptype)
                     Else
-                        Dim ptype = xel.Element("Type").Value
-                        If ppkey.Contains("1978") And ptype.Contains("PengRobinsonPropertyPackage") Then
-                            ptype = ptype.Replace("PengRobinson", "PengRobinson1978")
-                        End If
-                        If AvailablePropertyPackages.ContainsKey(ppkey) Then
-                            obj = AvailablePropertyPackages(ppkey).ReturnInstance(ptype)
-                        Else
-                            Throw New Exception("The " & ppkey & " Property Package library was not found. Please download and install it in order to run this simulation.")
-                        End If
+                        Throw New Exception("The " & ppkey & " Property Package library was not found. Please download and install it in order to run this simulation.")
                     End If
                 End If
                 obj.LoadData(xel.Elements.ToList)
@@ -2455,7 +2438,7 @@ Public MustInherit Class FlowsheetBase
 
     End Sub
 
-    Public Property AvailableCompounds As New Dictionary(Of String, ICompoundConstantProperties) Implements IFlowsheet.AvailableCompounds
+    Public Property AvailableCompounds As New List(Of String) Implements IFlowsheet.AvailableCompounds
 
     Public Sub Initialize() Implements IFlowsheet.Initialize
 
@@ -2486,7 +2469,6 @@ Public MustInherit Class FlowsheetBase
         Await Task.Delay(10)
 
         AddPropPacks()
-        'AddExternalUOs()
 
         Dim addedcomps As New List(Of String)
         Dim casnumbers As New List(Of String)
@@ -2495,92 +2477,9 @@ Public MustInherit Class FlowsheetBase
 
         Await Task.Delay(10)
 
-        AvailableCompounds = New Dictionary(Of String, ICompoundConstantProperties)()
-        Using filestr As Stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("DWSIMCore.Foundation.allcomps.json")
-            Using t As New IO.StreamReader(filestr)
-                Dim contents = t.ReadToEnd()
-                Dim comps = Newtonsoft.Json.JsonConvert.DeserializeObject(Of List(Of ConstantProperties))(contents)
-                For Each c In comps
-                    AvailableCompounds.Add(c.Name, c)
-                Next
-            End Using
-        End Using
+        LoadCompoundsDB()
 
-            'Dim csdb As New Databases.ChemSep
-            'Dim cpa() As ConstantProperties
-            'csdb.Load()
-            'cpa = csdb.Transfer()
-            'For Each cp As ConstantProperties In cpa
-            '    If Not AvailableCompounds.ContainsKey(cp.Name) Then AvailableCompounds.Add(cp.Name, cp)
-            'Next
-
-            'ProgressCallback?.Invoke(35, "Loading CoolProp compounds...")
-
-            'Await Task.Delay(10)
-
-            'Dim cpdb As New Databases.CoolProp
-            'cpdb.Load()
-            'cpa = cpdb.Transfer()
-            'addedcomps = AvailableCompounds.Keys.Select(Function(x) x.ToLower).ToList()
-            'For Each cp As ConstantProperties In cpa
-            '    If Not addedcomps.Contains(cp.Name.ToLower) Then AvailableCompounds.Add(cp.Name, cp)
-            'Next
-
-            'ProgressCallback?.Invoke(50, "Loading Biodiesel compounds...")
-
-            'Await Task.Delay(10)
-
-            'Dim bddb As New Databases.Biodiesel
-            'bddb.Load()
-            'cpa = bddb.Transfer()
-            'addedcomps = AvailableCompounds.Keys.Select(Function(x) x.ToLower).ToList()
-            'For Each cp As ConstantProperties In cpa
-            '    If Not addedcomps.Contains(cp.Name.ToLower) Then AvailableCompounds.Add(cp.Name, cp)
-            'Next
-
-            'ProgressCallback?.Invoke(70, "Loading ChEDL compounds...")
-
-            'Await Task.Delay(10)
-
-            'Dim chedl As New Databases.ChEDL_Thermo
-            'chedl.Load()
-            'cpa = chedl.Transfer().ToArray()
-            'addedcomps = AvailableCompounds.Keys.Select(Function(x) x.ToLower).ToList()
-            'casnumbers = AvailableCompounds.Values.Select(Function(x) x.CAS_Number).ToList()
-            'For Each cp As ConstantProperties In cpa
-            '    If Not addedcomps.Contains(cp.Name.ToLower) And Not addedcomps.Contains(cp.Name) Then
-            '        If Not casnumbers.Contains(cp.CAS_Number) Then
-            '            If Not AvailableCompounds.ContainsKey(cp.Name) Then AvailableCompounds.Add(cp.Name, cp)
-            '        End If
-            '    End If
-            'Next
-
-            'Dim elec As New Databases.Electrolyte
-            'elec.Load()
-            'cpa = elec.Transfer().ToArray()
-            'addedcomps = AvailableCompounds.Keys.Select(Function(x) x.ToLower).ToList()
-            'For Each cp As ConstantProperties In cpa
-            '    If Not addedcomps.Contains(cp.Name.ToLower) AndAlso Not AvailableCompounds.ContainsKey(cp.Name) Then AvailableCompounds.Add(cp.Name, cp)
-            'Next
-
-            'Dim comps = Databases.UserDB.LoadAdditionalCompounds()
-            'For Each cp As BaseClasses.ConstantProperties In comps
-            '    If Not AvailableCompounds.ContainsKey(cp.Name) Then AvailableCompounds.Add(cp.Name, cp)
-            'Next
-
-            'Using filestr As Stream = Assembly.GetAssembly(elec.GetType).GetManifestResourceStream("DWSIM.Thermodynamics.FoodProp.xml")
-            '    Dim fcomps = Databases.UserDB.ReadComps(filestr)
-            '    For Each cp As BaseClasses.ConstantProperties In fcomps
-            '        cp.CurrentDB = "FoodProp"
-            '        If Not AvailableCompounds.ContainsKey(cp.Name) Then AvailableCompounds.Add(cp.Name, cp)
-            '    Next
-            'End Using
-
-            'csdb.Dispose()
-            'cpdb.Dispose()
-            'chedl.Dispose()
-
-            ProgressCallback?.Invoke(80, "Adding Systems of Units...")
+        ProgressCallback?.Invoke(80, "Adding Systems of Units...")
 
         Await Task.Delay(10)
 
@@ -2816,107 +2715,6 @@ Label_00CC:
         End Using
     End Function
 
-    Public Shared Sub AddPropPacks()
-
-        If AvailablePropPacks.Count > 0 Then Exit Sub
-
-        Dim plist As New Concurrent.BlockingCollection(Of PropertyPackage)
-
-        'Dim CPPP As CoolPropPropertyPackage = New CoolPropPropertyPackage()
-        'CPPP.ComponentName = "CoolProp"
-        'plist.Add(CPPP)
-
-        'Dim CPIPP As New CoolPropIncompressiblePurePropertyPackage()
-        'CPIPP.ComponentName = "CoolProp (Incompressible Fluids)"
-        'CPIPP.ComponentDescription = "CoolProp (Incompressible Fluids)"
-        'plist.Add(CPIPP)
-
-        'Dim CPIMPP As New CoolPropIncompressibleMixturePropertyPackage()
-        'CPIMPP.ComponentName = "CoolProp (Incompressible Mixtures)"
-        'CPIMPP.ComponentDescription = "CoolProp (Incompressible Mixtures)"
-        'plist.Add(CPIMPP)
-
-        Dim STPP As SteamTablesPropertyPackage = New SteamTablesPropertyPackage()
-        STPP.ComponentName = "Steam Tables (IAPWS-IF97)"
-        plist.Add(STPP)
-
-        Dim SEAPP As SeawaterPropertyPackage = New SeawaterPropertyPackage()
-        SEAPP.ComponentName = "Seawater IAPWS-08"
-        plist.Add(SEAPP)
-
-
-        Dim PRPP As PengRobinsonPropertyPackage = New PengRobinsonPropertyPackage()
-        PRPP.ComponentName = "Peng-Robinson (PR)"
-        plist.Add(PRPP)
-
-        Dim SRKPP As SRKPropertyPackage = New SRKPropertyPackage()
-        SRKPP.ComponentName = "Soave-Redlich-Kwong (SRK)"
-        plist.Add(SRKPP)
-
-        Dim UPP As UNIFACPropertyPackage = New UNIFACPropertyPackage()
-        UPP.ComponentName = "UNIFAC"
-        plist.Add(UPP)
-
-        Dim ULLPP As UNIFACLLPropertyPackage = New UNIFACLLPropertyPackage()
-        ULLPP.ComponentName = "UNIFAC-LL"
-        plist.Add(ULLPP)
-
-        Dim MUPP As MODFACPropertyPackage = New MODFACPropertyPackage()
-        MUPP.ComponentName = "Modified UNIFAC (Dortmund)"
-        plist.Add(MUPP)
-
-        Dim NUPP As NISTMFACPropertyPackage = New NISTMFACPropertyPackage()
-        NUPP.ComponentName = "Modified UNIFAC (NIST)"
-        plist.Add(NUPP)
-
-        Dim WPP As WilsonPropertyPackage = New WilsonPropertyPackage()
-        WPP.ComponentName = "Wilson"
-        plist.Add(WPP)
-
-        Dim NRTLPP As NRTLPropertyPackage = New NRTLPropertyPackage()
-        NRTLPP.ComponentName = "NRTL"
-        plist.Add(NRTLPP)
-
-        Dim UQPP As UNIQUACPropertyPackage = New UNIQUACPropertyPackage()
-        UQPP.ComponentName = "UNIQUAC"
-        plist.Add(UQPP)
-
-        Dim CSLKPP As ChaoSeaderPropertyPackage = New ChaoSeaderPropertyPackage()
-        CSLKPP.ComponentName = "Chao-Seader"
-        plist.Add(CSLKPP)
-
-        Dim GSLKPP As GraysonStreedPropertyPackage = New GraysonStreedPropertyPackage()
-        GSLKPP.ComponentName = "Grayson-Streed"
-        plist.Add(GSLKPP)
-
-        Dim RPP As RaoultPropertyPackage = New RaoultPropertyPackage()
-        RPP.ComponentName = "Raoult's Law"
-        plist.Add(RPP)
-
-        Dim LKPPP As LKPPropertyPackage = New LKPPropertyPackage()
-        LKPPP.ComponentName = "Lee-Kesler-Plöcker"
-        plist.Add(LKPPP)
-
-        Dim PR78PP As PengRobinson1978PropertyPackage = New PengRobinson1978PropertyPackage()
-        PR78PP.ComponentName = "Peng-Robinson 1978 (PR78)"
-        plist.Add(PR78PP)
-
-        For Each pp In plist
-            AvailablePropPacks.Add(DirectCast(pp, CapeOpen.ICapeIdentification).ComponentName, pp)
-        Next
-
-        'Dim otherpps = Utility.LoadAdditionalPropertyPackages()
-
-        'For Each pp In otherpps
-        '    If Not AvailablePropPacks.ContainsKey(DirectCast(pp, CapeOpen.ICapeIdentification).ComponentName) Then
-        '        AvailablePropPacks.Add(DirectCast(pp, CapeOpen.ICapeIdentification).ComponentName, pp)
-        '    Else
-        '        Console.WriteLine(String.Format("Error adding External Property Package '{0}'. Check the 'ppacks' and 'extenders' folders for duplicate items.", pp.Name))
-        '    End If
-        'Next
-
-    End Sub
-
     Sub AddExternalUOs()
 
         Dim otheruos = Utility.LoadAdditionalUnitOperations()
@@ -3117,11 +2915,7 @@ Label_00CC:
     End Function
 
     Public Function GetCompound(name As String) As ICompoundConstantProperties Implements IFlowsheet.GetCompound
-        Return AvailableCompounds(name)
-    End Function
-
-    Public Function GetPropertyPackage(name As String) As IPropertyPackage Implements IFlowsheet.GetPropertyPackage
-        Return PropertyPackages.Values.Where(Function(x) x.Tag = name).FirstOrDefault
+        Return CompoundsDB.GetCollection(Of ConstantProperties).Query().Where(Function(c) c.Name = name).FirstOrDefault()
     End Function
 
     Public Function GetReaction(name As String) As IReaction Implements IFlowsheet.GetReaction
@@ -3176,6 +2970,8 @@ Label_00CC:
 
     Public Property PythonPreprocessor() As Action(Of String) Implements IFlowsheet.PythonPreprocessor
 
+    Public Property AvailablePropertyPackages As List(Of String) = New List(Of String) Implements IFlowsheet.AvailablePropertyPackages
+
     Private Shared Function LoadFromExtensionsFolder(ByVal sender As Object, ByVal args As ResolveEventArgs) As Assembly
 
         Dim assemblyPath1 As String = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly.Location), New AssemblyName(args.Name).Name + ".dll")
@@ -3210,6 +3006,92 @@ Label_00CC:
             obj.GraphicObject.Calculated = False
             obj.GraphicObject.Status = Status.NotCalculated
         Next
+
+    End Sub
+
+    Public Function GetPropertyPackage(name As String) As IPropertyPackage Implements IFlowsheet.GetPropertyPackage
+
+        Select Case name
+            Case "Steam Tables (IAPWS-IF97)"
+                Return New SteamTablesPropertyPackage()
+            Case "Seawater IAPWS-08"
+                Return New SeawaterPropertyPackage()
+            Case "Peng-Robinson (PR)"
+                Return New PengRobinsonPropertyPackage()
+            Case "Peng-Robinson 1978 (PR78)"
+                Return New PengRobinson1978PropertyPackage()
+            Case "Soave-Redlich-Kwong (SRK)"
+                Return New SRKPropertyPackage()
+            Case "UNIFAC"
+                Return New UNIFACPropertyPackage()
+            Case "UNIFAC-LL"
+                Return New UNIFACLLPropertyPackage()
+            Case "Modified UNIFAC (Dortmund)"
+                Return New MODFACPropertyPackage()
+            Case "Modified UNIFAC (NIST)"
+                Return New NISTMFACPropertyPackage()
+            Case "Wilson"
+                Return New WilsonPropertyPackage()
+            Case "NRTL"
+                Return New NRTLPropertyPackage()
+            Case "UNIQUAC"
+                Return New UNIQUACPropertyPackage()
+            Case "Chao-Seader"
+                Return New ChaoSeaderPropertyPackage()
+            Case "Grayson-Streed"
+                Return New GraysonStreedPropertyPackage()
+            Case "Raoult's Law"
+                Return New RaoultPropertyPackage()
+            Case "Lee-Kesler-Plöcker"
+                Return New LKPPropertyPackage()
+            Case Else
+                Throw New Exception(String.Format("Property Package '{0}' not found.", name))
+        End Select
+
+    End Function
+
+
+    Public Sub AddPropPacks()
+
+        AvailablePropertyPackages = New List(Of String)
+        AvailablePropertyPackages.Add("Steam Tables (IAPWS-IF97)")
+        AvailablePropertyPackages.Add("Seawater IAPWS-08")
+        AvailablePropertyPackages.Add("Peng-Robinson (PR)")
+        AvailablePropertyPackages.Add("Peng-Robinson 1978 (PR78)")
+        AvailablePropertyPackages.Add("Soave-Redlich-Kwong (SRK)")
+        AvailablePropertyPackages.Add("UNIFAC")
+        AvailablePropertyPackages.Add("UNIFAC-LL")
+        AvailablePropertyPackages.Add("Modified UNIFAC (Dortmund)")
+        AvailablePropertyPackages.Add("Modified UNIFAC (NIST)")
+        AvailablePropertyPackages.Add("Wilson")
+        AvailablePropertyPackages.Add("NRTL")
+        AvailablePropertyPackages.Add("UNIQUAC")
+        AvailablePropertyPackages.Add("Chao-Seader")
+        AvailablePropertyPackages.Add("Grayson-Streed")
+        AvailablePropertyPackages.Add("Raoult's Law")
+        AvailablePropertyPackages.Add("Lee-Kesler-Plöcker")
+
+    End Sub
+
+    Private Sub LoadCompoundsDB()
+
+        Using cdbstr As Stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("DWSIMCore.Foundation.compounds.zip")
+            Using stream As ZipInputStream = New ZipInputStream(cdbstr)
+                stream.Password = Nothing
+                Dim entry = stream.GetNextEntry()
+                Using stream2 As New MemoryStream()
+                    Dim count As Integer = 2048
+                    Dim buffer As Byte() = New Byte(2048) {}
+                    Do While True
+                        If (count <= 0) Then Exit Do
+                        count = stream.Read(buffer, 0, buffer.Length)
+                        stream2.Write(buffer, 0, count)
+                    Loop
+                    stream2.Position = 0
+                    CompoundsDB = New LiteDB.LiteDatabase(stream2)
+                End Using
+            End Using
+        End Using
 
     End Sub
 

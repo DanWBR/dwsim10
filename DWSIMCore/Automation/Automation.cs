@@ -13,9 +13,6 @@ namespace DWSIMCore.Automation
             Settings.AutomationMode = true;
             Settings.InspectorEnabled = false;
             Settings.CultureInfo = "en";
-            Console.WriteLine("Initializing DWSIM Automation Interface...");
-            FlowsheetBase.AddPropPacks();
-            Console.WriteLine("DWSIM Automation Interface initialized successfully.");
         }
 
         public async Task<IFlowsheet> LoadFlowsheet(Stream filestream, bool isXMZ, 
@@ -25,10 +22,8 @@ namespace DWSIMCore.Automation
         {
             Settings.AutomationMode = true;
             Settings.CultureInfo = "en";
-            Console.WriteLine("Initializing the Flowsheet, please wait...");
             var fsheet = new Flowsheet2(msgListener, UIUpdHandler);
             await fsheet.Init(ProgressCallback);
-            Console.WriteLine("Loading Flowsheet data, please wait...");
             if (isXMZ)
             {
                 await fsheet.LoadZippedXML(filestream, ProgressCallback);
@@ -44,10 +39,8 @@ namespace DWSIMCore.Automation
         {
             Settings.AutomationMode = true;
             Settings.CultureInfo = "en";
-            Console.WriteLine("Initializing the Flowsheet, please wait...");
             var fsheet = new Flowsheet2(null, UIUpdHandler);
             await fsheet.Init();
-            Console.WriteLine("Loading Flowsheet data, please wait...");
             if (System.IO.Path.GetExtension(filepath).ToLower().EndsWith("z"))
             {
                 await fsheet.LoadZippedXML(filepath);
@@ -66,7 +59,6 @@ namespace DWSIMCore.Automation
 
         public void SaveFlowsheet(IFlowsheet flowsheet, string filepath, bool compressed)
         {
-            Console.WriteLine("Saving the Flowsheet, please wait...");
             ((Flowsheet2)flowsheet).SaveSimulation(filepath);
         }
 
@@ -77,7 +69,6 @@ namespace DWSIMCore.Automation
             Settings.SolverMode = 1;
             Settings.EnableGPUProcessing = false;
             Settings.EnableParallelProcessing = true;
-            Console.WriteLine("Solving Flowsheet, please wait...");
             ((Flowsheet2)flowsheet).SolveFlowsheet2(ProgressCallback);
         }
 
@@ -111,7 +102,6 @@ namespace DWSIMCore.Automation
         public async Task<IFlowsheet> CreateFlowsheet()
         {
             Settings.AutomationMode = true;
-            Console.WriteLine("Initializing the Flowsheet, please wait...");
             var f = new Flowsheet2(null, null);
             await f.Init();
             return f;

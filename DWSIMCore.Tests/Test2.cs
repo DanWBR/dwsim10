@@ -18,7 +18,7 @@ class Test2
 
         // add water
 
-        var water = sim.AvailableCompounds["Water"];
+        var water = sim.GetCompound("Water");
 
         sim.SelectedCompounds.Add(water.Name, water);
 

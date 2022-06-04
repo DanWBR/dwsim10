@@ -26,7 +26,9 @@ Public Interface IFlowsheet
 
     Function GetApplicationObject() As Object
 
-    Property AvailableCompounds As Dictionary(Of String, ICompoundConstantProperties)
+    Property AvailableCompounds As List(Of String)
+
+    Property AvailablePropertyPackages As List(Of String)
 
     Property ExternalSolvers As Dictionary(Of String, IExternalSolverIdentification)
 
@@ -43,8 +45,6 @@ Public Interface IFlowsheet
     Property GraphicObjects As Dictionary(Of String, IGraphicObject)
 
     Property PropertyPackages As Dictionary(Of String, IPropertyPackage)
-
-    Property AvailablePropertyPackages As Dictionary(Of String, IPropertyPackage)
 
     Property AvailableSystemsOfUnits As List(Of IUnitsOfMeasure)
 

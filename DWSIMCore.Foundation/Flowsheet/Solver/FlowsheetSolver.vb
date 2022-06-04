@@ -362,7 +362,7 @@ Public Delegate Sub CustomEvent2(ByVal objinfo As CalculationArgs)
 
             If fbag.SimulationObjects.ContainsKey(myinfo.Name) Then
 
-                FeedBack.Invoke(String.Format("Calculating '{0}'...", myinfo.Tag))
+                FeedBack?.Invoke(String.Format("Calculating '{0}'...", myinfo.Tag))
 
                 Dim myobj = fbag.SimulationObjects(myinfo.Name)
                 Try
@@ -484,7 +484,7 @@ Public Delegate Sub CustomEvent2(ByVal objinfo As CalculationArgs)
 
             Dim myobj = fbag.SimulationObjects(myinfo.Name)
 
-            FeedBack.Invoke(String.Format("Calculating '{0}'...", myinfo.Tag))
+            FeedBack?.Invoke(String.Format("Calculating '{0}'...", myinfo.Tag))
 
             Await Task.Delay(10)
 

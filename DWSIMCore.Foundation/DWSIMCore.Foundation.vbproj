@@ -151,12 +151,12 @@
     <None Remove="Assets\Icons\uo_tank_32.png" />
     <None Remove="Assets\Icons\uo_valve_16.png" />
     <None Remove="Assets\Icons\uo_valve_32.png" />
-    <None Remove="Assets\Thermo\Databases\allcomps.json" />
     <None Remove="Assets\Thermo\Databases\Artistic_license_2_0.txt" />
     <None Remove="Assets\Thermo\Databases\biod_db.xml" />
     <None Remove="Assets\Thermo\Databases\chedl_thermo.json" />
     <None Remove="Assets\Thermo\Databases\chemsep1.xml" />
     <None Remove="Assets\Thermo\Databases\chemsep2.xml" />
+    <None Remove="Assets\Thermo\Databases\compounds.zip" />
     <None Remove="Assets\Thermo\Databases\coolprop.xml" />
     <None Remove="Assets\Thermo\Databases\CoolPropIncompMixtures.txt" />
     <None Remove="Assets\Thermo\Databases\CoolPropIncompPure.txt" />
@@ -484,8 +484,8 @@
     <EmbeddedResource Include="Assets\Icons\uo_tank_32.png" />
     <EmbeddedResource Include="Assets\Icons\uo_valve_16.png" />
     <EmbeddedResource Include="Assets\Icons\uo_valve_32.png" />
-    <EmbeddedResource Include="Assets\Thermo\Databases\allcomps.json" />
     <EmbeddedResource Include="Assets\Thermo\Databases\Artistic_license_2_0.txt" />
+    <EmbeddedResource Include="Assets\Thermo\Databases\compounds.zip" />
     <EmbeddedResource Include="Assets\Thermo\Databases\CoolPropIncompMixtures.txt" />
     <EmbeddedResource Include="Assets\Thermo\Databases\CoolPropIncompPure.txt" />
     <EmbeddedResource Include="Assets\Fonts\Asap-Bold.ttf" />
