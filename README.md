@@ -1,4 +1,8 @@
-Copyright 2022 Daniel Medeiros and contributors.
+# DWSIM Core Library (.NET 6)
+
+Copyright 2022 Daniel Medeiros and contributors
+
+## About
 
 This is a GUI-less version of DWSIM, targeting .NET 6.
 
