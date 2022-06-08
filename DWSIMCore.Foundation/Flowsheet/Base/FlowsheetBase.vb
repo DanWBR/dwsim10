@@ -58,7 +58,7 @@ Public MustInherit Class FlowsheetBase
 
     Protected _translatefunction As Func(Of String, String)
 
-    Private CompoundsDB As LiteDB.LiteDatabase
+    Private Shared CompoundsDB As LiteDB.LiteDatabase
 
     Public Sub AddCompoundsToMaterialStream(ms As IMaterialStream) Implements IFlowsheet.AddCompoundsToMaterialStream
         For Each phase As IPhase In ms.Phases.Values
@@ -3075,23 +3075,27 @@ Label_00CC:
 
     Private Sub LoadCompoundsDB()
 
-        Using cdbstr As Stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("DWSIMCore.Foundation.compounds.zip")
-            Using stream As ZipInputStream = New ZipInputStream(cdbstr)
-                stream.Password = Nothing
-                Dim entry = stream.GetNextEntry()
-                Using stream2 As New MemoryStream()
-                    Dim count As Integer = 2048
-                    Dim buffer As Byte() = New Byte(2048) {}
-                    Do While True
-                        If (count <= 0) Then Exit Do
-                        count = stream.Read(buffer, 0, buffer.Length)
-                        stream2.Write(buffer, 0, count)
-                    Loop
-                    stream2.Position = 0
-                    CompoundsDB = New LiteDB.LiteDatabase(stream2)
+        If CompoundsDB Is Nothing Then
+
+            Using cdbstr As Stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("DWSIMCore.Foundation.compounds.zip")
+                Using stream As ZipInputStream = New ZipInputStream(cdbstr)
+                    stream.Password = Nothing
+                    Dim entry = stream.GetNextEntry()
+                    Using stream2 As New MemoryStream()
+                        Dim count As Integer = 2048
+                        Dim buffer As Byte() = New Byte(2048) {}
+                        Do While True
+                            If (count <= 0) Then Exit Do
+                            count = stream.Read(buffer, 0, buffer.Length)
+                            stream2.Write(buffer, 0, count)
+                        Loop
+                        stream2.Position = 0
+                        CompoundsDB = New LiteDB.LiteDatabase(stream2)
+                    End Using
                 End Using
             End Using
-        End Using
+
+        End If
 
     End Sub
 
