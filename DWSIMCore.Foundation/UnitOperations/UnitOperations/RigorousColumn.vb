@@ -2315,11 +2315,18 @@ Namespace UnitOperations
                 Array.Resize(Pvap(i), nc)
             Next
 
+
             If Not Double.IsNaN(ColumnPressureDrop) Then
                 For i = 1 To ns
                     Stages(i).P = Stages(0).P + Convert.ToDouble(i) / Convert.ToDouble(ns) * ColumnPressureDrop
                 Next
             End If
+
+            i = 0
+            For Each st As Stage In Me.Stages
+                P(i) = st.P
+                i += 1
+            Next
 
             Dim sumcf(nc - 1), sumF, zm(nc - 1), alpha(nc - 1), distVx(nc - 1), rebVx(nc - 1), distVy(nc - 1), rebVy(nc - 1) As Double
 
@@ -2775,7 +2782,6 @@ Namespace UnitOperations
 
             i = 0
             For Each st As Stage In Me.Stages
-                P(i) = st.P
                 eff(i) = st.Efficiency
                 If Me.UseTemperatureEstimates And InitialEstimates.ValidateTemperatures() And Not ignoreuserestimates Then
                     T(i) = Me.InitialEstimates.StageTemps(i).Value
