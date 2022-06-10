@@ -1269,4 +1269,6 @@ Public Interface ICompoundConstantProperties
     ''' <returns></returns>
     Property COSTALD_Characteristic_Volume As Double
 
+    Property IsSolid As Boolean
+
 End Interface

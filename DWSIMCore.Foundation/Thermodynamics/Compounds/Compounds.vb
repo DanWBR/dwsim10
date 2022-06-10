@@ -1289,6 +1289,8 @@ Namespace BaseClasses
 
         Public Property IsSalt As Boolean Implements ICompoundConstantProperties.IsSalt
 
+        Public Property IsSolid As Boolean = False Implements ICompoundConstantProperties.IsSolid
+
         Public Property Liquid_Density_Const_A As Double = 0.0# Implements ICompoundConstantProperties.Liquid_Density_Const_A
 
         Public Property Liquid_Density_Const_B As Double = 0.0# Implements ICompoundConstantProperties.Liquid_Density_Const_B
