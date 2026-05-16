@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <Authors>Daniel Medeiros</Authors>
-    <Product>DWSIM Core Library (.NET 6)</Product>
+    <Product>DWSIM Core Library (.NET 10)</Product>
     <Description>DWSIM Core Library containing Automation class and IFlowsheet/Flowsheetbase implementation.</Description>
     <Copyright>Copyright 2022-2026 Daniel Wagner Oliveira de Medeiros</Copyright>
     <PackageProjectUrl>https://dwsim.org</PackageProjectUrl>
