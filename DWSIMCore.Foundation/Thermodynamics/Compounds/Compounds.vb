@@ -353,21 +353,14 @@ Namespace BaseClasses
         End Sub
 
         Public Function Clone() As Object Implements System.ICloneable.Clone
+
             Return ObjectCopy(Me)
+
         End Function
 
         Function ObjectCopy(ByVal obj As InteractionParameter) As InteractionParameter
 
-            Dim objMemStream As New MemoryStream(50000)
-            Dim objBinaryFormatter As New BinaryFormatter(Nothing, New StreamingContext(StreamingContextStates.Clone))
-
-            objBinaryFormatter.Serialize(objMemStream, obj)
-
-            objMemStream.Seek(0, SeekOrigin.Begin)
-
-            ObjectCopy = objBinaryFormatter.Deserialize(objMemStream)
-
-            objMemStream.Close()
+            Throw New NotImplementedException()
 
         End Function
 
@@ -473,16 +466,7 @@ Namespace BaseClasses
 
         Function ObjectCopy(ByVal obj As ConstantProperties) As ConstantProperties
 
-            Dim objMemStream As New MemoryStream(50000)
-            Dim objBinaryFormatter As New BinaryFormatter(Nothing, New StreamingContext(StreamingContextStates.Clone))
-
-            objBinaryFormatter.Serialize(objMemStream, obj)
-
-            objMemStream.Seek(0, SeekOrigin.Begin)
-
-            ObjectCopy = objBinaryFormatter.Deserialize(objMemStream)
-
-            objMemStream.Close()
+            Throw New NotImplementedException()
 
         End Function
 

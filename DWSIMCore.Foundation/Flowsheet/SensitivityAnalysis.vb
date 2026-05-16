@@ -46,16 +46,7 @@ Namespace Flowsheet.Optimization
 
         Function ObjectCopy(ByVal obj As Object) As Object
 
-            Dim objMemStream As New MemoryStream(50000)
-            Dim objBinaryFormatter As New BinaryFormatter(Nothing, New StreamingContext(StreamingContextStates.Clone))
-
-            objBinaryFormatter.Serialize(objMemStream, obj)
-
-            objMemStream.Seek(0, SeekOrigin.Begin)
-
-            ObjectCopy = objBinaryFormatter.Deserialize(objMemStream)
-
-            objMemStream.Close()
+            Throw New NotImplementedException()
 
         End Function
 
