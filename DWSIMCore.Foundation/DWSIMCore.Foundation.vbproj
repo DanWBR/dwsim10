@@ -6,7 +6,7 @@
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <Authors>Daniel Medeiros</Authors>
     <Company>Daniel Medeiros</Company>
-    <Copyright>Copyright 2022 Daniel Wagner Oliveira de Medeiros</Copyright>
+    <Copyright>Copyright 2022-2026 Daniel Wagner Oliveira de Medeiros</Copyright>
     <PackageProjectUrl>https://dwsim.org</PackageProjectUrl>
     <Product>DWSIM Simulator Core Library (.NET 6)</Product>
     <Description>Core Library for DWSIM Simulator, including Base Classes (Compounds, Reactions, etc), Auxiliary Classes (Math, Optimizers, Units of Measure, XML Serializer), Streams, Unit Operations and Thermodynamic Models.</Description>
@@ -488,6 +488,16 @@
     <EmbeddedResource Include="Assets\Thermo\Databases\compounds.zip" />
     <EmbeddedResource Include="Assets\Thermo\Databases\CoolPropIncompMixtures.txt" />
     <EmbeddedResource Include="Assets\Thermo\Databases\CoolPropIncompPure.txt" />
+    <!-- Compound databases consumed by Calculator.Initialize via
+         GetManifestResourceStream. VB.NET strips the path when embedding so
+         they show up as DWSIMCore.Foundation.{filename} in the manifest. -->
+    <EmbeddedResource Include="Assets\Thermo\Databases\chemsep1.xml" />
+    <EmbeddedResource Include="Assets\Thermo\Databases\chemsep2.xml" />
+    <EmbeddedResource Include="Assets\Thermo\Databases\dwsim.xml" />
+    <EmbeddedResource Include="Assets\Thermo\Databases\biod_db.xml" />
+    <EmbeddedResource Include="Assets\Thermo\Databases\electrolyte.xml" />
+    <EmbeddedResource Include="Assets\Thermo\Databases\chedl_thermo.json" />
+    <EmbeddedResource Include="Assets\Thermo\Databases\coolprop.xml" />
     <EmbeddedResource Include="Assets\Fonts\Asap-Bold.ttf" />
     <EmbeddedResource Include="Assets\Fonts\Asap-BoldItalic.ttf" />
     <EmbeddedResource Include="Assets\Fonts\Asap-Italic.ttf" />

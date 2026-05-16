@@ -7,7 +7,7 @@
     <Authors>Daniel Medeiros</Authors>
     <Product>DWSIM Simulator Core Library (.NET 6)</Product>
     <Description>Core Library for DWSIM Simulator, includes DotNumerics and CoolProp interfaces. </Description>
-    <Copyright>Copyright 2022 Daniel Wagner Oliveira de Medeiros</Copyright>
+    <Copyright>Copyright 2022-2026 Daniel Wagner Oliveira de Medeiros</Copyright>
     <PackageProjectUrl>https://dwsim.org</PackageProjectUrl>
     <PackageIcon></PackageIcon>
   </PropertyGroup>
