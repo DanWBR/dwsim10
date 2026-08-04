@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>DWSIM.GlobalSettings</RootNamespace>
+    <AssemblyName>DWSIM.GlobalSettings</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DWSIM.Logging\DWSIM.Logging.csproj" />
+  </ItemGroup>
+
+</Project>

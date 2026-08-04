@@ -1,10 +1,16 @@
 <Solution>
   <Folder Name="/engine/">
+    <Project Path="engine/DWSIM.Interfaces/DWSIM.Interfaces.vbproj" />
+    <Project Path="engine/DWSIM.DrawingTools.Point/DWSIM.DrawingTools.Point.vbproj" />
+    <Project Path="engine/DWSIM.GlobalSettings/DWSIM.GlobalSettings.vbproj" />
     <Project Path="engine/DWSIM.Logging/DWSIM.Logging.csproj" />
     <Project Path="engine/DWSIM.MathOps.DotNumerics/DWSIM.MathOps.DotNumerics.csproj" />
     <Project Path="engine/DWSIM.MathOps.Mapack/DWSIM.MathOps.Mapack.csproj" />
     <Project Path="engine/DWSIM.MathOps.RandomOps/DWSIM.MathOps.RandomOps.csproj" />
     <Project Path="engine/DWSIM.MathOps.SimpsonIntegrator/DWSIM.MathOps.SimpsonIntegrator.csproj" />
     <Project Path="engine/DWSIM.MathOps.SwarmOps/DWSIM.MathOps.SwarmOps.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/DWSIM.GlobalSettings.Tests/DWSIM.GlobalSettings.Tests.csproj" />
   </Folder>
 </Solution>
