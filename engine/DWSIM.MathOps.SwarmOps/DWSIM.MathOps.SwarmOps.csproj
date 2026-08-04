@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>SwarmOps</RootNamespace>
+    <AssemblyName>DWSIM.MathOps.SwarmOps</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DWSIM.MathOps.RandomOps\DWSIM.MathOps.RandomOps.csproj" />
+  </ItemGroup>
+
+</Project>

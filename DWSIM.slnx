@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/engine/">
+    <Project Path="engine/DWSIM.Logging/DWSIM.Logging.csproj" />
+    <Project Path="engine/DWSIM.MathOps.DotNumerics/DWSIM.MathOps.DotNumerics.csproj" />
+    <Project Path="engine/DWSIM.MathOps.Mapack/DWSIM.MathOps.Mapack.csproj" />
+    <Project Path="engine/DWSIM.MathOps.RandomOps/DWSIM.MathOps.RandomOps.csproj" />
+    <Project Path="engine/DWSIM.MathOps.SimpsonIntegrator/DWSIM.MathOps.SimpsonIntegrator.csproj" />
+    <Project Path="engine/DWSIM.MathOps.SwarmOps/DWSIM.MathOps.SwarmOps.csproj" />
+  </Folder>
+</Solution>

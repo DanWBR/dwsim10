@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>RandomOps</RootNamespace>
+    <AssemblyName>DWSIM.MathOps.RandomOps</AssemblyName>
+  </PropertyGroup>
+
+</Project>

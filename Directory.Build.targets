@@ -1,0 +1,16 @@
+<Project>
+
+  <!--
+    The engine reads compound databases, unit icons and sample files from embedded resources. The
+    VB compiler flattens folders when it names them, so a resource added under Assets\Icons\pump.png
+    is looked up at runtime as <RootNamespace>.pump.png. Keeping the naming here means a project can
+    move its files around without breaking GetManifestResourceStream at runtime.
+  -->
+
+  <Target Name="ReportEmbeddedResourceNames"
+          Condition="'$(ReportResourceNames)' == 'true'"
+          AfterTargets="PrepareForBuild">
+    <Message Importance="high" Text="Embedded: %(EmbeddedResource.ManifestResourceName)" />
+  </Target>
+
+</Project>

@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>DWSIM.MathOps.Mapack</RootNamespace>
+    <AssemblyName>DWSIM.MathOps.Mapack</AssemblyName>
+  </PropertyGroup>
+
+</Project>

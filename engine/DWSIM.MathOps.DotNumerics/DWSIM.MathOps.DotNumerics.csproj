@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>DotNumerics</RootNamespace>
+    <AssemblyName>DWSIM.MathOps.DotNumerics</AssemblyName>
+  </PropertyGroup>
+
+</Project>

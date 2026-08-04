@@ -1,0 +1,57 @@
+<Project>
+
+  <!--
+    Settings shared by every project in the repository. The engine comes from the DWSIM 10 tree,
+    which is Option Strict Off VB and non-nullable C#, so those are the defaults here: turning
+    them on is a per-project decision, never a repository-wide one.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Deterministic>true</Deterministic>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <EnableDefaultNoneItems>false</EnableDefaultNoneItems>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+
+  <!-- VB defaults of the engine. Option Strict On would raise tens of thousands of errors. -->
+
+  <PropertyGroup>
+    <OptionExplicit>On</OptionExplicit>
+    <OptionCompare>Binary</OptionCompare>
+    <OptionStrict>Off</OptionStrict>
+    <OptionInfer>On</OptionInfer>
+  </PropertyGroup>
+
+  <!--
+    The engine's own warnings, carried over from DWSIM.UnitOperations.vbproj and
+    DWSIM.Thermodynamics.vbproj. Without them the build prints tens of thousands of lines and
+    hides the warnings that matter.
+  -->
+
+  <PropertyGroup Condition="'$(MSBuildProjectExtension)' == '.vbproj'">
+    <NoWarn>$(NoWarn);41999;42016;42015;42017;42018;42019;42020;42021;42022;42032;42036;42104;42105;42107;42109;42353;42354;42355</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(MSBuildProjectExtension)' == '.csproj'">
+    <NoWarn>$(NoWarn);CS1591;CS0618</NoWarn>
+  </PropertyGroup>
+
+  <!-- Package identity, for the projects that are published to a feed. -->
+
+  <PropertyGroup>
+    <Authors>Daniel Wagner Oliveira de Medeiros</Authors>
+    <Company>DWSIM</Company>
+    <Product>DWSIM</Product>
+    <Copyright>Copyright 2008-2026 Daniel Wagner Oliveira de Medeiros and contributors</Copyright>
+    <PackageProjectUrl>https://dwsim.org</PackageProjectUrl>
+    <PackageLicenseExpression>GPL-3.0-or-later</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/DanWBR/DWSIMCore</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+  </PropertyGroup>
+
+</Project>

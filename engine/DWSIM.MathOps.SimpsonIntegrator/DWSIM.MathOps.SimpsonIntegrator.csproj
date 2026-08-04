@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>DWSIM.MathOps.SimpsonIntegrator</RootNamespace>
+    <AssemblyName>DWSIM.MathOps.SimpsonIntegrator</AssemblyName>
+  </PropertyGroup>
+
+</Project>
