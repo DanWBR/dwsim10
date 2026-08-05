@@ -25,6 +25,7 @@
     <PackageVersion Include="NLog" Version="5.3.4" />
     <PackageVersion Include="pythonnet" Version="3.1.0" />
     <PackageVersion Include="SharpZipLib" Version="1.4.2" />
+    <PackageVersion Include="XMLUnit.Core" Version="2.9.1" />
     <PackageVersion Include="System.Text.Encoding.CodePages" Version="9.0.0" />
     <!-- pinned over the 4.7.0 that EPPlus 4.5 asks for, which has a known vulnerability -->
     <PackageVersion Include="System.Drawing.Common" Version="9.0.0" />

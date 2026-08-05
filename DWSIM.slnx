@@ -42,6 +42,8 @@
     <Project Path="engine/DWSIM.PureCompoundData/src/Builder/DWSIM.PureCompoundData.Builder.csproj" />
     <Project Path="engine/DWSIM.PureCompoundData/src/CLI/DWSIM.PureCompoundData.CLI.csproj" />
     <Project Path="engine/DWSIM.SharedClasses.DataRegression/DWSIM.SharedClasses.DataRegression.vbproj" />
+    <Project Path="engine/DWSIM.UnitOperations/DWSIM.UnitOperations.vbproj" />
+    <Project Path="engine/DWSIM.Thermodynamics.ReaktoroPropertyPackage/DWSIM.Thermodynamics.ReaktoroPropertyPackage.vbproj" />
   </Folder>
   <Folder Name="/ui/">
     <Project Path="ui/DWSIM.UI.Shared.Avalonia/DWSIM.UI.Shared.Avalonia.csproj" />

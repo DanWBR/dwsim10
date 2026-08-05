@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Reaktoro is a Python library; the loader finds it through the CPython bridge, so the package
+    is available wherever the user has Reaktoro installed. FormConfig, its WinForms parameter
+    editor, stays behind.
+  -->
+
+  <PropertyGroup>
+    <RootNamespace>DWSIM.Thermodynamics.ReaktoroPropertyPackage</RootNamespace>
+    <AssemblyName>DWSIM.Thermodynamics.ReaktoroPropertyPackage</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="CapeOpen">
+      <HintPath>..\..\lib\CapeOpen.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FileHelpers" />
+    <PackageReference Include="Newtonsoft.Json" />
+    <PackageReference Include="pythonnet" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DWSIM.GlobalSettings\DWSIM.GlobalSettings.vbproj" />
+    <ProjectReference Include="..\DWSIM.Interfaces\DWSIM.Interfaces.vbproj" />
+    <ProjectReference Include="..\DWSIM.SharedClasses\DWSIM.SharedClasses.vbproj" />
+    <ProjectReference Include="..\DWSIM.Thermodynamics\DWSIM.Thermodynamics.vbproj" />
+  </ItemGroup>
+
+</Project>

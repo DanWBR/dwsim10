@@ -1,0 +1,3571 @@
+﻿'    Pipe Calculation Routines 
+'    Copyright 2008 Daniel Wagner O. de Medeiros
+'
+'    This file is part of DWSIM.
+'
+'    DWSIM is free software: you can redistribute it and/or modify
+'    it under the terms of the GNU General Public License as published by
+'    the Free Software Foundation, either version 3 of the License, or
+'    (at your option) any later version.
+'
+'    DWSIM is distributed in the hope that it will be useful,
+'    but WITHOUT ANY WARRANTY; without even the implied warranty of
+'    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+'    GNU General Public License for more details.
+'
+'    You should have received a copy of the GNU General Public License
+'    along with DWSIM.  If not, see <http://www.gnu.org/licenses/>.
+
+
+Imports DWSIM.Thermodynamics
+Imports DWSIM.Thermodynamics.Streams
+Imports DWSIM.SharedClasses
+Imports DWSIM.UnitOperations.UnitOperations.Auxiliary
+Imports DWSIM.UnitOperations.UnitOperations.Auxiliary.Pipe
+Imports DWSIM.Thermodynamics.BaseClasses
+Imports DWSIM.Interfaces.Enums
+Imports DWSIM.Thermodynamics.PropertyPackages.Auxiliary
+Imports OxyPlot
+Imports OxyPlot.Axes
+Imports System.Dynamic
+Imports cv = DWSIM.SharedClasses.SystemsOfUnits.Converter
+Imports System.IO
+
+Namespace UnitOperations
+
+    ''' <summary>Defines the two-phase flow pressure-drop correlation used by the pipe segment model.</summary>
+    Public Enum FlowPackage
+        ''' <summary>Beggs and Brill correlation for inclined two-phase flow.</summary>
+        Beggs_Brill
+        ''' <summary>Lockhart–Martinelli correlation for horizontal two-phase flow.</summary>
+        Lockhart_Martinelli
+        ''' <summary>Petalas and Aziz mechanistic model for multi-phase pipe flow.</summary>
+        Petalas_Aziz
+    End Enum
+
+    ''' <summary>
+    ''' Represents a standard commercial pipe diameter entry, including nominal size,
+    ''' standard description, and internal/external diameters in inches.
+    ''' </summary>
+    Public Class StandardPipeDiameter
+
+        ''' <summary>Gets or sets the nominal pipe diameter label (e.g. "2 in.").</summary>
+        Public Property NominalDiameter As String = ""
+        ''' <summary>Gets or sets the schedule/weight/wall description string.</summary>
+        Public Property StandardSizeDescription As String = ""
+        ''' <summary>Gets or sets the internal bore diameter in inches.</summary>
+        Public Property InternalDiameter_Inches As Double = 0.0
+        ''' <summary>Gets or sets the external (outer) diameter in inches.</summary>
+        Public Property ExternalDiameter_Inches As Double = 0.0
+
+    End Class
+
+    ''' <summary>
+    ''' Represents a pipe segment unit operation that models single- or multi-phase fluid flow
+    ''' through one or more pipe sections with specified geometry, elevation, and thermal boundary
+    ''' conditions. Pressure drop, temperature, and phase-equilibrium profiles are calculated
+    ''' using a selectable two-phase flow correlation.
+    ''' </summary>
+    <System.Serializable()> Public Partial Class Pipe
+
+        Inherits UnitOperations.UnitOpBaseClass
+
+        ''' <summary>Gets or sets the simulation object class category (PressureChangers).</summary>
+        Public Overrides Property ObjectClass As SimulationObjectClass = SimulationObjectClass.PressureChangers
+
+        <NonSerialized> <Xml.Serialization.XmlIgnore> Public f As Object
+
+        ''' <summary>Defines the pipe specification mode (calculate length, outlet pressure, or outlet temperature).</summary>
+        Public Enum Specmode
+            ''' <summary>Pipe length is specified; pressure and temperature are calculated.</summary>
+            Length = 0
+            ''' <summary>Outlet pressure is specified; an equivalent pipe length is back-calculated.</summary>
+            OutletPressure = 1
+            ''' <summary>Outlet temperature is specified; an equivalent pipe length is back-calculated.</summary>
+            OutletTemperature = 2
+        End Enum
+
+        ''' <summary>Gets a value indicating whether this unit operation supports dynamic simulation mode.</summary>
+        Public Overrides ReadOnly Property SupportsDynamicMode As Boolean = True
+
+        ''' <summary>Gets a value indicating whether this unit operation exposes dedicated dynamic-mode properties.</summary>
+        Public Overrides ReadOnly Property HasPropertiesForDynamicMode As Boolean = True
+
+        ''' <summary>Gets or sets whether the pipe uses the flowsheet-level weather (ambient temperature) settings.</summary>
+        Public Property UseGlobalWeather As Boolean = False
+
+        ''' <summary>Gets or sets the active specification mode for this pipe.</summary>
+        Public Property Specification As Specmode = Specmode.Length
+
+        ''' <summary>Gets or sets the target outlet pressure (Pa) when <see cref="Specification"/> is <see cref="Specmode.OutletPressure"/>.</summary>
+        Public Property OutletPressure As Double = 101325
+
+        ''' <summary>Gets or sets the target outlet temperature (K) when <see cref="Specification"/> is <see cref="Specmode.OutletTemperature"/>.</summary>
+        Public Property OutletTemperature As Double = 298.15
+
+        ''' <summary>Gets or sets the slurry viscosity model index (0 = default).</summary>
+        Public Property SlurryViscosityMode As Integer = 0
+
+        ''' <summary>Gets or sets whether phase-equilibrium flashes are performed at each pipe section.</summary>
+        Public Property CalculateEquilibrium As Boolean = True
+
+        ''' <summary>Gets or sets the interval (in calculation steps) between equilibrium flash evaluations.</summary>
+        Public Property CalculateEquilibriumIntervalInSteps As Integer = 1
+
+        ''' <summary>Gets or sets whether a rigorous wall heat-balance is calculated for each section.</summary>
+        Public Property CalculateHeatBalance As Boolean = True
+
+        ''' <summary>Gets or sets the calculated static (elevation) component of total pressure drop (Pa).</summary>
+        Public Property PressureDrop_Static As Double = 0.0
+
+        ''' <summary>Gets or sets the calculated friction component of total pressure drop (Pa).</summary>
+        Public Property PressureDrop_Friction As Double = 0.0
+
+        ''' <summary>Gets or sets whether oil-water emulsion viscosity is included in the pressure-drop calculation.</summary>
+        Public Property IncludeEmulsion As Boolean = False
+
+        ''' <summary>Gets or sets the maximum number of pressure iteration loops per section.</summary>
+        Public Property MaxPressureIterations As Integer = 50
+
+        ''' <summary>Gets or sets the maximum number of temperature iteration loops per section.</summary>
+        Public Property MaxTemperatureIterations As Integer = 50
+
+        ''' <summary>Gets or sets the pressure convergence tolerance (Pa).</summary>
+        Public Property TolP As Double = 1000
+
+        ''' <summary>Gets or sets the temperature convergence tolerance (K).</summary>
+        Public Property TolT As Double = 0.1
+
+        ''' <summary>Gets or sets the total calculated pressure drop across all pipe sections (Pa).</summary>
+        Public Property DeltaP As Nullable(Of Double)
+
+        ''' <summary>Gets or sets the total calculated temperature change across all pipe sections (K).</summary>
+        Public Property DeltaT As Nullable(Of Double)
+
+        ''' <summary>Gets or sets the total calculated heat duty exchanged across all pipe sections (kW).</summary>
+        Public Property DeltaQ As Nullable(Of Double)
+
+        ''' <summary>Gets or sets the two-phase flow correlation used for pressure-drop calculations.</summary>
+        Public Property SelectedFlowPackage As FlowPackage = FlowPackage.Beggs_Brill
+
+        ''' <summary>Gets or sets the geometric profile (sections, diameters, lengths, elevations) of this pipe.</summary>
+        Public Property Profile As PipeProfile = New PipeProfile()
+
+        ''' <summary>Gets or sets the thermal boundary-condition definitions for this pipe.</summary>
+        Public Property ThermalProfile As ThermalEditorDefinitions = New ThermalEditorDefinitions()
+
+        ''' <summary>Gets or sets the list of accumulation streams used in dynamic mode (one per section).</summary>
+        Public Property AccumulationStreams As New List(Of MaterialStream)
+
+        ''' <summary>Initializes a new default instance of the <see cref="Pipe"/> class.</summary>
+        Public Sub New()
+            MyBase.New()
+        End Sub
+
+        ''' <summary>
+        ''' Initializes a new instance of the <see cref="Pipe"/> class with a name and description.
+        ''' </summary>
+        ''' <param name="name">The display name of the pipe.</param>
+        ''' <param name="description">A brief description of the pipe.</param>
+        Public Sub New(ByVal name As String, ByVal description As String)
+            MyBase.CreateNew()
+            Profile = New PipeProfile
+            ThermalProfile = New ThermalEditorDefinitions
+            ComponentName = name
+            ComponentDescription = description
+        End Sub
+
+        ''' <summary>Restores the pipe state, including dynamic accumulation streams, from a list of XML elements.</summary>
+        ''' <param name="data">The XML element list containing the serialized state.</param>
+        ''' <returns><c>True</c> if the data was loaded successfully.</returns>
+        Public Overrides Function LoadData(data As List(Of XElement)) As Boolean
+
+            AccumulationStreams = New List(Of MaterialStream)
+            Dim ael = (From xel As XElement In data Select xel Where xel.Name = "AccumulationStreams").FirstOrDefault
+            If Not ael Is Nothing Then
+                For Each xel In ael.Elements
+                    Dim as1 As New MaterialStream()
+                    as1.LoadData(xel.Elements.ToList)
+                    AccumulationStreams.Add(as1)
+                Next
+            End If
+            Return MyBase.LoadData(data)
+
+        End Function
+
+        ''' <summary>Serializes the pipe state, including dynamic accumulation streams, into a list of XML elements.</summary>
+        ''' <returns>A list of <see cref="XElement"/> objects representing the current state.</returns>
+        Public Overrides Function SaveData() As List(Of XElement)
+
+            Dim elements As List(Of XElement) = MyBase.SaveData()
+
+            If AccumulationStreams IsNot Nothing Then
+                Dim astr As New XElement("AccumulationStreams")
+                elements.Add(astr)
+                For Each mstream In AccumulationStreams
+                    astr.Add(New XElement("AccumulationStream", mstream.SaveData()))
+                Next
+            End If
+
+            Return elements
+
+        End Function
+
+        ''' <summary>Creates a deep copy of this pipe via XML serialization.</summary>
+        ''' <returns>A new <see cref="Pipe"/> instance with the same state.</returns>
+        Public Overrides Function CloneXML() As Object
+            Dim obj As ICustomXMLSerialization = New Pipe()
+            obj.LoadData(SaveData)
+            Return obj
+        End Function
+
+        ''' <summary>Creates a deep copy of this pipe via JSON serialization.</summary>
+        ''' <returns>A new <see cref="Pipe"/> instance with the same state.</returns>
+        Public Overrides Function CloneJSON() As Object
+            Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of Pipe)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
+        End Function
+
+        ''' <summary>
+        ''' Loads standard commercial pipe sizes from the embedded resource file and returns
+        ''' them grouped by nominal diameter.
+        ''' </summary>
+        ''' <returns>A dictionary keyed by nominal diameter string, each containing a list of <see cref="StandardPipeDiameter"/> entries.</returns>
+        Public Shared Function GetStandardPipeSizes() As Dictionary(Of String, List(Of StandardPipeDiameter))
+
+            Dim sizes As New Dictionary(Of String, List(Of StandardPipeDiameter))
+            Dim line As String = ""
+
+            Using filestr = System.Reflection.Assembly.GetExecutingAssembly().GetManifestResourceStream("DWSIM.UnitOperations.pipes.dat")
+                Using reader As New StreamReader(filestr)
+                    reader.ReadLine()
+                    While Not reader.EndOfStream
+                        line = reader.ReadLine()
+                        Dim ssize As New StandardPipeDiameter With {
+                            .NominalDiameter = line.Split(";")(0) + " in.",
+                                                    .ExternalDiameter_Inches = line.Split(";")(1).ToDoubleFromInvariant(),
+                                                    .InternalDiameter_Inches = line.Split(";")(6).ToDoubleFromInvariant(),
+                                                    .StandardSizeDescription = line.Split(";")(2) + "/" + line.Split(";")(3) + "/" + line.Split(";")(4)
+                                                    }
+                        If Not sizes.ContainsKey(ssize.NominalDiameter) Then
+                            sizes.Add(ssize.NominalDiameter, New List(Of StandardPipeDiameter))
+                        End If
+                        sizes(ssize.NominalDiameter).Add(ssize)
+                    End While
+                End Using
+            End Using
+
+            Return sizes
+
+        End Function
+
+        ''' <summary>
+        ''' Calculates the effective oil-water emulsion viscosity (Pa·s) for the given material stream
+        ''' based on the oil volume fraction and the Brinkman equation.
+        ''' </summary>
+        ''' <param name="ms">The material stream containing the two liquid phases.</param>
+        ''' <returns>Emulsion dynamic viscosity in Pa·s.</returns>
+        Public Function EmulsionViscosity(ms As MaterialStream) As Double
+            Dim phi, eta_lh, eta_ll, eta_l As Double
+            ' Oil fraction
+            With ms
+                phi = .Liquid1.Properties.volumetric_flow.GetValueOrDefault / (.Liquid2.Properties.volumetric_flow.GetValueOrDefault + .Liquid1.Properties.volumetric_flow.GetValueOrDefault)
+                eta_lh = .Liquid1.Properties.viscosity.GetValueOrDefault * Math.Exp(3.6 * (1 - phi))
+                eta_ll = .Liquid2.Properties.viscosity.GetValueOrDefault _
+                        * (1 + 2.5 * phi * (.Liquid1.Properties.viscosity.GetValueOrDefault + 0.4 * .Liquid2.Properties.viscosity.GetValueOrDefault) / (.Liquid1.Properties.viscosity.GetValueOrDefault + .Liquid2.Properties.viscosity.GetValueOrDefault))
+                If phi > 0.5 Then
+                    eta_l = eta_lh
+                ElseIf phi < 0.33 Then
+                    eta_l = eta_ll
+                Else
+                    eta_l = (phi - 0.33) / 0.17 * eta_lh + (1 - (phi - 0.33) / 0.17) * eta_ll
+                End If
+                Return eta_l
+            End With
+        End Function
+
+        ''' <summary>Creates the additional properties required for dynamic simulation mode.</summary>
+        Public Overrides Sub CreateDynamicProperties()
+
+            AddDynamicProperty("Time step discretization", "Divides the current time step by this value for enhanced precision", 10, UnitOfMeasure.none, 1.GetType())
+
+        End Sub
+
+        ''' <summary>Returns True when the section is a straight tube, as opposed to a fitting/accident.</summary>
+        Private Shared Function IsStraightSection(seg As PipeSection) As Boolean
+            Return seg.TipoSegmento = "Tubulaosimples" OrElse seg.TipoSegmento = "" OrElse
+                   seg.TipoSegmento = "Straight Tube Section" OrElse seg.TipoSegmento = "Straight Tube" OrElse
+                   seg.TipoSegmento = "Tubulação Simples"
+        End Function
+
+        ''' <summary>Performs the dynamic-mode calculation for the pipe segment.</summary>
+        Public Overrides Sub RunDynamicModel()
+
+            If Not Profile.Status = PipeEditorStatus.OK Then
+                Throw New Exception(FlowSheet.GetTranslatedString("Operfilhidrulicodatu"))
+            End If
+
+            Select Case Specification
+                Case Specmode.OutletPressure, Specmode.OutletTemperature
+                    Throw New Exception("This calculation mode is not supported while in Dynamic Mode.")
+            End Select
+
+            Dim integratorID = FlowSheet.DynamicsManager.ScheduleList(FlowSheet.DynamicsManager.CurrentSchedule).CurrentIntegrator
+
+            Dim integrator = FlowSheet.DynamicsManager.IntegratorList(integratorID)
+
+            Dim timestep = integrator.IntegrationStep.TotalSeconds
+
+            Dim timestep_discretization As Double = GetDynamicProperty("Time step discretization")
+
+            If integrator.RealTime Then timestep = Convert.ToDouble(integrator.RealTimeStepMs) / 1000.0
+
+            Dim fpp As FlowPackages.FPBaseClass
+
+            Select Case SelectedFlowPackage
+                Case FlowPackage.Lockhart_Martinelli
+                    fpp = New FlowPackages.LockhartMartinelli
+                Case FlowPackage.Petalas_Aziz
+                    fpp = New FlowPackages.PetalasAziz
+                Case Else
+                    fpp = New FlowPackages.BeggsBrill
+            End Select
+
+            Dim ims1, oms1 As MaterialStream, es As Streams.EnergyStream
+
+            ims1 = GetInletMaterialStream(0)
+            oms1 = GetOutletMaterialStream(0)
+            es = GetEnergyStream()
+
+            Dim NumberOfSections As Integer
+
+            'Build the flat cell -> section map in physical (concatenated) order:
+            'all increments of section 1 (times Quantidade), then section 2, etc.
+            'This is the single source of truth for the number of accumulation cells
+            'and mirrors the steady-state Calculate layout (section -> quantity -> increment).
+            Dim cellSections As New List(Of PipeSection)
+            For Each seg In Profile.Sections.Values
+                For iq As Integer = 1 To seg.Quantidade
+                    For inc As Integer = 1 To seg.Incrementos
+                        cellSections.Add(seg)
+                    Next
+                Next
+            Next
+            NumberOfSections = cellSections.Count
+
+            If AccumulationStreams.Count <> NumberOfSections Then
+                'Count mismatch (never initialized, or geometry changed): rebuild a
+                'fresh holdup with exactly one accumulation stream per cell.
+                AccumulationStreams = New List(Of MaterialStream)
+                For i As Integer = 0 To NumberOfSections - 1
+                    AccumulationStreams.Add(ims1.CloneXML())
+                Next
+            Else
+                For Each astr In AccumulationStreams
+                    If astr.GetMassFlow() <= 0.0 Then astr.SetMassFlow(0.0)
+                Next
+                For Each astr In AccumulationStreams
+                    For Each p As Phase In astr.Phases.Values
+                        For Each comp In p.Compounds.Values
+                            comp.ConstantProperties = FlowSheet.SelectedCompounds(comp.Name)
+                        Next
+                    Next
+                    astr.SetFlowsheet(FlowSheet)
+                Next
+            End If
+
+            Dim A, U, Cp_m, DQ, DQmax, dText_dL, Text, Tout, Tpe, Tin, Qvin, Qlin, Qsin, eta_phi, eta_r,
+                rho_l, rho_v, Cp_l, Cp_v, K_l, K_v, eta_l, eta_v, tens, w_v, w_l, w, z As Double
+
+            'Calcular DP
+
+            Dim resv As Object = New Object() {"", 0.0, 0.0, 0.0, 0.0}
+            Dim resf As Double()
+            Dim equilibrio As Object = Nothing
+            Dim tmp As Object = Nothing
+            Dim tipofluxo As String
+            Dim first As Boolean = True
+            Dim holdup, dpf, dph, dpt As Double
+            Dim f_mix, mu_mix, rho_mix, vel_mix, Re_mix As Double
+
+            PressureDrop_Friction = 0.0
+            PressureDrop_Static = 0.0
+
+            Dim countext As Integer = 0
+
+            Dim sections = Profile.Sections.Values.ToList()
+
+            Dim segmento As PipeSection = Nothing
+
+            Dim ms_in, ms_out, current_as, ms_transition As MaterialStream
+            Dim Pdrop_transition As Double
+
+            'timestep_discretization = 1.0
+
+            Dim substep_multpl = 1.0 / timestep_discretization
+
+            Dim bm As New MathOps.MathEx.BrentOpt.BrentMinimize
+
+            Dim TransitionStreams As List(Of MaterialStream)
+
+            Dim n_inc = AccumulationStreams.Count - 1
+
+            For ti As Integer = 1 To timestep_discretization
+
+                TransitionStreams = New List(Of MaterialStream)
+
+                Dim currL As Double = 0.0
+
+                Dim k2 As Integer = 0
+
+                If Not Double.IsNaN(ims1.GetMassFlow()) AndAlso ims1.GetMassFlow() > 0 Then
+                    AccumulationStreams(0) = AccumulationStreams(0).Add(ims1, timestep * substep_multpl)
+                End If
+
+                'Clear each section's per-increment results once per sub-step; one result
+                'is appended per cell below, yielding Sum(Incrementos x Quantidade) entries.
+                For Each seg In sections
+                    seg.Results.Clear()
+                Next
+
+                'Iterate cells in concatenated physical order via the cell -> section map.
+                'The outer Do executes a single pass (the For covers every cell).
+                Do
+
+                    For k2 = 0 To n_inc
+
+                        segmento = cellSections(k2)
+
+                        'Effective per-cell length/elevation. Fittings (accidents) behave as a
+                        '0.5 m, single-increment, zero-elevation cell. Computed as locals so the
+                        'section object in Profile.Sections is never mutated (shared by all cells).
+                        Dim straight = IsStraightSection(segmento)
+                        Dim Lcell = If(straight, segmento.Comprimento / segmento.Incrementos, 0.5)
+                        Dim Elcell = If(straight, segmento.Elevacao / segmento.Incrementos, 0.0)
+
+                        currL += Lcell
+
+                        current_as = AccumulationStreams(k2)
+
+                        If k2 = 0 Then
+                            ms_out = AccumulationStreams(k2 + 1)
+                            ms_in = ims1
+                        ElseIf k2 = n_inc Then
+                            ms_out = oms1
+                            ms_in = AccumulationStreams(k2 - 1)
+                        Else
+                            ms_out = AccumulationStreams(k2 + 1)
+                            ms_in = AccumulationStreams(k2 - 1)
+                        End If
+
+                        'calculate mass flow between sections
+
+                        ms_transition = current_as.CloneXML()
+
+                        TransitionStreams.Add(ms_transition)
+
+                        Pdrop_transition = current_as.GetPressure() - ms_out.GetPressure()
+
+                        If k2 = n_inc Then Pdrop_transition = 0.0
+
+                        Dim Pdrop_function = Function(mass_flow)
+
+                                                 'stream properties
+
+                                                 ms_transition.SetMassFlow(((mass_flow + 0.0000000001) ^ 2) ^ 0.5)
+
+                                                 With ms_transition
+
+                                                     w = .Mixture.Properties.massflow.GetValueOrDefault
+                                                     Tin = .Mixture.Properties.temperature.GetValueOrDefault
+                                                     Qlin = .OverallLiquid.Properties.volumetric_flow.GetValueOrDefault
+                                                     Qsin = .Solid.Properties.volumetric_flow.GetValueOrDefault
+                                                     rho_l = .OverallLiquid.Properties.density.GetValueOrDefault
+
+                                                     If Double.IsNaN(rho_l) Then rho_l = 0.0#
+
+                                                     If IncludeEmulsion() And .Liquid1.Properties.volumetric_flow.GetValueOrDefault > 0.0 And .Liquid2.Properties.volumetric_flow.GetValueOrDefault > 0.0 Then
+                                                         eta_l = EmulsionViscosity(ms_transition)
+                                                     Else
+                                                         eta_l = .OverallLiquid.Properties.viscosity.GetValueOrDefault
+                                                     End If
+
+                                                     If SlurryViscosityMode = 1 Then
+                                                         'Yoshida et al (https://www.aidic.it/cet/13/32/349.pdf)
+                                                         eta_phi = Qsin / Qlin
+                                                         eta_r = 1.0 + 3.0 * eta_phi / (1.0 - eta_phi / 0.52)
+                                                         eta_l *= eta_r
+                                                     End If
+
+                                                     K_l = .OverallLiquid.Properties.thermalConductivity.GetValueOrDefault
+                                                     Cp_l = .OverallLiquid.Properties.heatCapacityCp.GetValueOrDefault
+                                                     tens = .Mixture.Properties.surfaceTension.GetValueOrDefault
+                                                     If Double.IsNaN(tens) Then tens = 0.0#
+                                                     w_l = .OverallLiquid.Properties.massflow.GetValueOrDefault
+
+                                                     Qvin = .Phases(2).Properties.volumetric_flow.GetValueOrDefault
+                                                     rho_v = .Phases(2).Properties.density.GetValueOrDefault
+                                                     eta_v = .Phases(2).Properties.viscosity.GetValueOrDefault
+                                                     K_v = .Phases(2).Properties.thermalConductivity.GetValueOrDefault
+                                                     Cp_v = .Phases(2).Properties.heatCapacityCp.GetValueOrDefault
+                                                     w_v = .Phases(2).Properties.massflow.GetValueOrDefault
+                                                     z = .Phases(2).Properties.compressibilityFactor.GetValueOrDefault
+
+                                                 End With
+
+                                                 'pressure drop calculation
+
+                                                 If segmento.TipoSegmento = "Tubulaosimples" Or segmento.TipoSegmento = "" Or
+                                                     segmento.TipoSegmento = "Straight Tube Section" Or segmento.TipoSegmento = "Straight Tube" Or
+                                                     segmento.TipoSegmento = "Tubulação Simples" Then
+                                                     resv = fpp.CalculateDeltaP(segmento.DI * 0.0254, Lcell, Elcell,
+                                                                                GetRugosity(segmento.Material, segmento), Qvin * 24 * 3600, Qlin * 24 * 3600,
+                                                                                eta_v * 1000, eta_l * 1000, rho_v, rho_l, tens)
+                                                 Else
+                                                     If segmento.TipoSegmento.Contains("[27]") Then
+                                                         'fixed deltaP (fitting effective geometry handled via Lcell/Elcell)
+                                                         dph = 0
+                                                         dpf = segmento.DI.ConvertToSI(FlowSheet.FlowsheetOptions.SelectedUnitSystem.deltaP)
+                                                         dpt = dpf
+                                                         resv(0) = ""
+                                                         resv(1) = (Qlin + Qsin) / (Qvin + Qlin + Qsin)
+                                                         resv(2) = dpf
+                                                         resv(3) = 0
+                                                         resv(4) = dpt
+                                                     Else
+                                                         resf = Kfit(segmento.TipoSegmento)
+                                                         If resf(1) = 1.0 Then
+                                                             Dim L_eq As Double
+                                                             L_eq = resf(0) * 0.0254 * segmento.DI
+                                                             resv = fpp.CalculateDeltaP(segmento.DI * 0.0254, L_eq, 0, GetRugosity(segmento.Material, segmento), Qvin * 24 * 3600, Qlin * 24 * 3600, eta_v * 1000, eta_l * 1000, rho_v, rho_l, tens)
+                                                         Else
+                                                             mu_mix = (Qlin + Qsin) / (Qvin + Qlin + Qsin) * eta_l + Qvin / (Qvin + Qlin + Qsin) * eta_v
+                                                             rho_mix = (Qlin + Qsin) / (Qvin + Qlin + Qsin) * rho_l + Qvin / (Qvin + Qlin + Qsin) * rho_v
+                                                             vel_mix = (Qlin + Qvin) / ((segmento.DI * 0.0254) ^ 2 * Math.PI / 4)
+                                                             Re_mix = fpp.NRe(rho_mix, vel_mix, segmento.DI * 0.0254, mu_mix)
+                                                             Dim krug = GetRugosity(segmento.Material, segmento)
+                                                             f_mix = fpp.FrictionFactor(Re_mix, segmento.DI * 0.0254, krug)
+                                                             dph = 0
+                                                             dpf = resf(0) * ((Qlin + Qsin) / (Qvin + Qlin + Qsin) * rho_l + Qvin / (Qvin + Qlin + Qsin) * rho_v) * ((Qlin + Qvin) / (Math.PI * (segmento.DI * 0.0254) ^ 2 / 4)) ^ 2 / 2
+                                                             dpt = dpf
+                                                             resv(0) = ""
+                                                             resv(1) = (Qlin + Qsin) / (Qvin + Qlin + Qsin)
+                                                             resv(2) = dpf
+                                                             resv(3) = 0
+                                                             resv(4) = dpt
+                                                         End If
+                                                     End If
+                                                 End If
+
+                                                 tipofluxo = resv(0)
+                                                 holdup = resv(1)
+                                                 dpf = resv(2)
+                                                 dph = resv(3)
+                                                 dpt = resv(4)
+
+                                                 'Friction reverses with flow direction; the static/elevation
+                                                 'head (dph) does not (gravity is independent of flow sense).
+                                                 Return Pdrop_transition - (dpf * Math.Sign(mass_flow) + dph)
+
+                                             End Function
+
+                        Dim massflow, Pdrop_error As Double
+
+                        If Math.Abs(Pdrop_transition) <> 0.0 Then
+                            massflow = MathOps.MathEx.BrentOpt.Brent.BrentOpt3(-ims1.GetMassFlow(), ims1.GetMassFlow(), 25, 0.01, 10000, Pdrop_function)
+                            Pdrop_error = Pdrop_function.Invoke(massflow)
+                            If Pdrop_error ^ 2 > 100 Then
+                                Try
+                                    Dim ipopt_res = MathOps.MathEx.Optimization.IPOPTSolver.FindRoots(
+                                Function(xvec)
+                                    Dim fval = Pdrop_function(xvec(0))
+                                    Return fval ^ 2
+                                End Function, New Double() {
+                                                    ims1.GetMassFlow() * 0.1}, 100, 0.1,
+                                                    New Double() {-ims1.GetMassFlow()},
+                                                    New Double() {ims1.GetMassFlow()})
+                                    massflow = ipopt_res(0)
+                                Catch ex As Exception
+                                    massflow = 0.0000000001
+                                End Try
+                            End If
+                            'Re-evaluate at the physical inter-cell mass flow (kg/s) so the
+                            'reported velocities/Reynolds/Mach and DynamicInternalMassFlowRate
+                            'reflect the real rate, not the sub-step-scaled value.
+                            Pdrop_function.Invoke(Math.Abs(massflow))
+                        Else
+                            massflow = 0.0000000001
+                            Pdrop_function.Invoke(massflow)
+                        End If
+
+                        Dim results As New PipeResults()
+
+                        With results
+
+                            .DynamicInternalMassFlowRate = ms_transition.GetMassFlow()
+                            .DynamicInternalVolumetricFlowRate = ms_transition.GetVolumetricFlow()
+                            .DynamicResidenceTime = (Math.PI * (segmento.DI * 0.0254) ^ 2 / 4) * Lcell / ims1.GetVolumetricFlow()
+
+                            .Temperature_Initial = Tin
+                            .Pressure_Initial = current_as.GetPressure()
+                            .EnergyFlow_Initial = current_as.GetMassEnthalpy()
+                            .FinalPressure = current_as.GetPressure()
+                            .AveragePressure = current_as.GetPressure()
+                            .Cpl = Cp_l
+                            .Cpv = Cp_v
+                            .Kl = K_l
+                            .Kv = K_v
+                            .RHOl = rho_l
+                            .RHOv = rho_v
+                            .Ql = Qlin + Qsin
+                            .Qv = Qvin
+                            .MUl = eta_l
+                            .MUv = eta_v
+                            .Surft = tens
+                            .LiqRe = 4 / Math.PI * .RHOl * .Ql / (.MUl * segmento.DI * 0.0254)
+                            .VapRe = 4 / Math.PI * .RHOv * .Qv / (.MUv * segmento.DI * 0.0254)
+                            .LiqVel = .Ql / (Math.PI * (segmento.DI * 0.0254) ^ 2 / 4)
+                            .VapVel = .Qv / (Math.PI * (segmento.DI * 0.0254) ^ 2 / 4)
+                            .MachNumber = .VapVel / current_as.Phases(2).Properties.speedOfSound.GetValueOrDefault()
+
+                        End With
+
+                        segmento.Results.Add(results)
+
+                        'calculate temperature balance
+
+                        If CalculateHeatBalance Then
+
+                            If ThermalProfile.TipoPerfil = ThermalEditorDefinitions.ThermalProfileType.Definir_CGTC Then
+                                If ThermalProfile.UseUserDefinedU Then
+                                    Text = MathNet.Numerics.Interpolate.Linear(ThermalProfile.UserDefinedU_Length,
+                                                                                            ThermalProfile.UserDefinedU_Temp).Interpolate(currL)
+                                    dText_dL = 0.0
+                                Else
+                                    Text = ThermalProfile.Temp_amb_definir
+                                    dText_dL = ThermalProfile.AmbientTemperatureGradient
+                                End If
+                            Else
+                                Text = ThermalProfile.Temp_amb_estimar
+                                dText_dL = ThermalProfile.AmbientTemperatureGradient_EstimateHTC
+                            End If
+
+                            If Text > Tin Then
+                                Tout = Tin * 1.005
+                            Else
+                                Tout = Tin / 1.005
+                            End If
+
+                            If Tin < Text And Tout > Text Then Tout = Text * 0.98 + dText_dL * currL
+                            If Tin > Text And Tout < Text Then Tout = Text * 1.02 + dText_dL * currL
+
+                            With segmento
+
+                                If UseGlobalWeather Then
+                                    results.External_Temperature = FlowSheet.FlowsheetOptions.CurrentWeather.Temperature_C + 273.15
+                                Else
+                                    results.External_Temperature = Text + dText_dL * currL
+                                End If
+
+                                Cp_m = holdup * Cp_l + (1 - holdup) * Cp_v
+
+                                If Not ThermalProfile.TipoPerfil = ThermalEditorDefinitions.ThermalProfileType.Definir_Q Then
+                                    If ThermalProfile.TipoPerfil = ThermalEditorDefinitions.ThermalProfileType.Definir_CGTC Then
+                                        If ThermalProfile.UseUserDefinedU Then
+                                            U = MathNet.Numerics.Interpolate.Step(ThermalProfile.UserDefinedU_Length,
+                                                                                                ThermalProfile.UserDefinedU_U).Interpolate(currL)
+                                        Else
+                                            U = ThermalProfile.CGTC_Definido
+                                        End If
+                                        A = Math.PI * (.DE * 0.0254) * Lcell
+                                    ElseIf ThermalProfile.TipoPerfil = ThermalEditorDefinitions.ThermalProfileType.Estimar_CGTC Then
+                                        A = Math.PI * (.DE * 0.0254) * Lcell
+                                        Tpe = Tin + (Tout - Tin) / 2
+                                        Dim resultU As Double() = CalcOverallHeatTransferCoefficient(segmento, .Material, holdup, Lcell,
+                                                                                        .DI * 0.0254, .DE * 0.0254, GetRugosity(.Material, segmento), Tpe, results.External_Temperature,
+                                                                                        results.VapVel, results.LiqVel, results.Cpl, results.Cpv, results.Kl, results.Kv,
+                                                                                        results.MUl, results.MUv, results.RHOl, results.RHOv,
+                                                                                        ThermalProfile.Incluir_cti, ThermalProfile.Incluir_isolamento,
+                                                                                        ThermalProfile.Incluir_paredes, ThermalProfile.Incluir_cte)
+                                        U = resultU(0)
+                                        With results
+                                            .HTC_internal = resultU(1)
+                                            .HTC_pipewall = resultU(2)
+                                            .HTC_insulation = resultU(3)
+                                            .HTC_external = resultU(4)
+                                        End With
+                                    End If
+                                    If U > 0 Then
+                                        DQ = (Tout - Tin) / Math.Log((results.External_Temperature - Tin) / (results.External_Temperature - Tout)) * U / 1000 * A
+                                        DQmax = (results.External_Temperature - Tin) * Cp_m * (current_as.GetMassFlow() * substep_multpl / timestep)
+                                        Dim SR, Qrad As Double
+                                        If ThermalProfile.IncludeSolarRadiation Then
+                                            If ThermalProfile.UseGlobalSolarRadiation Then
+                                                SR = ThermalProfile.SolarRadiationAbsorptionEfficiency * FlowSheet.FlowsheetOptions.CurrentWeather.SolarIrradiation_kWh_m2
+                                            Else
+                                                SR = ThermalProfile.SolarRadiationAbsorptionEfficiency * ThermalProfile.SolarRadiationValue_kWh_m2
+                                            End If
+                                            SR *= 3600 'kJ/m2
+                                            Dim Asec = Math.PI * Lcell * .DE * 0.0254
+                                            Qrad = SR * substep_multpl / timestep * Asec 'kJ/m2 / s * m2 = kW
+                                            DQ += Qrad
+                                            DQmax += Qrad
+                                            results.Absorbed_Radiation = Qrad
+                                        End If
+                                        If Double.IsNaN(DQ) Then DQ = 0.0#
+                                        If Math.Abs(DQ) > Math.Abs(DQmax) Then DQ = DQmax
+
+                                        results.Internal_Temperature = DQ / (current_as.GetMassFlow() * substep_multpl / timestep * Cp_m) + Tin
+                                        results.Wall_Temperature = results.Internal_Temperature + DQ / (results.HTC_pipewall * Math.PI * (Math.Log(.DE / .DI) * .DI * 0.0254) * Lcell)
+                                        results.Insulation_Temperature = results.Wall_Temperature + DQ / (results.HTC_insulation * Math.PI * (Math.Log((.DE + ThermalProfile.Espessura / 0.0254) / .DE) * .DE * 0.0254) * Lcell)
+
+                                    Else
+                                        DQ = 0.0#
+                                        DQmax = 0.0#
+                                    End If
+                                Else
+                                    DQ = ThermalProfile.Calor_trocado * substep_multpl / timestep
+                                    Tout = DQ / (current_as.GetMassFlow() * substep_multpl / timestep * Cp_m) + Tin
+                                    results.Internal_Temperature = Tout
+                                    A = Math.PI * (.DE * 0.0254) * Lcell
+                                    U = DQ / (A * (Tout - Tin)) * 1000
+                                End If
+
+                            End With
+
+                            current_as.SetTemperature(results.Internal_Temperature)
+
+                        End If
+
+                        'update next accumulation stream
+
+                        ms_transition.Annotation = Math.Sign(massflow)
+                        ms_transition.SetMassFlow((massflow ^ 2) ^ 0.5 * substep_multpl)
+                        ms_transition.AssignSelfToPP()
+                        ms_transition.Calculate()
+
+                    Next
+
+                Loop While k2 < n_inc + 1
+
+                k2 = 0
+
+                Do
+
+                    For k2 = 0 To n_inc
+
+                        segmento = cellSections(k2)
+
+                        ms_transition = TransitionStreams(k2)
+
+                        If k2 = 0 Then
+                            ms_out = AccumulationStreams(k2 + 1)
+                            ms_in = ims1
+                        ElseIf k2 = n_inc Then
+                            ms_out = oms1
+                            ms_in = AccumulationStreams(k2 - 1)
+                        Else
+                            ms_out = AccumulationStreams(k2 + 1)
+                            ms_in = AccumulationStreams(k2 - 1)
+                        End If
+
+                        current_as = AccumulationStreams(k2)
+
+                        If k2 < n_inc Then
+                            Dim sign = Convert.ToInt32(ms_transition.Annotation)
+                            If (sign = 1 OrElse sign = -1) AndAlso
+                                Not Double.IsNaN(ms_transition.GetMassFlow()) AndAlso ms_transition.GetMassFlow() > 0 Then
+
+                                'Donor cell: current_as for forward flow (sign = 1),
+                                'ms_out (= AccumulationStreams(k2 + 1)) for reverse flow (sign = -1).
+                                Dim donor = If(sign = 1, current_as, ms_out)
+
+                                'Limit the transferred mass to the donor holdup to avoid creating
+                                'mass when a cell is nearly empty: Subtract clamps components at 0,
+                                'but the receiving Add would otherwise add the full transition mass.
+                                Dim moveMass = ms_transition.GetMassFlow() * timestep
+                                Dim donorMass = donor.GetMassFlow()
+                                If moveMass > donorMass AndAlso moveMass > 0.0 Then
+                                    ms_transition.SetMassFlow(ms_transition.GetMassFlow() * (donorMass / moveMass))
+                                End If
+
+                                If sign = 1 Then
+                                    current_as = current_as.Subtract(ms_transition, timestep)
+                                    ms_out = ms_out.Add(ms_transition, timestep)
+                                Else
+                                    current_as = current_as.Add(ms_transition, timestep)
+                                    ms_out = ms_out.Subtract(ms_transition, timestep)
+                                End If
+                            End If
+                        End If
+
+                        AccumulationStreams(k2) = current_as
+
+                        If k2 >= 0 And k2 < n_inc Then AccumulationStreams(k2 + 1) = ms_out
+
+                    Next
+
+                Loop While k2 < n_inc + 1
+
+                If Double.IsNaN(AccumulationStreams(n_inc).GetMassFlow()) Or AccumulationStreams(n_inc).GetMassFlow() = 0.0 Then
+                    AccumulationStreams(n_inc).SetMassFlow(0.0000000001)
+                End If
+
+                'update pressures
+
+                k2 = 0
+
+                Do
+
+                    For k2 = 0 To n_inc
+
+                        segmento = cellSections(k2)
+
+                        current_as = AccumulationStreams(k2)
+
+                        'Effective per-cell length (0.5 m for fittings), matching LOOP A, with no
+                        'mutation of the shared section object.
+                        Dim Lcell = If(IsStraightSection(segmento), segmento.Comprimento / segmento.Incrementos, 0.5)
+
+                        Dim V = (Math.PI * (segmento.DI * 0.0254) ^ 2 / 4) * Lcell
+
+                        'calculate new pressures
+
+                        Dim M1, P1, H1 As Double
+
+                        'current segment pressure
+
+                        current_as.AssignSelfToPP()
+                        current_as.Calculate()
+
+                        M1 = V / current_as.GetMolarFlow() 'm3/mol
+
+                        current_as.AssignSelfToPP()
+
+                        Dim P1i = current_as.GetPressure()
+
+                        Dim result = PropertyPackage.CalculateEquilibrium2(
+                            FlashCalculationType.VolumeTemperature,
+                            M1, current_as.GetTemperature(), current_as.GetPressure())
+
+                        P1 = result.CalculatedPressure
+                        H1 = result.CalculatedEnthalpy
+
+                        current_as.SetPressure(P1)
+                        current_as.SetMassEnthalpy(H1)
+                        current_as.SpecType = StreamSpec.Pressure_and_Enthalpy
+
+                        current_as.AssignSelfToPP()
+                        current_as.Calculate()
+
+                    Next
+
+                Loop While k2 < n_inc + 1
+
+                If Not Double.IsNaN(oms1.GetMassFlow()) AndAlso oms1.GetMassFlow() > 0 Then
+                    AccumulationStreams(n_inc) = AccumulationStreams(n_inc).Subtract(oms1, timestep * substep_multpl)
+                    If Double.IsNaN(AccumulationStreams(n_inc).GetMassFlow()) Or AccumulationStreams(n_inc).GetMassFlow() = 0.0 Then
+                        AccumulationStreams(n_inc).SetMassFlow(0.0000000001)
+                    End If
+                End If
+
+            Next
+
+            Console.Write(integrator.CurrentTime.ToLongTimeString() + vbTab)
+            For Each astream In AccumulationStreams
+                Console.Write(String.Format("{0:G4}/{1:G4}", astream.GetPressure() / 100000, astream.GetMassFlow()) + vbTab)
+            Next
+            Console.Write(vbCrLf)
+
+            ims1.SetPressure(AccumulationStreams.First.GetPressure())
+            oms1.SpecType = StreamSpec.Pressure_and_Enthalpy
+            oms1.AtEquilibrium = False
+
+            oms1.AssignFromPhase(PhaseLabel.Mixture, AccumulationStreams.Last, False)
+            oms1.SpecType = StreamSpec.Pressure_and_Enthalpy
+            oms1.AtEquilibrium = False
+
+            OutletTemperature = AccumulationStreams.Last.GetTemperature()
+
+            DeltaT = OutletTemperature - ims1.GetTemperature()
+
+            DeltaP = AccumulationStreams.Last.GetPressure() - ims1.GetPressure()
+
+            DeltaQ = (AccumulationStreams.Last.GetMassEnthalpy() - ims1.GetMassEnthalpy()) * ims1.GetMassFlow()
+
+            es?.SetEnergyFlow(DeltaQ.GetValueOrDefault())
+
+        End Sub
+
+        ''' <summary>Calculates pressure drop, heat transfer, and phase behaviour along the pipe.</summary>
+        Public Overrides Sub Calculate(Optional ByVal args As Object = Nothing)
+
+            Dim IObj As Inspector.InspectorItem = Inspector.Host.GetNewInspectorItem()
+
+            Inspector.Host.CheckAndAdd(IObj, "", "Calculate", If(GraphicObject IsNot Nothing, GraphicObject.Tag, "Temporary Object") & " (" & GetDisplayName() & ")", GetDisplayName() & " Calculation Routine", True)
+
+            IObj?.SetCurrent()
+
+            IObj?.Paragraphs.Add("The Pipe Segment unit operation  can be used to 
+                                simulate fluid flow process in a pipe. Two of the most used 
+                                correlations for the calculation of pressure drop are available 
+                                in DWSIM. Temperature can be rigorously calculated considering 
+                                the influence of the environment. With the help of the Recycle 
+                                Logical Operation, the user can build large water distribution 
+                                systems, as an example.")
+
+            IObj?.Paragraphs.Add("The pipe segment is divided in sections, which can be straight 
+                                tubes, valves, curves, etc. Each section is subdivided in small 
+                                sections for calculation purposes, as defined by the user.")
+
+            IObj?.Paragraphs.Add("The pipe segment is calculated based on incremental mass and 
+                            energy balances. The complete algorithm consists in three nested 
+                            loops. The external loop iterates on the sections (increments), 
+                            the middle loop iterates on the temperature and the internal loop 
+                            calculates the pressure. The pressure and temperature are 
+                            calculated as follows:")
+
+            IObj?.Paragraphs.Add("1. The inlet temperature and pressure are used to estimate the 
+                            increment outlet pressure and temperature.")
+
+            IObj?.Paragraphs.Add("2. Fluid properties are calculated based in a arithmetic mean of 
+                            inlet and outlet conditions.")
+
+            IObj?.Paragraphs.Add("3. The calculated properties and the inlet pressure are used to 
+                              calculate the pressure drop. With it, the outlet pressure is 
+                              calculated.")
+
+            IObj?.Paragraphs.Add("4. The calculated and estimated pressure are compared, and if 
+                              their difference exceeds the tolerance, a new outlet pressure 
+                              is estimated, and the steps 2 and 3 are repeated.")
+
+            IObj?.Paragraphs.Add("5. Once the internal loop has converged, the outlet temperature 
+                              is calculated. If the global heat transfer coefficient (U) was 
+                              given, the outlet temperature is calculated from the following 
+                              equation:")
+
+            IObj?.Paragraphs.Add("<m>Q=UA\Delta T_{ml}</m>")
+
+            IObj?.Paragraphs.Add("where: Q = heat transferred, A = heat transfer area (external 
+                              surface) and `\Delta T_{ml}` = logarithmic mean temperature 
+                              difference.")
+
+            IObj?.Paragraphs.Add("6. The calculated temperature is compared to the estimated one, 
+                              and if their difference exceeds the specified tolerance, a new 
+                              temperature is estimated and new properties are calculated 
+                              (return to step 2).")
+
+            IObj?.Paragraphs.Add("7. When both pressure and temperature converges, the results are 
+                            passed to the next increment, where calculation restarts.")
+
+            IObj?.Paragraphs.Add("If enabling the option Include Emulsion Effect the liquid mixture emulsion 
+                            viscosity is estimated. Emulsion viscosity is assuming liquid1 to be hydrocarbons 
+                            liquid2 to be water. An inversion point at 50% oil volume fraction is assumed.")
+
+            If args Is Nothing Then
+                If Not Profile.Status = PipeEditorStatus.OK Then
+                    Throw New Exception(FlowSheet.GetTranslatedString("Operfilhidrulicodatu"))
+                ElseIf Not GraphicObject.OutputConnectors(0).IsAttached Then
+                    Throw New Exception(FlowSheet.GetTranslatedString("Verifiqueasconexesdo"))
+                ElseIf Not GraphicObject.InputConnectors(0).IsAttached Then
+                    Throw New Exception(FlowSheet.GetTranslatedString("Verifiqueasconexesdo"))
+                End If
+            End If
+
+            If Specification = Specmode.OutletPressure Then
+                If Profile.Sections.Count > 1 Then
+                    Throw New Exception(FlowSheet.GetTranslatedString("PipeOutletPressureRestriction"))
+                ElseIf Profile.Sections.Count = 1 Then
+                    If Profile.Sections(1).TipoSegmento <> "Tubulaosimples" And
+                        Profile.Sections(1).TipoSegmento <> "Straight Tube" And
+                        Profile.Sections(1).TipoSegmento <> "Straight Tube Section" And
+                        Profile.Sections(1).TipoSegmento <> "" Then
+                        Throw New Exception(FlowSheet.GetTranslatedString("PipeOutletPressureRestriction"))
+                    End If
+                End If
+            End If
+
+            Dim fpp As FlowPackages.FPBaseClass
+
+            Select Case SelectedFlowPackage
+                Case FlowPackage.Lockhart_Martinelli
+                    fpp = New FlowPackages.LockhartMartinelli
+                Case FlowPackage.Petalas_Aziz
+                    fpp = New FlowPackages.PetalasAziz
+                Case Else
+                    fpp = New FlowPackages.BeggsBrill
+            End Select
+
+            Dim ims, oms As MaterialStream, es As Streams.EnergyStream
+
+            If args Is Nothing Then
+                ims = GetInletMaterialStream(0)
+                oms = GetOutletMaterialStream(0)
+                es = GetEnergyStream
+            Else
+                ims = args(0)
+                oms = args(1)
+                es = args(2)
+            End If
+
+            Dim Tin, Pin, Tout, Pout, Tout_ant, Pout_ant, Pout_ant2, Text, Win, Qin, Qvin, Qlin, Qsin, eta_phi, eta_r, TinP, PinP,
+                rho_l, rho_v, Cp_l, Cp_v, Cp_m, K_l, K_v, eta_l, eta_v, tens, Hin, Hout, HinP,
+                fT, fP, fP_ant, fP_ant2, w_v, w_l, w, z, dText_dL As Double
+            Dim cntP, cntT As Integer
+
+            If Specification = Specmode.OutletTemperature Then
+                ThermalProfile.TipoPerfil = ThermalEditorDefinitions.ThermalProfileType.Definir_Q
+                ThermalProfile.Calor_trocado = 0.0#
+            End If
+
+            'Calcular DP
+            Dim Tpe, Tspec, Pspec As Double
+            Dim resv As Object = New Object() {"", 0.0, 0.0, 0.0, 0.0}
+            Dim resf As Double()
+            Dim equilibrio As Object = Nothing
+            Dim tmp As Object = Nothing
+            Dim tipofluxo As String
+            Dim first As Boolean = True
+            Dim holdup, dpf, dph, dpt, DQ, DQmax, U, A, fx, fx0, x, x0, fx00, x00, p0, t0 As Double
+            Dim f_mix, mu_mix, rho_mix, vel_mix, Re_mix As Double
+            Dim nseg As Double
+            Dim segmento As New PipeSection
+            Dim results As New PipeResults
+
+            Tspec = OutletTemperature
+            Pspec = OutletPressure
+
+            PressureDrop_Friction = 0.0
+            PressureDrop_Static = 0.0
+
+            Dim countext As Integer = 0
+
+            Dim currL As Double = 0.0#
+
+            Do
+
+                IObj?.SetCurrent
+
+                Dim IObj2 As Inspector.InspectorItem = Inspector.Host.GetNewInspectorItem()
+
+                Inspector.Host.CheckAndAdd(IObj2, "", "Calculate", String.Format("External Loop #{0}", countext), "", True)
+
+                IObj2?.Paragraphs.Add("This is the external loop to converge pressure when outlet temperature is specified or vice-versa.")
+
+                oms = ims.Clone()
+                oms.SetFlowsheet(FlowSheet)
+                oms.PreferredFlashAlgorithmTag = PreferredFlashAlgorithmTag
+                PropertyPackage.CurrentMaterialStream = oms
+
+                oms.Validate()
+
+                'Iteracao para cada segmento
+                Dim count As Integer = 0
+
+                currL = 0.0#
+
+                Dim j As Integer = 0
+
+                With oms
+
+                    Tin = .Mixture.Properties.temperature.GetValueOrDefault
+                    Pin = .Mixture.Properties.pressure.GetValueOrDefault
+                    Win = .Mixture.Properties.massflow.GetValueOrDefault
+                    Qin = .Mixture.Properties.volumetric_flow.GetValueOrDefault
+                    Hin = .Mixture.Properties.enthalpy.GetValueOrDefault
+                    Hout = Hin
+                    Tout = Tin
+                    Pout = Pin
+                    TinP = Tin
+                    PinP = Pin
+                    HinP = Hin
+
+                End With
+
+                Dim tseg As Integer = 0
+                For Each segmento In Profile.Sections.Values
+                    tseg += segmento.Incrementos * segmento.Quantidade
+                Next
+
+                Dim iq As Integer = 0
+
+                For Each segmento In Profile.Sections.Values
+
+                    segmento.Results.Clear()
+
+                    For iq = 1 To segmento.Quantidade
+
+                        IObj2?.SetCurrent
+
+                        Dim IObj3 As Inspector.InspectorItem = Inspector.Host.GetNewInspectorItem()
+
+                        Inspector.Host.CheckAndAdd(IObj3, "", "Calculate", String.Format("Segment #{0} ({1}/{2})", segmento.Indice, iq, segmento.Quantidade), "", True)
+
+                        IObj3?.Paragraphs.Add(String.Format("Calculating segment {0} ({1}/{2})...", segmento.Indice, iq, segmento.Quantidade))
+
+
+                        IObj3?.Paragraphs.Add(String.Format("Segment type: {0}", segmento.TipoSegmento))
+                        IObj3?.Paragraphs.Add(String.Format("Segment increments: {0}", segmento.Incrementos))
+
+                        j = 0
+                        nseg = segmento.Incrementos
+
+                        With oms
+
+                            w = .Mixture.Properties.massflow.GetValueOrDefault
+                            Tin = .Mixture.Properties.temperature.GetValueOrDefault
+                            Qlin = .OverallLiquid.Properties.volumetric_flow.GetValueOrDefault
+                            Qsin = .Solid.Properties.volumetric_flow.GetValueOrDefault
+                            rho_l = .OverallLiquid.Properties.density.GetValueOrDefault
+
+                            If Double.IsNaN(rho_l) Then rho_l = 0.0#
+
+                            If IncludeEmulsion() And .Liquid1.Properties.volumetric_flow.GetValueOrDefault > 0.0 And .Liquid2.Properties.volumetric_flow.GetValueOrDefault > 0.0 Then
+                                eta_l = EmulsionViscosity(oms)
+                            Else
+                                eta_l = .OverallLiquid.Properties.viscosity.GetValueOrDefault
+                            End If
+
+                            If SlurryViscosityMode = 1 Then
+                                'Yoshida et al (https://www.aidic.it/cet/13/32/349.pdf)
+                                eta_phi = Qsin / Qlin
+                                eta_r = 1.0 + 3.0 * eta_phi / (1.0 - eta_phi / 0.52)
+                                eta_l *= eta_r
+                            End If
+
+                            K_l = .OverallLiquid.Properties.thermalConductivity.GetValueOrDefault
+                            Cp_l = .OverallLiquid.Properties.heatCapacityCp.GetValueOrDefault
+                            tens = .Mixture.Properties.surfaceTension.GetValueOrDefault
+                            If Double.IsNaN(tens) Then tens = 0.0#
+                            w_l = .OverallLiquid.Properties.massflow.GetValueOrDefault
+
+                            Qvin = .Phases(2).Properties.volumetric_flow.GetValueOrDefault
+                            rho_v = .Phases(2).Properties.density.GetValueOrDefault
+                            eta_v = .Phases(2).Properties.viscosity.GetValueOrDefault
+                            K_v = .Phases(2).Properties.thermalConductivity.GetValueOrDefault
+                            Cp_v = .Phases(2).Properties.heatCapacityCp.GetValueOrDefault
+                            w_v = .Phases(2).Properties.massflow.GetValueOrDefault
+                            z = .Phases(2).Properties.compressibilityFactor.GetValueOrDefault
+
+                        End With
+
+                        Dim eqcheck = 0
+                        Dim calceq = False
+
+                        Do
+
+                            'Effective per-increment geometry. Fittings (accidents) behave as a
+                            '0.1 m, zero-elevation increment. Computed as locals so the shared
+                            'PipeSection object in Profile.Sections is never mutated.
+                            Dim straight = IsStraightSection(segmento)
+                            Dim Lcell = If(straight, segmento.Comprimento / segmento.Incrementos, 0.1)
+                            Dim Elcell = If(straight, segmento.Elevacao / segmento.Incrementos, 0.0)
+
+                            If ThermalProfile.TipoPerfil = ThermalEditorDefinitions.ThermalProfileType.Definir_CGTC Then
+                                If ThermalProfile.UseUserDefinedU Then
+                                    Text = MathNet.Numerics.Interpolate.Linear(ThermalProfile.UserDefinedU_Length,
+                                                                                        ThermalProfile.UserDefinedU_Temp).Interpolate(currL)
+                                    dText_dL = 0.0
+                                Else
+                                    Text = ThermalProfile.Temp_amb_definir
+                                    dText_dL = ThermalProfile.AmbientTemperatureGradient
+                                End If
+                            Else
+                                Text = ThermalProfile.Temp_amb_estimar
+                                dText_dL = ThermalProfile.AmbientTemperatureGradient_EstimateHTC
+                            End If
+
+                            IObj3?.SetCurrent
+
+                            Dim IObj4 As Inspector.InspectorItem = Inspector.Host.GetNewInspectorItem()
+
+                            Inspector.Host.CheckAndAdd(IObj4, "", "Calculate", String.Format("Increment #{0}", j + 1), "", True)
+
+                            IObj4?.Paragraphs.Add(String.Format("Calculating increment {0}...", j + 1))
+
+                            If Text > Tin Then
+                                Tout = Tin * 1.005
+                            Else
+                                Tout = Tin / 1.005
+                            End If
+
+                            If Tin < Text And Tout > Text Then Tout = Text * 0.98 + dText_dL * currL
+                            If Tin > Text And Tout < Text Then Tout = Text * 1.02 + dText_dL * currL
+
+                            cntT = 0
+                            'Loop externo (convergencia do Delta T)
+                            Do
+
+                                IObj4?.SetCurrent
+
+                                Dim IObj5 As Inspector.InspectorItem = Inspector.Host.GetNewInspectorItem()
+
+                                Inspector.Host.CheckAndAdd(IObj5, "", "Calculate", String.Format("Temperature Loop #{0}", cntT), "", True)
+
+                                IObj5?.Paragraphs.Add(String.Format("Temperature convergence loop iteration #{0}", cntT))
+
+                                cntP = 0
+
+                                'Loop interno (convergencia do Delta P)
+                                Do
+
+                                    IObj5?.SetCurrent
+
+                                    Dim IObj6 As Inspector.InspectorItem = Inspector.Host.GetNewInspectorItem()
+
+                                    Inspector.Host.CheckAndAdd(IObj6, "", "Calculate", String.Format("Pressure Loop #{0}", cntP), "", True)
+
+                                    IObj6?.Paragraphs.Add(String.Format("Pressure convergence loop iteration #{0}", cntP))
+
+                                    With segmento
+                                        count = 0
+                                        With results
+
+                                            .Temperature_Initial = Tin
+                                            .Pressure_Initial = Pin
+                                            .EnergyFlow_Initial = Hin
+                                            .Cpl = Cp_l
+                                            .Cpv = Cp_v
+                                            .Kl = K_l
+                                            .Kv = K_v
+                                            .RHOl = rho_l
+                                            .RHOv = rho_v
+                                            .Ql = Qlin + Qsin
+                                            .Qv = Qvin
+                                            .MUl = eta_l
+                                            .MUv = eta_v
+                                            .Surft = tens
+                                            .LiqRe = 4 / Math.PI * .RHOl * .Ql / (.MUl * segmento.DI * 0.0254)
+                                            .VapRe = 4 / Math.PI * .RHOv * .Qv / (.MUv * segmento.DI * 0.0254)
+                                            .LiqVel = .Ql / (Math.PI * (segmento.DI * 0.0254) ^ 2 / 4)
+                                            .VapVel = .Qv / (Math.PI * (segmento.DI * 0.0254) ^ 2 / 4)
+                                            .MachNumber = .VapVel / oms.Phases(2).Properties.speedOfSound.GetValueOrDefault()
+
+                                        End With
+
+                                        IObj6?.Paragraphs.Add(String.Format("Calling Pressure Drop calculation routine..."))
+
+                                        IObj6?.SetCurrent()
+                                        If segmento.TipoSegmento = "Tubulaosimples" Or segmento.TipoSegmento = "" Or segmento.TipoSegmento = "Straight Tube Section" Or segmento.TipoSegmento = "Straight Tube" Or segmento.TipoSegmento = "Tubulação Simples" Then
+                                            resv = fpp.CalculateDeltaP(.DI * 0.0254, Lcell, Elcell, GetRugosity(.Material, segmento), Qvin * 24 * 3600, Qlin * 24 * 3600, eta_v * 1000, eta_l * 1000, rho_v, rho_l, tens)
+                                        Else
+                                            If segmento.TipoSegmento.Contains("[27]") Then
+                                                'fixed deltaP (fitting effective geometry handled via Lcell/Elcell)
+                                                dph = 0
+                                                dpf = segmento.DI.ConvertToSI(FlowSheet.FlowsheetOptions.SelectedUnitSystem.deltaP)
+                                                dpt = dpf
+                                                resv(0) = ""
+                                                resv(1) = (Qlin + Qsin) / (Qvin + Qlin + Qsin)
+                                                resv(2) = dpf
+                                                resv(3) = 0
+                                                resv(4) = dpt
+                                            Else
+                                                resf = Kfit(segmento.TipoSegmento)
+                                                If resf(1) = 1.0 Then
+                                                    Dim L_eq As Double
+                                                    L_eq = resf(0) * 0.0254 * .DI
+                                                    resv = fpp.CalculateDeltaP(.DI * 0.0254, L_eq, 0, GetRugosity(.Material, segmento), Qvin * 24 * 3600, Qlin * 24 * 3600, eta_v * 1000, eta_l * 1000, rho_v, rho_l, tens)
+                                                Else
+                                                    mu_mix = (Qlin + Qsin) / (Qvin + Qlin + Qsin) * eta_l + Qvin / (Qvin + Qlin + Qsin) * eta_v
+                                                    rho_mix = (Qlin + Qsin) / (Qvin + Qlin + Qsin) * rho_l + Qvin / (Qvin + Qlin + Qsin) * rho_v
+                                                    vel_mix = (Qlin + Qvin) / ((.DI * 0.0254) ^ 2 * Math.PI / 4)
+                                                    Re_mix = fpp.NRe(rho_mix, vel_mix, .DI * 0.0254, mu_mix)
+                                                    Dim k = GetRugosity(.Material, segmento)
+                                                    f_mix = fpp.FrictionFactor(Re_mix, .DI * 0.0254, k)
+                                                    dph = 0
+                                                    dpf = resf(0) * ((Qlin + Qsin) / (Qvin + Qlin + Qsin) * rho_l + Qvin / (Qvin + Qlin + Qsin) * rho_v) * (results.LiqVel.GetValueOrDefault + results.VapVel.GetValueOrDefault) ^ 2 / 2
+                                                    dpt = dpf
+                                                    resv(0) = ""
+                                                    resv(1) = (Qlin + Qsin) / (Qvin + Qlin + Qsin)
+                                                    resv(2) = dpf
+                                                    resv(3) = 0
+                                                    resv(4) = dpt
+                                                End If
+                                            End If
+                                        End If
+
+
+                                        IObj6?.SetCurrent()
+
+                                        tipofluxo = resv(0)
+                                        holdup = resv(1)
+                                        dpf = resv(2)
+                                        dph = resv(3)
+                                        dpt = resv(4)
+
+                                    End With
+
+                                    Pout_ant2 = Pout_ant
+                                    Pout_ant = Pout
+                                    Pout = Pin - dpt
+
+                                    IObj6?.Paragraphs.Add(String.Format("Inlet pressure: {0} Pa", Pin))
+                                    IObj6?.Paragraphs.Add(String.Format("Calculated outlet pressure: {0} Pa", Pout))
+
+                                    fP_ant2 = fP_ant
+                                    fP_ant = fP
+                                    fP = Pout - Pout_ant
+
+                                    If Qvin + Qlin = 0.0 Then
+                                        dpt = 0.0
+                                        dpf = 0.0
+                                        Pout = Pin
+                                        fP = 0.0
+                                    Else
+                                        If cntP > 3 Then
+                                            Pout = Pout - fP * (Pout - Pout_ant2) / (fP - fP_ant2)
+                                        End If
+                                    End If
+
+                                    IObj6?.Paragraphs.Add(String.Format("Updated outlet pressure: {0} Pa", Pout))
+
+                                    cntP += 1
+
+                                    If Pout <= 0 Then Throw New Exception(FlowSheet.GetTranslatedString("Pressonegativadentro"))
+
+                                    If Double.IsNaN(Pout) Then Throw New Exception(FlowSheet.GetTranslatedString("Erronoclculodapresso"))
+
+                                    If cntP > MaxPressureIterations Then Throw New Exception(FlowSheet.GetTranslatedString("Ocalculadorexcedeuon"))
+
+                                    FlowSheet.CheckStatus()
+
+                                    IObj6?.Close()
+
+                                Loop Until Math.Abs(fP) < TolP
+
+                                IObj5?.Paragraphs.Add(String.Format("Converged outlet pressure: {0} Pa", Pout))
+
+                                IObj5?.Paragraphs.Add(String.Format("Proceeding with temperature convergence..."))
+
+                                If CalculateHeatBalance Then
+
+                                    With segmento
+
+                                        If UseGlobalWeather Then
+
+                                            results.External_Temperature = FlowSheet.FlowsheetOptions.CurrentWeather.Temperature_C + 273.15
+
+                                        Else
+
+                                            results.External_Temperature = Text + dText_dL * currL
+
+                                        End If
+
+                                        Cp_m = holdup * Cp_l + (1 - holdup) * Cp_v
+
+                                        If Not ThermalProfile.TipoPerfil = ThermalEditorDefinitions.ThermalProfileType.Definir_Q Then
+                                            If ThermalProfile.TipoPerfil = ThermalEditorDefinitions.ThermalProfileType.Definir_CGTC Then
+                                                If ThermalProfile.UseUserDefinedU Then
+                                                    U = MathNet.Numerics.Interpolate.Step(ThermalProfile.UserDefinedU_Length,
+                                                                                            ThermalProfile.UserDefinedU_U).Interpolate(currL)
+                                                Else
+                                                    U = ThermalProfile.CGTC_Definido
+                                                End If
+                                                A = Math.PI * (.DE * 0.0254) * Lcell
+                                            ElseIf ThermalProfile.TipoPerfil = ThermalEditorDefinitions.ThermalProfileType.Estimar_CGTC Then
+                                                A = Math.PI * (.DE * 0.0254) * Lcell
+                                                Tpe = Tin + (Tout - Tin) / 2
+                                                IObj5?.SetCurrent
+                                                Dim resultU As Double() = CalcOverallHeatTransferCoefficient(segmento, .Material, holdup, Lcell,
+                                                                                    .DI * 0.0254, .DE * 0.0254, GetRugosity(.Material, segmento), Tpe, results.External_Temperature,
+                                                                                    results.VapVel, results.LiqVel, results.Cpl, results.Cpv, results.Kl, results.Kv,
+                                                                                    results.MUl, results.MUv, results.RHOl, results.RHOv,
+                                                                                    ThermalProfile.Incluir_cti, ThermalProfile.Incluir_isolamento,
+                                                                                    ThermalProfile.Incluir_paredes, ThermalProfile.Incluir_cte)
+                                                U = resultU(0)
+                                                With results
+                                                    .HTC_internal = resultU(1)
+                                                    .HTC_pipewall = resultU(2)
+                                                    .HTC_insulation = resultU(3)
+                                                    .HTC_external = resultU(4)
+                                                End With
+                                            End If
+                                            If U <> 0.0# Then
+                                                DQ = (Tout - Tin) / Math.Log((results.External_Temperature - Tin) / (results.External_Temperature - Tout)) * U / 1000 * A
+                                                DQmax = (results.External_Temperature - Tin) * Cp_m * Win
+                                                Dim SR, Qrad As Double
+                                                If ThermalProfile.IncludeSolarRadiation Then
+                                                    If ThermalProfile.UseGlobalSolarRadiation Then
+                                                        SR = ThermalProfile.SolarRadiationAbsorptionEfficiency * FlowSheet.FlowsheetOptions.CurrentWeather.SolarIrradiation_kWh_m2
+                                                    Else
+                                                        SR = ThermalProfile.SolarRadiationAbsorptionEfficiency * ThermalProfile.SolarRadiationValue_kWh_m2
+                                                    End If
+                                                    'SR *= 3600
+                                                    Dim Asec = Math.PI * Lcell * .DE * 0.0254
+                                                    Dim tflux = (Math.PI * (.DE * 0.0254) ^ 2 / 4) * Lcell / ims.GetVolumetricFlow()
+                                                    Qrad = SR / tflux * Asec
+                                                    DQ += Qrad
+                                                    DQmax += Qrad
+                                                    results.Absorbed_Radiation = Qrad
+                                                End If
+                                                If Double.IsNaN(DQ) Then DQ = 0.0#
+                                                If Math.Abs(DQ) > Math.Abs(DQmax) Then DQ = DQmax
+
+                                                results.Internal_Temperature = (Tout + Tin) / 2
+                                                results.Wall_Temperature = results.Internal_Temperature + DQ / (results.HTC_pipewall * Math.PI * (Math.Log(.DE / .DI) * .DI * 0.0254) * Lcell)
+                                                results.Insulation_Temperature = results.Wall_Temperature + DQ / (results.HTC_insulation * Math.PI * (Math.Log((.DE + ThermalProfile.Espessura / 0.0254) / .DE) * .DE * 0.0254) * Lcell)
+
+                                            Else
+                                                DQ = 0.0#
+                                                DQmax = 0.0#
+                                            End If
+                                        Else
+                                            DQ = ThermalProfile.Calor_trocado / tseg
+                                            'Tout = DQ / (Win * Cp_m) + Tin
+                                            A = Math.PI * (.DE * 0.0254) * Lcell
+                                            U = DQ / (A * (Tout - Tin)) * 1000
+                                        End If
+
+                                    End With
+
+                                    IObj5?.Paragraphs.Add(String.Format("Calculated/Estimated HTC: {0} W/[m2.K]", U))
+                                    IObj5?.Paragraphs.Add(String.Format("Calculated Heat Transfer Area: {0} m2", A))
+                                    IObj5?.Paragraphs.Add(String.Format("Calculated/Specified Heat Transfer: {0} kW", DQ))
+
+                                    Hout = Hin + DQ / Win
+
+                                Else
+
+                                    Hout = Hin
+
+                                End If
+
+                                IObj5?.Paragraphs.Add(String.Format("Inlet Enthalpy: {0} kJ/kg", Hin))
+                                IObj5?.Paragraphs.Add(String.Format("Outlet Enthalpy: {0} kJ/kg", Hout))
+
+                                oms.PropertyPackage.CurrentMaterialStream = oms
+
+                                Tout_ant = Tout
+                                IObj5?.SetCurrent()
+
+                                If calceq And CalculateEquilibrium Then
+                                    Dim flashresult = oms.PropertyPackage.FlashBase.CalculateEquilibrium(PropertyPackages.FlashSpec.P, PropertyPackages.FlashSpec.H, Pout, Hout, oms.PropertyPackage, oms.PropertyPackage.RET_VMOL(PropertyPackages.Phase.Mixture), Nothing, Tout)
+                                    If flashresult.ResultException IsNot Nothing Then Throw flashresult.ResultException
+                                    Tout = flashresult.CalculatedTemperature
+                                Else
+                                    Tout = Tin
+                                End If
+
+                                If Qvin + Qlin = 0.0 Then
+                                    U = 0.0
+                                    DQ = 0.0
+                                    Tout = Tin
+                                    fT = 0.0
+                                    Hout = Hin
+                                Else
+                                    If U = 0 Or DQ = 0 Then
+                                        Tout_ant = Tout
+                                    Else
+                                        Tout = (Tout + Tout_ant) / 2
+                                    End If
+                                    fT = Tout - Tout_ant
+                                End If
+
+                                IObj5?.Paragraphs.Add(String.Format("Calculated Outlet Temperature: {0} K", Tout))
+
+                                If Math.Abs(fT) < TolT Then Exit Do
+
+                                cntT += 1
+
+                                If Tout <= 0 Or Double.IsNaN(Tout) Then
+                                    Throw New Exception(FlowSheet.GetTranslatedString("Erronoclculodatemper"))
+                                End If
+
+                                If cntT > MaxTemperatureIterations Then Throw New Exception(FlowSheet.GetTranslatedString("Ocalculadorexcedeuon1"))
+
+                                FlowSheet.CheckStatus()
+
+                                IObj5?.Close()
+
+                            Loop
+
+                            IObj4?.Paragraphs.Add(String.Format("Converged Outlet Temperature: {0} K", Tout))
+                            IObj4?.Paragraphs.Add(String.Format("Converged Outlet Pressure: {0} K", Pout))
+
+                            oms.PropertyPackage.CurrentMaterialStream = oms
+
+                            oms.Mixture.Properties.temperature = Tout
+                            oms.Mixture.Properties.pressure = Pout
+                            oms.Mixture.Properties.enthalpy = Hout
+
+                            oms.SpecType = Interfaces.Enums.StreamSpec.Pressure_and_Enthalpy
+
+                            IObj4?.Paragraphs.Add(String.Format("Recalculating the temporary material stream and moving on to the next segment/increment..."))
+
+                            IObj4?.SetCurrent()
+
+                            If calceq And CalculateEquilibrium Then
+                                oms.Calculate(True, True)
+                            Else
+                                oms.Calculate(False, True)
+                            End If
+
+                            With oms
+
+                                w = .Mixture.Properties.massflow.GetValueOrDefault
+                                Hout = .Mixture.Properties.enthalpy.GetValueOrDefault
+                                Tout = .Mixture.Properties.temperature.GetValueOrDefault
+
+                                Qlin = .Liquid1.Properties.volumetric_flow.GetValueOrDefault + .Liquid2.Properties.volumetric_flow.GetValueOrDefault
+                                Qsin = .Solid.Properties.volumetric_flow.GetValueOrDefault
+
+                                rho_l = .OverallLiquid.Properties.density.GetValueOrDefault
+
+                                If Double.IsNaN(rho_l) Then rho_l = 0.0#
+
+                                If IncludeEmulsion() And .Liquid1.Properties.volumetric_flow.GetValueOrDefault > 0.0 And .Liquid2.Properties.volumetric_flow.GetValueOrDefault > 0.0 Then
+                                    eta_l = EmulsionViscosity(oms)
+                                Else
+                                    eta_l = .OverallLiquid.Properties.viscosity.GetValueOrDefault
+                                End If
+
+                                If SlurryViscosityMode = 1 Then
+                                    'Yoshida et al (https://www.aidic.it/cet/13/32/349.pdf)
+                                    eta_phi = Qsin / Qlin
+                                    eta_r = 1.0 + 3.0 * eta_phi / (1.0 - eta_phi / 0.52)
+                                    eta_l *= eta_r
+                                End If
+
+                                K_l = .OverallLiquid.Properties.thermalConductivity.GetValueOrDefault
+                                Cp_l = .OverallLiquid.Properties.heatCapacityCp.GetValueOrDefault
+                                tens = .Mixture.Properties.surfaceTension.GetValueOrDefault
+                                If Double.IsNaN(tens) Then tens = 0.0#
+                                w_l = .OverallLiquid.Properties.massflow.GetValueOrDefault
+
+                                Qvin = .Phases(2).Properties.volumetric_flow.GetValueOrDefault
+                                rho_v = .Phases(2).Properties.density.GetValueOrDefault
+                                eta_v = .Phases(2).Properties.viscosity.GetValueOrDefault
+                                K_v = .Phases(2).Properties.thermalConductivity.GetValueOrDefault
+                                Cp_v = .Phases(2).Properties.heatCapacityCp.GetValueOrDefault
+                                w_v = .Phases(2).Properties.massflow.GetValueOrDefault
+                                z = .Phases(2).Properties.compressibilityFactor.GetValueOrDefault
+
+                            End With
+
+                            With results
+
+                                .HeatTransferred = DQ
+                                .DpFriction = dpf
+                                .DpStatic = dph
+                                .LiquidHoldup = holdup
+                                .FlowRegime = tipofluxo
+
+                                segmento.Results.Add(New PipeResults(.Pressure_Initial, .Temperature_Initial, .MUv, .MUl, .RHOv, .RHOl,
+                                                                        .Cpv, .Cpl, .Kv, .Kl, .Qv, .Ql, .Surft, .DpFriction, .DpStatic,
+                                                                        .LiquidHoldup, .FlowRegime, .LiqRe, .VapRe, .LiqVel, .VapVel, .HeatTransferred,
+                                                                        .EnergyFlow_Initial, U) With {.HTC_external = results.HTC_external,
+                                                                                                   .HTC_internal = results.HTC_internal,
+                                                                                                   .HTC_insulation = results.HTC_insulation,
+                                                                                                   .HTC_pipewall = results.HTC_pipewall,
+                                                                                                   .External_Temperature = results.External_Temperature,
+                                                                                                   .Insulation_Temperature = results.Insulation_Temperature,
+                                                                                                   .Wall_Temperature = results.Wall_Temperature,
+                                                                                                   .Absorbed_Radiation = results.Absorbed_Radiation})
+
+                                segmento.Results.Last.MachNumber = .VapVel / oms.Phases(2).Properties.speedOfSound.GetValueOrDefault()
+
+                            End With
+
+                            Hin = Hout
+                            Tin = Tout
+                            Pin = Pout
+
+                            'Fittings contribute their effective 0.1 m length to the cumulative
+                            'distance, consistent with the per-increment geometry used above.
+                            currL += If(straight, segmento.Comprimento, 0.1) / nseg
+
+                            j += 1
+
+                            IObj4?.Close()
+
+                            eqcheck += j
+                            If eqcheck >= CalculateEquilibriumIntervalInSteps * j Then
+                                eqcheck = 0.0
+                                calceq = True
+                            Else
+                                calceq = False
+                            End If
+
+                        Loop Until j = nseg
+
+                        IObj3?.Close()
+
+                    Next
+
+                Next
+
+                If Specification = Specmode.OutletTemperature Then
+                    If Math.Abs(Tout - OutletTemperature) < 0.01 Then
+                        Exit Do
+                    Else
+                        x00 = x0
+                        x0 = x
+                        x = ThermalProfile.Calor_trocado
+                        fx00 = fx0
+                        fx0 = t0 - OutletTemperature
+                        fx = Tout - OutletTemperature
+                        If countext > 2 Then
+                            x = x - fx * (x - x00) / (fx - fx00)
+                            If Double.IsNaN(x) Or Double.IsInfinity(x) Then Throw New Exception(FlowSheet.GetTranslatedString("Erroaocalculartemper"))
+                            ThermalProfile.Calor_trocado = x
+                        Else
+                            ThermalProfile.Calor_trocado += 0.1
+                        End If
+                    End If
+                ElseIf Specification = Specmode.OutletPressure Then
+                    If Math.Abs(Pout - OutletPressure) < 10 Then
+                        Exit Do
+                    Else
+                        x00 = x0
+                        x0 = x
+                        x = Profile.Sections(1).Comprimento
+                        fx00 = fx0
+                        fx0 = p0 - OutletPressure
+                        fx = Pout - OutletPressure
+                        If countext > 2 Then
+                            x = x - fx * (x - x00) / (fx - fx00)
+                            If Double.IsNaN(x) Or Double.IsInfinity(x) Then Throw New Exception(FlowSheet.GetTranslatedString("Erronoclculodapresso"))
+                            Profile.Sections(1).Comprimento = x
+                        Else
+                            Profile.Sections(1).Comprimento *= 1.05
+                        End If
+                    End If
+                Else
+                    Exit Do
+                End If
+
+                p0 = Pout
+                t0 = Tout
+
+                countext += 1
+
+                If countext > 50 Then Throw New Exception("Nmeromximodeiteraesa3")
+
+                IObj2?.Paragraphs.Add(String.Format("Calculated outlet pressure: {0} Pa", Pout))
+                IObj2?.Paragraphs.Add(String.Format("Calculated outlet temperature: {0} Pa", Tout))
+
+                IObj2?.Close()
+
+            Loop
+
+            PressureDrop_Friction = Profile.Sections.Select(Function(s) s.Value.Results.Select(Function(r) r.DpFriction).Sum).Sum
+            PressureDrop_Static = Profile.Sections.Select(Function(s) s.Value.Results.Select(Function(r) r.DpStatic).Sum).Sum
+
+            CheckSpec(Tout, True, "outlet temperature")
+            CheckSpec(Pout, True, "outlet pressure")
+            CheckSpec(Hout, False, "outlet enthalpy")
+
+            With results
+                .Temperature_Initial = Tout
+                .Pressure_Initial = Pout
+                .EnergyFlow_Initial = Hout
+                .Cpl = Cp_l
+                .Cpv = Cp_v
+                .Kl = K_l
+                .Kv = K_v
+                .RHOl = rho_l
+                .RHOv = rho_v
+                .Ql = Qlin
+                .Qv = Qvin
+                .MUl = eta_l
+                .MUv = eta_v
+                .Surft = tens
+                .LiqRe = 4 / Math.PI * .RHOl * .Ql / (.MUl * segmento.DI * 0.0254)
+                .VapRe = 4 / Math.PI * .RHOv * .Qv / (.MUv * segmento.DI * 0.0254)
+                .LiqVel = .Ql / (Math.PI * (segmento.DI * 0.0254) ^ 2 / 4)
+                .VapVel = .Qv / (Math.PI * (segmento.DI * 0.0254) ^ 2 / 4)
+                .HeatTransferred = DQ
+                .DpFriction = dpf
+                .DpStatic = dph
+                .LiquidHoldup = holdup
+                .FlowRegime = "-"
+                .FlowRegimeDescription = ""
+                .HTC = U
+                .External_Temperature = Text + dText_dL * currL
+                .MachNumber = .VapVel / oms.Phases(2).Properties.speedOfSound.GetValueOrDefault()
+            End With
+            segmento.Results.Add(results)
+
+            DeltaP = (Pout - PinP)
+            DeltaT = (Tout - TinP)
+            DeltaQ = (Hout - HinP) * Win
+
+            'Atribuir valores a corrente de materia conectada a jusante
+            Dim msout As MaterialStream
+            If args Is Nothing Then
+                msout = GetOutletMaterialStream(0)
+            Else
+                msout = args(1)
+            End If
+            With msout
+                .AtEquilibrium = False
+                .Mixture.Properties.temperature = Tout
+                .Mixture.Properties.pressure = Pout
+                .Mixture.Properties.enthalpy = Hout
+                Dim comp As BaseClasses.Compound
+                For Each comp In .Mixture.Compounds.Values
+                    comp.MoleFraction = ims.Mixture.Compounds(comp.Name).MoleFraction
+                    comp.MassFraction = ims.Mixture.Compounds(comp.Name).MassFraction
+                Next
+                .Mixture.Properties.massflow = ims.Mixture.Properties.massflow.GetValueOrDefault
+                .DefinedFlow = FlowSpec.Mass
+            End With
+
+            'energy stream - update energy flow value (kW)
+            If es IsNot Nothing Then
+                With es
+                    .EnergyFlow = -DeltaQ.Value
+                    If args Is Nothing Then .GraphicObject.Calculated = True
+                End With
+            End If
+
+            segmento = Nothing
+            results = Nothing
+
+            IObj?.Close()
+
+        End Sub
+
+        ''' <summary>Clears all calculated results.</summary>
+        Public Overrides Sub DeCalculate()
+
+            Dim segmento As New PipeSection
+
+            For Each segmento In Profile.Sections.Values
+                segmento.Results.Clear()
+            Next
+
+            'Zerar valores da corrente de materia conectada a jusante
+            If GraphicObject.OutputConnectors(0).IsAttached Then
+                With GetOutletMaterialStream(0)
+                    .Mixture.Properties.temperature = Nothing
+                    .Mixture.Properties.pressure = Nothing
+                    .Mixture.Properties.enthalpy = Nothing
+                    .Mixture.Properties.molarfraction = 1
+                    .Mixture.Properties.massfraction = 1
+                    Dim comp As BaseClasses.Compound
+                    Dim i As Integer = 0
+                    For Each comp In .Mixture.Compounds.Values
+                        comp.MoleFraction = 0
+                        comp.MassFraction = 0
+                        i += 1
+                    Next
+                    .Mixture.Properties.massflow = Nothing
+                    .Mixture.Properties.molarflow = Nothing
+                    .GraphicObject.Calculated = False
+                End With
+            End If
+
+            'energy stream - update energy flow value (kW)
+            If GraphicObject.EnergyConnector.IsAttached Then
+                With GetEnergyStream
+                    .EnergyFlow = Nothing
+                    .GraphicObject.Calculated = False
+                End With
+            End If
+
+            segmento = Nothing
+
+        End Sub
+
+#Region "        Funcoes"
+
+        Function Kfit(ByVal name2 As String) As Double()
+
+            Dim name As String = name2.Substring(name2.IndexOf("[") + 1, name2.Length - name2.IndexOf("[") - 2)
+
+            Dim tmp(1) As Double
+
+            'Curva Normal 90°;30,00;1;
+            If name = 0 Then
+                tmp(0) = 14
+                tmp(1) = 1
+            End If
+            'Curva Normal 45°;16,00;1;
+            If name = 1 Then
+                tmp(0) = 16.0
+                tmp(1) = 1
+            End If
+            'Curva Normal 180°;50,00;1;
+            If name = 2 Then
+                tmp(0) = 50
+                tmp(1) = 1
+            End If
+            'Valvula Angular;55,00;1;
+            If name = 3 Then
+                tmp(0) = 55
+                tmp(1) = 1
+            End If
+            'Valvula Borboleta (2" a 14");40,00;1;
+            If name = 4 Then
+                tmp(0) = 40
+                tmp(1) = 1
+            End If
+            'Valvula Esfera;3,00;1;
+            If name = 5 Then
+                tmp(0) = 3
+                tmp(1) = 1
+            End If
+            'Valvula Gaveta (Aberta);8,00;1;
+            If name = 6 Then
+                tmp(0) = 8
+                tmp(1) = 1
+            End If
+            'Valvula Globo;340,00;1;
+            If name = 7 Then
+                tmp(0) = 340
+                tmp(1) = 1
+            End If
+            'Valvula Lift-Check;600,00;1;
+            If name = 8 Then
+                tmp(0) = 600
+                tmp(1) = 1
+            End If
+            'Valvula Pe (Poppet Disc);420,00;1;
+            If name = 9 Then
+                tmp(0) = 420
+                tmp(1) = 1
+            End If
+            'Valvula Retencao de Portinhola;100,00;1;
+            If name = 10 Then
+                tmp(0) = 100
+                tmp(1) = 1
+            End If
+            'Valvula Stop-Check (Globo);400,00;1;
+            If name = 11 Then
+                tmp(0) = 400
+                tmp(1) = 1
+            End If
+            'Te (saida bilateral);20,00;1;
+            If name = 12 Then
+                tmp(0) = 20
+                tmp(1) = 1
+            End If
+            'Te (saida de lado);60,00;1;
+            If name = 13 Then
+                tmp(0) = 60
+                tmp(1) = 1
+            End If
+            'Contracao Rapida d/D = 1/2;9,60;0;
+            If name = 14 Then
+                tmp(0) = 9.6
+                tmp(1) = 0
+            End If
+            'Contracao Rapida d/D = 1/4;96,00;0;
+            If name = 15 Then
+                tmp(0) = 96
+                tmp(1) = 0
+            End If
+            'Contracao Rapida d/D = 3/4;1,11;0;
+            If name = 16 Then
+                tmp(0) = 1.11
+                tmp(1) = 0
+            End If
+            'Entrada Borda;0,25;0;
+            If name = 17 Then
+                tmp(0) = 0.25
+                tmp(1) = 0
+            End If
+            'Entrada Normal;0,78;0;
+            If name = 18 Then
+                tmp(0) = 0.78
+                tmp(1) = 0
+            End If
+            'Expansao Rapida d/D = 1/2;9,00;0;
+            If name = 19 Then
+                tmp(0) = 9
+                tmp(1) = 0
+            End If
+            'Expansao Rapida d/D = 1/4;225,00;0;
+            If name = 20 Then
+                tmp(0) = 225
+                tmp(1) = 0
+            End If
+            'Expansao Rapida d/D = 3/4;0,60;0;
+            If name = 21 Then
+                tmp(0) = 0.6
+                tmp(1) = 0
+            End If
+            'Joelho em 90°;60,00;1;
+            If name = 22 Then
+                tmp(0) = 60
+                tmp(1) = 1
+            End If
+            'Reducao Normal 2:1;5,67;0;
+            If name = 23 Then
+                tmp(0) = 5.67
+                tmp(1) = 0
+            End If
+            'Reducao Normal 4:3;0,65;0;
+            If name = 24 Then
+                tmp(0) = 0.65
+                tmp(1) = 0
+            End If
+            'Saida Borda;1,00;0;
+            If name = 25 Then
+                tmp(0) = 1
+                tmp(1) = 0
+            End If
+            'Saida Normal;1,00;0;
+            If name = 26 Then
+                tmp(0) = 1
+                tmp(1) = 0
+            End If
+            'Threaded/Screwed 90° Elbow
+            If name = 28 Then
+                tmp(0) = 30
+                tmp(1) = 1
+            End If
+
+            Kfit = tmp
+
+        End Function
+
+        Function cond_isol(ByVal meio As Integer) As Double
+
+            'Asfalto
+            'Concreto
+            'Espuma de Poliuretano
+            'Espuma de PVC
+            'Fibra de vidro
+            'Plastico
+            'Vidro
+            'Definido pelo usuario
+
+            cond_isol = 0
+
+            If meio = 0 Then
+
+                cond_isol = 0.7
+
+            ElseIf meio = 1 Then
+
+                cond_isol = 1
+
+            ElseIf meio = 2 Then
+
+                cond_isol = 0.018
+
+            ElseIf meio = 3 Then
+
+                cond_isol = 0.04
+
+            ElseIf meio = 4 Then
+
+                cond_isol = 0.035
+
+            ElseIf meio = 5 Then
+
+                cond_isol = 0.036
+
+            ElseIf meio = 6 Then
+
+                cond_isol = 0.08
+
+            ElseIf meio = 7 Then
+
+                cond_isol = 0
+
+            End If
+
+            'condutividade em W/(m.K)
+
+        End Function
+
+        ''' <summary>Returns the pipe-wall rugosity (m) for the given material name and section.</summary>
+        Public Function GetRugosity(ByVal material As String, section As PipeSection) As Double
+
+            Dim epsilon As Double
+
+            'pipe wall rugosity in m
+
+            Select Case material
+                Case FlowSheet.GetTranslatedString("AoComum"), "Steel"
+                    epsilon = 0.0000457
+                Case FlowSheet.GetTranslatedString("AoCarbono"), "CarbonSteel"
+                    epsilon = 0.000045
+                Case FlowSheet.GetTranslatedString("FerroBottomido"), "CastIron"
+                    epsilon = 0.000259
+                Case FlowSheet.GetTranslatedString("AoInoxidvel"), "StainlessSteel"
+                    epsilon = 0.000045
+                Case "PVC"
+                    epsilon = 0.0000015
+                Case "PVC+PFRV"
+                    epsilon = 0.0000015
+                Case FlowSheet.GetTranslatedString("CommercialCopper"), "CommercialCopper"
+                    epsilon = 0.0000015
+                Case Else
+                    epsilon = section.PipeWallRugosity
+            End Select
+
+            Return epsilon
+
+        End Function
+
+        Function k_parede(ByVal material As String, ByVal T As Double, section As PipeSection) As Double
+
+            Dim kp As Double
+
+            Select Case material
+                Case FlowSheet.GetTranslatedString("AoComum"), "Steel"
+                    kp = -0.000000004 * T ^ 3 - 0.00002 * T ^ 2 + 0.021 * T + 33.743
+                Case FlowSheet.GetTranslatedString("AoCarbono"), "CarbonSteel", "Carbon Steel"
+                    kp = 0.000000007 * T ^ 3 - 0.00002 * T ^ 2 - 0.0291 * T + 70.765
+                Case FlowSheet.GetTranslatedString("FerroBottomido"), "CastIron", "Cast Iron"
+                    kp = -0.00000008 * T ^ 3 + 0.0002 * T ^ 2 - 0.211 * T + 127.99
+                Case FlowSheet.GetTranslatedString("AoInoxidvel"), "StainlessSteel", "Stainless Steel"
+                    kp = 14.6 + 0.0127 * (T - 273.15)
+                Case "PVC"
+                    kp = 0.16
+                Case "PVC+PFRV"
+                    kp = 0.16
+                Case FlowSheet.GetTranslatedString("CommercialCopper"), "CommercialCopper", "Commercial Copper"
+                    kp = 420.75 - 0.068493 * T
+                Case Else
+                    Try
+                        Dim ExpContext As New Flee.PublicTypes.ExpressionContext
+                        ExpContext.Imports.AddType(GetType(System.Math))
+                        ExpContext.Variables.Clear()
+                        ExpContext.Options.ParseCulture = Globalization.CultureInfo.InvariantCulture
+                        ExpContext.Variables.Add("T", T)
+                        Dim Expr = ExpContext.CompileGeneric(Of Double)(section.PipeWallThermalConductivityExpression)
+                        kp = cv.ConvertToSI(FlowSheet.FlowsheetOptions.SelectedUnitSystem.thermalConductivity, Expr.Evaluate)
+                    Catch ex As Exception
+                        Throw New Exception("Invalid expression for thermal conductivity at Pipe Section #" & section.Indice, ex)
+                    End Try
+            End Select
+
+            k_parede = kp   'W/m.K
+
+        End Function
+
+        Function k_terreno(ByVal terreno As Integer) As Double
+
+            Dim kt = 0.0#
+
+            If terreno = 2 Then kt = 1.1
+            If terreno = 3 Then kt = 1.95
+            If terreno = 4 Then kt = 0.5
+            If terreno = 5 Then kt = 2.2
+
+            k_terreno = kt
+
+        End Function
+
+        Function CalcOverallHeatTransferCoefficient(ByVal section As PipeSection, ByVal materialparede As String, ByVal EL As Double, ByVal L As Double,
+                            ByVal Dint As Double, ByVal Dext As Double, ByVal rugosidade As Double,
+                            ByVal T As Double, ByVal Text As Double, ByVal vel_g As Double, ByVal vel_l As Double,
+                            ByVal Cpl As Double, ByVal Cpv As Double, ByVal kl As Double, ByVal kv As Double,
+                            ByVal mu_l As Double, ByVal mu_v As Double, ByVal rho_l As Double,
+                            ByVal rho_v As Double, ByVal hinterno As Boolean, ByVal isolamento As Boolean,
+                            ByVal parede As Boolean, ByVal hexterno As Boolean) As Double()
+
+            Dim IObj As Inspector.InspectorItem = Inspector.Host.GetNewInspectorItem()
+
+            Inspector.Host.CheckAndAdd(IObj, "", "CalcOverallHeatTransferCoefficient", "Overall HTC Calculation", "Overal Heat Transfer Coefficient Calculation Routine", True)
+
+            IObj?.Paragraphs.Add("This Is the external loop To converge pressure When outlet temperature Is specified Or vice-versa.")
+
+            IObj?.Paragraphs.Add("<h2>Input Parameters</h2>")
+
+            IObj?.Paragraphs.Add("Pipe Wall Material = " & materialparede)
+            IObj?.Paragraphs.Add("Liquid Holdup = " & EL)
+            IObj?.Paragraphs.Add("Length = " & L & " m")
+            IObj?.Paragraphs.Add("Internal Diameter = " & Dint & " m")
+            IObj?.Paragraphs.Add("External Diameter = " & Dext & " m")
+            IObj?.Paragraphs.Add("Pipe Roughness = " & rugosidade & " m")
+            IObj?.Paragraphs.Add("Fluid Temperature = " & T & " K")
+            IObj?.Paragraphs.Add("External Temperature = " & Text & " K")
+            IObj?.Paragraphs.Add("Vapor Phase Velocity = " & vel_g & " m/s")
+            IObj?.Paragraphs.Add("Liquid Phase Velocity = " & vel_l & " m/s")
+            IObj?.Paragraphs.Add("Vapor Phase Cp = " & Cpl & " kJ/[kg.K]")
+            IObj?.Paragraphs.Add("Liquid Phase Cp = " & Cpv & " kJ/[kg.K]")
+            IObj?.Paragraphs.Add("Vapor Phase Thermal Conductivity = " & kv & " W/[m.K]")
+            IObj?.Paragraphs.Add("Liquid Phase Thermal Conductivity = " & kl & " W/[m.K]")
+            IObj?.Paragraphs.Add("Vapor Phase Density = " & rho_v & " kg/m3")
+            IObj?.Paragraphs.Add("Liquid Phase Density = " & rho_l & " kg/m3")
+            IObj?.Paragraphs.Add("Include External HTC = " & hexterno)
+            IObj?.Paragraphs.Add("Include Internal HTC = " & hinterno)
+            IObj?.Paragraphs.Add("Include Insulation = " & isolamento)
+            IObj?.Paragraphs.Add("Include Pipe Wall = " & parede)
+
+            If Double.IsNaN(rho_l) Then rho_l = 0.0#
+
+            'Calculate average properties
+            Dim vel As Double = vel_g + vel_l 'm/s
+            Dim mu As Double = EL * mu_l + (1 - EL) * mu_v 'Pa.s
+            Dim rho As Double = EL * rho_l + (1 - EL) * rho_v 'kg/m3
+            Dim Cp As Double = 1000 * (EL * Cpl + (1 - EL) * Cpv) 'J/kg.K
+            Dim k As Double = EL * kl + (1 - EL) * kv 'W/[m.K]
+            Dim Cpmist = Cp
+
+            'Internal HTC calculation
+            Dim U_int As Double
+
+            If hinterno Then
+
+                'Internal Re calc
+                Dim Re_int = NRe(rho, vel, Dint, mu)
+
+                Dim epsilon = GetRugosity(materialparede, section)
+                Dim ffint = 0.0#
+                If Re_int > 3250 Then
+                    Dim a1 = Math.Log(((epsilon / Dint) ^ 1.1096) / 2.8257 + (7.149 / Re_int) ^ 0.8961) / Math.Log(10.0#)
+                    Dim b1 = -2 * Math.Log((epsilon / Dint) / 3.7065 - 5.0452 * a1 / Re_int) / Math.Log(10.0#)
+                    ffint = (1 / b1) ^ 2
+                Else
+                    ffint = 64 / Re_int
+                End If
+
+                'Internal Pr calc
+                Dim Pr_int = NPr(Cp, mu, k)
+
+                'Internal h calc
+                Dim h_int = hint_petukhov(k, Dint, ffint, Re_int, Pr_int)
+
+                'Internal h contribution
+                U_int = h_int
+
+            End If
+
+            'Pipe wall HTC contribution
+            Dim U_parede = 0.0#
+
+            If parede = True Then
+
+                U_parede = k_parede(materialparede, T, section) / (Math.Log(Dext / Dint) * Dint)
+                If Dext = Dint Then U_parede = 0.0#
+
+            End If
+
+            'Insulation HTC contribution
+            Dim U_isol = 0.0#
+
+            Dim esp_isol = 0.0#
+            If isolamento = True Then
+
+                esp_isol = ThermalProfile.Espessura 'm
+                U_isol = ThermalProfile.Condtermica / (Math.Log((Dext + 2 * esp_isol) / Dext) * Dext)
+
+            End If
+
+            'External HTC contribution
+            Dim U_ext = 0.0#
+
+            If hexterno = True Then
+
+                Dim mu2, k2, cp2, rho2 As Double 'Soil, undergound
+
+                If ThermalProfile.Meio <> "0" And ThermalProfile.Meio <> "1" Then
+
+                    Dim Zb = Convert.ToDouble(ThermalProfile.Velocidade)
+
+                    Dim Rs = (Dext + 2 * esp_isol) / (2 * k_terreno(ThermalProfile.Meio)) * Math.Log((2 * Zb + (4 * Zb ^ 2 - (Dext + 2 * esp_isol) ^ 2) ^ 0.5) / (Dext + 2 * esp_isol))
+
+                    If Zb > 0 Then
+                        U_ext = 1 / Rs
+                    Else
+                        U_ext = 1000000.0
+                    End If
+
+                ElseIf ThermalProfile.Meio = "0" Then 'Air
+
+                    'Average air properties
+
+                    Dim Pext As Double = 101325.0
+
+                    If UseGlobalWeather Then
+
+                        Pext = FlowSheet.FlowsheetOptions.CurrentWeather.AtmosphericPressure_Pa
+                        vel = FlowSheet.FlowsheetOptions.CurrentWeather.WindSpeed_km_h / 3.6
+
+                    Else
+
+                        vel = Convert.ToDouble(ThermalProfile.Velocidade)
+
+                    End If
+
+                    Dim props = PropsAR(Text, Pext)
+                    mu2 = props(1)
+                    rho2 = props(0)
+                    cp2 = props(2) * 1000
+                    k2 = props(3)
+
+                    'External Re
+                    Dim Re_ext = NRe(rho2, vel, (Dext + 2 * esp_isol), mu2)
+
+                    'External Pr
+                    Dim Pr_ext = NPr(cp2, mu2, k2)
+
+                    'Forced convection h (Holman cross-flow)
+                    Dim h_fc = hext_holman(k2, (Dext + 2 * esp_isol), Re_ext, Pr_ext)
+
+                    'Natural convection h (Churchill-Chu, horizontal cylinder).
+                    'Uses the fluid (internal) temperature as the outer-wall temperature
+                    'driving force, which is a good approximation for bare pipes where
+                    'the internal HTC dominates the series resistance.
+                    Dim Dout_tot = Dext + 2 * esp_isol
+                    Dim Tfilm = 0.5 * (T + Text)
+                    Dim beta_nc = 1.0 / Tfilm 'ideal-gas thermal expansion coefficient
+                    Dim nu_nc = mu2 / rho2
+                    Dim alpha_nc = k2 / (rho2 * cp2)
+                    Dim dTs = Math.Abs(T - Text)
+                    Dim Ra = 0.0
+                    If nu_nc > 0 AndAlso alpha_nc > 0 Then
+                        Ra = 9.81 * beta_nc * dTs * Dout_tot ^ 3 / (nu_nc * alpha_nc)
+                    End If
+                    Dim h_nc = 0.0
+                    If Ra > 0 Then
+                        Dim denom_cc = (1.0 + (0.559 / Pr_ext) ^ (9.0 / 16.0)) ^ (8.0 / 27.0)
+                        Dim Nu_cc = (0.6 + 0.387 * Ra ^ (1.0 / 6.0) / denom_cc) ^ 2
+                        h_nc = Nu_cc * k2 / Dout_tot
+                    End If
+
+                    'Mixed convection (Churchill combination, exponent 3)
+                    Dim h_conv = (h_nc ^ 3 + h_fc ^ 3) ^ (1.0 / 3.0)
+
+                    'Linearized radiation contribution to ambient
+                    Dim eps_surf = ThermalProfile.SurfaceEmissivity
+                    Dim sigma_sb = 0.0000000567037442
+                    Dim h_rad = eps_surf * sigma_sb * (T * T + Text * Text) * (T + Text)
+
+                    Dim h_ext = h_conv + h_rad
+
+                    'External HTC contribution
+                    U_ext = h_ext * Dout_tot / Dint
+
+                ElseIf ThermalProfile.Meio = 1 Then 'Water
+
+                    'Average water properties
+                    vel = Convert.ToDouble(ThermalProfile.Velocidade)
+                    Dim props = PropsAGUA(Text, 101325)
+                    mu2 = props(1)
+                    rho2 = props(0)
+                    cp2 = props(2) * 1000
+                    k2 = props(3)
+
+                    'External Re
+                    Dim Re_ext = NRe(rho2, vel, (Dext + 2 * esp_isol), mu2)
+
+                    'External Pr
+                    Dim Pr_ext = NPr(cp2, mu2, k2)
+
+                    'External h
+                    Dim h_ext = hext_holman(k2, (Dext + 2 * esp_isol), Re_ext, Pr_ext)
+
+                    'External HTC contribution
+                    U_ext = h_ext * (Dext + 2 * esp_isol) / Dint
+
+                End If
+
+            End If
+
+            'Calculate overall HTC
+            Dim _U As Double
+
+            If U_int <> 0.0# Then
+                _U = _U + 1 / U_int
+            Else
+                If hinterno = True Then
+                    _U = _U + 1.0E+30
+                End If
+            End If
+            If U_parede <> 0.0# Then
+                _U = _U + 1 / U_parede
+            Else
+                If parede = True Then
+                    _U = _U + 1.0E+30
+                End If
+            End If
+            If U_isol <> 0.0# Then
+                _U = _U + 1 / U_isol
+            Else
+                If isolamento = True Then
+                    _U = _U + 1.0E+30
+                End If
+            End If
+            If U_ext <> 0.0# Then
+                _U = _U + 1 / U_ext
+            Else
+                If hexterno = True Then
+                    _U = _U + 1.0E+30
+                End If
+            End If
+
+            IObj?.Paragraphs.Add("<h2>Results</h2>")
+
+            IObj?.Paragraphs.Add("External HTC = " & U_ext & " W/[m2.K]")
+            IObj?.Paragraphs.Add("Internal HTC = " & U_int & " W/[m2.K]")
+            IObj?.Paragraphs.Add("Pipe Wall HTC = " & U_parede & " W/[m2.K]")
+            IObj?.Paragraphs.Add("Pipe Insulation HTC = " & U_isol & " W/[m2.K]")
+            IObj?.Paragraphs.Add("Overall HTC = " & (1 / _U).ToString & " W/[m2.K]")
+
+            IObj?.Close()
+
+            Return New Double() {1 / _U, U_int, U_parede, U_isol, U_ext} '[W/m².K]
+
+        End Function
+
+        Shared Function NRe(ByVal rho As Double, ByVal v As Double, ByVal D As Double, ByVal mu As Double) As Double
+
+            NRe = rho * v * D / mu
+
+        End Function
+
+        Shared Function NPr(ByVal Cp As Double, ByVal mu As Double, ByVal k As Double) As Double
+
+            NPr = Cp * mu / k
+
+        End Function
+
+        Shared Function hext_holman(ByVal k As Double, ByVal Dext As Double, ByVal NRe As Double, ByVal NPr As Double) As Double
+
+            hext_holman = k / Dext * 0.25 * NRe ^ 0.6 * NPr ^ 0.38
+
+        End Function
+
+        Shared Function hint_petukhov(ByVal k, ByVal D, ByVal f, ByVal NRe, ByVal NPr)
+
+            'If NRe > 1000 Then
+            hint_petukhov = k / D * (f / 8) * (NRe - 1000.0) * NPr / (1.0 + 12.7 * (f / 8) ^ 0.5 * (NPr ^ (2 / 3) - 1))
+            'Else
+            '    hint_petukhov = 0.0
+            'End If
+
+        End Function
+
+        Shared Function PropsAR(ByVal Tamb As Double, ByVal Pamb As Double)
+
+            Dim T = Tamb
+
+            Dim rho = 314.56 * T ^ -0.9812
+
+            'viscosidade
+            Dim mu = rho * (0.000001 * (0.00009 * T ^ 2 + 0.035 * T - 2.9346))
+
+            'capacidade calorifica
+            Dim Cp = 0.000000000001 * T ^ 4 - 0.000000003 * T ^ 3 + 0.000002 * T ^ 2 - 0.0008 * T + 1.091
+
+            'condutividade termica
+            Dim k = -0.00000002 * T ^ 2 + 0.00009 * T + 0.0012
+
+            Dim tmp2(3)
+
+            tmp2(0) = rho
+            tmp2(1) = mu
+            tmp2(2) = Cp
+            tmp2(3) = k
+
+            PropsAR = tmp2
+
+        End Function
+
+        Protected m_iapws97 As New IAPWS_IF97
+
+        Function PropsAGUA(ByVal Tamb As Double, ByVal Pamb As Double)
+
+            'massa molar
+            Dim mm = 18
+            Dim Tc = 647.3
+            Dim Pc = 217.6 * 101325
+            Dim Vc = 0.000001 * 56
+            Dim Zc = 0.229
+            Dim w = 0.344
+            Dim ZRa = 0.237
+
+            Dim R = 8.314
+            Dim P = Pamb
+            Dim T = Tamb
+
+            'densidade
+            Dim rho = m_iapws97.densW(T, P / 100000)
+
+            'viscosidade
+            Dim mu = m_iapws97.viscW(T, P / 100000)
+
+            'capacidade calorifica
+            Dim Cp = m_iapws97.cpW(T, P / 100000)
+
+            'condutividade termica
+            Dim k = m_iapws97.thconW(T, P / 100000)
+
+            Dim tmp2(3)
+
+            tmp2(0) = rho
+            tmp2(1) = mu
+            tmp2(2) = Cp
+            tmp2(3) = k
+
+            PropsAGUA = tmp2
+
+        End Function
+
+        Function FT2(ByVal T1 As Double, ByVal T2 As Double, ByVal Tamb As Double, ByVal U As Double, ByVal DQ As Double) As Double
+
+            Dim f As Double
+            If T1 < Tamb Then
+                f = U * (T1 - T2) / Math.Log((Tamb - T2) / (Tamb - T1)) - DQ
+            Else
+                f = U * (T2 - T1) / Math.Log((Tamb - T1) / (Tamb - T2)) - DQ
+            End If
+
+            'If Double.TryParse(f, New Double) Then
+            '    Return f
+            'Else
+            '    Return Tamb
+            'End If
+            Return f
+
+        End Function
+
+#End Region
+
+        ''' <summary>Returns the value of the specified property.</summary>
+        Public Overrides Function GetPropertyValue(ByVal prop As String, Optional ByVal su As Interfaces.IUnitsOfMeasure = Nothing) As Object
+
+            Dim val0 As Object = MyBase.GetPropertyValue(prop, su)
+
+            If su Is Nothing Then su = New SystemsOfUnits.SI
+
+            If Not val0 Is Nothing Then
+
+                Return val0
+
+            ElseIf prop.Contains("_") Then
+
+                Dim value As Double = 0
+                Dim propidx As Integer = Convert.ToInt32(prop.Split("_")(2))
+
+                Select Case propidx
+                    Case 0
+                        value = cv.ConvertFromSI(su.deltaP, DeltaP.GetValueOrDefault)
+                    Case 1
+                        value = cv.ConvertFromSI(su.deltaT, DeltaT.GetValueOrDefault)
+                    Case 2
+                        value = cv.ConvertFromSI(su.heatflow, DeltaQ.GetValueOrDefault)
+                    Case 3
+                        value = cv.ConvertFromSI(su.pressure, OutletPressure)
+                    Case 4
+                        value = cv.ConvertFromSI(su.temperature, OutletTemperature)
+                    Case 5
+                        value = cv.ConvertFromSI(su.heat_transf_coeff, ThermalProfile.CGTC_Definido)
+                    Case 6
+                        value = cv.ConvertFromSI(su.temperature, ThermalProfile.Temp_amb_definir)
+                    Case 7
+                        value = cv.ConvertFromSI(su.deltaT, ThermalProfile.AmbientTemperatureGradient) / cv.ConvertFromSI(su.distance, 1.0#)
+                    Case 8
+                        Dim tval As Double = 0
+                        For Each section In Profile.Sections.Values
+                            If section.TipoSegmento = "" Or section.TipoSegmento.Contains("Straight Tube") Or section.TipoSegmento = "Tubulaosimples" Then
+                                tval += section.Comprimento
+                            End If
+                        Next
+                        value = cv.ConvertFromSI(su.distance, tval)
+                    Case 9
+                        Dim tval As Double = 0
+                        For Each section In Profile.Sections.Values
+                            If section.TipoSegmento = "" Or section.TipoSegmento.Contains("Straight Tube") Or section.TipoSegmento = "Tubulaosimples" Then
+                                tval += section.Elevacao
+                            End If
+                        Next
+                        value = cv.ConvertFromSI(su.distance, tval)
+                End Select
+                Return value
+            Else
+                Try
+                    If prop.Contains("Results") Then
+                        Dim skey As Integer = prop.Split(",")(1)
+                        Dim sindex As Integer = prop.Split(",")(3) - 1
+                        Dim sprop As String = prop.Split(",")(4)
+                        Select Case sprop
+                            Case "DynamicInternalMassFlowRate"
+                                Return cv.ConvertFromSI(su.massflow, Profile.Sections(skey).Results(sindex).DynamicInternalMassFlowRate)
+                            Case "DynamicInternalVolumetricFlowRate"
+                                Return cv.ConvertFromSI(su.volumetricFlow, Profile.Sections(skey).Results(sindex).DynamicInternalVolumetricFlowRate)
+                            Case "DynamicResidenceTime"
+                                Return cv.ConvertFromSI(su.time, Profile.Sections(skey).Results(sindex).DynamicResidenceTime)
+                            Case "InitialPressure"
+                                Return cv.ConvertFromSI(su.pressure, Profile.Sections(skey).Results(sindex).Pressure_Initial)
+                            Case "FinalPressure"
+                                Return cv.ConvertFromSI(su.pressure, Profile.Sections(skey).Results(sindex).FinalPressure)
+                            Case "AveragePressure"
+                                Return cv.ConvertFromSI(su.pressure, Profile.Sections(skey).Results(sindex).AveragePressure)
+                            Case "HeatTransfer"
+                                Return cv.ConvertFromSI(su.heatflow, Profile.Sections(skey).Results(sindex).HeatTransferred)
+                            Case "HeatCapacityLiquid"
+                                Return cv.ConvertFromSI(su.heatCapacityCp, Profile.Sections(skey).Results(sindex).Cpl)
+                            Case "HeatCapacityVapor"
+                                Return cv.ConvertFromSI(su.heatCapacityCp, Profile.Sections(skey).Results(sindex).Cpv)
+                            Case "PressureDropFriction"
+                                Return cv.ConvertFromSI(su.deltaP, Profile.Sections(skey).Results(sindex).DpFriction)
+                            Case "PressureDropHydrostatic"
+                                Return cv.ConvertFromSI(su.deltaP, Profile.Sections(skey).Results(sindex).DpStatic)
+                            Case "PressureDropTotal"
+                                Return cv.ConvertFromSI(su.deltaP, Profile.Sections(skey).Results(sindex).DpFriction + Profile.Sections(skey).Results(sindex).DpStatic)
+                            Case "LiquidHoldup"
+                                Return Profile.Sections(skey).Results(sindex).LiquidHoldup
+                            Case "HTCoverall"
+                                Return cv.ConvertFromSI(su.heat_transf_coeff, Profile.Sections(skey).Results(sindex).HTC)
+                            Case "HTCexternal"
+                                Return cv.ConvertFromSI(su.heat_transf_coeff, Profile.Sections(skey).Results(sindex).HTC_external)
+                            Case "HTCinternal"
+                                Return cv.ConvertFromSI(su.heat_transf_coeff, Profile.Sections(skey).Results(sindex).HTC_internal)
+                            Case "HTCinsulation"
+                                Return cv.ConvertFromSI(su.heat_transf_coeff, Profile.Sections(skey).Results(sindex).HTC_insulation)
+                            Case "HTCpipewall"
+                                Return cv.ConvertFromSI(su.heat_transf_coeff, Profile.Sections(skey).Results(sindex).HTC_pipewall)
+                            Case "ThermalConductivityLiquid"
+                                Return cv.ConvertFromSI(su.thermalConductivity, Profile.Sections(skey).Results(sindex).Kl)
+                            Case "ThermalConductivityVapor"
+                                Return cv.ConvertFromSI(su.thermalConductivity, Profile.Sections(skey).Results(sindex).Kv)
+                            Case "ReynoldsNumberLiquid"
+                                Return Profile.Sections(skey).Results(sindex).LiqRe
+                            Case "ReynoldsNumberVapor"
+                                Return Profile.Sections(skey).Results(sindex).VapRe
+                            Case "ViscosityLiquid"
+                                Return cv.ConvertFromSI(su.viscosity, Profile.Sections(skey).Results(sindex).MUl)
+                            Case "ViscosityVapor"
+                                Return cv.ConvertFromSI(su.viscosity, Profile.Sections(skey).Results(sindex).MUv)
+                            Case "VolumetricFlowLiquid"
+                                Return cv.ConvertFromSI(su.volumetricFlow, Profile.Sections(skey).Results(sindex).Ql)
+                            Case "VolumetricFlowVapor"
+                                Return cv.ConvertFromSI(su.volumetricFlow, Profile.Sections(skey).Results(sindex).Qv)
+                            Case "DensityLiquid"
+                                Return cv.ConvertFromSI(su.density, Profile.Sections(skey).Results(sindex).RHOl)
+                            Case "DensityVapor"
+                                Return cv.ConvertFromSI(su.density, Profile.Sections(skey).Results(sindex).RHOv)
+                            Case "SurfaceTension"
+                                Return cv.ConvertFromSI(su.surfaceTension, Profile.Sections(skey).Results(sindex).Surft)
+                            Case "InitialTemperature"
+                                Return cv.ConvertFromSI(su.temperature, Profile.Sections(skey).Results(sindex).Temperature_Initial)
+                            Case "FlowRegime"
+                                Return Profile.Sections(skey).Results(sindex).FlowRegime
+                            Case "VelocityLiquid"
+                                Return cv.ConvertFromSI(su.velocity, Profile.Sections(skey).Results(sindex).LiqVel)
+                            Case "VelocityVapor"
+                                Return cv.ConvertFromSI(su.velocity, Profile.Sections(skey).Results(sindex).VapVel)
+                            Case "MachNumber"
+                                Return Profile.Sections(skey).Results(sindex).MachNumber
+                            Case "ExternalTemperature"
+                                Return cv.ConvertFromSI(su.temperature, Profile.Sections(skey).Results(sindex).External_Temperature)
+                            Case Else
+                                Return 0.0
+                        End Select
+                    ElseIf prop.Contains("HydraulicSegment") Then
+                        Dim skey As Integer = prop.Split(",")(1)
+                        Dim sprop As String = prop.Split(",")(2)
+                        Select Case sprop
+                            Case "Length"
+                                Return cv.ConvertFromSI(su.distance, Profile.Sections(skey).Comprimento)
+                            Case "Elevation"
+                                Return cv.ConvertFromSI(su.distance, Profile.Sections(skey).Elevacao)
+                            Case "InternalDiameter"
+                                Return cv.Convert("in", su.diameter, Profile.Sections(skey).DI)
+                            Case "ExternalDiameter"
+                                Return cv.Convert("in", su.diameter, Profile.Sections(skey).DE)
+                            Case "Sections"
+                                Return Profile.Sections(skey).Incrementos
+                            Case Else
+                                Return 0.0
+                        End Select
+                    ElseIf prop.Contains("ThermalProfile") Then
+                        Dim tprop As String = prop.Split(",")(1)
+                        Select Case tprop
+                            Case "CalculationType"
+                                Return ThermalProfile.TipoPerfil
+                            Case "OverallHTC"
+                                Return cv.ConvertFromSI(su.heat_transf_coeff, ThermalProfile.CGTC_Definido)
+                            Case "ExternalTemperatureDefinedHTC"
+                                Return cv.ConvertFromSI(su.temperature, ThermalProfile.Temp_amb_definir)
+                            Case "ExternalTemperatureEstimatedHTC"
+                                Return cv.ConvertFromSI(su.temperature, ThermalProfile.Temp_amb_estimar)
+                            Case "ExternalTemperatureGradientDefinedHTC"
+                                Return cv.ConvertFromSI(su.deltaT, ThermalProfile.AmbientTemperatureGradient) / cv.ConvertFromSI(su.distance, 1.0#)
+                            Case "ExternalTemperatureGradientEstimatedHTC"
+                                Return cv.ConvertFromSI(su.deltaT, ThermalProfile.AmbientTemperatureGradient_EstimateHTC) / cv.ConvertFromSI(su.distance, 1.0#)
+                            Case "HeatExchanged"
+                                Return cv.ConvertFromSI(su.heatflow, ThermalProfile.Calor_trocado)
+                            Case "IncludeWallHTC"
+                                Return ThermalProfile.Incluir_paredes
+                            Case "IncludeInternalHTC"
+                                Return ThermalProfile.Incluir_cti
+                            Case "IncludeInsulationHTC"
+                                Return ThermalProfile.Incluir_isolamento
+                            Case "InsulationThickness"
+                                Return cv.ConvertFromSI(su.thickness, ThermalProfile.Espessura)
+                            Case "InsulationThermalConductivity"
+                                Return cv.ConvertFromSI(su.thermalConductivity, ThermalProfile.Condtermica)
+                            Case "IncludeExternalHTC"
+                                Return ThermalProfile.Incluir_cte
+                            Case "ExternalEnvironmentType"
+                                Return ThermalProfile.Meio
+                            Case "ExternalEnvironmentVelocityOrDeepness"
+                                Return cv.ConvertFromSI(su.velocity, ThermalProfile.Velocidade)
+                            Case Else
+                                Return 0.0
+                        End Select
+                    ElseIf prop.Equals("PressureDropStatic") Then
+                        Return cv.ConvertFromSI(su.deltaP, PressureDrop_Static)
+                    ElseIf prop.Equals("PressureDropFriction") Then
+                        Return cv.ConvertFromSI(su.deltaP, PressureDrop_Friction)
+                    ElseIf prop.Contains("DynamicContents") Then
+                        If FlowSheet IsNot Nothing Then
+                            If FlowSheet.DynamicMode Then
+                                Try
+                                    Dim k = Integer.Parse(prop.Split(",")(0).Replace("DynamicContents", "")) - 1
+                                    Dim astr = AccumulationStreams(k)
+                                    Return astr.GetPropertyValue2(prop.Split(",")(1), "", astr.GetPropertyUnits2(prop.Split(",")(1), ""))
+                                Catch ex As Exception
+                                    Return Double.NaN
+                                End Try
+                            Else
+                                Return Double.NaN
+                            End If
+                        Else
+                            Return Double.NaN
+                        End If
+                    End If
+                Catch ex As Exception
+                    Return Double.NaN
+                End Try
+            End If
+
+        End Function
+
+        ''' <summary>Returns the default set of properties shown in the flowsheet inspector.</summary>
+        Public Overrides Function GetDefaultProperties() As String()
+
+            Return New String() {"PROP_PS_0", "PressureDropStatic", "PressureDropFriction", "PROP_PS_1", "PROP_PS_2", "PROP_PS_8", "PROP_PS_9"}
+
+        End Function
+
+        ''' <summary>Returns an array of property identifiers for the specified property type.</summary>
+        Public Overloads Overrides Function GetProperties(ByVal proptype As Interfaces.Enums.PropertyType) As String()
+            Dim i As Integer = 0
+            Dim proplist As New ArrayList
+            Dim basecol = MyBase.GetProperties(proptype)
+            If basecol.Length > 0 Then proplist.AddRange(basecol)
+            For i = 0 To 9
+                proplist.Add("PROP_PS_" + CStr(i))
+            Next
+            proplist.Add("PressureDropStatic")
+            proplist.Add("PressureDropFriction")
+            For Each ps In Profile.Sections
+                proplist.Add("HydraulicSegment," + ps.Key.ToString + ",Length")
+                proplist.Add("HydraulicSegment," + ps.Key.ToString + ",Elevation")
+                proplist.Add("HydraulicSegment," + ps.Key.ToString + ",InternalDiameter")
+                proplist.Add("HydraulicSegment," + ps.Key.ToString + ",ExternalDiameter")
+                proplist.Add("HydraulicSegment," + ps.Key.ToString + ",Sections")
+            Next
+            For Each ps In Profile.Sections
+                Dim j As Integer = 1
+                For Each res In ps.Value.Results
+                    proplist.Add("HydraulicSegment," + ps.Key.ToString + ",Results," + j.ToString + ",InitialPressure")
+                    proplist.Add("HydraulicSegment," + ps.Key.ToString + ",Results," + j.ToString + ",FinalPressure")
+                    proplist.Add("HydraulicSegment," + ps.Key.ToString + ",Results," + j.ToString + ",AveragePressure")
+                    proplist.Add("HydraulicSegment," + ps.Key.ToString + ",Results," + j.ToString + ",HeatTransfer")
+                    proplist.Add("HydraulicSegment," + ps.Key.ToString + ",Results," + j.ToString + ",HeatTransfer")
+                    proplist.Add("HydraulicSegment," + ps.Key.ToString + ",Results," + j.ToString + ",HeatCapacityLiquid")
+                    proplist.Add("HydraulicSegment," + ps.Key.ToString + ",Results," + j.ToString + ",HeatCapacityVapor")
+                    proplist.Add("HydraulicSegment," + ps.Key.ToString + ",Results," + j.ToString + ",PressureDropFriction")
+                    proplist.Add("HydraulicSegment," + ps.Key.ToString + ",Results," + j.ToString + ",PressureDropHydrostatic")
+                    proplist.Add("HydraulicSegment," + ps.Key.ToString + ",Results," + j.ToString + ",PressureDropTotal")
+                    proplist.Add("HydraulicSegment," + ps.Key.ToString + ",Results," + j.ToString + ",LiquidHoldup")
+                    proplist.Add("HydraulicSegment," + ps.Key.ToString + ",Results," + j.ToString + ",HTCoverall")
+                    proplist.Add("HydraulicSegment," + ps.Key.ToString + ",Results," + j.ToString + ",HTCexternal")
+                    proplist.Add("HydraulicSegment," + ps.Key.ToString + ",Results," + j.ToString + ",HTCinternal")
+                    proplist.Add("HydraulicSegment," + ps.Key.ToString + ",Results," + j.ToString + ",HTCinsulation")
+                    proplist.Add("HydraulicSegment," + ps.Key.ToString + ",Results," + j.ToString + ",HTCpipewall")
+                    proplist.Add("HydraulicSegment," + ps.Key.ToString + ",Results," + j.ToString + ",ThermalConductivityLiquid")
+                    proplist.Add("HydraulicSegment," + ps.Key.ToString + ",Results," + j.ToString + ",ThermalConductivityVapor")
+                    proplist.Add("HydraulicSegment," + ps.Key.ToString + ",Results," + j.ToString + ",ReynoldsNumberLiquid")
+                    proplist.Add("HydraulicSegment," + ps.Key.ToString + ",Results," + j.ToString + ",ReynoldsNumberVapor")
+                    proplist.Add("HydraulicSegment," + ps.Key.ToString + ",Results," + j.ToString + ",ViscosityLiquid")
+                    proplist.Add("HydraulicSegment," + ps.Key.ToString + ",Results," + j.ToString + ",ViscosityVapor")
+                    proplist.Add("HydraulicSegment," + ps.Key.ToString + ",Results," + j.ToString + ",VolumetricFlowLiquid")
+                    proplist.Add("HydraulicSegment," + ps.Key.ToString + ",Results," + j.ToString + ",VolumetricFlowVapor")
+                    proplist.Add("HydraulicSegment," + ps.Key.ToString + ",Results," + j.ToString + ",DensityLiquid")
+                    proplist.Add("HydraulicSegment," + ps.Key.ToString + ",Results," + j.ToString + ",DensityVapor")
+                    proplist.Add("HydraulicSegment," + ps.Key.ToString + ",Results," + j.ToString + ",SurfaceTension")
+                    proplist.Add("HydraulicSegment," + ps.Key.ToString + ",Results," + j.ToString + ",InitialTemperature")
+                    proplist.Add("HydraulicSegment," + ps.Key.ToString + ",Results," + j.ToString + ",FlowRegime")
+                    proplist.Add("HydraulicSegment," + ps.Key.ToString + ",Results," + j.ToString + ",VelocityLiquid")
+                    proplist.Add("HydraulicSegment," + ps.Key.ToString + ",Results," + j.ToString + ",VelocityVapor")
+                    proplist.Add("HydraulicSegment," + ps.Key.ToString + ",Results," + j.ToString + ",ExternalTemperature")
+                    proplist.Add("HydraulicSegment," + ps.Key.ToString + ",Results," + j.ToString + ",MachNumber")
+                    proplist.Add("HydraulicSegment," + ps.Key.ToString + ",Results," + j.ToString + ",DynamicResidenceTime")
+                    proplist.Add("HydraulicSegment," + ps.Key.ToString + ",Results," + j.ToString + ",DynamicInternalMassFlowRate")
+                    proplist.Add("HydraulicSegment," + ps.Key.ToString + ",Results," + j.ToString + ",DynamicInternalVolumetricFlowRate")
+                    j += 1
+                Next
+            Next
+            proplist.Add("ThermalProfile,CalculationType")
+            proplist.Add("ThermalProfile,OverallHTC")
+            proplist.Add("ThermalProfile,ExternalTemperatureDefinedHTC")
+            proplist.Add("ThermalProfile,ExternalTemperatureGradientDefinedHTC")
+            proplist.Add("ThermalProfile,ExternalTemperatureEstimatedHTC")
+            proplist.Add("ThermalProfile,ExternalTemperatureGradientEstimatedHTC")
+            proplist.Add("ThermalProfile,HeatExchanged")
+            proplist.Add("ThermalProfile,IncludeWallHTC")
+            proplist.Add("ThermalProfile,IncludeInternalHTC")
+            proplist.Add("ThermalProfile,IncludeInsulationHTC")
+            proplist.Add("ThermalProfile,InsulationThickness")
+            proplist.Add("ThermalProfile,InsulationThermalConductivity")
+            proplist.Add("ThermalProfile,IncludeExternalHTC")
+            proplist.Add("ThermalProfile,ExternalEnvironmentType")
+            proplist.Add("ThermalProfile,ExternalEnvironmentVelocityOrDeepness")
+
+            If FlowSheet IsNot Nothing Then
+                If FlowSheet.DynamicMode Then
+                    If proptype <> PropertyType.WR Then
+                        Dim k = 1
+                        For Each astr In AccumulationStreams
+                            Dim aprops = astr.GetProperties2()
+                            For Each p In aprops
+                                proplist.Add("DynamicContents" + k.ToString() + "," + p)
+                            Next
+                            k += 1
+                        Next
+                    End If
+                End If
+            End If
+
+            Return proplist.ToArray(GetType(System.String))
+
+            proplist = Nothing
+
+        End Function
+
+        ''' <summary>Sets the value of the specified property.</summary>
+        Public Overrides Function SetPropertyValue(ByVal prop As String, ByVal propval As Object, Optional ByVal su As Interfaces.IUnitsOfMeasure = Nothing) As Boolean
+
+            If MyBase.SetPropertyValue(prop, propval, su) Then Return True
+
+            If su Is Nothing Then su = New SystemsOfUnits.SI
+
+            If prop.Contains("_") Then
+
+                Dim propidx As Integer = Convert.ToInt32(prop.Split("_")(2))
+
+                Select Case propidx
+                    Case 2
+                        ThermalProfile.Calor_trocado = SystemsOfUnits.Converter.ConvertToSI(su.heatflow, propval)
+                    Case 3
+                        OutletPressure = SystemsOfUnits.Converter.ConvertToSI(su.pressure, propval)
+                    Case 4
+                        OutletTemperature = SystemsOfUnits.Converter.ConvertToSI(su.temperature, propval)
+                    Case 5
+                        ThermalProfile.CGTC_Definido = SystemsOfUnits.Converter.ConvertToSI(su.heat_transf_coeff, propval)
+                    Case 6
+                        ThermalProfile.Temp_amb_definir = SystemsOfUnits.Converter.ConvertToSI(su.temperature, propval)
+                    Case 7
+                        ThermalProfile.AmbientTemperatureGradient = SystemsOfUnits.Converter.ConvertToSI(su.deltaT, propval) / SystemsOfUnits.Converter.ConvertToSI(su.distance, 1.0#)
+                        ThermalProfile.AmbientTemperatureGradient_EstimateHTC = SystemsOfUnits.Converter.ConvertToSI(su.deltaT, propval) / SystemsOfUnits.Converter.ConvertToSI(su.distance, 1.0#)
+                End Select
+            Else
+                Try
+                    If prop.Contains("HydraulicSegment") Then
+                        Dim skey As Integer = prop.Split(",")(1)
+                        Dim sprop As String = prop.Split(",")(2)
+                        Select Case sprop
+                            Case "Length"
+                                Profile.Sections(skey).Comprimento = cv.ConvertToSI(su.distance, propval)
+                            Case "Elevation"
+                                Profile.Sections(skey).Elevacao = cv.ConvertToSI(su.distance, propval)
+                            Case "InternalDiameter"
+                                Profile.Sections(skey).DI = cv.Convert(su.diameter, "in", propval) * 1000
+                            Case "ExternalDiameter"
+                                Profile.Sections(skey).DE = cv.Convert(su.diameter, "in", propval) * 1000
+                            Case "Sections"
+                                Profile.Sections(skey).Incrementos = propval
+                        End Select
+                    ElseIf prop.Contains("ThermalProfile") Then
+                        Dim tprop As String = prop.Split(",")(1)
+                        Select Case tprop
+                            Case "CalculationType"
+                                ThermalProfile.TipoPerfil = propval
+                            Case "OverallHTC"
+                                ThermalProfile.CGTC_Definido = cv.ConvertToSI(su.heat_transf_coeff, propval)
+                            Case "ExternalTemperatureDefinedHTC"
+                                ThermalProfile.Temp_amb_definir = cv.ConvertToSI(su.temperature, propval)
+                            Case "ExternalTemperatureEstimatedHTC"
+                                ThermalProfile.Temp_amb_estimar = cv.ConvertToSI(su.temperature, propval)
+                            Case "ExternalTemperatureGradientDefinedHTC"
+                                ThermalProfile.AmbientTemperatureGradient = cv.ConvertToSI(su.deltaT, propval) / cv.ConvertToSI(su.distance, 1.0#)
+                            Case "ExternalTemperatureGradientEstimatedHTC"
+                                ThermalProfile.AmbientTemperatureGradient_EstimateHTC = cv.ConvertToSI(su.deltaT, propval) / cv.ConvertToSI(su.distance, 1.0#)
+                            Case "HeatExchanged"
+                                ThermalProfile.Calor_trocado = cv.ConvertToSI(su.heatflow, propval)
+                            Case "IncludeWallHTC"
+                                ThermalProfile.Incluir_paredes = propval
+                            Case "IncludeInternalHTC"
+                                ThermalProfile.Incluir_cti = propval
+                            Case "IncludeInsulationHTC"
+                                ThermalProfile.Incluir_isolamento = propval
+                            Case "InsulationThickness"
+                                ThermalProfile.Espessura = cv.ConvertToSI(su.thickness, propval)
+                            Case "InsulationThermalConductivity"
+                                ThermalProfile.Condtermica = cv.ConvertToSI(su.thermalConductivity, propval)
+                            Case "IncludeExternalHTC"
+                                ThermalProfile.Incluir_cte = propval
+                            Case "ExternalEnvironmentType"
+                                ThermalProfile.Meio = propval
+                            Case "ExternalEnvironmentVelocityOrDeepness"
+                                ThermalProfile.Velocidade = cv.ConvertToSI(su.velocity, propval)
+                        End Select
+                    End If
+                Catch ex As Exception
+                    FlowSheet.ShowMessage("Error setting Property '" + prop + "': " + ex.Message, IFlowsheet.MessageType.GeneralError)
+                End Try
+            End If
+
+            Return 1
+
+        End Function
+
+        ''' <summary>Returns the unit string for the specified property.</summary>
+        Public Overrides Function GetPropertyUnit(ByVal prop As String, Optional ByVal su As Interfaces.IUnitsOfMeasure = Nothing) As String
+
+            Dim u0 As String = MyBase.GetPropertyUnit(prop, su)
+
+            If su Is Nothing Then su = New SystemsOfUnits.SI
+
+            If u0 <> "NF" Then
+                Return u0
+            ElseIf prop.Contains("_") Then
+                Dim value As String = ""
+                Dim propidx As Integer = Convert.ToInt32(prop.Split("_")(2))
+                Select Case propidx
+                    Case 0
+                        value = su.deltaP
+                    Case 1
+                        value = su.deltaT
+                    Case 2
+                        value = su.heatflow
+                    Case 3
+                        value = su.pressure
+                    Case 4
+                        value = su.temperature
+                    Case 5
+                        value = su.heat_transf_coeff
+                    Case 6
+                        value = su.temperature
+                    Case 7
+                        value = su.deltaT & "/" & su.distance
+                    Case 8
+                        value = su.distance
+                    Case 9
+                        value = su.distance
+                End Select
+                Return value
+            Else
+                If prop.Contains("Results") Then
+                    Dim sprop As String = prop.Split(",")(4)
+                    Select Case sprop
+                        Case "DynamicResidenceTime"
+                            Return su.time
+                        Case "DynamicInternalMassFlowRate"
+                            Return su.massflow
+                        Case "DynamicInternalVolumetricFlowRate"
+                            Return su.volumetricFlow
+                        Case "InitialPressure", "FinalPressure", "AveragePressure"
+                            Return su.pressure
+                        Case "HeatTransfer"
+                            Return su.heatflow
+                        Case "HeatCapacityLiquid"
+                            Return su.heatCapacityCp
+                        Case "HeatCapacityVapor"
+                            Return su.heatCapacityCp
+                        Case "PressureDropFriction"
+                            Return su.deltaP
+                        Case "PressureDropHydrostatic"
+                            Return su.deltaP
+                        Case "PressureDropTotal"
+                            Return su.deltaP
+                        Case "LiquidHoldup"
+                            Return ""
+                        Case "HTCoverall"
+                            Return su.heat_transf_coeff
+                        Case "HTCexternal"
+                            Return su.heat_transf_coeff
+                        Case "HTCinternal"
+                            Return su.heat_transf_coeff
+                        Case "HTCinsulation"
+                            Return su.heat_transf_coeff
+                        Case "HTCpipewall"
+                            Return su.heat_transf_coeff
+                        Case "ThermalConductivityLiquid"
+                            Return su.thermalConductivity
+                        Case "ThermalConductivityVapor"
+                            Return su.thermalConductivity
+                        Case "ReynoldsNumberLiquid"
+                            Return ""
+                        Case "ReynoldsNumberVapor"
+                            Return ""
+                        Case "ViscosityLiquid"
+                            Return su.viscosity
+                        Case "ViscosityVapor"
+                            Return su.viscosity
+                        Case "VolumetricFlowLiquid"
+                            Return su.volumetricFlow
+                        Case "VolumetricFlowVapor"
+                            Return su.volumetricFlow
+                        Case "DensityLiquid"
+                            Return su.density
+                        Case "DensityVapor"
+                            Return su.density
+                        Case "SurfaceTension"
+                            Return su.surfaceTension
+                        Case "InitialTemperature"
+                            Return su.temperature
+                        Case "FlowRegime"
+                            Return ""
+                        Case "VelocityLiquid"
+                            Return su.velocity
+                        Case "VelocityVapor"
+                            Return su.velocity
+                        Case "ExternalTemperature"
+                            Return su.temperature
+                        Case Else
+                            Return 0.0
+                    End Select
+                ElseIf prop.Contains("HydraulicSegment") Then
+                    Dim skey As Integer = prop.Split(",")(1)
+                    Dim sprop As String = prop.Split(",")(2)
+                    Select Case sprop
+                        Case "Length"
+                            Return su.distance
+                        Case "Elevation"
+                            Return su.distance
+                        Case "InternalDiameter"
+                            Return su.diameter
+                        Case "ExternalDiameter"
+                            Return su.diameter
+                        Case "Sections"
+                            Return ""
+                        Case Else
+                            Return 0.0
+                    End Select
+                ElseIf prop.Contains("ThermalProfile") Then
+                    Dim tprop As String = prop.Split(",")(1)
+                    Select Case tprop
+                        Case "CalculationType"
+                            Return ""
+                        Case "OverallHTC"
+                            Return su.heat_transf_coeff
+                        Case "ExternalTemperatureDefinedHTC"
+                            Return su.temperature
+                        Case "ExternalTemperatureEstimatedHTC"
+                            Return su.temperature
+                        Case "ExternalTemperatureGradientDefinedHTC"
+                            Return su.deltaT & "/" & su.distance
+                        Case "ExternalTemperatureGradientEstimatedHTC"
+                            Return su.deltaT & "/" & su.distance
+                        Case "HeatExchanged"
+                            Return su.heatflow
+                        Case "IncludeWallHTC"
+                            Return ""
+                        Case "IncludeInternalHTC"
+                            Return ""
+                        Case "IncludeInsulationHTC"
+                            Return ""
+                        Case "InsulationThickness"
+                            Return su.thickness
+                        Case "InsulationThermalConductivity"
+                            Return su.thermalConductivity
+                        Case "IncludeExternalHTC"
+                            Return ""
+                        Case "ExternalEnvironmentType"
+                            Return ""
+                        Case "ExternalEnvironmentVelocityOrDeepness"
+                            Return su.velocity
+                        Case Else
+                            Return ""
+                    End Select
+                ElseIf prop.Equals("PressureDropStatic") Then
+                    Return su.deltaP
+                ElseIf prop.Equals("PressureDropFriction") Then
+                    Return su.deltaP
+                ElseIf prop.Contains("DynamicContents") Then
+                    If FlowSheet IsNot Nothing Then
+                        If FlowSheet.DynamicMode Then
+                            Try
+                                Dim k = Integer.Parse(prop.Split(",")(0).Replace("DynamicContents", "")) - 1
+                                Dim astr = AccumulationStreams(k)
+                                Return astr.GetPropertyUnits2(prop.Split(",")(1), "")
+                            Catch ex As Exception
+                                Return Double.NaN
+                            End Try
+                        Else
+                            Return Double.NaN
+                        End If
+                    Else
+                        Return Double.NaN
+                    End If
+                Else
+                    Return ""
+                End If
+            End If
+        End Function
+
+        ''' <summary>Returns the icon bitmap as a byte array.</summary>
+        Public Overrides Function GetIconBitmapBytes() As Byte()
+
+            Return GetBytesFromResource("DWSIM.UnitOperations.pipe_segment.png")
+
+        End Function
+
+        ''' <summary>Returns the localised display description.</summary>
+        Public Overrides Function GetDisplayDescription() As String
+            Return ResMan.GetLocalString("PIPE_Desc")
+        End Function
+
+        ''' <summary>Returns the localised display name.</summary>
+        Public Overrides Function GetDisplayName() As String
+            Return ResMan.GetLocalString("PIPE_Name")
+        End Function
+
+        ''' <summary>Gets a value indicating whether this unit operation is compatible with mobile interfaces.</summary>
+        Public Overrides ReadOnly Property MobileCompatible As Boolean
+            Get
+                Return True
+            End Get
+        End Property
+
+        ''' <summary>Generates a plain-text report of the pipe segment results.</summary>
+        Public Overrides Function GetReport(su As IUnitsOfMeasure, ci As Globalization.CultureInfo, numberformat As String) As String
+
+            Dim str As New Text.StringBuilder
+
+            Dim istr As MaterialStream = Nothing
+            Dim ostr As MaterialStream = Nothing
+            Try
+                istr = GetInletMaterialStream(0)
+                ostr = GetOutletMaterialStream(0)
+            Catch ex As Exception
+            End Try
+
+            If istr IsNot Nothing And ostr IsNot Nothing Then
+                istr.PropertyPackage.CurrentMaterialStream = istr
+                str.AppendLine("Pipe Segment: " & GraphicObject?.Tag)
+                str.AppendLine("Property Package: " & PropertyPackage.ComponentName)
+                str.AppendLine()
+                str.AppendLine("Inlet conditions")
+                str.AppendLine()
+                str.AppendLine("    Temperature: " & SystemsOfUnits.Converter.ConvertFromSI(su.temperature, istr.Mixture.Properties.temperature.GetValueOrDefault).ToString(numberformat, ci) & " " & su.temperature)
+                str.AppendLine("    Pressure: " & SystemsOfUnits.Converter.ConvertFromSI(su.pressure, istr.Mixture.Properties.pressure.GetValueOrDefault).ToString(numberformat, ci) & " " & su.pressure)
+                str.AppendLine("    Mass flow: " & SystemsOfUnits.Converter.ConvertFromSI(su.massflow, istr.Mixture.Properties.massflow.GetValueOrDefault).ToString(numberformat, ci) & " " & su.massflow)
+                str.AppendLine("    Volumetric flow: " & SystemsOfUnits.Converter.ConvertFromSI(su.volumetricFlow, istr.Mixture.Properties.volumetric_flow.GetValueOrDefault).ToString(numberformat, ci) & " " & su.volumetricFlow)
+                str.AppendLine("    Vapor fraction: " & istr.Phases(2).Properties.molarfraction.GetValueOrDefault.ToString(numberformat, ci))
+                str.AppendLine("    Compounds: " & istr.PropertyPackage.RET_VNAMES.ToArrayString)
+                str.AppendLine("    Molar composition: " & istr.PropertyPackage.RET_VMOL(PropertyPackages.Phase.Mixture).ToArrayString(ci))
+                str.AppendLine()
+                str.AppendLine("Outlet conditions")
+                str.AppendLine()
+                ostr.PropertyPackage.CurrentMaterialStream = ostr
+                str.AppendLine("    Temperature: " & SystemsOfUnits.Converter.ConvertFromSI(su.temperature, ostr.Mixture.Properties.temperature.GetValueOrDefault).ToString(numberformat, ci) & " " & su.temperature)
+                str.AppendLine("    Pressure: " & SystemsOfUnits.Converter.ConvertFromSI(su.pressure, ostr.Mixture.Properties.pressure.GetValueOrDefault).ToString(numberformat, ci) & " " & su.pressure)
+                str.AppendLine("    Mass flow: " & SystemsOfUnits.Converter.ConvertFromSI(su.massflow, ostr.Mixture.Properties.massflow.GetValueOrDefault).ToString(numberformat, ci) & " " & su.massflow)
+                str.AppendLine("    Volumetric flow: " & SystemsOfUnits.Converter.ConvertFromSI(su.volumetricFlow, ostr.Mixture.Properties.volumetric_flow.GetValueOrDefault).ToString(numberformat, ci) & " " & su.volumetricFlow)
+                str.AppendLine("    Vapor fraction: " & ostr.Phases(2).Properties.molarfraction.GetValueOrDefault.ToString(numberformat, ci))
+            End If
+            str.AppendLine("Results")
+            str.AppendLine()
+            str.AppendLine("    Pressure Change: " & SystemsOfUnits.Converter.ConvertFromSI(su.deltaP, DeltaP.GetValueOrDefault).ToString(numberformat, ci) & " " & su.deltaP)
+            str.AppendLine("    Temperature Change: " & SystemsOfUnits.Converter.ConvertFromSI(su.deltaT, DeltaT.GetValueOrDefault).ToString(numberformat, ci) & " " & su.deltaT)
+            str.AppendLine("    Heat balance: " & SystemsOfUnits.Converter.ConvertFromSI(su.heatflow, DeltaQ.GetValueOrDefault).ToString(numberformat, ci) & " " & su.heatflow)
+            str.AppendLine()
+
+            Dim comp_ant As Double = 0
+
+            str.AppendLine()
+            str.AppendLine("Elevation Profile")
+            str.AppendLine()
+            str.AppendLine("Length (" & su.distance & ")" & vbTab & "Elevation (" & su.distance & ")")
+            comp_ant = 0
+            For Each ps In Profile.Sections.Values
+                For Each res In ps.Results
+                    str.AppendLine(SystemsOfUnits.Converter.ConvertFromSI(su.distance, comp_ant).ToString(numberformat, ci) &
+                                   vbTab & SystemsOfUnits.Converter.ConvertFromSI(su.distance, (Math.Atan(ps.Elevacao / (ps.Comprimento ^ 2 - ps.Elevacao ^ 2) ^ 0.5) * 180 / Math.PI)).ToString(numberformat, ci))
+                    comp_ant += ps.Comprimento / ps.Incrementos
+                Next
+            Next
+
+            str.AppendLine()
+            str.AppendLine("Pressure Profile")
+            str.AppendLine()
+            str.AppendLine("Length (" & su.distance & ")" & vbTab & "Pressure (" & su.pressure & ")")
+            comp_ant = 0
+            For Each ps In Profile.Sections.Values
+                For Each res In ps.Results
+                    str.AppendLine(SystemsOfUnits.Converter.ConvertFromSI(su.distance, comp_ant).ToString(numberformat, ci) &
+                                   vbTab & SystemsOfUnits.Converter.ConvertFromSI(su.pressure, res.Pressure_Initial.GetValueOrDefault).ToString(numberformat, ci))
+                    comp_ant += ps.Comprimento / ps.Incrementos
+                Next
+            Next
+
+            str.AppendLine()
+            str.AppendLine("Friction Pressure Drop Profile")
+            str.AppendLine()
+            str.AppendLine("Length (" & su.distance & ")" & vbTab & "Pressure Drop (" & su.deltaP & ")")
+            comp_ant = 0
+            For Each ps In Profile.Sections.Values
+                For Each res In ps.Results
+                    str.AppendLine(SystemsOfUnits.Converter.ConvertFromSI(su.distance, comp_ant).ToString(numberformat, ci) &
+                                   vbTab & SystemsOfUnits.Converter.ConvertFromSI(su.deltaP, res.DpFriction).ToString(numberformat, ci))
+                    comp_ant += ps.Comprimento / ps.Incrementos
+                Next
+            Next
+
+            str.AppendLine()
+            str.AppendLine("Hydrostatic Pressure Drop Profile")
+            str.AppendLine()
+            str.AppendLine("Length (" & su.distance & ")" & vbTab & "Pressure Drop (" & su.deltaP & ")")
+            comp_ant = 0
+            For Each ps In Profile.Sections.Values
+                For Each res In ps.Results
+                    str.AppendLine(SystemsOfUnits.Converter.ConvertFromSI(su.distance, comp_ant).ToString(numberformat, ci) &
+                                   vbTab & SystemsOfUnits.Converter.ConvertFromSI(su.deltaP, res.DpStatic).ToString(numberformat, ci))
+                    comp_ant += ps.Comprimento / ps.Incrementos
+                Next
+            Next
+
+            str.AppendLine()
+            str.AppendLine("Temperature Profile")
+            str.AppendLine()
+            str.AppendLine("Length (" & su.distance & ")" & vbTab & "Temperature (" & su.temperature & ")")
+            comp_ant = 0
+            For Each ps In Profile.Sections.Values
+                For Each res In ps.Results
+                    str.AppendLine(SystemsOfUnits.Converter.ConvertFromSI(su.distance, comp_ant).ToString(numberformat, ci) &
+                                   vbTab & SystemsOfUnits.Converter.ConvertFromSI(su.temperature, res.Temperature_Initial.GetValueOrDefault).ToString(numberformat, ci))
+                    comp_ant += ps.Comprimento / ps.Incrementos
+                Next
+            Next
+
+            str.AppendLine()
+            str.AppendLine("External Temperature Profile")
+            str.AppendLine()
+            str.AppendLine("Length (" & su.distance & ")" & vbTab & "Temperature (" & su.temperature & ")")
+            comp_ant = 0
+            For Each ps In Profile.Sections.Values
+                For Each res In ps.Results
+                    str.AppendLine(SystemsOfUnits.Converter.ConvertFromSI(su.distance, comp_ant).ToString(numberformat, ci) &
+                                   vbTab & SystemsOfUnits.Converter.ConvertFromSI(su.temperature, res.External_Temperature).ToString(numberformat, ci))
+                    comp_ant += ps.Comprimento / ps.Incrementos
+                Next
+            Next
+
+            str.AppendLine()
+            str.AppendLine("Liquid Velocity Profile")
+            str.AppendLine()
+            str.AppendLine("Length (" & su.distance & ")" & vbTab & "Liquid Velocity (" & su.velocity & ")")
+            comp_ant = 0
+            For Each ps In Profile.Sections.Values
+                For Each res In ps.Results
+                    str.AppendLine(SystemsOfUnits.Converter.ConvertFromSI(su.distance, comp_ant).ToString(numberformat, ci) &
+                                   vbTab & SystemsOfUnits.Converter.ConvertFromSI(su.velocity, res.LiqVel.GetValueOrDefault).ToString(numberformat, ci))
+                    comp_ant += ps.Comprimento / ps.Incrementos
+                Next
+            Next
+
+            str.AppendLine()
+            str.AppendLine("Vapor Velocity Profile")
+            str.AppendLine()
+            str.AppendLine("Length (" & su.distance & ")" & vbTab & "Vapor Velocity (" & su.velocity & ")")
+            comp_ant = 0
+            For Each ps In Profile.Sections.Values
+                For Each res In ps.Results
+                    str.AppendLine(SystemsOfUnits.Converter.ConvertFromSI(su.distance, comp_ant).ToString(numberformat, ci) &
+                                   vbTab & SystemsOfUnits.Converter.ConvertFromSI(su.velocity, res.VapVel.GetValueOrDefault).ToString(numberformat, ci))
+                    comp_ant += ps.Comprimento / ps.Incrementos
+                Next
+            Next
+
+            str.AppendLine()
+            str.AppendLine("Mach Number Profile")
+            str.AppendLine()
+            str.AppendLine("Length (" & su.distance & ")" & vbTab & "Mach Number")
+            comp_ant = 0
+            For Each ps In Profile.Sections.Values
+                For Each res In ps.Results
+                    str.AppendLine(SystemsOfUnits.Converter.ConvertFromSI(su.distance, comp_ant).ToString(numberformat, ci) &
+                                   vbTab & res.MachNumber.ToString(numberformat, ci))
+                    comp_ant += ps.Comprimento / ps.Incrementos
+                Next
+            Next
+
+            str.AppendLine()
+            str.AppendLine("Liquid Reynolds Number Profile")
+            str.AppendLine()
+            str.AppendLine("Length (" & su.distance & ")" & vbTab & "Liquid Re")
+            comp_ant = 0
+            For Each ps In Profile.Sections.Values
+                For Each res In ps.Results
+                    str.AppendLine(SystemsOfUnits.Converter.ConvertFromSI(su.distance, comp_ant).ToString(numberformat, ci) &
+                                   vbTab & res.LiqRe.GetValueOrDefault.ToString(numberformat, ci))
+                    comp_ant += ps.Comprimento / ps.Incrementos
+                Next
+            Next
+
+            str.AppendLine()
+            str.AppendLine("Vapor Reynolds Number Profile")
+            str.AppendLine()
+            str.AppendLine("Length (" & su.distance & ")" & vbTab & "Vapor Re")
+            comp_ant = 0
+            For Each ps In Profile.Sections.Values
+                For Each res In ps.Results
+                    str.AppendLine(SystemsOfUnits.Converter.ConvertFromSI(su.distance, comp_ant).ToString(numberformat, ci) &
+                                   vbTab & res.VapRe.GetValueOrDefault.ToString(numberformat, ci))
+                    comp_ant += ps.Comprimento / ps.Incrementos
+                Next
+            Next
+
+            str.AppendLine()
+            str.AppendLine("Liquid Holdup Profile")
+            str.AppendLine()
+            str.AppendLine("Length (" & su.distance & ")" & vbTab & "Liquid Holdup")
+            comp_ant = 0
+            For Each ps In Profile.Sections.Values
+                For Each res In ps.Results
+                    str.AppendLine(SystemsOfUnits.Converter.ConvertFromSI(su.distance, comp_ant).ToString(numberformat, ci) &
+                                   vbTab & res.LiquidHoldup.GetValueOrDefault.ToString(numberformat, ci))
+                    comp_ant += ps.Comprimento / ps.Incrementos
+                Next
+            Next
+
+            str.AppendLine()
+            str.AppendLine("Flow Pattern Profile")
+            str.AppendLine()
+            str.AppendLine("Length (" & su.distance & ")" & vbTab & "Flow Pattern")
+            comp_ant = 0
+            For Each ps In Profile.Sections.Values
+                For Each res In ps.Results
+                    str.AppendLine(SystemsOfUnits.Converter.ConvertFromSI(su.distance, comp_ant).ToString(numberformat, ci) &
+                                   vbTab & res.FlowRegime)
+                    comp_ant += ps.Comprimento / ps.Incrementos
+                Next
+            Next
+
+            str.AppendLine()
+            str.AppendLine("Heat Exchange Profile")
+            str.AppendLine()
+            str.AppendLine("Length (" & su.distance & ")" & vbTab & "Heat Exchanged (" & su.heatflow & ")")
+            comp_ant = 0
+            For Each ps In Profile.Sections.Values
+                For Each res In ps.Results
+                    str.AppendLine(SystemsOfUnits.Converter.ConvertFromSI(su.distance, comp_ant).ToString(numberformat, ci) &
+                                   vbTab & SystemsOfUnits.Converter.ConvertFromSI(su.heatflow, res.HeatTransferred.GetValueOrDefault).ToString(numberformat, ci))
+                    comp_ant += ps.Comprimento / ps.Incrementos
+                Next
+            Next
+
+            str.AppendLine()
+            str.AppendLine("Overall HTC Profile")
+            str.AppendLine()
+            str.AppendLine("Length (" & su.distance & ")" & vbTab & "Overall HTC (" & su.heat_transf_coeff & ")")
+            comp_ant = 0
+            For Each ps In Profile.Sections.Values
+                For Each res In ps.Results
+                    str.AppendLine(SystemsOfUnits.Converter.ConvertFromSI(su.distance, comp_ant).ToString(numberformat, ci) &
+                                   vbTab & SystemsOfUnits.Converter.ConvertFromSI(su.heat_transf_coeff, res.HTC.GetValueOrDefault).ToString(numberformat, ci))
+                    comp_ant += ps.Comprimento / ps.Incrementos
+                Next
+            Next
+
+            str.AppendLine()
+            str.AppendLine("Internal HTC Profile")
+            str.AppendLine()
+            str.AppendLine("Length (" & su.distance & ")" & vbTab & "Internal HTC (" & su.heat_transf_coeff & ")")
+            comp_ant = 0
+            For Each ps In Profile.Sections.Values
+                For Each res In ps.Results
+                    str.AppendLine(SystemsOfUnits.Converter.ConvertFromSI(su.distance, comp_ant).ToString(numberformat, ci) &
+                                   vbTab & SystemsOfUnits.Converter.ConvertFromSI(su.heat_transf_coeff, res.HTC_internal).ToString(numberformat, ci))
+                    comp_ant += ps.Comprimento / ps.Incrementos
+                Next
+            Next
+
+            str.AppendLine()
+            str.AppendLine("Pipe Wall HTC Profile")
+            str.AppendLine()
+            str.AppendLine("Length (" & su.distance & ")" & vbTab & "Pipe Wall HTC (" & su.heat_transf_coeff & ")")
+            comp_ant = 0
+            For Each ps In Profile.Sections.Values
+                For Each res In ps.Results
+                    str.AppendLine(SystemsOfUnits.Converter.ConvertFromSI(su.distance, comp_ant).ToString(numberformat, ci) &
+                                   vbTab & SystemsOfUnits.Converter.ConvertFromSI(su.heat_transf_coeff, res.HTC_pipewall).ToString(numberformat, ci))
+                    comp_ant += ps.Comprimento / ps.Incrementos
+                Next
+            Next
+
+            str.AppendLine()
+            str.AppendLine("Insulation HTC Profile")
+            str.AppendLine()
+            str.AppendLine("Length (" & su.distance & ")" & vbTab & "Insulation HTC (" & su.heat_transf_coeff & ")")
+            comp_ant = 0
+            For Each ps In Profile.Sections.Values
+                For Each res In ps.Results
+                    str.AppendLine(SystemsOfUnits.Converter.ConvertFromSI(su.distance, comp_ant).ToString(numberformat, ci) &
+                                   vbTab & SystemsOfUnits.Converter.ConvertFromSI(su.heat_transf_coeff, res.HTC_insulation).ToString(numberformat, ci))
+                    comp_ant += ps.Comprimento / ps.Incrementos
+                Next
+            Next
+
+            str.AppendLine()
+            str.AppendLine("External HTC Profile")
+            str.AppendLine()
+            str.AppendLine("Length (" & su.distance & ")" & vbTab & "External HTC (" & su.heat_transf_coeff & ")")
+            comp_ant = 0
+            For Each ps In Profile.Sections.Values
+                For Each res In ps.Results
+                    str.AppendLine(SystemsOfUnits.Converter.ConvertFromSI(su.distance, comp_ant).ToString(numberformat, ci) &
+                                   vbTab & SystemsOfUnits.Converter.ConvertFromSI(su.heat_transf_coeff, res.HTC_external).ToString(numberformat, ci))
+                    comp_ant += ps.Comprimento / ps.Incrementos
+                Next
+            Next
+
+            str.AppendLine()
+            str.AppendLine("Energy Flow Profile")
+            str.AppendLine()
+            str.AppendLine("Length (" & su.distance & ")" & vbTab & "Energy Flow (" & su.heatflow & ")")
+            comp_ant = 0
+            For Each ps In Profile.Sections.Values
+                For Each res In ps.Results
+                    str.AppendLine(SystemsOfUnits.Converter.ConvertFromSI(su.distance, comp_ant).ToString(numberformat, ci) &
+                                   vbTab & SystemsOfUnits.Converter.ConvertFromSI(su.heatflow, res.EnergyFlow_Initial).ToString(numberformat, ci))
+                    comp_ant += ps.Comprimento / ps.Incrementos
+                Next
+            Next
+
+            Return str.ToString
+
+        End Function
+
+        ''' <summary>Returns a human-readable description of the specified property.</summary>
+        Public Overrides Function GetPropertyDescription(p As String) As String
+            If p.Equals("Calculation Mode") Then
+                Return "Select the calculation mode of this pipe segment model. 'Specify Length' is the default one and will calculate outlet pressure and temperature for a defined hydraulic profile. 'Specify Outlet Pressure/Temperature' will calculate the length for a single straight tube segment that results in the specified variable  (outlet P or T) value."
+            ElseIf p.Equals("Outlet Pressure") Then
+                Return "If the calculation mode is 'Outlet Pressure', enter the desired value."
+            ElseIf p.Equals("Outlet Temperature") Then
+                Return "If the calculation mode is 'Outlet Temperature', enter the desired value."
+            ElseIf p.Equals("Pressure Convergence Tolerance") Then
+                Return "Define the tolerance for the pressure loop convergence of a segment."
+            ElseIf p.Equals("Temperature Convergence Tolerance") Then
+                Return "Define the tolerance for the temperature loop convergence of a segment."
+            ElseIf p.Equals("Include Joule-Thomson Effect") Then
+                Return "Includes the Joule-Thomson effect in the calculation of the fluid temperature as it flows through the pipe."
+            Else
+                Return p
+            End If
+        End Function
+
+        ''' <summary>Returns the names of available chart models for this unit operation.</summary>
+        Public Overrides Function GetChartModelNames() As List(Of String)
+            Return New List(Of String)({"Temperature Profile", "Pressure Profile", "Heat Flow Profile", "Liquid Velocity Profile", "Vapor Velocity Profile", "Liquid Holdup Profile", "Inclination Profile", "Overall HTC Profile", "Internal HTC Profile", "Wall k/L Profile", "Insulation k/L Profile", "External HTC Profile", "External Temperature Profile"})
+        End Function
+
+        ''' <summary>Returns the chart model object for the specified chart name.</summary>
+        Public Overrides Function GetChartModel(name As String) As Object
+
+            Dim su = FlowSheet.FlowsheetOptions.SelectedUnitSystem
+
+            Dim model = New PlotModel() With {.Subtitle = name, .Title = GraphicObject.Tag}
+
+            model.TitleFontSize = 11
+            model.SubtitleFontSize = 10
+
+            model.Axes.Add(New LinearAxis() With {
+                .MajorGridlineStyle = LineStyle.Dash,
+                .MinorGridlineStyle = LineStyle.Dot,
+                .Position = AxisPosition.Bottom,
+                .FontSize = 10,
+                .Title = "Length (" + su.distance + ")"
+            })
+
+            model.Axes.Add(New LinearAxis() With {
+                .MajorGridlineStyle = LineStyle.Dash,
+                .MinorGridlineStyle = LineStyle.Dot,
+                .Position = AxisPosition.Left,
+                .FontSize = 10
+            })
+
+            model.LegendFontSize = 11
+            model.LegendPlacement = LegendPlacement.Outside
+            model.LegendOrientation = LegendOrientation.Horizontal
+            model.LegendPosition = LegendPosition.BottomCenter
+            model.TitleHorizontalAlignment = TitleHorizontalAlignment.CenteredWithinView
+
+            Dim px = PopulateData(0)
+
+            Select Case name
+                Case "Temperature Profile"
+                    model.AddLineSeries(px, PopulateData(3))
+                    model.Axes(1).Title = "Temperature (" + su.temperature + ")"
+                Case "Pressure Profile"
+                    model.AddLineSeries(px, PopulateData(2))
+                    model.Axes(1).Title = "Pressure (" + su.pressure + ")"
+                Case "Heat Flow Profile"
+                    model.AddLineSeries(px, PopulateData(6))
+                    model.Axes(1).Title = "Heat Flow (" + su.heatflow + ")"
+                Case "Liquid Velocity Profile"
+                    model.AddLineSeries(px, PopulateData(4))
+                    model.Axes(1).Title = "Velocity (" + su.velocity + ")"
+                Case "Vapor Velocity Profile"
+                    model.AddLineSeries(px, PopulateData(5))
+                    model.Axes(1).Title = "Velocity (" + su.velocity + ")"
+                Case "Inclination Profile"
+                    model.AddLineSeries(px, PopulateData(1))
+                    model.Axes(1).Title = "Elevation (" + su.distance + ")"
+                Case "Liquid Holdup Profile"
+                    model.AddLineSeries(px, PopulateData(7))
+                    model.Axes(1).Title = "Holdup"
+                Case "Overall HTC Profile"
+                    model.AddLineSeries(px, PopulateData(8))
+                    model.Axes(1).Title = "Heat Transfer Coefficient (" + su.heat_transf_coeff + ")"
+                Case "Internal HTC Profile"
+                    model.AddLineSeries(px, PopulateData(9))
+                    model.Axes(1).Title = "Heat Transfer Coefficient (" + su.heat_transf_coeff + ")"
+                Case "Wall k/L Profile"
+                    model.AddLineSeries(px, PopulateData(10))
+                    model.Axes(1).Title = "Heat Transfer Coefficient (" + su.heat_transf_coeff + ")"
+                Case "Insulation k/L Profile"
+                    model.AddLineSeries(px, PopulateData(11))
+                    model.Axes(1).Title = "Heat Transfer Coefficient (" + su.heat_transf_coeff + ")"
+                Case "External HTC Profile"
+                    model.AddLineSeries(px, PopulateData(12))
+                    model.Axes(1).Title = "Heat Transfer Coefficient (" + su.heat_transf_coeff + ")"
+                Case "External Temperature Profile"
+                    model.AddLineSeries(px, PopulateData(13))
+                    model.Axes(1).Title = "External Temperature (" + su.temperature + ")"
+            End Select
+
+            Return model
+
+        End Function
+
+        Private Function PopulateData(position As Integer) As List(Of Double)
+            Dim su = FlowSheet.FlowsheetOptions.SelectedUnitSystem
+            Dim vec As New List(Of Double)()
+            Select Case position
+                Case 0
+                    'distance
+                    Dim comp_ant As Double = 0.0F
+                    For Each sec In Profile.Sections.Values
+                        For Each res In sec.Results
+                            vec.Add(SystemsOfUnits.Converter.ConvertFromSI(su.distance, comp_ant))
+                            comp_ant += sec.Comprimento / sec.Incrementos
+                        Next
+                    Next
+                    Exit Select
+                Case 1
+                    'elevation
+                    For Each sec In Profile.Sections.Values
+                        For Each res In sec.Results
+                            vec.Add(Math.Atan(sec.Elevacao / Math.Pow(Math.Pow(sec.Comprimento, 2) - Math.Pow(sec.Elevacao, 2), 0.5) * 180 / Math.PI))
+                        Next
+                    Next
+                    Exit Select
+                Case 2
+                    'pressure
+                    For Each sec In Profile.Sections.Values
+                        For Each res In sec.Results
+                            vec.Add(SystemsOfUnits.Converter.ConvertFromSI(su.pressure, res.Pressure_Initial.GetValueOrDefault()))
+                        Next
+                    Next
+                    Exit Select
+                Case 3
+                    'temperaturee
+                    For Each sec In Profile.Sections.Values
+                        For Each res In sec.Results
+                            vec.Add(SystemsOfUnits.Converter.ConvertFromSI(su.temperature, res.Temperature_Initial.GetValueOrDefault()))
+                        Next
+                    Next
+                    Exit Select
+                Case 4
+                    'vel liqe
+                    For Each sec In Profile.Sections.Values
+                        For Each res In sec.Results
+                            vec.Add(SystemsOfUnits.Converter.ConvertFromSI(su.velocity, res.LiqVel.GetValueOrDefault()))
+                        Next
+                    Next
+                    Exit Select
+                Case 5
+                    'vel vape
+                    For Each sec In Profile.Sections.Values
+                        For Each res In sec.Results
+                            vec.Add(SystemsOfUnits.Converter.ConvertFromSI(su.velocity, res.VapVel.GetValueOrDefault()))
+                        Next
+                    Next
+                    Exit Select
+                Case 6
+                    'heatflowe
+                    For Each sec In Profile.Sections.Values
+                        For Each res In sec.Results
+                            vec.Add(SystemsOfUnits.Converter.ConvertFromSI(su.heatflow, res.HeatTransferred.GetValueOrDefault()))
+                        Next
+                    Next
+                    Exit Select
+                Case 7
+                    'liqholde
+                    For Each sec In Profile.Sections.Values
+                        For Each res In sec.Results
+                            vec.Add(res.LiquidHoldup.GetValueOrDefault())
+                        Next
+                    Next
+                    Exit Select
+                Case 8
+                    'OHTCe
+                    For Each sec In Profile.Sections.Values
+                        For Each res In sec.Results
+                            vec.Add(SystemsOfUnits.Converter.ConvertFromSI(su.heat_transf_coeff, res.HTC.GetValueOrDefault()))
+                        Next
+                    Next
+                    Exit Select
+                Case 9
+                    'IHTCC
+                    For Each sec In Profile.Sections.Values
+                        For Each res In sec.Results
+                            vec.Add(SystemsOfUnits.Converter.ConvertFromSI(su.heat_transf_coeff, res.HTC_internal))
+                        Next
+                    Next
+                    Exit Select
+                Case 10
+                    'IHTC
+                    For Each sec In Profile.Sections.Values
+                        For Each res In sec.Results
+                            vec.Add(SystemsOfUnits.Converter.ConvertFromSI(su.heat_transf_coeff, res.HTC_pipewall))
+                        Next
+                    Next
+                    Exit Select
+                Case 11
+                    'IHTC
+                    For Each sec In Profile.Sections.Values
+                        For Each res In sec.Results
+                            vec.Add(SystemsOfUnits.Converter.ConvertFromSI(su.heat_transf_coeff, res.HTC_insulation))
+                        Next
+                    Next
+                    Exit Select
+                Case 12
+                    'EHTC
+                    For Each sec In Profile.Sections.Values
+                        For Each res In sec.Results
+                            vec.Add(SystemsOfUnits.Converter.ConvertFromSI(su.heat_transf_coeff, res.HTC_external))
+                        Next
+                    Next
+                    Exit Select
+                Case 13
+                    'TEXT
+                    For Each sec In Profile.Sections.Values
+                        For Each res In sec.Results
+                            vec.Add(SystemsOfUnits.Converter.ConvertFromSI(su.temperature, res.External_Temperature))
+                        Next
+                    Next
+                    Exit Select
+            End Select
+            Return vec
+        End Function
+
+    End Class
+
+End Namespace

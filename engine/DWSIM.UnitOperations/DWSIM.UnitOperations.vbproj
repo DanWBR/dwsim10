@@ -1,22 +1,33 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!--
-    EditingForms/ stays behind: 14.5k lines of WinForms editors, and with them 62 of the 63 resx
-    files that carry an image. Interfaces/Excel.vb goes with the Excel add-in it is attributed
-    for; Interfaces/CAPE-OPEN.vb is the COM server that publishes the property packages to other
-    simulators. Interfaces/Thermodynamics.vb, the COM-visible calculator, does come over:
-    its attributes are metadata everywhere and the wind turbine builds its air stream with it.
+    EditingForms/ stays behind, which is 46% of the project. Extenders/ScintillaExtender.vb and
+    SupportClasses/ComboBoxColumnTemplates.vb go with it: one is the WinForms script editor, the
+    other a DataGridView column template.
   -->
 
-  <PropertyGroup>
-    <RootNamespace>DWSIM.Thermodynamics</RootNamespace>
-    <AssemblyName>DWSIM.Thermodynamics</AssemblyName>
-    <EnableDefaultEmbeddedResourceItems>false</EnableDefaultEmbeddedResourceItems>
+  <!--
+    The two alternative PEM fuel cell correlations are unfinished: neither implements the two
+    members its base class demands, and the .NET Framework project carries them as None items.
+  -->
+
+  <ItemGroup>
     <!--
-      SYSLIB0011: the CAPE-OPEN persistence path still names BinaryFormatter. It is reached only
-      when another simulator hosts a DWSIM property package over COM, which is Windows only, and
-      the runtime refuses the call there anyway.
+      The Excel unit operation drives Excel over COM, or a commercial spreadsheet library; there
+      is no cross-platform version of either.
     -->
+    <Compile Remove="UnitOperations\Spreadsheet.vb" />
+    <None Include="UnitOperations\Spreadsheet.vb" />
+    <Compile Remove="UnitOperations\CleanEnergies\PEMFC_ChamberlineKim.vb" />
+    <Compile Remove="UnitOperations\CleanEnergies\PEMFC_LarminieDicks.vb" />
+    <None Include="UnitOperations\CleanEnergies\PEMFC_ChamberlineKim.vb" />
+    <None Include="UnitOperations\CleanEnergies\PEMFC_LarminieDicks.vb" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <RootNamespace>DWSIM.UnitOperations</RootNamespace>
+    <AssemblyName>DWSIM.UnitOperations</AssemblyName>
+    <EnableDefaultEmbeddedResourceItems>false</EnableDefaultEmbeddedResourceItems>
     <NoWarn>$(NoWarn);SYSLIB0011</NoWarn>
   </PropertyGroup>
 
@@ -25,32 +36,12 @@
     <Import Include="DWSIM.GlobalSettings" />
     <Import Include="DWSIM.Inspector" />
     <Import Include="DWSIM.Interfaces" />
-    <Import Include="DWSIM.MathOps" />
     <Import Include="System.Data" />
-    <Import Include="System.Runtime.InteropServices" />
   </ItemGroup>
 
-  <!--
-    The .NET Framework project flattens the folder out of the resource name and the engine looks
-    the assets up by the flat name. LogicalName keeps that.
-  -->
-
   <ItemGroup>
-    <EmbeddedResource Include="Assets\**\*;Icons\**\*"
-                      Exclude="Assets\elements.txt;Assets\jobackgroups.txt">
+    <EmbeddedResource Include="Assets\**\*;Icons\**\*;Resources\**\*">
       <LogicalName>$(RootNamespace).%(Filename)%(Extension)</LogicalName>
-    </EmbeddedResource>
-
-    <!--
-      These two are looked up with a capital, which is how the .NET Framework project listed
-      them; the files on disk are lower case and resource names are case sensitive.
-    -->
-
-    <EmbeddedResource Include="Assets\elements.txt">
-      <LogicalName>$(RootNamespace).Elements.txt</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Assets\jobackgroups.txt">
-      <LogicalName>$(RootNamespace).JobackGroups.txt</LogicalName>
     </EmbeddedResource>
     <EmbeddedResource Include="Languages\Strings.resx">
       <LogicalName>$(RootNamespace).Strings.resources</LogicalName>
@@ -60,6 +51,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Languages\Strings.de.resx">
       <LogicalName>$(RootNamespace).Strings.de.resources</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Languages\Strings.es.resx">
+      <LogicalName>$(RootNamespace).Strings.es.resources</LogicalName>
     </EmbeddedResource>
   </ItemGroup>
 
@@ -71,22 +65,30 @@
       <HintPath>..\..\lib\Interop.CAPEOPEN110.dll</HintPath>
       <EmbedInteropTypes>False</EmbedInteropTypes>
     </Reference>
+    <Reference Include="Microsoft.Research.Oslo">
+      <HintPath>..\..\lib\Microsoft.Research.Oslo.dll</HintPath>
+    </Reference>
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="EPPlus" />
-    <PackageReference Include="FileHelpers" />
     <PackageReference Include="Flee" />
     <PackageReference Include="IronPython" />
     <PackageReference Include="Mages" />
     <PackageReference Include="MathNet.Numerics" />
     <PackageReference Include="Newtonsoft.Json" />
     <PackageReference Include="OxyPlot.Core" />
+    <PackageReference Include="pythonnet" />
+    <PackageReference Include="SharpZipLib" />
+    <PackageReference Include="SkiaSharp" />
+    <PackageReference Include="XMLUnit.Core" />
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\DWSIM.Drawing.SkiaSharp\DWSIM.Drawing.SkiaSharp.vbproj" />
     <ProjectReference Include="..\DWSIM.DrawingTools.Point\DWSIM.DrawingTools.Point.vbproj" />
+    <ProjectReference Include="..\DWSIM.DrawingTools.SkiaSharp.Extended\DWSIM.DrawingTools.SkiaSharp.Extended.csproj" />
     <ProjectReference Include="..\DWSIM.ExtensionMethods\DWSIM.ExtensionMethods.vbproj" />
+    <ProjectReference Include="..\DWSIM.FlowsheetSolver\DWSIM.FlowsheetSolver.vbproj" />
     <ProjectReference Include="..\DWSIM.GlobalSettings\DWSIM.GlobalSettings.vbproj" />
     <ProjectReference Include="..\DWSIM.Inspector\DWSIM.Inspector.vbproj" />
     <ProjectReference Include="..\DWSIM.Interfaces\DWSIM.Interfaces.vbproj" />
@@ -94,13 +96,14 @@
     <ProjectReference Include="..\DWSIM.MathOps.DotNumerics\DWSIM.MathOps.DotNumerics.csproj" />
     <ProjectReference Include="..\DWSIM.MathOps.Mapack\DWSIM.MathOps.Mapack.csproj" />
     <ProjectReference Include="..\DWSIM.MathOps.RandomOps\DWSIM.MathOps.RandomOps.csproj" />
-    <ProjectReference Include="..\DWSIM.MathOps.SimpsonIntegrator\DWSIM.MathOps.SimpsonIntegrator.csproj" />
     <ProjectReference Include="..\DWSIM.MathOps.SwarmOps\DWSIM.MathOps.SwarmOps.csproj" />
     <ProjectReference Include="..\DWSIM.Numerics.Ipopt\DWSIM.Numerics.Ipopt.csproj" />
     <ProjectReference Include="..\DWSIM.SharedClasses\DWSIM.SharedClasses.vbproj" />
     <ProjectReference Include="..\DWSIM.SharedClassesCSharp\DWSIM.SharedClassesCSharp.csproj" />
-    <ProjectReference Include="..\DWSIM.Thermodynamics.CoolPropInterface\DWSIM.Thermodynamics.CoolPropInterface.csproj" />
+    <ProjectReference Include="..\DWSIM.Thermodynamics\DWSIM.Thermodynamics.vbproj" />
+    <ProjectReference Include="..\DWSIM.Thermodynamics.ReaktoroPropertyPackage\DWSIM.Thermodynamics.ReaktoroPropertyPackage.vbproj" />
     <ProjectReference Include="..\DWSIM.XMLSerializer\DWSIM.XMLSerializer.vbproj" />
+    <ProjectReference Include="..\..\ui\DWSIM.UI.Shared.Avalonia\DWSIM.UI.Shared.Avalonia.csproj" />
   </ItemGroup>
 
 </Project>
