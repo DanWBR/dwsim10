@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The two report windows and their loading form stay behind: they are WinForms and they are
+    what needed WebView2. A host that wants to show a report writes it to a file and opens it.
+  -->
+
+  <PropertyGroup>
+    <RootNamespace>DWSIM.Inspector</RootNamespace>
+    <AssemblyName>DWSIM.Inspector</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DWSIM.ExtensionMethods\DWSIM.ExtensionMethods.vbproj" />
+    <ProjectReference Include="..\DWSIM.GlobalSettings\DWSIM.GlobalSettings.vbproj" />
+    <ProjectReference Include="..\DWSIM.Interfaces\DWSIM.Interfaces.vbproj" />
+    <ProjectReference Include="..\DWSIM.SharedClassesCSharp\DWSIM.SharedClassesCSharp.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>DWSIM.DynamicsManager</RootNamespace>
+    <AssemblyName>DWSIM.DynamicsManager</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="OxyPlot.Core" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DWSIM.ExtensionMethods\DWSIM.ExtensionMethods.vbproj" />
+    <ProjectReference Include="..\DWSIM.Interfaces\DWSIM.Interfaces.vbproj" />
+    <ProjectReference Include="..\DWSIM.MathOps\DWSIM.MathOps.vbproj" />
+    <ProjectReference Include="..\DWSIM.MathOps.DotNumerics\DWSIM.MathOps.DotNumerics.csproj" />
+    <ProjectReference Include="..\DWSIM.SharedClasses\DWSIM.SharedClasses.vbproj" />
+    <ProjectReference Include="..\DWSIM.XMLSerializer\DWSIM.XMLSerializer.vbproj" />
+  </ItemGroup>
+
+</Project>

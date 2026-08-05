@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>DWSIM.UI.Shared.Avalonia</RootNamespace>
+    <AssemblyName>DWSIM.UI.Shared.Avalonia</AssemblyName>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" />
+    <PackageReference Include="Avalonia.Controls.ColorPicker" />
+    <PackageReference Include="SkiaSharp" />
+  </ItemGroup>
+
+</Project>

@@ -11,6 +11,7 @@
   </PropertyGroup>
 
   <ItemGroup Label="Engine">
+    <PackageVersion Include="AutomaticGraphLayout" Version="1.1.12" />
     <PackageVersion Include="EPPlus" Version="4.5.3.3" />
     <PackageVersion Include="FileHelpers" Version="3.5.1" />
     <PackageVersion Include="Flee" Version="2.0.0" />
@@ -30,7 +31,7 @@
     <PackageVersion Include="SkiaSharp.NativeAssets.Linux" Version="2.88.9" />
     <PackageVersion Include="SkiaSharp.NativeAssets.macOS" Version="2.88.9" />
     <PackageVersion Include="SkiaSharp.NativeAssets.Win32" Version="2.88.9" />
-    <PackageVersion Include="OxyPlot.Core" Version="2.1.0" />
+    <PackageVersion Include="OxyPlot.Core" Version="2.0.0" />
   </ItemGroup>
 
   <ItemGroup Label="UI">

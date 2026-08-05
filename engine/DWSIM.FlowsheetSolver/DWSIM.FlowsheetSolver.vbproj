@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The Cudafy reference of the .NET Framework project had no callers left. -->
+
+  <PropertyGroup>
+    <RootNamespace>DWSIM.FlowsheetSolver</RootNamespace>
+    <AssemblyName>DWSIM.FlowsheetSolver</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Import Include="DWSIM.MathOps" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MathNet.Numerics" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DWSIM.ExtensionMethods\DWSIM.ExtensionMethods.vbproj" />
+    <ProjectReference Include="..\DWSIM.GlobalSettings\DWSIM.GlobalSettings.vbproj" />
+    <ProjectReference Include="..\DWSIM.Inspector\DWSIM.Inspector.vbproj" />
+    <ProjectReference Include="..\DWSIM.Interfaces\DWSIM.Interfaces.vbproj" />
+    <ProjectReference Include="..\DWSIM.MathOps\DWSIM.MathOps.vbproj" />
+    <ProjectReference Include="..\DWSIM.SharedClasses\DWSIM.SharedClasses.vbproj" />
+    <ProjectReference Include="..\DWSIM.XMLSerializer\DWSIM.XMLSerializer.vbproj" />
+  </ItemGroup>
+
+</Project>

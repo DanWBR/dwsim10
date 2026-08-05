@@ -2,6 +2,13 @@
   <Folder Name="/engine/">
     <Project Path="engine/DWSIM.Interfaces/DWSIM.Interfaces.vbproj" />
     <Project Path="engine/DWSIM.DrawingTools.Point/DWSIM.DrawingTools.Point.vbproj" />
+    <Project Path="engine/DWSIM.Drawing.SkiaSharp/DWSIM.Drawing.SkiaSharp.vbproj" />
+    <Project Path="engine/DWSIM.DrawingTools.SkiaSharp.Extended/DWSIM.DrawingTools.SkiaSharp.Extended.csproj" />
+    <Project Path="engine/DWSIM.DynamicsManager/DWSIM.DynamicsManager.vbproj" />
+    <Project Path="engine/DWSIM.ExtensionMethods/DWSIM.ExtensionMethods.vbproj" />
+    <Project Path="engine/DWSIM.FileStorage/DWSIM.FileStorage.csproj" />
+    <Project Path="engine/DWSIM.FlowsheetSolver/DWSIM.FlowsheetSolver.vbproj" />
+    <Project Path="engine/DWSIM.Inspector/DWSIM.Inspector.vbproj" />
     <Project Path="engine/DWSIM.GlobalSettings/DWSIM.GlobalSettings.vbproj" />
     <Project Path="engine/DWSIM.Logging/DWSIM.Logging.csproj" />
     <Project Path="engine/DWSIM.SharedClasses/DWSIM.SharedClasses.vbproj" />
@@ -13,6 +20,9 @@
     <Project Path="engine/DWSIM.MathOps.RandomOps/DWSIM.MathOps.RandomOps.csproj" />
     <Project Path="engine/DWSIM.MathOps.SimpsonIntegrator/DWSIM.MathOps.SimpsonIntegrator.csproj" />
     <Project Path="engine/DWSIM.MathOps.SwarmOps/DWSIM.MathOps.SwarmOps.csproj" />
+  </Folder>
+  <Folder Name="/ui/">
+    <Project Path="ui/DWSIM.UI.Shared.Avalonia/DWSIM.UI.Shared.Avalonia.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/DWSIM.GlobalSettings.Tests/DWSIM.GlobalSettings.Tests.csproj" />

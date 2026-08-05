@@ -125,12 +125,10 @@ Namespace Charts
                 .FontSize = 12,
                 .Title = ytitle
             })
-            ' OxyPlot 2.1 moved the legend settings off the plot model and onto a Legend
-            model.Legends.Add(New OxyPlot.Legends.Legend With {
-                .LegendFontSize = 11,
-                .LegendPlacement = OxyPlot.Legends.LegendPlacement.Outside,
-                .LegendOrientation = OxyPlot.Legends.LegendOrientation.Vertical,
-                .LegendPosition = OxyPlot.Legends.LegendPosition.BottomCenter})
+            model.LegendFontSize = 11
+            model.LegendPlacement = OxyPlot.LegendPlacement.Outside
+            model.LegendOrientation = OxyPlot.LegendOrientation.Vertical
+            model.LegendPosition = OxyPlot.LegendPosition.BottomCenter
             model.TitleHorizontalAlignment = OxyPlot.TitleHorizontalAlignment.CenteredWithinView
             model.Title = ""
             model.Subtitle = ""

@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    MSAGL comes from NuGet now (AutomaticGraphLayout); the flowsheet auto-layout in
+    DesignSurface.vb is its only caller. The OpenTK and SkiaSharp.Views.WindowsForms references
+    of the .NET Framework project had no callers left and did not come over.
+  -->
+
+  <PropertyGroup>
+    <RootNamespace>DWSIM.Drawing.SkiaSharp</RootNamespace>
+    <AssemblyName>DWSIM.Drawing.SkiaSharp</AssemblyName>
+  </PropertyGroup>
+
+  <!--
+    The .NET Framework project flattened the folder out of the resource name, and the drawing
+    code looks the fonts and icons up by the flat name. LogicalName keeps that.
+  -->
+
+  <ItemGroup>
+    <EmbeddedResource Include="Bitmaps\**\*;Fonts\**\*;Icons\**\*">
+      <LogicalName>$(RootNamespace).%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Import Include="SkiaSharp" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AutomaticGraphLayout" />
+    <PackageReference Include="MathNet.Numerics" />
+    <PackageReference Include="SkiaSharp" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DWSIM.DrawingTools.Point\DWSIM.DrawingTools.Point.vbproj" />
+    <ProjectReference Include="..\DWSIM.ExtensionMethods\DWSIM.ExtensionMethods.vbproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    DataGridView.vb, DropDownWidth.vb, Form.vb and ControlExtensions.vb stay behind: they are
+    the WinForms half of this project.
+  -->
+
+  <PropertyGroup>
+    <RootNamespace>DWSIM.ExtensionMethods</RootNamespace>
+    <AssemblyName>DWSIM.ExtensionMethods</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Flee" />
+    <PackageReference Include="OxyPlot.Core" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DWSIM.GlobalSettings\DWSIM.GlobalSettings.vbproj" />
+    <ProjectReference Include="..\DWSIM.Interfaces\DWSIM.Interfaces.vbproj" />
+    <ProjectReference Include="..\DWSIM.MathOps\DWSIM.MathOps.vbproj" />
+    <ProjectReference Include="..\DWSIM.MathOps.DotNumerics\DWSIM.MathOps.DotNumerics.csproj" />
+    <ProjectReference Include="..\DWSIM.SharedClasses\DWSIM.SharedClasses.vbproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>DWSIM.DrawingTools.SkiaSharp.Extended</RootNamespace>
+    <AssemblyName>DWSIM.DrawingTools.SkiaSharp.Extended</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="OxyPlot.Core" />
+    <PackageReference Include="SkiaSharp" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DWSIM.Drawing.SkiaSharp\DWSIM.Drawing.SkiaSharp.vbproj" />
+    <ProjectReference Include="..\DWSIM.GlobalSettings\DWSIM.GlobalSettings.vbproj" />
+    <ProjectReference Include="..\DWSIM.Interfaces\DWSIM.Interfaces.vbproj" />
+    <ProjectReference Include="..\DWSIM.XMLSerializer\DWSIM.XMLSerializer.vbproj" />
+  </ItemGroup>
+
+</Project>
