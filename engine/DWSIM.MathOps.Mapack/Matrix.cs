@@ -566,6 +566,21 @@ namespace Mapack
             return Multiply(left, right);
         }
 
+        /// <summary>
+        /// Matrix-matrix multiplication, written from the left operand. The older Mapack that
+        /// DWSIM used to link against only had this form, and the engine is written in it.
+        /// </summary>
+        public Matrix Multiply(Matrix right)
+        {
+            return Multiply(this, right);
+        }
+
+        /// <summary>Scales this matrix, written from the matrix.</summary>
+        public Matrix Multiply(double right)
+        {
+            return Multiply(this, right);
+        }
+
         /// <summary>Matrix-matrix multiplication.</summary>
         public static Matrix Multiply(Matrix left, Matrix right)
         {

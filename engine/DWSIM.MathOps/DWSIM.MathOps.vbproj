@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    IPOPTSolver.vb is not here yet: it needs Cureos.Numerics, a .NET Framework wrapper over the
+    native IPOPT, which has no arm64 build and whose Mono dllmap the .NET runtime ignores. A
+    managed replacement is being written against docs/ipopt-contract.md; the file comes back
+    when it lands. The LibOptimization wrappers were left behind for good: nothing in DWSIM or
+    in the Plus extensions ever called them.
+  -->
+
+  <PropertyGroup>
+    <RootNamespace>DWSIM.MathOps</RootNamespace>
+    <AssemblyName>DWSIM.MathOps</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Import Include="System.Numerics" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MathNet.Numerics" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DWSIM.DrawingTools.Point\DWSIM.DrawingTools.Point.vbproj" />
+    <ProjectReference Include="..\DWSIM.MathOps.Mapack\DWSIM.MathOps.Mapack.csproj" />
+  </ItemGroup>
+
+</Project>
