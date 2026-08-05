@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <RootNamespace>DWSIM.PureCompoundData.Fragmentation</RootNamespace>
+    <AssemblyName>DWSIM.PureCompoundData.Fragmentation</AssemblyName>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="NCDK" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Assets\ugropy\unifac\unifac_subgroups.csv" />
+    <EmbeddedResource Include="Assets\ugropy\unifac\unifac_info.csv" />
+    <EmbeddedResource Include="Assets\ugropy\unifac\unifac_maingroups.csv" />
+    <EmbeddedResource Include="Assets\ugropy\dortmund\dortmund_subgroups.csv" />
+    <EmbeddedResource Include="Assets\ugropy\dortmund\dortmund_info.csv" />
+    <EmbeddedResource Include="Assets\ugropy\dortmund\dortmund_maingroups.csv" />
+    <EmbeddedResource Include="Assets\ugropy\joback\joback_subgroups.csv" />
+    <EmbeddedResource Include="Assets\ugropy\joback\properties_contrib.csv" />
+  </ItemGroup>
+</Project>

@@ -29,6 +29,19 @@
     <Project Path="engine/DWSIM.Thermodynamics.Databases.ChemeoLink/DWSIM.Thermodynamics.Databases.ChemeoLink.vbproj" />
     <Project Path="engine/DWSIM.Thermodynamics.Databases.DDBStructureLink/DWSIM.Thermodynamics.Databases.DDBStructureLink.vbproj" />
     <Project Path="engine/DWSIM.Thermodynamics.Databases.KDBLink/DWSIM.Thermodynamics.Databases.KDBLink.vbproj" />
+    <Project Path="engine/DWSIM.Thermodynamics.Databases.ChEDLThermoLink/DWSIM.Thermodynamics.Databases.ChEDLThermoLink.vbproj" />
+    <Project Path="engine/DWSIM.PhaseEquilibriumData/src/Core/DWSIM.PhaseEquilibriumData.Core.csproj" />
+    <Project Path="engine/DWSIM.PhaseEquilibriumData/src/Index/DWSIM.PhaseEquilibriumData.Index.csproj" />
+    <Project Path="engine/DWSIM.PhaseEquilibriumData/src/Sources/DWSIM.PhaseEquilibriumData.Sources.csproj" />
+    <Project Path="engine/DWSIM.PhaseEquilibriumData/src/CLI/DWSIM.PhaseEquilibriumData.CLI.csproj" />
+    <Project Path="engine/DWSIM.PureCompoundData/src/Core/DWSIM.PureCompoundData.Core.csproj" />
+    <Project Path="engine/DWSIM.PureCompoundData/src/Index/DWSIM.PureCompoundData.Index.csproj" />
+    <Project Path="engine/DWSIM.PureCompoundData/src/Sources/DWSIM.PureCompoundData.Sources.csproj" />
+    <Project Path="engine/DWSIM.PureCompoundData/src/Estimation/DWSIM.PureCompoundData.Estimation.csproj" />
+    <Project Path="engine/DWSIM.PureCompoundData/src/Fragmentation/DWSIM.PureCompoundData.Fragmentation.csproj" />
+    <Project Path="engine/DWSIM.PureCompoundData/src/Builder/DWSIM.PureCompoundData.Builder.csproj" />
+    <Project Path="engine/DWSIM.PureCompoundData/src/CLI/DWSIM.PureCompoundData.CLI.csproj" />
+    <Project Path="engine/DWSIM.SharedClasses.DataRegression/DWSIM.SharedClasses.DataRegression.vbproj" />
   </Folder>
   <Folder Name="/ui/">
     <Project Path="ui/DWSIM.UI.Shared.Avalonia/DWSIM.UI.Shared.Avalonia.csproj" />

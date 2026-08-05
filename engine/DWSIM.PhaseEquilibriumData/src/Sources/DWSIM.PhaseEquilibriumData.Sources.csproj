@@ -1,0 +1,15 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <RootNamespace>DWSIM.PhaseEquilibriumData.Sources</RootNamespace>
+    <AssemblyName>DWSIM.PhaseEquilibriumData.Sources</AssemblyName>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Core\DWSIM.PhaseEquilibriumData.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="SharpZipLib" />
+    <PackageReference Include="Newtonsoft.Json" />
+  </ItemGroup>
+</Project>

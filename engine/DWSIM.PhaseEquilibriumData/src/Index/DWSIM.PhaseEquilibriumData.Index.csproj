@@ -1,0 +1,23 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <RootNamespace>DWSIM.PhaseEquilibriumData.Index</RootNamespace>
+    <AssemblyName>DWSIM.PhaseEquilibriumData.Index</AssemblyName>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Core\DWSIM.PhaseEquilibriumData.Core.csproj" />
+    <ProjectReference Include="..\Sources\DWSIM.PhaseEquilibriumData.Sources.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="DWSIM.PhaseEquilibriumData.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.IO.Compression" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="LiteDB" />
+    <PackageReference Include="Newtonsoft.Json" />
+  </ItemGroup>
+</Project>

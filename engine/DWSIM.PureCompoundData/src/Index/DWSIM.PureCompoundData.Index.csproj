@@ -1,0 +1,23 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <RootNamespace>DWSIM.PureCompoundData.Index</RootNamespace>
+    <AssemblyName>DWSIM.PureCompoundData.Index</AssemblyName>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Core\DWSIM.PureCompoundData.Core.csproj" />
+    <ProjectReference Include="..\Sources\DWSIM.PureCompoundData.Sources.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="DWSIM.PureCompoundData.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.IO.Compression" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="LiteDB" />
+    <PackageReference Include="Newtonsoft.Json" />
+  </ItemGroup>
+</Project>

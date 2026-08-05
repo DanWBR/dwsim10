@@ -239,11 +239,13 @@ namespace DWSIM.GlobalSettings.Tests
         }
 
         [Test]
-        public void ThePythonBridgeSaysWhyItIsMissing()
+        public void ThePythonBridgeAsksForAPathBeforeItStarts()
         {
-            var error = Assert.Throws<NotSupportedException>(() => Settings.InitializePythonEnvironment());
+            Settings.PythonPath = "";
 
-            Assert.That(error.Message, Does.Contain("IronPython"));
+            var error = Assert.Throws<Exception>(() => Settings.InitializePythonEnvironment());
+
+            Assert.That(error.Message, Does.Contain("Python"));
         }
     }
 }

@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>DWSIM.PhaseEquilibriumData.CLI</RootNamespace>
+    <AssemblyName>dwsim-phaseq</AssemblyName>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Core\DWSIM.PhaseEquilibriumData.Core.csproj" />
+    <ProjectReference Include="..\Sources\DWSIM.PhaseEquilibriumData.Sources.csproj" />
+    <ProjectReference Include="..\Index\DWSIM.PhaseEquilibriumData.Index.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="System.CommandLine" />
+    <PackageReference Include="ShellProgressBar" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="System.Net.Http" />
+  </ItemGroup>
+</Project>

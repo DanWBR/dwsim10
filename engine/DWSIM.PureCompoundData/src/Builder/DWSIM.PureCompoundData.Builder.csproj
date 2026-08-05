@@ -1,0 +1,18 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <RootNamespace>DWSIM.PureCompoundData.Builder</RootNamespace>
+    <AssemblyName>DWSIM.PureCompoundData.Builder</AssemblyName>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Core\DWSIM.PureCompoundData.Core.csproj" />
+    <ProjectReference Include="..\Index\DWSIM.PureCompoundData.Index.csproj" />
+    <ProjectReference Include="..\Estimation\DWSIM.PureCompoundData.Estimation.csproj" />
+    <ProjectReference Include="..\Fragmentation\DWSIM.PureCompoundData.Fragmentation.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="System.Net.Http" />
+    <PackageReference Include="Newtonsoft.Json" />
+  </ItemGroup>
+</Project>

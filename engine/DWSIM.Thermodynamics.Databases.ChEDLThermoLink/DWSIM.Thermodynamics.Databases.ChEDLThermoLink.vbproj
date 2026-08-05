@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Drives the ChEDL thermo library, which is Python, through pythonnet. The user needs a Python
+    distribution with thermo installed and its path set in the general settings; that is the same
+    contract on every platform.
+  -->
+
+  <!--
+    Export.vb is a one-off batch exporter that was never part of the build: it calls two members
+    the parser does not have. It stays a None item here too.
+  -->
+
+  <ItemGroup>
+    <Compile Remove="Export.vb" />
+    <None Include="Export.vb" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <RootNamespace>DWSIM.Thermodynamics.Databases.ChEDLThermoLink</RootNamespace>
+    <AssemblyName>DWSIM.Thermodynamics.Databases.ChEDLThermoLink</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" />
+    <PackageReference Include="pythonnet" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DWSIM.ExtensionMethods\DWSIM.ExtensionMethods.vbproj" />
+    <ProjectReference Include="..\DWSIM.GlobalSettings\DWSIM.GlobalSettings.vbproj" />
+    <ProjectReference Include="..\DWSIM.Interfaces\DWSIM.Interfaces.vbproj" />
+    <ProjectReference Include="..\DWSIM.MathOps\DWSIM.MathOps.vbproj" />
+    <ProjectReference Include="..\DWSIM.SharedClasses\DWSIM.SharedClasses.vbproj" />
+    <ProjectReference Include="..\DWSIM.Thermodynamics\DWSIM.Thermodynamics.vbproj" />
+    <ProjectReference Include="..\DWSIM.Thermodynamics.Databases.DDBStructureLink\DWSIM.Thermodynamics.Databases.DDBStructureLink.vbproj" />
+  </ItemGroup>
+
+</Project>

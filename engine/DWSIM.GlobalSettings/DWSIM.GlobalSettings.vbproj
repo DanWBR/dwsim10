@@ -5,6 +5,16 @@
     <AssemblyName>DWSIM.GlobalSettings</AssemblyName>
   </PropertyGroup>
 
+  <!--
+    pythonnet is the CPython bridge the Python.NET script interpreter and the ChEDL compound
+    import run on. It is pure managed and finds libpython at run time, so it works wherever the
+    user has a Python distribution; the engine only needs the path to it.
+  -->
+
+  <ItemGroup>
+    <PackageReference Include="pythonnet" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\DWSIM.Logging\DWSIM.Logging.csproj" />
   </ItemGroup>

@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <Nullable>enable</Nullable>
+    <RootNamespace>DWSIM.PureCompoundData.CLI</RootNamespace>
+    <AssemblyName>dwsim-purecompound</AssemblyName>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Core\DWSIM.PureCompoundData.Core.csproj" />
+    <ProjectReference Include="..\Sources\DWSIM.PureCompoundData.Sources.csproj" />
+    <ProjectReference Include="..\Index\DWSIM.PureCompoundData.Index.csproj" />
+    <ProjectReference Include="..\Estimation\DWSIM.PureCompoundData.Estimation.csproj" />
+    <ProjectReference Include="..\Builder\DWSIM.PureCompoundData.Builder.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="System.CommandLine" />
+    <PackageReference Include="ShellProgressBar" />
+    <PackageReference Include="Newtonsoft.Json" />
+  </ItemGroup>
+</Project>

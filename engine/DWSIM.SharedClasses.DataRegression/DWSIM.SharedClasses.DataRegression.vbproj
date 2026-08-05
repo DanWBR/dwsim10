@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace></RootNamespace>
+    <AssemblyName>DWSIM.SharedClasses.DataRegression</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Import Include="DWSIM.SharedClasses" />
+    <Import Include="DWSIM.Thermodynamics" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="CapeOpen">
+      <HintPath>..\..\lib\CapeOpen.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DWSIM.GlobalSettings\DWSIM.GlobalSettings.vbproj" />
+    <ProjectReference Include="..\DWSIM.Interfaces\DWSIM.Interfaces.vbproj" />
+    <ProjectReference Include="..\DWSIM.MathOps.DotNumerics\DWSIM.MathOps.DotNumerics.csproj" />
+    <ProjectReference Include="..\DWSIM.MathOps.RandomOps\DWSIM.MathOps.RandomOps.csproj" />
+    <ProjectReference Include="..\DWSIM.MathOps.SwarmOps\DWSIM.MathOps.SwarmOps.csproj" />
+    <ProjectReference Include="..\DWSIM.Numerics.Ipopt\DWSIM.Numerics.Ipopt.csproj" />
+    <ProjectReference Include="..\DWSIM.PhaseEquilibriumData\src\Core\DWSIM.PhaseEquilibriumData.Core.csproj" />
+    <ProjectReference Include="..\DWSIM.PhaseEquilibriumData\src\Index\DWSIM.PhaseEquilibriumData.Index.csproj" />
+    <ProjectReference Include="..\DWSIM.SharedClasses\DWSIM.SharedClasses.vbproj" />
+    <ProjectReference Include="..\DWSIM.Thermodynamics\DWSIM.Thermodynamics.vbproj" />
+    <ProjectReference Include="..\DWSIM.Thermodynamics.Databases.KDBLink\DWSIM.Thermodynamics.Databases.KDBLink.vbproj" />
+  </ItemGroup>
+
+</Project>

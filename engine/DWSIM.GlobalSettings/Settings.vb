@@ -1,5 +1,7 @@
 ﻿Imports System.Threading
 Imports System.IO
+Imports System.Runtime.InteropServices
+Imports Python.Runtime
 
 Public Class Settings
 
@@ -214,28 +216,114 @@ Public Class Settings
 
     Public Shared AIAssistedConvergenceLevel As AIAssistedConvergenceMode = AIAssistedConvergenceMode.Disabled
 
-    ''' <summary>
-    ''' Prepares the CPython interpreter that the Python.NET scripting engine talks to.
-    ''' This build carries no CPython bridge, so the caller is pointed at IronPython.
-    ''' </summary>
+    <DllImport("kernel32.dll", SetLastError:=True)> Public Shared Function AddDllDirectory(lpPathName As String) As Boolean
+
+    End Function
+
     Public Shared Sub InitializePythonEnvironment(Optional ByVal pythonpath As String = "")
 
-        Throw New NotSupportedException(PythonNotAvailable)
+        If Not Settings.PythonInitialized Then
+
+            If Settings.RunningPlatform() = Platform.Windows Then
+
+                If pythonpath = "" Then
+                    pythonpath = Settings.PythonPath
+                End If
+
+                If Not Directory.Exists(pythonpath) Then
+                    Throw New Exception("Please define the path to a valid Python distribution in General Settings and try again.")
+                End If
+
+                Try
+                    SetPythonPath(pythonpath)
+                    PythonEngine.PythonHome = pythonpath
+                    PythonEngine.Initialize()
+                    PythonEngine.BeginAllowThreads()
+                    PythonInitialized = True
+                    DWSIM.Logging.Logger.LogInfo("Python Path set to " + pythonpath)
+                Catch ex As Exception
+                    DWSIM.Logging.Logger.LogError("Python Initialization Error", ex)
+                    Throw ex
+                End Try
+
+            Else
+
+                If pythonpath = "" Then
+                    pythonpath = Settings.PythonPath
+                End If
+
+                If Not File.Exists(pythonpath) Then
+                    Throw New Exception("Please define the path to a valid Python distribution in General Settings and try again.")
+                End If
+
+                Try
+                    Runtime.PythonDLL = pythonpath
+                    PythonEngine.Initialize()
+                    PythonEngine.BeginAllowThreads()
+                    PythonInitialized = True
+                    DWSIM.Logging.Logger.LogInfo("Python Library Path set to " + pythonpath)
+                Catch ex As Exception
+                    DWSIM.Logging.Logger.LogError("Python Initialization Error", ex)
+                    Throw ex
+                End Try
+
+            End If
+
+
+        End If
 
     End Sub
 
-    ''' <summary>
-    ''' Releases the CPython interpreter. There is nothing to release without the bridge.
-    ''' </summary>
     Public Shared Sub ShutdownPythonEnvironment()
 
-        PythonInitialized = False
+        If PythonInitialized Then
+            Try
+                PythonEngine.Shutdown()
+            Catch ex As Exception
+                DWSIM.Logging.Logger.LogError("Python Shutdown Error", ex)
+            End Try
+            PythonInitialized = False
+        End If
 
     End Sub
 
-    Private Const PythonNotAvailable As String =
-        "This build runs Python scripts on IronPython only. Set the script interpreter to " +
-        "IronPython, or use the Windows edition of DWSIM for the CPython bridge."
+    Private Shared Sub SetPythonPath(Optional ByVal pythonpath As String = "")
+
+        If RunningPlatform() = Platform.Windows Then
+
+            Dim ppath As String = GlobalSettings.Settings.PythonPath
+            If pythonpath <> "" Then ppath = pythonpath
+
+            If ppath = "" Then
+                Throw New Exception("Python Binaries Path is not defined correctly.")
+            End If
+
+            Dim append As String = ppath + ";" + Path.Combine(ppath, "Library", "bin") + ";"
+
+            Dim p1 As String = append + Environment.GetEnvironmentVariable("PATH", EnvironmentVariableTarget.Machine)
+            ' Set Path
+            Environment.SetEnvironmentVariable("PATH", p1, EnvironmentVariableTarget.Process)
+            ' Set PythonHome
+            Environment.SetEnvironmentVariable("PYTHONHOME", ppath, EnvironmentVariableTarget.Process)
+            ' Set PythonPath
+            Environment.SetEnvironmentVariable("PYTHONPATH", Path.Combine(p1, "Lib"), EnvironmentVariableTarget.Process)
+
+            'set PYDLL
+            Dim pydll = Directory.GetFiles(ppath, "python3*.dll")
+            If pydll.Count > 0 Then
+                Environment.SetEnvironmentVariable("PYTHONNET_PYDLL", pydll(1), EnvironmentVariableTarget.Process)
+                Runtime.PythonDLL = pydll(1)
+                DWSIM.Logging.Logger.LogInfo("Python Runtime DLL path set to " + pydll(1))
+            Else
+                Throw New Exception("Could not find Python DLL in the defined Python path.")
+            End If
+
+            AddDllDirectory(ppath)
+            AddDllDirectory(Path.Combine(ppath, "Library", "bin"))
+
+        End If
+
+    End Sub
 
     Shared Sub LoadExcelSettings(Optional ByVal configfile As String = "")
 

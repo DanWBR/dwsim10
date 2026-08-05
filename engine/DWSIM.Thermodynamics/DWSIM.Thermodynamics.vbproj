@@ -2,10 +2,9 @@
 
   <!--
     EditingForms/ stays behind: 14.5k lines of WinForms editors, and with them 62 of the 63 resx
-    files that carry an image. Interfaces/Excel.vb and Interfaces/ExcelNoAttr.vb go with the
-    Excel add-in, and Interfaces/CAPE-OPEN.vb is the COM server that publishes the property
-    packages to other simulators, which is a Windows and COM affair, as is
-    Interfaces/Thermodynamics.vb, the COM-visible calculator.
+    files that carry an image. Interfaces/Excel.vb goes with the Excel add-in it is attributed
+    for; Interfaces/CAPE-OPEN.vb is the COM server that publishes the property packages to other
+    simulators, and Interfaces/Thermodynamics.vb is the COM-visible calculator.
   -->
 
   <PropertyGroup>
