@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    ConnectionsEditor and FilePicker/Windows stay behind: both are WinForms, and the Windows
+    picker is also what tied this project to Simulate365. The host picks a file picker at
+    startup through FilePickerService.SetFilePickerFactory.
+  -->
+
+  <PropertyGroup>
+    <RootNamespace>DWSIM.SharedClassesCSharp</RootNamespace>
+    <AssemblyName>DWSIM.SharedClassesCSharp</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MathNet.Numerics" />
+    <PackageReference Include="Newtonsoft.Json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DWSIM.GlobalSettings\DWSIM.GlobalSettings.vbproj" />
+    <ProjectReference Include="..\DWSIM.Interfaces\DWSIM.Interfaces.vbproj" />
+    <ProjectReference Include="..\DWSIM.XMLSerializer\DWSIM.XMLSerializer.vbproj" />
+  </ItemGroup>
+
+</Project>

@@ -4,6 +4,9 @@
     <Project Path="engine/DWSIM.DrawingTools.Point/DWSIM.DrawingTools.Point.vbproj" />
     <Project Path="engine/DWSIM.GlobalSettings/DWSIM.GlobalSettings.vbproj" />
     <Project Path="engine/DWSIM.Logging/DWSIM.Logging.csproj" />
+    <Project Path="engine/DWSIM.SharedClasses/DWSIM.SharedClasses.vbproj" />
+    <Project Path="engine/DWSIM.SharedClassesCSharp/DWSIM.SharedClassesCSharp.csproj" />
+    <Project Path="engine/DWSIM.XMLSerializer/DWSIM.XMLSerializer.vbproj" />
     <Project Path="engine/DWSIM.MathOps/DWSIM.MathOps.vbproj" />
     <Project Path="engine/DWSIM.MathOps.DotNumerics/DWSIM.MathOps.DotNumerics.csproj" />
     <Project Path="engine/DWSIM.MathOps.Mapack/DWSIM.MathOps.Mapack.csproj" />

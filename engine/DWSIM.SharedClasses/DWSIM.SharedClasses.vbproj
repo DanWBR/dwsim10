@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Editor/ stays behind: it is the WinForms side of this project, and the only thing that
+    needed the dock panel and the spinning progress control. Misc/MAPI.vb (Windows MAPI mail)
+    and Misc/CCapeCollection.vb (the CAPE-OPEN collection, host-only) went with it.
+  -->
+
+  <PropertyGroup>
+    <RootNamespace>DWSIM.SharedClasses</RootNamespace>
+    <AssemblyName>DWSIM.SharedClasses</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Import Include="DWSIM.Interfaces" />
+    <Import Include="DWSIM.SharedClasses" />
+    <Import Include="System.Data" />
+    <Import Include="System.Runtime.InteropServices" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="IronPythonSnippets\IronPythonSnippets.xml" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Flee" />
+    <PackageReference Include="HtmlAgilityPack" />
+    <PackageReference Include="MathNet.Numerics" />
+    <PackageReference Include="Newtonsoft.Json" />
+    <PackageReference Include="OxyPlot.Core" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DWSIM.GlobalSettings\DWSIM.GlobalSettings.vbproj" />
+    <ProjectReference Include="..\DWSIM.Interfaces\DWSIM.Interfaces.vbproj" />
+    <ProjectReference Include="..\DWSIM.Logging\DWSIM.Logging.csproj" />
+    <ProjectReference Include="..\DWSIM.XMLSerializer\DWSIM.XMLSerializer.vbproj" />
+  </ItemGroup>
+
+</Project>
