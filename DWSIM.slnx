@@ -15,16 +15,26 @@
     <Project Path="engine/DWSIM.SharedClassesCSharp/DWSIM.SharedClassesCSharp.csproj" />
     <Project Path="engine/DWSIM.XMLSerializer/DWSIM.XMLSerializer.vbproj" />
     <Project Path="engine/DWSIM.MathOps/DWSIM.MathOps.vbproj" />
+    <Project Path="engine/DWSIM.Numerics.Ipopt/DWSIM.Numerics.Ipopt.csproj" />
     <Project Path="engine/DWSIM.MathOps.DotNumerics/DWSIM.MathOps.DotNumerics.csproj" />
     <Project Path="engine/DWSIM.MathOps.Mapack/DWSIM.MathOps.Mapack.csproj" />
     <Project Path="engine/DWSIM.MathOps.RandomOps/DWSIM.MathOps.RandomOps.csproj" />
     <Project Path="engine/DWSIM.MathOps.SimpsonIntegrator/DWSIM.MathOps.SimpsonIntegrator.csproj" />
     <Project Path="engine/DWSIM.MathOps.SwarmOps/DWSIM.MathOps.SwarmOps.csproj" />
+    <Project Path="engine/DWSIM.Thermodynamics/DWSIM.Thermodynamics.vbproj" />
+    <Project Path="engine/DWSIM.Thermodynamics.CoolPropInterface/DWSIM.Thermodynamics.CoolPropInterface.csproj" />
+    <Project Path="engine/DWSIM.Thermodynamics.AdvancedEOS.GERG2008/DWSIM.Thermodynamics.AdvancedEOS.GERG2008.vbproj" />
+    <Project Path="engine/DWSIM.Thermodynamics.AdvancedEOS.PCSAFT/DWSIM.Thermodynamics.AdvancedEOS.PCSAFT2.vbproj" />
+    <Project Path="engine/DWSIM.Thermodynamics.AdvancedEOS.PRSRKTDep/DWSIM.Thermodynamics.AdvancedEOS.PRSRKTDep.vbproj" />
+    <Project Path="engine/DWSIM.Thermodynamics.Databases.ChemeoLink/DWSIM.Thermodynamics.Databases.ChemeoLink.vbproj" />
+    <Project Path="engine/DWSIM.Thermodynamics.Databases.DDBStructureLink/DWSIM.Thermodynamics.Databases.DDBStructureLink.vbproj" />
+    <Project Path="engine/DWSIM.Thermodynamics.Databases.KDBLink/DWSIM.Thermodynamics.Databases.KDBLink.vbproj" />
   </Folder>
   <Folder Name="/ui/">
     <Project Path="ui/DWSIM.UI.Shared.Avalonia/DWSIM.UI.Shared.Avalonia.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/DWSIM.GlobalSettings.Tests/DWSIM.GlobalSettings.Tests.csproj" />
+    <Project Path="tests/DWSIM.Thermodynamics.Derivatives.Tests/DWSIM.Thermodynamics.Derivatives.Tests.csproj" />
   </Folder>
 </Solution>

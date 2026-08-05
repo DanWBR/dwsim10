@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Cureos.Numerics</RootNamespace>
+    <AssemblyName>DWSIM.Numerics.Ipopt</AssemblyName>
+  </PropertyGroup>
+
+</Project>

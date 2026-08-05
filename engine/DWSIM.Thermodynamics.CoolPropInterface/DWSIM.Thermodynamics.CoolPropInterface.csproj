@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    SWIG bindings over the native CoolProp. The managed side builds anywhere; the native library
+    only ships for x64 today, so on arm64 the first call fails until it is built from source.
+  -->
+
+  <PropertyGroup>
+    <RootNamespace>CoolPropInterface</RootNamespace>
+    <AssemblyName>DWSIM.Thermodynamics.CoolPropInterface</AssemblyName>
+  </PropertyGroup>
+
+</Project>
