@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleName</key>
+  <string>DWSIM</string>
+  <key>CFBundleDisplayName</key>
+  <string>DWSIM</string>
+  <key>CFBundleIdentifier</key>
+  <string>org.dwsim.desktop</string>
+  <key>CFBundleVersion</key>
+  <string>@VERSION@</string>
+  <key>CFBundleShortVersionString</key>
+  <string>@VERSION@</string>
+  <key>CFBundlePackageType</key>
+  <string>APPL</string>
+  <key>CFBundleExecutable</key>
+  <string>DWSIM.UI.Desktop.Avalonia</string>
+  <key>CFBundleIconFile</key>
+  <string>dwsim</string>
+  <key>LSMinimumSystemVersion</key>
+  <string>12.0</string>
+  <key>NSHighResolutionCapable</key>
+  <true/>
+  <key>NSHumanReadableCopyright</key>
+  <string>Copyright 2008-2026 Daniel Wagner Oliveira de Medeiros and contributors. GPL-3.0-or-later.</string>
+  <key>CFBundleDocumentTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleTypeName</key>
+      <string>DWSIM flowsheet</string>
+      <key>CFBundleTypeRole</key>
+      <string>Editor</string>
+      <key>LSItemContentTypes</key>
+      <array>
+        <string>org.dwsim.flowsheet</string>
+      </array>
+      <key>CFBundleTypeExtensions</key>
+      <array>
+        <string>dwxmz</string>
+        <string>dwxml</string>
+      </array>
+      <key>CFBundleTypeIconFile</key>
+      <string>dwsim</string>
+    </dict>
+  </array>
+</dict>
+</plist>

@@ -1,0 +1,15 @@
+Package: dwsim
+Version: @VERSION@
+Section: science
+Priority: optional
+Architecture: @ARCH@
+Installed-Size: @SIZE@
+Maintainer: Daniel Wagner Oliveira de Medeiros <dwsim@dwsim.org>
+Homepage: https://dwsim.org
+Depends: libc6, libfontconfig1, libice6, libsm6, libx11-6
+Description: Open source chemical process simulator
+ DWSIM models steady-state and dynamic chemical processes: property packages
+ from cubic equations of state to electrolyte models, a library of unit
+ operations, and rigorous vapour, liquid and solid flash algorithms.
+ .
+ The runtime is inside the package, so nothing else has to be installed.

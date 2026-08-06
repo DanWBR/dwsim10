@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=DWSIM
+GenericName=Process Simulator
+Comment=Open source chemical process simulator
+Exec=dwsim %f
+Icon=dwsim
+Terminal=false
+Categories=Science;Engineering;Education;
+MimeType=application/x-dwsim-flowsheet;
+StartupWMClass=DWSIM.UI.Desktop.Avalonia

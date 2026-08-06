@@ -3,6 +3,9 @@
 ###############################################################################
 * text=auto
 
+# a shell script with carriage returns in it fails with "bad interpreter"
+*.sh text eol=lf
+
 ###############################################################################
 # Set default behavior for command prompt diff.
 #

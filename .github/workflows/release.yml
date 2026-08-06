@@ -1,0 +1,186 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to stamp on the packages
+        required: true
+        default: 10.0.0
+
+env:
+  DOTNET_VERSION: '10.0.x'
+
+jobs:
+
+  # dotnet publish -r <rid> does not need a host of that architecture, so the five payloads that
+  # do not need signing are all built on the same Linux runner.
+  payloads:
+    name: publish ${{ matrix.rid }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { rid: win-x64,     debarch: '' }
+          - { rid: win-arm64,   debarch: '' }
+          - { rid: linux-x64,   debarch: amd64 }
+          - { rid: linux-arm64, debarch: arm64 }
+          - { rid: osx-x64,     debarch: '' }
+          - { rid: osx-arm64,   debarch: '' }
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Work out the version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish
+        run: |
+          dotnet publish ui/DWSIM.UI.Desktop.Avalonia/DWSIM.UI.Desktop.Avalonia.csproj \
+            -c Release -r ${{ matrix.rid }} --self-contained true \
+            -p:Version=${{ steps.version.outputs.value }} \
+            -o publish/${{ matrix.rid }}
+
+      - name: Archive
+        run: |
+          version=${{ steps.version.outputs.value }}
+          mkdir -p artifacts
+          case "${{ matrix.rid }}" in
+            win-*)
+              (cd publish/${{ matrix.rid }} && zip -qr "$GITHUB_WORKSPACE/artifacts/dwsim-$version-${{ matrix.rid }}.zip" .)
+              ;;
+            *)
+              tar -C publish/${{ matrix.rid }} -czf "artifacts/dwsim-$version-${{ matrix.rid }}.tar.gz" .
+              ;;
+          esac
+
+      - name: Build the .deb
+        if: matrix.debarch != ''
+        run: |
+          chmod +x packaging/linux/build-deb.sh
+          packaging/linux/build-deb.sh \
+            publish/${{ matrix.rid }} \
+            ${{ steps.version.outputs.value }} \
+            ${{ matrix.debarch }} \
+            artifacts
+
+      # the two macOS payloads travel on to the signing job as they are
+      - uses: actions/upload-artifact@v4
+        with:
+          name: payload-${{ matrix.rid }}
+          path: publish/${{ matrix.rid }}
+          retention-days: 1
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: package-${{ matrix.rid }}
+          path: artifacts/*
+          if-no-files-found: error
+
+  # Bundling, signing, notarising and stapling all need macOS. macos-14 is arm64; the Intel
+  # payload is bundled there too, which is fine because nothing here runs it.
+  macos:
+    name: bundle ${{ matrix.rid }}
+    needs: payloads
+    runs-on: macos-14
+    strategy:
+      fail-fast: false
+      matrix:
+        rid: [osx-x64, osx-arm64]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: payload-${{ matrix.rid }}
+          path: payload
+
+      - name: Work out the version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Bundle
+        run: |
+          chmod +x packaging/macos/*.sh
+          packaging/macos/build-app.sh payload ${{ steps.version.outputs.value }} bundle
+
+      # An empty MACOS_CERTIFICATE only means this repository has no certificate yet: the disk
+      # image is still built, and says so in the log.
+      - name: Import the certificate
+        if: env.MACOS_CERTIFICATE != ''
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+        run: |
+          echo "$MACOS_CERTIFICATE" | base64 --decode > certificate.p12
+          security create-keychain -p runner build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p runner build.keychain
+          security import certificate.p12 -k build.keychain \
+                   -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k runner build.keychain
+          rm certificate.p12
+
+      - name: Sign, notarise and package
+        env:
+          MACOS_SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
+          MACOS_NOTARY_ISSUER: ${{ secrets.MACOS_NOTARY_ISSUER }}
+          MACOS_NOTARY_KEY_ID: ${{ secrets.MACOS_NOTARY_KEY_ID }}
+          MACOS_NOTARY_KEY_CONTENT: ${{ secrets.MACOS_NOTARY_KEY }}
+        run: |
+          if [ -n "$MACOS_NOTARY_KEY_CONTENT" ]; then
+            echo "$MACOS_NOTARY_KEY_CONTENT" | base64 --decode > notary.p8
+            export MACOS_NOTARY_KEY=$PWD/notary.p8
+          fi
+          packaging/macos/sign-and-notarize.sh \
+            bundle/DWSIM.app ${{ steps.version.outputs.value }} artifacts
+          rm -f notary.p8
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: package-${{ matrix.rid }}-dmg
+          path: artifacts/*.dmg
+          if-no-files-found: error
+
+  release:
+    name: draft the release
+    needs: [payloads, macos]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: package-*
+          path: packages
+          merge-multiple: true
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          files: packages/*
+          generate_release_notes: true
