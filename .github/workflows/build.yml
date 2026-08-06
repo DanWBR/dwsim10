@@ -1,9 +1,11 @@
 name: build
 
 on:
+  # Only on a tag and on demand. Running on every push cost real money: the macOS runner alone
+  # bills at $0.062 a minute, and a day of ordinary commits came to several dollars of build
+  # time for information that a local build already gives.
   push:
-    branches: [master]
-  pull_request:
+    tags: ['v*']
   workflow_dispatch:
 
 jobs:
