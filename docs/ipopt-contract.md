@@ -306,10 +306,28 @@ restore; it is the dual that will not converge. When the line search collapses a
 the solver now rebuilds the quasi-Newton matrix instead, which is the right response to a bad
 direction, and it is still not enough.
 
-The next thing to try is the exact Hessian. `GibbsMinimization3P` passes an `eval_h` and this
-solver ignores it, using limited-memory BFGS because that is what
-`hessian_approximation=limited-memory` asks for; but the flash sets that option while also
-supplying a Hessian, and on this objective the approximation is what runs out.
+The exact Hessian was the obvious next thing to try, and it is not the answer.
+`GibbsMinimization3P` does have a `FunctionHessian`, dense and by finite differences of the
+gradient, but it declares `nele_hess = 0` in the constructor and sets
+`hessian_approximation=limited-memory`, which tells Ipopt to ignore `eval_h` entirely. **The
+native run uses the same quasi-Newton matrix this one does.** Whatever the difference is, it is
+not the curvature information available to the two solvers.
+
+What the iteration log shows instead: the line search collapses (alpha of 7e-15 after 47
+halvings) at a point where `theta` is zero, so the objective stops moving and the flash's own
+intermediate callback ends the solve, which it does whenever the objective changes by less than
+1e-10 between iterations. Restoration does not apply at a feasible point and rebuilding the
+quasi-Newton matrix is not enough. What is left to examine is the search direction itself:
+whether the augmented system, at the inertia this solver accepts, yields a descent direction for
+the barrier objective at all.
+
+Two things measured along the way that are worth not repeating:
+
+- Making the adaptive mu non-increasing sounds right and makes this problem worse, not better:
+  the vapour fraction goes from 0.31 to 0.
+- The iteration log and the intermediate callback must carry the caller's objective, not the
+  scaled one. The flash's stall detector compares consecutive objective values against a fixed
+  1e-10, and under a scale factor that threshold means something entirely different.
 
 Two things follow from that, and both are in the tree:
 

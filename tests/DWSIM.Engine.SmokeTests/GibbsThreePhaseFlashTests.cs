@@ -74,14 +74,16 @@ namespace DWSIM.Engine.SmokeTests
         }
 
         [Test]
-        [Ignore("Closer than it was but not there. Gradient-based scaling took the dual error " +
-                "from 3.1e1 to 1.1e-1 and the vapour fraction from 0.21 to 0.31 against a native " +
-                "0.42. Restoration is in place but never fires here: the point is feasible from " +
-                "the first iteration, so it is the dual that will not converge, not the primal. " +
-                "What is left is the step itself. A limited-memory quasi-Newton matrix is not " +
-                "enough for this objective, and the flash's own intermediate callback stops the " +
-                "solve once the objective stalls. The next thing to try is the exact Hessian, " +
-                "which GibbsMinimization3P supplies through eval_h and which this solver ignores.")]
+        [Ignore("The managed solver reaches a vapour fraction of 0.21 against a native 0.42. " +
+                "The exact Hessian is not the answer: GibbsMinimization3P declares nele_hess = 0 " +
+                "and sets hessian_approximation=limited-memory, so the native run uses the same " +
+                "quasi-Newton matrix this one does. What happens is that the line search " +
+                "collapses at a point that is already feasible, the objective stops moving, and " +
+                "the flash's own intermediate callback ends the solve. Restoration does not " +
+                "apply there and rebuilding the Hessian is not enough, so what is left to " +
+                "examine is the search direction itself: whether the augmented system, at the " +
+                "inertia this solver accepts, is giving a descent direction for the barrier " +
+                "objective at all.")]
         public void TheGibbsFlashMatchesTheNativeSolver()
         {
             // Native reference, ethanol and water at 355 K, from the DWSIM_Private harness:

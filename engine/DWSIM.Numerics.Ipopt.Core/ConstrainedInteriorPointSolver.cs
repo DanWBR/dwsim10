@@ -194,7 +194,7 @@ namespace DWSIM.Numerics.Ipopt.Core
 
                 if (err <= _opt.Tolerance)
                 {
-                    if (!Record(log, new IterationInfo(iter, scaled.EvalF(x), theta, err, mu, 0.0, 0.0, 0.0, 0.0, 0)))
+                    if (!Record(log, new IterationInfo(iter, nlp.EvalF(x), theta, err, mu, 0.0, 0.0, 0.0, 0.0, 0)))
                         return Finish(SolveStatus.UserRequested, x, nlp.EvalF(x), iter, err, log);
 
                     return Finish(SolveStatus.Solved, x, nlp.EvalF(x), iter, err, log);
@@ -202,7 +202,7 @@ namespace DWSIM.Numerics.Ipopt.Core
 
                 if (iter >= _opt.MaxIterations)
                 {
-                    Record(log, new IterationInfo(iter, scaled.EvalF(x), theta, err, mu, 0.0, 0.0, 0.0, 0.0, 0));
+                    Record(log, new IterationInfo(iter, nlp.EvalF(x), theta, err, mu, 0.0, 0.0, 0.0, 0.0, 0));
                     return Finish(SolveStatus.MaxIterations, x, nlp.EvalF(x), iter, err, log);
                 }
 
@@ -245,7 +245,7 @@ namespace DWSIM.Numerics.Ipopt.Core
 
                 if (double.IsNaN(delta))
                 {
-                    Record(log, new IterationInfo(iter, scaled.EvalF(x), theta, err, mu, 0.0, 0.0, 0.0, 0.0, 0));
+                    Record(log, new IterationInfo(iter, nlp.EvalF(x), theta, err, mu, 0.0, 0.0, 0.0, 0.0, 0));
                     return Finish(SolveStatus.LineSearchFailure, x, nlp.EvalF(x), iter, err, log);
                 }
 
@@ -317,7 +317,7 @@ namespace DWSIM.Numerics.Ipopt.Core
                 double dNorm = 0.0;
                 for (int i = 0; i < n; i++) dNorm = Math.Max(dNorm, Math.Abs(dx[i]));
 
-                if (!Record(log, new IterationInfo(iter, scaled.EvalF(x), theta, err, mu, dNorm, delta, alphaZ, alpha, ls)))
+                if (!Record(log, new IterationInfo(iter, nlp.EvalF(x), theta, err, mu, dNorm, delta, alphaZ, alpha, ls)))
                     return Finish(SolveStatus.UserRequested, x, nlp.EvalF(x), iter, err, log);
 
                 if (!accepted)
