@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The Model Context Protocol server: it exposes the flowsheet, the streams, the unit operations,
+    the thermodynamics and the solver as MCP tools over stdio or HTTP with server-sent events, so
+    an assistant can build and solve a simulation.
+
+    It sits on the automation and fluent APIs and on nothing else, which is why it moves here
+    unchanged: no WinForms, no licensing, and none of the Patreon-only builders.
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>DWSIM.MCPServer</RootNamespace>
+    <AssemblyName>dwsim-mcp</AssemblyName>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\engine\DWSIM.Automation\DWSIM.Automation.csproj" />
+    <ProjectReference Include="..\..\engine\DWSIM.FluentAPI\DWSIM.FluentAPI.csproj" />
+    <ProjectReference Include="..\..\engine\DWSIM.FlowsheetBase\DWSIM.FlowsheetBase.vbproj" />
+    <ProjectReference Include="..\..\engine\DWSIM.Interfaces\DWSIM.Interfaces.vbproj" />
+    <ProjectReference Include="..\..\engine\DWSIM.Thermodynamics\DWSIM.Thermodynamics.vbproj" />
+    <ProjectReference Include="..\..\engine\DWSIM.UnitOperations\DWSIM.UnitOperations.vbproj" />
+    <ProjectReference Include="..\..\engine\DWSIM.GlobalSettings\DWSIM.GlobalSettings.vbproj" />
+    <ProjectReference Include="..\..\engine\DWSIM.SharedClasses\DWSIM.SharedClasses.vbproj" />
+    <ProjectReference Include="..\..\engine\DWSIM.FlowsheetSolver\DWSIM.FlowsheetSolver.vbproj" />
+    <ProjectReference Include="..\..\engine\DWSIM.Drawing.SkiaSharp\DWSIM.Drawing.SkiaSharp.vbproj" />
+  </ItemGroup>
+
+</Project>
