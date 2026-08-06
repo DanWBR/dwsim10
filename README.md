@@ -53,11 +53,11 @@ third-party source under `external/` keeps the version its author gave it.
 dotnet test DWSIM.slnx
 ```
 
-Seven suites, a hundred and fifty tests: the linear programming solver, the settings file, the
-analytical thermodynamic derivatives against numerical ones, the managed IPOPT solver and its
-linear algebra, the fluent API, and the engine smoke tests, which load the compound databases,
-register the property packages, and load and solve the fourteen sample flowsheets under
-`tests/flowsheets`.
+Seven suites, a hundred and sixty-three tests: the linear programming solver, the settings file,
+the analytical thermodynamic derivatives against numerical ones, the managed IPOPT solver, its
+linear algebra and its façade, the fluent API, and the engine smoke tests, which load the
+compound databases, register the property packages, and load and solve the fourteen sample
+flowsheets under `tests/flowsheets`.
 
 Seven of those fourteen samples do not solve. They do not solve on the .NET Framework build of
 the engine either, with the same object reporting the same message, so they are pinned as such:
@@ -79,14 +79,16 @@ operations and property packages of the Patreon edition (refining, electrolyte o
 extension pack, life cycle assessment, techno-economic analysis) live elsewhere. Their entry
 points in the fluent API are still here and say so when called.
 
-One numerical back-end is still not wired in: IPOPT, which the Gibbs energy minimisation and the
-binary interaction parameter regression use. `engine/DWSIM.Numerics.Ipopt` is the façade the
-engine calls and it still throws, but the solver behind it now exists in managed code:
-`DWSIM.Numerics.Ipopt.Sparse` (QDLDL, Bunch-Kaufman, Cholesky) and `DWSIM.Numerics.Ipopt.Core`
-(primal-dual interior point, limited-memory BFGS, adaptive mu), 58 tests. It covers the
-bound-constrained case, which is seven of the engine's eight call sites; the eighth, the Gibbs
-three-phase flash, poses `m = n + 1` equality constraints and needs the constrained path first.
-[docs/ipopt-contract.md](docs/ipopt-contract.md) records the surface the façade has to present.
+IPOPT is managed code here. `engine/DWSIM.Numerics.Ipopt.Sparse` holds the linear algebra
+(QDLDL, Bunch-Kaufman, dense Cholesky), `engine/DWSIM.Numerics.Ipopt.Core` the primal-dual
+interior-point solver (limited-memory BFGS, adaptive mu, Ipopt-format iteration log), and
+`engine/DWSIM.Numerics.Ipopt` presents them under the `Cureos.Numerics` shape the engine was
+written against, so no call site changed. That serves the bound-constrained case, which is seven
+of the engine's eight call sites. The eighth, the Gibbs three-phase flash, poses `m = n + 1`
+equality constraints with an analytic Hessian, and throws until the constrained path is written.
+None of it is validated against the native library yet: that comparison runs on the .NET
+Framework build, where both are available. [docs/ipopt-contract.md](docs/ipopt-contract.md)
+records the surface and what is left to do.
 
 The two other Windows-only native libraries are gone rather than missing: `lpsolve55`, which
 seeded the Gibbs reactor, was replaced by a managed two-phase simplex validated against it over

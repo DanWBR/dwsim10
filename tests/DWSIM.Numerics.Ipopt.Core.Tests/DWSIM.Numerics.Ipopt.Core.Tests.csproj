@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\engine\DWSIM.Numerics.Ipopt.Core\DWSIM.Numerics.Ipopt.Core.csproj" />
+    <ProjectReference Include="..\..\engine\DWSIM.Numerics.Ipopt\DWSIM.Numerics.Ipopt.csproj" />
   </ItemGroup>
 
 </Project>

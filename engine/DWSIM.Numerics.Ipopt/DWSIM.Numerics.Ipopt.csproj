@@ -1,8 +1,20 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <!--
+    The Cureos.Numerics shape the engine was written against, over the managed solver. Multi-
+    targeted for the same reason the solver is: the .NET Framework build of the Patreon edition
+    consumes the same assemblies.
+  -->
+
   <PropertyGroup>
+    <TargetFramework></TargetFramework>
+    <TargetFrameworks>netstandard2.0;net10.0</TargetFrameworks>
     <RootNamespace>Cureos.Numerics</RootNamespace>
     <AssemblyName>DWSIM.Numerics.Ipopt</AssemblyName>
   </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DWSIM.Numerics.Ipopt.Core\DWSIM.Numerics.Ipopt.Core.csproj" />
+  </ItemGroup>
 
 </Project>

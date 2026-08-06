@@ -189,7 +189,10 @@ namespace DWSIM.Numerics.Ipopt.Core
                 double dNorm = 0.0;
                 for (int i = 0; i < n; i++) dNorm = Math.Max(dNorm, Math.Abs(dx[i]));
 
-                Record(log, new IterationInfo(iter, nlp.EvalF(x), 0.0, dualInf, mu, dNorm, delta, alphaZ, alpha, ls));
+                if (!Record(log, new IterationInfo(iter, nlp.EvalF(x), 0.0, dualInf, mu, dNorm, delta, alphaZ, alpha, ls)))
+                {
+                    return Finish(SolveStatus.UserRequested, x, nlp.EvalF(x), iter, e0, log);
+                }
 
                 if (!accepted && alpha < 1e-14)
                 {
@@ -226,10 +229,12 @@ namespace DWSIM.Numerics.Ipopt.Core
             }
         }
 
-        private void Record(List<IterationInfo>? log, in IterationInfo info)
+        /// <summary>Reports one iteration. Returns false when the callback asks to stop.</summary>
+        private bool Record(List<IterationInfo>? log, in IterationInfo info)
         {
             log?.Add(info);
             if (_opt.LogWriter != null) _opt.LogWriter.WriteLine(IpoptLog.Row(info));
+            return _opt.IterationCallback == null || _opt.IterationCallback(info);
         }
 
         private static SolveResult Finish(SolveStatus status, double[] x, double f, int iter, double err, List<IterationInfo>? log)

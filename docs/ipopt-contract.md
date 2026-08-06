@@ -1,4 +1,4 @@
-# The IPOPT surface DWSIM calls
+﻿# The IPOPT surface DWSIM calls
 
 DWSIM talks to IPOPT through `Cureos.Numerics`, a .NET Framework wrapper around the native
 `Ipopt39.dll`. A managed replacement drops into the engine unchanged as long as it keeps the
@@ -193,12 +193,18 @@ The solver behind the façade now exists in this repository:
 Both libraries target `netstandard2.0` as well as `net10.0`, so the .NET Framework build of the
 Patreon edition can consume the same assemblies.
 
-Two things are still missing before `Cureos.Numerics.Ipopt` can stop throwing:
+`engine/DWSIM.Numerics.Ipopt` now implements the façade over that solver. It maps the five
+options the engine sets, forwards the intermediate callback (returning false stops the solve and
+comes back as `User_Requested_Stop`, which is how `IPOPTSolver` abandons a stalled objective),
+writes the answer into the array the caller passed, and falls back to central differences with
+`eps = 0.001` when no gradient delegate is supplied. A caller's `eval_f` or `eval_grad_f`
+returning false comes back as `Invalid_Number_Detected`.
 
-1. The façade itself, mapping the constructor and `SolveProblem` above onto `INlp` and
-   `InteriorPointSolver`. For `m = 0` everything it needs is there; `DwsimIpoptSolver` already
-   mirrors `MathEx.Optimization.IPOPTSolver` exactly, including the central-difference gradient
-   with `eps = 0.001`.
-2. The constrained path, for `GibbsMinimization3P`: `m = n + 1`, dense Jacobian, analytic
+Two things are still missing:
+
+1. The constrained path, for `GibbsMinimization3P`: `m = n + 1`, dense Jacobian, analytic
    Hessian, and a real filter line search instead of the Armijo one, which is only equivalent
-   while the infeasibility measure is identically zero.
+   while the infeasibility measure is identically zero. `SolveProblem` throws with the
+   constraint count when it is handed one of these.
+2. The comparison against the native library. It has to run on the .NET Framework build of the
+   engine, which is the only one where `Ipopt39.dll` and the managed solver both exist.

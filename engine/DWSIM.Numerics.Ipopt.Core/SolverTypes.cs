@@ -12,7 +12,9 @@ namespace DWSIM.Numerics.Ipopt.Core
         /// <summary>The line search could not make progress.</summary>
         LineSearchFailure,
         /// <summary>The problem or options were invalid.</summary>
-        InvalidInput
+        InvalidInput,
+        /// <summary>An iteration callback asked the solve to stop.</summary>
+        UserRequested
     }
 
     /// <summary>Barrier-parameter update strategy.</summary>
@@ -92,6 +94,13 @@ namespace DWSIM.Numerics.Ipopt.Core
 
         /// <summary>If true, every iteration's <see cref="IterationInfo"/> is collected in the result.</summary>
         public bool CollectIterationLog = true;
+
+        /// <summary>
+        /// Called once per iteration. Returning false stops the solve with
+        /// <see cref="SolveStatus.UserRequested"/>, which is what Ipopt's intermediate callback
+        /// does and what DWSIM's wrapper uses to give up on a stalled objective.
+        /// </summary>
+        public System.Func<IterationInfo, bool>? IterationCallback;
     }
 
     /// <summary>Per-iteration diagnostics, mirroring the columns of Ipopt's iteration table.</summary>
