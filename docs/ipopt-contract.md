@@ -208,3 +208,35 @@ Two things are still missing:
    constraint count when it is handed one of these.
 2. The comparison against the native library. It has to run on the .NET Framework build of the
    engine, which is the only one where `Ipopt39.dll` and the managed solver both exist.
+
+## The comparison against the native library
+
+Run in the .NET Framework build, where `Ipopt39.dll` and the managed solver both exist:
+
+```
+DWSIM.Automation.FluentAPI.Tests.exe ipoptab -- 5000
+```
+
+The harness hands the identical delegate to `MathEx.Optimization.IPOPTSolver`, which binds the
+native library, and to `DwsimIpoptSolver`, and compares the objective reached. Both get the
+tolerance and iteration cap the engine uses for a binary interaction parameter fit: `tol = 1e-4`,
+`max_iter = 100`.
+
+Over 5,004 problems, all bound-constrained, mostly randomised least squares of the size and
+conditioning the engine's regressions have, a third of them with a bound the solution wants to
+cross:
+
+- **4,694 agree to a relative 1e-6** in the objective.
+- 283 end with the native library lower, 27 with the managed one lower. The largest of those
+  differences is a relative **9.1e-5**, which is below the 1e-4 both solvers were asked for.
+- Nothing failed or threw.
+
+On the named cases the managed solver does better rather than worse. Rosenbrock from
+`(-1.2, 1)` reaches `4.3e-14` against the native `2.7e-11`, in 35 iterations against 41. A
+two-parameter fit with the `+/-10000` bounds of a binary interaction regression reaches
+`2.4e-6` against `6.1e-3`, in 4 iterations against 8. That last one is also where `|dx|` is
+largest, `1.4e3`, because the objective is nearly flat in those variables: the two solvers stop
+at very different points of the same valley, and the managed one stops lower.
+
+What this does not cover: the constrained path, which does not exist, and therefore the Gibbs
+three-phase flash.
