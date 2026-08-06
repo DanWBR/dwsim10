@@ -69,6 +69,8 @@ repository: IPOPT, which the Gibbs energy minimisation and the binary interactio
 regression use; `lpsolve55`, which seeds the Gibbs reactor; and `steam67`. Everything that
 reaches them fails with a message that says which one is missing.
 
+Extensions written against DWSIM 9 need a few edits; [BREAKING.md](BREAKING.md) lists them.
+
 ## Licence
 
 GNU General Public License version 3 or later. See [LICENSE](LICENSE).
