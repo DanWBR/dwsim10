@@ -105,6 +105,9 @@ Namespace UnitOperations
         ''' <summary>Gets or sets the dictionary of output parameter mappings, keyed by parameter ID.</summary>
         Public Property OutputParams As Dictionary(Of String, FlowsheetUOParameter)
         <System.Xml.Serialization.XmlIgnore> <System.NonSerialized> Public Fsheet As Interfaces.IFlowsheet
+
+        ''' <summary>Why the sub-flowsheet did not load, kept so the failure can say so.</summary>
+        <System.Xml.Serialization.XmlIgnore> <System.NonSerialized> Private InitializationError As Exception
         ''' <summary>Gets or sets the list of input stream connection IDs in the sub-flowsheet.</summary>
         Public Property InputConnections As List(Of String)
         ''' <summary>Gets or sets the list of output stream connection IDs in the sub-flowsheet.</summary>
@@ -890,6 +893,22 @@ Label_00CC:
 
             If Initialized Then InitializeMappings()
 
+            If Fsheet Is Nothing Then
+
+                ' The sub-flowsheet is the whole of this unit operation, so there is nothing to
+                ' calculate without it. Saying which file is missing beats the null reference that
+                ' the next line used to raise: the path is stored absolute, from whichever machine
+                ' last saved the parent, so a file that moved with its owner is the common case.
+                Dim reason As String = If(FileIsEmbedded,
+                                          "the embedded file '" & EmbeddedFileName & "'",
+                                          "'" & SimulationFile & "'")
+
+                Throw New Exception("The sub-flowsheet could not be loaded from " & reason & ". " &
+                                    "Open this unit operation and point it at the file.",
+                                    InitializationError)
+
+            End If
+
             Me.Fsheet.MasterUnitOp = Me
 
             Calculated = False
@@ -1228,6 +1247,10 @@ Label_00CC:
                                                     End If
                                                     Initialized = True
                                                 Catch ex As Exception
+                                                    ' Kept, not swallowed: without it the only
+                                                    ' evidence that the sub-flowsheet never loaded
+                                                    ' is a null reference two lines into Calculate.
+                                                    InitializationError = ex
                                                 Finally
                                                     finished = True
                                                 End Try
