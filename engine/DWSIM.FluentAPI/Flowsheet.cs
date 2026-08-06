@@ -23,7 +23,9 @@ namespace DWSIM.Automation.FluentAPI
     /// methods for compounds, property packages, streams, unit operations, reactions,
     /// and the solver.
     /// </summary>
-    public sealed class Flowsheet
+    // partial: the Patreon edition adds the builders of its own components in a
+    // second half of this class, so that this file stays the same in both editions
+    public sealed partial class Flowsheet
     {
         private double _x = 50;
         private double _y = 50;
