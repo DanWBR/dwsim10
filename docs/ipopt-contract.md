@@ -238,5 +238,33 @@ two-parameter fit with the `+/-10000` bounds of a binary interaction regression 
 largest, `1.4e3`, because the objective is nearly flat in those variables: the two solvers stop
 at very different points of the same valley, and the managed one stops lower.
 
+### The Gibbs reactor
+
+The synthetic battery says the two solvers behave the same on problems shaped like the engine's.
+The Gibbs and Equilibrium Reactors sample says it on a real one: its reactor runs in direct
+minimisation mode with `UseIPOPTSolver` on, so it minimises the Gibbs energy through
+`MathEx.Optimization.IPOPTSolver` with the element balance folded into the objective as a
+penalty. A steam reformer at 1000 K, methane and water in, synthesis gas out.
+
+`GibbsReactorTests` in the smoke suite pins the managed answer against the native one, which was
+produced by `DWSIM.Automation.FluentAPI.Tests.exe gibbsdump` in the DWSIM_Private tree:
+
+| | native | managed |
+|---|---|---|
+| initial Gibbs energy | -808.69816311351428 | identical |
+| final Gibbs energy | -984.06203055084325 | -984.06176599410151 |
+| CO2 | 0.036870752 | 0.036866522 |
+| CO | 0.174218073 | 0.174201965 |
+| H2 | 0.670135986 | 0.670070741 |
+| CH4 | 0.020079581 | 0.020076672 |
+| H2O | 0.098695608 | 0.098784100 |
+
+The objective agrees to 2.7e-7 relative and the largest composition difference is 8.9e-5. Those
+two numbers are consistent rather than independent: at a minimum the energy is stationary, so an
+error `eps` in composition costs `eps^2` in energy, and `sqrt(2.7e-7)` is 5e-4, the order of the
+relative composition spread. Both solvers found the same minimum and stopped at different points
+of its floor. The reactor asks for `tol = 1e-20`, which neither can reach, so where each stops is
+its own business.
+
 What this does not cover: the constrained path, which does not exist, and therefore the Gibbs
-three-phase flash.
+three-phase flash. The Gibbs reactor above does not use it; it poses no constraints.
