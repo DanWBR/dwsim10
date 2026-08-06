@@ -61,6 +61,7 @@
     <Project Path="tests/DWSIM.Engine.SmokeTests/DWSIM.Engine.SmokeTests.csproj" />
     <Project Path="tests/DWSIM.FluentAPI.Tests/DWSIM.FluentAPI.Tests.csproj" />
     <Project Path="tests/DWSIM.GlobalSettings.Tests/DWSIM.GlobalSettings.Tests.csproj" />
+    <Project Path="tests/DWSIM.MathOps.Tests/DWSIM.MathOps.Tests.csproj" />
     <Project Path="tests/DWSIM.Thermodynamics.Derivatives.Tests/DWSIM.Thermodynamics.Derivatives.Tests.csproj" />
   </Folder>
 </Solution>

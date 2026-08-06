@@ -18,7 +18,7 @@
 
 
 Imports DWSIM.Thermodynamics.BaseClasses
-Imports Flee.PublicTypes
+Imports Ciloci.Flee
 Imports System.Math
 Imports System.Linq
 Imports DWSIM.MathOps.MathEx.Common
@@ -1992,11 +1992,9 @@ Namespace Reactors
 
             'Dim lp As Integer
 
-            Dim re(c + 1) As Double
-
             'calculate ideal gas gibbs energy values
 
-            Dim igge(c), igge_lp(c + 1) As Double
+            Dim igge(c) As Double
 
             pp.CurrentMaterialStream = ims
 
@@ -2020,45 +2018,37 @@ Namespace Reactors
 
             Else
 
-                'estimate initial values by solving linear problem using lp_solve
+                'estimate initial values by minimising the ideal gas gibbs energy over the
+                'element balance, which is a linear problem: min g.n subject to A n = b, n >= 0.
 
-                'DWSIM.Thermodynamics.Calculator.CheckParallelPInvoke()
-
-                Dim lp As IntPtr
-
-                lpsolve55.Init(".")
-                lp = lpsolve55.make_lp(0, c + 1)
-                lpsolve55.default_basis(lp)
+                Dim balance(e, c) As Double
+                Dim totals(e) As Double
 
                 For i = 0 To e
-                    For j = 1 To c + 1
-                        re(j) = Me.ElementMatrix(i, j - 1)
+                    For j = 0 To c
+                        balance(i, j) = Me.ElementMatrix(i, j)
                     Next
-                    lpsolve55.add_constraint(lp, re, lpsolve55.lpsolve_constr_types.EQ, Me.TotalElements(i))
+                    totals(i) = Me.TotalElements(i)
                 Next
 
                 'calculate ideal gas gibbs energy values
 
                 pp.CurrentMaterialStream = ims
 
-                For i = 1 To c + 1
-                    igge_lp(i) = pp.AUX_DELGF_T(298.15, T, Me.ComponentIDs(i - 1)) * FlowSheet.SelectedCompounds(Me.ComponentIDs(i - 1)).Molar_Weight + Log(P / P0)
-                    lpsolve55.set_lowbo(lp, i, 0)
+                Dim energies(c) As Double
+
+                For i = 0 To c
+                    energies(i) = pp.AUX_DELGF_T(298.15, T, Me.ComponentIDs(i)) * FlowSheet.SelectedCompounds(Me.ComponentIDs(i)).Molar_Weight + Log(P / P0)
                 Next
 
-                lpsolve55.set_obj_fn(lp, igge_lp)
-                lpsolve55.set_minim(lp)
-                lpsolve55.solve(lp)
+                Dim lpstatus = MathEx.LinearProgramming.Simplex.Minimize(balance, totals, energies, resc)
 
-                lpsolve55.print_lp(lp)
-
-                lpsolve55.print_solution(lp, c + 1)
+                If lpstatus <> MathEx.LinearProgramming.SimplexStatus.Optimal Then
+                    Throw New Exception("The element balance of this reactor has no non-negative solution (" &
+                                        lpstatus.ToString() & "). Check the compounds and the inlet stream.")
+                End If
 
                 'the linear problem solution consists of only 'e' molar flows higher than zero.
-
-                lpsolve55.get_variables(lp, resc)
-
-                lpsolve55.delete_lp(lp)
 
                 IObj?.Paragraphs.Add(String.Format("Initial Mole Amounts {0}", resc.ToArray.ToMathArrayString))
 
