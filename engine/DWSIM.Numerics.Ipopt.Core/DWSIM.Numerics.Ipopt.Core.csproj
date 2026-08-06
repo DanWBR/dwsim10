@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Managed primal-dual interior-point solver for the bound-constrained case, min f(x) subject
+    to xL <= x <= xU, which is how seven of the engine's eight Ipopt call sites pose their
+    problem. Defaults mirror the ones DWSIM passes to native Ipopt: adaptive mu through the
+    LOQO oracle, and limited-memory BFGS with a history of six. It writes an Ipopt-format
+    iteration log so a managed run can be read side by side with a native one.
+
+    The Gibbs three-phase flash is the one call site this does not serve yet: it poses m = n + 1
+    equality constraints with a dense Jacobian and an analytic Hessian.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework></TargetFramework>
+    <TargetFrameworks>netstandard2.0;net10.0</TargetFrameworks>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DWSIM.Numerics.Ipopt.Sparse\DWSIM.Numerics.Ipopt.Sparse.csproj" />
+  </ItemGroup>
+
+</Project>

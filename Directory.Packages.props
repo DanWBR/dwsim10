@@ -1,4 +1,4 @@
-<Project>
+﻿<Project>
 
   <!--
     Every package version lives here, so the engine, the UI and the tests cannot drift apart.
@@ -69,6 +69,8 @@
     <PackageVersion Include="NUnit" Version="4.2.2" />
     <PackageVersion Include="NUnit3TestAdapter" Version="4.6.0" />
     <PackageVersion Include="System.Reflection.MetadataLoadContext" Version="9.0.0" />
+    <PackageVersion Include="xunit" Version="2.9.2" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />
   </ItemGroup>
 
 </Project>

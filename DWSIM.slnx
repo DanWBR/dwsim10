@@ -1,4 +1,4 @@
-﻿<Solution>
+<Solution>
   <Folder Name="/engine/">
     <Project Path="engine/DWSIM.Interfaces/DWSIM.Interfaces.vbproj" />
     <Project Path="engine/DWSIM.DrawingTools.Point/DWSIM.DrawingTools.Point.vbproj" />
@@ -15,6 +15,8 @@
     <Project Path="engine/DWSIM.SharedClassesCSharp/DWSIM.SharedClassesCSharp.csproj" />
     <Project Path="engine/DWSIM.XMLSerializer/DWSIM.XMLSerializer.vbproj" />
     <Project Path="engine/DWSIM.MathOps/DWSIM.MathOps.vbproj" />
+    <Project Path="engine/DWSIM.Numerics.Ipopt.Core/DWSIM.Numerics.Ipopt.Core.csproj" />
+    <Project Path="engine/DWSIM.Numerics.Ipopt.Sparse/DWSIM.Numerics.Ipopt.Sparse.csproj" />
     <Project Path="engine/DWSIM.Numerics.Ipopt/DWSIM.Numerics.Ipopt.csproj" />
     <Project Path="engine/DWSIM.MathOps.DotNumerics/DWSIM.MathOps.DotNumerics.csproj" />
     <Project Path="engine/DWSIM.MathOps.Mapack/DWSIM.MathOps.Mapack.csproj" />
@@ -49,6 +51,9 @@
     <Project Path="engine/DWSIM.Automation.DynamicRunner/DWSIM.Automation.DynamicRunner.csproj" />
     <Project Path="engine/DWSIM.FluentAPI/DWSIM.FluentAPI.csproj" />
   </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/IpoptKktReplay/IpoptKktReplay.csproj" />
+  </Folder>
   <Folder Name="/ui/">
     <Project Path="ui/DWSIM.UI.Shared.Avalonia/DWSIM.UI.Shared.Avalonia.csproj" />
     <Project Path="ui/DWSIM.UI.Desktop.Editors.Avalonia/DWSIM.UI.Desktop.Editors.Avalonia.csproj" />
@@ -62,6 +67,8 @@
     <Project Path="tests/DWSIM.FluentAPI.Tests/DWSIM.FluentAPI.Tests.csproj" />
     <Project Path="tests/DWSIM.GlobalSettings.Tests/DWSIM.GlobalSettings.Tests.csproj" />
     <Project Path="tests/DWSIM.MathOps.Tests/DWSIM.MathOps.Tests.csproj" />
+    <Project Path="tests/DWSIM.Numerics.Ipopt.Core.Tests/DWSIM.Numerics.Ipopt.Core.Tests.csproj" />
+    <Project Path="tests/DWSIM.Numerics.Ipopt.Sparse.Tests/DWSIM.Numerics.Ipopt.Sparse.Tests.csproj" />
     <Project Path="tests/DWSIM.Thermodynamics.Derivatives.Tests/DWSIM.Thermodynamics.Derivatives.Tests.csproj" />
   </Folder>
 </Solution>

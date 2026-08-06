@@ -179,3 +179,26 @@ The reference is the current answer, not the literature: run the flowsheet corpu
 native IPOPT and with the managed one, and compare the converged streams. The cases that
 exercise it hardest are the Gibbs reactor samples and the binary interaction parameter
 regression, both of which are in `tests/flowsheets`.
+
+## Status
+
+The solver behind the façade now exists in this repository:
+
+| Project | What it holds |
+|---|---|
+| `engine/DWSIM.Numerics.Ipopt.Sparse` | QDLDL, dense Bunch-Kaufman, dense Cholesky, and the adapter that presents them the way Ipopt's linear solver contract expects |
+| `engine/DWSIM.Numerics.Ipopt.Core` | Primal-dual interior point for `m = 0`, limited-memory BFGS with history 6, adaptive mu through the LOQO oracle, and an Ipopt-format iteration log |
+| `tools/IpoptKktReplay` | Replays KKT systems captured from a native run, and generates synthetic ones |
+
+Both libraries target `netstandard2.0` as well as `net10.0`, so the .NET Framework build of the
+Patreon edition can consume the same assemblies.
+
+Two things are still missing before `Cureos.Numerics.Ipopt` can stop throwing:
+
+1. The façade itself, mapping the constructor and `SolveProblem` above onto `INlp` and
+   `InteriorPointSolver`. For `m = 0` everything it needs is there; `DwsimIpoptSolver` already
+   mirrors `MathEx.Optimization.IPOPTSolver` exactly, including the central-difference gradient
+   with `eps = 0.001`.
+2. The constrained path, for `GibbsMinimization3P`: `m = n + 1`, dense Jacobian, analytic
+   Hessian, and a real filter line search instead of the Armijo one, which is only equivalent
+   while the infeasibility measure is identically zero.

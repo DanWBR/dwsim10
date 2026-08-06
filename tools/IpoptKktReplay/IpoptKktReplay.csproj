@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Replays KKT systems captured from native Ipopt, and generates synthetic ones. -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>DWSIM.Numerics.Ipopt.Replay</RootNamespace>
+    <AssemblyName>ipopt-kkt-replay</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\engine\DWSIM.Numerics.Ipopt.Sparse\DWSIM.Numerics.Ipopt.Sparse.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Sparse and dense symmetric-indefinite linear algebra: QDLDL, Bunch-Kaufman, Cholesky, and
+    the adapter that presents them the way Ipopt's linear solver contract expects. This is the
+    piece with no ready-made .NET equivalent, which is why it was written first.
+
+    Multi-targeted because both editions consume it: net10.0 for this repository and
+    netstandard2.0 for the .NET Framework build of the Patreon edition.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework></TargetFramework>
+    <TargetFrameworks>netstandard2.0;net10.0</TargetFrameworks>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
