@@ -33,7 +33,7 @@ Namespace ExcelAddIn
 
                 Settings.ExcelMode = True
 
-                Dim inifile As String = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) & Path.DirectorySeparatorChar & "DWSIM Application Data" & Path.DirectorySeparatorChar & "config.ini"
+                Dim inifile As String = Path.Combine(GlobalSettings.Settings.GetConfigFileDir(), "config.ini")
                 If File.Exists(inifile) Then GlobalSettings.Settings.LoadExcelSettings(inifile)
 
                 Dim pp As New RaoultPropertyPackage(True)
@@ -86,7 +86,7 @@ Namespace ExcelAddIn
 
             Settings.ExcelMode = True
 
-            Dim inifile As String = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) & Path.DirectorySeparatorChar & "DWSIM Application Data" & Path.DirectorySeparatorChar & "config.ini"
+            Dim inifile As String = Path.Combine(GlobalSettings.Settings.GetConfigFileDir(), "config.ini")
             If File.Exists(inifile) Then GlobalSettings.Settings.LoadExcelSettings(inifile)
 
             Try
@@ -145,7 +145,7 @@ Namespace ExcelAddIn
 
             Settings.ExcelMode = True
 
-            Dim inifile As String = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) & Path.DirectorySeparatorChar & "DWSIM Application Data" & Path.DirectorySeparatorChar & "config.ini"
+            Dim inifile As String = Path.Combine(GlobalSettings.Settings.GetConfigFileDir(), "config.ini")
             If File.Exists(inifile) Then GlobalSettings.Settings.LoadExcelSettings(inifile)
 
             Dim pp As New RaoultPropertyPackage(True)
@@ -218,7 +218,7 @@ Namespace ExcelAddIn
 
             Settings.ExcelMode = True
 
-            Dim inifile As String = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) & Path.DirectorySeparatorChar & "DWSIM Application Data" & Path.DirectorySeparatorChar & "config.ini"
+            Dim inifile As String = Path.Combine(GlobalSettings.Settings.GetConfigFileDir(), "config.ini")
             If File.Exists(inifile) Then GlobalSettings.Settings.LoadExcelSettings(inifile)
 
             Dim ipdata(1, 8) As Object
@@ -422,7 +422,7 @@ Namespace ExcelAddIn
 
             Settings.ExcelMode = True
 
-            Dim inifile As String = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) & Path.DirectorySeparatorChar & "DWSIM Application Data" & Path.DirectorySeparatorChar & "config.ini"
+            Dim inifile As String = Path.Combine(GlobalSettings.Settings.GetConfigFileDir(), "config.ini")
             If File.Exists(inifile) Then GlobalSettings.Settings.LoadExcelSettings(inifile)
 
             Dim iplist As New List(Of BaseClasses.InteractionParameter) '= UserIPDB.GetStoredIPsets(Compound1, Compound2, Model)
@@ -538,7 +538,7 @@ Namespace ExcelAddIn
 
             Settings.ExcelMode = True
 
-            Dim inifile As String = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) & Path.DirectorySeparatorChar & "DWSIM Application Data" & Path.DirectorySeparatorChar & "config.ini"
+            Dim inifile As String = Path.Combine(GlobalSettings.Settings.GetConfigFileDir(), "config.ini")
             If File.Exists(inifile) Then GlobalSettings.Settings.LoadExcelSettings(inifile)
 
 
@@ -582,7 +582,7 @@ Namespace ExcelAddIn
 
             Try
 
-                Dim inifile As String = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) & Path.DirectorySeparatorChar & "DWSIM Application Data" & Path.DirectorySeparatorChar & "config.ini"
+                Dim inifile As String = Path.Combine(GlobalSettings.Settings.GetConfigFileDir(), "config.ini")
                 If File.Exists(inifile) Then GlobalSettings.Settings.LoadExcelSettings(inifile)
 
 
@@ -683,7 +683,7 @@ Namespace ExcelAddIn
 
             Try
 
-                Dim inifile As String = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) & Path.DirectorySeparatorChar & "DWSIM Application Data" & Path.DirectorySeparatorChar & "config.ini"
+                Dim inifile As String = Path.Combine(GlobalSettings.Settings.GetConfigFileDir(), "config.ini")
                 If File.Exists(inifile) Then GlobalSettings.Settings.LoadExcelSettings(inifile)
 
 
@@ -783,7 +783,7 @@ Namespace ExcelAddIn
 
             Try
 
-                Dim inifile As String = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) & Path.DirectorySeparatorChar & "DWSIM Application Data" & Path.DirectorySeparatorChar & "config.ini"
+                Dim inifile As String = Path.Combine(GlobalSettings.Settings.GetConfigFileDir(), "config.ini")
                 If File.Exists(inifile) Then GlobalSettings.Settings.LoadExcelSettings(inifile)
 
                 Dim ms As New Streams.MaterialStream("", "")
@@ -829,7 +829,7 @@ Namespace ExcelAddIn
 
             Try
 
-                Dim inifile As String = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) & Path.DirectorySeparatorChar & "DWSIM Application Data" & Path.DirectorySeparatorChar & "config.ini"
+                Dim inifile As String = Path.Combine(GlobalSettings.Settings.GetConfigFileDir(), "config.ini")
                 If File.Exists(inifile) Then GlobalSettings.Settings.LoadExcelSettings(inifile)
 
 
@@ -996,7 +996,7 @@ Namespace ExcelAddIn
 
             Try
 
-                Dim inifile As String = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) & Path.DirectorySeparatorChar & "DWSIM Application Data" & Path.DirectorySeparatorChar & "config.ini"
+                Dim inifile As String = Path.Combine(GlobalSettings.Settings.GetConfigFileDir(), "config.ini")
                 If File.Exists(inifile) Then GlobalSettings.Settings.LoadExcelSettings(inifile)
 
 
@@ -1139,7 +1139,7 @@ Namespace ExcelAddIn
 
             Try
 
-                Dim inifile As String = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) & Path.DirectorySeparatorChar & "DWSIM Application Data" & Path.DirectorySeparatorChar & "config.ini"
+                Dim inifile As String = Path.Combine(GlobalSettings.Settings.GetConfigFileDir(), "config.ini")
                 If File.Exists(inifile) Then GlobalSettings.Settings.LoadExcelSettings(inifile)
 
 
@@ -1282,7 +1282,7 @@ Namespace ExcelAddIn
 
             Try
 
-                Dim inifile As String = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) & Path.DirectorySeparatorChar & "DWSIM Application Data" & Path.DirectorySeparatorChar & "config.ini"
+                Dim inifile As String = Path.Combine(GlobalSettings.Settings.GetConfigFileDir(), "config.ini")
                 If File.Exists(inifile) Then GlobalSettings.Settings.LoadExcelSettings(inifile)
 
 
@@ -1425,7 +1425,7 @@ Namespace ExcelAddIn
 
             Try
 
-                Dim inifile As String = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) & Path.DirectorySeparatorChar & "DWSIM Application Data" & Path.DirectorySeparatorChar & "config.ini"
+                Dim inifile As String = Path.Combine(GlobalSettings.Settings.GetConfigFileDir(), "config.ini")
                 If File.Exists(inifile) Then GlobalSettings.Settings.LoadExcelSettings(inifile)
 
 
@@ -1935,7 +1935,7 @@ Namespace ExcelAddIn
 
             Try
 
-                Dim inifile As String = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) & Path.DirectorySeparatorChar & "DWSIM Application Data" & Path.DirectorySeparatorChar & "config.ini"
+                Dim inifile As String = Path.Combine(GlobalSettings.Settings.GetConfigFileDir(), "config.ini")
                 If File.Exists(inifile) Then GlobalSettings.Settings.LoadExcelSettings(inifile)
 
 
@@ -2055,7 +2055,7 @@ Namespace ExcelAddIn
 
             Try
 
-                Dim inifile As String = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) & Path.DirectorySeparatorChar & "DWSIM Application Data" & Path.DirectorySeparatorChar & "config.ini"
+                Dim inifile As String = Path.Combine(GlobalSettings.Settings.GetConfigFileDir(), "config.ini")
                 If File.Exists(inifile) Then GlobalSettings.Settings.LoadExcelSettings(inifile)
 
 
@@ -2176,7 +2176,7 @@ Namespace ExcelAddIn
 
             Try
 
-                Dim inifile As String = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) & Path.DirectorySeparatorChar & "DWSIM Application Data" & Path.DirectorySeparatorChar & "config.ini"
+                Dim inifile As String = Path.Combine(GlobalSettings.Settings.GetConfigFileDir(), "config.ini")
                 If File.Exists(inifile) Then GlobalSettings.Settings.LoadExcelSettings(inifile)
 
 
@@ -2297,7 +2297,7 @@ Namespace ExcelAddIn
 
             Try
 
-                Dim inifile As String = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) & Path.DirectorySeparatorChar & "DWSIM Application Data" & Path.DirectorySeparatorChar & "config.ini"
+                Dim inifile As String = Path.Combine(GlobalSettings.Settings.GetConfigFileDir(), "config.ini")
                 If File.Exists(inifile) Then GlobalSettings.Settings.LoadExcelSettings(inifile)
 
 
@@ -2418,7 +2418,7 @@ Namespace ExcelAddIn
 
             Try
 
-                Dim inifile As String = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) & Path.DirectorySeparatorChar & "DWSIM Application Data" & Path.DirectorySeparatorChar & "config.ini"
+                Dim inifile As String = Path.Combine(GlobalSettings.Settings.GetConfigFileDir(), "config.ini")
                 If File.Exists(inifile) Then GlobalSettings.Settings.LoadExcelSettings(inifile)
 
 

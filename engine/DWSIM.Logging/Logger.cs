@@ -41,12 +41,19 @@ namespace DWSIM.Logging
 
         private static void InitializeFilesystemLogs(NLog.Config.LoggingConfiguration config)
         {
-            var logfiledir = "";
+            // The documents folder is often not there on Linux: .NET reads it from
+            // ~/.config/user-dirs.dirs, which a container, a server or a fresh account does not
+            // have, and returns an empty string. Concatenating that put the log at the root of
+            // the filesystem, where nobody can write.
+            var home = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
 
-            if (RunningPlatform() == Platform.Mac)
-                logfiledir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Personal), "Documents", "DWSIM Application Data");
-            else
-                logfiledir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "DWSIM Application Data");
+            if (home == "") home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            if (home == "") home = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            if (home == "") home = Path.GetTempPath();
+
+            var logfiledir = RunningPlatform() == Platform.Mac
+                ? Path.Combine(home, "Documents", "DWSIM Application Data")
+                : Path.Combine(home, "DWSIM Application Data");
 
             if (!Directory.Exists(logfiledir))
                 Directory.CreateDirectory(logfiledir);

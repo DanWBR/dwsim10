@@ -479,14 +479,28 @@ Public Class Settings
         Return Not Type.GetType("Mono.Runtime") Is Nothing
     End Function
 
+    ''' <summary>
+    ''' Where the settings file, the log and the backups live.
+    '''
+    ''' The documents folder is the first choice, and on Linux it is often not there: .NET reads it
+    ''' from ~/.config/user-dirs.dirs, which a container, a server or a fresh account does not
+    ''' have, and returns an empty string. Concatenating that put the folder at the root of the
+    ''' filesystem, where nobody can write.
+    ''' </summary>
     Shared Function GetConfigFileDir() As String
-        Dim configfiledir As String = ""
+
+        Dim home = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
+
+        If home = "" Then home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)
+        If home = "" Then home = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData)
+        If home = "" Then home = Path.GetTempPath()
+
         If Settings.RunningPlatform = Platform.Mac Then
-            configfiledir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Personal), "Documents", "DWSIM Application Data") & Path.DirectorySeparatorChar
-        Else
-            configfiledir = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) & Path.DirectorySeparatorChar & "DWSIM Application Data" & Path.DirectorySeparatorChar
+            Return Path.Combine(home, "Documents", "DWSIM Application Data") & Path.DirectorySeparatorChar
         End If
-        Return configfiledir
+
+        Return Path.Combine(home, "DWSIM Application Data") & Path.DirectorySeparatorChar
+
     End Function
 
     ''' <summary>
