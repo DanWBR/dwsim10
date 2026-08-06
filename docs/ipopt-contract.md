@@ -266,5 +266,40 @@ relative composition spread. Both solvers found the same minimum and stopped at 
 of its floor. The reactor asks for `tol = 1e-20`, which neither can reach, so where each stops is
 its own business.
 
-What this does not cover: the constrained path, which does not exist, and therefore the Gibbs
-three-phase flash. The Gibbs reactor above does not use it; it poses no constraints.
+## The constrained path
+
+`engine/DWSIM.Numerics.Ipopt.Core/ConstrainedInteriorPointSolver.cs` implements the `m > 0` case:
+every constraint gets a slack, `g(x) - s = 0` with `cl <= s <= cu`, so inequalities and equalities
+are one shape; the step comes from the augmented system solved by the symmetric indefinite
+factorization in `DWSIM.Numerics.Ipopt.Sparse`, whose inertia drives the regularization the way
+Ipopt's Algorithm IC does; and acceptance is the filter on (constraint violation, barrier
+objective) rather than a merit function. `Cureos.Numerics.Ipopt` routes `m > 0` there, mapping the
+triplet Jacobian onto a dense one.
+
+It is right on problems with an independent answer. **Hock-Schittkowski 71**, the problem Ipopt
+ships as its own tutorial, converges in 13 iterations to `f = 17.0140173` at
+`(1, 4.74299963, 3.82114998, 1.37940829)` with an optimality error of 1.1e-9, both directly and
+through the façade with the triplet Jacobian; a sum of squares on a line, an inactive inequality
+and the linear shape the Gibbs flash poses all reach their analytic answers.
+
+**It is not yet right on the Gibbs three-phase flash.** On ethanol and water at 355 K the solve
+stalls: the line search gives up around iteration 12 with the optimality error near 1e-1, and the
+flash reports a vapour fraction of 0.21 where the native library gives 0.42. What is missing is
+the feasibility restoration phase, which is what Ipopt falls back on when the filter blocks every
+trial point.
+
+Two things follow from that, and both are in the tree:
+
+- `SolveStatus.LineSearchFailure` maps to `Error_In_Step_Computation`, not to
+  `Search_Direction_Becomes_Too_Small`. Every caller in the engine treats the latter as a usable
+  answer, so a stalled solve was being consumed as a converged one, which is how a flash comes to
+  report a phase split it never computed.
+- `GibbsThreePhaseFlashTests.TheGibbsFlashMatchesTheNativeSolver` carries the native numbers and
+  is marked `Ignore` with the reason. Remove the `Ignore` when restoration lands.
+
+Two earlier defects in this file are worth remembering, because both produced plausible answers
+rather than obvious failures: an equality's residual is `g(x) - c`, not `g(x) - 0`; and both ends
+of the quasi-Newton curvature pair have to use the multipliers the step produced, since the matrix
+approximates the Hessian of one Lagrangian and mixing an old and a new `y` measures nothing.
+
+The Gibbs reactor of the sample above does not go through any of this: it poses no constraints.

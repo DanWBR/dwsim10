@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <RootNamespace>DWSIM.Engine.SmokeTests</RootNamespace>
@@ -17,6 +17,15 @@
     <ProjectReference Include="..\..\engine\DWSIM.FlowsheetBase\DWSIM.FlowsheetBase.vbproj" />
     <ProjectReference Include="..\..\engine\DWSIM.Thermodynamics\DWSIM.Thermodynamics.vbproj" />
     <ProjectReference Include="..\..\engine\DWSIM.UnitOperations\DWSIM.UnitOperations.vbproj" />
+  </ItemGroup>
+
+
+  <ItemGroup>
+    <!-- The property packages implement the CAPE-OPEN interfaces on the class itself, so
+         a test that touches one needs the assembly that declares them. -->
+    <Reference Include="CapeOpen">
+      <HintPath>..\..\lib\CapeOpen.dll</HintPath>
+    </Reference>
   </ItemGroup>
 
 </Project>

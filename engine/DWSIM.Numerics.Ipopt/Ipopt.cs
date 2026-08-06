@@ -1,4 +1,4 @@
-//    The IPOPT surface the engine calls, over the managed solver.
+﻿//    The IPOPT surface the engine calls, over the managed solver.
 //
 //    This file is part of DWSIM.
 //
@@ -37,18 +37,17 @@ namespace Cureos.Numerics
         public const double PositiveInfinity = 2e19;
         public const double NegativeInfinity = -2e19;
 
-        private const string Constrained =
-            "This build solves bound-constrained problems only. The caller posed {0} constraint(s), " +
-            "which needs the constrained path of the managed IPOPT (dense Jacobian, analytic " +
-            "Hessian and a filter line search). Until then, use a flash algorithm that does not " +
-            "minimise Gibbs energy with constraints.";
-
         private readonly int _n;
         private readonly int _m;
         private readonly double[] _xL;
         private readonly double[] _xU;
+        private readonly double[] _cL;
+        private readonly double[] _cU;
         private readonly EvaluateObjectiveDelegate _evalF;
         private readonly EvaluateObjectiveGradientDelegate _evalGradF;
+        private readonly EvaluateConstraintsDelegate _evalG;
+        private readonly EvaluateJacobianDelegate _evalJacG;
+        private readonly int _neleJac;
         private readonly Core.SolverOptions _options = new Core.SolverOptions { LogWriter = null };
 
         private IntermediateDelegate _intermediate;
@@ -68,8 +67,13 @@ namespace Cureos.Numerics
             _m = m;
             _xL = x_L;
             _xU = x_U;
+            _cL = g_L;
+            _cU = g_U;
+            _neleJac = nele_jac;
             _evalF = eval_f;
             _evalGradF = eval_grad_f;
+            _evalG = eval_g;
+            _evalJacG = eval_jac_g;
         }
 
         /// <summary>
@@ -183,13 +187,10 @@ namespace Cureos.Numerics
             if (x == null || x.Length < _n) return IpoptReturnCode.Invalid_Problem_Definition;
             if (_evalF == null) return IpoptReturnCode.Invalid_Problem_Definition;
 
-            if (_m > 0)
+            if (_m > 0 && (_evalG == null || _evalJacG == null))
             {
-                throw new NotSupportedException(
-                    string.Format(CultureInfo.InvariantCulture, Constrained, _m));
+                return IpoptReturnCode.Invalid_Problem_Definition;
             }
-
-            var nlp = new FacadeNlp(_n, _xL, _xU, x, _evalF, _evalGradF, _objScaling);
 
             if (_intermediate != null)
             {
@@ -204,7 +205,20 @@ namespace Cureos.Numerics
 
             try
             {
-                result = new Core.InteriorPointSolver(_options).Solve(nlp);
+                if (_m > 0)
+                {
+                    var constrained = new FacadeConstrainedNlp(
+                        _n, _m, _neleJac, _xL, _xU, _cL, _cU, x,
+                        _evalF, _evalGradF, _evalG, _evalJacG, _objScaling);
+
+                    result = new Core.ConstrainedInteriorPointSolver(_options).Solve(constrained);
+                }
+                else
+                {
+                    var nlp = new FacadeNlp(_n, _xL, _xU, x, _evalF, _evalGradF, _objScaling);
+
+                    result = new Core.InteriorPointSolver(_options).Solve(nlp);
+                }
             }
             catch (EvaluationFailedException)
             {
@@ -216,10 +230,19 @@ namespace Cureos.Numerics
             Array.Copy(result.X, x, _n);
             obj_val = result.ObjValue / _objScaling;
 
-            // No constraints, so there is nothing to report in g or in the constraint
-            // multipliers, and the bound multipliers are not part of this slice. Callers in the
-            // engine pass null for all four.
-            if (g != null) Array.Clear(g, 0, g.Length);
+            // The constraint values at the answer, when the caller wanted them. The multipliers
+            // are not part of this slice; every caller in the engine passes null for all three.
+            if (g != null)
+            {
+                Array.Clear(g, 0, g.Length);
+
+                if (_m > 0 && g.Length >= _m)
+                {
+                    var values = new double[_m];
+                    if (_evalG(_n, x, true, _m, ref values)) Array.Copy(values, g, _m);
+                }
+            }
+
             if (mult_g != null) Array.Clear(mult_g, 0, mult_g.Length);
             if (mult_x_L != null) Array.Clear(mult_x_L, 0, mult_x_L.Length);
             if (mult_x_U != null) Array.Clear(mult_x_U, 0, mult_x_U.Length);
@@ -231,7 +254,11 @@ namespace Cureos.Numerics
                 case Core.SolveStatus.MaxIterations:
                     return IpoptReturnCode.Maximum_Iterations_Exceeded;
                 case Core.SolveStatus.LineSearchFailure:
-                    return IpoptReturnCode.Search_Direction_Becomes_Too_Small;
+                    // Not Search_Direction_Becomes_Too_Small, which every caller in the engine
+                    // treats as a usable answer: a line search that gave up is a point that was
+                    // never converged, and handing it back as an answer is how a flash ends up
+                    // reporting a phase split it did not compute.
+                    return IpoptReturnCode.Error_In_Step_Computation;
                 case Core.SolveStatus.UserRequested:
                     return IpoptReturnCode.User_Requested_Stop;
                 default:
@@ -250,6 +277,100 @@ namespace Cureos.Numerics
             GC.SuppressFinalize(this);
         }
 
+        /// <summary>
+        /// The constrained shape, over the same delegates. The Jacobian arrives in Ipopt's
+        /// triplet form: one call with a null value array asks for the structure, and every call
+        /// after that fills the values in that order. The solver wants it dense, so the triplets
+        /// are scattered into a row-major block, which for the one caller that poses constraints
+        /// is a few dozen entries.
+        /// </summary>
+        private sealed class FacadeConstrainedNlp : FacadeNlp, Core.INlpConstrained
+        {
+            private readonly int _m;
+            private readonly int _neleJac;
+            private readonly double[] _cL;
+            private readonly double[] _cU;
+            private readonly EvaluateConstraintsDelegate _evalG;
+            private readonly EvaluateJacobianDelegate _evalJacG;
+            private readonly int[] _iRow;
+            private readonly int[] _jCol;
+
+            public FacadeConstrainedNlp(int n, int m, int neleJac,
+                                        double[] xL, double[] xU, double[] cL, double[] cU, double[] x0,
+                                        EvaluateObjectiveDelegate evalF,
+                                        EvaluateObjectiveGradientDelegate evalGradF,
+                                        EvaluateConstraintsDelegate evalG,
+                                        EvaluateJacobianDelegate evalJacG,
+                                        double objScaling)
+                : base(n, xL, xU, x0, evalF, evalGradF, objScaling)
+            {
+                _m = m;
+                _neleJac = neleJac;
+                _cL = cL;
+                _cU = cU;
+                _evalG = evalG;
+                _evalJacG = evalJacG;
+
+                _iRow = new int[neleJac];
+                _jCol = new int[neleJac];
+
+                int[] rows = _iRow;
+                int[] cols = _jCol;
+                double[] none = null!;
+
+                if (!_evalJacG(n, x0, true, m, neleJac, ref rows, ref cols, ref none))
+                {
+                    throw new EvaluationFailedException();
+                }
+
+                Array.Copy(rows, _iRow, neleJac);
+                Array.Copy(cols, _jCol, neleJac);
+            }
+
+            public int M => _m;
+
+            public void GetConstraintBounds(double[] cl, double[] cu)
+            {
+                for (int i = 0; i < _m; i++)
+                {
+                    cl[i] = _cL != null && i < _cL.Length ? _cL[i] : NegativeInfinity;
+                    cu[i] = _cU != null && i < _cU.Length ? _cU[i] : PositiveInfinity;
+                }
+            }
+
+            public void EvalG(double[] x, double[] g)
+            {
+                var buffer = g;
+
+                if (!_evalG(N, x, true, _m, ref buffer))
+                {
+                    throw new EvaluationFailedException();
+                }
+
+                if (!ReferenceEquals(buffer, g)) Array.Copy(buffer, g, _m);
+            }
+
+            public void EvalJacG(double[] x, double[] jac)
+            {
+                var rows = _iRow;
+                var cols = _jCol;
+                var values = new double[_neleJac];
+
+                if (!_evalJacG(N, x, true, _m, _neleJac, ref rows, ref cols, ref values))
+                {
+                    throw new EvaluationFailedException();
+                }
+
+                Array.Clear(jac, 0, jac.Length);
+
+                for (int k = 0; k < _neleJac; k++)
+                {
+                    // Duplicate triplets add up, the way every sparse format defines them.
+                    jac[rows[k] * N + cols[k]] += values[k];
+                }
+            }
+        }
+
         /// <summary>Raised when a caller's eval_f or eval_grad_f reports failure.</summary>
         private sealed class EvaluationFailedException : Exception
         {
@@ -260,7 +381,7 @@ namespace Cureos.Numerics
         /// mean "could not evaluate here", which the interior point solver has no notion of, so
         /// it travels as an exception and comes back as Invalid_Number_Detected.
         /// </summary>
-        private sealed class FacadeNlp : Core.INlp
+        private class FacadeNlp : Core.INlp
         {
             private readonly int _n;
             private readonly double[] _xL;
@@ -288,6 +409,8 @@ namespace Cureos.Numerics
             }
 
             public int N => _n;
+
+            protected int Count => _n;
 
             public void GetBounds(double[] xl, double[] xu)
             {
