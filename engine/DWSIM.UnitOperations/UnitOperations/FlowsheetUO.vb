@@ -504,7 +504,13 @@ Label_00CC:
 
             End If
 
-            fs.ScriptCollection = New Dictionary(Of String, Interfaces.IScript)
+            ' IFlowsheet.Scripts, not the ScriptCollection field of the WinForms form. Option
+            ' Strict is Off here and fs arrives as IFlowsheet, so the old name bound late and
+            ' resolved only when the host happened to be that form: every other host, the headless
+            ' runner and the Avalonia application included, got a MissingMemberException that the
+            ' caller then swallowed. The form's Scripts property is a wrapper over the very same
+            ' field, so this is the same storage in the application and a real member everywhere.
+            fs.Scripts = New Dictionary(Of String, Interfaces.IScript)
 
             If xdoc.Element("DWSIM_Simulation_Data").Element("ScriptItems") IsNot Nothing Then
 
@@ -515,7 +521,7 @@ Label_00CC:
                     Try
                         Dim obj As New FlowsheetSolver.Script()
                         obj.LoadData(xel.Elements.ToList)
-                        fs.ScriptCollection.Add(obj.ID, obj)
+                        fs.Scripts.Add(obj.ID, obj)
                     Catch ex As Exception
                         excs.Add(New Exception("Error Loading Script Item Information", ex))
                     End Try
