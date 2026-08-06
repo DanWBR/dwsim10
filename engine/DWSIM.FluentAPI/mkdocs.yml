@@ -1,0 +1,102 @@
+site_name: DWSIM Fluent API
+site_description: A fluent, strongly-typed automation API for DWSIM, callable from C#, VB.NET and Python.
+site_author: DWSIM Project
+use_directory_urls: false
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - navigation.indexes
+    - content.code.copy
+    - content.code.annotate
+    - search.highlight
+    - search.suggest
+    - toc.follow
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.keys
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Installation: getting-started/installation.md
+      - First Flowsheet (C#): getting-started/first-flowsheet-csharp.md
+      - First Flowsheet (Python): getting-started/first-flowsheet-python.md
+      - Patron Activation: getting-started/patron-activation.md
+  - API Reference:
+      - Flowsheet: api/flowsheet.md
+      - Quantities & Units: api/quantities.md
+      - Property Packages: api/property-packages.md
+      - Streams: api/streams.md
+      - Unit Operations:
+          - Overview: api/unit-operations/index.md
+          - Core: api/unit-operations/core.md
+          - Reactors: api/unit-operations/reactors.md
+          - Columns: api/unit-operations/columns.md
+          - Bioprocess: api/unit-operations/bioprocess.md
+          - Refining (Plus): api/unit-operations/refining.md
+          - Electrolyte (Plus): api/unit-operations/electrolyte.md
+          - Clean Energy: api/unit-operations/clean-energy.md
+      - Reactions: api/reactions.md
+      - Solver: api/solver.md
+      - LCA & TEA (Plus): api/lca-tea.md
+      - License: api/license.md
+      - External Catalog: api/external-catalog.md
+  - Examples:
+      - Overview: examples/index.md
+      - 01 — Mixer: examples/01-mixer.md
+      - 02 — Conversion Reactor: examples/02-conversion-reactor.md
+      - 03 — Distillation: examples/03-distillation.md
+      - 04 — Bioprocess Train: examples/04-bioprocess-train.md
+      - 05 — Anaerobic Digester: examples/05-anaerobic-digester.md
+      - 06 — Refining Train: examples/06-refining-train.md
+      - 07 — LCA + TEA: examples/07-lca-tea.md
+      - 08 — Wrap Existing Flowsheet: examples/08-wrap-existing-flowsheet.md
+      - 09 — Heat Exchanger: examples/09-heat-exchanger.md
+      - 10 — Pump + Compressor: examples/10-pump-compressor-train.md
+      - 11 — Rigorous Distillation: examples/11-rigorous-distillation.md
+      - 12 — Equilibrium Reactor: examples/12-equilibrium-reactor.md
+      - 13 — Reverse Osmosis: examples/13-electrolyte-reverse-osmosis.md
+      - 14 — Water Electrolyzer: examples/14-water-electrolyzer.md
+      - 15 — PEM Fuel Cell: examples/15-pem-fuel-cell.md
+      - 16 — Recycle Loop: examples/16-recycle-loop.md
+  - API Reference (auto): api-reference/index.md
+  - Python Guide: python-guide.md
+  - Building the docs: BUILDING.md

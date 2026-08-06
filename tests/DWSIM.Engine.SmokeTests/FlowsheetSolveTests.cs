@@ -54,13 +54,13 @@ namespace DWSIM.Engine.SmokeTests
             FlowsheetBase.FlowsheetBase.AddPropPacks();
         }
 
-        private static HeadlessFlowsheet Load(string filename)
+        private static DWSIM.DynamicRunner.Flowsheet Load(string filename)
         {
             var path = Path.Combine(FlowsheetFolder, filename);
 
             Assert.That(File.Exists(path), $"{filename} is not in tests/flowsheets");
 
-            var flowsheet = new HeadlessFlowsheet(null, null);
+            var flowsheet = new DWSIM.DynamicRunner.Flowsheet(null, null);
             flowsheet.Init();
 
             if (Path.GetExtension(path).ToLowerInvariant().EndsWith("z"))
@@ -78,7 +78,7 @@ namespace DWSIM.Engine.SmokeTests
         [Test]
         public void TheCompoundDatabasesLoad()
         {
-            var flowsheet = new HeadlessFlowsheet(null, null);
+            var flowsheet = new DWSIM.DynamicRunner.Flowsheet(null, null);
             flowsheet.Init();
 
             Assert.That(flowsheet.AvailableCompounds.Count, Is.GreaterThan(1000),
@@ -88,7 +88,7 @@ namespace DWSIM.Engine.SmokeTests
         [Test]
         public void ThePropertyPackagesAreRegistered()
         {
-            var flowsheet = new HeadlessFlowsheet(null, null);
+            var flowsheet = new DWSIM.DynamicRunner.Flowsheet(null, null);
             flowsheet.Init();
 
             Assert.That(flowsheet.AvailablePropertyPackages.Count, Is.GreaterThan(10),

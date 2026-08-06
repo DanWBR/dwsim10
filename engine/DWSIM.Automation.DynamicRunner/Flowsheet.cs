@@ -9,12 +9,12 @@ using System.Threading.Tasks;
 using static DWSIM.Interfaces.Enums.Scripts;
 using System.Xml.Linq;
 
-namespace DWSIM.Engine.SmokeTests
+namespace DWSIM.DynamicRunner
 {
     /// <summary>
     /// A headless DWSIM flowsheet implementation for use in automation and dynamic simulation scenarios.
     /// </summary>
-    public class HeadlessFlowsheet : FlowsheetBase.FlowsheetBase
+    public class Flowsheet : FlowsheetBase.FlowsheetBase
     {
         private Action<string, IFlowsheet.MessageType> listeningaction;
 
@@ -24,7 +24,7 @@ namespace DWSIM.Engine.SmokeTests
         public override bool SupressMessages { get; set; } = false;
 
         /// <summary>
-        /// Initializes a new instance of <see cref="HeadlessFlowsheet"/> with optional message and UI update callbacks.
+        /// Initializes a new instance of <see cref="Flowsheet"/> with optional message and UI update callbacks.
         /// </summary>
         /// <param name="messageListener">
         /// A callback invoked when the flowsheet emits a message. Pass <c>null</c> to ignore messages.
@@ -32,7 +32,7 @@ namespace DWSIM.Engine.SmokeTests
         /// <param name="updateUIhandler">
         /// A callback invoked when the flowsheet requests a UI refresh. Pass <c>null</c> to skip UI updates.
         /// </param>
-        public HeadlessFlowsheet(Action<string, IFlowsheet.MessageType> messageListener, Action updateUIhandler)
+        public Flowsheet(Action<string, IFlowsheet.MessageType> messageListener, Action updateUIhandler)
         {
 
             SaveSpreadsheetData = new Action<XDocument>((xdoc) =>
@@ -76,7 +76,7 @@ namespace DWSIM.Engine.SmokeTests
         /// <inheritdoc/>
         public override IFlowsheet GetNewInstance()
         {
-            var fs = new HeadlessFlowsheet(null, null);
+            var fs = new Flowsheet(null, null);
             return fs;
         }
 

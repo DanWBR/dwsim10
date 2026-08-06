@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The fluent scripting surface over the engine. The builders of the Patreon components
+    (refining, electrolyte operations, the extension pack, LCA and TEA) stayed behind; the
+    entry points that would reach them refuse through License.RequirePlus.
+  -->
+
+  <PropertyGroup>
+    <RootNamespace>DWSIM.Automation.FluentAPI</RootNamespace>
+    <AssemblyName>DWSIM.Automation.FluentAPI</AssemblyName>
+    <EnableDefaultNoneItems>false</EnableDefaultNoneItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="CapeOpen">
+      <HintPath>..\..\lib\CapeOpen.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DWSIM.Automation\DWSIM.Automation.csproj" />
+    <ProjectReference Include="..\DWSIM.Automation.DynamicRunner\DWSIM.Automation.DynamicRunner.csproj" />
+    <ProjectReference Include="..\DWSIM.DynamicsManager\DWSIM.DynamicsManager.vbproj" />
+    <ProjectReference Include="..\DWSIM.FlowsheetBase\DWSIM.FlowsheetBase.vbproj" />
+    <ProjectReference Include="..\DWSIM.FlowsheetSolver\DWSIM.FlowsheetSolver.vbproj" />
+    <ProjectReference Include="..\DWSIM.GlobalSettings\DWSIM.GlobalSettings.vbproj" />
+    <ProjectReference Include="..\DWSIM.Interfaces\DWSIM.Interfaces.vbproj" />
+    <ProjectReference Include="..\DWSIM.SharedClasses\DWSIM.SharedClasses.vbproj" />
+    <ProjectReference Include="..\DWSIM.Thermodynamics\DWSIM.Thermodynamics.vbproj" />
+    <ProjectReference Include="..\DWSIM.UnitOperations\DWSIM.UnitOperations.vbproj" />
+  </ItemGroup>
+
+</Project>

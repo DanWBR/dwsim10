@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The headless automation entry point. The Automation class that hosted the WinForms shell
+    stayed behind; Automation3 is the one that drives a flowsheet without a window.
+  -->
+
+  <PropertyGroup>
+    <RootNamespace>DWSIM.Automation</RootNamespace>
+    <AssemblyName>DWSIM.Automation</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="iTextSharp-LGPL" />
+    <PackageReference Include="Newtonsoft.Json" />
+    <PackageReference Include="SharpZipLib" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="CapeOpen">
+      <HintPath>..\..\lib\CapeOpen.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DWSIM.ExtensionMethods\DWSIM.ExtensionMethods.vbproj" />
+    <ProjectReference Include="..\DWSIM.FlowsheetBase\DWSIM.FlowsheetBase.vbproj" />
+    <ProjectReference Include="..\DWSIM.FlowsheetSolver\DWSIM.FlowsheetSolver.vbproj" />
+    <ProjectReference Include="..\DWSIM.GlobalSettings\DWSIM.GlobalSettings.vbproj" />
+    <ProjectReference Include="..\DWSIM.Interfaces\DWSIM.Interfaces.vbproj" />
+    <ProjectReference Include="..\DWSIM.SharedClasses\DWSIM.SharedClasses.vbproj" />
+    <ProjectReference Include="..\DWSIM.SharedClassesCSharp\DWSIM.SharedClassesCSharp.csproj" />
+    <ProjectReference Include="..\DWSIM.Thermodynamics\DWSIM.Thermodynamics.vbproj" />
+    <ProjectReference Include="..\DWSIM.Thermodynamics.AdvancedEOS.GERG2008\DWSIM.Thermodynamics.AdvancedEOS.GERG2008.vbproj" />
+    <ProjectReference Include="..\DWSIM.Thermodynamics.AdvancedEOS.PCSAFT\DWSIM.Thermodynamics.AdvancedEOS.PCSAFT2.vbproj" />
+    <ProjectReference Include="..\DWSIM.Thermodynamics.AdvancedEOS.PRSRKTDep\DWSIM.Thermodynamics.AdvancedEOS.PRSRKTDep.vbproj" />
+    <ProjectReference Include="..\DWSIM.Thermodynamics.ReaktoroPropertyPackage\DWSIM.Thermodynamics.ReaktoroPropertyPackage.vbproj" />
+    <ProjectReference Include="..\DWSIM.UnitOperations\DWSIM.UnitOperations.vbproj" />
+  </ItemGroup>
+
+  <!-- The spreadsheet of the flowsheet round-trips through ReoGrid, same as in the desktop app. -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\external\ReoGrid\ReoGrid\ReoGridAvalonia.csproj" />
+  </ItemGroup>
+
+</Project>

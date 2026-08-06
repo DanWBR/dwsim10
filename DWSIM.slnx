@@ -1,4 +1,4 @@
-<Solution>
+﻿<Solution>
   <Folder Name="/engine/">
     <Project Path="engine/DWSIM.Interfaces/DWSIM.Interfaces.vbproj" />
     <Project Path="engine/DWSIM.DrawingTools.Point/DWSIM.DrawingTools.Point.vbproj" />
@@ -45,6 +45,9 @@
     <Project Path="engine/DWSIM.UnitOperations/DWSIM.UnitOperations.vbproj" />
     <Project Path="engine/DWSIM.Thermodynamics.ReaktoroPropertyPackage/DWSIM.Thermodynamics.ReaktoroPropertyPackage.vbproj" />
     <Project Path="engine/DWSIM.FlowsheetBase/DWSIM.FlowsheetBase.vbproj" />
+    <Project Path="engine/DWSIM.Automation/DWSIM.Automation.csproj" />
+    <Project Path="engine/DWSIM.Automation.DynamicRunner/DWSIM.Automation.DynamicRunner.csproj" />
+    <Project Path="engine/DWSIM.FluentAPI/DWSIM.FluentAPI.csproj" />
   </Folder>
   <Folder Name="/ui/">
     <Project Path="ui/DWSIM.UI.Shared.Avalonia/DWSIM.UI.Shared.Avalonia.csproj" />
@@ -56,6 +59,7 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/DWSIM.Engine.SmokeTests/DWSIM.Engine.SmokeTests.csproj" />
+    <Project Path="tests/DWSIM.FluentAPI.Tests/DWSIM.FluentAPI.Tests.csproj" />
     <Project Path="tests/DWSIM.GlobalSettings.Tests/DWSIM.GlobalSettings.Tests.csproj" />
     <Project Path="tests/DWSIM.Thermodynamics.Derivatives.Tests/DWSIM.Thermodynamics.Derivatives.Tests.csproj" />
   </Folder>

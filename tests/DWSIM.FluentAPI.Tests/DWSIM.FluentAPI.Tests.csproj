@@ -1,8 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <RootNamespace>DWSIM.Engine.SmokeTests</RootNamespace>
-    <AssemblyName>DWSIM.Engine.SmokeTests</AssemblyName>
+    <RootNamespace>DWSIM.FluentAPI.Tests</RootNamespace>
+    <AssemblyName>DWSIM.FluentAPI.Tests</AssemblyName>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
 
@@ -13,8 +13,13 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\engine\DWSIM.Automation.DynamicRunner\DWSIM.Automation.DynamicRunner.csproj" />
-    <ProjectReference Include="..\..\engine\DWSIM.FlowsheetBase\DWSIM.FlowsheetBase.vbproj" />
+    <Reference Include="CapeOpen">
+      <HintPath>..\..\lib\CapeOpen.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\engine\DWSIM.FluentAPI\DWSIM.FluentAPI.csproj" />
     <ProjectReference Include="..\..\engine\DWSIM.Thermodynamics\DWSIM.Thermodynamics.vbproj" />
     <ProjectReference Include="..\..\engine\DWSIM.UnitOperations\DWSIM.UnitOperations.vbproj" />
   </ItemGroup>
