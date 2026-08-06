@@ -1,7 +1,7 @@
 # DWSIM
 
 Open source chemical process simulator: the calculation engine and a desktop application, on
-.NET 10, for Windows, Linux and macOS.
+.NET 10, for Windows, Linux and macOS, on x64 and arm64.
 
 DWSIM models steady-state and dynamic processes. It ships around thirty property packages, from
 the cubic equations of state and the activity coefficient models to the steam tables, the
@@ -40,7 +40,12 @@ A flowsheet path on the command line opens as the first document.
 | `external/` | Third-party source, as submodules |
 | `lib/` | Managed assemblies that are not on NuGet, with a note on each |
 | `tests/` | The test suites and the sample flowsheets they run |
+| `packaging/` | The scripts that turn a publish into a `.deb`, an `.app` and a DMG |
 | `tools/` | Build-time helpers |
+| `docs/` | Notes that outlive a commit message |
+
+Fifty-seven projects. Every assembly is versioned `10.2.0.0` from `Directory.Build.props`;
+third-party source under `external/` keeps the version its author gave it.
 
 ## Testing
 
@@ -48,14 +53,23 @@ A flowsheet path on the command line opens as the first document.
 dotnet test DWSIM.slnx
 ```
 
-The suites load the compound databases, check the analytical thermodynamic derivatives against
-numerical ones, build flowsheets through the fluent API, and load and solve the fourteen sample
-flowsheets under `tests/flowsheets`.
+Five suites, ninety-two tests: the linear programming solver, the settings file, the analytical
+thermodynamic derivatives against numerical ones, the fluent API, and the engine smoke tests,
+which load the compound databases, register the property packages, and load and solve the
+fourteen sample flowsheets under `tests/flowsheets`.
 
 Seven of those fourteen samples do not solve. They do not solve on the .NET Framework build of
 the engine either, with the same object reporting the same message, so they are pinned as such:
 four are columns that miss the tolerance, one is a column that breaks its own mass balance, and
 two carry scripts written for Python 2.
+
+## Releases
+
+`.github/workflows/release.yml` publishes self-contained builds for `win-x64`, `win-arm64`,
+`linux-x64`, `linux-arm64`, `osx-x64` and `osx-arm64`, around 220 MB each, and packages them as
+a zip, a `.tar.gz`, a `.deb` and a signed and notarized DMG. The Apple signing steps are
+conditional on the secrets being present: without them the DMG is still built, unsigned, and the
+log says so. [packaging/README.md](packaging/README.md) lists the secrets to create.
 
 ## What this repository is not
 
@@ -64,10 +78,13 @@ operations and property packages of the Patreon edition (refining, electrolyte o
 extension pack, life cycle assessment, techno-economic analysis) live elsewhere. Their entry
 points in the fluent API are still here and say so when called.
 
-Some numerical back-ends are Windows-only native libraries and have no binary in this
-repository: IPOPT, which the Gibbs energy minimisation and the binary interaction parameter
-regression use; `lpsolve55`, which seeds the Gibbs reactor; and `steam67`. Everything that
-reaches them fails with a message that says which one is missing.
+One numerical back-end is missing: IPOPT, which the Gibbs energy minimisation and the binary
+interaction parameter regression use, has no managed implementation yet.
+`engine/DWSIM.Numerics.Ipopt` stands in for it and throws with a message saying so, and
+[docs/ipopt-contract.md](docs/ipopt-contract.md) records the surface a replacement has to
+provide. The two other Windows-only native libraries are gone rather than missing: `lpsolve55`,
+which seeded the Gibbs reactor, was replaced by a managed two-phase simplex validated against it
+over twenty thousand element-balance problems, and `steam67` had no caller.
 
 Extensions written against DWSIM 9 need a few edits; [BREAKING.md](BREAKING.md) lists them.
 
