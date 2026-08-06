@@ -1,0 +1,126 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="DWSIM.UI.Desktop.Avalonia.SensitivityAnalysisWindow"
+        x:CompileBindings="False"
+        Title="Sensitivity Analysis"
+        Width="980" Height="640"
+        WindowStartupLocation="CenterOwner"
+        CanResize="True">
+
+  <DockPanel Margin="8" LastChildFill="True">
+
+    <!-- ===== Case management ===== -->
+    <Border DockPanel.Dock="Top" Padding="0,0,0,8" BorderThickness="0,0,0,1" Margin="0,0,0,8">
+      <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+        <TextBlock Text="Case:" VerticalAlignment="Center" />
+        <ComboBox Name="CbCase" Width="240" />
+        <Button Name="BtnNewCase" Classes="panel" Content="New" Width="70" />
+        <Button Name="BtnCloneCase" Classes="panel" Content="Duplicate" Width="90" />
+        <Button Name="BtnDeleteCase" Classes="panel" Content="Delete" Width="70" />
+        <TextBlock Text="Cases are stored with the simulation; save the file to keep them."
+                   VerticalAlignment="Center" FontSize="11" Opacity="0.7" Margin="12,0,0,0" />
+      </StackPanel>
+    </Border>
+
+    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8"
+                HorizontalAlignment="Right" Margin="0,8,0,0">
+      <TextBlock Name="TbProgress" Text="" VerticalAlignment="Center"
+                 FontSize="11" Opacity="0.8" />
+      <Button Name="BtnClose" Classes="dialog" Content="Close" Width="80" IsCancel="True" />
+    </StackPanel>
+
+    <Grid ColumnDefinitions="330,4,*">
+
+      <!-- ===== Left: case definition ===== -->
+      <ScrollViewer Grid.Column="0">
+        <StackPanel Spacing="6" Margin="0,0,4,0">
+
+          <TextBlock Text="Case Identification" FontWeight="SemiBold" />
+          <TextBlock Text="Name:" />
+          <TextBox Name="TbCaseName" />
+          <TextBlock Text="Description:" />
+          <TextBox Name="TbCaseDescription" />
+
+          <Separator Margin="0,8" />
+
+          <TextBlock Text="Independent Variable" FontWeight="SemiBold" />
+
+          <TextBlock Text="Object:" />
+          <ComboBox Name="CbIndepObject" HorizontalAlignment="Stretch" />
+
+          <TextBlock Text="Property:" Margin="0,4,0,0" />
+          <ComboBox Name="CbIndepProp" HorizontalAlignment="Stretch" />
+
+          <TextBlock Name="TbIndepUnit" Text="Units: -" FontSize="11" Opacity="0.8" />
+
+          <Grid ColumnDefinitions="*,8,*" Margin="0,4,0,0">
+            <StackPanel Grid.Column="0" Spacing="2">
+              <TextBlock Text="Initial Value:" />
+              <TextBox Name="TbMin" Text="0" />
+            </StackPanel>
+            <StackPanel Grid.Column="2" Spacing="2">
+              <TextBlock Text="Final Value:" />
+              <TextBox Name="TbMax" Text="1" />
+            </StackPanel>
+          </Grid>
+
+          <StackPanel Spacing="2" Margin="0,4,0,0">
+            <TextBlock Text="Number of Points:" />
+            <NumericUpDown Name="NudPoints" Minimum="2" Maximum="1000"
+                           Value="10" FormatString="F0" />
+          </StackPanel>
+
+          <Separator Margin="0,8" />
+
+          <TextBlock Text="Dependent Variables" FontWeight="SemiBold" />
+
+          <TextBlock Text="Object:" />
+          <ComboBox Name="CbObsObject" HorizontalAlignment="Stretch" />
+
+          <TextBlock Text="Property:" Margin="0,4,0,0" />
+          <ComboBox Name="CbObsProp" HorizontalAlignment="Stretch" />
+
+          <Button Name="BtnAddObs" Classes="panel" Content="Add Dependent Variable"
+                  HorizontalAlignment="Stretch" Margin="0,4,0,0" />
+
+          <ListBox Name="LbObserved" Height="120" />
+          <Button Name="BtnRemoveObs" Classes="panel" Content="Remove Selected"
+                  HorizontalAlignment="Stretch" />
+
+          <Separator Margin="0,8" />
+
+          <Button Name="BtnRun" Classes="action" Content="Run Analysis"
+                  HorizontalAlignment="Stretch" FontWeight="SemiBold" />
+          <Button Name="BtnAbort" Classes="panel" Content="Abort Run"
+                  HorizontalAlignment="Stretch" IsEnabled="False" />
+          <Button Name="BtnRestore" Classes="panel" Content="Restore Original Value"
+                  HorizontalAlignment="Stretch" />
+
+        </StackPanel>
+      </ScrollViewer>
+
+      <GridSplitter Grid.Column="1" ResizeDirection="Columns"
+                    HorizontalAlignment="Stretch" />
+
+      <!-- ===== Right: results ===== -->
+      <DockPanel Grid.Column="2">
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal"
+                    Spacing="8" Margin="8,0,0,6">
+          <TextBlock Text="Results" FontWeight="SemiBold" VerticalAlignment="Center" />
+          <Button Name="BtnCopyResults" Classes="panel" Content="Copy to Clipboard" FontSize="11" />
+        </StackPanel>
+        <TextBox Name="TbResults"
+                 IsReadOnly="True"
+                 AcceptsReturn="True"
+                 TextWrapping="NoWrap"
+                 FontFamily="Consolas,Courier New,monospace"
+                 FontSize="12"
+                 VerticalContentAlignment="Top"
+                 Margin="8,0,0,0" />
+      </DockPanel>
+
+    </Grid>
+
+  </DockPanel>
+
+</Window>

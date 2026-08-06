@@ -1,0 +1,63 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="DWSIM.UI.Desktop.Avalonia.CompoundCreatorWindow"
+        Title="Compound Creator"
+        Width="640" Height="640"
+        WindowStartupLocation="CenterOwner">
+
+  <DockPanel LastChildFill="True" Margin="14">
+
+    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal"
+                HorizontalAlignment="Right" Spacing="8" Margin="0,14,0,0">
+      <Button Name="BtnAdd"    Classes="dialog" Content="Add to Flowsheet" Width="160" IsDefault="True" />
+      <Button Name="BtnCancel" Classes="dialog" Content="Cancel" Width="100" IsCancel="True" />
+    </StackPanel>
+
+    <ScrollViewer>
+      <StackPanel Spacing="8">
+
+        <TextBlock Text="Identification" FontWeight="SemiBold" FontSize="13" />
+        <Grid ColumnDefinitions="200,*" RowDefinitions="Auto,Auto,Auto,Auto" >
+          <TextBlock Grid.Row="0" Text="Name" VerticalAlignment="Center" />
+          <TextBox   Grid.Row="0" Grid.Column="1" Name="TbName" />
+          <TextBlock Grid.Row="1" Text="CAS Number" VerticalAlignment="Center" Margin="0,6,0,0" />
+          <TextBox   Grid.Row="1" Grid.Column="1" Name="TbCAS" Margin="0,6,0,0" />
+          <TextBlock Grid.Row="2" Text="Formula" VerticalAlignment="Center" Margin="0,6,0,0" />
+          <TextBox   Grid.Row="2" Grid.Column="1" Name="TbFormula" Margin="0,6,0,0" />
+          <TextBlock Grid.Row="3" Text="SMILES (optional)" VerticalAlignment="Center" Margin="0,6,0,0" />
+          <TextBox   Grid.Row="3" Grid.Column="1" Name="TbSmiles" Margin="0,6,0,0" />
+        </Grid>
+
+        <Separator Margin="0,8" />
+
+        <TextBlock Text="Essential Thermodynamic Constants" FontWeight="SemiBold" FontSize="13" />
+        <Grid ColumnDefinitions="200,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+          <TextBlock Grid.Row="0" Text="Molecular Weight (g/mol)" VerticalAlignment="Center" />
+          <TextBox   Grid.Row="0" Grid.Column="1" Name="TbMW" />
+          <TextBlock Grid.Row="1" Text="Critical Temperature (K)" VerticalAlignment="Center" Margin="0,6,0,0" />
+          <TextBox   Grid.Row="1" Grid.Column="1" Name="TbTc" Margin="0,6,0,0" />
+          <TextBlock Grid.Row="2" Text="Critical Pressure (Pa)" VerticalAlignment="Center" Margin="0,6,0,0" />
+          <TextBox   Grid.Row="2" Grid.Column="1" Name="TbPc" Margin="0,6,0,0" />
+          <TextBlock Grid.Row="3" Text="Critical Volume (m³/kmol)" VerticalAlignment="Center" Margin="0,6,0,0" />
+          <TextBox   Grid.Row="3" Grid.Column="1" Name="TbVc" Margin="0,6,0,0" />
+          <TextBlock Grid.Row="4" Text="Acentric Factor (ω)" VerticalAlignment="Center" Margin="0,6,0,0" />
+          <TextBox   Grid.Row="4" Grid.Column="1" Name="TbOmega" Margin="0,6,0,0" />
+          <TextBlock Grid.Row="5" Text="Normal Boiling Point (K)" VerticalAlignment="Center" Margin="0,6,0,0" />
+          <TextBox   Grid.Row="5" Grid.Column="1" Name="TbTb" Margin="0,6,0,0" />
+          <TextBlock Grid.Row="6" Text="Std Liquid Density (kg/m³)" VerticalAlignment="Center" Margin="0,6,0,0" />
+          <TextBox   Grid.Row="6" Grid.Column="1" Name="TbRhoL" Margin="0,6,0,0" />
+          <TextBlock Grid.Row="7" Text="Standard Enthalpy of Formation (kJ/kg)" VerticalAlignment="Center" Margin="0,6,0,0" />
+          <TextBox   Grid.Row="7" Grid.Column="1" Name="TbHform" Margin="0,6,0,0" />
+        </Grid>
+
+        <Separator Margin="0,8" />
+
+        <TextBlock Name="LblStatus" Text="Fill in at least Name, MW, Tc, Pc and Acentric Factor."
+                   FontSize="11" Foreground="#666" TextWrapping="Wrap" />
+
+      </StackPanel>
+    </ScrollViewer>
+
+  </DockPanel>
+
+</Window>

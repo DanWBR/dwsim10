@@ -1,0 +1,26 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="DWSIM.UI.Desktop.Avalonia.MarkdownReportWindow"
+        x:CompileBindings="False"
+        Title="Markdown Report Viewer"
+        Width="960" Height="600"
+        WindowStartupLocation="CenterOwner">
+
+  <Grid ColumnDefinitions="260,8,*">
+
+    <!-- Left panel: Object list + Property list -->
+    <Grid Grid.Column="0" RowDefinitions="Auto,*,Auto,*" Margin="4">
+      <TextBlock Grid.Row="0" Text="Object" FontWeight="SemiBold" Margin="4,4,4,2" />
+      <ListBox Grid.Row="1" Name="ObjectList" SelectionMode="Single" />
+      <TextBlock Grid.Row="2" Text="Property" FontWeight="SemiBold" Margin="4,8,4,2" />
+      <ListBox Grid.Row="3" Name="PropertyList" SelectionMode="Single" />
+    </Grid>
+
+    <GridSplitter Grid.Column="1" Width="8" Background="Transparent" />
+
+    <!-- Right panel: populated in code-behind -->
+    <Border Grid.Column="2" Name="ContentHost" />
+
+  </Grid>
+
+</Window>

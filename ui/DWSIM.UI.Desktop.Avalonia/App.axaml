@@ -1,0 +1,482 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:dac="clr-namespace:Dock.Avalonia.Controls;assembly=Dock.Avalonia"
+             x:Class="DWSIM.UI.Desktop.Avalonia.App"
+             RequestedThemeVariant="Light">
+
+  <Application.Resources>
+    <!-- Fluent defaults to 14 px for control content, which reads much larger than the
+         8.25 pt (11 px) the WinForms UI uses. This is what menus, buttons, pickers and
+         text boxes pick up. -->
+    <x:Double x:Key="ControlContentThemeFontSize">11</x:Double>
+    <x:Double x:Key="FontSizeNormal">11</x:Double>
+    <x:Double x:Key="FontSizeSmall">10</x:Double>
+  </Application.Resources>
+
+  <Application.Styles>
+    <FluentTheme />
+    <DockFluentTheme DensityStyle="Normal" />
+
+    <!-- The default every window hands down: plain text blocks and labels inherit it. -->
+    <Style Selector="Window">
+      <Setter Property="FontSize" Value="11" />
+    </Style>
+    <!-- without this every DataGrid renders blank, headers and all -->
+    <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />
+    <!-- same for the script editor: no theme, no template, and the editor draws nothing -->
+    <StyleInclude Source="avares://AvaloniaEdit/Themes/Fluent/AvaloniaEdit.xaml" />
+
+    <!-- =================================================================
+         TABS
+         Classic tab pages, as the WinForms UI draws them: boxed headers
+         sitting on a framed page, the selected one merged into the frame.
+         Dock's own document and tool tabs are separate types and keep
+         their compact look, styled further down.
+         ================================================================= -->
+    <Style Selector="TabControl">
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Grid RowDefinitions="Auto,*">
+            <!-- the page frame comes first so the selected header, which hangs
+                 one pixel into it, paints over the top edge -->
+            <Border Grid.Row="1"
+                    Background="{TemplateBinding Background}"
+                    BorderBrush="#ACACAC"
+                    BorderThickness="1"
+                    Padding="{TemplateBinding Padding}">
+              <ContentPresenter Name="PART_SelectedContentHost"
+                                Content="{TemplateBinding SelectedContent}"
+                                ContentTemplate="{TemplateBinding SelectedContentTemplate}"
+                                HorizontalContentAlignment="Stretch"
+                                VerticalContentAlignment="Stretch" />
+            </Border>
+            <ItemsPresenter Grid.Row="0"
+                            Name="PART_ItemsPresenter"
+                            ItemsPanel="{TemplateBinding ItemsPanel}" />
+          </Grid>
+        </ControlTemplate>
+      </Setter>
+    </Style>
+
+    <Style Selector="TabItem">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="Padding" Value="9,3" />
+      <Setter Property="MinHeight" Value="0" />
+      <Setter Property="Margin" Value="0,2,2,0" />
+      <Setter Property="Background" Value="#F0F0F0" />
+      <Setter Property="Foreground" Value="#1A1A1A" />
+      <Setter Property="BorderBrush" Value="#ACACAC" />
+      <Setter Property="BorderThickness" Value="1,1,1,0" />
+      <Setter Property="CornerRadius" Value="3,3,0,0" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Border Name="PART_LayoutRoot"
+                  Background="{TemplateBinding Background}"
+                  BorderBrush="{TemplateBinding BorderBrush}"
+                  BorderThickness="{TemplateBinding BorderThickness}"
+                  CornerRadius="{TemplateBinding CornerRadius}"
+                  Padding="{TemplateBinding Padding}">
+            <ContentPresenter Name="PART_ContentPresenter"
+                              Content="{TemplateBinding Header}"
+                              ContentTemplate="{TemplateBinding HeaderTemplate}"
+                              HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                              VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" />
+          </Border>
+        </ControlTemplate>
+      </Setter>
+    </Style>
+    <Style Selector="TabItem:pointerover">
+      <Setter Property="Background" Value="#E4EEF8" />
+    </Style>
+    <Style Selector="TabItem:selected">
+      <Setter Property="Background" Value="White" />
+      <!-- taller and one pixel lower, so it sits on the page frame -->
+      <Setter Property="Margin" Value="0,0,2,-1" />
+      <Setter Property="Padding" Value="9,4,9,4" />
+    </Style>
+    <Style Selector="TabItem:disabled">
+      <Setter Property="Foreground" Value="#9A9A9A" />
+      <Setter Property="Background" Value="#F5F5F5" />
+    </Style>
+    <!-- Compact dock tool tab headers (Log, Integrator, etc.) -->
+    <Style Selector="dac|ToolTabStripItem">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="Padding" Value="6,2" />
+      <Setter Property="MinHeight" Value="22" />
+    </Style>
+    <!-- Compact dock document tab headers (Flowsheet, Results, etc.) -->
+    <Style Selector="dac|DocumentTabStripItem">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="Padding" Value="8,2" />
+      <Setter Property="MinHeight" Value="24" />
+    </Style>
+
+    <!-- =================================================================
+         DATA GRIDS
+         The Fluent defaults are a third taller than the WinForms grids;
+         these bring the rows and the type back to that density.
+         ================================================================= -->
+    <Style Selector="DataGrid">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="RowHeight" Value="21" />
+      <Setter Property="MinColumnWidth" Value="40" />
+      <Setter Property="ColumnHeaderHeight" Value="23" />
+      <Setter Property="GridLinesVisibility" Value="Horizontal" />
+    </Style>
+    <Style Selector="DataGridColumnHeader">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Padding" Value="6,1" />
+      <Setter Property="MinHeight" Value="0" />
+    </Style>
+    <Style Selector="DataGridCell">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="Padding" Value="6,0" />
+      <Setter Property="MinHeight" Value="0" />
+    </Style>
+    <Style Selector="DataGridRow">
+      <Setter Property="MinHeight" Value="0" />
+    </Style>
+
+    <!-- ===== Group boxes: the WinForms GroupBox look on settings pages ===== -->
+    <Style Selector="Border.group">
+      <Setter Property="BorderBrush" Value="#D0D0D0" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Padding" Value="8" />
+      <Setter Property="Margin" Value="0,0,0,8" />
+    </Style>
+    <Style Selector="TextBlock.groupHeader">
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Margin" Value="0,0,0,6" />
+    </Style>
+
+    <!-- =================================================================
+         EDITOR PANEL COMPACT CONTROLS
+         Reduce padding/height on controls inside AvaloniaEditorPanel
+         so editors match the compact density of the desktop/Eto UI.
+         ================================================================= -->
+    <Style Selector="StackPanel.editorPanel TextBox">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="Padding" Value="4,2" />
+      <Setter Property="MinHeight" Value="22" />
+    </Style>
+    <Style Selector="StackPanel.editorPanel ComboBox">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="Padding" Value="4,2" />
+      <Setter Property="MinHeight" Value="22" />
+    </Style>
+    <Style Selector="StackPanel.editorPanel NumericUpDown">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="MinHeight" Value="22" />
+    </Style>
+    <Style Selector="StackPanel.editorPanel CheckBox">
+      <Setter Property="FontSize" Value="11" />
+    </Style>
+    <Style Selector="StackPanel.editorPanel AutoCompleteBox">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="MinHeight" Value="22" />
+    </Style>
+    <Style Selector="StackPanel.editorPanel Button.panel">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="Padding" Value="8,3" />
+      <Setter Property="MinHeight" Value="22" />
+    </Style>
+
+    <!-- =================================================================
+         GLOBAL BUTTON STYLES
+         ================================================================= -->
+
+    <!-- ===== Hero: landing page primary actions (New, Open) ===== -->
+    <Style Selector="Button.hero">
+      <Setter Property="Background" Value="White" />
+      <Setter Property="BorderBrush" Value="#E0E0E0" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="Padding" Value="14,12" />
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="HorizontalContentAlignment" Value="Left" />
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button.hero:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background">
+        <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+          <GradientStop Color="#F5FAFF" Offset="0" />
+          <GradientStop Color="#E4EEFB" Offset="1" />
+        </LinearGradientBrush>
+      </Setter>
+      <Setter Property="BorderBrush" Value="#90C0F0" />
+    </Style>
+    <Style Selector="Button.hero:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#DDEAF8" />
+    </Style>
+
+    <!-- ===== Tool: landing page secondary actions (Preferences, About, etc.) ===== -->
+    <Style Selector="Button.tool">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="#E0E0E0" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="Padding" Value="12,8" />
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="HorizontalContentAlignment" Value="Left" />
+      <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button.tool:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background">
+        <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+          <GradientStop Color="#FAFAFA" Offset="0" />
+          <GradientStop Color="#EEEEEE" Offset="1" />
+        </LinearGradientBrush>
+      </Setter>
+      <Setter Property="BorderBrush" Value="#C0C0C0" />
+    </Style>
+    <Style Selector="Button.tool:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#E8E8E8" />
+    </Style>
+
+    <!-- ===== Welcome screen: the link labels and section headers of the Windows screen ===== -->
+    <Style Selector="Button.link">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="0,2" />
+      <Setter Property="HorizontalAlignment" Value="Left" />
+      <Setter Property="HorizontalContentAlignment" Value="Left" />
+      <Setter Property="Foreground" Value="DodgerBlue" />
+      <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button.link:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="TextBlock.TextDecorations" Value="Underline" />
+    </Style>
+    <Style Selector="Button.link:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="Transparent" />
+    </Style>
+
+    <Style Selector="TextBlock.welcomeHeader">
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="TextBlock.welcomeSubtitle">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="Opacity" Value="0.7" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+      <Setter Property="Margin" Value="0,0,0,4" />
+    </Style>
+
+    <!-- ===== Toolbar: flowsheet main toolbar icon buttons ===== -->
+    <Style Selector="Button.toolbar">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Padding" Value="6,4" />
+      <Setter Property="MinWidth" Value="32" />
+      <Setter Property="MinHeight" Value="32" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button.toolbar:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background">
+        <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+          <GradientStop Color="#EDF4FF" Offset="0" />
+          <GradientStop Color="#DCEAF9" Offset="1" />
+        </LinearGradientBrush>
+      </Setter>
+    </Style>
+    <Style Selector="Button.toolbar:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#D0E0F8" />
+    </Style>
+
+    <!-- ===== Sub-toolbar: compact align/equalize buttons ===== -->
+    <Style Selector="Button.subtoolbar">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="CornerRadius" Value="3" />
+      <Setter Property="Padding" Value="4,2" />
+      <Setter Property="MinWidth" Value="24" />
+      <Setter Property="MinHeight" Value="24" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button.subtoolbar:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background">
+        <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+          <GradientStop Color="#F0F0F0" Offset="0" />
+          <GradientStop Color="#E0E0E0" Offset="1" />
+        </LinearGradientBrush>
+      </Setter>
+    </Style>
+    <Style Selector="Button.subtoolbar:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#D8D8D8" />
+    </Style>
+
+    <!-- ===== Vertical separators inside horizontal toolbars ===== -->
+    <Style Selector="StackPanel[Orientation=Horizontal] > Separator">
+      <Setter Property="Width" Value="1" />
+      <Setter Property="Height" Value="20" />
+      <Setter Property="Margin" Value="4,2" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="Background" Value="#C0C0C0" />
+    </Style>
+
+    <!-- ===== Dialog: OK / Cancel / Close buttons ===== -->
+    <Style Selector="Button.dialog">
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Padding" Value="12,6" />
+      <Setter Property="MinWidth" Value="80" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button.dialog:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background">
+        <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+          <GradientStop Color="#EDF4FF" Offset="0" />
+          <GradientStop Color="#DCEAF9" Offset="1" />
+        </LinearGradientBrush>
+      </Setter>
+      <Setter Property="BorderBrush" Value="#90C0F0" />
+    </Style>
+    <Style Selector="Button.dialog:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#D0E0F8" />
+    </Style>
+
+    <!-- ===== Wizard: navigation buttons (Back / Next / Finish / Cancel) ===== -->
+    <Style Selector="Button.wizard">
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Padding" Value="14,6" />
+      <Setter Property="MinWidth" Value="90" />
+      <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button.wizard:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background">
+        <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+          <GradientStop Color="#EDF4FF" Offset="0" />
+          <GradientStop Color="#DCEAF9" Offset="1" />
+        </LinearGradientBrush>
+      </Setter>
+      <Setter Property="BorderBrush" Value="#90C0F0" />
+    </Style>
+    <Style Selector="Button.wizard:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#D0E0F8" />
+    </Style>
+
+    <!-- ===== Action: Run / Execute / Plot prominent buttons ===== -->
+    <Style Selector="Button.action">
+      <Setter Property="Background" Value="#E8F5E9" />
+      <Setter Property="BorderBrush" Value="#A5D6A7" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="5" />
+      <Setter Property="Padding" Value="12,6" />
+      <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button.action:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background">
+        <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+          <GradientStop Color="#D8F0D9" Offset="0" />
+          <GradientStop Color="#B8DDB9" Offset="1" />
+        </LinearGradientBrush>
+      </Setter>
+      <Setter Property="BorderBrush" Value="#66BB6A" />
+    </Style>
+    <Style Selector="Button.action:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#A5D6A7" />
+    </Style>
+
+    <!-- ===== Panel: Add / Remove / Transfer buttons in panels ===== -->
+    <Style Selector="Button.panel">
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Padding" Value="10,5" />
+      <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button.panel:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background">
+        <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+          <GradientStop Color="#F6F6F6" Offset="0" />
+          <GradientStop Color="#E8E8E8" Offset="1" />
+        </LinearGradientBrush>
+      </Setter>
+      <Setter Property="BorderBrush" Value="#C0C0C0" />
+    </Style>
+    <Style Selector="Button.panel:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#E0E0E0" />
+    </Style>
+
+    <!-- ===== Nav: browser navigation buttons (Back, Forward, Refresh) ===== -->
+    <Style Selector="Button.nav">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Padding" Value="4,2" />
+      <Setter Property="MinWidth" Value="30" />
+      <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button.nav:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background">
+        <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+          <GradientStop Color="#F0F0F0" Offset="0" />
+          <GradientStop Color="#E0E0E0" Offset="1" />
+        </LinearGradientBrush>
+      </Setter>
+    </Style>
+    <Style Selector="Button.nav:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#D8D8D8" />
+    </Style>
+
+    <!-- ===== Compact: small +/- buttons (dynamics manager, etc.) ===== -->
+    <Style Selector="Button.compact">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="#D0D0D0" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="MinWidth" Value="28" />
+      <Setter Property="MinHeight" Value="28" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button.compact:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background">
+        <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+          <GradientStop Color="#F6F6F6" Offset="0" />
+          <GradientStop Color="#E8E8E8" Offset="1" />
+        </LinearGradientBrush>
+      </Setter>
+      <Setter Property="BorderBrush" Value="#A0A0A0" />
+    </Style>
+    <Style Selector="Button.compact:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#E0E0E0" />
+    </Style>
+
+    <!-- ===== ToggleButton (toolbar) ===== -->
+    <Style Selector="ToggleButton.toolbar">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Padding" Value="6,4" />
+      <Setter Property="MinWidth" Value="32" />
+      <Setter Property="MinHeight" Value="32" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="ToggleButton.toolbar:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background">
+        <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+          <GradientStop Color="#EDF4FF" Offset="0" />
+          <GradientStop Color="#DCEAF9" Offset="1" />
+        </LinearGradientBrush>
+      </Setter>
+    </Style>
+    <Style Selector="ToggleButton.toolbar:checked /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#D0E0F8" />
+    </Style>
+
+  </Application.Styles>
+
+</Application>

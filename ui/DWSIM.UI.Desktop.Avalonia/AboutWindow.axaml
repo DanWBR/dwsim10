@@ -1,0 +1,85 @@
+﻿<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="DWSIM.UI.Desktop.Avalonia.AboutWindow"
+        Title="About DWSIM"
+        Width="720" Height="620"
+        WindowStartupLocation="CenterOwner"
+        CanResize="True">
+
+  <DockPanel LastChildFill="True" Margin="0">
+
+    <!-- ===== Header: what this is, which version, who owns it ===== -->
+    <Border DockPanel.Dock="Top" Padding="16,14" BorderThickness="0,0,0,1">
+      <Grid ColumnDefinitions="Auto,*">
+
+        <Image Name="Logo" Grid.Column="0" Width="64" Height="64"
+               VerticalAlignment="Top" Margin="0,0,16,0" />
+
+        <StackPanel Grid.Column="1" Spacing="3">
+          <TextBlock Text="DWSIM - Open Source Process Simulation, Modeling and Optimization"
+                     FontWeight="Bold" FontSize="14" TextWrapping="Wrap" />
+          <TextBlock Name="LblVersion" FontSize="12" />
+          <TextBlock Name="LblCopyright" FontSize="12" />
+
+          <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,4,0,0">
+            <TextBlock Text="Websites:" FontSize="12" VerticalAlignment="Center" />
+            <Button Name="BtnSite" Content="https://dwsim.org" FontSize="12"
+                    Padding="0" Background="Transparent" BorderThickness="0"
+                    Foreground="{DynamicResource SystemAccentColor}" Cursor="Hand" />
+          </StackPanel>
+
+          <TextBlock Name="LblLicense" FontSize="12" TextWrapping="Wrap" Margin="0,4,0,0"
+                     Text="DWSIM is released under the terms of the GNU General Public License (GPL) version 3." />
+        </StackPanel>
+
+      </Grid>
+    </Border>
+
+    <!-- ===== Footer ===== -->
+    <Border DockPanel.Dock="Bottom" Padding="12,8" BorderThickness="0,1,0,0">
+      <Button Name="BtnOK" Classes="dialog" Content="OK" Width="90"
+              HorizontalAlignment="Right" IsDefault="True" IsCancel="True" />
+    </Border>
+
+    <TabControl Margin="8,8,8,0">
+
+      <TabItem Header="General Info">
+        <DockPanel Margin="6">
+
+          <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,*" Margin="0,0,0,8"
+                RowDefinitions="Auto,Auto,Auto,Auto">
+            <TextBlock Grid.Row="0" Grid.Column="0" Text="OS Info:" FontWeight="SemiBold"
+                       Margin="0,2,10,2" />
+            <TextBlock Grid.Row="0" Grid.Column="1" Name="LblOS" Margin="0,2" TextWrapping="Wrap" />
+
+            <TextBlock Grid.Row="1" Grid.Column="0" Text="CLR Info:" FontWeight="SemiBold"
+                       Margin="0,2,10,2" />
+            <TextBlock Grid.Row="1" Grid.Column="1" Name="LblClr" Margin="0,2" TextWrapping="Wrap" />
+
+            <TextBlock Grid.Row="2" Grid.Column="0" Text="CPU Info:" FontWeight="SemiBold"
+                       Margin="0,2,10,2" />
+            <TextBlock Grid.Row="2" Grid.Column="1" Name="LblCpu" Margin="0,2" TextWrapping="Wrap" />
+
+            <TextBlock Grid.Row="3" Grid.Column="0" Text="Memory Usage:" FontWeight="SemiBold"
+                       Margin="0,2,10,2" />
+            <TextBlock Grid.Row="3" Grid.Column="1" Name="LblMemory" Margin="0,2" />
+          </Grid>
+
+          <TextBox Name="TbLicense" IsReadOnly="True" AcceptsReturn="True"
+                   FontFamily="Consolas,Courier New,monospace" FontSize="11"
+                   TextWrapping="Wrap" />
+
+        </DockPanel>
+      </TabItem>
+
+      <TabItem Header="Acknowledgements">
+        <TextBox Name="TbAcknowledgements" Margin="6" IsReadOnly="True" AcceptsReturn="True"
+                 FontFamily="Consolas,Courier New,monospace" FontSize="11"
+                 TextWrapping="Wrap" />
+      </TabItem>
+
+    </TabControl>
+
+  </DockPanel>
+
+</Window>

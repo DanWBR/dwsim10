@@ -1,0 +1,55 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The editing panels of the unit operations, the material stream and the compound tools. The
+    assembly name is the one the flowsheet asks the editor factory for, so it keeps the name it
+    had while the project still carried an Eto half.
+  -->
+
+  <PropertyGroup>
+    <RootNamespace>DWSIM.UI.Desktop.Editors</RootNamespace>
+    <AssemblyName>DWSIM.UI.Desktop.Editors</AssemblyName>
+    <EnableDefaultEmbeddedResourceItems>false</EnableDefaultEmbeddedResourceItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" />
+    <PackageReference Include="Avalonia.Controls.ColorPicker" />
+    <PackageReference Include="Avalonia.Controls.DataGrid" />
+    <PackageReference Include="SkiaSharp" />
+  </ItemGroup>
+
+  <!-- Compile-time only: the material stream and the property packages implement the CAPE-OPEN
+       interfaces, so building a scratch stream needs the assembly on the reference list. -->
+
+  <ItemGroup>
+    <Reference Include="CapeOpen">
+      <HintPath>..\..\lib\CapeOpen.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\engine\DWSIM.Drawing.SkiaSharp\DWSIM.Drawing.SkiaSharp.vbproj" />
+    <ProjectReference Include="..\..\engine\DWSIM.ExtensionMethods\DWSIM.ExtensionMethods.vbproj" />
+    <ProjectReference Include="..\..\engine\DWSIM.FlowsheetSolver\DWSIM.FlowsheetSolver.vbproj" />
+    <ProjectReference Include="..\..\engine\DWSIM.GlobalSettings\DWSIM.GlobalSettings.vbproj" />
+    <ProjectReference Include="..\..\engine\DWSIM.Interfaces\DWSIM.Interfaces.vbproj" />
+    <ProjectReference Include="..\..\engine\DWSIM.MathOps\DWSIM.MathOps.vbproj" />
+    <ProjectReference Include="..\..\engine\DWSIM.PureCompoundData\src\Builder\DWSIM.PureCompoundData.Builder.csproj" />
+    <ProjectReference Include="..\..\engine\DWSIM.PureCompoundData\src\Core\DWSIM.PureCompoundData.Core.csproj" />
+    <ProjectReference Include="..\..\engine\DWSIM.PureCompoundData\src\Index\DWSIM.PureCompoundData.Index.csproj" />
+    <ProjectReference Include="..\..\engine\DWSIM.SharedClasses\DWSIM.SharedClasses.vbproj" />
+    <ProjectReference Include="..\..\engine\DWSIM.SharedClassesCSharp\DWSIM.SharedClassesCSharp.csproj" />
+    <ProjectReference Include="..\..\engine\DWSIM.Thermodynamics\DWSIM.Thermodynamics.vbproj" />
+    <ProjectReference Include="..\..\engine\DWSIM.UnitOperations\DWSIM.UnitOperations.vbproj" />
+    <ProjectReference Include="..\DWSIM.UI.Shared.Avalonia\DWSIM.UI.Shared.Avalonia.csproj" />
+  </ItemGroup>
+
+  <!-- C# keeps the folder in the resource name, so the SDK default already matches the names
+       the .NET Framework project produced. -->
+
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\Icons\**\*" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,40 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="DWSIM.UI.Desktop.Avalonia.InspectorReportsWindow"
+        x:CompileBindings="False"
+        Title="Inspector Reports"
+        Width="1100" Height="700"
+        WindowStartupLocation="CenterOwner">
+
+  <DockPanel LastChildFill="True">
+
+    <Border DockPanel.Dock="Top" Padding="10" BorderThickness="0,0,0,1">
+      <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+        <CheckBox Name="CbEnable" Content="Generate Inspector Reports on Solve" />
+        <Button Name="BtnClear" Classes="panel" Content="Clear History" Margin="20,0,0,0" />
+        <Button Name="BtnRefresh" Classes="panel" Content="Refresh" />
+        <TextBlock Name="LblCount" Text="" VerticalAlignment="Center" FontSize="11" Foreground="#666" />
+      </StackPanel>
+    </Border>
+
+    <Grid ColumnDefinitions="300,*">
+
+      <Border Grid.Column="0" BorderThickness="0,0,1,0" Padding="4">
+        <ListBox Name="LbItems" />
+      </Border>
+
+      <!-- The report is HTML with MathJax in it, so it goes to the system browser, which is
+           the one HTML renderer every platform is guaranteed to have. -->
+      <DockPanel Grid.Column="1" Margin="10" LastChildFill="True">
+        <Button DockPanel.Dock="Top" Name="BtnOpenReport" Classes="panel"
+                Content="Open Report in Browser" IsEnabled="False"
+                HorizontalAlignment="Left" Margin="0,0,0,8" />
+        <TextBox Name="TbReport" IsReadOnly="True" AcceptsReturn="True"
+                 TextWrapping="NoWrap" FontFamily="Consolas,Menlo,monospace" FontSize="11" />
+      </DockPanel>
+
+    </Grid>
+
+  </DockPanel>
+
+</Window>

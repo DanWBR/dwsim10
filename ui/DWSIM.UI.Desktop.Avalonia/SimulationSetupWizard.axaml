@@ -1,0 +1,43 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="DWSIM.UI.Desktop.Avalonia.SimulationSetupWizard"
+        Title="Simulation Setup Wizard"
+        Width="920" Height="660"
+        WindowStartupLocation="CenterOwner"
+        CanResize="True">
+
+  <DockPanel LastChildFill="True">
+
+    <!-- ===== Footer with navigation buttons ===== -->
+    <Border DockPanel.Dock="Bottom" BorderThickness="0,1,0,0" Padding="12,8">
+      <DockPanel LastChildFill="True">
+        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8">
+          <Button Name="BtnBack"   Classes="wizard" Content="&lt; Back"  Width="90" />
+          <Button Name="BtnNext"   Classes="wizard" Content="Next &gt;"  Width="90" />
+          <Button Name="BtnFinish" Classes="wizard" Content="Finish"     Width="90" />
+          <Button Name="BtnCancel" Classes="wizard" Content="Close"      Width="90" IsCancel="True" />
+        </StackPanel>
+        <TextBlock Name="LblFooter" Text="" FontSize="11"
+                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+      </DockPanel>
+    </Border>
+
+    <!-- ===== Header ===== -->
+    <Border DockPanel.Dock="Top" Padding="16,10" BorderThickness="0,0,0,1">
+      <StackPanel Spacing="2">
+        <TextBlock Name="LblHeaderTitle" Text="Welcome" FontSize="16" FontWeight="Bold" />
+        <TextBlock Name="LblHeaderDesc" Text="" FontSize="12" TextWrapping="Wrap" />
+      </StackPanel>
+    </Border>
+
+    <!-- ===== The steps, listed on the left as the Windows wizard lists them ===== -->
+    <Border DockPanel.Dock="Left" Width="190" Padding="10" BorderThickness="0,0,1,0">
+      <StackPanel Name="StepList" Spacing="2" />
+    </Border>
+
+    <!-- ===== The page being shown ===== -->
+    <ContentControl Name="PageHost" Margin="12,10" />
+
+  </DockPanel>
+
+</Window>

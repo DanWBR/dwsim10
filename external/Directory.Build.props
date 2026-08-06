@@ -1,0 +1,15 @@
+<Project>
+
+  <!--
+    Third-party source lives under this folder, so the repository defaults stop here: an MSBuild
+    project only imports the nearest Directory.Build.props above it, and this one is deliberately
+    empty of settings. Central package management is off for the same reason: these projects
+    carry their own package versions.
+  -->
+
+  <PropertyGroup>
+    <ImportDirectoryPackagesProps>false</ImportDirectoryPackagesProps>
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+</Project>

@@ -1,0 +1,32 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="DWSIM.UI.Desktop.Avalonia.PropertyChartWindow"
+        x:CompileBindings="False"
+        Title="Property Chart"
+        Width="900" Height="560"
+        WindowStartupLocation="CenterOwner">
+
+  <DockPanel LastChildFill="True">
+
+    <Border DockPanel.Dock="Top" Padding="8" BorderThickness="0,0,0,1">
+      <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+        <TextBlock Text="Object Type:" VerticalAlignment="Center" />
+        <ComboBox Name="CbObjectType" Width="170" />
+        <TextBlock Text="Property:" VerticalAlignment="Center" Margin="8,0,0,0" />
+        <ComboBox Name="CbProperty" Width="220" />
+        <Button Name="BtnPlot" Classes="action" Content="Plot" Width="80" Margin="8,0,0,0" />
+        <Button Name="BtnCopyCsv" Classes="panel" Content="Copy as CSV" Width="110" />
+      </StackPanel>
+    </Border>
+
+    <Border DockPanel.Dock="Bottom" Padding="8,3" BorderThickness="0,1,0,0">
+      <TextBlock Name="StatusLabel" Text="Pick an object type and property, then click Plot." FontSize="11" />
+    </Border>
+
+    <Border Background="White" Padding="4">
+      <Canvas Name="PlotSurface" Background="White" />
+    </Border>
+
+  </DockPanel>
+
+</Window>

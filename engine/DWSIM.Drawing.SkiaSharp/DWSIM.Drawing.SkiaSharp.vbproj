@@ -26,10 +26,19 @@
     <Import Include="SkiaSharp" />
   </ItemGroup>
 
+  <!--
+    The SkiaSharp package carries the Windows native library; Linux and macOS come in their own
+    packages. They sit here because this is the assembly that first touches Skia, so everything
+    that draws gets the native library into its output folder without asking.
+  -->
+
   <ItemGroup>
     <PackageReference Include="AutomaticGraphLayout" />
     <PackageReference Include="MathNet.Numerics" />
     <PackageReference Include="SkiaSharp" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" />
+    <PackageReference Include="SkiaSharp.NativeAssets.macOS" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Win32" />
   </ItemGroup>
 
   <ItemGroup>

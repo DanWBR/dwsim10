@@ -1,0 +1,91 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <RootNamespace>DWSIM.UI.Desktop.Avalonia</RootNamespace>
+    <AssemblyName>DWSIM.UI.Desktop.Avalonia</AssemblyName>
+    <Nullable>enable</Nullable>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>DWSIM_ico.ico</ApplicationIcon>
+    <AssemblyVersion>10.0.0.0</AssemblyVersion>
+    <EnableDefaultEmbeddedResourceItems>false</EnableDefaultEmbeddedResourceItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" />
+    <PackageReference Include="Avalonia.Desktop" />
+    <PackageReference Include="Avalonia.Themes.Fluent" />
+    <PackageReference Include="Avalonia.Fonts.Inter" />
+    <PackageReference Include="Avalonia.Controls.DataGrid" />
+    <PackageReference Include="Avalonia.AvaloniaEdit" />
+    <PackageReference Include="Dock.Avalonia" />
+    <PackageReference Include="Dock.Avalonia.Themes.Fluent" />
+    <PackageReference Include="Dock.Model.Avalonia" />
+    <PackageReference Include="Dock.Serializer.Newtonsoft" />
+    <PackageReference Include="Flee" />
+    <PackageReference Include="Newtonsoft.Json" />
+    <PackageReference Include="SkiaSharp" />
+  </ItemGroup>
+
+  <!-- Compile-time only: the material stream and the property packages implement the CAPE-OPEN
+       interfaces, so building a scratch stream needs the assembly on the reference list. -->
+
+  <ItemGroup>
+    <Reference Include="CapeOpen">
+      <HintPath>..\..\lib\CapeOpen.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DWSIM.UI.Desktop.Editors.Avalonia\DWSIM.UI.Desktop.Editors.Avalonia.csproj" />
+    <ProjectReference Include="..\DWSIM.UI.Shared.Avalonia\DWSIM.UI.Shared.Avalonia.csproj" />
+    <ProjectReference Include="..\..\engine\DWSIM.Drawing.SkiaSharp\DWSIM.Drawing.SkiaSharp.vbproj" />
+    <ProjectReference Include="..\..\engine\DWSIM.DynamicsManager\DWSIM.DynamicsManager.vbproj" />
+    <ProjectReference Include="..\..\engine\DWSIM.ExtensionMethods\DWSIM.ExtensionMethods.vbproj" />
+    <ProjectReference Include="..\..\engine\DWSIM.FlowsheetBase\DWSIM.FlowsheetBase.vbproj" />
+    <ProjectReference Include="..\..\engine\DWSIM.FlowsheetSolver\DWSIM.FlowsheetSolver.vbproj" />
+    <ProjectReference Include="..\..\engine\DWSIM.GlobalSettings\DWSIM.GlobalSettings.vbproj" />
+    <ProjectReference Include="..\..\engine\DWSIM.Inspector\DWSIM.Inspector.vbproj" />
+    <ProjectReference Include="..\..\engine\DWSIM.Interfaces\DWSIM.Interfaces.vbproj" />
+    <ProjectReference Include="..\..\engine\DWSIM.MathOps.DotNumerics\DWSIM.MathOps.DotNumerics.csproj" />
+    <ProjectReference Include="..\..\engine\DWSIM.PhaseEquilibriumData\src\Core\DWSIM.PhaseEquilibriumData.Core.csproj" />
+    <ProjectReference Include="..\..\engine\DWSIM.PhaseEquilibriumData\src\Index\DWSIM.PhaseEquilibriumData.Index.csproj" />
+    <ProjectReference Include="..\..\engine\DWSIM.PureCompoundData\src\Builder\DWSIM.PureCompoundData.Builder.csproj" />
+    <ProjectReference Include="..\..\engine\DWSIM.SharedClasses\DWSIM.SharedClasses.vbproj" />
+    <ProjectReference Include="..\..\engine\DWSIM.SharedClasses.DataRegression\DWSIM.SharedClasses.DataRegression.vbproj" />
+    <ProjectReference Include="..\..\engine\DWSIM.Thermodynamics\DWSIM.Thermodynamics.vbproj" />
+    <ProjectReference Include="..\..\engine\DWSIM.Thermodynamics.Databases.ChEDLThermoLink\DWSIM.Thermodynamics.Databases.ChEDLThermoLink.vbproj" />
+    <ProjectReference Include="..\..\engine\DWSIM.Thermodynamics.Databases.ChemeoLink\DWSIM.Thermodynamics.Databases.ChemeoLink.vbproj" />
+    <ProjectReference Include="..\..\engine\DWSIM.Thermodynamics.Databases.KDBLink\DWSIM.Thermodynamics.Databases.KDBLink.vbproj" />
+    <ProjectReference Include="..\..\engine\DWSIM.UnitOperations\DWSIM.UnitOperations.vbproj" />
+  </ItemGroup>
+
+  <!-- The spreadsheet. The fork is in external/ReoGrid, built for Avalonia. -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\external\ReoGrid\ReoGrid\ReoGridAvalonia.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\dwsim.ico" />
+    <AvaloniaResource Include="Assets\DWSIM_splash_v10.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="DWSIM_ico.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Update="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+    <Compile Update="Properties\Resources.Designer.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
+</Project>

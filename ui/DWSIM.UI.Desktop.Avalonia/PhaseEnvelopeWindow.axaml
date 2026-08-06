@@ -1,0 +1,48 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="DWSIM.UI.Desktop.Avalonia.PhaseEnvelopeWindow"
+        x:CompileBindings="False"
+        Title="Phase Envelope"
+        Width="1080" Height="680"
+        WindowStartupLocation="CenterOwner">
+
+  <DockPanel LastChildFill="True">
+
+    <Border DockPanel.Dock="Bottom" Padding="8,3" BorderThickness="0,1,0,0">
+      <TextBlock Name="StatusLabel" Text="Select a material stream and an envelope type, then press Build Envelope." FontSize="11" />
+    </Border>
+
+    <Grid ColumnDefinitions="420,4,*">
+
+      <DockPanel Grid.Column="0" LastChildFill="True">
+        <Button Name="BtnBuild" DockPanel.Dock="Bottom" Classes="action"
+                Content="Build Envelope" Height="32" Margin="10,6,10,10" />
+        <ScrollViewer Name="OptionsHost" Padding="8,8,4,0"
+                      HorizontalScrollBarVisibility="Disabled"
+                      VerticalScrollBarVisibility="Auto" />
+      </DockPanel>
+
+      <GridSplitter Grid.Column="1" Background="Transparent" ResizeDirection="Columns" />
+
+      <TabControl Grid.Column="2" Margin="0,4,4,4">
+        <TabItem Header="Chart">
+          <Border Name="ChartHost" Padding="2" />
+        </TabItem>
+        <TabItem Header="Data">
+          <DockPanel LastChildFill="True">
+            <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="4">
+              <Button Name="BtnCopyData" Classes="panel" Content="Copy Report" Width="110" />
+              <Button Name="BtnCopyCsv" Classes="panel" Content="Copy Curves (TSV)" Width="150" />
+            </StackPanel>
+            <TextBox Name="TbData" IsReadOnly="True" AcceptsReturn="True" TextWrapping="NoWrap"
+                     FontFamily="Consolas,Menlo,Monospace" FontSize="12"
+                     VerticalContentAlignment="Top" />
+          </DockPanel>
+        </TabItem>
+      </TabControl>
+
+    </Grid>
+
+  </DockPanel>
+
+</Window>

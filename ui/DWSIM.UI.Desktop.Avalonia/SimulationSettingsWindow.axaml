@@ -1,0 +1,499 @@
+﻿<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="DWSIM.UI.Desktop.Avalonia.SimulationSettingsWindow"
+        Title="Settings"
+        Width="980" Height="680"
+        WindowStartupLocation="CenterOwner"
+        CanResize="True">
+
+  <DockPanel LastChildFill="True" Margin="10">
+
+    <DockPanel DockPanel.Dock="Bottom" Margin="0,10,0,0" LastChildFill="True">
+      <Button Name="BtnClose" DockPanel.Dock="Right" Classes="dialog" Content="Close"
+              Width="90" IsCancel="True" IsDefault="True" />
+      <TextBlock Name="StatusLabel" Text="" FontSize="11" Foreground="#666"
+                 VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+    </DockPanel>
+
+    <TabControl>
+
+      <!-- ==================================================================
+           Compounds
+           ================================================================== -->
+      <TabItem Header="Compounds">
+        <DockPanel Margin="6">
+
+          <Border DockPanel.Dock="Bottom" Classes="group" Margin="0,8,0,0">
+            <StackPanel Spacing="4">
+              <TextBlock Classes="groupHeader" Text="Petroleum Fractions" />
+              <WrapPanel>
+                <Button Name="BtnBulkC7" Classes="panel" Margin="0,0,8,4"
+                        Content="Start Bulk C7+ Petroleum Characterization Utility" />
+                <Button Name="BtnAssayManager" Classes="panel" Margin="0,0,8,4"
+                        Content="Open Assay Manager" />
+                <Button Name="BtnDistCurves" Classes="panel" Margin="0,0,8,4"
+                        Content="Start Distillation Curves Petroleum Characterization Utility" />
+              </WrapPanel>
+            </StackPanel>
+          </Border>
+
+          <Border Classes="group">
+            <DockPanel>
+
+              <TextBlock DockPanel.Dock="Top" Classes="groupHeader" Text="Compounds" />
+
+              <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6">
+                <TextBlock DockPanel.Dock="Left" Text="Search" VerticalAlignment="Center"
+                           Margin="0,0,8,0" />
+                <Button DockPanel.Dock="Right" Name="BtnClearSearch" Classes="panel"
+                        Content="✕" Margin="6,0,0,0" />
+                <TextBox Name="TbCompoundSearch"
+                         Watermark="Filter by name, CAS number, formula or database" />
+              </DockPanel>
+
+              <DockPanel DockPanel.Dock="Bottom" Margin="0,6,0,0">
+                <Button DockPanel.Dock="Left" Name="BtnViewCompound" Classes="panel"
+                        Content="View Selected Compound" />
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6">
+                  <TextBlock Text="Import From" VerticalAlignment="Center" />
+                  <Button Name="BtnImportThermoData" Classes="panel" Content="ThermoData" />
+                  <Button Name="BtnImportOnline" Classes="panel" Content="Online" />
+                  <Button Name="BtnImportJson" Classes="panel" Content="JSON" />
+                  <Button Name="BtnImportChEDL" Classes="panel" Content="Thermo/Chemicals" />
+                </StackPanel>
+                <TextBlock Name="LblCompoundCount" FontSize="11" Foreground="#777"
+                           VerticalAlignment="Center" Margin="12,0,0,0" />
+              </DockPanel>
+
+              <DataGrid Name="GridCompounds" x:CompileBindings="False" AutoGenerateColumns="False"
+                        HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                        CanUserSortColumns="True" CanUserResizeColumns="True"
+                        SelectionMode="Single" MinHeight="220">
+                <DataGrid.Columns>
+                  <!-- a checkbox column only reacts once the cell is in edit mode, which costs
+                       two clicks and reads as broken; a checkbox in the cell takes the first one -->
+                  <DataGridTemplateColumn Header="Added" Width="60">
+                    <DataGridTemplateColumn.CellTemplate>
+                      <DataTemplate>
+                        <CheckBox IsChecked="{Binding Added, Mode=TwoWay}"
+                                  HorizontalAlignment="Center" />
+                      </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                  </DataGridTemplateColumn>
+                  <DataGridTextColumn Header="Name" Binding="{Binding Name}" IsReadOnly="True"
+                                      Width="2.2*" />
+                  <DataGridTextColumn Header="Tag" Binding="{Binding Tag}" Width="90" />
+                  <DataGridTextColumn Header="CAS Number" Binding="{Binding CAS}" IsReadOnly="True"
+                                      Width="110" />
+                  <DataGridTextColumn Header="Formula" Binding="{Binding Formula}" IsReadOnly="True"
+                                      Width="*" />
+                  <DataGridTextColumn Header="Database" Binding="{Binding Database}" IsReadOnly="True"
+                                      Width="100" />
+                  <DataGridCheckBoxColumn Header="CP" Binding="{Binding CoolProp}" IsReadOnly="True"
+                                          Width="45" />
+                </DataGrid.Columns>
+              </DataGrid>
+
+            </DockPanel>
+          </Border>
+
+        </DockPanel>
+      </TabItem>
+
+      <!-- ==================================================================
+           Thermodynamics
+           ================================================================== -->
+      <TabItem Header="Thermodynamics">
+        <DockPanel Margin="6">
+
+          <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+            <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center" Margin="0,0,8,0"
+                       Text="Select a Property Package from the list to add it to the simulation:" />
+            <ComboBox Name="CbAvailablePP" HorizontalAlignment="Stretch" />
+          </DockPanel>
+
+          <Border Classes="group">
+            <DockPanel>
+              <TextBlock DockPanel.Dock="Top" Classes="groupHeader" Text="Added Property Packages" />
+              <DataGrid Name="GridPP" x:CompileBindings="False" AutoGenerateColumns="False" HeadersVisibility="Column"
+                        GridLinesVisibility="Horizontal" CanUserSortColumns="False"
+                        SelectionMode="Single" RowHeight="38">
+                <DataGrid.Columns>
+                  <DataGridTextColumn Header="Name (click to edit)" Binding="{Binding Name}" Width="2*" />
+                  <DataGridTextColumn Header="Type" Binding="{Binding Type}" IsReadOnly="True" Width="2.4*" />
+                  <DataGridTemplateColumn Header="" Width="100">
+                    <DataGridTemplateColumn.CellTemplate>
+                      <DataTemplate>
+                        <Button Classes="panel" Content="ℹ️ Details" FontSize="11" Margin="2"
+                                HorizontalAlignment="Stretch" Click="OnPPDetails" />
+                      </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                  </DataGridTemplateColumn>
+                  <DataGridTemplateColumn Header="" Width="110">
+                    <DataGridTemplateColumn.CellTemplate>
+                      <DataTemplate>
+                        <Button Classes="panel" Content="⚙️ Configure" FontSize="11" Margin="2"
+                                HorizontalAlignment="Stretch" Click="OnPPConfigure" />
+                      </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                  </DataGridTemplateColumn>
+                  <DataGridTemplateColumn Header="" Width="90">
+                    <DataGridTemplateColumn.CellTemplate>
+                      <DataTemplate>
+                        <Button Classes="panel" Content="📄 Copy" FontSize="11" Margin="2"
+                                HorizontalAlignment="Stretch" Click="OnPPCopy" />
+                      </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                  </DataGridTemplateColumn>
+                  <DataGridTemplateColumn Header="" Width="100">
+                    <DataGridTemplateColumn.CellTemplate>
+                      <DataTemplate>
+                        <Button Classes="panel" Content="❌ Remove" FontSize="11" Margin="2"
+                                HorizontalAlignment="Stretch" Click="OnPPRemove" />
+                      </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                  </DataGridTemplateColumn>
+                </DataGrid.Columns>
+              </DataGrid>
+            </DockPanel>
+          </Border>
+
+        </DockPanel>
+      </TabItem>
+
+      <!-- ==================================================================
+           Reactions (hosts the Reaction Manager, as the WinForms UI does)
+           ================================================================== -->
+      <TabItem Header="Reactions">
+        <ContentControl Name="ReactionsHost" />
+      </TabItem>
+
+      <!-- ==================================================================
+           Mass and Energy Balances
+           ================================================================== -->
+      <TabItem Header="Mass and Energy Balances">
+        <ScrollViewer>
+          <StackPanel Margin="6">
+
+            <Border Classes="group">
+              <StackPanel>
+                <TextBlock Classes="groupHeader" Text="Mass Balance" />
+                <Grid ColumnDefinitions="*,220" RowDefinitions="Auto,Auto">
+                  <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Margin="0,4"
+                             Text="Flowsheet object mass balance check" />
+                  <ComboBox Grid.Row="0" Grid.Column="1" Name="CbMassBalCheck" Margin="0,4"
+                            HorizontalAlignment="Stretch">
+                    <ComboBoxItem Content="Ignore" />
+                    <ComboBoxItem Content="Show Warning" />
+                    <ComboBoxItem Content="Throw Exception (Error)" />
+                  </ComboBox>
+                  <TextBlock Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Margin="0,4"
+                             Text="Mass balance relative tolerance" />
+                  <TextBox Grid.Row="1" Grid.Column="1" Name="TbMassBalTol" Margin="0,4" />
+                </Grid>
+              </StackPanel>
+            </Border>
+
+            <Border Classes="group">
+              <StackPanel>
+                <TextBlock Classes="groupHeader" Text="Energy Balance" />
+                <Grid ColumnDefinitions="*,220" RowDefinitions="Auto,Auto">
+                  <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Margin="0,4"
+                             Text="Flowsheet object energy balance check" />
+                  <ComboBox Grid.Row="0" Grid.Column="1" Name="CbEnergyBalCheck" Margin="0,4"
+                            HorizontalAlignment="Stretch">
+                    <ComboBoxItem Content="Ignore" />
+                    <ComboBoxItem Content="Show Warning" />
+                    <ComboBoxItem Content="Throw Exception (Error)" />
+                  </ComboBox>
+                  <TextBlock Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Margin="0,4"
+                             Text="Energy balance relative tolerance" />
+                  <TextBox Grid.Row="1" Grid.Column="1" Name="TbEnergyBalTol" Margin="0,4" />
+                </Grid>
+              </StackPanel>
+            </Border>
+
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+
+      <!-- ==================================================================
+           System of Units
+           ================================================================== -->
+      <TabItem Header="System of Units">
+        <DockPanel Margin="6">
+
+          <Border DockPanel.Dock="Bottom" Classes="group" Margin="0,8,0,0">
+            <StackPanel Spacing="4">
+              <TextBlock Classes="groupHeader" Text="Tasks" />
+              <WrapPanel>
+                <Button Name="BtnUnitsNew"    Classes="panel" Content="Create New..."   Margin="0,0,8,4" />
+                <Button Name="BtnUnitsClone"  Classes="panel" Content="Clone Selected"  Margin="0,0,8,4" />
+                <Button Name="BtnUnitsRemove" Classes="panel" Content="Remove Selected" Margin="0,0,8,4" />
+                <Button Name="BtnUnitsLoad"   Classes="panel" Content="Load from File"  Margin="0,0,8,4" />
+                <Button Name="BtnUnitsSave"   Classes="panel" Content="Save to File"    Margin="0,0,8,4" />
+              </WrapPanel>
+            </StackPanel>
+          </Border>
+
+          <Border Classes="group">
+            <DockPanel>
+              <TextBlock DockPanel.Dock="Top" Classes="groupHeader" Text="Units" />
+              <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                <TextBlock DockPanel.Dock="Left" Text="System of Units" VerticalAlignment="Center"
+                           Margin="0,0,8,0" />
+                <TextBox DockPanel.Dock="Right" Name="TbUnitSystemName" Width="220" Margin="8,0,0,0"
+                         Watermark="Rename the selected set" />
+                <ComboBox Name="CbUnitSystem" HorizontalAlignment="Stretch" />
+              </DockPanel>
+              <ScrollViewer>
+                <Grid Name="UnitsGrid" ColumnDefinitions="Auto,*,Auto,*" />
+              </ScrollViewer>
+            </DockPanel>
+          </Border>
+
+        </DockPanel>
+      </TabItem>
+
+      <!-- ==================================================================
+           Behavior
+           ================================================================== -->
+      <TabItem Header="Behavior">
+        <ScrollViewer>
+          <StackPanel Margin="6">
+
+            <Border Classes="group">
+              <StackPanel Spacing="4">
+                <TextBlock Classes="groupHeader" Text="Flowsheet Objects" />
+                <CheckBox Name="ChkSkipEqCalcs"
+                          Content="Skip equilibrium calculations in well-defined Material Streams" />
+                <Grid ColumnDefinitions="*,240" RowDefinitions="Auto">
+                  <TextBlock Grid.Column="0" VerticalAlignment="Center"
+                             Text="Force Phase in Material Streams" />
+                  <ComboBox Grid.Column="1" Name="CbForcePhase" HorizontalAlignment="Stretch">
+                    <ComboBoxItem Content="Do Not Force" />
+                    <ComboBoxItem Content="Force Vapor Phase" />
+                    <ComboBoxItem Content="Force Liquid Phase" />
+                    <ComboBoxItem Content="Force Solid Phase" />
+                  </ComboBox>
+                </Grid>
+                <CheckBox Name="ChkForceObjectCalculation"
+                          Content="Force object calculation even when input parameters don't change" />
+                <CheckBox Name="ChkRestoreUnitOpState"
+                          Content="Restore Unit Operation state after a failed calculation (beta)" />
+                <Grid ColumnDefinitions="*,240" RowDefinitions="Auto,Auto,Auto">
+                  <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Margin="0,4"
+                             Text="Calculation Mode for Specification Blocks" />
+                  <ComboBox Grid.Row="0" Grid.Column="1" Name="CbSpecCalcMode" Margin="0,4"
+                            HorizontalAlignment="Stretch">
+                    <ComboBoxItem Content="After Source Object" />
+                    <ComboBoxItem Content="Before Target Object" />
+                    <ComboBoxItem Content="Before Flowsheet" />
+                    <ComboBoxItem Content="After Flowsheet" />
+                  </ComboBox>
+                  <TextBlock Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Margin="0,4"
+                             Text="Calculation Mode for Information Carrier Blocks" />
+                  <ComboBox Grid.Row="1" Grid.Column="1" Name="CbInfoCarrierCalcMode" Margin="0,4"
+                            HorizontalAlignment="Stretch">
+                    <ComboBoxItem Content="After Source Object" />
+                    <ComboBoxItem Content="Before Target Object" />
+                    <ComboBoxItem Content="Before Flowsheet" />
+                    <ComboBoxItem Content="After Flowsheet" />
+                  </ComboBox>
+                  <TextBlock Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" Margin="0,4"
+                             Text="Order Compounds By" />
+                  <ComboBox Grid.Row="2" Grid.Column="1" Name="CbOrderCompoundsBy" Margin="0,4"
+                            HorizontalAlignment="Stretch">
+                    <ComboBoxItem Content="Default (As Added)" />
+                    <ComboBoxItem Content="Name (Ascending)" />
+                    <ComboBoxItem Content="Name (Descending)" />
+                    <ComboBoxItem Content="Normal Boiling Point (Ascending)" />
+                    <ComboBoxItem Content="Normal Boiling Point (Descending)" />
+                    <ComboBoxItem Content="Molar Weight (Ascending)" />
+                    <ComboBoxItem Content="Molar Weight (Descending)" />
+                    <ComboBoxItem Content="CAS Number (Ascending)" />
+                    <ComboBoxItem Content="CAS Number (Descending)" />
+                    <ComboBoxItem Content="Tag (Ascending)" />
+                    <ComboBoxItem Content="Tag (Descending)" />
+                  </ComboBox>
+                </Grid>
+              </StackPanel>
+            </Border>
+
+            <Border Classes="group">
+              <StackPanel Spacing="4">
+                <TextBlock Classes="groupHeader" Text="Number Formatting" />
+                <Grid ColumnDefinitions="*,240" RowDefinitions="Auto,Auto">
+                  <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Margin="0,4"
+                             Text="Numerical Values Formatting Scheme" />
+                  <ComboBox Grid.Row="0" Grid.Column="1" Name="CbNumberFormat" Margin="0,4"
+                            HorizontalAlignment="Stretch" />
+                  <TextBlock Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Margin="0,4"
+                             Text="Stream Composition Formatting Scheme" />
+                  <ComboBox Grid.Row="1" Grid.Column="1" Name="CbFractionFormat" Margin="0,4"
+                            HorizontalAlignment="Stretch" />
+                </Grid>
+                <TextBlock Name="LnkFormatHelp" Text="More information..." FontSize="11"
+                           Foreground="#2A6FBB" Cursor="Hand" />
+              </StackPanel>
+            </Border>
+
+            <Border Classes="group">
+              <StackPanel Spacing="4">
+                <TextBlock Classes="groupHeader" Text="General" />
+                <CheckBox Name="ChkEnableUndoRedo" Content="Enable Undo/Redo" />
+                <CheckBox Name="ChkIncludeMessagesInFile"
+                          Content="Include flowsheet messages when saving file" />
+              </StackPanel>
+            </Border>
+
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+
+      <!-- ==================================================================
+           Object Properties
+           ================================================================== -->
+      <TabItem Header="Object Properties">
+        <Grid ColumnDefinitions="*,320" Margin="6">
+
+          <Border Grid.Column="0" Classes="group" Margin="0,0,8,0">
+            <DockPanel>
+              <TextBlock DockPanel.Dock="Top" Classes="groupHeader"
+                         Text="Floating Property Tables and Property Lists" />
+
+              <StackPanel DockPanel.Dock="Top" Spacing="4">
+                <CheckBox Name="ChkShowFloatingTables" Content="Display Floating Tables" />
+                <CheckBox Name="ChkShowAnchoredLists" Content="Display Anchored Property Lists" />
+                <Grid ColumnDefinitions="*,150,*,110" RowDefinitions="Auto,Auto" Margin="20,2,0,0">
+                  <TextBlock Grid.Row="0" Grid.Column="0" Text="Font Name" VerticalAlignment="Center" />
+                  <TextBox   Grid.Row="0" Grid.Column="1" Name="TbPropListFontName" Margin="2" />
+                  <TextBlock Grid.Row="0" Grid.Column="2" Text="Font Size" VerticalAlignment="Center"
+                             Margin="8,0,0,0" />
+                  <NumericUpDown Grid.Row="0" Grid.Column="3" Name="NudPropListFontSize" Margin="2"
+                                 Minimum="6" Maximum="24" Increment="1" />
+                  <TextBlock Grid.Row="1" Grid.Column="0" Text="Font Color" VerticalAlignment="Center" />
+                  <ComboBox  Grid.Row="1" Grid.Column="1" Name="CbPropListFontColor" Margin="2"
+                             HorizontalAlignment="Stretch" />
+                  <TextBlock Grid.Row="1" Grid.Column="2" Text="Line Padding" VerticalAlignment="Center"
+                             Margin="8,0,0,0" />
+                  <NumericUpDown Grid.Row="1" Grid.Column="3" Name="NudPropListPadding" Margin="2"
+                                 Minimum="2" Maximum="12" Increment="1" />
+                </Grid>
+                <TextBlock Margin="0,8,0,0" TextWrapping="Wrap"
+                           Text="Select the properties to show on Floating Property Tables according to object type." />
+                <DockPanel Margin="0,4,0,4">
+                  <TextBlock DockPanel.Dock="Left" Text="Object Type" VerticalAlignment="Center"
+                             Margin="0,0,8,0" />
+                  <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6">
+                    <Button Name="BtnSelectAllProps"  Classes="panel" Content="Select All" />
+                    <Button Name="BtnClearPropSelection" Classes="panel" Content="Clear Selection" />
+                  </StackPanel>
+                  <ComboBox Name="CbObjectType" HorizontalAlignment="Stretch" Margin="0,0,8,0" />
+                </DockPanel>
+              </StackPanel>
+
+              <StackPanel DockPanel.Dock="Bottom" Spacing="4" Margin="0,6,0,0">
+                <CheckBox Name="ChkShowExtraPropertiesEditor"
+                          Content="Display User-Defined Properties Editor" />
+                <CheckBox Name="ChkFloatingTableCompoundAmounts"
+                          Content="Display Additional Floating Tables with Compound Amounts in Material Streams" />
+                <Grid ColumnDefinitions="*,220" RowDefinitions="Auto">
+                  <TextBlock Grid.Column="0" Text="Amount Basis for New Streams"
+                             VerticalAlignment="Center" />
+                  <ComboBox Grid.Column="1" Name="CbAmountBasis" HorizontalAlignment="Stretch">
+                    <ComboBoxItem Content="Molar Fractions" />
+                    <ComboBoxItem Content="Mass Fractions" />
+                    <ComboBoxItem Content="Volumetric Fractions" />
+                    <ComboBoxItem Content="Molar Flows" />
+                    <ComboBoxItem Content="Mass Flows" />
+                    <ComboBoxItem Content="Volumetric Flows" />
+                  </ComboBox>
+                </Grid>
+              </StackPanel>
+
+              <ListBox Name="LbProperties" />
+            </DockPanel>
+          </Border>
+
+          <Border Grid.Column="1" Classes="group">
+            <StackPanel Spacing="4">
+              <TextBlock Classes="groupHeader" Text="Display Real-Time Properties" />
+              <TextBlock Text="Material Streams" FontWeight="SemiBold" Margin="0,4,0,2" />
+              <CheckBox Name="ChkShowMSTemp"     Content="Display Temperature" />
+              <CheckBox Name="ChkShowMSPressure" Content="Display Pressure" />
+              <CheckBox Name="ChkShowMSMassFlow" Content="Display Mass Flow" />
+              <CheckBox Name="ChkShowMSMolarFlow" Content="Display Molar Flow" />
+              <CheckBox Name="ChkShowMSVolFlow"  Content="Display Volumetric Flow" />
+              <CheckBox Name="ChkShowMSEnergyFlow" Content="Display Energy Flow" />
+              <TextBlock Text="Energy Streams" FontWeight="SemiBold" Margin="0,10,0,2" />
+              <CheckBox Name="ChkShowESPower" Content="Display Power / Energy Flow" />
+              <TextBlock Text="Unit Operations" FontWeight="SemiBold" Margin="0,10,0,2" />
+              <CheckBox Name="ChkShowDynProps" Content="Display Dynamic Mode Properties" />
+            </StackPanel>
+          </Border>
+
+        </Grid>
+      </TabItem>
+
+      <!-- ==================================================================
+           Details
+           ================================================================== -->
+      <TabItem Header="Details">
+        <ScrollViewer>
+          <Border Classes="group" Margin="6">
+            <DockPanel>
+              <TextBlock DockPanel.Dock="Top" Classes="groupHeader" Text="Description" />
+
+              <Grid DockPanel.Dock="Top" ColumnDefinitions="150,*" RowDefinitions="Auto,Auto,Auto,Auto">
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="Flowsheet Title" VerticalAlignment="Center"
+                           Margin="0,4" />
+                <TextBox   Grid.Row="0" Grid.Column="1" Name="TbTitle" Margin="0,4" />
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="Flowsheet Author" VerticalAlignment="Center"
+                           Margin="0,4" />
+                <TextBox   Grid.Row="1" Grid.Column="1" Name="TbAuthor" Margin="0,4" />
+                <TextBlock Grid.Row="2" Grid.Column="0" Text="Process Type" VerticalAlignment="Center"
+                           Margin="0,4" />
+                <ComboBox  Grid.Row="2" Grid.Column="1" Name="CbProcessType" Margin="0,4"
+                           HorizontalAlignment="Stretch">
+                  <ComboBoxItem Content="Physical Separation" />
+                  <ComboBoxItem Content="Chemical Separation" />
+                  <ComboBoxItem Content="Transformation (Reactive Process)" />
+                  <ComboBoxItem Content="Transportation (Compression, Piping, etc.)" />
+                  <ComboBoxItem Content="Refrigeration Cycle" />
+                  <ComboBoxItem Content="Unspecified" />
+                </ComboBox>
+                <TextBlock Grid.Row="3" Grid.Column="0" Text="Process Description" VerticalAlignment="Top"
+                           Margin="0,8,0,4" />
+                <TextBox   Grid.Row="3" Grid.Column="1" Name="TbProcessDescription" Margin="0,4"
+                           AcceptsReturn="True" TextWrapping="Wrap" Height="110" />
+              </Grid>
+
+              <TextBlock DockPanel.Dock="Top" Text="Key Compounds" FontWeight="SemiBold"
+                         Margin="0,12,0,6" />
+
+              <Grid ColumnDefinitions="*,*,*" RowDefinitions="Auto,*">
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="Feeds" Margin="0,0,0,4" />
+                <TextBlock Grid.Row="0" Grid.Column="1" Text="Reactants" Margin="6,0,0,4" />
+                <TextBlock Grid.Row="0" Grid.Column="2" Text="Products" Margin="6,0,0,4" />
+                <ScrollViewer Grid.Row="1" Grid.Column="0" MinHeight="150">
+                  <StackPanel Name="PanelKeyFeeds" />
+                </ScrollViewer>
+                <ScrollViewer Grid.Row="1" Grid.Column="1" MinHeight="150" Margin="6,0,0,0">
+                  <StackPanel Name="PanelKeyReactants" />
+                </ScrollViewer>
+                <ScrollViewer Grid.Row="1" Grid.Column="2" MinHeight="150" Margin="6,0,0,0">
+                  <StackPanel Name="PanelKeyProducts" />
+                </ScrollViewer>
+              </Grid>
+
+            </DockPanel>
+          </Border>
+        </ScrollViewer>
+      </TabItem>
+
+    </TabControl>
+
+  </DockPanel>
+
+</Window>

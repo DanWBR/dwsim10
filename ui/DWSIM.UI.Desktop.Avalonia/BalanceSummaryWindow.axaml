@@ -1,0 +1,24 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="DWSIM.UI.Desktop.Avalonia.BalanceSummaryWindow"
+        Title="Mass &amp; Energy Balance Summary"
+        Width="780" Height="520"
+        WindowStartupLocation="CenterOwner">
+
+  <DockPanel LastChildFill="True">
+
+    <Border DockPanel.Dock="Top" Padding="10" BorderThickness="0,0,0,1">
+      <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+        <TextBlock Text="Balance over flowsheet boundary (inlets vs. outlets)"
+                   FontWeight="SemiBold" VerticalAlignment="Center" />
+        <Button Name="BtnRefresh" Classes="panel" Content="Refresh" Margin="20,0,0,0" />
+        <Button Name="BtnCopy"    Classes="panel" Content="Copy" />
+      </StackPanel>
+    </Border>
+
+    <TextBox Name="ReportBox" IsReadOnly="True" AcceptsReturn="True"
+             FontFamily="Consolas,Courier New,monospace" FontSize="12" />
+
+  </DockPanel>
+
+</Window>

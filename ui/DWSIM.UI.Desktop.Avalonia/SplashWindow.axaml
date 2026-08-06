@@ -1,0 +1,49 @@
+﻿<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="DWSIM.UI.Desktop.Avalonia.SplashWindow"
+        Title="DWSIM"
+        Width="1088" Height="509"
+        WindowStartupLocation="CenterScreen"
+        CanResize="False"
+        ShowInTaskbar="False"
+        SystemDecorations="None"
+        Topmost="True"
+        Background="Transparent"
+        TransparencyLevelHint="Transparent">
+
+  <Panel>
+
+    <!-- Splash background image -->
+    <Image Source="avares://DWSIM.UI.Desktop.Avalonia/Assets/DWSIM_splash_v10.png"
+           Stretch="Fill" />
+
+    <!-- Overlaid text using Canvas for absolute positioning -->
+    <Canvas>
+
+      <!-- Version string -->
+      <TextBlock Name="LblVersion"
+                 Canvas.Left="260" Canvas.Top="100"
+                 FontWeight="Bold"
+                 FontSize="11"
+                 Foreground="#0D72A6" />
+
+      <!-- GPL notice -->
+      <TextBlock Name="LblGPL"
+                 Canvas.Left="260" Canvas.Top="125"
+                 Width="700"
+                 TextWrapping="Wrap"
+                 Foreground="#0D72A6"
+                 FontSize="11"
+                 Text="This software is released under the terms of the GNU General Public License (GPL) version 3. See specific licenses for external components on the 'About' box." />
+
+      <!-- Copyright -->
+      <TextBlock Name="LblCopyright"
+                 Canvas.Left="260" Canvas.Top="430"
+                 FontSize="11"
+                 Foreground="#0D72A6" />
+
+    </Canvas>
+
+  </Panel>
+
+</Window>

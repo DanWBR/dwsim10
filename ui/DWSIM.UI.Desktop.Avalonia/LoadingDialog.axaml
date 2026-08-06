@@ -1,0 +1,24 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="DWSIM.UI.Desktop.Avalonia.LoadingDialog"
+        Title="Working..."
+        Width="380" Height="140"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        ShowInTaskbar="False"
+        SystemDecorations="BorderOnly">
+
+  <StackPanel Margin="20" Spacing="12" VerticalAlignment="Center">
+
+    <TextBlock Name="LblTitle" Text="Working..." FontWeight="SemiBold" FontSize="13" />
+    <TextBlock Name="LblMessage" Text="Please wait..." TextWrapping="Wrap" FontSize="11" />
+
+    <ProgressBar Name="Bar" Minimum="0" Maximum="100" Value="0"
+                 IsIndeterminate="True" Height="14" />
+
+    <TextBlock Name="LblPercent" Text="" FontSize="10" Foreground="#666"
+               HorizontalAlignment="Right" />
+
+  </StackPanel>
+
+</Window>

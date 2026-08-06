@@ -1,0 +1,166 @@
+﻿<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:dock="using:Dock.Avalonia.Controls"
+        x:Class="DWSIM.UI.Desktop.Avalonia.MainWindow"
+        Title="DWSIM"
+        Width="1440" Height="900"
+        WindowStartupLocation="CenterScreen"
+        CanResize="True">
+
+  <!-- Button styles (hero, tool) are now global in App.axaml -->
+
+  <DockPanel LastChildFill="True">
+
+    <!-- Menu: replaced by the menu of the active simulation while one is open -->
+    <ContentControl Name="MenuHost" DockPanel.Dock="Top">
+      <Menu Name="BaseMenu">
+      <MenuItem Header="_File">
+        <MenuItem Header="_New Simulation..."  Name="MenuNew" />
+        <MenuItem Header="_Open Simulation..." Name="MenuOpen" />
+        <MenuItem Header="Open _Recent"        Name="MenuRecent" />
+        <Separator />
+        <MenuItem Header="E_xit"               Name="MenuExit" />
+      </MenuItem>
+      <MenuItem Header="_Edit">
+        <MenuItem Header="_Preferences..."     Name="MenuPrefs" />
+      </MenuItem>
+      <MenuItem Header="_Help">
+        <MenuItem Header="_User Guide (HTML)"  Name="MenuUserGuide" />
+        <Separator />
+        <MenuItem Header="_Support"            Name="MenuHelpSupport" />
+        <MenuItem Header="Report a _Bug"       Name="MenuHelpBug" />
+        <MenuItem Header="Go to DWSIM's _Website" Name="MenuHelpWebsite" />
+        <Separator />
+        <MenuItem Header="_About DWSIM..."     Name="MenuAbout" />
+        </MenuItem>
+      </Menu>
+    </ContentControl>
+
+    <!-- Bottom container for extension panels (e.g. Support/licensing bar) -->
+    <StackPanel Name="BottomPane" DockPanel.Dock="Bottom" />
+
+    <!-- Body: the welcome screen until a simulation is open, then the document tabs -->
+    <Grid>
+
+    <Grid Name="WelcomeHost" ColumnDefinitions="380,*" Margin="0">
+
+      <!-- Left: "Get Started", the same sections the Windows welcome screen stacks -->
+      <ScrollViewer Grid.Column="0"
+                    HorizontalScrollBarVisibility="Disabled"
+                    VerticalScrollBarVisibility="Auto">
+        <Border BorderThickness="0,0,1,0" Padding="20,18">
+          <StackPanel Spacing="18">
+
+            <TextBlock Text="Welcome to DWSIM!" FontSize="20" FontWeight="Bold" />
+
+            <!-- Process Modeling -->
+            <StackPanel Spacing="4">
+              <TextBlock Text="Process Modeling" Classes="welcomeHeader" />
+              <TextBlock Text="Create or load chemical steady-state or dynamic process models."
+                         Classes="welcomeSubtitle" />
+              <Button Name="LnkNew"          Classes="link" Content="Create New" />
+              <Button Name="LnkNewWizard"    Classes="link" Content="Create New with Wizard" />
+              <Button Name="LnkLoadFile"     Classes="link" Content="Load File" />
+            </StackPanel>
+
+            <!-- Compound creation / data regression -->
+            <StackPanel Spacing="4">
+              <TextBlock Text="User Compound Creation / Data Regression" Classes="welcomeHeader" />
+              <Button Name="LnkNewRegression"  Classes="link" Content="Create New Data Regression Study" />
+              <Button Name="LnkLoadRegression" Classes="link" Content="Load Study from File" />
+              <Button Name="LnkNewCompound"    Classes="link" Content="Create New Compound" />
+              <Button Name="LnkNewSolid"       Classes="link" Content="Quick Create New Solid" />
+              <Button Name="LnkNewCompoundWiz" Classes="link" Content="Create New (with Wizard)" />
+            </StackPanel>
+
+            <!-- Documentation -->
+            <StackPanel Spacing="4">
+              <TextBlock Text="Documentation" Classes="welcomeHeader" />
+              <Button Name="LnkGuideHtml"  Classes="link" Content="User Guide (HTML)" />
+              <Button Name="LnkGuidePdf"   Classes="link" Content="User Guide (PDF)" />
+              <Button Name="LnkTutorials"  Classes="link" Content="Online Tutorials" />
+              <Button Name="LnkLearning"   Classes="link" Content="Learning Resources" />
+              <Button Name="LnkPublications" Classes="link" Content="View Publications" />
+              <Button Name="LnkApiDocs"    Classes="link" Content="API Documentation" />
+            </StackPanel>
+
+            <!-- Support -->
+            <StackPanel Spacing="4">
+              <TextBlock Text="Support/Sponsor" Classes="welcomeHeader" />
+              <TextBlock Text="Support/Sponsor open-source DWSIM development activities."
+                         Classes="welcomeSubtitle" />
+              <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,4,0,0">
+                <Button Name="BtnSponsorGitHub" Classes="tool" Content="GitHub Sponsors" />
+                <Button Name="BtnSponsorPatreon" Classes="tool" Content="Patreon" />
+                <Button Name="BtnSponsorCoffee" Classes="tool" Content="Buy Me a Coffee" />
+              </StackPanel>
+            </StackPanel>
+
+            <!-- Preferences / about, which the Windows screen keeps on its toolbar -->
+            <StackPanel Spacing="4">
+              <TextBlock Text="Application" Classes="welcomeHeader" />
+              <Button Name="BtnSettings" Classes="tool" Content="Preferences" />
+              <Button Name="BtnAbout"    Classes="tool" Content="About DWSIM" />
+            </StackPanel>
+
+          </StackPanel>
+        </Border>
+      </ScrollViewer>
+
+      <!-- Right: recent files, samples and the FOSSEE flowsheets -->
+      <TabControl Grid.Column="1" TabStripPlacement="Top" Margin="0">
+
+        <TabItem Header="Recent Files">
+          <DockPanel Margin="16">
+            <TextBlock DockPanel.Dock="Top"
+                       Text="Recent Simulations"
+                       FontWeight="SemiBold"
+                       FontSize="15"
+                       Margin="0,0,0,10" />
+            <ListBox Name="RecentFilesList"
+                     SelectionMode="Single"
+                     CornerRadius="4"
+                     BorderThickness="1" />
+          </DockPanel>
+        </TabItem>
+
+        <TabItem Header="Samples">
+          <DockPanel Margin="16">
+            <TextBlock DockPanel.Dock="Top"
+                       Text="Sample Simulations"
+                       FontWeight="SemiBold"
+                       FontSize="15"
+                       Margin="0,0,0,10" />
+            <ListBox Name="SamplesList"
+                     CornerRadius="4"
+                     BorderThickness="1" />
+          </DockPanel>
+        </TabItem>
+
+        <TabItem Header="FOSSEE Flowsheets">
+          <DockPanel Margin="16">
+            <StackPanel DockPanel.Dock="Top" Spacing="6" Margin="0,0,0,10">
+              <TextBlock Text="About the Project" FontWeight="SemiBold" FontSize="15" />
+              <TextBlock TextWrapping="Wrap" Classes="welcomeSubtitle"
+                         Text="FOSSEE, IIT Bombay, invites chemical engineering students, faculty and practitioners to the flowsheeting project using DWSIM. We want you to convert existing flowsheets into DWSIM and get honoraria and certificates." />
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <Button Name="BtnFosseeProject" Classes="tool" Content="Flowsheeting Project" />
+                <Button Name="BtnFosseeSite"    Classes="tool" Content="FOSSEE Website" />
+              </StackPanel>
+              <TextBlock Text="Completed Flowsheets" FontWeight="SemiBold" Margin="0,6,0,0" />
+            </StackPanel>
+            <ListBox Name="FosseeList" CornerRadius="4" BorderThickness="1" />
+          </DockPanel>
+        </TabItem>
+
+      </TabControl>
+
+    </Grid>
+
+    <dock:DockControl Name="DocumentsHost" IsVisible="False" />
+
+    </Grid>
+
+  </DockPanel>
+
+</Window>

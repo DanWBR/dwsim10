@@ -1,0 +1,108 @@
+﻿<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ae="clr-namespace:AvaloniaEdit;assembly=AvaloniaEdit"
+        x:Class="DWSIM.UI.Desktop.Avalonia.ScriptEditorWindow"
+        x:CompileBindings="False"
+        Title="Script Manager"
+        Width="1180" Height="760"
+        WindowStartupLocation="CenterOwner">
+
+  <DockPanel>
+
+    <!-- Toolbar -->
+    <Border DockPanel.Dock="Top" BorderThickness="0,0,0,1" Padding="4,3">
+      <StackPanel Spacing="3">
+
+        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+          <Button Name="BtnNew"       Classes="panel" Content="＋ New"       Padding="8,4" />
+          <Button Name="BtnDuplicate" Classes="panel" Content="❐ Duplicate" Padding="8,4" />
+          <Button Name="BtnDelete"    Classes="panel" Content="🗑 Delete"    Padding="8,4" />
+          <Separator />
+          <Button Name="BtnRun"      Classes="panel" Content="▶ Run"       Foreground="Green" Padding="8,4" />
+          <Button Name="BtnRunAsync" Classes="panel" Content="⏩ Run Async" Padding="8,4" />
+          <Button Name="BtnStop"     Classes="panel" Content="⏹ Stop"      Foreground="Red" Padding="8,4" IsEnabled="False" />
+          <Separator />
+          <Button Name="BtnUndo" Classes="panel" Content="↩" ToolTip.Tip="Undo" Padding="8,4" />
+          <Button Name="BtnRedo" Classes="panel" Content="↪" ToolTip.Tip="Redo" Padding="8,4" />
+          <Separator />
+          <Button Name="BtnComment"   Classes="panel" Content="Comment"   Padding="8,4" />
+          <Button Name="BtnUncomment" Classes="panel" Content="Uncomment" Padding="8,4" />
+          <Button Name="BtnIndent"    Classes="panel" Content="Indent"    Padding="8,4" />
+          <Button Name="BtnUnindent"  Classes="panel" Content="Unindent"  Padding="8,4" />
+          <Separator />
+          <Button Name="BtnSnippet" Classes="panel" Content="Insert Snippet ▾" Padding="8,4" />
+          <Button Name="BtnApiHelp" Classes="panel" Content="API Help"        Padding="8,4" />
+        </StackPanel>
+
+        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+          <TextBlock Text="Name:" VerticalAlignment="Center" />
+          <TextBox Name="TbTitle" Width="200" VerticalAlignment="Center" />
+          <TextBlock Text="Interpreter:" VerticalAlignment="Center" Margin="8,0,0,0" />
+          <ComboBox Name="CbInterpreter" Width="130" VerticalAlignment="Center" />
+          <TextBlock Text="Language:" VerticalAlignment="Center" Margin="8,0,0,0" />
+          <ComboBox Name="CbLanguage" Width="120" VerticalAlignment="Center" />
+          <TextBlock Text="Font:" VerticalAlignment="Center" Margin="8,0,0,0" />
+          <ComboBox Name="CbFont" Width="170" VerticalAlignment="Center" />
+          <ComboBox Name="CbFontSize" Width="70" VerticalAlignment="Center" />
+        </StackPanel>
+
+        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+          <CheckBox Name="ChkLinked" Content="Run on event" VerticalAlignment="Center" />
+          <TextBlock Text="Object:" VerticalAlignment="Center" Margin="8,0,0,0" />
+          <ComboBox Name="CbLinkedObject" Width="220" VerticalAlignment="Center" />
+          <TextBlock Text="Event:" VerticalAlignment="Center" Margin="8,0,0,0" />
+          <ComboBox Name="CbLinkedEvent" Width="230" VerticalAlignment="Center" />
+        </StackPanel>
+
+      </StackPanel>
+    </Border>
+
+    <!-- Status bar -->
+    <Border DockPanel.Dock="Bottom" BorderThickness="0,1,0,0" Padding="8,3">
+      <TextBlock Name="StatusLabel" Text="Ready" VerticalAlignment="Center" FontSize="11" />
+    </Border>
+
+    <!-- Script list -->
+    <Border DockPanel.Dock="Left" BorderThickness="0,0,1,0" Padding="6" Width="230">
+      <DockPanel>
+        <TextBlock DockPanel.Dock="Top" Text="Scripts" FontWeight="SemiBold" Margin="2,0,0,6" />
+        <ListBox Name="ScriptList" BorderThickness="1" CornerRadius="4" />
+      </DockPanel>
+    </Border>
+
+    <!-- Script editor (top) + output (bottom) -->
+    <Grid RowDefinitions="*,5,190">
+
+      <ae:TextEditor Name="ScriptEditor"
+                     Grid.Row="0"
+                     FontFamily="Cascadia Code,Consolas,Courier New,monospace"
+                     FontSize="13"
+                     ShowLineNumbers="True"
+                     WordWrap="False" />
+
+      <GridSplitter Grid.Row="1"
+                    ResizeDirection="Rows"
+                    HorizontalAlignment="Stretch" />
+
+      <DockPanel Grid.Row="2">
+        <Border DockPanel.Dock="Top" Padding="4,2">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <TextBlock Text="Output" FontWeight="SemiBold" VerticalAlignment="Center" FontSize="11" />
+            <Button Name="BtnClear" Classes="panel" Content="Clear" Padding="6,2" FontSize="11" />
+          </StackPanel>
+        </Border>
+        <TextBox Name="OutputBox"
+                 IsReadOnly="True"
+                 AcceptsReturn="True"
+                 FontFamily="Cascadia Code,Consolas,Courier New,monospace"
+                 FontSize="12"
+                 Background="#1E1E1E"
+                 Foreground="#D4D4D4"
+                 TextWrapping="Wrap" />
+      </DockPanel>
+
+    </Grid>
+
+  </DockPanel>
+
+</Window>
