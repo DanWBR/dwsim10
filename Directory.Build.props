@@ -40,6 +40,18 @@
     <NoWarn>$(NoWarn);CS1591;CS0618</NoWarn>
   </PropertyGroup>
 
+  <!--
+    One version for the whole repository. The legacy trees carry it in an AssemblyInfo per
+    project, most of them with a wildcard build number, so the same assembly reported a
+    different version on every build and the three editions never agreed on one.
+  -->
+
+  <PropertyGroup>
+    <Version>10.2.0</Version>
+    <AssemblyVersion>10.2.0.0</AssemblyVersion>
+    <FileVersion>10.2.0.0</FileVersion>
+  </PropertyGroup>
+
   <!-- Package identity, for the projects that are published to a feed. -->
 
   <PropertyGroup>
