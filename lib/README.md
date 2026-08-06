@@ -15,3 +15,9 @@ net10.0 without it.
 
 The Open Solving Library for ODEs, from Microsoft Research. The plug flow reactor integrates
 its concentration profile with its RK45. Pure managed, references only mscorlib and System.Core.
+
+## AODL.dll
+
+An OpenDocument writer, used to save the flowsheet report as an .odt. It names System.Drawing
+for a picture type the report never builds; writing a text document with tables works on
+net10.0, which is what the report does.

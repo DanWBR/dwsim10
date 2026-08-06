@@ -10,7 +10,8 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Data\**\*">
-      <LogicalName>DWSIM.Thermodynamics.AdvancedEOS.PRSRKTDep.%(Filename)%(Extension)</LogicalName>
+      <!-- the .NET Framework project has an empty root namespace, so the names are bare -->
+      <LogicalName>%(Filename)%(Extension)</LogicalName>
     </EmbeddedResource>
   </ItemGroup>
 
