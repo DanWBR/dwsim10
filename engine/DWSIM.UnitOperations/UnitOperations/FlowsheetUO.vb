@@ -307,7 +307,7 @@ Label_00CC:
                 Try
                     Dim obj As New ConstantProperties
                     obj.LoadData(xel.Elements.ToList)
-                    fs.Options.SelectedComponents.Add(obj.Name, obj)
+                    fs.FlowsheetOptions.SelectedComponents.Add(obj.Name, obj)
                 Catch ex As Exception
                     excs.Add(New Exception("Error Loading Compound Information", ex))
                 End Try
@@ -496,7 +496,7 @@ Label_00CC:
                     Try
                         Dim obj As New Utilities.PetroleumCharacterization.Assay.Assay()
                         obj.LoadData(xel.Elements.ToList)
-                        fs.Options.PetroleumAssays.Add(obj.Name, obj)
+                        fs.FlowsheetOptions.PetroleumAssays.Add(obj.Name, obj)
                     Catch ex As Exception
                         excs.Add(New Exception("Error Loading Petroleum Assay Information", ex))
                     End Try
@@ -530,7 +530,9 @@ Label_00CC:
 
             End If
 
-            fs.ChartCollection = New Dictionary(Of String, Interfaces.IChart)
+            ' IFlowsheet.Charts, for the same reason as Scripts above: ChartCollection is the
+            ' form's field, and the form's Charts property wraps it.
+            fs.Charts = New Dictionary(Of String, Interfaces.IChart)
 
             If xdoc.Element("DWSIM_Simulation_Data").Element("ChartItems") IsNot Nothing Then
 
@@ -541,7 +543,7 @@ Label_00CC:
                     Try
                         Dim obj As New SharedClasses.Charts.Chart()
                         obj.LoadData(xel.Elements.ToList)
-                        fs.ChartCollection.Add(obj.ID, obj)
+                        fs.Charts.Add(obj.ID, obj)
                     Catch ex As Exception
                         excs.Add(New Exception("Error Loading Chart Item Information", ex))
                     End Try
