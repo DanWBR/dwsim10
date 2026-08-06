@@ -20,6 +20,8 @@
 
   <ItemGroup>
     <EmbeddedResource Include="IronPythonSnippets\IronPythonSnippets.xml" />
+    <!-- what the patrons list falls back to when the licensing server cannot be reached -->
+    <EmbeddedResource Include="Patrons\activepatrons.txt" />
   </ItemGroup>
 
   <ItemGroup>

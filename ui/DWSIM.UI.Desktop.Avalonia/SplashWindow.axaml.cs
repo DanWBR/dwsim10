@@ -4,6 +4,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Threading;
+using DWSIM.SharedClasses;
 using DWSIM.Thermodynamics.BaseClasses;
 
 namespace DWSIM.UI.Desktop.Avalonia;
@@ -36,15 +37,32 @@ public partial class SplashWindow : Window
         LblCopyright.Text = attrs.Length > 0
             ? ((AssemblyCopyrightAttribute)attrs[0]).Copyright
             : "Copyright © 2026 Daniel Wagner and contributors";
+
+        // Patrons placeholder until async load completes
+        LblPatrons.Text = "Special thanks to the following Patrons/Sponsors: Loading...";
     }
 
     private void OnOpened(object? sender, EventArgs e)
     {
-        // Background task: load user compounds, enforce the minimum display time, then close
+        // Background task: load patrons + user compounds, enforce the minimum display time, then close
         Task.Run(() =>
         {
             var sw = System.Diagnostics.Stopwatch.StartNew();
 
+            // Load patrons list
+            try
+            {
+                var patronsList = Patrons.GetList();
+                Dispatcher.UIThread.Post(() =>
+                    LblPatrons.Text = "Special thanks to the following Patrons/Sponsors: " + patronsList);
+            }
+            catch
+            {
+                Dispatcher.UIThread.Post(() =>
+                    LblPatrons.Text = "Special thanks to all our Patrons and Sponsors!");
+            }
+
+            // Load user compound databases
             LoadUserCompounds();
 
             // Ensure at least 5 seconds of splash display

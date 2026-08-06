@@ -62,6 +62,9 @@ public partial class AboutWindow : Window
 
         TbAcknowledgements.Text = Acknowledgements;
 
+        // the patrons come from the licensing server, so they land when they land
+        LoadPatrons();
+
         BtnOK.Click += (_, _) => Close();
         BtnSite.Click += (_, _) => Open("https://dwsim.org");
     }
@@ -175,6 +178,27 @@ public partial class AboutWindow : Window
             Environment.NewLine +
             "You should have received a copy of the GNU General Public License along with DWSIM. " +
             "If not, see https://www.gnu.org/licenses/.";
+    }
+
+    private void LoadPatrons()
+    {
+        System.Threading.Tasks.Task.Run(() =>
+        {
+            string list;
+
+            try { list = DWSIM.SharedClasses.Patrons.GetList(); }
+            catch (Exception) { return; }
+
+            if (string.IsNullOrWhiteSpace(list)) return;
+
+            Dispatcher.UIThread.Post(() =>
+            {
+                TbAcknowledgements.Text =
+                    "A HUGE thank you to the following Patrons/Sponsors who made this release possible:" +
+                    Environment.NewLine + Environment.NewLine + list +
+                    Environment.NewLine + Environment.NewLine + Acknowledgements;
+            });
+        });
     }
 
     private static void Open(string url)

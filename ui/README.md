@@ -22,8 +22,8 @@ A path passed on the command line opens as the first document.
 
 ## What this build does not have
 
-The AI assistant, the convergence enhancer panel and the patrons list belong to the Patreon
-edition and are not here. `MainWindow.InitializeSupport` stays: it looks for `DWSIM.Support.dll`
+The AI assistant and the convergence enhancer panel belong to the Patreon edition and are not
+here. `MainWindow.InitializeSupport` stays: it looks for `DWSIM.Support.dll`
 next to the executable through reflection and does nothing when it is absent, so the same source
 builds both editions.
 

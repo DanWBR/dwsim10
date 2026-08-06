@@ -36,6 +36,15 @@
                  FontSize="11"
                  Text="This software is released under the terms of the GNU General Public License (GPL) version 3. See specific licenses for external components on the 'About' box." />
 
+      <!-- Patrons / Sponsors -->
+      <TextBlock Name="LblPatrons"
+                 Canvas.Left="260" Canvas.Top="160"
+                 Width="700" Height="260"
+                 TextWrapping="Wrap"
+                 TextTrimming="CharacterEllipsis"
+                 Foreground="#0D72A6"
+                 FontSize="7" />
+
       <!-- Copyright -->
       <TextBlock Name="LblCopyright"
                  Canvas.Left="260" Canvas.Top="430"
