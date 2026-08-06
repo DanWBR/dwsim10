@@ -282,11 +282,34 @@ ships as its own tutorial, converges in 13 iterations to `f = 17.0140173` at
 through the façade with the triplet Jacobian; a sum of squares on a line, an inactive inequality
 and the linear shape the Gibbs flash poses all reach their analytic answers.
 
-**It is not yet right on the Gibbs three-phase flash.** On ethanol and water at 355 K the solve
-stalls: the line search gives up around iteration 12 with the optimality error near 1e-1, and the
-flash reports a vapour fraction of 0.21 where the native library gives 0.42. What is missing is
-the feasibility restoration phase, which is what Ipopt falls back on when the filter blocks every
-trial point.
+**It is not yet right on the Gibbs three-phase flash.** On ethanol and water at 355 K the flash
+reports a vapour fraction of 0.31 where the native library gives 0.42.
+
+Two things were added chasing that, and both are worth having whatever happens next:
+
+- **The restoration phase.** When the filter blocks every trial point, `FeasibilityNlp` poses
+  `min 1/2 ||g(x) - s||^2` over the same variables and their same bounds, the bound-constrained
+  solver minimises it, and the iteration resumes from the point it finds with the filter, the
+  multipliers and the curvature history all reset. Ipopt writes this as an l1 problem in extra
+  variables; the least-squares form is smooth, which suits a quasi-Newton method, and the caller
+  only needs the violation reduced enough to escape the filter rather than driven to zero.
+- **Gradient-based scaling**, `ScaledNlp`, which is Ipopt's `nlp_scaling_method` default and was
+  the real omission. The objective and each constraint row are scaled so no gradient exceeds 100.
+  Without it the Gibbs energy of a flash, in the thousands, sat next to an element balance in the
+  ones, and the complementarity products the mu oracle averages carried that ratio: mu swung
+  between 1e-5 and 5e3 from one iteration to the next. With it, the dual error on this problem
+  fell from 3.1e1 to 1.1e-1 and the vapour fraction moved from 0.21 to 0.31.
+
+What restoration did **not** do is fix this particular flash, and the iteration log says why:
+`theta` is zero from the first iteration. The point is feasible throughout, so there is nothing to
+restore; it is the dual that will not converge. When the line search collapses at a feasible point
+the solver now rebuilds the quasi-Newton matrix instead, which is the right response to a bad
+direction, and it is still not enough.
+
+The next thing to try is the exact Hessian. `GibbsMinimization3P` passes an `eval_h` and this
+solver ignores it, using limited-memory BFGS because that is what
+`hessian_approximation=limited-memory` asks for; but the flash sets that option while also
+supplying a Hessian, and on this objective the approximation is what runs out.
 
 Two things follow from that, and both are in the tree:
 

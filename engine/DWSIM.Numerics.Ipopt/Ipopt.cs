@@ -253,6 +253,9 @@ namespace Cureos.Numerics
                     return IpoptReturnCode.Solve_Succeeded;
                 case Core.SolveStatus.MaxIterations:
                     return IpoptReturnCode.Maximum_Iterations_Exceeded;
+                case Core.SolveStatus.RestorationFailed:
+                    return IpoptReturnCode.Restoration_Failed;
+
                 case Core.SolveStatus.LineSearchFailure:
                     // Not Search_Direction_Becomes_Too_Small, which every caller in the engine
                     // treats as a usable answer: a line search that gave up is a point that was

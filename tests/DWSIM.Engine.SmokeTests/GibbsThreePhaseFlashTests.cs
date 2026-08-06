@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using NUnit.Framework;
 using DWSIM.Thermodynamics.PropertyPackages.Auxiliary.FlashAlgorithms;
@@ -74,11 +74,14 @@ namespace DWSIM.Engine.SmokeTests
         }
 
         [Test]
-        [Ignore("The constrained solve stalls on this problem: its line search gives up around " +
-                "iteration 12 with an optimality error near 1e-1, so the flash gets no answer. " +
-                "The solver is right on independent benchmarks (Hock-Schittkowski 71 to six " +
-                "digits) but this objective needs the feasibility restoration phase, which is " +
-                "not written yet. Remove the Ignore when it is.")]
+        [Ignore("Closer than it was but not there. Gradient-based scaling took the dual error " +
+                "from 3.1e1 to 1.1e-1 and the vapour fraction from 0.21 to 0.31 against a native " +
+                "0.42. Restoration is in place but never fires here: the point is feasible from " +
+                "the first iteration, so it is the dual that will not converge, not the primal. " +
+                "What is left is the step itself. A limited-memory quasi-Newton matrix is not " +
+                "enough for this objective, and the flash's own intermediate callback stops the " +
+                "solve once the objective stalls. The next thing to try is the exact Hessian, " +
+                "which GibbsMinimization3P supplies through eval_h and which this solver ignores.")]
         public void TheGibbsFlashMatchesTheNativeSolver()
         {
             // Native reference, ethanol and water at 355 K, from the DWSIM_Private harness:

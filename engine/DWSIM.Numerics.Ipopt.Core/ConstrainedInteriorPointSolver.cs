@@ -50,6 +50,15 @@ namespace DWSIM.Numerics.Ipopt.Core
         /// <summary>Floor on a bound gap, so a point that reaches its bound cannot make a NaN.</summary>
         private const double Tiny = 1e-300;
 
+        /// <summary>Restoration has to cut the violation by at least this factor to count.</summary>
+        private const double KappaRestoration = 0.9;
+
+        /// <summary>A solve that keeps needing restoration is not going to finish.</summary>
+        private const int MaxRestorations = 12;
+
+        /// <summary>Target infinity norm for a scaled gradient (Ipopt: nlp_scaling_max_gradient).</summary>
+        private const double GMax = 100.0;
+
         public SolveResult Solve(INlpConstrained nlp)
         {
             int n = nlp.N;
@@ -106,13 +115,21 @@ namespace DWSIM.Numerics.Ipopt.Core
             nlp.GetStartingPoint(x);
             PushInside(n, x, xl, xu, hasXl, hasXu);
 
+            // Gradient-based scaling, Ipopt's nlp_scaling_method default. Without it a problem
+            // whose objective gradient is orders of magnitude larger than its constraint rows
+            // drives the barrier parameter through the roof: the complementarity products the mu
+            // oracle averages are in the units of the multipliers, and the multipliers are in the
+            // units of the gradient. The Gibbs energy of a flash is thousands while its element
+            // balance is ones, and that alone was enough to make mu swing from 1e-5 to 1e4.
+            var scaled = ScaledNlp.Wrap(nlp, n, m, x, GMax);
+
             var g = new double[m];
             var jac = new double[m * n];
             var grad = new double[n];
 
-            nlp.EvalG(x, g);
-            nlp.EvalJacG(x, jac);
-            nlp.EvalGradF(x, grad);
+            scaled.EvalG(x, g);
+            scaled.EvalJacG(x, jac);
+            scaled.EvalGradF(x, grad);
 
             // Slacks start on the constraint value, pushed inside their own bounds, so the first
             // point is as feasible as the starting x allows.
@@ -164,6 +181,7 @@ namespace DWSIM.Numerics.Ipopt.Core
             double thetaMin = Math.Min(1e-4, 1e-4 * theta0);
 
             int iter = 0;
+            int restorations = 0;
 
             while (true)
             {
@@ -172,11 +190,11 @@ namespace DWSIM.Numerics.Ipopt.Core
                                              slackOf, cl, 0.0);
 
                 double theta = Theta(m, g, s, slackOf, cl);
-                double phi = Barrier(n, ns, nlp.EvalF(x), x, s, xl, xu, hasXl, hasXu, sl, su, hasSl, hasSu, mu);
+                double phi = Barrier(n, ns, scaled.EvalF(x), x, s, xl, xu, hasXl, hasXu, sl, su, hasSl, hasSu, mu);
 
                 if (err <= _opt.Tolerance)
                 {
-                    if (!Record(log, new IterationInfo(iter, nlp.EvalF(x), theta, err, mu, 0.0, 0.0, 0.0, 0.0, 0)))
+                    if (!Record(log, new IterationInfo(iter, scaled.EvalF(x), theta, err, mu, 0.0, 0.0, 0.0, 0.0, 0)))
                         return Finish(SolveStatus.UserRequested, x, nlp.EvalF(x), iter, err, log);
 
                     return Finish(SolveStatus.Solved, x, nlp.EvalF(x), iter, err, log);
@@ -184,7 +202,7 @@ namespace DWSIM.Numerics.Ipopt.Core
 
                 if (iter >= _opt.MaxIterations)
                 {
-                    Record(log, new IterationInfo(iter, nlp.EvalF(x), theta, err, mu, 0.0, 0.0, 0.0, 0.0, 0));
+                    Record(log, new IterationInfo(iter, scaled.EvalF(x), theta, err, mu, 0.0, 0.0, 0.0, 0.0, 0));
                     return Finish(SolveStatus.MaxIterations, x, nlp.EvalF(x), iter, err, log);
                 }
 
@@ -227,7 +245,7 @@ namespace DWSIM.Numerics.Ipopt.Core
 
                 if (double.IsNaN(delta))
                 {
-                    Record(log, new IterationInfo(iter, nlp.EvalF(x), theta, err, mu, 0.0, 0.0, 0.0, 0.0, 0));
+                    Record(log, new IterationInfo(iter, scaled.EvalF(x), theta, err, mu, 0.0, 0.0, 0.0, 0.0, 0));
                     return Finish(SolveStatus.LineSearchFailure, x, nlp.EvalF(x), iter, err, log);
                 }
 
@@ -265,10 +283,10 @@ namespace DWSIM.Numerics.Ipopt.Core
                     for (int i = 0; i < n; i++) xTrial[i] = x[i] + alpha * dx[i];
                     for (int k = 0; k < ns; k++) sTrial[k] = s[k] + alpha * ds[k];
 
-                    nlp.EvalG(xTrial, gTrial);
+                    scaled.EvalG(xTrial, gTrial);
 
                     double thetaTrial = Theta(m, gTrial, sTrial, slackOf, cl);
-                    double phiTrial = Barrier(n, ns, nlp.EvalF(xTrial), xTrial, sTrial,
+                    double phiTrial = Barrier(n, ns, scaled.EvalF(xTrial), xTrial, sTrial,
                                               xl, xu, hasXl, hasXu, sl, su, hasSl, hasSu, mu);
 
                     if (thetaTrial > thetaMax)
@@ -299,12 +317,71 @@ namespace DWSIM.Numerics.Ipopt.Core
                 double dNorm = 0.0;
                 for (int i = 0; i < n; i++) dNorm = Math.Max(dNorm, Math.Abs(dx[i]));
 
-                if (!Record(log, new IterationInfo(iter, nlp.EvalF(x), theta, err, mu, dNorm, delta, alphaZ, alpha, ls)))
+                if (!Record(log, new IterationInfo(iter, scaled.EvalF(x), theta, err, mu, dNorm, delta, alphaZ, alpha, ls)))
                     return Finish(SolveStatus.UserRequested, x, nlp.EvalF(x), iter, err, log);
 
                 if (!accepted)
                 {
-                    return Finish(SolveStatus.LineSearchFailure, x, nlp.EvalF(x), iter, err, log);
+                    // The filter blocks every trial point, so no step of this iteration can be
+                    // taken. There are two reasons that happens and they need opposite answers.
+                    if (restorations >= MaxRestorations)
+                    {
+                        return Finish(SolveStatus.RestorationFailed, x, nlp.EvalF(x), iter, err, log);
+                    }
+
+                    if (theta > thetaMin)
+                    {
+                        // Infeasible: go find a point closer to the constraints and resume there.
+                        if (!Restore(scaled, n, ns, m, slackOf, cl, xl, xu, sl, su, x, s, theta))
+                        {
+                            return Finish(SolveStatus.RestorationFailed, x, nlp.EvalF(x), iter, err, log);
+                        }
+                    }
+                    else
+                    {
+                        // Feasible already, so restoration has nothing to restore: the direction
+                        // is bad, not the point. That is the quasi-Newton matrix having drifted,
+                        // and the cure is to forget it and rebuild from the current curvature.
+                        // Ipopt resets the approximation on entering restoration for the same
+                        // reason; here it is the whole of the remedy.
+                        hess.Reset(n);
+                        filter.Clear();
+
+                        restorations++;
+                        iter++;
+                        continue;
+                    }
+
+                    restorations++;
+
+                    // The point that could not be left is now forbidden, so the iteration cannot
+                    // walk back into it.
+                    filter.Add(((1.0 - GammaTheta) * theta, phi - GammaPhi * theta));
+
+                    scaled.EvalG(x, g);
+                    scaled.EvalJacG(x, jac);
+                    scaled.EvalGradF(x, grad);
+
+                    // The multipliers and the curvature history belonged to the point that was
+                    // abandoned, so neither means anything here.
+                    Array.Clear(y, 0, m);
+
+                    for (int i = 0; i < n; i++)
+                    {
+                        zL[i] = hasXl[i] ? _opt.BoundMultInit : 0.0;
+                        zU[i] = hasXu[i] ? _opt.BoundMultInit : 0.0;
+                    }
+
+                    for (int k = 0; k < ns; k++)
+                    {
+                        vL[k] = hasSl[k] ? _opt.BoundMultInit : 0.0;
+                        vU[k] = hasSu[k] ? _opt.BoundMultInit : 0.0;
+                    }
+
+                    hess.Reset(n);
+
+                    iter++;
+                    continue;
                 }
 
                 var gradOld = (double[])grad.Clone();
@@ -327,9 +404,9 @@ namespace DWSIM.Numerics.Ipopt.Core
                 UpdateBoundMultipliers(n, zL, dzL, zU, dzU, alphaZ, x, xl, xu, hasXl, hasXu, mu);
                 UpdateBoundMultipliers(ns, vL, dvL, vU, dvU, alphaZ, s, sl, su, hasSl, hasSu, mu);
 
-                nlp.EvalG(x, g);
-                nlp.EvalJacG(x, jac);
-                nlp.EvalGradF(x, grad);
+                scaled.EvalG(x, g);
+                scaled.EvalJacG(x, jac);
+                scaled.EvalGradF(x, grad);
 
                 var gradLagNew = new double[n];
                 LagrangianGradient(n, m, grad, jac, y, gradLagNew);
@@ -455,6 +532,57 @@ namespace DWSIM.Numerics.Ipopt.Core
             dy = Array.Empty<double>();
 
             return double.NaN;
+        }
+
+
+        /// <summary>
+        /// The restoration phase. Minimises the constraint violation on its own, over the same
+        /// variables and their same bounds, and overwrites x and s when it finds a point whose
+        /// violation is materially smaller than the one that could not be left. Returns false
+        /// when it cannot, which is the honest end of the solve.
+        /// </summary>
+        private bool Restore(INlpConstrained nlp, int n, int ns, int m, int[] slackOf, double[] cl,
+                             double[] xl, double[] xu, double[] sl, double[] su,
+                             double[] x, double[] s, double theta)
+        {
+            var feasibility = new FeasibilityNlp(nlp, n, ns, m, slackOf, cl, xl, xu, sl, su, x, s);
+
+            var options = new SolverOptions
+            {
+                // Feasibility only has to improve, not converge: the main iteration takes over
+                // again as soon as there is a point the filter accepts.
+                Tolerance = Math.Max(_opt.Tolerance, 1e-10),
+                MaxIterations = Math.Max(50, _opt.MaxIterations / 10),
+                MuStrategy = _opt.MuStrategy,
+                HessianApproximation = _opt.HessianApproximation,
+                LimitedMemoryMaxHistory = _opt.LimitedMemoryMaxHistory,
+                BoundInf = _opt.BoundInf,
+                CollectIterationLog = false
+            };
+
+            var result = new InteriorPointSolver(options).Solve(feasibility);
+
+            if (result.X.Length != n + ns) return false;
+
+            // 2 * f is the sum of squares, and theta is the 1-norm; comparing the 2-norms of the
+            // two residuals is the like-for-like test.
+            double before = Math.Sqrt(2.0 * feasibility.EvalF(Concatenate(n, ns, x, s)));
+            double after = Math.Sqrt(2.0 * result.ObjValue);
+
+            if (!(after < KappaRestoration * Math.Max(before, 1e-300))) return false;
+
+            Array.Copy(result.X, 0, x, 0, n);
+            Array.Copy(result.X, n, s, 0, ns);
+
+            return true;
+        }
+
+        private static double[] Concatenate(int n, int ns, double[] x, double[] s)
+        {
+            var v = new double[n + ns];
+            Array.Copy(x, 0, v, 0, n);
+            Array.Copy(s, 0, v, n, ns);
+            return v;
         }
 
         private static void LagrangianGradient(int n, int m, double[] grad, double[] jac, double[] y, double[] result)

@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace DWSIM.Numerics.Ipopt.Core
 {
@@ -14,7 +14,9 @@ namespace DWSIM.Numerics.Ipopt.Core
         /// <summary>The problem or options were invalid.</summary>
         InvalidInput,
         /// <summary>An iteration callback asked the solve to stop.</summary>
-        UserRequested
+        UserRequested,
+        /// <summary>The filter blocked every step and restoration could not reduce the violation.</summary>
+        RestorationFailed
     }
 
     /// <summary>Barrier-parameter update strategy.</summary>
