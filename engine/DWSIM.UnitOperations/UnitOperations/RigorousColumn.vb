@@ -319,7 +319,8 @@ Namespace UnitOperations
 
         Public Sub SetCondenserSpec(spectype As String, value As Double, units As String, Optional compound As String = "")
 
-            spectype = spectype.Replace(" ", "_")
+            ParseSpecUnits(spectype, units)
+            spectype = NormalizeSpecType(spectype)
             If spectype = "Reflux_Ratio" Then spectype = "Stream_Ratio"
 
             Dim sp As New ColumnSpec()
@@ -334,7 +335,8 @@ Namespace UnitOperations
 
         Public Sub SetReboilerSpec(spectype As String, value As Double, units As String, Optional compound As String = "")
 
-            spectype = spectype.Replace(" ", "_")
+            ParseSpecUnits(spectype, units)
+            spectype = NormalizeSpecType(spectype)
             If spectype = "Boilup_Ratio" Or spectype = "BoilUp_Ratio" Then spectype = "Stream_Ratio"
 
             Dim sp As New ColumnSpec()
@@ -346,6 +348,61 @@ Namespace UnitOperations
             Specs("R") = sp
 
         End Sub
+
+        ''' <summary>
+        ''' Takes the unit out of a spec type that carries it in parentheses, as the property grid
+        ''' writes it: "Product Flow Rate (mol/s)". An explicit unit argument wins.
+        ''' </summary>
+        Private Shared Sub ParseSpecUnits(ByRef spectype As String, ByRef units As String)
+
+            Dim parenStart = spectype.IndexOf("("c)
+            If parenStart >= 0 Then
+                Dim parenEnd = spectype.IndexOf(")"c, parenStart)
+                If parenEnd > parenStart Then
+                    Dim extracted = spectype.Substring(parenStart + 1, parenEnd - parenStart - 1).Trim()
+                    If String.IsNullOrEmpty(units) Then units = extracted
+                    spectype = spectype.Substring(0, parenStart).Trim()
+                End If
+            End If
+
+        End Sub
+
+        ''' <summary>
+        ''' Maps the common ways of naming a spec onto the enum member. Only strings that do not
+        ''' already parse are touched: every ColumnSpec.SpecType name falls through unchanged. This
+        ''' matters because TryParse leaves the enum at its default, Heat_Duty, when it fails, so a
+        ''' name it does not recognise used to become a duty spec carrying a flow rate.
+        ''' </summary>
+        Private Shared Function NormalizeSpecType(spectype As String) As String
+
+            spectype = spectype.Replace(" ", "_")
+
+            Select Case spectype.ToLowerInvariant()
+                Case "product_flow_rate", "product_molar_flow", "molar_flow_rate", "molar_flow"
+                    Return "Product_Molar_Flow_Rate"
+                Case "mass_flow_rate", "mass_flow", "product_mass_flow"
+                    Return "Product_Mass_Flow_Rate"
+                Case "component_molar_flow", "comp_molar_flow"
+                    Return "Component_Molar_Flow_Rate"
+                Case "component_mass_flow", "comp_mass_flow"
+                    Return "Component_Mass_Flow_Rate"
+                Case "component_frac", "comp_fraction", "comp_frac"
+                    Return "Component_Fraction"
+                Case "component_rec", "comp_recovery", "comp_rec"
+                    Return "Component_Recovery"
+                Case "heat", "duty", "q"
+                    Return "Heat_Duty"
+                Case "ratio", "reflux", "reflux_ratio", "boilup", "boilup_ratio"
+                    Return "Stream_Ratio"
+                Case "temp", "t"
+                    Return "Temperature"
+                Case "feed_rec", "recovery"
+                    Return "Feed_Recovery"
+                Case Else
+                    Return spectype
+            End Select
+
+        End Function
 
         Public Overrides Function CloneXML() As Object
             Dim obj As ICustomXMLSerialization = New DistillationColumn()

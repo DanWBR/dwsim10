@@ -39,12 +39,38 @@ namespace DWSIM.Automation.FluentAPI.Builders
         public DistillationColumnBuilder WithReboilerDuty(EnergyStreamBuilder duty)
         { Object.ConnectReboilerDuty(duty.Object); return this; }
 
-        /// <summary>Sets the condenser specification (e.g. "Reflux Ratio", value, "" for unitless).</summary>
+        /// <summary>Sets the condenser specification (e.g. "Reflux Ratio", value, "" for unitless).
+        /// The unit can also travel inside the spec type: <c>"Product Flow Rate (mol/s)"</c>.</summary>
         public DistillationColumnBuilder WithCondenserSpec(string specType, double value, string units = "", string compound = "")
         { Object.SetCondenserSpec(specType, value, units, compound); return this; }
 
-        /// <summary>Sets the reboiler specification (e.g. "Product Molar Flow Rate", 75, "mol/s").</summary>
+        /// <summary>Sets the condenser specification from a <see cref="Quantity"/>
+        /// (e.g. <c>"Product Molar Flow Rate", 75.0.MolPerSecond()</c>).</summary>
+        public DistillationColumnBuilder WithCondenserSpec(string specType, Quantity value, string compound = "")
+        { Object.SetCondenserSpec(specType, value.SI, SpecUnitOf(value), compound); return this; }
+
+        /// <summary>Sets the reboiler specification (e.g. "Product Molar Flow Rate", 75, "mol/s").
+        /// The unit can also travel inside the spec type: <c>"Product Flow Rate (mol/s)"</c>.</summary>
         public DistillationColumnBuilder WithReboilerSpec(string specType, double value, string units = "", string compound = "")
         { Object.SetReboilerSpec(specType, value, units, compound); return this; }
+
+        /// <summary>Sets the reboiler specification from a <see cref="Quantity"/>
+        /// (e.g. <c>"Product Molar Flow Rate", 25.0.MolPerSecond()</c>).</summary>
+        public DistillationColumnBuilder WithReboilerSpec(string specType, Quantity value, string compound = "")
+        { Object.SetReboilerSpec(specType, value.SI, SpecUnitOf(value), compound); return this; }
+
+        // A Quantity is already in SI, so the column only needs to be told which SI unit that is.
+        private static string SpecUnitOf(Quantity q)
+        {
+            switch (q.Dimension)
+            {
+                case "T": return "K";
+                case "P": return "Pa";
+                case "Mflow": return "kg/s";
+                case "Nflow": return "mol/s";
+                case "Power": return "kW";
+                default: return "";
+            }
+        }
     }
 }
