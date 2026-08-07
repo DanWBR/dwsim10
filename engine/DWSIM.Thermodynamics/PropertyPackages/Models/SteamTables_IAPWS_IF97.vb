@@ -27,7 +27,11 @@
         Public Const tc_water As Double = 647.096 'critical temperature in K
         Public Const pc_water As Double = 220.64 'critical pressure in bar
         Public Const dc_water As Double = 322.0# 'critical density in kg/m**3
-        Public Const tmax As Double = 2000.0
+        ' Upper temperature of IAPWS-IF97 region 2. This used to say 2000, which is not a
+        ' limit of the standard but an extrapolation of a correlation fitted to 1073.15 K:
+        ' past that the enthalpy turns over and runs away, reaching -43000 kJ/kg by 2350 K.
+        ' Region 5, which covers 1073.15 K to 2273.15 K, is not implemented here.
+        Public Const tmax As Double = 1073.15
 
         Private ireg1(34) As Short
 
@@ -1817,7 +1821,7 @@
                 densW = densreg3(temperature, pressure)
             Else
                 '  outside range
-                densW = -1.0#
+                densW = OutOfRange("density", temperature, pressure)
             End If
             ''
         End Function
@@ -1844,7 +1848,7 @@
                 energyW = energyreg3(temperature, density)
             Else
                 '  outside range
-                energyW = -1.0#
+                energyW = OutOfRange("internal energy", temperature, pressure)
             End If
             ''
         End Function
@@ -1886,9 +1890,24 @@
             Else
                 '  outside range
 
-                entropyW = -1.0#
+                entropyW = OutOfRange("entropy", temperature, pressure)
             End If
             ''
+        End Function
+
+        ''' <summary>
+        ''' Refuses a state the correlations do not cover. These used to return -1 and say so only
+        ''' in a comment; nothing checked, so a water stream evaluated above the range came back
+        ''' with a physically impossible property and every calculation downstream believed it.
+        ''' </summary>
+        Private Function OutOfRange(quantity As String, temperature As Double, pressure As Double) As Object
+
+            Throw New Exception(String.Format(
+                "The IAPWS-IF97 steam tables cannot give the {0} of water at {1:N2} K and {2:N4} bar: " &
+                "they are defined from 273.15 K to {3:N2} K, up to 1000 bar. Put this stream on a " &
+                "property package with a wider range, such as Peng-Robinson or CoolProp.",
+                quantity, temperature, pressure, tmax))
+
         End Function
 
         Public Function enthalpyW(ByRef temperature As Object, ByRef pressure As Object) As Object
@@ -1928,7 +1947,7 @@
             Else
                 '  outside range
 
-                enthalpyW = -1.0#
+                enthalpyW = OutOfRange("enthalpy", temperature, pressure)
             End If
             ''
         End Function
@@ -1970,7 +1989,7 @@
             Else
                 '  outside range
 
-                cpW = -1.0#
+                cpW = OutOfRange("heat capacity at constant pressure", temperature, pressure)
             End If
             ''
         End Function
@@ -2012,7 +2031,7 @@
             Else
                 '  outside range
 
-                cvW = -1.0#
+                cvW = OutOfRange("heat capacity at constant volume", temperature, pressure)
             End If
             ''
         End Function
@@ -2046,7 +2065,7 @@
             Else
                 '  outside range
 
-                viscW = -1.0#
+                viscW = OutOfRange("viscosity", temperature, pressure)
             End If
             ''
         End Function
@@ -2080,7 +2099,7 @@
             Else
                 '  outside range
 
-                thconW = -1.0#
+                thconW = OutOfRange("thermal conductivity", temperature, pressure)
             End If
             ''
         End Function

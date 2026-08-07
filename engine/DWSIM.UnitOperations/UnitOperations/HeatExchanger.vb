@@ -1379,17 +1379,29 @@ Namespace UnitOperations
             tmpstr.Calculate(False, True)
             Dim HHx = tmpstr.Phases(0).Properties.enthalpy.GetValueOrDefault
             Dim DeltaHh = stInHot.GetMassFlow() * (Hh1 - HHx)
-            tmpstr = DirectCast(coldCell.Clone(), MaterialStream)
-            tmpstr.PropertyPackage = coldCell.PropertyPackage
-            tmpstr.SetFlowsheet(coldCell.FlowSheet)
-            tmpstr.PropertyPackage.CurrentMaterialStream = tmpstr
-            tmpstr.SetTemperature(ThIn)
-            tmpstr.PropertyPackage.DW_CalcEquilibrium(PropertyPackages.FlashSpec.T, PropertyPackages.FlashSpec.P)
-            tmpstr.Calculate(False, True)
-            HHx = tmpstr.Phases(0).Properties.enthalpy.GetValueOrDefault
-            Dim DeltaHc = stInCold.GetMassFlow() * (HHx - Hc1)
-            tmpstr.PropertyPackage = Nothing
-            tmpstr.Dispose()
+
+            ' The cold side's half of the bound asks what the cold stream would hold at the hot
+            ' inlet temperature. That is a question about a state the exchanger never reaches, and
+            ' its property package may have no answer there: steam tables stop well below the
+            ' flame temperature of a combustion gas. When it cannot be had, the hot side's bound
+            ' stands on its own; it is the looser of the two, never the wrong one.
+            Dim DeltaHc As Double = Double.MaxValue
+
+            Try
+                tmpstr = DirectCast(coldCell.Clone(), MaterialStream)
+                tmpstr.PropertyPackage = coldCell.PropertyPackage
+                tmpstr.SetFlowsheet(coldCell.FlowSheet)
+                tmpstr.PropertyPackage.CurrentMaterialStream = tmpstr
+                tmpstr.SetTemperature(ThIn)
+                tmpstr.PropertyPackage.DW_CalcEquilibrium(PropertyPackages.FlashSpec.T, PropertyPackages.FlashSpec.P)
+                tmpstr.Calculate(False, True)
+                HHx = tmpstr.Phases(0).Properties.enthalpy.GetValueOrDefault
+                DeltaHc = stInCold.GetMassFlow() * (HHx - Hc1)
+                tmpstr.PropertyPackage = Nothing
+                tmpstr.Dispose()
+            Catch ex As Exception
+            End Try
+
             Return Math.Min(DeltaHc, DeltaHh)
         End Function
 
@@ -1587,17 +1599,27 @@ Namespace UnitOperations
 
             IObj?.Paragraphs.Add("<mi>Q_{max,hot}</mi> = " & DeltaHh & " kW")
 
-            tmpstr = StInCold.Clone
-            tmpstr.PropertyPackage = StInCold.PropertyPackage
-            tmpstr.SetFlowsheet(StInHot.FlowSheet)
-            tmpstr.AssignSelfToPP()
-            tmpstr.SetTemperature(Th1)
-            tmpstr.SetPressure(Pc2)
-            tmpstr.SetFlashSpec("PT")
-            IObj?.SetCurrent()
-            tmpstr.Calculate()
-            HHx = tmpstr.GetMassEnthalpy()
-            DeltaHc = Wc * (HHx - Hc1) 'kW
+            ' What the cold stream would hold at the hot inlet temperature. That is a state the
+            ' exchanger never reaches, and the cold side's property package may not cover it: the
+            ' steam tables stop well below the flame temperature of a combustion gas. When it
+            ' cannot be had, the hot side's bound stands alone, which is looser and never wrong.
+            DeltaHc = Double.MaxValue
+
+            Try
+                tmpstr = StInCold.Clone
+                tmpstr.PropertyPackage = StInCold.PropertyPackage
+                tmpstr.SetFlowsheet(StInHot.FlowSheet)
+                tmpstr.AssignSelfToPP()
+                tmpstr.SetTemperature(Th1)
+                tmpstr.SetPressure(Pc2)
+                tmpstr.SetFlashSpec("PT")
+                IObj?.SetCurrent()
+                tmpstr.Calculate()
+                HHx = tmpstr.GetMassEnthalpy()
+                DeltaHc = Wc * (HHx - Hc1) 'kW
+            Catch ex As Exception
+                If DebugMode Then AppendDebugLine("Could not bound the cold side of the maximum heat exchange: " & ex.Message)
+            End Try
 
             IObj?.Paragraphs.Add("<mi>Q_{max,cold}</mi> = " & DeltaHc & " kW")
 
