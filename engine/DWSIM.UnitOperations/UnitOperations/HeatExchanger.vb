@@ -2405,6 +2405,33 @@ Namespace UnitOperations
                     F = 1.0#
                     U = 500.0#
 
+                    If CalculationMode = HeatExchangerCalcMode.ShellandTube_CalcFoulingFactor Then
+
+                        ' The duty and the outlet enthalpies follow from the outlet temperatures the
+                        ' user specified. Neither was ever computed in this mode: Q kept whatever the
+                        ' last run had left on the object, and the outlet enthalpies stayed at zero,
+                        ' which the flash after the loop read back as a temperature. That is how a
+                        ' specified outlet of 44 C came out at 1727 C.
+
+                        StInCold.PropertyPackage.CurrentMaterialStream = StInCold
+                        IObj?.SetCurrent()
+                        Dim tmpc = StInCold.PropertyPackage.CalculateEquilibrium2(FlashCalculationType.PressureTemperature, Pc2, Tc2, 0)
+                        Hc2 = tmpc.CalculatedEnthalpy
+
+                        StInHot.PropertyPackage.CurrentMaterialStream = StInHot
+                        IObj?.SetCurrent()
+                        Dim tmph = StInHot.PropertyPackage.CalculateEquilibrium2(FlashCalculationType.PressureTemperature, Ph2, Th2, 0)
+                        Hh2 = tmph.CalculatedEnthalpy
+
+                        ' Same bookkeeping the rating branch does when it goes the other way.
+                        If STProperties.Shell_Fluid = 0 Then
+                            Q = Wc * (Hc2 - Hc1) + HeatLoss
+                        Else
+                            Q = Wc * (Hc2 - Hc1)
+                        End If
+
+                    End If
+
                     IObj?.Paragraphs.Add("<h3>Initial Estimates</h3>")
 
                     IObj?.Paragraphs.Add("<mi>T_{c,out}</mi> = " & Tc2 & " K")
