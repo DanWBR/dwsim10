@@ -24,6 +24,12 @@ namespace DWSIM.Numerics.Ipopt.Core
     {
         private readonly SolverOptions _opt;
 
+        /// <summary>
+        /// How many times a rejected step may be answered by rebuilding the curvature before the
+        /// solve is called off. The same budget the constrained solver gives restoration.
+        /// </summary>
+        private const int MaxRecoveries = 12;
+
         public InteriorPointSolver(SolverOptions? options = null)
         {
             _opt = options ?? new SolverOptions();
@@ -75,6 +81,7 @@ namespace DWSIM.Numerics.Ipopt.Core
                 : new DenseBfgsHessian();
             hess.Reset(n);
             var B = new double[n, n];
+            int recoveries = 0;
 
             double mu = _opt.MuInit;
             double tau = Math.Max(_opt.TauMin, 1.0 - mu);
@@ -189,14 +196,29 @@ namespace DWSIM.Numerics.Ipopt.Core
                 double dNorm = 0.0;
                 for (int i = 0; i < n; i++) dNorm = Math.Max(dNorm, Math.Abs(dx[i]));
 
-                if (!Record(log, new IterationInfo(iter, nlp.EvalF(x), 0.0, dualInf, mu, dNorm, delta, alphaZ, alpha, ls)))
+                if (!Record(log, new IterationInfo(iter, nlp.EvalF(x), 0.0, dualInf, mu, dNorm, delta,
+                                                   alphaZ, alpha, ls, restoration: !accepted)))
                 {
                     return Finish(SolveStatus.UserRequested, x, nlp.EvalF(x), iter, e0, log);
                 }
 
-                if (!accepted && alpha < 1e-14)
+                if (!accepted)
                 {
-                    return Finish(SolveStatus.LineSearchFailure, x, nlp.EvalF(x), iter, e0, log);
+                    // The trial point was rejected, so it is not somewhere to go. Moving there
+                    // anyway is how an objective that is undefined in part of the box ends up
+                    // being reported as the answer: every trial is rejected, the last one is
+                    // taken regardless, and from then on every evaluation is of a NaN.
+                    if (recoveries >= MaxRecoveries)
+                    {
+                        return Finish(SolveStatus.LineSearchFailure, x, nlp.EvalF(x), iter, e0, log);
+                    }
+
+                    // A direction the line search could not use is a direction built from a
+                    // curvature estimate that no longer describes the function here.
+                    recoveries++;
+                    hess.Reset(n);
+                    iter++;
+                    continue;
                 }
 
                 Array.Copy(grad, gradOld, n);
@@ -241,7 +263,7 @@ namespace DWSIM.Numerics.Ipopt.Core
         {
             return new SolveResult
             {
-                Status = status,
+                Status = NumberCheck.Verify(status, x, f),
                 X = x,
                 ObjValue = f,
                 Iterations = iter,

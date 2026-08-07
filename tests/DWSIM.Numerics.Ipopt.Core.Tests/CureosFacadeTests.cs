@@ -101,6 +101,58 @@ namespace DWSIM.Numerics.Ipopt.Core.Tests
         }
 
         [Fact]
+        public void AnObjectiveThatGoesNonFiniteNeverComesBackAsAnAnswer()
+        {
+            // The shape of the NRTL interaction-parameter estimation in the engine: two variables,
+            // wide bounds, no analytic gradient, and an objective that is not defined everywhere
+            // in the box. It reaches for a logarithm of a quantity that goes negative, and the
+            // caller reads the result as a parameter set.
+            //
+            // The native library answers Invalid_Number_Detected, which every caller in the engine
+            // turns into an exception and a documented fallback. What must never happen is a
+            // success code over an x full of NaN, because that is a wrong answer wearing the
+            // clothes of a right one.
+            // The objective is finite where it is asked, but its gradient is not: a central
+            // difference of a function that is undefined a short way from the iterate returns NaN,
+            // and that NaN propagates into the search direction.
+            var x = new double[] { 1.0, 1.0 };
+            double obj = 0.0;
+            int calls = 0;
+
+            EvaluateObjectiveDelegate f = (int n, double[] xx, bool newX, ref double value) =>
+            {
+                value = (xx[0] - 100.0) * (xx[0] - 100.0) + (xx[1] - 100.0) * (xx[1] - 100.0);
+                return true;
+            };
+
+            EvaluateObjectiveGradientDelegate gradF = (int n, double[] xx, bool newX, ref double[] grad) =>
+            {
+                calls++;
+
+                grad[0] = calls > 1 ? double.NaN : 2.0 * (xx[0] - 100.0);
+                grad[1] = calls > 1 ? double.NaN : 2.0 * (xx[1] - 100.0);
+                return true;
+            };
+
+            using (var problem = new Cureos.Numerics.Ipopt(
+                2, new[] { -10000.0, -10000.0 }, new[] { 10000.0, 10000.0 },
+                0, null, null, 0, 0, f, null, gradF, null, null))
+            {
+                problem.AddOption("tol", 1e-4);
+                problem.AddOption("max_iter", 100);
+                problem.AddOption("mu_strategy", "adaptive");
+                problem.AddOption("hessian_approximation", "limited-memory");
+
+                var status = problem.SolveProblem(x, ref obj, null, null, null, null);
+
+                Assert.NotEqual(IpoptReturnCode.Solve_Succeeded, status);
+            }
+
+            Assert.False(double.IsNaN(x[0]) || double.IsNaN(x[1]),
+                         "the solver handed back x = (" + x[0] + ", " + x[1] + ")");
+        }
+
+        [Fact]
         public void SolvesAConstrainedProblemThroughTheFacade()
         {
             // Hock-Schittkowski 71, the problem Ipopt ships as its tutorial, posed the way the

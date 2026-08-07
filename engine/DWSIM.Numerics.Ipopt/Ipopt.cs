@@ -269,6 +269,8 @@ namespace Cureos.Numerics
                     return IpoptReturnCode.Error_In_Step_Computation;
                 case Core.SolveStatus.UserRequested:
                     return IpoptReturnCode.User_Requested_Stop;
+                case Core.SolveStatus.InvalidNumber:
+                    return IpoptReturnCode.Invalid_Number_Detected;
                 default:
                     return IpoptReturnCode.Invalid_Problem_Definition;
             }

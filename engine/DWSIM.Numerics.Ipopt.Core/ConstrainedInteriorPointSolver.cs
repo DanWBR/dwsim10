@@ -950,7 +950,7 @@ namespace DWSIM.Numerics.Ipopt.Core
         {
             return new SolveResult
             {
-                Status = status,
+                Status = NumberCheck.Verify(status, x, f),
                 X = (double[])x.Clone(),
                 ObjValue = f,
                 Iterations = iter,

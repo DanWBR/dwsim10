@@ -16,7 +16,36 @@ namespace DWSIM.Numerics.Ipopt.Core
         /// <summary>An iteration callback asked the solve to stop.</summary>
         UserRequested,
         /// <summary>The filter blocked every step and restoration could not reduce the violation.</summary>
-        RestorationFailed
+        RestorationFailed,
+        /// <summary>
+        /// The objective or the point went to NaN or infinity, which means the problem was
+        /// evaluated somewhere it is not defined. Ipopt's Invalid_Number_Detected: callers treat
+        /// it as a failure and fall back, and they must, because there is no answer here.
+        /// </summary>
+        InvalidNumber
+    }
+
+    /// <summary>
+    /// The check both solvers run before handing an answer back. Ipopt calls it
+    /// Invalid_Number_Detected and it is not a formality: an objective built from a logarithm or a
+    /// square root is undefined in part of the box a caller declares, and a solver that reports
+    /// NaN under a success code hands the caller a wrong answer it has no way to spot.
+    /// </summary>
+    internal static class NumberCheck
+    {
+        public static bool IsFinite(double v) => !double.IsNaN(v) && !double.IsInfinity(v);
+
+        public static SolveStatus Verify(SolveStatus status, double[] x, double f)
+        {
+            if (!IsFinite(f)) return SolveStatus.InvalidNumber;
+
+            for (int i = 0; i < x.Length; i++)
+            {
+                if (!IsFinite(x[i])) return SolveStatus.InvalidNumber;
+            }
+
+            return status;
+        }
     }
 
     /// <summary>Barrier-parameter update strategy.</summary>
