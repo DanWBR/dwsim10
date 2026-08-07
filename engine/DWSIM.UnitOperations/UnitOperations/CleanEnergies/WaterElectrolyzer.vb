@@ -507,7 +507,18 @@ Namespace UnitOperations
             Dim Ntot = NH2 / xH2
             Dim NH20sat = Ntot - NH2
 
-            Dim wh1, wh2 As Double
+            ' The waste heat is a power, in kW, and what an outlet stream needs is a specific
+            ' enthalpy, in kJ/kg. Sharing the heat between the two in proportion to their mass
+            ' flow and then dividing by that same mass flow cancels the share, so both take the
+            ' same rise: the waste heat over the flow through the unit.
+            '
+            ' It used to be added as WasteHeat times that mass fraction, a power added straight to
+            ' a specific enthalpy. The size of the error was the numerical value of the mass flow,
+            ' so a PEM stack circulating water in excess of the stoichiometry to cool itself came
+            ' out with a temperature rise orders of magnitude too large.
+            Dim dh As Double = 0.0
+
+            If msin.GetMassFlow() > 0.0 Then dh = WasteHeat / msin.GetMassFlow()
 
             msout1.Clear()
             msout1.ClearAllProps()
@@ -518,9 +529,7 @@ Namespace UnitOperations
             msout1.SetFlashSpec("PT")
             msout1.Calculate()
 
-            wh1 = msout1.GetMassFlow() / msin.GetMassFlow()
-
-            msout1.SetMassEnthalpy(msout1.GetMassEnthalpy() + WasteHeat * wh1)
+            msout1.SetMassEnthalpy(msout1.GetMassEnthalpy() + dh)
             msout1.SetFlashSpec("PH")
             msout1.AtEquilibrium = False
 
@@ -538,9 +547,7 @@ Namespace UnitOperations
             msout2.SetFlashSpec("PT")
             msout2.Calculate()
 
-            wh2 = msout2.GetMassFlow() / msin.GetMassFlow()
-
-            msout2.SetMassEnthalpy(msout2.GetMassEnthalpy() + WasteHeat * wh2)
+            msout2.SetMassEnthalpy(msout2.GetMassEnthalpy() + dh)
             msout2.SetFlashSpec("PH")
             msout2.AtEquilibrium = False
 
