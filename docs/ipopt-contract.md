@@ -200,14 +200,46 @@ writes the answer into the array the caller passed, and falls back to central di
 `eps = 0.001` when no gradient delegate is supplied. A caller's `eval_f` or `eval_grad_f`
 returning false comes back as `Invalid_Number_Detected`.
 
-Two things are still missing:
+Both are done: the constrained path is described below, and so is the comparison against the
+native library.
 
-1. The constrained path, for `GibbsMinimization3P`: `m = n + 1`, dense Jacobian, analytic
-   Hessian, and a real filter line search instead of the Armijo one, which is only equivalent
-   while the infeasibility measure is identically zero. `SolveProblem` throws with the
-   constraint count when it is handed one of these.
-2. The comparison against the native library. It has to run on the .NET Framework build of the
-   engine, which is the only one where `Ipopt39.dll` and the managed solver both exist.
+**The Patreon edition links this facade too**, since `DWSIM_Private` commit `704a818c`: the seven
+projects that referenced `DWSIM\References\Cureos.Numerics.dll` reference the project instead, and
+`Cureos.Numerics.dll`, `IpOpt39.dll` and `IpOptFSS.dll` are gone from that tree along with the
+`IPOPTLoader` that used to preload them. The namespace is the same, so not one call site moved.
+
+### Invalid numbers, and a step that was never accepted
+
+Switching the Patreon edition over turned up a defect this repository's own tests had not: on the
+validation suite the NRTL interaction-parameter estimation produced `NaN` two hundred and
+fifty-seven times, where the native library had produced none.
+
+The bound-constrained line search would reject every trial point and then **take the last one
+anyway**: `x[i] = xTrial[i]` ran whether or not anything had been accepted. Usually that only
+wastes an iteration. When the search direction is `NaN`, which is what a central difference of a
+function that is undefined a short way from the iterate gives you, it makes the iterate `NaN`, and
+from there every evaluation is of a `NaN`. The solve then reported `Solve_Succeeded` over an
+answer made of `NaN`.
+
+That estimation is a two-variable problem with bounds of plus and minus ten thousand and no
+analytic gradient, over an objective built from activity coefficients that is not defined across
+that whole box. The native library answers `Invalid_Number_Detected`; `IPOPTSolver.Solve` turns
+anything outside its accepted list into an exception, and `NRTL.vb` catches it and falls back to a
+near-zero parameter set. That is why the native run printed nothing at all.
+
+Two changes:
+
+- a rejected step leaves `x` alone, resets the curvature and retries, with the same budget the
+  constrained solver gives restoration;
+- `SolveStatus.InvalidNumber`, checked on the way out of both solvers and mapped to
+  `Invalid_Number_Detected`.
+
+Afterwards the validation suite reports no estimate at all, which is what the native run did, and
+all ninety-seven of its groups pass.
+
+Worth stating plainly: **no synthetic benchmark found this.** Five thousand problems shaped like
+the engine's regressions did not, because every one of them was defined everywhere it was
+evaluated. Running the real edition against the real suite did.
 
 ## The comparison against the native library
 
