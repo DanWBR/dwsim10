@@ -159,9 +159,9 @@ ignores the rest is enough:
 | `hessian_approximation` | string | `limited-memory` |
 | `expect_infeasible_problem` | string | `yes` (commented out today, in `IPOPTSolver`) |
 
-`hessian_approximation = limited-memory` is set by every unconstrained caller, which is why
-their `eval_h` returns `false` and never fills anything. `GibbsMinimization3P` is the only one
-that supplies a real Hessian.
+`hessian_approximation = limited-memory` is set by every caller. Every one of them also passes
+`nele_hess = 0`, so the native library never calls the `eval_h` they hand it, whatever that
+callback does. `exact` is understood as well, and routes to `INlpHessian`; no caller asks for it.
 
 ## What DWSIM does with the result
 
@@ -282,44 +282,67 @@ ships as its own tutorial, converges in 13 iterations to `f = 17.0140173` at
 through the façade with the triplet Jacobian; a sum of squares on a line, an inactive inequality
 and the linear shape the Gibbs flash poses all reach their analytic answers.
 
-**It is not yet right on the Gibbs three-phase flash.** On ethanol and water at 355 K the flash
-reports a vapour fraction of 0.31 where the native library gives 0.42.
+**It is right on the Gibbs three-phase flash too, since the iteration report was fixed.** On
+ethanol and water at 355 K it converges in 26 iterations to a vapour fraction of 0.42217598
+against the native library's 0.42217598, with the compositions matching to the same digits.
+`tests/DWSIM.Engine.SmokeTests/GibbsThreePhaseFlashTests.cs` pins it.
 
-Two things were added chasing that, and both are worth having whatever happens next:
+What was wrong was not the arithmetic. **The solver reported an iteration in which it took no
+step as though it were an ordinary one.** When the filter rejects every trial point at a feasible
+point, the iteration is spent rebuilding the quasi-Newton matrix and the point does not move; the
+next row of the log then carries the same objective to the last bit. This flash watches the
+objective for a stall on a threshold of 1e-10 and read that repeat as convergence, ending the
+solve at iteration 13 of the 26 it needed. Ipopt has the same situation and answers it by telling
+the caller which mode the iteration was in, so a caller can discount it. `IterationInfo` carries
+a `Restoration` flag now, and those rows go to the log but not to the caller's callback.
+
+Three things were built chasing this, and all three are worth having:
 
 - **The restoration phase.** When the filter blocks every trial point, `FeasibilityNlp` poses
   `min 1/2 ||g(x) - s||^2` over the same variables and their same bounds, the bound-constrained
   solver minimises it, and the iteration resumes from the point it finds with the filter, the
   multipliers and the curvature history all reset. Ipopt writes this as an l1 problem in extra
   variables; the least-squares form is smooth, which suits a quasi-Newton method, and the caller
-  only needs the violation reduced enough to escape the filter rather than driven to zero.
+  only needs the violation reduced enough to escape the filter rather than driven to zero. It
+  never fires on this flash, whose `theta` is zero from the first iteration.
 - **Gradient-based scaling**, `ScaledNlp`, which is Ipopt's `nlp_scaling_method` default and was
   the real omission. The objective and each constraint row are scaled so no gradient exceeds 100.
   Without it the Gibbs energy of a flash, in the thousands, sat next to an element balance in the
   ones, and the complementarity products the mu oracle averages carried that ratio: mu swung
   between 1e-5 and 5e3 from one iteration to the next. With it, the dual error on this problem
   fell from 3.1e1 to 1.1e-1 and the vapour fraction moved from 0.21 to 0.31.
+- **The exact Hessian**, `INlpHessian` and `HessianApproximation.Exact`, which is Ipopt's
+  `hessian_approximation=exact`. It is not what fixed this flash, and on this flash it is worse
+  than the quasi-Newton matrix: see below.
 
-What restoration did **not** do is fix this particular flash, and the iteration log says why:
-`theta` is zero from the first iteration. The point is feasible throughout, so there is nothing to
-restore; it is the dual that will not converge. When the line search collapses at a feasible point
-the solver now rebuilds the quasi-Newton matrix instead, which is the right response to a bad
-direction, and it is still not enough.
+### The exact Hessian
 
-The exact Hessian was the obvious next thing to try, and it is not the answer.
-`GibbsMinimization3P` does have a `FunctionHessian`, dense and by finite differences of the
-gradient, but it declares `nele_hess = 0` in the constructor and sets
-`hessian_approximation=limited-memory`, which tells Ipopt to ignore `eval_h` entirely. **The
-native run uses the same quasi-Newton matrix this one does.** Whatever the difference is, it is
-not the curvature information available to the two solvers.
+`INlpHessian.TryEvalHessian` hands over the Hessian of the Lagrangian, dense and row major.
+A problem may decline at any point and the solver falls back to the quasi-Newton matrix it keeps
+up to date regardless. `ScaledNlp` forwards it with the objective factor carrying the objective
+scale and each multiplier its own row scale. The matrix is expected to be indefinite: that is
+what the inertia correction is for, and a caller must not symmetrise curvature away to make it
+look positive definite.
 
-What the iteration log shows instead: the line search collapses (alpha of 7e-15 after 47
-halvings) at a point where `theta` is zero, so the objective stops moving and the flash's own
-intermediate callback ends the solve, which it does whenever the objective changes by less than
-1e-10 between iterations. Restoration does not apply at a feasible point and rebuilding the
-quasi-Newton matrix is not enough. What is left to examine is the search direction itself:
-whether the augmented system, at the inertia this solver accepts, yields a descent direction for
-the barrier objective at all.
+The façade maps `hessian_approximation=exact` onto it and accepts two shapes of `eval_h`. The
+documented one is Ipopt's, `nele_hess` triplets holding one triangle. The other is a callback
+that ignores the structure it declared and replaces the value array with a full `n` by `n` block,
+which is what **every** `eval_h` in this engine does; it is recognised by the length of what
+comes back. Because every one of them is handed to a constructor with `nele_hess = 0`, the native
+library never called any of them, and two bugs had sat unnoticed in `FunctionHessian` since it
+was written: the difference was taken against `f3(k)` with `k` never leaving zero, so only the
+first column of each row was a derivative at all, and the step was purely relative, so a mole
+number sitting at zero was never perturbed and its row came out empty. Both are fixed, in
+`GibbsMinimization3P` and in `GibbsMinimizationMulti`.
+
+Measured on the ethanol-water flash with the exact Hessian switched on: the run reaches -730.8
+at iteration 4, then wanders, with search directions of norm 1e5, and ends at a vapour fraction
+of 0.053. The finite-difference Hessian of a gradient built from fugacity coefficients is too
+noisy to steer with. The flash stays on `limited-memory`, which is what the native run uses.
+
+On Hock-Schittkowski 71, whose Hessian is analytic, exact and quasi-Newton both converge in
+thirteen iterations to the same answer; `ConstrainedTests` pins that, and `CureosFacadeTests`
+pins the dense return shape through the façade.
 
 Two things measured along the way that are worth not repeating:
 
@@ -328,6 +351,8 @@ Two things measured along the way that are worth not repeating:
 - The iteration log and the intermediate callback must carry the caller's objective, not the
   scaled one. The flash's stall detector compares consecutive objective values against a fixed
   1e-10, and under a scale factor that threshold means something entirely different.
+- The exact Hessian makes this flash worse, not better, for the reason given above. It was tried
+  twice, once before the reporting bug was found and once after.
 
 Two things follow from that, and both are in the tree:
 

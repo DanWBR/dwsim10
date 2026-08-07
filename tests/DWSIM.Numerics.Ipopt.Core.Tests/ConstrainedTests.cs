@@ -9,8 +9,11 @@ namespace DWSIM.Numerics.Ipopt.Core.Tests
     /// </summary>
     public class ConstrainedTests
     {
-        private sealed class Problem : INlpConstrained
+        private sealed class Problem : INlpConstrained, INlpHessian
         {
+            /// <summary>Lagrangian Hessian, row major, or null to leave the solver its quasi-Newton one.</summary>
+            public Func<double[], double, double[], double[]> Hess;
+
             public int N { get; set; }
             public int M { get; set; }
             public double[] Xl = Array.Empty<double>();
@@ -44,6 +47,14 @@ namespace DWSIM.Numerics.Ipopt.Core.Tests
             public void EvalG(double[] x, double[] g) => Array.Copy(G(x), g, M);
 
             public void EvalJacG(double[] x, double[] jac) => Array.Copy(JacG(x), jac, M * N);
+
+            public bool TryEvalHessian(double[] x, double objFactor, double[] lambda, double[] w)
+            {
+                if (Hess == null) return false;
+
+                Array.Copy(Hess(x, objFactor, lambda), w, N * N);
+                return true;
+            }
         }
 
         private const double Inf = 1e19;
@@ -76,18 +87,19 @@ namespace DWSIM.Numerics.Ipopt.Core.Tests
             Assert.Equal(0.5, result.ObjValue, 7);
         }
 
-        [Fact]
-        public void SolvesHockSchittkowski71()
+        /// <summary>
+        /// The problem Ipopt ships as its own tutorial:
+        ///   min  x1*x4*(x1+x2+x3) + x3
+        ///   s.t. x1*x2*x3*x4 &gt;= 25
+        ///        x1^2 + x2^2 + x3^2 + x4^2 = 40
+        ///        1 &lt;= xi &lt;= 5,  x0 = (1, 5, 5, 1)
+        /// with the published answer f* = 17.0140173 at
+        ///   x* = (1, 4.74299963, 3.82114998, 1.37940829).
+        /// One inequality and one equality, so both branches of the slack treatment run.
+        /// </summary>
+        private static Problem Hs71()
         {
-            // The problem Ipopt ships as its own tutorial:
-            //   min  x1*x4*(x1+x2+x3) + x3
-            //   s.t. x1*x2*x3*x4 >= 25
-            //        x1^2 + x2^2 + x3^2 + x4^2 = 40
-            //        1 <= xi <= 5,  x0 = (1, 5, 5, 1)
-            // with the published answer f* = 17.0140173 at
-            //   x* = (1, 4.74299963, 3.82114998, 1.37940829).
-            // One inequality and one equality, so both branches of the slack treatment run.
-            var p = new Problem
+            return new Problem
             {
                 N = 4,
                 M = 2,
@@ -115,6 +127,12 @@ namespace DWSIM.Numerics.Ipopt.Core.Tests
                     2.0 * x[0], 2.0 * x[1], 2.0 * x[2], 2.0 * x[3]
                 }
             };
+        }
+
+        [Fact]
+        public void SolvesHockSchittkowski71()
+        {
+            var p = Hs71();
 
             var result = new ConstrainedInteriorPointSolver(
                 new SolverOptions { Tolerance = 1e-8, MaxIterations = 500 }).Solve(p);
@@ -134,6 +152,92 @@ namespace DWSIM.Numerics.Ipopt.Core.Tests
 
             Assert.True(g[0] >= 25.0 - 1e-6, "the product constraint is violated");
             Assert.Equal(40.0, g[1], 6);
+        }
+
+        [Fact]
+        public void SolvesHockSchittkowski71WithTheExactHessian()
+        {
+            var p = Hs71();
+            int calls = 0;
+
+            // The Lagrangian Hessian of the same problem, written out:
+            //   grad^2 f has 2*x4 in the corner, x4 down the first row and column, and
+            //     2*x1+x2+x3 where x1 meets x4;
+            //   grad^2 g1 is the product rule on x1*x2*x3*x4, all off diagonal;
+            //   grad^2 g2 is 2*I.
+            p.Hess = (x, sigma, lambda) =>
+            {
+                calls++;
+
+                var h = new double[16];
+
+                void Put(int i, int j, double v) { h[i * 4 + j] += v; if (i != j) h[j * 4 + i] += v; }
+
+                Put(0, 0, sigma * 2.0 * x[3]);
+                Put(0, 1, sigma * x[3]);
+                Put(0, 2, sigma * x[3]);
+                Put(0, 3, sigma * (2.0 * x[0] + x[1] + x[2]));
+                Put(1, 3, sigma * x[0]);
+                Put(2, 3, sigma * x[0]);
+
+                Put(0, 1, lambda[0] * x[2] * x[3]);
+                Put(0, 2, lambda[0] * x[1] * x[3]);
+                Put(0, 3, lambda[0] * x[1] * x[2]);
+                Put(1, 2, lambda[0] * x[0] * x[3]);
+                Put(1, 3, lambda[0] * x[0] * x[2]);
+                Put(2, 3, lambda[0] * x[0] * x[1]);
+
+                for (int i = 0; i < 4; i++) Put(i, i, lambda[1] * 2.0);
+
+                return h;
+            };
+
+            var result = new ConstrainedInteriorPointSolver(new SolverOptions
+            {
+                Tolerance = 1e-8,
+                MaxIterations = 500,
+                HessianApproximation = HessianApproximation.Exact
+            }).Solve(p);
+
+            Assert.Equal(SolveStatus.Solved, result.Status);
+            Assert.True(calls > 0, "the solver never asked for the Hessian");
+
+            // The same answer the quasi-Newton run reaches. This Hessian is indefinite at the
+            // starting point, so the run also exercises the inertia correction.
+            Assert.Equal(17.0140173, result.ObjValue, 5);
+            Assert.Equal(1.0, result.X[0], 5);
+            Assert.Equal(4.74299963, result.X[1], 4);
+            Assert.Equal(3.82114998, result.X[2], 4);
+            Assert.Equal(1.37940829, result.X[3], 4);
+
+            var quasiNewton = new ConstrainedInteriorPointSolver(
+                new SolverOptions { Tolerance = 1e-8, MaxIterations = 500 }).Solve(Hs71());
+
+            // Not faster here: both take thirteen iterations on a problem this small, where the
+            // limited-memory history covers the whole space after a few steps. The claim being
+            // pinned is that exact second derivatives cost nothing, not that they buy something.
+            Assert.True(result.Iterations <= quasiNewton.Iterations,
+                        "exact took " + result.Iterations + ", quasi-Newton took " + quasiNewton.Iterations);
+        }
+
+        [Fact]
+        public void FallsBackToTheQuasiNewtonMatrixWhenTheHessianIsDeclined()
+        {
+            // A problem that says it has second derivatives and then refuses to produce them is
+            // the shape of a caller that can only supply them at some points. Asking for the
+            // exact Hessian must not make the solve worse than not asking.
+            var p = Hs71();
+            p.Hess = null;
+
+            var result = new ConstrainedInteriorPointSolver(new SolverOptions
+            {
+                Tolerance = 1e-8,
+                MaxIterations = 500,
+                HessianApproximation = HessianApproximation.Exact
+            }).Solve(p);
+
+            Assert.Equal(SolveStatus.Solved, result.Status);
+            Assert.Equal(17.0140173, result.ObjValue, 5);
         }
 
         [Fact]

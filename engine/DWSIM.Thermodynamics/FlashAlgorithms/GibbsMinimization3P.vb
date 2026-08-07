@@ -89,7 +89,7 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
         Public Overrides ReadOnly Property Description As String
             Get
                 If GlobalSettings.Settings.CurrentCulture = "pt-BR" Then
-                    Return "Encontra as fases em equilíbrio e suas composições através da minimização da Energia Livre de Gibbs."
+                    Return "Encontra as fases em equilï¿½brio e suas composiï¿½ï¿½es atravï¿½s da minimizaï¿½ï¿½o da Energia Livre de Gibbs."
                 Else
                     Return "Finds the equilibrium phases and their compositions through a Free Gibbs energy minimization procedure."
                 End If
@@ -145,7 +145,7 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
 
             IObj?.Paragraphs.Add("<m>Q = \sum\limits_{k=1}^{F}{\sum\limits_{i=1}^{C}{n_{ik}\ln f_{ik} }}</m>")
 
-            IObj?.Paragraphs.Add("A straightforward approach is to use the molar amounts in phases 1 to F - 1 as the independent variables, eliminating the nt•F by means of the overall material balance, i.e.,")
+            IObj?.Paragraphs.Add("A straightforward approach is to use the molar amounts in phases 1 to F - 1 as the independent variables, eliminating the ntï¿½F by means of the overall material balance, i.e.,")
 
             IObj?.Paragraphs.Add("<m>n_{iF}=z_i-\sum\limits_{k=1}^{F-1}{n_{ik}} </m>")
 
@@ -1151,17 +1151,23 @@ out:        Return result
             Dim f2() As Double = Nothing
             Dim f3() As Double = Nothing
             Dim h((x.Length) * (x.Length) - 1), x2(x.Length - 1), x3(x.Length - 1) As Double
-            Dim m, k As Integer
+            Dim m As Integer
 
             m = 0
             For i = 0 To x.Length - 1
+
+                ' A step relative to x(i) with an absolute floor. A mole number sitting at zero,
+                ' which is most of them at the start of a flash, would otherwise not be perturbed
+                ' at all and its row of the Hessian would come out empty.
+                Dim delta As Double = epsilon * Math.Max(Math.Abs(x(i)), 1.0)
+
                 For j = 0 To x.Length - 1
                     If i <> j Then
                         x2(j) = x(j)
                         x3(j) = x(j)
                     Else
-                        x2(j) = x(j) * (1 + epsilon)
-                        x3(j) = x(j) * (1 - epsilon)
+                        x2(j) = x(j) + delta
+                        x3(j) = x(j) - delta
                     End If
                 Next
                 If Settings.EnableParallelProcessing Then
@@ -1179,7 +1185,7 @@ out:        Return result
                     f3 = FunctionGradient(x3)
                 End If
                 For k2 = 0 To x.Length - 1
-                    h(m) = (f2(k2) - f3(k)) / (x2(i) - x3(i))
+                    h(m) = (f2(k2) - f3(k2)) / (2.0 * delta)
                     If Double.IsNaN(h(m)) Then h(m) = 0.0#
                     m += 1
                 Next
@@ -1256,7 +1262,16 @@ out:        Return result
 
             Else
 
-                values = FunctionHessian(x)
+                ' The Hessian of the Lagrangian. The constraints are affine in x, so their second
+                ' derivatives are zero and lambda contributes nothing; what is left is the
+                ' objective's own Hessian, times the factor the solver asked for.
+                Dim hess As Double() = FunctionHessian(x)
+
+                For i = 0 To hess.Length - 1
+                    hess(i) *= obj_factor
+                Next
+
+                values = hess
 
             End If
 

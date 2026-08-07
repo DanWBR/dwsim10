@@ -167,10 +167,18 @@ namespace DWSIM.Numerics.Ipopt.Core
 
             int dim = n + ns + m;
             var kkt = new KktSystem(dim);
-            IHessian hess = _opt.HessianApproximation == HessianApproximation.LimitedMemoryBfgs
-                ? new LbfgsHessian(_opt.LimitedMemoryMaxHistory)
-                : (IHessian)new DenseBfgsHessian();
+            IHessian hess = _opt.HessianApproximation == HessianApproximation.DenseBfgs
+                ? new DenseBfgsHessian()
+                : (IHessian)new LbfgsHessian(_opt.LimitedMemoryMaxHistory);
             hess.Reset(n);
+
+            // Exact second derivatives when the problem offers them and the caller asked. The
+            // quasi-Newton matrix is kept up to date either way, so an iteration where the problem
+            // declines falls back to a matrix that saw every step, not to a reset one.
+            var exact = _opt.HessianApproximation == HessianApproximation.Exact
+                ? scaled as INlpHessian
+                : null;
+            var exactBuffer = exact != null ? new double[n * n] : null;
 
             var w = new double[n, n];
             var gradLagOld = new double[n];
@@ -237,7 +245,19 @@ namespace DWSIM.Numerics.Ipopt.Core
 
                 double tau = Math.Max(tauMin, 1.0 - mu);
 
-                hess.GetDense(w);
+                if (exact == null || !exact.TryEvalHessian(x, 1.0, y, exactBuffer))
+                {
+                    hess.GetDense(w);
+                }
+                else
+                {
+                    // Symmetrise: the augmented system is factorized as symmetric indefinite, and
+                    // a Hessian that came from finite differences is only symmetric to the
+                    // truncation error of the difference.
+                    for (int i = 0; i < n; i++)
+                        for (int j = 0; j < n; j++)
+                            w[i, j] = 0.5 * (exactBuffer[i * n + j] + exactBuffer[j * n + i]);
+                }
 
                 double delta = SolveStep(kkt, n, ns, m, w, jac, x, s, zL, zU, vL, vU, y, g, grad,
                                          xl, xu, hasXl, hasXu, sl, su, hasSl, hasSu, slackOf, cl, mu,
@@ -317,7 +337,8 @@ namespace DWSIM.Numerics.Ipopt.Core
                 double dNorm = 0.0;
                 for (int i = 0; i < n; i++) dNorm = Math.Max(dNorm, Math.Abs(dx[i]));
 
-                if (!Record(log, new IterationInfo(iter, nlp.EvalF(x), theta, err, mu, dNorm, delta, alphaZ, alpha, ls)))
+                if (!Record(log, new IterationInfo(iter, nlp.EvalF(x), theta, err, mu, dNorm, delta,
+                                                   alphaZ, alpha, ls, restoration: !accepted)))
                     return Finish(SolveStatus.UserRequested, x, nlp.EvalF(x), iter, err, log);
 
                 if (!accepted)
@@ -913,6 +934,9 @@ namespace DWSIM.Numerics.Ipopt.Core
         {
             log?.Add(info);
             if (_opt.LogWriter != null) _opt.LogWriter.WriteLine(IpoptLog.Row(info));
+
+            if (info.Restoration) return true;
+
             return _opt.IterationCallback == null || _opt.IterationCallback(info);
         }
 

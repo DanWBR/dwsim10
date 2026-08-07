@@ -47,7 +47,9 @@ namespace Cureos.Numerics
         private readonly EvaluateObjectiveGradientDelegate _evalGradF;
         private readonly EvaluateConstraintsDelegate _evalG;
         private readonly EvaluateJacobianDelegate _evalJacG;
+        private readonly EvaluateHessianDelegate _evalH;
         private readonly int _neleJac;
+        private readonly int _neleHess;
         private readonly Core.SolverOptions _options = new Core.SolverOptions { LogWriter = null };
 
         private IntermediateDelegate _intermediate;
@@ -70,10 +72,12 @@ namespace Cureos.Numerics
             _cL = g_L;
             _cU = g_U;
             _neleJac = nele_jac;
+            _neleHess = nele_hess;
             _evalF = eval_f;
             _evalGradF = eval_grad_f;
             _evalG = eval_g;
             _evalJacG = eval_jac_g;
+            _evalH = eval_h;
         }
 
         /// <summary>
@@ -93,9 +97,10 @@ namespace Cureos.Numerics
                     return true;
 
                 case "hessian_approximation":
-                    _options.HessianApproximation = val == "limited-memory"
-                        ? Core.HessianApproximation.LimitedMemoryBfgs
-                        : Core.HessianApproximation.DenseBfgs;
+                    _options.HessianApproximation =
+                        val == "limited-memory" ? Core.HessianApproximation.LimitedMemoryBfgs :
+                        val == "exact" ? Core.HessianApproximation.Exact :
+                        Core.HessianApproximation.DenseBfgs;
                     return true;
 
                 default:
@@ -208,8 +213,8 @@ namespace Cureos.Numerics
                 if (_m > 0)
                 {
                     var constrained = new FacadeConstrainedNlp(
-                        _n, _m, _neleJac, _xL, _xU, _cL, _cU, x,
-                        _evalF, _evalGradF, _evalG, _evalJacG, _objScaling);
+                        _n, _m, _neleJac, _neleHess, _xL, _xU, _cL, _cU, x,
+                        _evalF, _evalGradF, _evalG, _evalJacG, _evalH, _objScaling);
 
                     result = new Core.ConstrainedInteriorPointSolver(_options).Solve(constrained);
                 }
@@ -287,32 +292,39 @@ namespace Cureos.Numerics
         /// are scattered into a row-major block, which for the one caller that poses constraints
         /// is a few dozen entries.
         /// </summary>
-        private sealed class FacadeConstrainedNlp : FacadeNlp, Core.INlpConstrained
+        private sealed class FacadeConstrainedNlp : FacadeNlp, Core.INlpConstrained, Core.INlpHessian
         {
             private readonly int _m;
             private readonly int _neleJac;
+            private readonly int _neleHess;
             private readonly double[] _cL;
             private readonly double[] _cU;
             private readonly EvaluateConstraintsDelegate _evalG;
             private readonly EvaluateJacobianDelegate _evalJacG;
+            private readonly EvaluateHessianDelegate _evalH;
             private readonly int[] _iRow;
             private readonly int[] _jCol;
+            private int[] _hRow;
+            private int[] _hCol;
 
-            public FacadeConstrainedNlp(int n, int m, int neleJac,
+            public FacadeConstrainedNlp(int n, int m, int neleJac, int neleHess,
                                         double[] xL, double[] xU, double[] cL, double[] cU, double[] x0,
                                         EvaluateObjectiveDelegate evalF,
                                         EvaluateObjectiveGradientDelegate evalGradF,
                                         EvaluateConstraintsDelegate evalG,
                                         EvaluateJacobianDelegate evalJacG,
+                                        EvaluateHessianDelegate evalH,
                                         double objScaling)
                 : base(n, xL, xU, x0, evalF, evalGradF, objScaling)
             {
                 _m = m;
                 _neleJac = neleJac;
+                _neleHess = neleHess;
                 _cL = cL;
                 _cU = cU;
                 _evalG = evalG;
                 _evalJacG = evalJacG;
+                _evalH = evalH;
 
                 _iRow = new int[neleJac];
                 _jCol = new int[neleJac];
@@ -371,6 +383,77 @@ namespace Cureos.Numerics
                     // Duplicate triplets add up, the way every sparse format defines them.
                     jac[rows[k] * N + cols[k]] += values[k];
                 }
+            }
+
+            /// <summary>
+            /// Second derivatives, when the caller declared an eval_h and asked for
+            /// hessian_approximation=exact.
+            /// <para>
+            /// Two shapes are accepted. The documented one is Ipopt's: nele_hess triplets holding
+            /// the lower triangle, whose structure is asked for once with a null value array.
+            /// The other is a callback that ignores the structure it declared and replaces the
+            /// value array with a full N by N block, which is what every eval_h in this engine
+            /// does; it is recognised by the length of what comes back. A callback that returns
+            /// neither is declined, and the solver falls back to its quasi-Newton matrix.
+            /// </para>
+            /// </summary>
+            public bool TryEvalHessian(double[] x, double objFactor, double[] lambda, double[] w)
+            {
+                if (_evalH == null) return false;
+
+                if (_hRow == null && _neleHess > 0)
+                {
+                    var rows0 = new int[_neleHess];
+                    var cols0 = new int[_neleHess];
+                    double[] none = null!;
+
+                    if (!_evalH(N, x, true, objFactor, _m, lambda, true, _neleHess,
+                                ref rows0, ref cols0, ref none))
+                    {
+                        return false;
+                    }
+
+                    _hRow = rows0;
+                    _hCol = cols0;
+                }
+
+                var rows = _hRow ?? Array.Empty<int>();
+                var cols = _hCol ?? Array.Empty<int>();
+
+                // Sized for the dense shape, so a callback that overwrites the reference with an
+                // N by N block and one that fills nele_hess entries in place both come back whole.
+                var values = new double[Math.Max(_neleHess, N * N)];
+
+                if (!_evalH(N, x, true, objFactor, _m, lambda, true, _neleHess,
+                            ref rows, ref cols, ref values))
+                {
+                    return false;
+                }
+
+                if (values == null) return false;
+
+                Array.Clear(w, 0, w.Length);
+
+                if (_neleHess == 0 || values.Length == N * N)
+                {
+                    if (values.Length < N * N) return false;
+
+                    Array.Copy(values, w, N * N);
+                    return true;
+                }
+
+                for (int k = 0; k < _neleHess; k++)
+                {
+                    int i = rows[k];
+                    int j = cols[k];
+
+                    w[i * N + j] += values[k];
+
+                    // The triplets are one triangle; the other one mirrors it.
+                    if (i != j) w[j * N + i] += values[k];
+                }
+
+                return true;
             }
         }
 

@@ -960,17 +960,22 @@ out:        Return result
             Dim f2() As Double = Nothing
             Dim f3() As Double = Nothing
             Dim h((x.Length) * (x.Length) - 1), x2(x.Length - 1), x3(x.Length - 1) As Double
-            Dim m, k As Integer
+            Dim m As Integer
 
             m = 0
             For i = 0 To x.Length - 1
+
+                ' A step relative to x(i) with an absolute floor, so a mole number sitting at zero
+                ' still gets perturbed and its row of the Hessian is not left empty.
+                Dim delta As Double = epsilon * Math.Max(Math.Abs(x(i)), 1.0)
+
                 For j = 0 To x.Length - 1
                     If i <> j Then
                         x2(j) = x(j)
                         x3(j) = x(j)
                     Else
-                        x2(j) = x(j) * (1 + epsilon)
-                        x3(j) = x(j) * (1 - epsilon)
+                        x2(j) = x(j) + delta
+                        x3(j) = x(j) - delta
                     End If
                 Next
                 If Settings.EnableParallelProcessing Then
@@ -988,7 +993,7 @@ out:        Return result
                     f3 = FunctionGradient(x3)
                 End If
                 For k2 = 0 To x.Length - 1
-                    h(m) = (f2(k2) - f3(k)) / (x2(i) - x3(i))
+                    h(m) = (f2(k2) - f3(k2)) / (2.0 * delta)
                     If Double.IsNaN(h(m)) Then h(m) = 0.0#
                     m += 1
                 Next

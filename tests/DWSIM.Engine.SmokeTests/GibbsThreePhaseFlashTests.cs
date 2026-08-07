@@ -12,8 +12,8 @@ namespace DWSIM.Engine.SmokeTests
     ///
     /// No sample flowsheet selects this algorithm, so it is driven here directly and checked
     /// against the flash that is the default for a liquid split, NestedLoops3PV3. The reference
-    /// numbers in the ignored test are what the native Ipopt39.dll produces for the same two
-    /// cases, from `DWSIM.Automation.FluentAPI.Tests.exe gibbs3p` in the DWSIM_Private tree.
+    /// numbers are what the native Ipopt39.dll produces for the same two cases, from
+    /// `DWSIM.Automation.FluentAPI.Tests.exe gibbs3p` in the DWSIM_Private tree.
     /// </summary>
     [TestFixture]
     public class GibbsThreePhaseFlashTests
@@ -73,17 +73,16 @@ namespace DWSIM.Engine.SmokeTests
             return pp;
         }
 
+        /// <summary>
+        /// What used to fail here was not the arithmetic: it was that the solver reported an
+        /// iteration in which it took no step. The line search would reject all forty-seven of
+        /// its trial points, the iteration would be spent rebuilding the quasi-Newton matrix from
+        /// the same point, and the next iteration would report the same objective to the last
+        /// bit. This flash watches the objective for a stall, on a threshold of 1e-10, and read
+        /// the repeat as convergence: it ended the solve at iteration 13 of the 26 it needed.
+        /// Those iterations are flagged as restoration now and are kept out of the callback.
+        /// </summary>
         [Test]
-        [Ignore("The managed solver reaches a vapour fraction of 0.21 against a native 0.42. " +
-                "The exact Hessian is not the answer: GibbsMinimization3P declares nele_hess = 0 " +
-                "and sets hessian_approximation=limited-memory, so the native run uses the same " +
-                "quasi-Newton matrix this one does. What happens is that the line search " +
-                "collapses at a point that is already feasible, the objective stops moving, and " +
-                "the flash's own intermediate callback ends the solve. Restoration does not " +
-                "apply there and rebuilding the Hessian is not enough, so what is left to " +
-                "examine is the search direction itself: whether the augmented system, at the " +
-                "inertia this solver accepts, is giving a descent direction for the barrier " +
-                "objective at all.")]
         public void TheGibbsFlashMatchesTheNativeSolver()
         {
             // Native reference, ethanol and water at 355 K, from the DWSIM_Private harness:

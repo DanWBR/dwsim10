@@ -53,7 +53,7 @@ third-party source under `external/` keeps the version its author gave it.
 dotnet test DWSIM.slnx
 ```
 
-Seven suites, a hundred and sixty-three tests: the linear programming solver, the settings file,
+Seven suites, a hundred and seventy-four tests: the linear programming solver, the settings file,
 the analytical thermodynamic derivatives against numerical ones, the managed IPOPT solver, its
 linear algebra and its façade, the fluent API, and the engine smoke tests, which load the
 compound databases, register the property packages, and load and solve the fourteen sample
@@ -103,10 +103,9 @@ native library: over five thousand problems shaped like the engine's regressions
 matches to a relative 1e-6 in 94 per cent of them and never differs by more than 9.1e-5, below
 the tolerance both are asked for, and the Gibbs reactor of the sample flowsheet reaches the same
 minimum to 2.7e-7. The eighth call site, the Gibbs three-phase flash, poses `m = n + 1`
-constraints; the constrained path exists and is right on independent benchmarks, including
-Hock-Schittkowski 71 to six digits, but does not yet reproduce the native answer on that flash.
-[docs/ipopt-contract.md](docs/ipopt-contract.md) records the surface, the measurements and what
-is left to do.
+constraints; the constrained path reaches the native vapour fraction of 0.42217598 on it, and is
+right on independent benchmarks too, including Hock-Schittkowski 71 to six digits.
+[docs/ipopt-contract.md](docs/ipopt-contract.md) records the surface and the measurements.
 
 The two other Windows-only native libraries are gone rather than missing: `lpsolve55`, which
 seeded the Gibbs reactor, was replaced by a managed two-phase simplex validated against it over

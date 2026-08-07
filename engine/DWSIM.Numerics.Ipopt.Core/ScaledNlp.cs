@@ -15,8 +15,10 @@ using System;
 
 namespace DWSIM.Numerics.Ipopt.Core
 {
-    internal sealed class ScaledNlp : INlpConstrained
+    internal sealed class ScaledNlp : INlpConstrained, INlpHessian
     {
+        private double[] _lambdaBuffer;
+
         private readonly INlpConstrained _inner;
         private readonly int _n;
         private readonly int _m;
@@ -109,6 +111,22 @@ namespace DWSIM.Numerics.Ipopt.Core
             _inner.EvalG(x, _gBuffer);
 
             for (int r = 0; r < _m; r++) g[r] = _rowScale[r] * _gBuffer[r];
+        }
+
+        /// <summary>
+        /// The scaled Lagrangian is sigma*f + sum_r (lambda_r * rho_r) * g_r, so the objective
+        /// factor carries the objective scale and each multiplier carries its own row scale. That
+        /// is the same identity that lets the scaling leave the solution alone.
+        /// </summary>
+        public bool TryEvalHessian(double[] x, double objFactor, double[] lambda, double[] w)
+        {
+            if (_inner is not INlpHessian inner) return false;
+
+            if (_lambdaBuffer == null) _lambdaBuffer = new double[_m];
+
+            for (int r = 0; r < _m; r++) _lambdaBuffer[r] = lambda[r] * _rowScale[r];
+
+            return inner.TryEvalHessian(x, objFactor * _objScale, _lambdaBuffer, w);
         }
 
         public void EvalJacG(double[] x, double[] jac)

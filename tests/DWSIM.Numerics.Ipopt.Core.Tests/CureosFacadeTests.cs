@@ -192,6 +192,128 @@ namespace DWSIM.Numerics.Ipopt.Core.Tests
         }
 
         [Fact]
+        public void AcceptsAnExactHessianDeclaredTheWayTheEngineDeclaresOne()
+        {
+            // Every eval_h in the engine is written the same way: nele_hess is passed as zero and
+            // the callback replaces the value array with a full n by n block instead of filling
+            // the triplets it was asked for. The native library never calls such a callback, so
+            // nothing caught the shape; hessian_approximation=exact does call it, and has to
+            // recognise what comes back.
+            var x = new double[] { 1.0, 5.0, 5.0, 1.0 };
+            double obj = 0.0;
+            var g = new double[2];
+            int hessianCalls = 0;
+
+            EvaluateObjectiveDelegate f = (int n, double[] xx, bool newX, ref double value) =>
+            {
+                value = xx[0] * xx[3] * (xx[0] + xx[1] + xx[2]) + xx[2];
+                return true;
+            };
+
+            EvaluateObjectiveGradientDelegate gradF = (int n, double[] xx, bool newX, ref double[] grad) =>
+            {
+                grad[0] = xx[3] * (2.0 * xx[0] + xx[1] + xx[2]);
+                grad[1] = xx[0] * xx[3];
+                grad[2] = xx[0] * xx[3] + 1.0;
+                grad[3] = xx[0] * (xx[0] + xx[1] + xx[2]);
+                return true;
+            };
+
+            EvaluateConstraintsDelegate evalG = (int n, double[] xx, bool newX, int m, ref double[] gg) =>
+            {
+                gg[0] = xx[0] * xx[1] * xx[2] * xx[3];
+                gg[1] = xx[0] * xx[0] + xx[1] * xx[1] + xx[2] * xx[2] + xx[3] * xx[3];
+                return true;
+            };
+
+            EvaluateJacobianDelegate jacG = (int n, double[] xx, bool newX, int m, int nele,
+                                             ref int[] iRow, ref int[] jCol, ref double[] values) =>
+            {
+                if (values == null)
+                {
+                    var rows = new int[nele];
+                    var cols = new int[nele];
+
+                    for (int r = 0; r < 2; r++)
+                        for (int c = 0; c < 4; c++)
+                        {
+                            rows[r * 4 + c] = r;
+                            cols[r * 4 + c] = c;
+                        }
+
+                    iRow = rows;
+                    jCol = cols;
+                }
+                else
+                {
+                    values[0] = xx[1] * xx[2] * xx[3];
+                    values[1] = xx[0] * xx[2] * xx[3];
+                    values[2] = xx[0] * xx[1] * xx[3];
+                    values[3] = xx[0] * xx[1] * xx[2];
+                    values[4] = 2.0 * xx[0];
+                    values[5] = 2.0 * xx[1];
+                    values[6] = 2.0 * xx[2];
+                    values[7] = 2.0 * xx[3];
+                }
+
+                return true;
+            };
+
+            EvaluateHessianDelegate evalH = (int n, double[] xx, bool newX, double sigma, int m,
+                                             double[] lambda, bool newLambda, int nele,
+                                             ref int[] iRow, ref int[] jCol, ref double[] values) =>
+            {
+                if (values == null) return true;
+
+                hessianCalls++;
+
+                var h = new double[16];
+
+                void Put(int i, int j, double v) { h[i * 4 + j] += v; if (i != j) h[j * 4 + i] += v; }
+
+                Put(0, 0, sigma * 2.0 * xx[3]);
+                Put(0, 1, sigma * xx[3]);
+                Put(0, 2, sigma * xx[3]);
+                Put(0, 3, sigma * (2.0 * xx[0] + xx[1] + xx[2]));
+                Put(1, 3, sigma * xx[0]);
+                Put(2, 3, sigma * xx[0]);
+
+                Put(0, 1, lambda[0] * xx[2] * xx[3]);
+                Put(0, 2, lambda[0] * xx[1] * xx[3]);
+                Put(0, 3, lambda[0] * xx[1] * xx[2]);
+                Put(1, 2, lambda[0] * xx[0] * xx[3]);
+                Put(1, 3, lambda[0] * xx[0] * xx[2]);
+                Put(2, 3, lambda[0] * xx[0] * xx[1]);
+
+                for (int i = 0; i < 4; i++) Put(i, i, lambda[1] * 2.0);
+
+                values = h;
+                return true;
+            };
+
+            using (var problem = new Cureos.Numerics.Ipopt(
+                4, new[] { 1.0, 1.0, 1.0, 1.0 }, new[] { 5.0, 5.0, 5.0, 5.0 },
+                2, new[] { 25.0, 40.0 }, new[] { 2e19, 40.0 },
+                8, 0, f, evalG, gradF, jacG, evalH))
+            {
+                problem.AddOption("tol", 1e-8);
+                problem.AddOption("max_iter", 500);
+                problem.AddOption("mu_strategy", "adaptive");
+                problem.AddOption("hessian_approximation", "exact");
+
+                var status = problem.SolveProblem(x, ref obj, g, null, null, null);
+
+                Assert.Equal(IpoptReturnCode.Solve_Succeeded, status);
+            }
+
+            Assert.True(hessianCalls > 0, "the option was accepted but eval_h was never called");
+
+            Assert.Equal(17.0140173, obj, 5);
+            Assert.Equal(1.0, x[0], 5);
+            Assert.Equal(4.74299963, x[1], 4);
+        }
+
+        [Fact]
         public void AnIntermediateCallbackThatReturnsFalseStopsTheSolve()
         {
             var x = new double[] { 0.0, 0.0 };

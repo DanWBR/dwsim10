@@ -34,7 +34,13 @@ namespace DWSIM.Numerics.Ipopt.Core
         /// <summary>Full-memory damped BFGS.</summary>
         DenseBfgs,
         /// <summary>Limited-memory BFGS with a fixed history (Ipopt hessian_approximation=limited-memory). This is what DWSIM uses.</summary>
-        LimitedMemoryBfgs
+        LimitedMemoryBfgs,
+        /// <summary>
+        /// Second derivatives from the problem itself (Ipopt hessian_approximation=exact), which
+        /// requires it to implement <see cref="INlpHessian"/>. Falls back to limited-memory BFGS
+        /// on any iteration where the problem declines to supply one.
+        /// </summary>
+        Exact
     }
 
     /// <summary>
@@ -98,9 +104,17 @@ namespace DWSIM.Numerics.Ipopt.Core
         public bool CollectIterationLog = true;
 
         /// <summary>
-        /// Called once per iteration. Returning false stops the solve with
+        /// Called once per iteration that reached a new point. Returning false stops the solve with
         /// <see cref="SolveStatus.UserRequested"/>, which is what Ipopt's intermediate callback
         /// does and what DWSIM's wrapper uses to give up on a stalled objective.
+        /// <para>
+        /// Iterations flagged <see cref="IterationInfo.Restoration"/> are skipped, because they
+        /// report the point the previous call already reported. A caller that watches the
+        /// objective for a stall - which is what the Gibbs flash does, on a threshold of 1e-10 -
+        /// would otherwise read a repeat as convergence and end the solve early. Ipopt has the
+        /// same problem and answers it the same way, by telling the caller which mode the
+        /// iteration was in; the log keeps every row either way.
+        /// </para>
         /// </summary>
         public System.Func<IterationInfo, bool>? IterationCallback;
     }
@@ -109,8 +123,10 @@ namespace DWSIM.Numerics.Ipopt.Core
     public readonly struct IterationInfo
     {
         public IterationInfo(int iter, double objective, double infPr, double infDu, double mu,
-                             double dNorm, double regularization, double alphaDu, double alphaPr, int lsCount)
+                             double dNorm, double regularization, double alphaDu, double alphaPr, int lsCount,
+                             bool restoration = false)
         {
+            Restoration = restoration;
             Iter = iter;
             Objective = objective;
             InfPr = infPr;
@@ -133,6 +149,14 @@ namespace DWSIM.Numerics.Ipopt.Core
         public double AlphaDu { get; }
         public double AlphaPr { get; }
         public int LsCount { get; }
+
+        /// <summary>
+        /// True when the iteration took no step: the line search rejected every trial point and
+        /// the iteration was spent recovering rather than moving. The point is the one the
+        /// previous row already reported, which is why these are not handed to the caller's
+        /// iteration callback (see the note on <see cref="SolverOptions.IterationCallback"/>).
+        /// </summary>
+        public bool Restoration { get; }
     }
 
     /// <summary>Result of an interior-point solve.</summary>
