@@ -7,6 +7,14 @@ namespace DWSIM.Numerics.Ipopt.Core
     {
         /// <summary>Converged to the requested tolerance.</summary>
         Solved,
+        /// <summary>
+        /// Stopped at a point that is good enough for long enough: the optimality error stayed
+        /// below <see cref="SolverOptions.AcceptableTolerance"/> for
+        /// <see cref="SolverOptions.AcceptableIterations"/> iterations in a row without reaching
+        /// the tolerance asked for. Ipopt's Solved_To_Acceptable_Level, and callers treat it as an
+        /// answer.
+        /// </summary>
+        SolvedToAcceptableLevel,
         /// <summary>Hit the iteration limit before converging.</summary>
         MaxIterations,
         /// <summary>The line search could not make progress.</summary>
@@ -98,6 +106,32 @@ namespace DWSIM.Numerics.Ipopt.Core
 
         /// <summary>Scaling cap s_max in the optimality error (Ipopt fixed value 100).</summary>
         public double SMax = 100.0;
+
+        /// <summary>
+        /// Optimality error that counts as good enough when the requested tolerance cannot be
+        /// reached (Ipopt: acceptable_tol=1e-6).
+        /// <para>
+        /// Callers ask for tolerances they will never get - the Gibbs reactor asks for 1e-20 - and
+        /// without this the solve runs to its iteration cap, spending hundreds of objective
+        /// evaluations wandering the floor of a minimum it found long before. Measured on the
+        /// Gibbs reactor of the sample flowsheet: the optimality error is 7.6e-9 and the solver
+        /// still takes 500 iterations.
+        /// </para>
+        /// </summary>
+        public double AcceptableTolerance = 1e-6;
+
+        /// <summary>
+        /// How many iterations in a row have to meet <see cref="AcceptableTolerance"/> before the
+        /// solve stops there (Ipopt: acceptable_iter=15). Zero switches the test off.
+        /// </summary>
+        public int AcceptableIterations = 15;
+
+        /// <summary>
+        /// Constraint violation that counts as good enough alongside
+        /// <see cref="AcceptableTolerance"/> (Ipopt: acceptable_constr_viol_tol=1e-2). Ignored
+        /// when there are no constraints.
+        /// </summary>
+        public double AcceptableConstraintViolation = 1e-2;
 
         /// <summary>Subproblem tolerance factor kappa_eps (Ipopt: barrier_tol_factor=10).</summary>
         public double BarrierTolFactor = 10.0;

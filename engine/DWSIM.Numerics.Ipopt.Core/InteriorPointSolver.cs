@@ -82,6 +82,7 @@ namespace DWSIM.Numerics.Ipopt.Core
             hess.Reset(n);
             var B = new double[n, n];
             int recoveries = 0;
+            int acceptable = 0;
 
             double mu = _opt.MuInit;
             double tau = Math.Max(_opt.TauMin, 1.0 - mu);
@@ -117,6 +118,24 @@ namespace DWSIM.Numerics.Ipopt.Core
                 {
                     Record(log, new IterationInfo(iter, nlp.EvalF(x), 0.0, dualInf, mu, 0.0, 0.0, 0.0, 0.0, 0));
                     return Finish(SolveStatus.Solved, x, nlp.EvalF(x), iter, e0, log);
+                }
+
+                // Good enough for long enough. Without this a caller that asks for a tolerance it
+                // will never get keeps the solver walking the floor of a minimum it has already
+                // found, all the way to the iteration cap.
+                if (_opt.AcceptableIterations > 0 && e0 <= _opt.AcceptableTolerance)
+                {
+                    acceptable++;
+
+                    if (acceptable >= _opt.AcceptableIterations)
+                    {
+                        Record(log, new IterationInfo(iter, nlp.EvalF(x), 0.0, dualInf, mu, 0.0, 0.0, 0.0, 0.0, 0));
+                        return Finish(SolveStatus.SolvedToAcceptableLevel, x, nlp.EvalF(x), iter, e0, log);
+                    }
+                }
+                else
+                {
+                    acceptable = 0;
                 }
 
                 if (iter >= _opt.MaxIterations)
@@ -204,6 +223,12 @@ namespace DWSIM.Numerics.Ipopt.Core
 
                 if (!accepted)
                 {
+                    // A point that cannot be left and is already good enough is the answer.
+                    if (_opt.AcceptableIterations > 0 && e0 <= _opt.AcceptableTolerance)
+                    {
+                        return Finish(SolveStatus.SolvedToAcceptableLevel, x, nlp.EvalF(x), iter, e0, log);
+                    }
+
                     // The trial point was rejected, so it is not somewhere to go. Moving there
                     // anyway is how an objective that is undefined in part of the box ends up
                     // being reported as the answer: every trial is rejected, the last one is

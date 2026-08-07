@@ -190,6 +190,7 @@ namespace DWSIM.Numerics.Ipopt.Core
 
             int iter = 0;
             int restorations = 0;
+            int acceptable = 0;
 
             while (true)
             {
@@ -206,6 +207,25 @@ namespace DWSIM.Numerics.Ipopt.Core
                         return Finish(SolveStatus.UserRequested, x, nlp.EvalF(x), iter, err, log);
 
                     return Finish(SolveStatus.Solved, x, nlp.EvalF(x), iter, err, log);
+                }
+
+                // Good enough for long enough, on both counts: a constrained problem also has to
+                // be near enough to feasible before its optimality error means anything.
+                if (_opt.AcceptableIterations > 0 &&
+                    err <= _opt.AcceptableTolerance &&
+                    theta <= _opt.AcceptableConstraintViolation)
+                {
+                    acceptable++;
+
+                    if (acceptable >= _opt.AcceptableIterations)
+                    {
+                        Record(log, new IterationInfo(iter, nlp.EvalF(x), theta, err, mu, 0.0, 0.0, 0.0, 0.0, 0));
+                        return Finish(SolveStatus.SolvedToAcceptableLevel, x, nlp.EvalF(x), iter, err, log);
+                    }
+                }
+                else
+                {
+                    acceptable = 0;
                 }
 
                 if (iter >= _opt.MaxIterations)
@@ -343,6 +363,16 @@ namespace DWSIM.Numerics.Ipopt.Core
 
                 if (!accepted)
                 {
+                    // A point that cannot be left and is already good enough is the answer, not a
+                    // failure. Without this the solver spends its restoration budget trying to
+                    // move off the solution, and reports that restoration failed.
+                    if (_opt.AcceptableIterations > 0 &&
+                        err <= _opt.AcceptableTolerance &&
+                        theta <= _opt.AcceptableConstraintViolation)
+                    {
+                        return Finish(SolveStatus.SolvedToAcceptableLevel, x, nlp.EvalF(x), iter, err, log);
+                    }
+
                     // The filter blocks every trial point, so no step of this iteration can be
                     // taken. There are two reasons that happens and they need opposite answers.
                     if (restorations >= MaxRestorations)

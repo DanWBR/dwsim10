@@ -208,6 +208,40 @@ projects that referenced `DWSIM\References\Cureos.Numerics.dll` reference the pr
 `Cureos.Numerics.dll`, `IpOpt39.dll` and `IpOptFSS.dll` are gone from that tree along with the
 `IPOPTLoader` that used to preload them. The namespace is the same, so not one call site moved.
 
+### The acceptable level
+
+Callers ask for tolerances no solver will reach. The Gibbs reactor asks for `tol = 1e-20` and
+hands over no gradient, so the solver differences one and the optimality error stalls at the
+accuracy of that difference. Ipopt answers this with `acceptable_tol` (1e-6) and `acceptable_iter`
+(15): when the error has stayed below the acceptable level for that many iterations in a row
+without reaching the tolerance asked for, it stops and returns `Solved_To_Acceptable_Level`.
+
+That was missing here, and the cost is measurable. On the Gibbs reactor of the sample flowsheet:
+
+| | before | after |
+|---|---|---|
+| iterations | 500 | **107** |
+| status | `UserRequested` | `SolvedToAcceptableLevel` |
+| optimality error | 7.6e-9 | 3.6e-8 |
+
+Five hundred was not the iteration cap - it is where `IPOPTSolver`'s own stall detector finally
+fired, because that detector only looks once past half of `max_iter` and asks for a change in the
+objective below `tol/1000`, which at `tol = 1e-20` is 1e-23. So the solve spent four hundred
+iterations, each one a full Gibbs energy evaluation, walking the floor of a minimum it had found
+long before. `GibbsReactorTests` still pins the answer against the native one, unchanged.
+
+`SolverOptions` carries `AcceptableTolerance`, `AcceptableIterations` and
+`AcceptableConstraintViolation`; the facade accepts `acceptable_tol`, `acceptable_iter` and
+`acceptable_constr_viol_tol`, and maps the status to `Solved_To_Acceptable_Level`, which every
+caller in the engine already treats as an answer. Setting `acceptable_iter` to zero switches it
+off.
+
+One thing the implementation adds beyond the counter: a point the line search cannot leave, and
+which already meets the acceptable level, is returned there and then rather than counted as a
+restoration. Otherwise the constrained solver spends its restoration budget - twelve iterations,
+fewer than the fifteen the counter needs - trying to move off the solution, and reports that
+restoration failed.
+
 ### Invalid numbers, and a step that was never accepted
 
 Switching the Patreon edition over turned up a defect this repository's own tests had not: on the

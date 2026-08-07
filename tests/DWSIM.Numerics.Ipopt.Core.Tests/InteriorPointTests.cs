@@ -13,6 +13,60 @@ namespace DWSIM.Numerics.Ipopt.Core.Tests
             return m;
         }
 
+        /// <summary>
+        /// A problem whose optimality error has a floor: the gradient carries a small constant
+        /// bias, the way a differenced one does, so the solver can drive the error down to about
+        /// 1e-8 and no further. That is the shape of every caller that asks for a tolerance no
+        /// solver will reach - the Gibbs reactor asks for 1e-20 and hands over no gradient.
+        ///
+        /// Without an acceptable level the solve walks the floor of the minimum it already found
+        /// until something else stops it. Measured on that reactor: the optimality error was
+        /// 7.6e-9 and it still took 500 iterations, against 107 now.
+        /// </summary>
+        [Fact]
+        public void StopsAtTheAcceptableLevelWhenTheToleranceCannotBeReached()
+        {
+            var nlp = new StallingNlp(bias: 1e-8);
+
+            var res = new InteriorPointSolver(new SolverOptions
+            {
+                Tolerance = 1e-20,
+                MaxIterations = 1000
+            }).Solve(nlp);
+
+            Assert.Equal(SolveStatus.SolvedToAcceptableLevel, res.Status);
+            Assert.True(res.OptimalityError <= 1e-6,
+                        $"stopped at an error of {res.OptimalityError:E3}");
+            Assert.True(res.Iterations < 100, $"took {res.Iterations} iterations");
+
+            // Still the answer, to the accuracy the biased gradient allows.
+            Assert.True(MaxAbsDiff(res.X, Fill(3, 2.0)) < 1e-4,
+                        $"x diff {MaxAbsDiff(res.X, Fill(3, 2.0)):E3}");
+        }
+
+        [Fact]
+        public void TheAcceptableLevelCanBeSwitchedOff()
+        {
+            var nlp = new StallingNlp(bias: 1e-8);
+
+            var with = new InteriorPointSolver(new SolverOptions
+            {
+                Tolerance = 1e-20,
+                MaxIterations = 1000
+            }).Solve(nlp);
+
+            var without = new InteriorPointSolver(new SolverOptions
+            {
+                Tolerance = 1e-20,
+                MaxIterations = 1000,
+                AcceptableIterations = 0
+            }).Solve(nlp);
+
+            Assert.NotEqual(SolveStatus.SolvedToAcceptableLevel, without.Status);
+            Assert.True(without.Iterations > with.Iterations,
+                        $"with {with.Iterations}, without {without.Iterations}");
+        }
+
         [Fact]
         public void InteriorOptimumOfSeparableQuadratic()
         {
@@ -108,6 +162,39 @@ namespace DWSIM.Numerics.Ipopt.Core.Tests
             public void EvalGradF(double[] x, double[] g)
             {
                 for (int i = 0; i < _n; i++) g[i] = 2.0 * (x[i] - _c);
+            }
+        }
+
+        /// <summary>min sum (x_i - 2)^2, with a constant bias on the gradient so that the
+        /// optimality error cannot be driven below roughly that bias.</summary>
+        private sealed class StallingNlp : INlp
+        {
+            private readonly double _bias;
+
+            public StallingNlp(double bias) { _bias = bias; }
+
+            public int N => 3;
+
+            public void GetBounds(double[] xl, double[] xu)
+            {
+                for (int i = 0; i < N; i++) { xl[i] = -10.0; xu[i] = 10.0; }
+            }
+
+            public void GetStartingPoint(double[] x)
+            {
+                for (int i = 0; i < N; i++) x[i] = 0.0;
+            }
+
+            public double EvalF(double[] x)
+            {
+                double s = 0.0;
+                for (int i = 0; i < N; i++) s += (x[i] - 2.0) * (x[i] - 2.0);
+                return s;
+            }
+
+            public void EvalGradF(double[] x, double[] g)
+            {
+                for (int i = 0; i < N; i++) g[i] = 2.0 * (x[i] - 2.0) + _bias;
             }
         }
 

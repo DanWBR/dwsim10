@@ -28,9 +28,9 @@ namespace Cureos.Numerics
     /// Cureos.Numerics, a wrapper over the native IPOPT, which has no arm64 build; the shape is
     /// kept exactly so no caller has to change. See docs/ipopt-contract.md.
     ///
-    /// Bound-constrained problems are solved here, by DWSIM.Numerics.Ipopt.Core. Problems with
-    /// constraints are not: the only caller that poses any is the Gibbs three-phase flash, and
-    /// it says so rather than answering wrongly.
+    /// Both the bound-constrained and the generally constrained cases are solved here, by
+    /// DWSIM.Numerics.Ipopt.Core; the only caller that poses general constraints is the Gibbs
+    /// three-phase flash.
     /// </summary>
     public class Ipopt : IDisposable
     {
@@ -126,6 +126,15 @@ namespace Cureos.Numerics
                 case "bound_frac":
                     _options.BoundFrac = val;
                     return true;
+                case "acceptable_tol":
+                    _options.AcceptableTolerance = val;
+                    return true;
+                case "acceptable_constr_viol_tol":
+                    _options.AcceptableConstraintViolation = val;
+                    return true;
+                case "acceptable_iter":
+                    _options.AcceptableIterations = (int)val;
+                    return true;
                 default:
                     return true;
             }
@@ -142,6 +151,9 @@ namespace Cureos.Numerics
                     return true;
                 case "limited_memory_max_history":
                     _options.LimitedMemoryMaxHistory = val;
+                    return true;
+                case "acceptable_iter":
+                    _options.AcceptableIterations = val;
                     return true;
                 case "print_level":
                     // Zero means silent, which is what every caller in the engine asks for. A
@@ -256,6 +268,8 @@ namespace Cureos.Numerics
             {
                 case Core.SolveStatus.Solved:
                     return IpoptReturnCode.Solve_Succeeded;
+                case Core.SolveStatus.SolvedToAcceptableLevel:
+                    return IpoptReturnCode.Solved_To_Acceptable_Level;
                 case Core.SolveStatus.MaxIterations:
                     return IpoptReturnCode.Maximum_Iterations_Exceeded;
                 case Core.SolveStatus.RestorationFailed:
