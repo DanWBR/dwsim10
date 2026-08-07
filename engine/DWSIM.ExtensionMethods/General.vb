@@ -16,37 +16,70 @@ Public Module General
         Return defval
     End Function
 
+    ''' <summary>
+    ''' Compresses the string: gzip, with the uncompressed byte count in the first four bytes,
+    ''' base64 encoded.
+    ''' </summary>
     <System.Runtime.CompilerServices.Extension()>
     Public Function Compress(ByVal text As String) As String
-        Dim buffer0() As Byte = Encoding.ASCII.GetBytes(text)
-        Dim memoryStream = New MemoryStream
-        Dim gZipStream = New GZipStream(memoryStream, CompressionMode.Compress, True)
-        gZipStream.Write(buffer0, 0, buffer0.Length)
-        memoryStream.Position = 0
-        Dim compressedData = New Byte((memoryStream.Length) - 1) {}
-        memoryStream.Read(compressedData, 0, compressedData.Length)
-        Dim gZipBuffer = New Byte(((compressedData.Length + 4)) - 1) {}
-        Buffer.BlockCopy(compressedData, 0, gZipBuffer, 4, compressedData.Length)
-        Buffer.BlockCopy(BitConverter.GetBytes(buffer0.Length), 0, gZipBuffer, 0, 4)
-        Return Convert.ToBase64String(gZipBuffer)
+
+        Dim buffer0() As Byte = Encoding.UTF8.GetBytes(text)
+
+        Using memoryStream As New MemoryStream()
+
+            ' The compressed bytes are only all there once the deflate stream is closed: it
+            ' buffers, and writes its last block and the gzip trailer on dispose. Reading the
+            ' MemoryStream while the GZipStream was still open, which is what this used to do,
+            ' read a length of zero and produced a payload holding nothing but the length prefix.
+            Using gZipStream As New GZipStream(memoryStream, CompressionMode.Compress, leaveOpen:=True)
+                gZipStream.Write(buffer0, 0, buffer0.Length)
+            End Using
+
+            Dim compressedData() As Byte = memoryStream.ToArray()
+            Dim gZipBuffer(compressedData.Length + 4 - 1) As Byte
+
+            Buffer.BlockCopy(compressedData, 0, gZipBuffer, 4, compressedData.Length)
+            Buffer.BlockCopy(BitConverter.GetBytes(buffer0.Length), 0, gZipBuffer, 0, 4)
+
+            Return Convert.ToBase64String(gZipBuffer)
+
+        End Using
+
     End Function
 
     ''' <summary>
-    ''' Decompresses the string.
+    ''' Decompresses a string produced by <see cref="Compress"/>.
     ''' </summary>
     ''' <param name="compressedText">The compressed text.</param>
-    ''' <returns></returns>
     <System.Runtime.CompilerServices.Extension()>
     Public Function Decompress(ByVal compressedText As String) As String
+
         Dim gZipBuffer() As Byte = Convert.FromBase64String(compressedText)
-        Dim memoryStream = New MemoryStream
         Dim dataLength As Integer = BitConverter.ToInt32(gZipBuffer, 0)
-        memoryStream.Write(gZipBuffer, 4, (gZipBuffer.Length - 4))
-        Dim buffer = New Byte((dataLength) - 1) {}
-        memoryStream.Position = 0
-        Dim gZipStream = New GZipStream(memoryStream, CompressionMode.Decompress)
-        gZipStream.Read(buffer, 0, buffer.Length)
-        Return Encoding.ASCII.GetString(buffer)
+
+        If dataLength <= 0 Then Return ""
+
+        Dim buffer(dataLength - 1) As Byte
+
+        Using memoryStream As New MemoryStream(gZipBuffer, 4, gZipBuffer.Length - 4)
+            Using gZipStream As New GZipStream(memoryStream, CompressionMode.Decompress)
+
+                ' Read hands back what it has, not what it was asked for. A single call left the
+                ' rest of the buffer as zeros, and a run of NUL is what XDocument.Parse reported
+                ' as an invalid character at line 1, position 1.
+                Dim read As Integer = 0
+
+                While read < dataLength
+                    Dim n As Integer = gZipStream.Read(buffer, read, dataLength - read)
+                    If n <= 0 Then Exit While
+                    read += n
+                End While
+
+                Return Encoding.UTF8.GetString(buffer, 0, read)
+
+            End Using
+        End Using
+
     End Function
 
     <System.Runtime.CompilerServices.Extension()>

@@ -240,7 +240,7 @@ Public Class Manager
 
                         Case Enums.Dynamics.DynamicsEventTransitionReferenceType.InitialState
 
-                            state = XDocument.Parse(history.Values.First().Decompress())
+                            state = FirstState(history)
 
                             active = True
 
@@ -248,7 +248,7 @@ Public Class Manager
 
                             If i = 0 Then
 
-                                state = XDocument.Parse(history.Values.First().Decompress())
+                                state = FirstState(history)
 
                                 active = True
 
@@ -258,7 +258,7 @@ Public Class Manager
 
                                 If refevent.TimeStamp < currenttime Then active = True
 
-                                state = XDocument.Parse(history.Where(Function(h) h.Key <= refevent.TimeStamp).OrderByDescending(Function(h) h.Key).FirstOrDefault().Value.Decompress())
+                                state = StateAt(history, refevent.TimeStamp)
 
                             End If
 
@@ -272,11 +272,17 @@ Public Class Manager
 
                             refevent = eventset.Events(current.TransitionReferenceEventID)
 
-                            state = XDocument.Parse(history.Where(Function(h) h.Key <= refevent.TimeStamp).OrderByDescending(Function(h) h.Key).FirstOrDefault().Value.Decompress())
+                            state = StateAt(history, refevent.TimeStamp)
 
                             If refevent.TimeStamp <= currenttime Then active = True
 
                     End Select
+
+                    ' A transition interpolates from the state its reference point was in, and
+                    ' until the historian holds that state there is nothing to interpolate from.
+                    ' That happens on the first steps of a run, and again if the historian was
+                    ' cleared or has dropped its oldest entries.
+                    If state Is Nothing Then Continue For
 
                     If active Then
 
@@ -339,6 +345,31 @@ Public Class Manager
         Next
 
         Return props
+
+    End Function
+
+    ''' <summary>The oldest state the historian holds, or Nothing when it holds none.</summary>
+    Private Shared Function FirstState(history As Dictionary(Of DateTime, String)) As XDocument
+
+        If history Is Nothing OrElse history.Count = 0 Then Return Nothing
+
+        Return XDocument.Parse(history.Values.First().Decompress())
+
+    End Function
+
+    ''' <summary>The newest state at or before the given time, or Nothing when there is none.</summary>
+    Private Shared Function StateAt(history As Dictionary(Of DateTime, String), timestamp As DateTime) As XDocument
+
+        If history Is Nothing Then Return Nothing
+
+        Dim entry = history.Where(Function(h) h.Key <= timestamp).
+                            OrderByDescending(Function(h) h.Key).
+                            Select(Function(h) h.Value).
+                            FirstOrDefault()
+
+        If entry Is Nothing Then Return Nothing
+
+        Return XDocument.Parse(entry.Decompress())
 
     End Function
 
