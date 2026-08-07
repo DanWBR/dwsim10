@@ -631,7 +631,72 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
 
             End If
 
+            If V >= 1.0 - 0.000000001 Then result = StableDewPoint(Vz, P, V, PP, result)
+
             IObj?.Close()
+
+            Return result
+
+        End Function
+
+        ''' <summary>
+        ''' Returns the dew point whose incipient liquid is the stable one.
+        ''' </summary>
+        ''' <remarks>
+        ''' A dew point is the highest temperature at which liquid appears, and in a partially
+        ''' miscible system the dew equation has one root per liquid branch. Successive
+        ''' substitution settles on whichever branch the iteration reaches, and on benzene and
+        ''' water at one atmosphere it reached the benzene-rich one: seven kelvin below the true
+        ''' dew point, and below the heteroazeotropic temperature, which no vapour of that
+        ''' composition can be at. That is the crossing users see in the binary envelope, where
+        ''' the dew curve dips under the bubble line either side of the azeotrope.
+        '''
+        ''' Both roots satisfy the dew equation; what separates them is that the liquid of the
+        ''' lower one is not stable. So the test is the ordinary stability test, and when it
+        ''' fails, the composition it hands back seeds the K values of the other branch.
+        ''' </remarks>
+        Private Function StableDewPoint(Vz() As Double, P As Double, V As Double,
+                                        PP As PropertyPackage, result As Object) As Object
+
+            Try
+
+                If PP.AUX_IS_SINGLECOMP(Vz) Then Return result
+
+                Dim T = Convert.ToDouble(DirectCast(result, Object())(4))
+                Dim Vx = DirectCast(DirectCast(result, Object())(2), Double())
+
+                If Double.IsNaN(T) Then Return result
+
+                Dim Tc = PP.RET_VTC()
+
+                If Convert.ToBoolean(DirectCast(StabTest(T, P, Vx, Tc, PP), Object())(0)) Then Return result
+
+                For Each alternative In StabTest2(T, P, Vx, Tc, PP)
+
+                    Dim Ki = PP.RET_NullVector()
+
+                    For i As Integer = 0 To Vz.Length - 1
+                        Ki(i) = Vz(i) / Math.Max(alternative(i), 0.000000000000000000000000000001)
+                    Next
+
+                    Try
+                        ' A dew point has one incipient liquid whatever the system does further
+                        ' in, so this is a two-phase calculation however the feed was routed.
+                        Dim nl As New NestedLoops
+                        nl.FlashSettings = FlashSettings
+
+                        Dim other = nl.Flash_PV(Vz, P, V, T, PP, True, Ki)
+                        Dim Tother = Convert.ToDouble(DirectCast(other, Object())(4))
+
+                        If Not Double.IsNaN(Tother) AndAlso Tother > T Then Return other
+
+                    Catch ex As Exception
+                    End Try
+
+                Next
+
+            Catch ex As Exception
+            End Try
 
             Return result
 
