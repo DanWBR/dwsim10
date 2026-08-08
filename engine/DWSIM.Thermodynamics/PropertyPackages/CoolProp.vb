@@ -1,4 +1,4 @@
-'    CoolProp Property Package
+﻿'    CoolProp Property Package
 '    Copyright 2014-2024 Daniel Wagner O. de Medeiros
 '
 '    This file is part of DWSIM.
@@ -180,6 +180,27 @@ Namespace PropertyPackages
         ''' <param name="phase">Phase the caller wants the property for (Vapor or Liquid).</param>
         ''' <param name="fallback">Optional fallback used when CoolProp anchors fail. Receives (T, P) and returns the property in CoolProp's native units.</param>
         ''' <param name="fallbackDescription">Human-readable description of the fallback for log messages.</param>
+        ''' <summary>
+        ''' A limit of a fluid's correlation, or the value to assume when the library does not
+        ''' carry that one.
+        ''' </summary>
+        ''' <remarks>
+        ''' Four of these are read for every compound on every enthalpy and entropy evaluation,
+        ''' and they were read unprotected: a fluid missing any one of them took the whole
+        ''' calculation down before it reached the branch that would have handled the state. The
+        ''' values only feed the extrapolation, so a fluid without them degrades to a wider
+        ''' assumed range rather than to a failure.
+        ''' </remarks>
+        Private Function PropertyLimit(fluid As String, key As String, whenMissing As Double) As Double
+
+            Try
+                Return CoolProp.Props1SI(fluid, key)
+            Catch ex As Exception
+                Return whenMissing
+            End Try
+
+        End Function
+
         Private Function ExtrapolatePropertyTP(
                 fluid As String, prop As String,
                 T As Double, P As Double,
@@ -1456,10 +1477,10 @@ Namespace PropertyPackages
                     For i = 0 To n
                         If Vx(i) > 0.0 Then
                             If IsCompoundSupported(1.0, vn(i)) Then
-                                Tmin = CoolProp.Props1SI(GetCoolPropName(vn(i)), "TMIN")
-                                Tmax = CoolProp.Props1SI(GetCoolPropName(vn(i)), "TMAX")
-                                Pmin = CoolProp.Props1SI(GetCoolPropName(vn(i)), "PMIN")
-                                Pmax = CoolProp.Props1SI(GetCoolPropName(vn(i)), "PMAX")
+                                Tmin = PropertyLimit(GetCoolPropName(vn(i)), "TMIN", 0.0)
+                                Tmax = PropertyLimit(GetCoolPropName(vn(i)), "TMAX", 10000.0)
+                                Pmin = PropertyLimit(GetCoolPropName(vn(i)), "PMIN", 0.0)
+                                Pmax = PropertyLimit(GetCoolPropName(vn(i)), "PMAX", 1.0E+12)
                                 'If P > Pmin And P < Pmax Then
                                 Tb = Me.AUX_TSATi(P, i)
                                 If T < Tb And Abs(T - Tb) >= 0.01 And T >= Tmin Then
@@ -1484,17 +1505,23 @@ Namespace PropertyPackages
                                 vk(i) = 0.0#
                             End If
                         End If
-                        If Double.IsNaN(vk(i)) Or Double.IsInfinity(vk(i)) Then vk(i) = 0.0#
+                        If Double.IsNaN(vk(i)) Or Double.IsInfinity(vk(i)) Then
+                            ' Last resort: the branch above already tried to extrapolate. Zero is not a
+                            ' neutral value in a mass-weighted sum, so it is said out loud.
+                            WriteWarningMessage("CoolProp Warning: no finite value for compound " & vn(i) &
+                                                " at T = " & T & " K and P = " & P & " Pa. Using zero.")
+                            vk(i) = 0.0#
+                        End If
                         vk(i) = Vxw(i) * vk(i)
                     Next
                 Case State.Vapor
                     For i = 0 To n
                         If Vx(i) > 0.0 Then
                             If IsCompoundSupported(1.0, vn(i)) Then
-                                Tmin = CoolProp.Props1SI(GetCoolPropName(vn(i)), "TMIN")
-                                Tmax = CoolProp.Props1SI(GetCoolPropName(vn(i)), "TMAX")
-                                Pmin = CoolProp.Props1SI(GetCoolPropName(vn(i)), "PMIN")
-                                Pmax = CoolProp.Props1SI(GetCoolPropName(vn(i)), "PMAX")
+                                Tmin = PropertyLimit(GetCoolPropName(vn(i)), "TMIN", 0.0)
+                                Tmax = PropertyLimit(GetCoolPropName(vn(i)), "TMAX", 10000.0)
+                                Pmin = PropertyLimit(GetCoolPropName(vn(i)), "PMIN", 0.0)
+                                Pmax = PropertyLimit(GetCoolPropName(vn(i)), "PMAX", 1.0E+12)
                                 'If P > Pmin And P < Pmax Then
                                 Tb = Me.AUX_TSATi(P, i)
                                 If T > Tb And Abs(T - Tb) > 0.01 Then
@@ -1503,6 +1530,13 @@ Namespace PropertyPackages
                                     Catch ex As Exception
                                         If Abs(T - Tmin) < 0.05 Then
                                             vk(i) = CoolProp.PropsSI("H", "T", Tmin + 0.05, "P", P, GetCoolPropName(vn(i))) / 1000
+                                        Else
+                                            ' Without this the value stayed at zero, and a zero
+                                            ' enthalpy went into the mass-weighted sum with nothing
+                                            ' said. This is the state the extrapolation exists for.
+                                            WriteWarningMessage("CoolProp Warning: could not calculate Vapor Enthalpy for compound " &
+                                                                vn(i) & " at T = " & T & " K and P = " & P & " Pa. Extrapolating curve to obtain a value...")
+                                            vk(i) = ExtrapolatePropertyTP(GetCoolPropName(vn(i)), "H", T, P, Tmin, Tmax, Pmin, Pmax, State.Vapor, Nothing, "anchor value") / 1000
                                         End If
                                     End Try
                                 ElseIf Abs(T - Tb) < 0.01 Then
@@ -1525,7 +1559,13 @@ Namespace PropertyPackages
                                 vk(i) = 0.0#
                             End If
                         End If
-                        If Double.IsNaN(vk(i)) Or Double.IsInfinity(vk(i)) Then vk(i) = 0.0#
+                        If Double.IsNaN(vk(i)) Or Double.IsInfinity(vk(i)) Then
+                            ' Last resort: the branch above already tried to extrapolate. Zero is not a
+                            ' neutral value in a mass-weighted sum, so it is said out loud.
+                            WriteWarningMessage("CoolProp Warning: no finite value for compound " & vn(i) &
+                                                " at T = " & T & " K and P = " & P & " Pa. Using zero.")
+                            vk(i) = 0.0#
+                        End If
                         vk(i) = Vxw(i) * vk(i)
                     Next
                 Case State.Solid
@@ -1589,10 +1629,10 @@ Namespace PropertyPackages
                     For i = 0 To n
                         If Vx(i) > 0.0 Then
                             If IsCompoundSupported(1.0, vn(i)) Then
-                                Tmin = CoolProp.Props1SI(GetCoolPropName(vn(i)), "TMIN")
-                                Tmax = CoolProp.Props1SI(GetCoolPropName(vn(i)), "TMAX")
-                                Pmin = CoolProp.Props1SI(GetCoolPropName(vn(i)), "PMIN")
-                                Pmax = CoolProp.Props1SI(GetCoolPropName(vn(i)), "PMAX")
+                                Tmin = PropertyLimit(GetCoolPropName(vn(i)), "TMIN", 0.0)
+                                Tmax = PropertyLimit(GetCoolPropName(vn(i)), "TMAX", 10000.0)
+                                Pmin = PropertyLimit(GetCoolPropName(vn(i)), "PMIN", 0.0)
+                                Pmax = PropertyLimit(GetCoolPropName(vn(i)), "PMAX", 1.0E+12)
                                 'If P > Pmin And P < Pmax Then
                                 Tb = Me.AUX_TSATi(P, i)
                                 If T < Tb And Abs(T - Tb) >= 0.01 And T > Tmin Then
@@ -1617,22 +1657,32 @@ Namespace PropertyPackages
                                 vk(i) = 0.0#
                             End If
                         End If
-                        If Double.IsNaN(vk(i)) Or Double.IsInfinity(vk(i)) Then vk(i) = 0.0#
+                        If Double.IsNaN(vk(i)) Or Double.IsInfinity(vk(i)) Then
+                            ' Last resort: the branch above already tried to extrapolate. Zero is not a
+                            ' neutral value in a mass-weighted sum, so it is said out loud.
+                            WriteWarningMessage("CoolProp Warning: no finite value for compound " & vn(i) &
+                                                " at T = " & T & " K and P = " & P & " Pa. Using zero.")
+                            vk(i) = 0.0#
+                        End If
                         vk(i) = Vxw(i) * vk(i)
                     Next
                 Case State.Vapor
                     For i = 0 To n
                         If Vx(i) > 0.0 Then
                             If IsCompoundSupported(1.0, vn(i)) Then
-                                Tmin = CoolProp.Props1SI(GetCoolPropName(vn(i)), "TMIN")
-                                Tmax = CoolProp.Props1SI(GetCoolPropName(vn(i)), "TMAX")
-                                Pmin = CoolProp.Props1SI(GetCoolPropName(vn(i)), "PMIN")
-                                Pmax = CoolProp.Props1SI(GetCoolPropName(vn(i)), "PMAX")
+                                Tmin = PropertyLimit(GetCoolPropName(vn(i)), "TMIN", 0.0)
+                                Tmax = PropertyLimit(GetCoolPropName(vn(i)), "TMAX", 10000.0)
+                                Pmin = PropertyLimit(GetCoolPropName(vn(i)), "PMIN", 0.0)
+                                Pmax = PropertyLimit(GetCoolPropName(vn(i)), "PMAX", 1.0E+12)
                                 'If P > Pmin And P < Pmax Then
                                 Tb = Me.AUX_TSATi(P, i)
                                 If T > Tb And Abs(T - Tb) > 0.01 Then
                                     vk(i) = CoolProp.PropsSI("S", "T", T, "P", P, GetCoolPropName(vn(i))) / 1000
-                                ElseIf (T - Tb) < 0.01 Then
+                                ElseIf Abs(T - Tb) < 0.01 Then
+                                    ' Abs, as the enthalpy alongside has always had. Without it
+                                    ' this branch swallowed everything the first one left, so the
+                                    ' extrapolation below was unreachable and a vapour two hundred
+                                    ' kelvin under its boiling point got the saturation value.
                                     Try
                                         vk(i) = CoolProp.PropsSI("S", "P", P, "Q", 1, GetCoolPropName(vn(i))) / 1000
                                     Catch ex As Exception
@@ -1652,7 +1702,13 @@ Namespace PropertyPackages
                                 vk(i) = 0.0#
                             End If
                         End If
-                        If Double.IsNaN(vk(i)) Or Double.IsInfinity(vk(i)) Then vk(i) = 0.0#
+                        If Double.IsNaN(vk(i)) Or Double.IsInfinity(vk(i)) Then
+                            ' Last resort: the branch above already tried to extrapolate. Zero is not a
+                            ' neutral value in a mass-weighted sum, so it is said out loud.
+                            WriteWarningMessage("CoolProp Warning: no finite value for compound " & vn(i) &
+                                                " at T = " & T & " K and P = " & P & " Pa. Using zero.")
+                            vk(i) = 0.0#
+                        End If
                         vk(i) = Vxw(i) * vk(i)
                     Next
                 Case State.Solid

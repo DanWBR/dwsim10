@@ -850,12 +850,18 @@ Namespace PropertyPackages
 
         Private Function GetTmin(x As Double) As Double
 
-            Dim t = CoolProp.Props1SI(GetCoolPropName(x), "T_FREEZE")
+            Dim fluid = GetCoolPropName(x)
+
+            ' Not every incompressible solution carries a freezing temperature - CoolProp has none
+            ' for lithium bromide - and one that does may sit where no saturation pressure can be
+            ' had. Either way the lower limit of the correlation stands in for it. This used to be
+            ' read unprotected, so a solution without it failed the flowsheet.
             Try
-                Dim psat = CoolProp.PropsSI("P", "T", t, "Q", 0, GetCoolPropName(x))
+                Dim t = CoolProp.Props1SI(fluid, "T_FREEZE")
+                CoolProp.PropsSI("P", "T", t, "Q", 0, fluid)
                 Return t
             Catch ex As Exception
-                Return CoolProp.Props1SI(GetCoolPropName(x), "TMIN")
+                Return CoolProp.Props1SI(fluid, "TMIN")
             End Try
 
         End Function
