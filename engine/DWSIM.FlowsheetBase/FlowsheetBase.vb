@@ -4883,6 +4883,24 @@ Label_00CC:
             obj.SetFlowsheet(Nothing)
         Next
 
+        ' A CAPE-OPEN unit operation holds a COM object belonging to somebody else's simulator, and
+        ' this is where it has to be let go: on the thread that created it, while the runtime is
+        ' still up, and with the Terminate call the CAPE-OPEN protocol says the host owes the
+        ' server. Left alone the wrapper survives to the runtime's own shutdown and is released on
+        ' the finalizer thread after teardown has begun, which not every server survives - ChemSep
+        ' corrupts the process heap doing it, and the process dies with 0xC0000374 long after the
+        ' last result was reported, so the failure looks like it has nothing to do with the
+        ' flowsheet that was closed.
+        '
+        ' Each one is guarded. A server that throws on the way out should not stop the flowsheet
+        ' from closing.
+        For Each obj In SimulationObjects.Values.Where(Function(so) TypeOf so Is CapeOpenUO).ToList()
+            Try
+                DirectCast(obj, IDisposable).Dispose()
+            Catch ex As Exception
+            End Try
+        Next
+
         'For Each uobj As SharedClasses.UnitOperations.BaseClass In SimulationObjects.Values
         '    uobj.GraphicObject = Nothing
         '    Try
