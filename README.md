@@ -53,7 +53,7 @@ third-party source under `external/` keeps the version its author gave it.
 dotnet test DWSIM.slnx
 ```
 
-Seven suites, a hundred and seventy-four tests: the linear programming solver, the settings file,
+Seven suites, two hundred and eleven tests: the linear programming solver, the settings file,
 the analytical thermodynamic derivatives against numerical ones, the managed IPOPT solver, its
 linear algebra and its façade, the fluent API, and the engine smoke tests, which load the
 compound databases, register the property packages, and load and solve the fourteen sample
@@ -110,6 +110,10 @@ right on independent benchmarks too, including Hock-Schittkowski 71 to six digit
 The two other Windows-only native libraries are gone rather than missing: `lpsolve55`, which
 seeded the Gibbs reactor, was replaced by a managed two-phase simplex validated against it over
 twenty thousand element-balance problems, and `steam67` had no caller.
+
+CoolProp is the one native library left, and it now ships for all six runtimes. It is bound to
+its flat C API rather than through the SWIG-generated C# wrapper, which needed a build made with
+`-DCOOLPROP_CSHARP_MODULE=ON` and so existed for x64 Windows alone.
 
 Extensions written against DWSIM 9 need a few edits; [BREAKING.md](BREAKING.md) lists them.
 

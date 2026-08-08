@@ -1,13 +1,57 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <!--
-    SWIG bindings over the native CoolProp. The managed side builds anywhere; the native library
-    only ships for x64 today, so on arm64 the first call fails until it is built from source.
+    A binding over CoolProp's flat C API, plus the native library for every runtime DWSIM ships.
+
+    It used to be the SWIG-generated C# wrapper, which only works against a CoolProp built with
+    -DCOOLPROP_CSHARP_MODULE=ON and so existed for one architecture. The flat API is what the
+    library exports everywhere, so one managed assembly now serves all six.
+
+    The natives come from DanWBR/CoolProp, the `runtimes` artifact of its shared-library workflow.
+    They are committed rather than taken from the CoolProp.Net package because that package
+    targets net10.0 only, and the .NET Framework edition compiles this same source.
   -->
 
   <PropertyGroup>
     <RootNamespace>CoolPropInterface</RootNamespace>
     <AssemblyName>DWSIM.Thermodynamics.CoolPropInterface</AssemblyName>
   </PropertyGroup>
+
+  <!--
+    The native that matches what is being built goes next to the assembly. A plain build has no
+    RuntimeIdentifier, so fall back to the one the SDK runs on; `dotnet publish -r <rid>` sets it
+    and picks up that runtime instead.
+  -->
+  <PropertyGroup>
+    <CoolPropRid Condition="'$(CoolPropRid)' == ''">$(RuntimeIdentifier)</CoolPropRid>
+    <CoolPropRid Condition="'$(CoolPropRid)' == ''">$(NETCoreSdkPortableRuntimeIdentifier)</CoolPropRid>
+    <CoolPropRid Condition="'$(CoolPropRid)' == ''">$(NETCoreSdkRuntimeIdentifier)</CoolPropRid>
+    <CoolPropNativeDir>$(MSBuildThisFileDirectory)native\$(CoolPropRid)\</CoolPropNativeDir>
+  </PropertyGroup>
+
+  <!--
+    Take the whole folder out of the SDK's default globs first, so the five runtimes that are not
+    being built carry no item at all, and then add back the one that is. Link flattens it out of
+    its runtime folder and next to the assembly, which is where the loader looks.
+  -->
+  <ItemGroup>
+    <None Remove="native\**" />
+  </ItemGroup>
+
+  <ItemGroup Condition="Exists('$(CoolPropNativeDir)')">
+    <None Include="$(CoolPropNativeDir)*"
+          CopyToOutputDirectory="PreserveNewest"
+          Link="%(Filename)%(Extension)"
+          Visible="false" />
+  </ItemGroup>
+
+  <!--
+    A runtime with no native here is not a build error: the managed side has to compile anywhere.
+    It surfaces on the first call, as a DllNotFoundException naming the library.
+  -->
+  <Target Name="CoolPropNativeWarning" BeforeTargets="Build"
+          Condition="!Exists('$(CoolPropNativeDir)')">
+    <Warning Text="No CoolProp native for '$(CoolPropRid)' under native\. The CoolProp property packages will fail on their first call." />
+  </Target>
 
 </Project>

@@ -74,10 +74,27 @@ a `NotSupportedException` that says so.
 
 ## Numerical back-ends that need a native library
 
-IPOPT and CoolProp are native, and this repository carries neither binary. Everything that
-reaches them fails with a message naming the one that is missing: Gibbs energy minimisation and
-binary interaction parameter regression for IPOPT, the CoolProp property packages for CoolProp.
-Nothing else in the engine needs a native library any more.
+IPOPT is managed code here, so nothing is missing for it. CoolProp is native, and the library now
+ships with the repository for all six runtimes the desktop application publishes for, under
+`engine/DWSIM.Thermodynamics.CoolPropInterface/native/`. Nothing else in the engine needs a native
+library.
+
+### CoolProp is bound to its flat C API
+
+`DWSIM.Thermodynamics.CoolPropInterface` used to be the SWIG-generated C# wrapper, which only
+works against a CoolProp built with `-DCOOLPROP_CSHARP_MODULE=ON` and therefore existed for one
+architecture. It is now a binding over the flat C API, which the library exports on every platform
+it builds for.
+
+`CoolProp.PropsSI`, `CoolProp.Props1SI`, `CoolProp.set_debug_level`,
+`CoolProp.get_global_param_string` and `CoolProp.get_fluid_param_string` keep the signatures they
+had, so nothing in the engine changed. Everything else the SWIG wrapper exposed is gone: the
+`AbstractState` object model and the enum and vector types around it (`parameters`, `phases`,
+`input_pairs`, `backends`, `StringVector`, `DoubleVector` and the rest). Nothing in DWSIM used
+any of it. An add-on or a script that did should reach the equations of state through `PropsSI`.
+
+A failure is still an exception, `CoolPropException`. The flat API signals one by returning
+infinity and recording the reason, which the binding reads back and throws.
 
 ## Framework
 
