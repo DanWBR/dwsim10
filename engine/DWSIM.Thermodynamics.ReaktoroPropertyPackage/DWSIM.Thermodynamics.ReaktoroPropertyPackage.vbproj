@@ -60,17 +60,36 @@
     <ReaktoroNativeUrl>https://github.com/DanWBR/reaktoro/releases/download/$(ReaktoroRuntimeTag)/reaktoro-$(ReaktoroRid).zip</ReaktoroNativeUrl>
   </PropertyGroup>
 
+  <!--
+    Out of the SDK's default globs first, so a cache holding several tags and runtimes contributes
+    nothing on its own, and then back in for the one being built. Link flattens each file out of its
+    cache folder and next to the assembly, which is where the loader looks.
+
+    A plain glob, and not an item added from inside a target, is what makes these travel: declared
+    this way they reach the output of this project and of everything that references it. The catch
+    is that a glob is read when the project is evaluated, which is why the fetch below runs on
+    restore.
+  -->
   <ItemGroup>
     <None Remove="native\**" />
+    <None Include="native\$(ReaktoroRuntimeTag)\$(ReaktoroRid)\*"
+          CopyToOutputDirectory="PreserveNewest"
+          Link="%(Filename)%(Extension)"
+          Visible="false" />
   </ItemGroup>
 
   <!--
-    Once per tag and runtime. A failure here is a warning, not an error: the managed side compiles
-    anywhere, an offline machine that already has the cache is fine, and win-arm64 has no runtime at
-    all because conda-forge does not build Reaktoro's dependencies for it. What a missing runtime
-    costs is a DllNotFoundException on the first call, naming the library.
+    Which means the files have to exist before this project is evaluated, and the fetch runs on
+    restore: `dotnet build` restores first, in its own evaluation, so by the time the glob above is
+    read the folder is there. Once per tag and runtime.
+
+    A failure is a warning, not an error: the managed side compiles anywhere, an offline machine
+    that already has the cache is fine, and win-arm64 has no runtime at all because conda-forge does
+    not build Reaktoro's dependencies for it. What a missing runtime costs is a
+    DllNotFoundException on the first call, naming the library.
   -->
-  <Target Name="ReaktoroFetchNative" Condition="!Exists('$(ReaktoroNativeDir)')">
+  <Target Name="ReaktoroFetchNative" AfterTargets="Restore" BeforeTargets="BeforeBuild"
+          Condition="!Exists('$(ReaktoroNativeDir)')">
     <MakeDir Directories="$(ReaktoroNativeRoot)" />
 
     <Message Importance="high" Text="Fetching the Reaktoro runtime for '$(ReaktoroRid)' from $(ReaktoroNativeUrl)" />
@@ -90,20 +109,6 @@
 
     <Warning Condition="!Exists('$(ReaktoroNativeDir)')"
              Text="No Reaktoro runtime for '$(ReaktoroRid)'. The Reaktoro property package will fail on its first call." />
-  </Target>
-
-  <!--
-    AssignTargetPaths is the last point at which an item can still join the copy-to-output and the
-    publish sets, so the downloaded files are declared from here rather than from a static glob that
-    would have been evaluated before they existed.
-  -->
-  <Target Name="ReaktoroCollectNative" DependsOnTargets="ReaktoroFetchNative" BeforeTargets="AssignTargetPaths">
-    <ItemGroup Condition="Exists('$(ReaktoroNativeDir)')">
-      <None Include="$(ReaktoroNativeDir)*"
-            CopyToOutputDirectory="PreserveNewest"
-            Link="%(Filename)%(Extension)"
-            Visible="false" />
-    </ItemGroup>
   </Target>
 
 </Project>
