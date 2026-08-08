@@ -181,6 +181,19 @@ Namespace PropertyPackages
         ''' <param name="fallback">Optional fallback used when CoolProp anchors fail. Receives (T, P) and returns the property in CoolProp's native units.</param>
         ''' <param name="fallbackDescription">Human-readable description of the fallback for log messages.</param>
         ''' <summary>
+        ''' How far off the saturation line to step when a property is wanted exactly on it and the
+        ''' quality call has failed.
+        ''' </summary>
+        ''' <remarks>
+        ''' This used to be one per cent of the absolute temperature, which is four kelvin at four
+        ''' hundred, and the branch it serves is only entered within a hundredth of a kelvin of the
+        ''' boiling point. On water at atmospheric pressure that put some fifteen kilojoules a
+        ''' kilogram into a liquid enthalpy, and more into a vapour one, where the property moves
+        ''' fastest. A tenth of a kelvin is far enough off the line for the state to resolve.
+        ''' </remarks>
+        Private Const SaturationNudge As Double = 0.1
+
+        ''' <summary>
         ''' A limit of a fluid's correlation, or the value to assume when the library does not
         ''' carry that one.
         ''' </summary>
@@ -1484,12 +1497,26 @@ Namespace PropertyPackages
                                 'If P > Pmin And P < Pmax Then
                                 Tb = Me.AUX_TSATi(P, i)
                                 If T < Tb And Abs(T - Tb) >= 0.01 And T >= Tmin Then
-                                    vk(i) = CoolProp.PropsSI("H", "T", T, "P", P, GetCoolPropName(vn(i))) / 1000
+                                    Try
+                                        vk(i) = CoolProp.PropsSI("H", "T", T, "P", P, GetCoolPropName(vn(i))) / 1000
+                                    Catch ex As Exception
+                                        If Abs(T - Tmin) < 0.05 Then
+                                            vk(i) = CoolProp.PropsSI("H", "T", Tmin + 0.05, "P", P, GetCoolPropName(vn(i))) / 1000
+                                        Else
+                                            ' Being inside the correlation's temperature range does not
+                                            ' mean the state exists: the pressure has its own limits, and
+                                            ' the two together have more. This used to leave the branch,
+                                            ' and the method, on the exception.
+                                            WriteWarningMessage("CoolProp Warning: could not calculate Liquid Enthalpy for compound " &
+                                                                vn(i) & " at T = " & T & " K and P = " & P & " Pa. Extrapolating curve to obtain a value...")
+                                            vk(i) = ExtrapolatePropertyTP(GetCoolPropName(vn(i)), "H", T, P, Tmin, Tmax, Pmin, Pmax, State.Liquid, Nothing, "anchor value") / 1000
+                                        End If
+                                    End Try
                                 ElseIf Abs(T - Tb) < 0.01 Then
                                     Try
                                         vk(i) = CoolProp.PropsSI("H", "P", P, "Q", 0, GetCoolPropName(vn(i))) / 1000
                                     Catch ex As Exception
-                                        vk(i) = CoolProp.PropsSI("H", "T", Tb * 0.99, "P", P, GetCoolPropName(vn(i))) / 1000
+                                        vk(i) = CoolProp.PropsSI("H", "T", Tb - SaturationNudge, "P", P, GetCoolPropName(vn(i))) / 1000
                                     End Try
                                 Else
                                     WriteWarningMessage("CoolProp Warning: T and/or P is/are outside the valid range for calculation of Liquid Enthalpy, compound " &
@@ -1543,7 +1570,7 @@ Namespace PropertyPackages
                                     Try
                                         vk(i) = CoolProp.PropsSI("H", "P", P, "Q", 1, GetCoolPropName(vn(i))) / 1000
                                     Catch ex As Exception
-                                        vk(i) = CoolProp.PropsSI("H", "T", Tb * 1.01, "P", P, GetCoolPropName(vn(i))) / 1000
+                                        vk(i) = CoolProp.PropsSI("H", "T", Tb + SaturationNudge, "P", P, GetCoolPropName(vn(i))) / 1000
                                     End Try
                                 Else
                                     WriteWarningMessage("CoolProp Warning: T and/or P is/are outside the valid range for calculation of Vapor Enthalpy, compound " &
@@ -1636,12 +1663,24 @@ Namespace PropertyPackages
                                 'If P > Pmin And P < Pmax Then
                                 Tb = Me.AUX_TSATi(P, i)
                                 If T < Tb And Abs(T - Tb) >= 0.01 And T > Tmin Then
-                                    vk(i) = CoolProp.PropsSI("S", "T", T, "P", P, GetCoolPropName(vn(i))) / 1000
+                                    Try
+                                        vk(i) = CoolProp.PropsSI("S", "T", T, "P", P, GetCoolPropName(vn(i))) / 1000
+                                    Catch ex As Exception
+                                        If Abs(T - Tmin) < 0.05 Then
+                                            vk(i) = CoolProp.PropsSI("S", "T", Tmin + 0.05, "P", P, GetCoolPropName(vn(i))) / 1000
+                                        Else
+                                            ' As in the enthalpy: the temperature range is not the whole
+                                            ' domain, and a refusal here used to leave the method.
+                                            WriteWarningMessage("CoolProp Warning: could not calculate Liquid Entropy for compound " &
+                                                                vn(i) & " at T = " & T & " K and P = " & P & " Pa. Extrapolating curve to obtain a value...")
+                                            vk(i) = ExtrapolatePropertyTP(GetCoolPropName(vn(i)), "S", T, P, Tmin, Tmax, Pmin, Pmax, State.Liquid, Nothing, "anchor value") / 1000
+                                        End If
+                                    End Try
                                 ElseIf (T - Tb) < 0.01 Then
                                     Try
                                         vk(i) = CoolProp.PropsSI("S", "P", P, "Q", 0, GetCoolPropName(vn(i))) / 1000
                                     Catch ex As Exception
-                                        vk(i) = CoolProp.PropsSI("S", "T", Tb * 0.99, "P", P, GetCoolPropName(vn(i))) / 1000
+                                        vk(i) = CoolProp.PropsSI("S", "T", Tb - SaturationNudge, "P", P, GetCoolPropName(vn(i))) / 1000
                                     End Try
                                 Else
                                     WriteWarningMessage("CoolProp Warning: T and/or P is/are outside the valid range for calculation of Liquid Entropy, compound " &
@@ -1677,7 +1716,21 @@ Namespace PropertyPackages
                                 'If P > Pmin And P < Pmax Then
                                 Tb = Me.AUX_TSATi(P, i)
                                 If T > Tb And Abs(T - Tb) > 0.01 Then
-                                    vk(i) = CoolProp.PropsSI("S", "T", T, "P", P, GetCoolPropName(vn(i))) / 1000
+                                    Try
+                                        vk(i) = CoolProp.PropsSI("S", "T", T, "P", P, GetCoolPropName(vn(i))) / 1000
+                                    Catch ex As Exception
+                                        If Abs(T - Tmin) < 0.05 Then
+                                            vk(i) = CoolProp.PropsSI("S", "T", Tmin + 0.05, "P", P, GetCoolPropName(vn(i))) / 1000
+                                        Else
+                                            ' The enthalpy alongside has always caught here. Without it
+                                            ' the refusal came out of the property package as an
+                                            ' exception, when this is exactly what the extrapolation is
+                                            ' for.
+                                            WriteWarningMessage("CoolProp Warning: could not calculate Vapor Entropy for compound " &
+                                                                vn(i) & " at T = " & T & " K and P = " & P & " Pa. Extrapolating curve to obtain a value...")
+                                            vk(i) = ExtrapolatePropertyTP(GetCoolPropName(vn(i)), "S", T, P, Tmin, Tmax, Pmin, Pmax, State.Vapor, Nothing, "anchor value") / 1000
+                                        End If
+                                    End Try
                                 ElseIf Abs(T - Tb) < 0.01 Then
                                     ' Abs, as the enthalpy alongside has always had. Without it
                                     ' this branch swallowed everything the first one left, so the
@@ -1686,7 +1739,7 @@ Namespace PropertyPackages
                                     Try
                                         vk(i) = CoolProp.PropsSI("S", "P", P, "Q", 1, GetCoolPropName(vn(i))) / 1000
                                     Catch ex As Exception
-                                        vk(i) = CoolProp.PropsSI("S", "T", Tb * 1.01, "P", P, GetCoolPropName(vn(i))) / 1000
+                                        vk(i) = CoolProp.PropsSI("S", "T", Tb + SaturationNudge, "P", P, GetCoolPropName(vn(i))) / 1000
                                     End Try
                                 Else
                                     WriteWarningMessage("CoolProp Warning: T and/or P is/are outside the valid range for calculation of Vapor Entropy, compound " &
