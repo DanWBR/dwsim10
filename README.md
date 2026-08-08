@@ -111,9 +111,18 @@ The two other Windows-only native libraries are gone rather than missing: `lpsol
 seeded the Gibbs reactor, was replaced by a managed two-phase simplex validated against it over
 twenty thousand element-balance problems, and `steam67` had no caller.
 
-CoolProp is the one native library left, and it now ships for all six runtimes. It is bound to
-its flat C API rather than through the SWIG-generated C# wrapper, which needed a build made with
-`-DCOOLPROP_CSHARP_MODULE=ON` and so existed for x64 Windows alone.
+CoolProp and Reaktoro are the two native libraries left. CoolProp ships with the repository for all
+six runtimes, bound to its flat C API rather than through the SWIG-generated C# wrapper, which
+needed a build made with `-DCOOLPROP_CSHARP_MODULE=ON` and so existed for x64 Windows alone.
+
+Reaktoro is version 2, also over a flat C API, built alongside the library in
+[DanWBR/reaktoro](https://github.com/DanWBR/reaktoro). It used to be Reaktoro 1 driven through its
+Python package, which pinned DWSIM to a Python between 3.7 and 3.9; no Python is involved now. The
+runtime is around fifty megabytes per platform, so the build downloads the one it needs from a
+release rather than carrying five of them here. There is none for `win-arm64`: conda-forge, where
+Reaktoro's dependencies come from, does not build for it.
+[docs/reaktoro-contract.md](docs/reaktoro-contract.md) records the surface and the version 1 to
+version 2 mapping.
 
 Extensions written against DWSIM 9 need a few edits; [BREAKING.md](BREAKING.md) lists them.
 

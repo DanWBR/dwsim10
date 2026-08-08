@@ -16,7 +16,6 @@ Imports System.IO
 Imports DWSIM.Drawing.SkiaSharp.GraphicObjects
 Imports DWSIM.DrawingTools.Point
 Imports DWSIM.Interfaces.Enums.GraphicObjects
-Imports Python.Runtime
 Imports DWSIM.Drawing.SkiaSharp.GraphicObjects.Shapes
 Imports System.Text
 Imports DWSIM.UI.Shared.Avalonia
@@ -24,9 +23,9 @@ Imports DWSIM.UI.Shared.Avalonia
 Namespace Reactors
 
     ''' <summary>
-    ''' Represents a Gibbs Reactor that uses the Reaktoro library (via Python.NET) to perform
-    ''' a Gibbs free-energy minimisation for geochemical and aqueous-phase equilibrium calculations.
-    ''' Supports aqueous, gaseous, liquid, and mineral phases.
+    ''' Represents a Gibbs Reactor that uses the Reaktoro library to perform a Gibbs free-energy
+    ''' minimisation for geochemical and aqueous-phase equilibrium calculations. Supports aqueous,
+    ''' gaseous, liquid, and mineral phases.
     ''' </summary>
     <System.Serializable()> Public Partial Class Reactor_ReaktoroGibbs
 
@@ -46,8 +45,12 @@ Namespace Reactors
 
         <NonSerialized> <Xml.Serialization.XmlIgnore> Public f As Object
 
-        ''' <summary>Gets or sets the name of the Reaktoro thermodynamic database file (e.g. "supcrt07.xml").</summary>
-        Public Property DatabaseName As String = "supcrt07.xml"
+        ''' <summary>
+        ''' Gets or sets the name of the Reaktoro thermodynamic database, e.g. "supcrt07". A name
+        ''' stored by an older version carries a file extension, which is dropped when the database
+        ''' is opened: Reaktoro 2 carries its databases embedded and names them without one.
+        ''' </summary>
+        Public Property DatabaseName As String = "supcrt07"
 
         ''' <summary>Gets or sets whether an external (user-supplied) database file is used instead of the built-in one.</summary>
         Public Property UseExternalDatabase As Boolean = False
@@ -187,106 +190,57 @@ Namespace Reactors
         ''' to minimise the Gibbs free energy and determine the equilibrium product distribution.
         ''' </summary>
         ''' <param name="args">Optional calculation arguments (not used).</param>
-        Public Overrides Sub Calculate(Optional ByVal args As Object = Nothing)
+        ''' <summary>
+        ''' The database to work from: either the one the user pasted in, written to a file for
+        ''' Reaktoro to read, or one of those the library carries.
+        ''' </summary>
+        ''' <remarks>
+        ''' Reaktoro 1 named its databases by file, "supcrt07.xml"; Reaktoro 2 names them
+        ''' "supcrt07" and carries them embedded, so an extension stored in an older flowsheet is
+        ''' dropped here. An external database has to be in Reaktoro 2's own YAML or JSON format:
+        ''' the XML of version 1 is not readable any more.
+        ''' </remarks>
+        Private Function GetDatabase() As (Kind As String, Name As String)
 
-            If Settings.RunningPlatform() = Settings.Platform.Windows Then
-
-                DWSIM.GlobalSettings.Settings.InitializePythonEnvironment()
-
-            Else
-
-                Throw New Exception("This Unit Operation is not available on Linux/macOS.")
-
+            If UseExternalDatabase Then
+                Dim dbpath = Path.Combine(IO.Path.GetTempPath(), ExternalDatabaseFileName)
+                File.WriteAllText(dbpath, ExternalDatabaseContents)
+                Return ("file", dbpath)
             End If
 
-            Dim libpath = DWSIM.Thermodynamics.ReaktoroPropertyPackage.ReaktoroLoader.Initialize()
+            Return ("supcrt", Path.GetFileNameWithoutExtension(DatabaseName))
+
+        End Function
+
+        Public Overrides Sub Calculate(Optional ByVal args As Object = Nothing)
 
             Dim msin = GetInletMaterialStream(0)
             Dim msout = GetOutletMaterialStream(0)
 
             Dim esout = GetOutletEnergyStream(1)
 
-            Using Py.GIL
+            Dim db = GetDatabase()
 
-                If libpath <> "" Then
+            Dim elstring As String = String.Join(" ", ElementsList)
 
-                    Dim sys As Object = Py.Import("sys")
-                    sys.path.append(libpath)
+            Using system = DWSIM.Thermodynamics.ReaktoroPropertyPackage.Reaktoro.CreateSpeciatedSystem(db.Kind, db.Name, elstring,
+                                                          AqueousPhase, GaseousPhase,
+                                                          LiquidPhase, MineralPhase)
 
-                    Dim os As Object = Py.Import("os")
-
-                    Dim dllpath = Path.Combine(libpath, "reaktoro")
-                    Dim shareddllpath = Path.Combine(Path.GetDirectoryName(Reflection.Assembly.GetExecutingAssembly().Location), "python_packages", "reaktoro_shared")
-
-                    os.add_dll_directory(dllpath)
-                    os.add_dll_directory(shareddllpath)
-                    os.add_dll_directory(Settings.PythonPath)
-
-                End If
-
-                Dim reaktoro As Object = Py.Import("reaktoro")
-
-                'Initialize a thermodynamic database
-
-                Dim db As Object = Nothing
-                If UseExternalDatabase Then
-                    Dim dbpath = Path.Combine(IO.Path.GetTempPath(), ExternalDatabaseFileName)
-                    File.WriteAllText(dbpath, ExternalDatabaseContents)
-                    dbpath = dbpath.Replace("\", "\\")
-                    db = reaktoro.Database(dbpath)
-                Else
-                    db = reaktoro.Database(DatabaseName)
-                End If
-
-                'Define the chemical system
-                Dim editor = reaktoro.ChemicalEditor(db)
-
-                Dim elstring As String = ""
-
-                For Each el In ElementsList
-                    elstring += el + " "
-                Next
-                elstring = elstring.Trim()
-
-                If GaseousPhase Then editor.addGaseousPhaseWithElements(elstring)
-
-                If AqueousPhase Then
-                    Dim aqueousPhase = editor.addAqueousPhaseWithElements(elstring)
-                    aqueousPhase.setChemicalModelHKF()
-                    aqueousPhase.setActivityModelDrummondCO2()
-                End If
-
-                If LiquidPhase Then editor.addLiquidPhaseWithElements(elstring)
-
-                If MineralPhase Then editor.addMineralPhaseWithElements(elstring)
-
-                'Construct the chemical system
-
-                Dim mySystem = reaktoro.ChemicalSystem(editor)
-
-                'Define the chemical equilibrium problem
-
-                Dim problem = reaktoro.EquilibriumProblem(mySystem)
-
-                problem.setTemperature(msin.GetTemperature(), "kelvin")
-                problem.setPressure(msin.GetPressure(), "pascal")
+                Dim substances As New List(Of String)
+                Dim feed As New List(Of Double)
 
                 For Each item In CompoundsList
                     If FlowSheet.SelectedCompounds.ContainsKey(item) Then
-                        Dim compound = FlowSheet.SelectedCompounds(item)
-                        problem.add(CompoundNames(item), msin.Phases(0).Compounds(item).MolarFlow.GetValueOrDefault(), "mol")
+                        substances.Add(CompoundNames(item))
+                        feed.Add(msin.Phases(0).Compounds(item).MolarFlow.GetValueOrDefault())
                     End If
                 Next
 
-                'Calculate the chemical equilibrium state
+                Dim result = system.Equilibrate(msin.GetTemperature(), msin.GetPressure(),
+                                                substances.ToArray(), feed.ToArray())
 
-                Dim state = reaktoro.equilibrate(problem)
-
-                Dim properties = state.properties
-
-                Dim species = mySystem.species()
-
-                Dim amounts = state.speciesAmounts()
+                Dim amounts = result.SpeciesAmounts
 
                 Dim speciesAmountsFinal As New Dictionary(Of String, Double)
                 Dim compoundAmountsFinal As New Dictionary(Of String, Double)
@@ -295,18 +249,18 @@ Namespace Reactors
 
                 Dim newspecies As New List(Of String)
 
-                For i = 0 To species.Length - 1
-                    Dim name = species(i).name.ToString()
+                For i = 0 To system.SpeciesCount - 1
+                    Dim name = system.SpeciesNames(i)
                     newspecies.Add(name)
                     If Not SpeciesMaps.ContainsKey(name) Then
                         SpeciesMaps.Add(name, "")
                     End If
                     If SpeciesMaps(name) <> "" Then
-                        speciesAmountsFinal.Add(name, amounts(i).ToString().ToDoubleFromInvariant())
+                        speciesAmountsFinal.Add(name, amounts(i))
                         If Not compoundAmountsFinal.ContainsKey(SpeciesMaps(name)) Then
                             compoundAmountsFinal.Add(SpeciesMaps(name), 0.0)
                         End If
-                        compoundAmountsFinal(SpeciesMaps(name)) += amounts(i).ToString().ToDoubleFromInvariant()
+                        compoundAmountsFinal(SpeciesMaps(name)) += amounts(i)
                     End If
                 Next
 
@@ -647,79 +601,29 @@ Namespace Reactors
         ''' <summary>Returns a newline-separated list of Reaktoro species names from the selected database.</summary>
         Public Function GetListOfCompounds() As String
 
-            If Settings.RunningPlatform() = Settings.Platform.Windows Then
+            Dim db = GetDatabase()
 
-                DWSIM.GlobalSettings.Settings.InitializePythonEnvironment()
+            Dim species = DWSIM.Thermodynamics.ReaktoroPropertyPackage.Reaktoro.ListSpecies(db.Kind, db.Name)
 
-            End If
+            Dim sb As New StringBuilder
 
-            Dim libpath = DWSIM.Thermodynamics.ReaktoroPropertyPackage.ReaktoroLoader.Initialize()
+            For Each group In {("aqueous", "Aqueous Species:"),
+                               ("gas", "Gaseous Species:"),
+                               ("liquid", "Liquid (Non-Aqueous) Species:"),
+                               ("solid", "Mineral Species:")}
 
-            Using Py.GIL
-
-                If libpath <> "" Then
-
-                    Dim sys As Object = Py.Import("sys")
-                    sys.path.append(libpath)
-
-                    Dim os As Object = Py.Import("os")
-
-                    Dim dllpath = Path.Combine(libpath, "reaktoro")
-                    Dim shareddllpath = Path.Combine(Path.GetDirectoryName(Reflection.Assembly.GetExecutingAssembly().Location), "python_packages", "reaktoro_shared")
-
-                    os.add_dll_directory(dllpath)
-                    os.add_dll_directory(shareddllpath)
-                    os.add_dll_directory(Settings.PythonPath)
-
-                End If
-
-                Dim reaktoro As Object = Py.Import("reaktoro")
-
-                'Initialize a thermodynamic database
-                Dim db As Object = Nothing
-                If UseExternalDatabase Then
-                    Dim dbpath = Path.Combine(IO.Path.GetTempPath(), ExternalDatabaseFileName)
-                    File.WriteAllText(dbpath, ExternalDatabaseContents)
-                    db = reaktoro.Database(dbpath)
-                Else
-                    db = reaktoro.Database(DatabaseName)
-                End If
-
-                Dim aql As Object = db.aqueousSpecies()
-                Dim gql As Object = db.gaseousSpecies()
-                Dim lql As Object = db.liquidSpecies()
-                Dim mql As Object = db.mineralSpecies()
-
-                Dim sb As New StringBuilder
-                Dim i As Integer = 0
-
-                sb.AppendLine("Aqueous Species:")
+                sb.AppendLine(group.Item2)
                 sb.AppendLine()
-                For i = 0 To aql.Length - 1
-                    sb.AppendLine(aql(i).name.ToString() + " (" + aql(i).formula.ToString() + ")")
-                Next
-                sb.AppendLine()
-                sb.AppendLine("Gaseous Species:")
-                sb.AppendLine()
-                For i = 0 To gql.Length - 1
-                    sb.AppendLine(gql(i).name.ToString() + " (" + gql(i).formula.ToString() + ")")
-                Next
-                sb.AppendLine()
-                sb.AppendLine("Liquid (Non-Aqueous) Species:")
-                sb.AppendLine()
-                For i = 0 To lql.Length - 1
-                    sb.AppendLine(lql(i).name.ToString() + " (" + lql(i).formula.ToString() + ")")
-                Next
-                sb.AppendLine()
-                sb.AppendLine("Mineral Species:")
-                sb.AppendLine()
-                For i = 0 To mql.Length - 1
-                    sb.AppendLine(mql(i).name.ToString() + " (" + mql(i).formula.ToString() + ")")
+
+                For Each s In species.Where(Function(x) x.State = group.Item1)
+                    sb.AppendLine(s.Name + " (" + s.Formula + ")")
                 Next
 
-                Return sb.ToString()
+                sb.AppendLine()
 
-            End Using
+            Next
+
+            Return sb.ToString()
 
         End Function
 

@@ -1,9 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!--
-    Reaktoro is a Python library; the loader finds it through the CPython bridge, so the package
-    is available wherever the user has Reaktoro installed. FormConfig, its WinForms parameter
-    editor, stays behind.
+    Reaktoro's chemical equilibrium solver, over a flat C API built alongside the library.
+
+    This used to be the Reaktoro 1 Python package, reached through the CPython bridge, which pinned
+    DWSIM to a Python between 3.7 and 3.9. The natives come from DanWBR/reaktoro, the `runtimes`
+    artifact of its ReaktoroC workflow. FormConfig, the WinForms parameter editor, stays behind.
   -->
 
   <PropertyGroup>
@@ -20,7 +22,15 @@
   <ItemGroup>
     <PackageReference Include="FileHelpers" />
     <PackageReference Include="Newtonsoft.Json" />
-    <PackageReference Include="pythonnet" />
+  </ItemGroup>
+
+  <!--
+    The compound map and the Setschenow coefficients. VB flattens an embedded resource name onto the
+    root namespace, which is what the code asks for, but the SDK does not, so both are named here.
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="CompoundMaps.txt" LogicalName="$(RootNamespace).CompoundMaps.txt" />
+    <EmbeddedResource Include="SetschenowCoefficients.txt" LogicalName="$(RootNamespace).SetschenowCoefficients.txt" />
   </ItemGroup>
 
   <ItemGroup>
@@ -29,5 +39,71 @@
     <ProjectReference Include="..\DWSIM.SharedClasses\DWSIM.SharedClasses.vbproj" />
     <ProjectReference Include="..\DWSIM.Thermodynamics\DWSIM.Thermodynamics.vbproj" />
   </ItemGroup>
+
+  <!--
+    The native that matches what is being built goes next to the assembly. A plain build has no
+    RuntimeIdentifier, so fall back to the one the SDK runs on; `dotnet publish -r <rid>` sets it
+    and picks up that runtime instead.
+
+    Unlike CoolProp next door, these are not in the repository. Reaktoro and its dependency closure
+    are around fifty megabytes per runtime and there are five of them, which is a quarter of a
+    gigabyte that every clone would carry forever. They are downloaded once, from a release of
+    DanWBR/reaktoro pinned by tag below, and cached under native\ where .gitignore keeps them.
+  -->
+  <PropertyGroup>
+    <ReaktoroRuntimeTag>runtimes-2.13.0</ReaktoroRuntimeTag>
+    <ReaktoroRid Condition="'$(ReaktoroRid)' == ''">$(RuntimeIdentifier)</ReaktoroRid>
+    <ReaktoroRid Condition="'$(ReaktoroRid)' == ''">$(NETCoreSdkPortableRuntimeIdentifier)</ReaktoroRid>
+    <ReaktoroRid Condition="'$(ReaktoroRid)' == ''">$(NETCoreSdkRuntimeIdentifier)</ReaktoroRid>
+    <ReaktoroNativeRoot>$(MSBuildThisFileDirectory)native\$(ReaktoroRuntimeTag)\</ReaktoroNativeRoot>
+    <ReaktoroNativeDir>$(ReaktoroNativeRoot)$(ReaktoroRid)\</ReaktoroNativeDir>
+    <ReaktoroNativeUrl>https://github.com/DanWBR/reaktoro/releases/download/$(ReaktoroRuntimeTag)/reaktoro-$(ReaktoroRid).zip</ReaktoroNativeUrl>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="native\**" />
+  </ItemGroup>
+
+  <!--
+    Once per tag and runtime. A failure here is a warning, not an error: the managed side compiles
+    anywhere, an offline machine that already has the cache is fine, and win-arm64 has no runtime at
+    all because conda-forge does not build Reaktoro's dependencies for it. What a missing runtime
+    costs is a DllNotFoundException on the first call, naming the library.
+  -->
+  <Target Name="ReaktoroFetchNative" Condition="!Exists('$(ReaktoroNativeDir)')">
+    <MakeDir Directories="$(ReaktoroNativeRoot)" />
+
+    <Message Importance="high" Text="Fetching the Reaktoro runtime for '$(ReaktoroRid)' from $(ReaktoroNativeUrl)" />
+
+    <DownloadFile SourceUrl="$(ReaktoroNativeUrl)"
+                  DestinationFolder="$(ReaktoroNativeRoot)"
+                  DestinationFileName="$(ReaktoroRid).zip"
+                  SkipUnchangedFiles="true"
+                  ContinueOnError="WarnAndContinue">
+      <Output TaskParameter="DownloadedFile" ItemName="ReaktoroNativeArchive" />
+    </DownloadFile>
+
+    <Unzip SourceFiles="@(ReaktoroNativeArchive)"
+           DestinationFolder="$(ReaktoroNativeDir)"
+           ContinueOnError="WarnAndContinue"
+           Condition="'@(ReaktoroNativeArchive)' != ''" />
+
+    <Warning Condition="!Exists('$(ReaktoroNativeDir)')"
+             Text="No Reaktoro runtime for '$(ReaktoroRid)'. The Reaktoro property package will fail on its first call." />
+  </Target>
+
+  <!--
+    AssignTargetPaths is the last point at which an item can still join the copy-to-output and the
+    publish sets, so the downloaded files are declared from here rather than from a static glob that
+    would have been evaluated before they existed.
+  -->
+  <Target Name="ReaktoroCollectNative" DependsOnTargets="ReaktoroFetchNative" BeforeTargets="AssignTargetPaths">
+    <ItemGroup Condition="Exists('$(ReaktoroNativeDir)')">
+      <None Include="$(ReaktoroNativeDir)*"
+            CopyToOutputDirectory="PreserveNewest"
+            Link="%(Filename)%(Extension)"
+            Visible="false" />
+    </ItemGroup>
+  </Target>
 
 </Project>

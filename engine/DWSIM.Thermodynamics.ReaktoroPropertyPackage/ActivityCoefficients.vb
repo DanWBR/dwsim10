@@ -1,6 +1,5 @@
 ﻿Imports System.IO
 Imports DWSIM.Thermodynamics.PropertyPackages
-Imports Python.Runtime
 Imports DWSIM.ExtensionMethods
 Imports DWSIM.GlobalSettings
 
@@ -40,8 +39,6 @@ Public Class ActivityCoefficients
             End If
         Next
 
-        Settings.InitializePythonEnvironment()
-
         Dim speciesPhases As New Dictionary(Of String, String)
         Dim speciesAmounts As New Dictionary(Of String, Double)
         Dim speciesAmountsFinal As New Dictionary(Of String, Double)
@@ -65,94 +62,48 @@ Public Class ActivityCoefficients
         Next
         aqueous = aqueous.TrimEnd()
 
-        Dim libpath = ReaktoroLoader.Initialize()
-
-        Dim pystate = Py.GIL()
-
-        Dim ex0 As Exception = Nothing
-
         Try
 
-            If libpath <> "" Then
+            ' No gaseous phase: this is the activity coefficient of the aqueous solution, asked for
+            ' at a composition DWSIM already has, so there is nothing to equilibrate.
+            Using system = Reaktoro.CreateSystem(aqueous, "")
 
-                Dim sys As Object = Py.Import("sys")
-                sys.path.append(libpath)
+                ' One amount per species, in the order the system holds them. The old code passed
+                ' the compound amounts straight through, which lined up only as long as every
+                ' compound had an aqueous species and the two lists happened to agree.
+                Dim amounts = New Double(system.SpeciesCount - 1) {}
 
-                Dim os As Object = Py.Import("os")
+                For j = 0 To system.SpeciesCount - 1
+                    Dim species = system.SpeciesNames(j)
+                    If inverseMaps.ContainsKey(species) Then
+                        amounts(j) = speciesAmounts(inverseMaps(species))
+                    End If
+                Next
 
-                Dim dllpath = Path.Combine(libpath, "reaktoro")
-                Dim shareddllpath = Path.Combine(Path.GetDirectoryName(Reflection.Assembly.GetExecutingAssembly().Location), "python_packages", "reaktoro_shared")
+                Dim ac = system.LnActivityCoefficients(T, P, amounts)
 
-                os.add_dll_directory(dllpath)
-                os.add_dll_directory(shareddllpath)
-                os.add_dll_directory(Settings.PythonPath)
+                ' The logarithm goes in and ExpY below takes it out, once. What was here stored
+                ' Exp(ac) and then let ExpY exponentiate that as well, so every coefficient this
+                ' path produced was Exp(Exp(ln gamma)); the flash alongside it, which does the same
+                ' work, exponentiates once. A species that never gets a value keeps its zero, which
+                ' is what ExpY is for: it comes out as one.
+                For j = 0 To system.SpeciesCount - 1
+                    Dim species = system.SpeciesNames(j)
+                    If inverseMaps.ContainsKey(species) AndAlso speciesPhases(species) = "L" Then
+                        activcoeff(formulas.IndexOf(inverseMaps(species))) = ac(j)
+                    End If
+                Next
 
-            End If
-
-            Dim reaktoro As Object = Py.Import("reaktoro")
-            Dim np As Object = Py.Import("numpy")
-
-            'Initialize a thermodynamic database
-            Dim db = reaktoro.Database("supcrt07-organics.xml")
-
-            'Define the chemical system
-            Dim editor = reaktoro.ChemicalEditor(db)
-
-            Dim aqueousPhase = editor.addAqueousPhase(aqueous)
-
-            aqueousPhase.setChemicalModelHKF()
-            aqueousPhase.setActivityModelDrummondCO2()
-            'i = 0
-            'For Each na In names
-            '    If CompoundMaps.Maps(na).AqueousName <> "" And na <> "Water" And
-            '        Not CompProps(i).IsIon And Not CompProps(i).IsSalt Then
-            '        aqueousPhase.setActivityModelSetschenow(CompoundMaps.Maps(na).AqueousName, Setschenow.GetValue(na))
-            '    End If
-            '    i += 1
-            'Next
-
-            'Construct the chemical system
-            Dim mySystem = reaktoro.ChemicalSystem(editor)
-
-            Dim mols = np.fromiter(speciesAmounts.Values.ToArray(), np.float64)
-
-            Dim props = reaktoro.ChemicalProperties(mySystem)
-            props.update(T, P, mols)
-
-            Dim species = mySystem.species()
-
-            Dim ac = props.lnActivityCoefficients().val
-
-
-            For i = 0 To ac.Length - 1
-                If speciesPhases(species(i).name.ToString()) = "L" Then
-                    Dim index As Integer = formulas.IndexOf(inverseMaps(species(i).name.ToString()))
-                    activcoeff(index) = Math.Exp(ac(i).ToString().ToDoubleFromInvariant())
-                    'If names(i) = "Ammonia" Then
-                    '    'ammonia act coefficient
-                    '    activcoeff(index) = 1.68734806901 * Math.Exp(-790.33175622 / T + 4.12597652879 * Vx(index))
-                    'End If
-                End If
-            Next
-
+            End Using
 
         Catch ex As Exception
 
             pp.Flowsheet?.ShowMessage("Reaktoro error: " + ex.Message, DWSIM.Interfaces.IFlowsheet.MessageType.GeneralError)
-            ex0 = ex
-
-        Finally
-
-            pystate?.Dispose()
-            pystate = Nothing
+            Throw
 
         End Try
 
-        If ex0 IsNot Nothing Then
-            Throw ex0
-        Else
-            Return activcoeff.ExpY()
-        End If
+        Return activcoeff.ExpY()
 
     End Function
 

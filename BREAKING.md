@@ -76,8 +76,35 @@ a `NotSupportedException` that says so.
 
 IPOPT is managed code here, so nothing is missing for it. CoolProp is native, and the library now
 ships with the repository for all six runtimes the desktop application publishes for, under
-`engine/DWSIM.Thermodynamics.CoolPropInterface/native/`. Nothing else in the engine needs a native
-library.
+`engine/DWSIM.Thermodynamics.CoolPropInterface/native/`. Reaktoro is native too, and comes down at
+build time. Nothing else in the engine needs a native library.
+
+### Reaktoro is version 2, called directly
+
+The Reaktoro property package and the Reaktoro Gibbs reactor used to drive Reaktoro 1 through its
+Python package, over the CPython bridge. That pinned the whole application to a Python between 3.7
+and 3.9, because those were the versions the Reaktoro 1 wheels were built for. They now call
+Reaktoro 2 through a flat C API built alongside the library in `DanWBR/reaktoro`, and **no Python
+of any version is involved**.
+
+The runtime is not in this repository: it is around fifty megabytes per platform, so the build
+downloads the archive matching what it is building from a release of `DanWBR/reaktoro`, pinned by
+the `ReaktoroRuntimeTag` property, and caches it under
+`engine/DWSIM.Thermodynamics.ReaktoroPropertyPackage/native/`. A machine with no network and no
+cache still builds; the package raises `DllNotFoundException` on its first call.
+
+There is no runtime for `win-arm64`. Reaktoro's dependencies come from conda-forge, which does not
+build for that platform at all.
+
+Two things change for a flowsheet:
+
+- **An external database has to be in Reaktoro 2's format.** The `UseExternalDatabase` option of the
+  Gibbs reactor reads YAML or JSON; the XML databases of Reaktoro 1 are not readable. The databases
+  the library carries are all still there, and `DatabaseName` drops a file extension that an older
+  flowsheet stored, so `supcrt07.xml` still selects `supcrt07`.
+- **Doubly charged ions are spelled differently.** Reaktoro 1 wrote `SO4--`, Reaktoro 2 writes
+  `SO4-2`. The compound map ships corrected; a species named by hand in a saved flowsheet needs the
+  new spelling.
 
 ### CoolProp is bound to its flat C API
 
