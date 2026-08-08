@@ -139,6 +139,47 @@ Namespace PropertyPackages
         End Function
 
         ''' <summary>
+        ''' A limit of a fluid's correlation, or the value to assume when the library does not carry
+        ''' that one. The solvent is a setting, so nothing guarantees it has every limit CoolProp
+        ''' defines, and a missing one used to take the whole property calculation down with it.
+        ''' </summary>
+        Private Function Limit(fluid As String, key As String, whenMissing As Double) As Double
+            Try
+                Return CoolProp.Props1SI(fluid, key)
+            Catch ex As Exception
+                Return whenMissing
+            End Try
+        End Function
+
+        ''' <summary>
+        ''' The solvent's saturation temperature at P, or its critical temperature where there is no
+        ''' saturation line to ask about: above the critical pressure, and wherever CoolProp refuses.
+        ''' </summary>
+        Private Function SolventTsat(P As Double, Tc As Double) As Double
+            Try
+                Return CoolProp.PropsSI("T", "P", P, "Q", 1, SolventCompound)
+            Catch ex As Exception
+                Return Tc
+            End Try
+        End Function
+
+        ''' <summary>
+        ''' What the solvent gains on vaporising at P, in kJ/kg or kJ/kg.K: the property is read on
+        ''' both sides of the saturation line and subtracted. Above the critical pressure there are
+        ''' no two sides, and the answer is zero.
+        ''' </summary>
+        Private Function LatentHeat(prop As String, P As Double) As Double
+            Try
+                Return (CoolProp.PropsSI(prop, "P", P, "Q", 1.0, SolventCompound) -
+                        CoolProp.PropsSI(prop, "P", P, "Q", 0.0, SolventCompound)) / 1000
+            Catch ex As Exception
+                WriteWarningMessage("CoolProp Warning: no saturation line for " & SolventCompound &
+                                    " at P = " & P & " Pa. Taking the heat of vaporisation as zero.")
+                Return 0.0
+            End Try
+        End Function
+
+        ''' <summary>
         ''' Linear T-extrapolation along an isobar for a CoolProp pure fluid, with anchors guaranteed to be
         ''' inside [Tmin..Tmax] and on the correct phase side of the saturation dome at P.
         ''' </summary>
@@ -196,14 +237,16 @@ Namespace PropertyPackages
         Public Overrides Function AUX_CONDTG(T As Double, P As Double) As Double
 
             Dim Tb As Double
-            Dim Tmin = CoolProp.Props1SI(SolventCompound, "TMIN")
-            Dim Tmax = CoolProp.Props1SI(SolventCompound, "TMAX")
-            Dim Pmin = CoolProp.Props1SI(SolventCompound, "PMIN")
-            Dim Pmax = CoolProp.Props1SI(SolventCompound, "PMAX")
-            Dim Tc = CoolProp.Props1SI(SolventCompound, "TCRIT")
-            If T < Tc Then Tb = CoolProp.PropsSI("T", "P", P, "Q", 1, SolventCompound) Else Tb = Tc
+            Dim Tmin = Limit(SolventCompound, "TMIN", 0.0)
+            Dim Tmax = Limit(SolventCompound, "TMAX", 10000.0)
+            Dim Tc = Limit(SolventCompound, "TCRIT", Tmax)
+            If T < Tc Then Tb = SolventTsat(P, Tc) Else Tb = Tc
             If T > Tb And Math.Abs(T - Tb) > 0.01 Then
-                Return CoolProp.PropsSI("L", "T", T, "P", P, SolventCompound)
+                Try
+                    Return CoolProp.PropsSI("L", "T", T, "P", P, SolventCompound)
+                Catch ex As Exception
+                    Return ExtrapolateAlongTPure(SolventCompound, "L", T, P, Tmin, Tmax, True)
+                End Try
             Else
                 Return ExtrapolateAlongTPure(SolventCompound, "L", T, P, Tmin, Tmax, True)
             End If
@@ -212,14 +255,42 @@ Namespace PropertyPackages
 
         Public Function AUX_PVAPi2(x As Double, T As Double) As Double
 
-            Return CoolProp.PropsSI("P", "T", T, "Q", 0, GetCoolPropName(x))
+            Dim fluid = GetCoolPropName(x)
+
+            Try
+                Return CoolProp.PropsSI("P", "T", T, "Q", 0, fluid)
+            Catch ex As Exception
+            End Try
+
+            ' This one value decides the phase split of the PT flash, so a refusal used to take the
+            ' flash, and the calculation of whatever stream it belongs to, with it. Outside the
+            ' solution's own range, ask at the nearest temperature inside it. The lower limit is
+            ' exclusive: at TMIN exactly there is still no saturation pressure, so step past it.
+            Try
+                Dim Tmin = Limit(fluid, "TMIN", 0.0) + 0.01
+                Dim Tmax = Limit(fluid, "TMAX", 10000.0)
+                Return CoolProp.PropsSI("P", "T", Math.Min(Math.Max(T, Tmin), Tmax), "Q", 0, fluid)
+            Catch ex As Exception
+            End Try
+
+            ' The solute is not volatile: what boils off is the solvent, and its own vapour pressure
+            ' is the value the solution's tends to as the solution gets weaker.
+            Try
+                Return CoolProp.PropsSI("P", "T", T, "Q", 0, SolventCompound)
+            Catch ex As Exception
+            End Try
+
+            WriteWarningMessage("CoolProp Warning: no vapour pressure for " & fluid & " at T = " & T &
+                                " K. Taking the solution as entirely liquid.")
+
+            Return 0.0
 
         End Function
 
         Public Function AUX_TSAT(P As Double, x As Double) As Double
 
             Dim Tmin = GetTmin(x)
-            Dim Tmax = CoolProp.Props1SI(GetCoolPropName(x), "TMAX")
+            Dim Tmax = Limit(GetCoolPropName(x), "TMAX", 10000.0)
             Dim xmax = SolutionDataList(SoluteName).xmax
             Dim xmin = SolutionDataList(SoluteName).xmin
 
@@ -265,7 +336,7 @@ Namespace PropertyPackages
                 Return CoolProp.PropsSI("L", "T", T, "P", P, GetCoolPropName(x))
             Catch ex As Exception
                 Dim Tmin = GetTmin(x)
-                Dim Tmax = CoolProp.Props1SI(GetCoolPropName(x), "TMAX")
+                Dim Tmax = Limit(GetCoolPropName(x), "TMAX", 10000.0)
                 Dim Tsat As Double = Double.NaN
                 Try : Tsat = AUX_TSAT(P, x) : Catch : End Try
                 Return ExtrapolateAlongTPure(GetCoolPropName(x), "L", T, P, Tmin, Tmax, False, Tsat)
@@ -281,7 +352,7 @@ Namespace PropertyPackages
                 Return CoolProp.PropsSI("D", "T", T, "P", P, GetCoolPropName(x))
             Catch ex As Exception
                 Dim Tmin = GetTmin(x)
-                Dim Tmax = CoolProp.Props1SI(GetCoolPropName(x), "TMAX")
+                Dim Tmax = Limit(GetCoolPropName(x), "TMAX", 10000.0)
                 Dim Tsat As Double = Double.NaN
                 Try : Tsat = AUX_TSAT(P, x) : Catch : End Try
                 Return ExtrapolateAlongTPure(GetCoolPropName(x), "D", T, P, Tmin, Tmax, False, Tsat)
@@ -296,7 +367,7 @@ Namespace PropertyPackages
                 Return CoolProp.PropsSI("I", "T", T, "P", 101325, GetCoolPropName(x))
             Catch ex As Exception
                 Dim Tmin = GetTmin(x)
-                Dim Tmax = CoolProp.Props1SI(GetCoolPropName(x), "TMAX")
+                Dim Tmax = Limit(GetCoolPropName(x), "TMAX", 10000.0)
                 Dim Tsat As Double = Double.NaN
                 Try : Tsat = AUX_TSAT(101325.0, x) : Catch : End Try
                 Return ExtrapolateAlongTPure(GetCoolPropName(x), "I", T, 101325.0, Tmin, Tmax, False, Tsat)
@@ -307,14 +378,20 @@ Namespace PropertyPackages
         Public Function AUX_VAPVISCMIX(T As Double, P As Double, MM As Double) As Double
 
             Dim Tb As Double
-            Dim Tmin = CoolProp.Props1SI(SolventCompound, "TMIN")
-            Dim Tmax = CoolProp.Props1SI(SolventCompound, "TMAX")
-            Dim Pmin = CoolProp.Props1SI(SolventCompound, "PMIN")
-            Dim Pmax = CoolProp.Props1SI(SolventCompound, "PMAX")
-            Dim Tc = CoolProp.Props1SI(SolventCompound, "TCRIT")
-            If T < Tc Then Tb = CoolProp.PropsSI("V", "P", P, "Q", 1, SolventCompound) Else Tb = Tc
+            Dim Tmin = Limit(SolventCompound, "TMIN", 0.0)
+            Dim Tmax = Limit(SolventCompound, "TMAX", 10000.0)
+            Dim Tc = Limit(SolventCompound, "TCRIT", Tmax)
+            ' The saturation temperature, as in the two routines alongside. This asked CoolProp for
+            ' "V" and compared a viscosity against a temperature: the saturated vapour of water is
+            ' some 1e-5 Pa.s, so the test below was true at every condition and the extrapolation
+            ' underneath it was unreachable.
+            If T < Tc Then Tb = SolventTsat(P, Tc) Else Tb = Tc
             If T > Tb And Math.Abs(T - Tb) > 0.01 Then
-                Return CoolProp.PropsSI("V", "T", T, "P", P, SolventCompound)
+                Try
+                    Return CoolProp.PropsSI("V", "T", T, "P", P, SolventCompound)
+                Catch ex As Exception
+                    Return ExtrapolateAlongTPure(SolventCompound, "V", T, P, Tmin, Tmax, True)
+                End Try
             Else
                 Return ExtrapolateAlongTPure(SolventCompound, "V", T, P, Tmin, Tmax, True)
             End If
@@ -329,7 +406,7 @@ Namespace PropertyPackages
                 Return CoolProp.PropsSI("V", "T", T, "P", P, GetCoolPropName(x))
             Catch ex As Exception
                 Dim Tmin = GetTmin(x)
-                Dim Tmax = CoolProp.Props1SI(GetCoolPropName(x), "TMAX")
+                Dim Tmax = Limit(GetCoolPropName(x), "TMAX", 10000.0)
                 Dim Tsat As Double = Double.NaN
                 Try : Tsat = AUX_TSAT(P, x) : Catch : End Try
                 Return ExtrapolateAlongTPure(GetCoolPropName(x), "V", T, P, Tmin, Tmax, False, Tsat)
@@ -340,14 +417,16 @@ Namespace PropertyPackages
         Public Overrides Function AUX_VAPDENS(ByVal T As Double, ByVal P As Double) As Double
 
             Dim Tb As Double
-            Dim Tmin = CoolProp.Props1SI(SolventCompound, "TMIN")
-            Dim Tmax = CoolProp.Props1SI(SolventCompound, "TMAX")
-            Dim Pmin = CoolProp.Props1SI(SolventCompound, "PMIN")
-            Dim Pmax = CoolProp.Props1SI(SolventCompound, "PMAX")
-            Dim Tc = CoolProp.Props1SI(SolventCompound, "TCRIT")
-            If T < Tc Then Tb = CoolProp.PropsSI("T", "P", P, "Q", 1, SolventCompound) Else Tb = Tc
+            Dim Tmin = Limit(SolventCompound, "TMIN", 0.0)
+            Dim Tmax = Limit(SolventCompound, "TMAX", 10000.0)
+            Dim Tc = Limit(SolventCompound, "TCRIT", Tmax)
+            If T < Tc Then Tb = SolventTsat(P, Tc) Else Tb = Tc
             If T > Tb And Math.Abs(T - Tb) > 0.01 Then
-                Return CoolProp.PropsSI("D", "T", T, "P", P, SolventCompound)
+                Try
+                    Return CoolProp.PropsSI("D", "T", T, "P", P, SolventCompound)
+                Catch ex As Exception
+                    Return ExtrapolateAlongTPure(SolventCompound, "D", T, P, Tmin, Tmax, True)
+                End Try
             Else
                 Return ExtrapolateAlongTPure(SolventCompound, "D", T, P, Tmin, Tmax, True)
             End If
@@ -396,7 +475,7 @@ Namespace PropertyPackages
             Dim x = Vxw(Array.IndexOf(RET_VNAMES(), SoluteCompound))
 
             Dim Tmin = GetTmin(x)
-            Dim Tmax = CoolProp.Props1SI(GetCoolPropName(x), "TMAX")
+            Dim Tmax = Limit(GetCoolPropName(x), "TMAX", 10000.0)
             Dim xmax = SolutionDataList(SoluteName).xmax
             Dim xmin = SolutionDataList(SoluteName).xmin
 
@@ -419,10 +498,7 @@ Namespace PropertyPackages
                     End Try
                 End If
             Else
-                Dim Tsat = CoolProp.PropsSI("T", "P", P, "Q", 1.0, SolventCompound)
-                Dim Hb As Double = DW_CalcEnthalpy(Vx, T, P, State.Liquid)
-                Dim Hvap As Double = (CoolProp.PropsSI("H", "P", P, "Q", 1.0, SolventCompound) - CoolProp.PropsSI("H", "P", P, "Q", 0.0, SolventCompound)) / 1000
-                Return Hb + Hvap
+                Return DW_CalcEnthalpy(Vx, T, P, State.Liquid) + LatentHeat("H", P)
             End If
 
         End Function
@@ -439,7 +515,7 @@ Namespace PropertyPackages
             Dim x = Vxw(Array.IndexOf(RET_VNAMES(), SoluteCompound))
 
             Dim Tmin = GetTmin(x)
-            Dim Tmax = CoolProp.Props1SI(GetCoolPropName(x), "TMAX")
+            Dim Tmax = Limit(GetCoolPropName(x), "TMAX", 10000.0)
 
             If st = State.Liquid Then
                 Try
@@ -450,10 +526,7 @@ Namespace PropertyPackages
                     Return ExtrapolateAlongTPure(GetCoolPropName(x), "S", T, P, Tmin, Tmax, False, Tsat) / 1000
                 End Try
             Else
-                Dim Tsat = CoolProp.PropsSI("T", "P", P, "Q", 1.0, SolventCompound)
-                Dim Sb As Double = DW_CalcEntropy(Vx, T, P, State.Liquid)
-                Dim Svap As Double = (CoolProp.PropsSI("S", "P", P, "Q", 1.0, SolventCompound) - CoolProp.PropsSI("S", "P", P, "Q", 0.0, SolventCompound)) / 1000
-                Return Sb + Svap
+                Return DW_CalcEntropy(Vx, T, P, State.Liquid) + LatentHeat("S", P)
             End If
 
         End Function
