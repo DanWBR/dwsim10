@@ -41,6 +41,9 @@ Namespace SpecialOps
 
         <NonSerialized> <Xml.Serialization.XmlIgnore> Public f As Object
 
+        ''' <summary>Holds the compiled expression between calculations.</summary>
+        <NonSerialized> <Xml.Serialization.XmlIgnore> Private _expressions As New ExpressionCache
+
         Protected m_SourceObjectData As New SpecialOps.Helpers.SpecialOpObjectInfo
         Protected m_TargetObjectData As New SpecialOps.Helpers.SpecialOpObjectInfo
 
@@ -472,15 +475,12 @@ Namespace SpecialOps
         ''' <returns>The numeric result of evaluating the expression.</returns>
         Public Function ParseExpression() As Double
 
-            ExpContext = New Flee.PublicTypes.ExpressionContext
-            ExpContext.Imports.AddType(GetType(System.Math))
+            Dim context = _expressions.GetContext("XY")
 
-            ExpContext.Variables.Add("X", Double.Parse(Me.GetSourceVarValue))
-            ExpContext.Variables.Add("Y", Double.Parse(Me.GetTargetVarValue))
-            ExpContext.Options.ParseCulture = Globalization.CultureInfo.InvariantCulture
-            Expr = Me.ExpContext.CompileGeneric(Of Double)(Me.Expression)
+            ExpressionCache.SetVariable(context, "X", Double.Parse(Me.GetSourceVarValue))
+            ExpressionCache.SetVariable(context, "Y", Double.Parse(Me.GetTargetVarValue))
 
-            Return Expr.Evaluate
+            Return _expressions.GetCompiled("XY", Me.Expression).Evaluate
 
         End Function
 
@@ -493,21 +493,18 @@ Namespace SpecialOps
 
             If Me.GraphicObject.Active Then
 
-                ExpContext = New Flee.PublicTypes.ExpressionContext
-                ExpContext.Options.ParseCulture = Globalization.CultureInfo.InvariantCulture
-                ExpContext.Imports.AddType(GetType(System.Math))
-
                 If Not Me.GetSourceVarValue Is Nothing And Not Me.GetTargetVarValue Is Nothing Then
 
                     Try
 
                         With Me
 
-                            .ExpContext.Variables.Add("X", Double.Parse(.GetSourceVarValue))
-                            .ExpContext.Variables.Add("Y", Double.Parse(.GetTargetVarValue))
-                            .Expr = .ExpContext.CompileGeneric(Of Double)(.Expression)
+                            Dim context = _expressions.GetContext("XY")
 
-                            Dim val = .Expr.Evaluate
+                            ExpressionCache.SetVariable(context, "X", Double.Parse(.GetSourceVarValue))
+                            ExpressionCache.SetVariable(context, "Y", Double.Parse(.GetTargetVarValue))
+
+                            Dim val = _expressions.GetCompiled("XY", .Expression).Evaluate
 
                             If Not Me.MaxVal.HasValue And Not Me.MinVal.HasValue Then
                                 Me.SetTargetVarValue(val)

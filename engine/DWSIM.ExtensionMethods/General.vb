@@ -306,9 +306,7 @@ Public Module General
             Return True
         Else
             Try
-                If Not SharedClasses.ExpressionParser.ParserInitialized Then SharedClasses.ExpressionParser.InitializeExpressionParser()
-                Dim Expr = SharedClasses.ExpressionParser.ExpContext.CompileGeneric(Of Double)(str)
-                Expr.Evaluate()
+                SharedClasses.ExpressionParser.ThreadCache.GetCompiled("", str).Evaluate()
                 Return True
             Catch ex As Exception
                 Return False
@@ -322,10 +320,8 @@ Public Module General
         If Double.TryParse(str, New Double) Then
             Return Double.Parse(str)
         Else
-            If Not SharedClasses.ExpressionParser.ParserInitialized Then SharedClasses.ExpressionParser.InitializeExpressionParser()
             Try
-                Dim Expr = SharedClasses.ExpressionParser.ExpContext.CompileGeneric(Of Double)(str)
-                Return Expr.Evaluate()
+                Return SharedClasses.ExpressionParser.ThreadCache.GetCompiled("", str).Evaluate()
             Catch ex As Exception
                 Throw New Exception("Error parsing the math expression '" & str & "'. Make sure to use the dot as the decimal separator for numbers in math expressions, and refrain from using thousands separators to avoid parsing errors.", ex)
             End Try

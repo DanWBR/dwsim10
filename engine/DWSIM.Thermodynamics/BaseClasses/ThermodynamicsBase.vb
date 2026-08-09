@@ -1325,18 +1325,11 @@ Namespace BaseClasses
                                     Case KOpt.Constant
                                         .Kvalue = .ConstantKeqValue
                                     Case KOpt.Expression
-                                        If .ExpContext Is Nothing Then
-                                            .ExpContext = New Flee.PublicTypes.ExpressionContext
-                                            .ExpContext.Options.ParseCulture = Globalization.CultureInfo.InvariantCulture
-                                            With .ExpContext
-                                                .Imports.AddType(GetType(System.Math))
-                                            End With
-                                        End If
-                                        .ExpContext.Options.ParseCulture = Globalization.CultureInfo.InvariantCulture
-                                        .ExpContext.Variables.Clear()
-                                        .ExpContext.Variables.Add("T", T)
-                                        .Expr = .ExpContext.CompileGeneric(Of Double)(.Expression)
-                                        .Kvalue = Math.Exp(.Expr.Evaluate)
+                                        ' the reaction is a flowsheet-level object and the solver
+                                        ' runs in parallel, so the cache has to be thread-private
+                                        Dim cache = SharedClasses.ExpressionParser.ThreadCache
+                                        SharedClasses.ExpressionCache.SetVariable(cache.GetContext("Keq"), "T", T)
+                                        .Kvalue = Math.Exp(cache.GetCompiled("Keq", .Expression).Evaluate)
                                     Case KOpt.Gibbs
                                         Dim id(.Components.Count - 1) As String
                                         Dim stcoef(.Components.Count - 1) As Double

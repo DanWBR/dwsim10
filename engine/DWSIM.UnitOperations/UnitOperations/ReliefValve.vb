@@ -20,6 +20,9 @@ Namespace UnitOperations
 
         Implements IExternalUnitOperation
 
+        ''' <summary>Holds the compiled opening/Kv relationship expression between calculations.</summary>
+        <Xml.Serialization.XmlIgnore> Private _expressions As New DWSIM.SharedClasses.ExpressionCache
+
         Private UOName As String = "Relief Valve"
 
         Private UODescription As String = "Safety Relief Valve model"
@@ -487,13 +490,8 @@ Namespace UnitOperations
             Select Case DefinedOpeningKvRelationShipType
                 Case OpeningKvRelationshipType.UserDefined
                     Try
-                        Dim ExpContext As New Flee.PublicTypes.ExpressionContext()
-                        ExpContext.Imports.AddType(GetType(System.Math))
-                        ExpContext.Variables.Clear()
-                        ExpContext.Options.ParseCulture = Globalization.CultureInfo.InvariantCulture
-                        ExpContext.Variables.Add("OP", OpeningPct)
-                        Dim Expr = ExpContext.CompileGeneric(Of Double)(PercentOpeningVersusPercentKvExpression)
-                        Kvc = Expr.Evaluate() / 100
+                        DWSIM.SharedClasses.ExpressionCache.SetVariable(_expressions.GetContext("OP"), "OP", OpeningPct)
+                        Kvc = _expressions.GetCompiled("OP", PercentOpeningVersusPercentKvExpression).Evaluate() / 100
                     Catch ex As Exception
                         Throw New Exception("Invalid expression for Kv[Cv]/Opening relationship.")
                     End Try

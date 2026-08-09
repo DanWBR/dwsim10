@@ -10249,66 +10249,92 @@ Final3:
         End Function
 
 
+        ''' <summary>A property equation broken into the expression Flee sees and its two units.</summary>
+        Private Class ParsedEquation
+            Public Expression As String
+            Public XUnit As String
+            Public YUnit As String
+        End Class
+
+        ''' <summary>
+        ''' Equations already broken apart, keyed by the text as the compound database stores it.
+        ''' The result depends on that text alone, so every thread can share it.
+        ''' </summary>
+        Private Shared ReadOnly _parsedEquations As New System.Collections.Concurrent.ConcurrentDictionary(Of String, ParsedEquation)
+
+        ''' <summary>Splits a property equation into the expression to evaluate and the units it is written in.</summary>
+        Private Shared Function SplitEquation(ByVal expression As String) As ParsedEquation
+
+            Dim lterm As String = ""
+            Dim rterm As String = ""
+
+            If expression.Contains("=") Then
+                lterm = expression.Split("=")(0).Replace(" ", "").ToLower()
+                rterm = expression.Split("=")(1).TrimEnd(".").ToLower()
+            Else
+                rterm = expression.TrimEnd(".").ToLower()
+            End If
+
+            Dim numexp As String = ""
+            Dim yunit As String = ""
+            Dim xunit As String = ""
+
+            If expression.Contains("where") Then
+                numexp = rterm.Split("where")(0).Replace(" ", "").Replace("ln", "log")
+                Dim unit1, unit2 As String
+                unit1 = rterm.Split(New String() {"where"}, StringSplitOptions.RemoveEmptyEntries)(1).Split(New String() {"and", ","}, StringSplitOptions.RemoveEmptyEntries)(0).Trim
+                unit2 = rterm.Split(New String() {"where"}, StringSplitOptions.RemoveEmptyEntries)(1).Split(New String() {"and", ","}, StringSplitOptions.RemoveEmptyEntries)(1).Trim
+                If unit1.Contains("T In") Then
+                    xunit = unit1.Split(New String() {"in"}, StringSplitOptions.RemoveEmptyEntries)(1).Trim
+                    yunit = unit2.Split(New String() {"in"}, StringSplitOptions.RemoveEmptyEntries)(1).Trim
+                Else
+                    xunit = unit2.Split(New String() {"in"}, StringSplitOptions.RemoveEmptyEntries)(1).Trim
+                    yunit = unit1.Split(New String() {"in"}, StringSplitOptions.RemoveEmptyEntries)(1).Trim
+                End If
+            Else
+                numexp = rterm.Replace(" ", "").Replace("ln", "log")
+            End If
+
+            numexp = numexp.Trim(New Char() {vbCrLf, vbCr, vbLf, vbTab})
+
+            If lterm.Contains("ln") Then
+                numexp = "exp(" + numexp + ")"
+            End If
+
+            Return New ParsedEquation With {
+                .Expression = numexp.Replace("e", "k").Replace("kxp", "exp").Trim,
+                .XUnit = xunit,
+                .YUnit = yunit
+            }
+
+        End Function
+
         Public Shared Function ParseEquation(ByVal expression As String, ByVal A As Double, ByVal B As Double, ByVal C As Double, ByVal D As Double, ByVal E As Double, ByVal T As Double) As Double
 
             If expression = "" Then Return 0.0
 
             Try
 
-                Dim lterm As String = ""
-                Dim rterm As String = ""
+                Dim parsed As ParsedEquation = _parsedEquations.GetOrAdd(expression, AddressOf SplitEquation)
 
-                If expression.Contains("=") Then
-                    lterm = expression.Split("=")(0).Replace(" ", "").ToLower()
-                    rterm = expression.Split("=")(1).TrimEnd(".").ToLower()
-                Else
-                    rterm = expression.TrimEnd(".").ToLower()
-                End If
+                ' one context per thread: this routine is reached from the flash algorithms, which
+                ' the solver runs in parallel
+                Dim cache = SharedClasses.ExpressionParser.ThreadCache
+                Dim context = cache.GetContext("tabcdkfgh")
 
-                Dim numexp As String = ""
-                Dim yunit As String = ""
-                Dim xunit As String = ""
+                SharedClasses.ExpressionCache.SetVariable(context, "t", cv.ConvertToSI(parsed.XUnit, T))
+                SharedClasses.ExpressionCache.SetVariable(context, "a", A)
+                SharedClasses.ExpressionCache.SetVariable(context, "b", B)
+                SharedClasses.ExpressionCache.SetVariable(context, "c", C)
+                SharedClasses.ExpressionCache.SetVariable(context, "d", D)
+                SharedClasses.ExpressionCache.SetVariable(context, "k", E)
+                SharedClasses.ExpressionCache.SetVariable(context, "f", 0.0#)
+                SharedClasses.ExpressionCache.SetVariable(context, "g", 0.0#)
+                SharedClasses.ExpressionCache.SetVariable(context, "h", 0.0#)
 
-                If expression.Contains("where") Then
-                    numexp = rterm.Split("where")(0).Replace(" ", "").Replace("ln", "log")
-                    Dim unit1, unit2 As String
-                    unit1 = rterm.Split(New String() {"where"}, StringSplitOptions.RemoveEmptyEntries)(1).Split(New String() {"and", ","}, StringSplitOptions.RemoveEmptyEntries)(0).Trim
-                    unit2 = rterm.Split(New String() {"where"}, StringSplitOptions.RemoveEmptyEntries)(1).Split(New String() {"and", ","}, StringSplitOptions.RemoveEmptyEntries)(1).Trim
-                    If unit1.Contains("T In") Then
-                        xunit = unit1.Split(New String() {"in"}, StringSplitOptions.RemoveEmptyEntries)(1).Trim
-                        yunit = unit2.Split(New String() {"in"}, StringSplitOptions.RemoveEmptyEntries)(1).Trim
-                    Else
-                        xunit = unit2.Split(New String() {"in"}, StringSplitOptions.RemoveEmptyEntries)(1).Trim
-                        yunit = unit1.Split(New String() {"in"}, StringSplitOptions.RemoveEmptyEntries)(1).Trim
-                    End If
-                Else
-                    numexp = rterm.Replace(" ", "").Replace("ln", "log")
-                End If
+                Dim result As Double = cache.GetCompiled("tabcdkfgh", parsed.Expression).Evaluate()
 
-                numexp = numexp.Trim(New Char() {vbCrLf, vbCr, vbLf, vbTab})
-
-                If lterm.Contains("ln") Then
-                    numexp = "exp(" + numexp + ")"
-                End If
-
-                Dim ec = New Flee.PublicTypes.ExpressionContext
-                ec.Imports.AddType(GetType(System.Math))
-                ec.Options.ParseCulture = Globalization.CultureInfo.InvariantCulture
-
-                ec.Variables.Clear()
-                ec.Variables.Add("t", cv.ConvertToSI(xunit, T))
-                ec.Variables.Add("a", A)
-                ec.Variables.Add("b", B)
-                ec.Variables.Add("c", C)
-                ec.Variables.Add("d", D)
-                ec.Variables.Add("k", E)
-                ec.Variables.Add("f", 0.0#)
-                ec.Variables.Add("g", 0.0#)
-                ec.Variables.Add("h", 0.0#)
-
-                Dim result As Double = ec.CompileGeneric(Of Double)(numexp.Replace("e", "k").Replace("kxp", "exp").Trim).Evaluate()
-
-                Return cv.ConvertToSI(yunit, result)
+                Return cv.ConvertToSI(parsed.YUnit, result)
 
             Catch ex As Exception
 
