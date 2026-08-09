@@ -114,6 +114,22 @@ Namespace Reactors
 
 #Region "Auxiliary Functions"
 
+        ''' <summary>
+        ''' Molar density of a phase at the given conditions, in mol/m3, taken from the
+        ''' compressibility factor. Used by the concentration-based reaction bases.
+        ''' </summary>
+        ''' <returns>The molar density, or zero when the phase has no valid compressibility factor.</returns>
+        Private Shared Function MolarDensity(pp As PropertyPackages.PropertyPackage, Vz As Double(),
+                                             T As Double, P As Double, state As PhaseName) As Double
+
+            Dim Z = pp.AUX_Z(Vz, T, P, state)
+
+            If Double.IsNaN(Z) OrElse Z <= 0.0 Then Return 0.0
+
+            Return P / (Z * 8.314 * T)
+
+        End Function
+
         Private Function FunctionValueRLX(x As Double, ridx As Integer, IObj As InspectorItem) As Double
 
             If Double.IsNaN(x) Then Throw New Exception("Convergence Error")
@@ -170,11 +186,16 @@ Namespace Reactors
             tms.SetTemperature(T)
 
             Dim cpv(tms.Phases(0).Compounds.Count - 1), cpl(tms.Phases(0).Compounds.Count - 1), basis(tms.Phases(0).Compounds.Count - 1) As Double
+            Dim Vzg(tms.Phases(0).Compounds.Count - 1) As Double
             Dim f As Double
 
             Dim Vz As Double() = pp.RET_VMOL(PropertyPackages.Phase.Mixture)
 
             Dim fugv(tms.Phases(0).Compounds.Count - 1), fugl(tms.Phases(0).Compounds.Count - 1), prod As Double
+
+            ' Molar density of each phase, computed on first use so the bases that do not need it
+            ' do not pay for the extra compressibility factor.
+            Dim rhomolv As Double = -1.0, rhomoll As Double = -1.0
 
             IObj?.SetCurrent()
             If rv > 0 Then fugv = pp.DW_CalcFugCoeff(Vz, T, P, PropertyPackages.State.Vapor)
@@ -182,15 +203,20 @@ Namespace Reactors
             If rl > 0 Then fugl = pp.DW_CalcFugCoeff(Vz, T, P, PropertyPackages.State.Liquid)
             IObj?.SetCurrent()
 
+            ' A compound absent from the feed has a zero mole fraction, and a zero raised to a
+            ' positive stoichiometric coefficient makes the whole product zero, which leaves the
+            ' residual flat and the solve stuck at no conversion. The activity and fugacity terms
+            ' have always been floored here; every other basis reads the same floored composition
+            ' now, instead of the raw one.
             i = 0
             For Each s As Compound In tms.Phases(0).Compounds.Values
                 If s.MoleFraction > 0.0# Then
-                    cpv(i) = fugv(i) * Vz(i) * P / P0
-                    cpl(i) = fugl(i) * Vz(i)
+                    Vzg(i) = Vz(i)
                 Else
-                    cpv(i) = fugv(i) * 0.01 * P / P0
-                    cpl(i) = fugl(i) * 0.01
+                    Vzg(i) = 0.01
                 End If
+                cpv(i) = fugv(i) * Vzg(i) * P / P0
+                cpl(i) = fugl(i) * Vzg(i)
                 i += 1
             Next
 
@@ -203,11 +229,17 @@ Namespace Reactors
                             Case ReactionBasis.Activity, ReactionBasis.Fugacity
                                 basis(j) = cpv(j)
                             Case ReactionBasis.MassFrac
-                                basis(j) = pp.AUX_CONVERT_MOL_TO_MASS(Vz)(j)
+                                basis(j) = pp.AUX_CONVERT_MOL_TO_MASS(Vzg)(j)
                             Case ReactionBasis.MolarFrac
-                                basis(j) = Vz(j)
+                                basis(j) = Vzg(j)
+                            Case ReactionBasis.MolarConc
+                                If rhomolv < 0.0 Then rhomolv = MolarDensity(pp, Vz, T, P, PhaseName.Vapor)
+                                basis(j) = (Vzg(j) * rhomolv).ConvertFromSI(.EquilibriumReactionBasisUnits)
+                            Case ReactionBasis.MassConc
+                                If rhomolv < 0.0 Then rhomolv = MolarDensity(pp, Vz, T, P, PhaseName.Vapor)
+                                basis(j) = (Vzg(j) * rhomolv * s.ConstantProperties.Molar_Weight / 1000.0).ConvertFromSI(.EquilibriumReactionBasisUnits)
                             Case ReactionBasis.PartialPress
-                                basis(j) = (Vz(j) * fugv(j) * P).ConvertFromSI(.EquilibriumReactionBasisUnits)
+                                basis(j) = (Vzg(j) * fugv(j) * P).ConvertFromSI(.EquilibriumReactionBasisUnits)
                             Case Else
                                 Throw New Exception("Selected Reaction Basis is not supported.")
                         End Select
@@ -217,11 +249,17 @@ Namespace Reactors
                             Case ReactionBasis.Activity, ReactionBasis.Fugacity
                                 basis(j) = cpl(j)
                             Case ReactionBasis.MassFrac
-                                basis(j) = pp.AUX_CONVERT_MOL_TO_MASS(Vz)(j)
+                                basis(j) = pp.AUX_CONVERT_MOL_TO_MASS(Vzg)(j)
                             Case ReactionBasis.MolarFrac
-                                basis(j) = Vz(j)
+                                basis(j) = Vzg(j)
+                            Case ReactionBasis.MolarConc
+                                If rhomoll < 0.0 Then rhomoll = MolarDensity(pp, Vz, T, P, PhaseName.Liquid)
+                                basis(j) = (Vzg(j) * rhomoll).ConvertFromSI(.EquilibriumReactionBasisUnits)
+                            Case ReactionBasis.MassConc
+                                If rhomoll < 0.0 Then rhomoll = MolarDensity(pp, Vz, T, P, PhaseName.Liquid)
+                                basis(j) = (Vzg(j) * rhomoll * s.ConstantProperties.Molar_Weight / 1000.0).ConvertFromSI(.EquilibriumReactionBasisUnits)
                             Case ReactionBasis.PartialPress
-                                basis(j) = (Vz(j) * fugl(j) * P).ConvertFromSI(.EquilibriumReactionBasisUnits)
+                                basis(j) = (Vzg(j) * fugl(j) * P).ConvertFromSI(.EquilibriumReactionBasisUnits)
                             Case Else
                                 Throw New Exception("Selected Reaction Basis is not supported.")
                         End Select
@@ -317,6 +355,7 @@ Namespace Reactors
             End If
 
             Dim cpv(tms.Phases(0).Compounds.Count - 1), cpl(tms.Phases(0).Compounds.Count - 1), basis(tms.Phases(0).Compounds.Count - 1) As Double
+            Dim Vzg(tms.Phases(0).Compounds.Count - 1) As Double
             Dim f(x.Length - 1) As Double
 
             Dim Vz As Double() = pp.RET_VMOL(PropertyPackages.Phase.Mixture)
@@ -334,17 +373,26 @@ Namespace Reactors
                 IObj?.SetCurrent()
             End If
 
+            ' A compound absent from the feed has a zero mole fraction, and a zero raised to a
+            ' positive stoichiometric coefficient makes the whole product zero, which leaves the
+            ' residual flat and the solve stuck at no conversion. The activity and fugacity terms
+            ' have always been floored here; every other basis reads the same floored composition
+            ' now, instead of the raw one.
             i = 0
             For Each s As Compound In tms.Phases(0).Compounds.Values
                 If s.MoleFraction > 0.0# Then
-                    cpv(i) = fugv(i) * Vz(i) * P / P0
-                    cpl(i) = fugl(i) * Vz(i)
+                    Vzg(i) = Vz(i)
                 Else
-                    cpv(i) = fugv(i) * 0.01 * P / P0
-                    cpl(i) = fugl(i) * 0.01
+                    Vzg(i) = 0.01
                 End If
+                cpv(i) = fugv(i) * Vzg(i) * P / P0
+                cpl(i) = fugl(i) * Vzg(i)
                 i += 1
             Next
+
+            ' Molar density of each phase, computed on first use so the bases that do not need it
+            ' do not pay for the extra compressibility factor.
+            Dim rhomolv As Double = -1.0, rhomoll As Double = -1.0
 
             For i = 0 To Me.Reactions.Count - 1
                 prod(i) = 1.0#
@@ -356,11 +404,17 @@ Namespace Reactors
                                 Case ReactionBasis.Activity, ReactionBasis.Fugacity
                                     basis(j) = cpv(j)
                                 Case ReactionBasis.MassFrac
-                                    basis(j) = pp.AUX_CONVERT_MOL_TO_MASS(Vz)(j)
+                                    basis(j) = pp.AUX_CONVERT_MOL_TO_MASS(Vzg)(j)
                                 Case ReactionBasis.MolarFrac
-                                    basis(j) = Vz(j)
+                                    basis(j) = Vzg(j)
+                                Case ReactionBasis.MolarConc
+                                    If rhomolv < 0.0 Then rhomolv = MolarDensity(pp, Vz, T, P, PhaseName.Vapor)
+                                    basis(j) = (Vzg(j) * rhomolv).ConvertFromSI(.EquilibriumReactionBasisUnits)
+                                Case ReactionBasis.MassConc
+                                    If rhomolv < 0.0 Then rhomolv = MolarDensity(pp, Vz, T, P, PhaseName.Vapor)
+                                    basis(j) = (Vzg(j) * rhomolv * s.ConstantProperties.Molar_Weight / 1000.0).ConvertFromSI(.EquilibriumReactionBasisUnits)
                                 Case ReactionBasis.PartialPress
-                                    basis(j) = (Vz(j) * fugv(j) * P).ConvertFromSI(.EquilibriumReactionBasisUnits)
+                                    basis(j) = (Vzg(j) * fugv(j) * P).ConvertFromSI(.EquilibriumReactionBasisUnits)
                                 Case Else
                                     Throw New Exception("Selected Reaction Basis is not supported.")
                             End Select
@@ -370,11 +424,17 @@ Namespace Reactors
                                 Case ReactionBasis.Activity, ReactionBasis.Fugacity
                                     basis(j) = cpl(j)
                                 Case ReactionBasis.MassFrac
-                                    basis(j) = pp.AUX_CONVERT_MOL_TO_MASS(Vz)(j)
+                                    basis(j) = pp.AUX_CONVERT_MOL_TO_MASS(Vzg)(j)
                                 Case ReactionBasis.MolarFrac
-                                    basis(j) = Vz(j)
+                                    basis(j) = Vzg(j)
+                                Case ReactionBasis.MolarConc
+                                    If rhomoll < 0.0 Then rhomoll = MolarDensity(pp, Vz, T, P, PhaseName.Liquid)
+                                    basis(j) = (Vzg(j) * rhomoll).ConvertFromSI(.EquilibriumReactionBasisUnits)
+                                Case ReactionBasis.MassConc
+                                    If rhomoll < 0.0 Then rhomoll = MolarDensity(pp, Vz, T, P, PhaseName.Liquid)
+                                    basis(j) = (Vzg(j) * rhomoll * s.ConstantProperties.Molar_Weight / 1000.0).ConvertFromSI(.EquilibriumReactionBasisUnits)
                                 Case ReactionBasis.PartialPress
-                                    basis(j) = (Vz(j) * fugl(j) * P).ConvertFromSI(.EquilibriumReactionBasisUnits)
+                                    basis(j) = (Vzg(j) * fugl(j) * P).ConvertFromSI(.EquilibriumReactionBasisUnits)
                                 Case Else
                                     Throw New Exception("Selected Reaction Basis is not supported.")
                             End Select
