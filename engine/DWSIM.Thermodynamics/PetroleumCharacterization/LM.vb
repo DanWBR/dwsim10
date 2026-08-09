@@ -39,6 +39,32 @@ Namespace Utilities.PetroleumCharacterization
         Private sum As Double
         Private its As Integer = 0
 
+        ''' <summary>
+        ''' Builds the starting coefficients of a fit from the data itself. The correlations here
+        ''' have the same form as the ones in the maths library, so the estimate is made there.
+        ''' </summary>
+        ''' <returns>Five coefficients, or Nothing when the data cannot produce an estimate.</returns>
+        Public Shared Function GetInitialEstimate(x As Double(), y As Double(), fittype As FitType) As Double()
+
+            Dim equivalent As DWSIM.MathOps.MathEx.LMFit.FitType
+
+            Select Case fittype
+                Case FitType.Pvap
+                    equivalent = DWSIM.MathOps.MathEx.LMFit.FitType.Pvap
+                Case FitType.LiqVisc
+                    equivalent = DWSIM.MathOps.MathEx.LMFit.FitType.LiqVisc
+                Case FitType.HVap
+                    equivalent = DWSIM.MathOps.MathEx.LMFit.FitType.HVap
+                Case FitType.Cp
+                    equivalent = DWSIM.MathOps.MathEx.LMFit.FitType.Cp
+                Case Else
+                    Return Nothing
+            End Select
+
+            Return DWSIM.MathOps.MathEx.LMFit.GetInitialEstimate(x, y, equivalent)
+
+        End Function
+
         Public Function GetCoeffs(ByVal x As Double(), ByVal y As Double(), ByVal inest As Double(), ByVal fittype As FitType, _
                                 ByVal epsg As Double, ByVal epsf As Double, ByVal epsx As Double, ByVal maxits As Integer) As Object
 

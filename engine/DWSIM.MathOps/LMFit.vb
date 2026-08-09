@@ -20,6 +20,151 @@
         Private sum As Double
         Private its As Integer = 0
 
+        ''' <summary>
+        ''' Builds the starting coefficients of a fit from the data itself, by least squares on the
+        ''' form once it has been linearised.
+        ''' </summary>
+        ''' <param name="x">The independent variable, normally temperature in K.</param>
+        ''' <param name="y">The measured property.</param>
+        ''' <param name="fittype">Which correlation is being fitted.</param>
+        ''' <returns>Five coefficients, or Nothing when the data cannot produce an estimate.</returns>
+        ''' <remarks>
+        ''' The exponential correlations are evaluated as exp(A + B/T + C ln T + D T^E), so a guess
+        ''' carried over from another substance is not merely a poor starting point: with B fixed at
+        ''' a few thousand and a cryogenic temperature the exponent runs into the thousands and the
+        ''' first residual is already infinite, which no amount of iteration recovers from. Read off
+        ''' the data instead, and the estimate lands on the right order of magnitude whatever the
+        ''' substance and whatever the temperature range.
+        ''' </remarks>
+        Public Shared Function GetInitialEstimate(x As Double(), y As Double(), fittype As FitType) As Double()
+
+            If x Is Nothing OrElse y Is Nothing OrElse x.Length < 2 OrElse x.Length <> y.Length Then Return Nothing
+
+            Select Case fittype
+
+                Case FitType.Pvap, FitType.LiqVisc, FitType.HVap
+
+                    ' ln(y) = A + B / T + C ln(T), with the last two terms left at zero
+                    Dim rows As New List(Of Double())
+                    Dim rhs As New List(Of Double)
+
+                    For i As Integer = 0 To x.Length - 1
+                        If x(i) > 0.0 AndAlso y(i) > 0.0 Then
+                            rows.Add(New Double() {1.0, 1.0 / x(i), Math.Log(x(i))})
+                            rhs.Add(Math.Log(y(i)))
+                        End If
+                    Next
+
+                    Dim sol = LeastSquares(rows, rhs)
+
+                    If sol Is Nothing Then Return Nothing
+
+                    ' E starts at one so that the D T^E term is not collinear with A, which
+                    ' is what it becomes when E is zero and it leaves the solver free to
+                    ' wander along a direction that changes nothing
+                    Return New Double() {sol(0), sol(1), sol(2), 0.0, 1.0}
+
+                Case FitType.Cp
+
+                    ' A + B T + C T^2 + D T^3 + E T^4
+                    Dim rows As New List(Of Double())
+                    Dim rhs As New List(Of Double)
+
+                    Dim terms As Integer = Math.Min(5, x.Length)
+
+                    For i As Integer = 0 To x.Length - 1
+                        Dim row(terms - 1) As Double
+                        For k As Integer = 0 To terms - 1
+                            row(k) = x(i) ^ k
+                        Next
+                        rows.Add(row)
+                        rhs.Add(y(i))
+                    Next
+
+                    Dim sol = LeastSquares(rows, rhs)
+
+                    If sol Is Nothing Then Return Nothing
+
+                    Dim c(4) As Double
+                    For k As Integer = 0 To terms - 1
+                        c(k) = sol(k)
+                    Next
+
+                    Return c
+
+                Case Else
+
+                    Return Nothing
+
+            End Select
+
+        End Function
+
+        ''' <summary>
+        ''' Solves a linear least-squares problem through the normal equations with partial pivoting.
+        ''' </summary>
+        ''' <returns>The coefficients, or Nothing when the system is singular or underdetermined.</returns>
+        Private Shared Function LeastSquares(rows As List(Of Double()), rhs As List(Of Double)) As Double()
+
+            If rows.Count = 0 Then Return Nothing
+
+            Dim n As Integer = rows(0).Length
+
+            If rows.Count < n Then Return Nothing
+
+            Dim a(n - 1, n - 1) As Double
+            Dim b(n - 1) As Double
+
+            For r As Integer = 0 To rows.Count - 1
+                For i As Integer = 0 To n - 1
+                    b(i) += rows(r)(i) * rhs(r)
+                    For j As Integer = 0 To n - 1
+                        a(i, j) += rows(r)(i) * rows(r)(j)
+                    Next
+                Next
+            Next
+
+            For col As Integer = 0 To n - 1
+
+                Dim piv As Integer = col
+                For r As Integer = col + 1 To n - 1
+                    If Math.Abs(a(r, col)) > Math.Abs(a(piv, col)) Then piv = r
+                Next
+
+                If Math.Abs(a(piv, col)) < 0.000000000000001 Then Return Nothing
+
+                If piv <> col Then
+                    For j As Integer = 0 To n - 1
+                        Dim t = a(col, j) : a(col, j) = a(piv, j) : a(piv, j) = t
+                    Next
+                    Dim tb = b(col) : b(col) = b(piv) : b(piv) = tb
+                End If
+
+                For r As Integer = col + 1 To n - 1
+                    Dim f = a(r, col) / a(col, col)
+                    For j As Integer = col To n - 1
+                        a(r, j) -= f * a(col, j)
+                    Next
+                    b(r) -= f * b(col)
+                Next
+
+            Next
+
+            Dim sol(n - 1) As Double
+
+            For i As Integer = n - 1 To 0 Step -1
+                Dim s = b(i)
+                For j As Integer = i + 1 To n - 1
+                    s -= a(i, j) * sol(j)
+                Next
+                sol(i) = s / a(i, i)
+                If Double.IsNaN(sol(i)) OrElse Double.IsInfinity(sol(i)) Then Return Nothing
+            Next
+
+            Return sol
+
+        End Function
+
         Public Function GetCoeffs(ByVal x As Double(), ByVal y As Double(), ByVal inest As Double(), ByVal fittype As FitType,
                                 ByVal epsg As Double, ByVal epsf As Double, ByVal epsx As Double, ByVal maxits As Integer) As Tuple(Of Double(), String, Double, Integer)
 
