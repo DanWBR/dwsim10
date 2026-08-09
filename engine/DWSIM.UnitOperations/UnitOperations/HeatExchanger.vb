@@ -589,6 +589,94 @@ Namespace UnitOperations
 
         End Sub
 
+        ''' <summary>Whether the stream's property package rewrites any calculated property.</summary>
+        Private Shared Function HasPropertyOverrides(str As MaterialStream) As Boolean
+
+            Return str IsNot Nothing AndAlso str.PropertyPackage IsNot Nothing AndAlso
+                   str.PropertyPackage.PropertyOverrides.Count > 0
+
+        End Function
+
+        ''' <summary>
+        ''' Temperature of a stream's material at the given pressure and enthalpy, honouring the
+        ''' property overrides carried by its property package.
+        ''' </summary>
+        ''' <param name="str">The stream whose material and property package are used.</param>
+        ''' <param name="fallback">What the flash returned, which is the answer when there are no overrides.</param>
+        ''' <remarks>
+        ''' A property override is a script that rewrites a calculated phase property, and it runs in
+        ''' MaterialStream.Calculate, not in the flash. The exchanger iterates on the flash alone, so
+        ''' with an override in place it converged on the enthalpy the correlations give while the
+        ''' outlet stream reported the overridden one, and the two sides of the energy balance
+        ''' disagreed. Going through a stream costs a full property calculation, so it is done only
+        ''' when the package actually carries an override.
+        ''' </remarks>
+        Private Shared Function OverriddenTemperature(str As MaterialStream, P As Double, H As Double, fallback As Double) As Double
+
+            If str Is Nothing OrElse str.PropertyPackage Is Nothing Then Return fallback
+            If str.PropertyPackage.PropertyOverrides.Count = 0 Then Return fallback
+
+            ' An override rewrites the enthalpy after the flash has run, so a pressure-enthalpy
+            ' flash cannot honour one: it solves the correlations and the answer is replaced
+            ' afterwards. The mapping has to be inverted here, by looking for the temperature whose
+            ' overridden enthalpy is the one being asked for. The flash result is the first guess.
+            Dim T0 As Double = fallback
+            Dim H0 As Double = OverriddenEnthalpy(str, P, T0, Double.NaN)
+
+            If Double.IsNaN(H0) Then Return fallback
+            If Math.Abs(H0 - H) < 0.000001 Then Return T0
+
+            Dim T1 As Double = T0 + 1.0
+            Dim H1 As Double = OverriddenEnthalpy(str, P, T1, Double.NaN)
+
+            Dim it As Integer = 0
+
+            While Not Double.IsNaN(H1) AndAlso Math.Abs(H1 - H) > 0.000001 AndAlso it < 50
+
+                Dim slope As Double = (H1 - H0) / (T1 - T0)
+
+                If Math.Abs(slope) < 0.000000000001 Then Exit While
+
+                Dim T2 As Double = T1 - (H1 - H) / slope
+
+                If Double.IsNaN(T2) OrElse T2 <= 0.0 Then Exit While
+
+                T0 = T1 : H0 = H1
+                T1 = T2 : H1 = OverriddenEnthalpy(str, P, T1, Double.NaN)
+
+                it += 1
+
+            End While
+
+            If Double.IsNaN(H1) OrElse it >= 50 Then Return fallback
+
+            Return T1
+
+        End Function
+
+        ''' <summary>
+        ''' Enthalpy of a stream's material at the given pressure and temperature, honouring the
+        ''' property overrides carried by its property package.
+        ''' </summary>
+        ''' <param name="str">The stream whose material and property package are used.</param>
+        ''' <param name="fallback">What the flash returned, which is the answer when there are no overrides.</param>
+        Private Shared Function OverriddenEnthalpy(str As MaterialStream, P As Double, T As Double, fallback As Double) As Double
+
+            If str Is Nothing OrElse str.PropertyPackage Is Nothing Then Return fallback
+            If str.PropertyPackage.PropertyOverrides.Count = 0 Then Return fallback
+
+            Dim tmpstr As MaterialStream = str.Clone
+            tmpstr.PropertyPackage = str.PropertyPackage
+            tmpstr.SetFlowsheet(str.FlowSheet)
+            tmpstr.Phases(0).Properties.pressure = P
+            tmpstr.Phases(0).Properties.temperature = T
+            tmpstr.SpecType = StreamSpec.Temperature_and_Pressure
+            tmpstr.Calculate()
+
+            Return tmpstr.Phases(0).Properties.enthalpy.GetValueOrDefault
+
+        End Function
+
         ''' <summary>
         ''' Computes the shell-and-tube overall heat-transfer coefficient (U) and the tube/shell side
         ''' pressure drops using Tinker's method, given bulk fluid properties and throughput mass flows.
@@ -1706,7 +1794,7 @@ Namespace UnitOperations
                     If DebugMode Then AppendDebugLine(String.Format("Doing a PH flash to calculate cold stream outlet temperature... P = {0} Pa, H = {1} kJ/[kg.K]", Pc2, Hc2))
                     IObj?.SetCurrent()
                     Dim tmp = StInCold.PropertyPackage.CalculateEquilibrium2(FlashCalculationType.PressureEnthalpy, Pc2, Hc2, Tc1)
-                    Tc2 = tmp.CalculatedTemperature
+                    Tc2 = OverriddenTemperature(StInCold, Pc2, Hc2, tmp.CalculatedTemperature)
                     Hh2 = Hh1 + DeltaHh
                     StInHot.PropertyPackage.CurrentMaterialStream = StInHot
 
@@ -1715,7 +1803,7 @@ Namespace UnitOperations
 
                     IObj?.SetCurrent()
                     tmp = StInHot.PropertyPackage.CalculateEquilibrium2(FlashCalculationType.PressureEnthalpy, Ph2, Hh2, Th1)
-                    Th2 = tmp.CalculatedTemperature
+                    Th2 = OverriddenTemperature(StInHot, Ph2, Hh2, tmp.CalculatedTemperature)
 
                     If DebugMode Then AppendDebugLine(String.Format("Calculated hot stream outlet temperature T2 = {0} K", Th2))
 
@@ -1834,7 +1922,7 @@ Namespace UnitOperations
                     If DebugMode Then AppendDebugLine(String.Format("Doing a PH flash to calculate hot stream outlet temperature... P = {0} Pa, H = {1} kJ/[kg.K]", Ph2, Hh2))
                     IObj?.SetCurrent()
                     tmp = StInHot.PropertyPackage.CalculateEquilibrium2(FlashCalculationType.PressureEnthalpy, Ph2, Hh2, 0)
-                    Th2 = tmp.CalculatedTemperature
+                    Th2 = OverriddenTemperature(StInHot, Ph2, Hh2, tmp.CalculatedTemperature)
                     If DebugMode Then AppendDebugLine(String.Format("Calculated hot stream outlet temperature T2 = {0} K", Th2))
 
                     LMTD = Q / seg_ua.Sum
@@ -1884,14 +1972,14 @@ Namespace UnitOperations
                         StInCold.PropertyPackage.CurrentMaterialStream = StInCold
                         IObj?.SetCurrent()
                         tmp = StInCold.PropertyPackage.CalculateEquilibrium2(FlashCalculationType.PressureEnthalpy, Pc2, Hc2, Tc2)
-                        Tc2 = tmp.CalculatedTemperature
+                        Tc2 = OverriddenTemperature(StInCold, Pc2, Hc2, tmp.CalculatedTemperature)
                         PIc2 = (1 + tmp.GetLiquidPhase1MoleFraction) * (1 + tmp.GetVaporPhaseMoleFraction * (1 + tmp.GetSolidPhaseMoleFraction)) 'phase indicator cold stream
                         If DebugMode Then AppendDebugLine(String.Format("Doing a PH flash to calculate cold stream outlet temperature... P = {0} Pa, H = {1} kJ/[kg.K]  ===> Tc2 = {2} K", Pc2, Hc2, Tc2))
 
                         StInHot.PropertyPackage.CurrentMaterialStream = StInHot
                         IObj?.SetCurrent()
                         tmp = StInHot.PropertyPackage.CalculateEquilibrium2(FlashCalculationType.PressureEnthalpy, Ph2, Hh2, Th2)
-                        Th2 = tmp.CalculatedTemperature
+                        Th2 = OverriddenTemperature(StInHot, Ph2, Hh2, tmp.CalculatedTemperature)
                         PIh2 = (1 + tmp.GetLiquidPhase1MoleFraction) * (1 + tmp.GetVaporPhaseMoleFraction * (1 + tmp.GetSolidPhaseMoleFraction)) 'phase indicator hot stream
                         If DebugMode Then AppendDebugLine(String.Format("Doing a PH flash to calculate hot stream outlet temperature... P = {0} Pa, H = {1} kJ/[kg.K]  ===> Th2 = {2} K", Ph2, Hh2, Th2))
 
@@ -2045,7 +2133,7 @@ Namespace UnitOperations
                     If DebugMode Then AppendDebugLine(String.Format("Doing a PH flash to calculate cold stream outlet temperature... P = {0} Pa, H = {1} kJ/[kg.K]", Pc2, Hc2))
                     IObj?.SetCurrent()
                     Dim tmp = StInCold.PropertyPackage.CalculateEquilibrium2(FlashCalculationType.PressureEnthalpy, Pc2, Hc2, Tc1)
-                    Tc2 = tmp.CalculatedTemperature
+                    Tc2 = OverriddenTemperature(StInCold, Pc2, Hc2, tmp.CalculatedTemperature)
                     Hh2 = Hh1 + DeltaHh
                     StInHot.PropertyPackage.CurrentMaterialStream = StInHot
 
@@ -2054,7 +2142,7 @@ Namespace UnitOperations
 
                     IObj?.SetCurrent()
                     tmp = StInHot.PropertyPackage.CalculateEquilibrium2(FlashCalculationType.PressureEnthalpy, Ph2, Hh2, Th1)
-                    Th2 = tmp.CalculatedTemperature
+                    Th2 = OverriddenTemperature(StInHot, Ph2, Hh2, tmp.CalculatedTemperature)
 
                     If DebugMode Then AppendDebugLine(String.Format("Calculated hot stream outlet temperature T2 = {0} K", Th2))
 
@@ -2080,7 +2168,7 @@ Namespace UnitOperations
                     If DebugMode Then AppendDebugLine(String.Format("Doing a PT flash to calculate hot stream outlet enthalpy... P = {0} Pa, T = K", Ph2, Th2))
                     IObj?.SetCurrent()
                     Dim tmp = StInHot.PropertyPackage.CalculateEquilibrium2(FlashCalculationType.PressureTemperature, Ph2, Th2, 0.0#)
-                    Hh2 = tmp.CalculatedEnthalpy
+                    Hh2 = OverriddenEnthalpy(StInHot, Ph2, Th2, tmp.CalculatedEnthalpy)
                     Q = -Wh * (Hh2 - Hh1)
                     If Q > MaxHeatExchange Then
                         Throw New Exception(String.Format("Invalid Outlet Temperature for Hot Fluid: {0} kW required but only {1} kW are available", Q, MaxHeatExchange))
@@ -2091,7 +2179,7 @@ Namespace UnitOperations
                     If DebugMode Then AppendDebugLine(String.Format("Doing a PH flash to calculate cold stream outlet temperature... P = {0} Pa, H = {1} kJ/[kg.K]", Pc2, Hc2))
                     IObj?.SetCurrent()
                     tmp = StInCold.PropertyPackage.CalculateEquilibrium2(FlashCalculationType.PressureEnthalpy, Pc2, Hc2, Th2)
-                    Tc2 = tmp.CalculatedTemperature
+                    Tc2 = OverriddenTemperature(StInCold, Pc2, Hc2, tmp.CalculatedTemperature)
                     If DebugMode Then AppendDebugLine(String.Format("Calculated cold stream outlet temperature T2 = {0} K", Tc2))
                     Select Case Me.FlowDir
                         Case FlowDirection.CoCurrent
@@ -2112,7 +2200,7 @@ Namespace UnitOperations
                     If DebugMode Then AppendDebugLine(String.Format("Doing a PT flash to calculate cold stream outlet enthalpy... P = {0} Pa, T = K", Pc2, Tc2))
                     IObj?.SetCurrent()
                     Dim tmp = StInCold.PropertyPackage.CalculateEquilibrium2(FlashCalculationType.PressureTemperature, Pc2, Tc2, 0)
-                    Hc2 = tmp.CalculatedEnthalpy
+                    Hc2 = OverriddenEnthalpy(StInCold, Pc2, Tc2, tmp.CalculatedEnthalpy)
                     Q = Wc * (Hc2 - Hc1)
                     If Q > MaxHeatExchange Then
                         Throw New Exception(String.Format("Invalid Outlet Temperature for Cold Fluid: {0} kW required but only {1} kW are available", Q, MaxHeatExchange))
@@ -2123,7 +2211,7 @@ Namespace UnitOperations
                     IObj?.SetCurrent()
                     If DebugMode Then AppendDebugLine(String.Format("Doing a PH flash to calculate hot stream outlet temperature... P = {0} Pa, H = {1} kJ/[kg.K]", Ph2, Hh2))
                     tmp = StInHot.PropertyPackage.CalculateEquilibrium2(FlashCalculationType.PressureEnthalpy, Ph2, Hh2, Th1)
-                    Th2 = tmp.CalculatedTemperature
+                    Th2 = OverriddenTemperature(StInHot, Ph2, Hh2, tmp.CalculatedTemperature)
                     If DebugMode Then AppendDebugLine(String.Format("Calculated hot stream outlet temperature T2 = {0} K", Th2))
 
                     Select Case Me.FlowDir
@@ -2148,7 +2236,7 @@ Namespace UnitOperations
                             If DebugMode Then AppendDebugLine(String.Format("Doing a PT flash to calculate cold stream outlet enthalpy... P = {0} Pa, T = {1} K", Pc2, Tc2))
                             IObj?.SetCurrent()
                             Dim tmp = StInCold.PropertyPackage.CalculateEquilibrium2(FlashCalculationType.PressureTemperature, Pc2, Tc2, 0)
-                            Hc2 = tmp.CalculatedEnthalpy
+                            Hc2 = OverriddenEnthalpy(StInCold, Pc2, Tc2, tmp.CalculatedEnthalpy)
                             Q = Wc * (Hc2 - Hc1)
                             DeltaHh = -(Q + HeatLoss) / Wh
                             Hh2 = Hh1 + DeltaHh
@@ -2156,15 +2244,18 @@ Namespace UnitOperations
                             If DebugMode Then AppendDebugLine(String.Format("Doing a PH flash to calculate hot stream outlet temperature... P = {0} Pa, H = {1} kJ/[kg.K]", Ph2, Hh2))
                             IObj?.SetCurrent()
                             tmp = StInHot.PropertyPackage.CalculateEquilibrium2(FlashCalculationType.PressureEnthalpy, Ph2, Hh2, 0)
-                            Th2 = tmp.CalculatedTemperature
+                            Th2 = OverriddenTemperature(StInHot, Ph2, Hh2, tmp.CalculatedTemperature)
                             If DebugMode Then AppendDebugLine(String.Format("Calculated hot stream outlet temperature T2 = {0} K", Th2))
                         Case SpecifiedTemperature.Hot_Fluid
                             Th2 = TempHotOut
                             StInHot.PropertyPackage.CurrentMaterialStream = StInHot
                             If DebugMode Then AppendDebugLine(String.Format("Doing a PT flash to calculate hot stream outlet enthalpy... P = {0} Pa, T = {1} K", Ph2, Th2))
                             IObj?.SetCurrent()
-                            Dim tmp = StInCold.PropertyPackage.CalculateEquilibrium2(FlashCalculationType.PressureTemperature, Ph2, Th2, 0)
-                            Hh2 = tmp.CalculatedEnthalpy
+                            ' the hot outlet enthalpy comes from the hot stream; this asked the cold
+                            ' stream's package for it, which answers with the cold composition
+                            ' whenever the two sides do not share one package
+                            Dim tmp = StInHot.PropertyPackage.CalculateEquilibrium2(FlashCalculationType.PressureTemperature, Ph2, Th2, 0)
+                            Hh2 = OverriddenEnthalpy(StInHot, Ph2, Th2, tmp.CalculatedEnthalpy)
                             Q = -Wh * (Hh2 - Hh1)
                             DeltaHc = (Q - HeatLoss) / Wc
                             Hc2 = Hc1 + DeltaHc
@@ -2172,7 +2263,7 @@ Namespace UnitOperations
                             If DebugMode Then AppendDebugLine(String.Format("Doing a PH flash to calculate cold stream outlet temperature... P = {0} Pa, H = {1} kJ/[kg.K]", Pc2, Hc2))
                             IObj?.SetCurrent()
                             tmp = StInCold.PropertyPackage.CalculateEquilibrium2(FlashCalculationType.PressureEnthalpy, Pc2, Hc2, 0)
-                            Tc2 = tmp.CalculatedTemperature
+                            Tc2 = OverriddenTemperature(StInCold, Pc2, Hc2, tmp.CalculatedTemperature)
                             If DebugMode Then AppendDebugLine(String.Format("Calculated cold stream outlet temperature T2 = {0} K", Tc2))
                     End Select
                     Select Case Me.FlowDir
@@ -2218,8 +2309,8 @@ Namespace UnitOperations
                     IObj?.SetCurrent()
                     Dim tmp = StIn0.PropertyPackage.CalculateEquilibrium2(FlashCalculationType.PressureVaporFraction, P1 - DP1, OutletVaporFraction1, T10)
                     T11 = tmp.CalculatedTemperature.GetValueOrDefault()
-                    H11 = tmp.CalculatedEnthalpy()
-                    Q1 = -StIn0.GetMassFlow() * (tmp.CalculatedEnthalpy - StIn0.GetMassEnthalpy())
+                    H11 = OverriddenEnthalpy(StIn0, P1 - DP1, T11, tmp.CalculatedEnthalpy)
+                    Q1 = -StIn0.GetMassFlow() * (H11 - StIn0.GetMassEnthalpy())
 
                     Q = Math.Abs(Q1)
 
@@ -2232,7 +2323,7 @@ Namespace UnitOperations
                         StIn1.PropertyPackage.CurrentMaterialStream = StIn1
                         IObj?.SetCurrent()
                         tmp = StIn1.PropertyPackage.CalculateEquilibrium2(FlashCalculationType.PressureEnthalpy, P1 - DP1, H11, T11)
-                        T11 = tmp.CalculatedTemperature.GetValueOrDefault()
+                        T11 = OverriddenTemperature(StIn1, P1 - DP1, H11, tmp.CalculatedTemperature.GetValueOrDefault())
 
                     End If
 
@@ -2242,7 +2333,7 @@ Namespace UnitOperations
                     StIn1.PropertyPackage.CurrentMaterialStream = StIn1
                     IObj?.SetCurrent()
                     tmp = StIn1.PropertyPackage.CalculateEquilibrium2(FlashCalculationType.PressureEnthalpy, P2 - DP2, H21, T21)
-                    T21 = tmp.CalculatedTemperature.GetValueOrDefault()
+                    T21 = OverriddenTemperature(StIn1, P2 - DP2, H21, tmp.CalculatedTemperature.GetValueOrDefault())
                     'OutletVaporFraction2 = tmp.GetVaporPhaseMoleFraction()
 
                     If T10 > T20 Then
@@ -2304,8 +2395,8 @@ Namespace UnitOperations
                     IObj?.SetCurrent()
                     Dim tmp = StIn1.PropertyPackage.CalculateEquilibrium2(FlashCalculationType.PressureVaporFraction, P1 - DP1, OutletVaporFraction2, T10)
                     T11 = tmp.CalculatedTemperature.GetValueOrDefault()
-                    H11 = tmp.CalculatedEnthalpy()
-                    Q1 = -StIn1.GetMassFlow() * (tmp.CalculatedEnthalpy - StIn1.GetMassEnthalpy())
+                    H11 = OverriddenEnthalpy(StIn1, P1 - DP1, T11, tmp.CalculatedEnthalpy)
+                    Q1 = -StIn1.GetMassFlow() * (H11 - StIn1.GetMassEnthalpy())
 
                     Q = Math.Abs(Q1)
 
@@ -2318,7 +2409,7 @@ Namespace UnitOperations
                         StIn1.PropertyPackage.CurrentMaterialStream = StIn1
                         IObj?.SetCurrent()
                         tmp = StIn1.PropertyPackage.CalculateEquilibrium2(FlashCalculationType.PressureEnthalpy, P1 - DP1, H11, T11)
-                        T11 = tmp.CalculatedTemperature.GetValueOrDefault()
+                        T11 = OverriddenTemperature(StIn1, P1 - DP1, H11, tmp.CalculatedTemperature.GetValueOrDefault())
 
                     End If
 
@@ -2329,7 +2420,7 @@ Namespace UnitOperations
                     StIn0.PropertyPackage.CurrentMaterialStream = StIn0
                     IObj?.SetCurrent()
                     tmp = StIn0.PropertyPackage.CalculateEquilibrium2(FlashCalculationType.PressureEnthalpy, P2 - DP2, H21, T21)
-                    T21 = tmp.CalculatedTemperature.GetValueOrDefault()
+                    T21 = OverriddenTemperature(StIn0, P2 - DP2, H21, tmp.CalculatedTemperature.GetValueOrDefault())
                     'OutletVaporFraction1 = tmp.GetVaporPhaseMoleFraction()
 
                     If T10 > T20 Then
@@ -2934,13 +3025,13 @@ Namespace UnitOperations
                             IObj?.SetCurrent()
                             tmp = StInCold.PropertyPackage.CalculateEquilibrium2(FlashCalculationType.PressureEnthalpy, Pc2, Hc2, Tc2)
                             Tc2_ant = Tc2
-                            Tc2 = tmp.CalculatedTemperature
+                            Tc2 = OverriddenTemperature(StInCold, Pc2, Hc2, tmp.CalculatedTemperature)
                             Tc2 = 0.1 * Tc2 + 0.9 * Tc2_ant
                             StInHot.PropertyPackage.CurrentMaterialStream = StInHot
                             IObj?.SetCurrent()
                             tmp = StInHot.PropertyPackage.CalculateEquilibrium2(FlashCalculationType.PressureEnthalpy, Ph2, Hh2, Th2)
                             Th2_ant = Th2
-                            Th2 = tmp.CalculatedTemperature
+                            Th2 = OverriddenTemperature(StInHot, Ph2, Hh2, tmp.CalculatedTemperature)
                             Th2 = 0.1 * Th2 + 0.9 * Th2_ant
                         End If
 
@@ -3116,8 +3207,15 @@ Namespace UnitOperations
                 StOutCold.Phases(0).Properties.pressure = Pc2
                 StOutHot.Phases(0).Properties.enthalpy = Hh2
                 StOutCold.Phases(0).Properties.enthalpy = Hc2
-                StOutHot.SetFlashSpec("PH")
-                StOutCold.SetFlashSpec("PH")
+
+                ' With a property override in place the enthalpy the exchanger works in and the one
+                ' the outlet stream reports are two different scales, because the override rewrites
+                ' the value after the flash. Handing the outlet an enthalpy would make it solve the
+                ' correlations again and land on a temperature that does not match the duty, and the
+                ' two sides of the exchanger would not balance. The temperature is the one state
+                ' both scales agree on, so it is what the outlet is specified with.
+                StOutHot.SetFlashSpec(If(HasPropertyOverrides(StOutHot), "PT", "PH"))
+                StOutCold.SetFlashSpec(If(HasPropertyOverrides(StOutCold), "PT", "PH"))
 
                 StOutCold.AtEquilibrium = False
                 StOutHot.AtEquilibrium = False
