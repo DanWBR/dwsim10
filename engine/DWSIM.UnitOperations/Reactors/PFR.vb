@@ -371,16 +371,10 @@ Namespace Reactors
 
                         Else
 
-                            rxn.ExpContext = New Flee.PublicTypes.ExpressionContext
-                            rxn.ExpContext.Imports.AddType(GetType(System.Math))
+                            SetExpressionVariable(GetExpressionContext(rxn.ID), "T",
+                                                  ims.Phases(0).Properties.temperature.GetValueOrDefault)
 
-                            rxn.ExpContext.Variables.Clear()
-                            rxn.ExpContext.Variables.Add("T", ims.Phases(0).Properties.temperature.GetValueOrDefault)
-                            rxn.ExpContext.Options.ParseCulture = Globalization.CultureInfo.InvariantCulture
-
-                            rxn.Expr = rxn.ExpContext.CompileGeneric(Of Double)(rxn.ReactionKinFwdExpression)
-
-                            kxf = rxn.Expr.Evaluate
+                            kxf = GetCompiledExpression(rxn.ID, rxn.ReactionKinFwdExpression).Evaluate
 
                         End If
 
@@ -390,16 +384,10 @@ Namespace Reactors
 
                         Else
 
-                            rxn.ExpContext = New Flee.PublicTypes.ExpressionContext
-                            rxn.ExpContext.Imports.AddType(GetType(System.Math))
+                            SetExpressionVariable(GetExpressionContext(rxn.ID), "T",
+                                                  ims.Phases(0).Properties.temperature.GetValueOrDefault)
 
-                            rxn.ExpContext.Variables.Clear()
-                            rxn.ExpContext.Variables.Add("T", ims.Phases(0).Properties.temperature.GetValueOrDefault)
-                            rxn.ExpContext.Options.ParseCulture = Globalization.CultureInfo.InvariantCulture
-
-                            rxn.Expr = rxn.ExpContext.CompileGeneric(Of Double)(rxn.ReactionKinRevExpression)
-
-                            kxr = rxn.Expr.Evaluate
+                            kxr = GetCompiledExpression(rxn.ID, rxn.ReactionKinRevExpression).Evaluate
 
                         End If
 
@@ -443,12 +431,9 @@ Namespace Reactors
 
                             Dim numval, denmval As Double
 
-                            rxn.ExpContext = New Flee.PublicTypes.ExpressionContext
-                            rxn.ExpContext.Imports.AddType(GetType(System.Math))
-                            rxn.ExpContext.Options.ParseCulture = Globalization.CultureInfo.InvariantCulture
+                            Dim context = GetExpressionContext(rxn.ID)
 
-                            rxn.ExpContext.Variables.Clear()
-                            rxn.ExpContext.Variables.Add("T", T)
+                            SetExpressionVariable(context, "T", T)
 
                             Dim ir As Integer = 1
                             Dim ip As Integer = 1
@@ -458,26 +443,22 @@ Namespace Reactors
                                 cvar = C(sb.CompName) * convfactors(sb.CompName)
                                 If sb.StoichCoeff < 0 Then
                                     IObj2?.Paragraphs.Add(String.Format("R{0} ({1}): {2} {3}", ir.ToString, sb.CompName, cvar, rxn.ConcUnit))
-                                    rxn.ExpContext.Variables.Add("R" & ir.ToString, cvar)
+                                    SetExpressionVariable(context, "R" & ir.ToString, cvar)
                                     ir += 1
                                 ElseIf sb.StoichCoeff > 0 Then
                                     IObj2?.Paragraphs.Add(String.Format("P{0} ({1}): {2} {3}", ip.ToString, sb.CompName, cvar, rxn.ConcUnit))
-                                    rxn.ExpContext.Variables.Add("P" & ip.ToString, cvar)
+                                    SetExpressionVariable(context, "P" & ip.ToString, cvar)
                                     ip += 1
                                 Else
                                     IObj2?.Paragraphs.Add(String.Format("N{0} ({1}): {2} {3}", ine.ToString, sb.CompName, cvar, rxn.ConcUnit))
-                                    rxn.ExpContext.Variables.Add("N" & ine.ToString, cvar)
+                                    SetExpressionVariable(context, "N" & ine.ToString, cvar)
                                     ine += 1
                                 End If
                             Next
 
-                            rxn.Expr = rxn.ExpContext.CompileGeneric(Of Double)(rxn.RateEquationNumerator)
+                            numval = GetCompiledExpression(rxn.ID, rxn.RateEquationNumerator).Evaluate
 
-                            numval = rxn.Expr.Evaluate
-
-                            rxn.Expr = rxn.ExpContext.CompileGeneric(Of Double)(rxn.RateEquationDenominator)
-
-                            denmval = rxn.Expr.Evaluate
+                            denmval = GetCompiledExpression(rxn.ID, rxn.RateEquationDenominator).Evaluate
 
                             IObj2?.Paragraphs.Add(String.Format("Numerator Expression: {0}", rxn.RateEquationNumerator))
                             IObj2?.Paragraphs.Add(String.Format("Numerator Value: {0}", numval))
@@ -771,6 +752,8 @@ Namespace Reactors
         ''' </summary>
         ''' <param name="args">Optional. If <c>True</c>, indicates a dynamic-mode call.</param>
         Public Overrides Sub Calculate(Optional ByVal args As Object = Nothing)
+
+            ResetExpressionCache()
 
             'this reduces the volume step once a negative moalr amount is found by the ODE solver
             If Calculate_Internal(1.0, args) Then

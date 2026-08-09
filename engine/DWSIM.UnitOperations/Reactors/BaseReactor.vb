@@ -630,6 +630,93 @@ Namespace Reactors
 
 #End Region
 
+#Region "    Reaction Expression Evaluation"
+
+        ''' <summary>Expression contexts used by this reactor, one per reaction.</summary>
+        <NonSerialized> Private _expressionContexts As Dictionary(Of String, Flee.PublicTypes.ExpressionContext)
+
+        ''' <summary>Expressions already compiled by this reactor, keyed by reaction and expression text.</summary>
+        <NonSerialized> Private _compiledExpressions As Dictionary(Of String, Flee.PublicTypes.IGenericExpression(Of Double))
+
+        ''' <summary>
+        ''' Discards the compiled expressions. Call it at the start of a calculation so that a
+        ''' reaction edited between two runs is picked up.
+        ''' </summary>
+        Protected Sub ResetExpressionCache()
+
+            _expressionContexts = Nothing
+            _compiledExpressions = Nothing
+
+        End Sub
+
+        ''' <summary>
+        ''' Returns the expression context of a reaction, creating it on first use.
+        ''' </summary>
+        ''' <param name="reactionID">Identifier of the reaction the expressions belong to.</param>
+        ''' <remarks>
+        ''' The context belongs to the reactor and not to the reaction because a reaction is a
+        ''' flowsheet-level object that two reactors may share, and the solver calculates unit
+        ''' operations in parallel.
+        ''' </remarks>
+        Protected Function GetExpressionContext(reactionID As String) As Flee.PublicTypes.ExpressionContext
+
+            If _expressionContexts Is Nothing Then _expressionContexts = New Dictionary(Of String, Flee.PublicTypes.ExpressionContext)
+
+            Dim context As Flee.PublicTypes.ExpressionContext = Nothing
+
+            If Not _expressionContexts.TryGetValue(reactionID, context) Then
+                context = New Flee.PublicTypes.ExpressionContext()
+                context.Imports.AddType(GetType(System.Math))
+                context.Options.ParseCulture = Globalization.CultureInfo.InvariantCulture
+                _expressionContexts.Add(reactionID, context)
+            End If
+
+            Return context
+
+        End Function
+
+        ''' <summary>
+        ''' Sets a variable on an expression context, defining it if it is not there yet.
+        ''' </summary>
+        Protected Shared Sub SetExpressionVariable(context As Flee.PublicTypes.ExpressionContext, name As String, value As Double)
+
+            If context.Variables.ContainsKey(name) Then
+                context.Variables(name) = value
+            Else
+                context.Variables.Add(name, value)
+            End If
+
+        End Sub
+
+        ''' <summary>
+        ''' Compiles an expression against the reaction's context and keeps the compiled form for
+        ''' the rest of the calculation.
+        ''' </summary>
+        ''' <param name="reactionID">Identifier of the reaction the expression belongs to.</param>
+        ''' <param name="expression">The expression text, as the user wrote it.</param>
+        ''' <remarks>
+        ''' Flee compiles to IL through Reflection.Emit, which costs far more than evaluating the
+        ''' result, so this must not be done inside an integration or convergence loop. Define every
+        ''' variable the expression reads before the first call for a given expression.
+        ''' </remarks>
+        Protected Function GetCompiledExpression(reactionID As String, expression As String) As Flee.PublicTypes.IGenericExpression(Of Double)
+
+            If _compiledExpressions Is Nothing Then _compiledExpressions = New Dictionary(Of String, Flee.PublicTypes.IGenericExpression(Of Double))
+
+            Dim key As String = reactionID & "|" & expression
+            Dim compiled As Flee.PublicTypes.IGenericExpression(Of Double) = Nothing
+
+            If Not _compiledExpressions.TryGetValue(key, compiled) Then
+                compiled = GetExpressionContext(reactionID).CompileGeneric(Of Double)(expression)
+                _compiledExpressions.Add(key, compiled)
+            End If
+
+            Return compiled
+
+        End Function
+
+#End Region
+
     End Class
 
 End Namespace
