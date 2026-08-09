@@ -12981,95 +12981,51 @@ Final3:
 
         End Function
 
+        ''' <summary>
+        ''' Restores the package from the block a host simulator saved with <see cref="Save"/>.
+        ''' </summary>
+        ''' <remarks>
+        ''' The payload is a length prefix and then UTF-8 XML: the package's own SaveData, the flash
+        ''' algorithm, and the two compound dictionaries, which are the one thing SaveData does not
+        ''' carry, because in a DWSIM file the compounds belong to the flowsheet rather than to the
+        ''' package.
+        '''
+        ''' It used to be a BinaryFormatter graph, and that path is gone rather than kept as a
+        ''' fallback, because there is nothing to fall back to. BinaryFormatter is removed from .NET,
+        ''' so on this build the old block cannot be read at all; and on the .NET Framework build,
+        ''' where it can, Save wrote the flash algorithm at index 4 and the models from 5 while Load
+        ''' read them from 6 and 7. A package saved by any version of this code failed to load again,
+        ''' so no host has a stream from here that ever round-tripped.
+        ''' </remarks>
         Public Sub Load(ByVal pStm As System.Runtime.InteropServices.ComTypes.IStream) Implements IPersistStreamInit.Load
-
-            Dim domain As AppDomain = AppDomain.CurrentDomain
 
             Try
 
-                Dim mySerializer As Binary.BinaryFormatter = New Binary.BinaryFormatter(Nothing, New System.Runtime.Serialization.StreamingContext())
+                Dim length As Integer = BitConverter.ToInt32(ReadExactly(pStm, 4), 0)
 
-                AddHandler domain.AssemblyResolve, New ResolveEventHandler(AddressOf MyResolveEventHandler)
+                If length < 0 Then Throw New IO.InvalidDataException(
+                    String.Format("The persisted block declares a length of {0} bytes.", length))
 
-                ' Read the length of the payload, and then the payload. Both reads go through a helper
-                ' that keeps asking until the stream has given what was asked for: IStream.Read is
-                ' allowed to return fewer bytes than requested, and taking the first answer as the whole
-                ' thing left the rest of the buffer as zeroes for the deserializer to choke on.
-                Dim arrLen As Byte() = ReadExactly(pStm, 4)
+                Dim payload = Text.Encoding.UTF8.GetString(ReadExactly(pStm, length)).
+                    TrimStart(ChrW(&HFEFF), " "c, CChar(vbCr), CChar(vbLf), CChar(vbTab))
 
-                Dim cb As Integer = BitConverter.ToInt32(arrLen, 0)
+                Dim root = XElement.Parse(payload)
 
-                If cb < 0 Then Throw New IO.InvalidDataException(
-                    String.Format("The persisted block declares a length of {0} bytes.", cb))
+                Dim packagedata = root.Element("PropertyPackage")
+                If packagedata IsNot Nothing Then LoadData(packagedata.Elements.ToList)
 
-                Dim bytes As Byte() = ReadExactly(pStm, cb)
-                ' The stream belongs to the host that called this method, not to us. Releasing a parameter
-                ' severs the caller's own wrapper over it: the next thing the host does with its stream
-                ' fails, or its runtime releases an interface pointer we already let go of and the process
-                ' dies with a corrupted heap. The marshaller already owns the reference for the call.
+                Dim flashdata = root.Element("FlashAlgorithm")
+                If flashdata IsNot Nothing Then
+                    Try
+                        Dim elements = flashdata.Elements.ToList
+                        _FlashAlgorithm = ReturnInstance(elements.Where(Function(x) x.Name = "Type").FirstOrDefault.Value)
+                        DirectCast(_FlashAlgorithm, Interfaces.ICustomXMLSerialization).LoadData(elements)
+                    Catch ex As Exception
+                    End Try
+                End If
 
-                ' Deserialize byte array    
-
-                Dim myarr As ArrayList
-
-                Using memoryStream As New System.IO.MemoryStream(bytes)
-
-                    myarr = mySerializer.Deserialize(memoryStream)
-
-                End Using
-
-                _availablecomps = myarr(0)
-                _selectedcomps = myarr(1)
-                '_ioquick = myarr(2)
-
-                Dim xmldoc = XDocument.Parse(myarr(6))
-                Dim fadata As List(Of XElement) = xmldoc.Element("Data").Elements.ToList
-                Try
-                    _FlashAlgorithm = ReturnInstance(fadata.Where(Function(x) x.Name = "Type").FirstOrDefault.Value)
-                    DirectCast(_FlashAlgorithm, Interfaces.ICustomXMLSerialization).LoadData(fadata)
-                Catch ex As Exception
-                End Try
-
-                Select Case Me.ComponentName
-                    Case "Peng-Robinson (PR)"
-                        CType(Me, PengRobinsonPropertyPackage).m_pr = myarr(7)
-                    Case "Peng-Robinson-Stryjek-Vera 2 (PRSV2-M)", "Peng-Robinson-Stryjek-Vera 2 (PRSV2)"
-                        CType(Me, PRSV2PropertyPackage).m_pr = myarr(7)
-                    Case "Peng-Robinson-Stryjek-Vera 2 (PRSV2-VL)"
-                        CType(Me, PRSV2VLPropertyPackage).m_pr = myarr(7)
-                    Case "Soave-Redlich-Kwong (SRK)"
-                        CType(Me, SRKPropertyPackage).m_pr = myarr(7)
-                    Case "Peng-Robinson / Lee-Kesler (PR/LK)"
-                        CType(Me, PengRobinsonLKPropertyPackage).m_pr = myarr(7)
-                        CType(Me, PengRobinsonLKPropertyPackage).m_lk = myarr(8)
-                    Case "UNIFAC"
-                        CType(Me, UNIFACPropertyPackage).m_pr = myarr(7)
-                    Case "UNIFAC-LL"
-                        CType(Me, UNIFACLLPropertyPackage).m_pr = myarr(7)
-                    Case "NRTL"
-                        CType(Me, NRTLPropertyPackage).m_pr = myarr(7)
-                        CType(Me, NRTLPropertyPackage).m_uni = myarr(8)
-                    Case "UNIQUAC"
-                        CType(Me, UNIQUACPropertyPackage).m_pr = myarr(7)
-                        CType(Me, UNIQUACPropertyPackage).m_uni = myarr(8)
-                    Case "Modified UNIFAC (Dortmund)"
-                        CType(Me, MODFACPropertyPackage).m_pr = myarr(7)
-                    Case "Chao-Seader"
-                        CType(Me, ChaoSeaderPropertyPackage).m_pr = myarr(7)
-                        CType(Me, ChaoSeaderPropertyPackage).m_lk = myarr(8)
-                        CType(Me, ChaoSeaderPropertyPackage).m_cs = myarr(9)
-                    Case "Grayson-Streed"
-                        CType(Me, GraysonStreedPropertyPackage).m_pr = myarr(7)
-                        CType(Me, GraysonStreedPropertyPackage).m_lk = myarr(8)
-                        CType(Me, GraysonStreedPropertyPackage).m_cs = myarr(9)
-                    Case "Lee-Kesler-Plöcker"
-                        CType(Me, LKPPropertyPackage).m_pr = myarr(7)
-                        CType(Me, LKPPropertyPackage).m_lk = myarr(8)
-                    Case "Raoult's Law", "IAPWS-IF97 Steam Tables"
-                End Select
-
-                myarr = Nothing
-                mySerializer = Nothing
+                _availablecomps = ReadCompounds(root.Element("AvailableCompounds"))
+                _selectedcomps = ReadCompounds(root.Element("SelectedCompounds"))
 
             Catch p_Ex As System.Exception
 
@@ -13078,92 +13034,35 @@ Final3:
                 If Not IsNothing(comEx) Then hcode = comEx.ErrorCode
                 ThrowCAPEException(p_Ex, "Error", p_Ex.Message, "IPersistStream", p_Ex.Source, p_Ex.StackTrace, "Load", hcode)
 
-            Finally
-
-                ' In a Finally, because the handler used to be removed on the last line of the Try: a
-                ' failure anywhere in the deserialization left it attached to the application domain
-                ' for good, and every load after that added another one.
-                RemoveHandler domain.AssemblyResolve, New ResolveEventHandler(AddressOf MyResolveEventHandler)
-
             End Try
 
         End Sub
 
+        ''' <summary>
+        ''' Writes the package into the stream the host supplied, as a length prefix and UTF-8 XML.
+        ''' </summary>
         Public Sub Save(ByVal pStm As System.Runtime.InteropServices.ComTypes.IStream, ByVal fClearDirty As Boolean) Implements IPersistStreamInit.Save
+
             Try
 
-                Dim props As New ArrayList
+                Dim root As New XElement("PropertyPackagePersistedState", New XAttribute("Version", "2"))
 
-                With props
+                root.Add(New XElement("PropertyPackage", SaveData().ToArray()))
 
-                    .Add(_availablecomps)
-                    .Add(_selectedcomps)
-                    .Add("")
-                    .Add(Nothing)
+                Try
+                    root.Add(New XElement("FlashAlgorithm",
+                                          DirectCast(FlashBase, Interfaces.ICustomXMLSerialization).SaveData().ToArray()))
+                Catch ex As Exception
+                End Try
 
-                    Dim xdata As New XDocument()
-                    xdata.AddFirst(New XElement("Data"))
-                    xdata.Element("Data").Add(DirectCast(FlashBase, Interfaces.ICustomXMLSerialization).SaveData())
+                root.Add(WriteCompounds("AvailableCompounds", _availablecomps))
+                root.Add(WriteCompounds("SelectedCompounds", _selectedcomps))
 
-                    .Add(xdata.ToString)
+                Dim bytes = Text.Encoding.UTF8.GetBytes(root.ToString(SaveOptions.DisableFormatting))
 
-                    Select Case Me.ComponentName
-                        Case "Peng-Robinson (PR)"
-                            .Add(CType(Me, PengRobinsonPropertyPackage).m_pr)
-                        Case "Peng-Robinson-Stryjek-Vera 2 (PRSV2-M)", "Peng-Robinson-Stryjek-Vera 2 (PRSV2)"
-                            .Add(CType(Me, PRSV2PropertyPackage).m_pr)
-                        Case "Peng-Robinson-Stryjek-Vera 2 (PRSV2-VL)"
-                            .Add(CType(Me, PRSV2VLPropertyPackage).m_pr)
-                        Case "Soave-Redlich-Kwong (SRK)"
-                            .Add(CType(Me, SRKPropertyPackage).m_pr)
-                        Case "Peng-Robinson / Lee-Kesler (PR/LK)"
-                            .Add(CType(Me, PengRobinsonLKPropertyPackage).m_pr)
-                            .Add(CType(Me, PengRobinsonLKPropertyPackage).m_lk)
-                        Case "UNIFAC"
-                            .Add(CType(Me, UNIFACPropertyPackage).m_pr)
-                        Case "UNIFAC-LL"
-                            .Add(CType(Me, UNIFACLLPropertyPackage).m_pr)
-                        Case "NRTL"
-                            .Add(CType(Me, NRTLPropertyPackage).m_pr)
-                            .Add(CType(Me, NRTLPropertyPackage).m_uni)
-                        Case "UNIQUAC"
-                            .Add(CType(Me, UNIQUACPropertyPackage).m_pr)
-                            .Add(CType(Me, UNIQUACPropertyPackage).m_uni)
-                        Case "Modified UNIFAC (Dortmund)"
-                            .Add(CType(Me, MODFACPropertyPackage).m_pr)
-                        Case "Chao-Seader"
-                            .Add(CType(Me, ChaoSeaderPropertyPackage).m_pr)
-                            .Add(CType(Me, ChaoSeaderPropertyPackage).m_lk)
-                            .Add(CType(Me, ChaoSeaderPropertyPackage).m_cs)
-                        Case "Grayson-Streed"
-                            .Add(CType(Me, GraysonStreedPropertyPackage).m_pr)
-                            .Add(CType(Me, GraysonStreedPropertyPackage).m_lk)
-                            .Add(CType(Me, GraysonStreedPropertyPackage).m_cs)
-                        Case "Lee-Kesler-Plöcker"
-                            .Add(CType(Me, LKPPropertyPackage).m_pr)
-                            .Add(CType(Me, LKPPropertyPackage).m_lk)
-                        Case "Raoult's Law", "IAPWS-IF97 Steam Tables"
-                    End Select
-
-                End With
-
-                Dim mySerializer As Binary.BinaryFormatter = New Binary.BinaryFormatter(Nothing, New System.Runtime.Serialization.StreamingContext())
-                Dim mstr As New MemoryStream
-                mySerializer.Serialize(mstr, props)
-                Dim bytes As Byte() = mstr.ToArray()
-                mstr.Close()
-
-                ' construct length (separate into two separate bytes)    
-
-                Dim arrLen As Byte() = BitConverter.GetBytes(bytes.Length)
-
-                ' Save the array in the stream    
-                pStm.Write(arrLen, arrLen.Length, IntPtr.Zero)
+                ' The stream belongs to the host: written to, and not released here.
+                pStm.Write(BitConverter.GetBytes(bytes.Length), 4, IntPtr.Zero)
                 pStm.Write(bytes, bytes.Length, IntPtr.Zero)
-                ' The stream belongs to the host that called this method, not to us. Releasing a parameter
-                ' severs the caller's own wrapper over it: the next thing the host does with its stream
-                ' fails, or its runtime releases an interface pointer we already let go of and the process
-                ' dies with a corrupted heap. The marshaller already owns the reference for the call.
 
             Catch p_Ex As System.Exception
 
@@ -13179,6 +13078,49 @@ Final3:
             End If
 
         End Sub
+
+        ''' <summary>One element per compound, each holding what ConstantProperties itself writes.</summary>
+        Private Shared Function WriteCompounds(name As String, compounds As Dictionary(Of String, BaseClasses.ConstantProperties)) As XElement
+
+            Dim element As New XElement(name)
+
+            If compounds Is Nothing Then Return element
+
+            For Each pair In compounds
+                element.Add(New XElement("Compound", New XAttribute("Name", pair.Key),
+                                         DirectCast(pair.Value, Interfaces.ICustomXMLSerialization).SaveData().ToArray()))
+            Next
+
+            Return element
+
+        End Function
+
+        ''' <summary>The compounds back out of one of those blocks, keyed as they were keyed.</summary>
+        Private Shared Function ReadCompounds(element As XElement) As Dictionary(Of String, BaseClasses.ConstantProperties)
+
+            Dim compounds As New Dictionary(Of String, BaseClasses.ConstantProperties)
+
+            If element Is Nothing Then Return compounds
+
+            For Each item In element.Elements("Compound")
+
+                Dim compound As New BaseClasses.ConstantProperties()
+
+                DirectCast(compound, Interfaces.ICustomXMLSerialization).LoadData(item.Elements.ToList)
+
+                Dim key = item.Attribute("Name")?.Value
+
+                If String.IsNullOrEmpty(key) Then key = compound.Name
+
+                If Not String.IsNullOrEmpty(key) AndAlso Not compounds.ContainsKey(key) Then
+                    compounds.Add(key, compound)
+                End If
+
+            Next
+
+            Return compounds
+
+        End Function
 
         Private Function MyResolveEventHandler(ByVal sender As Object, ByVal args As ResolveEventArgs) As System.Reflection.Assembly
             Return Me.[GetType]().Assembly
@@ -13937,6 +13879,26 @@ Final3:
 
         End Function
 
+        ''' <summary>
+        ''' Whether an interaction parameter for this pair of compounds belongs in the saved file.
+        ''' </summary>
+        ''' <remarks>
+        ''' A flowsheet file only needs the pairs its own compounds use, and that is what the material
+        ''' stream is consulted for. A package with no stream attached has nothing to filter by - which
+        ''' is the ordinary state of a package saved through CAPE-OPEN, where the host asks it to
+        ''' persist itself and there is no DWSIM flowsheet around it. That case used to write no
+        ''' parameters at all, so a package restored by the host came back with whatever the databases
+        ''' give by default and said nothing about the ones it had lost.
+        ''' </remarks>
+        Private Function ShouldPersist(compound1 As String, compound2 As String) As Boolean
+
+            If CurrentMaterialStream Is Nothing Then Return True
+
+            Return CurrentMaterialStream.Phases(0).Compounds.ContainsKey(compound1) AndAlso
+                   CurrentMaterialStream.Phases(0).Compounds.ContainsKey(compound2)
+
+        End Function
+
         Public Overridable Function SaveData() As System.Collections.Generic.List(Of System.Xml.Linq.XElement) Implements Interfaces.ICustomXMLSerialization.SaveData
 
             Dim elements As New System.Collections.Generic.List(Of System.Xml.Linq.XElement)
@@ -14009,12 +13971,10 @@ Final3:
                         .Add(New XElement("InteractionParameters"))
                         For Each kvp As KeyValuePair(Of String, Dictionary(Of String, Auxiliary.PR_IPData)) In pp.m_pr.InteractionParameters
                             For Each kvp2 As KeyValuePair(Of String, Auxiliary.PR_IPData) In kvp.Value
-                                If Not Me.CurrentMaterialStream Is Nothing Then
-                                    If Me.CurrentMaterialStream.Phases(0).Compounds.ContainsKey(kvp.Key) And Me.CurrentMaterialStream.Phases(0).Compounds.ContainsKey(kvp2.Key) Then
-                                        .Item(.Count - 1).Add(New XElement("InteractionParameter", New XAttribute("Compound1", kvp.Key),
-                                                                        New XAttribute("Compound2", kvp2.Key),
-                                                                        New XAttribute("Value", kvp2.Value.kij.ToString(ci))))
-                                    End If
+                                If ShouldPersist(kvp.Key, kvp2.Key) Then
+                                    .Item(.Count - 1).Add(New XElement("InteractionParameter", New XAttribute("Compound1", kvp.Key),
+                                                                    New XAttribute("Compound2", kvp2.Key),
+                                                                    New XAttribute("Value", kvp2.Value.kij.ToString(ci))))
                                 End If
                             Next
                         Next
@@ -14026,12 +13986,10 @@ Final3:
                         .Add(New XElement("InteractionParameters"))
                         For Each kvp As KeyValuePair(Of String, Dictionary(Of String, Auxiliary.PR_IPData)) In pp.m_pr.InteractionParameters
                             For Each kvp2 As KeyValuePair(Of String, Auxiliary.PR_IPData) In kvp.Value
-                                If Not Me.CurrentMaterialStream Is Nothing Then
-                                    If Me.CurrentMaterialStream.Phases(0).Compounds.ContainsKey(kvp.Key) And Me.CurrentMaterialStream.Phases(0).Compounds.ContainsKey(kvp2.Key) Then
-                                        .Item(.Count - 1).Add(New XElement("InteractionParameter", New XAttribute("Compound1", kvp.Key),
-                                                                        New XAttribute("Compound2", kvp2.Key),
-                                                                        New XAttribute("Value", kvp2.Value.kij.ToString(ci))))
-                                    End If
+                                If ShouldPersist(kvp.Key, kvp2.Key) Then
+                                    .Item(.Count - 1).Add(New XElement("InteractionParameter", New XAttribute("Compound1", kvp.Key),
+                                                                    New XAttribute("Compound2", kvp2.Key),
+                                                                    New XAttribute("Value", kvp2.Value.kij.ToString(ci))))
                                 End If
                             Next
                         Next
@@ -14043,12 +14001,10 @@ Final3:
                         .Add(New XElement("InteractionParameters"))
                         For Each kvp As KeyValuePair(Of String, Dictionary(Of String, Auxiliary.PRSV2_IPData)) In pp.m_pr.InteractionParameters
                             For Each kvp2 As KeyValuePair(Of String, Auxiliary.PRSV2_IPData) In kvp.Value
-                                If Not Me.CurrentMaterialStream Is Nothing Then
-                                    If Me.CurrentMaterialStream.Phases(0).Compounds.ContainsKey(kvp.Key) And Me.CurrentMaterialStream.Phases(0).Compounds.ContainsKey(kvp2.Key) Then
-                                        .Item(.Count - 1).Add(New XElement("InteractionParameter", New XAttribute("Compound1", kvp.Key),
-                                                                        New XAttribute("Compound2", kvp2.Key),
-                                                                        New XAttribute("Value", kvp2.Value.kij.ToString(ci))))
-                                    End If
+                                If ShouldPersist(kvp.Key, kvp2.Key) Then
+                                    .Item(.Count - 1).Add(New XElement("InteractionParameter", New XAttribute("Compound1", kvp.Key),
+                                                                    New XAttribute("Compound2", kvp2.Key),
+                                                                    New XAttribute("Value", kvp2.Value.kij.ToString(ci))))
                                 End If
                             Next
                         Next
@@ -14060,13 +14016,11 @@ Final3:
                         .Add(New XElement("InteractionParameters"))
                         For Each kvp As KeyValuePair(Of String, Dictionary(Of String, Auxiliary.PRSV2_IPData)) In pp.m_pr.InteractionParameters
                             For Each kvp2 As KeyValuePair(Of String, Auxiliary.PRSV2_IPData) In kvp.Value
-                                If Not Me.CurrentMaterialStream Is Nothing Then
-                                    If Me.CurrentMaterialStream.Phases(0).Compounds.ContainsKey(kvp.Key) And Me.CurrentMaterialStream.Phases(0).Compounds.ContainsKey(kvp2.Key) Then
-                                        .Item(.Count - 1).Add(New XElement("InteractionParameter", New XAttribute("Compound1", kvp.Key),
-                                                                        New XAttribute("Compound2", kvp2.Key),
-                                                                        New XAttribute("kij", kvp2.Value.kij.ToString(ci)),
-                                                                        New XAttribute("kji", kvp2.Value.kji.ToString(ci))))
-                                    End If
+                                If ShouldPersist(kvp.Key, kvp2.Key) Then
+                                    .Item(.Count - 1).Add(New XElement("InteractionParameter", New XAttribute("Compound1", kvp.Key),
+                                                                    New XAttribute("Compound2", kvp2.Key),
+                                                                    New XAttribute("kij", kvp2.Value.kij.ToString(ci)),
+                                                                    New XAttribute("kji", kvp2.Value.kji.ToString(ci))))
                                 End If
                             Next
                         Next
@@ -14078,12 +14032,10 @@ Final3:
                         .Add(New XElement("InteractionParameters"))
                         For Each kvp As KeyValuePair(Of String, Dictionary(Of String, Auxiliary.PR_IPData)) In pp.m_pr.InteractionParameters
                             For Each kvp2 As KeyValuePair(Of String, Auxiliary.PR_IPData) In kvp.Value
-                                If Not Me.CurrentMaterialStream Is Nothing Then
-                                    If Me.CurrentMaterialStream.Phases(0).Compounds.ContainsKey(kvp.Key) And Me.CurrentMaterialStream.Phases(0).Compounds.ContainsKey(kvp2.Key) Then
-                                        .Item(.Count - 1).Add(New XElement("InteractionParameter", New XAttribute("Compound1", kvp.Key),
-                                                                      New XAttribute("Compound2", kvp2.Key),
-                                                                      New XAttribute("Value", kvp2.Value.kij.ToString(ci))))
-                                    End If
+                                If ShouldPersist(kvp.Key, kvp2.Key) Then
+                                    .Item(.Count - 1).Add(New XElement("InteractionParameter", New XAttribute("Compound1", kvp.Key),
+                                                                  New XAttribute("Compound2", kvp2.Key),
+                                                                  New XAttribute("Value", kvp2.Value.kij.ToString(ci))))
                                 End If
                             Next
                         Next
@@ -14096,12 +14048,10 @@ Final3:
 
                         For Each kvp As KeyValuePair(Of String, Dictionary(Of String, Auxiliary.PR_IPData)) In pp.m_pr.InteractionParameters
                             For Each kvp2 As KeyValuePair(Of String, Auxiliary.PR_IPData) In kvp.Value
-                                If Not Me.CurrentMaterialStream Is Nothing Then
-                                    If Me.CurrentMaterialStream.Phases(0).Compounds.ContainsKey(kvp.Key) And Me.CurrentMaterialStream.Phases(0).Compounds.ContainsKey(kvp2.Key) Then
-                                        .Item(.Count - 1).Add(New XElement("InteractionParameter", New XAttribute("Compound1", kvp.Key),
-                                                                           New XAttribute("Compound2", kvp2.Key),
-                                                                           New XAttribute("Value", kvp2.Value.kij.ToString(ci))))
-                                    End If
+                                If ShouldPersist(kvp.Key, kvp2.Key) Then
+                                    .Item(.Count - 1).Add(New XElement("InteractionParameter", New XAttribute("Compound1", kvp.Key),
+                                                                       New XAttribute("Compound2", kvp2.Key),
+                                                                       New XAttribute("Value", kvp2.Value.kij.ToString(ci))))
                                 End If
                             Next
                         Next
@@ -14114,12 +14064,10 @@ Final3:
 
                         For Each kvp As KeyValuePair(Of String, Dictionary(Of String, Auxiliary.PR_IPData)) In pp.m_pr.InteractionParameters
                             For Each kvp2 As KeyValuePair(Of String, Auxiliary.PR_IPData) In kvp.Value
-                                If Not Me.CurrentMaterialStream Is Nothing Then
-                                    If Me.CurrentMaterialStream.Phases(0).Compounds.ContainsKey(kvp.Key) And Me.CurrentMaterialStream.Phases(0).Compounds.ContainsKey(kvp2.Key) Then
-                                        .Item(.Count - 1).Add(New XElement("InteractionParameter", New XAttribute("Compound1", kvp.Key),
-                                                                        New XAttribute("Compound2", kvp2.Key),
-                                                                        New XAttribute("Value", kvp2.Value.kij.ToString(ci))))
-                                    End If
+                                If ShouldPersist(kvp.Key, kvp2.Key) Then
+                                    .Item(.Count - 1).Add(New XElement("InteractionParameter", New XAttribute("Compound1", kvp.Key),
+                                                                    New XAttribute("Compound2", kvp2.Key),
+                                                                    New XAttribute("Value", kvp2.Value.kij.ToString(ci))))
                                 End If
                             Next
                         Next
@@ -14132,12 +14080,10 @@ Final3:
 
                         For Each kvp As KeyValuePair(Of String, Dictionary(Of String, Auxiliary.PR_IPData)) In pp.m_pr.InteractionParameters
                             For Each kvp2 As KeyValuePair(Of String, Auxiliary.PR_IPData) In kvp.Value
-                                If Not Me.CurrentMaterialStream Is Nothing Then
-                                    If Me.CurrentMaterialStream.Phases(0).Compounds.ContainsKey(kvp.Key) And Me.CurrentMaterialStream.Phases(0).Compounds.ContainsKey(kvp2.Key) Then
-                                        .Item(.Count - 1).Add(New XElement("InteractionParameter", New XAttribute("Compound1", kvp.Key),
-                                                                          New XAttribute("Compound2", kvp2.Key),
-                                                                          New XAttribute("Value", kvp2.Value.kij.ToString(ci))))
-                                    End If
+                                If ShouldPersist(kvp.Key, kvp2.Key) Then
+                                    .Item(.Count - 1).Add(New XElement("InteractionParameter", New XAttribute("Compound1", kvp.Key),
+                                                                      New XAttribute("Compound2", kvp2.Key),
+                                                                      New XAttribute("Value", kvp2.Value.kij.ToString(ci))))
                                 End If
                             Next
                         Next
@@ -14150,12 +14096,10 @@ Final3:
 
                         For Each kvp As KeyValuePair(Of String, Dictionary(Of String, Auxiliary.PR_IPData)) In pp.m_pr.InteractionParameters
                             For Each kvp2 As KeyValuePair(Of String, Auxiliary.PR_IPData) In kvp.Value
-                                If Not Me.CurrentMaterialStream Is Nothing Then
-                                    If Me.CurrentMaterialStream.Phases(0).Compounds.ContainsKey(kvp.Key) And Me.CurrentMaterialStream.Phases(0).Compounds.ContainsKey(kvp2.Key) Then
-                                        .Item(.Count - 1).Add(New XElement("InteractionParameter", New XAttribute("Compound1", kvp.Key),
-                                                                        New XAttribute("Compound2", kvp2.Key),
-                                                                        New XAttribute("Value", kvp2.Value.kij.ToString(ci))))
-                                    End If
+                                If ShouldPersist(kvp.Key, kvp2.Key) Then
+                                    .Item(.Count - 1).Add(New XElement("InteractionParameter", New XAttribute("Compound1", kvp.Key),
+                                                                    New XAttribute("Compound2", kvp2.Key),
+                                                                    New XAttribute("Value", kvp2.Value.kij.ToString(ci))))
                                 End If
                             Next
                         Next
@@ -14164,20 +14108,18 @@ Final3:
 
                         For Each kvp As KeyValuePair(Of String, Dictionary(Of String, Auxiliary.NRTL_IPData)) In pp.m_uni.InteractionParameters
                             For Each kvp2 As KeyValuePair(Of String, Auxiliary.NRTL_IPData) In kvp.Value
-                                If Not Me.CurrentMaterialStream Is Nothing Then
-                                    If Me.CurrentMaterialStream.Phases(0).Compounds.ContainsKey(kvp.Key) And Me.CurrentMaterialStream.Phases(0).Compounds.ContainsKey(kvp2.Key) Then
-                                        .Item(.Count - 1).Add(New XElement("InteractionParameter", New XAttribute("Compound1", kvp.Key),
-                                                                         New XAttribute("Compound2", kvp2.Key),
-                                                                         New XAttribute("ID1", kvp2.Value.ID1),
-                                                                         New XAttribute("ID2", kvp2.Value.ID2),
-                                                                         New XAttribute("A12", kvp2.Value.A12.ToString(ci)),
-                                                                         New XAttribute("A21", kvp2.Value.A21.ToString(ci)),
-                                                                         New XAttribute("B12", kvp2.Value.B12.ToString(ci)),
-                                                                         New XAttribute("B21", kvp2.Value.B21.ToString(ci)),
-                                                                         New XAttribute("C12", kvp2.Value.C12.ToString(ci)),
-                                                                         New XAttribute("C21", kvp2.Value.C21.ToString(ci)),
-                                                                         New XAttribute("alpha12", kvp2.Value.alpha12.ToString(ci))))
-                                    End If
+                                If ShouldPersist(kvp.Key, kvp2.Key) Then
+                                    .Item(.Count - 1).Add(New XElement("InteractionParameter", New XAttribute("Compound1", kvp.Key),
+                                                                     New XAttribute("Compound2", kvp2.Key),
+                                                                     New XAttribute("ID1", kvp2.Value.ID1),
+                                                                     New XAttribute("ID2", kvp2.Value.ID2),
+                                                                     New XAttribute("A12", kvp2.Value.A12.ToString(ci)),
+                                                                     New XAttribute("A21", kvp2.Value.A21.ToString(ci)),
+                                                                     New XAttribute("B12", kvp2.Value.B12.ToString(ci)),
+                                                                     New XAttribute("B21", kvp2.Value.B21.ToString(ci)),
+                                                                     New XAttribute("C12", kvp2.Value.C12.ToString(ci)),
+                                                                     New XAttribute("C21", kvp2.Value.C21.ToString(ci)),
+                                                                     New XAttribute("alpha12", kvp2.Value.alpha12.ToString(ci))))
                                 End If
                             Next
                         Next
@@ -14190,12 +14132,10 @@ Final3:
 
                         For Each kvp As KeyValuePair(Of String, Dictionary(Of String, Auxiliary.PR_IPData)) In pp.m_pr.InteractionParameters
                             For Each kvp2 As KeyValuePair(Of String, Auxiliary.PR_IPData) In kvp.Value
-                                If Not Me.CurrentMaterialStream Is Nothing Then
-                                    If Me.CurrentMaterialStream.Phases(0).Compounds.ContainsKey(kvp.Key) And Me.CurrentMaterialStream.Phases(0).Compounds.ContainsKey(kvp2.Key) Then
-                                        .Item(.Count - 1).Add(New XElement("InteractionParameter", New XAttribute("Compound1", kvp.Key),
-                                                                      New XAttribute("Compound2", kvp2.Key),
-                                                                      New XAttribute("Value", kvp2.Value.kij.ToString(ci))))
-                                    End If
+                                If ShouldPersist(kvp.Key, kvp2.Key) Then
+                                    .Item(.Count - 1).Add(New XElement("InteractionParameter", New XAttribute("Compound1", kvp.Key),
+                                                                  New XAttribute("Compound2", kvp2.Key),
+                                                                  New XAttribute("Value", kvp2.Value.kij.ToString(ci))))
                                 End If
                             Next
                         Next
@@ -14204,19 +14144,17 @@ Final3:
 
                         For Each kvp As KeyValuePair(Of String, Dictionary(Of String, Auxiliary.UNIQUAC_IPData)) In pp.m_uni.InteractionParameters
                             For Each kvp2 As KeyValuePair(Of String, Auxiliary.UNIQUAC_IPData) In kvp.Value
-                                If Not Me.CurrentMaterialStream Is Nothing Then
-                                    If Me.CurrentMaterialStream.Phases(0).Compounds.ContainsKey(kvp.Key) And Me.CurrentMaterialStream.Phases(0).Compounds.ContainsKey(kvp2.Key) Then
-                                        .Item(.Count - 1).Add(New XElement("InteractionParameter", New XAttribute("Compound1", kvp.Key),
-                                                                      New XAttribute("Compound2", kvp2.Key),
-                                                                      New XAttribute("ID1", kvp2.Value.ID1),
-                                                                      New XAttribute("ID2", kvp2.Value.ID2),
-                                                                      New XAttribute("A12", kvp2.Value.A12.ToString(ci)),
-                                                                      New XAttribute("A21", kvp2.Value.A21.ToString(ci)),
-                                                                      New XAttribute("B12", kvp2.Value.B12.ToString(ci)),
-                                                                      New XAttribute("B21", kvp2.Value.B21.ToString(ci)),
-                                                                      New XAttribute("C12", kvp2.Value.C12.ToString(ci)),
-                                                                      New XAttribute("C21", kvp2.Value.C21.ToString(ci))))
-                                    End If
+                                If ShouldPersist(kvp.Key, kvp2.Key) Then
+                                    .Item(.Count - 1).Add(New XElement("InteractionParameter", New XAttribute("Compound1", kvp.Key),
+                                                                  New XAttribute("Compound2", kvp2.Key),
+                                                                  New XAttribute("ID1", kvp2.Value.ID1),
+                                                                  New XAttribute("ID2", kvp2.Value.ID2),
+                                                                  New XAttribute("A12", kvp2.Value.A12.ToString(ci)),
+                                                                  New XAttribute("A21", kvp2.Value.A21.ToString(ci)),
+                                                                  New XAttribute("B12", kvp2.Value.B12.ToString(ci)),
+                                                                  New XAttribute("B21", kvp2.Value.B21.ToString(ci)),
+                                                                  New XAttribute("C12", kvp2.Value.C12.ToString(ci)),
+                                                                  New XAttribute("C21", kvp2.Value.C21.ToString(ci))))
                                 End If
                             Next
                         Next
@@ -14230,12 +14168,10 @@ Final3:
 
                         For Each kvp As KeyValuePair(Of String, Dictionary(Of String, Auxiliary.PR_IPData)) In pp.m_pr.InteractionParameters
                             For Each kvp2 As KeyValuePair(Of String, Auxiliary.PR_IPData) In kvp.Value
-                                If Not Me.CurrentMaterialStream Is Nothing Then
-                                    If Me.CurrentMaterialStream.Phases(0).Compounds.ContainsKey(kvp.Key) And Me.CurrentMaterialStream.Phases(0).Compounds.ContainsKey(kvp2.Key) Then
-                                        .Item(.Count - 1).Add(New XElement("InteractionParameter", New XAttribute("Compound1", kvp.Key),
-                                                                        New XAttribute("Compound2", kvp2.Key),
-                                                                        New XAttribute("Value", kvp2.Value.kij.ToString(ci))))
-                                    End If
+                                If ShouldPersist(kvp.Key, kvp2.Key) Then
+                                    .Item(.Count - 1).Add(New XElement("InteractionParameter", New XAttribute("Compound1", kvp.Key),
+                                                                    New XAttribute("Compound2", kvp2.Key),
+                                                                    New XAttribute("Value", kvp2.Value.kij.ToString(ci))))
                                 End If
                             Next
                         Next
@@ -14267,12 +14203,10 @@ Final3:
 
                         For Each kvp As KeyValuePair(Of String, Dictionary(Of String, Auxiliary.PR_IPData)) In pp.m_pr.InteractionParameters
                             For Each kvp2 As KeyValuePair(Of String, Auxiliary.PR_IPData) In kvp.Value
-                                If Not Me.CurrentMaterialStream Is Nothing Then
-                                    If Me.CurrentMaterialStream.Phases(0).Compounds.ContainsKey(kvp.Key) And Me.CurrentMaterialStream.Phases(0).Compounds.ContainsKey(kvp2.Key) Then
-                                        .Item(.Count - 1).Add(New XElement("InteractionParameter", New XAttribute("Compound1", kvp.Key),
-                                                                     New XAttribute("Compound2", kvp2.Key),
-                                                                     New XAttribute("Value", kvp2.Value.kij.ToString(ci))))
-                                    End If
+                                If ShouldPersist(kvp.Key, kvp2.Key) Then
+                                    .Item(.Count - 1).Add(New XElement("InteractionParameter", New XAttribute("Compound1", kvp.Key),
+                                                                 New XAttribute("Compound2", kvp2.Key),
+                                                                 New XAttribute("Value", kvp2.Value.kij.ToString(ci))))
                                 End If
                             Next
                         Next
@@ -14285,12 +14219,10 @@ Final3:
 
                         For Each kvp As KeyValuePair(Of String, Dictionary(Of String, Auxiliary.LKP_IPData)) In pp.m_lk.InteractionParameters
                             For Each kvp2 As KeyValuePair(Of String, Auxiliary.LKP_IPData) In kvp.Value
-                                If Not Me.CurrentMaterialStream Is Nothing Then
-                                    If Me.CurrentMaterialStream.Phases(0).Compounds.ContainsKey(kvp.Key) And Me.CurrentMaterialStream.Phases(0).Compounds.ContainsKey(kvp2.Key) Then
-                                        .Item(.Count - 1).Add(New XElement("InteractionParameter", New XAttribute("Compound1", kvp.Key),
-                                                                           New XAttribute("Compound2", kvp2.Key),
-                                                                           New XAttribute("Value", kvp2.Value.kij.ToString(ci))))
-                                    End If
+                                If ShouldPersist(kvp.Key, kvp2.Key) Then
+                                    .Item(.Count - 1).Add(New XElement("InteractionParameter", New XAttribute("Compound1", kvp.Key),
+                                                                       New XAttribute("Compound2", kvp2.Key),
+                                                                       New XAttribute("Value", kvp2.Value.kij.ToString(ci))))
                                 End If
                             Next
                         Next

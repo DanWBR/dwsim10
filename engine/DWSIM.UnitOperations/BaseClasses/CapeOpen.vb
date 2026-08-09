@@ -146,60 +146,128 @@ Namespace UnitOperations.CAPEOPENWrappers
         ''' Deserialises the unit operation parameter values from a COM stream.
         ''' </summary>
         ''' <param name="pStm">The COM stream from which to read the saved state.</param>
+        ''' <summary>
+        ''' Restores the parameter values from the block a host simulator saved.
+        ''' </summary>
+        ''' <remarks>
+        ''' The payload is a length prefix and then UTF-8 XML, one element per parameter, in the
+        ''' order the parameters were created. A block written by an older version is a
+        ''' BinaryFormatter array instead, and is still read: unlike the property package next door,
+        ''' this format did round-trip, so hosts have files with real state in them. That path only
+        ''' works on the .NET Framework build, since BinaryFormatter is removed from .NET; on this
+        ''' one it fails and says so rather than pretending the parameters were restored.
+        ''' </remarks>
         Public Sub Load(ByVal pStm As System.Runtime.InteropServices.ComTypes.IStream) Implements IPersistStreamInit.Load
 
             CreateParameters()
 
-            ' The stream belongs to the host that called this method, not to us: it is not released
-            ' here. Both reads go through a helper that keeps asking until the stream has given what
-            ' was asked for, because IStream.Read is allowed to answer in pieces.
-            Dim arrLen As Byte() = ReadExactly(pStm, 4)
+            ' The stream belongs to the host that called this method: read from, never released here.
+            Dim length As Integer = BitConverter.ToInt32(ReadExactly(pStm, 4), 0)
 
-            Dim cb As Integer = BitConverter.ToInt32(arrLen, 0)
+            If length < 0 Then Throw New IO.InvalidDataException(
+                String.Format("The persisted block declares a length of {0} bytes.", length))
 
-            If cb < 0 Then Throw New IO.InvalidDataException(
-                String.Format("The persisted block declares a length of {0} bytes.", cb))
+            Dim bytes As Byte() = ReadExactly(pStm, length)
 
-            Dim bytes As Byte() = ReadExactly(pStm, cb)
+            If LooksLikeXml(bytes) Then
+                LoadFromXml(bytes)
+            Else
+                LoadFromLegacyBinary(bytes)
+            End If
+
+        End Sub
+
+        ''' <summary>Whether a payload is the XML form rather than the old BinaryFormatter one.</summary>
+        ''' <remarks>
+        ''' A BinaryFormatter stream starts with its own header record and never with a bracket, so
+        ''' the first character that is not whitespace or a byte order mark tells the two apart.
+        ''' </remarks>
+        Private Shared Function LooksLikeXml(bytes As Byte()) As Boolean
+
+            For Each b In bytes
+                Select Case b
+                    Case Asc("<"c) : Return True
+                    Case &H20, &H9, &HA, &HD, &HEF, &HBB, &HBF : Continue For
+                    Case Else : Return False
+                End Select
+            Next
+
+            Return False
+
+        End Function
+
+        Private Sub LoadFromXml(bytes As Byte())
+
+            Dim root = XElement.Parse(Text.Encoding.UTF8.GetString(bytes).TrimStart(ChrW(&HFEFF)))
+
+            For Each item In root.Elements("Parameter")
+
+                Dim index As Integer
+
+                If Not Integer.TryParse(item.Attribute("Index")?.Value, index) Then Continue For
+                If index < 0 OrElse index >= Parameters.Count Then Continue For
+
+                Dim value = item.Attribute("Value")?.Value
+
+                If value Is Nothing Then Continue For
+
+                Dim ci = Globalization.CultureInfo.InvariantCulture
+
+                Try
+                    If TypeOf Parameters(index) Is RealParameter Then
+                        DirectCast(Parameters(index), RealParameter).SIValue = Double.Parse(value, ci)
+                    ElseIf TypeOf Parameters(index) Is OptionParameter Then
+                        DirectCast(Parameters(index), OptionParameter).Value = value
+                    ElseIf TypeOf Parameters(index) Is BooleanParameter Then
+                        DirectCast(Parameters(index), BooleanParameter).Value = Boolean.Parse(value)
+                    ElseIf TypeOf Parameters(index) Is IntegerParameter Then
+                        DirectCast(Parameters(index), IntegerParameter).Value = Integer.Parse(value, ci)
+                    End If
+                Catch ex As Exception
+                    Console.WriteLine(String.Format("Parameter {0} could not be restored: {1}", index, ex.Message))
+                End Try
+
+            Next
+
+        End Sub
+
+        Private Sub LoadFromLegacyBinary(bytes As Byte())
 
             Dim domain As AppDomain = AppDomain.CurrentDomain
 
             Using memoryStream As New System.IO.MemoryStream(bytes)
 
-            Try
-                AddHandler domain.AssemblyResolve, New ResolveEventHandler(AddressOf MyResolveEventHandler)
+                Try
 
-                Dim myarr As ArrayList
+                    AddHandler domain.AssemblyResolve, New ResolveEventHandler(AddressOf MyResolveEventHandler)
 
-                Dim mySerializer As Binary.BinaryFormatter = New Binary.BinaryFormatter(Nothing, New System.Runtime.Serialization.StreamingContext())
-                myarr = mySerializer.Deserialize(memoryStream)
+                    Dim mySerializer As Binary.BinaryFormatter = New Binary.BinaryFormatter(Nothing, New System.Runtime.Serialization.StreamingContext())
 
-                For i As Integer = 0 To myarr.Count - 1
-                    If TypeOf Parameters(i) Is RealParameter Then
-                        DirectCast(Parameters(i), RealParameter).SIValue = myarr(i)
-                    ElseIf TypeOf Parameters(i) Is OptionParameter Then
-                        DirectCast(Parameters(i), OptionParameter).Value = myarr(i)
-                    ElseIf TypeOf Parameters(i) Is BooleanParameter Then
-                        DirectCast(Parameters(i), BooleanParameter).Value = myarr(i)
-                    ElseIf TypeOf Parameters(i) Is IntegerParameter Then
-                        DirectCast(Parameters(i), IntegerParameter).Value = myarr(i)
-                    End If
-                Next
+                    Dim myarr As ArrayList = mySerializer.Deserialize(memoryStream)
 
-                myarr = Nothing
-                mySerializer = Nothing
+                    For i As Integer = 0 To Math.Min(myarr.Count, Parameters.Count) - 1
+                        If TypeOf Parameters(i) Is RealParameter Then
+                            DirectCast(Parameters(i), RealParameter).SIValue = myarr(i)
+                        ElseIf TypeOf Parameters(i) Is OptionParameter Then
+                            DirectCast(Parameters(i), OptionParameter).Value = myarr(i)
+                        ElseIf TypeOf Parameters(i) Is BooleanParameter Then
+                            DirectCast(Parameters(i), BooleanParameter).Value = myarr(i)
+                        ElseIf TypeOf Parameters(i) Is IntegerParameter Then
+                            DirectCast(Parameters(i), IntegerParameter).Value = myarr(i)
+                        End If
+                    Next
 
-            Catch p_Ex As System.Exception
+                Catch p_Ex As System.Exception
 
-                Console.WriteLine(p_Ex.ToString())
+                    Console.WriteLine(p_Ex.ToString())
 
-            Finally
+                Finally
 
-                ' In a Finally: the handler used to come off on the last line of the Try, so a failure
-                ' anywhere in the deserialization left it attached to the application domain for good.
-                RemoveHandler domain.AssemblyResolve, New ResolveEventHandler(AddressOf MyResolveEventHandler)
+                    ' In a Finally: the handler used to come off on the last line of the Try, so a
+                    ' failure anywhere in the deserialization left it on the application domain.
+                    RemoveHandler domain.AssemblyResolve, New ResolveEventHandler(AddressOf MyResolveEventHandler)
 
-            End Try
+                End Try
 
             End Using
 
@@ -259,44 +327,50 @@ Namespace UnitOperations.CAPEOPENWrappers
         ''' </summary>
         ''' <param name="pStm">The COM stream to write the state into.</param>
         ''' <param name="fClearDirty">When <c>True</c>, clears the dirty flag after a successful save.</param>
+        ''' <summary>
+        ''' Writes the parameter values into the stream the host supplied, as a length prefix and
+        ''' UTF-8 XML, one element per parameter.
+        ''' </summary>
         Public Sub Save(ByVal pStm As System.Runtime.InteropServices.ComTypes.IStream, ByVal fClearDirty As Boolean) Implements IPersistStreamInit.Save
 
-            Dim props As New ArrayList
+            Dim ci = Globalization.CultureInfo.InvariantCulture
 
-            With props
+            Dim root As New XElement("UnitOperationPersistedState", New XAttribute("Version", "2"))
 
-                For i As Integer = 0 To Parameters.Count - 1
-                    If TypeOf Parameters(i) Is RealParameter Then
-                        props.Add(DirectCast(Parameters(i), RealParameter).SIValue)
-                    ElseIf TypeOf Parameters(i) Is OptionParameter Then
-                        props.Add(DirectCast(Parameters(i), OptionParameter).Value)
-                    ElseIf TypeOf Parameters(i) Is BooleanParameter Then
-                        props.Add(DirectCast(Parameters(i), BooleanParameter).Value)
-                    ElseIf TypeOf Parameters(i) Is IntegerParameter Then
-                        props.Add(DirectCast(Parameters(i), IntegerParameter).Value)
-                    End If
-                Next
+            For i As Integer = 0 To Parameters.Count - 1
 
-            End With
+                Dim kind As String = Nothing
+                Dim value As String = Nothing
 
-            Dim mySerializer As Binary.BinaryFormatter = New Binary.BinaryFormatter(Nothing, New System.Runtime.Serialization.StreamingContext())
-            Dim mstr As New MemoryStream
-            mySerializer.Serialize(mstr, props)
-            Dim bytes As Byte() = mstr.ToArray()
-            mstr.Close()
+                If TypeOf Parameters(i) Is RealParameter Then
+                    kind = "Real"
+                    value = DirectCast(Parameters(i), RealParameter).SIValue.ToString(ci)
+                ElseIf TypeOf Parameters(i) Is OptionParameter Then
+                    kind = "Option"
+                    value = DirectCast(Parameters(i), OptionParameter).Value
+                ElseIf TypeOf Parameters(i) Is BooleanParameter Then
+                    kind = "Boolean"
+                    value = DirectCast(Parameters(i), BooleanParameter).Value.ToString()
+                ElseIf TypeOf Parameters(i) Is IntegerParameter Then
+                    kind = "Integer"
+                    value = DirectCast(Parameters(i), IntegerParameter).Value.ToString(ci)
+                End If
 
-            ' construct length (separate into two separate bytes)    
+                If kind IsNot Nothing Then
+                    root.Add(New XElement("Parameter", New XAttribute("Index", i),
+                                          New XAttribute("Type", kind),
+                                          New XAttribute("Value", If(value, ""))))
+                End If
 
-            Dim arrLen As Byte() = BitConverter.GetBytes(bytes.Length)
+            Next
+
+            Dim bytes = Text.Encoding.UTF8.GetBytes(root.ToString(SaveOptions.DisableFormatting))
+
             Try
 
-                ' Save the array in the stream    
-                pStm.Write(arrLen, arrLen.Length, IntPtr.Zero)
+                ' The stream belongs to the host that called this method: written to, not released here.
+                pStm.Write(BitConverter.GetBytes(bytes.Length), 4, IntPtr.Zero)
                 pStm.Write(bytes, bytes.Length, IntPtr.Zero)
-                ' The stream belongs to the host that called this method, not to us. Releasing a parameter
-                ' severs the caller's own wrapper over it: the next thing the host does with its stream
-                ' fails, or its runtime releases an interface pointer we already let go of and the process
-                ' dies with a corrupted heap. The marshaller already owns the reference for the call.
 
             Catch p_Ex As System.Exception
 
