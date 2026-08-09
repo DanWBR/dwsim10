@@ -259,6 +259,47 @@ Namespace Reactors
         End Function
 
         ''' <summary>
+        ''' Returns the volumetric flow of the phase the reaction takes place in.
+        ''' </summary>
+        ''' <remarks>
+        ''' A single supercritical phase can be reported as a liquid by one property package and as a
+        ''' vapour by another, while the reaction phase names only one of the two; when the phase named
+        ''' by the reaction is empty and the stream carries a single phase, that phase is the reaction
+        ''' volume whatever it is called.
+        ''' </remarks>
+        Private Function GetReactionPhaseVolumetricFlow(rxphase As ReactionPhase) As Double
+
+            Dim Qf As Double
+
+            Select Case rxphase
+                Case ReactionPhase.Vapor
+                    Qf = ims.Phases(2).Properties.volumetric_flow.GetValueOrDefault()
+                Case ReactionPhase.Liquid
+                    Qf = ims.Phases(1).Properties.volumetric_flow.GetValueOrDefault()
+                Case ReactionPhase.Mixture
+                    Qf = ims.Phases(0).Properties.volumetric_flow.GetValueOrDefault()
+                Case ReactionPhase.Vapor_Solid
+                    Qf = ims.Phases(2).Properties.volumetric_flow.GetValueOrDefault() +
+                        ims.Phases(7).Properties.volumetric_flow.GetValueOrDefault()
+                Case ReactionPhase.Liquid_Solid
+                    Qf = ims.Phases(1).Properties.volumetric_flow.GetValueOrDefault() +
+                        ims.Phases(7).Properties.volumetric_flow.GetValueOrDefault()
+            End Select
+
+            If Qf > 0.0 Then Return Qf
+
+            ' the whole stream sits in one phase, and it is not the one the reaction names
+            For Each phaseid In New Integer() {2, 3, 4, 5, 6, 7}
+                If ims.Phases(phaseid).Properties.molarfraction.GetValueOrDefault > 0.9999999 Then
+                    Return ims.Phases(0).Properties.volumetric_flow.GetValueOrDefault()
+                End If
+            Next
+
+            Return 0.0
+
+        End Function
+
+        ''' <summary>
         ''' Evaluates the system of ODEs (molar flow derivatives with respect to volume) for the
         ''' PFR integration at the current position and composition.
         ''' </summary>
@@ -292,20 +333,26 @@ Namespace Reactors
             Dim Qf As Double
 
             If Me.Reactions.Count > 0 Then
-                Select Case FlowSheet.Reactions(Me.Reactions(0)).ReactionPhase
-                    Case ReactionPhase.Vapor
-                        Qf = ims.Phases(2).Properties.volumetric_flow.GetValueOrDefault()
-                    Case ReactionPhase.Liquid
-                        Qf = ims.Phases(1).Properties.volumetric_flow.GetValueOrDefault()
-                    Case ReactionPhase.Mixture
-                        Qf = ims.Phases(0).Properties.volumetric_flow.GetValueOrDefault()
-                    Case ReactionPhase.Vapor_Solid
-                        Qf = ims.Phases(2).Properties.volumetric_flow.GetValueOrDefault() +
-                                ims.Phases(7).Properties.volumetric_flow.GetValueOrDefault()
-                    Case ReactionPhase.Liquid_Solid
-                        Qf = ims.Phases(1).Properties.volumetric_flow.GetValueOrDefault() +
-                                ims.Phases(7).Properties.volumetric_flow.GetValueOrDefault()
-                End Select
+
+                Dim rxphase = FlowSheet.Reactions(Me.Reactions(0)).ReactionPhase
+
+                Qf = GetReactionPhaseVolumetricFlow(rxphase)
+
+                ' dividing by this below turns every concentration into infinity and every rate into
+                ' NaN, which used to surface as a bare "the solver found no solution"
+                If Qf <= 0.0 Then
+                    Throw New Exception(String.Format(
+                        "The reactions are set to take place in the {0} phase, and the stream has no {0} phase " &
+                        "at {1:N2} K and {2:N0} Pa (phase molar fractions: vapour {3:N4}, liquid {4:N4}, solid {5:N4}). " &
+                        "Check the reaction phase and the phase mapping of the property package.",
+                        rxphase.ToString().Replace("_", " + "),
+                        ims.Phases(0).Properties.temperature.GetValueOrDefault,
+                        ims.Phases(0).Properties.pressure.GetValueOrDefault,
+                        ims.Phases(2).Properties.molarfraction.GetValueOrDefault,
+                        ims.Phases(1).Properties.molarfraction.GetValueOrDefault,
+                        ims.Phases(7).Properties.molarfraction.GetValueOrDefault))
+                End If
+
             End If
 
             For Each s As String In C0.Keys
@@ -1043,20 +1090,7 @@ Namespace Reactors
                     Q = ims.Phases(0).Properties.volumetric_flow.GetValueOrDefault
 
                     If Me.Reactions.Count > 0 Then
-                        Select Case FlowSheet.Reactions(Me.Reactions(0)).ReactionPhase
-                            Case ReactionPhase.Vapor
-                                Qf = ims.Phases(2).Properties.volumetric_flow.GetValueOrDefault()
-                            Case ReactionPhase.Liquid
-                                Qf = ims.Phases(1).Properties.volumetric_flow.GetValueOrDefault()
-                            Case ReactionPhase.Mixture
-                                Qf = ims.Phases(0).Properties.volumetric_flow.GetValueOrDefault()
-                            Case ReactionPhase.Vapor_Solid
-                                Qf = ims.Phases(2).Properties.volumetric_flow.GetValueOrDefault() +
-                                    ims.Phases(7).Properties.volumetric_flow.GetValueOrDefault()
-                            Case ReactionPhase.Liquid_Solid
-                                Qf = ims.Phases(1).Properties.volumetric_flow.GetValueOrDefault() +
-                                    ims.Phases(7).Properties.volumetric_flow.GetValueOrDefault()
-                        End Select
+                        Qf = GetReactionPhaseVolumetricFlow(FlowSheet.Reactions(Me.Reactions(0)).ReactionPhase)
                     End If
 
                     'Reactants Enthalpy (kJ/kg * kg/s = kW)
@@ -1075,20 +1109,7 @@ Namespace Reactors
                         Q = ims.Phases(0).Properties.volumetric_flow.GetValueOrDefault
 
                         If Me.Reactions.Count > 0 Then
-                            Select Case FlowSheet.Reactions(Me.Reactions(0)).ReactionPhase
-                                Case ReactionPhase.Vapor
-                                    Qf = ims.Phases(2).Properties.volumetric_flow.GetValueOrDefault()
-                                Case ReactionPhase.Liquid
-                                    Qf = ims.Phases(1).Properties.volumetric_flow.GetValueOrDefault()
-                                Case ReactionPhase.Mixture
-                                    Qf = ims.Phases(0).Properties.volumetric_flow.GetValueOrDefault()
-                                Case ReactionPhase.Vapor_Solid
-                                    Qf = ims.Phases(2).Properties.volumetric_flow.GetValueOrDefault() +
-                                    ims.Phases(7).Properties.volumetric_flow.GetValueOrDefault()
-                                Case ReactionPhase.Liquid_Solid
-                                    Qf = ims.Phases(1).Properties.volumetric_flow.GetValueOrDefault() +
-                                    ims.Phases(7).Properties.volumetric_flow.GetValueOrDefault()
-                            End Select
+                            Qf = GetReactionPhaseVolumetricFlow(FlowSheet.Reactions(Me.Reactions(0)).ReactionPhase)
                         End If
 
                         i = 0
@@ -1201,20 +1222,7 @@ Namespace Reactors
 
                         Do
 
-                            Select Case FlowSheet.Reactions(Me.Reactions(0)).ReactionPhase
-                                Case ReactionPhase.Vapor
-                                    Qf = ims.Phases(2).Properties.volumetric_flow.GetValueOrDefault()
-                                Case ReactionPhase.Liquid
-                                    Qf = ims.Phases(1).Properties.volumetric_flow.GetValueOrDefault()
-                                Case ReactionPhase.Mixture
-                                    Qf = ims.Phases(0).Properties.volumetric_flow.GetValueOrDefault()
-                                Case ReactionPhase.Vapor_Solid
-                                    Qf = ims.Phases(2).Properties.volumetric_flow.GetValueOrDefault() +
-                                    ims.Phases(7).Properties.volumetric_flow.GetValueOrDefault()
-                                Case ReactionPhase.Liquid_Solid
-                                    Qf = ims.Phases(1).Properties.volumetric_flow.GetValueOrDefault() +
-                                    ims.Phases(7).Properties.volumetric_flow.GetValueOrDefault()
-                            End Select
+                            Qf = GetReactionPhaseVolumetricFlow(FlowSheet.Reactions(Me.Reactions(0)).ReactionPhase)
 
                             deltaV = deltaV0
 

@@ -152,6 +152,28 @@ Namespace Reactors
         End Function
 
         ''' <summary>
+        ''' Returns the index of the phase to read the reacting fluid's properties from.
+        ''' </summary>
+        ''' <remarks>
+        ''' Above the critical point there is one fluid phase and each property package is free to call
+        ''' it a liquid or a vapour; when the phase the reaction names is empty and the stream carries a
+        ''' single phase, that phase holds the reacting fluid whatever it is called. Reading the named
+        ''' phase regardless returns zero for the compressibility factor and the density, which then
+        ''' propagates into the reaction rate.
+        ''' </remarks>
+        Protected Function RxPhaseIndex(ims As IMaterialStream, preferred As Integer) As Integer
+
+            If ims.Phases(preferred).Properties.molarfraction.GetValueOrDefault > 0.0 Then Return preferred
+
+            For Each pidx In New Integer() {2, 3, 4, 5, 6, 7}
+                If ims.Phases(pidx).Properties.molarfraction.GetValueOrDefault > 0.9999999 Then Return pidx
+            Next
+
+            Return preferred
+
+        End Function
+
+        ''' <summary>
         ''' Calculates the concentration-unit conversion factors for every stoichiometric component in
         ''' the given reaction, based on the reaction basis (molar, mass, activity, fugacity, etc.).
         ''' </summary>
@@ -173,20 +195,20 @@ Namespace Reactors
 
                 Select Case rxn.ReactionBasis
                     Case ReactionBasis.Activity
-                        val1 = ims.Phases(3).Compounds(sb.CompName).ActivityCoeff.GetValueOrDefault
-                        val2 = ims.Phases(3).Properties.molecularWeight.GetValueOrDefault
-                        val3 = ims.Phases(3).Properties.density.GetValueOrDefault
+                        val1 = ims.Phases(RxPhaseIndex(ims, 3)).Compounds(sb.CompName).ActivityCoeff.GetValueOrDefault
+                        val2 = ims.Phases(RxPhaseIndex(ims, 3)).Properties.molecularWeight.GetValueOrDefault
+                        val3 = ims.Phases(RxPhaseIndex(ims, 3)).Properties.density.GetValueOrDefault
                         amounts(sb.CompName) = val1 * val2 / val3 / 1000.0
                     Case ReactionBasis.Fugacity
                         Select Case rxn.ReactionPhase
                             Case PhaseName.Vapor
-                                val1 = ims.Phases(2).Compounds(sb.CompName).FugacityCoeff.GetValueOrDefault
-                                Z = ims.Phases(2).Properties.compressibilityFactor.GetValueOrDefault
+                                val1 = ims.Phases(RxPhaseIndex(ims, 2)).Compounds(sb.CompName).FugacityCoeff.GetValueOrDefault
+                                Z = ims.Phases(RxPhaseIndex(ims, 2)).Properties.compressibilityFactor.GetValueOrDefault
                                 amounts(sb.CompName) = val1 * Z * 8.314 * T
                             Case PhaseName.Liquid
-                                val1 = ims.Phases(3).Compounds(sb.CompName).FugacityCoeff.GetValueOrDefault
-                                val2 = ims.Phases(3).Properties.molecularWeight.GetValueOrDefault
-                                val3 = ims.Phases(3).Properties.density.GetValueOrDefault
+                                val1 = ims.Phases(RxPhaseIndex(ims, 3)).Compounds(sb.CompName).FugacityCoeff.GetValueOrDefault
+                                val2 = ims.Phases(RxPhaseIndex(ims, 3)).Properties.molecularWeight.GetValueOrDefault
+                                val3 = ims.Phases(RxPhaseIndex(ims, 3)).Properties.density.GetValueOrDefault
                                 amounts(sb.CompName) = val1 * val2 / val3 * P / 1000.0
                             Case PhaseName.Mixture
                                 val1 = ims.Phases(0).Compounds(sb.CompName).FugacityCoeff.GetValueOrDefault
@@ -197,10 +219,10 @@ Namespace Reactors
                     Case ReactionBasis.MassConc
                         Select Case rxn.ReactionPhase
                             Case PhaseName.Vapor
-                                val1 = ims.Phases(2).Properties.molecularWeight.GetValueOrDefault
+                                val1 = ims.Phases(RxPhaseIndex(ims, 2)).Properties.molecularWeight.GetValueOrDefault
                                 amounts(sb.CompName) = 1000 / val1
                             Case PhaseName.Liquid
-                                val1 = ims.Phases(3).Properties.molecularWeight.GetValueOrDefault
+                                val1 = ims.Phases(RxPhaseIndex(ims, 3)).Properties.molecularWeight.GetValueOrDefault
                                 amounts(sb.CompName) = 1000 / val1
                             Case PhaseName.Mixture
                                 val1 = ims.Phases(0).Properties.molecularWeight.GetValueOrDefault
@@ -209,12 +231,12 @@ Namespace Reactors
                     Case ReactionBasis.MassFrac
                         Select Case rxn.ReactionPhase
                             Case PhaseName.Vapor
-                                val1 = ims.Phases(2).Properties.molecularWeight.GetValueOrDefault
-                                Z = ims.Phases(2).Properties.compressibilityFactor.GetValueOrDefault
+                                val1 = ims.Phases(RxPhaseIndex(ims, 2)).Properties.molecularWeight.GetValueOrDefault
+                                Z = ims.Phases(RxPhaseIndex(ims, 2)).Properties.compressibilityFactor.GetValueOrDefault
                                 amounts(sb.CompName) = Z * 8.314 * T / P * 1000 / val1
                             Case PhaseName.Liquid
-                                val1 = ims.Phases(3).Properties.molecularWeight.GetValueOrDefault
-                                val2 = ims.Phases(3).Properties.density.GetValueOrDefault
+                                val1 = ims.Phases(RxPhaseIndex(ims, 3)).Properties.molecularWeight.GetValueOrDefault
+                                val2 = ims.Phases(RxPhaseIndex(ims, 3)).Properties.density.GetValueOrDefault
                                 amounts(sb.CompName) = val2 * 1000 / val1
                             Case PhaseName.Mixture
                                 val1 = ims.Phases(0).Properties.molecularWeight.GetValueOrDefault
@@ -226,11 +248,11 @@ Namespace Reactors
                     Case ReactionBasis.MolarFrac
                         Select Case rxn.ReactionPhase
                             Case PhaseName.Vapor
-                                Z = ims.Phases(2).Properties.compressibilityFactor.GetValueOrDefault
+                                Z = ims.Phases(RxPhaseIndex(ims, 2)).Properties.compressibilityFactor.GetValueOrDefault
                                 amounts(sb.CompName) = Z * 8.314 * T / P
                             Case PhaseName.Liquid
-                                val1 = ims.Phases(3).Properties.molecularWeight.GetValueOrDefault
-                                val2 = ims.Phases(3).Properties.density.GetValueOrDefault
+                                val1 = ims.Phases(RxPhaseIndex(ims, 3)).Properties.molecularWeight.GetValueOrDefault
+                                val2 = ims.Phases(RxPhaseIndex(ims, 3)).Properties.density.GetValueOrDefault
                                 amounts(sb.CompName) = val1 / val2 / 1000.0
                             Case PhaseName.Mixture
                                 val1 = ims.Phases(0).Properties.molecularWeight.GetValueOrDefault
@@ -238,7 +260,7 @@ Namespace Reactors
                                 amounts(sb.CompName) = val1 / val2 / 1000.0
                         End Select
                     Case ReactionBasis.PartialPress
-                        Z = ims.Phases(2).Properties.compressibilityFactor.GetValueOrDefault
+                        Z = ims.Phases(RxPhaseIndex(ims, 2)).Properties.compressibilityFactor.GetValueOrDefault
                         amounts(sb.CompName) = Z * 8.314 * T
                 End Select
 

@@ -716,6 +716,10 @@ Namespace PropertyPackages
                     phaseID = 2
             End Select
 
+            ' discard the value left by the previous calculation, so that a compressibility factor
+            ' derived below is never mistaken for one the server supplied at these conditions
+            Me.CurrentMaterialStream.Phases(phaseID).Properties.compressibilityFactor = Nothing
+
             If phaseID > 0 Then
                 overallmolarflow = Me.CurrentMaterialStream.Phases(0).Properties.molarflow.GetValueOrDefault
                 phasemolarfrac = Me.CurrentMaterialStream.Phases(phaseID).Properties.molarfraction.GetValueOrDefault
@@ -781,6 +785,34 @@ Namespace PropertyPackages
                 Me.DW_CalcLiqMixtureProps()
 
             End If
+
+            FillCompressibilityFactor(phaseID)
+
+        End Sub
+
+        ''' <summary>
+        ''' Derives the compressibility factor of a phase from its density. The compressibility factor
+        ''' is an optional property in the CAPE-OPEN thermodynamics interface and a server is free not
+        ''' to offer it, while the density is always available; without this, everything in DWSIM that
+        ''' reads the compressibility factor of a CAPE-OPEN phase silently reads zero.
+        ''' </summary>
+        Private Sub FillCompressibilityFactor(phaseID As Integer)
+
+            If CurrentMaterialStream Is Nothing Then Exit Sub
+
+            Dim props = CurrentMaterialStream.Phases(phaseID).Properties
+
+            If props.compressibilityFactor.HasValue Then Exit Sub
+
+            Dim T As Double = CurrentMaterialStream.Phases(0).Properties.temperature.GetValueOrDefault
+            Dim P As Double = CurrentMaterialStream.Phases(0).Properties.pressure.GetValueOrDefault
+            Dim rho As Double = props.density.GetValueOrDefault
+            Dim MM As Double = props.molecularWeight.GetValueOrDefault
+
+            If T <= 0.0 Or P <= 0.0 Or rho <= 0.0 Or MM <= 0.0 Then Exit Sub
+
+            ' molar volume in m3/mol from the molar mass in kg/kmol and the density in kg/m3
+            props.compressibilityFactor = P * MM / (rho * 1000.0 * 8.314 * T)
 
         End Sub
 
@@ -1526,23 +1558,46 @@ Namespace PropertyPackages
 
 #Region "    Auxiliary Functions"
 
+        ''' <summary>
+        ''' Reports a non-fatal CAPE-OPEN message. Neither the material stream nor the flowsheet is
+        ''' assigned while the property package is being deserialized, so neither can be assumed.
+        ''' </summary>
+        Private Sub ReportCapeMessage(message As String)
+
+            Dim fs As IFlowsheet = Nothing
+
+            If Me.CurrentMaterialStream IsNot Nothing Then fs = Me.CurrentMaterialStream.Flowsheet
+            If fs Is Nothing Then fs = Me.Flowsheet
+
+            If fs IsNot Nothing Then
+                fs.ShowMessage(message, IFlowsheet.MessageType.GeneralError)
+            Else
+                Debug.WriteLine(message)
+            End If
+
+        End Sub
+
         <OnDeserialized()> Sub PersistLoad(ByVal context As System.Runtime.Serialization.StreamingContext)
 
             If _selts IsNot Nothing Then
 
-                Dim contains As Boolean = False
                 Dim t As Type = Nothing
 
                 Try
                     t = Type.GetTypeFromProgID(_selts.TypeName)
                 Catch ex As Exception
-                    Me.CurrentMaterialStream.Flowsheet.ShowMessage("Error creating CAPE-OPEN Thermo Server / Property Package Manager instance." & vbCrLf & ex.ToString, IFlowsheet.MessageType.GeneralError)
+                    Throw New Exception("Error creating CAPE-OPEN Thermo Server / Property Package Manager instance '" & _selts.TypeName & "'.", ex)
                 End Try
+
+                If t Is Nothing Then
+                    Throw New Exception("The CAPE-OPEN Thermo Server / Property Package Manager '" & _selts.TypeName &
+                                        "' is not registered on this system. Please install it and register it before opening this simulation.")
+                End If
 
                 Try
                     _pptpl = Activator.CreateInstance(t)
                 Catch ex As Exception
-                    Me.CurrentMaterialStream.Flowsheet.ShowMessage("Error creating CAPE-OPEN Property Package instance." & vbCrLf & ex.ToString, IFlowsheet.MessageType.GeneralError)
+                    Throw New Exception("Error creating CAPE-OPEN Thermo Server / Property Package Manager instance '" & _selts.TypeName & "'.", ex)
                 End Try
 
                 If _istrts IsNot Nothing Then
@@ -1572,33 +1627,27 @@ Namespace PropertyPackages
                         Try
                             myppm.Initialize()
                         Catch ex As Exception
-                            Me.CurrentMaterialStream.Flowsheet.ShowMessage(
-                                Me.ComponentName & ": error initializing CAPE-OPEN Property Package - " & DescribeCapeError(ex, _pptpl),
-                                IFlowsheet.MessageType.GeneralError)
+                            ReportCapeMessage(Me.ComponentName & ": error initializing CAPE-OPEN Property Package - " & DescribeCapeError(ex, _pptpl))
                         End Try
                     End If
 
-                    Dim pplist As String()
-
-                    If _coversion = "1.0" Then
-                        pplist = CType(_pptpl, ICapeThermoSystem).GetPropertyPackages
-                    Else
-                        pplist = CType(_pptpl, ICapeThermoPropertyPackageManager).GetPropertyPackageList
-                    End If
-
-                    For Each pp As String In pplist
-                        If pp = _ppname Then
-                            contains = True
-                            Exit For
-                        End If
-                    Next
-
                 End If
 
-                If _coversion = "1.0" Then
-                    _copp = CType(_pptpl, ICapeThermoSystem).ResolvePropertyPackage(_ppname)
-                Else
-                    _copp = CType(_pptpl, ICapeThermoPropertyPackageManager).GetPropertyPackage(_ppname)
+                Try
+                    If _coversion = "1.0" Then
+                        _copp = CType(_pptpl, ICapeThermoSystem).ResolvePropertyPackage(_ppname)
+                    Else
+                        _copp = CType(_pptpl, ICapeThermoPropertyPackageManager).GetPropertyPackage(_ppname)
+                    End If
+                Catch ex As Exception
+                    Throw New Exception("The CAPE-OPEN Property Package Manager '" & _selts.TypeName &
+                                        "' could not deliver the '" & _ppname & "' Property Package. " &
+                                        DescribeCapeError(ex, _pptpl), ex)
+                End Try
+
+                If _copp Is Nothing Then
+                    Throw New Exception("The CAPE-OPEN Property Package Manager '" & _selts.TypeName &
+                                        "' does not know a Property Package named '" & _ppname & "'.")
                 End If
 
                 If _istrpp IsNot Nothing Then
@@ -1608,7 +1657,7 @@ Namespace PropertyPackages
                             _istrpp.baseStream.Position = 0
                             myuo.Load(_istrpp)
                         Catch ex As Exception
-                            Me.CurrentMaterialStream.Flowsheet.ShowMessage(Me.ComponentName + ": error restoring persisted data from CAPE-OPEN Object - " + ex.Message.ToString(), IFlowsheet.MessageType.GeneralError)
+                            ReportCapeMessage(Me.ComponentName + ": error restoring persisted data from CAPE-OPEN Object - " + ex.Message.ToString())
                         End Try
                     Else
                         Dim myuo2 As Interfaces2.IPersistStream = TryCast(_copp, Interfaces2.IPersistStream)
@@ -1617,7 +1666,7 @@ Namespace PropertyPackages
                                 _istrpp.baseStream.Position = 0
                                 myuo2.Load(_istrpp)
                             Catch ex As Exception
-                                Me.CurrentMaterialStream.Flowsheet.ShowMessage(Me.ComponentName + ": error restoring persisted data from CAPE-OPEN Object - " + ex.Message.ToString(), IFlowsheet.MessageType.GeneralError)
+                                ReportCapeMessage(Me.ComponentName + ": error restoring persisted data from CAPE-OPEN Object - " + ex.Message.ToString())
                             End Try
                         End If
                     End If
@@ -1628,9 +1677,7 @@ Namespace PropertyPackages
                     Try
                         myuu.Initialize()
                     Catch ex As Exception
-                        Me.CurrentMaterialStream.Flowsheet.ShowMessage(
-                            Me.ComponentName & ": error initializing CAPE-OPEN Property Package - " & DescribeCapeError(ex, _copp),
-                            IFlowsheet.MessageType.GeneralError)
+                        ReportCapeMessage(Me.ComponentName & ": error initializing CAPE-OPEN Property Package - " & DescribeCapeError(ex, _copp))
                     End Try
                 End If
 
@@ -1675,6 +1722,12 @@ Namespace PropertyPackages
 #End Region
 
         Public Overrides Function LoadData(data As System.Collections.Generic.List(Of System.Xml.Linq.XElement)) As Boolean
+
+            ' the unique ID is what every object in the flowsheet stores to point at this package;
+            ' without it the package is registered under a new ID and those objects fall back to
+            ' the first package in the list
+            Dim uid_el = (From el As XElement In data Select el Where el.Name = "ID").FirstOrDefault()
+            If uid_el IsNot Nothing AndAlso uid_el.Value <> "" Then Me.UniqueID = uid_el.Value
 
             Me.ComponentName = (From el As XElement In data Select el Where el.Name = "ComponentName").SingleOrDefault.Value
             Me.ComponentDescription = (From el As XElement In data Select el Where el.Name = "ComponentDescription").SingleOrDefault.Value
