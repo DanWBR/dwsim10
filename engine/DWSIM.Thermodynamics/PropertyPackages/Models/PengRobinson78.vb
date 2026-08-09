@@ -945,15 +945,13 @@ Namespace PropertyPackages.ThermoPlugs
 
                 G(l) = H - T * S
 
-                If j = 0 Then
-                    k = 0
-                Else
-                    i = 0
-                    Do
-                        If G(l) <= G(k) Then k = l
-                        i = i + 1
-                    Loop Until i = UBound(G) + 1
-                End If
+                ' Keep the root with the lowest Gibbs energy. The comparison used to sit behind a
+                ' test on a variable that was never assigned, so it never ran and the first root was
+                ' always returned - and the roots arrive sorted, so that was always the smallest one,
+                ' the liquid-like root, whatever the state actually is. A root whose energy cannot be
+                ' evaluated comes back as NaN and loses every comparison, which is what should happen
+                ' to it.
+                If l = 0 OrElse G(l) < G(k) Then k = l
 
                 l = l + 1
 
