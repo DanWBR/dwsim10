@@ -603,7 +603,7 @@ Namespace UnitOperations
                                          ByRef f1 As Double, ByRef f3 As Double, ByRef f5 As Double,
                                          ByRef vt As Double, ByRef Gsf As Double, ByRef Ssf As Double)
 
-            Dim rs, rt, Atc, Nc, di, de, pitch, L, n, hi, nt, Prt As Double
+            Dim rs, rt, Nc, di, de, pitch, L, n, hi, nt, Prt As Double
 
             rs = Me.STProperties.Shell_Fouling
             rt = Me.STProperties.Tube_Fouling
@@ -614,8 +614,9 @@ Namespace UnitOperations
             pitch = STProperties.Tube_Pitch / 1000
             n = STProperties.Tube_NumberPerShell
             nt = n / STProperties.Tube_PassesPerShell
-            A = n * Math.PI * de * (L - 2 * de)
-            Atc = A / Nc
+            ' the tube count is per shell, so the shells in series multiply the area, the same way
+            ' the geometry report does it
+            A = n * Nc * Math.PI * de * (L - 2 * de)
 
             If STProperties.Tube_Fluid = 0 Then
                 'cold
@@ -2438,7 +2439,7 @@ Namespace UnitOperations
                     IObj?.Paragraphs.Add("<mi>T_{h,out}</mi> = " & Th2 & " K")
                     IObj?.Paragraphs.Add("<mi>U</mi> = " & U & " W/[m2.K]")
 
-                    Dim rhoc, muc, kc, rhoh, muh, kh, rs, rt, Atc, Nc, di, de, pitch, L, n, hi, nt, vt, Ret, Prt As Double
+                    Dim rhoc, muc, kc, rhoh, muh, kh, rs, rt, Nc, di, de, pitch, L, n, hi, nt, vt, Ret, Prt As Double
 
                     Dim icnt As Integer = 0
 
@@ -2474,13 +2475,20 @@ Namespace UnitOperations
 
                         Fant = F
 
+                        ' The correction factor is the one for N shell passes in series. Two shells
+                        ' in series count as two, which is the reason for putting them in series
+                        ' when the streams cross; only the passes inside one shell were counted
+                        ' before, so the arrangement made no difference to F.
+                        Dim Nsp As Double = Math.Max(1.0, Me.STProperties.Shell_NumberOfShellsInSeries *
+                                                          Me.STProperties.Shell_NumberOfPasses)
+
                         If R <> 1.0# Then
                             Dim alpha As Double
-                            alpha = ((1 - R * P) / (1 - P)) ^ (1 / Me.STProperties.Shell_NumberOfPasses)
+                            alpha = ((1 - R * P) / (1 - P)) ^ (1 / Nsp)
                             Sf = (alpha - 1) / (alpha - R)
                             F = (R ^ 2 + 1) ^ 0.5 * Math.Log((1 - Sf) / (1 - R * Sf)) / ((R - 1) * Math.Log((2 - Sf * (R + 1 - (R ^ 2 + 1) ^ 0.5)) / (2 - Sf * (R + 1 + (R ^ 2 + 1) ^ 0.5))))
                         Else
-                            Sf = P / (Me.STProperties.Shell_NumberOfPasses * (1 - P) + P)
+                            Sf = P / (Nsp * (1 - P) + P)
                             F = Sf * 2 ^ 0.5 / ((1 - Sf) * Math.Log((2 * (1 - Sf) + Sf * 2 ^ 0.5) / (2 * (1 - Sf) - Sf * 2 ^ 0.5)))
                         End If
                         If Double.IsNaN(F) Then
@@ -2580,8 +2588,9 @@ Namespace UnitOperations
                         pitch = STProperties.Tube_Pitch / 1000
                         n = STProperties.Tube_NumberPerShell
                         nt = n / STProperties.Tube_PassesPerShell
-                        A = n * Math.PI * de * (L - 2 * de)
-                        Atc = A / Nc
+                        ' the tube count is per shell, so the shells in series multiply the area, the
+                        ' same way the geometry report does it
+                        A = n * Nc * Math.PI * de * (L - 2 * de)
 
                         If pitch < de Then Throw New Exception("Invalid input: tube spacing (pitch) is smaller than the tube's external diameter.")
 
@@ -3009,9 +3018,16 @@ Namespace UnitOperations
                 thprof.Clear()
                 qprof.Clear()
 
+                ' The profile follows the duty the exchanger actually transfers. It used to sweep up
+                ' to MaxHeatExchange, the thermodynamic limit, which draws the profile of an
+                ' exchanger with infinite area and puts the hot outlet at the cold inlet
+                ' temperature - so the minimum approach below came out as zero on every exchanger.
+                Dim Qduty As Double = Q
+                If Double.IsNaN(Qduty) OrElse Qduty <= 0.0 Then Qduty = MaxHeatExchange
+
                 For j = 0 To 10
 
-                    Dim dqx = j / 10.0 * MaxHeatExchange
+                    Dim dqx = j / 10.0 * Qduty
 
                     dhc = dqx / Wc
                     dhh = dqx / Wh
@@ -3053,8 +3069,12 @@ Namespace UnitOperations
                     thprof.Reverse()
                 End If
 
+                ' Signed on purpose: where the hot stream runs colder than the cold stream the
+                ' approach is negative and the arrangement is infeasible. Taking the absolute value
+                ' turned a temperature cross into a small positive number that read as a tight but
+                ' workable design.
                 For i As Integer = 0 To 10
-                    dtprof.Add(Abs(thprof(i) - tcprof(i)))
+                    dtprof.Add(thprof(i) - tcprof(i))
                 Next
 
                 CalculatedMITA = dtprof.Min
