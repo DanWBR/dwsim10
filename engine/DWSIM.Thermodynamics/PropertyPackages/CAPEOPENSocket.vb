@@ -55,20 +55,45 @@ Namespace PropertyPackages
 
         ' IDisposable
         Protected Overrides Sub Dispose(ByVal disposing As Boolean)
+
             If Not Me.disposedValue Then
-                If disposing Then
-                    ' TODO: free other state (managed objects).
+
+                ' What CAPE-OPEN says a host owes a component it called Initialize on. Nothing used
+                ' to call it: Terminate below is an override that forwards to the package, and the
+                ' only caller was whoever remembered to. A component that is released without it
+                ' keeps whatever Initialize took - a licence, a solver session, a temporary file.
+                If _copp IsNot Nothing Then
+                    Try
+                        Dim utilities = TryCast(_copp, ICapeUtilities)
+                        If utilities IsNot Nothing Then utilities.Terminate()
+                    Catch ex As Exception
+                    End Try
                 End If
 
-                If Not _copp Is Nothing Then
-                    If Marshal.IsComObject(_copp) Then Marshal.ReleaseComObject(_copp)
-                End If
-                If Not _pptpl Is Nothing Then
-                    If Marshal.IsComObject(_pptpl) Then Marshal.ReleaseComObject(_pptpl)
-                End If
-                ' TODO: set large fields to null.
+                ' The package first and the manager second: the package came out of the manager, so
+                ' letting go of the manager first can take the package's server down with it.
+                '
+                ' And each of them once. The runtime keeps one wrapper per COM identity, and a
+                ' manager that answers GetPropertyPackage with itself - which some do - gives the
+                ' same wrapper twice. Releasing it twice takes the count one below zero and the
+                ' next release, whoever makes it, is on a pointer that is already gone.
+                Dim same = _copp IsNot Nothing AndAlso ReferenceEquals(_copp, _pptpl)
+
+                If _copp IsNot Nothing AndAlso Marshal.IsComObject(_copp) Then Marshal.ReleaseComObject(_copp)
+                If Not same AndAlso _pptpl IsNot Nothing AndAlso Marshal.IsComObject(_pptpl) Then Marshal.ReleaseComObject(_pptpl)
+
+                ' Nulled, because a released wrapper is not reusable: the next call through it
+                ' raises InvalidComObjectException rather than saying the package is gone.
+                _copp = Nothing
+                _pptpl = Nothing
+
+                _istrpp = Nothing
+                _istrts = Nothing
+
+                Me.disposedValue = True
+
             End If
-            Me.disposedValue = True
+
         End Sub
 
         ' This code added by Visual Basic to correctly implement the disposable pattern.
@@ -81,6 +106,36 @@ Namespace PropertyPackages
 #End Region
 
 #Region "    DWSIM Methods and Procedures"
+
+        ''' <summary>
+        ''' What went wrong, as a sentence: the exception's own message, and what the CAPE-OPEN
+        ''' component says about it when it implements ECapeUser.
+        ''' </summary>
+        ''' <remarks>
+        ''' Every one of these used to be a hard cast to ECapeUser written inside the Catch block
+        ''' that reports the failure. Nothing obliges a component to implement that interface, and
+        ''' one that does not turned the failure into an InvalidCastException raised from inside the
+        ''' handler - which threw away the message saying what had actually gone wrong. The
+        ''' exception's own text was being discarded here as well, so a failure on our side of the
+        ''' boundary came out as an empty CAPE-OPEN error.
+        ''' </remarks>
+        Private Function DescribeCapeError(ex As Exception, component As Object) As String
+
+            Dim text = If(ex Is Nothing, "", ex.Message)
+
+            Dim user = TryCast(component, CapeOpen.ECapeUser)
+
+            If user Is Nothing Then Return text
+
+            Try
+                Return String.Format("{0} (CAPE-OPEN {1} at {2}.{3}: {4})",
+                                     text, user.code, user.interfaceName, user.scope, user.description)
+            Catch reporting As Exception
+                Return text
+            End Try
+
+        End Function
+
 
         Public Sub New()
 
@@ -185,16 +240,14 @@ Namespace PropertyPackages
                 Try
                     Me.CalcEquilibrium(Me.CurrentMaterialStream, s11 + s22, Nothing)
                 Catch ex As Exception
-                    Dim ecu As CapeOpen.ECapeUser = _copp
-                    Me.CurrentMaterialStream.Flowsheet.ShowMessage(Me.ComponentName & ": CAPE-OPEN Exception " & ecu.code & " at " & ecu.interfaceName & "." & ecu.scope & ". Reason: " & ecu.description, Interfaces.IFlowsheet.MessageType.GeneralError)
+                    Me.CurrentMaterialStream.Flowsheet.ShowMessage(Me.ComponentName & ": " & DescribeCapeError(ex, _copp), Interfaces.IFlowsheet.MessageType.GeneralError)
                 End Try
             Else
                 Try
                     Me.SetMaterial(Me.CurrentMaterialStream)
                     Me.CalcEquilibrium1(s1, s2, "Unspecified")
                 Catch ex As Exception
-                    Dim ecu As CapeOpen.ECapeUser = _copp
-                    Me.CurrentMaterialStream.Flowsheet.ShowMessage(Me.ComponentName & ": CAPE-OPEN Exception " & ecu.code & " at " & ecu.interfaceName & "." & ecu.scope & ". Reason: " & ecu.description, Interfaces.IFlowsheet.MessageType.GeneralError)
+                    Me.CurrentMaterialStream.Flowsheet.ShowMessage(Me.ComponentName & ": " & DescribeCapeError(ex, _copp), Interfaces.IFlowsheet.MessageType.GeneralError)
                 End Try
             End If
 
@@ -333,16 +386,14 @@ Namespace PropertyPackages
                 Try
                     Me.CalcEquilibrium(Me.CurrentMaterialStream, s11 + s22, Nothing)
                 Catch ex As Exception
-                    Dim ecu As CapeOpen.ECapeUser = _copp
-                    Me.CurrentMaterialStream.Flowsheet.ShowMessage(Me.ComponentName & ": CAPE-OPEN Exception " & ecu.code & " at " & ecu.interfaceName & "." & ecu.scope & ". Reason: " & ecu.description, Interfaces.IFlowsheet.MessageType.GeneralError)
+                    Me.CurrentMaterialStream.Flowsheet.ShowMessage(Me.ComponentName & ": " & DescribeCapeError(ex, _copp), Interfaces.IFlowsheet.MessageType.GeneralError)
                 End Try
             Else
                 Try
                     Me.SetMaterial(Me.CurrentMaterialStream)
                     Me.CalcEquilibrium1(s1, s2, "Unspecified")
                 Catch ex As Exception
-                    Dim ecu As CapeOpen.ECapeUser = _copp
-                    Me.CurrentMaterialStream.Flowsheet.ShowMessage(Me.ComponentName & ": CAPE-OPEN Exception " & ecu.code & " at " & ecu.interfaceName & "." & ecu.scope & ". Reason: " & ecu.description, Interfaces.IFlowsheet.MessageType.GeneralError)
+                    Me.CurrentMaterialStream.Flowsheet.ShowMessage(Me.ComponentName & ": " & DescribeCapeError(ex, _copp), Interfaces.IFlowsheet.MessageType.GeneralError)
                 End Try
             End If
 
@@ -462,8 +513,7 @@ Namespace PropertyPackages
                 Try
                     CType(_copp, ICapeThermoPropertyPackage).CalcEquilibrium(Me.CurrentMaterialStream, s11 + s22, Nothing)
                 Catch ex As Exception
-                    Dim ecu As CapeOpen.ECapeUser = _copp
-                    Me.CurrentMaterialStream.Flowsheet.ShowMessage(Me.ComponentName & ": CAPE-OPEN Exception " & ecu.code & " at " & ecu.interfaceName & "." & ecu.scope & ". Reason: " & ecu.description, Interfaces.IFlowsheet.MessageType.GeneralError)
+                    Me.CurrentMaterialStream.Flowsheet.ShowMessage(Me.ComponentName & ": " & DescribeCapeError(ex, _copp), Interfaces.IFlowsheet.MessageType.GeneralError)
                 End Try
             Else
                 Try
@@ -471,8 +521,7 @@ Namespace PropertyPackages
                     Dim ok As Boolean = CType(_copp, ICapeThermoEquilibriumRoutine).CheckEquilibriumSpec(s1, s2, "Unspecified")
                     CType(_copp, ICapeThermoEquilibriumRoutine).CalcEquilibrium(s1, s2, "Unspecified")
                 Catch ex As Exception
-                    Dim ecu As CapeOpen.ECapeUser = _copp
-                    Me.CurrentMaterialStream.Flowsheet.ShowMessage(Me.ComponentName & ": CAPE-OPEN Exception " & ecu.code & " at " & ecu.interfaceName & "." & ecu.scope & ". Reason: " & ecu.description, Interfaces.IFlowsheet.MessageType.GeneralError)
+                    Me.CurrentMaterialStream.Flowsheet.ShowMessage(Me.ComponentName & ": " & DescribeCapeError(ex, _copp), Interfaces.IFlowsheet.MessageType.GeneralError)
                 End Try
             End If
 
@@ -828,16 +877,14 @@ Namespace PropertyPackages
                 Try
                     CType(_copp, ICapeThermoPropertyPackage).CalcProp(Me.CurrentMaterialStream, New String() {"enthalpy"}, New String() {phase}, "Mixture")
                 Catch ex As Exception
-                    Dim ecu As CapeOpen.ECapeUser = _copp
-                    Me.CurrentMaterialStream.Flowsheet.ShowMessage(Me.ComponentName & ": CAPE-OPEN Exception " & ecu.code & " at " & ecu.interfaceName & "." & ecu.scope & ". Reason: " & ecu.description, Interfaces.IFlowsheet.MessageType.GeneralError)
+                    Me.CurrentMaterialStream.Flowsheet.ShowMessage(Me.ComponentName & ": " & DescribeCapeError(ex, _copp), Interfaces.IFlowsheet.MessageType.GeneralError)
                 End Try
                 Return Me.CurrentMaterialStream.Phases(pid).Properties.enthalpy.GetValueOrDefault
             Else
                 Try
                     CType(_copp, ICapeThermoPropertyRoutine).CalcSinglePhaseProp(New String() {"enthalpy"}, phase)
                 Catch ex As Exception
-                    Dim ecu As CapeOpen.ECapeUser = _copp
-                    Me.CurrentMaterialStream.Flowsheet.ShowMessage(Me.ComponentName & ": CAPE-OPEN Exception " & ecu.code & " at " & ecu.interfaceName & "." & ecu.scope & ". Reason: " & ecu.description, Interfaces.IFlowsheet.MessageType.GeneralError)
+                    Me.CurrentMaterialStream.Flowsheet.ShowMessage(Me.ComponentName & ": " & DescribeCapeError(ex, _copp), Interfaces.IFlowsheet.MessageType.GeneralError)
                 End Try
                 Return Me.CurrentMaterialStream.Phases(pid).Properties.enthalpy.GetValueOrDefault
             End If
@@ -875,16 +922,14 @@ Namespace PropertyPackages
                 Try
                     CType(_copp, ICapeThermoPropertyPackage).CalcProp(Me.CurrentMaterialStream, New String() {"excessEnthalpy"}, New String() {phase}, "Mixture")
                 Catch ex As Exception
-                    Dim ecu As CapeOpen.ECapeUser = _copp
-                    Me.CurrentMaterialStream.Flowsheet.ShowMessage(Me.ComponentName & ": CAPE-OPEN Exception " & ecu.code & " at " & ecu.interfaceName & "." & ecu.scope & ". Reason: " & ecu.description, Interfaces.IFlowsheet.MessageType.GeneralError)
+                    Me.CurrentMaterialStream.Flowsheet.ShowMessage(Me.ComponentName & ": " & DescribeCapeError(ex, _copp), Interfaces.IFlowsheet.MessageType.GeneralError)
                 End Try
                 Return Me.CurrentMaterialStream.Phases(pid).Properties.excessEnthalpy.GetValueOrDefault
             Else
                 Try
                     CType(_copp, ICapeThermoPropertyRoutine).CalcSinglePhaseProp(New String() {"excessEnthalpy"}, phase)
                 Catch ex As Exception
-                    Dim ecu As CapeOpen.ECapeUser = _copp
-                    Me.CurrentMaterialStream.Flowsheet.ShowMessage(Me.ComponentName & ": CAPE-OPEN Exception " & ecu.code & " at " & ecu.interfaceName & "." & ecu.scope & ". Reason: " & ecu.description, Interfaces.IFlowsheet.MessageType.GeneralError)
+                    Me.CurrentMaterialStream.Flowsheet.ShowMessage(Me.ComponentName & ": " & DescribeCapeError(ex, _copp), Interfaces.IFlowsheet.MessageType.GeneralError)
                 End Try
                 Return Me.CurrentMaterialStream.Phases(pid).Properties.excessEnthalpy.GetValueOrDefault
             End If
@@ -921,16 +966,14 @@ Namespace PropertyPackages
                 Try
                     CType(_copp, ICapeThermoPropertyPackage).CalcProp(Me.CurrentMaterialStream, New String() {"entropy"}, New String() {phase}, "Mixture")
                 Catch ex As Exception
-                    Dim ecu As CapeOpen.ECapeUser = _copp
-                    Me.CurrentMaterialStream.Flowsheet.ShowMessage(Me.ComponentName & ": CAPE-OPEN Exception " & ecu.code & " at " & ecu.interfaceName & "." & ecu.scope & ". Reason: " & ecu.description, Interfaces.IFlowsheet.MessageType.GeneralError)
+                    Me.CurrentMaterialStream.Flowsheet.ShowMessage(Me.ComponentName & ": " & DescribeCapeError(ex, _copp), Interfaces.IFlowsheet.MessageType.GeneralError)
                 End Try
                 Return Me.CurrentMaterialStream.Phases(pid).Properties.entropy.GetValueOrDefault
             Else
                 Try
                     CType(_copp, ICapeThermoPropertyRoutine).CalcSinglePhaseProp(New String() {"entropy"}, phase)
                 Catch ex As Exception
-                    Dim ecu As CapeOpen.ECapeUser = _copp
-                    Me.CurrentMaterialStream.Flowsheet.ShowMessage(Me.ComponentName & ": CAPE-OPEN Exception " & ecu.code & " at " & ecu.interfaceName & "." & ecu.scope & ". Reason: " & ecu.description, Interfaces.IFlowsheet.MessageType.GeneralError)
+                    Me.CurrentMaterialStream.Flowsheet.ShowMessage(Me.ComponentName & ": " & DescribeCapeError(ex, _copp), Interfaces.IFlowsheet.MessageType.GeneralError)
                 End Try
                 Return Me.CurrentMaterialStream.Phases(pid).Properties.entropy.GetValueOrDefault
             End If
@@ -968,16 +1011,14 @@ Namespace PropertyPackages
                 Try
                     CType(_copp, ICapeThermoPropertyPackage).CalcProp(Me.CurrentMaterialStream, New String() {"excessEntropy"}, New String() {phase}, "Mixture")
                 Catch ex As Exception
-                    Dim ecu As CapeOpen.ECapeUser = _copp
-                    Me.CurrentMaterialStream.Flowsheet.ShowMessage(Me.ComponentName & ": CAPE-OPEN Exception " & ecu.code & " at " & ecu.interfaceName & "." & ecu.scope & ". Reason: " & ecu.description, Interfaces.IFlowsheet.MessageType.GeneralError)
+                    Me.CurrentMaterialStream.Flowsheet.ShowMessage(Me.ComponentName & ": " & DescribeCapeError(ex, _copp), Interfaces.IFlowsheet.MessageType.GeneralError)
                 End Try
                 Return Me.CurrentMaterialStream.Phases(pid).Properties.excessEntropy.GetValueOrDefault
             Else
                 Try
                     CType(_copp, ICapeThermoPropertyRoutine).CalcSinglePhaseProp(New String() {"excessEntropy"}, phase)
                 Catch ex As Exception
-                    Dim ecu As CapeOpen.ECapeUser = _copp
-                    Me.CurrentMaterialStream.Flowsheet.ShowMessage(Me.ComponentName & ": CAPE-OPEN Exception " & ecu.code & " at " & ecu.interfaceName & "." & ecu.scope & ". Reason: " & ecu.description, Interfaces.IFlowsheet.MessageType.GeneralError)
+                    Me.CurrentMaterialStream.Flowsheet.ShowMessage(Me.ComponentName & ": " & DescribeCapeError(ex, _copp), Interfaces.IFlowsheet.MessageType.GeneralError)
                 End Try
                 Return Me.CurrentMaterialStream.Phases(pid).Properties.excessEntropy.GetValueOrDefault
             End If
@@ -1220,8 +1261,7 @@ Namespace PropertyPackages
                 Try
                     CType(_copp, ICapeThermoPropertyPackage).CalcProp(Me.CurrentMaterialStream, New String() {"fugacityCoefficient"}, New String() {phase}, "Mixture")
                 Catch ex As Exception
-                    Dim ecu As CapeOpen.ECapeUser = _copp
-                    Me.CurrentMaterialStream.Flowsheet.ShowMessage(Me.ComponentName & ": CAPE-OPEN Exception " & ecu.code & " at " & ecu.interfaceName & "." & ecu.scope & ". Reason: " & ecu.description, Interfaces.IFlowsheet.MessageType.GeneralError)
+                    Me.CurrentMaterialStream.Flowsheet.ShowMessage(Me.ComponentName & ": " & DescribeCapeError(ex, _copp), Interfaces.IFlowsheet.MessageType.GeneralError)
                 End Try
                 Dim n As Integer = Me.CurrentMaterialStream.Phases(pid).Compounds.Count - 1
                 Dim i As Integer = 0
@@ -1235,8 +1275,7 @@ Namespace PropertyPackages
                 Try
                     Me.CalcAndGetLnPhi(phase, T, P, Vx, 1, lnphi, lnphidt, lnphidp, lnphidn)
                 Catch ex As Exception
-                    Dim ecu As CapeOpen.ECapeUser = _copp
-                    Me.CurrentMaterialStream.Flowsheet.ShowMessage(Me.ComponentName & ": CAPE-OPEN Exception " & ecu.code & " at " & ecu.interfaceName & "." & ecu.scope & ". Reason: " & ecu.description, Interfaces.IFlowsheet.MessageType.GeneralError)
+                    Me.CurrentMaterialStream.Flowsheet.ShowMessage(Me.ComponentName & ": " & DescribeCapeError(ex, _copp), Interfaces.IFlowsheet.MessageType.GeneralError)
                 End Try
                 Dim n As Integer = UBound(lnphi)
                 Dim i As Integer
@@ -1533,9 +1572,9 @@ Namespace PropertyPackages
                         Try
                             myppm.Initialize()
                         Catch ex As Exception
-                            Dim ecu As CapeOpen.ECapeUser = _pptpl
-                            Me.CurrentMaterialStream.Flowsheet.ShowMessage(Me.ComponentName + ": error initializing CAPE-OPEN Property Package - " + ex.Message.ToString(), IFlowsheet.MessageType.GeneralError)
-                            Me.CurrentMaterialStream.Flowsheet.ShowMessage(Me.ComponentName & ": CAPE-OPEN Exception " & ecu.code & " at " & ecu.interfaceName & "." & ecu.scope & ". Reason: " & ecu.description, IFlowsheet.MessageType.GeneralError)
+                            Me.CurrentMaterialStream.Flowsheet.ShowMessage(
+                                Me.ComponentName & ": error initializing CAPE-OPEN Property Package - " & DescribeCapeError(ex, _pptpl),
+                                IFlowsheet.MessageType.GeneralError)
                         End Try
                     End If
 
@@ -1589,9 +1628,9 @@ Namespace PropertyPackages
                     Try
                         myuu.Initialize()
                     Catch ex As Exception
-                        Dim ecu As CapeOpen.ECapeUser = _copp
-                        Me.CurrentMaterialStream.Flowsheet.ShowMessage(Me.ComponentName + ": error initializing CAPE-OPEN Property Package - " + ex.Message.ToString(), IFlowsheet.MessageType.GeneralError)
-                        Me.CurrentMaterialStream.Flowsheet.ShowMessage(Me.ComponentName & ": CAPE-OPEN Exception " & ecu.code & " at " & ecu.interfaceName & "." & ecu.scope & ". Reason: " & ecu.description, IFlowsheet.MessageType.GeneralError)
+                        Me.CurrentMaterialStream.Flowsheet.ShowMessage(
+                            Me.ComponentName & ": error initializing CAPE-OPEN Property Package - " & DescribeCapeError(ex, _copp),
+                            IFlowsheet.MessageType.GeneralError)
                     End Try
                 End If
 

@@ -12929,27 +12929,84 @@ Final3:
             Return m_dirty
         End Function
 
+
+        ''' <summary>
+        ''' Reads exactly <paramref name="count"/> bytes from a COM stream, however many calls that
+        ''' takes.
+        ''' </summary>
+        ''' <remarks>
+        ''' IStream.Read is allowed to return fewer bytes than asked for, and reports how many in its
+        ''' third argument. Both readers here passed a null pointer for that argument and assumed the
+        ''' buffer had been filled, so a stream that answered in pieces - which one crossing a process
+        ''' boundary may well do - was deserialized with the tail still zeroed.
+        ''' </remarks>
+        Private Shared Function ReadExactly(stream As System.Runtime.InteropServices.ComTypes.IStream, count As Integer) As Byte()
+
+            Dim buffer(Math.Max(count - 1, -1)) As Byte
+
+            If count = 0 Then Return buffer
+
+            Dim read As IntPtr = Marshal.AllocCoTaskMem(4)
+
+            Try
+
+                Dim total As Integer = 0
+
+                While total < count
+
+                    Dim chunk(count - total - 1) As Byte
+
+                    stream.Read(chunk, chunk.Length, read)
+
+                    Dim got As Integer = Marshal.ReadInt32(read)
+
+                    If got <= 0 Then
+                        Throw New IO.EndOfStreamException(
+                            String.Format("The stream ended after {0} of {1} bytes.", total, count))
+                    End If
+
+                    Array.Copy(chunk, 0, buffer, total, got)
+
+                    total += got
+
+                End While
+
+            Finally
+
+                Marshal.FreeCoTaskMem(read)
+
+            End Try
+
+            Return buffer
+
+        End Function
+
         Public Sub Load(ByVal pStm As System.Runtime.InteropServices.ComTypes.IStream) Implements IPersistStreamInit.Load
+
+            Dim domain As AppDomain = AppDomain.CurrentDomain
 
             Try
 
                 Dim mySerializer As Binary.BinaryFormatter = New Binary.BinaryFormatter(Nothing, New System.Runtime.Serialization.StreamingContext())
 
-                Dim domain As AppDomain = AppDomain.CurrentDomain
                 AddHandler domain.AssemblyResolve, New ResolveEventHandler(AddressOf MyResolveEventHandler)
 
-                ' Read the length of the string  
-                Dim arrLen As Byte() = New [Byte](3) {}
-                pStm.Read(arrLen, arrLen.Length, IntPtr.Zero)
+                ' Read the length of the payload, and then the payload. Both reads go through a helper
+                ' that keeps asking until the stream has given what was asked for: IStream.Read is
+                ' allowed to return fewer bytes than requested, and taking the first answer as the whole
+                ' thing left the rest of the buffer as zeroes for the deserializer to choke on.
+                Dim arrLen As Byte() = ReadExactly(pStm, 4)
 
-                ' Calculate the length  
                 Dim cb As Integer = BitConverter.ToInt32(arrLen, 0)
 
-                ' Read the stream to get the string    
-                Dim bytes As Byte() = New Byte(cb - 1) {}
-                Dim pcb As New IntPtr()
-                pStm.Read(bytes, bytes.Length, pcb)
-                If System.Runtime.InteropServices.Marshal.IsComObject(pStm) Then System.Runtime.InteropServices.Marshal.ReleaseComObject(pStm)
+                If cb < 0 Then Throw New IO.InvalidDataException(
+                    String.Format("The persisted block declares a length of {0} bytes.", cb))
+
+                Dim bytes As Byte() = ReadExactly(pStm, cb)
+                ' The stream belongs to the host that called this method, not to us. Releasing a parameter
+                ' severs the caller's own wrapper over it: the next thing the host does with its stream
+                ' fails, or its runtime releases an interface pointer we already let go of and the process
+                ' dies with a corrupted heap. The marshaller already owns the reference for the call.
 
                 ' Deserialize byte array    
 
@@ -13014,14 +13071,19 @@ Final3:
                 myarr = Nothing
                 mySerializer = Nothing
 
-                RemoveHandler domain.AssemblyResolve, New ResolveEventHandler(AddressOf MyResolveEventHandler)
-
             Catch p_Ex As System.Exception
 
                 Dim hcode As Integer = 0
                 Dim comEx As COMException = New COMException(p_Ex.Message.ToString, p_Ex)
                 If Not IsNothing(comEx) Then hcode = comEx.ErrorCode
                 ThrowCAPEException(p_Ex, "Error", p_Ex.Message, "IPersistStream", p_Ex.Source, p_Ex.StackTrace, "Load", hcode)
+
+            Finally
+
+                ' In a Finally, because the handler used to be removed on the last line of the Try: a
+                ' failure anywhere in the deserialization left it attached to the application domain
+                ' for good, and every load after that added another one.
+                RemoveHandler domain.AssemblyResolve, New ResolveEventHandler(AddressOf MyResolveEventHandler)
 
             End Try
 
@@ -13098,7 +13160,10 @@ Final3:
                 ' Save the array in the stream    
                 pStm.Write(arrLen, arrLen.Length, IntPtr.Zero)
                 pStm.Write(bytes, bytes.Length, IntPtr.Zero)
-                If System.Runtime.InteropServices.Marshal.IsComObject(pStm) Then System.Runtime.InteropServices.Marshal.ReleaseComObject(pStm)
+                ' The stream belongs to the host that called this method, not to us. Releasing a parameter
+                ' severs the caller's own wrapper over it: the next thing the host does with its stream
+                ' fails, or its runtime releases an interface pointer we already let go of and the process
+                ' dies with a corrupted heap. The marshaller already owns the reference for the call.
 
             Catch p_Ex As System.Exception
 
@@ -14636,94 +14701,6 @@ Final3:
             PhaseLabel = pl
             DWPhaseIndex = pi
             DWPhaseID = pid
-        End Sub
-
-    End Class
-
-    ''' <summary>
-    ''' COM IStream Class Implementation
-    ''' </summary>
-    ''' <remarks></remarks>
-    <System.Serializable()> Public Class ComStreamWrapper
-        Inherits System.IO.Stream
-        Private mSource As IStream
-        Private mInt64 As IntPtr
-
-        Public Sub New(ByVal source As IStream)
-            mSource = source
-            mInt64 = iop.Marshal.AllocCoTaskMem(8)
-        End Sub
-
-        Protected Overrides Sub Finalize()
-            Try
-                iop.Marshal.FreeCoTaskMem(mInt64)
-            Finally
-                MyBase.Finalize()
-            End Try
-        End Sub
-
-        Public Overrides ReadOnly Property CanRead() As Boolean
-            Get
-                Return True
-            End Get
-        End Property
-
-        Public Overrides ReadOnly Property CanSeek() As Boolean
-            Get
-                Return True
-            End Get
-        End Property
-
-        Public Overrides ReadOnly Property CanWrite() As Boolean
-            Get
-                Return True
-            End Get
-        End Property
-
-        Public Overrides Sub Flush()
-            mSource.Commit(0)
-        End Sub
-
-        Public Overrides ReadOnly Property Length() As Long
-            Get
-                Dim stat As ComTypes.STATSTG
-                stat = Nothing
-                mSource.Stat(stat, 1)
-                Return stat.cbSize
-            End Get
-        End Property
-
-        Public Overrides Property Position() As Long
-            Get
-                Throw New NotImplementedException()
-            End Get
-            Set(ByVal value As Long)
-                Throw New NotImplementedException()
-            End Set
-        End Property
-
-        Public Overrides Function Read(ByVal buffer As Byte(), ByVal offset As Integer, ByVal count As Integer) As Integer
-            If offset <> 0 Then
-                Throw New NotImplementedException()
-            End If
-            mSource.Read(buffer, count, mInt64)
-            Return iop.Marshal.ReadInt32(mInt64)
-        End Function
-
-        Public Overrides Function Seek(ByVal offset As Long, ByVal origin As System.IO.SeekOrigin) As Long
-            mSource.Seek(offset, Convert.ToInt32(origin), mInt64)
-            Return iop.Marshal.ReadInt64(mInt64)
-        End Function
-
-        Public Overrides Sub SetLength(ByVal value As Long)
-            mSource.SetSize(value)
-        End Sub
-
-        Public Overrides Sub Write(ByVal buffer As Byte(), ByVal offset As Integer, ByVal count As Integer)
-            If offset <> 0 Then
-                Throw New NotImplementedException()
-            End If
-            mSource.Write(buffer, count, IntPtr.Zero)
         End Sub
 
     End Class

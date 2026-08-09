@@ -150,26 +150,23 @@ Namespace UnitOperations.CAPEOPENWrappers
 
             CreateParameters()
 
-            ' Read the length of the string  
-            Dim arrLen As Byte() = New [Byte](3) {}
-            pStm.Read(arrLen, arrLen.Length, IntPtr.Zero)
+            ' The stream belongs to the host that called this method, not to us: it is not released
+            ' here. Both reads go through a helper that keeps asking until the stream has given what
+            ' was asked for, because IStream.Read is allowed to answer in pieces.
+            Dim arrLen As Byte() = ReadExactly(pStm, 4)
 
-            ' Calculate the length  
             Dim cb As Integer = BitConverter.ToInt32(arrLen, 0)
 
-            ' Read the stream to get the string    
-            Dim bytes As Byte() = New Byte(cb - 1) {}
-            Dim pcb As New IntPtr()
-            pStm.Read(bytes, bytes.Length, pcb)
-            If System.Runtime.InteropServices.Marshal.IsComObject(pStm) Then System.Runtime.InteropServices.Marshal.ReleaseComObject(pStm)
+            If cb < 0 Then Throw New IO.InvalidDataException(
+                String.Format("The persisted block declares a length of {0} bytes.", cb))
 
-            ' Deserialize byte array    
+            Dim bytes As Byte() = ReadExactly(pStm, cb)
 
-            Dim memoryStream As New System.IO.MemoryStream(bytes)
+            Dim domain As AppDomain = AppDomain.CurrentDomain
+
+            Using memoryStream As New System.IO.MemoryStream(bytes)
 
             Try
-
-                Dim domain As AppDomain = AppDomain.CurrentDomain
                 AddHandler domain.AssemblyResolve, New ResolveEventHandler(AddressOf MyResolveEventHandler)
 
                 Dim myarr As ArrayList
@@ -192,17 +189,70 @@ Namespace UnitOperations.CAPEOPENWrappers
                 myarr = Nothing
                 mySerializer = Nothing
 
-                RemoveHandler domain.AssemblyResolve, New ResolveEventHandler(AddressOf MyResolveEventHandler)
-
             Catch p_Ex As System.Exception
 
                 Console.WriteLine(p_Ex.ToString())
 
+            Finally
+
+                ' In a Finally: the handler used to come off on the last line of the Try, so a failure
+                ' anywhere in the deserialization left it attached to the application domain for good.
+                RemoveHandler domain.AssemblyResolve, New ResolveEventHandler(AddressOf MyResolveEventHandler)
+
             End Try
 
-            memoryStream.Close()
+            End Using
 
         End Sub
+
+        ''' <summary>
+        ''' Reads exactly <paramref name="count"/> bytes from a COM stream, however many calls it takes.
+        ''' </summary>
+        ''' <remarks>
+        ''' IStream.Read may return fewer bytes than asked for and reports how many in its third
+        ''' argument. This used to pass a null pointer there and assume the buffer had been filled, so
+        ''' a stream that answered in pieces was deserialized with the tail still zeroed.
+        ''' </remarks>
+        Private Shared Function ReadExactly(stream As System.Runtime.InteropServices.ComTypes.IStream, count As Integer) As Byte()
+
+            Dim buffer(Math.Max(count - 1, -1)) As Byte
+
+            If count = 0 Then Return buffer
+
+            Dim read As IntPtr = System.Runtime.InteropServices.Marshal.AllocCoTaskMem(4)
+
+            Try
+
+                Dim total As Integer = 0
+
+                While total < count
+
+                    Dim chunk(count - total - 1) As Byte
+
+                    stream.Read(chunk, chunk.Length, read)
+
+                    Dim got As Integer = System.Runtime.InteropServices.Marshal.ReadInt32(read)
+
+                    If got <= 0 Then
+                        Throw New IO.EndOfStreamException(
+                            String.Format("The stream ended after {0} of {1} bytes.", total, count))
+                    End If
+
+                    Array.Copy(chunk, 0, buffer, total, got)
+
+                    total += got
+
+                End While
+
+            Finally
+
+                System.Runtime.InteropServices.Marshal.FreeCoTaskMem(read)
+
+            End Try
+
+            Return buffer
+
+        End Function
 
         ''' <summary>
         ''' Serialises the unit operation parameter values to a COM stream.
@@ -243,7 +293,10 @@ Namespace UnitOperations.CAPEOPENWrappers
                 ' Save the array in the stream    
                 pStm.Write(arrLen, arrLen.Length, IntPtr.Zero)
                 pStm.Write(bytes, bytes.Length, IntPtr.Zero)
-                If System.Runtime.InteropServices.Marshal.IsComObject(pStm) Then System.Runtime.InteropServices.Marshal.ReleaseComObject(pStm)
+                ' The stream belongs to the host that called this method, not to us. Releasing a parameter
+                ' severs the caller's own wrapper over it: the next thing the host does with its stream
+                ' fails, or its runtime releases an interface pointer we already let go of and the process
+                ' dies with a corrupted heap. The marshaller already owns the reference for the call.
 
             Catch p_Ex As System.Exception
 

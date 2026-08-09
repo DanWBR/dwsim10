@@ -187,6 +187,34 @@ Namespace UnitOperations
 
 #Region "    CAPE-OPEN Specifics"
 
+        ''' <summary>
+        ''' What went wrong, as a sentence: the exception's own message, and what the CAPE-OPEN
+        ''' component says about it when it implements ECapeUser.
+        ''' </summary>
+        ''' <remarks>
+        ''' This used to be a hard cast to ECapeUser written inside the Catch block that reports the
+        ''' failure. Nothing obliges a component to implement that interface, and one that does not
+        ''' turned the failure into an InvalidCastException raised from inside the handler, which
+        ''' threw away the message saying what had actually gone wrong.
+        ''' </remarks>
+        Private Function DescribeCapeError(ex As Exception, component As Object) As String
+
+            Dim text = If(ex Is Nothing, "", ex.Message)
+
+            Dim user = TryCast(component, CapeOpen.ECapeUser)
+
+            If user Is Nothing Then Return text
+
+            Try
+                Return String.Format("{0} (CAPE-OPEN {1} at {2}.{3}: {4})",
+                                     text, user.code, user.interfaceName, user.scope, user.description)
+            Catch reporting As Exception
+                Return text
+            End Try
+
+        End Function
+
+
         Sub PersistLoad(ByVal context As System.Runtime.Serialization.StreamingContext)
 
             If Type.GetType("Mono.Runtime") Is Nothing Then
@@ -230,9 +258,7 @@ Namespace UnitOperations
                             myuo2.Load(_istr)
                             _restorefromcollections = False
                         Catch ex As Exception
-                            Dim ecu As CapeOpen.ECapeUser = _couo
-                            FlowSheet?.ShowMessage(Me.ComponentName + ": error loading CAPE-OPEN Unit Operation - " + ex.Message.ToString(), IFlowsheet.MessageType.GeneralError)
-                            FlowSheet?.ShowMessage(Me.ComponentName & ": CAPE-OPEN Exception " & ecu.code & " at " & ecu.interfaceName & "." & ecu.scope & ". Reason: " & ecu.description, IFlowsheet.MessageType.GeneralError)
+                            FlowSheet?.ShowMessage(Me.ComponentName & ": error loading CAPE-OPEN Unit Operation - " & DescribeCapeError(ex, _couo), IFlowsheet.MessageType.GeneralError)
                             _restorefromcollections = True
                         End Try
                     End If
@@ -274,8 +300,7 @@ Namespace UnitOperations
                                 _persisteddata = ms.ToArray()
                             End Using
                         Catch ex As Exception
-                            Dim ecu As CapeOpen.ECapeUser = _couo
-                            Me.FlowSheet.ShowMessage(Me.ComponentName & ": CAPE-OPEN Exception " & ecu.code & " at " & ecu.interfaceName & "." & ecu.scope & ". Reason: " & ecu.description, IFlowsheet.MessageType.GeneralError)
+                            Me.FlowSheet.ShowMessage(Me.ComponentName & ": " & DescribeCapeError(ex, _couo), IFlowsheet.MessageType.GeneralError)
                             Me.FlowSheet.ShowMessage(Me.GraphicObject.Tag + ": Error saving data from CAPE-OPEN Object - " + ex.Message.ToString(), IFlowsheet.MessageType.GeneralError)
                         End Try
                     End If
@@ -292,8 +317,7 @@ Namespace UnitOperations
                                 _persisteddata = ms.ToArray()
                             End Using
                         Catch ex As Exception
-                            Dim ecu As CapeOpen.ECapeUser = _couo
-                            Me.FlowSheet.ShowMessage(Me.GraphicObject.Tag & ": CAPE-OPEN Exception " & ecu.code & " at " & ecu.interfaceName & "." & ecu.scope & ". Reason: " & ecu.description, IFlowsheet.MessageType.GeneralError)
+                            Me.FlowSheet.ShowMessage(Me.GraphicObject.Tag & ": " & DescribeCapeError(ex, _couo), IFlowsheet.MessageType.GeneralError)
                             Me.FlowSheet.ShowMessage(Me.GraphicObject.Tag + ": Error saving data from CAPE-OPEN Object - " + ex.Message.ToString(), IFlowsheet.MessageType.GeneralError)
                         End Try
                     End If
@@ -890,8 +914,7 @@ Namespace UnitOperations
                                 _ports(_ports.Count - 1).Connect(FlowSheet.SimulationObjects(CType(cnobj, ICapeIdentification).ComponentName))
                             End If
                         Catch ex As Exception
-                            Dim ecu As CapeOpen.ECapeUser = myuo
-                            Me.FlowSheet.ShowMessage(Me.GraphicObject.Tag & ": CAPE-OPEN Exception: " & ecu.code & " at " & ecu.interfaceName & ". Reason: " & ecu.description, IFlowsheet.MessageType.Warning)
+                            Me.FlowSheet.ShowMessage(Me.GraphicObject.Tag & ": " & DescribeCapeError(ex, myuo), IFlowsheet.MessageType.Warning)
                         End Try
                     Next
                 End If
@@ -958,8 +981,7 @@ Namespace UnitOperations
                         Try
                             If Not cnobj Is Nothing Then myport.Disconnect()
                         Catch ex As Exception
-                            Dim ecu As CapeOpen.ECapeUser = myuo
-                            Me.FlowSheet.ShowMessage(Me.GraphicObject.Tag & ": CAPE-OPEN Exception: " & ecu.code & " at " & ecu.interfaceName & ". Reason: " & ecu.description, IFlowsheet.MessageType.Warning)
+                            Me.FlowSheet.ShowMessage(Me.GraphicObject.Tag & ": " & DescribeCapeError(ex, myuo), IFlowsheet.MessageType.Warning)
                         End Try
                     Next
                 End If
@@ -974,8 +996,7 @@ Namespace UnitOperations
                 Try
                     myuo.Edit()
                 Catch ex As Exception
-                    Dim ecu As CapeOpen.ECapeUser = myuo
-                    Me.FlowSheet.ShowMessage(Me.GraphicObject.Tag & ": CAPE-OPEN Exception: " & ecu.code & " at " & ecu.interfaceName & ". Reason: " & ecu.description, IFlowsheet.MessageType.Warning)
+                    Me.FlowSheet.ShowMessage(Me.GraphicObject.Tag & ": " & DescribeCapeError(ex, myuo), IFlowsheet.MessageType.Warning)
                 End Try
                 UpdateParams()
                 UpdatePorts()
@@ -1177,8 +1198,7 @@ Namespace UnitOperations
                                 If c.IsAttached Then c.AttachedConnector.AttachedTo.Calculated = False
                             End If
                         Next
-                        Dim ecu As CapeOpen.ECapeUser = myuo
-                        Me.FlowSheet.ShowMessage(Me.GraphicObject.Tag & ": CAPE-OPEN Exception " & ecu.code & " at " & ecu.interfaceName & ":" & ecu.scope & ". Reason: " & ecu.description, IFlowsheet.MessageType.GeneralError)
+                        Me.FlowSheet.ShowMessage(Me.GraphicObject.Tag & ": " & DescribeCapeError(ex, myuo), IFlowsheet.MessageType.GeneralError)
                     End Try
 
                     For Each c As Interfaces.IConnectionPoint In Me.GraphicObject.OutputConnectors
@@ -1235,8 +1255,7 @@ Namespace UnitOperations
                                 If c.IsAttached Then c.AttachedConnector.AttachedTo.Calculated = False
                             End If
                         Next
-                        Dim ecu As CapeOpen.ECapeUser = myuo
-                        Me.FlowSheet.ShowMessage(Me.GraphicObject.Tag & ": CAPE-OPEN Exception " & ecu.code & " at " & ecu.interfaceName & ":" & ecu.scope & ". Reason: " & ecu.description, IFlowsheet.MessageType.GeneralError)
+                        Me.FlowSheet.ShowMessage(Me.GraphicObject.Tag & ": " & DescribeCapeError(ex, myuo), IFlowsheet.MessageType.GeneralError)
                         Throw ex
                     End Try
                 End If
