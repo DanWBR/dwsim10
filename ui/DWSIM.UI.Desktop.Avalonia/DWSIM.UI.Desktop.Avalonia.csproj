@@ -102,8 +102,16 @@
     <AssistantExtenderProject>$(MSBuildThisFileDirectory)..\..\extensions\DWSIM.Extensions.AI.Assistant\DWSIM.Extensions.AI.Assistant.vbproj</AssistantExtenderProject>
   </PropertyGroup>
 
+  <!--
+    Restore then build the launcher on its own: the application is published with a runtime
+    identifier, but the launcher is a plain managed assembly, so the identifier and self-contained
+    flag are cleared for it. Restore is included because `dotnet publish` of the application does not
+    restore a project it does not reference.
+  -->
   <Target Name="_ResolveAssistantExtender">
-    <MSBuild Projects="$(AssistantExtenderProject)" Targets="Build" Properties="Configuration=$(Configuration)">
+    <MSBuild Projects="$(AssistantExtenderProject)"
+             Targets="Restore;Build"
+             Properties="Configuration=$(Configuration);RuntimeIdentifier=;SelfContained=false;PublishReadyToRun=false">
       <Output TaskParameter="TargetOutputs" ItemName="AssistantExtenderDll" />
     </MSBuild>
   </Target>
