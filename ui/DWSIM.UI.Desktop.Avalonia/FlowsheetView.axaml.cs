@@ -3436,7 +3436,14 @@ public partial class FlowsheetView : UserControl
 
         foreach (DWSIM.Interfaces.IExtenderCollection extender in mform.Extenders)
         {
-            if (extender.Level != DWSIM.Interfaces.Enums.ExtenderLevel.FlowsheetWindow)
+            // main-window extensions get a menu item here as well: this is the window that
+            // has the menus, and the one that can tell an extension which flowsheet is active
+            if (extender.Level != DWSIM.Interfaces.Enums.ExtenderLevel.FlowsheetWindow &&
+                extender.Level != DWSIM.Interfaces.Enums.ExtenderLevel.MainWindow)
+                continue;
+
+            if (extender.Category == DWSIM.Interfaces.Enums.ExtenderCategory.InitializationScript &&
+                extender.Level == DWSIM.Interfaces.Enums.ExtenderLevel.MainWindow)
                 continue;
 
             foreach (var item in extender.Collection)

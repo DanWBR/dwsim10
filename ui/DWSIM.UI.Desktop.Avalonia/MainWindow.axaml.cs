@@ -753,11 +753,27 @@ public partial class MainWindow : Window
         return result;
     }
 
+    /// <summary>
+    /// Where the extensions are read from. Normally the "extenders" folder beside the application;
+    /// DWSIM_EXTENDERS_DIR points it somewhere else, which is how an extension built for the
+    /// Windows edition can be tried here without being copied over first.
+    /// </summary>
+    private static string GetExtendersDirectory()
+    {
+        var overridden = Environment.GetEnvironmentVariable("DWSIM_EXTENDERS_DIR");
+        if (!string.IsNullOrEmpty(overridden)) return overridden;
+
+        return Path.Combine(
+            Directory.GetParent(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!)!.FullName,
+            "extenders");
+    }
+
     private List<Assembly> LoadExtenderDLLs()
     {
         var extenderDlls = new List<Assembly>();
 
-        var dir = Path.Combine(Directory.GetParent(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!)!.FullName, "extenders");
+        var dir = GetExtendersDirectory();
+        Console.WriteLine($"Loading extensions from {dir}");
 
         if (Directory.Exists(dir))
         {
@@ -806,24 +822,23 @@ public partial class MainWindow : Window
         foreach (var extender in extList)
         {
             Extenders.Add(extender);
-            if (extender.Level == Interfaces.Enums.ExtenderLevel.MainWindow)
+
+            // only an initialization script runs on its own; everything else becomes a menu item
+            // on the simulation window, which is where the menus and the active flowsheet are
+            if (extender.Level == Interfaces.Enums.ExtenderLevel.MainWindow &&
+                extender.Category == Interfaces.Enums.ExtenderCategory.InitializationScript)
             {
                 foreach (var item in extender.Collection)
                 {
-                    if (item is IExtender6)
+                    try
                     {
-                        try
-                        {
-                            item.Run();
-                        }
-                        catch (Exception ex)
-                        {
-                            Console.WriteLine($"Error loading extension {extender.DisplayText}: {ex}");
-                        }
+                        if (item is IExtender6 ext6) ext6.SetFlowsheetGUI(this);
+                        item.SetMainWindow(this);
+                        item.Run();
                     }
-                    else
+                    catch (Exception ex)
                     {
-                        Console.WriteLine($"Error loading extension {extender.DisplayText}: not compatible with Cross-Platform DWSIM version");
+                        Console.WriteLine($"Error running extension {extender.DisplayText}: {ex}");
                     }
                 }
             }
