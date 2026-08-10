@@ -28,6 +28,7 @@ public sealed class FlowsheetDockFactory : Factory
     private readonly Control _spreadsheetContent;
     private readonly Control _dynamicsManagerContent;
     private readonly Control _integratorContent;
+    private readonly Control _watchContent;
 
     // Exposed so FlowsheetWindow can show/hide panels via the dock API
     /// <summary>Live panel of each dockable id, used when reattaching a restored layout.</summary>
@@ -40,6 +41,7 @@ public sealed class FlowsheetDockFactory : Factory
     public Tool? WebTool { get; private set; }
     public Tool? LogTool { get; private set; }
     public Tool? IntegratorTool { get; private set; }
+    public Tool? WatchTool { get; private set; }
     public Document? CanvasDocument { get; private set; }
     public Document? ResultsDocument { get; private set; }
     public Document? MaterialStreamsDocument { get; private set; }
@@ -55,7 +57,8 @@ public sealed class FlowsheetDockFactory : Factory
         Control materialStreamsContent,
         Control spreadsheetContent,
         Control dynamicsManagerContent,
-        Control integratorContent)
+        Control integratorContent,
+        Control watchContent)
     {
         _editorContent = editorContent;
         _canvasContent = canvasContent;
@@ -66,6 +69,7 @@ public sealed class FlowsheetDockFactory : Factory
         _spreadsheetContent = spreadsheetContent;
         _dynamicsManagerContent = dynamicsManagerContent;
         _integratorContent = integratorContent;
+        _watchContent = watchContent;
 
         // content by dockable id, so a layout restored from the simulation file can have the
         // live panels put back into it: the serializer round-trips the tree, not the controls
@@ -79,7 +83,8 @@ public sealed class FlowsheetDockFactory : Factory
             ["MaterialStreams"] = materialStreamsContent,
             ["Spreadsheet"] = spreadsheetContent,
             ["DynamicsManager"] = dynamicsManagerContent,
-            ["Integrator"] = integratorContent
+            ["Integrator"] = integratorContent,
+            ["Watch"] = watchContent
         };
     }
 
@@ -183,6 +188,17 @@ public sealed class FlowsheetDockFactory : Factory
             Proportion = 0.20
         };
 
+        WatchTool = new Tool
+        {
+            Id = "Watch",
+            Title = "Watch",
+            Content = _watchContent,
+            CanClose = false,
+            CanPin = true,
+            CanFloat = false,
+            Proportion = 0.20
+        };
+
         // --- Dock containers ---
         var leftDock = new ToolDock
         {
@@ -225,7 +241,7 @@ public sealed class FlowsheetDockFactory : Factory
             Title = "Bottom",
             Alignment = Alignment.Bottom,
             Proportion = 0.20,
-            VisibleDockables = CreateList<IDockable>(LogTool, IntegratorTool),
+            VisibleDockables = CreateList<IDockable>(LogTool, IntegratorTool, WatchTool),
             ActiveDockable = LogTool
         };
 
@@ -318,6 +334,18 @@ public sealed class FlowsheetDockFactory : Factory
         right.Proportion = 0.30;
         right.VisibleDockables?.Add(WebTool);
         right.ActiveDockable = WebTool;
+    }
+
+    /// <summary>Brings the watch panel forward, making sure the bottom dock is open.</summary>
+    public void ShowWatch()
+    {
+        if (WatchTool == null) return;
+
+        var bottom = Find(d => d.Id == "BottomDock").OfType<ToolDock>().FirstOrDefault();
+        if (bottom == null) return;
+
+        if (bottom.Proportion <= 0.01) bottom.Proportion = 0.20;
+        bottom.ActiveDockable = WatchTool;
     }
 
     /// <summary>Brings the panel forward when it is already there.</summary>

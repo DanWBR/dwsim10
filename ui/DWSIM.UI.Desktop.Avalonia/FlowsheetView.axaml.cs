@@ -228,6 +228,7 @@ public partial class FlowsheetView : UserControl
 
     // Dock factory (to show/hide panels programmatically)
     private FlowsheetDockFactory? _dockFactory;
+    private WatchPanelControl _watchPanel = null!;
     private Dock.Model.Core.IDock? _dockLayout;
     private DockControl? _dockControl;
 
@@ -302,6 +303,8 @@ public partial class FlowsheetView : UserControl
             Content = PaletteStack
         });
 
+        _watchPanel = new WatchPanelControl();
+
         // Create the dock factory with pre-built controls
         // Center document tabs: Flowsheet canvas, Results, Material Streams, Spreadsheet
         // Bottom tool panel: Log (and later Dynamics Integrator)
@@ -314,7 +317,8 @@ public partial class FlowsheetView : UserControl
             materialStreamsContent: MaterialStreamsPanel,
             spreadsheetContent: SpreadsheetGrid,
             dynamicsManagerContent: DynManagerPanel,
-            integratorContent: IntegratorPanel);
+            integratorContent: IntegratorPanel,
+            watchContent: _watchPanel);
 
         var layout = _dockFactory.CreateLayout();
         _dockFactory.InitLayout(layout);
@@ -743,6 +747,7 @@ public partial class FlowsheetView : UserControl
             Canvas.Refresh();
             // open object editors hold live grids; this is the engine's post-solve signal
             DWSIM.UI.Desktop.Editors.MaterialStreamTabbedEditor.RefreshAll();
+            _watchPanel.RefreshValues();
         };
         fs.OnUpdateOpenEditForms = RefreshSelectedObjectEditor;
         fs.OnCloseOpenEditForms = CloseAllEditors;
@@ -769,6 +774,7 @@ public partial class FlowsheetView : UserControl
             });
 
             _flowsheet = fs;
+            _watchPanel.SetFlowsheet(fs);
             // Without this, Save silently degrades to Save As for every opened file.
             _flowsheet.FilePath = path;
             if (_flowsheet.Options != null) _flowsheet.Options.FilePath = path;
@@ -901,6 +907,7 @@ public partial class FlowsheetView : UserControl
             Canvas.Refresh();
             // open object editors hold live grids; this is the engine's post-solve signal
             DWSIM.UI.Desktop.Editors.MaterialStreamTabbedEditor.RefreshAll();
+            _watchPanel.RefreshValues();
         };
         fs.OnUpdateOpenEditForms = RefreshSelectedObjectEditor;
         fs.OnCloseOpenEditForms = CloseAllEditors;
@@ -920,6 +927,7 @@ public partial class FlowsheetView : UserControl
         }
 
         _flowsheet = fs;
+        _watchPanel.SetFlowsheet(fs);
         _surface = (GraphicsSurface)fs.GetSurface();
         _surface.Flowsheet = _flowsheet;
 
@@ -1950,6 +1958,7 @@ public partial class FlowsheetView : UserControl
         MenuShowEditor.Click += (_, _) => ToggleDockTool(_dockFactory?.EditorTool);
         MenuShowPalette.Click += (_, _) => ToggleDockTool(_dockFactory?.PaletteTool);
         MenuShowResults.Click += (_, _) => ToggleDockTool(_dockFactory?.LogTool);
+        MenuShowWatch.Click += (_, _) => _dockFactory?.ShowWatch();
 
         MenuZoomIn.Click += (_, _) => ZoomIn();
         MenuZoomOut.Click += (_, _) => ZoomOut();
