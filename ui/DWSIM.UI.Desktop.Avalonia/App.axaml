@@ -1,4 +1,4 @@
-<Application xmlns="https://github.com/avaloniaui"
+﻿<Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:dac="clr-namespace:Dock.Avalonia.Controls;assembly=Dock.Avalonia"
              x:Class="DWSIM.UI.Desktop.Avalonia.App"
@@ -12,8 +12,8 @@
     <x:Double x:Key="FontSizeNormal">11</x:Double>
     <x:Double x:Key="FontSizeSmall">10</x:Double>
     <!-- The floor Fluent gives text boxes, combo boxes, spinners and pickers: 32 px, which
-         reads far taller than the WinForms fields. Down 40%, to 19, in one place. -->
-    <x:Double x:Key="TextControlThemeMinHeight">19</x:Double>
+         reads far taller than the WinForms fields. Down to 24, to match them, in one place. -->
+    <x:Double x:Key="TextControlThemeMinHeight">24</x:Double>
   </Application.Resources>
 
   <Application.Styles>
@@ -164,23 +164,23 @@
     <Style Selector="StackPanel.editorPanel TextBox">
       <Setter Property="FontSize" Value="11" />
       <Setter Property="Padding" Value="4,1" />
-      <Setter Property="MinHeight" Value="19" />
+      <Setter Property="MinHeight" Value="24" />
     </Style>
     <Style Selector="StackPanel.editorPanel ComboBox">
       <Setter Property="FontSize" Value="11" />
       <Setter Property="Padding" Value="4,1" />
-      <Setter Property="MinHeight" Value="19" />
+      <Setter Property="MinHeight" Value="24" />
     </Style>
     <Style Selector="StackPanel.editorPanel NumericUpDown">
       <Setter Property="FontSize" Value="11" />
-      <Setter Property="MinHeight" Value="19" />
+      <Setter Property="MinHeight" Value="24" />
     </Style>
     <Style Selector="StackPanel.editorPanel CheckBox">
       <Setter Property="FontSize" Value="11" />
     </Style>
     <Style Selector="StackPanel.editorPanel AutoCompleteBox">
       <Setter Property="FontSize" Value="11" />
-      <Setter Property="MinHeight" Value="19" />
+      <Setter Property="MinHeight" Value="24" />
     </Style>
     <Style Selector="StackPanel.editorPanel Button.panel">
       <Setter Property="FontSize" Value="11" />
