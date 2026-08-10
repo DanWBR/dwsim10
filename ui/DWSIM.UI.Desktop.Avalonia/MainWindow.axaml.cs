@@ -694,7 +694,7 @@ public partial class MainWindow : Window
         var pluginAssemblyList = new List<Assembly>();
 
         // 1. plugins/ next to the executable
-        var basePlugins = Path.Combine(Directory.GetParent(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!)!.FullName, "plugins");
+        var basePlugins = GetExtensionDirectory("plugins");
         if (Directory.Exists(basePlugins))
         {
             foreach (var fi in new DirectoryInfo(basePlugins).GetFiles("*.*", SearchOption.TopDirectoryOnly))
@@ -754,18 +754,34 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// Where the extensions are read from. Normally the "extenders" folder beside the application;
-    /// DWSIM_EXTENDERS_DIR points it somewhere else, which is how an extension built for the
-    /// Windows edition can be tried here without being copied over first.
+    /// Where an extension folder lives: beside the executable, which is where the Windows
+    /// application keeps extenders, ppacks, unitops and plugins, and where the engine looks first.
+    /// The folder one level up is kept as a second place to look, as the engine does.
+    /// </summary>
+    private static string GetExtensionDirectory(string name)
+    {
+        var exeDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!;
+
+        var candidates = new[]
+        {
+            Path.Combine(exeDir, name),
+            Path.Combine(Directory.GetParent(exeDir)?.FullName ?? exeDir, name),
+            Path.Combine(GlobalSettings.Settings.GetConfigFileDir(), name)
+        };
+
+        return candidates.FirstOrDefault(Directory.Exists) ?? candidates[0];
+    }
+
+    /// <summary>
+    /// Where the extensions are read from. DWSIM_EXTENDERS_DIR points it somewhere else, which is
+    /// how an extension built for the Windows edition can be tried here without being copied over.
     /// </summary>
     private static string GetExtendersDirectory()
     {
         var overridden = Environment.GetEnvironmentVariable("DWSIM_EXTENDERS_DIR");
         if (!string.IsNullOrEmpty(overridden)) return overridden;
 
-        return Path.Combine(
-            Directory.GetParent(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!)!.FullName,
-            "extenders");
+        return GetExtensionDirectory("extenders");
     }
 
     private List<Assembly> LoadExtenderDLLs()
