@@ -21,6 +21,10 @@
 #ifndef MyAppVersion
   #define MyAppVersion "10.0.0"
 #endif
+; VersionInfoVersion must be purely numeric (X.X.X.X); MyAppVersion can carry a suffix like -test.
+#ifndef MyVerInfo
+  #define MyVerInfo "10.0.0.0"
+#endif
 #ifndef MyArch
   #define MyArch "x64"
 #endif
@@ -58,7 +62,7 @@ SolidCompression=yes
 WizardStyle=modern
 ArchitecturesAllowed={#ArchAllowed}
 ArchitecturesInstallIn64BitMode={#ArchAllowed}
-VersionInfoVersion={#MyAppVersion}
+VersionInfoVersion={#MyVerInfo}
 VersionInfoProductName={#AppName}
 VersionInfoCompany={#AppPublisher}
 VersionInfoCopyright=Copyright (c) {#AppPublisher}

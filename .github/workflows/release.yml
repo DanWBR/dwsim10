@@ -158,10 +158,13 @@ jobs:
         shell: bash
         run: |
           if [ "${{ github.event_name }}" = "push" ]; then
-            echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+            value=${GITHUB_REF_NAME#v}
           else
-            echo "value=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+            value=${{ inputs.version }}
           fi
+          echo "value=$value" >> "$GITHUB_OUTPUT"
+          # VersionInfoVersion must be numeric, so drop any -suffix
+          echo "verinfo=${value%%-*}" >> "$GITHUB_OUTPUT"
 
       - name: Install Inno Setup
         run: choco install innosetup -y --no-progress
@@ -171,6 +174,7 @@ jobs:
         run: >
           "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
           /DMyAppVersion=${{ steps.version.outputs.value }}
+          /DMyVerInfo=${{ steps.version.outputs.verinfo }}
           /DMyArch=${{ matrix.arch }}
           /DSourceDir=%CD%\publish\${{ matrix.rid }}
           /DOutputDir=%CD%\artifacts
