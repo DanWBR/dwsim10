@@ -178,9 +178,6 @@
         <Button       Name="BtnDelete"  Classes="toolbar" ToolTip.Tip="Delete Selected Object (Del)" Content="✕" FontSize="16" Foreground="Red" />
         <ToggleButton Name="BtnInspector" Classes="toolbar" ToolTip.Tip="Enable/Disable Inspector" Content="🔎" FontSize="14" />
 
-        <!-- an extension that publishes an icon gets a button of its own, at the end -->
-        <StackPanel Name="ExtensionButtons" Orientation="Horizontal" Spacing="2" />
-
       </StackPanel>
     </Border>
 

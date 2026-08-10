@@ -3577,8 +3577,13 @@ public partial class FlowsheetView : UserControl
             catch (Exception ex) { AppendLog($"Error running {ext.DisplayText}: {ex.Message}"); }
         };
 
-        ExtensionButtons.Children.Add(button);
-        Console.WriteLine($"Toolbar button added for '{ext.DisplayText}'.");
+        // the menu of a simulation is moved into the main window, so the strip beside it
+        // is there and not here
+        var strip = FindMainWindow()?.MenuBarExtensions;
+        if (strip == null) return;
+
+        strip.Children.Add(button);
+        Console.WriteLine($"Menu bar button added for '{ext.DisplayText}'.");
     }
 
     /// <summary>

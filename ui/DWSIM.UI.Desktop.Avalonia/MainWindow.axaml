@@ -12,29 +12,35 @@
   <DockPanel LastChildFill="True">
 
     <!-- Menu: replaced by the menu of the active simulation while one is open -->
-    <ContentControl Name="MenuHost" DockPanel.Dock="Top">
-      <Menu Name="BaseMenu">
-      <MenuItem Header="_File">
-        <MenuItem Header="_New Simulation..."  Name="MenuNew" />
-        <MenuItem Header="_Open Simulation..." Name="MenuOpen" />
-        <MenuItem Header="Open _Recent"        Name="MenuRecent" />
-        <Separator />
-        <MenuItem Header="E_xit"               Name="MenuExit" />
-      </MenuItem>
-      <MenuItem Header="_Edit">
-        <MenuItem Header="_Preferences..."     Name="MenuPrefs" />
-      </MenuItem>
-      <MenuItem Header="_Help">
-        <MenuItem Header="_User Guide (HTML)"  Name="MenuUserGuide" />
-        <Separator />
-        <MenuItem Header="_Support"            Name="MenuHelpSupport" />
-        <MenuItem Header="Report a _Bug"       Name="MenuHelpBug" />
-        <MenuItem Header="Go to DWSIM's _Website" Name="MenuHelpWebsite" />
-        <Separator />
-        <MenuItem Header="_About DWSIM..."     Name="MenuAbout" />
+    <!-- the strip on the right is where a main-window extension puts itself, as the
+         Windows interface does with the assistant -->
+    <DockPanel DockPanel.Dock="Top" LastChildFill="True">
+      <StackPanel DockPanel.Dock="Right" Name="MenuBarExtensions" Orientation="Horizontal"
+                  Spacing="2" VerticalAlignment="Center" Margin="4,0" />
+      <ContentControl Name="MenuHost">
+        <Menu Name="BaseMenu">
+        <MenuItem Header="_File">
+          <MenuItem Header="_New Simulation..."  Name="MenuNew" />
+          <MenuItem Header="_Open Simulation..." Name="MenuOpen" />
+          <MenuItem Header="Open _Recent"        Name="MenuRecent" />
+          <Separator />
+          <MenuItem Header="E_xit"               Name="MenuExit" />
         </MenuItem>
-      </Menu>
-    </ContentControl>
+        <MenuItem Header="_Edit">
+          <MenuItem Header="_Preferences..."     Name="MenuPrefs" />
+        </MenuItem>
+        <MenuItem Header="_Help">
+          <MenuItem Header="_User Guide (HTML)"  Name="MenuUserGuide" />
+          <Separator />
+          <MenuItem Header="_Support"            Name="MenuHelpSupport" />
+          <MenuItem Header="Report a _Bug"       Name="MenuHelpBug" />
+          <MenuItem Header="Go to DWSIM's _Website" Name="MenuHelpWebsite" />
+          <Separator />
+          <MenuItem Header="_About DWSIM..."     Name="MenuAbout" />
+          </MenuItem>
+        </Menu>
+      </ContentControl>
+    </DockPanel>
 
     <!-- Bottom container for extension panels (e.g. Support/licensing bar) -->
     <StackPanel Name="BottomPane" DockPanel.Dock="Bottom" />
