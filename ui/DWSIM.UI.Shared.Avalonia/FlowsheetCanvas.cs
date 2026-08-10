@@ -92,13 +92,8 @@ public class FlowsheetCanvas : Control
         if (logW <= 0 || logH <= 0) return;
 
         var dpiScale = GetDpiScale();
-
-        // one device pixel per bitmap pixel. This used to square the scale, which drew into a
-        // bitmap four times the area on a 200% display and then let it be downscaled: the
-        // surface was told the viewport was DeviceSize, one factor of the scale, so its idea
-        // of where a point on screen falls disagreed with where it had drawn.
-        var devW = (int)(logW * dpiScale);
-        var devH = (int)(logH * dpiScale);
+        var devW = (int)(logW * dpiScale * dpiScale);
+        var devH = (int)(logH * dpiScale * dpiScale);
         if (devW <= 0 || devH <= 0) return;
 
         // Create bitmap at device-pixel resolution for crisp rendering

@@ -468,8 +468,7 @@ public partial class FlowsheetView : UserControl
         Canvas.PaletteItemDropped += (name, x, y) =>
         {
             if (_flowsheet == null) return;
-            var (ox, oy) = CanvasToObject(x, y);
-            AddPaletteObject(name, ox, oy);
+            AddPaletteObject(name, x, y);
         };
 
         // Double-click with modifiers (matches Eto Flowsheet.eto.cs behavior):
@@ -2247,7 +2246,13 @@ public partial class FlowsheetView : UserControl
     {
         if (_flowsheet == null) return;
 
-        var (cx, cy) = ViewCenter();
+        var cx = (int)(Canvas.Bounds.Width / 2);
+        var cy = (int)(Canvas.Bounds.Height / 2);
+        if (_surface != null)
+        {
+            cx = (int)(_surface.Size.Width / 2);
+            cy = (int)(_surface.Size.Height / 2);
+        }
 
         var obj = _flowsheet.AddGraphicObject(type, cx, cy, "", image);
         if (obj == null) return;
@@ -2296,41 +2301,16 @@ public partial class FlowsheetView : UserControl
         }
     }
 
-    /// <summary>
-    /// Converts a point on the canvas into the coordinates an object is placed in.
-    /// </summary>
-    /// <remarks>
-    /// The surface draws through a zoom, so a point it hands out, and the size it reports, are in
-    /// canvas pixels; the X and Y of an object are not. Hit testing already divides by the zoom on
-    /// the way in, which is why clicking picks the right object while dropping used to place one
-    /// as far off as the zoom itself.
-    /// </remarks>
-    private (int X, int Y) CanvasToObject(double x, double y)
-    {
-        var zoom = _surface?.Zoom ?? 1.0f;
-        if (zoom <= 0.0f) zoom = 1.0f;
-        return ((int)(x / zoom), (int)(y / zoom));
-    }
-
-    /// <summary>The middle of the visible area, in the coordinates an object is placed in.</summary>
-    private (int X, int Y) ViewCenter()
-    {
-        double cx = Canvas.Bounds.Width / 2;
-        double cy = Canvas.Bounds.Height / 2;
-
-        if (_surface != null)
-        {
-            cx = _surface.Size.Width / 2;
-            cy = _surface.Size.Height / 2;
-        }
-
-        return CanvasToObject(cx, cy);
-    }
-
     private void AddObjectAtCenter(ObjectType type, string name)
     {
         if (_flowsheet == null) return;
-        var (cx, cy) = ViewCenter();
+        var cx = (int)(Canvas.Bounds.Width / 2);
+        var cy = (int)(Canvas.Bounds.Height / 2);
+        if (_surface != null)
+        {
+            cx = (int)(_surface.Size.Width / 2);
+            cy = (int)(_surface.Size.Height / 2);
+        }
         _flowsheet.AddObject(type, cx, cy, name);
         Canvas.Refresh();
         UpdateResultsPanel();
@@ -2551,7 +2531,13 @@ public partial class FlowsheetView : UserControl
                     var mi = new MenuItem { Header = displayName };
                     mi.Click += (_, _) =>
                     {
-                        var (centerX, centerY) = ViewCenter();
+                        var centerX = (int)(Canvas.Bounds.Width / 2);
+                        var centerY = (int)(Canvas.Bounds.Height / 2);
+                        if (_surface != null)
+                        {
+                            centerX = (int)(_surface.Size.Width / 2);
+                            centerY = (int)(_surface.Size.Height / 2);
+                        }
                         AddPaletteObject(displayName, centerX, centerY);
                         Canvas.Refresh();
                         UpdateResultsPanel();
@@ -2896,7 +2882,13 @@ public partial class FlowsheetView : UserControl
                 cell.DoubleTapped += (_, _) =>
                 {
                     if (_flowsheet == null) return;
-                    var (cx, cy) = ViewCenter();
+                    var cx = (int)(Canvas.Bounds.Width / 2);
+                    var cy = (int)(Canvas.Bounds.Height / 2);
+                    if (_surface != null)
+                    {
+                        cx = (int)(_surface.Size.Width / 2);
+                        cy = (int)(_surface.Size.Height / 2);
+                    }
                     AddPaletteObject(name, cx, cy);
                     AppendLog($"Added '{name}'.");
                 };
