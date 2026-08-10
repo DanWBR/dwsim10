@@ -468,7 +468,8 @@ public partial class FlowsheetView : UserControl
         Canvas.PaletteItemDropped += (name, x, y) =>
         {
             if (_flowsheet == null) return;
-            AddPaletteObject(name, x, y);
+            var (ox, oy) = CanvasToObject(x, y);
+            AddPaletteObject(name, ox, oy);
         };
 
         // Double-click with modifiers (matches Eto Flowsheet.eto.cs behavior):
@@ -2246,13 +2247,7 @@ public partial class FlowsheetView : UserControl
     {
         if (_flowsheet == null) return;
 
-        var cx = (int)(Canvas.Bounds.Width / 2);
-        var cy = (int)(Canvas.Bounds.Height / 2);
-        if (_surface != null)
-        {
-            cx = (int)(_surface.Size.Width / 2);
-            cy = (int)(_surface.Size.Height / 2);
-        }
+        var (cx, cy) = ViewCenter();
 
         var obj = _flowsheet.AddGraphicObject(type, cx, cy, "", image);
         if (obj == null) return;
@@ -2301,16 +2296,41 @@ public partial class FlowsheetView : UserControl
         }
     }
 
+    /// <summary>
+    /// Converts a point on the canvas into the coordinates an object is placed in.
+    /// </summary>
+    /// <remarks>
+    /// This is the conversion both of the other interfaces make when something is dropped on the
+    /// flowsheet: the Windows one divides the client point by the zoom, and the Eto one wrote
+    /// <c>e.Location.X * DpiScale / Zoom</c>. The canvas hands out a point that already carries the
+    /// display scale, so only the zoom is left to divide by.
+    /// </remarks>
+    private (int X, int Y) CanvasToObject(double x, double y)
+    {
+        var zoom = _surface?.Zoom ?? 1.0f;
+        if (zoom <= 0.0f) zoom = 1.0f;
+        return ((int)(x / zoom), (int)(y / zoom));
+    }
+
+    /// <summary>The middle of the visible area, in the coordinates an object is placed in.</summary>
+    private (int X, int Y) ViewCenter()
+    {
+        double cx = Canvas.Bounds.Width / 2;
+        double cy = Canvas.Bounds.Height / 2;
+
+        if (_surface != null)
+        {
+            cx = _surface.Size.Width / 2;
+            cy = _surface.Size.Height / 2;
+        }
+
+        return CanvasToObject(cx, cy);
+    }
+
     private void AddObjectAtCenter(ObjectType type, string name)
     {
         if (_flowsheet == null) return;
-        var cx = (int)(Canvas.Bounds.Width / 2);
-        var cy = (int)(Canvas.Bounds.Height / 2);
-        if (_surface != null)
-        {
-            cx = (int)(_surface.Size.Width / 2);
-            cy = (int)(_surface.Size.Height / 2);
-        }
+        var (cx, cy) = ViewCenter();
         _flowsheet.AddObject(type, cx, cy, name);
         Canvas.Refresh();
         UpdateResultsPanel();
@@ -2882,13 +2902,7 @@ public partial class FlowsheetView : UserControl
                 cell.DoubleTapped += (_, _) =>
                 {
                     if (_flowsheet == null) return;
-                    var cx = (int)(Canvas.Bounds.Width / 2);
-                    var cy = (int)(Canvas.Bounds.Height / 2);
-                    if (_surface != null)
-                    {
-                        cx = (int)(_surface.Size.Width / 2);
-                        cy = (int)(_surface.Size.Height / 2);
-                    }
+                    var (cx, cy) = ViewCenter();
                     AddPaletteObject(name, cx, cy);
                     AppendLog($"Added '{name}'.");
                 };
