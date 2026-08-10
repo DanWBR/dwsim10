@@ -45,6 +45,19 @@ All of them come from an Apple Developer Program membership, which takes days to
 Windows code signing is optional and needs a separate certificate; the workflow does not attempt
 it, so the zip is unsigned and SmartScreen will warn on first run.
 
+## Bundling the AI Assistant server (optional)
+
+The release workflow can fetch the proprietary assistant server from its own repo and place it under
+`extenders/AIAssistantFiles/` in each payload. It runs only when this secret is set; without it the
+app ships without the assistant server.
+
+| Secret | What it is |
+|---|---|
+| `ASSISTANT_TOKEN` | a token that can read releases of `DanWBR/dwsim-assistant` (a fine-grained PAT with Contents:Read on that repo) |
+
+The workflow downloads the latest release asset `dwsim-assistant-<rid>` for each target, mapping
+Windows on ARM to the `win-x64` build, which it runs through emulation.
+
 ## The entitlements
 
 `macos/entitlements.plist` asks for JIT, unsigned executable memory and library validation off.

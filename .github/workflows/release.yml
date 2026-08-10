@@ -20,16 +20,22 @@ jobs:
   payloads:
     name: publish ${{ matrix.rid }}
     runs-on: ubuntu-latest
+    env:
+      # a token that can read releases of the (proprietary) assistant repo; without it the app is
+      # published without the assistant server
+      ASSISTANT_TOKEN: ${{ secrets.ASSISTANT_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
+        # aid is the assistant build to bundle: Windows on ARM has none of its own and runs the
+        # x64 one through emulation
         include:
-          - { rid: win-x64,     debarch: '' }
-          - { rid: win-arm64,   debarch: '' }
-          - { rid: linux-x64,   debarch: amd64 }
-          - { rid: linux-arm64, debarch: arm64 }
-          - { rid: osx-x64,     debarch: '' }
-          - { rid: osx-arm64,   debarch: '' }
+          - { rid: win-x64,     debarch: '',    aid: win-x64 }
+          - { rid: win-arm64,   debarch: '',    aid: win-x64 }
+          - { rid: linux-x64,   debarch: amd64, aid: linux-x64 }
+          - { rid: linux-arm64, debarch: arm64, aid: linux-arm64 }
+          - { rid: osx-x64,     debarch: '',    aid: osx-x64 }
+          - { rid: osx-arm64,   debarch: '',    aid: osx-arm64 }
 
     steps:
       - uses: actions/checkout@v4
@@ -55,6 +61,38 @@ jobs:
             -c Release -r ${{ matrix.rid }} --self-contained true \
             -p:Version=${{ steps.version.outputs.value }} \
             -o publish/${{ matrix.rid }}
+
+      # The launcher assembly is already under extenders/ (the application build put it there). Here
+      # the separate, proprietary assistant server is fetched from its own repo's latest release and
+      # unpacked into extenders/AIAssistantFiles/, where the launcher looks for it. Best-effort: with
+      # no token, or no matching asset, the app still ships, just without the assistant server.
+      - name: Add the AI Assistant server
+        if: env.ASSISTANT_TOKEN != ''
+        env:
+          GH_TOKEN: ${{ env.ASSISTANT_TOKEN }}
+          AID: ${{ matrix.aid }}
+        run: |
+          dest="publish/${{ matrix.rid }}/extenders/AIAssistantFiles"
+          mkdir -p "$dest"
+
+          case "$AID" in
+            win-*) asset="dwsim-assistant-$AID.zip" ;;
+            *)     asset="dwsim-assistant-$AID.tar.gz" ;;
+          esac
+
+          echo "Fetching $asset from DanWBR/dwsim-assistant (latest release)"
+          if ! gh release download --repo DanWBR/dwsim-assistant --pattern "$asset" --dir . --clobber; then
+            echo "::warning::assistant asset $asset not found; shipping without the assistant server"
+            exit 0
+          fi
+
+          case "$asset" in
+            *.zip)    unzip -qo "$asset" -d "$dest" ;;
+            *.tar.gz) tar -xzf "$asset" -C "$dest" ;;
+          esac
+          rm -f "$asset"
+          chmod +x "$dest/dwsim-assistant" 2>/dev/null || true
+          ls -la "$dest"
 
       - name: Archive
         run: |
