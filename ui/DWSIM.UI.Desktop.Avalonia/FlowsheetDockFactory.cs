@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Collections.Generic;
 using Avalonia.Controls;
 using Dock.Model.Avalonia;
@@ -34,6 +35,9 @@ public sealed class FlowsheetDockFactory : Factory
 
     public Tool? EditorTool { get; private set; }
     public Tool? PaletteTool { get; private set; }
+
+    /// <summary>The panel a local page is shown on, created the first time one is asked for.</summary>
+    public Tool? WebTool { get; private set; }
     public Tool? LogTool { get; private set; }
     public Tool? IntegratorTool { get; private set; }
     public Document? CanvasDocument { get; private set; }
@@ -260,5 +264,46 @@ public sealed class FlowsheetDockFactory : Factory
         rootDock.ActiveDockable = mainLayout;
 
         return rootDock;
+    }
+
+    /// <summary>Adds a panel holding a browser view to the dock on the right and shows it.</summary>
+    public void OpenWebTool(string title, Uri url)
+    {
+        var view = new global::AvaloniaWebView.WebView { Url = url };
+
+        WebTool = new Tool
+        {
+            Id = "WebPanel",
+            Title = title,
+            Content = view,
+            CanClose = true,
+            CanPin = true,
+            CanFloat = true,
+            Proportion = 0.30
+        };
+
+        ContentById["WebPanel"] = view;
+
+        var right = Find(d => d.Id == "RightDock").OfType<ToolDock>().FirstOrDefault();
+        if (right == null) return;
+
+        // the Windows interface gives the assistant a good third of the window
+        right.Proportion = 0.30;
+        right.VisibleDockables?.Add(WebTool);
+        right.ActiveDockable = WebTool;
+    }
+
+    /// <summary>Brings the panel forward when it is already there.</summary>
+    public void ShowWebTool()
+    {
+        if (WebTool == null) return;
+
+        var right = Find(d => d.Id == "RightDock").OfType<ToolDock>().FirstOrDefault();
+        if (right == null) return;
+
+        if (right.VisibleDockables?.Contains(WebTool) != true)
+            right.VisibleDockables?.Add(WebTool);
+
+        right.ActiveDockable = WebTool;
     }
 }

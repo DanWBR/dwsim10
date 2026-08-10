@@ -1,4 +1,4 @@
-//    Entry point of the DWSIM desktop application.
+﻿//    Entry point of the DWSIM desktop application.
 //
 //    This file is part of DWSIM.
 //
@@ -16,6 +16,7 @@
 //    along with DWSIM.  If not, see <http://www.gnu.org/licenses/>.
 
 using Avalonia;
+using Avalonia.WebView.Desktop;
 using System;
 
 namespace DWSIM.UI.Desktop.Avalonia;
@@ -54,6 +55,7 @@ class Program
     public static AppBuilder BuildAvaloniaApp()
         => AppBuilder.Configure<App>()
             .UsePlatformDetect()
+            .UseDesktopWebView()
             .WithInterFont()
             .LogToTrace();
 }

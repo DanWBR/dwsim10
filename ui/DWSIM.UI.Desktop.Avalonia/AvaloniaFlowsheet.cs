@@ -53,6 +53,20 @@ internal sealed class AvaloniaFlowsheet : DWSIM.FlowsheetBase.FlowsheetBase
         return fs;
     }
 
+    /// <summary>Where the host shows a page from a local address. Set by the flowsheet window.</summary>
+    public Action<string, string>? OnWebPanelRequested { get; set; }
+
+    public override void DisplayWebPanel(string title, string url)
+    {
+        if (OnWebPanelRequested == null)
+        {
+            base.DisplayWebPanel(title, url);
+            return;
+        }
+
+        Dispatcher.UIThread.Post(() => OnWebPanelRequested(title, url));
+    }
+
     public override void DisplayForm(object form)
     {
         // Engine asks the host to show a sub-form (e.g. column convergence inspector).

@@ -746,6 +746,8 @@ public partial class FlowsheetView : UserControl
         };
         fs.OnUpdateOpenEditForms = RefreshSelectedObjectEditor;
         fs.OnCloseOpenEditForms = CloseAllEditors;
+        // an extension asking for a page from a local server gets a docked panel here
+        fs.OnWebPanelRequested = ShowWebPanel;
 
         // Wire spreadsheet BEFORE file load: LoadSpreadsheetData callback
         // is invoked during LoadFromXML/LoadZippedXML on the background thread.
@@ -902,6 +904,8 @@ public partial class FlowsheetView : UserControl
         };
         fs.OnUpdateOpenEditForms = RefreshSelectedObjectEditor;
         fs.OnCloseOpenEditForms = CloseAllEditors;
+        // an extension asking for a page from a local server gets a docked panel here
+        fs.OnWebPanelRequested = ShowWebPanel;
 
         var dlg = new LoadingDialog("New Simulation", "Loading databases...");
         dlg.Show(HostWindow);
@@ -3525,10 +3529,11 @@ public partial class FlowsheetView : UserControl
                             targetMenu.Items.Add(menuItem);
                         }
 
-                        // a main-window extension also gets a button at the end of the toolbar,
-                        // which is where the Windows interface keeps the assistant; the ones that
-                        // belong to the flowsheet stay on their menu, as they do there
-                        if (extender.Level == DWSIM.Interfaces.Enums.ExtenderLevel.MainWindow)
+                        // the Windows interface keeps one entry at the right of its menu strip,
+                        // the assistant, and leaves everything else on a menu. A main-window
+                        // extension filed under Tools is that kind of entry.
+                        if (extender.Level == DWSIM.Interfaces.Enums.ExtenderLevel.MainWindow &&
+                            extender.Category == DWSIM.Interfaces.Enums.ExtenderCategory.Tools)
                             AddExtensionButton(ext);
                     }
                 }
@@ -3541,33 +3546,76 @@ public partial class FlowsheetView : UserControl
     }
 
     /// <summary>
+    /// Shows a page served on the machine itself on a panel docked to the right of the flowsheet,
+    /// where the Windows interface docks the assistant.
+    /// </summary>
+    public void ShowWebPanel(string title, string url)
+    {
+        if (_dockFactory == null) return;
+
+        var existing = _dockFactory.WebTool;
+
+        if (existing?.Content is global::AvaloniaWebView.WebView view)
+        {
+            // already open: point it at the page again and bring it forward
+            existing.Title = title;
+            view.Url = new Uri(url);
+            _dockFactory.ShowWebTool();
+            return;
+        }
+
+        try
+        {
+            _dockFactory.OpenWebTool(title, new Uri(url));
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"Could not open '{title}' here: {ex.Message}");
+            try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); } catch { }
+        }
+    }
+
+    /// <summary>
     /// Puts an extension on the toolbar, using the icon it publishes. An extension with no icon is
     /// reachable from its menu only.
     /// </summary>
     private void AddExtensionButton(DWSIM.Interfaces.IExtender ext)
     {
-        byte[]? png;
-        try { png = ext.DisplayImage; } catch { return; }
-        if (png == null || png.Length == 0) return;
+        byte[]? png = null;
+        try { png = ext.DisplayImage; } catch { }
 
-        Control content;
+        // icon and name side by side, as the entry on the Windows menu strip shows them
+        var row = new StackPanel
+        {
+            Orientation = global::Avalonia.Layout.Orientation.Horizontal,
+            Spacing = 4,
+            VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Center
+        };
+
         try
         {
+            if (png == null || png.Length == 0) throw new InvalidOperationException("no icon");
             using var stream = new MemoryStream(png);
-            content = new Image
+            row.Children.Add(new Image
             {
                 Source = new global::Avalonia.Media.Imaging.Bitmap(stream),
-                Width = 20,
-                Height = 20
-            };
+                Width = 18,
+                Height = 18,
+                VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Center
+            });
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Extension '{ext.DisplayText}': icon not usable ({ex.GetType().Name}).");
-            return;
         }
 
-        var button = new Button { Content = content };
+        row.Children.Add(new TextBlock
+        {
+            Text = ext.DisplayText,
+            VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Center
+        });
+
+        var button = new Button { Content = row };
         button.Classes.Add("toolbar");
         ToolTip.SetTip(button, ext.DisplayText);
 

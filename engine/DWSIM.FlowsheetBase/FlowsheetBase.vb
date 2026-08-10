@@ -16,6 +16,7 @@ Imports DWSIM.Thermodynamics
 Imports DWSIM.UnitOperations.Streams
 Imports DWSIM.Thermodynamics.Streams
 Imports ICSharpCode.SharpZipLib.Zip
+Imports System.Diagnostics
 Imports System.IO
 Imports DWSIM.Drawing.SkiaSharp.GraphicObjects.Tables
 Imports Python.Runtime
@@ -3686,6 +3687,20 @@ Imports DWSIM.ExtensionMethods
     ''' with the properties it contributes to its object. The Windows host overrides this with its
     ''' own windows; the ones returned here have no interface and hold the same data.
     ''' </remarks>
+    ''' <summary>
+    ''' Opens the page in the system browser. A host that can draw a page itself overrides this
+    ''' and docks it beside the flowsheet instead.
+    ''' </summary>
+    Public Overridable Sub DisplayWebPanel(title As String, url As String) Implements IFlowsheet.DisplayWebPanel
+
+        Try
+            Process.Start(New ProcessStartInfo(url) With {.UseShellExecute = True})
+        Catch ex As Exception
+            ShowMessage(title & ": open " & url, IFlowsheet.MessageType.Information)
+        End Try
+
+    End Sub
+
     Public Overridable Function GetUtility(uttype As Enums.FlowsheetUtility) As IAttachedUtility Implements IFlowsheet.GetUtility
 
         Select Case uttype
