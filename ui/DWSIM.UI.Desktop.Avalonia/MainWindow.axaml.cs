@@ -56,19 +56,39 @@ public partial class MainWindow : Window
         LoadRecentFiles();
         LoadSamples();
         LoadFosseeFlowsheets();
+        // read the marker before laying it down again: if it survived, the last run did not close
+        // normally, and the backup copies are worth offering back
+        _previousRunCrashed = File.Exists(SessionLockPath);
+        WriteSessionLock();
+
         Closing += OnMainWindowClosing;
         Opened += OnMainWindowOpened;
     }
 
-    private void OnMainWindowOpened(object? sender, EventArgs e)
+    private bool _previousRunCrashed;
+
+    private static string SessionLockPath =>
+        Path.Combine(DWSIM.GlobalSettings.Settings.GetConfigFileDir(), "session.lock");
+
+    private static void WriteSessionLock()
+    {
+        try { File.WriteAllText(SessionLockPath, DateTime.Now.ToString("o")); } catch { }
+    }
+
+    private async void OnMainWindowOpened(object? sender, EventArgs e)
     {
         var splash = new SplashWindow();
         splash.Show(this);
+
+        if (_previousRunCrashed && BackupRecoveryWindow.FindBackups().Length > 0)
+            await new BackupRecoveryWindow(OpenFlowsheetFile).ShowDialog(this);
     }
 
     private void OnMainWindowClosing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
         try { DWSIM.GlobalSettings.Settings.SaveSettings("dwsim_newui.ini"); } catch { }
+        // a clean close clears the marker, so the next run does not offer recovery
+        try { File.Delete(SessionLockPath); } catch { }
     }
 
     private void LoadRecentFiles()
@@ -150,6 +170,7 @@ public partial class MainWindow : Window
         LnkNewCompound.Click += (_, _) => new CompoundCreatorWindow().Show(this);
         LnkNewSolid.Click += (_, _) => new BiomassCompoundCreatorWindow().Show(this);
         LnkNewCompoundWiz.Click += (_, _) => new CompoundCreatorWindow().Show(this);
+        LnkDatabaseManager.Click += async (_, _) => await new DatabaseManagerWindow().ShowDialog(this);
 
         // Documentation
         LnkGuideHtml.Click += (_, _) => OpenUserGuide();

@@ -1684,13 +1684,7 @@ public partial class FlowsheetView : UserControl
         if (_flowsheet == null) return;
         try
         {
-            var backupDir = DWSIM.GlobalSettings.Settings.BackupFolder;
-            if (string.IsNullOrEmpty(backupDir))
-            {
-                backupDir = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-                    "DWSIM Application Data", "Backup");
-            }
+            var backupDir = BackupRecoveryWindow.ResolveBackupFolder();
             Directory.CreateDirectory(backupDir);
 
             var fname = $"backup_{DateTime.Now:yyyyMMdd_HHmmss}_{SimulationName}.dwxmz";
