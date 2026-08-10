@@ -138,6 +138,10 @@ jobs:
     name: installer ${{ matrix.rid }}
     needs: payloads
     runs-on: windows-latest
+    env:
+      # a SignPath API token for a user who submits to the DWSIM_Simulator project; without it the
+      # installer is produced unsigned
+      SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
@@ -186,17 +190,47 @@ jobs:
           /DOutputDir=%CD%\artifacts
           packaging\windows\dwsim.iss
 
+      # Authenticode signing through SignPath, when a token is configured. The private key never
+      # leaves SignPath; the built installer is submitted and the signed one comes back. The signing
+      # policy may require a human to approve the request in SignPath before it completes.
+      - name: Sign installer (SignPath)
+        if: env.SIGNPATH_API_TOKEN != ''
+        shell: pwsh
+        run: |
+          Install-Module -Name SignPath -Repository PSGallery -Force -Scope CurrentUser -AllowClobber
+          $exe = (Get-ChildItem artifacts\*.exe | Select-Object -First 1).FullName
+          New-Item -ItemType Directory -Force signed | Out-Null
+          $out = Join-Path signed (Split-Path $exe -Leaf)
+          Submit-SigningRequest `
+            -InputArtifactPath  $exe `
+            -ApiToken           $env:SIGNPATH_API_TOKEN `
+            -OrganizationId     "e77e32ec-3340-4cdd-8993-e66a21506823" `
+            -ProjectSlug        "DWSIM_Simulator" `
+            -SigningPolicySlug  "Policy_1" `
+            -OutputArtifactPath $out `
+            -WaitForCompletion
+
+      - name: Stage the installer
+        shell: bash
+        run: |
+          mkdir -p dist
+          if ls signed/*.exe >/dev/null 2>&1; then
+            cp signed/*.exe dist/
+          else
+            cp artifacts/*.exe dist/
+          fi
+
       - uses: actions/upload-artifact@v4
         with:
           name: installer-${{ matrix.rid }}
-          path: artifacts/*.exe
+          path: dist/*.exe
           if-no-files-found: error
 
       - name: Attach to release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: artifacts/*.exe
+          files: dist/*.exe
 
   # Bundling, signing, notarising and stapling all need macOS. macos-14 is arm64; the Intel
   # payload is bundled there too, which is fine because nothing here runs it.
