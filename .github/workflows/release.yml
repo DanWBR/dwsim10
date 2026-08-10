@@ -131,6 +131,63 @@ jobs:
           path: artifacts/*
           if-no-files-found: error
 
+  # Inno Setup is a Windows tool, so the installer is built on a Windows runner from the already
+  # published, self-contained payload. The x64 installer runs on ARM through emulation, but a native
+  # arm64 installer is built as well.
+  windows-installer:
+    name: installer ${{ matrix.rid }}
+    needs: payloads
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { rid: win-x64,   arch: x64 }
+          - { rid: win-arm64, arch: arm64 }
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: payload-${{ matrix.rid }}
+          path: publish/${{ matrix.rid }}
+
+      - name: Work out the version
+        id: version
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install Inno Setup
+        run: choco install innosetup -y --no-progress
+
+      - name: Build installer
+        shell: cmd
+        run: >
+          "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          /DMyAppVersion=${{ steps.version.outputs.value }}
+          /DMyArch=${{ matrix.arch }}
+          /DSourceDir=%CD%\publish\${{ matrix.rid }}
+          /DOutputDir=%CD%\artifacts
+          packaging\windows\dwsim.iss
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installer-${{ matrix.rid }}
+          path: artifacts/*.exe
+          if-no-files-found: error
+
+      - name: Attach to release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*.exe
+
   # Bundling, signing, notarising and stapling all need macOS. macos-14 is arm64; the Intel
   # payload is bundled there too, which is fine because nothing here runs it.
   macos:
