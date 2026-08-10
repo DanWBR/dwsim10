@@ -648,6 +648,12 @@ public partial class FlowsheetView : UserControl
             var tag = simObj.GraphicObject?.Tag ?? objectName;
             EditorHolder.SetDisplayName(tag);
         }
+        else if (_surface != null)
+        {
+            // annotations are not simulation objects, so their tag comes off the surface
+            var graphic = _surface.DrawingObjects.FirstOrDefault(o => o.Name == objectName);
+            if (graphic != null) EditorHolder.SetDisplayName(graphic.Tag);
+        }
 
         // Arm OnAfterEdit after ALL deferred visual-tree events have settled.
         // When controls enter the tree, Avalonia fires deferred TextChanged /
@@ -1120,6 +1126,8 @@ public partial class FlowsheetView : UserControl
         // Wire the Avalonia editor factory so clicking a flowsheet object
         // shows its properties panel populated by the real engine data.
         var factory = new DWSIM.UI.Desktop.Editors.AvaloniaEditorFactory(_flowsheet!);
+        // an annotation changes nothing in the process, so editing one only has to repaint
+        factory.RedrawRequested = () => Canvas.Refresh();
         EditorDescriptorFactory = factory.CreateDescriptor;
     }
 
@@ -1785,11 +1793,16 @@ public partial class FlowsheetView : UserControl
         // Add Object sub-items
         MenuAddMaterialStream.Click    += (_, _) => AddObjectAtCenter(ObjectType.MaterialStream, "Material Stream");
         MenuAddEnergyStream.Click      += (_, _) => AddObjectAtCenter(ObjectType.EnergyStream, "Energy Stream");
-        MenuAddText.Click              += (_, _) => AddObjectAtCenter(ObjectType.GO_Text, "Text Block");
-        MenuAddTable.Click             += (_, _) => AddObjectAtCenter(ObjectType.GO_Table, "Property Table");
-        MenuAddMasterTable.Click       += (_, _) => AddObjectAtCenter(ObjectType.GO_MasterTable, "Master Table");
-        MenuAddSpreadsheetTable.Click  += (_, _) => AddObjectAtCenter(ObjectType.GO_SpreadsheetTable, "Spreadsheet Table");
-        MenuAddChart.Click             += (_, _) => AddObjectAtCenter(ObjectType.GO_Chart, "Chart Object");
+        // annotations have no simulation object behind them and take the other entry point
+        MenuAddText.Click              += (_, _) => AddAnnotationAtCenter(ObjectType.GO_Text);
+        MenuAddHTMLText.Click          += (_, _) => AddAnnotationAtCenter(ObjectType.GO_HTMLText);
+        MenuAddRectangle.Click         += (_, _) => AddAnnotationAtCenter(ObjectType.GO_Rectangle);
+        MenuAddButton.Click            += (_, _) => AddAnnotationAtCenter(ObjectType.GO_Button);
+        MenuAddImage.Click             += async (_, _) => await AddImageAsync();
+        MenuAddTable.Click             += (_, _) => AddAnnotationAtCenter(ObjectType.GO_Table);
+        MenuAddMasterTable.Click       += (_, _) => AddAnnotationAtCenter(ObjectType.GO_MasterTable);
+        MenuAddSpreadsheetTable.Click  += (_, _) => AddAnnotationAtCenter(ObjectType.GO_SpreadsheetTable);
+        MenuAddChart.Click             += (_, _) => AddAnnotationAtCenter(ObjectType.GO_Chart);
 
         // Global Settings
         MenuGlobalSettings.Click += async (_, _) => await new PreferencesWindow().ShowDialog(HostWindow);
@@ -2223,6 +2236,69 @@ public partial class FlowsheetView : UserControl
         _connectSource = null;
         BtnConnect.IsChecked = false;
         SetStatus("Ready");
+    }
+
+    /// <summary>
+    /// Adds an annotation (table, chart, text, picture, rectangle, button) at the centre of the
+    /// view. These have no simulation object behind them, so they do not go through AddObject.
+    /// </summary>
+    private void AddAnnotationAtCenter(ObjectType type, SkiaSharp.SKImage? image = null)
+    {
+        if (_flowsheet == null) return;
+
+        var cx = (int)(Canvas.Bounds.Width / 2);
+        var cy = (int)(Canvas.Bounds.Height / 2);
+        if (_surface != null)
+        {
+            cx = (int)(_surface.Size.Width / 2);
+            cy = (int)(_surface.Size.Height / 2);
+        }
+
+        var obj = _flowsheet.AddGraphicObject(type, cx, cy, "", image);
+        if (obj == null) return;
+
+        Canvas.Refresh();
+        AppendLog($"Added '{obj.Tag}'.");
+        OpenEditorFor(obj.Name);
+    }
+
+    /// <summary>Asks for a picture file and embeds it on the flowsheet.</summary>
+    private async Task AddImageAsync()
+    {
+        var topLevel = TopLevel.GetTopLevel(this);
+        if (topLevel == null) return;
+
+        var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Select an Image",
+            AllowMultiple = false,
+            FileTypeFilter = new[]
+            {
+                new FilePickerFileType("Image")
+                {
+                    Patterns = new[] { "*.png", "*.jpg", "*.jpeg", "*.bmp", "*.gif", "*.webp" }
+                },
+                FilePickerFileTypes.All
+            }
+        });
+
+        if (files.Count == 0) return;
+
+        try
+        {
+            using var stream = await files[0].OpenReadAsync();
+            var image = SkiaSharp.SKImage.FromEncodedData(stream);
+            if (image == null)
+            {
+                AppendLog("Could not read that file as an image.");
+                return;
+            }
+            AddAnnotationAtCenter(ObjectType.GO_Image, image);
+        }
+        catch (Exception ex)
+        {
+            AppendLog("Could not read that file as an image: " + ex.Message);
+        }
     }
 
     private void AddObjectAtCenter(ObjectType type, string name)

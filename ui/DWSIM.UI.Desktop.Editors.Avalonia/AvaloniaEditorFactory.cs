@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using DWSIM.Interfaces;
 using DWSIM.Interfaces.Enums.GraphicObjects;
 using DWSIM.Thermodynamics.Streams;
@@ -41,13 +42,31 @@ namespace DWSIM.UI.Desktop.Editors
             return AvaloniaTabBuilders.BuildAppearance(simobj);
         }
 
+        /// <summary>
+        /// Repaints the flowsheet after an annotation is edited. The host sets this; without it an
+        /// edit only shows on the next refresh.
+        /// </summary>
+        public Action? RedrawRequested { get; set; }
+
         public ObjectEditorDescriptor CreateDescriptor(string objectName)
         {
             if (!_flowsheet.SimulationObjects.TryGetValue(objectName, out var simobj))
+            {
+                // tables, charts, text, pictures, rectangles and buttons are graphics with no
+                // simulation object behind them, so they are not in SimulationObjects
+                var annotation = FindGraphicObject(objectName);
+                if (annotation != null)
+                {
+                    var apanel = AnnotationEditors.Build(annotation, _flowsheet, RedrawRequested);
+                    if (apanel != null)
+                        return new ObjectEditorDescriptor { PropertiesContent = apanel };
+                }
+
                 return new ObjectEditorDescriptor
                 {
                     PropertiesContent = BuildNotFoundPanel(objectName)
                 };
+            }
 
             // the material stream brings the whole WinForms form, tab strip included, so it
             // does not get wrapped in the standard Connections / Properties / Results tabs.
@@ -219,6 +238,14 @@ namespace DWSIM.UI.Desktop.Editors
                 default:
                     return null;
             }
+        }
+
+        /// <summary>Looks an annotation up on the drawing surface by its internal name.</summary>
+        private IGraphicObject? FindGraphicObject(string objectName)
+        {
+            if (_flowsheet.GetSurface() is not DWSIM.Drawing.SkiaSharp.GraphicsSurface surface) return null;
+
+            return surface.DrawingObjects.FirstOrDefault(o => o.Name == objectName);
         }
 
         private static AvaloniaEditorPanel BuildNotFoundPanel(string name)

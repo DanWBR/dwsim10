@@ -85,6 +85,10 @@ Namespace GraphicObjects.Shapes
 
         Public Overrides Sub Draw(ByVal g As Object)
 
+            ' an object still waiting for its picture draws nothing, rather than taking the canvas
+            ' down with it
+            If Image Is Nothing Then Exit Sub
+
             Using p As New SKPaint
                 With p
                     p.IsAntialias = GlobalSettings.Settings.DrawingAntiAlias
@@ -117,6 +121,7 @@ Namespace GraphicObjects.Shapes
         End Function
 
         Public Shared Function ImageToBase64(image As SKImage, format As SKEncodedImageFormat) As String
+            If image Is Nothing Then Return ""
             Using ms As New MemoryStream()
                 ' Convert Image to byte[]
                 Dim data = image.Encode(format, 92)
@@ -129,6 +134,7 @@ Namespace GraphicObjects.Shapes
         End Function
 
         Public Shared Function Base64ToImage(base64String As String) As SKImage
+            If String.IsNullOrEmpty(base64String) Then Return Nothing
             ' Convert Base64 String to byte[]
             Dim imageBytes As Byte() = Convert.FromBase64String(base64String)
             Using ms As New MemoryStream(imageBytes, 0, imageBytes.Length)

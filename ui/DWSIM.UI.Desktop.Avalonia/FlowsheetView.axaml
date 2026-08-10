@@ -77,7 +77,12 @@
         <MenuItem Header="Master Property Table" Name="MenuAddMasterTable" />
         <MenuItem Header="Spreadsheet Table"     Name="MenuAddSpreadsheetTable" />
         <MenuItem Header="Chart Object"          Name="MenuAddChart" />
+        <Separator />
         <MenuItem Header="Text Block"            Name="MenuAddText" />
+        <MenuItem Header="HTML Text Block"       Name="MenuAddHTMLText" />
+        <MenuItem Header="Rectangle"             Name="MenuAddRectangle" />
+        <MenuItem Header="Button"                Name="MenuAddButton" />
+        <MenuItem Header="Image..."              Name="MenuAddImage" />
       </MenuItem>
       <MenuItem Header="_Dynamics">
         <MenuItem Header="Dynamic Mode _Active"    Name="MenuDynamicsToggle" />
