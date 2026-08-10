@@ -123,7 +123,7 @@
          ================================================================= -->
     <Style Selector="DataGrid">
       <Setter Property="FontSize" Value="11" />
-      <Setter Property="RowHeight" Value="21" />
+      <Setter Property="RowHeight" Value="28" />
       <Setter Property="MinColumnWidth" Value="40" />
       <Setter Property="ColumnHeaderHeight" Value="23" />
       <Setter Property="GridLinesVisibility" Value="Horizontal" />
