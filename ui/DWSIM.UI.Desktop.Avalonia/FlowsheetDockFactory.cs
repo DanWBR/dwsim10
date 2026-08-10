@@ -267,22 +267,49 @@ public sealed class FlowsheetDockFactory : Factory
     }
 
     /// <summary>Adds a panel holding a browser view to the dock on the right and shows it.</summary>
+    /// <remarks>
+    /// The dock does not hide an inactive tool, it takes its control out of the visual tree, and the
+    /// browser control builds its native view once and never again, so a tab switched away and back
+    /// leaves it blank. The panel therefore holds a plain host, and a fresh browser is put into it
+    /// each time the panel actually becomes visible. The teardown is deferred one turn so the burst
+    /// of attach and detach the dock does while laying itself out does not keep rebuilding it.
+    /// </remarks>
     public void OpenWebTool(string title, Uri url)
     {
-        var view = new global::AvaloniaWebView.WebView { Url = url };
+        var host = new Decorator();
+        var attached = false;
+
+        host.AttachedToVisualTree += (_, _) =>
+        {
+            attached = true;
+            if (host.Child == null)
+                host.Child = new global::AvaloniaWebView.WebView { Url = url };
+        };
+
+        host.DetachedFromVisualTree += (_, _) =>
+        {
+            attached = false;
+            global::Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                // still gone a turn later: a real switch away, so free the native browser
+                if (attached || host.Child == null) return;
+                (host.Child as IDisposable)?.Dispose();
+                host.Child = null;
+            }, global::Avalonia.Threading.DispatcherPriority.Background);
+        };
 
         WebTool = new Tool
         {
             Id = "WebPanel",
             Title = title,
-            Content = view,
+            Content = host,
             CanClose = true,
             CanPin = true,
             CanFloat = true,
             Proportion = 0.30
         };
 
-        ContentById["WebPanel"] = view;
+        ContentById["WebPanel"] = host;
 
         var right = Find(d => d.Id == "RightDock").OfType<ToolDock>().FirstOrDefault();
         if (right == null) return;

@@ -3553,13 +3553,10 @@ public partial class FlowsheetView : UserControl
     {
         if (_dockFactory == null) return;
 
-        var existing = _dockFactory.WebTool;
-
-        if (existing?.Content is global::AvaloniaWebView.WebView view)
+        if (_dockFactory.WebTool != null)
         {
-            // already open: point it at the page again and bring it forward
-            existing.Title = title;
-            view.Url = new Uri(url);
+            // already open: just bring it forward. The host builds its own browser when shown.
+            _dockFactory.WebTool.Title = title;
             _dockFactory.ShowWebTool();
             return;
         }
