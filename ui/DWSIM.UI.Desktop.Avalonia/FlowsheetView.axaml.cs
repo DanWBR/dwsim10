@@ -3524,6 +3524,12 @@ public partial class FlowsheetView : UserControl
                         {
                             targetMenu.Items.Add(menuItem);
                         }
+
+                        // a main-window extension also gets a button at the end of the toolbar,
+                        // which is where the Windows interface keeps the assistant; the ones that
+                        // belong to the flowsheet stay on their menu, as they do there
+                        if (extender.Level == DWSIM.Interfaces.Enums.ExtenderLevel.MainWindow)
+                            AddExtensionButton(ext);
                     }
                 }
                 catch (Exception ex)
@@ -3532,6 +3538,47 @@ public partial class FlowsheetView : UserControl
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// Puts an extension on the toolbar, using the icon it publishes. An extension with no icon is
+    /// reachable from its menu only.
+    /// </summary>
+    private void AddExtensionButton(DWSIM.Interfaces.IExtender ext)
+    {
+        byte[]? png;
+        try { png = ext.DisplayImage; } catch { return; }
+        if (png == null || png.Length == 0) return;
+
+        Control content;
+        try
+        {
+            using var stream = new MemoryStream(png);
+            content = new Image
+            {
+                Source = new global::Avalonia.Media.Imaging.Bitmap(stream),
+                Width = 20,
+                Height = 20
+            };
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Extension '{ext.DisplayText}': icon not usable ({ex.GetType().Name}).");
+            return;
+        }
+
+        var button = new Button { Content = content };
+        button.Classes.Add("toolbar");
+        ToolTip.SetTip(button, ext.DisplayText);
+
+        button.Click += (_, _) =>
+        {
+            try { ext.Run(); }
+            catch (Exception ex) { AppendLog($"Error running {ext.DisplayText}: {ex.Message}"); }
+        };
+
+        ExtensionButtons.Children.Add(button);
+        Console.WriteLine($"Toolbar button added for '{ext.DisplayText}'.");
     }
 
     /// <summary>
