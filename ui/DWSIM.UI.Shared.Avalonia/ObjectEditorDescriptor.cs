@@ -15,6 +15,7 @@ public sealed class ObjectEditorDescriptor
     public bool ShowCustomProperties { get; set; }
     public bool ShowDynamics { get; set; }
     public bool ShowAppearance { get; set; }
+    public bool ShowUtilities { get; set; }
 
     public Control? ConnectionsContent { get; set; }
     public Control? PropertiesContent { get; set; }
@@ -22,6 +23,7 @@ public sealed class ObjectEditorDescriptor
     public Control? DynamicsContent { get; set; }
     public Control? ResultsContent { get; set; }
     public Control? AppearanceContent { get; set; }
+    public Control? UtilitiesContent { get; set; }
 
     /// <summary>
     /// An editor that lays itself out completely, tab strip included. The material stream

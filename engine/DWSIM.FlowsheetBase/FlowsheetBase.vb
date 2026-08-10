@@ -3677,8 +3677,40 @@ Imports DWSIM.ExtensionMethods
         Return CType(Me, IFlowsheetBag)
     End Function
 
-    Public Function GetUtility(uttype As Enums.FlowsheetUtility) As IAttachedUtility Implements IFlowsheet.GetUtility
-        Return Nothing
+    ''' <summary>
+    ''' Creates an attached utility of the given type.
+    ''' </summary>
+    ''' <remarks>
+    ''' This used to return Nothing, which meant a simulation carrying attached utilities lost them
+    ''' on load here: the loader asks for one per stored utility, and a null one is dropped along
+    ''' with the properties it contributes to its object. The Windows host overrides this with its
+    ''' own windows; the ones returned here have no interface and hold the same data.
+    ''' </remarks>
+    Public Overridable Function GetUtility(uttype As Enums.FlowsheetUtility) As IAttachedUtility Implements IFlowsheet.GetUtility
+
+        Select Case uttype
+            Case FlowsheetUtility.PhaseEnvelope
+                Return New Utilities.PhaseEnvelopeUtility()
+            Case FlowsheetUtility.PhaseEnvelopeBinary
+                Return New Utilities.BinaryEnvelopeUtility()
+            Case FlowsheetUtility.PhaseEnvelopeTernary
+                Return New Utilities.TernaryEnvelopeUtility()
+            Case FlowsheetUtility.NaturalGasHydrates
+                Return New Utilities.HydratesUtility()
+            Case FlowsheetUtility.TrueCriticalPoint
+                Return New Utilities.TrueCriticalPointUtility()
+            Case FlowsheetUtility.PSVSizing
+                Return New Utilities.PSVSizingUtility()
+            Case FlowsheetUtility.SeparatorSizing
+                Return New Utilities.SeparatorSizingUtility()
+            Case FlowsheetUtility.PetroleumProperties
+                Return New Utilities.PetroleumColdFlowUtility()
+            Case FlowsheetUtility.PureCompoundProperties
+                Return New Utilities.PureCompoundPropertiesUtility()
+            Case Else
+                Return Nothing
+        End Select
+
     End Function
 
     Public Property MasterFlowsheet As IFlowsheet Implements IFlowsheet.MasterFlowsheet

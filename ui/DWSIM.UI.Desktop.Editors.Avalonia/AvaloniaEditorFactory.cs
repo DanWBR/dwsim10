@@ -106,12 +106,14 @@ namespace DWSIM.UI.Desktop.Editors
                 ShowCustomProperties = true,
                 ShowDynamics         = simobj.SupportsDynamicMode,
                 ShowAppearance       = true,
+                ShowUtilities        = true,
                 PropertiesContent       = panel,
                 ConnectionsContent      = AvaloniaTabBuilders.BuildConnections(simobj),
                 CustomPropertiesContent = AvaloniaTabBuilders.BuildCustomProperties(simobj),
                 DynamicsContent         = simobj.SupportsDynamicMode ? AvaloniaTabBuilders.BuildDynamics(simobj) : null,
                 ResultsContent          = AvaloniaTabBuilders.BuildResults(simobj),
-                AppearanceContent       = AvaloniaTabBuilders.BuildAppearance(simobj)
+                AppearanceContent       = AvaloniaTabBuilders.BuildAppearance(simobj),
+                UtilitiesContent        = AttachedUtilitiesEditor.Build(simobj)
             };
         }
 
