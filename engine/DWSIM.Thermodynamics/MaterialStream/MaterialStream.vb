@@ -836,8 +836,26 @@ Namespace Streams
         ''' Triggers a full equilibrium and property calculation for this stream, respecting flowsheet options.
         ''' </summary>
         ''' <param name="args">Optional calculation arguments (unused).</param>
+    ''' <summary>
+    ''' Set when the phase split of this stream was worked out by something other than the
+    ''' property package of the flowsheet, as a CAPE-OPEN unit operation does with its own
+    ''' thermodynamics. The next calculation keeps that split and only works out the properties,
+    ''' then clears the flag.
+    ''' </summary>
+    ''' <remarks>
+    ''' Recalculating it here is what used to make a saturated product change phase on the way
+    ''' out: on the bubble or the dew curve, temperature and pressure cannot hold a phase split,
+    ''' and the two models disagree on where that curve is by a fraction of a degree.
+    ''' </remarks>
+    <Xml.Serialization.XmlIgnore> Public Property EquilibriumCalculatedExternally As Boolean = False
+
         Public Overrides Sub Calculate(Optional ByVal args As Object = Nothing)
             UpdateStreamType()
+            If EquilibriumCalculatedExternally Then
+                EquilibriumCalculatedExternally = False
+                Calculate(False, True)
+                Exit Sub
+            End If
             If FlowSheet IsNot Nothing Then
                 If AtEquilibrium And Not FlowSheet.DynamicMode And
                     FlowSheet.FlowsheetOptions.SkipEquilibriumCalculationOnDefinedStreams And
