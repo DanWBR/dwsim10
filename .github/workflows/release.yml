@@ -169,6 +169,12 @@ jobs:
       - name: Install Inno Setup
         run: choco install innosetup -y --no-progress
 
+      - name: Fetch the WebView2 bootstrapper
+        shell: bash
+        run: |
+          curl -Lf --retry 3 -o packaging/windows/MicrosoftEdgeWebview2Setup.exe \
+            "https://go.microsoft.com/fwlink/p/?LinkId=2124703"
+
       - name: Build installer
         shell: cmd
         run: >
