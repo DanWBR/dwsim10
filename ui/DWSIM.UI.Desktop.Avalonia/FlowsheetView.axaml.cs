@@ -2068,7 +2068,7 @@ public partial class FlowsheetView : UserControl
         MenuHelpHtml.Click += (_, _) => OpenUrl(Path.Combine(
             AppDomain.CurrentDomain.BaseDirectory, "docs", "dwsim-help", "index.html"));
         MenuHelpSupport.Click += (_, _) => OpenUrl("https://dwsim.org/wiki/index.php?title=Support");
-        MenuHelpBug.Click += (_, _) => OpenUrl("https://github.com/DanWBR/dwsim/issues");
+        MenuHelpBug.Click += (_, _) => OpenUrl("https://github.com/DanWBR/dwsim10/issues");
         MenuHelpWebsite.Click += (_, _) => OpenUrl("https://dwsim.org");
 
         // --- UO Extensions Manager ---

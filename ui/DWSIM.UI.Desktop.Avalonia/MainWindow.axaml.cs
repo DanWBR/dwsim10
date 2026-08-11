@@ -395,7 +395,7 @@ public partial class MainWindow : Window
         MenuPrefs.Click += async (_, _) => await new PreferencesWindow().ShowDialog(this);
         MenuUserGuide.Click += (_, _) => OpenUserGuide();
         MenuHelpSupport.Click += (_, _) => OpenUrl("https://dwsim.org/wiki/index.php?title=Support");
-        MenuHelpBug.Click += (_, _) => OpenUrl("https://github.com/DanWBR/dwsim/issues");
+        MenuHelpBug.Click += (_, _) => OpenUrl("https://github.com/DanWBR/dwsim10/issues");
         MenuHelpWebsite.Click += (_, _) => OpenUrl("https://dwsim.org");
 
         RecentFilesList.DoubleTapped += (_, _) =>

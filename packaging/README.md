@@ -1,4 +1,4 @@
-# Packaging
+﻿# Packaging
 
 The release workflow publishes the desktop application self-contained for six targets and wraps
 each one. Nothing here has to be run by hand; the scripts are here so that a release can be
@@ -67,12 +67,12 @@ approved.
 
 5. **Store them** on the repository, the same way as any other secret:
    ```bash
-   gh secret set MACOS_CERTIFICATE          --repo DanWBR/DWSIMCore < cert.p12.b64
-   gh secret set MACOS_CERTIFICATE_PASSWORD --repo DanWBR/DWSIMCore
-   gh secret set MACOS_SIGN_IDENTITY        --repo DanWBR/DWSIMCore
-   gh secret set MACOS_NOTARY_KEY           --repo DanWBR/DWSIMCore < authkey.p8.b64
-   gh secret set MACOS_NOTARY_KEY_ID        --repo DanWBR/DWSIMCore
-   gh secret set MACOS_NOTARY_ISSUER        --repo DanWBR/DWSIMCore
+   gh secret set MACOS_CERTIFICATE          --repo DanWBR/dwsim10 < cert.p12.b64
+   gh secret set MACOS_CERTIFICATE_PASSWORD --repo DanWBR/dwsim10
+   gh secret set MACOS_SIGN_IDENTITY        --repo DanWBR/dwsim10
+   gh secret set MACOS_NOTARY_KEY           --repo DanWBR/dwsim10 < authkey.p8.b64
+   gh secret set MACOS_NOTARY_KEY_ID        --repo DanWBR/dwsim10
+   gh secret set MACOS_NOTARY_ISSUER        --repo DanWBR/dwsim10
    ```
    The commands with no redirection prompt for the value and hide it.
 
@@ -110,11 +110,11 @@ a trusted signature with no change.
 Set the variables with, for example:
 
 ```bash
-gh variable set SIGNPATH_CONNECTOR_URL --repo DanWBR/DWSIMCore --body "<connector url>"
-gh variable set SIGNPATH_ORGANIZATION_ID --repo DanWBR/DWSIMCore --body "<org id>"
-gh variable set SIGNPATH_PROJECT_SLUG --repo DanWBR/DWSIMCore --body "<project slug>"
-gh variable set SIGNPATH_SIGNING_POLICY_SLUG --repo DanWBR/DWSIMCore --body "<policy slug>"
-gh variable set SIGNPATH_ARTIFACT_CONFIGURATION_SLUG --repo DanWBR/DWSIMCore --body "<artifact config slug>"
+gh variable set SIGNPATH_CONNECTOR_URL --repo DanWBR/dwsim10 --body "<connector url>"
+gh variable set SIGNPATH_ORGANIZATION_ID --repo DanWBR/dwsim10 --body "<org id>"
+gh variable set SIGNPATH_PROJECT_SLUG --repo DanWBR/dwsim10 --body "<project slug>"
+gh variable set SIGNPATH_SIGNING_POLICY_SLUG --repo DanWBR/dwsim10 --body "<policy slug>"
+gh variable set SIGNPATH_ARTIFACT_CONFIGURATION_SLUG --repo DanWBR/dwsim10 --body "<artifact config slug>"
 ```
 
 ## The optional ChemSep component
@@ -124,7 +124,7 @@ third-party binary and is not kept in this repository; the release workflow fetc
 provide, so a public mirror does not redistribute it. Set the URL as a secret:
 
 ```bash
-gh secret set CHEMSEP_LITE_URL --repo DanWBR/DWSIMCore
+gh secret set CHEMSEP_LITE_URL --repo DanWBR/dwsim10
 ```
 
 Without it, the installer is built without the ChemSep component. Locally, drop a `lite.exe` beside

@@ -14,7 +14,7 @@ uses, so a simulation moves between the two without conversion.
 ## Building
 
 ```
-git clone --recursive https://github.com/DanWBR/DWSIMCore
+git clone --recursive https://github.com/DanWBR/dwsim10
 ```
 
 ```
