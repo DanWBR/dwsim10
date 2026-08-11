@@ -41,16 +41,13 @@ namespace DWSIM.Automation.FluentAPI
             try { baseDir = Path.GetDirectoryName(typeof(Bootstrap).Assembly.Location); }
             catch { baseDir = AppDomain.CurrentDomain.BaseDirectory; }
 
-            // Free build uses extenders/unitops/ppacks; Plus build uses *2 suffix.
+            // Extensions live in the extenders/unitops/ppacks sub-folders next to the assembly.
             string[] dirs =
             {
                 baseDir,
                 Path.Combine(baseDir ?? "", "extenders"),
-                Path.Combine(baseDir ?? "", "extenders2"),
                 Path.Combine(baseDir ?? "", "unitops"),
-                Path.Combine(baseDir ?? "", "unitops2"),
                 Path.Combine(baseDir ?? "", "ppacks"),
-                Path.Combine(baseDir ?? "", "ppacks2"),
             };
 
             foreach (var dir in dirs)

@@ -399,7 +399,7 @@ namespace DWSIM.Automation.FluentAPI
             if (!Inner.AvailableSimulationObjects.TryGetValue(displayName, out var template))
                 throw new System.Collections.Generic.KeyNotFoundException(
                     "External UO template '" + displayName + "' not registered. " +
-                    "Verify the unit-op DLL is present in 'unitops' or 'unitops2' next to the running assembly.");
+                    "Verify the unit-op DLL is present in the 'unitops' folder next to the running assembly.");
             var external = (IExternalUnitOperation)template;
             var fresh = (TObj)external.ReturnInstance(template.GetType().AssemblyQualifiedName);
             var (x, y) = NextPos();
