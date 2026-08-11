@@ -45,12 +45,12 @@ if [ -n "${MACOS_SIGN_IDENTITY:-}" ]; then
                      --sign "$MACOS_SIGN_IDENTITY" "$lib"
         done
 
-    codesign --force --timestamp --options runtime \
-             --entitlements "$here/entitlements.plist" \
-             --sign "$MACOS_SIGN_IDENTITY" \
-             "$app/Contents/MacOS/DWSIM.UI.Desktop.Avalonia"
-
-    codesign --force --timestamp --options runtime \
+    # The bundle is signed in one pass with --deep. The apphost shares its base name with data
+    # files next to it (DWSIM.UI.Desktop.Avalonia.dll, .runtimeconfig.json, .deps.json), which
+    # makes codesign read the executable and its siblings as a loose bundle and demand the .json be
+    # signed code; --deep lets it seal those subcomponents. --entitlements still applies only to
+    # the main executable, which is the one that needs them.
+    codesign --force --deep --timestamp --options runtime \
              --entitlements "$here/entitlements.plist" \
              --sign "$MACOS_SIGN_IDENTITY" "$app"
 
