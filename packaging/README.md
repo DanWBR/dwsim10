@@ -76,8 +76,46 @@ approved.
    ```
    The commands with no redirection prompt for the value and hide it.
 
-Windows code signing is optional and needs a separate certificate; the workflow does not attempt
-it, so the zip is unsigned and SmartScreen will warn on first run.
+## Signing the Windows installer (SignPath)
+
+The Windows installer is Authenticode-signed through SignPath, using the trusted-build-system flow:
+the installer is uploaded as a GitHub artifact, SignPath verifies through its GitHub connector that
+it came from this workflow, signs it, and the signed installer is downloaded and shipped. The private
+key never leaves SignPath. Signing is best-effort: with nothing configured the installer ships
+unsigned.
+
+Set these on the repository (the identifiers as **Variables**, the token as a **Secret**), from the
+SignPath organization and project:
+
+| Name | Kind | What it is |
+|---|---|---|
+| `SIGNPATH_API_TOKEN` | secret | a SignPath API token authorised for the signing policy |
+| `SIGNPATH_CONNECTOR_URL` | variable | the SignPath GitHub Actions connector URL |
+| `SIGNPATH_ORGANIZATION_ID` | variable | the organization id |
+| `SIGNPATH_PROJECT_SLUG` | variable | the project slug |
+| `SIGNPATH_SIGNING_POLICY_SLUG` | variable | the signing policy slug (for example `release-signing`) |
+| `SIGNPATH_ARTIFACT_CONFIGURATION_SLUG` | variable | the artifact configuration that signs the .exe inside the zip |
+
+Two things are set up once on the SignPath side: the **artifact configuration** (GitHub delivers the
+artifact as a zip, so the configuration signs the .exe inside it) and the **GitHub Actions trusted
+build system** integration, which links this repository to the SignPath organization. See
+`about.signpath.io/documentation/artifact-configuration` and
+`about.signpath.io/documentation/trusted-build-systems/github`.
+
+Under the SignPath Foundation program for open-source projects, signing runs against a self-signed
+**test** certificate first (so the signature shows an untrusted root); SignPath orders and imports the
+real production certificate after reviewing the working setup, after which the same workflow produces
+a trusted signature with no change.
+
+Set the variables with, for example:
+
+```bash
+gh variable set SIGNPATH_CONNECTOR_URL --repo DanWBR/DWSIMCore --body "<connector url>"
+gh variable set SIGNPATH_ORGANIZATION_ID --repo DanWBR/DWSIMCore --body "<org id>"
+gh variable set SIGNPATH_PROJECT_SLUG --repo DanWBR/DWSIMCore --body "<project slug>"
+gh variable set SIGNPATH_SIGNING_POLICY_SLUG --repo DanWBR/DWSIMCore --body "<policy slug>"
+gh variable set SIGNPATH_ARTIFACT_CONFIGURATION_SLUG --repo DanWBR/DWSIMCore --body "<artifact config slug>"
+```
 
 ## Bundling the AI Assistant server (optional)
 
