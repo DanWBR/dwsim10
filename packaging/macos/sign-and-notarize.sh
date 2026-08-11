@@ -63,7 +63,19 @@ else
     echo "MACOS_SIGN_IDENTITY is not set: building an unsigned disk image" >&2
 fi
 
-hdiutil create -volname "DWSIM $version" -srcfolder "$app" -ov -format UDZO "$dmg"
+# hdiutil intermittently fails with "Resource busy" on the runner when a device from a previous
+# attempt lingers; a short retry clears it.
+for attempt in 1 2 3; do
+    if hdiutil create -volname "DWSIM $version" -srcfolder "$app" -ov -format UDZO "$dmg"; then
+        break
+    fi
+    if [ "$attempt" = 3 ]; then
+        echo "hdiutil create failed after $attempt attempts" >&2
+        exit 1
+    fi
+    echo "hdiutil create failed, retrying ($attempt)" >&2
+    sleep 5
+done
 
 if [ -n "${MACOS_SIGN_IDENTITY:-}" ]; then
 
