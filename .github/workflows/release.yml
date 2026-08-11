@@ -55,11 +55,16 @@ jobs:
             echo "value=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
           fi
 
+      # -p:CoolPropRid is a global property, so it reaches the CoolPropInterface project reference,
+      # which the target RID does not: the SDK builds project references runtime-agnostic, leaving
+      # $(RuntimeIdentifier) empty there, so without this the native picked is the runner's (Linux)
+      # rather than the one being published for.
       - name: Publish
         run: |
           dotnet publish ui/DWSIM.UI.Desktop.Avalonia/DWSIM.UI.Desktop.Avalonia.csproj \
             -c Release -r ${{ matrix.rid }} --self-contained true \
             -p:Version=${{ steps.version.outputs.value }} \
+            -p:CoolPropRid=${{ matrix.rid }} \
             -o publish/${{ matrix.rid }}
 
       # Some native dependencies commit one library per runtime and lean on the build to copy only
