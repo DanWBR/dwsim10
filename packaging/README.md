@@ -78,29 +78,19 @@ approved.
 
 ## Signing the Windows installer (SignPath)
 
-The Windows installer is Authenticode-signed through SignPath, using the trusted-build-system flow:
-the installer is uploaded as a GitHub artifact, SignPath verifies through its GitHub connector that
-it came from this workflow, signs it, and the signed installer is downloaded and shipped. The private
-key never leaves SignPath. Signing is best-effort: with nothing configured the installer ships
-unsigned.
+The Windows installer is Authenticode-signed through SignPath: the built installer is submitted with
+the SignPath PowerShell module on the Windows runner and the signed one comes back; the private key
+never leaves SignPath. Signing is best-effort: with nothing configured the installer ships unsigned.
 
 Set these on the repository (the identifiers as **Variables**, the token as a **Secret**), from the
 SignPath organization and project:
 
 | Name | Kind | What it is |
 |---|---|---|
-| `SIGNPATH_API_TOKEN` | secret | a SignPath API token authorised for the signing policy |
-| `SIGNPATH_CONNECTOR_URL` | variable | the SignPath GitHub Actions connector URL |
+| `SIGNPATH_API_TOKEN` | secret | a SignPath API token for a user who submits to the signing policy |
 | `SIGNPATH_ORGANIZATION_ID` | variable | the organization id |
 | `SIGNPATH_PROJECT_SLUG` | variable | the project slug |
-| `SIGNPATH_SIGNING_POLICY_SLUG` | variable | the signing policy slug (for example `release-signing`) |
-| `SIGNPATH_ARTIFACT_CONFIGURATION_SLUG` | variable | the artifact configuration that signs the .exe inside the zip |
-
-Two things are set up once on the SignPath side: the **artifact configuration** (GitHub delivers the
-artifact as a zip, so the configuration signs the .exe inside it) and the **GitHub Actions trusted
-build system** integration, which links this repository to the SignPath organization. See
-`about.signpath.io/documentation/artifact-configuration` and
-`about.signpath.io/documentation/trusted-build-systems/github`.
+| `SIGNPATH_SIGNING_POLICY_SLUG` | variable | the signing policy slug |
 
 Under the SignPath Foundation program for open-source projects, signing runs against a self-signed
 **test** certificate first (so the signature shows an untrusted root); SignPath orders and imports the
@@ -110,11 +100,10 @@ a trusted signature with no change.
 Set the variables with, for example:
 
 ```bash
-gh variable set SIGNPATH_CONNECTOR_URL --repo DanWBR/dwsim10 --body "<connector url>"
 gh variable set SIGNPATH_ORGANIZATION_ID --repo DanWBR/dwsim10 --body "<org id>"
 gh variable set SIGNPATH_PROJECT_SLUG --repo DanWBR/dwsim10 --body "<project slug>"
 gh variable set SIGNPATH_SIGNING_POLICY_SLUG --repo DanWBR/dwsim10 --body "<policy slug>"
-gh variable set SIGNPATH_ARTIFACT_CONFIGURATION_SLUG --repo DanWBR/dwsim10 --body "<artifact config slug>"
+gh secret set SIGNPATH_API_TOKEN --repo DanWBR/dwsim10
 ```
 
 ## The optional ChemSep component

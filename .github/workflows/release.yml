@@ -201,36 +201,27 @@ jobs:
           /DOutputDir=%CD%\artifacts
           packaging\windows\dwsim.iss
 
-      # Authenticode signing through SignPath, when configured. This is the trusted-build-system
-      # flow: the installer is uploaded as a GitHub artifact (a zip), SignPath verifies through the
-      # GitHub connector that it came from this workflow, signs it, and the signed one is downloaded.
-      # The private key never leaves SignPath. All the identifiers live in repository variables; the
-      # API token is a secret. Signing is best-effort: if it is not configured the installer ships
-      # unsigned rather than failing the release.
-      - name: Upload the unsigned installer
-        id: unsigned
-        if: env.SIGNPATH_API_TOKEN != ''
-        uses: actions/upload-artifact@v4
-        with:
-          name: installer-${{ matrix.rid }}-unsigned
-          path: artifacts/*.exe
-          if-no-files-found: error
-
+      # Authenticode signing through SignPath, when configured. The built installer is submitted with
+      # the SignPath PowerShell module and the signed one comes back; the private key never leaves
+      # SignPath. The identifiers live in repository variables, the API token in a secret. Signing is
+      # best-effort: if it is not configured the installer ships unsigned rather than failing.
       - name: Sign installer (SignPath)
-        id: sign
         if: env.SIGNPATH_API_TOKEN != ''
         continue-on-error: true
-        uses: signpath/github-action-submit-signing-request@v1
-        with:
-          connector-url: ${{ vars.SIGNPATH_CONNECTOR_URL }}
-          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
-          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
-          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
-          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
-          artifact-configuration-slug: ${{ vars.SIGNPATH_ARTIFACT_CONFIGURATION_SLUG }}
-          github-artifact-id: ${{ steps.unsigned.outputs.artifact-id }}
-          wait-for-completion: true
-          output-artifact-directory: signed
+        shell: pwsh
+        run: |
+          Install-Module -Name SignPath -Repository PSGallery -Force -Scope CurrentUser -AllowClobber
+          $exe = (Get-ChildItem artifacts\*.exe | Select-Object -First 1).FullName
+          New-Item -ItemType Directory -Force signed | Out-Null
+          $out = Join-Path signed (Split-Path $exe -Leaf)
+          Submit-SigningRequest `
+            -InputArtifactPath  $exe `
+            -ApiToken           $env:SIGNPATH_API_TOKEN `
+            -OrganizationId     "${{ vars.SIGNPATH_ORGANIZATION_ID }}" `
+            -ProjectSlug        "${{ vars.SIGNPATH_PROJECT_SLUG }}" `
+            -SigningPolicySlug  "${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}" `
+            -OutputArtifactPath $out `
+            -WaitForCompletion
 
       - name: Stage the installer
         shell: bash
