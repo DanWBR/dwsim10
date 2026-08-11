@@ -117,6 +117,19 @@ gh variable set SIGNPATH_SIGNING_POLICY_SLUG --repo DanWBR/DWSIMCore --body "<po
 gh variable set SIGNPATH_ARTIFACT_CONFIGURATION_SLUG --repo DanWBR/DWSIMCore --body "<artifact config slug>"
 ```
 
+## The optional ChemSep component
+
+The Windows installer can offer ChemSep Lite as an optional component. Its installer (`lite.exe`) is a
+third-party binary and is not kept in this repository; the release workflow fetches it from a URL you
+provide, so a public mirror does not redistribute it. Set the URL as a secret:
+
+```bash
+gh secret set CHEMSEP_LITE_URL --repo DanWBR/DWSIMCore
+```
+
+Without it, the installer is built without the ChemSep component. Locally, drop a `lite.exe` beside
+`packaging/windows/dwsim.iss` to include it in a local build.
+
 ## Bundling the AI Assistant server (optional)
 
 The release workflow can fetch the proprietary assistant server from its own repo and place it under
