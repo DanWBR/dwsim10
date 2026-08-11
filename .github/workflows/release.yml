@@ -62,6 +62,20 @@ jobs:
             -p:Version=${{ steps.version.outputs.value }} \
             -o publish/${{ matrix.rid }}
 
+      # Some native dependencies commit one library per runtime and lean on the build to copy only
+      # the matching one; a few leak the others in. A foreign-platform library is dead weight, and
+      # on macOS codesign seals the bundle and rejects an unsigned Linux .so as nested code. Keep
+      # each platform's own kind: Linux .so on Linux, .dylib on macOS, neither on Windows.
+      - name: Strip foreign-platform native libraries
+        run: |
+          case "${{ matrix.rid }}" in
+            linux*) find publish/${{ matrix.rid }} -name '*.dylib' -delete ;;
+            osx*)   find publish/${{ matrix.rid }} -name '*.so'    -delete ;;
+            win*)   find publish/${{ matrix.rid }} \( -name '*.so' -o -name '*.dylib' \) -delete ;;
+          esac
+          echo "native libraries kept for ${{ matrix.rid }}:"
+          find publish/${{ matrix.rid }} \( -name '*.so' -o -name '*.dylib' -o -iname 'coolprop*.dll' \) -printf '  %P\n' | sort
+
       # The launcher assembly is already under extenders/ (the application build put it there). Here
       # the separate, proprietary assistant server is fetched from its own repo's latest release and
       # unpacked into extenders/AIAssistantFiles/, where the launcher looks for it. Best-effort: with
