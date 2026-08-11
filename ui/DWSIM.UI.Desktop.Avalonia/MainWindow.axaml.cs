@@ -646,13 +646,25 @@ public partial class MainWindow : Window
     private void InitializeSupport()
     {
         Assembly? sa = null;
-        try
+        // Probe the app's own directory first (flat self-contained bundle, the macOS/Linux layout),
+        // then the parent directory (the nested Windows Plus layout).
+        var appDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!;
+        foreach (var candidate in new[]
+                 {
+                     Path.Combine(appDir, "DWSIM.Support.dll"),
+                     Path.Combine(Path.GetDirectoryName(appDir)!, "DWSIM.Support.dll")
+                 })
         {
-            sa = Assembly.LoadFile(Path.Combine(
-                Path.GetDirectoryName(Directory.GetParent(Assembly.GetExecutingAssembly().Location)!.FullName)!,
-                "DWSIM.Support.dll"));
+            try
+            {
+                if (File.Exists(candidate))
+                {
+                    sa = Assembly.LoadFile(candidate);
+                    break;
+                }
+            }
+            catch { }
         }
-        catch { }
 
         if (sa != null)
         {
