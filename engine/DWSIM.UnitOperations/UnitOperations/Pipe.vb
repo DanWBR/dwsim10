@@ -75,6 +75,9 @@ Namespace UnitOperations
 
         <NonSerialized> <Xml.Serialization.XmlIgnore> Public f As Object
 
+        ''' <summary>Holds the compiled wall thermal conductivity expressions between calculations.</summary>
+        <NonSerialized> <Xml.Serialization.XmlIgnore> Private _expressions As New ExpressionCache
+
         ''' <summary>Defines the pipe specification mode (calculate length, outlet pressure, or outlet temperature).</summary>
         Public Enum Specmode
             ''' <summary>Pipe length is specified; pressure and temperature are calculated.</summary>
@@ -2022,13 +2025,9 @@ Namespace UnitOperations
                     kp = 420.75 - 0.068493 * T
                 Case Else
                     Try
-                        Dim ExpContext As New Flee.PublicTypes.ExpressionContext
-                        ExpContext.Imports.AddType(GetType(System.Math))
-                        ExpContext.Variables.Clear()
-                        ExpContext.Options.ParseCulture = Globalization.CultureInfo.InvariantCulture
-                        ExpContext.Variables.Add("T", T)
-                        Dim Expr = ExpContext.CompileGeneric(Of Double)(section.PipeWallThermalConductivityExpression)
-                        kp = cv.ConvertToSI(FlowSheet.FlowsheetOptions.SelectedUnitSystem.thermalConductivity, Expr.Evaluate)
+                        ExpressionCache.SetVariable(_expressions.GetContext("T"), "T", T)
+                        kp = cv.ConvertToSI(FlowSheet.FlowsheetOptions.SelectedUnitSystem.thermalConductivity,
+                                            _expressions.GetCompiled("T", section.PipeWallThermalConductivityExpression).Evaluate)
                     Catch ex As Exception
                         Throw New Exception("Invalid expression for thermal conductivity at Pipe Section #" & section.Indice, ex)
                     End Try

@@ -74,6 +74,9 @@ public class ObjectEditorContainer : ContentControl
         if (d.ShowAppearance)
             tc.Items.Add(MakeTab("Appearance", d.AppearanceContent ?? MakePlaceholder("Appearance settings")));
 
+        if (d.ShowUtilities && d.UtilitiesContent != null)
+            tc.Items.Add(MakeTab("Utilities", d.UtilitiesContent));
+
         if (tc.Items.Count > 0) tc.SelectedIndex = 0;
 
         Content = tc;

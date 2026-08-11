@@ -152,6 +152,28 @@ Namespace Reactors
         End Function
 
         ''' <summary>
+        ''' Returns the index of the phase to read the reacting fluid's properties from.
+        ''' </summary>
+        ''' <remarks>
+        ''' Above the critical point there is one fluid phase and each property package is free to call
+        ''' it a liquid or a vapour; when the phase the reaction names is empty and the stream carries a
+        ''' single phase, that phase holds the reacting fluid whatever it is called. Reading the named
+        ''' phase regardless returns zero for the compressibility factor and the density, which then
+        ''' propagates into the reaction rate.
+        ''' </remarks>
+        Protected Function RxPhaseIndex(ims As IMaterialStream, preferred As Integer) As Integer
+
+            If ims.Phases(preferred).Properties.molarfraction.GetValueOrDefault > 0.0 Then Return preferred
+
+            For Each pidx In New Integer() {2, 3, 4, 5, 6, 7}
+                If ims.Phases(pidx).Properties.molarfraction.GetValueOrDefault > 0.9999999 Then Return pidx
+            Next
+
+            Return preferred
+
+        End Function
+
+        ''' <summary>
         ''' Calculates the concentration-unit conversion factors for every stoichiometric component in
         ''' the given reaction, based on the reaction basis (molar, mass, activity, fugacity, etc.).
         ''' </summary>
@@ -173,20 +195,20 @@ Namespace Reactors
 
                 Select Case rxn.ReactionBasis
                     Case ReactionBasis.Activity
-                        val1 = ims.Phases(3).Compounds(sb.CompName).ActivityCoeff.GetValueOrDefault
-                        val2 = ims.Phases(3).Properties.molecularWeight.GetValueOrDefault
-                        val3 = ims.Phases(3).Properties.density.GetValueOrDefault
+                        val1 = ims.Phases(RxPhaseIndex(ims, 3)).Compounds(sb.CompName).ActivityCoeff.GetValueOrDefault
+                        val2 = ims.Phases(RxPhaseIndex(ims, 3)).Properties.molecularWeight.GetValueOrDefault
+                        val3 = ims.Phases(RxPhaseIndex(ims, 3)).Properties.density.GetValueOrDefault
                         amounts(sb.CompName) = val1 * val2 / val3 / 1000.0
                     Case ReactionBasis.Fugacity
                         Select Case rxn.ReactionPhase
                             Case PhaseName.Vapor
-                                val1 = ims.Phases(2).Compounds(sb.CompName).FugacityCoeff.GetValueOrDefault
-                                Z = ims.Phases(2).Properties.compressibilityFactor.GetValueOrDefault
+                                val1 = ims.Phases(RxPhaseIndex(ims, 2)).Compounds(sb.CompName).FugacityCoeff.GetValueOrDefault
+                                Z = ims.Phases(RxPhaseIndex(ims, 2)).Properties.compressibilityFactor.GetValueOrDefault
                                 amounts(sb.CompName) = val1 * Z * 8.314 * T
                             Case PhaseName.Liquid
-                                val1 = ims.Phases(3).Compounds(sb.CompName).FugacityCoeff.GetValueOrDefault
-                                val2 = ims.Phases(3).Properties.molecularWeight.GetValueOrDefault
-                                val3 = ims.Phases(3).Properties.density.GetValueOrDefault
+                                val1 = ims.Phases(RxPhaseIndex(ims, 3)).Compounds(sb.CompName).FugacityCoeff.GetValueOrDefault
+                                val2 = ims.Phases(RxPhaseIndex(ims, 3)).Properties.molecularWeight.GetValueOrDefault
+                                val3 = ims.Phases(RxPhaseIndex(ims, 3)).Properties.density.GetValueOrDefault
                                 amounts(sb.CompName) = val1 * val2 / val3 * P / 1000.0
                             Case PhaseName.Mixture
                                 val1 = ims.Phases(0).Compounds(sb.CompName).FugacityCoeff.GetValueOrDefault
@@ -197,10 +219,10 @@ Namespace Reactors
                     Case ReactionBasis.MassConc
                         Select Case rxn.ReactionPhase
                             Case PhaseName.Vapor
-                                val1 = ims.Phases(2).Properties.molecularWeight.GetValueOrDefault
+                                val1 = ims.Phases(RxPhaseIndex(ims, 2)).Properties.molecularWeight.GetValueOrDefault
                                 amounts(sb.CompName) = 1000 / val1
                             Case PhaseName.Liquid
-                                val1 = ims.Phases(3).Properties.molecularWeight.GetValueOrDefault
+                                val1 = ims.Phases(RxPhaseIndex(ims, 3)).Properties.molecularWeight.GetValueOrDefault
                                 amounts(sb.CompName) = 1000 / val1
                             Case PhaseName.Mixture
                                 val1 = ims.Phases(0).Properties.molecularWeight.GetValueOrDefault
@@ -209,12 +231,12 @@ Namespace Reactors
                     Case ReactionBasis.MassFrac
                         Select Case rxn.ReactionPhase
                             Case PhaseName.Vapor
-                                val1 = ims.Phases(2).Properties.molecularWeight.GetValueOrDefault
-                                Z = ims.Phases(2).Properties.compressibilityFactor.GetValueOrDefault
+                                val1 = ims.Phases(RxPhaseIndex(ims, 2)).Properties.molecularWeight.GetValueOrDefault
+                                Z = ims.Phases(RxPhaseIndex(ims, 2)).Properties.compressibilityFactor.GetValueOrDefault
                                 amounts(sb.CompName) = Z * 8.314 * T / P * 1000 / val1
                             Case PhaseName.Liquid
-                                val1 = ims.Phases(3).Properties.molecularWeight.GetValueOrDefault
-                                val2 = ims.Phases(3).Properties.density.GetValueOrDefault
+                                val1 = ims.Phases(RxPhaseIndex(ims, 3)).Properties.molecularWeight.GetValueOrDefault
+                                val2 = ims.Phases(RxPhaseIndex(ims, 3)).Properties.density.GetValueOrDefault
                                 amounts(sb.CompName) = val2 * 1000 / val1
                             Case PhaseName.Mixture
                                 val1 = ims.Phases(0).Properties.molecularWeight.GetValueOrDefault
@@ -226,11 +248,11 @@ Namespace Reactors
                     Case ReactionBasis.MolarFrac
                         Select Case rxn.ReactionPhase
                             Case PhaseName.Vapor
-                                Z = ims.Phases(2).Properties.compressibilityFactor.GetValueOrDefault
+                                Z = ims.Phases(RxPhaseIndex(ims, 2)).Properties.compressibilityFactor.GetValueOrDefault
                                 amounts(sb.CompName) = Z * 8.314 * T / P
                             Case PhaseName.Liquid
-                                val1 = ims.Phases(3).Properties.molecularWeight.GetValueOrDefault
-                                val2 = ims.Phases(3).Properties.density.GetValueOrDefault
+                                val1 = ims.Phases(RxPhaseIndex(ims, 3)).Properties.molecularWeight.GetValueOrDefault
+                                val2 = ims.Phases(RxPhaseIndex(ims, 3)).Properties.density.GetValueOrDefault
                                 amounts(sb.CompName) = val1 / val2 / 1000.0
                             Case PhaseName.Mixture
                                 val1 = ims.Phases(0).Properties.molecularWeight.GetValueOrDefault
@@ -238,7 +260,7 @@ Namespace Reactors
                                 amounts(sb.CompName) = val1 / val2 / 1000.0
                         End Select
                     Case ReactionBasis.PartialPress
-                        Z = ims.Phases(2).Properties.compressibilityFactor.GetValueOrDefault
+                        Z = ims.Phases(RxPhaseIndex(ims, 2)).Properties.compressibilityFactor.GetValueOrDefault
                         amounts(sb.CompName) = Z * 8.314 * T
                 End Select
 
@@ -626,6 +648,59 @@ Namespace Reactors
             If Re_imp < 1 OrElse Pr < 0.001 Then Return 0.0
             Dim Nu As Double = C_imp * Re_imp ^ (2.0 / 3.0) * Pr ^ (1.0 / 3.0)
             Return Nu * k / D_vessel
+        End Function
+
+#End Region
+
+#Region "    Reaction Expression Evaluation"
+
+        ''' <summary>Contexts and compiled expressions of the reactions this reactor evaluates.</summary>
+        ''' <remarks>
+        ''' The cache belongs to the reactor and not to the reaction because a reaction is a
+        ''' flowsheet-level object that two reactors may share, and the solver calculates unit
+        ''' operations in parallel.
+        ''' </remarks>
+        <NonSerialized> Private _expressions As ExpressionCache
+
+        ''' <summary>
+        ''' Discards the compiled expressions. Call it at the start of a calculation so that a
+        ''' reaction edited between two runs is picked up.
+        ''' </summary>
+        Protected Sub ResetExpressionCache()
+
+            _expressions = Nothing
+
+        End Sub
+
+        ''' <summary>Returns the expression context of a reaction, creating it on first use.</summary>
+        ''' <param name="reactionID">Identifier of the reaction the expressions belong to.</param>
+        Protected Function GetExpressionContext(reactionID As String) As Flee.PublicTypes.ExpressionContext
+
+            If _expressions Is Nothing Then _expressions = New ExpressionCache()
+
+            Return _expressions.GetContext(reactionID)
+
+        End Function
+
+        ''' <summary>Sets a variable on an expression context, defining it if it is not there yet.</summary>
+        Protected Shared Sub SetExpressionVariable(context As Flee.PublicTypes.ExpressionContext, name As String, value As Double)
+
+            ExpressionCache.SetVariable(context, name, value)
+
+        End Sub
+
+        ''' <summary>
+        ''' Compiles an expression against the reaction's context and keeps the compiled form for
+        ''' the rest of the calculation.
+        ''' </summary>
+        ''' <param name="reactionID">Identifier of the reaction the expression belongs to.</param>
+        ''' <param name="expression">The expression text, as the user wrote it.</param>
+        Protected Function GetCompiledExpression(reactionID As String, expression As String) As Flee.PublicTypes.IGenericExpression(Of Double)
+
+            If _expressions Is Nothing Then _expressions = New ExpressionCache()
+
+            Return _expressions.GetCompiled(reactionID, expression)
+
         End Function
 
 #End Region

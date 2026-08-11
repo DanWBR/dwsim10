@@ -15,6 +15,9 @@
   <ItemGroup>
     <PackageReference Include="Avalonia" />
     <PackageReference Include="Avalonia.Desktop" />
+    <!-- the assistant is a page served on localhost, and it is shown on a panel of its own -->
+    <PackageReference Include="WebView.Avalonia" />
+    <PackageReference Include="WebView.Avalonia.Desktop" />
     <PackageReference Include="Avalonia.Themes.Fluent" />
     <PackageReference Include="Avalonia.Fonts.Inter" />
     <PackageReference Include="Avalonia.Controls.DataGrid" />
@@ -87,5 +90,38 @@
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
   </ItemGroup>
+
+  <!--
+    The AI Assistant launcher is loaded at run time from the extenders folder, not linked into the
+    application, so it is built on the side and its assembly dropped into extenders/. Its own
+    dependencies are the engine assemblies, which are already beside the application, so only the one
+    assembly travels. The assistant server executable itself is a separate, proprietary program: it
+    is not built here, and is placed under extenders/AIAssistantFiles/ by the release process.
+  -->
+  <PropertyGroup>
+    <AssistantExtenderProject>$(MSBuildThisFileDirectory)..\..\extensions\DWSIM.Extensions.AI.Assistant\DWSIM.Extensions.AI.Assistant.vbproj</AssistantExtenderProject>
+  </PropertyGroup>
+
+  <!--
+    Restore then build the launcher on its own: the application is published with a runtime
+    identifier, but the launcher is a plain managed assembly, so the identifier and self-contained
+    flag are cleared for it. Restore is included because `dotnet publish` of the application does not
+    restore a project it does not reference.
+  -->
+  <Target Name="_ResolveAssistantExtender">
+    <MSBuild Projects="$(AssistantExtenderProject)"
+             Targets="Restore;Build"
+             Properties="Configuration=$(Configuration);RuntimeIdentifier=;SelfContained=false;PublishReadyToRun=false">
+      <Output TaskParameter="TargetOutputs" ItemName="AssistantExtenderDll" />
+    </MSBuild>
+  </Target>
+
+  <Target Name="CopyAssistantExtenderToOutput" AfterTargets="Build" DependsOnTargets="_ResolveAssistantExtender">
+    <Copy SourceFiles="@(AssistantExtenderDll)" DestinationFolder="$(OutDir)extenders" SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="CopyAssistantExtenderToPublish" AfterTargets="Publish" DependsOnTargets="_ResolveAssistantExtender">
+    <Copy SourceFiles="@(AssistantExtenderDll)" DestinationFolder="$(PublishDir)extenders" SkipUnchangedFiles="true" />
+  </Target>
 
 </Project>

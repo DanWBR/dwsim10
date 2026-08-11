@@ -363,3 +363,5 @@ MigrationBackup/
 FodyWeavers.xsd
 # The Reaktoro runtimes, downloaded from a release of DanWBR/reaktoro rather than carried here.
 engine/DWSIM.Thermodynamics.ReaktoroPropertyPackage/native/
+packaging/windows/MicrosoftEdgeWebview2Setup.exe
+packaging/windows/lite.exe

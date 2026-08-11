@@ -414,6 +414,8 @@ Namespace Reactors
 
         Public Sub Calculate_Internal_1(Optional ByVal args As Object = Nothing)
 
+            ResetExpressionCache()
+
             Dim ims As MaterialStream
 
             Dim dynamics As Boolean = False
@@ -791,16 +793,10 @@ Namespace Reactors
 
                             Else
 
-                                rxn.ExpContext = New Flee.PublicTypes.ExpressionContext
-                                rxn.ExpContext.Imports.AddType(GetType(System.Math))
+                                SetExpressionVariable(GetExpressionContext(rxn.ID), "T",
+                                                      ims.Phases(0).Properties.temperature.GetValueOrDefault)
 
-                                rxn.ExpContext.Variables.Clear()
-                                rxn.ExpContext.Variables.Add("T", ims.Phases(0).Properties.temperature.GetValueOrDefault)
-                                rxn.ExpContext.Options.ParseCulture = Globalization.CultureInfo.InvariantCulture
-
-                                rxn.Expr = rxn.ExpContext.CompileGeneric(Of Double)(rxn.ReactionKinFwdExpression)
-
-                                kxf = rxn.Expr.Evaluate
+                                kxf = GetCompiledExpression(rxn.ID, rxn.ReactionKinFwdExpression).Evaluate
 
                             End If
 
@@ -810,16 +806,10 @@ Namespace Reactors
 
                             Else
 
-                                rxn.ExpContext = New Flee.PublicTypes.ExpressionContext
-                                rxn.ExpContext.Imports.AddType(GetType(System.Math))
+                                SetExpressionVariable(GetExpressionContext(rxn.ID), "T",
+                                                      ims.Phases(0).Properties.temperature.GetValueOrDefault)
 
-                                rxn.ExpContext.Variables.Clear()
-                                rxn.ExpContext.Variables.Add("T", ims.Phases(0).Properties.temperature.GetValueOrDefault)
-                                rxn.ExpContext.Options.ParseCulture = Globalization.CultureInfo.InvariantCulture
-
-                                rxn.Expr = rxn.ExpContext.CompileGeneric(Of Double)(rxn.ReactionKinRevExpression)
-
-                                kxr = rxn.Expr.Evaluate
+                                kxr = GetCompiledExpression(rxn.ID, rxn.ReactionKinRevExpression).Evaluate
 
                             End If
 
@@ -854,33 +844,26 @@ Namespace Reactors
 
                                 Dim numval, denmval As Double
 
-                                rxn.ExpContext = New Flee.PublicTypes.ExpressionContext
-                                rxn.ExpContext.Imports.AddType(GetType(System.Math))
+                                Dim context = GetExpressionContext(rxn.ID)
 
-                                rxn.ExpContext.Variables.Clear()
-                                rxn.ExpContext.Variables.Add("T", ims.Phases(0).Properties.temperature.GetValueOrDefault)
-                                rxn.ExpContext.Options.ParseCulture = Globalization.CultureInfo.InvariantCulture
+                                SetExpressionVariable(context, "T", ims.Phases(0).Properties.temperature.GetValueOrDefault)
 
                                 Dim ir As Integer = 1
                                 Dim ip As Integer = 1
 
                                 For Each sb As ReactionStoichBase In rxn.Components.Values
                                     If sb.StoichCoeff < 0 Then
-                                        rxn.ExpContext.Variables.Add("R" & ir.ToString, C(sb.CompName) * convfactors(sb.CompName))
+                                        SetExpressionVariable(context, "R" & ir.ToString, C(sb.CompName) * convfactors(sb.CompName))
                                         ir += 1
                                     ElseIf sb.StoichCoeff > 0 Then
-                                        rxn.ExpContext.Variables.Add("P" & ip.ToString, C(sb.CompName) * convfactors(sb.CompName))
+                                        SetExpressionVariable(context, "P" & ip.ToString, C(sb.CompName) * convfactors(sb.CompName))
                                         ip += 1
                                     End If
                                 Next
 
-                                rxn.Expr = rxn.ExpContext.CompileGeneric(Of Double)(rxn.RateEquationNumerator)
+                                numval = GetCompiledExpression(rxn.ID, rxn.RateEquationNumerator).Evaluate
 
-                                numval = rxn.Expr.Evaluate
-
-                                rxn.Expr = rxn.ExpContext.CompileGeneric(Of Double)(rxn.RateEquationDenominator)
-
-                                denmval = rxn.Expr.Evaluate
+                                denmval = GetCompiledExpression(rxn.ID, rxn.RateEquationDenominator).Evaluate
 
                                 'calculate reaction rate & convert to internal SI units
                                 Rx = SystemsOfUnits.Converter.ConvertToSI(rxn.VelUnit, numval / denmval)

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Collections.Generic;
 using Avalonia.Controls;
 using Dock.Model.Avalonia;
@@ -27,6 +28,7 @@ public sealed class FlowsheetDockFactory : Factory
     private readonly Control _spreadsheetContent;
     private readonly Control _dynamicsManagerContent;
     private readonly Control _integratorContent;
+    private readonly Control _watchContent;
 
     // Exposed so FlowsheetWindow can show/hide panels via the dock API
     /// <summary>Live panel of each dockable id, used when reattaching a restored layout.</summary>
@@ -34,8 +36,12 @@ public sealed class FlowsheetDockFactory : Factory
 
     public Tool? EditorTool { get; private set; }
     public Tool? PaletteTool { get; private set; }
+
+    /// <summary>The panel a local page is shown on, created the first time one is asked for.</summary>
+    public Tool? WebTool { get; private set; }
     public Tool? LogTool { get; private set; }
     public Tool? IntegratorTool { get; private set; }
+    public Tool? WatchTool { get; private set; }
     public Document? CanvasDocument { get; private set; }
     public Document? ResultsDocument { get; private set; }
     public Document? MaterialStreamsDocument { get; private set; }
@@ -51,7 +57,8 @@ public sealed class FlowsheetDockFactory : Factory
         Control materialStreamsContent,
         Control spreadsheetContent,
         Control dynamicsManagerContent,
-        Control integratorContent)
+        Control integratorContent,
+        Control watchContent)
     {
         _editorContent = editorContent;
         _canvasContent = canvasContent;
@@ -62,6 +69,7 @@ public sealed class FlowsheetDockFactory : Factory
         _spreadsheetContent = spreadsheetContent;
         _dynamicsManagerContent = dynamicsManagerContent;
         _integratorContent = integratorContent;
+        _watchContent = watchContent;
 
         // content by dockable id, so a layout restored from the simulation file can have the
         // live panels put back into it: the serializer round-trips the tree, not the controls
@@ -75,7 +83,8 @@ public sealed class FlowsheetDockFactory : Factory
             ["MaterialStreams"] = materialStreamsContent,
             ["Spreadsheet"] = spreadsheetContent,
             ["DynamicsManager"] = dynamicsManagerContent,
-            ["Integrator"] = integratorContent
+            ["Integrator"] = integratorContent,
+            ["Watch"] = watchContent
         };
     }
 
@@ -179,6 +188,17 @@ public sealed class FlowsheetDockFactory : Factory
             Proportion = 0.20
         };
 
+        WatchTool = new Tool
+        {
+            Id = "Watch",
+            Title = "Watch",
+            Content = _watchContent,
+            CanClose = false,
+            CanPin = true,
+            CanFloat = false,
+            Proportion = 0.20
+        };
+
         // --- Dock containers ---
         var leftDock = new ToolDock
         {
@@ -221,7 +241,7 @@ public sealed class FlowsheetDockFactory : Factory
             Title = "Bottom",
             Alignment = Alignment.Bottom,
             Proportion = 0.20,
-            VisibleDockables = CreateList<IDockable>(LogTool, IntegratorTool),
+            VisibleDockables = CreateList<IDockable>(LogTool, IntegratorTool, WatchTool),
             ActiveDockable = LogTool
         };
 
@@ -260,5 +280,85 @@ public sealed class FlowsheetDockFactory : Factory
         rootDock.ActiveDockable = mainLayout;
 
         return rootDock;
+    }
+
+    /// <summary>Adds a panel holding a browser view to the dock on the right and shows it.</summary>
+    /// <remarks>
+    /// The dock does not hide an inactive tool, it takes its control out of the visual tree, and the
+    /// browser control builds its native view once and never again, so a tab switched away and back
+    /// leaves it blank. The panel therefore holds a plain host, and a fresh browser is put into it
+    /// each time the panel actually becomes visible. The teardown is deferred one turn so the burst
+    /// of attach and detach the dock does while laying itself out does not keep rebuilding it.
+    /// </remarks>
+    public void OpenWebTool(string title, Uri url)
+    {
+        var host = new Decorator();
+        var attached = false;
+
+        host.AttachedToVisualTree += (_, _) =>
+        {
+            attached = true;
+            if (host.Child == null)
+                host.Child = new global::AvaloniaWebView.WebView { Url = url };
+        };
+
+        host.DetachedFromVisualTree += (_, _) =>
+        {
+            attached = false;
+            global::Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                // still gone a turn later: a real switch away, so free the native browser
+                if (attached || host.Child == null) return;
+                (host.Child as IDisposable)?.Dispose();
+                host.Child = null;
+            }, global::Avalonia.Threading.DispatcherPriority.Background);
+        };
+
+        WebTool = new Tool
+        {
+            Id = "WebPanel",
+            Title = title,
+            Content = host,
+            CanClose = true,
+            CanPin = true,
+            CanFloat = true,
+            Proportion = 0.30
+        };
+
+        ContentById["WebPanel"] = host;
+
+        var right = Find(d => d.Id == "RightDock").OfType<ToolDock>().FirstOrDefault();
+        if (right == null) return;
+
+        // the Windows interface gives the assistant a good third of the window
+        right.Proportion = 0.30;
+        right.VisibleDockables?.Add(WebTool);
+        right.ActiveDockable = WebTool;
+    }
+
+    /// <summary>Brings the watch panel forward, making sure the bottom dock is open.</summary>
+    public void ShowWatch()
+    {
+        if (WatchTool == null) return;
+
+        var bottom = Find(d => d.Id == "BottomDock").OfType<ToolDock>().FirstOrDefault();
+        if (bottom == null) return;
+
+        if (bottom.Proportion <= 0.01) bottom.Proportion = 0.20;
+        bottom.ActiveDockable = WatchTool;
+    }
+
+    /// <summary>Brings the panel forward when it is already there.</summary>
+    public void ShowWebTool()
+    {
+        if (WebTool == null) return;
+
+        var right = Find(d => d.Id == "RightDock").OfType<ToolDock>().FirstOrDefault();
+        if (right == null) return;
+
+        if (right.VisibleDockables?.Contains(WebTool) != true)
+            right.VisibleDockables?.Add(WebTool);
+
+        right.ActiveDockable = WebTool;
     }
 }

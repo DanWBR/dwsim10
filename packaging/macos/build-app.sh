@@ -24,6 +24,10 @@ mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp -a "$publish/." "$app/Contents/MacOS/"
 chmod +x "$app/Contents/MacOS/DWSIM.UI.Desktop.Avalonia"
 
+# Debug symbols do not belong in a shipped app, and codesign seals the MacOS folder and then
+# trips over each .pdb as an unsigned subcomponent ("code object is not signed at all"). Drop them.
+find "$app/Contents/MacOS" -name '*.pdb' -delete
+
 sed -e "s/@VERSION@/$version/" "$here/Info.plist.in" > "$app/Contents/Info.plist"
 
 # iconutil is the only piece that needs macOS; elsewhere the bundle simply carries the PNGs

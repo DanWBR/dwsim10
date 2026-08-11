@@ -1230,6 +1230,10 @@ Namespace UnitOperations
                                 For Each subst As Compound In mat.Phases(0).Compounds.Values
                                     subst.MassFraction = mat.PropertyPackage.AUX_CONVERT_MOL_TO_MASS(subst.Name, 0)
                                 Next
+                                ' the unit worked the equilibrium out with its own thermodynamics, so the
+                                ' phase split it just wrote stands: recalculating it here with the package of
+                                ' the flowsheet is what used to turn a saturated product into a two-phase one
+                                mat.EquilibriumCalculatedExternally = True
                             End If
                         Next
                         For Each c As Interfaces.IConnectionPoint In Me.GraphicObject.OutputConnectors

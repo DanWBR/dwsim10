@@ -16,6 +16,7 @@ Imports DWSIM.Thermodynamics
 Imports DWSIM.UnitOperations.Streams
 Imports DWSIM.Thermodynamics.Streams
 Imports ICSharpCode.SharpZipLib.Zip
+Imports System.Diagnostics
 Imports System.IO
 Imports DWSIM.Drawing.SkiaSharp.GraphicObjects.Tables
 Imports Python.Runtime
@@ -227,6 +228,95 @@ Imports DWSIM.ExtensionMethods
     Public Function AddObject(t As Enums.GraphicObjects.ObjectType, xcoord As Integer, ycoord As Integer, tag As String) As ISimulationObject Implements IFlowsheet.AddObject
         Dim id = Me.AddObjectToSurface(t, xcoord, ycoord, tag)
         Return Me.SimulationObjects(id)
+    End Function
+
+    ''' <summary>
+    ''' Creates an annotation object and places it on the drawing surface.
+    ''' </summary>
+    ''' <remarks>
+    ''' Annotations are graphics with no simulation object behind them: tables, charts, text,
+    ''' pictures, rectangles and buttons. <see cref="AddObjectToSurface"/> only builds simulation
+    ''' objects and has no case for any of them, so asking it for one used to come back as a null
+    ''' reference. Each host used to construct these by hand instead; this is the shared way in.
+    ''' </remarks>
+    ''' <param name="t">The annotation type to create.</param>
+    ''' <param name="xcoord">The X coordinate on the drawing surface.</param>
+    ''' <param name="ycoord">The Y coordinate on the drawing surface.</param>
+    ''' <param name="tag">A user-visible label; a numbered one is generated when left empty.</param>
+    ''' <returns>The new graphic object, or Nothing if the type is not an annotation.</returns>
+    Public Function AddGraphicObject(t As ObjectType, xcoord As Integer, ycoord As Integer,
+                                     Optional tag As String = "",
+                                     Optional image As SKImage = Nothing) As IGraphicObject
+
+        Dim gObj As GraphicObject = Nothing
+        Dim prefix As String = ""
+
+        Select Case t
+
+            Case ObjectType.GO_Text
+                gObj = New TextGraphic(xcoord, ycoord, "TEXT")
+                prefix = "TEXT"
+
+            Case ObjectType.GO_HTMLText
+                gObj = New HTMLTextGraphic(xcoord, ycoord)
+                prefix = "HTMLTEXT"
+
+            Case ObjectType.GO_Rectangle
+                gObj = New RectangleGraphic(New SKPoint(xcoord, ycoord), "")
+                prefix = "RECT"
+
+            Case ObjectType.GO_Button
+                gObj = New ButtonGraphic(New SKPoint(xcoord, ycoord), "CLICK ME")
+                prefix = "BTN"
+
+            Case ObjectType.GO_Image
+                gObj = New EmbeddedImageGraphic(xcoord, ycoord, image)
+                gObj.Width = If(image Is Nothing, 100, image.Width)
+                gObj.Height = If(image Is Nothing, 100, image.Height)
+                prefix = "IMAGE"
+
+            Case ObjectType.GO_Table
+                gObj = New TableGraphic(xcoord, ycoord)
+                prefix = "PROPERTYTABLE"
+
+            Case ObjectType.GO_MasterTable
+                gObj = New MasterTableGraphic(xcoord, ycoord)
+                prefix = "MASTERTABLE"
+
+            Case ObjectType.GO_SpreadsheetTable
+                gObj = New SpreadsheetTableGraphic(xcoord, ycoord)
+                prefix = "STABLE"
+
+            Case ObjectType.GO_Chart
+                gObj = New Charts.OxyPlotGraphic(xcoord, ycoord)
+                gObj.Width = 500
+                gObj.Height = 400
+                prefix = "CHART"
+
+            Case Else
+                Return Nothing
+
+        End Select
+
+        RegisterSnapshot(SnapshotType.ObjectAddedOrRemoved)
+
+        gObj.ObjectType = t
+        gObj.Name = prefix & "-" & Guid.NewGuid().ToString()
+        gObj.Flowsheet = Me
+
+        If tag <> "" Then
+            gObj.Tag = tag
+        Else
+            gObj.Tag = prefix & (FlowsheetSurface.DrawingObjects.Where(Function(o) o.ObjectType = t).Count + 1).ToString()
+        End If
+
+        ' the chart and the picture carry their own size; everything else grows to fit its content
+        If t <> ObjectType.GO_Chart And t <> ObjectType.GO_Image Then gObj.AutoSize = True
+
+        FlowsheetSurface.DrawingObjects.Add(gObj)
+
+        Return gObj
+
     End Function
 
     ''' <summary>Creates a simulation object with an explicit ID, places its graphic on the surface, and returns the new object.</summary>
@@ -3588,8 +3678,54 @@ Imports DWSIM.ExtensionMethods
         Return CType(Me, IFlowsheetBag)
     End Function
 
-    Public Function GetUtility(uttype As Enums.FlowsheetUtility) As IAttachedUtility Implements IFlowsheet.GetUtility
-        Return Nothing
+    ''' <summary>
+    ''' Creates an attached utility of the given type.
+    ''' </summary>
+    ''' <remarks>
+    ''' This used to return Nothing, which meant a simulation carrying attached utilities lost them
+    ''' on load here: the loader asks for one per stored utility, and a null one is dropped along
+    ''' with the properties it contributes to its object. The Windows host overrides this with its
+    ''' own windows; the ones returned here have no interface and hold the same data.
+    ''' </remarks>
+    ''' <summary>
+    ''' Opens the page in the system browser. A host that can draw a page itself overrides this
+    ''' and docks it beside the flowsheet instead.
+    ''' </summary>
+    Public Overridable Sub DisplayWebPanel(title As String, url As String) Implements IFlowsheet.DisplayWebPanel
+
+        Try
+            Process.Start(New ProcessStartInfo(url) With {.UseShellExecute = True})
+        Catch ex As Exception
+            ShowMessage(title & ": open " & url, IFlowsheet.MessageType.Information)
+        End Try
+
+    End Sub
+
+    Public Overridable Function GetUtility(uttype As Enums.FlowsheetUtility) As IAttachedUtility Implements IFlowsheet.GetUtility
+
+        Select Case uttype
+            Case FlowsheetUtility.PhaseEnvelope
+                Return New Utilities.PhaseEnvelopeUtility()
+            Case FlowsheetUtility.PhaseEnvelopeBinary
+                Return New Utilities.BinaryEnvelopeUtility()
+            Case FlowsheetUtility.PhaseEnvelopeTernary
+                Return New Utilities.TernaryEnvelopeUtility()
+            Case FlowsheetUtility.NaturalGasHydrates
+                Return New Utilities.HydratesUtility()
+            Case FlowsheetUtility.TrueCriticalPoint
+                Return New Utilities.TrueCriticalPointUtility()
+            Case FlowsheetUtility.PSVSizing
+                Return New Utilities.PSVSizingUtility()
+            Case FlowsheetUtility.SeparatorSizing
+                Return New Utilities.SeparatorSizingUtility()
+            Case FlowsheetUtility.PetroleumProperties
+                Return New Utilities.PetroleumColdFlowUtility()
+            Case FlowsheetUtility.PureCompoundProperties
+                Return New Utilities.PureCompoundPropertiesUtility()
+            Case Else
+                Return Nothing
+        End Select
+
     End Function
 
     Public Property MasterFlowsheet As IFlowsheet Implements IFlowsheet.MasterFlowsheet

@@ -13,7 +13,8 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
         Private TInternal As Double = 0.0
         Private PInternal As Double = 0.0
 
-        <NonSerialized> Private ec As New Flee.PublicTypes.ExpressionContext
+        ''' <summary>Holds the compiled kij expressions between calls.</summary>
+        <NonSerialized> Private ec As New DWSIM.SharedClasses.ExpressionCache
 
         Public KijExpressions As New Dictionary(Of String, String)
 
@@ -72,24 +73,22 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
             SyncLock ec
 
-                ec.Variables.Clear()
-                ec.Variables.Add("P", PInternal)
-                ec.Variables.Add("T", TInternal)
+                Dim context = ec.GetContext("PT")
 
-                Dim result As Double = 0.0
+                DWSIM.SharedClasses.ExpressionCache.SetVariable(context, "P", PInternal)
+                DWSIM.SharedClasses.ExpressionCache.SetVariable(context, "T", TInternal)
 
                 Dim pair As String = id1 + "/" + id2
                 Dim pair2 As String = id2 + "/" + id1
 
                 Try
                     If KijExpressions.ContainsKey(pair) Then
-                        result = ec.CompileGeneric(Of Double)(KijExpressions(pair)).Evaluate()
+                        Return ec.GetCompiled("PT", KijExpressions(pair)).Evaluate()
                     ElseIf KijExpressions.ContainsKey(pair2) Then
-                        result = ec.CompileGeneric(Of Double)(KijExpressions(pair2)).Evaluate()
+                        Return ec.GetCompiled("PT", KijExpressions(pair2)).Evaluate()
                     Else
                         Return 0.0
                     End If
-                    Return result
                 Catch ex As Exception
                     Flowsheet?.ShowMessage(String.Format("PR/SRK Adv: Error evaluating kij expression for {0}/{1}: {2}", id1, id2, ex.Message), IFlowsheet.MessageType.GeneralError)
                     Return 0.0

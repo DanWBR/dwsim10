@@ -118,6 +118,13 @@ Public Interface IFlowsheet
 
     Sub DisplayForm(form As Object)
 
+    ''' <summary>
+    ''' Shows a page served by a local address on a panel docked beside the flowsheet.
+    ''' </summary>
+    ''' <param name="title">The name on the panel.</param>
+    ''' <param name="url">The address to show.</param>
+    Sub DisplayWebPanel(title As String, url As String)
+
     Sub UpdateOpenEditForms()
 
     Sub ConnectObjects(gobjfrom As IGraphicObject, gobjto As IGraphicObject, fromidx As Integer, toidx As Integer)

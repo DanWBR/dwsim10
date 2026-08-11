@@ -77,7 +77,12 @@
         <MenuItem Header="Master Property Table" Name="MenuAddMasterTable" />
         <MenuItem Header="Spreadsheet Table"     Name="MenuAddSpreadsheetTable" />
         <MenuItem Header="Chart Object"          Name="MenuAddChart" />
+        <Separator />
         <MenuItem Header="Text Block"            Name="MenuAddText" />
+        <MenuItem Header="HTML Text Block"       Name="MenuAddHTMLText" />
+        <MenuItem Header="Rectangle"             Name="MenuAddRectangle" />
+        <MenuItem Header="Button"                Name="MenuAddButton" />
+        <MenuItem Header="Image..."              Name="MenuAddImage" />
       </MenuItem>
       <MenuItem Header="_Dynamics">
         <MenuItem Header="Dynamic Mode _Active"    Name="MenuDynamicsToggle" />
@@ -109,6 +114,7 @@
         <MenuItem Header="Show _Editor Panel"      Name="MenuShowEditor" />
         <MenuItem Header="Show _Object Palette"    Name="MenuShowPalette" />
         <MenuItem Header="Show _Log Panel"         Name="MenuShowResults" />
+        <MenuItem Header="Show _Watch Panel"       Name="MenuShowWatch" />
         <MenuItem Header="Show _Sub-Toolbar"       Name="MenuShowSubToolbar" />
         <Separator />
         <MenuItem Header="Close All Opened _Editors" Name="MenuCloseAllEditors" />
@@ -194,7 +200,8 @@
         <Button Name="BtnEqualizeV"   Classes="subtoolbar" ToolTip.Tip="Equalize Vertical Spacing"   Content="↕" />
         <Separator />
         <TextBlock Text="Search:" VerticalAlignment="Center" FontSize="11" Margin="4,0,2,0" />
-        <TextBox Name="TbSearch" Width="140" Watermark="Find object..." FontSize="11" Height="24" />
+        <TextBox Name="TbSearch" Width="140" Watermark="Find object..." FontSize="11"
+                 VerticalAlignment="Center" VerticalContentAlignment="Center" />
       </StackPanel>
     </Border>
 

@@ -228,6 +228,7 @@ public partial class FlowsheetView : UserControl
 
     // Dock factory (to show/hide panels programmatically)
     private FlowsheetDockFactory? _dockFactory;
+    private WatchPanelControl _watchPanel = null!;
     private Dock.Model.Core.IDock? _dockLayout;
     private DockControl? _dockControl;
 
@@ -302,6 +303,8 @@ public partial class FlowsheetView : UserControl
             Content = PaletteStack
         });
 
+        _watchPanel = new WatchPanelControl();
+
         // Create the dock factory with pre-built controls
         // Center document tabs: Flowsheet canvas, Results, Material Streams, Spreadsheet
         // Bottom tool panel: Log (and later Dynamics Integrator)
@@ -314,7 +317,8 @@ public partial class FlowsheetView : UserControl
             materialStreamsContent: MaterialStreamsPanel,
             spreadsheetContent: SpreadsheetGrid,
             dynamicsManagerContent: DynManagerPanel,
-            integratorContent: IntegratorPanel);
+            integratorContent: IntegratorPanel,
+            watchContent: _watchPanel);
 
         var layout = _dockFactory.CreateLayout();
         _dockFactory.InitLayout(layout);
@@ -468,7 +472,8 @@ public partial class FlowsheetView : UserControl
         Canvas.PaletteItemDropped += (name, x, y) =>
         {
             if (_flowsheet == null) return;
-            AddPaletteObject(name, x, y);
+            var (ox, oy) = CanvasToObject(x, y);
+            AddPaletteObject(name, ox, oy);
         };
 
         // Double-click with modifiers (matches Eto Flowsheet.eto.cs behavior):
@@ -648,6 +653,12 @@ public partial class FlowsheetView : UserControl
             var tag = simObj.GraphicObject?.Tag ?? objectName;
             EditorHolder.SetDisplayName(tag);
         }
+        else if (_surface != null)
+        {
+            // annotations are not simulation objects, so their tag comes off the surface
+            var graphic = _surface.DrawingObjects.FirstOrDefault(o => o.Name == objectName);
+            if (graphic != null) EditorHolder.SetDisplayName(graphic.Tag);
+        }
 
         // Arm OnAfterEdit after ALL deferred visual-tree events have settled.
         // When controls enter the tree, Avalonia fires deferred TextChanged /
@@ -736,9 +747,12 @@ public partial class FlowsheetView : UserControl
             Canvas.Refresh();
             // open object editors hold live grids; this is the engine's post-solve signal
             DWSIM.UI.Desktop.Editors.MaterialStreamTabbedEditor.RefreshAll();
+            _watchPanel.RefreshValues();
         };
         fs.OnUpdateOpenEditForms = RefreshSelectedObjectEditor;
         fs.OnCloseOpenEditForms = CloseAllEditors;
+        // an extension asking for a page from a local server gets a docked panel here
+        fs.OnWebPanelRequested = ShowWebPanel;
 
         // Wire spreadsheet BEFORE file load: LoadSpreadsheetData callback
         // is invoked during LoadFromXML/LoadZippedXML on the background thread.
@@ -760,6 +774,7 @@ public partial class FlowsheetView : UserControl
             });
 
             _flowsheet = fs;
+            _watchPanel.SetFlowsheet(fs);
             // Without this, Save silently degrades to Save As for every opened file.
             _flowsheet.FilePath = path;
             if (_flowsheet.Options != null) _flowsheet.Options.FilePath = path;
@@ -892,9 +907,12 @@ public partial class FlowsheetView : UserControl
             Canvas.Refresh();
             // open object editors hold live grids; this is the engine's post-solve signal
             DWSIM.UI.Desktop.Editors.MaterialStreamTabbedEditor.RefreshAll();
+            _watchPanel.RefreshValues();
         };
         fs.OnUpdateOpenEditForms = RefreshSelectedObjectEditor;
         fs.OnCloseOpenEditForms = CloseAllEditors;
+        // an extension asking for a page from a local server gets a docked panel here
+        fs.OnWebPanelRequested = ShowWebPanel;
 
         var dlg = new LoadingDialog("New Simulation", "Loading databases...");
         dlg.Show(HostWindow);
@@ -909,6 +927,7 @@ public partial class FlowsheetView : UserControl
         }
 
         _flowsheet = fs;
+        _watchPanel.SetFlowsheet(fs);
         _surface = (GraphicsSurface)fs.GetSurface();
         _surface.Flowsheet = _flowsheet;
 
@@ -1120,6 +1139,8 @@ public partial class FlowsheetView : UserControl
         // Wire the Avalonia editor factory so clicking a flowsheet object
         // shows its properties panel populated by the real engine data.
         var factory = new DWSIM.UI.Desktop.Editors.AvaloniaEditorFactory(_flowsheet!);
+        // an annotation changes nothing in the process, so editing one only has to repaint
+        factory.RedrawRequested = () => Canvas.Refresh();
         EditorDescriptorFactory = factory.CreateDescriptor;
     }
 
@@ -1671,13 +1692,7 @@ public partial class FlowsheetView : UserControl
         if (_flowsheet == null) return;
         try
         {
-            var backupDir = DWSIM.GlobalSettings.Settings.BackupFolder;
-            if (string.IsNullOrEmpty(backupDir))
-            {
-                backupDir = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-                    "DWSIM Application Data", "Backup");
-            }
+            var backupDir = BackupRecoveryWindow.ResolveBackupFolder();
             Directory.CreateDirectory(backupDir);
 
             var fname = $"backup_{DateTime.Now:yyyyMMdd_HHmmss}_{SimulationName}.dwxmz";
@@ -1785,11 +1800,16 @@ public partial class FlowsheetView : UserControl
         // Add Object sub-items
         MenuAddMaterialStream.Click    += (_, _) => AddObjectAtCenter(ObjectType.MaterialStream, "Material Stream");
         MenuAddEnergyStream.Click      += (_, _) => AddObjectAtCenter(ObjectType.EnergyStream, "Energy Stream");
-        MenuAddText.Click              += (_, _) => AddObjectAtCenter(ObjectType.GO_Text, "Text Block");
-        MenuAddTable.Click             += (_, _) => AddObjectAtCenter(ObjectType.GO_Table, "Property Table");
-        MenuAddMasterTable.Click       += (_, _) => AddObjectAtCenter(ObjectType.GO_MasterTable, "Master Table");
-        MenuAddSpreadsheetTable.Click  += (_, _) => AddObjectAtCenter(ObjectType.GO_SpreadsheetTable, "Spreadsheet Table");
-        MenuAddChart.Click             += (_, _) => AddObjectAtCenter(ObjectType.GO_Chart, "Chart Object");
+        // annotations have no simulation object behind them and take the other entry point
+        MenuAddText.Click              += (_, _) => AddAnnotationAtCenter(ObjectType.GO_Text);
+        MenuAddHTMLText.Click          += (_, _) => AddAnnotationAtCenter(ObjectType.GO_HTMLText);
+        MenuAddRectangle.Click         += (_, _) => AddAnnotationAtCenter(ObjectType.GO_Rectangle);
+        MenuAddButton.Click            += (_, _) => AddAnnotationAtCenter(ObjectType.GO_Button);
+        MenuAddImage.Click             += async (_, _) => await AddImageAsync();
+        MenuAddTable.Click             += (_, _) => AddAnnotationAtCenter(ObjectType.GO_Table);
+        MenuAddMasterTable.Click       += (_, _) => AddAnnotationAtCenter(ObjectType.GO_MasterTable);
+        MenuAddSpreadsheetTable.Click  += (_, _) => AddAnnotationAtCenter(ObjectType.GO_SpreadsheetTable);
+        MenuAddChart.Click             += (_, _) => AddAnnotationAtCenter(ObjectType.GO_Chart);
 
         // Global Settings
         MenuGlobalSettings.Click += async (_, _) => await new PreferencesWindow().ShowDialog(HostWindow);
@@ -1938,6 +1958,7 @@ public partial class FlowsheetView : UserControl
         MenuShowEditor.Click += (_, _) => ToggleDockTool(_dockFactory?.EditorTool);
         MenuShowPalette.Click += (_, _) => ToggleDockTool(_dockFactory?.PaletteTool);
         MenuShowResults.Click += (_, _) => ToggleDockTool(_dockFactory?.LogTool);
+        MenuShowWatch.Click += (_, _) => _dockFactory?.ShowWatch();
 
         MenuZoomIn.Click += (_, _) => ZoomIn();
         MenuZoomOut.Click += (_, _) => ZoomOut();
@@ -2047,7 +2068,7 @@ public partial class FlowsheetView : UserControl
         MenuHelpHtml.Click += (_, _) => OpenUrl(Path.Combine(
             AppDomain.CurrentDomain.BaseDirectory, "docs", "dwsim-help", "index.html"));
         MenuHelpSupport.Click += (_, _) => OpenUrl("https://dwsim.org/wiki/index.php?title=Support");
-        MenuHelpBug.Click += (_, _) => OpenUrl("https://github.com/DanWBR/dwsim/issues");
+        MenuHelpBug.Click += (_, _) => OpenUrl("https://github.com/DanWBR/dwsim10/issues");
         MenuHelpWebsite.Click += (_, _) => OpenUrl("https://dwsim.org");
 
         // --- UO Extensions Manager ---
@@ -2225,16 +2246,98 @@ public partial class FlowsheetView : UserControl
         SetStatus("Ready");
     }
 
+    /// <summary>
+    /// Adds an annotation (table, chart, text, picture, rectangle, button) at the centre of the
+    /// view. These have no simulation object behind them, so they do not go through AddObject.
+    /// </summary>
+    private void AddAnnotationAtCenter(ObjectType type, SkiaSharp.SKImage? image = null)
+    {
+        if (_flowsheet == null) return;
+
+        var (cx, cy) = ViewCenter();
+
+        var obj = _flowsheet.AddGraphicObject(type, cx, cy, "", image);
+        if (obj == null) return;
+
+        Canvas.Refresh();
+        AppendLog($"Added '{obj.Tag}'.");
+        OpenEditorFor(obj.Name);
+    }
+
+    /// <summary>Asks for a picture file and embeds it on the flowsheet.</summary>
+    private async Task AddImageAsync()
+    {
+        var topLevel = TopLevel.GetTopLevel(this);
+        if (topLevel == null) return;
+
+        var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Select an Image",
+            AllowMultiple = false,
+            FileTypeFilter = new[]
+            {
+                new FilePickerFileType("Image")
+                {
+                    Patterns = new[] { "*.png", "*.jpg", "*.jpeg", "*.bmp", "*.gif", "*.webp" }
+                },
+                FilePickerFileTypes.All
+            }
+        });
+
+        if (files.Count == 0) return;
+
+        try
+        {
+            using var stream = await files[0].OpenReadAsync();
+            var image = SkiaSharp.SKImage.FromEncodedData(stream);
+            if (image == null)
+            {
+                AppendLog("Could not read that file as an image.");
+                return;
+            }
+            AddAnnotationAtCenter(ObjectType.GO_Image, image);
+        }
+        catch (Exception ex)
+        {
+            AppendLog("Could not read that file as an image: " + ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Converts a point on the canvas into the coordinates an object is placed in.
+    /// </summary>
+    /// <remarks>
+    /// This is the conversion both of the other interfaces make when something is dropped on the
+    /// flowsheet: the Windows one divides the client point by the zoom, and the Eto one wrote
+    /// <c>e.Location.X * DpiScale / Zoom</c>. The canvas hands out a point that already carries the
+    /// display scale, so only the zoom is left to divide by.
+    /// </remarks>
+    private (int X, int Y) CanvasToObject(double x, double y)
+    {
+        var zoom = _surface?.Zoom ?? 1.0f;
+        if (zoom <= 0.0f) zoom = 1.0f;
+        return ((int)(x / zoom), (int)(y / zoom));
+    }
+
+    /// <summary>The middle of the visible area, in the coordinates an object is placed in.</summary>
+    private (int X, int Y) ViewCenter()
+    {
+        double cx = Canvas.Bounds.Width / 2;
+        double cy = Canvas.Bounds.Height / 2;
+
+        if (_surface != null)
+        {
+            cx = _surface.Size.Width / 2;
+            cy = _surface.Size.Height / 2;
+        }
+
+        return CanvasToObject(cx, cy);
+    }
+
     private void AddObjectAtCenter(ObjectType type, string name)
     {
         if (_flowsheet == null) return;
-        var cx = (int)(Canvas.Bounds.Width / 2);
-        var cy = (int)(Canvas.Bounds.Height / 2);
-        if (_surface != null)
-        {
-            cx = (int)(_surface.Size.Width / 2);
-            cy = (int)(_surface.Size.Height / 2);
-        }
+        var (cx, cy) = ViewCenter();
         _flowsheet.AddObject(type, cx, cy, name);
         Canvas.Refresh();
         UpdateResultsPanel();
@@ -2806,13 +2909,7 @@ public partial class FlowsheetView : UserControl
                 cell.DoubleTapped += (_, _) =>
                 {
                     if (_flowsheet == null) return;
-                    var cx = (int)(Canvas.Bounds.Width / 2);
-                    var cy = (int)(Canvas.Bounds.Height / 2);
-                    if (_surface != null)
-                    {
-                        cx = (int)(_surface.Size.Width / 2);
-                        cy = (int)(_surface.Size.Height / 2);
-                    }
+                    var (cx, cy) = ViewCenter();
                     AddPaletteObject(name, cx, cy);
                     AppendLog($"Added '{name}'.");
                 };
@@ -3360,7 +3457,14 @@ public partial class FlowsheetView : UserControl
 
         foreach (DWSIM.Interfaces.IExtenderCollection extender in mform.Extenders)
         {
-            if (extender.Level != DWSIM.Interfaces.Enums.ExtenderLevel.FlowsheetWindow)
+            // main-window extensions get a menu item here as well: this is the window that
+            // has the menus, and the one that can tell an extension which flowsheet is active
+            if (extender.Level != DWSIM.Interfaces.Enums.ExtenderLevel.FlowsheetWindow &&
+                extender.Level != DWSIM.Interfaces.Enums.ExtenderLevel.MainWindow)
+                continue;
+
+            if (extender.Category == DWSIM.Interfaces.Enums.ExtenderCategory.InitializationScript &&
+                extender.Level == DWSIM.Interfaces.Enums.ExtenderLevel.MainWindow)
                 continue;
 
             foreach (var item in extender.Collection)
@@ -3427,6 +3531,13 @@ public partial class FlowsheetView : UserControl
                         {
                             targetMenu.Items.Add(menuItem);
                         }
+
+                        // the Windows interface keeps one entry at the right of its menu strip,
+                        // the assistant, and leaves everything else on a menu. A main-window
+                        // extension filed under Tools is that kind of entry.
+                        if (extender.Level == DWSIM.Interfaces.Enums.ExtenderLevel.MainWindow &&
+                            extender.Category == DWSIM.Interfaces.Enums.ExtenderCategory.Tools)
+                            AddExtensionButton(ext);
                     }
                 }
                 catch (Exception ex)
@@ -3435,6 +3546,92 @@ public partial class FlowsheetView : UserControl
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// Shows a page served on the machine itself on a panel docked to the right of the flowsheet,
+    /// where the Windows interface docks the assistant.
+    /// </summary>
+    public void ShowWebPanel(string title, string url)
+    {
+        if (_dockFactory == null) return;
+
+        if (_dockFactory.WebTool != null)
+        {
+            // already open: just bring it forward. The host builds its own browser when shown.
+            _dockFactory.WebTool.Title = title;
+            _dockFactory.ShowWebTool();
+            return;
+        }
+
+        try
+        {
+            _dockFactory.OpenWebTool(title, new Uri(url));
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"Could not open '{title}' here: {ex.Message}");
+            try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); } catch { }
+        }
+    }
+
+    /// <summary>
+    /// Puts an extension on the toolbar, using the icon it publishes. An extension with no icon is
+    /// reachable from its menu only.
+    /// </summary>
+    private void AddExtensionButton(DWSIM.Interfaces.IExtender ext)
+    {
+        byte[]? png = null;
+        try { png = ext.DisplayImage; } catch { }
+
+        // icon and name side by side, as the entry on the Windows menu strip shows them
+        var row = new StackPanel
+        {
+            Orientation = global::Avalonia.Layout.Orientation.Horizontal,
+            Spacing = 4,
+            VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Center
+        };
+
+        try
+        {
+            if (png == null || png.Length == 0) throw new InvalidOperationException("no icon");
+            using var stream = new MemoryStream(png);
+            row.Children.Add(new Image
+            {
+                Source = new global::Avalonia.Media.Imaging.Bitmap(stream),
+                Width = 18,
+                Height = 18,
+                VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Center
+            });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Extension '{ext.DisplayText}': icon not usable ({ex.GetType().Name}).");
+        }
+
+        row.Children.Add(new TextBlock
+        {
+            Text = ext.DisplayText,
+            VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Center
+        });
+
+        var button = new Button { Content = row };
+        button.Classes.Add("toolbar");
+        ToolTip.SetTip(button, ext.DisplayText);
+
+        button.Click += (_, _) =>
+        {
+            try { ext.Run(); }
+            catch (Exception ex) { AppendLog($"Error running {ext.DisplayText}: {ex.Message}"); }
+        };
+
+        // the menu of a simulation is moved into the main window, so the strip beside it
+        // is there and not here
+        var strip = FindMainWindow()?.MenuBarExtensions;
+        if (strip == null) return;
+
+        strip.Children.Add(button);
+        Console.WriteLine($"Menu bar button added for '{ext.DisplayText}'.");
     }
 
     /// <summary>

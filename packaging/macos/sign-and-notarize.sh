@@ -21,28 +21,39 @@ set -euo pipefail
 app=${1:?app bundle}
 version=${2:?version}
 output=${3:?output directory}
+# The architecture the payload is for. It is not $(uname -m): the runner is Apple Silicon and
+# builds both the x64 and the arm64 image, so the target has to be told, not read off the host.
+arch=${4:-$(uname -m)}
 
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 mkdir -p "$output"
-dmg=$output/DWSIM-$version-$(uname -m).dmg
+dmg=$output/DWSIM-$version-$arch.dmg
 
 if [ -n "${MACOS_SIGN_IDENTITY:-}" ]; then
 
-    # Every Mach-O inside the bundle is signed before the bundle itself, deepest first, which is
-    # the order codesign requires: signing the bundle does not reach the libraries it carries.
-    find "$app/Contents/MacOS" \( -name '*.dylib' -o -name '*.so' \) -print0 |
+    # Everything codesign counts as code is signed before the bundle itself, deepest first, which
+    # is the order codesign requires: signing the bundle does not reach what it carries. That is
+    # not only the native Mach-O libraries (*.dylib, *.so, and executables with no extension like
+    # createdump) but also the managed assemblies (*.dll): a self-contained .NET bundle carries
+    # both, and an unsigned Microsoft.CSharp.dll makes the apphost signature fail with "code object
+    # is not signed at all". The apphost is skipped here and signed on its own, with entitlements.
+    find "$app/Contents/MacOS" -type f ! -name 'DWSIM.UI.Desktop.Avalonia' -print0 |
         while IFS= read -r -d '' lib; do
+            case "$lib" in
+                *.dll) : ;;
+                *) file -b "$lib" | grep -q 'Mach-O' || continue ;;
+            esac
             codesign --force --timestamp --options runtime \
                      --sign "$MACOS_SIGN_IDENTITY" "$lib"
         done
 
-    codesign --force --timestamp --options runtime \
-             --entitlements "$here/entitlements.plist" \
-             --sign "$MACOS_SIGN_IDENTITY" \
-             "$app/Contents/MacOS/DWSIM.UI.Desktop.Avalonia"
-
-    codesign --force --timestamp --options runtime \
+    # The bundle is signed in one pass with --deep. The apphost shares its base name with data
+    # files next to it (DWSIM.UI.Desktop.Avalonia.dll, .runtimeconfig.json, .deps.json), which
+    # makes codesign read the executable and its siblings as a loose bundle and demand the .json be
+    # signed code; --deep lets it seal those subcomponents. --entitlements still applies only to
+    # the main executable, which is the one that needs them.
+    codesign --force --deep --timestamp --options runtime \
              --entitlements "$here/entitlements.plist" \
              --sign "$MACOS_SIGN_IDENTITY" "$app"
 
@@ -52,7 +63,19 @@ else
     echo "MACOS_SIGN_IDENTITY is not set: building an unsigned disk image" >&2
 fi
 
-hdiutil create -volname "DWSIM $version" -srcfolder "$app" -ov -format UDZO "$dmg"
+# hdiutil intermittently fails with "Resource busy" on the runner when a device from a previous
+# attempt lingers; a short retry clears it.
+for attempt in 1 2 3; do
+    if hdiutil create -volname "DWSIM $version" -srcfolder "$app" -ov -format UDZO "$dmg"; then
+        break
+    fi
+    if [ "$attempt" = 3 ]; then
+        echo "hdiutil create failed after $attempt attempts" >&2
+        exit 1
+    fi
+    echo "hdiutil create failed, retrying ($attempt)" >&2
+    sleep 5
+done
 
 if [ -n "${MACOS_SIGN_IDENTITY:-}" ]; then
 

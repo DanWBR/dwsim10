@@ -1,8 +1,10 @@
-﻿using System.IO;
+﻿using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using Avalonia.Platform.Storage;
 using Avalonia.Styling;
 
 namespace DWSIM.UI.Desktop.Avalonia;
@@ -51,11 +53,7 @@ public class App : Application
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            var filePath = desktop.Args?
-                .FirstOrDefault(a => File.Exists(a) &&
-                    (a.EndsWith(".dwxmz", System.StringComparison.OrdinalIgnoreCase) ||
-                     a.EndsWith(".dwxml", System.StringComparison.OrdinalIgnoreCase) ||
-                     a.EndsWith(".xml",   System.StringComparison.OrdinalIgnoreCase)));
+            var filePath = desktop.Args?.FirstOrDefault(IsFlowsheetFile);
 
             var main = new MainWindow();
             desktop.MainWindow = main;
@@ -63,8 +61,53 @@ public class App : Application
             // a file passed on the command line opens as the first document of the shell
             if (filePath != null)
                 main.Opened += (_, _) => main.OpenFlowsheetFile(filePath);
+
+            InstallFileActivationHandler(main);
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    private static bool IsFlowsheetFile(string path)
+    {
+        return !string.IsNullOrEmpty(path) && File.Exists(path) &&
+               (path.EndsWith(".dwxmz", System.StringComparison.OrdinalIgnoreCase) ||
+                path.EndsWith(".dwxml", System.StringComparison.OrdinalIgnoreCase) ||
+                path.EndsWith(".xml", System.StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Opens the files the operating system hands to a running application. macOS never puts a
+    /// double-clicked document on the command line: it sends it to the application delegate, which
+    /// reaches us as a file activation. Without this, opening a flowsheet from Finder or from a
+    /// link in a report starts DWSIM with nothing loaded.
+    /// </summary>
+    private void InstallFileActivationHandler(MainWindow main)
+    {
+        if (TryGetFeature(typeof(IActivatableLifetime)) is not IActivatableLifetime activatable) return;
+
+        var ready = main.IsLoaded;
+        var pending = new List<string>();
+
+        main.Opened += (_, _) =>
+        {
+            ready = true;
+            foreach (var path in pending) main.OpenFlowsheetFile(path);
+            pending.Clear();
+        };
+
+        activatable.Activated += (_, e) =>
+        {
+            if (e is not FileActivatedEventArgs fileArgs) return;
+
+            foreach (var item in fileArgs.Files)
+            {
+                var path = item.TryGetLocalPath();
+                if (!IsFlowsheetFile(path)) continue;
+
+                // the activation can arrive before the shell window exists, so hold on to it
+                if (ready) main.OpenFlowsheetFile(path); else pending.Add(path);
+            }
+        };
     }
 }

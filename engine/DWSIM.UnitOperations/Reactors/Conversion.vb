@@ -341,6 +341,8 @@ Namespace Reactors
         ''' <param name="args">Optional. If <c>True</c>, indicates a dynamic-mode call.</param>
         Public Overrides Sub Calculate(Optional ByVal args As Object = Nothing)
 
+            ResetExpressionCache()
+
             Dim dynamics As Boolean = False
 
             If args IsNot Nothing Then dynamics = args
@@ -517,18 +519,15 @@ Namespace Reactors
 
                     rxn = FlowSheet.Reactions(ar(i))
 
-                    rxn.ExpContext = New Flee.PublicTypes.ExpressionContext
-                    rxn.ExpContext.Imports.AddType(GetType(System.Math))
-                    rxn.ExpContext.Variables.Clear()
-                    rxn.ExpContext.Options.ParseCulture = Globalization.CultureInfo.InvariantCulture
+                    Dim context = GetExpressionContext(rxn.ID)
+
                     If ReactorOperationMode = OperationMode.OutletTemperature Then
-                        rxn.ExpContext.Variables.Add("T", OutletTemperature)
+                        SetExpressionVariable(context, "T", OutletTemperature)
                     Else
-                        rxn.ExpContext.Variables.Add("T", ims.Phases(0).Properties.temperature.GetValueOrDefault)
+                        SetExpressionVariable(context, "T", ims.Phases(0).Properties.temperature.GetValueOrDefault)
                     End If
 
-                    rxn.Expr = rxn.ExpContext.CompileGeneric(Of Double)(rxn.Expression)
-                    X = rxn.Expr.Evaluate / 100
+                    X = GetCompiledExpression(rxn.ID, rxn.Expression).Evaluate / 100
 
                     If X < 0.0# Or X > 1.0# Then Throw New ArgumentOutOfRangeException("Conversion Expression", "The conversion expression for reaction " & rxn.Name & " results in a value that is out of the valid range (0 to 100%).")
 

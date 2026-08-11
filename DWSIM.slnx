@@ -60,6 +60,9 @@
     <Project Path="ui/DWSIM.UI.Desktop.Editors.Avalonia/DWSIM.UI.Desktop.Editors.Avalonia.csproj" />
     <Project Path="ui/DWSIM.UI.Desktop.Avalonia/DWSIM.UI.Desktop.Avalonia.csproj" />
   </Folder>
+  <Folder Name="/extensions/">
+    <Project Path="extensions/DWSIM.Extensions.AI.Assistant/DWSIM.Extensions.AI.Assistant.vbproj" />
+  </Folder>
   <Folder Name="/external/">
     <Project Path="external/ReoGrid/ReoGrid/ReoGridAvalonia.csproj" />
   </Folder>

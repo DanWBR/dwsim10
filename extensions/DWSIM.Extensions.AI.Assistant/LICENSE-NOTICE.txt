@@ -1,0 +1,22 @@
+DWSIM AI Assistant launcher extension - licensing notice
+=========================================================
+
+This project is the *launcher/bridge* for the DWSIM AI Assistant. It is the thin
+glue that DWSIM loads through its extension interface: it registers the menu item
+and toolbar button, exposes the active flowsheet to a local HTTP API, starts and
+stops the assistant's server process, and opens the assistant's web panel.
+
+This launcher is part of DWSIM and is released under the GNU General Public
+License, version 3 or later (see the DWSIM LICENSE). Because it links the DWSIM
+engine (which is GPL), it is itself GPL, and its source is published with DWSIM.
+
+The DWSIM Assistant server itself - the executable this launcher starts - is a
+SEPARATE, INDEPENDENT program. It is not part of DWSIM, is not linked into it,
+and communicates only at arm's length over a local HTTP connection. It is a
+proprietary product distributed under its own license, and may be shipped
+alongside the open edition as a separate component (mere aggregation under
+GPLv3 section 5), or offered as a separate optional download.
+
+In short:
+  - launcher extension (this project) ......... GPL, open, part of DWSIM
+  - assistant server executable (separate) .... proprietary, its own license

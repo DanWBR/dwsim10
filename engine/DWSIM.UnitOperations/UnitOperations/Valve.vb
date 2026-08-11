@@ -33,6 +33,10 @@ Namespace UnitOperations
     <System.Serializable()> Public Partial Class Valve
 
         Inherits UnitOperations.UnitOpBaseClass
+
+        ''' <summary>Holds the compiled opening/Kv relationship expression between calculations.</summary>
+        <NonSerialized> <Xml.Serialization.XmlIgnore> Private _expressions As New ExpressionCache
+
         ''' <summary>
         ''' Gets the simulation object class category for this valve (PressureChangers).
         ''' </summary>
@@ -587,13 +591,8 @@ Namespace UnitOperations
                         Select Case DefinedOpeningKvRelationShipType
                             Case OpeningKvRelationshipType.UserDefined
                                 Try
-                                    Dim ExpContext As New Flee.PublicTypes.ExpressionContext
-                                    ExpContext.Imports.AddType(GetType(System.Math))
-                                    ExpContext.Variables.Clear()
-                                    ExpContext.Options.ParseCulture = Globalization.CultureInfo.InvariantCulture
-                                    ExpContext.Variables.Add("OP", OpeningPct)
-                                    Dim Expr = ExpContext.CompileGeneric(Of Double)(PercentOpeningVersusPercentKvExpression)
-                                    Kvc = FC * Expr.Evaluate() / 100
+                                    ExpressionCache.SetVariable(_expressions.GetContext("OP"), "OP", OpeningPct)
+                                    Kvc = FC * _expressions.GetCompiled("OP", PercentOpeningVersusPercentKvExpression).Evaluate() / 100
                                 Catch ex As Exception
                                     Throw New Exception("Invalid expression for Kv[Cv]/Opening relationship.")
                                 End Try
@@ -1297,14 +1296,9 @@ Namespace UnitOperations
 
             If EnableOpeningKvRelationship Then
                 Try
-                    Dim ExpContext As New Flee.PublicTypes.ExpressionContext
-                    ExpContext.Imports.AddType(GetType(System.Math))
-                    ExpContext.Variables.Clear()
-                    ExpContext.Options.ParseCulture = Globalization.CultureInfo.InvariantCulture
-                    ExpContext.Variables.Add("OP", OpeningPct)
+                    ExpressionCache.SetVariable(_expressions.GetContext("OP"), "OP", OpeningPct)
 
-                    Dim Expr = ExpContext.CompileGeneric(Of Double)(PercentOpeningVersusPercentKvExpression)
-                    Kv = Kv / (Expr.Evaluate() / 100)
+                    Kv = Kv / (_expressions.GetCompiled("OP", PercentOpeningVersusPercentKvExpression).Evaluate() / 100)
 
                 Catch ex As Exception
                     Throw New Exception("Invalid expression for Kv/Opening relationship.")
@@ -1410,15 +1404,10 @@ Namespace UnitOperations
                 Select Case DefinedOpeningKvRelationShipType
                     Case OpeningKvRelationshipType.UserDefined
                         Try
-                            Dim ExpContext As New Flee.PublicTypes.ExpressionContext()
-                            ExpContext.Imports.AddType(GetType(System.Math))
-                            ExpContext.Variables.Clear()
-                            ExpContext.Options.ParseCulture = Globalization.CultureInfo.InvariantCulture
-                            ExpContext.Variables.Add("OP", OpeningPct)
+                            ExpressionCache.SetVariable(_expressions.GetContext("OP"), "OP", OpeningPct)
                             IObj?.Paragraphs.Add("Current Opening (%): " & OpeningPct)
                             IObj?.Paragraphs.Add("Opening/Kv[Cv]max relationship expression: " & PercentOpeningVersusPercentKvExpression)
-                            Dim Expr = ExpContext.CompileGeneric(Of Double)(PercentOpeningVersusPercentKvExpression)
-                            Kvc = FC * Expr.Evaluate() / 100
+                            Kvc = FC * _expressions.GetCompiled("OP", PercentOpeningVersusPercentKvExpression).Evaluate() / 100
                             IObj?.Paragraphs.Add("Calculated Kv[Cv]/Kv[Cv]max (%): " & Kvc / FC * 100)
                             IObj?.Paragraphs.Add("Calculated Kv: " & Kvc)
                         Catch ex As Exception

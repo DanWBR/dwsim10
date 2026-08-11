@@ -319,6 +319,7 @@ namespace DWSIM.UI.Desktop.Editors
             main.Items.Add(Tab("Results", resultsTabs));
             main.Items.Add(Tab("Annotations", annotations));
             main.Items.Add(Tab("Floating Tables", floatingHost));
+            main.Items.Add(Tab("Utilities", AttachedUtilitiesEditor.Build(ms)));
 
             // the form the WinForms editor draws: the object notebook and the property package
             // group above, the main notebook filling the rest

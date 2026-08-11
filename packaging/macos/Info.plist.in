@@ -44,5 +44,31 @@
       <string>dwsim</string>
     </dict>
   </array>
+  <!-- LSItemContentTypes above names a uniform type identifier, and one that nothing declares is
+       ignored, so the association only half took. -->
+  <key>UTExportedTypeDeclarations</key>
+  <array>
+    <dict>
+      <key>UTTypeIdentifier</key>
+      <string>org.dwsim.flowsheet</string>
+      <key>UTTypeDescription</key>
+      <string>DWSIM flowsheet</string>
+      <key>UTTypeConformsTo</key>
+      <array>
+        <string>public.data</string>
+        <string>public.content</string>
+      </array>
+      <key>UTTypeIconFile</key>
+      <string>dwsim</string>
+      <key>UTTypeTagSpecification</key>
+      <dict>
+        <key>public.filename-extension</key>
+        <array>
+          <string>dwxmz</string>
+          <string>dwxml</string>
+        </array>
+      </dict>
+    </dict>
+  </array>
 </dict>
 </plist>

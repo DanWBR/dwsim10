@@ -1077,6 +1077,7 @@ Namespace PropertyPackages.ThermoPlugs
             Dim AG1 = am * P / (R * T) ^ 2
             Dim BG1 = bm * P / (R * T)
 
+            k = -1
             l = 0
             For Each Z In Z_
 
@@ -1101,19 +1102,23 @@ Namespace PropertyPackages.ThermoPlugs
 
                 G(l) = H - T * S
 
-                If j = 0 Then
-                    k = 0
-                Else
-                    i = 0
-                    Do
-                        If G(l) <= G(k) Then k = l
-                        i = i + 1
-                    Loop Until i = UBound(G) + 1
+                ' Keep the root with the lowest Gibbs energy, among the roots that describe a state.
+                ' A root at or below B puts the molar volume inside the covolume: it is an artefact
+                ' of the cubic, and its residual energy comes out NaN, because Log((Z - B) / Z) asks
+                ' for the logarithm of a negative number. The roots arrive sorted, so such a root is
+                ' the first one, and it used to win twice over - first because the comparison sat
+                ' behind a test on a variable that was never assigned, so it never ran at all, and
+                ' then because a NaN loses every comparison, so nothing could displace whatever came
+                ' first. If no root describes a state, the first one is returned as it always was.
+                If Z > BG1 AndAlso Not Double.IsNaN(G(l)) Then
+                    If k < 0 OrElse Double.IsNaN(G(k)) OrElse G(l) < G(k) Then k = l
                 End If
 
                 l = l + 1
 
             Next
+
+            If k < 0 Then k = 0
 
             Calculator.WriteToConsole("Result: Min-G Z Index = " & k, 3)
 
@@ -1600,7 +1605,8 @@ Namespace PropertyPackages.ThermoPlugs
             IObj?.Close()
 
             If result.Count = 0 Then
-                Throw New Exception("PR EOS: Unable to calculate compressility factor at given conditions.")
+                Throw New Exception("PR EOS: unable to calculate the compressibility factor at these conditions" &
+                                    If(BG >= 1.0, " (the pressure is past the point where the equation has any solution: B = " & BG.ToString("G4") & ").", "."))
             End If
 
             Return result
@@ -1661,7 +1667,8 @@ Namespace PropertyPackages.ThermoPlugs
             If temp1(2, 1) = 0.0# And temp1(2, 0) > 0.0# Then result.Add(temp1(2, 0))
 
             If result.Count = 0 Then
-                Throw New Exception("PR EOS: Unable to calculate compressility factor at given conditions.")
+                Throw New Exception("PR EOS: unable to calculate the compressibility factor at these conditions" &
+                                    If(BG >= 1.0, " (the pressure is past the point where the equation has any solution: B = " & BG.ToString("G4") & ").", "."))
             End If
 
             Return result

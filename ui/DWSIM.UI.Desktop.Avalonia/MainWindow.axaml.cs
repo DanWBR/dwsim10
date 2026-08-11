@@ -56,19 +56,39 @@ public partial class MainWindow : Window
         LoadRecentFiles();
         LoadSamples();
         LoadFosseeFlowsheets();
+        // read the marker before laying it down again: if it survived, the last run did not close
+        // normally, and the backup copies are worth offering back
+        _previousRunCrashed = File.Exists(SessionLockPath);
+        WriteSessionLock();
+
         Closing += OnMainWindowClosing;
         Opened += OnMainWindowOpened;
     }
 
-    private void OnMainWindowOpened(object? sender, EventArgs e)
+    private bool _previousRunCrashed;
+
+    private static string SessionLockPath =>
+        Path.Combine(DWSIM.GlobalSettings.Settings.GetConfigFileDir(), "session.lock");
+
+    private static void WriteSessionLock()
+    {
+        try { File.WriteAllText(SessionLockPath, DateTime.Now.ToString("o")); } catch { }
+    }
+
+    private async void OnMainWindowOpened(object? sender, EventArgs e)
     {
         var splash = new SplashWindow();
         splash.Show(this);
+
+        if (_previousRunCrashed && BackupRecoveryWindow.FindBackups().Length > 0)
+            await new BackupRecoveryWindow(OpenFlowsheetFile).ShowDialog(this);
     }
 
     private void OnMainWindowClosing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
         try { DWSIM.GlobalSettings.Settings.SaveSettings("dwsim_newui.ini"); } catch { }
+        // a clean close clears the marker, so the next run does not offer recovery
+        try { File.Delete(SessionLockPath); } catch { }
     }
 
     private void LoadRecentFiles()
@@ -150,6 +170,7 @@ public partial class MainWindow : Window
         LnkNewCompound.Click += (_, _) => new CompoundCreatorWindow().Show(this);
         LnkNewSolid.Click += (_, _) => new BiomassCompoundCreatorWindow().Show(this);
         LnkNewCompoundWiz.Click += (_, _) => new CompoundCreatorWindow().Show(this);
+        LnkDatabaseManager.Click += async (_, _) => await new DatabaseManagerWindow().ShowDialog(this);
 
         // Documentation
         LnkGuideHtml.Click += (_, _) => OpenUserGuide();
@@ -374,7 +395,7 @@ public partial class MainWindow : Window
         MenuPrefs.Click += async (_, _) => await new PreferencesWindow().ShowDialog(this);
         MenuUserGuide.Click += (_, _) => OpenUserGuide();
         MenuHelpSupport.Click += (_, _) => OpenUrl("https://dwsim.org/wiki/index.php?title=Support");
-        MenuHelpBug.Click += (_, _) => OpenUrl("https://github.com/DanWBR/dwsim/issues");
+        MenuHelpBug.Click += (_, _) => OpenUrl("https://github.com/DanWBR/dwsim10/issues");
         MenuHelpWebsite.Click += (_, _) => OpenUrl("https://dwsim.org");
 
         RecentFilesList.DoubleTapped += (_, _) =>
@@ -694,7 +715,7 @@ public partial class MainWindow : Window
         var pluginAssemblyList = new List<Assembly>();
 
         // 1. plugins/ next to the executable
-        var basePlugins = Path.Combine(Directory.GetParent(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!)!.FullName, "plugins");
+        var basePlugins = GetExtensionDirectory("plugins");
         if (Directory.Exists(basePlugins))
         {
             foreach (var fi in new DirectoryInfo(basePlugins).GetFiles("*.*", SearchOption.TopDirectoryOnly))
@@ -753,11 +774,43 @@ public partial class MainWindow : Window
         return result;
     }
 
+    /// <summary>
+    /// Where an extension folder lives: beside the executable, which is where the Windows
+    /// application keeps extenders, ppacks, unitops and plugins, and where the engine looks first.
+    /// The folder one level up is kept as a second place to look, as the engine does.
+    /// </summary>
+    private static string GetExtensionDirectory(string name)
+    {
+        var exeDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!;
+
+        var candidates = new[]
+        {
+            Path.Combine(exeDir, name),
+            Path.Combine(Directory.GetParent(exeDir)?.FullName ?? exeDir, name),
+            Path.Combine(GlobalSettings.Settings.GetConfigFileDir(), name)
+        };
+
+        return candidates.FirstOrDefault(Directory.Exists) ?? candidates[0];
+    }
+
+    /// <summary>
+    /// Where the extensions are read from. DWSIM_EXTENDERS_DIR points it somewhere else, which is
+    /// how an extension built for the Windows edition can be tried here without being copied over.
+    /// </summary>
+    private static string GetExtendersDirectory()
+    {
+        var overridden = Environment.GetEnvironmentVariable("DWSIM_EXTENDERS_DIR");
+        if (!string.IsNullOrEmpty(overridden)) return overridden;
+
+        return GetExtensionDirectory("extenders");
+    }
+
     private List<Assembly> LoadExtenderDLLs()
     {
         var extenderDlls = new List<Assembly>();
 
-        var dir = Path.Combine(Directory.GetParent(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!)!.FullName, "extenders");
+        var dir = GetExtendersDirectory();
+        Console.WriteLine($"Loading extensions from {dir}");
 
         if (Directory.Exists(dir))
         {
@@ -806,24 +859,23 @@ public partial class MainWindow : Window
         foreach (var extender in extList)
         {
             Extenders.Add(extender);
-            if (extender.Level == Interfaces.Enums.ExtenderLevel.MainWindow)
+
+            // only an initialization script runs on its own; everything else becomes a menu item
+            // on the simulation window, which is where the menus and the active flowsheet are
+            if (extender.Level == Interfaces.Enums.ExtenderLevel.MainWindow &&
+                extender.Category == Interfaces.Enums.ExtenderCategory.InitializationScript)
             {
                 foreach (var item in extender.Collection)
                 {
-                    if (item is IExtender6)
+                    try
                     {
-                        try
-                        {
-                            item.Run();
-                        }
-                        catch (Exception ex)
-                        {
-                            Console.WriteLine($"Error loading extension {extender.DisplayText}: {ex}");
-                        }
+                        if (item is IExtender6 ext6) ext6.SetFlowsheetGUI(this);
+                        item.SetMainWindow(this);
+                        item.Run();
                     }
-                    else
+                    catch (Exception ex)
                     {
-                        Console.WriteLine($"Error loading extension {extender.DisplayText}: not compatible with Cross-Platform DWSIM version");
+                        Console.WriteLine($"Error running extension {extender.DisplayText}: {ex}");
                     }
                 }
             }

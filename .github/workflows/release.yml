@@ -20,16 +20,22 @@ jobs:
   payloads:
     name: publish ${{ matrix.rid }}
     runs-on: ubuntu-latest
+    env:
+      # a token that can read releases of the (proprietary) assistant repo; without it the app is
+      # published without the assistant server
+      ASSISTANT_TOKEN: ${{ secrets.ASSISTANT_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
+        # aid is the assistant build to bundle: Windows on ARM has none of its own and runs the
+        # x64 one through emulation
         include:
-          - { rid: win-x64,     debarch: '' }
-          - { rid: win-arm64,   debarch: '' }
-          - { rid: linux-x64,   debarch: amd64 }
-          - { rid: linux-arm64, debarch: arm64 }
-          - { rid: osx-x64,     debarch: '' }
-          - { rid: osx-arm64,   debarch: '' }
+          - { rid: win-x64,     debarch: '',    aid: win-x64 }
+          - { rid: win-arm64,   debarch: '',    aid: win-x64 }
+          - { rid: linux-x64,   debarch: amd64, aid: linux-x64 }
+          - { rid: linux-arm64, debarch: arm64, aid: linux-arm64 }
+          - { rid: osx-x64,     debarch: '',    aid: osx-x64 }
+          - { rid: osx-arm64,   debarch: '',    aid: osx-arm64 }
 
     steps:
       - uses: actions/checkout@v4
@@ -49,12 +55,63 @@ jobs:
             echo "value=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
           fi
 
+      # -p:CoolPropRid is a global property, so it reaches the CoolPropInterface project reference,
+      # which the target RID does not: the SDK builds project references runtime-agnostic, leaving
+      # $(RuntimeIdentifier) empty there, so without this the native picked is the runner's (Linux)
+      # rather than the one being published for.
       - name: Publish
         run: |
           dotnet publish ui/DWSIM.UI.Desktop.Avalonia/DWSIM.UI.Desktop.Avalonia.csproj \
             -c Release -r ${{ matrix.rid }} --self-contained true \
             -p:Version=${{ steps.version.outputs.value }} \
+            -p:CoolPropRid=${{ matrix.rid }} \
             -o publish/${{ matrix.rid }}
+
+      # Some native dependencies commit one library per runtime and lean on the build to copy only
+      # the matching one; a few leak the others in. A foreign-platform library is dead weight, and
+      # on macOS codesign seals the bundle and rejects an unsigned Linux .so as nested code. Keep
+      # each platform's own kind: Linux .so on Linux, .dylib on macOS, neither on Windows.
+      - name: Strip foreign-platform native libraries
+        run: |
+          case "${{ matrix.rid }}" in
+            linux*) find publish/${{ matrix.rid }} -name '*.dylib' -delete ;;
+            osx*)   find publish/${{ matrix.rid }} -name '*.so'    -delete ;;
+            win*)   find publish/${{ matrix.rid }} \( -name '*.so' -o -name '*.dylib' \) -delete ;;
+          esac
+          echo "native libraries kept for ${{ matrix.rid }}:"
+          find publish/${{ matrix.rid }} \( -name '*.so' -o -name '*.dylib' -o -iname 'coolprop*.dll' \) -printf '  %P\n' | sort
+
+      # The launcher assembly is already under extenders/ (the application build put it there). Here
+      # the separate, proprietary assistant server is fetched from its own repo's latest release and
+      # unpacked into extenders/AIAssistantFiles/, where the launcher looks for it. Best-effort: with
+      # no token, or no matching asset, the app still ships, just without the assistant server.
+      - name: Add the AI Assistant server
+        if: env.ASSISTANT_TOKEN != ''
+        env:
+          GH_TOKEN: ${{ env.ASSISTANT_TOKEN }}
+          AID: ${{ matrix.aid }}
+        run: |
+          dest="publish/${{ matrix.rid }}/extenders/AIAssistantFiles"
+          mkdir -p "$dest"
+
+          case "$AID" in
+            win-*) asset="dwsim-assistant-$AID.zip" ;;
+            *)     asset="dwsim-assistant-$AID.tar.gz" ;;
+          esac
+
+          echo "Fetching $asset from DanWBR/dwsim-assistant (latest release)"
+          if ! gh release download --repo DanWBR/dwsim-assistant --pattern "$asset" --dir . --clobber; then
+            echo "::warning::assistant asset $asset not found; shipping without the assistant server"
+            exit 0
+          fi
+
+          case "$asset" in
+            *.zip)    unzip -qo "$asset" -d "$dest" ;;
+            *.tar.gz) tar -xzf "$asset" -C "$dest" ;;
+          esac
+          rm -f "$asset"
+          chmod +x "$dest/dwsim-assistant" 2>/dev/null || true
+          ls -la "$dest"
 
       - name: Archive
         run: |
@@ -92,6 +149,120 @@ jobs:
           name: package-${{ matrix.rid }}
           path: artifacts/*
           if-no-files-found: error
+
+  # Inno Setup is a Windows tool, so the installer is built on a Windows runner from the already
+  # published, self-contained payload. The x64 installer runs on ARM through emulation, but a native
+  # arm64 installer is built as well.
+  windows-installer:
+    name: installer ${{ matrix.rid }}
+    needs: payloads
+    runs-on: windows-latest
+    env:
+      # a SignPath API token for a user who submits to the DWSIM_Simulator project; without it the
+      # installer is produced unsigned
+      SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+      # a direct download URL for the ChemSep Lite installer (lite.exe); without it the installer is
+      # built without the optional ChemSep component. Kept out of the repository so a public mirror
+      # does not redistribute a third-party binary.
+      CHEMSEP_LITE_URL: ${{ secrets.CHEMSEP_LITE_URL }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { rid: win-x64,   arch: x64 }
+          - { rid: win-arm64, arch: arm64 }
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: payload-${{ matrix.rid }}
+          path: publish/${{ matrix.rid }}
+
+      - name: Work out the version
+        id: version
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            value=${GITHUB_REF_NAME#v}
+          else
+            value=${{ inputs.version }}
+          fi
+          echo "value=$value" >> "$GITHUB_OUTPUT"
+          # VersionInfoVersion must be numeric, so drop any -suffix
+          echo "verinfo=${value%%-*}" >> "$GITHUB_OUTPUT"
+
+      - name: Install Inno Setup
+        run: choco install innosetup -y --no-progress
+
+      - name: Fetch the WebView2 bootstrapper
+        shell: bash
+        run: |
+          curl -Lf --retry 3 -o packaging/windows/MicrosoftEdgeWebview2Setup.exe \
+            "https://go.microsoft.com/fwlink/p/?LinkId=2124703"
+
+      - name: Fetch ChemSep Lite
+        if: env.CHEMSEP_LITE_URL != ''
+        shell: bash
+        run: |
+          curl -Lf --retry 3 -o packaging/windows/lite.exe "$CHEMSEP_LITE_URL" \
+            || echo "::warning::ChemSep Lite download failed; the installer will be built without it"
+
+      - name: Build installer
+        shell: cmd
+        run: >
+          "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          /DMyAppVersion=${{ steps.version.outputs.value }}
+          /DMyVerInfo=${{ steps.version.outputs.verinfo }}
+          /DMyArch=${{ matrix.arch }}
+          /DSourceDir=%CD%\publish\${{ matrix.rid }}
+          /DOutputDir=%CD%\artifacts
+          packaging\windows\dwsim.iss
+
+      # Authenticode signing through SignPath, when configured. The built installer is submitted with
+      # the SignPath PowerShell module and the signed one comes back; the private key never leaves
+      # SignPath. The identifiers live in repository variables, the API token in a secret. Signing is
+      # best-effort: if it is not configured the installer ships unsigned rather than failing.
+      - name: Sign installer (SignPath)
+        if: env.SIGNPATH_API_TOKEN != ''
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          Install-Module -Name SignPath -Repository PSGallery -Force -Scope CurrentUser -AllowClobber
+          $exe = (Get-ChildItem artifacts\*.exe | Select-Object -First 1).FullName
+          New-Item -ItemType Directory -Force signed | Out-Null
+          $out = Join-Path signed (Split-Path $exe -Leaf)
+          Submit-SigningRequest `
+            -InputArtifactPath  $exe `
+            -ApiToken           $env:SIGNPATH_API_TOKEN `
+            -OrganizationId     "${{ vars.SIGNPATH_ORGANIZATION_ID }}" `
+            -ProjectSlug        "${{ vars.SIGNPATH_PROJECT_SLUG }}" `
+            -SigningPolicySlug  "${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}" `
+            -OutputArtifactPath $out `
+            -WaitForCompletion
+
+      - name: Stage the installer
+        shell: bash
+        run: |
+          mkdir -p dist
+          if ls signed/*.exe >/dev/null 2>&1; then
+            cp signed/*.exe dist/
+          else
+            cp artifacts/*.exe dist/
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installer-${{ matrix.rid }}
+          path: dist/*.exe
+          if-no-files-found: error
+
+      - name: Attach to release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.exe
 
   # Bundling, signing, notarising and stapling all need macOS. macos-14 is arm64; the Intel
   # payload is bundled there too, which is fine because nothing here runs it.
@@ -154,8 +325,9 @@ jobs:
             echo "$MACOS_NOTARY_KEY_CONTENT" | base64 --decode > notary.p8
             export MACOS_NOTARY_KEY=$PWD/notary.p8
           fi
+          rid=${{ matrix.rid }}
           packaging/macos/sign-and-notarize.sh \
-            bundle/DWSIM.app ${{ steps.version.outputs.value }} artifacts
+            bundle/DWSIM.app ${{ steps.version.outputs.value }} artifacts "${rid#osx-}"
           rm -f notary.p8
 
       - uses: actions/upload-artifact@v4
