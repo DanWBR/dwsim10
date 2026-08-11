@@ -325,8 +325,9 @@ jobs:
             echo "$MACOS_NOTARY_KEY_CONTENT" | base64 --decode > notary.p8
             export MACOS_NOTARY_KEY=$PWD/notary.p8
           fi
+          rid=${{ matrix.rid }}
           packaging/macos/sign-and-notarize.sh \
-            bundle/DWSIM.app ${{ steps.version.outputs.value }} artifacts
+            bundle/DWSIM.app ${{ steps.version.outputs.value }} artifacts "${rid#osx-}"
           rm -f notary.p8
 
       - uses: actions/upload-artifact@v4

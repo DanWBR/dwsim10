@@ -21,11 +21,14 @@ set -euo pipefail
 app=${1:?app bundle}
 version=${2:?version}
 output=${3:?output directory}
+# The architecture the payload is for. It is not $(uname -m): the runner is Apple Silicon and
+# builds both the x64 and the arm64 image, so the target has to be told, not read off the host.
+arch=${4:-$(uname -m)}
 
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 mkdir -p "$output"
-dmg=$output/DWSIM-$version-$(uname -m).dmg
+dmg=$output/DWSIM-$version-$arch.dmg
 
 if [ -n "${MACOS_SIGN_IDENTITY:-}" ]; then
 
