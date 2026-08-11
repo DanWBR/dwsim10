@@ -29,10 +29,18 @@ dmg=$output/DWSIM-$version-$(uname -m).dmg
 
 if [ -n "${MACOS_SIGN_IDENTITY:-}" ]; then
 
-    # Every Mach-O inside the bundle is signed before the bundle itself, deepest first, which is
-    # the order codesign requires: signing the bundle does not reach the libraries it carries.
-    find "$app/Contents/MacOS" \( -name '*.dylib' -o -name '*.so' \) -print0 |
+    # Everything codesign counts as code is signed before the bundle itself, deepest first, which
+    # is the order codesign requires: signing the bundle does not reach what it carries. That is
+    # not only the native Mach-O libraries (*.dylib, *.so, and executables with no extension like
+    # createdump) but also the managed assemblies (*.dll): a self-contained .NET bundle carries
+    # both, and an unsigned Microsoft.CSharp.dll makes the apphost signature fail with "code object
+    # is not signed at all". The apphost is skipped here and signed on its own, with entitlements.
+    find "$app/Contents/MacOS" -type f ! -name 'DWSIM.UI.Desktop.Avalonia' -print0 |
         while IFS= read -r -d '' lib; do
+            case "$lib" in
+                *.dll) : ;;
+                *) file -b "$lib" | grep -q 'Mach-O' || continue ;;
+            esac
             codesign --force --timestamp --options runtime \
                      --sign "$MACOS_SIGN_IDENTITY" "$lib"
         done
