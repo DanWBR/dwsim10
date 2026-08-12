@@ -270,11 +270,8 @@ public partial class FlowsheetView : UserControl
         // Move the flowsheet-drawing toolbars into the document that holds the canvas, so they sit
         // over the drawing only (as in the classic UI), not across the editor and palette.
         RootPanel.Children.Remove(DrawingToolbarBorder);
-        RootPanel.Children.Remove(SubToolbarBorder);
         DockPanel.SetDock(DrawingToolbarBorder, global::Avalonia.Controls.Dock.Top);
-        DockPanel.SetDock(SubToolbarBorder, global::Avalonia.Controls.Dock.Top);
         _canvasHost.Children.Add(DrawingToolbarBorder);
-        _canvasHost.Children.Add(SubToolbarBorder);
         _canvasHost.Children.Add(Canvas);
 
         SetupDockLayout();
@@ -1856,7 +1853,7 @@ public partial class FlowsheetView : UserControl
         // View: Close All Editors, Sub-Toolbar
         MenuCloseAllEditors.Click += (_, _) => CloseAllEditors();
         MenuShowSubToolbar.Click += (_, _) =>
-            SubToolbarBorder.IsVisible = MenuShowSubToolbar.IsChecked;
+            SubToolbarGroup.IsVisible = MenuShowSubToolbar.IsChecked;
 
         // Utilities
         MenuUtilTCP.Click += (_, _) => OpenUtilityWindow(Interfaces.Enums.FlowsheetUtility.TrueCriticalPoint);
