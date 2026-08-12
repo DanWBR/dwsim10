@@ -223,7 +223,7 @@ public partial class MainWindow : Window
 
         public override string ToString()
         {
-            return $"{Flowsheet.Title} — {Flowsheet.ProposerName} ({Flowsheet.Institution})";
+            return $"{Flowsheet.Title} - {Flowsheet.ProposerName} ({Flowsheet.Institution})";
         }
     }
 
@@ -566,7 +566,7 @@ public partial class MainWindow : Window
         ActiveFlowsheet = view;
 
         MenuHost.Content = view != null ? view.FlowsheetMenu : BaseMenu;
-        Title = view != null ? $"{view.SimulationName} — DWSIM" : "DWSIM";
+        Title = view != null ? $"DWSIM - {view.SimulationName}" : "DWSIM";
     }
 
     private void ShowWelcomeIfEmpty()
