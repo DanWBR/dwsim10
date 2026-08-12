@@ -74,7 +74,7 @@
                     <DataGridTemplateColumn.CellTemplate>
                       <DataTemplate>
                         <CheckBox IsChecked="{Binding Added, Mode=TwoWay}"
-                                  HorizontalAlignment="Center" />
+                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
                       </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                   </DataGridTemplateColumn>

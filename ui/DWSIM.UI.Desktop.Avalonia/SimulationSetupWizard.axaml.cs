@@ -342,7 +342,7 @@ public partial class SimulationSetupWizard : Window
             {
                 if (row == null) return new TextBlock();
 
-                var check = new CheckBox { HorizontalAlignment = HorizontalAlignment.Center };
+                var check = new CheckBox { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
                 check.Bind(CheckBox.IsCheckedProperty, new Binding("Added") { Mode = BindingMode.TwoWay });
                 return check;
             }, supportsRecycling: false)
