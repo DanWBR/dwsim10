@@ -8,6 +8,8 @@ using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
+using Avalonia.VisualTree;
+using System.Threading.Tasks;
 using DWSIM.Interfaces;
 using DWSIM.Thermodynamics.BaseClasses;
 
@@ -82,6 +84,67 @@ public partial class MainWindow : Window
 
         if (_previousRunCrashed && BackupRecoveryWindow.FindBackups().Length > 0)
             await new BackupRecoveryWindow(OpenFlowsheetFile).ShowDialog(this);
+
+        _ = CheckForUpdatesAsync();
+    }
+
+    /// <summary>Startup update check, as the WinForms UI did: if enabled, ask dwsim.org whether a
+    /// newer version exists and, if so, offer to open the downloads page.</summary>
+    private async Task CheckForUpdatesAsync()
+    {
+        if (!DWSIM.GlobalSettings.Settings.CheckForUpdates) return;
+        try
+        {
+            var (available, whatsnew) = await Task.Run(() =>
+            {
+                DWSIM.GlobalSettings.Settings.CurrentRunningVersion =
+                    Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "";
+                bool av = DWSIM.SharedClasses.UpdateCheck.CheckForUpdates();
+                return (av, av ? DWSIM.SharedClasses.UpdateCheck.GetWhatsNew() : "");
+            });
+
+            if (!available) return;
+
+            var body = new TextBlock
+            {
+                Text = "A newer version of DWSIM is available." +
+                       (string.IsNullOrWhiteSpace(whatsnew) ? "" : "\n\n" + whatsnew),
+                TextWrapping = global::Avalonia.Media.TextWrapping.Wrap,
+                Margin = new Thickness(14)
+            };
+
+            var later = new Button { Content = "Later", IsCancel = true, Width = 90, Margin = new Thickness(6) };
+            var download = new Button { Content = "Open Downloads", IsDefault = true, Width = 150, Margin = new Thickness(6) };
+            download.Classes.Add("dialog");
+
+            var buttons = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Margin = new Thickness(8)
+            };
+            buttons.Children.Add(later);
+            buttons.Children.Add(download);
+
+            var root = new DockPanel();
+            DockPanel.SetDock(buttons, global::Avalonia.Controls.Dock.Bottom);
+            root.Children.Add(buttons);
+            root.Children.Add(new ScrollViewer { Content = body });
+
+            var dlg = new Window
+            {
+                Title = "Update Available",
+                Width = 520,
+                Height = 360,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Content = root
+            };
+            IconHelper.ApplyWindowIcon(dlg);
+            later.Click += (_, _) => dlg.Close();
+            download.Click += (_, _) => { OpenUrl("https://dwsim.org/downloads"); dlg.Close(); };
+            await dlg.ShowDialog(this);
+        }
+        catch { }
     }
 
     private void OnMainWindowClosing(object? sender, System.ComponentModel.CancelEventArgs e)
@@ -378,7 +441,8 @@ public partial class MainWindow : Window
 
     private void OpenUserGuidePdf()
     {
-        var path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "docs", "user_guide.pdf");
+        // The distribution ships docs/User_Guide.pdf (case matters on Linux/macOS).
+        var path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "docs", "User_Guide.pdf");
         if (File.Exists(path)) OpenUrl(path); else OpenUserGuide();
     }
 
@@ -514,6 +578,63 @@ public partial class MainWindow : Window
 
             global::Avalonia.Threading.Dispatcher.UIThread.Post(ShowWelcomeIfEmpty);
         };
+
+        // Under Semi the stock document close X renders no glyph (its Path fill binding resolves
+        // null), so give every document tab strip our own close template as its strips appear.
+        DocumentsHost.LayoutUpdated += (_, _) => ApplyDocumentCloseTemplate();
+    }
+
+    private global::Avalonia.Controls.Templates.IDataTemplate? _documentCloseTemplate;
+
+    /// <summary>A close button we fully control: a filled X coloured by the tab foreground (white
+    /// on the accent-selected tab), falling back to grey if the ancestor lookup does not resolve.</summary>
+    private global::Avalonia.Controls.Templates.IDataTemplate BuildDocumentCloseTemplate()
+        => new global::Avalonia.Controls.Templates.FuncDataTemplate<Dock.Model.Core.IDockable>((item, _) =>
+        {
+            var glyph = new global::Avalonia.Controls.Shapes.Path
+            {
+                Width = 9,
+                Height = 9,
+                Stretch = Stretch.Uniform,
+                Data = Geometry.Parse("M0,1 L1,0 L4.5,3.5 L8,0 L9,1 L5.5,4.5 L9,8 L8,9 L4.5,5.5 L1,9 L0,8 L3.5,4.5 Z"),
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Center
+            };
+            glyph.Bind(global::Avalonia.Controls.Shapes.Path.FillProperty,
+                new global::Avalonia.Data.Binding("Foreground")
+                {
+                    RelativeSource = new global::Avalonia.Data.RelativeSource(
+                        global::Avalonia.Data.RelativeSourceMode.FindAncestor)
+                    { AncestorType = typeof(Dock.Avalonia.Controls.DocumentTabStripItem) },
+                    FallbackValue = Brushes.Gray,
+                    TargetNullValue = Brushes.Gray
+                });
+
+            var button = new Button
+            {
+                Content = glyph,
+                Background = Brushes.Transparent,
+                BorderThickness = new Thickness(0),
+                Padding = new Thickness(2),
+                Width = 18,
+                Height = 18,
+                Margin = new Thickness(4, 0, 0, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Cursor = new global::Avalonia.Input.Cursor(global::Avalonia.Input.StandardCursorType.Hand),
+                // Only closable documents get an X (the inner Flowsheet/Results/... tabs are not).
+                IsVisible = item.CanClose
+            };
+            button.Click += (_, _) => _shell.CloseDockable(item);
+            return button;
+        }, supportsRecycling: false);
+
+    private void ApplyDocumentCloseTemplate()
+    {
+        _documentCloseTemplate ??= BuildDocumentCloseTemplate();
+        foreach (var strip in DocumentsHost.GetVisualDescendants().OfType<Dock.Avalonia.Controls.DocumentTabStrip>())
+            if (!ReferenceEquals(strip.CloseTemplate, _documentCloseTemplate))
+                strip.CloseTemplate = _documentCloseTemplate;
     }
 
     private FlowsheetView AddDocument(string title)
@@ -646,13 +767,25 @@ public partial class MainWindow : Window
     private void InitializeSupport()
     {
         Assembly? sa = null;
-        try
+        // Probe the app's own directory first (flat self-contained bundle, the macOS/Linux layout),
+        // then the parent directory (the nested Windows Plus layout).
+        var appDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!;
+        foreach (var candidate in new[]
+                 {
+                     Path.Combine(appDir, "DWSIM.Support.dll"),
+                     Path.Combine(Path.GetDirectoryName(appDir)!, "DWSIM.Support.dll")
+                 })
         {
-            sa = Assembly.LoadFile(Path.Combine(
-                Path.GetDirectoryName(Directory.GetParent(Assembly.GetExecutingAssembly().Location)!.FullName)!,
-                "DWSIM.Support.dll"));
+            try
+            {
+                if (File.Exists(candidate))
+                {
+                    sa = Assembly.LoadFile(candidate);
+                    break;
+                }
+            }
+            catch { }
         }
-        catch { }
 
         if (sa != null)
         {

@@ -364,32 +364,83 @@ public partial class SimulationSettingsWindow : Window
     private static PropPackRow? RowOf(object? sender)
         => (sender as Control)?.DataContext as PropPackRow;
 
+    private sealed class PropMethodRow
+    {
+        public string Property { get; set; } = "";
+        public string Model { get; set; } = "";
+        public bool IsSection { get; set; }
+        public static PropMethodRow Section(string t) => new() { Property = t, IsSection = true };
+    }
+
     private void OnPPDetails(object? sender, RoutedEventArgs e)
     {
         if (RowOf(sender) is not { } row) return;
+        var pp = row.Package;
+        var mi = pp.PropertyMethodsInfo;
 
-        var text = new TextBlock
+        var desc = new TextBlock
         {
-            Text = string.IsNullOrEmpty(row.Package.ComponentDescription)
-                ? row.Package.ComponentName
-                : row.Package.ComponentDescription,
+            Text = string.IsNullOrEmpty(pp.ComponentDescription) ? pp.ComponentName : pp.ComponentDescription,
             TextWrapping = global::Avalonia.Media.TextWrapping.Wrap,
-            Margin = new Thickness(12)
+            Margin = new Thickness(12, 12, 12, 8)
+        };
+
+        // The model used for each property, by phase, as in the classic Property Package info.
+        var rows = new List<PropMethodRow>
+        {
+            PropMethodRow.Section("Vapor Phase Properties"),
+            new() { Property = "Fugacity", Model = mi.Vapor_Fugacity },
+            new() { Property = "Enthalpy/Entropy/Cp", Model = mi.Vapor_Enthalpy_Entropy_CpCv },
+            new() { Property = "Density", Model = mi.Vapor_Density },
+            new() { Property = "Viscosity", Model = mi.Vapor_Viscosity },
+            new() { Property = "Thermal Conductivity", Model = mi.Vapor_Thermal_Conductivity },
+            PropMethodRow.Section("Liquid Phase Properties"),
+            new() { Property = "Fugacity", Model = mi.Liquid_Fugacity },
+            new() { Property = "Enthalpy/Entropy/Cp", Model = mi.Liquid_Enthalpy_Entropy_CpCv },
+            new() { Property = "Density", Model = mi.Liquid_Density },
+            new() { Property = "Viscosity", Model = mi.Liquid_Viscosity },
+            new() { Property = "Thermal Conductivity", Model = mi.Liquid_ThermalConductivity },
+            new() { Property = "Surface Tension", Model = mi.SurfaceTension },
+            PropMethodRow.Section("Solid Phase Properties"),
+            new() { Property = "Density", Model = mi.Solid_Density },
+            new() { Property = "Enthalpy/Entropy/Cp", Model = mi.Solid_Enthalpy_Entropy_CpCv },
+        };
+
+        var grid = new DataGrid
+        {
+            AutoGenerateColumns = false,
+            IsReadOnly = true,
+            HeadersVisibility = DataGridHeadersVisibility.Column,
+            GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
+            FontSize = 11,
+            ItemsSource = rows
+        };
+        grid.Columns.Add(new DataGridTextColumn { Header = "Property", Binding = new global::Avalonia.Data.Binding("Property"), Width = new DataGridLength(230) });
+        grid.Columns.Add(new DataGridTextColumn { Header = "Model", Binding = new global::Avalonia.Data.Binding("Model"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+
+        // Bold the phase-section rows (inherited by the cell text). Reset on recycled rows.
+        grid.LoadingRow += (_, ev) =>
+        {
+            bool section = (ev.Row.DataContext as PropMethodRow)?.IsSection == true;
+            global::Avalonia.Controls.Documents.TextElement.SetFontWeight(
+                ev.Row, section ? global::Avalonia.Media.FontWeight.Bold : global::Avalonia.Media.FontWeight.Normal);
         };
 
         var close = new Button { Content = "Close", Width = 90, IsCancel = true, Margin = new Thickness(12) };
         close.Classes.Add("dialog");
 
         var root = new DockPanel();
+        DockPanel.SetDock(desc, global::Avalonia.Controls.Dock.Top);
         DockPanel.SetDock(close, global::Avalonia.Controls.Dock.Bottom);
+        root.Children.Add(desc);
         root.Children.Add(close);
-        root.Children.Add(new ScrollViewer { Content = text });
+        root.Children.Add(grid);
 
         var dlg = new Window
         {
-            Title = row.Package.ComponentName,
+            Title = pp.ComponentName,
             Width = 560,
-            Height = 320,
+            Height = 480,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             Content = root
         };

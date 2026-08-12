@@ -43,7 +43,7 @@
                  TextWrapping="Wrap"
                  TextTrimming="CharacterEllipsis"
                  Foreground="#0D72A6"
-                 FontSize="7" />
+                 FontSize="8" />
 
       <!-- Copyright -->
       <TextBlock Name="LblCopyright"

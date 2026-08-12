@@ -34,9 +34,9 @@
               <Button Name="BtnCopyData" Classes="panel" Content="Copy Report" Width="110" />
               <Button Name="BtnCopyCsv" Classes="panel" Content="Copy Curves (TSV)" Width="150" />
             </StackPanel>
-            <TextBox Name="TbData" IsReadOnly="True" AcceptsReturn="True" TextWrapping="NoWrap"
-                     FontFamily="Consolas,Menlo,Monospace" FontSize="12"
-                     VerticalContentAlignment="Top" />
+            <DataGrid Name="GridData" AutoGenerateColumns="False" IsReadOnly="True"
+                      HeadersVisibility="Column" GridLinesVisibility="All"
+                      CanUserResizeColumns="True" FontSize="11" />
           </DockPanel>
         </TabItem>
       </TabControl>

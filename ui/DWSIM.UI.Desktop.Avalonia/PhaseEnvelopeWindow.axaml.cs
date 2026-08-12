@@ -43,6 +43,9 @@ public partial class PhaseEnvelopeWindow : Window
     private ComboBox _cbType = null!;
     private readonly XYPlot _plot = new();
 
+    // Full text report, kept for the Copy Report button now that Data is shown as a grid.
+    private string _lastReport = "";
+
     // Parameterless ctor required by Avalonia's XAML compiler (designer-only).
     public PhaseEnvelopeWindow() : this(null!, null) { }
 
@@ -57,7 +60,7 @@ public partial class PhaseEnvelopeWindow : Window
         BuildOptionsPanel(preselectedStream);
 
         BtnBuild.Click += async (_, _) => await BuildEnvelopeAsync();
-        BtnCopyData.Click += async (_, _) => await CopyAsync(TbData.Text);
+        BtnCopyData.Click += async (_, _) => await CopyAsync(_lastReport);
         BtnCopyCsv.Click += async (_, _) => await CopyAsync(_plot.ToDelimitedText());
     }
 
@@ -247,7 +250,7 @@ public partial class PhaseEnvelopeWindow : Window
 
         BtnBuild.IsEnabled = false;
         StatusLabel.Text = "Calculating envelope lines...";
-        TbData.Text = "Please wait...";
+        GridData.ItemsSource = null;
 
         try
         {
@@ -262,19 +265,22 @@ public partial class PhaseEnvelopeWindow : Window
             if (results.ExceptionResult != null)
             {
                 _plot.Clear();
-                TbData.Text = results.ExceptionResult.Message;
-                StatusLabel.Text = "Calculation failed.";
+                GridData.ItemsSource = null;
+                _lastReport = results.ExceptionResult.Message;
+                StatusLabel.Text = "Calculation failed: " + results.ExceptionResult.Message;
                 return;
             }
 
-            TbData.Text = results.TextOutput;
+            _lastReport = results.TextOutput;
             RenderPlot(results, calcType, ms, tag);
+            PopulateDataGrid();
             StatusLabel.Text = $"Done. {_plot.Series.Count} curve(s) plotted.";
         }
         catch (Exception ex)
         {
             _plot.Clear();
-            TbData.Text = ex.ToString();
+            GridData.ItemsSource = null;
+            _lastReport = ex.ToString();
             StatusLabel.Text = "Calculation failed.";
         }
         finally
@@ -392,6 +398,41 @@ public partial class PhaseEnvelopeWindow : Window
         }
 
         _plot.InvalidateVisual();
+    }
+
+    private sealed class PhaseRow
+    {
+        public string BX { get; set; } = "";
+        public string BY { get; set; } = "";
+        public string DX { get; set; } = "";
+        public string DY { get; set; } = "";
+    }
+
+    /// <summary>Fills the Data tab grid with the bubble and dew envelope curves (from the plot),
+    /// as in the classic UI, instead of a monospace text dump.</summary>
+    private void PopulateDataGrid()
+    {
+        var nf = _flowsheet.FlowsheetOptions.NumberFormat;
+        var bubble = _plot.Series.FirstOrDefault(s => s.Title == "Bubble Points");
+        var dew = _plot.Series.FirstOrDefault(s => s.Title == "Dew Points");
+        int n = Math.Max(bubble?.Count ?? 0, dew?.Count ?? 0);
+
+        var rows = new List<PhaseRow>();
+        for (int i = 0; i < n; i++)
+            rows.Add(new PhaseRow
+            {
+                BX = (bubble != null && i < bubble.Count) ? bubble.X[i].ToString(nf) : "",
+                BY = (bubble != null && i < bubble.Count) ? bubble.Y[i].ToString(nf) : "",
+                DX = (dew != null && i < dew.Count) ? dew.X[i].ToString(nf) : "",
+                DY = (dew != null && i < dew.Count) ? dew.Y[i].ToString(nf) : ""
+            });
+
+        GridData.Columns.Clear();
+        GridData.Columns.Add(new DataGridTextColumn { Header = $"Bubble {_plot.XAxisTitle}", Binding = new global::Avalonia.Data.Binding("BX"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+        GridData.Columns.Add(new DataGridTextColumn { Header = $"Bubble {_plot.YAxisTitle}", Binding = new global::Avalonia.Data.Binding("BY"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+        GridData.Columns.Add(new DataGridTextColumn { Header = $"Dew {_plot.XAxisTitle}", Binding = new global::Avalonia.Data.Binding("DX"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+        GridData.Columns.Add(new DataGridTextColumn { Header = $"Dew {_plot.YAxisTitle}", Binding = new global::Avalonia.Data.Binding("DY"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+        GridData.ItemsSource = rows;
     }
 
     private async Task CopyAsync(string? text)

@@ -53,9 +53,21 @@ class Program
     }
 
     public static AppBuilder BuildAvaloniaApp()
-        => AppBuilder.Configure<App>()
+    {
+        var builder = AppBuilder.Configure<App>()
             .UsePlatformDetect()
             .UseDesktopWebView()
             .WithInterFont()
             .LogToTrace();
+
+        // WSLg and some VMs present a blank window with the GPU compositor; force Avalonia's own
+        // software renderer when asked, so the app can be verified there. Opt-in, off by default.
+        if (Environment.GetEnvironmentVariable("DWSIM_SOFTWARE_RENDER") == "1")
+            builder = builder.With(new global::Avalonia.X11PlatformOptions
+            {
+                RenderingMode = new[] { global::Avalonia.X11RenderingMode.Software }
+            });
+
+        return builder;
+    }
 }

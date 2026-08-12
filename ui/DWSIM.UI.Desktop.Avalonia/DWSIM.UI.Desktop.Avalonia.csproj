@@ -19,6 +19,8 @@
     <PackageReference Include="WebView.Avalonia" />
     <PackageReference Include="WebView.Avalonia.Desktop" />
     <PackageReference Include="Avalonia.Themes.Fluent" />
+    <PackageReference Include="Semi.Avalonia" />
+    <PackageReference Include="Semi.Avalonia.DataGrid" />
     <PackageReference Include="Avalonia.Fonts.Inter" />
     <PackageReference Include="Avalonia.Controls.DataGrid" />
     <PackageReference Include="Avalonia.AvaloniaEdit" />

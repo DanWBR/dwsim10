@@ -215,6 +215,10 @@ public partial class FlowsheetView : UserControl
     // -------------------------------------------------------------------------
 
     private readonly FlowsheetCanvas Canvas;
+
+    // Wraps the canvas together with the drawing/sub toolbars so they live inside the flowsheet
+    // document (over the drawing only), instead of spanning the whole view above editor and palette.
+    private readonly DockPanel _canvasHost = new();
     private readonly EditorHolder EditorHolder;
     private readonly StackPanel PaletteStack;
     private readonly ResultsViewerPanel ResultsPanel;
@@ -257,6 +261,19 @@ public partial class FlowsheetView : UserControl
         WirePropertyPackageConfigurator();
 
         InitializeComponent();
+
+        // A light/dark switch changes DarkMode, which the drawing engine reads for the
+        // surface background and every object colour; repaint the open flowsheet so it
+        // does not stay on the previous variant until the next pointer move.
+        ActualThemeVariantChanged += (_, _) => Canvas?.Refresh();
+
+        // Move the flowsheet-drawing toolbars into the document that holds the canvas, so they sit
+        // over the drawing only (as in the classic UI), not across the editor and palette.
+        RootPanel.Children.Remove(DrawingToolbarBorder);
+        DockPanel.SetDock(DrawingToolbarBorder, global::Avalonia.Controls.Dock.Top);
+        _canvasHost.Children.Add(DrawingToolbarBorder);
+        _canvasHost.Children.Add(Canvas);
+
         SetupDockLayout();
         WireToolbar();
         WireMenus();
@@ -288,14 +305,7 @@ public partial class FlowsheetView : UserControl
     {
         // Build palette content: header + scrollable items
         var paletteContent = new DockPanel();
-        var paletteHeader = new TextBlock
-        {
-            Text = "Objects",
-            FontWeight = FontWeight.SemiBold,
-            Margin = new Thickness(6, 6, 6, 4)
-        };
-        DockPanel.SetDock(paletteHeader, global::Avalonia.Controls.Dock.Top);
-        paletteContent.Children.Add(paletteHeader);
+        // The tool tab already labels this "Objects"; no in-panel header is needed.
         paletteContent.Children.Add(new ScrollViewer
         {
             HorizontalScrollBarVisibility = global::Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,
@@ -310,7 +320,7 @@ public partial class FlowsheetView : UserControl
         // Bottom tool panel: Log (and later Dynamics Integrator)
         _dockFactory = new FlowsheetDockFactory(
             editorContent: EditorHolder,
-            canvasContent: Canvas,
+            canvasContent: _canvasHost,
             paletteContent: paletteContent,
             logContent: LogList,
             resultsContent: ResultsPanel,
@@ -484,7 +494,20 @@ public partial class FlowsheetView : UserControl
         Canvas.InputDoubleClick += (mods) =>
         {
             var obj = _surface?.SelectedObject;
-            if (obj == null || _flowsheet == null) return;
+            if (obj == null)
+            {
+                // Double-click on empty canvas fits the drawing to the view (classic UI behaviour).
+                // Use the device size the surface reasons in (matches the wheel-zoom path), not the
+                // logical bounds, or the fit comes out scaled down on high-DPI displays.
+                if (_surface != null)
+                {
+                    var dev = Canvas.DeviceSize;
+                    _surface.ZoomAll(dev.Width, dev.Height);
+                    Canvas.Refresh();
+                }
+                return;
+            }
+            if (_flowsheet == null) return;
             var simObj = _flowsheet.SimulationObjects.ContainsKey(obj.Name)
                 ? _flowsheet.SimulationObjects[obj.Name] : null;
             if (simObj == null) return;
@@ -1830,7 +1853,7 @@ public partial class FlowsheetView : UserControl
         // View: Close All Editors, Sub-Toolbar
         MenuCloseAllEditors.Click += (_, _) => CloseAllEditors();
         MenuShowSubToolbar.Click += (_, _) =>
-            SubToolbarBorder.IsVisible = MenuShowSubToolbar.IsChecked;
+            SubToolbarGroup.IsVisible = MenuShowSubToolbar.IsChecked;
 
         // Utilities
         MenuUtilTCP.Click += (_, _) => OpenUtilityWindow(Interfaces.Enums.FlowsheetUtility.TrueCriticalPoint);
@@ -2735,7 +2758,7 @@ public partial class FlowsheetView : UserControl
     // -------------------------------------------------------------------------
 
     /// <summary>Category name -> list of (displayName, iconBytes) pairs.</summary>
-    private readonly Dictionary<string, List<(string name, byte[]? icon)>> _paletteCategories = new();
+    private readonly Dictionary<string, List<(string name, byte[]? icon, string? tip)>> _paletteCategories = new();
 
     /// <summary>Static fallback categories used when ObjectList is empty (before Initialize).</summary>
     private static readonly (string category, string[] items)[] FallbackCategories =
@@ -2752,19 +2775,55 @@ public partial class FlowsheetView : UserControl
         ("Other",             new[] { "Text Block", "Property Table", "Chart Object", "Spreadsheet Table", "Master Table" }),
     };
 
-    /// <summary>Maps ObjectClass enum to palette category name (matches Eto Flowsheet.eto.cs).</summary>
+    /// <summary>Section order matching the classic WinForms palette (SimulationObjectsPanel):
+    /// the TableLayoutPanel rows put the groups in this sequence. Categories not listed here
+    /// (should be none) are appended at the end.</summary>
+    private static readonly string[] CategoryOrder =
+    {
+        "Streams",
+        "Refining",
+        "Biochemical",
+        "Premium",
+        "Pressure Changers",
+        "Separators",
+        "Mixers/Splitters",
+        "Heat Exchangers",
+        "Reactors",
+        "Columns",
+        "Solids",
+        "Clean Power",
+        "Electrolyzers",
+        "User Models",
+        "CAPE-OPEN",
+        "Logical",
+        "Other",
+    };
+
+    /// <summary>Maps every ObjectClass enum member to a palette category name. The enum in
+    /// DWSIM.Interfaces has 22 members: any left unmapped would collapse into "Other".</summary>
     private static string ObjectClassToCategory(Interfaces.Enums.SimulationObjectClass cls) => cls switch
     {
-        Interfaces.Enums.SimulationObjectClass.Streams        => "Streams",
+        Interfaces.Enums.SimulationObjectClass.Streams          => "Streams",
         Interfaces.Enums.SimulationObjectClass.PressureChangers => "Pressure Changers",
-        Interfaces.Enums.SimulationObjectClass.Separators     => "Separators",
-        Interfaces.Enums.SimulationObjectClass.MixersSplitters => "Mixers/Splitters",
-        Interfaces.Enums.SimulationObjectClass.Exchangers     => "Heat Exchangers",
-        Interfaces.Enums.SimulationObjectClass.Columns        => "Columns",
-        Interfaces.Enums.SimulationObjectClass.Reactors       => "Reactors",
-        Interfaces.Enums.SimulationObjectClass.Solids         => "Solids",
-        Interfaces.Enums.SimulationObjectClass.Logical        => "Logical",
-        _                                                     => "Other"
+        Interfaces.Enums.SimulationObjectClass.Separators       => "Separators",
+        Interfaces.Enums.SimulationObjectClass.MixersSplitters  => "Mixers/Splitters",
+        Interfaces.Enums.SimulationObjectClass.Exchangers       => "Heat Exchangers",
+        Interfaces.Enums.SimulationObjectClass.Reactors         => "Reactors",
+        Interfaces.Enums.SimulationObjectClass.Columns          => "Columns",
+        Interfaces.Enums.SimulationObjectClass.Solids           => "Solids",
+        Interfaces.Enums.SimulationObjectClass.CAPEOPEN         => "CAPE-OPEN",
+        Interfaces.Enums.SimulationObjectClass.UserModels       => "User Models",
+        Interfaces.Enums.SimulationObjectClass.Logical          => "Logical",
+        Interfaces.Enums.SimulationObjectClass.Indicators       => "Logical",
+        Interfaces.Enums.SimulationObjectClass.Controllers      => "Logical",
+        Interfaces.Enums.SimulationObjectClass.Switches         => "Logical",
+        Interfaces.Enums.SimulationObjectClass.Inputs           => "Logical",
+        Interfaces.Enums.SimulationObjectClass.CleanPowerSources => "Clean Power",
+        Interfaces.Enums.SimulationObjectClass.Electrolyzers    => "Electrolyzers",
+        Interfaces.Enums.SimulationObjectClass.Premium          => "Premium",
+        Interfaces.Enums.SimulationObjectClass.Refinery         => "Refining",
+        Interfaces.Enums.SimulationObjectClass.Bio              => "Biochemical",
+        _                                                       => "Other"
     };
 
     private void PopulatePalette()
@@ -2789,10 +2848,12 @@ public partial class FlowsheetView : UserControl
                 var category = ObjectClassToCategory(obj.ObjectClass);
                 byte[]? iconBytes = null;
                 try { iconBytes = obj.GetIconBitmapBytes(); } catch { }
+                string? tip = null;
+                try { tip = obj.GetDisplayDescription(); } catch { }
 
                 if (!_paletteCategories.ContainsKey(category))
-                    _paletteCategories[category] = new List<(string, byte[]?)>();
-                _paletteCategories[category].Add((displayName, iconBytes));
+                    _paletteCategories[category] = new List<(string, byte[]?, string?)>();
+                _paletteCategories[category].Add((displayName, iconBytes, tip));
             }
         }
 
@@ -2801,12 +2862,14 @@ public partial class FlowsheetView : UserControl
         {
             foreach (var (cat, items) in FallbackCategories)
             {
-                _paletteCategories[cat] = items.Select(n => (name: n, icon: (byte[]?)null)).ToList();
+                _paletteCategories[cat] = items.Select(n => (name: n, icon: (byte[]?)null, tip: (string?)null)).ToList();
             }
         }
 
-        // Build collapsible sections for each category
-        foreach (var cat in _paletteCategories.Keys)
+        // Build collapsible sections for each category, in the classic palette order
+        var orderedCats = CategoryOrder.Where(_paletteCategories.ContainsKey)
+            .Concat(_paletteCategories.Keys.Where(k => !CategoryOrder.Contains(k)));
+        foreach (var cat in orderedCats)
         {
             var items = _paletteCategories[cat];
 
@@ -2814,7 +2877,7 @@ public partial class FlowsheetView : UserControl
             var arrowText = new TextBlock
             {
                 Text = "↓",  // down arrow = expanded
-                FontSize = 13,
+                FontSize = 11,
                 FontWeight = FontWeight.Bold,
                 Foreground = Brushes.SteelBlue,
                 VerticalAlignment = VerticalAlignment.Center,
@@ -2825,16 +2888,19 @@ public partial class FlowsheetView : UserControl
             {
                 Text = cat,
                 FontWeight = FontWeight.SemiBold,
-                FontSize = 13,
+                FontSize = 11,
                 VerticalAlignment = VerticalAlignment.Center
             };
             var headerPanel = new StackPanel
             {
                 Orientation = global::Avalonia.Layout.Orientation.Horizontal,
-                Background = new SolidColorBrush(Color.FromRgb(230, 235, 245)),
                 Cursor = new Cursor(StandardCursorType.Hand),
                 Height = 30,
             };
+            // Theme-aware band: light in the light variant, dark in the dark one, so the
+            // header text (which inherits the theme foreground) stays legible in both.
+            headerPanel.Bind(global::Avalonia.Controls.Panel.BackgroundProperty,
+                             headerPanel.GetResourceObservable("PaletteHeaderBackground"));
             headerPanel.Children.Add(arrowText);
             headerPanel.Children.Add(headerLabel);
 
@@ -2845,7 +2911,7 @@ public partial class FlowsheetView : UserControl
                 Margin = new Thickness(4, 2, 4, 6)
             };
 
-            foreach (var (name, iconBytes) in items)
+            foreach (var (name, iconBytes, tip) in items)
             {
                 var cell = new StackPanel
                 {
@@ -2856,6 +2922,10 @@ public partial class FlowsheetView : UserControl
                     Cursor = new Cursor(StandardCursorType.Hand),
                     Tag = name
                 };
+
+                // Hover tooltip: the object description, as in the classic UI.
+                if (!string.IsNullOrWhiteSpace(tip))
+                    global::Avalonia.Controls.ToolTip.SetTip(cell, tip);
 
                 // Icon
                 Control iconCtrl;
@@ -3284,7 +3354,8 @@ public partial class FlowsheetView : UserControl
                         using var bmp = new SKBitmap(w * scale, h * scale);
                         using (var canvas = new SKCanvas(bmp))
                         {
-                            canvas.Clear(SKColors.White);
+                            // UpdateCanvas clears to the theme background itself, so the objects
+                            // and the background always read the same light/dark variant.
                             canvas.Scale(scale);
                             _surface.UpdateCanvas(canvas);
                         }

@@ -1,136 +1,226 @@
-﻿<Application xmlns="https://github.com/avaloniaui"
+<Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:dac="clr-namespace:Dock.Avalonia.Controls;assembly=Dock.Avalonia"
+             xmlns:dcp="clr-namespace:Dock.Controls.ProportionalStackPanel;assembly=Dock.Controls.ProportionalStackPanel"
+             xmlns:semi="https://irihi.tech/semi"
              x:Class="DWSIM.UI.Desktop.Avalonia.App"
              RequestedThemeVariant="Light">
 
   <Application.Resources>
-    <!-- Fluent defaults to 14 px for control content, which reads much larger than the
-         8.25 pt (11 px) the WinForms UI uses. This is what menus, buttons, pickers and
-         text boxes pick up. -->
-    <x:Double x:Key="ControlContentThemeFontSize">11</x:Double>
-    <x:Double x:Key="FontSizeNormal">11</x:Double>
-    <x:Double x:Key="FontSizeSmall">10</x:Double>
-    <!-- The floor Fluent gives text boxes, combo boxes, spinners and pickers: 32 px, which
-         reads far taller than the WinForms fields. Down to 24, to match them, in one place. -->
-    <x:Double x:Key="TextControlThemeMinHeight">24</x:Double>
+    <ResourceDictionary>
+      <!-- Fluent/Semi default to 14 px for control content, which reads much larger than the
+           8.25 pt (11 px) the WinForms UI uses. This is what menus, buttons, pickers and
+           text boxes pick up. -->
+      <x:Double x:Key="ControlContentThemeFontSize">11</x:Double>
+      <x:Double x:Key="FontSizeNormal">11</x:Double>
+      <x:Double x:Key="FontSizeSmall">10</x:Double>
+      <!-- The floor Fluent gives text boxes, combo boxes, spinners and pickers: 32 px, which
+           reads far taller than the WinForms fields. Down to 24, to match them, in one place. -->
+      <x:Double x:Key="TextControlThemeMinHeight">24</x:Double>
+
+      <!-- Colours that must differ per theme are defined here, so the palette header, the
+           dock tab text, the welcome-screen links and the dock splitter all follow the
+           active light/dark variant instead of a single hardcoded value. -->
+      <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Light">
+          <SolidColorBrush x:Key="PaletteHeaderBackground">#E6EBF5</SolidColorBrush>
+          <SolidColorBrush x:Key="DockTabForeground">#5A5A5A</SolidColorBrush>
+          <SolidColorBrush x:Key="DockTabForegroundSelected">#141414</SolidColorBrush>
+          <SolidColorBrush x:Key="TabSelectedAccent">#2E7CD6</SolidColorBrush>
+          <SolidColorBrush x:Key="LinkForeground">#1565C0</SolidColorBrush>
+          <SolidColorBrush x:Key="SplitterBrush">#C4C4C4</SolidColorBrush>
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Dark">
+          <SolidColorBrush x:Key="PaletteHeaderBackground">#2D2D30</SolidColorBrush>
+          <SolidColorBrush x:Key="DockTabForeground">#B4B4B4</SolidColorBrush>
+          <SolidColorBrush x:Key="DockTabForegroundSelected">#F2F2F2</SolidColorBrush>
+          <SolidColorBrush x:Key="TabSelectedAccent">#2E7CD6</SolidColorBrush>
+          <SolidColorBrush x:Key="LinkForeground">#5AA9E6</SolidColorBrush>
+          <SolidColorBrush x:Key="SplitterBrush">#3A3A3A</SolidColorBrush>
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
+
+      <!-- Unify the Dock active/selected header look under Semi: the active tool-dock grip and
+           its title read white-on-accent, matching the centre document tab. These keys are the
+           ones the DockFluent tab/chrome templates resolve for their active/selected states. -->
+      <SolidColorBrush x:Key="DockSurfaceHeaderActiveBrush" Color="#2E7CD6" />
+      <SolidColorBrush x:Key="DockTabActiveForegroundBrush" Color="White" />
+      <SolidColorBrush x:Key="DockDocumentTabSelectedForegroundBrush" Color="White" />
+      <SolidColorBrush x:Key="DockTabSelectedForegroundBrush" Color="White" />
+
+    </ResourceDictionary>
   </Application.Resources>
 
   <Application.Styles>
-    <FluentTheme />
+    <semi:SemiTheme Locale="en-US" />
     <DockFluentTheme DensityStyle="Normal" />
-
-    <!-- The default every window hands down: plain text blocks and labels inherit it. -->
-    <Style Selector="Window">
-      <Setter Property="FontSize" Value="11" />
-    </Style>
-    <!-- without this every DataGrid renders blank, headers and all -->
-    <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />
-    <!-- same for the script editor: no theme, no template, and the editor draws nothing -->
+    <semi:DataGridSemiTheme />
+    <!-- the script editor needs an explicit theme or it draws nothing -->
     <StyleInclude Source="avares://AvaloniaEdit/Themes/Fluent/AvaloniaEdit.xaml" />
 
     <!-- =================================================================
-         TABS
-         Classic tab pages, as the WinForms UI draws them: boxed headers
-         sitting on a framed page, the selected one merged into the frame.
-         Dock's own document and tool tabs are separate types and keep
-         their compact look, styled further down.
+         Semi drives the look. What remains here is colour-agnostic density
+         carried over from the compact desktop layout, flat toolbars, and the
+         few theme-aware fixes the Semi swap needs (links, tabs, splitter).
          ================================================================= -->
-    <Style Selector="TabControl">
-      <Setter Property="Padding" Value="0" />
-      <Setter Property="Template">
-        <ControlTemplate>
-          <Grid RowDefinitions="Auto,*">
-            <!-- the page frame comes first so the selected header, which hangs
-                 one pixel into it, paints over the top edge -->
-            <Border Grid.Row="1"
-                    Background="{TemplateBinding Background}"
-                    BorderBrush="#ACACAC"
-                    BorderThickness="1"
-                    Padding="{TemplateBinding Padding}">
-              <ContentPresenter Name="PART_SelectedContentHost"
-                                Content="{TemplateBinding SelectedContent}"
-                                ContentTemplate="{TemplateBinding SelectedContentTemplate}"
-                                HorizontalContentAlignment="Stretch"
-                                VerticalContentAlignment="Stretch" />
-            </Border>
-            <ItemsPresenter Grid.Row="0"
-                            Name="PART_ItemsPresenter"
-                            ItemsPanel="{TemplateBinding ItemsPanel}" />
-          </Grid>
-        </ControlTemplate>
-      </Setter>
+
+    <Style Selector="Window">
+      <Setter Property="FontSize" Value="11" />
     </Style>
 
+    <!-- The pruned custom TabControl template stretched its selected content to fill; Semi's
+         default leaves it at desired size, so fill-content (e.g. the About license box) collapses.
+         Restore stretch so a TextBox in a fill slot takes the remaining height. -->
+    <Style Selector="TabControl">
+      <Setter Property="VerticalContentAlignment" Value="Stretch" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    </Style>
+    <Style Selector="TabControl /template/ ContentPresenter#PART_SelectedContentHost">
+      <Setter Property="VerticalAlignment" Value="Stretch" />
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="VerticalContentAlignment" Value="Stretch" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    </Style>
+    <!-- A touch more height on the TabControl headers so they are not cramped. -->
     <Style Selector="TabItem">
-      <Setter Property="FontSize" Value="11" />
-      <Setter Property="Padding" Value="9,3" />
-      <Setter Property="MinHeight" Value="0" />
-      <Setter Property="Margin" Value="0,2,2,0" />
-      <Setter Property="Background" Value="#F0F0F0" />
-      <Setter Property="Foreground" Value="#1A1A1A" />
-      <Setter Property="BorderBrush" Value="#ACACAC" />
-      <Setter Property="BorderThickness" Value="1,1,1,0" />
-      <Setter Property="CornerRadius" Value="3,3,0,0" />
+      <Setter Property="MinHeight" Value="34" />
       <Setter Property="VerticalContentAlignment" Value="Center" />
-      <Setter Property="Template">
-        <ControlTemplate>
-          <Border Name="PART_LayoutRoot"
-                  Background="{TemplateBinding Background}"
-                  BorderBrush="{TemplateBinding BorderBrush}"
-                  BorderThickness="{TemplateBinding BorderThickness}"
-                  CornerRadius="{TemplateBinding CornerRadius}"
-                  Padding="{TemplateBinding Padding}">
-            <ContentPresenter Name="PART_ContentPresenter"
-                              Content="{TemplateBinding Header}"
-                              ContentTemplate="{TemplateBinding HeaderTemplate}"
-                              HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
-                              VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" />
-          </Border>
-        </ControlTemplate>
-      </Setter>
     </Style>
-    <Style Selector="TabItem:pointerover">
-      <Setter Property="Background" Value="#E4EEF8" />
+
+    <!-- Semi ignores ControlContentThemeFontSize (a Fluent key), so control font sizes must be
+         set explicitly. Compact the default (non-classed) buttons so Semi's 32 px/14 pt chrome
+         does not tower over the fields; classed toolbar/link buttons override this, and the
+         toolbar glyph buttons keep their inline FontSize (a local value wins over this style). -->
+    <Style Selector="Button">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontWeight" Value="Normal" />
+      <Setter Property="MinHeight" Value="28" />
+      <Setter Property="Padding" Value="12,5" />
     </Style>
-    <Style Selector="TabItem:selected">
-      <Setter Property="Background" Value="White" />
-      <!-- taller and one pixel lower, so it sits on the page frame -->
-      <Setter Property="Margin" Value="0,0,2,-1" />
-      <Setter Property="Padding" Value="9,4,9,4" />
+    <Style Selector="ToggleButton">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontWeight" Value="Normal" />
     </Style>
-    <Style Selector="TabItem:disabled">
-      <Setter Property="Foreground" Value="#9A9A9A" />
-      <Setter Property="Background" Value="#F5F5F5" />
+    <Style Selector="TextBox">
+      <Setter Property="FontSize" Value="11" />
     </Style>
-    <!-- Compact dock tool tab headers (Log, Integrator, etc.) -->
+
+    <!-- Combo boxes: keep Semi's natural height (forcing a short MinHeight squished them);
+         only bring the font down to 11. -->
+    <Style Selector="ComboBox">
+      <Setter Property="FontSize" Value="11" />
+    </Style>
+    <!-- Check boxes: match the 11 px type, add a gap between the box and its label, and
+         breathe vertically between rows (Semi packs them tight). -->
+    <Style Selector="CheckBox">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="MinHeight" Value="0" />
+      <Setter Property="Padding" Value="8,0,0,0" />
+      <Setter Property="Margin" Value="0,3,0,3" />
+    </Style>
+
+    <!-- Compact dock tab headers. Semi/DockFluent leave them tall; force a compact height. -->
     <Style Selector="dac|ToolTabStripItem">
       <Setter Property="FontSize" Value="11" />
-      <Setter Property="Padding" Value="6,2" />
-      <Setter Property="MinHeight" Value="22" />
+      <Setter Property="Padding" Value="8,4" />
+      <Setter Property="MinHeight" Value="0" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="Foreground" Value="{DynamicResource DockTabForeground}" />
     </Style>
-    <!-- Compact dock document tab headers (Flowsheet, Results, etc.) -->
     <Style Selector="dac|DocumentTabStripItem">
       <Setter Property="FontSize" Value="11" />
-      <Setter Property="Padding" Value="8,2" />
-      <Setter Property="MinHeight" Value="24" />
+      <Setter Property="Padding" Value="8,0" />
+      <Setter Property="MinHeight" Value="0" />
+      <Setter Property="Height" Value="28" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <!-- The close X binds its fill to the item Foreground, so set it here (not only on the
+           title TextBlock) or the X is invisible. -->
+      <Setter Property="Foreground" Value="{DynamicResource DockTabForeground}" />
     </Style>
 
-    <!-- =================================================================
-         DATA GRIDS
-         The Fluent defaults are a third taller than the WinForms grids;
-         these bring the rows and the type back to that density.
-         ================================================================= -->
+    <!-- Under Semi the DockFluent tab foreground resolves to an invisible brush and the title
+         font stays large; force colour (per theme) and size on the tab title TextBlock, which
+         is robust to the tab template. -->
+    <Style Selector="dac|DocumentTabStripItem TextBlock">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="Foreground" Value="{DynamicResource DockTabForeground}" />
+    </Style>
+    <Style Selector="dac|ToolTabStripItem TextBlock">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="Foreground" Value="{DynamicResource DockTabForeground}" />
+    </Style>
+    <!-- Also centre the content presenter so the selected tab's title is not pushed down. -->
+    <Style Selector="dac|ToolTabStripItem /template/ ContentPresenter">
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="dac|DocumentTabStripItem /template/ ContentPresenter">
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+
+    <!-- Standardise the selected tab: an accent-filled header with white text, held in every
+         focus state. DockFluent drops the fill to a pale colour when the strip loses focus
+         (via :not(:active):selected, more specific than a plain :selected), so the overrides
+         below match that specificity to win. Applies to documents and tools alike. -->
+    <Style Selector="dac|DocumentTabStripItem:selected">
+      <Setter Property="Background" Value="{DynamicResource TabSelectedAccent}" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="dac|DocumentTabStripItem:active:selected">
+      <Setter Property="Background" Value="{DynamicResource TabSelectedAccent}" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="dac|DocumentTabStripItem:not(:active):selected">
+      <Setter Property="Background" Value="{DynamicResource TabSelectedAccent}" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="dac|DocumentTabStripItem:selected TextBlock">
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="dac|ToolTabStripItem:selected">
+      <Setter Property="Background" Value="{DynamicResource TabSelectedAccent}" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="dac|ToolTabStripItem:selected:pointerover">
+      <Setter Property="Background" Value="{DynamicResource TabSelectedAccent}" />
+    </Style>
+    <Style Selector="dac|ToolTabStripItem:selected TextBlock">
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <!-- The side tool docks carry a ToolChromeControl title (grip), not a tab. Keep its inactive
+         title readable (theme foreground); its active state is unified through the Dock brush
+         overrides in Application.Resources so it reads white-on-accent like the centre. -->
+    <Style Selector="dac|ToolChromeControl /template/ TextBlock#PART_Title">
+      <Setter Property="Foreground" Value="{DynamicResource DockTabForeground}" />
+      <Setter Property="FontSize" Value="11" />
+    </Style>
+
+    <!-- The proportional dock splitter needs a non-null background to be hit-testable, or it
+         cannot be dragged. Set the resize cursor per orientation: splitters in a horizontal
+         panel resize left/right, those in a vertical panel resize up/down. -->
+    <Style Selector="dcp|ProportionalStackPanelSplitter">
+      <Setter Property="Background" Value="{DynamicResource SplitterBrush}" />
+      <Setter Property="MinWidth" Value="4" />
+      <Setter Property="MinHeight" Value="4" />
+      <Setter Property="Cursor" Value="SizeWestEast" />
+    </Style>
+    <Style Selector="dcp|ProportionalStackPanel[Orientation=Vertical] > dcp|ProportionalStackPanelSplitter">
+      <Setter Property="Cursor" Value="SizeNorthSouth" />
+    </Style>
+
+    <!-- Compact data grids -->
     <Style Selector="DataGrid">
       <Setter Property="FontSize" Value="11" />
       <Setter Property="RowHeight" Value="28" />
       <Setter Property="MinColumnWidth" Value="40" />
-      <Setter Property="ColumnHeaderHeight" Value="23" />
-      <Setter Property="GridLinesVisibility" Value="Horizontal" />
+      <Setter Property="ColumnHeaderHeight" Value="24" />
     </Style>
     <Style Selector="DataGridColumnHeader">
       <Setter Property="FontSize" Value="11" />
-      <Setter Property="FontWeight" Value="SemiBold" />
       <Setter Property="Padding" Value="6,1" />
       <Setter Property="MinHeight" Value="0" />
     </Style>
@@ -143,33 +233,20 @@
       <Setter Property="MinHeight" Value="0" />
     </Style>
 
-    <!-- ===== Group boxes: the WinForms GroupBox look on settings pages ===== -->
-    <Style Selector="Border.group">
-      <Setter Property="BorderBrush" Value="#D0D0D0" />
-      <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="CornerRadius" Value="4" />
-      <Setter Property="Padding" Value="8" />
-      <Setter Property="Margin" Value="0,0,0,8" />
-    </Style>
     <Style Selector="TextBlock.groupHeader">
       <Setter Property="FontWeight" Value="SemiBold" />
       <Setter Property="Margin" Value="0,0,0,6" />
     </Style>
 
-    <!-- =================================================================
-         EDITOR PANEL COMPACT CONTROLS
-         Reduce padding/height on controls inside AvaloniaEditorPanel
-         so editors match the compact density of the desktop/Eto UI.
-         ================================================================= -->
+    <!-- Editor panel compact controls -->
     <Style Selector="StackPanel.editorPanel TextBox">
       <Setter Property="FontSize" Value="11" />
-      <Setter Property="Padding" Value="4,1" />
       <Setter Property="MinHeight" Value="24" />
     </Style>
     <Style Selector="StackPanel.editorPanel ComboBox">
       <Setter Property="FontSize" Value="11" />
-      <Setter Property="Padding" Value="4,1" />
-      <Setter Property="MinHeight" Value="24" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
     </Style>
     <Style Selector="StackPanel.editorPanel NumericUpDown">
       <Setter Property="FontSize" Value="11" />
@@ -182,101 +259,21 @@
       <Setter Property="FontSize" Value="11" />
       <Setter Property="MinHeight" Value="24" />
     </Style>
-    <Style Selector="StackPanel.editorPanel Button.panel">
-      <Setter Property="FontSize" Value="11" />
-      <Setter Property="Padding" Value="8,3" />
-      <Setter Property="MinHeight" Value="22" />
-    </Style>
 
     <!-- =================================================================
-         COMPACT INPUTS
-         Height comes from TextControlThemeMinHeight, set to 19 up top. Here
-         the vertical padding is trimmed so the content sits in that height,
-         and the check box, a fixed 20 px square with a 9 px mark, comes down
-         30% to a 14 px box with a 6 px mark, its row shrinking with it.
+         WELCOME SCREEN
+         The left column reads as flat, left-aligned text links, and the
+         secondary action buttons stretch and left-align (Semi chrome kept).
          ================================================================= -->
-    <Style Selector="TextBox">
-      <Setter Property="Padding" Value="6,1" />
-    </Style>
-    <Style Selector="ComboBox">
-      <Setter Property="Padding" Value="6,1" />
-    </Style>
-
-    <Style Selector="CheckBox">
-      <Setter Property="MinHeight" Value="22" />
-    </Style>
-    <Style Selector="CheckBox /template/ Border#NormalRectangle">
-      <Setter Property="Width" Value="14" />
-      <Setter Property="Height" Value="14" />
-    </Style>
-    <Style Selector="CheckBox:checked /template/ Path#CheckGlyph">
-      <Setter Property="Width" Value="6" />
-    </Style>
-    <Style Selector="CheckBox:indeterminate /template/ Path#CheckGlyph">
-      <Setter Property="Width" Value="5" />
-    </Style>
-
-    <!-- =================================================================
-         GLOBAL BUTTON STYLES
-         ================================================================= -->
-
-    <!-- ===== Hero: landing page primary actions (New, Open) ===== -->
-    <Style Selector="Button.hero">
-      <Setter Property="Background" Value="White" />
-      <Setter Property="BorderBrush" Value="#E0E0E0" />
-      <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="CornerRadius" Value="8" />
-      <Setter Property="Padding" Value="14,12" />
-      <Setter Property="HorizontalAlignment" Value="Stretch" />
-      <Setter Property="HorizontalContentAlignment" Value="Left" />
-      <Setter Property="FontSize" Value="14" />
-      <Setter Property="Cursor" Value="Hand" />
-    </Style>
-    <Style Selector="Button.hero:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Background">
-        <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
-          <GradientStop Color="#F5FAFF" Offset="0" />
-          <GradientStop Color="#E4EEFB" Offset="1" />
-        </LinearGradientBrush>
-      </Setter>
-      <Setter Property="BorderBrush" Value="#90C0F0" />
-    </Style>
-    <Style Selector="Button.hero:pressed /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Background" Value="#DDEAF8" />
-    </Style>
-
-    <!-- ===== Tool: landing page secondary actions (Preferences, About, etc.) ===== -->
-    <Style Selector="Button.tool">
-      <Setter Property="Background" Value="Transparent" />
-      <Setter Property="BorderBrush" Value="#E0E0E0" />
-      <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="CornerRadius" Value="6" />
-      <Setter Property="Padding" Value="12,8" />
-      <Setter Property="HorizontalAlignment" Value="Stretch" />
-      <Setter Property="HorizontalContentAlignment" Value="Left" />
-      <Setter Property="Cursor" Value="Hand" />
-    </Style>
-    <Style Selector="Button.tool:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Background">
-        <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
-          <GradientStop Color="#FAFAFA" Offset="0" />
-          <GradientStop Color="#EEEEEE" Offset="1" />
-        </LinearGradientBrush>
-      </Setter>
-      <Setter Property="BorderBrush" Value="#C0C0C0" />
-    </Style>
-    <Style Selector="Button.tool:pressed /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Background" Value="#E8E8E8" />
-    </Style>
-
-    <!-- ===== Welcome screen: the link labels and section headers of the Windows screen ===== -->
     <Style Selector="Button.link">
       <Setter Property="Background" Value="Transparent" />
       <Setter Property="BorderThickness" Value="0" />
       <Setter Property="Padding" Value="0,2" />
+      <Setter Property="MinHeight" Value="0" />
       <Setter Property="HorizontalAlignment" Value="Left" />
       <Setter Property="HorizontalContentAlignment" Value="Left" />
-      <Setter Property="Foreground" Value="DodgerBlue" />
+      <Setter Property="FontWeight" Value="Normal" />
+      <Setter Property="Foreground" Value="{DynamicResource LinkForeground}" />
       <Setter Property="Cursor" Value="Hand" />
     </Style>
     <Style Selector="Button.link:pointerover /template/ ContentPresenter#PART_ContentPresenter">
@@ -285,6 +282,13 @@
     </Style>
     <Style Selector="Button.link:pressed /template/ ContentPresenter#PART_ContentPresenter">
       <Setter Property="Background" Value="Transparent" />
+    </Style>
+
+    <Style Selector="Button.tool">
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="HorizontalContentAlignment" Value="Left" />
+      <Setter Property="Padding" Value="10,6" />
+      <Setter Property="Cursor" Value="Hand" />
     </Style>
 
     <Style Selector="TextBlock.welcomeHeader">
@@ -298,8 +302,9 @@
       <Setter Property="Margin" Value="0,0,0,4" />
     </Style>
 
-    <!-- ===== Toolbar: flowsheet main toolbar icon buttons ===== -->
-    <Style Selector="Button.toolbar">
+    <!-- Flat, borderless icon buttons on the toolbars; the hover/pressed colours come from Semi
+         (so they follow the light/dark variant), only the geometry is set here. -->
+    <Style Selector="Button.toolbar, ToggleButton.toolbar">
       <Setter Property="Background" Value="Transparent" />
       <Setter Property="BorderThickness" Value="0" />
       <Setter Property="CornerRadius" Value="4" />
@@ -310,202 +315,33 @@
       <Setter Property="VerticalContentAlignment" Value="Center" />
       <Setter Property="Cursor" Value="Hand" />
     </Style>
-    <Style Selector="Button.toolbar:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Background">
-        <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
-          <GradientStop Color="#EDF4FF" Offset="0" />
-          <GradientStop Color="#DCEAF9" Offset="1" />
-        </LinearGradientBrush>
-      </Setter>
-    </Style>
-    <Style Selector="Button.toolbar:pressed /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Background" Value="#D0E0F8" />
-    </Style>
-
-    <!-- ===== Sub-toolbar: compact align/equalize buttons ===== -->
-    <Style Selector="Button.subtoolbar">
+    <Style Selector="Button.subtoolbar, Button.nav, Button.compact">
       <Setter Property="Background" Value="Transparent" />
       <Setter Property="BorderThickness" Value="0" />
       <Setter Property="CornerRadius" Value="3" />
       <Setter Property="Padding" Value="4,2" />
       <Setter Property="MinWidth" Value="24" />
       <Setter Property="MinHeight" Value="24" />
-      <Setter Property="FontSize" Value="12" />
       <Setter Property="Cursor" Value="Hand" />
     </Style>
-    <Style Selector="Button.subtoolbar:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Background">
-        <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
-          <GradientStop Color="#F0F0F0" Offset="0" />
-          <GradientStop Color="#E0E0E0" Offset="1" />
-        </LinearGradientBrush>
-      </Setter>
-    </Style>
-    <Style Selector="Button.subtoolbar:pressed /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Background" Value="#D8D8D8" />
-    </Style>
 
-    <!-- ===== Vertical separators inside horizontal toolbars ===== -->
-    <Style Selector="StackPanel[Orientation=Horizontal] > Separator">
+    <!-- The flowsheet drawing toolbar is a WrapPanel (so it can flow to a second line); it has
+         no Spacing, so give its items margins and render group dividers as thin vertical bars. -->
+    <Style Selector="Border.vdivider">
       <Setter Property="Width" Value="1" />
-      <Setter Property="Height" Value="20" />
-      <Setter Property="Margin" Value="4,2" />
+      <Setter Property="Height" Value="18" />
+      <Setter Property="Margin" Value="5,2" />
       <Setter Property="VerticalAlignment" Value="Center" />
-      <Setter Property="Background" Value="#C0C0C0" />
+      <Setter Property="Background" Value="{DynamicResource SplitterBrush}" />
     </Style>
-
-    <!-- ===== Dialog: OK / Cancel / Close buttons ===== -->
-    <Style Selector="Button.dialog">
-      <Setter Property="CornerRadius" Value="4" />
-      <Setter Property="Padding" Value="12,6" />
-      <Setter Property="MinWidth" Value="80" />
-      <Setter Property="HorizontalContentAlignment" Value="Center" />
-      <Setter Property="VerticalContentAlignment" Value="Center" />
-      <Setter Property="Cursor" Value="Hand" />
+    <Style Selector="Border#DrawingToolbarBorder Button">
+      <Setter Property="Margin" Value="1,0" />
     </Style>
-    <Style Selector="Button.dialog:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Background">
-        <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
-          <GradientStop Color="#EDF4FF" Offset="0" />
-          <GradientStop Color="#DCEAF9" Offset="1" />
-        </LinearGradientBrush>
-      </Setter>
-      <Setter Property="BorderBrush" Value="#90C0F0" />
+    <Style Selector="Border#DrawingToolbarBorder ToggleButton">
+      <Setter Property="Margin" Value="1,0" />
     </Style>
-    <Style Selector="Button.dialog:pressed /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Background" Value="#D0E0F8" />
-    </Style>
-
-    <!-- ===== Wizard: navigation buttons (Back / Next / Finish / Cancel) ===== -->
-    <Style Selector="Button.wizard">
-      <Setter Property="CornerRadius" Value="4" />
-      <Setter Property="Padding" Value="14,6" />
-      <Setter Property="MinWidth" Value="90" />
-      <Setter Property="Cursor" Value="Hand" />
-    </Style>
-    <Style Selector="Button.wizard:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Background">
-        <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
-          <GradientStop Color="#EDF4FF" Offset="0" />
-          <GradientStop Color="#DCEAF9" Offset="1" />
-        </LinearGradientBrush>
-      </Setter>
-      <Setter Property="BorderBrush" Value="#90C0F0" />
-    </Style>
-    <Style Selector="Button.wizard:pressed /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Background" Value="#D0E0F8" />
-    </Style>
-
-    <!-- ===== Action: Run / Execute / Plot prominent buttons ===== -->
-    <Style Selector="Button.action">
-      <Setter Property="Background" Value="#E8F5E9" />
-      <Setter Property="BorderBrush" Value="#A5D6A7" />
-      <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="CornerRadius" Value="5" />
-      <Setter Property="Padding" Value="12,6" />
-      <Setter Property="Cursor" Value="Hand" />
-    </Style>
-    <Style Selector="Button.action:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Background">
-        <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
-          <GradientStop Color="#D8F0D9" Offset="0" />
-          <GradientStop Color="#B8DDB9" Offset="1" />
-        </LinearGradientBrush>
-      </Setter>
-      <Setter Property="BorderBrush" Value="#66BB6A" />
-    </Style>
-    <Style Selector="Button.action:pressed /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Background" Value="#A5D6A7" />
-    </Style>
-
-    <!-- ===== Panel: Add / Remove / Transfer buttons in panels ===== -->
-    <Style Selector="Button.panel">
-      <Setter Property="CornerRadius" Value="4" />
-      <Setter Property="Padding" Value="10,5" />
-      <Setter Property="Cursor" Value="Hand" />
-    </Style>
-    <Style Selector="Button.panel:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Background">
-        <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
-          <GradientStop Color="#F6F6F6" Offset="0" />
-          <GradientStop Color="#E8E8E8" Offset="1" />
-        </LinearGradientBrush>
-      </Setter>
-      <Setter Property="BorderBrush" Value="#C0C0C0" />
-    </Style>
-    <Style Selector="Button.panel:pressed /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Background" Value="#E0E0E0" />
-    </Style>
-
-    <!-- ===== Nav: browser navigation buttons (Back, Forward, Refresh) ===== -->
-    <Style Selector="Button.nav">
-      <Setter Property="Background" Value="Transparent" />
-      <Setter Property="BorderThickness" Value="0" />
-      <Setter Property="CornerRadius" Value="4" />
-      <Setter Property="Padding" Value="4,2" />
-      <Setter Property="MinWidth" Value="30" />
-      <Setter Property="Cursor" Value="Hand" />
-    </Style>
-    <Style Selector="Button.nav:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Background">
-        <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
-          <GradientStop Color="#F0F0F0" Offset="0" />
-          <GradientStop Color="#E0E0E0" Offset="1" />
-        </LinearGradientBrush>
-      </Setter>
-    </Style>
-    <Style Selector="Button.nav:pressed /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Background" Value="#D8D8D8" />
-    </Style>
-
-    <!-- ===== Compact: small +/- buttons (dynamics manager, etc.) ===== -->
-    <Style Selector="Button.compact">
-      <Setter Property="Background" Value="Transparent" />
-      <Setter Property="BorderBrush" Value="#D0D0D0" />
-      <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="CornerRadius" Value="4" />
-      <Setter Property="Padding" Value="0" />
-      <Setter Property="MinWidth" Value="28" />
-      <Setter Property="MinHeight" Value="28" />
-      <Setter Property="HorizontalContentAlignment" Value="Center" />
-      <Setter Property="VerticalContentAlignment" Value="Center" />
-      <Setter Property="Cursor" Value="Hand" />
-    </Style>
-    <Style Selector="Button.compact:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Background">
-        <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
-          <GradientStop Color="#F6F6F6" Offset="0" />
-          <GradientStop Color="#E8E8E8" Offset="1" />
-        </LinearGradientBrush>
-      </Setter>
-      <Setter Property="BorderBrush" Value="#A0A0A0" />
-    </Style>
-    <Style Selector="Button.compact:pressed /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Background" Value="#E0E0E0" />
-    </Style>
-
-    <!-- ===== ToggleButton (toolbar) ===== -->
-    <Style Selector="ToggleButton.toolbar">
-      <Setter Property="Background" Value="Transparent" />
-      <Setter Property="BorderThickness" Value="0" />
-      <Setter Property="CornerRadius" Value="4" />
-      <Setter Property="Padding" Value="6,4" />
-      <Setter Property="MinWidth" Value="32" />
-      <Setter Property="MinHeight" Value="32" />
-      <Setter Property="HorizontalContentAlignment" Value="Center" />
-      <Setter Property="VerticalContentAlignment" Value="Center" />
-      <Setter Property="Cursor" Value="Hand" />
-    </Style>
-    <Style Selector="ToggleButton.toolbar:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Background">
-        <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
-          <GradientStop Color="#EDF4FF" Offset="0" />
-          <GradientStop Color="#DCEAF9" Offset="1" />
-        </LinearGradientBrush>
-      </Setter>
-    </Style>
-    <Style Selector="ToggleButton.toolbar:checked /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Background" Value="#D0E0F8" />
+    <Style Selector="Border#DrawingToolbarBorder CheckBox">
+      <Setter Property="Margin" Value="4,0" />
     </Style>
 
   </Application.Styles>

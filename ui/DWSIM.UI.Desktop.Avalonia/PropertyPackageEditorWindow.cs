@@ -214,18 +214,97 @@ public class PropertyPackageEditorWindow : Window
     }
 
     // --- PR / SRK / PR78 / PR-LK (kij only) ---
+    // A compound x compound matrix of kij (row i / column j), like the classic UI grid.
     private void BuildPR(StackPanel panel, List<string> comps,
         Dictionary<string, Dictionary<string, PR_IPData>> ipc)
     {
         EnsureIPKeysPR(comps, ipc);
 
-        foreach (var c1 in comps)
-            foreach (var c2 in comps)
+        panel.Children.Add(new TextBlock
+        {
+            Text = "Binary interaction parameters (kij), row i / column j:",
+            FontWeight = FontWeight.SemiBold,
+            Margin = new Thickness(0, 0, 0, 6)
+        });
+
+        var grid = new Grid();
+        grid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
+        foreach (var _ in comps) grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(92)));
+        grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+        foreach (var _ in comps) grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+
+        // Column headers
+        for (int j = 0; j < comps.Count; j++)
+        {
+            var h = new TextBlock
             {
-                if (c1 == c2 || !ipc[c1].ContainsKey(c2)) continue;
-                var d = ipc[c1][c2];
-                panel.Children.Add(MakeTextBoxRow($"{c1} / {c2}  kij", d.kij, v => d.kij = v));
+                Text = comps[j],
+                FontWeight = FontWeight.SemiBold,
+                FontSize = 11,
+                Margin = new Thickness(4, 2),
+                MaxWidth = 88,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                HorizontalAlignment = HorizontalAlignment.Center
+            };
+            ToolTip.SetTip(h, comps[j]);
+            Grid.SetRow(h, 0);
+            Grid.SetColumn(h, j + 1);
+            grid.Children.Add(h);
+        }
+
+        for (int i = 0; i < comps.Count; i++)
+        {
+            var rh = new TextBlock
+            {
+                Text = comps[i],
+                FontWeight = FontWeight.SemiBold,
+                FontSize = 11,
+                Margin = new Thickness(4, 2),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetRow(rh, i + 1);
+            Grid.SetColumn(rh, 0);
+            grid.Children.Add(rh);
+
+            for (int j = 0; j < comps.Count; j++)
+            {
+                var c1 = comps[i];
+                var c2 = comps[j];
+                Control cell;
+                if (c1 == c2 || !ipc[c1].ContainsKey(c2))
+                {
+                    cell = new TextBox { IsEnabled = false, FontSize = 11, Margin = new Thickness(1) };
+                }
+                else
+                {
+                    var d = ipc[c1][c2];
+                    var tb = new TextBox { Text = d.kij.ToString("N4"), FontSize = 11, Margin = new Thickness(1) };
+                    tb.LostFocus += (_, _) =>
+                    {
+                        if (double.TryParse(tb.Text, NumberStyles.Any, CultureInfo.CurrentCulture, out var v))
+                        {
+                            tb.Foreground = Brushes.Black;
+                            d.kij = v;
+                        }
+                        else
+                        {
+                            tb.Foreground = Brushes.Red;
+                        }
+                    };
+                    cell = tb;
+                }
+                Grid.SetRow(cell, i + 1);
+                Grid.SetColumn(cell, j + 1);
+                grid.Children.Add(cell);
             }
+        }
+
+        panel.Children.Add(new ScrollViewer
+        {
+            Content = grid,
+            HorizontalScrollBarVisibility = global::Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
+            VerticalScrollBarVisibility = global::Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled
+        });
     }
 
     // --- LKP ---

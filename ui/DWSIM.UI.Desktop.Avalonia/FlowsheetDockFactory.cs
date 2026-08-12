@@ -240,7 +240,7 @@ public sealed class FlowsheetDockFactory : Factory
             Id = "BottomDock",
             Title = "Bottom",
             Alignment = Alignment.Bottom,
-            Proportion = 0.20,
+            Proportion = 0.30,
             VisibleDockables = CreateList<IDockable>(LogTool, IntegratorTool, WatchTool),
             ActiveDockable = LogTool
         };

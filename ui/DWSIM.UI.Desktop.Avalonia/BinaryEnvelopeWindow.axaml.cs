@@ -40,6 +40,9 @@ public partial class BinaryEnvelopeWindow : Window
 
     private bool _vle = true, _lle, _sle, _critical, _areas;
 
+    // Full text report, kept for the Copy Report button now that Data is shown as a grid.
+    private string _lastReport = "";
+
     // Parameterless ctor required by Avalonia's XAML compiler (designer-only).
     public BinaryEnvelopeWindow() : this(null!) { }
 
@@ -54,7 +57,7 @@ public partial class BinaryEnvelopeWindow : Window
         BuildOptionsPanel();
 
         BtnBuild.Click += async (_, _) => await BuildEnvelopeAsync();
-        BtnCopyData.Click += async (_, _) => await CopyAsync(TbData.Text);
+        BtnCopyData.Click += async (_, _) => await CopyAsync(_lastReport);
         BtnCopyCsv.Click += async (_, _) => await CopyAsync(_plot.ToDelimitedText());
     }
 
@@ -168,7 +171,7 @@ public partial class BinaryEnvelopeWindow : Window
 
         BtnBuild.IsEnabled = false;
         StatusLabel.Text = "Calculating envelope lines...";
-        TbData.Text = "Please wait...";
+        GridData.ItemsSource = null;
 
         try
         {
@@ -184,19 +187,22 @@ public partial class BinaryEnvelopeWindow : Window
             if (results.ExceptionResult != null)
             {
                 _plot.Clear();
-                TbData.Text = results.ExceptionResult.Message;
-                StatusLabel.Text = "Calculation failed.";
+                GridData.ItemsSource = null;
+                _lastReport = results.ExceptionResult.Message;
+                StatusLabel.Text = "Calculation failed: " + results.ExceptionResult.Message;
                 return;
             }
 
-            TbData.Text = results.TextOutput;
+            _lastReport = results.TextOutput;
+            PopulateDataGrid(results, calcType, comp1.Name);
             RenderPlot(results, calcType, comp1.Name, comp2.Name, pp.ComponentName);
             StatusLabel.Text = $"Done. {_plot.Series.Count} curve(s) plotted.";
         }
         catch (Exception ex)
         {
             _plot.Clear();
-            TbData.Text = ex.ToString();
+            GridData.ItemsSource = null;
+            _lastReport = ex.ToString();
             StatusLabel.Text = "Calculation failed.";
         }
         finally
@@ -242,6 +248,43 @@ public partial class BinaryEnvelopeWindow : Window
         _plot.AddSeries("Critical Line", C("pxc"), C("pyc"));
 
         _plot.InvalidateVisual();
+    }
+
+    private sealed class EnvRow
+    {
+        public string X { get; set; } = "";
+        public string Bubble { get; set; } = "";
+        public string Dew { get; set; } = "";
+    }
+
+    /// <summary>Fills the Data tab grid with the VLE curve (mole fraction, bubble, dew),
+    /// as in the classic UI, instead of a monospace text dump.</summary>
+    private void PopulateDataGrid(sc.CalculationResults results, sc.CalculationType calcType, string comp1)
+    {
+        var su = _flowsheet.FlowsheetOptions.SelectedUnitSystem;
+        var nf = _flowsheet.FlowsheetOptions.NumberFormat;
+        bool txy = calcType == sc.CalculationType.BinaryEnvelopeTxy;
+        string yunit = txy ? su.temperature : su.pressure;
+
+        var px = UtilityHelpers.Curve(results, "px");
+        var py1 = UtilityHelpers.Curve(results, "py1");
+        var py2 = UtilityHelpers.Curve(results, "py2");
+
+        var rows = new List<EnvRow>();
+        if (px != null)
+            for (int i = 0; i < px.Count; i++)
+                rows.Add(new EnvRow
+                {
+                    X = px[i].ToString(nf),
+                    Bubble = (py1 != null && i < py1.Count) ? py1[i].ToString(nf) : "",
+                    Dew = (py2 != null && i < py2.Count) ? py2[i].ToString(nf) : ""
+                });
+
+        GridData.Columns.Clear();
+        GridData.Columns.Add(new DataGridTextColumn { Header = $"{comp1} Mole Fraction", Binding = new global::Avalonia.Data.Binding("X"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+        GridData.Columns.Add(new DataGridTextColumn { Header = $"Bubble Point ({yunit})", Binding = new global::Avalonia.Data.Binding("Bubble"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+        GridData.Columns.Add(new DataGridTextColumn { Header = $"Dew Point ({yunit})", Binding = new global::Avalonia.Data.Binding("Dew"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+        GridData.ItemsSource = rows;
     }
 
     private async Task CopyAsync(string? text)

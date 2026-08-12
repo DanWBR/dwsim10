@@ -543,20 +543,20 @@ namespace DWSIM.UI.Desktop.Editors
             {
                 Text = caption,
                 VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, 2, 8, 2)
+                Margin = new Thickness(0, 5, 8, 5)
             };
             Grid.SetRow(label, row);
             Grid.SetColumn(label, 0);
             host.Children.Add(label);
 
-            editor.Margin = new Thickness(0, 2, 0, 2);
+            editor.Margin = new Thickness(0, 5, 0, 5);
             Grid.SetRow(editor, row);
             Grid.SetColumn(editor, 1);
             host.Children.Add(editor);
 
             if (trailing == null) return;
 
-            trailing.Margin = new Thickness(8, 2, 0, 2);
+            trailing.Margin = new Thickness(8, 5, 0, 5);
             Grid.SetRow(trailing, row);
             Grid.SetColumn(trailing, 2);
             host.Children.Add(trailing);
@@ -580,8 +580,9 @@ namespace DWSIM.UI.Desktop.Editors
                 ItemsSource = names,
                 SelectedIndex = names.IndexOf(ms.PropertyPackage == null ? "" : ms.PropertyPackage.Tag),
                 HorizontalAlignment = HorizontalAlignment.Stretch,
-                FontSize = 11,
-                MinHeight = 0
+                VerticalAlignment = VerticalAlignment.Center,
+                VerticalContentAlignment = VerticalAlignment.Center,
+                FontSize = 11
             };
             picker.SelectionChanged += (s, e) =>
             {
@@ -682,7 +683,7 @@ namespace DWSIM.UI.Desktop.Editors
                 ItemsSource = items.ToList(),
                 SelectedIndex = selected >= 0 && selected < items.Length ? selected : 0,
                 FontSize = 11,
-                MinHeight = 0
+                VerticalContentAlignment = VerticalAlignment.Center
             };
 
             if (width > 0) combo.Width = width;
