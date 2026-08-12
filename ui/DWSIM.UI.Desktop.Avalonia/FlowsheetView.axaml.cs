@@ -3519,9 +3519,16 @@ public partial class FlowsheetView : UserControl
     /// Loads FlowsheetView-level extenders (from MainWindow.Extenders).
     /// Mirrors Eto Flowsheet.eto.cs lines 2016-2085.
     /// </summary>
+    /// <summary>The extension buttons this flowsheet contributes to the shared menu bar strip.
+    /// They live here, not on the strip, so the strip can show only the active flowsheet's set and
+    /// the buttons do not pile up as simulations are opened and closed.</summary>
+    internal readonly List<global::Avalonia.Controls.Control> ExtensionButtons = new();
+
     private void LoadFlowsheetExtensions()
     {
         if (_flowsheet == null) return;
+
+        ExtensionButtons.Clear();
 
         var mform = FindMainWindow();
         if (mform == null) return;
@@ -3696,13 +3703,10 @@ public partial class FlowsheetView : UserControl
             catch (Exception ex) { AppendLog($"Error running {ext.DisplayText}: {ex.Message}"); }
         };
 
-        // the menu of a simulation is moved into the main window, so the strip beside it
-        // is there and not here
-        var strip = FindMainWindow()?.MenuBarExtensions;
-        if (strip == null) return;
-
-        strip.Children.Add(button);
-        Console.WriteLine($"Menu bar button added for '{ext.DisplayText}'.");
+        // collect the button on this flowsheet; the main window puts the active flowsheet's
+        // buttons on the strip and takes them off when it stops being active, so they do not
+        // accumulate across opened and closed simulations
+        ExtensionButtons.Add(button);
     }
 
     /// <summary>

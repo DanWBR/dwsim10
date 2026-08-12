@@ -688,6 +688,16 @@ public partial class MainWindow : Window
 
         MenuHost.Content = view != null ? view.FlowsheetMenu : BaseMenu;
         Title = view != null ? $"DWSIM - {view.SimulationName}" : "DWSIM";
+
+        // the extension buttons follow the active flowsheet: show its set, and none on the welcome
+        // screen, so opening and closing simulations does not leave stale buttons on the strip
+        if (MenuBarExtensions != null)
+        {
+            MenuBarExtensions.Children.Clear();
+            if (view != null)
+                foreach (var button in view.ExtensionButtons)
+                    MenuBarExtensions.Children.Add(button);
+        }
     }
 
     private void ShowWelcomeIfEmpty()
