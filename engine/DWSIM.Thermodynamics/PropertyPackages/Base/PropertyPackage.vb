@@ -4369,6 +4369,12 @@ redirect2:                  IObj?.SetCurrent()
                                     tmp2 = Me.FlashBase.Flash_TV(Vz, T, 1, Pguess, Me)
                                 End If
                                 Dim Presult = CDbl(tmp2(4))
+                                ' near the critical/retrograde region a barycentric guess can blow up and the
+                                ' flash converges to a spurious far-off root that the guess-vs-result deviation
+                                ' check below cannot catch (guess and result agree). A real dew line steps
+                                ' smoothly, so a large jump from the last accepted point means the curve has
+                                ' reached its end: stop instead of appending the stray point.
+                                If PO.Count > 0 AndAlso Math.Abs(Presult - PO(PO.Count - 1)) > 0.5 * PO(PO.Count - 1) Then Exit Do
                                 Dim dewPdeviation = If(Pguess > 0, Math.Abs(Presult - Pguess) / Pguess, 0.0)
                                 If dewValidate AndAlso dewPdeviation > 0.03 Then
                                     Flowsheet?.ShowMessage("Phase Envelope generation: Dew TVF point rejected (P=" & Presult.ToString("G6") & " vs expected " & Pguess.ToString("G6") & ")", IFlowsheet.MessageType.Warning)
@@ -4422,6 +4428,12 @@ redirect2:                  IObj?.SetCurrent()
                                     tmp2 = Me.FlashBase.Flash_PV(Vz, P, 1, Tguess, Me)
                                 End If
                                 Dim Tresult = CDbl(tmp2(4))
+                                ' near the critical/retrograde region a barycentric guess can blow up and the
+                                ' flash converges to a spurious far-off root (hundreds of K away) that the
+                                ' guess-vs-result deviation check below cannot catch (guess and result agree).
+                                ' A real dew line steps smoothly, so a large jump from the last accepted point
+                                ' means the curve has reached its end: stop instead of appending the stray point.
+                                If TVD.Count > 0 AndAlso Math.Abs(Tresult - TVD(TVD.Count - 1)) > 50.0 Then Exit Do
                                 Dim dewTdeviation = If(Tguess > 0, Math.Abs(Tresult - Tguess) / Tguess, 0.0)
                                 If dewValidate AndAlso dewTdeviation > 0.02 Then
                                     Flowsheet?.ShowMessage("Phase Envelope generation: Dew PVF point rejected (T=" & Tresult.ToString("G6") & " vs expected " & Tguess.ToString("G6") & ")", IFlowsheet.MessageType.Warning)
