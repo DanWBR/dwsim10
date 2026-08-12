@@ -19,6 +19,9 @@
 - [CHG] Property correlations, kij expressions and equilibrium constants written as text are compiled once instead of at every evaluation
 - [CHG] Cross-platform interface: extenders, unit operations, property packages and plugins are read from the folder holding the executable, as on Windows
 - [CHG] Cross-platform interface: text boxes, combo boxes, spinners and check boxes brought down to the height of the Windows fields
+- [CHG] Cross-platform interface: the compound search ranks matches by similarity so the exact name rises to the top, selects the best match, and adds it on Enter
+- [CHG] Cross-platform interface: uses the native system font (Segoe UI on Windows, San Francisco on macOS) for sharper text
+- [CHG] Patreon benefits bar: an Annual Membership option, and the join buttons are hidden once a valid key is verified
 - [FIX] A product of a CAPE-OPEN unit operation was re-flashed by the flowsheet property package, discarding the phase split the unit had computed
 - [FIX] Object editors were cut off on a display set above 96 dots per inch; the distillation column stage table was the most visible case
 - [FIX] A flowsheet opened from the desktop on macOS started DWSIM with nothing loaded and reported an unsupported file
@@ -46,3 +49,7 @@
 - [FIX] Dynamic simulation: the historian time slider could not restore a recorded state
 - [FIX] Flowsheet Unit Operation: a sub-flowsheet that failed to load reported an unrelated null reference later
 - [FIX] Control Valve: the opening table was interpolated against the opening column, so the tabulated Kv was ignored
+- [FIX] Cross-platform interface: the phase envelope dew curve drew a stray segment far past the critical point instead of ending there
+- [FIX] Cross-platform interface: the phase envelope failed with "B = infinity" for mixtures whose compounds have no fusion temperature
+- [FIX] Cross-platform interface: external unit operations (bioreactor, anaerobic digester) could not be added from the palette or the context menu
+- [FIX] Cross-platform interface: the compressor and expander performance-curve editor did not open on the expander and could not create curves
