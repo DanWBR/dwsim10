@@ -54,10 +54,12 @@ class Program
 
     public static AppBuilder BuildAvaloniaApp()
     {
+        // No .WithInterFont(): use each platform's own UI font (Segoe UI on Windows, San Francisco
+        // on macOS, the fontconfig default on Linux), which the OS rasterises with native hinting and
+        // reads sharper than the bundled Inter, closer to the WinForms edition.
         var builder = AppBuilder.Configure<App>()
             .UsePlatformDetect()
             .UseDesktopWebView()
-            .WithInterFont()
             .LogToTrace();
 
         // WSLg and some VMs present a blank window with the GPU compositor; force Avalonia's own
