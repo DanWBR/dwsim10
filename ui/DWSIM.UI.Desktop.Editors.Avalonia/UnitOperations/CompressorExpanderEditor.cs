@@ -79,7 +79,7 @@ namespace DWSIM.UI.Desktop.Editors
                 energyStream: false,
                 powerLabel: "Power Generated",
                 deltaPLabel: "Pressure Drop",
-                curves: null));
+                curves: () => CompressorCurvesEditor.Show(expander)));
         }
 
         private static void Fill(AvaloniaEditorPanel panel, ISimulationObject simobj,
