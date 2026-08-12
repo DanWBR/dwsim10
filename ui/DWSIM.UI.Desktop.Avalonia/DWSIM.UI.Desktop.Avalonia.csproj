@@ -80,6 +80,16 @@
     <Content Include="DWSIM_ico.ico" />
   </ItemGroup>
 
+  <!--
+    Release notes shared by every edition. They live at the repository root under content/ and are
+    copied to the root of the publish, so both the open and the Patreon packages carry them and the
+    Windows installer shows readme.txt. Keep this the single source; the changelog tooling writes here.
+  -->
+  <ItemGroup>
+    <Content Include="$(MSBuildThisFileDirectory)..\..\content\readme.txt" Link="readme.txt" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="$(MSBuildThisFileDirectory)..\..\content\whatsnew.txt" Link="whatsnew.txt" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <ItemGroup>
     <EmbeddedResource Update="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>

@@ -1,0 +1,48 @@
+﻿Version 10.2
+
+- [NEW] Cross-platform interface: property tables, master tables, spreadsheet tables, charts, text blocks, rectangles, buttons and pictures can be placed on a flowsheet and configured
+- [NEW] Cross-platform interface: utilities can be attached to a flowsheet object, and a simulation that already carries them no longer loses them on opening
+- [NEW] Cross-platform interface: the DWSIM Assistant opens docked to the right, loads from the executable folder and starts its server in the background, with its button on the menu bar
+- [NEW] Cross-platform interface: the user compound databases can be managed from the welcome screen - add, create, remove databases and view or delete their compounds
+- [NEW] Cross-platform interface: backup copies are offered back at startup when the previous run did not close normally
+- [NEW] Assay Manager: assays saved and loaded as XML, with the previous binary format still read
+- [NEW] Forced Solids tab back on the advanced property package editor, next to Property Overrides
+- [CHG] IPOPT is now a managed solver shipped with DWSIM, checked against the native library over five thousand problems
+- [CHG] Gibbs reactor initial estimate solved by a managed simplex instead of the native lpsolve55
+- [CHG] Petalas-Aziz two-phase pressure drop converted from a native library to managed code
+- [CHG] Automation and Fluent API: column specification types accept their common spellings
+- [CHG] Gibbs reactor: the optimiser stops once the answer is good enough, instead of running on to a tolerance no solver reaches
+- [CHG] Reaktoro property package and Gibbs reactor now call Reaktoro 2 directly; no Python distribution is needed any more
+- [CHG] CoolProp updated to 8.0.1 and available on Linux and macOS, on x64 and ARM, not only x64 Windows
+- [CHG] CAPE-OPEN: the state a host simulator saves for an embedded DWSIM component is now XML instead of binary serialization
+- [CHG] PFR and CSTR: rate expressions are compiled once per calculation instead of at every integration step; the methane steam reforming sample solves in 0.17 s instead of 11.0 s
+- [CHG] Property correlations, kij expressions and equilibrium constants written as text are compiled once instead of at every evaluation
+- [CHG] Cross-platform interface: extenders, unit operations, property packages and plugins are read from the folder holding the executable, as on Windows
+- [CHG] Cross-platform interface: text boxes, combo boxes, spinners and check boxes brought down to the height of the Windows fields
+- [FIX] A product of a CAPE-OPEN unit operation was re-flashed by the flowsheet property package, discarding the phase split the unit had computed
+- [FIX] Object editors were cut off on a display set above 96 dots per inch; the distillation column stage table was the most visible case
+- [FIX] A flowsheet opened from the desktop on macOS started DWSIM with nothing loaded and reported an unsupported file
+- [FIX] Peng-Robinson, PR78 and SRK: the lowest-Gibbs root selection could settle on a root below the covolume, which describes no state
+- [FIX] CAPE-OPEN property packages could not drive a plug flow reactor, and a simulation saved on one silently reopened on a different property package
+- [FIX] Peng-Robinson, PR78 and SRK: the compressibility factor was always taken from the smallest root of the cubic, so a gas could be reported as a liquid
+- [FIX] Equilibrium reactor: only the activity and fugacity bases converged; every other basis reported zero conversion, and the concentration bases were rejected outright
+- [FIX] Heat exchanger: property overrides were ignored in the internal iterations, so the two sides of the energy balance disagreed
+- [FIX] Compound creator: the regression of vapour pressure and liquid viscosity started from a fixed guess that overflows outside room temperature
+- [FIX] Shell and Tube heat exchanger: the number of shells in series was ignored by the heat transfer area and by the LMTD correction factor, so putting shells in series changed nothing; simulations with more than one shell will report a higher duty
+- [FIX] Heat exchangers: the heat exchange profile was drawn for the maximum possible duty, so the Minimum Internal Temperature Approach was zero on every exchanger; it now follows the actual duty and is signed
+- [FIX] CAPE-OPEN: DWSIM released the stream belonging to the simulator hosting it, which could corrupt the host process
+- [FIX] CAPE-OPEN: a property package saved by a host could never be loaded back; the save and the load disagreed on where the data was
+- [FIX] CAPE-OPEN: a hosted property package was never sent the Terminate call the standard requires, and its interaction parameters were not saved
+- [FIX] CoolProp packages: a property asked for outside the accepted range ended the calculation instead of extrapolating
+- [FIX] CoolProp incompressible mixtures: the solvent vapour viscosity returned the liquid value, thirty times too large
+- [FIX] Binary phase envelope: the dew curve dipped below the bubble curve on heteroazeotropic systems
+- [FIX] PRSV2, PRSV2-VL, Lee-Kesler-Plocker, Chao-Seader and Grayson-Streed: stream enthalpy and entropy were missing the ideal-gas part, so energy balances and PH/PS flashes were wrong; existing simulations on these packages will report different, correct temperatures
+- [FIX] Dew point calculations could return the metastable liquid branch on partially miscible systems
+- [FIX] Water Electrolyzer: waste heat was added as a power instead of a specific enthalpy, overstating the temperature rise
+- [FIX] Shell and Tube heat exchanger: switching to Fouling Factor Calculation discarded the specified outlet temperatures
+- [FIX] Heat exchanger with steam tables on one side: the maximum duty came out negative and the exchanger did not calculate
+- [FIX] Steam Tables (IAPWS-IF97): states above 1073.15 K returned a physically impossible enthalpy instead of being refused
+- [FIX] Dynamic simulation: event transitions other than Step ended the run with a null character error
+- [FIX] Dynamic simulation: the historian time slider could not restore a recorded state
+- [FIX] Flowsheet Unit Operation: a sub-flowsheet that failed to load reported an unrelated null reference later
+- [FIX] Control Valve: the opening table was interpolated against the opening column, so the tabulated Kv was ignored
