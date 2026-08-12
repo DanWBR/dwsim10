@@ -294,15 +294,7 @@ public partial class FlowsheetView : UserControl
     {
         // Build palette content: header + scrollable items
         var paletteContent = new DockPanel();
-        var paletteHeader = new TextBlock
-        {
-            Text = "Objects",
-            FontWeight = FontWeight.SemiBold,
-            FontSize = 11,
-            Margin = new Thickness(6, 6, 6, 4)
-        };
-        DockPanel.SetDock(paletteHeader, global::Avalonia.Controls.Dock.Top);
-        paletteContent.Children.Add(paletteHeader);
+        // The tool tab already labels this "Objects"; no in-panel header is needed.
         paletteContent.Children.Add(new ScrollViewer
         {
             HorizontalScrollBarVisibility = global::Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,
@@ -494,9 +486,12 @@ public partial class FlowsheetView : UserControl
             if (obj == null)
             {
                 // Double-click on empty canvas fits the drawing to the view (classic UI behaviour).
+                // Use the device size the surface reasons in (matches the wheel-zoom path), not the
+                // logical bounds, or the fit comes out scaled down on high-DPI displays.
                 if (_surface != null)
                 {
-                    _surface.ZoomAll((int)Canvas.Bounds.Width, (int)Canvas.Bounds.Height);
+                    var dev = Canvas.DeviceSize;
+                    _surface.ZoomAll(dev.Width, dev.Height);
                     Canvas.Refresh();
                 }
                 return;

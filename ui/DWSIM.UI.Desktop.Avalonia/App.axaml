@@ -26,6 +26,7 @@
           <SolidColorBrush x:Key="PaletteHeaderBackground">#E6EBF5</SolidColorBrush>
           <SolidColorBrush x:Key="DockTabForeground">#5A5A5A</SolidColorBrush>
           <SolidColorBrush x:Key="DockTabForegroundSelected">#141414</SolidColorBrush>
+          <SolidColorBrush x:Key="TabSelectedAccent">#2E7CD6</SolidColorBrush>
           <SolidColorBrush x:Key="LinkForeground">#1565C0</SolidColorBrush>
           <SolidColorBrush x:Key="SplitterBrush">#C4C4C4</SolidColorBrush>
         </ResourceDictionary>
@@ -33,10 +34,19 @@
           <SolidColorBrush x:Key="PaletteHeaderBackground">#2D2D30</SolidColorBrush>
           <SolidColorBrush x:Key="DockTabForeground">#B4B4B4</SolidColorBrush>
           <SolidColorBrush x:Key="DockTabForegroundSelected">#F2F2F2</SolidColorBrush>
+          <SolidColorBrush x:Key="TabSelectedAccent">#2E7CD6</SolidColorBrush>
           <SolidColorBrush x:Key="LinkForeground">#5AA9E6</SolidColorBrush>
           <SolidColorBrush x:Key="SplitterBrush">#3A3A3A</SolidColorBrush>
         </ResourceDictionary>
       </ResourceDictionary.ThemeDictionaries>
+
+      <!-- Unify the Dock active/selected header look under Semi: the active tool-dock grip and
+           its title read white-on-accent, matching the centre document tab. These keys are the
+           ones the DockFluent tab/chrome templates resolve for their active/selected states. -->
+      <SolidColorBrush x:Key="DockSurfaceHeaderActiveBrush" Color="#2E7CD6" />
+      <SolidColorBrush x:Key="DockTabActiveForegroundBrush" Color="White" />
+      <SolidColorBrush x:Key="DockDocumentTabSelectedForegroundBrush" Color="White" />
+      <SolidColorBrush x:Key="DockTabSelectedForegroundBrush" Color="White" />
     </ResourceDictionary>
   </Application.Resources>
 
@@ -103,12 +113,16 @@
       <Setter Property="Padding" Value="6,0" />
       <Setter Property="MinHeight" Value="0" />
       <Setter Property="Height" Value="24" />
+      <Setter Property="Foreground" Value="{DynamicResource DockTabForeground}" />
     </Style>
     <Style Selector="dac|DocumentTabStripItem">
       <Setter Property="FontSize" Value="11" />
       <Setter Property="Padding" Value="8,0" />
       <Setter Property="MinHeight" Value="0" />
       <Setter Property="Height" Value="28" />
+      <!-- The close X binds its fill to the item Foreground, so set it here (not only on the
+           title TextBlock) or the X is invisible. -->
+      <Setter Property="Foreground" Value="{DynamicResource DockTabForeground}" />
     </Style>
 
     <!-- Under Semi the DockFluent tab foreground resolves to an invisible brush and the title
@@ -118,17 +132,47 @@
       <Setter Property="FontSize" Value="11" />
       <Setter Property="Foreground" Value="{DynamicResource DockTabForeground}" />
     </Style>
-    <!-- The selected document tab is filled with the accent colour, so its title reads
-         white in both variants; the unselected ones use the per-theme foreground above. -->
-    <Style Selector="dac|DocumentTabStripItem:selected TextBlock">
-      <Setter Property="Foreground" Value="White" />
-    </Style>
     <Style Selector="dac|ToolTabStripItem TextBlock">
       <Setter Property="FontSize" Value="11" />
       <Setter Property="Foreground" Value="{DynamicResource DockTabForeground}" />
     </Style>
+
+    <!-- Standardise the selected tab: an accent-filled header with white text, held in every
+         focus state. DockFluent drops the fill to a pale colour when the strip loses focus
+         (via :not(:active):selected, more specific than a plain :selected), so the overrides
+         below match that specificity to win. Applies to documents and tools alike. -->
+    <Style Selector="dac|DocumentTabStripItem:selected">
+      <Setter Property="Background" Value="{DynamicResource TabSelectedAccent}" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="dac|DocumentTabStripItem:active:selected">
+      <Setter Property="Background" Value="{DynamicResource TabSelectedAccent}" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="dac|DocumentTabStripItem:not(:active):selected">
+      <Setter Property="Background" Value="{DynamicResource TabSelectedAccent}" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="dac|DocumentTabStripItem:selected TextBlock">
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="dac|ToolTabStripItem:selected">
+      <Setter Property="Background" Value="{DynamicResource TabSelectedAccent}" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="dac|ToolTabStripItem:selected:pointerover">
+      <Setter Property="Background" Value="{DynamicResource TabSelectedAccent}" />
+    </Style>
     <Style Selector="dac|ToolTabStripItem:selected TextBlock">
-      <Setter Property="Foreground" Value="{DynamicResource DockTabForegroundSelected}" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <!-- The side tool docks carry a ToolChromeControl title (grip), not a tab. Keep its inactive
+         title readable (theme foreground); its active state is unified through the Dock brush
+         overrides in Application.Resources so it reads white-on-accent like the centre. -->
+    <Style Selector="dac|ToolChromeControl /template/ TextBlock#PART_Title">
+      <Setter Property="Foreground" Value="{DynamicResource DockTabForeground}" />
+      <Setter Property="FontSize" Value="11" />
     </Style>
 
     <!-- The proportional dock splitter needs a non-null background to be hit-testable, or it
