@@ -1,6 +1,7 @@
-﻿<Application xmlns="https://github.com/avaloniaui"
+<Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:dac="clr-namespace:Dock.Avalonia.Controls;assembly=Dock.Avalonia"
+             xmlns:semi="https://irihi.tech/semi"
              x:Class="DWSIM.UI.Desktop.Avalonia.App"
              RequestedThemeVariant="Light">
 
@@ -17,7 +18,7 @@
   </Application.Resources>
 
   <Application.Styles>
-    <FluentTheme />
+    <semi:SemiTheme Locale="en-US" />
     <DockFluentTheme DensityStyle="Normal" />
 
     <!-- The default every window hands down: plain text blocks and labels inherit it. -->
@@ -25,7 +26,7 @@
       <Setter Property="FontSize" Value="11" />
     </Style>
     <!-- without this every DataGrid renders blank, headers and all -->
-    <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />
+    <semi:DataGridSemiTheme />
     <!-- same for the script editor: no theme, no template, and the editor draws nothing -->
     <StyleInclude Source="avares://AvaloniaEdit/Themes/Fluent/AvaloniaEdit.xaml" />
 
