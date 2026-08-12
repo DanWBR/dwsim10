@@ -3881,7 +3881,11 @@ redirect2:                  IObj?.SetCurrent()
                     .BubbleCurveDeltaP = 101325
                     .BubbleCurveDeltaT = 1.0
                     .BubbleCurveInitialPressure = 101325.0
-                    .BubbleCurveInitialTemperature = RET_VTF.Min
+                    ' Start at the lowest fusion temperature, but floor it: some saved compounds carry
+                    ' no fusion temperature (RET_VTF returns 0), and a cold start at ~0 K puts the cubic
+                    ' EOS past the point where it has any solution (B = infinity), which aborts the whole
+                    ' envelope. A fraction of the lowest critical temperature is a safe, still-liquid start.
+                    .BubbleCurveInitialTemperature = Math.Max(RET_VTF.Min, RET_VTC.Min * 0.45)
                     .BubbleCurveInitialFlash = "TVF"
                     .BubbleCurveMaximumPoints = 500
                     .BubbleCurveMaximumTemperature = RET_VTC.Max * 1.2
@@ -3891,7 +3895,7 @@ redirect2:                  IObj?.SetCurrent()
                     .DewCurveDeltaP = 25000
                     .DewCurveDeltaT = 1.0
                     .DewCurveInitialPressure = 101325.0
-                    .DewCurveInitialTemperature = RET_VTF.Min
+                    .DewCurveInitialTemperature = Math.Max(RET_VTF.Min, RET_VTC.Min * 0.45)
                     .DewCurveInitialFlash = "PVF"
                     .DewCurveMaximumPoints = 500
                     .DewCurveMaximumTemperature = RET_VTC.Max * 1.5
