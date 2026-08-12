@@ -368,7 +368,8 @@ public partial class SimulationSettingsWindow : Window
     {
         public string Property { get; set; } = "";
         public string Model { get; set; } = "";
-        public static PropMethodRow Section(string t) => new() { Property = t };
+        public bool IsSection { get; set; }
+        public static PropMethodRow Section(string t) => new() { Property = t, IsSection = true };
     }
 
     private void OnPPDetails(object? sender, RoutedEventArgs e)
@@ -416,6 +417,14 @@ public partial class SimulationSettingsWindow : Window
         };
         grid.Columns.Add(new DataGridTextColumn { Header = "Property", Binding = new global::Avalonia.Data.Binding("Property"), Width = new DataGridLength(230) });
         grid.Columns.Add(new DataGridTextColumn { Header = "Model", Binding = new global::Avalonia.Data.Binding("Model"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+
+        // Bold the phase-section rows (inherited by the cell text). Reset on recycled rows.
+        grid.LoadingRow += (_, ev) =>
+        {
+            bool section = (ev.Row.DataContext as PropMethodRow)?.IsSection == true;
+            global::Avalonia.Controls.Documents.TextElement.SetFontWeight(
+                ev.Row, section ? global::Avalonia.Media.FontWeight.Bold : global::Avalonia.Media.FontWeight.Normal);
+        };
 
         var close = new Button { Content = "Close", Width = 90, IsCancel = true, Margin = new Thickness(12) };
         close.Classes.Add("dialog");
