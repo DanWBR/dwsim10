@@ -358,9 +358,67 @@ jobs:
           path: artifacts/*.dmg
           if-no-files-found: error
 
+  # Two headless packages of the MCP server, for running DWSIM on a mini PC or SBC as a network
+  # service. Each .deb installs a systemd unit (dwsim-mcp) listening on a TCP port. Publishing does
+  # not need a host of the target architecture, so both are built on the same Linux runner.
+  mcp:
+    name: mcp server ${{ matrix.rid }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { rid: linux-x64,   debarch: amd64 }
+          - { rid: linux-arm64, debarch: arm64 }
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Work out the version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish the MCP server
+        run: |
+          dotnet publish tools/DWSIM.MCPServer/DWSIM.MCPServer.csproj \
+            -c Release -r ${{ matrix.rid }} --self-contained true \
+            -p:Version=${{ steps.version.outputs.value }} \
+            -p:CoolPropRid=${{ matrix.rid }} \
+            -o publish-mcp/${{ matrix.rid }}
+
+      - name: Strip foreign-platform native libraries
+        run: |
+          find publish-mcp/${{ matrix.rid }} -name '*.dylib' -delete
+          echo "native libraries kept for ${{ matrix.rid }}:"
+          find publish-mcp/${{ matrix.rid }} \( -name '*.so' -o -iname 'coolprop*' \) -printf '  %P\n' | sort
+
+      - name: Build the .deb
+        run: |
+          chmod +x packaging/linux-mcp/build-mcp-deb.sh
+          packaging/linux-mcp/build-mcp-deb.sh \
+            publish-mcp/${{ matrix.rid }} \
+            ${{ steps.version.outputs.value }} \
+            ${{ matrix.debarch }} \
+            artifacts
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: package-mcp-${{ matrix.rid }}
+          path: artifacts
+
   release:
     name: draft the release
-    needs: [payloads, macos]
+    needs: [payloads, macos, mcp]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     permissions:

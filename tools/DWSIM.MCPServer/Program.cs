@@ -42,6 +42,7 @@ namespace DWSIM.MCPServer
             var mode = "stdio";
             int port = 5901;
             string token = null;
+            string host = "localhost";
 
             for (int i = 0; i < args.Length; i++)
             {
@@ -58,6 +59,11 @@ namespace DWSIM.MCPServer
                         break;
                     case "--token":
                         if (i + 1 < args.Length) token = args[++i];
+                        break;
+                    case "--host":
+                        // Bind address for the HTTP transport. "localhost" (default) is loopback
+                        // only; "0.0.0.0", "*" or "+" bind every interface, for a networked service.
+                        if (i + 1 < args.Length) host = args[++i];
                         break;
                 }
             }
@@ -86,7 +92,7 @@ namespace DWSIM.MCPServer
             switch (mode)
             {
                 case "http":
-                    transport = new HttpSseTransport(dispatcher, port, token);
+                    transport = new HttpSseTransport(dispatcher, port, token, host);
                     break;
                 default:
                     transport = new StdioTransport(dispatcher);

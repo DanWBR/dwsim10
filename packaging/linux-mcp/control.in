@@ -1,0 +1,19 @@
+Package: dwsim-mcp
+Version: @VERSION@
+Section: science
+Priority: optional
+Architecture: @ARCH@
+Installed-Size: @SIZE@
+Maintainer: Daniel Wagner Oliveira de Medeiros <dwsim@dwsim.org>
+Homepage: https://dwsim.org
+Depends: libc6, libfontconfig1
+Description: DWSIM process simulator - headless MCP server
+ A headless build of DWSIM that exposes the flowsheet, streams, unit
+ operations, thermodynamics and solver as Model Context Protocol tools over
+ HTTP, so an assistant on the network can build and solve simulations.
+ .
+ Installs a systemd service (dwsim-mcp) that listens on a TCP port. Edit
+ /etc/dwsim-mcp/dwsim-mcp.conf to set the bind address, port and token, then
+ run: systemctl restart dwsim-mcp
+ .
+ The .NET runtime is inside the package, so nothing else has to be installed.

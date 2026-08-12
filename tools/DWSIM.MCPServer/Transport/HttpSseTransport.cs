@@ -12,20 +12,27 @@ namespace DWSIM.MCPServer.Transport
         private readonly JsonRpcDispatcher _dispatcher;
         private readonly int _port;
         private readonly string _token;
+        private readonly string _host;
 
-        public HttpSseTransport(JsonRpcDispatcher dispatcher, int port, string token = null)
+        public HttpSseTransport(JsonRpcDispatcher dispatcher, int port, string token = null, string host = "localhost")
         {
             _dispatcher = dispatcher;
             _port = port;
             _token = token;
+            _host = string.IsNullOrEmpty(host) ? "localhost" : host;
         }
 
         public void Run()
         {
+            // HttpListener wants "+" (or "*") to bind every interface; the friendly aliases map to it.
+            var bind = (_host == "0.0.0.0" || _host == "*" || _host == "+"
+                        || _host.Equals("any", StringComparison.OrdinalIgnoreCase))
+                ? "+" : _host;
+
             var listener = new HttpListener();
-            listener.Prefixes.Add($"http://localhost:{_port}/");
+            listener.Prefixes.Add($"http://{bind}:{_port}/");
             listener.Start();
-            Console.Error.WriteLine($"[dwsim-mcp] HTTP transport listening on http://localhost:{_port}/");
+            Console.Error.WriteLine($"[dwsim-mcp] HTTP transport listening on http://{_host}:{_port}/");
 
             while (listener.IsListening)
             {
@@ -125,7 +132,11 @@ namespace DWSIM.MCPServer.Transport
             ctx.Response.Headers.Add("Cache-Control", "no-cache");
             ctx.Response.Headers.Add("Connection", "keep-alive");
 
-            var postEndpoint = $"http://localhost:{_port}/mcp";
+            // Advertise the endpoint on the same host:port the client actually reached us on,
+            // so a remote client over the network gets a URL it can post back to.
+            var authority = ctx.Request.UserHostName;
+            if (string.IsNullOrEmpty(authority)) authority = $"{_host}:{_port}";
+            var postEndpoint = $"http://{authority}/mcp";
             var data = $"data: {{\"endpoint\":\"{postEndpoint}\"}}\n\n";
             var bytes = Encoding.UTF8.GetBytes($"event: endpoint\n{data}");
 

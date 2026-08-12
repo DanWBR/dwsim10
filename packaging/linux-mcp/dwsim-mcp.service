@@ -1,0 +1,23 @@
+[Unit]
+Description=DWSIM headless MCP server
+Documentation=https://dwsim.org
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/dwsim-mcp/dwsim-mcp.conf
+# DWSIM_MCP_OPTS is split on whitespace into individual arguments.
+ExecStart=/opt/dwsim-mcp/dwsim-mcp $DWSIM_MCP_OPTS
+User=dwsim-mcp
+Group=dwsim-mcp
+Restart=on-failure
+RestartSec=5
+StateDirectory=dwsim-mcp
+WorkingDirectory=/var/lib/dwsim-mcp
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target
