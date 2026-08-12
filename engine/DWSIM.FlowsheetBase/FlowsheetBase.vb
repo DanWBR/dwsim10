@@ -1044,6 +1044,17 @@ Imports DWSIM.ExtensionMethods
 
             Case Else
 
+                ' external unit operations (bioreactors, anaerobic digester, etc.) are registered
+                ' apart from the built-in names above; resolve one by its name, description or display
+                ' name and add it through the External path, like the Windows interface does
+                Dim euo As Interfaces.IExternalUnitOperation = ExternalUnitOperations.Values.FirstOrDefault(
+                    Function(u) u.Name = typename OrElse u.Description = typename OrElse DirectCast(u, Interfaces.ISimulationObject).GetDisplayName() = typename)
+
+                If euo IsNot Nothing Then
+                    Dim inst = DirectCast(Activator.CreateInstance(euo.GetType()), Interfaces.IExternalUnitOperation)
+                    Return Me.SimulationObjects(AddObjectToSurface(ObjectType.External, x, y, tag, id, inst, CreateConnected))
+                End If
+
                 Return Nothing
 
         End Select

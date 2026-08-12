@@ -627,18 +627,19 @@ public partial class FlowsheetView : UserControl
     {
         if (_flowsheet == null) return;
 
-        // Try engine ObjectList first (works with engine display names)
-        if (_flowsheet.AvailableSimulationObjects.ContainsKey(name))
+        // The engine's string-based AddObject resolves both built-in objects and registered external
+        // unit operations (bioreactors, anaerobic digester, etc.), keyed by name or display name. Try
+        // it and only fall back to the static ObjectType map when it produces no object.
+        try
         {
-            try
+            if (_flowsheet.AddObject(name, x, y) != null)
             {
-                _flowsheet.AddObject(name, x, y);
                 Canvas.Refresh();
                 UpdateResultsPanel();
                 return;
             }
-            catch { }
         }
+        catch { }
 
         // Fallback to ObjectType-based mapping
         var type = PaletteNameToObjectType(name);
