@@ -117,9 +117,8 @@
     <!-- Compact dock tab headers. Semi/DockFluent leave them tall; force a compact height. -->
     <Style Selector="dac|ToolTabStripItem">
       <Setter Property="FontSize" Value="11" />
-      <Setter Property="Padding" Value="6,0" />
+      <Setter Property="Padding" Value="8,4" />
       <Setter Property="MinHeight" Value="0" />
-      <Setter Property="Height" Value="24" />
       <Setter Property="VerticalContentAlignment" Value="Center" />
       <Setter Property="Foreground" Value="{DynamicResource DockTabForeground}" />
     </Style>
@@ -139,11 +138,22 @@
          is robust to the tab template. -->
     <Style Selector="dac|DocumentTabStripItem TextBlock">
       <Setter Property="FontSize" Value="11" />
+      <Setter Property="VerticalAlignment" Value="Center" />
       <Setter Property="Foreground" Value="{DynamicResource DockTabForeground}" />
     </Style>
     <Style Selector="dac|ToolTabStripItem TextBlock">
       <Setter Property="FontSize" Value="11" />
+      <Setter Property="VerticalAlignment" Value="Center" />
       <Setter Property="Foreground" Value="{DynamicResource DockTabForeground}" />
+    </Style>
+    <!-- Also centre the content presenter so the selected tab's title is not pushed down. -->
+    <Style Selector="dac|ToolTabStripItem /template/ ContentPresenter">
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="dac|DocumentTabStripItem /template/ ContentPresenter">
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
     </Style>
 
     <!-- Standardise the selected tab: an accent-filled header with white text, held in every
