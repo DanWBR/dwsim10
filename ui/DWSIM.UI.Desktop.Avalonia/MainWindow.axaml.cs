@@ -558,7 +558,9 @@ public partial class MainWindow : Window
                 Margin = new Thickness(4, 0, 0, 0),
                 VerticalAlignment = VerticalAlignment.Center,
                 HorizontalAlignment = HorizontalAlignment.Center,
-                Cursor = new global::Avalonia.Input.Cursor(global::Avalonia.Input.StandardCursorType.Hand)
+                Cursor = new global::Avalonia.Input.Cursor(global::Avalonia.Input.StandardCursorType.Hand),
+                // Only closable documents get an X (the inner Flowsheet/Results/... tabs are not).
+                IsVisible = item.CanClose
             };
             button.Click += (_, _) => _shell.CloseDockable(item);
             return button;
