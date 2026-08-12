@@ -8,7 +8,7 @@ using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Styling;
 
-namespace DWSIM.UI.Desktop.Avalonia.Controls;
+namespace DWSIM.UI.Shared.Avalonia;
 
 /// <summary>
 /// A single curve or point cloud on an <see cref="XYPlot"/>.

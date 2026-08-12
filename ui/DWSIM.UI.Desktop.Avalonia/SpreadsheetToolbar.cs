@@ -11,6 +11,7 @@ using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using DWSIM.Interfaces;
 using DWSIM.UI.Desktop.Avalonia.Controls;
+using DWSIM.UI.Shared.Avalonia;
 using unvell.ReoGrid;
 using unvell.ReoGrid.DataFormat;
 using ReoGridFile = unvell.ReoGrid.IO.FileFormat;

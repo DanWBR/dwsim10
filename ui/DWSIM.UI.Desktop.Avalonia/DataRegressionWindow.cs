@@ -17,6 +17,7 @@ using DWSIM.SharedClasses.DataRegression.Engine;
 using DWSIM.SharedClasses.DataRegression.Models;
 using DWSIM.SharedClasses.DataRegression.Reporting;
 using DWSIM.UI.Desktop.Avalonia.Controls;
+using DWSIM.UI.Shared.Avalonia;
 using Newtonsoft.Json;
 
 namespace DWSIM.UI.Desktop.Avalonia;
