@@ -192,6 +192,11 @@ Public Class GraphicsSurface
 
     Public Shared Property ForegroundColor As SKColor = SKColors.Black
 
+    ' The surface background/foreground when the dark theme is active.
+    Public Shared Property DarkBackgroundColor As SKColor = New SKColor(30, 30, 30)
+
+    Public Shared Property DarkForegroundColor As SKColor = SKColors.WhiteSmoke
+
     Public Property ResizingMode As Boolean = False
 
     Public Property ResizingMode_KeepAR As Boolean = True
@@ -245,7 +250,7 @@ Public Class GraphicsSurface
         Dim gpaint As New SKPaint
 
         With gpaint
-            .Color = SKColors.LightSteelBlue.WithAlpha(50)
+            .Color = If(GlobalSettings.Settings.DarkMode, SKColors.SlateGray.WithAlpha(60), SKColors.LightSteelBlue.WithAlpha(50))
             .StrokeWidth = 1
             .IsStroke = True
             .IsAntialias = GlobalSettings.Settings.DrawingAntiAlias
@@ -264,7 +269,7 @@ Public Class GraphicsSurface
         Dim spaint As New SKPaint
         With spaint
             .IsStroke = False
-            .Color = SKColors.LightSalmon.WithAlpha(25)
+            .Color = If(GlobalSettings.Settings.DarkMode, SKColors.SteelBlue.WithAlpha(60), SKColors.LightSalmon.WithAlpha(25))
         End With
 
         Dim normalizedRectangle As New SKRect
@@ -302,6 +307,16 @@ Public Class GraphicsSurface
         'draw the actual objects onto the page, on top of the grid
 
         If Me.SelectedObject Is Nothing Then Me.SelectedObjects.Clear()
+
+        ' Keep the surface background/foreground in step with the active theme, so the
+        ' clear below and the objects/connectors/corner text all read the same variant.
+        If GlobalSettings.Settings.DarkMode Then
+            BackgroundColor = DarkBackgroundColor
+            ForegroundColor = DarkForegroundColor
+        Else
+            BackgroundColor = SKColors.White
+            ForegroundColor = SKColors.Black
+        End If
 
         DrawingCanvas.Clear(BackgroundColor)
 

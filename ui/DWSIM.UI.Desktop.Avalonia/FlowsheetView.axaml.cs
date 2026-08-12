@@ -257,6 +257,12 @@ public partial class FlowsheetView : UserControl
         WirePropertyPackageConfigurator();
 
         InitializeComponent();
+
+        // A light/dark switch changes DarkMode, which the drawing engine reads for the
+        // surface background and every object colour; repaint the open flowsheet so it
+        // does not stay on the previous variant until the next pointer move.
+        ActualThemeVariantChanged += (_, _) => Canvas?.Refresh();
+
         SetupDockLayout();
         WireToolbar();
         WireMenus();
@@ -3284,7 +3290,8 @@ public partial class FlowsheetView : UserControl
                         using var bmp = new SKBitmap(w * scale, h * scale);
                         using (var canvas = new SKCanvas(bmp))
                         {
-                            canvas.Clear(SKColors.White);
+                            // UpdateCanvas clears to the theme background itself, so the objects
+                            // and the background always read the same light/dark variant.
                             canvas.Scale(scale);
                             _surface.UpdateCanvas(canvas);
                         }
