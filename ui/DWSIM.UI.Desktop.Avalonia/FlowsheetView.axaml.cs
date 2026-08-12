@@ -2775,6 +2775,30 @@ public partial class FlowsheetView : UserControl
         ("Other",             new[] { "Text Block", "Property Table", "Chart Object", "Spreadsheet Table", "Master Table" }),
     };
 
+    /// <summary>Section order matching the classic WinForms palette (SimulationObjectsPanel):
+    /// the TableLayoutPanel rows put the groups in this sequence. Categories not listed here
+    /// (should be none) are appended at the end.</summary>
+    private static readonly string[] CategoryOrder =
+    {
+        "Streams",
+        "Refining",
+        "Biochemical",
+        "Premium",
+        "Pressure Changers",
+        "Separators",
+        "Mixers/Splitters",
+        "Heat Exchangers",
+        "Reactors",
+        "Columns",
+        "Solids",
+        "Clean Power",
+        "Electrolyzers",
+        "User Models",
+        "CAPE-OPEN",
+        "Logical",
+        "Other",
+    };
+
     /// <summary>Maps every ObjectClass enum member to a palette category name. The enum in
     /// DWSIM.Interfaces has 22 members: any left unmapped would collapse into "Other".</summary>
     private static string ObjectClassToCategory(Interfaces.Enums.SimulationObjectClass cls) => cls switch
@@ -2840,8 +2864,10 @@ public partial class FlowsheetView : UserControl
             }
         }
 
-        // Build collapsible sections for each category
-        foreach (var cat in _paletteCategories.Keys)
+        // Build collapsible sections for each category, in the classic palette order
+        var orderedCats = CategoryOrder.Where(_paletteCategories.ContainsKey)
+            .Concat(_paletteCategories.Keys.Where(k => !CategoryOrder.Contains(k)));
+        foreach (var cat in orderedCats)
         {
             var items = _paletteCategories[cat];
 

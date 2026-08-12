@@ -177,23 +177,23 @@
          Canvas-specific controls: zoom, connect, delete, inspector, then a divider and the
          grid/align/search group (toggled by View > Show Sub-Toolbar). -->
     <Border DockPanel.Dock="Top" BorderThickness="0,0,0,1" Padding="4,2" Name="DrawingToolbarBorder">
-      <StackPanel Orientation="Horizontal" Spacing="4">
+      <WrapPanel Orientation="Horizontal">
         <Button Name="BtnZoomIn"  Classes="toolbar" ToolTip.Tip="Zoom In"       Content="🔍+" FontSize="14" />
         <Button Name="BtnZoomOut" Classes="toolbar" ToolTip.Tip="Zoom Out"      Content="🔍-" FontSize="14" />
         <Button Name="BtnZoomFit" Classes="toolbar" ToolTip.Tip="Fit to Window" Content="⊡"  FontSize="16" />
         <Button Name="BtnZoomReset" Classes="toolbar" ToolTip.Tip="Reset Zoom (100%)" Content="1:1" FontSize="11" />
-        <Separator />
+        <Border Classes="vdivider" />
         <ToggleButton Name="BtnConnect" Classes="toolbar" ToolTip.Tip="Connect Objects (click source, then target)" Content="⇒" FontSize="16" />
         <Button       Name="BtnDelete"  Classes="toolbar" ToolTip.Tip="Delete Selected Object (Del)" Content="✕" FontSize="16" Foreground="Red" />
         <ToggleButton Name="BtnInspector" Classes="toolbar" ToolTip.Tip="Enable/Disable Inspector" Content="🔎" FontSize="14" />
 
-        <Separator />
+        <Border Classes="vdivider" />
 
-        <StackPanel Name="SubToolbarGroup" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+        <WrapPanel Name="SubToolbarGroup" Orientation="Horizontal" VerticalAlignment="Center">
           <CheckBox Name="ChkDrawGrid" Content="Grid" VerticalAlignment="Center" FontSize="11" />
           <CheckBox Name="ChkSnapToGrid" Content="Snap" VerticalAlignment="Center" FontSize="11" />
           <CheckBox Name="ChkMultiSelect" Content="Multi-Select" VerticalAlignment="Center" FontSize="11" />
-          <Separator />
+          <Border Classes="vdivider" />
           <TextBlock Text="Align:" VerticalAlignment="Center" FontSize="11" Margin="4,0,2,0" />
           <Button Name="BtnAlignLeft"   Classes="subtoolbar" ToolTip.Tip="Align Lefts"   Content="⇤" />
           <Button Name="BtnAlignCenter" Classes="subtoolbar" ToolTip.Tip="Align Centers" Content="⇔" />
@@ -203,12 +203,12 @@
           <Button Name="BtnAlignBottom" Classes="subtoolbar" ToolTip.Tip="Align Bottoms" Content="⤓" />
           <Button Name="BtnEqualizeH"   Classes="subtoolbar" ToolTip.Tip="Equalize Horizontal Spacing" Content="↔" />
           <Button Name="BtnEqualizeV"   Classes="subtoolbar" ToolTip.Tip="Equalize Vertical Spacing"   Content="↕" />
-          <Separator />
+          <Border Classes="vdivider" />
           <TextBlock Text="Search:" VerticalAlignment="Center" FontSize="11" Margin="4,0,2,0" />
           <TextBox Name="TbSearch" Width="140" Watermark="Find object..." FontSize="11"
                    VerticalAlignment="Center" VerticalContentAlignment="Center" />
-        </StackPanel>
-      </StackPanel>
+        </WrapPanel>
+      </WrapPanel>
     </Border>
 
     <!-- ===== Status Bar ===== -->

@@ -308,6 +308,25 @@
       <Setter Property="Cursor" Value="Hand" />
     </Style>
 
+    <!-- The flowsheet drawing toolbar is a WrapPanel (so it can flow to a second line); it has
+         no Spacing, so give its items margins and render group dividers as thin vertical bars. -->
+    <Style Selector="Border.vdivider">
+      <Setter Property="Width" Value="1" />
+      <Setter Property="Height" Value="18" />
+      <Setter Property="Margin" Value="5,2" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="Background" Value="{DynamicResource SplitterBrush}" />
+    </Style>
+    <Style Selector="Border#DrawingToolbarBorder Button">
+      <Setter Property="Margin" Value="1,0" />
+    </Style>
+    <Style Selector="Border#DrawingToolbarBorder ToggleButton">
+      <Setter Property="Margin" Value="1,0" />
+    </Style>
+    <Style Selector="Border#DrawingToolbarBorder CheckBox">
+      <Setter Property="Margin" Value="4,0" />
+    </Style>
+
   </Application.Styles>
 
 </Application>
