@@ -92,6 +92,7 @@ public partial class SimulationSetupWizard : Window
 
     private readonly ObservableCollection<CompoundRow> _compoundRows = new();
     private readonly List<CompoundRow> _allCompoundRows = new();
+    private DataGrid? _compoundGrid;
     private readonly ObservableCollection<PropPackRow> _ppRows = new();
 
     private TextBlock _compoundCount = null!;
@@ -292,6 +293,15 @@ public partial class SimulationSetupWizard : Window
 
         var search = new TextBox { Watermark = "Filter by name, CAS number, formula or database" };
         search.TextChanged += (_, _) => FilterCompounds(search.Text ?? "");
+        // Enter adds the best match (the selected, top-of-list compound)
+        search.KeyDown += (_, e) =>
+        {
+            if (e.Key != global::Avalonia.Input.Key.Enter) return;
+            var row = _compoundGrid?.SelectedItem as CompoundRow
+                      ?? (_compoundRows.Count > 0 ? _compoundRows[0] : null);
+            if (row != null) row.Added = true;
+            e.Handled = true;
+        };
 
         var searchRow = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
         var searchLabel = new TextBlock
@@ -320,6 +330,7 @@ public partial class SimulationSetupWizard : Window
             CanUserSortColumns = true,
             SelectionMode = DataGridSelectionMode.Single
         };
+        _compoundGrid = grid;
 
         // a checkbox column of the grid only reacts once the cell is in edit mode, which costs
         // two clicks and reads as broken; a checkbox in the cell itself takes the first one
@@ -398,14 +409,22 @@ public partial class SimulationSetupWizard : Window
         if (!string.IsNullOrWhiteSpace(query))
         {
             var q = query.Trim();
-            source = _allCompoundRows.Where(x =>
-                x.Name.IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0 ||
-                x.CAS.IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0 ||
-                x.Formula.IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0 ||
-                x.Database.IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0);
+            // most-similar first, so the exact name lands at the top and gets selected below
+            source = _allCompoundRows
+                .Where(x => CompoundSearch.Matches(x.Name, x.CAS, x.Formula, x.Database, q))
+                .OrderBy(x => CompoundSearch.Rank(x.Name, q))
+                .ThenBy(x => x.Name.Length)
+                .ThenBy(x => x.Name, StringComparer.CurrentCultureIgnoreCase);
         }
 
         foreach (var row in source) _compoundRows.Add(row);
+
+        // select the best match so the user can add it with Enter
+        if (!string.IsNullOrWhiteSpace(query) && _compoundRows.Count > 0 && _compoundGrid != null)
+        {
+            _compoundGrid.SelectedItem = _compoundRows[0];
+            _compoundGrid.ScrollIntoView(_compoundRows[0], null);
+        }
 
         UpdateCompoundCount();
     }

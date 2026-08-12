@@ -205,14 +205,24 @@ public partial class SimulationSettingsWindow : Window
         if (!string.IsNullOrWhiteSpace(query))
         {
             var q = query.Trim();
-            source = _allCompoundRows.Where(x =>
-                x.Name.IndexOf(q, StringComparison.CurrentCultureIgnoreCase) >= 0 ||
-                x.CAS.IndexOf(q, StringComparison.CurrentCultureIgnoreCase) >= 0 ||
-                x.Formula.IndexOf(q, StringComparison.CurrentCultureIgnoreCase) >= 0 ||
-                x.Database.IndexOf(q, StringComparison.CurrentCultureIgnoreCase) >= 0);
+            // rank matches from most to least similar so the exact name rises to the top: exact,
+            // then name-prefix, then name-contains, then a match only on CAS/formula/database; within
+            // a tier the shorter (closer) name wins, as the Windows search does
+            source = _allCompoundRows
+                .Where(x => CompoundSearch.Matches(x.Name, x.CAS, x.Formula, x.Database, q))
+                .OrderBy(x => CompoundSearch.Rank(x.Name, q))
+                .ThenBy(x => x.Name.Length)
+                .ThenBy(x => x.Name, StringComparer.CurrentCultureIgnoreCase);
         }
 
         foreach (var row in source) _compoundRows.Add(row);
+
+        // select the best match (the top of the similarity order) so the user can add it with Enter
+        if (!string.IsNullOrWhiteSpace(query) && _compoundRows.Count > 0)
+        {
+            GridCompounds.SelectedItem = _compoundRows[0];
+            GridCompounds.ScrollIntoView(_compoundRows[0], null);
+        }
 
         LblCompoundCount.Text = $"{_compoundRows.Count} of {_allCompoundRows.Count} compounds, " +
                                 $"{_flowsheet.SelectedCompounds.Count} in the simulation";
@@ -882,6 +892,15 @@ public partial class SimulationSettingsWindow : Window
 
         // ---- Compounds ----
         TbCompoundSearch.TextChanged += (_, _) => FilterCompounds(TbCompoundSearch.Text ?? "");
+        // Enter on the search box adds the best match (the selected, top-of-list compound)
+        TbCompoundSearch.KeyDown += (_, e) =>
+        {
+            if (e.Key != global::Avalonia.Input.Key.Enter) return;
+            var row = GridCompounds.SelectedItem as CompoundRow
+                      ?? (_compoundRows.Count > 0 ? _compoundRows[0] : null);
+            if (row != null) row.Added = true;
+            e.Handled = true;
+        };
         BtnClearSearch.Click += (_, _) => TbCompoundSearch.Text = "";
         BtnViewCompound.Click += (_, _) => ViewSelectedCompound();
         GridCompounds.DoubleTapped += (_, _) =>
