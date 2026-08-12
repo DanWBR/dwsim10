@@ -11,9 +11,9 @@
       <!-- Fluent/Semi default to 14 px for control content, which reads much larger than the
            8.25 pt (11 px) the WinForms UI uses. This is what menus, buttons, pickers and
            text boxes pick up. -->
-      <x:Double x:Key="ControlContentThemeFontSize">11</x:Double>
-      <x:Double x:Key="FontSizeNormal">11</x:Double>
-      <x:Double x:Key="FontSizeSmall">10</x:Double>
+      <x:Double x:Key="ControlContentThemeFontSize">12</x:Double>
+      <x:Double x:Key="FontSizeNormal">12</x:Double>
+      <x:Double x:Key="FontSizeSmall">11</x:Double>
       <!-- The floor Fluent gives text boxes, combo boxes, spinners and pickers: 32 px, which
            reads far taller than the WinForms fields. Down to 24, to match them, in one place. -->
       <x:Double x:Key="TextControlThemeMinHeight">24</x:Double>
@@ -65,7 +65,7 @@
          ================================================================= -->
 
     <Style Selector="Window">
-      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeNormal}" />
     </Style>
 
     <!-- The pruned custom TabControl template stretched its selected content to fill; Semi's
@@ -88,32 +88,34 @@
     </Style>
 
     <!-- Semi ignores ControlContentThemeFontSize (a Fluent key), so control font sizes must be
-         set explicitly. Compact the default (non-classed) buttons so Semi's 32 px/14 pt chrome
-         does not tower over the fields; classed toolbar/link buttons override this, and the
-         toolbar glyph buttons keep their inline FontSize (a local value wins over this style). -->
+         set explicitly per control. They all read the one FontSizeNormal resource above, so the
+         whole UI font size is changed in a single place. Compact the default (non-classed) buttons
+         so Semi's 32 px/14 pt chrome does not tower over the fields; classed toolbar/link buttons
+         override this, and the toolbar glyph buttons keep their inline FontSize (a local value
+         wins over this style). -->
     <Style Selector="Button">
-      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeNormal}" />
       <Setter Property="FontWeight" Value="Normal" />
       <Setter Property="MinHeight" Value="28" />
       <Setter Property="Padding" Value="12,5" />
     </Style>
     <Style Selector="ToggleButton">
-      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeNormal}" />
       <Setter Property="FontWeight" Value="Normal" />
     </Style>
     <Style Selector="TextBox">
-      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeNormal}" />
     </Style>
 
     <!-- Combo boxes: keep Semi's natural height (forcing a short MinHeight squished them);
          only bring the font down to 11. -->
     <Style Selector="ComboBox">
-      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeNormal}" />
     </Style>
     <!-- Check boxes: match the 11 px type, add a gap between the box and its label, and
          breathe vertically between rows (Semi packs them tight). -->
     <Style Selector="CheckBox">
-      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeNormal}" />
       <Setter Property="MinHeight" Value="0" />
       <Setter Property="Padding" Value="8,0,0,0" />
       <Setter Property="Margin" Value="0,3,0,3" />
@@ -121,14 +123,14 @@
 
     <!-- Compact dock tab headers. Semi/DockFluent leave them tall; force a compact height. -->
     <Style Selector="dac|ToolTabStripItem">
-      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeNormal}" />
       <Setter Property="Padding" Value="8,4" />
       <Setter Property="MinHeight" Value="0" />
       <Setter Property="VerticalContentAlignment" Value="Center" />
       <Setter Property="Foreground" Value="{DynamicResource DockTabForeground}" />
     </Style>
     <Style Selector="dac|DocumentTabStripItem">
-      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeNormal}" />
       <Setter Property="Padding" Value="8,0" />
       <Setter Property="MinHeight" Value="0" />
       <Setter Property="Height" Value="28" />
@@ -142,12 +144,12 @@
          font stays large; force colour (per theme) and size on the tab title TextBlock, which
          is robust to the tab template. -->
     <Style Selector="dac|DocumentTabStripItem TextBlock">
-      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeNormal}" />
       <Setter Property="VerticalAlignment" Value="Center" />
       <Setter Property="Foreground" Value="{DynamicResource DockTabForeground}" />
     </Style>
     <Style Selector="dac|ToolTabStripItem TextBlock">
-      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeNormal}" />
       <Setter Property="VerticalAlignment" Value="Center" />
       <Setter Property="Foreground" Value="{DynamicResource DockTabForeground}" />
     </Style>
@@ -196,7 +198,7 @@
          overrides in Application.Resources so it reads white-on-accent like the centre. -->
     <Style Selector="dac|ToolChromeControl /template/ TextBlock#PART_Title">
       <Setter Property="Foreground" Value="{DynamicResource DockTabForeground}" />
-      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeNormal}" />
     </Style>
 
     <!-- The proportional dock splitter needs a non-null background to be hit-testable, or it
@@ -214,18 +216,18 @@
 
     <!-- Compact data grids -->
     <Style Selector="DataGrid">
-      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeNormal}" />
       <Setter Property="RowHeight" Value="28" />
       <Setter Property="MinColumnWidth" Value="40" />
       <Setter Property="ColumnHeaderHeight" Value="24" />
     </Style>
     <Style Selector="DataGridColumnHeader">
-      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeNormal}" />
       <Setter Property="Padding" Value="6,1" />
       <Setter Property="MinHeight" Value="0" />
     </Style>
     <Style Selector="DataGridCell">
-      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeNormal}" />
       <Setter Property="Padding" Value="6,0" />
       <Setter Property="MinHeight" Value="0" />
     </Style>
@@ -240,23 +242,23 @@
 
     <!-- Editor panel compact controls -->
     <Style Selector="StackPanel.editorPanel TextBox">
-      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeNormal}" />
       <Setter Property="MinHeight" Value="24" />
     </Style>
     <Style Selector="StackPanel.editorPanel ComboBox">
-      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeNormal}" />
       <Setter Property="VerticalAlignment" Value="Center" />
       <Setter Property="VerticalContentAlignment" Value="Center" />
     </Style>
     <Style Selector="StackPanel.editorPanel NumericUpDown">
-      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeNormal}" />
       <Setter Property="MinHeight" Value="24" />
     </Style>
     <Style Selector="StackPanel.editorPanel CheckBox">
-      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeNormal}" />
     </Style>
     <Style Selector="StackPanel.editorPanel AutoCompleteBox">
-      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeNormal}" />
       <Setter Property="MinHeight" Value="24" />
     </Style>
 
@@ -292,11 +294,11 @@
     </Style>
 
     <Style Selector="TextBlock.welcomeHeader">
-      <Setter Property="FontSize" Value="14" />
+      <Setter Property="FontSize" Value="15" />
       <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
     <Style Selector="TextBlock.welcomeSubtitle">
-      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeNormal}" />
       <Setter Property="Opacity" Value="0.7" />
       <Setter Property="TextWrapping" Value="Wrap" />
       <Setter Property="Margin" Value="0,0,0,4" />
