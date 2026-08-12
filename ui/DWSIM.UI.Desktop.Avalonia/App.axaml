@@ -47,6 +47,7 @@
       <SolidColorBrush x:Key="DockTabActiveForegroundBrush" Color="White" />
       <SolidColorBrush x:Key="DockDocumentTabSelectedForegroundBrush" Color="White" />
       <SolidColorBrush x:Key="DockTabSelectedForegroundBrush" Color="White" />
+
     </ResourceDictionary>
   </Application.Resources>
 
@@ -71,6 +72,12 @@
          default leaves it at desired size, so fill-content (e.g. the About license box) collapses.
          Restore stretch so a TextBox in a fill slot takes the remaining height. -->
     <Style Selector="TabControl">
+      <Setter Property="VerticalContentAlignment" Value="Stretch" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    </Style>
+    <Style Selector="TabControl /template/ ContentPresenter#PART_SelectedContentHost">
+      <Setter Property="VerticalAlignment" Value="Stretch" />
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
       <Setter Property="VerticalContentAlignment" Value="Stretch" />
       <Setter Property="HorizontalContentAlignment" Value="Stretch" />
     </Style>
@@ -221,7 +228,8 @@
     </Style>
     <Style Selector="StackPanel.editorPanel ComboBox">
       <Setter Property="FontSize" Value="11" />
-      <Setter Property="MinHeight" Value="24" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
     </Style>
     <Style Selector="StackPanel.editorPanel NumericUpDown">
       <Setter Property="FontSize" Value="11" />
