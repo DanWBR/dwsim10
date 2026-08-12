@@ -113,6 +113,21 @@ jobs:
           chmod +x "$dest/dwsim-assistant" 2>/dev/null || true
           ls -la "$dest"
 
+      # Shared distribution content (data, help, samples, User Guide) is published as a release asset
+      # so it stays out of git; fetched here and unpacked at the publish root. Best-effort: if the
+      # asset is missing the app still ships, just without the bundled documentation and samples.
+      - name: Add the distribution content
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release download content-10.2 --repo DanWBR/dwsim10 --pattern dwsim-content.tar.gz --dir . --clobber; then
+            tar -xzf dwsim-content.tar.gz -C publish/${{ matrix.rid }}
+            rm -f dwsim-content.tar.gz
+            echo "distribution content added"
+          else
+            echo "::warning::distribution content content-10.2 not found; shipping without data/help/samples/docs"
+          fi
+
       - name: Archive
         run: |
           version=${{ steps.version.outputs.value }}
