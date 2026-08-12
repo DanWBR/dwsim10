@@ -683,7 +683,7 @@ namespace DWSIM.UI.Desktop.Editors
                 ItemsSource = items.ToList(),
                 SelectedIndex = selected >= 0 && selected < items.Length ? selected : 0,
                 FontSize = 11,
-                MinHeight = 0
+                VerticalContentAlignment = VerticalAlignment.Center
             };
 
             if (width > 0) combo.Width = width;

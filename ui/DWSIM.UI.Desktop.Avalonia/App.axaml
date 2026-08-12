@@ -81,6 +81,11 @@
       <Setter Property="VerticalContentAlignment" Value="Stretch" />
       <Setter Property="HorizontalContentAlignment" Value="Stretch" />
     </Style>
+    <!-- A touch more height on the TabControl headers so they are not cramped. -->
+    <Style Selector="TabItem">
+      <Setter Property="MinHeight" Value="34" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
 
     <!-- Semi ignores ControlContentThemeFontSize (a Fluent key), so control font sizes must be
          set explicitly. Compact the default (non-classed) buttons so Semi's 32 px/14 pt chrome
