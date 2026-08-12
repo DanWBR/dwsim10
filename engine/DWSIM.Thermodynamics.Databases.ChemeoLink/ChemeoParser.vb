@@ -15,7 +15,7 @@ Public Class ChemeoParser
             Dim resultFilter = If(exact,
                 Function(x As Compound) String.Equals(x.Compound, searchstring, StringComparison.OrdinalIgnoreCase),
                 Function(x As Compound) True)
-            If result.Comps Is Nothing Then
+            If result Is Nothing OrElse result.Comps Is Nothing Then
                 Return New List(Of String())
             Else
                 Return result.Comps.Where(resultFilter).Select(Function(x) New String() {x.Id, x.Compound}).ToList()
@@ -146,7 +146,14 @@ Public Class ChemeoParser
     Private Shared Async Function GetResponse(url As String) As Task(Of HttpResponseMessage)
 
         Dim siteUri As Uri = New Uri(url)
-        Dim proxyUri As Uri = Net.WebRequest.GetSystemWebProxy.GetProxy(siteUri)
+
+        ' GetSystemWebProxy().GetProxy() returns Nothing when there is no system proxy (the norm
+        ' on Linux/macOS); guarding it here avoids a NullReferenceException on those platforms.
+        Dim proxyUri As Uri = Nothing
+        Try
+            proxyUri = Net.WebRequest.GetSystemWebProxy().GetProxy(siteUri)
+        Catch
+        End Try
 
         Dim handler As New HttpClientHandler()
 
@@ -154,7 +161,7 @@ Public Class ChemeoParser
         handler.AutomaticDecompression = DecompressionMethods.GZip
         handler.ClientCertificateOptions = ClientCertificateOption.Automatic
 
-        If Not siteUri.AbsolutePath = proxyUri.AbsolutePath Then
+        If proxyUri IsNot Nothing AndAlso Not siteUri.AbsolutePath = proxyUri.AbsolutePath Then
             Dim proxyObj As New WebProxy(proxyUri) With {
                 .Credentials = CredentialCache.DefaultCredentials
             }

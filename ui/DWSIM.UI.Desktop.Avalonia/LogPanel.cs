@@ -51,17 +51,20 @@ public sealed class LogPanel : DockPanel
 
     public LogPanel()
     {
+        // Kept out of the prime top area to give the log table more room: a compact row at the
+        // bottom-right (the same actions are also on the grid's right-click menu).
         var toolbar = new StackPanel
         {
             Orientation = global::Avalonia.Layout.Orientation.Horizontal,
             Spacing = 2,
-            Margin = new Thickness(4, 2)
+            Margin = new Thickness(4, 2),
+            HorizontalAlignment = global::Avalonia.Layout.HorizontalAlignment.Right
         };
 
         toolbar.Children.Add(ToolButton("Clear List", (_, _) => Clear()));
         toolbar.Children.Add(ToolButton("Copy Information", async (_, _) => await CopySelectedAsync()));
 
-        SetDock(toolbar, global::Avalonia.Controls.Dock.Top);
+        SetDock(toolbar, global::Avalonia.Controls.Dock.Bottom);
         Children.Add(toolbar);
 
         _grid = new DataGrid

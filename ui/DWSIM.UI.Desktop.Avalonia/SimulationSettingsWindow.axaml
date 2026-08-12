@@ -40,8 +40,6 @@
           <Border Classes="group">
             <DockPanel>
 
-              <TextBlock DockPanel.Dock="Top" Classes="groupHeader" Text="Compounds" />
-
               <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6">
                 <TextBlock DockPanel.Dock="Left" Text="Search" VerticalAlignment="Center"
                            Margin="0,0,8,0" />
@@ -137,7 +135,7 @@
                       </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                   </DataGridTemplateColumn>
-                  <DataGridTemplateColumn Header="" Width="90">
+                  <DataGridTemplateColumn Header="" Width="110">
                     <DataGridTemplateColumn.CellTemplate>
                       <DataTemplate>
                         <Button Classes="panel" Content="📄 Copy" FontSize="11" Margin="2"

@@ -2758,7 +2758,7 @@ public partial class FlowsheetView : UserControl
     // -------------------------------------------------------------------------
 
     /// <summary>Category name -> list of (displayName, iconBytes) pairs.</summary>
-    private readonly Dictionary<string, List<(string name, byte[]? icon)>> _paletteCategories = new();
+    private readonly Dictionary<string, List<(string name, byte[]? icon, string? tip)>> _paletteCategories = new();
 
     /// <summary>Static fallback categories used when ObjectList is empty (before Initialize).</summary>
     private static readonly (string category, string[] items)[] FallbackCategories =
@@ -2848,10 +2848,12 @@ public partial class FlowsheetView : UserControl
                 var category = ObjectClassToCategory(obj.ObjectClass);
                 byte[]? iconBytes = null;
                 try { iconBytes = obj.GetIconBitmapBytes(); } catch { }
+                string? tip = null;
+                try { tip = obj.GetDisplayDescription(); } catch { }
 
                 if (!_paletteCategories.ContainsKey(category))
-                    _paletteCategories[category] = new List<(string, byte[]?)>();
-                _paletteCategories[category].Add((displayName, iconBytes));
+                    _paletteCategories[category] = new List<(string, byte[]?, string?)>();
+                _paletteCategories[category].Add((displayName, iconBytes, tip));
             }
         }
 
@@ -2860,7 +2862,7 @@ public partial class FlowsheetView : UserControl
         {
             foreach (var (cat, items) in FallbackCategories)
             {
-                _paletteCategories[cat] = items.Select(n => (name: n, icon: (byte[]?)null)).ToList();
+                _paletteCategories[cat] = items.Select(n => (name: n, icon: (byte[]?)null, tip: (string?)null)).ToList();
             }
         }
 
@@ -2909,7 +2911,7 @@ public partial class FlowsheetView : UserControl
                 Margin = new Thickness(4, 2, 4, 6)
             };
 
-            foreach (var (name, iconBytes) in items)
+            foreach (var (name, iconBytes, tip) in items)
             {
                 var cell = new StackPanel
                 {
@@ -2920,6 +2922,10 @@ public partial class FlowsheetView : UserControl
                     Cursor = new Cursor(StandardCursorType.Hand),
                     Tag = name
                 };
+
+                // Hover tooltip: the object description, as in the classic UI.
+                if (!string.IsNullOrWhiteSpace(tip))
+                    global::Avalonia.Controls.ToolTip.SetTip(cell, tip);
 
                 // Icon
                 Control iconCtrl;
