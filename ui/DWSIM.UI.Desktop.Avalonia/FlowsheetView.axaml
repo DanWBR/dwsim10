@@ -170,19 +170,25 @@
         <Button Name="BtnLoadSolution"   Classes="toolbar" ToolTip.Tip="Restore Selected" Content="♻" FontSize="14" />
         <Button Name="BtnDeleteSolution" Classes="toolbar" ToolTip.Tip="Remove Selected"  Content="🗑" FontSize="14" />
 
-        <Separator />
+      </StackPanel>
+    </Border>
+
+    <!-- ===== Drawing toolbar (moved into the flowsheet document at run time) =====
+         Canvas-specific controls: zoom, connect, delete, inspector. -->
+    <Border DockPanel.Dock="Top" BorderThickness="0,0,0,1" Padding="4,2" Name="DrawingToolbarBorder">
+      <StackPanel Orientation="Horizontal" Spacing="2">
         <Button Name="BtnZoomIn"  Classes="toolbar" ToolTip.Tip="Zoom In"       Content="🔍+" FontSize="14" />
         <Button Name="BtnZoomOut" Classes="toolbar" ToolTip.Tip="Zoom Out"      Content="🔍-" FontSize="14" />
         <Button Name="BtnZoomFit" Classes="toolbar" ToolTip.Tip="Fit to Window" Content="⊡"  FontSize="16" />
         <Button Name="BtnZoomReset" Classes="toolbar" ToolTip.Tip="Reset Zoom (100%)" Content="1:1" FontSize="11" />
+        <Separator />
         <ToggleButton Name="BtnConnect" Classes="toolbar" ToolTip.Tip="Connect Objects (click source, then target)" Content="⇒" FontSize="16" />
         <Button       Name="BtnDelete"  Classes="toolbar" ToolTip.Tip="Delete Selected Object (Del)" Content="✕" FontSize="16" Foreground="Red" />
         <ToggleButton Name="BtnInspector" Classes="toolbar" ToolTip.Tip="Enable/Disable Inspector" Content="🔎" FontSize="14" />
-
       </StackPanel>
     </Border>
 
-    <!-- ===== Sub-Toolbar (flowsheet controls) ===== -->
+    <!-- ===== Sub-Toolbar (flowsheet controls, moved into the flowsheet document at run time) ===== -->
     <Border DockPanel.Dock="Top" BorderThickness="0,0,0,1" Padding="4,1" Name="SubToolbarBorder">
       <StackPanel Orientation="Horizontal" Spacing="4">
         <CheckBox Name="ChkDrawGrid" Content="Grid" VerticalAlignment="Center" FontSize="11" />

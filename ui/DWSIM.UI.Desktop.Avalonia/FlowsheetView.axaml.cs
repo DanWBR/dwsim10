@@ -215,6 +215,10 @@ public partial class FlowsheetView : UserControl
     // -------------------------------------------------------------------------
 
     private readonly FlowsheetCanvas Canvas;
+
+    // Wraps the canvas together with the drawing/sub toolbars so they live inside the flowsheet
+    // document (over the drawing only), instead of spanning the whole view above editor and palette.
+    private readonly DockPanel _canvasHost = new();
     private readonly EditorHolder EditorHolder;
     private readonly StackPanel PaletteStack;
     private readonly ResultsViewerPanel ResultsPanel;
@@ -263,6 +267,16 @@ public partial class FlowsheetView : UserControl
         // does not stay on the previous variant until the next pointer move.
         ActualThemeVariantChanged += (_, _) => Canvas?.Refresh();
 
+        // Move the flowsheet-drawing toolbars into the document that holds the canvas, so they sit
+        // over the drawing only (as in the classic UI), not across the editor and palette.
+        RootPanel.Children.Remove(DrawingToolbarBorder);
+        RootPanel.Children.Remove(SubToolbarBorder);
+        DockPanel.SetDock(DrawingToolbarBorder, global::Avalonia.Controls.Dock.Top);
+        DockPanel.SetDock(SubToolbarBorder, global::Avalonia.Controls.Dock.Top);
+        _canvasHost.Children.Add(DrawingToolbarBorder);
+        _canvasHost.Children.Add(SubToolbarBorder);
+        _canvasHost.Children.Add(Canvas);
+
         SetupDockLayout();
         WireToolbar();
         WireMenus();
@@ -309,7 +323,7 @@ public partial class FlowsheetView : UserControl
         // Bottom tool panel: Log (and later Dynamics Integrator)
         _dockFactory = new FlowsheetDockFactory(
             editorContent: EditorHolder,
-            canvasContent: Canvas,
+            canvasContent: _canvasHost,
             paletteContent: paletteContent,
             logContent: LogList,
             resultsContent: ResultsPanel,
