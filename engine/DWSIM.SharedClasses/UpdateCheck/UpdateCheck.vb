@@ -5,7 +5,7 @@ Public Class UpdateCheck
     Public Shared Function CheckForUpdates() As Boolean
         Try
             Dim webClient = New WebClient()
-            Dim url = New Uri("https://dwsim.org/update/desktop_pe.txt")
+            Dim url = New Uri("https://dwsim.org/update/desktop.txt")
             Dim latestversion As String = ""
             latestversion = webClient.DownloadString(url)
             If latestversion = "" Then Return False

@@ -9,6 +9,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.VisualTree;
+using System.Threading.Tasks;
 using DWSIM.Interfaces;
 using DWSIM.Thermodynamics.BaseClasses;
 
@@ -83,6 +84,67 @@ public partial class MainWindow : Window
 
         if (_previousRunCrashed && BackupRecoveryWindow.FindBackups().Length > 0)
             await new BackupRecoveryWindow(OpenFlowsheetFile).ShowDialog(this);
+
+        _ = CheckForUpdatesAsync();
+    }
+
+    /// <summary>Startup update check, as the WinForms UI did: if enabled, ask dwsim.org whether a
+    /// newer version exists and, if so, offer to open the downloads page.</summary>
+    private async Task CheckForUpdatesAsync()
+    {
+        if (!DWSIM.GlobalSettings.Settings.CheckForUpdates) return;
+        try
+        {
+            var (available, whatsnew) = await Task.Run(() =>
+            {
+                DWSIM.GlobalSettings.Settings.CurrentRunningVersion =
+                    Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "";
+                bool av = DWSIM.SharedClasses.UpdateCheck.CheckForUpdates();
+                return (av, av ? DWSIM.SharedClasses.UpdateCheck.GetWhatsNew() : "");
+            });
+
+            if (!available) return;
+
+            var body = new TextBlock
+            {
+                Text = "A newer version of DWSIM is available." +
+                       (string.IsNullOrWhiteSpace(whatsnew) ? "" : "\n\n" + whatsnew),
+                TextWrapping = global::Avalonia.Media.TextWrapping.Wrap,
+                Margin = new Thickness(14)
+            };
+
+            var later = new Button { Content = "Later", IsCancel = true, Width = 90, Margin = new Thickness(6) };
+            var download = new Button { Content = "Open Downloads", IsDefault = true, Width = 150, Margin = new Thickness(6) };
+            download.Classes.Add("dialog");
+
+            var buttons = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Margin = new Thickness(8)
+            };
+            buttons.Children.Add(later);
+            buttons.Children.Add(download);
+
+            var root = new DockPanel();
+            DockPanel.SetDock(buttons, global::Avalonia.Controls.Dock.Bottom);
+            root.Children.Add(buttons);
+            root.Children.Add(new ScrollViewer { Content = body });
+
+            var dlg = new Window
+            {
+                Title = "Update Available",
+                Width = 520,
+                Height = 360,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Content = root
+            };
+            IconHelper.ApplyWindowIcon(dlg);
+            later.Click += (_, _) => dlg.Close();
+            download.Click += (_, _) => { OpenUrl("https://dwsim.org/downloads"); dlg.Close(); };
+            await dlg.ShowDialog(this);
+        }
+        catch { }
     }
 
     private void OnMainWindowClosing(object? sender, System.ComponentModel.CancelEventArgs e)
