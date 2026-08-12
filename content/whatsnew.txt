@@ -7,6 +7,7 @@
 - [NEW] Cross-platform interface: backup copies are offered back at startup when the previous run did not close normally
 - [NEW] Assay Manager: assays saved and loaded as XML, with the previous binary format still read
 - [NEW] Forced Solids tab back on the advanced property package editor, next to Property Overrides
+- [NEW] Cross-platform interface: the Natural Gas Properties and Heat of Combustion Calculator plugins are back, on the Plugins menu
 - [CHG] IPOPT is now a managed solver shipped with DWSIM, checked against the native library over five thousand problems
 - [CHG] Gibbs reactor initial estimate solved by a managed simplex instead of the native lpsolve55
 - [CHG] Petalas-Aziz two-phase pressure drop converted from a native library to managed code
@@ -52,4 +53,5 @@
 - [FIX] Cross-platform interface: the phase envelope dew curve drew a stray segment far past the critical point instead of ending there
 - [FIX] Cross-platform interface: the phase envelope failed with "B = infinity" for mixtures whose compounds have no fusion temperature
 - [FIX] Cross-platform interface: external unit operations (bioreactor, anaerobic digester) could not be added from the palette or the context menu
+- [FIX] Cross-platform interface: premium, refining and biochemical unit operations were spread across the generic palette sections instead of their own
 - [FIX] Cross-platform interface: the compressor and expander performance-curve editor did not open on the expander and could not create curves
