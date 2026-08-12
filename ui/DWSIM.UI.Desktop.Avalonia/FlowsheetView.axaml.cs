@@ -298,6 +298,7 @@ public partial class FlowsheetView : UserControl
         {
             Text = "Objects",
             FontWeight = FontWeight.SemiBold,
+            FontSize = 11,
             Margin = new Thickness(6, 6, 6, 4)
         };
         DockPanel.SetDock(paletteHeader, global::Avalonia.Controls.Dock.Top);
@@ -490,7 +491,17 @@ public partial class FlowsheetView : UserControl
         Canvas.InputDoubleClick += (mods) =>
         {
             var obj = _surface?.SelectedObject;
-            if (obj == null || _flowsheet == null) return;
+            if (obj == null)
+            {
+                // Double-click on empty canvas fits the drawing to the view (classic UI behaviour).
+                if (_surface != null)
+                {
+                    _surface.ZoomAll((int)Canvas.Bounds.Width, (int)Canvas.Bounds.Height);
+                    Canvas.Refresh();
+                }
+                return;
+            }
+            if (_flowsheet == null) return;
             var simObj = _flowsheet.SimulationObjects.ContainsKey(obj.Name)
                 ? _flowsheet.SimulationObjects[obj.Name] : null;
             if (simObj == null) return;
@@ -2832,7 +2843,7 @@ public partial class FlowsheetView : UserControl
             var arrowText = new TextBlock
             {
                 Text = "↓",  // down arrow = expanded
-                FontSize = 13,
+                FontSize = 11,
                 FontWeight = FontWeight.Bold,
                 Foreground = Brushes.SteelBlue,
                 VerticalAlignment = VerticalAlignment.Center,
@@ -2843,7 +2854,7 @@ public partial class FlowsheetView : UserControl
             {
                 Text = cat,
                 FontWeight = FontWeight.SemiBold,
-                FontSize = 13,
+                FontSize = 11,
                 VerticalAlignment = VerticalAlignment.Center
             };
             var headerPanel = new StackPanel

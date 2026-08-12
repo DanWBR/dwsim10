@@ -20,7 +20,7 @@ namespace DWSIM.UI.Shared.Avalonia;
 public class AvaloniaEditorPanel : StackPanel
 {
     public const int DefaultControlWidth = 230;
-    public const double RowSpacing = 4.0;
+    public const double RowSpacing = 6.0;
 
     private Action? _onAfterEdit;
     private bool _armed;
@@ -50,7 +50,7 @@ public class AvaloniaEditorPanel : StackPanel
     public AvaloniaEditorPanel()
     {
         Orientation = Orientation.Vertical;
-        Spacing = 0;
+        Spacing = RowSpacing;
         Margin = new Thickness(2);
         TextElement.SetFontSize(this, 11);
 

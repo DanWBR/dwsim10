@@ -57,6 +57,14 @@
       <Setter Property="FontSize" Value="11" />
     </Style>
 
+    <!-- The pruned custom TabControl template stretched its selected content to fill; Semi's
+         default leaves it at desired size, so fill-content (e.g. the About license box) collapses.
+         Restore stretch so a TextBox in a fill slot takes the remaining height. -->
+    <Style Selector="TabControl">
+      <Setter Property="VerticalContentAlignment" Value="Stretch" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    </Style>
+
     <!-- Semi ignores ControlContentThemeFontSize (a Fluent key), so control font sizes must be
          set explicitly. Compact the default (non-classed) buttons so Semi's 32 px/14 pt chrome
          does not tower over the fields; classed toolbar/link buttons override this, and the
@@ -75,11 +83,18 @@
       <Setter Property="FontSize" Value="11" />
     </Style>
 
-    <!-- Combo boxes off the editor panels read too short next to the buttons; give them
-         a matching height. The editorPanel descendant rule below keeps its own 24 px. -->
+    <!-- Combo boxes: keep Semi's natural height (forcing a short MinHeight squished them);
+         only bring the font down to 11. -->
     <Style Selector="ComboBox">
       <Setter Property="FontSize" Value="11" />
-      <Setter Property="MinHeight" Value="28" />
+    </Style>
+    <!-- Check boxes: match the 11 px type, add a gap between the box and its label, and
+         breathe vertically between rows (Semi packs them tight). -->
+    <Style Selector="CheckBox">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="MinHeight" Value="0" />
+      <Setter Property="Padding" Value="8,0,0,0" />
+      <Setter Property="Margin" Value="0,3,0,3" />
     </Style>
 
     <!-- Compact dock tab headers. Semi/DockFluent leave them tall; force a compact height. -->
@@ -103,8 +118,10 @@
       <Setter Property="FontSize" Value="11" />
       <Setter Property="Foreground" Value="{DynamicResource DockTabForeground}" />
     </Style>
+    <!-- The selected document tab is filled with the accent colour, so its title reads
+         white in both variants; the unselected ones use the per-theme foreground above. -->
     <Style Selector="dac|DocumentTabStripItem:selected TextBlock">
-      <Setter Property="Foreground" Value="{DynamicResource DockTabForegroundSelected}" />
+      <Setter Property="Foreground" Value="White" />
     </Style>
     <Style Selector="dac|ToolTabStripItem TextBlock">
       <Setter Property="FontSize" Value="11" />
