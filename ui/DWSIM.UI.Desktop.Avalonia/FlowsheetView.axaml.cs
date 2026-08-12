@@ -2847,6 +2847,19 @@ public partial class FlowsheetView : UserControl
 
                 var displayName = obj.GetDisplayName();
                 var category = ObjectClassToCategory(obj.ObjectClass);
+                // External unit operations (bio, refining, premium) reuse generic ObjectClass
+                // values (Reactors, Exchangers, Logical...). The classic palette
+                // (SimulationObjectsPanel) reroutes them to their own sections via the
+                // IsPremium/IsRefining/IsBio reflection flags; mirror that here so the
+                // Premium, Refining and Biochemical tabs appear.
+                try
+                {
+                    var t = obj.GetType();
+                    if (t.GetProperty("IsPremium")?.GetValue(obj) is bool p && p) category = "Premium";
+                    if (t.GetProperty("IsRefining")?.GetValue(obj) is bool r && r) category = "Refining";
+                    if (t.GetProperty("IsBio")?.GetValue(obj) is bool b && b) category = "Biochemical";
+                }
+                catch { }
                 byte[]? iconBytes = null;
                 try { iconBytes = obj.GetIconBitmapBytes(); } catch { }
                 string? tip = null;
@@ -3759,5 +3772,9 @@ public partial class FlowsheetView : UserControl
 
         foreach (var pi in pluginItems)
             MenuPlugins.Items.Add(pi);
+
+        // Neither edition ships utility plugins by default; a top-level menu that is always
+        // empty is just noise, so hide it until the plugins/ folder actually contributes one.
+        MenuPlugins.IsVisible = MenuPlugins.Items.Count > 0;
     }
 }
