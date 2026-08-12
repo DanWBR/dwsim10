@@ -67,6 +67,19 @@ jobs:
             -p:CoolPropRid=${{ matrix.rid }} \
             -o publish/${{ matrix.rid }}
 
+      # The open-source utility plugins (Natural Gas Properties, Heat of Combustion) are separate
+      # net10 assemblies the app loads from plugins/ at runtime. Build each and drop its DLL in;
+      # their managed dependencies (FileHelpers) already ship at the publish root.
+      - name: Add the utility plugins
+        run: |
+          dest="publish/${{ matrix.rid }}/plugins"
+          mkdir -p "$dest"
+          for proj in DWSIM.Plugins.NaturalGas DWSIM.Plugins.HeatOfCombustion; do
+            dotnet build "plugins/$proj/$proj.vbproj" -c Release -p:Version=${{ steps.version.outputs.value }}
+            cp "plugins/$proj/bin/Release/net10.0/$proj.dll" "$dest/"
+          done
+          ls -la "$dest"
+
       # Some native dependencies commit one library per runtime and lean on the build to copy only
       # the matching one; a few leak the others in. A foreign-platform library is dead weight, and
       # on macOS codesign seals the bundle and rejects an unsigned Linux .so as nested code. Keep

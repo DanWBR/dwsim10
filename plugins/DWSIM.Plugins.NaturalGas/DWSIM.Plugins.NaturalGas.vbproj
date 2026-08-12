@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Natural Gas Properties, the cross-platform (Avalonia) edition of the open-source DWSIM plugin.
+    The UtilityForm returns an Avalonia Window built by Populate over the selected Material Stream.
+    The heating-value tables (pc_massico/pc_volumetrico) are embedded and read by FileHelpers.
+  -->
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <RootNamespace>DWSIM.Plugins.NaturalGas</RootNamespace>
+    <AssemblyName>DWSIM.Plugins.NaturalGas</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" />
+    <PackageReference Include="FileHelpers" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The material stream and property package implement the CAPE-OPEN interfaces on their
+         class declaration, so any consumer that touches those types needs CapeOpen referenced. -->
+    <Reference Include="CapeOpen">
+      <HintPath>..\..\lib\CapeOpen.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\pc_massico.txt">
+      <LogicalName>pc_massico.txt</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Resources\pc_volumetrico.txt">
+      <LogicalName>pc_volumetrico.txt</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\engine\DWSIM.Interfaces\DWSIM.Interfaces.vbproj" Private="False" />
+    <ProjectReference Include="..\..\engine\DWSIM.ExtensionMethods\DWSIM.ExtensionMethods.vbproj" Private="False" />
+    <ProjectReference Include="..\..\engine\DWSIM.SharedClasses\DWSIM.SharedClasses.vbproj" Private="False" />
+    <ProjectReference Include="..\..\engine\DWSIM.Thermodynamics\DWSIM.Thermodynamics.vbproj" Private="False" />
+    <ProjectReference Include="..\..\engine\DWSIM.Numerics.Ipopt\DWSIM.Numerics.Ipopt.csproj" Private="False" />
+    <ProjectReference Include="..\..\ui\DWSIM.UI.Shared.Avalonia\DWSIM.UI.Shared.Avalonia.csproj" Private="False" />
+  </ItemGroup>
+
+</Project>

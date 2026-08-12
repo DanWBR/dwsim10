@@ -63,6 +63,10 @@
   <Folder Name="/extensions/">
     <Project Path="extensions/DWSIM.Extensions.AI.Assistant/DWSIM.Extensions.AI.Assistant.vbproj" />
   </Folder>
+  <Folder Name="/plugins/">
+    <Project Path="plugins/DWSIM.Plugins.NaturalGas/DWSIM.Plugins.NaturalGas.vbproj" />
+    <Project Path="plugins/DWSIM.Plugins.HeatOfCombustion/DWSIM.Plugins.HeatOfCombustion.vbproj" />
+  </Folder>
   <Folder Name="/external/">
     <Project Path="external/ReoGrid/ReoGrid/ReoGridAvalonia.csproj" />
   </Folder>

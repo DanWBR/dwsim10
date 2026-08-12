@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Heat of Combustion Calculator, the cross-platform (Avalonia) edition of the open-source
+    DWSIM plugin. The UtilityForm returns an Avalonia Window; the calculation is interface-only.
+  -->
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <RootNamespace>DWSIM.Plugins.HeatOfCombustion</RootNamespace>
+    <AssemblyName>DWSIM.Plugins.HeatOfCombustion</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\engine\DWSIM.Interfaces\DWSIM.Interfaces.vbproj" Private="False" />
+    <ProjectReference Include="..\..\engine\DWSIM.ExtensionMethods\DWSIM.ExtensionMethods.vbproj" Private="False" />
+    <ProjectReference Include="..\..\ui\DWSIM.UI.Shared.Avalonia\DWSIM.UI.Shared.Avalonia.csproj" Private="False" />
+  </ItemGroup>
+
+</Project>
