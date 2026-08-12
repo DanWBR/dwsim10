@@ -44,8 +44,21 @@ if [ -n "${MACOS_SIGN_IDENTITY:-}" ]; then
                 *.dll) : ;;
                 *) file -b "$lib" | grep -q 'Mach-O' || continue ;;
             esac
-            codesign --force --timestamp --options runtime \
-                     --sign "$MACOS_SIGN_IDENTITY" "$lib"
+            # The bundled AI assistant is a PyInstaller onefile: under the hardened
+            # runtime it unpacks and dlopens its own libraries at run time, so it
+            # needs the same entitlements as the apphost or library validation
+            # kills it on launch. It sits in a nonstandard location that the
+            # bundle's --deep pass does not reach, so the signature (and its
+            # entitlements) applied here is the one that ships.
+            case "$lib" in
+                */extenders/AIAssistantFiles/dwsim-assistant)
+                    codesign --force --timestamp --options runtime \
+                             --entitlements "$here/entitlements.plist" \
+                             --sign "$MACOS_SIGN_IDENTITY" "$lib" ;;
+                *)
+                    codesign --force --timestamp --options runtime \
+                             --sign "$MACOS_SIGN_IDENTITY" "$lib" ;;
+            esac
         done
 
     # The bundle is signed in one pass with --deep. The apphost shares its base name with data
