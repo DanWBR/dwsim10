@@ -2758,19 +2758,31 @@ public partial class FlowsheetView : UserControl
         ("Other",             new[] { "Text Block", "Property Table", "Chart Object", "Spreadsheet Table", "Master Table" }),
     };
 
-    /// <summary>Maps ObjectClass enum to palette category name (matches Eto Flowsheet.eto.cs).</summary>
+    /// <summary>Maps every ObjectClass enum member to a palette category name. The enum in
+    /// DWSIM.Interfaces has 22 members: any left unmapped would collapse into "Other".</summary>
     private static string ObjectClassToCategory(Interfaces.Enums.SimulationObjectClass cls) => cls switch
     {
-        Interfaces.Enums.SimulationObjectClass.Streams        => "Streams",
+        Interfaces.Enums.SimulationObjectClass.Streams          => "Streams",
         Interfaces.Enums.SimulationObjectClass.PressureChangers => "Pressure Changers",
-        Interfaces.Enums.SimulationObjectClass.Separators     => "Separators",
-        Interfaces.Enums.SimulationObjectClass.MixersSplitters => "Mixers/Splitters",
-        Interfaces.Enums.SimulationObjectClass.Exchangers     => "Heat Exchangers",
-        Interfaces.Enums.SimulationObjectClass.Columns        => "Columns",
-        Interfaces.Enums.SimulationObjectClass.Reactors       => "Reactors",
-        Interfaces.Enums.SimulationObjectClass.Solids         => "Solids",
-        Interfaces.Enums.SimulationObjectClass.Logical        => "Logical",
-        _                                                     => "Other"
+        Interfaces.Enums.SimulationObjectClass.Separators       => "Separators",
+        Interfaces.Enums.SimulationObjectClass.MixersSplitters  => "Mixers/Splitters",
+        Interfaces.Enums.SimulationObjectClass.Exchangers       => "Heat Exchangers",
+        Interfaces.Enums.SimulationObjectClass.Reactors         => "Reactors",
+        Interfaces.Enums.SimulationObjectClass.Columns          => "Columns",
+        Interfaces.Enums.SimulationObjectClass.Solids           => "Solids",
+        Interfaces.Enums.SimulationObjectClass.CAPEOPEN         => "CAPE-OPEN",
+        Interfaces.Enums.SimulationObjectClass.UserModels       => "User Models",
+        Interfaces.Enums.SimulationObjectClass.Logical          => "Logical",
+        Interfaces.Enums.SimulationObjectClass.Indicators       => "Logical",
+        Interfaces.Enums.SimulationObjectClass.Controllers      => "Logical",
+        Interfaces.Enums.SimulationObjectClass.Switches         => "Logical",
+        Interfaces.Enums.SimulationObjectClass.Inputs           => "Logical",
+        Interfaces.Enums.SimulationObjectClass.CleanPowerSources => "Clean Power",
+        Interfaces.Enums.SimulationObjectClass.Electrolyzers    => "Electrolyzers",
+        Interfaces.Enums.SimulationObjectClass.Premium          => "Premium",
+        Interfaces.Enums.SimulationObjectClass.Refinery         => "Refining",
+        Interfaces.Enums.SimulationObjectClass.Bio              => "Biochemical",
+        _                                                       => "Other"
     };
 
     private void PopulatePalette()
@@ -2837,10 +2849,13 @@ public partial class FlowsheetView : UserControl
             var headerPanel = new StackPanel
             {
                 Orientation = global::Avalonia.Layout.Orientation.Horizontal,
-                Background = new SolidColorBrush(Color.FromRgb(230, 235, 245)),
                 Cursor = new Cursor(StandardCursorType.Hand),
                 Height = 30,
             };
+            // Theme-aware band: light in the light variant, dark in the dark one, so the
+            // header text (which inherits the theme foreground) stays legible in both.
+            headerPanel.Bind(global::Avalonia.Controls.Panel.BackgroundProperty,
+                             headerPanel.GetResourceObservable("PaletteHeaderBackground"));
             headerPanel.Children.Add(arrowText);
             headerPanel.Children.Add(headerLabel);
 

@@ -1,20 +1,43 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:dac="clr-namespace:Dock.Avalonia.Controls;assembly=Dock.Avalonia"
+             xmlns:dcp="clr-namespace:Dock.Controls.ProportionalStackPanel;assembly=Dock.Controls.ProportionalStackPanel"
              xmlns:semi="https://irihi.tech/semi"
              x:Class="DWSIM.UI.Desktop.Avalonia.App"
              RequestedThemeVariant="Light">
 
   <Application.Resources>
-    <!-- Fluent defaults to 14 px for control content, which reads much larger than the
-         8.25 pt (11 px) the WinForms UI uses. This is what menus, buttons, pickers and
-         text boxes pick up. -->
-    <x:Double x:Key="ControlContentThemeFontSize">11</x:Double>
-    <x:Double x:Key="FontSizeNormal">11</x:Double>
-    <x:Double x:Key="FontSizeSmall">10</x:Double>
-    <!-- The floor Fluent gives text boxes, combo boxes, spinners and pickers: 32 px, which
-         reads far taller than the WinForms fields. Down to 24, to match them, in one place. -->
-    <x:Double x:Key="TextControlThemeMinHeight">24</x:Double>
+    <ResourceDictionary>
+      <!-- Fluent/Semi default to 14 px for control content, which reads much larger than the
+           8.25 pt (11 px) the WinForms UI uses. This is what menus, buttons, pickers and
+           text boxes pick up. -->
+      <x:Double x:Key="ControlContentThemeFontSize">11</x:Double>
+      <x:Double x:Key="FontSizeNormal">11</x:Double>
+      <x:Double x:Key="FontSizeSmall">10</x:Double>
+      <!-- The floor Fluent gives text boxes, combo boxes, spinners and pickers: 32 px, which
+           reads far taller than the WinForms fields. Down to 24, to match them, in one place. -->
+      <x:Double x:Key="TextControlThemeMinHeight">24</x:Double>
+
+      <!-- Colours that must differ per theme are defined here, so the palette header, the
+           dock tab text, the welcome-screen links and the dock splitter all follow the
+           active light/dark variant instead of a single hardcoded value. -->
+      <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Light">
+          <SolidColorBrush x:Key="PaletteHeaderBackground">#E6EBF5</SolidColorBrush>
+          <SolidColorBrush x:Key="DockTabForeground">#5A5A5A</SolidColorBrush>
+          <SolidColorBrush x:Key="DockTabForegroundSelected">#141414</SolidColorBrush>
+          <SolidColorBrush x:Key="LinkForeground">#1565C0</SolidColorBrush>
+          <SolidColorBrush x:Key="SplitterBrush">#C4C4C4</SolidColorBrush>
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Dark">
+          <SolidColorBrush x:Key="PaletteHeaderBackground">#2D2D30</SolidColorBrush>
+          <SolidColorBrush x:Key="DockTabForeground">#B4B4B4</SolidColorBrush>
+          <SolidColorBrush x:Key="DockTabForegroundSelected">#F2F2F2</SolidColorBrush>
+          <SolidColorBrush x:Key="LinkForeground">#5AA9E6</SolidColorBrush>
+          <SolidColorBrush x:Key="SplitterBrush">#3A3A3A</SolidColorBrush>
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
+    </ResourceDictionary>
   </Application.Resources>
 
   <Application.Styles>
@@ -26,23 +49,82 @@
 
     <!-- =================================================================
          Semi drives the look. What remains here is colour-agnostic density
-         carried over from the compact desktop layout, plus flat toolbars.
+         carried over from the compact desktop layout, flat toolbars, and the
+         few theme-aware fixes the Semi swap needs (links, tabs, splitter).
          ================================================================= -->
 
     <Style Selector="Window">
       <Setter Property="FontSize" Value="11" />
     </Style>
 
-    <!-- Compact dock tab headers -->
+    <!-- Semi ignores ControlContentThemeFontSize (a Fluent key), so control font sizes must be
+         set explicitly. Compact the default (non-classed) buttons so Semi's 32 px/14 pt chrome
+         does not tower over the fields; classed toolbar/link buttons override this, and the
+         toolbar glyph buttons keep their inline FontSize (a local value wins over this style). -->
+    <Style Selector="Button">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontWeight" Value="Normal" />
+      <Setter Property="MinHeight" Value="28" />
+      <Setter Property="Padding" Value="12,5" />
+    </Style>
+    <Style Selector="ToggleButton">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontWeight" Value="Normal" />
+    </Style>
+    <Style Selector="TextBox">
+      <Setter Property="FontSize" Value="11" />
+    </Style>
+
+    <!-- Combo boxes off the editor panels read too short next to the buttons; give them
+         a matching height. The editorPanel descendant rule below keeps its own 24 px. -->
+    <Style Selector="ComboBox">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="MinHeight" Value="28" />
+    </Style>
+
+    <!-- Compact dock tab headers. Semi/DockFluent leave them tall; force a compact height. -->
     <Style Selector="dac|ToolTabStripItem">
       <Setter Property="FontSize" Value="11" />
-      <Setter Property="Padding" Value="6,2" />
-      <Setter Property="MinHeight" Value="22" />
+      <Setter Property="Padding" Value="6,0" />
+      <Setter Property="MinHeight" Value="0" />
+      <Setter Property="Height" Value="24" />
     </Style>
     <Style Selector="dac|DocumentTabStripItem">
       <Setter Property="FontSize" Value="11" />
-      <Setter Property="Padding" Value="8,2" />
-      <Setter Property="MinHeight" Value="24" />
+      <Setter Property="Padding" Value="8,0" />
+      <Setter Property="MinHeight" Value="0" />
+      <Setter Property="Height" Value="28" />
+    </Style>
+
+    <!-- Under Semi the DockFluent tab foreground resolves to an invisible brush and the title
+         font stays large; force colour (per theme) and size on the tab title TextBlock, which
+         is robust to the tab template. -->
+    <Style Selector="dac|DocumentTabStripItem TextBlock">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="Foreground" Value="{DynamicResource DockTabForeground}" />
+    </Style>
+    <Style Selector="dac|DocumentTabStripItem:selected TextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource DockTabForegroundSelected}" />
+    </Style>
+    <Style Selector="dac|ToolTabStripItem TextBlock">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="Foreground" Value="{DynamicResource DockTabForeground}" />
+    </Style>
+    <Style Selector="dac|ToolTabStripItem:selected TextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource DockTabForegroundSelected}" />
+    </Style>
+
+    <!-- The proportional dock splitter needs a non-null background to be hit-testable, or it
+         cannot be dragged. Set the resize cursor per orientation: splitters in a horizontal
+         panel resize left/right, those in a vertical panel resize up/down. -->
+    <Style Selector="dcp|ProportionalStackPanelSplitter">
+      <Setter Property="Background" Value="{DynamicResource SplitterBrush}" />
+      <Setter Property="MinWidth" Value="4" />
+      <Setter Property="MinHeight" Value="4" />
+      <Setter Property="Cursor" Value="SizeWestEast" />
+    </Style>
+    <Style Selector="dcp|ProportionalStackPanel[Orientation=Vertical] > dcp|ProportionalStackPanelSplitter">
+      <Setter Property="Cursor" Value="SizeNorthSouth" />
     </Style>
 
     <!-- Compact data grids -->
@@ -90,6 +172,48 @@
     <Style Selector="StackPanel.editorPanel AutoCompleteBox">
       <Setter Property="FontSize" Value="11" />
       <Setter Property="MinHeight" Value="24" />
+    </Style>
+
+    <!-- =================================================================
+         WELCOME SCREEN
+         The left column reads as flat, left-aligned text links, and the
+         secondary action buttons stretch and left-align (Semi chrome kept).
+         ================================================================= -->
+    <Style Selector="Button.link">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="0,2" />
+      <Setter Property="MinHeight" Value="0" />
+      <Setter Property="HorizontalAlignment" Value="Left" />
+      <Setter Property="HorizontalContentAlignment" Value="Left" />
+      <Setter Property="FontWeight" Value="Normal" />
+      <Setter Property="Foreground" Value="{DynamicResource LinkForeground}" />
+      <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button.link:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="TextBlock.TextDecorations" Value="Underline" />
+    </Style>
+    <Style Selector="Button.link:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="Transparent" />
+    </Style>
+
+    <Style Selector="Button.tool">
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="HorizontalContentAlignment" Value="Left" />
+      <Setter Property="Padding" Value="10,6" />
+      <Setter Property="Cursor" Value="Hand" />
+    </Style>
+
+    <Style Selector="TextBlock.welcomeHeader">
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="TextBlock.welcomeSubtitle">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="Opacity" Value="0.7" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+      <Setter Property="Margin" Value="0,0,0,4" />
     </Style>
 
     <!-- Flat, borderless icon buttons on the toolbars; the hover/pressed colours come from Semi
