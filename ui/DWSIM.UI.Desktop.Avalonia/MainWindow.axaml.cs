@@ -379,7 +379,8 @@ public partial class MainWindow : Window
 
     private void OpenUserGuidePdf()
     {
-        var path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "docs", "user_guide.pdf");
+        // The distribution ships docs/User_Guide.pdf (case matters on Linux/macOS).
+        var path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "docs", "User_Guide.pdf");
         if (File.Exists(path)) OpenUrl(path); else OpenUserGuide();
     }
 
