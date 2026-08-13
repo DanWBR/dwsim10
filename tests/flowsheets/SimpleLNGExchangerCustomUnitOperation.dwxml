@@ -6726,7 +6726,7 @@ outlet3 = oms3
  
 # Get streams' enthalpies and mass flows, set specified outlet temperatures
 
-if inlet1 &lt;&gt; None:
+if inlet1 != None:
  mixphase = inlet1.GetPhase("Mixture")
  Hin1 = mixphase.Properties.enthalpy
  Win1 = mixphase.Properties.massflow
@@ -6735,7 +6735,7 @@ else:
  Hin1 = 0.0
  Win1 = 0.0
 
-if inlet2 &lt;&gt; None:
+if inlet2 != None:
  mixphase = inlet2.GetPhase("Mixture")
  Hin2 = mixphase.Properties.enthalpy
  Win2 = mixphase.Properties.massflow
@@ -6745,7 +6745,7 @@ else:
  Hin2 = 0.0
  Win2 = 0.0
 
-if inlet3 &lt;&gt; None:
+if inlet3 != None:
  Hin3 = mixphase.Properties.enthalpy
  Win3 = mixphase.Properties.massflow
  outlet3.CopyFromMaterial(inlet3)
@@ -6754,13 +6754,13 @@ else:
  Hin3 = 0.0
  Win3 = 0.0
 
-if outlet2 &lt;&gt; None:
+if outlet2 != None:
  outlet2.CalcEquilibrium("TP",None)
  Hout2 = outlet2.GetPhase("Mixture").Properties.enthalpy
 else:
  Hout2 = 0.0
 
-if outlet3 &lt;&gt; None:
+if outlet3 != None:
  outlet3.CalcEquilibrium("TP",None)
  Hout3 = outlet3.GetPhase("Mixture").Properties.enthalpy
 else:
@@ -6780,12 +6780,12 @@ Flowsheet.WriteMessage("Available Heat for Transfer (kW): " + str(HeatAvailable_
 
 if (HeatRequired_kW &gt; HeatAvailable_kW):
  Flowsheet.WriteMessage("Invalid specs: temperature cross")
- if outlet1 &lt;&gt; None: outlet1.Clear()
- if outlet2 &lt;&gt; None: outlet2.Clear()
- if outlet3 &lt;&gt; None: outlet3.Clear()
- if outlet4 &lt;&gt; None: outlet4.Clear()
- if outlet5 &lt;&gt; None: outlet5.Clear()
- if outlet6 &lt;&gt; None: outlet6.Clear()
+ if outlet1 != None: outlet1.Clear()
+ if outlet2 != None: outlet2.Clear()
+ if outlet3 != None: outlet3.Clear()
+ if outlet4 != None: outlet4.Clear()
+ if outlet5 != None: outlet5.Clear()
+ if outlet6 != None: outlet6.Clear()
 else:
  outlet1.GetPhase("Mixture").Properties.enthalpy = Hout1
  # calculate outlet temperature of the cold stream

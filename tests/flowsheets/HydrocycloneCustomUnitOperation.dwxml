@@ -987,7 +987,7 @@ xmu = [0] * n			# underflow stream component mole fractions
 # Calculate output flows based on separation efficiency
 
 for i in range(0, n):
-	if i &lt;&gt; wi:
+	if i != wi:
 		undflows[i] = inflows[i] * (100 - eff) / 100	# kg/s
 	else:
 		undflows[i] = inflows[i] * eff / 100			# kg/s
