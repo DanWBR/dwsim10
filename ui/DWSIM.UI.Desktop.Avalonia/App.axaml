@@ -18,6 +18,12 @@
            reads far taller than the WinForms fields. Down to 24, to match them, in one place. -->
       <x:Double x:Key="TextControlThemeMinHeight">24</x:Double>
 
+      <!-- AvaloniaEdit's Fluent SearchPanel resolves ContentControlThemeFontFamily as a
+           StaticResource; the Semi theme does not define that key, so opening the Script Manager
+           threw KeyNotFoundException and crashed the app. Define it here (as the Fluent theme
+           does) so the lookup always succeeds. -->
+      <FontFamily x:Key="ContentControlThemeFontFamily">$Default</FontFamily>
+
       <!-- Colours that must differ per theme are defined here, so the palette header, the
            dock tab text, the welcome-screen links and the dock splitter all follow the
            active light/dark variant instead of a single hardcoded value. -->
