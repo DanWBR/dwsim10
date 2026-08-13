@@ -526,7 +526,7 @@ Public Class Utility
             For Each fpath In otheruos
                 Dim assmbly As Assembly = Nothing
                 Try
-                    assmbly = Assembly.LoadFile(fpath)
+                    assmbly = Assembly.LoadFrom(fpath)
                     Dim pplist As List(Of Interfaces.IExternalUnitOperation) = GetUnitOperations(assmbly)
                     For Each pp In pplist
                         euos.Add(pp)
@@ -550,7 +550,7 @@ Public Class Utility
             Dim otheruos As String() = Directory.GetFiles(ppath, "*Extensions*.dll", SearchOption.TopDirectoryOnly)
             For Each fpath In otheruos
                 Try
-                    Dim pplist As List(Of Interfaces.IExternalUnitOperation) = GetUnitOperations(Assembly.LoadFile(fpath))
+                    Dim pplist As List(Of Interfaces.IExternalUnitOperation) = GetUnitOperations(Assembly.LoadFrom(fpath))
                     For Each pp In pplist
                         euos.Add(pp)
                     Next
@@ -570,7 +570,7 @@ Public Class Utility
 
         Dim thermoceos As String = Path.GetDirectoryName(Assembly.GetAssembly(New SystemsOfUnits.SI().GetType()).Location) + Path.DirectorySeparatorChar + "DWSIM.Thermodynamics.ThermoC.dll"
         If File.Exists(thermoceos) Then
-            Dim tca = Assembly.LoadFile(thermoceos)
+            Dim tca = Assembly.LoadFrom(thermoceos)
             Dim pplist As List(Of Interfaces.IPropertyPackage) = GetPropertyPackages(tca)
             For Each pp In pplist
                 ppacks.Add(pp)
@@ -582,7 +582,7 @@ Public Class Utility
             Try
                 Dim otherpps As String() = Directory.GetFiles(ppath, "*.dll", SearchOption.TopDirectoryOnly)
                 For Each fpath In otherpps
-                    Dim pplist As List(Of Interfaces.IPropertyPackage) = GetPropertyPackages(Assembly.LoadFile(fpath))
+                    Dim pplist As List(Of Interfaces.IPropertyPackage) = GetPropertyPackages(Assembly.LoadFrom(fpath))
                     For Each pp In pplist
                         ppacks.Add(pp)
                     Next
@@ -597,7 +597,7 @@ Public Class Utility
             Try
                 Dim otherpps As String() = Directory.GetFiles(ppath1, "*Extensions*.dll", SearchOption.TopDirectoryOnly)
                 For Each fpath In otherpps
-                    Dim pplist As List(Of Interfaces.IPropertyPackage) = GetPropertyPackages(Assembly.LoadFile(fpath))
+                    Dim pplist As List(Of Interfaces.IPropertyPackage) = GetPropertyPackages(Assembly.LoadFrom(fpath))
                     For Each pp In pplist
                         ppacks.Add(pp)
                     Next
@@ -617,7 +617,7 @@ Public Class Utility
 
         Dim thermoceos As String = Path.GetDirectoryName(Assembly.GetExecutingAssembly.Location) + Path.DirectorySeparatorChar + "DWSIM.Thermodynamics.ThermoC.dll"
         If File.Exists(thermoceos) Then
-            Dim tca = Assembly.LoadFile(thermoceos)
+            Dim tca = Assembly.LoadFrom(thermoceos)
             ppacks.Add(tca)
         End If
 
@@ -626,7 +626,7 @@ Public Class Utility
             Try
                 Dim otherpps As String() = Directory.GetFiles(ppath, "*.dll", SearchOption.TopDirectoryOnly)
                 For Each fpath In otherpps
-                    ppacks.Add(Assembly.LoadFile(fpath))
+                    ppacks.Add(Assembly.LoadFrom(fpath))
                 Next
             Catch ex As Exception
                 Logging.Logger.LogError("Loading Additional Property Package Assemblies", ex)
