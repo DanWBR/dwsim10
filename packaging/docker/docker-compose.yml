@@ -1,0 +1,16 @@
+# Run the DWSIM headless MCP server with Docker Compose:
+#
+#   docker compose up -d
+#   curl http://localhost:5901/health
+#
+# The image is multi-architecture (amd64 and arm64), so the same file works on a PC or an SBC.
+
+services:
+  dwsim-mcp:
+    image: ghcr.io/danwbr/dwsim-mcp:10.2
+    container_name: dwsim-mcp
+    restart: unless-stopped
+    ports:
+      - "5901:5901"        # host:container - change the host side to expose a different port
+    # On an untrusted network, require a token by appending it to the entrypoint:
+    # command: ["--token", "change-me"]
