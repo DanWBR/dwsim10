@@ -3638,6 +3638,12 @@ public partial class FlowsheetView : UserControl
                 }
             }
         }
+
+        // The menu-bar extension strip is built by SetActiveFlowsheet, which ran when the view was
+        // added - before the flowsheet loaded and these buttons existed - so the strip came out
+        // empty. Re-apply them now that ExtensionButtons is populated, or the assistant button (and
+        // any other MainWindow/Tools extension) never shows.
+        mform.RefreshExtensionButtons(this);
     }
 
     /// <summary>

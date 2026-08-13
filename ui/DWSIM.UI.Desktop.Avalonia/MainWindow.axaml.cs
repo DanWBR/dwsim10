@@ -700,6 +700,19 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// Re-applies the given view's extension buttons to the menu-bar strip. LoadFlowsheetExtensions
+    /// populates the buttons after the flowsheet has loaded, which is after SetActiveFlowsheet
+    /// already built the strip from the then-empty list; this puts them on once they exist.
+    /// </summary>
+    public void RefreshExtensionButtons(FlowsheetView view)
+    {
+        if (ActiveFlowsheet != view || MenuBarExtensions == null) return;
+        MenuBarExtensions.Children.Clear();
+        foreach (var button in view.ExtensionButtons)
+            MenuBarExtensions.Children.Add(button);
+    }
+
     private void ShowWelcomeIfEmpty()
     {
         if (_documents.Count > 0) return;
