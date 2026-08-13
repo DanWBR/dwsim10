@@ -69,6 +69,33 @@ if command -v systemctl >/dev/null 2>&1; then
     systemctl enable dwsim-mcp.service >/dev/null 2>&1 || true
     systemctl restart dwsim-mcp.service || true
 fi
+
+# Print how to reach the server, so the admin does not have to dig for it.
+opts=$( ( . /etc/dwsim-mcp/dwsim-mcp.conf 2>/dev/null; printf '%s' "$DWSIM_MCP_OPTS" ) )
+port=$(printf '%s' "$opts" | grep -oE -- '--port[= ]+[0-9]+' | grep -oE '[0-9]+' | head -1)
+port=${port:-5901}
+ip=$(hostname -I 2>/dev/null | awk '{print $1}')
+ip=${ip:-<this-host>}
+case "$opts" in *--token*) auth="a token is required (see the config)";; *) auth="no token (open on the network)";; esac
+cat <<BANNER
+
+========================================================================
+ DWSIM MCP server is running (systemd service: dwsim-mcp)
+
+   Health :  http://$ip:$port/health
+   MCP    :  POST http://$ip:$port/mcp
+   Events :  GET  http://$ip:$port/sse
+   Auth   :  $auth
+
+   Config :  /etc/dwsim-mcp/dwsim-mcp.conf   (bind address, port, token)
+   Status :  systemctl status dwsim-mcp
+   Logs   :  journalctl -u dwsim-mcp -f
+
+ The server speaks plain HTTP. For HTTPS put a reverse proxy (nginx,
+ Caddy) in front of it; on an untrusted network also set a token.
+========================================================================
+
+BANNER
 exit 0
 POSTINST
 chmod +x "$staging/DEBIAN/postinst"
