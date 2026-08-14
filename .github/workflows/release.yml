@@ -490,11 +490,6 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v4
-        with:
-          sparse-checkout: content/whatsnew.txt
-          sparse-checkout-cone-mode: false
-
       - uses: actions/download-artifact@v4
         with:
           pattern: package-*
@@ -509,6 +504,8 @@ jobs:
 
       - name: Build the release notes
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           describe() {
             case "$1" in
@@ -529,13 +526,21 @@ jobs:
               *)                    echo "";;
             esac
           }
+          # What's new = the user-facing commits since the previous release tag
+          REPO="$GITHUB_REPOSITORY"; CUR="$GITHUB_REF_NAME"
+          tags=$(gh api "repos/$REPO/tags" --paginate -q '.[].name' 2>/dev/null | grep -E '^v[0-9]' || true)
+          prev=$( { printf '%s\n' "$tags"; echo "$CUR"; } | sort -uV | grep -B1 -Fx "$CUR" | head -n1 )
+          changes=""
+          if [ -n "$prev" ] && [ "$prev" != "$CUR" ]; then
+            msgs=$(gh api "repos/$REPO/compare/$prev...$CUR" -q '.commits[].commit.message | split("\n")[0]' 2>/dev/null || true)
+            changes=$(printf '%s\n' "$msgs" | grep -E '^(feat|fix|perf)(\(.+\))?!?: ' | sed -E 's/^(feat|fix|perf)(\(.+\))?!?: //' | sed 's/^/- /')
+            [ -z "$changes" ] && changes=$(printf '%s\n' "$msgs" | grep -viE '^(Merge |chore|ci|build|docs|test|style|refactor)' | grep -v '^$' | sed 's/^/- /')
+          fi
           {
-            echo "## What's new"
+            echo "## What's new in this release"
             echo
-            if [ -f content/whatsnew.txt ]; then
-              sed '1s/^\xEF\xBB\xBF//' content/whatsnew.txt | sed '1s/^\(Version .*\)$/**\1**/'
-              echo
-            fi
+            if [ -n "$changes" ]; then echo "$changes"; else echo "- See the full changelog link below for the complete list of changes."; fi
+            echo
             echo "## System requirements"
             echo
             echo "**Desktop application** (self-contained, no .NET runtime installation required):"
