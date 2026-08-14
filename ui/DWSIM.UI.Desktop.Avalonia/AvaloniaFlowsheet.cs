@@ -95,6 +95,13 @@ internal sealed class AvaloniaFlowsheet : DWSIM.FlowsheetBase.FlowsheetBase
         _listener?.Invoke(text, mtype);
     }
 
+    /// <summary>
+    /// Writes an informational message to the flowsheet log. The scripting API calls this on the
+    /// flowsheet object, and the Classic and automation flowsheets each expose the same method; the
+    /// Avalonia host was the only one missing it, so scripts that log broke on this build.
+    /// </summary>
+    public void WriteMessage(string text) => ShowMessage(text, IFlowsheet.MessageType.Information);
+
     public override void UpdateOpenEditForms() =>
         Dispatcher.UIThread.Post(() => OnUpdateOpenEditForms?.Invoke());
 
