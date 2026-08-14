@@ -502,8 +502,44 @@ jobs:
           path: packages
           merge-multiple: true
 
+      - name: Build the download legend
+        shell: bash
+        run: |
+          describe() {
+            case "$1" in
+              *win-x64-setup.exe)   echo "Windows x64 - installer";;
+              *win-arm64-setup.exe) echo "Windows ARM64 - installer";;
+              *win-x64.zip)         echo "Windows x64 - portable (zip)";;
+              *win-arm64.zip)       echo "Windows ARM64 - portable (zip)";;
+              *osx-x64.tar.gz)      echo "macOS (Intel) - portable (tar.gz)";;
+              *osx-arm64.tar.gz)    echo "macOS (Apple Silicon) - portable (tar.gz)";;
+              *arm64.dmg)           echo "macOS (Apple Silicon) - disk image";;
+              *x64.dmg)             echo "macOS (Intel) - disk image";;
+              *mcp*amd64.deb)       echo "MCP server (headless) - Linux x64, Debian/Ubuntu";;
+              *mcp*arm64.deb)       echo "MCP server (headless) - Linux ARM64, Debian/Ubuntu";;
+              *amd64.deb)           echo "Linux x64 - Debian/Ubuntu package";;
+              *arm64.deb)           echo "Linux ARM64 - Debian/Ubuntu package";;
+              *linux-x64.tar.gz)    echo "Linux x64 - portable (tar.gz)";;
+              *linux-arm64.tar.gz)  echo "Linux ARM64 - portable (tar.gz)";;
+              *)                    echo "";;
+            esac
+          }
+          {
+            echo "### Downloads"
+            echo
+            echo "| File | Platform |"
+            echo "|---|---|"
+            for f in packages/*; do
+              [ -f "$f" ] || continue
+              n=$(basename "$f")
+              printf '| \x60%s\x60 | %s |\n' "$n" "$(describe "$n")"
+            done
+          } > asset-legend.md
+          cat asset-legend.md
+
       - uses: softprops/action-gh-release@v2
         with:
           draft: true
           files: packages/*
           generate_release_notes: true
+          body_path: asset-legend.md
