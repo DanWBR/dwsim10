@@ -490,6 +490,11 @@ jobs:
       contents: write
 
     steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: content/whatsnew.txt
+          sparse-checkout-cone-mode: false
+
       - uses: actions/download-artifact@v4
         with:
           pattern: package-*
@@ -502,7 +507,7 @@ jobs:
           path: packages
           merge-multiple: true
 
-      - name: Build the download legend
+      - name: Build the release notes
         shell: bash
         run: |
           describe() {
@@ -525,6 +530,23 @@ jobs:
             esac
           }
           {
+            echo "## What's new"
+            echo
+            if [ -f content/whatsnew.txt ]; then
+              sed '1s/^\xEF\xBB\xBF//' content/whatsnew.txt | sed '1s/^\(Version .*\)$/**\1**/'
+              echo
+            fi
+            echo "## System requirements"
+            echo
+            echo "**Desktop application** (self-contained, no .NET runtime installation required):"
+            echo "- Windows 10 or later (x64 or ARM64)"
+            echo "- Linux, a recent 64-bit distribution such as Ubuntu 22.04 or later (x64 or ARM64)"
+            echo "- macOS 12 or later (Intel or Apple Silicon)"
+            echo "- 4 GB RAM recommended, about 1 GB of free disk space"
+            echo "- No dedicated GPU required"
+            echo
+            echo '**Headless MCP server** (`.deb`): Debian or Ubuntu (x64 or ARM64), no graphical environment required.'
+            echo
             echo "### Downloads"
             echo
             echo "| File | Platform |"
@@ -534,12 +556,12 @@ jobs:
               n=$(basename "$f")
               printf '| \x60%s\x60 | %s |\n' "$n" "$(describe "$n")"
             done
-          } > asset-legend.md
-          cat asset-legend.md
+          } > release-body.md
+          cat release-body.md
 
       - uses: softprops/action-gh-release@v2
         with:
           draft: true
           files: packages/*
           generate_release_notes: true
-          body_path: asset-legend.md
+          body_path: release-body.md
