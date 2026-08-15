@@ -353,7 +353,7 @@ namespace DWSIM.Automation
 
         /// <summary>Sends an informational message to the registered message listener.</summary>
         /// <param name="text">The message text to send.</param>
-        public void WriteMessage(string text)
+        public override void WriteMessage(string text)
         {
             listeningaction?.Invoke(text, IFlowsheet.MessageType.Information);
         }

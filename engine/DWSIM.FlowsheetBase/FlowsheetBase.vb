@@ -807,6 +807,14 @@ Imports DWSIM.ExtensionMethods
     ''' <param name="exceptionID">An optional identifier linking the message to a specific exception record.</param>
     Public MustOverride Sub ShowMessage(text As String, mtype As IFlowsheet.MessageType, Optional ByVal exceptionID As String = "") Implements IFlowsheet.ShowMessage
 
+    ''' <summary>Writes an informational message to the log. Scripts and plugins call this on the
+    ''' flowsheet object; it lives on the public base class so the scripting engine can resolve it
+    ''' even when the concrete host type (e.g. the Avalonia flowsheet) is not public.</summary>
+    ''' <param name="text">The message text.</param>
+    Public Overridable Sub WriteMessage(text As String)
+        ShowMessage(text, IFlowsheet.MessageType.Information)
+    End Sub
+
     ''' <summary>
     ''' Update the AI status label. Default implementation is a no-op;
     ''' overridden in FormFlowsheet (WinForms) where AiLabel1 exists.
