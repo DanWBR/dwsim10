@@ -664,11 +664,10 @@ Namespace Reactors
                 n_H2S_mols += nSO4_mols
             End If
 
-            ' Any CO2, NH3 and H2S already dissolved in the feed joins the pools before the equilibrium
-            ' split, the same way the feed sulfide used to be, so they are partitioned rather than
-            ' stranded on whichever side they arrived.
-            If co2 IsNot Nothing Then n_CO2_mols += co2.MassFlow.GetValueOrDefault / 0.04401
-            If nh3 IsNot Nothing Then n_NH3_mols += nh3.MassFlow.GetValueOrDefault / 0.01703
+            ' Sulfide already dissolved in the feed joins the sulfide pool before the equilibrium split,
+            ' so it is partitioned rather than stranded in the liquid (as it used to be). CO2 and NH3
+            ' fed in are routed to the outlets further down, not folded into the produced pools, so the
+            ' reported biogas composition stays a property of the digestion, not of the feed gas.
             If h2s IsNot Nothing Then n_H2S_mols += h2s.MassFlow.GetValueOrDefault / MW_H2S * 1000.0
 
             ' Gas-liquid equilibrium of the weak-electrolyte gases at the assumed digester pH. Only the
@@ -696,11 +695,8 @@ Namespace Reactors
             Dim dm_NH3_gas = nNH3Gas_kmols * 1000.0 * 0.01703
             Dim dm_NH3_liq = Max(n_NH3_mols - nNH3Gas_kmols * 1000.0, 0.0) * 0.01703
 
-            ' Biogas leaves saturated with water vapour at the digester temperature (ADM1 P_gas_h2o).
+            ' Reported dry biogas (CH4 plus the volatile CO2, H2S and NH3 that made it to the gas).
             Dim nDryGas_mols = n_CH4_mols + nCO2Gas_kmols * 1000.0 + nH2SGas_kmols * 1000.0 + nNH3Gas_kmols * 1000.0
-            Dim yH2O = Min(Max(phBB.P_gas_h2o / Max(Pbar, 1.0E-6), 0.0), 0.95)
-            Dim n_H2O_gas_mols = If(yH2O < 1.0, yH2O / (1.0 - yH2O) * nDryGas_mols, 0.0)
-            Dim dm_H2O_gas = n_H2O_gas_mols * 0.01802
 
             Dim dm_CH4 = n_CH4_mols * 0.01604 ' kg/s
             Dim dm_H2O = -n_H2O_mols * 0.01802 ' water consumed by hydrolysis
@@ -709,7 +705,7 @@ Namespace Reactors
             Result_CODin_kgs = COD_in_kgs
             Result_CODremoved_kgs = COD_removed_kgs
             Result_SubstrateConsumed_kgs = dm_S_cons
-            Result_BiogasFlow_mols = nDryGas_mols + n_H2O_gas_mols
+            Result_BiogasFlow_mols = nDryGas_mols
             Result_CH4_kgs = dm_CH4
             Result_CO2_kgs = dm_CO2_gas
             If Result_BiogasFlow_mols > 0 Then
@@ -742,25 +738,23 @@ Namespace Reactors
             ' Consume substrate in liquid
             effMass(sub_.Name) = Max(effMass(sub_.Name) - dm_S_cons, 0.0)
 
-            ' Water: consumed in hydrolysis, and part leaves as saturated vapour with the biogas
-            If h2o IsNot Nothing Then
-                effMass(h2o.Name) = Max(effMass(h2o.Name) + dm_H2O - dm_H2O_gas, 0.0)
-                gasMass(h2o.Name) = dm_H2O_gas
-            End If
+            ' Water: consumed in hydrolysis, stays in the effluent
+            If h2o IsNot Nothing Then effMass(h2o.Name) = Max(effMass(h2o.Name) + dm_H2O, 0.0)
 
-            ' NH3: partitioned; the feed's own NH3 was folded into the pool, so assign both sides outright
+            ' NH3: the produced NH3 that volatilizes leaves in the biogas; the rest stays dissolved,
+            ' together with any ammonia that arrived in the feed.
             If nh3 IsNot Nothing Then
-                effMass(nh3.Name) = dm_NH3_liq
                 gasMass(nh3.Name) = dm_NH3_gas
+                effMass(nh3.Name) = Max(effMass(nh3.Name) + dm_NH3_liq, 0.0)
             End If
 
             ' Biomass (sludge): stays in effluent
             If biom IsNot Nothing Then effMass(biom.Name) = Max(effMass(biom.Name) + dm_Biom, 0.0)
 
-            ' CH4 all to biogas; CO2 partitioned (feed CO2 folded into the pool, so assign outright)
+            ' CH4 all to biogas; produced CO2 partitioned, any CO2 that came in with the feed degasses too
             gasMass(ch4.Name) = effMass(ch4.Name) + dm_CH4
             effMass(ch4.Name) = 0.0
-            gasMass(co2.Name) = dm_CO2_gas
+            gasMass(co2.Name) = effMass(co2.Name) + dm_CO2_gas
             effMass(co2.Name) = dm_CO2_liq
 
             ' H2S: assigned outright on both sides rather than incremented, because the feed's own
