@@ -114,9 +114,10 @@ Namespace Reactors
         ''' <summary>Sludge biomass compound name. Optional - if empty, sludge is reported as zero.</summary>
         Public Property BiomassCompound As String = ""
 
-        ''' <summary>Hydrogen sulfide compound name. Optional - if empty, the sulfur balance still
-        ''' runs and is reported, but H2S is not written into the outlet streams.</summary>
-        Public Property H2SCompound As String = ""
+        ''' <summary>Hydrogen sulfide compound name. Defaults to "Hydrogen sulfide" so the partitioned
+        ''' H2S is written into the outlet streams whenever that compound is present; if the name is
+        ''' cleared or the compound is absent, the sulfur balance still runs and is reported.</summary>
+        Public Property H2SCompound As String = "Hydrogen sulfide"
 
         ''' <summary>
         ''' (ADM1-S) Compound carrying the sulfate the reducers did not respire, so it leaves in the
@@ -484,22 +485,33 @@ Namespace Reactors
         Private Sub PartitionSulfide(nS_kmols As Double, Q_liquid_m3s As Double, nGasDry_kmols As Double,
                                      P_bar As Double, T_K As Double, ByRef nH2SGas_kmols As Double,
                                      ByRef cSulfideLiq_kmolm3 As Double)
-            nH2SGas_kmols = 0.0
-            cSulfideLiq_kmolm3 = 0.0
-            If nS_kmols <= 0.0 Then Exit Sub
-
             Dim phys = ADM1.ADM1Equations.TemperatureCorrect(ADM1Params.Physicochemical, T_K)
-
             Dim S_H = 10.0 ^ (-Max(AssumedPH_ForSulfide, 0.1))
             Dim f_H2S = S_H / (phys.K_a_h2s + S_H)
-            If f_H2S <= 0.0 Then f_H2S = 1.0E-12
+            PartitionVolatile(nS_kmols, Q_liquid_m3s, nGasDry_kmols, P_bar, phys.K_H_h2s, f_H2S,
+                              nH2SGas_kmols, cSulfideLiq_kmolm3)
+        End Sub
 
-            Dim denom = phys.K_H_h2s * P_bar * Q_liquid_m3s / f_H2S + nGasDry_kmols
+        ''' <summary>
+        ''' Closed-form equilibrium gas-liquid split of a volatile weak-electrolyte load. Only the
+        ''' undissociated (Henry-volatile) fraction f leaves for the gas: with c_volatile = K_H·y·P and
+        ''' c_total = c_volatile/f, the balance nTotal = c_total·Q + y·n_gas gives
+        ''' y = nTotal / (K_H·P·Q/f + n_gas). Shared by the H2S, CO2 and NH3 splits in the closed-form
+        ''' BlackBox and ADM1-Lite paths, which carry no headspace state of their own.
+        ''' </summary>
+        Private Shared Sub PartitionVolatile(nTotal_kmols As Double, Q_liquid_m3s As Double,
+                                             nGasDry_kmols As Double, P_bar As Double, K_H As Double,
+                                             fVolatile As Double, ByRef nGas_kmols As Double,
+                                             ByRef cLiq_kmolm3 As Double)
+            nGas_kmols = 0.0
+            cLiq_kmolm3 = 0.0
+            If nTotal_kmols <= 0.0 Then Exit Sub
+            If fVolatile <= 0.0 Then fVolatile = 1.0E-12
+            Dim denom = K_H * P_bar * Q_liquid_m3s / fVolatile + nGasDry_kmols
             If denom <= 0.0 Then Exit Sub
-
-            Dim y = nS_kmols / denom
-            nH2SGas_kmols = Max(Min(y * nGasDry_kmols, nS_kmols), 0.0)
-            If Q_liquid_m3s > 0.0 Then cSulfideLiq_kmolm3 = (nS_kmols - nH2SGas_kmols) / Q_liquid_m3s
+            Dim y = nTotal_kmols / denom
+            nGas_kmols = Max(Min(y * nGasDry_kmols, nTotal_kmols), 0.0)
+            If Q_liquid_m3s > 0.0 Then cLiq_kmolm3 = (nTotal_kmols - nGas_kmols) / Q_liquid_m3s
         End Sub
 
         Public Overrides Sub Calculate(Optional ByVal args As Object = Nothing)
@@ -652,29 +664,54 @@ Namespace Reactors
                 n_H2S_mols += nSO4_mols
             End If
 
-            ' Sulfide already dissolved in the feed joins the pool rather than being stranded in
-            ' the liquid, which is what used to happen to any H2S fed to the digester.
+            ' Any CO2, NH3 and H2S already dissolved in the feed joins the pools before the equilibrium
+            ' split, the same way the feed sulfide used to be, so they are partitioned rather than
+            ' stranded on whichever side they arrived.
+            If co2 IsNot Nothing Then n_CO2_mols += co2.MassFlow.GetValueOrDefault / 0.04401
+            If nh3 IsNot Nothing Then n_NH3_mols += nh3.MassFlow.GetValueOrDefault / 0.01703
             If h2s IsNot Nothing Then n_H2S_mols += h2s.MassFlow.GetValueOrDefault / MW_H2S * 1000.0
 
-            ' Split the sulfide between biogas and effluent at equilibrium.
+            ' Gas-liquid equilibrium of the weak-electrolyte gases at the assumed digester pH. Only the
+            ' volatile fraction of each obeys Henry's law, so most of the H2S and NH3 and part of the
+            ' CO2 stay in the effluent as HS-/S(2-), NH4+ and HCO3-/CO3(2-). ADM1 constants, corrected to T.
+            Dim phBB = ADM1.ADM1Equations.TemperatureCorrect(ADM1Params.Physicochemical, T)
+            Dim S_H_bb = 10.0 ^ (-Max(AssumedPH_ForSulfide, 0.1))
+            Dim Pbar = P / 100000.0
+            Dim nGasRef = (n_CH4_mols + n_CO2_mols) / 1000.0                    ' dry-gas reference, kmol/s
+            Dim f_h2s = S_H_bb / (phBB.K_a_h2s + S_H_bb)                        ' undissociated H2S
+            Dim f_co2 = S_H_bb / (phBB.K_a_co2 + S_H_bb)                        ' dissolved CO2 (vs HCO3-)
+            Dim f_nh3 = phBB.K_a_IN / (phBB.K_a_IN + S_H_bb)                    ' free NH3 (vs NH4+)
+
             Dim nH2SGas_kmols As Double, cSulfideLiq As Double
-            PartitionSulfide(n_H2S_mols / 1000.0, Q_liquid_m3s, (n_CH4_mols + n_CO2_mols) / 1000.0,
-                             P / 100000.0, T, nH2SGas_kmols, cSulfideLiq)
-            Dim dm_H2S_gas = nH2SGas_kmols * MW_H2S                                   ' kg/s
-            Dim dm_H2S_liq = Max(n_H2S_mols / 1000.0 - nH2SGas_kmols, 0.0) * MW_H2S   ' kg/s
+            PartitionVolatile(n_H2S_mols / 1000.0, Q_liquid_m3s, nGasRef, Pbar, phBB.K_H_h2s, f_h2s, nH2SGas_kmols, cSulfideLiq)
+            Dim nCO2Gas_kmols As Double, cCO2Liq As Double
+            PartitionVolatile(n_CO2_mols / 1000.0, Q_liquid_m3s, nGasRef, Pbar, phBB.K_H_co2, f_co2, nCO2Gas_kmols, cCO2Liq)
+            Dim nNH3Gas_kmols As Double, cNH3Liq As Double
+            PartitionVolatile(n_NH3_mols / 1000.0, Q_liquid_m3s, nGasRef, Pbar, phBB.K_H_nh3, f_nh3, nNH3Gas_kmols, cNH3Liq)
+
+            Dim dm_H2S_gas = nH2SGas_kmols * MW_H2S                                     ' kg/s
+            Dim dm_H2S_liq = Max(n_H2S_mols / 1000.0 - nH2SGas_kmols, 0.0) * MW_H2S
+            Dim dm_CO2_gas = nCO2Gas_kmols * 1000.0 * 0.04401
+            Dim dm_CO2_liq = Max(n_CO2_mols - nCO2Gas_kmols * 1000.0, 0.0) * 0.04401
+            Dim dm_NH3_gas = nNH3Gas_kmols * 1000.0 * 0.01703
+            Dim dm_NH3_liq = Max(n_NH3_mols - nNH3Gas_kmols * 1000.0, 0.0) * 0.01703
+
+            ' Biogas leaves saturated with water vapour at the digester temperature (ADM1 P_gas_h2o).
+            Dim nDryGas_mols = n_CH4_mols + nCO2Gas_kmols * 1000.0 + nH2SGas_kmols * 1000.0 + nNH3Gas_kmols * 1000.0
+            Dim yH2O = Min(Max(phBB.P_gas_h2o / Max(Pbar, 1.0E-6), 0.0), 0.95)
+            Dim n_H2O_gas_mols = If(yH2O < 1.0, yH2O / (1.0 - yH2O) * nDryGas_mols, 0.0)
+            Dim dm_H2O_gas = n_H2O_gas_mols * 0.01802
 
             Dim dm_CH4 = n_CH4_mols * 0.01604 ' kg/s
-            Dim dm_CO2 = n_CO2_mols * 0.04401
-            Dim dm_H2O = -n_H2O_mols * 0.01802 ' water consumed
-            Dim dm_NH3 = n_NH3_mols * 0.01703
+            Dim dm_H2O = -n_H2O_mols * 0.01802 ' water consumed by hydrolysis
 
             ' Results
             Result_CODin_kgs = COD_in_kgs
             Result_CODremoved_kgs = COD_removed_kgs
             Result_SubstrateConsumed_kgs = dm_S_cons
-            Result_BiogasFlow_mols = n_CH4_mols + n_CO2_mols + nH2SGas_kmols * 1000.0
+            Result_BiogasFlow_mols = nDryGas_mols + n_H2O_gas_mols
             Result_CH4_kgs = dm_CH4
-            Result_CO2_kgs = dm_CO2
+            Result_CO2_kgs = dm_CO2_gas
             If Result_BiogasFlow_mols > 0 Then
                 Result_CH4MoleFraction = n_CH4_mols / Result_BiogasFlow_mols
             Else
@@ -705,20 +742,26 @@ Namespace Reactors
             ' Consume substrate in liquid
             effMass(sub_.Name) = Max(effMass(sub_.Name) - dm_S_cons, 0.0)
 
-            ' Water: consumed in hydrolysis
-            If h2o IsNot Nothing Then effMass(h2o.Name) = Max(effMass(h2o.Name) + dm_H2O, 0.0)
+            ' Water: consumed in hydrolysis, and part leaves as saturated vapour with the biogas
+            If h2o IsNot Nothing Then
+                effMass(h2o.Name) = Max(effMass(h2o.Name) + dm_H2O - dm_H2O_gas, 0.0)
+                gasMass(h2o.Name) = dm_H2O_gas
+            End If
 
-            ' NH3: stays dissolved in effluent
-            If nh3 IsNot Nothing Then effMass(nh3.Name) = Max(effMass(nh3.Name) + dm_NH3, 0.0)
+            ' NH3: partitioned; the feed's own NH3 was folded into the pool, so assign both sides outright
+            If nh3 IsNot Nothing Then
+                effMass(nh3.Name) = dm_NH3_liq
+                gasMass(nh3.Name) = dm_NH3_gas
+            End If
 
             ' Biomass (sludge): stays in effluent
             If biom IsNot Nothing Then effMass(biom.Name) = Max(effMass(biom.Name) + dm_Biom, 0.0)
 
-            ' Biogas route for CH4 and CO2 (pre-existing dissolved gas in feed goes to biogas as well)
+            ' CH4 all to biogas; CO2 partitioned (feed CO2 folded into the pool, so assign outright)
             gasMass(ch4.Name) = effMass(ch4.Name) + dm_CH4
-            gasMass(co2.Name) = effMass(co2.Name) + dm_CO2
             effMass(ch4.Name) = 0.0
-            effMass(co2.Name) = 0.0
+            gasMass(co2.Name) = dm_CO2_gas
+            effMass(co2.Name) = dm_CO2_liq
 
             ' H2S: assigned outright on both sides rather than incremented, because the feed's own
             ' sulfide was folded into the pool before it was partitioned.

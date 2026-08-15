@@ -42,6 +42,7 @@ Namespace Reactors.ADM1
         Private Const dH_K_H_ch4 As Double = -14240.0
         Private Const dH_K_H_h2 As Double = -4180.0
         Private Const dH_K_H_h2s As Double = -19200.0
+        Private Const dH_K_H_nh3 As Double = -34900.0
         Private Const C_P_gas_h2o As Double = 5290.0
         Private Const R_J As Double = 8.3145            ' J/(mol·K) = 100 · R[bar·m³/(kmol·K)]
 
@@ -84,6 +85,7 @@ Namespace Reactors.ADM1
                 .K_H_ch4 = VantHoff(phys.K_H_ch4, dH_K_H_ch4, Tb, Top),
                 .K_H_h2 = VantHoff(phys.K_H_h2, dH_K_H_h2, Tb, Top),
                 .K_H_h2s = VantHoff(phys.K_H_h2s, dH_K_H_h2s, Tb, Top),
+                .K_H_nh3 = VantHoff(phys.K_H_nh3, dH_K_H_nh3, Tb, Top),
                 .P_gas_h2o = phys.P_gas_h2o * Exp(C_P_gas_h2o * (1.0 / Tb - 1.0 / Top))
             }
             Return c
