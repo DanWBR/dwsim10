@@ -294,12 +294,29 @@ public sealed class FlowsheetDockFactory : Factory
     {
         var host = new Decorator();
         var attached = false;
+        var browserFallback = false;
 
         host.AttachedToVisualTree += (_, _) =>
         {
             attached = true;
-            if (host.Child == null)
+            if (host.Child != null || browserFallback) return;
+            try
+            {
                 host.Child = new global::AvaloniaWebView.WebView { Url = url };
+            }
+            catch (Exception)
+            {
+                // No usable embedded browser on this machine, e.g. a Linux install without
+                // WebKitGTK. This construction is deferred to the attach handler, so the caller's
+                // own try/catch never sees it; open the page in the system browser here, once.
+                browserFallback = true;
+                try
+                {
+                    System.Diagnostics.Process.Start(
+                        new System.Diagnostics.ProcessStartInfo(url.ToString()) { UseShellExecute = true });
+                }
+                catch { }
+            }
         };
 
         host.DetachedFromVisualTree += (_, _) =>
