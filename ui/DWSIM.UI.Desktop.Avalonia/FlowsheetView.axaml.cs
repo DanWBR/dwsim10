@@ -3654,6 +3654,18 @@ public partial class FlowsheetView : UserControl
     {
         if (_dockFactory == null) return;
 
+        // The macOS WebView binding (Avalonia.WebView.MacCatalyst over ObjCRuntime) aborts the
+        // process under .NET 8+: AppKit registration reflects for GetFunctionPointerForDelegateInternal,
+        // which is now an ambiguous match, and throws from a static constructor that cannot be caught
+        // here, taking the whole app down with SIGABRT. The page is served locally, so on macOS open
+        // it in the system browser instead of embedding it.
+        if (OperatingSystem.IsMacOS())
+        {
+            try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); }
+            catch (Exception ex) { AppendLog($"Could not open '{title}': {ex.Message}"); }
+            return;
+        }
+
         if (_dockFactory.WebTool != null)
         {
             // already open: just bring it forward. The host builds its own browser when shown.

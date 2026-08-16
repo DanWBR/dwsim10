@@ -24,6 +24,13 @@ mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp -a "$publish/." "$app/Contents/MacOS/"
 chmod +x "$app/Contents/MacOS/DWSIM.UI.Desktop.Avalonia"
 
+# The AI assistant helper is a native executable nested under extenders/. The GitHub Actions
+# artifact round-trip that carried the payload here dropped its executable bit (upload-artifact
+# stores 0644), and codesign does not restore it, so the shipped app cannot launch it. The bit is
+# not part of the signature, so setting it here, before signing, is safe.
+assistant="$app/Contents/MacOS/extenders/AIAssistantFiles/dwsim-assistant"
+[ -f "$assistant" ] && chmod +x "$assistant"
+
 # Debug symbols do not belong in a shipped app, and codesign seals the MacOS folder and then
 # trips over each .pdb as an unsigned subcomponent ("code object is not signed at all"). Drop them.
 find "$app/Contents/MacOS" -name '*.pdb' -delete
