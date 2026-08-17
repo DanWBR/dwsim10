@@ -7,7 +7,7 @@ assignees: ''
 
 ---
 
-IMPORTANT: This section is meant for bug reporting only. For usage issues, please go to the [Support Forums](https://sourceforge.net/p/dwsim/discussion/).
+IMPORTANT: This section is meant for bug reporting only. For usage questions, please use [DWSIM Discussions](https://github.com/DanWBR/dwsim10/discussions).
 
 **Describe the bug**
 A clear and concise description of what the bug is.
