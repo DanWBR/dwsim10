@@ -4613,6 +4613,18 @@ Label_00CC:
 
     Private Shared Function LoadFromExtensionsFolder(ByVal sender As Object, ByVal args As ResolveEventArgs) As Assembly
 
+        ' If an assembly with this name is already loaded, return that one. Loading a second copy
+        ' from the extensions folder gives two assemblies of the same identity, and a type from one
+        ' cannot be cast to the same type from the other. That is what broke the Plus unit operations
+        ' that draw their icon with SkiaSharp: the host passed its SKCanvas to the extension and the
+        ' cast failed with "SkiaSharp.SKCanvas cannot be cast to SkiaSharp.SKCanvas".
+        Dim requestedName As String = New AssemblyName(args.Name).Name
+        For Each loadedAsm As Assembly In AppDomain.CurrentDomain.GetAssemblies()
+            If Not loadedAsm.IsDynamic AndAlso String.Equals(loadedAsm.GetName().Name, requestedName, StringComparison.OrdinalIgnoreCase) Then
+                Return loadedAsm
+            End If
+        Next
+
         Dim directories = New List(Of String)({
                 Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
                 Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "extenders"),
