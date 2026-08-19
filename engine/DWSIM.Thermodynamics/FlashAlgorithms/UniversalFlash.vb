@@ -591,6 +591,18 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                 haderror = True
             End Try
 
+            ' A sub-algorithm can return without throwing yet leave the temperature unconverged (NaN):
+            ' the caller then feeds that NaN into the property calculation, where it surfaces far away
+            ' as an unrelated "cannot calculate the compressibility factor" error. Treat an invalid
+            ' temperature as a failure so the fail-safe path runs.
+            If Not haderror AndAlso result IsNot Nothing Then
+                Dim Tconv As Double = Convert.ToDouble(DirectCast(result, Object())(4))
+                If Double.IsNaN(Tconv) OrElse Double.IsInfinity(Tconv) OrElse Tconv <= 0.0 Then
+                    ex1 = New Exception("PV flash did not converge on a valid temperature.")
+                    haderror = True
+                End If
+            End If
+
             If haderror Then
 
                 Dim FSMethod As Integer = FlashSettings(FlashSetting.FailSafeCalculationMode)
