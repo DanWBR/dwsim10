@@ -355,6 +355,14 @@ public partial class FlowsheetView : UserControl
         // InputReleased fires after InputReleaseCallback has finalized selection and set LastClickedObjectName.
         Canvas.InputReleased += (_, _) =>
         {
+            // In connect mode a click picks the source, then the target, instead of opening an
+            // editor. The surface has already finalized the selection by the time this fires, so
+            // HandleConnectClick reads the clicked object off SelectedObject.
+            if (_connectMode)
+            {
+                HandleConnectClick();
+                return;
+            }
             var name = LastClickedObjectName;
             if (!string.IsNullOrEmpty(name) && _flowsheet != null)
             {
