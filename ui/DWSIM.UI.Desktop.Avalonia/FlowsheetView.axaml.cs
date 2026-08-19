@@ -2231,6 +2231,10 @@ public partial class FlowsheetView : UserControl
         var name = obj.Name;
         _surface.DeleteSelectedObject(obj);
         _flowsheet.SimulationObjects.Remove(name);
+        // Also drop it from the flowsheet's graphic-object dictionary. The connection dropdowns and
+        // other editors read the available streams from GraphicObjects, so a deleted stream kept
+        // lingering there and stayed selectable on unit-operation inlet/outlet ports.
+        _flowsheet.GraphicObjects.Remove(name);
         Canvas.Refresh();
         UpdateResultsPanel();
         AppendLog($"Deleted '{tag}'.");
