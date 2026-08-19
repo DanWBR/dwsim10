@@ -139,6 +139,10 @@ Friend Module ReportExportHelper
         psi.EnvironmentVariables("DWSIM_ASSISTANT_TOKEN") = _assistantToken
         _serverProcess = System.Diagnostics.Process.Start(psi)
 
+        ' tie the assistant to a kill-on-close job so Windows terminates it when DWSIM exits,
+        ' even when the host never calls ReleaseResources (or when DWSIM crashes or is killed)
+        JobObjectHelper.AssignToShutdownJob(_serverProcess)
+
         ' poll up to 20 s for the server to become ready
         Dim sw = System.Diagnostics.Stopwatch.StartNew()
         While sw.ElapsedMilliseconds < 20000
@@ -167,7 +171,8 @@ Friend Module ReportExportHelper
 
         Try
             If _serverProcess IsNot Nothing AndAlso Not _serverProcess.HasExited Then
-                _serverProcess.Kill()
+                ' kill the whole tree: the assistant launcher spawns a worker child
+                _serverProcess.Kill(True)
             End If
         Catch
         End Try
