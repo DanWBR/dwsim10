@@ -346,6 +346,17 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                 haderror = True
             End Try
 
+            ' A sub-algorithm can return without throwing yet leave the temperature unconverged (NaN),
+            ' which then surfaces far away as an unrelated property-calculation error. Treat an invalid
+            ' temperature as a failure so the fail-safe path runs.
+            If Not haderror AndAlso result IsNot Nothing Then
+                Dim Tconv As Double = Convert.ToDouble(DirectCast(result, Object())(4))
+                If Double.IsNaN(Tconv) OrElse Double.IsInfinity(Tconv) OrElse Tconv <= 0.0 Then
+                    ex1 = New Exception("PH flash did not converge on a valid temperature.")
+                    haderror = True
+                End If
+            End If
+
             If haderror Then
 
                 Dim FSMethod As Integer = FlashSettings(FlashSetting.FailSafeCalculationMode)
@@ -498,6 +509,16 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                         result = imm.Flash_PS(Vz, P, S, Tref, PP, False, Nothing)
                     End If
             End Select
+
+            ' PS has no fail-safe path; a sub-algorithm can still return an unconverged (NaN)
+            ' temperature without throwing, which then surfaces far away as an unrelated
+            ' property-calculation error. Raise a clear error here instead of returning it.
+            If result IsNot Nothing Then
+                Dim Tconv As Double = Convert.ToDouble(DirectCast(result, Object())(4))
+                If Double.IsNaN(Tconv) OrElse Double.IsInfinity(Tconv) OrElse Tconv <= 0.0 Then
+                    Throw New Exception("PS flash did not converge on a valid temperature.")
+                End If
+            End If
 
             IObj?.Close()
 
