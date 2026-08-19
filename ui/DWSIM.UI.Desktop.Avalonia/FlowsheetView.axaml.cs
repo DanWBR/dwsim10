@@ -2227,14 +2227,13 @@ public partial class FlowsheetView : UserControl
         var obj = _surface.SelectedObject;
         if (obj == null) return;
 
-        var tag  = obj.Tag;
-        var name = obj.Name;
-        _surface.DeleteSelectedObject(obj);
-        _flowsheet.SimulationObjects.Remove(name);
-        // Also drop it from the flowsheet's graphic-object dictionary. The connection dropdowns and
-        // other editors read the available streams from GraphicObjects, so a deleted stream kept
-        // lingering there and stayed selectable on unit-operation inlet/outlet ports.
-        _flowsheet.GraphicObjects.Remove(name);
+        var tag = obj.Tag;
+        // Route deletion through the flowsheet's own logic (the same path the WinForms edition uses).
+        // It disconnects every attached input/output/energy port, removes the connection lines, clears
+        // any spec/adjust/PID references and drops the object from both the simulation-object and
+        // graphic-object dictionaries. The previous surface-only delete left ports occupied and the
+        // connection lines still drawn on the canvas.
+        _flowsheet.DeleteSelectedObject(this, EventArgs.Empty, obj, confirmation: false, triggercalc: false);
         Canvas.Refresh();
         UpdateResultsPanel();
         AppendLog($"Deleted '{tag}'.");
