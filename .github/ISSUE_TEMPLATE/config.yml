@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and usage help
+    url: https://github.com/DanWBR/dwsim10/discussions
+    about: For "how do I...?" questions, modelling help and general discussion, please use Discussions.
+  - name: DWSIM website and documentation
+    url: https://dwsim.org
+    about: User guide, tutorials and downloads.

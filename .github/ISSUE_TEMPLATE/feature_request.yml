@@ -1,0 +1,56 @@
+name: Feature request
+description: Suggest an idea or improvement for DWSIM
+title: "[Enhancement] "
+labels: ["feature-request"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting an improvement.
+
+        For open-ended ideas and discussion, [DWSIM Discussions](https://github.com/DanWBR/dwsim10/discussions)
+        is often a better fit. Use this form when you have a concrete request in mind.
+
+  - type: dropdown
+    id: edition
+    attributes:
+      label: Which edition is this for?
+      options:
+        - Cross-platform (Avalonia UI)
+        - Classic Windows (Patreon Edition, WinForms)
+        - Both / not edition-specific
+    validations:
+      required: false
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      description: The motivation behind the request. What are you trying to do that is hard or impossible today?
+      placeholder: "I'm always frustrated when ..."
+    validations:
+      required: false
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Describe the solution you'd like
+      description: A clear and concise description of what you want to happen.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you've considered
+      description: Any other approaches or workarounds you have tried or thought about.
+    validations:
+      required: false
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Anything else that helps explain the request, such as screenshots, references, or similar features in other tools.
+    validations:
+      required: false
