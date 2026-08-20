@@ -25,7 +25,9 @@ namespace DWSIM.FluentAPI.Tests
                 .WithMolarFlow(55.0.MolPerSecond())
                 .SetCompoundMolarFlow("Carbon monoxide", 10.0)
                 .SetCompoundMolarFlow("Carbon dioxide", 5.0)
-                .SetCompoundMolarFlow("Hydrogen", 40.0);
+                .SetCompoundMolarFlow("Hydrogen", 40.0)
+                .SetCompoundMolarFlow("Methanol", 0.0)
+                .SetCompoundMolarFlow("Water", 0.0);
 
             var compOut = fs.AddMaterialStream("compressed syngas");
             var wComp = fs.AddEnergyStream("W comp");

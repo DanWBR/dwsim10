@@ -15,16 +15,20 @@ namespace DWSIM.FluentAPI.Tests
                 .WithCompounds("Benzene", "Toluene", "Water")
                 .WithPropertyPackage(PropertyPackages.PengRobinson);
 
+            // Unset compounds do not default to zero, so both feeds zero the strangers.
             var rawFeed = fs.AddMaterialStream("raw feed")
                 .At(300.0.Kelvin(), 101325.0.Pascal())
                 .WithMolarFlow(100.0.MolPerSecond())
                 .SetCompoundMolarFlow("Benzene", 50.0)
-                .SetCompoundMolarFlow("Toluene", 50.0);
+                .SetCompoundMolarFlow("Toluene", 50.0)
+                .SetCompoundMolarFlow("Water", 0.0);
 
             var hotUtil = fs.AddMaterialStream("hot utility")
                 .At(373.15.Kelvin(), 101325.0.Pascal())
                 .WithMassFlow(2.0.KgPerSecond())
-                .SetCompoundMassFlow("Water", 2.0);
+                .SetCompoundMassFlow("Water", 2.0)
+                .SetCompoundMassFlow("Benzene", 0.0)
+                .SetCompoundMassFlow("Toluene", 0.0);
 
             var preheated = fs.AddMaterialStream("preheated feed");
             var utilOut = fs.AddMaterialStream("utility out");
