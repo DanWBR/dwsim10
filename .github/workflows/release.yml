@@ -252,30 +252,23 @@ jobs:
       # the SignPath PowerShell module and the signed one comes back; the private key never leaves
       # SignPath. The identifiers live in repository variables, the API token in a secret. Signing is
       # best-effort: if it is not configured the installer ships unsigned rather than failing.
-      # SignPath verifies the artifact's origin against the GitHub build, so the unsigned installer is
-      # uploaded as a run artifact first and its id handed to the SignPath action.
-      - name: Upload the unsigned installer for signing
-        id: unsigned
-        if: env.SIGNPATH_API_TOKEN != ''
-        uses: actions/upload-artifact@v4
-        with:
-          name: installer-${{ matrix.rid }}-unsigned
-          path: artifacts/*.exe
-          if-no-files-found: error
-          retention-days: 1
-
       - name: Sign installer (SignPath)
         if: env.SIGNPATH_API_TOKEN != ''
         continue-on-error: true
-        uses: signpath/github-action-submit-signing-request@v1
-        with:
-          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
-          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
-          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
-          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
-          github-artifact-id: ${{ steps.unsigned.outputs.artifact-id }}
-          wait-for-completion: true
-          output-artifact-directory: signed
+        shell: pwsh
+        run: |
+          Install-Module -Name SignPath -Repository PSGallery -Force -Scope CurrentUser -AllowClobber
+          $exe = (Get-ChildItem artifacts\*.exe | Select-Object -First 1).FullName
+          New-Item -ItemType Directory -Force signed | Out-Null
+          $out = Join-Path signed (Split-Path $exe -Leaf)
+          Submit-SigningRequest `
+            -InputArtifactPath  $exe `
+            -ApiToken           $env:SIGNPATH_API_TOKEN `
+            -OrganizationId     "${{ vars.SIGNPATH_ORGANIZATION_ID }}" `
+            -ProjectSlug        "${{ vars.SIGNPATH_PROJECT_SLUG }}" `
+            -SigningPolicySlug  "${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}" `
+            -OutputArtifactPath $out `
+            -WaitForCompletion
 
       - name: Stage the installer
         shell: bash
