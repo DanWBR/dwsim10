@@ -23,6 +23,9 @@
 - [CHG] Cross-platform interface: the compound search ranks matches by similarity so the exact name rises to the top, selects the best match, and adds it on Enter
 - [CHG] Cross-platform interface: uses the native system font (Segoe UI on Windows, San Francisco on macOS) for sharper text
 - [CHG] Patreon benefits bar: an Annual Membership option, and the join buttons are hidden once a valid key is verified
+- [CHG] Windows installers offer to remove a previous version first, keeping user simulations, custom compounds and added extensions
+- [CHG] Vapour thermal conductivity corrected for pressure with the Stiel-Thodos dense-gas method
+- [CHG] MCP Server: address simulation objects by tag, list their ids and canvas positions, and rename them
 - [FIX] A product of a CAPE-OPEN unit operation was re-flashed by the flowsheet property package, discarding the phase split the unit had computed
 - [FIX] Object editors were cut off on a display set above 96 dots per inch; the distillation column stage table was the most visible case
 - [FIX] A flowsheet opened from the desktop on macOS started DWSIM with nothing loaded and reported an unsupported file
@@ -55,3 +58,17 @@
 - [FIX] Cross-platform interface: external unit operations (bioreactor, anaerobic digester) could not be added from the palette or the context menu
 - [FIX] Cross-platform interface: premium, refining and biochemical unit operations were spread across the generic palette sections instead of their own
 - [FIX] Cross-platform interface: the compressor and expander performance-curve editor did not open on the expander and could not create curves
+- [FIX] Cross-platform interface: deleting a material stream now releases the connected ports and removes the connection lines, and it no longer stays in the inlet/outlet lists (#22, #24)
+- [FIX] Cross-platform interface: undocking a panel no longer leaves its content blank when it is docked again (#25)
+- [FIX] Cross-platform interface: the DWSIM Assistant helper is now closed when DWSIM exits (#23)
+- [FIX] Cross-platform interface: connect mode now connects two objects by clicking the source and then the target (#21)
+- [FIX] Cross-platform interface: the property-package selector no longer adds a package on type-ahead, only on a deliberate pick (#18)
+- [FIX] Flash (PV/PH/PS): an unconverged temperature is now rejected instead of flowing on as a misleading error; the PV flash is seeded near the dew point
+- [FIX] macOS: the app no longer crashes on the embedded web view, and the assistant helper is shipped executable (#13)
+- [FIX] Cross-platform interface: a tool opening a web page falls back to the system browser where no embedded view is available
+- [FIX] Extensions folder: an already-loaded extension assembly is no longer loaded a second time
+- [FIX] Steam Tables: a flash is kept inside the range the correlations are fitted to
+- [FIX] Anaerobic Digester: the biogas composition partitions CO2, NH3 and water vapour correctly
+- [FIX] Dynamic Heat Exchanger: the cell pressure is floored at the minimum pressure
+- [FIX] Cross-platform interface: the Script unit operation editor opens a script edit window, and Flowsheet.WriteMessage works from scripts
+- [FIX] Cross-platform interface: the Script Manager opens under the Semi theme, extension menu-bar buttons appear after a flowsheet loads, and the sample scripts run on Python 3
