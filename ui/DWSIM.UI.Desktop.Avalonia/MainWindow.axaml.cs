@@ -232,6 +232,7 @@ public partial class MainWindow : Window
         LnkLoadRegression.Click += (_, _) => OpenRegression(loadFromFile: true);
         LnkNewCompound.Click += (_, _) => new CompoundCreatorWindow().Show(this);
         LnkNewSolid.Click += (_, _) => new BiomassCompoundCreatorWindow().Show(this);
+        LnkNewBlackOil.Click += (_, _) => new BlackOilCompoundCreatorWindow().Show(this);
         LnkNewCompoundWiz.Click += (_, _) => new CompoundCreatorWindow().Show(this);
         LnkDatabaseManager.Click += async (_, _) => await new DatabaseManagerWindow().ShowDialog(this);
 
