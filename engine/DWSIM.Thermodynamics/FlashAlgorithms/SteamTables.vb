@@ -110,7 +110,7 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
 
                     'supercritical
 
-                    T = brentsolverT.BrentOpt2(647.1, 2000, 5, 0.001, 100, Function(Tx)
+                    T = brentsolverT.BrentOpt2(647.1, .tmax, 5, 0.001, 100, Function(Tx)
 
                                                                                Return H - .enthalpyW(Tx, P / 100000)
 
@@ -144,7 +144,7 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                     Else
                         spp.LoopVarF = H
                         spp.LoopVarX = P / 100000
-                        T = brentsolverT.BrentOpt(273.15, 2000, 100, 0.0001, 1000, Nothing)
+                        T = brentsolverT.BrentOpt(273.15, .tmax, 100, 0.0001, 1000, Nothing)
                     End If
 
                 End If
@@ -175,7 +175,7 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
 
                     'supercritical
 
-                    T = brentsolverT.BrentOpt2(273.15, 2000, 5, 0.001, 100, Function(Tx)
+                    T = brentsolverT.BrentOpt2(273.15, .tmax, 5, 0.001, 100, Function(Tx)
 
                                                                                 Return S - .entropyW(Tx, P / 100000)
 
@@ -207,7 +207,7 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                     Else
                         spp.LoopVarF = S
                         spp.LoopVarX = P / 100000
-                        T = brentsolverT.BrentOpt(273.15, 2000, 100, 0.0001, 1000, Nothing)
+                        T = brentsolverT.BrentOpt(273.15, .tmax, 100, 0.0001, 1000, Nothing)
                     End If
 
                 End If

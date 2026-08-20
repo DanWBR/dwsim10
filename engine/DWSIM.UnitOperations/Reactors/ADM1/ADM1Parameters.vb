@@ -316,6 +316,7 @@ Namespace Reactors.ADM1
         Public Property K_H_ch4 As Double = 0.0014     ' at 25°C
         Public Property K_H_h2 As Double = 7.8E-04     ' at 25°C
         Public Property K_H_h2s As Double = 0.1        ' at 25°C; H2S is ~3x more soluble than CO2
+        Public Property K_H_nh3 As Double = 59.0       ' at 25°C; NH3 is highly soluble (Sander)
         Public Property P_atm As Double = 1.013        ' bar
         Public Property P_gas_h2o As Double = 0.0313   ' bar at 25°C
         ''' <summary>Friction-like constant of the gas outlet (m³/d/bar). BSM2 value.</summary>

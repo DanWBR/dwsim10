@@ -37,6 +37,10 @@ public class App : Application
         if (!string.IsNullOrEmpty(savedCulture))
             DWSIM.UI.Shared.Avalonia.Localization.SetCulture(savedCulture);
 
+        // Apply the persisted UI scaling factor before any window is built, so the whole interface -
+        // fonts, control heights and menu icons - comes up at the chosen size (issue #17).
+        ApplyUIScaling();
+
         // no window may come up bigger than the screen, or its title bar ends up out of reach
         WindowFit.Install();
 
@@ -66,6 +70,25 @@ public class App : Application
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    /// <summary>
+    /// Scales the whole interface by the persisted UI scaling factor. Every control reads
+    /// FontSizeNormal (see App.axaml), so multiplying the font-size resources and the text-control
+    /// minimum height scales fonts, buttons, tabs and input fields together; menu icons follow via
+    /// IconHelper. Base values match those defined in App.axaml. Applied once at startup (issue #17).
+    /// </summary>
+    private void ApplyUIScaling()
+    {
+        var scale = DWSIM.GlobalSettings.Settings.UIScalingFactor;
+        if (scale <= 0) scale = 1.0;
+        scale = System.Math.Max(0.5, System.Math.Min(3.0, scale));
+
+        Resources["ControlContentThemeFontSize"] = 12.0 * scale;
+        Resources["FontSizeNormal"] = 12.0 * scale;
+        Resources["FontSizeSmall"] = 11.0 * scale;
+        Resources["TextControlThemeMinHeight"] = 24.0 * scale;
+        IconHelper.IconFontSize = 14.0 * scale;
     }
 
     private static bool IsFlowsheetFile(string path)

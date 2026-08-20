@@ -2931,6 +2931,82 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
 
         End Function
 
+        ''' <summary>
+        ''' Robust initial temperature estimate for the PV flash.
+        ''' </summary>
+        ''' <remarks>
+        ''' Solves the ideal-K Rachford-Rice equation Sum(z_i (K_i - 1) / (1 + V (K_i - 1))) = 0
+        ''' with K_i = Psat_i(T)/P for the specified vapour fraction V. That objective is monotonically
+        ''' increasing in T, so a single sign-changing bracket plus bisection lands on the ideal flash
+        ''' temperature directly - the bubble temperature at V = 0, the dew temperature at V = 1, and the
+        ''' consistent value in between. Seeding the Newton loop this way avoids starting from the
+        ''' extrapolated saturation temperature of a component that is supercritical at P (a heavy end of a
+        ''' natural gas can report a Tsat of 1000+ K at 40 bar), which sent the dew-side loop diverging to
+        ''' NaN. Falls back to the Tsat-weighted average when the objective cannot be bracketed.
+        ''' </remarks>
+        Private Function EstimatePVTemperature(ByVal Vz As Double(), ByVal P As Double, ByVal V As Double,
+                                               ByVal PP As PropertyPackages.PropertyPackage, ByVal Tsat As Double()) As Double
+
+            Dim nc As Integer = Vz.Length - 1
+
+            Dim rr = Function(Tval As Double) As Double
+                         Dim s As Double = 0.0
+                         For j = 0 To nc
+                             If Vz(j) > 0.0 Then
+                                 Dim Kj As Double = PP.AUX_PVAPi(j, Tval) / P
+                                 If Double.IsNaN(Kj) OrElse Double.IsInfinity(Kj) Then Kj = 1.0E+20
+                                 If Kj < 1.0E-300 Then Kj = 1.0E-300
+                                 Dim denom As Double = 1.0 + V * (Kj - 1.0)
+                                 If Math.Abs(denom) < 1.0E-300 Then denom = 1.0E-300
+                                 s += Vz(j) * (Kj - 1.0) / denom
+                             End If
+                         Next
+                         Return s
+                     End Function
+
+            ' Tsat-weighted average, used as the fallback when bracketing fails.
+            Dim Tweighted As Double = 0.0
+            Dim wsum As Double = 0.0
+            For j = 0 To nc
+                If Vz(j) > 0.0 AndAlso Not Double.IsNaN(Tsat(j)) AndAlso Tsat(j) > 0.0 Then
+                    Tweighted += Vz(j) * Tsat(j)
+                    wsum += Vz(j)
+                End If
+            Next
+            If wsum > 0.0 Then Tweighted /= wsum Else Tweighted = 273.15
+
+            ' Bracket the root: the objective is negative at low T and positive at high T.
+            Dim Tlo As Double = 30.0
+            Dim Thi As Double = 1000.0
+            For j = 0 To nc
+                If Vz(j) > 0.0 AndAlso Not Double.IsNaN(Tsat(j)) AndAlso Tsat(j) * 1.2 > Thi Then Thi = Tsat(j) * 1.2
+            Next
+
+            Dim flo As Double = rr(Tlo)
+            Dim fhi As Double = rr(Thi)
+
+            If Double.IsNaN(flo) OrElse Double.IsNaN(fhi) OrElse flo * fhi > 0.0 Then
+                Return Tweighted
+            End If
+
+            Dim Tmid As Double = 0.5 * (Tlo + Thi)
+            For k = 1 To 200
+                Tmid = 0.5 * (Tlo + Thi)
+                Dim fm As Double = rr(Tmid)
+                If Double.IsNaN(fm) Then Return Tweighted
+                If Math.Abs(fm) < 1.0E-8 OrElse (Thi - Tlo) < 0.01 Then Exit For
+                If fm * flo < 0.0 Then
+                    Thi = Tmid
+                Else
+                    Tlo = Tmid
+                    flo = fm
+                End If
+            Next
+
+            Return Tmid
+
+        End Function
+
         Public Function Flash_PV_1(ByVal Vz2 As Double(), ByVal P As Double, ByVal V As Double, ByVal Tref As Double, ByVal PP As PropertyPackages.PropertyPackage, Optional ByVal ReuseKI As Boolean = False, Optional ByVal PrevKi As Double() = Nothing, Optional OldTempEstimation As Boolean = False) As Object
 
             Dim IObj As Inspector.InspectorItem = Inspector.Host.GetNewInspectorItem()
@@ -3006,28 +3082,12 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                         i += 1
                     Loop Until i = n + 1
                 Else
-                    ' Weighted average as a robust baseline estimate
-                    Dim TrefWeighted As Double = 0.0
-                    For i = 0 To n
-                        TrefWeighted += Vz(i) * Tsat(i)
-                    Next
-
-                    If V < 0.5 Then
-                        ' Bubble point: start from the lowest Tsat among non-trace components
-                        Tref = 5000.0
-                        For i = 0 To n
-                            If Tsat(i) < Tref And Vz(i) > 0.001 Then Tref = Tsat(i)
-                        Next
-                        ' Fallback to weighted average if no component passed the threshold
-                        If Tref >= 5000.0 Then Tref = TrefWeighted
-                    Else
-                        ' Dew point: start from the highest Tsat
-                        Tref = -1000.0
-                        For i = 0 To n
-                            If Tsat(i) > Tref And Vz(i) > 0.0 Then Tref = Tsat(i)
-                        Next
-                        If Tref <= 0.0 Then Tref = TrefWeighted
-                    End If
+                    ' Solve the ideal-K Rachford-Rice equation for T at the specified vapour
+                    ' fraction. This seeds the Newton loop from the actual ideal flash/saturation
+                    ' temperature instead of the extrapolated Tsat of a component that is
+                    ' supercritical at P, which for a wide-boiling natural gas near its dew point
+                    ' can be hundreds of kelvin too high and leaves the loop diverging to NaN.
+                    Tref = EstimatePVTemperature(Vz, P, V, PP, Tsat)
                 End If
             End If
 
@@ -3659,6 +3719,15 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
             dt = d2 - d1
 
             If ecount > maxit_e Then
+                IObj?.Close()
+                Return New Object() {-1}
+            End If
+
+            ' Never hand back an unconverged temperature dressed as a solution: a NaN here would
+            ' otherwise flow into the property calculation and surface far away as an unrelated
+            ' "unable to calculate the compressibility factor" error. Report failure instead so the
+            ' caller can extrapolate or fall back.
+            If Double.IsNaN(T) OrElse Double.IsInfinity(T) OrElse T <= 0.0 Then
                 IObj?.Close()
                 Return New Object() {-1}
             End If

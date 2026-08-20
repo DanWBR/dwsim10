@@ -174,7 +174,8 @@ namespace DWSIM.MCPServer
 
         public override void DisplayForm(object form)
         {
-            throw new NotImplementedException();
+            // Headless server: there is no window to show. The engine may still ask for one
+            // (e.g. the column convergence inspector), so ignore the request instead of throwing.
         }
 
         public override void RunCodeOnUIThread(Action act)

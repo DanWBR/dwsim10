@@ -1,0 +1,122 @@
+name: Bug report
+description: Report a problem so we can fix it
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug.
+
+        This form is for **bugs only**. For usage questions ("how do I...?") please use
+        [DWSIM Discussions](https://github.com/DanWBR/dwsim10/discussions) instead: it reaches
+        more people and keeps the issue tracker focused on defects.
+
+        Before opening, a quick search of [existing issues](https://github.com/DanWBR/dwsim10/issues?q=is%3Aissue)
+        may show the problem is already known.
+
+  - type: dropdown
+    id: edition
+    attributes:
+      label: Edition
+      description: Which build of DWSIM are you running? If unsure, the cross-platform edition is the one from this repository's releases.
+      options:
+        - Cross-platform (Avalonia UI)
+        - Classic Windows (Patreon Edition, WinForms)
+        - Not sure
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows
+        - Linux
+        - macOS
+    validations:
+      required: true
+
+  - type: dropdown
+    id: arch
+    attributes:
+      label: Architecture
+      options:
+        - x64 (Intel/AMD)
+        - arm64 (Apple Silicon / ARM)
+        - Not sure
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: DWSIM version
+      description: The exact version, shown in Help / About or the window title (e.g. 10.2.0, or 10.2.0-rc14).
+      placeholder: "10.2.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install
+    attributes:
+      label: How did you install it?
+      options:
+        - Windows installer (.exe)
+        - Zip / tar.gz archive
+        - Linux package (.deb)
+        - macOS disk image (.dmg)
+        - Built from source
+        - Other
+    validations:
+      required: false
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: Describe the bug
+      description: A clear and concise description of what goes wrong, and what you expected to happen instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: |
+        The exact steps that trigger the problem. **Please attach the flowsheet**: drag the
+        `.dwxmz` file (zip it first if GitHub rejects the extension) into this box. A file that
+        reproduces the issue is by far the fastest way to get it fixed.
+      placeholder: |
+        1. Open the attached flowsheet
+        2. Add a ... and connect it to ...
+        3. Run the simulation
+        4. See the error
+    validations:
+      required: true
+
+  - type: textarea
+    id: log
+    attributes:
+      label: Error / log output
+      description: If DWSIM showed an error, paste its full text here. This box renders as code, so no formatting is needed.
+      render: text
+    validations:
+      required: false
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: If it helps explain the problem, drag images into this box.
+    validations:
+      required: false
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Anything else that might be relevant (property package, compounds, a recent change in behaviour, etc.).
+    validations:
+      required: false

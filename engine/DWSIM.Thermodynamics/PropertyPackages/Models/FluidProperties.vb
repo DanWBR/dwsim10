@@ -696,6 +696,56 @@ Namespace PropertyPackages.Auxiliary
 
         End Function
 
+        ''' <summary>
+        ''' High-pressure (dense-gas) thermal conductivity of nonpolar gases by the Stiel and Thodos
+        ''' method, as given by Poling, Prausnitz and O'Connell, "The Properties of Gases and Liquids",
+        ''' 5th ed., section 10-5. This is the analog of the Jossi-Stiel-Thodos residual viscosity
+        ''' correction and adds a density-dependent term to the dilute-gas conductivity, so the vapor
+        ''' thermal conductivity rises with pressure.
+        ''' </summary>
+        ''' <param name="lambda0">dilute-gas (low-pressure) thermal conductivity, W/(m.K)</param>
+        ''' <param name="V">molar volume at T and P, m3/mol</param>
+        ''' <param name="Tc">critical temperature, K</param>
+        ''' <param name="Pc">critical pressure, Pa</param>
+        ''' <param name="Zc">critical compressibility factor</param>
+        ''' <param name="MM">molar mass, g/mol</param>
+        ''' <returns>thermal conductivity corrected for pressure, W/(m.K)</returns>
+        Shared Function condtg_stiel_thodos_pcorrection(ByVal lambda0 As Double, ByVal V As Double, ByVal Tc As Double, ByVal Pc As Double, ByVal Zc As Double, ByVal MM As Double) As Double
+
+            Const R As Double = 8.31446
+
+            If V <= 0.0 OrElse Pc <= 0.0 OrElse Zc <= 0.0 OrElse Tc <= 0.0 OrElse MM <= 0.0 Then Return lambda0
+
+            ' Reduced density from the critical molar volume Vc = Zc R Tc / Pc, kept in the same units as V.
+            Dim Vc As Double = Zc * R * Tc / Pc
+            Dim rho_r As Double = Vc / V
+            If rho_r <= 0.0 Then Return lambda0
+
+            ' Gamma = 210 (Tc M^3 / Pc^4)^(1/6), with Tc [K], M [g/mol], Pc [bar]; yields lambda in W/(m.K).
+            Dim Pc_bar As Double = Pc / 100000.0
+            Dim gamma As Double = 210.0 * (Tc * MM ^ 3 / Pc_bar ^ 4) ^ (1.0 / 6.0)
+
+            ' (lambda - lambda0) * Gamma * Zc^5 = f(rho_r), piecewise over the correlated density range.
+            Dim f As Double
+            If rho_r < 0.5 Then
+                f = 0.0122 * (Math.Exp(0.535 * rho_r) - 1.0)
+            ElseIf rho_r < 2.0 Then
+                f = 0.0114 * (Math.Exp(0.67 * rho_r) - 1.069)
+            ElseIf rho_r <= 2.8 Then
+                f = 0.0026 * (Math.Exp(1.155 * rho_r) + 2.016)
+            Else
+                ' beyond the correlated range: hold at rho_r = 2.8 rather than extrapolate
+                f = 0.0026 * (Math.Exp(1.155 * 2.8) + 2.016)
+            End If
+
+            Dim dlambda As Double = f / (gamma * Zc ^ 5)
+
+            If Double.IsNaN(dlambda) OrElse Double.IsInfinity(dlambda) OrElse dlambda < 0.0 Then Return lambda0
+
+            Return lambda0 + dlambda
+
+        End Function
+
         Shared Function Vc(ByVal Tc As Double, ByVal Pc As Double, ByVal w As Double) As Double
 
             If Pc > 0.0# Then Vc = 8.314 * (0.291 - 0.08 * w) * Tc / Pc * 1000 Else Vc = 0.0# 'm3/kmol

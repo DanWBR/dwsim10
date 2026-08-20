@@ -917,7 +917,15 @@ public partial class SimulationSettingsWindow : Window
         BtnDistCurves.Click += (_, _) => new DistillationCurveWindow(_flowsheet).Show(this);
 
         // ---- Thermodynamics ----
-        CbAvailablePP.SelectionChanged += (_, _) =>
+        // Add a package only on a deliberate pick from the open dropdown, not on SelectionChanged:
+        // a closed combo does type-ahead on a keypress (pressing "p" jumps to PC-SAFT), and that
+        // used to fire SelectionChanged and add the package. Each open starts from the prompt, so
+        // only an item chosen during that open session is added.
+        CbAvailablePP.DropDownOpened += (_, _) =>
+        {
+            if (!_loading) CbAvailablePP.SelectedIndex = 0;
+        };
+        CbAvailablePP.DropDownClosed += (_, _) =>
         {
             if (_loading || CbAvailablePP.SelectedIndex <= 0) return;
             if (CbAvailablePP.SelectedItem is string name) AddPropertyPackage(name);

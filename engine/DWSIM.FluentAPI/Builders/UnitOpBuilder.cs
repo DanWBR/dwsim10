@@ -78,5 +78,19 @@ namespace DWSIM.Automation.FluentAPI.Builders
             action?.Invoke(Object);
             return Self;
         }
+
+        // ----------------------------------------------------------- Layout / orientation
+
+        /// <summary>Mirrors the object horizontally (swaps its inlet and outlet sides), as one does on a recycle return.</summary>
+        public TSelf FlipHorizontal(bool flipped = true) { Object.GraphicObject.FlippedH = flipped; return Self; }
+
+        /// <summary>Mirrors the object vertically (swaps its top and bottom).</summary>
+        public TSelf FlipVertical(bool flipped = true) { Object.GraphicObject.FlippedV = flipped; return Self; }
+
+        /// <summary>Rotates the object on the canvas; use 0, 90, 180 or 270 degrees.</summary>
+        public TSelf Rotate(int degrees) { Object.GraphicObject.Rotation = ((degrees % 360) + 360) % 360; return Self; }
+
+        /// <summary>Places the object at (x, y) on the canvas.</summary>
+        public TSelf PositionAt(int x, int y) { Object.GraphicObject.X = x; Object.GraphicObject.Y = y; return Self; }
     }
 }

@@ -4,7 +4,11 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
+using Avalonia.Layout;
+using Avalonia.Media;
 using DWSIM.Interfaces;
 using DWSIM.SharedClassesCSharp.FilePicker;
 using DWSIM.UI.Shared.Avalonia;
@@ -242,7 +246,7 @@ namespace DWSIM.UI.Desktop.Editors
                             uo.ExecutionEngine = (PythonScriptUO.PythonExecutionEngine)dd.SelectedIndex;
                         });
 
-                    panel.CreateAndAddButtonRow("Edit Script", null, (btn, e) => uo.DisplayScriptEditorForm());
+                    panel.CreateAndAddButtonRow("Edit Script", null, (btn, e) => ScriptEditorWindow.Show(uo));
                 },
                 extras: new[]
                 {
@@ -292,6 +296,54 @@ namespace DWSIM.UI.Desktop.Editors
             grid.Columns.Add(GridColumns.Text("Value", "Value", 1.4, readOnly));
 
             return grid;
+        }
+
+    }
+
+    /// <summary>
+    /// The script editor window for the Script unit operation. The Windows edition opens its own
+    /// Scintilla form; the cross-platform build edits the script text here, in a plain code box that
+    /// writes straight back to the object so nothing is lost when the window closes.
+    /// </summary>
+    internal static class ScriptEditorWindow
+    {
+
+        internal static void Show(PythonScriptUO uo)
+        {
+            var editor = new TextBox
+            {
+                Text = uo.ScriptText ?? "",
+                AcceptsReturn = true,
+                AcceptsTab = true,
+                TextWrapping = TextWrapping.NoWrap,
+                FontFamily = new FontFamily("Cascadia Mono,Consolas,Menlo,DejaVu Sans Mono,Courier New,monospace"),
+                FontSize = 13,
+                VerticalAlignment = VerticalAlignment.Stretch,
+                HorizontalAlignment = HorizontalAlignment.Stretch
+            };
+            ScrollViewer.SetHorizontalScrollBarVisibility(editor, ScrollBarVisibility.Auto);
+            ScrollViewer.SetVerticalScrollBarVisibility(editor, ScrollBarVisibility.Auto);
+
+            editor.TextChanged += (s, e) => uo.ScriptText = editor.Text ?? "";
+
+            var close = new Button { Content = "Close", Margin = new Thickness(4, 6, 4, 0) };
+
+            var bar = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right
+            };
+            bar.Children.Add(close);
+
+            var root = new DockPanel { Margin = new Thickness(6) };
+            DockPanel.SetDock(bar, Dock.Bottom);
+            root.Children.Add(bar);
+            root.Children.Add(editor);
+
+            var tag = uo.GraphicObject != null ? uo.GraphicObject.Tag : "Script";
+            var window = AvaloniaCommon.GetDefaultEditorForm(tag + ": Edit Script", 820, 620, root, scrollable: false);
+            close.Click += (s, e) => window.Close();
+            window.Show();
         }
 
     }

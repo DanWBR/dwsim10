@@ -8136,6 +8136,23 @@ Final3:
                 i = i + 1
             Next
 
+            ' The value above is the dilute-gas (low-pressure) conductivity: it does not rise with
+            ' pressure. Add the dense-gas residual by the Stiel-Thodos method so the vapor thermal
+            ' conductivity increases with density. Set DWSIM_DISABLE_HP_CONDUCTIVITY to keep the old
+            ' pressure-independent behavior. Skipped silently if the density or critical data is missing.
+            If Environment.GetEnvironmentVariable("DWSIM_DISABLE_HP_CONDUCTIVITY") <> "1" Then
+                Try
+                    Dim rhov As Double = Me.AUX_VAPDENS(T, P)
+                    If rhov > 0.0 Then
+                        Dim Vm As Double = Me.AUX_MMM(Phase.Vapor) / 1000.0 / rhov
+                        Dim valhp As Double = Auxiliary.PROPS.condtg_stiel_thodos_pcorrection(val, Vm, Me.AUX_TCM(Phase.Vapor), Me.AUX_PCM(Phase.Vapor), Me.AUX_ZCM(Phase.Vapor), Me.AUX_MMM(Phase.Vapor))
+                        IObj?.Paragraphs.Add(String.Format("Dilute-gas value: {0} W/[m.K]; after the Stiel-Thodos high-pressure correction: {1} W/[m.K]", val, valhp))
+                        val = valhp
+                    End If
+                Catch
+                End Try
+            End If
+
             IObj?.Paragraphs.Add("<h2>Results</h2>")
 
             IObj?.Paragraphs.Add(String.Format("Molar Average Value: {0} W/[m.K]", val))

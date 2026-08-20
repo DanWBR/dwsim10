@@ -502,8 +502,71 @@ jobs:
           path: packages
           merge-multiple: true
 
+      - name: Build the release notes
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          describe() {
+            case "$1" in
+              *win-x64-setup.exe)   echo "Windows x64 - installer";;
+              *win-arm64-setup.exe) echo "Windows ARM64 - installer";;
+              *win-x64.zip)         echo "Windows x64 - portable (zip)";;
+              *win-arm64.zip)       echo "Windows ARM64 - portable (zip)";;
+              *osx-x64.tar.gz)      echo "macOS (Intel) - portable (tar.gz)";;
+              *osx-arm64.tar.gz)    echo "macOS (Apple Silicon) - portable (tar.gz)";;
+              *arm64.dmg)           echo "macOS (Apple Silicon) - disk image";;
+              *x64.dmg)             echo "macOS (Intel) - disk image";;
+              *mcp*amd64.deb)       echo "MCP server (headless) - Linux x64, Debian/Ubuntu";;
+              *mcp*arm64.deb)       echo "MCP server (headless) - Linux ARM64, Debian/Ubuntu";;
+              *amd64.deb)           echo "Linux x64 - Debian/Ubuntu package";;
+              *arm64.deb)           echo "Linux ARM64 - Debian/Ubuntu package";;
+              *linux-x64.tar.gz)    echo "Linux x64 - portable (tar.gz)";;
+              *linux-arm64.tar.gz)  echo "Linux ARM64 - portable (tar.gz)";;
+              *)                    echo "";;
+            esac
+          }
+          # What's new = the user-facing commits since the previous release tag
+          REPO="$GITHUB_REPOSITORY"; CUR="$GITHUB_REF_NAME"
+          tags=$(gh api "repos/$REPO/tags" --paginate -q '.[].name' 2>/dev/null | grep -E '^v[0-9]' || true)
+          prev=$( { printf '%s\n' "$tags"; echo "$CUR"; } | sort -uV | grep -B1 -Fx "$CUR" | head -n1 || true )
+          changes=""
+          if [ -n "$prev" ] && [ "$prev" != "$CUR" ]; then
+            msgs=$(gh api "repos/$REPO/compare/$prev...$CUR" -q '.commits[].commit.message | split("\n")[0]' 2>/dev/null || true)
+            changes=$(printf '%s\n' "$msgs" | grep -E '^(feat|fix|perf)(\(.+\))?!?: ' | sed -E 's/^(feat|fix|perf)(\(.+\))?!?: //' | sed 's/^/- /' || true)
+            [ -z "$changes" ] && changes=$(printf '%s\n' "$msgs" | grep -viE '^(Merge |chore|ci|build|docs|test|style|refactor)' | grep -v '^$' | sed 's/^/- /')
+          fi
+          {
+            echo "## What's new in this release"
+            echo
+            if [ -n "$changes" ]; then echo "$changes"; else echo "- See the full changelog link below for the complete list of changes."; fi
+            echo
+            echo "## System requirements"
+            echo
+            echo "**Desktop application** (self-contained, no .NET runtime installation required):"
+            echo "- Windows 10 or later (x64 or ARM64)"
+            echo "- Linux, a recent 64-bit distribution such as Ubuntu 22.04 or later (x64 or ARM64)"
+            echo "- macOS 12 or later (Intel or Apple Silicon)"
+            echo "- 4 GB RAM recommended, about 1 GB of free disk space"
+            echo "- No dedicated GPU required"
+            echo
+            echo '**Headless MCP server** (`.deb`): Debian or Ubuntu (x64 or ARM64), no graphical environment required.'
+            echo
+            echo "### Downloads"
+            echo
+            echo "| File | Platform |"
+            echo "|---|---|"
+            for f in packages/*; do
+              [ -f "$f" ] || continue
+              n=$(basename "$f")
+              printf '| \x60%s\x60 | %s |\n' "$n" "$(describe "$n")"
+            done
+          } > release-body.md
+          cat release-body.md
+
       - uses: softprops/action-gh-release@v2
         with:
           draft: true
           files: packages/*
           generate_release_notes: true
+          body_path: release-body.md

@@ -1270,8 +1270,8 @@ Namespace UnitOperations
                     dpHotSide = (StInHot.GetMassFlow() / KrHot) ^ 2
                     dpColdSide = (StInCold.GetMassFlow() / KrCold) ^ 2
                 End If
-                ApplyPressureGradient(AccumulationStreamsHot, dpHotSide, True, N)
-                ApplyPressureGradient(AccumulationStreamsCold, dpColdSide, FlowDir <> FlowDirection.CounterCurrent, N)
+                ApplyPressureGradient(AccumulationStreamsHot, dpHotSide, True, N, Pmin)
+                ApplyPressureGradient(AccumulationStreamsCold, dpColdSide, FlowDir <> FlowDirection.CounterCurrent, N, Pmin)
 
                 '--- G. drain outlets ---
                 If Not Double.IsNaN(StOutHot.GetMassFlow()) AndAlso StOutHot.GetMassFlow() > 0 Then
@@ -1438,19 +1438,23 @@ Namespace UnitOperations
             Else
                 P = Pmin
             End If
+            ' Floor at Pmin: for a settled incompressible-liquid cell the pressure is carried from the
+            ' previous step, and the superimposed flow-drop gradient would otherwise compound without
+            ' bound and drive downstream cells to zero or negative pressure.
+            If Double.IsNaN(P) OrElse P < Pmin Then P = Pmin
             cell.SetPressure(P)
         End Sub
 
         ''' <summary>Superimposes a linear pressure drop along a side so the reported drop matches the lumped value.</summary>
-        Private Sub ApplyPressureGradient(streams As List(Of MaterialStream), dP As Double, inletAtZero As Boolean, N As Integer)
+        Private Sub ApplyPressureGradient(streams As List(Of MaterialStream), dP As Double, inletAtZero As Boolean, N As Integer, Pmin As Double)
             If dP = 0.0 Then Return
             If N <= 1 Then
-                streams(0).SetPressure(streams(0).GetPressure() - dP)
+                streams(0).SetPressure(Math.Max(Pmin, streams(0).GetPressure() - dP))
                 Return
             End If
             For i As Integer = 0 To N - 1
                 Dim frac = If(inletAtZero, CDbl(i), CDbl(N - 1 - i)) / CDbl(N - 1)
-                streams(i).SetPressure(streams(i).GetPressure() - dP * frac)
+                streams(i).SetPressure(Math.Max(Pmin, streams(i).GetPressure() - dP * frac))
             Next
         End Sub
 
@@ -1459,15 +1463,26 @@ Namespace UnitOperations
                                                 stInHot As MaterialStream, stInCold As MaterialStream,
                                                 ThIn As Double, TcIn As Double) As Double
             Dim Hh1 = hotCell.GetMassEnthalpy(), Hc1 = coldCell.GetMassEnthalpy()
-            Dim tmpstr As MaterialStream = DirectCast(hotCell.Clone(), MaterialStream)
-            tmpstr.PropertyPackage = hotCell.PropertyPackage
-            tmpstr.SetFlowsheet(hotCell.FlowSheet)
-            tmpstr.PropertyPackage.CurrentMaterialStream = tmpstr
-            tmpstr.SetTemperature(TcIn)
-            tmpstr.PropertyPackage.DW_CalcEquilibrium(PropertyPackages.FlashSpec.T, PropertyPackages.FlashSpec.P)
-            tmpstr.Calculate(False, True)
-            Dim HHx = tmpstr.Phases(0).Properties.enthalpy.GetValueOrDefault
-            Dim DeltaHh = stInHot.GetMassFlow() * (Hh1 - HHx)
+            Dim HHx As Double
+            Dim tmpstr As MaterialStream
+
+            ' This is a reporting-only bound (feeds ThermalEfficiency). A flash that cannot be had at
+            ' the requested state must never abort the dynamic run, so each half is guarded; when a half
+            ' has no answer its bound drops out and the other one stands on its own.
+            Dim DeltaHh As Double = Double.MaxValue
+
+            Try
+                tmpstr = DirectCast(hotCell.Clone(), MaterialStream)
+                tmpstr.PropertyPackage = hotCell.PropertyPackage
+                tmpstr.SetFlowsheet(hotCell.FlowSheet)
+                tmpstr.PropertyPackage.CurrentMaterialStream = tmpstr
+                tmpstr.SetTemperature(TcIn)
+                tmpstr.PropertyPackage.DW_CalcEquilibrium(PropertyPackages.FlashSpec.T, PropertyPackages.FlashSpec.P)
+                tmpstr.Calculate(False, True)
+                HHx = tmpstr.Phases(0).Properties.enthalpy.GetValueOrDefault
+                DeltaHh = stInHot.GetMassFlow() * (Hh1 - HHx)
+            Catch ex As Exception
+            End Try
 
             ' The cold side's half of the bound asks what the cold stream would hold at the hot
             ' inlet temperature. That is a question about a state the exchanger never reaches, and

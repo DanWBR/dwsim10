@@ -38,14 +38,25 @@ Namespace UnitOperations.CAPEOPENWrappers
 
         Inherits CapeOpen.CapeUnitBase
 
+#If MOBILE Then
+        ' CAPE-OPEN is a Windows COM standard and is unused on mobile. Re-implementing ICapeUtilities /
+        ' ICapeUnit here (they are already implemented by the CapeObjectBase / CapeUnitBase bases) trips
+        ' an ILLink IL1012 crash under AOT, so the re-implementation is dropped for MOBILE builds.
+        Implements IPersistStreamInit
+#Else
         Implements CapeOpen.ICapeUtilities, IPersistStreamInit, ICapeUnit
+#End If
 
         Protected _sctxt As Object
 
         ''' <summary>
         ''' Sets the CAPE-OPEN simulation context object provided by the host simulator.
         ''' </summary>
+#If MOBILE Then
+        Public Shadows WriteOnly Property simulationContext As Object
+#Else
         Public Shadows WriteOnly Property simulationContext As Object Implements ICapeUtilities.simulationContext
+#End If
             Set(value As Object)
                 _sctxt = value
             End Set
@@ -55,7 +66,11 @@ Namespace UnitOperations.CAPEOPENWrappers
         ''' Initialises the unit operation within the host CAPE-OPEN simulator,
         ''' setting the UI culture and registering unhandled-exception handlers.
         ''' </summary>
+#If MOBILE Then
+        Public Overridable Shadows Sub Initialize()
+#Else
         Public Overridable Shadows Sub Initialize() Implements ICapeUtilities.Initialize
+#End If
 
             ' Cross-platform alternative to My.Application.ChangeUICulture (which is part of
             ' the Microsoft.VisualBasic.Forms runtime, Windows-only on .NET 5+).
@@ -70,7 +85,11 @@ Namespace UnitOperations.CAPEOPENWrappers
         ''' <summary>
         ''' Terminates the unit operation and releases the simulation context COM object.
         ''' </summary>
+#If MOBILE Then
+        Public Overridable Shadows Sub Terminate()
+#Else
         Public Overridable Shadows Sub Terminate() Implements ICapeUtilities.Terminate
+#End If
 
             If Not _sctxt Is Nothing Then
                 If System.Runtime.InteropServices.Marshal.IsComObject(_sctxt) Then
@@ -92,7 +111,11 @@ Namespace UnitOperations.CAPEOPENWrappers
         ''' <summary>
         ''' Performs the unit operation calculation. Must be implemented by derived classes.
         ''' </summary>
+#If MOBILE Then
+        Public MustOverride Shadows Sub Calculate()
+#Else
         Public MustOverride Shadows Sub Calculate() Implements CapeOpen.ICapeUnit.Calculate
+#End If
 
         ''' <summary>
         ''' Creates and registers the CAPE-OPEN parameter collection for this unit operation. Must be implemented by derived classes.

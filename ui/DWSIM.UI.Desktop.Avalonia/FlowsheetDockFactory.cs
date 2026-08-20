@@ -90,6 +90,11 @@ public sealed class FlowsheetDockFactory : Factory
 
     public override IRootDock CreateLayout()
     {
+        // This is a fixed IDE layout: panels are shown and hidden by proportion from the View menu,
+        // not by floating or pinning. Every fixed tool keeps CanFloat and CanPin off - pinning
+        // (auto-hide) re-hosted the live panel control and left its content blank after re-docking
+        // (issue #25). The assistant WebTool is the one exception and manages its own re-hosting.
+
         // --- Left: Editor ---
         EditorTool = new Tool
         {
@@ -97,7 +102,7 @@ public sealed class FlowsheetDockFactory : Factory
             Title = "Editor",
             Content = _editorContent,
             CanClose = false,
-            CanPin = true,
+            CanPin = false,
             CanFloat = false,
             Proportion = 0.30
         };
@@ -160,7 +165,7 @@ public sealed class FlowsheetDockFactory : Factory
             Title = "Objects",
             Content = _paletteContent,
             CanClose = false,
-            CanPin = true,
+            CanPin = false,
             CanFloat = false,
             Proportion = 0.25
         };
@@ -172,7 +177,7 @@ public sealed class FlowsheetDockFactory : Factory
             Title = "Log",
             Content = _logContent,
             CanClose = false,
-            CanPin = true,
+            CanPin = false,
             CanFloat = false,
             Proportion = 0.20
         };
@@ -183,7 +188,7 @@ public sealed class FlowsheetDockFactory : Factory
             Title = "Integrator Controls",
             Content = _integratorContent,
             CanClose = false,
-            CanPin = true,
+            CanPin = false,
             CanFloat = false,
             Proportion = 0.20
         };
@@ -194,7 +199,7 @@ public sealed class FlowsheetDockFactory : Factory
             Title = "Watch",
             Content = _watchContent,
             CanClose = false,
-            CanPin = true,
+            CanPin = false,
             CanFloat = false,
             Proportion = 0.20
         };
@@ -294,12 +299,29 @@ public sealed class FlowsheetDockFactory : Factory
     {
         var host = new Decorator();
         var attached = false;
+        var browserFallback = false;
 
         host.AttachedToVisualTree += (_, _) =>
         {
             attached = true;
-            if (host.Child == null)
+            if (host.Child != null || browserFallback) return;
+            try
+            {
                 host.Child = new global::AvaloniaWebView.WebView { Url = url };
+            }
+            catch (Exception)
+            {
+                // No usable embedded browser on this machine, e.g. a Linux install without
+                // WebKitGTK. This construction is deferred to the attach handler, so the caller's
+                // own try/catch never sees it; open the page in the system browser here, once.
+                browserFallback = true;
+                try
+                {
+                    System.Diagnostics.Process.Start(
+                        new System.Diagnostics.ProcessStartInfo(url.ToString()) { UseShellExecute = true });
+                }
+                catch { }
+            }
         };
 
         host.DetachedFromVisualTree += (_, _) =>

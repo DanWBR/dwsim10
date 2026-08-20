@@ -49,13 +49,17 @@ internal static class IconHelper
         if (icon != null) window.Icon = icon;
     }
 
+    /// <summary>Emoji icon size in pixels, multiplied by the UI scaling factor at startup
+    /// (see App.ApplyUIScaling). Base value matches the font resources in App.axaml.</summary>
+    public static double IconFontSize = 14.0;
+
     /// <summary>Create a small TextBlock suitable for MenuItem.Icon.</summary>
     public static TextBlock MIcon(string emoji)
     {
         return new TextBlock
         {
             Text = emoji,
-            FontSize = 14,
+            FontSize = IconFontSize,
             VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Center,
             HorizontalAlignment = global::Avalonia.Layout.HorizontalAlignment.Center
         };

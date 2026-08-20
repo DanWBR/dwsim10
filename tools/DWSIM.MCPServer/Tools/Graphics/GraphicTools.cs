@@ -134,7 +134,7 @@ namespace DWSIM.MCPServer.Tools.Graphics
             "Edit properties of an existing graphic object: position (x, y), size (width, height), text, font_size, or tag.")]
         public JObject Edit(
             [McpParam("Flowsheet handle")] string flowsheet_id,
-            [McpParam("Name of the graphic object to edit")] string name,
+            [McpParam("Tag or id of the graphic or simulation object to edit")] string name,
             [McpParam("New X position", Required = false)] int x = -1,
             [McpParam("New Y position", Required = false)] int y = -1,
             [McpParam("New width", Required = false)] int width = -1,
@@ -145,7 +145,7 @@ namespace DWSIM.MCPServer.Tools.Graphics
         {
             var fs = _sessions.GetFlowsheet(flowsheet_id);
             var surface = (GraphicsSurface)fs.Inner.GetSurface();
-            var gobj = surface.DrawingObjects.FirstOrDefault(o => o.Name == name);
+            var gobj = surface.DrawingObjects.FirstOrDefault(o => o.Name == name || o.Tag == name);
             if (gobj == null)
                 throw new ArgumentException($"Graphic object not found: {name}");
 
@@ -165,6 +165,7 @@ namespace DWSIM.MCPServer.Tools.Graphics
             return new JObject
             {
                 ["name"] = gobj.Name,
+                ["tag"] = gobj.Tag,
                 ["x"] = gobj.X,
                 ["y"] = gobj.Y,
                 ["width"] = gobj.Width,

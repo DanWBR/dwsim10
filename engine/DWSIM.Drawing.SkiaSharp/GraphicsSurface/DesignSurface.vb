@@ -1993,32 +1993,80 @@ Public Class GraphicsSurface
         Next
 
         For Each obj In DrawingObjects
-            If TypeOf obj Is ShapeGraphic And Not obj.IsConnector Then
-                If obj.InputConnectors.Count = 1 And obj.OutputConnectors.Count = 1 Then
-                    If obj.InputConnectors(0).IsAttached Then
-                        If obj.InputConnectors(0).AttachedConnector.AttachedFrom.X > obj.X Then
-                            obj.FlippedH = True
-                        Else
-                            obj.FlippedH = False
-                        End If
-                    ElseIf obj.ObjectType = ObjectType.EnergyStream Then
-                        If obj.OutputConnectors(0).IsAttached Then
-                            Dim dest = obj.OutputConnectors(0).AttachedConnector.AttachedTo
-                            If dest.FlippedH Then
-                                obj.X += dest.Width * 1.3
-                            Else
-                                obj.X -= dest.Width * 1.3
-                            End If
-                            If dest.X < obj.X Then
-                                obj.FlippedH = True
-                            Else
-                                obj.FlippedH = False
-                            End If
-                        End If
-                    End If
+            If TypeOf obj Is ShapeGraphic AndAlso Not obj.IsConnector Then
+                ' keep an energy stream beside the unit it drives (it has no upstream of its own)
+                If obj.ObjectType = ObjectType.EnergyStream AndAlso
+                   obj.InputConnectors.Count = 1 AndAlso obj.OutputConnectors.Count = 1 AndAlso
+                   Not obj.InputConnectors(0).IsAttached AndAlso obj.OutputConnectors(0).IsAttached Then
+                    Dim dest = obj.OutputConnectors(0).AttachedConnector.AttachedTo
+                    If dest.FlippedH Then obj.X += CInt(dest.Width * 1.3) Else obj.X -= CInt(dest.Width * 1.3)
                 End If
+                OrientAlongFlow(obj)
             End If
         Next
+
+    End Sub
+
+    ''' <summary>
+    ''' Center of the first attached neighbour on the input (or output) side of an object,
+    ''' or Nothing when that side is not connected.
+    ''' </summary>
+    Private Function PrimaryNeighborCenter(gobj As IGraphicObject, isInput As Boolean) As Point
+        Dim conns = If(isInput, gobj.InputConnectors, gobj.OutputConnectors)
+        If conns Is Nothing Then Return Nothing
+        For Each cp In conns
+            If cp.IsAttached AndAlso cp.AttachedConnector IsNot Nothing Then
+                Dim nb = If(isInput, cp.AttachedConnector.AttachedFrom, cp.AttachedConnector.AttachedTo)
+                If nb IsNot Nothing Then Return New Point(nb.X + nb.Width \ 2, nb.Y + nb.Height \ 2)
+            End If
+        Next
+        Return Nothing
+    End Function
+
+    ''' <summary>
+    ''' Orients a graphic object so its default inlet-to-outlet axis (left to right) follows the
+    ''' local flow direction: mirrored horizontally when the flow runs right to left, which is the
+    ''' recycle-return case, and rotated when it runs vertically. Rotation is only applied to simple
+    ''' single-inlet/single-outlet objects; multi-port objects (columns, mixers) are mirrored, never
+    ''' rotated, since rotating them reads wrong. Reprojects the connectors afterwards.
+    ''' </summary>
+    Public Sub OrientAlongFlow(gobj As IGraphicObject)
+
+        If gobj Is Nothing OrElse gobj.IsConnector Then Return
+
+        Dim fromC As Point = PrimaryNeighborCenter(gobj, True)
+        Dim toC As Point = PrimaryNeighborCenter(gobj, False)
+        Dim selfC As New Point(gobj.X + gobj.Width \ 2, gobj.Y + gobj.Height \ 2)
+
+        Dim p1 As Point, p2 As Point
+        If fromC IsNot Nothing AndAlso toC IsNot Nothing Then
+            p1 = fromC : p2 = toC
+        ElseIf fromC IsNot Nothing Then
+            p1 = fromC : p2 = selfC
+        ElseIf toC IsNot Nothing Then
+            p1 = selfC : p2 = toC
+        Else
+            Return
+        End If
+
+        Dim dx = p2.X - p1.X
+        Dim dy = p2.Y - p1.Y
+
+        gobj.FlippedH = False
+        gobj.FlippedV = False
+        gobj.Rotation = 0
+
+        Dim simple = (gobj.InputConnectors.Count = 1 AndAlso gobj.OutputConnectors.Count = 1)
+
+        If Math.Abs(dx) >= Math.Abs(dy) Then
+            If dx < 0 Then gobj.FlippedH = True
+        ElseIf simple Then
+            If dy > 0 Then gobj.Rotation = 90 Else gobj.Rotation = 270
+        Else
+            If dy < 0 Then gobj.FlippedV = True
+        End If
+
+        gobj.PositionConnectors()
 
     End Sub
 
@@ -2109,6 +2157,75 @@ Public Class GraphicsSurface
 
         Next
 
+        ' The forward pass laid everything left to right with no mirroring. Lay the recycle-return
+        ' path out on a row below, running right to left, so the loop closes as a clean rectangle,
+        ' then orient every object along its local flow so the returns are mirrored horizontally and
+        ' vertical runs are rotated.
+        LayoutRecycleReturns(orderedIds, deltaX)
+
+        For Each objID In orderedIds
+            Dim gobj = DrawingObjects.Where(Function(o) o.Name = objID).FirstOrDefault()
+            If gobj IsNot Nothing Then OrientAlongFlow(gobj)
+        Next
+
+    End Sub
+
+    ''' <summary>
+    ''' Drops the objects on each recycle's return path onto a row below the main chain, positioned
+    ''' between the recycle's upstream source and its downstream target, so the loop reads as a
+    ''' rectangle instead of a long connector doubling back over the forward path. Orientation
+    ''' (the horizontal mirror) is applied separately by <see cref="OrientAlongFlow"/>.
+    ''' </summary>
+    Private Sub LayoutRecycleReturns(orderedIds As List(Of String), deltaX As Integer)
+
+        Dim recycles = DrawingObjects.Where(Function(o) o.ObjectType = ObjectType.OT_Recycle OrElse
+                                                        o.ObjectType = ObjectType.OT_EnergyRecycle).ToList()
+        If recycles.Count = 0 Then Return
+
+        ' one row below the lowest object on the main chain
+        Dim baseY As Integer = 50
+        Dim placed = DrawingObjects.Where(Function(o) Not o.IsConnector AndAlso o.Height > 0).ToList()
+        If placed.Count > 0 Then baseY = placed.Max(Function(o) o.Y + o.Height) + deltaX
+
+        For Each rec In recycles
+
+            ' the tear stream feeding the recycle, and the stream it returns
+            Dim inStream As IGraphicObject = Nothing
+            Dim outStream As IGraphicObject = Nothing
+            If rec.InputConnectors.Count > 0 AndAlso rec.InputConnectors(0).IsAttached Then
+                inStream = rec.InputConnectors(0).AttachedConnector.AttachedFrom
+            End If
+            If rec.OutputConnectors.Count > 0 AndAlso rec.OutputConnectors(0).IsAttached Then
+                outStream = rec.OutputConnectors(0).AttachedConnector.AttachedTo
+            End If
+
+            ' the unit the tear comes off (loop right edge) and the unit the return rejoins (left edge)
+            Dim srcUO As IGraphicObject = inStream
+            If inStream IsNot Nothing AndAlso inStream.InputConnectors.Count > 0 AndAlso inStream.InputConnectors(0).IsAttached Then
+                srcUO = inStream.InputConnectors(0).AttachedConnector.AttachedFrom
+            End If
+            Dim dstUO As IGraphicObject = outStream
+            If outStream IsNot Nothing AndAlso outStream.OutputConnectors.Count > 0 AndAlso outStream.OutputConnectors(0).IsAttached Then
+                dstUO = outStream.OutputConnectors(0).AttachedConnector.AttachedTo
+            End If
+
+            Dim rightX As Integer = If(srcUO IsNot Nothing, srcUO.X, rec.X)
+            Dim leftX As Integer = If(dstUO IsNot Nothing, dstUO.X, rec.X - deltaX)
+            If leftX > rightX Then
+                Dim swap = leftX : leftX = rightX : rightX = swap
+            End If
+
+            ' lay the return chain out on the lower row, right to left, so the loop closes as a
+            ' rectangle. OrientAlongFlow mirrors each object afterwards, since the flow now runs left.
+            If inStream IsNot Nothing Then
+                inStream.X = rightX : inStream.Y = baseY : inStream.PositionConnectors()
+            End If
+            rec.X = CInt((rightX + leftX) / 2) : rec.Y = baseY : rec.PositionConnectors()
+            If outStream IsNot Nothing Then
+                outStream.X = leftX + deltaX : outStream.Y = baseY : outStream.PositionConnectors()
+            End If
+
+        Next
 
     End Sub
 

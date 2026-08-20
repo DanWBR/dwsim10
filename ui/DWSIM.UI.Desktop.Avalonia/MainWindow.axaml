@@ -76,6 +76,7 @@
               <Button Name="LnkLoadRegression" Classes="link" Content="Load Study from File" />
               <Button Name="LnkNewCompound"    Classes="link" Content="Create New Compound" />
               <Button Name="LnkNewSolid"       Classes="link" Content="Quick Create New Solid" />
+              <Button Name="LnkNewBlackOil"    Classes="link" Content="Quick Create New Black Oil" />
               <Button Name="LnkNewCompoundWiz" Classes="link" Content="Create New (with Wizard)" />
               <Button Name="LnkDatabaseManager" Classes="link" Content="Manage User Databases..." />
             </StackPanel>

@@ -121,9 +121,11 @@ namespace DWSIM.Engine.SmokeTests
         [TestCase("CavettProblem.dwxml")]
         [TestCase("GibbsAndEquilibriumReactors.dwxml")]
         [TestCase("HeatExchangerSizingAndDesign.dwxml")]
+        [TestCase("HydrocycloneCustomUnitOperation.dwxml")]
         [TestCase("HydrogenproductionthroughMethaneCatalyticSteamReforming.dwxml")]
         [TestCase("MembraneCustomUnitOperation.dwxml")]
         [TestCase("PetroleumDistillation.dwxml")]
+        [TestCase("SimpleLNGExchangerCustomUnitOperation.dwxml")]
         [TestCase("ThreePhaseSeparator.dwxml")]
         public void AFlowsheetSolves(string filename)
         {
@@ -150,11 +152,9 @@ namespace DWSIM.Engine.SmokeTests
         // them starts behaving differently, the suite says so.
         [TestCase("BiodieselProduction.dwxmz", "Biodiesel Purification: DCErrorStillHigh")]
         [TestCase("ExtractiveDistillation.dwxmz", "Acetone Column (6 atm): DCErrorStillHigh")]
-        [TestCase("HydrocycloneCustomUnitOperation.dwxml", "SyntaxError: invalid syntax")]
         [TestCase("LiquidLiquidExtraction.dwxmz", "ABS-002: DCErrorStillHigh")]
         [TestCase("NaturalGasProcessingUnit.dwxml", "DEBUTANIZER: Failed to fulfill mass balance")]
         [TestCase("SimpleAbsorberSample.dwxml", "ABS-000: DCErrorStillHigh")]
-        [TestCase("SimpleLNGExchangerCustomUnitOperation.dwxml", "SyntaxError: invalid syntax")]
         public void AFlowsheetFailsTheWayItAlreadyDid(string filename, string expected)
         {
             var flowsheet = Load(filename);

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json.Linq;
@@ -88,12 +89,37 @@ namespace DWSIM.MCPServer.Tools.Flowsheet
                 arr.Add(new JObject
                 {
                     ["name"] = go.Tag,
+                    ["id"] = obj.Name,
                     ["type"] = go.ObjectType.ToString(),
+                    ["x"] = go.X,
+                    ["y"] = go.Y,
+                    ["width"] = go.Width,
+                    ["height"] = go.Height,
                     ["calculated"] = obj.Calculated,
                     ["error"] = obj.ErrorMessage ?? ""
                 });
             }
             return new JObject { ["objects"] = arr };
+        }
+
+        [McpTool("dwsim_object_rename", "Rename a simulation object (stream or unit operation) by changing its tag. Accepts the object's current tag or its id.")]
+        public JObject Rename(
+            [McpParam("Flowsheet handle")] string flowsheet_id,
+            [McpParam("Current tag or id of the object to rename")] string name,
+            [McpParam("New tag for the object")] string new_name)
+        {
+            var fs = _sessions.GetFlowsheet(flowsheet_id);
+            var obj = fs.Inner.SimulationObjects.Values.FirstOrDefault(
+                o => o.GraphicObject != null && (o.GraphicObject.Tag == name || o.Name == name));
+            if (obj == null)
+                throw new ArgumentException($"No simulation object with tag or id '{name}'.");
+
+            obj.GraphicObject.Tag = new_name;
+            return new JObject
+            {
+                ["id"] = obj.Name,
+                ["name"] = new_name
+            };
         }
 
         [McpTool("dwsim_flowsheet_summary", "Get a high-level summary of the flowsheet: compounds, property package, object counts, solver status.")]

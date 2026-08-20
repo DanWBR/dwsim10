@@ -96,6 +96,40 @@ namespace DWSIM.Engine.SmokeTests
         }
 
         /// <summary>
+        /// A pressure-enthalpy flash on water: the state is well inside the correlations' range,
+        /// but the flash brackets the temperature to find it. It must bracket only inside the range,
+        /// or the bracket's far end lands where the correlations refuse and the whole flash throws.
+        /// This is the path every heater, cooler and valve downstream of a water stream takes.
+        /// </summary>
+        [TestCase(560.0)]
+        [TestCase(650.0)]
+        [TestCase(900.0)]
+        public void ThePressureEnthalpyFlashSolvesInsideTheRange(double temperature)
+        {
+            var fs = WaterFlowsheet();
+            var ms = Stream(fs, new DWSIM.Thermodynamics.PropertyPackages.SteamTablesPropertyPackage
+            {
+                Flowsheet = fs
+            }, "s");
+
+            ms.SetMassFlow(1.0);
+            ms.SetPressure(P);
+            ms.SetTemperature(temperature);
+            ms.SetFlashSpec("PT");
+            ms.Calculate();
+            var h = ms.GetMassEnthalpy();
+
+            // Same state, now given by pressure and enthalpy.
+            ms.SetFlashSpec("PH");
+            ms.SetMassEnthalpy(h);
+
+            Assert.That(() => ms.Calculate(), Throws.Nothing,
+                        $"the PH flash threw finding {temperature} K");
+            Assert.That(ms.GetTemperature(), Is.EqualTo(temperature).Within(1.0),
+                        "the PH flash did not recover the temperature it was given");
+        }
+
+        /// <summary>
         /// A combustion gas at 2300 K heating water on the steam tables, with the cold outlet
         /// specified. The exchanger has to reach that outlet even though the cold side's property
         /// package cannot be evaluated anywhere near the hot inlet temperature.

@@ -807,6 +807,14 @@ Imports DWSIM.ExtensionMethods
     ''' <param name="exceptionID">An optional identifier linking the message to a specific exception record.</param>
     Public MustOverride Sub ShowMessage(text As String, mtype As IFlowsheet.MessageType, Optional ByVal exceptionID As String = "") Implements IFlowsheet.ShowMessage
 
+    ''' <summary>Writes an informational message to the log. Scripts and plugins call this on the
+    ''' flowsheet object; it lives on the public base class so the scripting engine can resolve it
+    ''' even when the concrete host type (e.g. the Avalonia flowsheet) is not public.</summary>
+    ''' <param name="text">The message text.</param>
+    Public Overridable Sub WriteMessage(text As String)
+        ShowMessage(text, IFlowsheet.MessageType.Information)
+    End Sub
+
     ''' <summary>
     ''' Update the AI status label. Default implementation is a no-op;
     ''' overridden in FormFlowsheet (WinForms) where AiLabel1 exists.
@@ -4612,6 +4620,18 @@ Label_00CC:
 
     Private Shared Function LoadFromExtensionsFolder(ByVal sender As Object, ByVal args As ResolveEventArgs) As Assembly
 
+        ' If an assembly with this name is already loaded, return that one. Loading a second copy
+        ' from the extensions folder gives two assemblies of the same identity, and a type from one
+        ' cannot be cast to the same type from the other. That is what broke the Plus unit operations
+        ' that draw their icon with SkiaSharp: the host passed its SKCanvas to the extension and the
+        ' cast failed with "SkiaSharp.SKCanvas cannot be cast to SkiaSharp.SKCanvas".
+        Dim requestedName As String = New AssemblyName(args.Name).Name
+        For Each loadedAsm As Assembly In AppDomain.CurrentDomain.GetAssemblies()
+            If Not loadedAsm.IsDynamic AndAlso String.Equals(loadedAsm.GetName().Name, requestedName, StringComparison.OrdinalIgnoreCase) Then
+                Return loadedAsm
+            End If
+        Next
+
         Dim directories = New List(Of String)({
                 Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
                 Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "extenders"),
@@ -6346,6 +6366,11 @@ Label_00CC:
     End Sub
 
     Public Sub SavePFDScreenshotToPNG(pngfilepath As String) Implements IFlowsheet.SavePFDScreenshotToPNG
+
+        ' UpdateCanvas returns without drawing when the surface has no flowsheet reference, which is
+        ' the case on the headless/automation path (only the graphic objects get one). Set it so the
+        ' screenshot actually renders the objects.
+        FlowsheetSurface.Flowsheet = Me
 
         If Not Settings.AutomationMode Then
             Dim scale = Settings.DpiScale

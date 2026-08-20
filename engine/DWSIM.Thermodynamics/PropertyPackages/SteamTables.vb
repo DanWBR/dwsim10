@@ -222,7 +222,7 @@ Namespace PropertyPackages
                                 Else
                                     LoopVarF = H
                                     LoopVarX = T
-                                    P = brentsolverP.BrentOpt(0.001, 2000, 100, 0.0001, 1000, Nothing)
+                                    P = brentsolverP.BrentOpt(0.001, 1000.0, 100, 0.0001, 1000, Nothing)
                                 End If
                                 P = P * 100000
 
@@ -252,7 +252,7 @@ Namespace PropertyPackages
                                 Else
                                     LoopVarF = H
                                     LoopVarX = T
-                                    P = brentsolverP.BrentOpt(0.001, 2000, 100, 0.0001, 1000, Nothing)
+                                    P = brentsolverP.BrentOpt(0.001, 1000.0, 100, 0.0001, 1000, Nothing)
                                 End If
                                 P = P * 100000
 
@@ -295,7 +295,7 @@ Namespace PropertyPackages
 
                                     vf = 1.0
 
-                                    T = brentsolverT.BrentOpt2(273.15, 2000, 5, 0.001, 100, Function(Tx)
+                                    T = brentsolverT.BrentOpt2(273.15, .tmax, 5, 0.001, 100, Function(Tx)
 
                                                                                                 Return H - .enthalpyW(Tx, P / 100000)
 
@@ -331,7 +331,7 @@ Namespace PropertyPackages
                                     Else
                                         LoopVarF = H
                                         LoopVarX = P / 100000
-                                        T = brentsolverT.BrentOpt(273.15, 2000, 100, 0.0001, 1000, Nothing)
+                                        T = brentsolverT.BrentOpt(273.15, .tmax, 100, 0.0001, 1000, Nothing)
                                     End If
 
                                 End If
@@ -353,7 +353,7 @@ Namespace PropertyPackages
 
                                     'supercritical
 
-                                    T = brentsolverT.BrentOpt2(273.15, 2000, 5, 0.001, 100, Function(Tx)
+                                    T = brentsolverT.BrentOpt2(273.15, .tmax, 5, 0.001, 100, Function(Tx)
 
                                                                                                 Return S - .entropyW(Tx, P / 100000)
 
@@ -389,7 +389,7 @@ Namespace PropertyPackages
                                     Else
                                         LoopVarF = H
                                         LoopVarX = P / 100000
-                                        T = brentsolverT.BrentOpt(273.15, 2000, 100, 0.0001, 1000, Nothing)
+                                        T = brentsolverT.BrentOpt(273.15, .tmax, 100, 0.0001, 1000, Nothing)
                                     End If
 
                                 End If

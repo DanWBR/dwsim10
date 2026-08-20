@@ -218,6 +218,61 @@ begin
 end;
 
 //---------------------------------------------------------------------------
+// Remove a previous DWSIM install before installing.
+// When the wizard opens, offer to run the previous version's uninstaller. That
+// uninstaller removes only the files it had logged when it installed them, so
+// the user's saved simulations, custom compounds and any files added after
+// install are left untouched - we never wipe the folder ourselves.
+//---------------------------------------------------------------------------
+
+function GetPreviousUninstallString: string;
+var
+  Key, S: string;
+begin
+  Result := '';
+  // Inno records uninstall info under {AppId}_is1; this edition's AppId is fixed
+  // and distinct from the classic/Patreon one. A per-user install lands in HKCU.
+  Key := 'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\' +
+         '{B6C2D7E0-1A4F-4C3D-9B6D-DWSIM00000002}_is1';
+  if RegQueryStringValue(HKCU64, Key, 'UninstallString', S) and (S <> '') then begin Result := S; exit; end;
+  if RegQueryStringValue(HKCU32, Key, 'UninstallString', S) and (S <> '') then begin Result := S; exit; end;
+  if RegQueryStringValue(HKLM64, Key, 'UninstallString', S) and (S <> '') then begin Result := S; exit; end;
+  if RegQueryStringValue(HKLM32, Key, 'UninstallString', S) and (S <> '') then begin Result := S; exit; end;
+end;
+
+function InitializeSetup: Boolean;
+var
+  UninstExe: string;
+  ResultCode, Waited: Integer;
+begin
+  Result := True;
+
+  UninstExe := GetPreviousUninstallString;
+  if UninstExe = '' then exit;
+
+  if MsgBox('A previous version of DWSIM is already installed.' + #13#10 + #13#10 +
+            'Would you like to remove it before installing this version?' + #13#10 + #13#10 +
+            'Your saved simulations, custom compounds and other files are kept:' + #13#10 +
+            'the uninstaller removes only the files the previous installer had copied.',
+            mbConfirmation, MB_YESNO) <> IDYES then exit;
+
+  UninstExe := RemoveQuotes(UninstExe);
+
+  // The uninstaller relaunches itself from a temporary copy and the first process
+  // returns at once, so wait until the original uninstaller executable is gone.
+  if Exec(UninstExe, '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART', '', SW_SHOW,
+          ewWaitUntilTerminated, ResultCode) then
+  begin
+    Waited := 0;
+    while FileExists(UninstExe) and (Waited < 120) do
+    begin
+      Sleep(500);
+      Waited := Waited + 1;
+    end;
+  end;
+end;
+
+//---------------------------------------------------------------------------
 // Preserve the user's extenders, unitops and ppacks folders across a reinstall
 //---------------------------------------------------------------------------
 
@@ -254,19 +309,13 @@ begin
   DelTree(BackupRoot, True, True, True);
 end;
 
-function ShouldAskPreserve: Boolean;
-begin
-  Result := DirExists(ExpandConstant('{app}\extenders')) or
-            DirExists(ExpandConstant('{app}\unitops'))   or
-            DirExists(ExpandConstant('{app}\ppacks'));
-end;
-
 function PrepareToInstall(var NeedsRestart: Boolean): String;
-var
-  BackupRoot: string;
-  Preserve: Boolean;
 begin
   Result := '';
+
+  // Removing a previous version is handled in InitializeSetup, through its own
+  // uninstaller, so it only ever deletes files the previous installer had copied.
+  // This step no longer wipes the install folder, which would take user files with it.
 
   // Extract the selected sub-installers into {tmp}, so [Run] can launch them.
 #if HaveWebView2
@@ -277,29 +326,6 @@ begin
   if WizardIsComponentSelected('chemsep') then
     ExtractTemporaryFile('lite.exe');
 #endif
-
-  if ShouldAskPreserve then
-  begin
-    Preserve := MsgBox('An existing DWSIM installation was found in:' + #13#10 +
-                       ExpandConstant('{app}') + #13#10 + #13#10 +
-                       'Keep user-added DLLs in the extenders, unitops and ppacks folders?' + #13#10 + #13#10 +
-                       'Yes = preserve user plugins (recommended)' + #13#10 +
-                       'No  = wipe everything for a clean install',
-                       mbConfirmation, MB_YESNO) = IDYES;
-
-    BackupRoot := ExpandConstant('{app}\..\DWSIM_install_backup');
-    DelTree(BackupRoot, True, True, True);
-    if Preserve then
-      MovePluginsToBackup(BackupRoot);
-
-    DelTree(ExpandConstant('{app}'), True, True, True);
-    ForceDirectories(ExpandConstant('{app}'));
-
-    if Preserve then
-      RestorePluginsFromBackup(BackupRoot)
-    else
-      DelTree(BackupRoot, True, True, True);
-  end;
 end;
 
 //---------------------------------------------------------------------------

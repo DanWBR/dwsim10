@@ -33,5 +33,19 @@ namespace DWSIM.Automation.FluentAPI.Builders
             action?.Invoke(Object);
             return this;
         }
+
+        // ------------------------------------------------------- Layout / orientation
+
+        /// <summary>Mirrors the stream horizontally.</summary>
+        public EnergyStreamBuilder FlipHorizontal(bool flipped = true) { Object.GraphicObject.FlippedH = flipped; return this; }
+
+        /// <summary>Mirrors the stream vertically.</summary>
+        public EnergyStreamBuilder FlipVertical(bool flipped = true) { Object.GraphicObject.FlippedV = flipped; return this; }
+
+        /// <summary>Rotates the stream on the canvas; use 0, 90, 180 or 270 degrees.</summary>
+        public EnergyStreamBuilder Rotate(int degrees) { Object.GraphicObject.Rotation = ((degrees % 360) + 360) % 360; return this; }
+
+        /// <summary>Places the stream at (x, y) on the canvas.</summary>
+        public EnergyStreamBuilder PositionAt(int x, int y) { Object.GraphicObject.X = x; Object.GraphicObject.Y = y; return this; }
     }
 }

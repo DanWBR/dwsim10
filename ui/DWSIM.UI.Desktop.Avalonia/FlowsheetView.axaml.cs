@@ -355,6 +355,14 @@ public partial class FlowsheetView : UserControl
         // InputReleased fires after InputReleaseCallback has finalized selection and set LastClickedObjectName.
         Canvas.InputReleased += (_, _) =>
         {
+            // In connect mode a click picks the source, then the target, instead of opening an
+            // editor. The surface has already finalized the selection by the time this fires, so
+            // HandleConnectClick reads the clicked object off SelectedObject.
+            if (_connectMode)
+            {
+                HandleConnectClick();
+                return;
+            }
             var name = LastClickedObjectName;
             if (!string.IsNullOrEmpty(name) && _flowsheet != null)
             {
@@ -2082,6 +2090,11 @@ public partial class FlowsheetView : UserControl
         };
 
         // --- Results menu ---
+        MenuResultsReport.Click += (_, _) =>
+        {
+            if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
+            new ReportConfigWindow(_flowsheet, SimulationName + " - Results Report").Show(HostWindow);
+        };
         MenuMarkdownReport.Click += (_, _) =>
         {
             if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
@@ -2219,10 +2232,13 @@ public partial class FlowsheetView : UserControl
         var obj = _surface.SelectedObject;
         if (obj == null) return;
 
-        var tag  = obj.Tag;
-        var name = obj.Name;
-        _surface.DeleteSelectedObject(obj);
-        _flowsheet.SimulationObjects.Remove(name);
+        var tag = obj.Tag;
+        // Route deletion through the flowsheet's own logic (the same path the WinForms edition uses).
+        // It disconnects every attached input/output/energy port, removes the connection lines, clears
+        // any spec/adjust/PID references and drops the object from both the simulation-object and
+        // graphic-object dictionaries. The previous surface-only delete left ports occupied and the
+        // connection lines still drawn on the canvas.
+        _flowsheet.DeleteSelectedObject(this, EventArgs.Empty, obj, confirmation: false, triggercalc: false);
         Canvas.Refresh();
         UpdateResultsPanel();
         AppendLog($"Deleted '{tag}'.");
@@ -3653,6 +3669,18 @@ public partial class FlowsheetView : UserControl
     public void ShowWebPanel(string title, string url)
     {
         if (_dockFactory == null) return;
+
+        // The macOS WebView binding (Avalonia.WebView.MacCatalyst over ObjCRuntime) aborts the
+        // process under .NET 8+: AppKit registration reflects for GetFunctionPointerForDelegateInternal,
+        // which is now an ambiguous match, and throws from a static constructor that cannot be caught
+        // here, taking the whole app down with SIGABRT. The page is served locally, so on macOS open
+        // it in the system browser instead of embedding it.
+        if (OperatingSystem.IsMacOS())
+        {
+            try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); }
+            catch (Exception ex) { AppendLog($"Could not open '{title}': {ex.Message}"); }
+            return;
+        }
 
         if (_dockFactory.WebTool != null)
         {

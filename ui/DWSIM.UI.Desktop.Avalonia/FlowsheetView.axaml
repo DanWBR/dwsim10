@@ -107,6 +107,7 @@
         <MenuItem Header="Property _Chart..."        Name="MenuPropertyChart" />
       </MenuItem>
       <MenuItem Header="_Results">
+        <MenuItem Header="_Results Report..."         Name="MenuResultsReport" />
         <MenuItem Header="_Markdown Report Viewer..." Name="MenuMarkdownReport" />
       </MenuItem>
       <MenuItem Header="_Plugins" Name="MenuPlugins" />
