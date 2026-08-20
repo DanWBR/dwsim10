@@ -47,5 +47,7 @@ namespace DWSIM.FluentAPI.Tests
         [Test] public void ThePhaseDiagramsAreBuilt() => PhaseDiagramTest.Run();
 
         [Test] public void APumpFollowsItsPerformanceCurves() => PumpCurvesTest.Run();
+
+        [Test] public void NaturalLayoutLaysRecyclesOutAsARectangle() => RecycleLayoutTest.Run();
     }
 }
