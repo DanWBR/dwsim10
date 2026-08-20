@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Threading.Tasks;
@@ -38,6 +39,15 @@ public sealed class BlackOilCompoundCreatorWindow : Window
     private readonly TextBox _tbVisc2 = new() { Text = "0" };
     private readonly TextBox _tbViscT2 = new() { Text = "50" };
     private readonly TextBox _tbComments = new() { Text = "User-created black-oil compound." };
+
+    private readonly TextBox _tbLabData = new() { AcceptsReturn = true, Height = 90, TextWrapping = global::Avalonia.Media.TextWrapping.NoWrap };
+    private readonly TextBox _tbMeasPb = new() { Text = "0" };
+    private readonly TextBox _tbResT = new() { Text = "90" };
+    private readonly TextBox _tbRsMult = new() { Text = "1" };
+    private readonly TextBox _tbBoMult = new() { Text = "1" };
+    private readonly TextBox _tbPbMult = new() { Text = "1" };
+    private readonly TextBox _tbViscMult = new() { Text = "1" };
+    private readonly TextBlock _lblCalReport = new() { Text = "not calibrated" };
 
     private readonly TextBox _tbOutput = new();
     private readonly TextBlock _status = new()
@@ -101,6 +111,26 @@ public sealed class BlackOilCompoundCreatorWindow : Window
         p.CreateAndAddLabelAndControlRow("Temperature 2 (°C)", _tbViscT2);
         p.CreateAndAddLabelAndControlRow("Comments", _tbComments);
 
+        p.CreateAndAddLabelRow("Lab-PVT Calibration (optional)");
+        p.CreateAndAddLabelAndControlRow("Lab points", _tbLabData);
+        p.CreateAndAddDescriptionRow(
+            "One measured PVT point per line, whitespace-separated: P[bar]  T[°C]  Rs[m³/m³]  Bo[m³/m³]  Visc[cP]. Use - for a value you did not measure.");
+        p.CreateAndAddLabelAndControlRow("Measured Bubble Point (bar)", _tbMeasPb);
+        p.CreateAndAddLabelAndControlRow("Reservoir Temperature (°C)", _tbResT);
+
+        var btnCalibrate = new Button { Content = "Calibrate from Lab PVT", HorizontalAlignment = HorizontalAlignment.Stretch };
+        btnCalibrate.Classes.Add("panel");
+        btnCalibrate.Click += (_, _) => Calibrate();
+        p.CreateAndAddControlRow(btnCalibrate);
+
+        p.CreateAndAddLabelAndControlRow("Rs multiplier", _tbRsMult);
+        p.CreateAndAddLabelAndControlRow("Bo multiplier", _tbBoMult);
+        p.CreateAndAddLabelAndControlRow("Pb multiplier", _tbPbMult);
+        p.CreateAndAddLabelAndControlRow("Oil viscosity multiplier", _tbViscMult);
+        p.CreateAndAddLabelAndControlRow("Calibration", _lblCalReport);
+        p.CreateAndAddDescriptionRow(
+            "The multipliers (1 = uncalibrated) correct the Standing / Beggs-Robinson correlations to match the lab data; Calibrate fits them from the points above, and they are editable and saved with the compound.");
+
         p.CreateAndAddLabelRow("Output");
         p.CreateAndAddLabelAndControlRow("File", _tbOutput);
         p.CreateAndAddDescriptionRow(
@@ -154,6 +184,64 @@ public sealed class BlackOilCompoundCreatorWindow : Window
         }
     }
 
+    private void Calibrate()
+    {
+        try
+        {
+            var sgo = OilSG();
+            var sgg = Val(_tbGasSG, 0.75);
+            var gor = Val(_tbGOR, 0.0);
+            var bsw = Val(_tbBSW, 0.0);
+            var pts = ParseLabPoints();
+            var pbMeas = Val(_tbMeasPb, 0.0) * 1e5;     // bar -> Pa
+            var resT = Val(_tbResT, 90.0) + 273.15;
+
+            if (pts.Count == 0 && pbMeas <= 0.0)
+            {
+                _status.Text = "Enter at least one lab point (P, T, Rs/Bo/Visc) or a measured bubble point.";
+                return;
+            }
+
+            var r = BlackOilCalibration.Calibrate(sgo, sgg, gor, bsw, pts, pbMeas, resT);
+            _tbRsMult.Text = r.RsMult.ToString("0.0000", CultureInfo.CurrentCulture);
+            _tbBoMult.Text = r.BoMult.ToString("0.0000", CultureInfo.CurrentCulture);
+            _tbPbMult.Text = r.PbMult.ToString("0.0000", CultureInfo.CurrentCulture);
+            _tbViscMult.Text = r.OilViscMult.ToString("0.0000", CultureInfo.CurrentCulture);
+            _lblCalReport.Text = $"Rs {r.RsPoints} pts | Bo {r.BoPoints} pts | Visc {r.ViscPoints} pts | Pb {(r.PbSet ? "measured" : "-")}";
+            _status.Text = "";
+        }
+        catch (Exception ex) { _status.Text = "Calibration error: " + ex.Message; }
+    }
+
+    private List<BlackOilLabPoint> ParseLabPoints()
+    {
+        var list = new List<BlackOilLabPoint>();
+        foreach (var raw in (_tbLabData.Text ?? "").Split('\n'))
+        {
+            var s = raw.Trim();
+            if (s.Length == 0 || s.StartsWith("#")) continue;
+            var tk = s.Split(new[] { ' ', '\t', ';', ',' }, StringSplitOptions.RemoveEmptyEntries);
+            if (tk.Length < 2) continue;
+            var pt = new BlackOilLabPoint
+            {
+                Pressure = Tok(tk, 0) * 1e5,        // bar -> Pa
+                Temperature = Tok(tk, 1) + 273.15,  // degC -> K
+                Rs = Tok(tk, 2),
+                Bo = Tok(tk, 3)
+            };
+            var mu = Tok(tk, 4);
+            pt.OilViscosity = double.IsNaN(mu) ? double.NaN : mu * 1e-3;   // cP -> Pa.s
+            if (pt.Pressure > 0 && pt.Temperature > 0) list.Add(pt);
+        }
+        return list;
+    }
+
+    private static double Tok(string[] tk, int i)
+    {
+        if (i >= tk.Length || tk[i] == "-") return double.NaN;
+        return double.TryParse(tk[i], NumberStyles.Any, CultureInfo.InvariantCulture, out var v) ? v : double.NaN;
+    }
+
     private void Save()
     {
         try
@@ -170,7 +258,10 @@ public sealed class BlackOilCompoundCreatorWindow : Window
             var t1 = Val(_tbViscT1, 20.0) + 273.15;
             var t2 = Val(_tbViscT2, 50.0) + 273.15;
 
-            var compound = BlackOilCompoundBuilder.BuildCompound(name, sgo, sgg, gor, bsw, v1, t1, v2, t2, _tbComments.Text ?? "");
+            var rsM = Val(_tbRsMult, 1.0); var boM = Val(_tbBoMult, 1.0);
+            var pbM = Val(_tbPbMult, 1.0); var vM = Val(_tbViscMult, 1.0);
+
+            var compound = BlackOilCompoundBuilder.BuildCompound(name, sgo, sgg, gor, bsw, v1, t1, v2, t2, _tbComments.Text ?? "", rsM, boM, pbM, vM);
 
             var path = ResolveOutputPath(name);
             var dir = Path.GetDirectoryName(path);
