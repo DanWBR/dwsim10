@@ -145,22 +145,6 @@
           </DockPanel>
         </TabItem>
 
-        <TabItem Header="FOSSEE Flowsheets">
-          <DockPanel Margin="16">
-            <StackPanel DockPanel.Dock="Top" Spacing="6" Margin="0,0,0,10">
-              <TextBlock Text="About the Project" FontWeight="SemiBold" FontSize="15" />
-              <TextBlock TextWrapping="Wrap" Classes="welcomeSubtitle"
-                         Text="FOSSEE, IIT Bombay, invites chemical engineering students, faculty and practitioners to the flowsheeting project using DWSIM. We want you to convert existing flowsheets into DWSIM and get honoraria and certificates." />
-              <StackPanel Orientation="Horizontal" Spacing="6">
-                <Button Name="BtnFosseeProject" Classes="tool" Content="Flowsheeting Project" />
-                <Button Name="BtnFosseeSite"    Classes="tool" Content="FOSSEE Website" />
-              </StackPanel>
-              <TextBlock Text="Completed Flowsheets" FontWeight="SemiBold" Margin="0,6,0,0" />
-            </StackPanel>
-            <ListBox Name="FosseeList" CornerRadius="4" BorderThickness="1" />
-          </DockPanel>
-        </TabItem>
-
         <TabItem Header="Case Library">
           <DockPanel Margin="16">
             <StackPanel DockPanel.Dock="Top" Spacing="6" Margin="0,0,0,10">
@@ -174,6 +158,22 @@
               <TextBlock Text="Available Cases" FontWeight="SemiBold" Margin="0,6,0,0" />
             </StackPanel>
             <ListBox Name="CaseLibraryList" CornerRadius="4" BorderThickness="1" />
+          </DockPanel>
+        </TabItem>
+
+        <TabItem Header="FOSSEE Flowsheets">
+          <DockPanel Margin="16">
+            <StackPanel DockPanel.Dock="Top" Spacing="6" Margin="0,0,0,10">
+              <TextBlock Text="About the Project" FontWeight="SemiBold" FontSize="15" />
+              <TextBlock TextWrapping="Wrap" Classes="welcomeSubtitle"
+                         Text="FOSSEE, IIT Bombay, invites chemical engineering students, faculty and practitioners to the flowsheeting project using DWSIM. We want you to convert existing flowsheets into DWSIM and get honoraria and certificates." />
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <Button Name="BtnFosseeProject" Classes="tool" Content="Flowsheeting Project" />
+                <Button Name="BtnFosseeSite"    Classes="tool" Content="FOSSEE Website" />
+              </StackPanel>
+              <TextBlock Text="Completed Flowsheets" FontWeight="SemiBold" Margin="0,6,0,0" />
+            </StackPanel>
+            <ListBox Name="FosseeList" CornerRadius="4" BorderThickness="1" />
           </DockPanel>
         </TabItem>
 
