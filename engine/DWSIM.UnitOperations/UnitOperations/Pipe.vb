@@ -1314,7 +1314,9 @@ Namespace UnitOperations
                                         Pout = Pin
                                         fP = 0.0
                                     Else
-                                        If cntP > 3 Then
+                                        ' secant acceleration; guard the zero denominator (fP stops changing at
+                                        ' very low flow, where dP~0 -> 0/0 -> NaN "Error calculating pressure")
+                                        If cntP > 3 AndAlso Math.Abs(fP - fP_ant2) > 1.0E-20 Then
                                             Pout = Pout - fP * (Pout - Pout_ant2) / (fP - fP_ant2)
                                         End If
                                     End If

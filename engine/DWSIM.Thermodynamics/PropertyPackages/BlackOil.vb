@@ -81,7 +81,7 @@ Namespace PropertyPackages
                 End If
                 With bof
                     .SGO += Vxw(i) * c.BO_SGO
-                    .SGG += Vxw(i) * c.BO_SGO
+                    .SGG += Vxw(i) * c.BO_SGG
                     .BSW += Vxw(i) * c.BO_BSW
                     .GOR += Vxw(i) * c.BO_GOR
                     .t1 += Vxw(i) * c.BO_OilViscTemp1
@@ -196,7 +196,7 @@ Namespace PropertyPackages
                             result = bop.VaporDensity(T, P, bof.SGG)
                             Me.CurrentMaterialStream.Phases(phaseID).Properties.density = result
                         Case "surfacetension"
-                            Me.CurrentMaterialStream.Phases(0).Properties.surfaceTension = Me.AUX_SURFTM(T)
+                            Me.CurrentMaterialStream.Phases(0).Properties.surfaceTension = Me.DW_CalcTensaoSuperficial_ISOL(Phase.Liquid1, T, P)
                         Case Else
                             Dim ex As Exception = New CapeOpen.CapeThrmPropertyNotAvailableException
                             ThrowCAPEException(ex, "Error", ex.Message, "ICapeThermoMaterial", ex.Source, ex.StackTrace, "CalcSinglePhaseProp/CalcTwoPhaseProp/CalcProp", ex.GetHashCode)
@@ -250,7 +250,7 @@ Namespace PropertyPackages
                             result = bop.LiquidDensity(T, P, bof.SGO, bof.SGG, bof.GOR, bof.BSW)
                             Me.CurrentMaterialStream.Phases(phaseID).Properties.density = result
                         Case "surfacetension"
-                            Me.CurrentMaterialStream.Phases(0).Properties.surfaceTension = Me.AUX_SURFTM(T)
+                            Me.CurrentMaterialStream.Phases(0).Properties.surfaceTension = Me.DW_CalcTensaoSuperficial_ISOL(Phase.Liquid1, T, P)
                         Case Else
                             Dim ex As Exception = New CapeOpen.CapeThrmPropertyNotAvailableException
                             ThrowCAPEException(ex, "Error", ex.Message, "ICapeThermoMaterial", ex.Source, ex.StackTrace, "CalcSinglePhaseProp/CalcTwoPhaseProp/CalcProp", ex.GetHashCode)
@@ -421,7 +421,9 @@ Namespace PropertyPackages
         End Function
 
         Public Overrides Function DW_CalcTensaoSuperficial_ISOL(ByVal Phase1 As PropertyPackages.Phase, ByVal T As Double, ByVal P As Double) As Double
-            Return 0.0#
+            ' gas-oil interfacial tension (N/m). A zero value makes two-phase pressure-drop correlations
+            ' (Beggs-Brill NLv ~ (rhoL/(g*sigma))^0.25) blow up to NaN, so return a physical dead-oil value.
+            Return 0.02#
         End Function
 
         Public Overrides Function DW_CalcViscosidadeDinamica_ISOL(ByVal Phase1 As PropertyPackages.Phase, ByVal T As Double, ByVal P As Double) As Double
