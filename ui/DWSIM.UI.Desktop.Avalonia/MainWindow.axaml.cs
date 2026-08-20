@@ -58,6 +58,7 @@ public partial class MainWindow : Window
         LoadRecentFiles();
         LoadSamples();
         LoadFosseeFlowsheets();
+        LoadCaseLibraryFlowsheets();
         // read the marker before laying it down again: if it survived, the last run did not close
         // normally, and the backup copies are worth offering back
         _previousRunCrashed = File.Exists(SessionLockPath);
@@ -254,6 +255,11 @@ public partial class MainWindow : Window
         BtnFosseeSite.Click += (_, _) => OpenUrl("https://fossee.in/");
         FosseeList.DoubleTapped += (_, _) => OpenFosseeFlowsheet();
 
+        // Case Library
+        BtnCaseLibraryRepo.Click += (_, _) => OpenUrl("https://github.com/DanWBR/dwsim-case-library");
+        BtnCaseLibraryContribute.Click += (_, _) => OpenUrl("https://github.com/DanWBR/dwsim-case-library/blob/main/CONTRIBUTING.md");
+        CaseLibraryList.DoubleTapped += (_, _) => OpenCaseLibraryFlowsheet();
+
         BtnSettings.Click += async (_, _) => await new PreferencesWindow().ShowDialog(this);
         BtnAbout.Click += (_, _) => ShowAbout();
     }
@@ -377,6 +383,81 @@ public partial class MainWindow : Window
         catch
         {
             return false;
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Case Library flowsheets (github.com/DanWBR/dwsim-case-library)
+    // -------------------------------------------------------------------------
+
+    private sealed class CaseLibraryItem
+    {
+        public CaseLibraryItem(DWSIM.SharedClasses.CaseLibraryFlowsheet flowsheet)
+        {
+            Flowsheet = flowsheet;
+        }
+
+        public DWSIM.SharedClasses.CaseLibraryFlowsheet Flowsheet { get; }
+
+        public override string ToString() => Flowsheet.DisplayName;
+    }
+
+    /// <summary>
+    /// Reads the case index off the GitHub repository. It is a web request, so it runs in the
+    /// background and the list fills in when it lands.
+    /// </summary>
+    private async void LoadCaseLibraryFlowsheets()
+    {
+        CaseLibraryList.Items.Clear();
+        CaseLibraryList.Items.Add("Loading cases from the DWSIM Case Library...");
+
+        try
+        {
+            var list = await System.Threading.Tasks.Task.Run(
+                () => DWSIM.SharedClasses.CaseLibraryFlowsheets.GetCaseLibraryFlowsheets());
+
+            CaseLibraryList.Items.Clear();
+
+            if (list == null || list.Count == 0)
+            {
+                CaseLibraryList.Items.Add("(No cases returned)");
+                return;
+            }
+
+            foreach (var flowsheet in list)
+                CaseLibraryList.Items.Add(new CaseLibraryItem(flowsheet));
+        }
+        catch (Exception ex)
+        {
+            CaseLibraryList.Items.Clear();
+            CaseLibraryList.Items.Add("(Could not reach the Case Library: " + ex.Message + ")");
+        }
+    }
+
+    /// <summary>
+    /// Downloads the selected case and opens it as a document, after asking.
+    /// </summary>
+    private async void OpenCaseLibraryFlowsheet()
+    {
+        if (CaseLibraryList.SelectedItem is not CaseLibraryItem item) return;
+
+        var info = item.Flowsheet;
+
+        var message = $"Title: {info.Title}\nCategory: {info.Category}\n\n" +
+                      "Download and open this case?";
+
+        if (!await ConfirmAsync("Open Case Library Flowsheet", message)) return;
+
+        try
+        {
+            var path = await System.Threading.Tasks.Task.Run(
+                () => DWSIM.SharedClasses.CaseLibraryFlowsheets.DownloadFlowsheet(info.DownloadUrl, null));
+
+            OpenFlowsheetFile(path);
+        }
+        catch (Exception ex)
+        {
+            await ConfirmAsync("Error", "Could not download the case: " + ex.Message, okOnly: true);
         }
     }
 
