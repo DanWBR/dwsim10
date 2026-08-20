@@ -2208,6 +2208,13 @@ Imports DWSIM.ExtensionMethods
             gObj.Flowsheet = Me
             gObj.PositionConnectors()
             gObj.Owner = SimulationObjects(gObj.Name)
+            'External unit operations are identified by the graphic's description when the
+            'file is loaded back; only Draw() sets it, so a headless save leaves it empty
+            'and the saved connectors cannot be restored.
+            Dim extowner = TryCast(gObj.Owner, Interfaces.IExternalUnitOperation)
+            If extowner IsNot Nothing AndAlso String.IsNullOrEmpty(gObj.Description) Then
+                gObj.Description = extowner.Description
+            End If
             SimulationObjects(gObj.Name).SetFlowsheet(Me)
             FlowsheetSurface.AddObject(gObj)
         End If
@@ -6357,6 +6364,14 @@ Label_00CC:
             Using bmp As New SKBitmap(1920, 1080)
                 Using canvas As New SKCanvas(bmp)
                     canvas.Scale(1.0)
+                    'Headless surfaces never receive their owner (UpdateCanvas draws
+                    'nothing without it) and keep zoom/offset at defaults that can leave
+                    'every object outside the captured area; wire and frame them first.
+                    If FlowsheetSurface.Flowsheet Is Nothing Then FlowsheetSurface.Flowsheet = Me
+                    FlowsheetSurface.ZoomAll(1920, 1080)
+                    'ZoomAll frames the shapes but not their tag labels; back off a little
+                    'so text on the right and bottom edges is not clipped.
+                    FlowsheetSurface.Zoom *= 0.9
                     FlowsheetSurface.UpdateCanvas(canvas)
                     Dim d = SKImage.FromBitmap(bmp).Encode(SKEncodedImageFormat.Png, 100)
                     If File.Exists(pngfilepath) Then File.Delete(pngfilepath)

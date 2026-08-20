@@ -47,5 +47,28 @@ namespace DWSIM.FluentAPI.Tests
         [Test] public void ThePhaseDiagramsAreBuilt() => PhaseDiagramTest.Run();
 
         [Test] public void APumpFollowsItsPerformanceCurves() => PumpCurvesTest.Run();
+
+        // ----- Industrial sample flowsheets: each one solves, is checked for physical
+        // ----- sense, and is saved (.dwxmz + PFD screenshot) for the dwsim-case-library.
+
+        [Test] public void ThePropaneRefrigerationSampleSolvesAndSaves() => PropaneRefrigerationSample.Run();
+
+        [Test] public void TheSteamMethaneReformerSampleSolvesAndSaves() => SteamMethaneReformerSample.Run();
+
+        [Test] public void TheAmmoniaSynthesisSampleSolvesAndSaves() => AmmoniaSynthesisSample.Run();
+
+        [Test] public void TheMethanolSynthesisSampleSolvesAndSaves() => MethanolSynthesisSample.Run();
+
+        [Test] public void TheBenzeneTolueneSampleSolvesAndSaves() => BenzeneTolueneSample.Run();
+
+        [Test] public void TheEthanolDistillerySampleSolvesAndSaves() => EthanolDistillerySample.Run();
+
+        [Test] public void TheNaturalGasSampleSolvesAndSaves() => NaturalGasProcessingSample.Run();
+
+        [Test] public void TheHydroelectricSampleSolvesAndSaves() => HydroelectricSample.Run();
+
+        [Test] public void TheGreenHydrogenSampleSolvesAndSaves() => GreenHydrogenSample.Run();
+
+        [Test] public void TheBiogasToGridSampleSolvesAndSaves() => BiogasToGridSample.Run();
     }
 }
