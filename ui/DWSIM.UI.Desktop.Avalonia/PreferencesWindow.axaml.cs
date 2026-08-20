@@ -494,7 +494,8 @@ public partial class PreferencesWindow : Window
         _scaling = page.CreateAndAddNumericEditorRow("Scaling Factor",
             S.UIScalingFactor > 0 ? S.UIScalingFactor : 1.0, 0.2, 3.0, 2, null);
         page.CreateAndAddDescriptionRow(
-            "Sets the scaling factor for controls. Takes effect the next time the application starts.");
+            "Scales the whole interface - fonts, controls and menu icons. For example, 1.25 makes " +
+            "everything 25% larger. Takes effect the next time the application starts.");
 
         page.CreateAndAddLabelRow("Appearance");
 
