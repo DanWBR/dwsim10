@@ -9458,7 +9458,7 @@ Namespace Streams
                 Phases(0).Properties.volumetric_flow = 0.0#
             End If
             For Each comp In Phases(0).Compounds.Values
-                comp.MolarFlow = value * comp.MolarFlow.GetValueOrDefault()
+                comp.MolarFlow = value * comp.MoleFraction.GetValueOrDefault()
             Next
             For Each comp In Phases(0).Compounds.Values
                 comp.MassFlow = Phases(0).Properties.massflow * comp.MassFraction.GetValueOrDefault()
@@ -9485,7 +9485,7 @@ Namespace Streams
             Phases(0).Properties.volumetric_flow = value * Phases(0).Properties.molecularWeight / 1000 / Phases(0).Properties.density.GetValueOrDefault
             DefinedFlow = FlowSpec.Mole
             For Each comp In Phases(0).Compounds.Values
-                comp.MolarFlow = value * comp.MolarFlow.GetValueOrDefault()
+                comp.MolarFlow = value * comp.MoleFraction.GetValueOrDefault()
             Next
             For Each comp In Phases(0).Compounds.Values
                 comp.MassFlow = Phases(0).Properties.massflow * comp.MassFraction.GetValueOrDefault()
