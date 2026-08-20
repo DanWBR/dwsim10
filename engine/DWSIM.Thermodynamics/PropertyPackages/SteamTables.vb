@@ -80,8 +80,15 @@ Namespace PropertyPackages
             If Not CurrentMaterialStream.Phases(0).Compounds.Keys.Contains("Water") Then
                 Throw New Exception("Steam Tables Property Package is meant to be used with Water streams only.")
             Else
-                If CurrentMaterialStream.Phases(0).Compounds("Water").MoleFraction.GetValueOrDefault() < 0.99 And
-                    CurrentMaterialStream.Phases(0).Properties.molarfraction.GetValueOrDefault() > 0.0 Then
+                'compare water against the sum of the fractions instead of gating on the overall
+                'phase molar fraction: a stream built by an unit operation gets flashed before that
+                'gate is ever set, and the flash below would silently overwrite its composition.
+                Dim xtotal As Double = 0.0
+                For Each c In CurrentMaterialStream.Phases(0).Compounds.Values
+                    xtotal += c.MoleFraction.GetValueOrDefault()
+                Next
+                If xtotal > 0.0 AndAlso
+                    CurrentMaterialStream.Phases(0).Compounds("Water").MoleFraction.GetValueOrDefault() / xtotal < 0.99 Then
                     Throw New Exception("Stream has Water but it is not the only compound with a significant amount.")
                 End If
             End If
