@@ -148,25 +148,26 @@ namespace DWSIM.UI.Desktop.Avalonia
             return root;
         }
 
-        // Material Streams, Energy Streams, then all unit operations, each sorted by tag.
-        private SortedDictionary<string, List<(string Name, string Tag)>> GroupedObjects()
+        // Material Streams and Energy Streams first, then one category per unit-operation type (by its
+        // display name, as the classic report tree does), each sorted by tag.
+        private List<KeyValuePair<string, List<(string Name, string Tag)>>> GroupedObjects()
         {
-            var groups = new SortedDictionary<string, List<(string, string)>>(StringComparer.Ordinal);
+            var map = new Dictionary<string, List<(string, string)>>();
+            var rank = new Dictionary<string, int>();
             foreach (var so in _flowsheet.SimulationObjects.Values)
             {
                 var go = so.GraphicObject;
                 if (go == null) continue;
-                var cat = go.ObjectType switch
-                {
-                    ObjectType.MaterialStream => "1. Material Streams",
-                    ObjectType.EnergyStream => "2. Energy Streams",
-                    _ => "3. Unit Operations"
-                };
-                if (!groups.TryGetValue(cat, out var list)) { list = new(); groups[cat] = list; }
+                string cat;
+                int r;
+                if (go.ObjectType == ObjectType.MaterialStream) { cat = "Material Streams"; r = 0; }
+                else if (go.ObjectType == ObjectType.EnergyStream) { cat = "Energy Streams"; r = 1; }
+                else { cat = so.GetDisplayName(); r = 2; }
+                if (!map.TryGetValue(cat, out var list)) { list = new(); map[cat] = list; rank[cat] = r; }
                 list.Add((so.Name, string.IsNullOrEmpty(go.Tag) ? so.Name : go.Tag));
             }
-            foreach (var list in groups.Values) list.Sort((a, b) => string.Compare(a.Item2, b.Item2, StringComparison.OrdinalIgnoreCase));
-            return groups;
+            foreach (var list in map.Values) list.Sort((a, b) => string.Compare(a.Item2, b.Item2, StringComparison.OrdinalIgnoreCase));
+            return map.OrderBy(kv => rank[kv.Key]).ThenBy(kv => kv.Key, StringComparer.OrdinalIgnoreCase).ToList();
         }
 
         private void OnObjectToggled(string name, string tag, bool on)
