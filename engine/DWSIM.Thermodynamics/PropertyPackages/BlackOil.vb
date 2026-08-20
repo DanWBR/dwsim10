@@ -72,6 +72,8 @@ Namespace PropertyPackages
 
         Public Function CalcBOFluid(Vxw As Double(), constprops As List(Of Interfaces.ICompoundConstantProperties)) As BlackOilFluid
             Dim bof As New BlackOilFluid
+            ' multipliers are mole-weighted below (every compound defaults to 1, so an uncalibrated fluid stays 1)
+            bof.RsMult = 0.0 : bof.BoMult = 0.0 : bof.PbMult = 0.0 : bof.ViscMult = 0.0
             Dim i As Integer = 0
             For Each c In constprops
                 If c.Molar_Weight = 0.0# Then
@@ -91,6 +93,10 @@ Namespace PropertyPackages
                     .PNA_A += Vxw(i) * c.BO_PNA_A
                     .PNA_N += Vxw(i) * c.BO_PNA_N
                     .PNA_P += Vxw(i) * c.BO_PNA_P
+                    .RsMult += Vxw(i) * c.BO_RsMult
+                    .BoMult += Vxw(i) * c.BO_BoMult
+                    .PbMult += Vxw(i) * c.BO_PbMult
+                    .ViscMult += Vxw(i) * c.BO_OilViscMult
                 End With
                 i += 1
             Next
@@ -210,7 +216,7 @@ Namespace PropertyPackages
                         Case "isothermalcompressibility", "bulkmodulus", "joulethomsoncoefficient", "speedofsound"
                             CalcAdditionalPhaseProperties(phaseID)
                         Case "compressibilityfactor"
-                            result = 1 / (bop.LiquidDensity(T, P, bof.SGO, bof.SGG, bof.GOR, bof.BSW) * 1000 / bop.LiquidMolecularWeight(bof.SGO, bof.BSW)) / 8.314 / T * P
+                            result = 1 / (bop.LiquidDensity(T, P, bof.SGO, bof.SGG, bof.GOR, bof.BSW, bof.RsMult, bof.BoMult) * 1000 / bop.LiquidMolecularWeight(bof.SGO, bof.BSW)) / 8.314 / T * P
                             Me.CurrentMaterialStream.Phases(phaseID).Properties.compressibilityFactor = result
                         Case "heatcapacity", "heatcapacitycp"
                             result = bop.LiquidCp(T, P, bof.SGG, bof.SGO, bof.BSW)
@@ -239,7 +245,7 @@ Namespace PropertyPackages
                             Me.CurrentMaterialStream.Phases(phaseID).Properties.entropyF = 0.0#
                             Me.CurrentMaterialStream.Phases(phaseID).Properties.molar_entropyF = 0.0#
                         Case "viscosity"
-                            result = bop.LiquidViscosity(T, P, bof.SGO, bof.SGG, bof.GOR, bof.BSW, bof.v1, bof.t1, bof.v2, bof.t2)
+                            result = bop.LiquidViscosity(T, P, bof.SGO, bof.SGG, bof.GOR, bof.BSW, bof.v1, bof.t1, bof.v2, bof.t2, bof.RsMult, bof.BoMult, bof.PbMult, bof.ViscMult)
                             Me.CurrentMaterialStream.Phases(phaseID).Properties.viscosity = result
                         Case "thermalconductivity"
                             result = bop.LiquidThermalConductivity(T, P, bof.SGO, bof.BSW)
@@ -247,7 +253,7 @@ Namespace PropertyPackages
                         Case "fugacity", "fugacitycoefficient", "logfugacitycoefficient", "activity", "activitycoefficient"
                             Me.DW_CalcCompFugCoeff(phase)
                         Case "volume", "density"
-                            result = bop.LiquidDensity(T, P, bof.SGO, bof.SGG, bof.GOR, bof.BSW)
+                            result = bop.LiquidDensity(T, P, bof.SGO, bof.SGG, bof.GOR, bof.BSW, bof.RsMult, bof.BoMult)
                             Me.CurrentMaterialStream.Phases(phaseID).Properties.density = result
                         Case "surfacetension"
                             Me.CurrentMaterialStream.Phases(0).Properties.surfaceTension = Me.DW_CalcTensaoSuperficial_ISOL(Phase.Liquid1, T, P)
@@ -346,7 +352,7 @@ Namespace PropertyPackages
 
                 Me.CurrentMaterialStream.Phases(phaseID).Properties.molecularWeight = bop.LiquidMolecularWeight(bof.SGO, bof.BSW)
 
-                result = 1 / (bop.LiquidDensity(T, P, bof.SGO, bof.SGG, bof.GOR, bof.BSW) * 1000 / Me.CurrentMaterialStream.Phases(phaseID).Properties.molecularWeight) / 8.314 / T * P
+                result = 1 / (bop.LiquidDensity(T, P, bof.SGO, bof.SGG, bof.GOR, bof.BSW, bof.RsMult, bof.BoMult) * 1000 / Me.CurrentMaterialStream.Phases(phaseID).Properties.molecularWeight) / 8.314 / T * P
                 Me.CurrentMaterialStream.Phases(phaseID).Properties.compressibilityFactor = result
                 result = bop.LiquidCp(T, P, bof.SGG, bof.SGO, bof.BSW)
                 Me.CurrentMaterialStream.Phases(phaseID).Properties.heatCapacityCp = result
@@ -366,11 +372,11 @@ Namespace PropertyPackages
                 Me.CurrentMaterialStream.Phases(phaseID).Properties.molar_enthalpyF = 0.0#
                 Me.CurrentMaterialStream.Phases(phaseID).Properties.entropyF = 0.0#
                 Me.CurrentMaterialStream.Phases(phaseID).Properties.molar_entropyF = 0.0#
-                result = bop.LiquidViscosity(T, P, bof.SGO, bof.SGG, bof.GOR, bof.BSW, bof.v1, bof.t1, bof.v2, bof.t2)
+                result = bop.LiquidViscosity(T, P, bof.SGO, bof.SGG, bof.GOR, bof.BSW, bof.v1, bof.t1, bof.v2, bof.t2, bof.RsMult, bof.BoMult, bof.PbMult, bof.ViscMult)
                 Me.CurrentMaterialStream.Phases(phaseID).Properties.viscosity = result
                 result = bop.LiquidThermalConductivity(T, P, bof.SGO, bof.BSW)
                 Me.CurrentMaterialStream.Phases(phaseID).Properties.thermalConductivity = result
-                result = bop.LiquidDensity(T, P, bof.SGO, bof.SGG, bof.GOR, bof.BSW)
+                result = bop.LiquidDensity(T, P, bof.SGO, bof.SGG, bof.GOR, bof.BSW, bof.RsMult, bof.BoMult)
                 Me.CurrentMaterialStream.Phases(phaseID).Properties.density = result
                 Me.CurrentMaterialStream.Phases(phaseID).Properties.kinematic_viscosity = Me.CurrentMaterialStream.Phases(phaseID).Properties.viscosity / Me.CurrentMaterialStream.Phases(phaseID).Properties.density.Value
 
@@ -414,7 +420,7 @@ Namespace PropertyPackages
         Public Overrides Function DW_CalcMassaEspecifica_ISOL(ByVal Phase1 As PropertyPackages.Phase, ByVal T As Double, ByVal P As Double, Optional ByVal pvp As Double = 0) As Double
             Dim bof As BlackOilFluid = CalcBOFluid(RET_VMOL(Phase1), DW_GetConstantProperties())
             If Phase1 = Phase.Liquid Then
-                Return bop.LiquidDensity(T, P, bof.SGO, bof.SGG, bof.GOR, bof.BSW)
+                Return bop.LiquidDensity(T, P, bof.SGO, bof.SGG, bof.GOR, bof.BSW, bof.RsMult, bof.BoMult)
             ElseIf Phase1 = Phase.Vapor Then
                 Return bop.VaporDensity(T, P, bof.SGG)
             End If
@@ -429,7 +435,7 @@ Namespace PropertyPackages
         Public Overrides Function DW_CalcViscosidadeDinamica_ISOL(ByVal Phase1 As PropertyPackages.Phase, ByVal T As Double, ByVal P As Double) As Double
             Dim bof As BlackOilFluid = CalcBOFluid(RET_VMOL(Phase1), DW_GetConstantProperties())
             If Phase1 = Phase.Liquid Then
-                Return bop.LiquidViscosity(T, P, bof.SGO, bof.SGG, bof.GOR, bof.BSW, bof.v1, bof.t1, bof.v2, bof.t2)
+                Return bop.LiquidViscosity(T, P, bof.SGO, bof.SGG, bof.GOR, bof.BSW, bof.v1, bof.t1, bof.v2, bof.t2, bof.RsMult, bof.BoMult, bof.PbMult, bof.ViscMult)
             ElseIf Phase1 = Phase.Vapor Then
                 Return bop.VaporViscosity(T, P, bof.SGG)
             End If
@@ -469,7 +475,7 @@ Namespace PropertyPackages
         Public Overrides Function DW_CalcPVAP_ISOL(ByVal T As Double) As Double
 
             Dim bof As BlackOilFluid = CalcBOFluid(RET_VMOL(Phase.Mixture), DW_GetConstantProperties())
-            Return bop.VaporPressure(T, bof.SGO, bof.BSW)
+            Return bop.VaporPressure(T, bof.SGO, bof.BSW, bof.PbMult)
 
         End Function
 
@@ -510,7 +516,7 @@ Namespace PropertyPackages
 
         Public Overrides Function DW_CalcBubP(ByVal Vx As System.Array, ByVal T As Double, Optional ByVal Pref As Double = 0, Optional ByVal K As System.Array = Nothing, Optional ByVal ReuseK As Boolean = False) As Object
             Dim bof As BlackOilFluid = CalcBOFluid(Vx, DW_GetConstantProperties())
-            Return New Object() {bop.VaporPressure(T, bof.SGO, bof.BSW)}
+            Return New Object() {bop.VaporPressure(T, bof.SGO, bof.BSW, bof.PbMult)}
         End Function
 
         Public Overrides Function DW_CalcBubT(ByVal Vx As System.Array, ByVal P As Double, Optional ByVal Tref As Double = 0, Optional ByVal K As System.Array = Nothing, Optional ByVal ReuseK As Boolean = False) As Object
@@ -519,7 +525,7 @@ Namespace PropertyPackages
 
         Public Overrides Function DW_CalcDewP(ByVal Vx As System.Array, ByVal T As Double, Optional ByVal Pref As Double = 0, Optional ByVal K As System.Array = Nothing, Optional ByVal ReuseK As Boolean = False) As Object
             Dim bof As BlackOilFluid = CalcBOFluid(Vx, DW_GetConstantProperties())
-            Return New Object() {bop.VaporPressure(T, bof.SGO, bof.BSW)}
+            Return New Object() {bop.VaporPressure(T, bof.SGO, bof.BSW, bof.PbMult)}
         End Function
 
         Public Overrides Function DW_CalcDewT(ByVal Vx As System.Array, ByVal P As Double, Optional ByVal Tref As Double = 0, Optional ByVal K As System.Array = Nothing, Optional ByVal ReuseK As Boolean = False) As Object
@@ -589,7 +595,7 @@ Namespace PropertyPackages
 
             Dim comp As Interfaces.ICompound = (From subst As Interfaces.ICompound In Me.CurrentMaterialStream.Phases(0).Compounds.Values Select subst Where subst.ConstantProperties.Name = sub1).SingleOrDefault
 
-            Return bop.VaporPressure(T, comp.ConstantProperties.BO_SGO, comp.ConstantProperties.BO_BSW)
+            Return bop.VaporPressure(T, comp.ConstantProperties.BO_SGO, comp.ConstantProperties.BO_BSW, comp.ConstantProperties.BO_PbMult)
 
         End Function
 
@@ -626,6 +632,10 @@ Namespace PropertyPackages
 
                 Bos = 0.9759 + 0.00012 * (Rs * (SGdg / cprop.BO_SGO) ^ 0.5 + 1.25 * Tf) ^ 1.2
 
+                ' lab-PVT calibration (Bos above uses the raw Rs so each multiplier stays independent)
+                Rs = Rs * cprop.BO_RsMult
+                Pb = Pb * cprop.BO_PbMult
+
                 Dim Tsep, Psep As Double
 
                 Tsep = Tf
@@ -638,6 +648,8 @@ Namespace PropertyPackages
                 Boss = Bos * (Pb / Ppsia) ^ C
 
                 If Ppsia < Pb Then Bo = Bos Else Bo = Boss
+
+                Bo = Bo * cprop.BO_BoMult   ' lab-PVT oil FVF calibration
 
                 Dim Z, Zant, Tpc, Ppc, rhopr, Ppr, Tpr As Double
 

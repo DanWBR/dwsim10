@@ -25,6 +25,12 @@ Namespace PropertyPackages.Auxiliary
 
         Public SGG, SGO, BSW, GOR, v1, t1, v2, t2, PNA_P, PNA_N, PNA_A As Double
 
+        ' lab-PVT calibration multipliers (1 = uncalibrated correlation)
+        Public RsMult As Double = 1.0
+        Public BoMult As Double = 1.0
+        Public PbMult As Double = 1.0
+        Public ViscMult As Double = 1.0
+
         Sub New()
 
         End Sub
@@ -47,7 +53,7 @@ Namespace PropertyPackages.Auxiliary
         Public Function LiquidMolecularWeight(SGO As Double, BSW As Double) As Double
             Return (100 - BSW) / 100 * (((Math.Log(1.07 - SGO) - 3.56073) / (-2.93886)) ^ 10) + BSW / 100 * 18
         End Function
-        Public Function VaporPressure(T As Double, SGO As Double, BSW As Double) As Double
+        Public Function VaporPressure(T As Double, SGO As Double, BSW As Double, Optional PbMult As Double = 1.0) As Double
 
             Dim Tc, Pc, w As Double
 
@@ -66,7 +72,7 @@ Namespace PropertyPackages.Auxiliary
             f0 = 5.92714 - 6.09648 / Tr - 1.28862 * Math.Log(Tr) + 0.169347 * Tr ^ 6
             f1 = 15.2518 - 15.6875 / Tr - 13.4721 * Math.Log(Tr) + 0.43577 * Tr ^ 6
 
-            tmp = Pc * Math.Exp(f0 + w * f1)
+            tmp = Pc * Math.Exp(f0 + w * f1) * PbMult   ' lab-PVT bubble-point calibration
 
             Return (100 - BSW) / 100 * tmp + BSW / 100 * water.pSatW(T)
 
@@ -98,7 +104,8 @@ Namespace PropertyPackages.Auxiliary
             Return (100 - BSW) / 100 * (Hid - DHvap) + BSW / 100 * water.enthalpyW(T, P / 100000)
 
         End Function
-        Public Function LiquidDensity(T As Double, P As Double, SGO As Double, SGG As Double, GOR As Double, BSW As Double) As Double
+        Public Function LiquidDensity(T As Double, P As Double, SGO As Double, SGG As Double, GOR As Double, BSW As Double,
+                                      Optional RsMult As Double = 1.0, Optional BoMult As Double = 1.0) As Double
 
             Dim API, WOR, GORss As Double
 
@@ -123,6 +130,10 @@ Namespace PropertyPackages.Auxiliary
             Dim Bos As Double
 
             Bos = 0.9759 + 0.00012 * (Rs * (SGG / SGO) ^ 0.5 + 1.25 * Tf) ^ 1.2
+
+            ' lab-PVT calibration: scale each correlated value independently
+            Rs = Rs * RsMult
+            Bos = Bos * BoMult
 
             Dim rhoo, rhoo0 As Double
 
@@ -154,11 +165,12 @@ Namespace PropertyPackages.Auxiliary
             MW = LiquidMolecularWeight(SGO, 0)
             Return (100 - BSW) / 100 * PROPS.condl_latini(T, NBP, Tc, MW, "H") + BSW / 100 * water.thconSatLiqTW(T)
         End Function
-        Public Function LiquidViscosity(T As Double, P As Double, SGO As Double, SGG As Double, GOR As Double, BSW As Double, v1 As Double, t1 As Double, v2 As Double, t2 As Double) As Double
+        Public Function LiquidViscosity(T As Double, P As Double, SGO As Double, SGG As Double, GOR As Double, BSW As Double, v1 As Double, t1 As Double, v2 As Double, t2 As Double,
+                                        Optional RsMult As Double = 1.0, Optional BoMult As Double = 1.0, Optional PbMult As Double = 1.0, Optional ViscMult As Double = 1.0) As Double
 
             If v1 <> 0 Then
 
-                Return props1.ViscTwu(T, t1, t2, v1, v2) * LiquidDensity(T, P, SGO, SGG, GOR, BSW)
+                Return props1.ViscTwu(T, t1, t2, v1, v2) * LiquidDensity(T, P, SGO, SGG, GOR, BSW, RsMult, BoMult) * ViscMult
 
             Else
 
@@ -182,6 +194,10 @@ Namespace PropertyPackages.Auxiliary
 
                 Pb = 18.2 * ((GORss / SGG) ^ (1 / 1.2048) * 10 ^ (0.00091 * Tf - 0.0125 * API) - 1.4)
 
+                ' lab-PVT calibration of Rs and Pb
+                Rs = Rs * RsMult
+                Pb = Pb * PbMult
+
                 Dim Bos As Double
 
                 Bos = 0.9759 + 0.00012 * (Rs * (SGG / SGO) ^ 0.5 + 1.25 * Tf) ^ 1.2
@@ -202,6 +218,8 @@ Namespace PropertyPackages.Auxiliary
                 muoss = muossat * (Pb / Ppsia) ^ (2.6 * Ppsia ^ 1.187 * 10 ^ (-0.000039 * Ppsia - 5))
 
                 If Ppsia < Pb Then muo = muos Else muo = muoss
+
+                muo = muo * ViscMult   ' lab-PVT oil viscosity calibration
 
                 Return (100 - BSW) / 100 * (muo * 0.001) + BSW / 100 * water.viscSatLiqTW(T)
 

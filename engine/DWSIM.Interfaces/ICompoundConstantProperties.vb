@@ -1182,6 +1182,26 @@ Public Interface ICompoundConstantProperties
     Property BO_PNA_A As Double
 
     ''' <summary>
+    ''' black oil calibration multiplier on the solution gas-oil ratio Rs (1 = uncalibrated Standing)
+    ''' </summary>
+    Property BO_RsMult As Double
+
+    ''' <summary>
+    ''' black oil calibration multiplier on the oil formation volume factor Bo (1 = uncalibrated Standing)
+    ''' </summary>
+    Property BO_BoMult As Double
+
+    ''' <summary>
+    ''' black oil calibration multiplier on the bubble point pressure Pb (1 = uncalibrated Standing)
+    ''' </summary>
+    Property BO_PbMult As Double
+
+    ''' <summary>
+    ''' black oil calibration multiplier on the oil viscosity (1 = uncalibrated Beggs-Robinson)
+    ''' </summary>
+    Property BO_OilViscMult As Double
+
+    ''' <summary>
     ''' variable to hold general comments
     ''' </summary>
     ''' <returns></returns>

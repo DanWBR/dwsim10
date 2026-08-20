@@ -2572,6 +2572,14 @@ Namespace BaseClasses
 
         Public Property BO_PNA_A As Double = 0.0# Implements Interfaces.ICompoundConstantProperties.BO_PNA_A
 
+        Public Property BO_RsMult As Double = 1.0# Implements Interfaces.ICompoundConstantProperties.BO_RsMult
+
+        Public Property BO_BoMult As Double = 1.0# Implements Interfaces.ICompoundConstantProperties.BO_BoMult
+
+        Public Property BO_PbMult As Double = 1.0# Implements Interfaces.ICompoundConstantProperties.BO_PbMult
+
+        Public Property BO_OilViscMult As Double = 1.0# Implements Interfaces.ICompoundConstantProperties.BO_OilViscMult
+
         Public Property BO_PNA_N As Double = 0.0# Implements Interfaces.ICompoundConstantProperties.BO_PNA_N
 
         Public Property BO_PNA_P As Double = 0.0# Implements Interfaces.ICompoundConstantProperties.BO_PNA_P

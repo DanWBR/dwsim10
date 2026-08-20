@@ -1110,6 +1110,10 @@ Namespace Databases
                         .AppendChild(xmldoc.CreateNode(XmlNodeType.Element, "BlackOil_PNA_A", "")).InnerText = comp.BO_PNA_A.ToString(cult)
                         .AppendChild(xmldoc.CreateNode(XmlNodeType.Element, "BlackOil_PNA_N", "")).InnerText = comp.BO_PNA_N.ToString(cult)
                         .AppendChild(xmldoc.CreateNode(XmlNodeType.Element, "BlackOil_PNA_P", "")).InnerText = comp.BO_PNA_P.ToString(cult)
+                        .AppendChild(xmldoc.CreateNode(XmlNodeType.Element, "BlackOil_RsMult", "")).InnerText = comp.BO_RsMult.ToString(cult)
+                        .AppendChild(xmldoc.CreateNode(XmlNodeType.Element, "BlackOil_BoMult", "")).InnerText = comp.BO_BoMult.ToString(cult)
+                        .AppendChild(xmldoc.CreateNode(XmlNodeType.Element, "BlackOil_PbMult", "")).InnerText = comp.BO_PbMult.ToString(cult)
+                        .AppendChild(xmldoc.CreateNode(XmlNodeType.Element, "BlackOil_OilViscMult", "")).InnerText = comp.BO_OilViscMult.ToString(cult)
 
                         .AppendChild(xmldoc.CreateNode(XmlNodeType.Element, "Ion", "")).InnerText = comp.IsIon
                         .AppendChild(xmldoc.CreateNode(XmlNodeType.Element, "Salt", "")).InnerText = comp.IsSalt
@@ -1512,6 +1516,14 @@ Namespace Databases
                                 .BO_PNA_N = Double.Parse(node2.InnerText, nf)
                             Case "BlackOil_PNA_P"
                                 .BO_PNA_P = Double.Parse(node2.InnerText, nf)
+                            Case "BlackOil_RsMult"
+                                .BO_RsMult = Double.Parse(node2.InnerText, nf)
+                            Case "BlackOil_BoMult"
+                                .BO_BoMult = Double.Parse(node2.InnerText, nf)
+                            Case "BlackOil_PbMult"
+                                .BO_PbMult = Double.Parse(node2.InnerText, nf)
+                            Case "BlackOil_OilViscMult"
+                                .BO_OilViscMult = Double.Parse(node2.InnerText, nf)
                             Case "IsBlackOil"
                                 .IsBlackOil = Boolean.Parse(node2.InnerText)
 
