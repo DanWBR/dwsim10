@@ -165,6 +165,40 @@ Namespace PropertyPackages.Auxiliary
             MW = LiquidMolecularWeight(SGO, 0)
             Return (100 - BSW) / 100 * PROPS.condl_latini(T, NBP, Tc, MW, "H") + BSW / 100 * water.thconSatLiqTW(T)
         End Function
+        ''' <summary>Standing solution gas-oil ratio Rs at (T, P), in m3/m3 STD (uncalibrated correlation).</summary>
+        Public Function SolutionGOR(T As Double, P As Double, SGO As Double, SGG As Double) As Double
+            Dim Tf As Double = (T - 273.15) * 9 / 5 + 32
+            Dim Ppsia As Double = P * 0.000145038
+            Dim API As Double = 141.5 / SGO - 131.5
+            Dim Rs As Double = SGG * (((Ppsia) / 18.2 + 1.4) * 10 ^ (0.0125 * API - 0.00091 * Tf)) ^ 1.2048
+            Return Rs / 5.6738
+        End Function
+
+        ''' <summary>Standing bubble point pressure of a live oil at T for a producing GOR, in Pa (uncalibrated).</summary>
+        Public Function BubblePointStanding(T As Double, SGO As Double, SGG As Double, GOR As Double) As Double
+            Dim Tf As Double = (T - 273.15) * 9 / 5 + 32
+            Dim API As Double = 141.5 / SGO - 131.5
+            Dim GORss As Double = GOR * 5.6738
+            Dim Pb As Double = 18.2 * ((GORss / SGG) ^ (1 / 1.2048) * 10 ^ (0.00091 * Tf - 0.0125 * API) - 1.4)
+            Return Pb / 0.000145038
+        End Function
+
+        ''' <summary>Standing oil formation volume factor Bo at (T, P), m3/m3 (uncalibrated correlation).</summary>
+        Public Function OilFVF(T As Double, P As Double, SGO As Double, SGG As Double, GOR As Double) As Double
+            Dim Tf As Double = (T - 273.15) * 9 / 5 + 32
+            Dim Ppsia As Double = P * 0.000145038
+            Dim API As Double = 141.5 / SGO - 131.5
+            Dim GORss As Double = GOR * 5.6738
+            Dim Rs As Double = SGG * (((Ppsia) / 18.2 + 1.4) * 10 ^ (0.0125 * API - 0.00091 * Tf)) ^ 1.2048
+            Dim Pb As Double = 18.2 * ((GORss / SGG) ^ (1 / 1.2048) * 10 ^ (0.00091 * Tf - 0.0125 * API) - 1.4)
+            Dim Bos As Double = 0.9759 + 0.00012 * (Rs * (SGG / SGO) ^ 0.5 + 1.25 * Tf) ^ 1.2
+            Dim Tsep As Double = Tf, Psep As Double = Ppsia
+            Dim SGfg100 As Double = SGG * (1 + 0.00005912 * API * Tsep * Math.Log(Psep / 114.7) / Math.Log(10))
+            Dim C As Double = 0.0001 * (2.81 * GOR + 3.1 * Tf + 171 / SGfg100 - 118 * SGfg100 - 1102)
+            Dim Boss As Double = Bos * (Pb / Ppsia) ^ C
+            If Ppsia < Pb Then Return Bos Else Return Boss
+        End Function
+
         Public Function LiquidViscosity(T As Double, P As Double, SGO As Double, SGG As Double, GOR As Double, BSW As Double, v1 As Double, t1 As Double, v2 As Double, t2 As Double,
                                         Optional RsMult As Double = 1.0, Optional BoMult As Double = 1.0, Optional PbMult As Double = 1.0, Optional ViscMult As Double = 1.0) As Double
 
