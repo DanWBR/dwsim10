@@ -2090,6 +2090,11 @@ public partial class FlowsheetView : UserControl
         };
 
         // --- Results menu ---
+        MenuResultsReport.Click += (_, _) =>
+        {
+            if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
+            new ReportConfigWindow(_flowsheet, SimulationName + " - Results Report").Show(HostWindow);
+        };
         MenuMarkdownReport.Click += (_, _) =>
         {
             if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
