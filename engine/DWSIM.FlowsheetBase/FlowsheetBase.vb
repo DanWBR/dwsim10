@@ -6360,6 +6360,11 @@ Label_00CC:
 
     Public Sub SavePFDScreenshotToPNG(pngfilepath As String) Implements IFlowsheet.SavePFDScreenshotToPNG
 
+        ' UpdateCanvas returns without drawing when the surface has no flowsheet reference, which is
+        ' the case on the headless/automation path (only the graphic objects get one). Set it so the
+        ' screenshot actually renders the objects.
+        FlowsheetSurface.Flowsheet = Me
+
         If Not Settings.AutomationMode Then
             Dim scale = Settings.DpiScale
             Using bmp As New SKBitmap(GetFlowsheetSurfaceWidth() * scale, GetFlowsheetSurfaceHeight() * scale)

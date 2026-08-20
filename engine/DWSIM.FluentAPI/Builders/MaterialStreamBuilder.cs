@@ -99,6 +99,20 @@ namespace DWSIM.Automation.FluentAPI.Builders
             return this;
         }
 
+        // ------------------------------------------------------- Layout / orientation
+
+        /// <summary>Mirrors the stream horizontally (points its arrow the other way), as one does on a recycle return.</summary>
+        public MaterialStreamBuilder FlipHorizontal(bool flipped = true) { Object.GraphicObject.FlippedH = flipped; return this; }
+
+        /// <summary>Mirrors the stream vertically.</summary>
+        public MaterialStreamBuilder FlipVertical(bool flipped = true) { Object.GraphicObject.FlippedV = flipped; return this; }
+
+        /// <summary>Rotates the stream on the canvas; use 0, 90, 180 or 270 degrees.</summary>
+        public MaterialStreamBuilder Rotate(int degrees) { Object.GraphicObject.Rotation = ((degrees % 360) + 360) % 360; return this; }
+
+        /// <summary>Places the stream at (x, y) on the canvas.</summary>
+        public MaterialStreamBuilder PositionAt(int x, int y) { Object.GraphicObject.X = x; Object.GraphicObject.Y = y; return this; }
+
         // ------------------------------------------------------- Thermodynamic analysis
 
         /// <summary>
