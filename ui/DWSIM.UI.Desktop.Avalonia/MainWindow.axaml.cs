@@ -885,7 +885,13 @@ public partial class MainWindow : Window
             {
                 if (File.Exists(candidate))
                 {
-                    sa = Assembly.LoadFile(candidate);
+                    // LoadFrom (default ALC), NOT LoadFile (isolated ALC): the Plus extensions load via
+                    // Assembly.LoadFrom into the default context and resolve DWSIM.Support there. LoadFile
+                    // here would put the app's DWSIM.Support - the one that runs the licence check and
+                    // populates Initialization.Details - in a SEPARATE instance, so the extensions saw a
+                    // second copy with an empty licence state (GetAccessLevel()=0) and their Plus gate fired
+                    // even for valid subscribers, while the membership panel (this instance) showed the tier.
+                    sa = Assembly.LoadFrom(candidate);
                     break;
                 }
             }
