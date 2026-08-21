@@ -304,6 +304,20 @@ Imports DWSIM.ExtensionMethods
         gObj.Name = prefix & "-" & Guid.NewGuid().ToString()
         gObj.Flowsheet = Me
 
+        ' The table and chart graphics declare their own Flowsheet property, which shadows the one on
+        ' GraphicObject: the assignment above reaches the base property only, leaving theirs Nothing, and
+        ' their Draw dereferences it. Assign through the concrete type as well, the way LoadProcessData
+        ' already does for the objects it restores from a file.
+        If TypeOf gObj Is TableGraphic Then
+            DirectCast(gObj, TableGraphic).Flowsheet = Me
+        ElseIf TypeOf gObj Is MasterTableGraphic Then
+            DirectCast(gObj, MasterTableGraphic).Flowsheet = Me
+        ElseIf TypeOf gObj Is SpreadsheetTableGraphic Then
+            DirectCast(gObj, SpreadsheetTableGraphic).Flowsheet = Me
+        ElseIf TypeOf gObj Is Charts.OxyPlotGraphic Then
+            DirectCast(gObj, Charts.OxyPlotGraphic).Flowsheet = Me
+        End If
+
         If tag <> "" Then
             gObj.Tag = tag
         Else
