@@ -81,6 +81,16 @@ public class FlowsheetCanvas : Control
         return TopLevel.GetTopLevel(this)?.RenderScaling ?? 1.0;
     }
 
+    /// <summary>The render/DPI scale (RenderScaling); 2.0 at 200% display scaling.</summary>
+    public double DpiScale => GetDpiScale();
+
+    /// <summary>Canvas width in DEVICE pixels (Bounds x DpiScale) - the space the drawing surface, its
+    /// input coordinates and <c>ZoomAll</c> work in. Use this, not <c>Bounds.Width</c>, for fit/centre math.</summary>
+    public int DeviceWidth => (int)(Bounds.Width * GetDpiScale());
+
+    /// <summary>Canvas height in DEVICE pixels (Bounds x DpiScale).</summary>
+    public int DeviceHeight => (int)(Bounds.Height * GetDpiScale());
+
     // -------------------------------------------------------------------------
     // Rendering via WriteableBitmap -> SkiaSharp (at device-pixel resolution)
     // -------------------------------------------------------------------------
