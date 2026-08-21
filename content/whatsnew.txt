@@ -16,6 +16,11 @@
 - [NEW] Pipe network: flow-assurance screens - erosion, hydrate, wax appearance, asphaltene stability and Turner liquid-loading
 - [NEW] Pipe network: scaling and corrosion analysis coupled to the segments, with a formatted report
 - [NEW] Pipe network graph tools: tabbed chart/data layout with copy and export (PNG for charts, CSV for tables)
+- [NEW] Pipe network: a deviation survey (measured depth, inclination, azimuth) builds vertical, horizontal or directional tubing by minimum curvature, on the full pressure/temperature balance
+- [NEW] Pipe network: Fetkovich and Darcy radial inflow performance relations added alongside linear PI and Vogel
+- [NEW] Pipe network: gas-lift valve mechanics - injection rate from Thornhill-Craver critical orifice flow through the valve port
+- [NEW] Pipe network: a Production Well template (reservoir, IPR, tubing, wellhead) on the designer
+- [NEW] Pipe network: seven new samples - production well, wellhead choke, water injection, multi-well pad, pressure-reducing valve, pipeline pump stations and gas-condensate well
 - [NEW] Black Oil Compound Creator with laboratory PVT calibration, on both interfaces
 - [NEW] Case Library tab on the welcome screen, next to FOSSEE, on both interfaces
 - [NEW] Cross-platform interface: a results report from the Results menu, grouped by unit-operation type, as HTML, CSV or plain text
@@ -41,6 +46,8 @@
 - [CHG] Automatic and natural flowsheet layout orient objects along flow and lay recycle loops out as a rectangle
 - [CHG] Cross-platform interface: an interface scaling factor scales fonts, controls and menu icons together (issue #17)
 - [CHG] Cross-platform interface: the docked object editor gets a close button and roomier rows
+- [CHG] Pipe network designer: an equipment editor opens instantly, building its Results tab only when it is shown
+- [CHG] Refreshed User Guide and a rebuilt offline help, generated from the integrated help system, including the pipe network chapter
 - [FIX] A product of a CAPE-OPEN unit operation was re-flashed by the flowsheet property package, discarding the phase split the unit had computed
 - [FIX] Object editors were cut off on a display set above 96 dots per inch; the distillation column stage table was the most visible case
 - [FIX] A flowsheet opened from the desktop on macOS started DWSIM with nothing loaded and reported an unsupported file
@@ -94,3 +101,7 @@
 - [FIX] Membership: the higher of the cached and live subscription level is honoured (issue #26)
 - [FIX] Missing biomass and extra compounds restored in the shared distribution content (issue #28)
 - [FIX] Cross-platform interface: the master property table editor keeps its object and property selection
+- [FIX] Inserted property tables and charts on a flowsheet draw instead of reporting an error
+- [FIX] Reaction Manager no longer fails when adding a component that is not already in the reaction
+- [FIX] Pipe network designer: the Solve and Abort toolbar buttons are no longer oversized
+- [FIX] Pipe network designer (Windows): Ctrl, Shift and Alt reach the canvas again, restoring multi-selection and Shift-drag offset
