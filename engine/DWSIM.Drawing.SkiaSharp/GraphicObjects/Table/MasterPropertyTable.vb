@@ -201,9 +201,14 @@ Namespace GraphicObjects.Tables
                 Return m_objectfamily
             End Get
             Set(ByVal value As Enums.GraphicObjects.ObjectType)
-                m_objectfamily = value
-                m_objectlist.Clear()
-                m_propertylist.Clear()
+                ' Only wipe the object/property selection when the family actually changes. Re-assigning the
+                ' same family (which the editor does every time it is opened) must NOT clear the user's picks,
+                ' otherwise the table looks like it never saved anything.
+                If value <> m_objectfamily Then
+                    m_objectfamily = value
+                    m_objectlist.Clear()
+                    m_propertylist.Clear()
+                End If
                 If m_sortby = "" Then m_sortby = "Name | DESC"
             End Set
         End Property

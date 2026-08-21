@@ -252,7 +252,8 @@ namespace DWSIM.UI.Desktop.Editors
             {
                 if (familyPicker.SelectedIndex < 0 || familyPicker.SelectedIndex >= families.Count) return;
 
-                // the setter clears both lists, which is what makes switching type start clean
+                // the setter clears both lists (only when the family really changes), which is what
+                // makes switching type start clean
                 table.ObjectFamily = families[familyPicker.SelectedIndex];
                 repopulateObjects("");
                 repopulateProperties("");
@@ -260,6 +261,10 @@ namespace DWSIM.UI.Desktop.Editors
                 sortPicker.Items.Clear();
                 foreach (var item in table.SortableItems) sortPicker.Items.Add(item);
                 sortPicker.SelectedIndex = 0;
+
+                // repaint the canvas so the table reflects the new type immediately (this picker has no
+                // per-control command, so nothing else fires the after-edit redraw)
+                panel.OnAfterEdit?.Invoke();
             };
         }
 
