@@ -1,0 +1,139 @@
+site_name: DWSIM User Guide
+site_description: User guide for the DWSIM open-source chemical process simulator
+docs_dir: docs
+site_dir: site
+use_directory_urls: true
+
+theme:
+  name: material
+  font: false                # disable Google Fonts; use system Helvetica Neue
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.top
+    - navigation.indexes
+    - navigation.expand
+    - search.highlight
+    - search.suggest
+    - content.code.copy
+    - toc.follow
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.arithmatex:
+      generic: true
+      tex_inline_wrap: ['\(', '\)']
+      tex_block_wrap: ['\[', '\]']
+
+extra_css:
+  - stylesheets/extra.css
+
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://polyfill.io/v3/polyfill.min.js?features=es6
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+
+nav:
+  - Home: index.md
+  - License: 01-license.md
+  - Contact Information: 02-contact-information.md
+  - Introduction:
+    - Overview: 03-introduction.md
+  - Classic User Interface (Classic UI):
+    - Welcome Screen: 05-welcome-screen.md
+    - Simulation: 06-simulation.md
+    - Compound Creator: 07-compound-creator.md
+    - Data Regression: 08-data-regression.md
+    - General Settings: 09-general-settings.md
+  - Cross-Platform User Interface (CPUI):
+    - Overview: 10-cross-platform-user-interface-cpui.md
+    - Main Interface: 11-main-interface.md
+    - Configuring a Simulation: 12-configuring-a-simulation.md
+    - Process Modeling (Flowsheeting): 13-process-modeling-flowsheeting.md
+  - AI Features:
+    - AI-Powered Flowsheet Analysis: 15-ai-powered-flowsheet-analysis.md
+    - AI Assistant: 16-ai-assistant.md
+    - AI-Assisted Convergence Enhancer: 17-ai-assisted-convergence-enhancer.md
+  - Life-Cycle and Techno-Economic Analysis:
+    - Techno-Economic Analysis (TEA): 19-techno-economic-analysis-tea.md
+    - Life Cycle Assessment (LCA): 20-life-cycle-assessment-lca.md
+    - TEA/LCA Integration: 21-tea-lca-integration.md
+  - Unit Operation Models:
+    - Streams: 23-streams.md
+    - Unit Operations: 24-unit-operations.md
+    - Reactors: 25-reactors.md
+    - Bioprocess Operations: 26-bioprocess-operations.md
+    - Refining Unit Operations: 27-refining-unit-operations.md
+    - Logical Operations: 28-logical-operations.md
+  - Dynamic Modeling and Simulation:
+    - Introduction: 30-introduction.md
+    - Dynamic Simulation Structure and Configuration: 31-dynamic-simulation-structure-and-configuration.md
+    - Dynamic Simulation Flowsheet Blocks: 32-dynamic-simulation-flowsheet-blocks.md
+    - Unit Operation Dynamic Properties: 33-unit-operation-dynamic-properties.md
+    - Dynamic Simulation Tools: 34-dynamic-simulation-tools.md
+    - Supported Unit Operations: 35-supported-unit-operations.md
+  - "Technical Basis: Methods and Procedures":
+    - Introduction: 37-introduction.md
+    - Thermodynamic Properties: 38-thermodynamic-properties.md
+    - Transport Properties: 39-transport-properties.md
+    - Thermal Properties: 40-thermal-properties.md
+    - Aqueous Solution Properties: 41-aqueous-solution-properties.md
+    - Specialized Models / Property Packages: 42-specialized-models-property-packages.md
+    - Reactions: 43-reactions.md
+    - Property Estimation Methods: 44-property-estimation-methods.md
+    - Other Properties: 45-other-properties.md
+    - "Corrosion & Scaling Monitor": 46-corrosion-scaling-monitor.md
+  - How-To Tutorials:
+    - Methane Steam Reforming: 48-methane-steam-reforming.md
+    - Extractive Distillation: 49-extractive-distillation.md
+    - Flowsheet Control with Python Scripts: 50-flowsheet-control-with-python-scripts.md
+    - Basic Dynamic Simulation Tutorial: 51-basic-dynamic-simulation-tutorial.md
+  - Advanced Topics:
+    - Python Scripting: 53-python-scripting.md
+    - Model Customization: 54-model-customization.md
+    - Overriding Calculated Properties: 55-overriding-calculated-properties.md
+    - Automation: 56-automation.md
+    - Excel Add-In for Thermo Calculations: 57-excel-add-in-for-thermo-calculations.md
+    - Property Package Methods and Correlation Profiles: 58-property-package-methods-and-correlation-profiles.md
+    - CAPE-OPEN Subsystem: 59-cape-open-subsystem.md
+  - Additional Resources:
+    - Online Courses and Videos: 61-online-courses-and-videos.md
+    - Learning Resources: 62-learning-resources.md
+    - Programming Help: 63-programming-help.md
+  - "Appendix: Analytical Thermodynamic Derivatives":
+    - Overview: 64-appendix-analytical-thermodynamic-derivatives.md
+    - Scope and Notation: 65-scope-and-notation.md
+    - "Cubic Equations of State (PR, SRK, PR78)": 66-cubic-equations-of-state-pr-srk-pr78.md
+    - Peng-Robinson-Stryjek-Vera 2 (PRSV2 and PRSV2-VL): 67-peng-robinson-stryjek-vera-2-prsv2-and-prsv2-vl.md
+    - Chao-Seader and Grayson-Streed: 68-chao-seader-and-grayson-streed.md
+    - Lee-Kesler-Plocker: 69-lee-kesler-plocker.md
+    - Activity-Coefficient Models: 70-activity-coefficient-models.md
+    - Electrolyte Activity Models: 71-electrolyte-activity-models.md
+    - Add-on Activity Models: 72-add-on-activity-models.md
+    - Advanced Equation-of-State Packages: 73-advanced-equation-of-state-packages.md
+    - Use in the Flash and Column Solvers: 74-use-in-the-flash-and-column-solvers.md

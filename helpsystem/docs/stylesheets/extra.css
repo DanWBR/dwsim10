@@ -1,0 +1,52 @@
+/* DWSIM help system — typography overrides loaded by both the dev and
+   shipped builds. Sets Helvetica Neue as the body/heading font with sensible
+   cross-platform fallbacks. */
+
+:root {
+  --md-text-font: "Helvetica Neue", "Helvetica", "Arial", "Segoe UI", sans-serif;
+  --md-code-font: "SF Mono", "Menlo", "Monaco", "Consolas", "Liberation Mono", monospace;
+}
+
+/* mkdocs-material applies the font via inline style on <body>; reinforce here
+   in case Google Fonts loading was disabled. */
+body,
+.md-typeset,
+.md-header,
+.md-tabs,
+.md-nav {
+  font-family: var(--md-text-font) !important;
+}
+
+code, kbd, pre, samp,
+.md-typeset code,
+.md-typeset pre {
+  font-family: var(--md-code-font) !important;
+}
+
+/* --- Tables: fill the content column, wrap cell text -------------------- */
+
+/* MkDocs Material wraps tables in a horizontally-scrollable div; force the
+   inner table to span the full content width so it doesn't sit narrow on
+   the left of the page. */
+.md-typeset__table,
+.md-typeset__scrollwrap {
+  width: 100% !important;
+  display: block !important;
+}
+
+.md-typeset table:not([class]) {
+  width: 100% !important;
+  display: table !important;       /* override Material's display:inline-block */
+  table-layout: auto !important;
+  white-space: normal !important;  /* allow wrapping (Material defaults to nowrap) */
+}
+
+/* Wrap long cell text instead of forcing horizontal overflow. */
+.md-typeset table:not([class]) td,
+.md-typeset table:not([class]) th {
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  vertical-align: top;
+}
+
