@@ -1194,11 +1194,22 @@ public partial class SimulationSettingsWindow : Window
 
     private static void OpenUrl(string url)
     {
+        // Use the per-OS opener first; ShellExecute can fail with "no application found" on a machine
+        // whose default browser registration is broken (and pops the shell's own error dialog).
         try
         {
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
+            if (OperatingSystem.IsWindows())
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", "\"" + url + "\"") { UseShellExecute = false });
+            else if (OperatingSystem.IsMacOS())
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("open", url) { UseShellExecute = false });
+            else
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("xdg-open", url) { UseShellExecute = false });
         }
-        catch (Exception) { }
+        catch (Exception)
+        {
+            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = url, UseShellExecute = true }); }
+            catch (Exception) { }
+        }
     }
 
     private void Status(string message)

@@ -582,17 +582,29 @@ public partial class MainWindow : Window
 
     private static void OpenUrl(string url)
     {
+        // ShellExecute (UseShellExecute=true) is the obvious choice, but on a machine whose default
+        // browser/protocol registration is broken it throws "no application found" and pops the shell's
+        // own error dialog. The per-OS openers resolve the default handler more reliably, so try them
+        // first (both for web URLs and local file paths) and fall back to ShellExecute.
         try
         {
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-            {
-                FileName = url,
-                UseShellExecute = true
-            });
+            if (OperatingSystem.IsWindows())
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", "\"" + url + "\"") { UseShellExecute = false });
+            else if (OperatingSystem.IsMacOS())
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("open", url) { UseShellExecute = false });
+            else
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("xdg-open", url) { UseShellExecute = false });
         }
         catch
         {
-            // Browser launch can fail on locked-down machines; fail silently rather than crash.
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = url, UseShellExecute = true });
+            }
+            catch
+            {
+                // Browser launch can fail on locked-down machines; fail silently rather than crash.
+            }
         }
     }
 
