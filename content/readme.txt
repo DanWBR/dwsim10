@@ -72,6 +72,17 @@ Version 10.2
 - [NEW] Assay Manager: assays saved and loaded as XML, with the previous binary format still read
 - [NEW] Forced Solids tab back on the advanced property package editor, next to Property Overrides
 - [NEW] Cross-platform interface: the Natural Gas Properties and Heat of Combustion Calculator plugins are back, on the Plugins menu
+- [NEW] Pipe network: producing wells with a black-oil IPR (BSW and gas-oil ratio), gas lift injection, ESP/BCSS downhole pump and a critical-flow choke
+- [NEW] Pipe network: the real DWSIM hydraulic and thermal pipe editors embedded in each network pipe
+- [NEW] Pipe network: valves, compressor, bridge, non-return valve and an inline separator handled by the nodal solver
+- [NEW] Pipe network: nodal analysis plot (IPR x VLP), gas-lift allocation optimizer, well controls and field production-target allocation
+- [NEW] Pipe network: hydraulic profile plots, composite multi-pipe profiles, a bulk well table editor and a field production report in oilfield units
+- [NEW] Pipe network: flow-assurance screens - erosion, hydrate, wax appearance, asphaltene stability and Turner liquid-loading
+- [NEW] Pipe network: scaling and corrosion analysis coupled to the segments, with a formatted report
+- [NEW] Pipe network graph tools: tabbed chart/data layout with copy and export (PNG for charts, CSV for tables)
+- [NEW] Black Oil Compound Creator with laboratory PVT calibration, on both interfaces
+- [NEW] Case Library tab on the welcome screen, next to FOSSEE, on both interfaces
+- [NEW] Cross-platform interface: a results report from the Results menu, grouped by unit-operation type, as HTML, CSV or plain text
 - [CHG] IPOPT is now a managed solver shipped with DWSIM, checked against the native library over five thousand problems
 - [CHG] Gibbs reactor initial estimate solved by a managed simplex instead of the native lpsolve55
 - [CHG] Petalas-Aziz two-phase pressure drop converted from a native library to managed code
@@ -90,6 +101,10 @@ Version 10.2
 - [CHG] Windows installers offer to remove a previous version first, keeping user simulations, custom compounds and added extensions
 - [CHG] Vapour thermal conductivity corrected for pressure with the Stiel-Thodos dense-gas method
 - [CHG] MCP Server: address simulation objects by tag, list their ids and canvas positions, and rename them
+- [CHG] Compositional pipe-network nodal solver accelerated with a response-surface model and a more stable outer loop
+- [CHG] Automatic and natural flowsheet layout orient objects along flow and lay recycle loops out as a rectangle
+- [CHG] Cross-platform interface: an interface scaling factor scales fonts, controls and menu icons together (issue #17)
+- [CHG] Cross-platform interface: the docked object editor gets a close button and roomier rows
 - [FIX] A product of a CAPE-OPEN unit operation was re-flashed by the flowsheet property package, discarding the phase split the unit had computed
 - [FIX] Object editors were cut off on a display set above 96 dots per inch; the distillation column stage table was the most visible case
 - [FIX] A flowsheet opened from the desktop on macOS started DWSIM with nothing loaded and reported an unsupported file
@@ -136,6 +151,13 @@ Version 10.2
 - [FIX] Dynamic Heat Exchanger: the cell pressure is floored at the minimum pressure
 - [FIX] Cross-platform interface: the Script unit operation editor opens a script edit window, and Flowsheet.WriteMessage works from scripts
 - [FIX] Cross-platform interface: the Script Manager opens under the Semi theme, extension menu-bar buttons appear after a flowsheet loads, and the sample scripts run on Python 3
+- [FIX] Pipe network: electrolyte scaling and corrosion speciation corrected
+- [FIX] Pipe network: solve gating, translated property names, zoom-to-fit at any display scaling, and Results populated on every block after the solve
+- [FIX] Pipe network: boundary streams attached to the block ports, profile-plot crash fixed, live solver progress, and headless-saved networks reload
+- [FIX] Pipe network nodal solver: a full Newton step is required before convergence, and the control-valve loop tolerance was tightened
+- [FIX] Membership: the higher of the cached and live subscription level is honoured (issue #26)
+- [FIX] Missing biomass and extra compounds restored in the shared distribution content (issue #28)
+- [FIX] Cross-platform interface: the master property table editor keeps its object and property selection
 
 Version 10.1
 
