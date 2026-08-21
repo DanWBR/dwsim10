@@ -17,7 +17,7 @@ Compounds that are not in the databases shipped with DWSIM can be created or imp
 
 
 
-![Selecting a Compound with the Simulation Setup Wizard.](images/screens58/cpui_sw2.png)
+![Selecting a Compound with the Simulation Setup Wizard.](images/screens102/Captura de tela 2026-08-21 101638.png)
 
 *Selecting a Compound with the Simulation Setup Wizard.*
 
@@ -30,7 +30,7 @@ The Property Package consists in a set of methods and models for the calculation
 
 
 
-![Selecting a Property Package with the Simulation Setup Wizard.](images/screens58/cpui_sw3.png)
+![Selecting a Property Package with the Simulation Setup Wizard.](images/screens102/Captura de tela 2026-08-21 101720.png)
 
 *Selecting a Property Package with the Simulation Setup Wizard.*
 
@@ -53,7 +53,7 @@ The added packages are listed underneath in a grid, where the name can be edited
 
 
 <a id="fig:Viewing-Property-Packages"></a>
-![<span id="fig:Viewing-Property-Packages" data-label="fig:Viewing-Property-Packages"></span>Added property packages on the Thermodynamics tab of the Simulation Settings window.](images/screens64/basis_cpui_v650.png)
+![<span id="fig:Viewing-Property-Packages" data-label="fig:Viewing-Property-Packages"></span>Added property packages on the Thermodynamics tab of the Simulation Settings window.](images/screens102/Captura de tela 2026-08-21 101745.png)
 
 *<span id="fig:Viewing-Property-Packages" data-label="fig:Viewing-Property-Packages"></span>Added property packages on the Thermodynamics tab of the Simulation Settings window.*
 
@@ -62,7 +62,7 @@ The added packages are listed underneath in a grid, where the name can be edited
 
 
 
-![The property package editor.](images/screens58/cpui_ppsettings.png)
+![The property package editor.](images/screens102/Captura de tela 2026-08-21 101759.png)
 
 *The property package editor.*
 
@@ -89,7 +89,7 @@ Three basic units systems are present in DWSIM: **SI System** (selected by defau
 
 
 
-![The System of Units tab of the Simulation Settings window.](images/screens58/cpui_fssettings.png)
+![The System of Units tab of the Simulation Settings window.](images/screens102/Captura de tela 2026-08-21 101814.png)
 
 *The System of Units tab of the Simulation Settings window.*
 
@@ -100,7 +100,7 @@ You can also create a custom system of units, from **Tools \> Systems of Units**
 
 
 
-![Creating a new System of Units.](images/screens58/cpui_createsu.png)
+![Creating a new System of Units.](images/screens102/Captura de tela 2026-08-21 101826.png)
 
 *Creating a new System of Units.*
 

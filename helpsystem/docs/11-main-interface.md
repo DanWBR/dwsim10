@@ -27,7 +27,7 @@ The right-hand side has three tabs:
 
 
 
-![The DWSIM welcome screen.](images/screens60/welcome_cpui_v6.png)
+![The DWSIM welcome screen.](images/screens102/Captura de tela 2026-08-21 101615.png)
 
 *The DWSIM welcome screen.*
 
@@ -42,7 +42,7 @@ A new simulation starts with an empty flowsheet and the **Simulation Setup Wizar
 
 
 
-![A new simulation with the Simulation Setup Wizard.](images/screens58/cpui_sw1.png)
+![A new simulation with the Simulation Setup Wizard.](images/screens102/Captura de tela 2026-08-21 101702.png)
 
 *A new simulation with the Simulation Setup Wizard.*
 

@@ -19,30 +19,3 @@ Up to DWSIM 9 the Cross-Platform UI was based on Eto.Forms and rendered through 
 
 On Windows both interfaces are installed and either one may be used; the Classic UI opens by default. On Linux and macOS the Cross-Platform UI is the only interface available. It is distributed as a self-contained application: the .NET runtime travels with it, so neither Mono nor a separate runtime installation is required.
 
-
-
-
-![Cross-Platform UI on Linux.](images/screens58/cpui_linux.png)
-
-*Cross-Platform UI on Linux.*
-
-
-
-
-
-
-![Cross-Platform UI on Windows.](images/screens58/cpui_win.png)
-
-*Cross-Platform UI on Windows.*
-
-
-
-
-
-
-![Cross-Platform UI on macOS.](images/screens58/cpui_mac.png)
-
-*Cross-Platform UI on macOS.*
-
-
-

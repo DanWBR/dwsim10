@@ -417,9 +417,9 @@ Four sulfate-reducing populations join the seven ADM1 groups, each living on one
 
 \[
 \begin{aligned}4\,H_{2}+SO_{4}^{2-} & \longrightarrow HS^{-}+4\,H_{2}O\\
-CH_{3}COO^{-}+SO_{4}^{2-} & \longrightarrow 2\,HCO_{3}^{-}+HS^{-}\\
-4\,CH_{3}CH_{2}COO^{-}+3\,SO_{4}^{2-} & \longrightarrow 4\,CH_{3}COO^{-}+4\,HCO_{3}^{-}+3\,HS^{-}\\
-2\,CH_{3}(CH_{2})_{2}COO^{-}+SO_{4}^{2-} & \longrightarrow 4\,CH_{3}COO^{-}+HS^{-}
+CH_{3}COO^{-}+SO_{4}^{2-} & \longrightarrow2\,HCO_{3}^{-}+HS^{-}\\
+4\,CH_{3}CH_{2}COO^{-}+3\,SO_{4}^{2-} & \longrightarrow4\,CH_{3}COO^{-}+4\,HCO_{3}^{-}+3\,HS^{-}\\
+2\,CH_{3}(CH_{2})_{2}COO^{-}+SO_{4}^{2-} & \longrightarrow4\,CH_{3}COO^{-}+HS^{-}
 \end{aligned}
 \]
 

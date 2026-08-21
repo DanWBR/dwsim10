@@ -2,7 +2,7 @@
 
 #### Dynamic Model Setup
 
-A dynamic model in DWSIM can be configured by starting from a solved flowsheet in steady-state mode. Additionally, each Boundary Material Stream must have a Pressure or Flow specification. In dynamic mode, a Valve Unit Operation connected to these streams will determine the Pressure-Flow relationships for the rest of the flowsheet as the remaining Unit Operation blocks get solved at each time step (Figure [54](#fig:dyn1)).
+A dynamic model in DWSIM can be configured by starting from a solved flowsheet in steady-state mode. Additionally, each Boundary Material Stream must have a Pressure or Flow specification. In dynamic mode, a Valve Unit Operation connected to these streams will determine the Pressure-Flow relationships for the rest of the flowsheet as the remaining Unit Operation blocks get solved at each time step (Figure [53](#fig:dyn1)).
 
 
 

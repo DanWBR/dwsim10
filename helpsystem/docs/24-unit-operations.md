@@ -1894,7 +1894,7 @@ $F_{h}$ fraction of total flow that crosses $S_{s}$
 
 
 
-$M$ and $N_{h}$ are correction factors obtained from the tables in Figures [47](#fig:Shell-side-heat-transfer), [48](#fig:Shell-side-pressure-drop), [49](#fig:Shell-side-heat-transfer-1), [50](#fig:Shell-side-pressure-drop-1), [51](#fig:Shell-side-heat-transfer-2) and [52](#fig:Shell-side-pressure-drop-2).
+$M$ and $N_{h}$ are correction factors obtained from the tables in Figures [46](#fig:Shell-side-heat-transfer), [47](#fig:Shell-side-pressure-drop), [48](#fig:Shell-side-heat-transfer-1), [49](#fig:Shell-side-pressure-drop-1), [50](#fig:Shell-side-heat-transfer-2) and [51](#fig:Shell-side-pressure-drop-2).
 
 
 
@@ -2019,7 +2019,7 @@ By knowing how $\Delta T$ changes inside the exchanger, the above expression can
 
 where $LMTD$ is the log mean temperature difference for the exchanger conditions, calculated as if the exchanger is countercurrent, with only one shell pass and one tube pass.
 
-$F$ is a correction factor which is given in formulas and charts such as in Figure [53](#fig:Shell-side-heat-transfer-3), where P and R are given by
+$F$ is a correction factor which is given in formulas and charts such as in Figure [52](#fig:Shell-side-heat-transfer-3), where P and R are given by
 
 
 
@@ -2046,7 +2046,7 @@ R=\frac{T_{s1}-T_{s2}}{T_{t2}-T_{t1}}
 
 ####### Film Coefficient
 
-The film coefficient $h_{e}$ is obtained from the charts in Figures [47](#fig:Shell-side-heat-transfer), [49](#fig:Shell-side-heat-transfer-1) and [51](#fig:Shell-side-heat-transfer-2) as a function of the Reynolds number $Re_{h}$ and the $\nicefrac{s}{d_{e}}$ :
+The film coefficient $h_{e}$ is obtained from the charts in Figures [46](#fig:Shell-side-heat-transfer), [48](#fig:Shell-side-heat-transfer-1) and [50](#fig:Shell-side-heat-transfer-2) as a function of the Reynolds number $Re_{h}$ and the $\nicefrac{s}{d_{e}}$ :
 
 
 
@@ -2112,7 +2112,7 @@ $C_{x}=1.414$ for ◇ arrangement
 
 
 
-$\left(1+\frac{Ys}{D_{i}}\right)$ is obtained from the charts in Figures [47](#fig:Shell-side-heat-transfer), [49](#fig:Shell-side-heat-transfer-1) and [51](#fig:Shell-side-heat-transfer-2). $N'_{B}$ is the number of spaces between baffles and is given by $N'_{B}=N_{B}+1$ where $N_{B}$ is the number of baffles.
+$\left(1+\frac{Ys}{D_{i}}\right)$ is obtained from the charts in Figures [46](#fig:Shell-side-heat-transfer), [48](#fig:Shell-side-heat-transfer-1) and [50](#fig:Shell-side-heat-transfer-2). $N'_{B}$ is the number of spaces between baffles and is given by $N'_{B}=N_{B}+1$ where $N_{B}$ is the number of baffles.
 
 #### Air Cooler
 
@@ -4460,6 +4460,10 @@ These objects wrap the corresponding DWSIM base unit operations in $\Delta P$ ca
 
 Performs an adiabatic flash split. The vapour outlet supplies the gas phase stream and the liquid outlet supplies the liquid phase stream to the downstream network.
 
+###### Additional Blocks (Nodal Solver)
+
+With the nodal Newton solver ([2.31.6](#sec:solver)) the palette adds blocks for water distribution and petroleum production: a **Water Pipe** (a lightweight single-phase pipe using the Hazen–Williams  or Darcy–Weisbach correlation with static head, for water grids), a **Reservoir/Tank** fixed-head boundary, a **Pressure Control Valve** (a reducing PRV holding the downstream pressure, or a sustaining PSV holding the upstream pressure), an **Inflow Performance (IPR)** well block, and a **Choke** bean restriction (see [2.31.7](#sec:pn_nodal)).
+
 ##### Node Balance Equations {#sec:node_balances}
 
 For a node $k$ with $n_{\mathrm{in}}$ inlets and $n_{\mathrm{out}}$ outlets, three dimensionless residuals are formed and minimised by the network solver.
@@ -4702,9 +4706,120 @@ Two numerical methods are available:
 
 - **IPOPT** – interior-point optimisation  using numerical gradients computed by finite differences. May converge faster for large or stiff networks.
 
+The two methods above pose the network as a least-squares problem over the boundary pressures and flows and are retained for backward compatibility; they do not represent looped networks or flow reversal and are slower than the nodal Newton solver described next.
+
+###### Nodal Newton Solver (Todini–Pilati)
+
+The recommended default for new networks is a sparse nodal Newton method based on the Global Gradient Algorithm of Todini and Pilati . The unknowns are the nodal pressures, obtained by solving a reduced symmetric positive-definite linear system at each iteration; the branch flows follow from the nodal pressures. Because each branch flow carries a sign, looped (meshed) networks and flow reversal are handled automatically—independent of the drawn direction—and the method converges in a few iterations to machine-precision continuity.
+
+###### Flow Models
+
+The nodal Newton solver offers two flow models. In the **incompressible** (single-phase) model each pipe is a closed-form pressure-drop law— Hazen–Williams , or Darcy–Weisbach with the Churchill friction factor —plus the static head; this is the model for water distribution grids. In the **compositional** (multiphase) model each pipe wraps the full two-phase pipe segment ([2.31.4](#sec:pressure_drop)) as a black box, and an outer loop refreshes the pressure and temperature of every branch while the inner Newton step resolves the hydraulics; this is the model for petroleum gathering and production networks.
+
 ###### Degrees of Freedom
 
 Before solving, the model checks that the network is properly specified. For each source the number of fixed quantities (pressure, mass flow, or both) determines the degrees of freedom contributed to the system. A network with unconnected sources or insufficient boundary conditions will not converge.
+
+##### Producing Wells and Nodal Analysis {#sec:pn_nodal}
+
+On the nodal Newton solver with the compositional flow model, the Pipe Network doubles as a steady-state production-network and nodal-analysis tool. A producing well is assembled from an **Inflow Performance Relationship** (IPR) at the sandface, a tubing string of one or more multiphase pipe segments, and a wellhead **Choke**; manifolds and export flowlines then gather several wells into a common system.
+
+###### Inflow Performance (IPR)
+
+The IPR block sets the rate the reservoir delivers to the bottomhole as a function of the drawdown $P_r - P_{wf}$, where $P_r$ is the reservoir pressure and $P_{wf}$ the flowing bottomhole pressure . Two forms are available: a linear productivity index,
+
+
+<a id="eq:ipr_pi"></a>
+
+\[
+q = J\,(P_r - P_{wf}),
+\]
+
+
+and Vogel’s solution-gas-drive relationship for saturated reservoirs,
+
+
+<a id="eq:ipr_vogel"></a>
+
+\[
+\frac{q}{q_{\max}} = 1 - 0.2\,\frac{P_{wf}}{P_r}
+                          - 0.8\left(\frac{P_{wf}}{P_r}\right)^{\!2}.
+\]
+
+
+Placed between the reservoir boundary and the bottomhole node, the IPR closes the inflow–outflow (IPR $\times$ VLP) analysis together with the tubing that lifts the fluid to surface.
+
+###### Wellhead Choke
+
+The choke is a subcritical restriction defined by a bean diameter and a discharge coefficient. For critical (sonic) flow it offers a mechanistic orifice model, which caps the rate at the critical pressure drop through the bean, and a Gilbert-type wellhead-choke correlation ,
+
+
+<a id="eq:gilbert"></a>
+
+\[
+P_1 = \frac{A\,q_L\,\mathrm{GLR}^{B}}{d^{C}},
+\]
+
+
+where $P_1$ is the upstream pressure, $q_L$ the gross liquid rate, GLR the producing gas–liquid ratio and $d$ the bean size, with selectable coefficient sets (Gilbert, Ros, Baxendell, Achong, or a tunable custom set). The GLR and liquid rate come from a standard-conditions flash of the produced fluid, so the Gilbert model applies on a compositional network; a dry-gas or dead-oil stream falls back to the mechanistic orifice.
+
+###### Artificial Lift
+
+A **Pump** block on the tubing represents an electrical submersible pump (ESP). Its optional free-gas derating models the head loss from free gas at the intake: the intake gas volume fraction (GVF) is read from a flash at the live intake pressure, and the developed head is scaled by a factor that falls linearly from unity (below a tunable onset GVF) to zero at a tunable gas-lock GVF . Because the intake pressure is taken live from the solve, the derating tracks the operating point. **Gas-lift** injection is modelled at a node, where the injected gas mixes and flashes with the produced fluid; production then follows the classic gas-lift performance curve, rising with injection to an optimum and falling as the added gas raises the friction gradient .
+
+##### Flow Assurance Screens {#sec:pn_flowassurance}
+
+Selecting a solved pipe segment and choosing *Flow Assurance* from the designer’s Tools menu screens the pipe against a set of integrity limits along its length. Every screen reads the segment’s converged hydraulic profile, so the results are consistent with the solved network; a fluid lacking the phase or data a screen needs simply reports no risk for that screen.
+
+- **Erosion** – the API RP 14E erosional-velocity limit , $V_e = C/\sqrt{\rho_{ns}}$, evaluated on the no-slip mixture density $\rho_{ns} = \lambda_L\rho_L + (1-\lambda_L)\rho_g$; the plot draws the mixture velocity against the limit and flags any increment where the ratio reaches unity.
+
+- **Hydrate** – the hydrate formation temperature at the pipe pressures, from the natural-gas-hydrate models (van der Waals–Platteeuw as implemented by Parrish and Prausnitz, Klauda–Sandler, and Chen–Guo)  , interpolated along the traverse; the flowing temperature is overlaid and the stretch that cools into the hydrate region is shaded. Requires water in the fluid.
+
+- **Wax** – the wax appearance temperature (cloud point), taken as the highest temperature at which a solid wax phase first precipitates at the pipe pressure in the engine’s solid–liquid equilibrium flash ; increments where the flowing temperature drops below it are flagged. Requires compounds carrying fusion data (heavy paraffins).
+
+- **Asphaltene** – an indicative de Boer stability screening  that classifies the oil (no problem, slight-to-moderate, or severe) from its stock-tank density and the supersaturation $P_r - P_b$ at the inlet, and draws the rigorously computed bubble-point profile against the flowing pressure, flagging where the pipe crosses the bubble point. DWSIM has no first-principles asphaltene model, so the de Boer boundaries are an indicative screen to be tuned to field experience. Requires an oil with a bubble point.
+
+- **Liquid loading** – for gas wells, the Turner droplet criterion , with the critical gas velocity
+
+
+<a id="eq:turner"></a>
+
+\[
+V_c = \frac{C\,\sigma^{1/4}(\rho_L - \rho_g)^{1/4}}{\rho_g^{1/2}}
+\]
+
+
+  (SI constant $C = 6.558$, the 20%-adjusted value; Coleman’s unadjusted value is 5.464) drawn against the superficial gas velocity; increments where the gas velocity falls below $V_c$ are flagged as loading. Requires two-phase gas–liquid flow.
+
+##### Scaling and Corrosion Analysis {#sec:pn_scaling}
+
+Selecting a solved pipe segment and choosing *Scaling & Corrosion* from the Tools menu couples the electrolyte water chemistry to the flowline, a capability standard nodal-network tools lack. Increment by increment, from the in-situ pH and ionic speciation, it computes the $\mathrm{CO_{2}}$/$\mathrm{H_{2}S}$/$\mathrm{O_{2}}$ corrosion rate (de Waard–Milliams with the NORSOK M-506 film factor, and NACE MR0175 sulfide-stress-cracking screening)  and the mineral scaling tendency, expressed as saturation indices for calcite, barite, gypsum, anhydrite, celestite, siderite and others,
+
+
+<a id="eq:si"></a>
+
+\[
+\mathrm{SI} = \log_{10}\!\left(\frac{\mathrm{IAP}}{K_{sp}}\right) > 0
+\]
+
+
+indicating supersaturation . The view plots the corrosion rate and the saturation indices against distance and shows the extension’s full report, including inhibitor dosing and API 570/579 remaining-life estimates . It requires the produced water to carry the brine ion compounds (the *(ion)* species of DWSIM’s electrolyte database) together with $\mathrm{CO_{2}}$/$\mathrm{H_{2}S}$, and the *Corrosion & Scaling* extension to be installed.
+
+##### Black Oil Fluids and PVT Calibration {#sec:pn_blackoil}
+
+For petroleum networks a fluid can be modelled with the **Black Oil** property package, which represents the produced fluid by its solution gas–oil ratio $R_s$, oil formation volume factor $B_o$, bubble point $P_b$, and phase viscosities rather than a full compositional description. The correlations are Standing’s for $R_s$, $P_b$ and $B_o$ , Beggs–Robinson for oil viscosity , and Dranchuk–Abou-Kassem for the gas compressibility factor .
+
+Because those correlations are generic, the Black Oil compound creator offers a lab-PVT calibration step. Enter the measured PVT points (pressure, temperature, and any of $R_s$, $B_o$ and oil viscosity) together with a measured bubble point and the reservoir temperature, and *Calibrate* fits a correction multiplier for each quantity as the mean of the measured-to-correlated ratios. The four multipliers (default unity, meaning uncalibrated) are stored with the compound (`BO_RsMult`, `BO_BoMult`, `BO_PbMult`, `BO_OilViscMult`) and applied to $R_s$, $B_o$, $P_b$ and oil viscosity at every evaluation and in the flash split, so a black-oil fluid can be matched to a lab report without leaving the black-oil model.
+
+##### Analysis Tools and Plots {#sec:pn_tools}
+
+The designer’s Tools menu collects the analysis views. Besides *Flow Assurance* and *Scaling & Corrosion* it provides:
+
+- **Plot Profiles of Selected Pipes** – orders the selected pipe segments head-to-tail by their shared nodes and concatenates their per-increment profiles by cumulative distance, giving a single traverse along a well string or flow path (pressure, temperature, holdup, phase velocities and more).
+
+- **Nodal Analysis Plot (IPR $\times$ VLP)** – for a producing well, plots the inflow (IPR) and outflow (VLP) curves in flowing bottomhole pressure versus rate and marks the operating point at their intersection. The curves are built from the same branch models the solver uses , so the operating point matches the solved network.
+
+- **Field Report**, **Gas Lift Allocation** and **Field Target** complete the production-analysis tools.
 
 ##### Model Parameters {#sec:pn_parameters}
 
@@ -4716,11 +4831,11 @@ Before solving, the model checks that the network is properly specified. For eac
 
 
 
-| **Parameter**         | **Symbol**   | **Unit** | **Default** |
-|:----------------------|:-------------|:---------|:------------|
-| Solver method         | —            | —        | Simplex     |
-| Maximum iterations    | $N_{\max}$ | —        | 1000        |
-| Convergence tolerance | $\epsilon$ | —        | $10^{-4}$ |
+| **Parameter**         | **Symbol**   | **Unit** | **Default**  |
+|:----------------------|:-------------|:---------|:-------------|
+| Solver method         | —            | —        | Nodal Newton |
+| Maximum iterations    | $N_{\max}$ | —        | 1000         |
+| Convergence tolerance | $\epsilon$ | —        | $10^{-4}$  |
 
 
 

@@ -12,15 +12,6 @@ An object is added to the flowsheet in any of three ways:
 
 Material and energy streams, property tables, charts and text blocks are also on the **Insert** menu, which places them at the centre of the view. The palette groups the objects by category; the category is chosen at the top of the panel.
 
-
-
-<a id="fig:Dragging-Objects-from"></a>
-![<span id="fig:Dragging-Objects-from" data-label="fig:Dragging-Objects-from"></span>Dragging Objects from the Object Palette to the Flowsheet PFD.](images/screens58/cpui_drag.png)
-
-*<span id="fig:Dragging-Objects-from" data-label="fig:Dragging-Objects-from"></span>Dragging Objects from the Object Palette to the Flowsheet PFD.*
-
-
-
 The elements of a simulation (objects) which can be added to the flowsheet are:
 
 - **Material Stream:** used to represent matter which enters and leaves the limits of the simulation and passes through the unit operations. The user should define their conditions and composition in order for DWSIM to calculate their properties accordingly;
@@ -86,7 +77,7 @@ Holding Shift while double-clicking an object opens its Connections tab directly
 
 
 
-![The Connections tab of the Editor panel.](images/screens58/cpui_connections.png)
+![The Connections tab of the Editor panel.](images/screens102/Captura de tela 2026-08-21 101928.png)
 
 *The Connections tab of the Editor panel.*
 
@@ -115,7 +106,7 @@ Only the tabs that apply to the selected object are shown. **View \> Close All O
 
 
 
-![The Editor panel.](images/screens58/cpui_editor.png)
+![The Editor panel.](images/screens102/Captura de tela 2026-08-21 101949.png)
 
 *The Editor panel.*
 

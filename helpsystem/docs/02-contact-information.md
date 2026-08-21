@@ -4,9 +4,9 @@
 
 Official Website: <https://dwsim.org>
 
-Source Code: <http://github.com/DanWBR/dwsim>
+Source Code: <http://github.com/DanWBR/dwsim10>
 
-Support: <https://github.com/DanWBR/dwsim/discussions>
+Support: <https://github.com/DanWBR/dwsim10/discussions>
 
 
 

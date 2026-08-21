@@ -24,7 +24,7 @@ In practical terms, it automatically applies accurate and responsive correction 
 
 ##### Fundamental Operation
 
-The distinguishing feature of the PID controller is the ability to use the three control terms of proportional, integral and derivative influence on the controller output to apply accurate and optimal control. The block diagram on ([55](#fig:dyn1-1)) shows the principles of how these terms are generated and applied. It shows a PID controller, which continuously calculates an error value $e(t)$ as the difference between a desired setpoint $\textrm{SP}=r(t)$ and a measured process variable $\textrm{PV}=y(t)$ , and applies a correction based on proportional, integral, and derivative terms. The controller attempts to minimize the error over time by adjustment of a control variable $u(t)$ , such as the opening of a control valve, to a new value determined by a weighted sum of the control terms.
+The distinguishing feature of the PID controller is the ability to use the three control terms of proportional, integral and derivative influence on the controller output to apply accurate and optimal control. The block diagram on ([54](#fig:dyn1-1)) shows the principles of how these terms are generated and applied. It shows a PID controller, which continuously calculates an error value $e(t)$ as the difference between a desired setpoint $\textrm{SP}=r(t)$ and a measured process variable $\textrm{PV}=y(t)$ , and applies a correction based on proportional, integral, and derivative terms. The controller attempts to minimize the error over time by adjustment of a control variable $u(t)$ , such as the opening of a control valve, to a new value determined by a weighted sum of the control terms.
 
 
 
