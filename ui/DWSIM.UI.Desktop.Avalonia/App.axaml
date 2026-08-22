@@ -330,6 +330,7 @@
       <Setter Property="Padding" Value="4,2" />
       <Setter Property="MinWidth" Value="{DynamicResource SubToolbarButtonMinSize}" />
       <Setter Property="MinHeight" Value="{DynamicResource SubToolbarButtonMinSize}" />
+      <Setter Property="FontSize" Value="{DynamicResource ToolbarIconSize}" />
       <Setter Property="Cursor" Value="Hand" />
     </Style>
 
