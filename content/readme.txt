@@ -88,6 +88,7 @@ Version 10.2
 - [NEW] Black Oil Compound Creator with laboratory PVT calibration, on both interfaces
 - [NEW] Case Library tab on the welcome screen, next to FOSSEE, on both interfaces
 - [NEW] Cross-platform interface: a results report from the Results menu, grouped by unit-operation type, as HTML, CSV or plain text
+- [NEW] Anaerobic Digester (ADM1-Full): a feed-alkalinity input so a buffered substrate (such as manure) sets the charge-balance pH and gives a methane-richer biogas
 - [CHG] IPOPT is now a managed solver shipped with DWSIM, checked against the native library over five thousand problems
 - [CHG] Gibbs reactor initial estimate solved by a managed simplex instead of the native lpsolve55
 - [CHG] Petalas-Aziz two-phase pressure drop converted from a native library to managed code
@@ -172,6 +173,9 @@ Version 10.2
 - [FIX] Pipe network designer (Windows): Ctrl, Shift and Alt reach the canvas again, restoring multi-selection and Shift-drag offset
 - [FIX] Distillation and absorption columns in dynamic mode: the column seeds its tray and sump holdups from the steady-state solution and no longer fails with a "needs to be (re)initialized" error
 - [FIX] Dynamic Properties and user-defined property editors no longer throw when opened and now list their properties
+- [FIX] Anaerobic Digester (ADM1-Full): the substrate is characterised from its elemental formula and fed as a composite particulate (carbohydrate/protein/lipid plus inerts), so the conversion is realistic and its nitrogen is released as ammonia instead of everything behaving like fully-degradable carbohydrate
+- [FIX] Anaerobic Digester: hydraulic loading is taken from the total feed instead of the flashed liquid phase, so a slurry feed no longer gets an unrealistically long retention time
+- [FIX] A chemical formula with fractional atom counts is parsed correctly, so a lumped biomass formula no longer drops its sulfur and the digester now produces H2S
 
 Version 10.1
 
