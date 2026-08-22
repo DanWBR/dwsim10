@@ -71,8 +71,7 @@ Namespace GraphicObjects.Tables
 
                 Dim canvas As SKCanvas = DirectCast(g, SKCanvas)
 
-                ' base 14 instead of 11 so the hover table reads well at any UI scaling
-                FontSize = 14.0
+                FontSize = 11.0
 
                 FontSize *= s.DpiScale * sf
 
