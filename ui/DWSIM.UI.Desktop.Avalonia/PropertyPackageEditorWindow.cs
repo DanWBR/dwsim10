@@ -40,6 +40,12 @@ public class PropertyPackageEditorWindow : Window
         _flowsheet = flowsheet;
         _pp = pp;
 
+        // A property package that does its own flashing (e.g. a CAPE-OPEN package) can arrive with an
+        // empty or partial FlashSettings dictionary. Backfill the defaults so the editor never throws a
+        // KeyNotFoundException reading a setting the package never populated.
+        foreach (var kv in DWSIM.Thermodynamics.PropertyPackages.Auxiliary.FlashAlgorithms.FlashAlgorithm.GetDefaultSettings())
+            if (!_pp.FlashSettings.ContainsKey(kv.Key)) _pp.FlashSettings[kv.Key] = kv.Value;
+
         Title = $"Edit '{pp.Tag}' ({pp.ComponentName})";
         Width = 820;
         Height = 580;
