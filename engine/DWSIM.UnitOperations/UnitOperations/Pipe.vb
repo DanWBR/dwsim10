@@ -33,7 +33,7 @@ Imports System.IO
 
 Namespace UnitOperations
 
-    ''' <summary>Defines the two-phase flow pressure-drop correlation used by the pipe segment model.</summary>
+    ''' <summary>Defines the pressure-drop correlation used by the pipe segment model.</summary>
     Public Enum FlowPackage
         ''' <summary>Beggs and Brill correlation for inclined two-phase flow.</summary>
         Beggs_Brill
@@ -41,6 +41,12 @@ Namespace UnitOperations
         Lockhart_Martinelli
         ''' <summary>Petalas and Aziz mechanistic model for multi-phase pipe flow.</summary>
         Petalas_Aziz
+        ''' <summary>Weymouth single-phase gas pipeline equation (Menon SI form).</summary>
+        Weymouth
+        ''' <summary>Panhandle A single-phase gas pipeline equation (Menon SI form).</summary>
+        Panhandle_A
+        ''' <summary>Panhandle B single-phase gas pipeline equation (Menon SI form).</summary>
+        Panhandle_B
     End Enum
 
     ''' <summary>
@@ -148,8 +154,12 @@ Namespace UnitOperations
         ''' <summary>Gets or sets the total calculated heat duty exchanged across all pipe sections (kW).</summary>
         Public Property DeltaQ As Nullable(Of Double)
 
-        ''' <summary>Gets or sets the two-phase flow correlation used for pressure-drop calculations.</summary>
+        ''' <summary>Gets or sets the flow correlation used for pressure-drop calculations.</summary>
         Public Property SelectedFlowPackage As FlowPackage = FlowPackage.Beggs_Brill
+
+        ''' <summary>Pipeline efficiency factor E used by the single-phase gas pipeline equations
+        ''' (Weymouth, Panhandle A/B). 1.0 = perfectly clean/new pipe; 0.92-0.98 is typical.</summary>
+        Public Property PipelineEfficiency As Double = 0.95
 
         ''' <summary>Gets or sets the geometric profile (sections, diameters, lengths, elevations) of this pipe.</summary>
         Public Property Profile As PipeProfile = New PipeProfile()
@@ -226,6 +236,89 @@ Namespace UnitOperations
         ''' <returns>A new <see cref="Pipe"/> instance with the same state.</returns>
         Public Overrides Function CloneJSON() As Object
             Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of Pipe)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
+        End Function
+
+        ''' <summary>True when the selected flow package is one of the single-phase gas pipeline equations.</summary>
+        Private Function IsGasPipelineEquation() As Boolean
+            Return SelectedFlowPackage = FlowPackage.Weymouth OrElse
+                   SelectedFlowPackage = FlowPackage.Panhandle_A OrElse
+                   SelectedFlowPackage = FlowPackage.Panhandle_B
+        End Function
+
+        ''' <summary>
+        ''' Pressure drop over one pipe increment from the single-phase gas pipeline equations
+        ''' (Weymouth, Panhandle A/B), in the SI form given by Menon, "Gas Pipeline Hydraulics".
+        ''' The frictional term is solved from the flow equation for (P1^2 - P2^2); the hydrostatic
+        ''' term is added separately, so the result matches the [name, holdup, dPfric, dPelev, dPtotal]
+        ''' shape the two-phase packages return. These are gas-only correlations - any liquid present
+        ''' is ignored.
+        ''' </summary>
+        ''' <param name="D_m">internal diameter (m)</param>
+        ''' <param name="L_m">increment length (m)</param>
+        ''' <param name="dz_m">elevation change over the increment (m)</param>
+        ''' <param name="wv">gas mass flow (kg/s)</param>
+        ''' <param name="MWv">gas molar weight (kg/kmol)</param>
+        ''' <param name="T">flowing temperature (K)</param>
+        ''' <param name="Zf">gas compressibility factor</param>
+        ''' <param name="rhov">gas density (kg/m3)</param>
+        ''' <param name="P1_Pa">increment inlet pressure (Pa, absolute)</param>
+        ''' <param name="E">pipeline efficiency factor</param>
+        Private Function GasPipelineDeltaP(D_m As Double, L_m As Double, dz_m As Double,
+                                           wv As Double, MWv As Double, T As Double, Zf As Double,
+                                           rhov As Double, P1_Pa As Double, E As Double) As Object()
+
+            Const Tb As Double = 288.15      ' base temperature, K (15 C)
+            Const Pb As Double = 101.325     ' base pressure, kPa
+            Const Rgas As Double = 8.314462  ' J/mol.K
+            Const MWair As Double = 28.9625  ' kg/kmol
+
+            Dim dPfric As Double = 0.0
+            Dim dPelev As Double = rhov * 9.80665 * dz_m   ' hydrostatic, Pa
+
+            If wv > 0.0 AndAlso MWv > 0.0 AndAlso P1_Pa > 0.0 AndAlso D_m > 0.0 AndAlso L_m > 0.0 Then
+
+                Dim G As Double = MWv / MWair                 ' gas gravity (air = 1)
+                Dim P1 As Double = P1_Pa / 1000.0             ' kPa (absolute)
+                Dim Dmm As Double = D_m * 1000.0              ' mm
+                Dim Lkm As Double = L_m / 1000.0              ' km
+                If Zf <= 0.0 Then Zf = 1.0
+
+                ' Standard volumetric gas flow (m3/day) from the mass flow, ideal gas at base conditions.
+                Dim Vm_std As Double = Rgas * Tb / (Pb * 1000.0)   ' m3/mol
+                Dim nmol As Double = wv / MWv * 1000.0             ' mol/s
+                Dim Q As Double = nmol * Vm_std * 86400.0          ' m3/day (standard)
+
+                ' Q = C * E * (Tb/Pb)^a * [ (P1^2-P2^2) / (G^b * T * Lkm * Z) ]^n * Dmm^m
+                Dim C, a, b, n, m As Double
+                Select Case SelectedFlowPackage
+                    Case FlowPackage.Weymouth
+                        C = 0.0037435 : a = 1.0 : b = 1.0 : n = 0.5 : m = 2.667
+                    Case FlowPackage.Panhandle_A
+                        C = 0.0045965 : a = 1.0788 : b = 0.8539 : n = 0.5394 : m = 2.6182
+                    Case Else ' Panhandle_B
+                        C = 0.01002 : a = 1.02 : b = 0.961 : n = 0.51 : m = 2.53
+                End Select
+
+                Dim K As Double = C * E * (Tb / Pb) ^ a * Dmm ^ m
+                If K > 0.0 Then
+                    Dim dP2 As Double = (Q / K) ^ (1.0 / n) * (G ^ b * T * Lkm * Zf)   ' P1^2 - P2^2 (kPa^2)
+                    ' the increment cannot lose more head than the inlet pressure provides
+                    If dP2 >= P1 * P1 Then dP2 = P1 * P1 * 0.9999
+                    Dim P2 As Double = Math.Sqrt(P1 * P1 - dP2)                         ' kPa
+                    dPfric = (P1 - P2) * 1000.0                                         ' Pa
+                End If
+
+            End If
+
+            Dim nm As String
+            Select Case SelectedFlowPackage
+                Case FlowPackage.Weymouth : nm = "Gas (Weymouth)"
+                Case FlowPackage.Panhandle_A : nm = "Gas (Panhandle A)"
+                Case Else : nm = "Gas (Panhandle B)"
+            End Select
+
+            Return New Object() {nm, 0.0, dPfric, dPelev, dPfric + dPelev}
+
         End Function
 
         ''' <summary>
@@ -520,9 +613,16 @@ Namespace UnitOperations
                                                  If segmento.TipoSegmento = "Tubulaosimples" Or segmento.TipoSegmento = "" Or
                                                      segmento.TipoSegmento = "Straight Tube Section" Or segmento.TipoSegmento = "Straight Tube" Or
                                                      segmento.TipoSegmento = "Tubulação Simples" Then
-                                                     resv = fpp.CalculateDeltaP(segmento.DI * 0.0254, Lcell, Elcell,
+                                                     If IsGasPipelineEquation() Then
+                                                         resv = GasPipelineDeltaP(segmento.DI * 0.0254, Lcell, Elcell, w_v,
+                                                                                  ms_transition.Phases(2).Properties.molecularWeight.GetValueOrDefault,
+                                                                                  Tin, z, rho_v, ms_transition.Phases(0).Properties.pressure.GetValueOrDefault,
+                                                                                  PipelineEfficiency)
+                                                     Else
+                                                         resv = fpp.CalculateDeltaP(segmento.DI * 0.0254, Lcell, Elcell,
                                                                                 GetRugosity(segmento.Material, segmento), Qvin * 24 * 3600, Qlin * 24 * 3600,
                                                                                 eta_v * 1000, eta_l * 1000, rho_v, rho_l, tens)
+                                                     End If
                                                  Else
                                                      If segmento.TipoSegmento.Contains("[27]") Then
                                                          'fixed deltaP (fitting effective geometry handled via Lcell/Elcell)
@@ -539,7 +639,11 @@ Namespace UnitOperations
                                                          If resf(1) = 1.0 Then
                                                              Dim L_eq As Double
                                                              L_eq = resf(0) * 0.0254 * segmento.DI
-                                                             resv = fpp.CalculateDeltaP(segmento.DI * 0.0254, L_eq, 0, GetRugosity(segmento.Material, segmento), Qvin * 24 * 3600, Qlin * 24 * 3600, eta_v * 1000, eta_l * 1000, rho_v, rho_l, tens)
+                                                             If IsGasPipelineEquation() Then
+                                                                 resv = GasPipelineDeltaP(segmento.DI * 0.0254, L_eq, 0, w_v, ms_transition.Phases(2).Properties.molecularWeight.GetValueOrDefault, Tin, z, rho_v, ms_transition.Phases(0).Properties.pressure.GetValueOrDefault, PipelineEfficiency)
+                                                             Else
+                                                                 resv = fpp.CalculateDeltaP(segmento.DI * 0.0254, L_eq, 0, GetRugosity(segmento.Material, segmento), Qvin * 24 * 3600, Qlin * 24 * 3600, eta_v * 1000, eta_l * 1000, rho_v, rho_l, tens)
+                                                             End If
                                                          Else
                                                              mu_mix = (Qlin + Qsin) / (Qvin + Qlin + Qsin) * eta_l + Qvin / (Qvin + Qlin + Qsin) * eta_v
                                                              rho_mix = (Qlin + Qsin) / (Qvin + Qlin + Qsin) * rho_l + Qvin / (Qvin + Qlin + Qsin) * rho_v
@@ -1249,7 +1353,11 @@ Namespace UnitOperations
 
                                         IObj6?.SetCurrent()
                                         If segmento.TipoSegmento = "Tubulaosimples" Or segmento.TipoSegmento = "" Or segmento.TipoSegmento = "Straight Tube Section" Or segmento.TipoSegmento = "Straight Tube" Or segmento.TipoSegmento = "Tubulação Simples" Then
-                                            resv = fpp.CalculateDeltaP(.DI * 0.0254, Lcell, Elcell, GetRugosity(.Material, segmento), Qvin * 24 * 3600, Qlin * 24 * 3600, eta_v * 1000, eta_l * 1000, rho_v, rho_l, tens)
+                                            If IsGasPipelineEquation() Then
+                                                resv = GasPipelineDeltaP(.DI * 0.0254, Lcell, Elcell, w_v, oms.Phases(2).Properties.molecularWeight.GetValueOrDefault, Tin, z, rho_v, oms.Phases(0).Properties.pressure.GetValueOrDefault, PipelineEfficiency)
+                                            Else
+                                                resv = fpp.CalculateDeltaP(.DI * 0.0254, Lcell, Elcell, GetRugosity(.Material, segmento), Qvin * 24 * 3600, Qlin * 24 * 3600, eta_v * 1000, eta_l * 1000, rho_v, rho_l, tens)
+                                            End If
                                         Else
                                             If segmento.TipoSegmento.Contains("[27]") Then
                                                 'fixed deltaP (fitting effective geometry handled via Lcell/Elcell)
@@ -1266,7 +1374,11 @@ Namespace UnitOperations
                                                 If resf(1) = 1.0 Then
                                                     Dim L_eq As Double
                                                     L_eq = resf(0) * 0.0254 * .DI
-                                                    resv = fpp.CalculateDeltaP(.DI * 0.0254, L_eq, 0, GetRugosity(.Material, segmento), Qvin * 24 * 3600, Qlin * 24 * 3600, eta_v * 1000, eta_l * 1000, rho_v, rho_l, tens)
+                                                    If IsGasPipelineEquation() Then
+                                                        resv = GasPipelineDeltaP(.DI * 0.0254, L_eq, 0, w_v, oms.Phases(2).Properties.molecularWeight.GetValueOrDefault, Tin, z, rho_v, oms.Phases(0).Properties.pressure.GetValueOrDefault, PipelineEfficiency)
+                                                    Else
+                                                        resv = fpp.CalculateDeltaP(.DI * 0.0254, L_eq, 0, GetRugosity(.Material, segmento), Qvin * 24 * 3600, Qlin * 24 * 3600, eta_v * 1000, eta_l * 1000, rho_v, rho_l, tens)
+                                                    End If
                                                 Else
                                                     mu_mix = (Qlin + Qsin) / (Qvin + Qlin + Qsin) * eta_l + Qvin / (Qvin + Qlin + Qsin) * eta_v
                                                     rho_mix = (Qlin + Qsin) / (Qvin + Qlin + Qsin) * rho_l + Qvin / (Qvin + Qlin + Qsin) * rho_v
