@@ -112,6 +112,7 @@ Version 10.2
 - [CHG] Cross-platform interface: the docked object editor gets a close button and roomier rows
 - [CHG] Pipe network designer: an equipment editor opens instantly, building its Results tab only when it is shown
 - [CHG] Refreshed User Guide and a rebuilt offline help, generated from the integrated help system, including the pipe network chapter
+- [CHG] Pipe: Weymouth and Panhandle A/B single-phase gas pipeline pressure-drop equations, with a configurable pipeline efficiency factor
 - [FIX] A product of a CAPE-OPEN unit operation was re-flashed by the flowsheet property package, discarding the phase split the unit had computed
 - [FIX] Object editors were cut off on a display set above 96 dots per inch; the distillation column stage table was the most visible case
 - [FIX] A flowsheet opened from the desktop on macOS started DWSIM with nothing loaded and reported an unsupported file
