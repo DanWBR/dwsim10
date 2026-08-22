@@ -57,9 +57,9 @@
   -->
 
   <PropertyGroup>
-    <Version>10.2.2</Version>
-    <AssemblyVersion>10.2.2.0</AssemblyVersion>
-    <FileVersion>10.2.2.0</FileVersion>
+    <Version>10.2.3</Version>
+    <AssemblyVersion>10.2.3.0</AssemblyVersion>
+    <FileVersion>10.2.3.0</FileVersion>
   </PropertyGroup>
 
   <!-- Package identity, for the projects that are published to a feed. -->
