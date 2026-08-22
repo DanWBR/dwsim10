@@ -93,6 +93,22 @@ public class App : Application
         Resources["FontSizeNormal"] = 12.0 * scale;
         Resources["FontSizeSmall"] = 11.0 * scale;
         Resources["TextControlThemeMinHeight"] = 24.0 * scale;
+
+        // Control geometry that App.axaml styles keep fixed would otherwise stay at its
+        // unscaled size while the fonts grow, so buttons, tabs, grids and toolbars read these
+        // resources and grow with the same factor (issue: scaling looked cramped and icons
+        // stayed small).
+        Resources["ControlMinHeight"] = 28.0 * scale;
+        Resources["ControlPadding"] = new Thickness(12.0 * scale, 5.0 * scale);
+        Resources["TabHeaderMinHeight"] = 34.0 * scale;
+        Resources["TabStripHeight"] = 28.0 * scale;
+        Resources["DataGridRowHeight"] = 28.0 * scale;
+        Resources["DataGridHeaderHeight"] = 24.0 * scale;
+        Resources["ToolbarIconSize"] = 16.0 * scale;
+        Resources["ToolbarButtonMinSize"] = 32.0 * scale;
+        Resources["SubToolbarButtonMinSize"] = 24.0 * scale;
+        Resources["VdividerHeight"] = 18.0 * scale;
+
         IconHelper.IconFontSize = 14.0 * scale;
     }
 
