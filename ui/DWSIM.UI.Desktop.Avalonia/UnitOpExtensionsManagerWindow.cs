@@ -39,10 +39,10 @@ public sealed class UnitOpExtensionsManagerWindow : Window
     private readonly List<ExtRow> _extensions = new();
 
     private readonly TextBlock _lblName = new() { FontWeight = FontWeight.SemiBold, TextWrapping = TextWrapping.Wrap };
-    private readonly TextBlock _lblDesc = new() { TextWrapping = TextWrapping.Wrap, FontSize = 11 };
-    private readonly TextBlock _lblAuthor = new() { FontSize = 11, Opacity = 0.85 };
-    private readonly TextBlock _lblWebsite = new() { FontSize = 11, Opacity = 0.85, TextWrapping = TextWrapping.Wrap };
-    private readonly TextBlock _status = new() { FontSize = 11, Opacity = 0.85 };
+    private readonly TextBlock _lblDesc = new() { TextWrapping = TextWrapping.Wrap, FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11) };
+    private readonly TextBlock _lblAuthor = new() { FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11), Opacity = 0.85 };
+    private readonly TextBlock _lblWebsite = new() { FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11), Opacity = 0.85, TextWrapping = TextWrapping.Wrap };
+    private readonly TextBlock _status = new() { FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11), Opacity = 0.85 };
 
     public UnitOpExtensionsManagerWindow(IFlowsheet flowsheet)
     {
@@ -178,7 +178,7 @@ public sealed class UnitOpExtensionsManagerWindow : Window
         if (_extensions.Count == 0)
             _extPanel.Children.Add(new TextBlock
             {
-                Text = "No unit operation extensions are installed.", FontSize = 11, Opacity = 0.8
+                Text = "No unit operation extensions are installed.", FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11), Opacity = 0.8
             });
         else
             ShowExtensionDetails(_extensions[0]);

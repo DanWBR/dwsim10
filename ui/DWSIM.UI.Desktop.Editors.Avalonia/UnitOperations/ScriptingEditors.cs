@@ -317,7 +317,7 @@ namespace DWSIM.UI.Desktop.Editors
                 AcceptsTab = true,
                 TextWrapping = TextWrapping.NoWrap,
                 FontFamily = new FontFamily("Cascadia Mono,Consolas,Menlo,DejaVu Sans Mono,Courier New,monospace"),
-                FontSize = 13,
+                FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(13),
                 VerticalAlignment = VerticalAlignment.Stretch,
                 HorizontalAlignment = HorizontalAlignment.Stretch
             };

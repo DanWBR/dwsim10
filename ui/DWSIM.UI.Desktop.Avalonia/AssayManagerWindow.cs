@@ -65,7 +65,7 @@ public sealed class AssayManagerWindow : Window
     private readonly DataGrid _gridCurve = new() { CanUserSortColumns = false, AutoGenerateColumns = false };
 
     private readonly StackPanel _detail = new() { Spacing = 2 };
-    private readonly TextBlock _status = new() { FontSize = 11, Opacity = 0.85, TextWrapping = TextWrapping.Wrap };
+    private readonly TextBlock _status = new() { FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11), Opacity = 0.85, TextWrapping = TextWrapping.Wrap };
 
     private Assay? _current;
     private bool _loading;

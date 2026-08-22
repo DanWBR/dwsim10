@@ -510,7 +510,7 @@ public partial class MainWindow : Window
         {
             Text = message,
             TextWrapping = TextWrapping.Wrap,
-            FontSize = 13,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(13),
             Margin = new Thickness(20, 20, 20, 0)
         });
 

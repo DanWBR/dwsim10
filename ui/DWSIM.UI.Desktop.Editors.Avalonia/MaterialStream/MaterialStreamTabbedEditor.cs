@@ -140,7 +140,7 @@ namespace DWSIM.UI.Desktop.Editors
             {
                 VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(8, 0, 0, 0),
-                FontSize = 11,
+                FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(12),
                 Opacity = 0.85
             };
 
@@ -212,7 +212,7 @@ namespace DWSIM.UI.Desktop.Editors
             {
                 VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(8, 0, 0, 0),
-                FontSize = 11,
+                FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(12),
                 Opacity = 0.85
             };
 
@@ -375,7 +375,7 @@ namespace DWSIM.UI.Desktop.Editors
 
             var total = new TextBlock
             {
-                FontSize = 11,
+                FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(12),
                 Foreground = Brushes.Blue,
                 Margin = new Thickness(0, 0, 0, 4),
                 TextWrapping = TextWrapping.Wrap
@@ -463,15 +463,15 @@ namespace DWSIM.UI.Desktop.Editors
         /// <summary>The Information and Connections notebook at the top of the editor.</summary>
         private static Control BuildObjectTabs(MaterialStream ms, out Action refresh)
         {
-            var status = new TextBlock { VerticalAlignment = VerticalAlignment.Center, FontSize = 11 };
+            var status = new TextBlock { VerticalAlignment = VerticalAlignment.Center, FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(12) };
             var linked = new TextBlock
             {
                 VerticalAlignment = VerticalAlignment.Center,
-                FontSize = 11,
+                FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(12),
                 TextTrimming = TextTrimming.CharacterEllipsis
             };
 
-            var tag = new TextBox { Text = ms.GraphicObject.Tag, FontSize = 11, MinHeight = 0 };
+            var tag = new TextBox { Text = ms.GraphicObject.Tag, FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(12), MinHeight = 0 };
             tag.LostFocus += (s, e) =>
             {
                 ms.GraphicObject.Tag = tag.Text;
@@ -481,7 +481,7 @@ namespace DWSIM.UI.Desktop.Editors
             var active = new CheckBox
             {
                 Content = "Active",
-                FontSize = 11,
+                FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(12),
                 IsChecked = ms.GraphicObject.Active
             };
             active.IsCheckedChanged += (s, e) =>
@@ -582,7 +582,7 @@ namespace DWSIM.UI.Desktop.Editors
                 HorizontalAlignment = HorizontalAlignment.Stretch,
                 VerticalAlignment = VerticalAlignment.Center,
                 VerticalContentAlignment = VerticalAlignment.Center,
-                FontSize = 11
+                FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(12)
             };
             picker.SelectionChanged += (s, e) =>
             {
@@ -590,7 +590,7 @@ namespace DWSIM.UI.Desktop.Editors
                 ms.PropertyPackage = (DWSIM.Thermodynamics.PropertyPackages.PropertyPackage)packages[picker.SelectedIndex];
             };
 
-            var configure = new Button { Content = "Configure", FontSize = 11, Margin = new Thickness(6, 0, 0, 0) };
+            var configure = new Button { Content = "Configure", FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(12), Margin = new Thickness(6, 0, 0, 0) };
             configure.Classes.Add("panel");
             configure.IsVisible = ConfigurePropertyPackage != null;
             configure.Click += (s, e) =>
@@ -643,7 +643,7 @@ namespace DWSIM.UI.Desktop.Editors
                 IsReadOnly = true,
                 HeadersVisibility = DataGridHeadersVisibility.None,
                 GridLinesVisibility = DataGridGridLinesVisibility.None,
-                Height = 26
+                Height = DWSIM.UI.Shared.Avalonia.UiScale.Size(26)
             };
 
             grid.Columns.Add(new DataGridTextColumn
@@ -668,7 +668,7 @@ namespace DWSIM.UI.Desktop.Editors
                 Margin = new Thickness(0, 0, 0, 4),
                 HorizontalAlignment = HorizontalAlignment.Stretch,
                 HorizontalContentAlignment = HorizontalAlignment.Center,
-                FontSize = 11
+                FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(12)
             };
             button.Classes.Add("panel");
             button.Click += (s, e) => action();
@@ -682,7 +682,7 @@ namespace DWSIM.UI.Desktop.Editors
             {
                 ItemsSource = items.ToList(),
                 SelectedIndex = selected >= 0 && selected < items.Length ? selected : 0,
-                FontSize = 11,
+                FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(12),
                 VerticalContentAlignment = VerticalAlignment.Center
             };
 

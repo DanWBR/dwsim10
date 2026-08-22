@@ -20,7 +20,7 @@
     </Border>
 
     <Border DockPanel.Dock="Bottom" Padding="8,3" BorderThickness="0,1,0,0">
-      <TextBlock Name="StatusLabel" Text="Pick an object type and property, then click Plot." FontSize="11" />
+      <TextBlock Name="StatusLabel" Text="Pick an object type and property, then click Plot." FontSize="{DynamicResource FontSizeSmall}" />
     </Border>
 
     <Border Background="White" Padding="4">

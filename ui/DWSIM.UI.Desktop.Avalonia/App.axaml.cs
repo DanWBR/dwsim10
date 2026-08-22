@@ -27,6 +27,11 @@ public class App : Application
 
     public override void OnFrameworkInitializationCompleted()
     {
+        // Persisted settings are written back on close, but were never read back at startup:
+        // UIScalingFactor, DarkMode, CurrentCulture and the rest always came up at their defaults
+        // (scaling reverted to 1.0 every restart). Load them before anything reads them.
+        try { DWSIM.GlobalSettings.Settings.LoadSettings("dwsim_newui.ini"); } catch { }
+
         // Honor the persisted DarkMode flag. Engine wrote it last session; we read it here
         // before any window is shown so the choice is reflected from the splash onward.
         if (DWSIM.GlobalSettings.Settings.DarkMode)
@@ -88,6 +93,26 @@ public class App : Application
         Resources["FontSizeNormal"] = 12.0 * scale;
         Resources["FontSizeSmall"] = 11.0 * scale;
         Resources["TextControlThemeMinHeight"] = 24.0 * scale;
+
+        // Controls built in code (object editors, the Objects palette, the integrator panel)
+        // read the same factor so their hard-coded sizes follow the preference too.
+        DWSIM.UI.Shared.Avalonia.UiScale.Factor = scale;
+
+        // Control geometry that App.axaml styles keep fixed would otherwise stay at its
+        // unscaled size while the fonts grow, so buttons, tabs, grids and toolbars read these
+        // resources and grow with the same factor (issue: scaling looked cramped and icons
+        // stayed small).
+        Resources["ControlMinHeight"] = 28.0 * scale;
+        Resources["ControlPadding"] = new Thickness(12.0 * scale, 5.0 * scale);
+        Resources["TabHeaderMinHeight"] = 34.0 * scale;
+        Resources["TabStripHeight"] = 28.0 * scale;
+        Resources["DataGridRowHeight"] = 28.0 * scale;
+        Resources["DataGridHeaderHeight"] = 24.0 * scale;
+        Resources["ToolbarIconSize"] = 16.0 * scale;
+        Resources["ToolbarButtonMinSize"] = 32.0 * scale;
+        Resources["SubToolbarButtonMinSize"] = 24.0 * scale;
+        Resources["VdividerHeight"] = 18.0 * scale;
+
         IconHelper.IconFontSize = 14.0 * scale;
     }
 

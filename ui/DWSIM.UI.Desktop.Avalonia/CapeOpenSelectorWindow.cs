@@ -22,12 +22,12 @@ public sealed class CapeOpenSelectorWindow : Window
 {
     private readonly ListBox _list = new();
     private readonly TextBlock _name = new() { FontWeight = FontWeight.SemiBold, TextWrapping = TextWrapping.Wrap };
-    private readonly TextBlock _version = new() { FontSize = 11, Opacity = 0.85 };
-    private readonly TextBlock _capeVersion = new() { FontSize = 11, Opacity = 0.85 };
-    private readonly TextBlock _vendor = new() { FontSize = 11, Opacity = 0.85, TextWrapping = TextWrapping.Wrap };
+    private readonly TextBlock _version = new() { FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11), Opacity = 0.85 };
+    private readonly TextBlock _capeVersion = new() { FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11), Opacity = 0.85 };
+    private readonly TextBlock _vendor = new() { FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11), Opacity = 0.85, TextWrapping = TextWrapping.Wrap };
     private readonly TextBox _description = new() { IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, Height = 80 };
     private readonly TextBox _about = new() { IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, Height = 100 };
-    private readonly TextBlock _status = new() { FontSize = 11, Opacity = 0.85, VerticalAlignment = VerticalAlignment.Center };
+    private readonly TextBlock _status = new() { FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11), Opacity = 0.85, VerticalAlignment = VerticalAlignment.Center };
 
     private readonly Button _ok = new() { Content = "OK", Width = 90, IsEnabled = false };
     private readonly Button _cancel = new() { Content = "Cancel", Width = 90, IsCancel = true };

@@ -70,6 +70,21 @@
          few theme-aware fixes the Semi swap needs (links, tabs, splitter).
          ================================================================= -->
 
+    <!-- Menus and popup context menus render in their own popup layer and do not
+         inherit the window font, so set the scaled size explicitly. -->
+    <Style Selector="Menu">
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeNormal}" />
+    </Style>
+    <Style Selector="MenuItem">
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeNormal}" />
+    </Style>
+    <Style Selector="ContextMenu">
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeNormal}" />
+    </Style>
+    <Style Selector="ToolTip">
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeNormal}" />
+    </Style>
+
     <Style Selector="Window">
       <Setter Property="FontSize" Value="{DynamicResource FontSizeNormal}" />
     </Style>
@@ -89,7 +104,7 @@
     </Style>
     <!-- A touch more height on the TabControl headers so they are not cramped. -->
     <Style Selector="TabItem">
-      <Setter Property="MinHeight" Value="34" />
+      <Setter Property="MinHeight" Value="{DynamicResource TabHeaderMinHeight}" />
       <Setter Property="VerticalContentAlignment" Value="Center" />
     </Style>
 
@@ -102,8 +117,8 @@
     <Style Selector="Button">
       <Setter Property="FontSize" Value="{DynamicResource FontSizeNormal}" />
       <Setter Property="FontWeight" Value="Normal" />
-      <Setter Property="MinHeight" Value="28" />
-      <Setter Property="Padding" Value="12,5" />
+      <Setter Property="MinHeight" Value="{DynamicResource ControlMinHeight}" />
+      <Setter Property="Padding" Value="{DynamicResource ControlPadding}" />
     </Style>
     <Style Selector="ToggleButton">
       <Setter Property="FontSize" Value="{DynamicResource FontSizeNormal}" />
@@ -139,7 +154,7 @@
       <Setter Property="FontSize" Value="{DynamicResource FontSizeNormal}" />
       <Setter Property="Padding" Value="8,0" />
       <Setter Property="MinHeight" Value="0" />
-      <Setter Property="Height" Value="28" />
+      <Setter Property="Height" Value="{DynamicResource TabStripHeight}" />
       <Setter Property="VerticalContentAlignment" Value="Center" />
       <!-- The close X binds its fill to the item Foreground, so set it here (not only on the
            title TextBlock) or the X is invisible. -->
@@ -223,9 +238,9 @@
     <!-- Compact data grids -->
     <Style Selector="DataGrid">
       <Setter Property="FontSize" Value="{DynamicResource FontSizeNormal}" />
-      <Setter Property="RowHeight" Value="28" />
+      <Setter Property="RowHeight" Value="{DynamicResource DataGridRowHeight}" />
       <Setter Property="MinColumnWidth" Value="40" />
-      <Setter Property="ColumnHeaderHeight" Value="24" />
+      <Setter Property="ColumnHeaderHeight" Value="{DynamicResource DataGridHeaderHeight}" />
     </Style>
     <Style Selector="DataGridColumnHeader">
       <Setter Property="FontSize" Value="{DynamicResource FontSizeNormal}" />
@@ -249,7 +264,7 @@
     <!-- Editor panel compact controls -->
     <Style Selector="StackPanel.editorPanel TextBox">
       <Setter Property="FontSize" Value="{DynamicResource FontSizeNormal}" />
-      <Setter Property="MinHeight" Value="24" />
+      <Setter Property="MinHeight" Value="{DynamicResource TextControlThemeMinHeight}" />
     </Style>
     <Style Selector="StackPanel.editorPanel ComboBox">
       <Setter Property="FontSize" Value="{DynamicResource FontSizeNormal}" />
@@ -258,14 +273,14 @@
     </Style>
     <Style Selector="StackPanel.editorPanel NumericUpDown">
       <Setter Property="FontSize" Value="{DynamicResource FontSizeNormal}" />
-      <Setter Property="MinHeight" Value="24" />
+      <Setter Property="MinHeight" Value="{DynamicResource TextControlThemeMinHeight}" />
     </Style>
     <Style Selector="StackPanel.editorPanel CheckBox">
       <Setter Property="FontSize" Value="{DynamicResource FontSizeNormal}" />
     </Style>
     <Style Selector="StackPanel.editorPanel AutoCompleteBox">
       <Setter Property="FontSize" Value="{DynamicResource FontSizeNormal}" />
-      <Setter Property="MinHeight" Value="24" />
+      <Setter Property="MinHeight" Value="{DynamicResource TextControlThemeMinHeight}" />
     </Style>
 
     <!-- =================================================================
@@ -317,8 +332,8 @@
       <Setter Property="BorderThickness" Value="0" />
       <Setter Property="CornerRadius" Value="4" />
       <Setter Property="Padding" Value="6,4" />
-      <Setter Property="MinWidth" Value="32" />
-      <Setter Property="MinHeight" Value="32" />
+      <Setter Property="MinWidth" Value="{DynamicResource ToolbarButtonMinSize}" />
+      <Setter Property="MinHeight" Value="{DynamicResource ToolbarButtonMinSize}" />
       <Setter Property="HorizontalContentAlignment" Value="Center" />
       <Setter Property="VerticalContentAlignment" Value="Center" />
       <Setter Property="Cursor" Value="Hand" />
@@ -328,8 +343,9 @@
       <Setter Property="BorderThickness" Value="0" />
       <Setter Property="CornerRadius" Value="3" />
       <Setter Property="Padding" Value="4,2" />
-      <Setter Property="MinWidth" Value="24" />
-      <Setter Property="MinHeight" Value="24" />
+      <Setter Property="MinWidth" Value="{DynamicResource SubToolbarButtonMinSize}" />
+      <Setter Property="MinHeight" Value="{DynamicResource SubToolbarButtonMinSize}" />
+      <Setter Property="FontSize" Value="{DynamicResource ToolbarIconSize}" />
       <Setter Property="Cursor" Value="Hand" />
     </Style>
 
@@ -337,7 +353,7 @@
          no Spacing, so give its items margins and render group dividers as thin vertical bars. -->
     <Style Selector="Border.vdivider">
       <Setter Property="Width" Value="1" />
-      <Setter Property="Height" Value="18" />
+      <Setter Property="Height" Value="{DynamicResource VdividerHeight}" />
       <Setter Property="Margin" Value="5,2" />
       <Setter Property="VerticalAlignment" Value="Center" />
       <Setter Property="Background" Value="{DynamicResource SplitterBrush}" />

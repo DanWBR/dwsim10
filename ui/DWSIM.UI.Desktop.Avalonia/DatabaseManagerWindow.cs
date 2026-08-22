@@ -33,7 +33,7 @@ public sealed class DatabaseManagerWindow : Window
     private readonly ObservableCollection<CompoundRow> _rows = new();
     private readonly ComboBox _dbSelector = new() { MinWidth = 260 };
     private readonly TextBlock _pathLabel = new() { Opacity = 0.8, TextWrapping = TextWrapping.Wrap };
-    private readonly TextBlock _status = new() { FontSize = 11, Opacity = 0.85, TextWrapping = TextWrapping.Wrap };
+    private readonly TextBlock _status = new() { FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11), Opacity = 0.85, TextWrapping = TextWrapping.Wrap };
 
     private List<string> Databases => DWSIM.GlobalSettings.Settings.UserDatabases;
 

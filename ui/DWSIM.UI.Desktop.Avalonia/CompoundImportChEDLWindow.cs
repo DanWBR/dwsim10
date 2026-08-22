@@ -28,7 +28,7 @@ public sealed class CompoundImportChEDLWindow : Window
     private readonly TextBox _importAs = new();
     private readonly DataGrid _checklist = CompoundImportSupport.BuildChecklistGrid();
     private readonly ObservableCollection<CompoundImportSupport.ChecklistRow> _rows = new();
-    private readonly TextBlock _status = new() { FontSize = 11, Opacity = 0.85, TextWrapping = TextWrapping.Wrap };
+    private readonly TextBlock _status = new() { FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11), Opacity = 0.85, TextWrapping = TextWrapping.Wrap };
 
     private Button _btnSearch = null!, _btnFetch = null!, _btnAdd = null!, _btnExport = null!;
     private ConstantProperties? _compound;
@@ -119,7 +119,7 @@ public sealed class CompoundImportChEDLWindow : Window
         {
             Text = "Data from the ChEDL Thermo Python library (https://github.com/CalebBell/thermo). " +
                    "The first search initializes the Python environment and may take a while.",
-            FontSize = 11,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
             Opacity = 0.75,
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, 0, 0, 8)

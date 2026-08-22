@@ -44,7 +44,7 @@ public sealed class PetroleumCharacterizationWindow : Window
     private double _sulfur, _nitrogen, _nickel, _vanadium, _asphaltenes, _water;
     private double _pnaP, _pnaN, _pnaA;
 
-    private readonly TextBlock _status = new() { FontSize = 11, Opacity = 0.85, TextWrapping = global::Avalonia.Media.TextWrapping.Wrap };
+    private readonly TextBlock _status = new() { FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11), Opacity = 0.85, TextWrapping = global::Avalonia.Media.TextWrapping.Wrap };
     private Button _btnRun = null!;
 
     public PetroleumCharacterizationWindow(IFlowsheet flowsheet)

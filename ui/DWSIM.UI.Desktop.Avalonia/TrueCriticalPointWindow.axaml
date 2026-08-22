@@ -11,7 +11,7 @@
     <Border DockPanel.Dock="Top" Padding="10" BorderThickness="0,0,0,1">
       <StackPanel Spacing="8">
         <TextBlock Text="Calculates the true critical point of a mixture from the Peng-Robinson or Soave-Redlich-Kwong EOS. The selected stream must use one of those property packages."
-                   FontSize="11" TextWrapping="Wrap" Opacity="0.8" />
+                   FontSize="{DynamicResource FontSizeSmall}" TextWrapping="Wrap" Opacity="0.8" />
         <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
           <TextBlock Text="Material Stream:" VerticalAlignment="Center" />
           <ComboBox Name="CbStream" Width="260" />
@@ -22,11 +22,11 @@
     </Border>
 
     <Border DockPanel.Dock="Bottom" Padding="8,3" BorderThickness="0,1,0,0">
-      <TextBlock Name="StatusLabel" Text="Select a material stream and press Calculate." FontSize="11" />
+      <TextBlock Name="StatusLabel" Text="Select a material stream and press Calculate." FontSize="{DynamicResource FontSizeSmall}" />
     </Border>
 
     <TextBox Name="TbResults" Margin="8" IsReadOnly="True" AcceptsReturn="True"
-             TextWrapping="NoWrap" FontFamily="Consolas,Menlo,Monospace" FontSize="12"
+             TextWrapping="NoWrap" FontFamily="Consolas,Menlo,Monospace" FontSize="{DynamicResource FontSizeNormal}"
              VerticalContentAlignment="Top" />
 
   </DockPanel>
