@@ -1384,7 +1384,8 @@ Namespace UnitOperations
                 If i < Stages.Count - 1 Then Stages(i).Vin.Value = sol.VapMolarFlows(i + 1).Value
                 If i > 0 Then Stages(i).Lin.Value = sol.LiqMolarFlows(i - 1).Value
 
-                s.AccumulationStream = New MaterialStream()
+                s.AccumulationStream = New MaterialStream("", "", FlowSheet, PropertyPackage)
+                FlowSheet.AddCompoundsToMaterialStream(s.AccumulationStream)
 
                 Dim Lx = sol.LiqCompositions(i).Values.Select(Function(v) v.Value).ToArray()
                 Dim Vx = sol.VapCompositions(i).Values.Select(Function(v) v.Value).ToArray()
@@ -1418,6 +1419,14 @@ Namespace UnitOperations
 
         End Sub
         Public Overrides Sub RunDynamicModel()
+
+            ' Seed the dynamic holdup from the last steady-state solution the first time the integrator
+            ' runs (or after a re-solve cleared the accumulation streams). Without this the streams are
+            ' Nothing and the run below throws "Column needs to be (re)initialized" - and no UI step ever
+            ' triggered the initialisation. Runs once; the holdup then evolves with the dynamics.
+            If BottomsAccumulationStream Is Nothing OrElse Stages.Any(Function(st) st.AccumulationStream Is Nothing) Then
+                InitializeDynamicsFromSteadyStateSolution()
+            End If
 
             Dim integratorID = FlowSheet.DynamicsManager.ScheduleList(FlowSheet.DynamicsManager.CurrentSchedule).CurrentIntegrator
 
