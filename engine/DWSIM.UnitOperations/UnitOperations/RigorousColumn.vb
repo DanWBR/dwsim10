@@ -1378,6 +1378,11 @@ Namespace UnitOperations
 
                 Dim s = Stages(i)
 
+                'Fall back to the column tray spacing for any stage whose height was never set, so the
+                'dynamic holdup volume (and the volume-temperature flash that sets stage pressure) is
+                'physical instead of zero.
+                If s.StageHeight <= 0.0 Then s.StageHeight = TraySpacing
+
                 Stages(i).Vout.Value = sol.VapMolarFlows(i).Value
                 Stages(i).Lout.Value = sol.LiqMolarFlows(i).Value
 
@@ -1554,12 +1559,13 @@ Namespace UnitOperations
                 vl = _Streams(i).OverallLiquid.Properties.volumetric_flow.GetValueOrDefault() / _Streams(i).OverallLiquid.Properties.molarflow.GetValueOrDefault()
                 'Fv, Fl = mol/s
                 If i = _Streams.Count - 1 Then
-                    Fv0 = Stages(stageid).Vout.Value
+                    'Bottom sump: it has no tray of its own (it is the extra holdup below the last
+                    'stage), so its up-flowing vapor is tracked as the last tray's vapor inlet.
+                    Fv0 = Stages(i - 1).Vin.Value
                     Fv = Stages(i - 1).TotalHoleArea / vv * ((_Streams(i).GetPressure() - _Streams(i - 1).GetPressure()) / (101325 * rhov * Stages(i - 1).DryTrayPressureDropCoefficient)) ^ 0.5
                     If Math.Abs((Fv - Fv0) / Fv0 * 100) > maxDV Then Fv = Fv0 * (1 + maxDV / 100.0 * Math.Sign(Fv - Fv0))
                     If Fv.IsValidDouble() Then
-                        Stages(stageid).Vout.Value = Fv
-                        Stages(stageid - 1).Vin.Value = Fv
+                        Stages(i - 1).Vin.Value = Fv
                         If rhov > 0 AndAlso vv > 0 AndAlso Fv > 0 Then
                             Dim vt = DirectCast(_Streams(i).CloneXML(), MaterialStream)
                             vt.AssignFromPhase(PhaseLabel.Vapor, _Streams(i), True)
@@ -1570,12 +1576,12 @@ Namespace UnitOperations
                         End If
                     End If
                 ElseIf i = 0 Then
-                    Fl0 = Stages(stageid).Lout.Value
+                    Fl0 = Stages(i).Lout.Value
                     Fl = Stages(i).LiquidFlowEquationCoefficient_Alpha * Stages(i).DowncomerLength / vl * ((Stages(i).LiquidLevel - Stages(i).LiquidFlowEquationCoefficient_Beta * Stages(i).DowncomerHeight) / Stages(i).LiquidFlowEquationCoefficient_Beta) ^ 1.5
                     If Math.Abs((Fl - Fl0) / Fl0 * 100) > maxDL Then Fl = Fl0 * (1 + maxDL / 100.0 * Math.Sign(Fl - Fl0))
                     If Fl.IsValidDouble() Then
-                        Stages(stageid).Lout.Value = Fl
-                        Stages(stageid + 1).Lin.Value = Fl
+                        Stages(i).Lout.Value = Fl
+                        Stages(i + 1).Lin.Value = Fl
                         If rhol > 0 AndAlso vl > 0 AndAlso Fl > 0 Then
                             Dim lt = DirectCast(_Streams(i).CloneXML(), MaterialStream)
                             lt.AssignFromPhase(PhaseLabel.Liquid1, _Streams(i), True)
@@ -1586,12 +1592,12 @@ Namespace UnitOperations
                         End If
                     End If
                 Else
-                    Fv0 = Stages(stageid).Vout.Value
+                    Fv0 = Stages(i).Vout.Value
                     Fv = Stages(i).TotalHoleArea / vv * ((_Streams(i + 1).GetPressure() - _Streams(i).GetPressure()) / (101325 * rhov * Stages(i).DryTrayPressureDropCoefficient)) ^ 0.5
                     If Math.Abs((Fv - Fv0) / Fv0 * 100) > maxDV Then Fv = Fv0 * (1 + maxDV / 100.0 * Math.Sign(Fv - Fv0))
                     If Fv.IsValidDouble() Then
-                        Stages(stageid).Vout.Value = Fv
-                        If stageid > 0 Then Stages(stageid - 1).Vin.Value = Fv
+                        Stages(i).Vout.Value = Fv
+                        If i > 0 Then Stages(i - 1).Vin.Value = Fv
                         If rhov > 0 AndAlso vv > 0 AndAlso Fv > 0 Then
                             Dim vt = DirectCast(_Streams(i).CloneXML(), MaterialStream)
                             vt.AssignFromPhase(PhaseLabel.Vapor, _Streams(i), True)
@@ -1601,12 +1607,14 @@ Namespace UnitOperations
                             vTrans(i) = vt
                         End If
                     End If
-                    Fl0 = Stages(stageid).Lout.Value
+                    Fl0 = Stages(i).Lout.Value
                     Fl = Stages(i).LiquidFlowEquationCoefficient_Alpha * Stages(i).DowncomerLength / vl * ((Stages(i).LiquidLevel - Stages(i).LiquidFlowEquationCoefficient_Beta * Stages(i).DowncomerHeight) / Stages(i).LiquidFlowEquationCoefficient_Beta) ^ 1.5
                     If Math.Abs((Fl - Fl0) / Fl0 * 100) > maxDL Then Fl = Fl0 * (1 + maxDL / 100.0 * Math.Sign(Fl - Fl0))
                     If Fl.IsValidDouble() Then
-                        Stages(stageid).Lout.Value = Fl
-                        If stageid < _Streams.Count - 1 Then Stages(stageid + 1).Lin.Value = Fl
+                        Stages(i).Lout.Value = Fl
+                        'The tray below is a real stage only up to the last tray; below the last tray is
+                        'the sump (no stage), whose liquid inflow is carried by lTrans, not a Stage.Lin.
+                        If i < Stages.Count - 1 Then Stages(i + 1).Lin.Value = Fl
                         If rhol > 0 AndAlso vl > 0 AndAlso Fl > 0 Then
                             Dim lt = DirectCast(_Streams(i).CloneXML(), MaterialStream)
                             lt.AssignFromPhase(PhaseLabel.Liquid1, _Streams(i), True)
@@ -1702,7 +1710,8 @@ Namespace UnitOperations
             For i = 0 To _Streams.Count - 1
 
                 If i = _Streams.Count - 1 Then
-                    StageVol = (Math.PI * EstimatedDiameter ^ 2 / 4) * (Stages(i).StageHeight + TopSpacing)
+                    'Bottom sump: no tray of its own, so size its vapor space from the last tray.
+                    StageVol = (Math.PI * EstimatedDiameter ^ 2 / 4) * (Stages(Stages.Count - 1).StageHeight + TopSpacing)
                 ElseIf i = 0 Then
                     StageVol = (Math.PI * EstimatedDiameter ^ 2 / 4) * BottomSpacing
                 Else
@@ -1718,37 +1727,44 @@ Namespace UnitOperations
                 _Streams(i).AssignSelfToPP()
                 _Streams(i).Calculate()
 
-                M1 = StageVol / _Streams(i).GetMolarFlow() 'm3/mol
+                'Skip the volume-temperature pressure update when the holdup has drained to (near) empty:
+                'the segment volume per mole goes to infinity and the flash is ill-posed. Keep the last
+                'pressure; the holdup refills from the neighbouring stages on the following steps.
+                If _Streams(i).GetMolarFlow() > 1.0E-10 Then
 
-                _Streams(i).AssignSelfToPP()
+                    M1 = StageVol / _Streams(i).GetMolarFlow() 'm3/mol
 
-                Dim P1i = _Streams(i).GetPressure()
+                    _Streams(i).AssignSelfToPP()
 
-                Dim result = PropertyPackage.CalculateEquilibrium2(
-                        FlashCalculationType.VolumeTemperature,
-                        M1, _Streams(i).GetTemperature(), _Streams(i).GetPressure())
+                    Dim P1i = _Streams(i).GetPressure()
 
-                P1 = result.CalculatedPressure
-                H1 = result.CalculatedEnthalpy
+                    Dim result = PropertyPackage.CalculateEquilibrium2(
+                            FlashCalculationType.VolumeTemperature,
+                            M1, _Streams(i).GetTemperature(), _Streams(i).GetPressure())
 
-                If Math.Abs((P1 - P1i) / P1i * 100) > maxDP Then P1 = P1i * (1 + maxDP / 100.0 * Math.Sign(P1 - P1i))
+                    P1 = result.CalculatedPressure
+                    H1 = result.CalculatedEnthalpy
 
-                _Streams(i).SetPressure(P1)
-                _Streams(i).SetMassEnthalpy(H1)
-                _Streams(i).SpecType = StreamSpec.Pressure_and_Enthalpy
+                    If Math.Abs((P1 - P1i) / P1i * 100) > maxDP Then P1 = P1i * (1 + maxDP / 100.0 * Math.Sign(P1 - P1i))
 
-                _Streams(i).AssignSelfToPP()
-                _Streams(i).Calculate()
+                    _Streams(i).SetPressure(P1)
+                    _Streams(i).SetMassEnthalpy(H1)
+                    _Streams(i).SpecType = StreamSpec.Pressure_and_Enthalpy
+
+                    _Streams(i).AssignSelfToPP()
+                    _Streams(i).Calculate()
+
+                End If
 
                 'Liquid level
 
                 If i = _Streams.Count - 1 Then
-                    'REVIEW !!!
+                    'Bottom sump: its level is the sump liquid level; it has no tray to update.
                     BottomLiquidLevel = _Streams(i).OverallLiquid.Properties.volumetric_flow.GetValueOrDefault() / (Math.PI * EstimatedDiameter ^ 2 / 4)
+                Else
+                    Stages(i).LiquidLevel = _Streams(i).OverallLiquid.Properties.volumetric_flow.GetValueOrDefault() / ((Math.PI * EstimatedDiameter ^ 2 / 4) - Stages(i).DowncomerArea)
+                    Stages(i).P = _Streams(i).GetPressure()
                 End If
-
-                Stages(i).LiquidLevel = _Streams(i).OverallLiquid.Properties.volumetric_flow.GetValueOrDefault() / ((Math.PI * EstimatedDiameter ^ 2 / 4) - Stages(i).DowncomerArea)
-                Stages(i).P = _Streams(i).GetPressure()
 
             Next
 
