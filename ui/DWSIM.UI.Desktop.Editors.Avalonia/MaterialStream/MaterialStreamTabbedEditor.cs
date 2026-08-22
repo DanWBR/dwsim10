@@ -643,7 +643,7 @@ namespace DWSIM.UI.Desktop.Editors
                 IsReadOnly = true,
                 HeadersVisibility = DataGridHeadersVisibility.None,
                 GridLinesVisibility = DataGridGridLinesVisibility.None,
-                Height = 26
+                Height = DWSIM.UI.Shared.Avalonia.UiScale.Size(26)
             };
 
             grid.Columns.Add(new DataGridTextColumn

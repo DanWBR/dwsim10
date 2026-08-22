@@ -233,6 +233,8 @@ public partial class PropertyChartWindow : Window
     private void AddText(string text, double x, double y, double width, TextAlignment align,
         double fontSize = 11, bool bold = false)
     {
+        // chart labels follow the persisted UI scaling factor
+        fontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(fontSize);
         var tb = new TextBlock
         {
             Text = text,
