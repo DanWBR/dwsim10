@@ -53,7 +53,7 @@ public class AvaloniaEditorPanel : StackPanel
         Spacing = RowSpacing;
         Margin = new Thickness(2);
         // follow the persisted UI scaling factor like the rest of the interface
-        TextElement.SetFontSize(this, DWSIM.UI.Shared.Avalonia.UiScale.Font(11));
+        TextElement.SetFontSize(this, DWSIM.UI.Shared.Avalonia.UiScale.Font(12));
 
         // Style class used by App.axaml selectors (StackPanel.editorPanel TextBox, etc.)
         // to enforce compact control sizing inside editor panels.
