@@ -27,6 +27,11 @@ public class App : Application
 
     public override void OnFrameworkInitializationCompleted()
     {
+        // Persisted settings are written back on close, but were never read back at startup:
+        // UIScalingFactor, DarkMode, CurrentCulture and the rest always came up at their defaults
+        // (scaling reverted to 1.0 every restart). Load them before anything reads them.
+        try { DWSIM.GlobalSettings.Settings.LoadSettings("dwsim_newui.ini"); } catch { }
+
         // Honor the persisted DarkMode flag. Engine wrote it last session; we read it here
         // before any window is shown so the choice is reflected from the splash onward.
         if (DWSIM.GlobalSettings.Settings.DarkMode)
