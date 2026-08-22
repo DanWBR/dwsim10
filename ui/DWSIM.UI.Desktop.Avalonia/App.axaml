@@ -70,6 +70,21 @@
          few theme-aware fixes the Semi swap needs (links, tabs, splitter).
          ================================================================= -->
 
+    <!-- Menus and popup context menus render in their own popup layer and do not
+         inherit the window font, so set the scaled size explicitly. -->
+    <Style Selector="Menu">
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeNormal}" />
+    </Style>
+    <Style Selector="MenuItem">
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeNormal}" />
+    </Style>
+    <Style Selector="ContextMenu">
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeNormal}" />
+    </Style>
+    <Style Selector="ToolTip">
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeNormal}" />
+    </Style>
+
     <Style Selector="Window">
       <Setter Property="FontSize" Value="{DynamicResource FontSizeNormal}" />
     </Style>
