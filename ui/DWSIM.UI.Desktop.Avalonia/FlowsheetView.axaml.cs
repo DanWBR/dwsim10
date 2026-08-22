@@ -1982,7 +1982,7 @@ public partial class FlowsheetView : UserControl
         MenuSimSettings.Click += async (_, _) =>
         {
             if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
-            var dlg = new SimulationSettingsWindow(_flowsheet);
+            var dlg = new SimulationSettingsWindow(_flowsheet, refreshCanvas: () => Canvas?.Refresh());
             await dlg.ShowDialog(HostWindow);
         };
 

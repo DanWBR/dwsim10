@@ -315,6 +315,16 @@
                     <ComboBoxItem Content="Tag (Descending)" />
                   </ComboBox>
                 </Grid>
+                <Grid ColumnDefinitions="*,240" RowDefinitions="Auto">
+                  <TextBlock Grid.Column="0" VerticalAlignment="Center" Margin="0,4"
+                             Text="Flowsheet Color Theme" />
+                  <ComboBox Grid.Column="1" Name="CbColorTheme" Margin="0,4"
+                            HorizontalAlignment="Stretch">
+                    <ComboBoxItem Content="Default" />
+                    <ComboBoxItem Content="Black-and-White PFD" />
+                    <ComboBoxItem Content="Color Icons" />
+                  </ComboBox>
+                </Grid>
               </StackPanel>
             </Border>
 

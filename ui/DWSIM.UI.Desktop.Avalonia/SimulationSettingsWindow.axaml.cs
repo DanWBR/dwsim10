@@ -146,9 +146,12 @@ public partial class SimulationSettingsWindow : Window
     // Parameterless ctor required by Avalonia's XAML compiler (designer-only).
     public SimulationSettingsWindow() : this(null!) { }
 
-    public SimulationSettingsWindow(IFlowsheet flowsheet)
+    private readonly Action? _refreshCanvas;
+
+    public SimulationSettingsWindow(IFlowsheet flowsheet, Action? refreshCanvas = null)
     {
         _flowsheet = flowsheet!;
+        _refreshCanvas = refreshCanvas;
         InitializeComponent();
         IconHelper.ApplyWindowIcon(this);
         if (flowsheet == null) return;
@@ -707,6 +710,7 @@ public partial class SimulationSettingsWindow : Window
     private void PopulateBehavior()
     {
         ChkSkipEqCalcs.IsChecked = Options.SkipEquilibriumCalculationOnDefinedStreams;
+        CbColorTheme.SelectedIndex = Options.FlowsheetColorTheme;
         CbForcePhase.SelectedIndex = Options.ForceStreamPhase switch
         {
             ForcedPhase.Vapor => 1,
@@ -1019,6 +1023,13 @@ public partial class SimulationSettingsWindow : Window
         ChkSkipEqCalcs.IsCheckedChanged += (_, _) =>
         {
             if (!_loading) Options.SkipEquilibriumCalculationOnDefinedStreams = ChkSkipEqCalcs.IsChecked.GetValueOrDefault();
+        };
+        CbColorTheme.SelectionChanged += (_, _) =>
+        {
+            if (_loading) return;
+            Options.FlowsheetColorTheme = CbColorTheme.SelectedIndex;
+            // redraw the flowsheet so the new theme (e.g. Color Icons) applies immediately
+            _refreshCanvas?.Invoke();
         };
         CbForcePhase.SelectionChanged += (_, _) =>
         {
