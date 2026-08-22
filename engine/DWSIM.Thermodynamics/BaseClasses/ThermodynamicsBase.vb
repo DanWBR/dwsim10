@@ -1824,11 +1824,16 @@ Namespace BaseClasses
                     End If
                 Next
             Else
-                Dim elementRegex = "([A-Z][a-z]*)([0-9]*)"
+                ' Allow fractional atom counts (pseudo-compounds such as a lumped biomass formula
+                ' C15.90H29.78O12.68N1.00S0.33): a plain [0-9]* stops at the decimal point, so S0.33
+                ' became S0 and the sulfur (or any fractional element) was silently dropped.
+                Dim elementRegex = "([A-Z][a-z]*)(\d*\.?\d*)"
                 Dim validateRegex = "^(" + elementRegex + ")+$"
-                For Each match In Regex.Matches(_molecule, elementRegex)
+                For Each match As Match In Regex.Matches(_molecule, elementRegex)
                     Dim name = match.Groups(1).Value
-                    Dim count = If(match.Groups(2).Value <> "", Integer.Parse(match.Groups(2).Value), 1)
+                    Dim countStr = match.Groups(2).Value
+                    Dim count As Double = If(countStr <> "" AndAlso countStr <> ".",
+                                             Double.Parse(countStr, System.Globalization.CultureInfo.InvariantCulture), 1.0)
                     If el.ContainsKey(name) Then
                         el(name) += count
                     Else
