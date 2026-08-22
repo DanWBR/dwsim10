@@ -47,7 +47,7 @@ public sealed class CompoundImportThermoDataWindow : Window
         HeadersVisibility = DataGridHeadersVisibility.Column,
         GridLinesVisibility = DataGridGridLinesVisibility.Horizontal
     };
-    private readonly TextBlock _status = new() { FontSize = 11, Opacity = 0.85, TextWrapping = TextWrapping.Wrap };
+    private readonly TextBlock _status = new() { FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11), Opacity = 0.85, TextWrapping = TextWrapping.Wrap };
 
     private Button _btnSearch = null!, _btnAdd = null!, _btnExport = null!;
     private BuiltConstantProperties? _built;

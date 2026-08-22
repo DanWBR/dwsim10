@@ -13,7 +13,7 @@
         <CheckBox Name="CbEnable" Content="Generate Inspector Reports on Solve" />
         <Button Name="BtnClear" Classes="panel" Content="Clear History" Margin="20,0,0,0" />
         <Button Name="BtnRefresh" Classes="panel" Content="Refresh" />
-        <TextBlock Name="LblCount" Text="" VerticalAlignment="Center" FontSize="11" Foreground="#666" />
+        <TextBlock Name="LblCount" Text="" VerticalAlignment="Center" FontSize="{DynamicResource FontSizeSmall}" Foreground="#666" />
       </StackPanel>
     </Border>
 
@@ -30,7 +30,7 @@
                 Content="Open Report in Browser" IsEnabled="False"
                 HorizontalAlignment="Left" Margin="0,0,0,8" />
         <TextBox Name="TbReport" IsReadOnly="True" AcceptsReturn="True"
-                 TextWrapping="NoWrap" FontFamily="Consolas,Menlo,monospace" FontSize="11" />
+                 TextWrapping="NoWrap" FontFamily="Consolas,Menlo,monospace" FontSize="{DynamicResource FontSizeSmall}" />
       </DockPanel>
 
     </Grid>

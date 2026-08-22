@@ -37,7 +37,7 @@ public sealed class PIDTuningWindow : Window
         AcceptsReturn = true,
         TextWrapping = TextWrapping.NoWrap,
         FontFamily = new FontFamily("Consolas,Courier New,monospace"),
-        FontSize = 12,
+        FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(12),
         VerticalContentAlignment = VerticalAlignment.Top
     };
 
@@ -78,13 +78,13 @@ public sealed class PIDTuningWindow : Window
         left.Children.Add(new TextBlock
         {
             Text = "The schedule must have a stored initial state; tuning restores it before every trial run.",
-            FontSize = 11, Opacity = 0.8, TextWrapping = TextWrapping.Wrap
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11), Opacity = 0.8, TextWrapping = TextWrapping.Wrap
         });
 
         left.Children.Add(new TextBlock { Text = "Controllers", FontWeight = FontWeight.SemiBold, Margin = new Thickness(0, 8, 0, 0) });
         left.Children.Add(new TextBlock
         {
-            Text = "Select the PID controllers to tune.", FontSize = 11, Opacity = 0.8
+            Text = "Select the PID controllers to tune.", FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11), Opacity = 0.8
         });
         left.Children.Add(new Border
         {
@@ -128,7 +128,7 @@ public sealed class PIDTuningWindow : Window
             _controllerList.Children.Add(cb);
         }
         if (_checkBoxes.Count == 0)
-            _controllerList.Children.Add(new TextBlock { Text = "No PID controllers on this flowsheet.", FontSize = 11, Opacity = 0.8 });
+            _controllerList.Children.Add(new TextBlock { Text = "No PID controllers on this flowsheet.", FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11), Opacity = 0.8 });
     }
 
     // -------------------------------------------------------------------------

@@ -94,6 +94,10 @@ public class App : Application
         Resources["FontSizeSmall"] = 11.0 * scale;
         Resources["TextControlThemeMinHeight"] = 24.0 * scale;
 
+        // Controls built in code (object editors, the Objects palette, the integrator panel)
+        // read the same factor so their hard-coded sizes follow the preference too.
+        DWSIM.UI.Shared.Avalonia.UiScale.Factor = scale;
+
         // Control geometry that App.axaml styles keep fixed would otherwise stay at its
         // unscaled size while the fonts grow, so buttons, tabs, grids and toolbars read these
         // resources and grow with the same factor (issue: scaling looked cramped and icons

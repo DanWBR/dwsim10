@@ -59,7 +59,7 @@
 
     <!-- Status bar -->
     <Border DockPanel.Dock="Bottom" BorderThickness="0,1,0,0" Padding="8,3">
-      <TextBlock Name="StatusLabel" Text="Ready" VerticalAlignment="Center" FontSize="11" />
+      <TextBlock Name="StatusLabel" Text="Ready" VerticalAlignment="Center" FontSize="{DynamicResource FontSizeSmall}" />
     </Border>
 
     <!-- Script list -->
@@ -87,15 +87,15 @@
       <DockPanel Grid.Row="2">
         <Border DockPanel.Dock="Top" Padding="4,2">
           <StackPanel Orientation="Horizontal" Spacing="6">
-            <TextBlock Text="Output" FontWeight="SemiBold" VerticalAlignment="Center" FontSize="11" />
-            <Button Name="BtnClear" Classes="panel" Content="Clear" Padding="6,2" FontSize="11" />
+            <TextBlock Text="Output" FontWeight="SemiBold" VerticalAlignment="Center" FontSize="{DynamicResource FontSizeSmall}" />
+            <Button Name="BtnClear" Classes="panel" Content="Clear" Padding="6,2" FontSize="{DynamicResource FontSizeSmall}" />
           </StackPanel>
         </Border>
         <TextBox Name="OutputBox"
                  IsReadOnly="True"
                  AcceptsReturn="True"
                  FontFamily="Cascadia Code,Consolas,Courier New,monospace"
-                 FontSize="12"
+                 FontSize="{DynamicResource FontSizeNormal}"
                  Background="#1E1E1E"
                  Foreground="#D4D4D4"
                  TextWrapping="Wrap" />

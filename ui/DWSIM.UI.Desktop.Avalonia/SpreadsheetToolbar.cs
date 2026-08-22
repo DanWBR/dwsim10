@@ -51,7 +51,7 @@ public sealed class SpreadsheetToolbar : DockPanel
 
         _sheets = new ComboBox
         {
-            FontSize = 11,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
             MinWidth = 120,
             VerticalAlignment = VerticalAlignment.Center
         };
@@ -91,7 +91,7 @@ public sealed class SpreadsheetToolbar : DockPanel
         {
             ItemsSource = new[] { "General", "0", "1", "2", "3", "4", "6", "8" },
             SelectedIndex = 0,
-            FontSize = 11,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
             MinWidth = 90,
             VerticalAlignment = VerticalAlignment.Center
         };
@@ -112,14 +112,14 @@ public sealed class SpreadsheetToolbar : DockPanel
         _address = new TextBox
         {
             Width = 90,
-            FontSize = 11,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
             IsReadOnly = true,
             VerticalAlignment = VerticalAlignment.Center
         };
 
         _formula = new TextBox
         {
-            FontSize = 11,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
             MinWidth = 400,
             VerticalAlignment = VerticalAlignment.Center,
             Watermark = "Value or formula of the selected cell"
@@ -182,7 +182,7 @@ public sealed class SpreadsheetToolbar : DockPanel
         return new TextBlock
         {
             Text = text,
-            FontSize = 11,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(6, 0, 2, 0)
         };
@@ -205,7 +205,7 @@ public sealed class SpreadsheetToolbar : DockPanel
         var button = new global::Avalonia.Controls.Button
         {
             Content = text,
-            FontSize = 11,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
             FontWeight = bold ? FontWeight.Bold : FontWeight.Normal,
             FontStyle = italic ? FontStyle.Italic : FontStyle.Normal,
             Padding = new Thickness(8, 3),
@@ -661,7 +661,7 @@ internal static class TextPrompt
     public static async System.Threading.Tasks.Task<string?> AskAsync(Window? owner, string title,
                                                                      string label, string current)
     {
-        var box = new TextBox { Text = current, FontSize = 12, Margin = new Thickness(0, 4) };
+        var box = new TextBox { Text = current, FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(12), Margin = new Thickness(0, 4) };
 
         var ok = new global::Avalonia.Controls.Button { Content = "OK", MinWidth = 80, IsDefault = true };
         var cancel = new global::Avalonia.Controls.Button { Content = "Cancel", MinWidth = 80, IsCancel = true };
@@ -676,7 +676,7 @@ internal static class TextPrompt
         buttons.Children.Add(cancel);
 
         var stack = new StackPanel { Margin = new Thickness(12), Spacing = 4 };
-        stack.Children.Add(new TextBlock { Text = label, FontSize = 12 });
+        stack.Children.Add(new TextBlock { Text = label, FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(12) });
         stack.Children.Add(box);
         stack.Children.Add(buttons);
 

@@ -49,9 +49,9 @@ public sealed class PropertySelectorDialog : Window
         CanResize = true;
         IconHelper.ApplyWindowIcon(this);
 
-        _objectList = new ListBox { FontSize = 11 };
-        _propertyList = new ListBox { FontSize = 11 };
-        _unitList = new ListBox { FontSize = 11 };
+        _objectList = new ListBox { FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11) };
+        _propertyList = new ListBox { FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11) };
+        _unitList = new ListBox { FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11) };
 
         // Populate objects
         foreach (var kv in _objDict.OrderBy(kv => kv.Value.GraphicObject?.Tag ?? kv.Key))
@@ -68,19 +68,19 @@ public sealed class PropertySelectorDialog : Window
 
         // Layout: three columns with labels
         var col1 = new DockPanel { Margin = new Thickness(4) };
-        var lbl1 = new TextBlock { Text = "Object", FontWeight = FontWeight.SemiBold, FontSize = 11, Margin = new Thickness(2) };
+        var lbl1 = new TextBlock { Text = "Object", FontWeight = FontWeight.SemiBold, FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11), Margin = new Thickness(2) };
         DockPanel.SetDock(lbl1, global::Avalonia.Controls.Dock.Top);
         col1.Children.Add(lbl1);
         col1.Children.Add(_objectList);
 
         var col2 = new DockPanel { Margin = new Thickness(4) };
-        var lbl2 = new TextBlock { Text = "Property", FontWeight = FontWeight.SemiBold, FontSize = 11, Margin = new Thickness(2) };
+        var lbl2 = new TextBlock { Text = "Property", FontWeight = FontWeight.SemiBold, FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11), Margin = new Thickness(2) };
         DockPanel.SetDock(lbl2, global::Avalonia.Controls.Dock.Top);
         col2.Children.Add(lbl2);
         col2.Children.Add(_propertyList);
 
         var col3 = new DockPanel { Margin = new Thickness(4) };
-        var lbl3 = new TextBlock { Text = "Units", FontWeight = FontWeight.SemiBold, FontSize = 11, Margin = new Thickness(2) };
+        var lbl3 = new TextBlock { Text = "Units", FontWeight = FontWeight.SemiBold, FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11), Margin = new Thickness(2) };
         DockPanel.SetDock(lbl3, global::Avalonia.Controls.Dock.Top);
         col3.Children.Add(lbl3);
         col3.Children.Add(_unitList);

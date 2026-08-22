@@ -239,7 +239,7 @@ public partial class PreferencesWindow : Window
             "Compound datasets are read when the application starts. XML datasets and single " +
             "compound JSON files are both accepted.");
 
-        _datasets = new ListBox { Height = 150, FontSize = 11 };
+        _datasets = new ListBox { Height = 150, FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11) };
         foreach (var db in S.UserDatabases) _datasets.Items.Add(db);
         page.CreateAndAddControlRow(_datasets);
 
@@ -253,7 +253,7 @@ public partial class PreferencesWindow : Window
 
         page.CreateAndAddLabelRow("User Interaction Parameter Datasets");
 
-        _interactions = new ListBox { Height = 150, FontSize = 11 };
+        _interactions = new ListBox { Height = 150, FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11) };
         foreach (var db in S.UserInteractionsDatabases) _interactions.Items.Add(db);
         page.CreateAndAddControlRow(_interactions);
 

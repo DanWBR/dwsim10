@@ -76,7 +76,7 @@ public sealed class LogPanel : DockPanel
             HeadersVisibility = DataGridHeadersVisibility.Column,
             GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
             SelectionMode = DataGridSelectionMode.Single,
-            FontSize = 11
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11)
         };
 
         _grid.Columns.Add(new DataGridTemplateColumn
@@ -90,7 +90,7 @@ public sealed class LogPanel : DockPanel
                 {
                     Text = row.Icon,
                     Foreground = row.Color,
-                    FontSize = 13,
+                    FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(13),
                     HorizontalAlignment = HorizontalAlignment.Center,
                     VerticalAlignment = VerticalAlignment.Center
                 };
@@ -131,7 +131,7 @@ public sealed class LogPanel : DockPanel
                 var button = new Button
                 {
                     Content = "Details",
-                    FontSize = 11,
+                    FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
                     Padding = new Thickness(6, 1),
                     Margin = new Thickness(2, 1),
                     VerticalAlignment = VerticalAlignment.Center
@@ -174,7 +174,7 @@ public sealed class LogPanel : DockPanel
         var button = new Button
         {
             Content = text,
-            FontSize = 11,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
             Padding = new Thickness(8, 3),
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(0, 0, 4, 0)
@@ -355,7 +355,7 @@ public sealed class EventDescriptionWindow : Window
         {
             Text = label,
             FontWeight = FontWeight.SemiBold,
-            FontSize = 12
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(12)
         });
 
         panel.Children.Add(new TextBox
@@ -365,7 +365,7 @@ public sealed class EventDescriptionWindow : Window
             AcceptsReturn = lines > 1,
             TextWrapping = TextWrapping.Wrap,
             FontFamily = new FontFamily("Consolas,Courier New,monospace"),
-            FontSize = 11,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
             MinHeight = 22 * lines
         });
 

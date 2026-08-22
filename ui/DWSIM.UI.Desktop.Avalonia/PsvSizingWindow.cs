@@ -29,7 +29,7 @@ public sealed class PsvSizingWindow : Window
     private double _kd = 0.85, _kb = 1.0, _kc = 1.0, _overpressure = 10.0;
 
     private readonly StackPanel _results = new() { Spacing = 2, Margin = new Thickness(8, 4, 8, 4) };
-    private readonly TextBlock _status = new() { FontSize = 11, Opacity = 0.85, TextWrapping = TextWrapping.Wrap };
+    private readonly TextBlock _status = new() { FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11), Opacity = 0.85, TextWrapping = TextWrapping.Wrap };
 
     public PsvSizingWindow(IFlowsheet flowsheet)
     {

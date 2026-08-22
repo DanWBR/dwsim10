@@ -53,7 +53,7 @@ public sealed class ResultsViewerPanel : DockPanel
         _lblLastCalc = new TextBlock
         {
             Text = "Last successful flowsheet calculation: --",
-            FontSize = 11,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(8, 0, 4, 0)
         };
@@ -70,7 +70,7 @@ public sealed class ResultsViewerPanel : DockPanel
         {
             Text = "Select Object / View Results",
             FontWeight = FontWeight.SemiBold,
-            FontSize = 11,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(4, 0)
         });
@@ -79,7 +79,7 @@ public sealed class ResultsViewerPanel : DockPanel
         {
             ItemsSource = ShowOptions,
             SelectedIndex = 0,
-            FontSize = 11,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
             MinWidth = 130,
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(4, 0, 0, 0)
@@ -89,7 +89,7 @@ public sealed class ResultsViewerPanel : DockPanel
         toolbar.Children.Add(new TextBlock
         {
             Text = "Show",
-            FontSize = 11,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(8, 0, 0, 0)
         });
@@ -106,7 +106,7 @@ public sealed class ResultsViewerPanel : DockPanel
         _lbObjects = new ListBox
         {
             Width = 250,
-            FontSize = 11
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11)
         };
         _lbObjects.SelectionChanged += OnSelectionChanged;
 
@@ -121,7 +121,7 @@ public sealed class ResultsViewerPanel : DockPanel
             IsReadOnly = true,
             HeadersVisibility = DataGridHeadersVisibility.Column,
             GridLinesVisibility = DataGridGridLinesVisibility.All,
-            FontSize = 11
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11)
         };
 
         _grid.Columns.Add(new DataGridTextColumn
@@ -154,7 +154,7 @@ public sealed class ResultsViewerPanel : DockPanel
             IsReadOnly = true,
             AcceptsReturn = true,
             FontFamily = new FontFamily("Consolas,Courier New,monospace"),
-            FontSize = 11,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
             TextWrapping = TextWrapping.NoWrap
         };
 
@@ -180,7 +180,7 @@ public sealed class ResultsViewerPanel : DockPanel
         var button = new Button
         {
             Content = text,
-            FontSize = 11,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
             Padding = new Thickness(8, 3),
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(4, 0, 0, 0)

@@ -422,7 +422,7 @@ public partial class SimulationSettingsWindow : Window
             IsReadOnly = true,
             HeadersVisibility = DataGridHeadersVisibility.Column,
             GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
-            FontSize = 11,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
             ItemsSource = rows
         };
         grid.Columns.Add(new DataGridTextColumn { Header = "Property", Binding = new global::Avalonia.Data.Binding("Property"), Width = new DataGridLength(230) });
@@ -805,7 +805,7 @@ public partial class SimulationSettingsWindow : Window
                 Content = _flowsheet.GetTranslatedString(property),
                 Tag = property,
                 IsChecked = visible.Contains(property),
-                FontSize = 11,
+                FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
                 MinHeight = 0
             };
             item.IsCheckedChanged += (_, _) => ToggleVisibleProperty(item);
@@ -863,7 +863,7 @@ public partial class SimulationSettingsWindow : Window
             {
                 Content = name,
                 IsChecked = target.Contains(name),
-                FontSize = 11,
+                FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
                 MinHeight = 0
             };
             item.IsCheckedChanged += (_, _) =>

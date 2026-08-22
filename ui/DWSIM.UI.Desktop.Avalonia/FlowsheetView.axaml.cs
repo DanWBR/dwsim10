@@ -2526,7 +2526,7 @@ public partial class FlowsheetView : UserControl
                                     AcceptsReturn = true,
                                     TextWrapping = global::Avalonia.Media.TextWrapping.Wrap,
                                     FontFamily = new FontFamily("Consolas,Courier New,monospace"),
-                                    FontSize = 11
+                                    FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11)
                                 }
                             }
                         }
@@ -2907,25 +2907,25 @@ public partial class FlowsheetView : UserControl
             var arrowText = new TextBlock
             {
                 Text = "↓",  // down arrow = expanded
-                FontSize = 11,
+                FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
                 FontWeight = FontWeight.Bold,
                 Foreground = Brushes.SteelBlue,
                 VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(6, 0, 4, 0),
-                Width = 16
+                Width = DWSIM.UI.Shared.Avalonia.UiScale.Size(16)
             };
             var headerLabel = new TextBlock
             {
                 Text = cat,
                 FontWeight = FontWeight.SemiBold,
-                FontSize = 11,
+                FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
                 VerticalAlignment = VerticalAlignment.Center
             };
             var headerPanel = new StackPanel
             {
                 Orientation = global::Avalonia.Layout.Orientation.Horizontal,
                 Cursor = new Cursor(StandardCursorType.Hand),
-                Height = 30,
+                Height = DWSIM.UI.Shared.Avalonia.UiScale.Size(30),
             };
             // Theme-aware band: light in the light variant, dark in the dark one, so the
             // header text (which inherits the theme foreground) stays legible in both.
@@ -2946,7 +2946,7 @@ public partial class FlowsheetView : UserControl
                 var cell = new StackPanel
                 {
                     Orientation = global::Avalonia.Layout.Orientation.Vertical,
-                    Width = 90,
+                    Width = DWSIM.UI.Shared.Avalonia.UiScale.Size(90),
                     Margin = new Thickness(2, 4),
                     HorizontalAlignment = HorizontalAlignment.Center,
                     Cursor = new Cursor(StandardCursorType.Hand),
@@ -2968,8 +2968,8 @@ public partial class FlowsheetView : UserControl
                         iconCtrl = new Image
                         {
                             Source = bmp,
-                            Width = 40,
-                            Height = 40,
+                            Width = DWSIM.UI.Shared.Avalonia.UiScale.Size(40),
+                            Height = DWSIM.UI.Shared.Avalonia.UiScale.Size(40),
                             HorizontalAlignment = HorizontalAlignment.Center
                         };
                     }
@@ -2977,7 +2977,7 @@ public partial class FlowsheetView : UserControl
                     {
                         iconCtrl = new Border
                         {
-                            Width = 40, Height = 40,
+                            Width = DWSIM.UI.Shared.Avalonia.UiScale.Size(40), Height = DWSIM.UI.Shared.Avalonia.UiScale.Size(40),
                             Background = Brushes.LightGray,
                             HorizontalAlignment = HorizontalAlignment.Center
                         };
@@ -2987,7 +2987,7 @@ public partial class FlowsheetView : UserControl
                 {
                     iconCtrl = new Border
                     {
-                        Width = 40, Height = 40,
+                        Width = DWSIM.UI.Shared.Avalonia.UiScale.Size(40), Height = DWSIM.UI.Shared.Avalonia.UiScale.Size(40),
                         Background = Brushes.LightGray,
                         HorizontalAlignment = HorizontalAlignment.Center
                     };
@@ -2998,11 +2998,11 @@ public partial class FlowsheetView : UserControl
                 cell.Children.Add(new TextBlock
                 {
                     Text = name,
-                    FontSize = 10,
+                    FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(10),
                     TextAlignment = TextAlignment.Center,
                     TextWrapping = TextWrapping.Wrap,
                     HorizontalAlignment = HorizontalAlignment.Center,
-                    MaxWidth = 86
+                    MaxWidth = DWSIM.UI.Shared.Avalonia.UiScale.Size(86)
                 });
 
                 // Wire double-click to add object
@@ -3496,7 +3496,7 @@ public partial class FlowsheetView : UserControl
         {
             Text = "Are you sure you want to close this simulation?\nUnsaved changes will be lost.",
             TextWrapping = global::Avalonia.Media.TextWrapping.Wrap,
-            FontSize = 13,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(13),
             Margin = new Thickness(20, 20, 20, 0)
         });
 

@@ -53,7 +53,7 @@
         <Separator Margin="0,8" />
 
         <TextBlock Name="LblStatus" Text="Fill in at least Name, MW, Tc, Pc and Acentric Factor."
-                   FontSize="11" Foreground="#666" TextWrapping="Wrap" />
+                   FontSize="{DynamicResource FontSizeSmall}" Foreground="#666" TextWrapping="Wrap" />
 
       </StackPanel>
     </ScrollViewer>

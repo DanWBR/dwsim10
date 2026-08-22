@@ -17,7 +17,7 @@
     </Border>
 
     <TextBox Name="ReportBox" IsReadOnly="True" AcceptsReturn="True"
-             FontFamily="Consolas,Courier New,monospace" FontSize="12" />
+             FontFamily="Consolas,Courier New,monospace" FontSize="{DynamicResource FontSizeNormal}" />
 
   </DockPanel>
 

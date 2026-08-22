@@ -17,7 +17,7 @@
           <Button Name="BtnFinish" Classes="wizard" Content="Finish"     Width="90" />
           <Button Name="BtnCancel" Classes="wizard" Content="Close"      Width="90" IsCancel="True" />
         </StackPanel>
-        <TextBlock Name="LblFooter" Text="" FontSize="11"
+        <TextBlock Name="LblFooter" Text="" FontSize="{DynamicResource FontSizeSmall}"
                    VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
       </DockPanel>
     </Border>
@@ -26,7 +26,7 @@
     <Border DockPanel.Dock="Top" Padding="16,10" BorderThickness="0,0,0,1">
       <StackPanel Spacing="2">
         <TextBlock Name="LblHeaderTitle" Text="Welcome" FontSize="16" FontWeight="Bold" />
-        <TextBlock Name="LblHeaderDesc" Text="" FontSize="12" TextWrapping="Wrap" />
+        <TextBlock Name="LblHeaderDesc" Text="" FontSize="{DynamicResource FontSizeNormal}" TextWrapping="Wrap" />
       </StackPanel>
     </Border>
 
