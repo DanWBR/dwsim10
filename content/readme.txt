@@ -170,6 +170,8 @@ Version 10.2
 - [FIX] Reaction Manager no longer fails when adding a component that is not already in the reaction
 - [FIX] Pipe network designer: the Solve and Abort toolbar buttons are no longer oversized
 - [FIX] Pipe network designer (Windows): Ctrl, Shift and Alt reach the canvas again, restoring multi-selection and Shift-drag offset
+- [FIX] Distillation and absorption columns in dynamic mode: the column seeds its tray and sump holdups from the steady-state solution and no longer fails with a "needs to be (re)initialized" error
+- [FIX] Dynamic Properties and user-defined property editors no longer throw when opened and now list their properties
 
 Version 10.1
 
