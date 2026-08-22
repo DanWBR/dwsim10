@@ -170,6 +170,14 @@ Namespace Reactors
         ''' which have no mechanistic pH. ADM1-Full ignores this and uses its charge-balance pH.</summary>
         Public Property AssumedPH_ForSulfide As Double = 7.2
 
+        ''' <summary>(ADM1-Full) Feed alkalinity carried by strong cations - the net cation charge the
+        ''' substrate brings that is not accounted for by the ammonia it releases (potassium, sodium,
+        ''' calcium salts in the raw feed), in equivalents per litre (= kmol charge/m³). ADM1-Full solves
+        ''' pH from the influent charge balance, and manure feeds are strongly buffered (typically
+        ''' 0.05-0.15 eq/L, ~2.5-7.5 g CaCO3/L); leaving this at 0 lets the pH fall, which strips CO2 into
+        ''' the biogas and understates the methane fraction. Only ADM1-Full and ADM1-S read it.</summary>
+        Public Property InfluentAlkalinity_eqL As Double = 0.0
+
         ' ----------- ADM1-LITE INITIAL STATE (concentrations, g COD/L unless noted) -----------
 
         ''' <summary>(ADM1-Lite) Initial soluble-substrate COD (g COD/L) - lumped sugars/amino-acids/LCFA from hydrolysed particulates.</summary>
@@ -1514,9 +1522,12 @@ Namespace Reactors
                 Dim c_SO4_in = nSO4_kmols / Q_liquid_m3s            ' kmol S/m³ as sulfate
                 Dim c_IS_in = (nS_total_kmols - nSO4_kmols) / Q_liquid_m3s ' organic S + fed sulfide
 
+                ' Feed alkalinity: strong cations the substrate carries beyond the ammonia it releases,
+                ' added to the influent cation charge so the charge-balance pH reflects a buffered feed.
+                Dim alk = Max(InfluentAlkalinity_eqL, 0.0)
                 Sin(10) = op.Sin_IN   ' inorganic N
                 Sin(9) = op.Sin_IC    ' inorganic C
-                Sin(24) = op.Sin_cat
+                Sin(24) = op.Sin_cat + alk
                 Sin(25) = op.Sin_an
 
                 If srbKinetics Then
@@ -1530,7 +1541,7 @@ Namespace Reactors
                     ' Sulfate is divalent and S_an counts charge, not moles - and it arrives as a
                     ' salt, so the counter-cations come with it. Feeding the anion alone would be
                     ' feeding sulfuric acid and would acidify the reactor for no physical reason.
-                    Sin(24) = op.Sin_cat + 2.0 * c_SO4_in
+                    Sin(24) = op.Sin_cat + 2.0 * c_SO4_in + alk
                     Sin(25) = op.Sin_an + 2.0 * c_SO4_in
                 Else
                     ' Sulfide arrives already mineralised, and its electrons are debited from the
