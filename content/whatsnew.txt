@@ -25,6 +25,7 @@
 - [NEW] Case Library tab on the welcome screen, next to FOSSEE, on both interfaces
 - [NEW] Cross-platform interface: a results report from the Results menu, grouped by unit-operation type, as HTML, CSV or plain text
 - [NEW] Anaerobic Digester (ADM1-Full): a feed-alkalinity input so a buffered substrate (such as manure) sets the charge-balance pH and gives a methane-richer biogas
+- [NEW] Pipe network designer: a snap-to-grid canvas (on by default, saved with the network), property and master property tables on the canvas, and an Insert menu for the well and flow-control equipment
 - [CHG] IPOPT is now a managed solver shipped with DWSIM, checked against the native library over five thousand problems
 - [CHG] Gibbs reactor initial estimate solved by a managed simplex instead of the native lpsolve55
 - [CHG] Petalas-Aziz two-phase pressure drop converted from a native library to managed code
@@ -50,6 +51,7 @@
 - [CHG] Pipe network designer: an equipment editor opens instantly, building its Results tab only when it is shown
 - [CHG] Refreshed User Guide and a rebuilt offline help, generated from the integrated help system, including the pipe network chapter
 - [CHG] Pipe: Weymouth and Panhandle A/B single-phase gas pipeline pressure-drop equations, with a configurable pipeline efficiency factor
+- [CHG] Pipe network: the compositional nodal solver re-solves an edited network much faster by evaluating pipes directly on a warm start and only refining cold solves
 - [FIX] A product of a CAPE-OPEN unit operation was re-flashed by the flowsheet property package, discarding the phase split the unit had computed
 - [FIX] Object editors were cut off on a display set above 96 dots per inch; the distillation column stage table was the most visible case
 - [FIX] A flowsheet opened from the desktop on macOS started DWSIM with nothing loaded and reported an unsupported file
@@ -112,3 +114,6 @@
 - [FIX] Anaerobic Digester (ADM1-Full): the substrate is characterised from its elemental formula and fed as a composite particulate (carbohydrate/protein/lipid plus inerts), so the conversion is realistic and its nitrogen is released as ammonia instead of everything behaving like fully-degradable carbohydrate
 - [FIX] Anaerobic Digester: hydraulic loading is taken from the total feed instead of the flashed liquid phase, so a slurry feed no longer gets an unrealistically long retention time
 - [FIX] A chemical formula with fractional atom counts is parsed correctly, so a lumped biomass formula no longer drops its sulfur and the digester now produces H2S
+- [FIX] Property package editor: clicking Configure on a CAPE-OPEN property package no longer crashes
+- [FIX] Compound Creator: the Standard Enthalpy of Formation label is no longer clipped
+- [FIX] Pipe network: cloning a non-empty network no longer throws, the network block and its boundary streams are laid out on the flowsheet, and editing a network property no longer overwrites a Source feed
