@@ -525,6 +525,8 @@ namespace DWSIM.UI.Desktop.Editors
             double width, ALayout.HorizontalAlignment align, double fontSize = 10,
             bool bold = false, AMedia.Color? color = null)
         {
+            // the drawing-table canvas labels follow the persisted UI scaling factor
+            fontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(fontSize);
             var tb = new AControls.TextBlock
             {
                 Text = text,
