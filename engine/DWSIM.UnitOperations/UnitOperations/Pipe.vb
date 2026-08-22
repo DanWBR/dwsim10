@@ -275,39 +275,12 @@ Namespace UnitOperations
             Dim dPfric As Double = 0.0
             Dim dPelev As Double = rhov * 9.80665 * dz_m   ' hydrostatic, Pa
 
-            If wv > 0.0 AndAlso MWv > 0.0 AndAlso P1_Pa > 0.0 AndAlso D_m > 0.0 AndAlso L_m > 0.0 Then
-
-                Dim G As Double = MWv / MWair                 ' gas gravity (air = 1)
-                Dim P1 As Double = P1_Pa / 1000.0             ' kPa (absolute)
-                Dim Dmm As Double = D_m * 1000.0              ' mm
-                Dim Lkm As Double = L_m / 1000.0              ' km
-                If Zf <= 0.0 Then Zf = 1.0
-
-                ' Standard volumetric gas flow (m3/day) from the mass flow, ideal gas at base conditions.
-                Dim Vm_std As Double = Rgas * Tb / (Pb * 1000.0)   ' m3/mol
+            If wv > 0.0 AndAlso MWv > 0.0 Then
+                Dim G As Double = MWv / MWair                      ' gas gravity (air = 1)
+                Dim Vm_std As Double = Rgas * Tb / (Pb * 1000.0)   ' m3/mol at base conditions
                 Dim nmol As Double = wv / MWv * 1000.0             ' mol/s
-                Dim Q As Double = nmol * Vm_std * 86400.0          ' m3/day (standard)
-
-                ' Q = C * E * (Tb/Pb)^a * [ (P1^2-P2^2) / (G^b * T * Lkm * Z) ]^n * Dmm^m
-                Dim C, a, b, n, m As Double
-                Select Case SelectedFlowPackage
-                    Case FlowPackage.Weymouth
-                        C = 0.0037435 : a = 1.0 : b = 1.0 : n = 0.5 : m = 2.667
-                    Case FlowPackage.Panhandle_A
-                        C = 0.0045965 : a = 1.0788 : b = 0.8539 : n = 0.5394 : m = 2.6182
-                    Case Else ' Panhandle_B
-                        C = 0.01002 : a = 1.02 : b = 0.961 : n = 0.51 : m = 2.53
-                End Select
-
-                Dim K As Double = C * E * (Tb / Pb) ^ a * Dmm ^ m
-                If K > 0.0 Then
-                    Dim dP2 As Double = (Q / K) ^ (1.0 / n) * (G ^ b * T * Lkm * Zf)   ' P1^2 - P2^2 (kPa^2)
-                    ' the increment cannot lose more head than the inlet pressure provides
-                    If dP2 >= P1 * P1 Then dP2 = P1 * P1 * 0.9999
-                    Dim P2 As Double = Math.Sqrt(P1 * P1 - dP2)                         ' kPa
-                    dPfric = (P1 - P2) * 1000.0                                         ' Pa
-                End If
-
+                Dim Q As Double = nmol * Vm_std * 86400.0          ' standard m3/day
+                dPfric = GasPipelineFrictionalDeltaP(SelectedFlowPackage, D_m, L_m, Q, G, T, Zf, P1_Pa, E)
             End If
 
             Dim nm As String
@@ -318,6 +291,57 @@ Namespace UnitOperations
             End Select
 
             Return New Object() {nm, 0.0, dPfric, dPelev, dPfric + dPelev}
+
+        End Function
+
+        ''' <summary>
+        ''' Frictional pressure drop (Pa) over a pipe length from a single-phase gas pipeline equation
+        ''' (Weymouth / Panhandle A/B), in the SI form of Menon, "Gas Pipeline Hydraulics". The pipe is
+        ''' treated as horizontal - any hydrostatic term is added by the caller. Returns 0 for a
+        ''' non-gas method or invalid input. Exposed as Shared so the correlation can be unit-tested.
+        ''' </summary>
+        ''' <param name="method">Weymouth, Panhandle_A or Panhandle_B</param>
+        ''' <param name="D_m">internal diameter (m)</param>
+        ''' <param name="L_m">length (m)</param>
+        ''' <param name="Qstd_m3day">standard volumetric gas flow (m3/day at 15 C, 101.325 kPa)</param>
+        ''' <param name="G">gas gravity (air = 1)</param>
+        ''' <param name="T">flowing temperature (K)</param>
+        ''' <param name="Zf">gas compressibility factor</param>
+        ''' <param name="P1_Pa">inlet pressure (Pa, absolute)</param>
+        ''' <param name="E">pipeline efficiency factor</param>
+        Public Shared Function GasPipelineFrictionalDeltaP(method As FlowPackage, D_m As Double, L_m As Double,
+                                                           Qstd_m3day As Double, G As Double, T As Double,
+                                                           Zf As Double, P1_Pa As Double, E As Double) As Double
+
+            Const Tb As Double = 288.15      ' base temperature, K (15 C)
+            Const Pb As Double = 101.325     ' base pressure, kPa
+
+            If Not (method = FlowPackage.Weymouth OrElse method = FlowPackage.Panhandle_A OrElse method = FlowPackage.Panhandle_B) Then Return 0.0
+            If Not (Qstd_m3day > 0.0 AndAlso G > 0.0 AndAlso P1_Pa > 0.0 AndAlso D_m > 0.0 AndAlso L_m > 0.0 AndAlso T > 0.0) Then Return 0.0
+            If Zf <= 0.0 Then Zf = 1.0
+
+            Dim P1 As Double = P1_Pa / 1000.0    ' kPa (absolute)
+            Dim Dmm As Double = D_m * 1000.0     ' mm
+            Dim Lkm As Double = L_m / 1000.0     ' km
+
+            ' Q = C * E * (Tb/Pb)^a * [ (P1^2-P2^2) / (G^b * T * Lkm * Z) ]^n * Dmm^m
+            Dim C, a, b, n, m As Double
+            Select Case method
+                Case FlowPackage.Weymouth
+                    C = 0.0037435 : a = 1.0 : b = 1.0 : n = 0.5 : m = 2.667
+                Case FlowPackage.Panhandle_A
+                    C = 0.0045965 : a = 1.0788 : b = 0.8539 : n = 0.5394 : m = 2.6182
+                Case Else ' Panhandle_B
+                    C = 0.01002 : a = 1.02 : b = 0.961 : n = 0.51 : m = 2.53
+            End Select
+
+            Dim K As Double = C * E * (Tb / Pb) ^ a * Dmm ^ m
+            If K <= 0.0 Then Return 0.0
+
+            Dim dP2 As Double = (Qstd_m3day / K) ^ (1.0 / n) * (G ^ b * T * Lkm * Zf)   ' P1^2 - P2^2 (kPa^2)
+            If dP2 >= P1 * P1 Then dP2 = P1 * P1 * 0.9999
+            Dim P2 As Double = Math.Sqrt(P1 * P1 - dP2)                                 ' kPa
+            Return (P1 - P2) * 1000.0                                                   ' Pa
 
         End Function
 
