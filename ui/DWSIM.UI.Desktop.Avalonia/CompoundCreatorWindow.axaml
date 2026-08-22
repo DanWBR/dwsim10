@@ -17,7 +17,7 @@
       <StackPanel Spacing="8">
 
         <TextBlock Text="Identification" FontWeight="SemiBold" FontSize="13" />
-        <Grid ColumnDefinitions="200,*" RowDefinitions="Auto,Auto,Auto,Auto" >
+        <Grid ColumnDefinitions="270,*" RowDefinitions="Auto,Auto,Auto,Auto" >
           <TextBlock Grid.Row="0" Text="Name" VerticalAlignment="Center" />
           <TextBox   Grid.Row="0" Grid.Column="1" Name="TbName" />
           <TextBlock Grid.Row="1" Text="CAS Number" VerticalAlignment="Center" Margin="0,6,0,0" />
@@ -31,7 +31,7 @@
         <Separator Margin="0,8" />
 
         <TextBlock Text="Essential Thermodynamic Constants" FontWeight="SemiBold" FontSize="13" />
-        <Grid ColumnDefinitions="200,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+        <Grid ColumnDefinitions="270,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Text="Molecular Weight (g/mol)" VerticalAlignment="Center" />
           <TextBox   Grid.Row="0" Grid.Column="1" Name="TbMW" />
           <TextBlock Grid.Row="1" Text="Critical Temperature (K)" VerticalAlignment="Center" Margin="0,6,0,0" />
