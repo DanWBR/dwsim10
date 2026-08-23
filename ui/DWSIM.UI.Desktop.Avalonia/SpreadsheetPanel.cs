@@ -43,8 +43,36 @@ public sealed class SpreadsheetPanel
     public SpreadsheetPanel(IFlowsheet flowsheet)
     {
         _flowsheet = flowsheet;
+
+        var sf = DWSIM.UI.Shared.Avalonia.UiScale.Factor;
+
+        // The sheet tab strip is laid out from a fixed 18px height, while its tabs are plain
+        // ContentControls inheriting the themed font size that ApplyUIScaling multiplies. Past ~1.2
+        // the labels outgrow the strip, which clips to its own bounds, and "Sheet1" gets cut off
+        // top and bottom. Scale the strip by the same factor so the labels keep growing with the
+        // rest of the UI. The scroll bars keep their own thickness. Has to be set before the
+        // control is constructed.
+        ReoGridControl.SheetTabScale = sf;
+
         Grid = new ReoGridControl();
         Grid.CurrentWorksheet.Name = "MAIN";
+
+        // The Avalonia ReoGrid build hardcodes GetDPI() = 96, so on HiDPI/Linux
+        // screens the worksheet text, row heights and column widths never scale
+        // with the rest of the UI. Scale the whole worksheet to match the
+        // interface scaling factor instead (UI-layer change, survives upstream).
+        // ScaleFactor is per-worksheet, so every worksheet a simulation load or a
+        // user 'Add Sheet' creates must be scaled too.
+        foreach (var ws in Grid.Worksheets) ws.ScaleFactor = sf;
+        Grid.WorksheetCreated += (_, e) => e.Worksheet.ScaleFactor = sf;
+        Grid.WorksheetInserted += (_, e) => e.Worksheet.ScaleFactor = sf;
+
+        // DWSIM writes GETPROPVAL/SETPROPVAL formulas with commas; force the
+        // ReoGrid parameter separator to commas regardless of the current locale
+        // (zh-CN uses a comma, but under some European locales ListSeparator is a
+        // semicolon, which would break the DWSIM formulas).
+        FormulaExtension.ParameterSeparator = ",";
+        FormulaExtension.NumberDecimalSeparator = ".";
 
         RegisterCustomFunctions();
 

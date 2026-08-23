@@ -36,7 +36,12 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         GlobalSettings.Settings.OldUI = false;
-        GlobalSettings.Settings.DpiScale = GetTopLevel(this)?.RenderScaling ?? 1.0;
+        UiPreferences.ApplyHoverTableScale(GetTopLevel(this)?.RenderScaling ?? 1.0);
+
+        // RenderScaling is not final until the window has been placed on a monitor, and it changes
+        // when the window is moved between monitors of different scaling.
+        ScalingChanged += (_, _) => UiPreferences.ApplyHoverTableScale(RenderScaling);
+        Opened += (_, _) => UiPreferences.ApplyHoverTableScale(RenderScaling);
 
         InitializeComponent();
         IconHelper.ApplyWindowIcon(this);

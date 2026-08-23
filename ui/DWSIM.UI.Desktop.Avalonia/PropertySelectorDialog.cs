@@ -42,9 +42,11 @@ public sealed class PropertySelectorDialog : Window
             .Where(kv => kv.Value.GraphicObject != null)
             .ToDictionary(kv => kv.Key, kv => kv.Value);
 
+        var sf = DWSIM.UI.Shared.Avalonia.UiScale.Factor;
+
         Title = "Select Property";
-        Width = 700;
-        Height = 420;
+        Width = 700 * sf;
+        Height = 420 * sf;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         CanResize = true;
         IconHelper.ApplyWindowIcon(this);
@@ -87,7 +89,7 @@ public sealed class PropertySelectorDialog : Window
 
         var grid = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("*,*,Auto"),
+            ColumnDefinitions = new ColumnDefinitions("2*,3*,*"),
             Margin = new Thickness(4)
         };
         Grid.SetColumn(col1, 0);

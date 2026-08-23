@@ -1636,7 +1636,7 @@ Imports DWSIM.ExtensionMethods
 
                 Dim myPump As New PumpGraphic(mpx, mpy, 25, 25)
                 If FlowsheetOptions.FlowsheetColorTheme = 2 Then
-                    myPump.SetSize(New SKSize(40, 40))
+                    myPump.SetSize(New SKSize(64, 64))
                 End If
                 myPump.LineWidth = 2
                 myPump.Fill = True
@@ -1673,7 +1673,7 @@ Imports DWSIM.ExtensionMethods
 
                 Dim myVessel As New VesselGraphic(mpx, mpy, 50, 50)
                 If FlowsheetOptions.FlowsheetColorTheme = 2 Then
-                    myVessel.SetSize(New SKSize(70, 60))
+                    myVessel.SetSize(New SKSize(96, 80))
                 End If
                 myVessel.LineWidth = 2
                 myVessel.Fill = True
@@ -1692,6 +1692,9 @@ Imports DWSIM.ExtensionMethods
             Case ObjectType.MaterialStream
 
                 Dim myMStr As New MaterialStreamGraphic(mpx, mpy, 20, 20)
+                If FlowsheetOptions.FlowsheetColorTheme = 2 Then
+                    myMStr.SetSize(New SKSize(40, 40))
+                End If
                 myMStr.LineWidth = 2
                 myMStr.Fill = True
                 myMStr.Tag = objindex
@@ -1728,7 +1731,7 @@ Imports DWSIM.ExtensionMethods
 
                 Dim myComp As New CompressorGraphic(mpx, mpy, 25, 25)
                 If FlowsheetOptions.FlowsheetColorTheme = 2 Then
-                    myComp.SetSize(New SKSize(50, 50))
+                    myComp.SetSize(New SKSize(80, 80))
                 End If
                 myComp.LineWidth = 2
                 myComp.Fill = True
@@ -1748,7 +1751,7 @@ Imports DWSIM.ExtensionMethods
 
                 Dim myComp As New TurbineGraphic(mpx, mpy, 25, 25)
                 If FlowsheetOptions.FlowsheetColorTheme = 2 Then
-                    myComp.SetSize(New SKSize(50, 50))
+                    myComp.SetSize(New SKSize(80, 80))
                 End If
                 myComp.LineWidth = 2
                 myComp.Fill = True
@@ -1801,7 +1804,7 @@ Imports DWSIM.ExtensionMethods
 
                 Dim myPipe As New PipeSegmentGraphic(mpx, mpy, 50, 10)
                 If FlowsheetOptions.FlowsheetColorTheme = 2 Then
-                    myPipe.SetSize(New SKSize(50, 20))
+                    myPipe.SetSize(New SKSize(80, 32))
                 End If
                 myPipe.LineWidth = 2
                 myPipe.Fill = True
@@ -1822,7 +1825,7 @@ Imports DWSIM.ExtensionMethods
                 Dim myValve As New ValveGraphic(mpx, mpy, 20, 20)
                 Dim myPipe As New PipeSegmentGraphic(mpx, mpy, 50, 10)
                 If FlowsheetOptions.FlowsheetColorTheme = 2 Then
-                    myValve.SetSize(New SKSize(30, 30))
+                    myValve.SetSize(New SKSize(48, 48))
                 End If
                 myValve.LineWidth = 2
                 myValve.Fill = True
@@ -1925,7 +1928,7 @@ Imports DWSIM.ExtensionMethods
 
                 Dim myHeatExchanger As New HeatExchangerGraphic(mpx, mpy, 30, 30)
                 If FlowsheetOptions.FlowsheetColorTheme = 2 Then
-                    myHeatExchanger.SetSize(New SKSize(60, 60))
+                    myHeatExchanger.SetSize(New SKSize(96, 96))
                 End If
                 myHeatExchanger.LineWidth = 2
                 myHeatExchanger.Fill = True

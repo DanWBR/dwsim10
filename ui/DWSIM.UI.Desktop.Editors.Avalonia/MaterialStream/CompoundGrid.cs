@@ -47,13 +47,8 @@ namespace DWSIM.UI.Desktop.Editors
                 set
                 {
                     double parsed;
-                    // Float, not Any: Any allows a thousands separator, so in a locale whose group
-                    // separator is '.' (a comma-decimal locale) the current-culture parse reads a typed
-                    // "0.965" as 965 and succeeds, never reaching the invariant fallback - the value is
-                    // then renormalised into garbage. Without AllowThousands a '.' can only be a decimal
-                    // point, so a dot-typed number always falls through to the invariant parse.
-                    if (double.TryParse(value, NumberStyles.Float, CultureInfo.CurrentCulture, out parsed) ||
-                        double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out parsed))
+                    if (double.TryParse(value, NumberStyles.Any, CultureInfo.CurrentCulture, out parsed) ||
+                        double.TryParse(value, NumberStyles.Any, CultureInfo.InvariantCulture, out parsed))
                     {
                         _amount = parsed;
                     }

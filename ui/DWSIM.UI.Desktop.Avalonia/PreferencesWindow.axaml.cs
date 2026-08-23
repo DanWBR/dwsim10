@@ -74,6 +74,8 @@ public partial class PreferencesWindow : Window
 
     // interface
     private NumericUpDown _scaling = null!;
+    private NumericUpDown _hoverTableScale = null!;
+    private CheckBox _paletteIconsOnCanvas = null!;
     private ComboBox _theme = null!;
     private ComboBox _culture = null!;
 
@@ -497,6 +499,22 @@ public partial class PreferencesWindow : Window
             "Scales the whole interface - fonts, controls and menu icons. For example, 1.25 makes " +
             "everything 25% larger. Takes effect the next time the application starts.");
 
+        _hoverTableScale = page.CreateAndAddNumericEditorRow("Flowsheet Hover Table Scale",
+            UiPreferences.HoverTableScale, 0.5, 4.0, 2, null);
+        page.CreateAndAddDescriptionRow(
+            "Sizes the property table that pops up when the pointer rests on a flowsheet object. " +
+            "That table keeps a fixed size while you zoom the flowsheet, so it has its own factor. " +
+            "Applies immediately.");
+
+        page.CreateAndAddLabelRow("Flowsheet Icons");
+
+        _paletteIconsOnCanvas = page.CreateAndAddCheckBoxRow(
+            "Draw Flowsheet Objects with Icons", UiPreferences.UsePaletteIconsOnCanvas, null);
+        page.CreateAndAddDescriptionRow(
+            "Replaces the schematic outline with artwork, following the simulation's Color Theme: " +
+            "'Default' uses the flat icons of the Objects palette, 'Color Icons' the photorealistic " +
+            "images. Streams keep their arrows and the black-and-white PFD theme is unaffected.");
+
         page.CreateAndAddLabelRow("Appearance");
 
         var themes = new List<string> { "Light", "Dark", "System default" };
@@ -563,6 +581,12 @@ public partial class PreferencesWindow : Window
 
         // interface
         S.UIScalingFactor = (double)(_scaling.Value ?? 1.0m);
+
+        UiPreferences.HoverTableScale = (double)(_hoverTableScale.Value ?? (decimal)UiPreferences.DefaultHoverTableScale);
+        UiPreferences.UsePaletteIconsOnCanvas = _paletteIconsOnCanvas.IsChecked.GetValueOrDefault();
+        UiPreferences.Save();
+        UiPreferences.ApplyHoverTableScale(
+            global::Avalonia.Controls.TopLevel.GetTopLevel(this)?.RenderScaling ?? 1.0);
 
         ApplyTheme();
 

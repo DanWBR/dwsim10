@@ -287,7 +287,7 @@ public class PropertyPackageEditorWindow : Window
                     var tb = new TextBox { Text = d.kij.ToString("N4"), FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11), Margin = new Thickness(1) };
                     tb.LostFocus += (_, _) =>
                     {
-                        if (double.TryParse(tb.Text, NumberStyles.Float, CultureInfo.CurrentCulture, out var v))
+                        if (double.TryParse(tb.Text, NumberStyles.Any, CultureInfo.CurrentCulture, out var v))
                         {
                             tb.Foreground = Brushes.Black;
                             d.kij = v;
@@ -1015,7 +1015,7 @@ public class PropertyPackageEditorWindow : Window
         var tb = new TextBox { Text = value.ToString("N4"), Width = 160, FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11) };
         tb.LostFocus += (_, _) =>
         {
-            if (double.TryParse(tb.Text, NumberStyles.Float, CultureInfo.CurrentCulture, out var v))
+            if (double.TryParse(tb.Text, NumberStyles.Any, CultureInfo.CurrentCulture, out var v))
             {
                 tb.Foreground = Brushes.Black;
                 setter(v);

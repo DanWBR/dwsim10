@@ -483,8 +483,13 @@ public sealed class SpreadsheetToolbar : DockPanel
         if (sheet == null) return;
 
         var cell = sheet.CreateAndGetCell(sheet.SelectionRange.StartPos);
-        cell.Formula = string.Format("GETPROPVAL(\"{0}\";\"{1}\";\"{2}\")",
-            dialog.SelectedObjectId, dialog.SelectedPropertyKey, dialog.SelectedUnit ?? "");
+        // If no unit was picked, use the 2-argument form so GETPROPVAL returns the
+        // value in the property's own unit instead of a conversion from "" (which
+        // would throw and show INVALID ARGS / ERROR).
+        var unit = dialog.SelectedUnit ?? "";
+        cell.Formula = string.IsNullOrEmpty(unit)
+            ? string.Format("GETPROPVAL(\"{0}\",\"{1}\")", dialog.SelectedObjectId, dialog.SelectedPropertyKey)
+            : string.Format("GETPROPVAL(\"{0}\",\"{1}\",\"{2}\")", dialog.SelectedObjectId, dialog.SelectedPropertyKey, unit);
 
         sheet.Recalculate();
         ReadCell();
@@ -505,8 +510,10 @@ public sealed class SpreadsheetToolbar : DockPanel
         // what the cell already holds becomes the value written to the property
         var current = string.IsNullOrEmpty(cell.Formula) ? cell.Data?.ToString() ?? "" : cell.Formula;
 
-        cell.Formula = string.Format("SETPROPVAL(\"{0}\";\"{1}\";\"{2}\";\"{3}\")",
-            dialog.SelectedObjectId, dialog.SelectedPropertyKey, current, dialog.SelectedUnit ?? "");
+        var unit = dialog.SelectedUnit ?? "";
+        cell.Formula = string.IsNullOrEmpty(unit)
+            ? string.Format("SETPROPVAL(\"{0}\",\"{1}\",\"{2}\")", dialog.SelectedObjectId, dialog.SelectedPropertyKey, current)
+            : string.Format("SETPROPVAL(\"{0}\",\"{1}\",\"{2}\",\"{3}\")", dialog.SelectedObjectId, dialog.SelectedPropertyKey, current, unit);
 
         sheet.Recalculate();
         ReadCell();

@@ -1,4 +1,4 @@
 [submodule "external/ReoGrid"]
 	path = external/ReoGrid
-	url = https://github.com/DanWBR/ReoGrid
+	url = https://github.com/rzhli/ReoGrid
 	branch = avalonia

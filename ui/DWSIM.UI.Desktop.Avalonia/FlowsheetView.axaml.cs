@@ -252,6 +252,10 @@ public partial class FlowsheetView : UserControl
         MaterialStreamsPanel = new MaterialStreamListPanel();
         LogList = new LogPanel();
         SpreadsheetGrid = new ReoGridControl();
+        // Scale the spreadsheet with the interface scaling factor (the Avalonia ReoGrid
+        // build hardcodes DPI = 96 and never scales on HiDPI/Linux).
+        if (SpreadsheetGrid.CurrentWorksheet != null)
+            SpreadsheetGrid.CurrentWorksheet.ScaleFactor = DWSIM.UI.Shared.Avalonia.UiScale.Factor;
         DynManagerPanel = new DynamicsManagerPanel();
         IntegratorPanel = new DynamicsIntegratorPanel();
         IntegratorPanel.OnIntegratorStep = () => { Canvas.Refresh(); UpdateResultsPanel(); };
@@ -828,8 +832,8 @@ public partial class FlowsheetView : UserControl
             SimulationName = fs.Options?.SimulationName
                              ?? Path.GetFileNameWithoutExtension(path);
             SetStatus("Ready");
-            _surface.Center((int)(Canvas.Bounds.Width * GlobalSettings.Settings.DpiScale), (int)(Canvas.Bounds.Height * GlobalSettings.Settings.DpiScale));
-            _surface.ZoomAll((int)(Canvas.Bounds.Width * GlobalSettings.Settings.DpiScale), (int)(Canvas.Bounds.Height * GlobalSettings.Settings.DpiScale));
+            _surface.Center(Canvas.DeviceWidth, Canvas.DeviceHeight);
+            _surface.ZoomAll(Canvas.DeviceWidth, Canvas.DeviceHeight);
             Canvas.Refresh();
             UpdateResultsPanel();
             LoadFlowsheetExtensions();
@@ -1145,7 +1149,9 @@ public partial class FlowsheetView : UserControl
         PaintCallback = (surf, _) =>
         {
             SyncSurfaceSize();
-            surface.UpdateSurface(surf);
+            var restoreTheme = FlowsheetObjectIcons.BeginDraw(_flowsheet);
+            try { surface.UpdateSurface(surf); }
+            finally { FlowsheetObjectIcons.EndDraw(_flowsheet, restoreTheme); }
         };
 
         InputPressCallback = (x, y) => surface.InputPress(x, y);
@@ -1246,6 +1252,12 @@ public partial class FlowsheetView : UserControl
                                     xmldoc!.Save(tmpfile);
                                     sheet.LoadRGF(tmpfile);
                                     System.IO.File.Delete(tmpfile);
+
+                                    // LoadRGF resets the worksheet ScaleFactor to 1.0 (the
+                                    // Avalonia ReoGrid build hardcodes GetDPI()=96), so a sheet
+                                    // loaded from a saved simulation comes back tiny. Restore the
+                                    // interface scaling factor after every load.
+                                    sheet.ScaleFactor = DWSIM.UI.Shared.Avalonia.UiScale.Factor;
                                 }
                                 catch { }
                             }
@@ -2150,7 +2162,7 @@ public partial class FlowsheetView : UserControl
     {
         if (_surface != null)
         {
-            _surface.ZoomAll((int)(Canvas.Bounds.Width * GlobalSettings.Settings.DpiScale), (int)(Canvas.Bounds.Height * GlobalSettings.Settings.DpiScale));
+            _surface.ZoomAll(Canvas.DeviceWidth, Canvas.DeviceHeight);
             SetZoom(_surface.Zoom);
         }
         Canvas.Refresh();

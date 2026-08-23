@@ -32,6 +32,9 @@ public class App : Application
         // (scaling reverted to 1.0 every restart). Load them before anything reads them.
         try { DWSIM.GlobalSettings.Settings.LoadSettings("dwsim_newui.ini"); } catch { }
 
+        // UI-only preferences the engine ini has no slot for (hover table scale).
+        UiPreferences.Load();
+
         // Honor the persisted DarkMode flag. Engine wrote it last session; we read it here
         // before any window is shown so the choice is reflected from the splash onward.
         if (DWSIM.GlobalSettings.Settings.DarkMode)
