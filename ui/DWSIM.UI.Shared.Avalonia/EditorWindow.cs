@@ -61,15 +61,20 @@ public sealed class EditorWindow
         Native().Show();
     }
 
-    /// <summary>Shows it modally. The task completes when it closes.</summary>
-    public Task ShowDialog(Window owner)
+    /// <summary>
+    /// Shows it modally. The owner is whatever the caller has at hand - a window, another form, or
+    /// nothing; only a desktop window can actually own a dialog. The task completes when it closes.
+    /// </summary>
+    public Task ShowDialog(object? owner = null)
     {
         if (Presenter is not null)
         {
             _presented = Presenter(_title, _width, _height, _content, true);
             return _presented.Closed;
         }
-        return Native().ShowDialog(owner);
+
+        var host = owner as Window ?? (owner is Control c ? TopLevel.GetTopLevel(c) as Window : null);
+        return Native().ShowDialog(host ?? Native());
     }
 
     public void Close()
