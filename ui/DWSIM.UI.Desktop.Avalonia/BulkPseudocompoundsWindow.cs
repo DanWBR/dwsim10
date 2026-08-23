@@ -197,8 +197,8 @@ public sealed class BulkPseudocompoundsWindow : Window
     private static double? Parse(string s, int row, string caption)
     {
         if (string.IsNullOrWhiteSpace(s)) return null;
-        if (!double.TryParse(s.Trim(), NumberStyles.Any, CultureInfo.CurrentCulture, out var v) &&
-            !double.TryParse(s.Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out v))
+        if (!double.TryParse(s.Trim(), NumberStyles.Float, CultureInfo.CurrentCulture, out var v) &&
+            !double.TryParse(s.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out v))
         {
             throw new Exception($"Error in row {row + 1}: {caption} is not a valid number.");
         }

@@ -239,7 +239,7 @@ public sealed class MaterialStreamListPanel : DockPanel
                         var value = _streams[j].GetPropertyValue(prop, su);
                         var text = value?.ToString() ?? "";
 
-                        if (double.TryParse(text, NumberStyles.Any, CultureInfo.CurrentCulture, out var d))
+                        if (double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out var d))
                             row.Values[j] = double.IsNaN(d) || double.IsInfinity(d) ? "" : d.ToString(nf);
                         else
                             row.Values[j] = text;
@@ -387,7 +387,7 @@ public sealed class MaterialStreamListPanel : DockPanel
         if (index >= _streams.Count) return;
         if (text == row.Values[index]) return;
 
-        if (!double.TryParse(text, NumberStyles.Any, CultureInfo.CurrentCulture, out var value)) return;
+        if (!double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out var value)) return;
 
         try
         {
