@@ -1,4 +1,4 @@
-using Avalonia.Controls;
+﻿using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Layout;
 
@@ -18,7 +18,7 @@ public static class AvaloniaCommon
     public static AvaloniaEditorPanel GetDefaultContainer()
         => new AvaloniaEditorPanel();
 
-    public static Window GetDefaultEditorForm(string title, int width, int height,
+    public static EditorWindow GetDefaultEditorForm(string title, int width, int height,
         AvaloniaEditorPanel content)
     {
         var sv = new ScrollViewer
@@ -27,22 +27,14 @@ public static class AvaloniaCommon
             HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto
         };
-        return new Window
-        {
-            Title = title,
-            Width = width,
-            Height = height + 10,
-            Content = sv,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            CanResize = true
-        };
+        return new EditorWindow(title, width, height + 10, sv);
     }
 
-    public static Window GetDefaultEditorForm(string title, int width, int height,
+    public static EditorWindow GetDefaultEditorForm(string title, int width, int height,
         Control content, bool scrollable = true)
     {
-        object windowContent = scrollable
-            ? (object)new ScrollViewer
+        Control windowContent = scrollable
+            ? new ScrollViewer
             {
                 Content = content,
                 HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
@@ -50,18 +42,10 @@ public static class AvaloniaCommon
             }
             : content;
 
-        return new Window
-        {
-            Title = title,
-            Width = width,
-            Height = height + 10,
-            Content = windowContent,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            CanResize = true
-        };
+        return new EditorWindow(title, width, height + 10, windowContent);
     }
 
-    public static Window GetDefaultTabbedForm(string title, int width, int height,
+    public static EditorWindow GetDefaultTabbedForm(string title, int width, int height,
         AvaloniaEditorPanel[] contents)
     {
         var tabCtrl = new TabControl();
@@ -78,15 +62,7 @@ public static class AvaloniaCommon
             tabCtrl.Items.Add(new TabItem { Header = tabTitle, Content = sv });
         }
 
-        return new Window
-        {
-            Title = title,
-            Width = width,
-            Height = height,
-            Content = tabCtrl,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            CanResize = true
-        };
+        return new EditorWindow(title, width, height, tabCtrl);
     }
 
     public static Window CreateDialog(Control content, string title,
