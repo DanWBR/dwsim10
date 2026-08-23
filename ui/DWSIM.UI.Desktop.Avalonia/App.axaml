@@ -35,6 +35,20 @@
           <SolidColorBrush x:Key="TabSelectedAccent">#2E7CD6</SolidColorBrush>
           <SolidColorBrush x:Key="LinkForeground">#1565C0</SolidColorBrush>
           <SolidColorBrush x:Key="SplitterBrush">#C4C4C4</SolidColorBrush>
+          <!-- Gradient action buttons (carried over from the mobile theme). -->
+          <LinearGradientBrush x:Key="AppButtonBackground" StartPoint="0%,0%" EndPoint="0%,100%">
+            <GradientStop Offset="0" Color="#FFFFFF" />
+            <GradientStop Offset="1" Color="#EFF3F9" />
+          </LinearGradientBrush>
+          <LinearGradientBrush x:Key="AppButtonBackgroundHover" StartPoint="0%,0%" EndPoint="0%,100%">
+            <GradientStop Offset="0" Color="#F5F9FF" />
+            <GradientStop Offset="1" Color="#E2EAF6" />
+          </LinearGradientBrush>
+          <LinearGradientBrush x:Key="AppButtonBackgroundPressed" StartPoint="0%,0%" EndPoint="0%,100%">
+            <GradientStop Offset="0" Color="#DDE7F5" />
+            <GradientStop Offset="1" Color="#CFDCEF" />
+          </LinearGradientBrush>
+          <SolidColorBrush x:Key="AppButtonBorder" Color="#D3DCE8" />
         </ResourceDictionary>
         <ResourceDictionary x:Key="Dark">
           <SolidColorBrush x:Key="PaletteHeaderBackground">#2D2D30</SolidColorBrush>
@@ -43,6 +57,20 @@
           <SolidColorBrush x:Key="TabSelectedAccent">#2E7CD6</SolidColorBrush>
           <SolidColorBrush x:Key="LinkForeground">#5AA9E6</SolidColorBrush>
           <SolidColorBrush x:Key="SplitterBrush">#3A3A3A</SolidColorBrush>
+          <!-- Gradient action buttons (carried over from the mobile theme). -->
+          <LinearGradientBrush x:Key="AppButtonBackground" StartPoint="0%,0%" EndPoint="0%,100%">
+            <GradientStop Offset="0" Color="#3A4150" />
+            <GradientStop Offset="1" Color="#2C323D" />
+          </LinearGradientBrush>
+          <LinearGradientBrush x:Key="AppButtonBackgroundHover" StartPoint="0%,0%" EndPoint="0%,100%">
+            <GradientStop Offset="0" Color="#454D5E" />
+            <GradientStop Offset="1" Color="#353C49" />
+          </LinearGradientBrush>
+          <LinearGradientBrush x:Key="AppButtonBackgroundPressed" StartPoint="0%,0%" EndPoint="0%,100%">
+            <GradientStop Offset="0" Color="#2A303B" />
+            <GradientStop Offset="1" Color="#22272F" />
+          </LinearGradientBrush>
+          <SolidColorBrush x:Key="AppButtonBorder" Color="#4A5261" />
         </ResourceDictionary>
       </ResourceDictionary.ThemeDictionaries>
 
@@ -119,6 +147,26 @@
       <Setter Property="FontWeight" Value="Normal" />
       <Setter Property="MinHeight" Value="{DynamicResource ControlMinHeight}" />
       <Setter Property="Padding" Value="{DynamicResource ControlPadding}" />
+    </Style>
+
+    <!-- Gradient action buttons, carried over from the DWSIM 10 Mobile theme: a soft vertical
+         gradient, a light border and rounded corners, following the light/dark variant. Scoped
+         POSITIVELY to DWSIM's own content-button classes. Framework template buttons - the Dock
+         chrome pin/close, spinner up/down, and so on - carry none of these classes, so they never
+         pick up the gradient and stay flat; links and toolbar buttons keep their borderless styles. -->
+    <Style Selector="Button.panel, Button.dialog, Button.action, Button.tool, Button.wizard, Button.group">
+      <Setter Property="Background" Value="{DynamicResource AppButtonBackground}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource AppButtonBorder}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="6" />
+    </Style>
+    <Style Selector="Button.panel:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.dialog:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.action:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.tool:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.wizard:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.group:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource AppButtonBackgroundHover}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource AppButtonBorder}" />
+    </Style>
+    <Style Selector="Button.panel:pressed /template/ ContentPresenter#PART_ContentPresenter, Button.dialog:pressed /template/ ContentPresenter#PART_ContentPresenter, Button.action:pressed /template/ ContentPresenter#PART_ContentPresenter, Button.tool:pressed /template/ ContentPresenter#PART_ContentPresenter, Button.wizard:pressed /template/ ContentPresenter#PART_ContentPresenter, Button.group:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource AppButtonBackgroundPressed}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource AppButtonBorder}" />
     </Style>
     <Style Selector="ToggleButton">
       <Setter Property="FontSize" Value="{DynamicResource FontSizeNormal}" />

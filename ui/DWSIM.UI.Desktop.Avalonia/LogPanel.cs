@@ -51,20 +51,24 @@ public sealed class LogPanel : DockPanel
 
     public LogPanel()
     {
-        // Kept out of the prime top area to give the log table more room: a compact row at the
-        // bottom-right (the same actions are also on the grid's right-click menu).
+        // A slim vertical column of actions down the right side, beside the table, so they never take
+        // a whole horizontal row (the same actions are also on the grid's right-click menu).
         var toolbar = new StackPanel
         {
-            Orientation = global::Avalonia.Layout.Orientation.Horizontal,
-            Spacing = 2,
+            Orientation = global::Avalonia.Layout.Orientation.Vertical,
+            Spacing = 4,
             Margin = new Thickness(4, 2),
-            HorizontalAlignment = global::Avalonia.Layout.HorizontalAlignment.Right
+            VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Top
         };
 
-        toolbar.Children.Add(ToolButton("Clear List", (_, _) => Clear()));
-        toolbar.Children.Add(ToolButton("Copy Information", async (_, _) => await CopySelectedAsync()));
+        var clearBtn = ToolButton("Clear List", (_, _) => Clear());
+        var copyBtn = ToolButton("Copy Information", async (_, _) => await CopySelectedAsync());
+        clearBtn.HorizontalAlignment = global::Avalonia.Layout.HorizontalAlignment.Stretch;
+        copyBtn.HorizontalAlignment = global::Avalonia.Layout.HorizontalAlignment.Stretch;
+        toolbar.Children.Add(clearBtn);
+        toolbar.Children.Add(copyBtn);
 
-        SetDock(toolbar, global::Avalonia.Controls.Dock.Bottom);
+        SetDock(toolbar, global::Avalonia.Controls.Dock.Right);
         Children.Add(toolbar);
 
         _grid = new DataGrid

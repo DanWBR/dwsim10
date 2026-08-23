@@ -1412,15 +1412,11 @@ public partial class FlowsheetView : UserControl
             Dispatcher.UIThread.Post(() => LogList.Add(message, type, exceptionId));
     }
 
-    public void SetStatus(string text)
-    {
-        if (Dispatcher.UIThread.CheckAccess())
-            StatusLabel.Text = text;
-        else
-            Dispatcher.UIThread.Post(() => StatusLabel.Text = text);
-    }
+    // The bottom status bar (Ready / Zoom) was removed to give the canvas more room; these remain as
+    // no-ops so callers (zoom, status updates) do not have to change. Zoom is on the view toolbar.
+    public void SetStatus(string text) { }
 
-    public void SetZoom(float zoom) => ZoomLabel.Text = $"Zoom: {zoom * 100:F0}%";
+    public void SetZoom(float zoom) { }
 
     // -------------------------------------------------------------------------
     // Menu icons

@@ -471,7 +471,7 @@ namespace DWSIM.UI.Desktop.Editors
                 TextTrimming = TextTrimming.CharacterEllipsis
             };
 
-            var tag = new TextBox { Text = ms.GraphicObject.Tag, FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(12), MinHeight = 0 };
+            var tag = new TextBox { Text = ms.GraphicObject.Tag, FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(12) };
             tag.LostFocus += (s, e) =>
             {
                 ms.GraphicObject.Tag = tag.Text;
@@ -482,6 +482,7 @@ namespace DWSIM.UI.Desktop.Editors
             {
                 Content = "Active",
                 FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(12),
+                VerticalAlignment = VerticalAlignment.Center,
                 IsChecked = ms.GraphicObject.Active
             };
             active.IsCheckedChanged += (s, e) =>

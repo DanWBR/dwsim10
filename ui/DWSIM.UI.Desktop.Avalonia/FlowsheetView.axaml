@@ -212,19 +212,6 @@
       </WrapPanel>
     </Border>
 
-    <!-- ===== Status Bar ===== -->
-    <Border DockPanel.Dock="Bottom"
-            BorderThickness="0,1,0,0"
-            Padding="8,3">
-      <Grid ColumnDefinitions="*,Auto">
-        <TextBlock Name="StatusLabel" Text="Ready" VerticalAlignment="Center" />
-        <TextBlock Grid.Column="1" Name="ZoomLabel"
-                   Text="Zoom: 100%"
-                   VerticalAlignment="Center"
-                   Margin="0,0,8,0" />
-      </Grid>
-    </Border>
-
     <!-- ===== Extension containers (used by DWSIM.Support and other extensions) ===== -->
     <StackPanel Name="TopContainerPanel" DockPanel.Dock="Top" />
     <StackPanel Name="BottomContainerPanel" DockPanel.Dock="Bottom" />
