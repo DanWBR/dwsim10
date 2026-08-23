@@ -178,6 +178,7 @@ Version 10.2
 - [FIX] Anaerobic Digester (ADM1-Full): the substrate is characterised from its elemental formula and fed as a composite particulate (carbohydrate/protein/lipid plus inerts), so the conversion is realistic and its nitrogen is released as ammonia instead of everything behaving like fully-degradable carbohydrate
 - [FIX] Anaerobic Digester: hydraulic loading is taken from the total feed instead of the flashed liquid phase, so a slurry feed no longer gets an unrealistically long retention time
 - [FIX] A chemical formula with fractional atom counts is parsed correctly, so a lumped biomass formula no longer drops its sulfur and the digester now produces H2S
+- [FIX] Cross-platform editors: a typed decimal such as 0.965 was misread as 965 in a locale whose group separator is a period, corrupting the composition; numeric input is now parsed without a thousands separator
 - [FIX] Property package editor: clicking Configure on a CAPE-OPEN property package no longer crashes
 - [FIX] Compound Creator: the Standard Enthalpy of Formation label is no longer clipped
 - [FIX] Pipe network: cloning a non-empty network no longer throws, the network block and its boundary streams are laid out on the flowsheet, and editing a network property no longer overwrites a Source feed
