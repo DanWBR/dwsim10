@@ -1,4 +1,4 @@
-//    Runs the fluent API tests under NUnit, so they sit in the same test run as the rest.
+﻿//    Runs the fluent API tests under NUnit, so they sit in the same test run as the rest.
 //
 //    This file is part of DWSIM.
 //
@@ -47,6 +47,10 @@ namespace DWSIM.FluentAPI.Tests
         [Test] public void ThePhaseDiagramsAreBuilt() => PhaseDiagramTest.Run();
 
         [Test] public void APumpFollowsItsPerformanceCurves() => PumpCurvesTest.Run();
+
+        [Test] public void ADynamicRunFollowsItsScheduledEvents() => DynamicsEventProfileTest.Run();
+
+        [Test] public void ATankFillsAtTheRateItIsFed() => DynamicsTankFillingTest.Run();
 
         [Test] public void NaturalLayoutLaysRecyclesOutAsARectangle() => RecycleLayoutTest.Run();
 
