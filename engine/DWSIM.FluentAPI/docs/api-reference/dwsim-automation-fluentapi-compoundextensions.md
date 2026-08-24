@@ -12,7 +12,7 @@ Adds an externally-built compound. Use this when you have a `DWSIM.Interfaces.IC
 
 ### `WithCompoundFromJson(Flowsheet, string)`
 
-Adds a compound by deserialising a UserDB-style JSON file (same schema as the files under `addcomps/`) and registering it with the flowsheet. Useful for compounds the user maintains outside the standard databases — for example, values produced by an external ThermoML or PubChem pipeline serialised to disk.
+Adds a compound by deserialising a UserDB-style JSON file (same schema as the files under `addcomps/`) and registering it with the flowsheet. Useful for compounds the user maintains outside the standard databases - for example, values produced by an external ThermoML or PubChem pipeline serialised to disk.
 
 ### `WithPseudoComponent(Flowsheet, string, Quantity, double, double, string, string, string, Nullable{double}, Nullable{double}, Nullable{double}, Nullable{double})`
 

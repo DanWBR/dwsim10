@@ -1,163 +1,139 @@
-# 17 — Dynamic Simulation (Tank Level Control)
+# 17 — Dynamic Simulation
 
-Loads a pre-configured dynamic flowsheet (a stirred tank with a PID level
-controller), applies a step-change disturbance on the inlet flow at t = 60 s,
-and logs the monitored-variable time series to a CSV file.
+Fills a tank through a shut valve and checks the level against a mass balance you can do on
+paper. It is the smallest example with a real dynamic unit operation in the loop, so it shows
+the three things a dynamic run needs that a steady-state one does not: pressure-flow
+specifications, a hold-up with somewhere to put it, and monitored variables.
 
-**Pre-requisite:** the flowsheet file must already have a dynamics schedule
-configured in DWSIM's Dynamics Manager. The Fluent API runs the integration
-headlessly — it does not build schedules from scratch.
+## The flowsheet
 
-=== "C#"
+```csharp
+using DWSIM.Automation.FluentAPI;
+using DWSIM.Automation.FluentAPI.Dynamics;
+using Valve = DWSIM.UnitOperations.UnitOperations.Valve;
 
-    ```csharp
-    using System;
-    using System.IO;
-    using System.Linq;
-    using DWSIM.Automation.FluentAPI;
-    using DWSIM.Automation.DynamicRunner;
-    using DWSIM.Interfaces;
+var fs = Flowsheet.Create("Tank filling")
+    .WithCompound("Water")
+    .WithPropertyPackage(PropertyPackages.SteamTables);
 
-    Flowsheet.RegisterAssemblyResolver();
-    var fs = Flowsheet.Load(@"C:\simulations\tank_control.dwxmz");
+// A feed is specified by flow: its rate is held, and the network resolves its pressure.
+var feed = fs.AddMaterialStream("feed")
+    .At(25.Celsius(), 1.Atm())
+    .WithMassFlow(1.KgPerSecond())
+    .AsFlowSpec();
 
-    var epoch = new DateTime();
+// The tank only integrates its hold-up when its outlet is specified by pressure.
+var tankOutlet = fs.AddMaterialStream("tank-outlet").At(25.Celsius(), 1.Atm()).AsPressureSpec();
+var product = fs.AddMaterialStream("product").At(25.Celsius(), 1.Atm()).AsPressureSpec();
 
-    var result = fs.RunDynamics("Default Schedule")
-        .WithRealTime(false)
-        .OnPreStep((s, e) =>
-        {
-            // step-change: double the inlet flow at t = 60 s
-            double t = (e.tstamp - epoch).TotalSeconds;
-            if (t >= 60 && t < 61)
-            {
-                var inlet = (IMaterialStream)e.flowsheet.GetObject("Inlet");
-                inlet.SetMassFlow(2.5);   // kg/s (SI)
-            }
-        })
-        .OnPostStep((s, e) =>
-        {
-            double t = (e.tstamp - epoch).TotalSeconds;
-            Console.Write($"\rt = {t,6:F1} s");
-        })
-        .Execute();
+fs.AddTank("TK-01")
+    .WithVolume(2.CubicMeters())
+    .WithHeight(2.Meters())
+    .InitializeFromInlet(false)
+    .ResetContent()
+    .ConnectFeed(feed, 0)
+    .ConnectProduct(tankOutlet, 0);
 
-    Console.WriteLine();
+// A Kv calculation mode is what lets the valve compute its own flow from the pressure either
+// side of it. In the pressure-drop modes it would demand a flow specification on one side, and
+// a shut valve could not then hold the flow at zero.
+var valve = fs.AddValve("V-01")
+    .WithCalcMode(Valve.CalculationMode.Kv_Liquid)
+    .WithKv(10.0)
+    .WithOpeningKvRelationship()   // without this the valve passes full Kv at any opening
+    .WithOpeningPercent(100.0)
+    .ConnectFeed(tankOutlet, 0)
+    .ConnectProduct(product, 0);
 
-    if (!result.Completed)
-    {
-        Console.WriteLine($"Integration failed: {result.Error!.Message}");
-        return;
-    }
+fs.AutoLayout();
+fs.Solve();
+```
 
-    // print final-value summary
-    foreach (var (name, series) in result.MonitoredVariables)
-        Console.WriteLine($"{name,-30} final = {series.Last().Value:G6}  ({series.Count} pts)");
+The valve is open for the steady-state solve, because a shut valve has no steady state to speak
+of. Shutting it is the disturbance the run is about:
 
-    // export to CSV
-    using var csv = new StreamWriter("dynamics_out.csv");
-    var headers = result.MonitoredVariables.Keys.ToList();
-    csv.WriteLine("t_s," + string.Join(",", headers));
-    int n = result.MonitoredVariables.Values.First().Count;
-    for (int i = 0; i < n; i++)
-    {
-        double t = result.MonitoredVariables.Values.First()[i].TimeSeconds;
-        var vals = headers.Select(h => result.MonitoredVariables[h][i].Value.ToString("G6"));
-        csv.WriteLine($"{t:F2},{string.Join(",", vals)}");
-    }
-    ```
+```csharp
+valve.WithOpeningPercent(0.0).WithOpeningSetpoint(0.0);
 
-=== "Python"
+// The tank integrates against whatever its outlet says, and it runs before the valve does.
+// Left at the steady-state rate, the outlet would cancel the first step's accumulation exactly.
+tankOutlet.WithMassFlow(0.0.KgPerSecond());
+```
 
-    ```python
-    import sys, clr, csv as csvmod
-    sys.path.append(r"C:\path\to\DWSIM\bin\x64\Debug")
-    clr.AddReference("DWSIM.Automation.FluentAPI")
-    clr.AddReference("DWSIM.Automation.DynamicRunner")
+## The schedule
 
-    from System import DateTime
-    from DWSIM.Automation.FluentAPI import Flowsheet
-    from DWSIM.Automation.DynamicRunner import Runner
+```csharp
+fs.Dynamics.DefineIntegrator("Filling")
+    .WithIntegrationStep(1.Seconds())
+    .WithDuration(300.Seconds())
+    .Monitor("TK-01", "Liquid Level")
+    .Monitor("feed", "PROP_MS_2", "kg/s");
 
-    Flowsheet.RegisterAssemblyResolver()
-    fs = Flowsheet.Load(r"C:\simulations\tank_control.dwxmz")
+fs.Dynamics.DefineSchedule("Filling run").WithIntegrator("Filling").MakeCurrent();
+```
 
-    epoch = DateTime()
+Check before running. It costs nothing and every finding carries a fix:
 
-    def on_pre(sender, e):
-        t = (e.tstamp - epoch).TotalSeconds
-        if 60 <= t < 61:
-            inlet = e.flowsheet.GetObject("Inlet")
-            inlet.SetMassFlow(2.5)
+```csharp
+foreach (var f in DynamicsDiagnostics.CheckReady(fs.Inner, "Filling run"))
+    Console.WriteLine(f);
+```
 
-    def on_post(sender, e):
-        t = (e.tstamp - epoch).TotalSeconds
-        print(f"\rt = {t:6.1f} s", end="")
+## The run
 
-    result = (fs.RunDynamics("Default Schedule")
-                .WithRealTime(False)
-                .OnPreStep(Runner.IntegratorPreStepEventHandler(on_pre))
-                .OnPostStep(Runner.IntegratorPostStepEventHandler(on_post))
-                .Execute())
+```csharp
+var result = fs.RunDynamics("Filling run").Execute();
 
-    print()
+if (!result.Completed)
+{
+    foreach (var f in DynamicsDiagnostics.Diagnose(fs.Inner, result)) Console.WriteLine(f);
+    return;
+}
 
-    if not result.Completed:
-        print(f"Integration failed: {result.Error.Message}")
-    else:
-        for name, series in result.MonitoredVariables:
-            print(f"{name}: {series.Count} pts, final = {list(series)[-1].Value:.4g}")
+Console.WriteLine(result);
+// Dynamics run on 'Filling run' completed: 301 steps, 301 s simulated in 4.2 s,
+// 2 monitored variable(s).
+```
 
-        # export CSV
-        headers = list(result.MonitoredVariables.Keys)
-        with open("dynamics_out.csv", "w", newline="") as f:
-            w = csvmod.writer(f)
-            w.writerow(["t_s"] + headers)
-            series0 = list(result.MonitoredVariables[headers[0]])
-            for i, pt in enumerate(series0):
-                row = [f"{pt.TimeSeconds:.2f}"]
-                for h in headers:
-                    row.append(f"{list(result.MonitoredVariables[h])[i].Value:.6g}")
-                w.writerow(row)
-    ```
+## Checking the answer
 
-=== "VB.NET"
+One kilogram a second for 300 seconds is 300 kg of water. At about 997 kg/m³ that is 0.3009 m³,
+and the tank's cross-section is volume over height — 1 m² — so the level is the volume:
 
-    ```vbnet
-    Imports System
-    Imports System.IO
-    Imports System.Linq
-    Imports DWSIM.Automation.FluentAPI
-    Imports DWSIM.Automation.DynamicRunner
-    Imports DWSIM.Interfaces
+```csharp
+var level = result["TK-01 Liquid Level"];
 
-    Flowsheet.RegisterAssemblyResolver()
-    Dim fs = Flowsheet.Load("C:\simulations\tank_control.dwxmz")
-    Dim epoch As New DateTime()
+var density = feed.Object.Phases[0].Properties.density.GetValueOrDefault();
+var expected = 1.0 * 300.0 / density / (2.0 / 2.0);
 
-    Dim result = fs.RunDynamics("Default Schedule") _
-        .WithRealTime(False) _
-        .OnPreStep(Sub(s, e)
-                       Dim t = (e.tstamp - epoch).TotalSeconds
-                       If t >= 60 AndAlso t < 61 Then
-                           Dim inlet = CType(e.flowsheet.GetObject("Inlet"), IMaterialStream)
-                           inlet.SetMassFlow(2.5)
-                       End If
-                   End Sub) _
-        .OnPostStep(Sub(s, e)
-                        Console.Write($"t = {(e.tstamp - epoch).TotalSeconds:F1} s")
-                    End Sub) _
-        .Execute()
+Console.WriteLine($"expected {expected:F4} m, got {level.Final:F4} m");
+// expected 0.3009 m, got 0.3019 m
 
-    If Not result.Completed Then
-        Console.WriteLine($"Integration failed: {result.Error.Message}")
-    Else
-        For Each kv In result.MonitoredVariables
-            Dim last = kv.Value.Last()
-            Console.WriteLine($"{kv.Key}: final = {last.Value:G6} ({kv.Value.Count} pts)")
-        Next
-    End If
-    ```
+result.ToCsv("filling.csv");
+```
 
-The CSV output has one column per monitored variable and one row per
-integration step, with simulation time (seconds) in the first column.
+Within a third of a percent, which is the integration error of a 1 s explicit Euler step over
+five minutes. Shorten the step and it closes further.
+
+## What the series knows
+
+`DynamicsSeries` carries the control metrics, so a level under control needs no extra
+arithmetic:
+
+```csharp
+Console.WriteLine($"settled at {level.SteadyState():F3} m");
+Console.WriteLine($"overshoot  {level.Overshoot(1.0):F1} %");
+Console.WriteLine($"settling   {level.SettlingTime(0.02):F0} s");
+Console.WriteLine($"IAE        {level.IAE(1.0):G4}");
+
+if (level.IsOscillating(out var period, out var decay))
+    Console.WriteLine($"oscillating, period {period:F1} s, decay ratio {decay:F2}");
+```
+
+Add a controller and those numbers are what tells you whether it is any good — and
+`PidTuner.Tune` minimises exactly them.
+
+## See also
+
+- [Dynamic Simulation](../api/dynamics.md) — the full API
+- [Dynamic Simulation for the AI Assistant](../ai/dynamics.md) — the same capability over MCP and HTTP

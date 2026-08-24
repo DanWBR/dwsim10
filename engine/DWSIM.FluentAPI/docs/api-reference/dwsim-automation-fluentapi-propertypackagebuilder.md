@@ -54,4 +54,4 @@ The owning flowsheet.
 
 ### `Inner`
 
-The underlying DWSIM property package — escape hatch for advanced settings.
+The underlying DWSIM property package - escape hatch for advanced settings.

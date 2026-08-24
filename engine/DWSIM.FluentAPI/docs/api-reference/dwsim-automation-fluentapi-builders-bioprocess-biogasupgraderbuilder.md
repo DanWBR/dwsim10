@@ -18,9 +18,13 @@ Sets `CO2Removal` and returns this builder for chaining.
 
 Sets `H2ORemoval` and returns this builder for chaining.
 
+### `WithH2SCompound(string)`
+
+Names the compound treated as H2S, enabling [`WithH2SRemoval`](dwsim-automation-fluentapi-builders-bioprocess-biogasupgraderbuilder.md), and returns this builder for chaining. Unassigned by default (feed assumed already desulfurized).
+
 ### `WithH2SRemoval(double)`
 
-Sets `H2SRemoval` and returns this builder for chaining.
+Sets `H2SRemoval` and returns this builder for chaining. Has no effect unless [`WithH2SCompound`](dwsim-automation-fluentapi-builders-bioprocess-biogasupgraderbuilder.md) assigns the compound to strip; the upgrader logs a warning if the feed carries H2S with no compound assigned.
 
 ### `WithTargetCH4Purity(double)`
 

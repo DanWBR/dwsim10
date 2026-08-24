@@ -16,9 +16,30 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-XML_PATH = os.path.join(ROOT, "bin", "Debug", "DWSIM.Automation.FluentAPI.xml")
 OUT_DIR = os.path.join(ROOT, "docs", "api-reference")
 ASSEMBLY_NS = "DWSIM.Automation.FluentAPI"
+XML_NAME = "DWSIM.Automation.FluentAPI.xml"
+
+
+def find_xml() -> str:
+    """The newest doc file under bin/Debug.
+
+    An SDK-style build puts it in a target-framework folder; the old project put it
+    directly under bin/Debug. Take whichever exists, newest first, so the path does not
+    have to be updated every time the framework moves.
+    """
+    root = os.path.join(ROOT, "bin", "Debug")
+    found = []
+    for base, _, files in os.walk(root):
+        if XML_NAME in files:
+            path = os.path.join(base, XML_NAME)
+            found.append((os.path.getmtime(path), path))
+    if not found:
+        return os.path.join(root, XML_NAME)
+    return max(found)[1]
+
+
+XML_PATH = find_xml()
 
 
 # ---------------------------------------------------------------- name parsing

@@ -14,8 +14,8 @@ Adds an existing reaction to this set.
 
 ### `Flowsheet`
 
-The underlying DWSIM object / owning flowsheet — escape hatch for advanced use.
+The underlying DWSIM object / owning flowsheet - escape hatch for advanced use.
 
 ### `Id`
 
-The reaction-set ID — used by reactor builders' `WithReactionSet(string)`.
+The reaction-set ID - used by reactor builders' `WithReactionSet(string)`.

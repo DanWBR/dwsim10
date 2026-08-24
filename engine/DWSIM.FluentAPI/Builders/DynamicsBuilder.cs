@@ -139,10 +139,8 @@ namespace DWSIM.Automation.FluentAPI.Builders
                 run.Steps, run.FinalTimeSeconds, run.WallClock, run.Aborted, run.Exceptions);
         }
 
-        /// <summary>
-        /// Bridges <see cref="StopWhen"/> to the runner's abort flag: the predicate needs the
-        /// simulated time, which only the step callback carries.
-        /// </summary>
+        // Bridges StopWhen to the runner's abort flag: the predicate needs the simulated time,
+        // which only the step callback carries.
         private sealed class StopWatcher
         {
             private readonly IFlowsheet _flowsheet;

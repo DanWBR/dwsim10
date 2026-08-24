@@ -79,6 +79,7 @@ nav:
       - LCA & TEA (Plus): api/lca-tea.md
       - License: api/license.md
       - External Catalog: api/external-catalog.md
+      - Dynamic Simulation: api/dynamics.md
   - Examples:
       - Overview: examples/index.md
       - 01 — Mixer: examples/01-mixer.md
@@ -97,6 +98,9 @@ nav:
       - 14 — Water Electrolyzer: examples/14-water-electrolyzer.md
       - 15 — PEM Fuel Cell: examples/15-pem-fuel-cell.md
       - 16 — Recycle Loop: examples/16-recycle-loop.md
+      - 17 — Dynamic Simulation: examples/17-dynamic-simulation.md
+  - AI Assistant:
+      - Dynamic Simulation: ai/dynamics.md
   - API Reference (auto): api-reference/index.md
   - Python Guide: python-guide.md
   - Building the docs: BUILDING.md

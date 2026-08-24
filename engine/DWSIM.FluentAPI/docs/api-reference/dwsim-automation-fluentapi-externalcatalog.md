@@ -6,7 +6,7 @@ Canonical display-name constants for every `DWSIM.Interfaces.IExternalUnitOperat
 
 ## Remarks
 
-Use these constants with [`AddExternalUnitOperation`](dwsim-automation-fluentapi-flowsheet.md) or with the typed `AddX` methods on [`Flowsheet`](dwsim-automation-fluentapi-flowsheet.md). [`RequiresPlus`](dwsim-automation-fluentapi-externalcatalog.md) answers whether a name needs [`Activate`](dwsim-automation-fluentapi-license.md).
+Use these constants with [`AddExternalUnitOperation`](dwsim-automation-fluentapi-flowsheet.md) or with the typed `AddX` methods on [`Flowsheet`](dwsim-automation-fluentapi-flowsheet.md). [`RequiresPlus`](dwsim-automation-fluentapi-externalcatalog.md) answers whether a name needs `Activate`.
 
 ## Methods
 

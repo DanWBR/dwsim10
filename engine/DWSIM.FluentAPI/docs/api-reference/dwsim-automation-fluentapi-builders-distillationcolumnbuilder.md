@@ -20,7 +20,11 @@ Sets `Condenser Duty` and returns this builder for chaining.
 
 ### `WithCondenserSpec(string, double, string, string)`
 
-Sets the condenser specification (e.g. "Reflux Ratio", value, "" for unitless).
+Sets the condenser specification (e.g. "Reflux Ratio", value, "" for unitless). The unit can also travel inside the spec type: `"Product Flow Rate (mol/s)"`.
+
+### `WithCondenserSpec(string, Quantity, string)`
+
+Sets the condenser specification from a [`Quantity`](dwsim-automation-fluentapi-quantity.md) (e.g. `"Product Molar Flow Rate", 75.0.MolPerSecond()`).
 
 ### `WithDistillate(MaterialStreamBuilder)`
 
@@ -40,7 +44,11 @@ Sets `Reboiler Duty` and returns this builder for chaining.
 
 ### `WithReboilerSpec(string, double, string, string)`
 
-Sets the reboiler specification (e.g. "Product Molar Flow Rate", 75, "mol/s").
+Sets the reboiler specification (e.g. "Product Molar Flow Rate", 75, "mol/s"). The unit can also travel inside the spec type: `"Product Flow Rate (mol/s)"`.
+
+### `WithReboilerSpec(string, Quantity, string)`
+
+Sets the reboiler specification from a [`Quantity`](dwsim-automation-fluentapi-quantity.md) (e.g. `"Product Molar Flow Rate", 25.0.MolPerSecond()`).
 
 ### `WithTopPressure(Quantity)`
 
