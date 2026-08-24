@@ -1274,8 +1274,16 @@ out2:           If (Math.Abs(GL_old - L) < 0.0000005) And (Math.Abs(GV_old - V) 
                     '================================================
                     '== mix vapour and liquid phase =================
                     '================================================
-                    Vmix = Vy.MultiplyConstY(V)
-                    Vmix = Vmix.AddY(Vx.MultiplyConstY(L))
+                    ' Both sub-bases below are taken from the FEED less the phase the sub-problem
+                    ' does not see, rather than rebuilt from the previous pass's phases. Rebuilding
+                    ' them re-concentrated the solute by 1/(1-S) on every turn of the outer loop, so
+                    ' each pass precipitated again out of an already saturated liquid and the solid
+                    ' grew without bound: a 2 mol-% brine came back carrying 22 mol-% of solid, and
+                    ' every salt loading tested came back with about eleven times the salt it was fed.
+                    Vmix = fi.SubtractY(Vs.MultiplyConstY(S))
+                    For i = 0 To n
+                        If Vmix(i) < 0.0 Then Vmix(i) = 0.0
+                    Next
                     Vz = Vmix.NormalizeY
 
                     Do
@@ -1374,8 +1382,10 @@ out2:           If (Math.Abs(GL_old - L) < 0.0000005) And (Math.Abs(GV_old - V) 
                     '================================================
                     '== mix solid and liquid phase ==================
                     '================================================
-                    Vmix = Vs.MultiplyConstY(S)
-                    Vmix = Vmix.AddY(Vx.MultiplyConstY(L))
+                    Vmix = fi.SubtractY(Vy.MultiplyConstY(V))
+                    For i = 0 To n
+                        If Vmix(i) < 0.0 Then Vmix(i) = 0.0
+                    Next
                     Vz = Vmix.NormalizeY
 
                     '================================================
