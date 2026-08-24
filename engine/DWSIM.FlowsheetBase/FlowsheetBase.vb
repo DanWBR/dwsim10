@@ -1036,10 +1036,6 @@ Imports DWSIM.ExtensionMethods
 
                 Return Me.SimulationObjects(AddObjectToSurface(ObjectType.Switch, x, y, tag,,, CreateConnected))
 
-            Case "Air Cooler 2"
-
-                Return Me.SimulationObjects(AddObjectToSurface(ObjectType.AirCooler2, x, y, tag,,, CreateConnected))
-
             Case "Gibbs Reactor (Reaktoro)"
 
                 Return Me.SimulationObjects(AddObjectToSurface(ObjectType.RCT_GibbsReaktoro, x, y, tag,,, CreateConnected))
@@ -1322,10 +1318,6 @@ Imports DWSIM.ExtensionMethods
             Case "Switch"
 
                 Return AddObject(ObjectType.Switch, 50, 50, objname)
-
-            Case "Air Cooler 2"
-
-                Return AddObject(ObjectType.AirCooler2, 50, 50, objname)
 
             Case "Gibbs Reactor (Reaktoro)"
 
