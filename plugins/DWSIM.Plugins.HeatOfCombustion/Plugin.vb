@@ -79,7 +79,7 @@ Imports Avalonia.Controls
         Return Nothing
     End Function
 
-    Private Function BuildWindow() As Window
+    Private Function BuildWindow() As EditorWindow
 
         Dim su = fsheet.FlowsheetOptions.SelectedUnitSystem
 
