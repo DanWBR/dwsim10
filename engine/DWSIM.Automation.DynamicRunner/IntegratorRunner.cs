@@ -487,6 +487,14 @@ namespace DWSIM.Automation.DynamicRunner
                 flowsheet.SupressMessages = previousSupress;
                 flowsheet.DynamicMode = previousDynamicMode;
                 flowsheet.DynamicsManager.CurrentSchedule = previousSchedule;
+
+                // On a windowed host the clone is a form, and it holds handles until disposed.
+                var disposable = _flowsheetClone as IDisposable;
+                if (disposable != null)
+                {
+                    try { disposable.Dispose(); }
+                    catch { /* a host that cannot dispose its clone is no reason to fail the run */ }
+                }
                 _flowsheetClone = null;
             }
 
