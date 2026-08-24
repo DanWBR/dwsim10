@@ -44,6 +44,7 @@
   <ItemGroup>
     <ProjectReference Include="..\DWSIM.UI.Desktop.Editors.Avalonia\DWSIM.UI.Desktop.Editors.Avalonia.csproj" />
     <ProjectReference Include="..\DWSIM.UI.Shared.Avalonia\DWSIM.UI.Shared.Avalonia.csproj" />
+    <ProjectReference Include="..\..\engine\DWSIM.Automation.DynamicRunner\DWSIM.Automation.DynamicRunner.csproj" />
     <ProjectReference Include="..\..\engine\DWSIM.Drawing.SkiaSharp\DWSIM.Drawing.SkiaSharp.vbproj" />
     <ProjectReference Include="..\..\engine\DWSIM.DynamicsManager\DWSIM.DynamicsManager.vbproj" />
     <ProjectReference Include="..\..\engine\DWSIM.ExtensionMethods\DWSIM.ExtensionMethods.vbproj" />

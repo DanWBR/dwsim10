@@ -7,6 +7,7 @@ using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
+using DWSIM.Automation.DynamicRunner;
 using DWSIM.Interfaces;
 
 namespace DWSIM.UI.Desktop.Avalonia;
@@ -230,7 +231,7 @@ public sealed class DynamicsIntegratorPanel : StackPanel
 
     /// <summary>
     /// Runs the current schedule on a background thread through
-    /// <see cref="DynamicsIntegratorRunner"/>, keeping the toolbar in sync.
+    /// <see cref="IntegratorRunner"/>, keeping the toolbar in sync.
     /// </summary>
     public async Task RunAsync(bool realtime)
     {
@@ -250,15 +251,20 @@ public sealed class DynamicsIntegratorPanel : StackPanel
         _btnRT.IsEnabled = false;
         _btnViewResults.IsEnabled = false;
 
-        var options = new DynamicsIntegratorRunner.RunOptions
+        var options = new IntegratorRunOptions
         {
             RealTime = realtime,
+            EnableHistorian = fs.DynamicsManager.EnableHistorian,
             AbortRequested = () => Abort,
-            OnProgress = (current, total, status) => Dispatcher.UIThread.Post(() =>
+            OnProgress = p => Dispatcher.UIThread.Post(() =>
             {
+                // Real-time runs report an unbounded total; the bar tracks the step count instead.
+                var total = double.IsInfinity(p.TotalSeconds) || p.TotalSeconds > int.MaxValue
+                    ? p.CurrentSeconds
+                    : p.TotalSeconds;
                 _pbProgress.Maximum = Math.Max(1, total);
-                _pbProgress.Value = Math.Min(current, _pbProgress.Maximum);
-                _lbStatus.Text = status;
+                _pbProgress.Value = Math.Min(p.CurrentSeconds, _pbProgress.Maximum);
+                _lbStatus.Text = p.Status;
             }),
             // Throttled: the integrator can step far faster than the canvas can redraw, and an
             // unbounded queue of refresh posts starves the UI thread.
@@ -277,7 +283,8 @@ public sealed class DynamicsIntegratorPanel : StackPanel
         List<Exception> exceptions;
         try
         {
-            exceptions = await Task.Run(() => DynamicsIntegratorRunner.Run(fs, options));
+            var result = await new IntegratorRunner(fs).RunAsync(options);
+            exceptions = result.Exceptions.ToList();
         }
         catch (Exception ex)
         {

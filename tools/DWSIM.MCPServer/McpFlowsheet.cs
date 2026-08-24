@@ -32,8 +32,10 @@ namespace DWSIM.MCPServer
 
             DynamicsManager.RunSchedule = (schname) =>
             {
-                DynamicsManager.CurrentSchedule = DynamicsManager.GetSchedule(schname).ID;
-                return null;
+                var schedule = DWSIM.Automation.DynamicRunner.IntegratorRunner.ResolveSchedule(this, schname);
+                DynamicsManager.CurrentSchedule = schedule.ID;
+                return new DWSIM.Automation.DynamicRunner.IntegratorRunner(this).RunAsync(
+                    new DWSIM.Automation.DynamicRunner.IntegratorRunOptions { Schedule = schedule.ID });
             };
         }
 
@@ -166,7 +168,16 @@ namespace DWSIM.MCPServer
         public override IFlowsheet Clone()
         {
             var fs = new McpFlowsheet();
-            fs.Initialize();
+
+            // Same setup SessionManager gives a fresh flowsheet: without the catalogues and the
+            // resource managers, LoadFromXML has nothing to resolve the saved objects against.
+            fs.SupressDataLoading = true;
+            fs.AvailableCompounds = AvailableCompounds;
+            fs.AvailablePropertyPackages = AvailablePropertyPackages;
+            fs.SetResourcesManager(GetResourcesManager());
+            fs.SetPropertyResourcesManager(GetPropertyResourcesManager());
+            fs.Init();
+
             var xdoc = SaveToXML();
             fs.LoadFromXML(xdoc);
             return fs;

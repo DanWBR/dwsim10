@@ -194,6 +194,17 @@ Imports DWSIM.ExtensionMethods
         prm = _prm
     End Sub
 
+    ''' <summary>Returns the resource manager used for resolving localised strings, or Nothing when none was set.</summary>
+    ''' <remarks>Cloning a flowsheet has to carry these over, or the copy cannot resolve any string.</remarks>
+    Public Function GetResourcesManager() As Resources.ResourceManager
+        Return rm
+    End Function
+
+    ''' <summary>Returns the resource manager used for resolving localised property names, or Nothing when none was set.</summary>
+    Public Function GetPropertyResourcesManager() As Resources.ResourceManager
+        Return prm
+    End Function
+
     ''' <summary>
     ''' Adds all compounds currently selected in the flowsheet to all phases of the given material stream,
     ''' then equalises the overall composition and recalculates mass fractions.

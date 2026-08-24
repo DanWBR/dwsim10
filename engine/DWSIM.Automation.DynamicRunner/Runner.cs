@@ -1,12 +1,7 @@
-﻿using DWSIM.ExtensionMethods;
+using DWSIM.ExtensionMethods;
 using DWSIM.Interfaces;
-using DWSIM.Interfaces.Enums;
-using DWSIM.UnitOperations.SpecialOps;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace DWSIM.Automation.DynamicRunner
@@ -53,7 +48,9 @@ namespace DWSIM.Automation.DynamicRunner
     }
 
     /// <summary>
-    /// Provides static methods for running dynamic integration on a DWSIM flowsheet.
+    /// Static entry points for running dynamic integration on a DWSIM flowsheet.
+    /// The integration loop itself lives in <see cref="IntegratorRunner"/>; this class is the
+    /// process-wide event surface that COM clients and the Fluent API were written against.
     /// </summary>
     public class Runner
     {
@@ -75,7 +72,9 @@ namespace DWSIM.Automation.DynamicRunner
         /// </summary>
         /// <param name="Flowsheet">The flowsheet to integrate.</param>
         /// <param name="dynschedule">
-        /// The name (description) of the dynamics schedule to run. Must match a schedule defined in the flowsheet.
+        /// The name (description) or ID of the dynamics schedule to run. Matching on the description
+        /// ignores case and surrounding whitespace. When null or empty, the flowsheet's current
+        /// schedule is used, falling back to the first one defined.
         /// </param>
         /// <param name="realtime">
         /// If <c>true</c>, the integrator runs in real-time mode, pacing each step to the wall clock.
@@ -86,307 +85,67 @@ namespace DWSIM.Automation.DynamicRunner
         /// If <c>false</c>, integration runs in a background task and the method returns immediately.
         /// </param>
         /// <returns>The <see cref="Task"/> representing the integration run.</returns>
-        /// <exception cref="Exception">Thrown if the specified schedule name is not found in the flowsheet.</exception>
+        /// <exception cref="Exception">Thrown if the schedule is not found, or if the run fails.</exception>
         public static Task RunIntegrator(IFlowsheet Flowsheet, string dynschedule, bool realtime, bool waittofinish)
         {
-
-            Flowsheet.DynamicMode = true;
-
-            var schedule = Flowsheet.DynamicsManager.ScheduleList.Values.Where(s => s.Description.ToLower().Equals(dynschedule)).FirstOrDefault();
-
-            if (schedule == null) throw new Exception("Specified Schedule not found");
-
-            var integrator = Flowsheet.DynamicsManager.IntegratorList[schedule.CurrentIntegrator];
-
-            integrator.RealTime = realtime;
-
-            var Controllers = Flowsheet.SimulationObjects.Values.Where(x => x is PIDController)
-                .Cast<PIDController>().OrderBy(x => x.ExecutionOrder).Cast<ISimulationObject>().ToList();
-            var Controllers2 = Flowsheet.SimulationObjects.Values.Where(x => x is PythonController).ToList();
-            var MPCControllers = Flowsheet.SimulationObjects.Values.Where(x => x is MPCController)
-                .Cast<MPCController>().OrderBy(x => x.ExecutionOrder).ToList();
-
-            if (!waittofinish)
-                if (!realtime)
-                    if (!schedule.UseCurrentStateAsInitial)
-                        RestoreState(Flowsheet, schedule.InitialFlowsheetStateID);
-
-            integrator.MonitoredVariableValues.Clear();
-
-            var interval = integrator.IntegrationStep.TotalSeconds;
-
-            if (realtime)
-                interval = Convert.ToDouble(integrator.RealTimeStepMs) / 1000.0;
-
-            double final;
-
-            if (realtime)
-                final = double.MaxValue;
-            else
-                final = integrator.Duration.TotalSeconds;
-
-            foreach (PIDController controller in Controllers)
-                controller.Reset();
-
-            foreach (MPCController mpc in MPCControllers)
-                mpc.Reset();
-
-            foreach (PythonController controller in Controllers2)
-                controller.ResetRequested = true;
-
-            if (schedule.ResetContentsOfAllObjects)
+            var options = new IntegratorRunOptions
             {
-                foreach (var obj in Flowsheet.SimulationObjects.Values)
-                {
-                    if (obj.HasPropertiesForDynamicMode)
-                    {
-                        if (obj is DWSIM.SharedClasses.UnitOperations.BaseClass)
-                        {
-                            var bobj = (DWSIM.SharedClasses.UnitOperations.BaseClass)obj;
-                            if (bobj.GetDynamicProperty("Reset Content") != null)
-                                bobj.SetDynamicProperty("Reset Content", 1);
-                            if (bobj.GetDynamicProperty("Reset Contents") != null)
-                                bobj.SetDynamicProperty("Reset Contents", 1);
-                            if (bobj.GetDynamicProperty("Initialize using Inlet Stream") != null)
-                                bobj.SetDynamicProperty("Initialize using Inlet Stream", 1);
-                            if (bobj.GetDynamicProperty("Initialize using Inlet Streams") != null)
-                                bobj.SetDynamicProperty("Initialize using Inlet Streams", 1);
-                        }
-                    }
-                }
-            }
-
-            integrator.CurrentTime = new DateTime();
-
-            integrator.MonitoredVariableValues.Clear();
-
-            double controllers_check = 100000;
-            double streams_check = 100000;
-            double pf_check = 100000;
-
-            Flowsheet.SupressMessages = true;
-
-            var exceptions = new List<Exception>();
-
-            var maintask = new Task(() =>
-            {
-                int j = 0;
-
-                double i = 0;
-
-                Flowsheet.ProcessScripts(Scripts.EventType.IntegratorStarted, Scripts.ObjectType.Integrator, "");
-
-                while (i <= final)
-                {
-
-                    int i0 = (int)i;
-
-                    var sw = new Stopwatch();
-
-                    sw.Start();
-
-                    Flowsheet.ProcessScripts(Scripts.EventType.IntegratorPreStep, Scripts.ObjectType.FlowsheetObject, "");
-
-                    var preargs = new IntegratorPreStepEventArgs
-                    {
-                        status = "READY",
-                        tstamp = integrator.CurrentTime,
-                        tstep = j,
-                        flowsheet = Flowsheet
-                    };
-
-                    IntegratorPreStepEvent?.Invoke(Flowsheet, preargs);
-
-                    controllers_check += interval;
-                    streams_check += interval;
-                    pf_check += interval;
-
-                    if (controllers_check >= integrator.CalculationRateControl * interval)
-                    {
-                        controllers_check = 0.0;
-                        integrator.ShouldCalculateControl = true;
-                    }
-                    else
-                        integrator.ShouldCalculateControl = false;
-
-                    if (streams_check >= integrator.CalculationRateEquilibrium * interval)
-                    {
-                        streams_check = 0.0;
-                        integrator.ShouldCalculateEquilibrium = true;
-                    }
-                    else
-                        integrator.ShouldCalculateEquilibrium = false;
-
-                    if (pf_check >= integrator.CalculationRatePressureFlow * interval)
-                    {
-                        pf_check = 0.0;
-                        integrator.ShouldCalculatePressureFlow = true;
-                    }
-                    else
-                        integrator.ShouldCalculatePressureFlow = false;
-
-                    GlobalSettings.Settings.CalculatorActivated = true;
-                    GlobalSettings.Settings.CalculatorBusy = false;
-
-                    DynamicsManager.IntegrationStrategies.ExecuteStep(
-                        Flowsheet,
-                        integrator,
-                        () => {
-                            exceptions = FlowsheetSolver.FlowsheetSolver.SolveFlowsheet(Flowsheet, GlobalSettings.Settings.SolverMode);
-                            while (GlobalSettings.Settings.CalculatorBusy)
-                                Task.Delay(200).Wait();
-                        },
-                        interval);
-
-                    if (exceptions.Count > 0) break;
-
-                    StoreVariableValues(Flowsheet, (DynamicsManager.Integrator)integrator, j, integrator.CurrentTime);
-
-                    Flowsheet.ProcessScripts(Scripts.EventType.IntegratorStep, Scripts.ObjectType.FlowsheetObject, "");
-
-                    var postargs = new IntegratorPostStepEventArgs {
-                        status = "OK",
-                        tstamp = integrator.CurrentTime,
-                        tstep = j,
-                        flowsheet = Flowsheet,
-                        variables = integrator.MonitoredVariableValues.Values.Last()
-                    };
-
-                    IntegratorPostStepEvent?.Invoke(Flowsheet, postargs);
-
-                    integrator.CurrentTime = integrator.CurrentTime.AddSeconds(interval);
-
-                    if (integrator.ShouldCalculateControl)
-                    {
-                        foreach (PIDController controller in Controllers)
-                        {
-                            if (controller.Active)
-                            {
-                                Flowsheet.ProcessScripts(Scripts.EventType.ObjectCalculationStarted, Scripts.ObjectType.FlowsheetObject, controller.Name);
-                                try
-                                {
-                                    controller.Solve();
-                                    Flowsheet.ProcessScripts(Scripts.EventType.ObjectCalculationFinished, Scripts.ObjectType.FlowsheetObject, controller.Name);
-                                }
-                                catch (Exception ex)
-                                {
-                                    Flowsheet.ProcessScripts(Scripts.EventType.ObjectCalculationError, Scripts.ObjectType.FlowsheetObject, controller.Name);
-                                    throw ex;
-                                }
-                            }
-                        }
-                        foreach (PythonController controller in Controllers2)
-                        {
-                            if (controller.Active)
-                            {
-                                Flowsheet.ProcessScripts(Scripts.EventType.ObjectCalculationStarted, Scripts.ObjectType.FlowsheetObject, controller.Name);
-                                try
-                                {
-                                    controller.Solve();
-                                    Flowsheet.ProcessScripts(Scripts.EventType.ObjectCalculationFinished, Scripts.ObjectType.FlowsheetObject, controller.Name);
-                                }
-                                catch (Exception ex)
-                                {
-                                    Flowsheet.ProcessScripts(Scripts.EventType.ObjectCalculationError, Scripts.ObjectType.FlowsheetObject, controller.Name);
-                                    throw ex;
-                                }
-                            }
-                        }
-                        foreach (MPCController mpc in MPCControllers)
-                        {
-                            if (mpc.Active)
-                            {
-                                try
-                                {
-                                    mpc.Solve();
-                                }
-                                catch (Exception ex)
-                                {
-                                    throw ex;
-                                }
-                            }
-                        }
-                    }
-
-                    var waittime = integrator.RealTimeStepMs - sw.ElapsedMilliseconds;
-
-                    if (waittime > 0 && realtime)
-                        Task.Delay((int)waittime).Wait();
-
-                    sw.Stop();
-
-                    if (!realtime)
-                    {
-                        if (schedule.UsesEventList)
-                            ProcessEvents(Flowsheet, schedule.CurrentEventList, integrator.CurrentTime, integrator.IntegrationStep);
-
-                        if (schedule.UsesCauseAndEffectMatrix)
-                            ProcessCEMatrix(Flowsheet, schedule.CurrentCauseAndEffectMatrix);
-                    }
-
-                    j += 1;
-
-                    i += interval;
-
-                }
-
-                if (exceptions.Count > 0) throw exceptions[0];
-
-            });
-
-            maintask.ContinueWith(t =>
-            {
-                if (t.Exception != null)
-                    Flowsheet.ProcessScripts(Scripts.EventType.IntegratorError, Scripts.ObjectType.Integrator, "");
-                else
-                    Flowsheet.ProcessScripts(Scripts.EventType.IntegratorFinished, Scripts.ObjectType.Integrator, "");
-
-                Flowsheet.SupressMessages = false;
-                Flowsheet.UpdateOpenEditForms();
-                if (t.Exception != null)
-                {
-                    Exception baseexception;
-                    foreach (var ex in t.Exception.Flatten().InnerExceptions)
-                    {
-                        string euid = Guid.NewGuid().ToString();
-                        SharedClasses.ExceptionProcessing.ExceptionList.Exceptions.Add(euid, ex);
-                        if (ex is AggregateException)
-                        {
-                            baseexception = ex.InnerException;
-                            foreach (var iex in ((AggregateException)ex).Flatten().InnerExceptions)
-                            {
-                                while (iex.InnerException != null)
-                                    baseexception = iex.InnerException;
-                                Flowsheet.ShowMessage(baseexception.Message.ToString(), Interfaces.IFlowsheet.MessageType.GeneralError, euid);
-                            }
-                        }
-                        else
-                        {
-                            baseexception = ex;
-                            if (baseexception.InnerException != null)
-                            {
-                                while (baseexception.InnerException.InnerException != null)
-                                {
-                                    baseexception = baseexception.InnerException;
-                                    if ((baseexception == null))
-                                        break;
-                                    if ((baseexception.InnerException == null))
-                                        break;
-                                }
-                                Flowsheet.ShowMessage(baseexception.Message.ToString(), Interfaces.IFlowsheet.MessageType.GeneralError, euid);
-                            }
-                        }
-                    }
-                }
-
-            });
+                Schedule = dynschedule,
+                RealTime = realtime
+            };
 
             if (waittofinish)
-                maintask.RunSynchronously(TaskScheduler.Default);
-            else
-                maintask.Start(TaskScheduler.Default);
+            {
+                var result = RunAndThrow(Flowsheet, options);
+                return Task.FromResult(result);
+            }
 
-            return maintask;
+            return Task.Run(() => RunAndThrow(Flowsheet, options));
+        }
+
+        /// <summary>
+        /// Runs the dynamic integrator with full control over the run: schedule selection,
+        /// cancellation, step and wall-time limits, historian and progress callbacks.
+        /// Unlike the legacy overload, this one reports failures through
+        /// <see cref="IntegratorRunResult.Exceptions"/> instead of throwing.
+        /// </summary>
+        public static Task<IntegratorRunResult> RunIntegrator(IFlowsheet Flowsheet, IntegratorRunOptions options)
+        {
+            return new IntegratorRunner(Flowsheet).RunAsync(WithStaticEvents(Flowsheet, options));
+        }
+
+        private static IntegratorRunResult RunAndThrow(IFlowsheet flowsheet, IntegratorRunOptions options)
+        {
+            var result = new IntegratorRunner(flowsheet).Run(WithStaticEvents(flowsheet, options));
+            if (result.Exceptions.Count > 0) throw result.Exceptions[0];
+            return result;
+        }
+
+        /// <summary>
+        /// Chains the process-wide <see cref="IntegratorPreStepEvent"/> and
+        /// <see cref="IntegratorPostStepEvent"/> onto the run's own callbacks, so subscribers keep
+        /// receiving steps whichever entry point started the run.
+        /// </summary>
+        private static IntegratorRunOptions WithStaticEvents(IFlowsheet flowsheet, IntegratorRunOptions options)
+        {
+            var callerPreStep = options.PreStep;
+            var callerPostStep = options.PostStep;
+
+            options.PreStep = e =>
+            {
+                if (callerPreStep != null) callerPreStep(e);
+                var handler = IntegratorPreStepEvent;
+                if (handler != null) handler(flowsheet, e);
+            };
+
+            options.PostStep = e =>
+            {
+                if (callerPostStep != null) callerPostStep(e);
+                var handler = IntegratorPostStepEvent;
+                if (handler != null) handler(flowsheet, e);
+            };
+
+            return options;
         }
 
         /// <summary>
@@ -396,16 +155,7 @@ namespace DWSIM.Automation.DynamicRunner
         /// <param name="stateID">The key identifying the stored solution/state to restore.</param>
         public static void RestoreState(Interfaces.IFlowsheet Flowsheet, string stateID)
         {
-            try
-            {
-                var initialstate = Flowsheet.StoredSolutions[stateID];
-                Flowsheet.LoadProcessData(initialstate);
-                Flowsheet.UpdateInterface();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(String.Format("Error Restoring State {0}: {1}", stateID, ex.Message));
-            }
+            IntegratorRunner.RestoreState(Flowsheet, stateID);
         }
 
         /// <summary>
@@ -415,34 +165,7 @@ namespace DWSIM.Automation.DynamicRunner
         /// <param name="cematrixID">The key of the Cause-and-Effect matrix to process.</param>
         public static void ProcessCEMatrix(Interfaces.IFlowsheet Flowsheet, string cematrixID)
         {
-            var matrix = Flowsheet.DynamicsManager.CauseAndEffectMatrixList[cematrixID];
-
-            foreach (var item in matrix.Items.Values)
-            {
-                if (item.Enabled)
-                {
-                    var indicator = (Interfaces.IIndicator)Flowsheet.SimulationObjects[item.AssociatedIndicator];
-                    switch (item.AssociatedIndicatorAlarm)
-                    {
-                        case Interfaces.Enums.Dynamics.DynamicsAlarmType.LL:
-                            if (indicator.VeryLowAlarmActive)
-                                DoAlarmEffect(Flowsheet, item);
-                            break;
-                        case Interfaces.Enums.Dynamics.DynamicsAlarmType.L:
-                            if (indicator.LowAlarmActive)
-                                DoAlarmEffect(Flowsheet, item);
-                            break;
-                        case Interfaces.Enums.Dynamics.DynamicsAlarmType.H:
-                            if (indicator.HighAlarmActive)
-                                DoAlarmEffect(Flowsheet, item);
-                            break;
-                        case Interfaces.Enums.Dynamics.DynamicsAlarmType.HH:
-                            if (indicator.VeryHighAlarmActive)
-                                DoAlarmEffect(Flowsheet, item);
-                            break;
-                    }
-                }
-            }
+            IntegratorRunner.ProcessCEMatrix(Flowsheet, cematrixID);
         }
 
         /// <summary>
@@ -453,9 +176,7 @@ namespace DWSIM.Automation.DynamicRunner
         /// <param name="ceitem">The Cause-and-Effect item describing the object, property, and value to apply.</param>
         public static void DoAlarmEffect(Interfaces.IFlowsheet Flowsheet, Interfaces.IDynamicsCauseAndEffectItem ceitem)
         {
-            var obj = Flowsheet.SimulationObjects[ceitem.SimulationObjectID];
-            var value = SharedClasses.SystemsOfUnits.Converter.ConvertToSI(ceitem.SimulationObjectPropertyUnits, ceitem.SimulationObjectPropertyValue.ToDoubleFromInvariant());
-            obj.SetPropertyValue(ceitem.SimulationObjectProperty, value);
+            IntegratorRunner.DoAlarmEffect(Flowsheet, ceitem);
         }
 
         /// <summary>
@@ -464,28 +185,18 @@ namespace DWSIM.Automation.DynamicRunner
         /// </summary>
         /// <param name="Flowsheet">The flowsheet containing the monitored simulation objects.</param>
         /// <param name="integrator">The integrator whose monitored variable history will be updated.</param>
-        /// <param name="tstep">The zero-based time step index used as the history key.</param>
+        /// <param name="tstep">Unused; kept for source compatibility. History is keyed by timestamp ticks.</param>
         /// <param name="tstamp">The simulation timestamp to associate with this snapshot.</param>
         public static void StoreVariableValues(Interfaces.IFlowsheet Flowsheet, DynamicsManager.Integrator integrator, int tstep, DateTime tstamp)
         {
-            List<Interfaces.IDynamicsMonitoredVariable> list = new List<Interfaces.IDynamicsMonitoredVariable>();
-
-            foreach (DynamicsManager.MonitoredVariable v in integrator.MonitoredVariables)
-            {
-                var vnew = (DynamicsManager.MonitoredVariable)v.Clone();
-                var sobj = Flowsheet.SimulationObjects[vnew.ObjectID];
-                var cval = Convert.ToDouble(sobj.GetPropertyValue(vnew.PropertyID));
-                vnew.PropertyValue = SharedClasses.SystemsOfUnits.Converter.ConvertFromSI(vnew.PropertyUnits, cval).ToString(System.Globalization.CultureInfo.InvariantCulture);
-                vnew.TimeStamp = tstamp;
-                list.Add(vnew);
-            }
-
-            integrator.MonitoredVariableValues.Add(tstep, list);
+            IntegratorRunner.StoreVariableValues(Flowsheet, integrator, tstamp);
         }
 
         /// <summary>
         /// Processes all scheduled events whose timestamps fall within the current integration step window
         /// and applies their effects (e.g. property changes) to the flowsheet.
+        /// Step changes only: transitions that interpolate from a past state need the historian, which
+        /// only exists inside a run.
         /// </summary>
         /// <param name="Flowsheet">The flowsheet to which event effects will be applied.</param>
         /// <param name="eventsetID">The key of the event set to process.</param>
@@ -493,29 +204,24 @@ namespace DWSIM.Automation.DynamicRunner
         /// <param name="interval">The length of the current integration step; defines the start of the window.</param>
         public static void ProcessEvents(Interfaces.IFlowsheet Flowsheet, string eventsetID, DateTime currentposition, TimeSpan interval)
         {
+            if (!Flowsheet.DynamicsManager.EventSetList.ContainsKey(eventsetID)) return;
+
             var eventset = Flowsheet.DynamicsManager.EventSetList[eventsetID];
 
             var initialtime = currentposition - interval;
 
-            var finaltime = currentposition;
-
-            var events = eventset.Events.Values.Where(x => x.TimeStamp >= initialtime & x.TimeStamp < finaltime).ToList();
-
-            foreach (var ev in events)
+            foreach (var ev in eventset.Events.Values)
             {
-                if (ev.Enabled)
-                {
-                    switch (ev.EventType)
-                    {
-                        case Interfaces.Enums.Dynamics.DynamicsEventType.ChangeProperty:
-                            var obj = Flowsheet.SimulationObjects[ev.SimulationObjectID];
-                            var value = SharedClasses.SystemsOfUnits.Converter.ConvertToSI(ev.SimulationObjectPropertyUnits, ev.SimulationObjectPropertyValue.ToDoubleFromInvariant());
-                            obj.SetPropertyValue(ev.SimulationObjectProperty, value);
-                            break;
-                        case Interfaces.Enums.Dynamics.DynamicsEventType.RunScript:
-                            break;
-                    }
-                }
+                if (!ev.Enabled) continue;
+                if (ev.TimeStamp < initialtime || ev.TimeStamp >= currentposition) continue;
+                if (ev.EventType != Interfaces.Enums.Dynamics.DynamicsEventType.ChangeProperty) continue;
+                if (!Flowsheet.SimulationObjects.ContainsKey(ev.SimulationObjectID)) continue;
+
+                var value = SharedClasses.SystemsOfUnits.Converter.ConvertToSI(
+                    ev.SimulationObjectPropertyUnits,
+                    ev.SimulationObjectPropertyValue.ToDoubleFromInvariant());
+
+                Flowsheet.SimulationObjects[ev.SimulationObjectID].SetPropertyValue(ev.SimulationObjectProperty, value);
             }
         }
 

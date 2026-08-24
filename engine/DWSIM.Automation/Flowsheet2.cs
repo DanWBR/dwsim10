@@ -632,7 +632,17 @@ namespace DWSIM.Automation
         {
 
             var fs = new Flowsheet2(null, null);
-            fs.Initialize();
+
+            // The copy has to be set up exactly like Automation3.CreateFlowsheet does it: without
+            // the compound and property-package catalogues and the resource managers, LoadFromXML
+            // has nothing to resolve the saved objects against.
+            fs.SupressDataLoading = true;
+            fs.AvailableCompounds = AvailableCompounds;
+            fs.AvailablePropertyPackages = AvailablePropertyPackages;
+            fs.SetResourcesManager(GetResourcesManager());
+            fs.SetPropertyResourcesManager(GetPropertyResourcesManager());
+            fs.Init();
+
             var xdoc = SaveToXML();
             fs.LoadFromXML(xdoc);
             return fs;
