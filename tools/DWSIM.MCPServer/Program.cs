@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Globalization;
 using System.IO;
 using System.Threading;
@@ -12,6 +12,7 @@ using DWSIM.MCPServer.Tools.Streams;
 using DWSIM.MCPServer.Tools.UnitOps;
 using DWSIM.MCPServer.Tools.Solve;
 using DWSIM.MCPServer.Tools.Graphics;
+using DWSIM.MCPServer.Tools.Dynamics;
 using DWSIM.MCPServer.Transport;
 
 namespace DWSIM.MCPServer
@@ -75,6 +76,7 @@ namespace DWSIM.MCPServer
             var automation = new Automation3();
 
             var sessions = new SessionManager();
+            var dynamicsJobs = new DynamicsJobManager();
             var registry = new ToolRegistry();
 
             registry.RegisterToolsFrom(new FlowsheetTools(sessions));
@@ -83,6 +85,7 @@ namespace DWSIM.MCPServer
             registry.RegisterToolsFrom(new UnitOpTools(sessions));
             registry.RegisterToolsFrom(new SolveTools(sessions));
             registry.RegisterToolsFrom(new GraphicTools(sessions));
+            registry.RegisterToolsFrom(new DynamicsTools(sessions, dynamicsJobs));
 
             var dispatcher = new JsonRpcDispatcher(registry);
 

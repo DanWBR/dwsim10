@@ -212,7 +212,7 @@ namespace DWSIM.MCPServer.Tools.Graphics
             }
         }
 
-        [McpTool("dwsim_graphic_screenshot",
+        [McpTool("dwsim_graphic_screenshot_to_file",
            "Render the flowsheet (PFD) to a PNG image and save it to the specified PNG file path.")]
         public JObject ScreenshotToFile(
             [McpParam("Flowsheet handle")] string flowsheet_id,

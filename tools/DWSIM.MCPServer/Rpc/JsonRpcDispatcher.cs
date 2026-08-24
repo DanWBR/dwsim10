@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using DWSIM.MCPServer.Tools;
@@ -19,6 +19,31 @@ namespace DWSIM.MCPServer.Rpc
         {
             ["tools"] = new JObject { ["listChanged"] = false }
         };
+
+        /// <summary>
+        /// Sent with the handshake, so a client learns the workflows without anyone having to write
+        /// them into its own prompt. This is the only channel the server itself controls.
+        /// </summary>
+        private const string Instructions =
+            "DWSIM process simulation over MCP. Two workflows:\n\n" +
+            "STEADY STATE: dwsim_flowsheet_create (or _load) -> dwsim_thermo_add_compounds -> " +
+            "dwsim_thermo_set_property_package -> dwsim_stream_add_material -> dwsim_unitop_add -> " +
+            "dwsim_unitop_connect -> dwsim_solve_run -> dwsim_stream_get_results. " +
+            "Compounds and a property package must come before any stream, or nothing can be flashed.\n\n" +
+            "DYNAMICS (time domain): dwsim_dynamics_inspect to see what the flowsheet offers -> " +
+            "dwsim_dynamics_properties to find property ids, which are never guessable -> " +
+            "dwsim_dynamics_setup (integrator step and duration, schedule) -> dwsim_dynamics_monitor " +
+            "(nothing is recorded otherwise) -> dwsim_dynamics_event for step changes and ramps -> " +
+            "dwsim_dynamics_check -> dwsim_dynamics_run -> poll dwsim_dynamics_status -> " +
+            "dwsim_dynamics_series or dwsim_dynamics_analyze. When a run misbehaves, dwsim_dynamics_diagnose " +
+            "names the cause and the fix; for a sluggish or oscillating control loop, dwsim_dynamics_tune_pid " +
+            "searches the gains.\n\n" +
+            "A dynamic run needs the flowsheet solved at steady state first, at least one monitored variable, " +
+            "and a pressure-flow network with both kinds of specification: feeds by flow, boundaries by pressure.\n\n" +
+            "TIME SERIES ARE LARGE. dwsim_dynamics_run and _status never return points. dwsim_dynamics_series " +
+            "returns a decimated preview, about 40 points by default, capped at 400. For the complete data " +
+            "call dwsim_dynamics_export, which writes a CSV file and returns only its path.\n\n" +
+            "Only one integration runs in the process at a time; a second request is refused rather than queued.";
 
         public JsonRpcDispatcher(ToolRegistry registry)
         {
@@ -60,7 +85,8 @@ namespace DWSIM.MCPServer.Rpc
                     {
                         ["protocolVersion"] = "2024-11-05",
                         ["serverInfo"] = ServerInfo,
-                        ["capabilities"] = Capabilities
+                        ["capabilities"] = Capabilities,
+                        ["instructions"] = Instructions
                     });
 
                 case "notifications/initialized":

@@ -31,6 +31,15 @@ namespace DWSIM.MCPServer.Tools
                 var parameters = method.GetParameters();
                 var schema = BuildInputSchema(parameters);
 
+                // GetMethods does not promise an order, so two methods sharing a tool name would
+                // leave which one wins up to chance, and the loser silently unreachable.
+                if (_tools.TryGetValue(attr.Name, out var clash))
+                {
+                    throw new InvalidOperationException(
+                        $"Two tools are registered as '{attr.Name}': {clash.Instance.GetType().Name}.{clash.Method.Name} " +
+                        $"and {type.Name}.{method.Name}. Tool names must be unique.");
+                }
+
                 _tools[attr.Name] = new ToolRegistration
                 {
                     Name = attr.Name,
