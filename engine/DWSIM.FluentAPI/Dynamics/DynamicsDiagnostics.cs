@@ -5,101 +5,11 @@ using System.Linq;
 using DWSIM.Interfaces;
 using DWSIM.UnitOperations.SpecialOps;
 using DWSIM.UnitOperations.UnitOperations;
+using DWSIM.Automation.FluentAPI.Diagnostics;
 using DynEnums = DWSIM.Interfaces.Enums.Dynamics;
 
 namespace DWSIM.Automation.FluentAPI.Dynamics
 {
-    /// <summary>How much a finding matters.</summary>
-    public enum DiagnosticSeverity
-    {
-        /// <summary>Worth knowing, but the run will proceed.</summary>
-        Info,
-        /// <summary>The run will proceed but the result is likely to disappoint.</summary>
-        Warning,
-        /// <summary>The run cannot produce a meaningful result until this is fixed.</summary>
-        Blocker
-    }
-
-    /// <summary>One thing wrong, or suspicious, about a dynamic simulation.</summary>
-    public sealed class DynamicsFinding
-    {
-        internal DynamicsFinding(string code, DiagnosticSeverity severity, string objectTag, string message, string fix)
-        {
-            Code = code;
-            Severity = severity;
-            ObjectTag = objectTag ?? "";
-            Message = message;
-            Fix = fix ?? "";
-        }
-
-        /// <summary>Stable identifier, e.g. <c>VALVE_NO_KV</c>. See <see cref="DiagnosticCodes"/>.</summary>
-        public string Code { get; }
-
-        /// <summary>How much this matters.</summary>
-        public DiagnosticSeverity Severity { get; }
-
-        /// <summary>Tag of the object the finding is about, empty when it concerns the flowsheet as a whole.</summary>
-        public string ObjectTag { get; }
-
-        /// <summary>What is wrong, in one sentence.</summary>
-        public string Message { get; }
-
-        /// <summary>What to do about it, in one sentence.</summary>
-        public string Fix { get; }
-
-        /// <summary>Returns <c>"[SEVERITY] CODE (tag): message Fix: ..."</c>.</summary>
-        public override string ToString()
-        {
-            var where = string.IsNullOrEmpty(ObjectTag) ? "" : " (" + ObjectTag + ")";
-            var fix = string.IsNullOrEmpty(Fix) ? "" : " Fix: " + Fix;
-            return "[" + Severity.ToString().ToUpperInvariant() + "] " + Code + where + ": " + Message + fix;
-        }
-    }
-
-    /// <summary>
-    /// The diagnostic codes this engine emits. Kept here so the tool catalogue, the documentation
-    /// and the findings themselves cannot drift apart.
-    /// </summary>
-    public static class DiagnosticCodes
-    {
-        /// <summary>Every code, mapped to a one-line explanation.</summary>
-        public static readonly IReadOnlyDictionary<string, string> All = new Dictionary<string, string>
-        {
-            // Readiness
-            { "NO_SCHEDULE", "The flowsheet has no dynamics schedule." },
-            { "NO_INTEGRATOR", "The schedule has no integrator assigned." },
-            { "NO_DYNAMIC_MODE", "Dynamic mode is off, so unit operations solve at steady state." },
-            { "NO_MONITORED_VARS", "The integrator records no variables, so the run produces no series." },
-            { "NOT_SOLVED_STEADY_STATE", "Some objects have never been solved; dynamics starts from an undefined state." },
-            { "NO_PROPERTY_PACKAGE", "The flowsheet has no property package, so nothing can be flashed." },
-            { "NO_COMPOUNDS", "The flowsheet has no compounds." },
-            { "MISSING_INITIAL_STATE", "The schedule starts from a stored state that does not exist." },
-            { "TOO_MANY_STEPS", "Duration divided by step gives an impractical number of steps." },
-            { "NO_PRESSURE_SPEC", "No stream is specified by pressure, leaving the pressure-flow network underdetermined." },
-            { "ALL_FLOW_SPECS", "Every stream is specified by flow, so pressure has nothing to resolve against." },
-            { "VALVE_NO_KV", "A valve has no flow coefficient, so it cannot pass a computed flow." },
-            { "VALVE_PRESSURE_DROP_MODE", "A valve is in a pressure-drop mode, so it cannot compute its own flow." },
-            { "VALVE_OPENING_IGNORED", "A valve passes its full Kv at any opening, so closing it does nothing." },
-            { "VESSEL_NO_VOLUME", "A vessel or tank has no volume, so it holds nothing up and adds no lag." },
-            { "PID_UNBOUND", "A controller is missing its process or manipulated variable." },
-            { "PID_LIMITS_INVALID", "A controller's output minimum is not below its maximum." },
-            { "PID_INACTIVE", "A controller is switched off or in manual, so the loop is open." },
-            { "UNSUPPORTED_OBJECT", "An object has no dynamic model and is solved at steady state every step." },
-
-            // Post-run
-            { "SOLVER_EXCEPTION", "The solver raised an exception and the run stopped early." },
-            { "NAN_IN_SERIES", "A recorded series contains NaN or infinity." },
-            { "DIVERGENT", "A recorded series grew without bound." },
-            { "SUSTAINED_OSCILLATION", "A series oscillates without decaying." },
-            { "MV_SATURATED", "A controller sat at its output limit for most of the run." },
-            { "STEP_TOO_LARGE_TRANSIENT", "A series jumps by more than half its range between adjacent steps." },
-            { "SLOW_STEP", "Each step took more than a second of wall time." },
-            { "PID_ACTION_INVERTED", "A controller consistently moved its output in the direction that increases the error." },
-            { "RUN_ABORTED", "The run stopped before reaching the configured duration." },
-            { "NOT_SETTLED", "A series had not settled by the end of the run." }
-        };
-    }
-
     /// <summary>
     /// Checks a dynamic simulation before it runs, and explains what went wrong after it does.
     /// </summary>
@@ -115,16 +25,16 @@ namespace DWSIM.Automation.FluentAPI.Dynamics
         /// </summary>
         /// <param name="flowsheet">The flowsheet to check.</param>
         /// <param name="scheduleName">Schedule to check; the current or first one when null.</param>
-        public static IReadOnlyList<DynamicsFinding> CheckReady(IFlowsheet flowsheet, string scheduleName = null)
+        public static IReadOnlyList<Finding> CheckReady(IFlowsheet flowsheet, string scheduleName = null)
         {
             if (flowsheet == null) throw new ArgumentNullException(nameof(flowsheet));
 
-            var findings = new List<DynamicsFinding>();
+            var findings = new List<Finding>();
             var manager = flowsheet.DynamicsManager;
 
             if (manager.ScheduleList.Count == 0)
             {
-                findings.Add(new DynamicsFinding("NO_SCHEDULE", DiagnosticSeverity.Blocker, "",
+                findings.Add(new Finding("NO_SCHEDULE", DiagnosticSeverity.Blocker, "",
                     "This flowsheet has no dynamics schedule.",
                     "Define one: Dynamics.DefineSchedule(name).WithIntegrator(integrator)."));
                 return findings;
@@ -134,14 +44,14 @@ namespace DWSIM.Automation.FluentAPI.Dynamics
             try { schedule = DWSIM.Automation.DynamicRunner.IntegratorRunner.ResolveSchedule(flowsheet, scheduleName); }
             catch (Exception ex)
             {
-                findings.Add(new DynamicsFinding("NO_SCHEDULE", DiagnosticSeverity.Blocker, "",
+                findings.Add(new Finding("NO_SCHEDULE", DiagnosticSeverity.Blocker, "",
                     ex.Message, "Pass one of the schedule names the message lists."));
                 return findings;
             }
 
             if (!manager.IntegratorList.ContainsKey(schedule.CurrentIntegrator))
             {
-                findings.Add(new DynamicsFinding("NO_INTEGRATOR", DiagnosticSeverity.Blocker, "",
+                findings.Add(new Finding("NO_INTEGRATOR", DiagnosticSeverity.Blocker, "",
                     "Schedule '" + schedule.Description + "' has no integrator assigned.",
                     "Assign one: Dynamics.Schedule(name).WithIntegrator(integratorName)."));
                 return findings;
@@ -158,7 +68,7 @@ namespace DWSIM.Automation.FluentAPI.Dynamics
 
             if (!flowsheet.DynamicMode)
             {
-                findings.Add(new DynamicsFinding("NO_DYNAMIC_MODE", DiagnosticSeverity.Info, "",
+                findings.Add(new Finding("NO_DYNAMIC_MODE", DiagnosticSeverity.Info, "",
                     "Dynamic mode is off.",
                     "The run turns it on for its duration; nothing to do unless you are solving by hand."));
             }
@@ -170,24 +80,24 @@ namespace DWSIM.Automation.FluentAPI.Dynamics
         /// Explains a finished run: what stopped it, and what the recorded series say about the
         /// model and its controllers.
         /// </summary>
-        public static IReadOnlyList<DynamicsFinding> Diagnose(IFlowsheet flowsheet, DynamicsResult result)
+        public static IReadOnlyList<Finding> Diagnose(IFlowsheet flowsheet, DynamicsResult result)
         {
             if (result == null) throw new ArgumentNullException(nameof(result));
 
-            var findings = new List<DynamicsFinding>();
+            var findings = new List<Finding>();
 
             foreach (var ex in result.Errors)
             {
                 var baseex = ex;
                 while (baseex.InnerException != null) baseex = baseex.InnerException;
-                findings.Add(new DynamicsFinding("SOLVER_EXCEPTION", DiagnosticSeverity.Blocker, "",
+                findings.Add(new Finding("SOLVER_EXCEPTION", DiagnosticSeverity.Blocker, "",
                     baseex.Message,
                     "Check the object named in the message; a smaller integration step often clears a transient failure."));
             }
 
             if (result.Aborted)
             {
-                findings.Add(new DynamicsFinding("RUN_ABORTED", DiagnosticSeverity.Warning, "",
+                findings.Add(new Finding("RUN_ABORTED", DiagnosticSeverity.Warning, "",
                     "The run stopped after " + result.Steps + " steps, at " +
                     Fmt(result.FinalTimeSeconds) + " s, before the configured duration.",
                     "Raise the step or wall-time limit, or shorten the duration."));
@@ -195,7 +105,7 @@ namespace DWSIM.Automation.FluentAPI.Dynamics
 
             if (result.Steps > 0 && result.WallClock.TotalSeconds / result.Steps > 1.0)
             {
-                findings.Add(new DynamicsFinding("SLOW_STEP", DiagnosticSeverity.Warning, "",
+                findings.Add(new Finding("SLOW_STEP", DiagnosticSeverity.Warning, "",
                     "Each step took " + Fmt(result.WallClock.TotalSeconds / result.Steps) + " s of wall time.",
                     "Raise CalculationRateEquilibrium so flashes run every few steps instead of every step."));
             }
@@ -217,11 +127,11 @@ namespace DWSIM.Automation.FluentAPI.Dynamics
         /// state that was never solved means integrating from nothing, and the first step fails on
         /// whatever the steady state would have failed on.
         /// </summary>
-        private static void CheckSteadyState(IFlowsheet flowsheet, List<DynamicsFinding> findings)
+        private static void CheckSteadyState(IFlowsheet flowsheet, List<Finding> findings)
         {
             if (flowsheet.PropertyPackages.Count == 0)
             {
-                findings.Add(new DynamicsFinding("NO_PROPERTY_PACKAGE", DiagnosticSeverity.Blocker, "",
+                findings.Add(new Finding("NO_PROPERTY_PACKAGE", DiagnosticSeverity.Blocker, "",
                     "The flowsheet has no property package, so nothing can be flashed.",
                     "Add one before anything else: WithPropertyPackage(name)."));
                 return;
@@ -229,7 +139,7 @@ namespace DWSIM.Automation.FluentAPI.Dynamics
 
             if (flowsheet.SelectedCompounds.Count == 0)
             {
-                findings.Add(new DynamicsFinding("NO_COMPOUNDS", DiagnosticSeverity.Blocker, "",
+                findings.Add(new Finding("NO_COMPOUNDS", DiagnosticSeverity.Blocker, "",
                     "The flowsheet has no compounds.",
                     "Add them before anything else: WithCompounds(names)."));
                 return;
@@ -243,17 +153,17 @@ namespace DWSIM.Automation.FluentAPI.Dynamics
 
             if (unsolved.Count > 0)
             {
-                findings.Add(new DynamicsFinding("NOT_SOLVED_STEADY_STATE", DiagnosticSeverity.Warning, "",
+                findings.Add(new Finding("NOT_SOLVED_STEADY_STATE", DiagnosticSeverity.Warning, "",
                     "These objects have not been solved: " + string.Join(", ", unsolved) + ".",
                     "Solve the flowsheet at steady state first; dynamics integrates forward from that state."));
             }
         }
 
-        private static void CheckIntegrator(IDynamicsIntegrator integrator, List<DynamicsFinding> findings)
+        private static void CheckIntegrator(IDynamicsIntegrator integrator, List<Finding> findings)
         {
             if (integrator.MonitoredVariables.Count == 0)
             {
-                findings.Add(new DynamicsFinding("NO_MONITORED_VARS", DiagnosticSeverity.Warning, "",
+                findings.Add(new Finding("NO_MONITORED_VARS", DiagnosticSeverity.Warning, "",
                     "Integrator '" + integrator.Description + "' records no variables, so the run will produce no series.",
                     "Add some: Dynamics.Integrator(name).Monitor(tag, propertyId)."));
             }
@@ -264,28 +174,28 @@ namespace DWSIM.Automation.FluentAPI.Dynamics
                 var steps = integrator.Duration.TotalSeconds / step;
                 if (steps > 100000)
                 {
-                    findings.Add(new DynamicsFinding("TOO_MANY_STEPS", DiagnosticSeverity.Blocker, "",
+                    findings.Add(new Finding("TOO_MANY_STEPS", DiagnosticSeverity.Blocker, "",
                         "The duration and step give " + Fmt(steps) + " integration steps.",
                         "Raise the integration step, or shorten the duration."));
                 }
             }
         }
 
-        private static void CheckSchedule(IFlowsheet flowsheet, IDynamicsSchedule schedule, List<DynamicsFinding> findings)
+        private static void CheckSchedule(IFlowsheet flowsheet, IDynamicsSchedule schedule, List<Finding> findings)
         {
             if (schedule.UseCurrentStateAsInitial) return;
 
             if (string.IsNullOrEmpty(schedule.InitialFlowsheetStateID) ||
                 !flowsheet.StoredSolutions.ContainsKey(schedule.InitialFlowsheetStateID))
             {
-                findings.Add(new DynamicsFinding("MISSING_INITIAL_STATE", DiagnosticSeverity.Blocker, "",
+                findings.Add(new Finding("MISSING_INITIAL_STATE", DiagnosticSeverity.Blocker, "",
                     "Schedule '" + schedule.Description + "' starts from stored state '" +
                     schedule.InitialFlowsheetStateID + "', which does not exist.",
                     "Store one with Dynamics.StoreCurrentStateAs(id), or call UseCurrentStateAsInitial()."));
             }
         }
 
-        private static void CheckPressureFlowNetwork(IFlowsheet flowsheet, List<DynamicsFinding> findings)
+        private static void CheckPressureFlowNetwork(IFlowsheet flowsheet, List<Finding> findings)
         {
             var streams = flowsheet.SimulationObjects.Values
                 .Where(o => o is IMaterialStream)
@@ -297,19 +207,19 @@ namespace DWSIM.Automation.FluentAPI.Dynamics
 
             if (pressureSpecs == 0)
             {
-                findings.Add(new DynamicsFinding("NO_PRESSURE_SPEC", DiagnosticSeverity.Warning, "",
+                findings.Add(new Finding("NO_PRESSURE_SPEC", DiagnosticSeverity.Warning, "",
                     "No material stream is specified by pressure, so the pressure-flow network has nothing to resolve against.",
                     "Mark the boundary streams: stream.AsPressureSpec() on the product side, AsFlowSpec() on the feed."));
             }
             else if (pressureSpecs == streams.Count && streams.Count > 1)
             {
-                findings.Add(new DynamicsFinding("ALL_FLOW_SPECS", DiagnosticSeverity.Info, "",
+                findings.Add(new Finding("ALL_FLOW_SPECS", DiagnosticSeverity.Info, "",
                     "Every material stream is specified by pressure; no flow is being held.",
                     "Mark the feed with AsFlowSpec() if you meant to fix its flow rate."));
             }
         }
 
-        private static void CheckObjects(IFlowsheet flowsheet, List<DynamicsFinding> findings)
+        private static void CheckObjects(IFlowsheet flowsheet, List<Finding> findings)
         {
             foreach (var obj in flowsheet.SimulationObjects.Values)
             {
@@ -317,7 +227,7 @@ namespace DWSIM.Automation.FluentAPI.Dynamics
 
                 if (!obj.SupportsDynamicMode && !(obj is IMaterialStream))
                 {
-                    findings.Add(new DynamicsFinding("UNSUPPORTED_OBJECT", DiagnosticSeverity.Info, tag,
+                    findings.Add(new Finding("UNSUPPORTED_OBJECT", DiagnosticSeverity.Info, tag,
                         SafeType(obj) + " has no dynamic model; it is solved at steady state on every step.",
                         "Nothing to do, unless you expected it to hold up material."));
                 }
@@ -327,7 +237,7 @@ namespace DWSIM.Automation.FluentAPI.Dynamics
                 {
                     if (valve.Kv <= 0.0)
                     {
-                        findings.Add(new DynamicsFinding("VALVE_NO_KV", DiagnosticSeverity.Warning, tag,
+                        findings.Add(new Finding("VALVE_NO_KV", DiagnosticSeverity.Warning, tag,
                             "The valve has no flow coefficient (Kv = " + Fmt(valve.Kv) + ").",
                             "Set one: valve.WithKv(kv). Without it the valve cannot pass a computed flow."));
                     }
@@ -335,7 +245,7 @@ namespace DWSIM.Automation.FluentAPI.Dynamics
                     if (valve.CalcMode == Valve.CalculationMode.DeltaP ||
                         valve.CalcMode == Valve.CalculationMode.OutletPressure)
                     {
-                        findings.Add(new DynamicsFinding("VALVE_PRESSURE_DROP_MODE", DiagnosticSeverity.Warning, tag,
+                        findings.Add(new Finding("VALVE_PRESSURE_DROP_MODE", DiagnosticSeverity.Warning, tag,
                             "The valve is in " + valve.CalcMode +
                             " mode, so it cannot compute its own flow and demands a flow specification on one side.",
                             "Switch to a Kv mode: valve.WithCalcMode(Valve.CalculationMode.Kv_Liquid)."));
@@ -343,7 +253,7 @@ namespace DWSIM.Automation.FluentAPI.Dynamics
 
                     if (!valve.EnableOpeningKvRelationship)
                     {
-                        findings.Add(new DynamicsFinding("VALVE_OPENING_IGNORED", DiagnosticSeverity.Warning, tag,
+                        findings.Add(new Finding("VALVE_OPENING_IGNORED", DiagnosticSeverity.Warning, tag,
                             "The valve passes its full Kv at any opening, so closing it does not stop the flow.",
                             "Enable the characteristic: valve.WithOpeningKvRelationship(). A controller " +
                             "manipulating the opening has no effect without it."));
@@ -353,7 +263,7 @@ namespace DWSIM.Automation.FluentAPI.Dynamics
                 var vessel = obj as Vessel;
                 if (vessel != null && DynamicValue(obj, "Volume") <= 0.0)
                 {
-                    findings.Add(new DynamicsFinding("VESSEL_NO_VOLUME", DiagnosticSeverity.Warning, tag,
+                    findings.Add(new Finding("VESSEL_NO_VOLUME", DiagnosticSeverity.Warning, tag,
                         "The vessel has no volume, so it holds nothing up and adds no lag.",
                         "Set one: vessel.WithVolume(2.CubicMetres()) — or use the geometry."));
                 }
@@ -361,14 +271,14 @@ namespace DWSIM.Automation.FluentAPI.Dynamics
                 var tank = obj as Tank;
                 if (tank != null && tank.Volume <= 0.0)
                 {
-                    findings.Add(new DynamicsFinding("VESSEL_NO_VOLUME", DiagnosticSeverity.Warning, tag,
+                    findings.Add(new Finding("VESSEL_NO_VOLUME", DiagnosticSeverity.Warning, tag,
                         "The tank has no volume, so it holds nothing up and adds no lag.",
                         "Set one: tank.WithVolume(...) and tank.WithHeight(...)."));
                 }
             }
         }
 
-        private static void CheckControllers(IFlowsheet flowsheet, List<DynamicsFinding> findings)
+        private static void CheckControllers(IFlowsheet flowsheet, List<Finding> findings)
         {
             foreach (var pid in flowsheet.SimulationObjects.Values.OfType<PIDController>())
             {
@@ -377,14 +287,14 @@ namespace DWSIM.Automation.FluentAPI.Dynamics
 
                 if (!info.IsWired)
                 {
-                    findings.Add(new DynamicsFinding("PID_UNBOUND", DiagnosticSeverity.Blocker, tag,
+                    findings.Add(new Finding("PID_UNBOUND", DiagnosticSeverity.Blocker, tag,
                         "The controller is missing its process or manipulated variable.",
                         "Wire it: Controls(tag, propertyId) and Manipulates(tag, propertyId)."));
                 }
 
                 if (pid.OutputMin >= pid.OutputMax)
                 {
-                    findings.Add(new DynamicsFinding("PID_LIMITS_INVALID", DiagnosticSeverity.Blocker, tag,
+                    findings.Add(new Finding("PID_LIMITS_INVALID", DiagnosticSeverity.Blocker, tag,
                         "The output minimum (" + Fmt(pid.OutputMin) + ") is not below the maximum (" +
                         Fmt(pid.OutputMax) + ").",
                         "Set them to the manipulated variable's physical range, e.g. WithOutputLimits(0, 100)."));
@@ -392,7 +302,7 @@ namespace DWSIM.Automation.FluentAPI.Dynamics
 
                 if (!pid.Active || pid.ManualOverride)
                 {
-                    findings.Add(new DynamicsFinding("PID_INACTIVE", DiagnosticSeverity.Warning, tag,
+                    findings.Add(new Finding("PID_INACTIVE", DiagnosticSeverity.Warning, tag,
                         pid.Active ? "The controller is in manual." : "The controller is switched off.",
                         "Put it in automatic: Active(true) and ManualOverride(false)."));
                 }
@@ -401,13 +311,13 @@ namespace DWSIM.Automation.FluentAPI.Dynamics
 
         // ------------------------------------------------------------- Post-run
 
-        private static void DiagnoseSeries(DynamicsSeries series, List<DynamicsFinding> findings)
+        private static void DiagnoseSeries(DynamicsSeries series, List<Finding> findings)
         {
             if (series.Count == 0) return;
 
             if (series.Values.Any(double.IsNaN) || series.Values.Any(double.IsInfinity))
             {
-                findings.Add(new DynamicsFinding("NAN_IN_SERIES", DiagnosticSeverity.Blocker, series.ObjectTag,
+                findings.Add(new Finding("NAN_IN_SERIES", DiagnosticSeverity.Blocker, series.ObjectTag,
                     "'" + series.Name + "' contains NaN or infinity.",
                     "Reduce the integration step, or check that the object feeding it is initialised."));
                 return;
@@ -415,7 +325,7 @@ namespace DWSIM.Automation.FluentAPI.Dynamics
 
             if (series.HasDiverged)
             {
-                findings.Add(new DynamicsFinding("DIVERGENT", DiagnosticSeverity.Blocker, series.ObjectTag,
+                findings.Add(new Finding("DIVERGENT", DiagnosticSeverity.Blocker, series.ObjectTag,
                     "'" + series.Name + "' grew without bound (max = " + Fmt(series.Max) + ").",
                     "Reduce the integration step; if a controller drives it, check ReverseActing and the gains."));
                 return;
@@ -424,7 +334,7 @@ namespace DWSIM.Automation.FluentAPI.Dynamics
             double period, decay;
             if (series.IsOscillating(out period, out decay) && (double.IsNaN(decay) || decay > 0.7))
             {
-                findings.Add(new DynamicsFinding("SUSTAINED_OSCILLATION", DiagnosticSeverity.Warning, series.ObjectTag,
+                findings.Add(new Finding("SUSTAINED_OSCILLATION", DiagnosticSeverity.Warning, series.ObjectTag,
                     "'" + series.Name + "' oscillates with a period of " + Fmt(period) +
                     " s and is not decaying" + (double.IsNaN(decay) ? "" : " (decay ratio " + Fmt(decay) + ")") + ".",
                     "Lower the proportional gain or raise the integral time; tune_pid does this automatically."));
@@ -436,7 +346,7 @@ namespace DWSIM.Automation.FluentAPI.Dynamics
                 for (var i = 1; i < series.Count; i++)
                 {
                     if (Math.Abs(series.Values[i] - series.Values[i - 1]) <= 0.5 * range) continue;
-                    findings.Add(new DynamicsFinding("STEP_TOO_LARGE_TRANSIENT", DiagnosticSeverity.Warning,
+                    findings.Add(new Finding("STEP_TOO_LARGE_TRANSIENT", DiagnosticSeverity.Warning,
                         series.ObjectTag,
                         "'" + series.Name + "' jumps by more than half its range between adjacent steps, at t = " +
                         Fmt(series.TimeSeconds[i]) + " s.",
@@ -448,13 +358,13 @@ namespace DWSIM.Automation.FluentAPI.Dynamics
 
             if (!series.HasConverged() && !series.IsOscillating(out period, out decay))
             {
-                findings.Add(new DynamicsFinding("NOT_SETTLED", DiagnosticSeverity.Info, series.ObjectTag,
+                findings.Add(new Finding("NOT_SETTLED", DiagnosticSeverity.Info, series.ObjectTag,
                     "'" + series.Name + "' had not settled by the end of the run.",
                     "Extend the duration if you need the steady-state value."));
             }
         }
 
-        private static void DiagnoseControllers(IFlowsheet flowsheet, DynamicsResult result, List<DynamicsFinding> findings)
+        private static void DiagnoseControllers(IFlowsheet flowsheet, DynamicsResult result, List<Finding> findings)
         {
             foreach (var pid in flowsheet.SimulationObjects.Values.OfType<PIDController>())
             {
@@ -469,7 +379,7 @@ namespace DWSIM.Automation.FluentAPI.Dynamics
                     var saturated = mv.SaturationFraction(pid.OutputMin, pid.OutputMax);
                     if (saturated > 0.9)
                     {
-                        findings.Add(new DynamicsFinding("MV_SATURATED", DiagnosticSeverity.Warning, tag,
+                        findings.Add(new Finding("MV_SATURATED", DiagnosticSeverity.Warning, tag,
                             "The manipulated variable sat at its limit for " +
                             Fmt(saturated * 100.0) + " % of the run.",
                             "The loop has no authority left: widen the output limits, or resize the final control element."));
@@ -493,7 +403,7 @@ namespace DWSIM.Automation.FluentAPI.Dynamics
 
                     if (moves > 10 && (double)wrongWay / moves > 0.9)
                     {
-                        findings.Add(new DynamicsFinding("PID_ACTION_INVERTED", DiagnosticSeverity.Warning, tag,
+                        findings.Add(new Finding("PID_ACTION_INVERTED", DiagnosticSeverity.Warning, tag,
                             "The controller moved its output in the direction that increases the error on " +
                             Fmt((double)wrongWay / moves * 100.0) + " % of its moves.",
                             "Flip ReverseActing on this controller."));
@@ -504,7 +414,7 @@ namespace DWSIM.Automation.FluentAPI.Dynamics
 
         // -------------------------------------------------------------------------
 
-        private static IReadOnlyList<DynamicsFinding> Rank(List<DynamicsFinding> findings)
+        private static IReadOnlyList<Finding> Rank(List<Finding> findings)
         {
             return findings
                 .OrderByDescending(f => (int)f.Severity)

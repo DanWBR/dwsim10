@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using DWSIM.Automation.FluentAPI;
+using DWSIM.Automation.FluentAPI.Diagnostics;
 using DWSIM.Automation.FluentAPI.Dynamics;
 
 namespace DWSIM.FluentAPI.Tests

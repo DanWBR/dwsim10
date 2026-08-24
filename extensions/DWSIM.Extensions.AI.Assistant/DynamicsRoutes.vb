@@ -23,6 +23,7 @@ Imports System.Net
 Imports System.Threading
 Imports System.Threading.Tasks
 Imports DWSIM.Automation.DynamicRunner
+Imports DWSIM.Automation.FluentAPI.Diagnostics
 Imports DWSIM.Automation.FluentAPI.Dynamics
 Imports DWSIM.Interfaces
 Imports Newtonsoft.Json.Linq
@@ -1365,7 +1366,7 @@ Public Module DynamicsRoutes
         Return "stable"
     End Function
 
-    Private Function FindingsJson(items As IEnumerable(Of DynamicsFinding)) As JArray
+    Private Function FindingsJson(items As IEnumerable(Of Finding)) As JArray
         Dim arr As New JArray()
         For Each f In items.Take(MaxListItems)
             arr.Add(New JObject From {

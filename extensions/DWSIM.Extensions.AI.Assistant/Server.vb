@@ -15,6 +15,8 @@
 '    You should have received a copy of the GNU General Public License
 '    along with DWSIM.  If not, see <http://www.gnu.org/licenses/>.
 
+Imports Newtonsoft.Json
+Imports DWSIM.Automation.FluentAPI.Diagnostics
 Imports System.Net
 Imports System.IO
 Imports System.Text
@@ -205,7 +207,7 @@ Public Class Server
 
             ElseIf req.HttpMethod = "GET" AndAlso path = "/api/check" Then
 
-                body = "{{""objects"":[]}}"
+                body = "{""objects"":[]}"
 
                 ' ── GET /api/objects ─────────────────────────────────────────────────
             ElseIf req.HttpMethod = "GET" AndAlso path = "/api/objects" Then
@@ -701,6 +703,12 @@ Public Class Server
                 EscJ(objName), EscJ(Flowsheet.GetTranslatedString(propName)), value.ToString("G", System.Globalization.CultureInfo.InvariantCulture), EscJ(unitStr))
 
                 ' ── POST /api/solve ──────────────────────────────────────────────────
+            ElseIf req.HttpMethod = "GET" AndAlso path = "/api/flowsheet/check" Then
+
+                ' What is wrong with the flowsheet before anything is solved. Cheap, and it
+                ' turns most failed solves into a fix applied beforehand.
+                body = FlowsheetChecks.Check(Flowsheet).ToString(Formatting.None)
+
             ElseIf req.HttpMethod = "POST" AndAlso path = "/api/solve" Then
 
                 Dim t0 = Environment.TickCount
@@ -715,7 +723,10 @@ Public Class Server
                         efirst = False
                     Next
                     errArr.Append("]")
-                    body = String.Format("{{""success"":false,""converged"":false,""time_ms"":{0},""errors"":{1}}}", elapsed, errArr.ToString())
+                    Dim findings = FlowsheetChecks.FindingsArray(
+                        FlowsheetDiagnostics.Diagnose(Flowsheet, errors)).ToString(Formatting.None)
+                    body = String.Format("{{""success"":false,""converged"":false,""time_ms"":{0},""errors"":{1},""findings"":{2}}}",
+                                         elapsed, errArr.ToString(), findings)
                 Else
                     body = String.Format("{{""success"":true,""converged"":true,""time_ms"":{0}}}", elapsed)
                 End If

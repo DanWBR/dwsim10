@@ -1,8 +1,10 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using Newtonsoft.Json.Linq;
 using DWSIM.Automation.FluentAPI;
+using DWSIM.Automation.FluentAPI.Diagnostics;
 using DWSIM.MCPServer.Sessions;
 
 namespace DWSIM.MCPServer.Tools.Solve
@@ -13,7 +15,26 @@ namespace DWSIM.MCPServer.Tools.Solve
 
         public SolveTools(SessionManager sessions) { _sessions = sessions; }
 
-        [McpTool("dwsim_solve_run", "Solve/calculate the flowsheet. Returns success status and any errors per object.")]
+        [McpTool("dwsim_flowsheet_check",
+            "Check the flowsheet for the faults that stop it solving - dangling streams, unconnected " +
+            "unit operations, feeds with no flow, a loop with no recycle - without solving it. " +
+            "Cheap, so call it before dwsim_solve_run. Each finding carries the fix for it.")]
+        public JObject Check(
+            [McpParam("Flowsheet handle")] string flowsheet_id)
+        {
+            var fs = _sessions.GetFlowsheet(flowsheet_id);
+            var findings = FlowsheetDiagnostics.Check(fs.Inner);
+
+            var report = FindingsJson.Report(findings);
+            report["object_count"] = fs.Inner.SimulationObjects.Count;
+            report["compound_count"] = fs.Inner.SelectedCompounds.Count;
+            return report;
+        }
+
+        [McpTool("dwsim_solve_run",
+            "Solve the flowsheet. On failure the response carries diagnostic findings naming the " +
+            "object at fault and what to do about it; call dwsim_flowsheet_check first to catch " +
+            "the same faults without paying for a solve.")]
         public JObject Run(
             [McpParam("Flowsheet handle")] string flowsheet_id,
             [McpParam("Solver timeout in seconds", Required = false, JsonType = "integer")] int timeout_s = 300)
@@ -23,7 +44,7 @@ namespace DWSIM.MCPServer.Tools.Solve
             // Use FlowsheetSolver2 (parallel-safe) if McpFlowsheet is available,
             // otherwise fall back to FluentAPI's TrySolve.
             var mcpFs = _sessions.GetMcpFlowsheet(flowsheet_id);
-            System.Collections.Generic.IReadOnlyList<Exception> errors;
+            IReadOnlyList<Exception> errors;
 
             if (mcpFs != null)
             {
@@ -59,57 +80,57 @@ namespace DWSIM.MCPServer.Tools.Solve
             foreach (var ex in errors)
                 errorMessages.Add(ex.Message);
 
-            return new JObject
+            var result = new JObject
             {
                 ["ok"] = errors.Count == 0,
                 ["error_count"] = errors.Count,
                 ["errors"] = errorMessages,
                 ["objects"] = objectStatuses
             };
+
+            // A raw exception message tells a caller what threw, not what to do. Diagnosing on the
+            // way out costs nothing next to the solve and turns the failure into a next step.
+            var findings = FlowsheetDiagnostics.Diagnose(fs.Inner, errors);
+            if (findings.Count > 0)
+            {
+                result["findings"] = FindingsJson.From(findings);
+                result["blockers"] = findings.Count(f => f.Severity == DiagnosticSeverity.Blocker);
+            }
+
+            return result;
         }
 
-        [McpTool("dwsim_solve_diagnostics", "Get diagnostic information about unconverged/unsolved objects in the flowsheet.")]
+        [McpTool("dwsim_solve_diagnostics",
+            "Explain a flowsheet that did not solve: which object failed and why, plus the setup " +
+            "faults behind it. Call after dwsim_solve_run reports errors.")]
         public JObject Diagnostics(
             [McpParam("Flowsheet handle")] string flowsheet_id)
         {
             var fs = _sessions.GetFlowsheet(flowsheet_id);
             var inner = fs.Inner;
 
-            var unsolved = new JArray();
-            var warnings = new JArray();
+            // The solver's own exceptions are gone by now; what survives is each object's state,
+            // which is what Diagnose reads when it is given no exceptions.
+            var findings = FlowsheetDiagnostics.Diagnose(inner, null);
 
+            var report = FindingsJson.Report(findings);
+
+            var unsolved = new JArray();
             foreach (var obj in inner.SimulationObjects.Values)
             {
                 var go = obj.GraphicObject;
-                if (go == null) continue;
-
-                if (!obj.Calculated)
+                if (go == null || obj.Calculated) continue;
+                unsolved.Add(new JObject
                 {
-                    unsolved.Add(new JObject
-                    {
-                        ["name"] = go.Tag,
-                        ["type"] = go.ObjectType.ToString(),
-                        ["error"] = obj.ErrorMessage ?? "Not calculated"
-                    });
-                }
-                else if (!string.IsNullOrEmpty(obj.ErrorMessage))
-                {
-                    warnings.Add(new JObject
-                    {
-                        ["name"] = go.Tag,
-                        ["type"] = go.ObjectType.ToString(),
-                        ["warning"] = obj.ErrorMessage
-                    });
-                }
+                    ["name"] = go.Tag,
+                    ["type"] = go.ObjectType.ToString(),
+                    ["error"] = string.IsNullOrEmpty(obj.ErrorMessage) ? "Not calculated" : obj.ErrorMessage
+                });
             }
 
-            return new JObject
-            {
-                ["unsolved"] = unsolved,
-                ["warnings"] = warnings,
-                ["unsolved_count"] = unsolved.Count,
-                ["warning_count"] = warnings.Count
-            };
+            report["unsolved"] = unsolved;
+            report["unsolved_count"] = unsolved.Count;
+            return report;
         }
     }
 }

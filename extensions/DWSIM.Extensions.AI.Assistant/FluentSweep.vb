@@ -210,7 +210,7 @@ Public Class FluentSweep
         }
 
         Dim codes As New JObject()
-        For Each entry In FAPI.Dynamics.DiagnosticCodes.All
+        For Each entry In FAPI.Diagnostics.DiagnosticCodes.All
             codes(entry.Key) = entry.Value
         Next
         o("diagnostic_codes") = codes

@@ -5,6 +5,7 @@ using System.Linq;
 using DWSIM.Automation.DynamicRunner;
 using DWSIM.Automation.FluentAPI;
 using FluentFlowsheet = DWSIM.Automation.FluentAPI.Flowsheet;
+using DWSIM.Automation.FluentAPI.Diagnostics;
 using DWSIM.Automation.FluentAPI.Dynamics;
 using DWSIM.Interfaces;
 using DWSIM.MCPServer.Sessions;
@@ -1118,21 +1119,9 @@ namespace DWSIM.MCPServer.Tools.Dynamics
             return "stable";
         }
 
-        private static JArray Findings(IEnumerable<DynamicsFinding> findings)
+        private static JArray Findings(IEnumerable<Finding> findings)
         {
-            var arr = new JArray();
-            foreach (var f in findings.Take(MaxListItems))
-            {
-                arr.Add(new JObject
-                {
-                    ["code"] = f.Code,
-                    ["severity"] = f.Severity.ToString().ToLowerInvariant(),
-                    ["object"] = f.ObjectTag,
-                    ["message"] = f.Message,
-                    ["fix"] = f.Fix
-                });
-            }
-            return arr;
+            return FindingsJson.From(findings);
         }
 
         private static JArray Truncate(IReadOnlyList<string> items)
