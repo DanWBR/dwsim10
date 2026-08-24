@@ -2966,6 +2966,14 @@ Namespace UnitOperations
                 For i = 1 To ns
                     Stages(i).P = Stages(0).P + Convert.ToDouble(i) / Convert.ToDouble(ns) * ColumnPressureDrop
                 Next
+            Else
+                'A NaN column pressure drop is the sentinel for a custom per-stage pressure profile.
+                'Files saved before the stage pressures were always initialised can carry zeroed
+                'ones; repair any invalid stage pressure to the top-stage pressure so the flashes do
+                'not divide by a zero pressure and blow the column up to NaN.
+                For i = 1 To ns
+                    If Stages(i).P <= 0.0 OrElse Double.IsNaN(Stages(i).P) Then Stages(i).P = Stages(0).P
+                Next
             End If
 
             i = 0
@@ -3951,6 +3959,14 @@ Namespace UnitOperations
             If Not Double.IsNaN(ColumnPressureDrop) Then
                 For i = 1 To ns
                     Stages(i).P = Stages(0).P + Convert.ToDouble(i) / Convert.ToDouble(ns) * ColumnPressureDrop
+                Next
+            Else
+                'A NaN column pressure drop is the sentinel for a custom per-stage pressure profile.
+                'Files saved before the stage pressures were always initialised can carry zeroed
+                'ones; repair any invalid stage pressure to the top-stage pressure so the flashes do
+                'not divide by a zero pressure and blow the column up to NaN.
+                For i = 1 To ns
+                    If Stages(i).P <= 0.0 OrElse Double.IsNaN(Stages(i).P) Then Stages(i).P = Stages(0).P
                 Next
             End If
 
@@ -4950,6 +4966,14 @@ Namespace UnitOperations
             If Not Double.IsNaN(ColumnPressureDrop) Then
                 For i = 1 To ns
                     Stages(i).P = Stages(0).P + Convert.ToDouble(i) / Convert.ToDouble(ns) * ColumnPressureDrop
+                Next
+            Else
+                'A NaN column pressure drop is the sentinel for a custom per-stage pressure profile.
+                'Files saved before the stage pressures were always initialised can carry zeroed
+                'ones; repair any invalid stage pressure to the top-stage pressure so the flashes do
+                'not divide by a zero pressure and blow the column up to NaN.
+                For i = 1 To ns
+                    If Stages(i).P <= 0.0 OrElse Double.IsNaN(Stages(i).P) Then Stages(i).P = Stages(0).P
                 Next
             End If
             i = 0
