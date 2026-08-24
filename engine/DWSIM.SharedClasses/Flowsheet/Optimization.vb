@@ -1,4 +1,4 @@
-﻿'    Optimization Classes
+'    Optimization Classes
 '    Copyright 2009-2014 Daniel Wagner O. de Medeiros
 '
 '    This file is part of DWSIM.
@@ -20,7 +20,6 @@ Imports System.Xml
 Imports System.IO
 Imports System.Runtime.Serialization.Formatters.Binary
 Imports System.Runtime.Serialization
-Imports Flee.PublicTypes
 Imports System.Linq
 
 Namespace Flowsheet.Optimization
@@ -50,8 +49,8 @@ Namespace Flowsheet.Optimization
         Public type As OPTType = OPTType.Minimization
 
         Public expression As String = ""
-        <System.NonSerialized()> Public exbase As IGenericExpression(Of Double)
-        <System.NonSerialized()> Public econtext As ExpressionContext
+        <System.NonSerialized()> Public exbase As CompiledExpression
+        <System.NonSerialized()> Public econtext As ExpressionEvaluator.VariableTable
 
         Public variables As New Dictionary(Of String, OPTVariable)
 

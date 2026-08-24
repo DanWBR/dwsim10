@@ -1,5 +1,4 @@
 ﻿Imports DWSIM.Thermodynamics.BaseClasses
-Imports Flee.PublicTypes
 Imports System.Math
 Imports System.Linq
 Imports DWSIM.MathOps.MathEx.Common

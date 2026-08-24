@@ -25,7 +25,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Flee" />
     <PackageReference Include="HtmlAgilityPack" />
     <PackageReference Include="MathNet.Numerics" />
     <PackageReference Include="Newtonsoft.Json" />

@@ -1,4 +1,4 @@
-﻿'    Basic Thermodynamic Classes for DWSIM
+'    Basic Thermodynamic Classes for DWSIM
 '    Copyright 2008-2022 Daniel Wagner O. de Medeiros
 '
 '    This file is part of DWSIM.
@@ -19,7 +19,6 @@
 Imports System.Collections.Generic
 Imports System.Xml.Serialization
 Imports FileHelpers
-Imports Flee.PublicTypes
 Imports System.Runtime.Serialization.Formatters.Binary
 Imports System.Runtime.Serialization
 Imports System.IO
@@ -319,8 +318,8 @@ Namespace BaseClasses
 
         Public _Components As Dictionary(Of String, Interfaces.IReactionStoichBase)
 
-        <XmlIgnore> <NonSerialized> Public ExpContext As New Flee.PublicTypes.ExpressionContext
-        <XmlIgnore> <NonSerialized> Public Expr As Flee.PublicTypes.IGenericExpression(Of Double)
+        <XmlIgnore> <NonSerialized> Public ExpContext As New SharedClasses.ExpressionEvaluator.VariableTable
+        <XmlIgnore> <NonSerialized> Public Expr As SharedClasses.CompiledExpression
 
         <XmlIgnore> <NonSerialized> Private MEngine As Mages.Core.Engine
         <XmlIgnore> <NonSerialized> Private KFunc As Mages.Core.Function
@@ -401,7 +400,7 @@ Namespace BaseClasses
         Private Shared ReadOnly IdentifierRegex As New Regex("(?<![A-Za-z_0-9.])[A-Za-z_][A-Za-z_0-9]*", RegexOptions.Compiled)
 
         ''' <summary>
-        ''' System.Math names accepted by the Flee engine that used to compile these
+        ''' System.Math names accepted by the expression evaluator that compiles these
         ''' expressions, mapped onto their MAGES equivalents. MAGES is case-sensitive
         ''' and names every built-in in lowercase, so without this mapping a legacy
         ''' expression such as "140.932-13445.9/T-22.4773*Log(T)" resolves to nothing.
@@ -466,9 +465,8 @@ Namespace BaseClasses
         ''' </summary>
         Public Sub New()
             Me._Components = New Dictionary(Of String, Interfaces.IReactionStoichBase)
-            ExpContext = New Flee.PublicTypes.ExpressionContext
-            ExpContext.Imports.AddType(GetType(System.Math))
-            ExpContext.Variables.Add("T", 0.0#)
+            ExpContext = New SharedClasses.ExpressionEvaluator.VariableTable
+            ExpContext.SetValue("T", 0.0#)
         End Sub
 
         ''' <summary>

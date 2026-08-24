@@ -674,7 +674,7 @@ Namespace Reactors
 
         ''' <summary>Returns the expression context of a reaction, creating it on first use.</summary>
         ''' <param name="reactionID">Identifier of the reaction the expressions belong to.</param>
-        Protected Function GetExpressionContext(reactionID As String) As Flee.PublicTypes.ExpressionContext
+        Protected Function GetExpressionContext(reactionID As String) As SharedClasses.ExpressionEvaluator.VariableTable
 
             If _expressions Is Nothing Then _expressions = New ExpressionCache()
 
@@ -683,7 +683,7 @@ Namespace Reactors
         End Function
 
         ''' <summary>Sets a variable on an expression context, defining it if it is not there yet.</summary>
-        Protected Shared Sub SetExpressionVariable(context As Flee.PublicTypes.ExpressionContext, name As String, value As Double)
+        Protected Shared Sub SetExpressionVariable(context As SharedClasses.ExpressionEvaluator.VariableTable, name As String, value As Double)
 
             ExpressionCache.SetVariable(context, name, value)
 
@@ -695,7 +695,7 @@ Namespace Reactors
         ''' </summary>
         ''' <param name="reactionID">Identifier of the reaction the expression belongs to.</param>
         ''' <param name="expression">The expression text, as the user wrote it.</param>
-        Protected Function GetCompiledExpression(reactionID As String, expression As String) As Flee.PublicTypes.IGenericExpression(Of Double)
+        Protected Function GetCompiledExpression(reactionID As String, expression As String) As SharedClasses.BoundExpression
 
             If _expressions Is Nothing Then _expressions = New ExpressionCache()
 
