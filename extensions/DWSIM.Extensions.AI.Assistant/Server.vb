@@ -1954,6 +1954,16 @@ Public Class Server
                 Dim b64 = Convert.ToBase64String(pngBytes)
                 body = String.Format("{{""success"":true,""format"":""png"",""base64"":""{0}""}}", b64)
 
+                ' ── /api/dynamics/* ─────────────────────────────────────────────────
+                ' Every dynamic-simulation route lives in DynamicsRoutes; this chain is long
+                ' enough already, and the whole surface shares one shape.
+            ElseIf path.StartsWith("/api/dynamics/") Then
+
+                Dim dynamicsResult = DynamicsRoutes.Handle(Flowsheet, method, path, body,
+                                                           Sub() Flowsheet.UpdateInterface())
+                resp.StatusCode = dynamicsResult.StatusCode
+                body = dynamicsResult.Body
+
             Else
 
                 resp.StatusCode = 404

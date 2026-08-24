@@ -23,6 +23,7 @@ Imports DWSIM.UnitOperations.Reactors
 Imports DWSIM.Automation.FluentAPI
 Imports DWSIM.Automation.FluentAPI.Builders
 Imports FAPI = DWSIM.Automation.FluentAPI
+Imports Newtonsoft.Json.Linq
 
 ''' <summary>
 ''' FluentAPI-powered sweep-and-rank engine for the assistant Design Mode.
@@ -148,10 +149,74 @@ Public Class FluentSweep
         sb.Append("},")
 
         ' Quantity helpers (informational)
-        sb.Append("""quantity_units"":[""Kelvin"",""Celsius"",""Pascal"",""KiloPascal"",""Bar"",""Atm"",""KgPerSecond"",""KgPerHour"",""MolPerSecond"",""KmolPerHour"",""Kilowatts"",""Megawatts""]")
+        sb.Append("""quantity_units"":[""Kelvin"",""Celsius"",""Pascal"",""KiloPascal"",""Bar"",""Atm"",""KgPerSecond"",""KgPerHour"",""MolPerSecond"",""KmolPerHour"",""Kilowatts"",""Megawatts""],")
+
+        ' Dynamic simulation. This block is how the assistant learns that the time domain exists
+        ' at all, and in what order to drive it.
+        sb.Append("""dynamics"":").Append(DynamicsCatalogJson())
 
         sb.Append("}")
         Return sb.ToString()
+    End Function
+
+    ''' <summary>
+    ''' Describes the dynamic-simulation surface: the workflow, the routes, the enumerations the
+    ''' endpoints accept, the diagnostic codes they emit, and the limits on returned time series.
+    ''' </summary>
+    Private Shared Function DynamicsCatalogJson() As String
+
+        Dim o As New JObject From {
+            {"supported", True},
+            {"workflow", New JArray("inspect", "properties", "setup", "monitor", "event",
+                                    "check", "run", "status", "series|analyze", "diagnose|tune-pid")},
+            {"endpoints", New JObject From {
+                {"inspect", "GET /api/dynamics/inspect"},
+                {"properties", "GET /api/dynamics/properties"},
+                {"check", "GET /api/dynamics/check"},
+                {"setup", "POST /api/dynamics/setup"},
+                {"monitor", "POST /api/dynamics/monitor"},
+                {"event", "POST /api/dynamics/event"},
+                {"object", "POST /api/dynamics/object"},
+                {"controller", "POST /api/dynamics/controller"},
+                {"state", "POST /api/dynamics/state"},
+                {"run", "POST /api/dynamics/run"},
+                {"status", "GET /api/dynamics/status/{run_id}"},
+                {"abort", "POST /api/dynamics/abort/{run_id}"},
+                {"series", "GET /api/dynamics/series/{run_id}"},
+                {"analyze", "GET /api/dynamics/analyze/{run_id}"},
+                {"diagnose", "GET /api/dynamics/diagnose/{run_id}"},
+                {"export", "POST /api/dynamics/export"},
+                {"tune_pid", "POST /api/dynamics/tune-pid"},
+                {"chart", "POST /api/dynamics/chart"},
+                {"to_spreadsheet", "POST /api/dynamics/to-spreadsheet"}
+            }},
+            {"integration_methods", New JArray([Enum].GetNames(GetType(Interfaces.Enums.Dynamics.IntegrationMethod)))},
+            {"event_transitions", New JArray("step", "linear", "log", "inverse_log", "random")},
+            {"dynamics_specs", New JArray("pressure", "flow")},
+            {"controller_types", New JArray("PIDController", "PythonController", "MPCController")},
+            {"tuning_objectives", New JArray([Enum].GetNames(GetType(FAPI.Dynamics.TuningObjective)))},
+            {"valve_calc_modes", New JArray([Enum].GetNames(GetType(UnitOperations.UnitOperations.Valve.CalculationMode)))},
+            {"notes", New JArray(
+                "A dynamic run needs the flowsheet solved at steady state first.",
+                "Nothing is recorded unless it is a monitored variable.",
+                "The pressure-flow network needs both kinds of spec: feeds by flow, boundaries by pressure.",
+                "Property ids are not guessable; read them from /api/dynamics/properties.",
+                "Only one integration runs at a time; a second request returns 409 integrator_busy.")},
+            {"series_budget", New JObject From {
+                {"default_max_points", 40},
+                {"hard_cap", 400},
+                {"full_series_via", "POST /api/dynamics/export"}
+            }}
+        }
+
+        Dim codes As New JObject()
+        For Each entry In FAPI.Dynamics.DiagnosticCodes.All
+            codes(entry.Key) = entry.Value
+        Next
+        o("diagnostic_codes") = codes
+
+        Return o.ToString(Newtonsoft.Json.Formatting.None)
+
     End Function
 
     ''' <summary>Catalog of supported (role → variant list) pairs. Variants map 1:1 to Fluent builder method names.</summary>
