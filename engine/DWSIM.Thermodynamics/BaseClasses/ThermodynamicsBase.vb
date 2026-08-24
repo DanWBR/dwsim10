@@ -1,4 +1,4 @@
-﻿'    Basic Thermodynamic Classes for DWSIM
+'    Basic Thermodynamic Classes for DWSIM
 '    Copyright 2008-2022 Daniel Wagner O. de Medeiros
 '
 '    This file is part of DWSIM.
@@ -19,7 +19,6 @@
 Imports System.Collections.Generic
 Imports System.Xml.Serialization
 Imports FileHelpers
-Imports Flee.PublicTypes
 Imports System.Runtime.Serialization.Formatters.Binary
 Imports System.Runtime.Serialization
 Imports System.IO
@@ -319,8 +318,8 @@ Namespace BaseClasses
 
         Public _Components As Dictionary(Of String, Interfaces.IReactionStoichBase)
 
-        <XmlIgnore> <NonSerialized> Public ExpContext As New Flee.PublicTypes.ExpressionContext
-        <XmlIgnore> <NonSerialized> Public Expr As Flee.PublicTypes.IGenericExpression(Of Double)
+        <XmlIgnore> <NonSerialized> Public ExpContext As New SharedClasses.ExpressionEvaluator.VariableTable
+        <XmlIgnore> <NonSerialized> Public Expr As SharedClasses.CompiledExpression
 
         <XmlIgnore> <NonSerialized> Private MEngine As Mages.Core.Engine
         <XmlIgnore> <NonSerialized> Private KFunc As Mages.Core.Function
@@ -401,7 +400,7 @@ Namespace BaseClasses
         Private Shared ReadOnly IdentifierRegex As New Regex("(?<![A-Za-z_0-9.])[A-Za-z_][A-Za-z_0-9]*", RegexOptions.Compiled)
 
         ''' <summary>
-        ''' System.Math names accepted by the Flee engine that used to compile these
+        ''' System.Math names accepted by the expression evaluator that compiles these
         ''' expressions, mapped onto their MAGES equivalents. MAGES is case-sensitive
         ''' and names every built-in in lowercase, so without this mapping a legacy
         ''' expression such as "140.932-13445.9/T-22.4773*Log(T)" resolves to nothing.
@@ -466,9 +465,8 @@ Namespace BaseClasses
         ''' </summary>
         Public Sub New()
             Me._Components = New Dictionary(Of String, Interfaces.IReactionStoichBase)
-            ExpContext = New Flee.PublicTypes.ExpressionContext
-            ExpContext.Imports.AddType(GetType(System.Math))
-            ExpContext.Variables.Add("T", 0.0#)
+            ExpContext = New SharedClasses.ExpressionEvaluator.VariableTable
+            ExpContext.SetValue("T", 0.0#)
         End Sub
 
         ''' <summary>
@@ -1824,11 +1822,16 @@ Namespace BaseClasses
                     End If
                 Next
             Else
-                Dim elementRegex = "([A-Z][a-z]*)([0-9]*)"
+                ' Allow fractional atom counts (pseudo-compounds such as a lumped biomass formula
+                ' C15.90H29.78O12.68N1.00S0.33): a plain [0-9]* stops at the decimal point, so S0.33
+                ' became S0 and the sulfur (or any fractional element) was silently dropped.
+                Dim elementRegex = "([A-Z][a-z]*)(\d*\.?\d*)"
                 Dim validateRegex = "^(" + elementRegex + ")+$"
-                For Each match In Regex.Matches(_molecule, elementRegex)
+                For Each match As Match In Regex.Matches(_molecule, elementRegex)
                     Dim name = match.Groups(1).Value
-                    Dim count = If(match.Groups(2).Value <> "", Integer.Parse(match.Groups(2).Value), 1)
+                    Dim countStr = match.Groups(2).Value
+                    Dim count As Double = If(countStr <> "" AndAlso countStr <> ".",
+                                             Double.Parse(countStr, System.Globalization.CultureInfo.InvariantCulture), 1.0)
                     If el.ContainsKey(name) Then
                         el(name) += count
                     Else
@@ -2571,6 +2574,14 @@ Namespace BaseClasses
         Public Property BO_OilViscTemp2 As Double = 0.0# Implements Interfaces.ICompoundConstantProperties.BO_OilViscTemp2
 
         Public Property BO_PNA_A As Double = 0.0# Implements Interfaces.ICompoundConstantProperties.BO_PNA_A
+
+        Public Property BO_RsMult As Double = 1.0# Implements Interfaces.ICompoundConstantProperties.BO_RsMult
+
+        Public Property BO_BoMult As Double = 1.0# Implements Interfaces.ICompoundConstantProperties.BO_BoMult
+
+        Public Property BO_PbMult As Double = 1.0# Implements Interfaces.ICompoundConstantProperties.BO_PbMult
+
+        Public Property BO_OilViscMult As Double = 1.0# Implements Interfaces.ICompoundConstantProperties.BO_OilViscMult
 
         Public Property BO_PNA_N As Double = 0.0# Implements Interfaces.ICompoundConstantProperties.BO_PNA_N
 

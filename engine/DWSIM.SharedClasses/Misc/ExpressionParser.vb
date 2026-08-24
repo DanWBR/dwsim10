@@ -1,20 +1,50 @@
 ''' <summary>
-''' Keeps the Flee contexts and the compiled expressions of a single owner.
+''' A compiled expression together with the variables it reads, so the callers that hold one can go
+''' on writing <c>GetCompiled(...).Evaluate()</c>.
+''' </summary>
+Public NotInheritable Class BoundExpression
+
+    Private ReadOnly _expression As CompiledExpression
+    Private ReadOnly _variables As ExpressionEvaluator.VariableTable
+
+    Friend Sub New(expression As CompiledExpression, variables As ExpressionEvaluator.VariableTable)
+        _expression = expression
+        _variables = variables
+    End Sub
+
+    ''' <summary>The expression as it was written.</summary>
+    Public ReadOnly Property Text As String
+        Get
+            Return _expression.Text
+        End Get
+    End Property
+
+    Public Function Evaluate() As Double
+        Return _expression.Evaluate(_variables)
+    End Function
+
+    Public Function EvaluateBoolean() As Boolean
+        Return _expression.EvaluateBoolean(_variables)
+    End Function
+
+End Class
+
+''' <summary>
+''' Keeps the variable tables and the parsed expressions of a single owner.
 ''' </summary>
 ''' <remarks>
-''' Flee compiles an expression to IL through Reflection.Emit, which costs orders of magnitude more
-''' than evaluating the result. Compiling inside an integration or convergence loop therefore
-''' dominates the run time of everything around it. Hold one cache per owner, define the variables
-''' the expression reads before asking for it the first time, and afterwards only update the
-''' variable values.
+''' Hold one cache per owner, set the variables the expression reads, and ask for the expression by
+''' the same key each time. The reactors reset theirs at the start of every calculation, so parsing
+''' is on the hot path and not only on load - which is one of the reasons the expressions no longer
+''' go through Flee, whose compile step cost some three hundred times more than parsing does.
 '''
 ''' An instance is not thread-safe. Give each object its own, or use
 ''' <see cref="ExpressionParser.ThreadCache"/> from shared code.
 ''' </remarks>
 Public Class ExpressionCache
 
-    Private _contexts As Dictionary(Of String, Flee.PublicTypes.ExpressionContext)
-    Private _compiled As Dictionary(Of String, Flee.PublicTypes.IGenericExpression(Of Double))
+    Private _tables As Dictionary(Of String, ExpressionEvaluator.VariableTable)
+    Private _compiled As Dictionary(Of String, BoundExpression)
 
     ''' <summary>
     ''' Discards everything held. Call it when the expressions or the variables they read may have
@@ -22,94 +52,66 @@ Public Class ExpressionCache
     ''' </summary>
     Public Sub Reset()
 
-        _contexts = Nothing
+        _tables = Nothing
         _compiled = Nothing
 
     End Sub
 
     ''' <summary>
-    ''' Returns the context stored under <paramref name="key"/>, creating it on first use.
+    ''' Returns the variable table stored under <paramref name="key"/>, creating it on first use.
     ''' </summary>
     ''' <param name="key">
-    ''' Identifies the set of variables the context holds. Expressions that read different variables
+    ''' Identifies the set of variables the table holds. Expressions that read different variables
     ''' must use different keys.
     ''' </param>
-    Public Function GetContext(key As String) As Flee.PublicTypes.ExpressionContext
+    Public Function GetContext(key As String) As ExpressionEvaluator.VariableTable
 
-        If _contexts Is Nothing Then _contexts = New Dictionary(Of String, Flee.PublicTypes.ExpressionContext)
+        If _tables Is Nothing Then _tables = New Dictionary(Of String, ExpressionEvaluator.VariableTable)
 
-        Dim context As Flee.PublicTypes.ExpressionContext = Nothing
+        Dim table As ExpressionEvaluator.VariableTable = Nothing
 
-        If Not _contexts.TryGetValue(key, context) Then
-            context = New Flee.PublicTypes.ExpressionContext()
-            context.Imports.AddType(GetType(System.Math))
-            context.Options.ParseCulture = Globalization.CultureInfo.InvariantCulture
-            _contexts.Add(key, context)
+        If Not _tables.TryGetValue(key, table) Then
+            table = New ExpressionEvaluator.VariableTable()
+            _tables.Add(key, table)
         End If
 
-        Return context
+        Return table
 
     End Function
 
-    ''' <summary>
-    ''' Sets a variable on a context, defining it if it is not there yet.
-    ''' </summary>
-    ''' <remarks>
-    ''' Never clear the variable collection of a context that already has compiled expressions
-    ''' attached to it: Flee resolves the variables when it compiles, and clearing them breaks that
-    ''' binding.
-    ''' </remarks>
-    Public Shared Sub SetVariable(context As Flee.PublicTypes.ExpressionContext, name As String, value As Double)
+    ''' <summary>Sets a variable on a table, defining it if it is not there yet.</summary>
+    Public Shared Sub SetVariable(table As ExpressionEvaluator.VariableTable, name As String, value As Double)
 
-        If context.Variables.ContainsKey(name) Then
-            context.Variables(name) = value
-        Else
-            context.Variables.Add(name, value)
-        End If
+        If table Is Nothing Then Exit Sub
+        table.SetValue(name, value)
 
     End Sub
 
     ''' <summary>
-    ''' Compiles <paramref name="expression"/> against the context stored under
-    ''' <paramref name="key"/> and keeps the compiled form for later calls.
+    ''' Parses <paramref name="expression"/> against the table stored under <paramref name="key"/>
+    ''' and keeps the result for later calls.
     ''' </summary>
     ''' <param name="key">The same key used with <see cref="GetContext"/>.</param>
     ''' <param name="expression">The expression text, as the user wrote it.</param>
-    Public Function GetCompiled(key As String, expression As String) As Flee.PublicTypes.IGenericExpression(Of Double)
+    Public Function GetCompiled(key As String, expression As String) As BoundExpression
 
-        If _compiled Is Nothing Then _compiled = New Dictionary(Of String, Flee.PublicTypes.IGenericExpression(Of Double))
+        If _compiled Is Nothing Then _compiled = New Dictionary(Of String, BoundExpression)
 
         Dim cachekey As String = key & "|" & expression
-        Dim compiled As Flee.PublicTypes.IGenericExpression(Of Double) = Nothing
+        Dim bound As BoundExpression = Nothing
 
-        If Not _compiled.TryGetValue(cachekey, compiled) Then
-            compiled = GetContext(key).CompileGeneric(Of Double)(expression)
-            _compiled.Add(cachekey, compiled)
+        If Not _compiled.TryGetValue(cachekey, bound) Then
+            bound = New BoundExpression(ExpressionEvaluator.Compile(expression), GetContext(key))
+            _compiled.Add(cachekey, bound)
         End If
 
-        Return compiled
+        Return bound
 
     End Function
 
 End Class
 
 Public Class ExpressionParser
-
-    Public Shared ExpContext As Flee.PublicTypes.ExpressionContext
-
-    Public Shared Sub InitializeExpressionParser()
-
-        ExpContext = New Flee.PublicTypes.ExpressionContext
-
-        ExpContext.Imports.AddType(GetType(System.Math))
-        ExpContext.Variables.Clear()
-        ExpContext.Options.ParseCulture = Globalization.CultureInfo.InvariantCulture
-
-        ParserInitialized = True
-
-    End Sub
-
-    Public Shared Property ParserInitialized As Boolean = False
 
     <ThreadStatic> Private Shared _threadCache As ExpressionCache
 
@@ -124,5 +126,15 @@ Public Class ExpressionParser
             Return _threadCache
         End Get
     End Property
+
+    ''' <summary>
+    ''' Kept because callers outside this assembly still set it. Nothing needs initialising now: an
+    ''' expression is parsed where it is used and reads its variables from the table it is given.
+    ''' </summary>
+    Public Shared Property ParserInitialized As Boolean = True
+
+    Public Shared Sub InitializeExpressionParser()
+        ParserInitialized = True
+    End Sub
 
 End Class

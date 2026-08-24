@@ -28,7 +28,7 @@ public sealed class CompoundImportOnlineWindow : Window
     private readonly ListBox _matches = new() { Height = 150 };
     private readonly DataGrid _checklist = CompoundImportSupport.BuildChecklistGrid();
     private readonly ObservableCollection<CompoundImportSupport.ChecklistRow> _rows = new();
-    private readonly TextBlock _status = new() { FontSize = 11, Opacity = 0.85, TextWrapping = TextWrapping.Wrap };
+    private readonly TextBlock _status = new() { FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11), Opacity = 0.85, TextWrapping = TextWrapping.Wrap };
 
     private Button _btnSearch = null!, _btnFetch = null!, _btnAdd = null!, _btnExport = null!;
 
@@ -102,7 +102,7 @@ public sealed class CompoundImportOnlineWindow : Window
         var link = new TextBlock
         {
             Text = "Data provided by Cheméo (https://www.chemeo.com/)",
-            FontSize = 11,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
             Opacity = 0.75,
             Margin = new Thickness(0, 0, 0, 8)
         };

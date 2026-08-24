@@ -29,8 +29,8 @@ public sealed class SeparatorSizingWindow : Window
 
     private readonly SeparatorSizingInput _input = new();
     private readonly StackPanel _results = new() { Spacing = 2, Margin = new Thickness(8, 4, 8, 4) };
-    private readonly TextBlock _feed = new() { FontSize = 11, TextWrapping = TextWrapping.Wrap };
-    private readonly TextBlock _status = new() { FontSize = 11, Opacity = 0.85, TextWrapping = TextWrapping.Wrap };
+    private readonly TextBlock _feed = new() { FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11), TextWrapping = TextWrapping.Wrap };
+    private readonly TextBlock _status = new() { FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11), Opacity = 0.85, TextWrapping = TextWrapping.Wrap };
 
     public SeparatorSizingWindow(IFlowsheet flowsheet)
     {

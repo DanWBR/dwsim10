@@ -316,6 +316,147 @@ out:        Return New Object() {L, V, Vx, Vy, ecount, 0.0#, PP.RET_NullVector, 
 
         End Function
 
+
+        ''' <summary>
+        ''' Maximum activity of a salt in the liquid, from the solubility product of its dissolution,
+        ''' or NaN when the data needed to build one is not there.
+        ''' </summary>
+        ''' <remarks>
+        ''' The melting-point relation this routine uses elsewhere describes a solid melting into the
+        ''' liquid it is dissolved in, with the pure supercooled liquid as the reference. That is the
+        ''' right picture for a molecular solid - naphthalene in benzene - and the wrong one for a
+        ''' salt, which does not melt into water but dissociates. Held against measured solubilities
+        ''' at 25 C it put six salts out of ten more than a decade out: silver chloride came out
+        ''' 190000 times too soluble (2.5 mol/kg against 1.34e-5) and sodium chloride 400 times too
+        ''' insoluble (0.015 mol/kg against 6.16).
+        '''
+        ''' Here the salt is taken to dissolve as it actually does,
+        '''     M(v+)X(v-) solid = v+ cation + v- anion,   Ksp = product of a(i) ^ v(i)
+        ''' with the dissolution Gibbs energy built from the aqueous standard-state formation
+        ''' properties of the two ions against the solid's, and carried to temperature by van 't Hoff.
+        ''' The standard-state heat capacities are deliberately left out: the values the databases
+        ''' carry for them drive sodium chloride's solubility down by two orders of magnitude between
+        ''' 0 and 100 C, where in reality it barely moves.
+        '''
+        ''' The ionic activity coefficients are taken as unity, and that is where the remaining error
+        ''' sits. It is a good assumption exactly where precipitation matters - a sparingly soluble
+        ''' salt sits at an ionic strength where it holds - and a poor one for a salt that dissolves
+        ''' freely. Against solubility data at 25 C: silver chloride 1.33e-5 against 1.34e-5, calcium
+        ''' sulfate 0.0084 against 0.0154, sodium chloride 6.28 against 6.16, potassium chloride 2.83
+        ''' against 4.56, sodium sulfate 0.51 against 1.98. Calcium chloride, which dissolves very
+        ''' freely, still comes out far too soluble - erring towards precipitating nothing, which for
+        ''' calcium chloride is the right answer at any concentration a flowsheet will hold.
+        ''' </remarks>
+        Private Function SaltMaxActivity(PP As PropertyPackages.PropertyPackage,
+                                         salt As Interfaces.ICompoundConstantProperties,
+                                         Vx() As Double, T As Double,
+                                         IObj As Inspector.InspectorItem) As Double
+
+            Dim vp As Integer = salt.PositiveIonStoichCoeff
+            Dim vn As Integer = salt.NegativeIonStoichCoeff
+            If vp <= 0 Or vn <= 0 Then Return Double.NaN
+
+            Dim cat = FindIon(PP, salt.PositiveIon)
+            Dim an = FindIon(PP, salt.NegativeIon)
+            If cat Is Nothing Or an Is Nothing Then
+                IObj?.Paragraphs.Add(String.Format("{0}: no solubility product available - the ion compounds ({1}, {2}) were not found, falling back on the melting-point relation.", salt.Name, salt.PositiveIon, salt.NegativeIon))
+                Return Double.NaN
+            End If
+
+            ' A zero formation energy means the database carries no value, not that the species is a
+            ' reference state: the one species for which zero is the convention is the proton.
+            If Not HasFormationData(salt) OrElse Not HasFormationData(cat) OrElse Not HasFormationData(an) Then
+                IObj?.Paragraphs.Add(String.Format("{0}: no solubility product available - formation properties are missing for one of the three species, falling back on the melting-point relation.", salt.Name))
+                Return Double.NaN
+            End If
+
+            ' kJ/mol
+            Dim dG As Double = vp * cat.Electrolyte_DelGF + vn * an.Electrolyte_DelGF - salt.Electrolyte_DelGF
+            Dim dH As Double = vp * cat.Electrolyte_DelHF + vn * an.Electrolyte_DelHF - salt.Electrolyte_DelHF
+
+            Dim Rgas As Double = 8.31446
+            Dim lnKsp As Double = -dG * 1000.0 / (Rgas * 298.15) - dH * 1000.0 / Rgas * (1.0 / T - 1.0 / 298.15)
+
+            Dim v As Integer = vp + vn
+            Dim lnPref As Double = vp * Log(vp) + vn * Log(vn)
+            Dim molality As Double = Exp((lnKsp - lnPref) / v)     ' mol of salt per kg of solvent
+
+            ' To a mole fraction of the salt in the liquid, through the molar mass of the solvent -
+            ' whatever in the mixture is neither a salt nor an ion.
+            Dim mmSolvent As Double = SolventMolarMass(PP, Vx)
+            If mmSolvent <= 0.0 Then Return Double.NaN
+
+            Dim x As Double = molality / (molality + 1000.0 / mmSolvent)
+
+            IObj?.Paragraphs.Add(String.Format("{0}: ln Ksp = {1}, saturation {2} mol per kg of solvent, mole fraction {3}.", salt.Name, lnKsp, molality, x))
+
+            Return x
+
+        End Function
+
+        ''' <summary>True when the compound carries formation properties worth using.</summary>
+        Private Function HasFormationData(cp As Interfaces.ICompoundConstantProperties) As Boolean
+            If cp.Formula = "H+" Then Return True    ' zero by convention, not by omission
+            Return cp.Electrolyte_DelGF <> 0.0 And cp.Electrolyte_DelHF <> 0.0
+        End Function
+
+        ''' <summary>
+        ''' The ion compound a salt names, looked for in the stream first and then among everything
+        ''' the flowsheet has. Ion formulas are written both ways round in the databases - a salt
+        ''' names its anion "CO32-" where the ion compound calls itself "CO3-2" - so they are compared
+        ''' on their characters, order aside.
+        ''' </summary>
+        Private Function FindIon(PP As PropertyPackages.PropertyPackage, formula As String) As Interfaces.ICompoundConstantProperties
+
+            If String.IsNullOrEmpty(formula) Then Return Nothing
+            If PP.CurrentMaterialStream Is Nothing Then Return Nothing
+
+            For Each c In PP.CurrentMaterialStream.Phases(0).Compounds.Values
+                If c.ConstantProperties.IsIon AndAlso SameFormula(c.ConstantProperties.Formula, formula) Then
+                    Return c.ConstantProperties
+                End If
+            Next
+
+            Dim fsheet = PP.CurrentMaterialStream.Flowsheet
+            If fsheet IsNot Nothing AndAlso fsheet.AvailableCompounds IsNot Nothing Then
+                For Each c In fsheet.AvailableCompounds.Values
+                    If c.IsIon AndAlso SameFormula(c.Formula, formula) Then Return c
+                Next
+            End If
+
+            Return Nothing
+
+        End Function
+
+        Private Function SameFormula(a As String, b As String) As Boolean
+            If String.IsNullOrEmpty(a) Or String.IsNullOrEmpty(b) Then Return False
+            If a = b Then Return True
+            Dim ca = a.ToCharArray()
+            Dim cb = b.ToCharArray()
+            Array.Sort(ca)
+            Array.Sort(cb)
+            Return New String(ca) = New String(cb)
+        End Function
+
+        ''' <summary>Molar mass in g/mol of the solvent: whatever is neither a salt nor an ion.</summary>
+        Private Function SolventMolarMass(PP As PropertyPackages.PropertyPackage, Vx() As Double) As Double
+
+            Dim sum As Double = 0.0
+            Dim wsum As Double = 0.0
+            Dim i As Integer = 0
+            For Each c In PP.CurrentMaterialStream.Phases(0).Compounds.Values
+                If i >= Vx.Length Then Exit For
+                If Not c.ConstantProperties.IsSalt AndAlso Not c.ConstantProperties.IsIon AndAlso Vx(i) > 0.0 Then
+                    sum += Vx(i) * c.ConstantProperties.Molar_Weight
+                    wsum += Vx(i)
+                End If
+                i += 1
+            Next
+            If wsum <= 0.0 Then Return 0.0
+            Return sum / wsum
+
+        End Function
+
         Function Flash_SL(ByVal Vz As Double(), ByVal P As Double, ByVal T As Double, ByVal PP As PropertyPackages.PropertyPackage) As Object
 
             etol = Me.FlashSettings(Interfaces.Enums.FlashSetting.PTFlash_External_Loop_Tolerance).ToDoubleFromInvariant
@@ -377,7 +518,20 @@ out:        Return New Object() {L, V, Vx, Vy, ecount, 0.0#, PP.RET_NullVector, 
             IObj?.Paragraphs.Add(String.Format("Fusion Temperatures: {0} K", Tf.ToMathArrayString))
             IObj?.Paragraphs.Add(String.Format("Fusion Enthalpies: {0} kJ/mol", Hf.ToMathArrayString))
 
-            If Vz.MaxY >= 0.999999 Then 'only a single component
+            ' A sparingly soluble salt is present in tiny amounts by definition - silver chloride
+            ' saturates at a mole fraction of 2e-7 - so a mixture holding one still looks like a pure
+            ' component to the test below, and the shortcut skipped the precipitation entirely for
+            ' exactly the salts a solubility flash is run for.
+            Dim hassalt As Boolean = False
+            Dim names0 = PP.RET_VNAMES()
+            For i = 0 To n
+                If Vz(i) > 0.0 AndAlso PP.CurrentMaterialStream.Phases(0).Compounds(names0(i)).ConstantProperties.IsSalt Then
+                    hassalt = True
+                    Exit For
+                End If
+            Next
+
+            If Vz.MaxY >= 0.999999 And Not hassalt Then 'only a single component
                 ecount = 0
                 For i = 0 To n
                     If Vz(i) >= 0.999999 Then
@@ -441,6 +595,13 @@ out:        Return New Object() {L, V, Vx, Vy, ecount, 0.0#, PP.RET_NullVector, 
                     'check if ion
                     constprop = PP.CurrentMaterialStream.Phases(0).Compounds(Vn(i)).ConstantProperties
                     If constprop.IsIon Then MaxX(i) = 1.0
+                    'A salt is limited by the solubility product of its dissociation, not by the
+                    'melting-point relation above, whose reference state is wrong for it.
+                    If constprop.IsSalt Then
+                        IObj?.SetCurrent
+                        Dim xsat As Double = SaltMaxActivity(PP, constprop, Vx, T, IObj)
+                        If Not Double.IsNaN(xsat) Then MaxX(i) = Math.Min(xsat, 1.0)
+                    End If
                     'Supercritical gases are put to liquid phase
                     If T > Tc(i) Then MaxX(i) = 1.0
                     'If compound is in forced solids list, put it in solid phase
@@ -1274,8 +1435,16 @@ out2:           If (Math.Abs(GL_old - L) < 0.0000005) And (Math.Abs(GV_old - V) 
                     '================================================
                     '== mix vapour and liquid phase =================
                     '================================================
-                    Vmix = Vy.MultiplyConstY(V)
-                    Vmix = Vmix.AddY(Vx.MultiplyConstY(L))
+                    ' Both sub-bases below are taken from the FEED less the phase the sub-problem
+                    ' does not see, rather than rebuilt from the previous pass's phases. Rebuilding
+                    ' them re-concentrated the solute by 1/(1-S) on every turn of the outer loop, so
+                    ' each pass precipitated again out of an already saturated liquid and the solid
+                    ' grew without bound: a 2 mol-% brine came back carrying 22 mol-% of solid, and
+                    ' every salt loading tested came back with about eleven times the salt it was fed.
+                    Vmix = fi.SubtractY(Vs.MultiplyConstY(S))
+                    For i = 0 To n
+                        If Vmix(i) < 0.0 Then Vmix(i) = 0.0
+                    Next
                     Vz = Vmix.NormalizeY
 
                     Do
@@ -1374,8 +1543,10 @@ out2:           If (Math.Abs(GL_old - L) < 0.0000005) And (Math.Abs(GV_old - V) 
                     '================================================
                     '== mix solid and liquid phase ==================
                     '================================================
-                    Vmix = Vs.MultiplyConstY(S)
-                    Vmix = Vmix.AddY(Vx.MultiplyConstY(L))
+                    Vmix = fi.SubtractY(Vy.MultiplyConstY(V))
+                    For i = 0 To n
+                        If Vmix(i) < 0.0 Then Vmix(i) = 0.0
+                    Next
                     Vz = Vmix.NormalizeY
 
                     '================================================

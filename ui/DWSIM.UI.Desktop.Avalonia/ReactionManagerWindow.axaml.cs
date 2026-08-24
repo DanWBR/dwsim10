@@ -346,14 +346,8 @@ public partial class ReactionManagerWindow : Window
         }
         if (rxn.Components.ContainsKey(comp))
             rxn.Components[comp].StoichCoeff = coeff;
-        else
-        {
-            // Use reflection-friendly: cast to concrete to access dict Add
-            var stoichBase = _flowsheet.SelectedCompounds.ContainsKey(comp)
-                ? CreateStoichBase(comp, coeff)
-                : null;
-            if (stoichBase != null) rxn.Components[comp] = stoichBase;
-        }
+        else if (_flowsheet.SelectedCompounds.ContainsKey(comp))
+            rxn.Components[comp] = CreateStoichBase(comp, coeff);
         ShowReactionDetail();
     }
 
@@ -367,24 +361,12 @@ public partial class ReactionManagerWindow : Window
         ShowReactionDetail();
     }
 
-    private static IReactionStoichBase? CreateStoichBase(string compName, double coeff)
-    {
-        // DWSIM.SharedClasses.BaseClasses.ReactionStoichBase implements IReactionStoichBase.
-        // We use Activator so we don't need a hard compile-time reference.
-        try
-        {
-            var asm = AppDomain.CurrentDomain.GetAssemblies()
-                .FirstOrDefault(a => a.GetName().Name == "DWSIM.SharedClasses");
-            var type = asm?.GetType("DWSIM.SharedClasses.BaseClasses.ReactionStoichBase");
-            if (type == null) return null;
-            var obj = (IReactionStoichBase?)Activator.CreateInstance(type);
-            if (obj == null) return null;
-            obj.CompName    = compName;
-            obj.StoichCoeff = coeff;
-            return obj;
-        }
-        catch { return null; }
-    }
+    /// <summary>
+    /// Builds a stoichiometry entry the way the engine's own reaction factories do:
+    /// New ReactionStoichBase(name, coeff, False, 0, 0).
+    /// </summary>
+    private static IReactionStoichBase CreateStoichBase(string compName, double coeff) =>
+        new global::DWSIM.Thermodynamics.BaseClasses.ReactionStoichBase(compName, coeff, false, 0, 0);
 
     // -------------------------------------------------------------------------
     // Reaction Sets helpers

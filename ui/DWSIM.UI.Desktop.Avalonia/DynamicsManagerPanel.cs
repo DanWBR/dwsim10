@@ -55,7 +55,7 @@ public sealed class DynamicsManagerPanel : DockPanel
         _chkDynamics = new CheckBox
         {
             Content = "Dynamic Mode Enabled",
-            FontSize = 11,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
             Margin = new Thickness(6, 4)
         };
         _chkDynamics.IsCheckedChanged += (_, _) =>
@@ -67,11 +67,11 @@ public sealed class DynamicsManagerPanel : DockPanel
         Children.Add(_chkDynamics);
 
         // ---- Tab control ----
-        var tabs = new TabControl { FontSize = 11 };
+        var tabs = new TabControl { FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11) };
 
         // --- Event Sets ---
-        _lbEventSets = new ListBox { Width = 220, FontSize = 11 };
-        _lbEvents = new ListBox { Width = 220, FontSize = 11 };
+        _lbEventSets = new ListBox { Width = 220, FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11) };
+        _lbEvents = new ListBox { Width = 220, FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11) };
         _eventEditorHost = new Panel();
 
         tabs.Items.Add(new TabItem
@@ -81,8 +81,8 @@ public sealed class DynamicsManagerPanel : DockPanel
         });
 
         // --- Cause-and-Effect Matrices ---
-        _lbCEM = new ListBox { Width = 220, FontSize = 11 };
-        _lbCEI = new ListBox { Width = 220, FontSize = 11 };
+        _lbCEM = new ListBox { Width = 220, FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11) };
+        _lbCEI = new ListBox { Width = 220, FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11) };
         _ceiEditorHost = new Panel();
 
         tabs.Items.Add(new TabItem
@@ -92,9 +92,9 @@ public sealed class DynamicsManagerPanel : DockPanel
         });
 
         // --- Integrators ---
-        _lbIntegrators = new ListBox { Width = 220, FontSize = 11 };
+        _lbIntegrators = new ListBox { Width = 220, FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11) };
         _integratorPropsHost = new Panel();
-        _lbVariables = new ListBox { Width = 220, FontSize = 11 };
+        _lbVariables = new ListBox { Width = 220, FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11) };
         _mvEditorHost = new Panel();
 
         tabs.Items.Add(new TabItem
@@ -104,7 +104,7 @@ public sealed class DynamicsManagerPanel : DockPanel
         });
 
         // --- Schedules ---
-        _lbSchedules = new ListBox { Width = 220, FontSize = 11 };
+        _lbSchedules = new ListBox { Width = 220, FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11) };
         _schEditorHost = new Panel();
 
         tabs.Items.Add(new TabItem
@@ -189,7 +189,7 @@ public sealed class DynamicsManagerPanel : DockPanel
         var col0 = BuildListColumn("Integrators", _lbIntegrators, "Add Integrator", "Remove Integrator",
             OnAddIntegrator, OnRemoveIntegrator);
 
-        var subTabs = new TabControl { FontSize = 11 };
+        var subTabs = new TabControl { FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11) };
         subTabs.Items.Add(new TabItem
         {
             Header = "Parameters",
@@ -216,7 +216,7 @@ public sealed class DynamicsManagerPanel : DockPanel
         {
             Text = "Selected Integrator",
             FontWeight = FontWeight.SemiBold,
-            FontSize = 11,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
             Margin = new Thickness(4, 4, 4, 2)
         };
         SetDock(rightHeader, global::Avalonia.Controls.Dock.Top);
@@ -927,18 +927,18 @@ public sealed class DynamicsManagerPanel : DockPanel
         {
             Text = title,
             FontWeight = FontWeight.SemiBold,
-            FontSize = 11,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
             Margin = new Thickness(2, 2, 2, 4)
         };
         SetDock(header, global::Avalonia.Controls.Dock.Top);
         panel.Children.Add(header);
 
-        var btnAdd = new Button { Content = "+", FontSize = 12, Width = 28, Height = 28, Padding = new Thickness(0) };
+        var btnAdd = new Button { Content = "+", FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(12), Width = 28, Height = 28, Padding = new Thickness(0) };
         btnAdd.Classes.Add("compact");
         ToolTip.SetTip(btnAdd, addTip);
         btnAdd.Click += (_, _) => onAdd();
 
-        var btnRemove = new Button { Content = "-", FontSize = 12, Width = 28, Height = 28, Padding = new Thickness(0) };
+        var btnRemove = new Button { Content = "-", FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(12), Width = 28, Height = 28, Padding = new Thickness(0) };
         btnRemove.Classes.Add("compact");
         ToolTip.SetTip(btnRemove, removeTip);
         btnRemove.Click += (_, _) => onRemove();
@@ -966,7 +966,7 @@ public sealed class DynamicsManagerPanel : DockPanel
         {
             Text = title,
             FontWeight = FontWeight.SemiBold,
-            FontSize = 11,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
             Margin = new Thickness(2, 2, 2, 4)
         };
         SetDock(header, global::Avalonia.Controls.Dock.Top);
@@ -1021,14 +1021,14 @@ public sealed class DynamicsManagerPanel : DockPanel
     private static StackPanel MakeLabeledRow(string label, Control control)
     {
         var row = new StackPanel { Spacing = 2 };
-        row.Children.Add(new TextBlock { Text = label, FontSize = 11, Margin = new Thickness(0, 2, 0, 0) });
+        row.Children.Add(new TextBlock { Text = label, FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11), Margin = new Thickness(0, 2, 0, 0) });
         row.Children.Add(control);
         return row;
     }
 
     private static StackPanel MakeTextRow(string label, string value, Action<string> onChanged)
     {
-        var tb = new TextBox { Text = value, FontSize = 11, MaxWidth = 400 };
+        var tb = new TextBox { Text = value, FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11), MaxWidth = 400 };
         tb.LostFocus += (_, _) => onChanged(tb.Text ?? "");
         return MakeLabeledRow(label, tb);
     }
@@ -1038,7 +1038,7 @@ public sealed class DynamicsManagerPanel : DockPanel
         var tb = new TextBox
         {
             Text = value,
-            FontSize = 11,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
             IsReadOnly = true,
             MaxWidth = 400,
             Background = new SolidColorBrush(Color.FromRgb(240, 240, 240))
@@ -1048,7 +1048,7 @@ public sealed class DynamicsManagerPanel : DockPanel
 
     private static StackPanel MakeCheckBoxRow(string label, bool value, Action<bool> onChanged)
     {
-        var cb = new CheckBox { Content = label, IsChecked = value, FontSize = 11 };
+        var cb = new CheckBox { Content = label, IsChecked = value, FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11) };
         cb.IsCheckedChanged += (_, _) => onChanged(cb.IsChecked == true);
         var row = new StackPanel { Spacing = 2 };
         row.Children.Add(cb);
@@ -1063,7 +1063,7 @@ public sealed class DynamicsManagerPanel : DockPanel
 
     private static ComboBox MakeComboBox(List<string> items, int selectedIndex, Action<int> onChanged)
     {
-        var cb = new ComboBox { FontSize = 11, MaxWidth = 400 };
+        var cb = new ComboBox { FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11), MaxWidth = 400 };
         foreach (var item in items) cb.Items.Add(item);
         cb.SelectedIndex = Math.Max(-1, Math.Min(selectedIndex, items.Count - 1));
         cb.SelectionChanged += (_, _) => { if (cb.SelectedIndex >= 0) onChanged(cb.SelectedIndex); };
@@ -1079,7 +1079,7 @@ public sealed class DynamicsManagerPanel : DockPanel
             Maximum = (decimal)max,
             Increment = decimals > 0 ? (decimal)Math.Pow(10, -decimals) : 1,
             FormatString = decimals > 0 ? "F" + decimals : "F0",
-            FontSize = 11,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
             MaxWidth = 250
         };
         nud.ValueChanged += (_, _) =>
@@ -1095,7 +1095,7 @@ public sealed class DynamicsManagerPanel : DockPanel
         {
             Text = text,
             FontWeight = FontWeight.SemiBold,
-            FontSize = 11,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
             Margin = new Thickness(0, 8, 0, 2)
         };
     }
@@ -1148,10 +1148,10 @@ public sealed class DynamicsManagerPanel : DockPanel
             Icon = IconHelper.GetWindowIcon()
         };
 
-        var tb = new TextBox { Text = defaultValue, FontSize = 11, Margin = new Thickness(12, 12, 12, 8) };
-        var btnCancel = new Button { Content = "Cancel", Width = 80, FontSize = 11, IsCancel = true };
+        var tb = new TextBox { Text = defaultValue, FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11), Margin = new Thickness(12, 12, 12, 8) };
+        var btnCancel = new Button { Content = "Cancel", Width = 80, FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11), IsCancel = true };
         btnCancel.Classes.Add("dialog");
-        var btnOk = new Button { Content = "OK", Width = 80, FontSize = 11, IsDefault = true };
+        var btnOk = new Button { Content = "OK", Width = 80, FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11), IsDefault = true };
         btnOk.Classes.Add("dialog");
 
         string? result = null;

@@ -123,7 +123,7 @@
             <TextBlock DockPanel.Dock="Top"
                        Text="Recent Simulations"
                        FontWeight="SemiBold"
-                       FontSize="15"
+                       FontSize="{DynamicResource FontSizeNormal}"
                        Margin="0,0,0,10" />
             <ListBox Name="RecentFilesList"
                      SelectionMode="Single"
@@ -137,7 +137,7 @@
             <TextBlock DockPanel.Dock="Top"
                        Text="Sample Simulations"
                        FontWeight="SemiBold"
-                       FontSize="15"
+                       FontSize="{DynamicResource FontSizeNormal}"
                        Margin="0,0,0,10" />
             <ListBox Name="SamplesList"
                      CornerRadius="4"
@@ -145,10 +145,26 @@
           </DockPanel>
         </TabItem>
 
+        <TabItem Header="Case Library">
+          <DockPanel Margin="16">
+            <StackPanel DockPanel.Dock="Top" Spacing="6" Margin="0,0,0,10">
+              <TextBlock Text="DWSIM Case Library" FontWeight="SemiBold" FontSize="{DynamicResource FontSizeNormal}" />
+              <TextBlock TextWrapping="Wrap" Classes="welcomeSubtitle"
+                         Text="A community library of real industrial process cases modeled in DWSIM: crude distillation, hydrotreating, gas processing, separations and more. Double-click a case to download and open it." />
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <Button Name="BtnCaseLibraryRepo"    Classes="tool" Content="Browse Repository" />
+                <Button Name="BtnCaseLibraryContribute" Classes="tool" Content="Contribute a Case" />
+              </StackPanel>
+              <TextBlock Text="Available Cases" FontWeight="SemiBold" Margin="0,6,0,0" />
+            </StackPanel>
+            <ListBox Name="CaseLibraryList" CornerRadius="4" BorderThickness="1" />
+          </DockPanel>
+        </TabItem>
+
         <TabItem Header="FOSSEE Flowsheets">
           <DockPanel Margin="16">
             <StackPanel DockPanel.Dock="Top" Spacing="6" Margin="0,0,0,10">
-              <TextBlock Text="About the Project" FontWeight="SemiBold" FontSize="15" />
+              <TextBlock Text="About the Project" FontWeight="SemiBold" FontSize="{DynamicResource FontSizeNormal}" />
               <TextBlock TextWrapping="Wrap" Classes="welcomeSubtitle"
                          Text="FOSSEE, IIT Bombay, invites chemical engineering students, faculty and practitioners to the flowsheeting project using DWSIM. We want you to convert existing flowsheets into DWSIM and get honoraria and certificates." />
               <StackPanel Orientation="Horizontal" Spacing="6">

@@ -1,4 +1,5 @@
 using System;
+using DWSIM.SharedClasses;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -6,7 +7,6 @@ using System.Text;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Threading;
-using Flee.PublicTypes;
 using DWSIM.Interfaces;
 using DWSIM.Interfaces.Enums;
 using DWSIM.SharedClasses.Flowsheet.Optimization;
@@ -547,14 +547,13 @@ public partial class OptimizerWindow : Window
         double objval;
         if (c.objfunctype == OPTObjectiveFunctionType.Expression)
         {
-            var context = new ExpressionContext();
-            context.Imports.AddType(typeof(Math));
+            var vars = new ExpressionEvaluator.VariableTable();
             foreach (var item in indvars.Concat(depvars).Concat(auxvars))
             {
                 if (!string.IsNullOrEmpty(item.name))
-                    context.Variables[item.name] = item.currentvalue;
+                    vars.SetValue(item.name, item.currentvalue);
             }
-            objval = context.CompileGeneric<double>(c.expression).Evaluate() + PenaltyValue(c);
+            objval = ExpressionEvaluator.Compile(c.expression).Evaluate(vars) + PenaltyValue(c);
         }
         else
         {

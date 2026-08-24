@@ -68,7 +68,7 @@ public sealed class BulkPseudocompoundsWindow : Window
 
     private readonly ObservableCollection<PseudoRow> _rows = new();
     private readonly DataGrid _grid = new() { CanUserSortColumns = false, AutoGenerateColumns = false };
-    private readonly TextBlock _status = new() { FontSize = 11, Opacity = 0.85, TextWrapping = TextWrapping.Wrap };
+    private readonly TextBlock _status = new() { FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11), Opacity = 0.85, TextWrapping = TextWrapping.Wrap };
 
     private readonly List<ConstantProperties> _compounds = new();
 
@@ -197,8 +197,8 @@ public sealed class BulkPseudocompoundsWindow : Window
     private static double? Parse(string s, int row, string caption)
     {
         if (string.IsNullOrWhiteSpace(s)) return null;
-        if (!double.TryParse(s.Trim(), NumberStyles.Any, CultureInfo.CurrentCulture, out var v) &&
-            !double.TryParse(s.Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out v))
+        if (!double.TryParse(s.Trim(), NumberStyles.Float, CultureInfo.CurrentCulture, out var v) &&
+            !double.TryParse(s.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out v))
         {
             throw new Exception($"Error in row {row + 1}: {caption} is not a valid number.");
         }

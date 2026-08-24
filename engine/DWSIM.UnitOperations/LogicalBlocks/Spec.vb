@@ -1,4 +1,4 @@
-﻿'    Specification Calculation Routines 
+'    Specification Calculation Routines 
 '    Copyright 2008 Daniel Wagner O. de Medeiros
 '
 '    This file is part of DWSIM.
@@ -17,7 +17,6 @@
 '    along with DWSIM.  If not, see <http://www.gnu.org/licenses/>.
 
 
-Imports Flee.PublicTypes
 Imports DWSIM.Thermodynamics
 Imports DWSIM.Thermodynamics.Streams
 Imports DWSIM.SharedClasses
@@ -65,8 +64,8 @@ Namespace SpecialOps
         Protected m_minVal As Nullable(Of Double) = Nothing
         Protected m_maxVal As Nullable(Of Double) = Nothing
 
-        <System.NonSerialized()> Protected m_e As IGenericExpression(Of Double)
-        <System.NonSerialized()> Protected m_eopt As ExpressionContext
+        <System.NonSerialized()> Protected m_e As SharedClasses.CompiledExpression
+        <System.NonSerialized()> Protected m_eopt As SharedClasses.ExpressionEvaluator.VariableTable
 
         <System.NonSerialized()> Protected formC As IFlowsheet
         Protected su As SystemsOfUnits.Units
@@ -130,21 +129,21 @@ Namespace SpecialOps
         End Property
 
         ''' <summary>Gets or sets the compiled generic expression object used to evaluate the specification formula (not serialized).</summary>
-        Public Property Expr() As IGenericExpression(Of Double)
+        Public Property Expr() As SharedClasses.CompiledExpression
             Get
                 Return m_e
             End Get
-            Set(ByVal value As IGenericExpression(Of Double))
+            Set(ByVal value As SharedClasses.CompiledExpression)
                 m_e = value
             End Set
         End Property
 
         ''' <summary>Gets or sets the expression evaluation context providing variable bindings and math imports (not serialized).</summary>
-        Public Property ExpContext() As ExpressionContext
+        Public Property ExpContext() As SharedClasses.ExpressionEvaluator.VariableTable
             Get
                 Return m_eopt
             End Get
-            Set(ByVal value As ExpressionContext)
+            Set(ByVal value As SharedClasses.ExpressionEvaluator.VariableTable)
                 m_eopt = value
             End Set
         End Property
@@ -318,10 +317,7 @@ Namespace SpecialOps
             m_SourceObjectData = New SpecialOps.Helpers.SpecialOpObjectInfo
             m_TargetObjectData = New SpecialOps.Helpers.SpecialOpObjectInfo
 
-            m_eopt = New ExpressionContext
-            With m_eopt
-                .Imports.AddType(GetType(System.Math))
-            End With
+            m_eopt = New SharedClasses.ExpressionEvaluator.VariableTable
 
             Me.ComponentName = name
             Me.ComponentDescription = description

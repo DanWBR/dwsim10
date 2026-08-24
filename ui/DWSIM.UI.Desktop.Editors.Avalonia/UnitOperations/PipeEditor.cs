@@ -28,7 +28,10 @@ namespace DWSIM.UI.Desktop.Editors
         {
             "Beggs & Brill",
             "Lockhart & Martinelli",
-            "Petalas & Aziz"
+            "Petalas & Aziz",
+            "Weymouth (gas)",
+            "Panhandle A (gas)",
+            "Panhandle B (gas)"
         };
 
         private static readonly string[] SlurryViscosity = { "Disabled", "Yoshida et al" };
@@ -74,6 +77,14 @@ namespace DWSIM.UI.Desktop.Editors
                     if (dd.SelectedIndex < 0) return;
                     pipe.SelectedFlowPackage = (DWSIM.UnitOperations.UnitOperations.FlowPackage)dd.SelectedIndex;
                     panel.OnAfterEdit?.Invoke();
+                });
+
+            // Efficiency factor used only by the Weymouth / Panhandle gas pipeline equations.
+            panel.CreateAndAddTextBoxRow(nf, "Pipeline efficiency (gas equations, 0-1)",
+                pipe.PipelineEfficiency,
+                (tb, e) =>
+                {
+                    if (UnitOpEditorRows.TryParse(tb.Text, out var v)) pipe.PipelineEfficiency = v;
                 });
 
             panel.CreateAndAddValueUnitRow(pipe, "Temp. error tolerance", UnitOfMeasure.deltaT,

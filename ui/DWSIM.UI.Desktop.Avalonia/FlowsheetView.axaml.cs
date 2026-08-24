@@ -1412,15 +1412,11 @@ public partial class FlowsheetView : UserControl
             Dispatcher.UIThread.Post(() => LogList.Add(message, type, exceptionId));
     }
 
-    public void SetStatus(string text)
-    {
-        if (Dispatcher.UIThread.CheckAccess())
-            StatusLabel.Text = text;
-        else
-            Dispatcher.UIThread.Post(() => StatusLabel.Text = text);
-    }
+    // The bottom status bar (Ready / Zoom) was removed to give the canvas more room; these remain as
+    // no-ops so callers (zoom, status updates) do not have to change. Zoom is on the view toolbar.
+    public void SetStatus(string text) { }
 
-    public void SetZoom(float zoom) => ZoomLabel.Text = $"Zoom: {zoom * 100:F0}%";
+    public void SetZoom(float zoom) { }
 
     // -------------------------------------------------------------------------
     // Menu icons
@@ -1982,7 +1978,7 @@ public partial class FlowsheetView : UserControl
         MenuSimSettings.Click += async (_, _) =>
         {
             if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
-            var dlg = new SimulationSettingsWindow(_flowsheet);
+            var dlg = new SimulationSettingsWindow(_flowsheet, refreshCanvas: () => Canvas?.Refresh());
             await dlg.ShowDialog(HostWindow);
         };
 
@@ -2526,7 +2522,7 @@ public partial class FlowsheetView : UserControl
                                     AcceptsReturn = true,
                                     TextWrapping = global::Avalonia.Media.TextWrapping.Wrap,
                                     FontFamily = new FontFamily("Consolas,Courier New,monospace"),
-                                    FontSize = 11
+                                    FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11)
                                 }
                             }
                         }
@@ -2907,25 +2903,25 @@ public partial class FlowsheetView : UserControl
             var arrowText = new TextBlock
             {
                 Text = "↓",  // down arrow = expanded
-                FontSize = 11,
+                FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
                 FontWeight = FontWeight.Bold,
                 Foreground = Brushes.SteelBlue,
                 VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(6, 0, 4, 0),
-                Width = 16
+                Width = DWSIM.UI.Shared.Avalonia.UiScale.Size(16)
             };
             var headerLabel = new TextBlock
             {
                 Text = cat,
                 FontWeight = FontWeight.SemiBold,
-                FontSize = 11,
+                FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
                 VerticalAlignment = VerticalAlignment.Center
             };
             var headerPanel = new StackPanel
             {
                 Orientation = global::Avalonia.Layout.Orientation.Horizontal,
                 Cursor = new Cursor(StandardCursorType.Hand),
-                Height = 30,
+                Height = DWSIM.UI.Shared.Avalonia.UiScale.Size(30),
             };
             // Theme-aware band: light in the light variant, dark in the dark one, so the
             // header text (which inherits the theme foreground) stays legible in both.
@@ -2946,7 +2942,7 @@ public partial class FlowsheetView : UserControl
                 var cell = new StackPanel
                 {
                     Orientation = global::Avalonia.Layout.Orientation.Vertical,
-                    Width = 90,
+                    Width = DWSIM.UI.Shared.Avalonia.UiScale.Size(90),
                     Margin = new Thickness(2, 4),
                     HorizontalAlignment = HorizontalAlignment.Center,
                     Cursor = new Cursor(StandardCursorType.Hand),
@@ -2968,8 +2964,8 @@ public partial class FlowsheetView : UserControl
                         iconCtrl = new Image
                         {
                             Source = bmp,
-                            Width = 40,
-                            Height = 40,
+                            Width = DWSIM.UI.Shared.Avalonia.UiScale.Size(40),
+                            Height = DWSIM.UI.Shared.Avalonia.UiScale.Size(40),
                             HorizontalAlignment = HorizontalAlignment.Center
                         };
                     }
@@ -2977,7 +2973,7 @@ public partial class FlowsheetView : UserControl
                     {
                         iconCtrl = new Border
                         {
-                            Width = 40, Height = 40,
+                            Width = DWSIM.UI.Shared.Avalonia.UiScale.Size(40), Height = DWSIM.UI.Shared.Avalonia.UiScale.Size(40),
                             Background = Brushes.LightGray,
                             HorizontalAlignment = HorizontalAlignment.Center
                         };
@@ -2987,7 +2983,7 @@ public partial class FlowsheetView : UserControl
                 {
                     iconCtrl = new Border
                     {
-                        Width = 40, Height = 40,
+                        Width = DWSIM.UI.Shared.Avalonia.UiScale.Size(40), Height = DWSIM.UI.Shared.Avalonia.UiScale.Size(40),
                         Background = Brushes.LightGray,
                         HorizontalAlignment = HorizontalAlignment.Center
                     };
@@ -2998,11 +2994,11 @@ public partial class FlowsheetView : UserControl
                 cell.Children.Add(new TextBlock
                 {
                     Text = name,
-                    FontSize = 10,
+                    FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(10),
                     TextAlignment = TextAlignment.Center,
                     TextWrapping = TextWrapping.Wrap,
                     HorizontalAlignment = HorizontalAlignment.Center,
-                    MaxWidth = 86
+                    MaxWidth = DWSIM.UI.Shared.Avalonia.UiScale.Size(86)
                 });
 
                 // Wire double-click to add object
@@ -3113,15 +3109,22 @@ public partial class FlowsheetView : UserControl
 
     private static void OpenUrl(string url)
     {
+        // Use the per-OS opener first; ShellExecute can fail with "no application found" on a machine
+        // whose default browser registration is broken (and pops the shell's own error dialog).
         try
         {
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-            {
-                FileName = url,
-                UseShellExecute = true
-            });
+            if (OperatingSystem.IsWindows())
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", "\"" + url + "\"") { UseShellExecute = false });
+            else if (OperatingSystem.IsMacOS())
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("open", url) { UseShellExecute = false });
+            else
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("xdg-open", url) { UseShellExecute = false });
         }
-        catch { }
+        catch
+        {
+            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = url, UseShellExecute = true }); }
+            catch { }
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -3489,7 +3492,7 @@ public partial class FlowsheetView : UserControl
         {
             Text = "Are you sure you want to close this simulation?\nUnsaved changes will be lost.",
             TextWrapping = global::Avalonia.Media.TextWrapping.Wrap,
-            FontSize = 13,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(13),
             Margin = new Thickness(20, 20, 20, 0)
         });
 

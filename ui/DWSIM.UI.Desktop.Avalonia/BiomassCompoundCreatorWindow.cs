@@ -46,7 +46,7 @@ public sealed class BiomassCompoundCreatorWindow : Window
     private readonly TextBox _tbOutput = new();
     private readonly TextBlock _status = new()
     {
-        FontSize = 11, Opacity = 0.85, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 0)
+        FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11), Opacity = 0.85, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 0)
     };
 
     public BiomassCompoundCreatorWindow(IFlowsheet? flowsheet = null)

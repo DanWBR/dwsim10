@@ -11,7 +11,7 @@
   <StackPanel Margin="20" Spacing="12" VerticalAlignment="Center">
 
     <TextBlock Name="LblTitle" Text="Working..." FontWeight="SemiBold" FontSize="13" />
-    <TextBlock Name="LblMessage" Text="Please wait..." TextWrapping="Wrap" FontSize="11" />
+    <TextBlock Name="LblMessage" Text="Please wait..." TextWrapping="Wrap" FontSize="{DynamicResource FontSizeSmall}" />
 
     <ProgressBar Name="Bar" Minimum="0" Maximum="100" Value="0"
                  IsIndeterminate="True" Height="14" />

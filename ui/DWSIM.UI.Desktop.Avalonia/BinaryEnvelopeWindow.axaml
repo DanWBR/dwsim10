@@ -9,7 +9,7 @@
   <DockPanel LastChildFill="True">
 
     <Border DockPanel.Dock="Bottom" Padding="8,3" BorderThickness="0,1,0,0">
-      <TextBlock Name="StatusLabel" Text="Pick two compounds, a property package and an envelope type, then press Build Envelope." FontSize="11" />
+      <TextBlock Name="StatusLabel" Text="Pick two compounds, a property package and an envelope type, then press Build Envelope." FontSize="{DynamicResource FontSizeSmall}" />
     </Border>
 
     <Grid ColumnDefinitions="420,4,*">
@@ -36,7 +36,7 @@
             </StackPanel>
             <DataGrid Name="GridData" AutoGenerateColumns="False" IsReadOnly="True"
                       HeadersVisibility="Column" GridLinesVisibility="All"
-                      CanUserResizeColumns="True" FontSize="11" />
+                      CanUserResizeColumns="True" FontSize="{DynamicResource FontSizeSmall}" />
           </DockPanel>
         </TabItem>
       </TabControl>

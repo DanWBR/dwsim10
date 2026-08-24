@@ -1,4 +1,4 @@
-﻿'    Sensitivity Analysis Classes
+'    Sensitivity Analysis Classes
 '    Copyright 2009-2014 Daniel Wagner O. de Medeiros
 '
 '    This file is part of DWSIM.
@@ -20,7 +20,6 @@ Imports System.Xml
 Imports System.IO
 Imports System.Runtime.Serialization.Formatters.Binary
 Imports System.Runtime.Serialization
-Imports Flee.PublicTypes
 Imports System.Linq
 
 ''' <summary>
@@ -45,8 +44,8 @@ Namespace Flowsheet.Optimization
         Public depvartype As SADependentVariableType = SADependentVariableType.Variable
 
         Public expression As String = ""
-        <System.NonSerialized()> Public exbase As IGenericExpression(Of Double)
-        <System.NonSerialized()> Public econtext As ExpressionContext
+        <System.NonSerialized()> Public exbase As CompiledExpression
+        <System.NonSerialized()> Public econtext As ExpressionEvaluator.VariableTable
 
         Public variables As New Dictionary(Of String, SAVariable)
         Public depvariables As New Dictionary(Of String, SAVariable)

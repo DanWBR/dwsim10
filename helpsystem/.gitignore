@@ -1,0 +1,7 @@
+site/
+build/
+dist/
+__pycache__/
+*.pyc
+.venv/
+.vs/

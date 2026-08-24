@@ -22,7 +22,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Flee" />
   </ItemGroup>
 
   <ItemGroup>

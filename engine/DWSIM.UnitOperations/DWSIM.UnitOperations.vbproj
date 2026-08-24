@@ -71,7 +71,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Flee" />
     <PackageReference Include="IronPython" />
     <PackageReference Include="Mages" />
     <PackageReference Include="MathNet.Numerics" />

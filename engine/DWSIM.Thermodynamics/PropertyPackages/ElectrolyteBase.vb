@@ -23,7 +23,6 @@ Imports System.Linq
 
 Imports DWSIM.MathOps.MathEx
 Imports DWSIM.MathOps.MathEx.Common
-Imports Flee.PublicTypes
 Imports DWSIM.Interfaces.Enums
 
 Namespace PropertyPackages

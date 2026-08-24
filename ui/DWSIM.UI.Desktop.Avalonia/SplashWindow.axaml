@@ -24,7 +24,7 @@
       <TextBlock Name="LblVersion"
                  Canvas.Left="260" Canvas.Top="100"
                  FontWeight="Bold"
-                 FontSize="11"
+                 FontSize="{DynamicResource FontSizeSmall}"
                  Foreground="#0D72A6" />
 
       <!-- GPL notice -->
@@ -33,7 +33,7 @@
                  Width="700"
                  TextWrapping="Wrap"
                  Foreground="#0D72A6"
-                 FontSize="11"
+                 FontSize="{DynamicResource FontSizeSmall}"
                  Text="This software is released under the terms of the GNU General Public License (GPL) version 3. See specific licenses for external components on the 'About' box." />
 
       <!-- Patrons / Sponsors -->
@@ -48,7 +48,7 @@
       <!-- Copyright -->
       <TextBlock Name="LblCopyright"
                  Canvas.Left="260" Canvas.Top="430"
-                 FontSize="11"
+                 FontSize="{DynamicResource FontSizeSmall}"
                  Foreground="#0D72A6" />
 
     </Canvas>

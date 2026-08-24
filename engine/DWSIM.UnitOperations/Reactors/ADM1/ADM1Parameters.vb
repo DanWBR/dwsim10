@@ -181,7 +181,10 @@ Namespace Reactors.ADM1
         Public Property f_li_xc As Double = 0.3
         ' Nitrogen content
         Public Property N_xc As Double = 0.0376 / 14.0  ' kmol N / kg COD
-        Public Property N_I As Double = 0.06 / 14.0
+        ''' <summary>The Batstone 2002 value, kept nameable because characterising the composite
+        ''' from a substrate has to recompute the cap on it from a fixed starting point.</summary>
+        Public Const N_I_Default As Double = 0.06 / 14.0
+        Public Property N_I As Double = N_I_Default
         Public Property N_aa As Double = 0.007
         Public Property N_bac As Double = 0.08 / 14.0
         ' Carbon content

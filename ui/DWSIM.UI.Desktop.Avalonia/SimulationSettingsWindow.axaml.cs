@@ -146,9 +146,12 @@ public partial class SimulationSettingsWindow : Window
     // Parameterless ctor required by Avalonia's XAML compiler (designer-only).
     public SimulationSettingsWindow() : this(null!) { }
 
-    public SimulationSettingsWindow(IFlowsheet flowsheet)
+    private readonly Action? _refreshCanvas;
+
+    public SimulationSettingsWindow(IFlowsheet flowsheet, Action? refreshCanvas = null)
     {
         _flowsheet = flowsheet!;
+        _refreshCanvas = refreshCanvas;
         InitializeComponent();
         IconHelper.ApplyWindowIcon(this);
         if (flowsheet == null) return;
@@ -422,7 +425,7 @@ public partial class SimulationSettingsWindow : Window
             IsReadOnly = true,
             HeadersVisibility = DataGridHeadersVisibility.Column,
             GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
-            FontSize = 11,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
             ItemsSource = rows
         };
         grid.Columns.Add(new DataGridTextColumn { Header = "Property", Binding = new global::Avalonia.Data.Binding("Property"), Width = new DataGridLength(230) });
@@ -707,6 +710,7 @@ public partial class SimulationSettingsWindow : Window
     private void PopulateBehavior()
     {
         ChkSkipEqCalcs.IsChecked = Options.SkipEquilibriumCalculationOnDefinedStreams;
+        CbColorTheme.SelectedIndex = Options.FlowsheetColorTheme;
         CbForcePhase.SelectedIndex = Options.ForceStreamPhase switch
         {
             ForcedPhase.Vapor => 1,
@@ -805,7 +809,7 @@ public partial class SimulationSettingsWindow : Window
                 Content = _flowsheet.GetTranslatedString(property),
                 Tag = property,
                 IsChecked = visible.Contains(property),
-                FontSize = 11,
+                FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
                 MinHeight = 0
             };
             item.IsCheckedChanged += (_, _) => ToggleVisibleProperty(item);
@@ -863,7 +867,7 @@ public partial class SimulationSettingsWindow : Window
             {
                 Content = name,
                 IsChecked = target.Contains(name),
-                FontSize = 11,
+                FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
                 MinHeight = 0
             };
             item.IsCheckedChanged += (_, _) =>
@@ -1019,6 +1023,13 @@ public partial class SimulationSettingsWindow : Window
         ChkSkipEqCalcs.IsCheckedChanged += (_, _) =>
         {
             if (!_loading) Options.SkipEquilibriumCalculationOnDefinedStreams = ChkSkipEqCalcs.IsChecked.GetValueOrDefault();
+        };
+        CbColorTheme.SelectionChanged += (_, _) =>
+        {
+            if (_loading) return;
+            Options.FlowsheetColorTheme = CbColorTheme.SelectedIndex;
+            // redraw the flowsheet so the new theme (e.g. Color Icons) applies immediately
+            _refreshCanvas?.Invoke();
         };
         CbForcePhase.SelectionChanged += (_, _) =>
         {
@@ -1194,11 +1205,22 @@ public partial class SimulationSettingsWindow : Window
 
     private static void OpenUrl(string url)
     {
+        // Use the per-OS opener first; ShellExecute can fail with "no application found" on a machine
+        // whose default browser registration is broken (and pops the shell's own error dialog).
         try
         {
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
+            if (OperatingSystem.IsWindows())
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", "\"" + url + "\"") { UseShellExecute = false });
+            else if (OperatingSystem.IsMacOS())
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("open", url) { UseShellExecute = false });
+            else
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("xdg-open", url) { UseShellExecute = false });
         }
-        catch (Exception) { }
+        catch (Exception)
+        {
+            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = url, UseShellExecute = true }); }
+            catch (Exception) { }
+        }
     }
 
     private void Status(string message)

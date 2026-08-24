@@ -76,7 +76,6 @@
   <ItemGroup>
     <PackageReference Include="EPPlus" />
     <PackageReference Include="FileHelpers" />
-    <PackageReference Include="Flee" />
     <PackageReference Include="IronPython" />
     <PackageReference Include="Mages" />
     <PackageReference Include="MathNet.Numerics" />

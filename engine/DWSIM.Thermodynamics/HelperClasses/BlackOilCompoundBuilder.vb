@@ -55,8 +55,10 @@ Namespace Utilities.BlackOil
         ''' </summary>
         Public Function BuildConstantProperties(name As String, sgo As Double, sgg As Double, gor As Double, bsw As Double,
                                                 oilVisc1 As Double, oilViscTemp1 As Double, oilVisc2 As Double, oilViscTemp2 As Double,
-                                                comments As String) As BaseClasses.ConstantProperties
-            Dim dict = BuildCompound(name, sgo, sgg, gor, bsw, oilVisc1, oilViscTemp1, oilVisc2, oilViscTemp2, comments)
+                                                comments As String,
+                                                Optional rsMult As Double = 1.0, Optional boMult As Double = 1.0,
+                                                Optional pbMult As Double = 1.0, Optional oilViscMult As Double = 1.0) As BaseClasses.ConstantProperties
+            Dim dict = BuildCompound(name, sgo, sgg, gor, bsw, oilVisc1, oilViscTemp1, oilVisc2, oilViscTemp2, comments, rsMult, boMult, pbMult, oilViscMult)
             Dim json = Newtonsoft.Json.JsonConvert.SerializeObject(dict)
             Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of BaseClasses.ConstantProperties)(json)
         End Function
@@ -67,7 +69,9 @@ Namespace Utilities.BlackOil
         ''' </summary>
         Public Function BuildCompound(name As String, sgo As Double, sgg As Double, gor As Double, bsw As Double,
                                       oilVisc1 As Double, oilViscTemp1 As Double, oilVisc2 As Double, oilViscTemp2 As Double,
-                                      comments As String) As Dictionary(Of String, Object)
+                                      comments As String,
+                                      Optional rsMult As Double = 1.0, Optional boMult As Double = 1.0,
+                                      Optional pbMult As Double = 1.0, Optional oilViscMult As Double = 1.0) As Dictionary(Of String, Object)
 
             If String.IsNullOrWhiteSpace(name) Then name = "BlackOil_Custom"
             If sgo <= 0.0 Then Throw New ArgumentException("Oil specific gravity must be positive.")
@@ -124,6 +128,7 @@ Namespace Utilities.BlackOil
                 {"BO_OilVisc1", oilVisc1}, {"BO_OilViscTemp1", oilViscTemp1},
                 {"BO_OilVisc2", oilVisc2}, {"BO_OilViscTemp2", oilViscTemp2},
                 {"BO_PNA_P", 0.0}, {"BO_PNA_N", 0.0}, {"BO_PNA_A", 0.0},
+                {"BO_RsMult", rsMult}, {"BO_BoMult", boMult}, {"BO_PbMult", pbMult}, {"BO_OilViscMult", oilViscMult},
                 {"IsCOOLPROPSupported", False}, {"IsFPROPSSupported", False},
                 {"IsHydratedSalt", False}, {"IsHYPO", 0}, {"IsIon", False}, {"IsModified", False},
                 {"IsPF", 0}, {"IsSalt", False},

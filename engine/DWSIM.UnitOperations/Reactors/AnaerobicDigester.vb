@@ -170,6 +170,14 @@ Namespace Reactors
         ''' which have no mechanistic pH. ADM1-Full ignores this and uses its charge-balance pH.</summary>
         Public Property AssumedPH_ForSulfide As Double = 7.2
 
+        ''' <summary>(ADM1-Full) Feed alkalinity carried by strong cations - the net cation charge the
+        ''' substrate brings that is not accounted for by the ammonia it releases (potassium, sodium,
+        ''' calcium salts in the raw feed), in equivalents per litre (= kmol charge/m³). ADM1-Full solves
+        ''' pH from the influent charge balance, and manure feeds are strongly buffered (typically
+        ''' 0.05-0.15 eq/L, ~2.5-7.5 g CaCO3/L); leaving this at 0 lets the pH fall, which strips CO2 into
+        ''' the biogas and understates the methane fraction. Only ADM1-Full and ADM1-S read it.</summary>
+        Public Property InfluentAlkalinity_eqL As Double = 0.0
+
         ' ----------- ADM1-LITE INITIAL STATE (concentrations, g COD/L unless noted) -----------
 
         ''' <summary>(ADM1-Lite) Initial soluble-substrate COD (g COD/L) - lumped sugars/amino-acids/LCFA from hydrolysed particulates.</summary>
@@ -403,15 +411,19 @@ Namespace Reactors
         ''' then mass/density when the property package resolves no liquid phase.
         ''' </summary>
         Private Shared Function LiquidVolumetricFlow(ims As MaterialStream) As Double
-            Dim q = ims.Phases(1).Properties.volumetric_flow.GetValueOrDefault
+            ' An anaerobic digester feed is an aqueous slurry: the hydraulic loading is the whole feed,
+            ' not just the flashed liquid phase. Deriving it from that phase is fragile - a pseudo-compound
+            ' substrate can flash to a sliver of "liquid" or make the property package report an
+            ' unphysical mixture density (e.g. 145 kg/m3), and either one throws the HRT off by orders of
+            ' magnitude. Load from the total feed mass over a liquid density floored to an aqueous value,
+            ' and fall back to the reported volumetric flow only if there is no mass.
+            Dim m_feed = ims.Phases(0).Properties.massflow.GetValueOrDefault
+            Dim rho_L = ims.Phases(1).Properties.density.GetValueOrDefault
+            If rho_L <= 250.0 Then rho_L = ims.Phases(0).Properties.density.GetValueOrDefault
+            If rho_L <= 250.0 Then rho_L = 1000.0   ' aqueous-slurry floor: a real digester feed is mostly water
+            Dim q = If(m_feed > 0.0, m_feed / rho_L, 0.0)
+            If q <= 0.0 Then q = ims.Phases(1).Properties.volumetric_flow.GetValueOrDefault
             If q <= 0.0 Then q = ims.Phases(0).Properties.volumetric_flow.GetValueOrDefault
-            If q <= 0.0 Then
-                Dim m_feed = ims.Phases(0).Properties.massflow.GetValueOrDefault
-                Dim rho_L = ims.Phases(1).Properties.density.GetValueOrDefault
-                If rho_L <= 0.0 Then rho_L = ims.Phases(0).Properties.density.GetValueOrDefault
-                If rho_L <= 0.0 Then rho_L = 1000.0
-                If m_feed > 0.0 Then q = m_feed / rho_L
-            End If
             If q <= 0.0 Then q = 0.001
             Return q
         End Function
@@ -465,6 +477,59 @@ Namespace Reactors
                 nOrg_kmols = SubstrateOrganicS_gPerKg * m_sub_kgs / (1000.0 * MW_Sulfur)
                 codFactorExtra = 2.0 * SubstrateOrganicS_gPerKg / 1000.0   ' g COD / g substrate
             End If
+        End Sub
+
+        ''' <summary>
+        ''' Characterise the ADM1 composite (X_c) from the substrate's elemental formula so the
+        ''' influent fed as X_c carries the substrate's own carbon and nitrogen instead of the generic
+        ''' Rosen and Jeppsson composite. Sets the composite carbon and nitrogen content (C_xc, N_xc,
+        ''' both per unit COD) and moves the disintegration split so the protein fraction carries the
+        ''' substrate nitrogen - the disintegration nitrogen balance stays closed (no artificial ammonia
+        ''' source or sink) and the lipid and inert fractions (hence the biodegradable/inert split) are
+        ''' kept. This is what lets a real substrate release ammonia (raising alkalinity, so CO2 stays in
+        ''' the liquid as bicarbonate and the biogas is CH4-rich) and leave a non-degradable inert
+        ''' residue, instead of the old behaviour that mapped every substrate to pure carbohydrate.
+        ''' </summary>
+        Private Sub CharacteriseCompositeFromSubstrate(cp As ConstantProperties)
+            If cp Is Nothing OrElse cp.Elements Is Nothing Then Return
+            Dim a As Double = 0, b As Double = 0, c As Double = 0, d As Double = 0, e As Double = 0
+            If cp.Elements.Contains("C") Then a = Convert.ToDouble(cp.Elements("C"))
+            If cp.Elements.Contains("H") Then b = Convert.ToDouble(cp.Elements("H"))
+            If cp.Elements.Contains("O") Then c = Convert.ToDouble(cp.Elements("O"))
+            If cp.Elements.Contains("N") Then d = Convert.ToDouble(cp.Elements("N"))
+            If cp.Elements.Contains("S") Then e = Convert.ToDouble(cp.Elements("S"))
+            Dim O2mol = a + b / 4.0 - c / 2.0 - 0.75 * d + 1.5 * e
+            If O2mol <= 0.0 OrElse a <= 0.0 Then Return   ' cannot characterise; keep the default composite
+
+            Dim st = ADM1Params.Stoichiometry
+            ' Carbon and nitrogen per unit COD (kmol/kg COD): COD per mole = 32*O2mol g O2.
+            st.C_xc = a / (32.0 * O2mol)
+            st.N_xc = d / (32.0 * O2mol)
+
+            ' The inerts cannot carry nitrogen the composite never had. N_I keeps the ADM1 default
+            ' while the composite is derived from the substrate's own formula, so a nitrogen-free
+            ' substrate - glucose is the obvious one - left the inerts holding 0.3 * N_I of it. The
+            ' protein fraction below is then clamped at zero, nDis comes out NEGATIVE, and every
+            ' disintegration destroys ammonia the feed has to keep replacing. On the validation
+            ' digester that sink was 2.8e-3 kmol N/m³/d against 3.1e-3 fed: S_IN settled at 3e-4
+            ' instead of 0.07, the acetoclastic methanogens and the amino-acid degraders starved out
+            ' while the sugar fermenters kept going, and the reactor soured to pH 4 with acetate at
+            ' 6 kg COD/m³. Cap N_I at what the composite can actually supply.
+            ' Recomputed from the default rather than from whatever the last substrate left behind,
+            ' so switching back to a nitrogen-rich one restores the Batstone value.
+            Dim inertShare = st.f_sI_xc + st.f_xI_xc
+            st.N_I = ADM1.StoichiometryParams.N_I_Default
+            If inertShare > 0.0 Then st.N_I = Min(st.N_I, st.N_xc / inertShare)
+
+            ' All composite nitrogen not held by the soluble/particulate inerts goes into the protein
+            ' fraction, so nDis = N_xc - (f_sI+f_xI)*N_I - f_pr*N_aa is zero and the disintegration adds
+            ' no spurious ammonia term. The COD freed from the default protein fraction becomes
+            ' carbohydrate; the lipid and inert fractions are left untouched.
+            Dim inertN = inertShare * st.N_I
+            Dim fPr = (st.N_xc - inertN) / Max(st.N_aa, 1.0E-30)
+            fPr = Max(0.0, Min(fPr, 1.0 - st.f_sI_xc - st.f_xI_xc - st.f_li_xc))
+            st.f_pr_xc = fPr
+            st.f_ch_xc = 1.0 - st.f_sI_xc - st.f_xI_xc - st.f_li_xc - fPr
         End Sub
 
         ''' <summary>
@@ -1448,7 +1513,11 @@ Namespace Reactors
 
             Dim CODin_kgs = m_sub_in * codFactor
 
-            ' Build influent vector - map substrate COD into X_ch (carbohydrate slot) as a pragmatic default.
+            ' Build influent vector - feed the substrate as composite particulate X_c, characterised
+            ' from its own elemental formula (see CharacteriseCompositeFromSubstrate), so disintegration
+            ' splits it into carbohydrate/protein/lipid plus soluble and particulate inerts. The inerts
+            ' leave undigested (COD conversion below 100 %) and the protein nitrogen becomes ammonia,
+            ' which raises alkalinity and keeps CO2 in the liquid so the biogas is CH4-rich.
             ' Users wanting fine-grained influent composition edit ADM1Params.Operating.Sin_*/Xin_*.
             ' ADM1-S respires the feed sulfate inside the reactor instead of assuming it reduced.
             ' Switching the extension on here rather than leaving it to the parameter dialog is what
@@ -1462,14 +1531,18 @@ Namespace Reactors
             Dim Sin As Double()
             If useStream Then
                 Sin = New Double(ADM1.ADM1State.NDynamic - 1) {}
+                CharacteriseCompositeFromSubstrate(cpSub)
                 ' Feed COD concentration (kg COD/mÂ³)
                 Dim S_in_COD = CODin_kgs / Q_liquid_m3s
                 Dim c_SO4_in = nSO4_kmols / Q_liquid_m3s            ' kmol S/m³ as sulfate
                 Dim c_IS_in = (nS_total_kmols - nSO4_kmols) / Q_liquid_m3s ' organic S + fed sulfide
 
+                ' Feed alkalinity: strong cations the substrate carries beyond the ammonia it releases,
+                ' added to the influent cation charge so the charge-balance pH reflects a buffered feed.
+                Dim alk = Max(InfluentAlkalinity_eqL, 0.0)
                 Sin(10) = op.Sin_IN   ' inorganic N
                 Sin(9) = op.Sin_IC    ' inorganic C
-                Sin(24) = op.Sin_cat
+                Sin(24) = op.Sin_cat + alk
                 Sin(25) = op.Sin_an
 
                 If srbKinetics Then
@@ -1477,13 +1550,13 @@ Namespace Reactors
                     ' donor pool themselves, so there is nothing to debit: the methane loss is
                     ' whatever the competition produces, and a sulfate-limited digester is now a
                     ' state the model can actually reach.
-                    Sin(13) = S_in_COD
+                    Sin(12) = S_in_COD   ' feed COD as composite X_c
                     Sin(31) = c_SO4_in
                     Sin(29) = c_IS_in
                     ' Sulfate is divalent and S_an counts charge, not moles - and it arrives as a
                     ' salt, so the counter-cations come with it. Feeding the anion alone would be
                     ' feeding sulfuric acid and would acidify the reactor for no physical reason.
-                    Sin(24) = op.Sin_cat + 2.0 * c_SO4_in
+                    Sin(24) = op.Sin_cat + 2.0 * c_SO4_in + alk
                     Sin(25) = op.Sin_an + 2.0 * c_SO4_in
                 Else
                     ' Sulfide arrives already mineralised, and its electrons are debited from the
@@ -1504,7 +1577,7 @@ Namespace Reactors
                         codDebit = S_in_COD
                     End If
 
-                    Sin(13) = S_in_COD - codDebit   ' feed COD as X_ch, net of the sulfide debit
+                    Sin(12) = S_in_COD - codDebit   ' feed COD as composite X_c, net of the sulfide debit
                     Sin(29) = c_IS_all
                 End If
                 ' override operating Q

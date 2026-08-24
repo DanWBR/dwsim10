@@ -73,7 +73,7 @@ public sealed class MaterialStreamListPanel : DockPanel
         {
             Text = "Updated on: --",
             VerticalAlignment = VerticalAlignment.Center,
-            FontSize = 11,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
             Margin = new Thickness(8, 0, 4, 0)
         };
 
@@ -81,7 +81,7 @@ public sealed class MaterialStreamListPanel : DockPanel
         {
             Text = "Order By",
             VerticalAlignment = VerticalAlignment.Center,
-            FontSize = 11,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
             Margin = new Thickness(4, 0)
         };
 
@@ -89,7 +89,7 @@ public sealed class MaterialStreamListPanel : DockPanel
         {
             ItemsSource = OrderByOptions,
             SelectedIndex = 0,
-            FontSize = 11,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
             MinWidth = 150,
             VerticalAlignment = VerticalAlignment.Center
         };
@@ -121,7 +121,7 @@ public sealed class MaterialStreamListPanel : DockPanel
             IsReadOnly = true,
             HeadersVisibility = DataGridHeadersVisibility.Column,
             GridLinesVisibility = DataGridGridLinesVisibility.All,
-            FontSize = 11,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
             Margin = new Thickness(4)
         };
 
@@ -133,7 +133,7 @@ public sealed class MaterialStreamListPanel : DockPanel
         var button = new Button
         {
             Content = text,
-            FontSize = 11,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
             Padding = new Thickness(8, 3),
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(4, 0, 0, 0)
@@ -239,7 +239,7 @@ public sealed class MaterialStreamListPanel : DockPanel
                         var value = _streams[j].GetPropertyValue(prop, su);
                         var text = value?.ToString() ?? "";
 
-                        if (double.TryParse(text, NumberStyles.Any, CultureInfo.CurrentCulture, out var d))
+                        if (double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out var d))
                             row.Values[j] = double.IsNaN(d) || double.IsInfinity(d) ? "" : d.ToString(nf);
                         else
                             row.Values[j] = text;
@@ -387,7 +387,7 @@ public sealed class MaterialStreamListPanel : DockPanel
         if (index >= _streams.Count) return;
         if (text == row.Values[index]) return;
 
-        if (!double.TryParse(text, NumberStyles.Any, CultureInfo.CurrentCulture, out var value)) return;
+        if (!double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out var value)) return;
 
         try
         {

@@ -297,7 +297,7 @@ internal sealed class PhaseEqDownloadDialog : Window
 
     private readonly ProgressBar _progress = new() { IsIndeterminate = true, Height = 18 };
     private readonly TextBlock _statusLabel = new() { TextWrapping = TextWrapping.Wrap };
-    private readonly TextBlock _bytesLabel = new() { Text = "-", FontSize = 11 };
+    private readonly TextBlock _bytesLabel = new() { Text = "-", FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11) };
     private readonly Button _btnCancel = new() { Content = "Cancel", Width = 90 };
 
     private CancellationTokenSource? _cts;
@@ -322,7 +322,7 @@ internal sealed class PhaseEqDownloadDialog : Window
         panel.Children.Add(new TextBlock
         {
             Text = "Destination: " + PhaseEqBundle.DefaultDbPath(),
-            FontSize = 11, Opacity = 0.8, TextWrapping = TextWrapping.Wrap
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11), Opacity = 0.8, TextWrapping = TextWrapping.Wrap
         });
 
         var buttons = new StackPanel

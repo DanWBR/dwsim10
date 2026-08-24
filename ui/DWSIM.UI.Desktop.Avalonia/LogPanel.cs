@@ -51,20 +51,24 @@ public sealed class LogPanel : DockPanel
 
     public LogPanel()
     {
-        // Kept out of the prime top area to give the log table more room: a compact row at the
-        // bottom-right (the same actions are also on the grid's right-click menu).
+        // A slim vertical column of actions down the right side, beside the table, so they never take
+        // a whole horizontal row (the same actions are also on the grid's right-click menu).
         var toolbar = new StackPanel
         {
-            Orientation = global::Avalonia.Layout.Orientation.Horizontal,
-            Spacing = 2,
+            Orientation = global::Avalonia.Layout.Orientation.Vertical,
+            Spacing = 4,
             Margin = new Thickness(4, 2),
-            HorizontalAlignment = global::Avalonia.Layout.HorizontalAlignment.Right
+            VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Top
         };
 
-        toolbar.Children.Add(ToolButton("Clear List", (_, _) => Clear()));
-        toolbar.Children.Add(ToolButton("Copy Information", async (_, _) => await CopySelectedAsync()));
+        var clearBtn = ToolButton("Clear List", (_, _) => Clear());
+        var copyBtn = ToolButton("Copy Information", async (_, _) => await CopySelectedAsync());
+        clearBtn.HorizontalAlignment = global::Avalonia.Layout.HorizontalAlignment.Stretch;
+        copyBtn.HorizontalAlignment = global::Avalonia.Layout.HorizontalAlignment.Stretch;
+        toolbar.Children.Add(clearBtn);
+        toolbar.Children.Add(copyBtn);
 
-        SetDock(toolbar, global::Avalonia.Controls.Dock.Bottom);
+        SetDock(toolbar, global::Avalonia.Controls.Dock.Right);
         Children.Add(toolbar);
 
         _grid = new DataGrid
@@ -76,7 +80,7 @@ public sealed class LogPanel : DockPanel
             HeadersVisibility = DataGridHeadersVisibility.Column,
             GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
             SelectionMode = DataGridSelectionMode.Single,
-            FontSize = 11
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11)
         };
 
         _grid.Columns.Add(new DataGridTemplateColumn
@@ -90,7 +94,7 @@ public sealed class LogPanel : DockPanel
                 {
                     Text = row.Icon,
                     Foreground = row.Color,
-                    FontSize = 13,
+                    FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(13),
                     HorizontalAlignment = HorizontalAlignment.Center,
                     VerticalAlignment = VerticalAlignment.Center
                 };
@@ -131,7 +135,7 @@ public sealed class LogPanel : DockPanel
                 var button = new Button
                 {
                     Content = "Details",
-                    FontSize = 11,
+                    FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
                     Padding = new Thickness(6, 1),
                     Margin = new Thickness(2, 1),
                     VerticalAlignment = VerticalAlignment.Center
@@ -174,7 +178,7 @@ public sealed class LogPanel : DockPanel
         var button = new Button
         {
             Content = text,
-            FontSize = 11,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
             Padding = new Thickness(8, 3),
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(0, 0, 4, 0)
@@ -355,7 +359,7 @@ public sealed class EventDescriptionWindow : Window
         {
             Text = label,
             FontWeight = FontWeight.SemiBold,
-            FontSize = 12
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(12)
         });
 
         panel.Children.Add(new TextBox
@@ -365,7 +369,7 @@ public sealed class EventDescriptionWindow : Window
             AcceptsReturn = lines > 1,
             TextWrapping = TextWrapping.Wrap,
             FontFamily = new FontFamily("Consolas,Courier New,monospace"),
-            FontSize = 11,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
             MinHeight = 22 * lines
         });
 

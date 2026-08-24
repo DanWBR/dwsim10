@@ -58,6 +58,7 @@ public partial class MainWindow : Window
         LoadRecentFiles();
         LoadSamples();
         LoadFosseeFlowsheets();
+        LoadCaseLibraryFlowsheets();
         // read the marker before laying it down again: if it survived, the last run did not close
         // normally, and the backup copies are worth offering back
         _previousRunCrashed = File.Exists(SessionLockPath);
@@ -254,6 +255,11 @@ public partial class MainWindow : Window
         BtnFosseeSite.Click += (_, _) => OpenUrl("https://fossee.in/");
         FosseeList.DoubleTapped += (_, _) => OpenFosseeFlowsheet();
 
+        // Case Library
+        BtnCaseLibraryRepo.Click += (_, _) => OpenUrl("https://github.com/DanWBR/dwsim-case-library");
+        BtnCaseLibraryContribute.Click += (_, _) => OpenUrl("https://github.com/DanWBR/dwsim-case-library/blob/main/CONTRIBUTING.md");
+        CaseLibraryList.DoubleTapped += (_, _) => OpenCaseLibraryFlowsheet();
+
         BtnSettings.Click += async (_, _) => await new PreferencesWindow().ShowDialog(this);
         BtnAbout.Click += (_, _) => ShowAbout();
     }
@@ -380,6 +386,81 @@ public partial class MainWindow : Window
         }
     }
 
+    // -------------------------------------------------------------------------
+    // Case Library flowsheets (github.com/DanWBR/dwsim-case-library)
+    // -------------------------------------------------------------------------
+
+    private sealed class CaseLibraryItem
+    {
+        public CaseLibraryItem(DWSIM.SharedClasses.CaseLibraryFlowsheet flowsheet)
+        {
+            Flowsheet = flowsheet;
+        }
+
+        public DWSIM.SharedClasses.CaseLibraryFlowsheet Flowsheet { get; }
+
+        public override string ToString() => Flowsheet.DisplayName;
+    }
+
+    /// <summary>
+    /// Reads the case index off the GitHub repository. It is a web request, so it runs in the
+    /// background and the list fills in when it lands.
+    /// </summary>
+    private async void LoadCaseLibraryFlowsheets()
+    {
+        CaseLibraryList.Items.Clear();
+        CaseLibraryList.Items.Add("Loading cases from the DWSIM Case Library...");
+
+        try
+        {
+            var list = await System.Threading.Tasks.Task.Run(
+                () => DWSIM.SharedClasses.CaseLibraryFlowsheets.GetCaseLibraryFlowsheets());
+
+            CaseLibraryList.Items.Clear();
+
+            if (list == null || list.Count == 0)
+            {
+                CaseLibraryList.Items.Add("(No cases returned)");
+                return;
+            }
+
+            foreach (var flowsheet in list)
+                CaseLibraryList.Items.Add(new CaseLibraryItem(flowsheet));
+        }
+        catch (Exception ex)
+        {
+            CaseLibraryList.Items.Clear();
+            CaseLibraryList.Items.Add("(Could not reach the Case Library: " + ex.Message + ")");
+        }
+    }
+
+    /// <summary>
+    /// Downloads the selected case and opens it as a document, after asking.
+    /// </summary>
+    private async void OpenCaseLibraryFlowsheet()
+    {
+        if (CaseLibraryList.SelectedItem is not CaseLibraryItem item) return;
+
+        var info = item.Flowsheet;
+
+        var message = $"Title: {info.Title}\nCategory: {info.Category}\n\n" +
+                      "Download and open this case?";
+
+        if (!await ConfirmAsync("Open Case Library Flowsheet", message)) return;
+
+        try
+        {
+            var path = await System.Threading.Tasks.Task.Run(
+                () => DWSIM.SharedClasses.CaseLibraryFlowsheets.DownloadFlowsheet(info.DownloadUrl, null));
+
+            OpenFlowsheetFile(path);
+        }
+        catch (Exception ex)
+        {
+            await ConfirmAsync("Error", "Could not download the case: " + ex.Message, okOnly: true);
+        }
+    }
+
     private static string MakeFileName(string title)
     {
         var name = new string(title.Where(c => !Path.GetInvalidFileNameChars().Contains(c)).ToArray());
@@ -429,7 +510,7 @@ public partial class MainWindow : Window
         {
             Text = message,
             TextWrapping = TextWrapping.Wrap,
-            FontSize = 13,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(13),
             Margin = new Thickness(20, 20, 20, 0)
         });
 
@@ -501,17 +582,29 @@ public partial class MainWindow : Window
 
     private static void OpenUrl(string url)
     {
+        // ShellExecute (UseShellExecute=true) is the obvious choice, but on a machine whose default
+        // browser/protocol registration is broken it throws "no application found" and pops the shell's
+        // own error dialog. The per-OS openers resolve the default handler more reliably, so try them
+        // first (both for web URLs and local file paths) and fall back to ShellExecute.
         try
         {
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-            {
-                FileName = url,
-                UseShellExecute = true
-            });
+            if (OperatingSystem.IsWindows())
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", "\"" + url + "\"") { UseShellExecute = false });
+            else if (OperatingSystem.IsMacOS())
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("open", url) { UseShellExecute = false });
+            else
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("xdg-open", url) { UseShellExecute = false });
         }
         catch
         {
-            // Browser launch can fail on locked-down machines; fail silently rather than crash.
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = url, UseShellExecute = true });
+            }
+            catch
+            {
+                // Browser launch can fail on locked-down machines; fail silently rather than crash.
+            }
         }
     }
 
@@ -804,7 +897,13 @@ public partial class MainWindow : Window
             {
                 if (File.Exists(candidate))
                 {
-                    sa = Assembly.LoadFile(candidate);
+                    // LoadFrom (default ALC), NOT LoadFile (isolated ALC): the Plus extensions load via
+                    // Assembly.LoadFrom into the default context and resolve DWSIM.Support there. LoadFile
+                    // here would put the app's DWSIM.Support - the one that runs the licence check and
+                    // populates Initialization.Details - in a SEPARATE instance, so the extensions saw a
+                    // second copy with an empty licence state (GetAccessLevel()=0) and their Plus gate fired
+                    // even for valid subscribers, while the membership panel (this instance) showed the tier.
+                    sa = Assembly.LoadFrom(candidate);
                     break;
                 }
             }

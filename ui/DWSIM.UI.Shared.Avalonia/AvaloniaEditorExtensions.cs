@@ -32,7 +32,7 @@ public static class AvaloniaEditorExtensions
         {
             Text = text,
             FontWeight = FontWeight.Bold,
-            FontSize = 11,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(12),
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, 1, 0, 0)
         };
@@ -61,7 +61,7 @@ public static class AvaloniaEditorExtensions
         {
             Text = text,
             FontWeight = FontWeight.Bold,
-            FontSize = 11,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(12),
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, 1, 0, 3)
         };
@@ -75,7 +75,7 @@ public static class AvaloniaEditorExtensions
         {
             Text = text,
             TextWrapping = TextWrapping.Wrap,
-            FontSize = 10,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
             Foreground = new SolidColorBrush(Color.FromArgb(180, 0, 0, 0)),
             Margin = new Thickness(0, 1, 0, 3)
         };

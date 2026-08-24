@@ -42,15 +42,15 @@ public sealed class DynamicsIntegratorPanel : StackPanel
         // --- Row 1: Schedule + View Results ---
         _cbSchedule = new ComboBox
         {
-            Width = 300,
-            FontSize = 11,
+            Width = DWSIM.UI.Shared.Avalonia.UiScale.Size(300),
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
             VerticalAlignment = VerticalAlignment.Center
         };
 
         _btnViewResults = new Button
         {
             Content = "View Results",
-            FontSize = 11,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
             Padding = new Thickness(8, 3),
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(8, 0, 0, 0)
@@ -66,7 +66,7 @@ public sealed class DynamicsIntegratorPanel : StackPanel
         row1.Children.Add(new TextBlock
         {
             Text = "Schedule:",
-            FontSize = 11,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(0, 0, 4, 0)
         });
@@ -78,9 +78,9 @@ public sealed class DynamicsIntegratorPanel : StackPanel
         _btnPlay = new Button
         {
             Content = "▶",  // play triangle
-            FontSize = 16,
-            Width = 36,
-            Height = 36,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(16),
+            Width = DWSIM.UI.Shared.Avalonia.UiScale.Size(36),
+            Height = DWSIM.UI.Shared.Avalonia.UiScale.Size(36),
             Padding = new Thickness(0),
             VerticalContentAlignment = VerticalAlignment.Center,
             HorizontalContentAlignment = HorizontalAlignment.Center
@@ -91,9 +91,9 @@ public sealed class DynamicsIntegratorPanel : StackPanel
         _btnRT = new Button
         {
             Content = "⏱",  // stopwatch (real-time)
-            FontSize = 16,
-            Width = 36,
-            Height = 36,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(16),
+            Width = DWSIM.UI.Shared.Avalonia.UiScale.Size(36),
+            Height = DWSIM.UI.Shared.Avalonia.UiScale.Size(36),
             Padding = new Thickness(0),
             VerticalContentAlignment = VerticalAlignment.Center,
             HorizontalContentAlignment = HorizontalAlignment.Center
@@ -104,9 +104,9 @@ public sealed class DynamicsIntegratorPanel : StackPanel
         _btnStop = new Button
         {
             Content = "⏹",  // stop
-            FontSize = 16,
-            Width = 36,
-            Height = 36,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(16),
+            Width = DWSIM.UI.Shared.Avalonia.UiScale.Size(36),
+            Height = DWSIM.UI.Shared.Avalonia.UiScale.Size(36),
             Padding = new Thickness(0),
             Foreground = new SolidColorBrush(Colors.Red),
             VerticalContentAlignment = VerticalAlignment.Center,
@@ -118,7 +118,7 @@ public sealed class DynamicsIntegratorPanel : StackPanel
         _lbStatus = new TextBlock
         {
             Text = "00:00:00 / 00:30:00",
-            FontSize = 11,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
             FontFamily = new FontFamily("Consolas,Courier New,monospace"),
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(8, 0)
@@ -129,8 +129,8 @@ public sealed class DynamicsIntegratorPanel : StackPanel
             Minimum = 0,
             Maximum = 100,
             Value = 0,
-            Width = 200,
-            Height = 16,
+            Width = DWSIM.UI.Shared.Avalonia.UiScale.Size(200),
+            Height = DWSIM.UI.Shared.Avalonia.UiScale.Size(16),
             VerticalAlignment = VerticalAlignment.Center
         };
 

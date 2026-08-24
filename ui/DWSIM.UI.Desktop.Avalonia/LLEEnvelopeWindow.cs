@@ -40,7 +40,7 @@ public sealed class LLEEnvelopeWindow : Window
     private readonly TernaryPlot _plot = new() { Margin = new Thickness(4) };
     private readonly ObservableCollection<TieRow> _rows = new();
     private readonly DataGrid _grid = new() { CanUserSortColumns = false, IsReadOnly = true, AutoGenerateColumns = false, Height = 170 };
-    private readonly TextBlock _status = new() { FontSize = 11, Opacity = 0.85, TextWrapping = TextWrapping.Wrap };
+    private readonly TextBlock _status = new() { FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11), Opacity = 0.85, TextWrapping = TextWrapping.Wrap };
 
     public LLEEnvelopeWindow(IFlowsheet flowsheet)
     {

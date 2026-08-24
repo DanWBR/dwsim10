@@ -724,7 +724,7 @@ public partial class ScriptEditorWindow : Window
         {
             Text = message,
             TextWrapping = global::Avalonia.Media.TextWrapping.Wrap,
-            FontSize = 13,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(13),
             Margin = new global::Avalonia.Thickness(20, 20, 20, 0)
         });
 

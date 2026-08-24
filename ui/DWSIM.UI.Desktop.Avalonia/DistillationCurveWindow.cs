@@ -31,7 +31,7 @@ public sealed class DistillationCurveWindow : Window
     private CheckBox _chkMW = null!, _chkSG = null!, _chkV100 = null!, _chkV210 = null!;
     private TextBox _curveData = null!, _pseudoData = null!;
 
-    private readonly TextBlock _status = new() { FontSize = 11, Opacity = 0.85, TextWrapping = TextWrapping.Wrap };
+    private readonly TextBlock _status = new() { FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11), Opacity = 0.85, TextWrapping = TextWrapping.Wrap };
     private Button _btnRun = null!;
 
     public DistillationCurveWindow(IFlowsheet flowsheet)
@@ -296,7 +296,7 @@ public sealed class DistillationCurveWindow : Window
             IsReadOnly = true,
             AcceptsReturn = true,
             FontFamily = new FontFamily("Consolas,Courier New,monospace"),
-            FontSize = 11
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11)
         };
 
         var accept = new Button { Content = "Add Compounds", Width = 140, IsDefault = true };

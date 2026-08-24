@@ -153,7 +153,7 @@ public partial class SimulationSetupWizard : Window
             var label = new TextBlock
             {
                 Text = (i + 1) + ". " + Steps[i].Title,
-                FontSize = 12,
+                FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(12),
                 TextWrapping = TextWrapping.Wrap
             };
 
@@ -236,7 +236,7 @@ public partial class SimulationSetupWizard : Window
         return new TextBlock
         {
             Text = text,
-            FontSize = 11,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
             Opacity = 0.75,
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, 2)
@@ -254,7 +254,7 @@ public partial class SimulationSetupWizard : Window
         stack.Children.Add(new TextBlock
         {
             Text = "Welcome to the simulation setup wizard.",
-            FontSize = 14,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(14),
             FontWeight = FontWeight.SemiBold
         });
 
@@ -317,7 +317,7 @@ public partial class SimulationSetupWizard : Window
         DockPanel.SetDock(searchRow, global::Avalonia.Controls.Dock.Top);
         host.Children.Add(searchRow);
 
-        _compoundCount = new TextBlock { FontSize = 11, Opacity = 0.75, Margin = new Thickness(0, 6, 0, 0) };
+        _compoundCount = new TextBlock { FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11), Opacity = 0.75, Margin = new Thickness(0, 6, 0, 0) };
         DockPanel.SetDock(_compoundCount, global::Avalonia.Controls.Dock.Bottom);
         host.Children.Add(_compoundCount);
 
@@ -561,7 +561,7 @@ public partial class SimulationSetupWizard : Window
                 var button = new Button
                 {
                     Content = caption,
-                    FontSize = 11,
+                    FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
                     Margin = new Thickness(2),
                     HorizontalAlignment = HorizontalAlignment.Stretch
                 };
@@ -697,11 +697,11 @@ public partial class SimulationSetupWizard : Window
             Margin = new Thickness(0, 8, 0, 0)
         };
 
-        var create = new Button { Content = "Create New...", FontSize = 11 };
+        var create = new Button { Content = "Create New...", FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11) };
         create.Classes.Add("panel");
         create.Click += (_, _) => CreateUnitSystem(clone: false);
 
-        var clone = new Button { Content = "Clone Selected", FontSize = 11 };
+        var clone = new Button { Content = "Clone Selected", FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11) };
         clone.Classes.Add("panel");
         clone.Click += (_, _) => CreateUnitSystem(clone: true);
 
@@ -936,7 +936,7 @@ public partial class SimulationSetupWizard : Window
             if (numbers.SelectedItem is string format) Options.NumberFormat = format;
         };
 
-        formats.Children.Add(new TextBlock { Text = "General numbers", FontSize = 11 });
+        formats.Children.Add(new TextBlock { Text = "General numbers", FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11) });
         formats.Children.Add(numbers);
 
         var fractions = new ComboBox
@@ -954,7 +954,7 @@ public partial class SimulationSetupWizard : Window
         formats.Children.Add(new TextBlock
         {
             Text = "Compound amounts",
-            FontSize = 11,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
             Margin = new Thickness(0, 6, 0, 0)
         });
         formats.Children.Add(fractions);

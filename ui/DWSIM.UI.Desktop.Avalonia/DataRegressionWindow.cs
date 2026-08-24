@@ -81,19 +81,19 @@ public sealed class DataRegressionWindow : Window
     private readonly TextBox _tbLog = new()
     {
         IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.NoWrap,
-        FontFamily = new FontFamily("Consolas,Courier New,monospace"), FontSize = 12,
+        FontFamily = new FontFamily("Consolas,Courier New,monospace"), FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(12),
         VerticalContentAlignment = VerticalAlignment.Top
     };
     private readonly TextBox _tbStats = new()
     {
         IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.NoWrap,
-        FontFamily = new FontFamily("Consolas,Courier New,monospace"), FontSize = 12,
+        FontFamily = new FontFamily("Consolas,Courier New,monospace"), FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(12),
         VerticalContentAlignment = VerticalAlignment.Top
     };
     private readonly TextBox _tbBips = new()
     {
         IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.NoWrap,
-        FontFamily = new FontFamily("Consolas,Courier New,monospace"), FontSize = 12,
+        FontFamily = new FontFamily("Consolas,Courier New,monospace"), FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(12),
         VerticalContentAlignment = VerticalAlignment.Top, Text = "(no regression run yet)"
     };
 
@@ -104,7 +104,7 @@ public sealed class DataRegressionWindow : Window
     private readonly Button _btnTransfer = new() { Content = "Transfer to Property Package", IsEnabled = false };
     private readonly Button _btnKdb = new() { Content = "Search KDB...", Width = 130 };
     private readonly Button _btnPhaseEq = new() { Content = "Search Local DB...", Width = 150 };
-    private readonly TextBlock _status = new() { FontSize = 11, Opacity = 0.85, VerticalAlignment = VerticalAlignment.Center };
+    private readonly TextBlock _status = new() { FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11), Opacity = 0.85, VerticalAlignment = VerticalAlignment.Center };
 
     private readonly StringBuilder _log = new();
     private bool _running;

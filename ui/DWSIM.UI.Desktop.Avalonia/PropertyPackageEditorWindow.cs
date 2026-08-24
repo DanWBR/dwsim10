@@ -40,6 +40,12 @@ public class PropertyPackageEditorWindow : Window
         _flowsheet = flowsheet;
         _pp = pp;
 
+        // A property package that does its own flashing (e.g. a CAPE-OPEN package) can arrive with an
+        // empty or partial FlashSettings dictionary. Backfill the defaults so the editor never throws a
+        // KeyNotFoundException reading a setting the package never populated.
+        foreach (var kv in DWSIM.Thermodynamics.PropertyPackages.Auxiliary.FlashAlgorithms.FlashAlgorithm.GetDefaultSettings())
+            if (!_pp.FlashSettings.ContainsKey(kv.Key)) _pp.FlashSettings[kv.Key] = kv.Value;
+
         Title = $"Edit '{pp.Tag}' ({pp.ComponentName})";
         Width = 820;
         Height = 580;
@@ -240,7 +246,7 @@ public class PropertyPackageEditorWindow : Window
             {
                 Text = comps[j],
                 FontWeight = FontWeight.SemiBold,
-                FontSize = 11,
+                FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
                 Margin = new Thickness(4, 2),
                 MaxWidth = 88,
                 TextTrimming = TextTrimming.CharacterEllipsis,
@@ -258,7 +264,7 @@ public class PropertyPackageEditorWindow : Window
             {
                 Text = comps[i],
                 FontWeight = FontWeight.SemiBold,
-                FontSize = 11,
+                FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
                 Margin = new Thickness(4, 2),
                 VerticalAlignment = VerticalAlignment.Center
             };
@@ -273,15 +279,15 @@ public class PropertyPackageEditorWindow : Window
                 Control cell;
                 if (c1 == c2 || !ipc[c1].ContainsKey(c2))
                 {
-                    cell = new TextBox { IsEnabled = false, FontSize = 11, Margin = new Thickness(1) };
+                    cell = new TextBox { IsEnabled = false, FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11), Margin = new Thickness(1) };
                 }
                 else
                 {
                     var d = ipc[c1][c2];
-                    var tb = new TextBox { Text = d.kij.ToString("N4"), FontSize = 11, Margin = new Thickness(1) };
+                    var tb = new TextBox { Text = d.kij.ToString("N4"), FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11), Margin = new Thickness(1) };
                     tb.LostFocus += (_, _) =>
                     {
-                        if (double.TryParse(tb.Text, NumberStyles.Any, CultureInfo.CurrentCulture, out var v))
+                        if (double.TryParse(tb.Text, NumberStyles.Float, CultureInfo.CurrentCulture, out var v))
                         {
                             tb.Foreground = Brushes.Black;
                             d.kij = v;
@@ -783,7 +789,7 @@ public class PropertyPackageEditorWindow : Window
             panel.Children.Add(new TextBlock
             {
                 Text = "No reaction sets defined. Add reactions via Simulation Settings first.",
-                FontSize = 11,
+                FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
                 Foreground = Brushes.Gray,
                 TextWrapping = TextWrapping.Wrap,
                 Margin = new Thickness(0, 4)
@@ -793,7 +799,7 @@ public class PropertyPackageEditorWindow : Window
         panel.Children.Add(new TextBlock
         {
             Text = "These parameters control the isothermal-flash solver used by the electrolyte property package.",
-            FontSize = 10,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(10),
             Foreground = new SolidColorBrush(Color.Parse("#777")),
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, 8, 0, 0)
@@ -815,7 +821,7 @@ public class PropertyPackageEditorWindow : Window
         {
             Text = "Select the compounds which will be forcedly put into the solid phase.\n" +
                    "This setting works only with the Nested Loops SVLE (Eutetic) Flash Algorithm.",
-            FontSize = 10,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(10),
             Foreground = new SolidColorBrush(Color.Parse("#777")),
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, 0, 0, 8)
@@ -853,7 +859,7 @@ public class PropertyPackageEditorWindow : Window
                    "Available variables: 'flowsheet' (the flowsheet), 'this' (the property package), " +
                    "'matstr' (the associated material stream), 'phase' (the current phase), " +
                    "'currval' (the current value), 'T' (K) and 'P' (Pa) of the material stream.",
-            FontSize = 10,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(10),
             Foreground = new SolidColorBrush(Color.Parse("#777")),
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, 0, 0, 8)
@@ -901,7 +907,7 @@ public class PropertyPackageEditorWindow : Window
                     Text = "Phase / Property",
                     Width = 120,
                     VerticalAlignment = VerticalAlignment.Center,
-                    FontSize = 11
+                    FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11)
                 },
                 selector
             }
@@ -954,7 +960,7 @@ public class PropertyPackageEditorWindow : Window
         var btn = new Button
         {
             Content = "Regress...",
-            FontSize = 11,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
             Padding = new Thickness(8, 2),
             VerticalAlignment = VerticalAlignment.Center
         };
@@ -990,7 +996,7 @@ public class PropertyPackageEditorWindow : Window
     {
         Text = text,
         FontWeight = FontWeight.Bold,
-        FontSize = 12,
+        FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(12),
         Margin = new Thickness(0, 10, 0, 4)
     };
 
@@ -1003,13 +1009,13 @@ public class PropertyPackageEditorWindow : Window
             Text = label,
             Width = 350,
             VerticalAlignment = VerticalAlignment.Center,
-            FontSize = 11
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11)
         };
 
-        var tb = new TextBox { Text = value.ToString("N4"), Width = 160, FontSize = 11 };
+        var tb = new TextBox { Text = value.ToString("N4"), Width = 160, FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11) };
         tb.LostFocus += (_, _) =>
         {
-            if (double.TryParse(tb.Text, NumberStyles.Any, CultureInfo.CurrentCulture, out var v))
+            if (double.TryParse(tb.Text, NumberStyles.Float, CultureInfo.CurrentCulture, out var v))
             {
                 tb.Foreground = Brushes.Black;
                 setter(v);
@@ -1034,10 +1040,10 @@ public class PropertyPackageEditorWindow : Window
             Text = label,
             Width = 350,
             VerticalAlignment = VerticalAlignment.Center,
-            FontSize = 11
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11)
         };
 
-        var tb = new TextBox { Text = value.ToString(), Width = 160, FontSize = 11 };
+        var tb = new TextBox { Text = value.ToString(), Width = 160, FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11) };
         tb.LostFocus += (_, _) =>
         {
             if (int.TryParse(tb.Text, out var v))
@@ -1065,10 +1071,10 @@ public class PropertyPackageEditorWindow : Window
             Text = label,
             Width = 350,
             VerticalAlignment = VerticalAlignment.Center,
-            FontSize = 11
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11)
         };
 
-        var cb = new ComboBox { Width = 220, FontSize = 11 };
+        var cb = new ComboBox { Width = 220, FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11) };
         foreach (var item in items) cb.Items.Add(item);
         if (selectedIndex >= 0 && selectedIndex < cb.Items.Count) cb.SelectedIndex = selectedIndex;
         cb.SelectionChanged += (_, _) => { if (cb.SelectedIndex >= 0) setter(cb.SelectedIndex); };
@@ -1093,7 +1099,7 @@ public class PropertyPackageEditorWindow : Window
             Content = text,
             IsChecked = isChecked,
             Margin = new Thickness(0, 2),
-            FontSize = 11
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11)
         };
         cb.IsCheckedChanged += (_, _) => setter(cb.IsChecked.GetValueOrDefault());
         return cb;

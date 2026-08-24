@@ -91,9 +91,10 @@ public sealed class FlowsheetDockFactory : Factory
     public override IRootDock CreateLayout()
     {
         // This is a fixed IDE layout: panels are shown and hidden by proportion from the View menu,
-        // not by floating or pinning. Every fixed tool keeps CanFloat and CanPin off - pinning
-        // (auto-hide) re-hosted the live panel control and left its content blank after re-docking
-        // (issue #25). The assistant WebTool is the one exception and manages its own re-hosting.
+        // not by floating or pinning. Every tool keeps CanFloat and CanPin off - pinning (auto-hide)
+        // re-hosted the live panel control and left its content blank after re-docking (issue #25), and
+        // floating the assistant WebTool made its whole window vanish (the native WebView host does not
+        // survive the move into a floating window).
 
         // --- Left: Editor ---
         EditorTool = new Tool
@@ -342,8 +343,8 @@ public sealed class FlowsheetDockFactory : Factory
             Title = title,
             Content = host,
             CanClose = true,
-            CanPin = true,
-            CanFloat = true,
+            CanPin = false,
+            CanFloat = false,
             Proportion = 0.30
         };
 

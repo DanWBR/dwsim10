@@ -1,0 +1,6 @@
+# Appendix: Analytical Thermodynamic Derivatives
+
+Rigorous flash calculations and the Newton-based rigorous column solvers build a Jacobian matrix at every iteration. The entries of that Jacobian are the derivatives of the equilibrium K-values (and of the phase enthalpies) with respect to temperature and to the phase composition. Historically DWSIM obtained these derivatives by finite differences, perturbing each variable and re-evaluating the property package. This appendix gives the closed-form (analytical) derivatives that are now implemented. Analytical derivatives are exact and smooth, whereas finite differences carry truncation and round-off error and add many extra property evaluations; replacing them improves both the speed and the robustness of convergence, particularly on stiff, wide-boiling systems.
+
+The base property models (the fugacity and activity-coefficient expressions themselves) are standard and widely published. Their fully worked-out derivatives, however, are scattered, incomplete, or absent from the usual references, and are tedious and error-prone to reconstruct. The purpose of this appendix is to write them out explicitly, in the notation used inside DWSIM, so that they can be read alongside the source code, verified, and reused by anyone extending the simulator.
+

@@ -28,7 +28,7 @@ public sealed class PureCompoundPropertiesWindow : Window
     private ComboBox _compounds = null!;
     private readonly string? _initial;
     private readonly TabControl _tabs = new();
-    private readonly TextBlock _status = new() { FontSize = 11, Opacity = 0.85, TextWrapping = TextWrapping.Wrap };
+    private readonly TextBlock _status = new() { FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11), Opacity = 0.85, TextWrapping = TextWrapping.Wrap };
 
     /// <param name="compound">Compound to show first; the first one of the simulation when null.</param>
     public PureCompoundPropertiesWindow(IFlowsheet flowsheet, string? compound = null)

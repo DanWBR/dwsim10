@@ -49,7 +49,7 @@ public partial class MarkdownReportWindow : Window
             AcceptsReturn = true,
             TextWrapping = TextWrapping.Wrap,
             FontFamily = new FontFamily("Consolas,Courier New,monospace"),
-            FontSize = 12,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(12),
             HorizontalAlignment = HorizontalAlignment.Stretch,
             VerticalAlignment = VerticalAlignment.Stretch,
             Watermark = "Select an object and property to view its value."

@@ -4,6 +4,21 @@ Imports es = DWSIM.SharedClasses.EncryptString.StringCipher
 
 Public Class Utility
 
+    ''' <summary>
+    ''' Components registered by the host instead of being scanned off disk.
+    ''' </summary>
+    ''' <remarks>
+    ''' The loaders below find extras by walking the 'unitops', 'ppacks' and 'extenders' folders
+    ''' next to the executable. A packaged host has no such folder, and a host published ahead of
+    ''' time cannot load an assembly at run time either, so it references the components instead
+    ''' and adds them here before the first flowsheet is created. They then take the same path as
+    ''' the scanned ones.
+    ''' </remarks>
+    Public Shared ReadOnly PreloadedUnitOperations As New List(Of IExternalUnitOperation)
+
+    ''' <summary>Property packages registered by the host. See <see cref="PreloadedUnitOperations"/>.</summary>
+    Public Shared ReadOnly PreloadedPropertyPackages As New List(Of IPropertyPackage)
+
     Public Shared Function GetSupportStatus() As Boolean
 
         Dim sa As Assembly = Nothing
@@ -520,6 +535,8 @@ Public Class Utility
 
         Dim euos As New List(Of IExternalUnitOperation)
 
+        euos.AddRange(PreloadedUnitOperations)
+
         Dim ppath As String = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly.Location), "unitops")
         If Directory.Exists(ppath) Then
             Dim otheruos As String() = Directory.GetFiles(ppath, "*.dll", SearchOption.TopDirectoryOnly)
@@ -567,6 +584,8 @@ Public Class Utility
     Shared Function LoadAdditionalPropertyPackages() As List(Of IPropertyPackage)
 
         Dim ppacks As New List(Of IPropertyPackage)
+
+        ppacks.AddRange(PreloadedPropertyPackages)
 
         Dim thermoceos As String = Path.GetDirectoryName(Assembly.GetAssembly(New SystemsOfUnits.SI().GetType()).Location) + Path.DirectorySeparatorChar + "DWSIM.Thermodynamics.ThermoC.dll"
         If File.Exists(thermoceos) Then

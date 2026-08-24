@@ -72,6 +72,24 @@ Version 10.2
 - [NEW] Assay Manager: assays saved and loaded as XML, with the previous binary format still read
 - [NEW] Forced Solids tab back on the advanced property package editor, next to Property Overrides
 - [NEW] Cross-platform interface: the Natural Gas Properties and Heat of Combustion Calculator plugins are back, on the Plugins menu
+- [NEW] Pipe network: producing wells with a black-oil IPR (BSW and gas-oil ratio), gas lift injection, ESP/BCSS downhole pump and a critical-flow choke
+- [NEW] Pipe network: the real DWSIM hydraulic and thermal pipe editors embedded in each network pipe
+- [NEW] Pipe network: valves, compressor, bridge, non-return valve and an inline separator handled by the nodal solver
+- [NEW] Pipe network: nodal analysis plot (IPR x VLP), gas-lift allocation optimizer, well controls and field production-target allocation
+- [NEW] Pipe network: hydraulic profile plots, composite multi-pipe profiles, a bulk well table editor and a field production report in oilfield units
+- [NEW] Pipe network: flow-assurance screens - erosion, hydrate, wax appearance, asphaltene stability and Turner liquid-loading
+- [NEW] Pipe network: scaling and corrosion analysis coupled to the segments, with a formatted report
+- [NEW] Pipe network graph tools: tabbed chart/data layout with copy and export (PNG for charts, CSV for tables)
+- [NEW] Pipe network: a deviation survey (measured depth, inclination, azimuth) builds vertical, horizontal or directional tubing by minimum curvature, on the full pressure/temperature balance
+- [NEW] Pipe network: Fetkovich and Darcy radial inflow performance relations added alongside linear PI and Vogel
+- [NEW] Pipe network: gas-lift valve mechanics - injection rate from Thornhill-Craver critical orifice flow through the valve port
+- [NEW] Pipe network: a Production Well template (reservoir, IPR, tubing, wellhead) on the designer
+- [NEW] Pipe network: seven new samples - production well, wellhead choke, water injection, multi-well pad, pressure-reducing valve, pipeline pump stations and gas-condensate well
+- [NEW] Black Oil Compound Creator with laboratory PVT calibration, on both interfaces
+- [NEW] Case Library tab on the welcome screen, next to FOSSEE, on both interfaces
+- [NEW] Cross-platform interface: a results report from the Results menu, grouped by unit-operation type, as HTML, CSV or plain text
+- [NEW] Anaerobic Digester (ADM1-Full): a feed-alkalinity input so a buffered substrate (such as manure) sets the charge-balance pH and gives a methane-richer biogas
+- [NEW] Pipe network designer: a snap-to-grid canvas (on by default, saved with the network), property and master property tables on the canvas, and an Insert menu for the well and flow-control equipment
 - [CHG] IPOPT is now a managed solver shipped with DWSIM, checked against the native library over five thousand problems
 - [CHG] Gibbs reactor initial estimate solved by a managed simplex instead of the native lpsolve55
 - [CHG] Petalas-Aziz two-phase pressure drop converted from a native library to managed code
@@ -90,6 +108,14 @@ Version 10.2
 - [CHG] Windows installers offer to remove a previous version first, keeping user simulations, custom compounds and added extensions
 - [CHG] Vapour thermal conductivity corrected for pressure with the Stiel-Thodos dense-gas method
 - [CHG] MCP Server: address simulation objects by tag, list their ids and canvas positions, and rename them
+- [CHG] Compositional pipe-network nodal solver accelerated with a response-surface model and a more stable outer loop
+- [CHG] Automatic and natural flowsheet layout orient objects along flow and lay recycle loops out as a rectangle
+- [CHG] Cross-platform interface: an interface scaling factor scales fonts, controls and menu icons together (issue #17)
+- [CHG] Cross-platform interface: the docked object editor gets a close button and roomier rows
+- [CHG] Pipe network designer: an equipment editor opens instantly, building its Results tab only when it is shown
+- [CHG] Refreshed User Guide and a rebuilt offline help, generated from the integrated help system, including the pipe network chapter
+- [CHG] Pipe: Weymouth and Panhandle A/B single-phase gas pipeline pressure-drop equations, with a configurable pipeline efficiency factor
+- [CHG] Pipe network: the compositional nodal solver re-solves an edited network much faster by evaluating pipes directly on a warm start and only refining cold solves
 - [FIX] A product of a CAPE-OPEN unit operation was re-flashed by the flowsheet property package, discarding the phase split the unit had computed
 - [FIX] Object editors were cut off on a display set above 96 dots per inch; the distillation column stage table was the most visible case
 - [FIX] A flowsheet opened from the desktop on macOS started DWSIM with nothing loaded and reported an unsupported file
@@ -136,6 +162,26 @@ Version 10.2
 - [FIX] Dynamic Heat Exchanger: the cell pressure is floored at the minimum pressure
 - [FIX] Cross-platform interface: the Script unit operation editor opens a script edit window, and Flowsheet.WriteMessage works from scripts
 - [FIX] Cross-platform interface: the Script Manager opens under the Semi theme, extension menu-bar buttons appear after a flowsheet loads, and the sample scripts run on Python 3
+- [FIX] Pipe network: electrolyte scaling and corrosion speciation corrected
+- [FIX] Pipe network: solve gating, translated property names, zoom-to-fit at any display scaling, and Results populated on every block after the solve
+- [FIX] Pipe network: boundary streams attached to the block ports, profile-plot crash fixed, live solver progress, and headless-saved networks reload
+- [FIX] Pipe network nodal solver: a full Newton step is required before convergence, and the control-valve loop tolerance was tightened
+- [FIX] Membership: the higher of the cached and live subscription level is honoured (issue #26)
+- [FIX] Missing biomass and extra compounds restored in the shared distribution content (issue #28)
+- [FIX] Cross-platform interface: the master property table editor keeps its object and property selection
+- [FIX] Inserted property tables and charts on a flowsheet draw instead of reporting an error
+- [FIX] Reaction Manager no longer fails when adding a component that is not already in the reaction
+- [FIX] Pipe network designer: the Solve and Abort toolbar buttons are no longer oversized
+- [FIX] Pipe network designer (Windows): Ctrl, Shift and Alt reach the canvas again, restoring multi-selection and Shift-drag offset
+- [FIX] Distillation and absorption columns in dynamic mode: the column seeds its tray and sump holdups from the steady-state solution and no longer fails with a "needs to be (re)initialized" error
+- [FIX] Dynamic Properties and user-defined property editors no longer throw when opened and now list their properties
+- [FIX] Anaerobic Digester (ADM1-Full): the substrate is characterised from its elemental formula and fed as a composite particulate (carbohydrate/protein/lipid plus inerts), so the conversion is realistic and its nitrogen is released as ammonia instead of everything behaving like fully-degradable carbohydrate
+- [FIX] Anaerobic Digester: hydraulic loading is taken from the total feed instead of the flashed liquid phase, so a slurry feed no longer gets an unrealistically long retention time
+- [FIX] A chemical formula with fractional atom counts is parsed correctly, so a lumped biomass formula no longer drops its sulfur and the digester now produces H2S
+- [FIX] Cross-platform editors: a typed decimal such as 0.965 was misread as 965 in a locale whose group separator is a period, corrupting the composition; numeric input is now parsed without a thousands separator
+- [FIX] Property package editor: clicking Configure on a CAPE-OPEN property package no longer crashes
+- [FIX] Compound Creator: the Standard Enthalpy of Formation label is no longer clipped
+- [FIX] Pipe network: cloning a non-empty network no longer throws, the network block and its boundary streams are laid out on the flowsheet, and editing a network property no longer overwrites a Source feed
 
 Version 10.1
 

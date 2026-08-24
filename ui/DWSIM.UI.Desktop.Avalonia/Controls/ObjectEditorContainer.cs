@@ -180,7 +180,7 @@ public class EditorHolder : Grid
             Width = 20,
             Height = 20,
             Padding = new Thickness(0),
-            FontSize = 10,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(10),
             VerticalAlignment = VerticalAlignment.Center,
             HorizontalContentAlignment = HorizontalAlignment.Center,
             VerticalContentAlignment = VerticalAlignment.Center,
