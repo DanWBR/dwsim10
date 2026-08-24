@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 using DWSIM.ExtensionMethods;
 using DWSIM.Interfaces;
 using DWSIM.Interfaces.Enums;
@@ -38,6 +39,25 @@ namespace DWSIM.Automation.DynamicRunner
 
         /// <summary>Restore the schedule's initial stored state before running.</summary>
         public bool RestoreInitialState = true;
+
+        /// <summary>
+        /// Carry on from where the last run stopped instead of starting over: keep the recorded
+        /// history, the controllers' state and the integrator's clock, and pick the simulated time
+        /// up where it was left. This is what a pause and a single step are made of.
+        /// </summary>
+        public bool Resume;
+
+        /// <summary>
+        /// Pace each step to one second of wall clock, whatever the integration step. Lets a run
+        /// be watched against a real clock rather than as fast as the solver goes.
+        /// </summary>
+        public bool ClockSync;
+
+        /// <summary>
+        /// Solves the flowsheet at each step. Defaults to the standard flowsheet solver; a host
+        /// with its own solver passes it here.
+        /// </summary>
+        public IFlowsheetSolver Solver;
 
         /// <summary>
         /// Keep a snapshot of the flowsheet at every step. Required by event transitions other
@@ -175,6 +195,51 @@ namespace DWSIM.Automation.DynamicRunner
             _flowsheet = flowsheet;
         }
 
+        /// <summary>
+        /// The flowsheet states recorded during the run, by simulation time. A host can step back
+        /// through them; they survive between resumed runs and are dropped when a fresh one starts.
+        /// </summary>
+        public IReadOnlyDictionary<DateTime, string> History => _historian;
+
+        /// <summary>Total size of the recorded states, in bytes.</summary>
+        public long HistoryBytes
+        {
+            get
+            {
+                long total = 0;
+                foreach (var state in _historian.Values) total += 22 + (long)state.Length * 2;
+                return total;
+            }
+        }
+
+        /// <summary>Drops the recorded states.</summary>
+        public void ClearHistory()
+        {
+            _historian.Clear();
+        }
+
+        /// <summary>
+        /// Puts the flowsheet back into the state recorded at <paramref name="timestamp"/>.
+        /// </summary>
+        /// <returns>False when no state was recorded at that time.</returns>
+        public bool RestoreHistoryState(DateTime timestamp)
+        {
+            string state;
+            if (!_historian.TryGetValue(timestamp, out state)) return false;
+
+            _flowsheet.RestoreSnapshot(XDocument.Parse(state.Decompress()), SnapshotType.ObjectData);
+            _flowsheet.UpdateInterface();
+            return true;
+        }
+
+        /// <summary>The recorded time closest to, and not after, the one asked for.</summary>
+        public DateTime? NearestRecordedTime(DateTime timestamp)
+        {
+            var candidates = _historian.Keys.Where(k => k <= timestamp).ToList();
+            if (candidates.Count == 0) return null;
+            return candidates.Max();
+        }
+
         /// <summary>Runs the schedule to completion on the calling thread.</summary>
         public IntegratorRunResult Run(IntegratorRunOptions options)
         {
@@ -231,10 +296,15 @@ namespace DWSIM.Automation.DynamicRunner
             var mpcControllers = flowsheet.SimulationObjects.Values.OfType<MPCController>()
                 .OrderBy(x => x.ExecutionOrder).ToList();
 
-            if (options.RestoreInitialState && !options.RealTime && !schedule.UseCurrentStateAsInitial)
-                RestoreState(flowsheet, schedule.InitialFlowsheetStateID);
+            // A resumed run picks up the clock, the recorded history and the controllers' state
+            // exactly as the paused one left them; only a fresh run starts any of that over.
+            if (!options.Resume)
+            {
+                if (options.RestoreInitialState && !options.RealTime && !schedule.UseCurrentStateAsInitial)
+                    RestoreState(flowsheet, schedule.InitialFlowsheetStateID);
 
-            integrator.MonitoredVariableValues.Clear();
+                integrator.MonitoredVariableValues.Clear();
+            }
 
             var interval = integrator.IntegrationStep.TotalSeconds;
             if (options.RealTime) interval = Convert.ToDouble(integrator.RealTimeStepMs) / 1000.0;
@@ -243,13 +313,16 @@ namespace DWSIM.Automation.DynamicRunner
             // In real-time mode the run only stops when aborted or limited.
             double final = options.RealTime ? double.MaxValue : integrator.Duration.TotalSeconds;
 
-            foreach (var c in controllers) c.Reset();
-            foreach (var m in mpcControllers) m.Reset();
-            foreach (var c in pyControllers) c.ResetRequested = true;
+            if (!options.Resume)
+            {
+                foreach (var c in controllers) c.Reset();
+                foreach (var m in mpcControllers) m.Reset();
+                foreach (var c in pyControllers) c.ResetRequested = true;
 
-            if (schedule.ResetContentsOfAllObjects) ResetObjectContents(flowsheet);
+                if (schedule.ResetContentsOfAllObjects) ResetObjectContents(flowsheet);
 
-            integrator.CurrentTime = new DateTime();
+                integrator.CurrentTime = new DateTime();
+            }
 
             double controllersCheck = 100000, streamsCheck = 100000, pfCheck = 100000;
 
@@ -265,7 +338,7 @@ namespace DWSIM.Automation.DynamicRunner
             flowsheet.DynamicMode = true;
             flowsheet.SupressMessages = true;
 
-            _historian = new Dictionary<DateTime, string>();
+            if (!options.Resume) _historian = new Dictionary<DateTime, string>();
             _flowsheetClone = null;
 
             // Only the event list needs the clone. A host that cannot clone its flowsheet still
@@ -278,7 +351,10 @@ namespace DWSIM.Automation.DynamicRunner
 
             var aborted = false;
             var steps = 0;
-            double i = 0;
+
+            // Simulated time already covered, which a resumed run carries on from.
+            double i = options.Resume ? (integrator.CurrentTime - new DateTime()).TotalSeconds : 0;
+
             var runClock = Stopwatch.StartNew();
 
             try
@@ -334,8 +410,10 @@ namespace DWSIM.Automation.DynamicRunner
                         integrator,
                         () =>
                         {
-                            stepErrors = FlowsheetSolver.FlowsheetSolver.SolveFlowsheet(
-                                flowsheet, DWSIM.GlobalSettings.Settings.SolverMode);
+                            stepErrors = options.Solver != null
+                                ? options.Solver.SolveFlowsheet(flowsheet)
+                                : FlowsheetSolver.FlowsheetSolver.SolveFlowsheet(
+                                    flowsheet, DWSIM.GlobalSettings.Settings.SolverMode);
                             while (DWSIM.GlobalSettings.Settings.CalculatorBusy)
                                 Task.Delay(200).Wait();
                         },
@@ -374,11 +452,13 @@ namespace DWSIM.Automation.DynamicRunner
                         SolveControllers(flowsheet, controllers, pyControllers, mpcControllers);
 
                     var waittime = integrator.RealTimeStepMs - sw.ElapsedMilliseconds;
-                    if (waittime > 0 && options.RealTime)
-                    {
-                        try { Task.Delay((int)waittime, options.CancellationToken).Wait(); }
-                        catch (Exception) when (options.CancellationToken.IsCancellationRequested) { }
-                    }
+                    if (waittime > 0 && options.RealTime) Pace(waittime, options.CancellationToken);
+
+                    // Clock sync paces to the wall clock rather than to the integrator's real-time
+                    // step, so a run can be watched second by second whatever the step size.
+                    var synctime = 1000 - sw.ElapsedMilliseconds;
+                    if (synctime > 0 && options.ClockSync) Pace(synctime, options.CancellationToken);
+
                     sw.Stop();
 
                     if (!options.RealTime)
@@ -411,6 +491,12 @@ namespace DWSIM.Automation.DynamicRunner
             }
 
             return new IntegratorRunResult(schedule, integrator, steps, i, runClock.Elapsed, aborted, exceptions);
+        }
+
+        private static void Pace(long milliseconds, CancellationToken token)
+        {
+            try { Task.Delay((int)milliseconds, token).Wait(); }
+            catch (Exception) when (token.IsCancellationRequested) { }
         }
 
         private static bool ShouldStop(IntegratorRunOptions options, int steps, Stopwatch clock)
