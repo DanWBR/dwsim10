@@ -481,12 +481,12 @@ Public Module DynamicsRoutes
             Next
         End If
 
-        Dim valve = TryCast(obj, DWSIM.UnitOperations.UnitOperations.Valve)
+        Dim valve = TryCast(obj, Global.DWSIM.UnitOperations.UnitOperations.Valve)
 
         Dim calcMode = Str(payload, "valve_calc_mode", "")
         If calcMode <> "" Then
             If valve Is Nothing Then Throw New ArgumentException("'" & tag & "' is not a valve.")
-            Dim parsed As DWSIM.UnitOperations.UnitOperations.Valve.CalculationMode
+            Dim parsed As Global.DWSIM.UnitOperations.UnitOperations.Valve.CalculationMode
             If Not [Enum].TryParse(calcMode, True, parsed) Then
                 Throw New ArgumentException("Unknown valve calculation mode '" & calcMode & "'.")
             End If
@@ -497,7 +497,7 @@ Public Module DynamicsRoutes
         Dim characteristic = Str(payload, "valve_opening_characteristic", "")
         If characteristic <> "" Then
             If valve Is Nothing Then Throw New ArgumentException("'" & tag & "' is not a valve.")
-            Dim parsed As DWSIM.UnitOperations.UnitOperations.Valve.OpeningKvRelationshipType
+            Dim parsed As Global.DWSIM.UnitOperations.UnitOperations.Valve.OpeningKvRelationshipType
             If Not [Enum].TryParse(characteristic, True, parsed) Then
                 Throw New ArgumentException("Unknown opening characteristic '" & characteristic & "'.")
             End If
@@ -523,7 +523,7 @@ Public Module DynamicsRoutes
         If action = "set" Then
             If tag = "" Then Throw New ArgumentException("Pass the controller's tag.")
 
-            Dim pid = TryCast(DynamicsIntrospection.Resolve(fs, tag), DWSIM.UnitOperations.SpecialOps.PIDController)
+            Dim pid = TryCast(DynamicsIntrospection.Resolve(fs, tag), Global.DWSIM.UnitOperations.SpecialOps.PIDController)
             If pid Is Nothing Then Throw New ArgumentException("'" & tag & "' is not a PID controller.")
 
             If payload("sp") IsNot Nothing Then pid.SetPoint = payload("sp").Value(Of Double)()
