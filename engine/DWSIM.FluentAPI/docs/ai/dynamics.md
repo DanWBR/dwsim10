@@ -120,37 +120,6 @@ Every finding — from `check` before a run and from `diagnose` after one — ca
 severity, the object it concerns, a message and a fix. The fix names the call that resolves it,
 so a model can act without knowing the process model.
 
-| Code | Meaning |
-|---|---|
-| `NO_SCHEDULE` | The flowsheet has no dynamics schedule. |
-| `NO_INTEGRATOR` | The schedule has no integrator assigned. |
-| `NO_DYNAMIC_MODE` | Dynamic mode is off, so unit operations solve at steady state. |
-| `NO_MONITORED_VARS` | The integrator records no variables, so the run produces no series. |
-| `NOT_SOLVED_STEADY_STATE` | Some objects have never been solved; dynamics starts from an undefined state. |
-| `NO_PROPERTY_PACKAGE` | The flowsheet has no property package, so nothing can be flashed. |
-| `NO_COMPOUNDS` | The flowsheet has no compounds. |
-| `MISSING_INITIAL_STATE` | The schedule starts from a stored state that does not exist. |
-| `TOO_MANY_STEPS` | Duration divided by step gives an impractical number of steps. |
-| `NO_PRESSURE_SPEC` | No stream is specified by pressure, leaving the pressure-flow network underdetermined. |
-| `ALL_FLOW_SPECS` | Every stream is specified by flow, so pressure has nothing to resolve against. |
-| `VALVE_NO_KV` | A valve has no flow coefficient, so it cannot pass a computed flow. |
-| `VALVE_PRESSURE_DROP_MODE` | A valve is in a pressure-drop mode, so it cannot compute its own flow. |
-| `VALVE_OPENING_IGNORED` | A valve passes its full Kv at any opening, so closing it does nothing. |
-| `VESSEL_NO_VOLUME` | A vessel or tank has no volume, so it holds nothing up and adds no lag. |
-| `PID_UNBOUND` | A controller is missing its process or manipulated variable. |
-| `PID_LIMITS_INVALID` | A controller's output minimum is not below its maximum. |
-| `PID_INACTIVE` | A controller is switched off or in manual, so the loop is open. |
-| `UNSUPPORTED_OBJECT` | An object has no dynamic model and is solved at steady state every step. |
-| `SOLVER_EXCEPTION` | The solver raised an exception and the run stopped early. |
-| `NAN_IN_SERIES` | A recorded series contains NaN or infinity. |
-| `DIVERGENT` | A recorded series grew without bound. |
-| `SUSTAINED_OSCILLATION` | A series oscillates without decaying. |
-| `MV_SATURATED` | A controller sat at its output limit for most of the run. |
-| `STEP_TOO_LARGE_TRANSIENT` | A series jumps by more than half its range between adjacent steps. |
-| `SLOW_STEP` | Each step took more than a second of wall time. |
-| `PID_ACTION_INVERTED` | A controller consistently moved its output in the direction that increases the error. |
-| `RUN_ABORTED` | The run stopped before reaching the configured duration. |
-| `NOT_SETTLED` | A series had not settled by the end of the run. |
-
-This table is generated from `DiagnosticCodes.All` in `DynamicsDiagnostics.cs`, which is the
-same source the tools and the catalog read.
+The codes are listed in [Diagnostics for the AI Assistant](diagnostics.md#dynamic-simulation-codes),
+alongside the ones the flowsheet rules emit. Both surfaces render findings identically, so a model
+that learned the shape once can read either.

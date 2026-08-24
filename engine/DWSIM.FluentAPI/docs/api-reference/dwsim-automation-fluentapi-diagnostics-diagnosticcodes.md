@@ -1,6 +1,6 @@
-# Dynamics.DiagnosticCodes
+# Diagnostics.DiagnosticCodes
 
-`DWSIM.Automation.FluentAPI.Dynamics.DiagnosticCodes`
+`DWSIM.Automation.FluentAPI.Diagnostics.DiagnosticCodes`
 
 The diagnostic codes this engine emits. Kept here so the tool catalogue, the documentation and the findings themselves cannot drift apart.
 

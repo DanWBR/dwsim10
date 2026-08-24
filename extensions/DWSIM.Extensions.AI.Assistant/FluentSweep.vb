@@ -151,6 +151,10 @@ Public Class FluentSweep
         ' Quantity helpers (informational)
         sb.Append("""quantity_units"":[""Kelvin"",""Celsius"",""Pascal"",""KiloPascal"",""Bar"",""Atm"",""KgPerSecond"",""KgPerHour"",""MolPerSecond"",""KmolPerHour"",""Kilowatts"",""Megawatts""],")
 
+        ' Checking and diagnosis. Solving is the expensive way to find a fault the rules already
+        ' know how to name, so the assistant is told about the cheap way first.
+        sb.Append("""diagnostics"":").Append(DiagnosticsCatalogJson()).Append(",")
+
         ' Dynamic simulation. This block is how the assistant learns that the time domain exists
         ' at all, and in what order to drive it.
         sb.Append("""dynamics"":").Append(DynamicsCatalogJson())
@@ -163,6 +167,37 @@ Public Class FluentSweep
     ''' Describes the dynamic-simulation surface: the workflow, the routes, the enumerations the
     ''' endpoints accept, the diagnostic codes they emit, and the limits on returned time series.
     ''' </summary>
+    ''' <summary>
+    ''' What the assistant can be told about a flowsheet without solving it.
+    ''' </summary>
+    Private Shared Function DiagnosticsCatalogJson() As String
+
+        Dim o As New JObject From {
+            {"supported", True},
+            {"endpoints", New JObject From {
+                {"check", "GET /api/flowsheet/check"},
+                {"solve", "POST /api/solve"}
+            }},
+            {"notes", New JArray(
+                "Check before solving: it costs nothing and names the same faults.",
+                "Every finding carries a code, a severity, the object, what is wrong and how to fix it.",
+                "Blockers come first; a caller working top-down fixes what matters soonest.",
+                "A failed solve returns findings alongside the raw exceptions.",
+                "An empty finding list is not a promise that the solve will converge.")},
+            {"severities", New JArray("blocker", "warning", "info")},
+            {"finding_fields", New JArray("code", "severity", "object", "message", "fix")}
+        }
+
+        Dim codes As New JObject()
+        For Each entry In FAPI.Diagnostics.FlowsheetCodes.All
+            codes(entry.Key) = entry.Value
+        Next
+        o("codes") = codes
+
+        Return o.ToString(Newtonsoft.Json.Formatting.None)
+
+    End Function
+
     Private Shared Function DynamicsCatalogJson() As String
 
         Dim o As New JObject From {

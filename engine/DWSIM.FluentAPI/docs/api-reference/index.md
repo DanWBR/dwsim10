@@ -104,14 +104,19 @@ sections.
 - [`Builders.CleanEnergy.WaterElectrolyzerBuilder`](dwsim-automation-fluentapi-builders-cleanenergy-waterelectrolyzerbuilder.md)
 - [`Builders.CleanEnergy.WindTurbineBuilder`](dwsim-automation-fluentapi-builders-cleanenergy-windturbinebuilder.md)
 
+## `DWSIM.Automation.FluentAPI.Diagnostics`
+
+- [`Diagnostics.DiagnosticCodes`](dwsim-automation-fluentapi-diagnostics-diagnosticcodes.md)
+- [`Diagnostics.DiagnosticSeverity`](dwsim-automation-fluentapi-diagnostics-diagnosticseverity.md)
+- [`Diagnostics.Finding`](dwsim-automation-fluentapi-diagnostics-finding.md)
+- [`Diagnostics.FlowsheetCodes`](dwsim-automation-fluentapi-diagnostics-flowsheetcodes.md)
+- [`Diagnostics.FlowsheetDiagnostics`](dwsim-automation-fluentapi-diagnostics-flowsheetdiagnostics.md)
+
 ## `DWSIM.Automation.FluentAPI.Dynamics`
 
 - [`Dynamics.ControllerInfo`](dwsim-automation-fluentapi-dynamics-controllerinfo.md)
-- [`Dynamics.DiagnosticCodes`](dwsim-automation-fluentapi-dynamics-diagnosticcodes.md)
-- [`Dynamics.DiagnosticSeverity`](dwsim-automation-fluentapi-dynamics-diagnosticseverity.md)
 - [`Dynamics.DynamicObjectInfo`](dwsim-automation-fluentapi-dynamics-dynamicobjectinfo.md)
 - [`Dynamics.DynamicsDiagnostics`](dwsim-automation-fluentapi-dynamics-dynamicsdiagnostics.md)
-- [`Dynamics.DynamicsFinding`](dwsim-automation-fluentapi-dynamics-dynamicsfinding.md)
 - [`Dynamics.DynamicsIntrospection`](dwsim-automation-fluentapi-dynamics-dynamicsintrospection.md)
 - [`Dynamics.DynamicsInventory`](dwsim-automation-fluentapi-dynamics-dynamicsinventory.md)
 - [`Dynamics.PidTuner`](dwsim-automation-fluentapi-dynamics-pidtuner.md)

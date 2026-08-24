@@ -1,8 +1,8 @@
-# Dynamics.DynamicsFinding
+# Diagnostics.Finding
 
-`DWSIM.Automation.FluentAPI.Dynamics.DynamicsFinding`
+`DWSIM.Automation.FluentAPI.Diagnostics.Finding`
 
-One thing wrong, or suspicious, about a dynamic simulation.
+One thing wrong, or suspicious, about a simulation.
 
 ## Methods
 
@@ -14,7 +14,7 @@ Returns `"[SEVERITY] CODE (tag): message Fix: ..."`.
 
 ### `Code`
 
-Stable identifier, e.g. `VALVE_NO_KV`. See [`Dynamics.DiagnosticCodes`](dwsim-automation-fluentapi-dynamics-diagnosticcodes.md).
+Stable identifier, e.g. `VALVE_NO_KV`. See [`Diagnostics.DiagnosticCodes`](dwsim-automation-fluentapi-diagnostics-diagnosticcodes.md).
 
 ### `Fix`
 

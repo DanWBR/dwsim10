@@ -80,6 +80,7 @@ nav:
       - License: api/license.md
       - External Catalog: api/external-catalog.md
       - Dynamic Simulation: api/dynamics.md
+      - Diagnostics: api/diagnostics.md
   - Examples:
       - Overview: examples/index.md
       - 01 — Mixer: examples/01-mixer.md
@@ -100,6 +101,7 @@ nav:
       - 16 — Recycle Loop: examples/16-recycle-loop.md
       - 17 — Dynamic Simulation: examples/17-dynamic-simulation.md
   - AI Assistant:
+      - Diagnostics: ai/diagnostics.md
       - Dynamic Simulation: ai/dynamics.md
   - API Reference (auto): api-reference/index.md
   - Python Guide: python-guide.md

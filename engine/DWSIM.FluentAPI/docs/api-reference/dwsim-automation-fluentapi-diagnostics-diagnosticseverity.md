@@ -1,6 +1,6 @@
-# Dynamics.DiagnosticSeverity
+# Diagnostics.DiagnosticSeverity
 
-`DWSIM.Automation.FluentAPI.Dynamics.DiagnosticSeverity`
+`DWSIM.Automation.FluentAPI.Diagnostics.DiagnosticSeverity`
 
 How much a finding matters.
 
