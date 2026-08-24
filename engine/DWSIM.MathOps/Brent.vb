@@ -49,11 +49,30 @@ Namespace MathEx.BrentOpt
 
             delta_x = (x_sup - x_inf) / n
 
+            ' The scan walks the bracket looking for a sign change. It used to step past x_sup and
+            ' evaluate there before noticing, so a function defined only on [minval, maxval] was asked
+            ' for a point outside it - the steam tables, scanned over 273.15..1073.15 K in 100 steps,
+            ' were asked for the enthalpy at 1081.15 K on the last step, and the range check they now
+            ' carry turned that into an error on a perfectly ordinary flash. The last point is clamped
+            ' to x_sup instead, which also keeps the interval handed to the refinement below inside the
+            ' function's domain when no sign change was found at all.
+            Dim exhausted As Boolean = False
             Do
                 y = func(x_inf, otherargs)
                 x_inf = x_inf + delta_x
+                If x_inf > x_sup Then
+                    x_inf = x_sup
+                    exhausted = True
+                End If
                 y_inf = func(x_inf, otherargs)
-            Loop Until y * y_inf < 0 Or x_inf > x_sup
+                ' <= rather than <, so a root sitting exactly on a scan point is not walked past.
+                ' It is not a rare case: an enthalpy that came out of the same correlation lands on
+                ' one exactly. A heater set to 80 C hands the outlet stream h(353.15 K), the scan
+                ' steps 8 K from 273.15 and its eleventh point IS 353.15, the residual there is 0.0
+                ' bit for bit, and the strict test read that as "no sign change" and ran to the end
+                ' of the range. The stream then came back at 1065 K instead of 353.15.
+                If y * y_inf <= 0 Then Exit Do
+            Loop Until exhausted
             x_sup = x_inf - delta_x
 
             Dim aaa, bbb, ccc, ddd, eee, min11, min22, faa, fbb, fcc, ppp, qqq, rrr, sss, tol11, xmm As Double

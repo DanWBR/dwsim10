@@ -506,11 +506,26 @@ Namespace Reactors
             st.C_xc = a / (32.0 * O2mol)
             st.N_xc = d / (32.0 * O2mol)
 
+            ' The inerts cannot carry nitrogen the composite never had. N_I keeps the ADM1 default
+            ' while the composite is derived from the substrate's own formula, so a nitrogen-free
+            ' substrate - glucose is the obvious one - left the inerts holding 0.3 * N_I of it. The
+            ' protein fraction below is then clamped at zero, nDis comes out NEGATIVE, and every
+            ' disintegration destroys ammonia the feed has to keep replacing. On the validation
+            ' digester that sink was 2.8e-3 kmol N/m³/d against 3.1e-3 fed: S_IN settled at 3e-4
+            ' instead of 0.07, the acetoclastic methanogens and the amino-acid degraders starved out
+            ' while the sugar fermenters kept going, and the reactor soured to pH 4 with acetate at
+            ' 6 kg COD/m³. Cap N_I at what the composite can actually supply.
+            ' Recomputed from the default rather than from whatever the last substrate left behind,
+            ' so switching back to a nitrogen-rich one restores the Batstone value.
+            Dim inertShare = st.f_sI_xc + st.f_xI_xc
+            st.N_I = ADM1.StoichiometryParams.N_I_Default
+            If inertShare > 0.0 Then st.N_I = Min(st.N_I, st.N_xc / inertShare)
+
             ' All composite nitrogen not held by the soluble/particulate inerts goes into the protein
             ' fraction, so nDis = N_xc - (f_sI+f_xI)*N_I - f_pr*N_aa is zero and the disintegration adds
             ' no spurious ammonia term. The COD freed from the default protein fraction becomes
             ' carbohydrate; the lipid and inert fractions are left untouched.
-            Dim inertN = (st.f_sI_xc + st.f_xI_xc) * st.N_I
+            Dim inertN = inertShare * st.N_I
             Dim fPr = (st.N_xc - inertN) / Max(st.N_aa, 1.0E-30)
             fPr = Max(0.0, Min(fPr, 1.0 - st.f_sI_xc - st.f_xI_xc - st.f_li_xc))
             st.f_pr_xc = fPr
