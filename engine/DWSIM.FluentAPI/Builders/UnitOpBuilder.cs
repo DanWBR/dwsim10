@@ -79,6 +79,76 @@ namespace DWSIM.Automation.FluentAPI.Builders
             return Self;
         }
 
+        // ----------------------------------------------------------- Dynamic mode
+
+        /// <summary>
+        /// Sets a dynamic-mode property by name, e.g. <c>"Liquid Level"</c> or <c>"Volume"</c>.
+        /// The value is in SI units, matching what DWSIM stores internally.
+        /// </summary>
+        /// <exception cref="ArgumentException">The object has no dynamic property by that name.</exception>
+        public TSelf WithDynamicProperty(string name, double value)
+        {
+            RequireDynamicProperty(name);
+            Object.AddDynamicProperty(name, value);
+            return Self;
+        }
+
+        /// <summary>Sets a dynamic-mode property from a unit-aware quantity.</summary>
+        public TSelf WithDynamicProperty(string name, Quantity value)
+        {
+            return WithDynamicProperty(name, value.SI);
+        }
+
+        /// <summary>Sets a boolean dynamic-mode property, e.g. <c>"Reset Content"</c>.</summary>
+        public TSelf WithDynamicProperty(string name, bool value)
+        {
+            RequireDynamicProperty(name);
+            Object.AddDynamicProperty(name, value);
+            return Self;
+        }
+
+        /// <summary>Reads a dynamic-mode property, or null when the object has none by that name.</summary>
+        public object GetDynamicProperty(string name)
+        {
+            PropertyCatalog.EnsureDynamicProperties(Object);
+            return Object.GetDynamicProperty(name);
+        }
+
+        /// <summary>Reads a numeric dynamic-mode property in SI units, or 0 when it is unset.</summary>
+        public double GetDynamicValue(string name)
+        {
+            var value = GetDynamicProperty(name);
+            return value == null ? 0.0 : Convert.ToDouble(value, System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        /// <summary>Every dynamic-mode property this object exposes, with descriptions and units.</summary>
+        public System.Collections.Generic.IReadOnlyList<PropertyEntry> DynamicProperties =>
+            PropertyCatalog.DynamicFor(Object, Flowsheet.Inner.FlowsheetOptions.SelectedUnitSystem);
+
+        /// <summary>
+        /// Declares whether the object is specified by pressure or by flow in the dynamic
+        /// pressure-flow network. A network with no pressure specification anywhere is underdetermined.
+        /// </summary>
+        public TSelf WithDynamicsSpec(DWSIM.Interfaces.Enums.Dynamics.DynamicsSpecType spec)
+        {
+            Object.DynamicsSpec = spec;
+            return Self;
+        }
+
+        private void RequireDynamicProperty(string name)
+        {
+            PropertyCatalog.EnsureDynamicProperties(Object);
+            if (Object.IsDynamicProperty(name)) return;
+
+            var known = PropertyCatalog.DynamicFor(Object, Flowsheet.Inner.FlowsheetOptions.SelectedUnitSystem);
+            var names = known.Count == 0
+                ? "it has none"
+                : string.Join(", ", System.Linq.Enumerable.Select(known, p => "'" + p.Id + "'"));
+            throw new ArgumentException(
+                "'" + (Object.GraphicObject?.Tag ?? Object.Name) + "' has no dynamic property '" + name +
+                "'. Available: " + names + ".", nameof(name));
+        }
+
         // ----------------------------------------------------------- Layout / orientation
 
         /// <summary>Mirrors the object horizontally (swaps its inlet and outlet sides), as one does on a recycle return.</summary>

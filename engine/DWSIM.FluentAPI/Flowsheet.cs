@@ -527,7 +527,69 @@ namespace DWSIM.Automation.FluentAPI
         /// When null, the first schedule in the flowsheet is used automatically.
         /// </param>
         public DynamicsBuilder RunDynamics(string scheduleName = null)
-            => new DynamicsBuilder(Inner, scheduleName);
+            => new DynamicsBuilder(this, scheduleName);
+
+        private DynamicsConfigBuilder _dynamics;
+
+        /// <summary>
+        /// Configures this flowsheet's dynamic simulation: integrators, schedules, event sets and
+        /// cause-and-effect matrices. Everything the Dynamics Manager holds, reachable from code.
+        /// </summary>
+        /// <example>
+        /// <code>
+        /// fs.Dynamics.DefineIntegrator("Fast")
+        ///     .WithIntegrationStep(1.Seconds())
+        ///     .WithDuration(5.Minutes())
+        ///     .Monitor("TK-01", "Liquid Level", "m");
+        /// fs.Dynamics.DefineSchedule("Startup").WithIntegrator("Fast").MakeCurrent();
+        /// fs.RunDynamics().Execute();
+        /// </code>
+        /// </example>
+        public DynamicsConfigBuilder Dynamics
+            => _dynamics ?? (_dynamics = new DynamicsConfigBuilder(this));
+
+        /// <summary>Adds a PID controller tagged <paramref name="tag"/> and returns its fluent builder.</summary>
+        public PIDControllerBuilder AddPIDController(string tag) =>
+            Make<DWSIM.UnitOperations.SpecialOps.PIDController, PIDControllerBuilder>(
+                ObjectType.Controller_PID, tag, (f, o) => new PIDControllerBuilder(f, o));
+
+        /// <summary>
+        /// Adds an indicator tagged <paramref name="tag"/> and returns its fluent builder.
+        /// Indicators raise the alarms a cause-and-effect matrix reacts to.
+        /// </summary>
+        public IndicatorBuilder AddIndicator(string tag, IndicatorKind kind = IndicatorKind.Analog)
+        {
+            ObjectType type;
+            switch (kind)
+            {
+                case IndicatorKind.Digital: type = ObjectType.DigitalGauge; break;
+                case IndicatorKind.Level: type = ObjectType.LevelGauge; break;
+                default: type = ObjectType.AnalogGauge; break;
+            }
+            return Make<ISimulationObject, IndicatorBuilder>(type, tag, (f, o) => new IndicatorBuilder(f, o));
+        }
+
+        // ------------------------------------------------------- Property discovery
+
+        /// <summary>
+        /// Lists the properties of the object tagged <paramref name="tag"/>, with their IDs,
+        /// descriptions, units and current values. These IDs are what monitored variables, dynamic
+        /// events and controllers address.
+        /// </summary>
+        public IReadOnlyList<PropertyEntry> Properties(string tag,
+            Interfaces.Enums.PropertyType type = Interfaces.Enums.PropertyType.ALL)
+            => PropertyCatalog.For(ResolveByTag(tag), Inner.FlowsheetOptions.SelectedUnitSystem, type);
+
+        /// <summary>Lists the dynamic-mode properties of the object tagged <paramref name="tag"/>.</summary>
+        public IReadOnlyList<PropertyEntry> DynamicProperties(string tag)
+            => PropertyCatalog.DynamicFor(ResolveByTag(tag), Inner.FlowsheetOptions.SelectedUnitSystem);
+
+        /// <summary>
+        /// Lists the numeric properties of the object tagged <paramref name="tag"/> — the ones that
+        /// make sense as monitored variables.
+        /// </summary>
+        public IReadOnlyList<PropertyEntry> MonitorableProperties(string tag)
+            => PropertyCatalog.Monitorable(ResolveByTag(tag), Inner.FlowsheetOptions.SelectedUnitSystem);
 
         /// <summary>
         /// Solves the flowsheet synchronously. Throws <see cref="FlowsheetSolveException"/>

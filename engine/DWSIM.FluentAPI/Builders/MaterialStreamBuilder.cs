@@ -92,7 +92,36 @@ namespace DWSIM.Automation.FluentAPI.Builders
         public double OverallMassFraction(string compound)
             => Object.Phases[0].Compounds[compound].MassFraction.GetValueOrDefault();
 
-        /// <summary>Escape hatch for any property not covered by a <c>WithX</c> helper. Mutates the underlying object via the supplied delegate.</summary>
+        // ----------------------------------------------------------- Dynamic mode
+
+        /// <summary>
+        /// Declares whether this stream is specified by pressure or by flow in the dynamic
+        /// pressure-flow network.
+        /// </summary>
+        public MaterialStreamBuilder WithDynamicsSpec(DWSIM.Interfaces.Enums.Dynamics.DynamicsSpecType spec)
+        {
+            Object.DynamicsSpec = spec;
+            return this;
+        }
+
+        /// <summary>
+        /// Specifies this stream by flow: its mass flow is held and its pressure is whatever the
+        /// network resolves to. This is the usual choice for a feed.
+        /// </summary>
+        public MaterialStreamBuilder AsFlowSpec() =>
+            WithDynamicsSpec(DWSIM.Interfaces.Enums.Dynamics.DynamicsSpecType.Flow);
+
+        /// <summary>
+        /// Specifies this stream by pressure: its pressure is held and its flow is whatever the
+        /// network resolves to. A network needs at least one of these or it is underdetermined.
+        /// </summary>
+        public MaterialStreamBuilder AsPressureSpec() =>
+            WithDynamicsSpec(DWSIM.Interfaces.Enums.Dynamics.DynamicsSpecType.Pressure);
+
+        /// <summary>The stream's current pressure-flow specification.</summary>
+        public DWSIM.Interfaces.Enums.Dynamics.DynamicsSpecType DynamicsSpec => Object.DynamicsSpec;
+
+        /// <summary>Escape hatch: applies an arbitrary mutation to the underlying stream.</summary>
         public MaterialStreamBuilder Configure(Action<MaterialStream> action)
         {
             action?.Invoke(Object);
