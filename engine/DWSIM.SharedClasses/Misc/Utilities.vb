@@ -19,6 +19,69 @@ Public Class Utility
     ''' <summary>Property packages registered by the host. See <see cref="PreloadedUnitOperations"/>.</summary>
     Public Shared ReadOnly PreloadedPropertyPackages As New List(Of IPropertyPackage)
 
+    ''' <summary>
+    ''' Tells whether an extension DLL (by full path) is a first-party Patreon/Plus component.
+    ''' Assigned by the Support layer to its signed-manifest check; left Nothing in the open
+    ''' edition, where no Plus component is present anyway.
+    ''' </summary>
+    Public Shared IsFirstPartyExtensionDll As Func(Of String, Boolean) = Nothing
+
+    ''' <summary>
+    ''' Classifies an external unit operation for palette grouping. A third-party unit operation is
+    ''' one loaded from the 'unitops' folder that is neither an open-edition nor a Patreon/Plus
+    ''' component. Such a unit operation is grouped under its own <see cref="IProductInformation.ProductName"/>
+    ''' when it deliberately overrides it, or under a shared catch-all section otherwise.
+    ''' </summary>
+    ''' <returns>
+    ''' IsThirdParty = False: the caller keeps the normal ObjectClass grouping.
+    ''' IsThirdParty = True with an empty GroupName: the caller uses the shared "Third-Party" section.
+    ''' IsThirdParty = True with a GroupName: the caller groups the item under that name.
+    ''' </returns>
+    Public Shared Function GetThirdPartyPaletteGroup(uo As Object) As (IsThirdParty As Boolean, GroupName As String)
+
+        Try
+
+            If uo Is Nothing Then Return (False, Nothing)
+
+            Dim loc As String = uo.GetType().Assembly.Location
+            If String.IsNullOrEmpty(loc) Then Return (False, Nothing)
+
+            'must be a folder-loaded extension under 'unitops' (open/built-in ones live in the app root)
+            Dim marker = Path.DirectorySeparatorChar & "unitops" & Path.DirectorySeparatorChar
+            If loc.IndexOf(marker, StringComparison.OrdinalIgnoreCase) < 0 Then Return (False, Nothing)
+
+            'first-party Patreon: signed manifest, or the Plus flags as a safety net if the delegate is unwired
+            If IsFirstPartyExtensionDll IsNot Nothing AndAlso IsFirstPartyExtensionDll(loc) Then Return (False, Nothing)
+            If FlagIsTrue(uo, "IsPremium") OrElse FlagIsTrue(uo, "IsRefining") OrElse FlagIsTrue(uo, "IsBio") Then Return (False, Nothing)
+
+            'third-party: read the ProductName the developer deliberately overrode (the base returns the display name)
+            Dim group As String = Nothing
+            Dim pinfo = TryCast(uo, IProductInformation)
+            If pinfo IsNot Nothing Then
+                Dim pn = pinfo.ProductName
+                Dim dn = TryCast(uo, ISimulationObject)?.GetDisplayName()
+                If Not String.IsNullOrWhiteSpace(pn) AndAlso Not String.Equals(pn, dn) Then group = pn.Trim()
+            End If
+
+            Return (True, If(group, ""))
+
+        Catch
+
+            Return (False, Nothing)
+
+        End Try
+
+    End Function
+
+    Private Shared Function FlagIsTrue(uo As Object, propName As String) As Boolean
+        Try
+            Dim p = uo.GetType().GetProperty(propName)
+            Return p IsNot Nothing AndAlso TypeOf p.GetValue(uo) Is Boolean AndAlso CBool(p.GetValue(uo))
+        Catch
+            Return False
+        End Try
+    End Function
+
     Public Shared Function GetSupportStatus() As Boolean
 
         Dim sa As Assembly = Nothing
