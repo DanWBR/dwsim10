@@ -104,6 +104,13 @@ namespace DWSIM.Engine.SmokeTests
         [TestCase(560.0)]
         [TestCase(650.0)]
         [TestCase(900.0)]
+        // The bracketing scan starts at 273.15 K and steps by 8 K, and its test for a sign
+        // change used to be strict, so a root landing exactly on one of its points was walked
+        // past. These two land on a point: the enthalpy being sought came from the same
+        // correlation the scan walks, so the residual there is zero to the bit. The three above
+        // miss every node and pass either way.
+        [TestCase(353.15)]  // 273.15 + 8 x 10
+        [TestCase(313.15)]  // 273.15 + 8 x 5
         public void ThePressureEnthalpyFlashSolvesInsideTheRange(double temperature)
         {
             var fs = WaterFlowsheet();
