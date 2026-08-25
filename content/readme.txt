@@ -90,6 +90,8 @@ Version 10.2
 - [NEW] Cross-platform interface: a results report from the Results menu, grouped by unit-operation type, as HTML, CSV or plain text
 - [NEW] Anaerobic Digester (ADM1-Full): a feed-alkalinity input so a buffered substrate (such as manure) sets the charge-balance pH and gives a methane-richer biogas
 - [NEW] Pipe network designer: a snap-to-grid canvas (on by default, saved with the network), property and master property tables on the canvas, and an Insert menu for the well and flow-control equipment
+- [NEW] MCP Server and Assistant API: configure and read any unit operation (including Recycle, Energy Recycle, Spec and Adjust) by whichever name the caller knows a property by, and read back its calculated results
+- [NEW] MCP Server and Assistant API: run and control a dynamic simulation, and check a flowsheet for what is wrong with it without solving
 - [CHG] IPOPT is now a managed solver shipped with DWSIM, checked against the native library over five thousand problems
 - [CHG] Gibbs reactor initial estimate solved by a managed simplex instead of the native lpsolve55
 - [CHG] Petalas-Aziz two-phase pressure drop converted from a native library to managed code
@@ -116,6 +118,7 @@ Version 10.2
 - [CHG] Refreshed User Guide and a rebuilt offline help, generated from the integrated help system, including the pipe network chapter
 - [CHG] Pipe: Weymouth and Panhandle A/B single-phase gas pipeline pressure-drop equations, with a configurable pipeline efficiency factor
 - [CHG] Pipe network: the compositional nodal solver re-solves an edited network much faster by evaluating pipes directly on a warm start and only refining cold solves
+- [CHG] Salt precipitation: the solid-liquid flash gets a solubility product for salts, the SVLE outer loop no longer re-concentrates what it precipitates, and dissolved salts are kept in the pressure/vapour-fraction flash basis
 - [FIX] A product of a CAPE-OPEN unit operation was re-flashed by the flowsheet property package, discarding the phase split the unit had computed
 - [FIX] Object editors were cut off on a display set above 96 dots per inch; the distillation column stage table was the most visible case
 - [FIX] A flowsheet opened from the desktop on macOS started DWSIM with nothing loaded and reported an unsupported file
@@ -182,6 +185,20 @@ Version 10.2
 - [FIX] Property package editor: clicking Configure on a CAPE-OPEN property package no longer crashes
 - [FIX] Compound Creator: the Standard Enthalpy of Formation label is no longer clipped
 - [FIX] Pipe network: cloning a non-empty network no longer throws, the network block and its boundary streams are laid out on the flowsheet, and editing a network property no longer overwrites a Source feed
+- [FIX] Cubic equations of state (Peng-Robinson, SRK): near the critical point the liquid root could fall at or below the covolume and give an impossible liquid density; the physical root is now selected above the covolume with a density limit and the trivial single-phase solution is rejected (issue #40)
+- [FIX] Distillation: a column with no pressure drop specified left its stage pressures at zero and failed to solve; the stage pressures are repaired from the condenser and reboiler pressures (issue #38)
+- [FIX] Vapor Compression Chiller: the saturated vapour and liquid states are taken from the vapour-fraction flash and converted to a molar basis, and the shaft power is written to the shaft port, which is connectable and takes a duty specification
+- [FIX] Fired Heater: it is fired for the duty it is asked to deliver, writes the resulting fuel flow back to its fuel stream, and no longer rejects the geometry it ships with
+- [FIX] Advanced Heat Exchanger: Simulation mode solves for the exchanger's own duty
+- [FIX] Refining unit operations: the outlet temperature and mass balances are closed and the duty ports are connectable
+- [FIX] Neutralization reactor: its energy balance is closed
+- [FIX] Precipitation reactor: it no longer invents a sludge stream, and the reordering of its solid outlet was dropped
+- [FIX] Zeolite adsorber: the raffinate carries the feed pressure instead of its enthalpy
+- [FIX] Restriction orifice: it iterates on the flow it is solving for
+- [FIX] Air Cooler 2: an internal name-resolution error is fixed
+- [FIX] Material and energy stream switches report an unset routing expression instead of failing silently
+- [FIX] Pipe network: loading a saved network repopulates instead of accumulating duplicate blocks, a boundary that ran backwards is re-specified, and a newly added block gets its connectors
+- [FIX] Cross-platform interface: the Equipment Database catalog import dialogs are owned by the host window
 
 Version 10.1
 
