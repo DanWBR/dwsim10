@@ -28,6 +28,7 @@
 - [NEW] Pipe network designer: a snap-to-grid canvas (on by default, saved with the network), property and master property tables on the canvas, and an Insert menu for the well and flow-control equipment
 - [NEW] MCP Server and Assistant API: configure and read any unit operation (including Recycle, Energy Recycle, Spec and Adjust) by whichever name the caller knows a property by, and read back its calculated results
 - [NEW] MCP Server and Assistant API: run and control a dynamic simulation, and check a flowsheet for what is wrong with it without solving
+- [NEW] Object palette: a third-party unit operation (a DLL in the unitops folder that is not part of the base or Patreon edition) is grouped into its own section by the developer or suite it declares, on both interfaces
 - [CHG] IPOPT is now a managed solver shipped with DWSIM, checked against the native library over five thousand problems
 - [CHG] Gibbs reactor initial estimate solved by a managed simplex instead of the native lpsolve55
 - [CHG] Petalas-Aziz two-phase pressure drop converted from a native library to managed code
