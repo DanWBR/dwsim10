@@ -48,6 +48,7 @@ namespace DWSIM.FluentAPI.Tests
 
         [Test] public void APumpFollowsItsPerformanceCurves() => PumpCurvesTest.Run();
 
+        [Test] public void PropertyIdentifiersHaveReadableNames() => PropertyCatalogTest.Run();
         [Test] public void TheDiagnosticsNameAFlowsheetsFaults() => FlowsheetDiagnosticsTest.Run();
         [Test] public void ADynamicRunFollowsItsScheduledEvents() => DynamicsEventProfileTest.Run();
 

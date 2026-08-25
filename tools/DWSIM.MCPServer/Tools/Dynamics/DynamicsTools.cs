@@ -30,6 +30,10 @@ namespace DWSIM.MCPServer.Tools.Dynamics
         private const int MaxPreviewPoints = 400;
         private const int MaxListItems = 25;
 
+        /// <summary>Properties listed at once. Lower than the general cap: a named
+        /// property costs more to render, and there is a filter for narrowing down.</summary>
+        private const int MaxProperties = 20;
+
         private readonly SessionManager _sessions;
         private readonly DynamicsJobManager _jobs;
 
@@ -126,7 +130,7 @@ namespace DWSIM.MCPServer.Tools.Dynamics
             var items = new JArray();
             var unnamed = 0;
 
-            foreach (var p in matching.Take(MaxListItems))
+            foreach (var p in matching.Take(MaxProperties))
             {
                 var entry = new JObject
                 {
@@ -154,7 +158,7 @@ namespace DWSIM.MCPServer.Tools.Dynamics
                 result["note"] = "Ids without a description have no friendly name in the engine; identify them by their units and current value.";
             }
 
-            if (matching.Count > MaxListItems) result["truncated"] = true;
+            if (matching.Count > MaxProperties) result["truncated"] = true;
             return result;
         }
 

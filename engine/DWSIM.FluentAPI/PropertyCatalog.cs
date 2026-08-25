@@ -88,7 +88,10 @@ namespace DWSIM.Automation.FluentAPI
         {
             var description = Try(() => obj.GetPropertyDescription(propertyId), null);
 
+            // Most objects answer with the identifier itself, which describes nothing. Taking
+            // it would end the search before the flowsheet is ever asked for the real name.
             if (!string.IsNullOrWhiteSpace(description) &&
+                !string.Equals(description, propertyId, StringComparison.Ordinal) &&
                 !description.StartsWith("No description", StringComparison.OrdinalIgnoreCase))
             {
                 return description;
