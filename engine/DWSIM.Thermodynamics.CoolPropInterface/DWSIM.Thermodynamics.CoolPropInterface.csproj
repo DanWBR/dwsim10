@@ -38,7 +38,16 @@
     <None Remove="native\**" />
   </ItemGroup>
 
-  <ItemGroup Condition="Exists('$(CoolPropNativeDir)')">
+  <!--
+    A mobile build takes none of these. The runtime identifier here falls back to the one the
+    SDK is running on when nothing sets it, and the engine projects are built without one from
+    an iOS or Android app - so on a Mac they copied the DESKTOP macOS natives into the app, and
+    the iOS SDK then tried to embed each .dylib and failed on install_name_tool. On Windows the
+    same fallback yields win-x64 and the .dll files are quietly ignored, which is why this only
+    surfaced on the first Mac build. There is no iOS or Android native here to use instead: the
+    property packages that need one fail on their first call, which is what the note below says.
+  -->
+  <ItemGroup Condition="Exists('$(CoolPropNativeDir)') And '$(DwsimMobile)' != 'true'">
     <None Include="$(CoolPropNativeDir)*"
           CopyToOutputDirectory="PreserveNewest"
           Link="%(Filename)%(Extension)"
@@ -50,7 +59,7 @@
     It surfaces on the first call, as a DllNotFoundException naming the library.
   -->
   <Target Name="CoolPropNativeWarning" BeforeTargets="Build"
-          Condition="!Exists('$(CoolPropNativeDir)')">
+          Condition="!Exists('$(CoolPropNativeDir)') And '$(DwsimMobile)' != 'true'">
     <Warning Text="No CoolProp native for '$(CoolPropRid)' under native\. The CoolProp property packages will fail on their first call." />
   </Target>
 
