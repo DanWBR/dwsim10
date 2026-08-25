@@ -54,16 +54,18 @@ Public Class Utility
             If IsFirstPartyExtensionDll IsNot Nothing AndAlso IsFirstPartyExtensionDll(loc) Then Return (False, Nothing)
             If FlagIsTrue(uo, "IsPremium") OrElse FlagIsTrue(uo, "IsRefining") OrElse FlagIsTrue(uo, "IsBio") Then Return (False, Nothing)
 
-            'third-party: read the ProductName the developer deliberately overrode (the base returns the display name)
-            Dim group As String = Nothing
-            Dim pinfo = TryCast(uo, IProductInformation)
-            If pinfo IsNot Nothing Then
-                Dim pn = pinfo.ProductName
+            'third-party: group by the vendor/suite it declares. Prefer ProductAuthor (the vendor tag,
+            'e.g. "AI4Tech"), falling back to a ProductName the vendor set to something other than the
+            'unit's own display name. Only a value the vendor overrode in its own assembly counts - the
+            'engine base returns "Daniel Wagner" / the display name, which are not group names.
+            Dim group As String = VendorOverride(uo, "ProductAuthor")
+            If String.IsNullOrWhiteSpace(group) Then
+                Dim pn = VendorOverride(uo, "ProductName")
                 Dim dn = TryCast(uo, ISimulationObject)?.GetDisplayName()
-                If Not String.IsNullOrWhiteSpace(pn) AndAlso Not String.Equals(pn, dn) Then group = pn.Trim()
+                If Not String.IsNullOrWhiteSpace(pn) AndAlso Not String.Equals(pn, dn) Then group = pn
             End If
 
-            Return (True, If(group, ""))
+            Return (True, If(group?.Trim(), ""))
 
         Catch
 
@@ -79,6 +81,22 @@ Public Class Utility
             Return p IsNot Nothing AndAlso TypeOf p.GetValue(uo) Is Boolean AndAlso CBool(p.GetValue(uo))
         Catch
             Return False
+        End Try
+    End Function
+
+    ''' <summary>
+    ''' Returns a product-information string only when the unit operation overrides it in its own
+    ''' assembly (a value the developer deliberately set), not the engine base default. Nothing
+    ''' otherwise.
+    ''' </summary>
+    Private Shared Function VendorOverride(uo As Object, propName As String) As String
+        Try
+            Dim p = uo.GetType().GetProperty(propName)
+            If p Is Nothing Then Return Nothing
+            If p.DeclaringType Is Nothing OrElse Not p.DeclaringType.Assembly.Equals(uo.GetType().Assembly) Then Return Nothing
+            Return TryCast(p.GetValue(uo), String)
+        Catch
+            Return Nothing
         End Try
     End Function
 
