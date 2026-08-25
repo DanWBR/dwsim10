@@ -239,7 +239,30 @@ namespace DWSIM.MCPServer.Tools.UnitOps
 
             result["properties"] = props;
 
+            // Which specifications the unit actually reads depends on its calculation mode, and
+            // there is no way to guess the names. Listing them here is what stops a caller from
+            // setting a target the unit will ignore.
+            var modes = PropertySetter.CalculationModes(obj);
+            if (modes.Count > 0)
+            {
+                result["calculation_modes"] = new JArray(modes.Keys);
+                result["calculation_mode"] = modes
+                    .Where(m => m.Value == CurrentMode(obj))
+                    .Select(m => m.Key)
+                    .FirstOrDefault() ?? "";
+            }
+
             return result;
+        }
+
+        /// <summary>The unit's current calculation mode as an id, or -1 when it has none.</summary>
+        private static int CurrentMode(ISimulationObject obj)
+        {
+            var property = obj.GetType().GetProperty("CalcMode");
+            if (property == null) return -1;
+
+            try { return Convert.ToInt32(property.GetValue(obj)); }
+            catch (Exception) { return -1; }
         }
 
         [McpTool("dwsim_unitop_list_types", "List all available unit operation types that can be used with dwsim_unitop_add.")]

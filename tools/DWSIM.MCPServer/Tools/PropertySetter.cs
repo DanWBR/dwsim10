@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using Newtonsoft.Json.Linq;
 using DWSIM.Automation.FluentAPI;
 using DWSIM.Interfaces;
@@ -53,6 +54,12 @@ namespace DWSIM.MCPServer.Tools
         /// <summary>Sets one property, returning false when there is no such setting.</summary>
         public static bool TrySet(ISimulationObject obj, string name, JToken value, IUnitsOfMeasure units)
         {
+            // The calculation mode decides which of a unit's specifications it actually reads, so
+            // it is the setting most worth getting right — and the one whose name a caller is least
+            // likely to know. Every unit that has one exposes SetCalculationMode with the names to
+            // go with it, which beats reaching for the CalcMode property by reflection.
+            if (IsCalculationMode(name)) return TrySetCalculationMode(obj, value);
+
             if (obj.IsDynamicProperty(name))
             {
                 object dynamicValue = value.Type == JTokenType.Boolean
@@ -106,6 +113,81 @@ namespace DWSIM.MCPServer.Tools
 
             property.SetValue(obj, converted);
             return true;
+        }
+
+        private static bool IsCalculationMode(string name)
+        {
+            return string.Equals(name, "CalcMode", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(name, "CalculationMode", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(name, "calculation_mode", StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>Sets the calculation mode from a name or an id.</summary>
+        private static bool TrySetCalculationMode(ISimulationObject obj, JToken value)
+        {
+            var modes = CalculationModes(obj);
+            if (modes.Count == 0) return false;
+
+            int id;
+            if (value.Type == JTokenType.Integer)
+            {
+                id = value.Value<int>();
+                if (!modes.Values.Contains(id))
+                {
+                    throw new ArgumentException(id + " is not a calculation mode of this unit. " +
+                        DescribeModes(modes));
+                }
+            }
+            else
+            {
+                var wanted = value.ToString();
+                if (!modes.TryGetValue(wanted, out id))
+                {
+                    throw new ArgumentException("'" + wanted + "' is not a calculation mode of this " +
+                        "unit. " + DescribeModes(modes));
+                }
+            }
+
+            Invoke(obj, "SetCalculationMode", id);
+            return true;
+        }
+
+        /// <summary>
+        /// The unit's calculation modes, by name. <c>GetCalculationModes</c> reports them as
+        /// "Name: OutletTemperature  ID: 1", which is meant for a person to read.
+        /// </summary>
+        public static IDictionary<string, int> CalculationModes(ISimulationObject obj)
+        {
+            var modes = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+            var described = Invoke(obj, "GetCalculationModes") as string[];
+            if (described == null) return modes;
+
+            foreach (var line in described)
+            {
+                var match = Regex.Match(line ?? "", @"Name:\s*(?<name>\S+)\s+ID:\s*(?<id>-?\d+)");
+                if (match.Success)
+                    modes[match.Groups["name"].Value] = int.Parse(match.Groups["id"].Value);
+            }
+
+            return modes;
+        }
+
+        private static string DescribeModes(IDictionary<string, int> modes)
+        {
+            return "Use one of: " + string.Join(", ", modes.Keys.Select(k => "'" + k + "'")) + ".";
+        }
+
+        /// <summary>
+        /// Calls a method the base unit-operation class declares. Reflection because the MCP
+        /// server sees objects as ISimulationObject, which does not carry these.
+        /// </summary>
+        private static object Invoke(ISimulationObject obj, string method, params object[] args)
+        {
+            var info = obj.GetType().GetMethod(method,
+                BindingFlags.Public | BindingFlags.Instance);
+
+            return info == null ? null : info.Invoke(obj, args);
         }
 
         /// <summary>The message for a name that matched nothing: what it was, and what would work.</summary>
