@@ -35,6 +35,55 @@ Namespace MathEx
 
         End Function
 
+        ''' <summary>
+        ''' Solves the monic cubic in Z for a cubic equation of state and returns the physical
+        ''' compressibility factor: the smallest real root above the covolume B for a liquid, the
+        ''' largest for a vapour. Roots at or below B (molar volume &lt;= b, non-physical) and the
+        ''' complex roots are discarded, so the liquid branch can no longer take an unphysical root
+        ''' (which showed up as liquid densities above the M/b hard limit near the critical point).
+        ''' The stable MathNet cubic solver is used, avoiding the stalled values the multi-start
+        ''' Newton path could return. If no root above B exists the largest real root is returned,
+        ''' never below B.
+        ''' </summary>
+        ''' <param name="Coeff">Cubic coefficients, Coeff(0) constant term through Coeff(3) the z^3 term.</param>
+        ''' <param name="B">Dimensionless covolume (bP/RT) of the phase.</param>
+        ''' <param name="liquid">True for the liquid root (smallest valid), False for the vapour root (largest valid).</param>
+        Shared Function SelectZ(ByVal Coeff As Double(), ByVal B As Double, ByVal liquid As Boolean) As Double
+
+            Dim valid = ValidZRoots(Coeff, B)
+
+            If valid.Count > 0 Then
+                If liquid Then Return valid(0) Else Return valid(valid.Count - 1)
+            End If
+
+            'no root above the covolume: fall back to the largest real root, but never below B
+            Dim r = FindRoots.Cubic(Coeff(0), Coeff(1), Coeff(2), Coeff(3))
+            Dim best As Double = B
+            For Each root In New Complex() {r.Item1, r.Item2, r.Item3}
+                If Math.Abs(root.Imaginary) < 0.0000001 AndAlso root.Real > best Then best = root.Real
+            Next
+            Return best
+
+        End Function
+
+        ''' <summary>
+        ''' Real roots of the monic EOS cubic that lie strictly above the covolume B, in ascending
+        ''' order. Complex roots and roots at or below B (non-physical, molar volume &lt;= b) are
+        ''' dropped. Uses the stable MathNet cubic solver. May be empty when the pressure is past the
+        ''' point where the EOS has a physical solution (B &gt;= 1).
+        ''' </summary>
+        Shared Function ValidZRoots(ByVal Coeff As Double(), ByVal B As Double) As List(Of Double)
+
+            Dim r = FindRoots.Cubic(Coeff(0), Coeff(1), Coeff(2), Coeff(3))
+            Dim result As New List(Of Double)
+            For Each root In New Complex() {r.Item1, r.Item2, r.Item3}
+                If Math.Abs(root.Imaginary) < 0.0000001 AndAlso root.Real > B Then result.Add(root.Real)
+            Next
+            result.Sort()
+            Return result
+
+        End Function
+
         Shared Function CalcRoots2(ByVal a As Double, ByVal b As Double, ByVal c As Double, ByVal d As Double) As Double(,)
 
             Dim roots0 = FindRoots.Cubic(d, c, b, a)

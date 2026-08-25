@@ -493,6 +493,27 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                         .RequestType = Interfaces.ConvergenceHelperRequestType.PTFlash})
             End If
 
+            'Reject a trivial two-phase result: when successive substitution stalls with every K-value
+            'at unity the two "phases" are the feed itself, reported as a spurious split. Collapse it to
+            'the single phase the feed actually is, told apart by its compressibility factor.
+            If V > 0.000001 AndAlso V < 0.999999 Then
+                Dim maxlnk As Double = 0.0
+                For itk As Integer = 0 To n
+                    If Vx(itk) > 1.0E-20 AndAlso Vy(itk) > 1.0E-20 Then maxlnk = Math.Max(maxlnk, Math.Abs(Math.Log(Vy(itk) / Vx(itk))))
+                Next
+                If maxlnk < 0.0001 Then
+                    Dim zfeed = PP.AUX_Z(Vz, T, P, Interfaces.Enums.PhaseName.Liquid)
+                    If zfeed > 0.3 Then
+                        V = 1.0 : L = 0.0
+                    Else
+                        V = 0.0 : L = 1.0
+                    End If
+                    Vx = DirectCast(Vz.Clone(), Double())
+                    Vy = DirectCast(Vz.Clone(), Double())
+                    WriteDebugInfo("PT Flash [NL]: trivial (K~1) split rejected; reported as single phase.")
+                End If
+            End If
+
             If PP.ImmiscibleLiquids.Count > 0 Then
 
                 Dim immscheck As Object() = ProcessImmiscibleLiquids(PP, L, 0.0, Vx, PP.RET_NullVector())
