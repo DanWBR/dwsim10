@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Reflection;
 using DWSIM.Automation.DynamicRunner;
 using DWSIM.Automation.FluentAPI;
 using FluentFlowsheet = DWSIM.Automation.FluentAPI.Flowsheet;
@@ -123,19 +124,36 @@ namespace DWSIM.MCPServer.Tools.Dynamics
                     (p.Id ?? "").IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0).ToList();
 
             var items = new JArray();
+            var unnamed = 0;
+
             foreach (var p in matching.Take(MaxListItems))
             {
-                items.Add(new JObject
+                var entry = new JObject
                 {
                     ["id"] = p.Id,
-                    ["description"] = p.Description,
                     ["units"] = p.Units,
                     ["value"] = p.Value == null ? null : SeriesDecimator.Format(ToDouble(p.Value)),
-                    ["dynamic"] = p.IsDynamic
-                });
+                };
+
+                // The engine has no friendly name for most property ids and echoes the id back.
+                // Repeating it teaches the caller nothing and doubles the size of the list.
+                if (!string.IsNullOrEmpty(p.Description) && p.Description != p.Id)
+                    entry["description"] = p.Description;
+                else
+                    unnamed++;
+
+                if (p.IsDynamic) entry["dynamic"] = true;
+
+                items.Add(entry);
             }
 
             var result = new JObject { ["tag"] = tag, ["properties"] = items, ["total"] = matching.Count };
+
+            if (unnamed > 0)
+            {
+                result["note"] = "Ids without a description have no friendly name in the engine; identify them by their units and current value.";
+            }
+
             if (matching.Count > MaxListItems) result["truncated"] = true;
             return result;
         }
@@ -153,12 +171,16 @@ namespace DWSIM.MCPServer.Tools.Dynamics
 
             var blockers = findings.Where(f => f.Severity == DiagnosticSeverity.Blocker).ToList();
 
+            var warnings = findings.Where(f => f.Severity == DiagnosticSeverity.Warning).ToList();
+
+            // One shape for every check: counts under blockers and warnings, the findings in one
+            // list. Two tools answering the same question differently is a trap for the reader.
             var result = new JObject
             {
                 ["ready"] = blockers.Count == 0,
-                ["blockers"] = Findings(blockers),
-                ["warnings"] = Findings(findings.Where(f => f.Severity == DiagnosticSeverity.Warning)),
-                ["notes"] = Findings(findings.Where(f => f.Severity == DiagnosticSeverity.Info))
+                ["blockers"] = blockers.Count,
+                ["warnings"] = warnings.Count,
+                ["findings"] = Findings(findings)
             };
 
             try
@@ -466,8 +488,8 @@ namespace DWSIM.MCPServer.Tools.Dynamics
                         continue;
                     }
 
-                    // Some settings a dynamic run depends on are ordinary properties — a tank's
-                    // volume, for one — so fall through to those rather than refusing.
+                    // Some settings a dynamic run depends on are ordinary properties - a tank's
+                    // volume, for one - so fall through to those rather than refusing.
                     var writable = obj.GetProperties(Interfaces.Enums.PropertyType.WR) ?? new string[0];
                     if (writable.Contains(entry.Key))
                     {
@@ -476,8 +498,19 @@ namespace DWSIM.MCPServer.Tools.Dynamics
                         continue;
                     }
 
+                    // And some are neither: a tank's Volume and a valve's Kv are plain properties
+                    // of the model that the property system never advertises. Setting one is what
+                    // the Fluent API does, so refusing here would leave a dynamic case unbuildable.
+                    if (TrySetClrProperty(obj, entry.Key, entry.Value))
+                    {
+                        applied.Add(entry.Key + " = " + entry.Value);
+                        continue;
+                    }
+
                     var known = PropertyCatalog.DynamicFor(obj, units).Select(p => p.Id)
                         .Concat(writable)
+                        .Concat(SettableClrProperties(obj))
+                        .Distinct(StringComparer.Ordinal)
                         .Take(MaxListItems);
 
                     throw new ArgumentException("'" + tag + "' has no settable property '" + entry.Key +
@@ -1117,6 +1150,44 @@ namespace DWSIM.MCPServer.Tools.Dynamics
             if (oscillating) return "damped_oscillation";
             if (!s.HasConverged()) return "still_moving";
             return "stable";
+        }
+
+        /// <summary>
+        /// Sets a plain .NET property on the model, for the settings the property system does not
+        /// advertise - a tank's Volume, a valve's Kv.
+        /// </summary>
+        /// <returns>False when there is no such settable property, leaving the caller to report it.</returns>
+        private static bool TrySetClrProperty(ISimulationObject obj, string name, JToken value)
+        {
+            var property = obj.GetType().GetProperty(name,
+                BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+
+            if (property == null || !property.CanWrite) return false;
+
+            var type = Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType;
+            if (type != typeof(double) && type != typeof(int) && type != typeof(bool)) return false;
+
+            object converted;
+            if (type == typeof(bool)) converted = value.Value<bool>();
+            else if (type == typeof(int)) converted = value.Value<int>();
+            else converted = value.Value<double>();
+
+            property.SetValue(obj, converted);
+            return true;
+        }
+
+        /// <summary>The plain .NET properties a caller could set, for the "available" list.</summary>
+        private static IEnumerable<string> SettableClrProperties(ISimulationObject obj)
+        {
+            return obj.GetType()
+                .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                .Where(p => p.CanWrite && p.GetIndexParameters().Length == 0)
+                .Where(p =>
+                {
+                    var t = Nullable.GetUnderlyingType(p.PropertyType) ?? p.PropertyType;
+                    return t == typeof(double) || t == typeof(int) || t == typeof(bool);
+                })
+                .Select(p => p.Name);
         }
 
         private static JArray Findings(IEnumerable<Finding> findings)
