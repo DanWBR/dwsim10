@@ -1,0 +1,72 @@
+{
+  "_comment": "ADM1 — BSM2 mesophilic digester benchmark (Rosen & Jeppsson 2006, Table A.1). 35 °C, 3400 m3 liquid / 300 m3 gas, Q_in = 178.4674 m3/d. Expected SS: pH ≈ 7.47, Q_gas ≈ 2955 m3/d, x_CH4 ≈ 0.650. That Q_gas is the raw q_gas at the operating temperature, as Rosen & Jeppsson report it, and is widely quoted as Nm3/d by mistake; normalised to 273.15 K it is ~2600 Nm3/d. Validated by the b11 case. Sulfur is zero: the BSM2 benchmark has none, and standard ADM1 (Batstone 2002) excludes sulfate reduction entirely.",
+  "Stoichiometry": {
+    "f_sI_xc": 0.1, "f_xI_xc": 0.2, "f_ch_xc": 0.2, "f_pr_xc": 0.2, "f_li_xc": 0.3,
+    "N_xc": 0.002685714285714286, "N_I": 0.004285714285714286, "N_aa": 0.007, "N_bac": 0.005714285714285714,
+    "C_xc": 0.02786, "C_sI": 0.03, "C_ch": 0.0313, "C_pr": 0.03, "C_li": 0.022, "C_xI": 0.03,
+    "C_su": 0.0313, "C_aa": 0.03, "C_fa": 0.0217, "C_bu": 0.025, "C_pro": 0.0268,
+    "C_ac": 0.0313, "C_bac": 0.0313, "C_va": 0.024, "C_ch4": 0.0156,
+    "f_fa_li": 0.95,
+    "f_h2_su": 0.19, "f_bu_su": 0.13, "f_pro_su": 0.27, "f_ac_su": 0.41,
+    "f_h2_aa": 0.06, "f_va_aa": 0.23, "f_bu_aa": 0.26, "f_pro_aa": 0.05, "f_ac_aa": 0.40,
+    "Y_su": 0.10, "Y_aa": 0.08, "Y_fa": 0.06, "Y_c4": 0.06, "Y_pro": 0.04, "Y_ac": 0.05, "Y_h2": 0.06
+  },
+  "Kinetics": {
+    "k_dis": 0.5,
+    "k_hyd_ch": 10.0, "k_hyd_pr": 10.0, "k_hyd_li": 10.0,
+    "k_m_su": 30.0, "K_S_su": 0.5,
+    "k_m_aa": 50.0, "K_S_aa": 0.3,
+    "k_m_fa": 6.0, "K_S_fa": 0.4,
+    "k_m_c4": 20.0, "K_S_c4": 0.2,
+    "k_m_pro": 13.0, "K_S_pro": 0.1,
+    "k_m_ac": 8.0, "K_S_ac": 0.15,
+    "k_m_h2": 35.0, "K_S_h2": 7.0e-06,
+    "k_dec_X_su": 0.02, "k_dec_X_aa": 0.02, "k_dec_X_fa": 0.02, "k_dec_X_c4": 0.02,
+    "k_dec_X_pro": 0.02, "k_dec_X_ac": 0.02, "k_dec_X_h2": 0.02
+  },
+  "Inhibition": {
+    "K_S_IN": 1.0e-04,
+    "K_I_h2_fa": 5.0e-06, "K_I_h2_c4": 1.0e-05, "K_I_h2_pro": 3.5e-06,
+    "K_I_nh3": 0.0018,
+    "pH_UL_aa": 5.5, "pH_LL_aa": 4.0,
+    "pH_UL_ac": 7.0, "pH_LL_ac": 6.0,
+    "pH_UL_h2": 6.0, "pH_LL_h2": 5.0
+  },
+  "Physicochemical": {
+    "T_base_K": 298.15, "T_op_K": 308.15, "R": 0.08314,
+    "K_w": 1.0e-14,
+    "K_a_va": 1.38e-05, "K_a_bu": 1.5e-05, "K_a_pro": 1.32e-05, "K_a_ac": 1.74e-05,
+    "K_a_co2": 4.4668e-07, "K_a_IN": 5.6234e-10,
+    "K_a_h2s": 8.9125e-08,
+    "k_AB_va": 1.0e10, "k_AB_bu": 1.0e10, "k_AB_pro": 1.0e10, "k_AB_ac": 1.0e10,
+    "k_AB_co2": 1.0e10, "k_AB_IN": 1.0e10,
+    "k_La": 200.0,
+    "K_H_co2": 0.035, "K_H_ch4": 0.0014, "K_H_h2": 7.8e-04, "K_H_h2s": 0.1,
+    "P_atm": 1.013, "P_gas_h2o": 0.0313
+  },
+  "InitialConditions": {
+    "S_su": 0.012, "S_aa": 0.0054, "S_fa": 0.107, "S_va": 0.0123, "S_bu": 0.0140,
+    "S_pro": 0.0176, "S_ac": 0.0893, "S_h2": 2.5e-07, "S_ch4": 0.0550,
+    "S_IC": 0.1526, "S_IN": 0.1302, "S_I": 0.329,
+    "X_c": 0.3087, "X_ch": 0.02795, "X_pr": 0.1024, "X_li": 0.02948,
+    "X_su": 0.4202, "X_aa": 1.1792, "X_fa": 0.2430, "X_c4": 0.4319,
+    "X_pro": 0.1373, "X_ac": 0.7600, "X_h2": 0.3170, "X_I": 25.6173,
+    "S_cat": 0.04, "S_an": 0.02,
+    "S_h2_gas": 1.102e-05, "S_ch4_gas": 1.6216, "S_co2_gas": 0.01441,
+    "S_H_ion": 3.423e-08, "pH": 7.4655,
+    "S_va_ion": 0.01156, "S_bu_ion": 0.01322, "S_pro_ion": 0.01574, "S_ac_ion": 0.08957,
+    "S_hco3_ion": 0.14278, "S_nh3": 0.004, "S_nh4": 0.126
+  },
+  "Operating": {
+    "V_liq": 3400.0, "V_gas": 300.0,
+    "Q_in": 178.4674, "T_op_K": 308.15,
+    "SimulationTime_d": 200.0,
+    "UseInfluentFromFeedStream": false,
+    "Sin_su": 0.01, "Sin_aa": 0.001, "Sin_fa": 0.001, "Sin_va": 0.001, "Sin_bu": 0.001,
+    "Sin_pro": 0.001, "Sin_ac": 0.001, "Sin_h2": 1.0e-08, "Sin_ch4": 1.0e-05,
+    "Sin_IC": 0.04, "Sin_IN": 0.01, "Sin_I": 0.02,
+    "Xin_c": 2.0, "Xin_ch": 5.0, "Xin_pr": 20.0, "Xin_li": 5.0, "Xin_I": 25.0,
+    "Sin_cat": 0.04, "Sin_an": 0.02,
+    "Sin_IS": 0.0
+  }
+}

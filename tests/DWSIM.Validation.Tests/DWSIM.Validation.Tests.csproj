@@ -1,0 +1,68 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The validation suite: each case sets up a small simulation and checks the answer against a
+    published reference — NIST, a textbook, a correlation's own paper.
+
+    It is an executable as well as a test project. The console runner takes a case name and prints
+    a table, which is what the report generators consume; the NUnit shell beside it is what lets
+    `dotnet test` on the solution run the same cases in CI.
+
+    The cases that need a Plus unit operation live in DWSIM.Validation.Tests.Plus, in the Patreon
+    repository, which carries those projects.
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>DWSIM.Validation.Tests</RootNamespace>
+    <AssemblyName>DWSIM.Validation.Tests</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <!-- The runner's Main and the test host's would collide otherwise. -->
+    <GenerateProgramFile>false</GenerateProgramFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="NUnit" />
+    <PackageReference Include="NUnit3TestAdapter" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\engine\DWSIM.FluentAPI\DWSIM.FluentAPI.csproj" />
+    <ProjectReference Include="..\..\engine\DWSIM.FlowsheetBase\DWSIM.FlowsheetBase.vbproj" />
+    <ProjectReference Include="..\..\engine\DWSIM.Interfaces\DWSIM.Interfaces.vbproj" />
+    <ProjectReference Include="..\..\engine\DWSIM.SharedClasses\DWSIM.SharedClasses.vbproj" />
+    <ProjectReference Include="..\..\engine\DWSIM.Thermodynamics\DWSIM.Thermodynamics.vbproj" />
+    <ProjectReference Include="..\..\engine\DWSIM.UnitOperations\DWSIM.UnitOperations.vbproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      The compound database DWSIM reads at startup, from an addcomps folder beside the
+      assembly. The bioprocess cases need the biomass definitions in it, and without them
+      they fail looking for a compound rather than reporting a wrong number.
+    -->
+    <None Include="..\..\content\addcomps\*.json"
+          Link="addcomps\%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      Parameter sets for the ADM1 digester, from the literature: the BSM2 benchmark and two
+      operating points. The model reads them by path, relative to the assembly.
+    -->
+    <None Include="..\..\engine\DWSIM.UnitOperations\Reactors\ADM1\Samples\*.json"
+          Link="Reactors\ADM1\Samples\%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The property packages implement the CAPE-OPEN interfaces on the class itself, so
+         a test that touches one needs the assembly that declares them. -->
+    <Reference Include="CapeOpen">
+      <HintPath>..\..\lib\CapeOpen.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+</Project>
