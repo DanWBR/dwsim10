@@ -29,6 +29,7 @@ namespace DWSIM.Automation.FluentAPI.Diagnostics
         public const string NotConverged = "NOT_CONVERGED";
         public const string StreamNotFinite = "STREAM_NOT_FINITE";
         public const string NegativeFlow = "NEGATIVE_FLOW";
+        public const string UnitHadNoEffect = "UNIT_HAD_NO_EFFECT";
 
         /// <summary>Every code, mapped to a one-line explanation.</summary>
         public static readonly IReadOnlyDictionary<string, string> All = new Dictionary<string, string>
@@ -53,7 +54,8 @@ namespace DWSIM.Automation.FluentAPI.Diagnostics
             { InfiniteLoop, "The solver found a cycle with no recycle to tear it." },
             { NotConverged, "A unit operation did not solve." },
             { StreamNotFinite, "A stream carries a flow that is not a finite number." },
-            { NegativeFlow, "A stream carries a negative flow." }
+            { NegativeFlow, "A stream carries a negative flow." },
+            { UnitHadNoEffect, "A unit operation left its stream unchanged, so its specification is not being read." }
         };
     }
 }

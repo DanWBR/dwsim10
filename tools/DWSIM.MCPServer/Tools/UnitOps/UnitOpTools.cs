@@ -2,7 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json.Linq;
+using DWSIM.Interfaces.Enums.GraphicObjects;
 using DWSIM.Interfaces;
+using DWSIM.Interfaces.Enums;
+using DWSIM.Automation.FluentAPI;
 using DWSIM.MCPServer.Sessions;
 using FluentFlowsheet = DWSIM.Automation.FluentAPI.Flowsheet;
 
@@ -55,11 +58,15 @@ namespace DWSIM.MCPServer.Tools.UnitOps
                 ["Chromatography"] = (fs, tag) => fs.AddChromatographyColumn(tag),
                 ["CrossflowUF"] = (fs, tag) => fs.AddCrossflowUF(tag),
                 ["Crystallizer"] = (fs, tag) => fs.AddCrystallizer(tag),
+                ["Recycle"] = (fs, tag) => fs.AddUnitOperation(ObjectType.OT_Recycle, tag),
+                ["EnergyRecycle"] = (fs, tag) => fs.AddUnitOperation(ObjectType.OT_EnergyRecycle, tag),
+                ["Spec"] = (fs, tag) => fs.AddUnitOperation(ObjectType.OT_Spec, tag),
+                ["Adjust"] = (fs, tag) => fs.AddUnitOperation(ObjectType.OT_Adjust, tag),
             };
 
         public UnitOpTools(SessionManager sessions) { _sessions = sessions; }
 
-        [McpTool("dwsim_unitop_add", "Add a unit operation to the flowsheet. Type can be: Mixer, Splitter, Heater, Cooler, Pump, Compressor, Expander, Valve, Pipe, HeatExchanger, ComponentSeparator, Tank, Vessel, OrificePlate, Filter, SolidsSeparator, ShortcutColumn, DistillationColumn, AbsorptionColumn, ConversionReactor, EquilibriumReactor, GibbsReactor, CSTR, PFR, WindTurbine, HydroelectricTurbine, SolarPanel, WaterElectrolyzer, PEMFuelCell, ReaktoroGibbsReactor, BioReactor, AnaerobicDigester, CFBFastPyrolysis, Pretreatment, BiogasUpgrader, CellLysis, Centrifuge, Chromatography, CrossflowUF, Crystallizer.")]
+        [McpTool("dwsim_unitop_add", "Add a unit operation to the flowsheet. Type can be: Mixer, Splitter, Heater, Cooler, Pump, Compressor, Expander, Valve, Pipe, HeatExchanger, ComponentSeparator, Tank, Vessel, OrificePlate, Filter, SolidsSeparator, ShortcutColumn, DistillationColumn, AbsorptionColumn, ConversionReactor, EquilibriumReactor, GibbsReactor, CSTR, PFR, WindTurbine, HydroelectricTurbine, SolarPanel, WaterElectrolyzer, PEMFuelCell, ReaktoroGibbsReactor, BioReactor, AnaerobicDigester, CFBFastPyrolysis, Pretreatment, BiogasUpgrader, CellLysis, Centrifuge, Chromatography, CrossflowUF, Crystallizer, and the logical blocks Recycle, EnergyRecycle, Spec and Adjust. A flowsheet with a loop needs a Recycle on one of its streams to tear it.")]
         public JObject Add(
             [McpParam("Flowsheet handle")] string flowsheet_id,
             [McpParam("Unit operation type name")] string type,
@@ -138,6 +145,35 @@ namespace DWSIM.MCPServer.Tools.UnitOps
             return new JObject { ["unitop"] = unitop, ["connections"] = connections };
         }
 
+        [McpTool("dwsim_unitop_set",
+            "Configure a unit operation: outlet pressure, outlet temperature, efficiency, calculation " +
+            "mode, and anything else the model exposes. Names are matched against the property system, " +
+            "the dynamic properties and the model's own properties, so both 'PROP_CO_1' and " +
+            "'OutletPressure' work; an enum is given by name. A name that matches nothing comes back " +
+            "with the ones that would have. Call dwsim_unitop_get_results to see what a unit reports.")]
+        public JObject Set(
+            [McpParam("Flowsheet handle")] string flowsheet_id,
+            [McpParam("Unit operation tag")] string name,
+            [McpParam("Properties to set, as {name: value}. Values are in the flowsheet unit system.", JsonType = "object")]
+            JObject properties)
+        {
+            var fs = _sessions.GetFlowsheet(flowsheet_id);
+
+            var obj = fs.Inner.SimulationObjects.Values.FirstOrDefault(
+                o => o.GraphicObject != null && (o.GraphicObject.Tag == name || o.Name == name));
+
+            if (obj == null)
+                throw new ArgumentException($"No unit operation with tag or id '{name}'.");
+
+            var applied = PropertySetter.Apply(obj, properties, fs.Inner.FlowsheetOptions.SelectedUnitSystem);
+
+            return new JObject
+            {
+                ["unitop"] = name,
+                ["applied"] = applied
+            };
+        }
+
         [McpTool("dwsim_unitop_get_results", "Get calculated results for a unit operation.")]
         public JObject GetResults(
             [McpParam("Flowsheet handle")] string flowsheet_id,
@@ -155,25 +191,53 @@ namespace DWSIM.MCPServer.Tools.UnitOps
                 ["error"] = obj.ErrorMessage ?? ""
             };
 
+            var props = new JObject();
+
+            // The key properties are what a unit chooses to report, when it reports any. Most
+            // report none, so fall back to its calculated properties, named as the property
+            // grid names them - a duty nobody can read is a duty nobody can check.
             if (obj is DWSIM.Interfaces.IUnitOperation uo)
             {
-                var props = new JObject();
                 try
                 {
                     foreach (var propName in uo.GetKeyPropertyNames())
                     {
                         try
                         {
-                            var val = uo.GetKeyPropertyValue(propName);
-                            var units = uo.GetKeyPropertyUnits(propName);
-                            props[propName] = new JObject { ["value"] = val, ["units"] = units };
+                            props[propName] = new JObject
+                            {
+                                ["value"] = uo.GetKeyPropertyValue(propName),
+                                ["units"] = uo.GetKeyPropertyUnits(propName)
+                            };
                         }
                         catch { }
                     }
                 }
                 catch { }
-                result["properties"] = props;
             }
+
+            if (props.Count == 0)
+            {
+                var units = fs.Inner.FlowsheetOptions.SelectedUnitSystem;
+
+                // GetProperties reports the dynamic-mode settings alongside the real ones, and
+                // there are enough of them - hold-up volume, flow conductance - to crowd the duty
+                // out of the list. The extra-property bag is the authority on which is which.
+                var dynamicNames = new HashSet<string>(
+                    ((IDictionary<string, object>)obj.ExtraPropertiesDescriptions).Keys,
+                    StringComparer.Ordinal);
+
+                foreach (var entry in PropertyCatalog.For(obj, units, PropertyType.RO))
+                {
+                    if (entry.Value == null) continue;
+                    if (dynamicNames.Contains(entry.Id)) continue;
+
+                    var label = string.IsNullOrEmpty(entry.Description) ? entry.Id : entry.Description;
+                    props[label] = new JObject { ["value"] = entry.Value.ToString(), ["units"] = entry.Units };
+                }
+            }
+
+            result["properties"] = props;
 
             return result;
         }

@@ -68,6 +68,7 @@ namespace DWSIM.Automation.FluentAPI.Diagnostics
             DiagnoseExceptions(flowsheet, raised, findings);
             DiagnoseUnconverged(flowsheet, findings);
             DiagnoseResults(flowsheet, findings);
+            DiagnoseIneffectiveUnits(flowsheet, findings);
 
             // Whatever stopped the solve, the flowsheet's own faults belong in the report with it:
             // a solver exception is usually the symptom, and a setup fault the cause.
@@ -367,6 +368,102 @@ namespace DWSIM.Automation.FluentAPI.Diagnostics
                 findings.Add(new Finding(FlowsheetCodes.NotConverged, DiagnosticSeverity.Blocker, tag, reason,
                     "Check its specification, and that everything upstream of it solved."));
             }
+        }
+
+        /// <summary>Equipment that is supposed to change the stream passing through it.</summary>
+        private static readonly HashSet<ObjectType> ShouldChangeSomething = new HashSet<ObjectType>
+        {
+            ObjectType.Heater, ObjectType.Cooler, ObjectType.Pump,
+            ObjectType.Compressor, ObjectType.Expander, ObjectType.Valve
+        };
+
+        /// <summary>
+        /// Reports equipment whose outlet came out the same as its inlet.
+        /// </summary>
+        /// <remarks>
+        /// This catches the most expensive mistake a caller can make with DWSIM: setting a target
+        /// without setting the calculation mode that reads it. A cooler is born in heat-duty mode,
+        /// so giving it an outlet temperature and nothing else leaves it with a duty of zero. It
+        /// solves, reports no error, and does nothing — which is far worse than failing.
+        /// </remarks>
+        private static void DiagnoseIneffectiveUnits(IFlowsheet flowsheet, List<Finding> findings)
+        {
+            foreach (var obj in flowsheet.SimulationObjects.Values)
+            {
+                var graphic = obj.GraphicObject;
+                if (graphic == null || !graphic.Active || !obj.Calculated) continue;
+                if (!ShouldChangeSomething.Contains(graphic.ObjectType)) continue;
+
+                var inlet = FirstAttached(flowsheet, graphic.InputConnectors, ConType.ConIn);
+                var outlet = FirstAttached(flowsheet, graphic.OutputConnectors, ConType.ConOut);
+                if (inlet == null || outlet == null) continue;
+
+                double tIn, tOut, pIn, pOut;
+                try
+                {
+                    tIn = inlet.GetTemperature(); tOut = outlet.GetTemperature();
+                    pIn = inlet.GetPressure(); pOut = outlet.GetPressure();
+                }
+                catch (Exception) { continue; }
+
+                if (pIn <= 0.0 || tIn <= 0.0) continue;
+
+                // Relative, because a hundredth of a degree matters on a cryogenic duty and not at
+                // all on a furnace. A tenth of a percent is below anything deliberate.
+                var changedT = Math.Abs(tOut - tIn) / tIn > 1e-3;
+                var changedP = Math.Abs(pOut - pIn) / pIn > 1e-3;
+
+                if (changedT || changedP) continue;
+
+                // An evaporator or a condenser sitting on the saturation line does its whole job at
+                // constant temperature and pressure: what moves is the vapour fraction. Reporting
+                // one of those as ineffective would be exactly wrong.
+                if (ChangedPhase(inlet, outlet)) continue;
+
+                findings.Add(new Finding(FlowsheetCodes.UnitHadNoEffect, DiagnosticSeverity.Warning,
+                    TagOf(obj),
+                    "This " + graphic.ObjectType + " left its outlet at the same temperature and pressure " +
+                    "as its inlet, so it did nothing.",
+                    "Its calculation mode probably does not read the specification you set - a cooler " +
+                    "given an outlet temperature still needs CalcMode = OutletTemperature. Check the " +
+                    "mode, then the value."));
+            }
+        }
+
+        /// <summary>Whether the vapour fraction moved between the two streams.</summary>
+        private static bool ChangedPhase(IMaterialStream inlet, IMaterialStream outlet)
+        {
+            try
+            {
+                var vIn = inlet.Phases[2].Properties.molarfraction.GetValueOrDefault();
+                var vOut = outlet.Phases[2].Properties.molarfraction.GetValueOrDefault();
+                return Math.Abs(vOut - vIn) > 1e-4;
+            }
+            catch (Exception)
+            {
+                // No vapour phase to read is not evidence either way, and a false blocker costs
+                // more than a missed warning.
+                return true;
+            }
+        }
+
+        /// <summary>The stream attached to the first port of the given kind.</summary>
+        private static IMaterialStream FirstAttached(IFlowsheet flowsheet,
+            IEnumerable<IConnectionPoint> ports, ConType kind)
+        {
+            foreach (var port in ports.Where(p => p.IsAttached && p.Type == kind))
+            {
+                var connector = port.AttachedConnector;
+                if (connector == null) continue;
+
+                var other = kind == ConType.ConIn ? connector.AttachedFrom : connector.AttachedTo;
+                if (other == null) continue;
+
+                ISimulationObject stream;
+                if (flowsheet.SimulationObjects.TryGetValue(other.Name, out stream))
+                    return stream as IMaterialStream;
+            }
+            return null;
         }
 
         private static void DiagnoseResults(IFlowsheet flowsheet, List<Finding> findings)
