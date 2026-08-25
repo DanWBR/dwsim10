@@ -8438,6 +8438,8 @@ Final3:
 
         End Function
 
+        <ThreadStatic> Private Shared _inLiqDensMbGuard As Boolean
+
         Public Overridable Function AUX_LIQDENS(ByVal T As Double, ByVal Vx As Array, Optional ByVal P As Double = 0, Optional ByVal Pvp As Double = 0, Optional ByVal FORCE_EOS As Boolean = False) As Double
 
             Dim IObj As Inspector.InspectorItem = Inspector.Host.GetNewInspectorItem()
@@ -8573,19 +8575,27 @@ Final3:
                 val = 1 / MathEx.Common.Sum(vk)
             End If
 
-            'The molar volume can never be smaller than the equation-of-state covolume b, so the
-            'liquid density can never exceed M/b. Correlation paths (Rackett, per-compound) can break
-            'this near the mixture critical point; when they do, fall back to the equation of state,
-            'whose compressibility factor now stays above the covolume.
-            Dim bmix As Double = 0.0
-            Dim vtc = RET_VTC() : Dim vpc = RET_VPC()
-            For k As Integer = 0 To Vx.Length - 1
-                If vpc(k) > 0.0 Then bmix += CDbl(Vx(k)) * 0.0778 * 8.314 * vtc(k) / vpc(k)
-            Next
-            Dim mkg As Double = AUX_MMM(Vx) / 1000.0
-            If bmix > 0.0 AndAlso val > mkg / bmix Then
-                Dim zeos = AUX_Z(Vx, T, P, PhaseName.Liquid)
-                If zeos > 0.0 Then val = mkg / (zeos * 8.314 * T / P)
+            'The molar volume can never be smaller than the equation-of-state covolume b, so the liquid
+            'density can never exceed M/b. Correlation paths (Rackett, per-compound) can break this near
+            'the mixture critical point; when they do, fall back to the equation of state, whose
+            'compressibility factor now stays above the covolume. The re-entrancy flag keeps activity
+            'packages, whose AUX_Z is itself derived from this density, from recursing.
+            If Not _inLiqDensMbGuard Then
+                Dim bmix As Double = 0.0
+                Dim vtc = RET_VTC() : Dim vpc = RET_VPC()
+                For k As Integer = 0 To Vx.Length - 1
+                    If vpc(k) > 0.0 Then bmix += CDbl(Vx(k)) * 0.0778 * 8.314 * vtc(k) / vpc(k)
+                Next
+                Dim mkg As Double = AUX_MMM(Vx) / 1000.0
+                If bmix > 0.0 AndAlso val > mkg / bmix Then
+                    _inLiqDensMbGuard = True
+                    Try
+                        Dim zeos = AUX_Z(Vx, T, P, PhaseName.Liquid)
+                        If zeos > 0.0 Then val = mkg / (zeos * 8.314 * T / P)
+                    Finally
+                        _inLiqDensMbGuard = False
+                    End Try
+                End If
             End If
 
             IObj?.Paragraphs.Add("<h2>Results</h2>")
