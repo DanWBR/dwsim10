@@ -57,10 +57,9 @@ Namespace MathEx
             End If
 
             'no root above the covolume: fall back to the largest real root, but never below B
-            Dim r = FindRoots.Cubic(Coeff(0), Coeff(1), Coeff(2), Coeff(3))
             Dim best As Double = B
-            For Each root In New Complex() {r.Item1, r.Item2, r.Item3}
-                If Math.Abs(root.Imaginary) < 0.0000001 AndAlso root.Real > best Then best = root.Real
+            For Each root In RealCubicRoots(Coeff)
+                If root > best Then best = root
             Next
             Return best
 
@@ -68,20 +67,66 @@ Namespace MathEx
 
         ''' <summary>
         ''' Real roots of the monic EOS cubic that lie strictly above the covolume B, in ascending
-        ''' order. Complex roots and roots at or below B (non-physical, molar volume &lt;= b) are
-        ''' dropped. Uses the stable MathNet cubic solver. May be empty when the pressure is past the
-        ''' point where the EOS has a physical solution (B &gt;= 1).
+        ''' order. Roots at or below B (non-physical, molar volume &lt;= b) are dropped. May be empty
+        ''' when the pressure is past the point where the EOS has a physical solution (B &gt;= 1).
         ''' </summary>
         Shared Function ValidZRoots(ByVal Coeff As Double(), ByVal B As Double) As List(Of Double)
 
-            Dim r = FindRoots.Cubic(Coeff(0), Coeff(1), Coeff(2), Coeff(3))
             Dim result As New List(Of Double)
-            For Each root In New Complex() {r.Item1, r.Item2, r.Item3}
-                If Math.Abs(root.Imaginary) < 0.0000001 AndAlso root.Real > B Then result.Add(root.Real)
+            For Each root In RealCubicRoots(Coeff)
+                If root > B Then result.Add(root)
             Next
             result.Sort()
             Return result
 
+        End Function
+
+        ''' <summary>
+        ''' Real roots of a cubic Coeff(3) z^3 + Coeff(2) z^2 + Coeff(1) z + Coeff(0), solved
+        ''' analytically (Cardano / trigonometric). The equation-of-state work only needs the real
+        ''' roots, and doing it here keeps the routine independent of any external solver's version.
+        ''' </summary>
+        Shared Function RealCubicRoots(ByVal Coeff As Double()) As List(Of Double)
+
+            Dim roots As New List(Of Double)
+            Dim a3 = Coeff(3)
+            If a3 = 0.0# Then Return roots
+
+            Dim a = Coeff(2) / a3
+            Dim b = Coeff(1) / a3
+            Dim c = Coeff(0) / a3
+
+            'depressed cubic t^3 + p t + q, with z = t - a/3
+            Dim p = b - a * a / 3.0#
+            Dim q = 2.0# * a * a * a / 27.0# - a * b / 3.0# + c
+            Dim shift = a / 3.0#
+            Dim disc = q * q / 4.0# + p * p * p / 27.0#
+
+            If disc > 0.000000000001 Then
+                'one real root (Cardano)
+                Dim s = Math.Sqrt(disc)
+                roots.Add(Cbrt(-q / 2.0# + s) + Cbrt(-q / 2.0# - s) - shift)
+            ElseIf Math.Abs(p) < 0.00000000000001 Then
+                'triple root
+                roots.Add(-shift)
+            Else
+                'three real roots (disc <= 0): trigonometric form
+                Dim m = 2.0# * Math.Sqrt(-p / 3.0#)
+                Dim arg = 3.0# * q / (p * m)
+                If arg > 1.0# Then arg = 1.0#
+                If arg < -1.0# Then arg = -1.0#
+                Dim theta = Math.Acos(arg) / 3.0#
+                For k = 0 To 2
+                    roots.Add(m * Math.Cos(theta - 2.0# * Math.PI * k / 3.0#) - shift)
+                Next
+            End If
+
+            Return roots
+
+        End Function
+
+        Private Shared Function Cbrt(ByVal x As Double) As Double
+            Return If(x < 0.0#, -Math.Pow(-x, 1.0# / 3.0#), Math.Pow(x, 1.0# / 3.0#))
         End Function
 
         Shared Function CalcRoots2(ByVal a As Double, ByVal b As Double, ByVal c As Double, ByVal d As Double) As Double(,)
