@@ -20,6 +20,60 @@ namespace DWSIM.FluentAPI.Tests
     {
         public static void Run()
         {
+            NamesResolve();
+            SettingWorksByAnyName();
+        }
+
+        /// <summary>
+        /// A caller sets a property by whichever name it knows, and the calculation mode by name.
+        /// </summary>
+        /// <remarks>
+        /// The mode matters more than it looks: it decides which of a unit's specifications it
+        /// reads. Set an outlet temperature on a cooler still in heat-duty mode and it solves,
+        /// reports no error and does nothing — so a setter that silently drops the mode, as the
+        /// assistant's did while it discarded every quoted value, is worse than one that fails.
+        /// </remarks>
+        private static void SettingWorksByAnyName()
+        {
+            var fs = Flowsheet.Create("PropertySetting")
+                .WithCompound("Water")
+                .WithPropertyPackage(PropertyPackages.SteamTables);
+
+            var cooler = fs.AddCooler("CD-1");
+            var obj = cooler.Object;
+            var units = fs.Inner.FlowsheetOptions.SelectedUnitSystem;
+
+            // The mode by name, which is a string and so used to be thrown away.
+            if (!PropertySetter.TrySet(obj, "CalcMode", "OutletTemperature", units))
+                throw new Exception("The calculation mode could not be set by name.");
+
+            var modes = PropertySetter.CalculationModes(obj);
+            if (!modes.ContainsKey("OutletTemperature"))
+                throw new Exception("The cooler does not report its own calculation modes.");
+
+            Console.WriteLine();
+            Console.WriteLine("Cooler calculation modes: " + string.Join(", ", modes.Keys));
+
+            // A plain model property, which the property system never advertises.
+            if (!PropertySetter.TrySet(obj, "OutletTemperature", 305.0, units))
+                throw new Exception("The outlet temperature could not be set.");
+
+            // And a name that matches nothing has to say what would have.
+            try
+            {
+                PropertySetter.TrySet(obj, "CalcMode", "OutletTempreature", units);
+                throw new Exception("A misspelled calculation mode was accepted.");
+            }
+            catch (ArgumentException ex)
+            {
+                Console.WriteLine("Misspelling reported as: " + ex.Message);
+                if (!ex.Message.Contains("OutletTemperature"))
+                    throw new Exception("The rejection does not name the modes that would work.");
+            }
+        }
+
+        private static void NamesResolve()
+        {
             var fs = Flowsheet.Create("PropertyNames")
                 .WithCompound("Water")
                 .WithPropertyPackage(PropertyPackages.SteamTables);

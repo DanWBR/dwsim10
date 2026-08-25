@@ -1,13 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
-using Newtonsoft.Json.Linq;
-using DWSIM.Automation.FluentAPI;
 using DWSIM.Interfaces;
 
-namespace DWSIM.MCPServer.Tools
+namespace DWSIM.Automation.FluentAPI
 {
     /// <summary>
     /// Sets a property on a simulation object by whichever name the caller knows it by.
@@ -32,9 +31,10 @@ namespace DWSIM.MCPServer.Tools
         /// <exception cref="ArgumentException">
         /// When a name matches nothing, carrying the names that would have worked.
         /// </exception>
-        public static JArray Apply(ISimulationObject obj, JObject properties, IUnitsOfMeasure units)
+        public static IReadOnlyList<string> Apply(ISimulationObject obj,
+            IEnumerable<KeyValuePair<string, object>> properties, IUnitsOfMeasure units)
         {
-            var applied = new JArray();
+            var applied = new List<string>();
             if (properties == null) return applied;
 
             foreach (var entry in properties)
@@ -52,7 +52,7 @@ namespace DWSIM.MCPServer.Tools
         }
 
         /// <summary>Sets one property, returning false when there is no such setting.</summary>
-        public static bool TrySet(ISimulationObject obj, string name, JToken value, IUnitsOfMeasure units)
+        public static bool TrySet(ISimulationObject obj, string name, object value, IUnitsOfMeasure units)
         {
             // The calculation mode decides which of a unit's specifications it actually reads, so
             // it is the setting most worth getting right — and the one whose name a caller is least
@@ -62,9 +62,7 @@ namespace DWSIM.MCPServer.Tools
 
             if (obj.IsDynamicProperty(name))
             {
-                object dynamicValue = value.Type == JTokenType.Boolean
-                    ? (object)value.Value<bool>()
-                    : value.Value<double>();
+                object dynamicValue = AsBoolean(value) ?? (object)AsDouble(value);
 
                 obj.AddDynamicProperty(name, dynamicValue);
                 return true;
@@ -73,7 +71,7 @@ namespace DWSIM.MCPServer.Tools
             var writable = obj.GetProperties(Interfaces.Enums.PropertyType.WR) ?? new string[0];
             if (writable.Contains(name))
             {
-                obj.SetPropertyValue(name, value.Value<double>(), units);
+                obj.SetPropertyValue(name, AsDouble(value), units);
                 return true;
             }
 
@@ -84,7 +82,7 @@ namespace DWSIM.MCPServer.Tools
         /// Sets a plain .NET property, including an enum given by name — a compressor's process
         /// path or a valve's calculation mode are set no other way.
         /// </summary>
-        private static bool TrySetClr(ISimulationObject obj, string name, JToken value)
+        private static bool TrySetClr(ISimulationObject obj, string name, object value)
         {
             var property = obj.GetType().GetProperty(name,
                 BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
@@ -97,7 +95,7 @@ namespace DWSIM.MCPServer.Tools
             object converted;
             if (type.IsEnum)
             {
-                var text = value.Type == JTokenType.String ? value.Value<string>() : value.ToString();
+                var text = Convert.ToString(value);
                 try { converted = Enum.Parse(type, text, true); }
                 catch (Exception)
                 {
@@ -105,10 +103,10 @@ namespace DWSIM.MCPServer.Tools
                         ". Use one of: " + string.Join(", ", Enum.GetNames(type)) + ".");
                 }
             }
-            else if (type == typeof(bool)) converted = value.Value<bool>();
-            else if (type == typeof(int)) converted = value.Value<int>();
-            else if (type == typeof(double)) converted = value.Value<double>();
-            else if (type == typeof(string)) converted = value.Value<string>();
+            else if (type == typeof(bool)) converted = AsBoolean(value) ?? false;
+            else if (type == typeof(int)) converted = (int)AsDouble(value);
+            else if (type == typeof(double)) converted = AsDouble(value);
+            else if (type == typeof(string)) converted = Convert.ToString(value);
             else return false;
 
             property.SetValue(obj, converted);
@@ -123,15 +121,15 @@ namespace DWSIM.MCPServer.Tools
         }
 
         /// <summary>Sets the calculation mode from a name or an id.</summary>
-        private static bool TrySetCalculationMode(ISimulationObject obj, JToken value)
+        private static bool TrySetCalculationMode(ISimulationObject obj, object value)
         {
             var modes = CalculationModes(obj);
             if (modes.Count == 0) return false;
 
             int id;
-            if (value.Type == JTokenType.Integer)
+            if (IsWholeNumber(value))
             {
-                id = value.Value<int>();
+                id = (int)AsDouble(value);
                 if (!modes.Values.Contains(id))
                 {
                     throw new ArgumentException(id + " is not a calculation mode of this unit. " +
@@ -140,7 +138,7 @@ namespace DWSIM.MCPServer.Tools
             }
             else
             {
-                var wanted = value.ToString();
+                var wanted = Convert.ToString(value);
                 if (!modes.TryGetValue(wanted, out id))
                 {
                     throw new ArgumentException("'" + wanted + "' is not a calculation mode of this " +
@@ -188,6 +186,36 @@ namespace DWSIM.MCPServer.Tools
                 BindingFlags.Public | BindingFlags.Instance);
 
             return info == null ? null : info.Invoke(obj, args);
+        }
+
+        /// <summary>The value as a number, whatever a transport wrapped it in.</summary>
+        private static double AsDouble(object value)
+        {
+            if (value == null) return 0.0;
+            return Convert.ToDouble(value, CultureInfo.InvariantCulture);
+        }
+
+        /// <summary>The value as a boolean, or null when it is not one.</summary>
+        private static bool? AsBoolean(object value)
+        {
+            if (value is bool b) return b;
+
+            var text = Convert.ToString(value);
+            bool parsed;
+            if (bool.TryParse(text, out parsed)) return parsed;
+            return null;
+        }
+
+        /// <summary>Whether the value is a whole number, and so could be a mode id.</summary>
+        private static bool IsWholeNumber(object value)
+        {
+            if (value is int || value is long || value is short) return true;
+
+            double number;
+            if (!double.TryParse(Convert.ToString(value), NumberStyles.Any,
+                                 CultureInfo.InvariantCulture, out number)) return false;
+
+            return Math.Abs(number - Math.Round(number)) < 1e-9;
         }
 
         /// <summary>The message for a name that matched nothing: what it was, and what would work.</summary>

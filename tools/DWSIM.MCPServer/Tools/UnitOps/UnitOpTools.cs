@@ -165,12 +165,13 @@ namespace DWSIM.MCPServer.Tools.UnitOps
             if (obj == null)
                 throw new ArgumentException($"No unit operation with tag or id '{name}'.");
 
-            var applied = PropertySetter.Apply(obj, properties, fs.Inner.FlowsheetOptions.SelectedUnitSystem);
+            var applied = PropertySetter.Apply(obj, AsValues(properties),
+                                               fs.Inner.FlowsheetOptions.SelectedUnitSystem);
 
             return new JObject
             {
                 ["unitop"] = name,
-                ["applied"] = applied
+                ["applied"] = new JArray(applied)
             };
         }
 
@@ -253,6 +254,28 @@ namespace DWSIM.MCPServer.Tools.UnitOps
             }
 
             return result;
+        }
+
+        /// <summary>The JSON object as plain values, for the engine to apply.</summary>
+        private static IEnumerable<KeyValuePair<string, object>> AsValues(JObject properties)
+        {
+            if (properties == null) yield break;
+
+            foreach (var entry in properties)
+            {
+                var token = entry.Value;
+                object value;
+
+                switch (token.Type)
+                {
+                    case JTokenType.Boolean: value = token.Value<bool>(); break;
+                    case JTokenType.Integer: value = token.Value<long>(); break;
+                    case JTokenType.Float: value = token.Value<double>(); break;
+                    default: value = token.ToString(); break;
+                }
+
+                yield return new KeyValuePair<string, object>(entry.Key, value);
+            }
         }
 
         /// <summary>The unit's current calculation mode as an id, or -1 when it has none.</summary>

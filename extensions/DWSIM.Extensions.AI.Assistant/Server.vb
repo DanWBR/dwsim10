@@ -16,6 +16,7 @@
 '    along with DWSIM.  If not, see <http://www.gnu.org/licenses/>.
 
 Imports Newtonsoft.Json
+Imports Newtonsoft.Json.Linq
 Imports DWSIM.Automation.FluentAPI.Diagnostics
 Imports System.Net
 Imports System.IO
@@ -1511,37 +1512,60 @@ Public Class Server
                 ' ── POST /api/modify-unit ──────────────────────────────────────────
             ElseIf req.HttpMethod = "POST" AndAlso path = "/api/modify-unit" Then
 
-                Dim payload = body
-                Dim objName = ExtractJsonString(payload, "object_name")
-                Dim propsJson = ExtractJsonObject(payload, "properties")
+                Dim objName = ExtractJsonString(body, "object_name")
                 Dim obj = FindObj(Flowsheet, objName)
 
-                ' Parse properties object and set each one
-                Dim modifiedSb As New StringBuilder("[")
-                Dim mFirst As Boolean = True
-                Dim propPattern As String = """([^""]+)""\s*:\s*(-?[\d.eE+\-]+|""[^""]*"")"
-                Dim matches = System.Text.RegularExpressions.Regex.Matches(propsJson, propPattern)
-                For Each m As System.Text.RegularExpressions.Match In matches
-                    Dim pname = m.Groups(1).Value
-                    Dim pvalStr = m.Groups(2).Value
+                ' Values go through the same setter the MCP tools use, so a name is matched
+                ' against the property system, the dynamic properties and the model's own,
+                ' and a calculation mode can be given by name. The previous version read the
+                ' JSON with a regex, dropped anything quoted and swallowed every failure.
+                Dim requested As JObject = Nothing
+                Try
+                    Dim parsed = JObject.Parse(body)
+                    requested = TryCast(parsed("properties"), JObject)
+                Catch ex As Exception
+                    resp.StatusCode = 400
+                    body = String.Format("{{""success"":false,""error"":""{0}""}}", EscJ(ex.Message))
+                    Return
+                End Try
+
+                If requested Is Nothing Then
+                    resp.StatusCode = 400
+                    body = "{""success"":false,""error"":""no properties given""}"
+                    Return
+                End If
+
+                Dim modified As New List(Of String)
+                Dim failures As New List(Of String)
+                Dim system = Flowsheet.FlowsheetOptions.SelectedUnitSystem
+
+                For Each entry In requested
+                    Dim value As Object
+                    Select Case entry.Value.Type
+                        Case JTokenType.Boolean : value = entry.Value.Value(Of Boolean)()
+                        Case JTokenType.Integer : value = entry.Value.Value(Of Long)()
+                        Case JTokenType.Float : value = entry.Value.Value(Of Double)()
+                        Case Else : value = entry.Value.ToString()
+                    End Select
+
                     Try
-                        Dim pval As Double
-                        If pvalStr.StartsWith("""") Then
-                            ' String value - skip for now
-                            Continue For
+                        If PropertySetter.TrySet(obj, entry.Key, value, system) Then
+                            modified.Add(entry.Key)
                         Else
-                            pval = Double.Parse(pvalStr, System.Globalization.CultureInfo.InvariantCulture)
+                            failures.Add(entry.Key & ": no such settable property")
                         End If
-                        obj.SetPropertyValue(pname, pval)
-                        If Not mFirst Then modifiedSb.Append(",")
-                        modifiedSb.AppendFormat("""{0}""", EscJ(pname))
-                        mFirst = False
-                    Catch
+                    Catch ex As Exception
+                        ' A rejected value carries the ones that would have worked, and that is
+                        ' the whole point of reporting it rather than swallowing it.
+                        failures.Add(entry.Key & ": " & ex.Message)
                     End Try
                 Next
-                modifiedSb.Append("]")
-                body = String.Format("{{""success"":true,""object"":""{0}"",""modified_properties"":{1}}}",
-                EscJ(objName), modifiedSb.ToString())
+
+                Dim modifiedJson = "[" & String.Join(",", modified.Select(Function(m) """" & EscJ(m) & """")) & "]"
+                Dim failedJson = "[" & String.Join(",", failures.Select(Function(f) """" & EscJ(f) & """")) & "]"
+
+                body = String.Format("{{""success"":{0},""object"":""{1}"",""modified_properties"":{2},""failed"":{3}}}",
+                                     If(failures.Count = 0, "true", "false"), EscJ(objName), modifiedJson, failedJson)
 
                 ' ── POST /api/remove-section ───────────────────────────────────────
             ElseIf req.HttpMethod = "POST" AndAlso path = "/api/remove-section" Then
