@@ -76,7 +76,9 @@ public static class AvaloniaEditorExtensions
             Text = text,
             TextWrapping = TextWrapping.Wrap,
             FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
-            Foreground = new SolidColorBrush(Color.FromArgb(180, 0, 0, 0)),
+            // Opacity, not a colour: 70%-black was invisible against a dark background. Leaving the
+            // foreground to the theme keeps the row legible in both variants and still subdued.
+            Opacity = 0.7,
             Margin = new Thickness(0, 1, 0, 3)
         };
         panel.Children.Add(lbl);
@@ -280,7 +282,9 @@ public static class AvaloniaEditorExtensions
                 if (double.TryParse(tb.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out var v)
                     && v >= minval && v <= maxval)
                 {
-                    tb.Foreground = Brushes.Blue;
+                    // In range: back to the theme's own colour rather than a fixed blue, which is
+                    // nearly unreadable on the dark variant.
+                    tb.ClearValue(TemplatedControl.ForegroundProperty);
                     command((TextBox)s!, e);
                     panel.OnAfterEdit?.Invoke();
                 }
