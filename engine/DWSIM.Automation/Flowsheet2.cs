@@ -460,6 +460,19 @@ namespace DWSIM.Automation
             listeningaction = act;
         }
 
+        /// <summary>
+        /// Sets the handler the solver''s UpdateInterface calls, so a host can repaint while a
+        /// calculation runs - the flowsheet surface colours each object by its status, and without
+        /// this the drawing does not change until the solve is over. The constructor takes one too;
+        /// this is for the hosts that obtain a flowsheet from Automation3, which passes null.
+        ///
+        /// It is raised from the solver''s thread, so a UI host has to marshal.
+        /// </summary>
+        public void SetUpdateInterfaceHandler(Action act)
+        {
+            updateUIaction = act;
+        }
+
         /// <summary>Generates a simulation results report for the specified objects and writes it to a stream.</summary>
         /// <param name="objects">The list of simulation objects to include in the report.</param>
         /// <param name="format">The output format: <c>"PDF"</c> or <c>"TXT"</c>.</param>
