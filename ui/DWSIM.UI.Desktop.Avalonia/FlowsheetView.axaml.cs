@@ -2088,7 +2088,10 @@ public partial class FlowsheetView : UserControl
         MenuDynWizard.Click += (_, _) =>
         {
             if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
-            new DynamicsWizard(_flowsheet).Show(HostWindow);
+            var wizard = new DynamicsWizard(_flowsheet);
+            // The manager builds its lists once; anything the wizard creates needs it to reload.
+            wizard.OnApplied = () => DynManagerPanel?.Populate();
+            wizard.Show(HostWindow);
         };
 
         // --- Results menu ---

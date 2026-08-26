@@ -172,6 +172,13 @@ public partial class DynamicsWizard : Window
     private int _current;
     private bool _running;
 
+    /// <summary>
+    /// Raised after the wizard writes to the flowsheet. The Dynamics Manager lists are built once
+    /// from the manager's dictionaries, so a schedule or integrator created here does not show up
+    /// there until something asks it to repopulate.
+    /// </summary>
+    public Action OnApplied;
+
     // Parameterless ctor required by Avalonia's XAML compiler (designer-only).
     public DynamicsWizard() : this(null!) { }
 
@@ -716,6 +723,7 @@ public partial class DynamicsWizard : Window
         }
 
         _flowsheet.UpdateInterface();
+        OnApplied?.Invoke();
 
         foreach (var failure in failed.Take(5))
         {
