@@ -69,6 +69,20 @@ Namespace SpecialOps
 
         Public Property Offset As Double = 0.0
 
+        ''' <summary>
+        ''' Range of the MANIPULATED variable, in its own units. Left at zero the controller keeps its
+        ''' original arithmetic, in which the output is scaled by the magnitude of the setpoint:
+        ''' OutputAbs = (1 -/+ Output) * |SP|. That only holds while the manipulated and the controlled
+        ''' variable are of the same order, which is true of a level held by a valve opening and false
+        ''' of, say, a flow held by a pressure setpoint, where the controller ends up with an authority
+        ''' of a few pascals and pins itself against a limit on the first step.
+        '''
+        ''' Set to a positive value and the output rides on the manipulated variable's own scale:
+        ''' OutputAbs = Offset -/+ Output * Span, with Offset the MV at zero controller output.
+        ''' OutputMax - OutputMin is the natural value for it.
+        ''' </summary>
+        Public Property ManipulatedVariableSpan As Double = 0.0
+
         Public Property Kp As Double = 10.0
 
         Public Property Kd As Double = 2.0
@@ -542,6 +556,8 @@ Namespace SpecialOps
             proplist.Add("OutputMin")
             proplist.Add("OutputMax")
             proplist.Add("OutputAbs")
+            proplist.Add("Offset")
+            proplist.Add("ManipulatedVariableSpan")
             Return proplist.ToArray(GetType(System.String))
             proplist = Nothing
         End Function
@@ -784,18 +800,23 @@ Namespace SpecialOps
                     Dim manualOutput = Output
                     Dim pContrib = PTerm
                     Dim dContrib = Kd * DTerm
-                    ITerm = (manualOutput - Offset / BaseSP - pContrib - dContrib) / Math.Max(Ki, 1.0E-20)
+                    Dim handoverBias = If(ManipulatedVariableSpan > 0.0, 0.0, Offset / BaseSP)
+                    ITerm = (manualOutput - handoverBias - pContrib - dContrib) / Math.Max(Ki, 1.0E-20)
                     If ITerm < -WindupGuard Then ITerm = -WindupGuard
                     If ITerm > WindupGuard Then ITerm = WindupGuard
                     WasManualOverride = False
                 End If
 
+                ' with a span, the bias is applied on the manipulated variable's own scale further down,
+                ' so it must not be folded into the dimensionless controller output here
+                Dim bias As Double = If(ManipulatedVariableSpan > 0.0, 0.0, Offset / BaseSP)
+
                 If PIDForm = 0 Then
-                    Output = PTerm + Ki * ITerm + Kd * DTerm + Offset / BaseSP
+                    Output = PTerm + Ki * ITerm + Kd * DTerm + bias
                 Else
                     Dim Ti As Double = If(Ki > 0, Kp / Ki, 1.0E+20)
                     Dim Td As Double = If(Kp > 0, Kd / Kp, 0.0)
-                    Output = Kp * (beta * CurrentError + ITerm / Ti + Td * DTerm) + Offset / BaseSP
+                    Output = Kp * (beta * CurrentError + ITerm / Ti + Td * DTerm) + bias
                 End If
 
                 Dim ffOutput As Double = 0.0
@@ -824,7 +845,13 @@ Namespace SpecialOps
                     End Try
                 End If
 
-                If Not ReverseActing Then
+                If ManipulatedVariableSpan > 0.0 Then
+                    If Not ReverseActing Then
+                        OutputAbs = Offset - Output * ManipulatedVariableSpan + ffOutput
+                    Else
+                        OutputAbs = Offset + Output * ManipulatedVariableSpan + ffOutput
+                    End If
+                ElseIf Not ReverseActing Then
                     OutputAbs = (1.0 - Output) * BaseSP + ffOutput
                 Else
                     OutputAbs = (1.0 + Output) * BaseSP + ffOutput
@@ -842,7 +869,13 @@ Namespace SpecialOps
 
                 OutputAbs = SystemsOfUnits.Converter.ConvertFromSI(ManipulatedObjectData.Units, MVValue)
 
-                If Not ReverseActing Then
+                If ManipulatedVariableSpan > 0.0 Then
+                    If Not ReverseActing Then
+                        Output = (Offset - OutputAbs) / ManipulatedVariableSpan
+                    Else
+                        Output = (OutputAbs - Offset) / ManipulatedVariableSpan
+                    End If
+                ElseIf Not ReverseActing Then
                     Output = 1.0 - OutputAbs / BaseSP
                 Else
                     Output = OutputAbs / BaseSP - 1.0
