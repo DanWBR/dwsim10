@@ -289,7 +289,21 @@ Namespace FlowPackages
                     Dim AI = (L3 - Frm) / (L3 - L2)
                     Dim BI = 1 - AI
                     El_0 = AI * 0.98 * Cl ^ 0.4846 / (Frm ^ 0.0868) + BI * 0.845 * Cl ^ 0.5351 / (Frm ^ 0.0173)
+                Else
+                    ' the regime map covers the plane, but a NaN Froude number or holdup would fall through
+                    ' to here and leave El_0 at zero, which reads as a pipe full of gas. No-slip is the
+                    ' honest answer when the map cannot place the point.
+                    El_0 = Cl
                 End If
+
+                ' "E_L(0) must be greater than C_L; if E_L(0) is smaller than C_L, then E_L(0) is assigned a
+                ' value of C_L" - Beggs-Brill, and the help text at the top of this file says so too. It was
+                ' never applied. Besides being wrong on its own (a slip holdup below the no-slip one means
+                ' the liquid travels faster than the mixture), leaving it out is what made the holdup STEP
+                ' at a regime boundary: with the clamp active on both sides the value is Cl either way and
+                ' the crossing is invisible, without it the two regime formulas disagree. Measured on a
+                ' vertical well tubing, the steps in dP(W) were 338 kPa at 10.79 kg/s and 45 kPa at 11.70.
+                If El_0 < Cl Then El_0 = Cl
 
                 'calculo do fator de inclinacao
                 Dim beta As Double
@@ -298,11 +312,22 @@ Namespace FlowPackages
 
                 If deltaz > 0 Then
                     If fluxo = "Segregated" Then
-                        beta = (1 - Cl) * Math.Log(0.011 * Nvl ^ 3.539 / (Cl ^ 3.768 * Frm ^ 1.614))
+                        beta = BetaSegregated(Cl, Frm, Nvl)
                     ElseIf fluxo = "Intermittent" Then
-                        beta = (1 - Cl) * Math.Log(2.96 * Cl ^ 0.305 * Frm ^ 0.0978 / Nvl ^ 0.4473)
+                        beta = BetaIntermittent(Cl, Frm, Nvl)
                     ElseIf fluxo = "Distributed" Then
                         beta = 0
+                    ElseIf fluxo = "Transition" Then
+                        ' Beggs-Brill interpolates the INCLINED holdup across the transition band, so the
+                        ' inclination factor has to be interpolated with the same A/B weights the holdup
+                        ' above uses. There was no branch here, so inside the band beta kept its zero
+                        ' default and the inclination correction vanished: B_teta collapsed to 1 and the
+                        ' mixture density stepped, which on an uphill pipe is a step in static head. A
+                        ' vertical well tubing crossing the band showed jumps of 45 to 340 kPa in dP(W),
+                        ' enough to stall the pipe network's outer loop in a limit cycle.
+                        Dim wSeg = (L3 - Frm) / (L3 - L2)
+                        Dim wInt = 1 - wSeg
+                        beta = wSeg * BetaSegregated(Cl, Frm, Nvl) + wInt * BetaIntermittent(Cl, Frm, Nvl)
                     End If
                 Else
                     beta = (1 - Cl) * Math.Log(4.7 * Nvl ^ 0.1244 / (Cl ^ 0.3692 * Frm ^ 0.5056))
@@ -377,6 +402,24 @@ Namespace FlowPackages
 
             IObj?.Close()
 
+        End Function
+
+        ''' <summary>
+        ''' Beggs-Brill inclination factor C for uphill SEGREGATED flow, clamped at zero as the correlation
+        ''' requires. Shared with the transition blend so the two cannot drift apart, which is exactly what
+        ''' would leave a step at the edge of the band.
+        ''' </summary>
+        Private Shared Function BetaSegregated(Cl As Double, Frm As Double, Nvl As Double) As Double
+            Dim b = (1 - Cl) * Math.Log(0.011 * Nvl ^ 3.539 / (Cl ^ 3.768 * Frm ^ 1.614))
+            If Double.IsNaN(b) OrElse b < 0 Then Return 0
+            Return b
+        End Function
+
+        ''' <summary>The same for uphill INTERMITTENT flow.</summary>
+        Private Shared Function BetaIntermittent(Cl As Double, Frm As Double, Nvl As Double) As Double
+            Dim b = (1 - Cl) * Math.Log(2.96 * Cl ^ 0.305 * Frm ^ 0.0978 / Nvl ^ 0.4473)
+            If Double.IsNaN(b) OrElse b < 0 Then Return 0
+            Return b
         End Function
 
     End Class
