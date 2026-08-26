@@ -19,9 +19,9 @@ Answers "is this flowsheet ready to run dynamically?" — blockers first, then w
 - `flowsheet` — The flowsheet to check.
 - `scheduleName` — Schedule to check; the current or first one when null.
 
-### `CheckSteadyState(DWSIM.Interfaces.IFlowsheet, Collections.Generic.List{Diagnostics.Finding})`
+**Remarks**
 
-A dynamic run integrates forward from wherever the flowsheet is. Starting it from a state that was never solved means integrating from nothing, and the first step fails on whatever the steady state would have failed on.
+The rules themselves live in `DWSIM.Automation.DynamicRunner.Setup.DynamicsReadiness`, one layer down, where the wizards in both user interfaces can reach them too. This maps what they report onto the finding type the rest of the Fluent API speaks.
 
 ### `Diagnose(DWSIM.Interfaces.IFlowsheet, DynamicsResult)`
 

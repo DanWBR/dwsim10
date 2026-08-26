@@ -78,6 +78,8 @@ namespace DWSIM.Automation.FluentAPI.Diagnostics
             { "PID_LIMITS_INVALID", "A controller's output minimum is not below its maximum." },
             { "PID_INACTIVE", "A controller is switched off or in manual, so the loop is open." },
             { "UNSUPPORTED_OBJECT", "An object has no dynamic model and is solved at steady state every step." },
+            { "MODE_NOT_SUPPORTED_DYNAMIC", "An object is in a calculation mode its dynamic model refuses, and will throw on the first step." },
+            { "PID_ZERO_SETPOINT", "A controller's setpoint is zero, and its output is scaled by the setpoint, so the loop has no authority." },
 
             // Post-run
             { "SOLVER_EXCEPTION", "The solver raised an exception and the run stopped early." },
