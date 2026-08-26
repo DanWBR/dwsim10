@@ -86,6 +86,7 @@
       </MenuItem>
       <MenuItem Header="_Dynamics">
         <MenuItem Header="Dynamic Mode _Active"    Name="MenuDynamicsToggle" />
+        <MenuItem Header="Dynamics _Wizard"        Name="MenuDynWizard" />
         <MenuItem Header="_Dynamics Manager"       Name="MenuDynManager" />
         <MenuItem Header="_Integrator Controls"    Name="MenuDynIntegrator" />
         <MenuItem Header="_PID Controller Tuning"  Name="MenuDynPIDTuning" />
