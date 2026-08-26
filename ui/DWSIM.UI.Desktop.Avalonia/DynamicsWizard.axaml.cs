@@ -61,7 +61,35 @@ public partial class DynamicsWizard : Window
         }
 
         public bool CanApply => Issue.CanAutoFix;
-        public string Severity => Issue.Severity.ToString();
+
+        /// <summary>The severity as a glyph. The word itself goes in the tooltip.</summary>
+        public string SeverityIcon
+        {
+            get
+            {
+                switch (Issue.Severity)
+                {
+                    case DynamicsIssueSeverity.Blocker: return "⛔";  // no entry
+                    case DynamicsIssueSeverity.Warning: return "⚠";  // warning sign
+                    default: return "ℹ";                             // information
+                }
+            }
+        }
+
+        /// <summary>What the glyph stands for, for the tooltip and for screen readers.</summary>
+        public string SeverityName
+        {
+            get
+            {
+                switch (Issue.Severity)
+                {
+                    case DynamicsIssueSeverity.Blocker: return "Error: the run cannot proceed until this is settled";
+                    case DynamicsIssueSeverity.Warning: return "Warning: the run will proceed, but the result may mislead";
+                    default: return "Information";
+                }
+            }
+        }
+
         public string ObjectTag => string.IsNullOrEmpty(Issue.ObjectTag) ? "(flowsheet)" : Issue.ObjectTag;
         public string Message => Issue.Message;
         public string Fix => Issue.Fix;
@@ -102,12 +130,12 @@ public partial class DynamicsWizard : Window
     private static readonly (string Title, string Description)[] Steps =
     {
         ("Introduction", "What this wizard sets up, and what it found in the flowsheet as it stands."),
-        ("Holdup", "Vessels, tanks and reactors need a volume before they can accumulate anything. A unit with no volume passes material straight through and adds no lag at all."),
-        ("Hydraulics", "In dynamics the flow is not given, it is resolved from the pressures. Valves need a flow coefficient and a working opening for that to happen."),
-        ("Boundary Specs", "The edges of the pressure-flow network. A feed holds its flow, a product holds its pressure, and the network resolves everything in between."),
+        ("Holdup", "Vessels, tanks and reactors need a volume before they can accumulate anything. Without one the unit passes material straight through and the process shows no lag."),
+        ("Hydraulics", "In dynamic mode the pressures decide the flow. A valve needs a flow coefficient and a working opening before it can resolve one."),
+        ("Boundary Specs", "The edges of the pressure-flow network. A feed holds its flow and a product holds its pressure; the network resolves everything in between."),
         ("Control", "Loops that keep the process where you want it. A vessel with no level control fills or empties until the run fails."),
-        ("Integrator", "How far to step, how long to run, and which variables to record. An integrator that records nothing runs perfectly and tells you nothing."),
-        ("Summary", "What changed, what is still outstanding, and a short run to prove the flowsheet moves.")
+        ("Integrator", "How far to step, how long to run, and which variables to record. A run with no monitored variables finishes normally and leaves no results behind."),
+        ("Summary", "What changed, what is still outstanding, and a short run to check that the flowsheet integrates.")
     };
 
     private static readonly DynamicsIssueCategory?[] PageCategories =
@@ -353,8 +381,8 @@ public partial class DynamicsWizard : Window
 
         stack.Children.Add(new TextBlock
         {
-            Text = "A steady-state flowsheet answers where the process settles. A dynamic one answers " +
-                   "how it gets there, and that needs things the steady state never had to supply: how " +
+            Text = "A steady-state solution tells you where the process settles, but not how it gets " +
+                   "there. Integrating over time needs values the steady state never had to supply: how " +
                    "much each vessel holds, how the valves resolve flow from pressure, where the " +
                    "network is pinned down, and what keeps the levels in range.",
             TextWrapping = TextWrapping.Wrap
@@ -376,7 +404,7 @@ public partial class DynamicsWizard : Window
 
         var defaults = new StackPanel { Spacing = 6 };
         defaults.Children.Add(Note("These set the numbers the later steps suggest. Change them here and the " +
-                                   "suggestions follow; every one of them can still be overridden row by row."));
+                                   "suggestions follow; you can still override any of them row by row."));
 
         defaults.Children.Add(LabelledBox("Target residence time (minutes)",
             (_options.TargetResidenceTimeSeconds / 60.0).ToString("G4", CultureInfo.CurrentCulture),
@@ -505,99 +533,154 @@ public partial class DynamicsWizard : Window
         DockPanel.SetDock(footer, global::Avalonia.Controls.Dock.Bottom);
         host.Children.Add(footer);
 
-        host.Children.Add(BuildIssueGrid(rows));
+        host.Children.Add(BuildIssueList(rows));
 
         return host;
     }
 
-    private static DataGrid BuildIssueGrid(ObservableCollection<IssueRow> rows)
+    // Column widths shared by the header and every row, so the two line up. The message takes
+    // whatever is left over.
+    private static ColumnDefinitions IssueColumns()
     {
-        var grid = new DataGrid
+        return new ColumnDefinitions("56,40,150,*,150,120");
+    }
+
+    /// <summary>
+    /// The findings of one step, as a list rather than a DataGrid: these rows carry sentences, and
+    /// a DataGrid row will not grow past one line to fit them.
+    /// </summary>
+    private static Control BuildIssueList(ObservableCollection<IssueRow> rows)
+    {
+        var host = new DockPanel { LastChildFill = true };
+
+        var header = new Grid
         {
-            ItemsSource = rows,
-            AutoGenerateColumns = false,
-            HeadersVisibility = DataGridHeadersVisibility.Column,
-            GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
-            CanUserSortColumns = true,
-            SelectionMode = DataGridSelectionMode.Single
+            ColumnDefinitions = IssueColumns(),
+            Margin = new Thickness(0, 0, 0, 2)
         };
 
-        // A checkbox column only reacts once the cell is in edit mode, which costs two clicks and
-        // reads as broken; a checkbox in the cell itself takes the first one.
-        grid.Columns.Add(new DataGridTemplateColumn
+        AddHeaderCell(header, 0, "Apply");
+        AddHeaderCell(header, 1, "");
+        AddHeaderCell(header, 2, "Object");
+        AddHeaderCell(header, 3, "What is wrong");
+        AddHeaderCell(header, 4, "Setting");
+        AddHeaderCell(header, 5, "Value");
+
+        var headerBorder = new Border
         {
-            Header = "Apply",
-            Width = new DataGridLength(60),
-            CellTemplate = new FuncDataTemplate<IssueRow>((row, _) =>
+            BorderThickness = new Thickness(0, 0, 0, 1),
+            BorderBrush = new SolidColorBrush(Color.FromArgb(90, 128, 128, 128)),
+            Padding = new Thickness(0, 0, 0, 4),
+            Child = header
+        };
+        DockPanel.SetDock(headerBorder, global::Avalonia.Controls.Dock.Top);
+        host.Children.Add(headerBorder);
+
+        var list = new ItemsControl
+        {
+            ItemsSource = rows,
+            ItemTemplate = new FuncDataTemplate<IssueRow>((row, _) =>
             {
                 if (row == null) return new TextBlock();
+
+                var grid = new Grid { ColumnDefinitions = IssueColumns(), Margin = new Thickness(0, 6) };
 
                 var check = new CheckBox
                 {
                     HorizontalAlignment = HorizontalAlignment.Center,
-                    VerticalAlignment = VerticalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Top,
                     IsEnabled = row.CanApply
                 };
                 check.Bind(CheckBox.IsCheckedProperty, new Binding("Selected") { Mode = BindingMode.TwoWay });
-                return check;
+                Grid.SetColumn(check, 0);
+                grid.Children.Add(check);
+
+                var glyph = new TextBlock
+                {
+                    Text = row.SeverityIcon,
+                    FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(14),
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Top
+                };
+                ToolTip.SetTip(glyph, row.SeverityName);
+                Grid.SetColumn(glyph, 1);
+                grid.Children.Add(glyph);
+
+                var tag = new TextBlock
+                {
+                    Text = row.ObjectTag,
+                    TextWrapping = TextWrapping.Wrap,
+                    VerticalAlignment = VerticalAlignment.Top,
+                    Margin = new Thickness(0, 0, 8, 0)
+                };
+                Grid.SetColumn(tag, 2);
+                grid.Children.Add(tag);
+
+                // The message and the fix, stacked: both are sentences, and hiding the fix behind a
+                // selection meant the advice was never read.
+                var text = new StackPanel { Spacing = 2, Margin = new Thickness(0, 0, 8, 0) };
+                text.Children.Add(new TextBlock { Text = row.Message, TextWrapping = TextWrapping.Wrap });
+                if (!string.IsNullOrEmpty(row.Fix))
+                {
+                    text.Children.Add(new TextBlock
+                    {
+                        Text = row.Fix,
+                        TextWrapping = TextWrapping.Wrap,
+                        FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
+                        Opacity = 0.75
+                    });
+                }
+                Grid.SetColumn(text, 3);
+                grid.Children.Add(text);
+
+                var setting = new TextBlock
+                {
+                    Text = row.ValueLabel,
+                    TextWrapping = TextWrapping.Wrap,
+                    VerticalAlignment = VerticalAlignment.Top,
+                    Margin = new Thickness(0, 0, 8, 0)
+                };
+                Grid.SetColumn(setting, 4);
+                grid.Children.Add(setting);
+
+                if (row.CanApply)
+                {
+                    var box = new TextBox { VerticalAlignment = VerticalAlignment.Top };
+                    box.Bind(TextBox.TextProperty, new Binding("Value") { Mode = BindingMode.TwoWay });
+                    Grid.SetColumn(box, 5);
+                    grid.Children.Add(box);
+                }
+
+                return new Border
+                {
+                    BorderThickness = new Thickness(0, 0, 0, 1),
+                    BorderBrush = new SolidColorBrush(Color.FromArgb(40, 128, 128, 128)),
+                    Child = grid
+                };
             }, supportsRecycling: false)
+        };
+
+        host.Children.Add(new ScrollViewer
+        {
+            Content = list,
+            HorizontalScrollBarVisibility = global::Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,
+            VerticalScrollBarVisibility = global::Avalonia.Controls.Primitives.ScrollBarVisibility.Auto
         });
 
-        grid.Columns.Add(new DataGridTextColumn
-        {
-            Header = "",
-            Binding = new Binding("Severity"),
-            IsReadOnly = true,
-            Width = new DataGridLength(70)
-        });
+        return host;
+    }
 
-        grid.Columns.Add(new DataGridTextColumn
+    private static void AddHeaderCell(Grid grid, int column, string text)
+    {
+        var block = new TextBlock
         {
-            Header = "Object",
-            Binding = new Binding("ObjectTag"),
-            IsReadOnly = true,
-            Width = new DataGridLength(130)
-        });
-
-        grid.Columns.Add(new DataGridTextColumn
-        {
-            Header = "What is wrong",
-            Binding = new Binding("Message"),
-            IsReadOnly = true,
-            Width = new DataGridLength(1, DataGridLengthUnitType.Star)
-        });
-
-        grid.Columns.Add(new DataGridTextColumn
-        {
-            Header = "Setting",
-            Binding = new Binding("ValueLabel"),
-            IsReadOnly = true,
-            Width = new DataGridLength(130)
-        });
-
-        grid.Columns.Add(new DataGridTextColumn
-        {
-            Header = "Value",
-            Binding = new Binding("Value") { Mode = BindingMode.TwoWay },
-            Width = new DataGridLength(110)
-        });
-
-        // The fix is a sentence, too long for a column; it belongs under the row that needs it.
-        grid.RowDetailsTemplate = new FuncDataTemplate<IssueRow>((row, _) =>
-        {
-            if (row == null) return new TextBlock();
-            return new TextBlock
-            {
-                Text = row.Fix,
-                TextWrapping = TextWrapping.Wrap,
-                Opacity = 0.8,
-                FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
-                Margin = new Thickness(70, 2, 8, 6)
-            };
-        }, supportsRecycling: false);
-        grid.RowDetailsVisibilityMode = DataGridRowDetailsVisibilityMode.VisibleWhenSelected;
-
-        return grid;
+            Text = text,
+            FontWeight = FontWeight.SemiBold,
+            Opacity = 0.8,
+            TextWrapping = TextWrapping.Wrap
+        };
+        Grid.SetColumn(block, column);
+        grid.Children.Add(block);
     }
 
     /// <summary>Writes the ticked rows of one step, then rescans so the pages reflect the result.</summary>
@@ -663,8 +746,8 @@ public partial class DynamicsWizard : Window
 
         run.Children.Add(new TextBlock
         {
-            Text = "A short run is the only real proof the flowsheet moves. This turns dynamic mode on, " +
-                   "integrates for a few steps, and reports whatever the solver says.",
+            Text = "This turns dynamic mode on, integrates for a few steps, and reports whatever the " +
+                   "solver says.",
             TextWrapping = TextWrapping.Wrap
         });
 
@@ -682,7 +765,7 @@ public partial class DynamicsWizard : Window
         stack.Children.Add(Group("Test run", run));
 
         stack.Children.Add(Note("The integrator controls and the Dynamics Manager, both on the Dynamics menu, " +
-                                "take it from here: events, schedules and the full run."));
+                                "handle the rest: events, schedules and the full run."));
 
         return new ScrollViewer { Content = stack };
     }
