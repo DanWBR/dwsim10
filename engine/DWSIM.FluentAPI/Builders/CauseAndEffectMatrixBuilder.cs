@@ -17,7 +17,7 @@ namespace DWSIM.Automation.FluentAPI.Builders
     /// fs.Dynamics.DefineCauseAndEffectMatrix("Trips")
     ///   .AddItem("close the feed valve on high level")
     ///       .WhenAlarm("LI-01", DynEnums.DynamicsAlarmType.HH)
-    ///       .Then("V-01", "Opening", 0.0, "%")
+    ///       .Then("V-01", "Opening Setpoint", 0.0, "%")
     ///   .And();
     /// </code>
     /// </example>

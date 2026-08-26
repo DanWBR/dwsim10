@@ -9,7 +9,7 @@ Fluent builder for a PID controller. A controller needs three things before it c
 ```csharp
 fs.AddPIDController("LIC-01")
   .Controls("TK-01", "Liquid Level", "m")
-  .Manipulates("V-01", "Opening", "%")
+  .Manipulates("V-01", "Opening Setpoint", "%")
   .WithSetPoint(1.0)
   .WithTuning(kp: 5.0, ki: 0.5, kd: 0.0)
   .WithOutputLimits(0.0, 100.0);

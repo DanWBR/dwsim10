@@ -143,11 +143,17 @@ step's value. Ramps read the historian, so leave it enabled.
 ```csharp
 fs.AddPIDController("LIC-01")
   .Controls("TK-01", "Liquid Level", "m")
-  .Manipulates("V-01", "Opening", "%")
+  .Manipulates("V-01", "Opening Setpoint", "%")
   .WithSetPoint(1.0)
   .WithTuning(kp: 5.0, ki: 0.5, kd: 0.0)
   .WithOutputLimits(0.0, 100.0);
 ```
+
+The manipulated property is `"Opening Setpoint"`, not `"Opening"`. The valve's actuator model
+reads the setpoint and moves the opening towards it over its time constant, which is what gives a
+loop its lag. Property names are matched exactly and a name that matches nothing is written
+without complaint, so a misspelling here leaves the controller running against a valve that never
+moves.
 
 A controller that manipulates a valve opening needs the valve's flow coefficient to follow that
 opening, or closing it changes nothing:
