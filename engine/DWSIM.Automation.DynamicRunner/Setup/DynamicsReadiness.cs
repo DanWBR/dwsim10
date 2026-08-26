@@ -297,7 +297,7 @@ namespace DWSIM.Automation.DynamicRunner.Setup
                     ObjectId = obj.Name,
                     ObjectTag = tag,
                     Category = DynamicsIssueCategory.Holdup,
-                    Message = "The vessel has no volume, so it holds nothing up and adds no lag.",
+                    Message = "The vessel has no volume, so nothing accumulates in it.",
                     Fix = "Set a volume, or take it from the vessel dimensions."
                 });
             }
@@ -312,7 +312,7 @@ namespace DWSIM.Automation.DynamicRunner.Setup
                     ObjectId = obj.Name,
                     ObjectTag = tag,
                     Category = DynamicsIssueCategory.Holdup,
-                    Message = "The tank has no volume, so it holds nothing up and adds no lag.",
+                    Message = "The tank has no volume, so nothing accumulates in it.",
                     Fix = "Set a volume and a height."
                 });
             }
@@ -511,8 +511,8 @@ namespace DWSIM.Automation.DynamicRunner.Setup
                 if (Math.Abs(pid.SetPoint) < 1e-12)
                 {
                     issues.Add(new DynamicsIssue("PID_ZERO_SETPOINT", DynamicsIssueSeverity.Warning,
-                        "The setpoint is zero. The controller scales its output by the magnitude of the setpoint, " +
-                        "so the loop has no authority at all.",
+                        "The setpoint is zero. The controller scales its output by the magnitude of the " +
+                        "setpoint, so the output cannot move.",
                         "Set a non-zero setpoint, in the controlled variable's units.")
                     { ObjectId = pid.Name, ObjectTag = tag, Category = DynamicsIssueCategory.Control });
                 }

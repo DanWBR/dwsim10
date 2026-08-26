@@ -149,7 +149,7 @@ namespace DWSIM.Automation.DynamicRunner.Setup
                 issue.ValueLabel = "Kv";
                 issue.SuggestedValue = sized;
                 issue.Fix = "Size it at " + DynamicsReadiness.Fmt(sized) + ", which passes the current flow with the " +
-                            "valve " + DynamicsReadiness.Fmt(opening) + " % open, leaving authority in both directions.";
+                            "valve " + DynamicsReadiness.Fmt(opening) + " % open, leaving room to open further or close down.";
                 issue.Apply = v =>
                 {
                     if (target.CalcMode == Valve.CalculationMode.DeltaP ||
@@ -524,7 +524,7 @@ namespace DWSIM.Automation.DynamicRunner.Setup
             monitors.ValueLabel = "Record";
             monitors.SuggestedValue = candidates.Count;
             monitors.Fix = "Record the " + candidates.Count.ToString(CultureInfo.InvariantCulture) +
-                           " variables that say whether the run behaved: vessel levels, valve openings and controller outputs.";
+                           " variables that show how the run behaved: vessel levels, valve openings and controller outputs.";
             monitors.Apply = v => AddMonitoredVariables(flowsheet, integrator, candidates);
         }
 
