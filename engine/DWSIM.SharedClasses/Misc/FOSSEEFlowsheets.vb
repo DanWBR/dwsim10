@@ -54,7 +54,9 @@ Public Class FOSSEEFlowsheets
 
     Public Shared Function GetFOSSEEFlowsheets() As List(Of FOSSEEFlowsheet)
 
-        Dim website As String = "http://dwsim.fossee.in/flowsheeting-project/completed-flowsheet"
+        ' https, not http: the site 301s to it anyway, and Android refuses cleartext outright since
+        ' API 28 - so on a phone the plain-http request never left the device.
+        Dim website As String = "https://dwsim.fossee.in/flowsheeting-project/completed-flowsheet"
 
         Dim siteUri As Uri = New Uri(website)
         Dim proxyUri As Uri = Net.WebRequest.GetSystemWebProxy.GetProxy(siteUri)
@@ -82,7 +84,7 @@ Public Class FOSSEEFlowsheets
 
             Dim fs As New FOSSEEFlowsheet
 
-            fs.Address = "http://dwsim.fossee.in" & r.ChildNodes(1).ChildNodes(0).Attributes(0).Value
+            fs.Address = "https://dwsim.fossee.in" & r.ChildNodes(1).ChildNodes(0).Attributes(0).Value
 
             With fs
                 .Institution = r.ChildNodes(3).ChildNodes(0).InnerText
@@ -101,7 +103,7 @@ Public Class FOSSEEFlowsheets
 
     Public Shared Function GetFOSSEEFlowsheetInfo(address As String) As FOSSEEFlowsheet
 
-        Dim website As String = "http://dwsim.fossee.in/flowsheeting-project/completed-flowsheet"
+        Dim website As String = "https://dwsim.fossee.in/flowsheeting-project/completed-flowsheet"
 
         Dim siteUri As Uri = New Uri(website)
         Dim proxyUri As Uri = Net.WebRequest.GetSystemWebProxy.GetProxy(siteUri)
@@ -133,7 +135,7 @@ Public Class FOSSEEFlowsheets
         Dim details = htmlpage2.DocumentNode.Descendants("div").Where(Function(x) x.Attributes.Contains("id") AndAlso x.Attributes("id").Value = "ajax_flowsheet_details").FirstOrDefault.ChildNodes.Descendants("li").ToList
 
         With fs
-            .DownloadLink = "http://dwsim.fossee.in" & htmlpage2.DocumentNode.Descendants("a").Where(Function(x) x.InnerText = "Download Flowsheet").SingleOrDefault.Attributes("href").Value
+            .DownloadLink = "https://dwsim.fossee.in" & htmlpage2.DocumentNode.Descendants("a").Where(Function(x) x.InnerText = "Download Flowsheet").SingleOrDefault.Attributes("href").Value
             .DWSIMVersion = details(3).InnerText.Split(":")(1).Trim()
             .Institution = details(2).InnerText.Split(":")(1).Trim()
             .ProposerName = details(0).InnerText.Split(":")(1).Trim()
