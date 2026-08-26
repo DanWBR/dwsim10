@@ -688,13 +688,19 @@ Namespace SpecialOps
 
         Public Sub UpdateVars()
 
-            Dim ControlledObject = GetFlowsheet.SimulationObjects.Values.Where(Function(x) x.Name = ControlledObjectData.ID).SingleOrDefault
+            Dim controlled = GetFlowsheet.SimulationObjects.Values.Where(Function(x) x.Name = ControlledObjectData.ID).SingleOrDefault
 
-            Dim ManipulatedObject = GetFlowsheet.SimulationObjects.Values.Where(Function(x) x.Name = ManipulatedObjectData.ID).SingleOrDefault
+            Dim manipulated = GetFlowsheet.SimulationObjects.Values.Where(Function(x) x.Name = ManipulatedObjectData.ID).SingleOrDefault
 
-            Dim CurrentValue = SharedClasses.SystemsOfUnits.Converter.ConvertFromSI(ControlledObjectData.Units, ControlledObject.GetPropertyValue(ControlledObjectData.PropertyName))
+            ' Keep the resolved object on the property, not only in a local: the last line of Calculate()
+            ' writes the new MV through Me.ManipulatedObject, and nothing but the object editors ever
+            ' assigned it. A controller driven from the Automation API or from MCP, or restored from a
+            ' file whose editor was never opened, dereferenced Nothing there.
+            ManipulatedObject = TryCast(manipulated, SharedClasses.UnitOperations.BaseClass)
 
-            Dim CurrentManipulatedValue = SharedClasses.SystemsOfUnits.Converter.ConvertFromSI(ManipulatedObjectData.Units, ManipulatedObject.GetPropertyValue(ManipulatedObjectData.PropertyName))
+            Dim CurrentValue = SharedClasses.SystemsOfUnits.Converter.ConvertFromSI(ControlledObjectData.Units, controlled.GetPropertyValue(ControlledObjectData.PropertyName))
+
+            Dim CurrentManipulatedValue = SharedClasses.SystemsOfUnits.Converter.ConvertFromSI(ManipulatedObjectData.Units, manipulated.GetPropertyValue(ManipulatedObjectData.PropertyName))
 
             SPValue = AdjustValue
 
