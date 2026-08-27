@@ -33,6 +33,7 @@
 - [NEW] Pipe network: the valve opening, choke bean, ESP frequency, pressure control valve setting and gas-lift casing pressure follow a first-order lag with dead time instead of stepping to a command
 - [NEW] Pipe network: every block exposes its properties to the flowsheet as "<block>: <property>", so a PID can read a node pressure and write a valve opening
 - [NEW] Dynamics Wizard on both interfaces: reports what stands between a converged flowsheet and a dynamic run, proposes a value for each finding, and creates the integrator, schedule and monitored variables
+- [NEW] Pipe network: a dynamic sample - a water transmission main feeding a break tank through a pressure-reducing valve, with the tank level held by a controller moving the valve setting through its actuator
 - [CHG] IPOPT is now a managed solver shipped with DWSIM, checked against the native library over five thousand problems
 - [CHG] Gibbs reactor initial estimate solved by a managed simplex instead of the native lpsolve55
 - [CHG] Petalas-Aziz two-phase pressure drop converted from a native library to managed code
