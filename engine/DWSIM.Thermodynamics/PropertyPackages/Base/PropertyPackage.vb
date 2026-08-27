@@ -7648,7 +7648,10 @@ Final3:
 
             i = 0
             For Each subst As Interfaces.ICompound In Me.CurrentMaterialStream.Phases(0).Compounds.Values
-                val += Vxw(i) * Me.AUX_HVAPi(subst.Name, T)
+                ' Guard against a single compound with an undefined heat of vaporisation (e.g. an
+                ' incompletely defined pseudo-compound) poisoning the whole mixture through 0*NaN.
+                Dim hv As Double = Me.AUX_HVAPi(subst.Name, T)
+                If Not Double.IsNaN(hv) AndAlso Not Double.IsInfinity(hv) Then val += Vxw(i) * hv
                 i += 1
             Next
 
@@ -7735,6 +7738,13 @@ Final3:
                     result = cprop.HVap_A * ((1 - Tr) / (1 - tr1)) ^ 0.375
                 End If
 
+                ' An incompletely defined User/biomass compound can carry an invalid normal boiling
+                ' point above its critical temperature (tr1 > 1), which turns the Watson term into a
+                ' fractional power of a negative number and returns NaN - or a negative HVap from the
+                ' Vetere fallback on a bad Pc. Either way it would poison RET_HVAPM (and every Raoult
+                ' liquid enthalpy) through the 0*NaN term in the mixture sum. A non-volatile pseudo-
+                ' compound has no meaningful heat of vaporisation, so clamp to zero.
+                If Double.IsNaN(result) OrElse Double.IsInfinity(result) OrElse result < 0.0 Then result = 0.0
                 Return result
             ElseIf cprop.OriginalDB = "ChEDL Thermo" Then
                 Dim eqno As String = cprop.VaporizationEnthalpyEquation
