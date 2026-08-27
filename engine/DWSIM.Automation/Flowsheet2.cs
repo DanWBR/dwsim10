@@ -46,12 +46,16 @@ namespace DWSIM.Automation
                 if (xdoc.Element("DWSIM_Simulation_Data").Element("Spreadsheet") != null)
                 {
                     var rgfdataelement = xdoc.Element("DWSIM_Simulation_Data").Element("Spreadsheet").Element("RGFData");
-                    if (rgfdataelement != null)
+                    // A file saved with an untouched spreadsheet carries <RGFData /> - present but
+                    // empty - and deserialising that returns null, not an empty dictionary. Iterating
+                    // it threw, so a simulation saved by a host that never used the spreadsheet could
+                    // not be reopened at all.
+                    string rgfdata = rgfdataelement == null ? "" : rgfdataelement.Value;
+                    if (!string.IsNullOrWhiteSpace(rgfdata))
                     {
-                        string rgfdata = xdoc.Element("DWSIM_Simulation_Data").Element("Spreadsheet").Element("RGFData").Value;
                         rgfdata = rgfdata.Replace("Calibri", "Arial").Replace("10.25", "10");
-                        Dictionary<string, string> sdict = new Dictionary<string, string>();
-                        sdict = Newtonsoft.Json.JsonConvert.DeserializeObject<Dictionary<string, string>>(rgfdata);
+                        var sdict = Newtonsoft.Json.JsonConvert.DeserializeObject<Dictionary<string, string>>(rgfdata);
+                        if (sdict == null || sdict.Count == 0) return;
                         Spreadsheet.RemoveWorksheet(0);
                         foreach (var item in sdict)
                         {

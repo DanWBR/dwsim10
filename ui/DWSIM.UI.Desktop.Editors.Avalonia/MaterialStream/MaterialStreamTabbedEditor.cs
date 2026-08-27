@@ -569,7 +569,7 @@ namespace DWSIM.UI.Desktop.Editors
             return new ScrollViewer { Content = AvaloniaTabBuilders.BuildConnections(ms) };
         }
 
-        /// <summary>The Property Package Settings group between the two notebooks.</summary>
+        /// <summary>The property-package row between the two notebooks.</summary>
         private static Control BuildPropertyPackageGroup(MaterialStream ms)
         {
             var flowsheet = ms.GetFlowsheet();
@@ -614,16 +614,10 @@ namespace DWSIM.UI.Desktop.Editors
             row.Children.Add(configure);
             row.Children.Add(picker);
 
-            var content = new StackPanel();
-            content.Children.Add(new TextBlock
-            {
-                Text = "Property Package Settings",
-                FontWeight = FontWeight.SemiBold,
-                Margin = new Thickness(6, 4, 0, 0)
-            });
-            content.Children.Add(row);
-
-            var group = new Border { Margin = new Thickness(0, 4, 0, 4), Child = content };
+            // No heading over the row: it said "Property Package Settings" above a row that already
+            // reads "Property Package  [picker]  Configure", and on a phone that is a line of height
+            // spent restating the label beside it.
+            var group = new Border { Margin = new Thickness(0, 4, 0, 4), Child = row };
             group.Classes.Add("group");
             return group;
         }

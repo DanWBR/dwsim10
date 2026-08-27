@@ -578,8 +578,10 @@ namespace DWSIM.Automation
             }
             catch (Exception ex)
             {
+                // 'throw', not 'throw ex': the latter resets the stack trace, so every failure in
+                // here reported this catch block as its origin instead of the line that raised it.
                 Logging.Logger.LogError("Automation Error (LoadFlowsheet)", ex);
-                throw ex;
+                throw;
             }
         }
 
@@ -592,7 +594,7 @@ namespace DWSIM.Automation
             catch (Exception ex)
             {
                 Logging.Logger.LogError("Automation Error (CalculateFlowsheet2)", ex);
-                throw ex;
+                throw;
             }
         }
 
@@ -606,7 +608,7 @@ namespace DWSIM.Automation
             catch (Exception ex)
             {
                 Logging.Logger.LogError("Automation Error (CalculateFlowsheet3)", ex);
-                throw ex;
+                throw;
             }
         }
 
