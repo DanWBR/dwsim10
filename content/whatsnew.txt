@@ -156,3 +156,4 @@
 - [FIX] Welcome screen: the FOSSEE flowsheet listing is fetched over https
 - [FIX] Splash screen: fonts taken from the system message-box font
 - [FIX] Cross-platform interface: the editors' "Linked to" row shows the spec or adjust attached to the object, as the Windows editor does, and is hidden when there is none
+- [FIX] Windows interface: dragging objects from the palette onto the flowsheet leaked a GDI handle on every mouse move and froze the application after a few drags ("A generic error occurred in GDI+"); the drag cursor is built once now (issue #44)
