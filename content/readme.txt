@@ -128,6 +128,7 @@ Version 10.2
 - [CHG] PID controller: an optional manipulated-variable span scales the output on that variable's own scale around a bias, for a loop whose two variables differ in unit and magnitude
 - [CHG] Pipe network: the compositional outer loop stops once it stops improving and delivers its most self-consistent iterate, cutting the well cases to about a third of the time
 - [CHG] Automation interface: a flowsheet obtained through it can be given the repaint handler the solver calls, so a host can colour objects by status while a solve runs
+- [CHG] Pipe network: an option evaluates every pipe on two grids and extrapolates away the leading discretisation error, reaching a converged answer from the discretisation already drawn for about twice the cost (off by default)
 - [FIX] A product of a CAPE-OPEN unit operation was re-flashed by the flowsheet property package, discarding the phase split the unit had computed
 - [FIX] Object editors were cut off on a display set above 96 dots per inch; the distillation column stage table was the most visible case
 - [FIX] A flowsheet opened from the desktop on macOS started DWSIM with nothing loaded and reported an unsupported file
@@ -221,6 +222,7 @@ Version 10.2
 - [FIX] Splash screen: fonts taken from the system message-box font
 - [FIX] Cross-platform interface: the editors' "Linked to" row shows the spec or adjust attached to the object, as the Windows editor does, and is hidden when there is none
 - [FIX] Windows interface: dragging objects from the palette onto the flowsheet leaked a GDI handle on every mouse move and froze the application after a few drags ("A generic error occurred in GDI+"); the drag cursor is built once now (issue #44)
+- [FIX] Pipe network: compositional results move with this release's liquid-density correction; every compositional sample was re-solved and now carries results matching what the engine computes, with rates shifting by up to 16%
 
 Version 10.1
 
