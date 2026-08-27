@@ -154,3 +154,4 @@
 - [FIX] Cross-platform interface: editor rows that were unreadable on the dark theme
 - [FIX] Welcome screen: the FOSSEE flowsheet listing is fetched over https
 - [FIX] Splash screen: fonts taken from the system message-box font
+- [FIX] Cross-platform interface: the editors' "Linked to" row shows the spec or adjust attached to the object, as the Windows editor does, and is hidden when there is none
