@@ -1532,6 +1532,27 @@ Namespace Reactors
 
             Dim CODin_kgs = m_sub_in * codFactor
 
+            ' Physical sanity on the hydraulic load. A digester feed that carries almost no water - a
+            ' substrate specified nearly neat, or a feed that flashed to a sliver of "liquid" - makes
+            ' LiquidVolumetricFlow report a tiny flow, which inflates the influent COD concentration to
+            ' unphysical values and then integrates into a garbage acidified steady state that still
+            ' reports Converged. Two cheap checks catch it here with an actionable message instead.
+            Dim m_feed_total = ims.Phases(0).Properties.massflow.GetValueOrDefault
+            If m_feed_total > 0.0 AndAlso m_sub_in > m_feed_total * 1.0000001 Then
+                Throw New Exception(String.Format(
+                    "AnaerobicDigester (ADM1-Full): the substrate mass flow ({0:G4} kg/s) exceeds the total " &
+                    "feed mass flow ({1:G4} kg/s), so the feed did not solve consistently. Check that the feed " &
+                    "stream converged and carries the water of an aqueous slurry.", m_sub_in, m_feed_total))
+            End If
+            Dim S_in_COD_check = CODin_kgs / Max(Q_liquid_m3s, 0.000000000001)
+            If S_in_COD_check > 1000.0 Then
+                Throw New Exception(String.Format(
+                    "AnaerobicDigester (ADM1-Full): the influent COD concentration comes out at {0:G4} kg COD/m3, " &
+                    "which is not physical for an aqueous digester feed (a real slurry is mostly water). This " &
+                    "usually means the feed carries too little water, or it flashed to almost no liquid. Check the " &
+                    "feed composition (water fraction) and that the feed stream converged.", S_in_COD_check))
+            End If
+
             ' Build influent vector - feed the substrate as composite particulate X_c, characterised
             ' from its own elemental formula (see CharacteriseCompositeFromSubstrate), so disintegration
             ' splits it into carbohydrate/protein/lipid plus soluble and particulate inerts. The inerts
