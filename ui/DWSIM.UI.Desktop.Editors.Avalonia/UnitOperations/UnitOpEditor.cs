@@ -126,7 +126,11 @@ namespace DWSIM.UI.Desktop.Editors
             var statusRow = panel.CreateAndAddTwoLabelsRow("Status", status.Text);
             statusRow.Foreground = new SolidColorBrush(status.Color);
 
-            panel.CreateAndAddTwoLabelsRow("Linked to", LinkedTo(simobj));
+            // Only when something is actually attached: a row reading "Linked to  -" is a line of
+            // height spent saying nothing, and most objects have no logical block on them.
+            var linkedTo = LinkedTo(simobj);
+            if (!string.IsNullOrEmpty(linkedTo))
+                panel.CreateAndAddTwoLabelsRow("Linked to", linkedTo);
 
             panel.CreateAndAddCheckBoxRow("Active", simobj.GraphicObject.Active, (cb, e) =>
             {
@@ -168,7 +172,7 @@ namespace DWSIM.UI.Desktop.Editors
             }
             catch (Exception) { }
 
-            return "-";
+            return "";
         }
 
         private static void AddPropertyPackageRow(ISimulationObject simobj, AvaloniaEditorPanel panel)
