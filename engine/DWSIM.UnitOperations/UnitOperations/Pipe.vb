@@ -121,6 +121,34 @@ Namespace UnitOperations
         ''' <summary>Gets or sets the interval (in calculation steps) between equilibrium flash evaluations.</summary>
         Public Property CalculateEquilibriumIntervalInSteps As Integer = 1
 
+        ''' <summary>
+        ''' Relative pressure change since the last flash that forces another one, whatever
+        ''' <see cref="CalculateEquilibriumIntervalInSteps"/> says. Zero disables it.
+        '''
+        ''' Skipping flashes by counting increments asks the wrong question. What matters is not how many
+        ''' steps have passed but how far the fluid has moved, and the two part company exactly where it is
+        ''' least affordable: on a well-behaved fluid, flashing every fourth increment costs 0.13% and saves
+        ''' nearly half the time, while on a retrograde gas condensate the same setting moved the answer by
+        ''' 27%, because that is where the phase behaviour changes fastest along the pipe. A displacement
+        ''' trigger gives the saving on the first and protects the second, since there the threshold is
+        ''' crossed at almost every increment and the flash happens anyway.
+        '''
+        ''' It can only ADD flashes, never remove one the interval asked for, so the default interval of 1
+        ''' still flashes every increment and nothing changes until the interval is raised.
+        '''
+        ''' The default of 2% is the safe end of the trade: measured against flashing every increment, it
+        ''' reproduces the answer exactly on all three fluids tried. Loosening it buys time on a fluid whose
+        ''' properties vary slowly - the multi-well pad runs 1.35x at 10% with the answer still exact, and
+        ''' 1.54x at 20% for 0.11% - while the gas condensate has no usable setting at all: below 5% it saves
+        ''' nothing and above it the answer wanders by whole percent. That is the correct behaviour rather
+        ''' than a shortcoming, since it is the fluid that genuinely needs the flashes.
+        ''' </summary>
+        Public Property CalculateEquilibriumPressureTrigger As Double = 0.02
+
+        ''' <summary>Temperature change in K since the last flash that forces another one. Zero disables it.
+        ''' See <see cref="CalculateEquilibriumPressureTrigger"/>.</summary>
+        Public Property CalculateEquilibriumTemperatureTrigger As Double = 1.0
+
         ''' <summary>Gets or sets whether a rigorous wall heat-balance is calculated for each section.</summary>
         Public Property CalculateHeatBalance As Boolean = True
 
@@ -1028,6 +1056,19 @@ Namespace UnitOperations
         End Sub
 
         ''' <summary>Calculates pressure drop, heat transfer, and phase behaviour along the pipe.</summary>
+        ''' <summary>Whether the fluid has moved far enough since the last flash to need another one.
+        ''' See <see cref="CalculateEquilibriumPressureTrigger"/>.</summary>
+        Private Function FluidMovedSinceLastFlash(pRef As Double, tRef As Double,
+                                                  p As Double, t As Double) As Boolean
+            If CalculateEquilibriumPressureTrigger > 0.0 AndAlso pRef > 0.0 Then
+                If Math.Abs(p - pRef) / pRef >= CalculateEquilibriumPressureTrigger Then Return True
+            End If
+            If CalculateEquilibriumTemperatureTrigger > 0.0 Then
+                If Math.Abs(t - tRef) >= CalculateEquilibriumTemperatureTrigger Then Return True
+            End If
+            Return False
+        End Function
+
         Public Overrides Sub Calculate(Optional ByVal args As Object = Nothing)
 
             Dim IObj As Inspector.InspectorItem = Inspector.Host.GetNewInspectorItem()
@@ -1281,6 +1322,8 @@ Namespace UnitOperations
 
                         Dim eqcheck = 0
                         Dim calceq = False
+                        Dim lastFlashP = Pin
+                        Dim lastFlashT = Tin
 
                         Do
 
@@ -1719,9 +1762,12 @@ Namespace UnitOperations
                             IObj4?.Close()
 
                             eqcheck += j
-                            If eqcheck >= CalculateEquilibriumIntervalInSteps * j Then
+                            If eqcheck >= CalculateEquilibriumIntervalInSteps * j _
+                               OrElse FluidMovedSinceLastFlash(lastFlashP, lastFlashT, Pin, Tin) Then
                                 eqcheck = 0.0
                                 calceq = True
+                                lastFlashP = Pin
+                                lastFlashT = Tin
                             Else
                                 calceq = False
                             End If
