@@ -145,9 +145,13 @@ Namespace UnitOperations
             Dim cp As IConnectionPoint
             For Each cp In Me.GraphicObject.InputConnectors
                 If cp.IsAttached Then
-                    IObj?.Paragraphs.Add(String.Format("<h3>Inlet Stream #{0}</h3>", i))
                     If cp.AttachedConnector.AttachedFrom.Calculated = False Then Throw New Exception(FlowSheet.GetTranslatedString("Umaoumaiscorrentesna"))
                     ms = Me.FlowSheet.SimulationObjects(cp.AttachedConnector.AttachedFrom.Name)
+                    ' A zero-mass-flow inlet contributes nothing to the mass or energy balance, and its
+                    ' specific enthalpy is undefined (0/0 = NaN). Skip it rather than let Validate reject
+                    ' the whole mixer on a dead branch (e.g. the empty phase of an upstream split).
+                    If ms.Phases(0).Properties.massflow.GetValueOrDefault <= 0.0 Then Continue For
+                    IObj?.Paragraphs.Add(String.Format("<h3>Inlet Stream #{0}</h3>", i))
                     ms.Validate()
                     If Me.PressureCalculation = PressureBehavior.Minimum Then
                         If ms.Phases(0).Properties.pressure.GetValueOrDefault < P Then
