@@ -230,6 +230,7 @@ Version 10.2
 - [FIX] Pipe network: a stuck compositional solve no longer reports itself converged - outer convergence now also requires the inner GGA to converge; the choke exposes a Critical Flow Ratio
 - [FIX] Pipe network: a critical (sonic) branch switches regime in the solver (rate held at the critical value, energy equation dropped) instead of being pushed back by a penalty barrier
 - [FIX] Pipe network: the direct-evaluation vs surrogate choice is latched for the life of the warm start, so a network returns the same result every solve
+- [FIX] Mixer: an inlet carrying zero mass flow (the empty phase of an upstream split, say) no longer fails the mixer with a NaN-enthalpy error; it is skipped (issue #45)
 
 Version 10.1
 
