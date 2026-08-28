@@ -4309,7 +4309,10 @@ Label_00CC:
 
         Dim paths0 = engine.GetSearchPaths().ToList()
         Dim apppath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)
+        ' the standard library folder is "Lib" on Windows and "lib" on the cross-platform build; add
+        ' both because Linux is case-sensitive and a non-existent path is ignored by the import machinery
         paths0.Add(Path.Combine(apppath, "Lib"))
+        paths0.Add(Path.Combine(apppath, "lib"))
         Try
             engine.SetSearchPaths(paths0)
         Catch ex As Exception

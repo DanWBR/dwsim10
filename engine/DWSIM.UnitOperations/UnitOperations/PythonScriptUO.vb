@@ -272,6 +272,21 @@ Namespace UnitOperations
             If ExecutionEngine = PythonExecutionEngine.IronPython Then
 
                 engine = IronPython.Hosting.Python.CreateEngine()
+
+                ' Point the engine at the IronPython standard library that ships alongside the app, the
+                ' same way the flowsheet-level Python script does, so a Python Script unit operation can
+                ' import stdlib modules such as pathlib (issue #46). Both casings are added because the
+                ' folder is "Lib" on Windows and "lib" on the cross-platform build, and Linux is
+                ' case-sensitive; a path that does not exist is simply ignored by the import machinery.
+                Try
+                    Dim paths0 As New List(Of String)(engine.GetSearchPaths())
+                    Dim apppath = IO.Path.GetDirectoryName(Reflection.Assembly.GetExecutingAssembly().Location)
+                    paths0.Add(IO.Path.Combine(apppath, "Lib"))
+                    paths0.Add(IO.Path.Combine(apppath, "lib"))
+                    engine.SetSearchPaths(paths0)
+                Catch ex As Exception
+                End Try
+
                 engine.Runtime.LoadAssembly(GetType(System.String).Assembly)
                 engine.Runtime.LoadAssembly(GetType(BaseClasses.ConstantProperties).Assembly)
                 engine.Runtime.LoadAssembly(GetType(GraphicObject).Assembly)

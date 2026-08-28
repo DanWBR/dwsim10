@@ -29,6 +29,9 @@
     <PackageReference Include="Dock.Serializer.Newtonsoft" />
     <PackageReference Include="Newtonsoft.Json" />
     <PackageReference Include="SkiaSharp" />
+    <!-- ships the Python 3 standard library as lib/ in the publish, so a Python Script unit operation
+         and flowsheet scripts can import stdlib modules on every platform (issue #46) -->
+    <PackageReference Include="IronPython.StdLib" />
   </ItemGroup>
 
   <!-- Compile-time only: the material stream and the property packages implement the CAPE-OPEN
