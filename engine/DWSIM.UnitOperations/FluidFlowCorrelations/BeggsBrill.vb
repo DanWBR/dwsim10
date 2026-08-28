@@ -16,6 +16,8 @@
 '    You should have received a copy of the GNU General Public License
 '    along with DWSIM.  If not, see <http://www.gnu.org/licenses/>.
 
+Imports System.Numerics
+
 Namespace FlowPackages
 
     <Serializable()> Public Class BeggsBrill
@@ -419,6 +421,182 @@ Namespace FlowPackages
         Private Shared Function BetaIntermittent(Cl As Double, Frm As Double, Nvl As Double) As Double
             Dim b = (1 - Cl) * Math.Log(2.96 * Cl ^ 0.305 * Frm ^ 0.0978 / Nvl ^ 0.4473)
             If Double.IsNaN(b) OrElse b < 0 Then Return 0
+            Return b
+        End Function
+
+
+        ''' <summary>
+        ''' Derivative of the total pressure drop with respect to the gas and liquid volumetric rates, as
+        ''' {d(dP)/dqv, d(dP)/dql} in Pa per (m3/day). Returns Nothing for single-phase input, where the
+        ''' caller should difference the single-phase routines instead.
+        '''
+        ''' Obtained by the COMPLEX-STEP approximation: evaluate the correlation at qv + ih and read
+        ''' Im(f)/h. Because no subtraction of nearby values takes place, there is no cancellation, so h
+        ''' can be taken far below what a finite difference tolerates and the result is accurate to
+        ''' machine precision with no step size to choose. That matters here: differencing this
+        ''' correlation by hand gave slopes that moved with the step, because the flow-regime map and the
+        ''' holdup clamps make it only piecewise smooth. Within one regime the complex step is exact.
+        '''
+        ''' The regime and the clamps are decided on the REAL part, so the derivative returned is the one
+        ''' of the branch the operating point sits on. At a regime boundary the true derivative jumps, and
+        ''' no method can report a single value for both sides.
+        ''' </summary>
+        Public Function CalculateDeltaPGradient(ByVal D As Double, ByVal L As Double, ByVal deltaz As Double,
+                                                ByVal k As Double, ByVal qv As Double, ByVal ql As Double,
+                                                ByVal muv As Double, ByVal mul As Double, ByVal rhov As Double,
+                                                ByVal rhol As Double, ByVal surft As Double) As Double()
+
+            If qv = 0.0# OrElse ql = 0.0# Then Return Nothing
+
+            Const h As Double = 1.0E-30
+
+            Dim dqv = DeltaPComplex(D, L, deltaz, k, New Complex(qv, h), New Complex(ql, 0.0),
+                                    muv, mul, rhov, rhol, surft).Imaginary / h
+            Dim dql = DeltaPComplex(D, L, deltaz, k, New Complex(qv, 0.0), New Complex(ql, h),
+                                    muv, mul, rhov, rhol, surft).Imaginary / h
+
+            If Double.IsNaN(dqv) OrElse Double.IsNaN(dql) Then Return Nothing
+            If Double.IsInfinity(dqv) OrElse Double.IsInfinity(dql) Then Return Nothing
+
+            Return New Double() {dqv, dql}
+
+        End Function
+
+        ''' <summary>
+        ''' Complex twin of the two-phase branch of <see cref="CalculateDeltaP"/>, returning the total drop
+        ''' in Pa. It exists only to carry the complex step; every line mirrors the real routine, and
+        ''' BeggsBrillGradientTests asserts that the two agree on the real part, so the pair cannot drift
+        ''' apart unnoticed.
+        ''' </summary>
+        Private Shared Function DeltaPComplex(ByVal D As Double, ByVal L As Double, ByVal deltaz As Double,
+                                              ByVal k As Double, ByVal qvc As Complex, ByVal qlc As Complex,
+                                              ByVal muv As Double, ByVal mul As Double, ByVal rhov As Double,
+                                              ByVal rhol As Double, ByVal surft As Double) As Complex
+
+            D = D * 3.28084
+            Dim qvz = qvc / 24 * 0.00980963
+            Dim qlz = qlc / 24 * 0.00980963
+            rhov = rhov * 0.062428
+            rhol = rhol * 0.062428
+            surft = surft * 1000
+            L = L * 3.28084
+            deltaz = deltaz * 3.28084
+
+            Dim teta = Math.Atan(deltaz / (L ^ 2 - deltaz ^ 2) ^ 0.5) * 180 / Math.PI
+            Dim ap = Math.PI * D ^ 2 / 4
+            Dim vm = (qvz + qlz) / ap
+            Dim Cl = qlz / (qvz + qlz)
+            Dim L1 = 316 * Complex.Pow(Cl, 0.302)
+            Dim L2 = 0.0009252 * Complex.Pow(Cl, -2.4684)
+            Dim L3 = 0.1 * Complex.Pow(Cl, -1.4516)
+            Dim L4 = 0.5 * Complex.Pow(Cl, -6.738)
+            Dim Frm = vm * vm / (32.2 * D)
+
+            Dim clr = Cl.Real, frr = Frm.Real
+            Dim l1r = L1.Real, l2r = L2.Real, l3r = L3.Real, l4r = L4.Real
+
+            Dim fluxo As String = "NA"
+            If clr < 0.01 And frr < l1r Then fluxo = "Segregated"
+            If clr >= 0.01 And frr < l2r Then fluxo = "Segregated"
+            If clr >= 0.01 And clr < 0.4 And frr > l3r And frr <= l1r Then fluxo = "Intermittent"
+            If clr >= 0.4 And frr > l3r And frr <= l4r Then fluxo = "Intermittent"
+            If clr < 0.4 And frr >= l1r Then fluxo = "Distributed"
+            If clr >= 0.4 And frr > l4r Then fluxo = "Distributed"
+            If clr >= 0.01 And frr > l2r And frr < l3r Then fluxo = "Transition"
+
+            Dim El_0 As Complex
+            If fluxo = "Segregated" Then
+                El_0 = 0.98 * Complex.Pow(Cl, 0.4846) / Complex.Pow(Frm, 0.0868)
+            ElseIf fluxo = "Intermittent" Then
+                El_0 = 0.845 * Complex.Pow(Cl, 0.5351) / Complex.Pow(Frm, 0.0173)
+            ElseIf fluxo = "Distributed" Then
+                El_0 = 1.065 * Complex.Pow(Cl, 0.5824) / Complex.Pow(Frm, 0.0609)
+            ElseIf fluxo = "Transition" Then
+                Dim AI = (L3 - Frm) / (L3 - L2)
+                Dim BI = 1 - AI
+                El_0 = AI * 0.98 * Complex.Pow(Cl, 0.4846) / Complex.Pow(Frm, 0.0868) +
+                       BI * 0.845 * Complex.Pow(Cl, 0.5351) / Complex.Pow(Frm, 0.0173)
+            Else
+                El_0 = Cl
+            End If
+            If El_0.Real < clr Then El_0 = Cl
+
+            Dim beta As Complex = New Complex(0.0, 0.0)
+            Dim vsl = qlz / ap
+            Dim Nvl = 1.938 * vsl * (rhol / (32.2 * surft)) ^ 0.25
+            If deltaz > 0 Then
+                If fluxo = "Segregated" Then
+                    beta = BetaSegregatedComplex(Cl, Frm, Nvl)
+                ElseIf fluxo = "Intermittent" Then
+                    beta = BetaIntermittentComplex(Cl, Frm, Nvl)
+                ElseIf fluxo = "Distributed" Then
+                    beta = New Complex(0.0, 0.0)
+                ElseIf fluxo = "Transition" Then
+                    Dim wSeg = (L3 - Frm) / (L3 - L2)
+                    Dim wInt = 1 - wSeg
+                    beta = wSeg * BetaSegregatedComplex(Cl, Frm, Nvl) + wInt * BetaIntermittentComplex(Cl, Frm, Nvl)
+                End If
+            Else
+                beta = (1 - Cl) * Complex.Log(4.7 * Complex.Pow(Nvl, 0.1244) /
+                                              (Complex.Pow(Cl, 0.3692) * Complex.Pow(Frm, 0.5056)))
+            End If
+            If beta.Real < 0 Then beta = New Complex(0.0, 0.0)
+
+            Dim sinT = Math.Sin(1.8 * teta * Math.PI / 180)
+            Dim B_teta = 1 + beta * (sinT - 0.3333 * sinT ^ 3)
+            Dim El_teta = El_0 * B_teta
+            Dim rhom = rhol * El_teta + rhov * (1 - El_teta)
+            Dim dP_hh = rhom * deltaz
+
+            Dim y = Complex.Log(Cl / (El_teta * El_teta))
+            Dim S As Complex
+            If y.Real > 1 And y.Real < 1.2 Then
+                S = Complex.Log(2.2 * Complex.Exp(y) - 1.2)
+            Else
+                S = y / (-0.0523 + 3.182 * y - 0.8725 * y * y + 0.01853 * y * y * y * y)
+            End If
+
+            Dim rho_ns = Cl * rhol + (1 - Cl) * rhov
+            Dim mu_ns = Cl * mul + (1 - Cl) * muv
+            Dim NRe_ns = rho_ns * vm * D / (mu_ns * 0.00067197)
+            Dim f_ns = FrictionFactorComplex(NRe_ns, D / 3.28084, k)
+            Dim f_tp = f_ns * Complex.Exp(S)
+            Dim dP_fr = f_tp * vm * vm / 2 * rho_ns * L / (32.2 * D)
+
+            Return (dP_hh + dP_fr) * 47.88
+
+        End Function
+
+        ''' <summary>Complex twin of <see cref="FPBaseClass.FrictionFactor"/>.</summary>
+        Private Shared Function FrictionFactorComplex(ByVal Re As Complex, ByVal D As Double, ByVal k As Double) As Complex
+            Dim ln10 = Math.Log(10.0)
+            If Re.Real > 4000 Then
+                Dim a1 = Complex.Log((k / D) ^ 1.1096 / 2.8257 + Complex.Pow(5.8506 / Re, 0.8961)) / ln10
+                Dim b1 = -2 * Complex.Log((k / D) / 3.7065 - 5.0452 * a1 / Re) / ln10
+                Return 1 / (b1 * b1)
+            ElseIf Re.Real < 2100 Then
+                Return 64 / Re
+            Else
+                Dim a = Complex.Pow(8 / Re, 12)
+                Dim b = Complex.Pow(2.457 * Complex.Log(1.0 / (Complex.Pow(7.0 / Re, 0.9) + 0.27 * k / D)), 16)
+                Dim c = Complex.Pow(37530 / Re, 16)
+                Return 8 * Complex.Pow(a + 1 / Complex.Pow(b + c, 1.5), 1.0 / 12.0)
+            End If
+        End Function
+
+        ''' <summary>Complex twin of <see cref="BetaSegregated"/>.</summary>
+        Private Shared Function BetaSegregatedComplex(Cl As Complex, Frm As Complex, Nvl As Complex) As Complex
+            Dim b = (1 - Cl) * Complex.Log(0.011 * Complex.Pow(Nvl, 3.539) /
+                                           (Complex.Pow(Cl, 3.768) * Complex.Pow(Frm, 1.614)))
+            If Double.IsNaN(b.Real) OrElse b.Real < 0 Then Return New Complex(0.0, 0.0)
+            Return b
+        End Function
+
+        ''' <summary>Complex twin of <see cref="BetaIntermittent"/>.</summary>
+        Private Shared Function BetaIntermittentComplex(Cl As Complex, Frm As Complex, Nvl As Complex) As Complex
+            Dim b = (1 - Cl) * Complex.Log(2.96 * Complex.Pow(Cl, 0.305) * Complex.Pow(Frm, 0.0978) /
+                                           Complex.Pow(Nvl, 0.4473))
+            If Double.IsNaN(b.Real) OrElse b.Real < 0 Then Return New Complex(0.0, 0.0)
             Return b
         End Function
 
