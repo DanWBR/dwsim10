@@ -98,6 +98,7 @@ Version 10.2
 - [NEW] Pipe network: every block exposes its properties to the flowsheet as "<block>: <property>", so a PID can read a node pressure and write a valve opening
 - [NEW] Dynamics Wizard on both interfaces: reports what stands between a converged flowsheet and a dynamic run, proposes a value for each finding, and creates the integrator, schedule and monitored variables
 - [NEW] Pipe network: a dynamic sample - a water transmission main feeding a break tank through a pressure-reducing valve, with the tank level held by a controller moving the valve setting through its actuator
+- [NEW] Pipe network: a pressure-temperature property table for a fixed composition - the branch interpolates a tabulated flash (vapour fraction, phase densities, viscosities, enthalpy and per-compound phase compositions) instead of flashing at every increment
 - [CHG] IPOPT is now a managed solver shipped with DWSIM, checked against the native library over five thousand problems
 - [CHG] Gibbs reactor initial estimate solved by a managed simplex instead of the native lpsolve55
 - [CHG] Petalas-Aziz two-phase pressure drop converted from a native library to managed code
@@ -223,6 +224,8 @@ Version 10.2
 - [FIX] Cross-platform interface: the editors' "Linked to" row shows the spec or adjust attached to the object, as the Windows editor does, and is hidden when there is none
 - [FIX] Windows interface: dragging objects from the palette onto the flowsheet leaked a GDI handle on every mouse move and froze the application after a few drags ("A generic error occurred in GDI+"); the drag cursor is built once now (issue #44)
 - [FIX] Pipe network: compositional results move with this release's liquid-density correction; every compositional sample was re-solved and now carries results matching what the engine computes, with rates shifting by up to 16%
+- [FIX] Anaerobic Digester (ADM1): a fixed outlet temperature now drives the biochemistry, acid-base equilibria and gas transfer, which used to run at the feed temperature whatever the Thermal Mode said
+- [FIX] Property packages: a compound with an undefined heat of vaporisation (a normal boiling point above its critical temperature, or a NaN from a bad critical pressure) no longer poisons mixture enthalpy and pulls a mixer outlet to the enthalpy datum temperature
 
 Version 10.1
 
