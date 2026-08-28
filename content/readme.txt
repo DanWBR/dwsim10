@@ -130,6 +130,7 @@ Version 10.2
 - [CHG] Pipe network: the compositional outer loop stops once it stops improving and delivers its most self-consistent iterate, cutting the well cases to about a third of the time
 - [CHG] Automation interface: a flowsheet obtained through it can be given the repaint handler the solver calls, so a host can colour objects by status while a solve runs
 - [CHG] Pipe network: an option evaluates every pipe on two grids and extrapolates away the leading discretisation error, reaching a converged answer from the discretisation already drawn for about twice the cost (off by default)
+- [CHG] Pipe network: the nodal solver uses an analytic Beggs-Brill pressure-drop gradient, so multiphase branches converge with fewer correlation evaluations
 - [FIX] A product of a CAPE-OPEN unit operation was re-flashed by the flowsheet property package, discarding the phase split the unit had computed
 - [FIX] Object editors were cut off on a display set above 96 dots per inch; the distillation column stage table was the most visible case
 - [FIX] A flowsheet opened from the desktop on macOS started DWSIM with nothing loaded and reported an unsupported file
@@ -226,6 +227,9 @@ Version 10.2
 - [FIX] Pipe network: compositional results move with this release's liquid-density correction; every compositional sample was re-solved and now carries results matching what the engine computes, with rates shifting by up to 16%
 - [FIX] Anaerobic Digester (ADM1): a fixed outlet temperature now drives the biochemistry, acid-base equilibria and gas transfer, which used to run at the feed temperature whatever the Thermal Mode said
 - [FIX] Property packages: a compound with an undefined heat of vaporisation (a normal boiling point above its critical temperature, or a NaN from a bad critical pressure) no longer poisons mixture enthalpy and pulls a mixer outlet to the enthalpy datum temperature
+- [FIX] Pipe network: a stuck compositional solve no longer reports itself converged - outer convergence now also requires the inner GGA to converge; the choke exposes a Critical Flow Ratio
+- [FIX] Pipe network: a critical (sonic) branch switches regime in the solver (rate held at the critical value, energy equation dropped) instead of being pushed back by a penalty barrier
+- [FIX] Pipe network: the direct-evaluation vs surrogate choice is latched for the life of the warm start, so a network returns the same result every solve
 
 Version 10.1
 
