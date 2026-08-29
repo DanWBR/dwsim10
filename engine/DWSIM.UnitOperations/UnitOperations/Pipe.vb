@@ -149,6 +149,24 @@ Namespace UnitOperations
         ''' See <see cref="CalculateEquilibriumPressureTrigger"/>.</summary>
         Public Property CalculateEquilibriumTemperatureTrigger As Double = 1.0
 
+        ''' <summary>
+        ''' Relaxes the energy balance at each increment by Wegstein's method instead of the fixed half step.
+        ''' Off by default.
+        '''
+        ''' The balance is a fixed point: a guessed outlet temperature fixes the heat transfer coefficient and
+        ''' the duty, those fix the outlet enthalpy, and the flash turns that back into a temperature. The loop
+        ''' has always taken the average of the guess and the answer. That is a relaxation of one half applied
+        ''' regardless of how strongly the answer actually responds to the guess, and for a pipe it responds
+        ''' barely at all: the duty changes only through the wall temperature difference, so the map is nearly
+        ''' constant and plain substitution would land on the answer at once. Halving instead walks in from the
+        ''' initial error geometrically, and every one of those passes costs a flash.
+        '''
+        ''' Wegstein measures the response from the last two passes and relaxes by what it warrants, reaching
+        ''' the same fixed point. The inner pressure loop has used secant acceleration all along; this is the
+        ''' same idea for the outer one.
+        ''' </summary>
+        Public Property AccelerateEnergyBalance As Boolean = False
+
 
         ''' <summary>Gets or sets whether a rigorous wall heat-balance is calculated for each section.</summary>
         Public Property CalculateHeatBalance As Boolean = True
@@ -1098,6 +1116,45 @@ Namespace UnitOperations
 
         End Function
 
+        ''' <summary>
+        ''' One Wegstein step of an increment's energy balance: <paramref name="x"/> is the temperature that was
+        ''' guessed, <paramref name="g"/> the one the flash gave back, and the two previous values let the
+        ''' slope of the map be measured.
+        '''
+        ''' Falls back to the half step the loop has always taken whenever that slope cannot be had: on the
+        ''' first pass, when the two guesses coincide, or when the slope is one, where there is no contraction
+        ''' to exploit. See <see cref="AccelerateEnergyBalance"/>.
+        ''' </summary>
+        Private Shared Function WegsteinStep(x As Double, g As Double,
+                                             xPrev As Double, gPrev As Double, havePrev As Boolean) As Double
+
+            Dim half = (x + g) / 2.0
+
+            If Not havePrev Then Return half
+
+            Dim dx = x - xPrev
+            If Math.Abs(dx) < 1.0E-10 Then Return half
+
+            Dim slope = (g - gPrev) / dx
+            If Double.IsNaN(slope) OrElse Double.IsInfinity(slope) Then Return half
+            If Math.Abs(slope - 1.0) < 1.0E-06 Then Return half
+
+            Dim w = slope / (slope - 1.0)
+            If Double.IsNaN(w) OrElse Double.IsInfinity(w) Then Return half
+
+            'Bounded to the same bracket the half step lives in: between the guess and the flash's answer,
+            'never past either. Wegstein normally allows extrapolation beyond the answer, and here that is
+            'not safe - the duty carries a Log((Text - Tin) / (Text - Tout)), so a step that overshoots the
+            'ambient temperature makes the duty undefined; the pipe reads an undefined duty as zero, and a
+            'zero duty is the loop's signal that there is nothing to converge, so it stops wherever the
+            'overshoot left it. Almost all of the gain is at w = 0 anyway, which is plain substitution.
+            If w > 0.9 Then w = 0.9
+            If w < 0.0 Then w = 0.0
+
+            Return w * x + (1.0 - w) * g
+
+        End Function
+
         ''' <summary>Whether the fluid has moved far enough since the last flash to need another one.
         ''' See <see cref="CalculateEquilibriumPressureTrigger"/>.</summary>
         Private Function FluidMovedSinceLastFlash(pRef As Double, tRef As Double,
@@ -1409,6 +1466,14 @@ Namespace UnitOperations
                             If Tin > Text And Tout < Text Then Tout = Text * 1.02 + dText_dL * currL
 
                             cntT = 0
+
+                            'the energy balance's previous pass: the temperature guessed and the one the flash
+                            'gave back, which is what Wegstein needs to measure the slope of the map
+                            Dim Twg As Double = 0.0
+                            Dim Gwg As Double = 0.0
+                            Dim Rwg As Double = 0.0
+                            Dim haveWg As Boolean = False
+
                             'Loop externo (convergencia do Delta T)
                             Do
 
@@ -1681,10 +1746,31 @@ Namespace UnitOperations
                                 Else
                                     If U = 0 Or DQ = 0 Then
                                         Tout_ant = Tout
+                                        fT = Tout - Tout_ant
+                                    ElseIf AccelerateEnergyBalance Then
+                                        Dim gap = Tout - Tout_ant
+                                        Dim relaxed As Double
+                                        If haveWg AndAlso Math.Abs(gap) >= Rwg Then
+                                            'the accelerated step did not shrink the gap, so the slope it was
+                                            'built on does not describe the map here: fall back and re-measure
+                                            relaxed = (Tout + Tout_ant) / 2.0
+                                        Else
+                                            relaxed = WegsteinStep(Tout_ant, Tout, Twg, Gwg, haveWg)
+                                        End If
+                                        Twg = Tout_ant
+                                        Gwg = Tout
+                                        Rwg = Math.Abs(gap)
+                                        haveWg = True
+                                        Tout = relaxed
+                                        'stop on the residual of the fixed point, not on the step taken. The
+                                        'half step is always half the residual, so testing the step was only
+                                        'ever a factor of two; a relaxation that varies would let the loop
+                                        'stop while the balance was still open by several times the tolerance.
+                                        fT = gap
                                     Else
                                         Tout = (Tout + Tout_ant) / 2
+                                        fT = Tout - Tout_ant
                                     End If
-                                    fT = Tout - Tout_ant
                                 End If
 
                                 IObj5?.Paragraphs.Add(String.Format("Calculated Outlet Temperature: {0} K", Tout))
