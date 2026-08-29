@@ -135,6 +135,7 @@ Version 10.2
 - [CHG] Pipe network: the default pipe temperature convergence tolerance is 0.01 K, was 0.1 K
 - [CHG] Pipe network: a compositional pipe also re-flashes on how far the fluid has moved, not only on a step count
 - [CHG] Pipe network: a branch can read tabulated fluid properties instead of flashing, and stops tabulating when its table does not pay for itself
+- [CHG] Pipe network: the pipe flash and energy-balance settings are on the network property list, with the tolerances and iteration limits
 - [FIX] A product of a CAPE-OPEN unit operation was re-flashed by the flowsheet property package, discarding the phase split the unit had computed
 - [FIX] Object editors were cut off on a display set above 96 dots per inch; the distillation column stage table was the most visible case
 - [FIX] A flowsheet opened from the desktop on macOS started DWSIM with nothing loaded and reported an unsupported file
@@ -238,6 +239,7 @@ Version 10.2
 - [FIX] Python Script: the Python 3 standard library is bundled and on the interpreter search path, so a Python Script unit operation and flowsheet scripts can import stdlib modules (pathlib, json) on every platform (issue #46)
 - [FIX] Pipe network editor: the temperature and pressure tolerance fields were loaded into each other's box; the stored values are worth checking in simulations saved earlier
 - [FIX] Pipe segment: no heat transfer was reported, and the increment stopped iterating, where the fluid crossed the ambient temperature along an increment
+- [FIX] Pipe network: the nodal solver's outer loop tests temperature against its own tolerance instead of one meant for pressure; a gas condensate now returns the same answer when solved repeatedly
 
 Version 10.1
 
