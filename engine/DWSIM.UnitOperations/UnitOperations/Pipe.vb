@@ -149,6 +149,7 @@ Namespace UnitOperations
         ''' See <see cref="CalculateEquilibriumPressureTrigger"/>.</summary>
         Public Property CalculateEquilibriumTemperatureTrigger As Double = 1.0
 
+
         ''' <summary>Gets or sets whether a rigorous wall heat-balance is calculated for each section.</summary>
         Public Property CalculateHeatBalance As Boolean = True
 
@@ -854,7 +855,7 @@ Namespace UnitOperations
                                         End With
                                     End If
                                     If U > 0 Then
-                                        DQ = (Tout - Tin) / Math.Log((results.External_Temperature - Tin) / (results.External_Temperature - Tout)) * U / 1000 * A
+                                        DQ = LogMeanDeltaT(Tin, Tout, results.External_Temperature) * U / 1000 * A
                                         DQmax = (results.External_Temperature - Tin) * Cp_m * (current_as.GetMassFlow() * substep_multpl / timestep)
                                         Dim SR, Qrad As Double
                                         If ThermalProfile.IncludeSolarRadiation Then
@@ -1054,6 +1055,48 @@ Namespace UnitOperations
             es?.SetEnergyFlow(DeltaQ.GetValueOrDefault())
 
         End Sub
+
+        ''' <summary>
+        ''' Log-mean temperature difference between a stream running from <paramref name="tIn"/> to
+        ''' <paramref name="tOut"/> and a surrounding at <paramref name="tExt"/>, given a value everywhere the
+        ''' logarithmic form has none.
+        '''
+        ''' That form divides by the logarithm of the ratio of the two end differences, and the temperature
+        ''' loop visits three states where the ratio is not usable. When the two ends sit equally far from the
+        ''' surrounding the ratio is one and the limit is that distance. When the outlet has reached the
+        ''' surrounding the limit is zero, and the increment is simply long enough to get there. And when the
+        ''' guessed outlet lies on the far side of the surrounding the ratio is negative: no single stream
+        ''' exchanging with a fixed surrounding can end up there, so the guess is read as an outlet that has
+        ''' all but reached the surrounding, which leaves a large but finite driving force and brings the next
+        ''' pass back into range.
+        '''
+        ''' Written directly, the logarithm gave <see cref="Double.NaN"/> in all three, and the caller read
+        ''' that as a duty of zero. A zero duty is also the loop's signal that there is nothing left to
+        ''' converge, so an increment whose fluid crossed the ambient temperature - an ordinary thing for a
+        ''' long cooled line - stopped iterating and reported no heat transfer at whatever temperature the
+        ''' guess happened to hold. On one well that cost 25 increments out of 4111 and left the network
+        ''' solving a corrupted temperature profile, at more than three times the run time of the repaired one.
+        ''' </summary>
+        Private Shared Function LogMeanDeltaT(tIn As Double, tOut As Double, tExt As Double) As Double
+
+            Dim dt1 = tExt - tIn
+            Dim dt2 = tExt - tOut
+
+            'one end has reached the surrounding: no driving force is left to average
+            If Math.Abs(dt1) <= 1.0E-10 OrElse Math.Abs(dt2) <= 1.0E-10 Then Return 0.0
+
+            'the guess crossed the surrounding, which the stream cannot: read it as having stopped just
+            'short. Answering with the largest duty the stream admits instead would spend a whole pipe's
+            'worth of cooling on one increment, and hand the flash an enthalpy no state can match.
+            If dt1 * dt2 < 0.0 Then dt2 = 0.001 * dt1
+
+            Dim ratio = dt1 / dt2
+            'both ends equally far from the surrounding, where the mean is that distance
+            If Math.Abs(ratio - 1.0) < 1.0E-06 Then Return (dt1 + dt2) / 2.0
+
+            Return (dt1 - dt2) / Math.Log(ratio)
+
+        End Function
 
         ''' <summary>Whether the fluid has moved far enough since the last flash to need another one.
         ''' See <see cref="CalculateEquilibriumPressureTrigger"/>.</summary>
@@ -1564,7 +1607,7 @@ Namespace UnitOperations
                                                 End With
                                             End If
                                             If U <> 0.0# Then
-                                                DQ = (Tout - Tin) / Math.Log((results.External_Temperature - Tin) / (results.External_Temperature - Tout)) * U / 1000 * A
+                                                DQ = LogMeanDeltaT(Tin, Tout, results.External_Temperature) * U / 1000 * A
                                                 DQmax = (results.External_Temperature - Tin) * Cp_m * Win
                                                 Dim SR, Qrad As Double
                                                 If ThermalProfile.IncludeSolarRadiation Then
