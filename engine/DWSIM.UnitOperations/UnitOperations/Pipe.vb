@@ -190,7 +190,7 @@ Namespace UnitOperations
         Public Property TolP As Double = 1000
 
         ''' <summary>Gets or sets the temperature convergence tolerance (K).</summary>
-        Public Property TolT As Double = 0.1
+        Public Property TolT As Double = 0.01
 
         ''' <summary>Gets or sets the total calculated pressure drop across all pipe sections (Pa).</summary>
         Public Property DeltaP As Nullable(Of Double)
