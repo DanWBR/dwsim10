@@ -1055,7 +1055,6 @@ Namespace UnitOperations
 
         End Sub
 
-        ''' <summary>Calculates pressure drop, heat transfer, and phase behaviour along the pipe.</summary>
         ''' <summary>Whether the fluid has moved far enough since the last flash to need another one.
         ''' See <see cref="CalculateEquilibriumPressureTrigger"/>.</summary>
         Private Function FluidMovedSinceLastFlash(pRef As Double, tRef As Double,
@@ -1069,6 +1068,7 @@ Namespace UnitOperations
             Return False
         End Function
 
+        ''' <summary>Calculates pressure drop, heat transfer, and phase behaviour along the pipe.</summary>
         Public Overrides Sub Calculate(Optional ByVal args As Object = Nothing)
 
             Dim IObj As Inspector.InspectorItem = Inspector.Host.GetNewInspectorItem()

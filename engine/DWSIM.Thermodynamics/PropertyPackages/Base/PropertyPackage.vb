@@ -1862,6 +1862,65 @@ Namespace PropertyPackages
 
         End Function
 
+        ''' <summary>
+        ''' Writes a phase split computed elsewhere into the current material stream, without flashing.
+        '''
+        ''' This is the part of <see cref="DW_CalcEquilibrium"/> that follows the flash call: the molar
+        ''' fraction of each phase, the composition of each phase, and the mass fractions that follow from
+        ''' them. It is here so that a caller which already knows the answer, because it cached it or read it
+        ''' off a table, can put the stream into that state and then ask for properties alone.
+        '''
+        ''' Fugacity coefficients, activity coefficients and partial pressures are NOT written, since the
+        ''' property routines do not read them. A caller that needs those has to run the real flash.
+        ''' </summary>
+        Public Sub DW_ApplyPhaseSplit(xv As Double, xl As Double, xl2 As Double, xs As Double,
+                                      Vy As Double(), Vx As Double(), Vx2 As Double(), Vs As Double())
+
+            Dim ms = Me.CurrentMaterialStream
+            If ms Is Nothing Then Exit Sub
+
+            ms.Phases(3).Properties.molarfraction = xl
+            ms.Phases(4).Properties.molarfraction = xl2
+            ms.Phases(2).Properties.molarfraction = xv
+            ms.Phases(7).Properties.molarfraction = xs
+
+            DW_WritePhaseComposition(3, Vx)
+            DW_WritePhaseComposition(4, Vx2)
+            DW_WritePhaseComposition(2, Vy)
+            DW_WritePhaseComposition(7, Vs)
+
+            Dim mml = xl * Me.AUX_MMM(Phase.Liquid1)
+            Dim mml2 = xl2 * Me.AUX_MMM(Phase.Liquid2)
+            Dim mmv = xv * Me.AUX_MMM(Phase.Vapor)
+            Dim mms = xs * Me.AUX_MMM(Phase.Solid)
+            Dim mmt = mml + mml2 + mmv + mms
+
+            If mmt > 0.0 Then
+                ms.Phases(3).Properties.massfraction = mml / mmt
+                ms.Phases(4).Properties.massfraction = mml2 / mmt
+                ms.Phases(2).Properties.massfraction = mmv / mmt
+                ms.Phases(7).Properties.massfraction = mms / mmt
+            End If
+
+        End Sub
+
+        ''' <summary>Sets one phase's compound mole fractions and the mass fractions that follow from them.</summary>
+        Private Sub DW_WritePhaseComposition(phaseindex As Integer, x As Double())
+
+            If x Is Nothing Then Exit Sub
+
+            Dim i As Integer = 0
+            For Each subst As Interfaces.ICompound In Me.CurrentMaterialStream.Phases(phaseindex).Compounds.Values
+                If i >= x.Length Then Exit For
+                subst.MoleFraction = x(i)
+                i += 1
+            Next
+            For Each subst As Interfaces.ICompound In Me.CurrentMaterialStream.Phases(phaseindex).Compounds.Values
+                subst.MassFraction = Me.AUX_CONVERT_MOL_TO_MASS(subst.Name, phaseindex)
+            Next
+
+        End Sub
+
         Public MustOverride Function SupportsComponent(ByVal comp As Interfaces.ICompoundConstantProperties) As Boolean
 
         Public MustOverride Sub DW_CalcPhaseProps(ByVal Phase As Phase)
