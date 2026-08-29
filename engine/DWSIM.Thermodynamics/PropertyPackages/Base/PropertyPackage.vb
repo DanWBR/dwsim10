@@ -1863,6 +1863,89 @@ Namespace PropertyPackages
         End Function
 
         ''' <summary>
+        ''' Puts the current material stream into the state a flash result describes, without running the
+        ''' flash: everything <see cref="DW_CalcEquilibrium"/> does after its own flash call returns.
+        '''
+        ''' A caller that has already flashed a state has no reason to flash it again to record it. The pipe
+        ''' did exactly that at every increment: its energy balance flashed at the outlet pressure and
+        ''' enthalpy, kept only the temperature, and then set the stream to that same pressure and enthalpy
+        ''' and asked it to flash. This exists so the second flash can be dropped, and it lives next to
+        ''' <see cref="DW_CalcEquilibrium"/> so the two cannot drift apart.
+        ''' </summary>
+        Public Sub DW_ApplyFlashResult(result As Interfaces.IFlashCalculationResult, T As Double, P As Double, H As Double)
+
+            Dim ms = Me.CurrentMaterialStream
+            If ms Is Nothing OrElse result Is Nothing Then Exit Sub
+
+            Dim xv = result.GetVaporPhaseMoleFraction()
+            Dim xl = result.GetLiquidPhase1MoleFraction()
+            Dim xl2 = result.GetLiquidPhase2MoleFraction()
+            Dim xs = result.GetSolidPhaseMoleFraction()
+
+            Dim Vy = result.GetVaporPhaseMoleFractions()
+            Dim Vx = result.GetLiquidPhase1MoleFractions()
+            Dim Vx2 = result.GetLiquidPhase2MoleFractions()
+            Dim Vs = result.GetSolidPhaseMoleFractions()
+
+            DW_ApplyPhaseSplit(xv, xl, xl2, xs, Vy, Vx, Vx2, Vs)
+
+            'the fugacity coefficients and the partial pressures that go with them: nothing in the property
+            'routines reads these, but they are part of the state the flash leaves behind and a later caller
+            'may
+            Dim FCL = Me.DW_CalcFugCoeff(Vx, T, P, State.Liquid)
+            Dim FCL2 = Me.DW_CalcFugCoeff(Vx2, T, P, State.Liquid)
+            Dim FCV = Me.DW_CalcFugCoeff(Vy, T, P, State.Vapor)
+            Dim FCS = Me.DW_CalcFugCoeff(Vs, T, P, State.Solid)
+
+            DW_WritePhaseFugacities(3, Vx, FCL, P)
+            DW_WritePhaseFugacities(4, Vx2, FCL2, P)
+            DW_WritePhaseFugacities(2, Vy, FCV, P)
+            DW_WritePhaseFugacities(7, Vs, FCS, 0.0)
+
+            Dim SM, SV, SL, SL2, SS As Double
+            If xl <> 0 Then SL = Me.DW_CalcEntropy(Vx, T, P, State.Liquid)
+            If xl2 <> 0 Then SL2 = Me.DW_CalcEntropy(Vx2, T, P, State.Liquid)
+            If xv <> 0 Then SV = Me.DW_CalcEntropy(Vy, T, P, State.Vapor)
+            If xs <> 0 AndAlso T <> 298.15 Then
+                Dim constprops As New List(Of Interfaces.ICompoundConstantProperties)
+                For Each su As Interfaces.ICompound In ms.Phases(0).Compounds.Values
+                    constprops.Add(su.ConstantProperties)
+                Next
+                SS = Me.DW_CalcSolidEnthalpy(T, Vs, constprops) / (T - 298.15)
+            End If
+
+            SM = ms.Phases(4).Properties.massfraction.GetValueOrDefault * SL2 +
+                 ms.Phases(3).Properties.massfraction.GetValueOrDefault * SL +
+                 ms.Phases(2).Properties.massfraction.GetValueOrDefault * SV +
+                 ms.Phases(7).Properties.massfraction.GetValueOrDefault * SS
+
+            ms.Phases(0).Properties.temperature = T
+            ms.Phases(0).Properties.pressure = P
+            ms.Phases(0).Properties.enthalpy = H
+            ms.Phases(0).Properties.entropy = SM
+
+            ms.AtEquilibrium = True
+
+        End Sub
+
+        ''' <summary>Fugacity coefficients, partial pressures and the zeroed activity terms of one phase.</summary>
+        Private Sub DW_WritePhaseFugacities(phaseindex As Integer, x As Double(), fc As Double(), P As Double)
+
+            If x Is Nothing OrElse fc Is Nothing Then Exit Sub
+
+            Dim i As Integer = 0
+            For Each subst As Interfaces.ICompound In Me.CurrentMaterialStream.Phases(phaseindex).Compounds.Values
+                If i >= x.Length OrElse i >= fc.Length Then Exit For
+                subst.FugacityCoeff = fc(i)
+                subst.ActivityCoeff = 0
+                subst.PartialVolume = 0
+                subst.PartialPressure = x(i) * fc(i) * P
+                i += 1
+            Next
+
+        End Sub
+
+        ''' <summary>
         ''' Writes a phase split computed elsewhere into the current material stream, without flashing.
         '''
         ''' This is the part of <see cref="DW_CalcEquilibrium"/> that follows the flash call: the molar
