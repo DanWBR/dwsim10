@@ -206,6 +206,7 @@ Version 10.2
 - [FIX] Distillation: a column with no pressure drop specified left its stage pressures at zero and failed to solve; the stage pressures are repaired from the condenser and reboiler pressures (issue #38)
 - [FIX] Vapor Compression Chiller: the saturated vapour and liquid states are taken from the vapour-fraction flash and converted to a molar basis, and the shaft power is written to the shaft port, which is connectable and takes a duty specification
 - [FIX] Fired Heater: it is fired for the duty it is asked to deliver, writes the resulting fuel flow back to its fuel stream, and no longer rejects the geometry it ships with
+- [FIX] Fired Heater: a burner lightly fired for its installed surface area no longer fails with a NaN flue gas temperature; the radiant, shield and convection sections cannot absorb more heat than the fuel releases
 - [FIX] Advanced Heat Exchanger: Simulation mode solves for the exchanger's own duty
 - [FIX] Refining unit operations: the outlet temperature and mass balances are closed and the duty ports are connectable
 - [FIX] Neutralization reactor: its energy balance is closed
