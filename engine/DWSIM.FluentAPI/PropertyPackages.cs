@@ -115,7 +115,7 @@ namespace DWSIM.Automation.FluentAPI
             public const string SRKCPA = "SRK-CPA";
 
             /// <summary>CCUS Carbon Capture - eNRTL for CO2 capture with MEA, DEA, MDEA, PZ, AMP.</summary>
-            public const string CarbonCapture = "Carbon Capture (eNRTL)";
+            public const string CarbonCapture = "CO2 Capture (eNRTL)";
             /// <summary>CCUS CO2 Transport - Span-Wagner EOS for pure CO2, PR for CO2-rich mixtures.</summary>
             public const string CO2Transport = "CO2 Transport (Span-Wagner/PR)";
             /// <summary>CCUS CO2 Storage - eNRTL/Duan-Sun for CO2 geological storage in saline aquifers.</summary>
