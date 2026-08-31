@@ -240,6 +240,7 @@ Version 10.2
 - [FIX] Python Script: the Python 3 standard library is bundled and on the interpreter search path, so a Python Script unit operation and flowsheet scripts can import stdlib modules (pathlib, json) on every platform (issue #46)
 - [FIX] Spreadsheet: a cell reading a property or cross-referencing another cell no longer shows a stale or zero value on first open; the sheet is recalculated once after its data and custom functions are in place
 - [FIX] OPC-UA Client plugin: opening it no longer fails with a missing Opc.Ua.ClientControls assembly; the resolver now probes a plugin subfolder (plugins/opclibraries) for its private dependencies
+- [FIX] Dynamic simulation: the dynamic-mode property window now opens for a tank, gas-liquid separator, reactor, distillation column or pipe instead of failing with an invalid-cast error (issue #49)
 - [FIX] Pipe network editor: the temperature and pressure tolerance fields were loaded into each other's box; the stored values are worth checking in simulations saved earlier
 - [FIX] Pipe segment: no heat transfer was reported, and the increment stopped iterating, where the fluid crossed the ambient temperature along an increment
 - [FIX] Pipe network: the nodal solver's outer loop tests temperature against its own tolerance instead of one meant for pressure; a gas condensate now returns the same answer when solved repeatedly
