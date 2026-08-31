@@ -386,6 +386,28 @@
       <Setter Property="VerticalContentAlignment" Value="Center" />
       <Setter Property="Cursor" Value="Hand" />
     </Style>
+    <!-- A checked toolbar toggle (Calculator Active, Simultaneous Adjust, Connect, Dynamic Mode)
+         must read as "on". The base .toolbar style forces a transparent background, and Semi's own
+         template binds the content presenter's background to it and turns the checked glyph white,
+         so the white glyph landed on the transparent toolbar and the icon vanished. Paint the
+         checked fill directly on the content presenter Semi actually renders (PART_ContentPresenter),
+         with literal colours (a theme-dictionary DynamicResource resolved to nothing in this setter
+         context) - solid accent fill, white glyph - so the icon always contrasts with the bar. -->
+    <Style Selector="ToggleButton.toolbar:checked /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#2E7CD6" />
+      <Setter Property="BorderBrush" Value="#2E7CD6" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="ToggleButton.toolbar:checked:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#3A88E0" />
+      <Setter Property="BorderBrush" Value="#3A88E0" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="ToggleButton.toolbar:checked:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#2569BE" />
+      <Setter Property="BorderBrush" Value="#2569BE" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
     <Style Selector="Button.subtoolbar, Button.nav, Button.compact">
       <Setter Property="Background" Value="Transparent" />
       <Setter Property="BorderThickness" Value="0" />
