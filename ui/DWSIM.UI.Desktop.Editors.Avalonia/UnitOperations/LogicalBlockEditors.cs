@@ -156,7 +156,10 @@ namespace DWSIM.UI.Desktop.Editors
                 Attach(block, obj, role);
 
                 ReloadProperties();
-                propertyPicker.ItemsSource = properties.ToList();
+                // the picker was populated through Items (CreateAndAddDropDownRow), and Avalonia throws
+                // if ItemsSource is then assigned on top of that, so refill Items in place instead.
+                propertyPicker.Items.Clear();
+                foreach (var p in properties) propertyPicker.Items.Add(p);
                 propertyPicker.SelectedIndex = Math.Max(0, properties.IndexOf(info.PropertyName ?? ""));
 
                 StoreProperty();
@@ -191,7 +194,8 @@ namespace DWSIM.UI.Desktop.Editors
 
                     var refilled = UnitsOf(info.UnitsType);
                     if (unitPicker == null) return;
-                    unitPicker.ItemsSource = refilled;
+                    unitPicker.Items.Clear();
+                    foreach (var u in refilled) unitPicker.Items.Add(u);
                     unitPicker.SelectedIndex = Math.Max(0, refilled.IndexOf(info.Units ?? ""));
                 });
 
