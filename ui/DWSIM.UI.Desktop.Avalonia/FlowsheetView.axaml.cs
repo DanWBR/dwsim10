@@ -1252,6 +1252,10 @@ public partial class FlowsheetView : UserControl
                             _spreadsheet.Loaded = true;
                             if (_spreadsheet.Grid.Worksheets.Count > 0)
                                 _spreadsheet.Grid.CurrentWorksheet = _spreadsheet.Grid.Worksheets[0];
+                            // Recalculate every worksheet once the sheets are loaded so a cell that
+                            // reads a property or cross-references another cell resolves on opening,
+                            // instead of showing the stale/zero value it was saved with until re-touched.
+                            _spreadsheet.EvaluateAll();
                         });
                     }
                 }
