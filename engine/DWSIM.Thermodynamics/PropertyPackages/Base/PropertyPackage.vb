@@ -4543,6 +4543,12 @@ redirect2:                  IObj?.SetCurrent()
                                 ' smoothly, so a large jump from the last accepted point means the curve has
                                 ' reached its end: stop instead of appending the stray point.
                                 If PO.Count > 0 AndAlso Math.Abs(Presult - PO(PO.Count - 1)) > 0.5 * PO(PO.Count - 1) Then Exit Do
+                                ' A dew point past the critical point in BOTH temperature and pressure sits in
+                                ' the single-phase supercritical region, where no dew line exists: the flash has
+                                ' latched onto a spurious root. The genuine retrograde extrema each cross only one
+                                ' critical coordinate (the cricondentherm has T>Tc with P<Pc, the cricondenbar
+                                ' P>Pc with T<Tc), so crossing both means the curve has run past its end - stop.
+                                If T > TCR AndAlso Presult > PCR Then Exit Do
                                 Dim dewPdeviation = If(Pguess > 0, Math.Abs(Presult - Pguess) / Pguess, 0.0)
                                 If dewValidate AndAlso dewPdeviation > 0.03 Then
                                     Flowsheet?.ShowMessage("Phase Envelope generation: Dew TVF point rejected (P=" & Presult.ToString("G6") & " vs expected " & Pguess.ToString("G6") & ")", IFlowsheet.MessageType.Warning)
@@ -4602,6 +4608,11 @@ redirect2:                  IObj?.SetCurrent()
                                 ' A real dew line steps smoothly, so a large jump from the last accepted point
                                 ' means the curve has reached its end: stop instead of appending the stray point.
                                 If TVD.Count > 0 AndAlso Math.Abs(Tresult - TVD(TVD.Count - 1)) > 50.0 Then Exit Do
+                                ' A dew point past the critical point in BOTH temperature and pressure sits in
+                                ' the single-phase supercritical region, where no dew line exists: the flash has
+                                ' latched onto a spurious root. The genuine retrograde extrema each cross only one
+                                ' critical coordinate, so crossing both means the curve has run past its end - stop.
+                                If Tresult > TCR AndAlso P > PCR Then Exit Do
                                 Dim dewTdeviation = If(Tguess > 0, Math.Abs(Tresult - Tguess) / Tguess, 0.0)
                                 If dewValidate AndAlso dewTdeviation > 0.02 Then
                                     Flowsheet?.ShowMessage("Phase Envelope generation: Dew PVF point rejected (T=" & Tresult.ToString("G6") & " vs expected " & Tguess.ToString("G6") & ")", IFlowsheet.MessageType.Warning)
