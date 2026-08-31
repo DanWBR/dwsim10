@@ -99,12 +99,16 @@ Public Class Server
 
     End Sub
 
-    ''' <summary>Aborts the HTTP listener and terminates the background listening thread.</summary>
+    ''' <summary>Aborts the HTTP listener. The listening thread ends on its own once the listener
+    ''' stops, so it is not aborted here - Thread.Abort throws PlatformNotSupportedException on
+    ''' modern .NET, and the thread is a background one that never blocks process exit anyway.</summary>
     Sub StopServer()
 
-        Server.Abort()
+        Try
+            Server?.Abort()
+        Catch
+        End Try
         Server = Nothing
-        ListeningTask?.Abort()
         ListeningTask = Nothing
 
     End Sub

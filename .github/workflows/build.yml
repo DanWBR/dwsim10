@@ -33,17 +33,15 @@ jobs:
       - name: Build
         run: dotnet build DWSIM.slnx -c Release --no-restore
 
-      # Tests are disabled for now: on the Linux runner dotnet test does not return after every
-      # assembly passes - the assistant HTTP test (AssistantHttpTest) starts the server through
-      # StartServer and never stops it, so its listener keeps the test host alive and the step
-      # hangs until it is cancelled. Re-enable once the test tears the server down.
-      # - name: Test
-      #   run: dotnet test DWSIM.slnx -c Release --no-build --logger "trx;LogFileName=results.trx"
-      #
-      # - name: Upload test results
-      #   if: always()
-      #   uses: actions/upload-artifact@v4
-      #   with:
-      #     name: test-results-${{ matrix.os }}
-      #     path: '**/TestResults/*.trx'
-      #     if-no-files-found: ignore
+      # the smoke tests load and solve the sample flowsheets, which is the part that
+      # catches a port that compiles and does not run
+      - name: Test
+        run: dotnet test DWSIM.slnx -c Release --no-build --logger "trx;LogFileName=results.trx"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.os }}
+          path: '**/TestResults/*.trx'
+          if-no-files-found: ignore

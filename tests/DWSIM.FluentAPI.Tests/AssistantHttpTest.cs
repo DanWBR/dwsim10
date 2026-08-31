@@ -62,19 +62,29 @@ namespace DWSIM.FluentAPI.Tests
                 return;
             }
 
-            using (var http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) })
+            // Always stop the server: its HTTP listener otherwise keeps the test host alive and the
+            // whole `dotnet test` run hangs on exit (a background thread suffices on Windows, but the
+            // Linux managed listener does not let the process go until the listener is torn down).
+            try
             {
-                http.DefaultRequestHeaders.Add("X-DWSIM-Token", Token);
-
-                if (!Reachable(http))
+                using (var http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) })
                 {
-                    Console.WriteLine("Port 5002 is not answering — a DWSIM instance probably owns " +
-                                      "it. Skipping the HTTP checks.");
-                    return;
-                }
+                    http.DefaultRequestHeaders.Add("X-DWSIM-Token", Token);
 
-                CheckModifyUnit(http, fs);
-                CheckFlowsheetCheck(http);
+                    if (!Reachable(http))
+                    {
+                        Console.WriteLine("Port 5002 is not answering — a DWSIM instance probably owns " +
+                                          "it. Skipping the HTTP checks.");
+                        return;
+                    }
+
+                    CheckModifyUnit(http, fs);
+                    CheckFlowsheetCheck(http);
+                }
+            }
+            finally
+            {
+                server.StopServer();
             }
         }
 
