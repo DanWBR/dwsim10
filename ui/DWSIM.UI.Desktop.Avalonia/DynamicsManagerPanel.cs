@@ -1070,13 +1070,24 @@ public sealed class DynamicsManagerPanel : DockPanel
         return cb;
     }
 
+    // NumericUpDown works in decimal, whose range (about +/-7.9e28) is far narrower than double.
+    // A bound of double.MinValue/MaxValue - which the chart-axis rows pass - overflows the (decimal)
+    // cast and crashes the whole window, so clamp into the decimal range (and map NaN to zero) first.
+    private static decimal ToDecimalSafe(double d)
+    {
+        if (double.IsNaN(d)) return 0m;
+        if (d <= -7.9e28) return decimal.MinValue;
+        if (d >= 7.9e28) return decimal.MaxValue;
+        return (decimal)d;
+    }
+
     private static StackPanel MakeNumericRow(string label, double value, double min, double max, int decimals, Action<double> onChanged)
     {
         var nud = new NumericUpDown
         {
-            Value = (decimal)value,
-            Minimum = (decimal)min,
-            Maximum = (decimal)max,
+            Value = ToDecimalSafe(value),
+            Minimum = ToDecimalSafe(min),
+            Maximum = ToDecimalSafe(max),
             Increment = decimals > 0 ? (decimal)Math.Pow(10, -decimals) : 1,
             FormatString = decimals > 0 ? "F" + decimals : "F0",
             FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
