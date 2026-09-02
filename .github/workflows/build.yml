@@ -45,3 +45,4 @@ jobs:
           name: test-results-${{ matrix.os }}
           path: '**/TestResults/*.trx'
           if-no-files-found: ignore
+          retention-days: 7   # small, but no reason to keep test logs the full 90 days

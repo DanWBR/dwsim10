@@ -177,6 +177,7 @@ jobs:
           name: package-${{ matrix.rid }}
           path: artifacts/*
           if-no-files-found: error
+          retention-days: 1   # the release job downloads it in this same run; kept short to save storage
 
   # Inno Setup is a Windows tool, so the installer is built on a Windows runner from the already
   # published, self-contained payload. The x64 installer runs on ARM through emulation, but a native
@@ -285,6 +286,7 @@ jobs:
           name: installer-${{ matrix.rid }}
           path: dist/*.exe
           if-no-files-found: error
+          retention-days: 1   # the release job downloads it in this same run; kept short to save storage
 
   # Bundling, signing, notarising and stapling all need macOS. macos-14 is arm64; the Intel
   # payload is bundled there too, which is fine because nothing here runs it.
@@ -357,6 +359,7 @@ jobs:
           name: package-${{ matrix.rid }}-dmg
           path: artifacts/*.dmg
           if-no-files-found: error
+          retention-days: 1   # the release job downloads it in this same run; kept short to save storage
 
   # Two headless packages of the MCP server, for running DWSIM on a mini PC or SBC as a network
   # service. Each .deb installs a systemd unit (dwsim-mcp) listening on a TCP port. Publishing does
@@ -415,6 +418,7 @@ jobs:
         with:
           name: package-mcp-${{ matrix.rid }}
           path: artifacts
+          retention-days: 1   # the release job downloads it in this same run; kept short to save storage
 
   # Multi-architecture container image of the headless MCP server, for running DWSIM as a network
   # service in Docker on a PC or SBC. Pushed to GitHub Container Registry on a tag; a
