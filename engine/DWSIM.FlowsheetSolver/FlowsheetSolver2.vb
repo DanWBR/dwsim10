@@ -923,9 +923,10 @@ Imports DWSIM.SharedClasses
                                               For Each r As String In recycles
                                                   obj = fbag.SimulationObjects(r)
                                                   With DirectCast(obj, IRecycle)
-                                                      avgerr += 0.33 * .ConvergenceHistory.TemperaturaE / .ConvergenceHistory.Temperatura
-                                                      avgerr += 0.33 * .ConvergenceHistory.PressaoE / .ConvergenceHistory.Pressao
-                                                      avgerr += 0.33 * .ConvergenceHistory.VazaoMassicaE / .ConvergenceHistory.VazaoMassica
+                                                      ' guard each relative term against a zero-mass-flow torn stream (would read "NaN%")
+                                                      avgerr += 0.33 * If(Math.Abs(.ConvergenceHistory.Temperatura) > 0.000000000001, .ConvergenceHistory.TemperaturaE / .ConvergenceHistory.Temperatura, 0.0)
+                                                      avgerr += 0.33 * If(Math.Abs(.ConvergenceHistory.Pressao) > 0.000000000001, .ConvergenceHistory.PressaoE / .ConvergenceHistory.Pressao, 0.0)
+                                                      avgerr += 0.33 * If(Math.Abs(.ConvergenceHistory.VazaoMassica) > 0.000000000001, .ConvergenceHistory.VazaoMassicaE / .ConvergenceHistory.VazaoMassica, 0.0)
                                                   End With
                                                   rcount += 1
                                               Next

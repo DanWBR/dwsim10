@@ -491,18 +491,27 @@ Namespace SpecialOps
                 Throw New TimeoutException(FlowSheet.GetTranslatedString("RecycleMaxItsReached"))
             End If
 
-            If Math.Abs(Me.ConvergenceHistory.TemperaturaE) > Me.ConvergenceParameters.Temperatura Or
-                Math.Abs(Me.ConvergenceHistory.PressaoE) > Me.ConvergenceParameters.Pressao Or
-                Math.Abs(Me.ConvergenceHistory.VazaoMassicaE) > Me.ConvergenceParameters.VazaoMassica Then
+            Dim cvTErr = Math.Abs(Me.ConvergenceHistory.TemperaturaE)
+            Dim cvPErr = Math.Abs(Me.ConvergenceHistory.PressaoE)
+            Dim cvWErr = Math.Abs(Me.ConvergenceHistory.VazaoMassicaE)
+            Dim cvTol = Me.ConvergenceParameters
 
-                Me.Converged = False
+            ' A torn stream carrying essentially no mass - a separator that makes no vapour on this
+            ' iteration, say - has no meaningful temperature or pressure, so those errors never settle
+            ' and the recycle spins to its iteration limit on a stream that recycles nothing. When the
+            ' flow itself is within tolerance of zero, converge on the flow alone.
+            Dim cvNegligibleFlow = Math.Abs(Me.ConvergenceHistory.VazaoMassica) <= Math.Max(cvTol.VazaoMassica, 0.000000000001)
 
-            Else
+            If cvWErr <= cvTol.VazaoMassica AndAlso (cvNegligibleFlow OrElse (cvTErr <= cvTol.Temperatura AndAlso cvPErr <= cvTol.Pressao)) Then
 
                 If Me.IterationCount <> 0 Then Me.IterationsTaken = Me.IterationCount
                 Me.IterationCount = 0
 
                 Me.Converged = True
+
+            Else
+
+                Me.Converged = False
 
             End If
 
