@@ -14,7 +14,7 @@
       <StackPanel Spacing="3">
 
         <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-          <Button Name="BtnNew"       Classes="panel" Content="＋ New"       Padding="8,4" />
+          <Button Name="BtnNew"       Classes="panel" Content="+ New"       Padding="8,4" />
           <Button Name="BtnDuplicate" Classes="panel" Content="❐ Duplicate" Padding="8,4" />
           <Button Name="BtnDelete"    Classes="panel" Content="🗑 Delete"    Padding="8,4" />
           <Separator />

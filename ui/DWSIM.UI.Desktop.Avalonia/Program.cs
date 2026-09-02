@@ -16,6 +16,8 @@
 //    along with DWSIM.  If not, see <http://www.gnu.org/licenses/>.
 
 using Avalonia;
+using Avalonia.Media;
+using Avalonia.Media.Fonts;
 using Avalonia.WebView.Desktop;
 using System;
 
@@ -60,7 +62,21 @@ class Program
         var builder = AppBuilder.Configure<App>()
             .UsePlatformDetect()
             .UseDesktopWebView()
-            .LogToTrace();
+            .LogToTrace()
+            // The toolbar and palette icons are Unicode symbol/emoji glyphs. Windows (Segoe UI Emoji)
+            // and macOS (Apple Color Emoji) cover them; a stock Linux install often ships no font that
+            // does, so those icons showed as empty boxes. Ship two small monochrome fonts and register
+            // them as fallbacks - the platform UI font stays primary, these only fill the glyphs it
+            // lacks (issue #56). Monochrome also means the glyphs honour the foreground colour we set
+            // on some of them (the green Solve, red Abort).
+            .With(new FontManagerOptions
+            {
+                FontFallbacks = new[]
+                {
+                    new FontFallback { FontFamily = new FontFamily("avares://DWSIM.UI.Desktop.Avalonia/Assets/Fonts#Noto Sans Symbols2") },
+                    new FontFallback { FontFamily = new FontFamily("avares://DWSIM.UI.Desktop.Avalonia/Assets/Fonts#Noto Emoji") },
+                }
+            });
 
         // WSLg and some VMs present a blank window with the GPU compositor; force Avalonia's own
         // software renderer when asked, so the app can be verified there. Opt-in, off by default.

@@ -200,9 +200,9 @@
           <Button Name="BtnAlignLeft"   Classes="subtoolbar" ToolTip.Tip="Align Lefts"   Content="⇤" />
           <Button Name="BtnAlignCenter" Classes="subtoolbar" ToolTip.Tip="Align Centers" Content="⇔" />
           <Button Name="BtnAlignRight"  Classes="subtoolbar" ToolTip.Tip="Align Rights"  Content="⇥" />
-          <Button Name="BtnAlignTop"    Classes="subtoolbar" ToolTip.Tip="Align Tops"    Content="⤒" />
+          <Button Name="BtnAlignTop"    Classes="subtoolbar" ToolTip.Tip="Align Tops"    Content="⬆" />
           <Button Name="BtnAlignMiddle" Classes="subtoolbar" ToolTip.Tip="Align Middles" Content="⇕" />
-          <Button Name="BtnAlignBottom" Classes="subtoolbar" ToolTip.Tip="Align Bottoms" Content="⤓" />
+          <Button Name="BtnAlignBottom" Classes="subtoolbar" ToolTip.Tip="Align Bottoms" Content="⬇" />
           <Button Name="BtnEqualizeH"   Classes="subtoolbar" ToolTip.Tip="Equalize Horizontal Spacing" Content="↔" />
           <Button Name="BtnEqualizeV"   Classes="subtoolbar" ToolTip.Tip="Equalize Vertical Spacing"   Content="↕" />
           <Border Classes="vdivider" />

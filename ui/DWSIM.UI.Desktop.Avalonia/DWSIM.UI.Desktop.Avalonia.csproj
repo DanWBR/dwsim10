@@ -77,6 +77,11 @@
   <ItemGroup>
     <AvaloniaResource Include="Assets\dwsim.ico" />
     <AvaloniaResource Include="Assets\DWSIM_splash_v10.png" />
+    <!-- Symbol/emoji fonts (SIL OFL) bundled as glyph-icon fallbacks so the toolbar and palette icons
+         render on Linux, where a stock install often has no font covering them (issue #56). -->
+    <AvaloniaResource Include="Assets\Fonts\NotoSansSymbols2-Regular.ttf" />
+    <AvaloniaResource Include="Assets\Fonts\NotoEmoji-Regular.ttf" />
+    <None Include="Assets\Fonts\OFL.txt" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
