@@ -851,8 +851,11 @@ Namespace UnitOperations
 
         Public Overridable Function GetPropertyValue(prop As String, Optional su As Interfaces.IUnitsOfMeasure = Nothing) As Object Implements Interfaces.ISimulationObject.GetPropertyValue
 
+            'no unit system means SI, as for the regular properties of every object; the
+            'callers that convert for display (gauges, monitored variables, sensitivity
+            'analysis) all apply ConvertFromSI to what comes back from here
             If su Is Nothing Then
-                su = FlowSheet.FlowsheetOptions.SelectedUnitSystem
+                su = New SystemsOfUnits.SI
             End If
 
             Dim epcol = DirectCast(ExtraProperties, IDictionary(Of String, Object))
@@ -924,9 +927,17 @@ Namespace UnitOperations
         Public Overridable Function SetPropertyValue(prop As String, propval As Object, Optional su As Interfaces.IUnitsOfMeasure = Nothing) As Boolean Implements Interfaces.ISimulationObject.SetPropertyValue
 
             Dim epcol = DirectCast(ExtraProperties, IDictionary(Of String, Object))
+            Dim epucol = DirectCast(ExtraPropertiesUnitTypes, IDictionary(Of String, Object))
 
             If epcol.ContainsKey(prop) Then
-                epcol(prop) = propval
+                'dynamic properties are stored in SI; a value given in another unit system is
+                'converted here, the mirror of what GetPropertyValue does on the way out
+                If su IsNot Nothing AndAlso epucol.ContainsKey(prop) AndAlso TypeOf propval Is Double Then
+                    Dim units = su.GetCurrentUnits(epucol(prop))
+                    epcol(prop) = cv.ConvertToSI(units, Convert.ToDouble(propval))
+                Else
+                    epcol(prop) = propval
+                End If
                 Return True
             End If
 

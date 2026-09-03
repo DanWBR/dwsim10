@@ -1,4 +1,4 @@
-'    Flowsheet Object Base Classes
+﻿'    Flowsheet Object Base Classes
 '    Copyright 2008-2020 Daniel Wagner O. de Medeiros
 '
 '    This file is part of DWSIM.
@@ -377,6 +377,10 @@ Namespace UnitOperations
 
         Public Overrides Function SaveDynamicState() As Object
             If AccumulationStream IsNot Nothing Then
+                'a content stream loaded from a file has no flowsheet or property package
+                'until the dynamic model runs; CloneXML needs both
+                If AccumulationStream.FlowSheet Is Nothing Then AccumulationStream.SetFlowsheet(FlowSheet)
+                If AccumulationStream.PropertyPackage Is Nothing Then AccumulationStream.PropertyPackage = PropertyPackage
                 Return AccumulationStream.CloneXML()
             End If
             Return Nothing

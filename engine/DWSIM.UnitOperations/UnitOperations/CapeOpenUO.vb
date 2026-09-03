@@ -1047,6 +1047,19 @@ Namespace UnitOperations
                     Try
 
                         Dim t As Type = Type.GetTypeFromProgID(_seluo.TypeName)
+
+                        'loading over a live object (snapshot restore): terminate and release the
+                        'current COM instance before creating another, or it is left for the
+                        'finalizer thread to tear down with no Terminate call
+                        If _couo IsNot Nothing Then
+                            Try
+                                Terminate()
+                            Catch ex As Exception
+                            End Try
+                            If Marshal.IsComObject(_couo) Then Marshal.ReleaseComObject(_couo)
+                            _couo = Nothing
+                        End If
+
                         _couo = Activator.CreateInstance(t)
 
                         InitNew()

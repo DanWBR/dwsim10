@@ -5701,6 +5701,17 @@ Label_00CC:
 
                 If xdoc.Element("DWSIM_Simulation_Data").Element("SimulationObjects") IsNot Nothing Then
 
+                    'CAPE-OPEN unit operations hold a live COM object: terminate it here rather
+                    'than leaving it to the finalizer thread after the collection is cleared
+                    For Each so In SimulationObjects.Values
+                        If TypeOf so Is CapeOpenUO Then
+                            Try
+                                DirectCast(so, CapeOpenUO).Dispose()
+                            Catch ex As Exception
+                            End Try
+                        End If
+                    Next
+
                     SimulationObjects.Clear()
 
                     data = xdoc.Element("DWSIM_Simulation_Data").Element("SimulationObjects").Elements.ToList
