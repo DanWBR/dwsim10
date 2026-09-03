@@ -1010,7 +1010,7 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                 Next
             Else
                 For i = 0 To ns
-                    xc(i) = x(i)
+                    xc(i) = DirectCast(x(i).Clone(), Double())
                 Next
             End If
 
@@ -1686,7 +1686,7 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                     Next
                 Else
                     For i = 0 To ns
-                        xc(i) = x(i)
+                        xc(i) = DirectCast(x(i).Clone(), Double())
                     Next
                 End If
 

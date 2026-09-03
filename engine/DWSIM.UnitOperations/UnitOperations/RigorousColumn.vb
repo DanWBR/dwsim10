@@ -3660,9 +3660,10 @@ Namespace UnitOperations
 
                     For i = 0 To ns
                         Dim sflash As Object() = pp.FlashBase.Flash_PT(zm, P(i), T(i), pp)
-                        x(i) = sflash(2)
-                        y(i) = sflash(3)
-                        Kval(i) = sflash(9)
+                        'clone: a single-phase flash returns its input array, which is shared by every stage
+                        x(i) = DirectCast(DirectCast(sflash(2), Double()).Clone(), Double())
+                        y(i) = DirectCast(DirectCast(sflash(3), Double()).Clone(), Double())
+                        Kval(i) = DirectCast(DirectCast(sflash(9), Double()).Clone(), Double())
                     Next
 
                     'LSS(0) = 0
@@ -5730,9 +5731,10 @@ Namespace UnitOperations
                         Dim zLocal = If(fAccum > 0, zAccum.Clone(), zm.Clone())
                         Try
                             Dim sflash As Object() = pp.FlashBase.Flash_PT(zLocal, P(i), T(i), pp)
-                            x(i) = sflash(2)
-                            y(i) = sflash(3)
-                            Kval(i) = sflash(9)
+                            'clone: a single-phase flash returns its input array, which is shared by every stage
+                            x(i) = DirectCast(DirectCast(sflash(2), Double()).Clone(), Double())
+                            y(i) = DirectCast(DirectCast(sflash(3), Double()).Clone(), Double())
+                            Kval(i) = DirectCast(DirectCast(sflash(9), Double()).Clone(), Double())
                         Catch
                             x(i) = zLocal.Clone()
                             y(i) = zLocal.Clone()

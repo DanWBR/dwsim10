@@ -119,11 +119,13 @@ namespace DWSIM.Engine.SmokeTests
         }
 
         [TestCase("CavettProblem.dwxml")]
+        [TestCase("ExtractiveDistillation.dwxmz")]
         [TestCase("GibbsAndEquilibriumReactors.dwxml")]
         [TestCase("HeatExchangerSizingAndDesign.dwxml")]
         [TestCase("HydrocycloneCustomUnitOperation.dwxml")]
         [TestCase("HydrogenproductionthroughMethaneCatalyticSteamReforming.dwxml")]
         [TestCase("MembraneCustomUnitOperation.dwxml")]
+        [TestCase("NaturalGasProcessingUnit.dwxml")]
         [TestCase("PetroleumDistillation.dwxml")]
         [TestCase("SimpleLNGExchangerCustomUnitOperation.dwxml")]
         [TestCase("ThreePhaseSeparator.dwxml")]
@@ -145,15 +147,14 @@ namespace DWSIM.Engine.SmokeTests
             Assert.That(streams.All(s => s.Calculated), "some material stream was left uncalculated");
         }
 
-        // The seven samples below do not solve, and do not solve on the .NET Framework build of the
-        // engine either: the same object reports the same message there. Four are columns that miss
-        // the tolerance, one is a column that breaks its own mass balance, and two carry scripts
-        // written for Python 2 that no longer parse. They are pinned here so that the day one of
-        // them starts behaving differently, the suite says so.
+        // The three samples below do not solve, and do not solve on the .NET Framework build of the
+        // engine either: the same object reports the same message there. All three are columns that
+        // miss the tolerance. They are pinned here so that the day one of them starts behaving
+        // differently, the suite says so. (The acetone column of ExtractiveDistillation and the
+        // debutanizer of NaturalGasProcessingUnit used to be pinned too; both solve since the
+        // bubble-point solver stopped sharing one composition array between stages.)
         [TestCase("BiodieselProduction.dwxmz", "Biodiesel Purification: DCErrorStillHigh")]
-        [TestCase("ExtractiveDistillation.dwxmz", "Acetone Column (6 atm): DCErrorStillHigh")]
         [TestCase("LiquidLiquidExtraction.dwxmz", "ABS-002: DCErrorStillHigh")]
-        [TestCase("NaturalGasProcessingUnit.dwxml", "DEBUTANIZER: Failed to fulfill mass balance")]
         [TestCase("SimpleAbsorberSample.dwxml", "ABS-000: DCErrorStillHigh")]
         public void AFlowsheetFailsTheWayItAlreadyDid(string filename, string expected)
         {

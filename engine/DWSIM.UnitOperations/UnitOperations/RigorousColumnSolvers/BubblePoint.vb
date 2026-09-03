@@ -1229,7 +1229,9 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                     Next
                 Else
                     For i = 0 To ns
-                        xc(i) = x(i)
+                        'the estimates may share one array between stages (a single-phase
+                        'flash hands back its input), and xc is updated in place below
+                        xc(i) = DirectCast(x(i).Clone(), Double())
                     Next
                 End If
 
@@ -1303,11 +1305,6 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                         Kfac(i) = K(i).MaxY_NonZero(xc(i)) / K(i).MinY_NonZero(xc(i))
                     Next
 
-                    If Kfac.Max > 10000 Then
-                        'wide boiling mixture. switch to Mode 1.
-                        Mode = 1
-                    End If
-
                     If dTj.AbsY.Max > maxDT Then af = maxDT / dTj.AbsY.Max Else af = 1.0
 
                     If maxDT < 50 Then
@@ -1329,7 +1326,7 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                 Else
 
                     For i = 0 To ns
-                        fx(i) = 1 - K(i).MultiplyY(x(i)).SumY()
+                        fx(i) = 1 - K(i).MultiplyY(xc(i)).SumY()
                     Next
 
                     xtj = Tj
