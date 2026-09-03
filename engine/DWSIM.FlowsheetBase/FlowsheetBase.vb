@@ -5701,16 +5701,11 @@ Label_00CC:
 
                 If xdoc.Element("DWSIM_Simulation_Data").Element("SimulationObjects") IsNot Nothing Then
 
-                    'CAPE-OPEN unit operations hold a live COM object: terminate it here rather
-                    'than leaving it to the finalizer thread after the collection is cleared
-                    For Each so In SimulationObjects.Values
-                        If TypeOf so Is CapeOpenUO Then
-                            Try
-                                DirectCast(so, CapeOpenUO).Dispose()
-                            Catch ex As Exception
-                            End Try
-                        End If
-                    Next
+                    'CAPE-OPEN unit operations wrap a live COM object (ChemSep is an STA in-proc
+                    'server): destroying it and creating another from the persisted data during
+                    'the session brings the process down, so the live instance is kept and only
+                    'rewired to the rebuilt graphic objects below
+                    Dim livecouo = SimulationObjects.Values.OfType(Of CapeOpenUO).ToDictionary(Function(o) o.Name)
 
                     SimulationObjects.Clear()
 
@@ -5724,8 +5719,12 @@ Label_00CC:
                         Try
                             Dim id As String = xel.<Name>.Value
                             Dim obj As SharedClasses.UnitOperations.BaseClass = Nothing
+                            Dim reused As Boolean = False
                             If xel.Element("Type").Value.Contains("Streams.MaterialStream") Then
                                 obj = New Streams.MaterialStream()
+                            ElseIf xel.Element("Type").Value.Contains("CapeOpenUO") AndAlso livecouo.ContainsKey(id) Then
+                                obj = livecouo(id)
+                                reused = True
                             Else
                                 Dim uokey As String = xel.Element("ComponentDescription").Value
                                 If AvailableExternalUnitOperations.ContainsKey(uokey) Then
@@ -5740,7 +5739,7 @@ Label_00CC:
                             gobj.Owner = obj
                             obj.SetFlowsheet(Me)
                             If Not gobj Is Nothing Then
-                                obj.LoadData(xel.Elements.ToList)
+                                If Not reused Then obj.LoadData(xel.Elements.ToList)
                                 If TypeOf obj Is Streams.MaterialStream Then
                                     For Each phase As BaseClasses.Phase In DirectCast(obj, Streams.MaterialStream).Phases.Values
                                         For Each c As ConstantProperties In Options.SelectedComponents.Values
