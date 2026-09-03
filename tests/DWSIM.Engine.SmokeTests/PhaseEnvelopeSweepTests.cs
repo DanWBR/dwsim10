@@ -95,7 +95,9 @@ namespace DWSIM.Engine.SmokeTests
         /// Methane/ethane/propane at random compositions, sweeping methane from 0 to 100 percent with the
         /// balance split randomly between ethane and propane (fixed seed for reproducibility). Every
         /// composition must build an envelope without throwing; genuine ternary mixtures (no component
-        /// vanishing) must produce a real envelope whose dew curve reaches the critical point.
+        /// vanishing) must produce a real envelope whose dew curve reaches the critical point. The
+        /// near-pure endpoints are tolerated: pure methane is degenerate, and the ethane/propane binary
+        /// at zero methane hits a separate critical-point-solver defect that is out of scope here.
         /// </summary>
         [Test]
         public void MethaneEthanePropaneEnvelopesBuildAcrossTheMethaneRange()
@@ -127,6 +129,8 @@ namespace DWSIM.Engine.SmokeTests
                     {
                         if (e.nb < 10) problems.Add($"x(C1)={fr[0]:F3}: bubble curve too short ({e.nb})");
                         if (e.nd < 10) problems.Add($"x(C1)={fr[0]:F3}: dew curve too short ({e.nd})");
+                        if (e.tc > 0.0 && e.closestDewRel >= 0.05)
+                            problems.Add($"x(C1)={fr[0]:F3}: dew curve stops short of the critical point (closest {e.closestDewRel:F4})");
                     }
                 }
                 catch (Exception ex) when (genuineMixture)
