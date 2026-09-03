@@ -2917,6 +2917,16 @@ public partial class FlowsheetView : UserControl
             }
         }
 
+        // ChemSep-column shortcut under Columns (Windows only): a CAPE-OPEN unit operation preset to
+        // ChemSep, shown with the distillation-column icon - mirrors the classic WinForms palette
+        // (SimulationObjectsPanel). Inserting it routes to the engine's "ChemSep Column" AddObject case.
+        if (OperatingSystem.IsWindows() && _paletteCategories.TryGetValue("Columns", out var columnItems)
+            && columnItems.All(it => it.name != "ChemSep Column"))
+        {
+            var icon = columnItems.FirstOrDefault(it => it.name == "Distillation Column").icon;
+            columnItems.Add(("ChemSep Column", icon, "ChemSep Rigorous Separation Column (CAPE-OPEN)"));
+        }
+
         // Build collapsible sections for each category, in the classic palette order, with any
         // third-party product groups appended after the built-ins (alphabetical) and the shared
         // "Third-Party" catch-all last.
@@ -3288,6 +3298,13 @@ public partial class FlowsheetView : UserControl
 
             return picked!;
         };
+
+        // The ChemSep-column shortcut: scan the registry for ChemSep's CAPE-OPEN object directly,
+        // without a picker (the WinForms wait-window path is not built here).
+        DWSIM.UnitOperations.UnitOperations.CapeOpenUO.ChemSepFinderOverride = () =>
+            DWSIM.UnitOperations.UnitOperations.CapeOpenUO
+                .SearchRegisteredUnitOperations(true)
+                .FirstOrDefault(x => (x.Name ?? string.Empty).ToLower().Contains("chemsep"))!;
     }
 
     // -------------------------------------------------------------------------

@@ -1015,6 +1015,10 @@ Imports DWSIM.ExtensionMethods
 
                 Return Me.SimulationObjects(AddObjectToSurface(ObjectType.CapeOpenUO, x, y, tag,,, CreateConnected))
 
+            Case "ChemSep Column"
+
+                Return Me.SimulationObjects(AddObjectToSurface(ObjectType.CapeOpenUO, x, y, tag,,, CreateConnected, True))
+
             Case "Digital Gauge"
 
                 Return Me.SimulationObjects(AddObjectToSurface(ObjectType.DigitalGauge, x, y, tag,,, CreateConnected))
@@ -1379,7 +1383,8 @@ Imports DWSIM.ExtensionMethods
                                        Optional tag As String = "",
                                        Optional id As String = "",
                                        Optional uoobj As Interfaces.IExternalUnitOperation = Nothing,
-                                       Optional CreateConnected As Boolean = False) As String
+                                       Optional CreateConnected As Boolean = False,
+                                       Optional chemsep As Boolean = False) As String
 
         RegisterSnapshot(SnapshotType.ObjectAddedOrRemoved)
 
@@ -2126,8 +2131,14 @@ Imports DWSIM.ExtensionMethods
                 CheckTag(gObj)
                 gObj.Name = "COUO-" & Guid.NewGuid.ToString
                 If id <> "" Then gObj.Name = id
+                If chemsep Then
+                    If tag = "" Then gObj.Tag = "CSCOL-" + objindex
+                    DirectCast(gObj, CAPEOPENGraphic).ChemSep = True
+                    gObj.Width = 144
+                    gObj.Height = 180
+                End If
                 GraphicObjects.Add(gObj.Name, myCUO)
-                Dim myCOCUO As CapeOpenUO = New CapeOpenUO(myCUO.Name, "CapeOpenUnitOperation", gObj, False)
+                Dim myCOCUO As CapeOpenUO = New CapeOpenUO(myCUO.Name, "CapeOpenUnitOperation", gObj, chemsep)
                 myCOCUO.GraphicObject = myCUO
                 SimulationObjects.Add(myCUO.Name, myCOCUO)
 

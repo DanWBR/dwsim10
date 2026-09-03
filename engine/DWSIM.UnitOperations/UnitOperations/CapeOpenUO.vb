@@ -123,6 +123,23 @@ Namespace UnitOperations
                     ShowForm()
                     Instantiate(False)
 
+                ElseIf ChemSepFinderOverride IsNot Nothing Then
+
+                    ' Non-WinForms host (e.g. the Avalonia UI): the WinForms AddChemSepColumn (with its
+                    ' registry-scan wait window) is not built here, so let the host find ChemSep's
+                    ' CAPE-OPEN object from the registry and instantiate it directly.
+                    Me._seluo = ChemSepFinderOverride.Invoke()
+                    If _seluo IsNot Nothing Then
+                        If GraphicObject IsNot Nothing Then
+                            GraphicObject.ChemSep = True
+                            GraphicObject.Width = 144
+                            GraphicObject.Height = 180
+                        End If
+                        Instantiate(True)
+                    Else
+                        FlowSheet?.ShowMessage("Error creating ChemSep column: ChemSep is not installed or cannot be accessed by DWSIM.", IFlowsheet.MessageType.GeneralError)
+                    End If
+
                 Else
 
                     AddChemSepColumn()
@@ -429,6 +446,13 @@ Namespace UnitOperations
         ''' Leave it Nothing (the default) to keep using the built-in WinForms selector.
         ''' </summary>
         Public Shared Property SelectorOverride As Func(Of Auxiliary.CapeOpen.CapeOpenUnitOpInfo)
+
+        ''' <summary>
+        ''' Lets a host that is not WinForms supply ChemSep's CAPE-OPEN unit operation (from
+        ''' SearchRegisteredUnitOperations) for the ChemSep-column shortcut. Leave it Nothing (the
+        ''' default) to keep using the built-in WinForms AddChemSepColumn path.
+        ''' </summary>
+        Public Shared Property ChemSepFinderOverride As Func(Of Auxiliary.CapeOpen.CapeOpenUnitOpInfo)
 
         Sub ShowForm()
 
