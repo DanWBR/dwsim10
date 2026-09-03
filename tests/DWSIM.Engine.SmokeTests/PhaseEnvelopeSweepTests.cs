@@ -145,5 +145,33 @@ namespace DWSIM.Engine.SmokeTests
 
             Assert.That(problems, Is.Empty, string.Join(" | ", problems));
         }
+
+        private static (double tc, double pc) Cp(string[] compounds, double[] fractions)
+        {
+            var cps = PR78(compounds, fractions).DW_CalculateCriticalPoints();
+            return cps.Count > 0 ? (cps[0][0], cps[0][1]) : (0.0, 0.0);
+        }
+
+        /// <summary>
+        /// A component present at exactly zero mole fraction must not corrupt the mixture critical
+        /// point (its terms in the critical Hessian are otherwise infinite, and the solver returned a
+        /// garbage point such as 695 K / -6393 bar). The critical point of a ternary with one
+        /// component at zero must match that of the binary of the components actually present.
+        /// </summary>
+        [Test]
+        public void CriticalPointIsRobustToAZeroFractionComponent()
+        {
+            var binaryC2C3 = Cp(new[] { "Ethane", "Propane" }, new[] { 0.342, 0.658 });
+            var ternaryNoC1 = Cp(new[] { "Methane", "Ethane", "Propane" }, new[] { 0.0, 0.342, 0.658 });
+            TestContext.WriteLine($"C2/C3 = {binaryC2C3.tc:F2} K / {binaryC2C3.pc / 1e5:F2} bar   ternary(0 C1) = {ternaryNoC1.tc:F2} K / {ternaryNoC1.pc / 1e5:F2} bar");
+            Assert.That(ternaryNoC1.tc, Is.EqualTo(binaryC2C3.tc).Within(1.0), "zero-methane ternary Tc differs from the ethane/propane binary");
+            Assert.That(ternaryNoC1.pc, Is.EqualTo(binaryC2C3.pc).Within(0.5e5), "zero-methane ternary Pc differs from the ethane/propane binary");
+
+            var binaryC1C2 = Cp(new[] { "Methane", "Ethane" }, new[] { 0.5, 0.5 });
+            var ternaryNoC3 = Cp(new[] { "Methane", "Ethane", "Propane" }, new[] { 0.5, 0.5, 0.0 });
+            TestContext.WriteLine($"C1/C2 = {binaryC1C2.tc:F2} K / {binaryC1C2.pc / 1e5:F2} bar   ternary(0 C3) = {ternaryNoC3.tc:F2} K / {ternaryNoC3.pc / 1e5:F2} bar");
+            Assert.That(ternaryNoC3.tc, Is.EqualTo(binaryC1C2.tc).Within(1.0), "zero-propane ternary Tc differs from the methane/ethane binary");
+            Assert.That(ternaryNoC3.pc, Is.EqualTo(binaryC1C2.pc).Within(0.5e5), "zero-propane ternary Pc differs from the methane/ethane binary");
+        }
     }
 }

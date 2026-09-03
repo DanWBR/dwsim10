@@ -868,6 +868,19 @@ Namespace PropertyPackages
         Public Overrides Function DW_CalculateCriticalPoints() As List(Of Double())
 
             Dim Vz = RET_VMOL(Phase.Mixture)
+
+            ' A component at exactly zero mole fraction makes the critical Hessian singular and the
+            ' solver returns a garbage point; a trace amount has no measurable effect on the critical
+            ' point, so floor the zero fractions and renormalize.
+            Dim vzsum As Double = 0.0
+            For iz As Integer = 0 To Vz.Length - 1
+                If Vz(iz) < 0.0001 Then Vz(iz) = 0.0001
+                vzsum += Vz(iz)
+            Next
+            For jz As Integer = 0 To Vz.Length - 1
+                Vz(jz) /= vzsum
+            Next
+
             Dim VTc = RET_VTC()
             Dim VPc = RET_VPC()
             Dim Vw = RET_VW()

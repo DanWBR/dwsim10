@@ -1834,6 +1834,20 @@ Namespace PropertyPackages
 
             Dim Vz = RET_VMOL(Phase.Mixture)
 
+            ' A component present at exactly zero mole fraction makes the critical Hessian singular
+            ' (its ln(n) / 1/n terms blow up), so the determinant and criticality functions come back
+            ' NaN and the solver returns a garbage point. A trace amount has no measurable effect on
+            ' the critical point (a fraction of 1e-4 already reproduces it), so floor the zero
+            ' fractions to a tiny value and renormalize.
+            Dim vzsum As Double = 0.0
+            For iz As Integer = 0 To Vz.Length - 1
+                If Vz(iz) < 0.0001 Then Vz(iz) = 0.0001
+                vzsum += Vz(iz)
+            Next
+            For jz As Integer = 0 To Vz.Length - 1
+                Vz(jz) /= vzsum
+            Next
+
             Dim VTc = RET_VTC()
             Dim VPc = RET_VPC()
 
