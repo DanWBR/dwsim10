@@ -73,34 +73,20 @@ namespace DWSIM.Engine.SmokeTests
 
         /// <summary>
         /// Methane/ethane across the composition range: the dew curve must reach the critical point.
-        /// x(C1) = 0.05 is a normal envelope, x(C1) = 0.95 has its critical point below methane's own
-        /// critical temperature - both must close on the critical point.
+        /// x(C1) = 0.05 is a normal envelope; x(C1) = 0.95 has its critical point below methane's own
+        /// critical temperature; and the methane-rich band (x(C1) ~0.86-0.94) has a cricondentherm far
+        /// above the critical temperature, so its dew line only reaches the critical point along its
+        /// long retrograde branch. All must close on the critical point.
         /// </summary>
         [Test]
         public void MethaneEthaneDewCurveReachesCriticalPoint(
-            [Values(0.05, 0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 0.95)] double xC1)
+            [Values(0.05, 0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 0.88, 0.90, 0.92, 0.94, 0.95)] double xC1)
         {
             var e = Envelope(PR78(new[] { "Methane", "Ethane" }, new[] { xC1, 1.0 - xC1 }));
             TestContext.WriteLine($"x(C1)={xC1:F2}  CP T={e.tc:F2} K P={e.pc / 1e5:F2} bar  bubble={e.nb} dew={e.nd}  closestDewRel={e.closestDewRel:F4}");
 
             Assert.That(e.nb, Is.GreaterThan(10), "bubble curve too short");
             Assert.That(e.nd, Is.GreaterThan(10), "dew curve too short");
-            Assert.That(e.closestDewRel, Is.LessThan(0.05),
-                        $"the dew curve stops short of the critical point (closest approach {e.closestDewRel:F4})");
-        }
-
-        /// <summary>
-        /// Known pre-existing gap: for methane-rich methane/ethane (roughly x(C1) 0.86 to 0.94) the dew
-        /// tracer takes a wrong turn early and follows only the low-temperature branch, so the dew curve
-        /// never rises toward the critical point. This is a dew-tracing instability separate from the
-        /// retrograde-finish behaviour these tests guard; kept here to document the compositions.
-        /// </summary>
-        [Test]
-        [Ignore("pre-existing methane-rich dew-tracer instability (x(C1) ~0.86-0.94); tracked separately")]
-        public void MethaneRichDewCurveReachesCriticalPoint(
-            [Values(0.88, 0.90, 0.92, 0.94)] double xC1)
-        {
-            var e = Envelope(PR78(new[] { "Methane", "Ethane" }, new[] { xC1, 1.0 - xC1 }));
             Assert.That(e.closestDewRel, Is.LessThan(0.05),
                         $"the dew curve stops short of the critical point (closest approach {e.closestDewRel:F4})");
         }

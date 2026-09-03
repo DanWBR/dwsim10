@@ -3992,9 +3992,14 @@ redirect2:                  IObj?.SetCurrent()
             Dim pStep As Double = If(deltaP > 0, deltaP, 25000.0)
             Dim pR As Double = PO(PO.Count - 1) + pStep
             Dim tGuess As Double = TVD(TVD.Count - 1)
-            ' Stop just short of the critical pressure: the last fraction of a bar before it has the
-            ' density roots nearly merged, where the flash is noisy, and the curve is closed on the
-            ' analytical critical point anyway.
+            ' The retrograde temperature approaches the critical temperature as the pressure rises to
+            ' the critical pressure - from above for a cricondentherm past the critical point, from
+            ' below for a mixture whose dew temperature rises to it. Track the distance to the critical
+            ' temperature: it must shrink. It may steepen sharply near the cricondentherm (large steps
+            ' are fine there), so do not cap the step size; only stop when the distance starts growing
+            ' again (a stray root) or the critical temperature is reached. Stop just short of the
+            ' critical pressure, where the density roots merge and the flash turns noisy.
+            Dim prevDist As Double = Math.Abs(tGuess - TCR)
             Do While pR < PCR * 0.99
                 Dim tR As Double
                 Try
@@ -4003,17 +4008,17 @@ redirect2:                  IObj?.SetCurrent()
                 Catch
                     Exit Do
                 End Try
-                ' A real dew line steps smoothly (in either direction - the retrograde temperature
-                ' may rise or fall toward the critical point depending on the mixture). A jump means
-                ' the flash has latched onto a stray near-critical root, so stop and close on the
-                ' critical point instead of drawing to it.
-                If tR <= 0 OrElse Math.Abs(tR - tGuess) > 2.0 Then Exit Do
+                If tR <= 0.0 Then Exit Do
+                Dim dist As Double = Math.Abs(tR - TCR)
+                If dist < 0.5 Then Exit Do
+                If dist > prevDist + 2.0 Then Exit Do
                 TVD.Add(tR)
                 PO.Add(pR)
                 HO.Add(Me.DW_CalcEnthalpy(Vz, tR, pR, State.Vapor))
                 SO.Add(Me.DW_CalcEntropy(Vz, tR, pR, State.Vapor))
                 VO.Add(1 / Me.AUX_VAPDENS(tR, pR) * Me.AUX_MMM(Phase.Mixture))
                 tGuess = tR
+                prevDist = dist
                 pR += pStep
             Loop
             ' close the dew line exactly on the analytical critical point
@@ -4722,6 +4727,15 @@ redirect2:                  IObj?.SetCurrent()
 
                         Dim pastCricondentherm = (TVD.Count >= 3 AndAlso TVD(TVD.Count - 1) < TVD(TVD.Count - 2))
 
+                        ' Once the dew line turns back past the cricondentherm within reach of a known
+                        ' critical point, hand off to the pressure-stepping retrograde finish. The
+                        ' temperature-stepping tracer here solves the dew pressure from the temperature,
+                        ' and past the cricondentherm that has two roots - it takes the low-pressure one
+                        ' and retraces its way back down instead of climbing the retrograde branch to the
+                        ' critical point (seen on methane-rich mixtures, whose cricondentherm sits above
+                        ' the critical temperature). The retrograde branch is single-valued in pressure.
+                        If stopAtCP AndAlso pastCricondentherm AndAlso dewRelDistCP < 0.5 Then Exit Do
+
                         If pastCricondentherm AndAlso dewRelDistCP < 0.15 Then
                             Dim absDeltaT = If(dewRelDistCP < 0.05, 0.5, 1.0)
                             Dim absDeltaP = If(dewRelDistCP < 0.05, 10000.0, 50000.0)
@@ -4775,7 +4789,7 @@ redirect2:                  IObj?.SetCurrent()
                 If stopAtCP AndAlso PO.Count > 0 AndAlso TVD.Count > 0 Then
                     Dim dewLastRelCP = Math.Max(Math.Abs(TVD(TVD.Count - 1) - TCR) / TCR, Math.Abs(PO(PO.Count - 1) - PCR) / PCR)
                     Dim dewAtCP = (Math.Abs(PO(PO.Count - 1) - PCR) / PCR < 0.001 AndAlso Math.Abs(TVD(TVD.Count - 1) - TCR) / TCR < 0.001)
-                    If Not dewAtCP AndAlso dewLastRelCP < 0.25 AndAlso PO(PO.Count - 1) < PCR Then
+                    If Not dewAtCP AndAlso dewLastRelCP < 0.5 AndAlso PO(PO.Count - 1) < PCR Then
                         TraceDewRetrogradeToCP(Vz, PO, TVD, HO, SO, VO, TCR, PCR, options.DewCurveDeltaP)
                     End If
                 End If
