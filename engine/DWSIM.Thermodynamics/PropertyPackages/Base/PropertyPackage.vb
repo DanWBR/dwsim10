@@ -4003,18 +4003,32 @@ redirect2:                  IObj?.SetCurrent()
         Private Sub TraceDewRetrogradeToCP(Vz As Double(), PO As List(Of Double), TVD As List(Of Double),
                                            HO As List(Of Double), SO As List(Of Double), VO As List(Of Double),
                                            TCR As Double, PCR As Double, deltaP As Double)
+            Dim pPrev As Double = PO(PO.Count - 1)
+            Dim tPrev As Double = TVD(TVD.Count - 1)
+            ' Which side of the critical temperature the retrograde branch runs on: from below for a
+            ' mixture whose dew temperature rises to Tc (no cricondentherm above it), from above for one
+            ' with a cricondentherm past Tc.
+            If tPrev < TCR Then
+                ' Rising dew line: the near-critical dew flash from below does not converge (both the
+                ' fixed-T and fixed-P forms hit their iteration limit above ~Tc-8 K, or latch onto a
+                ' spurious root past Tc), and forcing it is prohibitively slow. Draw a shape-preserving
+                ' curve from the last converged point to the analytical critical point instead.
+                FillDewToCP(Vz, PO, TVD, HO, SO, VO, TCR, PCR)
+                Return
+            End If
+            ' A cricondentherm above Tc: past it the retrograde branch is single-valued in pressure and
+            ' the dew flash converges cheaply. Step pressure up to Pc, solving for the dew temperature
+            ' (Flash_PV), seeded by the local slope so the flash stays on the branch.
             Dim pStep As Double = If(deltaP > 0, deltaP, 25000.0)
-            Dim pR As Double = PO(PO.Count - 1) + pStep
-            Dim tGuess As Double = TVD(TVD.Count - 1)
-            ' The retrograde temperature approaches the critical temperature as the pressure rises to
-            ' the critical pressure - from above for a cricondentherm past the critical point, from
-            ' below for a mixture whose dew temperature rises to it. Track the distance to the critical
-            ' temperature: it must shrink. It may steepen sharply near the cricondentherm (large steps
-            ' are fine there), so do not cap the step size; only stop when the distance starts growing
-            ' again (a stray root) or the critical temperature is reached. Stop just short of the
-            ' critical pressure, where the density roots merge and the flash turns noisy.
-            Dim prevDist As Double = Math.Abs(tGuess - TCR)
-            Do While pR < PCR * 0.99
+            Dim pPrev2 As Double = If(PO.Count >= 2, PO(PO.Count - 2), pPrev)
+            Dim tPrev2 As Double = If(TVD.Count >= 2, TVD(TVD.Count - 2), tPrev)
+            Dim prevDist As Double = Math.Abs(tPrev - TCR)
+            Dim pR As Double = pPrev + pStep
+            Do While pR < PCR * 0.999
+                Dim tGuess As Double = tPrev
+                If Math.Abs(pPrev - pPrev2) > 1.0 Then
+                    tGuess = tPrev + (tPrev - tPrev2) / (pPrev - pPrev2) * (pR - pPrev)
+                End If
                 Dim tR As Double
                 Try
                     Dim rr = Me.FlashBase.Flash_PV(Vz, pR, 1, tGuess, Me)
@@ -4023,18 +4037,68 @@ redirect2:                  IObj?.SetCurrent()
                     Exit Do
                 End Try
                 If tR <= 0.0 Then Exit Do
+                ' a root that has dropped below Tc while still below Pc is the spurious near-critical root
+                If tR < TCR Then Exit Do
                 Dim dist As Double = Math.Abs(tR - TCR)
-                If dist < 0.5 Then Exit Do
-                If dist > prevDist + 2.0 Then Exit Do
+                ' the distance to Tc must keep shrinking; a farther root, or one that disagrees with the
+                ' branch extrapolation, is a stray root - stop and close on the critical point.
+                If dist > prevDist + 0.1 Then Exit Do
+                If Math.Abs(tR - tGuess) > 5.0 Then Exit Do
+                If dist < 0.35 Then Exit Do
                 TVD.Add(tR)
                 PO.Add(pR)
                 HO.Add(Me.DW_CalcEnthalpy(Vz, tR, pR, State.Vapor))
                 SO.Add(Me.DW_CalcEntropy(Vz, tR, pR, State.Vapor))
                 VO.Add(1 / Me.AUX_VAPDENS(tR, pR) * Me.AUX_MMM(Phase.Mixture))
-                tGuess = tR
+                pPrev2 = pPrev : tPrev2 = tPrev
+                pPrev = pR : tPrev = tR
                 prevDist = dist
                 pR += pStep
             Loop
+            ' A residual gap below Pc (the pressure-stepping stopped short where the roots merge) is
+            ' closed with the same shape-preserving nose so the descending branch meets the CP smoothly.
+            FillDewToCP(Vz, PO, TVD, HO, SO, VO, TCR, PCR)
+        End Sub
+
+        ''' <summary>
+        ''' Close the dew line from its last converged point onto the analytical critical point with a
+        ''' cubic-Hermite nose. The dew line meets the critical point tangent to the pressure axis (dew
+        ''' temperature flat in pressure there, the retrograde nose), so the end slope dT/dP is zero; the
+        ''' start slope is taken from the last two points. Property values along the fill are ordinary
+        ''' single-phase vapour evaluations. If the last point already sits on the CP, only the CP is added.
+        ''' </summary>
+        Private Sub FillDewToCP(Vz As Double(), PO As List(Of Double), TVD As List(Of Double),
+                                HO As List(Of Double), SO As List(Of Double), VO As List(Of Double),
+                                TCR As Double, PCR As Double)
+            Dim pLast As Double = PO(PO.Count - 1)
+            Dim tLast As Double = TVD(TVD.Count - 1)
+            Dim dp As Double = PCR - pLast
+            If dp > 5000.0 AndAlso Math.Abs(TCR - tLast) > 0.05 Then
+                Dim pPrev2 As Double = If(PO.Count >= 2, PO(PO.Count - 2), pLast)
+                Dim tPrev2 As Double = If(TVD.Count >= 2, TVD(TVD.Count - 2), tLast)
+                Dim mLast As Double = 0.0
+                If Math.Abs(pLast - pPrev2) > 1.0 Then mLast = (tLast - tPrev2) / (pLast - pPrev2)
+                Dim nFill As Integer = 15
+                For s As Integer = 1 To nFill - 1
+                    Dim u As Double = s / CDbl(nFill)
+                    Dim pF As Double = pLast + dp * u
+                    Dim h00 As Double = 2 * u ^ 3 - 3 * u ^ 2 + 1
+                    Dim h10 As Double = u ^ 3 - 2 * u ^ 2 + u
+                    Dim h01 As Double = -2 * u ^ 3 + 3 * u ^ 2
+                    Dim tF As Double = h00 * tLast + h10 * dp * mLast + h01 * TCR
+                    ' never overshoot the critical temperature (the nose approaches it, does not cross it)
+                    If tLast < TCR Then
+                        tF = Math.Min(tF, TCR)
+                    Else
+                        tF = Math.Max(tF, TCR)
+                    End If
+                    TVD.Add(tF)
+                    PO.Add(pF)
+                    HO.Add(Me.DW_CalcEnthalpy(Vz, tF, pF, State.Vapor))
+                    SO.Add(Me.DW_CalcEntropy(Vz, tF, pF, State.Vapor))
+                    VO.Add(1 / Me.AUX_VAPDENS(tF, pF) * Me.AUX_MMM(Phase.Mixture))
+                Next
+            End If
             ' close the dew line exactly on the analytical critical point
             TVD.Add(TCR)
             PO.Add(PCR)
@@ -4679,6 +4743,14 @@ redirect2:                  IObj?.SetCurrent()
                                 ' latched onto a spurious root. The genuine retrograde extrema each cross only one
                                 ' critical coordinate, so crossing both means the curve has run past its end - stop.
                                 If Tresult > TCR AndAlso P > PCR Then Exit Do
+                                ' Near a known critical point the pressure-stepping flash can latch onto a root on
+                                ' the far side of the critical temperature - the dew temperature jumping past Tc
+                                ' while the pressure is still below Pc - which draws a spurious spike above the
+                                ' envelope (seen on ethane-rich mixtures whose dew line rises to Tc with no
+                                ' cricondentherm above it). When the dew line is still approaching Tc from below,
+                                ' such a crossing is not physical here: stop and let the retrograde finish (which
+                                ' seeds each flash by extrapolating along the branch) close smoothly on the CP.
+                                If stopAtCP AndAlso Tresult > TCR AndAlso P < PCR AndAlso TVD(TVD.Count - 1) < TCR Then Exit Do
                                 Dim dewTdeviation = If(Tguess > 0, Math.Abs(Tresult - Tguess) / Tguess, 0.0)
                                 If dewValidate AndAlso dewTdeviation > 0.02 Then
                                     Flowsheet?.ShowMessage("Phase Envelope generation: Dew PVF point rejected (T=" & Tresult.ToString("G6") & " vs expected " & Tguess.ToString("G6") & ")", IFlowsheet.MessageType.Warning)
