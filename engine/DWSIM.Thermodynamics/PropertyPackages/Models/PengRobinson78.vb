@@ -1125,6 +1125,24 @@ Namespace PropertyPackages.ThermoPlugs
                 Z = _zarray(_mingz(0))
             End If
 
+            ' Poling, Grens and Prausnitz (1981): near or inside the single-root region a forced
+            ' phase may only have the other phase's root, giving a spurious fugacity coefficient and
+            ' collapsing the K-values to the trivial solution. When a vapour is requested but its
+            ' compressibility root fails the vapour criterion (0.9/P < beta < 3/P), regenerate the
+            ' vapour at a reduced pressure where a real vapour root exists; the original pressure is
+            ' kept for the equilibrium, since pressure barely affects the vapour fugacity coefficient.
+            If forcephase = 1 Then
+                Dim betav As Double = PGP_Beta(Z, T, P, aml, bml)
+                If betav <= 0.9 / P OrElse betav >= 3.0 / P Then
+                    Dim Zx, AGx, BGx As Double
+                    If PGP_VaporRootReducingP(T, P, aml, bml, Zx, AGx, BGx) Then
+                        Z = Zx
+                        AG = AGx
+                        BG = BGx
+                    End If
+                End If
+            End If
+
             IObj?.Paragraphs.Add(String.Format("<math_inline>Z</math_inline>: {0}", Z))
 
             Dim Pcorr As Double = P
@@ -1562,6 +1580,60 @@ Namespace PropertyPackages.ThermoPlugs
 
             Return result
 
+        End Function
+
+        ' Largest liquid-phase isothermal compressibility accepted before a root is treated as a
+        ' spurious liquid (Poling, Grens and Prausnitz, 1981, eq 3: beta < 0.005 atm^-1). Their
+        ' 0.005 may be relaxed to 0.03 and the method still works; 0.03 atm^-1 is used here, in Pa^-1.
+        Public Shared ReadOnly PGP_BetaLiqMax As Double = 0.03 / 101325.0
+
+        ''' <summary>
+        ''' Isothermal compressibility of a Peng-Robinson phase, beta = -(1/V)(dV/dP)_T, in Pa^-1,
+        ''' from the analytical pressure derivative. Diagnoses a spurious compressibility root
+        ''' (Poling, Grens and Prausnitz, Ind. Eng. Chem. Process Des. Dev. 1981, 20, 127): a
+        ''' liquid-like root has a small beta, a vapour-like root a beta near the ideal-gas 1/P.
+        ''' </summary>
+        Shared Function PGP_Beta(Z As Double, T As Double, P As Double, am As Double, bm As Double) As Double
+            Dim R As Double = 8.314
+            Dim V As Double = Z * R * T / P
+            Dim D As Double = V * V + 2.0 * bm * V - bm * bm
+            Dim dPdV As Double = -R * T / ((V - bm) ^ 2) + am * (2.0 * V + 2.0 * bm) / (D * D)
+            If dPdV = 0.0 Then Return Double.MaxValue
+            Return -1.0 / (V * dPdV)
+        End Function
+
+        ''' <summary>
+        ''' Finds an acceptable vapour compressibility root by reducing the pressure until the
+        ''' isothermal compressibility satisfies the vapour criterion 0.9/P &lt; beta &lt; 3/P
+        ''' (Poling, Grens and Prausnitz, 1981, eq 4). Returns the root and the reduced-state A and
+        ''' B, so the vapour fugacity coefficient is generated there instead of from a spurious
+        ''' liquid-like root. A sufficient pressure reduction always produces a vapour, and pressure
+        ''' has only a weak effect on the vapour fugacity coefficient, so the original pressure is
+        ''' kept for the equilibrium itself.
+        ''' </summary>
+        Shared Function PGP_VaporRootReducingP(T As Double, P As Double, am As Double, bm As Double,
+                                               ByRef Zout As Double, ByRef AGout As Double, ByRef BGout As Double) As Boolean
+            Dim R As Double = 8.314
+            Dim Pt As Double = P
+            For it As Integer = 1 To 60
+                Pt = Pt * 0.75
+                If Pt < 1.0 Then Exit For
+                Dim AGt As Double = am * Pt / (R * T) ^ 2
+                Dim BGt As Double = bm * Pt / (R * T)
+                Dim roots As List(Of Double)
+                Try
+                    roots = CalcZ2(AGt, BGt)
+                Catch
+                    Continue For
+                End Try
+                Dim Zt As Double = roots.Max
+                Dim betat As Double = PGP_Beta(Zt, T, Pt, am, bm)
+                If betat > 0.9 / Pt AndAlso betat < 3.0 / Pt Then
+                    Zout = Zt : AGout = AGt : BGout = BGt
+                    Return True
+                End If
+            Next
+            Return False
         End Function
 
         Public Overrides Function PhaseType(ByVal T As Double, ByVal P As Double, ByVal Vx As Array, ByVal VKij As Object, ByVal VTc As Array, ByVal VPc As Array, ByVal Vw As Array, Optional ByVal otherargs As Object = Nothing)
