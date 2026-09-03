@@ -3992,27 +3992,28 @@ redirect2:                  IObj?.SetCurrent()
             Dim pStep As Double = If(deltaP > 0, deltaP, 25000.0)
             Dim pR As Double = PO(PO.Count - 1) + pStep
             Dim tGuess As Double = TVD(TVD.Count - 1)
-            Do While pR < PCR
+            ' Stop just short of the critical pressure: the last fraction of a bar before it has the
+            ' density roots nearly merged, where the flash is noisy, and the curve is closed on the
+            ' analytical critical point anyway.
+            Do While pR < PCR * 0.99
+                Dim tR As Double
                 Try
                     Dim rr = Me.FlashBase.Flash_PV(Vz, pR, 1, tGuess, Me)
-                    Dim tR = CDbl(rr(4))
-                    ' Close on the critical point once the retrograde temperature reaches it: the last
-                    ' fraction of a bar before the critical pressure has the roots nearly merged, where
-                    ' the flash gets noisy and can undershoot below the critical temperature.
-                    If tR <= TCR + 0.3 Then Exit Do
-                    ' Accept only a point that steps smoothly from the last one; near the critical
-                    ' region a stray flash root sits tens of K away and must not be drawn.
-                    If tR > 0 AndAlso Math.Abs(tR - tGuess) < 15.0 Then
-                        TVD.Add(tR)
-                        PO.Add(pR)
-                        HO.Add(Me.DW_CalcEnthalpy(Vz, tR, pR, State.Vapor))
-                        SO.Add(Me.DW_CalcEntropy(Vz, tR, pR, State.Vapor))
-                        VO.Add(1 / Me.AUX_VAPDENS(tR, pR) * Me.AUX_MMM(Phase.Mixture))
-                        tGuess = tR
-                    End If
+                    tR = CDbl(rr(4))
                 Catch
                     Exit Do
                 End Try
+                ' A real dew line steps smoothly (in either direction - the retrograde temperature
+                ' may rise or fall toward the critical point depending on the mixture). A jump means
+                ' the flash has latched onto a stray near-critical root, so stop and close on the
+                ' critical point instead of drawing to it.
+                If tR <= 0 OrElse Math.Abs(tR - tGuess) > 2.0 Then Exit Do
+                TVD.Add(tR)
+                PO.Add(pR)
+                HO.Add(Me.DW_CalcEnthalpy(Vz, tR, pR, State.Vapor))
+                SO.Add(Me.DW_CalcEntropy(Vz, tR, pR, State.Vapor))
+                VO.Add(1 / Me.AUX_VAPDENS(tR, pR) * Me.AUX_MMM(Phase.Mixture))
+                tGuess = tR
                 pR += pStep
             Loop
             ' close the dew line exactly on the analytical critical point
