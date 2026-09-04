@@ -276,6 +276,69 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
         End Function
 
         ''' <summary>
+        ''' Reduced two-phase Gibbs energy g/RT = sum_i [ n1_i (ln x1_i + lnphi1_i) + n2_i (ln x2_i + lnphi2_i) ],
+        ''' the quantity the split minimises. The trivial solution x1 = x2 = z is a saddle/maximum of it when
+        ''' a split exists, so a search that DESCENDS g walks away from it - unlike a residual-norm search,
+        ''' whose minimum the trivial solution also satisfies. Returns NaN for an infeasible split.
+        ''' </summary>
+        Private Function LLEGibbs(ByVal Vz As Double(), ByVal Vn1 As Double(), ByVal T As Double,
+                                  ByVal P As Double, ByVal PP As PropertyPackages.PropertyPackage) As Double
+            Dim n As Integer = Vz.Length - 1
+            Dim Vn2(n), Vx1(n), Vx2(n) As Double
+            Dim L1 As Double = 0.0, L2 As Double = 0.0
+            For i As Integer = 0 To n
+                Vn2(i) = Vz(i) - Vn1(i)
+                L1 += Vn1(i) : L2 += Vn2(i)
+            Next
+            If L1 <= 0.0 OrElse L2 <= 0.0 Then Return Double.NaN
+            For i As Integer = 0 To n
+                Vx1(i) = Vn1(i) / L1 : Vx2(i) = Vn2(i) / L2
+            Next
+            Dim lnf1 = PP.DW_CalcLnFugCoeff(Vx1, T, P, State.Liquid)
+            Dim lnf2 = PP.DW_CalcLnFugCoeff(Vx2, T, P, State.Liquid)
+            Dim g As Double = 0.0
+            For i As Integer = 0 To n
+                If Vz(i) <= 0.0 Then Continue For
+                If Vx1(i) <= 0.0 OrElse Vx2(i) <= 0.0 Then Return Double.NaN
+                g += Vn1(i) * (Math.Log(Vx1(i)) + lnf1(i)) + Vn2(i) * (Math.Log(Vx2(i)) + lnf2(i))
+            Next
+            If Double.IsNaN(g) OrElse Double.IsInfinity(g) Then Return Double.NaN
+            Return g
+        End Function
+
+        ''' <summary>
+        ''' Gradient of the reduced two-phase Gibbs energy with respect to the phase-1 mole numbers, which is
+        ''' the isoactivity residual F_i = (ln x1_i + lnphi1_i) - (ln x2_i + lnphi2_i). Nothing if infeasible.
+        ''' </summary>
+        Private Function LLEGradient(ByVal Vz As Double(), ByVal Vn1 As Double(), ByVal T As Double,
+                                     ByVal P As Double, ByVal PP As PropertyPackages.PropertyPackage) As Double()
+            Dim n As Integer = Vz.Length - 1
+            Dim Vn2(n), Vx1(n), Vx2(n) As Double
+            Dim L1 As Double = 0.0, L2 As Double = 0.0
+            For i As Integer = 0 To n
+                Vn2(i) = Vz(i) - Vn1(i)
+                L1 += Vn1(i) : L2 += Vn2(i)
+            Next
+            If L1 <= 0.0 OrElse L2 <= 0.0 Then Return Nothing
+            For i As Integer = 0 To n
+                Vx1(i) = Vn1(i) / L1 : Vx2(i) = Vn2(i) / L2
+            Next
+            Dim lnf1 = PP.DW_CalcLnFugCoeff(Vx1, T, P, State.Liquid)
+            Dim lnf2 = PP.DW_CalcLnFugCoeff(Vx2, T, P, State.Liquid)
+            Dim F(n) As Double
+            For i As Integer = 0 To n
+                If Vz(i) <= 0.0 Then
+                    F(i) = 0.0
+                Else
+                    If Vx1(i) <= 0.0 OrElse Vx2(i) <= 0.0 Then Return Nothing
+                    F(i) = (Math.Log(Vx1(i)) + lnf1(i)) - (Math.Log(Vx2(i)) + lnf2(i))
+                    If Double.IsNaN(F(i)) OrElse Double.IsInfinity(F(i)) Then Return Nothing
+                End If
+            Next
+            Return F
+        End Function
+
+        ''' <summary>
         ''' One Newton step on the isoactivity condition, with the phase-1 mole numbers as unknowns (phase 2
         ''' follows from the material balance n2 = z - n1). The residual is
         ''' F_i = ln(x1_i phi1_i) - ln(x2_i phi2_i), equivalent to the activity form x1 gamma1 = x2 gamma2
@@ -657,7 +720,25 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                 err = Vx1.MultiplyY(gamma1).SubtractY(Vx2.MultiplyY(gamma2)).AbsSumY()
                 e1 = Vx1_ant.SubtractY(Vx1).AbsSumY
                 e2 = Vx2_ant.SubtractY(Vx2).AbsSumY
-                S = Vx1.SubtractY(Vx2).AbsY.MaxY
+
+                ' Phase-identity measure in MASS fractions, not mole fractions. A polymer's two liquids
+                ' differ by only ~1e-3 in mole fraction (both are almost all solvent by mole) while being
+                ' wholly distinct by mass, so a mole-fraction test would merge a genuine split. Mass
+                ' fractions separate them and are essentially unchanged for similar-molar-mass mixtures.
+                Dim mmvec = PP.RET_VMM()
+                Dim mwp1 As Double = 0.0, mwp2 As Double = 0.0
+                For i = 0 To n
+                    mwp1 += Vx1(i) * mmvec(i)
+                    mwp2 += Vx2(i) * mmvec(i)
+                Next
+                S = 0.0
+                If mwp1 > 0.0 AndAlso mwp2 > 0.0 Then
+                    For i = 0 To n
+                        S = Math.Max(S, Math.Abs(Vx1(i) * mmvec(i) / mwp1 - Vx2(i) * mmvec(i) / mwp2))
+                    Next
+                Else
+                    S = Vx1.SubtractY(Vx2).AbsY.MaxY
+                End If
 
                 IObj2?.SetCurrent
                 IObj2?.Paragraphs.Add(String.Format("<hr><b>Actual Errors:</b><br>
@@ -709,7 +790,87 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                 ' substitution drifts away from it slowly enough to act as a crude safeguard there.
                 Dim ssStalled As Boolean = (dampFactor < 1.0 OrElse ecount >= NewtonFallbackIterations)
                 Dim newtonOK As Boolean = False
-                If seeded AndAlso ssStalled Then
+
+                If seeded AndAlso Not PP.ImplementsAnalyticalDerivatives Then
+
+                    ' Equation-of-state packages (no analytical d(lnphi)/dn) drive the split by DESCENDING the
+                    ' two-phase Gibbs energy, not the isoactivity residual norm: the trivial solution x1=x2=z
+                    ' is a saddle/maximum of g, so descent walks away from it, whereas plain substitution and
+                    ' a residual-norm Newton both collapse onto it for a polymer's shallow miscibility gap.
+                    ' This branch owns the update; a Gibbs minimum reached here ends the loop.
+                    Dim g0 As Double = LLEGibbs(Vz, Vn1, T, P, PP)
+                    Dim improved As Boolean = False
+                    If Not Double.IsNaN(g0) Then
+                        Dim fnorm As Double = 0.0
+                        Dim dnstep = NewtonStepLLE(Vz, Vn1, T, P, PP, fnorm)
+                        ' Converged: the isoactivity residual (the gradient of g) has vanished.
+                        If fnorm < 0.0000001 Then
+                            Vn2 = Vz.SubtractY(Vn1) : L1 = Vn1.Sum : L2 = 1 - L1
+                            newtonOK = True : IObj2?.Close() : Exit Do
+                        End If
+                        If dnstep IsNot Nothing Then
+                            Dim lam As Double = 1.0
+                            For ls As Integer = 1 To 20
+                                Dim trial(n) As Double
+                                Dim feasible As Boolean = True
+                                For i = 0 To n
+                                    If Vz(i) > 0.0 Then
+                                        trial(i) = Vn1(i) + lam * dnstep(i)
+                                        If trial(i) <= 0.000000001 * Vz(i) OrElse trial(i) >= 0.999999999 * Vz(i) Then feasible = False
+                                    Else
+                                        trial(i) = 0.0
+                                    End If
+                                Next
+                                If feasible Then
+                                    Dim gt As Double = LLEGibbs(Vz, trial, T, P, PP)
+                                    If Not Double.IsNaN(gt) AndAlso gt < g0 - 0.000000000001 Then
+                                        Vn1 = trial : improved = True : Exit For
+                                    End If
+                                End If
+                                lam *= 0.5
+                            Next
+                        End If
+                        ' Steepest descent on g when the Newton step did not lower it.
+                        If Not improved Then
+                            Dim grad = LLEGradient(Vz, Vn1, T, P, PP)
+                            If grad IsNot Nothing Then
+                                Dim gmax As Double = 0.0
+                                For i = 0 To n : gmax = Math.Max(gmax, Math.Abs(grad(i))) : Next
+                                If gmax > 0.0 Then
+                                    Dim lam As Double = 0.01 / gmax
+                                    For ls As Integer = 1 To 40
+                                        Dim trial(n) As Double
+                                        Dim feasible As Boolean = True
+                                        For i = 0 To n
+                                            If Vz(i) > 0.0 Then
+                                                trial(i) = Vn1(i) - lam * grad(i)
+                                                If trial(i) <= 0.000000001 * Vz(i) OrElse trial(i) >= 0.999999999 * Vz(i) Then feasible = False
+                                            Else
+                                                trial(i) = 0.0
+                                            End If
+                                        Next
+                                        If feasible Then
+                                            Dim gt As Double = LLEGibbs(Vz, trial, T, P, PP)
+                                            If Not Double.IsNaN(gt) AndAlso gt < g0 - 0.0000000000001 Then
+                                                Vn1 = trial : improved = True : Exit For
+                                            End If
+                                        End If
+                                        lam *= 0.5
+                                    Next
+                                End If
+                            End If
+                        End If
+                    End If
+                    newtonOK = True                 ' this branch owns the phase-1 update
+                    If Not improved Then
+                        ' No feasible move lowers g: at the Gibbs minimum (a converged split, or a merge the
+                        ' phase-identity test below will catch).
+                        Vn2 = Vz.SubtractY(Vn1) : L1 = Vn1.Sum : L2 = 1 - L1
+                        IObj2?.Close()
+                        Exit Do
+                    End If
+
+                ElseIf seeded AndAlso ssStalled Then
                     Dim f0 As Double = 0.0
                     Dim dnstep = NewtonStepLLE(Vz, Vn1, T, P, PP, f0)
                     If dnstep IsNot Nothing Then
