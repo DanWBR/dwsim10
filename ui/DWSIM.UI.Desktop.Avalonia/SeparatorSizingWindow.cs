@@ -7,7 +7,6 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using DWSIM.Interfaces;
 using DWSIM.Interfaces.Enums.GraphicObjects;
-using DWSIM.Thermodynamics.Streams;
 using DWSIM.Thermodynamics.Utilities.Sizing;
 using DWSIM.UI.Shared.Avalonia;
 using cv = DWSIM.SharedClasses.SystemsOfUnits.Converter;
@@ -116,25 +115,11 @@ public sealed class SeparatorSizingWindow : Window
                                  x.GraphicObject.Tag == (string)_vessels.SelectedItem!);
         if (vessel == null) { _status.Text = "Separator not found."; return; }
 
-        MaterialStream inlet, vapor, liquid;
-        try
+        if (!SeparatorSizing.ReadStreams(_flowsheet, vessel, _input))
         {
-            var go = vessel.GraphicObject;
-            inlet = (MaterialStream)_flowsheet.SimulationObjects[go.InputConnectors[0].AttachedConnector.AttachedFrom.Name];
-            vapor = (MaterialStream)_flowsheet.SimulationObjects[go.OutputConnectors[0].AttachedConnector.AttachedTo.Name];
-            liquid = (MaterialStream)_flowsheet.SimulationObjects[go.OutputConnectors[1].AttachedConnector.AttachedTo.Name];
-        }
-        catch
-        {
-            _status.Text = "Connect the separator inlet and both outlets before sizing it.";
+            _status.Text = "Connect the separator inlet, the gas outlet and the liquid outlet before sizing it.";
             return;
         }
-
-        _input.LiquidDensity = liquid.Phases[0].Properties.density.GetValueOrDefault();
-        _input.VaporDensity = vapor.Phases[0].Properties.density.GetValueOrDefault();
-        _input.InletDensity = inlet.Phases[0].Properties.density.GetValueOrDefault();
-        _input.LiquidVolumetricFlow = liquid.Phases[0].Properties.volumetric_flow.GetValueOrDefault();
-        _input.VaporVolumetricFlow = vapor.Phases[0].Properties.volumetric_flow.GetValueOrDefault();
 
         if (_input.VaporDensity <= 0 || _input.LiquidDensity <= 0)
         {

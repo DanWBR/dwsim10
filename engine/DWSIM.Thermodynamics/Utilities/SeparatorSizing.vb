@@ -16,6 +16,9 @@
 '    You should have received a copy of the GNU General Public License
 '    along with DWSIM.  If not, see <http://www.gnu.org/licenses/>.
 
+Imports DWSIM.Interfaces
+Imports DWSIM.Thermodynamics.Streams
+
 Namespace Utilities.Sizing
 
     ''' <summary>Stream conditions and design parameters for a gas-liquid separator.</summary>
@@ -67,6 +70,69 @@ Namespace Utilities.Sizing
     ''' WinForms and the Avalonia utilities.
     ''' </summary>
     Public Class SeparatorSizing
+
+        ''' <summary>
+        ''' Reads the stream conditions off a gas-liquid separator on the flowsheet: every connected
+        ''' inlet feeds the mixed inlet density, and the vapour and liquid outlets supply the
+        ''' densities and the flows. Returns False when the inlet, the vapour outlet or the liquid
+        ''' outlet is not connected.
+        ''' </summary>
+        Public Shared Function ReadStreams(flowsheet As IFlowsheet, vessel As ISimulationObject,
+                                           input As SeparatorSizingInput) As Boolean
+
+            Dim go = vessel.GraphicObject
+            If go Is Nothing Then Return False
+
+            'the inlet can be on any of the vessel ports, not just the first one
+
+            Dim inlets = go.InputConnectors.
+                Select(Function(c) AttachedStream(flowsheet, c, True)).
+                Where(Function(s) s IsNot Nothing).ToList()
+
+            Dim vapor = AttachedStream(flowsheet, go.OutputConnectors.FirstOrDefault(), False)
+
+            Dim liquids = go.OutputConnectors.Skip(1).
+                Select(Function(c) AttachedStream(flowsheet, c, False)).
+                Where(Function(s) s IsNot Nothing).ToList()
+
+            If inlets.Count = 0 OrElse vapor Is Nothing OrElse liquids.Count = 0 Then Return False
+
+            input.InletDensity = MixedDensity(inlets)
+            input.VaporDensity = vapor.Phases(0).Properties.density.GetValueOrDefault()
+            input.VaporVolumetricFlow = vapor.Phases(0).Properties.volumetric_flow.GetValueOrDefault()
+            input.LiquidDensity = MixedDensity(liquids)
+            input.LiquidVolumetricFlow = liquids.Sum(Function(s) s.Phases(0).Properties.volumetric_flow.GetValueOrDefault())
+
+            Return True
+
+        End Function
+
+        ''' <summary>Material stream on the other end of a connection point, if there is one.</summary>
+        Private Shared Function AttachedStream(flowsheet As IFlowsheet, cp As IConnectionPoint,
+                                               inlet As Boolean) As MaterialStream
+
+            If cp Is Nothing OrElse Not cp.IsAttached OrElse cp.AttachedConnector Is Nothing Then Return Nothing
+
+            Dim other = If(inlet, cp.AttachedConnector.AttachedFrom, cp.AttachedConnector.AttachedTo)
+            If other Is Nothing OrElse Not flowsheet.SimulationObjects.ContainsKey(other.Name) Then Return Nothing
+
+            Return TryCast(flowsheet.SimulationObjects(other.Name), MaterialStream)
+
+        End Function
+
+        ''' <summary>Density of the combined streams, kg/m3.</summary>
+        Private Shared Function MixedDensity(streams As List(Of MaterialStream)) As Double
+
+            If streams.Count = 1 Then Return streams(0).Phases(0).Properties.density.GetValueOrDefault()
+
+            Dim m = streams.Sum(Function(s) s.Phases(0).Properties.massflow.GetValueOrDefault())
+            Dim v = streams.Sum(Function(s) s.Phases(0).Properties.volumetric_flow.GetValueOrDefault())
+
+            If v > 0 Then Return m / v
+
+            Return streams(0).Phases(0).Properties.density.GetValueOrDefault()
+
+        End Function
 
         Public Shared Function SizeVertical(input As SeparatorSizingInput) As SeparatorSizingResults
 
