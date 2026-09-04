@@ -626,6 +626,95 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
         End Function
 
+        Public Overrides ReadOnly Property ImplementsAnalyticalDerivatives As Boolean
+            Get
+                Return True
+            End Get
+        End Property
+
+        Public Overrides ReadOnly Property UsesGibbsMinimizationForLLE As Boolean
+            Get
+                Return True
+            End Get
+        End Property
+
+        ''' <summary>
+        ''' Composition (mole-number) derivative of the log fugacity coefficients, d(lnphi_i)/dn_j at total
+        ''' moles = 1. The density is solved ONCE at the base composition; the EoS is then evaluated in
+        ''' closed form at that fixed density for each perturbation (no density solve per perturbation), and
+        ''' the constant-pressure density response is added analytically:
+        '''   d(lnphi_i)/dn_j = [d(lnphi_i)/dn_j]_rho + (d lnphi_i/d rho) * (d rho/dn_j),
+        '''   d rho/dn_j = -[dP/dn_j]_rho / (dP/d rho).
+        ''' This is what makes the liquid-liquid Gibbs-minimisation Newton step affordable for PC-SAFT.
+        ''' </summary>
+        Public Overrides Function DW_CalcdLnFugCoeffdn(Vx As Double(), T As Double, P As Double, st As State) As Double(,)
+
+            Dim n As Integer = Vx.Length - 1
+            Dim D(n, n) As Double
+
+            Dim pcs As New PCSAFT2(Me, Vx)
+            Dim phase As String = If(st = State.Liquid, "liq", "gas")
+            Dim Zest As Double = GetPRZ(Vx, T, P, If(st = State.Liquid, "L", "V"))
+            Dim Zstar As Double = pcs.CalcZ(T, P, phase, Zest)
+
+            Dim kb As Double = 1.3806504E-23
+            Dim densStar As Double = P / (Zstar * kb * T) / (10000000000.0) ^ 3
+
+            ' Density response at fixed composition (central difference).
+            Dim epsd As Double = densStar * 0.000001
+            Dim Pp As Double = 0.0, Pm As Double = 0.0
+            Dim lnfp = pcs.EvalAtDens(T, densStar + epsd, pcs.mix, Pp)
+            Dim lnfm = pcs.EvalAtDens(T, densStar - epsd, pcs.mix, Pm)
+            Dim dPdrho As Double = (Pp - Pm) / (2.0 * epsd)
+            Dim dlnfdrho(n) As Double
+            For i = 0 To n
+                dlnfdrho(i) = (lnfp(i) - lnfm(i)) / (2.0 * epsd)
+            Next
+
+            ' Composition perturbations at fixed density (central where the mole fraction allows it),
+            ' corrected to constant pressure. Central differencing matters where the change in one
+            ' component's lnphi from another's mole number is tiny, e.g. the solvent's dependence on a
+            ' trace polymer, which a one-sided difference resolves poorly.
+            Dim delta As Double = 0.000001
+            For j = 0 To n
+                Dim useCentral As Boolean = Vx(j) > 2.0 * delta
+                Dim nplus(n), nminus(n) As Double
+                For k = 0 To n
+                    nplus(k) = Vx(k) : nminus(k) = Vx(k)
+                Next
+                nplus(j) += delta
+                Dim xplus = nplus.NormalizeY()
+                pcs.SetComposition(xplus)
+                Dim Pjp As Double = 0.0
+                Dim lnfjp = pcs.EvalAtDens(T, densStar, pcs.mix, Pjp)
+
+                Dim lnfjm As Double()
+                Dim Pjm As Double = 0.0
+                Dim h As Double
+                If useCentral Then
+                    nminus(j) -= delta
+                    Dim xminus = nminus.NormalizeY()
+                    pcs.SetComposition(xminus)
+                    lnfjm = pcs.EvalAtDens(T, densStar, pcs.mix, Pjm)
+                    h = 2.0 * delta
+                Else
+                    pcs.SetComposition(Vx)  ' base composition
+                    lnfjm = pcs.EvalAtDens(T, densStar, pcs.mix, Pjm)
+                    h = delta
+                End If
+                pcs.SetComposition(Vx)
+
+                Dim dPdnj As Double = (Pjp - Pjm) / h
+                Dim drhodnj As Double = If(dPdrho <> 0.0, -dPdnj / dPdrho, 0.0)
+                For i = 0 To n
+                    D(i, j) = (lnfjp(i) - lnfjm(i)) / h + dlnfdrho(i) * drhodnj
+                Next
+            Next
+
+            Return D
+
+        End Function
+
         Public Overrides Function SupportsComponent(comp As ICompoundConstantProperties) As Boolean
 
             Return True

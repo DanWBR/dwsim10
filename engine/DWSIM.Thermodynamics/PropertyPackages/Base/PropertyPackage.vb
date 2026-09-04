@@ -521,6 +521,14 @@ Namespace PropertyPackages
 
         Public Overridable ReadOnly Property ImplementsAnalyticalDerivatives As Boolean = False
 
+        ''' <summary>
+        ''' When True, the liquid-liquid flash converges the split by minimizing the two-phase Gibbs energy
+        ''' (descent), rather than by successive substitution / a residual-norm Newton. Needed for packages
+        ''' whose miscibility gap is shallow enough that the ordinary methods collapse onto the trivial
+        ''' solution - e.g. a polymer in PC-SAFT.
+        ''' </summary>
+        Public Overridable ReadOnly Property UsesGibbsMinimizationForLLE As Boolean = False
+
         Public Overridable ReadOnly Property IsFunctional As Boolean = True Implements IPropertyPackage.IsFunctional
 
         Public Overridable ReadOnly Property ShouldUseKvalueMethod2 As Boolean = False Implements IPropertyPackage.ShouldUseKvalueMethod2

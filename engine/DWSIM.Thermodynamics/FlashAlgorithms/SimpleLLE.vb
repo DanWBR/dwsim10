@@ -791,12 +791,13 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                 Dim ssStalled As Boolean = (dampFactor < 1.0 OrElse ecount >= NewtonFallbackIterations)
                 Dim newtonOK As Boolean = False
 
-                If seeded AndAlso Not PP.ImplementsAnalyticalDerivatives Then
+                If seeded AndAlso PP.UsesGibbsMinimizationForLLE Then
 
-                    ' Equation-of-state packages (no analytical d(lnphi)/dn) drive the split by DESCENDING the
-                    ' two-phase Gibbs energy, not the isoactivity residual norm: the trivial solution x1=x2=z
-                    ' is a saddle/maximum of g, so descent walks away from it, whereas plain substitution and
-                    ' a residual-norm Newton both collapse onto it for a polymer's shallow miscibility gap.
+                    ' Packages that ask for it (e.g. PC-SAFT) drive the split by DESCENDING the two-phase
+                    ' Gibbs energy, not the isoactivity residual norm: the trivial solution x1=x2=z is a
+                    ' saddle/maximum of g, so descent walks away from it, whereas plain substitution and a
+                    ' residual-norm Newton both collapse onto it for a polymer's shallow miscibility gap.
+                    ' The Newton step here uses the analytical d(lnphi)/dn when the package supplies it.
                     ' This branch owns the update; a Gibbs minimum reached here ends the loop.
                     Dim g0 As Double = LLEGibbs(Vz, Vn1, T, P, PP)
                     Dim improved As Boolean = False

@@ -887,6 +887,44 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
         End Function
 
+        ''' <summary>
+        ''' Log fugacity coefficients and pressure at a GIVEN number density, without solving for the
+        ''' density. This is the closed-form EoS evaluated at a fixed rho, used by the analytical
+        ''' composition derivative to avoid a density solve on every perturbation.
+        ''' </summary>
+        Friend Function EvalAtDens(T As Double, dens_num As Double, mixt As mixture, ByRef Pcalc As Double) As Double()
+
+            Dim kb As Double = 1.3806504E-23
+
+            Dim muHC() As Double = mu_HC(T, dens_num, mixt)
+            Dim muDisp() As Double = mu_Disp(T, dens_num, mixt)
+
+            Dim NumAss = zeros(mixt.numC)
+            For i = 1 To mixt.numC
+                NumAss(i) = mixt.comp(i).EoSParam(4)
+            Next
+            Dim muAss() As Double = If(sum(NumAss) > 0, mu_Ass(T, dens_num, mixt), zeros(mixt.numC))
+
+            Dim Z As Double = 1.0 + Z_hc(T, dens_num, mixt) + Z_disp(T, dens_num, mixt) + Z_ass(T, dens_num, mixt)
+
+            Pcalc = Z * kb * T * dens_num * (10000000000.0) ^ 3
+
+            Dim logf = zeros(mixt.numC - 1)
+            For i = 1 To mixt.numC
+                logf(i - 1) = muHC(i) + muDisp(i) + muAss(i) - Log(Z)
+            Next
+            Return logf
+
+        End Function
+
+        ''' <summary>Sets the mixture mole fractions (1-indexed internally) without rebuilding parameters,
+        ''' for the composition perturbations of the analytical derivative. The mean molar mass is not
+        ''' needed by the chemical-potential/compressibility terms, so it is left untouched.</summary>
+        Public Sub SetComposition(molefractions() As Double)
+            mix.x = zeros(molefractions.Length)
+            molefractions.CopyTo(mix.x, 1)
+        End Sub
+
         Friend Function HardSphereDiameter(T, m, sigma, epsilon)
 
             'Hard Sphere Diameter with PC-SAFT EoS
