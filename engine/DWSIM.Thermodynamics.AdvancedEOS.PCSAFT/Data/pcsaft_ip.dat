@@ -36,3 +36,9 @@ Polypropylene	9003-07-0	N-pentane	109-66-0	0.0137
 Polyethylene HDPE	9002-88-4	ethylene	74-85-1	0.0404
 Polyethylene HDPE	9002-88-4	carbon dioxide	124-38-9	0.181
 Polypropylene	9003-07-0	carbon dioxide	124-38-9	0.177
+Polydimethylsiloxane	63148-62-9	benzene	71-43-2	0.015
+Polydimethylsiloxane	63148-62-9	toluene	108-88-3	0.015
+Polydimethylsiloxane	63148-62-9	N-pentane	109-66-0	-0.045
+Polydimethylsiloxane	63148-62-9	N-octane	111-65-9	0.010
+Polydimethylsiloxane	63148-62-9	cyclohexane	110-82-7	-0.030
+Polyethylene LDPE	9002-88-4-L	ethylene	74-85-1	0.013
