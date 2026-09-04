@@ -364,6 +364,77 @@ namespace DWSIM.Engine.SmokeTests
         private static double[] LastFeed;
 
         /// <summary>
+        /// Validation against Tumakaka et al. 2002, Fig. 2: HDPE/ethylene cloud pressure at 140/150/170 C.
+        /// The paper models the polydisperse HDPE (Mn=43, Mw=118, Mz=231 kg/mol) with three pseudocomponents;
+        /// this first checks a monodisperse Mw=118 kg/mol binary to confirm the ~1600-1900 bar regime and the
+        /// temperature trend with the paper's kij=0.0404.
+        /// </summary>
+        [Test]
+        public void HdpeEthyleneCloudPressureAgainstTumakaka2002()
+        {
+            var pp = Package(fs =>
+            {
+                fs.AddCompound("Ethylene");
+                var hdpe = new DWSIM.Thermodynamics.BaseClasses.ConstantProperties
+                {
+                    Name = "Polyethylene HDPE",
+                    CAS_Number = "9002-88-4",
+                    Formula = "(C2H4)n",
+                    Molar_Weight = 118000.0, // Mw
+                    Critical_Temperature = 1200.0,
+                    Critical_Pressure = 5.0e5,
+                    Acentric_Factor = 0.5,
+                    Normal_Boiling_Point = 800.0,
+                    IsHYPO = 1
+                };
+                fs.Options.SelectedComponents.Add(hdpe.Name, hdpe);
+            });
+
+            const double mwPE = 118000.0, mwEth = 28.054, wFeed = 0.05;
+            double nPE = wFeed / mwPE, nEth = (1.0 - wFeed) / mwEth, tot = nPE + nEth;
+            double[] z = { nEth / tot, nPE / tot };
+
+            TestContext.WriteLine("HDPE(Mw=118 kg/mol, monodisperse)/ethylene 5 wt%, kij=0.0404   cloud pressure (bar)");
+            TestContext.WriteLine("  T(C)   paper exp(Fig2)   PC-SAFT(this)");
+            foreach (var r in new[] { (T: 413.15, Pbar: 1850.0), (T: 423.15, Pbar: 1780.0), (T: 443.15, Pbar: 1650.0) })
+            {
+                double lastSplit = double.NaN, firstSingle = double.NaN;
+                for (double Pbar = 1000.0; Pbar <= 2400.0; Pbar += 100.0)
+                {
+                    bool split = HasHeavySplit(pp, z, Pbar * 1e5, r.T, mwPE, mwEth, 1e-8, 1e-4);
+                    if (split) lastSplit = Pbar;
+                    else if (!double.IsNaN(lastSplit)) { firstSingle = Pbar; break; }
+                }
+                double cloud = double.IsNaN(lastSplit) ? 0.0 : (double.IsNaN(firstSingle) ? lastSplit : 0.5 * (lastSplit + firstSingle));
+                TestContext.WriteLine($"  {r.T - 273.15,4:F0}        {r.Pbar,6:F0}           {cloud,6:F0}");
+                Assert.That(cloud, Is.EqualTo(r.Pbar).Within(120.0),
+                            $"HDPE/ethylene cloud pressure at {r.T - 273.15:F0} C should be near the paper's {r.Pbar:F0} bar");
+            }
+        }
+
+        private static bool HasHeavySplit(DWSIM.Thermodynamics.PropertyPackages.PropertyPackage pp, double[] z, double P, double T,
+                                          double mwHeavy, double mwLight, double diluteX, double richX)
+        {
+            try
+            {
+                var slle = new DWSIM.Thermodynamics.PropertyPackages.Auxiliary.FlashAlgorithms.SimpleLLE
+                {
+                    UseInitialEstimatesForPhase1 = true,
+                    InitialEstimatesForPhase1 = new[] { 1.0 - diluteX, diluteX },
+                    UseInitialEstimatesForPhase2 = true,
+                    InitialEstimatesForPhase2 = new[] { 1.0 - richX, richX },
+                };
+                var r = (object[])slle.Flash_PT((double[])z.Clone(), P, T, pp);
+                double L1 = Convert.ToDouble(r[0]), L2 = Convert.ToDouble(r[5]);
+                double x1 = ((double[])r[2])[1], x2 = ((double[])r[6])[1];
+                double w1 = x1 * mwHeavy / (x1 * mwHeavy + (1 - x1) * mwLight);
+                double w2 = x2 * mwHeavy / (x2 * mwHeavy + (1 - x2) * mwLight);
+                return Math.Min(L1, L2) > 0.001 && Math.Abs(w1 - w2) > 0.05;
+            }
+            catch { return false; }
+        }
+
+        /// <summary>
         /// Full phase-property read-out for a polymer solution through PC-SAFT: every property a MaterialStream
         /// exposes must come out finite and physical. Polypropylene (from its addcomps entry) at 20 wt% in
         /// n-pentane, 460 K / 60 bar, with a supplied melt viscosity so the viscosity path is exercised too.
