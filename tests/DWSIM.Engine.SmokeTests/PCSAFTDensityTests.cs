@@ -369,6 +369,27 @@ namespace DWSIM.Engine.SmokeTests
         private static double[] LastFeed;
 
         /// <summary>
+        /// The solvent parameters added from Tihic et al. 2006 must load and give a physical PC-SAFT result.
+        /// Checks that a sample of the new compounds carry their parameters, and flashes isooctane in n-hexane.
+        /// </summary>
+        [Test]
+        public void NewSolventParametersLoadAndSolve()
+        {
+            var pp = Package(fs => { fs.AddCompound("2,2,4-trimethylpentane"); fs.AddCompound("N-hexane"); });
+
+            foreach (var cas in new[] { "540-84-1", "617-78-7", "291-64-5" }) // isooctane, 3-ethylpentane, cycloheptane
+                Assert.That(pp.CompoundParameters.ContainsKey(cas), Is.True, $"PC-SAFT parameters for {cas} must be loaded");
+
+            var flash = new DWSIM.Thermodynamics.PropertyPackages.Auxiliary.FlashAlgorithms.NestedLoops();
+            var r = (object[])flash.Flash_PT(new[] { 0.5, 0.5 }, 2e5, 360.0, pp);
+            double L = Convert.ToDouble(r[0]), V = Convert.ToDouble(r[1]);
+            var lnphi = pp.DW_CalcLnFugCoeff(new[] { 0.5, 0.5 }, 360.0, 2e5, DWSIM.Thermodynamics.PropertyPackages.State.Liquid);
+            TestContext.WriteLine($"isooctane/n-hexane 360 K/2 bar: L={L:F3} V={V:F3}  lnPhi=[{lnphi[0]:F3},{lnphi[1]:F3}]");
+            Assert.That(L + V, Is.EqualTo(1.0).Within(1e-6));
+            Assert.That(double.IsNaN(lnphi[0]) || double.IsNaN(lnphi[1]), Is.False, "isooctane lnPhi must be finite");
+        }
+
+        /// <summary>
         /// Validation against Tumakaka et al. 2002, Fig. 2: HDPE/ethylene cloud pressure at 140/150/170 C.
         /// The paper models the polydisperse HDPE (Mn=43, Mw=118, Mz=231 kg/mol) with three pseudocomponents;
         /// this first checks a monodisperse Mw=118 kg/mol binary to confirm the ~1600-1900 bar regime and the
