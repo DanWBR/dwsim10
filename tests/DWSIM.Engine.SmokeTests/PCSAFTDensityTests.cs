@@ -155,12 +155,13 @@ namespace DWSIM.Engine.SmokeTests
 
         /// <summary>
         /// A phase that contains a polymer must report a physical density from the equation of state (not the
-        /// low-molecular-weight Rackett correlation) and a viscosity that reflects the user's polymer data.
-        /// The polymer's mole fraction is a trace, so only the mass-weighted blend lets its large, user-supplied
-        /// viscosity raise the solution viscosity; a mole average would leave it at essentially the solvent's.
+        /// low-molecular-weight Rackett correlation), a viscosity that reflects the user's polymer data, and
+        /// finite, physical transport properties throughout. The polymer's mole fraction is a trace, so only
+        /// the mass-weighted blends let its large, user-supplied viscosity raise the solution viscosity; a mole
+        /// average would leave it at essentially the solvent's.
         /// </summary>
         [Test]
-        public void PolymerPhaseUsesEoSDensityAndUserViscosity()
+        public void PolymerPhaseUsesEoSDensityAndUserTransportProperties()
         {
             var fs = new DWSIM.DynamicRunner.Flowsheet(null, null);
             fs.Init();
@@ -207,10 +208,18 @@ namespace DWSIM.Engine.SmokeTests
             double muPolymer = pp.AUX_LIQVISCi("Polypropylene", 460.15, 60e5);
             TestContext.WriteLine($"rho={rho:F1} kg/m3  mu={mu:E3}  muSolvent={muSolvent:E3}  muPolymer={muPolymer:E3}");
 
+            // Thermal conductivity and surface tension take the same mass-weighted route, and must come out
+            // finite and physical rather than the garbage a low-molecular-weight correlation gives a polymer.
+            double k = pp.AUX_CONDTL(460.15, 3);
+            double sigma = pp.AUX_SURFTM(460.15);
+            TestContext.WriteLine($"k={k:E3} W/mK  sigma={sigma:E3} N/m");
+
             Assert.That(rho, Is.GreaterThan(100.0).And.LessThan(1500.0), "EoS liquid density must be physical");
             Assert.That(muPolymer, Is.GreaterThan(muSolvent * 100.0), "test setup: the polymer is far more viscous");
             Assert.That(mu, Is.GreaterThan(muSolvent * 3.0), "the polymer must raise the solution viscosity");
             Assert.That(mu, Is.LessThan(muPolymer), "the blend cannot exceed the pure polymer viscosity");
+            Assert.That(k, Is.GreaterThan(0.005).And.LessThan(2.0), "thermal conductivity must be finite and physical");
+            Assert.That(sigma, Is.GreaterThan(0.0).And.LessThan(0.2), "surface tension must be finite and physical");
         }
 
         // A polypropylene (Mn = 50.4 kg/mol) pseudo-compound dissolved in n-pentane, with a feed at 20 wt%

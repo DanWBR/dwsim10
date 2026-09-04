@@ -404,7 +404,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
                 result = Me.CurrentMaterialStream.Phases(phaseID).Properties.entropy.GetValueOrDefault * Me.CurrentMaterialStream.Phases(phaseID).Properties.molecularWeight.GetValueOrDefault
                 Me.CurrentMaterialStream.Phases(phaseID).Properties.molar_entropy = result
 
-                result = Me.AUX_CONDTL(T)
+                result = Me.AUX_CONDTL(T, phaseID)
                 Me.CurrentMaterialStream.Phases(phaseID).Properties.thermalConductivity = result
 
                 result = Me.AUX_LIQVISCm(T, P, phaseID)
@@ -759,18 +759,24 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
         ''' by a mass-fraction-weighted logarithm (an Arrhenius blend), so the polymer governs the solution
         ''' viscosity in proportion to its mass. With no polymer present the base mixing rule is used unchanged.
         ''' </summary>
-        Public Overrides Function AUX_LIQVISCm(T As Double, P As Double, Optional phaseid As Integer = 3) As Double
-
-            Dim hasPolymer As Boolean = False
+        ''' <summary>
+        ''' True when the given phase contains a polymer (a PC-SAFT compound whose segment number is scaled by
+        ''' its molar mass, m_over_M > 0). The transport-property overrides below switch to mass-based mixing
+        ''' only then, so every non-polymer mixture keeps the base class's behaviour exactly.
+        ''' </summary>
+        Private Function PhaseHasPolymer(phaseid As Integer) As Boolean
             For Each c In CurrentMaterialStream.Phases(phaseid).Compounds.Values
                 Dim cas As String = c.ConstantProperties.CAS_Number
                 If c.MoleFraction.GetValueOrDefault > 0.0 AndAlso CompoundParameters.ContainsKey(cas) AndAlso CompoundParameters(cas).m_over_M > 0.0 Then
-                    hasPolymer = True
-                    Exit For
+                    Return True
                 End If
             Next
+            Return False
+        End Function
 
-            If Not hasPolymer Then Return MyBase.AUX_LIQVISCm(T, P, phaseid)
+        Public Overrides Function AUX_LIQVISCm(T As Double, P As Double, Optional phaseid As Integer = 3) As Double
+
+            If Not PhaseHasPolymer(phaseid) Then Return MyBase.AUX_LIQVISCm(T, P, phaseid)
 
             Dim lnsum As Double = 0.0, wsum As Double = 0.0
             For Each c In CurrentMaterialStream.Phases(phaseid).Compounds.Values
@@ -784,6 +790,58 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
             If wsum <= 0.0 Then Return MyBase.AUX_LIQVISCm(T, P, phaseid)
             Return Math.Exp(lnsum / wsum)
+
+        End Function
+
+        ''' <summary>
+        ''' Liquid thermal conductivity of a phase that contains a polymer. Each compound's value comes from
+        ''' AUX_LIQTHERMCONDi (the user-supplied liquid thermal-conductivity equation when present), blended by
+        ''' a mass-fraction average so the polymer contributes in proportion to its mass rather than its trace
+        ''' mole fraction. Conductivities of solvent and polymer are of the same order, so a linear (not
+        ''' logarithmic) average is appropriate. With no polymer present the base Li mixing rule is used.
+        ''' </summary>
+        Public Overrides Function AUX_CONDTL(T As Double, Optional phaseid As Integer = 3) As Double
+
+            If Not PhaseHasPolymer(phaseid) Then Return MyBase.AUX_CONDTL(T, phaseid)
+
+            Dim val As Double = 0.0, wsum As Double = 0.0
+            For Each c In CurrentMaterialStream.Phases(phaseid).Compounds.Values
+                Dim w As Double = c.MassFraction.GetValueOrDefault
+                If w <= 0.0 Then Continue For
+                Dim ki As Double = AUX_LIQTHERMCONDi(c.ConstantProperties, T)
+                If Double.IsNaN(ki) OrElse Double.IsInfinity(ki) OrElse ki <= 0.0 Then Continue For
+                val += w * ki
+                wsum += w
+            Next
+
+            If wsum <= 0.0 Then Return MyBase.AUX_CONDTL(T, phaseid)
+            Return val / wsum
+
+        End Function
+
+        ''' <summary>
+        ''' Liquid surface tension of a phase that contains a polymer. Each compound's value comes from
+        ''' AUX_SURFTi (the user-supplied surface-tension data when present), blended by a mass-fraction average
+        ''' over the sub-critical compounds so the polymer is not nullified by its trace mole fraction. With no
+        ''' polymer present the base molar average is used.
+        ''' </summary>
+        Public Overrides Function AUX_SURFTM(T As Double) As Double
+
+            If Not PhaseHasPolymer(1) Then Return MyBase.AUX_SURFTM(T)
+
+            Dim val As Double = 0.0, wsum As Double = 0.0
+            For Each c In CurrentMaterialStream.Phases(1).Compounds.Values
+                If T / c.ConstantProperties.Critical_Temperature >= 1.0 Then Continue For
+                Dim w As Double = c.MassFraction.GetValueOrDefault
+                If w <= 0.0 Then Continue For
+                Dim si As Double = AUX_SURFTi(c.ConstantProperties, T)
+                If Double.IsNaN(si) OrElse Double.IsInfinity(si) OrElse si <= 0.0 Then Continue For
+                val += w * si
+                wsum += w
+            Next
+
+            If wsum <= 0.0 Then Return MyBase.AUX_SURFTM(T)
+            Return val / wsum
 
         End Function
 
