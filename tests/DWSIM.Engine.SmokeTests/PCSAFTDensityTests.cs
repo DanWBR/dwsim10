@@ -253,6 +253,11 @@ namespace DWSIM.Engine.SmokeTests
                 ("Polyisobutene.json", "9003-27-4"),
                 ("Polystyrene.json", "9003-53-6"),
                 ("Poly_vinyl_acetate.json", "9003-20-7"),
+                ("Polydimethylsiloxane.json", "63148-62-9"),
+                ("Poly_n_butyl_methacrylate.json", "9003-63-8"),
+                ("Polybutadiene.json", "9003-17-2"),
+                ("Poly_alpha_methylstyrene.json", "25014-31-7"),
+                ("Poly_methyl_methacrylate.json", "9011-14-7"),
             };
 
             foreach (var (file, cas) in polymers)

@@ -800,7 +800,12 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
             {"9003-28-5", New PolymerTP(0.22, 249.0, 0.0336, -0.000058)},    ' polybutene
             {"9003-27-4", New PolymerTP(0.13, 200.0, 0.0336, -0.000064)},    ' polyisobutene
             {"9003-53-6", New PolymerTP(0.15, 373.0, 0.0407, -0.000072)},    ' polystyrene
-            {"9003-20-7", New PolymerTP(0.159, 305.0, 0.0365, -0.000066)}    ' poly(vinyl acetate)
+            {"9003-20-7", New PolymerTP(0.159, 305.0, 0.0365, -0.000066)},   ' poly(vinyl acetate)
+            {"63148-62-9", New PolymerTP(0.16, 150.0, 0.0197, -0.000048)},   ' polydimethylsiloxane
+            {"9003-63-8", New PolymerTP(0.15, 293.0, 0.0310, -0.000059)},    ' poly(n-butyl methacrylate)
+            {"9003-17-2", New PolymerTP(0.13, 178.0, 0.0325, -0.000060)},    ' polybutadiene
+            {"25014-31-7", New PolymerTP(0.15, 441.0, 0.0400, -0.000070)},   ' poly(alpha-methylstyrene)
+            {"9011-14-7", New PolymerTP(0.19, 378.0, 0.0410, -0.000076)}     ' poly(methyl methacrylate)
         }
 
         ' Typical amorphous polymer, for an injected polymer not in the table above.
