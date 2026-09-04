@@ -1980,27 +1980,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
             'Calculates the molar fraction of molecules Not bonded at association
 
-            Dim iniL = New List(Of Double)
-
-            For i = 0 To NumAss.Sum
-                iniL.Add(0.001)
-            Next
-
-            Dim ini = iniL.ToArray
-
-            Dim ovars As New List(Of DotNumerics.Optimization.OptSimplexVariable)
-            For Each item In ini
-                ovars.Add(New DotNumerics.Optimization.OptSimplexVariable(item))
-            Next
-
-            Dim opt As New DotNumerics.Optimization.Simplex()
-            opt.MaxFunEvaluations = 10000
-            opt.Tolerance = 1.0E-20
-            Dim result = opt.ComputeMin(Function(myv() As Double)
-                                            Return obj_HelmholtzAss(myv, mix, T, NumAss, sigma, d, ghs, dens_num)
-                                        End Function, ovars.ToArray)
-
-            Dim Xa = result
+            Dim Xa = SolveXa(mix, T, NumAss, sigma, d, ghs, dens_num)
 
             Dim dgij_drok(,,), term4, term5, term6, term7 As Double
 
@@ -2349,28 +2329,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
             'Calculates the molar fraction of molecules Not bonded at association
 
-            Dim iniL = New List(Of Double)
-
-            For i = 0 To NumAss.Sum
-                iniL.Add(0.001)
-            Next
-
-            Dim ini = iniL.ToArray
-
-            Dim ovars As New List(Of DotNumerics.Optimization.OptSimplexVariable)
-            For Each item In ini
-                ovars.Add(New DotNumerics.Optimization.OptSimplexVariable(item))
-            Next
-
-            Dim opt As New DotNumerics.Optimization.Simplex
-            opt.MaxFunEvaluations = 10000
-            opt.Tolerance = 1.0E-20
-            Dim result = opt.ComputeMin(Function(myv() As Double)
-                                            Return obj_HelmholtzAss(myv, mix, T, NumAss, sigma, d, ghs, dens_num)
-                                        End Function,
-                                    ovars.ToArray)
-
-            Dim Xa = result
+            Dim Xa = SolveXa(mix, T, NumAss, sigma, d, ghs, dens_num)
 
             'Association contribution to Helmholtz energy
             Aass = 0
@@ -2568,6 +2527,81 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
         Public Function eval_h(ByVal n As Integer, ByVal x As Double(), ByVal new_x As Boolean, ByVal obj_factor As Double, ByVal m As Integer, ByVal lambda As Double(),
          ByVal new_lambda As Boolean, ByVal nele_hess As Integer, ByRef iRow As Integer(), ByRef jCol As Integer(), ByRef values As Double()) As Boolean
             Return False
+        End Function
+
+        Friend Function SolveXa(mix, T, NumAss, sigma, d, ghs, dens_num) As Double()
+
+            'Solves the fraction of non-bonded association sites Xa by successive substitution of
+            'Xa_a = 1 / (1 + sum_b rho x_b Xa_b delta_ab). The iteration keeps every fraction in
+            '(0,1] by construction, which the previous unconstrained simplex minimisation did not:
+            'it could return negative site fractions and turn the log(Xa) terms in the Helmholtz
+            'energy and chemical potential into NaN, above all for high segment-number polymers
+            'with a 4C association scheme.
+
+            Dim numC As Integer = mix.numC
+            Dim nSit As Integer = CInt(sum(NumAss))
+
+            Dim Xa(nSit) As Double
+            If nSit = 0 Then Return Xa
+
+            'site -> component map
+            Dim compOf(nSit) As Integer
+            Dim s As Integer = 0
+            For i = 1 To numC
+                For j = 1 To CInt(NumAss(i))
+                    s += 1
+                    compOf(s) = i
+                Next
+            Next
+
+            'association-strength matrix delta(a,b): site a (of comp i) with site b (of comp k)
+            Dim delta(nSit, nSit) As Double
+            Dim ka(,), ea(,), kappa_, epsilon_ As Double
+            Dim inda As Integer = 0
+            For i = 1 To numC
+                For j = 1 To CInt(NumAss(i))
+                    inda += 1
+                    Dim indb As Integer = 0
+                    For k = 1 To numC
+                        For l = 1 To CInt(NumAss(k))
+                            indb += 1
+                            If i = k Then 'value from the component site matrix
+                                ka = mix.comp(i).EoSParam(5)
+                                kappa_ = ka(j, l)
+                                ea = mix.comp(i).EoSParam(6)
+                                epsilon_ = ea(j, l)
+                            Else 'combining rules for unlike components
+                                kappa_ = Sqrt(max(mix.comp(i).EoSParam(5)) * max(mix.comp(k).EoSParam(5))) * (Sqrt(sigma(i) * sigma(k)) / (0.5 * (sigma(i) + sigma(k)))) ^ 3
+                                epsilon_ = 0.5 * (max(mix.comp(i).EoSParam(6)) + max(mix.comp(k).EoSParam(6)))
+                            End If
+                            delta(inda, indb) = ((d(i) + d(k)) / 2) ^ 3 * ghs(i, k) * kappa_ * (Exp(epsilon_ / T) - 1)
+                        Next
+                    Next
+                Next
+            Next
+
+            'successive substitution with light damping
+            For a = 1 To nSit
+                Xa(a) = 0.2
+            Next
+            For it As Integer = 1 To 500
+                Dim maxd As Double = 0.0
+                For a = 1 To nSit
+                    Dim acc As Double = 0.0
+                    For b = 1 To nSit
+                        acc += dens_num * mix.x(compOf(b)) * Xa(b) * delta(a, b)
+                    Next
+                    Dim xn As Double = 1.0 / (1.0 + acc)
+                    Dim diff As Double = xn - Xa(a)
+                    If diff < 0.0 Then diff = -diff
+                    If diff > maxd Then maxd = diff
+                    Xa(a) = 0.5 * (Xa(a) + xn)
+                Next
+                If maxd < 0.000000000001 Then Exit For
+            Next
+
+            Return Xa
+
         End Function
 
         Friend Function obj_HelmholtzAss(Xa, mix, T, NumAss, sigma, d, ghs, dens_num)

@@ -22,6 +22,9 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
         ' Polymers: segment number per unit molar mass (mol/g). When > 0 the compound is a polymer and
         ' its segment number is m = m_over_M * Molar_Weight, so a single row covers any chain length.
         <FieldOptional()> <FieldNullValue(0.0#)> Public m_over_M As Double = 0.0#
+        ' Association scheme (Huang-Radosz): empty/2B = one donor + one acceptor site; 4C = two donor + two
+        ' acceptor sites (like water and the glycols/PEG), where only unlike sites associate.
+        <FieldOptional()> <FieldNullValue("")> Public scheme As String = ""
         <FieldHidden()> Public associationparams As String = ""
 
     End Class
@@ -103,11 +106,18 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
             Using t As StreamReader = New StreamReader(filestr)
                 pcsaftdatac = fh1.ReadStream(t)
                 For Each pcsaftdata As PCSParam In pcsaftdatac
-                    pcsaftdata.associationparams = ("2" & Environment.NewLine & "[0 " _
-                        & (pcsaftdata.kAiBi & ("; " _
-                        & (pcsaftdata.kAiBi & (" 0]" & Environment.NewLine & "[0 " _
-                        & (pcsaftdata.epsilon2 & ("; " _
-                        & (pcsaftdata.epsilon2 & " 0]"))))))))
+                    Dim ci = Globalization.CultureInfo.InvariantCulture
+                    Dim k As String = pcsaftdata.kAiBi.ToString(ci), e As String = pcsaftdata.epsilon2.ToString(ci)
+                    If pcsaftdata.scheme.Trim().ToUpperInvariant() = "4C" Then
+                        ' Two acceptor (A) and two donor (B) sites; only unlike sites (A-B) associate, so the
+                        ' 4x4 kappa and epsilon matrices are zero on the A-A and B-B blocks.
+                        pcsaftdata.associationparams = "4" & Environment.NewLine &
+                            $"[0 0 {k} {k}; 0 0 {k} {k}; {k} {k} 0 0; {k} {k} 0 0]" & Environment.NewLine &
+                            $"[0 0 {e} {e}; 0 0 {e} {e}; {e} {e} 0 0; {e} {e} 0 0]"
+                    Else
+                        pcsaftdata.associationparams = "2" & Environment.NewLine &
+                            $"[0 {k}; {k} 0]" & Environment.NewLine & $"[0 {e}; {e} 0]"
+                    End If
                     If Not CompoundParameters.ContainsKey(pcsaftdata.casno) Then
                         CompoundParameters.Add(pcsaftdata.casno, pcsaftdata)
                     End If
@@ -806,7 +816,8 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
             {"9003-17-2", New PolymerTP(0.13, 178.0, 0.0325, -0.000060)},    ' polybutadiene
             {"25014-31-7", New PolymerTP(0.15, 441.0, 0.0400, -0.000070)},   ' poly(alpha-methylstyrene)
             {"9011-14-7", New PolymerTP(0.19, 378.0, 0.0410, -0.000076)},    ' poly(methyl methacrylate)
-            {"9003-21-8", New PolymerTP(0.17, 281.0, 0.0410, -0.000070)}     ' poly(methyl acrylate)
+            {"9003-21-8", New PolymerTP(0.17, 281.0, 0.0410, -0.000070)},    ' poly(methyl acrylate)
+            {"25322-68-3", New PolymerTP(0.20, 206.0, 0.0430, -0.000058)}    ' poly(ethylene glycol)
         }
 
         ' Typical amorphous polymer, for an injected polymer not in the table above.
