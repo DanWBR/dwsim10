@@ -110,6 +110,29 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
 
             Dim result As Object = Nothing
 
+            ' A Gibbs-minimization package (PC-SAFT with a polymer) can carry a non-volatile heavy component
+            ' that the vapour-first path below mishandles - it either forces an all-vapour result or throws on
+            ' the vapour amount. Split the feed into two liquids first (SimpleLLE seeds itself from the EoS
+            ' spinodal), and when a genuine split exists and the mixture is below its boiling pressure, that
+            ' liquid-liquid result is the whole answer. Otherwise fall through to the usual VLE-first path.
+            If PP.UsesGibbsMinimizationForLLE Then
+                Dim rL As Object = New SimpleLLE().Flash_PT(Vz, P, T, PP)
+                Dim L2s As Double = Convert.ToDouble(rL(5))
+                If L2s > 0.0001 Then
+                    Dim Vx1s = DirectCast(rL(2), Double())
+                    Dim g1 = DirectCast(rL(9), Double())
+                    Dim PVs = PP.RET_VPVAP(T)
+                    Dim Pbub As Double = 0.0
+                    For i As Integer = 0 To n
+                        Pbub += Vx1s(i) * g1(i) * PVs(i)
+                    Next
+                    If P > Pbub Then
+                        Return New Object() {Convert.ToDouble(rL(0)), 0.0, Vx1s, PP.RET_NullVector, T,
+                                             L2s, DirectCast(rL(6), Double()), 0.0, PP.RET_NullVector}
+                    End If
+                End If
+            End If
+
             If prevres IsNot Nothing AndAlso prevres.L2 = 0.0 Then
 
                 V = prevres.V

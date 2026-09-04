@@ -115,6 +115,48 @@ namespace DWSIM.Engine.SmokeTests
         [Test]
         public void PolymerLiquidLiquidSplitIsReachableUnseeded()
         {
+            var pp = PolypropyleneInNPentane(out var z);
+            var flash = new DWSIM.Thermodynamics.PropertyPackages.Auxiliary.FlashAlgorithms.SimpleLLE();
+            var r = (object[])flash.Flash_PT(z, 40e5, 460.15, pp);
+
+            double L1 = Convert.ToDouble(r[0]), L2 = Convert.ToDouble(r[5]);
+            double w1 = MassFractionPP(((double[])r[2])[1]);
+            double w2 = MassFractionPP(((double[])r[6])[1]);
+            TestContext.WriteLine($"L1={L1:F3} L2={L2:F3}  w1(PP)={w1:F4} w2(PP)={w2:F4}");
+
+            Assert.That(Math.Min(L1, L2), Is.GreaterThan(0.01), "two liquid phases must be present");
+            Assert.That(Math.Max(w1, w2), Is.GreaterThan(0.15), "one phase must be polymer-rich");
+            Assert.That(Math.Min(w1, w2), Is.LessThan(0.01), "the other phase must be nearly pure solvent");
+        }
+
+        /// <summary>
+        /// The same split must come out of the Nested Loops (VLLE) flash that a MaterialStream uses, not only
+        /// the dedicated Simple LLE flash. For a Gibbs-minimization package the VLLE flash splits the liquid
+        /// first (seeded from the EoS spinodal) instead of running a vapour flash the non-volatile polymer
+        /// cannot satisfy, which previously threw "Error calculating amount of the vapor phase".
+        /// </summary>
+        [Test]
+        public void PolymerLiquidLiquidSplitIsReachableViaVLLEFlash()
+        {
+            var pp = PolypropyleneInNPentane(out var z);
+            var flash = new DWSIM.Thermodynamics.PropertyPackages.Auxiliary.FlashAlgorithms.NestedLoops3PV3();
+            var r = (object[])flash.Flash_PT(z, 40e5, 460.15, pp);
+
+            double L1 = Convert.ToDouble(r[0]), V = Convert.ToDouble(r[1]), L2 = Convert.ToDouble(r[5]);
+            double w1 = MassFractionPP(((double[])r[2])[1]);
+            double w2 = MassFractionPP(((double[])r[6])[1]);
+            TestContext.WriteLine($"L1={L1:F3} V={V:F3} L2={L2:F3}  w1(PP)={w1:F4} w2(PP)={w2:F4}");
+
+            Assert.That(V, Is.EqualTo(0.0).Within(1e-6), "no vapour forms at this pressure");
+            Assert.That(Math.Min(L1, L2), Is.GreaterThan(0.01), "two liquid phases must be present");
+            Assert.That(Math.Max(w1, w2), Is.GreaterThan(0.15), "one phase must be polymer-rich");
+            Assert.That(Math.Min(w1, w2), Is.LessThan(0.01), "the other phase must be nearly pure solvent");
+        }
+
+        // A polypropylene (Mn = 50.4 kg/mol) pseudo-compound dissolved in n-pentane, with a feed at 20 wt%
+        // polymer - well inside the miscibility gap, though by mole the polymer is only a trace (~4e-4).
+        private static DWSIM.Thermodynamics.AdvancedEOS.PCSAFT2PropertyPackage PolypropyleneInNPentane(out double[] feed)
+        {
             var pp = Package(fs =>
             {
                 fs.AddCompound("N-pentane");
@@ -133,22 +175,10 @@ namespace DWSIM.Engine.SmokeTests
                 fs.Options.SelectedComponents.Add(poly.Name, poly);
             });
 
-            // 20 wt% polypropylene, well inside the gap. By mole the polymer is a trace (~4e-4).
             const double mwP = 50400.0, mwC5 = 72.15, wFeed = 0.20;
             double nPP = wFeed / mwP, nC5 = (1.0 - wFeed) / mwC5, tot = nPP + nC5;
-            var z = new[] { nC5 / tot, nPP / tot };
-
-            var flash = new DWSIM.Thermodynamics.PropertyPackages.Auxiliary.FlashAlgorithms.SimpleLLE();
-            var r = (object[])flash.Flash_PT(z, 40e5, 460.15, pp);
-
-            double L1 = Convert.ToDouble(r[0]), L2 = Convert.ToDouble(r[5]);
-            double w1 = MassFractionPP(((double[])r[2])[1]);
-            double w2 = MassFractionPP(((double[])r[6])[1]);
-            TestContext.WriteLine($"L1={L1:F3} L2={L2:F3}  w1(PP)={w1:F4} w2(PP)={w2:F4}");
-
-            Assert.That(Math.Min(L1, L2), Is.GreaterThan(0.01), "two liquid phases must be present");
-            Assert.That(Math.Max(w1, w2), Is.GreaterThan(0.15), "one phase must be polymer-rich");
-            Assert.That(Math.Min(w1, w2), Is.LessThan(0.01), "the other phase must be nearly pure solvent");
+            feed = new[] { nC5 / tot, nPP / tot };
+            return pp;
         }
 
         // Mass fraction of the polymer from its mole fraction (n-pentane 72.15, polypropylene 50400 g/mol).
