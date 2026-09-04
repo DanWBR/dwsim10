@@ -2595,19 +2595,49 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
             'Else
 
-            Dim ovars As New List(Of DotNumerics.Optimization.OptSimplexBoundVariable)
-            ovars.Add(New DotNumerics.Optimization.OptSimplexBoundVariable(ini, ini * 0.001, ini * 200))
+            ' The variable is the reduced density (packing fraction eta), physically in (0, ~0.74).
+            ' obj_SAFT(eta) = P - Pcalc(eta) is finite over that range and crosses zero at each real
+            ' root; beyond close packing the hard-sphere (1 - eta) terms turn singular and it goes NaN.
+            ' Scan for sign changes and pick the liquid (highest-eta) or gas (lowest-eta) root - robust
+            ' for a polymer-rich phase, where the old simplex-on-squared-objective slid onto a spurious
+            ' low-density root or wandered into the NaN region.
+            Dim etaMax As Double = 0.7404
+            Dim etaMin As Double = 0.000001
+            Dim npts As Integer = 400
+            Dim roots As New List(Of Double)
+            Dim etaPrev As Double = etaMin
+            Dim fPrev As Double = obj_SAFT(etaPrev, T, P, mix)(0)
+            For k As Integer = 1 To npts
+                Dim eta As Double = etaMin + (etaMax - etaMin) * k / npts
+                Dim fCur As Double = obj_SAFT(eta, T, P, mix)(0)
+                If Not Double.IsNaN(fPrev) AndAlso Not Double.IsNaN(fCur) AndAlso fPrev * fCur < 0.0 Then
+                    Dim a As Double = etaPrev, b As Double = eta, fa As Double = fPrev
+                    For it As Integer = 1 To 80
+                        Dim mmid As Double = 0.5 * (a + b)
+                        Dim fm As Double = obj_SAFT(mmid, T, P, mix)(0)
+                        If Double.IsNaN(fm) Then Exit For
+                        If fa * fm <= 0.0 Then
+                            b = mmid
+                        Else
+                            a = mmid : fa = fm
+                        End If
+                    Next
+                    roots.Add(0.5 * (a + b))
+                End If
+                etaPrev = eta : fPrev = fCur
+            Next
 
-            Dim opt As New DotNumerics.Optimization.Simplex()
-            opt.MaxFunEvaluations = 100000
-            opt.Tolerance = 1.0E-20
+            Dim etaSol As Double
+            If roots.Count = 0 Then
+                ' No bracketed root (e.g. numerical noise): fall back to the ideal-density guess.
+                etaSol = Math.Min(Math.Max(ini, etaMin), etaMax)
+            ElseIf phase = "liq" Then
+                etaSol = roots.Max
+            Else
+                etaSol = roots.Min
+            End If
 
-            Dim result = opt.ComputeMin(Function(myv() As Double)
-                                            Return obj_SAFT(myv(0), T, P, mix)(0) ^ 2
-                                        End Function,
-                                        ovars.ToArray)
-
-            Return obj_SAFT(result(0), T, P, mix)(1)
+            Return obj_SAFT(etaSol, T, P, mix)(1)
 
             'End If
 
