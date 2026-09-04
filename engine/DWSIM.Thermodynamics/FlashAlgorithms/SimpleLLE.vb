@@ -339,6 +339,39 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
         End Function
 
         ''' <summary>
+        ''' Backtracking line search of a step direction on the two-phase Gibbs energy. Returns True and the
+        ''' accepted phase-1 mole numbers (with their Gibbs energy) if a feasible point below g0 was found.
+        ''' </summary>
+        Private Function TryGibbsStep(ByVal Vz As Double(), ByVal Vn1 As Double(), ByVal dnstep As Double(),
+                                      ByVal g0 As Double, ByVal T As Double, ByVal P As Double,
+                                      ByVal PP As PropertyPackages.PropertyPackage,
+                                      ByRef outVn1 As Double(), ByRef outG As Double) As Boolean
+            If dnstep Is Nothing Then Return False
+            Dim n As Integer = Vz.Length - 1
+            Dim lam As Double = 1.0
+            For ls As Integer = 1 To 20
+                Dim trial(n) As Double
+                Dim feasible As Boolean = True
+                For i As Integer = 0 To n
+                    If Vz(i) > 0.0 Then
+                        trial(i) = Vn1(i) + lam * dnstep(i)
+                        If trial(i) <= 0.000000001 * Vz(i) OrElse trial(i) >= 0.999999999 * Vz(i) Then feasible = False
+                    Else
+                        trial(i) = 0.0
+                    End If
+                Next
+                If feasible Then
+                    Dim gt As Double = LLEGibbs(Vz, trial, T, P, PP)
+                    If Not Double.IsNaN(gt) AndAlso gt < g0 - 0.000000000001 Then
+                        outVn1 = trial : outG = gt : Return True
+                    End If
+                End If
+                lam *= 0.5
+            Next
+            Return False
+        End Function
+
+        ''' <summary>
         ''' One Newton step on the isoactivity condition, with the phase-1 mole numbers as unknowns (phase 2
         ''' follows from the material balance n2 = z - n1). The residual is
         ''' F_i = ln(x1_i phi1_i) - ln(x2_i phi2_i), equivalent to the activity form x1 gamma1 = x2 gamma2
@@ -353,7 +386,7 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
         ''' </summary>
         Private Function NewtonStepLLE(ByVal Vz As Double(), ByVal Vn1 As Double(), ByVal T As Double,
                                        ByVal P As Double, ByVal PP As PropertyPackages.PropertyPackage,
-                                       ByRef Fnorm As Double) As Double()
+                                       ByRef Fnorm As Double, Optional ByVal forceNumerical As Boolean = False) As Double()
 
             Dim n As Integer = Vz.Length - 1
             Dim Vn2(n), Vx1(n), Vx2(n) As Double
@@ -375,7 +408,7 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
             ' Composition derivatives: analytical when the package supplies them, otherwise finite-difference
             ' (PC-SAFT does not implement analytical d(lnphi)/dn).
             Dim D1 As Double(,), D2m As Double(,)
-            If PP.ImplementsAnalyticalDerivatives Then
+            If PP.ImplementsAnalyticalDerivatives AndAlso Not forceNumerical Then
                 D1 = PP.DW_CalcdLnFugCoeffdn(Vx1, T, P, State.Liquid)
                 D2m = PP.DW_CalcdLnFugCoeffdn(Vx2, T, P, State.Liquid)
             Else
@@ -809,29 +842,28 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                             Vn2 = Vz.SubtractY(Vn1) : L1 = Vn1.Sum : L2 = 1 - L1
                             newtonOK = True : IObj2?.Close() : Exit Do
                         End If
-                        If dnstep IsNot Nothing Then
-                            Dim lam As Double = 1.0
-                            For ls As Integer = 1 To 20
-                                Dim trial(n) As Double
-                                Dim feasible As Boolean = True
-                                For i = 0 To n
-                                    If Vz(i) > 0.0 Then
-                                        trial(i) = Vn1(i) + lam * dnstep(i)
-                                        If trial(i) <= 0.000000001 * Vz(i) OrElse trial(i) >= 0.999999999 * Vz(i) Then feasible = False
-                                    Else
-                                        trial(i) = 0.0
-                                    End If
-                                Next
-                                If feasible Then
-                                    Dim gt As Double = LLEGibbs(Vz, trial, T, P, PP)
-                                    If Not Double.IsNaN(gt) AndAlso gt < g0 - 0.000000000001 Then
-                                        Vn1 = trial : improved = True : Exit For
-                                    End If
-                                End If
-                                lam *= 0.5
-                            Next
+                        ' Take the better of the analytical and (exact) numerical Newton steps. The analytical
+                        ' Jacobian is fast but approximate, and its step is sometimes accepted for only a tiny
+                        ' Gibbs decrease, stalling the descent where the exact finite-difference step does far
+                        ' better - and vice versa. Line-searching both and keeping whichever lowers g most is
+                        ' robust across conditions. For a package without analytical derivatives dnstep is
+                        ' already the numerical step, so the second try is skipped.
+                        Dim bestVn1 As Double() = Nothing
+                        Dim bestG As Double = g0
+                        Dim vTry As Double() = Nothing
+                        Dim gTry As Double = 0.0
+                        If TryGibbsStep(Vz, Vn1, dnstep, g0, T, P, PP, vTry, gTry) Then
+                            improved = True : bestVn1 = vTry : bestG = gTry
                         End If
-                        ' Steepest descent on g when the Newton step did not lower it.
+                        If PP.ImplementsAnalyticalDerivatives Then
+                            Dim fnum As Double = 0.0
+                            Dim dnnum = NewtonStepLLE(Vz, Vn1, T, P, PP, fnum, forceNumerical:=True)
+                            If TryGibbsStep(Vz, Vn1, dnnum, g0, T, P, PP, vTry, gTry) Then
+                                If Not improved OrElse gTry < bestG Then improved = True : bestVn1 = vTry : bestG = gTry
+                            End If
+                        End If
+                        If improved Then Vn1 = bestVn1
+                        ' Steepest descent on g when neither Newton step lowered it.
                         If Not improved Then
                             Dim grad = LLEGradient(Vz, Vn1, T, P, PP)
                             If grad IsNot Nothing Then
@@ -934,6 +966,16 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                 ecount += 1
 
                 If ecount >= maxit_e Then
+                    If PP.UsesGibbsMinimizationForLLE Then
+                        ' The Gibbs descent ran out of iterations but has been lowering g throughout, so the
+                        ' current phase-1 split is the best estimate - report it (the phase-identity test at
+                        ' 'out' merges it if the two liquids actually coincided) rather than throwing away a
+                        ' nearly-converged split.
+                        Vx1 = Vn1.MultiplyConstY(1 / L1).NormalizeY
+                        Vx2 = Vn2.MultiplyConstY(1 / L2).NormalizeY
+                        IObj2?.Close()
+                        GoTo out
+                    End If
                     If seeded Then Throw New Exception(Calculator.GetLocalString("PropPack_FlashMaxIt"))
                     ' Nothing here is evidence that a split exists: the stability test found this feed
                     ' stable, the spinodal analysis offered no seed, and the heuristic perturbation - which
