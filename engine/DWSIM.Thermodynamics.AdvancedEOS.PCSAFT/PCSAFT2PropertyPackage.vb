@@ -769,6 +769,13 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
             Return CompoundParameters.ContainsKey(cas) AndAlso CompoundParameters(cas).m_over_M > 0.0
         End Function
 
+        Private Shared Function NoUserViscosityData(cp As Interfaces.ICompoundConstantProperties) As Boolean
+            If cp.LiquidViscosityEquation <> "" AndAlso cp.LiquidViscosityEquation <> "0" Then Return False
+            Return cp.Liquid_Viscosity_Const_A = 0.0 AndAlso cp.Liquid_Viscosity_Const_B = 0.0 AndAlso
+                   cp.Liquid_Viscosity_Const_C = 0.0 AndAlso cp.Liquid_Viscosity_Const_D = 0.0 AndAlso
+                   cp.Liquid_Viscosity_Const_E = 0.0
+        End Function
+
 #Region "   Polymer transport-property estimates (used only with no user data)"
 
         ' Reference transport data for the built-in polymers, from the polymer literature (thermal conductivity
@@ -838,6 +845,11 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
             For Each c In CurrentMaterialStream.Phases(phaseid).Compounds.Values
                 Dim w As Double = c.MassFraction.GetValueOrDefault
                 If w <= 0.0 Then Continue For
+                ' Polymer melt/solution viscosity is molar-mass and shear dependent, so there is no reliable
+                ' estimate for it: a polymer with no supplied viscosity data is left out of the blend rather
+                ' than filled in with the low-molecular-weight correlation's meaningless value.
+                Dim cp = c.ConstantProperties
+                If IsPolymer(cp.CAS_Number) AndAlso NoUserViscosityData(cp) Then Continue For
                 Dim vi As Double = AUX_LIQVISCi(c.Name, T, P)
                 If Double.IsNaN(vi) OrElse Double.IsInfinity(vi) OrElse vi <= 0.0 Then Continue For
                 lnsum += w * Math.Log(vi)
