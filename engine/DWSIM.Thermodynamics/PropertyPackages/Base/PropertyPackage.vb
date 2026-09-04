@@ -1477,64 +1477,48 @@ Namespace PropertyPackages
             IObj?.Paragraphs.Add(String.Format("Phase 2 composition: {0}", Vy.ToMathArrayString()))
             IObj?.Paragraphs.Add(String.Format("Calculation Type: {0}", type))
 
-            Dim fugvap As Double() = Nothing
-            Dim fugliq As Double() = Nothing
+            Dim n As Integer = Vx.Length - 1
+            Dim i As Integer
+            Dim K(n) As Double
+
+            Dim st2 As State = If(type = "LV", State.Vapor, State.Liquid)
 
             If OverrideKvalFugCoeff Then
 
                 IObj?.Paragraphs.Add(String.Format("Fugacity coefficient calculation overriden by user. Calling user-defined functions..."))
 
-                fugliq = KvalFugacityCoefficientOverride.Invoke(Vx, T, P, State.Liquid, Me)
-                If type = "LV" Then
-                    fugvap = KvalFugacityCoefficientOverride.Invoke(Vy, T, P, State.Vapor, Me)
-                Else ' LL
-                    fugvap = KvalFugacityCoefficientOverride.Invoke(Vy, T, P, State.Liquid, Me)
-                End If
+                Dim fugliq = KvalFugacityCoefficientOverride.Invoke(Vx, T, P, State.Liquid, Me)
+                Dim fugvap = KvalFugacityCoefficientOverride.Invoke(Vy, T, P, st2, Me)
+                K = fugliq.DivideY(fugvap)
 
             Else
+
+                ' K from LOG fugacity coefficients: K = exp(ln phi_L - ln phi_V). Mathematically the same
+                ' as phi_L/phi_V for a normal package, but stays finite when a coefficient underflows to
+                ' zero (a high segment-number polymer), where phi_L/phi_V would be 0/0 = NaN and break the
+                ' Rachford-Rice loop.
+                Dim lnfugliq As Double() = Nothing
+                Dim lnfugvap As Double() = Nothing
 
                 IObj?.SetCurrent()
 
                 If Settings.EnableParallelProcessing Then
-
-                    Dim t1 = Task.Run(Sub() fugliq = Me.DW_CalcFugCoeff(Vx, T, P, State.Liquid))
-
-                    Dim t2 = Task.Run(Sub()
-                                          If type = "LV" Then
-                                              fugvap = Me.DW_CalcFugCoeff(Vy, T, P, State.Vapor)
-                                          Else ' LL
-                                              fugvap = Me.DW_CalcFugCoeff(Vy, T, P, State.Liquid)
-                                          End If
-                                      End Sub)
-
+                    Dim t1 = Task.Run(Sub() lnfugliq = Me.DW_CalcLnFugCoeff(Vx, T, P, State.Liquid))
+                    Dim t2 = Task.Run(Sub() lnfugvap = Me.DW_CalcLnFugCoeff(Vy, T, P, st2))
                     Task.WaitAll(t1, t2)
-
                 Else
-
-                    fugliq = Me.DW_CalcFugCoeff(Vx, T, P, State.Liquid)
-
+                    lnfugliq = Me.DW_CalcLnFugCoeff(Vx, T, P, State.Liquid)
                     IObj?.SetCurrent()
-
-                    If type = "LV" Then
-                        fugvap = Me.DW_CalcFugCoeff(Vy, T, P, State.Vapor)
-                    Else ' LL
-                        fugvap = Me.DW_CalcFugCoeff(Vy, T, P, State.Liquid)
-                    End If
-
+                    lnfugvap = Me.DW_CalcLnFugCoeff(Vy, T, P, st2)
                 End If
+
+                For i = 0 To n
+                    K(i) = Math.Exp(lnfugliq(i) - lnfugvap(i))
+                Next
 
             End If
 
             IObj?.Paragraphs.Add(String.Format("<h2>Intermediate Calculated Parameters</h2>"))
-
-            IObj?.Paragraphs.Add(String.Format("Phase 1 fugacity coefficients: {0}", fugliq.ToMathArrayString()))
-            IObj?.Paragraphs.Add(String.Format("Phase 2 fugacity coefficients: {0}", fugvap.ToMathArrayString()))
-
-            Dim n As Integer = fugvap.Length - 1
-            Dim i As Integer
-            Dim K(n) As Double
-
-            K = fugliq.DivideY(fugvap)
 
             If Double.IsNaN(K.SumY) Or Double.IsInfinity(K.SumY) Or K.SumY = 0.0# Then
                 Dim cprops = DW_GetConstantProperties()
