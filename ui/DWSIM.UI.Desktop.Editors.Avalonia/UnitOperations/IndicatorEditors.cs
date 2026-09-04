@@ -184,7 +184,7 @@ namespace DWSIM.UI.Desktop.Editors
 
                     var refilled = UnitsOf(target.GetUnitsType());
                     if (unitPicker == null) return;
-                    unitPicker.ItemsSource = refilled;
+                    unitPicker.SetOptions(refilled);
                     unitPicker.SelectedIndex = Math.Max(0, refilled.IndexOf(target.GetUnits() ?? ""));
                 });
 
@@ -209,7 +209,7 @@ namespace DWSIM.UI.Desktop.Editors
                 target.SetObjectID(obj.Name);
 
                 ReloadProperties();
-                propertyPicker.ItemsSource = properties.ToList();
+                propertyPicker.SetOptions(properties);
                 propertyPicker.SelectedIndex = Math.Max(0, properties.IndexOf(target.GetProperty() ?? ""));
 
                 ShowValue();

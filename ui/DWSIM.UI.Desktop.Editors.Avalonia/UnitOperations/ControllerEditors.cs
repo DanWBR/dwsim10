@@ -537,7 +537,7 @@ namespace DWSIM.UI.Desktop.Editors
             objectPicker.SelectionChanged += (s, e) =>
             {
                 ReloadProperties();
-                propertyPicker.ItemsSource = properties.ToList();
+                propertyPicker.SetOptions(properties);
                 propertyPicker.SelectedIndex = properties.Count > 0 ? 0 : -1;
             };
 

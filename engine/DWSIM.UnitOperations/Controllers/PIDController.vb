@@ -704,6 +704,12 @@ Namespace SpecialOps
 
         Public Sub UpdateVars()
 
+            ' An unconfigured controller (freshly added, or one being drawn on the flowsheet before its
+            ' objects are set) has no controlled/manipulated data, or an id that resolves to nothing.
+            ' Leave the last known SP/PV/MV instead of dereferencing Nothing, which otherwise surfaced as
+            ' "Error drawing PID-1: Object reference not set to an instance of an object" beside the icon.
+            If ControlledObjectData Is Nothing OrElse ManipulatedObjectData Is Nothing Then Exit Sub
+
             Dim controlled = GetFlowsheet.SimulationObjects.Values.Where(Function(x) x.Name = ControlledObjectData.ID).SingleOrDefault
 
             Dim manipulated = GetFlowsheet.SimulationObjects.Values.Where(Function(x) x.Name = ManipulatedObjectData.ID).SingleOrDefault
@@ -713,6 +719,8 @@ Namespace SpecialOps
             ' assigned it. A controller driven from the Automation API or from MCP, or restored from a
             ' file whose editor was never opened, dereferenced Nothing there.
             ManipulatedObject = TryCast(manipulated, SharedClasses.UnitOperations.BaseClass)
+
+            If controlled Is Nothing OrElse manipulated Is Nothing Then Exit Sub
 
             Dim CurrentValue = SharedClasses.SystemsOfUnits.Converter.ConvertFromSI(ControlledObjectData.Units, controlled.GetPropertyValue(ControlledObjectData.PropertyName))
 

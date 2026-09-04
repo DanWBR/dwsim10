@@ -390,6 +390,23 @@ public static class AvaloniaEditorExtensions
         return cb;
     }
 
+    /// <summary>
+    /// Replaces a drop-down's options after it has been built. Avalonia forbids assigning ItemsSource
+    /// once the Items collection has been populated directly (and vice-versa), so a combo filled by
+    /// CreateAndAddDropDownRow - which adds to Items - must be reloaded through Items; assigning
+    /// ItemsSource to it throws InvalidOperationException. This picks the right side automatically.
+    /// </summary>
+    public static void SetOptions(this ComboBox cb, IEnumerable<string> options)
+    {
+        if (cb.ItemsSource != null)
+        {
+            cb.ItemsSource = new List<string>(options);
+            return;
+        }
+        cb.Items.Clear();
+        foreach (var o in options) cb.Items.Add(o);
+    }
+
     public static AutoCompleteBox CreateAndAddEditableDropDownRow(this AvaloniaEditorPanel panel,
         string label, List<string> options, int position,
         Action<AutoCompleteBox, EventArgs>? command, Action? keypress = null)
