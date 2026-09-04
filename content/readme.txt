@@ -1,6 +1,6 @@
 ﻿==================================================
 DWSIM - Open Source Process Simulator
-Version 10.2
+Version 10.2.5
 Copyright (c) 2017-2026 Daniel Wagner and contributors
 Copyright (c) 2008-2016 Daniel Wagner, Gregor Reichert, Gustavo Leon
 ==================================================
@@ -25,229 +25,226 @@ DWSIM is licensed under the GNU General Public License (GPL) Version 3.
 SYSTEM REQUIREMENTS
 ==================================================
 
-OS:             
+Desktop application (self-contained, no .NET runtime installation required):
 
-Windows: 64-bit 7/8/10
-Linux: 64-bit Debian distro or equivalent
-macOS: 10.7 (OS X Lion) or newer
-
-Software:
-
-Microsoft .NET Framework 4.6.2 or newer (Windows) 
-Microsoft .NET 8 and IPOPT (Linux)
-
-CPU:			
-
-1.0 GHz dual-core processor (minimum)
-
-Memory:         
-
-2 GB RAM
-
-Graphics Card:	
-
-128 MB with OpenGL hardware acceleration
-
-Display:        
-
-1280x800 display resolution is recommended as a minimum
-
-Disk space:		
-
-750-2000 MB for program files
+- Windows 10 or later (x64 or ARM64)
+- Linux, a recent 64-bit distribution such as Ubuntu 22.04 or later (x64 or ARM64)
+- macOS 12 or later (Intel or Apple Silicon)
+- 4 GB RAM recommended, about 1 GB of free disk space
+- No dedicated GPU required
 
 ==================================================
 VERSION HISTORY / CHANGELOG
 ==================================================
 
-The full changelog including souce code changes can be viewed at https://github.com/DanWBR/dwsim/commits/windows
+The full changelog including souce code changes can be viewed at https://github.com/DanWBR/dwsim10/commits/windows
+
+Version 10.2.5
+
+- [NEW] PC-SAFT now handles polymers. A polymer's chain length grows with its molar mass (m = (m/M)·Mn), and parameters ship for polyethylene, polypropylene, polybutene, polyisobutene, polystyrene and poly(vinyl acetate). You can compute polymer-solvent phase behaviour, including a polymer solution splitting into a lean and a concentrated liquid.
+- [CHG] PC-SAFT is more reliable and faster. The density is found by searching the physically valid range, so it lands on the right liquid root at any composition, and the density and fugacity routines run several times quicker. It now works with fugacity in log form throughout, so very long-chain molecules (whose fugacity coefficient is otherwise too small to represent) are handled correctly.
+- [CHG] Polymer liquid-liquid splits now converge by minimizing the two-phase Gibbs energy, which steers away from the false "single-phase" answer that a narrow polymer miscibility gap used to trap the solver in. The two liquids are told apart by mass fraction, and the calculation reports its best split instead of failing when a case is slow to settle.
+- [FIX] Changing the object a level gauge, analog or digital gauge, switch, input, or PID controller reads no longer crashes DWSIM (issue #61).
+- [FIX] A PID controller placed on the flowsheet before its controlled and manipulated objects are set no longer prints an "Object reference" error next to its icon (issue #61).
+
+Version 10.2.4
+
+- [NEW] MCP Server and Assistant API: set up and read any unit operation, including Recycle, Energy Recycle, Spec and Adjust, using whatever name you know a property by, and read its results back.
+- [NEW] MCP Server and Assistant API: start and steer a dynamic simulation, and ask what is wrong with a flowsheet without solving it.
+- [NEW] Object palette: a third-party unit operation (a DLL in the unitops folder that isn't part of the base or Patreon edition) gets its own section, named after the developer or suite it belongs to, on both interfaces.
+- [NEW] Pipe network: it can take part in a dynamic simulation, re-solving in steady state at each pressure-flow step against the boundaries of that moment, with a re-solve rate, a fail mode and a time limit per step (higher subscription tier).
+- [NEW] Pipe network: the valve opening, choke bean, ESP frequency, pressure-control-valve setting and gas-lift casing pressure ease toward a new command with a first-order lag and dead time, instead of jumping to it.
+- [NEW] Pipe network: every block publishes its properties to the flowsheet as "<block>: <property>", so a PID can read a node pressure and drive a valve opening.
+- [NEW] Dynamics Wizard, on both interfaces: it tells you what stands between a converged flowsheet and a dynamic run, suggests a value for each item, and sets up the integrator, schedule and monitored variables for you.
+- [NEW] Pipe network: a dynamic sample, a water main feeding a break tank through a pressure-reducing valve, with a controller holding the tank level by moving the valve.
+- [NEW] Pipe network: a pressure-temperature property table for a fixed composition. The branch reads a tabulated flash (vapour fraction, phase densities, viscosities, enthalpy and per-compound phase compositions) instead of flashing at every step.
+- [CHG] Salt precipitation: the solid-liquid flash now uses a solubility product for salts, the outer loop stops re-dissolving what it precipitates, and dissolved salts stay in the pressure and vapour-fraction flash.
+- [CHG] PID controller: an optional span on the manipulated variable scales the output around a bias, for a loop whose two variables differ in unit and size.
+- [CHG] Pipe network: the compositional outer loop stops once it stops improving and returns its most consistent pass, cutting the well cases to about a third of the time.
+- [CHG] Automation interface: a flowsheet you open through it can be handed the repaint callback the solver uses, so a host program can colour objects by status while a solve runs.
+- [CHG] Pipe network: an option solves each pipe on two grids and cancels the leading discretisation error, reaching a converged answer for about twice the cost (off by default).
+- [CHG] Pipe network: the nodal solver uses an analytic Beggs-Brill pressure-drop gradient, so multiphase branches converge with fewer correlation evaluations.
+- [CHG] Pipe network: an option relaxes each pipe's energy balance by Wegstein's method, reaching the same answer in far fewer passes on pipes that exchange heat (off by default).
+- [CHG] Pipe network: the default pipe temperature tolerance is now 0.01 K, was 0.1 K.
+- [CHG] Pipe network: a compositional pipe also re-flashes based on how far the fluid has travelled, not only on a step count.
+- [CHG] Pipe network: a branch can read tabulated fluid properties instead of flashing, and stops using the table when it isn't saving time.
+- [CHG] Pipe network: the pipe flash and energy-balance settings sit on the network property list, next to the tolerances and iteration limits.
+- [FIX] Cross-platform editors: a decimal like 0.965 was read as 965 where the locale uses a period as the thousands separator, corrupting the composition. Numbers are now parsed without a thousands separator.
+- [FIX] Peng-Robinson and SRK: near the critical point the liquid root could fall at or below the covolume and give an impossible liquid density. The physical root is now chosen above the covolume with a density limit, and the trivial single-phase answer is rejected (issue #40).
+- [FIX] Distillation: a column with no pressure drop set left its stage pressures at zero and would not solve. They are now filled in from the condenser and reboiler pressures (issue #38).
+- [FIX] Vapor Compression Chiller: the saturated vapour and liquid states come from the vapour-fraction flash on a molar basis, and the shaft power is written to a connectable shaft port that takes a duty specification.
+- [FIX] Fired Heater: it fires for the duty you ask of it, writes the resulting fuel flow back to its fuel stream, and no longer rejects the geometry it ships with.
+- [FIX] Fired Heater: a burner running well below its surface area no longer fails with a NaN flue-gas temperature; no section can absorb more heat than the fuel releases.
+- [FIX] Advanced Heat Exchanger: Simulation mode now solves for the exchanger's own duty.
+- [FIX] Refining unit operations: outlet temperatures and mass balances close, and the duty ports are connectable.
+- [FIX] Neutralization reactor: its energy balance closes.
+- [FIX] Precipitation reactor: it no longer invents a sludge stream, and the reordering of its solid outlet was dropped.
+- [FIX] Zeolite adsorber: the raffinate now carries the feed pressure instead of its enthalpy.
+- [FIX] Restriction orifice: it iterates on the flow it is solving for.
+- [FIX] Air Cooler 2: an internal name-resolution error is fixed.
+- [FIX] Material and energy stream switches report an unset routing expression instead of failing silently.
+- [FIX] Pipe network: loading a saved network fills it in cleanly instead of piling up duplicate blocks, a boundary that ran backwards is re-set, and a newly added block gets its connectors.
+- [FIX] Cross-platform interface: the Equipment Database catalog import dialogs stay attached to the main window.
+- [FIX] A simulation saved by a host program that never used the spreadsheet could not be reopened.
+- [FIX] Anaerobic Digester (ADM1-Full): an impossible feed rate is refused instead of settling into a meaningless steady state that still claims to have converged.
+- [FIX] Pipe network: compositional networks that would not converge now do. Relaxation follows the residual, Beggs-Brill gets a holdup clamp and a transition-inclination correction, and a flow rate the pipe cannot handle is approached through a smooth barrier.
+- [FIX] Pipe network: a boundary running against the way it's drawn is refused before anything is written, so a rejected solve leaves the flowsheet untouched.
+- [FIX] Pipe network: the critical (sonic) choke transition is smooth instead of a kink the solver couldn't follow.
+- [FIX] PID controller: a controller driven from automation, or restored from a file whose editor was never opened, now resolves the object it manipulates.
+- [FIX] Phase envelope: a package with no analytical critical point, or an envelope whose bubble and dew curves don't meet, falls back to the pseudo-critical point instead of failing.
+- [FIX] An empty object entry in an older file no longer costs the whole flowsheet its objects and connections.
+- [FIX] Cross-platform interface: editor rows that were hard to read on the dark theme.
+- [FIX] Welcome screen: the FOSSEE flowsheet listing is fetched over https.
+- [FIX] Splash screen: fonts come from the system message-box font.
+- [FIX] Cross-platform interface: the editors' "Linked to" row shows the spec or adjust attached to the object, as on Windows, and is hidden when there is none.
+- [FIX] Windows interface: dragging objects from the palette froze DWSIM after a few drags (a graphics-handle leak, "A generic error occurred in GDI+"). The drag cursor is built once now (issue #44).
+- [FIX] Pipe network: compositional results move with this release's liquid-density correction. Every compositional sample was re-solved and now matches the engine, with rates shifting by up to 16%.
+- [FIX] Anaerobic Digester (ADM1): a fixed outlet temperature now drives the biochemistry, acid-base equilibria and gas transfer, which used to run at the feed temperature whatever the Thermal Mode said.
+- [FIX] Property packages: a compound with no valid heat of vaporisation (a normal boiling point above its critical temperature, or a NaN from a bad critical pressure) no longer poisons mixture enthalpy and drags a mixer outlet to the enthalpy datum temperature.
+- [FIX] Pipe network: a stuck compositional solve no longer reports itself converged; the outer loop now also requires the inner solve to converge, and the choke exposes a Critical Flow Ratio.
+- [FIX] Pipe network: a critical (sonic) branch switches regime in the solver (rate held at the critical value, energy equation dropped) instead of being pushed back by a penalty.
+- [FIX] Pipe network: the direct-evaluation vs surrogate choice is fixed for the life of a warm start, so a network returns the same result every solve.
+- [FIX] Mixer: an inlet with zero mass flow (the empty phase of an upstream split, for instance) no longer fails the mixer with a NaN-enthalpy error; it is skipped (issue #45).
+- [FIX] Python Script: the Python 3 standard library is bundled and on the search path, so a Python Script unit operation and flowsheet scripts can import stdlib modules like pathlib and json on every platform (issue #46).
+- [FIX] Spreadsheet: a cell reading a property or another cell no longer shows a stale or zero value on first open; the sheet recalculates once its data and custom functions are in place.
+- [FIX] OPC-UA Client plugin: it opens again instead of failing to find one of its own files; DWSIM now looks in the plugin's own folder (plugins/opclibraries) for its private dependencies.
+- [FIX] Dynamic simulation: the dynamic-mode property window opens for a tank, gas-liquid separator, reactor, distillation column or pipe instead of failing to open (issue #49).
+- [FIX] Dynamic simulation: clicking a monitored variable in the integrator settings no longer crashes the cross-platform interface (issue #50).
+- [FIX] Cross-platform interface: changing the manipulated or controlled object of a controller no longer crashes DWSIM (issue #48).
+- [FIX] Pipe network editor: the temperature and pressure tolerance fields were swapped in their boxes; the stored values are worth checking in simulations saved earlier.
+- [FIX] Pipe segment: no heat transfer was reported, and the increment stopped iterating, where the fluid crossed the ambient temperature along an increment.
+- [FIX] Pipe network: the nodal solver's outer loop compared temperature against a pressure tolerance; a gas condensate now returns the same answer when solved repeatedly.
+- [FIX] Phase envelope: the dew line no longer draws a spurious spike past the critical point, seen on an equimolar methane/ethane mixture with Peng-Robinson 1978.
+- [FIX] Cross-platform interface: an active toolbar toggle (Flowsheet Calculator Active, Simultaneous Adjust Solver) no longer hides its icon.
+
+Version 10.2.3
+
+- [NEW] Anaerobic Digester (ADM1-Full): a feed-alkalinity input, so a buffered substrate such as manure sets the charge-balance pH and gives a methane-richer biogas.
+- [NEW] Pipe network designer: a snap-to-grid canvas (on by default, saved with the network), property and master property tables on the canvas, and an Insert menu for the well and flow-control equipment.
+- [CHG] Pipe network: the compositional nodal solver re-solves an edited network much faster, evaluating pipes directly on a warm start and only refining cold solves.
+- [FIX] Anaerobic Digester (ADM1-Full): the substrate is built from its elemental formula and fed as a mix of carbohydrate, protein, lipid and inerts, so the conversion is realistic and its nitrogen leaves as ammonia instead of everything acting like fully-degradable carbohydrate.
+- [FIX] Anaerobic Digester: hydraulic loading uses the total feed instead of the flashed liquid, so a slurry feed no longer gets an unrealistically long retention time.
+- [FIX] A chemical formula with fractional atom counts is now read correctly, so a lumped biomass formula keeps its sulfur and the digester produces H2S.
+- [FIX] Property package editor: clicking Configure on a CAPE-OPEN property package no longer crashes.
+- [FIX] Compound Creator: the Standard Enthalpy of Formation label is no longer clipped.
+- [FIX] Pipe network: cloning a non-empty network no longer throws, the network block and its boundary streams are laid out on the flowsheet, and editing a network property no longer overwrites a Source feed.
+
+Version 10.2.2
+
+- [NEW] Pipe network: a deviation survey (measured depth, inclination, azimuth) builds vertical, horizontal or directional tubing by minimum curvature, on the full pressure and temperature balance.
+- [NEW] Pipe network: Fetkovich and Darcy radial inflow performance relations, alongside linear PI and Vogel.
+- [NEW] Pipe network: gas-lift valve mechanics, the injection rate from Thornhill-Craver critical orifice flow through the valve port.
+- [NEW] Pipe network: a Production Well template (reservoir, IPR, tubing, wellhead) on the designer.
+- [NEW] Pipe network: seven new samples, a production well, wellhead choke, water injection, multi-well pad, pressure-reducing valve, pipeline pump stations and a gas-condensate well.
+- [CHG] Pipe network designer: an equipment editor opens instantly, building its Results tab only when you look at it.
+- [CHG] A refreshed User Guide and rebuilt offline help, generated from the built-in help system, including the pipe network chapter.
+- [CHG] Pipe: Weymouth and Panhandle A/B single-phase gas pipeline pressure-drop equations, with a configurable pipeline efficiency factor.
+- [FIX] Property tables and charts placed on a flowsheet now draw instead of showing an error.
+- [FIX] Reaction Manager no longer fails when you add a component that isn't already in the reaction.
+- [FIX] Pipe network designer: the Solve and Abort toolbar buttons are no longer oversized.
+- [FIX] Pipe network designer (Windows): Ctrl, Shift and Alt reach the canvas again, restoring multi-selection and Shift-drag.
+- [FIX] Distillation and absorption columns in dynamic mode: the column seeds its tray and sump holdups from the steady-state solution and no longer fails with a "needs to be (re)initialized" error.
+- [FIX] Dynamic Properties and user-defined property editors no longer throw when opened and now list their properties.
+
+Version 10.2.1
+
+- [NEW] Pipe network: producing wells with a black-oil IPR (water cut and gas-oil ratio), gas-lift injection, an ESP/BCSS downhole pump and a critical-flow choke.
+- [NEW] Pipe network: the real DWSIM hydraulic and thermal pipe editors embedded in each network pipe.
+- [NEW] Pipe network: valves, a compressor, a bridge, a non-return valve and an inline separator handled by the nodal solver.
+- [NEW] Pipe network: a nodal analysis plot (IPR vs VLP), a gas-lift allocation optimizer, well controls and field production-target allocation.
+- [NEW] Pipe network: hydraulic profile plots, composite multi-pipe profiles, a bulk well table editor and a field production report in oilfield units.
+- [NEW] Pipe network: flow-assurance checks for erosion, hydrates, wax appearance, asphaltene stability and Turner liquid-loading.
+- [NEW] Pipe network: scaling and corrosion analysis tied to the segments, with a formatted report.
+- [NEW] Pipe network graph tools: a tabbed chart/data layout with copy and export (PNG for charts, CSV for tables).
+- [NEW] Black Oil Compound Creator with laboratory PVT calibration, on both interfaces.
+- [NEW] Case Library tab on the welcome screen, next to FOSSEE, on both interfaces.
+- [NEW] Cross-platform interface: a results report from the Results menu, grouped by unit-operation type, as HTML, CSV or plain text.
+- [CHG] Windows installers offer to remove a previous version first, keeping your simulations, custom compounds and added extensions.
+- [CHG] Vapour thermal conductivity is corrected for pressure with the Stiel-Thodos dense-gas method.
+- [CHG] MCP Server: address simulation objects by tag, list their ids and canvas positions, and rename them.
+- [CHG] The compositional pipe-network nodal solver is faster, using a response-surface model and a steadier outer loop.
+- [CHG] Automatic and natural flowsheet layout orient objects along the flow and lay recycle loops out as a rectangle.
+- [CHG] Cross-platform interface: one scaling factor sizes fonts, controls and menu icons together (issue #17).
+- [CHG] Cross-platform interface: the docked object editor gets a close button and roomier rows.
+- [FIX] Cross-platform interface: deleting a material stream releases its ports, removes the connection lines and takes it out of the inlet/outlet lists (#22, #24).
+- [FIX] Cross-platform interface: undocking a panel no longer leaves it blank when it's docked again (#25).
+- [FIX] Cross-platform interface: the DWSIM Assistant helper is closed when DWSIM exits (#23).
+- [FIX] Cross-platform interface: connect mode joins two objects by clicking the source and then the target (#21).
+- [FIX] Cross-platform interface: the property-package selector no longer adds a package on type-ahead, only when you deliberately pick one (#18).
+- [FIX] Flash (PV/PH/PS): an unconverged temperature is rejected instead of flowing on as a misleading result; the PV flash starts near the dew point.
+- [FIX] macOS: DWSIM no longer crashes on the embedded web view, and the assistant helper ships executable (#13).
+- [FIX] Cross-platform interface: a tool opening a web page falls back to the system browser where there is no embedded view.
+- [FIX] Extensions folder: an already-loaded extension isn't loaded a second time.
+- [FIX] Steam Tables: a flash stays inside the range the correlations are fitted to.
+- [FIX] Anaerobic Digester: the biogas composition splits CO2, NH3 and water vapour correctly.
+- [FIX] Dynamic Heat Exchanger: the cell pressure is floored at the minimum pressure.
+- [FIX] Cross-platform interface: the Script unit operation editor opens a script window, and Flowsheet.WriteMessage works from scripts.
+- [FIX] Cross-platform interface: the Script Manager opens under the Semi theme, extension menu-bar buttons appear after a flowsheet loads, and the sample scripts run on Python 3.
+- [FIX] Pipe network: electrolyte scaling and corrosion speciation corrected.
+- [FIX] Pipe network: solve gating, translated property names, zoom-to-fit at any display scaling, and Results filled in on every block after the solve.
+- [FIX] Pipe network: boundary streams attach to the block ports, a profile-plot crash is fixed, the solver shows live progress, and networks saved without the interface reload.
+- [FIX] Pipe network nodal solver: a full Newton step is required before it calls itself converged, and the control-valve loop tolerance was tightened.
+- [FIX] Membership: the higher of the cached and live subscription level is honoured (issue #26).
+- [FIX] Missing biomass and extra compounds restored in the shared distribution content (issue #28).
+- [FIX] Cross-platform interface: the master property table editor keeps its object and property selection.
 
 Version 10.2
 
-- [NEW] Cross-platform interface: property tables, master tables, spreadsheet tables, charts, text blocks, rectangles, buttons and pictures can be placed on a flowsheet and configured
-- [NEW] Cross-platform interface: utilities can be attached to a flowsheet object, and a simulation that already carries them no longer loses them on opening
-- [NEW] Cross-platform interface: the DWSIM Assistant opens docked to the right, loads from the executable folder and starts its server in the background, with its button on the menu bar
-- [NEW] Cross-platform interface: the user compound databases can be managed from the welcome screen - add, create, remove databases and view or delete their compounds
-- [NEW] Cross-platform interface: backup copies are offered back at startup when the previous run did not close normally
-- [NEW] Assay Manager: assays saved and loaded as XML, with the previous binary format still read
-- [NEW] Forced Solids tab back on the advanced property package editor, next to Property Overrides
-- [NEW] Cross-platform interface: the Natural Gas Properties and Heat of Combustion Calculator plugins are back, on the Plugins menu
-- [NEW] Pipe network: producing wells with a black-oil IPR (BSW and gas-oil ratio), gas lift injection, ESP/BCSS downhole pump and a critical-flow choke
-- [NEW] Pipe network: the real DWSIM hydraulic and thermal pipe editors embedded in each network pipe
-- [NEW] Pipe network: valves, compressor, bridge, non-return valve and an inline separator handled by the nodal solver
-- [NEW] Pipe network: nodal analysis plot (IPR x VLP), gas-lift allocation optimizer, well controls and field production-target allocation
-- [NEW] Pipe network: hydraulic profile plots, composite multi-pipe profiles, a bulk well table editor and a field production report in oilfield units
-- [NEW] Pipe network: flow-assurance screens - erosion, hydrate, wax appearance, asphaltene stability and Turner liquid-loading
-- [NEW] Pipe network: scaling and corrosion analysis coupled to the segments, with a formatted report
-- [NEW] Pipe network graph tools: tabbed chart/data layout with copy and export (PNG for charts, CSV for tables)
-- [NEW] Pipe network: a deviation survey (measured depth, inclination, azimuth) builds vertical, horizontal or directional tubing by minimum curvature, on the full pressure/temperature balance
-- [NEW] Pipe network: Fetkovich and Darcy radial inflow performance relations added alongside linear PI and Vogel
-- [NEW] Pipe network: gas-lift valve mechanics - injection rate from Thornhill-Craver critical orifice flow through the valve port
-- [NEW] Pipe network: a Production Well template (reservoir, IPR, tubing, wellhead) on the designer
-- [NEW] Pipe network: seven new samples - production well, wellhead choke, water injection, multi-well pad, pressure-reducing valve, pipeline pump stations and gas-condensate well
-- [NEW] Black Oil Compound Creator with laboratory PVT calibration, on both interfaces
-- [NEW] Case Library tab on the welcome screen, next to FOSSEE, on both interfaces
-- [NEW] Cross-platform interface: a results report from the Results menu, grouped by unit-operation type, as HTML, CSV or plain text
-- [NEW] Anaerobic Digester (ADM1-Full): a feed-alkalinity input so a buffered substrate (such as manure) sets the charge-balance pH and gives a methane-richer biogas
-- [NEW] Pipe network designer: a snap-to-grid canvas (on by default, saved with the network), property and master property tables on the canvas, and an Insert menu for the well and flow-control equipment
-- [NEW] MCP Server and Assistant API: configure and read any unit operation (including Recycle, Energy Recycle, Spec and Adjust) by whichever name the caller knows a property by, and read back its calculated results
-- [NEW] MCP Server and Assistant API: run and control a dynamic simulation, and check a flowsheet for what is wrong with it without solving
-- [NEW] Object palette: a third-party unit operation (a DLL in the unitops folder that is not part of the base or Patreon edition) is grouped into its own section by the developer or suite it declares, on both interfaces
-- [NEW] Pipe network: takes part in a dynamic simulation, quasi-steady - re-solved in steady state at every pressure-flow step against that instant's boundaries, with a re-solve rate, a fail mode and a wall-clock ceiling per step (higher subscription tier)
-- [NEW] Pipe network: the valve opening, choke bean, ESP frequency, pressure control valve setting and gas-lift casing pressure follow a first-order lag with dead time instead of stepping to a command
-- [NEW] Pipe network: every block exposes its properties to the flowsheet as "<block>: <property>", so a PID can read a node pressure and write a valve opening
-- [NEW] Dynamics Wizard on both interfaces: reports what stands between a converged flowsheet and a dynamic run, proposes a value for each finding, and creates the integrator, schedule and monitored variables
-- [NEW] Pipe network: a dynamic sample - a water transmission main feeding a break tank through a pressure-reducing valve, with the tank level held by a controller moving the valve setting through its actuator
-- [NEW] Pipe network: a pressure-temperature property table for a fixed composition - the branch interpolates a tabulated flash (vapour fraction, phase densities, viscosities, enthalpy and per-compound phase compositions) instead of flashing at every increment
-- [CHG] IPOPT is now a managed solver shipped with DWSIM, checked against the native library over five thousand problems
-- [CHG] Gibbs reactor initial estimate solved by a managed simplex instead of the native lpsolve55
-- [CHG] Petalas-Aziz two-phase pressure drop converted from a native library to managed code
-- [CHG] Automation and Fluent API: column specification types accept their common spellings
-- [CHG] Gibbs reactor: the optimiser stops once the answer is good enough, instead of running on to a tolerance no solver reaches
-- [CHG] Reaktoro property package and Gibbs reactor now call Reaktoro 2 directly; no Python distribution is needed any more
-- [CHG] CoolProp updated to 8.0.1 and available on Linux and macOS, on x64 and ARM, not only x64 Windows
-- [CHG] CAPE-OPEN: the state a host simulator saves for an embedded DWSIM component is now XML instead of binary serialization
-- [CHG] PFR and CSTR: rate expressions are compiled once per calculation instead of at every integration step; the methane steam reforming sample solves in 0.17 s instead of 11.0 s
-- [CHG] Property correlations, kij expressions and equilibrium constants written as text are compiled once instead of at every evaluation
-- [CHG] Cross-platform interface: extenders, unit operations, property packages and plugins are read from the folder holding the executable, as on Windows
-- [CHG] Cross-platform interface: text boxes, combo boxes, spinners and check boxes brought down to the height of the Windows fields
-- [CHG] Cross-platform interface: the compound search ranks matches by similarity so the exact name rises to the top, selects the best match, and adds it on Enter
-- [CHG] Cross-platform interface: uses the native system font (Segoe UI on Windows, San Francisco on macOS) for sharper text
-- [CHG] Patreon benefits bar: an Annual Membership option, and the join buttons are hidden once a valid key is verified
-- [CHG] Windows installers offer to remove a previous version first, keeping user simulations, custom compounds and added extensions
-- [CHG] Vapour thermal conductivity corrected for pressure with the Stiel-Thodos dense-gas method
-- [CHG] MCP Server: address simulation objects by tag, list their ids and canvas positions, and rename them
-- [CHG] Compositional pipe-network nodal solver accelerated with a response-surface model and a more stable outer loop
-- [CHG] Automatic and natural flowsheet layout orient objects along flow and lay recycle loops out as a rectangle
-- [CHG] Cross-platform interface: an interface scaling factor scales fonts, controls and menu icons together (issue #17)
-- [CHG] Cross-platform interface: the docked object editor gets a close button and roomier rows
-- [CHG] Pipe network designer: an equipment editor opens instantly, building its Results tab only when it is shown
-- [CHG] Refreshed User Guide and a rebuilt offline help, generated from the integrated help system, including the pipe network chapter
-- [CHG] Pipe: Weymouth and Panhandle A/B single-phase gas pipeline pressure-drop equations, with a configurable pipeline efficiency factor
-- [CHG] Pipe network: the compositional nodal solver re-solves an edited network much faster by evaluating pipes directly on a warm start and only refining cold solves
-- [CHG] Salt precipitation: the solid-liquid flash gets a solubility product for salts, the SVLE outer loop no longer re-concentrates what it precipitates, and dissolved salts are kept in the pressure/vapour-fraction flash basis
-- [CHG] PID controller: an optional manipulated-variable span scales the output on that variable's own scale around a bias, for a loop whose two variables differ in unit and magnitude
-- [CHG] Pipe network: the compositional outer loop stops once it stops improving and delivers its most self-consistent iterate, cutting the well cases to about a third of the time
-- [CHG] Automation interface: a flowsheet obtained through it can be given the repaint handler the solver calls, so a host can colour objects by status while a solve runs
-- [CHG] Pipe network: an option evaluates every pipe on two grids and extrapolates away the leading discretisation error, reaching a converged answer from the discretisation already drawn for about twice the cost (off by default)
-- [CHG] Pipe network: the nodal solver uses an analytic Beggs-Brill pressure-drop gradient, so multiphase branches converge with fewer correlation evaluations
-- [CHG] Pipe network: an option relaxes each pipe's energy balance by Wegstein's method, reaching the same answer in far fewer passes on pipes that exchange heat (off by default)
-- [CHG] Pipe network: the default pipe temperature convergence tolerance is 0.01 K, was 0.1 K
-- [CHG] Pipe network: a compositional pipe also re-flashes on how far the fluid has moved, not only on a step count
-- [CHG] Pipe network: a branch can read tabulated fluid properties instead of flashing, and stops tabulating when its table does not pay for itself
-- [CHG] Pipe network: the pipe flash and energy-balance settings are on the network property list, with the tolerances and iteration limits
-- [FIX] A product of a CAPE-OPEN unit operation was re-flashed by the flowsheet property package, discarding the phase split the unit had computed
-- [FIX] Object editors were cut off on a display set above 96 dots per inch; the distillation column stage table was the most visible case
-- [FIX] A flowsheet opened from the desktop on macOS started DWSIM with nothing loaded and reported an unsupported file
-- [FIX] Peng-Robinson, PR78 and SRK: the lowest-Gibbs root selection could settle on a root below the covolume, which describes no state
-- [FIX] CAPE-OPEN property packages could not drive a plug flow reactor, and a simulation saved on one silently reopened on a different property package
-- [FIX] Peng-Robinson, PR78 and SRK: the compressibility factor was always taken from the smallest root of the cubic, so a gas could be reported as a liquid
-- [FIX] Equilibrium reactor: only the activity and fugacity bases converged; every other basis reported zero conversion, and the concentration bases were rejected outright
-- [FIX] Heat exchanger: property overrides were ignored in the internal iterations, so the two sides of the energy balance disagreed
-- [FIX] Compound creator: the regression of vapour pressure and liquid viscosity started from a fixed guess that overflows outside room temperature
-- [FIX] Shell and Tube heat exchanger: the number of shells in series was ignored by the heat transfer area and by the LMTD correction factor, so putting shells in series changed nothing; simulations with more than one shell will report a higher duty
-- [FIX] Heat exchangers: the heat exchange profile was drawn for the maximum possible duty, so the Minimum Internal Temperature Approach was zero on every exchanger; it now follows the actual duty and is signed
-- [FIX] CAPE-OPEN: DWSIM released the stream belonging to the simulator hosting it, which could corrupt the host process
-- [FIX] CAPE-OPEN: a property package saved by a host could never be loaded back; the save and the load disagreed on where the data was
-- [FIX] CAPE-OPEN: a hosted property package was never sent the Terminate call the standard requires, and its interaction parameters were not saved
-- [FIX] CoolProp packages: a property asked for outside the accepted range ended the calculation instead of extrapolating
-- [FIX] CoolProp incompressible mixtures: the solvent vapour viscosity returned the liquid value, thirty times too large
-- [FIX] Binary phase envelope: the dew curve dipped below the bubble curve on heteroazeotropic systems
-- [FIX] PRSV2, PRSV2-VL, Lee-Kesler-Plocker, Chao-Seader and Grayson-Streed: stream enthalpy and entropy were missing the ideal-gas part, so energy balances and PH/PS flashes were wrong; existing simulations on these packages will report different, correct temperatures
-- [FIX] Dew point calculations could return the metastable liquid branch on partially miscible systems
-- [FIX] Water Electrolyzer: waste heat was added as a power instead of a specific enthalpy, overstating the temperature rise
-- [FIX] Shell and Tube heat exchanger: switching to Fouling Factor Calculation discarded the specified outlet temperatures
-- [FIX] Heat exchanger with steam tables on one side: the maximum duty came out negative and the exchanger did not calculate
-- [FIX] Steam Tables (IAPWS-IF97): states above 1073.15 K returned a physically impossible enthalpy instead of being refused
-- [FIX] Dynamic simulation: event transitions other than Step ended the run with a null character error
-- [FIX] Dynamic simulation: the historian time slider could not restore a recorded state
-- [FIX] Flowsheet Unit Operation: a sub-flowsheet that failed to load reported an unrelated null reference later
-- [FIX] Control Valve: the opening table was interpolated against the opening column, so the tabulated Kv was ignored
-- [FIX] Cross-platform interface: the phase envelope dew curve drew a stray segment far past the critical point instead of ending there
-- [FIX] Cross-platform interface: the phase envelope failed with "B = infinity" for mixtures whose compounds have no fusion temperature
-- [FIX] Cross-platform interface: external unit operations (bioreactor, anaerobic digester) could not be added from the palette or the context menu
-- [FIX] Cross-platform interface: premium, refining and biochemical unit operations were spread across the generic palette sections instead of their own
-- [FIX] Cross-platform interface: the compressor and expander performance-curve editor did not open on the expander and could not create curves
-- [FIX] Cross-platform interface: deleting a material stream now releases the connected ports and removes the connection lines, and it no longer stays in the inlet/outlet lists (#22, #24)
-- [FIX] Cross-platform interface: undocking a panel no longer leaves its content blank when it is docked again (#25)
-- [FIX] Cross-platform interface: the DWSIM Assistant helper is now closed when DWSIM exits (#23)
-- [FIX] Cross-platform interface: connect mode now connects two objects by clicking the source and then the target (#21)
-- [FIX] Cross-platform interface: the property-package selector no longer adds a package on type-ahead, only on a deliberate pick (#18)
-- [FIX] Flash (PV/PH/PS): an unconverged temperature is now rejected instead of flowing on as a misleading error; the PV flash is seeded near the dew point
-- [FIX] macOS: the app no longer crashes on the embedded web view, and the assistant helper is shipped executable (#13)
-- [FIX] Cross-platform interface: a tool opening a web page falls back to the system browser where no embedded view is available
-- [FIX] Extensions folder: an already-loaded extension assembly is no longer loaded a second time
-- [FIX] Steam Tables: a flash is kept inside the range the correlations are fitted to
-- [FIX] Anaerobic Digester: the biogas composition partitions CO2, NH3 and water vapour correctly
-- [FIX] Dynamic Heat Exchanger: the cell pressure is floored at the minimum pressure
-- [FIX] Cross-platform interface: the Script unit operation editor opens a script edit window, and Flowsheet.WriteMessage works from scripts
-- [FIX] Cross-platform interface: the Script Manager opens under the Semi theme, extension menu-bar buttons appear after a flowsheet loads, and the sample scripts run on Python 3
-- [FIX] Pipe network: electrolyte scaling and corrosion speciation corrected
-- [FIX] Pipe network: solve gating, translated property names, zoom-to-fit at any display scaling, and Results populated on every block after the solve
-- [FIX] Pipe network: boundary streams attached to the block ports, profile-plot crash fixed, live solver progress, and headless-saved networks reload
-- [FIX] Pipe network nodal solver: a full Newton step is required before convergence, and the control-valve loop tolerance was tightened
-- [FIX] Membership: the higher of the cached and live subscription level is honoured (issue #26)
-- [FIX] Missing biomass and extra compounds restored in the shared distribution content (issue #28)
-- [FIX] Cross-platform interface: the master property table editor keeps its object and property selection
-- [FIX] Inserted property tables and charts on a flowsheet draw instead of reporting an error
-- [FIX] Reaction Manager no longer fails when adding a component that is not already in the reaction
-- [FIX] Pipe network designer: the Solve and Abort toolbar buttons are no longer oversized
-- [FIX] Pipe network designer (Windows): Ctrl, Shift and Alt reach the canvas again, restoring multi-selection and Shift-drag offset
-- [FIX] Distillation and absorption columns in dynamic mode: the column seeds its tray and sump holdups from the steady-state solution and no longer fails with a "needs to be (re)initialized" error
-- [FIX] Dynamic Properties and user-defined property editors no longer throw when opened and now list their properties
-- [FIX] Anaerobic Digester (ADM1-Full): the substrate is characterised from its elemental formula and fed as a composite particulate (carbohydrate/protein/lipid plus inerts), so the conversion is realistic and its nitrogen is released as ammonia instead of everything behaving like fully-degradable carbohydrate
-- [FIX] Anaerobic Digester: hydraulic loading is taken from the total feed instead of the flashed liquid phase, so a slurry feed no longer gets an unrealistically long retention time
-- [FIX] A chemical formula with fractional atom counts is parsed correctly, so a lumped biomass formula no longer drops its sulfur and the digester now produces H2S
-- [FIX] Cross-platform editors: a typed decimal such as 0.965 was misread as 965 in a locale whose group separator is a period, corrupting the composition; numeric input is now parsed without a thousands separator
-- [FIX] Property package editor: clicking Configure on a CAPE-OPEN property package no longer crashes
-- [FIX] Compound Creator: the Standard Enthalpy of Formation label is no longer clipped
-- [FIX] Pipe network: cloning a non-empty network no longer throws, the network block and its boundary streams are laid out on the flowsheet, and editing a network property no longer overwrites a Source feed
-- [FIX] Cubic equations of state (Peng-Robinson, SRK): near the critical point the liquid root could fall at or below the covolume and give an impossible liquid density; the physical root is now selected above the covolume with a density limit and the trivial single-phase solution is rejected (issue #40)
-- [FIX] Distillation: a column with no pressure drop specified left its stage pressures at zero and failed to solve; the stage pressures are repaired from the condenser and reboiler pressures (issue #38)
-- [FIX] Vapor Compression Chiller: the saturated vapour and liquid states are taken from the vapour-fraction flash and converted to a molar basis, and the shaft power is written to the shaft port, which is connectable and takes a duty specification
-- [FIX] Fired Heater: it is fired for the duty it is asked to deliver, writes the resulting fuel flow back to its fuel stream, and no longer rejects the geometry it ships with
-- [FIX] Fired Heater: a burner lightly fired for its installed surface area no longer fails with a NaN flue gas temperature; the radiant, shield and convection sections cannot absorb more heat than the fuel releases
-- [FIX] Advanced Heat Exchanger: Simulation mode solves for the exchanger's own duty
-- [FIX] Refining unit operations: the outlet temperature and mass balances are closed and the duty ports are connectable
-- [FIX] Neutralization reactor: its energy balance is closed
-- [FIX] Precipitation reactor: it no longer invents a sludge stream, and the reordering of its solid outlet was dropped
-- [FIX] Zeolite adsorber: the raffinate carries the feed pressure instead of its enthalpy
-- [FIX] Restriction orifice: it iterates on the flow it is solving for
-- [FIX] Air Cooler 2: an internal name-resolution error is fixed
-- [FIX] Material and energy stream switches report an unset routing expression instead of failing silently
-- [FIX] Pipe network: loading a saved network repopulates instead of accumulating duplicate blocks, a boundary that ran backwards is re-specified, and a newly added block gets its connectors
-- [FIX] Cross-platform interface: the Equipment Database catalog import dialogs are owned by the host window
-- [FIX] A simulation saved by a host that never used the spreadsheet could not be reopened
-- [FIX] Anaerobic Digester (ADM1-Full): an unphysical hydraulic load is rejected instead of integrating into a meaningless steady state that still reports convergence
-- [FIX] Pipe network: compositional networks that would not converge now do - relaxation follows the residual trend, Beggs-Brill gains its holdup clamp and its transition inclination correction, and a rate the pipe cannot be evaluated at is approached through a continuous barrier
-- [FIX] Pipe network: a boundary running against the way it is drawn is refused before anything is written, so a refused solve leaves the flowsheet untouched
-- [FIX] Pipe network: the critical (sonic) choke transition is smooth instead of a kink the solver could not follow
-- [FIX] PID controller: a controller driven from automation, or restored from a file whose editor was never opened, did not resolve the object it manipulates
-- [FIX] Phase envelope: a package with no analytical critical point, or an envelope whose bubble and dew curves do not intersect, falls back to the pseudo-critical point instead of failing
-- [FIX] An empty graphic-object entry in an older file cost the whole flowsheet its objects and its connections
-- [FIX] Cross-platform interface: editor rows that were unreadable on the dark theme
-- [FIX] Welcome screen: the FOSSEE flowsheet listing is fetched over https
-- [FIX] Splash screen: fonts taken from the system message-box font
-- [FIX] Cross-platform interface: the editors' "Linked to" row shows the spec or adjust attached to the object, as the Windows editor does, and is hidden when there is none
-- [FIX] Windows interface: dragging objects from the palette onto the flowsheet leaked a GDI handle on every mouse move and froze the application after a few drags ("A generic error occurred in GDI+"); the drag cursor is built once now (issue #44)
-- [FIX] Pipe network: compositional results move with this release's liquid-density correction; every compositional sample was re-solved and now carries results matching what the engine computes, with rates shifting by up to 16%
-- [FIX] Anaerobic Digester (ADM1): a fixed outlet temperature now drives the biochemistry, acid-base equilibria and gas transfer, which used to run at the feed temperature whatever the Thermal Mode said
-- [FIX] Property packages: a compound with an undefined heat of vaporisation (a normal boiling point above its critical temperature, or a NaN from a bad critical pressure) no longer poisons mixture enthalpy and pulls a mixer outlet to the enthalpy datum temperature
-- [FIX] Pipe network: a stuck compositional solve no longer reports itself converged - outer convergence now also requires the inner GGA to converge; the choke exposes a Critical Flow Ratio
-- [FIX] Pipe network: a critical (sonic) branch switches regime in the solver (rate held at the critical value, energy equation dropped) instead of being pushed back by a penalty barrier
-- [FIX] Pipe network: the direct-evaluation vs surrogate choice is latched for the life of the warm start, so a network returns the same result every solve
-- [FIX] Mixer: an inlet carrying zero mass flow (the empty phase of an upstream split, say) no longer fails the mixer with a NaN-enthalpy error; it is skipped (issue #45)
-- [FIX] Python Script: the Python 3 standard library is bundled and on the interpreter search path, so a Python Script unit operation and flowsheet scripts can import stdlib modules (pathlib, json) on every platform (issue #46)
-- [FIX] Spreadsheet: a cell reading a property or cross-referencing another cell no longer shows a stale or zero value on first open; the sheet is recalculated once after its data and custom functions are in place
-- [FIX] OPC-UA Client plugin: opening it no longer fails with a missing Opc.Ua.ClientControls assembly; the resolver now probes a plugin subfolder (plugins/opclibraries) for its private dependencies
-- [FIX] Dynamic simulation: the dynamic-mode property window now opens for a tank, gas-liquid separator, reactor, distillation column or pipe instead of failing with an invalid-cast error (issue #49)
-- [FIX] Dynamic simulation: clicking a monitored variable in the integrator settings no longer crashes the cross-platform interface (issue #50)
-- [FIX] Cross-platform interface: changing the manipulated or controlled object of a controller no longer crashes the application (issue #48)
-- [FIX] Pipe network editor: the temperature and pressure tolerance fields were loaded into each other's box; the stored values are worth checking in simulations saved earlier
-- [FIX] Pipe segment: no heat transfer was reported, and the increment stopped iterating, where the fluid crossed the ambient temperature along an increment
-- [FIX] Pipe network: the nodal solver's outer loop tests temperature against its own tolerance instead of one meant for pressure; a gas condensate now returns the same answer when solved repeatedly
-- [FIX] Phase envelope: the dew line no longer draws a spurious spike past the critical point, seen on an equimolar methane/ethane mixture with Peng-Robinson 1978
-- [FIX] Cross-platform interface: an active toolbar toggle (Flowsheet Calculator Active, Simultaneous Adjust Solver) no longer hides its icon
+- [NEW] Cross-platform interface: property tables, master tables, spreadsheet tables, charts, text blocks, rectangles, buttons and pictures can be placed on a flowsheet and configured.
+- [NEW] Cross-platform interface: utilities can be attached to a flowsheet object, and a simulation that already has them keeps them on opening.
+- [NEW] Cross-platform interface: the DWSIM Assistant opens docked to the right, loads from the program folder and starts its server in the background, with its button on the menu bar.
+- [NEW] Cross-platform interface: manage your compound databases from the welcome screen, adding, creating, removing databases and viewing or deleting their compounds.
+- [NEW] Cross-platform interface: backup copies are offered back at startup when the previous run did not close normally.
+- [NEW] Assay Manager: assays saved and loaded as XML, with the old binary format still read.
+- [NEW] The Forced Solids tab is back on the advanced property package editor, next to Property Overrides.
+- [NEW] Cross-platform interface: the Natural Gas Properties and Heat of Combustion Calculator plugins are back, on the Plugins menu.
+- [CHG] IPOPT is now a managed solver shipped with DWSIM, checked against the native library over five thousand problems.
+- [CHG] The Gibbs reactor initial estimate is solved by a managed simplex instead of the native lpsolve55.
+- [CHG] Petalas-Aziz two-phase pressure drop is converted from a native library to managed code.
+- [CHG] Automation and Fluent API: column specification types accept their common spellings.
+- [CHG] Gibbs reactor: the optimiser stops once the answer is good enough, instead of chasing a tolerance no solver reaches.
+- [CHG] The Reaktoro property package and Gibbs reactor call Reaktoro 2 directly; no Python distribution is needed any more.
+- [CHG] CoolProp is updated to 8.0.1 and available on Linux and macOS, x64 and ARM, not only x64 Windows.
+- [CHG] CAPE-OPEN: the state a host simulator saves for an embedded DWSIM component is now XML instead of a binary format.
+- [CHG] PFR and CSTR: rate expressions are compiled once per calculation instead of at every integration step; the methane steam reforming sample solves in 0.17 s instead of 11.0 s.
+- [CHG] Property correlations, kij expressions and equilibrium constants written as text are compiled once instead of at every evaluation.
+- [CHG] Cross-platform interface: extenders, unit operations, property packages and plugins are read from the program folder, as on Windows.
+- [CHG] Cross-platform interface: text boxes, combo boxes, spinners and check boxes match the height of the Windows fields.
+- [CHG] Cross-platform interface: the compound search ranks matches by similarity so the exact name comes first, selects the best match, and adds it on Enter.
+- [CHG] Cross-platform interface: it uses the native system font (Segoe UI on Windows, San Francisco on macOS) for sharper text.
+- [CHG] Patreon benefits bar: an Annual Membership option, and the join buttons hide once a valid key is verified.
+- [FIX] A product of a CAPE-OPEN unit operation was re-flashed by the flowsheet property package, throwing away the phase split the unit had computed.
+- [FIX] Object editors were cut off on a display set above 96 dots per inch; the distillation column stage table was the most visible case.
+- [FIX] A flowsheet opened from the desktop on macOS started DWSIM with nothing loaded and reported an unsupported file.
+- [FIX] Peng-Robinson, PR78 and SRK: the lowest-Gibbs root could settle on a root below the covolume, which describes no real state.
+- [FIX] CAPE-OPEN property packages could not drive a plug flow reactor, and a simulation saved on one silently reopened on a different property package.
+- [FIX] Peng-Robinson, PR78 and SRK: the compressibility factor was always taken from the smallest root of the cubic, so a gas could be reported as a liquid.
+- [FIX] Equilibrium reactor: only the activity and fugacity bases converged; every other basis reported zero conversion, and the concentration bases were rejected outright.
+- [FIX] Heat exchanger: property overrides were ignored in the internal iterations, so the two sides of the energy balance disagreed.
+- [FIX] Compound creator: the regression of vapour pressure and liquid viscosity started from a guess that overflows outside room temperature.
+- [FIX] Shell and Tube heat exchanger: the number of shells in series was ignored by the area and the LMTD correction, so adding shells changed nothing; simulations with more than one shell will now report a higher duty.
+- [FIX] Heat exchangers: the heat exchange profile was drawn for the maximum possible duty, so the Minimum Internal Temperature Approach read zero on every exchanger; it now follows the actual duty and is signed.
+- [FIX] CAPE-OPEN: DWSIM released the stream belonging to the simulator hosting it, which could corrupt the host program.
+- [FIX] CAPE-OPEN: a property package saved by a host could never be loaded back; the save and the load disagreed on where the data was.
+- [FIX] CAPE-OPEN: a hosted property package was never sent the Terminate call the standard requires, and its interaction parameters were not saved.
+- [FIX] CoolProp packages: a property asked for outside the accepted range ended the calculation instead of extrapolating.
+- [FIX] CoolProp incompressible mixtures: the solvent vapour viscosity returned the liquid value, thirty times too large.
+- [FIX] Binary phase envelope: the dew curve dipped below the bubble curve on heteroazeotropic systems.
+- [FIX] PRSV2, PRSV2-VL, Lee-Kesler-Plocker, Chao-Seader and Grayson-Streed: stream enthalpy and entropy were missing the ideal-gas part, so energy balances and PH/PS flashes were wrong; existing simulations on these packages will report different, correct temperatures.
+- [FIX] Dew point calculations could return the metastable liquid branch on partially miscible systems.
+- [FIX] Water Electrolyzer: waste heat was added as a power instead of a specific enthalpy, overstating the temperature rise.
+- [FIX] Shell and Tube heat exchanger: switching to Fouling Factor Calculation discarded the specified outlet temperatures.
+- [FIX] Heat exchanger with steam tables on one side: the maximum duty came out negative and the exchanger did not calculate.
+- [FIX] Steam Tables (IAPWS-IF97): states above 1073.15 K returned an impossible enthalpy instead of being refused.
+- [FIX] Dynamic simulation: event transitions other than Step ended the run with a null-character error.
+- [FIX] Dynamic simulation: the historian time slider could not restore a recorded state.
+- [FIX] Flowsheet Unit Operation: a sub-flowsheet that failed to load reported an unrelated error later.
+- [FIX] Control Valve: the opening table was read against the opening column, so the tabulated Kv was ignored.
+- [FIX] Cross-platform interface: the phase envelope dew curve drew a stray segment far past the critical point instead of ending there.
+- [FIX] Cross-platform interface: the phase envelope failed with "B = infinity" for mixtures whose compounds have no fusion temperature.
+- [FIX] Cross-platform interface: external unit operations (bioreactor, anaerobic digester) could not be added from the palette or the context menu.
+- [FIX] Cross-platform interface: premium, refining and biochemical unit operations were scattered across the generic palette sections instead of their own.
+- [FIX] Cross-platform interface: the compressor and expander performance-curve editor did not open on the expander and could not create curves.
 
 Version 10.1
 
