@@ -6,6 +6,7 @@ using System.Globalization;
 using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Data;
+using DWSIM.ExtensionMethods;
 using DWSIM.Interfaces;
 using CompoundAmounts = DWSIM.Thermodynamics.Streams.CompoundAmounts;
 using MaterialStream = DWSIM.Thermodynamics.Streams.MaterialStream;
@@ -43,20 +44,12 @@ namespace DWSIM.UI.Desktop.Editors
             /// <summary>The amount as shown and typed, in the number format of the flowsheet.</summary>
             public string Amount
             {
-                get { return _amount.ToString(Format, CultureInfo.CurrentCulture); }
+                get { 
+                    return _amount.ToString(Format, CultureInfo.CurrentCulture); 
+                }
                 set
                 {
-                    double parsed;
-                    // Float, not Any: Any allows a thousands separator, so in a locale whose group
-                    // separator is '.' (a comma-decimal locale) the current-culture parse reads a typed
-                    // "0.965" as 965 and succeeds, never reaching the invariant fallback - the value is
-                    // then renormalised into garbage. Without AllowThousands a '.' can only be a decimal
-                    // point, so a dot-typed number always falls through to the invariant parse.
-                    if (double.TryParse(value, NumberStyles.Float, CultureInfo.CurrentCulture, out parsed) ||
-                        double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out parsed))
-                    {
-                        _amount = parsed;
-                    }
+                    if (value.IsValidDouble()) _amount = value.ToDoubleFromCurrent();
                     Raise(nameof(Amount));
                 }
             }
@@ -100,11 +93,11 @@ namespace DWSIM.UI.Desktop.Editors
             CanUserSortColumns = false;
             IsReadOnly = !editable;
             ItemsSource = _rows;
-
+            
             Columns.Add(new DataGridTextColumn
             {
                 Header = "Compound",
-                Binding = new Binding(nameof(Row.Compound)) { Mode = BindingMode.OneWay },
+                Binding = new Binding(nameof(Row.Compound)) { Mode = BindingMode.OneWay},
                 IsReadOnly = true,
                 Width = new DataGridLength(60, DataGridLengthUnitType.Star)
             });
@@ -114,7 +107,8 @@ namespace DWSIM.UI.Desktop.Editors
                 Header = "Amount",
                 Binding = new Binding(nameof(Row.Amount))
                 {
-                    Mode = editable ? BindingMode.TwoWay : BindingMode.OneWay
+                    Mode = editable ? BindingMode.TwoWay : BindingMode.OneWay,
+                    UpdateSourceTrigger = UpdateSourceTrigger.LostFocus
                 },
                 IsReadOnly = !editable,
                 Width = new DataGridLength(40, DataGridLengthUnitType.Star)
