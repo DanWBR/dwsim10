@@ -153,6 +153,66 @@ namespace DWSIM.Engine.SmokeTests
             Assert.That(Math.Min(w1, w2), Is.LessThan(0.01), "the other phase must be nearly pure solvent");
         }
 
+        /// <summary>
+        /// A phase that contains a polymer must report a physical density from the equation of state (not the
+        /// low-molecular-weight Rackett correlation) and a viscosity that reflects the user's polymer data.
+        /// The polymer's mole fraction is a trace, so only the mass-weighted blend lets its large, user-supplied
+        /// viscosity raise the solution viscosity; a mole average would leave it at essentially the solvent's.
+        /// </summary>
+        [Test]
+        public void PolymerPhaseUsesEoSDensityAndUserViscosity()
+        {
+            var fs = new DWSIM.DynamicRunner.Flowsheet(null, null);
+            fs.Init();
+            fs.AddCompound("N-pentane");
+            var poly = new DWSIM.Thermodynamics.BaseClasses.ConstantProperties
+            {
+                Name = "Polypropylene",
+                CAS_Number = "9003-07-0",
+                Formula = "(C3H6)n",
+                Molar_Weight = 50400.0,
+                Critical_Temperature = 1200.0,
+                Critical_Pressure = 5.0e5,
+                Acentric_Factor = 0.5,
+                Normal_Boiling_Point = 800.0,
+                IsHYPO = 1,
+                OriginalDB = "",
+                // user-supplied liquid viscosity: eta = exp(A + B/T + ...) = exp(ln 1000) ~ 1000 Pa.s
+                Liquid_Viscosity_Const_A = Math.Log(1000.0)
+            };
+            fs.Options.SelectedComponents.Add(poly.Name, poly);
+
+            var pp = new DWSIM.Thermodynamics.AdvancedEOS.PCSAFT2PropertyPackage { Flowsheet = fs };
+            var obj = fs.AddObject(DWSIM.Interfaces.Enums.GraphicObjects.ObjectType.MaterialStream, 0, 0, "s");
+            var ms = (DWSIM.Thermodynamics.Streams.MaterialStream)fs.SimulationObjects[obj.Name];
+            ms.SetFlowsheet(fs);
+            ms.PropertyPackage = pp;
+            ms.AssignSelfToPP();
+
+            const double mwP = 50400.0, mwC5 = 72.15, wFeed = 0.20;
+            double nPP = wFeed / mwP, nC5 = (1.0 - wFeed) / mwC5, tot = nPP + nC5;
+            ms.SetMassFlow(1.0);
+            ms.SetPressure(60e5);      // 60 bar / 460 K keeps a single, miscible liquid
+            ms.SetTemperature(460.15);
+            ms.SetOverallComposition(new[] { nC5 / tot, nPP / tot });
+            ms.SetFlashSpec("PT");
+            ms.Calculate();
+
+            var liq = ms.Phases[3]; // Liquid1
+            double rho = liq.Properties.density.GetValueOrDefault();
+            double mu = liq.Properties.viscosity.GetValueOrDefault();
+
+            pp.CurrentMaterialStream = ms;
+            double muSolvent = pp.AUX_LIQVISCi("N-pentane", 460.15, 60e5);
+            double muPolymer = pp.AUX_LIQVISCi("Polypropylene", 460.15, 60e5);
+            TestContext.WriteLine($"rho={rho:F1} kg/m3  mu={mu:E3}  muSolvent={muSolvent:E3}  muPolymer={muPolymer:E3}");
+
+            Assert.That(rho, Is.GreaterThan(100.0).And.LessThan(1500.0), "EoS liquid density must be physical");
+            Assert.That(muPolymer, Is.GreaterThan(muSolvent * 100.0), "test setup: the polymer is far more viscous");
+            Assert.That(mu, Is.GreaterThan(muSolvent * 3.0), "the polymer must raise the solution viscosity");
+            Assert.That(mu, Is.LessThan(muPolymer), "the blend cannot exceed the pure polymer viscosity");
+        }
+
         // A polypropylene (Mn = 50.4 kg/mol) pseudo-compound dissolved in n-pentane, with a feed at 20 wt%
         // polymer - well inside the miscibility gap, though by mole the polymer is only a trace (~4e-4).
         private static DWSIM.Thermodynamics.AdvancedEOS.PCSAFT2PropertyPackage PolypropyleneInNPentane(out double[] feed)

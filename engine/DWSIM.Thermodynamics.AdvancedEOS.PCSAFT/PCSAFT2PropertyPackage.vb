@@ -280,7 +280,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
                     Me.CurrentMaterialStream.Phases(phaseID).Properties.molar_entropyF = result
                 Case "viscosity"
                     If state = "L" Then
-                        result = Me.AUX_LIQVISCm(T, P)
+                        result = Me.AUX_LIQVISCm(T, P, phaseID)
                     Else
                         result = Me.AUX_VAPVISCm(T, Me.CurrentMaterialStream.Phases(phaseID).Properties.density.GetValueOrDefault, Me.AUX_MMM(phase))
                     End If
@@ -407,7 +407,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
                 result = Me.AUX_CONDTL(T)
                 Me.CurrentMaterialStream.Phases(phaseID).Properties.thermalConductivity = result
 
-                result = Me.AUX_LIQVISCm(T, P)
+                result = Me.AUX_LIQVISCm(T, P, phaseID)
                 Me.CurrentMaterialStream.Phases(phaseID).Properties.viscosity = result
 
                 Me.CurrentMaterialStream.Phases(phaseID).Properties.kinematic_viscosity = result / Me.CurrentMaterialStream.Phases(phaseID).Properties.density.Value
@@ -724,11 +724,13 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
         Public Overrides Function DW_CalcMassaEspecifica_ISOL(Phase1 As Phase, T As Double, P As Double, Optional Pvp As Double = 0) As Double
 
             If Phase1 = Phase.Liquid Then
-                Return Me.AUX_LIQDENS(T)
+                ' Use the PC-SAFT equation-of-state density (physical for a polymer), not the Rackett
+                ' correlation the base helper falls back to, matching DW_CalcProp and DW_CalcPhaseProps.
+                Return Me.LIQDENS(T, P, RET_VMOL(Phase1))
             ElseIf Phase1 = Phase.Vapor Then
                 Return Me.AUX_VAPDENS(T, P)
             Else
-                Return Me.CurrentMaterialStream.Phases(1).Properties.volumetric_flow.GetValueOrDefault * Me.AUX_LIQDENS(T) / Me.CurrentMaterialStream.Phases(0).Properties.volumetric_flow.GetValueOrDefault + Me.CurrentMaterialStream.Phases(2).Properties.volumetric_flow.GetValueOrDefault * Me.AUX_VAPDENS(T, P) / Me.CurrentMaterialStream.Phases(0).Properties.volumetric_flow.GetValueOrDefault
+                Return Me.CurrentMaterialStream.Phases(1).Properties.volumetric_flow.GetValueOrDefault * Me.LIQDENS(T, P, RET_VMOL(Phase.Liquid)) / Me.CurrentMaterialStream.Phases(0).Properties.volumetric_flow.GetValueOrDefault + Me.CurrentMaterialStream.Phases(2).Properties.volumetric_flow.GetValueOrDefault * Me.AUX_VAPDENS(T, P) / Me.CurrentMaterialStream.Phases(0).Properties.volumetric_flow.GetValueOrDefault
             End If
 
         End Function
@@ -746,6 +748,42 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
         Public Overrides Function DW_CalcTensaoSuperficial_ISOL(Phase1 As Phase, T As Double, P As Double) As Double
 
             Return Me.AUX_SURFTM(T)
+
+        End Function
+
+        ''' <summary>
+        ''' Liquid viscosity of a phase that contains a polymer. A polymer's mole fraction is tiny, so the
+        ''' base mole-average mixing nullifies its viscosity however large; and the low-molecular-weight
+        ''' fallback correlation does not describe a polymer at all. Here each compound's pure viscosity comes
+        ''' from AUX_LIQVISCi (the user-supplied liquid-viscosity equation when present) and they are blended
+        ''' by a mass-fraction-weighted logarithm (an Arrhenius blend), so the polymer governs the solution
+        ''' viscosity in proportion to its mass. With no polymer present the base mixing rule is used unchanged.
+        ''' </summary>
+        Public Overrides Function AUX_LIQVISCm(T As Double, P As Double, Optional phaseid As Integer = 3) As Double
+
+            Dim hasPolymer As Boolean = False
+            For Each c In CurrentMaterialStream.Phases(phaseid).Compounds.Values
+                Dim cas As String = c.ConstantProperties.CAS_Number
+                If c.MoleFraction.GetValueOrDefault > 0.0 AndAlso CompoundParameters.ContainsKey(cas) AndAlso CompoundParameters(cas).m_over_M > 0.0 Then
+                    hasPolymer = True
+                    Exit For
+                End If
+            Next
+
+            If Not hasPolymer Then Return MyBase.AUX_LIQVISCm(T, P, phaseid)
+
+            Dim lnsum As Double = 0.0, wsum As Double = 0.0
+            For Each c In CurrentMaterialStream.Phases(phaseid).Compounds.Values
+                Dim w As Double = c.MassFraction.GetValueOrDefault
+                If w <= 0.0 Then Continue For
+                Dim vi As Double = AUX_LIQVISCi(c.Name, T, P)
+                If Double.IsNaN(vi) OrElse Double.IsInfinity(vi) OrElse vi <= 0.0 Then Continue For
+                lnsum += w * Math.Log(vi)
+                wsum += w
+            Next
+
+            If wsum <= 0.0 Then Return MyBase.AUX_LIQVISCm(T, P, phaseid)
+            Return Math.Exp(lnsum / wsum)
 
         End Function
 
