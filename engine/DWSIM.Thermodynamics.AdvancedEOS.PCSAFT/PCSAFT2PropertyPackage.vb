@@ -752,28 +752,84 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
         End Function
 
         ''' <summary>
-        ''' Liquid viscosity of a phase that contains a polymer. A polymer's mole fraction is tiny, so the
-        ''' base mole-average mixing nullifies its viscosity however large; and the low-molecular-weight
-        ''' fallback correlation does not describe a polymer at all. Here each compound's pure viscosity comes
-        ''' from AUX_LIQVISCi (the user-supplied liquid-viscosity equation when present) and they are blended
-        ''' by a mass-fraction-weighted logarithm (an Arrhenius blend), so the polymer governs the solution
-        ''' viscosity in proportion to its mass. With no polymer present the base mixing rule is used unchanged.
-        ''' </summary>
-        ''' <summary>
         ''' True when the given phase contains a polymer (a PC-SAFT compound whose segment number is scaled by
         ''' its molar mass, m_over_M > 0). The transport-property overrides below switch to mass-based mixing
         ''' only then, so every non-polymer mixture keeps the base class's behaviour exactly.
         ''' </summary>
         Private Function PhaseHasPolymer(phaseid As Integer) As Boolean
             For Each c In CurrentMaterialStream.Phases(phaseid).Compounds.Values
-                Dim cas As String = c.ConstantProperties.CAS_Number
-                If c.MoleFraction.GetValueOrDefault > 0.0 AndAlso CompoundParameters.ContainsKey(cas) AndAlso CompoundParameters(cas).m_over_M > 0.0 Then
+                If IsPolymer(c.ConstantProperties.CAS_Number) AndAlso c.MoleFraction.GetValueOrDefault > 0.0 Then
                     Return True
                 End If
             Next
             Return False
         End Function
 
+        Private Function IsPolymer(cas As String) As Boolean
+            Return CompoundParameters.ContainsKey(cas) AndAlso CompoundParameters(cas).m_over_M > 0.0
+        End Function
+
+#Region "   Polymer transport-property estimates (used only with no user data)"
+
+        ' Reference transport data for the built-in polymers, from the polymer literature (thermal conductivity
+        ' and Tg from Van Krevelen, Properties of Polymers; surface tension at 20 C and its temperature slope
+        ' from Wu, J. Phys. Chem. 74 (1970) 632). These are estimates: they let a polymer report a physical
+        ' thermal conductivity and surface tension when the user has supplied no data, in place of the
+        ' low-molecular-weight correlations that would use the polymer's placeholder critical constants.
+        Private Structure PolymerTP
+            Public lambda298 As Double  ' liquid thermal conductivity at 298 K, W/(m.K)
+            Public Tg As Double         ' glass-transition temperature, K
+            Public sigma293 As Double   ' surface tension at 293 K, N/m
+            Public dsigmadT As Double   ' d(surface tension)/dT, N/(m.K), negative
+            Public Sub New(l As Double, g As Double, s As Double, ds As Double)
+                lambda298 = l : Tg = g : sigma293 = s : dsigmadT = ds
+            End Sub
+        End Structure
+
+        Private Shared ReadOnly PolymerData As New Dictionary(Of String, PolymerTP) From {
+            {"9002-88-4", New PolymerTP(0.46, 153.0, 0.0357, -0.000057)},    ' polyethylene HDPE
+            {"9002-88-4-L", New PolymerTP(0.33, 148.0, 0.0353, -0.000056)},  ' polyethylene LDPE
+            {"9003-07-0", New PolymerTP(0.19, 260.0, 0.0301, -0.000058)},    ' polypropylene
+            {"9003-28-5", New PolymerTP(0.22, 249.0, 0.0336, -0.000058)},    ' polybutene
+            {"9003-27-4", New PolymerTP(0.13, 200.0, 0.0336, -0.000064)},    ' polyisobutene
+            {"9003-53-6", New PolymerTP(0.15, 373.0, 0.0407, -0.000072)},    ' polystyrene
+            {"9003-20-7", New PolymerTP(0.159, 305.0, 0.0365, -0.000066)}    ' poly(vinyl acetate)
+        }
+
+        ' Typical amorphous polymer, for an injected polymer not in the table above.
+        Private Shared ReadOnly PolymerDataDefault As New PolymerTP(0.20, 350.0, 0.0350, -0.000060)
+
+        Private Shared Function PolymerRef(cas As String) As PolymerTP
+            Dim p As PolymerTP = Nothing
+            If PolymerData.TryGetValue(cas, p) Then Return p
+            Return PolymerDataDefault
+        End Function
+
+        ' Van Krevelen's reduced thermal-conductivity curve for amorphous polymers: lambda rises weakly up to
+        ' the glass transition (x = T/Tg <= 1) and falls roughly linearly above it.
+        Private Shared Function VkCondShape(x As Double) As Double
+            Return Math.Max(If(x <= 1.0, x ^ 0.22, 1.2 - 0.2 * x), 0.05)
+        End Function
+
+        Private Shared Function EstimatePolymerCondL(cas As String, T As Double) As Double
+            Dim p As PolymerTP = PolymerRef(cas)
+            Return p.lambda298 * VkCondShape(T / p.Tg) / VkCondShape(298.0 / p.Tg)
+        End Function
+
+        Private Shared Function EstimatePolymerSurfTens(cas As String, T As Double) As Double
+            Dim p As PolymerTP = PolymerRef(cas)
+            Return Math.Max(p.sigma293 + p.dsigmadT * (T - 293.15), 0.0001)
+        End Function
+
+#End Region
+
+        ''' <summary>
+        ''' Liquid viscosity of a phase that contains a polymer. A polymer's mole fraction is tiny, so the
+        ''' base mole-average mixing nullifies its viscosity however large. Here each compound's pure viscosity
+        ''' comes from AUX_LIQVISCi (the user-supplied liquid-viscosity equation when present) and they are
+        ''' blended by a mass-fraction-weighted logarithm (an Arrhenius blend), so the polymer governs the
+        ''' solution viscosity in proportion to its mass. With no polymer present the base mixing rule is used.
+        ''' </summary>
         Public Overrides Function AUX_LIQVISCm(T As Double, P As Double, Optional phaseid As Integer = 3) As Double
 
             If Not PhaseHasPolymer(phaseid) Then Return MyBase.AUX_LIQVISCm(T, P, phaseid)
@@ -808,7 +864,13 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
             For Each c In CurrentMaterialStream.Phases(phaseid).Compounds.Values
                 Dim w As Double = c.MassFraction.GetValueOrDefault
                 If w <= 0.0 Then Continue For
-                Dim ki As Double = AUX_LIQTHERMCONDi(c.ConstantProperties, T)
+                Dim cp = c.ConstantProperties
+                Dim ki As Double
+                If IsPolymer(cp.CAS_Number) AndAlso (cp.LiquidThermalConductivityEquation = "" OrElse cp.LiquidThermalConductivityEquation = "0") Then
+                    ki = EstimatePolymerCondL(cp.CAS_Number, T)   ' user gave no data: estimate rather than Latini
+                Else
+                    ki = AUX_LIQTHERMCONDi(cp, T)
+                End If
                 If Double.IsNaN(ki) OrElse Double.IsInfinity(ki) OrElse ki <= 0.0 Then Continue For
                 val += w * ki
                 wsum += w
@@ -831,10 +893,16 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
             Dim val As Double = 0.0, wsum As Double = 0.0
             For Each c In CurrentMaterialStream.Phases(1).Compounds.Values
-                If T / c.ConstantProperties.Critical_Temperature >= 1.0 Then Continue For
+                Dim cp = c.ConstantProperties
                 Dim w As Double = c.MassFraction.GetValueOrDefault
                 If w <= 0.0 Then Continue For
-                Dim si As Double = AUX_SURFTi(c.ConstantProperties, T)
+                Dim si As Double
+                If IsPolymer(cp.CAS_Number) AndAlso (cp.SurfaceTensionEquation = "" OrElse cp.SurfaceTensionEquation = "0") Then
+                    si = EstimatePolymerSurfTens(cp.CAS_Number, T)   ' user gave no data: estimate rather than Brock-Bird
+                Else
+                    If T / cp.Critical_Temperature >= 1.0 Then Continue For
+                    si = AUX_SURFTi(cp, T)
+                End If
                 If Double.IsNaN(si) OrElse Double.IsInfinity(si) OrElse si <= 0.0 Then Continue For
                 val += w * si
                 wsum += w
