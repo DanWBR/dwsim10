@@ -169,17 +169,40 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
         ''' </summary>
         Private Function AnalyseSpinodal(ByVal T As Double, ByVal Vz As Double(),
                                          ByVal PP As PropertyPackages.PropertyPackage,
+                                         ByVal P As Double,
                                          ByRef est As Object) As SpinodalState
 
             est = Nothing
             If Vz.Length <> 2 Then Return SpinodalState.NotApplicable
-            Dim apk = TryCast(PP, ActivityCoefficientPropertyPackage)
-            If apk Is Nothing Then Return SpinodalState.NotApplicable
 
-            ' Resolve the model arguments once for the whole sweep: they do not vary with T or composition,
-            ' and rebuilding them per point costs more than the derivative itself for group-contribution
-            ' models, which have to re-read each compound's groups and allocate a dictionary per compound.
-            Dim d2 = apk.GetGibbsMixingD2Evaluator()
+            ' D2 is the second derivative of the molar Gibbs energy of mixing (over RT) with respect to the
+            ' first mole fraction; its sign is what the bracketing and seeding below read.
+            Dim d2 As Func(Of Double, Double, Double)
+            Dim apk = TryCast(PP, ActivityCoefficientPropertyPackage)
+            If apk IsNot Nothing Then
+                ' Resolve the model arguments once for the whole sweep: they do not vary with T or composition,
+                ' and rebuilding them per point costs more than the derivative itself for group-contribution
+                ' models, which have to re-read each compound's groups and allocate a dictionary per compound.
+                d2 = apk.GetGibbsMixingD2Evaluator()
+            ElseIf PP.UsesGibbsMinimizationForLLE Then
+                ' An equation of state has no closed-form mixing D2 here. Build it from the analytical
+                ' composition derivative of the log fugacity coefficient instead of differencing g_mix twice:
+                ' for a binary at constant T and P, D2 = 1/x1 + 1/x2 + dlnphi1/dx1 - dlnphi2/dx1, where
+                ' dlnphi_i/dx1 = J(i,0) - J(i,1) from the d(lnphi_i)/dn_j matrix. The analytical route stays
+                ' smooth into the dilute corners, where a double finite difference of g_mix explodes on the
+                ' density-solve noise and buries the real window. A polymer's window sits at extreme dilution
+                ' of the polymer and the feed is usually metastable, OUTSIDE it, so the activity path's linear
+                ' grid and feed-centred bracketing cannot see it; this branch scans a geometric grid instead.
+                Dim d2eos As Func(Of Double, Double, Double) =
+                    Function(TT As Double, x1 As Double) As Double
+                        Dim x2 As Double = 1.0 - x1
+                        Dim jac = PP.DW_CalcdLnFugCoeffdn(New Double() {x1, x2}, TT, P, State.Liquid)
+                        Return 1.0 / x1 + 1.0 / x2 + (jac(0, 0) - jac(0, 1)) - (jac(1, 0) - jac(1, 1))
+                    End Function
+                Return SeedOutsideEoSWindow(d2eos, T, Vz, est)
+            Else
+                Return SpinodalState.NotApplicable
+            End If
 
             ' A single evaluation at the feed often settles it: D2(z) < 0 puts the feed between the two
             ' spinodal roots by definition, so the window is known to exist and z is known to lie in it,
@@ -214,6 +237,98 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
             est = New Object() {L1, New Double() {x1a, 1.0 - x1a}, New Double() {x2a, 1.0 - x2a}}
             Return SpinodalState.WindowFound
 
+        End Function
+
+        ''' <summary>
+        ''' EoS counterpart of the spinodal seeding above, for a strongly size-asymmetric binary (a polymer in
+        ''' a solvent). Its unstable window sits at extreme dilution of the heavy component and the feed is
+        ''' usually metastable, OUTSIDE the window, so the activity path's linear grid and feed-centred
+        ''' bracketing miss it. This scans D2 on a geometric grid dense in both corners, locates the window
+        ''' from its most-unstable point, refines the two roots, and seeds just outside them straddling the
+        ''' feed. Returns WindowFound with estimates in <paramref name="est"/>, or NotApplicable.
+        ''' </summary>
+        Private Function SeedOutsideEoSWindow(ByVal d2 As Func(Of Double, Double, Double), ByVal T As Double,
+                                              ByVal Vz As Double(), ByRef est As Object) As SpinodalState
+
+            est = Nothing
+
+            ' Geometric grid over (1e-7, 1-1e-7), refining towards both ends.
+            Dim xs As New List(Of Double)
+            Dim e As Double = 0.0000001
+            Do While e <= 0.5
+                xs.Add(e)
+                xs.Add(1.0 - e)
+                e *= 1.5
+            Loop
+            xs.Sort()
+
+            Dim vals(xs.Count - 1) As Double
+            Dim kmin As Integer = -1
+            Dim best As Double = Double.MaxValue
+            For k As Integer = 0 To xs.Count - 1
+                vals(k) = d2(T, xs(k))
+                If Not Double.IsNaN(vals(k)) AndAlso vals(k) < best Then
+                    best = vals(k) : kmin = k
+                End If
+            Next
+
+            ' No negative curvature found on the grid: nothing to seed a split from here.
+            If kmin < 0 OrElse best >= 0.0 Then Return SpinodalState.NotApplicable
+
+            ' Widen from the most-unstable node to the first stable node on each side; those pairs bracket the
+            ' two spinodal roots. If the window runs off a grid edge, use that edge as the root.
+            Dim kL As Integer = kmin
+            Do While kL > 0 AndAlso (Double.IsNaN(vals(kL - 1)) OrElse vals(kL - 1) < 0.0)
+                kL -= 1
+            Loop
+            Dim kR As Integer = kmin
+            Do While kR < xs.Count - 1 AndAlso (Double.IsNaN(vals(kR + 1)) OrElse vals(kR + 1) < 0.0)
+                kR += 1
+            Loop
+
+            Dim xs1 As Double = If(kL > 0, RefineD2Root(d2, T, xs(kL), xs(kL - 1)), xs(0))
+            Dim xs2 As Double = If(kR < xs.Count - 1, RefineD2Root(d2, T, xs(kR), xs(kR + 1)), xs(xs.Count - 1))
+            If xs2 <= xs1 Then Return SpinodalState.NotApplicable
+
+            ' Seed outside each root, straddling the feed so the balance is feasible. For a strongly
+            ' asymmetric mixture the binodal lies far outside the spinodal, so offset multiplicatively in the
+            ' dilute (heavy) mole fraction rather than by a fraction of the narrow window.
+            Const f As Double = 3.0
+            Dim x1a, x2a As Double
+            If xs1 > 0.5 AndAlso xs2 > 0.5 Then
+                ' Window at high x1: component 2 is dilute; push in its mole fraction 1 - x1.
+                x1a = 1.0 - Math.Min(f * (1.0 - xs1), 0.5)
+                x2a = 1.0 - (1.0 - xs2) / f
+            ElseIf xs1 < 0.5 AndAlso xs2 < 0.5 Then
+                ' Window at low x1: component 1 is dilute; push in x1.
+                x1a = xs1 / f
+                x2a = Math.Min(f * xs2, 0.5)
+            Else
+                ' Window spans the middle (near-symmetric): a fraction of its width is the right scale.
+                Dim wid As Double = xs2 - xs1
+                x1a = Math.Max(xs1 - 0.4 * wid, 0.5 * xs1)
+                x2a = Math.Min(xs2 + 0.4 * wid, xs2 + 0.5 * (1.0 - xs2))
+            End If
+            Dim L1 As Double = (Vz(0) - x2a) / (x1a - x2a)
+            If L1 <= 0.001 OrElse L1 >= 0.999 Then Return SpinodalState.NotApplicable
+
+            est = New Object() {L1, New Double() {x1a, 1.0 - x1a}, New Double() {x2a, 1.0 - x2a}}
+            Return SpinodalState.WindowFound
+
+        End Function
+
+        ' Bisection for the zero of D2 between an unstable point (D2 < 0) and a stable one (D2 >= 0),
+        ' to a tolerance that tightens near the composition corners where a polymer window lives.
+        Private Function RefineD2Root(ByVal d2 As Func(Of Double, Double, Double), ByVal T As Double,
+                                      ByVal xUnstable As Double, ByVal xStable As Double) As Double
+            For it As Integer = 1 To 60
+                Dim mid As Double = 0.5 * (xUnstable + xStable)
+                Dim fm As Double = d2(T, mid)
+                If Double.IsNaN(fm) Then Exit For
+                If fm < 0.0 Then xUnstable = mid Else xStable = mid
+                If Math.Abs(xUnstable - xStable) <= 0.000000001 + 0.001 * Math.Min(mid, 1.0 - mid) Then Exit For
+            Next
+            Return 0.5 * (xUnstable + xStable)
         End Function
 
         ' Isoactivity residual norm sum|F_i|, F_i = ln(x1_i phi1_i) - ln(x2_i phi2_i). NaN if infeasible.
@@ -569,7 +684,7 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                 ' above its consolute temperature, where no split exists and the search for one used to
                 ' oscillate until it ran out of iterations.
                 Dim sp As Object = Nothing
-                Select Case AnalyseSpinodal(T, Vz, PP, sp)
+                Select Case AnalyseSpinodal(T, Vz, PP, P, sp)
 
                     Case SpinodalState.Convex
                         ' D2 > 0 for every composition, so g_mix is strictly convex, no common tangent can

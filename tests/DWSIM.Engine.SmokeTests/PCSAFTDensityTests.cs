@@ -103,5 +103,55 @@ namespace DWSIM.Engine.SmokeTests
                 Assert.That(ln[1], Is.LessThan(0.0).And.GreaterThan(-5000.0), $"polymer lnPhi out of range at x(PP)={xpp:E2}");
             }
         }
+
+        /// <summary>
+        /// The polymer liquid-liquid split must come out of the ordinary Simple LLE flash with no manual
+        /// phase seed. Inside the miscibility gap (polypropylene in n-pentane at 460 K / 40 bar) the flash
+        /// has to demix into a nearly pure solvent phase and a polymer-rich one, driven only by the EoS
+        /// spinodal seed the flash builds for itself; without it the iteration collapses onto the feed and
+        /// reports a single phase. The window sits at extreme dilution (polymer mole fractions ~1e-5..1e-3)
+        /// and the feed is metastable, outside the spinodal, which the activity-model seeding cannot reach.
+        /// </summary>
+        [Test]
+        public void PolymerLiquidLiquidSplitIsReachableUnseeded()
+        {
+            var pp = Package(fs =>
+            {
+                fs.AddCompound("N-pentane");
+                var poly = new DWSIM.Thermodynamics.BaseClasses.ConstantProperties
+                {
+                    Name = "Polypropylene",
+                    CAS_Number = "9003-07-0",
+                    Formula = "(C3H6)n",
+                    Molar_Weight = 50400.0,
+                    Critical_Temperature = 1200.0,
+                    Critical_Pressure = 5.0e5,
+                    Acentric_Factor = 0.5,
+                    Normal_Boiling_Point = 800.0,
+                    IsHYPO = 1
+                };
+                fs.Options.SelectedComponents.Add(poly.Name, poly);
+            });
+
+            // 20 wt% polypropylene, well inside the gap. By mole the polymer is a trace (~4e-4).
+            const double mwP = 50400.0, mwC5 = 72.15, wFeed = 0.20;
+            double nPP = wFeed / mwP, nC5 = (1.0 - wFeed) / mwC5, tot = nPP + nC5;
+            var z = new[] { nC5 / tot, nPP / tot };
+
+            var flash = new DWSIM.Thermodynamics.PropertyPackages.Auxiliary.FlashAlgorithms.SimpleLLE();
+            var r = (object[])flash.Flash_PT(z, 40e5, 460.15, pp);
+
+            double L1 = Convert.ToDouble(r[0]), L2 = Convert.ToDouble(r[5]);
+            double w1 = MassFractionPP(((double[])r[2])[1]);
+            double w2 = MassFractionPP(((double[])r[6])[1]);
+            TestContext.WriteLine($"L1={L1:F3} L2={L2:F3}  w1(PP)={w1:F4} w2(PP)={w2:F4}");
+
+            Assert.That(Math.Min(L1, L2), Is.GreaterThan(0.01), "two liquid phases must be present");
+            Assert.That(Math.Max(w1, w2), Is.GreaterThan(0.15), "one phase must be polymer-rich");
+            Assert.That(Math.Min(w1, w2), Is.LessThan(0.01), "the other phase must be nearly pure solvent");
+        }
+
+        // Mass fraction of the polymer from its mole fraction (n-pentane 72.15, polypropylene 50400 g/mol).
+        private static double MassFractionPP(double xPP) => xPP * 50400.0 / (xPP * 50400.0 + (1.0 - xPP) * 72.15);
     }
 }
