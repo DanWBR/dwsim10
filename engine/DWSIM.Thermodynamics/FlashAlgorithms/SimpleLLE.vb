@@ -574,6 +574,8 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                 IObj2?.Paragraphs.Add(String.Format("Calculating fugacity coefficients of liquid phases:", ecount))
                 fi1 = PP.DW_CalcFugCoeff(Vx1, T, P, State.Liquid)
                 fi2 = PP.DW_CalcFugCoeff(Vx2, T, P, State.Liquid)
+                Dim lnfi1 = PP.DW_CalcLnFugCoeff(Vx1, T, P, State.Liquid)
+                Dim lnfi2 = PP.DW_CalcLnFugCoeff(Vx2, T, P, State.Liquid)
                 IObj2?.SetCurrent
                 IObj2?.Paragraphs.Add(String.Format("Fugacity coefficients phase 1: {0}", fi1.ToMathArrayString))
                 IObj2?.Paragraphs.Add(String.Format("Fugacity coefficients phase 2: {0}", fi2.ToMathArrayString))
@@ -581,7 +583,17 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                 For i = 0 To n
                     If fi1(i) > 10000000000.0 Then fi1(i) = Vp(i) * 100
                     If fi2(i) > 10000000000.0 Then fi2(i) = Vp(i) * 100
-                    If Vp(i) > 0.001 Then
+                    If fi1(i) <= 0.0 OrElse fi2(i) <= 0.0 Then
+                        ' The fugacity coefficient underflowed to zero (a high segment-number polymer,
+                        ' whose ln is on the order of -1e3), which would make γ1/γ2 = φ1/φ2 = 0/0 = NaN.
+                        ' That ratio is what the isoactivity update and residual actually use, so build it
+                        ' from the log fugacity with a symmetric shift that keeps both values finite and
+                        ' preserves the ratio exp(lnφ1 - lnφ2). Checked before the Pvap branch because a
+                        ' non-volatile polymer can still report a small non-zero extrapolated Pvap.
+                        Dim half As Double = 0.5 * (lnfi1(i) - lnfi2(i))
+                        gamma1(i) = Math.Exp(half)
+                        gamma2(i) = Math.Exp(-half)
+                    ElseIf Vp(i) > 0.001 Then
                         ' Normal case: convert fugacity coefficients to activity coefficients
                         ' via the Raoult reference state (γ = P/Pvap · φ_liquid).
                         gamma1(i) = P / Vp(i) * fi1(i)
