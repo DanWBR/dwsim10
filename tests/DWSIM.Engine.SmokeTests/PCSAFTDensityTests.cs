@@ -302,6 +302,68 @@ namespace DWSIM.Engine.SmokeTests
         private static string SourceDir([CallerFilePath] string path = "") => Path.GetDirectoryName(path);
 
         /// <summary>
+        /// Validation against Tumakaka, Gross and Sadowski, Fluid Phase Equilibria 194-197 (2002) 541, Fig. 5:
+        /// the liquid-liquid cloud pressure of polypropylene (Mw = 50.4 kg/mol) in n-pentane at 5 wt% polymer,
+        /// with the paper's kij = 0.0137. The cloud pressure is the boundary between the demixed region below
+        /// and the miscible region above; the paper reads about 47, 59 and 73 bar at 177, 187 and 197 C.
+        /// </summary>
+        [Test]
+        public void PolypropyleneNPentaneCloudPressureMatchesTumakaka2002()
+        {
+            var pp = PolypropyleneInNPentane(out _, 50400.0, 0.05); // Mw = 50.4 kg/mol, 5 wt% PP
+            double[] z = LastFeed;
+
+            var reference = new[] { (T: 450.15, Pbar: 47.0), (T: 460.15, Pbar: 59.0), (T: 470.15, Pbar: 73.0) };
+            TestContext.WriteLine("PP(50.4 kg/mol)/n-pentane 5 wt%, kij=0.0137   cloud pressure (bar)");
+            TestContext.WriteLine("  T(C)   paper(Fig5)   PC-SAFT(this)   splits below / single above");
+
+            foreach (var r in reference)
+            {
+                double cloud = CloudPressureBar(pp, z, r.T);
+                TestContext.WriteLine($"  {r.T - 273.15,4:F0}      {r.Pbar,6:F0}         {cloud,6:F0}");
+                Assert.That(cloud, Is.EqualTo(r.Pbar).Within(15.0),
+                            $"cloud pressure at {r.T - 273.15:F0} C should be near the paper's {r.Pbar:F0} bar");
+            }
+        }
+
+        // Highest pressure (bar) at which PP/n-pentane still splits into two liquids: the cloud pressure.
+        private static double CloudPressureBar(DWSIM.Thermodynamics.PropertyPackages.PropertyPackage pp, double[] z, double T)
+        {
+            double lastSplit = double.NaN, firstSingle = double.NaN;
+            for (double Pbar = 25.0; Pbar <= 95.0; Pbar += 5.0)
+            {
+                bool split = HasLiquidLiquidSplit(pp, z, Pbar * 1e5, T);
+                if (split) lastSplit = Pbar;
+                else if (!double.IsNaN(lastSplit)) { firstSingle = Pbar; break; }
+            }
+            if (double.IsNaN(lastSplit)) return 0.0;
+            if (double.IsNaN(firstSingle)) return lastSplit;
+            return 0.5 * (lastSplit + firstSingle); // boundary lies between the last split and the first single phase
+        }
+
+        private static bool HasLiquidLiquidSplit(DWSIM.Thermodynamics.PropertyPackages.PropertyPackage pp, double[] z, double P, double T)
+        {
+            try
+            {
+                var slle = new DWSIM.Thermodynamics.PropertyPackages.Auxiliary.FlashAlgorithms.SimpleLLE
+                {
+                    UseInitialEstimatesForPhase1 = true,
+                    InitialEstimatesForPhase1 = new[] { 0.9999999, 0.0000001 }, // dilute (solvent-rich)
+                    UseInitialEstimatesForPhase2 = true,
+                    InitialEstimatesForPhase2 = new[] { 0.999, 0.001 },          // polymer-rich
+                };
+                var r = (object[])slle.Flash_PT((double[])z.Clone(), P, T, pp);
+                double L1 = Convert.ToDouble(r[0]), L2 = Convert.ToDouble(r[5]);
+                double w1 = MassFractionPP(((double[])r[2])[1]);
+                double w2 = MassFractionPP(((double[])r[6])[1]);
+                return Math.Min(L1, L2) > 0.001 && Math.Abs(w1 - w2) > 0.05; // genuine split, not the trivial one
+            }
+            catch { return false; }
+        }
+
+        private static double[] LastFeed;
+
+        /// <summary>
         /// Full phase-property read-out for a polymer solution through PC-SAFT: every property a MaterialStream
         /// exposes must come out finite and physical. Polypropylene (from its addcomps entry) at 20 wt% in
         /// n-pentane, 460 K / 60 bar, with a supplied melt viscosity so the viscosity path is exercised too.
@@ -374,7 +436,8 @@ namespace DWSIM.Engine.SmokeTests
 
         // A polypropylene (Mn = 50.4 kg/mol) pseudo-compound dissolved in n-pentane, with a feed at 20 wt%
         // polymer - well inside the miscibility gap, though by mole the polymer is only a trace (~4e-4).
-        private static DWSIM.Thermodynamics.AdvancedEOS.PCSAFT2PropertyPackage PolypropyleneInNPentane(out double[] feed)
+        private static DWSIM.Thermodynamics.AdvancedEOS.PCSAFT2PropertyPackage PolypropyleneInNPentane(
+            out double[] feed, double mwP = 50400.0, double wFeed = 0.20)
         {
             var pp = Package(fs =>
             {
@@ -384,7 +447,7 @@ namespace DWSIM.Engine.SmokeTests
                     Name = "Polypropylene",
                     CAS_Number = "9003-07-0",
                     Formula = "(C3H6)n",
-                    Molar_Weight = 50400.0,
+                    Molar_Weight = mwP,
                     Critical_Temperature = 1200.0,
                     Critical_Pressure = 5.0e5,
                     Acentric_Factor = 0.5,
@@ -394,9 +457,10 @@ namespace DWSIM.Engine.SmokeTests
                 fs.Options.SelectedComponents.Add(poly.Name, poly);
             });
 
-            const double mwP = 50400.0, mwC5 = 72.15, wFeed = 0.20;
+            const double mwC5 = 72.15;
             double nPP = wFeed / mwP, nC5 = (1.0 - wFeed) / mwC5, tot = nPP + nC5;
             feed = new[] { nC5 / tot, nPP / tot };
+            LastFeed = feed;
             return pp;
         }
 
