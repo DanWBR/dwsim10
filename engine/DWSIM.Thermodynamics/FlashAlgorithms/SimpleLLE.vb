@@ -230,15 +230,49 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
             For i As Integer = 0 To n
                 Vx1(i) = Vn1(i) / L1 : Vx2(i) = Vn2(i) / L2
             Next
-            Dim f1 = PP.DW_CalcFugCoeff(Vx1, T, P, State.Liquid)
-            Dim f2 = PP.DW_CalcFugCoeff(Vx2, T, P, State.Liquid)
+            ' Log fugacity coefficients, so a high segment-number polymer (phi underflows to zero) keeps a
+            ' finite residual: F_i = ln(x1_i) + lnphi1_i - ln(x2_i) - lnphi2_i.
+            Dim lnf1 = PP.DW_CalcLnFugCoeff(Vx1, T, P, State.Liquid)
+            Dim lnf2 = PP.DW_CalcLnFugCoeff(Vx2, T, P, State.Liquid)
             Dim s As Double = 0.0
             For i As Integer = 0 To n
                 If Vz(i) <= 0.0 Then Continue For
                 If Vx1(i) <= 0.0 OrElse Vx2(i) <= 0.0 Then Return Double.NaN
-                s += Math.Abs(Math.Log(Vx1(i) * f1(i)) - Math.Log(Vx2(i) * f2(i)))
+                s += Math.Abs((Math.Log(Vx1(i)) + lnf1(i)) - (Math.Log(Vx2(i)) + lnf2(i)))
             Next
             Return s
+        End Function
+
+        ''' <summary>
+        ''' Composition derivative D(i,j) = d(ln phi_i)/dn_j at total moles = 1, by finite difference: bump
+        ''' n_j (= x_j at unit total moles), renormalise, and difference the log fugacity coefficients. Used
+        ''' for the Newton step when the property package does not supply analytical derivatives.
+        ''' </summary>
+        Private Function DLnFugCoeffdnNumerical(ByVal Vx As Double(), ByVal T As Double, ByVal P As Double,
+                                                ByVal PP As PropertyPackages.PropertyPackage) As Double(,)
+            Dim n As Integer = Vx.Length - 1
+            Dim D(n, n) As Double
+            Dim delta As Double = 0.000001
+            For j As Integer = 0 To n
+                If Vx(j) <= 0.0 Then Continue For
+                ' Central difference on the mole numbers (n_j = x_j at unit total moles), renormalising the
+                ' bumped composition each side.
+                Dim npp(n), npm(n) As Double
+                For k As Integer = 0 To n
+                    npp(k) = Vx(k) : npm(k) = Vx(k)
+                Next
+                npp(j) += delta : npm(j) -= delta
+                Dim totp As Double = 1.0 + delta, totm As Double = 1.0 - delta
+                For k As Integer = 0 To n
+                    npp(k) /= totp : npm(k) /= totm
+                Next
+                Dim lnfp = PP.DW_CalcLnFugCoeff(npp, T, P, State.Liquid)
+                Dim lnfm = PP.DW_CalcLnFugCoeff(npm, T, P, State.Liquid)
+                For i As Integer = 0 To n
+                    D(i, j) = (lnfp(i) - lnfm(i)) / (2.0 * delta)
+                Next
+            Next
+            Return D
         End Function
 
         ''' <summary>
@@ -270,10 +304,21 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                 Vx1(i) = Vn1(i) / L1 : Vx2(i) = Vn2(i) / L2
             Next
 
-            Dim f1 = PP.DW_CalcFugCoeff(Vx1, T, P, State.Liquid)
-            Dim f2 = PP.DW_CalcFugCoeff(Vx2, T, P, State.Liquid)
-            Dim D1 = PP.DW_CalcdLnFugCoeffdn(Vx1, T, P, State.Liquid)
-            Dim D2m = PP.DW_CalcdLnFugCoeffdn(Vx2, T, P, State.Liquid)
+            ' Residual from log fugacity coefficients (finite for a polymer whose phi underflows):
+            ' F_i = ln(x1_i) + lnphi1_i - ln(x2_i) - lnphi2_i.
+            Dim lnf1 = PP.DW_CalcLnFugCoeff(Vx1, T, P, State.Liquid)
+            Dim lnf2 = PP.DW_CalcLnFugCoeff(Vx2, T, P, State.Liquid)
+
+            ' Composition derivatives: analytical when the package supplies them, otherwise finite-difference
+            ' (PC-SAFT does not implement analytical d(lnphi)/dn).
+            Dim D1 As Double(,), D2m As Double(,)
+            If PP.ImplementsAnalyticalDerivatives Then
+                D1 = PP.DW_CalcdLnFugCoeffdn(Vx1, T, P, State.Liquid)
+                D2m = PP.DW_CalcdLnFugCoeffdn(Vx2, T, P, State.Liquid)
+            Else
+                D1 = DLnFugCoeffdnNumerical(Vx1, T, P, PP)
+                D2m = DLnFugCoeffdnNumerical(Vx2, T, P, PP)
+            End If
 
             Dim F(n) As Double
             Fnorm = 0.0
@@ -282,7 +327,7 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                     F(i) = 0.0
                 Else
                     If Vx1(i) <= 0.0 OrElse Vx2(i) <= 0.0 Then Return Nothing
-                    F(i) = Math.Log(Vx1(i) * f1(i)) - Math.Log(Vx2(i) * f2(i))
+                    F(i) = (Math.Log(Vx1(i)) + lnf1(i)) - (Math.Log(Vx2(i)) + lnf2(i))
                     Fnorm += Math.Abs(F(i))
                 End If
                 If Double.IsNaN(F(i)) OrElse Double.IsInfinity(F(i)) Then Return Nothing
@@ -664,7 +709,7 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                 ' substitution drifts away from it slowly enough to act as a crude safeguard there.
                 Dim ssStalled As Boolean = (dampFactor < 1.0 OrElse ecount >= NewtonFallbackIterations)
                 Dim newtonOK As Boolean = False
-                If PP.ImplementsAnalyticalDerivatives AndAlso seeded AndAlso ssStalled Then
+                If seeded AndAlso ssStalled Then
                     Dim f0 As Double = 0.0
                     Dim dnstep = NewtonStepLLE(Vz, Vn1, T, P, PP, f0)
                     If dnstep IsNot Nothing Then
