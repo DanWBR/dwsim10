@@ -142,13 +142,19 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
                 Dim cproxy As New pccompound
 
+                Dim prm = pp.CompoundParameters(c.CAS_Number)
+
+                ' A polymer (m_over_M > 0) has a segment number proportional to its molar mass:
+                ' m = (m/M) * Molar_Weight. Small molecules keep their tabulated absolute m.
+                Dim mSeg As Double = If(prm.m_over_M > 0.0, prm.m_over_M * c.Molar_Weight, prm.m)
+
                 cproxy.EosParam = New List(Of Object)
                 cproxy.EosParam.Add(0.0)
-                cproxy.EosParam.Add(pp.CompoundParameters(c.CAS_Number).m) 'm
-                cproxy.EosParam.Add(pp.CompoundParameters(c.CAS_Number).sigma) 'sigma
-                cproxy.EosParam.Add(pp.CompoundParameters(c.CAS_Number).epsilon) 'epsilon/k
+                cproxy.EosParam.Add(mSeg) 'm
+                cproxy.EosParam.Add(prm.sigma) 'sigma
+                cproxy.EosParam.Add(prm.epsilon) 'epsilon/k
 
-                assocparam = pp.CompoundParameters(c.CAS_Number).associationparams
+                assocparam = prm.associationparams
 
                 If assocparam <> "" Then
 
@@ -206,6 +212,12 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
         Public Function CalcFugCoeff(T As Double, P As Double, liq_or_gas As String, Zestimate As Double) As Double()
 
             Return FugF(T, P, mix, liq_or_gas, Zestimate)
+
+        End Function
+
+        Public Function CalcLnFugCoeff(T As Double, P As Double, liq_or_gas As String, Zestimate As Double) As Double()
+
+            Return LogFugF(T, P, mix, liq_or_gas, Zestimate)
 
         End Function
 
@@ -746,6 +758,13 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
         End Function
 
         Friend Function FugF(T, P, mix, phase, Zestimate)
+            ' Fugacity coefficients. A high segment-number polymer has a log coefficient on the order
+            ' of -1e3, so the exponential underflows to zero here; callers that must keep the true
+            ' chemical potential (stability test, phase-split estimates) use LogFugF instead.
+            Return LogFugF(T, P, mix, phase, Zestimate).Select(Function(lf) Math.Exp(lf)).ToArray()
+        End Function
+
+        Friend Function LogFugF(T, P, mix, phase, Zestimate) As Double()
 
             'Calculates the fugacity And compresibility coefficient of mixture mix at temperature T
             'And pressure P using PC-SAFT EoS
@@ -791,7 +810,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
             '**************************************************************************
             'Constants
 
-            Dim kb, Z, muHC(), muDisp(), NumAss(), muAss(), dens_num, logfi, f() As Double
+            Dim kb, Z, muHC(), muDisp(), NumAss(), muAss(), dens_num, logf() As Double
 
             kb = 1.3806504E-23 'Boltzmann K (J/K)
 
@@ -832,13 +851,12 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
             'Calculates the fugacity coefficient
             '**************************************************************************
 
-            f = zeros(mix.numC - 1)
+            logf = zeros(mix.numC - 1)
             For i = 1 To mix.numC
-                logfi = muHC(i) + muDisp(i) + muAss(i) - Log(Z) 'Eq. A32 Of reference
-                f(i - 1) = Exp(logfi)
+                logf(i - 1) = muHC(i) + muDisp(i) + muAss(i) - Log(Z) 'Eq. A32 Of reference
             Next
 
-            Return f
+            Return logf
 
         End Function
 

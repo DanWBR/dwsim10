@@ -1780,6 +1780,28 @@ Namespace PropertyPackages
         Public MustOverride Function DW_CalcFugCoeff(ByVal Vx As Array, ByVal T As Double, ByVal P As Double, ByVal st As State) As Double()
 
         ''' <summary>
+        ''' Calculates the natural logarithm of the fugacity coefficients. The default takes the log of
+        ''' DW_CalcFugCoeff, reproducing the historical -500 sentinel for a zero coefficient. Packages
+        ''' whose coefficient can underflow to zero (e.g. a high segment-number polymer in PC-SAFT,
+        ''' whose ln is on the order of -1e3) must override this to return the log directly, so the
+        ''' stability test and phase-split estimates keep the true chemical potential.
+        ''' </summary>
+        Public Overridable Function DW_CalcLnFugCoeff(ByVal Vx As Array, ByVal T As Double, ByVal P As Double, ByVal st As State) As Double()
+            Dim fc = DW_CalcFugCoeff(Vx, T, P, st)
+            Dim ln(fc.Length - 1) As Double
+            For i As Integer = 0 To fc.Length - 1
+                If fc(i) > 0.0# Then
+                    ln(i) = Math.Log(fc(i))
+                ElseIf fc(i) < 0.0# Then
+                    ln(i) = Math.Log(Math.Abs(fc(i)))
+                Else
+                    ln(i) = -500.0
+                End If
+            Next
+            Return ln
+        End Function
+
+        ''' <summary>
         ''' Calculates fugacity coefficients for the specified composition at the specified conditions.
         ''' </summary>
         ''' <param name="Vz">Vector of doubles containing the molar composition of the mixture.</param>

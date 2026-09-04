@@ -19,6 +19,9 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
         Public epsilon As Double = 0.0#
         <FieldNullValue(0.0#)> Public kAiBi As Double = 0.0#
         <FieldNullValue(0.0#)> Public epsilon2 As Double = 0.0#
+        ' Polymers: segment number per unit molar mass (mol/g). When > 0 the compound is a polymer and
+        ' its segment number is m = m_over_M * Molar_Weight, so a single row covers any chain length.
+        <FieldOptional()> <FieldNullValue(0.0#)> Public m_over_M As Double = 0.0#
         <FieldHidden()> Public associationparams As String = ""
 
     End Class
@@ -603,6 +606,23 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
             Dim Zest = GetPRZ(Vx, T, P, If(st = State.Liquid, "L", "V"))
 
             Return pcs.CalcFugCoeff(T, P, If(st = State.Liquid, "liq", "gas"), Zest)
+
+        End Function
+
+        ''' <summary>
+        ''' Log fugacity coefficients straight from the EoS, without the exponential that underflows to
+        ''' zero for a high segment-number polymer. Keeps the true (large negative) chemical potential
+        ''' for the stability test and phase-split estimates.
+        ''' </summary>
+        Public Overrides Function DW_CalcLnFugCoeff(Vx As Array, T As Double, P As Double, st As State) As Double()
+
+            If DirectCast(Vx, Double()).Sum = 0.0 Then Return RET_NullVector()
+
+            Dim pcs As New PCSAFT2(Me, Vx)
+
+            Dim Zest = GetPRZ(Vx, T, P, If(st = State.Liquid, "L", "V"))
+
+            Return pcs.CalcLnFugCoeff(T, P, If(st = State.Liquid, "liq", "gas"), Zest)
 
         End Function
 

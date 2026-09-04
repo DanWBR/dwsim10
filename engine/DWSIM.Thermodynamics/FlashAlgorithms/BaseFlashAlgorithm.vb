@@ -873,47 +873,44 @@ will converge to this solution.")
 
             Dim gl, gv As Double
 
+            ' Work in log fugacity coefficients: a high segment-number polymer's coefficient underflows
+            ' to zero, and the old -500 sentinel for Log(0) discarded its true (large negative) chemical
+            ' potential, so the tangent-plane test could never see a polymer-rich second liquid. The
+            ' default DW_CalcLnFugCoeff reproduces the old -500 clamp, so non-underflowing packages are
+            ' unaffected.
+            Dim lnfcv(n), lnfcl(n) As Double
+
             If Settings.EnableParallelProcessing Then
 
                 Dim task1 = TaskHelper.Run(Sub()
-                                               fcv = pp.DW_CalcFugCoeff(Vz, T, P, State.Vapor)
+                                               lnfcv = pp.DW_CalcLnFugCoeff(Vz, T, P, State.Vapor)
                                            End Sub, Settings.TaskCancellationTokenSource.Token)
                 Dim task2 = TaskHelper.Run(Sub()
-                                               fcl = pp.DW_CalcFugCoeff(Vz, T, P, State.Liquid)
+                                               lnfcl = pp.DW_CalcLnFugCoeff(Vz, T, P, State.Liquid)
                                            End Sub, Settings.TaskCancellationTokenSource.Token)
                 Task.WaitAll(task1, task2)
 
             Else
                 IObj?.SetCurrent
-                fcv = pp.DW_CalcFugCoeff(Vz, T, P, State.Vapor)
+                lnfcv = pp.DW_CalcLnFugCoeff(Vz, T, P, State.Vapor)
                 IObj?.SetCurrent
-                fcl = pp.DW_CalcFugCoeff(Vz, T, P, State.Liquid)
+                lnfcl = pp.DW_CalcLnFugCoeff(Vz, T, P, State.Liquid)
             End If
 
             gv = 0.0#
             gl = 0.0#
             For i = 0 To n
                 If Vz(i) > 0.0# Then
-                    Dim prodv = fcv(i) * Vz(i) : If prodv > 0.0# Then gv += Vz(i) * Log(prodv)
-                    Dim prodl = fcl(i) * Vz(i) : If prodl > 0.0# Then gl += Vz(i) * Log(prodl)
+                    gv += Vz(i) * (lnfcv(i) + Log(Vz(i)))
+                    gl += Vz(i) * (lnfcl(i) + Log(Vz(i)))
                 End If
             Next
 
             If gl <= gv Then
-                lnfi_z = fcl.Clone()
+                lnfi_z = lnfcl.Clone()
             Else
-                lnfi_z = fcv.Clone()
+                lnfi_z = lnfcv.Clone()
             End If
-
-            For i = 0 To n
-                If lnfi_z(i) > 0.0# Then
-                    lnfi_z(i) = Log(lnfi_z(i))
-                ElseIf lnfi_z(i) < 0.0# Then
-                    lnfi_z(i) = Log(Math.Abs(lnfi_z(i)))
-                Else
-                    lnfi_z(i) = -500.0
-                End If
-            Next
 
             i = 0
             Do
@@ -996,35 +993,22 @@ will converge to this solution.")
                                                jj = jj + 1
                                            Loop Until jj = n + 1
 
-                                           ffcv = pp.DW_CalcFugCoeff(currcomp, T, P, State.Vapor)
-                                           ffcl = pp.DW_CalcFugCoeff(currcomp, T, P, State.Liquid)
+                                           Dim lnffcv = pp.DW_CalcLnFugCoeff(currcomp, T, P, State.Vapor)
+                                           Dim lnffcl = pp.DW_CalcLnFugCoeff(currcomp, T, P, State.Liquid)
 
                                            Dim ggv As Double = 0.0#
                                            Dim ggl As Double = 0.0#
                                            For jj = 0 To n
                                                If currcomp(jj) > 0.0# Then
-                                                   Dim pv = ffcv(jj) * currcomp(jj) : If pv > 0.0# Then ggv += currcomp(jj) * Log(pv)
-                                                   Dim pl = ffcl(jj) * currcomp(jj) : If pl > 0.0# Then ggl += currcomp(jj) * Log(pl)
+                                                   ggv += currcomp(jj) * (lnffcv(jj) + Log(currcomp(jj)))
+                                                   ggl += currcomp(jj) * (lnffcl(jj) + Log(currcomp(jj)))
                                                End If
                                            Next
 
-                                           If ggl <= ggv Then
-                                               ttmpfug = ffcl
-                                           Else
-                                               ttmpfug = ffcv
-                                           End If
-
-                                           jj = 0
-                                           Do
-                                               If ttmpfug(jj) > 0.0# Then
-                                                   lnfi(jj) = Log(ttmpfug(jj))
-                                               ElseIf ttmpfug(jj) < 0.0# Then
-                                                   lnfi(jj) = Log(Math.Abs(ttmpfug(jj)))
-                                               Else
-                                                   lnfi(jj) = -500.0
-                                               End If
-                                               jj = jj + 1
-                                           Loop Until jj = n + 1
+                                           Dim lnsel = If(ggl <= ggv, lnffcl, lnffcv)
+                                           For jj = 0 To n
+                                               lnfi(jj) = lnsel(jj)
+                                           Next
                                            jj = 0
                                            Do
                                                If Y(jj) > 0.0# Then
@@ -1212,16 +1196,14 @@ will converge to this solution.")
                     For j As Integer = 0 To Vz.Length - 1
                         Vx(j) = stresult(1)(i, j)
                     Next
-                    Dim fcv = pp.DW_CalcFugCoeff(Vx, T, P, State.Vapor)
-                    Dim fcl = pp.DW_CalcFugCoeff(Vx, T, P, State.Liquid)
+                    Dim lnfcv = pp.DW_CalcLnFugCoeff(Vx, T, P, State.Vapor)
+                    Dim lnfcl = pp.DW_CalcLnFugCoeff(Vx, T, P, State.Liquid)
                     Dim gv = 0.0#
                     Dim gl = 0.0#
                     For j = 0 To Vz.Length - 1
                         If Vx(j) > 0.0# Then
-                            Dim prodv = fcv(j) * Vx(j)
-                            Dim prodl = fcl(j) * Vx(j)
-                            If prodv > 0.0# Then gv += Vx(j) * Log(prodv)
-                            If prodl > 0.0# Then gl += Vx(j) * Log(prodl)
+                            gv += Vx(j) * (lnfcv(j) + Log(Vx(j)))
+                            gl += Vx(j) * (lnfcl(j) + Log(Vx(j)))
                         End If
                     Next
                     If gl <= gv Then
