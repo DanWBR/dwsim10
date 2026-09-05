@@ -1481,6 +1481,7 @@ public partial class FlowsheetView : UserControl
         IconHelper.Set(MenuBalance,        "⚖");     // scales
         IconHelper.Set(MenuInspector,      "\U0001F50E"); // magnifying glass right
         IconHelper.Set(MenuCreateCompound, "\U0001F9EA"); // test tube
+        IconHelper.Set(MenuPolymerChar,    "\U0001F9EC"); // dna (polymer chains)
         IconHelper.Set(MenuScripts,        "\U0001F4DC"); // scroll
         IconHelper.Set(MenuReactions,      "⚗");     // alembic
         IconHelper.Set(MenuUOExtManager,   "\U0001F50C"); // plug
@@ -1888,6 +1889,11 @@ public partial class FlowsheetView : UserControl
         {
             if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
             new AssayManagerWindow(_flowsheet).Show(HostWindow);
+        };
+        MenuPolymerChar.Click += (_, _) =>
+        {
+            if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
+            new PolymerCharacterizationWindow(_flowsheet).Show(HostWindow);
         };
         MenuBulkPseudos.Click += (_, _) =>
         {

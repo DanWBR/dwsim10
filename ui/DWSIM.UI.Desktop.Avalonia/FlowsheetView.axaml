@@ -58,6 +58,7 @@
         <MenuItem Header="_Distillation Curve Characterization..." Name="MenuDistCurve" />
         <MenuItem Header="Bulk Add Pseudo_compounds..." Name="MenuBulkPseudos" />
         <MenuItem Header="Petroleum _Assay Manager..."  Name="MenuAssayManager" />
+        <MenuItem Header="Pol_ymer Characterization..." Name="MenuPolymerChar" />
         <MenuItem Header="_Pure Compound Properties..." Name="MenuPureComp" />
         <Separator />
         <MenuItem Header="_Reaction Manager..."      Name="MenuReactions" />
