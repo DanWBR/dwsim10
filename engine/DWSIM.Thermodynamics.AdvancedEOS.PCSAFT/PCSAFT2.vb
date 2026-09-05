@@ -788,8 +788,8 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
             Dim maxval As Double = Double.MinValue
 
-            For i = 0 To v.GetUpperBound(0) - 1
-                For j = 0 To v.GetUpperBound(0) - 1
+            For i = 0 To v.GetUpperBound(0)
+                For j = 0 To v.GetUpperBound(1)
                     If v(i, j) > maxval Then maxval = v(i, j)
                 Next
             Next

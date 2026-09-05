@@ -130,8 +130,11 @@ namespace DWSIM.Engine.SmokeTests
             var lnphi = pp.DW_CalcLnFugCoeff(new[] { 0.5, 0.5 }, 298.15, 101325.0,
                 DWSIM.Thermodynamics.PropertyPackages.State.Liquid);
             TestContext.WriteLine($"lnphi water={lnphi[0]:R}  ethanol={lnphi[1]:R}");
-            Assert.That(lnphi[0], Is.EqualTo(-2.0118886197639876).Within(1e-9), "water lnphi (2B association)");
-            Assert.That(lnphi[1], Is.EqualTo(-1.7260890923336243).Within(1e-9), "ethanol lnphi (2B association)");
+            // Values include water-ethanol cross-association. Before the max() off-by-one fix the
+            // unlike-pair association strength was read off the (always zero) matrix diagonal, so
+            // cross-association was silently absent and these were -2.01189 / -1.72609.
+            Assert.That(lnphi[0], Is.EqualTo(-3.0740714141259611).Within(1e-9), "water lnphi (2B cross-association)");
+            Assert.That(lnphi[1], Is.EqualTo(-2.731312286854913).Within(1e-9), "ethanol lnphi (2B cross-association)");
         }
 
         /// <summary>
