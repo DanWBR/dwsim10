@@ -1227,7 +1227,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
             For Each kvp As KeyValuePair(Of String, PCSParam) In CompoundParameters
                 If (Not (Me.CurrentMaterialStream) Is Nothing) Then
                     If casnos.Contains(kvp.Key) Then
-                        data((data.Count - 1)).Add(New XElement("CompoundParameterSet", New XAttribute("Compound", kvp.Value.compound), New XAttribute("CAS_ID", kvp.Value.casno), New XAttribute("MW", kvp.Value.mw.ToString(ci)), New XAttribute("m", kvp.Value.m.ToString(ci)), New XAttribute("sigma", kvp.Value.sigma.ToString(ci)), New XAttribute("epsilon_k", kvp.Value.epsilon.ToString(ci)), New XAttribute("assocparam", kvp.Value.associationparams.Replace(System.Environment.NewLine, "|"))))
+                        data((data.Count - 1)).Add(New XElement("CompoundParameterSet", New XAttribute("Compound", kvp.Value.compound), New XAttribute("CAS_ID", kvp.Value.casno), New XAttribute("MW", kvp.Value.mw.ToString(ci)), New XAttribute("m", kvp.Value.m.ToString(ci)), New XAttribute("sigma", kvp.Value.sigma.ToString(ci)), New XAttribute("epsilon_k", kvp.Value.epsilon.ToString(ci)), New XAttribute("assocparam", kvp.Value.associationparams.Replace(System.Environment.NewLine, "|")), New XAttribute("m_over_M", kvp.Value.m_over_M.ToString(ci)), New XAttribute("scheme", If(kvp.Value.scheme, "")), New XAttribute("copolymer", If(kvp.Value.copolymer, "")), New XAttribute("coseq", If(kvp.Value.coseq, ""))))
                     End If
                 End If
             Next
@@ -1287,6 +1287,12 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
                     .sigma = Double.Parse(xel.Attribute("sigma").Value, ci)
                     .epsilon = Double.Parse(xel.Attribute("epsilon_k").Value, ci)
                     .associationparams = xel.Attribute("assocparam").Value.Replace("|", System.Environment.NewLine)
+                    ' Newer fields (absent in files saved before they existed): polymer m/M, association
+                    ' scheme, and the copolymer definition, so a copolymer round-trips through a save.
+                    Dim aMoM = xel.Attribute("m_over_M") : If aMoM IsNot Nothing Then .m_over_M = Double.Parse(aMoM.Value, ci)
+                    Dim aSch = xel.Attribute("scheme") : If aSch IsNot Nothing Then .scheme = aSch.Value
+                    Dim aCop = xel.Attribute("copolymer") : If aCop IsNot Nothing Then .copolymer = aCop.Value
+                    Dim aSeq = xel.Attribute("coseq") : If aSeq IsNot Nothing Then .coseq = aSeq.Value
                 End With
 
                 If Not Me.CompoundParameters.ContainsKey(xel.Attribute("CAS_ID").Value) Then

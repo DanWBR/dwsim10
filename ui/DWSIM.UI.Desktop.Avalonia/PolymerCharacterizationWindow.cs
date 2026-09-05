@@ -35,6 +35,12 @@ public class PolymerCharacterizationWindow : Window
     private Button _btnAdd;
     private List<ConstantProperties> _cuts = new();
 
+    private List<string> _polymers = new();
+    private string _segA, _segB;
+    private double _massB = 30.0;
+    private double _coMn = 100000.0;
+    private bool _coAlt;
+
     private sealed class CutRow
     {
         public string Name { get; set; } = "";
@@ -80,6 +86,9 @@ public class PolymerCharacterizationWindow : Window
         if (polymers.Count == 0)
             polymers = _flowsheet.SelectedCompounds.Values.Select(c => c.Name).OrderBy(c => c).ToList();
         _baseName = polymers.FirstOrDefault() ?? "";
+        _polymers = polymers;
+        _segA = polymers.FirstOrDefault() ?? "";
+        _segB = polymers.Count > 1 ? polymers[1] : _segA;
 
         var p = new AvaloniaEditorPanel { Width = 340 };
         p.CreateAndAddLabelRow("Polymer Characterization");
@@ -109,6 +118,20 @@ public class PolymerCharacterizationWindow : Window
         _btnAdd.IsEnabled = false;
 
         p.CreateAndAddDescriptionRow("Each cut shares the base polymer CAS, so the equation of state reuses its parameters and only the molar mass (segment number) differs. The cut mole fractions are the polymer's relative distribution; set the feed with them once the cuts are added.");
+
+        p.CreateAndAddLabelRow("Copolymer (PC-SAFT)");
+        p.CreateAndAddDescriptionRow("Define a random or alternating copolymer of two repeat units. PC-SAFT models it at the segment level, reusing the two homopolymers' parameters. Add a PC-SAFT property package to the flowsheet first.");
+        p.CreateAndAddDropDownRow("Repeat unit A", _polymers, Math.Max(0, _polymers.IndexOf(_segA)),
+            (dd, e) => { if (dd.SelectedIndex >= 0 && dd.SelectedIndex < _polymers.Count) _segA = _polymers[dd.SelectedIndex]; });
+        p.CreateAndAddDropDownRow("Repeat unit B", _polymers, Math.Max(0, _polymers.IndexOf(_segB)),
+            (dd, e) => { if (dd.SelectedIndex >= 0 && dd.SelectedIndex < _polymers.Count) _segB = _polymers[dd.SelectedIndex]; });
+        p.CreateAndAddTextBoxRow("N1", "Mass % of B", _massB,
+            (tb, e) => { if (double.TryParse(tb.Text, NumberStyles.Any, CultureInfo.CurrentCulture, out var v)) _massB = v; });
+        p.CreateAndAddDropDownRow("Sequence", new List<string> { "Random", "Alternating" }, 0,
+            (dd, e) => { _coAlt = dd.SelectedIndex == 1; });
+        p.CreateAndAddTextBoxRow("N0", "Copolymer Mn (g/mol)", _coMn,
+            (tb, e) => { if (double.TryParse(tb.Text, NumberStyles.Any, CultureInfo.CurrentCulture, out var v)) _coMn = v; });
+        p.CreateAndAddButtonRow("Add Copolymer to Simulation", null, (_, _) => AddCopolymer());
 
         var body = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
         Grid.SetColumn(_grid, 0);
@@ -171,6 +194,55 @@ public class PolymerCharacterizationWindow : Window
         {
             _status.Text = "Could not characterize: " + ex.Message;
         }
+    }
+
+    private void AddCopolymer()
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(_segA) || string.IsNullOrEmpty(_segB)) { _status.Text = "Select both repeat units."; return; }
+            if (_segA == _segB) { _status.Text = "Choose two different repeat units."; return; }
+            if (_coMn <= 0) { _status.Text = "Mn must be positive."; return; }
+            if (_massB <= 0 || _massB >= 100) { _status.Text = "Mass % of B must be between 0 and 100."; return; }
+            var cpA = _flowsheet.AvailableCompounds[_segA] as ConstantProperties;
+            var cpB = _flowsheet.AvailableCompounds[_segB] as ConstantProperties;
+            if (cpA == null || cpB == null) { _status.Text = "Repeat units not found."; return; }
+
+            double wB = _massB / 100.0, wA = 1.0 - wB;
+            string copoly = $"{cpA.CAS_Number}:{wA.ToString(CultureInfo.InvariantCulture)};{cpB.CAS_Number}:{wB.ToString(CultureInfo.InvariantCulture)}";
+            string name = $"Poly({cpA.Name}-co-{cpB.Name})";
+            string cas = "COPO-" + Guid.NewGuid().ToString("N").Substring(0, 8);
+
+            var cp = (ConstantProperties)cpA.Clone();
+            cp.Name = name; cp.CAS_Number = cas; cp.Molar_Weight = _coMn; cp.OriginalDB = "User"; cp.CurrentDB = "User";
+            if (string.IsNullOrEmpty(cp.Formula) || !cp.Formula.TrimEnd().EndsWith("n")) cp.Formula = "(copolymer)n";
+
+            int n = 0;
+            foreach (var pk in _flowsheet.PropertyPackages.Values)
+                if (pk is DWSIM.Thermodynamics.AdvancedEOS.PCSAFT2PropertyPackage pcs)
+                {
+                    pcs.CompoundParameters[cas] = new DWSIM.Thermodynamics.AdvancedEOS.PCSParam
+                    { casno = cas, compound = name, mw = _coMn, copolymer = copoly, coseq = _coAlt ? "alternating" : "random" };
+                    n++;
+                }
+            if (n == 0) { _status.Text = "Add a PC-SAFT property package to the flowsheet first, then build the copolymer."; return; }
+
+            if (!_flowsheet.AvailableCompounds.ContainsKey(name)) _flowsheet.AvailableCompounds.Add(name, cp);
+            if (!_flowsheet.SelectedCompounds.ContainsKey(name)) _flowsheet.SelectedCompounds.Add(name, _flowsheet.AvailableCompounds[name]);
+            foreach (MaterialStream obj in _flowsheet.SimulationObjects.Values
+                         .Where(x => x.GraphicObject != null && x.GraphicObject.ObjectType == ObjectType.MaterialStream))
+                foreach (var phase in obj.Phases.Values)
+                {
+                    if (phase.Compounds.ContainsKey(name)) continue;
+                    phase.Compounds.Add(name, new Compound(name, ""));
+                    phase.Compounds[name].ConstantProperties = _flowsheet.SelectedCompounds[name];
+                }
+
+            _flowsheet.UpdateInterface();
+            _status.Text = $"Copolymer '{name}' added ({_massB:F0}% B, Mn={_coMn:N0}).";
+            _flowsheet.ShowMessage(_status.Text, IFlowsheet.MessageType.Information);
+        }
+        catch (Exception ex) { _status.Text = "Could not add copolymer: " + ex.Message; }
     }
 
     private void AddToFlowsheet()
