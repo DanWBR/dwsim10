@@ -28,6 +28,15 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
         ' Only unlike sites (donor-acceptor) associate. Site counts are applied as a multiplicity in InitPP.
         <FieldOptional()> <FieldNullValue("")> Public scheme As String = ""
         <FieldHidden()> Public associationparams As String = ""
+        ' Copolymer definition (Gross, Spuhl, Tumakaka & Sadowski 2003). A random or alternating copolymer
+        ' is defined at runtime, not shipped in pcsaft.dat, as the repeat-unit segment CAS numbers and their
+        ' mass fractions: "casR:wR;casS:wS". Each segment reuses the homopolymer parameters keyed by its CAS,
+        ' and the segment-segment kij (including the internal repeat-unit correction) is looked up in
+        ' pcsaft_ip.dat by the segment CAS pair. Empty for an ordinary compound.
+        <FieldHidden()> Public copolymer As String = ""
+        ' Copolymer sequence: "" or "random" (default) applies the Table 1 random bonding fractions;
+        ' "alternating" applies the strictly alternating ones.
+        <FieldHidden()> Public coseq As String = ""
 
     End Class
 
@@ -176,7 +185,10 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
                     If Not CompoundParameters.ContainsKey(comp) Then
                         Throw New Exception(String.Format("Missing PC-SAFT parameters for {0}. Calculation results will be unreliable", names(i)))
                     Else
-                        If CompoundParameters(comp).sigma = 0.0 And CompoundParameters(comp).epsilon = 0.0 And CompoundParameters(comp).m = 0.0 Then
+                        ' A copolymer has no single sigma/epsilon/m of its own; its parameters come from the
+                        ' repeat-unit segments, so exempt it from the empty-parameter check.
+                        Dim isCopoly = Not String.IsNullOrEmpty(CompoundParameters(comp).copolymer)
+                        If Not isCopoly AndAlso CompoundParameters(comp).sigma = 0.0 And CompoundParameters(comp).epsilon = 0.0 And CompoundParameters(comp).m = 0.0 Then
                             Throw New Exception(String.Format("Missing PC-SAFT parameters for {0}. Calculation results will be unreliable", names(i)))
                         End If
                     End If

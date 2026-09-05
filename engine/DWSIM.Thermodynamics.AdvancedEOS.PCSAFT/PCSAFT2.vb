@@ -53,6 +53,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
         Public Property bondA As List(Of Integer())   ' global segment index of bond end A
         Public Property bondB As List(Of Integer())   ' global segment index of bond end B
         Public Property bondF As List(Of Double())    ' bonding fraction B of each bond
+        Public Property hasCopolymer As Boolean        ' true if any compound expands to more than one segment
 
     End Class
 
@@ -111,35 +112,139 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
             Return d
         End Function
 
-        ' Builds the segment-level view of the mixture. Fatia 0: one segment per compound (segment
-        ' parameters, diameters and kij equal the compound ones, one self-bond of fraction 1), so the
-        ' segment sums in the Helmholtz and compressibility terms reproduce the per-compound sums.
-        ' A copolymer compound contributes more than one segment; that is added in a later slice.
-        Private Sub BuildSegments(mixt As mixture)
+        ' Segment-segment interaction parameter, looked up in pcsaft_ip.dat by the two segment CAS numbers
+        ' in either order. Covers both the copolymer's internal repeat-unit correction and the ordinary
+        ' cross-molecule kij; a missing pair is zero.
+        Private Function SegKij(pp As PCSAFT2PropertyPackage, casA As String, casB As String) As Double
+            If pp.InteractionParameters.ContainsKey(casA) AndAlso pp.InteractionParameters(casA).ContainsKey(casB) Then
+                Return pp.InteractionParameters(casA)(casB).kij
+            End If
+            If pp.InteractionParameters.ContainsKey(casB) AndAlso pp.InteractionParameters(casB).ContainsKey(casA) Then
+                Return pp.InteractionParameters(casB)(casA).kij
+            End If
+            Return 0.0
+        End Function
+
+        ' Builds the segment-level view of the mixture (Gross et al. 2003). An ordinary compound is one
+        ' segment (its own parameters and CAS, a self-bond of fraction 1). A copolymer (PCSParam.copolymer
+        ' set) expands to one segment per repeat unit: segment parameters come from the homopolymer keyed by
+        ' the repeat-unit CAS, the segment number is m_iR = w_iR * M_copoly * (m/M)_R, the segment fractions
+        ' and Table 1 bonding fractions follow, and the segment-segment kij is read from pcsaft_ip.dat by
+        ' CAS. A one-segment-per-compound mixture reproduces the per-compound sums exactly.
+        Private Sub BuildSegments(pp As PCSAFT2PropertyPackage, compounds As Object, mixt As mixture)
             Dim nc = mixt.numC
-            mixt.nseg = nc
-            mixt.segParent = New Integer(nc) {}
-            mixt.segM = New Double(nc) {}
-            mixt.segSigma = New Double(nc) {}
-            mixt.segEps = New Double(nc) {}
+
+            Dim casByComp As New List(Of List(Of String))
+            Dim mByComp As New List(Of List(Of Double))
+            Dim sigByComp As New List(Of List(Of Double))
+            Dim epsByComp As New List(Of List(Of Double))
+            Dim bLocA As New List(Of List(Of Integer))
+            Dim bLocB As New List(Of List(Of Integer))
+            Dim bFrac As New List(Of List(Of Double))
+
+            For i = 1 To nc
+                Dim c = compounds(i - 1)
+                Dim cas As String = c.CAS_Number
+                Dim prm = pp.CompoundParameters(cas)
+                Dim casL As New List(Of String), mL As New List(Of Double), sigL As New List(Of Double), epsL As New List(Of Double)
+                Dim bA As New List(Of Integer), bB As New List(Of Integer), bF As New List(Of Double)
+
+                If prm.copolymer Is Nothing OrElse prm.copolymer.Trim() = "" Then
+                    casL.Add(cas)
+                    mL.Add(mixt.comp(i).EoSParam(1))
+                    sigL.Add(mixt.comp(i).EoSParam(2))
+                    epsL.Add(mixt.comp(i).EoSParam(3))
+                    bA.Add(0) : bB.Add(0) : bF.Add(1.0)
+                Else
+                    For Each part In prm.copolymer.Split(";"c)
+                        Dim kv = part.Split(":"c)
+                        Dim scas = kv(0).Trim()
+                        Dim wR = Double.Parse(kv(1).Trim(), Globalization.CultureInfo.InvariantCulture)
+                        Dim sprm = pp.CompoundParameters(scas)
+                        casL.Add(scas)
+                        mL.Add(wR * c.Molar_Weight * sprm.m_over_M)
+                        sigL.Add(sprm.sigma)
+                        epsL.Add(sprm.epsilon)
+                    Next
+                    Dim mtot = mL.Sum()
+                    mixt.comp(i).EoSParam(1) = mtot
+                    Dim savg = 0.0, eavg = 0.0
+                    For si = 0 To mL.Count - 1
+                        savg += (mL(si) / mtot) * sigL(si)
+                        eavg += (mL(si) / mtot) * epsL(si)
+                    Next
+                    mixt.comp(i).EoSParam(2) = savg
+                    mixt.comp(i).EoSParam(3) = eavg
+
+                    If mL.Count = 2 Then
+                        Dim z0 = mL(0) / mtot, z1 = mL(1) / mtot
+                        Dim seq As String = If(prm.coseq Is Nothing, "", prm.coseq.Trim().ToLowerInvariant())
+                        Dim Brr, Brb, Bbb As Double
+                        If seq = "alternating" Then
+                            Brb = 1.0 : Brr = 0.0 : Bbb = 0.0
+                        ElseIf z1 <= z0 Then
+                            Brb = 2.0 * z1 * mtot / (mtot - 1.0) : Bbb = 0.0 : Brr = 1.0 - Brb
+                        Else
+                            Brb = 2.0 * z0 * mtot / (mtot - 1.0) : Brr = 0.0 : Bbb = 1.0 - Brb
+                        End If
+                        If Brr > 0.0 Then bA.Add(0) : bB.Add(0) : bF.Add(Brr)
+                        If Brb > 0.0 Then bA.Add(0) : bB.Add(1) : bF.Add(Brb)
+                        If Bbb > 0.0 Then bA.Add(1) : bB.Add(1) : bF.Add(Bbb)
+                    Else
+                        bA.Add(0) : bB.Add(0) : bF.Add(1.0)
+                    End If
+                End If
+
+                casByComp.Add(casL) : mByComp.Add(mL) : sigByComp.Add(sigL) : epsByComp.Add(epsL)
+                bLocA.Add(bA) : bLocB.Add(bB) : bFrac.Add(bF)
+            Next
+
+            Dim total = 0
+            For i = 0 To nc - 1
+                total += casByComp(i).Count
+            Next
+            mixt.nseg = total
+            mixt.segParent = New Integer(total) {}
+            mixt.segM = New Double(total) {}
+            mixt.segSigma = New Double(total) {}
+            mixt.segEps = New Double(total) {}
+            Dim segCasFlat(total) As String
+            Dim compFirstSeg(nc) As Integer
+            Dim g = 0
+            For i = 1 To nc
+                compFirstSeg(i) = g + 1
+                For si = 0 To casByComp(i - 1).Count - 1
+                    g += 1
+                    mixt.segParent(g) = i
+                    mixt.segM(g) = mByComp(i - 1)(si)
+                    mixt.segSigma(g) = sigByComp(i - 1)(si)
+                    mixt.segEps(g) = epsByComp(i - 1)(si)
+                    segCasFlat(g) = casByComp(i - 1)(si)
+                Next
+            Next
+
             mixt.bondA = New List(Of Integer())
             mixt.bondB = New List(Of Integer())
             mixt.bondF = New List(Of Double())
             For i = 1 To nc
-                mixt.segParent(i) = i
-                mixt.segM(i) = mixt.comp(i).EoSParam(1)
-                mixt.segSigma(i) = mixt.comp(i).EoSParam(2)
-                mixt.segEps(i) = mixt.comp(i).EoSParam(3)
-                mixt.bondA.Add(New Integer() {i})
-                mixt.bondB.Add(New Integer() {i})
-                mixt.bondF.Add(New Double() {1.0})
+                Dim la = bLocA(i - 1), lb = bLocB(i - 1), lf = bFrac(i - 1)
+                Dim ga(lf.Count - 1) As Integer, gb(lf.Count - 1) As Integer, gf(lf.Count - 1) As Double
+                For bi = 0 To lf.Count - 1
+                    ga(bi) = compFirstSeg(i) + la(bi)
+                    gb(bi) = compFirstSeg(i) + lb(bi)
+                    gf(bi) = lf(bi)
+                Next
+                mixt.bondA.Add(ga) : mixt.bondB.Add(gb) : mixt.bondF.Add(gf)
             Next
-            mixt.segK = New Double(nc, nc) {}
-            For i = 1 To nc
-                For j = 1 To nc
-                    mixt.segK(i, j) = mixt.k1(i, j)
+
+            mixt.segK = New Double(total, total) {}
+            For a = 1 To total
+                For b = 1 To total
+                    mixt.segK(a, b) = SegKij(pp, segCasFlat(a), segCasFlat(b))
                 Next
             Next
+
+            mixt.hasCopolymer = (total > nc)
         End Sub
 
         ' Segment-view reduced density (Eq. 9) and the two dispersion perturbation sums (Eqs. A12, A13),
@@ -367,7 +472,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
             Next
 
-            BuildSegments(mix)
+            BuildSegments(pp, compounds, mix)
 
         End Sub
 
@@ -990,30 +1095,48 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
             'Calculates the contributions to the chemical potential
             '**************************************************************************
 
-            Dim t1, t2, t3 As Task
+            If mix.hasCopolymer Then
 
-            'Hard chain contribution
-            t1 = TaskHelper.Run(Sub() muHC = mu_HC(T, dens_num, mix))
+                ' A copolymer's segments make the per-compound analytical hard-chain and dispersion
+                ' derivatives invalid, so take the residual chemical potential of those two terms as a
+                ' finite difference of the segment-based Helmholtz energy. Run serially, since it perturbs
+                ' mix.x. The association term (zero for the non-associating copolymers) stays analytical.
+                muHC = NumMuHCDisp(T, dens_num, mix)
+                muDisp = zeros(mix.numC)
+                NumAss = zeros(mix.numC)
+                For i = 1 To mix.numC
+                    NumAss(i) = mix.comp(i).EoSParam(4)
+                Next
+                If sum(NumAss) > 0 Then muAss = mu_Ass(T, dens_num, mix) Else muAss = zeros(mix.numC)
 
-            'Dispersive contribution
-            t2 = TaskHelper.Run(Sub() muDisp = mu_Disp(T, dens_num, mix))
+            Else
 
-            'Association contribution
-            t3 = TaskHelper.Run(Sub()
-                                    NumAss = zeros(mix.numC)
+                Dim t1, t2, t3 As Task
 
-                                    For i = 1 To mix.numC
-                                        NumAss(i) = mix.comp(i).EoSParam(4)
-                                    Next
+                'Hard chain contribution
+                t1 = TaskHelper.Run(Sub() muHC = mu_HC(T, dens_num, mix))
 
-                                    If sum(NumAss) > 0 Then
-                                        muAss = mu_Ass(T, dens_num, mix)
-                                    Else
-                                        muAss = zeros(mix.numC)
-                                    End If
-                                End Sub)
+                'Dispersive contribution
+                t2 = TaskHelper.Run(Sub() muDisp = mu_Disp(T, dens_num, mix))
 
-            Task.WaitAll(t1, t2, t3)
+                'Association contribution
+                t3 = TaskHelper.Run(Sub()
+                                        NumAss = zeros(mix.numC)
+
+                                        For i = 1 To mix.numC
+                                            NumAss(i) = mix.comp(i).EoSParam(4)
+                                        Next
+
+                                        If sum(NumAss) > 0 Then
+                                            muAss = mu_Ass(T, dens_num, mix)
+                                        Else
+                                            muAss = zeros(mix.numC)
+                                        End If
+                                    End Sub)
+
+                Task.WaitAll(t1, t2, t3)
+
+            End If
 
             '**************************************************************************
             'Calculates the fugacity coefficient
@@ -1026,6 +1149,42 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
             Return logf
 
+        End Function
+
+        ' Residual chemical potential of the hard-chain plus dispersion terms, per compound, by a central
+        ' finite difference of the segment-based Helmholtz energy at constant temperature and volume
+        ' (mu_i = d(n a_res)/dn_i). Used for copolymer mixtures, where the per-compound analytical
+        ' derivatives do not hold; it reproduces mu_HC + mu_Disp for ordinary mixtures.
+        Private Function NumMuHCDisp(T As Double, dens_num As Double, mixt As mixture) As Double()
+            Dim nc = mixt.numC
+            Dim x0 = mixt.x
+            ' Step each mole number relative to its own value: a high-molar-mass polymer has a tiny mole
+            ' fraction, so a fixed absolute step would be a large fraction of it and swamp the derivative.
+            Dim rel As Double = 0.00001
+            Dim mu = zeros(nc)
+            For k = 1 To nc
+                Dim hk As Double = rel * Math.Max(x0(k), 0.0000000001)
+                mu(k) = (NA_HCDisp(T, dens_num, mixt, x0, k, hk) - NA_HCDisp(T, dens_num, mixt, x0, k, -hk)) / (2.0 * hk)
+            Next
+            mixt.x = x0
+            Return mu
+        End Function
+
+        ' n*a_res (hard chain + dispersion) with the mole number of compound k perturbed by dh at constant
+        ' volume: the total mole count becomes 1+dh, the mole fractions rescale, and the number density
+        ' scales with the mole count. Restores nothing (the caller resets mixt.x).
+        Private Function NA_HCDisp(T As Double, dens_num As Double, mixt As mixture, x0 As Double(), k As Integer, dh As Double) As Double
+            Dim nc = mixt.numC
+            Dim Np As Double = 1.0 + dh
+            Dim xp = zeros(nc)
+            For i = 1 To nc
+                xp(i) = x0(i) / Np
+            Next
+            xp(k) = (x0(k) + dh) / Np
+            Dim rhop = dens_num * Np
+            mixt.x = xp
+            Dim a = HelmholtzHC(T, rhop, mixt) + HelmholtzDisp(T, rhop, mixt)
+            Return Np * a
         End Function
 
         ''' <summary>
