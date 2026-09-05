@@ -130,11 +130,43 @@ namespace DWSIM.Engine.SmokeTests
             var lnphi = pp.DW_CalcLnFugCoeff(new[] { 0.5, 0.5 }, 298.15, 101325.0,
                 DWSIM.Thermodynamics.PropertyPackages.State.Liquid);
             TestContext.WriteLine($"lnphi water={lnphi[0]:R}  ethanol={lnphi[1]:R}");
-            // Values include water-ethanol cross-association. Before the max() off-by-one fix the
-            // unlike-pair association strength was read off the (always zero) matrix diagonal, so
-            // cross-association was silently absent and these were -2.01189 / -1.72609.
-            Assert.That(lnphi[0], Is.EqualTo(-3.0740714141259611).Within(1e-9), "water lnphi (2B cross-association)");
-            Assert.That(lnphi[1], Is.EqualTo(-2.731312286854913).Within(1e-9), "ethanol lnphi (2B cross-association)");
+            // Values include water-ethanol cross-association AND the shipped water/ethanol kij = 0.06.
+            // Before the max() off-by-one fix the unlike-pair association strength was read off the
+            // (always zero) matrix diagonal, so cross-association was silently absent and these were
+            // -2.01189 / -1.72609; with cross-association alive and kij = 0 they are -3.07407 / -2.73131.
+            Assert.That(lnphi[0], Is.EqualTo(-2.7369900645199534).Within(1e-9), "water lnphi (2B cross-association + kij)");
+            Assert.That(lnphi[1], Is.EqualTo(-2.626709161126869).Within(1e-9), "ethanol lnphi (2B cross-association + kij)");
+        }
+
+        /// <summary>
+        /// The shipped water-alcohol kij rows (pcsaft_ip.dat) must load and restore the positive deviation
+        /// that live cross-association otherwise over-suppresses. Without a kij the arithmetic-mean cross
+        /// association drags the alcohol's activity below one (wrong sign); the fitted kij brings the
+        /// alcohol infinite-dilution activity coefficient back near the DECHEMA/Gmehling value. Proxy for
+        /// gamma^inf is the activity coefficient at x_alcohol = 0.01, 323.15 K, 1 atm liquid.
+        /// </summary>
+        [Test]
+        public void WaterAlcoholKijRestoresPositiveDeviation()
+        {
+            var st = DWSIM.Thermodynamics.PropertyPackages.State.Liquid;
+            double T = 323.15;
+            // alcohol DB name, experimental gamma_alcohol^inf in water, accepted band
+            var cases = new (string a, double gExp, double lo, double hi)[]
+            {
+                ("Methanol", 1.8, 1.4, 2.3),
+                ("Ethanol", 5.0, 4.0, 6.5),
+                ("1-propanol", 14.0, 11.0, 18.0),
+            };
+            foreach (var (a, gExp, lo, hi) in cases)
+            {
+                // Package built the normal way, so the kij comes from the shipped pcsaft_ip.dat, not injected.
+                var pp = Package(fs => { fs.AddCompound("Water"); fs.AddCompound(a); });
+                double lnApure = pp.DW_CalcLnFugCoeff(new[] { 0.0, 1.0 }, T, 101325.0, st)[1];
+                double gA = Math.Exp(pp.DW_CalcLnFugCoeff(new[] { 0.99, 0.01 }, T, 101325.0, st)[1] - lnApure);
+                TestContext.WriteLine($"Water/{a}: gamma^inf={gA:F2} (exp ~{gExp}, band {lo}-{hi})");
+                Assert.That(gA, Is.GreaterThan(1.0), $"{a}: kij must restore a positive deviation (gamma^inf > 1)");
+                Assert.That(gA, Is.InRange(lo, hi), $"{a}: gamma^inf must be near the experimental value");
+            }
         }
 
         /// <summary>

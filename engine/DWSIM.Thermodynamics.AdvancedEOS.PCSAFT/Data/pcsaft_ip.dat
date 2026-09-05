@@ -43,3 +43,6 @@ Polydimethylsiloxane	63148-62-9	N-octane	111-65-9	0.010
 Polydimethylsiloxane	63148-62-9	cyclohexane	110-82-7	-0.030
 Polyethylene LDPE	9002-88-4-L	ethylene	74-85-1	0.013
 Poly(methyl methacrylate)	9011-14-7	1-chlorobutane	109-69-3	-0.0032
+water	7732-18-5	methanol	67-56-1	0.17
+water	7732-18-5	ethanol	64-17-5	0.06
+water	7732-18-5	1-propanol	71-23-8	0.015
