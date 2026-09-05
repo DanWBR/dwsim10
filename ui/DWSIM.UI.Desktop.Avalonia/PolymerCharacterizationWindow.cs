@@ -15,10 +15,10 @@ using DWSIM.UI.Shared.Avalonia;
 namespace DWSIM.UI.Desktop.Avalonia;
 
 /// <summary>
-/// Splits a polymer into pseudo-components along a Schulz-Zimm molar-mass distribution, so a polydisperse
-/// polymer can be modelled with the equation of state as a mixture of cuts of the same chemistry and
-/// different molar mass. The cuts share the base compound's CAS, so PC-SAFT reuses its parameters and only
-/// the molar mass (segment number) differs. Mn and Mw are reproduced exactly.
+/// Splits a polymer into pseudo-components along a molar-mass distribution (Schulz-Zimm or log-normal), so
+/// a polydisperse polymer can be modelled with the equation of state as a mixture of cuts of the same
+/// chemistry and different molar mass. The cuts share the base compound's CAS, so PC-SAFT reuses its
+/// parameters and only the molar mass (segment number) differs. Mn and Mw are reproduced exactly.
 /// </summary>
 public class PolymerCharacterizationWindow : Window
 {
@@ -27,6 +27,7 @@ public class PolymerCharacterizationWindow : Window
     private double _mn = 50000.0;
     private double _pdi = 2.0;
     private int _ncuts = 4;
+    private DWSIM.Thermodynamics.Polymers.PolymerDistribution _dist = DWSIM.Thermodynamics.Polymers.PolymerDistribution.SchulzZimm;
 
     private readonly DataGrid _grid = new();
     private readonly ObservableCollection<CutRow> _rows = new();
@@ -82,13 +83,19 @@ public class PolymerCharacterizationWindow : Window
 
         var p = new AvaloniaEditorPanel { Width = 340 };
         p.CreateAndAddLabelRow("Polymer Characterization");
-        p.CreateAndAddDescriptionRow("Cuts a polymer into pseudo-components along a Schulz-Zimm (Gamma) molar-mass distribution so a polydisperse polymer can be modelled as a mixture of cuts of the same chemistry.");
+        p.CreateAndAddDescriptionRow("Cuts a polymer into pseudo-components along a molar-mass distribution (Schulz-Zimm or log-normal) so a polydisperse polymer can be modelled as a mixture of cuts of the same chemistry. A log-normal target needs enough cuts to reach the polydispersity (two cuts reach at most Mw/Mn = 2).");
 
         p.CreateAndAddDropDownRow("Base polymer", polymers, 0,
             (dd, e) => { if (dd.SelectedIndex >= 0 && dd.SelectedIndex < polymers.Count) _baseName = polymers[dd.SelectedIndex]; });
 
         p.CreateAndAddLabelRow("Distribution");
-        p.CreateAndAddDropDownRow("Type", new List<string> { "Schulz-Zimm (Gamma)" }, 0, (_, _) => { });
+        var distNames = new List<string> { "Schulz-Zimm (Gamma)", "Log-normal" };
+        p.CreateAndAddDropDownRow("Type", distNames, 0, (dd, e) =>
+        {
+            _dist = dd.SelectedIndex == 1
+                ? DWSIM.Thermodynamics.Polymers.PolymerDistribution.LogNormal
+                : DWSIM.Thermodynamics.Polymers.PolymerDistribution.SchulzZimm;
+        });
         p.CreateAndAddTextBoxRow("N0", "Number-average Mn (g/mol)", _mn,
             (tb, e) => { if (double.TryParse(tb.Text, NumberStyles.Any, CultureInfo.CurrentCulture, out var v)) _mn = v; });
         p.CreateAndAddTextBoxRow("N4", "Polydispersity Mw / Mn", _pdi,
@@ -149,14 +156,16 @@ public class PolymerCharacterizationWindow : Window
         try
         {
             double[] z = null;
-            var cuts = DWSIM.Thermodynamics.Polymers.PolymerCharacterization.BuildCuts(basecp, _mn, _pdi, _ncuts, ref z);
-            double totMass = 0.0;
-            for (int i = 0; i < cuts.Count; i++) totMass += z[i] * cuts[i].Molar_Weight;
+            var cuts = DWSIM.Thermodynamics.Polymers.PolymerCharacterization.BuildCuts(basecp, _mn, _pdi, _ncuts, _dist, ref z);
+            double totMass = 0.0, m1 = 0.0, m2 = 0.0;
+            for (int i = 0; i < cuts.Count; i++) { totMass += z[i] * cuts[i].Molar_Weight; m1 += z[i] * cuts[i].Molar_Weight; m2 += z[i] * cuts[i].Molar_Weight * cuts[i].Molar_Weight; }
             for (int i = 0; i < cuts.Count; i++)
                 _rows.Add(new CutRow { Name = cuts[i].Name, M = cuts[i].Molar_Weight, Z = z[i], W = z[i] * cuts[i].Molar_Weight / totMass });
             _cuts = cuts;
             _btnAdd.IsEnabled = true;
-            _status.Text = $"{cuts.Count} cuts  |  Mn = {_mn:N0}, Mw = {_mn * _pdi:N0} g/mol";
+            double mwCut = m2 / m1;
+            string note = mwCut < _mn * _pdi * 0.999 ? "  (add cuts to reach the target Mw)" : "";
+            _status.Text = $"{cuts.Count} cuts  |  Mn = {m1:N0}, Mw = {mwCut:N0} g/mol (target Mw = {_mn * _pdi:N0}){note}";
         }
         catch (Exception ex)
         {
