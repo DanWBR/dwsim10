@@ -62,6 +62,7 @@
     <ProjectReference Include="..\..\engine\DWSIM.SharedClasses\DWSIM.SharedClasses.vbproj" />
     <ProjectReference Include="..\..\engine\DWSIM.SharedClasses.DataRegression\DWSIM.SharedClasses.DataRegression.vbproj" />
     <ProjectReference Include="..\..\engine\DWSIM.Thermodynamics\DWSIM.Thermodynamics.vbproj" />
+    <ProjectReference Include="..\..\engine\DWSIM.Thermodynamics.AdvancedEOS.PCSAFT\DWSIM.Thermodynamics.AdvancedEOS.PCSAFT2.vbproj" />
     <ProjectReference Include="..\..\engine\DWSIM.Thermodynamics.Databases.ChEDLThermoLink\DWSIM.Thermodynamics.Databases.ChEDLThermoLink.vbproj" />
     <ProjectReference Include="..\..\engine\DWSIM.Thermodynamics.Databases.ChemeoLink\DWSIM.Thermodynamics.Databases.ChemeoLink.vbproj" />
     <ProjectReference Include="..\..\engine\DWSIM.Thermodynamics.Databases.KDBLink\DWSIM.Thermodynamics.Databases.KDBLink.vbproj" />
