@@ -61,8 +61,8 @@ namespace DWSIM.Automation.FluentAPI
         public const string CoolPropIncompressibleMixture = "CoolProp (Incompressible Mixtures)";
         /// <summary>GERG-2008 wide-range reference EOS for natural-gas mixtures (21 components).</summary>
         public const string GERG2008 = "GERG-2008";
-        /// <summary>PC-SAFT EOS - physically motivated for chain-like and associating fluids.</summary>
-        public const string PCSAFT = "PC-SAFT";
+        /// <summary>PC-SAFT EOS - physically motivated for chain-like and associating fluids, including polymers.</summary>
+        public const string PCSAFT = "PC-SAFT (with Association Support) (.NET Code)";
         /// <summary>Ideal electrolyte model - basic aqueous-ion behaviour without activity corrections.</summary>
         public const string IdealElectrolyte = "Ideal Electrolyte";
         /// <summary>CAPE-OPEN external property-package wrapper - registers any compliant 3rd-party PP.</summary>
