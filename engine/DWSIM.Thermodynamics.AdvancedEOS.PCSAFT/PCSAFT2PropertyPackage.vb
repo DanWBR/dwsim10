@@ -540,7 +540,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
         Public Overrides Function DW_CalcEnthalpy(Vx As Array, T As Double, P As Double, st As State) As Double
 
-            If UseLeeKeslerEnthalpy AndAlso Not MixtureHasPolymer() Then
+            If UseLeeKeslerEnthalpy AndAlso Not MixtureNeedsPCSAFTCaloric() Then
                 Dim H As Double
                 If st = State.Liquid Then
                     H = lk.H_LK_MIX("L", T, P, Vx, RET_VKij(), RET_VTC, RET_VPC, RET_VW, RET_VMM, Me.RET_Hid(298.15, T, Vx))
@@ -573,7 +573,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
         Public Overrides Function DW_CalcEntropy(Vx As Array, T As Double, P As Double, st As State) As Double
 
-            If UseLeeKeslerEnthalpy AndAlso Not MixtureHasPolymer() Then
+            If UseLeeKeslerEnthalpy AndAlso Not MixtureNeedsPCSAFTCaloric() Then
                 Dim S As Double
                 If st = State.Liquid Then
                     S = lk.S_LK_MIX("L", T, P, Vx, RET_VKij(), RET_VTC, RET_VPC, RET_VW, RET_VMM, Me.RET_Sid(298.15, T, P, Vx))
@@ -778,21 +778,28 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
             Return CompoundParameters.ContainsKey(cas) AndAlso CompoundParameters(cas).m_over_M > 0.0
         End Function
 
-        ' The Lee-Kesler caloric route uses Tc/Pc/omega, which are only placeholders for a polymer
-        ' pseudo-compound, so it would return non-physical enthalpy/entropy/heat capacity whenever the
-        ' mixture contains a polymer. In that case the PC-SAFT departure (segment model) is used instead,
-        ' regardless of the Use Lee-Kesler options. Checks the actual mixture compounds, not the parameter
-        ' table (which always holds every built-in polymer).
-        Private Function MixtureHasPolymer() As Boolean
+        Private Function IsAssociating(cas As String) As Boolean
+            Return CompoundParameters.ContainsKey(cas) AndAlso
+                   CompoundParameters(cas).kAiBi > 0.0 AndAlso CompoundParameters(cas).epsilon2 > 0.0
+        End Function
+
+        ' The Lee-Kesler caloric route uses Tc/Pc/omega corresponding states: it cannot represent the
+        ' enthalpy of hydrogen bonding, and its critical constants are only placeholders for a polymer
+        ' pseudo-compound. So whenever the mixture contains an associating compound or a polymer, the
+        ' PC-SAFT departure (segment + association model) is used for H/S/Cp/Cv instead, regardless of the
+        ' Use Lee-Kesler options. Checks the actual mixture compounds, not the parameter table (which always
+        ' holds every built-in associating compound and polymer).
+        Private Function MixtureNeedsPCSAFTCaloric() As Boolean
             Try
                 For Each c In CurrentMaterialStream.Phases(0).Compounds.Values
-                    If IsPolymer(c.ConstantProperties.CAS_Number) Then Return True
+                    Dim cas = c.ConstantProperties.CAS_Number
+                    If IsPolymer(cas) OrElse IsAssociating(cas) Then Return True
                 Next
             Catch
             End Try
             Try
                 For Each c In Flowsheet.SelectedCompounds.Values
-                    If IsPolymer(c.CAS_Number) Then Return True
+                    If IsPolymer(c.CAS_Number) OrElse IsAssociating(c.CAS_Number) Then Return True
                 Next
             Catch
             End Try
@@ -978,7 +985,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
         Public Overrides Function DW_CalcCp_ISOL(Phase1 As Phase, T As Double, P As Double) As Double
 
-            If UseLeeKeslerCpCv AndAlso Not MixtureHasPolymer() Then
+            If UseLeeKeslerCpCv AndAlso Not MixtureNeedsPCSAFTCaloric() Then
                 Select Case Phase1
                     Case Phase.Vapor
                         Return lk.CpCvR_LK("V", T, P, RET_VMOL(Phase1), RET_VKij(), RET_VMAS(Phase1), RET_VTC, RET_VPC, RET_VCP(T), RET_VMM, RET_VW, RET_VZRa)(1)
@@ -1003,7 +1010,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
         Public Overrides Function DW_CalcCv_ISOL(Phase1 As Phase, T As Double, P As Double) As Double
 
-            If UseLeeKeslerCpCv AndAlso Not MixtureHasPolymer() Then
+            If UseLeeKeslerCpCv AndAlso Not MixtureNeedsPCSAFTCaloric() Then
                 Select Case Phase1
                     Case Phase.Vapor
                         Return lk.CpCvR_LK("V", T, P, RET_VMOL(Phase1), RET_VKij(), RET_VMAS(Phase1), RET_VTC, RET_VPC, RET_VCP(T), RET_VMM, RET_VW, RET_VZRa)(2)

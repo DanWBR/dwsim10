@@ -60,31 +60,48 @@ namespace DWSIM.Engine.SmokeTests
         }
 
         /// <summary>
-        /// The polymer guard: Lee-Kesler caloric properties rely on Tc/Pc/omega, which are placeholders for
-        /// a polymer, so a mixture containing a polymer must fall back to the PC-SAFT departure regardless
-        /// of the Use Lee-Kesler flags. A normal mixture keeps using Lee-Kesler when it is enabled.
+        /// The caloric guard: Lee-Kesler caloric properties rely on Tc/Pc/omega corresponding states, which
+        /// cannot represent hydrogen-bonding enthalpy and use placeholder criticals for a polymer. So a
+        /// mixture with an associating compound or a polymer must fall back to the PC-SAFT departure
+        /// regardless of the Use Lee-Kesler flags, while a plain non-associating mixture keeps using
+        /// Lee-Kesler when it is enabled.
         /// </summary>
         [Test]
-        public void PolymerCaloricBypassesLeeKesler()
+        public void AssociatingAndPolymerCaloricBypassLeeKesler()
         {
+            var st = DWSIM.Thermodynamics.PropertyPackages.State.Liquid;
+
+            // Polymer: guard fires (LK relies on placeholder criticals).
             var pp = PolypropyleneInNPentane(out var z);
             pp.UseLeeKeslerEnthalpy = true;
-            double hDefault = pp.DW_CalcEnthalpy(z, 460.15, 40e5, DWSIM.Thermodynamics.PropertyPackages.State.Liquid);
+            double hPolyLk = pp.DW_CalcEnthalpy(z, 460.15, 40e5, st);
             pp.UseLeeKeslerEnthalpy = false;
-            double hNative = pp.DW_CalcEnthalpy(z, 460.15, 40e5, DWSIM.Thermodynamics.PropertyPackages.State.Liquid);
-            TestContext.WriteLine($"polymer H: LK-flag-on={hDefault:G6}  native={hNative:G6}");
-            Assert.That(hDefault, Is.EqualTo(hNative).Within(1e-9),
+            double hPolyNat = pp.DW_CalcEnthalpy(z, 460.15, 40e5, st);
+            TestContext.WriteLine($"polymer H: LK-flag-on={hPolyLk:G6}  native={hPolyNat:G6}");
+            Assert.That(hPolyLk, Is.EqualTo(hPolyNat).Within(1e-9),
                 "a polymer mixture must use the PC-SAFT departure even with Lee-Kesler enabled");
 
+            // Associating: guard fires (LK cannot represent hydrogen-bonding enthalpy).
+            var ppa = Package(fs => { fs.AddCompound("Water"); fs.AddCompound("Ethanol"); });
+            var za = new[] { 0.5, 0.5 };
+            ppa.UseLeeKeslerEnthalpy = true;
+            double hAssocLk = ppa.DW_CalcEnthalpy(za, 350.0, 2e5, st);
+            ppa.UseLeeKeslerEnthalpy = false;
+            double hAssocNat = ppa.DW_CalcEnthalpy(za, 350.0, 2e5, st);
+            TestContext.WriteLine($"water/ethanol H: LK-flag-on={hAssocLk:G6}  native={hAssocNat:G6}");
+            Assert.That(hAssocLk, Is.EqualTo(hAssocNat).Within(1e-9),
+                "an associating mixture must use the PC-SAFT departure even with Lee-Kesler enabled");
+
+            // Non-associating, non-polymer: guard inactive, Lee-Kesler still used.
             var pp2 = Package(fs => { fs.AddCompound("Ethane"); fs.AddCompound("N-pentane"); });
             var z2 = new[] { 0.5, 0.5 };
             pp2.UseLeeKeslerEnthalpy = true;
-            double hLk = pp2.DW_CalcEnthalpy(z2, 300.0, 10e5, DWSIM.Thermodynamics.PropertyPackages.State.Liquid);
+            double hLk = pp2.DW_CalcEnthalpy(z2, 300.0, 10e5, st);
             pp2.UseLeeKeslerEnthalpy = false;
-            double hNat2 = pp2.DW_CalcEnthalpy(z2, 300.0, 10e5, DWSIM.Thermodynamics.PropertyPackages.State.Liquid);
+            double hNat2 = pp2.DW_CalcEnthalpy(z2, 300.0, 10e5, st);
             TestContext.WriteLine($"C2/nC5 H: LK={hLk:G6}  native={hNat2:G6}");
             Assert.That(Math.Abs(hLk - hNat2), Is.GreaterThan(1e-6),
-                "a non-polymer mixture keeps using Lee-Kesler (differs from the PC-SAFT departure)");
+                "a plain non-associating mixture keeps using Lee-Kesler (differs from the PC-SAFT departure)");
         }
 
         private static DWSIM.Thermodynamics.AdvancedEOS.PCSAFT2PropertyPackage PmmaChlorobutane(double Mn, double Msolv)
