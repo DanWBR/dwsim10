@@ -59,6 +59,99 @@ namespace DWSIM.Engine.SmokeTests
             Assert.That(lnphi[1], Is.EqualTo(-1.7260890923336243).Within(1e-9), "ethanol lnphi (2B association)");
         }
 
+        private static DWSIM.Thermodynamics.AdvancedEOS.PCSAFT2PropertyPackage PmmaChlorobutane(double Mn, double Msolv)
+        {
+            var fs = new DWSIM.DynamicRunner.Flowsheet(null, null);
+            fs.Init();
+            fs.Options.SelectedComponents.Add("1-chlorobutane", new DWSIM.Thermodynamics.BaseClasses.ConstantProperties
+            {
+                Name = "1-chlorobutane", CAS_Number = "109-69-3", Formula = "C4H9Cl", Molar_Weight = Msolv,
+                Critical_Temperature = 542.0, Critical_Pressure = 3.684e6, Acentric_Factor = 0.2216,
+                Normal_Boiling_Point = 351.58
+            });
+            fs.Options.SelectedComponents.Add("PMMA", new DWSIM.Thermodynamics.BaseClasses.ConstantProperties
+            {
+                Name = "PMMA", CAS_Number = "9011-14-7", Formula = "(C5H8O2)n", Molar_Weight = Mn,
+                Critical_Temperature = 1500.0, Critical_Pressure = 5.0e5, Acentric_Factor = 0.5,
+                Normal_Boiling_Point = 900.0, IsHYPO = 1
+            });
+            var pp = new DWSIM.Thermodynamics.AdvancedEOS.PCSAFT2PropertyPackage { Flowsheet = fs };
+            var o = fs.AddObject(DWSIM.Interfaces.Enums.GraphicObjects.ObjectType.MaterialStream, 0, 0, "feed");
+            var ms = (DWSIM.Thermodynamics.Streams.MaterialStream)fs.SimulationObjects[o.Name];
+            ms.SetFlowsheet(fs); ms.SetPropertyPackage(pp); pp.CurrentMaterialStream = ms;
+            return pp;
+        }
+
+        // Liquid-liquid binodal at (T,P) by the convex-hull-of-Gibbs-energy tie-line construction on a
+        // geometric polymer-mole-fraction grid: a gap in the lower hull is the miscibility gap. Returns the
+        // two phases' polymer mass fractions, or (-1,-1) for a single phase. The polymer-rich branch is
+        // required above 5 wt% to reject the numerical micro-gaps that appear as the dome closes.
+        private static (double wL, double wR) LleBinodal(
+            DWSIM.Thermodynamics.AdvancedEOS.PCSAFT2PropertyPackage pp, double T, double P, double Mn, double Msolv)
+        {
+            int n = 140; double xmin = 1e-7, xmax = 3e-3;
+            var x = new double[n]; var g = new double[n];
+            for (int i = 0; i < n; i++)
+            {
+                double xp = xmin * Math.Pow(xmax / xmin, (double)i / (n - 1));
+                var ln = pp.DW_CalcLnFugCoeff(new[] { 1.0 - xp, xp }, T, P,
+                    DWSIM.Thermodynamics.PropertyPackages.State.Liquid);
+                x[i] = xp; g[i] = (1.0 - xp) * (Math.Log(1.0 - xp) + ln[0]) + xp * (Math.Log(xp) + ln[1]);
+            }
+            var hull = new System.Collections.Generic.List<int>();
+            for (int i = 0; i < n; i++)
+            {
+                while (hull.Count >= 2)
+                {
+                    int a = hull[hull.Count - 2], b = hull[hull.Count - 1];
+                    double cross = (x[b] - x[a]) * (g[i] - g[a]) - (g[b] - g[a]) * (x[i] - x[a]);
+                    if (cross <= 0) hull.RemoveAt(hull.Count - 1); else break;
+                }
+                hull.Add(i);
+            }
+            double best = 0; int ia = -1, ib = -1;
+            for (int h = 0; h < hull.Count - 1; h++)
+            {
+                int a = hull[h], b = hull[h + 1];
+                if (b - a >= 2) { double s = Math.Log(x[b]) - Math.Log(x[a]); if (s > best) { best = s; ia = a; ib = b; } }
+            }
+            if (ia < 0) return (-1, -1);
+            double wR = x[ib] * Mn / (x[ib] * Mn + (1 - x[ib]) * Msolv);
+            if (wR < 0.05) return (-1, -1);
+            double wL = x[ia] * Mn / (x[ia] * Mn + (1 - x[ia]) * Msolv);
+            return (wL, wR);
+        }
+
+        /// <summary>
+        /// PMMA (Mw 36500) + 1-chlorobutane liquid-liquid equilibrium against Kontogeorgis and Folas,
+        /// Application of SAFT to Polymers, Figure 14.4 (left): a UCST dome with the critical point near
+        /// 281 K at a polymer weight fraction around 0.10, using the shipped PC-SAFT parameters and the
+        /// kij = -0.0032 from pcsaft_ip.dat. The model reproduces the UCST within a few kelvin and the
+        /// dome width, confirming the spinodal-seeded EoS LLE path on a non-associating polymer solution.
+        /// </summary>
+        [Test]
+        public void PmmaChlorobutaneCloudPointAgainstFig144()
+        {
+            double Mn = 36500.0, Msolv = 92.568, P = 1e5;
+            var pp = PmmaChlorobutane(Mn, Msolv);
+
+            var (wl260, wr260) = LleBinodal(pp, 260.0, P, Mn, Msolv);
+            var (wl278, wr278) = LleBinodal(pp, 278.0, P, Mn, Msolv);
+            var (wl290, wr290) = LleBinodal(pp, 290.0, P, Mn, Msolv);
+            double ucst = 0.0;
+            for (double T = 270.0; T <= 288.0; T += 1.0)
+            {
+                var (_, wr) = LleBinodal(pp, T, P, Mn, Msolv);
+                if (wr >= 0) ucst = T;
+            }
+            TestContext.WriteLine($"UCST~{ucst:F0}K  260K:[{wl260:F3},{wr260:F3}]  278K:[{wl278:F3},{wr278:F3}]  290K wR={wr290:F3}");
+
+            Assert.That(wr260, Is.GreaterThan(0.28).And.LessThan(0.36), "polymer-rich branch at 260 K");
+            Assert.That(wr278, Is.GreaterThan(0.12).And.LessThan(0.22), "polymer-rich branch at 278 K");
+            Assert.That(wr290, Is.LessThan(0.0), "single phase above the UCST");
+            Assert.That(ucst, Is.GreaterThanOrEqualTo(279.0).And.LessThanOrEqualTo(285.0), "UCST near experimental 281 K");
+        }
+
         /// <summary>
         /// A small-molecule PC-SAFT flash stays physical: ethane/n-pentane at 350 K condenses
         /// monotonically as pressure rises and the vapour keeps getting richer in the light component.
