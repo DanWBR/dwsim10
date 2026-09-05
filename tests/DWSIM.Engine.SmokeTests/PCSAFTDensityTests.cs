@@ -657,6 +657,34 @@ namespace DWSIM.Engine.SmokeTests
         }
 
         /// <summary>
+        /// Copolymer liquid-liquid equilibrium (Gross et al. 2003). A poly(ethylene-co-propylene) solution
+        /// in n-pentane demixes into a polymer-rich phase whose composition lies between those of the
+        /// polyethylene and polypropylene homopolymer solutions at the same temperature and pressure, using
+        /// the shipped ethylene-propylene internal kij (-0.009) and the homopolymer-solvent kij, all read
+        /// from pcsaft_ip.dat by segment CAS. Computed with the convex-hull-of-Gibbs binodal (fugacity only),
+        /// the LLE path a copolymer must use. Confirms the copolymer machinery, the segment kij lookup and
+        /// the numerical fugacity produce physical, correctly-interpolated phase behaviour.
+        /// </summary>
+        [Test]
+        public void CopolymerLleInterpolatesBetweenHomopolymers()
+        {
+            double T = 460.0, P = 30e5, Mn = 100000.0, Msolv = 72.15;
+            var (ppPE, _) = PentanePlusPolymer("9002-88-4", null, Mn, 0.05, 0.0263);
+            var (ppPP, _) = PentanePlusPolymer("9003-07-0", null, Mn, 0.05, 0.02305);
+            var (ppCO, _) = PentanePlusPolymer("PEPCOPOLY", "9002-88-4:0.5;9003-07-0:0.5", Mn, 0.05, 0.0);
+            double wPE = LleBinodal(ppPE, T, P, Mn, Msolv).wR;
+            double wPP = LleBinodal(ppPP, T, P, Mn, Msolv).wR;
+            double wCO = LleBinodal(ppCO, T, P, Mn, Msolv).wR;
+            TestContext.WriteLine($"polymer-rich cloud fraction: PE={wPE:F3} PEP={wCO:F3} PP={wPP:F3}");
+
+            Assert.That(wPE, Is.GreaterThan(0.05), "PE homopolymer must demix");
+            Assert.That(wPP, Is.GreaterThan(0.05), "PP homopolymer must demix");
+            Assert.That(wCO, Is.GreaterThan(0.05), "the PEP copolymer must demix");
+            Assert.That(wCO, Is.GreaterThan(wPP).And.LessThan(wPE),
+                        "the copolymer cloud composition must lie between the two homopolymers");
+        }
+
+        /// <summary>
         /// A real poly(ethylene-co-propylene) (PEP) copolymer in n-pentane must be physical and lie between
         /// the two homopolymers: the polymer's log fugacity coefficient falls between that of the
         /// polyethylene and the polypropylene solutions at the same conditions, since a random copolymer's
