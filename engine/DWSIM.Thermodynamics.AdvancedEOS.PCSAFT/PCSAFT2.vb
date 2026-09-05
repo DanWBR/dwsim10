@@ -391,27 +391,31 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
         Public Function CalcHr(T As Double, P As Double, liq_or_gas As String, Zestimate As Double) As Double
 
-            Dim t1, t2, t3, t4 As Task
+            ' Residual enthalpy: Hr/RT = -T*(d a_res / dT)_rho + (Z - 1), where the derivative of the
+            ' dimensionless residual Helmholtz energy is taken at CONSTANT DENSITY. The density is held
+            ' fixed by scaling Z so that dens_num = P/(Z*k*T) is unchanged at T +/- h (Z scales as T^-1),
+            ' and a central difference makes the derivative second order. The previous version differenced
+            ' at constant pressure (density recomputed at T+eps) with a one-sided step, which carried both
+            ' a spurious (d a/d rho)(d rho/dT)_P term and a first-order truncation bias.
 
             Dim R = 8.314
+            Dim h = 0.1
 
-            Dim epsilon = 0.01
+            Dim Z = compr(T, P, mix, liq_or_gas, Zestimate)
 
-            Dim Ar, Ar2, Z, Z2 As Double
+            ' Z at T +/- h that reproduces the same number density as at (T, P)
+            Dim Zp = Z * T / (T + h)
+            Dim Zm = Z * T / (T - h)
 
-            t1 = TaskHelper.Run(Sub() Z = compr(T, P, mix, liq_or_gas, Zestimate))
+            Dim Ap, Am As Double
+            Dim t1, t2 As Task
 
-            t2 = TaskHelper.Run(Sub() Z2 = compr(T + epsilon, P, mix, liq_or_gas, Zestimate))
+            t1 = TaskHelper.Run(Sub() Ap = Helmholtz(T + h, P, mix, liq_or_gas, Zp))
+            t2 = TaskHelper.Run(Sub() Am = Helmholtz(T - h, P, mix, liq_or_gas, Zm))
 
             Task.WaitAll(t1, t2)
 
-            t3 = TaskHelper.Run(Sub() Ar = Helmholtz(T, P, mix, liq_or_gas, Z))
-
-            t4 = TaskHelper.Run(Sub() Ar2 = Helmholtz(T + epsilon, P, mix, liq_or_gas, Z2))
-
-            Task.WaitAll(t3, t4)
-
-            Dim dArdT = (Ar2 - Ar) / epsilon
+            Dim dArdT = (Ap - Am) / (2.0 * h)
 
             Return R * T * (-T * dArdT + (Z - 1)) 'kJ/kmol
 
