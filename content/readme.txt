@@ -50,6 +50,7 @@ Version 10.2.5
 - [CHG] Enthalpy, entropy and heat capacity of any mixture containing a polymer or a hydrogen-bonding compound now come from the PC-SAFT model itself rather than the Lee-Kesler correlation, which cannot represent a polymer or hydrogen-bonding; other mixtures are unchanged.
 - [CHG] The polymer segment-per-mass ratio and association scheme can be edited for PC-SAFT in both the Windows and cross-platform package editors, and the cross-platform compound lists are grouped by chemical family like the Windows editor.
 - [CHG] The simulation setup wizard hides the reaction panel when the flowsheet has no reactions.
+- [CHG] The user guide now documents the PC-SAFT polymer models: the segment model and parameters, hydrogen-bonding association, polydispersity (Schulz-Zimm and log-normal via the Polymer Characterization tool), copolymers, and the validation data.
 - [FIX] Changing the object a level gauge, analog or digital gauge, switch, input, or PID controller reads no longer crashes DWSIM (issue #61).
 - [FIX] A PID controller placed on the flowsheet before its controlled and manipulated objects are set no longer prints an "Object reference" error next to its icon (issue #61).
 - [FIX] PC-SAFT left out the association between unlike molecules, so a mixture of two hydrogen-bonding compounds (such as water with an alcohol or with poly(ethylene glycol)) behaved as if each only associated with itself. It is now included, and interaction parameters ship for water with methanol, ethanol and 1-propanol. Results for such mixtures will change.
