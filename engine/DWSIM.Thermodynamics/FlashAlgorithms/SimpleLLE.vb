@@ -173,6 +173,16 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                                          ByRef est As Object) As SpinodalState
 
             est = Nothing
+
+            ' A polydisperse polymer solution arrives as one solvent plus several polymer pseudo-components
+            ' (same chemistry, different molar mass), so it is not binary. Seed it along the total
+            ' heavy-component fraction, holding the cuts in feed ratio; the Gibbs minimisation then
+            ' fractionates them (the heavier cuts concentrate in the polymer-rich phase).
+            If Vz.Length > 2 Then
+                If PP.UsesGibbsMinimizationForLLE Then Return SeedMultiComponentPolymer(T, Vz, PP, P, est)
+                Return SpinodalState.NotApplicable
+            End If
+
             If Vz.Length <> 2 Then Return SpinodalState.NotApplicable
 
             ' D2 is the second derivative of the molar Gibbs energy of mixing (over RT) with respect to the
@@ -315,6 +325,114 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
             est = New Object() {L1, New Double() {x1a, 1.0 - x1a}, New Double() {x2a, 1.0 - x2a}}
             Return SpinodalState.WindowFound
 
+        End Function
+
+        ''' <summary>
+        ''' Spinodal seed for a polydisperse polymer solution: one solvent (or light group) plus several
+        ''' polymer pseudo-components of the same chemistry but different molar mass. The instability runs
+        ''' along the total heavy-component (polymer) fraction w, with the cuts kept in feed ratio, so the
+        ''' problem reduces to a pseudo-1D spinodal in w. D2(w) is the second derivative of the molar Gibbs
+        ''' energy of mixing along that direction, built from the analytical composition Jacobian:
+        ''' D2 = sum_i v_i^2/x_i + sum_ij v_i v_j J(i,j), v_i = dx_i/dw. Seeds two full compositions just
+        ''' outside the spinodal roots and lets the Gibbs minimisation fractionate the cuts.
+        ''' </summary>
+        Private Function SeedMultiComponentPolymer(ByVal T As Double, ByVal Vz As Double(),
+                                                   ByVal PP As PropertyPackages.PropertyPackage,
+                                                   ByVal P As Double, ByRef est As Object) As SpinodalState
+            est = Nothing
+            Dim n As Integer = Vz.Length
+            Dim mw As Double() = PP.RET_VMM()
+            If mw Is Nothing OrElse mw.Length <> n Then Return SpinodalState.NotApplicable
+
+            ' Split into a light group (solvent) and a heavy group (polymer cuts) by molar mass. A polymer
+            ' pseudo-compound outweighs its solvent by orders of magnitude, so a factor of 20 separates them.
+            Dim mwmin As Double = Double.MaxValue
+            For i As Integer = 0 To n - 1
+                If Vz(i) > 0.0 AndAlso mw(i) < mwmin Then mwmin = mw(i)
+            Next
+            Dim heavy(n - 1) As Boolean
+            Dim zheavy As Double = 0.0, zlight As Double = 0.0
+            For i As Integer = 0 To n - 1
+                heavy(i) = mw(i) > 20.0 * mwmin
+                If heavy(i) Then zheavy += Vz(i) Else zlight += Vz(i)
+            Next
+            If zheavy <= 0.0 OrElse zlight <= 0.0 Then Return SpinodalState.NotApplicable
+
+            ' direction v = dx/dw (light shrinks, heavy grows, each group in feed ratio), sum v = 0
+            Dim v(n - 1) As Double
+            For i As Integer = 0 To n - 1
+                v(i) = If(heavy(i), Vz(i) / zheavy, -Vz(i) / zlight)
+            Next
+
+            Dim xw As Func(Of Double, Double()) =
+                Function(w As Double)
+                    Dim x(n - 1) As Double
+                    For i As Integer = 0 To n - 1
+                        x(i) = If(heavy(i), w * Vz(i) / zheavy, (1.0 - w) * Vz(i) / zlight)
+                    Next
+                    Return x
+                End Function
+
+            Dim d2w As Func(Of Double, Double) =
+                Function(w As Double)
+                    Dim x = xw(w)
+                    Dim jac = PP.DW_CalcdLnFugCoeffdn(x, T, P, State.Liquid)
+                    Dim s As Double = 0.0
+                    For i As Integer = 0 To n - 1
+                        s += v(i) * v(i) / x(i)
+                    Next
+                    For i As Integer = 0 To n - 1
+                        For j As Integer = 0 To n - 1
+                            s += v(i) * v(j) * jac(i, j)
+                        Next
+                    Next
+                    Return s
+                End Function
+
+            ' The heavy fraction is tiny on a mole basis (the polymer-rich phase is only ~1e-3 by moles),
+            ' so scan a geometric grid dense near w = 0 up to the feed and a little beyond.
+            Dim ws As New List(Of Double)
+            Dim wmax As Double = Math.Min(0.5, Math.Max(10.0 * zheavy, 0.01))
+            Dim e As Double = 0.00000001
+            Do While e <= wmax
+                ws.Add(e)
+                e *= 1.3
+            Loop
+            ws.Sort()
+
+            Dim vals(ws.Count - 1) As Double
+            Dim kmin As Integer = -1
+            Dim best As Double = Double.MaxValue
+            For k As Integer = 0 To ws.Count - 1
+                vals(k) = d2w(ws(k))
+                If Not Double.IsNaN(vals(k)) AndAlso vals(k) < best Then best = vals(k) : kmin = k
+            Next
+            If kmin < 0 OrElse best >= 0.0 Then Return SpinodalState.NotApplicable
+
+            Dim kL As Integer = kmin
+            Do While kL > 0 AndAlso (Double.IsNaN(vals(kL - 1)) OrElse vals(kL - 1) < 0.0)
+                kL -= 1
+            Loop
+            Dim kR As Integer = kmin
+            Do While kR < ws.Count - 1 AndAlso (Double.IsNaN(vals(kR + 1)) OrElse vals(kR + 1) < 0.0)
+                kR += 1
+            Loop
+
+            Dim wd2 As Func(Of Double, Double, Double) = Function(TT As Double, w As Double) d2w(w)
+            Dim ws1 As Double = If(kL > 0, RefineD2Root(wd2, T, ws(kL), ws(kL - 1)), ws(0))
+            Dim ws2 As Double = If(kR < ws.Count - 1, RefineD2Root(wd2, T, ws(kR), ws(kR + 1)), ws(ws.Count - 1))
+            If ws2 <= ws1 Then Return SpinodalState.NotApplicable
+
+            ' Seed outside each root, straddling the feed w = zheavy. The binodal lies far outside the
+            ' spinodal for a polymer, so offset multiplicatively in the dilute heavy fraction.
+            Const f As Double = 3.0
+            Dim w1 As Double = ws1 / f
+            Dim w2 As Double = Math.Min(f * ws2, 0.5)
+            Dim L1 As Double = (zheavy - w2) / (w1 - w2)
+            If L1 <= 0.001 OrElse L1 >= 0.999 Then Return SpinodalState.NotApplicable
+
+            est = New Object() {L1, xw(w1), xw(w2)}
+            Return SpinodalState.WindowFound
         End Function
 
         ' Bisection for the zero of D2 between an unstable point (D2 < 0) and a stable one (D2 >= 0),

@@ -43,6 +43,57 @@ namespace DWSIM.Engine.SmokeTests
         }
 
         /// <summary>
+        /// A polydisperse polymer (two polypropylene cuts of different molar mass in n-pentane) must reach
+        /// its liquid-liquid split from the ordinary Simple LLE flash with no manual seed, and the flash
+        /// must fractionate: the heavier cut concentrates in the polymer-rich phase and is depleted from the
+        /// solvent-rich phase. Exercises the multi-component spinodal seed.
+        /// </summary>
+        [Test]
+        public void PolydispersePolymerSplitIsReachableAndFractionates()
+        {
+            // n-pentane + two polypropylene cuts (same CAS -> same PC-SAFT params, different molar mass)
+            double M1 = 30000.0, M2 = 70000.0, Msolv = 72.15;
+            var fs = new DWSIM.DynamicRunner.Flowsheet(null, null);
+            fs.Init();
+            fs.AddCompound("N-pentane");
+            foreach (var cut in new[] { ("PP-30k", M1), ("PP-70k", M2) })
+                fs.Options.SelectedComponents.Add(cut.Item1, new DWSIM.Thermodynamics.BaseClasses.ConstantProperties
+                {
+                    Name = cut.Item1, CAS_Number = "9003-07-0", Formula = "(C3H6)n", Molar_Weight = cut.Item2,
+                    Critical_Temperature = 1200.0, Critical_Pressure = 5.0e5, Acentric_Factor = 0.5,
+                    Normal_Boiling_Point = 800.0, IsHYPO = 1
+                });
+            var pp = new DWSIM.Thermodynamics.AdvancedEOS.PCSAFT2PropertyPackage { Flowsheet = fs };
+            var o = fs.AddObject(DWSIM.Interfaces.Enums.GraphicObjects.ObjectType.MaterialStream, 0, 0, "feed");
+            var ms = (DWSIM.Thermodynamics.Streams.MaterialStream)fs.SimulationObjects[o.Name];
+            ms.SetFlowsheet(fs); ms.SetPropertyPackage(pp); pp.CurrentMaterialStream = ms;
+
+            double gC5 = 80, g1 = 10, g2 = 10;
+            double nC5 = gC5 / Msolv, n1 = g1 / M1, n2 = g2 / M2, nt = nC5 + n1 + n2;
+            var z = new[] { nC5 / nt, n1 / nt, n2 / nt };
+            // unseeded: the multi-component spinodal auto-seed must find the split on its own
+            var flash = new DWSIM.Thermodynamics.PropertyPackages.Auxiliary.FlashAlgorithms.SimpleLLE();
+            var res = (object[])flash.Flash_PT(z, 40e5, 460.15, pp);
+            double La = Convert.ToDouble(res[0]), Lb = Convert.ToDouble(res[5]);
+            var xa = (double[])res[2]; var xb = (double[])res[6];
+            double MassPP(double[] x) { double mp = x[1] * M1 + x[2] * M2; return mp / (mp + x[0] * Msolv); }
+            double wa = MassPP(xa), wb = MassPP(xb);
+            // orient so 'lean' is the solvent-rich phase and 'rich' the polymer-rich phase
+            double wLean = Math.Min(wa, wb), wRich = Math.Max(wa, wb);
+            var xLean = wa <= wb ? xa : xb;
+            double feedRatio = z[2] / z[1];
+            double leanRatio = xLean[2] / Math.Max(xLean[1], 1e-30);
+            TestContext.WriteLine($"La={La:F3} Lb={Lb:F3}  wPP: lean={wLean:F4} rich={wRich:F4}");
+            TestContext.WriteLine($"70k/30k ratio  feed={feedRatio:F4}  solventPhase={leanRatio:F4}");
+
+            Assert.That(Math.Min(La, Lb), Is.GreaterThan(0.01), "two liquid phases must be present");
+            Assert.That(wRich, Is.GreaterThan(0.15), "one phase must be polymer-rich");
+            Assert.That(wLean, Is.LessThan(0.02), "the other phase must be nearly pure solvent");
+            Assert.That(leanRatio, Is.LessThan(feedRatio),
+                "the solvent-rich phase must be depleted in the heavier cut (fractionation)");
+        }
+
+        /// <summary>
         /// Pins the 2B association math (SolveXa + mu_Ass + obj_muAss) for a hydrogen-bonding
         /// mixture, so the site-multiplicity refactor stays behaviour-preserving for the
         /// non-polymer associating compounds. Water/ethanol liquid log fugacity coefficients at
