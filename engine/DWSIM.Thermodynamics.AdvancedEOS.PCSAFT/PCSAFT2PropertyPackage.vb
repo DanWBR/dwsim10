@@ -540,7 +540,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
         Public Overrides Function DW_CalcEnthalpy(Vx As Array, T As Double, P As Double, st As State) As Double
 
-            If UseLeeKeslerEnthalpy Then
+            If UseLeeKeslerEnthalpy AndAlso Not MixtureHasPolymer() Then
                 Dim H As Double
                 If st = State.Liquid Then
                     H = lk.H_LK_MIX("L", T, P, Vx, RET_VKij(), RET_VTC, RET_VPC, RET_VW, RET_VMM, Me.RET_Hid(298.15, T, Vx))
@@ -573,7 +573,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
         Public Overrides Function DW_CalcEntropy(Vx As Array, T As Double, P As Double, st As State) As Double
 
-            If UseLeeKeslerEnthalpy Then
+            If UseLeeKeslerEnthalpy AndAlso Not MixtureHasPolymer() Then
                 Dim S As Double
                 If st = State.Liquid Then
                     S = lk.S_LK_MIX("L", T, P, Vx, RET_VKij(), RET_VTC, RET_VPC, RET_VW, RET_VMM, Me.RET_Sid(298.15, T, P, Vx))
@@ -778,6 +778,27 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
             Return CompoundParameters.ContainsKey(cas) AndAlso CompoundParameters(cas).m_over_M > 0.0
         End Function
 
+        ' The Lee-Kesler caloric route uses Tc/Pc/omega, which are only placeholders for a polymer
+        ' pseudo-compound, so it would return non-physical enthalpy/entropy/heat capacity whenever the
+        ' mixture contains a polymer. In that case the PC-SAFT departure (segment model) is used instead,
+        ' regardless of the Use Lee-Kesler options. Checks the actual mixture compounds, not the parameter
+        ' table (which always holds every built-in polymer).
+        Private Function MixtureHasPolymer() As Boolean
+            Try
+                For Each c In CurrentMaterialStream.Phases(0).Compounds.Values
+                    If IsPolymer(c.ConstantProperties.CAS_Number) Then Return True
+                Next
+            Catch
+            End Try
+            Try
+                For Each c In Flowsheet.SelectedCompounds.Values
+                    If IsPolymer(c.CAS_Number) Then Return True
+                Next
+            Catch
+            End Try
+            Return False
+        End Function
+
         Private Shared Function NoUserViscosityData(cp As Interfaces.ICompoundConstantProperties) As Boolean
             If cp.LiquidViscosityEquation <> "" AndAlso cp.LiquidViscosityEquation <> "0" Then Return False
             Return cp.Liquid_Viscosity_Const_A = 0.0 AndAlso cp.Liquid_Viscosity_Const_B = 0.0 AndAlso
@@ -957,7 +978,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
         Public Overrides Function DW_CalcCp_ISOL(Phase1 As Phase, T As Double, P As Double) As Double
 
-            If UseLeeKeslerCpCv Then
+            If UseLeeKeslerCpCv AndAlso Not MixtureHasPolymer() Then
                 Select Case Phase1
                     Case Phase.Vapor
                         Return lk.CpCvR_LK("V", T, P, RET_VMOL(Phase1), RET_VKij(), RET_VMAS(Phase1), RET_VTC, RET_VPC, RET_VCP(T), RET_VMM, RET_VW, RET_VZRa)(1)
@@ -982,7 +1003,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
         Public Overrides Function DW_CalcCv_ISOL(Phase1 As Phase, T As Double, P As Double) As Double
 
-            If UseLeeKeslerCpCv Then
+            If UseLeeKeslerCpCv AndAlso Not MixtureHasPolymer() Then
                 Select Case Phase1
                     Case Phase.Vapor
                         Return lk.CpCvR_LK("V", T, P, RET_VMOL(Phase1), RET_VKij(), RET_VMAS(Phase1), RET_VTC, RET_VPC, RET_VCP(T), RET_VMM, RET_VW, RET_VZRa)(2)

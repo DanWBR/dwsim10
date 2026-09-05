@@ -59,6 +59,34 @@ namespace DWSIM.Engine.SmokeTests
             Assert.That(lnphi[1], Is.EqualTo(-1.7260890923336243).Within(1e-9), "ethanol lnphi (2B association)");
         }
 
+        /// <summary>
+        /// The polymer guard: Lee-Kesler caloric properties rely on Tc/Pc/omega, which are placeholders for
+        /// a polymer, so a mixture containing a polymer must fall back to the PC-SAFT departure regardless
+        /// of the Use Lee-Kesler flags. A normal mixture keeps using Lee-Kesler when it is enabled.
+        /// </summary>
+        [Test]
+        public void PolymerCaloricBypassesLeeKesler()
+        {
+            var pp = PolypropyleneInNPentane(out var z);
+            pp.UseLeeKeslerEnthalpy = true;
+            double hDefault = pp.DW_CalcEnthalpy(z, 460.15, 40e5, DWSIM.Thermodynamics.PropertyPackages.State.Liquid);
+            pp.UseLeeKeslerEnthalpy = false;
+            double hNative = pp.DW_CalcEnthalpy(z, 460.15, 40e5, DWSIM.Thermodynamics.PropertyPackages.State.Liquid);
+            TestContext.WriteLine($"polymer H: LK-flag-on={hDefault:G6}  native={hNative:G6}");
+            Assert.That(hDefault, Is.EqualTo(hNative).Within(1e-9),
+                "a polymer mixture must use the PC-SAFT departure even with Lee-Kesler enabled");
+
+            var pp2 = Package(fs => { fs.AddCompound("Ethane"); fs.AddCompound("N-pentane"); });
+            var z2 = new[] { 0.5, 0.5 };
+            pp2.UseLeeKeslerEnthalpy = true;
+            double hLk = pp2.DW_CalcEnthalpy(z2, 300.0, 10e5, DWSIM.Thermodynamics.PropertyPackages.State.Liquid);
+            pp2.UseLeeKeslerEnthalpy = false;
+            double hNat2 = pp2.DW_CalcEnthalpy(z2, 300.0, 10e5, DWSIM.Thermodynamics.PropertyPackages.State.Liquid);
+            TestContext.WriteLine($"C2/nC5 H: LK={hLk:G6}  native={hNat2:G6}");
+            Assert.That(Math.Abs(hLk - hNat2), Is.GreaterThan(1e-6),
+                "a non-polymer mixture keeps using Lee-Kesler (differs from the PC-SAFT departure)");
+        }
+
         private static DWSIM.Thermodynamics.AdvancedEOS.PCSAFT2PropertyPackage PmmaChlorobutane(double Mn, double Msolv)
         {
             var fs = new DWSIM.DynamicRunner.Flowsheet(null, null);
