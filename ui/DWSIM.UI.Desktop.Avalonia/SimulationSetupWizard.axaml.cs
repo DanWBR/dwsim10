@@ -389,7 +389,7 @@ public partial class SimulationSetupWizard : Window
 
         if (_flowsheet.AvailableCompounds != null)
         {
-            foreach (var compound in _flowsheet.AvailableCompounds.Values.OrderBy(x => x.Name))
+            foreach (var compound in _flowsheet.AvailableCompounds.Values.OrderBy(x => x.ChemSepFamily).ThenBy(x => x.Name))
             {
                 var row = new CompoundRow(compound, _flowsheet.SelectedCompounds.ContainsKey(compound.Name));
                 row.AddedChanged = OnCompoundAddedChanged;
