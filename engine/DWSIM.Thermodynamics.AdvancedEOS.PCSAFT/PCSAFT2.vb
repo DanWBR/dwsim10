@@ -280,17 +280,19 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
         Public Function CalcCp(T As Double, P As Double, liq_or_gas As String, Zestimate As Double, HidFunc As Func(Of Double, Double)) As Double
 
+            ' Cp = dH/dT by a central difference (second order in h, so it drops the leading truncation
+            ' bias a forward difference carries).
             Dim h = 0.1
 
-            Dim h1, h2 As Double
+            Dim hplus, hminus As Double
             Dim t1, t2 As Task
 
-            t1 = TaskHelper.Run(Sub() h1 = CalcHr(T, P, liq_or_gas, Zestimate) + HidFunc.Invoke(T) * mix.MW)
-            t2 = TaskHelper.Run(Sub() h2 = CalcHr(T + h, P, liq_or_gas, Zestimate) + HidFunc.Invoke(T + h) * mix.MW)
+            t1 = TaskHelper.Run(Sub() hplus = CalcHr(T + h, P, liq_or_gas, Zestimate) + HidFunc.Invoke(T + h) * mix.MW)
+            t2 = TaskHelper.Run(Sub() hminus = CalcHr(T - h, P, liq_or_gas, Zestimate) + HidFunc.Invoke(T - h) * mix.MW)
 
             Task.WaitAll(t1, t2)
 
-            Dim cp = (h2 - h1) / h
+            Dim cp = (hplus - hminus) / (2.0 * h)
 
             Return cp / mix.MW
 
