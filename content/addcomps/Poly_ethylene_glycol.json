@@ -17,7 +17,7 @@
   "Chao_Seader_Solubility_Parameter": 0.5,
   "Charge": 0,
   "ChemicalStructure": "",
-  "Comments": "Polymer pseudo-compound (associating, 4C scheme). PC-SAFT parameters from Kontogeorgis & Folas, Application of SAFT to Polymers (von Solms/Kouskoumvekaki), via the PEG parameter extrapolation; the 4C association (epsilon_AB=2080 K, kappa_AB=0.0235) is set by the '4C' scheme column in pcsaft.dat. Set Molar_Weight to your Mn.",
+  "Comments": "Polymer pseudo-compound (associating, 4C/ETHER scheme). PC-SAFT parameters from Kontogeorgis & Folas, Application of SAFT to Polymers (von Solms/Kouskoumvekaki): 4C end-group association (epsilon_AB=2080 K, kappa_AB=0.0235) plus N=0.022*Mn-1.409 ether-oxygen acceptor sites (eq. 14.9), set by the '4C/ETHER' scheme column in pcsaft.dat. The shipped sigma/epsilon are the high-Mn asymptotic values (eq. 14.8 gives Mn-dependent sigma/epsilon, so low-Mn PEG needs Mn-specific parameters). PEG-water is only semi-quantitative: the standard cross-association is too weak, so the water-rich VLE needs a fitted kij and the aqueous closed-loop LLE is not reproduced. Set Molar_Weight to your Mn.",
   "CompCreatorStudyFile": "",
   "COSMODBName": null,
   "Critical_Compressibility": 0.5,

@@ -22,8 +22,10 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
         ' Polymers: segment number per unit molar mass (mol/g). When > 0 the compound is a polymer and
         ' its segment number is m = m_over_M * Molar_Weight, so a single row covers any chain length.
         <FieldOptional()> <FieldNullValue(0.0#)> Public m_over_M As Double = 0.0#
-        ' Association scheme (Huang-Radosz): empty/2B = one donor + one acceptor site; 4C = two donor + two
-        ' acceptor sites (like water and the glycols/PEG), where only unlike sites associate.
+        ' Association scheme (Huang-Radosz): empty/2B = one donor + one acceptor site; 4C = two donors and
+        ' two acceptors (like water and the glycols); 4C/ETHER = a PEG-type chain, 4C end groups plus
+        ' N_ether = 0.022*Mn - 1.409 extra ether-oxygen acceptor sites (Kontogeorgis & Folas eq. 14.9).
+        ' Only unlike sites (donor-acceptor) associate. Site counts are applied as a multiplicity in InitPP.
         <FieldOptional()> <FieldNullValue("")> Public scheme As String = ""
         <FieldHidden()> Public associationparams As String = ""
 
@@ -108,16 +110,13 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
                 For Each pcsaftdata As PCSParam In pcsaftdatac
                     Dim ci = Globalization.CultureInfo.InvariantCulture
                     Dim k As String = pcsaftdata.kAiBi.ToString(ci), e As String = pcsaftdata.epsilon2.ToString(ci)
-                    If pcsaftdata.scheme.Trim().ToUpperInvariant() = "4C" Then
-                        ' Two acceptor (A) and two donor (B) sites; only unlike sites (A-B) associate, so the
-                        ' 4x4 kappa and epsilon matrices are zero on the A-A and B-B blocks.
-                        pcsaftdata.associationparams = "4" & Environment.NewLine &
-                            $"[0 0 {k} {k}; 0 0 {k} {k}; {k} {k} 0 0; {k} {k} 0 0]" & Environment.NewLine &
-                            $"[0 0 {e} {e}; 0 0 {e} {e}; {e} {e} 0 0; {e} {e} 0 0]"
-                    Else
-                        pcsaftdata.associationparams = "2" & Environment.NewLine &
-                            $"[0 {k}; {k} 0]" & Environment.NewLine & $"[0 {e}; {e} 0]"
-                    End If
+                    ' Association is a two-site-type donor/acceptor (A-B) scheme. How many of each site type
+                    ' there are - 2B: one each; 4C: two donors and two acceptors; PEG: two donors and
+                    ' 2 + N_ether acceptors (the ether oxygens, Kontogeorgis & Folas eq. 14.9) - is applied
+                    ' as a per-type MULTIPLICITY in InitPP from the scheme column, so the kappa and epsilon
+                    ' matrices are always the 2x2 A-B form here regardless of scheme.
+                    pcsaftdata.associationparams = "2" & Environment.NewLine &
+                        $"[0 {k}; {k} 0]" & Environment.NewLine & $"[0 {e}; {e} 0]"
                     If Not CompoundParameters.ContainsKey(pcsaftdata.casno) Then
                         CompoundParameters.Add(pcsaftdata.casno, pcsaftdata)
                     End If

@@ -218,6 +218,27 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
                     cproxy.EosParam.Add(emvec)
 
+                    ' Site multiplicities (how many of each site type). Default one per type (2B). A 4C
+                    ' scheme has two donors and two acceptors; a PEG-type 4C/ETHER chain adds
+                    ' N_ether = 0.022*Mn - 1.409 ether-oxygen acceptor sites to the acceptor type
+                    ' (Kontogeorgis & Folas eq. 14.9). Site 1 is the donor type, site 2 the acceptor type.
+                    Dim mult(na) As Double
+                    For si As Integer = 1 To na
+                        mult(si) = 1.0
+                    Next
+                    Dim sch As String = prm.scheme.Trim().ToUpperInvariant()
+                    If (sch = "4C" OrElse sch = "4C/ETHER") AndAlso na >= 2 Then
+                        mult(1) = 2.0
+                        mult(2) = 2.0
+                        If sch = "4C/ETHER" Then
+                            Dim nEther As Double = 0.022 * c.Molar_Weight - 1.409
+                            If nEther < 0.0 Then nEther = 0.0
+                            mult(2) += nEther
+                        End If
+                    End If
+
+                    cproxy.EosParam.Add(mult) 'site multiplicities
+
                     If sum2(vmvec) + sum2(emvec) = 0.0 Then
                         cproxy.EosParam(4) = 0
                     End If
@@ -227,6 +248,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
                     cproxy.EosParam.Add(0) 'NumAss
                     cproxy.EosParam.Add(New Double(,) {})
                     cproxy.EosParam.Add(New Double(,) {})
+                    cproxy.EosParam.Add(New Double() {}) 'site multiplicities
 
                 End If
 
@@ -1981,6 +2003,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
             'Calculates the molar fraction of molecules Not bonded at association
 
             Dim Xa = SolveXa(mix, T, NumAss, sigma, d, ghs, dens_num)
+            Dim multG = GlobalMult(mix, NumAss)
 
             Dim dgij_drok(,,), term4, term5, term6, term7 As Double
 
@@ -2062,11 +2085,13 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
             indx1 = 0
             For i = 1 To numC
                 sum1 = 0
+                Dim tm As Double = 0.0
                 For j = 1 To NumAss(i)
                     indx1 = indx1 + 1
-                    sum1 = sum1 + Log(Xa(indx1)) - Xa(indx1) / 2
+                    sum1 = sum1 + multG(indx1) * (Log(Xa(indx1)) - Xa(indx1) / 2)
+                    tm += multG(indx1)
                 Next
-                term1_(i) = sum1 + 0.5 * NumAss(i)
+                term1_(i) = sum1 + 0.5 * tm
             Next
 
             For i = 1 To numC
@@ -2075,7 +2100,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
                 For j = 1 To numC
                     For k = 1 To NumAss(j)
                         indx1 = indx1 + 1
-                        sum1 = sum1 + dens_num * x(j) * (dXaj_droi(indx1, i) * (1 / Xa(indx1) - 0.5))
+                        sum1 = sum1 + dens_num * x(j) * multG(indx1) * (dXaj_droi(indx1, i) * (1 / Xa(indx1) - 0.5))
                     Next
                 Next
                 term2_(i) = sum1
@@ -2116,6 +2141,8 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
             Dim delta(,), delta_ As Double
             Dim sum2 As Double
 
+            Dim multG = GlobalMult(mix, NumAss)
+
             A = zeros(sum(NumAss) * numC, sum(NumAss) * numC)
             B = zeros(sum(NumAss) * numC)
 
@@ -2147,8 +2174,8 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
                                     epsilon = 0.5 * (epsilon1 + epsilon2)
                                 End If
                                 delta(indx1, indx2) = ((d(i) + d(k)) / 2) ^ 3 * ghs(i, k) * kappa * (Exp(epsilon / T) - 1)
-                                sum1 = sum1 + dens_num * mix.x(k) * (Xa(indx2) * ddeltaAB_droi(indx1, indx2, i2))
-                                A(indx1 + (i2 - 1) * sum(NumAss), indx2 + (i2 - 1) * sum(NumAss)) = A(indx1 + (i2 - 1) * sum(NumAss), indx2 + (i2 - 1) * sum(NumAss)) + Xa(indx1) ^ 2 * dens_num * mix.x(k) * delta(indx1, indx2)
+                                sum1 = sum1 + dens_num * mix.x(k) * multG(indx2) * (Xa(indx2) * ddeltaAB_droi(indx1, indx2, i2))
+                                A(indx1 + (i2 - 1) * sum(NumAss), indx2 + (i2 - 1) * sum(NumAss)) = A(indx1 + (i2 - 1) * sum(NumAss), indx2 + (i2 - 1) * sum(NumAss)) + Xa(indx1) ^ 2 * dens_num * mix.x(k) * multG(indx2) * delta(indx1, indx2)
                             Next
                         Next
 
@@ -2168,7 +2195,8 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
                                 epsilon = 0.5 * (epsilon1 + epsilon2)
                             End If
                             delta_ = ((d(i) + d(i2)) / 2) ^ 3 * ghs(i, i2) * kappa * (Exp(epsilon / T) - 1)
-                            sum2 = sum2 + Xa(DirectCast(NumAss, Double()).Take(i2 - 1).Sum + k) * delta_
+                            Dim gk As Integer = CInt(DirectCast(NumAss, Double()).Take(i2 - 1).Sum) + k
+                            sum2 = sum2 + multG(gk) * Xa(gk) * delta_
                         Next
                         A(indx3, indx3) = A(indx3, indx3) + 1
                         B(indx3) = -(Xa(indx1)) ^ 2 * (sum1 + sum2)
@@ -2330,17 +2358,20 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
             'Calculates the molar fraction of molecules Not bonded at association
 
             Dim Xa = SolveXa(mix, T, NumAss, sigma, d, ghs, dens_num)
+            Dim multG = GlobalMult(mix, NumAss)
 
             'Association contribution to Helmholtz energy
             Aass = 0
             indx1 = 0
             For i = 1 To numC
                 sum1 = 0
+                Dim tm As Double = 0.0
                 For j = 1 To NumAss(i)
                     indx1 = indx1 + 1
-                    sum1 = sum1 + Log(Xa(indx1)) - Xa(indx1) / 2
+                    sum1 = sum1 + multG(indx1) * (Log(Xa(indx1)) - Xa(indx1) / 2)
+                    tm += multG(indx1)
                 Next
-                Aass = Aass + x(i) * (sum1 + 0.5 * NumAss(i)) 'Eq. 21 Of reference
+                Aass = Aass + x(i) * (sum1 + 0.5 * tm) 'Eq. 21 Of reference (site multiplicities weighted)
             Next
 
             Return Aass
@@ -2529,20 +2560,53 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
             Return False
         End Function
 
+        Friend Function GlobalMult(mix, NumAss) As Double()
+
+            'Flattens the per-compound site multiplicities (EoSParam(7)) into one global site vector
+            'aligned with the flattened site index used throughout the association routines. A site
+            'type with multiplicity n stands for n identical sites (they share one site fraction), so
+            'the association sums are weighted by it. Defaults to one per site when a compound carries
+            'no multiplicity vector, which reproduces the plain one-site-per-type (2B/4C) behaviour.
+
+            Dim nSit As Integer = CInt(sum(NumAss))
+            Dim mg(nSit) As Double
+            Dim s As Integer = 0
+            For i = 1 To mix.numC
+                Dim mv As Double() = Nothing
+                Try
+                    mv = DirectCast(mix.comp(i).EoSParam(7), Double())
+                Catch
+                    mv = Nothing
+                End Try
+                For j = 1 To CInt(NumAss(i))
+                    s += 1
+                    If mv IsNot Nothing AndAlso mv.Length > j Then
+                        mg(s) = mv(j)
+                    Else
+                        mg(s) = 1.0
+                    End If
+                Next
+            Next
+            Return mg
+
+        End Function
+
         Friend Function SolveXa(mix, T, NumAss, sigma, d, ghs, dens_num) As Double()
 
             'Solves the fraction of non-bonded association sites Xa by successive substitution of
-            'Xa_a = 1 / (1 + sum_b rho x_b Xa_b delta_ab). The iteration keeps every fraction in
-            '(0,1] by construction, which the previous unconstrained simplex minimisation did not:
-            'it could return negative site fractions and turn the log(Xa) terms in the Helmholtz
-            'energy and chemical potential into NaN, above all for high segment-number polymers
-            'with a 4C association scheme.
+            'Xa_a = 1 / (1 + sum_b rho x_b n_b Xa_b delta_ab), where n_b is the site multiplicity. The
+            'iteration keeps every fraction in (0,1] by construction, which the previous unconstrained
+            'simplex minimisation did not: it could return negative site fractions and turn the log(Xa)
+            'terms in the Helmholtz energy and chemical potential into NaN, above all for high
+            'segment-number polymers with a 4C association scheme.
 
             Dim numC As Integer = mix.numC
             Dim nSit As Integer = CInt(sum(NumAss))
 
             Dim Xa(nSit) As Double
             If nSit = 0 Then Return Xa
+
+            Dim multG = GlobalMult(mix, NumAss)
 
             'site -> component map
             Dim compOf(nSit) As Integer
@@ -2589,7 +2653,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
                 For a = 1 To nSit
                     Dim acc As Double = 0.0
                     For b = 1 To nSit
-                        acc += dens_num * mix.x(compOf(b)) * Xa(b) * delta(a, b)
+                        acc += dens_num * mix.x(compOf(b)) * multG(b) * Xa(b) * delta(a, b)
                     Next
                     Dim xn As Double = 1.0 / (1.0 + acc)
                     Dim diff As Double = xn - Xa(a)

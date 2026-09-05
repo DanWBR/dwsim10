@@ -43,6 +43,23 @@ namespace DWSIM.Engine.SmokeTests
         }
 
         /// <summary>
+        /// Pins the 2B association math (SolveXa + mu_Ass + obj_muAss) for a hydrogen-bonding
+        /// mixture, so the site-multiplicity refactor stays behaviour-preserving for the
+        /// non-polymer associating compounds. Water/ethanol liquid log fugacity coefficients at
+        /// 298.15 K, 1 atm. Reference values captured from the pre-refactor code.
+        /// </summary>
+        [Test]
+        public void WaterEthanolAssociationLogFugacityIsStable()
+        {
+            var pp = Package(fs => { fs.AddCompound("Water"); fs.AddCompound("Ethanol"); });
+            var lnphi = pp.DW_CalcLnFugCoeff(new[] { 0.5, 0.5 }, 298.15, 101325.0,
+                DWSIM.Thermodynamics.PropertyPackages.State.Liquid);
+            TestContext.WriteLine($"lnphi water={lnphi[0]:R}  ethanol={lnphi[1]:R}");
+            Assert.That(lnphi[0], Is.EqualTo(-2.0118886197639876).Within(1e-9), "water lnphi (2B association)");
+            Assert.That(lnphi[1], Is.EqualTo(-1.7260890923336243).Within(1e-9), "ethanol lnphi (2B association)");
+        }
+
+        /// <summary>
         /// A small-molecule PC-SAFT flash stays physical: ethane/n-pentane at 350 K condenses
         /// monotonically as pressure rises and the vapour keeps getting richer in the light component.
         /// </summary>
