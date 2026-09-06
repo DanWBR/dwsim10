@@ -7386,6 +7386,19 @@ redirect2:                  IObj?.SetCurrent()
 
         End Function
 
+        ''' <summary>
+        ''' Per-compound flag marking a compound as effectively non-volatile (for example a high-molar-mass
+        ''' polymer, whose vapour pressure is negligible and whose vapour-liquid K-value is essentially zero).
+        ''' The default is all False, so ordinary packages are unaffected. A package that models such species
+        ''' (PC-SAFT for polymers) overrides this so the vapour-liquid flash keeps them in the liquid instead
+        ''' of reading a spurious vapour pressure off placeholder critical constants.
+        ''' </summary>
+        Public Overridable Function RET_VNONVOLATILE() As Boolean()
+            Dim nn As Integer = Me.CurrentMaterialStream.Phases(0).Compounds.Count
+            Dim flags(nn - 1) As Boolean
+            Return flags
+        End Function
+
         Public Overridable Function RET_VPVAP(ByVal T As Double) As Double()
 
             Dim val(Me.CurrentMaterialStream.Phases(0).Compounds.Count - 1) As Double

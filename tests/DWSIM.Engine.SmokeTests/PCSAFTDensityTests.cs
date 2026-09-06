@@ -525,6 +525,53 @@ namespace DWSIM.Engine.SmokeTests
         }
 
         /// <summary>
+        /// Devolatilization flash: a polystyrene solution in ethylbenzene stripped under vacuum. The polymer
+        /// is non-volatile, so a vapour-liquid flash must keep it entirely in the liquid and let the solvent
+        /// flash off. Without a cap on the vapour fraction the Newton step overshoots to V = 1, reports the
+        /// whole feed (polymer included) as vapour, and the liquid product vanishes. This pins the physical
+        /// result: nearly all the solvent moles vaporize, the vapour carries no polymer, and the liquid left
+        /// behind is a concentrated polymer melt.
+        /// </summary>
+        [Test]
+        public void PolymerDevolatilizationFlashKeepsPolymerInLiquid()
+        {
+            string addcomps = Path.GetFullPath(Path.Combine(SourceDir(), "..", "..", "content", "addcomps"));
+            var poly = Newtonsoft.Json.JsonConvert.DeserializeObject<DWSIM.Thermodynamics.BaseClasses.ConstantProperties>(
+                File.ReadAllText(Path.Combine(addcomps, "Polystyrene.json")));
+            poly.CurrentDB = "User"; poly.OriginalDB = "User"; poly.Molar_Weight = 50000.0;
+
+            var fs = new DWSIM.DynamicRunner.Flowsheet(null, null);
+            fs.Init();
+            fs.AddCompound("Ethylbenzene");
+            fs.Options.SelectedComponents.Add(poly.Name, poly);
+            var pp = new DWSIM.Thermodynamics.AdvancedEOS.PCSAFT2PropertyPackage { Flowsheet = fs };
+            var obj = fs.AddObject(DWSIM.Interfaces.Enums.GraphicObjects.ObjectType.MaterialStream, 0, 0, "s");
+            var ms = (DWSIM.Thermodynamics.Streams.MaterialStream)fs.SimulationObjects[obj.Name];
+            ms.SetFlowsheet(fs); ms.PropertyPackage = pp; ms.AssignSelfToPP(); pp.CurrentMaterialStream = ms;
+            double nEB = 0.75 / 106.165, nPS = 0.25 / 50000.0, tot = nEB + nPS;
+            ms.SetMassFlow(1.0);
+            ms.SetOverallComposition(new[] { nEB / tot, nPS / tot });
+
+            // 470 K under vacuum (0.15 bar), a representative devolatilizer operating point.
+            ms.SetTemperature(470.0); ms.SetPressure(15000.0); ms.SetFlashSpec("PT");
+            ms.Calculate();
+
+            double vf = ms.Phases[2].Properties.molarfraction.GetValueOrDefault();
+            double psVmass = ms.Phases[2].Compounds["Polystyrene"].MassFraction.GetValueOrDefault();
+            double psLmass = ms.Phases[3].Compounds["Polystyrene"].MassFraction.GetValueOrDefault();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(vf, Is.GreaterThan(0.9).And.LessThan(1.0),
+                    "almost all solvent moles vaporize, but the flash must not collapse to all-vapour");
+                Assert.That(psVmass, Is.LessThan(1.0e-6),
+                    "the non-volatile polymer must not appear in the vapour");
+                Assert.That(psLmass, Is.GreaterThan(0.9),
+                    "the liquid left behind is a concentrated polymer melt");
+            });
+        }
+
+        /// <summary>
         /// Every polymer shipped as an addcomps JSON must deserialize the way DWSIM's user-compound loader
         /// does, match its pcsaft.dat CAS number, and run through a PC-SAFT flash in a solvent to give
         /// physical phase properties. This is the path a user takes: pick the polymer from the list, set Mn,

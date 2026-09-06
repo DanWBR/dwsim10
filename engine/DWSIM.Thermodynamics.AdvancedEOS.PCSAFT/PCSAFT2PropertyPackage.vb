@@ -790,6 +790,44 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
             Return CompoundParameters.ContainsKey(cas) AndAlso CompoundParameters(cas).m_over_M > 0.0
         End Function
 
+        ' A polymer is non-volatile. These overrides keep it in the liquid during a vapour-liquid flash
+        ' (devolatilization): it is flagged non-volatile, its vapour pressure is zeroed, and its vapour-liquid
+        ' K-value is pinned to (near) zero. The liquid-liquid case ("LL") is untouched, since a polymer
+        ' genuinely partitions between two liquid phases.
+        Public Overrides Function RET_VNONVOLATILE() As Boolean()
+            Dim comps = CurrentMaterialStream.Phases(0).Compounds.Values
+            Dim flags(comps.Count - 1) As Boolean
+            Dim i As Integer = 0
+            For Each c In comps
+                flags(i) = IsPolymer(c.ConstantProperties.CAS_Number)
+                i += 1
+            Next
+            Return flags
+        End Function
+
+        Public Overrides Function RET_VPVAP(T As Double) As Double()
+            Dim val = MyBase.RET_VPVAP(T)
+            If CurrentMaterialStream IsNot Nothing Then
+                Dim i As Integer = 0
+                For Each c In CurrentMaterialStream.Phases(0).Compounds.Values
+                    If IsPolymer(c.ConstantProperties.CAS_Number) Then val(i) = 0.0
+                    i += 1
+                Next
+            End If
+            Return val
+        End Function
+
+        Public Overrides Function DW_CalcKvalue(Vx() As Double, Vy() As Double, T As Double, P As Double, Optional type As String = "LV") As Double()
+            Dim K = MyBase.DW_CalcKvalue(Vx, Vy, T, P, type)
+            If type = "LV" Then
+                Dim comps = DW_GetConstantProperties()
+                For i = 0 To comps.Count - 1
+                    If IsPolymer(comps(i).CAS_Number) Then K(i) = 0.000000000000001
+                Next
+            End If
+            Return K
+        End Function
+
         Private Function IsAssociating(cas As String) As Boolean
             Return CompoundParameters.ContainsKey(cas) AndAlso
                    CompoundParameters(cas).kAiBi > 0.0 AndAlso CompoundParameters(cas).epsilon2 > 0.0

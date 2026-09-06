@@ -58,6 +58,11 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
 
         Public Property LimitVaporFraction As Boolean = True
 
+        'Upper bound on the vapour fraction for the current flash. It is 1.0 for an ordinary mixture and
+        '1 - sum(non-volatile mole fractions) when the feed carries a non-volatile compound (e.g. a polymer),
+        'which cannot enter the vapour. Set per call in Flash_PT_1.
+        Public Property MaxVaporFraction As Double = 1.0
+
         Public PTFlashFunction As Func(Of Double(), Double, Double, PropertyPackages.PropertyPackage, Boolean, Double(), Object)
 
         Sub New()
@@ -257,6 +262,27 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
 
             Vp = PP.RET_VPVAP(T)
 
+            ' Non-volatile components (e.g. a polymer) stay in the liquid. The single-component shortcut
+            ' below keys off the largest mole fraction, which for a polymer solution is the solvent (a
+            ' polymer has a tiny mole fraction), so it would collapse the flash to a pure-solvent bubble/dew
+            ' and never form the solvent-vapour + polymer-liquid split. Skip that shortcut when present.
+            Dim nonvol = PP.RET_VNONVOLATILE()
+            Dim hasNonVol As Boolean = False
+            Dim sumnonvol As Double = 0.0
+            For i = 0 To n
+                If nonvol(i) Then
+                    hasNonVol = True
+                    sumnonvol += Vz(i)
+                End If
+            Next
+            ' The vapour cannot hold the non-volatiles, so the largest possible vapour fraction is the
+            ' one that puts every volatile in the vapour: Vmax = 1 - sum(non-volatile mole fractions).
+            ' Without this cap the Newton step overshoots to V = 1, where the whole feed (polymer included)
+            ' is reported as vapour and the liquid product vanishes.
+            Dim VmaxCap As Double = 1.0
+            If hasNonVol Then VmaxCap = 1.0 - sumnonvol
+            MaxVaporFraction = VmaxCap
+
             If Not ReuseKI Then
                 Ki = Vp.MultiplyConstY(1 / P)
                 For i = 0 To n
@@ -281,7 +307,7 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
 
             'Estimate V
 
-            If T > MathEx.Common.Max(VTc, Vz) Then
+            If T > MathEx.Common.Max(VTc, Vz) And Not hasNonVol Then
                 Vy = Vz
                 Vx = Vy.DivideY(Ki).NormalizeY
                 Vx = Vx.ReplaceInvalidsWithZeroes()
@@ -309,7 +335,7 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
             Pb = Pmax
             Pd = Pmin
 
-            If Abs(Pb - Pd) / Pb < 0.0000001 And Vz.Max > 0.99 Then
+            If Abs(Pb - Pd) / Pb < 0.0000001 And Vz.Max > 0.99 And Not hasNonVol Then
                 'one comp only
                 Px = Vp.MultiplyY(Vz).Sum
                 d2 = Date.Now
@@ -364,6 +390,7 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
             If Vmin = 1.0# Then Vmin = 0.0#
             If Vmax = 0.0# Then Vmax = 1.0#
             If Vmax > 1.0# Then Vmax = 1.0#
+            If Vmax > VmaxCap Then Vmax = VmaxCap
 
             If Vest >= 0 Then
                 V = Vest
@@ -637,9 +664,9 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                             V = 0.0
                             Exit Do
                         End If
-                        If V > 1.0 Then
+                        If V > MaxVaporFraction Then
                             overshoot = True
-                            V = 1.0
+                            V = MaxVaporFraction
                             Exit Do
                         End If
                     End If
