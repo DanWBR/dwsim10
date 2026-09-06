@@ -73,6 +73,7 @@ Namespace Polymers
         Public Rp As Double                     ' total rate of polymerization (mol/L/s)
         Public MonomerAConc As Double           ' outlet [A]
         Public MonomerBConc As Double           ' outlet [B]
+        Public InitiatorConc As Double          ' outlet [I]
         Public RadicalConc As Double            ' mu0
         Public Iterations As Integer
     End Class
@@ -106,6 +107,7 @@ Namespace Polymers
 
             ' Initiator (first-order) and the quasi-steady-state total radical concentration.
             Dim I = InitiatorFeed / (1.0 + kd * theta)
+            res.InitiatorConc = I
             Dim mu0 As Double = 0.0
             If kt > 0.0 AndAlso I > 0.0 AndAlso kd > 0.0 Then mu0 = Math.Sqrt(f * kd * I / kt)
             res.RadicalConc = mu0

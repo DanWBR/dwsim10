@@ -78,6 +78,26 @@ Namespace Reactors
         Public Property KtrS_E As Double = 0.0
         Public Property MonomerMolarMass As Double = 104.15
 
+        ' --- copolymer (binary) configuration; setting a second monomer switches the reactor to the terminal
+        '     copolymerization model (reactivity ratios rA/rB), otherwise it homopolymerizes monomer A ---
+        ''' <summary>Name of the second monomer compound in the feed (empty = homopolymerization).</summary>
+        Public Property MonomerBID As String = ""
+
+        ''' <summary>Reactivity ratio of monomer A, rA = kpAA/kpAB.</summary>
+        Public Property ReactivityRatioA As Double = 0.52
+
+        ''' <summary>Reactivity ratio of monomer B, rB = kpBB/kpBA.</summary>
+        Public Property ReactivityRatioB As Double = 0.46
+
+        ''' <summary>Arrhenius pre-exponential for the homo-propagation of monomer B (L/mol/s).</summary>
+        Public Property KpB_A As Double = 2.673E+6
+
+        ''' <summary>Arrhenius activation energy for the homo-propagation of monomer B (J/mol).</summary>
+        Public Property KpB_E As Double = 22360.0
+
+        ''' <summary>Molar mass of the second monomer (g/mol).</summary>
+        Public Property MonomerBMolarMass As Double = 100.12
+
         ' --- molecular-weight distribution emission ---
         ''' <summary>When true, the polymer leaves the reactor as a set of molar-mass pseudo-component cuts
         ''' (a real distribution) rather than a single lumped polymer compound. The cut compounds must first be
@@ -103,6 +123,9 @@ Namespace Reactors
         Public Property PDI As Double = 0.0
         Public Property RateOfPolymerization As Double = 0.0
         Public Property ResidenceTime As Double = 0.0
+
+        ''' <summary>Instantaneous mole fraction of monomer A in the copolymer (copolymer mode only).</summary>
+        Public Property CopolymerCompositionA As Double = 0.0
 
         Public Sub New()
             MyBase.New()
@@ -143,6 +166,65 @@ Namespace Reactors
             KtrM_A = k.AtrM : KtrM_E = k.EtrM : KtrS_A = k.AtrS : KtrS_E = k.EtrS
             MonomerMolarMass = k.MonomerMW
         End Sub
+
+        ''' <summary>True when a second monomer is configured, selecting the binary copolymerization model.</summary>
+        Public Function IsCopolymer() As Boolean
+            Return Not String.IsNullOrEmpty(MonomerBID)
+        End Function
+
+        Private Function BuildCopolymerKinetics() As CopolymerKinetics
+            Return New CopolymerKinetics With {
+                .Ad = Kd_A, .Ed = Kd_E, .Efficiency = Efficiency,
+                .ApAA = Kp_A, .EpAA = Kp_E,
+                .ApBB = KpB_A, .EpBB = KpB_E,
+                .ReactivityA = ReactivityRatioA, .ReactivityB = ReactivityRatioB,
+                .Atc = Ktc_A, .Etc = Ktc_E, .Atd = Ktd_A, .Etd = Ktd_E,
+                .MonomerAMW = MonomerMolarMass, .MonomerBMW = MonomerBMolarMass}
+        End Function
+
+        ''' <summary>Loads the AIBN-initiated styrene(A)/methyl-methacrylate(B) copolymer benchmark kinetics.</summary>
+        Public Sub LoadStyreneMMAPreset()
+            Dim k = CopolymerKinetics.StyreneMMA()
+            Kd_A = k.Ad : Kd_E = k.Ed : Efficiency = k.Efficiency
+            Kp_A = k.ApAA : Kp_E = k.EpAA
+            KpB_A = k.ApBB : KpB_E = k.EpBB
+            ReactivityRatioA = k.ReactivityA : ReactivityRatioB = k.ReactivityB
+            Ktc_A = k.Atc : Ktc_E = k.Etc : Ktd_A = k.Atd : Ktd_E = k.Etd
+            MonomerMolarMass = k.MonomerAMW : MonomerBMolarMass = k.MonomerBMW
+        End Sub
+
+        ''' <summary>Common result of the kinetics solve, whichever polymerization model is active.</summary>
+        Private Class KineticsSolution
+            Public Converged As Boolean
+            Public Conversion As Double        ' overall monomer conversion (molar)
+            Public Mn As Double, Mw As Double, PDI As Double, Rp As Double
+            Public CompositionA As Double      ' copolymer F_A (0 in homopolymer mode)
+            Public ConvA As Double, ConvB As Double   ' per-monomer conversions
+            Public IniRatio As Double          ' [I]out/[I]in
+        End Class
+
+        Private Function SolveKineticsAt(Tr As Double, theta As Double, Cmon As Double, CmonB As Double,
+                                         Cini As Double, Csol As Double) As KineticsSolution
+            Dim s As New KineticsSolution
+            If IsCopolymer() Then
+                Dim r = CopolymerCSTR.Solve(BuildCopolymerKinetics(), Tr, theta, Cmon, CmonB, Cini)
+                s.Converged = r.Converged
+                s.Conversion = r.OverallConversion
+                s.Mn = r.Mn : s.Mw = r.Mw : s.PDI = r.PDI : s.Rp = r.Rp
+                s.CompositionA = r.CopolymerCompositionA
+                s.ConvA = r.ConversionA : s.ConvB = r.ConversionB
+                s.IniRatio = If(Cini > 0.0, r.InitiatorConc / Cini, 1.0)
+            Else
+                Dim r = FreeRadicalCSTR.Solve(BuildKinetics(), Tr, theta, Cmon, Cini, Csol)
+                s.Converged = r.Converged
+                s.Conversion = r.Conversion
+                s.Mn = r.Mn : s.Mw = r.Mw : s.PDI = r.PDI : s.Rp = r.Rp
+                s.CompositionA = 0.0
+                s.ConvA = r.Conversion : s.ConvB = 0.0
+                s.IniRatio = If(Cini > 0.0, r.InitiatorConc / Cini, 1.0)
+            End If
+            Return s
+        End Function
 
         ''' <summary>
         ''' Generates the molar-mass pseudo-component cuts for the polymer distribution and registers them on
@@ -207,6 +289,7 @@ Namespace Reactors
             For Each id In {MonomerID, InitiatorID, PolymerID}
                 If Not comps.ContainsKey(id) Then Throw New Exception("Compound '" & id & "' is not present in the feed.")
             Next
+            If IsCopolymer() AndAlso Not comps.ContainsKey(MonomerBID) Then Throw New Exception("Second monomer '" & MonomerBID & "' is not present in the feed.")
             Dim hasSolvent = Not String.IsNullOrEmpty(SolventID) AndAlso comps.ContainsKey(SolventID)
 
             Dim Q As Double = ims.Phases(0).Properties.volumetric_flow.GetValueOrDefault()
@@ -218,13 +301,14 @@ Namespace Reactors
             Dim monFlow = comps(MonomerID).MolarFlow.GetValueOrDefault()     ' mol/s
             Dim iniFlow = comps(InitiatorID).MolarFlow.GetValueOrDefault()
             Dim solFlow = If(hasSolvent, comps(SolventID).MolarFlow.GetValueOrDefault(), 0.0)
+            Dim monBFlow = If(IsCopolymer(), comps(MonomerBID).MolarFlow.GetValueOrDefault(), 0.0)
 
             ' Concentrations in mol/L (volumetric flow is m3/s).
             Dim Cmon = monFlow / (Q * 1000.0)
             Dim Cini = iniFlow / (Q * 1000.0)
             Dim Csol = solFlow / (Q * 1000.0)
+            Dim CmonB = monBFlow / (Q * 1000.0)
             Dim theta = Volume / Q
-            Dim kin = BuildKinetics()
 
             Dim Tin = ims.Phases(0).Properties.temperature.GetValueOrDefault()
             Dim W = ims.Phases(0).Properties.massflow.GetValueOrDefault()          ' kg/s
@@ -234,48 +318,51 @@ Namespace Reactors
             ' adiabatic operation that temperature and the conversion are coupled through the heat of
             ' polymerization and the Arrhenius rate constants, so they are iterated to a fixed point.
             Dim Tr As Double
-            Dim r As FreeRadicalCSTRResult
+            Dim r As KineticsSolution
             Select Case Me.ReactorOperationMode
                 Case OperationMode.OutletTemperature
                     Tr = Me.OutletTemperature
-                    r = FreeRadicalCSTR.Solve(kin, Tr, theta, Cmon, Cini, Csol)
+                    r = SolveKineticsAt(Tr, theta, Cmon, CmonB, Cini, Csol)
                 Case OperationMode.Adiabatic
                     Tr = If(IsothermalTemperature > 0.0, IsothermalTemperature, Tin)
-                    r = FreeRadicalCSTR.Solve(kin, Tr, theta, Cmon, Cini, Csol)
+                    r = SolveKineticsAt(Tr, theta, Cmon, CmonB, Cini, Csol)
                     If W > 0.0 AndAlso Cp > 0.0 Then
                         For it As Integer = 1 To 50
-                            Dim Qg = monFlow * r.Conversion * (-HeatOfPolymerization) / 1000.0 ' kW
+                            Dim Qg = r.Conversion * (monFlow + monBFlow) * (-HeatOfPolymerization) / 1000.0 ' kW
                             Dim Tnew = Tin + Qg / (W * Cp)
                             Dim converged = Math.Abs(Tnew - Tr) < 0.01
                             Tr = 0.5 * Tnew + 0.5 * Tr
-                            r = FreeRadicalCSTR.Solve(kin, Tr, theta, Cmon, Cini, Csol)
+                            r = SolveKineticsAt(Tr, theta, Cmon, CmonB, Cini, Csol)
                             If converged Then Exit For
                         Next
                     End If
                 Case Else ' Isothermic
                     Tr = If(IsothermalTemperature > 0.0, IsothermalTemperature, Tin)
-                    r = FreeRadicalCSTR.Solve(kin, Tr, theta, Cmon, Cini, Csol)
+                    r = SolveKineticsAt(Tr, theta, Cmon, CmonB, Cini, Csol)
             End Select
             If Not r.Converged Then Throw New Exception("The polymerization solver did not converge at these conditions.")
 
             Conversion = r.Conversion
             Mn = r.Mn : Mw = r.Mw : PDI = r.PDI
             RateOfPolymerization = r.Rp
+            CopolymerCompositionA = r.CompositionA
             ResidenceTime = theta
 
             ' Energy balance: the heat released by polymerization is W*Cp*(Tr-Tin) minus the duty. Adiabatic
             ' operation removes no heat (the temperature rise carries it); otherwise the duty holds the reactor
             ' at Tr (negative duty = heat removed, the usual case for an exothermic polymerization).
-            Dim QgenkW = monFlow * r.Conversion * (-HeatOfPolymerization) / 1000.0 ' kW
+            Dim QgenkW = r.Conversion * (monFlow + monBFlow) * (-HeatOfPolymerization) / 1000.0 ' kW
             Dim duty As Double = 0.0
             If Me.ReactorOperationMode <> OperationMode.Adiabatic Then duty = W * Cp * (Tr - Tin) - QgenkW
             Me.DeltaQ = duty
             Me.DeltaT = Tr - Tin
 
-            Dim monConverted = monFlow * r.Conversion
-            Dim DP = If(kin.MonomerMW > 0.0, r.Mn / kin.MonomerMW, 0.0)
-            Dim chainFlow = If(DP > 0.0, monConverted / DP, 0.0)
-            Dim iniRatio = If(Cini > 0.0, r.InitiatorConc / Cini, 1.0)
+            ' Reacted monomer mass (both monomers in copolymer mode) and the polymer chain molar flow.
+            Dim convAmol = monFlow * r.ConvA
+            Dim convBmol = monBFlow * r.ConvB
+            Dim polymerMass = convAmol * MonomerMolarMass + convBmol * MonomerBMolarMass  ' g/s
+            Dim chainFlow = If(r.Mn > 0.0, polymerMass / r.Mn, 0.0)
+            Dim iniRatio = r.IniRatio
 
             ' Emit the polymer as a real molar-mass distribution over the generated cuts, or as a single
             ' lumped polymer compound whose molar mass is set to Mn (so the reacted monomer mass is conserved).
@@ -291,7 +378,9 @@ Namespace Reactors
             For Each c In comps.Values
                 Dim fl = c.MolarFlow.GetValueOrDefault()
                 If c.Name = MonomerID Then
-                    fl = monFlow * (1.0 - r.Conversion)
+                    fl = monFlow * (1.0 - r.ConvA)
+                ElseIf IsCopolymer() AndAlso c.Name = MonomerBID Then
+                    fl = monBFlow * (1.0 - r.ConvB)
                 ElseIf c.Name = InitiatorID Then
                     fl = iniFlow * iniRatio
                 ElseIf c.Name = PolymerID AndAlso Not distributing Then
@@ -305,7 +394,6 @@ Namespace Reactors
                 ' fractions z (which reproduce the distribution's Mn and Mw). The cut mole flow is
                 ' polymerMass * z_j / sum(z_k * M_k), so the total mass equals the reacted monomer mass and the
                 ' number-average molar mass of the cuts is preserved.
-                Dim polymerMass = monConverted * kin.MonomerMW
                 Dim denomZM As Double = 0.0
                 For j As Integer = 0 To CutCompoundNames.Count - 1
                     denomZM += CutMoleFractions(j) * comps(CutCompoundNames(j)).ConstantProperties.Molar_Weight
@@ -358,6 +446,7 @@ Namespace Reactors
                                        "Number-Average Molar Mass (Mn)", "Weight-Average Molar Mass (Mw)",
                                        "Polydispersity Index", "Rate of Polymerization", "Heat Duty",
                                        "Temperature Rise"})
+                    If IsCopolymer() Then proplist.Add("Copolymer Composition (monomer A)")
             End Select
             Return proplist.ToArray()
         End Function
@@ -373,6 +462,7 @@ Namespace Reactors
                 Case "Weight-Average Molar Mass (Mw)" : Return Mw
                 Case "Polydispersity Index" : Return PDI
                 Case "Rate of Polymerization" : Return RateOfPolymerization
+                Case "Copolymer Composition (monomer A)" : Return CopolymerCompositionA
                 Case "Heat Duty" : Return SystemsOfUnits.Converter.ConvertFromSI(su.heatflow, Me.DeltaQ.GetValueOrDefault())
                 Case "Temperature Rise" : Return SystemsOfUnits.Converter.ConvertFromSI(su.deltaT, Me.DeltaT.GetValueOrDefault())
                 Case Else : Return Nothing
@@ -397,6 +487,7 @@ Namespace Reactors
                 Case "Conversion" : Return "%"
                 Case "Number-Average Molar Mass (Mn)", "Weight-Average Molar Mass (Mw)" : Return "g/mol"
                 Case "Rate of Polymerization" : Return "mol/[L.s]"
+                Case "Copolymer Composition (monomer A)" : Return "mole fraction"
                 Case "Heat Duty" : Return su.heatflow
                 Case "Temperature Rise" : Return su.deltaT
                 Case Else : Return ""
