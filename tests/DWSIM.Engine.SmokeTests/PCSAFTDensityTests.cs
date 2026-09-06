@@ -657,6 +657,54 @@ namespace DWSIM.Engine.SmokeTests
 
         private static string SourceDir([CallerFilePath] string path = "") => Path.GetDirectoryName(path);
 
+        private static DWSIM.Thermodynamics.AdvancedEOS.PCSAFT2PropertyPackage PegWaterPP(double mn)
+        {
+            string addcomps = Path.GetFullPath(Path.Combine(SourceDir(), "..", "..", "content", "addcomps"));
+            var peg = Newtonsoft.Json.JsonConvert.DeserializeObject<DWSIM.Thermodynamics.BaseClasses.ConstantProperties>(
+                File.ReadAllText(Path.Combine(addcomps, "Poly_ethylene_glycol.json")));
+            peg.CurrentDB = "User"; peg.OriginalDB = "User"; peg.Molar_Weight = mn;
+            var fs = new DWSIM.DynamicRunner.Flowsheet(null, null);
+            fs.Init();
+            fs.AddCompound("Water");
+            fs.Options.SelectedComponents.Add(peg.Name, peg);
+            var pp = new DWSIM.Thermodynamics.AdvancedEOS.PCSAFT2PropertyPackage { Flowsheet = fs };
+            var obj = fs.AddObject(DWSIM.Interfaces.Enums.GraphicObjects.ObjectType.MaterialStream, 0, 0, "s");
+            var ms = (DWSIM.Thermodynamics.Streams.MaterialStream)fs.SimulationObjects[obj.Name];
+            ms.SetFlowsheet(fs); ms.PropertyPackage = pp; ms.AssignSelfToPP(); pp.CurrentMaterialStream = ms;
+            return pp;
+        }
+
+        /// <summary>
+        /// PEG dewatering flash: water flashed off an aqueous poly(ethylene glycol) solution under vacuum.
+        /// PEG associates strongly with water (its hydroxyl end groups plus the ether oxygens), so water's
+        /// activity in the solution is steeply, strongly non-ideal - its K-value swings by orders of magnitude
+        /// and near unity across the composition, which makes a frozen-K successive-substitution flash
+        /// oscillate and never converge. The PC-SAFT flash solves the vapour fraction directly (the solvent
+        /// K-value recomputed at each trial composition), which is monotonic and converges. This pins the
+        /// result: the water vaporizes, the non-volatile PEG stays and is conserved in a concentrated liquid.
+        /// </summary>
+        [Test]
+        public void PegWaterDewateringFlashConvergesAndConservesPolymer()
+        {
+            var pp = PegWaterPP(10000.0);
+            double mW = 0.80 / 18.015, mP = 0.20 / 10000.0, tt = mW + mP;
+            var z = new[] { mW / tt, mP / tt };
+
+            var r = (object[])pp.FlashBase.Flash_PT(z, 40000.0, 355.0, pp);
+            double V = Convert.ToDouble(r[1]), L = Convert.ToDouble(r[0]);
+            var Vx = (double[])r[2];
+            var Vy = (double[])r[3];
+            double pegInLiquid = L * Vx[1] / z[1];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(V, Is.GreaterThan(0.5).And.LessThan(1.0), "the water vaporizes but the flash does not collapse to all-vapour");
+                Assert.That(Vy[1], Is.LessThan(1.0e-8), "the non-volatile PEG must not appear in the vapour");
+                Assert.That(pegInLiquid, Is.EqualTo(1.0).Within(0.01), "the whole PEG feed is conserved in the liquid");
+                Assert.That(pp.UsesGibbsMinimizationForLLE, Is.False, "an associating polymer declines the slow, unreliable Gibbs-min LLE search");
+            });
+        }
+
         // n-pentane + one injected polymer/copolymer (CAS `cas`, molar mass `mw`); when `copoly` is given
         // the compound is registered as a copolymer with that segment definition. Returns pp and the feed
         // mole fractions at `wPoly` polymer mass fraction.

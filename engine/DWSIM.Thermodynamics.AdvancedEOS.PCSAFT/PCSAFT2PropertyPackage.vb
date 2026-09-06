@@ -660,7 +660,24 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
                 ' potential numerically (segment model), so its liquid-liquid split needs the convex-hull
                 ' binodal instead - not this path. Decline it for a copolymer mixture so the flash routes to a
                 ' plain vapour-liquid calculation (which is what a copolymer devolatilization needs anyway).
-                Return Not MixtureHasCopolymer()
+                ' Also decline it for an associating polymer (PEG in water): its liquid-liquid search is both
+                ' very slow (the association site-fraction solve runs on every trial) and unreliable (the model
+                ' gives the wrong sign of the aqueous demixing), and its practical process is vapour-liquid.
+                Return Not (MixtureHasCopolymer() OrElse MixtureHasAssociatingPolymer())
+            End Get
+        End Property
+
+        ' Use the PC-SAFT-specific flash: it owns the polymer phase behaviour (a liquid-liquid cloud-point
+        ' split and a non-volatile vapour-liquid devolatilization flash) that the general flash cannot do.
+        ' Only the ordinary universal-flash case is replaced; single-component and Gibbs-minimization choices
+        ' and the forced-phase handling in the base property carry through untouched.
+        Public Overrides ReadOnly Property FlashBase As FlashAlgorithms.FlashAlgorithm
+            Get
+                Dim fb = MyBase.FlashBase
+                If fb IsNot Nothing AndAlso fb.GetType() Is GetType(FlashAlgorithms.UniversalFlash) Then
+                    Return New FlashAlgorithms.PCSAFTFlash() With {.FlashSettings = fb.FlashSettings}
+                End If
+                Return fb
             End Get
         End Property
 
@@ -810,6 +827,23 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
             Try
                 For Each c In Flowsheet.SelectedCompounds.Values
                     If IsCopolymer(c.CAS_Number) Then Return True
+                Next
+            Catch
+            End Try
+            Return False
+        End Function
+
+        Private Function MixtureHasAssociatingPolymer() As Boolean
+            Try
+                For Each c In CurrentMaterialStream.Phases(0).Compounds.Values
+                    Dim cas = c.ConstantProperties.CAS_Number
+                    If IsPolymer(cas) AndAlso IsAssociating(cas) Then Return True
+                Next
+            Catch
+            End Try
+            Try
+                For Each c In Flowsheet.SelectedCompounds.Values
+                    If IsPolymer(c.CAS_Number) AndAlso IsAssociating(c.CAS_Number) Then Return True
                 Next
             Catch
             End Try
