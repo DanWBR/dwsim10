@@ -1340,7 +1340,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
         End Function
 
-        Friend Function HelmholtzDisp(T, dens_num, mix)
+        Friend Function HelmholtzDisp(T As Double, dens_num As Double, mix As mixture)
 
             'Calculates the dispersion contribution to the residual Helmholtz energy 
             'of mixture mix at temperature T And pressure P using PC-SAFT EoS
@@ -1439,7 +1439,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
         End Function
 
-        Friend Function HelmholtzHC(T, dens_num, mix)
+        Friend Function HelmholtzHC(T As Double, dens_num As Double, mix As mixture)
 
             'Calculates the Hard Chain contribution to the residual Helmholtz energy 
             'of mixture mix at temperature T and pressure P using PC-SAFT EoS
@@ -1539,7 +1539,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
         End Function
 
-        Friend Function mu_Disp(T, dens_num, mix)
+        Friend Function mu_Disp(T As Double, dens_num As Double, mix As mixture)
 
             'Calculates the dispersion contribution to the residual chemical potential 
             'of mixture mix at temperature T and pressure P using PC-SAFT EoS
@@ -1731,7 +1731,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
         End Function
 
-        Friend Function mu_HC(T, dens_num, mix)
+        Friend Function mu_HC(T As Double, dens_num As Double, mix As mixture)
 
             'Calculates the hard chain contribution to the residual chemical potential 
             'of mixture mix at temperature T and pressure P using PC-SAFT EoS
@@ -1879,7 +1879,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
         End Function
 
-        Friend Function obj_SAFT(dens_red, T, P, mix)
+        Friend Function obj_SAFT(dens_red As Double, T As Double, P As Double, mix As mixture)
 
             'Objective function for the calculation of Z with PC-SAFT EoS
             'Auxiliary function, not to be used directly
@@ -1955,7 +1955,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
         End Function
 
-        Friend Function Z_disp(T, dens_num, mix)
+        Friend Function Z_disp(T As Double, dens_num As Double, mix As mixture)
 
             'Dispersive contribution to the compressibility coefficient with PC-SAFT EoS
             'Auxiliary function, Not to be used directly
@@ -2053,7 +2053,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
         End Function
 
-        Friend Function Z_hc(T, dens_num, mix)
+        Friend Function Z_hc(T As Double, dens_num As Double, mix As mixture)
 
             'Hard-chain contribution to the compressibility coefficient with PC-SAFT EoS
             'Auxiliary function, not to be used directly
@@ -2147,9 +2147,9 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
         End Function
 
-        Friend Function mu_Ass(T, dens_num, mix)
+        Friend Function mu_Ass(T As Double, dens_num As Double, mix As mixture) As Double()
 
-            'Calculates the association contribution to the residual chemical potential 
+            'Calculates the association contribution to the residual chemical potential
             'of mixture mix at temperature T And pressure P using SAFT EoS
             '
             'Parameters:
@@ -2350,7 +2350,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
         End Function
 
-        Friend Function obj_muAss(mix, Xa, ddeltaAB_droi, T, NumAss, sigma, d, ghs, dens_num)
+        Friend Function obj_muAss(mix As mixture, Xa As Double(), ddeltaAB_droi As Double(,,), T As Double, NumAss As Double(), sigma As Double(), d As Double(), ghs As Double(,), dens_num As Double) As Double()
 
             'Auxiliary function for the calculation of associaton chemical potential
             'with SAFT (calculates eq. A3 of reference)
@@ -2462,7 +2462,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
         End Function
 
-        Friend Function Z_ass(T, dens_num, mix)
+        Friend Function Z_ass(T As Double, dens_num As Double, mix As mixture) As Double
 
             'Associating contribution to the compressibility coefficient with SAFT EoS
             'Auxiliary function, Not to be used directly
@@ -2516,9 +2516,9 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
         End Function
 
-        Friend Function HelmholtzAss(T, dens_num, mix)
+        Friend Function HelmholtzAss(T As Double, dens_num As Double, mix As mixture) As Double
 
-            'Calculates the association contribution to the residual Helmholtz energy 
+            'Calculates the association contribution to the residual Helmholtz energy
             'of mixture mix at temperature T And pressure P using SAFT EoS
             '
             'Parameters:
@@ -2613,7 +2613,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
         End Function
 
-        Friend Function compr(T, P, mix, phase, Zestimate)
+        Friend Function compr(T As Double, P As Double, mix As mixture, phase As String, Zestimate As Double)
 
             'Calculates the compressibility coefficient of mixture mix at temperature T
             'And pressure P using SAFT EoS
@@ -2826,7 +2826,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
         End Function
 
-        Friend Function SolveXa(mix, T, NumAss, sigma, d, ghs, dens_num) As Double()
+        Friend Function SolveXa(mix As mixture, T As Double, NumAss As Double(), sigma As Double(), d As Double(), ghs As Double(,), dens_num As Double) As Double()
 
             'Solves the fraction of non-bonded association sites Xa by successive substitution of
             'Xa_a = 1 / (1 + sum_b rho x_b n_b Xa_b delta_ab), where n_b is the site multiplicity. The
