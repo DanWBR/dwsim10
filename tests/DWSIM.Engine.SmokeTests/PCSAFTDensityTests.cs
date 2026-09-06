@@ -583,6 +583,60 @@ namespace DWSIM.Engine.SmokeTests
         }
 
         /// <summary>
+        /// A polymer emitted as a real distribution - MANY molar-mass pseudo-component cuts that all share one
+        /// CAS - must still flash. Under vacuum the solvent/monomer vaporizes and every cut stays behind in the
+        /// liquid melt (they are all non-volatile). This is the downstream flash the polymerization reactor
+        /// hands its distribution to.
+        /// </summary>
+        [Test]
+        public void PolymerDistributionCutsDevolatilizeCleanly()
+        {
+            var basePS = new DWSIM.Thermodynamics.BaseClasses.ConstantProperties
+            {
+                Name = "Polystyrene", CAS_Number = "9003-53-6", Formula = "(C8H8)n", Molar_Weight = 50000.0,
+                Critical_Temperature = 1200.0, Critical_Pressure = 5.0e5, Acentric_Factor = 0.5,
+                Normal_Boiling_Point = 800.0, IsHYPO = 1, CurrentDB = "User", OriginalDB = "User"
+            };
+            double[] z = null;
+            var cuts = DWSIM.Thermodynamics.Polymers.PolymerCharacterization.BuildCuts(basePS, 50000.0, 2.0, 5, ref z);
+
+            var fs = new DWSIM.DynamicRunner.Flowsheet(null, null);
+            fs.Init();
+            fs.AddCompound("Ethylbenzene");
+            foreach (var c in cuts) fs.Options.SelectedComponents.Add(c.Name, c);
+            var pp = new DWSIM.Thermodynamics.AdvancedEOS.PCSAFT2PropertyPackage { Flowsheet = fs };
+            var obj = fs.AddObject(DWSIM.Interfaces.Enums.GraphicObjects.ObjectType.MaterialStream, 0, 0, "s");
+            var ms = (DWSIM.Thermodynamics.Streams.MaterialStream)fs.SimulationObjects[obj.Name];
+            ms.SetFlowsheet(fs); ms.PropertyPackage = pp; ms.AssignSelfToPP(); pp.CurrentMaterialStream = ms;
+
+            // ~25 wt% polymer split over the cuts by the distribution fractions z, rest ethylbenzene.
+            double polyMole = 7.0e-4;
+            var comp = new double[1 + cuts.Count];
+            comp[0] = 1.0 - polyMole;
+            for (int i = 0; i < cuts.Count; i++) comp[i + 1] = polyMole * z[i];
+            ms.SetMassFlow(1.0);
+            ms.SetOverallComposition(comp);
+            ms.SetTemperature(470.0); ms.SetPressure(15000.0); ms.SetFlashSpec("PT");
+            ms.Calculate();
+
+            double vf = ms.Phases[2].Properties.molarfraction.GetValueOrDefault();
+            double vapPolyMass = 0.0, liqPolyMass = 0.0;
+            foreach (var c in cuts)
+            {
+                vapPolyMass += ms.Phases[2].Compounds[c.Name].MassFraction.GetValueOrDefault();
+                liqPolyMass += ms.Phases[3].Compounds[c.Name].MassFraction.GetValueOrDefault();
+            }
+            TestContext.WriteLine($"cuts={cuts.Count} VF={vf:F4} vapourPolymerMass={vapPolyMass:E2} liquidPolymerMass={liqPolyMass:F3}");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(vf, Is.GreaterThan(0.5).And.LessThan(1.0), "the solvent devolatilizes, not to all-vapour");
+                Assert.That(vapPolyMass, Is.LessThan(1.0e-6), "no polymer cut appears in the vapour");
+                Assert.That(liqPolyMass, Is.GreaterThan(0.9), "every cut stays in the concentrated polymer melt");
+            });
+        }
+
+        /// <summary>
         /// Every polymer shipped as an addcomps JSON must deserialize the way DWSIM's user-compound loader
         /// does, match its pcsaft.dat CAS number, and run through a PC-SAFT flash in a solvent to give
         /// physical phase properties. This is the path a user takes: pick the polymer from the list, set Mn,
