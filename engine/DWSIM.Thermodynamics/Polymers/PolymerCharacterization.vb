@@ -192,6 +192,48 @@ Namespace Polymers
             Return BuildCuts(basePolymer, Mn, PDI, N, PolymerDistribution.SchulzZimm, z)
         End Function
 
+        ''' <summary>
+        ''' Samples the Schulz-Zimm (most-probable) weight distribution on a logarithmic molar-mass axis, the
+        ''' way a size-exclusion chromatogram shows it: the weight fraction per decade of molar mass against
+        ''' log10(M). The continuous shape is M^(k+1)*exp(-k*M/Mn) with k = 1/(PDI-1), which peaks at the
+        ''' weight-average molar mass Mw = Mn*PDI. The returned weights are normalized so the peak is one (a
+        ''' display shape, not an absolute density). This reconstructs a reactor result's molecular-weight
+        ''' distribution from its Mn and PDI for plotting.
+        ''' </summary>
+        ''' <param name="Mn">Number-average molar mass.</param>
+        ''' <param name="PDI">Polydispersity index Mw/Mn (greater than one).</param>
+        ''' <param name="N">Number of sample points along the axis.</param>
+        ''' <param name="logM">Output: the log10(M) sample positions.</param>
+        ''' <param name="w">Output: the weight-per-decade at each point, peak-normalized to one.</param>
+        Public Shared Sub SchulzZimmWeightDistribution(ByVal Mn As Double, ByVal PDI As Double, ByVal N As Integer,
+                                                       ByRef logM As Double(), ByRef w As Double())
+
+            If N < 2 Then N = 2
+            Dim k As Double = If(PDI > 1.0000001, 1.0 / (PDI - 1.0), 1000.0)
+            Dim center As Double = Math.Log10(Math.Max(Mn, 1.0))
+            Dim lo As Double = center - 2.5
+            Dim hi As Double = center + 2.0
+
+            ReDim logM(N - 1)
+            Dim y(N - 1) As Double
+            Dim ymax As Double = Double.MinValue
+            For i As Integer = 0 To N - 1
+                Dim lm As Double = lo + (hi - lo) * i / (N - 1)
+                Dim M As Double = 10.0 ^ lm
+                ' log of the log-axis weight density M^(k+1)*exp(-k*M/Mn), kept in log space for stability
+                Dim ly As Double = (k + 1.0) * Math.Log(M) - k * M / Mn
+                logM(i) = lm
+                y(i) = ly
+                If ly > ymax Then ymax = ly
+            Next
+
+            ReDim w(N - 1)
+            For i As Integer = 0 To N - 1
+                w(i) = Math.Exp(y(i) - ymax)
+            Next
+
+        End Sub
+
     End Class
 
 End Namespace

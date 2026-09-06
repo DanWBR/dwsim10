@@ -154,6 +154,22 @@ namespace DWSIM.Engine.SmokeTests
         }
 
         [Test]
+        public void WeightDistributionPeaksAtMw()
+        {
+            // The reconstructed Schulz-Zimm weight distribution (for the MWD plot) must peak at Mw = Mn*PDI.
+            double Mn = 100000.0, PDI = 1.5;
+            double[] logM = null, w = null;
+            PolymerCharacterization.SchulzZimmWeightDistribution(Mn, PDI, 400, ref logM, ref w);
+            int imax = 0;
+            for (int i = 1; i < w.Length; i++) if (w[i] > w[imax]) imax = i;
+            double Mpeak = System.Math.Pow(10.0, logM[imax]);
+            double Mw = Mn * PDI;
+            TestContext.WriteLine($"Mw={Mw:F0} peak M={Mpeak:F0} peak w={w[imax]:F4}");
+            Assert.That(Mpeak, Is.EqualTo(Mw).Within(Mw * 0.15), "the weight distribution peaks at Mw");
+            Assert.That(w[imax], Is.EqualTo(1.0).Within(1e-9), "the distribution is peak-normalized to one");
+        }
+
+        [Test]
         public void NoInitiatorGivesNoReaction()
         {
             var r = FreeRadicalCSTR.Solve(FreeRadicalKinetics.StyreneAIBN(), T: 333.15, ResidenceTime: 3600.0,
