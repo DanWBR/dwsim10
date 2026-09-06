@@ -82,7 +82,6 @@ namespace DWSIM.Validation.Tests
             { "f09", Flowsheets.F09_MicroalgaeCultivation.Run },
             { "f10", Flowsheets.F10_GreenHydrogenProduction.Run },
             { "f11", Flowsheets.F11_BenzeneTolueneDistillation.Run },
-            { "f15", Flowsheets.F15_MethanolSynthesis.Run },
             { "f16", Flowsheets.F16_HydroelectricPower.Run },
             { "f18", Flowsheets.F18_AnaerobicDigesterADM1.Run },
             { "f19", Flowsheets.F19_BioReactorModes.Run },

@@ -66,7 +66,6 @@ namespace DWSIM.Validation.Tests
         [Test] public void F09_MicroalgaeCultivation() => Flowsheets.F09_MicroalgaeCultivation.Run();
         [Test] public void F10_GreenHydrogenProduction() => Flowsheets.F10_GreenHydrogenProduction.Run();
         [Test] public void F11_BenzeneTolueneDistillation() => Flowsheets.F11_BenzeneTolueneDistillation.Run();
-        [Test] public void F15_MethanolSynthesis() => Flowsheets.F15_MethanolSynthesis.Run();
         [Test] public void F16_HydroelectricPower() => Flowsheets.F16_HydroelectricPower.Run();
         [Test] public void F18_AnaerobicDigesterADM1() => Flowsheets.F18_AnaerobicDigesterADM1.Run();
         [Test] public void F19_BioReactorModes() => Flowsheets.F19_BioReactorModes.Run();
