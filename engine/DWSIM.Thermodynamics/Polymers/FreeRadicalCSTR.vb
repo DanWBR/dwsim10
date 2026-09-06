@@ -174,6 +174,38 @@ Namespace Polymers
 
         End Function
 
+        ''' <summary>
+        ''' Couples a reactor result to the thermodynamics: expands the polymer into <paramref name="N"/>
+        ''' pseudo-component cuts at the result's Mn and PDI (through PolymerCharacterization.BuildCuts) and
+        ''' returns the outlet mole fractions in the order [monomer, cut_1 .. cut_N] - unreacted monomer plus
+        ''' the polymer distribution. The polymer is a trace by mole (a few long chains) yet carries the bulk
+        ''' of the reacted mass. Solvent and initiator, negligible in a bulk low-initiator outlet, are the
+        ''' caller's to append. The cuts share the base polymer's CAS, so the equation of state reuses its
+        ''' segment parameters at each cut's own molar mass; the base polymer's User database flags carry
+        ''' through the clone. This is the hand-off the polymerization unit operation makes to a material stream.
+        ''' </summary>
+        Public Shared Function ExpandOutlet(result As FreeRadicalCSTRResult,
+                                            basePolymer As BaseClasses.ConstantProperties,
+                                            N As Integer, distribution As PolymerDistribution,
+                                            ByRef cuts As List(Of BaseClasses.ConstantProperties)) As Double()
+
+            Dim zrel As Double() = Nothing
+            cuts = PolymerCharacterization.BuildCuts(basePolymer, result.Mn, result.PDI, N, distribution, zrel)
+
+            Dim monomer = Math.Max(result.MonomerConc, 0.0)
+            Dim chains = Math.Max(result.Lambda0, 0.0)
+            Dim total = monomer + chains
+
+            Dim x(cuts.Count) As Double
+            If total <= 0.0 Then Return x
+            x(0) = monomer / total
+            For k As Integer = 0 To cuts.Count - 1
+                x(k + 1) = chains * zrel(k) / total
+            Next
+            Return x
+
+        End Function
+
     End Class
 
 End Namespace
