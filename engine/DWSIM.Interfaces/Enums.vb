@@ -782,6 +782,8 @@ Namespace Enums.GraphicObjects
 
         OT_InformationCarrier
 
+        RCT_Polymerization
+
     End Enum
 
     Public Enum ShapeIcon

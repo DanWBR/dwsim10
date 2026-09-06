@@ -1254,6 +1254,10 @@ Imports DWSIM.ExtensionMethods
 
                 Return AddObject(ObjectType.RCT_CSTR, 50, 50, objname)
 
+            Case "Polymerization Reactor"
+
+                Return AddObject(ObjectType.RCT_Polymerization, 50, 50, objname)
+
             Case "Heat Exchanger"
 
                 Return AddObject(ObjectType.HeatExchanger, 50, 50, objname)
@@ -1912,6 +1916,22 @@ Imports DWSIM.ExtensionMethods
                 myCORCSTR.GraphicObject = myRcstr
                 SimulationObjects.Add(myRcstr.Name, myCORCSTR)
 
+            Case ObjectType.RCT_Polymerization
+
+                Dim myRpoly As New PolymerizationGraphic(mpx, mpy, 50, 50)
+                myRpoly.LineWidth = 2
+                myRpoly.Fill = True
+                myRpoly.Tag = "POLY-" + objindex
+                If tag <> "" Then myRpoly.Tag = tag
+                gObj = myRpoly
+                CheckTag(gObj)
+                gObj.Name = "POLY-" & Guid.NewGuid.ToString
+                If id <> "" Then gObj.Name = id
+                GraphicObjects.Add(gObj.Name, myRpoly)
+                Dim myCORPOLY As Reactor_Polymerization = New Reactor_Polymerization(myRpoly.Name, "Polymerization Reactor")
+                myCORPOLY.GraphicObject = myRpoly
+                SimulationObjects.Add(myRpoly.Name, myCORPOLY)
+
             Case ObjectType.RCT_PFR
 
                 Dim myRpfr As New PFRGraphic(mpx, mpy, 70, 20)
@@ -2532,7 +2552,7 @@ Imports DWSIM.ExtensionMethods
                     Dim e1 = AddObjectToSurface(ObjectType.EnergyStream, x + w + 60, y + h + 60, ,,, False)
                     Try : ConnectObjects(gobj, SimulationObjects(e1).GraphicObject, 2, 0) : Catch : DeleteObject(e1, False) : End Try
                 End If
-            Case ObjectType.RCT_CSTR, ObjectType.RCT_PFR
+            Case ObjectType.RCT_CSTR, ObjectType.RCT_PFR, ObjectType.RCT_Polymerization
                 If scheme = 2 And mstrs.Count > 0 Then
                     If mstrsI.Count > 0 Then Try : ConnectObjects(mstrsI(0), gobj, 0, 0) : Catch : End Try
                     If mstrsO.Count > 0 Then Try : ConnectObjects(gobj, mstrsO(0), 0, 0) : Catch : End Try

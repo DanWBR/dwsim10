@@ -853,6 +853,8 @@ Public Module General
                 Return "Conversion Reactors"
             Case GraphicObjects.ObjectType.RCT_CSTR
                 Return "CSTRs"
+            Case GraphicObjects.ObjectType.RCT_Polymerization
+                Return "Polymerization Reactors"
             Case GraphicObjects.ObjectType.RCT_Equilibrium
                 Return "Equilibrium Reactors"
             Case GraphicObjects.ObjectType.RCT_Gibbs
