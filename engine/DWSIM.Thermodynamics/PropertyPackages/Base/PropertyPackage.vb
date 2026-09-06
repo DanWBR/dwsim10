@@ -4311,7 +4311,12 @@ redirect2:                  IObj?.SetCurrent()
                     If i < 2 Then
 
                         If options.BubbleCurveInitialFlash = "TVF" Then
-                            tmp2 = Me.FlashBase.Flash_TV(Vz, T, 0, options.BubbleCurveInitialPressure, Me)
+                            ' Seed the bubble pressure from the vapour pressures (Pref = 0) rather than the
+                            ' fixed initial pressure: at the cryogenic start temperature the bubble pressure is
+                            ' orders of magnitude below one atmosphere, and anchoring the solver to 1 atm sends
+                            ' it past the point where the equation of state has any root (B overflow). The dew
+                            ' curve already seeds itself this way.
+                            tmp2 = Me.FlashBase.Flash_TV(Vz, T, 0, 0, Me)
                             TVB.Add(T)
                             PB.Add(tmp2(4))
                             P = PB(PB.Count - 1)
@@ -4681,6 +4686,15 @@ redirect2:                  IObj?.SetCurrent()
                                     tmp2 = Me.FlashBase.Flash_TV(Vz, T, 1, Pguess, Me)
                                 End If
                                 Dim Presult = CDbl(tmp2(4))
+                                ' A non-finite pressure (the flash failed to a NaN rather than throwing) passes
+                                ' every comparison guard below silently, so it would be appended and poison the
+                                ' whole curve. Treat it like a rejected point: halve the step and retry.
+                                If Double.IsNaN(Presult) OrElse Double.IsInfinity(Presult) Then
+                                    consecutiveFailures += 1
+                                    If consecutiveFailures >= 10 Then Exit Do
+                                    T = (T + TVD(TVD.Count - 1)) / 2.0
+                                    Continue Do
+                                End If
                                 ' near the critical/retrograde region a barycentric guess can blow up and the
                                 ' flash converges to a spurious far-off root that the guess-vs-result deviation
                                 ' check below cannot catch (guess and result agree). A real dew line steps
@@ -4746,6 +4760,15 @@ redirect2:                  IObj?.SetCurrent()
                                     tmp2 = Me.FlashBase.Flash_PV(Vz, P, 1, Tguess, Me)
                                 End If
                                 Dim Tresult = CDbl(tmp2(4))
+                                ' A non-finite temperature (the flash failed to a NaN rather than throwing)
+                                ' passes every comparison guard below silently, so it would be appended and
+                                ' poison the whole curve. Treat it like a rejected point: halve the step and retry.
+                                If Double.IsNaN(Tresult) OrElse Double.IsInfinity(Tresult) Then
+                                    consecutiveFailures += 1
+                                    If consecutiveFailures >= 10 Then Exit Do
+                                    P = (P + PO(PO.Count - 1)) / 2.0
+                                    Continue Do
+                                End If
                                 ' near the critical/retrograde region a barycentric guess can blow up and the
                                 ' flash converges to a spurious far-off root (hundreds of K away) that the
                                 ' guess-vs-result deviation check below cannot catch (guess and result agree).
