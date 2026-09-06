@@ -81,5 +81,7 @@ namespace DWSIM.FluentAPI.Tests
         [Test] public void TheBiogasToGridSampleSolvesAndSaves() => BiogasToGridSample.Run();
 
         [Test] public void ThePolymerDevolatilizationSampleSolvesAndSaves() => PolymerDevolatilizationSample.Run();
+
+        [Test] public void ThePolymerCloudPointSampleSolvesAndSaves() => PolymerCloudPointSample.Run();
     }
 }

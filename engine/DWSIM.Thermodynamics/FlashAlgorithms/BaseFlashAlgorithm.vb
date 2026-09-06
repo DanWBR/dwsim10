@@ -1576,6 +1576,20 @@ will converge to this solution.")
                 End If
             End If
 
+            If Not hres.LiquidPhaseSplit AndAlso pp.UsesGibbsMinimizationForLLE Then
+                'An equation-of-state package that does polymer liquid-liquid equilibrium (PC-SAFT): a polymer
+                'pseudo-compound dissolved in a solvent can demix into a polymer-rich and a solvent-rich liquid
+                '(cloud point). The name-based heuristics above never match a polymer, so route it to the
+                'liquid-split flash explicitly. That flash self-seeds from the spinodal and falls back to a
+                'plain vapour-liquid flash when there is no split, so a non-demixing mixture is unaffected.
+                For Each poly In props.Where(Function(x) x.IsHYPO)
+                    If Vz(props.IndexOf(poly)) > 0.000001 And Vz(props.IndexOf(poly)) < 1.0 Then
+                        hres.LiquidPhaseSplit = True
+                        Exit For
+                    End If
+                Next
+            End If
+
             Dim FlashType As String = FlashSettings(ForceEquilibriumCalculationType)
             Dim HandleSolids As Boolean = FlashSettings(HandleSolidsInDefaultEqCalcMode)
 
