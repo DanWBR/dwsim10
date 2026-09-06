@@ -97,7 +97,8 @@ Namespace Polymers
         ''' </summary>
         Public Shared Function Solve(kin As FreeRadicalKinetics, T As Double, ResidenceTime As Double,
                                      MonomerFeed As Double, InitiatorFeed As Double,
-                                     Optional SolventConc As Double = 0.0) As FreeRadicalCSTRResult
+                                     Optional SolventConc As Double = 0.0,
+                                     Optional gel As GelEffect = Nothing) As FreeRadicalCSTRResult
 
             Dim res As New FreeRadicalCSTRResult()
 
@@ -117,9 +118,29 @@ Namespace Polymers
             Dim I = InitiatorFeed / (1.0 + kd * theta)
             res.InitiatorConc = I
 
+            ' Gel (Trommsdorff) and glass effects: the termination (and optionally propagation) rate constants
+            ' fall as conversion builds and the medium thickens. The factors depend on conversion, which depends
+            ' on them, so a small fixed-point loop resolves them; with no gel model both factors are 1 and the
+            ' balances stay exactly the closed-form path below.
+            Dim gt As Double = 1.0, gp As Double = 1.0
+            If gel IsNot Nothing AndAlso gel.IsActive AndAlso kt > 0.0 AndAlso I > 0.0 AndAlso kd > 0.0 Then
+                Dim Xg As Double = 0.0
+                For outer As Integer = 1 To 100
+                    gt = gel.TerminationFactor(Xg)
+                    gp = gel.PropagationFactor(Xg)
+                    Dim mu0g = Math.Sqrt(f * kd * I / (kt * gt))
+                    Dim Mg = MonomerFeed / (1.0 + theta * (kp * gp + ktrM) * mu0g)
+                    Dim Xn = 1.0 - Mg / MonomerFeed
+                    If Math.Abs(Xn - Xg) < 1.0E-11 Then Xg = Xn : Exit For
+                    Xg = 0.5 * Xn + 0.5 * Xg
+                Next
+            End If
+            Dim kt_e = kt * gt, kp_e = kp * gp
+            Dim ktc_e = ktc * gt, ktd_e = ktd * gt
+
             ' Quasi-steady state on the total radical concentration.
             Dim mu0 As Double = 0.0
-            If kt > 0.0 AndAlso I > 0.0 AndAlso kd > 0.0 Then mu0 = Math.Sqrt(f * kd * I / kt)
+            If kt_e > 0.0 AndAlso I > 0.0 AndAlso kd > 0.0 Then mu0 = Math.Sqrt(f * kd * I / kt_e)
             res.RadicalConc = mu0
 
             If mu0 <= 0.0 Then
@@ -132,29 +153,29 @@ Namespace Polymers
             End If
 
             ' Monomer is consumed by propagation and transfer to monomer, both first order in [M].
-            Dim M = MonomerFeed / (1.0 + theta * (kp + ktrM) * mu0)
+            Dim M = MonomerFeed / (1.0 + theta * (kp_e + ktrM) * mu0)
             res.MonomerConc = M
             res.Conversion = 1.0 - M / MonomerFeed
-            res.Rp = kp * mu0 * M
+            res.Rp = kp_e * mu0 * M
 
             ' Propagation probability and the live-radical moments (most-probable closure).
-            Dim stopRate = kt * mu0 + ktrM * M + ktrS * S
+            Dim stopRate = kt_e * mu0 + ktrM * M + ktrS * S
             If stopRate <= 0.0 Then
                 res.Converged = False
                 Return res
             End If
-            Dim alpha = kp * M / (kp * M + stopRate)
+            Dim alpha = kp_e * M / (kp_e * M + stopRate)
             Dim oneMinusAlpha = 1.0 - alpha
-            res.KineticChainLength = kp * M / stopRate
+            res.KineticChainLength = kp_e * M / stopRate
 
             Dim mu1 = mu0 / oneMinusAlpha
             Dim mu2 = mu0 * (1.0 + alpha) / (oneMinusAlpha * oneMinusAlpha)
 
             ' Dead-chain moment generation; combination convolves two live chains (the mu1^2 term).
             Dim transfer = ktrM * M + ktrS * S
-            Dim G0 = transfer * mu0 + (ktd + 0.5 * ktc) * mu0 * mu0
-            Dim G1 = transfer * mu1 + kt * mu0 * mu1
-            Dim G2 = transfer * mu2 + kt * mu0 * mu2 + ktc * mu1 * mu1
+            Dim G0 = transfer * mu0 + (ktd_e + 0.5 * ktc_e) * mu0 * mu0
+            Dim G1 = transfer * mu1 + kt_e * mu0 * mu1
+            Dim G2 = transfer * mu2 + kt_e * mu0 * mu2 + ktc_e * mu1 * mu1
 
             ' In a CSTR the dead chains are only generated and swept out, so each moment is explicit.
             res.Lambda0 = theta * G0

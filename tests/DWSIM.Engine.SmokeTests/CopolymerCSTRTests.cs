@@ -63,6 +63,28 @@ namespace DWSIM.Engine.SmokeTests
         }
 
         [Test]
+        public void GelEffectAcceleratesTheCopolymerization()
+        {
+            // The gel effect drives auto-acceleration in the copolymer too: an inactive model reproduces the
+            // baseline, and diffusion-limited termination raises both conversion and molar mass.
+            var k = CopolymerKinetics.StyreneMMA();
+            var baseline = CopolymerCSTR.Solve(k, 333.15, 7200.0, 4.0, 4.0, 0.05);
+            var none = CopolymerCSTR.Solve(k, 333.15, 7200.0, 4.0, 4.0, 0.05, new GelEffect());
+            var gelled = CopolymerCSTR.Solve(k, 333.15, 7200.0, 4.0, 4.0, 0.05,
+                                             new GelEffect { ModelType = GelModelType.Exponential, GtC1 = 2.0, GtC2 = 4.0 });
+            TestContext.WriteLine($"copo no gel: X={baseline.OverallConversion:F4} Mn={baseline.Mn:F0}");
+            TestContext.WriteLine($"copo gel:    X={gelled.OverallConversion:F4} Mn={gelled.Mn:F0} F_A={gelled.CopolymerCompositionA:F4}");
+            Assert.Multiple(() =>
+            {
+                Assert.That(none.OverallConversion, Is.EqualTo(baseline.OverallConversion).Within(1e-12), "inactive gel = baseline");
+                Assert.That(none.Mn, Is.EqualTo(baseline.Mn).Within(1e-6), "inactive gel = baseline");
+                Assert.That(gelled.Converged, Is.True);
+                Assert.That(gelled.OverallConversion, Is.GreaterThan(baseline.OverallConversion), "the gel effect auto-accelerates");
+                Assert.That(gelled.Mn, Is.GreaterThan(baseline.Mn), "slower termination lengthens the chains");
+            });
+        }
+
+        [Test]
         public void StyreneMMABenchmarkIsPhysical()
         {
             var k = CopolymerKinetics.StyreneMMA();

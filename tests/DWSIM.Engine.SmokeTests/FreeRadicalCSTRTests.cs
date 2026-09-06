@@ -177,5 +177,51 @@ namespace DWSIM.Engine.SmokeTests
             Assert.That(r.Converged, Is.True);
             Assert.That(r.Conversion, Is.EqualTo(0.0).Within(1e-12), "no initiator means no polymerization");
         }
+
+        // A gel model whose termination factor drops with conversion (Trommsdorff auto-acceleration).
+        private static GelEffect StrongGel()
+        {
+            return new GelEffect { ModelType = GelModelType.Exponential, GtC1 = 2.0, GtC2 = 4.0 };
+        }
+
+        [Test]
+        public void GelFactorIsOneAtZeroAndDecreasing()
+        {
+            var g = StrongGel();
+            Assert.That(g.TerminationFactor(0.0), Is.EqualTo(1.0).Within(1e-12), "no reduction at zero conversion");
+            Assert.That(g.TerminationFactor(0.5), Is.LessThan(g.TerminationFactor(0.2)), "the factor falls with conversion");
+            Assert.That(g.TerminationFactor(0.4),
+                        Is.EqualTo(System.Math.Exp(-(2.0 * 0.4 + 4.0 * 0.16))).Within(1e-12), "matches the exponential form");
+            Assert.That(new GelEffect().TerminationFactor(0.9), Is.EqualTo(1.0), "the default model applies no gel effect");
+        }
+
+        [Test]
+        public void GelEffectWithModelNoneReproducesTheBaseline()
+        {
+            // Passing an inactive gel model must give exactly the no-gel result (backward compatible default).
+            var kin = FreeRadicalKinetics.StyreneAIBN();
+            var baseline = FreeRadicalCSTR.Solve(kin, 333.15, 7200.0, 8.7, 0.05);
+            var withNone = FreeRadicalCSTR.Solve(kin, 333.15, 7200.0, 8.7, 0.05, 0.0, new GelEffect());
+            Assert.That(withNone.Conversion, Is.EqualTo(baseline.Conversion).Within(1e-12));
+            Assert.That(withNone.Mn, Is.EqualTo(baseline.Mn).Within(1e-6));
+        }
+
+        [Test]
+        public void GelEffectAcceleratesAndRaisesMolarMass()
+        {
+            // With diffusion-limited termination the radical population survives longer, so conversion and the
+            // molar mass both rise relative to the constant-kt baseline (the auto-acceleration signature).
+            var kin = FreeRadicalKinetics.StyreneAIBN();
+            var baseline = FreeRadicalCSTR.Solve(kin, 333.15, 7200.0, 8.7, 0.05);
+            var gelled = FreeRadicalCSTR.Solve(kin, 333.15, 7200.0, 8.7, 0.05, 0.0, StrongGel());
+            TestContext.WriteLine($"no gel:  X={baseline.Conversion:F4} Mn={baseline.Mn:F0}");
+            TestContext.WriteLine($"gel:     X={gelled.Conversion:F4} Mn={gelled.Mn:F0}");
+            Assert.Multiple(() =>
+            {
+                Assert.That(gelled.Converged, Is.True);
+                Assert.That(gelled.Conversion, Is.GreaterThan(baseline.Conversion), "the gel effect auto-accelerates conversion");
+                Assert.That(gelled.Mn, Is.GreaterThan(baseline.Mn), "slower termination lengthens the chains");
+            });
+        }
     }
 }

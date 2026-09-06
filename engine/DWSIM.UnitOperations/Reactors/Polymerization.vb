@@ -98,6 +98,18 @@ Namespace Reactors
         ''' <summary>Molar mass of the second monomer (g/mol).</summary>
         Public Property MonomerBMolarMass As Double = 100.12
 
+        ' --- gel (Trommsdorff) / glass effect: diffusion-limited rate constants at high conversion ---
+        ''' <summary>Gel / glass effect model applied to termination and propagation (None = off).</summary>
+        Public Property GelModel As GelModelType = GelModelType.None
+        ''' <summary>Termination gel factor coefficients, g_t = exp(-(c1*X + c2*X^2 + c3*X^3)).</summary>
+        Public Property GelGtC1 As Double = 0.0
+        Public Property GelGtC2 As Double = 0.0
+        Public Property GelGtC3 As Double = 0.0
+        ''' <summary>Propagation glass factor coefficients, g_p = exp(-(c1*X + c2*X^2 + c3*X^3)).</summary>
+        Public Property GelGpC1 As Double = 0.0
+        Public Property GelGpC2 As Double = 0.0
+        Public Property GelGpC3 As Double = 0.0
+
         ' --- molecular-weight distribution emission ---
         ''' <summary>When true, the polymer leaves the reactor as a set of molar-mass pseudo-component cuts
         ''' (a real distribution) rather than a single lumped polymer compound. The cut compounds must first be
@@ -172,6 +184,13 @@ Namespace Reactors
             Return Not String.IsNullOrEmpty(MonomerBID)
         End Function
 
+        Private Function BuildGelEffect() As GelEffect
+            Return New GelEffect With {
+                .ModelType = GelModel,
+                .GtC1 = GelGtC1, .GtC2 = GelGtC2, .GtC3 = GelGtC3,
+                .GpC1 = GelGpC1, .GpC2 = GelGpC2, .GpC3 = GelGpC3}
+        End Function
+
         Private Function BuildCopolymerKinetics() As CopolymerKinetics
             Return New CopolymerKinetics With {
                 .Ad = Kd_A, .Ed = Kd_E, .Efficiency = Efficiency,
@@ -207,7 +226,7 @@ Namespace Reactors
                                          Cini As Double, Csol As Double) As KineticsSolution
             Dim s As New KineticsSolution
             If IsCopolymer() Then
-                Dim r = CopolymerCSTR.Solve(BuildCopolymerKinetics(), Tr, theta, Cmon, CmonB, Cini)
+                Dim r = CopolymerCSTR.Solve(BuildCopolymerKinetics(), Tr, theta, Cmon, CmonB, Cini, BuildGelEffect())
                 s.Converged = r.Converged
                 s.Conversion = r.OverallConversion
                 s.Mn = r.Mn : s.Mw = r.Mw : s.PDI = r.PDI : s.Rp = r.Rp
@@ -215,7 +234,7 @@ Namespace Reactors
                 s.ConvA = r.ConversionA : s.ConvB = r.ConversionB
                 s.IniRatio = If(Cini > 0.0, r.InitiatorConc / Cini, 1.0)
             Else
-                Dim r = FreeRadicalCSTR.Solve(BuildKinetics(), Tr, theta, Cmon, Cini, Csol)
+                Dim r = FreeRadicalCSTR.Solve(BuildKinetics(), Tr, theta, Cmon, Cini, Csol, BuildGelEffect())
                 s.Converged = r.Converged
                 s.Conversion = r.Conversion
                 s.Mn = r.Mn : s.Mw = r.Mw : s.PDI = r.PDI : s.Rp = r.Rp

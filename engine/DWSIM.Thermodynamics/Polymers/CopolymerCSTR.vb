@@ -89,54 +89,77 @@ Namespace Polymers
     Public Class CopolymerCSTR
 
         Public Shared Function Solve(kin As CopolymerKinetics, T As Double, ResidenceTime As Double,
-                                     MonomerAFeed As Double, MonomerBFeed As Double, InitiatorFeed As Double) As CopolymerCSTRResult
+                                     MonomerAFeed As Double, MonomerBFeed As Double, InitiatorFeed As Double,
+                                     Optional gel As GelEffect = Nothing) As CopolymerCSTRResult
 
             Dim res As New CopolymerCSTRResult()
             Dim theta = ResidenceTime
 
             Dim kd = CopolymerKinetics.Arrhenius(kin.Ad, kin.Ed, T)
-            Dim kpAA = CopolymerKinetics.Arrhenius(kin.ApAA, kin.EpAA, T)
-            Dim kpBB = CopolymerKinetics.Arrhenius(kin.ApBB, kin.EpBB, T)
-            Dim ktc = CopolymerKinetics.Arrhenius(kin.Atc, kin.Etc, T)
-            Dim ktd = CopolymerKinetics.Arrhenius(kin.Atd, kin.Etd, T)
-            Dim kt = ktc + ktd
+            Dim kpAA0 = CopolymerKinetics.Arrhenius(kin.ApAA, kin.EpAA, T)
+            Dim kpBB0 = CopolymerKinetics.Arrhenius(kin.ApBB, kin.EpBB, T)
+            Dim ktc0 = CopolymerKinetics.Arrhenius(kin.Atc, kin.Etc, T)
+            Dim ktd0 = CopolymerKinetics.Arrhenius(kin.Atd, kin.Etd, T)
+            Dim kt0 = ktc0 + ktd0
             Dim f = kin.Efficiency
             Dim rA = kin.ReactivityA, rB = kin.ReactivityB
-            Dim kpAB = If(rA > 0.0, kpAA / rA, kpAA * 1.0E+6) ' cross constants from the reactivity ratios
-            Dim kpBA = If(rB > 0.0, kpBB / rB, kpBB * 1.0E+6)
 
-            ' Initiator (first-order) and the quasi-steady-state total radical concentration.
+            ' Initiator (first-order); the total radical concentration follows once the effective kt is known.
             Dim I = InitiatorFeed / (1.0 + kd * theta)
             res.InitiatorConc = I
-            Dim mu0 As Double = 0.0
-            If kt > 0.0 AndAlso I > 0.0 AndAlso kd > 0.0 Then mu0 = Math.Sqrt(f * kd * I / kt)
-            res.RadicalConc = mu0
             res.MonomerAConc = MonomerAFeed
             res.MonomerBConc = MonomerBFeed
 
-            If mu0 <= 0.0 Then
+            If kt0 <= 0.0 OrElse I <= 0.0 OrElse kd <= 0.0 Then
                 res.Converged = True
                 res.PDI = 1.0
                 Return res
             End If
 
-            ' Couple the two monomer balances through the radical composition (successive substitution).
+            ' Gel (Trommsdorff) and glass factors scale termination and propagation as conversion builds; the
+            ' reactivity ratios are preserved (the glass factor scales every propagation equally). They depend on
+            ' the conversion, which depends on them, so an outer fixed point resolves them around the coupled
+            ' monomer balances; with no gel model both factors are 1 and the outer loop runs exactly once.
+            Dim gelActive = (gel IsNot Nothing AndAlso gel.IsActive)
+            Dim gt As Double = 1.0, gp As Double = 1.0
+            Dim kpAA = kpAA0, kpBB = kpBB0, kpAB As Double = 0.0, kpBA As Double = 0.0
+            Dim ktc = ktc0, ktd = ktd0, kt = kt0
+            Dim mu0 As Double = 0.0
             Dim A = MonomerAFeed, B = MonomerBFeed
-            Dim phiA As Double = 0.5, cA As Double, cB As Double
-            Dim it As Integer
-            For it = 1 To 200
-                Dim denom = kpBA * A + kpAB * B
-                phiA = If(denom > 0.0, kpBA * A / denom, 0.5)           ' fraction of A-ended radicals
-                Dim phiB = 1.0 - phiA
-                cA = mu0 * (kpAA * phiA + kpBA * phiB)                  ' pseudo first-order consumption of A
-                cB = mu0 * (kpBB * phiB + kpAB * phiA)
-                Dim Anew = MonomerAFeed / (1.0 + theta * cA)
-                Dim Bnew = MonomerBFeed / (1.0 + theta * cB)
-                Dim change = Math.Abs(Anew - A) + Math.Abs(Bnew - B)
-                A = 0.5 * Anew + 0.5 * A
-                B = 0.5 * Bnew + 0.5 * B
-                If change < 1.0E-12 * (MonomerAFeed + MonomerBFeed + 1.0E-30) Then Exit For
+            Dim phiA As Double = 0.5, cA As Double = 0.0, cB As Double = 0.0
+            Dim it As Integer = 0
+
+            For outer As Integer = 1 To If(gelActive, 100, 1)
+                kpAA = kpAA0 * gp : kpBB = kpBB0 * gp
+                kpAB = If(rA > 0.0, kpAA / rA, kpAA * 1.0E+6)           ' cross constants from the reactivity ratios
+                kpBA = If(rB > 0.0, kpBB / rB, kpBB * 1.0E+6)
+                ktc = ktc0 * gt : ktd = ktd0 * gt : kt = ktc + ktd
+                mu0 = Math.Sqrt(f * kd * I / kt)
+
+                ' Couple the two monomer balances through the radical composition (successive substitution).
+                A = MonomerAFeed : B = MonomerBFeed
+                For it = 1 To 200
+                    Dim denom = kpBA * A + kpAB * B
+                    phiA = If(denom > 0.0, kpBA * A / denom, 0.5)       ' fraction of A-ended radicals
+                    Dim phiB = 1.0 - phiA
+                    cA = mu0 * (kpAA * phiA + kpBA * phiB)              ' pseudo first-order consumption of A
+                    cB = mu0 * (kpBB * phiB + kpAB * phiA)
+                    Dim Anew = MonomerAFeed / (1.0 + theta * cA)
+                    Dim Bnew = MonomerBFeed / (1.0 + theta * cB)
+                    Dim change = Math.Abs(Anew - A) + Math.Abs(Bnew - B)
+                    A = 0.5 * Anew + 0.5 * A
+                    B = 0.5 * Bnew + 0.5 * B
+                    If change < 1.0E-12 * (MonomerAFeed + MonomerBFeed + 1.0E-30) Then Exit For
+                Next
+
+                If Not gelActive Then Exit For
+                Dim Xo = ((MonomerAFeed - A) + (MonomerBFeed - B)) / (MonomerAFeed + MonomerBFeed)
+                Dim gtn = gel.TerminationFactor(Xo), gpn = gel.PropagationFactor(Xo)
+                Dim conv = (Math.Abs(gtn - gt) + Math.Abs(gpn - gp)) < 1.0E-10
+                gt = gtn : gp = gpn
+                If conv Then Exit For
             Next
+            res.RadicalConc = mu0
             res.Iterations = it
 
             ' Recompute the rates at the converged composition.
