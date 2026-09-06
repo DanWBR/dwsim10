@@ -58,6 +58,9 @@ Namespace Reactors
         ''' <summary>Isothermal operating temperature (K); when zero the feed temperature is used.</summary>
         Public Property IsothermalTemperature As Double = 0.0
 
+        ''' <summary>Heat of polymerization per mole of monomer added to a chain (J/mol, negative = exothermic).</summary>
+        Public Property HeatOfPolymerization As Double = -70000.0
+
         ' --- Arrhenius kinetics (k = A*exp(-E/RT); A in 1/s or L/mol/s, E in J/mol), styrene/AIBN defaults ---
         Public Property Kd_A As Double = 1.58E+15
         Public Property Kd_E As Double = 128000.0
@@ -90,6 +93,7 @@ Namespace Reactors
             MyBase.New()
             Me.ComponentName = name
             Me.ComponentDescription = description
+            Me.ReactorOperationMode = OperationMode.Isothermic
         End Sub
 
         Public Overrides Function CloneXML() As Object
@@ -141,8 +145,6 @@ Namespace Reactors
             If Q <= 0.0 Then Q = ims.Phases(1).Properties.volumetric_flow.GetValueOrDefault()
             If Q <= 0.0 Then Throw New Exception("Feed volumetric flow is zero; cannot define a residence time.")
 
-            Dim Tr As Double = IsothermalTemperature
-            If Tr <= 0.0 Then Tr = ims.Phases(0).Properties.temperature.GetValueOrDefault()
             Dim Pout As Double = ims.Phases(0).Properties.pressure.GetValueOrDefault() - Me.DeltaP.GetValueOrDefault()
 
             Dim monFlow = comps(MonomerID).MolarFlow.GetValueOrDefault()     ' mol/s
@@ -154,15 +156,53 @@ Namespace Reactors
             Dim Cini = iniFlow / (Q * 1000.0)
             Dim Csol = solFlow / (Q * 1000.0)
             Dim theta = Volume / Q
-
             Dim kin = BuildKinetics()
-            Dim r = FreeRadicalCSTR.Solve(kin, Tr, theta, Cmon, Cini, Csol)
+
+            Dim Tin = ims.Phases(0).Properties.temperature.GetValueOrDefault()
+            Dim W = ims.Phases(0).Properties.massflow.GetValueOrDefault()          ' kg/s
+            Dim Cp = ims.Phases(0).Properties.heatCapacityCp.GetValueOrDefault()   ' kJ/kg.K
+
+            ' Reaction (outlet) temperature. A well-mixed reactor reacts at its outlet temperature; for
+            ' adiabatic operation that temperature and the conversion are coupled through the heat of
+            ' polymerization and the Arrhenius rate constants, so they are iterated to a fixed point.
+            Dim Tr As Double
+            Dim r As FreeRadicalCSTRResult
+            Select Case Me.ReactorOperationMode
+                Case OperationMode.OutletTemperature
+                    Tr = Me.OutletTemperature
+                    r = FreeRadicalCSTR.Solve(kin, Tr, theta, Cmon, Cini, Csol)
+                Case OperationMode.Adiabatic
+                    Tr = If(IsothermalTemperature > 0.0, IsothermalTemperature, Tin)
+                    r = FreeRadicalCSTR.Solve(kin, Tr, theta, Cmon, Cini, Csol)
+                    If W > 0.0 AndAlso Cp > 0.0 Then
+                        For it As Integer = 1 To 50
+                            Dim Qg = monFlow * r.Conversion * (-HeatOfPolymerization) / 1000.0 ' kW
+                            Dim Tnew = Tin + Qg / (W * Cp)
+                            Dim converged = Math.Abs(Tnew - Tr) < 0.01
+                            Tr = 0.5 * Tnew + 0.5 * Tr
+                            r = FreeRadicalCSTR.Solve(kin, Tr, theta, Cmon, Cini, Csol)
+                            If converged Then Exit For
+                        Next
+                    End If
+                Case Else ' Isothermic
+                    Tr = If(IsothermalTemperature > 0.0, IsothermalTemperature, Tin)
+                    r = FreeRadicalCSTR.Solve(kin, Tr, theta, Cmon, Cini, Csol)
+            End Select
             If Not r.Converged Then Throw New Exception("The polymerization solver did not converge at these conditions.")
 
             Conversion = r.Conversion
             Mn = r.Mn : Mw = r.Mw : PDI = r.PDI
             RateOfPolymerization = r.Rp
             ResidenceTime = theta
+
+            ' Energy balance: the heat released by polymerization is W*Cp*(Tr-Tin) minus the duty. Adiabatic
+            ' operation removes no heat (the temperature rise carries it); otherwise the duty holds the reactor
+            ' at Tr (negative duty = heat removed, the usual case for an exothermic polymerization).
+            Dim QgenkW = monFlow * r.Conversion * (-HeatOfPolymerization) / 1000.0 ' kW
+            Dim duty As Double = 0.0
+            If Me.ReactorOperationMode <> OperationMode.Adiabatic Then duty = W * Cp * (Tr - Tin) - QgenkW
+            Me.DeltaQ = duty
+            Me.DeltaT = Tr - Tin
 
             ' The polymer product compound carries the computed number-average molar mass, so the reacted
             ' monomer mass is conserved when it leaves as polymer chains.
@@ -190,10 +230,8 @@ Namespace Reactors
                 total += fl
             Next
 
-            Dim W = ims.Phases(0).Properties.massflow.GetValueOrDefault()
-
-            Dim cp = Me.GraphicObject.OutputConnectors(0)
-            Dim oms As MaterialStream = FlowSheet.SimulationObjects(cp.AttachedConnector.AttachedTo.Name)
+            Dim cpt = Me.GraphicObject.OutputConnectors(0)
+            Dim oms As MaterialStream = FlowSheet.SimulationObjects(cpt.AttachedConnector.AttachedTo.Name)
             With oms
                 .SpecType = StreamSpec.Temperature_and_Pressure
                 .Phases(0).Properties.temperature = Tr
@@ -204,6 +242,12 @@ Namespace Reactors
                 .Phases(0).Properties.massflow = W
                 .DefinedFlow = FlowSpec.Mass
             End With
+
+            Dim es = GetInletEnergyStream(1)
+            If es IsNot Nothing Then
+                es.EnergyFlow = duty
+                If es.GraphicObject IsNot Nothing Then es.GraphicObject.Calculated = True
+            End If
 
         End Sub
 
@@ -223,7 +267,8 @@ Namespace Reactors
                 Case Else
                     proplist.AddRange({"Volume", "Isothermal Temperature", "Residence Time", "Conversion",
                                        "Number-Average Molar Mass (Mn)", "Weight-Average Molar Mass (Mw)",
-                                       "Polydispersity Index", "Rate of Polymerization"})
+                                       "Polydispersity Index", "Rate of Polymerization", "Heat Duty",
+                                       "Temperature Rise"})
             End Select
             Return proplist.ToArray()
         End Function
@@ -239,6 +284,8 @@ Namespace Reactors
                 Case "Weight-Average Molar Mass (Mw)" : Return Mw
                 Case "Polydispersity Index" : Return PDI
                 Case "Rate of Polymerization" : Return RateOfPolymerization
+                Case "Heat Duty" : Return SystemsOfUnits.Converter.ConvertFromSI(su.heatflow, Me.DeltaQ.GetValueOrDefault())
+                Case "Temperature Rise" : Return SystemsOfUnits.Converter.ConvertFromSI(su.deltaT, Me.DeltaT.GetValueOrDefault())
                 Case Else : Return Nothing
             End Select
         End Function
@@ -261,6 +308,8 @@ Namespace Reactors
                 Case "Conversion" : Return "%"
                 Case "Number-Average Molar Mass (Mn)", "Weight-Average Molar Mass (Mw)" : Return "g/mol"
                 Case "Rate of Polymerization" : Return "mol/[L.s]"
+                Case "Heat Duty" : Return su.heatflow
+                Case "Temperature Rise" : Return su.deltaT
                 Case Else : Return ""
             End Select
         End Function
@@ -291,8 +340,11 @@ Namespace Reactors
                            If(String.IsNullOrEmpty(SolventID), "", "   Solvent/CTA: " & SolventID))
             str.AppendLine("Polymer product: " & PolymerID)
             str.AppendLine()
+            str.AppendLine("Operation mode: " & ReactorOperationMode.ToString())
             str.AppendLine("Residence time: " & SystemsOfUnits.Converter.ConvertFromSI(su.time, ResidenceTime).ToString(numberformat, ci) & " " & su.time)
             str.AppendLine("Conversion: " & (Conversion * 100.0).ToString(numberformat, ci) & " %")
+            str.AppendLine("Temperature rise: " & SystemsOfUnits.Converter.ConvertFromSI(su.deltaT, DeltaT.GetValueOrDefault()).ToString(numberformat, ci) & " " & su.deltaT)
+            str.AppendLine("Heat duty: " & SystemsOfUnits.Converter.ConvertFromSI(su.heatflow, DeltaQ.GetValueOrDefault()).ToString(numberformat, ci) & " " & su.heatflow)
             str.AppendLine("Number-average molar mass (Mn): " & Mn.ToString(numberformat, ci) & " g/mol")
             str.AppendLine("Weight-average molar mass (Mw): " & Mw.ToString(numberformat, ci) & " g/mol")
             str.AppendLine("Polydispersity index (Mw/Mn): " & PDI.ToString(numberformat, ci))

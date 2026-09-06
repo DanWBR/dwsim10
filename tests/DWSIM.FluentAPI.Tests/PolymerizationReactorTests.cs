@@ -67,5 +67,58 @@ namespace DWSIM.FluentAPI.Tests
                 Assert.That(xPolyProduct, Is.GreaterThan(0.0), "the product stream must contain polymer");
             });
         }
+
+        [Test]
+        public void AdiabaticReactorHeatsUpFromTheExotherm()
+        {
+            // Phase 3: adiabatic operation. The exothermic polymerization has no cooling duty, so the reactor
+            // temperature rises above the feed and couples to the conversion through the Arrhenius kinetics.
+            var poly = new ConstantProperties
+            {
+                Name = "Polystyrene", CAS_Number = "9003-53-6", Formula = "(C8H8)n", Molar_Weight = 100000.0,
+                Critical_Temperature = 1200.0, Critical_Pressure = 5.0e5, Acentric_Factor = 0.5,
+                Normal_Boiling_Point = 800.0, IsHYPO = 1, CurrentDB = "User", OriginalDB = "User"
+            };
+
+            var fs = Flowsheet.Create("PolyReactorAdiabatic")
+                .WithCompounds("Ethylbenzene", "N-pentane")
+                .WithCompound(poly)
+                .WithPropertyPackage(PropertyPackages.PCSAFT);
+
+            double Tfeed = 333.15;
+            var feed = fs.AddMaterialStream("feed")
+                .At(Tfeed.Kelvin(), 5.0e5.Pascal())
+                .WithMolarFlow(1.0.MolPerSecond())
+                .SetCompoundMolarFlow("Ethylbenzene", 0.98)
+                .SetCompoundMolarFlow("N-pentane", 0.02)
+                .SetCompoundMolarFlow("Polystyrene", 0.0);
+            var product = fs.AddMaterialStream("product");
+
+            var inner = fs.Inner;
+            var robj = inner.AddObject(OT.RCT_Polymerization, 100, 100, "R-1");
+            var eobj = inner.AddObject(OT.EnergyStream, 40, 180, "Q-1");
+            var reactor = (DWSIM.UnitOperations.Reactors.Reactor_Polymerization)robj;
+            reactor.MonomerID = "Ethylbenzene";
+            reactor.InitiatorID = "N-pentane";
+            reactor.PolymerID = "Polystyrene";
+            reactor.Volume = 3.0;
+            reactor.ReactorOperationMode = DWSIM.UnitOperations.Reactors.OperationMode.Adiabatic;
+
+            inner.ConnectObjects(feed.Object.GraphicObject, robj.GraphicObject, 0, 0);
+            inner.ConnectObjects(robj.GraphicObject, product.Object.GraphicObject, 0, 0);
+            inner.ConnectObjects(eobj.GraphicObject, robj.GraphicObject, 0, 1);
+
+            fs.Solve();
+
+            double Tout = product.Object.Phases[0].Properties.temperature.GetValueOrDefault();
+            TestContext.WriteLine($"adiabatic: X={reactor.Conversion:F3} dT={reactor.DeltaT:F1}K Tout={Tout:F1}K Mn={reactor.Mn:F0}");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(reactor.Conversion, Is.GreaterThan(0.0).And.LessThan(1.0), "some monomer must convert");
+                Assert.That(reactor.DeltaT.GetValueOrDefault(), Is.GreaterThan(1.0), "the exotherm must raise the temperature");
+                Assert.That(Tout, Is.GreaterThan(Tfeed + 1.0), "the product leaves hotter than the feed");
+            });
+        }
     }
 }
