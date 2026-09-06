@@ -527,10 +527,13 @@ namespace DWSIM.Engine.SmokeTests
         /// <summary>
         /// Devolatilization flash: a polystyrene solution in ethylbenzene stripped under vacuum. The polymer
         /// is non-volatile, so a vapour-liquid flash must keep it entirely in the liquid and let the solvent
-        /// flash off. Without a cap on the vapour fraction the Newton step overshoots to V = 1, reports the
-        /// whole feed (polymer included) as vapour, and the liquid product vanishes. This pins the physical
-        /// result: nearly all the solvent moles vaporize, the vapour carries no polymer, and the liquid left
-        /// behind is a concentrated polymer melt.
+        /// flash off. Two things break a naive flash here: a Newton step on the vapour fraction overshoots to
+        /// V = 1 and reports the whole feed (polymer included) as vapour; and the solvent K-value swings over
+        /// orders of magnitude between a solvent-rich and a polymer-rich liquid, so the true two-phase root is
+        /// an unstable fixed point that plain successive substitution oscillates around. The fix caps the
+        /// vapour fraction at 1 - sum(z_nonvol) and solves the vapour fraction by a damped bracketed
+        /// Rachford-Rice step. This pins the physical result: nearly all the solvent vaporizes, the vapour
+        /// carries no polymer, the liquid is a concentrated melt, and the whole polymer feed is conserved.
         /// </summary>
         [Test]
         public void PolymerDevolatilizationFlashKeepsPolymerInLiquid()
@@ -560,6 +563,12 @@ namespace DWSIM.Engine.SmokeTests
             double psVmass = ms.Phases[2].Compounds["Polystyrene"].MassFraction.GetValueOrDefault();
             double psLmass = ms.Phases[3].Compounds["Polystyrene"].MassFraction.GetValueOrDefault();
 
+            // Polymer mole balance: everything fed must end up in the liquid, not lost to a clamp artifact.
+            double zPS = ms.Phases[0].Compounds["Polystyrene"].MoleFraction.GetValueOrDefault();
+            double L = 1.0 - vf;
+            double xPS = ms.Phases[3].Compounds["Polystyrene"].MoleFraction.GetValueOrDefault();
+            double polymerInLiquidFraction = L * xPS / zPS;
+
             Assert.Multiple(() =>
             {
                 Assert.That(vf, Is.GreaterThan(0.9).And.LessThan(1.0),
@@ -568,6 +577,8 @@ namespace DWSIM.Engine.SmokeTests
                     "the non-volatile polymer must not appear in the vapour");
                 Assert.That(psLmass, Is.GreaterThan(0.9),
                     "the liquid left behind is a concentrated polymer melt");
+                Assert.That(polymerInLiquidFraction, Is.EqualTo(1.0).Within(0.01),
+                    "the whole polymer feed is conserved in the liquid (no mass lost to a vapour-fraction clamp)");
             });
         }
 
