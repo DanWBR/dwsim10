@@ -655,7 +655,12 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
         Public Overrides ReadOnly Property UsesGibbsMinimizationForLLE As Boolean
             Get
-                Return True
+                ' The Gibbs-minimization liquid-liquid flash relies on the analytical composition derivative,
+                ' which is only valid for a single-segment compound. A copolymer takes its residual chemical
+                ' potential numerically (segment model), so its liquid-liquid split needs the convex-hull
+                ' binodal instead - not this path. Decline it for a copolymer mixture so the flash routes to a
+                ' plain vapour-liquid calculation (which is what a copolymer devolatilization needs anyway).
+                Return Not MixtureHasCopolymer()
             End Get
         End Property
 
@@ -788,6 +793,27 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
         Private Function IsPolymer(cas As String) As Boolean
             Return CompoundParameters.ContainsKey(cas) AndAlso CompoundParameters(cas).m_over_M > 0.0
+        End Function
+
+        Private Function IsCopolymer(cas As String) As Boolean
+            Return CompoundParameters.ContainsKey(cas) AndAlso
+                   Not String.IsNullOrWhiteSpace(CompoundParameters(cas).copolymer)
+        End Function
+
+        Private Function MixtureHasCopolymer() As Boolean
+            Try
+                For Each c In CurrentMaterialStream.Phases(0).Compounds.Values
+                    If IsCopolymer(c.ConstantProperties.CAS_Number) Then Return True
+                Next
+            Catch
+            End Try
+            Try
+                For Each c In Flowsheet.SelectedCompounds.Values
+                    If IsCopolymer(c.CAS_Number) Then Return True
+                Next
+            Catch
+            End Try
+            Return False
         End Function
 
         ' A polymer is non-volatile. These overrides keep it in the liquid during a vapour-liquid flash
