@@ -69,6 +69,72 @@ namespace DWSIM.FluentAPI.Tests
         }
 
         [Test]
+        public void ReactorEmitsAMolecularWeightDistribution()
+        {
+            var poly = new ConstantProperties
+            {
+                Name = "Polystyrene", CAS_Number = "9003-53-6", Formula = "(C8H8)n", Molar_Weight = 100000.0,
+                Critical_Temperature = 1200.0, Critical_Pressure = 5.0e5, Acentric_Factor = 0.5,
+                Normal_Boiling_Point = 800.0, IsHYPO = 1, CurrentDB = "User", OriginalDB = "User"
+            };
+
+            var fs = Flowsheet.Create("PolyDist")
+                .WithCompounds("Ethylbenzene", "N-pentane")
+                .WithCompound(poly)
+                .WithPropertyPackage(PropertyPackages.PCSAFT);
+
+            var feed = fs.AddMaterialStream("feed")
+                .At(333.15.Kelvin(), 5.0e5.Pascal())
+                .WithMolarFlow(1.0.MolPerSecond())
+                .SetCompoundMolarFlow("Ethylbenzene", 0.98)
+                .SetCompoundMolarFlow("N-pentane", 0.02)
+                .SetCompoundMolarFlow("Polystyrene", 0.0);
+            var product = fs.AddMaterialStream("product");
+
+            var inner = fs.Inner;
+            var robj = inner.AddObject(OT.RCT_Polymerization, 100, 100, "R-1");
+            var reactor = (DWSIM.UnitOperations.Reactors.Reactor_Polymerization)robj;
+            reactor.MonomerID = "Ethylbenzene";
+            reactor.InitiatorID = "N-pentane";
+            reactor.PolymerID = "Polystyrene";
+            reactor.IsothermalTemperature = 333.15;
+            reactor.Volume = 3.0;
+            reactor.NumberOfCuts = 8;
+
+            inner.ConnectObjects(feed.Object.GraphicObject, robj.GraphicObject, 0, 0);
+            inner.ConnectObjects(robj.GraphicObject, product.Object.GraphicObject, 0, 0);
+
+            fs.Solve();                               // 1) lumped solve gives Mn/PDI
+            double Mn0 = reactor.Mn;
+            reactor.GenerateDistributionCompounds();  // 2) create the cut compounds on the flowsheet
+            reactor.EmitDistribution = true;          // 3) emit the distribution
+            fs.Solve();
+
+            TestContext.WriteLine($"dist: Mn={reactor.Mn:F0} cuts={reactor.CutCompoundNames.Count}");
+
+            double num = 0.0, den = 0.0;
+            foreach (var name in reactor.CutCompoundNames)
+            {
+                var comp = product.Object.Phases[0].Compounds[name];
+                double x = comp.MoleFraction.GetValueOrDefault();
+                double M = comp.ConstantProperties.Molar_Weight;
+                num += x * M; den += x;
+            }
+            double MnCuts = den > 0.0 ? num / den : 0.0;
+            TestContext.WriteLine($"dist: cut-weighted Mn={MnCuts:F0} sum(x_cut)={den:E2}");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(reactor.CutCompoundNames.Count, Is.EqualTo(8), "the cuts must be generated");
+                Assert.That(den, Is.GreaterThan(0.0), "the product must carry the polymer distribution");
+                Assert.That(product.Object.Phases[0].Compounds["Polystyrene"].MoleFraction.GetValueOrDefault(),
+                            Is.LessThan(1.0e-9), "the lumped polymer compound is not used when distributing");
+                Assert.That(MnCuts, Is.EqualTo(reactor.Mn).Within(reactor.Mn * 0.15),
+                            "the emitted distribution's number-average molar mass matches the reactor Mn");
+            });
+        }
+
+        [Test]
         public void AdiabaticReactorHeatsUpFromTheExotherm()
         {
             // Phase 3: adiabatic operation. The exothermic polymerization has no cooling duty, so the reactor

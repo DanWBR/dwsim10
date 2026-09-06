@@ -16,6 +16,7 @@
 '    You should have received a copy of the GNU General Public License
 '    along with DWSIM.  If not, see <http://www.gnu.org/licenses/>.
 
+Imports System.Linq
 Imports DWSIM.Thermodynamics
 Imports DWSIM.Thermodynamics.BaseClasses
 Imports DWSIM.Interfaces.Enums
@@ -77,6 +78,24 @@ Namespace Reactors
         Public Property KtrS_E As Double = 0.0
         Public Property MonomerMolarMass As Double = 104.15
 
+        ' --- molecular-weight distribution emission ---
+        ''' <summary>When true, the polymer leaves the reactor as a set of molar-mass pseudo-component cuts
+        ''' (a real distribution) rather than a single lumped polymer compound. The cut compounds must first be
+        ''' generated onto the flowsheet with <see cref="GenerateDistributionCompounds"/>.</summary>
+        Public Property EmitDistribution As Boolean = False
+
+        ''' <summary>Number of pseudo-component cuts the distribution is discretized into.</summary>
+        Public Property NumberOfCuts As Integer = 7
+
+        ''' <summary>Shape of the molar-mass distribution the cuts are generated from.</summary>
+        Public Property DistributionType As PolymerDistribution = PolymerDistribution.SchulzZimm
+
+        ''' <summary>Names of the generated cut compounds on the flowsheet (the distribution the reactor fills).</summary>
+        Public Property CutCompoundNames As New List(Of String)
+
+        ''' <summary>Relative mole fractions of the cuts (from the distribution generator); reproduce the Mn/Mw.</summary>
+        Public Property CutMoleFractions As New List(Of Double)
+
         ' --- results (read-only outputs) ---
         Public Property Conversion As Double = 0.0
         Public Property Mn As Double = 0.0
@@ -123,6 +142,55 @@ Namespace Reactors
             Ktc_A = k.Atc : Ktc_E = k.Etc : Ktd_A = k.Atd : Ktd_E = k.Etd
             KtrM_A = k.AtrM : KtrM_E = k.EtrM : KtrS_A = k.AtrS : KtrS_E = k.EtrS
             MonomerMolarMass = k.MonomerMW
+        End Sub
+
+        ''' <summary>
+        ''' Generates the molar-mass pseudo-component cuts for the polymer distribution and registers them on
+        ''' the flowsheet - in the compound list and in every material stream - so the reactor can emit a real
+        ''' distribution instead of a single lumped polymer. The cuts clone the polymer product compound and
+        ''' share its CAS (the equation of state reuses its parameters at each cut's own molar mass); the grid
+        ''' is placed from the current Mn and PDI when the reactor has a solution, otherwise from the polymer
+        ''' compound's molar mass and a most-probable spread. Call this once, then set <see cref="EmitDistribution"/>.
+        ''' </summary>
+        Public Sub GenerateDistributionCompounds()
+
+            If FlowSheet Is Nothing Then Throw New Exception("The reactor is not attached to a flowsheet.")
+            If String.IsNullOrEmpty(PolymerID) OrElse Not FlowSheet.SelectedCompounds.ContainsKey(PolymerID) Then
+                Throw New Exception("Select a polymer product compound first.")
+            End If
+            Dim baseCP = TryCast(FlowSheet.SelectedCompounds(PolymerID), ConstantProperties)
+            If baseCP Is Nothing Then Throw New Exception("The polymer product is not a standard compound.")
+
+            Dim MnGen = If(Mn > 0.0, Mn, baseCP.Molar_Weight)
+            Dim PDIGen = If(PDI > 1.0, PDI, 2.0)
+            Dim N = Math.Max(2, NumberOfCuts)
+
+            Dim zrel As Double() = Nothing
+            Dim cuts = PolymerCharacterization.BuildCuts(baseCP, MnGen, PDIGen, N, DistributionType, zrel)
+
+            CutCompoundNames = New List(Of String)
+            CutMoleFractions = New List(Of Double)(zrel)
+            For Each cut In cuts
+                cut.CurrentDB = baseCP.CurrentDB
+                cut.OriginalDB = baseCP.OriginalDB
+                If Not FlowSheet.SelectedCompounds.ContainsKey(cut.Name) Then
+                    FlowSheet.SelectedCompounds.Add(cut.Name, cut)
+                    For Each so In FlowSheet.SimulationObjects.Values
+                        If so.GraphicObject IsNot Nothing AndAlso so.GraphicObject.ObjectType = Interfaces.Enums.GraphicObjects.ObjectType.MaterialStream Then
+                            Dim ms = TryCast(so, Interfaces.IMaterialStream)
+                            If ms IsNot Nothing Then
+                                For Each ph In ms.Phases.Values
+                                    If Not ph.Compounds.ContainsKey(cut.Name) Then
+                                        ph.Compounds.Add(cut.Name, New Compound(cut.Name, "") With {.ConstantProperties = cut, .MoleFraction = 0.0, .MassFraction = 0.0})
+                                    End If
+                                Next
+                            End If
+                        End If
+                    Next
+                End If
+                CutCompoundNames.Add(cut.Name)
+            Next
+
         End Sub
 
         Public Overrides Sub Calculate(Optional ByVal args As Object = Nothing)
@@ -204,31 +272,52 @@ Namespace Reactors
             Me.DeltaQ = duty
             Me.DeltaT = Tr - Tin
 
-            ' The polymer product compound carries the computed number-average molar mass, so the reacted
-            ' monomer mass is conserved when it leaves as polymer chains.
-            comps(PolymerID).ConstantProperties.Molar_Weight = If(r.Mn > 0.0, r.Mn, comps(PolymerID).ConstantProperties.Molar_Weight)
-
             Dim monConverted = monFlow * r.Conversion
             Dim DP = If(kin.MonomerMW > 0.0, r.Mn / kin.MonomerMW, 0.0)
             Dim chainFlow = If(DP > 0.0, monConverted / DP, 0.0)
             Dim iniRatio = If(Cini > 0.0, r.InitiatorConc / Cini, 1.0)
 
+            ' Emit the polymer as a real molar-mass distribution over the generated cuts, or as a single
+            ' lumped polymer compound whose molar mass is set to Mn (so the reacted monomer mass is conserved).
+            Dim distributing = EmitDistribution AndAlso CutCompoundNames.Count > 0 AndAlso
+                               CutMoleFractions.Count = CutCompoundNames.Count AndAlso
+                               CutCompoundNames.All(Function(nm) comps.ContainsKey(nm))
+            If Not distributing Then
+                comps(PolymerID).ConstantProperties.Molar_Weight = If(r.Mn > 0.0, r.Mn, comps(PolymerID).ConstantProperties.Molar_Weight)
+            End If
+
             ' Outlet molar flows: monomer depleted, initiator partly consumed, polymer produced, rest inert.
             Dim outFlow As New Dictionary(Of String, Double)
-            Dim total As Double = 0.0
             For Each c In comps.Values
                 Dim fl = c.MolarFlow.GetValueOrDefault()
                 If c.Name = MonomerID Then
                     fl = monFlow * (1.0 - r.Conversion)
                 ElseIf c.Name = InitiatorID Then
                     fl = iniFlow * iniRatio
-                ElseIf c.Name = PolymerID Then
+                ElseIf c.Name = PolymerID AndAlso Not distributing Then
                     fl = c.MolarFlow.GetValueOrDefault() + chainFlow
                 End If
-                fl = Math.Max(fl, 0.0)
-                outFlow(c.Name) = fl
-                total += fl
+                outFlow(c.Name) = Math.Max(fl, 0.0)
             Next
+
+            If distributing Then
+                ' Distribute the reacted polymer mass over the cuts using the generator's relative mole
+                ' fractions z (which reproduce the distribution's Mn and Mw). The cut mole flow is
+                ' polymerMass * z_j / sum(z_k * M_k), so the total mass equals the reacted monomer mass and the
+                ' number-average molar mass of the cuts is preserved.
+                Dim polymerMass = monConverted * kin.MonomerMW
+                Dim denomZM As Double = 0.0
+                For j As Integer = 0 To CutCompoundNames.Count - 1
+                    denomZM += CutMoleFractions(j) * comps(CutCompoundNames(j)).ConstantProperties.Molar_Weight
+                Next
+                If denomZM > 0.0 Then
+                    For j As Integer = 0 To CutCompoundNames.Count - 1
+                        outFlow(CutCompoundNames(j)) += polymerMass * CutMoleFractions(j) / denomZM
+                    Next
+                End If
+            End If
+
+            Dim total As Double = outFlow.Values.Sum()
 
             Dim cpt = Me.GraphicObject.OutputConnectors(0)
             Dim oms As MaterialStream = FlowSheet.SimulationObjects(cpt.AttachedConnector.AttachedTo.Name)
