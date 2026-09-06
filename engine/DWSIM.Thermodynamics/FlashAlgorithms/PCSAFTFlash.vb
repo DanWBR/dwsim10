@@ -132,6 +132,14 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
             yPure(volIdx) = 1.0
             Dim lnPhiVap As Double = PP.DW_CalcLnFugCoeff(yPure, T, P, State.Vapor)(volIdx)
 
+            ' Whether a genuine vapour can form at all. Above the solvent's critical pressure the equation of
+            ' state has a single fluid root, so its vapour-state and liquid-state fugacity coefficients collapse
+            ' onto the same value; any vaporisation the root find would then report comes from a spurious dense
+            ' "vapour" root, and the real second phase is a liquid (the cloud point). When the two coincide, hold
+            ' the vapour fraction at zero so the flash defers to the liquid-liquid search.
+            Dim lnPhiLiqPure As Double = PP.DW_CalcLnFugCoeff(yPure, T, P, State.Liquid)(volIdx)
+            Dim vapourCanForm As Boolean = Math.Abs(lnPhiVap - lnPhiLiqPure) > 0.001
+
             ' Liquid composition at a trial vapour fraction: the non-volatiles hold their whole feed, the
             ' solvent fills the rest.
             Dim LiquidComp As Func(Of Double, Double()) =
@@ -158,7 +166,10 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                 End Function
 
             Dim V As Double
-            If gRes(0.0) <= 0.0 Then
+            If Not vapourCanForm Then
+                'no vapour root distinct from the liquid: the solvent is above its critical pressure
+                V = 0.0
+            ElseIf gRes(0.0) <= 0.0 Then
                 'the solvent will not vaporise even from the feed: a single liquid
                 V = 0.0
             ElseIf gRes(Vcap) >= 0.0 Then
