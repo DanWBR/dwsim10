@@ -132,6 +132,8 @@ public class PolymerCharacterizationWindow : Window
         p.CreateAndAddTextBoxRow("N0", "Copolymer Mn (g/mol)", _coMn,
             (tb, e) => { if (double.TryParse(tb.Text, NumberStyles.Any, CultureInfo.CurrentCulture, out var v)) _coMn = v; });
         p.CreateAndAddButtonRow("Add Copolymer to Simulation", null, (_, _) => AddCopolymer());
+        // Trailing space so the last button clears the status bar instead of hiding behind it.
+        p.CreateAndAddEmptySpace();
 
         // Controls on the left, the cut preview table on the right (the table expands).
         var body = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*") };
