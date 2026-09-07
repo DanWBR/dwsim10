@@ -789,6 +789,9 @@ public partial class MainWindow : Window
         if (MenuBarExtensions != null)
         {
             MenuBarExtensions.Children.Clear();
+            // The Support button is persistent: it rides the strip on the welcome screen and on every
+            // flowsheet, to the left of the flowsheet's own extension buttons (e.g. the assistant).
+            if (BtnSupportPatreon != null) MenuBarExtensions.Children.Add(BtnSupportPatreon);
             if (view != null)
                 foreach (var button in view.ExtensionButtons)
                     MenuBarExtensions.Children.Add(button);
@@ -804,6 +807,7 @@ public partial class MainWindow : Window
     {
         if (ActiveFlowsheet != view || MenuBarExtensions == null) return;
         MenuBarExtensions.Children.Clear();
+        if (BtnSupportPatreon != null) MenuBarExtensions.Children.Add(BtnSupportPatreon);
         foreach (var button in view.ExtensionButtons)
             MenuBarExtensions.Children.Add(button);
     }
