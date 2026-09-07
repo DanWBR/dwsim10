@@ -418,8 +418,11 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
                 If assocparam <> "" Then
 
-                    assocparaml = assocparam.Split(vbCrLf)
-                    na = Integer.Parse(assocparam(0))
+                    ' Split on any line ending: associationparams is built with Environment.NewLine,
+                    ' which is LF on Linux/macOS and CRLF on Windows, so a fixed vbCrLf split would
+                    ' leave the whole string in one element on Linux and index out of bounds below.
+                    assocparaml = assocparam.Split(New String() {vbCrLf, vbLf, vbCr}, StringSplitOptions.RemoveEmptyEntries)
+                    na = Integer.Parse(assocparaml(0).Trim(), Globalization.CultureInfo.InvariantCulture)
                     vm = assocparaml(1).Trim().Trim(vbLf).Trim("[", "]")
                     em = assocparaml(2).Trim().Trim(vbLf).Trim("[", "]")
 
