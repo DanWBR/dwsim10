@@ -35,6 +35,10 @@ Namespace Polymers
         Public ReactivityB As Double = 1.0           ' rB = kpBB / kpBA
         Public Atc As Double, Etc As Double          ' termination by combination (average, L/mol/s)
         Public Atd As Double, Etd As Double          ' termination by disproportionation (average, L/mol/s)
+        Public AtrMA As Double, EtrMA As Double      ' transfer to monomer, A-ended radical (L/mol/s)
+        Public AtrMB As Double, EtrMB As Double      ' transfer to monomer, B-ended radical (L/mol/s)
+        Public AtrSA As Double, EtrSA As Double      ' transfer to solvent / CTA, A-ended radical (L/mol/s)
+        Public AtrSB As Double, EtrSB As Double      ' transfer to solvent / CTA, B-ended radical (L/mol/s)
         Public MonomerAMW As Double                  ' molar mass of monomer A (g/mol)
         Public MonomerBMW As Double                  ' molar mass of monomer B (g/mol)
 
@@ -55,6 +59,9 @@ Namespace Polymers
                 .ApBB = 2.673E+6, .EpBB = 22360.0,
                 .ReactivityA = 0.52, .ReactivityB = 0.46,
                 .Atc = 1.255E+9, .Etc = 8000.0, .Atd = 0.0, .Etd = 0.0,
+                .AtrMA = 4.266E+7 * 6.0E-5, .EtrMA = 32510.0,
+                .AtrMB = 2.673E+6 * 1.0E-5, .EtrMB = 22360.0,
+                .AtrSA = 0.0, .EtrSA = 0.0, .AtrSB = 0.0, .EtrSB = 0.0,
                 .MonomerAMW = 104.15, .MonomerBMW = 100.12}
         End Function
 
@@ -83,13 +90,16 @@ Namespace Polymers
     ''' perfectly mixed reactor. The two monomer balances are coupled through the radical composition and are
     ''' solved by successive substitution; the instantaneous copolymer composition follows the Mayo-Lewis
     ''' equation (recovered here from the monomer consumption rates), and the molar-mass averages come from the
-    ''' method of moments with pseudo-kinetic propagation and termination constants and the average repeat-unit
-    ''' mass. Transfer is neglected in this version. Concentrations mol/L, residence time seconds, temperature K.
+    ''' method of moments with pseudo-kinetic propagation, termination and chain-transfer constants and the
+    ''' average repeat-unit mass. Chain transfer to monomer and to a solvent / chain-transfer agent is averaged
+    ''' over the two radical types; the instantaneous composition stays Mayo-Lewis (it is read off the
+    ''' propagation rates, unaffected by transfer). Concentrations mol/L, residence time seconds, temperature K.
     ''' </summary>
     Public Class CopolymerCSTR
 
         Public Shared Function Solve(kin As CopolymerKinetics, T As Double, ResidenceTime As Double,
                                      MonomerAFeed As Double, MonomerBFeed As Double, InitiatorFeed As Double,
+                                     Optional SolventConc As Double = 0.0,
                                      Optional gel As GelEffect = Nothing) As CopolymerCSTRResult
 
             Dim res As New CopolymerCSTRResult()
@@ -101,6 +111,11 @@ Namespace Polymers
             Dim ktc0 = CopolymerKinetics.Arrhenius(kin.Atc, kin.Etc, T)
             Dim ktd0 = CopolymerKinetics.Arrhenius(kin.Atd, kin.Etd, T)
             Dim kt0 = ktc0 + ktd0
+            Dim ktrMA = CopolymerKinetics.Arrhenius(kin.AtrMA, kin.EtrMA, T)   ' transfer to monomer per radical type
+            Dim ktrMB = CopolymerKinetics.Arrhenius(kin.AtrMB, kin.EtrMB, T)
+            Dim ktrSA = CopolymerKinetics.Arrhenius(kin.AtrSA, kin.EtrSA, T)   ' transfer to solvent / CTA per radical type
+            Dim ktrSB = CopolymerKinetics.Arrhenius(kin.AtrSB, kin.EtrSB, T)
+            Dim S = SolventConc
             Dim f = kin.Efficiency
             Dim rA = kin.ReactivityA, rB = kin.ReactivityB
 
@@ -142,10 +157,11 @@ Namespace Polymers
                     Dim denom = kpBA * A + kpAB * B
                     phiA = If(denom > 0.0, kpBA * A / denom, 0.5)       ' fraction of A-ended radicals
                     Dim phiB = 1.0 - phiA
-                    cA = mu0 * (kpAA * phiA + kpBA * phiB)              ' pseudo first-order consumption of A
+                    cA = mu0 * (kpAA * phiA + kpBA * phiB)              ' pseudo first-order consumption of A (propagation)
                     cB = mu0 * (kpBB * phiB + kpAB * phiA)
-                    Dim Anew = MonomerAFeed / (1.0 + theta * cA)
-                    Dim Bnew = MonomerBFeed / (1.0 + theta * cB)
+                    Dim ktrMavg = phiA * ktrMA + phiB * ktrMB          ' transfer to monomer also draws down monomer
+                    Dim Anew = MonomerAFeed / (1.0 + theta * (cA + mu0 * ktrMavg))
+                    Dim Bnew = MonomerBFeed / (1.0 + theta * (cB + mu0 * ktrMavg))
                     Dim change = Math.Abs(Anew - A) + Math.Abs(Bnew - B)
                     A = 0.5 * Anew + 0.5 * A
                     B = 0.5 * Bnew + 0.5 * B
@@ -189,7 +205,13 @@ Namespace Polymers
             Dim kpBar = If(M > 0.0 AndAlso mu0 > 0.0, Rp / (mu0 * M), 0.0)
             Dim Mbar = res.CopolymerCompositionA * kin.MonomerAMW + (1.0 - res.CopolymerCompositionA) * kin.MonomerBMW
 
-            Dim stopRate = kt * mu0
+            ' Pseudo-kinetic chain-transfer rate (1/s), averaged over the two radical types; it stops a live
+            ' chain and starts a new small radical, so it shortens the chains without changing the composition.
+            Dim ktrMavgF = phiA * ktrMA + (1.0 - phiA) * ktrMB
+            Dim ktrSavgF = phiA * ktrSA + (1.0 - phiA) * ktrSB
+            Dim transferRate = ktrMavgF * M + ktrSavgF * S
+
+            Dim stopRate = kt * mu0 + transferRate
             If M <= 0.0 OrElse stopRate <= 0.0 OrElse kpBar <= 0.0 Then
                 res.Converged = False
                 Return res
@@ -203,9 +225,9 @@ Namespace Polymers
 
             Dim mu1 = mu0 / oneMinusAlpha
             Dim mu2 = mu0 * (1.0 + alpha) / (oneMinusAlpha * oneMinusAlpha)
-            Dim G0 = (ktd + 0.5 * ktc) * mu0 * mu0
-            Dim G1 = kt * mu0 * mu1
-            Dim G2 = kt * mu0 * mu2 + ktc * mu1 * mu1
+            Dim G0 = transferRate * mu0 + (ktd + 0.5 * ktc) * mu0 * mu0
+            Dim G1 = transferRate * mu1 + kt * mu0 * mu1
+            Dim G2 = transferRate * mu2 + kt * mu0 * mu2 + ktc * mu1 * mu1
             Dim L0 = theta * G0, L1 = theta * G1, L2 = theta * G2
 
             If L0 > 0.0 AndAlso L1 > 0.0 Then

@@ -98,6 +98,11 @@ Namespace Reactors
         ''' <summary>Molar mass of the second monomer (g/mol).</summary>
         Public Property MonomerBMolarMass As Double = 100.12
 
+        ''' <summary>Transfer to monomer from a monomer-B radical: Arrhenius A (L/mol/s).</summary>
+        Public Property KtrMB_A As Double = 2.673E+6 * 1.0E-5
+        ''' <summary>Transfer to monomer from a monomer-B radical: Arrhenius E (J/mol).</summary>
+        Public Property KtrMB_E As Double = 22360.0
+
         ' --- gel (Trommsdorff) / glass effect: diffusion-limited rate constants at high conversion ---
         ''' <summary>Gel / glass effect model applied to termination and propagation (None = off).</summary>
         Public Property GelModel As GelModelType = GelModelType.None
@@ -192,12 +197,16 @@ Namespace Reactors
         End Function
 
         Private Function BuildCopolymerKinetics() As CopolymerKinetics
+            ' Monomer A reuses the homopolymer transfer constants; the solvent / CTA transfer constant is shared
+            ' by both radical types (a single Cs), while transfer to monomer for a B-ended radical is its own.
             Return New CopolymerKinetics With {
                 .Ad = Kd_A, .Ed = Kd_E, .Efficiency = Efficiency,
                 .ApAA = Kp_A, .EpAA = Kp_E,
                 .ApBB = KpB_A, .EpBB = KpB_E,
                 .ReactivityA = ReactivityRatioA, .ReactivityB = ReactivityRatioB,
                 .Atc = Ktc_A, .Etc = Ktc_E, .Atd = Ktd_A, .Etd = Ktd_E,
+                .AtrMA = KtrM_A, .EtrMA = KtrM_E, .AtrMB = KtrMB_A, .EtrMB = KtrMB_E,
+                .AtrSA = KtrS_A, .EtrSA = KtrS_E, .AtrSB = KtrS_A, .EtrSB = KtrS_E,
                 .MonomerAMW = MonomerMolarMass, .MonomerBMW = MonomerBMolarMass}
         End Function
 
@@ -209,6 +218,8 @@ Namespace Reactors
             KpB_A = k.ApBB : KpB_E = k.EpBB
             ReactivityRatioA = k.ReactivityA : ReactivityRatioB = k.ReactivityB
             Ktc_A = k.Atc : Ktc_E = k.Etc : Ktd_A = k.Atd : Ktd_E = k.Etd
+            KtrM_A = k.AtrMA : KtrM_E = k.EtrMA : KtrMB_A = k.AtrMB : KtrMB_E = k.EtrMB
+            KtrS_A = k.AtrSA : KtrS_E = k.EtrSA
             MonomerMolarMass = k.MonomerAMW : MonomerBMolarMass = k.MonomerBMW
         End Sub
 
@@ -226,7 +237,7 @@ Namespace Reactors
                                          Cini As Double, Csol As Double) As KineticsSolution
             Dim s As New KineticsSolution
             If IsCopolymer() Then
-                Dim r = CopolymerCSTR.Solve(BuildCopolymerKinetics(), Tr, theta, Cmon, CmonB, Cini, BuildGelEffect())
+                Dim r = CopolymerCSTR.Solve(BuildCopolymerKinetics(), Tr, theta, Cmon, CmonB, Cini, Csol, BuildGelEffect())
                 s.Converged = r.Converged
                 s.Conversion = r.OverallConversion
                 s.Mn = r.Mn : s.Mw = r.Mw : s.PDI = r.PDI : s.Rp = r.Rp

@@ -56,6 +56,7 @@ namespace DWSIM.Engine.SmokeTests
         public void PureCombinationApproachesPDI_1_5()
         {
             var k = CopolymerKinetics.StyreneMMA();     // termination all by combination (Atd = 0)
+            k.AtrMA = 0.0; k.AtrMB = 0.0;               // remove transfer so the polydispersity reaches its limit
             var r = CopolymerCSTR.Solve(k, T: 333.15, ResidenceTime: 3600.0, MonomerAFeed: 4.0, MonomerBFeed: 4.0, InitiatorFeed: 1.0e-5);
             Assert.That(r.Converged, Is.True);
             TestContext.WriteLine($"combination: X={r.OverallConversion:F4} Mn={r.Mn:F0} PDI={r.PDI:F4}");
@@ -69,8 +70,8 @@ namespace DWSIM.Engine.SmokeTests
             // baseline, and diffusion-limited termination raises both conversion and molar mass.
             var k = CopolymerKinetics.StyreneMMA();
             var baseline = CopolymerCSTR.Solve(k, 333.15, 7200.0, 4.0, 4.0, 0.05);
-            var none = CopolymerCSTR.Solve(k, 333.15, 7200.0, 4.0, 4.0, 0.05, new GelEffect());
-            var gelled = CopolymerCSTR.Solve(k, 333.15, 7200.0, 4.0, 4.0, 0.05,
+            var none = CopolymerCSTR.Solve(k, 333.15, 7200.0, 4.0, 4.0, 0.05, 0.0, new GelEffect());
+            var gelled = CopolymerCSTR.Solve(k, 333.15, 7200.0, 4.0, 4.0, 0.05, 0.0,
                                              new GelEffect { ModelType = GelModelType.Exponential, GtC1 = 2.0, GtC2 = 4.0 });
             TestContext.WriteLine($"copo no gel: X={baseline.OverallConversion:F4} Mn={baseline.Mn:F0}");
             TestContext.WriteLine($"copo gel:    X={gelled.OverallConversion:F4} Mn={gelled.Mn:F0} F_A={gelled.CopolymerCompositionA:F4}");
@@ -81,6 +82,47 @@ namespace DWSIM.Engine.SmokeTests
                 Assert.That(gelled.Converged, Is.True);
                 Assert.That(gelled.OverallConversion, Is.GreaterThan(baseline.OverallConversion), "the gel effect auto-accelerates");
                 Assert.That(gelled.Mn, Is.GreaterThan(baseline.Mn), "slower termination lengthens the chains");
+            });
+        }
+
+        [Test]
+        public void TransferToMonomerLowersMolarMassButNotComposition()
+        {
+            // Chain transfer to monomer shortens the chains (lower Mn) while leaving the copolymer composition
+            // on the Mayo-Lewis curve (the transferred radical propagates by the same statistics).
+            var noTransfer = CopolymerKinetics.StyreneMMA();
+            noTransfer.AtrMA = 0.0; noTransfer.AtrMB = 0.0;
+            var withTransfer = CopolymerKinetics.StyreneMMA();
+            withTransfer.AtrMA = withTransfer.ApAA * 5.0e-3;   // amplified so the effect is unmistakable
+            withTransfer.AtrMB = withTransfer.ApBB * 5.0e-3;
+
+            var rNo = CopolymerCSTR.Solve(noTransfer, 333.15, 3600.0, 4.0, 4.0, 0.02);
+            var rTr = CopolymerCSTR.Solve(withTransfer, 333.15, 3600.0, 4.0, 4.0, 0.02);
+
+            double fA = rTr.MonomerAConc / (rTr.MonomerAConc + rTr.MonomerBConc);
+            double ml = CopolymerCSTR.MayoLewis(fA, withTransfer.ReactivityA, withTransfer.ReactivityB);
+            TestContext.WriteLine($"no transfer: Mn={rNo.Mn:F0}; transfer: Mn={rTr.Mn:F0} F_A={rTr.CopolymerCompositionA:F4} ML={ml:F4}");
+            Assert.Multiple(() =>
+            {
+                Assert.That(rTr.Converged, Is.True);
+                Assert.That(rTr.Mn, Is.LessThan(0.5 * rNo.Mn), "transfer to monomer must shorten the chains");
+                Assert.That(rTr.CopolymerCompositionA, Is.EqualTo(ml).Within(1e-6), "composition stays on Mayo-Lewis");
+            });
+        }
+
+        [Test]
+        public void ChainTransferAgentControlsMolarMass()
+        {
+            // A chain-transfer agent in the solvent slot drives Mn down the more of it is present.
+            var k = CopolymerKinetics.StyreneMMA();
+            k.AtrSA = k.ApAA * 1.0e-2; k.AtrSB = k.ApBB * 1.0e-2;
+            var noCTA = CopolymerCSTR.Solve(k, 333.15, 3600.0, 4.0, 4.0, 0.02, 0.0);
+            var withCTA = CopolymerCSTR.Solve(k, 333.15, 3600.0, 4.0, 4.0, 0.02, 0.5);
+            TestContext.WriteLine($"no CTA: Mn={noCTA.Mn:F0}; 0.5 M CTA: Mn={withCTA.Mn:F0}");
+            Assert.Multiple(() =>
+            {
+                Assert.That(withCTA.Converged, Is.True);
+                Assert.That(withCTA.Mn, Is.LessThan(noCTA.Mn), "the transfer agent lowers the molar mass");
             });
         }
 
