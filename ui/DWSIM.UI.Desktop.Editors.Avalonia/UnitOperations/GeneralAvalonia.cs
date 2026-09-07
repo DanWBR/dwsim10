@@ -11,6 +11,7 @@ using DWSIM.UnitOperations.UnitOperations;
 using DWSIM.UnitOperations.UnitOperations.Auxiliary.Pipe;
 using DWSIM.UnitOperations.UnitOperations.Auxiliary.SepOps;
 using DWSIM.UnitOperations.Reactors;
+using DWSIM.Thermodynamics.Polymers;
 using DWSIM.UnitOperations.SpecialOps;
 using DWSIM.UnitOperations.Streams;
 using cv = DWSIM.SharedClasses.SystemsOfUnits.Converter;
@@ -791,6 +792,112 @@ namespace DWSIM.UI.Desktop.Editors
                             (tb, e) => { if (TryVal(tb.Text, out var v)) cstr.CoolantSpecificHeat = cv.ConvertToSI(su.heatCapacityCp, v); });
                     }
                     break;
+
+                case ObjectType.RCT_Polymerization:
+                {
+                    var poly = (Reactor_Polymerization)simobj;
+                    var comps = simobj.GetFlowsheet().SelectedCompounds.Keys.ToList();
+                    var withNone = new List<string> { "" };
+                    withNone.AddRange(comps);
+
+                    panel.CreateAndAddLabelRow("Feed Roles");
+                    panel.CreateAndAddDropDownRow("Monomer", comps, Math.Max(0, comps.IndexOf(poly.MonomerID)),
+                        (dd, e) => { if (dd.SelectedIndex >= 0) poly.MonomerID = comps[dd.SelectedIndex]; });
+                    panel.CreateAndAddDropDownRow("Second monomer (copolymer; none = homopolymer)", withNone, Math.Max(0, withNone.IndexOf(poly.MonomerBID)),
+                        (dd, e) => { poly.MonomerBID = dd.SelectedIndex > 0 ? withNone[dd.SelectedIndex] : ""; });
+                    panel.CreateAndAddDropDownRow("Initiator", comps, Math.Max(0, comps.IndexOf(poly.InitiatorID)),
+                        (dd, e) => { if (dd.SelectedIndex >= 0) poly.InitiatorID = comps[dd.SelectedIndex]; });
+                    panel.CreateAndAddDropDownRow("Solvent / chain-transfer agent (optional)", withNone, Math.Max(0, withNone.IndexOf(poly.SolventID)),
+                        (dd, e) => { poly.SolventID = dd.SelectedIndex > 0 ? withNone[dd.SelectedIndex] : ""; });
+                    panel.CreateAndAddDropDownRow("Polymer product", comps, Math.Max(0, comps.IndexOf(poly.PolymerID)),
+                        (dd, e) => { if (dd.SelectedIndex >= 0) poly.PolymerID = comps[dd.SelectedIndex]; });
+
+                    panel.CreateAndAddLabelRow("Operation");
+                    panel.CreateAndAddDropDownRow("Flow model", new List<string> { "Well-mixed (CSTR)", "Plug flow / batch (PFR)" }, poly.PlugFlow ? 1 : 0,
+                        (dd, e) => poly.PlugFlow = dd.SelectedIndex == 1);
+                    var polyModes = new List<string> { "Isothermic", "Adiabatic", "Outlet Temperature" };
+                    panel.CreateAndAddDropDownRow("Operation mode", polyModes, Math.Max(0, Math.Min((int)poly.ReactorOperationMode, 2)), (dd, e) =>
+                    {
+                        poly.ReactorOperationMode = dd.SelectedIndex == 1 ? OperationMode.Adiabatic
+                            : dd.SelectedIndex == 2 ? OperationMode.OutletTemperature : OperationMode.Isothermic;
+                    });
+                    double polyTset = poly.ReactorOperationMode == OperationMode.OutletTemperature ? poly.OutletTemperature : poly.IsothermalTemperature;
+                    panel.CreateAndAddTextBoxRow(nf, "Temperature (isothermal / outlet) (" + su.temperature + ")",
+                        cv.ConvertFromSI(su.temperature, polyTset), (tb, e) =>
+                        {
+                            if (TryVal(tb.Text, out var v))
+                            {
+                                var Tsi = cv.ConvertToSI(su.temperature, v);
+                                if (poly.ReactorOperationMode == OperationMode.OutletTemperature) poly.OutletTemperature = Tsi;
+                                else poly.IsothermalTemperature = Tsi;
+                            }
+                        });
+                    panel.CreateAndAddTextBoxRow(nf, "Reactor Volume (" + su.volume + ")", cv.ConvertFromSI(su.volume, poly.Volume),
+                        (tb, e) => { if (TryVal(tb.Text, out var v)) poly.Volume = cv.ConvertToSI(su.volume, v); });
+                    panel.CreateAndAddTextBoxRow(nf, "Heat of Polymerization (J/mol)", poly.HeatOfPolymerization,
+                        (tb, e) => { if (TryVal(tb.Text, out var v)) poly.HeatOfPolymerization = v; });
+
+                    panel.CreateAndAddLabelRow("Kinetics  (k = A*exp(-E/RT))");
+                    panel.CreateAndAddButtonRow("Load Styrene / AIBN preset", null,
+                        (btn, e) => { poly.LoadStyrenePreset(); Notify(simobj, "Styrene/AIBN kinetics loaded. Re-open the editor to see the values."); });
+                    panel.CreateAndAddButtonRow("Load Styrene / MMA copolymer preset", null,
+                        (btn, e) => { poly.LoadStyreneMMAPreset(); Notify(simobj, "Styrene/MMA kinetics loaded. Re-open the editor to see the values."); });
+                    panel.CreateAndAddTextBoxRow(nf, "Initiator efficiency f", poly.Efficiency, (tb, e) => { if (TryVal(tb.Text, out var v)) poly.Efficiency = v; });
+                    panel.CreateAndAddTextBoxRow("E3", "Decomposition kd: A (1/s)", poly.Kd_A, (tb, e) => { if (TryVal(tb.Text, out var v)) poly.Kd_A = v; });
+                    panel.CreateAndAddTextBoxRow(nf, "Decomposition kd: E (J/mol)", poly.Kd_E, (tb, e) => { if (TryVal(tb.Text, out var v)) poly.Kd_E = v; });
+                    panel.CreateAndAddTextBoxRow("E3", "Propagation kp: A (L/mol/s)", poly.Kp_A, (tb, e) => { if (TryVal(tb.Text, out var v)) poly.Kp_A = v; });
+                    panel.CreateAndAddTextBoxRow(nf, "Propagation kp: E (J/mol)", poly.Kp_E, (tb, e) => { if (TryVal(tb.Text, out var v)) poly.Kp_E = v; });
+                    panel.CreateAndAddTextBoxRow("E3", "Termination (comb.) ktc: A", poly.Ktc_A, (tb, e) => { if (TryVal(tb.Text, out var v)) poly.Ktc_A = v; });
+                    panel.CreateAndAddTextBoxRow(nf, "Termination (comb.) ktc: E", poly.Ktc_E, (tb, e) => { if (TryVal(tb.Text, out var v)) poly.Ktc_E = v; });
+                    panel.CreateAndAddTextBoxRow("E3", "Termination (disp.) ktd: A", poly.Ktd_A, (tb, e) => { if (TryVal(tb.Text, out var v)) poly.Ktd_A = v; });
+                    panel.CreateAndAddTextBoxRow(nf, "Termination (disp.) ktd: E", poly.Ktd_E, (tb, e) => { if (TryVal(tb.Text, out var v)) poly.Ktd_E = v; });
+                    panel.CreateAndAddTextBoxRow("E3", "Transfer to monomer ktrM: A", poly.KtrM_A, (tb, e) => { if (TryVal(tb.Text, out var v)) poly.KtrM_A = v; });
+                    panel.CreateAndAddTextBoxRow(nf, "Transfer to monomer ktrM: E", poly.KtrM_E, (tb, e) => { if (TryVal(tb.Text, out var v)) poly.KtrM_E = v; });
+                    panel.CreateAndAddTextBoxRow("E3", "Transfer to solvent ktrS: A", poly.KtrS_A, (tb, e) => { if (TryVal(tb.Text, out var v)) poly.KtrS_A = v; });
+                    panel.CreateAndAddTextBoxRow(nf, "Transfer to solvent ktrS: E", poly.KtrS_E, (tb, e) => { if (TryVal(tb.Text, out var v)) poly.KtrS_E = v; });
+                    panel.CreateAndAddTextBoxRow(nf, "Monomer molar mass (g/mol)", poly.MonomerMolarMass, (tb, e) => { if (TryVal(tb.Text, out var v)) poly.MonomerMolarMass = v; });
+
+                    panel.CreateAndAddLabelRow("Copolymer  (terminal model; used when a second monomer is set)");
+                    panel.CreateAndAddTextBoxRow(nf, "Reactivity ratio r1 (monomer A)", poly.ReactivityRatioA, (tb, e) => { if (TryVal(tb.Text, out var v)) poly.ReactivityRatioA = v; });
+                    panel.CreateAndAddTextBoxRow(nf, "Reactivity ratio r2 (monomer B)", poly.ReactivityRatioB, (tb, e) => { if (TryVal(tb.Text, out var v)) poly.ReactivityRatioB = v; });
+                    panel.CreateAndAddTextBoxRow("E3", "Monomer-B propagation kp: A", poly.KpB_A, (tb, e) => { if (TryVal(tb.Text, out var v)) poly.KpB_A = v; });
+                    panel.CreateAndAddTextBoxRow(nf, "Monomer-B propagation kp: E", poly.KpB_E, (tb, e) => { if (TryVal(tb.Text, out var v)) poly.KpB_E = v; });
+                    panel.CreateAndAddTextBoxRow("E3", "Monomer-B transfer-to-monomer ktrM: A", poly.KtrMB_A, (tb, e) => { if (TryVal(tb.Text, out var v)) poly.KtrMB_A = v; });
+                    panel.CreateAndAddTextBoxRow(nf, "Monomer-B transfer-to-monomer ktrM: E", poly.KtrMB_E, (tb, e) => { if (TryVal(tb.Text, out var v)) poly.KtrMB_E = v; });
+                    panel.CreateAndAddTextBoxRow(nf, "Monomer-B molar mass (g/mol)", poly.MonomerBMolarMass, (tb, e) => { if (TryVal(tb.Text, out var v)) poly.MonomerBMolarMass = v; });
+
+                    panel.CreateAndAddLabelRow("Gel / Glass Effect  (g = exp(-(c1*X + c2*X^2 + c3*X^3)))");
+                    panel.CreateAndAddDropDownRow("Model", new List<string> { "None", "Exponential" }, poly.GelModel == GelModelType.Exponential ? 1 : 0,
+                        (dd, e) => poly.GelModel = dd.SelectedIndex == 1 ? GelModelType.Exponential : GelModelType.None);
+                    panel.CreateAndAddTextBoxRow(nf, "Termination g_t: c1", poly.GelGtC1, (tb, e) => { if (TryVal(tb.Text, out var v)) poly.GelGtC1 = v; });
+                    panel.CreateAndAddTextBoxRow(nf, "Termination g_t: c2", poly.GelGtC2, (tb, e) => { if (TryVal(tb.Text, out var v)) poly.GelGtC2 = v; });
+                    panel.CreateAndAddTextBoxRow(nf, "Termination g_t: c3", poly.GelGtC3, (tb, e) => { if (TryVal(tb.Text, out var v)) poly.GelGtC3 = v; });
+                    panel.CreateAndAddTextBoxRow(nf, "Propagation g_p: c1", poly.GelGpC1, (tb, e) => { if (TryVal(tb.Text, out var v)) poly.GelGpC1 = v; });
+                    panel.CreateAndAddTextBoxRow(nf, "Propagation g_p: c2", poly.GelGpC2, (tb, e) => { if (TryVal(tb.Text, out var v)) poly.GelGpC2 = v; });
+                    panel.CreateAndAddTextBoxRow(nf, "Propagation g_p: c3", poly.GelGpC3, (tb, e) => { if (TryVal(tb.Text, out var v)) poly.GelGpC3 = v; });
+
+                    panel.CreateAndAddLabelRow("Molecular Weight Distribution (product)");
+                    panel.CreateAndAddDropDownRow("Emit distribution", new List<string> { "No", "Yes" }, poly.EmitDistribution ? 1 : 0,
+                        (dd, e) => poly.EmitDistribution = dd.SelectedIndex == 1);
+                    panel.CreateAndAddNumericEditorRow("Number of cuts", poly.NumberOfCuts, 2, 30, 0, (nud, e) => poly.NumberOfCuts = (int)(nud.Value ?? 7));
+                    panel.CreateAndAddDropDownRow("Distribution type", new List<string> { "Schulz-Zimm", "Log-Normal" },
+                        poly.DistributionType == PolymerDistribution.LogNormal ? 1 : 0,
+                        (dd, e) => poly.DistributionType = dd.SelectedIndex == 1 ? PolymerDistribution.LogNormal : PolymerDistribution.SchulzZimm);
+                    panel.CreateAndAddButtonRow("Generate distribution cuts", null, (btn, e) =>
+                    {
+                        try { poly.GenerateDistributionCompounds(); poly.EmitDistribution = true; Notify(simobj, "Distribution cuts generated and added to the flowsheet."); }
+                        catch (Exception ex) { Notify(simobj, "Generate cuts failed: " + ex.Message); }
+                    });
+
+                    panel.CreateAndAddLabelRow("Results");
+                    panel.CreateAndAddTwoLabelsRow("Conversion", (poly.Conversion * 100.0).ToString("N2", IC) + " %");
+                    panel.CreateAndAddTwoLabelsRow("Number-average molar mass Mn", poly.Mn.ToString("N0", IC) + " g/mol");
+                    panel.CreateAndAddTwoLabelsRow("Weight-average molar mass Mw", poly.Mw.ToString("N0", IC) + " g/mol");
+                    panel.CreateAndAddTwoLabelsRow("Polydispersity (Mw/Mn)", poly.PDI.ToString("N3", IC));
+                    if (poly.IsCopolymer())
+                        panel.CreateAndAddTwoLabelsRow("Copolymer composition F1 (monomer A)", poly.CopolymerCompositionA.ToString("N4", IC));
+                    break;
+                }
 
                 case ObjectType.RCT_PFR:
                     var pfr = (Reactor_PFR)simobj;
