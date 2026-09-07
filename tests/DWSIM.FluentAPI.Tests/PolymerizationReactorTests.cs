@@ -205,6 +205,70 @@ namespace DWSIM.FluentAPI.Tests
         }
 
         [Test]
+        public void PlugFlowCopolymerReactorSolvesOnAFlowsheet()
+        {
+            // The plug-flow flag routes the copolymer reactor through the batch/PFR solver. A skewed feed run to
+            // high conversion must show composition drift: the copolymer composition leaving the reactor differs
+            // from the Mayo-Lewis value at the feed (the more reactive monomer has depleted).
+            var poly = new ConstantProperties
+            {
+                Name = "Polystyrene", CAS_Number = "9003-53-6", Formula = "(C8H8)n", Molar_Weight = 100000.0,
+                Critical_Temperature = 1200.0, Critical_Pressure = 5.0e5, Acentric_Factor = 0.5,
+                Normal_Boiling_Point = 800.0, IsHYPO = 1, CurrentDB = "User", OriginalDB = "User"
+            };
+
+            var fs = Flowsheet.Create("PFRCopoly")
+                .WithCompounds("Ethylbenzene", "Toluene", "N-pentane")
+                .WithCompound(poly)
+                .WithPropertyPackage(PropertyPackages.PCSAFT);
+
+            var feed = fs.AddMaterialStream("feed")
+                .At(333.15.Kelvin(), 5.0e5.Pascal())
+                .WithMolarFlow(1.0.MolPerSecond())
+                .SetCompoundMolarFlow("Ethylbenzene", 0.24)
+                .SetCompoundMolarFlow("Toluene", 0.74)
+                .SetCompoundMolarFlow("N-pentane", 0.02)
+                .SetCompoundMolarFlow("Polystyrene", 0.0);
+            var product = fs.AddMaterialStream("product");
+
+            var inner = fs.Inner;
+            var robj = inner.AddObject(OT.RCT_Polymerization, 100, 100, "R-1");
+            var reactor = (DWSIM.UnitOperations.Reactors.Reactor_Polymerization)robj;
+            reactor.MonomerID = "Ethylbenzene";
+            reactor.MonomerBID = "Toluene";
+            reactor.InitiatorID = "N-pentane";
+            reactor.PolymerID = "Polystyrene";
+            reactor.ReactivityRatioA = 0.52;
+            reactor.ReactivityRatioB = 0.46;
+            reactor.IsothermalTemperature = 333.15;
+            reactor.Volume = 6.0;                  // long residence -> high conversion, short of complete
+            reactor.PlugFlow = true;
+
+            inner.ConnectObjects(feed.Object.GraphicObject, robj.GraphicObject, 0, 0);
+            inner.ConnectObjects(robj.GraphicObject, product.Object.GraphicObject, 0, 0);
+
+            fs.Solve();
+
+            double fA0 = 0.24 / (0.24 + 0.74);
+            double fB0 = 1.0 - fA0;
+            double rA = 0.52, rB = 0.46;
+            double mayoFeed = (rA * fA0 * fA0 + fA0 * fB0) / (rA * fA0 * fA0 + 2.0 * fA0 * fB0 + rB * fB0 * fB0);
+            TestContext.WriteLine($"PFR reactor: X={reactor.Conversion:F3} cumF_A={reactor.CopolymerCompositionA:F4} mayoFeed={mayoFeed:F4} Mn={reactor.Mn:F0} PDI={reactor.PDI:F3}");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(reactor.IsCopolymer(), Is.True);
+                Assert.That(reactor.Conversion, Is.GreaterThan(0.5), "the long-residence PFR must reach high conversion");
+                Assert.That(reactor.CopolymerCompositionA, Is.InRange(0.0, 1.0));
+                Assert.That(System.Math.Abs(reactor.CopolymerCompositionA - mayoFeed), Is.GreaterThan(0.02),
+                            "composition drift moves the product composition away from the feed Mayo-Lewis value");
+                Assert.That(reactor.Mn, Is.GreaterThan(1.0e4), "a polymer of substantial molar mass must form");
+                Assert.That(product.Object.Phases[0].Compounds["Polystyrene"].MoleFraction.GetValueOrDefault(),
+                            Is.GreaterThan(0.0), "the product stream must contain polymer");
+            });
+        }
+
+        [Test]
         public void AdiabaticReactorHeatsUpFromTheExotherm()
         {
             // Phase 3: adiabatic operation. The exothermic polymerization has no cooling duty, so the reactor

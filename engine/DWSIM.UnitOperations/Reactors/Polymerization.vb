@@ -56,6 +56,10 @@ Namespace Reactors
         ''' <summary>Reactor vessel volume (m3).</summary>
         Public Property Volume As Double = 1.0
 
+        ''' <summary>When true the reactor is solved as a plug-flow / batch reactor (composition drifts along the
+        ''' residence time) instead of a perfectly mixed CSTR (a single, fixed outlet composition).</summary>
+        Public Property PlugFlow As Boolean = False
+
         ''' <summary>Isothermal operating temperature (K); when zero the feed temperature is used.</summary>
         Public Property IsothermalTemperature As Double = 0.0
 
@@ -236,7 +240,18 @@ Namespace Reactors
         Private Function SolveKineticsAt(Tr As Double, theta As Double, Cmon As Double, CmonB As Double,
                                          Cini As Double, Csol As Double) As KineticsSolution
             Dim s As New KineticsSolution
-            If IsCopolymer() Then
+            If PlugFlow Then
+                ' Plug-flow / batch: the copolymer solver also covers the homopolymer (the second monomer is
+                ' simply absent), integrating conversion, composition drift and the moments along the reactor.
+                Dim r = CopolymerPFR.Solve(BuildCopolymerKinetics(), Tr, theta, Cmon, CmonB, Cini, Csol, BuildGelEffect())
+                s.Converged = r.Converged
+                s.Conversion = r.OverallConversion
+                s.Mn = r.Mn : s.Mw = r.Mw : s.PDI = r.PDI
+                s.Rp = If(theta > 0.0, r.OverallConversion * (Cmon + CmonB) / theta, 0.0)
+                s.CompositionA = r.CumulativeCompositionA
+                s.ConvA = r.ConversionA : s.ConvB = r.ConversionB
+                s.IniRatio = If(Cini > 0.0, r.InitiatorConc / Cini, 1.0)
+            ElseIf IsCopolymer() Then
                 Dim r = CopolymerCSTR.Solve(BuildCopolymerKinetics(), Tr, theta, Cmon, CmonB, Cini, Csol, BuildGelEffect())
                 s.Converged = r.Converged
                 s.Conversion = r.OverallConversion
