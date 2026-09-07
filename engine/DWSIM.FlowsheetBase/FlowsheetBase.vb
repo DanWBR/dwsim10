@@ -967,6 +967,10 @@ Imports DWSIM.ExtensionMethods
 
                 Return Me.SimulationObjects(AddObjectToSurface(ObjectType.RCT_CSTR, x, y, tag,,, CreateConnected))
 
+            Case "Polymerization Reactor", "Free-Radical Polymerization Reactor"
+
+                Return Me.SimulationObjects(AddObjectToSurface(ObjectType.RCT_Polymerization, x, y, tag,,, CreateConnected))
+
             Case "Heat Exchanger"
 
                 Return Me.SimulationObjects(AddObjectToSurface(ObjectType.HeatExchanger, x, y, tag,,, CreateConnected))

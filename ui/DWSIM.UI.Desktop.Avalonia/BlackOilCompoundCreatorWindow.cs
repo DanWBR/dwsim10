@@ -61,7 +61,8 @@ public sealed class BlackOilCompoundCreatorWindow : Window
 
         Title = "Black Oil Compound Creator";
         Width = 640;
-        Height = 720;
+        Height = 620;
+        CanResize = true;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         IconHelper.ApplyWindowIcon(this);
 

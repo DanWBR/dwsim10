@@ -53,8 +53,8 @@ public class PolymerCharacterizationWindow : Window
     {
         _flowsheet = flowsheet;
         Title = "Polymer Characterization";
-        Width = 760;
-        Height = 560;
+        Width = 820;
+        Height = 680;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         IconHelper.ApplyWindowIcon(this);
         Content = BuildContent();
@@ -133,12 +133,18 @@ public class PolymerCharacterizationWindow : Window
             (tb, e) => { if (double.TryParse(tb.Text, NumberStyles.Any, CultureInfo.CurrentCulture, out var v)) _coMn = v; });
         p.CreateAndAddButtonRow("Add Copolymer to Simulation", null, (_, _) => AddCopolymer());
 
-        var body = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
-        Grid.SetColumn(_grid, 0);
-        var side = new ScrollViewer { Content = p, Padding = new Thickness(8) };
-        Grid.SetColumn(side, 1);
-        body.Children.Add(_grid);
+        // Controls on the left, the cut preview table on the right (the table expands).
+        var body = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*") };
+        var side = new ScrollViewer
+        {
+            Content = p,
+            Padding = new Thickness(8),
+            VerticalScrollBarVisibility = global::Avalonia.Controls.Primitives.ScrollBarVisibility.Auto
+        };
+        Grid.SetColumn(side, 0);
+        Grid.SetColumn(_grid, 1);
         body.Children.Add(side);
+        body.Children.Add(_grid);
 
         var btnClose = new Button { Content = "Close", Width = 90, IsCancel = true };
         btnClose.Classes.Add("dialog");

@@ -595,6 +595,8 @@ public partial class FlowsheetView : UserControl
         "Equilibrium Reactor"  => ObjectType.RCT_Equilibrium,
         "Gibbs Reactor"        => ObjectType.RCT_Gibbs,
         "Gibbs Reactor (Reaktoro)" => ObjectType.RCT_Gibbs,
+        "Polymerization Reactor" => ObjectType.RCT_Polymerization,
+        "Free-Radical Polymerization Reactor" => ObjectType.RCT_Polymerization,
         "Recycle"              => ObjectType.OT_Recycle,
         "Recycle Block"        => ObjectType.OT_Recycle,
         "Energy Recycle"       => ObjectType.OT_EnergyRecycle,
