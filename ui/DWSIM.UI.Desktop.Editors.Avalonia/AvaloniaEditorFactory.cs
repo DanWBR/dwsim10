@@ -157,6 +157,8 @@ namespace DWSIM.UI.Desktop.Editors
                     return ReactorEditors.Build(cstr);
                 case DWSIM.UnitOperations.Reactors.Reactor_PFR pfr:
                     return ReactorEditors.Build(pfr);
+                case DWSIM.UnitOperations.Reactors.Reactor_Polymerization poly:
+                    return ReactorEditors.Build(poly);
                 case DWSIM.UnitOperations.UnitOperations.ShortcutColumn shortcut:
                     return ShortcutColumnEditor.Build(shortcut);
                 case DWSIM.UnitOperations.UnitOperations.Column column:

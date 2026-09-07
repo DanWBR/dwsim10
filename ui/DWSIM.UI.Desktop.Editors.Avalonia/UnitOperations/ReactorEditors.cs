@@ -5,6 +5,7 @@ using Avalonia.Controls;
 using DWSIM.Interfaces;
 using DWSIM.Interfaces.Enums;
 using DWSIM.UI.Shared.Avalonia;
+using DWSIM.Thermodynamics.Polymers;
 using OperationMode = DWSIM.UnitOperations.Reactors.OperationMode;
 using Reactor = DWSIM.UnitOperations.Reactors.Reactor;
 using Reactor_Conversion = DWSIM.UnitOperations.Reactors.Reactor_Conversion;
@@ -12,6 +13,8 @@ using Reactor_CSTR = DWSIM.UnitOperations.Reactors.Reactor_CSTR;
 using Reactor_Equilibrium = DWSIM.UnitOperations.Reactors.Reactor_Equilibrium;
 using Reactor_Gibbs = DWSIM.UnitOperations.Reactors.Reactor_Gibbs;
 using Reactor_PFR = DWSIM.UnitOperations.Reactors.Reactor_PFR;
+using Reactor_Polymerization = DWSIM.UnitOperations.Reactors.Reactor_Polymerization;
+using IC = System.Globalization.CultureInfo;
 using Thickness = Avalonia.Thickness;
 
 namespace DWSIM.UI.Desktop.Editors
@@ -225,6 +228,178 @@ namespace DWSIM.UI.Desktop.Editors
                     panel.CreateAndAddResultRow(reactor, "Vapor residence time", UnitOfMeasure.time,
                         reactor.ResidenceTimeV);
                     AddHeatExchangeResults(reactor, panel);
+                });
+        }
+
+        // ---------------------------------------------------------------------
+        // Polymerization (free-radical CSTR / PFR, homo- and copolymer)
+        // ---------------------------------------------------------------------
+
+        public static Control Build(Reactor_Polymerization reactor)
+        {
+            void Notify(string message)
+            {
+                var fs = reactor.GetFlowsheet();
+                if (fs != null) fs.ShowMessage(message, IFlowsheet.MessageType.Information);
+            }
+
+            return UnitOpEditor.Build(reactor,
+                input: panel =>
+                {
+                    var nf = reactor.GetFlowsheet().FlowsheetOptions.NumberFormat;
+                    var tabs = new TabControl { Margin = new Thickness(0, 4, 0, 0) };
+
+                    var comps = reactor.GetFlowsheet().SelectedCompounds.Keys.ToList();
+                    var withNone = new List<string> { "" };
+                    withNone.AddRange(comps);
+
+                    // -- General: feed roles and operation --------------------
+                    var general = new AvaloniaEditorPanel();
+
+                    general.CreateAndAddLabelRow("Feed Roles");
+                    general.CreateAndAddDropDownRow("Monomer", comps, Math.Max(0, comps.IndexOf(reactor.MonomerID)),
+                        (dd, e) => { if (dd.SelectedIndex >= 0) reactor.MonomerID = comps[dd.SelectedIndex]; });
+                    general.CreateAndAddDropDownRow("Second monomer (copolymer; none = homopolymer)", withNone,
+                        Math.Max(0, withNone.IndexOf(reactor.MonomerBID)),
+                        (dd, e) => { reactor.MonomerBID = dd.SelectedIndex > 0 ? withNone[dd.SelectedIndex] : ""; });
+                    general.CreateAndAddDropDownRow("Initiator", comps, Math.Max(0, comps.IndexOf(reactor.InitiatorID)),
+                        (dd, e) => { if (dd.SelectedIndex >= 0) reactor.InitiatorID = comps[dd.SelectedIndex]; });
+                    general.CreateAndAddDropDownRow("Solvent / chain-transfer agent (optional)", withNone,
+                        Math.Max(0, withNone.IndexOf(reactor.SolventID)),
+                        (dd, e) => { reactor.SolventID = dd.SelectedIndex > 0 ? withNone[dd.SelectedIndex] : ""; });
+                    general.CreateAndAddDropDownRow("Polymer product", comps, Math.Max(0, comps.IndexOf(reactor.PolymerID)),
+                        (dd, e) => { if (dd.SelectedIndex >= 0) reactor.PolymerID = comps[dd.SelectedIndex]; });
+
+                    general.CreateAndAddLabelRow("Operation");
+                    general.CreateAndAddDropDownRow("Flow model",
+                        new List<string> { "Well-mixed (CSTR)", "Plug flow / batch (PFR)" }, reactor.PlugFlow ? 1 : 0,
+                        (dd, e) => reactor.PlugFlow = dd.SelectedIndex == 1);
+                    general.CreateAndAddDropDownRow("Operation mode",
+                        new List<string> { "Isothermic", "Adiabatic", "Outlet Temperature" },
+                        Math.Max(0, Math.Min((int)reactor.ReactorOperationMode, 2)), (dd, e) =>
+                        {
+                            reactor.ReactorOperationMode = dd.SelectedIndex == 1 ? OperationMode.Adiabatic
+                                : dd.SelectedIndex == 2 ? OperationMode.OutletTemperature : OperationMode.Isothermic;
+                        });
+                    double polyTset = reactor.ReactorOperationMode == OperationMode.OutletTemperature
+                        ? reactor.OutletTemperature : reactor.IsothermalTemperature;
+                    general.CreateAndAddValueUnitRow(reactor, "Temperature (isothermal / outlet)",
+                        UnitOfMeasure.temperature, polyTset, v =>
+                        {
+                            if (reactor.ReactorOperationMode == OperationMode.OutletTemperature) reactor.OutletTemperature = v;
+                            else reactor.IsothermalTemperature = v;
+                        });
+                    general.CreateAndAddValueUnitRow(reactor, "Reactor Volume", UnitOfMeasure.volume,
+                        reactor.Volume, v => reactor.Volume = v);
+                    general.CreateAndAddTextBoxRow(nf, "Heat of Polymerization (J/mol)", reactor.HeatOfPolymerization,
+                        (tb, e) => { if (UnitOpEditorRows.TryParse(tb.Text, out var v)) reactor.HeatOfPolymerization = v; });
+
+                    // -- Kinetics: Arrhenius rate constants -------------------
+                    var kinetics = new AvaloniaEditorPanel();
+                    kinetics.CreateAndAddDescriptionRow("Rate constants follow k = A*exp(-E/RT).");
+                    kinetics.CreateAndAddButtonRow("Load Styrene / AIBN preset", null,
+                        (btn, e) => { reactor.LoadStyrenePreset(); Notify("Styrene/AIBN kinetics loaded. Re-open the editor to see the values."); });
+                    kinetics.CreateAndAddButtonRow("Load Styrene / MMA copolymer preset", null,
+                        (btn, e) => { reactor.LoadStyreneMMAPreset(); Notify("Styrene/MMA kinetics loaded. Re-open the editor to see the values."); });
+                    kinetics.CreateAndAddTextBoxRow(nf, "Initiator efficiency f", reactor.Efficiency,
+                        (tb, e) => { if (UnitOpEditorRows.TryParse(tb.Text, out var v)) reactor.Efficiency = v; });
+                    kinetics.CreateAndAddTextBoxRow("E3", "Decomposition kd: A (1/s)", reactor.Kd_A,
+                        (tb, e) => { if (UnitOpEditorRows.TryParse(tb.Text, out var v)) reactor.Kd_A = v; });
+                    kinetics.CreateAndAddTextBoxRow(nf, "Decomposition kd: E (J/mol)", reactor.Kd_E,
+                        (tb, e) => { if (UnitOpEditorRows.TryParse(tb.Text, out var v)) reactor.Kd_E = v; });
+                    kinetics.CreateAndAddTextBoxRow("E3", "Propagation kp: A (L/mol/s)", reactor.Kp_A,
+                        (tb, e) => { if (UnitOpEditorRows.TryParse(tb.Text, out var v)) reactor.Kp_A = v; });
+                    kinetics.CreateAndAddTextBoxRow(nf, "Propagation kp: E (J/mol)", reactor.Kp_E,
+                        (tb, e) => { if (UnitOpEditorRows.TryParse(tb.Text, out var v)) reactor.Kp_E = v; });
+                    kinetics.CreateAndAddTextBoxRow("E3", "Termination (comb.) ktc: A", reactor.Ktc_A,
+                        (tb, e) => { if (UnitOpEditorRows.TryParse(tb.Text, out var v)) reactor.Ktc_A = v; });
+                    kinetics.CreateAndAddTextBoxRow(nf, "Termination (comb.) ktc: E", reactor.Ktc_E,
+                        (tb, e) => { if (UnitOpEditorRows.TryParse(tb.Text, out var v)) reactor.Ktc_E = v; });
+                    kinetics.CreateAndAddTextBoxRow("E3", "Termination (disp.) ktd: A", reactor.Ktd_A,
+                        (tb, e) => { if (UnitOpEditorRows.TryParse(tb.Text, out var v)) reactor.Ktd_A = v; });
+                    kinetics.CreateAndAddTextBoxRow(nf, "Termination (disp.) ktd: E", reactor.Ktd_E,
+                        (tb, e) => { if (UnitOpEditorRows.TryParse(tb.Text, out var v)) reactor.Ktd_E = v; });
+                    kinetics.CreateAndAddTextBoxRow("E3", "Transfer to monomer ktrM: A", reactor.KtrM_A,
+                        (tb, e) => { if (UnitOpEditorRows.TryParse(tb.Text, out var v)) reactor.KtrM_A = v; });
+                    kinetics.CreateAndAddTextBoxRow(nf, "Transfer to monomer ktrM: E", reactor.KtrM_E,
+                        (tb, e) => { if (UnitOpEditorRows.TryParse(tb.Text, out var v)) reactor.KtrM_E = v; });
+                    kinetics.CreateAndAddTextBoxRow("E3", "Transfer to solvent ktrS: A", reactor.KtrS_A,
+                        (tb, e) => { if (UnitOpEditorRows.TryParse(tb.Text, out var v)) reactor.KtrS_A = v; });
+                    kinetics.CreateAndAddTextBoxRow(nf, "Transfer to solvent ktrS: E", reactor.KtrS_E,
+                        (tb, e) => { if (UnitOpEditorRows.TryParse(tb.Text, out var v)) reactor.KtrS_E = v; });
+                    kinetics.CreateAndAddTextBoxRow(nf, "Monomer molar mass (g/mol)", reactor.MonomerMolarMass,
+                        (tb, e) => { if (UnitOpEditorRows.TryParse(tb.Text, out var v)) reactor.MonomerMolarMass = v; });
+
+                    // -- Copolymer: terminal-model parameters ----------------
+                    var copolymer = new AvaloniaEditorPanel();
+                    copolymer.CreateAndAddDescriptionRow(
+                        "Terminal model. These parameters are used only when a second monomer is set.");
+                    copolymer.CreateAndAddTextBoxRow(nf, "Reactivity ratio r1 (monomer A)", reactor.ReactivityRatioA,
+                        (tb, e) => { if (UnitOpEditorRows.TryParse(tb.Text, out var v)) reactor.ReactivityRatioA = v; });
+                    copolymer.CreateAndAddTextBoxRow(nf, "Reactivity ratio r2 (monomer B)", reactor.ReactivityRatioB,
+                        (tb, e) => { if (UnitOpEditorRows.TryParse(tb.Text, out var v)) reactor.ReactivityRatioB = v; });
+                    copolymer.CreateAndAddTextBoxRow("E3", "Monomer-B propagation kp: A", reactor.KpB_A,
+                        (tb, e) => { if (UnitOpEditorRows.TryParse(tb.Text, out var v)) reactor.KpB_A = v; });
+                    copolymer.CreateAndAddTextBoxRow(nf, "Monomer-B propagation kp: E", reactor.KpB_E,
+                        (tb, e) => { if (UnitOpEditorRows.TryParse(tb.Text, out var v)) reactor.KpB_E = v; });
+                    copolymer.CreateAndAddTextBoxRow("E3", "Monomer-B transfer-to-monomer ktrM: A", reactor.KtrMB_A,
+                        (tb, e) => { if (UnitOpEditorRows.TryParse(tb.Text, out var v)) reactor.KtrMB_A = v; });
+                    copolymer.CreateAndAddTextBoxRow(nf, "Monomer-B transfer-to-monomer ktrM: E", reactor.KtrMB_E,
+                        (tb, e) => { if (UnitOpEditorRows.TryParse(tb.Text, out var v)) reactor.KtrMB_E = v; });
+                    copolymer.CreateAndAddTextBoxRow(nf, "Monomer-B molar mass (g/mol)", reactor.MonomerBMolarMass,
+                        (tb, e) => { if (UnitOpEditorRows.TryParse(tb.Text, out var v)) reactor.MonomerBMolarMass = v; });
+
+                    // -- Gel / glass effect ----------------------------------
+                    var gel = new AvaloniaEditorPanel();
+                    gel.CreateAndAddDescriptionRow("g = exp(-(c1*X + c2*X^2 + c3*X^3)), applied to termination and propagation.");
+                    gel.CreateAndAddDropDownRow("Model", new List<string> { "None", "Exponential" },
+                        reactor.GelModel == GelModelType.Exponential ? 1 : 0,
+                        (dd, e) => reactor.GelModel = dd.SelectedIndex == 1 ? GelModelType.Exponential : GelModelType.None);
+                    gel.CreateAndAddTextBoxRow(nf, "Termination g_t: c1", reactor.GelGtC1,
+                        (tb, e) => { if (UnitOpEditorRows.TryParse(tb.Text, out var v)) reactor.GelGtC1 = v; });
+                    gel.CreateAndAddTextBoxRow(nf, "Termination g_t: c2", reactor.GelGtC2,
+                        (tb, e) => { if (UnitOpEditorRows.TryParse(tb.Text, out var v)) reactor.GelGtC2 = v; });
+                    gel.CreateAndAddTextBoxRow(nf, "Termination g_t: c3", reactor.GelGtC3,
+                        (tb, e) => { if (UnitOpEditorRows.TryParse(tb.Text, out var v)) reactor.GelGtC3 = v; });
+                    gel.CreateAndAddTextBoxRow(nf, "Propagation g_p: c1", reactor.GelGpC1,
+                        (tb, e) => { if (UnitOpEditorRows.TryParse(tb.Text, out var v)) reactor.GelGpC1 = v; });
+                    gel.CreateAndAddTextBoxRow(nf, "Propagation g_p: c2", reactor.GelGpC2,
+                        (tb, e) => { if (UnitOpEditorRows.TryParse(tb.Text, out var v)) reactor.GelGpC2 = v; });
+                    gel.CreateAndAddTextBoxRow(nf, "Propagation g_p: c3", reactor.GelGpC3,
+                        (tb, e) => { if (UnitOpEditorRows.TryParse(tb.Text, out var v)) reactor.GelGpC3 = v; });
+
+                    // -- Molecular weight distribution -----------------------
+                    var mwd = new AvaloniaEditorPanel();
+                    mwd.CreateAndAddDropDownRow("Emit distribution", new List<string> { "No", "Yes" },
+                        reactor.EmitDistribution ? 1 : 0, (dd, e) => reactor.EmitDistribution = dd.SelectedIndex == 1);
+                    mwd.CreateAndAddNumericEditorRow("Number of cuts", reactor.NumberOfCuts, 2, 30, 0,
+                        (nud, e) => reactor.NumberOfCuts = (int)(nud.Value ?? 7));
+                    mwd.CreateAndAddDropDownRow("Distribution type", new List<string> { "Schulz-Zimm", "Log-Normal" },
+                        reactor.DistributionType == PolymerDistribution.LogNormal ? 1 : 0,
+                        (dd, e) => reactor.DistributionType = dd.SelectedIndex == 1 ? PolymerDistribution.LogNormal : PolymerDistribution.SchulzZimm);
+                    mwd.CreateAndAddButtonRow("Generate distribution cuts", null, (btn, e) =>
+                    {
+                        try { reactor.GenerateDistributionCompounds(); reactor.EmitDistribution = true; Notify("Distribution cuts generated and added to the flowsheet."); }
+                        catch (Exception ex) { Notify("Generate cuts failed: " + ex.Message); }
+                    });
+
+                    tabs.Items.Add(new TabItem { Header = "General", Content = general });
+                    tabs.Items.Add(new TabItem { Header = "Kinetics", Content = kinetics });
+                    tabs.Items.Add(new TabItem { Header = "Copolymer", Content = copolymer });
+                    tabs.Items.Add(new TabItem { Header = "Gel Effect", Content = gel });
+                    tabs.Items.Add(new TabItem { Header = "Distribution", Content = mwd });
+
+                    panel.Children.Add(tabs);
+                },
+                results: panel =>
+                {
+                    panel.CreateAndAddTwoLabelsRow("Conversion", (reactor.Conversion * 100.0).ToString("N2", IC.InvariantCulture) + " %");
+                    panel.CreateAndAddTwoLabelsRow("Number-average molar mass Mn", reactor.Mn.ToString("N0", IC.InvariantCulture) + " g/mol");
+                    panel.CreateAndAddTwoLabelsRow("Weight-average molar mass Mw", reactor.Mw.ToString("N0", IC.InvariantCulture) + " g/mol");
+                    panel.CreateAndAddTwoLabelsRow("Polydispersity (Mw/Mn)", reactor.PDI.ToString("N3", IC.InvariantCulture));
+                    if (reactor.IsCopolymer())
+                        panel.CreateAndAddTwoLabelsRow("Copolymer composition F1 (monomer A)",
+                            reactor.CopolymerCompositionA.ToString("N4", IC.InvariantCulture));
                 });
         }
 
