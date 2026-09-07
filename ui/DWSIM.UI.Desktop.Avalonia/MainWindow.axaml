@@ -16,7 +16,15 @@
          Windows interface does with the assistant -->
     <DockPanel DockPanel.Dock="Top" LastChildFill="True">
       <StackPanel DockPanel.Dock="Right" Name="MenuBarExtensions" Orientation="Horizontal"
-                  Spacing="2" VerticalAlignment="Center" Margin="4,0" />
+                  Spacing="2" VerticalAlignment="Center" Margin="4,0">
+        <Button Name="BtnSupportPatreon" Classes="link"
+                ToolTip.Tip="Support DWSIM on Patreon (opens patreon.com)">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <TextBlock Text="&#x2764;" VerticalAlignment="Center" />
+            <TextBlock Text="Support DWSIM and become a Patron" VerticalAlignment="Center" />
+          </StackPanel>
+        </Button>
+      </StackPanel>
       <ContentControl Name="MenuHost">
         <Menu Name="BaseMenu">
         <MenuItem Header="_File">

@@ -246,6 +246,7 @@ public partial class MainWindow : Window
         LnkApiDocs.Click += (_, _) => OpenUrl("https://dwsim.org/api_help/html/R_Project_DWSIM_Class_Library_Documentation.htm");
 
         // Support
+        BtnSupportPatreon.Click += (_, _) => OpenUrl("https://www.patreon.com/cw/dwsim/membership");
         BtnSponsorGitHub.Click += (_, _) => OpenUrl("https://github.com/sponsors/DanWBR");
         BtnSponsorPatreon.Click += (_, _) => OpenUrl("https://www.patreon.com/join/dwsim?");
         BtnSponsorCoffee.Click += (_, _) => OpenUrl("https://www.buymeacoffee.com/dwsim");
