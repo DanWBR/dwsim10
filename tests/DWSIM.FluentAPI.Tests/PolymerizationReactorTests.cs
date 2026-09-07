@@ -1,5 +1,6 @@
 using NUnit.Framework;
 using DWSIM.Automation.FluentAPI;
+using DWSIM.Automation.FluentAPI.Dynamics;
 using DWSIM.Thermodynamics.BaseClasses;
 using OT = DWSIM.Interfaces.Enums.GraphicObjects.ObjectType;
 
@@ -265,6 +266,77 @@ namespace DWSIM.FluentAPI.Tests
                 Assert.That(reactor.Mn, Is.GreaterThan(1.0e4), "a polymer of substantial molar mass must form");
                 Assert.That(product.Object.Phases[0].Compounds["Polystyrene"].MoleFraction.GetValueOrDefault(),
                             Is.GreaterThan(0.0), "the product stream must contain polymer");
+            });
+        }
+
+        [Test]
+        public void DynamicModeDevelopsThePolymerInTime()
+        {
+            // Dynamic mode: the integrator steps the reactor, which reacts its holdup each timestep. Charging
+            // from the inlet and then metering feed in is a semibatch run; the conversion and molar mass must
+            // build up over time (a non-trivial transient trajectory), which is the whole point of exposing the
+            // batch/semibatch solvers in DWSIM's dynamic mode.
+            var poly = new ConstantProperties
+            {
+                Name = "Polystyrene", CAS_Number = "9003-53-6", Formula = "(C8H8)n", Molar_Weight = 100000.0,
+                Critical_Temperature = 1200.0, Critical_Pressure = 5.0e5, Acentric_Factor = 0.5,
+                Normal_Boiling_Point = 800.0, IsHYPO = 1, CurrentDB = "User", OriginalDB = "User"
+            };
+
+            var fs = Flowsheet.Create("PolyDynamic")
+                .WithCompounds("Ethylbenzene", "Toluene", "N-pentane")
+                .WithCompound(poly)
+                .WithPropertyPackage(PropertyPackages.PCSAFT);
+
+            var feed = fs.AddMaterialStream("feed")
+                .At(333.15.Kelvin(), 5.0e5.Pascal())
+                .WithMolarFlow(0.01.MolPerSecond())
+                .SetCompoundMolarFlow("Ethylbenzene", 0.0024)
+                .SetCompoundMolarFlow("Toluene", 0.0074)
+                .SetCompoundMolarFlow("N-pentane", 0.0002)
+                .SetCompoundMolarFlow("Polystyrene", 0.0)
+                .AsFlowSpec();
+            var product = fs.AddMaterialStream("product").At(333.15.Kelvin(), 5.0e5.Pascal()).AsPressureSpec();
+
+            var inner = fs.Inner;
+            var robj = inner.AddObject(OT.RCT_Polymerization, 100, 100, "R-1");
+            var reactor = (DWSIM.UnitOperations.Reactors.Reactor_Polymerization)robj;
+            reactor.MonomerID = "Ethylbenzene";
+            reactor.MonomerBID = "Toluene";
+            reactor.InitiatorID = "N-pentane";
+            reactor.PolymerID = "Polystyrene";
+            reactor.IsothermalTemperature = 333.15;
+            reactor.Volume = 1.0;
+
+            inner.ConnectObjects(feed.Object.GraphicObject, robj.GraphicObject, 0, 0);
+            inner.ConnectObjects(robj.GraphicObject, product.Object.GraphicObject, 0, 0);
+            fs.Solve();
+
+            reactor.CreateDynamicProperties();
+            reactor.SetDynamicProperty("Initialize using Inlet Stream", true);
+            reactor.SetDynamicProperty("Reset Contents", true);
+
+            // The reactor's dynamic step sub-integrates internally, so a coarse flowsheet step is fine and keeps
+            // the run to a handful of expensive flowsheet solves (and historian snapshots).
+            fs.Dynamics.DefineIntegrator("Batch")
+                .WithIntegrationStep(2000.Seconds())
+                .WithDuration(20000.Seconds())
+                .Monitor("R-1", "Conversion", description: "conversion")
+                .Monitor("R-1", "Number-Average Molar Mass (Mn)", description: "Mn");
+            fs.Dynamics.DefineSchedule("Batch run").WithIntegrator("Batch").MakeCurrent();
+
+            var result = fs.RunDynamics("Batch run").Execute();
+            if (!result.Completed)
+                throw new System.Exception("Integration did not complete: " + (result.Error == null ? "aborted" : result.Error.Message));
+
+            var conv = result.GetSeries("conversion");
+            var mn = result.GetSeries("Mn");
+            TestContext.WriteLine($"dynamic: conv initial={conv.Initial:F3} mid={conv.ValueAt(10000.0):F3} final={conv.Final:F3} Mn final={mn.Final:F0}");
+            Assert.Multiple(() =>
+            {
+                Assert.That(conv.Final, Is.GreaterThan(1.0), "the reactor must build up conversion over the run (percent)");
+                Assert.That(conv.Final, Is.GreaterThan(conv.Initial), "conversion develops in time");
+                Assert.That(mn.Final, Is.GreaterThan(1.0e4), "a polymer of substantial molar mass forms");
             });
         }
 

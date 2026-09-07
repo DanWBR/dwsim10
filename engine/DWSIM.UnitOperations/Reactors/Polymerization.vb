@@ -39,6 +39,9 @@ Namespace Reactors
 
         <NonSerialized> <Xml.Serialization.XmlIgnore> Public f As Object
 
+        ''' <summary>Transient holdup state carried across integration steps in dynamic mode.</summary>
+        <NonSerialized> <Xml.Serialization.XmlIgnore> Public DynState As CopolymerDynState = Nothing
+
         ' --- configuration ---
 
         ''' <summary>Name of the monomer compound in the feed.</summary>
@@ -479,6 +482,88 @@ Namespace Reactors
                 Dim oms As MaterialStream = FlowSheet.SimulationObjects(cp.AttachedConnector.AttachedTo.Name)
                 oms.Clear()
             End If
+        End Sub
+
+        Public Overrides ReadOnly Property HasPropertiesForDynamicMode As Boolean = True
+
+        Public Overrides Sub CreateDynamicProperties()
+            AddDynamicProperty("Reset Contents", "Empties the reactor's contents on the next run.", False, UnitOfMeasure.none, True.GetType())
+            AddDynamicProperty("Initialize using Inlet Stream", "Charges the reactor with the inlet composition on the first step.", True, UnitOfMeasure.none, True.GetType())
+            AddDynamicProperty("Operating Pressure", "Current operating pressure.", 101325.0, UnitOfMeasure.pressure, 1.0.GetType())
+        End Sub
+
+        Private Function GetDynamicBool(id As String, fallback As Boolean) As Boolean
+            Dim v = GetDynamicProperty(id)
+            If v Is Nothing Then Return fallback
+            Return Convert.ToBoolean(v)
+        End Function
+
+        ''' <summary>
+        ''' Dynamic (transient) model: the reactor is a well-mixed holdup that reacts each integration step. The
+        ''' inlet is the (possibly time-varying) feed and the holdup grows with it, so charging the vessel and
+        ''' then cutting the feed gives a batch trajectory, while metering the feed in gives a semibatch one -
+        ''' both showing the copolymer composition and molar mass developing in time. Isothermal.
+        ''' </summary>
+        Public Overrides Sub RunDynamicModel()
+
+            If Not Me.GraphicObject.InputConnectors(0).IsAttached Then Exit Sub
+            If Not Me.GraphicObject.OutputConnectors(0).IsAttached Then Exit Sub
+            If String.IsNullOrEmpty(MonomerID) OrElse String.IsNullOrEmpty(InitiatorID) OrElse String.IsNullOrEmpty(PolymerID) Then Exit Sub
+
+            Dim integratorID = FlowSheet.DynamicsManager.ScheduleList(FlowSheet.DynamicsManager.CurrentSchedule).CurrentIntegrator
+            Dim integrator = FlowSheet.DynamicsManager.IntegratorList(integratorID)
+            Dim dt = integrator.IntegrationStep.TotalSeconds
+            If integrator.RealTime Then dt = Convert.ToDouble(integrator.RealTimeStepMs) / 1000.0
+
+            Dim ims As MaterialStream = GetInletMaterialStream(0)
+            Dim oms As MaterialStream = GetOutletMaterialStream(0)
+            If ims Is Nothing OrElse oms Is Nothing Then Exit Sub
+            Dim comps = ims.Phases(0).Compounds
+            If Not comps.ContainsKey(MonomerID) OrElse Not comps.ContainsKey(InitiatorID) Then Exit Sub
+
+            Dim Reset As Boolean = GetDynamicBool("Reset Contents", False)
+            Dim InitFromInlet As Boolean = GetDynamicBool("Initialize using Inlet Stream", True)
+            If Reset Then
+                DynState = Nothing
+                SetDynamicProperty("Reset Contents", 0)
+            End If
+
+            Dim Treact = If(IsothermalTemperature > 0.0, IsothermalTemperature, ims.Phases(0).Properties.temperature.GetValueOrDefault())
+            Dim Pin = ims.Phases(0).Properties.pressure.GetValueOrDefault()
+            Dim Qin = ims.Phases(0).Properties.volumetric_flow.GetValueOrDefault()   ' m3/s
+            Dim inA = comps(MonomerID).MolarFlow.GetValueOrDefault()
+            Dim inB = If(IsCopolymer() AndAlso comps.ContainsKey(MonomerBID), comps(MonomerBID).MolarFlow.GetValueOrDefault(), 0.0)
+            Dim inI = comps(InitiatorID).MolarFlow.GetValueOrDefault()
+
+            If DynState Is Nothing Then
+                DynState = New CopolymerDynState() With {.Volume = Volume * 1000.0}   ' m3 -> L
+                If InitFromInlet AndAlso Qin > 0.0 Then
+                    Dim fill = Volume / Qin   ' seconds of inlet flow that fill the vessel
+                    DynState.MonomerA = inA * fill
+                    DynState.MonomerB = inB * fill
+                    DynState.Initiator = inI * fill
+                End If
+            End If
+
+            ' Feed over the step (semibatch); the holdup volume grows with the inlet.
+            DynState.MonomerA += inA * dt
+            DynState.MonomerB += inB * dt
+            DynState.Initiator += inI * dt
+            DynState.Volume += Qin * 1000.0 * dt
+
+            ' React the holdup over the step.
+            CopolymerDynamics.Advance(BuildCopolymerKinetics(), Treact, BuildGelEffect(), DynState, dt)
+
+            ' Results from the holdup state.
+            Dim reacted = DynState.IncorporatedA + DynState.IncorporatedB
+            Dim remaining = DynState.MonomerA + DynState.MonomerB
+            Conversion = If(reacted + remaining > 0.0, reacted / (reacted + remaining), 0.0)
+            Mn = DynState.NumberAverageMW(BuildCopolymerKinetics())
+            Mw = DynState.WeightAverageMW(BuildCopolymerKinetics())
+            PDI = DynState.PolydispersityIndex()
+            CopolymerCompositionA = DynState.CumulativeCompositionA()
+            SetDynamicProperty("Operating Pressure", Pin)
+
         End Sub
 
         Public Overrides Function GetProperties(ByVal proptype As Interfaces.Enums.PropertyType) As String()
