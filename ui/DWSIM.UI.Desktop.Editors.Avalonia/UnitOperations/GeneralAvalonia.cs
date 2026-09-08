@@ -30,8 +30,10 @@ namespace DWSIM.UI.Desktop.Editors
         private static readonly NumberStyles NS = NumberStyles.Any;
         private static readonly CultureInfo IC = CultureInfo.InvariantCulture;
 
+        // Parse in the OS locale first (comma decimal on a comma-locale machine), then fall back to
+        // invariant so a dot still parses too.
         private static bool TryVal(string text, out double v) =>
-            double.TryParse(text, NS, IC, out v);
+            double.TryParse(text, NS, CultureInfo.CurrentCulture, out v) || double.TryParse(text, NS, IC, out v);
 
         private static string[] SplitLines(string text)
         {

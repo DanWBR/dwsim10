@@ -141,7 +141,9 @@ public static class AvaloniaEditorExtensions
     {
         var tb = new TextBox
         {
-            Text = currval.ToString(numberformat, CultureInfo.InvariantCulture),
+            // Show the value in the OS locale (comma decimal on a comma-locale machine), matching how
+            // the fields parse it back and how the value+unit rows and the composition grid display.
+            Text = currval.ToString(numberformat, CultureInfo.CurrentCulture),
             Width = ControlWidth,
             TextAlignment = TextAlignment.Right
         };

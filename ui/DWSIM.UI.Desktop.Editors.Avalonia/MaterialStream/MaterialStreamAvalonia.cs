@@ -19,7 +19,10 @@ namespace DWSIM.UI.Desktop.Editors
     {
         private static readonly NumberStyles NS = NumberStyles.Any;
         private static readonly CultureInfo IC = CultureInfo.InvariantCulture;
-        private static bool TryVal(string text, out double v) => double.TryParse(text, NS, IC, out v);
+        // Parse in the OS locale first (so a comma decimal works on a comma-locale machine, matching
+        // the composition grid), then fall back to invariant so a dot still parses too.
+        private static bool TryVal(string text, out double v) =>
+            double.TryParse(text, NS, CultureInfo.CurrentCulture, out v) || double.TryParse(text, NS, IC, out v);
 
         private static readonly SolidColorBrush UserDefinedBrush =
             new SolidColorBrush(Avalonia.Media.Color.FromRgb(173, 216, 230)); // LightBlue
