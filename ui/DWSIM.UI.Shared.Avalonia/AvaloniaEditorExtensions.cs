@@ -101,8 +101,8 @@ public static class AvaloniaEditorExtensions
     /// A per-keystroke commit re-solves the flowsheet on each character and, during the
     /// programmatic population of an editor, can mutate the object (for example the material
     /// stream flow spec flips its basis as its three boxes are filled). While the text differs
-    /// from the committed value the box turns blue and shows an "Enter to apply" tooltip;
-    /// Escape, or moving focus away without pressing Enter, reverts it to the committed value.
+    /// from the committed value the box turns blue and shows an "Enter to apply" tooltip.
+    /// Enter or moving focus away applies the value; Escape reverts it to the committed value.
     /// </summary>
     private static void WireEnterCommit(TextBox tb, AvaloniaEditorPanel panel,
         Action<TextBox, EventArgs> command, Action? keypress = null)
@@ -132,7 +132,7 @@ public static class AvaloniaEditorExtensions
             if (e.Key == global::Avalonia.Input.Key.Enter) { Commit(); keypress?.Invoke(); e.Handled = true; }
             else if (e.Key == global::Avalonia.Input.Key.Escape) { tb.Text = committed; SetPending(false); e.Handled = true; }
         };
-        tb.LostFocus += (s, e) => { if ((tb.Text ?? "") != committed) { tb.Text = committed; SetPending(false); } };
+        tb.LostFocus += (s, e) => Commit();
     }
 
     public static TextBox CreateAndAddTextBoxRow(this AvaloniaEditorPanel panel,
