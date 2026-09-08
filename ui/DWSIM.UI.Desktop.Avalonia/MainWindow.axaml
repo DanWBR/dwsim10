@@ -189,7 +189,16 @@
 
     </Grid>
 
-    <dock:DockControl Name="DocumentsHost" IsVisible="False" />
+    <!-- Simulation tabs hosted by hand: every open simulation stays parented in DocContentHost
+         (only the active one visible), so its inner dock is never detached and returned blank. -->
+    <Grid Name="DocumentsHost" IsVisible="False" RowDefinitions="Auto,*">
+      <Border Grid.Row="0" BorderThickness="0,0,0,1" BorderBrush="#22000000">
+        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+          <StackPanel Name="DocTabBar" Orientation="Horizontal" Margin="4,2,4,0" />
+        </ScrollViewer>
+      </Border>
+      <Panel Name="DocContentHost" Grid.Row="1" />
+    </Grid>
 
     </Grid>
 

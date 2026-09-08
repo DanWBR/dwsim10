@@ -613,160 +613,123 @@ public partial class MainWindow : Window
     // Documents: one tab per open simulation, in place of the MDI client area
     // -------------------------------------------------------------------------
 
-    private readonly ShellDockFactory _shell = new();
+    // Open simulations are kept permanently in the visual tree (DocContentHost), with only the
+    // active one visible, instead of Dock's document virtualization. Dock detached an inactive
+    // simulation, and its nested inner DockControl came back blank when the tab was shown again
+    // (and crashed when a document was floated), so the simulation tabs are hosted by hand here.
+    private readonly List<FlowsheetView> _openViews = new();
+    private readonly Dictionary<FlowsheetView, Button> _tabButtons = new();
 
-    private readonly Dictionary<Dock.Model.Avalonia.Controls.Document, FlowsheetView> _documents = new();
-
-    /// <summary>
-    /// A simulation document. Closing is answered by the simulation itself, and the answer only
-    /// arrives after the dialog is dismissed, so the first attempt is refused and the close is
-    /// asked again once confirmed. Both the tab's close button and File &gt; Close land here.
-    /// </summary>
-    private sealed class FlowsheetDocument : Dock.Model.Avalonia.Controls.Document
-    {
-        private bool _confirmed;
-
-        public FlowsheetView View { get; set; } = null!;
-
-        public override bool OnClose()
-        {
-            if (_confirmed) return true;
-
-            _ = ConfirmAsync();
-
-            return false;
-        }
-
-        private async System.Threading.Tasks.Task ConfirmAsync()
-        {
-            if (!await View.ConfirmCloseAsync()) return;
-
-            _confirmed = true;
-            Factory?.CloseDockable(this);
-        }
-    }
+    private static readonly IBrush ActiveTabBrush = new SolidColorBrush(Color.FromRgb(0x15, 0x65, 0xC0));
 
     /// <summary>The simulation the menu and the window title currently follow.</summary>
     public FlowsheetView? ActiveFlowsheet { get; private set; }
 
     private void SetupDocuments()
     {
-        var layout = _shell.CreateLayout();
-        _shell.InitLayout(layout);
-
-        DocumentsHost.Factory = _shell;
-        DocumentsHost.Layout = layout;
-
-        _shell.ActiveDockableChanged += (_, e) =>
-        {
-            if (e.Dockable is Dock.Model.Avalonia.Controls.Document doc &&
-                _documents.TryGetValue(doc, out var view))
-                SetActiveFlowsheet(view);
-        };
-
-        // the document itself runs the confirmation; the welcome screen comes back once the
-        // last one is gone
-        _shell.DockableClosed += (_, e) =>
-        {
-            if (e.Dockable is not Dock.Model.Avalonia.Controls.Document doc) return;
-            if (!_documents.Remove(doc)) return;
-
-            global::Avalonia.Threading.Dispatcher.UIThread.Post(ShowWelcomeIfEmpty);
-        };
-
-        // Under Semi the stock document close X renders no glyph (its Path fill binding resolves
-        // null), so give every document tab strip our own close template as its strips appear.
-        DocumentsHost.LayoutUpdated += (_, _) => ApplyDocumentCloseTemplate();
+        // Simulation tabs are hand-hosted in DocTabBar / DocContentHost (see AddDocument), so the
+        // open simulations are never detached from the visual tree. Nothing to initialize here.
     }
 
-    private global::Avalonia.Controls.Templates.IDataTemplate? _documentCloseTemplate;
-
-    /// <summary>A close button we fully control: a filled X coloured by the tab foreground (white
-    /// on the accent-selected tab), falling back to grey if the ancestor lookup does not resolve.</summary>
-    private global::Avalonia.Controls.Templates.IDataTemplate BuildDocumentCloseTemplate()
-        => new global::Avalonia.Controls.Templates.FuncDataTemplate<Dock.Model.Core.IDockable>((item, _) =>
-        {
-            var glyph = new global::Avalonia.Controls.Shapes.Path
-            {
-                Width = 9,
-                Height = 9,
-                Stretch = Stretch.Uniform,
-                Data = Geometry.Parse("M0,1 L1,0 L4.5,3.5 L8,0 L9,1 L5.5,4.5 L9,8 L8,9 L4.5,5.5 L1,9 L0,8 L3.5,4.5 Z"),
-                VerticalAlignment = VerticalAlignment.Center,
-                HorizontalAlignment = HorizontalAlignment.Center
-            };
-            glyph.Bind(global::Avalonia.Controls.Shapes.Path.FillProperty,
-                new global::Avalonia.Data.Binding("Foreground")
-                {
-                    RelativeSource = new global::Avalonia.Data.RelativeSource(
-                        global::Avalonia.Data.RelativeSourceMode.FindAncestor)
-                    { AncestorType = typeof(Dock.Avalonia.Controls.DocumentTabStripItem) },
-                    FallbackValue = Brushes.Gray,
-                    TargetNullValue = Brushes.Gray
-                });
-
-            var button = new Button
-            {
-                Content = glyph,
-                Background = Brushes.Transparent,
-                BorderThickness = new Thickness(0),
-                Padding = new Thickness(2),
-                Width = 18,
-                Height = 18,
-                Margin = new Thickness(4, 0, 0, 0),
-                VerticalAlignment = VerticalAlignment.Center,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                Cursor = new global::Avalonia.Input.Cursor(global::Avalonia.Input.StandardCursorType.Hand),
-                // Only closable documents get an X (the inner Flowsheet/Results/... tabs are not).
-                IsVisible = item.CanClose
-            };
-            button.Click += (_, _) => _shell.CloseDockable(item);
-            return button;
-        }, supportsRecycling: false);
-
-    private void ApplyDocumentCloseTemplate()
+    /// <summary>A simulation tab: the title (click activates the simulation) and a close X.</summary>
+    private Button BuildTab(FlowsheetView view)
     {
-        _documentCloseTemplate ??= BuildDocumentCloseTemplate();
-        foreach (var strip in DocumentsHost.GetVisualDescendants().OfType<Dock.Avalonia.Controls.DocumentTabStrip>())
-            if (!ReferenceEquals(strip.CloseTemplate, _documentCloseTemplate))
-                strip.CloseTemplate = _documentCloseTemplate;
+        var titleText = new TextBlock { VerticalAlignment = VerticalAlignment.Center, Text = view.SimulationName };
+
+        var glyph = new global::Avalonia.Controls.Shapes.Path
+        {
+            Width = 9,
+            Height = 9,
+            Stretch = Stretch.Uniform,
+            Data = Geometry.Parse("M0,1 L1,0 L4.5,3.5 L8,0 L9,1 L5.5,4.5 L9,8 L8,9 L4.5,5.5 L1,9 L0,8 L3.5,4.5 Z"),
+            Fill = Brushes.Gray,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        var close = new Button
+        {
+            Content = glyph,
+            Background = Brushes.Transparent,
+            BorderThickness = new Thickness(0),
+            Padding = new Thickness(2),
+            Width = 18,
+            Height = 18,
+            Margin = new Thickness(6, 0, 0, 0),
+            VerticalAlignment = VerticalAlignment.Center,
+            Cursor = new global::Avalonia.Input.Cursor(global::Avalonia.Input.StandardCursorType.Hand)
+        };
+        close.Click += (_, e) => { e.Handled = true; _ = TryCloseDocumentAsync(view); };
+
+        var row = new StackPanel { Orientation = Orientation.Horizontal };
+        row.Children.Add(titleText);
+        row.Children.Add(close);
+
+        var tab = new Button
+        {
+            Content = row,
+            Background = Brushes.Transparent,
+            Padding = new Thickness(10, 4),
+            Margin = new Thickness(0, 0, 2, 0),
+            BorderThickness = new Thickness(0, 0, 0, 2),
+            BorderBrush = Brushes.Transparent,
+            Cursor = new global::Avalonia.Input.Cursor(global::Avalonia.Input.StandardCursorType.Hand)
+        };
+        tab.Click += (_, _) => SetActiveFlowsheet(view);
+        return tab;
+    }
+
+    /// <summary>Confirms with the simulation, then removes its tab and content and shows the next one.</summary>
+    private async System.Threading.Tasks.Task TryCloseDocumentAsync(FlowsheetView view)
+    {
+        if (!await view.ConfirmCloseAsync()) return;
+
+        var index = _openViews.IndexOf(view);
+        _openViews.Remove(view);
+        DocContentHost.Children.Remove(view);
+        if (_tabButtons.TryGetValue(view, out var tab))
+        {
+            DocTabBar.Children.Remove(tab);
+            _tabButtons.Remove(view);
+        }
+
+        if (ReferenceEquals(ActiveFlowsheet, view))
+        {
+            if (_openViews.Count > 0)
+                SetActiveFlowsheet(_openViews[System.Math.Min(index, _openViews.Count - 1)]);
+            else
+                ShowWelcomeIfEmpty();
+        }
     }
 
     private FlowsheetView AddDocument(string title)
     {
-        var view = new FlowsheetView { SimulationName = title };
-
-        var doc = new FlowsheetDocument
+        var view = new FlowsheetView
         {
-            Id = Guid.NewGuid().ToString(),
-            Title = title,
-            Content = view,
-            View = view,
-            CanClose = true,
-            // Floating a document moves its nested DockControl into a new window, which the
-            // nested-dock content does not survive (it crashes with a NullReferenceException),
-            // the same reason the inner tools keep CanFloat off. Keep documents docked.
-            CanFloat = false
+            SimulationName = title,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            VerticalAlignment = VerticalAlignment.Stretch,
+            IsVisible = false
         };
 
-        _documents[doc] = view;
+        _openViews.Add(view);
+        DocContentHost.Children.Add(view);
 
-        view.TitleChanged += (_, _) => doc.Title = view.SimulationName;
-        view.CloseRequested += (_, _) => _shell.CloseDockable(doc);
+        var tab = BuildTab(view);
+        _tabButtons[view] = tab;
+        DocTabBar.Children.Add(tab);
+
+        view.TitleChanged += (_, _) =>
+        {
+            if (_tabButtons.TryGetValue(view, out var t) && t.Content is StackPanel row &&
+                row.Children.Count > 0 && row.Children[0] is TextBlock tb)
+                tb.Text = view.SimulationName;
+            if (ReferenceEquals(ActiveFlowsheet, view)) Title = $"DWSIM - {view.SimulationName}";
+        };
+        view.CloseRequested += (_, _) => _ = TryCloseDocumentAsync(view);
 
         // File > New and File > Open open another document instead of replacing this one
         view.NewRequested += (_, _) => OpenNewFlowsheet();
         view.OpenRequested += async (_, _) => await OpenFileDialogAsync();
         view.OpenRecentRequested += (_, path) => OpenFlowsheetFile(path);
-
-        // the close button on the tab reaches the factory through the dockable itself, so a
-        // document built by hand has to be told which factory owns it
-        doc.Factory = _shell;
-        doc.Owner = _shell.Documents;
-
-        _shell.AddDockable(_shell.Documents, doc);
-        _shell.SetActiveDockable(doc);
-        _shell.SetFocusedDockable(_shell.Root, doc);
 
         WelcomeHost.IsVisible = false;
         DocumentsHost.IsVisible = true;
@@ -783,6 +746,16 @@ public partial class MainWindow : Window
     private void SetActiveFlowsheet(FlowsheetView? view)
     {
         ActiveFlowsheet = view;
+
+        // Show only the active simulation. The others stay parented in DocContentHost, hidden, so
+        // their inner DockControl is never detached from the visual tree (which returned it blank).
+        foreach (var v in _openViews) v.IsVisible = ReferenceEquals(v, view);
+        foreach (var pair in _tabButtons)
+        {
+            var active = ReferenceEquals(pair.Key, view);
+            pair.Value.BorderBrush = active ? ActiveTabBrush : Brushes.Transparent;
+            pair.Value.FontWeight = active ? FontWeight.SemiBold : FontWeight.Normal;
+        }
 
         MenuHost.Content = view != null ? view.FlowsheetMenu : BaseMenu;
         Title = view != null ? $"DWSIM - {view.SimulationName}" : "DWSIM";
@@ -817,7 +790,7 @@ public partial class MainWindow : Window
 
     private void ShowWelcomeIfEmpty()
     {
-        if (_documents.Count > 0) return;
+        if (_openViews.Count > 0) return;
 
         DocumentsHost.IsVisible = false;
         WelcomeHost.IsVisible = true;
