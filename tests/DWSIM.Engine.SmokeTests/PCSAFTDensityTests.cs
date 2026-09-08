@@ -214,7 +214,10 @@ namespace DWSIM.Engine.SmokeTests
             pp.UseLeeKeslerEnthalpy = false;
             double hPolyNat = pp.DW_CalcEnthalpy(z, 460.15, 40e5, st);
             TestContext.WriteLine($"polymer H: LK-flag-on={hPolyLk:G6}  native={hPolyNat:G6}");
-            Assert.That(hPolyLk, Is.EqualTo(hPolyNat).Within(1e-9),
+            // The bypass makes both calls take the PC-SAFT departure, so they match to a tiny relative
+            // tolerance (a genuine "Lee-Kesler not bypassed" difference is percent-scale). An absolute
+            // 1e-9 equality is too tight for cross-platform floating point and flaked on the Linux runner.
+            Assert.That(hPolyLk, Is.EqualTo(hPolyNat).Within(1e-3).Percent,
                 "a polymer mixture must use the PC-SAFT departure even with Lee-Kesler enabled");
 
             // Associating: guard fires (LK cannot represent hydrogen-bonding enthalpy).
@@ -225,7 +228,7 @@ namespace DWSIM.Engine.SmokeTests
             ppa.UseLeeKeslerEnthalpy = false;
             double hAssocNat = ppa.DW_CalcEnthalpy(za, 350.0, 2e5, st);
             TestContext.WriteLine($"water/ethanol H: LK-flag-on={hAssocLk:G6}  native={hAssocNat:G6}");
-            Assert.That(hAssocLk, Is.EqualTo(hAssocNat).Within(1e-9),
+            Assert.That(hAssocLk, Is.EqualTo(hAssocNat).Within(1e-3).Percent,
                 "an associating mixture must use the PC-SAFT departure even with Lee-Kesler enabled");
 
             // Non-associating, non-polymer: guard inactive, Lee-Kesler still used.
