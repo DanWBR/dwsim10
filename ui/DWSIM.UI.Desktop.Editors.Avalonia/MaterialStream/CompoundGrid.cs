@@ -167,13 +167,19 @@ namespace DWSIM.UI.Desktop.Editors
             _phase = phase;
             _rows.Clear();
 
-            if (stream == null || phase == null || phase.Compounds == null) return;
+            if (stream != null && phase != null && phase.Compounds != null)
+            {
+                try
+                {
+                    var amounts = CompoundAmounts.Read(stream, phase, _basis, _su, _percentage);
+                    foreach (var item in amounts) _rows.Add(new Row(item.Key, item.Value, _nf));
+                }
+                catch (Exception) { }
+            }
 
-            Dictionary<string, double> amounts;
-            try { amounts = CompoundAmounts.Read(stream, phase, _basis, _su, _percentage); }
-            catch (Exception) { return; }
-
-            foreach (var item in amounts) _rows.Add(new Row(item.Key, item.Value, _nf));
+            // The Total label is this grid's only Edited subscriber; raise it here so the total
+            // reflects the loaded amounts immediately, not only after the first edit.
+            if (Edited != null) Edited();
         }
 
         // ---------------------------------------------------------------------
