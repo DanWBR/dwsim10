@@ -343,6 +343,27 @@ public partial class FlowsheetView : UserControl
         };
 
         MainDockHost.Child = _dockControl;
+
+        // Dock virtualizes the inactive document tabs: switching away detaches this view and the
+        // inner DockControl comes back without re-presenting its panels (they render blank). Forcing
+        // the DockControl to re-present its layout when the view is shown again rebuilds them. Done
+        // on a background dispatcher pass (after Dock's own tab-switch layout settles) and guarded,
+        // so it never runs mid-operation.
+        AttachedToVisualTree += (_, _) =>
+        {
+            global::Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                try
+                {
+                    if (_dockControl?.Layout is { } current)
+                    {
+                        _dockControl.Layout = null;
+                        _dockControl.Layout = current;
+                    }
+                }
+                catch { /* a refresh failure must never take the dock down */ }
+            }, global::Avalonia.Threading.DispatcherPriority.Background);
+        };
     }
 
     // -------------------------------------------------------------------------
