@@ -47,6 +47,15 @@ public class AvaloniaEditorPanel : StackPanel
     /// </summary>
     public void ArmAfterEdit() => _armed = true;
 
+    /// <summary>
+    /// True once <see cref="ArmAfterEdit"/> has run, i.e. after the deferred
+    /// TextChanged/SelectionChanged burst that Avalonia fires on visual-tree attachment.
+    /// Guard destructive per-control callbacks (those that clear sibling values, like the
+    /// material-stream flow spec, which nulls the other two flows) on this so programmatic
+    /// population does not mutate the object.
+    /// </summary>
+    public bool IsArmed => _armed;
+
     public AvaloniaEditorPanel()
     {
         Orientation = Orientation.Vertical;

@@ -169,6 +169,11 @@ namespace DWSIM.UI.Desktop.Editors
                 cv.ConvertFromSI(su.massflow, ms.Phases[0].Properties.massflow.GetValueOrDefault()),
                 (tb, e) =>
                 {
+                    // Only a real user edit switches the flow spec: during programmatic
+                    // population the three flow boxes each fire TextChanged in turn, and
+                    // nulling the siblings would wipe the calculated mass/molar flow until
+                    // the next solve (the Master Property Table then shows 0).
+                    if (!panel.IsArmed) return;
                     if (TryVal(tb.Text, out var v))
                     {
                         ms.Phases[0].Properties.volumetric_flow = null;
@@ -182,6 +187,7 @@ namespace DWSIM.UI.Desktop.Editors
                 cv.ConvertFromSI(su.molarflow, ms.Phases[0].Properties.molarflow.GetValueOrDefault()),
                 (tb, e) =>
                 {
+                    if (!panel.IsArmed) return;
                     if (TryVal(tb.Text, out var v))
                     {
                         ms.Phases[0].Properties.massflow = null;
@@ -195,6 +201,7 @@ namespace DWSIM.UI.Desktop.Editors
                 cv.ConvertFromSI(su.volumetricFlow, ms.Phases[0].Properties.volumetric_flow.GetValueOrDefault()),
                 (tb, e) =>
                 {
+                    if (!panel.IsArmed) return;
                     if (TryVal(tb.Text, out var v))
                     {
                         ms.Phases[0].Properties.massflow = null;
