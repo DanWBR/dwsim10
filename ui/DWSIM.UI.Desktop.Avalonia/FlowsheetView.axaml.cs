@@ -343,6 +343,43 @@ public partial class FlowsheetView : UserControl
         };
 
         MainDockHost.Child = _dockControl;
+
+        // Dock virtualizes the inactive document tabs: opening or switching simulations detaches
+        // this view and, when it comes back, the inner dock can return with its live panels dropped
+        // (the same re-host that left pinned/floated panels blank in issue #25). Each time the view
+        // is shown again, re-point any dockable whose content Dock lost back to its live control.
+        // Only content that actually differs is re-set, so an intact panel is never re-hosted (which
+        // is what blanks it), and both open simulations keep their flowsheet, editor and palette.
+        AttachedToVisualTree += (_, _) =>
+        {
+            if (_dockControl?.Layout is Dock.Model.Core.IDockable node && _dockFactory != null)
+                RepointLostDockContent(node, _dockFactory.ContentById);
+        };
+    }
+
+    /// <summary>
+    /// Restores a dockable's live content control when Dock dropped it during a detach/re-attach,
+    /// leaving the model's Content pointing at nothing (or a stale control). Content that already
+    /// matches the live control is left untouched, so an intact panel is never re-hosted.
+    /// </summary>
+    private static void RepointLostDockContent(Dock.Model.Core.IDockable node,
+        System.Collections.Generic.IReadOnlyDictionary<string, global::Avalonia.Controls.Control> contentById)
+    {
+        if (!string.IsNullOrEmpty(node.Id) && contentById.TryGetValue(node.Id!, out var content))
+        {
+            switch (node)
+            {
+                case Dock.Model.Avalonia.Controls.Tool tool when !ReferenceEquals(tool.Content, content):
+                    tool.Content = content;
+                    break;
+                case Dock.Model.Avalonia.Controls.Document document when !ReferenceEquals(document.Content, content):
+                    document.Content = content;
+                    break;
+            }
+        }
+
+        if (node is Dock.Model.Core.IDock dock && dock.VisibleDockables != null)
+            foreach (var child in dock.VisibleDockables) RepointLostDockContent(child, contentById);
     }
 
     // -------------------------------------------------------------------------
