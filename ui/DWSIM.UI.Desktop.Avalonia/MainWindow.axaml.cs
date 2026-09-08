@@ -743,7 +743,10 @@ public partial class MainWindow : Window
             Content = view,
             View = view,
             CanClose = true,
-            CanFloat = true
+            // Floating a document moves its nested DockControl into a new window, which the
+            // nested-dock content does not survive (it crashes with a NullReferenceException),
+            // the same reason the inner tools keep CanFloat off. Keep documents docked.
+            CanFloat = false
         };
 
         _documents[doc] = view;
