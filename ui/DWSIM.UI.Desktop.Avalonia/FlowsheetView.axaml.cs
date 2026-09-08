@@ -352,8 +352,18 @@ public partial class FlowsheetView : UserControl
         // is what blanks it), and both open simulations keep their flowsheet, editor and palette.
         AttachedToVisualTree += (_, _) =>
         {
-            if (_dockControl?.Layout is Dock.Model.Core.IDockable node && _dockFactory != null)
-                RepointLostDockContent(node, _dockFactory.ContentById);
+            // Re-point AFTER Dock has finished switching the tab: mutating a dockable's content
+            // while Dock is mid-layout corrupts the whole control (every tab goes blank and never
+            // returns), so defer to a background dispatcher pass and never let an error escape.
+            global::Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                try
+                {
+                    if (_dockControl?.Layout is Dock.Model.Core.IDockable node && _dockFactory != null)
+                        RepointLostDockContent(node, _dockFactory.ContentById);
+                }
+                catch { /* a re-point failure must never take the dock down */ }
+            }, global::Avalonia.Threading.DispatcherPriority.Background);
         };
     }
 
