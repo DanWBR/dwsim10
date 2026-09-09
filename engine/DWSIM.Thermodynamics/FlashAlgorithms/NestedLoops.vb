@@ -1162,9 +1162,12 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                     End If
                 End If
 
-                ' Convergence check: absolute + relative
+                ' Convergence check (absolute enthalpy error, in kJ/kg). A relative check of
+                ' Abs(fx / H) < 0.0001 used to sit here as well, but with H on the order of 1000 kJ/kg
+                ' it accepts an error near 0.1 kJ/kg, which is far coarser than tolEXT. Downstream that
+                ' quantizes an applied duty: a reactor feeding the flash small per-step enthalpy
+                ' changes sees a whole range of duties collapse onto the same outlet temperature.
                 If Abs(fx) <= tolEXT Then Exit Do
-                If H <> 0.0 AndAlso Abs(fx / H) < 0.0001 Then Exit Do
 
                 ' Track sign changes for oscillation detection
                 If cnt > 0 AndAlso Math.Sign(fx) <> Math.Sign(fx_ant) Then
@@ -1193,34 +1196,36 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
 
                 End If
 
-                ' Compute derivative: secant method (reuse previous point) or forward difference
-                Dim useSecant As Boolean = False
-                If cnt > 0 AndAlso Not Double.IsNaN(fx_secant) AndAlso Math.Abs(x1 - x_prev) > 1.0E-15 Then
-                    Dim secant_dfdx = (fx - fx_secant) / (x1 - x_prev)
-                    ' Safeguard: secant derivative must have the correct sign (dH/dT should be negative
-                    ' for the error function Hspec - Hcalc, so dfdx < 0 typically)
-                    ' and must not produce a step larger than 2x maxDT
-                    If Math.Abs(secant_dfdx) > 1.0E-20 AndAlso Math.Abs(fx / secant_dfdx) < 2.0 * maxDT Then
-                        dfdx = secant_dfdx
-                        useSecant = True
-                    End If
-                End If
-
-                If Not useSecant Then
-                    ' Forward difference with adaptive epsilon (0.1% of current T, clamped to [0.01, 1.0])
-                    Dim eps_fd As Double = Math.Max(0.01, Math.Min(1.0, x1 * 0.001))
-                    IObj2?.SetCurrent()
-                    fx2 = Herror("PT", x1 + eps_fd, P, Vz, PP, Ki_est IsNot Nothing, Ki_est)(0)
-                    dfdx = (fx2 - fx) / eps_fd
-                End If
+                ' Central-difference derivative over a coarse step. A one-sided or secant estimate is
+                ' unreliable in the two-phase region at these conditions: the mixture enthalpy rises
+                ' almost vertically across the vaporization front, so a step landing on the far side
+                ' returns a slope that is either enormous (the Newton step stalls and the flash runs
+                ' out of iterations) or the wrong sign (the step diverges upward to a spurious
+                ' all-vapour root). Averaging a step on each side, over a coarse interval, tracks the
+                ' real local slope, which is how the pre-net10 algorithm stayed stable here.
+                Dim eps_fd As Double = Math.Max(0.1, Math.Min(1.0, x1 * 0.002))
+                IObj2?.SetCurrent()
+                Dim fxp As Double = Herror("PT", x1 + eps_fd, P, Vz, PP, Ki_est IsNot Nothing, Ki_est)(0)
+                Dim fxm As Double = Herror("PT", x1 - eps_fd, P, Vz, PP, Ki_est IsNot Nothing, Ki_est)(0)
+                dfdx = (fxp - fxm) / (2.0 * eps_fd)
 
                 ' Guard against near-zero derivative
                 If Math.Abs(dfdx) < 1.0E-20 Then
                     dfdx = -Math.Sign(fx) * 1.0E-20
                 End If
 
-                dx = fx / dfdx
-                If Abs(dx) > maxDT Then dx = maxDT * Sign(dx)
+                ' dH/dT is physically positive (Cp > 0), so d(Hspec - Hcalc)/dT is negative. A
+                ' non-negative estimate here comes from two-phase flash noise near a vaporization
+                ' front and would drive the step the wrong way (up into the riser and on to a
+                ' spurious all-vapour root). Reject it and step a bounded amount in the correct
+                ' direction (fx > 0 means T too low), which builds a bracket for the bisection
+                ' safeguard below to finish on.
+                If dfdx >= 0.0 Then
+                    dx = -Math.Sign(fx) * maxDT
+                Else
+                    dx = fx / dfdx
+                    If Abs(dx) > maxDT Then dx = maxDT * Sign(dx)
+                End If
 
                 x_prev = x1
                 fx_secant = fx
@@ -1254,8 +1259,38 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
 
             IObj?.Close()
 
-            If Double.IsNaN(T) Or T <= Tmin Or T >= Tmax Or cnt > maxitEXT Then
-                'switch to mode 2 if it doesn't converge using fast mode.
+            Dim notConverged As Boolean = Double.IsNaN(T) OrElse T <= Tmin OrElse T >= Tmax OrElse cnt > maxitEXT
+            Dim haveBracket As Boolean = Not Double.IsNaN(T_bracket_pos) AndAlso Not Double.IsNaN(T_bracket_neg)
+
+            ' Fast mode ran out of iterations but the root is bracketed (Herror changed sign between
+            ' two tracked temperatures). H(T) is monotonic, so bisect the bracket to finish rather
+            ' than hand off to the rigorous mode, whose bubble/dew phase test is itself unreliable at
+            ' high pressure here and can return a spurious all-vapour temperature far from the spec.
+            If notConverged AndAlso haveBracket Then
+                Dim lo As Double = Math.Min(T_bracket_pos, T_bracket_neg)
+                Dim hi As Double = Math.Max(T_bracket_pos, T_bracket_neg)
+                Dim flo As Double = Herror("PT", lo, P, Vz, PP, Ki_est IsNot Nothing, Ki_est)(0)
+                Dim bcnt As Integer = 0
+                Do
+                    Dim mid As Double = (lo + hi) / 2.0
+                    Dim fmid As Double = Herror("PT", mid, P, Vz, PP, Ki_est IsNot Nothing, Ki_est)(0)
+                    If Double.IsNaN(fmid) Then Exit Do
+                    If Math.Abs(fmid) <= tolEXT OrElse (hi - lo) < 0.0005 Then
+                        lo = mid : hi = mid : Exit Do
+                    End If
+                    If Math.Sign(fmid) = Math.Sign(flo) Then
+                        lo = mid : flo = fmid
+                    Else
+                        hi = mid
+                    End If
+                    bcnt += 1
+                Loop Until bcnt > 200
+                T = (lo + hi) / 2.0
+                notConverged = Double.IsNaN(T) OrElse T <= Tmin OrElse T >= Tmax
+            End If
+
+            If notConverged Then
+                'switch to mode 2 if it doesn't converge using fast mode and no bracket was found.
                 WriteDebugInfo("PH Flash [NL]: Didn't converge in fast mode. Switching to rigorous...")
                 Return Flash_PH_2(Vz, P, H, Tref, PP, ReuseKI, PrevKi)
             Else
