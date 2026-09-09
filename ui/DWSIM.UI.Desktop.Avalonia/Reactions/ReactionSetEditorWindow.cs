@@ -68,12 +68,24 @@ namespace DWSIM.UI.Desktop.Avalonia.Reactions
                 HeadersVisibility = DataGridHeadersVisibility.Column,
                 GridLinesVisibility = DataGridGridLinesVisibility.All,
                 ItemsSource = _rows,
-                MinHeight = 260
+                Height = 300   // a DataGrid needs a bounded height to render its rows
             };
             _grid.Columns.Add(new DataGridTextColumn { Header = "Reaction", Binding = new Binding(nameof(Row.ReactionName)) { Mode = BindingMode.OneWay }, IsReadOnly = true, Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
             _grid.Columns.Add(new DataGridTextColumn { Header = "Type", Binding = new Binding(nameof(Row.ReactionType)) { Mode = BindingMode.OneWay }, IsReadOnly = true, Width = new DataGridLength(1.3, DataGridLengthUnitType.Star) });
             _grid.Columns.Add(new DataGridTextColumn { Header = "Equation", Binding = new Binding(nameof(Row.Equation)) { Mode = BindingMode.OneWay }, IsReadOnly = true, Width = new DataGridLength(3, DataGridLengthUnitType.Star) });
-            _grid.Columns.Add(new DataGridCheckBoxColumn { Header = "Active", Binding = new Binding(nameof(Row.Active)) { Mode = BindingMode.TwoWay }, Width = new DataGridLength(0.8, DataGridLengthUnitType.Star) });
+            _grid.Columns.Add(new DataGridTemplateColumn
+            {
+                // a checkbox column needs the cell in edit mode first (two clicks, looks disabled); a
+                // templated CheckBox toggles on the first click, as the compounds grid in Settings does
+                Header = "Active",
+                Width = new DataGridLength(0.8, DataGridLengthUnitType.Star),
+                CellTemplate = new global::Avalonia.Controls.Templates.FuncDataTemplate<Row>((_, _) =>
+                {
+                    var cb = new CheckBox { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+                    cb.Bind(CheckBox.IsCheckedProperty, new Binding(nameof(Row.Active)) { Mode = BindingMode.TwoWay });
+                    return cb;
+                })
+            });
             _grid.Columns.Add(new DataGridTextColumn { Header = "Rank", Binding = new Binding(nameof(Row.Rank)) { Mode = BindingMode.TwoWay, UpdateSourceTrigger = UpdateSourceTrigger.LostFocus }, Width = new DataGridLength(0.8, DataGridLengthUnitType.Star) });
 
             LoadRows();

@@ -216,7 +216,7 @@ public partial class SimulationSettingsWindow : Window
             // a tier the shorter (closer) name wins, as the Windows search does
             source = _allCompoundRows
                 .Where(x => CompoundSearch.Matches(x.Name, x.CAS, x.Formula, x.Database, q))
-                .OrderBy(x => CompoundSearch.Rank(x.Name, q))
+                .OrderBy(x => CompoundSearch.Rank(x.Name, x.CAS, x.Formula, q))
                 .ThenBy(x => x.Name.Length)
                 .ThenBy(x => x.Name, StringComparer.CurrentCultureIgnoreCase);
         }

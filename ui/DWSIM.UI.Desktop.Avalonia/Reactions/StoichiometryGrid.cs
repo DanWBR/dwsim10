@@ -5,7 +5,9 @@ using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
 using Avalonia.Controls;
+using Avalonia.Controls.Templates;
 using Avalonia.Data;
+using Avalonia.Layout;
 using DWSIM.ExtensionMethods;
 using DWSIM.Interfaces;
 
@@ -129,18 +131,10 @@ namespace DWSIM.UI.Desktop.Avalonia.Reactions
                 IsReadOnly = true,
                 Width = new DataGridLength(1.4, DataGridLengthUnitType.Star)
             });
-            Columns.Add(new DataGridCheckBoxColumn
-            {
-                Header = "Include",
-                Binding = new Binding(nameof(Row.Include)) { Mode = BindingMode.TwoWay },
-                Width = new DataGridLength(0.8, DataGridLengthUnitType.Star)
-            });
-            Columns.Add(new DataGridCheckBoxColumn
-            {
-                Header = "Base",
-                Binding = new Binding(nameof(Row.IsBase)) { Mode = BindingMode.TwoWay },
-                Width = new DataGridLength(0.8, DataGridLengthUnitType.Star)
-            });
+            // A DataGridCheckBoxColumn only reacts once the cell is in edit mode, so it costs two
+            // clicks and reads as disabled; a CheckBox inside a template column takes the first click.
+            Columns.Add(CheckBoxColumn("Include", nameof(Row.Include)));
+            Columns.Add(CheckBoxColumn("Base", nameof(Row.IsBase)));
             Columns.Add(new DataGridTextColumn
             {
                 Header = "Stoich. Coeff.",
@@ -165,6 +159,18 @@ namespace DWSIM.UI.Desktop.Avalonia.Reactions
 
             CellEditEnded += (_, _) => Edited?.Invoke();
         }
+
+        private static DataGridTemplateColumn CheckBoxColumn(string header, string property) => new()
+        {
+            Header = header,
+            Width = new DataGridLength(0.8, DataGridLengthUnitType.Star),
+            CellTemplate = new FuncDataTemplate<Row>((_, _) =>
+            {
+                var cb = new CheckBox { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+                cb.Bind(CheckBox.IsCheckedProperty, new Binding(property) { Mode = BindingMode.TwoWay });
+                return cb;
+            })
+        };
 
         /// <summary>Fills one row per selected compound, then applies an existing reaction's state.</summary>
         public void Populate(IFlowsheet flowsheet, IReaction existing)

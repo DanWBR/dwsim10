@@ -63,12 +63,13 @@ namespace DWSIM.UI.Desktop.Avalonia.Reactions
         protected void BuildUI(string title)
         {
             Title = title;
-            Width = 940;
-            Height = 640;
+            Width = 780;
+            Height = 720;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
             Icon = IconHelper.GetWindowIcon();
 
-            Stoich = new StoichiometryGrid(ShowOrders) { MinHeight = 220 };
+            // a DataGrid needs a bounded height, or it renders no rows inside a vertical StackPanel
+            Stoich = new StoichiometryGrid(ShowOrders) { Height = 240 };
             Stoich.Populate(Fs, _existing);
             Stoich.Edited += Recompute;
 
@@ -100,18 +101,11 @@ namespace DWSIM.UI.Desktop.Avalonia.Reactions
             idBody.Children.Add(LabelRow("Name", _tbName));
             idBody.Children.Add(LabelRow("Description", _tbDesc));
 
-            var left = new StackPanel { Spacing = 10, Margin = new Thickness(0, 0, 8, 0) };
-            left.Children.Add(GroupBox("Components and Stoichiometry", stoichBody));
-
-            var right = new StackPanel { Spacing = 10 };
-            right.Children.Add(GroupBox("Parameters", paramsPanel));
-            right.Children.Add(GroupBox("Identification", idBody));
-
-            var columns = new Grid { ColumnDefinitions = new ColumnDefinitions("2*,*"), Margin = new Thickness(12) };
-            global::Avalonia.Controls.Grid.SetColumn(left, 0);
-            global::Avalonia.Controls.Grid.SetColumn(right, 1);
-            columns.Children.Add(left);
-            columns.Children.Add(right);
+            // single column, stacked top to bottom: Identification, Components & Stoichiometry, Parameters
+            var content = new StackPanel { Spacing = 10, Margin = new Thickness(12) };
+            content.Children.Add(GroupBox("Identification", idBody));
+            content.Children.Add(GroupBox("Components and Stoichiometry", stoichBody));
+            content.Children.Add(GroupBox("Parameters", paramsPanel));
 
             var ok = new Button { Content = "OK", Width = 90, IsDefault = true };
             ok.Classes.Add("dialog");
@@ -131,7 +125,7 @@ namespace DWSIM.UI.Desktop.Avalonia.Reactions
             var body = new DockPanel();
             DockPanel.SetDock(buttons, global::Avalonia.Controls.Dock.Bottom);
             body.Children.Add(buttons);
-            body.Children.Add(new ScrollViewer { Content = columns });
+            body.Children.Add(new ScrollViewer { Content = content });
             Content = body;
 
             Recompute();

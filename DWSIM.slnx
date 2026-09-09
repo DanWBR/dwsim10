@@ -43,6 +43,7 @@
     <Project Path="engine/DWSIM.PureCompoundData/src/Fragmentation/DWSIM.PureCompoundData.Fragmentation.csproj" />
     <Project Path="engine/DWSIM.PureCompoundData/src/Builder/DWSIM.PureCompoundData.Builder.csproj" />
     <Project Path="engine/DWSIM.PureCompoundData/src/CLI/DWSIM.PureCompoundData.CLI.csproj" />
+    <Project Path="engine/DWSIM.ReactionFinder.Logic/DWSIM.ReactionFinder.Logic.csproj" />
     <Project Path="engine/DWSIM.SharedClasses.DataRegression/DWSIM.SharedClasses.DataRegression.vbproj" />
     <Project Path="engine/DWSIM.UnitOperations/DWSIM.UnitOperations.vbproj" />
     <Project Path="engine/DWSIM.Thermodynamics.ReaktoroPropertyPackage/DWSIM.Thermodynamics.ReaktoroPropertyPackage.vbproj" />

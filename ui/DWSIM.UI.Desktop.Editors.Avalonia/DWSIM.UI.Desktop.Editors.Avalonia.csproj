@@ -38,6 +38,7 @@
     <ProjectReference Include="..\..\engine\DWSIM.PureCompoundData\src\Builder\DWSIM.PureCompoundData.Builder.csproj" />
     <ProjectReference Include="..\..\engine\DWSIM.PureCompoundData\src\Core\DWSIM.PureCompoundData.Core.csproj" />
     <ProjectReference Include="..\..\engine\DWSIM.PureCompoundData\src\Index\DWSIM.PureCompoundData.Index.csproj" />
+    <ProjectReference Include="..\..\engine\DWSIM.ReactionFinder.Logic\DWSIM.ReactionFinder.Logic.csproj" />
     <ProjectReference Include="..\..\engine\DWSIM.SharedClasses\DWSIM.SharedClasses.vbproj" />
     <ProjectReference Include="..\..\engine\DWSIM.SharedClassesCSharp\DWSIM.SharedClassesCSharp.csproj" />
     <ProjectReference Include="..\..\engine\DWSIM.Thermodynamics\DWSIM.Thermodynamics.vbproj" />
