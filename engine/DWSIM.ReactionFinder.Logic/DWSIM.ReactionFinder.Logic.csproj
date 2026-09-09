@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Cross-platform reaction-suggestion logic for the reaction finder. It depends only on the engine
+    (DWSIM.Interfaces / DWSIM.Thermodynamics), so both the Avalonia UI (net10) and the classic
+    WinForms ReactionFinder extension (net472, which compiles this same source into its own assembly)
+    can use it. RootNamespace stays "ReactionFinder" so the embedded reaction dataset keeps its
+    resource name (ReactionFinder.Data.electrolyte_reactions.json).
+  -->
+
+  <PropertyGroup>
+    <RootNamespace>ReactionFinder</RootNamespace>
+    <AssemblyName>DWSIM.ReactionFinder.Logic</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DWSIM.Interfaces\DWSIM.Interfaces.vbproj" />
+    <ProjectReference Include="..\DWSIM.Thermodynamics\DWSIM.Thermodynamics.vbproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="Data\electrolyte_reactions.json" />
+    <EmbeddedResource Include="Data\electrolyte_reactions.json">
+      <LogicalName>ReactionFinder.Data.electrolyte_reactions.json</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+</Project>

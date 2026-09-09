@@ -1,0 +1,2310 @@
+{
+  "_metadata": {
+    "version": "1.0.0",
+    "description": "Electrolyte equilibrium reactions auto-generated from electrolyte.xml plus a curated list of common aqueous-process equilibria. Reaction type is Equilibrium, ReactionBasis is Activity, and K is computed by DWSIM at runtime from compound Gibbs energies of formation (KExprType = Gibbs). For informational purposes, ΔG_rxn at 298 K is included where all standard formation values are known.",
+    "ion_charge_convention": "Ion formula matches what the host electrolyte.xml database uses; the loader normalizes between SO4-2 / SO42- variants.",
+    "phase_convention": "Liquid = aqueous solution. Solid-phase salt-precipitation reactions can be added later by extending this file."
+  },
+  "reactions": [
+    {
+      "id": "AB_H2O_autoionization",
+      "name": "Water autoionization",
+      "description": "H2O <-> H+ + OH-",
+      "category": "WaterChemistry",
+      "phase": "Liquid",
+      "stoich": {
+        "Water": -1,
+        "H+": 1,
+        "OH-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": 79.89,
+      "pKa_or_pKw_298": 14.0,
+      "source": "Marshall & Franck 1981"
+    },
+    {
+      "id": "AB_CO2_first_ionization",
+      "name": "CO2 ionization (1st)",
+      "description": "CO2(aq) + H2O <-> H+ + HCO3-",
+      "category": "AcidBase",
+      "phase": "Liquid",
+      "stoich": {
+        "Carbon dioxide": -1,
+        "Water": -1,
+        "H+": 1,
+        "HCO3-": 1
+      },
+      "pKa_or_pKw_298": 6.35,
+      "source": "Plummer & Busenberg 1982"
+    },
+    {
+      "id": "AB_HCO3_dissociation",
+      "name": "Bicarbonate dissociation (2nd)",
+      "description": "HCO3- <-> H+ + CO3-2",
+      "category": "AcidBase",
+      "phase": "Liquid",
+      "stoich": {
+        "HCO3-": -1,
+        "H+": 1,
+        "CO3-2": 1
+      },
+      "pKa_or_pKw_298": 10.33,
+      "source": "Plummer & Busenberg 1982"
+    },
+    {
+      "id": "AB_H2S_first_ionization",
+      "name": "H2S ionization (1st)",
+      "description": "H2S <-> H+ + HS-",
+      "category": "AcidBase",
+      "phase": "Liquid",
+      "stoich": {
+        "Hydrogen sulfide": -1,
+        "H+": 1,
+        "HS-": 1
+      },
+      "pKa_or_pKw_298": 7.05,
+      "source": "Millero 1986"
+    },
+    {
+      "id": "AB_HS_dissociation",
+      "name": "Bisulfide dissociation (2nd)",
+      "description": "HS- <-> H+ + S-2",
+      "category": "AcidBase",
+      "phase": "Liquid",
+      "stoich": {
+        "HS-": -1,
+        "H+": 1,
+        "S-2": 1
+      },
+      "pKa_or_pKw_298": 19.0,
+      "source": "Millero 1986"
+    },
+    {
+      "id": "AB_NH3_protonation",
+      "name": "Ammonia protonation",
+      "description": "NH3 + H2O <-> NH4+ + OH-",
+      "category": "AcidBase",
+      "phase": "Liquid",
+      "stoich": {
+        "Ammonia": -1,
+        "Water": -1,
+        "NH4+": 1,
+        "OH-": 1
+      },
+      "pKa_or_pKw_298": 9.25,
+      "source": "Edwards et al. 1978"
+    },
+    {
+      "id": "AB_SO2_first_ionization",
+      "name": "SO2 ionization (1st)",
+      "description": "SO2(aq) + H2O <-> H+ + HSO3-",
+      "category": "AcidBase",
+      "phase": "Liquid",
+      "stoich": {
+        "Sulfur dioxide": -1,
+        "Water": -1,
+        "H+": 1,
+        "HSO3-": 1
+      },
+      "pKa_or_pKw_298": 1.85,
+      "source": "Edwards et al. 1978"
+    },
+    {
+      "id": "AB_HSO3_dissociation",
+      "name": "Bisulfite dissociation (2nd)",
+      "description": "HSO3- <-> H+ + SO3-2",
+      "category": "AcidBase",
+      "phase": "Liquid",
+      "stoich": {
+        "HSO3-": -1,
+        "H+": 1,
+        "SO3-2": 1
+      },
+      "pKa_or_pKw_298": 7.2,
+      "source": "Edwards et al. 1978"
+    },
+    {
+      "id": "AB_HSO4_dissociation",
+      "name": "Bisulfate dissociation",
+      "description": "HSO4- <-> H+ + SO4-2",
+      "category": "AcidBase",
+      "phase": "Liquid",
+      "stoich": {
+        "HSO4-": -1,
+        "H+": 1,
+        "SO4-2": 1
+      },
+      "pKa_or_pKw_298": 1.99,
+      "source": "Pitzer 1991"
+    },
+    {
+      "id": "AB_H3PO4_first_ionization",
+      "name": "H3PO4 ionization (1st)",
+      "description": "H3PO4 <-> H+ + H2PO4-",
+      "category": "AcidBase",
+      "phase": "Liquid",
+      "stoich": {
+        "Phosphoric acid": -1,
+        "H+": 1,
+        "H2PO4-": 1
+      },
+      "pKa_or_pKw_298": 2.15,
+      "source": "CRC Handbook 96th ed"
+    },
+    {
+      "id": "AB_H2PO4_dissociation",
+      "name": "Dihydrogen phosphate dissociation (2nd)",
+      "description": "H2PO4- <-> H+ + HPO4-2",
+      "category": "AcidBase",
+      "phase": "Liquid",
+      "stoich": {
+        "H2PO4-": -1,
+        "H+": 1,
+        "HPO4-2": 1
+      },
+      "pKa_or_pKw_298": 7.2,
+      "source": "CRC Handbook 96th ed"
+    },
+    {
+      "id": "AB_HPO4_dissociation",
+      "name": "Hydrogen phosphate dissociation (3rd)",
+      "description": "HPO4-2 <-> H+ + PO4-3",
+      "category": "AcidBase",
+      "phase": "Liquid",
+      "stoich": {
+        "HPO4-2": -1,
+        "H+": 1,
+        "PO4-3": 1
+      },
+      "pKa_or_pKw_298": 12.35,
+      "source": "CRC Handbook 96th ed"
+    },
+    {
+      "id": "AB_HCl_dissociation",
+      "name": "HCl dissociation",
+      "description": "HCl(aq) <-> H+ + Cl-",
+      "category": "AcidBase",
+      "phase": "Liquid",
+      "stoich": {
+        "Hydrogen chloride": -1,
+        "H+": 1,
+        "Cl-": 1
+      },
+      "pKa_or_pKw_298": -7.0,
+      "source": "Robinson & Stokes 1959"
+    },
+    {
+      "id": "AB_HF_dissociation",
+      "name": "HF dissociation",
+      "description": "HF <-> H+ + F-",
+      "category": "AcidBase",
+      "phase": "Liquid",
+      "stoich": {
+        "Hydrogen fluoride": -1,
+        "H+": 1,
+        "F-": 1
+      },
+      "pKa_or_pKw_298": 3.17,
+      "source": "CRC Handbook 96th ed"
+    },
+    {
+      "id": "AB_HNO3_dissociation",
+      "name": "HNO3 dissociation",
+      "description": "HNO3 <-> H+ + NO3-",
+      "category": "AcidBase",
+      "phase": "Liquid",
+      "stoich": {
+        "Nitric acid": -1,
+        "H+": 1,
+        "NO3-": 1
+      },
+      "pKa_or_pKw_298": -1.4,
+      "source": "Pitzer 1991"
+    },
+    {
+      "id": "AB_H2SO4_first_ionization",
+      "name": "H2SO4 ionization (1st)",
+      "description": "H2SO4 <-> H+ + HSO4-",
+      "category": "AcidBase",
+      "phase": "Liquid",
+      "stoich": {
+        "Sulfuric acid": -1,
+        "H+": 1,
+        "HSO4-": 1
+      },
+      "pKa_or_pKw_298": -3.0,
+      "source": "Pitzer 1991"
+    },
+    {
+      "id": "AB_CO2_dissolution",
+      "name": "CO2 gas dissolution",
+      "description": "CO2(g) <-> CO2(aq)",
+      "category": "AcidBase",
+      "phase": "Liquid",
+      "stoich": {
+        "Carbon dioxide": 1,
+        "Carbon dioxide(g)": -1
+      },
+      "source": "Henry's law (informational)"
+    },
+    {
+      "id": "AB_MEA_carbamate",
+      "name": "MEA carbamate formation",
+      "description": "MEA + CO2 + H2O <-> MEA-carbamate + H3O+",
+      "category": "AcidBase",
+      "phase": "Liquid",
+      "stoich": {
+        "Monoethanolamine": -1,
+        "Carbon dioxide": -1,
+        "Water": -1,
+        "MEA-carbamate": 1,
+        "H+": 1
+      },
+      "source": "Faramarzi et al. 2009"
+    },
+    {
+      "id": "AB_MEA_protonation",
+      "name": "MEA protonation",
+      "description": "MEA + H+ <-> MEAH+",
+      "category": "AcidBase",
+      "phase": "Liquid",
+      "stoich": {
+        "Monoethanolamine": -1,
+        "H+": -1,
+        "MEAH+": 1
+      },
+      "pKa_or_pKw_298": 9.5,
+      "source": "Faramarzi et al. 2009"
+    },
+    {
+      "id": "AB_MDEA_protonation",
+      "name": "MDEA protonation",
+      "description": "MDEA + H+ <-> MDEAH+",
+      "category": "AcidBase",
+      "phase": "Liquid",
+      "stoich": {
+        "Methyldiethanolamine": -1,
+        "H+": -1,
+        "MDEAH+": 1
+      },
+      "pKa_or_pKw_298": 8.52,
+      "source": "Faramarzi et al. 2009"
+    },
+    {
+      "id": "DISS_Ammonium_Peroxydisulfate",
+      "name": "Ammonium Peroxydisulfate dissociation",
+      "description": "(NH4)2S2O8 <-> 2NH4+ + S2O82-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Ammonium Peroxydisulfate": -1,
+        "NH4+": 2,
+        "S2O82-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": null,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Ammonium_Sulfate",
+      "name": "Ammonium Sulfate dissociation",
+      "description": "(NH4)2SO4 <-> 2NH4+ + SO42-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Ammonium Sulfate": -1,
+        "NH4+": 2,
+        "SO42-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -1.48,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Cesium_Sulfate",
+      "name": "Cesium Sulfate dissociation",
+      "description": "Cs2SO4 <-> 2Cs+ + SO42-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Cesium Sulfate": -1,
+        "Cs+": 2,
+        "SO42-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -3.87,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Cesium_Bromide",
+      "name": "Cesium Bromide dissociation",
+      "description": "CsBr <-> Cs+ + Br-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Cesium Bromide": -1,
+        "Cs+": 1,
+        "Br-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -4.01,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Cesium_Chloride",
+      "name": "Cesium Chloride dissociation",
+      "description": "CsCl <-> Cs+ + Cl-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Cesium Chloride": -1,
+        "Cs+": 1,
+        "Cl-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -8.16,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Cesium_Perchlorate",
+      "name": "Cesium Perchlorate dissociation",
+      "description": "CsClO4 <-> Cs+ + ClO4-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Cesium Perchlorate": -1,
+        "Cs+": 1,
+        "ClO4-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": 14.31,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Cesium_Iodide",
+      "name": "Cesium Iodide dissociation",
+      "description": "CsI <-> Cs+ + I-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Cesium Iodide": -1,
+        "Cs+": 1,
+        "I-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -2.45,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Cesium_Nitrate",
+      "name": "Cesium Nitrate dissociation",
+      "description": "CsNO3 <-> Cs+ + NO3-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Cesium Nitrate": -1,
+        "Cs+": 1,
+        "NO3-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": 3.79,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Potassium_Carbonate_4",
+      "name": "Potassium Carbonate (4) dissociation",
+      "description": "K2CO3.NaHCO3.2H2O <-> 2K+ + CO32- + 2 H2O",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Potassium Carbonate (4)": -1,
+        "K+": 2,
+        "CO32-": 1,
+        "Water": 2
+      },
+      "delta_G_rxn_298_kJ_mol": 842.02,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Potassium_Sulfate",
+      "name": "Potassium Sulfate dissociation",
+      "description": "K2SO4 <-> 2K+ + SO42-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Potassium Sulfate": -1,
+        "K+": 2,
+        "SO42-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": 10.23,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Potassium_Bromide",
+      "name": "Potassium Bromide dissociation",
+      "description": "KBr <-> K+ + Br-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Potassium Bromide": -1,
+        "K+": 1,
+        "Br-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -6.76,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Potassium_Chloride",
+      "name": "Potassium Chloride dissociation",
+      "description": "KCl <-> K+ + Cl-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Potassium Chloride": -1,
+        "K+": 1,
+        "Cl-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -5.16,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Potassium_Perchlorate",
+      "name": "Potassium Perchlorate dissociation",
+      "description": "KClO4 <-> K+ + ClO4-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Potassium Perchlorate": -1,
+        "K+": 1,
+        "ClO4-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": 11.34,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Potassium_Hydrogen_Carbonate",
+      "name": "Potassium Hydrogen Carbonate dissociation",
+      "description": "KHCO3 <-> K+ + HCO3-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Potassium Hydrogen Carbonate": -1,
+        "K+": 1,
+        "HCO3-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -1.34,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Potassium_Iodide",
+      "name": "Potassium Iodide dissociation",
+      "description": "KI <-> K+ + I-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Potassium Iodide": -1,
+        "K+": 1,
+        "I-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -9.95,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Potassium_Nitrate",
+      "name": "Potassium Nitrate dissociation",
+      "description": "KNO3 <-> K+ + NO3-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Potassium Nitrate": -1,
+        "K+": 1,
+        "NO3-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": 0.34,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Lithium_Sulfate",
+      "name": "Lithium Sulfate dissociation",
+      "description": "Li2SO4 <-> 2Li+ + SO42-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Lithium Sulfate": -1,
+        "Li+": 2,
+        "SO42-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -9.45,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Lithium_Bromide",
+      "name": "Lithium Bromide dissociation",
+      "description": "LiBr <-> Li+ + Br-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Lithium Bromide": -1,
+        "Li+": 1,
+        "Br-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -55.64,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Lithium_Chloride",
+      "name": "Lithium Chloride dissociation",
+      "description": "LiCl <-> Li+ + Cl-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Lithium Chloride": -1,
+        "Li+": 1,
+        "Cl-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -40.53,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Lithium_Perchlorate",
+      "name": "Lithium Perchlorate dissociation",
+      "description": "LiClO4 <-> Li+ + ClO4-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Lithium Perchlorate": -1,
+        "Li+": 1,
+        "ClO4-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -301.8,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Lithium_Iodide",
+      "name": "Lithium Iodide dissociation",
+      "description": "LiI <-> Li+ + I-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Lithium Iodide": -1,
+        "Li+": 1,
+        "I-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -75.21,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Lithium_Nitrate",
+      "name": "Lithium Nitrate dissociation",
+      "description": "LiNO3 <-> Li+ + NO3-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Lithium Nitrate": -1,
+        "Li+": 1,
+        "NO3-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -23.46,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Magnesium_Perchlorate",
+      "name": "Magnesium Perchlorate dissociation",
+      "description": "Mg(ClO4)2 <-> Mg2+ + 2ClO4-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Magnesium Perchlorate": -1,
+        "Mg2+": 1,
+        "ClO4-": 2
+      },
+      "delta_G_rxn_298_kJ_mol": -471.78,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Magnesium_Nitrate",
+      "name": "Magnesium Nitrate dissociation",
+      "description": "Mg(NO3)2 <-> Mg2+ + 2NO3-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Magnesium Nitrate": -1,
+        "Mg2+": 1,
+        "NO3-": 2
+      },
+      "delta_G_rxn_298_kJ_mol": -87.9,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Magnesium_Bromide",
+      "name": "Magnesium Bromide dissociation",
+      "description": "MgBr2 <-> Mg2+ + 2Br-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Magnesium Bromide": -1,
+        "Mg2+": 1,
+        "Br-": 2
+      },
+      "delta_G_rxn_298_kJ_mol": -158.92,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Magnesium_Chloride",
+      "name": "Magnesium Chloride dissociation",
+      "description": "MgCl2 <-> Mg2+ + 2Cl-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Magnesium Chloride": -1,
+        "Mg2+": 1,
+        "Cl-": 2
+      },
+      "delta_G_rxn_298_kJ_mol": -125.19,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Magnesium_Iodide",
+      "name": "Magnesium Iodide dissociation",
+      "description": "MgI2 <-> Mg2+ + 2I-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Magnesium Iodide": -1,
+        "Mg2+": 1,
+        "I-": 2
+      },
+      "delta_G_rxn_298_kJ_mol": -199.74,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Magnesium_Sulfate",
+      "name": "Magnesium Sulfate dissociation",
+      "description": "MgSO4 <-> Mg2+ + SO42-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Magnesium Sulfate": -1,
+        "Mg2+": 1,
+        "SO42-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -28.73,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Sodium_Carbonate_1",
+      "name": "Sodium Carbonate (1) dissociation",
+      "description": "Na2CO3.2Na2SO4 <-> 2Na+ + CO32-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Sodium Carbonate (1)": -1,
+        "Na+": 2,
+        "CO32-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": 2541.56,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Sodium_Carbonate_2",
+      "name": "Sodium Carbonate (2) dissociation",
+      "description": "Na2CO3.3NaHCO3 <-> 2Na+ + CO32-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Sodium Carbonate (2)": -1,
+        "Na+": 2,
+        "CO32-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": 2551.15,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Sodium_Carbonate_3",
+      "name": "Sodium Carbonate (3) dissociation",
+      "description": "Na2CO3.NaHCO3.2H2O <-> 2Na+ + CO32- + 2 H2O",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Sodium Carbonate (3)": -1,
+        "Na+": 2,
+        "CO32-": 1,
+        "Water": 2
+      },
+      "delta_G_rxn_298_kJ_mol": 854.22,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Potassium_Molybdate",
+      "name": "Potassium Molybdate dissociation",
+      "description": "Na2S2O8 <-> 2Na+ + S2O82-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Potassium Molybdate": -1,
+        "Na+": 2,
+        "S2O82-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": null,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Sodium_Sulfate",
+      "name": "Sodium Sulfate dissociation",
+      "description": "Na2SO4 <-> 2Na+ + SO42-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Sodium Sulfate": -1,
+        "Na+": 2,
+        "SO42-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": 1.5,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Sodium_Sulfate_Decahydrate",
+      "name": "Sodium Sulfate Decahydrate dissociation",
+      "description": "Na2SO4.10H2O <-> 2Na+ + SO42- + 10 H2O",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Sodium Sulfate Decahydrate": -1,
+        "Na+": 2,
+        "SO42-": 1,
+        "Water": 10
+      },
+      "delta_G_rxn_298_kJ_mol": 7.2,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Sodium_Sulfate_1",
+      "name": "Sodium Sulfate (1) dissociation",
+      "description": "Na2SO4.(NH4)2SO4.4H2O <-> 2Na+ + SO42- + 4 H2O",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Sodium Sulfate (1)": -1,
+        "Na+": 2,
+        "SO42-": 1,
+        "Water": 4
+      },
+      "delta_G_rxn_298_kJ_mol": 910.95,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Sodium_Bromide",
+      "name": "Sodium Bromide dissociation",
+      "description": "NaBr <-> Na+ + Br-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Sodium Bromide": -1,
+        "Na+": 1,
+        "Br-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -16.6,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Sodium_Bromide_Dihydrate",
+      "name": "Sodium Bromide Dihydrate dissociation",
+      "description": "NaBr.2H2O <-> Na+ + Br- + 2 H2O",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Sodium Bromide Dihydrate": -1,
+        "Na+": 1,
+        "Br-": 1,
+        "Water": 2
+      },
+      "delta_G_rxn_298_kJ_mol": -11.48,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Sodium_Chloride",
+      "name": "Sodium Chloride dissociation",
+      "description": "NaCl <-> Na+ + Cl-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Sodium Chloride": -1,
+        "Na+": 1,
+        "Cl-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -9.12,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Sodium_Chloride_Dihydrate",
+      "name": "Sodium Chloride Dihydrate dissociation",
+      "description": "NaCl.2H2O <-> Na+ + Cl- + 2 H2O",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Sodium Chloride Dihydrate": -1,
+        "Na+": 1,
+        "Cl-": 1,
+        "Water": 2
+      },
+      "delta_G_rxn_298_kJ_mol": -9.2,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Sodium_Perchlorate",
+      "name": "Sodium Perchlorate dissociation",
+      "description": "NaClO4 <-> Na+ + ClO4-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Sodium Perchlorate": -1,
+        "Na+": 1,
+        "ClO4-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -15.55,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Sodium_Iodide",
+      "name": "Sodium Iodide dissociation",
+      "description": "NaI <-> Na+ + I-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Sodium Iodide": -1,
+        "Na+": 1,
+        "I-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -31.98,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Glaserite",
+      "name": "Glaserite dissociation",
+      "description": "NaK3(SO4)2 <-> 2NaK32+ + 2SO42-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Glaserite": -1,
+        "NaK32+": 2,
+        "SO42-": 2
+      },
+      "delta_G_rxn_298_kJ_mol": null,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Sodium_Potassium_Carbonate_Hexahydrate",
+      "name": "Sodium Potassium Carbonate Hexahydrate dissociation",
+      "description": "NaKCO3.6H2O <-> 2NaK2+ + CO32- + 6 H2O",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Sodium Potassium Carbonate Hexahydrate": -1,
+        "NaK2+": 2,
+        "CO32-": 1,
+        "Water": 6
+      },
+      "delta_G_rxn_298_kJ_mol": null,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Sodium_Nitrate",
+      "name": "Sodium Nitrate dissociation",
+      "description": "NaNO3 <-> Na+ + NO3-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Sodium Nitrate": -1,
+        "Na+": 1,
+        "NO3-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -6.15,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Sodium_Nitrate_1",
+      "name": "Sodium Nitrate (1) dissociation",
+      "description": "NaNO3.Na2SO4.H2O <-> Na+ + NO3- + 1 H2O",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Sodium Nitrate (1)": -1,
+        "Na+": 1,
+        "NO3-": 1,
+        "Water": 1
+      },
+      "delta_G_rxn_298_kJ_mol": 1266.45,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Ammonium_Bromide",
+      "name": "Ammonium Bromide dissociation",
+      "description": "NH4Br <-> NH4+ + Br-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Ammonium Bromide": -1,
+        "NH4+": 1,
+        "Br-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -8.07,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Ammonium_Chloride",
+      "name": "Ammonium Chloride dissociation",
+      "description": "NH4Cl <-> NH4+ + Cl-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Ammonium Chloride": -1,
+        "NH4+": 1,
+        "Cl-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -6.94,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Ammonium_Perchlorate",
+      "name": "Ammonium Perchlorate dissociation",
+      "description": "NH4ClO4 <-> NH4+ + ClO4-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Ammonium Perchlorate": -1,
+        "NH4+": 1,
+        "ClO4-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": 0.95,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Ammonium_Iodide",
+      "name": "Ammonium Iodide dissociation",
+      "description": "NH4I <-> NH4+ + I-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Ammonium Iodide": -1,
+        "NH4+": 1,
+        "I-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -10.39,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Ammonium_Nitrate",
+      "name": "Ammonium Nitrate dissociation",
+      "description": "NH4NO3 <-> NH4+ + NO3-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Ammonium Nitrate": -1,
+        "NH4+": 1,
+        "NO3-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -6.69,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Salt",
+      "name": "Salt dissociation",
+      "description": "NaCl <-> Na+ + Cl-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Salt": -1,
+        "Na+": 1,
+        "Cl-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -9.12,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Calcium_Chloride",
+      "name": "Calcium Chloride dissociation",
+      "description": "CaCl2 <-> Ca2+ + 2Cl-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Calcium Chloride": -1,
+        "Ca2+": 1,
+        "Cl-": 2
+      },
+      "delta_G_rxn_298_kJ_mol": -67.94,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Calcium_Chloride_Dihydrate",
+      "name": "Calcium Chloride Dihydrate dissociation",
+      "description": "CaCl2.2H2O <-> Ca2+ + 2Cl- + 2 H2O",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Calcium Chloride Dihydrate": -1,
+        "Ca2+": 1,
+        "Cl-": 2,
+        "Water": 2
+      },
+      "delta_G_rxn_298_kJ_mol": -36.4,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Calcium_Chloride_Hexahydrate",
+      "name": "Calcium Chloride Hexahydrate dissociation",
+      "description": "CaCl2.6H2O <-> Ca2+ + 2Cl- + 6 H2O",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Calcium Chloride Hexahydrate": -1,
+        "Ca2+": 1,
+        "Cl-": 2,
+        "Water": 6
+      },
+      "delta_G_rxn_298_kJ_mol": -23.42,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Calcium_Sulfate_Anhydrite",
+      "name": "Calcium Sulfate (Anhydrite) dissociation",
+      "description": "CaSO4 <-> Ca2+ + SO42-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Calcium Sulfate (Anhydrite)": -1,
+        "Ca2+": 1,
+        "SO42-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": 23.68,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Calcium_Sulfate_Dihydrate_Gypsum",
+      "name": "Calcium Sulfate Dihydrate (Gypsum) dissociation",
+      "description": "CaSO4.2H2O <-> Ca2+ + SO42- + 2 H2O",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Calcium Sulfate Dihydrate (Gypsum)": -1,
+        "Ca2+": 1,
+        "SO42-": 1,
+        "Water": 2
+      },
+      "delta_G_rxn_298_kJ_mol": 24.91,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Calcium_Carbonate_Calcite",
+      "name": "Calcium Carbonate (Calcite) dissociation",
+      "description": "CaCO3 <-> Ca2+ + CO32-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Calcium Carbonate (Calcite)": -1,
+        "Ca2+": 1,
+        "CO32-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": 47.4,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Calcium_Hydroxide",
+      "name": "Calcium Hydroxide dissociation",
+      "description": "Ca(OH)2 <-> Ca2+ + 2OH-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Calcium Hydroxide": -1,
+        "Ca2+": 1,
+        "OH-": 2
+      },
+      "delta_G_rxn_298_kJ_mol": 30.43,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Calcium_Nitrate",
+      "name": "Calcium Nitrate dissociation",
+      "description": "Ca(NO3)2 <-> Ca2+ + 2NO3-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Calcium Nitrate": -1,
+        "Ca2+": 1,
+        "NO3-": 2
+      },
+      "delta_G_rxn_298_kJ_mol": -33.01,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Calcium_Bromide",
+      "name": "Calcium Bromide dissociation",
+      "description": "CaBr2 <-> Ca2+ + 2Br-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Calcium Bromide": -1,
+        "Ca2+": 1,
+        "Br-": 2
+      },
+      "delta_G_rxn_298_kJ_mol": -105.4,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Calcium_Fluoride_Fluorite",
+      "name": "Calcium Fluoride (Fluorite) dissociation",
+      "description": "CaF2 <-> Ca2+ + 2F-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Calcium Fluoride (Fluorite)": -1,
+        "Ca2+": 1,
+        "F-": 2
+      },
+      "delta_G_rxn_298_kJ_mol": 56.14,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Barium_Chloride",
+      "name": "Barium Chloride dissociation",
+      "description": "BaCl2 <-> Ba2+ + 2Cl-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Barium Chloride": -1,
+        "Ba2+": 1,
+        "Cl-": 2
+      },
+      "delta_G_rxn_298_kJ_mol": -12.83,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Barium_Sulfate_Barite",
+      "name": "Barium Sulfate (Barite) dissociation",
+      "description": "BaSO4 <-> Ba2+ + SO42-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Barium Sulfate (Barite)": -1,
+        "Ba2+": 1,
+        "SO42-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": 56.9,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Barium_Carbonate_Witherite",
+      "name": "Barium Carbonate (Witherite) dissociation",
+      "description": "BaCO3 <-> Ba2+ + CO32-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Barium Carbonate (Witherite)": -1,
+        "Ba2+": 1,
+        "CO32-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": 43.63,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Barium_Nitrate",
+      "name": "Barium Nitrate dissociation",
+      "description": "Ba(NO3)2 <-> Ba2+ + 2NO3-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Barium Nitrate": -1,
+        "Ba2+": 1,
+        "NO3-": 2
+      },
+      "delta_G_rxn_298_kJ_mol": 13.32,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Barium_Hydroxide",
+      "name": "Barium Hydroxide dissociation",
+      "description": "Ba(OH)2 <-> Ba2+ + 2OH-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Barium Hydroxide": -1,
+        "Ba2+": 1,
+        "OH-": 2
+      },
+      "delta_G_rxn_298_kJ_mol": -15.85,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Barium_Fluoride",
+      "name": "Barium Fluoride dissociation",
+      "description": "BaF2 <-> Ba2+ + 2F-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Barium Fluoride": -1,
+        "Ba2+": 1,
+        "F-": 2
+      },
+      "delta_G_rxn_298_kJ_mol": 38.45,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Strontium_Chloride",
+      "name": "Strontium Chloride dissociation",
+      "description": "SrCl2 <-> Sr2+ + 2Cl-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Strontium Chloride": -1,
+        "Sr2+": 1,
+        "Cl-": 2
+      },
+      "delta_G_rxn_298_kJ_mol": -40.79,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Strontium_Sulfate_Celestine",
+      "name": "Strontium Sulfate (Celestine) dissociation",
+      "description": "SrSO4 <-> Sr2+ + SO42-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Strontium Sulfate (Celestine)": -1,
+        "Sr2+": 1,
+        "SO42-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": 30.27,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Strontium_Carbonate_Strontianite",
+      "name": "Strontium Carbonate (Strontianite) dissociation",
+      "description": "SrCO3 <-> Sr2+ + CO32-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Strontium Carbonate (Strontianite)": -1,
+        "Sr2+": 1,
+        "CO32-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": 52.81,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Strontium_Nitrate",
+      "name": "Strontium Nitrate dissociation",
+      "description": "Sr(NO3)2 <-> Sr2+ + 2NO3-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Strontium Nitrate": -1,
+        "Sr2+": 1,
+        "NO3-": 2
+      },
+      "delta_G_rxn_298_kJ_mol": -1.98,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Strontium_Fluoride",
+      "name": "Strontium Fluoride dissociation",
+      "description": "SrF2 <-> Sr2+ + 2F-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Strontium Fluoride": -1,
+        "Sr2+": 1,
+        "F-": 2
+      },
+      "delta_G_rxn_298_kJ_mol": 47.77,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_IronII_Chloride",
+      "name": "Iron(II) Chloride dissociation",
+      "description": "FeCl2 <-> Fe2+ + 2Cl-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Iron(II) Chloride": -1,
+        "Fe2+": 1,
+        "Cl-": 2
+      },
+      "delta_G_rxn_298_kJ_mol": -39.03,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_IronIII_Chloride",
+      "name": "Iron(III) Chloride dissociation",
+      "description": "FeCl3 <-> Fe3+ + 3Cl-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Iron(III) Chloride": -1,
+        "Fe3+": 1,
+        "Cl-": 3
+      },
+      "delta_G_rxn_298_kJ_mol": -64.29,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_IronII_Sulfate",
+      "name": "Iron(II) Sulfate dissociation",
+      "description": "FeSO4 <-> Fe2+ + SO42-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Iron(II) Sulfate": -1,
+        "Fe2+": 1,
+        "SO42-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -2.6,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_IronII_Carbonate_Siderite",
+      "name": "Iron(II) Carbonate (Siderite) dissociation",
+      "description": "FeCO3 <-> Fe2+ + CO32-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Iron(II) Carbonate (Siderite)": -1,
+        "Fe2+": 1,
+        "CO32-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": 60.02,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_IronII_Hydroxide",
+      "name": "Iron(II) Hydroxide dissociation",
+      "description": "Fe(OH)2 <-> Fe2+ + 2OH-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Iron(II) Hydroxide": -1,
+        "Fe2+": 1,
+        "OH-": 2
+      },
+      "delta_G_rxn_298_kJ_mol": 93.15,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_IronIII_Hydroxide",
+      "name": "Iron(III) Hydroxide dissociation",
+      "description": "Fe(OH)3 <-> Fe3+ + 3OH-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Iron(III) Hydroxide": -1,
+        "Fe3+": 1,
+        "OH-": 3
+      },
+      "delta_G_rxn_298_kJ_mol": 220.18,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_CopperII_Chloride",
+      "name": "Copper(II) Chloride dissociation",
+      "description": "CuCl2 <-> Cu2+ + 2Cl-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Copper(II) Chloride": -1,
+        "Cu2+": 1,
+        "Cl-": 2
+      },
+      "delta_G_rxn_298_kJ_mol": -21.27,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_CopperII_Sulfate",
+      "name": "Copper(II) Sulfate dissociation",
+      "description": "CuSO4 <-> Cu2+ + SO42-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Copper(II) Sulfate": -1,
+        "Cu2+": 1,
+        "SO42-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -17.24,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_CopperII_Sulfate_Pentahydrate",
+      "name": "Copper(II) Sulfate Pentahydrate dissociation",
+      "description": "CuSO4.5H2O <-> Cu2+ + SO42- + 5 H2O",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Copper(II) Sulfate Pentahydrate": -1,
+        "Cu2+": 1,
+        "SO42-": 1,
+        "Water": 5
+      },
+      "delta_G_rxn_298_kJ_mol": 15.01,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Zinc_Chloride",
+      "name": "Zinc Chloride dissociation",
+      "description": "ZnCl2 <-> Zn2+ + 2Cl-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Zinc Chloride": -1,
+        "Zn2+": 1,
+        "Cl-": 2
+      },
+      "delta_G_rxn_298_kJ_mol": -40.09,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Zinc_Sulfate",
+      "name": "Zinc Sulfate dissociation",
+      "description": "ZnSO4 <-> Zn2+ + SO42-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Zinc Sulfate": -1,
+        "Zn2+": 1,
+        "SO42-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -20.09,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Zinc_Carbonate_Smithsonite",
+      "name": "Zinc Carbonate (Smithsonite) dissociation",
+      "description": "ZnCO3 <-> Zn2+ + CO32-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Zinc Carbonate (Smithsonite)": -1,
+        "Zn2+": 1,
+        "CO32-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": 56.7,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_ManganeseII_Chloride",
+      "name": "Manganese(II) Chloride dissociation",
+      "description": "MnCl2 <-> Mn2+ + 2Cl-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Manganese(II) Chloride": -1,
+        "Mn2+": 1,
+        "Cl-": 2
+      },
+      "delta_G_rxn_298_kJ_mol": -50.0,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_ManganeseII_Sulfate",
+      "name": "Manganese(II) Sulfate dissociation",
+      "description": "MnSO4 <-> Mn2+ + SO42-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Manganese(II) Sulfate": -1,
+        "Mn2+": 1,
+        "SO42-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -15.16,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_NickelII_Chloride",
+      "name": "Nickel(II) Chloride dissociation",
+      "description": "NiCl2 <-> Ni2+ + 2Cl-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Nickel(II) Chloride": -1,
+        "Ni2+": 1,
+        "Cl-": 2
+      },
+      "delta_G_rxn_298_kJ_mol": -49.06,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_NickelII_Sulfate",
+      "name": "Nickel(II) Sulfate dissociation",
+      "description": "NiSO4 <-> Ni2+ + SO42-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Nickel(II) Sulfate": -1,
+        "Ni2+": 1,
+        "SO42-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -30.43,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Aluminum_Chloride",
+      "name": "Aluminum Chloride dissociation",
+      "description": "AlCl3 <-> Al3+ + 3Cl-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Aluminum Chloride": -1,
+        "Al3+": 1,
+        "Cl-": 3
+      },
+      "delta_G_rxn_298_kJ_mol": -250.23,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Aluminum_Sulfate",
+      "name": "Aluminum Sulfate dissociation",
+      "description": "Al2(SO4)3 <-> 2Al3+ + 3SO42-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Aluminum Sulfate": -1,
+        "Al3+": 2,
+        "SO42-": 3
+      },
+      "delta_G_rxn_298_kJ_mol": -104.17,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Aluminum_Hydroxide_Gibbsite",
+      "name": "Aluminum Hydroxide (Gibbsite) dissociation",
+      "description": "Al(OH)3 <-> Al3+ + 3OH-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Aluminum Hydroxide (Gibbsite)": -1,
+        "Al3+": 1,
+        "OH-": 3
+      },
+      "delta_G_rxn_298_kJ_mol": 197.94,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Aluminum_Nitrate",
+      "name": "Aluminum Nitrate dissociation",
+      "description": "Al(NO3)3 <-> Al3+ + 3NO3-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Aluminum Nitrate": -1,
+        "Al3+": 1,
+        "NO3-": 3
+      },
+      "delta_G_rxn_298_kJ_mol": 75.91,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_LeadII_Chloride",
+      "name": "Lead(II) Chloride dissociation",
+      "description": "PbCl2 <-> Pb2+ + 2Cl-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Lead(II) Chloride": -1,
+        "Pb2+": 1,
+        "Cl-": 2
+      },
+      "delta_G_rxn_298_kJ_mol": 27.21,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_LeadII_Sulfate_Anglesite",
+      "name": "Lead(II) Sulfate (Anglesite) dissociation",
+      "description": "PbSO4 <-> Pb2+ + SO42-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Lead(II) Sulfate (Anglesite)": -1,
+        "Pb2+": 1,
+        "SO42-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": 44.18,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_LeadII_Carbonate_Cerussite",
+      "name": "Lead(II) Carbonate (Cerussite) dissociation",
+      "description": "PbCO3 <-> Pb2+ + CO32-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Lead(II) Carbonate (Cerussite)": -1,
+        "Pb2+": 1,
+        "CO32-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": 73.26,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_LeadII_Nitrate",
+      "name": "Lead(II) Nitrate dissociation",
+      "description": "Pb(NO3)2 <-> Pb2+ + 2NO3-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Lead(II) Nitrate": -1,
+        "Pb2+": 1,
+        "NO3-": 2
+      },
+      "delta_G_rxn_298_kJ_mol": 4.97,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Silver_Chloride",
+      "name": "Silver Chloride dissociation",
+      "description": "AgCl <-> Ag+ + Cl-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Silver Chloride": -1,
+        "Ag+": 1,
+        "Cl-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": 55.67,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Silver_Bromide",
+      "name": "Silver Bromide dissociation",
+      "description": "AgBr <-> Ag+ + Br-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Silver Bromide": -1,
+        "Ag+": 1,
+        "Br-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": 70.05,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Silver_Nitrate",
+      "name": "Silver Nitrate dissociation",
+      "description": "AgNO3 <-> Ag+ + NO3-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Silver Nitrate": -1,
+        "Ag+": 1,
+        "NO3-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -0.73,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Silver_Sulfate",
+      "name": "Silver Sulfate dissociation",
+      "description": "Ag2SO4 <-> 2Ag+ + SO42-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Silver Sulfate": -1,
+        "Ag+": 2,
+        "SO42-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": 28.09,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_MercuryII_Chloride",
+      "name": "Mercury(II) Chloride dissociation",
+      "description": "HgCl2 <-> Hg2+ + 2Cl-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Mercury(II) Chloride": -1,
+        "Hg2+": 1,
+        "Cl-": 2
+      },
+      "delta_G_rxn_298_kJ_mol": 80.54,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Cadmium_Sulfate",
+      "name": "Cadmium Sulfate dissociation",
+      "description": "CdSO4 <-> Cd2+ + SO42-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Cadmium Sulfate": -1,
+        "Cd2+": 1,
+        "SO42-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": 0.64,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Sodium_Fluoride",
+      "name": "Sodium Fluoride dissociation",
+      "description": "NaF <-> Na+ + F-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Sodium Fluoride": -1,
+        "Na+": 1,
+        "F-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": 5.6,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Potassium_Fluoride",
+      "name": "Potassium Fluoride dissociation",
+      "description": "KF <-> K+ + F-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Potassium Fluoride": -1,
+        "K+": 1,
+        "F-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -24.31,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Lithium_Fluoride",
+      "name": "Lithium Fluoride dissociation",
+      "description": "LiF <-> Li+ + F-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Lithium Fluoride": -1,
+        "Li+": 1,
+        "F-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": 15.6,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Magnesium_Fluoride",
+      "name": "Magnesium Fluoride dissociation",
+      "description": "MgF2 <-> Mg2+ + 2F-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Magnesium Fluoride": -1,
+        "Mg2+": 1,
+        "F-": 2
+      },
+      "delta_G_rxn_298_kJ_mol": 58.72,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Ammonium_Fluoride",
+      "name": "Ammonium Fluoride dissociation",
+      "description": "NH4F <-> NH4+ + F-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Ammonium Fluoride": -1,
+        "NH4+": 1,
+        "F-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -9.4,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Trisodium_Phosphate",
+      "name": "Trisodium Phosphate dissociation",
+      "description": "Na3PO4 <-> 3Na+ + PO4-3",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Trisodium Phosphate": -1,
+        "Na+": 3,
+        "PO4-3": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -0.43,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Disodium_Hydrogen_Phosphate",
+      "name": "Disodium Hydrogen Phosphate dissociation",
+      "description": "Na2HPO4 <-> 2Na+ + HPO4-2",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Disodium Hydrogen Phosphate": -1,
+        "Na+": 2,
+        "HPO4-2": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -4.77,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Sodium_Dihydrogen_Phosphate",
+      "name": "Sodium Dihydrogen Phosphate dissociation",
+      "description": "NaH2PO4 <-> Na+ + H2PO4-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Sodium Dihydrogen Phosphate": -1,
+        "Na+": 1,
+        "H2PO4-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -6.09,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Tripotassium_Phosphate",
+      "name": "Tripotassium Phosphate dissociation",
+      "description": "K3PO4 <-> 3K+ + PO4-3",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Tripotassium Phosphate": -1,
+        "K+": 3,
+        "PO4-3": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -45.21,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Potassium_Dihydrogen_Phosphate",
+      "name": "Potassium Dihydrogen Phosphate dissociation",
+      "description": "KH2PO4 <-> K+ + H2PO4-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Potassium Dihydrogen Phosphate": -1,
+        "K+": 1,
+        "H2PO4-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": 2.31,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Sodium_Cyanide",
+      "name": "Sodium Cyanide dissociation",
+      "description": "NaCN <-> Na+ + CN-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Sodium Cyanide": -1,
+        "Na+": 1,
+        "CN-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -13.11,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Potassium_Cyanide",
+      "name": "Potassium Cyanide dissociation",
+      "description": "KCN <-> K+ + CN-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Potassium Cyanide": -1,
+        "K+": 1,
+        "CN-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -9.01,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Sodium_Thiocyanate",
+      "name": "Sodium Thiocyanate dissociation",
+      "description": "NaSCN <-> Na+ + SCN-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Sodium Thiocyanate": -1,
+        "Na+": 1,
+        "SCN-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": 17.9,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Potassium_Thiocyanate",
+      "name": "Potassium Thiocyanate dissociation",
+      "description": "KSCN <-> K+ + SCN-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Potassium Thiocyanate": -1,
+        "K+": 1,
+        "SCN-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -12.24,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Ammonium_Thiocyanate",
+      "name": "Ammonium Thiocyanate dissociation",
+      "description": "NH4SCN <-> NH4+ + SCN-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Ammonium Thiocyanate": -1,
+        "NH4+": 1,
+        "SCN-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": 26.8,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Sodium_Acetate",
+      "name": "Sodium Acetate dissociation",
+      "description": "NaCH3COO <-> Na+ + CH3COO-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Sodium Acetate": -1,
+        "Na+": 1,
+        "CH3COO-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -23.32,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Potassium_Acetate",
+      "name": "Potassium Acetate dissociation",
+      "description": "KCH3COO <-> K+ + CH3COO-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Potassium Acetate": -1,
+        "K+": 1,
+        "CH3COO-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -27.28,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Ammonium_Acetate",
+      "name": "Ammonium Acetate dissociation",
+      "description": "NH4CH3COO <-> NH4+ + CH3COO-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Ammonium Acetate": -1,
+        "NH4+": 1,
+        "CH3COO-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": 1.48,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Sodium_Formate",
+      "name": "Sodium Formate dissociation",
+      "description": "NaHCOO <-> Na+ + HCOO-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Sodium Formate": -1,
+        "Na+": 1,
+        "HCOO-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -13.05,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Potassium_Formate",
+      "name": "Potassium Formate dissociation",
+      "description": "KHCOO <-> K+ + HCOO-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Potassium Formate": -1,
+        "K+": 1,
+        "HCOO-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -16.66,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Sodium_Chlorate",
+      "name": "Sodium Chlorate dissociation",
+      "description": "NaClO3 <-> Na+ + ClO3-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Sodium Chlorate": -1,
+        "Na+": 1,
+        "ClO3-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -7.56,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Potassium_Chlorate",
+      "name": "Potassium Chlorate dissociation",
+      "description": "KClO3 <-> K+ + ClO3-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Potassium Chlorate": -1,
+        "K+": 1,
+        "ClO3-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": 5.08,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Sodium_Nitrite",
+      "name": "Sodium Nitrite dissociation",
+      "description": "NaNO2 <-> Na+ + NO2-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Sodium Nitrite": -1,
+        "Na+": 1,
+        "NO2-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -9.56,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Potassium_Nitrite",
+      "name": "Potassium Nitrite dissociation",
+      "description": "KNO2 <-> K+ + NO2-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Potassium Nitrite": -1,
+        "K+": 1,
+        "NO2-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -8.87,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Sodium_Sulfite",
+      "name": "Sodium Sulfite dissociation",
+      "description": "Na2SO3 <-> 2Na+ + SO3-2",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Sodium Sulfite": -1,
+        "Na+": 2,
+        "SO3-2": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -6.02,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Potassium_Sulfite",
+      "name": "Potassium Sulfite dissociation",
+      "description": "K2SO3 <-> 2K+ + SO3-2",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Potassium Sulfite": -1,
+        "K+": 2,
+        "SO3-2": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -21.24,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Sodium_Thiosulfate",
+      "name": "Sodium Thiosulfate dissociation",
+      "description": "Na2S2O3 <-> 2Na+ + S2O3-2",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Sodium Thiosulfate": -1,
+        "Na+": 2,
+        "S2O3-2": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -19.22,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Potassium_Permanganate",
+      "name": "Potassium Permanganate dissociation",
+      "description": "KMnO4 <-> K+ + MnO4-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Potassium Permanganate": -1,
+        "K+": 1,
+        "MnO4-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": 7.13,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Potassium_Chromate",
+      "name": "Potassium Chromate dissociation",
+      "description": "K2CrO4 <-> 2K+ + CrO4-2",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Potassium Chromate": -1,
+        "K+": 2,
+        "CrO4-2": 1
+      },
+      "delta_G_rxn_298_kJ_mol": 1.51,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Sodium_Chromate",
+      "name": "Sodium Chromate dissociation",
+      "description": "Na2CrO4 <-> 2Na+ + CrO4-2",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Sodium Chromate": -1,
+        "Na+": 2,
+        "CrO4-2": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -17.5,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Potassium_Dichromate",
+      "name": "Potassium Dichromate dissociation",
+      "description": "K2Cr2O7 <-> 2K+ + Cr2O7-2",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Potassium Dichromate": -1,
+        "K+": 2,
+        "Cr2O7-2": 1
+      },
+      "delta_G_rxn_298_kJ_mol": 14.36,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Sodium_Carbonate",
+      "name": "Sodium Carbonate dissociation",
+      "description": "Na2CO3 <-> 2Na+ + CO32-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Sodium Carbonate": -1,
+        "Na+": 2,
+        "CO32-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -7.23,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Sodium_Bicarbonate",
+      "name": "Sodium Bicarbonate dissociation",
+      "description": "NaHCO3 <-> Na+ + HCO3-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Sodium Bicarbonate": -1,
+        "Na+": 1,
+        "HCO3-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": 2.32,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Potassium_Carbonate",
+      "name": "Potassium Carbonate dissociation",
+      "description": "K2CO3 <-> 2K+ + CO32-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Potassium Carbonate": -1,
+        "K+": 2,
+        "CO32-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -30.85,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Rubidium_Chloride",
+      "name": "Rubidium Chloride dissociation",
+      "description": "RbCl <-> Rb+ + Cl-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Rubidium Chloride": -1,
+        "Rb+": 1,
+        "Cl-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -7.41,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Rubidium_Bromide",
+      "name": "Rubidium Bromide dissociation",
+      "description": "RbBr <-> Rb+ + Br-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Rubidium Bromide": -1,
+        "Rb+": 1,
+        "Br-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": -9.84,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Rubidium_Sulfate",
+      "name": "Rubidium Sulfate dissociation",
+      "description": "Rb2SO4 <-> 2Rb+ + SO42-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Rubidium Sulfate": -1,
+        "Rb+": 2,
+        "SO42-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": 3.91,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Rubidium_Nitrate",
+      "name": "Rubidium Nitrate dissociation",
+      "description": "RbNO3 <-> Rb+ + NO3-",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Rubidium Nitrate": -1,
+        "Rb+": 1,
+        "NO3-": 1
+      },
+      "delta_G_rxn_298_kJ_mol": 0.57,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Hydrogen_Chloride_Monohydrate",
+      "name": "Hydrogen Chloride Monohydrate dissociation",
+      "description": "HCl.H2O <-> H+ + Cl- + 1 H2O",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Hydrogen Chloride Monohydrate": -1,
+        "H+": 1,
+        "Cl-": 1,
+        "Water": 1
+      },
+      "delta_G_rxn_298_kJ_mol": 34.94,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Hydrogen_Chloride_Dihydrate",
+      "name": "Hydrogen Chloride Dihydrate dissociation",
+      "description": "HCl.2H2O <-> H+ + Cl- + 2 H2O",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Hydrogen Chloride Dihydrate": -1,
+        "H+": 1,
+        "Cl-": 1,
+        "Water": 2
+      },
+      "delta_G_rxn_298_kJ_mol": 36.17,
+      "source": "auto-generated from electrolyte.xml"
+    },
+    {
+      "id": "DISS_Hydrogen_Chloride_Trihydrate",
+      "name": "Hydrogen Chloride Trihydrate dissociation",
+      "description": "HCl.3H2O <-> H+ + Cl- + 3 H2O",
+      "category": "SaltDissociation",
+      "phase": "Liquid",
+      "stoich": {
+        "Hydrogen Chloride Trihydrate": -1,
+        "H+": 1,
+        "Cl-": 1,
+        "Water": 3
+      },
+      "delta_G_rxn_298_kJ_mol": 37.68,
+      "source": "auto-generated from electrolyte.xml"
+    }
+  ]
+}

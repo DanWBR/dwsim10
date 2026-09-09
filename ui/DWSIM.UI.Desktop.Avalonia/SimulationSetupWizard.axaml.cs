@@ -88,6 +88,8 @@ public partial class SimulationSetupWizard : Window
     private readonly IFlowsheet _flowsheet;
 
     private readonly List<Control> _pages = new();
+    private Reactions.ReactionFinderPanel? _finderPanel;
+    private const int ReactionsPageIndex = 2;   // Introduction, Compounds, Reactions, ...
     private readonly List<TextBlock> _stepLabels = new();
 
     private readonly ObservableCollection<CompoundRow> _compoundRows = new();
@@ -180,9 +182,18 @@ public partial class SimulationSetupWizard : Window
     {
         if (page < 0 || page >= _pages.Count) return;
 
+        // leaving the reactions step commits the checked suggestions to the default set (the checks
+        // are idempotent), matching the classic wizard's commit-on-next
+        if (_current == ReactionsPageIndex && page != ReactionsPageIndex)
+            _finderPanel?.AddCheckedToDefaultSet();
+
         _current = page;
 
         PageHost.Content = _pages[page];
+
+        // arriving at the reactions step: the compounds are chosen by now, so refresh the suggestions
+        if (page == ReactionsPageIndex)
+            _finderPanel?.RefreshSuggestions();
 
         LblHeaderTitle.Text = "Step " + (page + 1) + " of " + _pages.Count + " - " + Steps[page].Title;
         LblHeaderDesc.Text = Steps[page].Description;
@@ -463,13 +474,18 @@ public partial class SimulationSetupWizard : Window
     {
         try
         {
-            return ReactionManagerWindow.CreateEmbeddedContent(_flowsheet);
+            // The wizard's reactions step is the reaction finder (as in the classic WinForms wizard):
+            // it suggests reactions from the selected compounds and adds the checked ones to the
+            // default set. Suggestions are refreshed when the step is shown (compounds picked by then)
+            // and the checked ones are committed when the user leaves the step (see Show).
+            _finderPanel = new Reactions.ReactionFinderPanel(_flowsheet, wizardMode: true);
+            return _finderPanel;
         }
         catch (Exception ex)
         {
             return new TextBlock
             {
-                Text = "The reaction manager could not be loaded: " + ex.Message,
+                Text = "The reaction finder could not be loaded: " + ex.Message,
                 TextWrapping = TextWrapping.Wrap
             };
         }

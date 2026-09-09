@@ -1,24 +1,26 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
-using Avalonia;
+using System.Threading.Tasks;
+using System.Xml.Linq;
 using Avalonia.Controls;
-using Avalonia.Interactivity;
-using Avalonia.Layout;
+using Avalonia.Data;
+using Avalonia.Platform.Storage;
 using DWSIM.Interfaces;
 using DWSIM.Interfaces.Enums;
-using FontWeight   = global::Avalonia.Media.FontWeight;
-using Brushes      = global::Avalonia.Media.Brushes;
-using TextWrapping = global::Avalonia.Media.TextWrapping;
+using DWSIM.UI.Desktop.Avalonia.Reactions;
+using RxnBaseClasses = DWSIM.Thermodynamics.BaseClasses;
 
 namespace DWSIM.UI.Desktop.Avalonia;
 
 public partial class ReactionManagerWindow : Window
 {
     private readonly IFlowsheet _flowsheet;
-
-    /// <summary>The XAML root, kept so the sub-dialogs can find their owner once it is embedded.</summary>
     private readonly Control? _root;
+
+    private readonly ObservableCollection<SetRow> _sets = new();
+    private readonly ObservableCollection<RxnRow> _reactions = new();
 
     public ReactionManagerWindow(IFlowsheet flowsheet)
     {
@@ -26,9 +28,10 @@ public partial class ReactionManagerWindow : Window
         InitializeComponent();
         IconHelper.ApplyWindowIcon(this);
         _root = Content as Control;
+        BuildColumns();
         WireEvents();
-        RefreshReactionList();
-        RefreshReactionSetList();
+        RefreshSets();
+        RefreshReactions();
     }
 
     /// <summary>
@@ -41,12 +44,10 @@ public partial class ReactionManagerWindow : Window
         var content = (Control)window.Content!;
         window.Content = null;
         window.BtnClose.IsVisible = false;
-        // the handlers live on the window, so the embedded control has to keep it alive
-        content.Tag = window;
+        content.Tag = window;   // the handlers live on the window; keep it alive
         return content;
     }
 
-    /// <summary>The window the sub-dialogs belong to: this one, or the host when embedded.</summary>
     private Window DialogOwner()
     {
         if (_root != null && TopLevel.GetTopLevel(_root) is Window host) return host;
@@ -54,623 +55,263 @@ public partial class ReactionManagerWindow : Window
     }
 
     // -------------------------------------------------------------------------
-    // Event wiring
+    // Columns + wiring
     // -------------------------------------------------------------------------
+
+    private void BuildColumns()
+    {
+        GridSets.ItemsSource = _sets;
+        GridSets.Columns.Add(TextCol("Name", nameof(SetRow.Name), 2));
+        GridSets.Columns.Add(TextCol("Description", nameof(SetRow.Description), 3));
+
+        GridReactions.ItemsSource = _reactions;
+        GridReactions.Columns.Add(TextCol("Name", nameof(RxnRow.Name), 2));
+        GridReactions.Columns.Add(TextCol("Type", nameof(RxnRow.Type), 1.4));
+        GridReactions.Columns.Add(TextCol("Equation", nameof(RxnRow.Equation), 3));
+    }
+
+    private static DataGridTextColumn TextCol(string header, string prop, double star) => new()
+    {
+        Header = header,
+        Binding = new Binding(prop) { Mode = BindingMode.OneWay },
+        IsReadOnly = true,
+        Width = new DataGridLength(star, DataGridLengthUnitType.Star)
+    };
 
     private void WireEvents()
     {
         BtnClose.Click += (_, _) => Close();
 
-        // Reactions tab
-        LbReactions.SelectionChanged += (_, _) => ShowReactionDetail();
-        BtnNewReaction.Click    += async (_, _) => await OnNewReaction();
-        BtnDeleteReaction.Click += (_, _) => OnDeleteReaction();
+        BtnSetNew.Click    += async (_, _) => await EditSet(null);
+        BtnSetEdit.Click   += async (_, _) => { if (SelectedSet() is { } rs) await EditSet(rs); };
+        BtnSetCopy.Click   += (_, _) => CopySet();
+        BtnSetRemove.Click += (_, _) => RemoveSet();
+        GridSets.DoubleTapped += async (_, _) => { if (SelectedSet() is { } rs) await EditSet(rs); };
 
-        // Reaction Sets tab
-        LbReactionSets.SelectionChanged  += (_, _) => RefreshSetReactions();
-        BtnNewReactionSet.Click    += async (_, _) => await OnNewReactionSet();
-        BtnDeleteReactionSet.Click += (_, _) => OnDeleteReactionSet();
-        BtnAddToSet.Click      += (_, _) => OnAddReactionToSet();
-        BtnRemoveFromSet.Click += (_, _) => OnRemoveReactionFromSet();
+        BtnRxnAdd.Click    += (_, _) => ShowAddReactionFlyout();
+        BtnRxnEdit.Click   += async (_, _) => { if (SelectedReaction() is { } rxn) await EditReaction(rxn); };
+        BtnRxnCopy.Click   += (_, _) => CopyReaction();
+        BtnRxnDelete.Click += (_, _) => DeleteReaction();
+        BtnRxnExport.Click += async (_, _) => await ExportReactions();
+        BtnRxnImport.Click += async (_, _) => await ImportReactions();
+        GridReactions.DoubleTapped += async (_, _) => { if (SelectedReaction() is { } rxn) await EditReaction(rxn); };
     }
 
     // -------------------------------------------------------------------------
-    // Reaction list helpers
+    // Refresh
     // -------------------------------------------------------------------------
 
-    private void RefreshReactionList()
+    private void RefreshSets()
     {
-        var sel = (LbReactions.SelectedItem as RxnItem)?.ID;
-        LbReactions.Items.Clear();
-        foreach (var r in _flowsheet.Reactions.Values)
-            LbReactions.Items.Add(new RxnItem(r.Name, r.ID, r.ReactionType.ToString()));
-        if (sel != null)
-        {
-            for (int i = 0; i < LbReactions.Items.Count; i++)
-                if (((RxnItem)LbReactions.Items[i]!).ID == sel)
-                { LbReactions.SelectedIndex = i; break; }
-        }
-        RefreshAllReactionsForSet();
-    }
-
-    private async System.Threading.Tasks.Task OnNewReaction()
-    {
-        var name = await ShowInputDialogAsync("New Reaction", "Reaction name:", "New Reaction");
-        if (string.IsNullOrWhiteSpace(name)) return;
-
-        // Pick type
-        var typeStr = await ShowChoiceDialogAsync("Reaction Type", "Select type:",
-            new[] { "Conversion", "Equilibrium", "Kinetic", "Heterogeneous Catalytic" });
-        if (typeStr == null) return;
-
-        var phase = "Mixture";
-        var baseComp = _flowsheet.SelectedCompounds.Keys.FirstOrDefault() ?? "";
-        var expression = "0.5";
-
-        IReaction rxn;
-        try
-        {
-            var stoich = new Dictionary<string, double> { { baseComp, -1.0 } };
-            rxn = typeStr switch
-            {
-                "Equilibrium" => _flowsheet.CreateEquilibriumReaction(
-                    name, "", stoich, baseComp, phase, "MolarConc", "mol/L", 0.0, ""),
-                "Kinetic" => _flowsheet.CreateKineticReaction(
-                    name, "", stoich,
-                    new Dictionary<string, double> { { baseComp, 1.0 } },
-                    new Dictionary<string, double>(),
-                    baseComp, phase, "MolarConc", "mol/L", "mol/L/s",
-                    1e6, 50000, 0, 0, "", ""),
-                "Heterogeneous Catalytic" => _flowsheet.CreateHetCatReaction(
-                    name, "", stoich, baseComp, phase, "MolarConc", "mol/L", "mol/g/s", "", "1"),
-                _ => _flowsheet.CreateConversionReaction(
-                    name, "", stoich, baseComp, phase, expression),
-            };
-            _flowsheet.AddReaction(rxn);
-        }
-        catch (Exception ex)
-        {
-            await ShowMessageAsync("Error", $"Could not create reaction: {ex.Message}");
-            return;
-        }
-
-        RefreshReactionList();
-        // Select the new one
-        for (int i = 0; i < LbReactions.Items.Count; i++)
-            if (((RxnItem)LbReactions.Items[i]!).ID == rxn.ID)
-            { LbReactions.SelectedIndex = i; break; }
-    }
-
-    private void OnDeleteReaction()
-    {
-        if (LbReactions.SelectedItem is not RxnItem item) return;
-        _flowsheet.Reactions.Remove(item.ID);
-        // Also remove from any reaction sets
+        var sel = SelectedSet()?.ID;
+        _sets.Clear();
         foreach (var rs in _flowsheet.ReactionSets.Values)
-            if (rs.Reactions.ContainsKey(item.ID))
-                rs.Reactions.Remove(item.ID);
-        ReactionDetailPanel.Children.Clear();
-        ReactionDetailPanel.Children.Add(ReactionDetailHint);
-        RefreshReactionList();
+            _sets.Add(new SetRow { Name = rs.Name, Description = rs.Description ?? "", ID = rs.ID });
+        if (sel != null) GridSets.SelectedItem = _sets.FirstOrDefault(r => r.ID == sel);
     }
 
-    // -------------------------------------------------------------------------
-    // Reaction detail panel
-    // -------------------------------------------------------------------------
-
-    private void ShowReactionDetail()
+    private void RefreshReactions()
     {
-        ReactionDetailPanel.Children.Clear();
-
-        if (LbReactions.SelectedItem is not RxnItem item ||
-            !_flowsheet.Reactions.TryGetValue(item.ID, out var rxn))
-        {
-            ReactionDetailPanel.Children.Add(new TextBlock
-            {
-                Text = "Select or create a reaction to view/edit its properties.",
-                TextWrapping = TextWrapping.Wrap,
-                Foreground = Brushes.Gray
-            });
-            return;
-        }
-
-        AddDetailLabel(rxn.Name);
-
-        // Name
-        AddDetailTextRow("Name", rxn.Name, v => { rxn.Name = v; RefreshReactionList(); });
-        AddDetailTextRow("Description", rxn.Description ?? "", v => rxn.Description = v);
-
-        AddDetailReadRow("Reaction Type", rxn.ReactionType.ToString());
-        AddDetailDropDown("Phase", new[] { "Liquid", "Vapor", "Mixture", "Solid", "Liquid_Solid", "Vapor_Solid" },
-            rxn.ReactionPhase.ToString(),
-            v => { if (Enum.TryParse<ReactionPhase>(v, out var p)) rxn.ReactionPhase = p; });
-        var reactants = rxn.Components.Values.Where(x => x.StoichCoeff < 0).Select(x => x.CompName).ToArray();
-        if (reactants.Length > 0)
-        {
-            AddDetailDropDown("Base Reactant", reactants, rxn.BaseReactant ?? reactants[0],
-                v => { rxn.BaseReactant = v; SetBaseReactant(rxn, v); });
-        }
-        else
-        {
-            AddDetailReadRow("Base Reactant", "add a reactant first");
-        }
-
-        if (rxn.ReactionType == ReactionType.Conversion)
-        {
-            AddDetailLabel("Conversion");
-            AddDetailTextRow("Conversion Expression (T in K)", rxn.Expression ?? "0.5",
-                v => rxn.Expression = v);
-        }
-        else if (rxn.ReactionType == ReactionType.Equilibrium)
-        {
-            AddDetailLabel("Equilibrium");
-            AddDetailDropDown("Keq Option", new[] { "Gibbs Energy", "Expression", "Constant" },
-                rxn.KExprType.ToString(),
-                v =>
-                {
-                    rxn.KExprType = v switch { "Expression" => KOpt.Expression, "Constant" => KOpt.Constant, _ => KOpt.Gibbs };
-                    ShowReactionDetail(); // rebuild
-                });
-            if (rxn.KExprType == KOpt.Constant)
-                AddDetailTextRow("Constant K Value", rxn.ConstantKeqValue.ToString("G6"),
-                    v => { if (double.TryParse(v, out var d)) rxn.ConstantKeqValue = d; });
-            else if (rxn.KExprType == KOpt.Expression)
-                AddDetailTextRow("ln(Keq) = f(T) Expression", rxn.Expression ?? "",
-                    v => rxn.Expression = v);
-            AddDetailTextRow("Approach to Equilibrium", rxn.Approach.ToString("G6"),
-                v => { if (double.TryParse(v, out var d)) rxn.Approach = d; });
-        }
-        else if (rxn.ReactionType is ReactionType.Kinetic or ReactionType.Heterogeneous_Catalytic)
-        {
-            AddDetailLabel("Kinetics");
-            AddDetailTextRow("Forward Pre-exp Factor A", rxn.A_Forward.ToString("G6"),
-                v => { if (double.TryParse(v, out var d)) rxn.A_Forward = d; });
-            AddDetailTextRow("Forward Activation Energy E (J/mol)", rxn.E_Forward.ToString("G6"),
-                v => { if (double.TryParse(v, out var d)) rxn.E_Forward = d; });
-            AddDetailTextRow("Reverse Pre-exp Factor A", rxn.A_Reverse.ToString("G6"),
-                v => { if (double.TryParse(v, out var d)) rxn.A_Reverse = d; });
-            AddDetailTextRow("Reverse Activation Energy E (J/mol)", rxn.E_Reverse.ToString("G6"),
-                v => { if (double.TryParse(v, out var d)) rxn.E_Reverse = d; });
-            if (rxn.ReactionType == ReactionType.Heterogeneous_Catalytic)
-            {
-                AddDetailTextRow("Rate Numerator Expression", rxn.RateEquationNumerator ?? "",
-                    v => rxn.RateEquationNumerator = v);
-                AddDetailTextRow("Rate Denominator Expression", rxn.RateEquationDenominator ?? "",
-                    v => rxn.RateEquationDenominator = v);
-            }
-            AddDetailTextRow("Reaction Rate Units", rxn.VelUnit ?? "",
-                v => rxn.VelUnit = v);
-            AddDetailTextRow("Concentration Units", rxn.ConcUnit ?? "",
-                v => rxn.ConcUnit = v);
-        }
-
-        AddDetailLabel("Stoichiometry");
-        var kinetic = rxn.ReactionType is ReactionType.Kinetic or ReactionType.Heterogeneous_Catalytic;
-        foreach (var comp in rxn.Components.Values)
-        {
-            var c = comp;
-            AddDetailReadRow($"  {c.CompName}", c.IsBaseReactant ? "base reactant" : "");
-            AddDetailTextRow("    Stoich. Coefficient", c.StoichCoeff.ToString("G6"),
-                v => { if (double.TryParse(v, out var d)) { c.StoichCoeff = d; UpdateEquation(rxn); } });
-            if (kinetic)
-            {
-                AddDetailTextRow("    Direct Order", c.DirectOrder.ToString("G6"),
-                    v => { if (double.TryParse(v, out var d)) c.DirectOrder = d; });
-                AddDetailTextRow("    Reverse Order", c.ReverseOrder.ToString("G6"),
-                    v => { if (double.TryParse(v, out var d)) c.ReverseOrder = d; });
-            }
-        }
-
-        UpdateEquation(rxn);
-        AddDetailReadRow("  Equation", rxn.Equation ?? "");
-        AddDetailReadRow("  Reaction Heat (kJ/kmol)", rxn.ReactionHeat.ToString("G6"));
-        AddDetailReadRow("  Mass Balance", Math.Abs(rxn.StoichBalance) < 0.01
-            ? "OK" : rxn.StoichBalance.ToString("G6") + " kg/kmol");
-
-        AddDetailButton("Add Component...", async () => await AddComponentToReaction(rxn));
-        AddDetailButton("Remove Selected Component...", async () => await RemoveComponentFromReaction(rxn));
-    }
-
-    /// <summary>Marks a single component as the base reactant, which the solvers read.</summary>
-    private static void SetBaseReactant(IReaction rxn, string compName)
-    {
-        foreach (var c in rxn.Components.Values)
-            c.IsBaseReactant = c.CompName == compName;
-    }
-
-    /// <summary>
-    /// Rebuilds the reaction equation, heat of reaction and stoichiometric mass balance from the
-    /// current coefficients, the same way the WinForms reaction editors do.
-    /// </summary>
-    private void UpdateEquation(IReaction rxn)
-    {
-        double hr = 0, hp = 0, br = 0, bp = 0, brsc = 1.0;
-
-        string Side(bool products)
-        {
-            var terms = new List<string>();
-            foreach (var c in rxn.Components.Values)
-            {
-                if (products ? c.StoichCoeff <= 0 : c.StoichCoeff >= 0) continue;
-                if (!_flowsheet.SelectedCompounds.TryGetValue(c.CompName, out var cp)) continue;
-
-                var coeff = Math.Abs(c.StoichCoeff);
-                terms.Add((Math.Abs(coeff - 1.0) < 1e-10 ? "" : coeff.ToString("G4")) + cp.Formula);
-
-                if (products)
-                {
-                    hp += coeff * cp.IG_Enthalpy_of_Formation_25C * cp.Molar_Weight;
-                    bp += coeff * cp.Molar_Weight;
-                }
-                else
-                {
-                    hr += coeff * cp.IG_Enthalpy_of_Formation_25C * cp.Molar_Weight;
-                    br += coeff * cp.Molar_Weight;
-                }
-            }
-            return string.Join(" + ", terms);
-        }
-
-        var equation = Side(false) + " --> " + Side(true);
-
-        foreach (var c in rxn.Components.Values)
-        {
-            if (!c.IsBaseReactant) continue;
-            brsc = Math.Abs(c.StoichCoeff);
-            if (brsc == 0.0) brsc = 1.0;
-            break;
-        }
-
-        rxn.Equation = equation;
-        rxn.ReactionHeat = (hp - hr) / brsc;
-        rxn.StoichBalance = bp - br;
-    }
-
-    private async System.Threading.Tasks.Task AddComponentToReaction(IReaction rxn)
-    {
-        var compounds = _flowsheet.SelectedCompounds.Keys.ToList();
-        if (compounds.Count == 0) { await ShowMessageAsync("Info", "No compounds in flowsheet."); return; }
-        var comp = await ShowChoiceDialogAsync("Add Component", "Select compound:", compounds.ToArray());
-        if (comp == null) return;
-        var coeffStr = await ShowInputDialogAsync("Stoich. Coefficient", $"Coefficient for {comp}\n(negative=reactant, positive=product):", "-1");
-        if (string.IsNullOrWhiteSpace(coeffStr)) return;
-        if (!double.TryParse(coeffStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var coeff))
-        {
-            await ShowMessageAsync("Invalid Input", $"'{coeffStr}' is not a valid stoichiometric coefficient.");
-            return;
-        }
-        if (coeff == 0)
-        {
-            await ShowMessageAsync("Invalid Input", "Stoichiometric coefficient cannot be zero.");
-            return;
-        }
-        if (rxn.Components.ContainsKey(comp))
-            rxn.Components[comp].StoichCoeff = coeff;
-        else if (_flowsheet.SelectedCompounds.ContainsKey(comp))
-            rxn.Components[comp] = CreateStoichBase(comp, coeff);
-        ShowReactionDetail();
-    }
-
-    private async System.Threading.Tasks.Task RemoveComponentFromReaction(IReaction rxn)
-    {
-        if (rxn.Components.Count == 0) return;
-        var comps = rxn.Components.Keys.ToList();
-        var comp = await ShowChoiceDialogAsync("Remove Component", "Select component to remove:", comps.ToArray());
-        if (comp == null) return;
-        rxn.Components.Remove(comp);
-        ShowReactionDetail();
-    }
-
-    /// <summary>
-    /// Builds a stoichiometry entry the way the engine's own reaction factories do:
-    /// New ReactionStoichBase(name, coeff, False, 0, 0).
-    /// </summary>
-    private static IReactionStoichBase CreateStoichBase(string compName, double coeff) =>
-        new global::DWSIM.Thermodynamics.BaseClasses.ReactionStoichBase(compName, coeff, false, 0, 0);
-
-    // -------------------------------------------------------------------------
-    // Reaction Sets helpers
-    // -------------------------------------------------------------------------
-
-    private void RefreshReactionSetList()
-    {
-        var sel = (LbReactionSets.SelectedItem as RsItem)?.ID;
-        LbReactionSets.Items.Clear();
-        foreach (var rs in _flowsheet.ReactionSets.Values)
-            LbReactionSets.Items.Add(new RsItem(rs.Name, rs.ID));
-        if (sel != null)
-        {
-            for (int i = 0; i < LbReactionSets.Items.Count; i++)
-                if (((RsItem)LbReactionSets.Items[i]!).ID == sel)
-                { LbReactionSets.SelectedIndex = i; break; }
-        }
-    }
-
-    private void RefreshAllReactionsForSet()
-    {
-        LbAllReactionsForSet.Items.Clear();
+        var sel = SelectedReaction()?.ID;
+        _reactions.Clear();
         foreach (var r in _flowsheet.Reactions.Values)
-            LbAllReactionsForSet.Items.Add(new RxnItem(r.Name, r.ID, r.ReactionType.ToString()));
+            _reactions.Add(new RxnRow { Name = r.Name, Type = TypeName(r.ReactionType), Equation = r.Equation ?? "", ID = r.ID });
+        if (sel != null) GridReactions.SelectedItem = _reactions.FirstOrDefault(r => r.ID == sel);
     }
 
-    private void RefreshSetReactions()
+    private IReactionSet? SelectedSet()
+        => GridSets.SelectedItem is SetRow row && _flowsheet.ReactionSets.TryGetValue(row.ID, out var rs) ? rs : null;
+
+    private IReaction? SelectedReaction()
+        => GridReactions.SelectedItem is RxnRow row && _flowsheet.Reactions.TryGetValue(row.ID, out var rxn) ? rxn : null;
+
+    // -------------------------------------------------------------------------
+    // Reactions
+    // -------------------------------------------------------------------------
+
+    private void ShowAddReactionFlyout()
     {
-        LbSetReactions.Items.Clear();
-        if (LbReactionSets.SelectedItem is not RsItem rsItem) return;
-        if (!_flowsheet.ReactionSets.TryGetValue(rsItem.ID, out var rs)) return;
+        var menu = new MenuFlyout();
+        foreach (var (label, type) in new[]
+        {
+            ("Conversion", ReactionType.Conversion),
+            ("Equilibrium", ReactionType.Equilibrium),
+            ("Kinetic", ReactionType.Kinetic),
+            ("Heterogeneous Catalytic", ReactionType.Heterogeneous_Catalytic),
+        })
+        {
+            var item = new MenuItem { Header = label };
+            var t = type;
+            item.Click += async (_, _) => await NewReaction(t);
+            menu.Items.Add(item);
+        }
+        menu.ShowAt(BtnRxnAdd);
+    }
+
+    private async Task NewReaction(ReactionType type)
+    {
+        var dlg = EditorFor(type, null);
+        if (dlg == null) return;
+        await dlg.ShowDialog(DialogOwner());
+        if (dlg.Saved) { RefreshReactions(); RefreshSets(); }
+    }
+
+    private async Task EditReaction(IReaction rxn)
+    {
+        var dlg = EditorFor(rxn.ReactionType, rxn);
+        if (dlg == null) return;
+        await dlg.ShowDialog(DialogOwner());
+        if (dlg.Saved) { RefreshReactions(); RefreshSets(); }
+    }
+
+    private ReactionEditorWindow? EditorFor(ReactionType type, IReaction? existing) => type switch
+    {
+        ReactionType.Conversion => new ConversionReactionEditor(_flowsheet, existing, "New Reaction"),
+        ReactionType.Equilibrium => new EquilibriumReactionEditor(_flowsheet, existing, "New Reaction"),
+        ReactionType.Kinetic => new KineticReactionEditor(_flowsheet, existing, "New Reaction"),
+        ReactionType.Heterogeneous_Catalytic => new HeterogeneousReactionEditor(_flowsheet, existing, "New Reaction"),
+        _ => null
+    };
+
+    private void CopyReaction()
+    {
+        if (SelectedReaction() is not { } rxn) return;
+        var clone = new RxnBaseClasses.Reaction();
+        ((DWSIM.Interfaces.ICustomXMLSerialization)clone).LoadData(
+            ((DWSIM.Interfaces.ICustomXMLSerialization)rxn).SaveData());
+        clone.ID = Guid.NewGuid().ToString();
+        clone.Name = rxn.Name + "1";
+        _flowsheet.RegisterSnapshot(SnapshotType.ReactionSubsystem);
+        _flowsheet.AddReaction(clone);
+        if (_flowsheet.ReactionSets.ContainsKey("DefaultSet"))
+            _flowsheet.AddReactionToSet(clone.ID, "DefaultSet", true, 0);
+        RefreshReactions();
+    }
+
+    private void DeleteReaction()
+    {
+        if (SelectedReaction() is not { } rxn) return;
+        _flowsheet.RegisterSnapshot(SnapshotType.ReactionSubsystem);
+        _flowsheet.Reactions.Remove(rxn.ID);
+        foreach (var rs in _flowsheet.ReactionSets.Values)
+            if (rs.Reactions.ContainsKey(rxn.ID)) rs.Reactions.Remove(rxn.ID);
+        RefreshReactions();
+        RefreshSets();
+    }
+
+    // -------------------------------------------------------------------------
+    // Reaction sets
+    // -------------------------------------------------------------------------
+
+    private async Task EditSet(IReactionSet? existing)
+    {
+        var dlg = new ReactionSetEditorWindow(_flowsheet, existing, "New Reaction Set");
+        await dlg.ShowDialog(DialogOwner());
+        if (dlg.Saved) RefreshSets();
+    }
+
+    private void CopySet()
+    {
+        if (SelectedSet() is not { } rs) return;
+        if (rs.ID == "DefaultSet") return;   // the default set cannot be copied, as in WinForms
+        var clone = new RxnBaseClasses.ReactionSet(Guid.NewGuid().ToString(), rs.Name + "1", rs.Description ?? "");
         foreach (var pair in rs.Reactions)
-        {
-            if (_flowsheet.Reactions.TryGetValue(pair.Key, out var rxn))
-                LbSetReactions.Items.Add(new RxnItem(
-                    $"{rxn.Name} [rank={pair.Value.Rank}] {(pair.Value.IsActive ? "" : "(disabled)")}",
-                    pair.Key, rxn.ReactionType.ToString()));
-        }
+            clone.Reactions[pair.Key] = new RxnBaseClasses.ReactionSetBase(pair.Key, pair.Value.Rank, pair.Value.IsActive);
+        _flowsheet.RegisterSnapshot(SnapshotType.ReactionSubsystem);
+        _flowsheet.AddReactionSet(clone);
+        RefreshSets();
     }
 
-    private async System.Threading.Tasks.Task OnNewReactionSet()
+    private void RemoveSet()
     {
-        var name = await ShowInputDialogAsync("New Reaction Set", "Name:", "New Reaction Set");
-        if (string.IsNullOrWhiteSpace(name)) return;
-        var rs = _flowsheet.CreateReactionSet(name, "");
-        _flowsheet.AddReactionSet(rs);
-        RefreshReactionSetList();
-    }
-
-    private void OnDeleteReactionSet()
-    {
-        if (LbReactionSets.SelectedItem is not RsItem item) return;
-        _flowsheet.ReactionSets.Remove(item.ID);
-        LbSetReactions.Items.Clear();
-        RefreshReactionSetList();
-    }
-
-    private async void OnAddReactionToSet()
-    {
-        if (LbReactionSets.SelectedItem is not RsItem rsItem) return;
-        if (LbAllReactionsForSet.SelectedItem is not RxnItem rxnItem) return;
-        if (!_flowsheet.ReactionSets.TryGetValue(rsItem.ID, out var rs)) return;
-        if (rs.Reactions.ContainsKey(rxnItem.ID)) return; // already present
-
-        try
-        {
-            _flowsheet.AddReactionToSet(rxnItem.ID, rsItem.ID, true, rs.Reactions.Count);
-            RefreshSetReactions();
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"AddReactionToSet: {ex.Message}");
-            await ShowMessageAsync("Add Reaction Failed", $"Could not add reaction to set: {ex.Message}");
-        }
-    }
-
-    private void OnRemoveReactionFromSet()
-    {
-        if (LbReactionSets.SelectedItem is not RsItem rsItem) return;
-        if (LbSetReactions.SelectedItem is not RxnItem rxnItem) return;
-        if (!_flowsheet.ReactionSets.TryGetValue(rsItem.ID, out var rs)) return;
-        rs.Reactions.Remove(rxnItem.ID);
-        RefreshSetReactions();
+        if (SelectedSet() is not { } rs) return;
+        if (rs.ID == "DefaultSet") return;   // the default set cannot be removed, as in WinForms
+        _flowsheet.RegisterSnapshot(SnapshotType.ReactionSubsystem);
+        _flowsheet.ReactionSets.Remove(rs.ID);
+        RefreshSets();
     }
 
     // -------------------------------------------------------------------------
-    // Detail panel builder helpers
+    // Export / import (.dwrxm)
     // -------------------------------------------------------------------------
 
-    private void AddDetailLabel(string text)
+    private async Task ExportReactions()
     {
-        ReactionDetailPanel.Children.Add(new TextBlock
+        if (SelectedReaction() is not { } rxn) return;
+        var top = TopLevel.GetTopLevel(DialogOwner());
+        if (top == null) return;
+        var file = await top.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
         {
-            Text = text,
-            FontWeight = FontWeight.SemiBold,
-            Margin = new Thickness(0, 8, 0, 2)
+            Title = "Export Reaction",
+            SuggestedFileName = rxn.Name + ".dwrxm",
+            FileTypeChoices = new[] { new FilePickerFileType("DWSIM Reaction") { Patterns = new[] { "*.dwrxm" } } }
         });
+        var path = file?.TryGetLocalPath();
+        if (string.IsNullOrEmpty(path)) return;
+
+        var doc = new XDocument(new XElement("Reactions",
+            new XElement("Reaction", ((DWSIM.Interfaces.ICustomXMLSerialization)rxn).SaveData().ToArray())));
+        doc.Save(path);
     }
 
-    private void AddDetailReadRow(string label, string value)
+    private async Task ImportReactions()
     {
-        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("*,*"), Margin = new Thickness(0, 2) };
-        grid.Children.Add(new TextBlock { Text = label, VerticalAlignment = VerticalAlignment.Center });
-        var val = new TextBlock { Text = value, VerticalAlignment = VerticalAlignment.Center };
-        Grid.SetColumn(val, 1);
-        grid.Children.Add(val);
-        ReactionDetailPanel.Children.Add(grid);
-    }
-
-    private void AddDetailTextRow(string label, string current, Action<string> onChanged)
-    {
-        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("*,*"), Margin = new Thickness(0, 2) };
-        grid.Children.Add(new TextBlock { Text = label, VerticalAlignment = VerticalAlignment.Center });
-        var tb = new TextBox { Text = current };
-        tb.LostFocus += (_, _) => onChanged(tb.Text ?? "");
-        Grid.SetColumn(tb, 1);
-        grid.Children.Add(tb);
-        ReactionDetailPanel.Children.Add(grid);
-    }
-
-    private void AddDetailDropDown(string label, string[] options, string current, Action<string> onChanged)
-    {
-        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("*,*"), Margin = new Thickness(0, 2) };
-        grid.Children.Add(new TextBlock { Text = label, VerticalAlignment = VerticalAlignment.Center });
-        var cb = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
-        foreach (var opt in options) cb.Items.Add(opt);
-        var idx = Array.IndexOf(options, current);
-        cb.SelectedIndex = idx >= 0 ? idx : 0;
-        cb.SelectionChanged += (_, _) => { if (cb.SelectedItem is string s) onChanged(s); };
-        Grid.SetColumn(cb, 1);
-        grid.Children.Add(cb);
-        ReactionDetailPanel.Children.Add(grid);
-    }
-
-    private void AddDetailButton(string label, Func<System.Threading.Tasks.Task> onClick)
-    {
-        var btn = new Button { Content = label, Margin = new Thickness(0, 4, 0, 0) };
-        btn.Classes.Add("panel");
-        btn.Click += async (_, _) => await onClick();
-        ReactionDetailPanel.Children.Add(btn);
-    }
-
-    // -------------------------------------------------------------------------
-    // Dialog helpers
-    // -------------------------------------------------------------------------
-
-    private async System.Threading.Tasks.Task<string?> ShowInputDialogAsync(
-        string title, string prompt, string defaultValue = "")
-    {
-        string? result = null;
-        var tb = new TextBox { Text = defaultValue };
-        var cancel = new Button { Content = "Cancel", Width = 80, IsCancel  = true };
-        cancel.Classes.Add("dialog");
-        var ok     = new Button { Content = "OK",     Width = 80, IsDefault = true };
-        ok.Classes.Add("dialog");
-
-        var btnPanel = new StackPanel
+        var top = TopLevel.GetTopLevel(DialogOwner());
+        if (top == null) return;
+        var files = await top.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            Orientation         = Orientation.Horizontal,
-            HorizontalAlignment = HorizontalAlignment.Right,
-            Spacing = 8,
-            Margin = new Thickness(0, 0, 16, 12)
-        };
-        btnPanel.Children.Add(cancel);
-        btnPanel.Children.Add(ok);
+            Title = "Import Reactions",
+            AllowMultiple = true,
+            FileTypeFilter = new[] { new FilePickerFileType("DWSIM Reaction") { Patterns = new[] { "*.dwrxm" } } }
+        });
+        if (files.Count == 0) return;
 
-        var body = new DockPanel();
-        DockPanel.SetDock(btnPanel, global::Avalonia.Controls.Dock.Bottom);
-        body.Children.Add(btnPanel);
-        body.Children.Add(new StackPanel
+        _flowsheet.RegisterSnapshot(SnapshotType.ReactionSubsystem);
+        foreach (var f in files)
         {
-            Margin  = new Thickness(16, 16, 16, 8),
-            Spacing = 10,
-            Children =
+            var path = f.TryGetLocalPath();
+            if (string.IsNullOrEmpty(path)) continue;
+            try
             {
-                new TextBlock { Text = prompt, TextWrapping = TextWrapping.Wrap },
-                tb
+                var doc = XDocument.Load(path);
+                foreach (var el in doc.Descendants("Reaction"))
+                {
+                    var rxn = new RxnBaseClasses.Reaction();
+                    ((DWSIM.Interfaces.ICustomXMLSerialization)rxn).LoadData(el.Elements().ToList());
+                    rxn.ID = Guid.NewGuid().ToString();
+                    _flowsheet.AddReaction(rxn);
+                    if (_flowsheet.ReactionSets.ContainsKey("DefaultSet"))
+                        _flowsheet.AddReactionToSet(rxn.ID, "DefaultSet", true, 0);
+                }
             }
-        });
-
-        var dlg = new Window
-        {
-            Title  = title,
-            Width  = 360,
-            Height = 160,
-            CanResize = false,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            Icon = IconHelper.GetWindowIcon(),
-            Content = body
-        };
-        ok.Click     += (_, _) => { result = tb.Text; dlg.Close(); };
-        cancel.Click += (_, _) => dlg.Close();
-        await dlg.ShowDialog(DialogOwner());
-        return result;
+            catch { /* skip an unreadable file */ }
+        }
+        RefreshReactions();
+        RefreshSets();
     }
 
-    private async System.Threading.Tasks.Task<string?> ShowChoiceDialogAsync(
-        string title, string prompt, string[] choices)
+    private static string TypeName(ReactionType t) => t switch
     {
-        string? result = null;
-        var lb = new ListBox { Height = 160 };
-        foreach (var c in choices) lb.Items.Add(c);
-        if (choices.Length > 0) lb.SelectedIndex = 0;
-        var cancel = new Button { Content = "Cancel", Width = 80, IsCancel  = true };
-        cancel.Classes.Add("dialog");
-        var ok     = new Button { Content = "OK",     Width = 80, IsDefault = true };
-        ok.Classes.Add("dialog");
-
-        var btnPanel2 = new StackPanel
-        {
-            Orientation         = Orientation.Horizontal,
-            HorizontalAlignment = HorizontalAlignment.Right,
-            Spacing = 8,
-            Margin = new Thickness(0, 0, 16, 12)
-        };
-        btnPanel2.Children.Add(cancel);
-        btnPanel2.Children.Add(ok);
-
-        var body2 = new DockPanel();
-        DockPanel.SetDock(btnPanel2, global::Avalonia.Controls.Dock.Bottom);
-        body2.Children.Add(btnPanel2);
-        body2.Children.Add(new StackPanel
-        {
-            Margin  = new Thickness(16, 16, 16, 8),
-            Spacing = 10,
-            Children =
-            {
-                new TextBlock { Text = prompt },
-                lb
-            }
-        });
-
-        var dlg = new Window
-        {
-            Title  = title,
-            Width  = 340,
-            Height = 280,
-            CanResize = false,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            Icon = IconHelper.GetWindowIcon(),
-            Content = body2
-        };
-        ok.Click     += (_, _) => { result = lb.SelectedItem as string; dlg.Close(); };
-        cancel.Click += (_, _) => dlg.Close();
-        lb.DoubleTapped += (_, _) => { result = lb.SelectedItem as string; dlg.Close(); };
-        await dlg.ShowDialog(DialogOwner());
-        return result;
-    }
-
-    private async System.Threading.Tasks.Task ShowMessageAsync(string title, string message)
-    {
-        var ok = new Button { Content = "OK", Width = 80, IsDefault = true };
-        ok.Classes.Add("dialog");
-
-        var btnPanel3 = new StackPanel
-        {
-            Orientation         = Orientation.Horizontal,
-            HorizontalAlignment = HorizontalAlignment.Right,
-            Margin = new Thickness(0, 0, 16, 12)
-        };
-        btnPanel3.Children.Add(ok);
-
-        var body3 = new DockPanel();
-        DockPanel.SetDock(btnPanel3, global::Avalonia.Controls.Dock.Bottom);
-        body3.Children.Add(btnPanel3);
-        body3.Children.Add(new TextBlock
-        {
-            Text = message,
-            TextWrapping = TextWrapping.Wrap,
-            Margin = new Thickness(16, 16, 16, 8)
-        });
-
-        var dlg = new Window
-        {
-            Title  = title,
-            Width  = 360,
-            Height = 140,
-            CanResize = false,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            Icon = IconHelper.GetWindowIcon(),
-            Content = body3
-        };
-        ok.Click += (_, _) => dlg.Close();
-        await dlg.ShowDialog(DialogOwner());
-    }
+        ReactionType.Heterogeneous_Catalytic => "Heterogeneous Catalytic",
+        _ => t.ToString()
+    };
 
     // -------------------------------------------------------------------------
-    // List item wrappers
+    // Row models
     // -------------------------------------------------------------------------
 
-    private sealed class RxnItem
+    private sealed class SetRow
     {
-        public string DisplayName { get; }
-        public string ID          { get; }
-        public RxnItem(string name, string id, string type) =>
-            (DisplayName, ID) = ($"[{type[0]}] {name}", id);
-        public override string ToString() => DisplayName;
+        public string Name { get; init; } = "";
+        public string Description { get; init; } = "";
+        public string ID { get; init; } = "";
     }
 
-    private sealed class RsItem
+    private sealed class RxnRow
     {
-        public string DisplayName { get; }
-        public string ID          { get; }
-        public RsItem(string name, string id) => (DisplayName, ID) = (name, id);
-        public override string ToString() => DisplayName;
+        public string Name { get; init; } = "";
+        public string Type { get; init; } = "";
+        public string Equation { get; init; } = "";
+        public string ID { get; init; } = "";
     }
 }

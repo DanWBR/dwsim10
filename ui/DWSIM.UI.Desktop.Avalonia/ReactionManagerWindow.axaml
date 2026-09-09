@@ -1,8 +1,8 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="DWSIM.UI.Desktop.Avalonia.ReactionManagerWindow"
-        Title="Reaction Manager"
-        Width="860" Height="580"
+        Title="Reactions Manager"
+        Width="1000" Height="600"
         WindowStartupLocation="CenterOwner"
         CanResize="True">
 
@@ -12,88 +12,43 @@
             Content="Close" Width="80" IsCancel="True"
             HorizontalAlignment="Right" Margin="0,8,0,0" />
 
-    <TabControl>
+    <Grid ColumnDefinitions="*,4,1.4*">
 
-      <!-- ===== Reaction Sets tab (first, as in the classic UI) ===== -->
-      <TabItem Header="Reaction Sets">
-        <Grid ColumnDefinitions="230,4,*">
+      <!-- ===== Reaction Sets (left) ===== -->
+      <DockPanel Grid.Column="0">
+        <TextBlock DockPanel.Dock="Top" Text="Reaction Sets"
+                   FontWeight="SemiBold" Margin="2,0,0,4" />
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="4" Margin="0,0,0,4">
+          <Button Name="BtnSetNew"    Classes="panel" Content="New"    Width="60" />
+          <Button Name="BtnSetEdit"   Classes="panel" Content="Edit"   Width="60" />
+          <Button Name="BtnSetCopy"   Classes="panel" Content="Copy"   Width="60" />
+          <Button Name="BtnSetRemove" Classes="panel" Content="Remove" Width="70" />
+        </StackPanel>
+        <DataGrid Name="GridSets" AutoGenerateColumns="False" IsReadOnly="True"
+                  HeadersVisibility="Column" GridLinesVisibility="All"
+                  SelectionMode="Single" />
+      </DockPanel>
 
-          <!-- Left: sets list -->
-          <DockPanel Grid.Column="0">
-            <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal"
-                        Spacing="4" Margin="0,6,0,0">
-              <Button Name="BtnNewReactionSet"    Classes="panel" Content="New..."  Width="78" />
-              <Button Name="BtnDeleteReactionSet" Classes="panel" Content="Delete"  Width="70" />
-            </StackPanel>
-            <ListBox Name="LbReactionSets" />
-          </DockPanel>
+      <GridSplitter Grid.Column="1" ResizeDirection="Columns" HorizontalAlignment="Stretch" />
 
-          <GridSplitter Grid.Column="1" ResizeDirection="Columns"
-                        HorizontalAlignment="Stretch" />
+      <!-- ===== Reactions (right) ===== -->
+      <DockPanel Grid.Column="2">
+        <TextBlock DockPanel.Dock="Top" Text="Chemical Reactions"
+                   FontWeight="SemiBold" Margin="2,0,0,4" />
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="4" Margin="0,0,0,4">
+          <Button Name="BtnRxnAdd"    Classes="panel" Content="Add ▾"  Width="70" />
+          <Button Name="BtnRxnEdit"   Classes="panel" Content="Edit"   Width="60" />
+          <Button Name="BtnRxnCopy"   Classes="panel" Content="Copy"   Width="60" />
+          <Button Name="BtnRxnDelete" Classes="panel" Content="Delete" Width="65" />
+          <Button Name="BtnRxnExport" Classes="panel" Content="Export" Width="65" />
+          <Button Name="BtnRxnImport" Classes="panel" Content="Import" Width="65" />
+        </StackPanel>
+        <DataGrid Name="GridReactions" AutoGenerateColumns="False" IsReadOnly="True"
+                  HeadersVisibility="Column" GridLinesVisibility="All"
+                  SelectionMode="Single" />
+      </DockPanel>
 
-          <!-- Right: reactions in set / all reactions -->
-          <Grid Grid.Column="2" RowDefinitions="*,Auto,*">
-
-            <!-- Reactions in selected set -->
-            <DockPanel Grid.Row="0">
-              <TextBlock DockPanel.Dock="Top" Text="Reactions in Selected Set"
-                         FontWeight="SemiBold" Margin="8,0,0,4" />
-              <ListBox Name="LbSetReactions" Margin="8,0,4,0" />
-            </DockPanel>
-
-            <!-- Transfer buttons -->
-            <StackPanel Grid.Row="1" Orientation="Horizontal"
-                        HorizontalAlignment="Center" Spacing="12" Margin="0,6,0,6">
-              <Button Name="BtnAddToSet"      Classes="panel" Content="▲ Add to Set"   Width="120" />
-              <Button Name="BtnRemoveFromSet" Classes="panel" Content="▼ Remove"       Width="120" />
-            </StackPanel>
-
-            <!-- All reactions (picker) -->
-            <DockPanel Grid.Row="2">
-              <TextBlock DockPanel.Dock="Top" Text="All Reactions (pick to add)"
-                         FontWeight="SemiBold" Margin="8,0,0,4" />
-              <ListBox Name="LbAllReactionsForSet" Margin="8,0,4,0" />
-            </DockPanel>
-
-          </Grid>
-
-        </Grid>
-      </TabItem>
-
-      <!-- ===== Reactions tab ===== -->
-      <TabItem Header="Reactions">
-        <Grid ColumnDefinitions="230,4,*">
-
-          <!-- Left: reaction list -->
-          <DockPanel Grid.Column="0">
-            <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal"
-                        Spacing="4" Margin="0,6,0,0">
-              <Button Name="BtnNewReaction"    Classes="panel" Content="New..."  Width="78" />
-              <Button Name="BtnDeleteReaction" Classes="panel" Content="Delete"  Width="70" />
-            </StackPanel>
-            <ListBox Name="LbReactions" />
-          </DockPanel>
-
-          <GridSplitter Grid.Column="1" ResizeDirection="Columns"
-                        HorizontalAlignment="Stretch" />
-
-          <!-- Right: detail -->
-          <DockPanel Grid.Column="2">
-            <TextBlock DockPanel.Dock="Top" Text="Reaction Properties"
-                       FontWeight="SemiBold" Margin="8,0,0,6" />
-            <ScrollViewer>
-              <StackPanel Name="ReactionDetailPanel" Spacing="4" Margin="8,0,4,0">
-                <TextBlock Name="ReactionDetailHint"
-                           Text="Select or create a reaction to view/edit its properties."
-                           TextWrapping="Wrap" Foreground="Gray" />
-              </StackPanel>
-            </ScrollViewer>
-          </DockPanel>
-
-        </Grid>
-      </TabItem>
-
-    </TabControl>
+    </Grid>
 
   </DockPanel>
 
