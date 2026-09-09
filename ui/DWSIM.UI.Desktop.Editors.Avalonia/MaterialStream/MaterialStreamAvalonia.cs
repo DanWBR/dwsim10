@@ -17,12 +17,25 @@ namespace DWSIM.UI.Desktop.Editors
 {
     internal static class MaterialStreamEditorAvalonia
     {
-        private static readonly NumberStyles NS = NumberStyles.Any;
         private static readonly CultureInfo IC = CultureInfo.InvariantCulture;
-        // Parse in the OS locale first (so a comma decimal works on a comma-locale machine, matching
-        // the composition grid), then fall back to invariant so a dot still parses too.
-        private static bool TryVal(string text, out double v) =>
-            double.TryParse(text, NS, CultureInfo.CurrentCulture, out v) || double.TryParse(text, NS, IC, out v);
+        // Parse a typed value without depending on the machine's regional decimal separator. The app
+        // never pins the number-formatting culture, so the separator is whatever the OS uses, and it
+        // differs across platforms (Windows ARM in a VM vs macOS): a value typed with the "other"
+        // separator was silently dropped. NumberStyles.Float admits no thousands separator, so a mark
+        // that is not the culture's decimal point fails cleanly and falls through instead of being
+        // swallowed as a grouping mark.
+        private static bool TryVal(string text, out double v)
+        {
+            v = 0.0;
+            if (string.IsNullOrWhiteSpace(text)) return false;
+            var t = text.Trim();
+            const NumberStyles ns = NumberStyles.Float;
+            if (double.TryParse(t, ns, CultureInfo.CurrentCulture, out v)) return true;
+            if (double.TryParse(t, ns, IC, out v)) return true;
+            var swapped = t.Replace(",", ".");
+            if (swapped.IndexOf('.') == swapped.LastIndexOf('.') && double.TryParse(swapped, ns, IC, out v)) return true;
+            return false;
+        }
 
         private static readonly SolidColorBrush UserDefinedBrush =
             new SolidColorBrush(Avalonia.Media.Color.FromRgb(173, 216, 230)); // LightBlue

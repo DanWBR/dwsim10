@@ -555,16 +555,49 @@ Public Module General
 
     End Function
 
+    ''' <summary>
+    ''' Parses a number typed by the user without depending on the machine's regional decimal
+    ''' separator. The app displays numbers in the OS culture but never pins the number-formatting
+    ''' culture, so the separator is whatever the OS regional format uses - which differs across
+    ''' platforms (a value typed with a dot on a comma-decimal machine, or the reverse, was dropped).
+    ''' NumberStyles.Float admits no thousands separator, so a mark that is not the culture's decimal
+    ''' point fails cleanly and falls through instead of being swallowed as a grouping mark.
+    ''' </summary>
+    <System.Runtime.CompilerServices.Extension()>
+    Public Function TryDoubleFlexible(s As String, ByRef value As Double) As Boolean
+
+        value = 0.0
+        If String.IsNullOrWhiteSpace(s) Then Return False
+
+        Dim t As String = s.Trim()
+        Dim ns As NumberStyles = NumberStyles.Float
+
+        ' the OS/current culture: a comma-decimal machine typing a comma, a dot machine typing a dot
+        If Double.TryParse(t, ns, CultureInfo.CurrentCulture, value) Then Return True
+        ' invariant (dot decimal): a dot typed on a comma-decimal machine
+        If Double.TryParse(t, ns, CultureInfo.InvariantCulture, value) Then Return True
+        ' a lone comma typed on a dot-decimal machine is the decimal mark
+        Dim swapped As String = t.Replace(","c, "."c)
+        If swapped.IndexOf("."c) = swapped.LastIndexOf("."c) AndAlso
+           Double.TryParse(swapped, ns, CultureInfo.InvariantCulture, value) Then Return True
+
+        Return False
+
+    End Function
+
+    ''' <summary>Culture-tolerant validity check matching <see cref="TryDoubleFlexible"/>.</summary>
+    <System.Runtime.CompilerServices.Extension()>
+    Public Function IsValidDoubleFlexible(s As String) As Boolean
+        Dim v As Double
+        Return TryDoubleFlexible(s, v)
+    End Function
+
     <System.Runtime.CompilerServices.Extension()>
     Public Function ToDoubleFromCurrent(s As String) As Double
 
-        Dim ci As CultureInfo = CultureInfo.CurrentCulture
-
-        If Double.TryParse(s, CType(NumberStyles.Any - NumberStyles.AllowThousands, NumberStyles), ci, New Double) Then
-            Return Double.Parse(s, CType(NumberStyles.Any - NumberStyles.AllowThousands, NumberStyles), ci)
-        Else
-            Return 0.0
-        End If
+        Dim v As Double
+        If TryDoubleFlexible(s, v) Then Return v
+        Return 0.0
 
     End Function
 

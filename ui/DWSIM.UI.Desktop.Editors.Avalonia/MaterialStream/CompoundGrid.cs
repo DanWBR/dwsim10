@@ -52,7 +52,7 @@ namespace DWSIM.UI.Desktop.Editors
                 }
                 set
                 {
-                    if (value.IsValidDouble()) _amount = value.ToDoubleFromCurrent();
+                    if (value.IsValidDoubleFlexible()) _amount = value.ToDoubleFromCurrent();
                     Raise(nameof(Amount));
                 }
             }

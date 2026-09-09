@@ -359,10 +359,19 @@ namespace DWSIM.UI.Desktop.Editors
 
         public static bool TryParse(string text, out double value)
         {
+            // Culture-tolerant: the app never pins the number-formatting culture, so the decimal
+            // separator is whatever the OS regional format uses and differs across platforms. Float
+            // admits no thousands separator, so a mark that is not the culture's decimal point fails
+            // cleanly and falls through rather than being swallowed as a grouping mark.
             value = 0.0;
             if (string.IsNullOrWhiteSpace(text)) return false;
-            return double.TryParse(text, NumberStyles.Any, CultureInfo.CurrentCulture, out value)
-                || double.TryParse(text, NumberStyles.Any, CultureInfo.InvariantCulture, out value);
+            var t = text.Trim();
+            const NumberStyles ns = NumberStyles.Float;
+            if (double.TryParse(t, ns, CultureInfo.CurrentCulture, out value)) return true;
+            if (double.TryParse(t, ns, CultureInfo.InvariantCulture, out value)) return true;
+            var swapped = t.Replace(",", ".");
+            if (swapped.IndexOf('.') == swapped.LastIndexOf('.') && double.TryParse(swapped, ns, CultureInfo.InvariantCulture, out value)) return true;
+            return false;
         }
 
     }
