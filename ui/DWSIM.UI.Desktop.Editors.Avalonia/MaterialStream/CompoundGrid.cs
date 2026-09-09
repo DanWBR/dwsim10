@@ -6,6 +6,9 @@ using System.Globalization;
 using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Data;
+using Avalonia.Input;
+using Avalonia.Interactivity;
+using Avalonia.Threading;
 using DWSIM.ExtensionMethods;
 using DWSIM.Interfaces;
 using CompoundAmounts = DWSIM.Thermodynamics.Streams.CompoundAmounts;
@@ -115,6 +118,35 @@ namespace DWSIM.UI.Desktop.Editors
             });
 
             CellEditEnded += (s, e) => { if (Edited != null) Edited(); };
+
+            // Enter commits the cell and drops straight into editing the amount below, so a whole
+            // column of compositions can be typed quickly: type, Enter, type, Enter, as the
+            // WinForms grid allows. Handled in the tunnel phase so the grid's own Enter handling
+            // (which would only commit and move) does not also run and move the selection twice.
+            AddHandler(KeyDownEvent, OnEnterEditNext, RoutingStrategies.Tunnel, handledEventsToo: true);
+        }
+
+        /// <summary>Commits the current amount and opens the one below for editing, for fast entry.</summary>
+        private void OnEnterEditNext(object sender, KeyEventArgs e)
+        {
+            if (e.Key != Key.Enter || IsReadOnly) return;
+
+            CommitEdit(DataGridEditingUnit.Row, true);
+
+            var next = SelectedIndex + 1;
+            if (next >= 0 && next < _rows.Count)
+            {
+                SelectedIndex = next;
+                ScrollIntoView(_rows[next], Columns[1]);
+            }
+            e.Handled = true;
+
+            // the new row has to be realized before it can enter edit mode
+            Dispatcher.UIThread.Post(() =>
+            {
+                CurrentColumn = Columns[1];
+                BeginEdit();
+            }, DispatcherPriority.Background);
         }
 
         /// <summary>Raised after the user commits a cell, or one of the actions runs.</summary>

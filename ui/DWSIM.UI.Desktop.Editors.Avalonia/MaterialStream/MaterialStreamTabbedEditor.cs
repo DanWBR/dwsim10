@@ -119,6 +119,13 @@ namespace DWSIM.UI.Desktop.Editors
             // the name, the status and the property package live in the header above, as they do
             // in the WinForms form, so the conditions panel starts at the state specification
             MaterialStreamEditorAvalonia.Populate(ms, conditions, includeComposition: false, includeHeader: false);
+            // editing a condition solves the stream and refreshes the grids, as the Windows editor
+            // does. The panel arms itself once in the tree, so populating it does not solve.
+            conditions.OnAfterEdit = () =>
+            {
+                flowsheet.RequestCalculation(ms);
+                flowsheet.UpdateInterface();
+            };
 
             var inputGrid = new CompoundGrid(su, nff, editable: true);
 
@@ -422,7 +429,17 @@ namespace DWSIM.UI.Desktop.Editors
             actions.Children.Add(ActionButton("Clear", () => { grid.Erase(); updateTotal(); }));
             actions.Children.Add(ActionButton("Complete", () => { grid.Complete(); updateTotal(); }));
 
-            var accept = ActionButton("Accept Changes", () =>
+            var accept = new Button
+            {
+                Content = "Accept Changes",
+                Margin = new Thickness(0, 0, 0, 4),
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                HorizontalContentAlignment = HorizontalAlignment.Center,
+                FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(12)
+            };
+            accept.Classes.Add("panel");
+            accept.Classes.Add("action");
+            accept.Click += async (s, e) =>
             {
                 try
                 {
@@ -432,7 +449,19 @@ namespace DWSIM.UI.Desktop.Editors
                     CompoundAmounts.Apply(ms, grid.Basis, grid.Amounts, su,
                         solvent.SelectedItem as string ?? "");
 
-                    flowsheet.RequestCalculation(ms);
+                    // solve off the UI thread so a large flowsheet does not freeze the editor
+                    accept.IsEnabled = false;
+                    try
+                    {
+                        await System.Threading.Tasks.Task.Run(
+                            () => flowsheet.RequestCalculationAndWait());
+                    }
+                    finally
+                    {
+                        accept.IsEnabled = true;
+                    }
+
+                    flowsheet.UpdateInterface();
                     refresh();
                     updateTotal();
                 }
@@ -441,8 +470,7 @@ namespace DWSIM.UI.Desktop.Editors
                     flowsheet.ShowMessage("Could not apply the compound amounts: " + ex.Message,
                         IFlowsheet.MessageType.GeneralError);
                 }
-            });
-            accept.Classes.Add("action");
+            };
             actions.Children.Add(accept);
 
             updateTotal();

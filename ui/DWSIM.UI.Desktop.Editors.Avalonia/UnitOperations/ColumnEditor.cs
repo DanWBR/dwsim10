@@ -113,7 +113,7 @@ namespace DWSIM.UI.Desktop.Editors
 
         private static Control BuildGeneral(Column column)
         {
-            var panel = new AvaloniaEditorPanel();
+            var panel = new AvaloniaEditorPanel().AutoSolveOnEdit(column);
             var flowsheet = column.GetFlowsheet();
             var nf = flowsheet.FlowsheetOptions.NumberFormat;
 
@@ -284,7 +284,7 @@ namespace DWSIM.UI.Desktop.Editors
 
         private static Control BuildCondenser(DistillationColumn column)
         {
-            var panel = new AvaloniaEditorPanel();
+            var panel = new AvaloniaEditorPanel().AutoSolveOnEdit(column);
 
             UnitOpEditorRows.ValueRow vaporFlow = null, subcooling = null;
             ComboBox condenserType = null, compound = null;
@@ -337,7 +337,7 @@ namespace DWSIM.UI.Desktop.Editors
 
         private static Control BuildReboiler(DistillationColumn column)
         {
-            var panel = new AvaloniaEditorPanel();
+            var panel = new AvaloniaEditorPanel().AutoSolveOnEdit(column);
 
             ComboBox compound = null;
             TextBox specValue = null;
