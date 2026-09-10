@@ -253,23 +253,34 @@ jobs:
       # the SignPath PowerShell module and the signed one comes back; the private key never leaves
       # SignPath. The identifiers live in repository variables, the API token in a secret. Signing is
       # best-effort: if it is not configured the installer ships unsigned rather than failing.
+      # Signing stays best-effort, but it says so out loud: a failure leaves a
+      # ::warning:: on the run instead of a green step. `continue-on-error`
+      # alone reported the step as successful even when SignPath rejected the
+      # request, which is how an exhausted quota shipped unsigned installers
+      # unnoticed. Any failure also clears the half-written output so the
+      # staging step below falls back to the unsigned artifact.
       - name: Sign installer (SignPath)
         if: env.SIGNPATH_API_TOKEN != ''
-        continue-on-error: true
         shell: pwsh
         run: |
-          Install-Module -Name SignPath -Repository PSGallery -Force -Scope CurrentUser -AllowClobber
+          $ErrorActionPreference = 'Stop'
           $exe = (Get-ChildItem artifacts\*.exe | Select-Object -First 1).FullName
           New-Item -ItemType Directory -Force signed | Out-Null
           $out = Join-Path signed (Split-Path $exe -Leaf)
-          Submit-SigningRequest `
-            -InputArtifactPath  $exe `
-            -ApiToken           $env:SIGNPATH_API_TOKEN `
-            -OrganizationId     "${{ vars.SIGNPATH_ORGANIZATION_ID }}" `
-            -ProjectSlug        "${{ vars.SIGNPATH_PROJECT_SLUG }}" `
-            -SigningPolicySlug  "${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}" `
-            -OutputArtifactPath $out `
-            -WaitForCompletion
+          try {
+            Install-Module -Name SignPath -Repository PSGallery -Force -Scope CurrentUser -AllowClobber
+            Submit-SigningRequest `
+              -InputArtifactPath  $exe `
+              -ApiToken           $env:SIGNPATH_API_TOKEN `
+              -OrganizationId     "${{ vars.SIGNPATH_ORGANIZATION_ID }}" `
+              -ProjectSlug        "${{ vars.SIGNPATH_PROJECT_SLUG }}" `
+              -SigningPolicySlug  "${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}" `
+              -OutputArtifactPath $out `
+              -WaitForCompletion
+          } catch {
+            Remove-Item -Force $out -ErrorAction SilentlyContinue
+            Write-Host "::warning title=Installer not signed::SignPath signing failed; the installer ships unsigned. $($_.Exception.Message)"
+          }
 
       - name: Stage the installer
         shell: bash
