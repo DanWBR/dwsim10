@@ -1,6 +1,6 @@
 ﻿==================================================
 DWSIM - Open Source Process Simulator
-Version 10.2.5
+Version 10.2.6
 Copyright (c) 2017-2026 Daniel Wagner and contributors
 Copyright (c) 2008-2016 Daniel Wagner, Gregor Reichert, Gustavo Leon
 ==================================================
@@ -38,6 +38,14 @@ VERSION HISTORY / CHANGELOG
 ==================================================
 
 The full changelog including souce code changes can be viewed at https://github.com/DanWBR/dwsim10/commits/windows
+
+Version 10.2.6
+
+- [CHG] The reaction and reaction-set editors in the cross-platform interface were rebuilt to match the Windows ones: a dedicated editor for each reaction type with a live components-and-stoichiometry grid, a reaction-set editor, a two-panel reaction manager with import and export, and the reaction finder in the setup wizard.
+- [CHG] The compound search in the setup wizard and the simulation settings now matches by chemical formula and CAS number as well as name, and ranks an exact match first, so typing a formula such as CO2 puts carbon dioxide at the top.
+- [FIX] The calculated power of a compressor or expander no longer jumps erratically when the outlet sits on a phase boundary, such as a stream on the water dew point: the pressure-entropy flash now stays on the physical branch, so the power varies smoothly through the phase change.
+- [FIX] A near-boiling flash at high pressure, such as a compressor or plug-flow reactor outlet, no longer jumps to a spurious all-vapour temperature: the pressure-enthalpy flash now stays on the physical branch.
+- [FIX] A number is now read with either a dot or a comma as the decimal mark regardless of the operating system regional format, which fixes misread values on macOS and on Windows on ARM (discussion #67).
 
 Version 10.2.5
 
