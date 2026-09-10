@@ -212,7 +212,23 @@ Public Class Server
 
             ElseIf req.HttpMethod = "GET" AndAlso path = "/api/check" Then
 
-                body = "{""objects"":[]}"
+                ' Identity of the open simulation. The assistant keys its saved
+                ' conversation on "path" so reopening the same file resumes the
+                ' chat where it stopped; "flowsheet" is the display name shown
+                ' in the resume banner. An unsaved simulation has no path.
+                Dim simPath As String = ""
+                Dim simName As String = ""
+                Try
+                    simPath = Flowsheet.FlowsheetOptions.FilePath
+                Catch
+                End Try
+                Try
+                    simName = Flowsheet.FlowsheetOptions.SimulationName
+                Catch
+                End Try
+
+                body = String.Format("{{""objects"":[],""flowsheet"":""{0}"",""path"":""{1}""}}",
+                                     EscJ(simName), EscJ(simPath))
 
                 ' ── GET /api/objects ─────────────────────────────────────────────────
             ElseIf req.HttpMethod = "GET" AndAlso path = "/api/objects" Then
