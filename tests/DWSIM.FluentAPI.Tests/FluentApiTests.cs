@@ -28,6 +28,8 @@ namespace DWSIM.FluentAPI.Tests
     {
         [Test] public void AMixerBalancesMassAndEnergy() => MixerTest.Run();
 
+        [Test] public void ABroydenRecycleConvergesLikeSubstitution() => RecycleBroydenTest.Run();
+
         [Test] public void AConversionReactorConsumesItsReagents() => ConvReactorTest.Run();
 
         [Test] public void ADistillationColumnSeparates() => DistillationTest.Run();

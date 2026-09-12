@@ -981,7 +981,10 @@ Imports DWSIM.SharedClasses
                                                       Dim rec = DirectCast(fbag.SimulationObjects(r), IRecycle)
                                                       If rec.AccelerationMethod = AccelMethod.GlobalBroyden Then
                                                           For Each kvp In rec.Errors
-                                                              rec.Values(kvp.Key) = 0.3 * recvars(i) + 0.7 * recdvars(i)
+                                                              ' broydn returns the step to add to the current point (new x = x + P), so the
+                                                              ' updated value is the point plus a damped step, not a blend of point and step,
+                                                              ' which collapsed the tear stream to 0.3 of its values on the second pass (issue #63)
+                                                              rec.Values(kvp.Key) = recvars(i) + 0.7 * recdvars(i)
                                                               i += 1
                                                           Next
                                                       End If

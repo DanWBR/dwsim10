@@ -400,7 +400,10 @@ Namespace SpecialOps
                 Else
                     Me.Errors("Temperature") = Me.Values("Temperature") - .temperature.GetValueOrDefault
                     Me.Errors("Pressure") = Me.Values("Pressure") - .pressure.GetValueOrDefault
-                    Me.Errors("MassFlow") = Werr
+                    ' A signed residual for Broyden, matching the other three: a sum of absolute
+                    ' compound-flow differences can never go negative, so Broyden could only ever push
+                    ' the flow one way (issue #63). The convergence test keeps Werr via ConvergenceHistory.
+                    Me.Errors("MassFlow") = Me.Values("MassFlow") - Wsum
                     Me.Errors("Enthalpy") = Me.Values("Enthalpy") - .enthalpy.GetValueOrDefault
                 End If
 
