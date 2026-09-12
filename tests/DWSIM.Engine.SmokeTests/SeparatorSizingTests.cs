@@ -94,8 +94,34 @@ namespace DWSIM.Engine.SmokeTests
             var res = SeparatorSizing.SizeVertical(input);
 
             Assert.That(res.Diameter, Is.GreaterThan(0.0));
-            Assert.That(res.Length, Is.EqualTo(input.LengthToDiameter * res.Diameter).Within(1e-6));
+            // the height is the larger of the aspect ratio and the liquid-holdup height, so it is at
+            // least the length-to-diameter multiple of the diameter
+            Assert.That(res.Length, Is.GreaterThanOrEqualTo(input.LengthToDiameter * res.Diameter - 1e-6));
             Assert.That(res.InletNozzle, Is.GreaterThan(0.0));
+        }
+
+        // A longer liquid residence time makes a vertical vessel taller (the liquid holdup at the
+        // bottom needs the room), while the diameter, set by the vapour velocity, is unchanged. The
+        // residence time used to be ignored entirely for a vertical separator. issue #66
+        [Test]
+        public void TheVerticalHeightGrowsWithTheResidenceTime()
+        {
+            var flowsheet = Load();
+            var vessel = flowsheet.SimulationObjects.Values.OfType<Vessel>().Single();
+
+            var input = new SeparatorSizingInput();
+            Assert.That(SeparatorSizing.ReadStreams(flowsheet, vessel, input), Is.True);
+
+            input.ResidenceTime = 1.0;
+            var shortHold = SeparatorSizing.SizeVertical(input);
+
+            input.ResidenceTime = 120.0;
+            var longHold = SeparatorSizing.SizeVertical(input);
+
+            Assert.That(longHold.Diameter, Is.EqualTo(shortHold.Diameter).Within(1e-6),
+                        "the diameter is set by the vapour velocity and must not change with residence time");
+            Assert.That(longHold.Length, Is.GreaterThan(shortHold.Length),
+                        "a longer residence time must make the vertical vessel taller");
         }
 
         // Both liquid outlets carry flow in this sample, so the liquid side is the two of them.

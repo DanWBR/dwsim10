@@ -145,8 +145,16 @@ Namespace Utilities.Sizing
             Dim vp = input.GasVelocityPercent / 100 * vk
             Dim At = qv / vp
 
-            res.Diameter = (4 * At / Math.PI) ^ 0.5 * 1000
-            res.Length = input.LengthToDiameter * res.Diameter
+            Dim diam = (4 * At / Math.PI) ^ 0.5
+            res.Diameter = diam * 1000
+
+            'The diameter is set by the vapour disengagement velocity. The height is the larger of the
+            'length-to-diameter aspect ratio and the height needed to hold the liquid at the bottom of
+            'the vessel for the residence time, so a longer residence time makes the vessel taller
+            'instead of being ignored on a vertical separator (issue #66).
+            Dim aspectHeight = input.LengthToDiameter * diam
+            Dim holdupHeight = (ql * input.ResidenceTime * 60) / (Math.PI * diam ^ 2 / 4)
+            res.Length = Math.Max(aspectHeight, holdupHeight) * 1000
 
             SizeNozzles(input, qv, ql, res)
 
