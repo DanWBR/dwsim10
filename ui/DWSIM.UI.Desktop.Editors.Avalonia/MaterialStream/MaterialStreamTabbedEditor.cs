@@ -422,12 +422,15 @@ namespace DWSIM.UI.Desktop.Editors
             header.Children.Add(solventLabel);
             header.Children.Add(solvent);
 
-            var actions = new StackPanel { Margin = new Thickness(6, 0, 4, 0), Width = 110 };
-            actions.Children.Add(total);
-            actions.Children.Add(ActionButton("Normalize", () => { grid.Normalize(); updateTotal(); }));
-            actions.Children.Add(ActionButton("Equalize", () => { grid.Equalize(); updateTotal(); }));
-            actions.Children.Add(ActionButton("Clear", () => { grid.Erase(); updateTotal(); }));
-            actions.Children.Add(ActionButton("Complete", () => { grid.Complete(); updateTotal(); }));
+            // The auxiliary buttons scroll when the editor pane is short; Accept Changes is pinned
+            // to the bottom of the column below so it is always reachable. On a short pane (seen on
+            // macOS) this fixed column used to overflow with no scrollbar and hide Accept Changes.
+            var auxButtons = new StackPanel();
+            auxButtons.Children.Add(total);
+            auxButtons.Children.Add(ActionButton("Normalize", () => { grid.Normalize(); updateTotal(); }));
+            auxButtons.Children.Add(ActionButton("Equalize", () => { grid.Equalize(); updateTotal(); }));
+            auxButtons.Children.Add(ActionButton("Clear", () => { grid.Erase(); updateTotal(); }));
+            auxButtons.Children.Add(ActionButton("Complete", () => { grid.Complete(); updateTotal(); }));
 
             var accept = new Button
             {
@@ -471,9 +474,18 @@ namespace DWSIM.UI.Desktop.Editors
                         IFlowsheet.MessageType.GeneralError);
                 }
             };
-            actions.Children.Add(accept);
-
             updateTotal();
+
+            // Accept Changes pinned at the bottom, the auxiliary buttons scrolling above it.
+            var actions = new DockPanel { Margin = new Thickness(6, 0, 4, 0), Width = 110 };
+            DockPanel.SetDock(accept, global::Avalonia.Controls.Dock.Bottom);
+            actions.Children.Add(accept);
+            actions.Children.Add(new ScrollViewer
+            {
+                Content = auxButtons,
+                VerticalScrollBarVisibility = global::Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = global::Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled
+            });
 
             var host = new DockPanel();
             DockPanel.SetDock(header, global::Avalonia.Controls.Dock.Top);
