@@ -1,8 +1,10 @@
-﻿Version 10.2.6
+﻿Version 10.2.7
 
-- [CHG] The reaction and reaction-set editors in the cross-platform interface were rebuilt to match the Windows ones: a dedicated editor for each reaction type with a live components-and-stoichiometry grid, a reaction-set editor, a two-panel reaction manager with import and export, and the reaction finder in the setup wizard.
-- [CHG] The compound search in the setup wizard and the simulation settings now matches by chemical formula and CAS number as well as name, and ranks an exact match first, so typing a formula such as CO2 puts carbon dioxide at the top.
-- [FIX] The calculated power of a compressor or expander no longer jumps erratically when the outlet sits on a phase boundary, such as a stream on the water dew point: the pressure-entropy flash now stays on the physical branch, so the power varies smoothly through the phase change.
-- [FIX] A near-boiling flash at high pressure, such as a compressor or plug-flow reactor outlet, no longer jumps to a spurious all-vapour temperature: the pressure-enthalpy flash now stays on the physical branch.
-- [FIX] A number is now read with either a dot or a comma as the decimal mark regardless of the operating system regional format, which fixes misread values on macOS and on Windows on ARM (discussion #67).
-- [FIX] A utility material stream can now be connected to the utility fluid inlet of a Plug-Flow Reactor or a CSTR in the Windows editor: the connection dropdown was wired to the main process inlet, so the stream chosen as the utility fluid was attached as the reactor feed instead (issue #70).
+- [CHG] The MCP server accepts a --python-path option, and a DWSIM_PYTHON_PATH environment variable for containers, so a Python Script unit operation can run on a headless server. The Python-path error message now names the distribution folder on Windows and the shared library file on Linux and macOS.
+- [CHG] The /api/check endpoint reports the open simulation's name and file path.
+- [FIX] A rigorous distillation or absorption column using the bubble-point method no longer reports a wrong converged result on a wide-boiling mixture: it now checks that the stage compositions have settled, not only the temperature and the vapour flow.
+- [FIX] A Recycle set to Global Convergence (Broyden) no longer corrupts its tear stream on the second solver pass, where the temperature, pressure and flow collapsed and the flow could go negative.
+- [FIX] A vertical gas-liquid separator's height now accounts for the liquid residence time, so changing the residence time changes the calculated size.
+- [FIX] Reopening a simulation saved by the cross-platform interface no longer shows blank panels (issue #72).
+- [FIX] In the cross-platform interface the tab shows the flowsheet name and the title bar adds the full file path. Saving no longer replaces the name with the file name, and a new simulation shows "Untitled" until it is named or saved.
+- [FIX] The Accept Changes button stays visible in the material stream composition editor when the editor pane is short.

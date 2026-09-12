@@ -1,6 +1,6 @@
 ﻿==================================================
 DWSIM - Open Source Process Simulator
-Version 10.2.6
+Version 10.2.7
 Copyright (c) 2017-2026 Daniel Wagner and contributors
 Copyright (c) 2008-2016 Daniel Wagner, Gregor Reichert, Gustavo Leon
 ==================================================
@@ -38,6 +38,17 @@ VERSION HISTORY / CHANGELOG
 ==================================================
 
 The full changelog including souce code changes can be viewed at https://github.com/DanWBR/dwsim10/commits/windows
+
+Version 10.2.7
+
+- [CHG] The MCP server accepts a --python-path option, and a DWSIM_PYTHON_PATH environment variable for containers, so a Python Script unit operation can run on a headless server. The Python-path error message now names the distribution folder on Windows and the shared library file on Linux and macOS.
+- [CHG] The /api/check endpoint reports the open simulation's name and file path.
+- [FIX] A rigorous distillation or absorption column using the bubble-point method no longer reports a wrong converged result on a wide-boiling mixture: it now checks that the stage compositions have settled, not only the temperature and the vapour flow.
+- [FIX] A Recycle set to Global Convergence (Broyden) no longer corrupts its tear stream on the second solver pass, where the temperature, pressure and flow collapsed and the flow could go negative.
+- [FIX] A vertical gas-liquid separator's height now accounts for the liquid residence time, so changing the residence time changes the calculated size.
+- [FIX] Reopening a simulation saved by the cross-platform interface no longer shows blank panels (issue #72).
+- [FIX] In the cross-platform interface the tab shows the flowsheet name and the title bar adds the full file path. Saving no longer replaces the name with the file name, and a new simulation shows "Untitled" until it is named or saved.
+- [FIX] The Accept Changes button stays visible in the material stream composition editor when the editor pane is short.
 
 Version 10.2.6
 
