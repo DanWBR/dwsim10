@@ -231,7 +231,7 @@ Public Class Settings
                 End If
 
                 If Not Directory.Exists(pythonpath) Then
-                    Throw New Exception("Please define the path to a valid Python distribution in General Settings and try again.")
+                    Throw New Exception("Please set the path to a valid Python distribution folder in General Settings and try again.")
                 End If
 
                 Try
@@ -253,7 +253,7 @@ Public Class Settings
                 End If
 
                 If Not File.Exists(pythonpath) Then
-                    Throw New Exception("Please define the path to a valid Python distribution in General Settings and try again.")
+                    Throw New Exception("Please set the path to the Python shared library file (for example /usr/lib/x86_64-linux-gnu/libpython3.12.so.1.0) in General Settings and try again.")
                 End If
 
                 Try

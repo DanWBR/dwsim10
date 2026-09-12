@@ -44,6 +44,7 @@ namespace DWSIM.MCPServer
             int port = 5901;
             string token = null;
             string host = "localhost";
+            string pythonPath = null;
 
             for (int i = 0; i < args.Length; i++)
             {
@@ -66,7 +67,22 @@ namespace DWSIM.MCPServer
                         // only; "0.0.0.0", "*" or "+" bind every interface, for a networked service.
                         if (i + 1 < args.Length) host = args[++i];
                         break;
+                    case "--python-path":
+                        // Path to the Python distribution a Python Script unit operation needs. On
+                        // Windows this is the distribution directory; on Linux and macOS it is the
+                        // libpython shared library, e.g. /usr/lib/x86_64-linux-gnu/libpython3.12.so.1.0.
+                        if (i + 1 < args.Length) pythonPath = args[++i];
+                        break;
                 }
+            }
+
+            // Headless hosts have no General Settings dialog to set the Python path in, so take it from
+            // the flag or, for containers, the DWSIM_PYTHON_PATH environment variable (issue #71).
+            pythonPath ??= Environment.GetEnvironmentVariable("DWSIM_PYTHON_PATH");
+            if (!string.IsNullOrEmpty(pythonPath))
+            {
+                DWSIM.GlobalSettings.Settings.PythonPath = pythonPath;
+                Console.Error.WriteLine($"[dwsim-mcp] Python path set to {pythonPath}");
             }
 
             Console.Error.WriteLine("[dwsim-mcp] Initializing DWSIM automation engine...");
