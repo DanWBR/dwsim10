@@ -267,14 +267,14 @@ public partial class MainWindow : Window
 
     private async System.Threading.Tasks.Task OpenNewWithWizardAsync()
     {
-        var view = AddDocument("Untitled");
+        var view = AddDocument("");
         await view.NewWithoutWizardAsync();
         view.ShowSetupWizard();
     }
 
     private async void OpenRegression(bool loadFromFile)
     {
-        var view = AddDocument("Untitled");
+        var view = AddDocument("");
         await view.NewWithoutWizardAsync();
         view.ShowDataRegression(loadFromFile);
     }
@@ -634,7 +634,7 @@ public partial class MainWindow : Window
     /// <summary>A simulation tab: the title (click activates the simulation) and a close X.</summary>
     private Button BuildTab(FlowsheetView view)
     {
-        var titleText = new TextBlock { VerticalAlignment = VerticalAlignment.Center, Text = view.SimulationName };
+        var titleText = new TextBlock { VerticalAlignment = VerticalAlignment.Center, Text = view.DisplayName };
 
         var glyph = new global::Avalonia.Controls.Shapes.Path
         {
@@ -700,6 +700,13 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>The window title: the flowsheet name, followed by the full file path in parentheses
+    /// once the simulation has been saved, mirroring the classic Windows title bar.</summary>
+    private static string FormatTitle(FlowsheetView view) =>
+        view.FilePath != null
+            ? $"DWSIM - {view.DisplayName} ({view.FilePath})"
+            : $"DWSIM - {view.DisplayName}";
+
     private FlowsheetView AddDocument(string title)
     {
         var view = new FlowsheetView
@@ -721,8 +728,8 @@ public partial class MainWindow : Window
         {
             if (_tabButtons.TryGetValue(view, out var t) && t.Content is StackPanel row &&
                 row.Children.Count > 0 && row.Children[0] is TextBlock tb)
-                tb.Text = view.SimulationName;
-            if (ReferenceEquals(ActiveFlowsheet, view)) Title = $"DWSIM - {view.SimulationName}";
+                tb.Text = view.DisplayName;
+            if (ReferenceEquals(ActiveFlowsheet, view)) Title = FormatTitle(view);
         };
         view.CloseRequested += (_, _) => _ = TryCloseDocumentAsync(view);
 
@@ -758,7 +765,7 @@ public partial class MainWindow : Window
         }
 
         MenuHost.Content = view != null ? view.FlowsheetMenu : BaseMenu;
-        Title = view != null ? $"DWSIM - {view.SimulationName}" : "DWSIM";
+        Title = view != null ? FormatTitle(view) : "DWSIM";
 
         // the extension buttons follow the active flowsheet: show its set, and none on the welcome
         // screen, so opening and closing simulations does not leave stale buttons on the strip
@@ -804,7 +811,7 @@ public partial class MainWindow : Window
 
     private async void OpenNewFlowsheet()
     {
-        var view = AddDocument("Untitled");
+        var view = AddDocument("");
         await view.NewWithoutWizardAsync();
     }
 

@@ -84,4 +84,45 @@ public static class DockLayoutState
         }
     }
 
+    /// <summary>
+    /// Copies the split proportions from a restored layout onto the live one, matched by dockable id,
+    /// without replacing the tree. The layout is fixed (the same dockables every time) and a panel is
+    /// hidden by setting its proportion to zero, so the proportions carry the whole saved arrangement:
+    /// the size of each split and which panels were collapsed.
+    ///
+    /// This is deliberately non-destructive. Swapping the live layout for a deserialized tree detaches
+    /// every panel control and re-hosts it, and the flowsheet canvas and the web view do not survive
+    /// being detached and re-attached: a file saved by this UI then reopened with every panel blank
+    /// (issue #72). Keeping the live layout and only adjusting proportions leaves the controls in place.
+    /// </summary>
+    public static void ApplyProportions(IDockable? live, IDockable? saved)
+    {
+        if (live == null || saved == null) return;
+
+        var byId = new Dictionary<string, double>();
+        CollectProportions(saved, byId);
+        ApplyProportions(live, byId);
+    }
+
+    private static void CollectProportions(IDockable node, Dictionary<string, double> byId)
+    {
+        if (!string.IsNullOrEmpty(node.Id)) byId[node.Id!] = node.Proportion;
+        if (node is IDock dock && dock.VisibleDockables != null)
+        {
+            foreach (var child in dock.VisibleDockables) CollectProportions(child, byId);
+        }
+    }
+
+    private static void ApplyProportions(IDockable node, IReadOnlyDictionary<string, double> byId)
+    {
+        if (!string.IsNullOrEmpty(node.Id) && byId.TryGetValue(node.Id!, out var proportion))
+        {
+            node.Proportion = proportion;
+        }
+        if (node is IDock dock && dock.VisibleDockables != null)
+        {
+            foreach (var child in dock.VisibleDockables) ApplyProportions(child, byId);
+        }
+    }
+
 }

@@ -165,7 +165,7 @@ public partial class FlowsheetView : UserControl
     // Simulation name
     // -------------------------------------------------------------------------
 
-    private string _simulationName = "Untitled";
+    private string _simulationName = "";
 
     public string SimulationName
     {
@@ -176,6 +176,19 @@ public partial class FlowsheetView : UserControl
             TitleChanged?.Invoke(this, EventArgs.Empty);
         }
     }
+
+    /// <summary>The full path of the file this simulation was loaded from or last saved to, or null
+    /// when it has never been saved. The title bar shows it after the flowsheet name, as the classic
+    /// UI does; the tab keeps only the flowsheet name.</summary>
+    public string? FilePath => string.IsNullOrEmpty(_flowsheet?.FilePath) ? null : _flowsheet!.FilePath;
+
+    /// <summary>What the tab and the title bar show for the flowsheet. A new simulation carries no
+    /// name until the user sets one or saves it (at which point the file name becomes the name); an
+    /// unnamed simulation falls back to its file name, or to "Untitled" before it has ever been saved.</summary>
+    public string DisplayName =>
+        !string.IsNullOrWhiteSpace(SimulationName) ? SimulationName
+        : FilePath != null ? Path.GetFileNameWithoutExtension(FilePath)
+        : "Untitled";
 
     // -------------------------------------------------------------------------
     // Extension containers (mirrors Eto FlowsheetForm containers for
@@ -827,8 +840,7 @@ public partial class FlowsheetView : UserControl
             DynManagerPanel.SetFlowsheet(fs);
             PopulatePalette(); // re-populate with icons from ObjectList
 
-            SimulationName = fs.Options?.SimulationName
-                             ?? Path.GetFileNameWithoutExtension(path);
+            SimulationName = fs.Options?.SimulationName ?? "";
             SetStatus("Ready");
             _surface.Center((int)(Canvas.Bounds.Width * GlobalSettings.Settings.DpiScale), (int)(Canvas.Bounds.Height * GlobalSettings.Settings.DpiScale));
             _surface.ZoomAll((int)(Canvas.Bounds.Width * GlobalSettings.Settings.DpiScale), (int)(Canvas.Bounds.Height * GlobalSettings.Settings.DpiScale));
@@ -981,7 +993,7 @@ public partial class FlowsheetView : UserControl
         ApplyPreferredUnitSystem(fs);
 
         CloseAllEditors();
-        SimulationName = "Untitled";
+        SimulationName = "";
         SetStatus("Ready");
         Canvas.Refresh();
         UpdateResultsPanel();
@@ -1034,7 +1046,19 @@ public partial class FlowsheetView : UserControl
                 _flowsheet.Options.FilePath = path;
             });
 
-            SimulationName = Path.GetFileNameWithoutExtension(path);
+            // Saving does not rename a flowsheet the user has named. A flowsheet that was never named
+            // adopts the file name (without extension) as its name on the first save. Either way the
+            // title bar is refreshed so it picks up the new file path after the flowsheet name.
+            if (string.IsNullOrWhiteSpace(SimulationName))
+            {
+                var name = Path.GetFileNameWithoutExtension(path);
+                if (_flowsheet.Options != null) _flowsheet.Options.SimulationName = name;
+                SimulationName = name;
+            }
+            else
+            {
+                TitleChanged?.Invoke(this, EventArgs.Empty);
+            }
             AppendLog($"Saved to {Path.GetFileName(path)}.");
             SetStatus("Ready");
             RecentFilesManager.Add(path);
@@ -1307,12 +1331,14 @@ public partial class FlowsheetView : UserControl
                 Dispatcher.UIThread.Invoke(() =>
                 {
                     var restored = DockLayoutState.Load(xdoc);
-                    if (restored == null || _dockFactory == null || _dockControl == null) return;
+                    if (restored == null || _dockLayout == null) return;
 
-                    DockLayoutState.ReattachContent(restored, _dockFactory.ContentById);
-                    _dockFactory.InitLayout(restored);
-                    _dockControl.Layout = restored;
-                    _dockLayout = restored;
+                    // Apply the saved split proportions onto the live layout instead of swapping the
+                    // whole tree in. Replacing the layout detaches every panel control, and the canvas
+                    // and web view do not survive that, so a file saved by this UI reopened with all
+                    // panels blank (issue #72). The layout is fixed and a hidden panel is a proportion
+                    // of zero, so the proportions restore the whole arrangement without a detach.
+                    DockLayoutState.ApplyProportions(_dockLayout, restored);
                 });
             }
             catch (Exception ex)
