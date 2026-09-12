@@ -1314,6 +1314,12 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
             Dim doparallel As Boolean = Settings.EnableParallelProcessing
 
             Dim ic As Integer
+            ' Under-relaxation of the bubble-point temperature update, a column setting
+            ' (default 0.5, the historical half step). Anything outside (0, 1] falls back to it.
+            Dim trelax As Double = 0.5
+            If rc.TemperatureStepFraction > 0.0 AndAlso rc.TemperatureStepFraction <= 1.0 Then
+                trelax = rc.TemperatureStepFraction
+            End If
             Dim t_error, t_error_ant, vf_error, xcerror(ns) As Double
             Dim Tj(ns), Tj_ant(ns), dTj(ns) As Double
             Dim Fj(ns), Lj(ns), Vj(ns), Vj_ant(ns), dVj(ns), xc(ns)(), xc0(ns)(), fcj(ns)(), yc(ns)(), lc(ns)(), vc(ns)(), zc(ns)(), K(ns)(), Kant(ns)() As Double
@@ -1765,7 +1771,7 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                     Next
                 Else
                     For i = 0 To ns
-                        Tj(i) = Tj(i) / 2 + Tj_ant(i) / 2
+                        Tj(i) = trelax * Tj(i) + (1.0 - trelax) * Tj_ant(i)
                     Next
                 End If
 

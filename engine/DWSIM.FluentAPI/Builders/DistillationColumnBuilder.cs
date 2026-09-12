@@ -14,6 +14,8 @@ namespace DWSIM.Automation.FluentAPI.Builders
         public DistillationColumnBuilder WithTopPressure(Quantity p) { Object.SetTopPressure(p.SI); return this; }
         /// <summary>Sets <c>Column Pressure Drop</c> (SI) and returns this builder for chaining.</summary>
         public DistillationColumnBuilder WithColumnPressureDrop(Quantity dp) { Object.ColumnPressureDrop = dp.SI; return this; }
+        /// <summary>Sets <c>Temperature Step Fraction</c> of the bubble-point solvers (0 to 1, default 0.5) and returns this builder for chaining.</summary>
+        public DistillationColumnBuilder WithTemperatureStepFraction(double fraction) { Object.TemperatureStepFraction = fraction; return this; }
 
         /// <summary>Sets <c>Feed</c> and returns this builder for chaining.</summary>
         public DistillationColumnBuilder WithFeed(MaterialStreamBuilder feed, int stageNumber)

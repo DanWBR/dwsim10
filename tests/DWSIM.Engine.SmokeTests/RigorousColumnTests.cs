@@ -153,5 +153,74 @@ namespace DWSIM.Engine.SmokeTests
             Assert.That(bottoms.Phases[0].Properties.molarflow.GetValueOrDefault() * lbmolhr,
                         Is.EqualTo(11.928).Within(2.0).Percent, "bottoms rate");
         }
+
+        // A 12-stage reboiled stripper (full reflux, reflux ratio 0, bottoms rate spec) as a cold
+        // naphtha STABILISER: a C4-C8 Fischer-Tropsch naphtha with dissolved CO2, H2 and methane,
+        // 20 lbmol/h at 120 degF onto the top stage at 34 psig, 19.6 lbmol/h of bottoms - the
+        // overhead is two per cent of the feed and the cold feed condenses most of the vapour
+        // that reaches it. At the shipped half step the bubble-point iteration never settles:
+        // the top stages overshoot their bubble points sweep after sweep, and neither the
+        // iteration budget nor the wide-boiling retry converges it. The solver has to find a
+        // smaller temperature step on its own (it converges at a quarter step in 47 sweeps).
+        // https://github.com/DanWBR/dwsim10/issues/73
+        [Test]
+        public void TheColdNaphthaStabiliserConvergesOnTheRelaxedRetry()
+        {
+            var flowsheet = Load("ColdNaphthaStabiliser.dwxmz");
+            var column = flowsheet.SimulationObjects.Values.OfType<DistillationColumn>().Single();
+
+            Assert.That(column.TemperatureStepFraction, Is.EqualTo(0.5), "the file carries no setting; the default step is the shipped one");
+
+            var errors = flowsheet.SolveFlowsheet2();
+
+            Assert.That(errors, Is.Empty,
+                        "the solver reported: " + string.Join("; ", errors.Select(e => e.Message)));
+
+            var streams = flowsheet.SimulationObjects.Values.OfType<MaterialStream>().ToList();
+            var feed = streams.Single(s => s.GraphicObject.Tag == "FEED");
+            var overhead = streams.Single(s => s.GraphicObject.Tag == "OVERHEAD");
+            var bottoms = streams.Single(s => s.GraphicObject.Tag == "BOTTOMS");
+
+            foreach (var name in new[] { "Methane", "Carbon dioxide", "Propane", "N-heptane", "1-octene" })
+            {
+                double inFlow = feed.Phases[0].Compounds[name].MolarFlow.GetValueOrDefault();
+                double outFlow = overhead.Phases[0].Compounds[name].MolarFlow.GetValueOrDefault()
+                               + bottoms.Phases[0].Compounds[name].MolarFlow.GetValueOrDefault();
+
+                Assert.That(outFlow, Is.EqualTo(inFlow).Within(0.1).Percent, name + " does not balance");
+            }
+
+            // The converged profile is the same at every step that converges: 135.1 degF on the
+            // top stage, 208.1 at the reboiler, 0.4 lbmol/h overhead against the 19.6 bottoms spec.
+            const double lbmolhr = 7.93664;
+            Assert.That(bottoms.Phases[0].Properties.molarflow.GetValueOrDefault() * lbmolhr,
+                        Is.EqualTo(19.6).Within(0.5).Percent, "bottoms rate");
+            Assert.That(overhead.Phases[0].Properties.molarflow.GetValueOrDefault() * lbmolhr,
+                        Is.EqualTo(0.4).Within(5.0).Percent, "overhead rate");
+            Assert.That((overhead.Phases[0].Properties.temperature.GetValueOrDefault() - 273.15) * 1.8 + 32.0,
+                        Is.EqualTo(135.1).Within(2.0), "overhead temperature, degF");
+            Assert.That((bottoms.Phases[0].Properties.temperature.GetValueOrDefault() - 273.15) * 1.8 + 32.0,
+                        Is.EqualTo(208.1).Within(2.0), "bottoms temperature, degF");
+        }
+
+        // The bubble-point solvers move each stage temperature a fraction of the way towards its new
+        // bubble point on every sweep. TemperatureStepFraction makes that fraction a column setting,
+        // default the historical 0.5, and it has to survive a save and a load like any other setting.
+        [Test]
+        public void TemperatureStepFractionIsAColumnSettingThatRoundTrips()
+        {
+            var flowsheet = Load("WideBoilingStripper.dwxmz");
+            var column = flowsheet.SimulationObjects.Values.OfType<DistillationColumn>().Single();
+
+            Assert.That(column.TemperatureStepFraction, Is.EqualTo(0.5),
+                        "a file saved before the setting existed keeps the historical half step");
+
+            column.TemperatureStepFraction = 0.1;
+            var saved = column.SaveData();
+            column.TemperatureStepFraction = 0.5;
+            column.LoadData(saved);
+
+            Assert.That(column.TemperatureStepFraction, Is.EqualTo(0.1));
+        }
     }
 }

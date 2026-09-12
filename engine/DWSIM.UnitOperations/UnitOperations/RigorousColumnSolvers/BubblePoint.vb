@@ -48,6 +48,10 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
             End Get
         End Property
 
+        ' The temperature step in force for the current solve: the column's TemperatureStepFraction to
+        ' start with, lowered by SolveWithFallbacks when the iteration does not converge.
+        Private _trelax As Double = 0.5
+
         Public Function Solve(ByVal rc As Column, ByVal nc As Integer, ByVal ns As Integer, ByVal maxits As Integer,
                                 ByVal tol As Double(), ByVal F As Double(), ByVal V As Double(),
                                 ByVal Q As Double(), ByVal L As Double(),
@@ -129,7 +133,8 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
             Dim ObjFunctionValues As New List(Of Double)
             Dim ResultsVector As New List(Of Object)
 
-            Dim altmode As Boolean = False
+            _trelax = 0.5
+            If rc.TemperatureStepFraction > 0.0 AndAlso rc.TemperatureStepFraction <= 1.0 Then _trelax = rc.TemperatureStepFraction
 
             If Not specC_OK And Not specR_OK Then
 
@@ -354,20 +359,9 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
 
                 Dim result As Object = Nothing
 
-                Try
-                    result = Solve_Internal(rc, nc, ns, maxits, tolerance, F, V, Q, L, VSS, LSS, Kval,
-                                           x, y, z, fc, HF, T, P, condt, stopatitnumber, eff,
-                                           coltype, pp, newspecs, IdealK, IdealH, 0, flashalgs)
-                    altmode = False
-                Catch ex As Exception
-                    altmode = True
-                End Try
-
-                If altmode Then
-                    result = Solve_Internal(rc, nc, ns, maxits, tolerance, F, V, Q, L, VSS, LSS, Kval,
-                                           x, y, z, fc, HF, T, P, condt, stopatitnumber, eff,
-                                           coltype, pp, newspecs, IdealK, IdealH, 1, flashalgs)
-                End If
+                result = SolveWithFallbacks(rc, nc, ns, maxits, tolerance, F, V, Q, L, VSS, LSS, Kval,
+                                            x, y, z, fc, HF, T, P, condt, stopatitnumber, eff,
+                                            coltype, pp, newspecs, IdealK, IdealH, flashalgs)
 
                 T = result(0)
                 V = result(1)
@@ -390,20 +384,9 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
 
                         If cspec.SpecValue < 0 Then cspec.SpecValue = -cspec.SpecValue
 
-                        Try
-                            result = Solve_Internal(rc, nc, ns, maxits, tolerance, F, V, Q, L, VSS, LSS, Kval,
-                                                x, y, z, fc, HF, T, P, condt, stopatitnumber, eff,
-                                                coltype, pp, newspecs, IdealK, IdealH, 0, flashalgs)
-                            altmode = False
-                        Catch ex As Exception
-                            altmode = True
-                        End Try
-
-                        If altmode Then
-                            result = Solve_Internal(rc, nc, ns, maxits, tolerance, F, V, Q, L, VSS, LSS, Kval,
-                                           x, y, z, fc, HF, T, P, condt, stopatitnumber, eff,
-                                           coltype, pp, newspecs, IdealK, IdealH, 1, flashalgs)
-                        End If
+                        result = SolveWithFallbacks(rc, nc, ns, maxits, tolerance, F, V, Q, L, VSS, LSS, Kval,
+                                                    x, y, z, fc, HF, T, P, condt, stopatitnumber, eff,
+                                                    coltype, pp, newspecs, IdealK, IdealH, flashalgs)
 
                         'Return New Object() {Tj, Vj, Lj, VSSj, LSSj, yc, xc, K, Q, ic, t_error}
 
@@ -529,20 +512,9 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
 
                 Dim result As Object = Nothing
 
-                Try
-                    result = Solve_Internal(rc, nc, ns, maxits, tolerance, F, V, Q, L, VSS, LSS, Kval,
-                                           x, y, z, fc, HF, T, P, condt, stopatitnumber, eff,
-                                           coltype, pp, newspecs, IdealK, IdealH, 0, flashalgs)
-                    altmode = False
-                Catch ex As Exception
-                    altmode = True
-                End Try
-
-                If altmode Then
-                    result = Solve_Internal(rc, nc, ns, maxits, tolerance, F, V, Q, L, VSS, LSS, Kval,
-                                           x, y, z, fc, HF, T, P, condt, stopatitnumber, eff,
-                                           coltype, pp, newspecs, IdealK, IdealH, 1, flashalgs)
-                End If
+                result = SolveWithFallbacks(rc, nc, ns, maxits, tolerance, F, V, Q, L, VSS, LSS, Kval,
+                                            x, y, z, fc, HF, T, P, condt, stopatitnumber, eff,
+                                            coltype, pp, newspecs, IdealK, IdealH, flashalgs)
 
                 T = result(0)
                 V = result(1)
@@ -743,20 +715,59 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
 
             Else
 
-                Try
-                    Return Solve_Internal(rc, nc, ns, maxits, tolerance, F, V, Q, L, VSS, LSS, Kval, x, y, z, fc, HF, T, P, condt,
-                                          stopatitnumber, eff, coltype, pp, specs, IdealK, IdealH, 0, flashalgs)
-                    altmode = False
-                Catch ex As Exception
-                    altmode = True
-                End Try
-
-                If altmode Then
-                    Return Solve_Internal(rc, nc, ns, maxits, tolerance, F, V, Q, L, VSS, LSS, Kval, x, y, z, fc, HF, T, P, condt,
-                                          stopatitnumber, eff, coltype, pp, specs, IdealK, IdealH, 1, flashalgs)
-                End If
+                Return SolveWithFallbacks(rc, nc, ns, maxits, tolerance, F, V, Q, L, VSS, LSS, Kval, x, y, z, fc, HF, T, P, condt,
+                                          stopatitnumber, eff, coltype, pp, specs, IdealK, IdealH, flashalgs)
 
             End If
+
+        End Function
+
+        ''' <summary>
+        ''' One bubble-point solve with its fallbacks. The column's temperature step first, at the full
+        ''' iteration budget, so a column that converges today is unaffected. When that does not converge,
+        ''' the step is halved down to 0.1 (0.25, then 0.1) and the solve repeated from the same start, on
+        ''' a reduced budget so a column that no step converges does not pay the full budget several times
+        ''' over. When the fallbacks fail too, the wide-boiling path (Mode 1) as before. The step that
+        ''' worked is kept for the rest of this solve, since the specification loops re-solve many times.
+        ''' </summary>
+        Private Function SolveWithFallbacks(rc As Column, nc As Integer, ns As Integer, maxits As Integer,
+                                 tolerance As Double, F As Double(), V As Double(),
+                                 Q As Double(), L As Double(),
+                                 VSS As Double(), LSS As Double(), Kval()() As Double,
+                                 x()() As Double, y()() As Double, z()() As Double,
+                                 fc()() As Double,
+                                 HF As Double(), T As Double(), P As Double(),
+                                 condt As DistillationColumn.condtype,
+                                 stopatitnumber As Integer,
+                                 eff() As Double,
+                                 coltype As Column.ColType,
+                                 pp As PropertyPackages.PropertyPackage,
+                                 specs As Dictionary(Of String, SepOps.ColumnSpec),
+                                 IdealK As Boolean, IdealH As Boolean,
+                                 flashalgs As List(Of FlashAlgorithm)) As Object
+
+            ' First attempt at the column's own step (kept from a previous solve if it was lowered),
+            ' at the full budget: a column that converges at its step is not slowed down.
+            Try
+                Return Solve_Internal(rc, nc, ns, maxits, tolerance, F, V, Q, L, VSS, LSS, Kval, x, y, z, fc, HF, T, P, condt, stopatitnumber, eff, coltype, pp, specs, IdealK, IdealH, 0, flashalgs)
+            Catch ex As Exception
+            End Try
+
+            ' Exploratory rungs at a smaller step, on a reduced budget so a hard column does not pay the
+            ' full budget on every rung. Enough to converge the columns these rungs are for.
+            Dim fbmaxits As Integer = Math.Max(75, maxits \ 2)
+            Do
+                If _trelax <= 0.1 Then Exit Do
+                _trelax = If(_trelax > 0.25, 0.25, 0.1)
+                pp.Flowsheet?.ShowMessage(rc.GraphicObject.Tag + ": [BP Solver] did not converge, retrying with the temperature step relaxed to " + _trelax.ToString("0.00"), IFlowsheet.MessageType.Information)
+                Try
+                    Return Solve_Internal(rc, nc, ns, fbmaxits, tolerance, F, V, Q, L, VSS, LSS, Kval, x, y, z, fc, HF, T, P, condt, stopatitnumber, eff, coltype, pp, specs, IdealK, IdealH, 0, flashalgs)
+                Catch ex As Exception
+                End Try
+            Loop
+
+            ' Wide-boiling path as the last resort, at the full budget as before.
+            Return Solve_Internal(rc, nc, ns, maxits, tolerance, F, V, Q, L, VSS, LSS, Kval, x, y, z, fc, HF, T, P, condt, stopatitnumber, eff, coltype, pp, specs, IdealK, IdealH, 1, flashalgs)
 
         End Function
 
@@ -858,6 +869,11 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
 
             Dim ic As Integer
             Dim t_error, t_error_ant, vf_error, x_error, xcerror(ns) As Double
+            ' Under-relaxation of the bubble-point temperature update: the step in force for this
+            ' solve (the column's TemperatureStepFraction, lowered by SolveWithFallbacks on a failure).
+            ' 0.5 is the historical half step. Anything outside (0, 1] falls back to it.
+            Dim trelax As Double = _trelax
+            If trelax <= 0.0 OrElse trelax > 1.0 Then trelax = 0.5
             Dim Tj(ns), Tj_ant(ns), dTj(ns) As Double
             Dim Fj(ns), Lj(ns), Vj(ns), Vj_ant(ns), dVj(ns), xc(ns)(), xc0(ns)(), fcj(ns)(), yc(ns)(), lc(ns)(), vc(ns)(), zc(ns)(), K(ns)(), Kant(ns)() As Double
             Dim Hfj(ns), Hv(ns), Hl(ns) As Double
@@ -1327,7 +1343,7 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                     Else
                         'If ic < 5 Or ic > 100 Then
                         For i = 0 To ns
-                            Tj(i) = Tj(i) / 2 + Tj_ant(i) / 2
+                            Tj(i) = trelax * Tj(i) + (1.0 - trelax) * Tj_ant(i)
                         Next
                         'End If
                     End If

@@ -1893,6 +1893,15 @@ Namespace UnitOperations
 
         Public Property ColumnPressureDrop As Double = Double.NaN
 
+        ''' <summary>
+        ''' Fraction of the bubble-point temperature update the Wang-Henke solvers apply on each sweep (0 to 1].
+        ''' Each stage temperature moves from its previous value towards the newly computed bubble point by this fraction.
+        ''' 0.5 is the historical behaviour and the right step for most columns. When the iteration does not converge
+        ''' the Wang-Henke solver halves the step on its own, down to 0.1, before it tries the wide-boiling path, so a
+        ''' column that needs a smaller step gets one without this being set; setting it skips those failed attempts.
+        ''' </summary>
+        Public Property TemperatureStepFraction As Double = 0.5
+
         Public Property TraySpacing As Double = 0.5 'm
 
         Public Property EstimatedDiameter As Double = Double.NaN 'm

@@ -36,6 +36,7 @@ stage-by-stage rigorous solver.
 | `WithReboilerSpec(specType, value, units, compound = "")` | E.g. `"Product Molar Flow Rate"`. |
 | `WithTopPressure(p)` | Top-stage pressure. |
 | `WithColumnPressureDrop(dp)` | Total drop across the column. |
+| `WithTemperatureStepFraction(f)` | Fraction of the bubble-point stage-temperature update the Wang-Henke solvers apply each sweep, 0 to 1 (default 0.5). |
 
 ```csharp
 fs.AddDistillationColumn("T-101")

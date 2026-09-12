@@ -1690,6 +1690,9 @@ namespace DWSIM.UI.Desktop.Editors
             panel.CreateAndAddNumericEditorRow("Maximum Iterations", col.MaxIterations, 1, 10000, 0,
                 (sp, e) => col.MaxIterations = (int)sp.Value.GetValueOrDefault());
 
+            panel.CreateAndAddTextBoxRow("G", "Temperature Step Fraction (Bubble-Point Solvers)", col.TemperatureStepFraction,
+                (tb, e) => { if (TryVal(tb.Text, out var v) && v > 0 && v <= 1) col.TemperatureStepFraction = v; });
+
             panel.CreateAndAddTextBoxRow("G", "Internal Loop Tolerance", col.InternalLoopTolerance,
                 (tb, e) => { if (TryVal(tb.Text, out var v) && v > 0) col.InternalLoopTolerance = v; });
             panel.CreateAndAddTextBoxRow("G", "External Loop Tolerance", col.ExternalLoopTolerance,
