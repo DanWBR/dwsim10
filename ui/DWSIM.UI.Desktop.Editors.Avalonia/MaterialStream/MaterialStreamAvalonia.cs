@@ -181,7 +181,19 @@ namespace DWSIM.UI.Desktop.Editors
 
             panel.CreateAndAddLabelRow("Flow Specification");
 
-            var txtW = panel.CreateAndAddTextBoxRow(nf, "Mass Flow (" + su.massflow + ")",
+            TextBox txtW = null, txtQ = null, txtV = null;
+
+            // highlight whichever flow is the current specification, like the WinForms editor does.
+            // it re-runs on every edit so the blue mark follows the spec instead of staying put on
+            // mass flow (the default for a fresh stream).
+            void HighlightDefinedFlow()
+            {
+                if (txtW != null) txtW.Background = ms.DefinedFlow == FlowSpec.Mass ? UserDefinedBrush : null;
+                if (txtQ != null) txtQ.Background = ms.DefinedFlow == FlowSpec.Mole ? UserDefinedBrush : null;
+                if (txtV != null) txtV.Background = ms.DefinedFlow == FlowSpec.Volumetric ? UserDefinedBrush : null;
+            }
+
+            txtW = panel.CreateAndAddTextBoxRow(nf, "Mass Flow (" + su.massflow + ")",
                 cv.ConvertFromSI(su.massflow, ms.Phases[0].Properties.massflow.GetValueOrDefault()),
                 (tb, e) =>
                 {
@@ -195,10 +207,11 @@ namespace DWSIM.UI.Desktop.Editors
                         ms.Phases[0].Properties.molarflow = null;
                         ms.Phases[0].Properties.massflow = cv.ConvertToSI(su.massflow, v);
                         ms.DefinedFlow = FlowSpec.Mass;
+                        HighlightDefinedFlow();
                     }
                 });
 
-            var txtQ = panel.CreateAndAddTextBoxRow(nf, "Molar Flow (" + su.molarflow + ")",
+            txtQ = panel.CreateAndAddTextBoxRow(nf, "Molar Flow (" + su.molarflow + ")",
                 cv.ConvertFromSI(su.molarflow, ms.Phases[0].Properties.molarflow.GetValueOrDefault()),
                 (tb, e) =>
                 {
@@ -208,10 +221,11 @@ namespace DWSIM.UI.Desktop.Editors
                         ms.Phases[0].Properties.volumetric_flow = null;
                         ms.Phases[0].Properties.molarflow = cv.ConvertToSI(su.molarflow, v);
                         ms.DefinedFlow = FlowSpec.Mole;
+                        HighlightDefinedFlow();
                     }
                 });
 
-            var txtV = panel.CreateAndAddTextBoxRow(nf, "Volumetric Flow (" + su.volumetricFlow + ")",
+            txtV = panel.CreateAndAddTextBoxRow(nf, "Volumetric Flow (" + su.volumetricFlow + ")",
                 cv.ConvertFromSI(su.volumetricFlow, ms.Phases[0].Properties.volumetric_flow.GetValueOrDefault()),
                 (tb, e) =>
                 {
@@ -221,15 +235,11 @@ namespace DWSIM.UI.Desktop.Editors
                         ms.Phases[0].Properties.molarflow = null;
                         ms.Phases[0].Properties.volumetric_flow = cv.ConvertToSI(su.volumetricFlow, v);
                         ms.DefinedFlow = FlowSpec.Volumetric;
+                        HighlightDefinedFlow();
                     }
                 });
 
-            switch (ms.DefinedFlow)
-            {
-                case FlowSpec.Mass: txtW.Background = UserDefinedBrush; break;
-                case FlowSpec.Mole: txtQ.Background = UserDefinedBrush; break;
-                case FlowSpec.Volumetric: txtV.Background = UserDefinedBrush; break;
-            }
+            HighlightDefinedFlow();
 
             // a stream fed by a unit operation carries whatever that operation wrote into it, so
             // nothing here is editable. A recycle is the exception: its stream is still a tear
