@@ -148,11 +148,28 @@ public partial class MainWindow : Window
         catch { }
     }
 
+    private bool _exitConfirmed;
+
     private void OnMainWindowClosing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
+        // same prompt as the classic edition: with simulations open, ask before quitting (the X
+        // button, the Exit menu and the OS close request all come through here)
+        if (_openViews.Count > 0 && !_exitConfirmed)
+        {
+            e.Cancel = true;
+            _ = ConfirmExitAsync();
+            return;
+        }
         try { DWSIM.GlobalSettings.Settings.SaveSettings("dwsim_newui.ini"); } catch { }
         // a clean close clears the marker, so the next run does not offer recovery
         try { File.Delete(SessionLockPath); } catch { }
+    }
+
+    private async System.Threading.Tasks.Task ConfirmExitAsync()
+    {
+        if (!await ConfirmAsync("Exit DWSIM", "There are open simulations. Are you sure you want to close DWSIM? Unsaved changes will be lost.")) return;
+        _exitConfirmed = true;
+        Close();
     }
 
     private void LoadRecentFiles()

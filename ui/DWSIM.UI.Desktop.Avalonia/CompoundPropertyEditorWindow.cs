@@ -160,15 +160,17 @@ public sealed class CompoundPropertyEditorWindow : Window
 
         // three columns with a thin rule between them, so the rail, the editor and the explainer read as separate panes
         var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("280,Auto,*,Auto,440") };
-        var railScroll = new ScrollViewer { Content = rail };
+        // AllowAutoHide = false: the scrollbar takes its own column instead of floating over the text
+        var railScroll = new ScrollViewer { Content = rail, AllowAutoHide = false };
         Grid.SetColumn(railScroll, 0);
         var rule1 = ColumnRule();
         Grid.SetColumn(rule1, 1);
         _centre.Padding = new Thickness(14, 10, 14, 10);
+        _centre.AllowAutoHide = false;
         Grid.SetColumn(_centre, 2);
         var rule2 = ColumnRule();
         Grid.SetColumn(rule2, 3);
-        var rightScroll = new ScrollViewer { Content = right };
+        var rightScroll = new ScrollViewer { Content = right, AllowAutoHide = false };
         Grid.SetColumn(rightScroll, 4);
         grid.Children.Add(railScroll);
         grid.Children.Add(rule1);
