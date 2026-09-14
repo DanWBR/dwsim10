@@ -130,15 +130,13 @@ public sealed class CompoundPropertyEditorWindow : Window
             Stack(Description("A quick view of which properties this compound carries. Missing ones are estimated by DWSIM from the basic constants."), _checklist)));
         var warnBody = new StackPanel { Spacing = 4 };
         warnBody.Children.Add(Description("Checks that run on every edit. They never block anything; they tell you what DWSIM will do with the data as it is."));
-        var warnHead = new DockPanel();
-        var btnRecheck = PanelButton("Run the checks again", () => RefreshWarnings());
-        ToolTip.SetTip(btnRecheck, "The checks already run after every edit; use this if you want to be sure the list below is current.");
-        DockPanel.SetDock(btnRecheck, global::Avalonia.Controls.Dock.Right);
-        _warningsHeader.VerticalAlignment = VerticalAlignment.Center;
-        warnHead.Children.Add(btnRecheck);
-        warnHead.Children.Add(_warningsHeader);
-        warnBody.Children.Add(warnHead);
+        warnBody.Children.Add(_warningsHeader);
         warnBody.Children.Add(_warnings);
+        var btnRecheck = PanelButton("Run the checks again", () => RefreshWarnings());
+        btnRecheck.HorizontalAlignment = HorizontalAlignment.Left;
+        btnRecheck.Margin = new Thickness(0, 6, 0, 0);
+        ToolTip.SetTip(btnRecheck, "The checks already run after every edit; use this if you want to be sure the list above is current.");
+        warnBody.Children.Add(btnRecheck);
         rail.Children.Add(Group("Warnings", warnBody));
 
         // ---- right column: the explainer and the preview
