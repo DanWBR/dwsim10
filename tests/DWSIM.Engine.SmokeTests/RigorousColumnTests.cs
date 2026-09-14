@@ -19,7 +19,9 @@ using System.IO;
 using System.Linq;
 using DWSIM.GlobalSettings;
 using DWSIM.Thermodynamics.Streams;
+using DWSIM.UnitOperations.Streams;
 using DWSIM.UnitOperations.UnitOperations;
+using DWSIM.UnitOperations.UnitOperations.Auxiliary.SepOps;
 using NUnit.Framework;
 
 namespace DWSIM.Engine.SmokeTests
@@ -221,6 +223,95 @@ namespace DWSIM.Engine.SmokeTests
             column.LoadData(saved);
 
             Assert.That(column.TemperatureStepFraction, Is.EqualTo(0.1));
+        }
+
+        // A column with no condenser is set up as full reflux with a reflux ratio of zero, and on
+        // any full-reflux column the simultaneous solver used to fail at its very first residual
+        // evaluation with "Error evaluating error functions": its condenser-specification residual
+        // was Log(L0 / LSS0 / rr) with LSS0 forced to zero for full reflux and rr zero as well. With
+        // the specification written against the vapour product, the condenser stage carrying no
+        // liquid as in the bubble-point solver, and its temperature set from the top tray, the solver
+        // starts from the Wang-Henke solution its warm-up provides and converges onto the same answer.
+        // https://github.com/DanWBR/dwsim10/issues/74
+        [Test]
+        public void NaphtaliSandholmSolvesTheNaphthaStripper()
+        {
+            var flowsheet = Load("TraceMethaneStripper.dwxmz");
+
+            var column = flowsheet.SimulationObjects.Values.OfType<DistillationColumn>().Single();
+            column.SolvingMethodName = "Napthali-Sandholm";
+
+            var errors = flowsheet.SolveFlowsheet2();
+
+            Assert.That(errors, Is.Empty,
+                        "the solver reported: " + string.Join("; ", errors.Select(e => e.Message)));
+
+            var streams = flowsheet.SimulationObjects.Values.OfType<MaterialStream>().ToList();
+            var feed = streams.Single(s => s.GraphicObject.Tag == "FEED");
+            var overhead = streams.Single(s => s.GraphicObject.Tag == "OVERHEAD");
+            var bottoms = streams.Single(s => s.GraphicObject.Tag == "BOTTOMS");
+
+            foreach (var name in new[] { "Methane", "Hydrogen", "Carbon dioxide", "Ethane", "Propane", "N-heptane" })
+            {
+                double inFlow = feed.Phases[0].Compounds[name].MolarFlow.GetValueOrDefault();
+                double outFlow = overhead.Phases[0].Compounds[name].MolarFlow.GetValueOrDefault()
+                               + bottoms.Phases[0].Compounds[name].MolarFlow.GetValueOrDefault();
+
+                Assert.That(outFlow, Is.EqualTo(inFlow).Within(0.1).Percent, name + " does not balance");
+            }
+
+            // the same solution the bubble-point solver finds: overhead at 166 degF, bottoms at 252.6 degF
+            Assert.That(overhead.Phases[0].Properties.temperature, Is.EqualTo(347.6).Within(2.0));
+            Assert.That(bottoms.Phases[0].Properties.temperature, Is.EqualTo(395.7).Within(2.0));
+        }
+
+        // The same file with the reboiler DUTY as its specification. The simultaneous solver used to
+        // fail at its first evaluation on any column specified this way: the row that stands in for
+        // the reboiler's energy balance is the specification residual, and for a Heat_Duty
+        // specification none is written, so the row was identically zero and the Jacobian singular.
+        // With the duty known, the energy balance itself is the equation. The duty is the one the
+        // bubble-point solution of the same file needs for its bottoms rate; specified back, the
+        // same products come out, and the energy stream reports the duty as heat into the reboiler.
+        // https://github.com/DanWBR/dwsim10/issues/77
+        [Test]
+        public void NaphtaliSandholmTakesAReboilerDutySpecification()
+        {
+            var flowsheet = Load("TraceMethaneStripper.dwxmz");
+            var column = flowsheet.SimulationObjects.Values.OfType<DistillationColumn>().Single();
+            var reboiler = flowsheet.SimulationObjects.Values.OfType<EnergyStream>().Single(e => e.GraphicObject.Tag == "Q-REB");
+
+            var errors = flowsheet.SolveFlowsheet2();
+            Assert.That(errors, Is.Empty,
+                        "the bubble-point solver reported: " + string.Join("; ", errors.Select(e => e.Message)));
+
+            double duty = reboiler.EnergyFlow.GetValueOrDefault();
+            Assert.That(duty, Is.GreaterThan(0.0), "the bubble-point solution's reboiler duty, kW, heat in");
+
+            var streams = flowsheet.SimulationObjects.Values.OfType<MaterialStream>().ToList();
+            var overhead = streams.Single(s => s.GraphicObject.Tag == "OVERHEAD");
+            var bottoms = streams.Single(s => s.GraphicObject.Tag == "BOTTOMS");
+            double bottomsRate = bottoms.Phases[0].Properties.molarflow.GetValueOrDefault();
+            double overheadT = overhead.Phases[0].Properties.temperature.GetValueOrDefault();
+            double bottomsT = bottoms.Phases[0].Properties.temperature.GetValueOrDefault();
+
+            var spec = column.Specs["R"];
+            spec.SType = ColumnSpec.SpecType.Heat_Duty;
+            spec.SpecValue = duty;
+            spec.SpecUnit = "kW";
+            column.SolvingMethodName = "Napthali-Sandholm";
+
+            errors = flowsheet.SolveFlowsheet2();
+            Assert.That(errors, Is.Empty,
+                        "the simultaneous solver reported: " + string.Join("; ", errors.Select(e => e.Message)));
+
+            Assert.That(bottoms.Phases[0].Properties.molarflow.GetValueOrDefault(),
+                        Is.EqualTo(bottomsRate).Within(0.5).Percent, "bottoms rate");
+            Assert.That(overhead.Phases[0].Properties.temperature.GetValueOrDefault(),
+                        Is.EqualTo(overheadT).Within(1.0), "overhead temperature, K");
+            Assert.That(bottoms.Phases[0].Properties.temperature.GetValueOrDefault(),
+                        Is.EqualTo(bottomsT).Within(1.0), "bottoms temperature, K");
+            Assert.That(reboiler.EnergyFlow.GetValueOrDefault(),
+                        Is.EqualTo(duty).Within(1.0).Percent, "the specified duty, reported on the energy stream with its sign");
         }
     }
 }

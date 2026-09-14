@@ -6426,9 +6426,12 @@ Namespace UnitOperations
                     End Select
                 Next
 
+                ' relative errors, against the compound's own feed or 100 ppm of the total feed, whichever is
+                ' larger: the solvers converge an absolute residual, and a compound at a few ppm cannot be held
+                ' to a fraction of itself that the tolerance never asked of the column as a whole
+                Dim totalfeed As Double = compound_feeds.Values.Sum()
                 For Each c In comps
-                    'relative errors
-                    compound_balances(c) = compound_balances(c) / (compound_feeds(c) + 1.0E-20)
+                    compound_balances(c) = compound_balances(c) / Math.Max(compound_feeds(c), 0.0001 * totalfeed + 1.0E-20)
                 Next
 
                 Dim mintol = tol.MinY_NonZero() * 10

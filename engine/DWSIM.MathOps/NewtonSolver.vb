@@ -31,6 +31,15 @@ Namespace MathEx.Optimization
 
         Public Property MaximumDelta As Double = 0.5
 
+        ''' <summary>
+        ''' How MaximumDelta is applied. False (the default): each component of the Newton step larger than
+        ''' MaximumDelta times its own variable is clipped to that on its own, which changes the direction of
+        ''' the step. True: the step is scaled as a whole so that its largest relative change is MaximumDelta,
+        ''' the relative change being measured against max(|x_i|, 1e-3 max|x|) so that variables near zero do
+        ''' not set it; the direction survives and the line search keeps its descent guarantee.
+        ''' </summary>
+        Public Property ScaleWholeStep As Boolean = False
+
         Public Property Epsilon As Double = Double.NaN
 
         Private _Iterations As Integer = 0
@@ -344,12 +353,34 @@ Namespace MathEx.Optimization
                     df = 1.0#
                 End If
 
-                ' Cap the raw Newton step per variable (trust-region-like bound)
-                For i = 0 To x.Length - 1
-                    If Math.Abs(x(i)) >= 1.0E-20 AndAlso Math.Abs(dx(i) / x(i)) > MaximumDelta Then
-                        dx(i) = Math.Sign(dx(i)) * Math.Abs(x(i)) * MaximumDelta
+                ' Cap the raw Newton step (trust-region-like bound)
+                If ScaleWholeStep Then
+                    ' one scaling of the whole step, so its direction survives: the largest relative
+                    ' change, measured against a floor so that variables near zero do not set it,
+                    ' is brought down to MaximumDelta
+                    Dim xmax As Double = 0.0
+                    For i = 0 To x.Length - 1
+                        If Math.Abs(x(i)) > xmax Then xmax = Math.Abs(x(i))
+                    Next
+                    Dim floor As Double = 0.001 * xmax
+                    Dim worst As Double = 0.0
+                    For i = 0 To x.Length - 1
+                        Dim r As Double = Math.Abs(dx(i)) / Math.Max(Math.Abs(x(i)), floor)
+                        If r > worst Then worst = r
+                    Next
+                    If worst > MaximumDelta Then
+                        Dim sc As Double = MaximumDelta / worst
+                        For i = 0 To x.Length - 1
+                            dx(i) *= sc
+                        Next
                     End If
-                Next
+                Else
+                    For i = 0 To x.Length - 1
+                        If Math.Abs(x(i)) >= 1.0E-20 AndAlso Math.Abs(dx(i) / x(i)) > MaximumDelta Then
+                            dx(i) = Math.Sign(dx(i)) * Math.Abs(x(i)) * MaximumDelta
+                        End If
+                    Next
+                End If
 
                 If EnableDamping Then
                     ' Backtracking line search with an Armijo sufficient-decrease test. The step
