@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Avalonia;
@@ -64,20 +64,25 @@ public sealed class SeparatorSizingWindow : Window
         _orientation = p.CreateAndAddDropDownRow("Orientation", new List<string> { "Vertical", "Horizontal" }, 0, null);
 
         p.CreateAndAddLabelRow("Design Parameters");
+        p.CreateAndAddDescriptionRow("Vessel: the diameter is the larger of what the gas velocity needs (Souders-Brown) and what holds the liquid for the residence time at the aspect ratio below, with one diameter of vapour space above the liquid. Vertical: height = L/D x diameter. Horizontal: length = L/D x diameter, liquid level found where gas area and liquid holdup agree.");
         p.CreateAndAddTextBoxRow(_nf, "Length / Diameter Ratio", _input.LengthToDiameter,
             (tb, e) => { if (UtilityHelpers.TryVal(tb.Text, out var v)) _input.LengthToDiameter = v; });
         p.CreateAndAddTextBoxRow(_nf, "Souders-Brown K (m/s)", _input.KFactor,
             (tb, e) => { if (UtilityHelpers.TryVal(tb.Text, out var v)) _input.KFactor = v; });
         p.CreateAndAddTextBoxRow(_nf, "Gas Velocity (% of terminal)", _input.GasVelocityPercent,
             (tb, e) => { if (UtilityHelpers.TryVal(tb.Text, out var v)) _input.GasVelocityPercent = v; });
+        p.CreateAndAddDescriptionRow("Terminal (settling) velocity = K x sqrt((liquid density - gas density) / gas density). The design gas velocity is this percentage of it; a lower percentage gives a wider vessel.");
         p.CreateAndAddTextBoxRow(_nf, "Nozzle Constant", _input.NozzleConstant,
             (tb, e) => { if (UtilityHelpers.TryVal(tb.Text, out var v)) _input.NozzleConstant = v; });
+        p.CreateAndAddDescriptionRow("Sizes the inlet and gas outlet nozzles only (not the vessel): maximum nozzle velocity in m/s = constant / sqrt(stream density in kg/m3), the usual rho.v^2 momentum criterion. 100 means rho.v^2 = 10000 kg/(m.s2); a lower constant gives bigger nozzles.");
         p.CreateAndAddTextBoxRow(_nf, "Max. Liquid Nozzle Velocity (m/s)", _input.MaxLiquidVelocity,
             (tb, e) => { if (UtilityHelpers.TryVal(tb.Text, out var v)) _input.MaxLiquidVelocity = v; });
+        p.CreateAndAddDescriptionRow("Sizes the liquid outlet nozzle only.");
         p.CreateAndAddTextBoxRow(_nf, "Liquid Residence Time (min)", _input.ResidenceTime,
             (tb, e) => { if (UtilityHelpers.TryVal(tb.Text, out var v)) _input.ResidenceTime = v; });
         p.CreateAndAddTextBoxRow(_nf, "Surge Factor", _input.SurgeFactor,
             (tb, e) => { if (UtilityHelpers.TryVal(tb.Text, out var v)) _input.SurgeFactor = v; });
+        p.CreateAndAddDescriptionRow("Multiplies both the gas and the liquid flow before sizing (design margin). Values typed in the boxes are applied when you press Enter or leave the box.");
 
         _btnRun = new Button
         {
@@ -151,6 +156,10 @@ public sealed class SeparatorSizingWindow : Window
         p.CreateAndAddTwoLabelsRow("Minimum Diameter", res.Diameter.ToString("N1") + " mm");
         p.CreateAndAddTwoLabelsRow(_orientation.SelectedIndex == 1 ? "Minimum Length" : "Minimum Height",
             res.Length.ToString("N1") + " mm");
+        if (_orientation.SelectedIndex != 1)
+            p.CreateAndAddDescriptionRow(res.DiameterSetByLiquid
+                ? "The liquid holdup set the diameter: the gas alone would need a narrower vessel, but the liquid would not fit at this L/D. A shorter residence time or a higher L/D gives a narrower vessel."
+                : "The gas velocity set the diameter; the liquid holdup fits within the height at this L/D.");
 
         p.CreateAndAddLabelRow("Nozzles");
         p.CreateAndAddTwoLabelsRow("Inlet", res.InletNozzle.ToString("N2") + " in");

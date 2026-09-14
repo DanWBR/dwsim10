@@ -1,4 +1,4 @@
-'    Gas-Liquid Separator Sizing
+﻿'    Gas-Liquid Separator Sizing
 '    Copyright 2009-2025 Daniel Wagner O. de Medeiros
 '
 '    This file is part of DWSIM.
@@ -62,6 +62,11 @@ Namespace Utilities.Sizing
         Public Property GasNozzle As Double
         ''' <summary>Liquid outlet nozzle diameter, in.</summary>
         Public Property LiquidNozzle As Double
+        ''' <summary>
+        ''' True when the liquid holdup, not the gas velocity, set the diameter: the vessel is bigger
+        ''' than the gas alone needs so that the liquid fits at the requested aspect ratio.
+        ''' </summary>
+        Public Property DiameterSetByLiquid As Boolean
 
     End Class
 
@@ -141,20 +146,27 @@ Namespace Utilities.Sizing
             Dim qv = input.VaporVolumetricFlow * input.SurgeFactor
             Dim ql = input.LiquidVolumetricFlow * input.SurgeFactor
 
+            'smallest diameter that keeps the gas below the design velocity
             Dim vk = input.KFactor * ((input.LiquidDensity - input.VaporDensity) / input.VaporDensity) ^ 0.5
             Dim vp = input.GasVelocityPercent / 100 * vk
             Dim At = qv / vp
+            Dim gasDiameter = (4 * At / Math.PI) ^ 0.5
 
-            Dim diam = (4 * At / Math.PI) ^ 0.5
+            'smallest diameter that holds the liquid for the residence time at the requested aspect
+            'ratio, leaving one diameter of vapour disengagement space above the liquid: the holdup
+            'volume plus a cylinder one diameter tall must fit in a vessel L/D diameters tall,
+            '   V + pi D^2/4 * D = pi D^2/4 * (L/D) * D   ->   D = (4 V / (pi (L/D - 1)))^(1/3)
+            'Sizing the diameter from the gas velocity alone and stacking the holdup on top gave a
+            'chimney (100 mm wide, 100 m tall) whenever the liquid load was significant, and the
+            'aspect ratio had no say in it (issues #66 and #80).
+            Dim ratio = Math.Max(input.LengthToDiameter, 1.5)
+            Dim holdup = ql * input.ResidenceTime * 60
+            Dim holdupDiameter = (4 * holdup / (Math.PI * (ratio - 1))) ^ (1 / 3)
+
+            Dim diam = Math.Max(gasDiameter, holdupDiameter)
             res.Diameter = diam * 1000
-
-            'The diameter is set by the vapour disengagement velocity. The height is the larger of the
-            'length-to-diameter aspect ratio and the height needed to hold the liquid at the bottom of
-            'the vessel for the residence time, so a longer residence time makes the vessel taller
-            'instead of being ignored on a vertical separator (issue #66).
-            Dim aspectHeight = input.LengthToDiameter * diam
-            Dim holdupHeight = (ql * input.ResidenceTime * 60) / (Math.PI * diam ^ 2 / 4)
-            res.Length = Math.Max(aspectHeight, holdupHeight) * 1000
+            res.Length = ratio * diam * 1000
+            res.DiameterSetByLiquid = holdupDiameter > gasDiameter
 
             SizeNozzles(input, qv, ql, res)
 
