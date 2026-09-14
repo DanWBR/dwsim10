@@ -107,8 +107,8 @@ Namespace CompoundEditing
 
         ''' <summary>Safety net: any stream phase that lost the shared reference gets it back.</summary>
         Private Sub RepointStreams(flowsheet As IFlowsheet, live As ICompoundConstantProperties)
-            For Each ms In flowsheet.SimulationObjects.Values.OfType(Of MaterialStream)()
-                For Each ph In ms.Phases.Values
+            For Each stream In flowsheet.SimulationObjects.Values.OfType(Of MaterialStream)()
+                For Each ph In stream.Phases.Values
                     Dim c As ICompound = Nothing
                     If ph.Compounds.TryGetValue(live.Name, c) AndAlso Not ReferenceEquals(c.ConstantProperties, live) Then
                         c.ConstantProperties = live
@@ -200,8 +200,8 @@ Namespace CompoundEditing
                 flowsheet.SelectedCompounds.Add(cp.Name, cp)
             End If
 
-            For Each ms In flowsheet.SimulationObjects.Values.OfType(Of MaterialStream)()
-                For Each ph In ms.Phases.Values
+            For Each stream In flowsheet.SimulationObjects.Values.OfType(Of MaterialStream)()
+                For Each ph In stream.Phases.Values
                     If Not ph.Compounds.ContainsKey(cp.Name) Then
                         ph.Compounds.Add(cp.Name, New Compound(cp.Name, ""))
                     End If
