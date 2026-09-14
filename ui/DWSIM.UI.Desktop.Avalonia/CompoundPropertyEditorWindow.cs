@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -104,25 +104,40 @@ public sealed class CompoundPropertyEditorWindow : Window
         _compounds = new ComboBox { ItemsSource = names, Width = 300 };
         _compounds.SelectionChanged += async (_, _) => await SwitchCompoundAsync();
 
-        var header = new DockPanel { Margin = new Thickness(10, 8, 10, 4) };
-        var left = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
-        left.Children.Add(new TextBlock { Text = "Compound", VerticalAlignment = VerticalAlignment.Center });
-        left.Children.Add(_compounds);
-        left.Children.Add(_showHelp);
-        DockPanel.SetDock(left, global::Avalonia.Controls.Dock.Left);
-        header.Children.Add(left);
-        _status.Margin = new Thickness(16, 0, 0, 0);
+        // one row, every control centred on the same horizontal axis
+        var header = new Grid { Margin = new Thickness(12, 8, 12, 4), ColumnDefinitions = new ColumnDefinitions("Auto,Auto,Auto,*") };
+        var lblCompound = new TextBlock { Text = "Compound", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) };
+        _compounds.VerticalAlignment = VerticalAlignment.Center;
+        _compounds.VerticalContentAlignment = VerticalAlignment.Center;
+        _compounds.Margin = new Thickness(0, 0, 12, 0);
+        _showHelp.VerticalAlignment = VerticalAlignment.Center;
+        _showHelp.VerticalContentAlignment = VerticalAlignment.Center;
+        _showHelp.Margin = new Thickness(0, 0, 16, 0);
+        Grid.SetColumn(lblCompound, 0);
+        Grid.SetColumn(_compounds, 1);
+        Grid.SetColumn(_showHelp, 2);
+        Grid.SetColumn(_status, 3);
+        header.Children.Add(lblCompound);
+        header.Children.Add(_compounds);
+        header.Children.Add(_showHelp);
         header.Children.Add(_status);
         _showHelp.IsCheckedChanged += (_, _) => { foreach (var r in _helpRows) r.IsVisible = _showHelp.IsChecked == true; };
 
         // ---- left rail: what is available, what to look at
-        var rail = new StackPanel { Spacing = 8, Margin = new Thickness(8, 8, 4, 8) };
+        var rail = new StackPanel { Spacing = 10, Margin = new Thickness(12, 10, 10, 10) };
         _checklist.Height = 300;
         rail.Children.Add(Group("Data available",
             Stack(Description("A quick view of which properties this compound carries. Missing ones are estimated by DWSIM from the basic constants."), _checklist)));
         var warnBody = new StackPanel { Spacing = 4 };
         warnBody.Children.Add(Description("Checks that run on every edit. They never block anything; they tell you what DWSIM will do with the data as it is."));
-        warnBody.Children.Add(_warningsHeader);
+        var warnHead = new DockPanel();
+        var btnRecheck = PanelButton("Run the checks again", () => RefreshWarnings());
+        ToolTip.SetTip(btnRecheck, "The checks already run after every edit; use this if you want to be sure the list below is current.");
+        DockPanel.SetDock(btnRecheck, global::Avalonia.Controls.Dock.Right);
+        _warningsHeader.VerticalAlignment = VerticalAlignment.Center;
+        warnHead.Children.Add(btnRecheck);
+        warnHead.Children.Add(_warningsHeader);
+        warnBody.Children.Add(warnHead);
         warnBody.Children.Add(_warnings);
         rail.Children.Add(Group("Warnings", warnBody));
 
@@ -138,21 +153,29 @@ public sealed class CompoundPropertyEditorWindow : Window
         tryBtn.Click += (_, _) => TryIt();
         _tryT.KeyDown += (_, e) => { if (e.Key == global::Avalonia.Input.Key.Enter) { TryIt(); e.Handled = true; } };
         tryRow.Children.Add(tryBtn);
-        var right = new StackPanel { Spacing = 8, Margin = new Thickness(4, 8, 8, 8) };
+        var right = new StackPanel { Spacing = 10, Margin = new Thickness(10, 10, 12, 10) };
         right.Children.Add(Group("Temperature-dependent property",
             Stack(Description("Pick a property to see what its equation number means, which coefficients it uses and in which unit the equation must return its value."), _blocks, _explainer)));
         right.Children.Add(Group("Try it",
             Stack(Description("Type a temperature and see the value the equation gives, both in the raw equation unit and converted to the simulation's unit. Compare it with a value you know."), tryRow, _tryResult)));
         right.Children.Add(Group("Preview", _plot));
 
-        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("270,*,430") };
+        // three columns with a thin rule between them, so the rail, the editor and the explainer read as separate panes
+        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("280,Auto,*,Auto,440") };
         var railScroll = new ScrollViewer { Content = rail };
         Grid.SetColumn(railScroll, 0);
-        Grid.SetColumn(_centre, 1);
+        var rule1 = ColumnRule();
+        Grid.SetColumn(rule1, 1);
+        _centre.Padding = new Thickness(14, 10, 14, 10);
+        Grid.SetColumn(_centre, 2);
+        var rule2 = ColumnRule();
+        Grid.SetColumn(rule2, 3);
         var rightScroll = new ScrollViewer { Content = right };
-        Grid.SetColumn(rightScroll, 2);
+        Grid.SetColumn(rightScroll, 4);
         grid.Children.Add(railScroll);
+        grid.Children.Add(rule1);
         grid.Children.Add(_centre);
+        grid.Children.Add(rule2);
         grid.Children.Add(rightScroll);
 
         // ---- bottom: json link bar and buttons
@@ -171,21 +194,17 @@ public sealed class CompoundPropertyEditorWindow : Window
         linkBar.Children.Add(_linkPath);
         ToolTip.SetTip(linkBar, "Link this compound to a .json file. Reload brings the file's values into the editor (you still press OK to apply them to the simulation); Save writes what you see here to the file; Show diff lists what differs between the file and the editor.");
 
-        var btnValidate = PanelButton("Validate", () => { RefreshWarnings(); _status.Text = _warningsHeader.Text; });
         _btnOk = new Button { Content = "OK", Width = 90, IsDefault = true };
         _btnOk.Classes.Add("dialog");
         _btnOk.Click += async (_, _) => await OnOkAsync();
         var cancel = new Button { Content = "Cancel", Width = 90, IsCancel = true };
         cancel.Classes.Add("dialog");
         cancel.Click += (_, _) => Close();
-        var buttons = new DockPanel { Margin = new Thickness(10, 4, 16, 12) };
-        var rightButtons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { cancel, _btnOk } };
-        DockPanel.SetDock(rightButtons, global::Avalonia.Controls.Dock.Right);
-        buttons.Children.Add(rightButtons);
-        buttons.Children.Add(btnValidate);
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(12, 6, 12, 12), Children = { cancel, _btnOk } };
 
         var bottom = new StackPanel();
-        bottom.Children.Add(new Border { Classes = { "group" }, Child = linkBar, Margin = new Thickness(8, 0, 8, 0) });
+        bottom.Children.Add(new Border { Height = 1, Background = RuleBrush, Margin = new Thickness(0, 4, 0, 6) });
+        bottom.Children.Add(new Border { Classes = { "group" }, Child = linkBar, Margin = new Thickness(12, 0, 12, 0) });
         bottom.Children.Add(buttons);
 
         var root = new DockPanel();
@@ -760,6 +779,11 @@ public sealed class CompoundPropertyEditorWindow : Window
     // =========================================================================
     // small helpers
     // =========================================================================
+
+    private static readonly IBrush RuleBrush = new SolidColorBrush(Color.FromArgb(70, 128, 128, 128));
+
+    /// <summary>A vertical hairline between two panes; the low-alpha grey reads on both themes.</summary>
+    private static Control ColumnRule() => new Border { Width = 1, Background = RuleBrush, Margin = new Thickness(2, 8, 2, 8) };
 
     private static Control Group(string header, Control content)
     {

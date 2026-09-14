@@ -1,4 +1,4 @@
-Imports System.Globalization
+﻿Imports System.Globalization
 Imports System.IO
 Imports DWSIM.Interfaces
 Imports DWSIM.Thermodynamics.BaseClasses
@@ -308,9 +308,12 @@ Namespace CompoundEditing
             End If
 
             If honoured Then
+                ' inside the range, not at its ends: the DIPPR forms in Tr are zero at Tc by construction
+                ' and a file's Tmax often sits right on it
                 Dim r = blk.DefaultRange(cp)
+                Dim span = r.Tmax - r.Tmin
                 Dim bad As New List(Of String)
-                For Each t In {r.Tmin, 0.5 * (r.Tmin + r.Tmax), r.Tmax}
+                For Each t In {r.Tmin + 0.05 * span, r.Tmin + 0.5 * span, r.Tmin + 0.95 * span}
                     Dim y As Double
                     Try
                         y = blk.Evaluator(cp, t)
