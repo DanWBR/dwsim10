@@ -898,7 +898,32 @@ Namespace Reactors
         ''' the reaction-extent coordinates and solving the energy balance.
         ''' </summary>
         ''' <param name="args">Optional. If <c>True</c>, indicates a dynamic-mode call.</param>
+        ''' <summary>
+        ''' The loop tolerances bound a sum of squared residuals, so anything at 0.1 or above lets the
+        ''' solver stop at its starting point and the reactor never responds to a change in conditions
+        ''' (a sensitivity sweep then shows a staircase). Files edited on a comma-decimal locale by
+        ''' earlier 10.2 builds carry exactly 1 here ("0,001" read as 1), so such values are put back
+        ''' to the defaults instead of being honoured.
+        ''' </summary>
+        Private Sub SanitizeTolerances(flowsheet As IFlowsheet)
+            Dim fixedAny As Boolean = False
+            If Not (InternalLoopTolerance > 0.0 AndAlso InternalLoopTolerance < 0.1) Then
+                InternalLoopTolerance = 0.001
+                fixedAny = True
+            End If
+            If Not (ExternalLoopTolerance > 0.0 AndAlso ExternalLoopTolerance < 0.1) Then
+                ExternalLoopTolerance = 0.01
+                fixedAny = True
+            End If
+            If fixedAny AndAlso flowsheet IsNot Nothing Then
+                flowsheet.ShowMessage(String.Format("{0}: the convergence tolerances were too loose for the solver to move from its starting point and were reset to 0.001 (internal) and 0.01 (external).", GraphicObject?.Tag), IFlowsheet.MessageType.Warning)
+            End If
+        End Sub
+
         Public Overrides Sub Calculate(Optional ByVal args As Object = Nothing)
+
+            SanitizeTolerances(FlowSheet)
+
 
             'PenaltyValueScheme = 0
             'Calculate_Relaxation()
@@ -3637,6 +3662,8 @@ Namespace Reactors
         Public Overrides Function LoadData(data As System.Collections.Generic.List(Of System.Xml.Linq.XElement)) As Boolean
 
             MyBase.LoadData(data)
+
+            SanitizeTolerances(Nothing)
 
             Dim ci As Globalization.CultureInfo = Globalization.CultureInfo.InvariantCulture
 
