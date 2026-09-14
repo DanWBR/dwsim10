@@ -48,7 +48,19 @@ internal static class CompoundSelection
         if (!flowsheet.SelectedCompounds.ContainsKey(compound.Name)) return;
 
         flowsheet.RegisterSnapshot(SnapshotType.Compounds);
-        flowsheet.SelectedCompounds.Remove(compound.Name);
+
+        // IFlowsheet.SelectedCompounds hands back a re-ordered COPY under any non-default compound
+        // ordering, so removing from it would silently do nothing; go through the flowsheet options
+        if (flowsheet.FlowsheetOptions is DWSIM.SharedClasses.DWSIM.Flowsheet.FlowsheetVariables options)
+        {
+            options.SelectedComponents.Remove(compound.Name);
+            if (options.NotSelectedComponents != null && !options.NotSelectedComponents.ContainsKey(compound.Name))
+                options.NotSelectedComponents.Add(compound.Name, compound);
+        }
+        else
+        {
+            flowsheet.SelectedCompounds.Remove(compound.Name);
+        }
 
         foreach (var stream in Streams(flowsheet))
         {

@@ -1936,7 +1936,7 @@ public partial class FlowsheetView : UserControl
         MenuPureComp.Click += (_, _) =>
         {
             if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
-            new PureCompoundPropertiesWindow(_flowsheet).Show(HostWindow);
+            new CompoundPropertyEditorWindow(_flowsheet).Show(HostWindow);
         };
         MenuHydrates.Click += (_, _) =>
         {

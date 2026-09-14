@@ -944,6 +944,13 @@ Public Interface ICompoundConstantProperties
     Property CompCreatorStudyFile As String
 
     ''' <summary>
+    ''' Full path of the JSON file this compound is linked to inside a simulation, so the compound editor
+    ''' can reload from it and save back to it. Empty when the compound is not linked. It is saved with
+    ''' the simulation, never inside the JSON file itself.
+    ''' </summary>
+    Property LinkedJsonFile As String
+
+    ''' <summary>
     ''' COSMO-SAC's database equivalent name (deprecated)
     ''' </summary>
     ''' <returns></returns>

@@ -2623,6 +2623,10 @@ Namespace BaseClasses
 
         Public Property CompCreatorStudyFile As String = "" Implements Interfaces.ICompoundConstantProperties.CompCreatorStudyFile
 
+        ' the link belongs to the simulation file; the JSON is the portable artefact and must not carry it
+        <Newtonsoft.Json.JsonIgnore>
+        Public Property LinkedJsonFile As String = "" Implements Interfaces.ICompoundConstantProperties.LinkedJsonFile
+
         Public Property COSMODBName As Object Implements Interfaces.ICompoundConstantProperties.COSMODBName
 
         Public Property Critical_Compressibility As Double = 0.0# Implements Interfaces.ICompoundConstantProperties.Critical_Compressibility

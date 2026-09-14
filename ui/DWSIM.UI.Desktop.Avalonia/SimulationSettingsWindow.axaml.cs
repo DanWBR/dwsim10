@@ -271,14 +271,20 @@ public partial class SimulationSettingsWindow : Window
     private IEnumerable<MaterialStream> MaterialStreams()
         => _flowsheet.SimulationObjects.Values.OfType<MaterialStream>().ToList();
 
-    private void ViewSelectedCompound()
+    private async void ViewSelectedCompound()
     {
         if (GridCompounds.SelectedItem is not CompoundRow row)
         {
             Status("Select a compound first.");
             return;
         }
-        new PureCompoundPropertiesWindow(_flowsheet, row.Name).Show(this);
+        var editor = new CompoundPropertyEditorWindow(_flowsheet, row.Name);
+        await editor.ShowDialog(this);
+        if (editor.Saved)
+        {
+            PopulateCompounds();
+            Status($"'{row.Name}' updated in the simulation. Results need to be recalculated.");
+        }
     }
 
     /// <summary>Runs one of the import windows and picks up whatever it added.</summary>
@@ -308,26 +314,21 @@ public partial class SimulationSettingsWindow : Window
             var file = files.FirstOrDefault();
             if (file == null) return;
 
-            var text = System.IO.File.ReadAllText(file.Path.LocalPath);
-            var compound = Newtonsoft.Json.JsonConvert.DeserializeObject<ConstantProperties>(text);
-            if (compound == null || string.IsNullOrEmpty(compound.Name))
-            {
-                Status("The file does not contain a valid compound.");
-                return;
-            }
+            var path = file.Path.LocalPath;
 
-            compound.CurrentDB = "User";
+            // A compound already in the simulation is updated IN PLACE: every stream keeps the same
+            // compound object and sees the new values. Replacing the dictionary entry (what this used
+            // to do) left the streams pointing at the old object, which is why "I fixed the JSON but
+            // nothing changed" was such a common report.
+            var probe = DWSIM.Thermodynamics.CompoundEditing.CompoundEditor.LoadJson(path);
+            var wasInSimulation = DWSIM.Thermodynamics.CompoundEditing.CompoundEditor.FindLive(_flowsheet, probe.Name) != null;
 
-            if (_flowsheet.AvailableCompounds.ContainsKey(compound.Name))
-                _flowsheet.AvailableCompounds[compound.Name] = compound;
-            else
-                _flowsheet.AvailableCompounds.Add(compound.Name, compound);
-
-            if (_flowsheet.SelectedCompounds.ContainsKey(compound.Name))
-                _flowsheet.SelectedCompounds[compound.Name] = compound;
+            var compound = DWSIM.Thermodynamics.CompoundEditing.CompoundEditor.ImportJsonCompound(_flowsheet, path);
 
             PopulateCompounds();
-            Status($"'{compound.Name}' imported.");
+            Status(wasInSimulation
+                ? $"'{compound.Name}' updated in place from {path}: the streams keep the same compound with the new values. Results need to be recalculated."
+                : $"'{compound.Name}' added to the simulation and linked to {path}.");
         }
         catch (Exception ex)
         {
