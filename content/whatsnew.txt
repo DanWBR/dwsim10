@@ -1,11 +1,8 @@
-﻿Version 10.2.7
+﻿Version 10.2.8
 
-- [CHG] The MCP server accepts a --python-path option, and a DWSIM_PYTHON_PATH environment variable for containers, so a Python Script unit operation can run on a headless server. The Python-path error message now names the distribution folder on Windows and the shared library file on Linux and macOS.
-- [CHG] The /api/check endpoint reports the open simulation's name and file path.
-- [FIX] A rigorous distillation or absorption column using the bubble-point method no longer reports a wrong converged result on a wide-boiling mixture: it now checks that the stage compositions have settled, not only the temperature and the vapour flow.
-- [CHG] A rigorous column solved by the bubble-point method now retries with a smaller temperature step when it does not converge, which solves cold-feed stabilisers and similar columns that failed from an ordinary starting estimate. The step is also a column setting, Temperature Step Fraction (default 0.5), on the editor and the fluent builders.
-- [FIX] A Recycle set to Global Convergence (Broyden) no longer corrupts its tear stream on the second solver pass, where the temperature, pressure and flow collapsed and the flow could go negative.
-- [FIX] A vertical gas-liquid separator's height now accounts for the liquid residence time, so changing the residence time changes the calculated size.
-- [FIX] Reopening a simulation saved by the cross-platform interface no longer shows blank panels (issue #72).
-- [FIX] In the cross-platform interface the tab shows the flowsheet name and the title bar adds the full file path. Saving no longer replaces the name with the file name, and a new simulation shows "Untitled" until it is named or saved.
-- [FIX] The Accept Changes button stays visible in the material stream composition editor when the editor pane is short.
+- [FIX] The Naphtali-Sandholm (simultaneous) method now solves a rigorous column with no condenser, such as a reboiled stripper or an absorber, instead of stopping at the first step (issue #74).
+- [FIX] The Naphtali-Sandholm method no longer stalls on larger columns where its per-variable step limit changed the search direction, and the sample absorber now converges (issue #75).
+- [FIX] A column converged by the Naphtali-Sandholm method is no longer rejected by the mass balance check over a trace compound that closed to the solver's own limit (issue #76).
+- [FIX] The Naphtali-Sandholm method now accepts a condenser or reboiler heat duty as its specification (issue #77).
+- [FIX] Adding a performance curve set in the Compressor or Expander editor no longer fails with an "item with the same key has already been added" error (issue #78).
+- [FIX] In the cross-platform material stream editor, the blue highlight follows the flow that is specified (mass, mole or volume) instead of staying on the mass flow.

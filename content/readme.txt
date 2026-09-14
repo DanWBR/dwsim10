@@ -1,6 +1,6 @@
 ﻿==================================================
 DWSIM - Open Source Process Simulator
-Version 10.2.7
+Version 10.2.8
 Copyright (c) 2017-2026 Daniel Wagner and contributors
 Copyright (c) 2008-2016 Daniel Wagner, Gregor Reichert, Gustavo Leon
 ==================================================
@@ -38,6 +38,15 @@ VERSION HISTORY / CHANGELOG
 ==================================================
 
 The full changelog including souce code changes can be viewed at https://github.com/DanWBR/dwsim10/commits/windows
+
+Version 10.2.8
+
+- [FIX] The Naphtali-Sandholm (simultaneous) method now solves a rigorous column with no condenser, such as a reboiled stripper or an absorber, instead of stopping at the first step (issue #74).
+- [FIX] The Naphtali-Sandholm method no longer stalls on larger columns where its per-variable step limit changed the search direction, and the sample absorber now converges (issue #75).
+- [FIX] A column converged by the Naphtali-Sandholm method is no longer rejected by the mass balance check over a trace compound that closed to the solver's own limit (issue #76).
+- [FIX] The Naphtali-Sandholm method now accepts a condenser or reboiler heat duty as its specification (issue #77).
+- [FIX] Adding a performance curve set in the Compressor or Expander editor no longer fails with an "item with the same key has already been added" error (issue #78).
+- [FIX] In the cross-platform material stream editor, the blue highlight follows the flow that is specified (mass, mole or volume) instead of staying on the mass flow.
 
 Version 10.2.7
 
