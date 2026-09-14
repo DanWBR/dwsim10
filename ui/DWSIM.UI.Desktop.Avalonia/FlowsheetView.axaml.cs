@@ -3620,6 +3620,17 @@ public partial class FlowsheetView : UserControl
     /// Returns the top-level MenuItem matching the given header text
     /// (the "_" mnemonic prefix is stripped for comparison).
     /// </summary>
+    /// <summary>Reorders a menu's items by their text (access-key underscores and ellipses ignored). Separators are dropped.</summary>
+    private static void SortMenuAlphabetically(MenuItem? menu)
+    {
+        if (menu == null) return;
+        var items = menu.Items.OfType<MenuItem>().ToList();
+        static string Key(MenuItem m) => (m.Header?.ToString() ?? "").Replace("_", "").TrimEnd('.').Trim();
+        items.Sort((a, b) => string.Compare(Key(a), Key(b), StringComparison.CurrentCultureIgnoreCase));
+        menu.Items.Clear();
+        foreach (var m in items) menu.Items.Add(m);
+    }
+
     private MenuItem? FindTopLevelMenu(string header)
     {
         return MainMenuBar.Items
@@ -3742,6 +3753,11 @@ public partial class FlowsheetView : UserControl
         // added - before the flowsheet loaded and these buttons existed - so the strip came out
         // empty. Re-apply them now that ExtensionButtons is populated, or the assistant button (and
         // any other MainWindow/Tools extension) never shows.
+        // extensions land at the end of their menus in load order; Tools and Utilities are long
+        // enough that an alphabetical list is the only way to find anything in them
+        SortMenuAlphabetically(FindTopLevelMenu("Tools"));
+        SortMenuAlphabetically(FindTopLevelMenu("Utilities"));
+
         mform.RefreshExtensionButtons(this);
     }
 
