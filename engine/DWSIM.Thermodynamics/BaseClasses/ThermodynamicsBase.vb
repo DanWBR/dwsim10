@@ -1873,7 +1873,17 @@ Namespace BaseClasses
             comp.Solid_Heat_Capacity_Tabular_Data = CopyOf(Solid_Heat_Capacity_Tabular_Data)
             comp.Enthalpy_Of_Vaporization_Tabular_Data = CopyOf(Enthalpy_Of_Vaporization_Tabular_Data)
 
-            comp.ExtraProperties = New ExpandoObject()
+            ' ExtraProperties is an ExpandoObject shared with the original after MemberwiseClone;
+            ' give the copy its own dictionary with the same entries
+            Dim extras As New ExpandoObject()
+            Dim src = TryCast(ExtraProperties, IDictionary(Of String, Object))
+            If src IsNot Nothing Then
+                Dim dst = DirectCast(extras, IDictionary(Of String, Object))
+                For Each kv In src
+                    dst(kv.Key) = kv.Value
+                Next
+            End If
+            comp.ExtraProperties = extras
 
             Return comp
 
@@ -1919,6 +1929,7 @@ Namespace BaseClasses
 
             Me.UNIFACGroups.Clear()
             Me.MODFACGroups.Clear()
+            Me.NISTMODFACGroups.Clear()
 
             For Each xel2 As XElement In (From xel As XElement In data Select xel Where xel.Name = "UNIFACGroups").Elements
                 If xel2.@Name Is Nothing Then
@@ -1942,11 +1953,16 @@ Namespace BaseClasses
                 Me.NISTMODFACGroups.Add(xel2.@GroupID.ToString, xel2.@Value)
             Next
 
-            For Each xel2 As XElement In (From xel As XElement In data Select xel Where xel.Name = "Elements").Elements
-                If Not Me.Elements.ContainsKey(xel2.@Name) Then
+            ' the Formula setter already rebuilt Elements from the formula during Deserialize; when the
+            ' XML carries its own element list it is the authoritative one, so replace instead of appending
+            Dim xelems = (From xel As XElement In data Select xel Where xel.Name = "Elements").FirstOrDefault
+            If xelems IsNot Nothing AndAlso xelems.HasElements Then
+                If Me.Elements Is Nothing Then Me.Elements = New SortedList()
+                Me.Elements.Clear()
+                For Each xel2 As XElement In xelems.Elements
                     Me.Elements.Add(xel2.@Name, xel2.@Value)
-                End If
-            Next
+                Next
+            End If
 
             Return True
 
@@ -1992,7 +2008,7 @@ Namespace BaseClasses
 
                 .Add(New XElement("NISTMODFACGroups"))
 
-                If Not MODFACGroups Is Nothing Then
+                If Not NISTMODFACGroups Is Nothing Then
 
                     For Each key As String In NISTMODFACGroups.Keys
                         .Item(xelements.Count - 1).Add(New XElement("Item", New XAttribute("GroupID", key), New XAttribute("Value", NISTMODFACGroups(key.ToString))))
@@ -2505,7 +2521,7 @@ Namespace BaseClasses
                 D = Solid_Density_Const_D
                 E = Solid_Density_Const_E
                 message = "Calculated using Experimental/Regressed data."
-                If eqno <> "" Then result = result = PropertyPackages.PropertyPackage.CalcCSTDepProp(eqno, A, B, C, D, E, T, 0) 'kg/m3
+                If eqno <> "" Then result = PropertyPackages.PropertyPackage.CalcCSTDepProp(eqno, A, B, C, D, E, T, 0) 'kg/m3
                 val = 1 / (result)
             Else
                 message = "Using stored value at Ts."

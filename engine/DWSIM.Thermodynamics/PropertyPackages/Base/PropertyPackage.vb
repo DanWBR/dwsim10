@@ -8776,7 +8776,7 @@ Final3:
                 C = cprop.Solid_Density_Const_C
                 D = cprop.Solid_Density_Const_D
                 E = cprop.Solid_Density_Const_E
-                If eqno <> "" Then result = result = CalcCSTDepProp(eqno, A, B, C, D, E, T, 0) 'kg/m3
+                If eqno <> "" Then result = CalcCSTDepProp(eqno, A, B, C, D, E, T, 0) 'kg/m3
                 val = 1 / (result)
             Else
                 If cprop.SolidDensityAtTs <> 0.0# Then
