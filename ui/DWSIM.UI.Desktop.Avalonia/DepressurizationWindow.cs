@@ -111,6 +111,12 @@ public sealed class DepressurizationWindow : Window
         p.CreateAndAddDropDownRow("Head type", Heads, Math.Max(0, Heads.IndexOf(_in.HeadType)), (dd, _) => { if (dd.SelectedIndex >= 0) _in.HeadType = Heads[dd.SelectedIndex]; });
         p.CreateAndAddTextBoxRow(_nf, "Wall thickness (" + _su.thickness + ")", Show(_su.thickness, _in.WallThickness),
             (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v)) _in.WallThickness = cv.ConvertToSI(_su.thickness, v); });
+        p.CreateAndAddTextBoxRow(_nf, "Outlet nozzle height above the bottom (" + _su.distance + ", 0 = top)", Show(_su.distance, _in.OutletNozzleElevation),
+            (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v)) _in.OutletNozzleElevation = cv.ConvertToSI(_su.distance, v); });
+        p.CreateAndAddDescriptionRow("Liquid leaves through the outlet while the level is above the nozzle: a liquid-full vessel blows down as liquid until a gas space forms, and a pipe with a hole at its end passes liquid until the level falls below the hole.");
+        p.CreateAndAddCheckBoxRow("Outlet carries the homogeneous two-phase mixture (pipe blowdown)", _in.OutletHomogeneous,
+            (cb, _) => _in.OutletHomogeneous = cb.IsChecked == true);
+        p.CreateAndAddDescriptionRow("With this on, the outlet takes the content at its bulk quality while both phases exist, as the flow along a pipe sweeps the liquid to the hole. Off, the outlet takes the phase that sits at the nozzle.");
         p.CreateAndAddDropDownRow("Wall material", Materials, Math.Max(0, Materials.IndexOf(_in.WallMaterial)), (dd, _) => { if (dd.SelectedIndex >= 0) _in.WallMaterial = Materials[dd.SelectedIndex]; });
 
         p.CreateAndAddLabelRow("Blowdown valve or restriction orifice");

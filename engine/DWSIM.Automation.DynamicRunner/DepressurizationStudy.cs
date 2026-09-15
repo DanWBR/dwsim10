@@ -58,6 +58,10 @@ namespace DWSIM.Automation.DynamicRunner.Depressurization
         public string HeadType = "Ellipsoidal (2:1)";
         public double WallThickness = 0.010;
         public string WallMaterial = "Carbon Steel";
+        /// <summary>Height of the top edge of the outlet nozzle above the vessel bottom, m (0 = at the top). Liquid leaves through it while the level is above it, a blend while the level is within the hole: a liquid-full vessel, or a pipe blown down through a hole at its end.</summary>
+        public double OutletNozzleElevation = 0.0;
+        /// <summary>The outlet carries the homogeneous two-phase mixture while both phases exist (a pipe blown down through a hole at its end, where the flow sweeps the liquid along).</summary>
+        public bool OutletHomogeneous = false;
 
         // blowdown valve or restriction orifice
         /// <summary>Bore of the orifice, m. Ignored when FlowCoefficientCv is set.</summary>
@@ -255,6 +259,11 @@ namespace DWSIM.Automation.DynamicRunner.Depressurization
             vessel.SetDynamicProperty("Fire Adequate Drainage", input.FireAdequateDrainage);
             vessel.SetDynamicProperty("Fire Dry Wall Heat Flux", input.FireDryWallHeatFlux);
             vessel.SetDynamicProperty("Vessel Bottom Elevation", input.VesselBottomElevation);
+            vessel.SetDynamicProperty("Gas Outlet Nozzle Elevation", input.OutletNozzleElevation);
+            vessel.SetDynamicProperty("Gas Outlet Homogeneous", input.OutletHomogeneous);
+            // a nozzle below the top is a hole in the wall: the outlet passes a blend while the level is
+            // within the hole, so the transition band is the hole diameter below its top edge
+            vessel.SetDynamicProperty("Gas Outlet Transition Height", input.OutletNozzleElevation > 0 ? Math.Max(0.01, input.OrificeDiameter) : 0.01);
 
             // ---- steady state, then the initial content
             // The steady pass only has to solve the flowsheet once so the dynamic run starts from valid

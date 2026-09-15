@@ -284,5 +284,54 @@ namespace DWSIM.Engine.SmokeTests
             }
             TestContext.WriteLine($"worst deviation {worst:F1} %");
         }
+        // Richardson and Saville (1996), "Blowdown of LPG pipelines", Trans IChemE 74B: 235-244, Isle of
+        // Grain test P47: a 100 m x 154 mm ID (7.3 mm wall) horizontal line full of LPG (95 % propane,
+        // 5 % butane) at 21.3 bar and 14.6 C, blown down through a 50 mm nominal orifice at its end
+        // (adopted equivalent 70.4 mm, Cd 0.80) to 1 bar, ambient 15.4 C. Read from Fig. 4 (measured,
+        // closed end): pressure 7.4, 7.0, 6.3, 5.0, 3.3, 2.0, 1.3 bar at 0, 20, 40, 60, 80, 100, 120 s;
+        // temperature 14.6, 11, 5, -3, -13, -24, -32 C; inventory 0.95, 0.60, 0.37, 0.22, 0.15, 0.11,
+        // 0.08 t. The orifice is small against the bore, so the line behaves as a vessel (the paper
+        // notes the open- and closed-end pressures nearly coincide in this test). The hole sits at the
+        // end of the pipe, centred on the axis. BLOWDOWN treats the flow along the line as homogeneous
+        // two-phase, and so does the asserted run (the outlet takes the bulk quality); the stratified run,
+        // in which the hole passes the phase at its level, is printed for the comparison and shows why:
+        // it holds the liquid back and the pressure falls too fast. The paper notes that the measured
+        // inventory keeps a residual (the hole acts as a dam) while the prediction goes to zero.
+        [TestCase(true)]
+        [TestCase(false)]
+        public void RichardsonSavilleLpgPipelineP47IsReproducedInOutline(bool homogeneous)
+        {
+            var (fs, src, pp) = Host(new[] { "Propane", "N-butane" }, new[] { 0.95, 0.05 }, 287.75, 21.3e5);
+            var input = new DepressurizationInput
+            {
+                SourceStreamName = src.Name, InitialPressure = 21.3e5, InitialTemperature = 287.75, InitialLiquidVolumeFraction = 1.0,
+                Horizontal = true, Diameter = 0.154, Length = 100.0, HeadType = "Flat", WallThickness = 0.0073, WallMaterial = "Carbon Steel",
+                OutletNozzleElevation = 0.077 + 0.0704 / 2,   // top edge of the hole, centred on the pipe axis
+                OutletHomogeneous = homogeneous,
+                OrificeDiameter = 0.0704, DischargeCoefficient = 0.80, BackPressure = 1.0e5, AmbientTemperature = 288.55,
+                IncludeWallHeatTransfer = true, TimeStep = 0.2, Duration = 140.0
+            };
+            var r = DepressurizationStudy.Run(fs, input);
+            foreach (var w in r.Warnings) TestContext.WriteLine("warning: " + w);
+            Assert.That(r.Warnings.Where(w => w.StartsWith("The integration stopped")), Is.Empty);
+
+            TestContext.WriteLine($"{(homogeneous ? "homogeneous outlet" : "stratified outlet")}: V {r.VesselVolume:F3} m3, m0 {r.InitialMass:F0} kg");
+            TestContext.WriteLine("   t(s)   P(bar)   T(C)   T wall(wet)  W(kg/s)  liq frac  liq in vent  inventory(t)");
+            foreach (var pt in r.Points.Where(p => p.Time <= 2.0 ? true : Math.Round(p.Time, 3) % 10.0 == 0.0))
+                TestContext.WriteLine($"{pt.Time,7:F1}  {pt.Pressure / 1e5,7:F2}  {pt.Temperature - 273.15,6:F1}  {pt.WettedWallTemperature - 273.15,10:F1}  {pt.MassFlow,8:F2}  {pt.LiquidVolumeFraction,8:F3}  {1 - pt.VapourFractionOut,8:F2}  {(r.InitialMass - pt.CumulativeMass) / 1000.0,8:F3}");
+
+            DepressurizationPoint At(double t) => r.Points.First(p => p.Time >= t - 1e-6);
+            double Inv(double t) => (r.InitialMass - At(t).CumulativeMass) / 1000.0;
+            if (!homogeneous) return;   // the stratified run is printed for the comparison only
+            Assert.That(r.InitialMass / 1000.0, Is.EqualTo(0.95).Within(0.08), "t: the measured initial inventory");
+            Assert.That(At(2.0).Pressure / 1e5, Is.InRange(6.0, 8.5), "bar: the compressed liquid expands to the bubble point at once (measured 7.4)");
+            Assert.That(At(40.0).Pressure / 1e5, Is.InRange(4.8, 7.3), "bar at 40 s (measured 6.3)");
+            Assert.That(At(80.0).Pressure / 1e5, Is.InRange(2.0, 4.6), "bar at 80 s (measured 3.3)");
+            Assert.That(At(40.0).Temperature - 273.15, Is.InRange(-2.0, 10.0), "C at 40 s (measured 5)");
+            Assert.That(At(60.0).Temperature - 273.15, Is.InRange(-9.0, 5.0), "C at 60 s (measured -3)");
+            Assert.That(r.MinimumFluidTemperature - 273.15, Is.InRange(-46.0, -28.0), "C: the measured minimum is -33 C; the model empties the line, as BLOWDOWN did, and runs a few degrees colder");
+            Assert.That(Inv(20.0), Is.InRange(0.45, 0.75), "t at 20 s (measured 0.60)");
+            Assert.That(Inv(60.0), Is.InRange(0.10, 0.34), "t at 60 s (measured 0.22)");
+        }
     }
 }

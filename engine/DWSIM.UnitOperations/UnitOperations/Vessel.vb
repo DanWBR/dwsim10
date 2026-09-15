@@ -236,6 +236,7 @@ Namespace UnitOperations
             AddDynamicProperty("Liquid Outlet Nozzle Elevation", "Height of the liquid outlet nozzle above the vessel bottom. When the liquid level falls below it, gas leaves through the liquid outlet (gas blow-by)", 0, UnitOfMeasure.distance, 1.0.GetType())
             AddDynamicProperty("Gas Outlet Nozzle Elevation", "Height of the gas outlet nozzle above the vessel bottom (0 = at the top). When the liquid level reaches it, liquid leaves through the gas outlet (liquid carry-over, liquid-full blowdown)", 0, UnitOfMeasure.distance, 1.0.GetType())
             AddDynamicProperty("Gas Outlet Transition Height", "Height band below the gas nozzle over which the gas outlet changes from all gas to all liquid, so the integration does not see a step", 0.01, UnitOfMeasure.distance, 1.0.GetType())
+            AddDynamicProperty("Gas Outlet Homogeneous", "The gas outlet carries the homogeneous two-phase mixture (the bulk quality of the content) while both phases exist, instead of the phase at the nozzle. The blowdown of a pipe through a hole at its end, where the flow sweeps the liquid along", False, UnitOfMeasure.none, True.GetType())
             AddDynamicProperty("Gas Outlet Liquid Fraction", "Mass fraction of liquid in the gas outlet (read-only)", 0.0, UnitOfMeasure.none, 1.0.GetType())
             AddDynamicProperty("Liquid Outlet Transition Height", "Height band above the nozzle over which the liquid outlet changes from all liquid to all gas, so the integration does not see a step", 0.01, UnitOfMeasure.distance, 1.0.GetType())
             AddDynamicProperty("Liquid Outlet Gas Fraction", "Mass fraction of gas in the liquid outlet stream: 0 = liquid, 1 = gas blow-by (read-only)", 0, UnitOfMeasure.none, 1.0.GetType())
@@ -819,7 +820,14 @@ Namespace UnitOperations
                 Dim liquidFraction = GasOutletLiquidFraction(level, gasNozzle, DynamicDouble("Gas Outlet Transition Height", 0.01))
                 SetDynamicProperty("Gas Outlet Liquid Fraction", liquidFraction)
 
-                If liquidFraction >= 1.0 Then
+                Dim homogeneous = DynamicBool("Gas Outlet Homogeneous", False) AndAlso
+                                  AccumulationStream.Phases(1).Properties.massfraction.GetValueOrDefault > 0.0 AndAlso
+                                  AccumulationStream.Phases(2).Properties.massfraction.GetValueOrDefault > 0.0
+                If homogeneous Then
+                    liquidFraction = AccumulationStream.Phases(1).Properties.massfraction.GetValueOrDefault
+                    SetDynamicProperty("Gas Outlet Liquid Fraction", liquidFraction)
+                    oms1.AssignFromPhase(PhaseLabel.Mixture, AccumulationStream, False)
+                ElseIf liquidFraction >= 1.0 Then
                     oms1.AssignFromPhase(PhaseLabel.LiquidMixture, AccumulationStream, False)
                 ElseIf liquidFraction <= 0.0 Then
                     oms1.AssignFromPhase(PhaseLabel.Vapor, AccumulationStream, False)

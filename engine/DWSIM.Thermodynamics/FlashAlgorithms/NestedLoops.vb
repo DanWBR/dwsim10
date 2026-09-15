@@ -1,4 +1,4 @@
-'    DWSIM Nested Loops Flash Algorithms
+﻿'    DWSIM Nested Loops Flash Algorithms
 '    Copyright 2010-2026 Daniel Wagner O. de Medeiros, Gregor Reichert
 '
 '    This file is part of DWSIM.
@@ -1182,6 +1182,12 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                         Dim Kbrent = Ki_est
                         Dim Ta = Math.Min(T_bracket_pos, T_bracket_neg)
                         Dim Tb = Math.Max(T_bracket_pos, T_bracket_neg)
+                        'a bracket that bisection has already collapsed to one temperature (the
+                        'residual flips sign on the noise of a dew-point flash) is the answer itself
+                        If Tb - Ta <= 1.0E-6 * Ta Then
+                            x1 = 0.5 * (Ta + Tb)
+                            Exit Do
+                        End If
                         x1 = bmin.BrentOpt2(Ta, Tb, 100, tolEXT, maxitEXT,
                             Function(tval)
                                 Return Herror("PT", tval, P, Vz, PP, Kbrent IsNot Nothing, Kbrent)(0)

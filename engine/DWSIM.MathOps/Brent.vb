@@ -1,4 +1,4 @@
-'    Miscelaneous Math Functions for DWSIM
+﻿'    Miscelaneous Math Functions for DWSIM
 '    Copyright 2008 Daniel Wagner O. de Medeiros
 '
 '    This file is part of DWSIM.
@@ -167,13 +167,19 @@ Final3:
                 x_sup = minval
             End If
 
+            'a degenerate interval (equal bounds, or a NaN) gives a zero step and the scan below
+            'never advances: return the bound itself
+            If Not (x_sup - x_inf > 0.0) Then Return x_inf
+
             delta_x = (x_sup - x_inf) / n
 
+            Dim scanCount As Integer = 0
             Do
                 y = fx(x_inf)
                 x_inf = x_inf + delta_x
                 y_inf = fx(x_inf)
-            Loop Until y * y_inf < 0 Or x_inf >= x_sup
+                scanCount += 1
+            Loop Until y * y_inf < 0 Or x_inf >= x_sup Or scanCount > n
             x_sup = x_inf - delta_x
 
             Dim aaa, bbb, ccc, ddd, eee, min11, min22, faa, fbb, fcc, ppp, qqq, rrr, sss, tol11, xmm As Double
@@ -268,13 +274,19 @@ Final3:
                 x_sup = minval
             End If
 
+            'a degenerate interval (equal bounds, or a NaN) gives a zero step and the scan below
+            'never advances: return the bound itself
+            If Not (x_sup - x_inf > 0.0) Then Return x_inf
+
             delta_x = (x_sup - x_inf) / n
 
+            Dim scanCount As Integer = 0
             Do
                 y = fx(x_inf)
                 x_inf = x_inf + delta_x
                 y_inf = fx(x_inf)
-            Loop Until y * y_inf < 0 Or x_inf >= x_sup
+                scanCount += 1
+            Loop Until y * y_inf < 0 Or x_inf >= x_sup Or scanCount > n
             x_sup = x_inf - delta_x
 
             Dim aaa, bbb, ccc, ddd, eee, min11, min22, faa, fbb, fcc, ppp, qqq, rrr, sss, tol11, xmm As Double
