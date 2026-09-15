@@ -222,6 +222,9 @@ Namespace UnitOperations
             AddDynamicProperty("Minimum Pressure", "Minimum dynamic pressure", 101325, UnitOfMeasure.pressure, 1.0.GetType())
             AddDynamicProperty("Initialize using Inlet Stream", "Initializes the vessel content with information from the inlet stream, if the vessel content is null", True, UnitOfMeasure.none, True.GetType())
             AddDynamicProperty("Reset Content", "Empties the vessel's content on the next run", False, UnitOfMeasure.none, True.GetType())
+            AddDynamicProperty("Liquid Outlet Nozzle Elevation", "Height of the liquid outlet nozzle above the vessel bottom. When the liquid level falls below it, gas leaves through the liquid outlet (gas blow-by)", 0, UnitOfMeasure.distance, 1.0.GetType())
+            AddDynamicProperty("Liquid Outlet Transition Height", "Height band above the nozzle over which the liquid outlet changes from all liquid to all gas, so the integration does not see a step", 0.01, UnitOfMeasure.distance, 1.0.GetType())
+            AddDynamicProperty("Liquid Outlet Gas Fraction", "Mass fraction of gas in the liquid outlet stream: 0 = liquid, 1 = gas blow-by (read-only)", 0, UnitOfMeasure.none, 1.0.GetType())
 
         End Sub
 
@@ -609,13 +612,15 @@ Namespace UnitOperations
 
             prevM = currentM
 
-            currentM = Vol / M
+            'an emptied vessel (everything blown out through the outlets) has no molar volume to
+            'flash at; it sits at the minimum pressure until the feed fills it again
+            currentM = If(M > 0.0, Vol / M, 0.0)
 
             PropertyPackage.CurrentMaterialStream = AccumulationStream
 
             Dim LiquidVolume, RelativeLevel As Double
 
-            If AccumulationStream.GetPressure >= Pmin Then
+            If AccumulationStream.GetPressure >= Pmin AndAlso M > 0.0 Then
 
                 If prevM = 0.0 Or integrator.ShouldCalculateEquilibrium Then
 
@@ -692,8 +697,18 @@ Namespace UnitOperations
             Else
 
                 Dim liqdens = AccumulationStream.Phases(1).Properties.density.GetValueOrDefault
+                Dim level = RelativeLevel * Height
 
-                oms2.SetPressure(Pressure + liqdens * 9.8 * RelativeLevel * Height)
+                'Gas blow-by: the liquid outlet carries liquid while the level is above the nozzle, gas
+                'once the level has dropped below it, and a blend across a short band in between so the
+                'integrator does not see a step. The valve downstream then passes gas at the vessel
+                'pressure, which is the relief case the downstream equipment has to be checked for.
+                Dim nozzle = DynamicDouble("Liquid Outlet Nozzle Elevation", 0.0)
+                Dim band = DynamicDouble("Liquid Outlet Transition Height", 0.01)
+                Dim gasFraction = LiquidOutletGasFraction(level, nozzle, band)
+                SetDynamicProperty("Liquid Outlet Gas Fraction", gasFraction)
+
+                oms2.SetPressure(Pressure + liqdens * 9.8 * Math.Max(level - nozzle, 0.0))
 
                 oms1.AssignFromPhase(PhaseLabel.Vapor, AccumulationStream, False)
                 oms1.AtEquilibrium = False
@@ -703,10 +718,87 @@ Namespace UnitOperations
                     omsr.AtEquilibrium = False
                 End If
 
-                oms2.AssignFromPhase(PhaseLabel.LiquidMixture, AccumulationStream, False)
+                If gasFraction >= 1.0 Then
+                    oms2.AssignFromPhase(PhaseLabel.Vapor, AccumulationStream, False)
+                ElseIf gasFraction <= 0.0 Then
+                    oms2.AssignFromPhase(PhaseLabel.LiquidMixture, AccumulationStream, False)
+                Else
+                    AssignLiquidOutletBlend(oms2, gasFraction)
+                End If
                 oms2.AtEquilibrium = False
 
             End If
+
+        End Sub
+
+        ''' <summary>A dynamic property as a number; the default when the file predates the property.</summary>
+        Private Function DynamicDouble(name As String, defaultValue As Double) As Double
+            Dim v = GetDynamicProperty(name)
+            If v Is Nothing Then Return defaultValue
+            Try
+                Return Convert.ToDouble(v)
+            Catch
+                Return defaultValue
+            End Try
+        End Function
+
+        ''' <summary>
+        ''' Mass fraction of gas in the liquid outlet: 0 with the level above the nozzle plus the
+        ''' transition band, 1 with the level at or below the nozzle, linear in between. Always 1 when
+        ''' the vessel holds no liquid and always 0 when it holds no gas.
+        ''' </summary>
+        Public Function LiquidOutletGasFraction(level As Double, nozzleElevation As Double, transitionHeight As Double) As Double
+            If AccumulationStream Is Nothing Then Return 0.0
+            If AccumulationStream.Phases(2).Properties.massfraction.GetValueOrDefault <= 0.0 Then Return 0.0
+            If AccumulationStream.Phases(1).Properties.massfraction.GetValueOrDefault <= 0.0 Then Return 1.0
+            If transitionHeight <= 0.0 Then Return If(level <= nozzleElevation, 1.0, 0.0)
+            Return Math.Min(1.0, Math.Max(0.0, (nozzleElevation + transitionHeight - level) / transitionHeight))
+        End Function
+
+        ''' <summary>
+        ''' Puts a mass-weighted blend of the vessel's gas and liquid on the liquid outlet, keeping the
+        ''' flow the downstream valve set (as AssignFromPhase does). The stream is flashed on the next
+        ''' step, which rebuilds the phase split from this composition and enthalpy.
+        ''' </summary>
+        Private Sub AssignLiquidOutletBlend(oms As MaterialStream, gasFraction As Double)
+
+            Dim acc = AccumulationStream
+            Dim prevW = oms.GetMassFlow()
+
+            oms.Clear()
+            oms.ClearAllProps()
+            oms.SetTemperature(acc.GetTemperature())
+            oms.SetPressure(acc.GetPressure())
+
+            Dim total = 0.0
+            Dim w As New Dictionary(Of String, Double)
+            For Each comp As DWSIM.Interfaces.ICompound In acc.Phases(0).Compounds.Values
+                Dim wv = acc.Phases(2).Compounds(comp.Name).MassFraction.GetValueOrDefault
+                Dim wl = acc.Phases(1).Compounds(comp.Name).MassFraction.GetValueOrDefault
+                w(comp.Name) = gasFraction * wv + (1.0 - gasFraction) * wl
+                total += w(comp.Name)
+            Next
+            If total <= 0.0 Then
+                oms.AssignFromPhase(PhaseLabel.Mixture, acc, False)
+                Return
+            End If
+
+            Dim molarTotal = 0.0
+            For Each comp As DWSIM.Interfaces.ICompound In oms.Phases(0).Compounds.Values
+                comp.MassFraction = w(comp.Name) / total
+                comp.MassFlow = prevW * comp.MassFraction
+                comp.MolarFlow = comp.MassFlow / comp.ConstantProperties.Molar_Weight * 1000.0
+                molarTotal += comp.MolarFlow
+            Next
+            For Each comp As DWSIM.Interfaces.ICompound In oms.Phases(0).Compounds.Values
+                comp.MoleFraction = If(molarTotal > 0.0, comp.MolarFlow / molarTotal, 0.0)
+            Next
+
+            oms.SetMassFlow(prevW)
+            Dim hv = acc.Phases(2).Properties.enthalpy.GetValueOrDefault
+            Dim hl = acc.Phases(1).Properties.enthalpy.GetValueOrDefault
+            oms.SetMassEnthalpy(gasFraction * hv + (1.0 - gasFraction) * hl)
+            oms.SpecType = StreamSpec.Pressure_and_Enthalpy
 
         End Sub
 

@@ -654,7 +654,8 @@ Namespace UnitOperations
                                 If Double.IsNaN(massfrac_gas) Or Double.IsNaN(massfrac_liq) Then
                                     Wi = 0.0
                                 Else
-                                    Wi = WTwoPhase(Kvc, P1 / 100000.0, P2 / 100000.0, rhog, rhol, k, Pv / 100000.0, Pc / 100000.0, massfrac_gas, massfrac_liq)
+                                    'WTwoPhase returns kg/h, like the liquid and gas forms above
+                                    Wi = WTwoPhase(Kvc, P1 / 100000.0, P2 / 100000.0, rhog, rhol, k, Pv / 100000.0, Pc / 100000.0, massfrac_gas, massfrac_liq) / 3600
                                 End If
 
                             End If
