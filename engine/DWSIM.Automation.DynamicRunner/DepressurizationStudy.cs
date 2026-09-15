@@ -18,6 +18,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.IO;
+using System.Globalization;
+using System.Xml.Linq;
 using System.Reflection;
 using System.Threading;
 using DWSIM.Interfaces;
@@ -91,6 +94,68 @@ namespace DWSIM.Automation.DynamicRunner.Depressurization
         public double Duration = 900.0;
         /// <summary>Stop once the vessel pressure falls to this value, Pa (0 = run the whole duration).</summary>
         public double StopAtPressure = 0.0;
+
+        /// <summary>File extension of a saved depressurization case.</summary>
+        public const string FileExtension = ".dwdep";
+
+        /// <summary>Copies every input from another case.</summary>
+        public void CopyFrom(DepressurizationInput other)
+        {
+            foreach (var f in typeof(DepressurizationInput).GetFields(BindingFlags.Public | BindingFlags.Instance))
+                f.SetValue(this, f.GetValue(other));
+        }
+
+        /// <summary>
+        /// Saves the case as a small XML file (one element per input, SI units, invariant culture),
+        /// so a study can be kept next to the simulation and reloaded on either interface.
+        /// </summary>
+        public void SaveToFile(string path)
+        {
+            var root = new XElement("DepressurizationCase", new XAttribute("version", 1), new XAttribute("units", "SI"));
+            foreach (var f in typeof(DepressurizationInput).GetFields(BindingFlags.Public | BindingFlags.Instance))
+            {
+                object v = f.GetValue(this);
+                string text = v is double d ? d.ToString("R", CultureInfo.InvariantCulture)
+                            : v is bool b ? (b ? "true" : "false")
+                            : v == null ? "" : v.ToString();
+                root.Add(new XElement(f.Name, text));
+            }
+            new XDocument(root).Save(path);
+        }
+
+        /// <summary>Loads a case saved by SaveToFile. Inputs missing from the file keep their defaults; unknown elements are ignored.</summary>
+        public static DepressurizationInput LoadFromFile(string path)
+        {
+            var doc = XDocument.Load(path);
+            if (doc.Root == null || doc.Root.Name != "DepressurizationCase")
+                throw new InvalidOperationException("'" + Path.GetFileName(path) + "' is not a depressurization case file.");
+            var input = new DepressurizationInput();
+            foreach (var f in typeof(DepressurizationInput).GetFields(BindingFlags.Public | BindingFlags.Instance))
+            {
+                var e = doc.Root.Element(f.Name);
+                if (e == null) continue;
+                string text = e.Value.Trim();
+                if (f.FieldType == typeof(double))
+                {
+                    double d;
+                    if (double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out d)) f.SetValue(input, d);
+                }
+                else if (f.FieldType == typeof(bool))
+                {
+                    bool b;
+                    if (bool.TryParse(text, out b)) f.SetValue(input, b);
+                }
+                else if (f.FieldType.IsEnum)
+                {
+                    try { f.SetValue(input, Enum.Parse(f.FieldType, text, true)); } catch { }
+                }
+                else if (f.FieldType == typeof(string))
+                {
+                    f.SetValue(input, text);
+                }
+            }
+            return input;
+        }
     }
 
     /// <summary>One row of the time series.</summary>

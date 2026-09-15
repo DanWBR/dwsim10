@@ -1,4 +1,4 @@
-//    Vessel depressurization study: the engine behind the Depressurization utility.
+﻿//    Vessel depressurization study: the engine behind the Depressurization utility.
 //
 //    This file is part of DWSIM.
 //
@@ -153,6 +153,35 @@ namespace DWSIM.Engine.SmokeTests
             Assert.That(r.Warnings.Any(w => w.Contains("all vapour")), Is.True);
             Assert.That(r.WettedAreaAtStart, Is.EqualTo(0.0));
             Assert.That(r.FinalPressure, Is.LessThan(40e5));
+        }
+        [Test]
+        public void ACaseRoundTripsThroughItsFile()
+        {
+            var input = new DepressurizationInput
+            {
+                SourceStreamName = "S-1", InitialPressure = 6270e3, InitialTemperature = 256.15, InitialLiquidVolumeFraction = 0.35,
+                Horizontal = true, Diameter = 1.524, Length = 6.096, HeadType = "Hemispherical", WallThickness = 0.025, WallMaterial = "Stainless Steel",
+                OutletNozzleElevation = 0.8, OutletHomogeneous = true, OrificeDiameter = 0.0254, DischargeCoefficient = 0.62, FlowCoefficientCv = 0.0,
+                BackPressure = 1.5e5, ValveOpeningTime = 5.0, Mode = DepressurizationMode.Fire, AmbientTemperature = 303.15,
+                IncludeWallHeatTransfer = false, InternalHeatTransferFactor = 0.7, FireEnvironmentFactor = 0.3, FireAdequateDrainage = false,
+                FireDryWallHeatFlux = 20000.0, VesselBottomElevation = 1.2, TimeStep = 0.25, Duration = 900.0, StopAtPressure = 6.9e5
+            };
+            var path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "case-" + Guid.NewGuid().ToString("N") + DepressurizationInput.FileExtension);
+            try
+            {
+                input.SaveToFile(path);
+                var back = DepressurizationInput.LoadFromFile(path);
+                foreach (var f in typeof(DepressurizationInput).GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
+                    Assert.That(f.GetValue(back), Is.EqualTo(f.GetValue(input)), f.Name);
+                var copy = new DepressurizationInput();
+                copy.CopyFrom(back);
+                Assert.That(copy.Mode, Is.EqualTo(DepressurizationMode.Fire));
+                Assert.That(copy.StopAtPressure, Is.EqualTo(6.9e5));
+            }
+            finally
+            {
+                System.IO.File.Delete(path);
+            }
         }
     }
 }
