@@ -1,8 +1,26 @@
 ﻿Version 10.2.8
 
+- [NEW] Vessel Depressurization (Blowdown) utility on both interfaces: orifice or valve blowdown, adiabatic, API 521 fire and isothermal cases, MDMT and hot-metal checks, plots and time series; validated against published blowdown data and documented in the user guide
+- [NEW] Dynamic Separator/Tank: gas blow-by through the liquid outlet and liquid carry-over through the gas outlet from the nozzle heights, with a homogeneous outlet option for pipe blowdowns
+- [NEW] Compound property editor on both interfaces: grouped properties with explanations, equation explainer with units and a try-it box, in-place apply with undo, linked JSON file with reload, save and diff, and a data validator
+- [CHG] Dynamic Separator/Tank: internal energy balance (UV), wetted/dry wall split with conduction across the thickness, natural-convection film coefficients with a user factor, API 521 fire case, minimum fluid and wall temperature tracking; Minimum Pressure is a floor that keeps the level
+- [CHG] Dynamic Valve: orifice bore and discharge coefficient with homogeneous-equilibrium choked flow (real gas, dense phase and flashing liquid); ISA forms with choking for valves given by Cv
+- [CHG] Volume flashes (VT, VP, VH, VS, VU) solved by bracketed searches; pure compounds by bubble pressure and lever rule; compressed liquids on a consistent volume surface
+- [CHG] Separator sizing window explains each parameter and which criterion set the diameter
+- [CHG] Tools and Utilities menus sorted alphabetically after the extensions load
+- [CHG] Cross-platform interface asks for confirmation before closing with simulations open
 - [FIX] The Naphtali-Sandholm (simultaneous) method now solves a rigorous column with no condenser, such as a reboiled stripper or an absorber, instead of stopping at the first step (issue #74).
 - [FIX] The Naphtali-Sandholm method no longer stalls on larger columns where its per-variable step limit changed the search direction, and the sample absorber now converges (issue #75).
 - [FIX] A column converged by the Naphtali-Sandholm method is no longer rejected by the mass balance check over a trace compound that closed to the solver's own limit (issue #76).
 - [FIX] The Naphtali-Sandholm method now accepts a condenser or reboiler heat duty as its specification (issue #77).
 - [FIX] Adding a performance curve set in the Compressor or Expander editor no longer fails with an "item with the same key has already been added" error (issue #78).
 - [FIX] In the cross-platform material stream editor, the blue highlight follows the flow that is specified (mass, mole or volume) instead of staying on the mass flow.
+- [FIX] A pressure-enthalpy flash of a vapour at its dew point could hang the simulation in the Brent fallback of the nested-loops solver
+- [FIX] Volume-entropy flash summed enthalpies and was unreachable through the property package
+- [FIX] Dynamic valve with a two-phase inlet passed 3600 times the flow (kg/h taken as kg/s)
+- [FIX] Relief valve data-table opening curve interpolated the wrong column
+- [FIX] Equilibrium reactor stopped at its starting point when a tolerance of 1 was stored in the file; such tolerances are reset with a warning (issue #79)
+- [FIX] Vertical separator sizing ignored the length-to-diameter ratio when the liquid holdup set the diameter (issue #80)
+- [FIX] Compound data: NIST groups accumulated across save and load; undo of a compound edit did not reach the streams; ChEDL solid density was never assigned
+- [FIX] Cross-platform splash screen left a wide gap after each patron's emoji (fallback font mapped the space)
+- [FIX] Cross-platform compound editor scrollbar clipped the middle column text
