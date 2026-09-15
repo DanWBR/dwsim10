@@ -229,7 +229,7 @@ namespace DWSIM.Engine.SmokeTests
             Assert.That(t1, Is.GreaterThan(t0), "and the content temperature");
             Assert.That(Dyn(v, "Wetted Wall Temperature"), Is.EqualTo(t1).Within(0.5), "the wetted metal stays with the liquid (one step behind)");
             Assert.That(Dyn(v, "Dry Wall Temperature"), Is.GreaterThan(t1 + 5.0), "the dry metal runs hotter than the fluid");
-            Assert.That(Dyn(v, "Maximum Dry Wall Temperature"), Is.EqualTo(Dyn(v, "Dry Wall Temperature")).Within(1e-6));
+            Assert.That(Dyn(v, "Maximum Dry Wall Temperature"), Is.GreaterThanOrEqualTo(Dyn(v, "Dry Wall Temperature")), "the outer face of the dry metal is the hottest point");
         }
 
         // Blowdown through a 15 mm orifice: the content cools on expansion and the metal lags behind

@@ -134,6 +134,9 @@ public sealed class DepressurizationWindow : Window
             (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v)) _in.AmbientTemperature = cv.ConvertToSI(_su.temperature, v); });
         p.CreateAndAddCheckBoxRow("Include the wall (metal thermal mass, wall-to-fluid and ambient heat transfer)", _in.IncludeWallHeatTransfer,
             (cb, _) => _in.IncludeWallHeatTransfer = cb.IsChecked == true);
+        p.CreateAndAddTextBoxRow(_nf, "Wall-to-fluid heat transfer factor (1 = natural convection as estimated)", _in.InternalHeatTransferFactor,
+            (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v) && v > 0) _in.InternalHeatTransferFactor = v; });
+        p.CreateAndAddDescriptionRow("The film coefficient between the metal and the content is estimated by a natural-convection correlation. Against the Imperial College nitrogen blowdown data the correlation as is gives a gas minimum 15 to 20 K warmer than measured; a factor of 0.5 to 0.7 reproduces the measured gas curve. Use 0.5 for a conservative lowest fluid temperature.");
         p.CreateAndAddTextBoxRow(_nf, "Fire: environment factor F", _in.FireEnvironmentFactor,
             (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v)) _in.FireEnvironmentFactor = v; });
         p.CreateAndAddCheckBoxRow("Fire: adequate drainage and prompt firefighting (C = 43200; otherwise 70900)", _in.FireAdequateDrainage,

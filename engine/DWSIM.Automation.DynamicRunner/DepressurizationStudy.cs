@@ -75,6 +75,8 @@ namespace DWSIM.Automation.DynamicRunner.Depressurization
         public double AmbientTemperature = 298.15;
         /// <summary>False: the wall is ignored (a purely adiabatic content). True: metal thermal mass, wall-to-fluid and ambient heat transfer.</summary>
         public bool IncludeWallHeatTransfer = true;
+        /// <summary>Multiplier on the estimated wall-to-fluid film coefficients; 1 = the natural-convection correlation as is.</summary>
+        public double InternalHeatTransferFactor = 1.0;
         public double FireEnvironmentFactor = 1.0;
         public bool FireAdequateDrainage = true;
         public double FireDryWallHeatFlux = 0.0;
@@ -95,6 +97,8 @@ namespace DWSIM.Automation.DynamicRunner.Depressurization
         public double Temperature;            // K, content
         public double WettedWallTemperature;  // K
         public double DryWallTemperature;     // K
+        public double WettedWallHeatTransferCoefficient; // W/m2.K, liquid film on the wetted wall
+        public double DryWallHeatTransferCoefficient;    // W/m2.K, vapour film on the dry wall
         public double MassFlow;               // kg/s through the valve
         public double CumulativeMass;         // kg released
         public double LiquidLevel;            // m
@@ -245,6 +249,7 @@ namespace DWSIM.Automation.DynamicRunner.Depressurization
             vessel.ThermalProperties.Temp_amb_definir = input.AmbientTemperature;
             vessel.SetDynamicProperty("Rigorous Energy Balance (UV)", !isothermal);
             vessel.SetDynamicProperty("Split Wall (Wetted/Dry)", !isothermal && input.IncludeWallHeatTransfer);
+            vessel.SetDynamicProperty("Internal Heat Transfer Factor", input.InternalHeatTransferFactor > 0.0 ? input.InternalHeatTransferFactor : 1.0);
             vessel.SetDynamicProperty("Fire Case (API 521)", fire);
             vessel.SetDynamicProperty("Fire Environment Factor", input.FireEnvironmentFactor);
             vessel.SetDynamicProperty("Fire Adequate Drainage", input.FireAdequateDrainage);
@@ -359,6 +364,8 @@ namespace DWSIM.Automation.DynamicRunner.Depressurization
                 Temperature = acc == null ? 0.0 : (double)acc.GetTemperature(),
                 WettedWallTemperature = (double)vessel.WallTemperatureWetted,
                 DryWallTemperature = (double)vessel.WallTemperatureDry,
+                WettedWallHeatTransferCoefficient = Dyn("Wetted Wall Heat Transfer Coefficient"),
+                DryWallHeatTransferCoefficient = Dyn("Dry Wall Heat Transfer Coefficient"),
                 MassFlow = t == 0.0 ? 0.0 : (double)gasOut.GetMassFlow(),
                 CumulativeMass = cumulative,
                 LiquidLevel = Dyn("Liquid Level"),

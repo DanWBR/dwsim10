@@ -17,6 +17,7 @@
 '    along with DWSIM.  If not, see <http://www.gnu.org/licenses/>.
 
 
+Imports System.Linq
 Imports DWSIM.Thermodynamics
 Imports DWSIM.Thermodynamics.Streams
 Imports DWSIM.SharedClasses
@@ -237,6 +238,7 @@ Namespace UnitOperations
             AddDynamicProperty("Liquid Outlet Gas Fraction", "Mass fraction of gas in the liquid outlet stream: 0 = liquid, 1 = gas blow-by (read-only)", 0, UnitOfMeasure.none, 1.0.GetType())
             AddDynamicProperty("Rigorous Energy Balance (UV)", "Solve the content with an internal-energy balance and a volume-energy flash, so expansion cools it and compression heats it. Off: the legacy isothermal model (temperature only moves with external heat)", False, UnitOfMeasure.none, True.GetType())
             AddDynamicProperty("Split Wall (Wetted/Dry)", "Track the wetted and the dry wall as two metal segments with their own temperatures (rigorous heat balance only). Needed for a depressurization or a fire case", False, UnitOfMeasure.none, True.GetType())
+            AddDynamicProperty("Internal Heat Transfer Factor", "Multiplier on the estimated wall-to-fluid film coefficients (natural convection). 1 = the correlation as is; use it to bracket the uncertainty of a cold blowdown (0.5 to 2)", 1.0, UnitOfMeasure.none, 1.0.GetType())
             AddDynamicProperty("Fire Case (API 521)", "Pool fire around the vessel: heat to the liquid Q = C F A^0.82 on the wetted area within 7.6 m of grade (API 521), plus the flux below on the dry wall", False, UnitOfMeasure.none, True.GetType())
             AddDynamicProperty("Fire Environment Factor", "API 521 environment factor F: 1.0 bare vessel, 0.3 to 0.03 with insulation credit, 0 for earth-covered", 1.0, UnitOfMeasure.none, 1.0.GetType())
             AddDynamicProperty("Fire Adequate Drainage", "True: adequate drainage and prompt firefighting, C = 43200 W/m2 basis. False: C = 70900", True, UnitOfMeasure.none, True.GetType())
@@ -244,6 +246,8 @@ Namespace UnitOperations
             AddDynamicProperty("Vessel Bottom Elevation", "Height of the vessel bottom above grade; only wetted area below 7.6 m of grade counts for the fire heat", 0.0, UnitOfMeasure.distance, 1.0.GetType())
             AddDynamicProperty("Wetted Area", "Wall area in contact with liquid (read-only)", 0.0, UnitOfMeasure.area, 1.0.GetType())
             AddDynamicProperty("Fire Heat Input", "Heat from the fire absorbed by the liquid (read-only)", 0.0, UnitOfMeasure.heatflow, 1.0.GetType())
+            AddDynamicProperty("Wetted Wall Heat Transfer Coefficient", "Liquid-side film coefficient used on the wetted wall (read-only)", 0.0, UnitOfMeasure.heat_transf_coeff, 1.0.GetType())
+            AddDynamicProperty("Dry Wall Heat Transfer Coefficient", "Vapour-side film coefficient used on the dry wall (read-only)", 0.0, UnitOfMeasure.heat_transf_coeff, 1.0.GetType())
             AddDynamicProperty("Wetted Wall Temperature", "Temperature of the wetted wall segment (read-only)", 298.15, UnitOfMeasure.temperature, 1.0.GetType())
             AddDynamicProperty("Dry Wall Temperature", "Temperature of the dry wall segment (read-only)", 298.15, UnitOfMeasure.temperature, 1.0.GetType())
             AddDynamicProperty("Minimum Fluid Temperature", "Lowest content temperature seen since the content was (re)initialized (read-only)", 0.0, UnitOfMeasure.temperature, 1.0.GetType())
@@ -898,6 +902,8 @@ Namespace UnitOperations
 
         ''' <summary>Resets the wall states and the min/max trackers to the content temperature.</summary>
         Private Sub ResetWallStates(T As Double)
+            _wallWet = Nothing
+            _wallDry = Nothing
             WallTemperature = T
             WallTemperatureWetted = T
             WallTemperatureDry = T
@@ -1005,12 +1011,68 @@ Namespace UnitOperations
             Return C * environmentFactor * wettedAreaWithin76m ^ 0.82
         End Function
 
+        'Temperature profiles across the wall thickness, inner surface first (not persisted: rebuilt
+        'uniform from the segment temperature when missing).
+        Private _wallWet As Double() = Nothing
+        Private _wallDry As Double() = Nothing
+
+        ''' <summary>Number of conduction nodes across the wall: about one per 2.5 mm, 3 to 12.</summary>
+        Private Function WallNodeCount() As Integer
+            Return Math.Max(3, Math.Min(12, CInt(Math.Round(WallThickness / 0.0025))))
+        End Function
+
+        Private Function WallProfile(ByRef profile As Double(), surfaceTemperature As Double) As Double()
+            Dim n = WallNodeCount()
+            If profile Is Nothing OrElse profile.Length <> n OrElse profile.Any(Function(x) Double.IsNaN(x)) Then
+                profile = Enumerable.Repeat(surfaceTemperature, n).ToArray()
+            End If
+            Return profile
+        End Function
+
         ''' <summary>
-        ''' One explicit-Euler step of the wall split into a wetted and a dry segment. Each segment has its
-        ''' own metal mass (by area share), exchanges heat with the fluid it touches through the internal
-        ''' coefficient of that phase, and with the ambient through the external coefficient. In the fire
-        ''' case the API 521 heat goes straight to the liquid (the wetted metal stays at the liquid
-        ''' temperature, as API assumes), and the user flux heats the dry metal, which then heats the vapour.
+        ''' One implicit (backward Euler) step of 1-D conduction across the wall thickness, per m2 of
+        ''' wall: the inner surface exchanges with the fluid through hIn, the outer one receives qOut
+        ''' (fire, solar) and exchanges with the ambient through hOut. Unconditionally stable, so the
+        ''' vessel time step can be used for thin walls too. Returns the heat delivered to the fluid, W/m2,
+        ''' evaluated with the new surface temperature.
+        ''' </summary>
+        Private Function ConductWall(profile As Double(), dt As Double, hIn As Double, Tfluid As Double, hOut As Double, Tamb As Double, qOut As Double) As Double
+            Dim n = profile.Length
+            Dim dx = WallThickness / (n - 1)
+            Dim k = Kwall(profile.Average())
+            Dim rc = WallDensity() * WallSpecificHeat()
+            Dim a(n - 1), b(n - 1), c(n - 1), d(n - 1) As Double
+            Dim cond = k / dx
+            'inner surface, half cell
+            Dim cap0 = rc * dx / 2.0 / dt
+            b(0) = cap0 + hIn + cond : c(0) = -cond : d(0) = cap0 * profile(0) + hIn * Tfluid
+            For i = 1 To n - 2
+                Dim cap = rc * dx / dt
+                a(i) = -cond : b(i) = cap + 2.0 * cond : c(i) = -cond : d(i) = cap * profile(i)
+            Next
+            Dim capN = rc * dx / 2.0 / dt
+            a(n - 1) = -cond : b(n - 1) = capN + hOut + cond : d(n - 1) = capN * profile(n - 1) + hOut * Tamb + qOut
+            'Thomas algorithm
+            For i = 1 To n - 1
+                Dim m = a(i) / b(i - 1)
+                b(i) -= m * c(i - 1)
+                d(i) -= m * d(i - 1)
+            Next
+            profile(n - 1) = d(n - 1) / b(n - 1)
+            For i = n - 2 To 0 Step -1
+                profile(i) = (d(i) - c(i) * profile(i + 1)) / b(i)
+            Next
+            Return hIn * (profile(0) - Tfluid)
+        End Function
+
+        ''' <summary>
+        ''' One step of the wall split into a wetted and a dry segment. Each segment is a 1-D conduction
+        ''' slab (implicit) with its own temperature profile: the inner surface exchanges with the fluid it
+        ''' touches through the internal coefficient of that phase, the outer surface with the ambient
+        ''' through the external coefficient, plus any fire or solar flux. The reported segment
+        ''' temperatures are the inner surfaces, which is what thermocouples and MDMT checks look at. In
+        ''' the fire case the API 521 heat goes straight to the liquid (the wetted metal stays at the liquid
+        ''' temperature, as API assumes) and the user flux heats the outer face of the dry metal.
         ''' Returns the heat delivered to the content, kW.
         ''' </summary>
         Private Function SplitWallStep(timestep As Double, Tint As Double, Text As Double, D As Double, DE As Double, L As Double,
@@ -1025,6 +1087,9 @@ Namespace UnitOperations
             Dim Adry = Math.Max(Atot - Awet, 0.0)
             SetDynamicProperty("Wetted Area", Awet)
 
+            Dim wet = WallProfile(_wallWet, WallTemperatureWetted)
+            Dim dry = WallProfile(_wallDry, WallTemperatureDry)
+
             'internal coefficients: the wetted metal sees liquid, the dry metal sees vapour
             Dim Uwet, Udry As Double
             If ThermalProperties.TipoPerfil = ThermalEditorDefinitions.ThermalProfileType.Definir_CGTC Then
@@ -1035,15 +1100,16 @@ Namespace UnitOperations
                 Dim vap = CalcOverallInternalHeatTransferCoefficient(0.0, L, D, DE, rug, Tint, Text, 0.0, 0.0, Cpl, Cpv, Kl, Kv, MUl, MUv, rhol, rhov)(0)
                 'the pipe correlation needs a velocity; a still vessel is natural convection driven by the
                 'wall-to-fluid temperature difference, which at high pressure runs to hundreds of W/m2.K
-                Uwet = If(Double.IsNaN(liq) OrElse liq <= 0.0, NaturalConvectionHTC(Kl, rhol, MUl, Cpl, WallTemperatureWetted - Tint, Tint, 0.001, 50.0), liq)
-                Udry = If(Double.IsNaN(vap) OrElse vap <= 0.0, NaturalConvectionHTC(Kv, rhov, MUv, Cpv, WallTemperatureDry - Tint, Tint, 1.0 / Math.Max(Tint, 1.0), 5.0), vap)
+                Uwet = If(Double.IsNaN(liq) OrElse liq <= 0.0, NaturalConvectionHTC(Kl, rhol, MUl, Cpl, wet(0) - Tint, Tint, 0.001, 50.0), liq)
+                Udry = If(Double.IsNaN(vap) OrElse vap <= 0.0, NaturalConvectionHTC(Kv, rhov, MUv, Cpv, dry(0) - Tint, Tint, 1.0 / Math.Max(Tint, 1.0), 5.0), vap)
+                Dim factor = DynamicDouble("Internal Heat Transfer Factor", 1.0)
+                If factor > 0.0 Then Uwet *= factor : Udry *= factor
             End If
+            SetDynamicProperty("Wetted Wall Heat Transfer Coefficient", Uwet)
+            SetDynamicProperty("Dry Wall Heat Transfer Coefficient", Udry)
             Dim Uext = CalcOverallExternalHeatTransferCoefficient(D, DE, rug, Tint, Text, ThermalProperties.Incluir_isolamento)(0)
             If Double.IsNaN(Uext) Then Uext = 0.0
-
-            Dim mCp = WallThermalMass(D, DE, L)
-            Dim mCpWet = mCp * If(Atot > 0.0, Awet / Atot, 0.0)
-            Dim mCpDry = mCp - mCpWet
+            Dim solarFlux = If(Atot > 0.0, solarKW * 1000.0 / Atot, 0.0) 'W/m2 on the outside
 
             Dim Qfluid = 0.0 'W
             Dim Qfire = 0.0
@@ -1054,39 +1120,32 @@ Namespace UnitOperations
                 Dim AwetFire = WettedArea(hFire, D, DE, L)
                 Qfire = FireHeatInput(AwetFire, DynamicDouble("Fire Environment Factor", 1.0), DynamicBool("Fire Adequate Drainage", True))
                 Qfluid += Qfire
-                'the liquid keeps the wetted metal near its own temperature
-                If Awet > 0.0 Then WallTemperatureWetted = Tint
-            Else
-                If Awet > 0.0 AndAlso mCpWet > 0.0 Then
-                    Dim toFluid = Uwet * Awet * (WallTemperatureWetted - Tint)
-                    Dim fromAmbient = Uext * Awet * (Text - WallTemperatureWetted) + solarKW * 1000.0 * Awet / Math.Max(Atot, 1.0E-9)
-                    WallTemperatureWetted += (fromAmbient - toFluid) * timestep / mCpWet
-                    Qfluid += toFluid
-                End If
+                'the boiling liquid keeps the wetted metal at its own temperature
+                If Awet > 0.0 Then For i = 0 To wet.Length - 1 : wet(i) = Tint : Next
+            ElseIf Awet > 0.0 Then
+                Qfluid += ConductWall(wet, timestep, Uwet, Tint, Uext, Text, solarFlux) * Awet
             End If
             SetDynamicProperty("Fire Heat Input", Qfire / 1000.0)
 
-            If Adry > 0.0 AndAlso mCpDry > 0.0 Then
-                Dim toFluid = Udry * Adry * (WallTemperatureDry - Tint)
-                Dim fromOutside As Double
+            If Adry > 0.0 Then
                 If fire Then
-                    fromOutside = DynamicDouble("Fire Dry Wall Heat Flux", 0.0) * Adry
+                    Qfluid += ConductWall(dry, timestep, Udry, Tint, 0.0, Text, DynamicDouble("Fire Dry Wall Heat Flux", 0.0)) * Adry
                 Else
-                    fromOutside = Uext * Adry * (Text - WallTemperatureDry) + solarKW * 1000.0 * Adry / Math.Max(Atot, 1.0E-9)
+                    Qfluid += ConductWall(dry, timestep, Udry, Tint, Uext, Text, solarFlux) * Adry
                 End If
-                WallTemperatureDry += (fromOutside - toFluid) * timestep / mCpDry
-                Qfluid += toFluid
             End If
 
-            If Awet <= 0.0 Then WallTemperatureWetted = WallTemperatureDry
-            If Adry <= 0.0 Then WallTemperatureDry = WallTemperatureWetted
-            WallTemperature = If(Atot > 0.0, (WallTemperatureWetted * Awet + WallTemperatureDry * Adry) / Atot, WallTemperatureWetted)
+            If Awet <= 0.0 Then Array.Copy(dry, wet, wet.Length)
+            If Adry <= 0.0 Then Array.Copy(wet, dry, dry.Length)
+            WallTemperatureWetted = wet(0)
+            WallTemperatureDry = dry(0)
+            WallTemperature = If(Atot > 0.0, (wet.Average() * Awet + dry.Average() * Adry) / Atot, wet.Average())
 
             SetDynamicProperty("Wetted Wall Temperature", WallTemperatureWetted)
             SetDynamicProperty("Dry Wall Temperature", WallTemperatureDry)
             TrackMin("Minimum Wetted Wall Temperature", WallTemperatureWetted)
             TrackMin("Minimum Dry Wall Temperature", WallTemperatureDry)
-            TrackMax("Maximum Dry Wall Temperature", WallTemperatureDry)
+            TrackMax("Maximum Dry Wall Temperature", dry.Max())
 
             If Double.IsNaN(Qfluid) Then Qfluid = 0.0
             Return Qfluid / 1000.0

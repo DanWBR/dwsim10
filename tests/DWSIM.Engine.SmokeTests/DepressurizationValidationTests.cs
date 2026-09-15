@@ -146,14 +146,18 @@ namespace DWSIM.Engine.SmokeTests
         }
 
         // Haque, Richardson, Saville, Chamberlain and Shirvill (1992), "Blowdown of pressure vessels
-        // II: experimental validation", Trans IChemE 70B: nitrogen from 150 bar and about 20 C in a
-        // 0.273 m ID x 1.524 m vertical vessel (0.0892 m3, 25 mm carbon steel wall) through a 6.35 mm
-        // top orifice. The published record shows the pressure reaching atmospheric in roughly 100 s,
-        // the bulk gas bottoming out around 200 K near 50 to 60 s, and the inner wall staying far
-        // warmer, close to 270 K. The run is compared with those figures and the numbers are printed
-        // for the report.
-        [Test]
-        public void HaqueNitrogenBlowdownIsReproducedInOutline()
+        // II: experimental validation", Trans IChemE 70B, as redrawn in Shafiq et al. (2020), Process
+        // Safety and Environmental Protection 133, Fig. 5b: nitrogen from 150 bar in a 0.273 m ID x
+        // 1.524 m vertical vessel (0.086 m3, 25 mm carbon steel wall) through a 6.35 mm top orifice.
+        // Read from the figure, as changes from the initial temperature: the bulk gas drops 108 K by
+        // about 40 s and recovers to -60 K by 100 s; the inner wall drops only 5 to 6 K and stays there;
+        // the pressure reaches atmospheric in about 100 s. The run is compared with those figures and
+        // the numbers are printed for the report. Factor 1 is the natural-convection correlation as is;
+        // 0.5 shows the sensitivity of the gas minimum to the film coefficient; 0 is the adiabatic bound.
+        [TestCase(1.0)]
+        [TestCase(0.5)]
+        [TestCase(0.0)]
+        public void HaqueNitrogenBlowdownIsReproducedInOutline(double htcFactor)
         {
             var (fs, src, pp) = Host(new[] { "Nitrogen" }, new[] { 1.0 }, 293.15, 150e5);
             var input = new DepressurizationInput
@@ -161,7 +165,7 @@ namespace DWSIM.Engine.SmokeTests
                 SourceStreamName = src.Name, InitialPressure = 150e5, InitialTemperature = 293.15, InitialLiquidVolumeFraction = 0.0,
                 Diameter = 0.273, Length = 1.524, HeadType = "Flat", WallThickness = 0.025, WallMaterial = "Carbon Steel",
                 OrificeDiameter = 0.00635, DischargeCoefficient = 0.8, BackPressure = 101325.0, AmbientTemperature = 293.15,
-                IncludeWallHeatTransfer = true, TimeStep = 0.5, Duration = 200.0
+                IncludeWallHeatTransfer = htcFactor > 0.0, InternalHeatTransferFactor = htcFactor, TimeStep = 0.5, Duration = 200.0
             };
             var r = DepressurizationStudy.Run(fs, input);
             Assert.That(r.Warnings.Where(w => w.StartsWith("The integration stopped")), Is.Empty);
@@ -169,16 +173,19 @@ namespace DWSIM.Engine.SmokeTests
             var tMinPoint = r.Points.OrderBy(p => p.Temperature).First();
             var t2bar = r.Points.FirstOrDefault(p => p.Pressure <= 2e5);
             TestContext.WriteLine($"V {r.VesselVolume:F4} m3, m0 {r.InitialMass:F2} kg");
-            TestContext.WriteLine("   t(s)    P(bar)   T gas   T wall(dry)  W(kg/s)");
+            TestContext.WriteLine("   t(s)    P(bar)   T gas   T wall(dry)  W(kg/s)   h(W/m2K)");
             foreach (var pt in r.Points.Where(p => Math.Abs(p.Time % 10.0) < 1e-9))
-                TestContext.WriteLine($"{pt.Time,7:F0}  {pt.Pressure / 1e5,8:F1}  {pt.Temperature,7:F1}  {pt.DryWallTemperature,10:F1}  {pt.MassFlow,8:F4}");
+                TestContext.WriteLine($"{pt.Time,7:F0}  {pt.Pressure / 1e5,8:F1}  {pt.Temperature,7:F1}  {pt.DryWallTemperature,10:F1}  {pt.MassFlow,8:F4}  {pt.DryWallHeatTransferCoefficient,8:F0}");
             TestContext.WriteLine($"gas minimum {tMinPoint.Temperature:F1} K at {tMinPoint.Time:F0} s; wall minimum {r.MinimumDryWallTemperature:F1} K; 2 bar at {(t2bar != null ? t2bar.Time.ToString("F0") : "never")} s; final {r.FinalPressure / 1e5:F2} bar at {r.FinalTemperature:F1} K");
 
+            if (htcFactor != 1.0) return; // the other factors are printed for the sensitivity table only
             Assert.That(t2bar, Is.Not.Null, "the vessel blows down to 2 bar within 200 s");
-            Assert.That(t2bar!.Time, Is.InRange(60.0, 160.0), "s: the published blowdown takes about 100 s");
-            Assert.That(tMinPoint.Temperature, Is.InRange(180.0, 225.0), "K: the bulk gas bottoms out around 200 K");
-            Assert.That(tMinPoint.Time, Is.InRange(30.0, 90.0), "s: the minimum comes past the middle of the blowdown");
-            Assert.That(r.MinimumDryWallTemperature, Is.InRange(250.0, 290.0), "K: the wall lags far behind the gas");
+            Assert.That(t2bar!.Time, Is.InRange(60.0, 130.0), "s: the published blowdown reaches atmospheric in about 100 s");
+            Assert.That(293.15 - tMinPoint.Temperature, Is.InRange(80.0, 120.0), "K: the published gas drop is 108 K; the model runs 15 to 20 K warm");
+            Assert.That(tMinPoint.Time, Is.InRange(25.0, 60.0), "s: the published minimum is at about 40 s");
+            Assert.That(293.15 - r.MinimumDryWallTemperature, Is.InRange(2.0, 10.0), "K: the published inner-wall drop is 5 to 6 K");
+            var t100 = r.Points.First(p => p.Time >= 100.0);
+            Assert.That(293.15 - t100.Temperature, Is.InRange(30.0, 80.0), "K: the published gas is 60 K below the start at 100 s");
         }
     }
 }
