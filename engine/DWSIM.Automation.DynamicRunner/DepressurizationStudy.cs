@@ -206,9 +206,14 @@ namespace DWSIM.Automation.DynamicRunner.Depressurization
             }
             else
             {
+                // the steady-state pass sizes with an equivalent Kv; the dynamic run uses the compressible
+                // orifice equations (isentropic nozzle with choking) for the bore and Cd given
                 SetEnum(bdv, "FlowCoefficient", "Kv");
                 bdv.Kv = (double)valveType.GetMethod("KvFromOrifice", BindingFlags.Public | BindingFlags.Static)
                     .Invoke(null, new object[] { input.OrificeDiameter, input.DischargeCoefficient });
+                bdv.UseOrificeFlow = true;
+                bdv.OrificeDiameter = input.OrificeDiameter;
+                bdv.OrificeDischargeCoefficient = input.DischargeCoefficient;
             }
             bdv.EnableOpeningKvRelationship = input.ValveOpeningTime > 0;
             SetEnum(bdv, "DefinedOpeningKvRelationShipType", "Linear");

@@ -919,6 +919,18 @@ Namespace UnitOperations
             If cur <= 0.0 OrElse value > cur Then SetDynamicProperty(name, value)
         End Sub
 
+        ' Turbulent natural convection on a wall, Nu = 0.13 (Gr Pr)^(1/3): the length scale cancels, so
+        ' h = 0.13 k (g beta |dT| rho^2 / mu^2 Pr)^(1/3). Cp in kJ/(kg.K) as the streams carry it; beta the
+        ' thermal expansion (1/T for a gas). Never below the floor, so the exchange never switches off.
+        Public Shared Function NaturalConvectionHTC(k As Double, rho As Double, mu As Double, cpKJ As Double, dT As Double, T As Double, beta As Double, floor As Double) As Double
+            If k <= 0.0 OrElse rho <= 0.0 OrElse mu <= 0.0 OrElse cpKJ <= 0.0 OrElse Double.IsNaN(k + rho + mu + cpKJ) Then Return floor
+            Dim pr = cpKJ * 1000.0 * mu / k
+            Dim grOverL3 = 9.81 * beta * Math.Abs(dT) * rho * rho / (mu * mu)
+            Dim h = 0.13 * k * (grOverL3 * pr) ^ (1.0 / 3.0)
+            If Double.IsNaN(h) OrElse Double.IsInfinity(h) Then Return floor
+            Return Math.Max(floor, h)
+        End Function
+
         Private Function DynamicBool(name As String, defaultValue As Boolean) As Boolean
             Dim v = GetDynamicProperty(name)
             If v Is Nothing Then Return defaultValue
@@ -1021,9 +1033,10 @@ Namespace UnitOperations
             Else
                 Dim liq = CalcOverallInternalHeatTransferCoefficient(1.0, L, D, DE, rug, Tint, Text, 0.0, 0.0, Cpl, Cpv, Kl, Kv, MUl, MUv, rhol, rhov)(0)
                 Dim vap = CalcOverallInternalHeatTransferCoefficient(0.0, L, D, DE, rug, Tint, Text, 0.0, 0.0, Cpl, Cpv, Kl, Kv, MUl, MUv, rhol, rhov)(0)
-                'the correlation needs a velocity; a still vessel falls back to natural convection
-                Uwet = If(Double.IsNaN(liq) OrElse liq <= 0.0, 500.0, liq)
-                Udry = If(Double.IsNaN(vap) OrElse vap <= 0.0, 15.0, vap)
+                'the pipe correlation needs a velocity; a still vessel is natural convection driven by the
+                'wall-to-fluid temperature difference, which at high pressure runs to hundreds of W/m2.K
+                Uwet = If(Double.IsNaN(liq) OrElse liq <= 0.0, NaturalConvectionHTC(Kl, rhol, MUl, Cpl, WallTemperatureWetted - Tint, Tint, 0.001, 50.0), liq)
+                Udry = If(Double.IsNaN(vap) OrElse vap <= 0.0, NaturalConvectionHTC(Kv, rhov, MUv, Cpv, WallTemperatureDry - Tint, Tint, 1.0 / Math.Max(Tint, 1.0), 5.0), vap)
             End If
             Dim Uext = CalcOverallExternalHeatTransferCoefficient(D, DE, rug, Tint, Text, ThermalProperties.Incluir_isolamento)(0)
             If Double.IsNaN(Uext) Then Uext = 0.0
