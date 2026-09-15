@@ -41,7 +41,7 @@ The full changelog including souce code changes can be viewed at https://github.
 
 Version 10.2.8
 
-- [NEW] Vessel Depressurization (Blowdown) utility on both interfaces: orifice or valve blowdown, adiabatic, API 521 fire and isothermal cases, MDMT and hot-metal checks, plots and time series; validated against published blowdown data and documented in the user guide
+- [NEW] Vessel Depressurization (Blowdown) tool on the Dynamics menu of both interfaces: orifice or valve blowdown, adiabatic, API 521 fire and isothermal cases, MDMT and hot-metal checks, plots and time series; validated against published blowdown data and documented in the user guide
 - [NEW] Dynamic Separator/Tank: gas blow-by through the liquid outlet and liquid carry-over through the gas outlet from the nozzle heights, with a homogeneous outlet option for pipe blowdowns
 - [NEW] Compound property editor on both interfaces: grouped properties with explanations, equation explainer with units and a try-it box, in-place apply with undo, linked JSON file with reload, save and diff, and a data validator
 - [CHG] Dynamic Separator/Tank: internal energy balance (UV), wetted/dry wall split with conduction across the thickness, natural-convection film coefficients with a user factor, API 521 fire case, minimum fluid and wall temperature tracking; Minimum Pressure is a floor that keeps the level
