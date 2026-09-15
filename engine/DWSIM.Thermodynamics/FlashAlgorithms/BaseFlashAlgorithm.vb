@@ -601,8 +601,9 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                         Return (target - prop(flashresult, T, lastP)) / scale
                     End Function
 
-            'f falls with T: positive when the mixture is too cold
-            Dim a = Tref / 1.15, b = Tref * 1.15
+            'f falls with T: positive when the mixture is too cold. The bracket starts tight (a time
+            'step rarely moves T by 3 %) and widens by 15 % a time when it has to.
+            Dim a = Tref / 1.03, b = Tref * 1.03
             Dim fa = f(a), fb = f(b)
             Dim n = 0
             While fa < 0.0 And a > 20.0 And n < 30

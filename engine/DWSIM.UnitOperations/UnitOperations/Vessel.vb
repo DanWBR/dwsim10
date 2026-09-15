@@ -61,6 +61,16 @@ Namespace UnitOperations
         ''' <summary>Gets or sets whether a rigorous wall heat-balance is performed instead of the legacy adiabatic model.</summary>
         Public Property CalculateRigorousHeatBalance As Boolean = False
 
+        ''' <summary>
+        ''' Wall temperature of the wetted (liquid-contact) segment, K. A persistent dynamic state used when
+        ''' the wall is split; the lumped WallTemperature is the area-weighted mean of the two segments.
+        ''' </summary>
+        Public Property WallTemperatureWetted As Double = 298.15
+
+        ''' <summary>Wall temperature of the dry (vapour-contact) segment, K. See WallTemperatureWetted.</summary>
+        Public Property WallTemperatureDry As Double = 298.15
+
+
         ''' <summary>Gets or sets the fixed heating or cooling duty (kW) applied to the vessel content when the calculation mode requires it.</summary>
         Public Property HeatingCoolingAmount As Double?
 
@@ -225,6 +235,21 @@ Namespace UnitOperations
             AddDynamicProperty("Liquid Outlet Nozzle Elevation", "Height of the liquid outlet nozzle above the vessel bottom. When the liquid level falls below it, gas leaves through the liquid outlet (gas blow-by)", 0, UnitOfMeasure.distance, 1.0.GetType())
             AddDynamicProperty("Liquid Outlet Transition Height", "Height band above the nozzle over which the liquid outlet changes from all liquid to all gas, so the integration does not see a step", 0.01, UnitOfMeasure.distance, 1.0.GetType())
             AddDynamicProperty("Liquid Outlet Gas Fraction", "Mass fraction of gas in the liquid outlet stream: 0 = liquid, 1 = gas blow-by (read-only)", 0, UnitOfMeasure.none, 1.0.GetType())
+            AddDynamicProperty("Rigorous Energy Balance (UV)", "Solve the content with an internal-energy balance and a volume-energy flash, so expansion cools it and compression heats it. Off: the legacy isothermal model (temperature only moves with external heat)", False, UnitOfMeasure.none, True.GetType())
+            AddDynamicProperty("Split Wall (Wetted/Dry)", "Track the wetted and the dry wall as two metal segments with their own temperatures (rigorous heat balance only). Needed for a depressurization or a fire case", False, UnitOfMeasure.none, True.GetType())
+            AddDynamicProperty("Fire Case (API 521)", "Pool fire around the vessel: heat to the liquid Q = C F A^0.82 on the wetted area within 7.6 m of grade (API 521), plus the flux below on the dry wall", False, UnitOfMeasure.none, True.GetType())
+            AddDynamicProperty("Fire Environment Factor", "API 521 environment factor F: 1.0 bare vessel, 0.3 to 0.03 with insulation credit, 0 for earth-covered", 1.0, UnitOfMeasure.none, 1.0.GetType())
+            AddDynamicProperty("Fire Adequate Drainage", "True: adequate drainage and prompt firefighting, C = 43200 W/m2 basis. False: C = 70900", True, UnitOfMeasure.none, True.GetType())
+            AddDynamicProperty("Fire Dry Wall Heat Flux", "Fire heat absorbed by the unwetted wall, W/m2 (0 = none). The dry metal heats up and passes heat to the vapour", 0.0, UnitOfMeasure.none, 1.0.GetType())
+            AddDynamicProperty("Vessel Bottom Elevation", "Height of the vessel bottom above grade; only wetted area below 7.6 m of grade counts for the fire heat", 0.0, UnitOfMeasure.distance, 1.0.GetType())
+            AddDynamicProperty("Wetted Area", "Wall area in contact with liquid (read-only)", 0.0, UnitOfMeasure.area, 1.0.GetType())
+            AddDynamicProperty("Fire Heat Input", "Heat from the fire absorbed by the liquid (read-only)", 0.0, UnitOfMeasure.heatflow, 1.0.GetType())
+            AddDynamicProperty("Wetted Wall Temperature", "Temperature of the wetted wall segment (read-only)", 298.15, UnitOfMeasure.temperature, 1.0.GetType())
+            AddDynamicProperty("Dry Wall Temperature", "Temperature of the dry wall segment (read-only)", 298.15, UnitOfMeasure.temperature, 1.0.GetType())
+            AddDynamicProperty("Minimum Fluid Temperature", "Lowest content temperature seen since the content was (re)initialized (read-only)", 0.0, UnitOfMeasure.temperature, 1.0.GetType())
+            AddDynamicProperty("Minimum Wetted Wall Temperature", "Lowest wetted-wall temperature since the content was (re)initialized (read-only)", 0.0, UnitOfMeasure.temperature, 1.0.GetType())
+            AddDynamicProperty("Minimum Dry Wall Temperature", "Lowest dry-wall temperature since the content was (re)initialized (read-only)", 0.0, UnitOfMeasure.temperature, 1.0.GetType())
+            AddDynamicProperty("Maximum Dry Wall Temperature", "Highest dry-wall temperature since the content was (re)initialized; the fire-case metal check (read-only)", 0.0, UnitOfMeasure.temperature, 1.0.GetType())
 
         End Sub
 
@@ -382,6 +407,10 @@ Namespace UnitOperations
                 SetDynamicProperty("Reset Content", 0)
             End If
 
+            'energy bookkeeping for the UV balance: the content before this step and what enters and leaves
+            Dim uvBalance = DynamicBool("Rigorous Energy Balance (UV)", False)
+            Dim m0 = 0.0, h0 = 0.0, P0 = 0.0, Ein = 0.0, Eout = 0.0
+
             If AccumulationStream Is Nothing Then
 
                 If InitializeFromInlet Then
@@ -403,12 +432,17 @@ Namespace UnitOperations
                 AccumulationStream.PropertyPackage.CurrentMaterialStream = AccumulationStream
                 AccumulationStream.Calculate()
 
-                'Initialize the persistent wall temperature to the initial fluid temperature.
-                WallTemperature = AccumulationStream.GetTemperature()
+                'Initialize the persistent wall temperatures (lumped, wetted, dry) and the min/max
+                'trackers to the initial fluid temperature.
+                ResetWallStates(AccumulationStream.GetTemperature())
 
             Else
 
                 AccumulationStream.SetFlowsheet(FlowSheet)
+
+                m0 = AccumulationStream.GetMassFlow()
+                h0 = AccumulationStream.GetMassEnthalpy()
+                P0 = AccumulationStream.GetPressure()
 
                 If Not imsmix.AtEquilibrium And imsmix.GetMassFlow() > 0 Then
                     imsmix.AssignSelfToPP()
@@ -416,6 +450,7 @@ Namespace UnitOperations
                 End If
 
                 If imsmix.GetMassFlow() > 0 Then
+                    Ein = imsmix.GetMassFlow() * imsmix.GetMassEnthalpy() * timestep 'kJ
                     AccumulationStream = AccumulationStream.Add(imsmix, timestep)
                 End If
 
@@ -438,6 +473,10 @@ Namespace UnitOperations
                     omsr.Calculate()
                 End If
 
+                If oms1.GetMassFlow() > 0 Then Eout += oms1.GetMassFlow() * oms1.GetMassEnthalpy() * timestep
+                If oms2.GetMassFlow() > 0 Then Eout += oms2.GetMassFlow() * oms2.GetMassEnthalpy() * timestep
+                If omsr IsNot Nothing AndAlso omsr.GetMassFlow() > 0 Then Eout += omsr.GetMassFlow() * omsr.GetMassEnthalpy() * timestep
+
                 If oms1.GetMassFlow() > 0 Then AccumulationStream = AccumulationStream.Subtract(oms1, timestep)
                 If oms2.GetMassFlow() > 0 Then AccumulationStream = AccumulationStream.Subtract(oms2, timestep)
                 If omsr IsNot Nothing Then
@@ -452,11 +491,23 @@ Namespace UnitOperations
 
             Dim D = Dimensions(0).Value / 1000
             Dim L = Dimensions(1).Value
-            Dim DE = D + WallThickness
 
             Dim Height As Double = GetDynamicProperty("Height")
 
             If GetDynamicProperty("Get Height from Dimensions") Then Height = Dimensions(1).Value
+
+            'no sizing run yet: take the wall geometry from the dynamic Volume and Height instead of a
+            'zero area (a vertical cylinder Height tall, or a horizontal one Height in diameter)
+            If D <= 0.0 OrElse L <= 0.0 Then
+                If SelectedEquipmentType = "Horizontal" Then
+                    D = Math.Max(Height, 1.0E-3)
+                    L = 4.0 * Vol / (Math.PI * D * D)
+                Else
+                    L = Math.Max(Height, 1.0E-3)
+                    D = Math.Sqrt(4.0 * Vol / (Math.PI * L))
+                End If
+            End If
+            Dim DE = D + WallThickness
 
             ' Calculate Temperature
 
@@ -510,66 +561,86 @@ Namespace UnitOperations
 
                 Cp_m = wfl * Cpl + (1 - wfl) * Cpv
 
-                If Not ThermalProperties.TipoPerfil = ThermalEditorDefinitions.ThermalProfileType.Definir_Q Then
-                    If ThermalProperties.TipoPerfil = ThermalEditorDefinitions.ThermalProfileType.Definir_CGTC Then
-                        Uint = ThermalProperties.CGTC_Definido
-                    ElseIf ThermalProperties.TipoPerfil = ThermalEditorDefinitions.ThermalProfileType.Estimar_CGTC Then
-                        Tpe = Tint
-                        Uint = CalcOverallInternalHeatTransferCoefficient(holdup, L, D, DE, Me.GetRugosity(WallMaterial), Tpe, Text,
-                                                                                VapVel, LiqVel, Cpl, Cpv, Kl, Kv,
-                                                                                MUl, MUv, rhol, rhov)(0)
-                    End If
-                    If Uint <> 0.0# Then
+                If DynamicBool("Split Wall (Wetted/Dry)", False) OrElse DynamicBool("Fire Case (API 521)", False) Then
 
-                        Uext = CalcOverallExternalHeatTransferCoefficient(D, DE, GetRugosity(WallMaterial), Tpe, Text, ThermalProperties.Incluir_isolamento)(0)
-
-                        'Solar gain absorbed by the wall (kW). SR is treated as kW/m2, matching the
-                        'steady-state model (no spurious division by the time step).
-                        Dim SR, Qrad, Asec As Double
-                        Qrad = 0.0
-                        If ThermalProperties.IncludeSolarRadiation Then
-                            If ThermalProperties.UseGlobalSolarRadiation Then
-                                SR = ThermalProperties.SolarRadiationAbsorptionEfficiency * FlowSheet.FlowsheetOptions.CurrentWeather.SolarIrradiation_kWh_m2
-                            Else
-                                SR = ThermalProperties.SolarRadiationAbsorptionEfficiency * ThermalProperties.SolarRadiationValue_kWh_m2
-                            End If
-                            If SelectedEquipmentType = "Horizontal" Then
-                                Asec = DE * L
-                            Else
-                                Asec = Math.PI * DE ^ 2
-                            End If
-                            Qrad = SR * Asec 'kW
-                        End If
-
-                        Dim mCp = WallThermalMass(D, DE, L)
-
-                        If mCp > 0 Then
-                            'Transient wall: explicit Euler on the persistent wall temperature.
-                            'DQ uses the wall temperature carried over from the previous step.
-                            DQ = (Twall - Tint) * Uint / 1000 * A 'wall -> fluid (kW)
-                            Dim Qwall = (Text - Twall) * Uext / 1000 * A + Qrad 'ambient (+solar) -> wall (kW)
-                            WallTemperature = Twall + (Qwall - DQ) * 1000.0 * timestep / mCp
+                    'two metal segments, wetted and dry, each with its own temperature; the fire case
+                    'adds the API 521 heat to the liquid and the user flux to the dry metal
+                    Dim solarKW = 0.0
+                    If ThermalProperties.IncludeSolarRadiation Then
+                        Dim SR As Double
+                        If ThermalProperties.UseGlobalSolarRadiation Then
+                            SR = ThermalProperties.SolarRadiationAbsorptionEfficiency * FlowSheet.FlowsheetOptions.CurrentWeather.SolarIrradiation_kWh_m2
                         Else
-                            'No wall thermal mass: quasi-steady series-resistance wall (incl. solar).
-                            Twall = (Uint * Tint + Uext * Text + Qrad * 1000.0 / A) / (Uint + Uext)
-                            WallTemperature = Twall
-                            DQ = (Twall - Tint) * Uint / 1000 * A
+                            SR = ThermalProperties.SolarRadiationAbsorptionEfficiency * ThermalProperties.SolarRadiationValue_kWh_m2
                         End If
-
-                        If Double.IsNaN(DQ) Then DQ = 0.0#
-
-                    Else
-
-                        DQ = 0.0#
-                        DQmax = 0.0#
-
+                        solarKW = SR * If(SelectedEquipmentType = "Horizontal", DE * L, Math.PI * DE ^ 2)
                     End If
-
-                    Qval = DQ
+                    Qval = SplitWallStep(timestep, Tint, Text, D, DE, L, AccumulationStream.Phases(1).Properties.volumetric_flow.GetValueOrDefault / Vol, Cpl, Cpv, Kl, Kv, MUl, MUv, rhol, rhov, solarKW)
 
                 Else
 
-                    Qval = ThermalProperties.Calor_trocado
+                    If Not ThermalProperties.TipoPerfil = ThermalEditorDefinitions.ThermalProfileType.Definir_Q Then
+                        If ThermalProperties.TipoPerfil = ThermalEditorDefinitions.ThermalProfileType.Definir_CGTC Then
+                            Uint = ThermalProperties.CGTC_Definido
+                        ElseIf ThermalProperties.TipoPerfil = ThermalEditorDefinitions.ThermalProfileType.Estimar_CGTC Then
+                            Tpe = Tint
+                            Uint = CalcOverallInternalHeatTransferCoefficient(holdup, L, D, DE, Me.GetRugosity(WallMaterial), Tpe, Text,
+                                                                                    VapVel, LiqVel, Cpl, Cpv, Kl, Kv,
+                                                                                    MUl, MUv, rhol, rhov)(0)
+                        End If
+                        If Uint <> 0.0# Then
+
+                            Uext = CalcOverallExternalHeatTransferCoefficient(D, DE, GetRugosity(WallMaterial), Tpe, Text, ThermalProperties.Incluir_isolamento)(0)
+
+                            'Solar gain absorbed by the wall (kW). SR is treated as kW/m2, matching the
+                            'steady-state model (no spurious division by the time step).
+                            Dim SR, Qrad, Asec As Double
+                            Qrad = 0.0
+                            If ThermalProperties.IncludeSolarRadiation Then
+                                If ThermalProperties.UseGlobalSolarRadiation Then
+                                    SR = ThermalProperties.SolarRadiationAbsorptionEfficiency * FlowSheet.FlowsheetOptions.CurrentWeather.SolarIrradiation_kWh_m2
+                                Else
+                                    SR = ThermalProperties.SolarRadiationAbsorptionEfficiency * ThermalProperties.SolarRadiationValue_kWh_m2
+                                End If
+                                If SelectedEquipmentType = "Horizontal" Then
+                                    Asec = DE * L
+                                Else
+                                    Asec = Math.PI * DE ^ 2
+                                End If
+                                Qrad = SR * Asec 'kW
+                            End If
+
+                            Dim mCp = WallThermalMass(D, DE, L)
+
+                            If mCp > 0 Then
+                                'Transient wall: explicit Euler on the persistent wall temperature.
+                                'DQ uses the wall temperature carried over from the previous step.
+                                DQ = (Twall - Tint) * Uint / 1000 * A 'wall -> fluid (kW)
+                                Dim Qwall = (Text - Twall) * Uext / 1000 * A + Qrad 'ambient (+solar) -> wall (kW)
+                                WallTemperature = Twall + (Qwall - DQ) * 1000.0 * timestep / mCp
+                            Else
+                                'No wall thermal mass: quasi-steady series-resistance wall (incl. solar).
+                                Twall = (Uint * Tint + Uext * Text + Qrad * 1000.0 / A) / (Uint + Uext)
+                                WallTemperature = Twall
+                                DQ = (Twall - Tint) * Uint / 1000 * A
+                            End If
+
+                            If Double.IsNaN(DQ) Then DQ = 0.0#
+
+                        Else
+
+                            DQ = 0.0#
+                            DQmax = 0.0#
+
+                        End If
+
+                        Qval = DQ
+
+                    Else
+
+                        Qval = ThermalProperties.Calor_trocado
+
+                    End If
 
                 End If
 
@@ -579,7 +650,7 @@ Namespace UnitOperations
 
             End If
 
-            If Qval <> 0.0 Then
+            If Qval <> 0.0 AndAlso Not uvBalance Then
 
                 If Wa > 0 Then
 
@@ -626,7 +697,19 @@ Namespace UnitOperations
 
                     Dim result As IFlashCalculationResult
 
-                    result = PropertyPackage.CalculateEquilibrium2(FlashCalculationType.VolumeTemperature, currentM, Temperature, Pressure)
+                    If uvBalance AndAlso m0 > 0.0 Then
+                        'rigid vessel: d(m u) = sum(h_in dm_in) - sum(h_out dm_out) + Q dt, closed with a
+                        'volume-internal-energy flash, so a blowdown cools the content and a fire heats it
+                        Dim m1 = AccumulationStream.GetMassFlow()
+                        Dim U1 = m0 * h0 - P0 * Vol / 1000.0 + Ein - Eout + Qval * timestep 'kJ
+                        Dim ppx = DirectCast(PropertyPackage, DWSIM.Thermodynamics.PropertyPackages.PropertyPackage)
+                        ppx.CurrentMaterialStream = AccumulationStream
+                        result = ppx.FlashBase.Flash_VU(ppx.RET_VMOL(DWSIM.Thermodynamics.PropertyPackages.Phase.Mixture), currentM, U1 / m1, Pressure, Temperature, ppx)
+                        Temperature = result.CalculatedTemperature
+                        AccumulationStream.SetTemperature(Temperature)
+                    Else
+                        result = PropertyPackage.CalculateEquilibrium2(FlashCalculationType.VolumeTemperature, currentM, Temperature, Pressure)
+                    End If
 
                     Pressure = result.CalculatedPressure
                     Enthalpy = result.CalculatedEnthalpy
@@ -685,6 +768,7 @@ Namespace UnitOperations
             End If
 
             SetDynamicProperty("Operating Pressure", Pressure)
+            TrackMin("Minimum Fluid Temperature", AccumulationStream.GetTemperature())
 
             For i = 0 To 5
                 If Me.GraphicObject.InputConnectors(i).IsAttached Then
@@ -811,6 +895,191 @@ Namespace UnitOperations
             oms.SpecType = StreamSpec.Pressure_and_Enthalpy
 
         End Sub
+
+        ''' <summary>Resets the wall states and the min/max trackers to the content temperature.</summary>
+        Private Sub ResetWallStates(T As Double)
+            WallTemperature = T
+            WallTemperatureWetted = T
+            WallTemperatureDry = T
+            SetDynamicProperty("Wetted Wall Temperature", T)
+            SetDynamicProperty("Dry Wall Temperature", T)
+            SetDynamicProperty("Minimum Fluid Temperature", T)
+            SetDynamicProperty("Minimum Wetted Wall Temperature", T)
+            SetDynamicProperty("Minimum Dry Wall Temperature", T)
+            SetDynamicProperty("Maximum Dry Wall Temperature", T)
+        End Sub
+
+        Private Sub TrackMin(name As String, value As Double)
+            Dim cur = DynamicDouble(name, 0.0)
+            If cur <= 0.0 OrElse value < cur Then SetDynamicProperty(name, value)
+        End Sub
+
+        Private Sub TrackMax(name As String, value As Double)
+            Dim cur = DynamicDouble(name, 0.0)
+            If cur <= 0.0 OrElse value > cur Then SetDynamicProperty(name, value)
+        End Sub
+
+        Private Function DynamicBool(name As String, defaultValue As Boolean) As Boolean
+            Dim v = GetDynamicProperty(name)
+            If v Is Nothing Then Return defaultValue
+            Try
+                Return Convert.ToBoolean(v)
+            Catch
+                Try
+                    Return Convert.ToDouble(v) <> 0.0
+                Catch
+                    Return defaultValue
+                End Try
+            End Try
+        End Function
+
+        ''' <summary>Outside area of one head, m2, for the selected head type (2:1 ellipsoidal by default).</summary>
+        Public Function HeadArea(DE As Double) As Double
+            Select Case HeadType
+                Case "Hemispherical"
+                    Return Math.PI * DE ^ 2 / 2.0
+                Case "Flat"
+                    Return Math.PI * DE ^ 2 / 4.0
+                Case Else
+                    Return 1.084 * DE ^ 2
+            End Select
+        End Function
+
+        ''' <summary>
+        ''' Liquid height (m) that holds the given liquid volume fraction: f L for a vertical vessel; for a
+        ''' horizontal one the chord height whose circular segment is the fraction f of the section.
+        ''' </summary>
+        Public Function LiquidHeightFromFraction(f As Double, D As Double, L As Double) As Double
+            f = Math.Min(1.0, Math.Max(0.0, f))
+            If SelectedEquipmentType <> "Horizontal" Then Return f * L
+            'segment fraction g(phi) = (phi - sin(phi) cos(phi)) / pi with phi the half angle; h = D (1 - cos(phi)) / 2
+            Dim lo = 0.0, hi = Math.PI
+            For i = 1 To 60
+                Dim phi = 0.5 * (lo + hi)
+                Dim g = (phi - Math.Sin(phi) * Math.Cos(phi)) / Math.PI
+                If g < f Then lo = phi Else hi = phi
+            Next
+            Return D * (1.0 - Math.Cos(0.5 * (lo + hi))) / 2.0
+        End Function
+
+        ''' <summary>Outside wall area (shell plus both heads) in contact with liquid up to height h, m2.</summary>
+        Public Function WettedArea(h As Double, D As Double, DE As Double, L As Double) As Double
+            If h <= 0.0 Then Return 0.0
+            Dim head = HeadArea(DE)
+            If SelectedEquipmentType <> "Horizontal" Then
+                h = Math.Min(h, L)
+                Return Math.PI * DE * h + head + If(h >= L, head, 0.0)
+            Else
+                h = Math.Min(h, D)
+                Dim phi = Math.Acos(1.0 - 2.0 * h / D)
+                Dim f = (phi - Math.Sin(phi) * Math.Cos(phi)) / Math.PI
+                Return phi * DE * L + 2.0 * head * f
+            End If
+        End Function
+
+        ''' <summary>Total outside wall area (shell plus both heads), m2.</summary>
+        Public Function TotalWallArea(DE As Double, L As Double) As Double
+            Return Math.PI * DE * L + 2.0 * HeadArea(DE)
+        End Function
+
+        ''' <summary>
+        ''' API 521 pool-fire heat to the wetted surface, W: Q = C F A^0.82 with C = 43200 (adequate
+        ''' drainage and prompt firefighting) or 70900, F the environment factor, A the wetted area within
+        ''' 7.6 m of grade.
+        ''' </summary>
+        Public Shared Function FireHeatInput(wettedAreaWithin76m As Double, environmentFactor As Double, adequateDrainage As Boolean) As Double
+            If wettedAreaWithin76m <= 0.0 Then Return 0.0
+            Dim C = If(adequateDrainage, 43200.0, 70900.0)
+            Return C * environmentFactor * wettedAreaWithin76m ^ 0.82
+        End Function
+
+        ''' <summary>
+        ''' One explicit-Euler step of the wall split into a wetted and a dry segment. Each segment has its
+        ''' own metal mass (by area share), exchanges heat with the fluid it touches through the internal
+        ''' coefficient of that phase, and with the ambient through the external coefficient. In the fire
+        ''' case the API 521 heat goes straight to the liquid (the wetted metal stays at the liquid
+        ''' temperature, as API assumes), and the user flux heats the dry metal, which then heats the vapour.
+        ''' Returns the heat delivered to the content, kW.
+        ''' </summary>
+        Private Function SplitWallStep(timestep As Double, Tint As Double, Text As Double, D As Double, DE As Double, L As Double,
+                                       liquidVolumeFraction As Double, Cpl As Double, Cpv As Double, Kl As Double, Kv As Double,
+                                       MUl As Double, MUv As Double, rhol As Double, rhov As Double, solarKW As Double) As Double
+
+            Dim fire = DynamicBool("Fire Case (API 521)", False)
+            Dim rug = GetRugosity(WallMaterial)
+            Dim Atot = TotalWallArea(DE, L)
+            Dim h = LiquidHeightFromFraction(liquidVolumeFraction, D, L)
+            Dim Awet = WettedArea(h, D, DE, L)
+            Dim Adry = Math.Max(Atot - Awet, 0.0)
+            SetDynamicProperty("Wetted Area", Awet)
+
+            'internal coefficients: the wetted metal sees liquid, the dry metal sees vapour
+            Dim Uwet, Udry As Double
+            If ThermalProperties.TipoPerfil = ThermalEditorDefinitions.ThermalProfileType.Definir_CGTC Then
+                Uwet = ThermalProperties.CGTC_Definido
+                Udry = ThermalProperties.CGTC_Definido
+            Else
+                Dim liq = CalcOverallInternalHeatTransferCoefficient(1.0, L, D, DE, rug, Tint, Text, 0.0, 0.0, Cpl, Cpv, Kl, Kv, MUl, MUv, rhol, rhov)(0)
+                Dim vap = CalcOverallInternalHeatTransferCoefficient(0.0, L, D, DE, rug, Tint, Text, 0.0, 0.0, Cpl, Cpv, Kl, Kv, MUl, MUv, rhol, rhov)(0)
+                'the correlation needs a velocity; a still vessel falls back to natural convection
+                Uwet = If(Double.IsNaN(liq) OrElse liq <= 0.0, 500.0, liq)
+                Udry = If(Double.IsNaN(vap) OrElse vap <= 0.0, 15.0, vap)
+            End If
+            Dim Uext = CalcOverallExternalHeatTransferCoefficient(D, DE, rug, Tint, Text, ThermalProperties.Incluir_isolamento)(0)
+            If Double.IsNaN(Uext) Then Uext = 0.0
+
+            Dim mCp = WallThermalMass(D, DE, L)
+            Dim mCpWet = mCp * If(Atot > 0.0, Awet / Atot, 0.0)
+            Dim mCpDry = mCp - mCpWet
+
+            Dim Qfluid = 0.0 'W
+            Dim Qfire = 0.0
+
+            If fire Then
+                Dim E0 = DynamicDouble("Vessel Bottom Elevation", 0.0)
+                Dim hFire = Math.Min(h, Math.Max(0.0, 7.6 - E0))
+                Dim AwetFire = WettedArea(hFire, D, DE, L)
+                Qfire = FireHeatInput(AwetFire, DynamicDouble("Fire Environment Factor", 1.0), DynamicBool("Fire Adequate Drainage", True))
+                Qfluid += Qfire
+                'the liquid keeps the wetted metal near its own temperature
+                If Awet > 0.0 Then WallTemperatureWetted = Tint
+            Else
+                If Awet > 0.0 AndAlso mCpWet > 0.0 Then
+                    Dim toFluid = Uwet * Awet * (WallTemperatureWetted - Tint)
+                    Dim fromAmbient = Uext * Awet * (Text - WallTemperatureWetted) + solarKW * 1000.0 * Awet / Math.Max(Atot, 1.0E-9)
+                    WallTemperatureWetted += (fromAmbient - toFluid) * timestep / mCpWet
+                    Qfluid += toFluid
+                End If
+            End If
+            SetDynamicProperty("Fire Heat Input", Qfire / 1000.0)
+
+            If Adry > 0.0 AndAlso mCpDry > 0.0 Then
+                Dim toFluid = Udry * Adry * (WallTemperatureDry - Tint)
+                Dim fromOutside As Double
+                If fire Then
+                    fromOutside = DynamicDouble("Fire Dry Wall Heat Flux", 0.0) * Adry
+                Else
+                    fromOutside = Uext * Adry * (Text - WallTemperatureDry) + solarKW * 1000.0 * Adry / Math.Max(Atot, 1.0E-9)
+                End If
+                WallTemperatureDry += (fromOutside - toFluid) * timestep / mCpDry
+                Qfluid += toFluid
+            End If
+
+            If Awet <= 0.0 Then WallTemperatureWetted = WallTemperatureDry
+            If Adry <= 0.0 Then WallTemperatureDry = WallTemperatureWetted
+            WallTemperature = If(Atot > 0.0, (WallTemperatureWetted * Awet + WallTemperatureDry * Adry) / Atot, WallTemperatureWetted)
+
+            SetDynamicProperty("Wetted Wall Temperature", WallTemperatureWetted)
+            SetDynamicProperty("Dry Wall Temperature", WallTemperatureDry)
+            TrackMin("Minimum Wetted Wall Temperature", WallTemperatureWetted)
+            TrackMin("Minimum Dry Wall Temperature", WallTemperatureDry)
+            TrackMax("Maximum Dry Wall Temperature", WallTemperatureDry)
+
+            If Double.IsNaN(Qfluid) Then Qfluid = 0.0
+            Return Qfluid / 1000.0
+
+        End Function
+
 
         ''' <summary>Calculates the gas-liquid separation vessel (flash drum).</summary>
         Public Overrides Sub Calculate(Optional ByVal args As Object = Nothing)
@@ -1009,6 +1278,8 @@ Namespace UnitOperations
                 Tint = MixedStream.GetTemperature()
 
                 WallTemperature = MixedStream.GetTemperature()
+                WallTemperatureWetted = WallTemperature
+                WallTemperatureDry = WallTemperature
 
                 Twall = WallTemperature
 
