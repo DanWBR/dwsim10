@@ -1953,6 +1953,11 @@ public partial class FlowsheetView : UserControl
             if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
             new SeparatorSizingWindow(_flowsheet).Show(HostWindow);
         };
+        MenuDepressurization.Click += (_, _) =>
+        {
+            if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
+            new DepressurizationWindow(_flowsheet).Show(HostWindow);
+        };
         MenuPsvSizing.Click += (_, _) =>
         {
             if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }

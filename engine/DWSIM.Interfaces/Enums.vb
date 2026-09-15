@@ -156,6 +156,7 @@ Namespace Enums
         SeparatorSizing = 6
         PetroleumProperties = 7
         PureCompoundProperties = 8
+        Depressurization = 9
     End Enum
 
     Public Enum UnitOfMeasure
