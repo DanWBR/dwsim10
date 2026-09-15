@@ -131,11 +131,11 @@ namespace DWSIM.Automation.DynamicRunner.Depressurization
     public static class DepressurizationStudy
     {
         public static DepressurizationResult Run(IFlowsheet host, DepressurizationInput input,
-            Action<double>? progress = null, CancellationToken cancellation = default)
+            Action<double> progress = null, CancellationToken cancellation = default)
         {
             if (host == null) throw new ArgumentNullException(nameof(host));
             if (input == null) throw new ArgumentNullException(nameof(input));
-            if (!host.SimulationObjects.TryGetValue(input.SourceStreamName ?? "", out var srcObj) || srcObj is not IMaterialStream source)
+            if (!host.SimulationObjects.TryGetValue(input.SourceStreamName ?? "", out var srcObj) || !(srcObj is IMaterialStream source))
                 throw new ArgumentException("Pick a material stream of the flowsheet as the source of the composition.");
             if (input.TimeStep <= 0 || input.Duration <= 0) throw new ArgumentException("The time step and the duration must be positive.");
             if (input.Diameter <= 0 || input.Length <= 0) throw new ArgumentException("The vessel needs a diameter and a length.");
@@ -151,10 +151,10 @@ namespace DWSIM.Automation.DynamicRunner.Depressurization
             foreach (var kv in host.SelectedCompounds)
                 options.SelectedComponents[kv.Key] = kv.Value;
             dynamic srcDyn = srcObj;
-            IPropertyPackage? hostPp = srcDyn.PropertyPackage as IPropertyPackage;
+            IPropertyPackage hostPp = srcDyn.PropertyPackage as IPropertyPackage;
             if (hostPp == null) throw new ArgumentException("The source stream has no property package.");
             var pp = hostPp.Clone();
-            if (pp == null) pp = (IPropertyPackage)Activator.CreateInstance(((object)hostPp).GetType())!;
+            if (pp == null) pp = (IPropertyPackage)Activator.CreateInstance(((object)hostPp).GetType());
             pp.Flowsheet = fs;
             fs.AddPropertyPackage(pp);
 
@@ -207,8 +207,8 @@ namespace DWSIM.Automation.DynamicRunner.Depressurization
             else
             {
                 SetEnum(bdv, "FlowCoefficient", "Kv");
-                bdv.Kv = (double)valveType.GetMethod("KvFromOrifice", BindingFlags.Public | BindingFlags.Static)!
-                    .Invoke(null, new object[] { input.OrificeDiameter, input.DischargeCoefficient })!;
+                bdv.Kv = (double)valveType.GetMethod("KvFromOrifice", BindingFlags.Public | BindingFlags.Static)
+                    .Invoke(null, new object[] { input.OrificeDiameter, input.DischargeCoefficient });
             }
             bdv.EnableOpeningKvRelationship = input.ValveOpeningTime > 0;
             SetEnum(bdv, "DefinedOpeningKvRelationShipType", "Linear");
@@ -331,7 +331,7 @@ namespace DWSIM.Automation.DynamicRunner.Depressurization
         }
 
         /// <summary>A nullable double read through late binding comes back boxed or null.</summary>
-        private static double N(object? v) => v == null ? 0.0 : Convert.ToDouble(v);
+        private static double N(object v) => v == null ? 0.0 : Convert.ToDouble(v);
 
         /// <summary>Sets an enum-typed property by member name, without a compile-time reference to the enum.</summary>
         private static void SetEnum(object target, string property, string member)
@@ -343,7 +343,7 @@ namespace DWSIM.Automation.DynamicRunner.Depressurization
 
         private static DepressurizationPoint Snapshot(dynamic vessel, dynamic gasOut, dynamic bdv, double t, double cumulative)
         {
-            double Dyn(string n) { object? v = vessel.GetDynamicProperty(n); return v == null ? 0.0 : Convert.ToDouble(v); }
+            double Dyn(string n) { object v = vessel.GetDynamicProperty(n); return v == null ? 0.0 : Convert.ToDouble(v); }
             dynamic acc = vessel.AccumulationStream;
             double vol = Dyn("Volume");
             double liqVol = acc == null ? 0.0 : N(acc.Phases[1].Properties.volumetric_flow);
