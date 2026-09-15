@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -45,6 +45,22 @@ public sealed class DepressurizationWindow : Window
     private readonly XYPlot _plotP = new() { MinHeight = 220, Margin = new Thickness(4) };
     private readonly XYPlot _plotT = new() { MinHeight = 220, Margin = new Thickness(4) };
     private readonly XYPlot _plotW = new() { MinHeight = 200, Margin = new Thickness(4) };
+    private readonly DataGrid _table = new() { IsReadOnly = true, AutoGenerateColumns = false, CanUserSortColumns = false, MinHeight = 260, MaxHeight = 420, GridLinesVisibility = DataGridGridLinesVisibility.All };
+
+    /// <summary>One row of the results table, already in the flowsheet units.</summary>
+    public sealed class Row
+    {
+        public string Time { get; init; } = "";
+        public string Pressure { get; init; } = "";
+        public string Temperature { get; init; } = "";
+        public string WettedWall { get; init; } = "";
+        public string DryWall { get; init; } = "";
+        public string MassFlow { get; init; } = "";
+        public string Released { get; init; } = "";
+        public string Level { get; init; } = "";
+        public string FireHeat { get; init; } = "";
+        public string Opening { get; init; } = "";
+    }
 
     private static readonly List<string> Heads = new() { "Ellipsoidal (2:1)", "Hemispherical", "Torispherical (ASME F&D)", "Torispherical (Standard F&D)", "Torispherical (80:10 F&D)", "Flat" };
     private static readonly List<string> Materials = new() { "Carbon Steel", "Stainless Steel", "Steel", "Cast Iron", "Commercial Copper" };
@@ -168,6 +184,19 @@ public sealed class DepressurizationWindow : Window
         right.Children.Add(_plotP);
         right.Children.Add(_plotT);
         right.Children.Add(_plotW);
+        right.Children.Add(new TextBlock { Text = "Data", FontWeight = FontWeight.SemiBold, FontSize = UiScale.Font(13), Margin = new Thickness(0, 8, 0, 0) });
+        void Col(string header, string path) => _table.Columns.Add(new DataGridTextColumn { Header = header, Binding = new global::Avalonia.Data.Binding(path), Width = DataGridLength.Auto });
+        Col("time (s)", nameof(Row.Time));
+        Col("pressure (" + _su.pressure + ")", nameof(Row.Pressure));
+        Col("content T (" + _su.temperature + ")", nameof(Row.Temperature));
+        Col("wetted wall T (" + _su.temperature + ")", nameof(Row.WettedWall));
+        Col("dry wall T (" + _su.temperature + ")", nameof(Row.DryWall));
+        Col("mass flow (" + _su.massflow + ")", nameof(Row.MassFlow));
+        Col("released (" + _su.mass + ")", nameof(Row.Released));
+        Col("liquid level (" + _su.distance + ")", nameof(Row.Level));
+        Col("fire heat (" + _su.heatflow + ")", nameof(Row.FireHeat));
+        Col("opening (%)", nameof(Row.Opening));
+        right.Children.Add(_table);
         var rightScroll = new ScrollViewer { Content = right, AllowAutoHide = false };
 
         var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("470,Auto,*") };
@@ -299,6 +328,21 @@ public sealed class DepressurizationWindow : Window
         _plotW.Clear();
         _plotW.AddSeries("Mass flow", t, r.Points.Select(x => Show(_su.massflow, x.MassFlow)).ToArray());
         _plotW.InvalidateVisual();
+
+        var ci = CultureInfo.CurrentCulture;
+        _table.ItemsSource = r.Points.Select(x => new Row
+        {
+            Time = x.Time.ToString(_nf, ci),
+            Pressure = Show(_su.pressure, x.Pressure).ToString(_nf, ci),
+            Temperature = Show(_su.temperature, x.Temperature).ToString(_nf, ci),
+            WettedWall = Show(_su.temperature, x.WettedWallTemperature).ToString(_nf, ci),
+            DryWall = Show(_su.temperature, x.DryWallTemperature).ToString(_nf, ci),
+            MassFlow = Show(_su.massflow, x.MassFlow).ToString(_nf, ci),
+            Released = Show(_su.mass, x.CumulativeMass).ToString(_nf, ci),
+            Level = Show(_su.distance, x.LiquidLevel).ToString(_nf, ci),
+            FireHeat = Show(_su.heatflow, x.FireHeat).ToString(_nf, ci),
+            Opening = x.ValveOpening.ToString("N0", ci)
+        }).ToList();
     }
 
     // ---------------------------------------------------------------- export
