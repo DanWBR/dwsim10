@@ -1,4 +1,4 @@
-'    Flash Algorithm Abstract Base Class
+﻿'    Flash Algorithm Abstract Base Class
 '    Copyright 2010-2022 Daniel Wagner O. de Medeiros
 '
 '    This file is part of DWSIM.
@@ -437,211 +437,204 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
         Public MustOverride Function Flash_TV(ByVal Vz As Double(), ByVal T As Double, ByVal V As Double, ByVal Pref As Double, ByVal PP As PropertyPackages.PropertyPackage, Optional ByVal ReuseKI As Boolean = False, Optional ByVal PrevKi As Double() = Nothing) As Object
 
         ''' <summary>
-        ''' Volume-Temperature Flash
+        ''' Mixture molar volume (m3/mol) of a PT flash result, from the liquid densities and the vapour
+        ''' compressibility of the property package. Phases that are absent contribute nothing.
+        ''' </summary>
+        Private Function MixtureMolarVolume(flashresult As FlashCalculationResult, T As Double, P As Double, PP As PropertyPackages.PropertyPackage) As Double
+            Dim VL1, VL2, VV As Double
+            Dim L1 = flashresult.GetLiquidPhase1MoleFraction, L2 = flashresult.GetLiquidPhase2MoleFraction, V = flashresult.GetVaporPhaseMoleFraction
+            If L1 > 0.0 Then
+                Dim rho = PP.AUX_LIQDENS(T, flashresult.GetLiquidPhase1MoleFractions, P) / PP.AUX_MMM(flashresult.GetLiquidPhase1MoleFractions) * 1000 'mol/m3
+                VL1 = L1 / rho
+            End If
+            If L2 > 0.0 Then
+                Dim rho = PP.AUX_LIQDENS(T, flashresult.GetLiquidPhase2MoleFractions, P) / PP.AUX_MMM(flashresult.GetLiquidPhase2MoleFractions) * 1000 'mol/m3
+                VL2 = L2 / rho
+            End If
+            If V > 0.0 Then
+                VV = V * PP.AUX_Z(flashresult.GetVaporPhaseMoleFractions, T, P, Interfaces.Enums.PhaseName.Vapor) * 8.314 * T / P 'm3/mol
+            End If
+            If Double.IsInfinity(VL1) Or Double.IsNaN(VL1) Then VL1 = 0.0
+            If Double.IsInfinity(VL2) Or Double.IsNaN(VL2) Then VL2 = 0.0
+            If Double.IsInfinity(VV) Or Double.IsNaN(VV) Then VV = 0.0
+            Return VL1 + VL2 + VV
+        End Function
+
+        ''' <summary>
+        ''' Brent root finder on [a, b] with f(a) and f(b) of opposite sign. Returns the root; the caller
+        ''' keeps whatever state the last evaluation left behind.
+        ''' </summary>
+        Private Function BrentRoot(f As Func(Of Double, Double), a As Double, b As Double, fa As Double, fb As Double, xtol As Double, ftol As Double, maxit As Integer) As Double
+            If Math.Abs(fa) <= ftol Then Return a
+            If Math.Abs(fb) <= ftol Then Return b
+            If fa * fb > 0.0 Then Throw New Exception("Volume flash: the root is not bracketed.")
+            If Math.Abs(fa) < Math.Abs(fb) Then
+                Dim tmp = a : a = b : b = tmp
+                tmp = fa : fa = fb : fb = tmp
+            End If
+            Dim c = a, fc = fa, d = b - a, e = d
+            For it = 1 To maxit
+                If fb * fc > 0.0 Then
+                    c = a : fc = fa : d = b - a : e = d
+                End If
+                If Math.Abs(fc) < Math.Abs(fb) Then
+                    a = b : b = c : c = a
+                    fa = fb : fb = fc : fc = fa
+                End If
+                Dim tol1 = 2.0 * Double.Epsilon * Math.Abs(b) + 0.5 * xtol
+                Dim xm = 0.5 * (c - b)
+                If Math.Abs(xm) <= tol1 Or Math.Abs(fb) <= ftol Then Return b
+                If Math.Abs(e) >= tol1 And Math.Abs(fa) > Math.Abs(fb) Then
+                    Dim sx = fb / fa, pq As Double, qq As Double
+                    If a = c Then
+                        pq = 2.0 * xm * sx
+                        qq = 1.0 - sx
+                    Else
+                        Dim q = fa / fc, r = fb / fc
+                        pq = sx * (2.0 * xm * q * (q - r) - (b - a) * (r - 1.0))
+                        qq = (q - 1.0) * (r - 1.0) * (sx - 1.0)
+                    End If
+                    If pq > 0.0 Then qq = -qq
+                    pq = Math.Abs(pq)
+                    If 2.0 * pq < Math.Min(3.0 * xm * qq - Math.Abs(tol1 * qq), Math.Abs(e * qq)) Then
+                        e = d : d = pq / qq
+                    Else
+                        d = xm : e = d
+                    End If
+                Else
+                    d = xm : e = d
+                End If
+                a = b : fa = fb
+                If Math.Abs(d) > tol1 Then b += d Else b += If(xm > 0, tol1, -tol1)
+                fb = f(b)
+            Next
+            Return b
+        End Function
+
+        ''' <summary>
+        ''' Volume-Temperature Flash: the pressure at which the mixture occupies the specified molar
+        ''' volume at T. Volume falls with pressure, so the residual is monotonic; the bracket starts
+        ''' around the estimate and widens until the root is inside it, then Brent finishes.
         ''' </summary>
         ''' <param name="Vz">Mole fractions</param>
         ''' <param name="Vspec">Molar Volume (m3/mol)</param>
         ''' <param name="T">Temperature (K)</param>
         ''' <param name="Pref">Pressure estimate (Pa)</param>
-        ''' <param name="PP"></param>
-        ''' <param name="ReuseKI"></param>
-        ''' <param name="PrevKi"></param>
-        ''' <returns></returns>
         Public Function Flash_VT(ByVal Vz As Double(), ByVal Vspec As Double, ByVal T As Double, ByVal Pref As Double, ByVal PP As PropertyPackages.PropertyPackage, Optional ByVal ReuseKI As Boolean = False, Optional ByVal PrevKi As Double() = Nothing) As FlashCalculationResult
 
-            'PV = nZRT
+            If Pref <= 0.0 Or Double.IsNaN(Pref) Then Pref = 101325.0
+            Dim flashresult As FlashCalculationResult = Nothing
+            Dim f = Function(P As Double) As Double
+                        flashresult = CalculateEquilibrium(FlashSpec.P, FlashSpec.T, P, T, PP, Vz, PrevKi, 0.0)
+                        Return (Vspec - MixtureMolarVolume(flashresult, T, P, PP)) / Vspec
+                    End Function
 
-            Dim simplex As New DotNumerics.Optimization.Simplex
+            'f rises with P: negative when the mixture is too big for Vspec (P too low), positive when too small
+            Dim a = Pref / 1.5, b = Pref * 1.5
+            Dim fa = f(a), fb = f(b)
+            Dim n = 0
+            While fa > 0.0 And a > 1.0 And n < 40
+                b = a : fb = fa
+                a /= 2.0 : fa = f(a) : n += 1
+            End While
+            n = 0
+            While fb < 0.0 And b < 1.0E+10 And n < 40
+                a = b : fa = fb
+                b *= 2.0 : fb = f(b) : n += 1
+            End While
 
-            simplex.MaxFunEvaluations = 1000
-            simplex.Tolerance = 0.0001
-
-            Dim var As New DotNumerics.Optimization.OptSimplexBoundVariable(Pref, Pref * 0.7, Pref * 1.4)
-
-            Dim flashresult As New FlashCalculationResult
-            Dim errval As Double
-
-            Dim Pfunc = Function(Pvec)
-                            Dim P = Pvec(0)
-                            flashresult = CalculateEquilibrium(FlashSpec.P, FlashSpec.T, P, T, PP, Vz, PrevKi, 0.0)
-                            Dim RHOL1, RHOL2, RHOV, VL2, VL1, VV As Double
-                            RHOL1 = PP.AUX_LIQDENS(T, flashresult.GetLiquidPhase1MoleFraction, P) / PP.AUX_MMM(flashresult.GetLiquidPhase1MoleFraction) * 1000 'mol/m3
-                            RHOL2 = PP.AUX_LIQDENS(T, flashresult.GetLiquidPhase2MoleFraction, P) / PP.AUX_MMM(flashresult.GetLiquidPhase2MoleFraction) * 1000 'mol/m3
-                            RHOV = PP.AUX_Z(flashresult.GetVaporPhaseMoleFractions, T, P, Interfaces.Enums.PhaseName.Vapor) * 8.314 * T / P 'mol/m3
-                            RHOV = 1 / RHOV 'kmol/m3
-                            VL1 = flashresult.GetLiquidPhase1MoleFraction / RHOL1
-                            VL2 = flashresult.GetLiquidPhase2MoleFraction / RHOL2
-                            VV = flashresult.GetVaporPhaseMoleFraction / RHOV
-                            If Double.IsInfinity(VL1) Or Double.IsNaN(VL1) Then VL1 = 0.0
-                            If Double.IsInfinity(VL2) Or Double.IsNaN(VL2) Then VL2 = 0.0
-                            If Double.IsInfinity(VV) Or Double.IsNaN(VV) Then VV = 0.0
-                            errval = ((Vspec - VV - VL1 - VL2) / Vspec)
-                            Return errval
-                        End Function
-
-            simplex.ComputeMin(Function(Pvec)
-                                   Return Pfunc.Invoke(Pvec) ^ 2
-                               End Function, {var})
-
+            Dim P0 = BrentRoot(f, a, b, fa, fb, 1.0E-6 * Pref, 1.0E-7, 100)
+            If flashresult Is Nothing OrElse Math.Abs(Convert.ToDouble(flashresult.CalculatedPressure) - P0) > 1.0E-9 * Pref Then f(P0)
             Return flashresult
 
         End Function
 
+        ''' <summary>
+        ''' Volume-Pressure Flash: the temperature at which the mixture occupies the specified molar
+        ''' volume at P. Volume rises with temperature, so the residual is monotonic.
+        ''' </summary>
         Public Function Flash_VP(ByVal Vz As Double(), ByVal Vspec As Double, ByVal P As Double, ByVal Tref As Double, ByVal PP As PropertyPackages.PropertyPackage, Optional ByVal ReuseKI As Boolean = False, Optional ByVal PrevKi As Double() = Nothing) As FlashCalculationResult
 
-            'PV = nZRT
+            If Tref <= 0.0 Or Double.IsNaN(Tref) Then Tref = 298.15
+            Dim flashresult As FlashCalculationResult = Nothing
+            Dim f = Function(T As Double) As Double
+                        flashresult = CalculateEquilibrium(FlashSpec.P, FlashSpec.T, P, T, PP, Vz, PrevKi, 0.0)
+                        Return (Vspec - MixtureMolarVolume(flashresult, T, P, PP)) / Vspec
+                    End Function
 
-            Dim simplex As New DotNumerics.Optimization.Simplex
+            'f falls with T: positive when the mixture is too small for Vspec (T too low)
+            Dim a = Tref / 1.25, b = Tref * 1.25
+            Dim fa = f(a), fb = f(b)
+            Dim n = 0
+            While fa < 0.0 And a > 20.0 And n < 30
+                b = a : fb = fa
+                a /= 1.25 : fa = f(a) : n += 1
+            End While
+            n = 0
+            While fb > 0.0 And b < 5000.0 And n < 30
+                a = b : fa = fb
+                b *= 1.25 : fb = f(b) : n += 1
+            End While
 
-            simplex.MaxFunEvaluations = 1000
-            simplex.Tolerance = 0.0001
-
-            Dim var As New DotNumerics.Optimization.OptSimplexBoundVariable(Tref, Tref * 0.9, Tref * 1.1)
-
-            Dim flashresult As New FlashCalculationResult
-
-            simplex.ComputeMin(Function(Tvec)
-                                   Dim T = Tvec(0)
-                                   flashresult = CalculateEquilibrium(FlashSpec.P, FlashSpec.T, P, T, PP, Vz, PrevKi, 0.0)
-                                   Dim RHOL1, RHOL2, RHOV, VL2, VL1, VV As Double
-                                   RHOL1 = PP.AUX_LIQDENS(T, flashresult.GetLiquidPhase1MoleFraction, P) / PP.AUX_MMM(flashresult.GetLiquidPhase1MoleFraction) * 1000 'mol/m3
-                                   RHOL2 = PP.AUX_LIQDENS(T, flashresult.GetLiquidPhase2MoleFraction, P) / PP.AUX_MMM(flashresult.GetLiquidPhase2MoleFraction) * 1000 'mol/m3
-                                   RHOV = PP.AUX_Z(flashresult.GetVaporPhaseMoleFractions, T, P, Interfaces.Enums.PhaseName.Vapor) * 8.314 * T / P 'mol/m3
-                                   RHOV = 1 / RHOV 'kmol/m3
-                                   VL1 = flashresult.GetLiquidPhase1MoleFraction / RHOL1
-                                   VL2 = flashresult.GetLiquidPhase2MoleFraction / RHOL2
-                                   VV = flashresult.GetVaporPhaseMoleFraction / RHOV
-                                   If Double.IsInfinity(VL1) Or Double.IsNaN(VL1) Then VL1 = 0.0
-                                   If Double.IsInfinity(VL2) Or Double.IsNaN(VL2) Then VL2 = 0.0
-                                   If Double.IsInfinity(VV) Or Double.IsNaN(VV) Then VV = 0.0
-                                   Return ((Vspec - VV - VL1 - VL2) / Vspec) ^ 2
-                               End Function, {var})
-
+            Dim T0 = BrentRoot(f, a, b, fa, fb, 1.0E-6 * Tref, 1.0E-7, 100)
+            If flashresult Is Nothing OrElse Math.Abs(Convert.ToDouble(flashresult.CalculatedTemperature) - T0) > 1.0E-9 * Tref Then f(T0)
             Return flashresult
 
         End Function
 
+        ''' <summary>
+        ''' Solves a volume flash with one more specification (enthalpy, entropy or internal energy, all
+        ''' per kg of mixture): an outer temperature search where every trial temperature is closed with
+        ''' a VT flash for the pressure, so the mixture always has the specified volume. At constant
+        ''' volume the property rises with temperature, so the outer residual is monotonic.
+        ''' </summary>
+        Private Function Flash_VX(Vz As Double(), Vspec As Double, target As Double, Pref As Double, Tref As Double, PP As PropertyPackages.PropertyPackage, PrevKi As Double(), prop As Func(Of FlashCalculationResult, Double, Double, Double)) As FlashCalculationResult
+
+            If Tref <= 0.0 Or Double.IsNaN(Tref) Then Tref = 298.15
+            If Pref <= 0.0 Or Double.IsNaN(Pref) Then Pref = 101325.0
+            Dim scale = Math.Max(Math.Abs(target), 1.0)
+            Dim flashresult As FlashCalculationResult = Nothing
+            Dim lastP = Pref
+            Dim f = Function(T As Double) As Double
+                        flashresult = Flash_VT(Vz, Vspec, T, lastP, PP, False, PrevKi)
+                        lastP = Convert.ToDouble(flashresult.CalculatedPressure)
+                        Return (target - prop(flashresult, T, lastP)) / scale
+                    End Function
+
+            'f falls with T: positive when the mixture is too cold
+            Dim a = Tref / 1.15, b = Tref * 1.15
+            Dim fa = f(a), fb = f(b)
+            Dim n = 0
+            While fa < 0.0 And a > 20.0 And n < 30
+                b = a : fb = fa
+                a /= 1.15 : fa = f(a) : n += 1
+            End While
+            n = 0
+            While fb > 0.0 And b < 5000.0 And n < 30
+                a = b : fa = fb
+                b *= 1.15 : fb = f(b) : n += 1
+            End While
+
+            Dim T0 = BrentRoot(f, a, b, fa, fb, 1.0E-6 * Tref, 1.0E-6, 100)
+            If flashresult Is Nothing OrElse Math.Abs(Convert.ToDouble(flashresult.CalculatedTemperature) - T0) > 1.0E-9 * Tref Then f(T0)
+            Return flashresult
+
+        End Function
+
+        ''' <summary>Volume-Enthalpy Flash (H in kJ/kg of mixture, the same basis as the PT flash result).</summary>
         Public Function Flash_VH(ByVal Vz As Double(), ByVal Vspec As Double, ByVal H As Double, ByVal Pref As Double, ByVal Tref As Double, ByVal PP As PropertyPackages.PropertyPackage, Optional ByVal ReuseKI As Boolean = False, Optional ByVal PrevKi As Double() = Nothing) As FlashCalculationResult
-
-            'PV = nZRT
-
-            Dim simplex As New DotNumerics.Optimization.Simplex
-
-            simplex.MaxFunEvaluations = 1000
-            simplex.Tolerance = 0.0001
-
-            Dim var1 As New DotNumerics.Optimization.OptSimplexBoundVariable(Tref, Tref * 0.9, Tref * 1.1)
-            Dim var2 As New DotNumerics.Optimization.OptSimplexBoundVariable(Pref, Pref * 0.7, Pref * 1.4)
-
-            Dim flashresult As New FlashCalculationResult
-
-            simplex.ComputeMin(Function(vec)
-                                   Dim T = vec(0)
-                                   Dim P = vec(1)
-                                   flashresult = CalculateEquilibrium(FlashSpec.P, FlashSpec.T, P, T, PP, Vz, PrevKi, 0.0)
-                                   Dim RHOL1, RHOL2, RHOV, VL2, VL1, VV As Double
-                                   RHOL1 = PP.AUX_LIQDENS(T, flashresult.GetLiquidPhase1MoleFraction, P) / PP.AUX_MMM(flashresult.GetLiquidPhase1MoleFraction) * 1000 'mol/m3
-                                   RHOL2 = PP.AUX_LIQDENS(T, flashresult.GetLiquidPhase2MoleFraction, P) / PP.AUX_MMM(flashresult.GetLiquidPhase2MoleFraction) * 1000 'mol/m3
-                                   RHOV = PP.AUX_Z(flashresult.GetVaporPhaseMoleFractions, T, P, Interfaces.Enums.PhaseName.Vapor) * 8.314 * T / P 'mol/m3
-                                   RHOV = 1 / RHOV 'kmol/m3
-                                   VL1 = flashresult.GetLiquidPhase1MoleFraction / RHOL1
-                                   VL2 = flashresult.GetLiquidPhase2MoleFraction / RHOL2
-                                   VV = flashresult.GetVaporPhaseMoleFraction / RHOV
-                                   If Double.IsInfinity(VL1) Or Double.IsNaN(VL1) Then VL1 = 0.0
-                                   If Double.IsInfinity(VL2) Or Double.IsNaN(VL2) Then VL2 = 0.0
-                                   If Double.IsInfinity(VV) Or Double.IsNaN(VV) Then VV = 0.0
-                                   Dim HL1, HL2, HV As Double
-                                   HL1 = flashresult.GetLiquidPhase1MassFraction * PP.DW_CalcEnthalpy(flashresult.GetLiquidPhase1MoleFractions, T, P, State.Liquid)
-                                   HL2 = flashresult.GetLiquidPhase2MassFraction * PP.DW_CalcEnthalpy(flashresult.GetLiquidPhase2MoleFractions, T, P, State.Liquid)
-                                   HV = flashresult.GetVaporPhaseMassFraction * PP.DW_CalcEnthalpy(flashresult.GetVaporPhaseMoleFractions, T, P, State.Vapor)
-                                   Return ((Vspec - VV - VL1 - VL2) / Vspec) ^ 2 + ((H - HV - HL1 - HL2) / H) ^ 2
-                               End Function, {var1, var2})
-
-            Return flashresult
-
+            Return Flash_VX(Vz, Vspec, H, Pref, Tref, PP, PrevKi, Function(r, T, P) Convert.ToDouble(r.CalculatedEnthalpy))
         End Function
 
+        ''' <summary>Volume-Entropy Flash (S in kJ/(kg.K) of mixture).</summary>
         Public Function Flash_VS(ByVal Vz As Double(), ByVal Vspec As Double, ByVal S As Double, ByVal Pref As Double, ByVal Tref As Double, ByVal PP As PropertyPackages.PropertyPackage, Optional ByVal ReuseKI As Boolean = False, Optional ByVal PrevKi As Double() = Nothing) As FlashCalculationResult
-
-            'PV = nZRT
-
-            Dim simplex As New DotNumerics.Optimization.Simplex
-
-            simplex.MaxFunEvaluations = 1000
-            simplex.Tolerance = 0.0001
-
-            Dim var1 As New DotNumerics.Optimization.OptSimplexBoundVariable(Tref, Tref * 0.9, Tref * 1.1)
-            Dim var2 As New DotNumerics.Optimization.OptSimplexBoundVariable(Pref, Pref * 0.7, Pref * 1.4)
-
-            Dim flashresult As New FlashCalculationResult
-
-            simplex.ComputeMin(Function(vec)
-                                   Dim T = vec(0)
-                                   Dim P = vec(1)
-                                   flashresult = CalculateEquilibrium(FlashSpec.P, FlashSpec.T, P, T, PP, Vz, PrevKi, 0.0)
-                                   Dim RHOL1, RHOL2, RHOV, VL2, VL1, VV As Double
-                                   RHOL1 = PP.AUX_LIQDENS(T, flashresult.GetLiquidPhase1MoleFraction, P) / PP.AUX_MMM(flashresult.GetLiquidPhase1MoleFraction) * 1000 'mol/m3
-                                   RHOL2 = PP.AUX_LIQDENS(T, flashresult.GetLiquidPhase2MoleFraction, P) / PP.AUX_MMM(flashresult.GetLiquidPhase2MoleFraction) * 1000 'mol/m3
-                                   RHOV = PP.AUX_Z(flashresult.GetVaporPhaseMoleFractions, T, P, Interfaces.Enums.PhaseName.Vapor) * 8.314 * T / P 'mol/m3
-                                   RHOV = 1 / RHOV 'kmol/m3
-                                   VL1 = flashresult.GetLiquidPhase1MoleFraction / RHOL1
-                                   VL2 = flashresult.GetLiquidPhase2MoleFraction / RHOL2
-                                   VV = flashresult.GetVaporPhaseMoleFraction / RHOV
-                                   If Double.IsInfinity(VL1) Or Double.IsNaN(VL1) Then VL1 = 0.0
-                                   If Double.IsInfinity(VL2) Or Double.IsNaN(VL2) Then VL2 = 0.0
-                                   If Double.IsInfinity(VV) Or Double.IsNaN(VV) Then VV = 0.0
-                                   Dim SL1, SL2, SV As Double
-                                   SL1 = flashresult.GetLiquidPhase1MassFraction * PP.DW_CalcEnthalpy(flashresult.GetLiquidPhase1MoleFractions, T, P, State.Liquid)
-                                   SL2 = flashresult.GetLiquidPhase2MassFraction * PP.DW_CalcEnthalpy(flashresult.GetLiquidPhase2MoleFractions, T, P, State.Liquid)
-                                   SV = flashresult.GetVaporPhaseMassFraction * PP.DW_CalcEnthalpy(flashresult.GetVaporPhaseMoleFractions, T, P, State.Vapor)
-                                   Return ((Vspec - VV - VL1 - VL2) / Vspec) ^ 2 + ((S - SV - SL1 - SL2) / S) ^ 2
-                               End Function, {var1, var2})
-
-            Return flashresult
-
+            Return Flash_VX(Vz, Vspec, S, Pref, Tref, PP, PrevKi, Function(r, T, P) Convert.ToDouble(r.CalculatedEntropy))
         End Function
 
+        ''' <summary>Volume-Internal Energy Flash (U in kJ/kg of mixture, U = H - P v).</summary>
         Public Function Flash_VU(ByVal Vz As Double(), ByVal Vspec As Double, ByVal U As Double, ByVal Pref As Double, ByVal Tref As Double, ByVal PP As PropertyPackages.PropertyPackage, Optional ByVal ReuseKI As Boolean = False, Optional ByVal PrevKi As Double() = Nothing) As FlashCalculationResult
-
-            'PV = nZRT
-
-            Dim simplex As New DotNumerics.Optimization.Simplex
-
-            simplex.MaxFunEvaluations = 1000
-            simplex.Tolerance = 0.0001
-
-            Dim var1 As New DotNumerics.Optimization.OptSimplexBoundVariable(Tref, Tref * 0.9, Tref * 1.1)
-            Dim var2 As New DotNumerics.Optimization.OptSimplexBoundVariable(Pref, Pref * 0.7, Pref * 1.4)
-
-            Dim flashresult As New FlashCalculationResult
-
-            simplex.ComputeMin(Function(vec)
-                                   Dim T = vec(0)
-                                   Dim P = vec(1)
-                                   flashresult = CalculateEquilibrium(FlashSpec.P, FlashSpec.T, P, T, PP, Vz, PrevKi, 0.0)
-                                   Dim RHOL1, RHOL2, RHOV, VL2, VL1, VV As Double
-                                   RHOL1 = PP.AUX_LIQDENS(T, flashresult.GetLiquidPhase1MoleFraction, P) / PP.AUX_MMM(flashresult.GetLiquidPhase1MoleFraction) * 1000 'mol/m3
-                                   RHOL2 = PP.AUX_LIQDENS(T, flashresult.GetLiquidPhase2MoleFraction, P) / PP.AUX_MMM(flashresult.GetLiquidPhase2MoleFraction) * 1000 'mol/m3
-                                   RHOV = PP.AUX_Z(flashresult.GetVaporPhaseMoleFractions, T, P, Interfaces.Enums.PhaseName.Vapor) * 8.314 * T / P 'mol/m3
-                                   RHOV = 1 / RHOV 'kmol/m3
-                                   VL1 = flashresult.GetLiquidPhase1MoleFraction / RHOL1
-                                   VL2 = flashresult.GetLiquidPhase2MoleFraction / RHOL2
-                                   VV = flashresult.GetVaporPhaseMoleFraction / RHOV
-                                   If Double.IsInfinity(VL1) Or Double.IsNaN(VL1) Then VL1 = 0.0
-                                   If Double.IsInfinity(VL2) Or Double.IsNaN(VL2) Then VL2 = 0.0
-                                   If Double.IsInfinity(VV) Or Double.IsNaN(VV) Then VV = 0.0
-                                   Dim HL1, HL2, HV, UL1, UL2, UV As Double
-                                   HL1 = flashresult.GetLiquidPhase1MassFraction * PP.DW_CalcEnthalpy(flashresult.GetLiquidPhase1MoleFractions, T, P, State.Liquid)
-                                   HL2 = flashresult.GetLiquidPhase2MassFraction * PP.DW_CalcEnthalpy(flashresult.GetLiquidPhase2MoleFractions, T, P, State.Liquid)
-                                   HV = flashresult.GetVaporPhaseMassFraction * PP.DW_CalcEnthalpy(flashresult.GetVaporPhaseMoleFractions, T, P, State.Vapor)
-                                   UL1 = HL1 - P * VL1 / PP.AUX_MMM(flashresult.GetLiquidPhase1MoleFraction)
-                                   UL2 = HL2 - P * VL2 / PP.AUX_MMM(flashresult.GetLiquidPhase2MoleFraction)
-                                   UV = HV - P * VV / PP.AUX_MMM(flashresult.GetVaporPhaseMoleFractions)
-                                   Return ((Vspec - VV - VL1 - VL2) / Vspec) ^ 2 + ((U - UV - UL1 - UL2) / U) ^ 2
-                               End Function, {var1, var2})
-
-            Return flashresult
-
+            Dim mw = PP.AUX_MMM(Vz) 'kg/kmol
+            Return Flash_VX(Vz, Vspec, U, Pref, Tref, PP, PrevKi, Function(r, T, P) Convert.ToDouble(r.CalculatedEnthalpy) - P * Vspec / mw)
         End Function
 
 

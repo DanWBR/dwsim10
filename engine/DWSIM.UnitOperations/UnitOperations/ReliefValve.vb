@@ -503,7 +503,7 @@ Namespace UnitOperations
                     Kvc = CharacteristicParameter ^ (OpeningPct / 100.0 - 1.0)
                 Case OpeningKvRelationshipType.DataTable
                     Try
-                        Dim factor = MathNet.Numerics.Interpolate.RationalWithoutPoles(OpeningKvRelDataTableX, OpeningKvRelDataTableX).Interpolate(OpeningPct) / 100.0
+                        Dim factor = MathNet.Numerics.Interpolate.RationalWithoutPoles(OpeningKvRelDataTableX, OpeningKvRelDataTableY).Interpolate(OpeningPct) / 100.0
                         Kvc = factor
                     Catch ex As Exception
                         Throw New Exception("Error calculating Kv from tabulated data: " + ex.Message)

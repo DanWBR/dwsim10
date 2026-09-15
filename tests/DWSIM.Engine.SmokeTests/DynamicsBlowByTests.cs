@@ -243,6 +243,51 @@ namespace DWSIM.Engine.SmokeTests
             Assert.That(c.Vessel.LiquidOutletGasFraction(level, level - 1e-6, 0.0), Is.EqualTo(0.0));
         }
 
+        // The dynamic valve now uses the ISA gas form: once x = (P1 - P2)/P1 passes Fk.xT the flow is
+        // choked and no longer depends on the downstream pressure. The old form switched at P2 = P1/2.
+        [Test]
+        public void AChokedGasValvePassesTheSameFlowWhateverTheDownstreamPressure()
+        {
+            double FlowAt(double sinkPa)
+            {
+                var c = Build(1.0);
+                c.Vessel.SetDynamicProperty("Liquid Outlet Nozzle Elevation", 1.9);   // gas on the liquid outlet from the first step
+                c.Sink.SetPressure(sinkPa);
+                Run(c);
+                Run(c);
+                Assert.That(c.LiquidOut.Phases[2].Properties.molarfraction.GetValueOrDefault(), Is.GreaterThan(0.99), "the valve sees gas");
+                Assert.That(c.LiquidOut.GetPressure(), Is.GreaterThan(15e5), "the vessel is still near 20 bar");
+                return c.LiquidOut.GetMassFlow();
+            }
+            var choked1 = FlowAt(5e5);     // x = 0.75
+            var choked2 = FlowAt(1.5e5);   // x = 0.92
+            var subcritical = FlowAt(15e5); // x = 0.25
+            Assert.That(choked1, Is.GreaterThan(0.01));
+            Assert.That(choked2, Is.EqualTo(choked1).Within(0.01 * choked1), "kg/s: both downstream pressures are past the choke");
+            Assert.That(subcritical, Is.LessThan(0.9 * choked1), "a small pressure ratio passes less");
+        }
+
+        // Minimum Pressure is a floor for the vessel pressure. It used to empty the vessel: any step in
+        // which the pressure came out below it zeroed the level, liquid or no liquid.
+        [Test]
+        public void ThePressureFloorKeepsTheLiquidLevel()
+        {
+            const double segment = 5.0;
+            var c = Build(segment);
+            c.Vessel.SetDynamicProperty("Minimum Pressure", 12e5);
+            double floorHit = -1;
+            for (int i = 1; i <= 24; i++)
+            {
+                Run(c);
+                var p = Dyn(c.Vessel, "Operating Pressure");
+                if (p <= 12e5 + 1.0) { floorHit = i * segment; break; }
+            }
+            Assert.That(floorHit, Is.GreaterThan(0), "the blowdown reaches the 12 bar floor within two minutes");
+            Assert.That(Dyn(c.Vessel, "Operating Pressure"), Is.EqualTo(12e5).Within(1.0));
+            Assert.That(Dyn(c.Vessel, "Liquid Level"), Is.GreaterThan(0.003), "m: the liquid the feed keeps supplying is still there");
+            Assert.That(c.Vessel.AccumulationStream.GetMassFlow(), Is.GreaterThan(1.0), "kg of content");
+        }
+
         // The Kv-mode valve's two-phase branch in dynamic mode returned kg/h where the liquid and
         // gas branches return kg/s: a blend through the valve drained a vessel 3600 times too fast.
         [Test]

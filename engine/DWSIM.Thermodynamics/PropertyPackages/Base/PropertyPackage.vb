@@ -2764,7 +2764,7 @@ Namespace PropertyPackages
                     result = Me.FlashBase.CalculateEquilibrium(FlashSpec.V, FlashSpec.P, val1, val2, Me, mixmolefrac, initialKval, initialestimate)
                 Case Interfaces.Enums.FlashCalculationType.VolumeEnthalpy
                     result = Me.FlashBase.CalculateEquilibrium(FlashSpec.V, FlashSpec.H, val1, val2, Me, mixmolefrac, initialKval, initialestimate)
-                Case Interfaces.Enums.FlashCalculationType.PressureEntropy
+                Case Interfaces.Enums.FlashCalculationType.VolumeEntropy
                     result = Me.FlashBase.CalculateEquilibrium(FlashSpec.V, FlashSpec.S, val1, val2, Me, mixmolefrac, initialKval, initialestimate)
                 Case Else
                     Throw New NotImplementedException

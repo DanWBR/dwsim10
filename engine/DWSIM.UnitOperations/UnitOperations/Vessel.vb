@@ -620,7 +620,7 @@ Namespace UnitOperations
 
             Dim LiquidVolume, RelativeLevel As Double
 
-            If AccumulationStream.GetPressure >= Pmin AndAlso M > 0.0 Then
+            If M > 0.0 Then
 
                 If prevM = 0.0 Or integrator.ShouldCalculateEquilibrium Then
 
@@ -635,6 +635,7 @@ Namespace UnitOperations
 
                     AccumulationStream.SpecType = StreamSpec.Pressure_and_Enthalpy
 
+                    'the liquid volume comes from the flash at the vessel's own pressure, whatever the floor below does
                     LiquidVolume = AccumulationStream.Phases(1).Properties.volumetric_flow.GetValueOrDefault
 
                     RelativeLevel = LiquidVolume / Vol
@@ -649,8 +650,17 @@ Namespace UnitOperations
 
                 End If
 
+                'Minimum Pressure is a floor for the vessel pressure (a vent to atmosphere, a vacuum
+                'breaker); it no longer empties the vessel, so a depressurization that reaches the floor
+                'keeps its liquid and its level
+                If Pressure < Pmin Then
+                    Pressure = Pmin
+                    AccumulationStream.SpecType = StreamSpec.Temperature_and_Pressure
+                End If
+
             Else
 
+                'nothing left inside: the vessel sits at the floor pressure, empty
                 Pressure = Pmin
 
                 LiquidVolume = 0.0

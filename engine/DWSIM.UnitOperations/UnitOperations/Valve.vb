@@ -629,16 +629,24 @@ Namespace UnitOperations
                         P2 = oms.GetPressure
 
                         If CalcMode = CalculationMode.Kv_General Or CalcMode = CalculationMode.Kv_Gas Or CalcMode = CalculationMode.Kv_Liquid Then
+                            'the same ISA/IEC 60534 forms as the steady-state sizing, so a wide-open valve,
+                            'a blowdown valve or a restriction orifice (Kv from KvFromOrifice) chokes where it
+                            'should: gas at x = Fk.xT, liquid at dP = FL^2 (P1 - FF.Pv). All forms return kg/h.
                             If ims.Phases(1).Properties.molarfraction > 0.99 Or CalcMode = CalculationMode.Kv_Liquid Then
-                                Wi = Kvc * (1000.0 * rho * (P1 - P2) / 100000.0) ^ 0.5 / 3600
+                                ims.PropertyPackage.CurrentMaterialStream = ims
+                                rhol = ims.Phases(0).Properties.density.GetValueOrDefault
+                                Pc = ims.PropertyPackage.AUX_PCM(PropertyPackages.Phase.Liquid)
+                                Pv = ims.PropertyPackage.AUX_PVAPM(PropertyPackages.Phase.Liquid, Ti)
+                                If Double.IsNaN(Pv) Or Pv <= 0.0 Then Pv = 0.0
+                                If Double.IsNaN(Pc) Or Pc <= 0.0 Then Pc = P1
+                                Wi = WLiquid(Kvc, P1 / 100000.0, P2 / 100000.0, rhol, Pv / 100000.0, Pc / 100000.0) / 3600
                             ElseIf ims.Phases(2).Properties.molarfraction > 0.99 Or CalcMode = CalculationMode.Kv_Gas Then
                                 ims.PropertyPackage.CurrentMaterialStream = ims
-                                rhog20 = ims.PropertyPackage.AUX_VAPDENS(273.15, 101325)
-                                If P2 > P1 / 2 Then
-                                    Wi = 519 * Kvc / (Ti / (rhog20 * (P1 - P2) / 100000.0 * P1 / 100000.0)) ^ 0.5 / 3600
-                                Else
-                                    Wi = 259.5 * Kvc * P1 / 100000.0 / (Ti / rhog20) ^ 0.5 / 3600
-                                End If
+                                rhog = ims.Phases(0).Properties.density.GetValueOrDefault
+                                Cp_ig = ims.PropertyPackage.AUX_CPm(PropertyPackages.Phase.Vapor, Ti) * ims.Phases(0).Properties.molecularWeight.GetValueOrDefault
+                                k = Cp_ig / (Cp_ig - 8.314)
+                                If Double.IsNaN(k) Or k <= 1.0 Then k = 1.3
+                                Wi = WGas(Kvc, P1 / 100000.0, P2 / 100000.0, k, rhog) / 3600
                             Else
                                 ims.PropertyPackage.CurrentMaterialStream = ims
                                 rhog = ims.Phases(2).Properties.density.GetValueOrDefault
@@ -951,6 +959,19 @@ Namespace UnitOperations
         ''' <param name="massfrac_gas">Mass fraction of the vapour phase.</param>
         ''' <param name="massfrac_liq">Mass fraction of the liquid phase.</param>
         ''' <returns>The total mass flow rate in kg/h.</returns>
+        ''' <summary>
+        ''' Flow coefficient of a sharp-edged restriction orifice or a blowdown valve given by bore and
+        ''' discharge coefficient: Kv is the water flow in m3/h at 1 bar drop, so Kv = 3600 Cd A sqrt(2 dP / rho)
+        ''' with dP = 1e5 Pa and rho = 1000 kg/m3. Set FlowCoefficient to Kv and use it in a Kv mode; the
+        ''' ISA forms then give the choked gas or flashing liquid flow between two pressure-spec'd streams.
+        ''' </summary>
+        ''' <param name="diameter">Bore, m.</param>
+        ''' <param name="dischargeCoefficient">Cd, typically 0.6 to 0.65 for a thin sharp-edged orifice, 0.8 to 0.9 for a nozzle.</param>
+        Public Shared Function KvFromOrifice(diameter As Double, dischargeCoefficient As Double) As Double
+            Dim area = Math.PI * diameter ^ 2 / 4.0
+            Return 3600.0 * dischargeCoefficient * area * Math.Sqrt(2.0 * 100000.0 / 1000.0)
+        End Function
+
         Public Function WTwoPhase(Kv As Double, P1 As Double, P2 As Double, rhog As Double, rhol As Double, k As Double, Pv As Double, Pc As Double, massfrac_gas As Double, massfrac_liq As Double) As Double
             WTwoPhase = 1 / (massfrac_liq / WLiquid(Kv, P1, P2, rhol, Pv, Pc) ^ 2 + massfrac_gas / WGas(Kv, P1, P2, k, rhog) ^ 2) ^ 0.5
         End Function
