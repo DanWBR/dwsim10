@@ -180,6 +180,10 @@ Namespace UnitOperations
         ''' <summary>Discharge coefficient of the orifice, 0.6 to 0.65 for a thin sharp-edged plate (dynamic orifice model).</summary>
         Public Property OrificeDischargeCoefficient As Double = 0.62
 
+        ''' <summary>Pressure at the orifice throat from the last dynamic step, Pa (equal to the downstream pressure when the flow is not choked).</summary>
+        <Xml.Serialization.XmlIgnore> Public Property OrificeThroatPressure As Double = 0.0
+        Private _throatRatio As Double = 0.0
+
 
         ''' <summary>
         ''' Gets or sets the valve style modifier (Fs). Default is 1.0.
@@ -1001,6 +1005,27 @@ Namespace UnitOperations
             Dim rho = ims.Phases(0).Properties.density.GetValueOrDefault
             If rho <= 0.0 OrElse Double.IsNaN(rho) Then Return 0.0
             Dim vapourFraction = ims.Phases(2).Properties.molarfraction.GetValueOrDefault
+
+            'Homogeneous-equilibrium nozzle on the package's own isentrope: exact for a real gas, and
+            'the only form that gets a dense supercritical fluid or a flashing liquid right, where the
+            'choke sits far above the ideal-gas critical ratio. The closed forms below stay as the
+            'fallback when the flash cannot follow the isentrope.
+            Try
+                Dim h0 = ims.Phases(0).Properties.enthalpy.GetValueOrDefault
+                Dim s0 = ims.Phases(0).Properties.entropy.GetValueOrDefault
+                If Not Double.IsNaN(h0 + s0) Then
+                    ims.PropertyPackage.CurrentMaterialStream = ims
+                    Dim throat As Double
+                    Dim guess = If(_throatRatio > 0.0, _throatRatio * P1, 0.0)
+                    Dim G = ims.PropertyPackage.FlashBase.HEMMassFlux(ims.PropertyPackage.RET_VMOL(PropertyPackages.Phase.Mixture), h0, s0, P1, P2, T1, ims.PropertyPackage, throat, guess)
+                    If G > 0.0 AndAlso Not Double.IsNaN(G) AndAlso Not Double.IsInfinity(G) Then
+                        OrificeThroatPressure = throat
+                        _throatRatio = throat / P1
+                        Return cd * area * G
+                    End If
+                End If
+            Catch ex As Exception
+            End Try
 
             If vapourFraction > 0.99 Then
                 ims.PropertyPackage.CurrentMaterialStream = ims

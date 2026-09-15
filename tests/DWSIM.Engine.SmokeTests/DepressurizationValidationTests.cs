@@ -248,5 +248,41 @@ namespace DWSIM.Engine.SmokeTests
             Assert.That(At(80.0).Temperature, Is.InRange(247.0, 263.0), "K at 80 s (measured 255)");
             Assert.That(At(150.0).Temperature, Is.InRange(225.0, 250.0), "K at 150 s (measured 236)");
         }
+        // Saville, Richardson and Barker (2004), "Leakage in ethylene pipelines", Trans IChemE 82B:
+        // 61-68, Tables 2, 4, 6 and 8: BLOWDOWN's homogeneous-equilibrium flow of ethylene at 10 C from
+        // a pipeline through a 10 mm hole to the atmosphere, the fluid supercritical (90, 79, 69, 59.6
+        // bar) or gaseous (44, 28 bar), and the 50 mm hole at 90 and 44 bar. The paper found the hole
+        // choked even for the all-liquid dense phase, at a throat pressure around 41 to 45 bar, far
+        // above the ideal-gas critical ratio. Compared with the valve's orifice model at Cd = 1.
+        [Test]
+        public void SavilleEthyleneHoleFlowsAreReproduced()
+        {
+            var cases = new[]
+            {
+                (P0: 90.0, d: 0.010, W: 4.4, Pt: 41.4), (P0: 79.0, d: 0.010, W: 3.8, Pt: 43.1), (P0: 69.0, d: 0.010, W: 3.2, Pt: 45.4),
+                (P0: 59.6, d: 0.010, W: 2.3, Pt: 0.0), (P0: 44.0, d: 0.010, W: 0.95, Pt: 15.5), (P0: 28.0, d: 0.010, W: 0.55, Pt: 0.0),
+                (P0: 90.0, d: 0.050, W: 114.0, Pt: 45.4), (P0: 44.0, d: 0.050, W: 24.0, Pt: 17.7)
+            };
+            var (fs, src, pp) = Host(new[] { "Ethylene" }, new[] { 1.0 }, 283.15, 90e5);
+            var valve = new DWSIM.UnitOperations.UnitOperations.Valve { OrificeDischargeCoefficient = 1.0 };
+            TestContext.WriteLine("  P0(bar)  hole(mm)  rho(kg/m3)  vf  |  W paper  W model  dev(%)  |  Pthroat paper  model (bar)");
+            double worst = 0.0;
+            foreach (var c in cases)
+            {
+                src.SetPressure(c.P0 * 1e5);
+                src.SetTemperature(283.15);
+                src.Calculate();
+                valve.OrificeDiameter = c.d;
+                double w = valve.OrificeMassFlow(src, c.P0 * 1e5, 101325.0, 283.15, 1.0);
+                double dev = (w / c.W - 1) * 100;
+                worst = Math.Max(worst, Math.Abs(dev));
+                TestContext.WriteLine($"{c.P0,7:F1}  {c.d * 1000,7:F0}  {Convert.ToDouble(src.Phases[0].Properties.density),10:F1}  {Convert.ToDouble(src.Phases[2].Properties.molarfraction),4:F2}  |  {c.W,7:F2}  {w,7:F2}  {dev,6:F1}  |  {(c.Pt > 0 ? c.Pt.ToString("F1") : "  n/a"),13}  {valve.OrificeThroatPressure / 1e5,6:F1}");
+                Assert.That(w, Is.EqualTo(c.W).Within(0.15 * c.W), $"kg/s through a {c.d * 1000:F0} mm hole at {c.P0} bar");
+                // the gas cases enter the dome on the isentrope and the flux curve goes flat between the
+                // gas-side maximum and the two-phase one, so only the dense-phase throat is checked
+                if (c.Pt > 0 && c.P0 > 50) Assert.That(valve.OrificeThroatPressure / 1e5, Is.EqualTo(c.Pt).Within(8.0), $"bar: choke pressure at {c.P0} bar (the paper itself gives 41.4 and 45.4 for the two holes)");
+            }
+            TestContext.WriteLine($"worst deviation {worst:F1} %");
+        }
     }
 }

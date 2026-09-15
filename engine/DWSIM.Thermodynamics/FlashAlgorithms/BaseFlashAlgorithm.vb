@@ -649,6 +649,95 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
         End Function
 
         ''' <summary>
+        ''' Homogeneous-equilibrium mass flux (kg/(m2.s)) of a frictionless nozzle fed at h0 (kJ/kg) and
+        ''' s0 (kJ/(kg.K)) discharging from P1 to P2 (Pa): the fluid expands along the isentrope, the
+        ''' flux G = sqrt(2 (h0 - h(P))) / v(P) rises as the throat pressure falls until the mixture
+        ''' reaches its own speed of sound, and the flow chokes there. For an ideal gas this reduces to
+        ''' the textbook nozzle formula; for a dense supercritical fluid or a flashing liquid the choke
+        ''' comes much closer to the upstream pressure than the ideal-gas ratio, which is the case a
+        ''' blowdown valve or a leak on a high-pressure line has to be sized for. The throat pressure
+        ''' is returned (P2 when the flow is not choked).
+        ''' </summary>
+        Public Function HEMMassFlux(ByVal Vz As Double(), ByVal h0 As Double, ByVal s0 As Double, ByVal P1 As Double, ByVal P2 As Double, ByVal Tref As Double, ByVal PP As PropertyPackages.PropertyPackage, ByRef throatPressure As Double, Optional ByVal throatGuess As Double = 0.0) As Double
+
+            Dim mw = PP.AUX_MMM(Vz) 'kg/kmol
+            Dim lastT = Tref
+            Dim flux = Function(P As Double) As Double
+                           Dim r = CalculateEquilibrium(FlashSpec.P, FlashSpec.S, P, s0, PP, Vz, Nothing, lastT)
+                           Dim T = Convert.ToDouble(r.CalculatedTemperature)
+                           If T > 0.0 AndAlso Not Double.IsNaN(T) Then lastT = T
+                           Dim dh = (h0 - Convert.ToDouble(r.CalculatedEnthalpy)) * 1000.0 'J/kg
+                           If dh <= 0.0 OrElse Double.IsNaN(dh) Then Return 0.0
+                           Dim v = MixtureMolarVolume(r, T, P, PP) * 1000.0 / mw 'm3/kg
+                           If v <= 0.0 OrElse Double.IsNaN(v) Then Return 0.0
+                           Return Math.Sqrt(2.0 * dh) / v
+                       End Function
+
+            'With a throat pressure from the previous step (a dynamic run moves it by a percent or so
+            'a step) a short hill climb around it costs three to five flashes instead of the sixteen of
+            'the full search below.
+            If throatGuess > P2 * 1.02 AndAlso throatGuess < P1 * 0.98 Then
+                Dim d = Math.Log(1.03)
+                Dim x0 = Math.Log(throatGuess)
+                Dim f0 = flux(Math.Exp(x0))
+                Dim xp = Math.Min(x0 + d, Math.Log(P1)), xm = Math.Max(x0 - d, Math.Log(P2))
+                Dim fp = flux(Math.Exp(xp)), fm = flux(Math.Exp(xm))
+                Dim n = 0
+                While fp > f0 AndAlso xp < Math.Log(P1) - 1.0E-9 AndAlso n < 12
+                    xm = x0 : fm = f0 : x0 = xp : f0 = fp
+                    xp = Math.Min(x0 + d, Math.Log(P1)) : fp = flux(Math.Exp(xp)) : n += 1
+                End While
+                While fm > f0 AndAlso xm > Math.Log(P2) + 1.0E-9 AndAlso n < 12
+                    xp = x0 : fp = f0 : x0 = xm : f0 = fm
+                    xm = Math.Max(x0 - d, Math.Log(P2)) : fm = flux(Math.Exp(xm)) : n += 1
+                End While
+                If f0 > 0.0 AndAlso f0 >= fp AndAlso f0 >= fm Then
+                    'parabolic refinement through the three bracketing points
+                    Dim denom = (xp - x0) * (fm - f0) - (xm - x0) * (fp - f0)
+                    If Math.Abs(denom) > 0.0 Then
+                        Dim xs = x0 + 0.5 * ((xp - x0) ^ 2 * (fm - f0) - (xm - x0) ^ 2 * (fp - f0)) / denom
+                        If xs > xm AndAlso xs < xp Then
+                            Dim fs = flux(Math.Exp(xs))
+                            If fs > f0 Then x0 = xs : f0 = fs
+                        End If
+                    End If
+                    If fm >= f0 * (1.0 - 1.0E-6) AndAlso xm <= Math.Log(P2) + 1.0E-9 Then
+                        throatPressure = P2
+                        Return fm
+                    End If
+                    throatPressure = Math.Exp(x0)
+                    Return f0
+                End If
+            End If
+
+            'golden-section search for the maximum of G over ln P in [ln P2, ln P1]
+            Dim lo = Math.Log(P2), hi = Math.Log(P1)
+            Dim gr = (Math.Sqrt(5.0) - 1.0) / 2.0
+            Dim x1 = hi - gr * (hi - lo), x2 = lo + gr * (hi - lo)
+            Dim f1 = flux(Math.Exp(x1)), f2 = flux(Math.Exp(x2))
+            For i = 1 To 14
+                If f1 > f2 Then
+                    hi = x2 : x2 = x1 : f2 = f1
+                    x1 = hi - gr * (hi - lo) : f1 = flux(Math.Exp(x1))
+                Else
+                    lo = x1 : x1 = x2 : f1 = f2
+                    x2 = lo + gr * (hi - lo) : f2 = flux(Math.Exp(x2))
+                End If
+            Next
+            Dim Pt = Math.Exp(If(f1 > f2, x1, x2))
+            Dim Gt = Math.Max(f1, f2)
+            'unchoked: the flux keeps rising down to the back pressure
+            Dim G2 = flux(P2)
+            If G2 >= Gt Then
+                throatPressure = P2
+                Return G2
+            End If
+            throatPressure = Pt
+            Return Gt
+
+        End Function
+
+        ''' <summary>
         ''' Volume-Pressure Flash: the temperature at which the mixture occupies the specified molar
         ''' volume at P. Volume rises with temperature, so the residual is monotonic.
         ''' </summary>
