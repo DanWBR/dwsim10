@@ -1490,6 +1490,7 @@ public partial class FlowsheetView : UserControl
         IconHelper.Set(MenuDynManager,     "\U0001F4CA"); // chart
         IconHelper.Set(MenuDynIntegrator,  "⏱");     // stopwatch
         IconHelper.Set(MenuDynPIDTuning,   "\U0001F39B"); // control knobs
+        IconHelper.Set(MenuDepressurization, "📉"); // chart decreasing
 
         // View
         IconHelper.Set(MenuShowEditor,     "\U0001F4DD"); // memo
