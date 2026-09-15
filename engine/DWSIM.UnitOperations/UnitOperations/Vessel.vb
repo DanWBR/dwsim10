@@ -234,6 +234,9 @@ Namespace UnitOperations
             AddDynamicProperty("Initialize using Inlet Stream", "Initializes the vessel content with information from the inlet stream, if the vessel content is null", True, UnitOfMeasure.none, True.GetType())
             AddDynamicProperty("Reset Content", "Empties the vessel's content on the next run", False, UnitOfMeasure.none, True.GetType())
             AddDynamicProperty("Liquid Outlet Nozzle Elevation", "Height of the liquid outlet nozzle above the vessel bottom. When the liquid level falls below it, gas leaves through the liquid outlet (gas blow-by)", 0, UnitOfMeasure.distance, 1.0.GetType())
+            AddDynamicProperty("Gas Outlet Nozzle Elevation", "Height of the gas outlet nozzle above the vessel bottom (0 = at the top). When the liquid level reaches it, liquid leaves through the gas outlet (liquid carry-over, liquid-full blowdown)", 0, UnitOfMeasure.distance, 1.0.GetType())
+            AddDynamicProperty("Gas Outlet Transition Height", "Height band below the gas nozzle over which the gas outlet changes from all gas to all liquid, so the integration does not see a step", 0.01, UnitOfMeasure.distance, 1.0.GetType())
+            AddDynamicProperty("Gas Outlet Liquid Fraction", "Mass fraction of liquid in the gas outlet (read-only)", 0.0, UnitOfMeasure.none, 1.0.GetType())
             AddDynamicProperty("Liquid Outlet Transition Height", "Height band above the nozzle over which the liquid outlet changes from all liquid to all gas, so the integration does not see a step", 0.01, UnitOfMeasure.distance, 1.0.GetType())
             AddDynamicProperty("Liquid Outlet Gas Fraction", "Mass fraction of gas in the liquid outlet stream: 0 = liquid, 1 = gas blow-by (read-only)", 0, UnitOfMeasure.none, 1.0.GetType())
             AddDynamicProperty("Rigorous Energy Balance (UV)", "Solve the content with an internal-energy balance and a volume-energy flash, so expansion cools it and compression heats it. Off: the legacy isothermal model (temperature only moves with external heat)", False, UnitOfMeasure.none, True.GetType())
@@ -725,7 +728,7 @@ Namespace UnitOperations
                     'the liquid volume comes from the flash at the vessel's own pressure, whatever the floor below does
                     LiquidVolume = AccumulationStream.Phases(1).Properties.volumetric_flow.GetValueOrDefault
 
-                    RelativeLevel = LiquidVolume / Vol
+                    RelativeLevel = Math.Min(1.0, LiquidVolume / Vol)
 
                     SetDynamicProperty("Liquid Level", RelativeLevel * Height)
 
@@ -752,7 +755,7 @@ Namespace UnitOperations
 
                 LiquidVolume = 0.0
 
-                RelativeLevel = LiquidVolume / Vol
+                RelativeLevel = Math.Min(1.0, LiquidVolume / Vol)
 
                 SetDynamicProperty("Liquid Level", RelativeLevel * Height)
 
@@ -808,7 +811,21 @@ Namespace UnitOperations
 
                 oms2.SetPressure(Pressure + liqdens * 9.8 * Math.Max(level - nozzle, 0.0))
 
-                oms1.AssignFromPhase(PhaseLabel.Vapor, AccumulationStream, False)
+                'Liquid carry-over: the gas outlet carries gas while the level is below its nozzle, liquid
+                'once the level has reached it (a liquid-full vessel, or a swelled level), and a blend
+                'across a short band in between.
+                Dim gasNozzle = DynamicDouble("Gas Outlet Nozzle Elevation", 0.0)
+                If gasNozzle <= 0.0 Then gasNozzle = Height
+                Dim liquidFraction = GasOutletLiquidFraction(level, gasNozzle, DynamicDouble("Gas Outlet Transition Height", 0.01))
+                SetDynamicProperty("Gas Outlet Liquid Fraction", liquidFraction)
+
+                If liquidFraction >= 1.0 Then
+                    oms1.AssignFromPhase(PhaseLabel.LiquidMixture, AccumulationStream, False)
+                ElseIf liquidFraction <= 0.0 Then
+                    oms1.AssignFromPhase(PhaseLabel.Vapor, AccumulationStream, False)
+                Else
+                    AssignOutletBlend(oms1, 1.0 - liquidFraction)
+                End If
                 oms1.AtEquilibrium = False
 
                 If omsr IsNot Nothing Then
@@ -821,7 +838,7 @@ Namespace UnitOperations
                 ElseIf gasFraction <= 0.0 Then
                     oms2.AssignFromPhase(PhaseLabel.LiquidMixture, AccumulationStream, False)
                 Else
-                    AssignLiquidOutletBlend(oms2, gasFraction)
+                    AssignOutletBlend(oms2, gasFraction)
                 End If
                 oms2.AtEquilibrium = False
 
@@ -854,11 +871,24 @@ Namespace UnitOperations
         End Function
 
         ''' <summary>
-        ''' Puts a mass-weighted blend of the vessel's gas and liquid on the liquid outlet, keeping the
+        ''' Mass fraction of liquid in the gas outlet: 0 with the level below the nozzle minus the
+        ''' transition band, 1 with the level at or above the nozzle, linear in between. Always 1 when
+        ''' the vessel holds no gas and always 0 when it holds no liquid.
+        ''' </summary>
+        Public Function GasOutletLiquidFraction(level As Double, nozzleElevation As Double, transitionHeight As Double) As Double
+            If AccumulationStream Is Nothing Then Return 0.0
+            If AccumulationStream.Phases(1).Properties.massfraction.GetValueOrDefault <= 0.0 Then Return 0.0
+            If AccumulationStream.Phases(2).Properties.massfraction.GetValueOrDefault <= 0.0 Then Return 1.0
+            If transitionHeight <= 0.0 Then Return If(level >= nozzleElevation, 1.0, 0.0)
+            Return Math.Min(1.0, Math.Max(0.0, (level - (nozzleElevation - transitionHeight)) / transitionHeight))
+        End Function
+
+        ''' <summary>
+        ''' Puts a mass-weighted blend of the vessel's gas and liquid on an outlet, keeping the
         ''' flow the downstream valve set (as AssignFromPhase does). The stream is flashed on the next
         ''' step, which rebuilds the phase split from this composition and enthalpy.
         ''' </summary>
-        Private Sub AssignLiquidOutletBlend(oms As MaterialStream, gasFraction As Double)
+        Private Sub AssignOutletBlend(oms As MaterialStream, gasFraction As Double)
 
             Dim acc = AccumulationStream
             Dim prevW = oms.GetMassFlow()

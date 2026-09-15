@@ -440,12 +440,47 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
         ''' Mixture molar volume (m3/mol) of a PT flash result, from the liquid densities and the vapour
         ''' compressibility of the property package. Phases that are absent contribute nothing.
         ''' </summary>
-        Private Function MixtureMolarVolume(flashresult As FlashCalculationResult, T As Double, P As Double, PP As PropertyPackages.PropertyPackage) As Double
+        Private Function MixtureMolarVolume(flashresult As FlashCalculationResult, T As Double, P As Double, PP As PropertyPackages.PropertyPackage, Optional bubblePressure As Double = 0.0) As Double
             Dim VL1, VL2, VV As Double
             Dim L1 = flashresult.GetLiquidPhase1MoleFraction, L2 = flashresult.GetLiquidPhase2MoleFraction, V = flashresult.GetVaporPhaseMoleFraction
             If L1 > 0.0 Then
-                Dim rho = PP.AUX_LIQDENS(T, flashresult.GetLiquidPhase1MoleFractions, P) / PP.AUX_MMM(flashresult.GetLiquidPhase1MoleFractions) * 1000 'mol/m3
-                VL1 = L1 / rho
+                Dim x = flashresult.GetLiquidPhase1MoleFractions
+                Dim Pdens = P
+                Dim ratio = 1.0
+                If V <= 0.0 AndAlso L2 <= 0.0 AndAlso bubblePressure > 0.0 AndAlso P > bubblePressure Then
+                    'A compressed liquid: the density correlations carry the saturated volume well but
+                    'their pressure correction is far too stiff near the critical point, and it is not
+                    'the volume behind the package's enthalpy. Take the saturated volume from the
+                    'correlation at the bubble pressure and the compression from the equation of state,
+                    'so pressure, volume and internal energy come from one consistent surface.
+                    Dim zp = PP.AUX_Z(x, T, P, Interfaces.Enums.PhaseName.Liquid)
+                    Dim zb = PP.AUX_Z(x, T, bubblePressure, Interfaces.Enums.PhaseName.Liquid)
+                    If zp > 0.0 AndAlso zb > 0.0 AndAlso Not Double.IsNaN(zp + zb) Then
+                        ratio = (zp / P) / (zb / bubblePressure)
+                        If ratio > 0.5 AndAlso ratio <= 1.0 Then Pdens = bubblePressure Else ratio = 1.0
+                    End If
+                End If
+                If V <= 0.0 AndAlso L2 <= 0.0 AndAlso (bubblePressure <= 0.0 OrElse bubblePressure >= P) Then
+                    'No bubble point at this temperature (the mixture sits above its critical locus, as
+                    'CO2 with a few percent of N2 does near 298 K): the correlations have no saturated
+                    'volume to start from, so the dense phase takes its volume from the equation of state.
+                    Dim tc = 0.0
+                    Dim vtc = PP.RET_VTC()
+                    For i = 0 To x.Length - 1
+                        tc += x(i) * vtc(i)
+                    Next
+                    If tc > 0.0 AndAlso T > 0.9 * tc Then
+                        Dim zl = PP.AUX_Z(x, T, P, Interfaces.Enums.PhaseName.Liquid)
+                        If zl > 0.0 AndAlso Not Double.IsNaN(zl) Then
+                            VL1 = L1 * zl * 8.314 * T / P
+                            ratio = 0.0
+                        End If
+                    End If
+                End If
+                If ratio > 0.0 Then
+                    Dim rho = PP.AUX_LIQDENS(T, x, Pdens) / PP.AUX_MMM(x) * 1000 'mol/m3
+                    VL1 = L1 / rho * ratio
+                End If
             End If
             If L2 > 0.0 Then
                 Dim rho = PP.AUX_LIQDENS(T, flashresult.GetLiquidPhase2MoleFractions, P) / PP.AUX_MMM(flashresult.GetLiquidPhase2MoleFractions) * 1000 'mol/m3
@@ -524,13 +559,59 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
 
             If Pref <= 0.0 Or Double.IsNaN(Pref) Then Pref = 101325.0
             Dim flashresult As FlashCalculationResult = Nothing
+            'the bubble pressure at T, found once and only when a trial pressure leaves the mixture
+            'all liquid (the compressed-liquid volume needs it, see MixtureMolarVolume)
+            Dim pbub = 0.0, pbubKnown = False
             Dim f = Function(P As Double) As Double
                         flashresult = CalculateEquilibrium(FlashSpec.P, FlashSpec.T, P, T, PP, Vz, PrevKi, 0.0)
-                        Return (Vspec - MixtureMolarVolume(flashresult, T, P, PP)) / Vspec
+                        If Not pbubKnown AndAlso flashresult.GetVaporPhaseMoleFraction <= 0.0 AndAlso flashresult.GetLiquidPhase2MoleFraction <= 0.0 Then
+                            pbubKnown = True
+                            Try
+                                pbub = Convert.ToDouble(CalculateEquilibrium(FlashSpec.T, FlashSpec.VAP, T, 0.0, PP, Vz, PrevKi, P).CalculatedPressure)
+                                If Double.IsNaN(pbub) OrElse pbub <= 0.0 OrElse pbub > 1.0E+9 Then pbub = 0.0
+                            Catch ex As Exception
+                                pbub = 0.0
+                            End Try
+                        End If
+                        Return (Vspec - MixtureMolarVolume(flashresult, T, P, PP, pbub)) / Vspec
                     End Function
 
             'f rises with P: negative when the mixture is too big for Vspec (P too low), positive when too small
             Dim a = Pref / 1.5, b = Pref * 1.5
+
+            'A pure compound has no two-phase pressure window: at T it is liquid above Psat, vapour below
+            'and any split exactly at Psat, so the PT residual jumps there instead of crossing zero. Take
+            'the saturation pressure from the package's own bubble point, and settle the split with the
+            'lever rule when the specified volume lies between the saturated liquid and vapour volumes.
+            'A nearly pure mixture (a trace of a light gas left in CO2 or steam) has a two-phase window
+            'narrower than the search can resolve, so it is handled the same way, with the bubble
+            'pressure standing for the window.
+            Dim nonZero = 0
+            For i = 0 To Vz.Length - 1
+                If Vz(i) > 1.0E-10 Then nonZero += 1
+            Next
+            If nonZero = 1 OrElse Vz.Max() > 1.0 - 1.0E-3 Then
+                Dim sat = CalculateEquilibrium(FlashSpec.T, FlashSpec.VAP, T, 0.0, PP, Vz, PrevKi, Pref)
+                Dim Psat = Convert.ToDouble(sat.CalculatedPressure)
+                If Psat > 0.0 AndAlso Not Double.IsNaN(Psat) Then
+                    pbub = Psat : pbubKnown = True
+                    Dim VL = PP.AUX_MMM(Vz) / 1000.0 / PP.AUX_LIQDENS(T, Vz, Psat) 'm3/mol
+                    Dim VV = PP.AUX_Z(Vz, T, Psat, Interfaces.Enums.PhaseName.Vapor) * 8.314 * T / Psat
+                    If VL > 0.0 AndAlso VV > VL Then
+                        If Vspec > VL * (1.0 + 1.0E-9) AndAlso Vspec < VV * (1.0 - 1.0E-9) Then
+                            Dim vf = (Vspec - VL) / (VV - VL)
+                            flashresult = CalculateEquilibrium(FlashSpec.T, FlashSpec.VAP, T, vf, PP, Vz, PrevKi, Psat)
+                            flashresult.CalculatedPressure = Psat
+                            Return flashresult
+                        ElseIf Vspec <= VL * (1.0 + 1.0E-9) Then
+                            a = Psat : b = Math.Max(Pref, Psat) * 1.5   'compressed liquid: search above Psat
+                        Else
+                            a = Math.Min(Pref, Psat) / 1.5 : b = Psat  'superheated vapour: search below Psat
+                        End If
+                    End If
+                End If
+            End If
+
             Dim fa = f(a), fb = f(b)
             Dim n = 0
             While fa > 0.0 And a > 1.0 And n < 40
@@ -547,6 +628,24 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
             If flashresult Is Nothing OrElse Math.Abs(Convert.ToDouble(flashresult.CalculatedPressure) - P0) > 1.0E-9 * Pref Then f(P0)
             Return flashresult
 
+        End Function
+
+        ''' <summary>
+        ''' Molar volume (m3/mol) of the mixture at T and P, defined exactly as the volume flashes define
+        ''' it, so a vessel filled from this value starts on the surface the flashes will walk.
+        ''' </summary>
+        Public Function MixtureMolarVolumeAtTP(ByVal Vz As Double(), ByVal T As Double, ByVal P As Double, ByVal PP As PropertyPackages.PropertyPackage) As Double
+            Dim r = CalculateEquilibrium(FlashSpec.P, FlashSpec.T, P, T, PP, Vz, Nothing, 0.0)
+            Dim pbub = 0.0
+            If r.GetVaporPhaseMoleFraction <= 0.0 AndAlso r.GetLiquidPhase2MoleFraction <= 0.0 Then
+                Try
+                    pbub = Convert.ToDouble(CalculateEquilibrium(FlashSpec.T, FlashSpec.VAP, T, 0.0, PP, Vz, Nothing, P).CalculatedPressure)
+                    If Double.IsNaN(pbub) OrElse pbub <= 0.0 OrElse pbub > 1.0E+9 Then pbub = 0.0
+                Catch ex As Exception
+                    pbub = 0.0
+                End Try
+            End If
+            Return MixtureMolarVolume(r, T, P, PP, pbub)
         End Function
 
         ''' <summary>
@@ -601,20 +700,34 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                         Return (target - prop(flashresult, T, lastP)) / scale
                     End Function
 
-            'f falls with T: positive when the mixture is too cold. The bracket starts tight (a time
-            'step rarely moves T by 3 %) and widens by 15 % a time when it has to.
-            Dim a = Tref / 1.03, b = Tref * 1.03
-            Dim fa = f(a), fb = f(b)
-            Dim n = 0
-            While fa < 0.0 And a > 20.0 And n < 30
-                b = a : fb = fa
-                a /= 1.15 : fa = f(a) : n += 1
-            End While
-            n = 0
-            While fb > 0.0 And b < 5000.0 And n < 30
-                a = b : fa = fb
-                b *= 1.15 : fb = f(b) : n += 1
-            End While
+            'f falls with T: positive when the mixture is too cold. Walk from the estimate in the
+            'direction the sign points, with a step that starts at 0.5 % and doubles, and bracket the
+            'first sign change. That picks the root nearest the estimate, which is the state the
+            'previous time step left: the volume basis of a liquid (density correlation) and of a
+            'supercritical fluid (equation of state) differ, so a wide bracket that straddles the
+            'critical temperature can hold a second, spurious root.
+            Dim f0 = f(Tref)
+            If Math.Abs(f0) <= 1.0E-6 Then Return flashresult
+            Dim a = Tref, b = Tref, fa = f0, fb = f0
+            Dim stepFraction = 0.005
+            Dim found = False
+            For n = 1 To 40
+                If f0 > 0.0 Then
+                    Dim tUp = Math.Min(b * (1.0 + stepFraction), 5000.0)
+                    Dim fUp = f(tUp)
+                    If fUp <= 0.0 Then a = b : fa = fb : b = tUp : fb = fUp : found = True : Exit For
+                    b = tUp : fb = fUp
+                    If tUp >= 5000.0 Then Exit For
+                Else
+                    Dim tDn = Math.Max(a / (1.0 + stepFraction), 20.0)
+                    Dim fDn = f(tDn)
+                    If fDn >= 0.0 Then b = a : fb = fa : a = tDn : fa = fDn : found = True : Exit For
+                    a = tDn : fa = fDn
+                    If tDn <= 20.0 Then Exit For
+                End If
+                stepFraction = Math.Min(stepFraction * 2.0, 0.5)
+            Next
+            If Not found Then Throw New Exception("Volume flash: the root is not bracketed.")
 
             Dim T0 = BrentRoot(f, a, b, fa, fb, 1.0E-6 * Tref, 1.0E-6, 100)
             If flashresult Is Nothing OrElse Math.Abs(Convert.ToDouble(flashresult.CalculatedTemperature) - T0) > 1.0E-9 * Tref Then f(T0)

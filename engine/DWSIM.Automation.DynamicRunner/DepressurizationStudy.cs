@@ -257,6 +257,10 @@ namespace DWSIM.Automation.DynamicRunner.Depressurization
             vessel.SetDynamicProperty("Vessel Bottom Elevation", input.VesselBottomElevation);
 
             // ---- steady state, then the initial content
+            // The steady pass only has to solve the flowsheet once so the dynamic run starts from valid
+            // streams; the content is set afterwards. An all-liquid feed leaves the gas outlet and the
+            // BDV without flow, so the pass runs the feed at a state that carries vapour.
+            SteadyPassState(fs, feed, pp, z, input, result);
             var errors = fs.SolveFlowsheet2();
             if (errors.Count > 0)
                 throw new Exception("The study flowsheet did not solve: " + string.Join("; ", errors.Select(e => e.Message)));
@@ -369,7 +373,7 @@ namespace DWSIM.Automation.DynamicRunner.Depressurization
                 MassFlow = t == 0.0 ? 0.0 : (double)gasOut.GetMassFlow(),
                 CumulativeMass = cumulative,
                 LiquidLevel = Dyn("Liquid Level"),
-                LiquidVolumeFraction = vol > 0 ? liqVol / vol : 0.0,
+                LiquidVolumeFraction = vol > 0 ? Math.Min(1.0, liqVol / vol) : 0.0,
                 FireHeat = Dyn("Fire Heat Input"),
                 ValveOpening = (double)bdv.OpeningPct,
                 VapourFractionOut = N(gasOut.Phases[2].Properties.molarfraction)
@@ -381,6 +385,29 @@ namespace DWSIM.Automation.DynamicRunner.Depressurization
         /// temperature: liquid to the requested volume fraction, vapour above it. Returns the liquid
         /// volume fraction actually used.
         /// </summary>
+        /// <summary>Puts the feed at the initial state, or at a state with vapour when the initial state is all liquid.</summary>
+        private static void SteadyPassState(DWSIM.DynamicRunner.Flowsheet fs, dynamic feed, dynamic pp, double[] z, DepressurizationInput input, DepressurizationResult result)
+        {
+            foreach (var (T, P) in new[] { (input.InitialTemperature, input.InitialPressure), (input.InitialTemperature, input.BackPressure), (input.InitialTemperature + 150.0, input.BackPressure) })
+            {
+                dynamic probe = feed.Clone();
+                probe.SetFlowsheet(fs);
+                probe.SetPropertyPackage(pp);
+                probe.SetOverallComposition(z);
+                probe.SetTemperature(T);
+                probe.SetPressure(P);
+                probe.SetMassFlow(1.0);
+                probe.SpecType = StreamSpec.Temperature_and_Pressure;
+                try { probe.Calculate(); } catch { continue; }
+                if (N(probe.Phases[2].Properties.molarfraction) > 1e-6)
+                {
+                    feed.SetTemperature(T);
+                    feed.SetPressure(P);
+                    return;
+                }
+            }
+        }
+
         private static double SetInitialContent(DWSIM.DynamicRunner.Flowsheet fs, dynamic vessel, dynamic feed,
             IPropertyPackage pp, double[] z, DepressurizationInput input, double volume, DepressurizationResult result)
         {
@@ -416,11 +443,31 @@ namespace DWSIM.Automation.DynamicRunner.Depressurization
                 f = 0.0;
                 w = wg; mass = rg * volume;
             }
-            else if (vapFrac <= 1e-6 || rg <= 0.0)
+            else if (vapFrac <= 1e-6 || rg <= 0.0 || f >= 0.999)
             {
-                if (f < 1) result.Warnings.Add("The fluid is all liquid at the initial condition; the vessel starts liquid-full.");
+                if (f < 1 && vapFrac <= 1e-6) result.Warnings.Add("The fluid is all liquid at the initial condition; the vessel starts liquid-full.");
                 f = 1.0;
-                w = wl; mass = rl * volume;
+                if (vapFrac <= 1e-6) w = wl;
+                else
+                {
+                    // the overall composition, the vessel being full of the two-phase mixture
+                    var wo = new List<double>();
+                    foreach (dynamic c in probe.Phases[0].Compounds.Values) wo.Add(N(c.MassFraction));
+                    w = wo.ToArray();
+                }
+                mass = rl * volume;
+                // a liquid-full vessel: fill from the volume surface the vessel's flashes use (the
+                // compressed liquid takes its compression from the equation of state there), so the
+                // first step does not start with a pressure jump
+                try
+                {
+                    dynamic ppd = pp;
+                    ppd.CurrentMaterialStream = probe;
+                    double vm = (double)ppd.FlashBase.MixtureMolarVolumeAtTP(z, input.InitialTemperature, input.InitialPressure, ppd);
+                    double mw = (double)ppd.AUX_MMM(z);
+                    if (vm > 0 && !double.IsNaN(vm)) mass = volume / vm * mw / 1000.0;
+                }
+                catch { }
             }
             else
             {

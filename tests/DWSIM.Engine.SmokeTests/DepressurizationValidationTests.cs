@@ -187,5 +187,66 @@ namespace DWSIM.Engine.SmokeTests
             var t100 = r.Points.First(p => p.Time >= 100.0);
             Assert.That(293.15 - t100.Temperature, Is.InRange(30.0, 80.0), "K: the published gas is 60 K below the start at 100 s");
         }
+        // Fredenhagen and Eggers (2001), CO2 with N2 blown down from a top-vented, liquid-full 0.05 m3
+        // vessel (0.242 m ID) through a 17 mm2 orifice, as redrawn in Shafiq et al. (2020) Figs. 10 and
+        // 11. Measured: 14 MPa falls to the bubble point near 8 MPa in about 3 s, then 5.6 MPa at 20 s,
+        // 3.9 at 40, 2.8 at 60, 2.05 at 80; the liquid goes 298 K, 277 K at 20 s, 270 at 40, 262 at 60,
+        // 255 at 80, 246 at 120, 236 at 150. The N2 content is not given in the review; it is inferred
+        // from the bubble point at the kink (8 MPa near 290 K) and printed. Both runs are printed for the
+        // report; the assertions take the inferred composition.
+        [TestCase(0.0)]
+        [TestCase(-1.0)]
+        public void FredenhagenEggersCarbonDioxideBlowdownIsReproducedInOutline(double nitrogen)
+        {
+            bool inferred = nitrogen < 0;   // the pure CO2 run is printed as a reference only
+            if (inferred)
+            {
+                // bubble pressure of CO2 + N2 at 286 K (the liquid temperature at the end of the liquid-full stage): pick the N2 fraction that puts it at 8 MPa
+                var (fs0, s0, pp0) = Host(new[] { "Carbon dioxide", "Nitrogen" }, new[] { 0.97, 0.03 }, 286.0, 80e5);
+                pp0.CurrentMaterialStream = s0;
+                double best = 0.0, bestErr = double.MaxValue;
+                foreach (var x in new[] { 0.02, 0.04, 0.06 })
+                {
+                    // past the mixture critical locus (between 7 and 8 % N2 for Peng-Robinson at 286 K)
+                    // the bubble point no longer exists and the flash fails or returns junk; 7 % is so close
+                    // to it that the flashes crawl, so the scan stops at 6 %
+                    double pb;
+                    try { pb = Convert.ToDouble(((object[])pp0.FlashBase.Flash_TV(new[] { 1 - x, x }, 286.0, 0.0, 60e5, pp0))[4]); }
+                    catch { pb = double.NaN; }
+                    TestContext.WriteLine($"x N2 {x:F2}: bubble P at 286 K = {pb / 1e6:F2} MPa");
+                    if (pb > 5e6 && pb < 12e6 && Math.Abs(pb - 8e6) < bestErr) { bestErr = Math.Abs(pb - 8e6); best = x; }
+                }
+                nitrogen = best;
+                TestContext.WriteLine($"inferred N2 fraction {nitrogen:F2}");
+            }
+            var (fs, src, pp) = Host(new[] { "Carbon dioxide", "Nitrogen" }, new[] { 1 - nitrogen, nitrogen }, 298.0, 140e5);
+            double length = 0.05 / (Math.PI / 4 * 0.242 * 0.242);
+            TestContext.WriteLine($"initial state 298 K / 14 MPa: vapour fraction {Convert.ToDouble(src.Phases[2].Properties.molarfraction):F4}, density {Convert.ToDouble(src.Phases[0].Properties.density):F1} kg/m3, liquid density {Convert.ToDouble(src.Phases[1].Properties.density):F1}");
+            var input = new DepressurizationInput
+            {
+                SourceStreamName = src.Name, InitialPressure = 140e5, InitialTemperature = 298.0, InitialLiquidVolumeFraction = 1.0,
+                Diameter = 0.242, Length = length, HeadType = "Flat", WallThickness = 0.025, WallMaterial = "Carbon Steel",
+                OrificeDiameter = Math.Sqrt(4 * 17e-6 / Math.PI), DischargeCoefficient = 0.8, BackPressure = 101325.0, AmbientTemperature = 298.0,
+                IncludeWallHeatTransfer = true, TimeStep = 0.2, Duration = 150.0
+            };
+            var r = DepressurizationStudy.Run(fs, input);
+            foreach (var w in r.Warnings) TestContext.WriteLine("warning: " + w);
+            Assert.That(r.Warnings.Where(w => w.StartsWith("The integration stopped")), Is.Empty);
+
+            TestContext.WriteLine($"N2 {nitrogen:F2}, V {r.VesselVolume:F4} m3, m0 {r.InitialMass:F2} kg");
+            TestContext.WriteLine("   t(s)   P(MPa)   T(K)   T wall(wet)  W(kg/s)  liq frac  liq in vent  m out(kg)");
+            foreach (var pt in r.Points.Where(p => p.Time <= 3.0 ? true : p.Time <= 10.0 ? Math.Round(p.Time, 3) % 1.0 == 0.0 : Math.Round(p.Time, 3) % 10.0 == 0.0))
+                TestContext.WriteLine($"{pt.Time,7:F1}  {pt.Pressure / 1e6,7:F2}  {pt.Temperature,6:F1}  {pt.WettedWallTemperature,10:F1}  {pt.MassFlow,8:F3}  {pt.LiquidVolumeFraction,8:F3}  {1 - pt.VapourFractionOut,8:F2}  {pt.CumulativeMass,8:F3}");
+
+            DepressurizationPoint At(double t) => r.Points.First(p => p.Time >= t - 1e-6);
+            if (!inferred) return;
+            Assert.That(1 - At(0.2).VapourFractionOut, Is.GreaterThan(0.9), "the top vent carries liquid while the vessel is liquid-full");
+            Assert.That(At(5.0).Pressure / 1e6, Is.InRange(6.0, 9.5), "MPa: the liquid-full stage ends at the bubble point (measured near 8 MPa) within a few seconds");
+            Assert.That(At(20.0).Pressure / 1e6, Is.InRange(4.5, 6.8), "MPa at 20 s (measured 5.6)");
+            Assert.That(At(80.0).Pressure / 1e6, Is.InRange(1.5, 2.8), "MPa at 80 s (measured 2.05)");
+            Assert.That(At(20.0).Temperature, Is.InRange(270.0, 285.0), "K at 20 s (measured 277)");
+            Assert.That(At(80.0).Temperature, Is.InRange(247.0, 263.0), "K at 80 s (measured 255)");
+            Assert.That(At(150.0).Temperature, Is.InRange(225.0, 250.0), "K at 150 s (measured 236)");
+        }
     }
 }
