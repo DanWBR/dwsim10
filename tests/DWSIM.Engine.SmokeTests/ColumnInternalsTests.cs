@@ -364,6 +364,44 @@ namespace DWSIM.Engine.SmokeTests
             foreach (var r in packed.Stages) Assert.That(r.PressureDrop, Is.InRange(10, 3000), "dP/m stage " + r.Stage);
         }
 
+        [Test]
+        public void OConnellFollowsTheEduljeeFit()
+        {
+            Assert.That(TrayHydraulics.OConnellEfficiency(1e-3, 1.0), Is.EqualTo(0.51).Within(1e-9), "mu alpha = 1");
+            Assert.That(TrayHydraulics.OConnellEfficiency(1e-4, 1.0), Is.EqualTo(0.835).Within(1e-9), "mu alpha = 0.1");
+            Assert.That(TrayHydraulics.OConnellEfficiency(3e-4, 2.0), Is.EqualTo(0.51 - 0.325 * Math.Log10(0.6)).Within(1e-9));
+            Assert.That(double.IsNaN(TrayHydraulics.OConnellEfficiency(1e-3, double.NaN)));
+        }
+
+        /// <summary>The rated pressure drops and O'Connell efficiencies go into the column stages and the column solves again.</summary>
+        [Test]
+        public void TheRatingCanBeWrittenBackIntoTheColumn()
+        {
+            var flowsheet = Load("ExtractiveDistillation.dwxmz");
+            Assert.That(flowsheet.SolveFlowsheet2(), Is.Empty);
+            var name = ColumnInternalsStudy.ColumnNames(flowsheet)[0];
+            var column = ColumnInternalsStudy.FindColumn(flowsheet, name);
+            int n = ColumnInternalsStudy.StageCount(column);
+            var inp = new ColumnInternalsInput { ColumnName = name };
+            inp.Sections.Add(new InternalsSection { Name = "Trays", FromStage = 2, ToStage = n - 1, Type = InternalType.SieveTray });
+            var res = ColumnInternalsStudy.Run(flowsheet, inp);
+            var rated = res.Sections[0].Stages.Where(r => !double.IsNaN(r.OConnellEfficiency)).ToList();
+            Assert.That(rated.Count, Is.GreaterThan(n / 2), "O'Connell efficiencies on the trays");
+            foreach (var r in rated) Assert.That(r.OConnellEfficiency, Is.InRange(0.1, 1.0));
+            dynamic c = column;
+            double topBefore = (double)((dynamic)((System.Collections.IList)c.Stages)[0]).P;
+            var msg = ColumnInternalsStudy.ApplyToColumn(column, res, true, true);
+            TestContext.Out.WriteLine(msg);
+            var stages = (System.Collections.IList)c.Stages;
+            Assert.That((double)((dynamic)stages[0]).P, Is.EqualTo(topBefore));
+            Assert.That((double)((dynamic)stages[n - 1]).P, Is.GreaterThan(topBefore + 0.5 * res.Sections[0].TotalPressureDrop), "pressure rises down the column");
+            Assert.That(double.IsNaN((double)c.ColumnPressureDrop), "linear profile switched off");
+            Assert.That((double)((dynamic)stages[1]).Efficiency, Is.InRange(0.1, 1.0));
+            Assert.That(flowsheet.SolveFlowsheet2(), Is.Empty, "the column solves with the rated profile");
+            var res2 = ColumnInternalsStudy.Run(flowsheet, inp);
+            Assert.That(res2.Sections[0].TotalPressureDrop, Is.EqualTo(res.Sections[0].TotalPressureDrop).Within(0.25 * res.Sections[0].TotalPressureDrop));
+        }
+
         /// <summary>Prints the numbers the user guide validation tables quote (run with a detailed logger).</summary>
         [Test]
         public void PrintValidationTable()

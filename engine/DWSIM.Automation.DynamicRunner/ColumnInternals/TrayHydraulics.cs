@@ -238,6 +238,18 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
         /// <summary>Millimetres of liquid to pascals: 9.81e-3 h rho_L (Towler eq. 11.87).</summary>
         public static double HeadToPressure(double headMm, double rhoL) { return 9.81e-3 * headMm * rhoL; }
 
+        // ------------------------------------------------------------------ efficiency
+
+        /// <summary>O'Connell (1946) overall efficiency in the Eduljee form used by Towler and Sinnott (eq. 11.67):
+        /// E_o = 0.51 - 0.325 log10(mu_L alpha), with mu_L the liquid viscosity in mPa s and alpha the relative
+        /// volatility of the key components; clamped to 0.1 to 1.</summary>
+        public static double OConnellEfficiency(double liquidViscosity, double relativeVolatility)
+        {
+            if (double.IsNaN(relativeVolatility) || relativeVolatility <= 0 || liquidViscosity <= 0) return double.NaN;
+            var e = 0.51 - 0.325 * Math.Log10(liquidViscosity * 1000.0 * relativeVolatility);
+            return Math.Max(0.1, Math.Min(1.0, e));
+        }
+
         // ------------------------------------------------------------------ helpers
 
         internal static double Interp(double[] xs, double[] ys, double x)
@@ -313,6 +325,9 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
             r.DowncomerBackupLimit = 0.5 * (s.TraySpacing + hw) * 1000.0;
             r.DowncomerResidenceTime = Ad * (r.DowncomerBackup / 1000.0) * rhoL / Math.Max(Lw, 1e-9);
             r.DowncomerVelocity = r.LiquidLoad / Ad;
+
+            // efficiency
+            r.OConnellEfficiency = OConnellEfficiency(sp.LiquidViscosity, sp.RelativeVolatility);
 
             // entrainment
             r.Entrainment = FairEntrainment(r.FlowParameter, r.FloodFraction);

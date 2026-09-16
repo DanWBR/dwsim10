@@ -580,6 +580,8 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
         public double VaporDiffusivity, LiquidDiffusivity;
         /// <summary>Stripping factor lambda = m V / L of the key component on the stage (K V / L).</summary>
         public double StrippingFactor = 1.0;
+        /// <summary>Relative volatility of the light key to the heavy key on the stage (K_lk / K_hk), for O'Connell.</summary>
+        public double RelativeVolatility = double.NaN;
 
         public double VaporVolumetricFlow { get { return VaporDensity > 0 ? VaporMassFlow / VaporDensity : 0; } }
         public double LiquidVolumetricFlow { get { return LiquidDensity > 0 ? LiquidMassFlow / LiquidDensity : 0; } }
@@ -617,6 +619,7 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
         public double Entrainment = double.NaN;         // fractional entrainment psi
         public double EntrainmentEfficiencyFactor = double.NaN; // E_a / E_mv (Colburn)
         public double DowncomerVelocity = double.NaN;   // m/s
+        public double OConnellEfficiency = double.NaN;  // overall column efficiency by O'Connell at the stage conditions
 
         // packings
         public double LiquidHoldup = double.NaN;        // m3/m3

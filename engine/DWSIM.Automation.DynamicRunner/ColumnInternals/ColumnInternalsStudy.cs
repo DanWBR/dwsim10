@@ -146,9 +146,15 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
                     try
                     {
                         var K = (double[])Kf[i];
-                        int key = 0; double best = double.NegativeInfinity;
-                        for (int j = 0; j < x.Length; j++) { var d = y[j] - x[j]; if (d > best) { best = d; key = j; } }
+                        int key = 0, heavy = 0; double best = double.NegativeInfinity, worst = double.PositiveInfinity;
+                        for (int j = 0; j < x.Length; j++)
+                        {
+                            var d = y[j] - x[j];
+                            if (d > best) { best = d; key = j; }
+                            if (d < worst) { worst = d; heavy = j; }
+                        }
                         if (sp.LiquidMolarFlow > 0 && K[key] > 0) sp.StrippingFactor = K[key] * sp.VaporMolarFlow / sp.LiquidMolarFlow;
+                        if (K[key] > 0 && K[heavy] > 0 && heavy != key) sp.RelativeVolatility = K[key] / K[heavy];
                     }
                     catch { }
                     list.Add(sp);
@@ -159,6 +165,53 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
                 try { host.DeleteSelectedObject(null, null, ((ISimulationObject)ms).GraphicObject, false, false); } catch { }
             }
             return list;
+        }
+
+        /// <summary>
+        /// Writes the rated pressure profile and/or the O'Connell efficiencies into the column's stages.
+        /// Pressures: the top stage keeps its pressure and each rated tray or packed stage adds its own
+        /// pressure drop to the stage below (stages outside the sections carry the running value); the
+        /// column's linear pressure drop is switched off so the solver uses the stage pressures.
+        /// Efficiencies: the O'Connell value of every rated tray goes into the stage efficiency. The
+        /// column is left to be solved again; returns what was written.
+        /// </summary>
+        public static string ApplyToColumn(ISimulationObject column, ColumnInternalsResult result, bool pressures, bool efficiencies)
+        {
+            dynamic c = column;
+            var stages = (IList)c.Stages;
+            int n = stages.Count;
+            var dp = new double[n + 1];
+            var eff = new double[n + 1];
+            for (int i = 0; i <= n; i++) eff[i] = double.NaN;
+            foreach (var sr in result.Sections)
+                foreach (var r in sr.Stages)
+                {
+                    if (r.Stage < 1 || r.Stage > n) continue;
+                    if (!double.IsNaN(r.PressureDropTotal) && r.PressureDropTotal > 0) dp[r.Stage] = r.PressureDropTotal;
+                    if (!double.IsNaN(r.OConnellEfficiency)) eff[r.Stage] = r.OConnellEfficiency;
+                }
+            int np = 0, ne = 0;
+            if (pressures)
+            {
+                double p = (double)((dynamic)stages[0]).P;
+                for (int i = 1; i < n; i++)
+                {
+                    p += dp[i];
+                    ((dynamic)stages[i]).P = p;
+                    if (dp[i] > 0) np++;
+                }
+                try { c.ColumnPressureDrop = double.NaN; } catch { }
+            }
+            if (efficiencies)
+            {
+                for (int i = 0; i < n; i++)
+                    if (!double.IsNaN(eff[i + 1])) { ((dynamic)stages[i]).Efficiency = eff[i + 1]; ne++; }
+            }
+            try { column.Calculated = false; } catch { }
+            var parts = new List<string>();
+            if (pressures) parts.Add(np + " stage pressure drops written (top stage pressure kept, linear profile off)");
+            if (efficiencies) parts.Add(ne + " stage efficiencies written");
+            return string.Join("; ", parts) + ". Solve the flowsheet and rate again.";
         }
 
         /// <summary>Rates the sections against the stage properties; pure, no flowsheet needed.</summary>

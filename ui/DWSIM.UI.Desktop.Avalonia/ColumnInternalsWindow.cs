@@ -34,7 +34,7 @@ public sealed class ColumnInternalsWindow : Window
     private int _selected = -1;
 
     private ComboBox _columnBox = null!;
-    private Button _run = null!, _export = null!, _load = null!, _save = null!;
+    private Button _run = null!, _export = null!, _load = null!, _save = null!, _applyP = null!, _applyE = null!;
     private ScrollViewer _left = null!;
     private readonly TextBlock _status = new() { FontSize = UiScale.Font(11), Opacity = 0.85, TextWrapping = TextWrapping.Wrap };
     private readonly StackPanel _summary = new() { Spacing = 2 };
@@ -62,6 +62,7 @@ public sealed class ColumnInternalsWindow : Window
         public string Backup { get; init; } = "";
         public string Residence { get; init; } = "";
         public string Entrainment { get; init; } = "";
+        public string Efficiency { get; init; } = "";
         public string Holdup { get; init; } = "";
         public string Hetp { get; init; } = "";
         public string Wetting { get; init; } = "";
@@ -132,7 +133,14 @@ public sealed class ColumnInternalsWindow : Window
         _save.Classes.Add("dialog");
         _save.Click += async (_, _) => await SaveCaseAsync();
         var topButtons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(12, 8, 12, 4), Children = { _load, _save } };
-        var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(12, 6, 12, 8), Children = { _run, _export } };
+        _applyP = new Button { Content = "Pressures to column", IsEnabled = false };
+        _applyP.Classes.Add("dialog");
+        _applyP.Click += (_, _) => ApplyToColumn(true, false);
+        _applyE = new Button { Content = "Efficiencies to column", IsEnabled = false };
+        _applyE.Classes.Add("dialog");
+        _applyE.Click += (_, _) => ApplyToColumn(false, true);
+        var buttons = new WrapPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(12, 6, 12, 8) };
+        foreach (var b in new[] { _run, _export, _applyP, _applyE }) { b.Margin = new Thickness(0, 0, 8, 4); buttons.Children.Add(b); }
 
         var leftDock = new DockPanel();
         DockPanel.SetDock(topButtons, global::Avalonia.Controls.Dock.Top);
@@ -367,6 +375,7 @@ public sealed class ColumnInternalsWindow : Window
         Col("backup (mm)", nameof(Row.Backup));
         Col("t_dc (s)", nameof(Row.Residence));
         Col("entrainment", nameof(Row.Entrainment));
+        Col("E_O'Connell", nameof(Row.Efficiency));
         Col("holdup", nameof(Row.Holdup));
         Col("HETP (" + _su.distance + ")", nameof(Row.Hetp));
         Col("u_L/u_L,min", nameof(Row.Wetting));
@@ -421,12 +430,27 @@ public sealed class ColumnInternalsWindow : Window
             var warn = result.Sections.Sum(s => s.Warnings.Count + s.Stages.Sum(r => r.Warnings.Count));
             _status.Text = "Done. " + (warn == 0 ? "No warnings." : warn + " warning(s); see the notes column and the summary.");
             _export.IsEnabled = true;
+            _applyP.IsEnabled = true;
+            _applyE.IsEnabled = result.Sections.Any(sec => sec.Stages.Any(r => !double.IsNaN(r.OConnellEfficiency)));
         }
         catch (Exception ex)
         {
             _status.Text = "The rating failed: " + ex.Message;
         }
         finally { _run.IsEnabled = true; }
+    }
+
+    private void ApplyToColumn(bool pressures, bool efficiencies)
+    {
+        if (_result == null) return;
+        var col = ColumnInternalsStudy.FindColumn(_fs, _result.ColumnName);
+        if (col == null) { _status.Text = "The column is not on the flowsheet."; return; }
+        try
+        {
+            _status.Text = ColumnInternalsStudy.ApplyToColumn(col, _result, pressures, efficiencies);
+            _applyP.IsEnabled = false; _applyE.IsEnabled = false;
+        }
+        catch (Exception ex) { _status.Text = "Could not write to the column: " + ex.Message; }
     }
 
     private void SetSummaryPlaceholder()
@@ -492,6 +516,7 @@ public sealed class ColumnInternalsWindow : Window
                     Backup = N(r.DowncomerBackup, "0"),
                     Residence = N(r.DowncomerResidenceTime, "0.0"),
                     Entrainment = N(r.Entrainment, "0.000"),
+                    Efficiency = N(r.OConnellEfficiency, "0.00"),
                     Holdup = N(r.LiquidHoldup, "0.000"),
                     Hetp = N(Show(_su.distance, r.HETP)),
                     Wetting = N(r.WettingRatio, "0.0"),
@@ -544,7 +569,7 @@ public sealed class ColumnInternalsWindow : Window
         var sb = new StringBuilder();
         sb.AppendLine(string.Join(";", "stage", "section", "internal", "diameter (" + _su.distance + ")", "F_LV", "velocity (" + _su.velocity + ")", "flooding velocity (" + _su.velocity + ")",
             "fraction of flood", "pressure drop (" + _su.deltaP + ")", "total head (mm liquid)", "dry drop (mm liquid)", "weir crest (mm)", "hole velocity (m/s)", "weep point velocity (m/s)",
-            "downcomer backup (mm)", "backup limit (mm)", "downcomer residence (s)", "entrainment", "efficiency factor", "holdup (m3/m3)", "loading velocity (m/s)",
+            "downcomer backup (mm)", "backup limit (mm)", "downcomer residence (s)", "entrainment", "efficiency factor", "O'Connell efficiency", "holdup (m3/m3)", "loading velocity (m/s)",
             "HETP (" + _su.distance + ")", "HETP rule of thumb (" + _su.distance + ")", "H_G (m)", "H_L (m)", "H_OG (m)", "wetting ratio", "notes"));
         string G(double v) => double.IsNaN(v) ? "" : v.ToString("G6", ci);
         foreach (var sr in _result.Sections)
@@ -552,7 +577,7 @@ public sealed class ColumnInternalsWindow : Window
                 sb.AppendLine(string.Join(";", r.Stage.ToString(ci), sr.Section.Name, TypeNames[(int)sr.Section.Type], G(Show(_su.distance, r.Diameter)), G(r.FlowParameter),
                     G(Show(_su.velocity, r.NetVelocity)), G(Show(_su.velocity, r.FloodingVelocity)), G(r.FloodFraction), G(Show(_su.deltaP, r.PressureDropTotal)), G(r.TotalHead), G(r.DryPressureDrop),
                     G(r.WeirCrest), G(r.HoleVelocity), G(r.WeepPointVelocity), G(r.DowncomerBackup), G(r.DowncomerBackupLimit), G(r.DowncomerResidenceTime), G(r.Entrainment),
-                    G(r.EntrainmentEfficiencyFactor), G(r.LiquidHoldup), G(r.LoadingVelocity), G(Show(_su.distance, r.HETP)), G(Show(_su.distance, r.HETPRuleOfThumb)), G(r.HG), G(r.HL), G(r.HOG),
+                    G(r.EntrainmentEfficiencyFactor), G(r.OConnellEfficiency), G(r.LiquidHoldup), G(r.LoadingVelocity), G(Show(_su.distance, r.HETP)), G(Show(_su.distance, r.HETPRuleOfThumb)), G(r.HG), G(r.HL), G(r.HOG),
                     G(r.WettingRatio), string.Join(" ", r.Warnings).Replace(';', ',')));
         await using var stream = await file.OpenWriteAsync();
         await using var writer = new System.IO.StreamWriter(stream);
