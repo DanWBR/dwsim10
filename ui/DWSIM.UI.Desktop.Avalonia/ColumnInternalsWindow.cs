@@ -117,7 +117,7 @@ public sealed class ColumnInternalsWindow : Window
 
     private Control BuildContent()
     {
-        _left = new ScrollViewer { Content = BuildInputPanel(), Padding = new Thickness(10, 8, 10, 8), AllowAutoHide = false, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
+        _left = new ScrollViewer { Content = BuildInputPanel(), Padding = new Thickness(10, 8, 22, 8), AllowAutoHide = false, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
 
         _run = new Button { Content = "Rate", Width = 110, IsDefault = true };
         _run.Classes.Add("dialog");
@@ -221,6 +221,7 @@ public sealed class ColumnInternalsWindow : Window
         // room under the last row so the bottom buttons do not cover it
         p.CreateAndAddEmptySpace();
         p.CreateAndAddEmptySpace();
+        p.Children.Add(new Border { Height = 24 });
         return p;
     }
 
@@ -348,7 +349,7 @@ public sealed class ColumnInternalsWindow : Window
         _plotDp.XAxisTitle = "stage";
         _plotDp.YAxisTitle = _su.deltaP + " per tray or per stage of bed";
 
-        var right = new StackPanel { Spacing = 6, Margin = new Thickness(10, 8, 12, 8) };
+        var right = new StackPanel { Spacing = 6, Margin = new Thickness(10, 8, 24, 8) };
         right.Children.Add(new TextBlock { Text = "Results", FontWeight = FontWeight.SemiBold, FontSize = UiScale.Font(13) });
         right.Children.Add(_summary);
         right.Children.Add(_plotFlood);
