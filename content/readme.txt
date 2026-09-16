@@ -51,6 +51,7 @@ Version 10.2.8
 - [CHG] Tools and Utilities menus sorted alphabetically after the extensions load
 - [CHG] Cross-platform interface asks for confirmation before closing with simulations open
 - [CHG] Dynamics Wizard checks the holdup volumes of heaters, coolers, exchangers, machines, reactors and column drums against the flow they carry, with separate targets for liquid and gas, sizes the flow conductance of heaters and exchangers from the steady-state pressure drop and that of machines as a small internal loss, and points out walls with no thermal mass
+- [CHG] Cross-platform interface: the bottom panel (Log, Integrator Controls, Watch) opens shorter, leaving more room for the flowsheet and the editors
 - [FIX] The Naphtali-Sandholm (simultaneous) method now solves a rigorous column with no condenser, such as a reboiled stripper or an absorber, instead of stopping at the first step (issue #74).
 - [FIX] The Naphtali-Sandholm method no longer stalls on larger columns where its per-variable step limit changed the search direction, and the sample absorber now converges (issue #75).
 - [FIX] A column converged by the Naphtali-Sandholm method is no longer rejected by the mass balance check over a trace compound that closed to the solver's own limit (issue #76).
@@ -66,6 +67,8 @@ Version 10.2.8
 - [FIX] Compound data: NIST groups accumulated across save and load; undo of a compound edit did not reach the streams; ChEDL solid density was never assigned
 - [FIX] Cross-platform splash screen left a wide gap after each patron's emoji (fallback font mapped the space)
 - [FIX] Cross-platform compound editor scrollbar clipped the middle column text
+- [FIX] Cross-platform interface scaling factor changed only the fonts; text boxes, drop-down lists, spinners, buttons, tabs, menu bar and toolbar now follow it, and the Scaling Factor field steps by 0.05
+- [FIX] Cross-platform splash screen centered the patrons list instead of starting it at the top
 
 Version 10.2.7
 
