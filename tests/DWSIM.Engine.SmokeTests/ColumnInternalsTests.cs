@@ -363,5 +363,42 @@ namespace DWSIM.Engine.SmokeTests
             Assert.That(packed.AverageHETP, Is.InRange(0.1, 3.0), "HETP");
             foreach (var r in packed.Stages) Assert.That(r.PressureDrop, Is.InRange(10, 3000), "dP/m stage " + r.Stage);
         }
+
+        /// <summary>Prints the numbers the user guide validation tables quote (run with a detailed logger).</summary>
+        [Test]
+        public void PrintValidationTable()
+        {
+            var o = TestContext.Out;
+            var s = TowlerPlate(); var sp = TowlerBottomPlate();
+            var flv = TrayHydraulics.FlowParameter(sp.LiquidMassFlow, sp.VaporMassFlow, sp.LiquidDensity, sp.VaporDensity);
+            var r = TrayHydraulics.RateSieveTray(s, sp, 0.79, 0.7, 3.0, 1.0);
+            o.WriteLine("TOWLER FLV={0:F3} K1base={1:F4} K1top={2:F4} ufbase={3:F2} uftop={4:F2} lwDc={5:F3} how={6:F1} K2={7:F1} uhmin={8:F1} uh={9:F1} C0={10:F3} hd={11:F1} hr={12:F1} ht={13:F1} dP={14:F0} hb={15:F0} tr={16:F2} flood={17:F1} psi={18:F4} Dsized85={19:F3}",
+                flv, TrayHydraulics.FairCapacityFactor(flv, 0.5), TrayHydraulics.FairCapacityFactor(0.03, 0.5), TrayHydraulics.FairFloodingVelocity(flv, 0.5, 954, 0.72, 0.057),
+                TrayHydraulics.FairFloodingVelocity(0.03, 0.5, 753, 2.05, 0.023), TrayHydraulics.WeirLengthRatio(0.12), r.WeirCrest, TrayHydraulics.EduljeeK2(72.0), r.WeepPointVelocity,
+                r.HoleVelocity, TrayHydraulics.OrificeCoefficient(1.0, 0.10), r.DryPressureDrop, TrayHydraulics.ResidualHead(954), r.TotalHead, r.PressureDrop, r.DowncomerBackup,
+                r.DowncomerResidenceTime, r.FloodFraction * 100, r.Entrainment, TrayHydraulics.DiameterForFloodFraction(TowlerPlate(), TowlerBottomPlate(), 0.85));
+            var ql = 6.45 / 402.6;
+            o.WriteLine("KISTER hct_in={0:F3}", TrayHydraulics.ClearLiquidHeightAtTransition(0.5 * 0.0254, 0.10, 62.2 * 16.01846, 1.0, ql, 0.05) / 0.0254);
+            var hiflow = PackingCatalogue.Find("Hiflow rings Metal 50 mm"); var montz = PackingCatalogue.Find("Montz Metal B1-200");
+            o.WriteLine("SEADER612 hL_hiflow={0:F4} hL_montz={1:F4}", PackingHydraulics.BilletHoldup(0.01, 1000, 3e-3, hiflow.a, hiflow.Ch), PackingHydraulics.BilletHoldup(0.01, 1000, 3e-3, montz.a, montz.Ch));
+            var p = PackingCatalogue.Find("Bialecki rings Metal 25 mm");
+            double rhoV = 1.182, rhoL = 1000, muV = 1.78e-5, muL = 1.0e-3, lOverV = 1361.0 / 515.0;
+            var uVl = PackingHydraulics.BilletLoadingVelocity(lOverV, rhoV, rhoL, muV, muL, p.a, p.Epsilon, p.Cs);
+            var uL = uVl * rhoV * lOverV / rhoL;
+            o.WriteLine("SEADER614 uVl={0:F3} uVf={1:F3} uL={2:F5} hL={3:F4} KW={4:F3} dP0={5:F0} dP={6:F0}", uVl, PackingHydraulics.BilletFloodingVelocity(uVl), uL,
+                PackingHydraulics.BilletHoldup(uL, rhoL, muL, p.a, p.Ch), PackingHydraulics.BilletWallFactor(p.a, p.Epsilon, 0.325),
+                PackingHydraulics.BilletDryPressureDrop(uVl, rhoV, muV, p.a, p.Epsilon, p.Cp, 0.325), PackingHydraulics.BilletPressureDrop(uVl, uL, rhoV, rhoL, muV, muL, p.a, p.Epsilon, p.Ch, p.Cp, 0.325));
+            var pk = new PackingData { Name = "Pall-like", Material = "Metal", Size = "1.5 in", a = 149.6, Epsilon = 0.952, Ch = 0.7, CL = 1.227, CV = 0.341, NominalSize = 0.038 };
+            double rhoL2 = 61.5 * 16.01846, rhoV2 = 0.121 * 16.01846, muL2 = 0.64e-6 * rhoL2, muV2 = 0.75e-5 * rhoV2;
+            var aph = PackingHydraulics.BilletInterfaceAreaRatio(0.0017, rhoL2, muL2, 0.101, pk.a, pk.Epsilon);
+            var hl = PackingHydraulics.BilletHL(0.0017, 1.82e-9, pk.a, pk.Epsilon, pk.CL, 0.0128, aph);
+            var hg = PackingHydraulics.BilletHG(2.49, rhoV2, muV2, 7.75e-6, pk.a, pk.Epsilon, pk.CV, 0.0128, aph);
+            var hog = hg + 0.69 * hl;
+            o.WriteLine("SEADER615 hL_eq697={0:F4} aPh={1:F3} HL_m={2:F3} HG_m={3:F3} HOG_ft={4:F2} HETP_ft={5:F2}", PackingHydraulics.BilletHoldup(0.0017, rhoL2, muL2, pk.a, pk.Ch), aph, hl, hg, hog / 0.3048, PackingHydraulics.HetpFromHOG(hog, 0.69) / 0.3048);
+            var imtp = PackingCatalogue.Find("Metal Intalox (IMTP) Metal 25 mm");
+            double rhoV3 = 0.0738 * 16.01846, uV3 = 5.95 * 0.3048, G3 = uV3 * rhoV3, L3 = G3 * 0.092 * Math.Sqrt(1000 / rhoV3);
+            o.WriteLine("SEADER613 robbins_inft={0:F3} kistergill_inft={1:F3} uVflood_robbins={2:F2}", PackingHydraulics.RobbinsPressureDrop(G3, L3, rhoV3, 1000, 1e-3, imtp.Fpd) / 817.2,
+                PackingHydraulics.KisterGillFloodPressureDrop(imtp.Fp) / 817.2, PackingHydraulics.RobbinsFloodingVelocity(L3, rhoV3, 1000, 1e-3, imtp.Fpd, imtp.Fp));
+        }
     }
 }
