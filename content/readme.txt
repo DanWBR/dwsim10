@@ -52,6 +52,7 @@ Version 10.2.8
 - [CHG] Cross-platform interface asks for confirmation before closing with simulations open
 - [CHG] Dynamics Wizard checks the holdup volumes of heaters, coolers, exchangers, machines, reactors and column drums against the flow they carry, with separate targets for liquid and gas, sizes the flow conductance of heaters and exchangers from the steady-state pressure drop and that of machines as a small internal loss, and points out walls with no thermal mass
 - [CHG] Cross-platform interface: the bottom panel (Log, Integrator Controls, Watch) opens shorter, leaving more room for the flowsheet and the editors
+- [CHG] Cross-platform interface starts at a 0.90 scaling factor on a fresh install (Preferences, Scaling), so controls and text match the classic proportions
 - [FIX] The Naphtali-Sandholm (simultaneous) method now solves a rigorous column with no condenser, such as a reboiled stripper or an absorber, instead of stopping at the first step (issue #74).
 - [FIX] The Naphtali-Sandholm method no longer stalls on larger columns where its per-variable step limit changed the search direction, and the sample absorber now converges (issue #75).
 - [FIX] A column converged by the Naphtali-Sandholm method is no longer rejected by the mass balance check over a trace compound that closed to the solver's own limit (issue #76).

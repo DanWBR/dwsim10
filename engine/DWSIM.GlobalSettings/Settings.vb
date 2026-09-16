@@ -179,7 +179,10 @@ Public Class Settings
 
     Public Shared Property DarkMode As Boolean = False
 
-    Public Shared Property UIScalingFactor As Double = 1.0
+    ''' <summary>Interface scaling factor of the cross-platform interface (the classic interface
+    ''' overwrites it with the display DPI at startup). Fresh installs start at 0.9, which fits
+    ''' the WinForms proportions; a value saved in the settings file wins.</summary>
+    Public Shared Property UIScalingFactor As Double = 0.9
 
     Public Shared Property ObjectEditor As Integer = 0
 
@@ -614,7 +617,7 @@ Public Class Settings
 
         CallSolverOnEditorPropertyChanged = source.Configs("Misc").GetBoolean("CallSolverOnEditorPropertyChanged", True)
 
-        UIScalingFactor = source.Configs("Misc").GetDouble("UIScalingFactor", 1.0)
+        UIScalingFactor = source.Configs("Misc").GetDouble("UIScalingFactor", 0.9)
 
         LinuxDisplayDPI = source.Configs("Misc").GetDouble("LinuxDisplayDPI", 96.0)
 
