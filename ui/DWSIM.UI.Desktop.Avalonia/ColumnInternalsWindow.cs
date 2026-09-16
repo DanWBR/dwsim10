@@ -183,13 +183,13 @@ public sealed class ColumnInternalsWindow : Window
         if (col != null) p.CreateAndAddDescriptionRow(nStages + " stages. Stage 1 is the top stage; on a distillation column the condenser and the reboiler are stages 1 and " + nStages + ".");
 
         p.CreateAndAddLabelRow("Design targets");
-        p.CreateAndAddTextBoxRow(_nf, "Fraction of flood to size trays for", _in.TargetFloodFractionTrays,
+        p.CreateAndAddTextBoxRow(_nf, "Target fraction of flood, trays", _in.TargetFloodFractionTrays,
             (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v) && v > 0 && v < 1) _in.TargetFloodFractionTrays = v; });
-        p.CreateAndAddTextBoxRow(_nf, "Fraction of flood to size packings for", _in.TargetFloodFractionPackings,
+        p.CreateAndAddTextBoxRow(_nf, "Target fraction of flood, packings", _in.TargetFloodFractionPackings,
             (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v) && v > 0 && v < 1) _in.TargetFloodFractionPackings = v; });
         p.CreateAndAddTextBoxRow(_nf, "Minimum downcomer residence time (s)", _in.MinDowncomerResidenceTime,
             (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v) && v > 0) _in.MinDowncomerResidenceTime = v; });
-        p.CreateAndAddTextBoxRow(_nf, "Turndown checked for weeping (minimum / design vapour rate)", _in.Turndown,
+        p.CreateAndAddTextBoxRow(_nf, "Turndown for the weeping check (min / design vapour)", _in.Turndown,
             (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v) && v > 0 && v <= 1) _in.Turndown = v; });
         p.CreateAndAddDescriptionRow("A section with diameter 0 is sized so that its worst stage sits at the target fraction of flood; a section with a diameter is rated as it is.");
 
@@ -234,7 +234,7 @@ public sealed class ColumnInternalsWindow : Window
                 s.PackingName = s.Type == InternalType.StructuredPacking ? "Mellapak Sheet metal 250Y" : "Pall rings Metal 50 mm";
             Rebuild();
         });
-        p.CreateAndAddTextBoxRow(_nf, "Column diameter (" + _su.distance + ", 0 = size for the target flood)", s.Diameter > 0 ? Show(_su.distance, s.Diameter) : 0.0,
+        p.CreateAndAddTextBoxRow(_nf, "Column diameter (" + _su.distance + ", 0 = size)", s.Diameter > 0 ? Show(_su.distance, s.Diameter) : 0.0,
             (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v)) s.Diameter = v > 0 ? cv.ConvertToSI(_su.distance, v) : 0; });
 
         if (s.IsTray)
@@ -242,15 +242,15 @@ public sealed class ColumnInternalsWindow : Window
             p.CreateAndAddLabelRow("Tray geometry");
             p.CreateAndAddTextBoxRow(_nf, "Tray spacing (" + _su.distance + ")", Show(_su.distance, s.TraySpacing),
                 (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v) && v > 0) s.TraySpacing = cv.ConvertToSI(_su.distance, v); });
-            p.CreateAndAddTextBoxRow(_nf, "Downcomer area, fraction of the cross section (single pass)", s.DowncomerAreaFraction,
+            p.CreateAndAddTextBoxRow(_nf, "Downcomer area fraction (single pass)", s.DowncomerAreaFraction,
                 (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v) && v > 0 && v < 0.5) s.DowncomerAreaFraction = v; });
             p.CreateAndAddTextBoxRow(_nf, "Weir height (" + _su.distance + ")", Show(_su.distance, s.WeirHeight),
                 (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v) && v > 0) s.WeirHeight = cv.ConvertToSI(_su.distance, v); });
-            p.CreateAndAddTextBoxRow(_nf, "Downcomer clearance (" + _su.distance + ", 0 = weir height minus 10 mm)", s.DowncomerClearance > 0 ? Show(_su.distance, s.DowncomerClearance) : 0.0,
+            p.CreateAndAddTextBoxRow(_nf, "Downcomer clearance (" + _su.distance + ", 0 = weir minus 10 mm)", s.DowncomerClearance > 0 ? Show(_su.distance, s.DowncomerClearance) : 0.0,
                 (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v)) s.DowncomerClearance = v > 0 ? cv.ConvertToSI(_su.distance, v) : 0; });
             p.CreateAndAddTextBoxRow(_nf, "Hole diameter (" + _su.distance + ")", Show(_su.distance, s.HoleDiameter),
                 (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v) && v > 0) s.HoleDiameter = cv.ConvertToSI(_su.distance, v); });
-            p.CreateAndAddTextBoxRow(_nf, "Hole area, fraction of the active area", s.HoleAreaFraction,
+            p.CreateAndAddTextBoxRow(_nf, "Hole area fraction of the active area", s.HoleAreaFraction,
                 (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v) && v > 0 && v < 0.5) s.HoleAreaFraction = v; });
             p.CreateAndAddTextBoxRow(_nf, "Plate thickness (" + _su.distance + ")", Show(_su.distance, s.PlateThickness),
                 (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v) && v > 0) s.PlateThickness = cv.ConvertToSI(_su.distance, v); });
@@ -261,9 +261,9 @@ public sealed class ColumnInternalsWindow : Window
                 ? "Fair's chart on the net area, with the surface tension correction; the industry standard and the one Towler and Sinnott and ChemSep use."
                 : "Kister and Haas: the correlation Kister recommends for sieve and valve trays (hole area 6 to 20 %, spacing above 14 in, non-foaming systems).");
             if (s.Type == InternalType.ValveTray)
-                p.CreateAndAddTextBoxRow(_nf, "Open valve area, fraction of the active area", s.ValveOpenAreaFraction,
+                p.CreateAndAddTextBoxRow(_nf, "Open valve area fraction of the active area", s.ValveOpenAreaFraction,
                     (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v) && v > 0) s.ValveOpenAreaFraction = v; });
-            p.CreateAndAddTextBoxRow(_nf, "System (foaming) factor on the flooding velocity", s.SystemFactor,
+            p.CreateAndAddTextBoxRow(_nf, "System (foaming) factor on flooding", s.SystemFactor,
                 (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v) && v > 0 && v <= 1) s.SystemFactor = v; });
             p.CreateAndAddDescriptionRow("1 for non-foaming systems; 0.9 for light foaming (crude, absorbers), 0.85 for moderate (amine, glycol regenerators), 0.73 for heavy foaming (amine and glycol absorbers), 0.6 for stable foam.");
             if (s.Type == InternalType.BubbleCapTray) p.CreateAndAddDescriptionRow("Bubble-cap trays are rated with the sieve tray hydraulics for now.");
@@ -300,7 +300,7 @@ public sealed class ColumnInternalsWindow : Window
                 p.CreateAndAddTextBoxRow(_nf, "Specific area a (m2/m3)", c.a, (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v) && v > 0) c.a = v; });
                 p.CreateAndAddTextBoxRow(_nf, "Void fraction", c.Epsilon, (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v) && v > 0 && v < 1) c.Epsilon = v; });
                 p.CreateAndAddTextBoxRow(_nf, "Packing factor Fp (1/m)", c.Fp, (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v) && v > 0) c.Fp = v; });
-                p.CreateAndAddTextBoxRow(_nf, "Dry packing factor Fpd for Robbins (1/m, 0 = use Fp)", double.IsNaN(c.Fpd) ? 0 : c.Fpd, (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v)) c.Fpd = v > 0 ? v : double.NaN; });
+                p.CreateAndAddTextBoxRow(_nf, "Fpd for Robbins (1/m, 0 = use Fp)", double.IsNaN(c.Fpd) ? 0 : c.Fpd, (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v)) c.Fpd = v > 0 ? v : double.NaN; });
                 p.CreateAndAddDescriptionRow("Billet and Schultes constants (leave 0 when unknown; the Robbins route and the rules of thumb do not need them).");
                 void BC(string label, Func<double> get, Action<double> set) => p.CreateAndAddTextBoxRow(_nf, label, double.IsNaN(get()) ? 0 : get(), (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v)) set(v > 0 ? v : double.NaN); });
                 BC("C_h (holdup)", () => c.Ch, v => c.Ch = v);
@@ -327,9 +327,9 @@ public sealed class ColumnInternalsWindow : Window
                 : "Billet and Schultes (1999): loading and flooding velocities, holdup and pressure drop from the packing constants; the preferred route when the constants exist.");
             p.CreateAndAddDropDownRow("HETP", HetpModels, (int)s.HetpModel, (dd, _) => { if (dd.SelectedIndex >= 0) { s.HetpModel = (HetpModel)dd.SelectedIndex; Rebuild(); } });
             p.CreateAndAddDescriptionRow("Kister's advice: measured HETP data first, rules of thumb next (1.5 times the packing size for Pall-type rings; 100/a + 4 in for structured packings), mass transfer models last. The rule-of-thumb value is always shown beside the model.");
-            p.CreateAndAddTextBoxRow(_nf, "Liquid diffusivity of the transferring component (m2/s, 0 = estimate)", s.LiquidDiffusivity,
+            p.CreateAndAddTextBoxRow(_nf, "Liquid diffusivity (m2/s, 0 = estimate)", s.LiquidDiffusivity,
                 (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v)) s.LiquidDiffusivity = Math.Max(0, v); });
-            p.CreateAndAddTextBoxRow(_nf, "Vapour diffusivity of the transferring component (m2/s, 0 = estimate)", s.VapourDiffusivity,
+            p.CreateAndAddTextBoxRow(_nf, "Vapour diffusivity (m2/s, 0 = estimate)", s.VapourDiffusivity,
                 (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v)) s.VapourDiffusivity = Math.Max(0, v); });
             p.CreateAndAddDescriptionRow("Typical values: 1e-9 m2/s for liquids, 1e-5 m2/s for gases at 1 atm. The estimates scale these with temperature, pressure and liquid viscosity.");
         }
