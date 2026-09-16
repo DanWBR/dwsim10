@@ -1,10 +1,6 @@
 ﻿==================================================
 DWSIM - Open Source Process Simulator
 Version 10.2.9
-
-- [NEW] Column Internals tool on the Utilities menu of both interfaces: rates the trays (flooding, pressure drop, weeping, entrainment, downcomer backup) and the packings (pressure drop, holdup, HETP, bed height) of a solved rigorous column stage by stage, sizes each section for a target fraction of flood, with a packing catalogue and case files; checked against the worked examples of Towler and Sinnott and of Seader and Henley
-
-Version 10.2.8
 Copyright (c) 2017-2026 Daniel Wagner and contributors
 Copyright (c) 2008-2016 Daniel Wagner, Gregor Reichert, Gustavo Leon
 ==================================================
@@ -42,6 +38,10 @@ VERSION HISTORY / CHANGELOG
 ==================================================
 
 The full changelog including souce code changes can be viewed at https://github.com/DanWBR/dwsim10/commits/windows
+
+Version 10.2.9
+
+- [NEW] Column Internals tool on the Utilities menu of both interfaces: rates the trays (flooding, pressure drop, weeping, entrainment, downcomer backup) and the packings (pressure drop, holdup, HETP, bed height) of a solved rigorous column stage by stage, sizes each section for a target fraction of flood, with a packing catalogue and case files; checked against the worked examples of Towler and Sinnott and of Seader and Henley
 
 Version 10.2.8
 
