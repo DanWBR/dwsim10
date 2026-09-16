@@ -39,7 +39,8 @@
       <!-- Patrons / Sponsors -->
       <TextBlock Name="LblPatrons"
                  Canvas.Left="260" Canvas.Top="160"
-                 Width="700" Height="260"
+                 Width="700" MaxHeight="260"
+                 VerticalAlignment="Top"
                  TextWrapping="Wrap"
                  TextTrimming="CharacterEllipsis"
                  Foreground="#0D72A6"
