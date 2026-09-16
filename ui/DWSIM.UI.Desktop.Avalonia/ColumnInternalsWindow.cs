@@ -52,6 +52,7 @@ public sealed class ColumnInternalsWindow : Window
     private static readonly List<string> HetpModels = new() { "Onda (random packings)", "Billet and Schultes", "Rule of thumb", "Rocha, Bravo and Fair (structured)" };
     private static readonly List<string> ValveLegNames = new() { "Three legs", "Four legs", "Caged (no legs)" };
     private static readonly List<string> CapMethods = new() { "Bolles (1956)", "Modified Dauphine" };
+    private static readonly List<string> ValveModels = new() { "Klein (1982) with Fair or Kister-Haas", "Glitsch Ballast Tray Design Manual (Bulletin 4900)" };
     private const string UserPacking = "User-defined...";
 
     /// <summary>One row of the results table, already in the flowsheet units.</summary>
@@ -324,7 +325,11 @@ public sealed class ColumnInternalsWindow : Window
                 p.CreateAndAddDescriptionRow("Usual values: spacing 0.45 to 0.6 m, downcomer 12 %, weir 40 to 50 mm (6 to 12 mm in vacuum), holes 5 mm, hole area 10 %, plate 5 mm carbon steel or 3 mm stainless.");
             if (s.Type == InternalType.ValveTray)
             {
-                p.CreateAndAddLabelRow("Valves (Klein's dry pressure drop)");
+                p.CreateAndAddLabelRow("Valves");
+                p.CreateAndAddDropDownRow("Valve tray procedure", ValveModels, (int)s.ValveModel, (dd, _) => { if (dd.SelectedIndex >= 0) { s.ValveModel = (ValveTrayModel)dd.SelectedIndex; Rebuild(); } });
+                p.CreateAndAddDescriptionRow(s.ValveModel == ValveTrayModel.Klein
+                    ? "Klein's closed and open balance points from the valve weight for the dry pressure drop; flooding by the correlation chosen below."
+                    : "The Glitsch manual: per cent of flood at constant V/L from the CAF chart and the system factor, downcomer design velocity, dry drop through NU/78.5 ft2 of holes (V-1 flat or V-4 venturi units), total drop with 0.4 (h_w + h_ow), backup and the leakage point. Single-pass trays.");
                 p.CreateAndAddTextBoxRow(_nf, "Valves per m2 of active area", s.ValvesPerArea,
                     (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v) && v > 0) s.ValvesPerArea = v; });
                 p.CreateAndAddTextBoxRow(_nf, "Deck hole diameter under the valve (" + _su.distance + ")", Show(_su.distance, s.ValveHoleDiameter),
@@ -374,6 +379,8 @@ public sealed class ColumnInternalsWindow : Window
             p.CreateAndAddLabelRow("Capacity");
             if (s.Type == InternalType.BubbleCapTray)
                 p.CreateAndAddDescriptionRow("Fair's chart on the net area, with the surface tension correction; it was drawn for bubble-cap and sieve trays.");
+            else if (s.Type == InternalType.ValveTray && s.ValveModel == ValveTrayModel.Glitsch)
+                p.CreateAndAddDescriptionRow("Glitsch: the vapour capacity factor CAF_0 of Bulletin 4900 Figure 5 for the tray spacing and vapour density, times the system factor below.");
             else
             {
                 p.CreateAndAddDropDownRow("Entrainment flooding correlation", FloodModels, (int)s.FloodModel, (dd, _) => { if (dd.SelectedIndex >= 0) { s.FloodModel = (TrayFloodModel)dd.SelectedIndex; Rebuild(); } });
@@ -381,7 +388,7 @@ public sealed class ColumnInternalsWindow : Window
                     ? "Fair's chart on the net area, with the surface tension correction; the industry standard and the one Towler and Sinnott and ChemSep use."
                     : "Kister and Haas: the correlation Kister recommends for sieve and valve trays (hole area 6 to 20 %, spacing above 14 in, non-foaming systems).");
             }
-            if (s.Type == InternalType.ValveTray && s.FloodModel == TrayFloodModel.KisterHaas)
+            if (s.Type == InternalType.ValveTray && s.ValveModel == ValveTrayModel.Klein && s.FloodModel == TrayFloodModel.KisterHaas)
                 p.CreateAndAddTextBoxRow(_nf, "Open valve area fraction of the active area", s.ValveOpenAreaFraction,
                     (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v) && v > 0) s.ValveOpenAreaFraction = v; });
             p.CreateAndAddTextBoxRow(_nf, "System (foaming) factor on flooding", s.SystemFactor,

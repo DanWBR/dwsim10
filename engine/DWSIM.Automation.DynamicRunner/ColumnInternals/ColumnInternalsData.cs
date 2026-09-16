@@ -76,6 +76,15 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
         Caged = 2
     }
 
+    /// <summary>Which procedure rates a valve tray.</summary>
+    public enum ValveTrayModel
+    {
+        /// <summary>Fair or Kister-Haas flooding with Klein's dry pressure drop (Kister's recommendation).</summary>
+        Klein = 0,
+        /// <summary>Glitsch Ballast Tray Design Manual, Bulletin 4900 (6th ed., 1993): CAF capacity, downcomer design velocity, dry and total pressure drop, backup and leakage point.</summary>
+        Glitsch = 1
+    }
+
     /// <summary>How the cap pressure drop of a bubble-cap tray is computed.</summary>
     public enum BubbleCapMethod
     {
@@ -412,8 +421,9 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
         /// <summary>Valve metal density, kg/m3 (carbon steel 7850, stainless 8030, aluminium 2700).</summary>
         public double ValveDensity = 7850.0;
         public ValveLegs ValveLegs = ValveLegs.FourLegs;
-        /// <summary>True for a venturi (contoured) orifice, false for a flat orifice.</summary>
+        /// <summary>True for a venturi (contoured) orifice, false for a flat orifice (Glitsch V-4 against V-1).</summary>
         public bool ValveVenturi = false;
+        public ValveTrayModel ValveModel = ValveTrayModel.Klein;
 
         // ---- bubble-cap trays (Bolles 1956) ----
         /// <summary>Inside diameter of the cap, m.</summary>
@@ -565,6 +575,7 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
                     new XElement("ValveDensity", D(s.ValveDensity)),
                     new XElement("ValveLegs", s.ValveLegs.ToString()),
                     new XElement("ValveVenturi", s.ValveVenturi.ToString()),
+                    new XElement("ValveModel", s.ValveModel.ToString()),
                     new XElement("CapDiameter", D(s.CapDiameter)),
                     new XElement("RiserDiameter", D(s.RiserDiameter)),
                     new XElement("CapPitchRatio", D(s.CapPitchRatio)),
@@ -647,6 +658,8 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
                     ValveLegs vl;
                     if (Enum.TryParse(PS(e, "ValveLegs", "FourLegs"), out vl)) s.ValveLegs = vl;
                     bool vv; s.ValveVenturi = bool.TryParse(PS(e, "ValveVenturi", "False"), out vv) && vv;
+                    ValveTrayModel vm;
+                    if (Enum.TryParse(PS(e, "ValveModel", "Klein"), out vm)) s.ValveModel = vm;
                     s.CapDiameter = PD(e, "CapDiameter", s.CapDiameter);
                     s.RiserDiameter = PD(e, "RiserDiameter", s.RiserDiameter);
                     s.CapPitchRatio = PD(e, "CapPitchRatio", s.CapPitchRatio);
@@ -771,6 +784,8 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
         public double ClosedBalanceVelocity = double.NaN; // hole velocity at which the valves start to open, m/s
         public double OpenBalanceVelocity = double.NaN;   // hole velocity at which all valves are open, m/s
         public double UnitReference = double.NaN;         // u_h / u_h,open balance ("unit reference" of the valve tray)
+        public double DowncomerFloodFraction = double.NaN; // Glitsch: liquid load over the downcomer design velocity times the downcomer area
+        public double DryDropLimitRatio = double.NaN;      // Glitsch: dry pressure drop over the 0.2 x tray spacing capacity limit
         /// <summary>Valves closed, opening or open; slots open fraction of bubble caps. Empty for sieve trays.</summary>
         public string Regime = "";
 

@@ -442,6 +442,86 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
             return Math.Sqrt(valveThicknessIn * legRatio * (1.3 / kClosed) * valveDensity / rhoV);
         }
 
+        // ------------------------------------------------------------------ valves (Glitsch Bulletin 4900)
+
+        // Figure 5b of the Ballast Tray Design Manual: CAF_0 against the vapour density (lb/ft3) for tray spacings of 12, 18, 24, 36 and 48 in,
+        // read from the 1993 chart; below the plateau start of each spacing the manual's low-density equation applies
+        private static readonly double[] CafTs = { 12, 18, 24, 36, 48 };
+        private static readonly double[] CafDv = { 0.2, 0.4, 0.6, 1.0, 1.5, 2.0, 3.0, 4.0, 5.0, 6.0, 8.0, 10.0 };
+        private static readonly double[,] Caf0 =
+        {
+            { 0.300, 0.298, 0.295, 0.290, 0.285, 0.279, 0.267, 0.256, 0.248, 0.240, 0.229, 0.222 }, // 12 in
+            { 0.400, 0.398, 0.396, 0.394, 0.389, 0.383, 0.367, 0.351, 0.334, 0.318, 0.300, 0.285 }, // 18 in
+            { 0.445, 0.443, 0.441, 0.438, 0.433, 0.427, 0.411, 0.388, 0.364, 0.350, 0.330, 0.310 }, // 24 in
+            { 0.500, 0.497, 0.494, 0.490, 0.483, 0.475, 0.460, 0.435, 0.405, 0.385, 0.360, 0.335 }, // 36 in
+            { 0.530, 0.525, 0.521, 0.514, 0.507, 0.498, 0.479, 0.454, 0.425, 0.400, 0.370, 0.345 }  // 48 in
+        };
+        private static readonly double[] CafPlateauStart = { 0.17, 0.17, 0.10, 0.045, 0.02 };
+        // the limit line at high vapour density
+        private static readonly double[] LimitDv = { 4.0, 4.5, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0 };
+        private static readonly double[] LimitCaf = { 0.470, 0.440, 0.406, 0.355, 0.313, 0.281, 0.247, 0.222 };
+
+        /// <summary>Glitsch flood capacity factor at zero liquid load CAF_0, ft/s (Bulletin 4900 Figure 5): the chart value for the
+        /// tray spacing (interpolated between the 12 to 48 in curves, flat below each plateau start), the low-density equation
+        /// CAF_0 = TS^0.63 D_v^(1/6)/12 below 0.17 lb/ft3, and the limit line above 4 lb/ft3, the smallest of the three.</summary>
+        public static double GlitschCaf0(double rhoVlb, double traySpacingIn)
+        {
+            var ts = Math.Max(CafTs[0], Math.Min(CafTs[CafTs.Length - 1], traySpacingIn));
+            int i = 0; while (i < CafTs.Length - 2 && CafTs[i + 1] < ts) i++;
+            var f = (ts - CafTs[i]) / (CafTs[i + 1] - CafTs[i]);
+            Func<int, double> curve = row =>
+            {
+                var dv = Math.Max(CafPlateauStart[row], Math.Min(CafDv[CafDv.Length - 1], rhoVlb));
+                var xs = new double[CafDv.Length]; var ys = new double[CafDv.Length];
+                for (int k = 0; k < CafDv.Length; k++) { xs[k] = Math.Log(CafDv[k]); ys[k] = Caf0[row, k]; }
+                return Interp(xs, ys, Math.Log(Math.Max(dv, CafDv[0])));
+            };
+            var caf = curve(i) + f * (curve(i + 1) - curve(i));
+            if (rhoVlb < 0.17) caf = Math.Min(caf, Math.Pow(ts, 0.63) * Math.Pow(Math.Max(rhoVlb, 1e-6), 1.0 / 6.0) / 12.0);
+            if (rhoVlb >= LimitDv[0]) caf = Math.Min(caf, Interp(LimitDv, LimitCaf, Math.Min(rhoVlb, LimitDv[LimitDv.Length - 1])));
+            return caf;
+        }
+
+        /// <summary>Downcomer design velocity, gpm/ft2 (Bulletin 4900 eq. 1): the smallest of 250, 41 sqrt(D_L - D_V) and 7.5 sqrt(TS) sqrt(D_L - D_V), times the system factor.</summary>
+        public static double GlitschDowncomerDesignVelocity(double rhoLlb, double rhoVlb, double traySpacingIn, double systemFactor)
+        {
+            var d = Math.Sqrt(Math.Max(rhoLlb - rhoVlb, 0.1));
+            return Math.Min(250.0, Math.Min(41.0 * d, 7.5 * Math.Sqrt(traySpacingIn) * d)) * systemFactor;
+        }
+
+        /// <summary>Per cent of flood at constant V/L as a fraction (eq. 13): (Vload + GPM FPL/13000)/(AA CAF), Vload = CFS sqrt(D_V/(D_L - D_V)) in ft3/s, FPL in inches, AA in ft2.</summary>
+        public static double GlitschFloodFraction(double vload, double gpm, double flowPathIn, double activeAreaFt2, double caf)
+        {
+            return (vload + gpm * flowPathIn / 13000.0) / (activeAreaFt2 * caf);
+        }
+
+        /// <summary>K1 and K2 of the dry pressure drop (Bulletin 4900 p. 27): V-1 flat orifice K1 = 0.20, K2 = 1.18, 0.95, 0.86, 0.67, 0.61 for decks of
+        /// 0.074, 0.104, 0.134, 0.187 and 0.250 in; V-4 venturi orifice K1 = 0.10, K2 = 0.68.</summary>
+        public static void GlitschCoefficients(bool venturi, double deckThicknessIn, out double k1, out double k2)
+        {
+            if (venturi) { k1 = 0.10; k2 = 0.68; return; }
+            k1 = 0.20;
+            k2 = Interp(new[] { 0.074, 0.104, 0.134, 0.187, 0.250 }, new[] { 1.18, 0.95, 0.86, 0.67, 0.61 }, deckThicknessIn);
+        }
+
+        /// <summary>Dry tray pressure drop, in of liquid (eq. 18): the larger of 1.35 t_m D_m/D_L + K1 V_H^2 D_V/D_L (units part open) and K2 V_H^2 D_V/D_L (fully open), t_m in inches, V_H in ft/s.</summary>
+        public static double GlitschDryDropIn(double valveThicknessIn, double valveDensityLb, double rhoLlb, double rhoVlb, double holeVelocityFt, double k1, double k2)
+        {
+            var x = holeVelocityFt * holeVelocityFt * rhoVlb / rhoLlb;
+            return Math.Max(1.35 * valveThicknessIn * valveDensityLb / rhoLlb + k1 * x, k2 * x);
+        }
+
+        // leakage point (Bulletin 4900 p. 28): V_H sqrt(D_V/D_L) at which no leakage occurs against the liquid level on the tray, inches
+        private static readonly double[] LeakLevel = { 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0 };
+        private static readonly double[] LeakV1 = { 0.35, 0.45, 0.53, 0.59, 0.69, 0.75, 0.82 };
+        private static readonly double[] LeakV4 = { 0.63, 0.81, 0.97, 1.11, 1.24, 1.36, 1.48 };
+
+        /// <summary>Hole velocity (as V_H sqrt(D_V/D_L), ft/s) above which a single-pass Ballast tray does not leak, for the clear liquid level h_w + h_ow in inches.</summary>
+        public static double GlitschLeakagePoint(bool venturi, double liquidLevelIn)
+        {
+            return Interp(LeakLevel, venturi ? LeakV4 : LeakV1, liquidLevelIn);
+        }
+
         // ------------------------------------------------------------------ full rating of one tray
 
         /// <summary>Rates one tray of the section at the stage conditions with the model of its type; diameter must be set.</summary>
@@ -562,6 +642,7 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
 
             var valves = Math.Max(1.0, s.ValvesPerArea * Aa);
             var Ah = valves * Math.PI / 4.0 * s.ValveHoleDiameter * s.ValveHoleDiameter;
+            if (s.ValveModel == ValveTrayModel.Glitsch) return RateGlitschValveTray(s, sp, diameter, turndown, minResidenceTime, murphreeEfficiency, r, Ad, Aa, lw, valves);
             r.HoleVelocity = r.VaporLoad / Ah;
 
             // Klein's balance points, in his units
@@ -597,6 +678,95 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
             TrayFinish(s, sp, r, Ad, lw, minResidenceTime, murphreeEfficiency, 0.0);
             if (r.WeepRatioTurndown < 1.0) r.Warnings.Add("At turndown the valves stay closed: expect weeping through the valve crevices.");
             else if (r.UnitReference * turndown < 0.4) r.Warnings.Add("Unit reference below 40 % at turndown: the vapour may channel through part of the valves (Kister asks 40, 60 and 80 % for one, two and four passes).");
+            return r;
+        }
+
+        /// <summary>Glitsch Ballast Tray Design Manual (Bulletin 4900, 6th ed.) procedure for a single-pass V-1 or V-4 tray: per cent of
+        /// flood at constant V/L from the CAF chart with the system factor (eqs. 2 and 13), the downcomer against its design velocity
+        /// (eqs. 1 and 5), the dry and total pressure drop (eqs. 18 to 20), the downcomer backup (eqs. 22 and 23), the leakage point
+        /// table and the dry pressure drop capacity limit (eq. 17). Units of the manual inside; the rating in SI.</summary>
+        private static StageRating RateGlitschValveTray(InternalsSection s, StageProperties sp, double diameter, double turndown, double minResidenceTime,
+            double murphreeEfficiency, StageRating r, double Ad, double Aa, double lw, double valves)
+        {
+            var rhoL = sp.LiquidDensity; var rhoV = sp.VaporDensity; var hw = s.WeirHeight;
+            var rhoLlb = rhoL / 16.01846; var rhoVlb = rhoV / 16.01846;
+            var cfs = r.VaporLoad / 0.0283168;
+            var gpm = r.LiquidLoad * 15850.32;
+            var tsIn = s.TraySpacing / 0.0254;
+            var hwIn = hw / 0.0254;
+            var tsEff = hwIn > 0.15 * tsIn ? tsIn - (hwIn - 0.15 * tsIn) : tsIn;   // a tall weir counts against the spacing (p. 35)
+            var sf = Math.Max(0.1, Math.Min(1.0, s.SystemFactor));
+
+            // capacity: jet flood at constant V/L
+            var caf = GlitschCaf0(rhoVlb, tsEff) * sf;
+            var vload = cfs * Math.Sqrt(rhoVlb / Math.Max(rhoLlb - rhoVlb, 1e-6));
+            var fplIn = (diameter - 2.0 * ChordHeight(diameter, lw)) / 0.0254;
+            var aaFt = Aa / 0.09290304;
+            r.CapacityFactor = vload / aaFt * 0.3048;      // Vload/AA, the capacity factor on the active area, m/s
+            r.FloodingVelocity = caf * 0.3048 * Math.Sqrt((rhoL - rhoV) / rhoV) * Aa / (Math.PI * diameter * diameter / 4.0 - Ad);
+            r.FloodFraction = GlitschFloodFraction(vload, gpm, fplIn, aaFt, caf);
+
+            // downcomer against its design velocity
+            var vdDsg = GlitschDowncomerDesignVelocity(rhoLlb, rhoVlb, tsIn, sf);
+            r.DowncomerFloodFraction = gpm / (Ad / 0.09290304 * vdDsg);
+
+            // pressure drop
+            var ahFt = valves / 78.5;
+            r.HoleVelocity = cfs / ahFt * 0.3048;
+            var vhFt = cfs / ahFt;
+            double k1, k2;
+            GlitschCoefficients(s.ValveVenturi, s.PlateThickness / 0.0254, out k1, out k2);
+            var dpDryIn = GlitschDryDropIn(s.ValveThickness / 0.0254, s.ValveDensity / 16.01846, rhoLlb, rhoVlb, vhFt, k1, k2);
+            var lwiIn = lw / 0.0254;
+            var howIn = 0.4 * Math.Pow(gpm / lwiIn, 2.0 / 3.0);
+            r.WeirCrest = howIn * 25.4;
+            r.DryPressureDrop = dpDryIn * 25.4;
+            r.AeratedLiquidHead = (howIn + 0.4 * hwIn) * 25.4;
+            r.TotalHead = r.DryPressureDrop + r.AeratedLiquidHead;
+            r.PressureDrop = HeadToPressure(r.TotalHead, rhoL);
+            r.PressureDropTotal = r.PressureDrop;
+            r.DryDropLimitRatio = dpDryIn / (0.2 * tsIn);
+
+            // the valves: fully open once K2 V_H^2 D_V/D_L exceeds the part-open drop
+            var x = vhFt * vhFt * rhoVlb / rhoLlb;
+            var partOpen = 1.35 * (s.ValveThickness / 0.0254) * (s.ValveDensity / 16.01846) / rhoLlb + k1 * x;
+            var uObpFt = Math.Sqrt(1.35 * (s.ValveThickness / 0.0254) * (s.ValveDensity / 16.01846) / rhoLlb / ((k2 - k1) * rhoVlb / rhoLlb));
+            r.OpenBalanceVelocity = uObpFt * 0.3048;
+            r.UnitReference = vhFt / uObpFt;
+
+            // leakage point
+            var leak = GlitschLeakagePoint(s.ValveVenturi, hwIn + howIn);
+            var vhCorr = vhFt * Math.Sqrt(rhoVlb / rhoLlb);
+            r.WeepPointVelocity = leak / Math.Sqrt(rhoVlb / rhoLlb) * 0.3048;
+            r.ClosedBalanceVelocity = r.WeepPointVelocity;
+            r.WeepRatio = vhCorr / leak;
+            r.WeepRatioTurndown = r.WeepRatio * turndown;
+
+            // downcomer backup (eq. 22), the clearance area under the downcomer
+            var hap = s.DowncomerClearance > 0 ? s.DowncomerClearance : Math.Max(0.005, hw - 0.010);
+            var audFt = lw * hap / 0.09290304;
+            var vud = gpm / (448.83 * audFt);
+            var hudIn = 0.65 * vud * vud;
+            var hdcIn = hwIn + howIn + (r.TotalHead / 25.4 + hudIn) * rhoLlb / (rhoLlb - rhoVlb);
+            r.DowncomerBackup = hdcIn * 25.4;
+            var limitFrac = rhoVlb < 1.0 ? 0.6 : rhoVlb < 3.0 ? 0.5 : 0.4;
+            r.DowncomerBackupLimit = limitFrac * s.TraySpacing * 1000.0;
+            r.DowncomerResidenceTime = Ad * (r.DowncomerBackup / 1000.0) * rhoL / Math.Max(sp.LiquidMassFlow, 1e-9);
+            r.DowncomerVelocity = r.LiquidLoad / Ad;
+            r.OConnellEfficiency = OConnellEfficiency(sp.LiquidViscosity, sp.RelativeVolatility);
+            r.Entrainment = FairEntrainment(r.FlowParameter, r.FloodFraction);
+            r.EntrainmentEfficiencyFactor = EntrainmentEfficiencyFactor(r.Entrainment, murphreeEfficiency);
+            r.Regime = "Glitsch " + (s.ValveVenturi ? "V-4" : "V-1") + ": jet flood " + (r.FloodFraction * 100).ToString("0") + " %, downcomer " + (r.DowncomerFloodFraction * 100).ToString("0")
+                + " %, dry drop " + (r.DryDropLimitRatio * 100).ToString("0") + " % of its limit, " + (partOpen > k2 * x ? "units part open" : "units fully open");
+
+            if (r.FloodFraction > 1.0) r.Warnings.Add("Jet flooding: the vapour load exceeds the Glitsch flood capacity at this liquid rate.");
+            else if (r.FloodFraction > 0.82) r.Warnings.Add("Per cent of flood above 82, the most the manual recommends for a new design (77 in vacuum).");
+            if (r.DowncomerFloodFraction > 1.0) r.Warnings.Add("The liquid load exceeds the downcomer design velocity times the downcomer area.");
+            if (r.DryDropLimitRatio > 1.0) r.Warnings.Add("Dry pressure drop above 0.2 times the tray spacing, the Glitsch capacity limit by pressure drop (too few valves).");
+            if (r.DowncomerBackup > r.DowncomerBackupLimit) r.Warnings.Add("Downcomer backup above " + (limitFrac * 100).ToString("0") + " % of the tray spacing, the manual's limit at this vapour density.");
+            if (r.DowncomerResidenceTime < minResidenceTime) r.Warnings.Add("Downcomer residence time below " + minResidenceTime.ToString("0.#") + " s.");
+            if (r.WeepRatioTurndown < 1.0) r.Warnings.Add("Below the Glitsch leakage point at turndown: about 25 % of the liquid leaks and the efficiency drops by about 10 %.");
+            if (r.Entrainment > 0.1) r.Warnings.Add("Fractional entrainment above 0.1 (Fair's chart); the efficiency penalty is large.");
             return r;
         }
 

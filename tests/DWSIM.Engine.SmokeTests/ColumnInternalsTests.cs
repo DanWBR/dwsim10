@@ -450,6 +450,59 @@ namespace DWSIM.Engine.SmokeTests
             Assert.That(r.OConnellEfficiency, Is.NaN, "no relative volatility given");
         }
 
+        /// <summary>Glitsch Bulletin 4900 example design problem (C3 splitter, 20 in spacing, two passes): CAF 0.395, downcomer design
+        /// velocity 170 gpm/ft2, 68.6 % of flood on 42.94 ft2 of active area with a 32.5 in flow path, dry drop 1.75 in through 534 V-1
+        /// units (16 gauge stainless, 10 gauge deck), total 3.88 in with a 181.7 in weir 2 in high, backup 7.88 in.</summary>
+        [Test]
+        public void GlitschProcedureReproducesTheBulletin4900Example()
+        {
+            Assert.That(TrayHydraulics.GlitschCaf0(2.75, 20.0), Is.EqualTo(0.395).Within(0.012), "CAF_0 from the chart");
+            Assert.That(TrayHydraulics.GlitschCaf0(0.1, 24.0), Is.EqualTo(0.42).Within(0.03), "low density equation, 24 in");
+            Assert.That(TrayHydraulics.GlitschCaf0(8.0, 48.0), Is.EqualTo(0.281).Within(0.01), "limit line");
+            Assert.That(TrayHydraulics.GlitschDowncomerDesignVelocity(29.33, 2.75, 20.0, 1.0), Is.EqualTo(170).Within(4), "the manual rounds 172.9 to 170");
+            Assert.That(TrayHydraulics.GlitschFloodFraction(8.86, 1100, 32.5, 42.94, 0.395), Is.EqualTo(0.686).Within(0.003));
+            double k1, k2;
+            TrayHydraulics.GlitschCoefficients(false, 0.134, out k1, out k2);
+            Assert.That(k1, Is.EqualTo(0.20)); Assert.That(k2, Is.EqualTo(0.86));
+            var vh = 27.52 / (534 / 78.5);
+            Assert.That(vh * vh * 2.75 / 29.33, Is.EqualTo(1.55).Within(0.02), "V_H^2 D_V/D_L");
+            var dry = TrayHydraulics.GlitschDryDropIn(0.060, 500, 29.33, 2.75, vh, k1, k2);
+            Assert.That(dry, Is.EqualTo(1.75).Within(0.08), "dry drop (the manual read 1.75 off its nomogram drawn for a 510 lb/ft3 valve)");
+            var how = 0.4 * Math.Pow(1100 / 181.7, 2.0 / 3.0);
+            Assert.That(how, Is.EqualTo(1.33).Within(0.02));
+            Assert.That(dry + how + 0.4 * 2.0, Is.EqualTo(3.88).Within(0.1), "total pressure drop");
+            var vud = 1100 / (448.83 * 4.0);
+            var hud = 0.65 * vud * vud;
+            Assert.That(hud, Is.EqualTo(0.25).Within(0.01));
+            Assert.That(2.0 + how + (dry + how + 0.8 + hud) * 29.33 / (29.33 - 2.75), Is.EqualTo(7.88).Within(0.15), "downcomer backup");
+            Assert.That(TrayHydraulics.GlitschLeakagePoint(false, 3.33), Is.EqualTo(0.73).Within(0.02), "leakage point at the example's liquid level");
+
+            // the same loads on a single-pass tray through the section rating
+            var rhoV = 2.75 * 16.01846; var rhoL = 29.33 * 16.01846;
+            var sp = new StageProperties
+            {
+                Stage = 3, T = 300, P = 1.7e6, VaporMassFlow = 27.52 * 0.0283168 * rhoV, LiquidMassFlow = 1100 / 15850.32 * rhoL,
+                VaporDensity = rhoV, LiquidDensity = rhoL, VaporViscosity = 9e-6, LiquidViscosity = 1e-4, SurfaceTension = 0.008
+            };
+            var s = new InternalsSection
+            {
+                Name = "Ballast", FromStage = 3, ToStage = 3, Type = InternalType.ValveTray, ValveModel = ValveTrayModel.Glitsch, Diameter = 9 * 0.3048,
+                TraySpacing = 20 * 0.0254, DowncomerAreaFraction = 0.163, WeirHeight = 2 * 0.0254, PlateThickness = 0.134 * 0.0254, DowncomerClearance = 4 * 0.0254,
+                ValveThickness = 0.060 * 0.0254, ValveDensity = 500 * 16.01846, ValveVenturi = false, ValvesPerArea = 534 / (42.94 * 0.09290304)
+            };
+            var r = TrayHydraulics.RateTray(s, sp, 9 * 0.3048, 0.7, 3.0, 1.0);
+            TestContext.Out.WriteLine("Glitsch single pass: flood {0:F2}, downcomer {1:F2}, dry {2:F1} mm, h_t {3:F1} mm, backup {4:F0} mm (limit {5:F0}), leak ratio {6:F2}; {7}; {8}",
+                r.FloodFraction, r.DowncomerFloodFraction, r.DryPressureDrop, r.TotalHead, r.DowncomerBackup, r.DowncomerBackupLimit, r.WeepRatio, r.Regime, string.Join(" | ", r.Warnings));
+            Assert.That(r.Regime, Does.StartWith("Glitsch V-1"));
+            Assert.That(r.DryPressureDrop / 25.4, Is.EqualTo(1.75).Within(0.1), "dry drop through the section (the hole area follows the valve count)");
+            Assert.That(r.FloodFraction, Is.InRange(0.7, 1.1), "single pass flow path is twice the example's, so the liquid term is larger");
+            Assert.That(r.DowncomerFloodFraction, Is.InRange(0.3, 1.2));
+            var d = TrayHydraulics.DiameterForFloodFraction(s, sp, 0.7);
+            Assert.That(d, Is.InRange(2.0, 4.5), "sized for 70 % flood, m");
+            var back = ColumnInternalsInput.FromXml(new ColumnInternalsInput { Sections = { s } }.ToXml()).Sections[0];
+            Assert.That(back.ValveModel, Is.EqualTo(ValveTrayModel.Glitsch));
+        }
+
         // ------------------------------------------------------------------ bubble caps (Bolles)
 
         /// <summary>Ludwig vol. 2, Example 8-36, top tray of the 6 ft vacuum finishing tower: 129 caps of 3 7/8 in ID with
