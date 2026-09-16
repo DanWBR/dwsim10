@@ -96,6 +96,7 @@
       <MenuItem Header="_Utilities">
         <MenuItem Header="Pressure Safety _Valve Sizing..." Name="MenuPsvSizing" />
         <MenuItem Header="_Gas-Liquid Separator Sizing..." Name="MenuSepSizing" />
+        <MenuItem Header="_Column Internals..."           Name="MenuColumnInternals" />
         <MenuItem Header="_Binary Envelope..."        Name="MenuUtilBE" />
         <MenuItem Header="Ternary Envelope (_LLE)..." Name="MenuUtilLLE" />
         <MenuItem Header="_Phase Envelope..."         Name="MenuUtilPE" />

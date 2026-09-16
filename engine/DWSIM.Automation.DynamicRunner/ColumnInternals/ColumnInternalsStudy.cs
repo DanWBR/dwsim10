@@ -1,0 +1,241 @@
+//    Column internals rating: stage properties from a converged column and the rating of its sections.
+//    Copyright 2026 Daniel Wagner Oliveira de Medeiros
+//
+//    This file is part of DWSIM.
+//
+//    DWSIM is free software: you can redistribute it and/or modify
+//    it under the terms of the GNU General Public License as published by
+//    the Free Software Foundation, either version 3 of the License, or
+//    (at your option) any later version.
+//
+//    DWSIM is distributed in the hope that it will be useful,
+//    but WITHOUT ANY WARRANTY; without even the implied warranty of
+//    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//    GNU General Public License for more details.
+//
+//    You should have received a copy of the GNU General Public License
+//    along with DWSIM.  If not, see <http://www.gnu.org/licenses/>.
+
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using DWSIM.Interfaces;
+using DWSIM.Interfaces.Enums.GraphicObjects;
+
+namespace DWSIM.Automation.DynamicRunner.ColumnInternals
+{
+    /// <summary>
+    /// Rates the internals of a converged rigorous column: reads the stage flows and properties the
+    /// column solved, then rates every stage of every section with the tray or packing models.
+    /// </summary>
+    public static class ColumnInternalsStudy
+    {
+        /// <summary>Runs the rating on the column named in the input. The column must be solved.</summary>
+        public static ColumnInternalsResult Run(IFlowsheet host, ColumnInternalsInput input)
+        {
+            var column = FindColumn(host, input.ColumnName);
+            if (column == null) throw new ArgumentException("Column '" + input.ColumnName + "' was not found on the flowsheet.");
+            var props = ExtractStageProperties(host, column);
+            var result = Rate(props, input);
+            result.ColumnName = input.ColumnName;
+            return result;
+        }
+
+        /// <summary>The rigorous columns of the flowsheet (distillation and absorption), by tag.</summary>
+        public static List<string> ColumnNames(IFlowsheet host)
+        {
+            var names = new List<string>();
+            foreach (var o in host.SimulationObjects.Values)
+            {
+                var t = o.GraphicObject != null ? o.GraphicObject.ObjectType : ObjectType.Nenhum;
+                if (t == ObjectType.DistillationColumn || t == ObjectType.AbsorptionColumn || t == ObjectType.ReboiledAbsorber || t == ObjectType.RefluxedAbsorber)
+                    names.Add(o.GraphicObject.Tag);
+            }
+            names.Sort();
+            return names;
+        }
+
+        public static ISimulationObject FindColumn(IFlowsheet host, string tag)
+        {
+            if (string.IsNullOrEmpty(tag)) return null;
+            foreach (var o in host.SimulationObjects.Values)
+                if (o.GraphicObject != null && string.Equals(o.GraphicObject.Tag, tag, StringComparison.OrdinalIgnoreCase)) return o;
+            return null;
+        }
+
+        /// <summary>Number of stages of the column (condenser and reboiler included when the column has them).</summary>
+        public static int StageCount(ISimulationObject column)
+        {
+            dynamic c = column;
+            try { return (int)c.NumberOfStages; } catch { return 0; }
+        }
+
+        /// <summary>
+        /// Stage flows and properties from the column's last solution: the vapour rising into the stage
+        /// (from the stage below) and the liquid leaving it, with the phase properties of the property
+        /// package at the stage temperature and pressure and compositions. Stage 1 is the top stage.
+        /// </summary>
+        public static List<StageProperties> ExtractStageProperties(IFlowsheet host, ISimulationObject column)
+        {
+            dynamic c = column;
+            if (!column.Calculated) throw new InvalidOperationException("The column has not been solved; solve the flowsheet first.");
+            double[] Tf = c.Tf, Vf = c.Vf, Lf = c.Lf;
+            IList xf = c.xf, yf = c.yf, Kf = c.Kf;
+            var stages = (IList)c.Stages;
+            int n = Tf.Length;
+            if (n == 0 || Vf.Length < n || Lf.Length < n || xf.Count < n || yf.Count < n)
+                throw new InvalidOperationException("The column has no stored stage profiles; solve it again.");
+
+            dynamic pp = c.PropertyPackage;
+            var ms = (IMaterialStream)host.AddObject(ObjectType.MaterialStream, 0, 0, "internals_probe_" + Guid.NewGuid().ToString("N").Substring(0, 6));
+            ((ISimulationObject)ms).GraphicObject.Active = false;
+            var list = new List<StageProperties>();
+            try
+            {
+                ((dynamic)ms).SetPropertyPackage(pp);
+                pp.CurrentMaterialStream = ms;
+
+                for (int i = 0; i < n; i++)
+                {
+                    var sp = new StageProperties { Stage = i + 1 };
+                    sp.T = Tf[i];
+                    double p = 0;
+                    try { p = (double)((dynamic)stages[i]).P; } catch { }
+                    if (p <= 0) { try { p = ((double[])c.P0)[i]; } catch { } }
+                    sp.P = p;
+
+                    var x = (double[])xf[i];
+                    var y = (double[])yf[i];
+                    // vapour through the stage: what comes up from the stage below
+                    int iv = i + 1 < n ? i + 1 : i;
+                    sp.VaporMolarFlow = Vf[iv];
+                    sp.LiquidMolarFlow = Lf[i];
+                    var yv = (double[])yf[iv];
+
+                    sp.VaporMW = (double)pp.AUX_MMM(yv);
+                    sp.LiquidMW = (double)pp.AUX_MMM(x);
+                    sp.VaporMassFlow = sp.VaporMolarFlow / 1000.0 * sp.VaporMW;
+                    sp.LiquidMassFlow = sp.LiquidMolarFlow / 1000.0 * sp.LiquidMW;
+
+                    ms.SetOverallComposition(yv);
+                    ms.SetPhaseComposition(yv, 5);     // Phase.Vapor (the integer is the Phase enum value)
+                    sp.VaporDensity = (double)pp.AUX_VAPDENS(sp.T, sp.P);
+                    double etaV = double.NaN;
+                    try { etaV = (double)pp.AUX_VAPVISCm(sp.T, sp.VaporDensity, sp.VaporMW); } catch { }
+                    // the package's mixture vapour viscosity; kept within the range of real gases so a
+                    // failed correlation does not distort the Reynolds numbers of the mass transfer models
+                    sp.VaporViscosity = etaV > 0 && !double.IsNaN(etaV) ? Math.Max(2.0e-6, Math.Min(5.0e-4, etaV)) : 1.0e-5;
+
+                    ms.SetOverallComposition(x);
+                    ms.SetPhaseComposition(x, 0);      // Phase.Liquid
+                    ms.SetPhaseComposition(x, 1);      // Phase.Liquid1
+                    sp.LiquidDensity = (double)pp.AUX_LIQDENS(sp.T, x, sp.P);
+                    double etaL = double.NaN;
+                    try { etaL = (double)pp.AUX_LIQVISCm(sp.T, sp.P); } catch { }
+                    sp.LiquidViscosity = etaL > 0 && !double.IsNaN(etaL) ? etaL : 1.0e-3;
+                    double sigma = double.NaN;
+                    try { sigma = (double)pp.AUX_SURFTM(sp.T); } catch { }
+                    sp.SurfaceTension = sigma > 0 && !double.IsNaN(sigma) ? sigma : 0.02;
+
+                    // diffusivities: order-of-magnitude estimates unless the section overrides them
+                    sp.VaporDiffusivity = 1.0e-5 * Math.Pow(sp.T / 298.15, 1.75) * (101325.0 / Math.Max(sp.P, 1000.0));
+                    sp.LiquidDiffusivity = 1.0e-9 * (sp.T / 298.15) * (1.0e-3 / sp.LiquidViscosity);
+
+                    // stripping factor of the component transferring to the vapour (largest y - x)
+                    try
+                    {
+                        var K = (double[])Kf[i];
+                        int key = 0; double best = double.NegativeInfinity;
+                        for (int j = 0; j < x.Length; j++) { var d = y[j] - x[j]; if (d > best) { best = d; key = j; } }
+                        if (sp.LiquidMolarFlow > 0 && K[key] > 0) sp.StrippingFactor = K[key] * sp.VaporMolarFlow / sp.LiquidMolarFlow;
+                    }
+                    catch { }
+                    list.Add(sp);
+                }
+            }
+            finally
+            {
+                try { host.DeleteSelectedObject(null, null, ((ISimulationObject)ms).GraphicObject, false, false); } catch { }
+            }
+            return list;
+        }
+
+        /// <summary>Rates the sections against the stage properties; pure, no flowsheet needed.</summary>
+        public static ColumnInternalsResult Rate(List<StageProperties> props, ColumnInternalsInput input)
+        {
+            var result = new ColumnInternalsResult { StageProperties = props };
+            foreach (var s in input.Sections)
+            {
+                var sr = new SectionRating { Section = s };
+                var stages = props.Where(p => p.Stage >= s.FromStage && p.Stage <= s.ToStage).ToList();
+                if (stages.Count == 0) { sr.Warnings.Add("The section has no stages in the column."); result.Sections.Add(sr); continue; }
+                var usable = stages.Where(p => p.VaporMassFlow > 0 && p.LiquidMassFlow > 0 && p.VaporDensity > 0 && p.LiquidDensity > 0).ToList();
+                if (usable.Count == 0) { sr.Warnings.Add("No stage of the section carries both vapour and liquid."); result.Sections.Add(sr); continue; }
+
+                PackingData packing = null;
+                if (!s.IsTray)
+                {
+                    packing = s.ResolvePacking();
+                    if (packing == null) { sr.Warnings.Add("No packing selected for the section."); result.Sections.Add(sr); continue; }
+                }
+                if (s.Type == InternalType.BubbleCapTray) sr.Warnings.Add("Bubble-cap trays are rated with the sieve tray hydraulics (Bolles method not yet implemented).");
+                if (s.Type == InternalType.ValveTray && s.FloodModel != TrayFloodModel.KisterHaas) sr.Warnings.Add("Valve trays: the Kister and Haas flood correlation is the one extended to valves; Fair is being used.");
+
+                // required diameter for the target fraction of flood: the largest over the stages
+                var target = s.IsTray ? input.TargetFloodFractionTrays : input.TargetFloodFractionPackings;
+                double req = 0;
+                foreach (var sp in usable)
+                {
+                    var d = s.IsTray ? TrayHydraulics.DiameterForFloodFraction(s, sp, target) : PackingHydraulics.DiameterForFloodFraction(s, packing, sp, target);
+                    if (!double.IsNaN(d) && d > req) req = d;
+                }
+                sr.RequiredDiameter = req;
+                sr.Diameter = s.Diameter > 0 ? s.Diameter : req;
+                if (sr.Diameter <= 0) { sr.Warnings.Add("The section could not be sized."); result.Sections.Add(sr); continue; }
+
+                double totalDp = 0, height = 0, hetpSum = 0; int hetpCount = 0;
+                foreach (var sp in stages)
+                {
+                    if (!usable.Contains(sp))
+                    {
+                        var empty = new StageRating { Stage = sp.Stage, SectionName = s.Name, Type = s.Type, Diameter = sr.Diameter };
+                        empty.Warnings.Add("Stage without both phases (condenser, reboiler or dry stage); not rated.");
+                        sr.Stages.Add(empty);
+                        continue;
+                    }
+                    var r = s.IsTray
+                        ? TrayHydraulics.RateSieveTray(s, sp, sr.Diameter, input.Turndown, input.MinDowncomerResidenceTime, 1.0)
+                        : PackingHydraulics.RatePacking(s, packing, sp, sr.Diameter);
+                    sr.Stages.Add(r);
+                    if (!double.IsNaN(r.FloodFraction) && r.FloodFraction > sr.MaxFloodFraction) { sr.MaxFloodFraction = r.FloodFraction; sr.LimitingStage = r.Stage; }
+                    if (s.IsTray)
+                    {
+                        if (!double.IsNaN(r.PressureDrop)) totalDp += r.PressureDrop;
+                        height += s.TraySpacing;
+                    }
+                    else
+                    {
+                        if (!double.IsNaN(r.HETP)) { hetpSum += r.HETP; hetpCount++; }
+                    }
+                }
+                if (!s.IsTray)
+                {
+                    sr.AverageHETP = hetpCount > 0 ? hetpSum / hetpCount : double.NaN;
+                    sr.BedHeight = s.BedHeight > 0 ? s.BedHeight : hetpSum;
+                    // pressure drop over the bed: each rated stage owns a slice of the bed
+                    double slice = sr.BedHeight / Math.Max(1, sr.Stages.Count(x => !double.IsNaN(x.PressureDrop)));
+                    foreach (var r in sr.Stages) if (!double.IsNaN(r.PressureDrop)) { r.PressureDropTotal = r.PressureDrop * slice; totalDp += r.PressureDropTotal; }
+                    height = sr.BedHeight;
+                    if (s.BedHeight > 0 && hetpSum > 0 && s.BedHeight < hetpSum)
+                        sr.Warnings.Add("The bed height given is shorter than the stages times the HETP (" + hetpSum.ToString("0.00") + " m).");
+                }
+                sr.TotalPressureDrop = totalDp;
+                result.TotalPressureDrop += totalDp;
+                result.TotalHeight += height;
+                result.Sections.Add(sr);
+            }
+            return result;
+        }
+    }
+}

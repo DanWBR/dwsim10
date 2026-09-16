@@ -1491,6 +1491,7 @@ public partial class FlowsheetView : UserControl
         IconHelper.Set(MenuDynIntegrator,  "⏱");     // stopwatch
         IconHelper.Set(MenuDynPIDTuning,   "\U0001F39B"); // control knobs
         IconHelper.Set(MenuDepressurization, "📉"); // chart decreasing
+        IconHelper.Set(MenuColumnInternals, "🗼"); // tower
 
         // View
         IconHelper.Set(MenuShowEditor,     "\U0001F4DD"); // memo
@@ -1958,6 +1959,11 @@ public partial class FlowsheetView : UserControl
         {
             if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
             new DepressurizationWindow(_flowsheet).Show(HostWindow);
+        };
+        MenuColumnInternals.Click += (_, _) =>
+        {
+            if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
+            new ColumnInternalsWindow(_flowsheet).Show(HostWindow);
         };
         MenuPsvSizing.Click += (_, _) =>
         {
