@@ -339,11 +339,77 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
             return 32.0 * Math.Pow(rhoV / (rhoL - rhoV), 1.0 / 3.0) * Math.Pow(vaporLoadFt3s / (caps * slotsPerCap * slotWidthIn), 2.0 / 3.0);
         }
 
-        /// <summary>Maximum slot capacity, ft3/s (Ludwig eq. 8-226): V_m = 0.79 A_s [H_s (rho_L - rho_V)/rho_V]^0.5, A_s in ft2 and H_s in inches.</summary>
+        /// <summary>Maximum slot capacity of rectangular slots, ft3/s (Ludwig eq. 8-226): V_m = 0.79 A_s [H_s (rho_L - rho_V)/rho_V]^0.5, A_s in ft2 and H_s in inches.</summary>
         public static double BollesSlotCapacityFt3s(double slotAreaFt2, double slotHeightIn, double rhoV, double rhoL)
         {
             return 0.79 * slotAreaFt2 * Math.Sqrt(slotHeightIn * (rhoL - rhoV) / rhoV);
         }
+
+        /// <summary>Maximum slot capacity of trapezoidal slots, ft3/s (Ludwig eq. 8-227): V_m = 2.36 A_s [(2/3) R/(1+R) + (4/15)(1-R)/(1+R)]
+        /// [H_s (rho_L - rho_V)/rho_V]^0.5 with R the top over bottom width (0.629, 0.734 and 0.787 A_s [...]^0.5 for R = 0, 0.5 and 1).</summary>
+        public static double BollesSlotCapacityFt3s(double slotAreaFt2, double slotHeightIn, double rhoV, double rhoL, double topWidthRatio)
+        {
+            var R = Math.Max(0.0, Math.Min(1.0, topWidthRatio));
+            if (R >= 1.0) return BollesSlotCapacityFt3s(slotAreaFt2, slotHeightIn, rhoV, rhoL);
+            return 2.36 * slotAreaFt2 * ((2.0 / 3.0) * R / (1.0 + R) + (4.0 / 15.0) * (1.0 - R) / (1.0 + R)) * Math.Sqrt(slotHeightIn * (rhoL - rhoV) / rhoV);
+        }
+
+        /// <summary>Vapour load over the slot capacity that a slot opening fraction x = h_s/H_s carries, for a slot whose width
+        /// grows linearly from R w_b at the top to w_b at the bottom (the head on the open strip being the liquid depth below
+        /// the top of the slot): V/V_m = [(2/3) R x^1.5 + (4/15)(1-R) x^2.5] / [(2/3) R + (4/15)(1-R)]. This is the generalised
+        /// correlation of Bolles' Figure 8-107; for R = 1 it is the rectangular slot, h_s/H_s = (V/V_m)^(2/3).</summary>
+        public static double SlotLoadForOpening(double openingFraction, double topWidthRatio)
+        {
+            var R = Math.Max(0.0, Math.Min(1.0, topWidthRatio));
+            var x = Math.Max(0.0, openingFraction);
+            return ((2.0 / 3.0) * R * Math.Pow(x, 1.5) + (4.0 / 15.0) * (1.0 - R) * Math.Pow(x, 2.5)) / ((2.0 / 3.0) * R + (4.0 / 15.0) * (1.0 - R));
+        }
+
+        /// <summary>Slot opening as a fraction of the slot height for a vapour load over the slot capacity (inverse of SlotLoadForOpening; above 1 the slots are fully open).</summary>
+        public static double SlotOpeningFraction(double slotLoad, double topWidthRatio)
+        {
+            if (slotLoad <= 0) return 0.0;
+            double lo = 0.0, hi = 4.0;
+            for (int i = 0; i < 80; i++)
+            {
+                var mid = 0.5 * (lo + hi);
+                if (SlotLoadForOpening(mid, topWidthRatio) < slotLoad) lo = mid; else hi = mid;
+            }
+            return 0.5 * (lo + hi);
+        }
+
+        // ------------------------------------------------------------------ bubble caps (modified Dauphine)
+
+        /// <summary>Riser drop, in (Ludwig eqs. 8-232 and 8-233): 0.111 (d_r/rho_L) [rho_V^0.5 V/A_r]^2.09 when the reversal area exceeds the
+        /// riser area, 0.099 (d_r/rho_L) (a_r/a_x)^0.5 [rho_V^0.5 V/A_r]^2.1 otherwise; d_r the riser inside diameter in inches, densities in lb/ft3.</summary>
+        public static double DauphineRiserDropIn(double riserDiameterIn, double rhoV, double rhoL, double vaporLoadFt3s, double riserAreaFt2, double riserAreaPerCap, double reversalAreaPerCap)
+        {
+            var ur = Math.Sqrt(rhoV) * vaporLoadFt3s / riserAreaFt2;
+            if (reversalAreaPerCap >= riserAreaPerCap) return 0.111 * riserDiameterIn / rhoL * Math.Pow(ur, 2.09);
+            return 0.099 * riserDiameterIn / rhoL * Math.Sqrt(riserAreaPerCap / Math.Max(reversalAreaPerCap, 1e-9)) * Math.Pow(ur, 2.1);
+        }
+
+        /// <summary>Reversal and annulus drop, in (Ludwig eq. 8-234, riser height above 2.5 in): 0.68/rho_L [(2 a_r^2/(a_x a_c)) rho_V^0.5 V/A_r]^1.71,
+        /// with a_r, a_x and a_c the riser, reversal and cap inside areas per cap.</summary>
+        public static double DauphineReversalDropIn(double rhoV, double rhoL, double vaporLoadFt3s, double riserAreaFt2, double riserAreaPerCap, double reversalAreaPerCap, double capAreaPerCap)
+        {
+            var term = 2.0 * riserAreaPerCap * riserAreaPerCap / (Math.Max(reversalAreaPerCap, 1e-9) * capAreaPerCap) * Math.Sqrt(rhoV) * vaporLoadFt3s / riserAreaFt2;
+            return 0.68 / rhoL * Math.Pow(term, 1.71);
+        }
+
+        /// <summary>Dry slot drop of rectangular slots, in (Ludwig eq. 8-235 as the worked example applies it): 0.163/rho_L [(d_c rho_V)^0.5 V/A_s]^1.73,
+        /// d_c the cap inside diameter in inches and A_s the total slot area in ft2.</summary>
+        public static double DauphineDrySlotDropIn(double capDiameterIn, double rhoV, double rhoL, double vaporLoadFt3s, double slotAreaFt2)
+        {
+            return 0.163 / rhoL * Math.Pow(Math.Sqrt(capDiameterIn * rhoV) * vaporLoadFt3s / slotAreaFt2, 1.73);
+        }
+
+        // Dauphine wet cap correction C_w (Ludwig Fig. 8-115) against (V/A_s) sqrt((rho_V/rho_L)(a_s/a_an)), V in ft3/s, A_s in ft2
+        private static readonly double[] CwX = { 0.15, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.2, 1.4, 1.55 };
+        private static readonly double[] CwY = { 0.0, 0.05, 0.15, 0.25, 0.34, 0.44, 0.53, 0.60, 0.67, 0.73, 0.85, 0.95, 1.0 };
+
+        /// <summary>Wet cap correction: the dry cap drop over C_w is the wet cap drop (Ludwig eq. 8-237). Slots of 1 to 2 in; about 25 % more for 0.5 in slots.</summary>
+        public static double DauphineWetCapCorrection(double x) { return Math.Max(0.02, Interp(CwX, CwY, x)); }
 
         // ------------------------------------------------------------------ valves (Klein)
 
@@ -566,15 +632,40 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
             var kc = BollesCapConstant(Math.Max(1.0, Math.Min(1.5, ratio)));
             var hpcIn = BollesCapDropIn(kc, rhoVlb, rhoLlb, Vft, ArFt);
             var wsIn = s.SlotWidth / 0.0254; var HsIn = s.SlotHeight / 0.0254;
-            var hsIn = BollesSlotOpeningIn(rhoVlb, rhoLlb, Vft, caps, s.SlotsPerCap, wsIn);
-            var AsFt = caps * s.SlotsPerCap * wsIn * HsIn / 144.0;
-            var VmFt = BollesSlotCapacityFt3s(AsFt, HsIn, rhoVlb, rhoLlb);
+            var Rs = Math.Max(0.0, Math.Min(1.0, s.SlotTopWidthRatio));
+            var slotAreaPerCapIn2 = s.SlotsPerCap * wsIn * HsIn * 0.5 * (1.0 + Rs);
+            var AsFt = caps * slotAreaPerCapIn2 / 144.0;
+            var VmFt = BollesSlotCapacityFt3s(AsFt, HsIn, rhoVlb, rhoLlb, Rs);
             r.HoleVelocity = r.VaporLoad / (AsFt * 0.09290304);   // slot velocity
             r.SlotLoad = Vft / VmFt;
+            r.SlotOpeningFraction = SlotOpeningFraction(r.SlotLoad, Rs);
+            var hsIn = r.SlotOpeningFraction * HsIn;
             r.SlotOpening = hsIn * 25.4;
-            r.SlotOpeningFraction = hsIn / HsIn;
-            r.CapPressureDrop = hpcIn * 25.4;
-            r.DryPressureDrop = (hpcIn + hsIn) * 25.4;
+            double hcIn;
+            if (s.CapMethod == BubbleCapMethod.Dauphine)
+            {
+                // per-cap areas in in2: riser inside, reversal (cylinder between the top of the riser and the cap ceiling) and cap inside
+                var arIn2 = riserArea / 6.4516e-4;
+                var acIn2 = Math.PI / 4.0 * s.CapDiameter * s.CapDiameter / 6.4516e-4;
+                var dMeanIn = (s.RiserDiameter + riserOD) / 2.0 / 0.0254;
+                var gapIn = Math.Max(0.05, (s.CapInsideHeight - s.RiserHeight) / 0.0254);
+                var axIn2 = Math.PI * dMeanIn * gapIn;
+                var hrIn = DauphineRiserDropIn(s.RiserDiameter / 0.0254, rhoVlb, rhoLlb, Vft, ArFt, arIn2, axIn2);
+                var hraIn = DauphineReversalDropIn(rhoVlb, rhoLlb, Vft, ArFt, arIn2, axIn2, acIn2);
+                var hsDryIn = DauphineDrySlotDropIn(s.CapDiameter / 0.0254, rhoVlb, rhoLlb, Vft, AsFt);
+                var anIn2 = annulus / 6.4516e-4;
+                var cw = DauphineWetCapCorrection(Vft / AsFt * Math.Sqrt(rhoVlb / rhoLlb * slotAreaPerCapIn2 / anIn2));
+                hcIn = (hrIn + hraIn + hsDryIn) / cw;
+                r.CapPressureDrop = (hrIn + hraIn) * 25.4;
+                r.CapDropLimit = (hrIn + hraIn + HsIn + 0.25) * 25.4;   // cap blows under the shroud ring (taken 0.25 in) above this
+                if (s.RiserHeight / 0.0254 < 2.5) r.Warnings.Add("Riser lower than 2.5 in: the Dauphine reversal drop is read for taller risers.");
+            }
+            else
+            {
+                hcIn = hpcIn + hsIn;
+                r.CapPressureDrop = hpcIn * 25.4;
+            }
+            r.DryPressureDrop = hcIn * 25.4;
             var howIn = r.WeirCrest / 25.4;
             var hssIn = s.StaticSeal / 0.0254;
 
@@ -603,12 +694,12 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
             r.TotalHead = r.DryPressureDrop + r.DynamicSeal;                 // Ludwig eq. 8-239
             r.PressureDrop = HeadToPressure(r.TotalHead, rhoL);
             r.PressureDropTotal = r.PressureDrop;
-            r.VaporDistributionRatio = deltaIn / Math.Max(hpcIn + hsIn, 1e-6);
+            r.VaporDistributionRatio = deltaIn / Math.Max(hcIn, 1e-6);
             r.Regime = "slots " + (r.SlotOpeningFraction * 100.0).ToString("0") + " % open, " + (r.SlotLoad * 100.0).ToString("0") + " % of the slot capacity";
 
             TrayFinish(s, sp, r, Ad, lw, minResidenceTime, murphreeEfficiency, r.LiquidGradient);   // Ludwig eq. 8-245
-            if (r.SlotLoad > 1.0) r.Warnings.Add("Vapour load above the slot capacity: the vapour blows under the cap skirt.");
-            else if (r.SlotOpeningFraction > 1.0) r.Warnings.Add("The slots are fully open; the vapour is on the point of blowing under the caps.");
+            if (r.SlotLoad > 1.0) r.Warnings.Add("Vapour load above the slot capacity: the slots are fully open and the vapour blows under the cap skirt.");
+            if (!double.IsNaN(r.CapDropLimit) && r.DryPressureDrop > r.CapDropLimit) r.Warnings.Add("Wet cap drop above the riser, reversal and slot height sum: the vapour blows under the shroud ring.");
             if (r.SlotOpening * Math.Pow(turndown, 2.0 / 3.0) < 12.7) r.Warnings.Add("Slot opening below 0.5 in at turndown: the tray may pulse.");
             if (r.VaporDistributionRatio > 0.5) r.Warnings.Add("Liquid gradient above half the cap drop: the inlet caps may stop bubbling (Bolles keeps delta/h_c below 0.5).");
             if (r.DynamicSeal < 12.7) r.Warnings.Add("Dynamic slot seal below 0.5 in; the caps may cone (Bolles' Table 8-18 asks 0.5 to 1.5 in in vacuum, more at pressure).");

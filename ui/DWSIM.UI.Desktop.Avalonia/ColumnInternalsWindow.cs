@@ -51,6 +51,7 @@ public sealed class ColumnInternalsWindow : Window
     private static readonly List<string> PackingModels = new() { "Robbins + Kister-Gill", "Billet and Schultes", "Rocha, Bravo and Fair (structured)" };
     private static readonly List<string> HetpModels = new() { "Onda (random packings)", "Billet and Schultes", "Rule of thumb", "Rocha, Bravo and Fair (structured)" };
     private static readonly List<string> ValveLegNames = new() { "Three legs", "Four legs", "Caged (no legs)" };
+    private static readonly List<string> CapMethods = new() { "Bolles (1956)", "Modified Dauphine" };
     private const string UserPacking = "User-defined...";
 
     /// <summary>One row of the results table, already in the flowsheet units.</summary>
@@ -351,6 +352,17 @@ public sealed class ColumnInternalsWindow : Window
                     (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v) && v > 0) s.SlotWidth = cv.ConvertToSI(_su.distance, v); });
                 p.CreateAndAddTextBoxRow(_nf, "Slot height (" + _su.distance + ")", Show(_su.distance, s.SlotHeight),
                     (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v) && v > 0) s.SlotHeight = cv.ConvertToSI(_su.distance, v); });
+                p.CreateAndAddTextBoxRow(_nf, "Slot top width over base width (1 rectangular, 0 triangular)", s.SlotTopWidthRatio,
+                    (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v) && v >= 0 && v <= 1) s.SlotTopWidthRatio = v; });
+                p.CreateAndAddDropDownRow("Cap pressure drop", CapMethods, (int)s.CapMethod, (dd, _) => { if (dd.SelectedIndex >= 0) { s.CapMethod = (BubbleCapMethod)dd.SelectedIndex; Rebuild(); } });
+                if (s.CapMethod == BubbleCapMethod.Dauphine)
+                {
+                    p.CreateAndAddTextBoxRow(_nf, "Riser height above the tray (" + _su.distance + ")", Show(_su.distance, s.RiserHeight),
+                        (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v) && v > 0) s.RiserHeight = cv.ConvertToSI(_su.distance, v); });
+                    p.CreateAndAddTextBoxRow(_nf, "Cap inside height above the tray (" + _su.distance + ")", Show(_su.distance, s.CapInsideHeight),
+                        (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v) && v > 0) s.CapInsideHeight = cv.ConvertToSI(_su.distance, v); });
+                    p.CreateAndAddDescriptionRow("Dauphine: riser, reversal and dry slot drops corrected for the wet cap (Ludwig eqs. 8-232 to 8-237); the cap must not exceed the riser plus reversal plus slot height, or the vapour blows under the shroud ring.");
+                }
                 p.CreateAndAddTextBoxRow(_nf, "Static slot seal, weir top above the slots (" + _su.distance + ")", Show(_su.distance, s.StaticSeal),
                     (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v) && v >= 0) s.StaticSeal = cv.ConvertToSI(_su.distance, v); });
                 p.CreateAndAddTextBoxRow(_nf, "Skirt clearance (" + _su.distance + ")", Show(_su.distance, s.SkirtClearance),

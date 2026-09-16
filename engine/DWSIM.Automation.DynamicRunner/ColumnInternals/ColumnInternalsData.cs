@@ -76,6 +76,15 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
         Caged = 2
     }
 
+    /// <summary>How the cap pressure drop of a bubble-cap tray is computed.</summary>
+    public enum BubbleCapMethod
+    {
+        /// <summary>Bolles (1956): riser, reversal and annulus drop from K_c and the slot opening.</summary>
+        Bolles = 0,
+        /// <summary>Modified Dauphine relations (Bolles 1956 after Dauphine): riser, reversal and dry slot drops corrected for the wet cap.</summary>
+        Dauphine = 1
+    }
+
     /// <summary>One packing of the catalogue. Fp and Fpd in 1/m, a in m2/m3, epsilon in m3/m3; the
     /// Billet and Schultes constants are NaN when the packing was not characterised by them.</summary>
     public class PackingData
@@ -414,9 +423,15 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
         /// <summary>Cap pitch (centre to centre) over the cap outside diameter, triangular layout.</summary>
         public double CapPitchRatio = 1.4;
         public int SlotsPerCap = 50;
-        /// <summary>Slot width and height, m (rectangular slots).</summary>
+        /// <summary>Slot width at the base and slot height, m.</summary>
         public double SlotWidth = 0.0032;
         public double SlotHeight = 0.038;
+        /// <summary>Slot top width over the base width: 1 for rectangular slots, 0 for triangular, between for trapezoidal.</summary>
+        public double SlotTopWidthRatio = 1.0;
+        public BubbleCapMethod CapMethod = BubbleCapMethod.Bolles;
+        /// <summary>Riser height above the tray floor and height of the inside of the cap above the tray floor, m (Dauphine).</summary>
+        public double RiserHeight = 0.076;
+        public double CapInsideHeight = 0.100;
         /// <summary>Static slot seal: top of the outlet weir above the top of the slots, m.</summary>
         public double StaticSeal = 0.0127;
         /// <summary>Cap skirt clearance above the tray floor, m.</summary>
@@ -556,6 +571,10 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
                     new XElement("SlotsPerCap", s.SlotsPerCap.ToString(CI)),
                     new XElement("SlotWidth", D(s.SlotWidth)),
                     new XElement("SlotHeight", D(s.SlotHeight)),
+                    new XElement("SlotTopWidthRatio", D(s.SlotTopWidthRatio)),
+                    new XElement("CapMethod", s.CapMethod.ToString()),
+                    new XElement("RiserHeight", D(s.RiserHeight)),
+                    new XElement("CapInsideHeight", D(s.CapInsideHeight)),
                     new XElement("StaticSeal", D(s.StaticSeal)),
                     new XElement("SkirtClearance", D(s.SkirtClearance)),
                     new XElement("LiquidGradient", D(s.LiquidGradient)),
@@ -634,6 +653,11 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
                     s.SlotsPerCap = Math.Max(1, PI(e, "SlotsPerCap", s.SlotsPerCap));
                     s.SlotWidth = PD(e, "SlotWidth", s.SlotWidth);
                     s.SlotHeight = PD(e, "SlotHeight", s.SlotHeight);
+                    s.SlotTopWidthRatio = Math.Max(0, Math.Min(1, PD(e, "SlotTopWidthRatio", 1.0)));
+                    BubbleCapMethod cm;
+                    if (Enum.TryParse(PS(e, "CapMethod", "Bolles"), out cm)) s.CapMethod = cm;
+                    s.RiserHeight = PD(e, "RiserHeight", s.RiserHeight);
+                    s.CapInsideHeight = PD(e, "CapInsideHeight", s.CapInsideHeight);
                     s.StaticSeal = PD(e, "StaticSeal", s.StaticSeal);
                     s.SkirtClearance = PD(e, "SkirtClearance", s.SkirtClearance);
                     s.LiquidGradient = PD(e, "LiquidGradient", 0);
@@ -751,7 +775,8 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
         public string Regime = "";
 
         // bubble-cap trays
-        public double CapPressureDrop = double.NaN;     // mm liquid, riser + reversal + annulus (h_pc)
+        public double CapPressureDrop = double.NaN;     // mm liquid, riser + reversal + annulus (h_pc; Dauphine: h_r + h_ra)
+        public double CapDropLimit = double.NaN;        // mm liquid, Dauphine: wet cap drop above which the vapour blows under the shroud ring
         public double SlotOpening = double.NaN;         // mm liquid, h_s
         public double SlotOpeningFraction = double.NaN; // h_s / slot height
         public double SlotLoad = double.NaN;            // vapour load over the maximum slot capacity

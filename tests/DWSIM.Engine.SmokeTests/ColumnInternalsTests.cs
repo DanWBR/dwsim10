@@ -492,6 +492,38 @@ namespace DWSIM.Engine.SmokeTests
             Assert.That(r.VaporDistributionRatio, Is.LessThan(0.5));
             Assert.That(r.Regime, Does.Contain("slots"));
             Assert.That(r.Warnings.Any(w => w.Contains("pulse")), "the book too finds the slot opening on the low side");
+
+            // the same tray by the modified Dauphine relations: h_r 0.0633, h_ra 0.045, h'_s 0.0308, C_w 0.16, h_c 0.87, h_t 1.528 in
+            Assert.That(TrayHydraulics.DauphineRiserDropIn(2.68, 0.0138, 50.5, 132.2, 4.95, 5.43, 7.95), Is.EqualTo(0.0633).Within(0.003), "h_r");
+            Assert.That(TrayHydraulics.DauphineReversalDropIn(0.0138, 50.5, 132.2, 4.95, 5.43, 7.95, 11.79), Is.EqualTo(0.045).Within(0.004), "h_ra");
+            Assert.That(TrayHydraulics.DauphineDrySlotDropIn(3.875, 0.0138, 50.5, 132.2, 8.40), Is.EqualTo(0.0308).Within(0.002), "h'_s");
+            Assert.That(TrayHydraulics.DauphineWetCapCorrection(0.33), Is.EqualTo(0.16).Within(0.03), "C_w");
+            s.CapMethod = BubbleCapMethod.Dauphine; s.RiserHeight = 3.0 * 0.0254; s.CapInsideHeight = 3.94 * 0.0254;
+            var rd = TrayHydraulics.RateBubbleCapTray(s, sp, 6 * 0.3048, 0.7, 5.0, 1.0);
+            TestContext.Out.WriteLine("Dauphine: h_r+h_ra={0:F3} h_c={1:F2} h_c,max={2:F2} h_t={3:F2} in; warnings: {4}", rd.CapPressureDrop / 25.4, rd.DryPressureDrop / 25.4, rd.CapDropLimit / 25.4, rd.TotalHead / 25.4, string.Join(" | ", rd.Warnings));
+            Assert.That(rd.CapPressureDrop / 25.4, Is.EqualTo(0.108).Within(0.015), "h_r + h_ra");
+            Assert.That(rd.DryPressureDrop / 25.4, Is.EqualTo(0.87).Within(0.12), "wet cap drop h_c");
+            Assert.That(rd.TotalHead / 25.4, Is.EqualTo(1.528).Within(0.2), "h_t by Dauphine");
+            Assert.That(rd.DryPressureDrop, Is.LessThan(rd.CapDropLimit), "the cap is not blowing under the shroud ring (book: 0.87 against 1.8 in)");
+        }
+
+        /// <summary>Bolles' generalised slot correlation (Figure 8-107): rectangular slots open as (V/V_m)^(2/3), triangular ones as (V/V_m)^0.4,
+        /// and the capacity coefficients are 0.63, 0.74 and 0.79 for top over bottom widths of 0, 0.5 and 1.</summary>
+        [Test]
+        public void TrapezoidalSlotsFollowBollesGeneralisedCorrelation()
+        {
+            Assert.That(TrayHydraulics.SlotOpeningFraction(0.25, 1.0), Is.EqualTo(Math.Pow(0.25, 2.0 / 3.0)).Within(1e-6), "rectangular");
+            Assert.That(TrayHydraulics.SlotOpeningFraction(0.25, 0.0), Is.EqualTo(Math.Pow(0.25, 0.4)).Within(1e-6), "triangular");
+            Assert.That(TrayHydraulics.SlotOpeningFraction(0.5, 0.5), Is.InRange(0.63, 0.72), "trapezoidal, between the two");
+            Assert.That(TrayHydraulics.SlotOpeningFraction(1.0, 0.5), Is.EqualTo(1.0).Within(1e-6), "fully open at the capacity");
+            var k = Math.Sqrt(1.5 * 50.49 / 0.0138);
+            Assert.That(TrayHydraulics.BollesSlotCapacityFt3s(1.0, 1.5, 0.0138, 50.5, 0.0) / k, Is.EqualTo(0.63).Within(0.005));
+            Assert.That(TrayHydraulics.BollesSlotCapacityFt3s(1.0, 1.5, 0.0138, 50.5, 0.5) / k, Is.EqualTo(0.74).Within(0.01));
+            Assert.That(TrayHydraulics.BollesSlotCapacityFt3s(1.0, 1.5, 0.0138, 50.5, 1.0) / k, Is.EqualTo(0.79).Within(0.005));
+            var inp = new ColumnInternalsInput();
+            inp.Sections.Add(new InternalsSection { Type = InternalType.BubbleCapTray, SlotTopWidthRatio = 0.5, CapMethod = BubbleCapMethod.Dauphine, RiserHeight = 0.08, CapInsideHeight = 0.11 });
+            var back = ColumnInternalsInput.FromXml(inp.ToXml()).Sections[0];
+            Assert.That(back.SlotTopWidthRatio, Is.EqualTo(0.5)); Assert.That(back.CapMethod, Is.EqualTo(BubbleCapMethod.Dauphine)); Assert.That(back.CapInsideHeight, Is.EqualTo(0.11));
         }
 
         // ------------------------------------------------------------------ structured packings (Rocha, Bravo and Fair)
