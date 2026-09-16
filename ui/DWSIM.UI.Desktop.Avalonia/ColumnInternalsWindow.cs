@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
@@ -116,7 +117,7 @@ public sealed class ColumnInternalsWindow : Window
 
     private Control BuildContent()
     {
-        _left = new ScrollViewer { Content = BuildInputPanel(), Padding = new Thickness(10, 8, 10, 8), AllowAutoHide = false };
+        _left = new ScrollViewer { Content = BuildInputPanel(), Padding = new Thickness(10, 8, 10, 8), AllowAutoHide = false, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
 
         _run = new Button { Content = "Rate", Width = 110, IsDefault = true };
         _run.Classes.Add("dialog");
@@ -179,7 +180,7 @@ public sealed class ColumnInternalsWindow : Window
         });
         var col = ColumnInternalsStudy.FindColumn(_fs, _in.ColumnName);
         int nStages = col != null ? ColumnInternalsStudy.StageCount(col) : 0;
-        if (col != null) p.CreateAndAddTwoLabelsRow("Stages", nStages + " (1 is the top stage; the condenser and the reboiler of a distillation column are stages 1 and " + nStages + ")");
+        if (col != null) p.CreateAndAddDescriptionRow(nStages + " stages. Stage 1 is the top stage; on a distillation column the condenser and the reboiler are stages 1 and " + nStages + ".");
 
         p.CreateAndAddLabelRow("Design targets");
         p.CreateAndAddTextBoxRow(_nf, "Fraction of flood to size trays for", _in.TargetFloodFractionTrays,
@@ -366,7 +367,7 @@ public sealed class ColumnInternalsWindow : Window
         Col("u_L/u_L,min", nameof(Row.Wetting));
         Col("notes", nameof(Row.Notes));
         right.Children.Add(_table);
-        var rightScroll = new ScrollViewer { Content = right, AllowAutoHide = false };
+        var rightScroll = new ScrollViewer { Content = right, AllowAutoHide = false, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
 
         var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("470,6,*") };
         grid.ColumnDefinitions[0].MinWidth = 320;
