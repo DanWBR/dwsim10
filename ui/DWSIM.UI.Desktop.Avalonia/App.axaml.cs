@@ -114,6 +114,51 @@ public class App : Application
         Resources["VdividerHeight"] = 18.0 * scale;
 
         IconHelper.IconFontSize = 14.0 * scale;
+
+        // The Semi theme gives every control its height and padding from its own resources
+        // (32 px text boxes, combo boxes, spinners, buttons, menu bar items and tabs; 16 px
+        // check boxes), which the font resources above do not touch. At 1.0 the theme values
+        // stand; at any other factor they are read back from the theme and rewritten scaled,
+        // so the whole control shrinks or grows with the text instead of the text alone.
+        if (System.Math.Abs(scale - 1.0) < 1e-9) return;
+
+        foreach (var key in new[]
+        {
+            "SemiHeightControlSmall", "SemiHeightControlDefault", "SemiHeightControlLarge",
+            "ButtonSmallHeight", "ButtonDefaultHeight", "ButtonLargeHeight",
+            "TextBoxSmallHeight", "TextBoxDefaultHeight", "TextBoxLargeHeight", "TextBoxTextAreaHeight",
+            "ComboBoxSmallHeight", "ComboBoxDefaultHeight", "ComboBoxLargeHeight",
+            "NumericUpDownSmallHeight", "NumericUpDownDefaultHeight", "NumericUpDownLargeHeight",
+            "AutoCompleteBoxSmallHeight", "AutoCompleteBoxDefaultHeight", "AutoCompleteBoxLargeHeight",
+            "TopLevelMenuItemMinHeight", "TabItemCardDefaultHeight",
+            "CheckBoxBoxWidth", "CheckBoxBoxHeight", "CheckBoxBoxGlyphWidth", "CheckBoxBoxGlyphHeight"
+        })
+            ScaleThemeDouble(key, scale);
+
+        foreach (var key in new[]
+        {
+            "ButtonSmallPadding", "ButtonDefaultPadding", "ButtonLargePadding",
+            "TextBoxContentPadding", "TextBoxInnerLeftContentPadding", "TextBoxInnerRightContentPadding",
+            "TextBoxTextAreaContentPadding",
+            "ComboBoxSelectorDefaultPadding", "ComboBoxItemDefaultPadding",
+            "TopLevelMenuItemPadding", "MenuItemPadding", "ListBoxItemDefaultPadding",
+            "RadioButtonButtonSmallPadding", "RadioButtonButtonDefaultPadding", "RadioButtonButtonLargePadding"
+        })
+            ScaleThemeThickness(key, scale);
+    }
+
+    /// <summary>Rewrites a theme size resource multiplied by the scaling factor.</summary>
+    private void ScaleThemeDouble(string key, double scale)
+    {
+        if (this.TryGetResource(key, ActualThemeVariant, out var value) && value is double d)
+            Resources[key] = d * scale;
+    }
+
+    /// <summary>Rewrites a theme padding resource multiplied by the scaling factor.</summary>
+    private void ScaleThemeThickness(string key, double scale)
+    {
+        if (this.TryGetResource(key, ActualThemeVariant, out var value) && value is Thickness t)
+            Resources[key] = new Thickness(t.Left * scale, t.Top * scale, t.Right * scale, t.Bottom * scale);
     }
 
     private static bool IsFlowsheetFile(string path)
