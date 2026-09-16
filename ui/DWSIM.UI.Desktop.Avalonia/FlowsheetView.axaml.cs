@@ -1965,6 +1965,11 @@ public partial class FlowsheetView : UserControl
             if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
             new ColumnInternalsWindow(_flowsheet).Show(HostWindow);
         };
+        DWSIM.UI.Desktop.Editors.AttachedUtilitiesEditor.OpenUtility = utility =>
+        {
+            if (_flowsheet == null) return;
+            if (utility is DWSIM.Automation.DynamicRunner.ColumnInternals.ColumnInternalsUtility ci) new ColumnInternalsWindow(_flowsheet, ci).Show(HostWindow);
+        };
         MenuPsvSizing.Click += (_, _) =>
         {
             if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }

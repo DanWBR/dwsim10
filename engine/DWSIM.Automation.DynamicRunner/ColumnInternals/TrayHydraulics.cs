@@ -1,4 +1,4 @@
-//    Column internals rating: sieve tray hydraulics.
+﻿//    Column internals rating: sieve tray hydraulics.
 //    Copyright 2026 Daniel Wagner Oliveira de Medeiros
 //
 //    This file is part of DWSIM.
@@ -21,10 +21,14 @@ using System;
 namespace DWSIM.Automation.DynamicRunner.ColumnInternals
 {
     /// <summary>
-    /// Sieve tray hydraulics after the design procedure of Towler and Sinnott, Chemical Engineering
+    /// Tray hydraulics. Sieve trays after the design procedure of Towler and Sinnott, Chemical Engineering
     /// Design (2008), section 11.13 (Coulson and Richardson vol. 6, ch. 11), with Kister, Distillation
-    /// Design (1992), chapter 6, for the Kister and Haas flooding correlation. All inputs in SI unless
-    /// the name says otherwise; heads are returned in mm of clear liquid as the books tabulate them.
+    /// Design (1992), chapter 6, for the Kister and Haas flooding correlation; valve trays with the dry
+    /// pressure drop of Klein (Chem. Eng., May 3, 1982, p. 81; Kister sec. 6.3.2, Table 6.9), which
+    /// fine-tunes Bolles (1976); bubble-cap trays with the Bolles (1956) method as Ludwig, Applied Process
+    /// Design vol. 2, ch. 8 presents it (Figs. 8-106, 8-108, 8-113 and 8-114, eqs. 8-225 to 8-245). All
+    /// inputs in SI unless the name says otherwise; heads are returned in mm of clear liquid as the books
+    /// tabulate them.
     /// </summary>
     public static class TrayHydraulics
     {
@@ -261,36 +265,154 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
             return ys[i] + f * (ys[i + 1] - ys[i]);
         }
 
+        // ------------------------------------------------------------------ aeration, liquid gradient
+
+        /// <summary>Tray aeration factor beta against the active-area F-factor F_va = u_a sqrt(rho_V) in ft/s (lb/ft3)^0.5:
+        /// a fit of the Fair and Bolles curve (Kister Fig. 6.22a, Perry 7th Fig. 14-32) through the valve tray point of
+        /// Klein's example (beta = 0.61 at F_va = 1.04): beta = 0.5 + 0.48 exp(-1.4 F_va).</summary>
+        public static double AerationFactor(double fvaUS) { return 0.5 + 0.48 * Math.Exp(-1.4 * Math.Max(0.0, fvaUS)); }
+
+        // Bolles' modified Davies liquid gradient factor chart (Ludwig Fig. 8-108): (Q/L_w)/C_d against Q/L_w in gpm per ft of mean tray width
+        private static readonly double[] GradQ = { 2, 3, 4, 5, 6, 8, 10, 15, 20, 30, 40, 60 };
+        private static readonly double[] GradF = { 11.5, 13.2, 14.6, 15.8, 16.8, 18.5, 20.0, 23.5, 27.0, 32.5, 38.0, 48.0 };
+
+        /// <summary>Uncorrected liquid gradient per row of caps, in, from the Davies equation as Bolles fitted it (Ludwig eq. 8-228):
+        /// (Q/L_w)/C_d = 25.8 [gamma/(1 + gamma)] D'^0.5 [1.6 D' + 3 (h_l + 0.3 s/gamma)], with Q/L_w in gpm per ft of mean
+        /// tray width (the left-hand side read from Fig. 8-108), gamma the gap between caps over the cap diameter, h_l the
+        /// clear liquid depth and s the skirt clearance in inches.</summary>
+        public static double BollesGradientPerRow(double gpmPerFt, double gamma, double clearLiquidIn, double skirtClearanceIn)
+        {
+            var q = Math.Max(0.1, gpmPerFt);
+            double lhs;
+            int last = GradQ.Length - 1;
+            if (q <= GradQ[0]) lhs = GradF[0] * Math.Pow(q / GradQ[0], 0.35);
+            else if (q >= GradQ[last]) lhs = GradF[last] * Math.Pow(q / GradQ[last], 0.58);
+            else
+            {
+                int i = 0; while (i < last - 1 && GradQ[i + 1] < q) i++;
+                var f = Math.Log(q / GradQ[i]) / Math.Log(GradQ[i + 1] / GradQ[i]);
+                lhs = Math.Exp(Math.Log(GradF[i]) + f * (Math.Log(GradF[i + 1]) - Math.Log(GradF[i])));
+            }
+            var g = Math.Max(0.05, gamma);
+            var k = 25.8 * g / (1.0 + g);
+            var c = 3.0 * (Math.Max(0.1, clearLiquidIn) + 0.3 * Math.Max(0.0, skirtClearanceIn) / g);
+            double lo = 0.0, hi = 5.0;
+            for (int it = 0; it < 80; it++)
+            {
+                var mid = 0.5 * (lo + hi);
+                var v = k * Math.Sqrt(mid) * (1.6 * mid + c);
+                if (v < lhs) lo = mid; else hi = mid;
+            }
+            return 0.5 * (lo + hi);
+        }
+
+        // Davies (1947) vapour load correction of the liquid gradient (Ludwig Fig. 8-113): C_v at 5 gpm/ft for each
+        // V_s sqrt(rho_V) in ft/s (lb/ft3)^0.5, every line reaching 1.0 at 70 gpm/ft
+        private static readonly double[] CvF = { 0.5, 0.8, 1.0, 1.1, 1.2, 1.4 };
+        private static readonly double[] CvAt5 = { 0.545, 0.70, 0.88, 1.0, 1.13, 1.245 };
+
+        public static double DaviesVaporCorrection(double superficialFFactorUS, double gpmPerFt)
+        {
+            var c5 = Interp(CvF, CvAt5, superficialFFactorUS);
+            if (gpmPerFt >= 70.0) return 1.0;
+            return 1.0 + (c5 - 1.0) * (70.0 - gpmPerFt) / 65.0;
+        }
+
+        // ------------------------------------------------------------------ bubble caps (Bolles)
+
+        // Bolles' cap pressure drop constant against the annular over riser area ratio (Ludwig Fig. 8-114)
+        private static readonly double[] KcRatio = { 1.0, 1.1, 1.2, 1.3, 1.4, 1.5 };
+        private static readonly double[] KcVal = { 0.650, 0.575, 0.515, 0.470, 0.440, 0.420 };
+
+        /// <summary>K_c of h_pc = K_c [rho_V/(rho_L - rho_V)] (V/A_r)^2 (Ludwig eq. 8-231, inches with V in ft3/s and A_r in ft2).</summary>
+        public static double BollesCapConstant(double annularOverRiserArea) { return Interp(KcRatio, KcVal, annularOverRiserArea); }
+
+        /// <summary>Riser, reversal and annulus drop of the caps, in (Ludwig eq. 8-231).</summary>
+        public static double BollesCapDropIn(double kc, double rhoV, double rhoL, double vaporLoadFt3s, double riserAreaFt2)
+        {
+            return kc * rhoV / (rhoL - rhoV) * Math.Pow(vaporLoadFt3s / riserAreaFt2, 2);
+        }
+
+        /// <summary>Slot opening of rectangular slots, in (Ludwig eq. 8-225): h_s = 32 [rho_V/(rho_L - rho_V)]^(1/3) [V/(N_c N_s w_s)]^(2/3), w_s in inches.</summary>
+        public static double BollesSlotOpeningIn(double rhoV, double rhoL, double vaporLoadFt3s, int caps, int slotsPerCap, double slotWidthIn)
+        {
+            return 32.0 * Math.Pow(rhoV / (rhoL - rhoV), 1.0 / 3.0) * Math.Pow(vaporLoadFt3s / (caps * slotsPerCap * slotWidthIn), 2.0 / 3.0);
+        }
+
+        /// <summary>Maximum slot capacity, ft3/s (Ludwig eq. 8-226): V_m = 0.79 A_s [H_s (rho_L - rho_V)/rho_V]^0.5, A_s in ft2 and H_s in inches.</summary>
+        public static double BollesSlotCapacityFt3s(double slotAreaFt2, double slotHeightIn, double rhoV, double rhoL)
+        {
+            return 0.79 * slotAreaFt2 * Math.Sqrt(slotHeightIn * (rhoL - rhoV) / rhoV);
+        }
+
+        // ------------------------------------------------------------------ valves (Klein)
+
+        /// <summary>Ratio of the valve weight with legs to the weight without (Klein, Kister Table 6.9).</summary>
+        public static double ValveLegRatio(ValveLegs legs, bool venturi)
+        {
+            switch (legs)
+            {
+                case ValveLegs.ThreeLegs: return venturi ? 1.29 : 1.23;
+                case ValveLegs.FourLegs: return venturi ? 1.45 : 1.34;
+                default: return 1.0;
+            }
+        }
+
+        /// <summary>Loss coefficient with the valves closed, s2 in/ft2 (Klein): 6.154 flat, 3.077 venturi.</summary>
+        public static double ValveClosedCoefficient(bool venturi) { return venturi ? 3.077 : 6.154; }
+
+        /// <summary>Loss coefficient with the valves open (Klein): 0.448 for venturi valves; for flat valves 0.821, 0.931 and 1.104
+        /// at 0.134, 0.104 and 0.074 in deck thickness, scaled with 1/sqrt(t) (Kister eq. 6.45) at other thicknesses.</summary>
+        public static double ValveOpenCoefficient(bool venturi, double deckThicknessIn)
+        {
+            if (venturi) return 0.448;
+            return 0.931 * Math.Sqrt(0.104 / Math.Max(0.03, deckThicknessIn));
+        }
+
+        /// <summary>Hole velocity at the closed balance point, ft/s (Klein; Kister eq. 6.46a): u = sqrt(t_v R_vw (C_vw/K_c) rho_vm/rho_V),
+        /// t_v the valve thickness in inches, C_vw = 1.3 the eddy loss coefficient, the density ratio dimensionless.</summary>
+        public static double ValveClosedBalanceVelocityFt(double valveThicknessIn, double legRatio, double kClosed, double valveDensity, double rhoV)
+        {
+            return Math.Sqrt(valveThicknessIn * legRatio * (1.3 / kClosed) * valveDensity / rhoV);
+        }
+
         // ------------------------------------------------------------------ full rating of one tray
 
-        /// <summary>Rates one sieve tray of the section at the stage conditions; diameter must be set.</summary>
-        public static StageRating RateSieveTray(InternalsSection s, StageProperties sp, double diameter,
+        /// <summary>Rates one tray of the section at the stage conditions with the model of its type; diameter must be set.</summary>
+        public static StageRating RateTray(InternalsSection s, StageProperties sp, double diameter,
             double turndown, double minResidenceTime, double murphreeEfficiency)
         {
-            var r = new StageRating { Stage = sp.Stage, SectionName = s.Name, Type = s.Type, Diameter = diameter };
-            var rhoL = sp.LiquidDensity; var rhoV = sp.VaporDensity;
-            var Lw = sp.LiquidMassFlow; var Vw = sp.VaporMassFlow;
+            switch (s.Type)
+            {
+                case InternalType.ValveTray: return RateValveTray(s, sp, diameter, turndown, minResidenceTime, murphreeEfficiency);
+                case InternalType.BubbleCapTray: return RateBubbleCapTray(s, sp, diameter, turndown, minResidenceTime, murphreeEfficiency);
+                default: return RateSieveTray(s, sp, diameter, turndown, minResidenceTime, murphreeEfficiency);
+            }
+        }
 
+        /// <summary>The areas, weir and flooding figures every tray type shares; fills the rating and returns the areas.</summary>
+        private static void TrayCommon(InternalsSection s, StageProperties sp, double diameter, StageRating r, double holeDiameterForKisterHaas, double areaFractionForKisterHaas,
+            out double Ad, out double An, out double Aa, out double lw)
+        {
+            var rhoL = sp.LiquidDensity; var rhoV = sp.VaporDensity;
             var Ac = Math.PI * diameter * diameter / 4.0;
             var fd = Math.Max(0.02, Math.Min(0.45, s.DowncomerAreaFraction));
-            var Ad = fd * Ac;
-            var An = Ac - Ad;
-            var Aa = Ac - 2.0 * Ad;
-            var Ah = s.HoleAreaFraction * Aa;
-            var lw = WeirLengthRatio(fd) * diameter;
-            var hw = s.WeirHeight;
+            Ad = fd * Ac;
+            An = Ac - Ad;
+            Aa = Ac - 2.0 * Ad;
+            lw = WeirLengthRatio(fd) * diameter;
 
-            r.FlowParameter = FlowParameter(Lw, Vw, rhoL, rhoV);
+            r.FlowParameter = FlowParameter(sp.LiquidMassFlow, sp.VaporMassFlow, rhoL, rhoV);
             r.VaporLoad = sp.VaporVolumetricFlow;
             r.LiquidLoad = sp.LiquidVolumetricFlow;
             r.NetVelocity = r.VaporLoad / An;
             r.CapacityFactor = r.NetVelocity * Math.Sqrt(rhoV / Math.Max(rhoL - rhoV, 1e-6));
 
             double uf;
-            if (s.FloodModel == TrayFloodModel.KisterHaas)
+            if (s.FloodModel == TrayFloodModel.KisterHaas && s.Type != InternalType.BubbleCapTray)
             {
-                var csb = KisterHaasCapacityFactor(s.HoleDiameter, sp.SurfaceTension, rhoL, rhoV, s.TraySpacing,
-                    s.Type == InternalType.ValveTray ? s.ValveOpenAreaFraction : s.HoleAreaFraction, r.LiquidLoad / Math.Max(lw, 1e-6), hw);
+                var csb = KisterHaasCapacityFactor(holeDiameterForKisterHaas, sp.SurfaceTension, rhoL, rhoV, s.TraySpacing,
+                    areaFractionForKisterHaas, r.LiquidLoad / Math.Max(lw, 1e-6), s.WeirHeight);
                 uf = csb * Math.Sqrt((rhoL - rhoV) / rhoV);
             }
             else
@@ -300,9 +422,46 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
             uf *= Math.Max(0.1, Math.Min(1.0, s.SystemFactor));
             r.FloodingVelocity = uf;
             r.FloodFraction = r.NetVelocity / uf;
+            r.WeirCrest = WeirCrest(sp.LiquidMassFlow, rhoL, lw);
+        }
 
-            // weir crest and weeping
-            r.WeirCrest = WeirCrest(Lw, rhoL, lw);
+        /// <summary>Downcomer, entrainment, efficiency and the warnings every tray type shares. extraBackup is added to the
+        /// backup on top of h_w + h_ow + h_t + h_dc (the liquid gradient of bubble-cap trays).</summary>
+        private static void TrayFinish(InternalsSection s, StageProperties sp, StageRating r, double Ad, double lw, double minResidenceTime, double murphreeEfficiency, double extraBackupMm)
+        {
+            var rhoL = sp.LiquidDensity; var hw = s.WeirHeight; var Lw = sp.LiquidMassFlow;
+            var hap = s.DowncomerClearance > 0 ? s.DowncomerClearance : Math.Max(0.005, hw - 0.010);
+            var Aap = lw * hap;
+            var hdc = DowncomerHeadLoss(Lw, rhoL, Ad, Aap);
+            r.DowncomerBackup = hw * 1000.0 + r.WeirCrest + r.TotalHead + hdc + extraBackupMm;
+            r.DowncomerBackupLimit = 0.5 * (s.TraySpacing + hw) * 1000.0;
+            r.DowncomerResidenceTime = Ad * (r.DowncomerBackup / 1000.0) * rhoL / Math.Max(Lw, 1e-9);
+            r.DowncomerVelocity = r.LiquidLoad / Ad;
+            r.OConnellEfficiency = OConnellEfficiency(sp.LiquidViscosity, sp.RelativeVolatility);
+            r.Entrainment = FairEntrainment(r.FlowParameter, r.FloodFraction);
+            r.EntrainmentEfficiencyFactor = EntrainmentEfficiencyFactor(r.Entrainment, murphreeEfficiency);
+
+            if (r.FloodFraction > 1.0) r.Warnings.Add("Entrainment flooding: the vapour velocity exceeds the flooding velocity.");
+            else if (r.FloodFraction > 0.85) r.Warnings.Add("Fraction of flood above 0.85.");
+            if (r.DowncomerBackup > r.DowncomerBackupLimit) r.Warnings.Add("Downcomer backup exceeds half the tray spacing plus the weir height (downcomer flooding).");
+            if (r.DowncomerResidenceTime < minResidenceTime) r.Warnings.Add("Downcomer residence time below " + minResidenceTime.ToString("0.#") + " s.");
+            if (r.Entrainment > 0.1) r.Warnings.Add("Fractional entrainment above 0.1; the efficiency penalty is large.");
+            if (r.WeirCrest < 10.0) r.Warnings.Add("Weir crest below 10 mm; the liquid may not flow evenly along the weir.");
+        }
+
+        /// <summary>Rates one sieve tray of the section at the stage conditions; diameter must be set.</summary>
+        public static StageRating RateSieveTray(InternalsSection s, StageProperties sp, double diameter,
+            double turndown, double minResidenceTime, double murphreeEfficiency)
+        {
+            var r = new StageRating { Stage = sp.Stage, SectionName = s.Name, Type = s.Type, Diameter = diameter };
+            var rhoL = sp.LiquidDensity; var rhoV = sp.VaporDensity;
+            var Lw = sp.LiquidMassFlow;
+            double Ad, An, Aa, lw;
+            TrayCommon(s, sp, diameter, r, s.HoleDiameter, s.HoleAreaFraction, out Ad, out An, out Aa, out lw);
+            var Ah = s.HoleAreaFraction * Aa;
+            var hw = s.WeirHeight;
+
+            // weeping
             var howTurndown = WeirCrest(Lw * turndown, rhoL, lw);
             r.HoleVelocity = r.VaporLoad / Math.Max(Ah, 1e-9);
             r.WeepPointVelocity = WeepPointVelocity(hw, howTurndown, s.HoleDiameter, rhoV);
@@ -313,34 +472,146 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
             var c0 = OrificeCoefficient(s.PlateThickness / s.HoleDiameter, s.HoleAreaFraction);
             r.DryPressureDrop = DryPlateDrop(r.HoleVelocity, c0, rhoV, rhoL);
             var hr = ResidualHead(rhoL);
-            r.TotalHead = r.DryPressureDrop + hw * 1000.0 + r.WeirCrest + hr;
+            r.AeratedLiquidHead = hw * 1000.0 + r.WeirCrest + hr;
+            r.TotalHead = r.DryPressureDrop + r.AeratedLiquidHead;
             r.PressureDrop = HeadToPressure(r.TotalHead, rhoL);
             r.PressureDropTotal = r.PressureDrop;
 
-            // downcomer backup
-            var hap = s.DowncomerClearance > 0 ? s.DowncomerClearance : Math.Max(0.005, hw - 0.010);
-            var Aap = lw * hap;
-            var hdc = DowncomerHeadLoss(Lw, rhoL, Ad, Aap);
-            r.DowncomerBackup = hw * 1000.0 + r.WeirCrest + r.TotalHead + hdc;
-            r.DowncomerBackupLimit = 0.5 * (s.TraySpacing + hw) * 1000.0;
-            r.DowncomerResidenceTime = Ad * (r.DowncomerBackup / 1000.0) * rhoL / Math.Max(Lw, 1e-9);
-            r.DowncomerVelocity = r.LiquidLoad / Ad;
-
-            // efficiency
-            r.OConnellEfficiency = OConnellEfficiency(sp.LiquidViscosity, sp.RelativeVolatility);
-
-            // entrainment
-            r.Entrainment = FairEntrainment(r.FlowParameter, r.FloodFraction);
-            r.EntrainmentEfficiencyFactor = EntrainmentEfficiencyFactor(r.Entrainment, murphreeEfficiency);
-
-            if (r.FloodFraction > 1.0) r.Warnings.Add("Entrainment flooding: the vapour velocity exceeds the flooding velocity.");
-            else if (r.FloodFraction > 0.85) r.Warnings.Add("Fraction of flood above 0.85.");
-            if (r.DowncomerBackup > r.DowncomerBackupLimit) r.Warnings.Add("Downcomer backup exceeds half the tray spacing plus the weir height (downcomer flooding).");
-            if (r.DowncomerResidenceTime < minResidenceTime) r.Warnings.Add("Downcomer residence time below " + minResidenceTime.ToString("0.#") + " s.");
+            TrayFinish(s, sp, r, Ad, lw, minResidenceTime, murphreeEfficiency, 0.0);
             if (r.WeepRatioTurndown < 1.0) r.Warnings.Add("Weeping at turndown: the hole velocity falls below the weep point.");
             else if (r.WeepRatio < 1.0) r.Warnings.Add("Weeping at the design rate: the hole velocity is below the weep point.");
-            if (r.Entrainment > 0.1) r.Warnings.Add("Fractional entrainment above 0.1; the efficiency penalty is large.");
-            if (r.WeirCrest < 10.0) r.Warnings.Add("Weir crest below 10 mm; the liquid may not flow evenly along the weir.");
+            return r;
+        }
+
+        /// <summary>Rates one valve tray: flooding by Fair or Kister-Haas on the open valve area, dry pressure drop by Klein's
+        /// closed and open balance points, aerated liquid by the aeration factor, weeping read against the closed balance point.</summary>
+        public static StageRating RateValveTray(InternalsSection s, StageProperties sp, double diameter,
+            double turndown, double minResidenceTime, double murphreeEfficiency)
+        {
+            var r = new StageRating { Stage = sp.Stage, SectionName = s.Name, Type = s.Type, Diameter = diameter };
+            var rhoL = sp.LiquidDensity; var rhoV = sp.VaporDensity;
+            double Ad, An, Aa, lw;
+            TrayCommon(s, sp, diameter, r, s.ValveHoleDiameter, s.ValveOpenAreaFraction, out Ad, out An, out Aa, out lw);
+            var hw = s.WeirHeight;
+
+            var valves = Math.Max(1.0, s.ValvesPerArea * Aa);
+            var Ah = valves * Math.PI / 4.0 * s.ValveHoleDiameter * s.ValveHoleDiameter;
+            r.HoleVelocity = r.VaporLoad / Ah;
+
+            // Klein's balance points, in his units
+            var tvIn = s.ValveThickness / 0.0254;
+            var rvw = ValveLegRatio(s.ValveLegs, s.ValveVenturi);
+            var kc = ValveClosedCoefficient(s.ValveVenturi);
+            var ko = ValveOpenCoefficient(s.ValveVenturi, s.PlateThickness / 0.0254);
+            var uCbp = ValveClosedBalanceVelocityFt(tvIn, rvw, kc, s.ValveDensity, rhoV);
+            var uObp = uCbp * Math.Sqrt(kc / ko);
+            var uhFt = r.HoleVelocity / 0.3048;
+            double hdIn; string regime;
+            if (uhFt <= uCbp) { hdIn = kc * (rhoV / rhoL) * uhFt * uhFt; regime = "valves closed"; }
+            else if (uhFt < uObp) { hdIn = kc * (rhoV / rhoL) * uCbp * uCbp; regime = "valves opening"; }
+            else { hdIn = ko * (rhoV / rhoL) * uhFt * uhFt; regime = "valves open"; }
+            r.ClosedBalanceVelocity = uCbp * 0.3048;
+            r.OpenBalanceVelocity = uObp * 0.3048;
+            r.UnitReference = uhFt / uObp;
+            r.Regime = regime + ", " + (r.UnitReference * 100.0).ToString("0") + " % of the open balance point";
+            r.DryPressureDrop = hdIn * 25.4;
+
+            var fva = (r.VaporLoad / Aa) / 0.3048 * Math.Sqrt(rhoV / 16.01846);
+            var beta = AerationFactor(fva);
+            r.AeratedLiquidHead = beta * (hw * 1000.0 + r.WeirCrest);
+            r.TotalHead = r.DryPressureDrop + r.AeratedLiquidHead;
+            r.PressureDrop = HeadToPressure(r.TotalHead, rhoL);
+            r.PressureDropTotal = r.PressureDrop;
+
+            // weeping: below the closed balance point the valves sit on the deck and the liquid finds the crevices
+            r.WeepPointVelocity = r.ClosedBalanceVelocity;
+            r.WeepRatio = r.HoleVelocity / r.ClosedBalanceVelocity;
+            r.WeepRatioTurndown = r.WeepRatio * turndown;
+
+            TrayFinish(s, sp, r, Ad, lw, minResidenceTime, murphreeEfficiency, 0.0);
+            if (r.WeepRatioTurndown < 1.0) r.Warnings.Add("At turndown the valves stay closed: expect weeping through the valve crevices.");
+            else if (r.UnitReference * turndown < 0.4) r.Warnings.Add("Unit reference below 40 % at turndown: the vapour may channel through part of the valves (Kister asks 40, 60 and 80 % for one, two and four passes).");
+            return r;
+        }
+
+        private const double CapWall = 0.002;     // cap wall thickness, m
+        private const double RiserWall = 0.001;   // riser wall thickness, m
+
+        /// <summary>Rates one bubble-cap tray by the Bolles method: riser, reversal and annulus drop, slot opening, static seal,
+        /// weir crest and half the liquid gradient; flooding by Fair; downcomer backup as Ludwig eq. 8-245.</summary>
+        public static StageRating RateBubbleCapTray(InternalsSection s, StageProperties sp, double diameter,
+            double turndown, double minResidenceTime, double murphreeEfficiency)
+        {
+            var r = new StageRating { Stage = sp.Stage, SectionName = s.Name, Type = s.Type, Diameter = diameter };
+            var rhoL = sp.LiquidDensity; var rhoV = sp.VaporDensity;
+            double Ad, An, Aa, lw;
+            TrayCommon(s, sp, diameter, r, s.HoleDiameter, s.HoleAreaFraction, out Ad, out An, out Aa, out lw);
+            var hw = s.WeirHeight;
+            var Ac = Math.PI * diameter * diameter / 4.0;
+
+            // cap layout
+            var capOD = s.CapDiameter + 2.0 * CapWall;
+            var pitch = Math.Max(1.05, s.CapPitchRatio) * capOD;
+            int caps = Math.Max(1, (int)Math.Floor(Aa / (0.866 * pitch * pitch)));
+            var riserArea = Math.PI / 4.0 * s.RiserDiameter * s.RiserDiameter;
+            var riserOD = s.RiserDiameter + 2.0 * RiserWall;
+            var annulus = Math.PI / 4.0 * (s.CapDiameter * s.CapDiameter - riserOD * riserOD);
+            var ratio = annulus / riserArea;
+            if (ratio < 1.0) r.Warnings.Add("The annular area between riser and cap is smaller than the riser area; Bolles' constant is read at 1.0.");
+
+            // Bolles, in his units
+            var Vft = r.VaporLoad / 0.0283168;
+            var ArFt = caps * riserArea / 0.09290304;
+            var rhoVlb = rhoV / 16.01846; var rhoLlb = rhoL / 16.01846;
+            var kc = BollesCapConstant(Math.Max(1.0, Math.Min(1.5, ratio)));
+            var hpcIn = BollesCapDropIn(kc, rhoVlb, rhoLlb, Vft, ArFt);
+            var wsIn = s.SlotWidth / 0.0254; var HsIn = s.SlotHeight / 0.0254;
+            var hsIn = BollesSlotOpeningIn(rhoVlb, rhoLlb, Vft, caps, s.SlotsPerCap, wsIn);
+            var AsFt = caps * s.SlotsPerCap * wsIn * HsIn / 144.0;
+            var VmFt = BollesSlotCapacityFt3s(AsFt, HsIn, rhoVlb, rhoLlb);
+            r.HoleVelocity = r.VaporLoad / (AsFt * 0.09290304);   // slot velocity
+            r.SlotLoad = Vft / VmFt;
+            r.SlotOpening = hsIn * 25.4;
+            r.SlotOpeningFraction = hsIn / HsIn;
+            r.CapPressureDrop = hpcIn * 25.4;
+            r.DryPressureDrop = (hpcIn + hsIn) * 25.4;
+            var howIn = r.WeirCrest / 25.4;
+            var hssIn = s.StaticSeal / 0.0254;
+
+            // liquid gradient: given, or Davies as Bolles charts it, corrected for the vapour load
+            double deltaIn;
+            if (s.LiquidGradient > 0) deltaIn = s.LiquidGradient / 0.0254;
+            else
+            {
+                var meanWidthFt = 0.5 * (lw + diameter) / 0.3048;
+                var gpmPerFt = r.LiquidLoad * 15850.32 / meanWidthFt;
+                var gamma = (pitch - capOD) / capOD;
+                var skirtIn = s.SkirtClearance / 0.0254;
+                var flowPath = diameter - 2.0 * ChordHeight(diameter, lw);
+                int rows = Math.Max(1, (int)Math.Round(flowPath / (0.866 * pitch)));
+                var cv = DaviesVaporCorrection(r.VaporLoad / Ac / 0.3048 * Math.Sqrt(rhoVlb), gpmPerFt);
+                deltaIn = 0.0;
+                for (int it = 0; it < 4; it++)
+                {
+                    var hl = hw / 0.0254 + howIn + 0.5 * deltaIn;
+                    deltaIn = BollesGradientPerRow(gpmPerFt, gamma, hl, skirtIn) * rows * cv;
+                }
+            }
+            r.LiquidGradient = deltaIn * 25.4;
+            r.DynamicSeal = (hssIn + howIn + 0.5 * deltaIn) * 25.4;
+            r.AeratedLiquidHead = r.DynamicSeal;
+            r.TotalHead = r.DryPressureDrop + r.DynamicSeal;                 // Ludwig eq. 8-239
+            r.PressureDrop = HeadToPressure(r.TotalHead, rhoL);
+            r.PressureDropTotal = r.PressureDrop;
+            r.VaporDistributionRatio = deltaIn / Math.Max(hpcIn + hsIn, 1e-6);
+            r.Regime = "slots " + (r.SlotOpeningFraction * 100.0).ToString("0") + " % open, " + (r.SlotLoad * 100.0).ToString("0") + " % of the slot capacity";
+
+            TrayFinish(s, sp, r, Ad, lw, minResidenceTime, murphreeEfficiency, r.LiquidGradient);   // Ludwig eq. 8-245
+            if (r.SlotLoad > 1.0) r.Warnings.Add("Vapour load above the slot capacity: the vapour blows under the cap skirt.");
+            else if (r.SlotOpeningFraction > 1.0) r.Warnings.Add("The slots are fully open; the vapour is on the point of blowing under the caps.");
+            if (r.SlotOpening * Math.Pow(turndown, 2.0 / 3.0) < 12.7) r.Warnings.Add("Slot opening below 0.5 in at turndown: the tray may pulse.");
+            if (r.VaporDistributionRatio > 0.5) r.Warnings.Add("Liquid gradient above half the cap drop: the inlet caps may stop bubbling (Bolles keeps delta/h_c below 0.5).");
+            if (r.DynamicSeal < 12.7) r.Warnings.Add("Dynamic slot seal below 0.5 in; the caps may cone (Bolles' Table 8-18 asks 0.5 to 1.5 in in vacuum, more at pressure).");
             return r;
         }
 
@@ -352,7 +623,7 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
             for (int i = 0; i < 80; i++)
             {
                 var mid = 0.5 * (lo + hi);
-                var r = RateSieveTray(s, sp, mid, 1.0, 0.0, 1.0);
+                var r = RateTray(s, sp, mid, 1.0, 0.0, 1.0);
                 if (r.FloodFraction > target) lo = mid; else hi = mid;
             }
             return 0.5 * (lo + hi);

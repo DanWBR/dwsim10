@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
+using Avalonia.Threading;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
@@ -18,10 +19,12 @@ using cv = DWSIM.SharedClasses.SystemsOfUnits.Converter;
 namespace DWSIM.UI.Desktop.Avalonia;
 
 /// <summary>
-/// Column internals rating: sieve trays and packings rated stage by stage on a solved rigorous
-/// column (flooding, pressure drop, weeping, entrainment, downcomer backup; holdup, HETP and bed
-/// height for packings), with sizing for a target fraction of flood. Same layout as the
-/// depressurization tool: inputs on the left with the case buttons on top, results on the right.
+/// Column internals rating: sieve, valve and bubble-cap trays and random and structured packings rated
+/// stage by stage on a solved rigorous column (flooding, pressure drop, weeping, entrainment, downcomer
+/// backup; holdup, HETP and bed height for packings), with sizing for a target fraction of flood and an
+/// automatic iteration with the column solver. Same layout as the depressurization tool: inputs on the
+/// left with the case buttons on top, results on the right. Opened from the Utilities menu on any column,
+/// or on the utility attached to a column, whose case it keeps.
 /// </summary>
 public sealed class ColumnInternalsWindow : Window
 {
@@ -32,9 +35,10 @@ public sealed class ColumnInternalsWindow : Window
     private ColumnInternalsResult? _result;
     private readonly List<string> _columns;
     private int _selected = -1;
+    private readonly ColumnInternalsUtility? _utility;
 
     private ComboBox _columnBox = null!;
-    private Button _run = null!, _export = null!, _load = null!, _save = null!, _applyP = null!, _applyE = null!;
+    private Button _run = null!, _iterate = null!, _export = null!, _load = null!, _save = null!, _applyP = null!, _applyE = null!;
     private ScrollViewer _left = null!;
     private readonly TextBlock _status = new() { FontSize = UiScale.Font(11), Opacity = 0.85, TextWrapping = TextWrapping.Wrap };
     private readonly StackPanel _summary = new() { Spacing = 2 };
@@ -44,8 +48,9 @@ public sealed class ColumnInternalsWindow : Window
 
     private static readonly List<string> TypeNames = new() { "Sieve tray", "Valve tray", "Bubble-cap tray", "Random packing", "Structured packing" };
     private static readonly List<string> FloodModels = new() { "Fair (1961)", "Kister and Haas (1990)" };
-    private static readonly List<string> PackingModels = new() { "Robbins + Kister-Gill", "Billet and Schultes" };
-    private static readonly List<string> HetpModels = new() { "Onda (random packings)", "Billet and Schultes", "Rule of thumb" };
+    private static readonly List<string> PackingModels = new() { "Robbins + Kister-Gill", "Billet and Schultes", "Rocha, Bravo and Fair (structured)" };
+    private static readonly List<string> HetpModels = new() { "Onda (random packings)", "Billet and Schultes", "Rule of thumb", "Rocha, Bravo and Fair (structured)" };
+    private static readonly List<string> ValveLegNames = new() { "Three legs", "Four legs", "Caged (no legs)" };
     private const string UserPacking = "User-defined...";
 
     /// <summary>One row of the results table, already in the flowsheet units.</summary>
@@ -59,6 +64,7 @@ public sealed class ColumnInternalsWindow : Window
         public string Dp { get; init; } = "";
         public string Head { get; init; } = "";
         public string Weep { get; init; } = "";
+        public string Regime { get; init; } = "";
         public string Backup { get; init; } = "";
         public string Residence { get; init; } = "";
         public string Entrainment { get; init; } = "";
@@ -69,21 +75,50 @@ public sealed class ColumnInternalsWindow : Window
         public string Notes { get; init; } = "";
     }
 
-    public ColumnInternalsWindow(IFlowsheet flowsheet)
+    public ColumnInternalsWindow(IFlowsheet flowsheet) : this(flowsheet, null) { }
+
+    /// <summary>On a utility attached to a column the tool works on that column only and keeps its case in the utility.</summary>
+    public ColumnInternalsWindow(IFlowsheet flowsheet, ColumnInternalsUtility? utility)
     {
         _fs = flowsheet;
+        _utility = utility;
         _su = flowsheet.FlowsheetOptions.SelectedUnitSystem;
         _nf = flowsheet.FlowsheetOptions.NumberFormat;
         _columns = ColumnInternalsStudy.ColumnNames(flowsheet);
+        if (utility?.AttachedTo?.GraphicObject != null)
+        {
+            var tag = utility.AttachedTo.GraphicObject.Tag;
+            _columns = _columns.Where(c => c == tag).ToList();
+            if (_columns.Count == 0) _columns.Add(tag);
+        }
 
-        Title = "Column Internals";
+        Title = utility != null ? "Column Internals: " + utility.Name + " on " + _columns[0] : "Column Internals";
         Width = 1320;
         Height = 880;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         IconHelper.ApplyWindowIcon(this);
+        if (utility != null)
+        {
+            _in.CopyFrom(utility.GetInput());
+            _in.ColumnName = _columns[0];
+            _selected = _in.Sections.Count > 0 ? 0 : -1;
+        }
         Content = BuildContent();
         if (_columns.Count > 0 && string.IsNullOrEmpty(_in.ColumnName)) SelectColumn(_columns[0], true);
-        AutoLoadCase();
+        if (utility != null)
+        {
+            if (_in.Sections.Count == 0) { SelectColumn(_columns[0], true); Rebuild(); }
+            if (utility.LastResult != null) { _result = utility.LastResult; ShowResult(utility.LastResult); _export.IsEnabled = true; _applyP.IsEnabled = true; _applyE.IsEnabled = true; }
+            Closing += (_, _) => StoreInUtility();
+        }
+        else AutoLoadCase();
+    }
+
+    /// <summary>Hands the case (and the last rating) to the attached utility so the simulation keeps them.</summary>
+    private void StoreInUtility()
+    {
+        if (_utility == null) return;
+        try { _utility.SetInput(_in); if (_result != null) _utility.Store(_result); } catch { }
     }
 
     // ---------------------------------------------------------------- case files next to the flowsheet
@@ -122,7 +157,10 @@ public sealed class ColumnInternalsWindow : Window
 
         _run = new Button { Content = "Rate", Width = 110, IsDefault = true };
         _run.Classes.Add("dialog");
-        _run.Click += async (_, _) => await RunAsync();
+        _run.Click += async (_, _) => await RunAsync(false);
+        _iterate = new Button { Content = "Rate and iterate with the solver" };
+        _iterate.Classes.Add("dialog");
+        _iterate.Click += async (_, _) => await RunAsync(true);
         _export = new Button { Content = "Export CSV...", Width = 130, IsEnabled = false };
         _export.Classes.Add("dialog");
         _export.Click += async (_, _) => await ExportAsync();
@@ -140,7 +178,7 @@ public sealed class ColumnInternalsWindow : Window
         _applyE.Classes.Add("dialog");
         _applyE.Click += (_, _) => ApplyToColumn(false, true);
         var buttons = new WrapPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(12, 6, 12, 8) };
-        foreach (var b in new[] { _run, _export, _applyP, _applyE }) { b.Margin = new Thickness(0, 0, 8, 4); buttons.Children.Add(b); }
+        foreach (var b in new[] { _run, _export, _applyP, _applyE, _iterate }) { b.Margin = new Thickness(0, 0, 8, 4); buttons.Children.Add(b); }
 
         var leftDock = new DockPanel();
         DockPanel.SetDock(topButtons, global::Avalonia.Controls.Dock.Top);
@@ -186,6 +224,7 @@ public sealed class ColumnInternalsWindow : Window
             SelectColumn(_columns[dd.SelectedIndex], true);
             Rebuild();
         });
+        _columnBox.IsEnabled = _utility == null;
         var col = ColumnInternalsStudy.FindColumn(_fs, _in.ColumnName);
         int nStages = col != null ? ColumnInternalsStudy.StageCount(col) : 0;
         if (col != null) p.CreateAndAddDescriptionRow(nStages + " stages. Stage 1 is the top stage; on a distillation column the condenser and the reboiler are stages 1 and " + nStages + ".");
@@ -200,6 +239,14 @@ public sealed class ColumnInternalsWindow : Window
         p.CreateAndAddTextBoxRow(_nf, "Turndown for the weeping check (min / design vapour)", _in.Turndown,
             (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v) && v > 0 && v <= 1) _in.Turndown = v; });
         p.CreateAndAddDescriptionRow("A section with diameter 0 is sized so that its worst stage sits at the target fraction of flood; a section with a diameter is rated as it is.");
+        p.CreateAndAddLabelRow("Iteration with the solver");
+        p.CreateAndAddDescriptionRow("Rate and iterate writes the rated pressures and O'Connell efficiencies into the column, solves the flowsheet and rates again until the column pressure drop settles.");
+        p.CreateAndAddTextBoxRow(_nf, "Passes at most", _in.MaxIterations,
+            (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v) && v >= 1) _in.MaxIterations = (int)Math.Round(v); });
+        p.CreateAndAddTextBoxRow(_nf, "Pressure drop change that stops it (fraction)", _in.IterationTolerance,
+            (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v) && v > 0) _in.IterationTolerance = v; });
+        p.CreateAndAddCheckBoxRow("Write the stage pressures", _in.IteratePressures, (cb, _) => _in.IteratePressures = cb.IsChecked ?? true);
+        p.CreateAndAddCheckBoxRow("Write the stage efficiencies", _in.IterateEfficiencies, (cb, _) => _in.IterateEfficiencies = cb.IsChecked ?? true);
 
         p.CreateAndAddLabelRow("Sections");
         p.CreateAndAddDescriptionRow("Split the column into ranges of stages, each with one kind of internal.");
@@ -245,6 +292,8 @@ public sealed class ColumnInternalsWindow : Window
             s.Type = (InternalType)dd.SelectedIndex;
             if (!s.IsTray && string.IsNullOrEmpty(s.PackingName) && s.CustomPacking == null)
                 s.PackingName = s.Type == InternalType.StructuredPacking ? "Mellapak Sheet metal 250Y" : "Pall rings Metal 50 mm";
+            if (s.Type == InternalType.StructuredPacking && s.PackingModel == PackingModel.RobbinsKisterGill && s.HetpModel == HetpModel.Onda) { s.PackingModel = PackingModel.RochaBravoFair; s.HetpModel = HetpModel.RochaBravoFair; }
+            if (s.Type == InternalType.RandomPacking && s.PackingModel == PackingModel.RochaBravoFair) { s.PackingModel = PackingModel.RobbinsKisterGill; s.HetpModel = HetpModel.Onda; }
             Rebuild();
         });
         p.CreateAndAddTextBoxRow(_nf, "Column diameter (" + _su.distance + ", 0 = size)", s.Diameter > 0 ? Show(_su.distance, s.Diameter) : 0.0,
@@ -261,25 +310,71 @@ public sealed class ColumnInternalsWindow : Window
                 (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v) && v > 0) s.WeirHeight = cv.ConvertToSI(_su.distance, v); });
             p.CreateAndAddTextBoxRow(_nf, "Downcomer clearance (" + _su.distance + ", 0 = weir minus 10 mm)", s.DowncomerClearance > 0 ? Show(_su.distance, s.DowncomerClearance) : 0.0,
                 (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v)) s.DowncomerClearance = v > 0 ? cv.ConvertToSI(_su.distance, v) : 0; });
-            p.CreateAndAddTextBoxRow(_nf, "Hole diameter (" + _su.distance + ")", Show(_su.distance, s.HoleDiameter),
-                (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v) && v > 0) s.HoleDiameter = cv.ConvertToSI(_su.distance, v); });
-            p.CreateAndAddTextBoxRow(_nf, "Hole area fraction of the active area", s.HoleAreaFraction,
-                (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v) && v > 0 && v < 0.5) s.HoleAreaFraction = v; });
-            p.CreateAndAddTextBoxRow(_nf, "Plate thickness (" + _su.distance + ")", Show(_su.distance, s.PlateThickness),
+            if (s.Type == InternalType.SieveTray)
+            {
+                p.CreateAndAddTextBoxRow(_nf, "Hole diameter (" + _su.distance + ")", Show(_su.distance, s.HoleDiameter),
+                    (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v) && v > 0) s.HoleDiameter = cv.ConvertToSI(_su.distance, v); });
+                p.CreateAndAddTextBoxRow(_nf, "Hole area fraction of the active area", s.HoleAreaFraction,
+                    (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v) && v > 0 && v < 0.5) s.HoleAreaFraction = v; });
+            }
+            p.CreateAndAddTextBoxRow(_nf, (s.Type == InternalType.ValveTray ? "Deck" : "Plate") + " thickness (" + _su.distance + ")", Show(_su.distance, s.PlateThickness),
                 (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v) && v > 0) s.PlateThickness = cv.ConvertToSI(_su.distance, v); });
-            p.CreateAndAddDescriptionRow("Usual values: spacing 0.45 to 0.6 m, downcomer 12 %, weir 40 to 50 mm (6 to 12 mm in vacuum), holes 5 mm, hole area 10 %, plate 5 mm carbon steel or 3 mm stainless.");
-            p.CreateAndAddLabelRow("Capacity");
-            p.CreateAndAddDropDownRow("Entrainment flooding correlation", FloodModels, (int)s.FloodModel, (dd, _) => { if (dd.SelectedIndex >= 0) { s.FloodModel = (TrayFloodModel)dd.SelectedIndex; Rebuild(); } });
-            p.CreateAndAddDescriptionRow(s.FloodModel == TrayFloodModel.Fair
-                ? "Fair's chart on the net area, with the surface tension correction; the industry standard and the one Towler and Sinnott and ChemSep use."
-                : "Kister and Haas: the correlation Kister recommends for sieve and valve trays (hole area 6 to 20 %, spacing above 14 in, non-foaming systems).");
+            if (s.Type == InternalType.SieveTray)
+                p.CreateAndAddDescriptionRow("Usual values: spacing 0.45 to 0.6 m, downcomer 12 %, weir 40 to 50 mm (6 to 12 mm in vacuum), holes 5 mm, hole area 10 %, plate 5 mm carbon steel or 3 mm stainless.");
             if (s.Type == InternalType.ValveTray)
+            {
+                p.CreateAndAddLabelRow("Valves (Klein's dry pressure drop)");
+                p.CreateAndAddTextBoxRow(_nf, "Valves per m2 of active area", s.ValvesPerArea,
+                    (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v) && v > 0) s.ValvesPerArea = v; });
+                p.CreateAndAddTextBoxRow(_nf, "Deck hole diameter under the valve (" + _su.distance + ")", Show(_su.distance, s.ValveHoleDiameter),
+                    (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v) && v > 0) s.ValveHoleDiameter = cv.ConvertToSI(_su.distance, v); });
+                p.CreateAndAddTextBoxRow(_nf, "Valve thickness (" + _su.distance + ")", Show(_su.distance, s.ValveThickness),
+                    (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v) && v > 0) s.ValveThickness = cv.ConvertToSI(_su.distance, v); });
+                p.CreateAndAddTextBoxRow(_nf, "Valve metal density (" + _su.density + ")", Show(_su.density, s.ValveDensity),
+                    (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v) && v > 0) s.ValveDensity = cv.ConvertToSI(_su.density, v); });
+                p.CreateAndAddDropDownRow("Valve legs", ValveLegNames, (int)s.ValveLegs, (dd, _) => { if (dd.SelectedIndex >= 0) s.ValveLegs = (ValveLegs)dd.SelectedIndex; });
+                p.CreateAndAddCheckBoxRow("Venturi (contoured) orifice", s.ValveVenturi, (cb, _) => s.ValveVenturi = cb.IsChecked ?? false);
+                p.CreateAndAddDescriptionRow("Usual values: 130 to 170 valves per m2 (12 to 16 per ft2), 1.5 in holes, 16 gauge (1.5 mm) carbon steel valves with four legs, 12 gauge (2.6 mm) deck. The closed and open balance points come from the valve weight; between them the dry drop is flat.");
+            }
+            if (s.Type == InternalType.BubbleCapTray)
+            {
+                p.CreateAndAddLabelRow("Caps (Bolles)");
+                p.CreateAndAddTextBoxRow(_nf, "Cap inside diameter (" + _su.distance + ")", Show(_su.distance, s.CapDiameter),
+                    (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v) && v > 0) s.CapDiameter = cv.ConvertToSI(_su.distance, v); });
+                p.CreateAndAddTextBoxRow(_nf, "Riser inside diameter (" + _su.distance + ")", Show(_su.distance, s.RiserDiameter),
+                    (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v) && v > 0) s.RiserDiameter = cv.ConvertToSI(_su.distance, v); });
+                p.CreateAndAddTextBoxRow(_nf, "Cap pitch over the cap outside diameter", s.CapPitchRatio,
+                    (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v) && v > 1) s.CapPitchRatio = v; });
+                p.CreateAndAddTextBoxRow(_nf, "Slots per cap", s.SlotsPerCap,
+                    (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v) && v >= 1) s.SlotsPerCap = (int)Math.Round(v); });
+                p.CreateAndAddTextBoxRow(_nf, "Slot width (" + _su.distance + ")", Show(_su.distance, s.SlotWidth),
+                    (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v) && v > 0) s.SlotWidth = cv.ConvertToSI(_su.distance, v); });
+                p.CreateAndAddTextBoxRow(_nf, "Slot height (" + _su.distance + ")", Show(_su.distance, s.SlotHeight),
+                    (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v) && v > 0) s.SlotHeight = cv.ConvertToSI(_su.distance, v); });
+                p.CreateAndAddTextBoxRow(_nf, "Static slot seal, weir top above the slots (" + _su.distance + ")", Show(_su.distance, s.StaticSeal),
+                    (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v) && v >= 0) s.StaticSeal = cv.ConvertToSI(_su.distance, v); });
+                p.CreateAndAddTextBoxRow(_nf, "Skirt clearance (" + _su.distance + ")", Show(_su.distance, s.SkirtClearance),
+                    (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v) && v >= 0) s.SkirtClearance = cv.ConvertToSI(_su.distance, v); });
+                p.CreateAndAddTextBoxRow(_nf, "Liquid gradient across the tray (" + _su.distance + ", 0 = Davies estimate)", s.LiquidGradient > 0 ? Show(_su.distance, s.LiquidGradient) : 0.0,
+                    (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v)) s.LiquidGradient = v > 0 ? cv.ConvertToSI(_su.distance, v) : 0; });
+                p.CreateAndAddDescriptionRow("A 4 in cap has about a 98 mm inside diameter, a 68 mm riser, 40 to 50 slots 3 mm wide and 38 mm tall on a 140 mm pitch. The static seal is usually 13 to 38 mm (0.5 to 1.5 in). Bolles keeps the gradient below half the cap drop.");
+            }
+            p.CreateAndAddLabelRow("Capacity");
+            if (s.Type == InternalType.BubbleCapTray)
+                p.CreateAndAddDescriptionRow("Fair's chart on the net area, with the surface tension correction; it was drawn for bubble-cap and sieve trays.");
+            else
+            {
+                p.CreateAndAddDropDownRow("Entrainment flooding correlation", FloodModels, (int)s.FloodModel, (dd, _) => { if (dd.SelectedIndex >= 0) { s.FloodModel = (TrayFloodModel)dd.SelectedIndex; Rebuild(); } });
+                p.CreateAndAddDescriptionRow(s.FloodModel == TrayFloodModel.Fair
+                    ? "Fair's chart on the net area, with the surface tension correction; the industry standard and the one Towler and Sinnott and ChemSep use."
+                    : "Kister and Haas: the correlation Kister recommends for sieve and valve trays (hole area 6 to 20 %, spacing above 14 in, non-foaming systems).");
+            }
+            if (s.Type == InternalType.ValveTray && s.FloodModel == TrayFloodModel.KisterHaas)
                 p.CreateAndAddTextBoxRow(_nf, "Open valve area fraction of the active area", s.ValveOpenAreaFraction,
                     (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v) && v > 0) s.ValveOpenAreaFraction = v; });
             p.CreateAndAddTextBoxRow(_nf, "System (foaming) factor on flooding", s.SystemFactor,
                 (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v) && v > 0 && v <= 1) s.SystemFactor = v; });
             p.CreateAndAddDescriptionRow("1 for non-foaming systems; 0.9 for light foaming (crude, absorbers), 0.85 for moderate (amine, glycol regenerators), 0.73 for heavy foaming (amine and glycol absorbers), 0.6 for stable foam.");
-            if (s.Type == InternalType.BubbleCapTray) p.CreateAndAddDescriptionRow("Bubble-cap trays are rated with the sieve tray hydraulics for now.");
         }
         else
         {
@@ -314,6 +409,12 @@ public sealed class ColumnInternalsWindow : Window
                 p.CreateAndAddTextBoxRow(_nf, "Void fraction", c.Epsilon, (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v) && v > 0 && v < 1) c.Epsilon = v; });
                 p.CreateAndAddTextBoxRow(_nf, "Packing factor Fp (1/m)", c.Fp, (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v) && v > 0) c.Fp = v; });
                 p.CreateAndAddTextBoxRow(_nf, "Fpd for Robbins (1/m, 0 = use Fp)", double.IsNaN(c.Fpd) ? 0 : c.Fpd, (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v)) c.Fpd = v > 0 ? v : double.NaN; });
+                if (c.Structured)
+                {
+                    p.CreateAndAddTextBoxRow(_nf, "Corrugation side S (mm, 0 = estimate from a and the void fraction)", double.IsNaN(c.CorrugationSide) ? 0 : c.CorrugationSide * 1000, (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v)) c.CorrugationSide = v > 0 ? v / 1000.0 : double.NaN; });
+                    p.CreateAndAddTextBoxRow(_nf, "Corrugation angle from the horizontal (deg)", c.CorrugationAngle, (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v) && v > 10 && v < 80) c.CorrugationAngle = v; });
+                    p.CreateAndAddTextBoxRow(_nf, "Surface enhancement factor F_SE (Rocha-Bravo-Fair)", c.SurfaceEnhancement, (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v) && v > 0) c.SurfaceEnhancement = v; });
+                }
                 p.CreateAndAddDescriptionRow("Billet and Schultes constants (leave 0 when unknown; the Robbins route and the rules of thumb do not need them).");
                 void BC(string label, Func<double> get, Action<double> set) => p.CreateAndAddTextBoxRow(_nf, label, double.IsNaN(get()) ? 0 : get(), (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v)) set(v > 0 ? v : double.NaN); });
                 BC("C_h (holdup)", () => c.Ch, v => c.Ch = v);
@@ -328,6 +429,7 @@ public sealed class ColumnInternalsWindow : Window
                 string F(double v, string fmt) => double.IsNaN(v) ? "n/a" : v.ToString(fmt, CultureInfo.CurrentCulture);
                 p.CreateAndAddTwoLabelsRow("Packing factor Fp", F(pk.Fp, "0") + " 1/m" + (double.IsNaN(pk.Fpd) ? "" : ", Fpd " + F(pk.Fpd, "0") + " 1/m"));
                 p.CreateAndAddTwoLabelsRow("Area, void fraction", F(pk.a, "0") + " m2/m3, " + F(pk.Epsilon, "0.000"));
+                if (pk.Structured) p.CreateAndAddTwoLabelsRow("Corrugation side, angle", F(pk.EffectiveCorrugationSide * 1000, "0.0") + " mm" + (double.IsNaN(pk.CorrugationSide) ? " (estimated)" : "") + ", " + F(pk.CorrugationAngle, "0") + " deg");
                 p.CreateAndAddTwoLabelsRow("Billet-Schultes constants", pk.HasBilletHydraulics ? "C_h " + F(pk.Ch, "0.000") + ", C_p " + F(pk.Cp, "0.000") + ", C_s " + F(pk.Cs, "0.000") + ", C_Fl " + F(pk.CFl, "0.000") + (pk.HasBilletMassTransfer ? ", C_L " + F(pk.CL, "0.000") + ", C_V " + F(pk.CV, "0.000") : ", no mass transfer constants") : "not available");
                 p.CreateAndAddTwoLabelsRow("Source", pk.Source);
             }
@@ -337,9 +439,11 @@ public sealed class ColumnInternalsWindow : Window
             p.CreateAndAddDropDownRow("Capacity and pressure drop", PackingModels, (int)s.PackingModel, (dd, _) => { if (dd.SelectedIndex >= 0) { s.PackingModel = (PackingModel)dd.SelectedIndex; Rebuild(); } });
             p.CreateAndAddDescriptionRow(s.PackingModel == PackingModel.RobbinsKisterGill
                 ? "Robbins (1991) pressure drop with the flood point at the Kister and Gill pressure drop 0.115 Fp^0.7 in H2O/ft; needs only the packing factor."
-                : "Billet and Schultes (1999): loading and flooding velocities, holdup and pressure drop from the packing constants; the preferred route when the constants exist.");
+                : s.PackingModel == PackingModel.BilletSchultes
+                    ? "Billet and Schultes (1999): loading and flooding velocities, holdup and pressure drop from the packing constants; the preferred route when the constants exist."
+                    : "Rocha, Bravo and Fair (1993): holdup and pressure drop of corrugated sheet packings from the channel geometry, flooding where the pressure drop reaches the Kister and Gill value; structured packings only.");
             p.CreateAndAddDropDownRow("HETP", HetpModels, (int)s.HetpModel, (dd, _) => { if (dd.SelectedIndex >= 0) { s.HetpModel = (HetpModel)dd.SelectedIndex; Rebuild(); } });
-            p.CreateAndAddDescriptionRow("Kister's advice: measured HETP data first, rules of thumb next (1.5 times the packing size for Pall-type rings; 100/a + 4 in for structured packings), mass transfer models last. The rule-of-thumb value is always shown beside the model.");
+            p.CreateAndAddDescriptionRow("Kister's advice: measured HETP data first, rules of thumb next (1.5 times the packing size for Pall-type rings; 100/a + 4 in for structured packings), mass transfer models last. The rule-of-thumb value is always shown beside the model. Rocha, Bravo and Fair (1996) is the mass transfer model for corrugated sheets.");
             p.CreateAndAddTextBoxRow(_nf, "Liquid diffusivity (m2/s, 0 = estimate)", s.LiquidDiffusivity,
                 (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v)) s.LiquidDiffusivity = Math.Max(0, v); });
             p.CreateAndAddTextBoxRow(_nf, "Vapour diffusivity (m2/s, 0 = estimate)", s.VapourDiffusivity,
@@ -372,6 +476,7 @@ public sealed class ColumnInternalsWindow : Window
         Col("dP (" + _su.deltaP + ")", nameof(Row.Dp));
         Col("h_t (mm liq)", nameof(Row.Head));
         Col("u_h/u_weep", nameof(Row.Weep));
+        Col("valves / slots", nameof(Row.Regime));
         Col("backup (mm)", nameof(Row.Backup));
         Col("t_dc (s)", nameof(Row.Residence));
         Col("entrainment", nameof(Row.Entrainment));
@@ -411,7 +516,7 @@ public sealed class ColumnInternalsWindow : Window
 
     // ---------------------------------------------------------------- run
 
-    private async Task RunAsync()
+    private async Task RunAsync(bool iterate)
     {
         if (string.IsNullOrEmpty(_in.ColumnName)) { _status.Text = "Pick a column."; return; }
         if (_in.Sections.Count == 0) { _status.Text = "Add at least one section."; return; }
@@ -419,25 +524,30 @@ public sealed class ColumnInternalsWindow : Window
         if (col == null) { _status.Text = "The column is not on the flowsheet."; return; }
         if (!col.Calculated) { _status.Text = "The column has not been solved; solve the flowsheet first."; return; }
 
-        _run.IsEnabled = false; _export.IsEnabled = false;
-        _status.Text = "Rating...";
+        _run.IsEnabled = false; _iterate.IsEnabled = false; _export.IsEnabled = false;
+        _status.Text = iterate ? "Rating and solving..." : "Rating...";
         var input = _in.Clone();
         try
         {
-            var result = await Task.Run(() => ColumnInternalsStudy.Run(_fs, input));
+            var result = iterate
+                ? await Task.Run(() => ColumnInternalsStudy.RunIterating(_fs, input, line => Dispatcher.UIThread.Post(() => _status.Text = line)))
+                : await Task.Run(() => ColumnInternalsStudy.Run(_fs, input));
             _result = result;
             ShowResult(result);
             var warn = result.Sections.Sum(s => s.Warnings.Count + s.Stages.Sum(r => r.Warnings.Count));
-            _status.Text = "Done. " + (warn == 0 ? "No warnings." : warn + " warning(s); see the notes column and the summary.");
+            var head = iterate ? (result.Converged ? "Settled after " + result.Iterations + " pass(es). " : "Not settled after " + result.Iterations + " pass(es); see the summary. ") : "Done. ";
+            _status.Text = head + (warn == 0 ? "No warnings." : warn + " warning(s); see the notes column and the summary.");
             _export.IsEnabled = true;
-            _applyP.IsEnabled = true;
-            _applyE.IsEnabled = result.Sections.Any(sec => sec.Stages.Any(r => !double.IsNaN(r.OConnellEfficiency)));
+            _applyP.IsEnabled = !iterate;
+            _applyE.IsEnabled = !iterate && result.Sections.Any(sec => sec.Stages.Any(r => !double.IsNaN(r.OConnellEfficiency)));
+            if (iterate) { try { _fs.UpdateOpenEditForms(); } catch { } }
+            StoreInUtility();
         }
         catch (Exception ex)
         {
             _status.Text = "The rating failed: " + ex.Message;
         }
-        finally { _run.IsEnabled = true; }
+        finally { _run.IsEnabled = true; _iterate.IsEnabled = true; }
     }
 
     private void ApplyToColumn(bool pressures, bool efficiencies)
@@ -449,6 +559,7 @@ public sealed class ColumnInternalsWindow : Window
         {
             _status.Text = ColumnInternalsStudy.ApplyToColumn(col, _result, pressures, efficiencies);
             _applyP.IsEnabled = false; _applyE.IsEnabled = false;
+            try { _fs.UpdateOpenEditForms(); } catch { }
         }
         catch (Exception ex) { _status.Text = "Could not write to the column: " + ex.Message; }
     }
@@ -486,6 +597,11 @@ public sealed class ColumnInternalsWindow : Window
             if (stageWarnings.Count > 0) p.CreateAndAddDescriptionRow(string.Join(" | ", stageWarnings.Take(6)) + (stageWarnings.Count > 6 ? " | ..." : ""));
         }
         p.CreateAndAddTwoLabelsRow("Whole column", "pressure drop " + DP(res.TotalPressureDrop) + ", internals height " + D(res.TotalHeight));
+        if (res.Log.Count > 0)
+        {
+            p.CreateAndAddLabelRow("Iteration with the solver");
+            foreach (var l in res.Log) p.CreateAndAddDescriptionRow(l);
+        }
         _summary.Children.Add(p);
 
         _plotFlood.Clear();
@@ -513,6 +629,7 @@ public sealed class ColumnInternalsWindow : Window
                     Dp = N(Show(_su.deltaP, r.PressureDropTotal)),
                     Head = N(r.TotalHead, "0"),
                     Weep = N(r.WeepRatio, "0.00"),
+                    Regime = r.Regime,
                     Backup = N(r.DowncomerBackup, "0"),
                     Residence = N(r.DowncomerResidenceTime, "0.0"),
                     Entrainment = N(r.Entrainment, "0.000"),
@@ -569,6 +686,7 @@ public sealed class ColumnInternalsWindow : Window
         var sb = new StringBuilder();
         sb.AppendLine(string.Join(";", "stage", "section", "internal", "diameter (" + _su.distance + ")", "F_LV", "velocity (" + _su.velocity + ")", "flooding velocity (" + _su.velocity + ")",
             "fraction of flood", "pressure drop (" + _su.deltaP + ")", "total head (mm liquid)", "dry drop (mm liquid)", "weir crest (mm)", "hole velocity (m/s)", "weep point velocity (m/s)",
+            "valves / slots", "closed balance velocity (m/s)", "open balance velocity (m/s)", "cap drop (mm)", "slot opening (mm)", "slot load", "liquid gradient (mm)", "dynamic seal (mm)",
             "downcomer backup (mm)", "backup limit (mm)", "downcomer residence (s)", "entrainment", "efficiency factor", "O'Connell efficiency", "holdup (m3/m3)", "loading velocity (m/s)",
             "HETP (" + _su.distance + ")", "HETP rule of thumb (" + _su.distance + ")", "H_G (m)", "H_L (m)", "H_OG (m)", "wetting ratio", "notes"));
         string G(double v) => double.IsNaN(v) ? "" : v.ToString("G6", ci);
@@ -576,7 +694,8 @@ public sealed class ColumnInternalsWindow : Window
             foreach (var r in sr.Stages)
                 sb.AppendLine(string.Join(";", r.Stage.ToString(ci), sr.Section.Name, TypeNames[(int)sr.Section.Type], G(Show(_su.distance, r.Diameter)), G(r.FlowParameter),
                     G(Show(_su.velocity, r.NetVelocity)), G(Show(_su.velocity, r.FloodingVelocity)), G(r.FloodFraction), G(Show(_su.deltaP, r.PressureDropTotal)), G(r.TotalHead), G(r.DryPressureDrop),
-                    G(r.WeirCrest), G(r.HoleVelocity), G(r.WeepPointVelocity), G(r.DowncomerBackup), G(r.DowncomerBackupLimit), G(r.DowncomerResidenceTime), G(r.Entrainment),
+                    G(r.WeirCrest), G(r.HoleVelocity), G(r.WeepPointVelocity), r.Regime, G(r.ClosedBalanceVelocity), G(r.OpenBalanceVelocity), G(r.CapPressureDrop), G(r.SlotOpening), G(r.SlotLoad), G(r.LiquidGradient), G(r.DynamicSeal),
+                    G(r.DowncomerBackup), G(r.DowncomerBackupLimit), G(r.DowncomerResidenceTime), G(r.Entrainment),
                     G(r.EntrainmentEfficiencyFactor), G(r.OConnellEfficiency), G(r.LiquidHoldup), G(r.LoadingVelocity), G(Show(_su.distance, r.HETP)), G(Show(_su.distance, r.HETPRuleOfThumb)), G(r.HG), G(r.HL), G(r.HOG),
                     G(r.WettingRatio), string.Join(" ", r.Warnings).Replace(';', ',')));
         await using var stream = await file.OpenWriteAsync();

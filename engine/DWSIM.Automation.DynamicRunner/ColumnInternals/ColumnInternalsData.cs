@@ -1,4 +1,4 @@
-//    Column internals rating: data model, packing catalogue and case file.
+﻿//    Column internals rating: data model, packing catalogue and case file.
 //    Copyright 2026 Daniel Wagner Oliveira de Medeiros
 //
 //    This file is part of DWSIM.
@@ -41,7 +41,9 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
         /// <summary>Robbins (1991) pressure drop with the Kister and Gill (1991) flood pressure drop.</summary>
         RobbinsKisterGill = 0,
         /// <summary>Billet and Schultes (1999) holdup, loading, flooding and pressure drop.</summary>
-        BilletSchultes = 1
+        BilletSchultes = 1,
+        /// <summary>Rocha, Bravo and Fair (1993) holdup, pressure drop and flooding of structured packings.</summary>
+        RochaBravoFair = 2
     }
 
     /// <summary>Which correlation gives the HETP of a packed section.</summary>
@@ -52,7 +54,9 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
         /// <summary>Billet and Schultes (1999) two-film model with the packing constants C_L and C_V.</summary>
         BilletSchultes = 1,
         /// <summary>Rules of thumb only (Porter and Jenkins for random, Kister for structured packings).</summary>
-        RuleOfThumb = 2
+        RuleOfThumb = 2,
+        /// <summary>Rocha, Bravo and Fair (1996) mass transfer model of structured packings.</summary>
+        RochaBravoFair = 3
     }
 
     /// <summary>Which correlation gives the entrainment flooding velocity of a tray.</summary>
@@ -62,6 +66,14 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
         Fair = 0,
         /// <summary>Kister and Haas (1990), recommended by Kister for sieve and valve trays.</summary>
         KisterHaas = 1
+    }
+
+    /// <summary>How the valves of a valve tray are held (Klein 1982): the legs add to the weight the vapour has to lift.</summary>
+    public enum ValveLegs
+    {
+        ThreeLegs = 0,
+        FourLegs = 1,
+        Caged = 2
     }
 
     /// <summary>One packing of the catalogue. Fp and Fpd in 1/m, a in m2/m3, epsilon in m3/m3; the
@@ -85,7 +97,23 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
         public double Ch = double.NaN, Cp = double.NaN, CL = double.NaN, CV = double.NaN, Cs = double.NaN, CFl = double.NaN;
         /// <summary>Corrugation angle from the horizontal, degrees (structured packings; 45 unless stated).</summary>
         public double CorrugationAngle = 45.0;
+        /// <summary>Corrugation side (channel side) S of a structured packing, m; NaN = estimated from a and epsilon.</summary>
+        public double CorrugationSide = double.NaN;
+        /// <summary>Surface enhancement factor F_SE of Rocha, Bravo and Fair (0.35 for embossed sheet metal, the value the authors give for Flexipac, Gempak, Intalox and Mellapak).</summary>
+        public double SurfaceEnhancement = 0.35;
         public string Source = "";
+
+        /// <summary>Corrugation side used by the Rocha-Bravo-Fair model: the catalogue value, or 4.5 epsilon / a, which
+        /// reproduces the measured sides of the common sheet-metal packings within about 15 %.</summary>
+        public double EffectiveCorrugationSide
+        {
+            get
+            {
+                if (!double.IsNaN(CorrugationSide) && CorrugationSide > 0) return CorrugationSide;
+                if (double.IsNaN(a) || a <= 0) return double.NaN;
+                return 4.5 * (double.IsNaN(Epsilon) ? 0.95 : Epsilon) / a;
+            }
+        }
 
         public string DisplayName { get { return (Name + " " + Material + " " + Size).Trim(); } }
 
@@ -318,9 +346,18 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
                 P("Sulzer", "Gauze", "BX", 69, N, 492, 90, 0, true),
                 P("Sulzer", "Gauze", "CY", N, N, 700, 85, 0, true)
             };
+            // corrugation sides measured by Fair and Bravo (Chem. Eng. Progr. 86(1), 19, 1990; Ludwig vol. 2 Table 9-38)
+            var sides = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "Flexipac Sheet metal 2", 0.0177 }, { "Gempak Sheet metal 2A", 0.0180 }, { "Intalox structured Sheet metal 2T", 0.0223 },
+                { "Montz Metal B1-200", 0.0250 }, { "Montz-Pak Sheet metal B1-250", 0.0250 }, { "Mellapak Sheet metal 250Y", 0.0171 },
+                { "Mellapak Plastic 250 Y", 0.0171 }, { "Sulzer Gauze BX", 0.0088 }, { "Koch-Sulzer Metal BX", 0.0088 }
+            };
             foreach (var p in list)
             {
                 if (p.Structured && p.Size.EndsWith("X", StringComparison.Ordinal)) p.CorrugationAngle = 60.0;
+                double side;
+                if (p.Structured && sides.TryGetValue(p.DisplayName, out side)) p.CorrugationSide = side;
             }
             return list;
         }
@@ -355,6 +392,37 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
         public TrayFloodModel FloodModel = TrayFloodModel.Fair;
         /// <summary>Fraction of the open valve area over the active area (valve trays, Kister-Haas).</summary>
         public double ValveOpenAreaFraction = 0.12;
+
+        // ---- valve trays (Klein 1982 / Bolles 1976 dry pressure drop) ----
+        /// <summary>Valves per square metre of active area (12 to 16 per ft2 is usual; 130 to 170 per m2).</summary>
+        public double ValvesPerArea = 130.0;
+        /// <summary>Diameter of the deck hole under each valve, m (standardised at 1.5 in).</summary>
+        public double ValveHoleDiameter = 0.0381;
+        /// <summary>Valve metal thickness, m (16 gauge, 1.5 mm, is the common light valve).</summary>
+        public double ValveThickness = 0.0015;
+        /// <summary>Valve metal density, kg/m3 (carbon steel 7850, stainless 8030, aluminium 2700).</summary>
+        public double ValveDensity = 7850.0;
+        public ValveLegs ValveLegs = ValveLegs.FourLegs;
+        /// <summary>True for a venturi (contoured) orifice, false for a flat orifice.</summary>
+        public bool ValveVenturi = false;
+
+        // ---- bubble-cap trays (Bolles 1956) ----
+        /// <summary>Inside diameter of the cap, m.</summary>
+        public double CapDiameter = 0.098;
+        /// <summary>Inside diameter of the riser, m.</summary>
+        public double RiserDiameter = 0.068;
+        /// <summary>Cap pitch (centre to centre) over the cap outside diameter, triangular layout.</summary>
+        public double CapPitchRatio = 1.4;
+        public int SlotsPerCap = 50;
+        /// <summary>Slot width and height, m (rectangular slots).</summary>
+        public double SlotWidth = 0.0032;
+        public double SlotHeight = 0.038;
+        /// <summary>Static slot seal: top of the outlet weir above the top of the slots, m.</summary>
+        public double StaticSeal = 0.0127;
+        /// <summary>Cap skirt clearance above the tray floor, m.</summary>
+        public double SkirtClearance = 0.019;
+        /// <summary>Liquid gradient across the tray, m. 0 = estimated from the Davies correlation as Bolles charts it.</summary>
+        public double LiquidGradient = 0.0;
 
         // ---- packings ----
         /// <summary>Catalogue display name, or empty for the user-defined packing below.</summary>
@@ -399,6 +467,13 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
         public double MinDowncomerResidenceTime = 3.0;
         /// <summary>Turndown ratio checked for weeping (minimum / design vapour rate).</summary>
         public double Turndown = 0.7;
+        /// <summary>Rating and solving passes of the automatic iteration (rate, write the pressures and efficiencies into
+        /// the column, solve the flowsheet, rate again) and the relative change of the column pressure drop that stops it.</summary>
+        public int MaxIterations = 6;
+        public double IterationTolerance = 0.02;
+        /// <summary>What the automatic iteration writes into the column.</summary>
+        public bool IteratePressures = true;
+        public bool IterateEfficiencies = true;
 
         public ColumnInternalsInput Clone()
         {
@@ -413,6 +488,8 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
             ColumnName = c.ColumnName; Sections = c.Sections;
             TargetFloodFractionTrays = c.TargetFloodFractionTrays; TargetFloodFractionPackings = c.TargetFloodFractionPackings;
             MinDowncomerResidenceTime = c.MinDowncomerResidenceTime; Turndown = c.Turndown;
+            MaxIterations = c.MaxIterations; IterationTolerance = c.IterationTolerance;
+            IteratePressures = c.IteratePressures; IterateEfficiencies = c.IterateEfficiencies;
         }
 
         private static readonly CultureInfo CI = CultureInfo.InvariantCulture;
@@ -443,7 +520,11 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
                 new XElement("TargetFloodFractionTrays", D(TargetFloodFractionTrays)),
                 new XElement("TargetFloodFractionPackings", D(TargetFloodFractionPackings)),
                 new XElement("MinDowncomerResidenceTime", D(MinDowncomerResidenceTime)),
-                new XElement("Turndown", D(Turndown)));
+                new XElement("Turndown", D(Turndown)),
+                new XElement("MaxIterations", MaxIterations.ToString(CI)),
+                new XElement("IterationTolerance", D(IterationTolerance)),
+                new XElement("IteratePressures", IteratePressures.ToString()),
+                new XElement("IterateEfficiencies", IterateEfficiencies.ToString()));
             var secs = new XElement("Sections");
             foreach (var s in Sections)
             {
@@ -463,6 +544,21 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
                     new XElement("SystemFactor", D(s.SystemFactor)),
                     new XElement("FloodModel", s.FloodModel.ToString()),
                     new XElement("ValveOpenAreaFraction", D(s.ValveOpenAreaFraction)),
+                    new XElement("ValvesPerArea", D(s.ValvesPerArea)),
+                    new XElement("ValveHoleDiameter", D(s.ValveHoleDiameter)),
+                    new XElement("ValveThickness", D(s.ValveThickness)),
+                    new XElement("ValveDensity", D(s.ValveDensity)),
+                    new XElement("ValveLegs", s.ValveLegs.ToString()),
+                    new XElement("ValveVenturi", s.ValveVenturi.ToString()),
+                    new XElement("CapDiameter", D(s.CapDiameter)),
+                    new XElement("RiserDiameter", D(s.RiserDiameter)),
+                    new XElement("CapPitchRatio", D(s.CapPitchRatio)),
+                    new XElement("SlotsPerCap", s.SlotsPerCap.ToString(CI)),
+                    new XElement("SlotWidth", D(s.SlotWidth)),
+                    new XElement("SlotHeight", D(s.SlotHeight)),
+                    new XElement("StaticSeal", D(s.StaticSeal)),
+                    new XElement("SkirtClearance", D(s.SkirtClearance)),
+                    new XElement("LiquidGradient", D(s.LiquidGradient)),
                     new XElement("PackingName", s.PackingName),
                     new XElement("BedHeight", D(s.BedHeight)),
                     new XElement("PackingModel", s.PackingModel.ToString()),
@@ -479,7 +575,9 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
                         new XElement("Epsilon", D(p.Epsilon)), new XElement("NominalSize", D(p.NominalSize)),
                         new XElement("Ch", D(p.Ch)), new XElement("Cp", D(p.Cp)), new XElement("CL", D(p.CL)),
                         new XElement("CV", D(p.CV)), new XElement("Cs", D(p.Cs)), new XElement("CFl", D(p.CFl)),
-                        new XElement("CorrugationAngle", D(p.CorrugationAngle))));
+                        new XElement("CorrugationAngle", D(p.CorrugationAngle)),
+                        new XElement("CorrugationSide", D(p.CorrugationSide)),
+                        new XElement("SurfaceEnhancement", D(p.SurfaceEnhancement))));
                 }
                 secs.Add(e);
             }
@@ -495,6 +593,11 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
             inp.TargetFloodFractionPackings = PD(root, "TargetFloodFractionPackings", 0.7);
             inp.MinDowncomerResidenceTime = PD(root, "MinDowncomerResidenceTime", 3.0);
             inp.Turndown = PD(root, "Turndown", 0.7);
+            inp.MaxIterations = Math.Max(1, PI(root, "MaxIterations", 6));
+            inp.IterationTolerance = PD(root, "IterationTolerance", 0.02);
+            bool bp, be;
+            inp.IteratePressures = !bool.TryParse(PS(root, "IteratePressures", "True"), out bp) || bp;
+            inp.IterateEfficiencies = !bool.TryParse(PS(root, "IterateEfficiencies", "True"), out be) || be;
             var secs = root.Element("Sections");
             if (secs != null)
             {
@@ -518,6 +621,22 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
                     TrayFloodModel fm;
                     if (Enum.TryParse(PS(e, "FloodModel", "Fair"), out fm)) s.FloodModel = fm;
                     s.ValveOpenAreaFraction = PD(e, "ValveOpenAreaFraction", 0.12);
+                    s.ValvesPerArea = PD(e, "ValvesPerArea", s.ValvesPerArea);
+                    s.ValveHoleDiameter = PD(e, "ValveHoleDiameter", s.ValveHoleDiameter);
+                    s.ValveThickness = PD(e, "ValveThickness", s.ValveThickness);
+                    s.ValveDensity = PD(e, "ValveDensity", s.ValveDensity);
+                    ValveLegs vl;
+                    if (Enum.TryParse(PS(e, "ValveLegs", "FourLegs"), out vl)) s.ValveLegs = vl;
+                    bool vv; s.ValveVenturi = bool.TryParse(PS(e, "ValveVenturi", "False"), out vv) && vv;
+                    s.CapDiameter = PD(e, "CapDiameter", s.CapDiameter);
+                    s.RiserDiameter = PD(e, "RiserDiameter", s.RiserDiameter);
+                    s.CapPitchRatio = PD(e, "CapPitchRatio", s.CapPitchRatio);
+                    s.SlotsPerCap = Math.Max(1, PI(e, "SlotsPerCap", s.SlotsPerCap));
+                    s.SlotWidth = PD(e, "SlotWidth", s.SlotWidth);
+                    s.SlotHeight = PD(e, "SlotHeight", s.SlotHeight);
+                    s.StaticSeal = PD(e, "StaticSeal", s.StaticSeal);
+                    s.SkirtClearance = PD(e, "SkirtClearance", s.SkirtClearance);
+                    s.LiquidGradient = PD(e, "LiquidGradient", 0);
                     s.PackingName = PS(e, "PackingName", "");
                     s.BedHeight = PD(e, "BedHeight", 0);
                     PackingModel pm;
@@ -537,6 +656,8 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
                         p.Ch = PD(cp, "Ch", double.NaN); p.Cp = PD(cp, "Cp", double.NaN); p.CL = PD(cp, "CL", double.NaN);
                         p.CV = PD(cp, "CV", double.NaN); p.Cs = PD(cp, "Cs", double.NaN); p.CFl = PD(cp, "CFl", double.NaN);
                         p.CorrugationAngle = PD(cp, "CorrugationAngle", 45);
+                        p.CorrugationSide = PD(cp, "CorrugationSide", double.NaN);
+                        p.SurfaceEnhancement = PD(cp, "SurfaceEnhancement", 0.35);
                         p.Source = "User";
                         s.CustomPacking = p;
                     }
@@ -620,6 +741,23 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
         public double EntrainmentEfficiencyFactor = double.NaN; // E_a / E_mv (Colburn)
         public double DowncomerVelocity = double.NaN;   // m/s
         public double OConnellEfficiency = double.NaN;  // overall column efficiency by O'Connell at the stage conditions
+        public double AeratedLiquidHead = double.NaN;   // mm liquid, h_L of the valve and bubble-cap balances
+
+        // valve trays
+        public double ClosedBalanceVelocity = double.NaN; // hole velocity at which the valves start to open, m/s
+        public double OpenBalanceVelocity = double.NaN;   // hole velocity at which all valves are open, m/s
+        public double UnitReference = double.NaN;         // u_h / u_h,open balance ("unit reference" of the valve tray)
+        /// <summary>Valves closed, opening or open; slots open fraction of bubble caps. Empty for sieve trays.</summary>
+        public string Regime = "";
+
+        // bubble-cap trays
+        public double CapPressureDrop = double.NaN;     // mm liquid, riser + reversal + annulus (h_pc)
+        public double SlotOpening = double.NaN;         // mm liquid, h_s
+        public double SlotOpeningFraction = double.NaN; // h_s / slot height
+        public double SlotLoad = double.NaN;            // vapour load over the maximum slot capacity
+        public double LiquidGradient = double.NaN;      // mm liquid, delta across the tray
+        public double VaporDistributionRatio = double.NaN; // delta / cap drop (Bolles: keep below 0.5)
+        public double DynamicSeal = double.NaN;         // mm liquid over the top of the slots
 
         // packings
         public double LiquidHoldup = double.NaN;        // m3/m3
@@ -656,5 +794,8 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
         public List<string> Log = new List<string>();
         public double TotalPressureDrop;
         public double TotalHeight;
+        /// <summary>Passes of the automatic iteration that produced this result (0 = a single rating).</summary>
+        public int Iterations;
+        public bool Converged = true;
     }
 }

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -31,6 +31,31 @@ namespace DWSIM.UI.Desktop.Editors
             (FlowsheetUtility.PureCompoundProperties, "Pure Compound Properties"),
         };
 
+        /// <summary>The utilities a rigorous column takes.</summary>
+        private static readonly (FlowsheetUtility Type, string Label)[] OfferedForColumns =
+        {
+            (FlowsheetUtility.ColumnInternals, "Column Internals"),
+        };
+
+        /// <summary>Set by the application: opens the full tool of a utility that has one (the column internals rating).</summary>
+        public static Action<IAttachedUtility>? OpenUtility;
+
+        private static bool IsColumn(ISimulationObject o)
+        {
+            var t = o.GraphicObject?.ObjectType;
+            return t == DWSIM.Interfaces.Enums.GraphicObjects.ObjectType.DistillationColumn || t == DWSIM.Interfaces.Enums.GraphicObjects.ObjectType.AbsorptionColumn
+                || t == DWSIM.Interfaces.Enums.GraphicObjects.ObjectType.ReboiledAbsorber || t == DWSIM.Interfaces.Enums.GraphicObjects.ObjectType.RefluxedAbsorber;
+        }
+
+        private static (FlowsheetUtility Type, string Label)[] OfferedFor(ISimulationObject o) => IsColumn(o) ? OfferedForColumns : Offered;
+
+        private static string LabelOf(FlowsheetUtility kind)
+        {
+            foreach (var o in Offered) if (o.Type == kind) return o.Label;
+            foreach (var o in OfferedForColumns) if (o.Type == kind) return o.Label;
+            return kind.ToString();
+        }
+
         public static Control Build(ISimulationObject simobj)
         {
             var host = new AvaloniaEditorPanel();
@@ -47,17 +72,18 @@ namespace DWSIM.UI.Desktop.Editors
                 "A utility attached here follows the object: it is stored with the simulation, and " +
                 "what it calculates shows up among the object's properties.");
 
+            var offered = OfferedFor(simobj);
             var picker = panel.CreateAndAddDropDownRow("Utility",
-                Offered.Select(o => o.Label).ToList(), 0, null);
+                offered.Select(o => o.Label).ToList(), 0, null);
 
             var add = panel.CreateAndAddButtonRow("Add", null, null);
             add.Click += (_, _) =>
             {
                 var index = picker.SelectedIndex;
-                if (index < 0 || index >= Offered.Length) return;
+                if (index < 0 || index >= offered.Length) return;
 
                 var flowsheet = simobj.GetFlowsheet();
-                var utility = flowsheet?.GetUtility(Offered[index].Type);
+                var utility = flowsheet?.GetUtility(offered[index].Type);
                 if (utility == null)
                 {
                     flowsheet?.ShowMessage("This utility is not available in this build.",
@@ -65,7 +91,7 @@ namespace DWSIM.UI.Desktop.Editors
                     return;
                 }
 
-                var kind = Offered[index].Type;
+                var kind = offered[index].Type;
                 utility.ID = new Random().Next(1, int.MaxValue);
                 utility.Name = kind + (simobj.AttachedUtilities.Count(x => x.GetUtilityType() == kind) + 1).ToString();
                 utility.AttachedTo = simobj;
@@ -91,10 +117,15 @@ namespace DWSIM.UI.Desktop.Editors
         private static void AddUtilityBlock(AvaloniaEditorPanel panel, ISimulationObject simobj,
             IAttachedUtility utility)
         {
-            var label = Offered.FirstOrDefault(o => o.Type == utility.GetUtilityType()).Label
-                        ?? utility.GetUtilityType().ToString();
+            var label = LabelOf(utility.GetUtilityType());
 
             panel.CreateAndAddLabelRow(label);
+            var hasTool = utility.GetUtilityType() == FlowsheetUtility.ColumnInternals;
+            if (hasTool)
+            {
+                panel.CreateAndAddDescriptionRow("The case (sections, geometry, models) is edited in the tool and travels with the simulation; the figures below are the last rating.");
+                if (OpenUtility != null) panel.CreateAndAddButtonRow("Open the column internals tool...", null, (_, _) => OpenUtility(utility));
+            }
 
             panel.CreateAndAddStringEditorRow("Name", utility.Name,
                 (s, e) => utility.Name = s.Text ?? "");
@@ -103,7 +134,7 @@ namespace DWSIM.UI.Desktop.Editors
                 (s, e) => utility.AutoUpdate = s.IsChecked.GetValueOrDefault());
 
             var properties = utility.GetPropertyList()
-                                    .Where(p => p != "Name" && p != "AutoUpdate")
+                                    .Where(p => p != "Name" && p != "AutoUpdate" && !(hasTool && p == "Case"))
                                     .ToList();
 
             foreach (var p in properties)

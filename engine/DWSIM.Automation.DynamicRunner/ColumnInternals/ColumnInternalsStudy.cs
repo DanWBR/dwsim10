@@ -1,4 +1,4 @@
-//    Column internals rating: stage properties from a converged column and the rating of its sections.
+﻿//    Column internals rating: stage properties from a converged column and the rating of its sections.
 //    Copyright 2026 Daniel Wagner Oliveira de Medeiros
 //
 //    This file is part of DWSIM.
@@ -19,6 +19,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using DWSIM.Interfaces;
 using DWSIM.Interfaces.Enums.GraphicObjects;
@@ -214,6 +215,63 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
             return string.Join("; ", parts) + ". Solve the flowsheet and rate again.";
         }
 
+        /// <summary>
+        /// Rates the column, writes the rated pressure profile and O'Connell efficiencies into it, solves the
+        /// flowsheet and rates again, until the column pressure drop settles within the tolerance or the passes
+        /// run out. The host must solve synchronously (RequestCalculationAndWait). Returns the last rating with
+        /// the passes in its log; Converged says whether the tolerance was met.
+        /// </summary>
+        public static ColumnInternalsResult RunIterating(IFlowsheet host, ColumnInternalsInput input, Action<string> progress = null)
+        {
+            var ci = CultureInfo.InvariantCulture;
+            var column = FindColumn(host, input.ColumnName);
+            if (column == null) throw new ArgumentException("Column '" + input.ColumnName + "' was not found on the flowsheet.");
+            var result = Run(host, input);
+            var log = new List<string> { string.Format(ci, "pass 0: column pressure drop {0:F0} Pa", result.TotalPressureDrop) };
+            if (progress != null) progress(log[0]);
+            if (!input.IteratePressures && !input.IterateEfficiencies) { result.Log.AddRange(log); return result; }
+            int passes = 0; bool converged = false;
+            for (int it = 1; it <= Math.Max(1, input.MaxIterations); it++)
+            {
+                ApplyToColumn(column, result, input.IteratePressures, input.IterateEfficiencies);
+                List<Exception> errors = null;
+                try { errors = host.RequestCalculationAndWait(); }
+                catch (Exception ex) { errors = new List<Exception> { ex }; }
+                if (errors != null && errors.Count > 0)
+                {
+                    log.Add("pass " + it + ": the flowsheet did not solve with the rated profile: " + errors[0].Message);
+                    result.Log.AddRange(log); result.Iterations = passes; result.Converged = false;
+                    return result;
+                }
+                if (!column.Calculated)
+                {
+                    log.Add("pass " + it + ": the column did not solve with the rated profile.");
+                    result.Log.AddRange(log); result.Iterations = passes; result.Converged = false;
+                    return result;
+                }
+                var next = Run(host, input);
+                passes = it;
+                var change = Math.Abs(next.TotalPressureDrop - result.TotalPressureDrop) / Math.Max(Math.Abs(result.TotalPressureDrop), 1.0);
+                double effChange = 0.0;
+                for (int k = 0; k < Math.Min(next.Sections.Count, result.Sections.Count); k++)
+                    for (int j = 0; j < Math.Min(next.Sections[k].Stages.Count, result.Sections[k].Stages.Count); j++)
+                    {
+                        var a = next.Sections[k].Stages[j].OConnellEfficiency; var b = result.Sections[k].Stages[j].OConnellEfficiency;
+                        if (!double.IsNaN(a) && !double.IsNaN(b)) effChange = Math.Max(effChange, Math.Abs(a - b));
+                    }
+                log.Add(string.Format(ci, "pass {0}: column pressure drop {1:F0} Pa (changed {2:F1} %), efficiencies moved by up to {3:F3}", it, next.TotalPressureDrop, change * 100.0, effChange));
+                if (progress != null) progress(log[log.Count - 1]);
+                result = next;
+                if (change <= input.IterationTolerance && effChange <= 0.01) { converged = true; break; }
+            }
+            if (!converged) log.Add("The passes ran out before the pressure drop settled within " + (input.IterationTolerance * 100.0).ToString("0.#", ci) + " %; the last rating is shown.");
+            else log.Add("Settled after " + passes + " pass(es); the column now carries the rated pressures and efficiencies.");
+            result.Log.AddRange(log);
+            result.Iterations = passes;
+            result.Converged = converged;
+            return result;
+        }
+
         /// <summary>Rates the sections against the stage properties; pure, no flowsheet needed.</summary>
         public static ColumnInternalsResult Rate(List<StageProperties> props, ColumnInternalsInput input)
         {
@@ -232,8 +290,7 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
                     packing = s.ResolvePacking();
                     if (packing == null) { sr.Warnings.Add("No packing selected for the section."); result.Sections.Add(sr); continue; }
                 }
-                if (s.Type == InternalType.BubbleCapTray) sr.Warnings.Add("Bubble-cap trays are rated with the sieve tray hydraulics (Bolles method not yet implemented).");
-                if (s.Type == InternalType.ValveTray && s.FloodModel != TrayFloodModel.KisterHaas) sr.Warnings.Add("Valve trays: the Kister and Haas flood correlation is the one extended to valves; Fair is being used.");
+                if (s.Type == InternalType.BubbleCapTray && s.FloodModel == TrayFloodModel.KisterHaas) sr.Warnings.Add("Kister and Haas covers sieve and valve trays; the bubble-cap section was rated with Fair's flooding correlation.");
 
                 // required diameter for the target fraction of flood: the largest over the stages
                 var target = s.IsTray ? input.TargetFloodFractionTrays : input.TargetFloodFractionPackings;
@@ -258,7 +315,7 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
                         continue;
                     }
                     var r = s.IsTray
-                        ? TrayHydraulics.RateSieveTray(s, sp, sr.Diameter, input.Turndown, input.MinDowncomerResidenceTime, 1.0)
+                        ? TrayHydraulics.RateTray(s, sp, sr.Diameter, input.Turndown, input.MinDowncomerResidenceTime, 1.0)
                         : PackingHydraulics.RatePacking(s, packing, sp, sr.Diameter);
                     sr.Stages.Add(r);
                     if (!double.IsNaN(r.FloodFraction) && r.FloodFraction > sr.MaxFloodFraction) { sr.MaxFloodFraction = r.FloodFraction; sr.LimitingStage = r.Stage; }

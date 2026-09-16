@@ -3810,10 +3810,25 @@ Imports DWSIM.ExtensionMethods
                 Return New Utilities.PetroleumColdFlowUtility()
             Case FlowsheetUtility.PureCompoundProperties
                 Return New Utilities.PureCompoundPropertiesUtility()
+            Case FlowsheetUtility.ColumnInternals
+                'lives in the runner assembly, which references this one; found by name in whatever assembly carries it
+                Return CreateUtilityByName("DWSIM.Automation.DynamicRunner.ColumnInternals.ColumnInternalsUtility")
             Case Else
                 Return Nothing
         End Select
 
+    End Function
+
+    ''' <summary>Instantiates a utility class by its full name from the assemblies already loaded.</summary>
+    Private Shared Function CreateUtilityByName(typeName As String) As IAttachedUtility
+        For Each asm In AppDomain.CurrentDomain.GetAssemblies()
+            Try
+                Dim t = asm.GetType(typeName, False)
+                If t IsNot Nothing Then Return TryCast(Activator.CreateInstance(t), IAttachedUtility)
+            Catch
+            End Try
+        Next
+        Return Nothing
     End Function
 
     Public Property MasterFlowsheet As IFlowsheet Implements IFlowsheet.MasterFlowsheet

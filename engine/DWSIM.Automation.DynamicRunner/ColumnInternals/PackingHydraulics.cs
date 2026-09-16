@@ -1,4 +1,4 @@
-//    Column internals rating: packed bed hydraulics and mass transfer.
+﻿//    Column internals rating: packed bed hydraulics and mass transfer.
 //    Copyright 2026 Daniel Wagner Oliveira de Medeiros
 //
 //    This file is part of DWSIM.
@@ -26,9 +26,12 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
     /// drop, Kister and Gill (Chem. Eng. Progr. 87(2), 32, 1991; Seader eq. 6-104) for the pressure drop
     /// at flood, Billet and Schultes (Chem. Eng. Technol. 22, 1999; Seader 2nd ed. eqs. 6-97 to 6-115 and
     /// 6-132 to 6-140) for holdup, loading, flooding, pressure drop and HTUs, Onda, Takeuchi and Okumoto
-    /// (J. Chem. Eng. Japan 1, 56, 1968) for the mass transfer coefficients of random packings, and the
-    /// rules of thumb collected by Kister (Distillation Design, 1992, sec. 9.1.5; Seader eqs. 6-116 to 6-118).
-    /// SI units throughout: velocities are superficial, m/s.
+    /// (J. Chem. Eng. Japan 1, 56, 1968) for the mass transfer coefficients of random packings, Rocha,
+    /// Bravo and Fair (Ind. Eng. Chem. Res. 32, 641, 1993 and 35, 1660, 1996; the equations as Kooijman and
+    /// Taylor, The ChemSep Book, 2nd ed., secs. 16.1.2 and 16.2.2 list them) for the holdup, pressure drop,
+    /// flooding and mass transfer of structured packings, and the rules of thumb collected by Kister
+    /// (Distillation Design, 1992, sec. 9.1.5; Seader eqs. 6-116 to 6-118). SI units throughout: velocities
+    /// are superficial, m/s.
     /// </summary>
     public static class PackingHydraulics
     {
@@ -248,6 +251,119 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
             return C * at * DV * Math.Pow(G / (at * muV), 0.7) * Math.Pow(muV / (rhoV * DV), 1.0 / 3.0) * Math.Pow(at * dp, -2.0);
         }
 
+        // ------------------------------------------------------------------ Rocha, Bravo and Fair (structured packings)
+
+        /// <summary>Pressure drop at the flood point the authors recommend when nothing better is known, Pa/m.</summary>
+        public const double RbfDefaultFloodPressureDrop = 1025.0;
+
+        /// <summary>Contact angle term: cos(gamma) = 0.9 below 0.0453 N/m, 5.211 x 10^(-16.835 sigma) above (continuous at the switch).</summary>
+        public static double RbfCosGamma(double sigma) { return sigma < 0.0453 ? 0.9 : 5.211 * Math.Pow(10.0, -16.835 * sigma); }
+
+        /// <summary>Holdup correction factor F_t of Rocha, Bravo and Fair (1993), the ratio of wetted to total packing area
+        /// that also scales the effective interfacial area: F_t = 29.12 (We_L Fr_L)^0.15 S^0.359 / [Re_L^0.2 eps^0.6 (sin theta)^0.3 (1 - 0.93 cos gamma)].</summary>
+        public static double RbfHoldupFactor(double uL, double rhoL, double muL, double sigma, double S, double eps, double thetaDeg)
+        {
+            var we = uL * uL * rhoL * S / sigma;
+            var fr = uL * uL / (S * g);
+            var re = uL * S * rhoL / muL;
+            var sin = Math.Sin(thetaDeg * Math.PI / 180.0);
+            return 29.12 * Math.Pow(we * fr, 0.15) * Math.Pow(S, 0.359) / (Math.Pow(re, 0.2) * Math.Pow(eps, 0.6) * Math.Pow(sin, 0.3) * (1.0 - 0.93 * RbfCosGamma(sigma)));
+        }
+
+        /// <summary>Liquid holdup at an effective gravity, m3/m3: h_t = (4 F_t/S)^(2/3) [3 mu_L u_L/(rho_L sin theta eps g_eff)]^(1/3).</summary>
+        public static double RbfHoldup(double ft, double uL, double rhoL, double muL, double S, double eps, double thetaDeg, double gEff)
+        {
+            var sin = Math.Sin(thetaDeg * Math.PI / 180.0);
+            return Math.Pow(4.0 * ft / S, 2.0 / 3.0) * Math.Pow(3.0 * muL * uL / (rhoL * sin * eps * Math.Max(gEff, 1e-3)), 1.0 / 3.0);
+        }
+
+        /// <summary>Dry bed pressure drop, Pa/m: [0.177 rho_V/(S eps^2 sin^2 theta)] u_V^2 + [88.774 mu_V/(S^2 eps sin theta)] u_V.</summary>
+        public static double RbfDryPressureDrop(double uV, double rhoV, double muV, double S, double eps, double thetaDeg)
+        {
+            var sin = Math.Sin(thetaDeg * Math.PI / 180.0);
+            var A = 0.177 * rhoV / (S * eps * eps * sin * sin);
+            var B = 88.774 * muV / (S * S * eps * sin);
+            return A * uV * uV + B * uV;
+        }
+
+        /// <summary>
+        /// Irrigated pressure drop of the Rocha-Bravo-Fair model, Pa/m, with the holdup that goes with it: dP/dz =
+        /// dP_dry/(1 - K2 h_t)^5, K2 = 0.614 + 71.35 S, the holdup evaluated at g_eff = g (rho_L - rho_V)/rho_L
+        /// (1 - dP/dP_flood). The two are solved together; NaN when no solution exists below the flood pressure drop
+        /// (the bed floods at this vapour rate).
+        /// </summary>
+        public static double RbfPressureDrop(double uV, double uL, double rhoV, double rhoL, double muV, double muL, double sigma,
+            double S, double eps, double thetaDeg, double dpFlood, out double holdup)
+        {
+            var dry = RbfDryPressureDrop(uV, rhoV, muV, S, eps, thetaDeg);
+            var k2 = 0.614 + 71.35 * S;
+            var ft = RbfHoldupFactor(uL, rhoL, muL, sigma, S, eps, thetaDeg);
+            var g0 = g * (rhoL - rhoV) / rhoL;
+            Func<double, double> h = dp => RbfHoldup(ft, uL, rhoL, muL, S, eps, thetaDeg, g0 * Math.Max(1e-3, 1.0 - dp / dpFlood));
+            Func<double, double> f = dp => dry / Math.Pow(Math.Max(1e-6, 1.0 - k2 * h(dp)), 5) - dp;
+            // f starts positive at the dry drop, dips as dP outruns the holdup term and climbs back to infinity as
+            // g_eff vanishes at the flood pressure drop: the operating point is the first root, and the bed floods
+            // when f never crosses zero
+            if (dry >= dpFlood) { holdup = h(0.999 * dpFlood); return double.NaN; }
+            const int steps = 400;
+            double lo = dry, hi = double.NaN;
+            for (int i = 1; i <= steps; i++)
+            {
+                var x = dry + (0.999 * dpFlood - dry) * i / steps;
+                if (f(x) <= 0) { hi = x; break; }
+                lo = x;
+            }
+            if (double.IsNaN(hi)) { holdup = h(0.999 * dpFlood); return double.NaN; }
+            for (int i = 0; i < 60; i++)
+            {
+                var mid = 0.5 * (lo + hi);
+                if (f(mid) > 0) lo = mid; else hi = mid;
+            }
+            var dpOut = 0.5 * (lo + hi);
+            holdup = h(dpOut);
+            return dpOut;
+        }
+
+        /// <summary>Superficial vapour velocity at which the Rocha-Bravo-Fair pressure drop reaches the flood pressure drop,
+        /// the liquid tied to the vapour by the L/V mass ratio, m/s.</summary>
+        public static double RbfFloodingVelocity(double liquidToVaporMassRatio, double rhoV, double rhoL, double muV, double muL, double sigma,
+            double S, double eps, double thetaDeg, double dpFlood)
+        {
+            var ratio = rhoV * liquidToVaporMassRatio / rhoL;   // u_L / u_V
+            double lo = 1e-3, hi = 30.0, hold;
+            if (!double.IsNaN(RbfPressureDrop(hi, ratio * hi, rhoV, rhoL, muV, muL, sigma, S, eps, thetaDeg, dpFlood, out hold))) return hi;
+            for (int i = 0; i < 60; i++)
+            {
+                var mid = Math.Sqrt(lo * hi);
+                var dp = RbfPressureDrop(mid, ratio * mid, rhoV, rhoL, muV, muL, sigma, S, eps, thetaDeg, dpFlood, out hold);
+                if (double.IsNaN(dp)) hi = mid; else lo = mid;
+                if (hi / lo < 1.0005) break;
+            }
+            return Math.Sqrt(lo * hi);
+        }
+
+        /// <summary>
+        /// Rocha, Bravo and Fair (1996) heights of a gas and a liquid transfer unit, m, from the effective velocities
+        /// u_Le = u_L/(eps h_t sin theta) and u_Ge = u_V/(eps (1 - h_t) sin theta): k_G = 0.054 (D_G/S) Re_G^0.8 Sc_G^0.33
+        /// with Re_G on u_Ge + u_Le, k_L = 2 sqrt(D_L C_E u_Le/(pi S)) with C_E = 0.9, and a_e = F_SE F_t a_p.
+        /// </summary>
+        public static void RbfMassTransfer(double uV, double uL, double holdup, double ft, double rhoV, double muV, double DV, double DL,
+            double S, double eps, double thetaDeg, double aP, double fse, out double HG, out double HL, out double aeOverAp)
+        {
+            var sin = Math.Sin(thetaDeg * Math.PI / 180.0);
+            var hL = Math.Max(1e-4, Math.Min(0.9 * eps, holdup));
+            var uLe = uL / (eps * hL * sin);
+            var uGe = uV / (eps * (1.0 - hL) * sin);
+            var reG = (uGe + uLe) * rhoV * S / muV;
+            var scG = muV / (rhoV * DV);
+            var kG = 0.054 * (DV / S) * Math.Pow(reG, 0.8) * Math.Pow(scG, 0.33);
+            var kL = 2.0 * Math.Sqrt(DL * 0.9 * uLe / (Math.PI * S));
+            aeOverAp = fse * ft;
+            var ae = aeOverAp * aP;
+            HG = uV / (kG * ae);
+            HL = uL / (kL * ae);
+        }
+
         // ------------------------------------------------------------------ HETP
 
         /// <summary>HETP from H_OG and the stripping factor: HETP = H_OG ln(lambda)/(lambda - 1) (Seader eq. 6-94).</summary>
@@ -301,11 +417,40 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
             r.FFactor = uV * Math.Sqrt(rhoV);
             r.CapacityFactor = uV * Math.Sqrt(rhoV / Math.Max(rhoL - rhoV, 1e-6));
 
-            bool billet = s.PackingModel == PackingModel.BilletSchultes && p.HasBilletHydraulics && !double.IsNaN(p.a) && !double.IsNaN(p.Epsilon);
-            if (s.PackingModel == PackingModel.BilletSchultes && !billet)
+            // the models that fit the packing: Rocha-Bravo-Fair is for corrugated sheets, Onda for dumped pieces
+            var packModel = s.PackingModel;
+            var hetpModel = s.HetpModel;
+            var S = p.EffectiveCorrugationSide;
+            bool corrugated = p.Structured && !double.IsNaN(S) && S > 0 && !double.IsNaN(p.Epsilon) && !double.IsNaN(p.a);
+            if (packModel == PackingModel.RochaBravoFair && !corrugated)
+            {
+                r.Warnings.Add(p.Structured ? "The packing has no corrugation geometry; the Robbins / Kister-Gill route was used." : "Rocha-Bravo-Fair is a structured packing model; the Robbins / Kister-Gill route was used for this random packing.");
+                packModel = PackingModel.RobbinsKisterGill;
+            }
+            if (hetpModel == HetpModel.RochaBravoFair && !corrugated)
+            {
+                r.Warnings.Add(p.Structured ? "The packing has no corrugation geometry for the Rocha-Bravo-Fair HETP." : "Rocha-Bravo-Fair is a structured packing model; Onda was used for this random packing.");
+                hetpModel = p.Structured ? HetpModel.RuleOfThumb : HetpModel.Onda;
+            }
+            if (hetpModel == HetpModel.Onda && corrugated) hetpModel = HetpModel.RochaBravoFair;
+            var dpFlood = !double.IsNaN(p.Fp) ? KisterGillFloodPressureDrop(p.Fp) : RbfDefaultFloodPressureDrop;
+            double rbfHoldup = double.NaN, rbfFt = double.NaN;
+
+            bool billet = packModel == PackingModel.BilletSchultes && p.HasBilletHydraulics && !double.IsNaN(p.a) && !double.IsNaN(p.Epsilon);
+            if (packModel == PackingModel.BilletSchultes && !billet)
                 r.Warnings.Add("No Billet-Schultes constants for this packing; the Robbins / Kister-Gill route was used.");
 
-            if (billet)
+            if (packModel == PackingModel.RochaBravoFair)
+            {
+                var dp = RbfPressureDrop(uV, uL, rhoV, rhoL, muV, muL, sp.SurfaceTension, S, p.Epsilon, p.CorrugationAngle, dpFlood, out rbfHoldup);
+                rbfFt = RbfHoldupFactor(uL, rhoL, muL, sp.SurfaceTension, S, p.Epsilon, p.CorrugationAngle);
+                r.FloodingVelocity = RbfFloodingVelocity(sp.LiquidMassFlow / Math.Max(sp.VaporMassFlow, 1e-12), rhoV, rhoL, muV, muL, sp.SurfaceTension, S, p.Epsilon, p.CorrugationAngle, dpFlood);
+                r.FloodFraction = uV / r.FloodingVelocity;
+                r.LiquidHoldup = rbfHoldup;
+                if (double.IsNaN(dp)) { r.PressureDrop = dpFlood; r.Warnings.Add("The bed floods at this vapour rate (no Rocha-Bravo-Fair solution below the flood pressure drop " + dpFlood.ToString("0") + " Pa/m)."); }
+                else r.PressureDrop = dp;
+            }
+            else if (billet)
             {
                 var uVl = BilletLoadingVelocity(sp.LiquidMassFlow / Math.Max(sp.VaporMassFlow, 1e-12), rhoV, rhoL, muV, muL, p.a, p.Epsilon, p.Cs);
                 r.LoadingVelocity = uVl;
@@ -345,16 +490,29 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
             var DV = s.VapourDiffusivity > 0 ? s.VapourDiffusivity : sp.VaporDiffusivity;
             var lambda = sp.StrippingFactor;
             bool haveProps = DL > 0 && DV > 0 && !double.IsNaN(p.a) && sp.SurfaceTension > 0;
-            if (s.HetpModel == HetpModel.BilletSchultes && p.HasBilletMassTransfer && p.HasBilletHydraulics && haveProps && !double.IsNaN(p.Epsilon))
+            if (hetpModel == HetpModel.RochaBravoFair && corrugated && haveProps)
+            {
+                if (double.IsNaN(rbfHoldup))
+                {
+                    RbfPressureDrop(uV, uL, rhoV, rhoL, muV, muL, sp.SurfaceTension, S, p.Epsilon, p.CorrugationAngle, dpFlood, out rbfHoldup);
+                    rbfFt = RbfHoldupFactor(uL, rhoL, muL, sp.SurfaceTension, S, p.Epsilon, p.CorrugationAngle);
+                }
+                double hg, hl, ae;
+                RbfMassTransfer(uV, uL, rbfHoldup, rbfFt, rhoV, muV, DV, DL, S, p.Epsilon, p.CorrugationAngle, p.a, p.SurfaceEnhancement, out hg, out hl, out ae);
+                r.HG = hg; r.HL = hl;
+                r.HOG = r.HG + lambda * r.HL;
+                r.HETP = HetpFromHOG(r.HOG, lambda);
+            }
+            else if (hetpModel == HetpModel.BilletSchultes && p.HasBilletMassTransfer && p.HasBilletHydraulics && haveProps && !double.IsNaN(p.Epsilon))
             {
                 r.HL = BilletHL(uL, rhoL, muL, sp.SurfaceTension, DL, p.a, p.Epsilon, p.Ch, p.CL);
                 r.HG = BilletHG(uV, uL, rhoV, rhoL, muV, muL, sp.SurfaceTension, DV, p.a, p.Epsilon, p.Ch, p.CV);
                 r.HOG = r.HG + lambda * r.HL;
                 r.HETP = HetpFromHOG(r.HOG, lambda);
             }
-            else if ((s.HetpModel == HetpModel.Onda || s.HetpModel == HetpModel.BilletSchultes) && haveProps && !p.Structured && p.NominalSize > 0)
+            else if ((hetpModel == HetpModel.Onda || hetpModel == HetpModel.BilletSchultes) && haveProps && !p.Structured && p.NominalSize > 0)
             {
-                if (s.HetpModel == HetpModel.BilletSchultes) r.Warnings.Add("No Billet-Schultes mass transfer constants; Onda was used for the HETP.");
+                if (hetpModel == HetpModel.BilletSchultes) r.Warnings.Add("No Billet-Schultes mass transfer constants; Onda was used for the HETP.");
                 var aw = p.a * OndaWettedAreaRatio(L, rhoL, muL, sp.SurfaceTension, CriticalSurfaceTension(p.Material), p.a);
                 var kL = OndaKL(L, rhoL, muL, DL, p.a, aw, p.NominalSize);
                 var kG = OndaKG(G, rhoV, muV, DV, p.a, p.NominalSize);
@@ -365,7 +523,7 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
             }
             else
             {
-                if (s.HetpModel != HetpModel.RuleOfThumb) r.Warnings.Add("HETP from the rule of thumb: the packing or the stage lacks the data the mass transfer model needs.");
+                if (hetpModel != HetpModel.RuleOfThumb) r.Warnings.Add("HETP from the rule of thumb: the packing or the stage lacks the data the mass transfer model needs.");
                 r.HETP = r.HETPRuleOfThumb;
             }
             if (r.HETP <= 0 || double.IsNaN(r.HETP)) r.HETP = r.HETPRuleOfThumb;

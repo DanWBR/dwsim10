@@ -1,4 +1,4 @@
-//    Column internals rating: tests against the worked examples of the reference books.
+﻿//    Column internals rating: tests against the worked examples of the reference books.
 //    Copyright 2026 Daniel Wagner Oliveira de Medeiros
 //
 //    This file is part of DWSIM.
@@ -400,6 +400,247 @@ namespace DWSIM.Engine.SmokeTests
             Assert.That(flowsheet.SolveFlowsheet2(), Is.Empty, "the column solves with the rated profile");
             var res2 = ColumnInternalsStudy.Run(flowsheet, inp);
             Assert.That(res2.Sections[0].TotalPressureDrop, Is.EqualTo(res.Sections[0].TotalPressureDrop).Within(0.25 * res.Sections[0].TotalPressureDrop));
+        }
+
+        // ------------------------------------------------------------------ valve trays (Klein)
+
+        /// <summary>Ludwig vol. 2, Example 8-41 (Klein's procedure): venturi valves, 16 gauge (0.060 in), four legs, carbon
+        /// steel, rho_V 1.91 and rho_L 31.0 lb/ft3: closed balance point 3.06 ft/s, open balance point 8.01 ft/s, and a dry
+        /// drop of 1.77 in of liquid while the valves are opening.</summary>
+        [Test]
+        public void ValveTrayBalancePointsReproduceKleinsExample()
+        {
+            var rvw = TrayHydraulics.ValveLegRatio(ValveLegs.FourLegs, true);
+            Assert.That(rvw, Is.EqualTo(1.45));
+            var kc = TrayHydraulics.ValveClosedCoefficient(true);
+            var uCbp = TrayHydraulics.ValveClosedBalanceVelocityFt(0.060, rvw, kc, 490.0, 1.91);
+            Assert.That(uCbp, Is.EqualTo(3.06).Within(0.02), "closed balance point, ft/s");
+            var uObp = uCbp * Math.Sqrt(kc / TrayHydraulics.ValveOpenCoefficient(true, 0.104));
+            Assert.That(uObp, Is.EqualTo(8.01).Within(0.05), "open balance point, ft/s");
+            Assert.That(kc * (1.91 / 31.0) * uCbp * uCbp, Is.EqualTo(1.77).Within(0.03), "dry drop between the balance points, in");
+            Assert.That(TrayHydraulics.AerationFactor(1.04), Is.EqualTo(0.61).Within(0.01), "Klein's aeration factor");
+
+            // the same tray as a section: hole area 1.63 ft2 on an active area of 9.5 ft2 (F_va = 1.04), 4.40 ft/s through the holes
+            var rhoV = 1.91 * 16.01846; var rhoL = 31.0 * 16.01846;
+            var sp = new StageProperties
+            {
+                Stage = 5, T = 350, P = 2e5,
+                VaporMassFlow = 4.40 * 1.63 * 0.0283168 * rhoV, LiquidMassFlow = 205.0 / 15850.32 * rhoL,
+                VaporDensity = rhoV, LiquidDensity = rhoL, VaporViscosity = 1e-5, LiquidViscosity = 3e-4, SurfaceTension = 0.02
+            };
+            var diameter = Math.Sqrt(4.0 / Math.PI * 9.5 * 0.09290304 / 0.76);
+            var Aa = 0.76 * Math.PI / 4.0 * diameter * diameter;
+            var s = new InternalsSection
+            {
+                Name = "Valves", FromStage = 5, ToStage = 5, Type = InternalType.ValveTray, Diameter = diameter,
+                TraySpacing = 0.6, DowncomerAreaFraction = 0.12, WeirHeight = 3 * 0.0254, PlateThickness = 0.104 * 0.0254,
+                ValveVenturi = true, ValveLegs = ValveLegs.FourLegs, ValveThickness = 0.060 * 0.0254, ValveDensity = 490.0 * 16.01846,
+                ValveHoleDiameter = 0.0381, ValvesPerArea = 1.63 * 0.09290304 / Aa / (Math.PI / 4.0 * 0.0381 * 0.0381)
+            };
+            var r = TrayHydraulics.RateValveTray(s, sp, diameter, 0.7, 3.0, 1.0);
+            TestContext.Out.WriteLine("valve tray: u_h={0:F3} m/s CBP={1:F3} OBP={2:F3} h_d={3:F1} mm h_L={4:F1} mm h_t={5:F1} mm regime='{6}' warnings: {7}",
+                r.HoleVelocity, r.ClosedBalanceVelocity, r.OpenBalanceVelocity, r.DryPressureDrop, r.AeratedLiquidHead, r.TotalHead, r.Regime, string.Join(" | ", r.Warnings));
+            Assert.That(r.HoleVelocity / 0.3048, Is.EqualTo(4.40).Within(0.05), "hole velocity, ft/s");
+            Assert.That(r.ClosedBalanceVelocity / 0.3048, Is.EqualTo(3.06).Within(0.02));
+            Assert.That(r.OpenBalanceVelocity / 0.3048, Is.EqualTo(8.01).Within(0.05));
+            Assert.That(r.Regime, Does.Contain("opening"));
+            Assert.That(r.DryPressureDrop / 25.4, Is.EqualTo(1.77).Within(0.03), "dry drop, in");
+            Assert.That(r.AeratedLiquidHead, Is.EqualTo(TrayHydraulics.AerationFactor(1.04) * (76.2 + r.WeirCrest)).Within(1.0), "aerated liquid head");
+            Assert.That(r.WeepRatioTurndown, Is.GreaterThan(1.0), "valves open at turndown");
+            Assert.That(r.OConnellEfficiency, Is.NaN, "no relative volatility given");
+        }
+
+        // ------------------------------------------------------------------ bubble caps (Bolles)
+
+        /// <summary>Ludwig vol. 2, Example 8-36, top tray of the 6 ft vacuum finishing tower: 129 caps of 3 7/8 in ID with
+        /// 2.68 in risers on 5.5 in centres, 50 slots 1/8 x 1.5 in per cap, 0.5 in static seal, 4 ft weir 2.5 in high;
+        /// 132.2 ft3/s of vapour at 0.0138 lb/ft3 and 3.74 gpm of liquid at 50.5 lb/ft3. Bolles: h_pc 0.118 in,
+        /// h_s 0.626 in, h_ow 0.099 in, gradient 0.12 in, total 1.50 in of liquid.</summary>
+        [Test]
+        public void BubbleCapTrayReproducesLudwigExample836()
+        {
+            Assert.That(TrayHydraulics.BollesCapConstant(1.073), Is.EqualTo(0.598).Within(0.01), "K_c from Fig. 8-114");
+            Assert.That(TrayHydraulics.BollesCapDropIn(0.598, 0.0138, 50.5, 132.2, 4.95), Is.EqualTo(0.118).Within(0.003), "h_pc, in");
+            Assert.That(TrayHydraulics.BollesSlotOpeningIn(0.0138, 50.5, 132.2, 129, 50, 0.125), Is.EqualTo(0.626).Within(0.01), "h_s, in");
+            Assert.That(TrayHydraulics.BollesGradientPerRow(0.75, 0.375, 2.7, 0.75), Is.EqualTo(0.02).Within(0.008), "gradient per row, in");
+            Assert.That(TrayHydraulics.DaviesVaporCorrection(0.548, 0.75), Is.EqualTo(0.55).Within(0.03), "C_v");
+
+            var rhoV = 0.0138 * 16.01846; var rhoL = 50.5 * 16.01846;
+            var sp = new StageProperties
+            {
+                Stage = 2, T = 330, P = 1e4,
+                VaporMassFlow = 132.2 * 0.0283168 * rhoV, LiquidMassFlow = 0.00834 * 0.0283168 * rhoL,
+                VaporDensity = rhoV, LiquidDensity = rhoL, VaporViscosity = 8e-6, LiquidViscosity = 5e-4, SurfaceTension = 0.025
+            };
+            var capId = 3.875 * 0.0254;
+            var s = new InternalsSection
+            {
+                Name = "Caps", FromStage = 2, ToStage = 2, Type = InternalType.BubbleCapTray, Diameter = 6 * 0.3048,
+                TraySpacing = 24 * 0.0254, DowncomerAreaFraction = TrayHydraulics.SegmentAreaFraction(4.0 / 6.0), WeirHeight = 2.5 * 0.0254,
+                DowncomerClearance = 2.25 * 0.0254, CapDiameter = capId, RiserDiameter = 2.68 * 0.0254, CapPitchRatio = 5.5 * 0.0254 / (capId + 0.004),
+                SlotsPerCap = 50, SlotWidth = 0.125 * 0.0254, SlotHeight = 1.5 * 0.0254, StaticSeal = 0.5 * 0.0254, SkirtClearance = 0.75 * 0.0254
+            };
+            var r = TrayHydraulics.RateBubbleCapTray(s, sp, 6 * 0.3048, 0.7, 5.0, 1.0);
+            TestContext.Out.WriteLine("bubble caps: h_pc={0:F2} h_s={1:F2} h_ow={2:F2} delta={3:F2} h_t={4:F2} in; slot load {5:F2}, {6}; backup {7:F1} mm; warnings: {8}",
+                r.CapPressureDrop / 25.4, r.SlotOpening / 25.4, r.WeirCrest / 25.4, r.LiquidGradient / 25.4, r.TotalHead / 25.4, r.SlotLoad, r.Regime, r.DowncomerBackup, string.Join(" | ", r.Warnings));
+            Assert.That(r.CapPressureDrop / 25.4, Is.EqualTo(0.118).Within(0.015), "h_pc (the cap count comes out within 3 % of the book's)");
+            Assert.That(r.SlotOpening / 25.4, Is.EqualTo(0.626).Within(0.03), "h_s");
+            Assert.That(r.WeirCrest / 25.4, Is.EqualTo(0.099).Within(0.01), "h_ow");
+            Assert.That(r.LiquidGradient / 25.4, Is.EqualTo(0.12).Within(0.06), "liquid gradient");
+            Assert.That(r.TotalHead / 25.4, Is.EqualTo(1.50).Within(0.2), "h_t");
+            Assert.That(r.SlotLoad, Is.InRange(0.2, 0.35), "slot load (the book finds the slot velocity low)");
+            Assert.That(r.VaporDistributionRatio, Is.LessThan(0.5));
+            Assert.That(r.Regime, Does.Contain("slots"));
+            Assert.That(r.Warnings.Any(w => w.Contains("pulse")), "the book too finds the slot opening on the low side");
+        }
+
+        // ------------------------------------------------------------------ structured packings (Rocha, Bravo and Fair)
+
+        /// <summary>Mellapak 250Y at total reflux with cyclohexane / n-heptane-like properties at 1 atm: the model must be
+        /// self-consistent (pressure drop rising with the vapour rate, no solution above its own flood velocity, holdup
+        /// and HETP in the range the packing shows in practice, 0.3 to 0.6 m).</summary>
+        [Test]
+        public void RochaBravoFairIsSelfConsistentOnMellapak250Y()
+        {
+            var p = PackingCatalogue.Find("Mellapak Sheet metal 250Y");
+            Assert.That(p, Is.Not.Null);
+            Assert.That(p.CorrugationSide, Is.EqualTo(0.0171));
+            Assert.That(PackingCatalogue.Find("Flexipac Sheet metal 2").EffectiveCorrugationSide, Is.EqualTo(0.0177));
+            var estimated = PackingCatalogue.Find("Mellapak Sheet metal 350Y").EffectiveCorrugationSide;
+            Assert.That(estimated, Is.InRange(0.010, 0.014), "estimated side of a packing without measured geometry");
+
+            double rhoV = 3.0, rhoL = 650, muV = 8e-6, muL = 3e-4, sigma = 0.018;
+            var dpFlood = PackingHydraulics.KisterGillFloodPressureDrop(p.Fp);
+            Assert.That(dpFlood, Is.EqualTo(770).Within(30), "Kister-Gill flood pressure drop, Pa/m");
+            var uf = PackingHydraulics.RbfFloodingVelocity(1.0, rhoV, rhoL, muV, muL, sigma, p.CorrugationSide, p.Epsilon, p.CorrugationAngle, dpFlood);
+            TestContext.Out.WriteLine("RBF flood: u_V,f = {0:F3} m/s (F = {1:F2} Pa^0.5)", uf, uf * Math.Sqrt(rhoV));
+            Assert.That(uf * Math.Sqrt(rhoV), Is.InRange(2.2, 4.0), "flood F-factor of a 250 m2/m3 sheet packing");
+            double lastDp = 0;
+            foreach (var f in new[] { 1.0, 1.5, 2.0, 2.5 })
+            {
+                var uV = f / Math.Sqrt(rhoV); var uL = uV * rhoV / rhoL;
+                double hold;
+                var dp = PackingHydraulics.RbfPressureDrop(uV, uL, rhoV, rhoL, muV, muL, sigma, p.CorrugationSide, p.Epsilon, p.CorrugationAngle, dpFlood, out hold);
+                TestContext.Out.WriteLine("F={0:F1}: dP={1:F0} Pa/m holdup={2:F4}", f, dp, hold);
+                if (uV < uf)
+                {
+                    Assert.That(dp, Is.GreaterThan(lastDp), "pressure drop rises with the vapour rate");
+                    Assert.That(dp, Is.LessThan(dpFlood));
+                    Assert.That(hold, Is.InRange(0.01, 0.15), "holdup");
+                    lastDp = dp;
+                }
+                else Assert.That(double.IsNaN(dp), "flooded above the flood velocity");
+            }
+            double hold2;
+            Assert.That(double.IsNaN(PackingHydraulics.RbfPressureDrop(1.05 * uf, 1.05 * uf * rhoV / rhoL, rhoV, rhoL, muV, muL, sigma, p.CorrugationSide, p.Epsilon, p.CorrugationAngle, dpFlood, out hold2)));
+
+            var s = new InternalsSection { Name = "Bed", FromStage = 3, ToStage = 3, Type = InternalType.StructuredPacking, PackingName = p.DisplayName, PackingModel = PackingModel.RochaBravoFair, HetpModel = HetpModel.RochaBravoFair, Diameter = 1.0 };
+            var uVd = 2.0 / Math.Sqrt(rhoV);
+            var A = Math.PI / 4.0;
+            var sp = new StageProperties
+            {
+                Stage = 3, T = 350, P = 101325, VaporMassFlow = uVd * A * rhoV, LiquidMassFlow = uVd * A * rhoV,
+                VaporDensity = rhoV, LiquidDensity = rhoL, VaporViscosity = muV, LiquidViscosity = muL, SurfaceTension = sigma,
+                VaporDiffusivity = 4e-6, LiquidDiffusivity = 4e-9, StrippingFactor = 1.0
+            };
+            var r = PackingHydraulics.RatePacking(s, p, sp, 1.0);
+            TestContext.Out.WriteLine("RBF rating at F=2: flood {0:F2}, dP {1:F0} Pa/m, holdup {2:F4}, HG {3:F3} HL {4:F3} HETP {5:F3} (rule of thumb {6:F2}); {7}",
+                r.FloodFraction, r.PressureDrop, r.LiquidHoldup, r.HG, r.HL, r.HETP, r.HETPRuleOfThumb, string.Join(" | ", r.Warnings));
+            Assert.That(r.FloodFraction, Is.InRange(0.5, 0.95));
+            Assert.That(r.HETP, Is.InRange(0.25, 0.8), "HETP of Mellapak 250Y");
+            Assert.That(r.HG, Is.GreaterThan(0)); Assert.That(r.HL, Is.GreaterThan(0));
+
+            // a random packing asked for the structured model falls back with a note
+            var pall = PackingCatalogue.Find("Pall rings Metal 50 mm");
+            var s2 = new InternalsSection { Name = "Bed", FromStage = 3, ToStage = 3, Type = InternalType.RandomPacking, PackingName = pall.DisplayName, PackingModel = PackingModel.RochaBravoFair, HetpModel = HetpModel.RochaBravoFair, Diameter = 1.0 };
+            var r2 = PackingHydraulics.RatePacking(s2, pall, sp, 1.0);
+            Assert.That(r2.Warnings.Any(w => w.Contains("Robbins")), "falls back to Robbins");
+            Assert.That(r2.PressureDrop, Is.GreaterThan(0));
+        }
+
+        [Test]
+        public void TheNewGeometryFieldsRoundTripThroughTheCaseFile()
+        {
+            var inp = new ColumnInternalsInput { ColumnName = "C1", MaxIterations = 3, IterationTolerance = 0.05, IteratePressures = true, IterateEfficiencies = false };
+            inp.Sections.Add(new InternalsSection { Name = "Valves", Type = InternalType.ValveTray, ValvesPerArea = 150, ValveVenturi = true, ValveLegs = ValveLegs.Caged, ValveThickness = 0.002, ValveDensity = 8030 });
+            inp.Sections.Add(new InternalsSection { Name = "Caps", Type = InternalType.BubbleCapTray, CapDiameter = 0.1, RiserDiameter = 0.07, SlotsPerCap = 40, SlotWidth = 0.004, SlotHeight = 0.03, StaticSeal = 0.02, SkirtClearance = 0.02, LiquidGradient = 0.01 });
+            inp.Sections.Add(new InternalsSection { Name = "Bed", Type = InternalType.StructuredPacking, PackingModel = PackingModel.RochaBravoFair, HetpModel = HetpModel.RochaBravoFair, CustomPacking = new PackingData { Name = "X", Structured = true, a = 300, Epsilon = 0.96, Fp = 80, CorrugationSide = 0.015, SurfaceEnhancement = 0.3 } });
+            var back = ColumnInternalsInput.FromXml(inp.ToXml());
+            Assert.That(back.MaxIterations, Is.EqualTo(3)); Assert.That(back.IterationTolerance, Is.EqualTo(0.05)); Assert.That(back.IterateEfficiencies, Is.False);
+            Assert.That(back.Sections[0].ValvesPerArea, Is.EqualTo(150)); Assert.That(back.Sections[0].ValveVenturi, Is.True); Assert.That(back.Sections[0].ValveLegs, Is.EqualTo(ValveLegs.Caged));
+            Assert.That(back.Sections[1].SlotsPerCap, Is.EqualTo(40)); Assert.That(back.Sections[1].LiquidGradient, Is.EqualTo(0.01)); Assert.That(back.Sections[1].StaticSeal, Is.EqualTo(0.02));
+            Assert.That(back.Sections[2].PackingModel, Is.EqualTo(PackingModel.RochaBravoFair)); Assert.That(back.Sections[2].HetpModel, Is.EqualTo(HetpModel.RochaBravoFair));
+            Assert.That(back.Sections[2].CustomPacking.CorrugationSide, Is.EqualTo(0.015)); Assert.That(back.Sections[2].CustomPacking.SurfaceEnhancement, Is.EqualTo(0.3));
+        }
+
+        /// <summary>Every tray type rates the stages of the extractive distillation column, and the automatic iteration
+        /// settles the pressure profile with the column solver.</summary>
+        [Test]
+        public void TheIterationSettlesTheRatedProfileWithTheSolver()
+        {
+            var flowsheet = Load("ExtractiveDistillation.dwxmz");
+            Assert.That(flowsheet.SolveFlowsheet2(), Is.Empty);
+            var name = ColumnInternalsStudy.ColumnNames(flowsheet)[0];
+            var column = ColumnInternalsStudy.FindColumn(flowsheet, name);
+            int n = ColumnInternalsStudy.StageCount(column);
+
+            var all = new ColumnInternalsInput { ColumnName = name };
+            all.Sections.Add(new InternalsSection { Name = "Valves", FromStage = 2, ToStage = n - 1, Type = InternalType.ValveTray });
+            all.Sections.Add(new InternalsSection { Name = "Caps", FromStage = 2, ToStage = n - 1, Type = InternalType.BubbleCapTray });
+            all.Sections.Add(new InternalsSection { Name = "Sheets", FromStage = 2, ToStage = n - 1, Type = InternalType.StructuredPacking, PackingName = "Mellapak Sheet metal 250Y", PackingModel = PackingModel.RochaBravoFair, HetpModel = HetpModel.RochaBravoFair });
+            var res = ColumnInternalsStudy.Run(flowsheet, all);
+            foreach (var sr in res.Sections)
+            {
+                TestContext.Out.WriteLine("{0}: D={1:F2} m, max flood {2:F2} on stage {3}, dP {4:F0} Pa; {5}", sr.Section.Name, sr.Diameter, sr.MaxFloodFraction, sr.LimitingStage, sr.TotalPressureDrop, string.Join(" | ", sr.Warnings));
+                Assert.That(sr.Diameter, Is.InRange(0.2, 10), sr.Section.Name + " diameter");
+                Assert.That(sr.TotalPressureDrop, Is.GreaterThan(0), sr.Section.Name + " pressure drop");
+                foreach (var r in sr.Stages.Where(x => !double.IsNaN(x.FloodFraction)))
+                {
+                    Assert.That(r.PressureDropTotal, Is.InRange(1, 5000), sr.Section.Name + " stage " + r.Stage);
+                    if (sr.Section.IsTray) Assert.That(r.Regime, Is.Not.Empty);
+                }
+            }
+            Assert.That(res.Sections[2].AverageHETP, Is.InRange(0.15, 1.5), "structured packing HETP");
+
+            var inp = new ColumnInternalsInput { ColumnName = name, MaxIterations = 4, IterationTolerance = 0.03 };
+            inp.Sections.Add(new InternalsSection { Name = "Trays", FromStage = 2, ToStage = n - 1, Type = InternalType.ValveTray });
+            var it = ColumnInternalsStudy.RunIterating(flowsheet, inp, line => TestContext.Out.WriteLine(line));
+            foreach (var l in it.Log) TestContext.Out.WriteLine(l);
+            Assert.That(it.Iterations, Is.GreaterThanOrEqualTo(1));
+            Assert.That(column.Calculated, "the column is solved at the end");
+            Assert.That(it.Converged, "the iteration settled: " + string.Join(" | ", it.Log));
+            dynamic c = column;
+            Assert.That(double.IsNaN((double)c.ColumnPressureDrop), "the column carries the rated stage pressures");
+        }
+
+        /// <summary>The utility attached to the column keeps the case in the simulation and rates on Update.</summary>
+        [Test]
+        public void TheAttachedUtilityKeepsTheCaseAndRatesTheColumn()
+        {
+            var flowsheet = Load("ExtractiveDistillation.dwxmz");
+            Assert.That(flowsheet.SolveFlowsheet2(), Is.Empty);
+            var name = ColumnInternalsStudy.ColumnNames(flowsheet)[0];
+            var column = ColumnInternalsStudy.FindColumn(flowsheet, name);
+            int n = ColumnInternalsStudy.StageCount(column);
+            var u = flowsheet.GetUtility(DWSIM.Interfaces.Enums.FlowsheetUtility.ColumnInternals) as ColumnInternalsUtility;
+            Assert.That(u, Is.Not.Null, "the engine factory finds the utility in the runner assembly");
+            u.AttachedTo = column;
+            u.Name = "Internals1";
+            column.AttachedUtilities.Add(u);
+            var inp = u.GetInput();
+            Assert.That(inp.ColumnName, Is.EqualTo(name));
+            inp.Sections.Add(new InternalsSection { Name = "Trays", FromStage = 2, ToStage = n - 1, Type = InternalType.SieveTray });
+            u.SetInput(inp);
+            u.Update();
+            Assert.That(u.LastResult, Is.Not.Null);
+            Assert.That(Convert.ToDouble(u.GetPropertyValue("Column Pressure Drop")), Is.GreaterThan(0));
+            Assert.That(Convert.ToDouble(u.GetPropertyValue("Highest Fraction of Flood")), Is.EqualTo(0.8).Within(0.01));
+            var data = u.SaveData();
+            Assert.That(data.ContainsKey(ColumnInternalsUtility.CaseKey));
+            var u2 = new ColumnInternalsUtility { AttachedTo = column };
+            u2.LoadData(data);
+            Assert.That(u2.GetInput().Sections.Count, Is.EqualTo(1));
+            Assert.That(u2.GetInput().Sections[0].ToStage, Is.EqualTo(n - 1));
         }
 
         /// <summary>Prints the numbers the user guide validation tables quote (run with a detailed logger).</summary>

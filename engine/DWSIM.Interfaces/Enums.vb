@@ -157,6 +157,7 @@ Namespace Enums
         PetroleumProperties = 7
         PureCompoundProperties = 8
         Depressurization = 9
+        ColumnInternals = 10
     End Enum
 
     Public Enum UnitOfMeasure
