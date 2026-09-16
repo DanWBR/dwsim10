@@ -131,7 +131,7 @@ public partial class DynamicsWizard : Window
     {
         ("Introduction", "What this wizard sets up, and what it found in the flowsheet as it stands."),
         ("Holdup", "Vessels, tanks and reactors need a volume before they can accumulate anything. Heaters, coolers, exchangers, machines and column drums carry a holdup too, and ship with placeholder volumes; each is checked against the flow it carries. Without a volume the unit passes material straight through and the process shows no lag."),
-        ("Hydraulics", "In dynamic mode the pressures decide the flow. A valve needs a flow coefficient and a working opening before it can resolve one, and a heater or exchanger needs a flow conductance that reproduces its steady-state pressure drop."),
+        ("Hydraulics", "In dynamic mode the pressures decide the flow. A valve needs a flow coefficient and a working opening before it can resolve one; a heater or exchanger needs a flow conductance that reproduces its steady-state pressure drop, and a pump or compressor one that gives it a small internal loss."),
         ("Boundary Specs", "The edges of the pressure-flow network. A feed holds its flow and a product holds its pressure; the network resolves everything in between."),
         ("Control", "Loops that keep the process where you want it. A vessel with no level control fills or empties until the run fails."),
         ("Integrator", "How far to step, how long to run, and which variables to record. A run with no monitored variables finishes normally and leaves no results behind."),

@@ -22,8 +22,14 @@ namespace DWSIM.Automation.DynamicRunner.Setup
         /// <summary>How long a holdup vessel should take to turn over, when its volume has to be invented. Seconds.</summary>
         public double TargetResidenceTimeSeconds { get; set; }
 
-        /// <summary>Residence time a heater, cooler, exchanger side or component separator is sized to when its holdup volume is checked.</summary>
+        /// <summary>Residence time a heater, cooler, exchanger side or component separator carrying liquid is sized to when its holdup volume is checked.</summary>
         public double EquipmentResidenceTimeSeconds { get; set; }
+
+        /// <summary>The same for a unit carrying gas, whose holdup is a few seconds at most.</summary>
+        public double GasEquipmentResidenceTimeSeconds { get; set; }
+
+        /// <summary>Internal loss of a pump, compressor or expander (suction, volute) as a fraction of its differential pressure; sizes the machine's flow conductance.</summary>
+        public double MachineInternalLossFraction { get; set; }
 
         /// <summary>Residence time a pump, compressor or expander casing is sized to when its holdup volume is checked.</summary>
         public double MachineResidenceTimeSeconds { get; set; }
@@ -51,6 +57,8 @@ namespace DWSIM.Automation.DynamicRunner.Setup
         {
             TargetResidenceTimeSeconds = 300.0;
             EquipmentResidenceTimeSeconds = 30.0;
+            GasEquipmentResidenceTimeSeconds = 3.0;
+            MachineInternalLossFraction = 0.03;
             MachineResidenceTimeSeconds = 2.0;
             DesignValveOpeningPct = 50.0;
             InitialLevelFraction = 0.5;
@@ -98,7 +106,7 @@ namespace DWSIM.Automation.DynamicRunner.Setup
             EnrichValveSizing(flowsheet, issues, options);
             EnrichHoldup(flowsheet, issues, options);
             AddEquipmentHoldup(flowsheet, issues, options);
-            AddFlowConductance(flowsheet, issues);
+            AddFlowConductance(flowsheet, issues, options);
             AddStreamSpecs(flowsheet, issues);
             AddControlLoops(flowsheet, issues, options);
             AddIntegratorAndSchedule(flowsheet, issues, options);
@@ -391,10 +399,8 @@ namespace DWSIM.Automation.DynamicRunner.Setup
             {
                 case ObjectType.Heater:
                 case ObjectType.Cooler:
-                    return new List<HoldupSpec> { new HoldupSpec { Property = "Volume", Label = "holdup volume", Throughput = total, TargetSeconds = options.EquipmentResidenceTimeSeconds } };
-
                 case ObjectType.ComponentSeparator:
-                    return new List<HoldupSpec> { new HoldupSpec { Property = "Volume", Label = "holdup volume", Throughput = total, TargetSeconds = options.EquipmentResidenceTimeSeconds } };
+                    return new List<HoldupSpec> { new HoldupSpec { Property = "Volume", Label = "holdup volume", Throughput = total, TargetSeconds = EquipmentTarget(ConnectedStream(flowsheet, obj, 0, true), options) } };
 
                 case ObjectType.Pump:
                 case ObjectType.Compressor:
@@ -416,28 +422,47 @@ namespace DWSIM.Automation.DynamicRunner.Setup
                 case ObjectType.HeatExchanger:
                 {
                     // the exchanger tells its sides apart by inlet temperature: the hotter inlet is the hot side
-                    double hot, cold;
-                    ExchangerSideFlows(flowsheet, obj, out hot, out cold);
+                    IMaterialStream hotIn, coldIn;
+                    ExchangerSides(flowsheet, obj, out hotIn, out coldIn);
+                    if (hotIn == null || coldIn == null) return null;
                     return new List<HoldupSpec>
                     {
-                        new HoldupSpec { Property = "Volume for Hot Fluid", Label = "hot-side volume", Throughput = hot, TargetSeconds = options.EquipmentResidenceTimeSeconds },
-                        new HoldupSpec { Property = "Volume for Cold Fluid", Label = "cold-side volume", Throughput = cold, TargetSeconds = options.EquipmentResidenceTimeSeconds }
+                        new HoldupSpec { Property = "Volume for Hot Fluid", Label = "hot-side volume", Throughput = SafeVolumetricFlow(hotIn), TargetSeconds = EquipmentTarget(hotIn, options) },
+                        new HoldupSpec { Property = "Volume for Cold Fluid", Label = "cold-side volume", Throughput = SafeVolumetricFlow(coldIn), TargetSeconds = EquipmentTarget(coldIn, options) }
                     };
                 }
             }
             return null;
         }
 
-        /// <summary>Volumetric flow of the hot and the cold inlet of an exchanger (the hotter inlet is the hot side).</summary>
-        private static void ExchangerSideFlows(IFlowsheet flowsheet, ISimulationObject obj, out double hot, out double cold)
+        /// <summary>The hot and the cold inlet of an exchanger (the hotter inlet is the hot side, as the exchanger itself decides).</summary>
+        private static void ExchangerSides(IFlowsheet flowsheet, ISimulationObject obj, out IMaterialStream hotIn, out IMaterialStream coldIn)
         {
-            hot = 0.0; cold = 0.0;
+            hotIn = null; coldIn = null;
             var in0 = ConnectedStream(flowsheet, obj, 0, true);
             var in1 = ConnectedStream(flowsheet, obj, 1, true);
             if (in0 == null || in1 == null) return;
-            var q0 = SafeVolumetricFlow(in0);
-            var q1 = SafeVolumetricFlow(in1);
-            if (in0.GetTemperature() < in1.GetTemperature()) { cold = q0; hot = q1; } else { cold = q1; hot = q0; }
+            if (in0.GetTemperature() < in1.GetTemperature()) { coldIn = in0; hotIn = in1; } else { coldIn = in1; hotIn = in0; }
+        }
+
+        /// <summary>Residence-time target of a heater, cooler, exchanger side or component separator: a few seconds for gas, tens of seconds for liquid.</summary>
+        private static double EquipmentTarget(IMaterialStream inlet, DynamicsSetupOptions options)
+        {
+            return IsGas(inlet) ? options.GasEquipmentResidenceTimeSeconds : options.EquipmentResidenceTimeSeconds;
+        }
+
+        /// <summary>True when the stream is mostly vapour by mass.</summary>
+        private static bool IsGas(IMaterialStream stream)
+        {
+            if (stream == null) return false;
+            try
+            {
+                IPhase vapour;
+                if (!stream.Phases.TryGetValue(2, out vapour) || vapour == null) return false;
+                var wv = vapour.Properties.massfraction;
+                return wv.HasValue && wv.Value >= 0.5;
+            }
+            catch { return false; }
         }
 
         private static double SafeVolumetricFlow(IMaterialStream stream)
@@ -479,11 +504,12 @@ namespace DWSIM.Automation.DynamicRunner.Setup
         /// conductance K, dP = (W / K)², and ship with K = 1, which is no size at all: at 10 kg/s it
         /// gives 100 Pa, at 100 kg/s 10 kPa, whatever the steady state said. K is sized so the unit
         /// reproduces its converged pressure drop at its converged flow; a unit with no pressure
-        /// drop gets a token 1 kPa so the pressure-flow network stays well posed. Pumps, compressors
-        /// and expanders keep their conductance: theirs is an internal loss the steady state has no
-        /// counterpart for.
+        /// drop gets a token 1 kPa so the pressure-flow network stays well posed. For a pump,
+        /// compressor or expander the conductance is an internal loss (suction, volute) the steady
+        /// state has no counterpart for; it is sized to a few percent of the machine's differential
+        /// pressure, which is where such losses sit.
         /// </summary>
-        private static void AddFlowConductance(IFlowsheet flowsheet, List<DynamicsIssue> issues)
+        private static void AddFlowConductance(IFlowsheet flowsheet, List<DynamicsIssue> issues, DynamicsSetupOptions options)
         {
             const double tokenDrop = 1000.0; // Pa
 
@@ -493,8 +519,9 @@ namespace DWSIM.Automation.DynamicRunner.Setup
                 if (graphic == null || !graphic.Active) continue;
                 var type = graphic.ObjectType;
 
+                var isMachine = type == ObjectType.Pump || type == ObjectType.Compressor || type == ObjectType.Expander;
                 var sides = new List<Tuple<string, int>>();
-                if (type == ObjectType.Heater || type == ObjectType.Cooler) sides.Add(Tuple.Create("Flow Conductance", 0));
+                if (type == ObjectType.Heater || type == ObjectType.Cooler || isMachine) sides.Add(Tuple.Create("Flow Conductance", 0));
                 else if (type == ObjectType.HeatExchanger)
                 {
                     var in0 = ConnectedStream(flowsheet, obj, 0, true);
@@ -517,7 +544,9 @@ namespace DWSIM.Automation.DynamicRunner.Setup
                     catch { continue; }
                     if (w <= 0.0 || pin <= 0.0 || pout <= 0.0 || double.IsNaN(w + pin + pout)) continue;
 
-                    var dropSteady = Math.Max(pin - pout, 0.0);
+                    // a machine's loss is a share of its own differential; a unit's is its converged drop
+                    var dropSteady = isMachine ? Math.Abs(pout - pin) * options.MachineInternalLossFraction : Math.Max(pin - pout, 0.0);
+                    if (isMachine && dropSteady <= 0.0) continue;
                     var dropSize = Math.Max(dropSteady, tokenDrop);
                     var kNeeded = w / Math.Sqrt(dropSize);
 
@@ -535,11 +564,14 @@ namespace DWSIM.Automation.DynamicRunner.Setup
                         ObjectId = obj.Name,
                         ObjectTag = graphic.Tag,
                         Message = "At its converged flow of " + DynamicsReadiness.Fmt(w) + " kg/s the " + property.ToLowerInvariant() + " of " +
-                                  DynamicsReadiness.Fmt(kNow) + " gives a pressure drop of " + DynamicsReadiness.Fmt(dropNow / 1000.0) +
-                                  " kPa in dynamic mode; the steady state has " + DynamicsReadiness.Fmt(dropSteady / 1000.0) + " kPa.",
+                                  DynamicsReadiness.Fmt(kNow) + " gives an internal pressure drop of " + DynamicsReadiness.Fmt(dropNow / 1000.0) +
+                                  " kPa in dynamic mode; " + (isMachine
+                                      ? "a machine's suction and volute losses run to " + DynamicsReadiness.Fmt(options.MachineInternalLossFraction * 100.0) +
+                                        " % of its differential, " + DynamicsReadiness.Fmt(dropSteady / 1000.0) + " kPa here."
+                                      : "the steady state has " + DynamicsReadiness.Fmt(dropSteady / 1000.0) + " kPa."),
                         Fix = "Set it to " + DynamicsReadiness.Fmt(kNeeded) + " (flow over the square root of the pressure drop" +
                               (dropSteady < tokenDrop ? ", with a token 1 kPa drop since the steady state has none" : "") +
-                              "), so the unit reproduces its steady-state pressure drop.",
+                              (isMachine ? "), so the machine carries a realistic internal loss." : "), so the unit reproduces its steady-state pressure drop."),
                         CanAutoFix = true,
                         ValueLabel = property,
                         SuggestedValue = kNeeded,
