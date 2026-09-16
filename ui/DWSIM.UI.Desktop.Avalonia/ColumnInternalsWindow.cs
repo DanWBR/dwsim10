@@ -201,7 +201,7 @@ public sealed class ColumnInternalsWindow : Window
             if (lb.SelectedIndex >= 0 && lb.SelectedIndex != _selected) { _selected = lb.SelectedIndex; Rebuild(); }
         });
         if (_selected >= 0 && _selected < items.Length) list.SelectedIndex = _selected;
-        var (add, remove) = p.CreateAndAddTwoButtonsRow("Add section", null, "Remove section", null,
+        var (add, remove) = p.CreateAndAddTwoButtonsRow("Add", null, "Remove", null,
             (_, _) =>
             {
                 var last = _in.Sections.LastOrDefault();
@@ -215,8 +215,12 @@ public sealed class ColumnInternalsWindow : Window
                 _in.Sections.RemoveAt(_selected); _selected = Math.Min(_selected, _in.Sections.Count - 1); Rebuild();
             });
         remove.IsEnabled = _selected >= 0;
+        add.Width = 120; remove.Width = 120;
 
         if (_selected >= 0 && _selected < _in.Sections.Count) BuildSectionRows(p, _in.Sections[_selected], nStages);
+        // room under the last row so the bottom buttons do not cover it
+        p.CreateAndAddEmptySpace();
+        p.CreateAndAddEmptySpace();
         return p;
     }
 
