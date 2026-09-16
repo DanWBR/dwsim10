@@ -21,8 +21,11 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Xml.Linq;
 using DWSIM.Interfaces;
 using DWSIM.Interfaces.Enums.GraphicObjects;
+using DWSIM.UnitOperations.UnitOperations;
+using DWSIM.UnitOperations.UnitOperations.Auxiliary.SepOps;
 
 namespace DWSIM.Automation.DynamicRunner.ColumnInternals
 {
@@ -63,6 +66,30 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
             foreach (var o in host.SimulationObjects.Values)
                 if (o.GraphicObject != null && string.Equals(o.GraphicObject.Tag, tag, StringComparison.OrdinalIgnoreCase)) return o;
             return null;
+        }
+
+        // ------------------------------------------------------------------ the case kept in the column
+
+        /// <summary>The internals case saved in the column (its InternalsCase property), or null when there is none.</summary>
+        public static ColumnInternalsInput LoadCaseFromColumn(ISimulationObject column)
+        {
+            var c = column as Column;
+            if (c == null || string.IsNullOrWhiteSpace(c.InternalsCase)) return null;
+            try
+            {
+                var input = ColumnInternalsInput.FromXml(XElement.Parse(c.InternalsCase));
+                input.ColumnName = column.GraphicObject != null ? column.GraphicObject.Tag : input.ColumnName;
+                return input;
+            }
+            catch { return null; }
+        }
+
+        /// <summary>Keeps the case in the column, so it travels with the simulation file.</summary>
+        public static void StoreCaseInColumn(ISimulationObject column, ColumnInternalsInput input)
+        {
+            var c = column as Column;
+            if (c == null) return;
+            c.InternalsCase = input == null ? "" : input.ToXml().ToString(SaveOptions.DisableFormatting);
         }
 
         /// <summary>Number of stages of the column (condenser and reboiler included when the column has them).</summary>
@@ -207,12 +234,124 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
             {
                 for (int i = 0; i < n; i++)
                     if (!double.IsNaN(eff[i + 1])) { ((dynamic)stages[i]).Efficiency = eff[i + 1]; ne++; }
+                // a packed stage is a theoretical stage by definition: the HETP already carries the efficiency
+                foreach (var sr in result.Sections)
+                    if (!sr.Section.IsTray)
+                        foreach (var r in sr.Stages)
+                            if (r.Stage >= 1 && r.Stage <= n) ((dynamic)stages[r.Stage - 1]).Efficiency = 1.0;
             }
+            WriteGeometry(column, result);
             try { column.Calculated = false; } catch { }
             var parts = new List<string>();
             if (pressures) parts.Add(np + " stage pressure drops written (top stage pressure kept, linear profile off)");
             if (efficiencies) parts.Add(ne + " stage efficiencies written");
             return string.Join("; ", parts) + ". Solve the flowsheet and rate again.";
+        }
+
+        /// <summary>Writes the sized diameter, the internals height and the height of every rated stage (tray spacing or
+        /// HETP) into the column, where the costing and the dynamic holdups read them.</summary>
+        public static void WriteGeometry(ISimulationObject column, ColumnInternalsResult result)
+        {
+            var c = column as Column;
+            if (c == null) return;
+            double d = 0;
+            foreach (var sr in result.Sections) if (sr.Diameter > d) d = sr.Diameter;
+            if (d > 0) c.EstimatedDiameter = d;
+            if (result.TotalHeight > 0) c.EstimatedHeight = result.TotalHeight;
+            foreach (var sr in result.Sections)
+                foreach (var r in sr.Stages)
+                {
+                    if (r.Stage < 1 || r.Stage > c.Stages.Count) continue;
+                    var h = sr.Section.IsTray ? sr.Section.TraySpacing : (!double.IsNaN(r.HETP) && r.HETP > 0 ? r.HETP : sr.AverageHETP);
+                    if (h > 0) c.Stages[r.Stage - 1].StageHeight = h;
+                }
+        }
+
+        /// <summary>True when a section is packed and its bed height is given, so its number of stages follows from the HETP.</summary>
+        public static bool HasRestageableSection(ColumnInternalsInput input)
+        {
+            return input.Sections.Any(s => !s.IsTray && s.BedHeight > 0);
+        }
+
+        /// <summary>
+        /// Sets the number of stages of every packed section with a given bed height to bed height / average HETP,
+        /// inserting theoretical stages evenly into the section or removing stages that carry no feed, draw or duty.
+        /// The other sections keep their stages; the stage ranges of the input are moved to follow. The column's
+        /// initial estimates are rebuilt and it is left to be solved again. Returns what was done.
+        /// </summary>
+        public static string ApplyStagesToColumn(ISimulationObject column, ColumnInternalsResult result, ColumnInternalsInput input)
+        {
+            var c = column as Column;
+            if (c == null) throw new ArgumentException("Only a rigorous column can be re-staged.");
+            var log = new List<string>();
+            var changes = new List<Tuple<int, int, int>>();   // old from, old to, delta
+            // bottom sections first so the indices of the sections above stay valid while stages move
+            foreach (var s in input.Sections.Where(x => !x.IsTray && x.BedHeight > 0).OrderByDescending(x => x.FromStage).ToList())
+            {
+                var sr = result.Sections.FirstOrDefault(x => x.Section.Name == s.Name && x.Section.FromStage == s.FromStage && x.Section.ToStage == s.ToStage);
+                if (sr == null || double.IsNaN(sr.AverageHETP) || sr.AverageHETP <= 0) { log.Add(s.Name + ": no HETP to re-stage with."); continue; }
+                int nOld = s.ToStage - s.FromStage + 1;
+                int nNew = Math.Max(1, (int)Math.Round(s.BedHeight / sr.AverageHETP));
+                if (nNew == nOld) { log.Add(s.Name + ": " + nOld + " stages already match the bed (" + s.BedHeight.ToString("0.00") + " m / HETP " + sr.AverageHETP.ToString("0.000") + " m)."); continue; }
+                int from = s.FromStage - 1, to = s.ToStage - 1;   // 0-based
+                if (from < 0 || to >= c.Stages.Count || from > to) { log.Add(s.Name + ": stage range outside the column."); continue; }
+                int delta;
+                if (nNew > nOld)
+                {
+                    // interleave new stages evenly among the old ones, keeping their order
+                    var old = c.Stages.GetRange(from, nOld);
+                    var merged = new List<Stage>();
+                    int used = 0;
+                    for (int j = 0; j < nNew; j++)
+                    {
+                        int mapped = (int)Math.Floor((double)j * nOld / nNew);
+                        if (mapped >= used && used < nOld) merged.Add(old[used++]);
+                        else merged.Add(new Stage(Guid.NewGuid().ToString()));
+                    }
+                    while (used < nOld) merged.Add(old[used++]);
+                    c.Stages.RemoveRange(from, nOld);
+                    c.Stages.InsertRange(from, merged);
+                    delta = merged.Count - nOld;
+                }
+                else
+                {
+                    var referenced = new HashSet<string>();
+                    foreach (var si in c.MaterialStreams.Values) referenced.Add(si.AssociatedStage);
+                    foreach (var si in c.EnergyStreams.Values) referenced.Add(si.AssociatedStage);
+                    var removable = new List<int>();
+                    for (int i = from; i <= to; i++)
+                        if (!referenced.Contains(c.Stages[i].ID) && !referenced.Contains(c.Stages[i].Name)) removable.Add(i);
+                    int toRemove = Math.Min(nOld - nNew, removable.Count);
+                    if (toRemove < nOld - nNew) log.Add(s.Name + ": only " + toRemove + " of " + (nOld - nNew) + " stages could be removed; the others carry feeds, draws or duties.");
+                    var picked = new List<int>();
+                    for (int k = 0; k < toRemove; k++) picked.Add(removable[(int)Math.Floor((k + 0.5) * removable.Count / toRemove)]);
+                    foreach (var i in picked.Distinct().OrderByDescending(x => x)) c.Stages.RemoveAt(i);
+                    delta = -picked.Distinct().Count();
+                }
+                for (int i = 0; i < c.Stages.Count; i++)
+                    if (i > 0 && i < c.Stages.Count - 1 && (string.IsNullOrEmpty(c.Stages[i].Name) || c.Stages[i].Name.StartsWith("Stage"))) c.Stages[i].Name = "Stage" + i;
+                changes.Add(Tuple.Create(s.FromStage, s.ToStage, delta));
+                log.Add(s.Name + ": " + nOld + " stages to " + (nOld + delta) + " (bed " + s.BedHeight.ToString("0.00") + " m / HETP " + sr.AverageHETP.ToString("0.000") + " m).");
+            }
+            if (changes.Count == 0) return string.Join(" ", log);
+
+            // move the stage ranges of every section to follow the stages that were inserted or removed above it
+            foreach (var s in input.Sections)
+            {
+                int shift = 0, own = 0;
+                foreach (var ch in changes)
+                {
+                    if (ch.Item1 == s.FromStage && ch.Item2 == s.ToStage) own = ch.Item3;
+                    else if (ch.Item2 < s.FromStage) shift += ch.Item3;
+                }
+                s.FromStage += shift;
+                s.ToStage += shift + own;
+            }
+            c.NumberOfStages = c.Stages.Count;
+            c.InitialEstimates = c.RebuildEstimates();
+            WriteGeometry(column, result);
+            try { column.Calculated = false; } catch { }
+            return string.Join(" ", log) + " The column has " + c.Stages.Count + " stages now; solve the flowsheet and rate again.";
         }
 
         /// <summary>
@@ -227,13 +366,18 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
             var column = FindColumn(host, input.ColumnName);
             if (column == null) throw new ArgumentException("Column '" + input.ColumnName + "' was not found on the flowsheet.");
             var result = Run(host, input);
-            var log = new List<string> { string.Format(ci, "pass 0: column pressure drop {0:F0} Pa", result.TotalPressureDrop) };
+            result.Input = input;
+            var log = new List<string> { string.Format(ci, "pass 0: column pressure drop {0:F0} Pa, {1} stages", result.TotalPressureDrop, StageCount(column)) };
             if (progress != null) progress(log[0]);
-            if (!input.IteratePressures && !input.IterateEfficiencies) { result.Log.AddRange(log); return result; }
+            bool restage = input.IterateStages && HasRestageableSection(input);
+            if (!input.IteratePressures && !input.IterateEfficiencies && !restage) { result.Log.AddRange(log); return result; }
             int passes = 0; bool converged = false;
             for (int it = 1; it <= Math.Max(1, input.MaxIterations); it++)
             {
+                int stagesBefore = StageCount(column);
+                if (restage) log.Add("pass " + it + ": " + ApplyStagesToColumn(column, result, input));
                 ApplyToColumn(column, result, input.IteratePressures, input.IterateEfficiencies);
+                bool stagesChanged = StageCount(column) != stagesBefore;
                 List<Exception> errors = null;
                 try { errors = host.RequestCalculationAndWait(); }
                 catch (Exception ex) { errors = new List<Exception> { ex }; }
@@ -250,6 +394,7 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
                     return result;
                 }
                 var next = Run(host, input);
+                next.Input = input;
                 passes = it;
                 var change = Math.Abs(next.TotalPressureDrop - result.TotalPressureDrop) / Math.Max(Math.Abs(result.TotalPressureDrop), 1.0);
                 double effChange = 0.0;
@@ -259,13 +404,13 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
                         var a = next.Sections[k].Stages[j].OConnellEfficiency; var b = result.Sections[k].Stages[j].OConnellEfficiency;
                         if (!double.IsNaN(a) && !double.IsNaN(b)) effChange = Math.Max(effChange, Math.Abs(a - b));
                     }
-                log.Add(string.Format(ci, "pass {0}: column pressure drop {1:F0} Pa (changed {2:F1} %), efficiencies moved by up to {3:F3}", it, next.TotalPressureDrop, change * 100.0, effChange));
+                log.Add(string.Format(ci, "pass {0}: column pressure drop {1:F0} Pa (changed {2:F1} %), efficiencies moved by up to {3:F3}, {4} stages", it, next.TotalPressureDrop, change * 100.0, effChange, StageCount(column)));
                 if (progress != null) progress(log[log.Count - 1]);
                 result = next;
-                if (change <= input.IterationTolerance && effChange <= 0.01) { converged = true; break; }
+                if (change <= input.IterationTolerance && effChange <= 0.01 && !stagesChanged) { converged = true; break; }
             }
             if (!converged) log.Add("The passes ran out before the pressure drop settled within " + (input.IterationTolerance * 100.0).ToString("0.#", ci) + " %; the last rating is shown.");
-            else log.Add("Settled after " + passes + " pass(es); the column now carries the rated pressures and efficiencies.");
+            else log.Add("Settled after " + passes + " pass(es); the column now carries the rated pressures and efficiencies" + (restage ? " and the stages of its packed beds" : "") + ".");
             result.Log.AddRange(log);
             result.Iterations = passes;
             result.Converged = converged;

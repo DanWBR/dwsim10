@@ -499,6 +499,8 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
         /// <summary>What the automatic iteration writes into the column.</summary>
         public bool IteratePressures = true;
         public bool IterateEfficiencies = true;
+        /// <summary>Whether the iteration re-stages the packed sections that have a bed height (stages = bed height / HETP).</summary>
+        public bool IterateStages = true;
 
         public ColumnInternalsInput Clone()
         {
@@ -514,7 +516,7 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
             TargetFloodFractionTrays = c.TargetFloodFractionTrays; TargetFloodFractionPackings = c.TargetFloodFractionPackings;
             MinDowncomerResidenceTime = c.MinDowncomerResidenceTime; Turndown = c.Turndown;
             MaxIterations = c.MaxIterations; IterationTolerance = c.IterationTolerance;
-            IteratePressures = c.IteratePressures; IterateEfficiencies = c.IterateEfficiencies;
+            IteratePressures = c.IteratePressures; IterateEfficiencies = c.IterateEfficiencies; IterateStages = c.IterateStages;
         }
 
         private static readonly CultureInfo CI = CultureInfo.InvariantCulture;
@@ -549,7 +551,8 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
                 new XElement("MaxIterations", MaxIterations.ToString(CI)),
                 new XElement("IterationTolerance", D(IterationTolerance)),
                 new XElement("IteratePressures", IteratePressures.ToString()),
-                new XElement("IterateEfficiencies", IterateEfficiencies.ToString()));
+                new XElement("IterateEfficiencies", IterateEfficiencies.ToString()),
+                new XElement("IterateStages", IterateStages.ToString()));
             var secs = new XElement("Sections");
             foreach (var s in Sections)
             {
@@ -628,6 +631,8 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
             bool bp, be;
             inp.IteratePressures = !bool.TryParse(PS(root, "IteratePressures", "True"), out bp) || bp;
             inp.IterateEfficiencies = !bool.TryParse(PS(root, "IterateEfficiencies", "True"), out be) || be;
+            bool bs;
+            inp.IterateStages = !bool.TryParse(PS(root, "IterateStages", "True"), out bs) || bs;
             var secs = root.Element("Sections");
             if (secs != null)
             {
@@ -837,5 +842,7 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
         /// <summary>Passes of the automatic iteration that produced this result (0 = a single rating).</summary>
         public int Iterations;
         public bool Converged = true;
+        /// <summary>The case the last pass used (its stage ranges follow the re-staging); null for a single rating.</summary>
+        public ColumnInternalsInput Input;
     }
 }

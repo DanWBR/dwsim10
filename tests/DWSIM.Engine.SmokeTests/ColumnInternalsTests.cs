@@ -698,6 +698,67 @@ namespace DWSIM.Engine.SmokeTests
             Assert.That(double.IsNaN((double)c.ColumnPressureDrop), "the column carries the rated stage pressures");
         }
 
+        /// <summary>A packed section with a bed height sets the number of stages of the column from the HETP: stages are added
+        /// evenly or removed where nothing is connected, the feeds keep their stages, the case is kept in the column and the
+        /// column solves again with the new count.</summary>
+        [Test]
+        public void PackedBedsRestageTheColumnFromTheBedHeight()
+        {
+            var flowsheet = Load("ExtractiveDistillation.dwxmz");
+            Assert.That(flowsheet.SolveFlowsheet2(), Is.Empty);
+            var name = ColumnInternalsStudy.ColumnNames(flowsheet)[0];
+            var column = (DWSIM.UnitOperations.UnitOperations.Column)ColumnInternalsStudy.FindColumn(flowsheet, name);
+            int n = column.Stages.Count;
+            var feedIds = column.MaterialStreams.Values.Where(si => si.StreamBehavior == DWSIM.UnitOperations.UnitOperations.Auxiliary.SepOps.StreamInformation.Behavior.Feed).Select(si => si.AssociatedStage).ToList();
+            Assert.That(feedIds, Is.Not.Empty);
+            var feedStagesBefore = feedIds.Select(id => column.StageIndex(id)).ToList();
+
+            var inp = new ColumnInternalsInput { ColumnName = name, MaxIterations = 3, IterationTolerance = 0.05 };
+            var bed = new InternalsSection { Name = "Bed", FromStage = 2, ToStage = n - 1, Type = InternalType.RandomPacking, PackingName = "Pall rings Metal 50 mm", Diameter = 0 };
+            inp.Sections.Add(bed);
+            var first = ColumnInternalsStudy.Run(flowsheet, inp);
+            var hetp = first.Sections[0].AverageHETP;
+            Assert.That(hetp, Is.InRange(0.1, 3.0));
+
+            // a bed 1.5 times taller than the stages the column has: stages are inserted
+            bed.BedHeight = 1.5 * (n - 2) * hetp;
+            var msg = ColumnInternalsStudy.ApplyStagesToColumn(column, first, inp);
+            TestContext.Out.WriteLine(msg);
+            int expected = (int)Math.Round(bed.BedHeight / hetp);
+            Assert.That(column.Stages.Count, Is.EqualTo(expected + 2), "stages after growing the bed");
+            Assert.That(column.NumberOfStages, Is.EqualTo(column.Stages.Count));
+            Assert.That(bed.ToStage, Is.EqualTo(column.Stages.Count - 1), "the section range follows");
+            foreach (var id in feedIds) Assert.That(column.StageIndex(id), Is.InRange(1, column.Stages.Count - 2), "the feed keeps a stage inside the column");
+            Assert.That(column.Stages[3].StageHeight, Is.EqualTo(hetp).Within(0.5 * hetp).Or.EqualTo(0.0), "stage heights carry the HETP where rated");
+            Assert.That(column.EstimatedDiameter, Is.InRange(0.2, 10));
+            Assert.That(flowsheet.SolveFlowsheet2(), Is.Empty, "the column solves with the new stages");
+            Assert.That(column.Calculated);
+
+            // the case lives in the column
+            ColumnInternalsStudy.StoreCaseInColumn(column, inp);
+            var kept = ColumnInternalsStudy.LoadCaseFromColumn(column);
+            Assert.That(kept, Is.Not.Null);
+            Assert.That(kept.Sections[0].ToStage, Is.EqualTo(bed.ToStage));
+            Assert.That(column.SaveData().Any(x => x.Name == "InternalsCase"), "saved with the column");
+
+            // a shorter bed: stages without connections are removed and the feeds stay
+            var second = ColumnInternalsStudy.Run(flowsheet, inp);
+            bed.BedHeight = 0.5 * (bed.ToStage - bed.FromStage + 1) * second.Sections[0].AverageHETP;
+            int before = column.Stages.Count;
+            msg = ColumnInternalsStudy.ApplyStagesToColumn(column, second, inp);
+            TestContext.Out.WriteLine(msg);
+            Assert.That(column.Stages.Count, Is.LessThan(before));
+            foreach (var id in feedIds) Assert.That(column.StageIndex(id), Is.InRange(1, column.Stages.Count - 2), "the feed stage was not removed");
+            Assert.That(flowsheet.SolveFlowsheet2(), Is.Empty, "the column solves after the shrink");
+
+            // the iteration re-stages on its own and settles
+            bed.BedHeight = (bed.ToStage - bed.FromStage + 1) * second.Sections[0].AverageHETP * 1.2;
+            var it = ColumnInternalsStudy.RunIterating(flowsheet, inp, line => TestContext.Out.WriteLine(line));
+            Assert.That(it.Input, Is.Not.Null);
+            Assert.That(column.Calculated);
+            Assert.That(it.Input.Sections[0].ToStage - it.Input.Sections[0].FromStage + 1, Is.EqualTo(column.Stages.Count - 2), "the case follows the column");
+        }
+
         /// <summary>The utility attached to the column keeps the case in the simulation and rates on Update.</summary>
         [Test]
         public void TheAttachedUtilityKeepsTheCaseAndRatesTheColumn()

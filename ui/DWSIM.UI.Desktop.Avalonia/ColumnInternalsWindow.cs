@@ -38,7 +38,7 @@ public sealed class ColumnInternalsWindow : Window
     private readonly ColumnInternalsUtility? _utility;
 
     private ComboBox _columnBox = null!;
-    private Button _run = null!, _iterate = null!, _export = null!, _load = null!, _save = null!, _applyP = null!, _applyE = null!;
+    private Button _run = null!, _iterate = null!, _export = null!, _load = null!, _save = null!, _applyP = null!, _applyE = null!, _applyN = null!;
     private ScrollViewer _left = null!;
     private readonly TextBlock _status = new() { FontSize = UiScale.Font(11), Opacity = 0.85, TextWrapping = TextWrapping.Wrap };
     private readonly StackPanel _summary = new() { Spacing = 2 };
@@ -127,6 +127,8 @@ public sealed class ColumnInternalsWindow : Window
 
     private void AutoLoadCase()
     {
+        var kept = ColumnInternalsStudy.FindColumn(_fs, _in.ColumnName);
+        if (kept != null && ColumnInternalsStudy.LoadCaseFromColumn(kept) != null) return;   // the column's own case is already loaded
         var path = CaseFilePathOfFlowsheet();
         if (path == null) return;
         try { ApplyLoadedCase(ColumnInternalsInput.LoadFromFile(path), System.IO.Path.GetFileName(path)); }
@@ -179,8 +181,11 @@ public sealed class ColumnInternalsWindow : Window
         _applyE = new Button { Content = "Efficiencies to column", IsEnabled = false };
         _applyE.Classes.Add("dialog");
         _applyE.Click += (_, _) => ApplyToColumn(false, true);
+        _applyN = new Button { Content = "Stages to column", IsEnabled = false };
+        _applyN.Classes.Add("dialog");
+        _applyN.Click += (_, _) => ApplyStagesToColumn();
         var buttons = new WrapPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(12, 6, 12, 8) };
-        foreach (var b in new[] { _run, _export, _applyP, _applyE, _iterate }) { b.Margin = new Thickness(0, 0, 8, 4); buttons.Children.Add(b); }
+        foreach (var b in new[] { _run, _export, _applyP, _applyE, _applyN, _iterate }) { b.Margin = new Thickness(0, 0, 8, 4); buttons.Children.Add(b); }
 
         var leftDock = new DockPanel();
         DockPanel.SetDock(topButtons, global::Avalonia.Controls.Dock.Top);
@@ -199,6 +204,16 @@ public sealed class ColumnInternalsWindow : Window
         if (!resetSections && _in.Sections.Count > 0) return;
         _in.Sections.Clear();
         var col = ColumnInternalsStudy.FindColumn(_fs, name);
+        // the case the column carries comes first
+        var kept = col != null ? ColumnInternalsStudy.LoadCaseFromColumn(col) : null;
+        if (kept != null)
+        {
+            _in.CopyFrom(kept);
+            _in.ColumnName = name;
+            _selected = _in.Sections.Count > 0 ? 0 : -1;
+            _status.Text = "Loaded the case saved in " + name + ".";
+            return;
+        }
         int n = col != null ? ColumnInternalsStudy.StageCount(col) : 0;
         if (n >= 3)
         {
@@ -249,6 +264,7 @@ public sealed class ColumnInternalsWindow : Window
             (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v) && v > 0) _in.IterationTolerance = v; });
         p.CreateAndAddCheckBoxRow("Write the stage pressures", _in.IteratePressures, (cb, _) => _in.IteratePressures = cb.IsChecked ?? true);
         p.CreateAndAddCheckBoxRow("Write the stage efficiencies", _in.IterateEfficiencies, (cb, _) => _in.IterateEfficiencies = cb.IsChecked ?? true);
+        p.CreateAndAddCheckBoxRow("Re-stage the packed beds that have a bed height (stages = bed height / HETP)", _in.IterateStages, (cb, _) => _in.IterateStages = cb.IsChecked ?? true);
 
         p.CreateAndAddLabelRow("Sections");
         p.CreateAndAddDescriptionRow("Split the column into ranges of stages, each with one kind of internal.");
@@ -552,6 +568,8 @@ public sealed class ColumnInternalsWindow : Window
                 ? await Task.Run(() => ColumnInternalsStudy.RunIterating(_fs, input, line => Dispatcher.UIThread.Post(() => _status.Text = line)))
                 : await Task.Run(() => ColumnInternalsStudy.Run(_fs, input));
             _result = result;
+            if (iterate && result.Input != null) { _in.CopyFrom(result.Input); Rebuild(); }
+            ColumnInternalsStudy.StoreCaseInColumn(col, _in);
             ShowResult(result);
             var warn = result.Sections.Sum(s => s.Warnings.Count + s.Stages.Sum(r => r.Warnings.Count));
             var head = iterate ? (result.Converged ? "Settled after " + result.Iterations + " pass(es). " : "Not settled after " + result.Iterations + " pass(es); see the summary. ") : "Done. ";
@@ -559,6 +577,7 @@ public sealed class ColumnInternalsWindow : Window
             _export.IsEnabled = true;
             _applyP.IsEnabled = !iterate;
             _applyE.IsEnabled = !iterate && result.Sections.Any(sec => sec.Stages.Any(r => !double.IsNaN(r.OConnellEfficiency)));
+            _applyN.IsEnabled = !iterate && ColumnInternalsStudy.HasRestageableSection(_in);
             if (iterate) { try { _fs.UpdateOpenEditForms(); } catch { } }
             StoreInUtility();
         }
@@ -577,10 +596,27 @@ public sealed class ColumnInternalsWindow : Window
         try
         {
             _status.Text = ColumnInternalsStudy.ApplyToColumn(col, _result, pressures, efficiencies);
+            ColumnInternalsStudy.StoreCaseInColumn(col, _in);
             _applyP.IsEnabled = false; _applyE.IsEnabled = false;
             try { _fs.UpdateOpenEditForms(); } catch { }
         }
         catch (Exception ex) { _status.Text = "Could not write to the column: " + ex.Message; }
+    }
+
+    private void ApplyStagesToColumn()
+    {
+        if (_result == null) return;
+        var col = ColumnInternalsStudy.FindColumn(_fs, _result.ColumnName);
+        if (col == null) { _status.Text = "The column is not on the flowsheet."; return; }
+        try
+        {
+            _status.Text = ColumnInternalsStudy.ApplyStagesToColumn(col, _result, _in);
+            ColumnInternalsStudy.StoreCaseInColumn(col, _in);
+            _applyP.IsEnabled = false; _applyE.IsEnabled = false; _applyN.IsEnabled = false;
+            Rebuild();
+            try { _fs.UpdateOpenEditForms(); } catch { }
+        }
+        catch (Exception ex) { _status.Text = "Could not re-stage the column: " + ex.Message; }
     }
 
     private void SetSummaryPlaceholder()

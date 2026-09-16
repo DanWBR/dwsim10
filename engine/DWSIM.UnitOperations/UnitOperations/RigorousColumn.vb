@@ -1908,6 +1908,9 @@ Namespace UnitOperations
 
         Public Property EstimatedHeight As Double = Double.NaN 'm
 
+        ''' <summary>The column internals case (sections, geometry and models of the Column Internals tool) as XML text, saved with the column.</summary>
+        Public Property InternalsCase As String = ""
+
         Public Property BottomSpacing As Double = 0.5 'm
 
         Public Property BottomLiquidLevel As Double = 0.0 'm

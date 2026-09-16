@@ -1,4 +1,4 @@
-//    Column internals rating as a utility attached to a rigorous column.
+﻿//    Column internals rating as a utility attached to a rigorous column.
 //    Copyright 2026 Daniel Wagner Oliveira de Medeiros
 //
 //    This file is part of DWSIM.
@@ -63,6 +63,8 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
         /// <summary>The case as the tool edits it; a fresh one on the attached column when nothing was saved yet.</summary>
         public ColumnInternalsInput GetInput()
         {
+            var fromColumn = AttachedTo != null ? ColumnInternalsStudy.LoadCaseFromColumn(AttachedTo) : null;
+            if (fromColumn != null) return fromColumn;
             var xml = Convert.ToString(Settings[CaseKey], CultureInfo.InvariantCulture);
             ColumnInternalsInput input = null;
             if (!string.IsNullOrWhiteSpace(xml))
@@ -78,6 +80,7 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
         {
             if (input == null) { Settings[CaseKey] = ""; return; }
             Settings[CaseKey] = input.ToXml().ToString(SaveOptions.DisableFormatting);
+            if (AttachedTo != null) ColumnInternalsStudy.StoreCaseInColumn(AttachedTo, input);
         }
 
         /// <summary>Rates the attached column with the saved case (nothing to do without sections or before the column solves).</summary>
