@@ -759,6 +759,61 @@ namespace DWSIM.Engine.SmokeTests
             Assert.That(it.Input.Sections[0].ToStage - it.Input.Sections[0].FromStage + 1, Is.EqualTo(column.Stages.Count - 2), "the case follows the column");
         }
 
+        /// <summary>The dynamic column reads a packed stage through its bed correlations: the pressure drop and holdup inversions recover
+        /// the velocities they were built from, the rating marks the stages of a packed section, and the dynamic model runs on them.</summary>
+        [Test]
+        public void PackedStagesDriveTheDynamicColumnThroughTheBedCorrelations()
+        {
+            var pall = PackingCatalogue.Find("Pall rings Metal 50 mm");
+            var mella = PackingCatalogue.Find("Mellapak Sheet metal 250Y");
+            double rhoV = 3.0, rhoL = 650, muV = 8e-6, muL = 3e-4, sigma = 0.018;
+            foreach (var pk in new[] { pall, mella })
+            {
+                var st = new DWSIM.UnitOperations.UnitOperations.Auxiliary.SepOps.Stage(Guid.NewGuid().ToString()) { PackingModel = pk.Structured ? 2 : 0 };
+                double uV = 1.0, uL = 0.005;
+                var dp = DWSIM.UnitOperations.UnitOperations.Column.PackedBedPressureDrop(st, pk, uV, uL, rhoV, rhoL, muV, muL, sigma, 1.0);
+                Assert.That(dp, Is.InRange(20, 2000), pk.DisplayName + " dP/m");
+                var back = DWSIM.UnitOperations.UnitOperations.Column.PackedBedVaporVelocity(st, pk, dp, uL, rhoV, rhoL, muV, muL, sigma, 1.0);
+                Assert.That(back, Is.EqualTo(uV).Within(1e-3), pk.DisplayName + " vapour velocity recovered from its pressure drop");
+                var hold = DWSIM.UnitOperations.UnitOperations.Column.PackedBedHoldup(st, pk, uL, rhoV, rhoL, muL, sigma);
+                Assert.That(hold, Is.InRange(0.005, 0.2), pk.DisplayName + " holdup");
+                var uLback = DWSIM.UnitOperations.UnitOperations.Column.PackedBedLiquidVelocity(st, pk, hold, rhoV, rhoL, muL, sigma);
+                Assert.That(uLback, Is.EqualTo(uL).Within(1e-5), pk.DisplayName + " liquid velocity recovered from its holdup");
+                TestContext.Out.WriteLine("{0}: dP {1:F0} Pa/m at u_V {2}, holdup {3:F4} at u_L {4}", pk.DisplayName, dp, uV, hold, uL);
+            }
+
+            var flowsheet = Load("ExtractiveDistillation.dwxmz");
+            Assert.That(flowsheet.SolveFlowsheet2(), Is.Empty);
+            var name = ColumnInternalsStudy.ColumnNames(flowsheet)[0];
+            var column = (DWSIM.UnitOperations.UnitOperations.Column)ColumnInternalsStudy.FindColumn(flowsheet, name);
+            int n = column.Stages.Count;
+            var inp = new ColumnInternalsInput { ColumnName = name };
+            inp.Sections.Add(new InternalsSection { Name = "Bed", FromStage = 2, ToStage = n - 1, Type = InternalType.RandomPacking, PackingName = pall.DisplayName });
+            var res = ColumnInternalsStudy.Run(flowsheet, inp);
+            ColumnInternalsStudy.ApplyToColumn(column, res, true, true);
+            Assert.That(column.Stages.Skip(1).Take(n - 2).All(x => x.IsPacked), "the bed stages are marked packed");
+            Assert.That(column.Stages[0].IsPacked, Is.False);
+            Assert.That(column.Stages[2].PackingName, Is.EqualTo(pall.DisplayName));
+            Assert.That(column.Stages[2].StageHeight, Is.InRange(0.05, 3.0));
+            Assert.That(string.Concat(column.SaveData().Select(x => x.ToString())), Does.Contain("IsPacked"), "the packing travels with the stage");
+            Assert.That(flowsheet.SolveFlowsheet2(), Is.Empty);
+
+            // a few seconds of dynamics on the packed column
+            column.CreateDynamicProperties();
+            var integrator = new DWSIM.DynamicsManager.Integrator { ID = "packed", Description = "packed", IntegrationStep = TimeSpan.FromSeconds(1), Duration = TimeSpan.FromSeconds(5), RealTime = false };
+            var schedule = new DWSIM.DynamicsManager.Schedule { ID = "packed", Description = "packed", CurrentIntegrator = "packed", UseCurrentStateAsInitial = true };
+            flowsheet.DynamicsManager.IntegratorList["packed"] = integrator;
+            flowsheet.DynamicsManager.ScheduleList["packed"] = schedule;
+            flowsheet.DynamicsManager.CurrentSchedule = "packed";
+            var result = new DWSIM.Automation.DynamicRunner.IntegratorRunner(flowsheet).Run(new DWSIM.Automation.DynamicRunner.IntegratorRunOptions { Schedule = "packed", RestoreInitialState = false });
+            TestContext.Out.WriteLine("dynamics: {0}", result);
+            for (int i = 1; i < n - 1; i++)
+            {
+                Assert.That(column.Stages[i].Vout.Value, Is.GreaterThan(0).And.LessThan(1e6), "vapour leaving packed stage " + (i + 1));
+                Assert.That(column.Stages[i].Lout.Value, Is.GreaterThan(0).And.LessThan(1e6), "liquid leaving packed stage " + (i + 1));
+            }
+        }
+
         /// <summary>The utility attached to the column keeps the case in the simulation and rates on Update.</summary>
         [Test]
         public void TheAttachedUtilityKeepsTheCaseAndRatesTheColumn()

@@ -259,12 +259,27 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
             if (d > 0) c.EstimatedDiameter = d;
             if (result.TotalHeight > 0) c.EstimatedHeight = result.TotalHeight;
             foreach (var sr in result.Sections)
+            {
+                var packing = sr.Section.IsTray ? null : sr.Section.ResolvePacking();
                 foreach (var r in sr.Stages)
                 {
                     if (r.Stage < 1 || r.Stage > c.Stages.Count) continue;
+                    var st = c.Stages[r.Stage - 1];
                     var h = sr.Section.IsTray ? sr.Section.TraySpacing : (!double.IsNaN(r.HETP) && r.HETP > 0 ? r.HETP : sr.AverageHETP);
-                    if (h > 0) c.Stages[r.Stage - 1].StageHeight = h;
+                    if (h > 0) st.StageHeight = h;
+                    // the dynamic model reads the packing from the stage
+                    st.IsPacked = !sr.Section.IsTray && packing != null;
+                    if (st.IsPacked)
+                    {
+                        st.PackingName = sr.Section.CustomPacking == null ? sr.Section.PackingName : "";
+                        st.PackingStructured = packing.Structured;
+                        st.PackingFp = packing.Fp; st.PackingFpd = packing.Fpd; st.PackingArea = packing.a; st.PackingVoid = packing.Epsilon;
+                        st.PackingCh = packing.Ch; st.PackingCp = packing.Cp; st.PackingCs = packing.Cs;
+                        st.PackingCorrugationSide = packing.CorrugationSide; st.PackingCorrugationAngle = packing.CorrugationAngle;
+                        st.PackingModel = (int)sr.Section.PackingModel;
+                    }
                 }
+            }
         }
 
         /// <summary>True when a section is packed and its bed height is given, so its number of stages follows from the HETP.</summary>

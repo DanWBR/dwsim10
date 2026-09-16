@@ -1362,9 +1362,9 @@ Namespace UnitOperations
             AddDynamicProperty("Max. L change (%)", "Maximum Liquid Flow change (in percent) change between iterations", 10, UnitOfMeasure.none, 1.0.GetType())
             AddDynamicProperty("Max. V change (%)", "Maximum Vapor Flow change (in percent) change between iterations", 10, UnitOfMeasure.none, 1.0.GetType())
             AddDynamicProperty("Time step discretization", "Number of sub-steps per integration step for column dynamics.", 1, UnitOfMeasure.none, 1.0.GetType())
-            AddDynamicProperty("Souders-Brown Coefficient", "Souders-Brown coefficient C_SB (m/s) for flooding check. Typical 0.03-0.05 for sieve trays. Set to 0 to disable.", 0.0, UnitOfMeasure.none, 1.0.GetType())
-            AddDynamicProperty("Flooding Alarm", "True when any stage exceeds the flooding velocity limit.", False, UnitOfMeasure.none, True.GetType())
-            AddDynamicProperty("Weeping Alarm", "True when any stage vapor velocity is below minimum for tray support.", False, UnitOfMeasure.none, True.GetType())
+            AddDynamicProperty("Souders-Brown Coefficient", "Souders-Brown coefficient C_SB (m/s) for the flooding check of tray stages. Typical 0.03-0.05 for sieve trays. Set to 0 to disable. Packed stages (marked by the Column Internals tool) are checked with their own packing correlations.", 0.0, UnitOfMeasure.none, 1.0.GetType())
+            AddDynamicProperty("Flooding Alarm", "True when any stage exceeds the flooding velocity limit (tray: Souders-Brown; packed stage: the flood point of its packing correlation).", False, UnitOfMeasure.none, True.GetType())
+            AddDynamicProperty("Weeping Alarm", "True when any tray stage vapor velocity is below minimum for tray support, or a packed stage is below the minimum wetting rate of its packing.", False, UnitOfMeasure.none, True.GetType())
             AddDynamicProperty("Apply Murphree Efficiency", "Apply stage Murphree efficiency to dynamic simulation. Stage efficiency values are used.", False, UnitOfMeasure.none, True.GetType())
 
         End Sub
@@ -1410,6 +1410,29 @@ Namespace UnitOperations
                 End With
 
                 Stages(i).LiquidLevel = s.AccumulationStream.OverallLiquid.Properties.volumetric_flow.GetValueOrDefault() / ((Math.PI * EstimatedDiameter ^ 2 / 4) - Stages(i).DowncomerArea)
+
+                'A packed stage holds the liquid its bed correlation keeps at the steady-state liquid rate: scale the
+                'seeded content so its liquid volume matches that holdup on the slice of bed.
+                If s.IsPacked AndAlso i > 0 AndAlso i < Stages.Count - 1 AndAlso EstimatedDiameter > 0 Then
+                    Dim A = Math.PI * EstimatedDiameter ^ 2 / 4.0
+                    Dim H = Math.Max(s.StageHeight, 0.05)
+                    Dim st = s.AccumulationStream
+                    Dim vliq = st.OverallLiquid.Properties.volumetric_flow.GetValueOrDefault()
+                    Dim ql = st.OverallLiquid.Properties.molarflow.GetValueOrDefault()
+                    If vliq > 0 AndAlso ql > 0 Then
+                        Dim vl = vliq / ql
+                        Dim rhoV, rhoL, muV, muL, sigma As Double
+                        PackedBedProperties(st, rhoV, rhoL, muV, muL, sigma)
+                        Dim uL = Math.Max(0.0, sol.LiqMolarFlows(i).Value) * vl / A
+                        Dim hold = PackedBedHoldup(s, StagePacking(s), uL, rhoV, rhoL, muL, sigma)
+                        Dim target = Math.Max(0.005, hold) * A * H
+                        Dim factor = target / vliq
+                        If factor.IsValidDouble() AndAlso factor > 0 Then
+                            st.SetMolarFlow(st.GetMolarFlow() * factor)
+                            st.Calculate()
+                        End If
+                    End If
+                End If
 
             Next
 
@@ -1562,7 +1585,11 @@ Namespace UnitOperations
                     'Bottom sump: it has no tray of its own (it is the extra holdup below the last
                     'stage), so its up-flowing vapor is tracked as the last tray's vapor inlet.
                     Fv0 = Stages(i - 1).Vin.Value
-                    Fv = Stages(i - 1).TotalHoleArea / vv * ((_Streams(i).GetPressure() - _Streams(i - 1).GetPressure()) / (101325 * rhov * Stages(i - 1).DryTrayPressureDropCoefficient)) ^ 0.5
+                    If Stages(i - 1).IsPacked Then
+                        Fv = PackedVaporMolarFlow(i - 1, _Streams(i).GetPressure() - _Streams(i - 1).GetPressure(), _Streams(i), vv, vl)
+                    Else
+                        Fv = Stages(i - 1).TotalHoleArea / vv * ((_Streams(i).GetPressure() - _Streams(i - 1).GetPressure()) / (101325 * rhov * Stages(i - 1).DryTrayPressureDropCoefficient)) ^ 0.5
+                    End If
                     If Math.Abs((Fv - Fv0) / Fv0 * 100) > maxDV Then Fv = Fv0 * (1 + maxDV / 100.0 * Math.Sign(Fv - Fv0))
                     If Fv.IsValidDouble() Then
                         Stages(i - 1).Vin.Value = Fv
@@ -1593,7 +1620,11 @@ Namespace UnitOperations
                     End If
                 Else
                     Fv0 = Stages(i).Vout.Value
-                    Fv = Stages(i).TotalHoleArea / vv * ((_Streams(i + 1).GetPressure() - _Streams(i).GetPressure()) / (101325 * rhov * Stages(i).DryTrayPressureDropCoefficient)) ^ 0.5
+                    If Stages(i).IsPacked Then
+                        Fv = PackedVaporMolarFlow(i, _Streams(i + 1).GetPressure() - _Streams(i).GetPressure(), _Streams(i), vv, vl)
+                    Else
+                        Fv = Stages(i).TotalHoleArea / vv * ((_Streams(i + 1).GetPressure() - _Streams(i).GetPressure()) / (101325 * rhov * Stages(i).DryTrayPressureDropCoefficient)) ^ 0.5
+                    End If
                     If Math.Abs((Fv - Fv0) / Fv0 * 100) > maxDV Then Fv = Fv0 * (1 + maxDV / 100.0 * Math.Sign(Fv - Fv0))
                     If Fv.IsValidDouble() Then
                         Stages(i).Vout.Value = Fv
@@ -1608,7 +1639,11 @@ Namespace UnitOperations
                         End If
                     End If
                     Fl0 = Stages(i).Lout.Value
-                    Fl = Stages(i).LiquidFlowEquationCoefficient_Alpha * Stages(i).DowncomerLength / vl * ((Stages(i).LiquidLevel - Stages(i).LiquidFlowEquationCoefficient_Beta * Stages(i).DowncomerHeight) / Stages(i).LiquidFlowEquationCoefficient_Beta) ^ 1.5
+                    If Stages(i).IsPacked Then
+                        Fl = PackedLiquidMolarFlow(i, _Streams(i), vl)
+                    Else
+                        Fl = Stages(i).LiquidFlowEquationCoefficient_Alpha * Stages(i).DowncomerLength / vl * ((Stages(i).LiquidLevel - Stages(i).LiquidFlowEquationCoefficient_Beta * Stages(i).DowncomerHeight) / Stages(i).LiquidFlowEquationCoefficient_Beta) ^ 1.5
+                    End If
                     If Math.Abs((Fl - Fl0) / Fl0 * 100) > maxDL Then Fl = Fl0 * (1 + maxDL / 100.0 * Math.Sign(Fl - Fl0))
                     If Fl.IsValidDouble() Then
                         Stages(i).Lout.Value = Fl
@@ -1626,7 +1661,12 @@ Namespace UnitOperations
                     End If
                 End If
 
-                If C_SB > 0 AndAlso i > 0 AndAlso i < _Streams.Count - 1 Then
+                If i > 0 AndAlso i < _Streams.Count - 1 AndAlso Stages(i).IsPacked Then
+                    Dim floodFraction, wettingRatio As Double
+                    PackedBedCheck(i, _Streams(i), Stages(i).Vout.Value, Stages(i).Lout.Value, vv, vl, floodFraction, wettingRatio)
+                    If floodFraction > 1.0 Then floodingDetected = True
+                    If wettingRatio < 1.0 Then weepingDetected = True
+                ElseIf C_SB > 0 AndAlso i > 0 AndAlso i < _Streams.Count - 1 Then
                     Dim activeArea = (Math.PI * EstimatedDiameter ^ 2 / 4) - Stages(i).DowncomerArea
                     If activeArea > 0 AndAlso rhov > 0 AndAlso rhol > 0 Then
                         Dim vVapor = _Streams(i).Vapor.Properties.volumetric_flow.GetValueOrDefault() / activeArea
@@ -1641,7 +1681,7 @@ Namespace UnitOperations
                 'streams in a dedicated pass below (it needs the incoming vapor, vTrans(i+1)).
             Next
 
-            If C_SB > 0 Then
+            If C_SB > 0 OrElse Stages.Any(Function(st) st.IsPacked) Then
                 SetDynamicProperty("Flooding Alarm", floodingDetected)
                 SetDynamicProperty("Weeping Alarm", weepingDetected)
             End If
@@ -7025,6 +7065,36 @@ Namespace UnitOperations.Auxiliary.SepOps
         Public Property LiquidLevel As Double = 0.0
 
         Public Property StageHeight As Double = 0.0
+
+        ''' <summary>True when the stage is a slice of a packed bed (set by the Column Internals tool): the dynamic model then takes
+        ''' its vapour flow from the bed pressure drop and its liquid flow from the bed holdup instead of the tray equations.</summary>
+        Public Property IsPacked As Boolean = False
+
+        ''' <summary>The packing of a packed stage: the catalogue name and, for a user-defined packing, its constants.</summary>
+        Public Property PackingName As String = ""
+
+        Public Property PackingStructured As Boolean = False
+
+        Public Property PackingFp As Double = Double.NaN
+
+        Public Property PackingFpd As Double = Double.NaN
+
+        Public Property PackingArea As Double = Double.NaN
+
+        Public Property PackingVoid As Double = Double.NaN
+
+        Public Property PackingCh As Double = Double.NaN
+
+        Public Property PackingCp As Double = Double.NaN
+
+        Public Property PackingCs As Double = Double.NaN
+
+        Public Property PackingCorrugationSide As Double = Double.NaN
+
+        Public Property PackingCorrugationAngle As Double = 45.0
+
+        ''' <summary>The capacity and pressure drop model of the bed (0 Robbins, 1 Billet and Schultes, 2 Rocha, Bravo and Fair).</summary>
+        Public Property PackingModel As Integer = 0
 
         Public Property AccumulationStream As MaterialStream
 
