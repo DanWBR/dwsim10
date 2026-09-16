@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using DWSIM.Automation.DynamicRunner.Setup;
 using DWSIM.Automation.FluentAPI;
@@ -198,6 +198,44 @@ namespace DWSIM.FluentAPI.Tests
             Assert.That(undocumented, Is.Empty,
                 "every code reported has to be in the published catalogue; missing: " +
                 string.Join(", ", undocumented));
+        }
+        /// <summary>
+        /// A heater ships with a 1 m³ holdup and a flow conductance of 1, which are placeholders.
+        /// On a small flow the volume holds the fluid for hours and the conductance gives no
+        /// pressure drop at all; the plan sizes both from the converged point, and applying them
+        /// makes the checks go quiet.
+        /// </summary>
+        [Test]
+        public void HeaterHoldupAndFlowConductanceAreSizedFromTheSteadyState()
+        {
+            var fs = Flowsheet.Create("HeaterHoldup")
+                .WithCompound("Water")
+                .WithPropertyPackage(PropertyPackages.SteamTables);
+            var feed = fs.AddMaterialStream("feed").At(25.Celsius(), 5.Bar()).WithMassFlow(0.1.KgPerSecond());
+            var product = fs.AddMaterialStream("product").At(40.Celsius(), 4.5.Bar());
+            fs.AddHeater("H-01").WithHeatAdded(10.0.Kilowatts()).WithPressureDrop(0.5.Bar()).ConnectFeed(feed, 0).ConnectProduct(product, 0);
+            fs.AutoLayout();
+            fs.Solve();
+            var inner = fs.Inner;
+
+            var issues = DynamicsSetupPlan.Propose(inner);
+            var volume = issues.FirstOrDefault(i => i.Code == "HOLDUP_VOLUME_CHECK" && i.ObjectTag == "H-01");
+            var conductance = issues.FirstOrDefault(i => i.Code == "FLOW_CONDUCTANCE_CHECK" && i.ObjectTag == "H-01");
+            Assert.That(volume, Is.Not.Null, "1 m³ on 0.1 kg/s of water is hours of residence time");
+            Assert.That(conductance, Is.Not.Null, "K = 1 gives 0.01 Pa where the steady state drops 50 kPa");
+
+            // 0.1 kg/s of water is about 1e-4 m3/s; 30 s of it is about 3 L
+            Assert.That(Convert.ToDouble(volume.SuggestedValue), Is.EqualTo(3.0e-3).Within(0.5e-3));
+            // K = W / sqrt(dP) = 0.1 / sqrt(50000)
+            Assert.That(Convert.ToDouble(conductance.SuggestedValue), Is.EqualTo(0.1 / Math.Sqrt(50000.0)).Within(1e-5));
+            Assert.That(issues.Any(i => i.Code == "WALL_MASS_ZERO" && i.ObjectTag == "H-01"), Is.True);
+
+            DynamicsSetupPlan.Apply(volume);
+            DynamicsSetupPlan.Apply(conductance);
+
+            var again = DynamicsSetupPlan.Propose(inner);
+            Assert.That(again.Any(i => i.Code == "HOLDUP_VOLUME_CHECK" && i.ObjectTag == "H-01"), Is.False);
+            Assert.That(again.Any(i => i.Code == "FLOW_CONDUCTANCE_CHECK" && i.ObjectTag == "H-01"), Is.False);
         }
     }
 }
