@@ -1022,7 +1022,7 @@ Namespace Reactors
                 Dim cv As New SystemsOfUnits.Converter
                 Dim value As Double = 0
 
-                If prop.Contains("_") AndAlso prop.Split("_").Length > 2 Then
+                If prop.StartsWith("PROP_") Then
 
                     Try
 
@@ -1144,7 +1144,7 @@ Namespace Reactors
                 Dim cv As New SystemsOfUnits.Converter
                 Dim value As String = ""
 
-                If prop.Contains("_") Then
+                If prop.StartsWith("PROP_") Then
 
                     Try
 

@@ -1410,7 +1410,7 @@ out:        Dim ms1, ms2 As MaterialStream
                 Dim cv As New SystemsOfUnits.Converter
                 Dim value As Double = 0
 
-                If prop.Contains("_") Then
+                If prop.StartsWith("PROP_") Then
 
                     Dim propidx As Integer = Convert.ToInt32(prop.Split("_")(2))
 
@@ -1661,7 +1661,7 @@ out:        Dim ms1, ms2 As MaterialStream
                 Dim cv As New SystemsOfUnits.Converter
                 Dim value As String = ""
 
-                If prop.Contains("_") Then
+                If prop.StartsWith("PROP_") Then
 
                     Try
 
