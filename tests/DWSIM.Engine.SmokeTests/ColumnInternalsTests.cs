@@ -865,6 +865,7 @@ namespace DWSIM.Engine.SmokeTests
             column.RateBased = true;
             column.RateBasedTrayMethod = 1;
             Assert.That(flowsheet.SolveFlowsheet2(), Is.Empty, "rate-based Wang-Henke");
+            AssertNoNegativeFractions(column);
             Assert.That(column.RateBasedEfficiencies, Is.Not.Null);
             foreach (var l in column.RateBasedLog) TestContext.Out.WriteLine(l);
             foreach (var l in column.RateBasedStageNotes.Take(4)) TestContext.Out.WriteLine(l);
@@ -879,6 +880,7 @@ namespace DWSIM.Engine.SmokeTests
             column.SolvingMethodName = "Napthali-Sandholm (Simultaneous Correction)";
             var errors = flowsheet.SolveFlowsheet2();
             TestContext.Out.WriteLine("Naphtali-Sandholm: " + string.Join("; ", errors.Select(e => e.Message)) + " | " + string.Join(" | ", column.RateBasedLog));
+            if (errors.Count == 0) AssertNoNegativeFractions(column);
             if (errors.Count == 0)
             {
                 var meansNR = Enumerable.Range(1, n - 2).Select(i => column.RateBasedStageEfficiency(i)).ToList();
@@ -900,6 +902,19 @@ namespace DWSIM.Engine.SmokeTests
             TestContext.Out.WriteLine("packed stage efficiencies: " + string.Join(" ", meansPacked.Select(m => m.ToString("0.00"))) + " | " + string.Join(" | ", column.RateBasedLog));
             foreach (var m in meansPacked) Assert.That(m, Is.InRange(0.02, 1.0));
             Assert.That(meansPacked.Average(), Is.InRange(0.3, 1.0), "a slice of bed one HETP tall is close to a theoretical stage");
+        }
+
+        static void AssertNoNegativeFractions(DWSIM.UnitOperations.UnitOperations.Column column)
+        {
+            double miny = double.MaxValue, minx = double.MaxValue;
+            for (int i = 0; i < column.yf.Count; i++)
+            {
+                foreach (var v in (double[])column.yf[i]) miny = Math.Min(miny, v);
+                foreach (var v in (double[])column.xf[i]) minx = Math.Min(minx, v);
+            }
+            TestContext.Out.WriteLine("smallest vapour fraction " + miny.ToString("0.###E+0") + ", smallest liquid fraction " + minx.ToString("0.###E+0"));
+            Assert.That(miny, Is.GreaterThanOrEqualTo(0.0), "no negative vapour fraction with efficiencies above 1");
+            Assert.That(minx, Is.GreaterThanOrEqualTo(0.0), "no negative liquid fraction with efficiencies above 1");
         }
 
         /// <summary>The utility attached to the column keeps the case in the simulation and rates on Update.</summary>

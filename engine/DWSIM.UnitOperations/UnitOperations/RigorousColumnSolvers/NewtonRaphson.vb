@@ -695,7 +695,7 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                                 E(i, j) = lc(i)(j) / _maxlc
                             ElseIf _condtype = condtype.Partial_Condenser Then
                                 M(i, j) = lc(i)(j) * (1 + Sl(i)) + vc(i)(j) * (1 + Sv(i)) - vc(i + 1)(j) - fc(i)(j)
-                                E(i, j) = Ef(_effc, eff, i, j) * Kval(i)(j) * lvr(i)(j) - vc(i)(j) + (1 - Ef(_effc, eff, i, j)) * vc(i + 1)(j) * sumvkj(i) / sumvkj(i + 1)
+                                E(i, j) = Ef(_effc, eff, i, j, Kval(i)(j) * lvr(i)(j), vc(i + 1)(j) * sumvkj(i) / sumvkj(i + 1)) * (Kval(i)(j) * lvr(i)(j) - vc(i + 1)(j) * sumvkj(i) / sumvkj(i + 1)) + vc(i + 1)(j) * sumvkj(i) / sumvkj(i + 1) - vc(i)(j)
                             Else
                                 'total condenser
                                 Dim sum1 As Double = 0
@@ -711,14 +711,14 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                             End If
                         Else
                             M(i, j) = lc(i)(j) * (1 + Sl(i)) + vc(i)(j) * (1 + Sv(i)) - vc(i + 1)(j) - fc(i)(j)
-                            E(i, j) = Ef(_effc, eff, i, j) * Kval(i)(j) * lvr(i)(j) - vc(i)(j) + (1 - Ef(_effc, eff, i, j)) * vc(i + 1)(j) * sumvkj(i) / sumvkj(i + 1)
+                            E(i, j) = Ef(_effc, eff, i, j, Kval(i)(j) * lvr(i)(j), vc(i + 1)(j) * sumvkj(i) / sumvkj(i + 1)) * (Kval(i)(j) * lvr(i)(j) - vc(i + 1)(j) * sumvkj(i) / sumvkj(i + 1)) + vc(i + 1)(j) * sumvkj(i) / sumvkj(i + 1) - vc(i)(j)
                         End If
                     ElseIf i = ns Then
                         M(i, j) = lc(i)(j) * (1 + Sl(i)) + vc(i)(j) * (1 + Sv(i)) - lc(i - 1)(j) - fc(i)(j)
                         E(i, j) = Ef(_effc, eff, i, j) * Kval(i)(j) * lvr(i)(j) - vc(i)(j)
                     Else
                         M(i, j) = lc(i)(j) * (1 + Sl(i)) + vc(i)(j) * (1 + Sv(i)) - lc(i - 1)(j) - vc(i + 1)(j) - fc(i)(j)
-                        E(i, j) = Ef(_effc, eff, i, j) * Kval(i)(j) * lvr(i)(j) - vc(i)(j) + (1 - Ef(_effc, eff, i, j)) * vc(i + 1)(j) * sumvkj(i) / sumvkj(i + 1)
+                        E(i, j) = Ef(_effc, eff, i, j, Kval(i)(j) * lvr(i)(j), vc(i + 1)(j) * sumvkj(i) / sumvkj(i + 1)) * (Kval(i)(j) * lvr(i)(j) - vc(i + 1)(j) * sumvkj(i) / sumvkj(i + 1)) + vc(i + 1)(j) * sumvkj(i) / sumvkj(i + 1) - vc(i)(j)
                     End If
                 Next
                 If i = 0 Then
@@ -1030,6 +1030,7 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                     Dim rE As Integer = bc + 1 + nc + j
                     Dim rM As Integer = bc + 1 + j
                     Dim ej As Double = Ef(_effc, _steff, i, j)
+                    If i < ns Then ej = Ef(_effc, _steff, i, j, K * lcj * svsum / slsum, _stvc(i + 1)(j) * svsum / _stsumv(i + 1))
 
                     ' E row: dE/dT(i)
                     g(rE, bc) = ej * dKdT(j) * lcj * svsum / slsum * sT

@@ -1805,7 +1805,8 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                         If i = ns Then
                             yc(i)(j) = K(i)(j) * xc(i)(j)
                         Else
-                            yc(i)(j) = Ef(_effc, eff, i, j) * K(i)(j) * xc(i)(j) + (1 - Ef(_effc, eff, i, j)) * yc(i + 1)(j)
+                            Dim ej = Ef(_effc, eff, i, j, K(i)(j) * xc(i)(j), yc(i + 1)(j))
+                            yc(i)(j) = ej * K(i)(j) * xc(i)(j) + (1 - ej) * yc(i + 1)(j)
                         End If
                         sumy(i) += yc(i)(j)
                     Next

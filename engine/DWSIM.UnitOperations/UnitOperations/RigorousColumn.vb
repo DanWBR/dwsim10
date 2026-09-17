@@ -7602,6 +7602,16 @@ Namespace UnitOperations.Auxiliary.SepOps
             Return eff(i)
         End Function
 
+        ''' <summary>The efficiency to apply on stage i to component j given its equilibrium vapour value ystar = K x and the
+        ''' vapour ynext arriving from the stage below (both may be scaled by the same flow). An efficiency above 1 is applied
+        ''' as given when the component is enriched on the stage; when it is stripped (ystar below ynext) the overshoot below
+        ''' the equilibrium value is stopped at half of it, so the outlet fraction stays positive whatever the efficiency.</summary>
+        Protected Shared Function Ef(effc()() As Double, eff() As Double, i As Integer, j As Integer, ystar As Double, ynext As Double) As Double
+            Dim e = Ef(effc, eff, i, j)
+            If e <= 1.0 OrElse ystar >= ynext OrElse ynext <= 0.0 Then Return e
+            Return Math.Min(e, (ynext - 0.5 * Math.Max(ystar, 0.0)) / (ynext - Math.Max(ystar, 0.0)))
+        End Function
+
         Public MustOverride ReadOnly Property Name As String
 
         Public MustOverride ReadOnly Property Description As String
