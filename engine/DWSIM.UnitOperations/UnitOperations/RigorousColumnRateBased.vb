@@ -253,12 +253,8 @@ Namespace UnitOperations
                         Dim hL, pe As Double
                         TrayMassTransfer.Efficiencies(CType(RateBasedTrayMethod, TrayMassTransferMethod), hw, lw, Z, Aa, QL, QG, rhoV, rhoL, muV, DG, DL, lambda, flood, eog, emv, hL, pe, ng, nlu)
                         result(i) = emv
-                        Dim raw = 0.0
-                        For j = 0 To nc - 1
-                            raw += TrayMassTransfer.MurphreeFromPoint(eog(j), lambda(j), pe) / nc
-                        Next
-                        RateBasedStageNotes.Add(String.Format(ci, "stage {0}: tray, h_L {1:F1} mm, flood {2:F2}, N_G {3:F2}, N_L {4:F2}, E_OG {5:F3}, Pe {6:F1}, E_MV {7:F3} (unclamped {8:F3})",
-                                                              i + 1, hL * 1000, flood, ng.Average(), nlu.Average(), eog.Average(), pe, emv.Average(), raw))
+                        RateBasedStageNotes.Add(String.Format(ci, "stage {0}: tray, h_L {1:F1} mm, flood {2:F2}, N_G {3:F2}, N_L {4:F2}, E_OG {5:F3}, Pe {6:F1}, E_MV {7:F3}",
+                                                              i + 1, hL * 1000, flood, ng.Average(), nlu.Average(), eog.Average(), pe, emv.Average()))
                     End If
                 Next
             Finally

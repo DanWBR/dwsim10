@@ -100,10 +100,10 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
     /// </summary>
     public static class TrayMassTransfer
     {
-        /// <summary>The largest Murphree efficiency the column applies. Partial mixing along a long flow path can give values
-        /// above 1 (Seader's example: 1.25), but with estimated diffusivities and eddy diffusivity that is more than the
-        /// correlations can promise, so the applied value stops at 1; the raw value is kept in the stage notes.</summary>
-        public const double MurphreeCap = 1.0;
+        /// <summary>A numerical ceiling on the Murphree efficiency. Partial mixing along a long flow path gives values above 1
+        /// (Seader's example: 1.25) and the column applies them as computed; the ceiling only stops the plug-flow limit of the
+        /// Gerster relation, (exp(lambda E_OG) - 1)/lambda, from running away at very large stripping factors.</summary>
+        public const double MurphreeCap = 3.0;
 
         /// <summary>Effective froth density (Perry eq. 14-117): phi_e = exp(-12.55 K_s^0.91), K_s = u_a sqrt(rho_V/(rho_L - rho_V)) in m/s.</summary>
         public static double FrothDensity(double ua, double rhoV, double rhoL)
