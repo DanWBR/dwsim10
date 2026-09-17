@@ -1,4 +1,4 @@
-'    DWSIM AI Assistant Extension
+﻿'    DWSIM AI Assistant Extension
 '    Copyright 2026 Daniel Wagner O. de Medeiros
 '
 '    This file is part of DWSIM.
@@ -64,11 +64,88 @@ Public Class FlowsheetChecks
                 {"severity", finding.Severity.ToString().ToLowerInvariant()},
                 {"object", finding.ObjectTag},
                 {"message", finding.Message},
-                {"fix", finding.Fix}
+                {"fix", finding.Fix},
+                {"learn_more", FindingExplanations.LearnMoreUrl(finding.Code)}
             })
         Next
 
         Return array
+
+    End Function
+
+    ''' <summary>The written explanation of one code: meaning, why, how to fix, where to read.</summary>
+    Public Shared Function Explanation(code As String) As JObject
+
+        Dim e = FindingExplanations.For(code)
+        Return New JObject() From {
+            {"code", e.Code},
+            {"title", e.Title},
+            {"meaning", e.Meaning},
+            {"why", e.Why},
+            {"how_to_fix", e.HowToFix},
+            {"learn_more", FindingExplanations.LearnMoreUrl(e.Code)}
+        }
+
+    End Function
+
+    ''' <summary>The explanations of every distinct code among the findings.</summary>
+    Public Shared Function Explanations(findings As IEnumerable(Of Finding)) As JArray
+
+        Dim array As New JArray()
+        For Each code In findings.Select(Function(f) f.Code).Distinct()
+            array.Add(Explanation(code))
+        Next
+        Return array
+
+    End Function
+
+    ''' <summary>The degrees of freedom of the flowsheet, objects with holes first.</summary>
+    Public Shared Function DegreesOfFreedom(fs As IFlowsheet) As JObject
+
+        Dim dof = DegreesOfFreedomAnalysis.Analyze(fs)
+        Dim objects As New JArray()
+        For Each o In dof.Objects
+            objects.Add(DegreesOfFreedom(o))
+        Next
+        Return New JObject() From {
+            {"fully_specified", dof.IsFullySpecified},
+            {"remaining", dof.Remaining},
+            {"unsupported", dof.Unsupported},
+            {"objects", objects}
+        }
+
+    End Function
+
+    ''' <summary>The degrees of freedom of one object.</summary>
+    Public Shared Function DegreesOfFreedom(dof As ObjectDegreesOfFreedom) As JObject
+
+        Dim slots As New JArray()
+        For Each slot In dof.Slots
+            Dim item As New JObject() From {
+                {"name", slot.Name},
+                {"property", slot.Property},
+                {"required", slot.Required},
+                {"set", slot.IsSet}
+            }
+            If slot.Value.HasValue Then item("value") = slot.Value.Value
+            If Not String.IsNullOrEmpty(slot.Units) Then item("units") = slot.Units
+            If Not String.IsNullOrEmpty(slot.Note) Then item("note") = slot.Note
+            slots.Add(item)
+        Next
+
+        Dim result As New JObject() From {
+            {"object", dof.ObjectTag},
+            {"type", dof.ObjectType},
+            {"mode", dof.Mode},
+            {"supported", dof.Supported},
+            {"required", dof.Required},
+            {"specified", dof.Specified},
+            {"remaining", dof.Remaining},
+            {"missing", New JArray(dof.Missing.Select(Function(s) s.Name).ToArray())},
+            {"slots", slots}
+        }
+        If Not String.IsNullOrEmpty(dof.Note) Then result("note") = dof.Note
+        Return result
 
     End Function
 
@@ -81,7 +158,8 @@ Public Class FlowsheetChecks
             {"ready", blockers = 0},
             {"blockers", blockers},
             {"warnings", warnings},
-            {"findings", FindingsArray(findings)}
+            {"findings", FindingsArray(findings)},
+            {"explanations", Explanations(findings.Take(MaxItems))}
         }
 
         If findings.Count > MaxItems Then

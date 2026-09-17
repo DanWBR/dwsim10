@@ -30,10 +30,85 @@ namespace DWSIM.MCPServer.Tools
                     ["severity"] = finding.Severity.ToString().ToLowerInvariant(),
                     ["object"] = finding.ObjectTag,
                     ["message"] = finding.Message,
-                    ["fix"] = finding.Fix
+                    ["fix"] = finding.Fix,
+                    ["learn_more"] = FindingExplanations.LearnMoreUrl(finding.Code)
                 });
             }
             return array;
+        }
+
+        /// <summary>The written explanation of a code: meaning, why it happens, how to fix it, where to read.</summary>
+        public static JObject Explanation(string code)
+        {
+            var explanation = FindingExplanations.For(code);
+            return new JObject
+            {
+                ["code"] = explanation.Code,
+                ["title"] = explanation.Title,
+                ["meaning"] = explanation.Meaning,
+                ["why"] = explanation.Why,
+                ["how_to_fix"] = explanation.HowToFix,
+                ["learn_more"] = FindingExplanations.LearnMoreUrl(explanation.Code)
+            };
+        }
+
+        /// <summary>
+        /// The explanations of every distinct code among the findings, so a caller that meets a
+        /// code for the first time can read it up without a second call.
+        /// </summary>
+        public static JArray Explanations(IEnumerable<Finding> findings)
+        {
+            var array = new JArray();
+            foreach (var code in findings.Select(f => f.Code).Distinct())
+                array.Add(Explanation(code));
+            return array;
+        }
+
+        /// <summary>The degrees of freedom of one object: its specification slots and what is missing.</summary>
+        public static JObject DegreesOfFreedom(ObjectDegreesOfFreedom dof)
+        {
+            var slots = new JArray();
+            foreach (var slot in dof.Slots)
+            {
+                var item = new JObject
+                {
+                    ["name"] = slot.Name,
+                    ["property"] = slot.Property,
+                    ["required"] = slot.Required,
+                    ["set"] = slot.IsSet
+                };
+                if (slot.Value.HasValue) item["value"] = slot.Value.Value;
+                if (!string.IsNullOrEmpty(slot.Units)) item["units"] = slot.Units;
+                if (!string.IsNullOrEmpty(slot.Note)) item["note"] = slot.Note;
+                slots.Add(item);
+            }
+
+            var result = new JObject
+            {
+                ["object"] = dof.ObjectTag,
+                ["type"] = dof.ObjectType,
+                ["mode"] = dof.Mode,
+                ["supported"] = dof.Supported,
+                ["required"] = dof.Required,
+                ["specified"] = dof.Specified,
+                ["remaining"] = dof.Remaining,
+                ["missing"] = new JArray(dof.Missing.Select(s => s.Name)),
+                ["slots"] = slots
+            };
+            if (!string.IsNullOrEmpty(dof.Note)) result["note"] = dof.Note;
+            return result;
+        }
+
+        /// <summary>The degrees of freedom of the whole flowsheet, objects with holes first.</summary>
+        public static JObject DegreesOfFreedom(FlowsheetDegreesOfFreedom dof)
+        {
+            return new JObject
+            {
+                ["fully_specified"] = dof.IsFullySpecified,
+                ["remaining"] = dof.Remaining,
+                ["unsupported"] = dof.Unsupported,
+                ["objects"] = new JArray(dof.Objects.Select(DegreesOfFreedom))
+            };
         }
 
         /// <summary>
@@ -50,7 +125,8 @@ namespace DWSIM.MCPServer.Tools
                 ["ready"] = blockers == 0,
                 ["blockers"] = blockers,
                 ["warnings"] = warnings,
-                ["findings"] = From(findings)
+                ["findings"] = From(findings),
+                ["explanations"] = Explanations(findings.Take(MaxItems))
             };
 
             if (findings.Count > MaxItems)

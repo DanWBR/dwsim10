@@ -434,6 +434,11 @@ public partial class FlowsheetView : UserControl
                 BtnSimultAdjust.IsChecked = !BtnSimultAdjust.IsChecked.GetValueOrDefault();
                 e.Handled = true;
             }
+            else if (e.Key == Key.F8)
+            {
+                MenuFlowsheetCheck.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+                e.Handled = true;
+            }
             else if (e.Key == Key.S && e.KeyModifiers.HasFlag(KeyModifiers.Control) &&
                      e.KeyModifiers.HasFlag(KeyModifiers.Shift))
             {
@@ -1509,6 +1514,7 @@ public partial class FlowsheetView : UserControl
         IconHelper.Set(MenuOptimizer,      "\U0001F3AF"); // target
         IconHelper.Set(MenuPropertyChart,  "\U0001F4CA"); // bar chart
         IconHelper.Set(MenuBalance,        "⚖");     // scales
+        IconHelper.Set(MenuFlowsheetCheck, "✅");  // check mark button
         IconHelper.Set(MenuInspector,      "\U0001F50E"); // magnifying glass right
         IconHelper.Set(MenuCreateCompound, "\U0001F9EA"); // test tube
         IconHelper.Set(MenuPolymerChar,    "\U0001F9EC"); // dna (polymer chains)
@@ -2021,6 +2027,16 @@ public partial class FlowsheetView : UserControl
         {
             if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
             new BalanceSummaryWindow(_flowsheet).Show();
+        };
+        MenuFlowsheetCheck.Click += (_, _) =>
+        {
+            if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
+            new FlowsheetCheckWindow(_flowsheet, name =>
+            {
+                if (_flowsheet.SimulationObjects.TryGetValue(name, out var obj) && obj.GraphicObject != null)
+                    SearchObject(obj.GraphicObject.Tag);
+                OpenEditorFor(name);
+            }).Show();
         };
         MenuInspector.Click += (_, _) =>
         {

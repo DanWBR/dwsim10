@@ -20,26 +20,37 @@ OUT_DIR = os.path.join(ROOT, "docs", "api-reference")
 ASSEMBLY_NS = "DWSIM.Automation.FluentAPI"
 XML_NAME = "DWSIM.Automation.FluentAPI.xml"
 
+# The diagnostics types (FlowsheetDiagnostics, DegreesOfFreedomAnalysis, FindingExplanations
+# and their records) keep the DWSIM.Automation.FluentAPI.Diagnostics namespace but compile into
+# DWSIM.SharedClassesCSharp, so both interfaces can reach them without the FluentAPI. Their
+# doc comments are read from that assembly's XML when it is next to ours.
+EXTRA_XML_NAMES = ["DWSIM.SharedClassesCSharp.xml"]
 
-def find_xml() -> str:
-    """The newest doc file under bin/Debug.
+
+def find_xml(name: str = XML_NAME, required: bool = True) -> str:
+    """The newest doc file under bin/Debug, ours or the sibling project's.
 
     An SDK-style build puts it in a target-framework folder; the old project put it
     directly under bin/Debug. Take whichever exists, newest first, so the path does not
     have to be updated every time the framework moves.
     """
-    root = os.path.join(ROOT, "bin", "Debug")
+    roots = [os.path.join(ROOT, "bin", "Debug")]
+    if name != XML_NAME:
+        sibling = os.path.join(os.path.dirname(ROOT), name[: -len(".xml")], "bin", "Debug")
+        roots.append(sibling)
     found = []
-    for base, _, files in os.walk(root):
-        if XML_NAME in files:
-            path = os.path.join(base, XML_NAME)
-            found.append((os.path.getmtime(path), path))
+    for root in roots:
+        for base, _, files in os.walk(root):
+            if name in files:
+                path = os.path.join(base, name)
+                found.append((os.path.getmtime(path), path))
     if not found:
-        return os.path.join(root, XML_NAME)
+        return os.path.join(roots[0], name) if required else ""
     return max(found)[1]
 
 
 XML_PATH = find_xml()
+EXTRA_XML_PATHS = [p for p in (find_xml(n, required=False) for n in EXTRA_XML_NAMES) if p]
 
 
 # ---------------------------------------------------------------- name parsing
@@ -241,6 +252,12 @@ def main():
 
     tree = ET.parse(XML_PATH)
     members_xml = tree.findall("./members/member")
+
+    # Members of the sibling assemblies that live in our namespace document as ours.
+    for extra in EXTRA_XML_PATHS:
+        for m in ET.parse(extra).findall("./members/member"):
+            if ":" + ASSEMBLY_NS + "." in m.get("name", ""):
+                members_xml.append(m)
 
     # First pass: collect all type ids
     type_ids: set[str] = set()

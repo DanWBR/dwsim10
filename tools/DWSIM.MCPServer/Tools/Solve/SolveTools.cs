@@ -31,6 +31,43 @@ namespace DWSIM.MCPServer.Tools.Solve
             return report;
         }
 
+        [McpTool("dwsim_flowsheet_degrees_of_freedom",
+            "List, for every object or for one, the specifications its calculation mode reads and " +
+            "whether each has a value: the degrees of freedom still open. A remaining count of zero " +
+            "means the object is fully specified. Objects with holes come first.")]
+        public JObject DegreesOfFreedom(
+            [McpParam("Flowsheet handle")] string flowsheet_id,
+            [McpParam("Tag of one object; omit for the whole flowsheet", Required = false)] string object_name = null)
+        {
+            var fs = _sessions.GetFlowsheet(flowsheet_id);
+            var inner = fs.Inner;
+
+            if (string.IsNullOrEmpty(object_name))
+                return FindingsJson.DegreesOfFreedom(DegreesOfFreedomAnalysis.Analyze(inner));
+
+            var obj = inner.SimulationObjects.Values.FirstOrDefault(o =>
+                o.GraphicObject != null && string.Equals(o.GraphicObject.Tag, object_name, StringComparison.OrdinalIgnoreCase));
+            if (obj == null) throw new ArgumentException("No object is tagged '" + object_name + "'.");
+
+            var dof = DegreesOfFreedomAnalysis.Analyze(inner, obj);
+            if (dof == null) throw new ArgumentException("'" + object_name + "' is not a process object.");
+            return FindingsJson.DegreesOfFreedom(dof);
+        }
+
+        [McpTool("dwsim_explain_finding",
+            "Explain a diagnostic code in full: what it means, why it happens, how to fix it and " +
+            "where to read more. With no code, lists every code the checks can emit.")]
+        public JObject ExplainFinding(
+            [McpParam("A diagnostic code such as FEED_NO_TEMPERATURE; omit to list them all", Required = false)] string code = null)
+        {
+            if (!string.IsNullOrEmpty(code)) return FindingsJson.Explanation(code);
+
+            var codes = new JArray();
+            foreach (var entry in FlowsheetCodes.All)
+                codes.Add(new JObject { ["code"] = entry.Key, ["summary"] = entry.Value });
+            return new JObject { ["count"] = codes.Count, ["codes"] = codes };
+        }
+
         [McpTool("dwsim_solve_run",
             "Solve the flowsheet. On failure the response carries diagnostic findings naming the " +
             "object at fault and what to do about it; call dwsim_flowsheet_check first to catch " +

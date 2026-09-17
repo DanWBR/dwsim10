@@ -176,16 +176,20 @@ Public Class FluentSweep
             {"supported", True},
             {"endpoints", New JObject From {
                 {"check", "GET /api/flowsheet/check"},
+                {"degrees_of_freedom", "GET /api/flowsheet/dof?object=<tag>"},
+                {"explain", "GET /api/flowsheet/explain?code=<CODE>"},
                 {"solve", "POST /api/solve"}
             }},
             {"notes", New JArray(
                 "Check before solving: it costs nothing and names the same faults.",
-                "Every finding carries a code, a severity, the object, what is wrong and how to fix it.",
+                "Every finding carries a code, a severity, the object, what is wrong, how to fix it and a page to read.",
+                "The check response also carries an explanation per distinct code: meaning, why, how to fix.",
                 "Blockers come first; a caller working top-down fixes what matters soonest.",
-                "A failed solve returns findings alongside the raw exceptions.",
+                "A failed solve returns findings alongside the raw exceptions, including physical plausibility warnings.",
+                "The degrees-of-freedom route lists, per object, the specifications its calculation mode reads and which are missing.",
                 "An empty finding list is not a promise that the solve will converge.")},
             {"severities", New JArray("blocker", "warning", "info")},
-            {"finding_fields", New JArray("code", "severity", "object", "message", "fix")}
+            {"finding_fields", New JArray("code", "severity", "object", "message", "fix", "learn_more")}
         }
 
         Dim codes As New JObject()

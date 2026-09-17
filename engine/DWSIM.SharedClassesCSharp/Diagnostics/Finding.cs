@@ -16,7 +16,7 @@ namespace DWSIM.Automation.FluentAPI.Diagnostics
     /// <summary>One thing wrong, or suspicious, about a simulation.</summary>
     public sealed class Finding
     {
-        internal Finding(string code, DiagnosticSeverity severity, string objectTag, string message, string fix)
+        public Finding(string code, DiagnosticSeverity severity, string objectTag, string message, string fix)
         {
             Code = code;
             Severity = severity;

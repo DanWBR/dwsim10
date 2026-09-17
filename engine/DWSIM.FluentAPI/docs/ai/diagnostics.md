@@ -24,7 +24,9 @@ Same fault, same cost to detect. The difference is that the second one names the
 | MCP tool | HTTP route | When |
 |---|---|---|
 | `dwsim_flowsheet_check` | `GET /api/flowsheet/check` | Before solving. Cheap. |
-| `dwsim_solve_diagnostics` | (in the `/api/solve` response) | After a solve failed. |
+| `dwsim_solve_diagnostics` | (in the `/api/solve` response) | After a solve failed, or to question a result. |
+| `dwsim_flowsheet_degrees_of_freedom` | `GET /api/flowsheet/dof?object=<tag>` | What each object still needs before it can be solved. |
+| `dwsim_explain_finding` | `GET /api/flowsheet/explain?code=<CODE>` | The long explanation of a code, or the list of codes. |
 
 `dwsim_solve_run` and `POST /api/solve` carry `findings` alongside the raw errors, so a model
 that only ever calls solve still gets told what to do. Checking first is better: it costs
@@ -46,6 +48,50 @@ microseconds against seconds, and catches the same faults.
 `ready` is the one field worth branching on: false means at least one blocker, and solving is a
 waste of time until it is fixed. Findings come worst first, so acting on them top-down fixes what
 matters soonest. Past 25 findings the list is capped and `truncated` with `total` says so.
+
+Each finding also carries `learn_more`, a page of the tutorials site, and the response carries
+`explanations`: for every distinct code among the findings, its `title`, `meaning`, `why`,
+`how_to_fix` and `learn_more`. A model meeting a code for the first time reads it up without a
+second call; a model that already knows the code ignores the block.
+
+## Degrees of freedom
+
+`dwsim_flowsheet_degrees_of_freedom` answers the question a model asks most after a failed
+solve: what does this object still need? The response lists every object, holes first:
+
+```json
+{
+  "fully_specified": false,
+  "remaining": 1,
+  "unsupported": 0,
+  "objects": [
+    {
+      "object": "C-1", "type": "Cooler", "mode": "HeatRemoved",
+      "supported": true, "required": 1, "specified": 0, "remaining": 1,
+      "missing": ["Heat removed"],
+      "slots": [
+        { "name": "Heat removed", "property": "DeltaQ", "required": true, "set": false, "units": "kW",
+          "note": "A duty of zero leaves the stream exactly as it came in." },
+        { "name": "Pressure drop", "property": "DeltaP", "required": false, "set": true, "units": "Pa", "note": "0 by default." }
+      ],
+      "note": "One thermal specification and one pressure specification fix the outlet."
+    }
+  ]
+}
+```
+
+`property` is the name to use with the property setter; `mode` is the calculation mode the
+slots were derived for, so a model that knows a different value can switch modes instead of
+inventing the missing one. The same holes come back from `dwsim_flowsheet_check` as
+`SPEC_MISSING`.
+
+## Physical plausibility
+
+After a solve, `dwsim_solve_diagnostics` also questions the result: a heater that cooled its
+stream, a pump that lowered the pressure, an exchanger whose outlets crossed, a shortcut column
+below its minimum reflux, a liquid below its freezing point. These are warnings, because the
+numbers are consistent; they are just not what the equipment is for, and a model should fix the
+specification rather than report the number.
 
 ## Where this fits
 
@@ -70,8 +116,9 @@ Worth telling a model plainly, so it does not read an empty list as a guarantee:
 - A new stream comes with a default temperature, pressure and flow, so a feed nobody configured
   looks like one deliberately set. Set feed conditions explicitly; do not rely on the check to
   notice you forgot.
-- Whether a unit operation has enough specifications, and whether the property package suits the
-  compounds, are judgements no static rule makes.
+- Whether the property package suits the compounds is a judgement no static rule makes. Whether a
+  unit has enough specifications is answered per object by the degrees-of-freedom tool, for the
+  types it catalogues.
 
 ## Codes
 
@@ -94,6 +141,11 @@ as prose.
 | `FEED_NO_FLOW` | A boundary feed carries no flow. |
 | `FEED_NO_COMPOSITION` | Every compound in a boundary feed is at zero. |
 | `FEED_COMPOSITION_NOT_NORMALISED` | The mole fractions of a boundary feed do not sum to 1. |
+| `VAPOR_FRACTION_OUT_OF_RANGE` | A feed is specified by a vapour fraction outside 0 to 1. |
+| `SPEC_MISSING` | A unit operation lacks a specification its calculation mode needs. |
+| `EFFICIENCY_OUT_OF_RANGE` | An efficiency is outside 0 to 100 %. |
+| `SPLITTER_RATIOS_NOT_NORMALISED` | The split ratios of a splitter do not sum to 1. |
+| `REACTOR_NO_REACTIONS` | A reactor has no active reactions to compute. |
 | `RECYCLE_NO_ESTIMATE` | A recycle starts from a zero estimate. |
 | `LOGICAL_TARGET_MISSING` | An adjust or specification does not name both the object it reads and the one it writes. |
 | `SOLVER_EXCEPTION` | The solver raised an exception. |
@@ -101,6 +153,17 @@ as prose.
 | `NOT_CONVERGED` | A unit operation did not solve. |
 | `STREAM_NOT_FINITE` | A stream carries a flow that is not a finite number. |
 | `NEGATIVE_FLOW` | A stream carries a negative flow. |
+| `STATE_NOT_PHYSICAL` | A solved stream has a temperature or pressure at or below zero. |
+| `UNIT_HAD_NO_EFFECT` | A unit operation left its stream unchanged, so its specification is not being read. |
+| `HEATER_COOLED` | A heater lowered the temperature of its stream. |
+| `COOLER_HEATED` | A cooler raised the temperature of its stream. |
+| `PRESSURE_WRONG_DIRECTION` | A pump, compressor, expander or valve moved the pressure the wrong way. |
+| `HX_TEMPERATURE_CROSS` | A heat exchanger outlet crossed the temperature of the other side's inlet. |
+| `HX_HEAT_FLOW_REVERSED` | A heat exchanger moved heat from the cold side to the hot side. |
+| `TEMPERATURE_BELOW_FREEZING` | A liquid stream is below the melting point of its main compound. |
+| `COLUMN_REFLUX_BELOW_MINIMUM` | A shortcut column runs below its minimum reflux ratio. |
+| `MIXER_PRESSURE_MISMATCH` | The inlets of a mixer arrive at different pressures. |
+
 ## Dynamic simulation codes
 
 `dwsim_dynamics_check` and `dwsim_dynamics_diagnose` return findings in the same shape, from

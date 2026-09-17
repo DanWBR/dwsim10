@@ -1,0 +1,121 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="DWSIM.UI.Desktop.Avalonia.FlowsheetCheckWindow"
+        x:CompileBindings="False"
+        Title="Flowsheet Check"
+        Width="1100" Height="680"
+        WindowStartupLocation="CenterOwner">
+
+  <DockPanel LastChildFill="True">
+
+    <Border DockPanel.Dock="Top" Padding="10" BorderThickness="0,0,0,1">
+      <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+        <Button Name="BtnCheck" Classes="panel" Content="Check Setup"
+                ToolTip.Tip="What is wrong with the flowsheet as it stands, without solving it" />
+        <Button Name="BtnDiagnose" Classes="panel" Content="Diagnose Results"
+                ToolTip.Tip="What the last solve left unconverged, and results a real process could not produce" />
+        <Button Name="BtnCopy" Classes="panel" Content="Copy Report" Margin="20,0,0,0" />
+        <TextBlock Name="LblSummary" Text="" VerticalAlignment="Center" Margin="12,0,0,0"
+                   FontSize="{DynamicResource FontSizeNormal}" />
+      </StackPanel>
+    </Border>
+
+    <TabControl Name="Tabs" Margin="8,8,8,0">
+
+      <TabItem Header="Findings">
+        <Grid ColumnDefinitions="*,8,420">
+
+          <DataGrid Grid.Column="0" Name="GridFindings" AutoGenerateColumns="False" IsReadOnly="True"
+                    HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                    CanUserResizeColumns="True" SelectionMode="Single"
+                    FontSize="{DynamicResource FontSizeSmall}">
+            <DataGrid.Columns>
+              <DataGridTextColumn Header="Severity" Binding="{Binding Severity}" Width="90" />
+              <DataGridTextColumn Header="Object" Binding="{Binding Object}" Width="130" />
+              <DataGridTextColumn Header="Code" Binding="{Binding Code}" Width="200" />
+              <DataGridTextColumn Header="What is wrong" Binding="{Binding Message}" Width="*" />
+            </DataGrid.Columns>
+          </DataGrid>
+
+          <GridSplitter Grid.Column="1" Width="8" ResizeDirection="Columns" Background="Transparent" />
+
+          <Border Grid.Column="2" BorderThickness="1,0,0,0" Padding="10,0,0,0">
+            <ScrollViewer>
+              <StackPanel Name="PnlExplanation" Spacing="6">
+                <TextBlock Name="LblTitle" FontWeight="Bold" FontSize="14" TextWrapping="Wrap"
+                           Text="Select a finding to read what it means." />
+                <TextBlock Name="LblCode" FontFamily="Consolas,Menlo,monospace" FontSize="{DynamicResource FontSizeSmall}" Foreground="#888" />
+
+                <TextBlock Name="HdrThis" Text="On this object" FontWeight="SemiBold" Margin="0,8,0,0" IsVisible="False" />
+                <TextBlock Name="LblMessage" TextWrapping="Wrap" />
+                <TextBlock Name="LblFix" TextWrapping="Wrap" />
+
+                <TextBlock Name="HdrMeaning" Text="What it means" FontWeight="SemiBold" Margin="0,8,0,0" IsVisible="False" />
+                <TextBlock Name="LblMeaning" TextWrapping="Wrap" />
+
+                <TextBlock Name="HdrWhy" Text="Why it happens" FontWeight="SemiBold" Margin="0,8,0,0" IsVisible="False" />
+                <TextBlock Name="LblWhy" TextWrapping="Wrap" />
+
+                <TextBlock Name="HdrHow" Text="How to fix it" FontWeight="SemiBold" Margin="0,8,0,0" IsVisible="False" />
+                <TextBlock Name="LblHow" TextWrapping="Wrap" />
+
+                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,12,0,0">
+                  <Button Name="BtnLocate" Classes="panel" Content="Open Object" IsVisible="False"
+                          ToolTip.Tip="Select the object on the flowsheet and open its editor" />
+                  <Button Name="BtnLearnMore" Classes="panel" Content="Learn More..." IsVisible="False"
+                          ToolTip.Tip="Open the tutorial page for this finding in the browser" />
+                </StackPanel>
+              </StackPanel>
+            </ScrollViewer>
+          </Border>
+
+        </Grid>
+      </TabItem>
+
+      <TabItem Header="Degrees of Freedom">
+        <Grid ColumnDefinitions="320,8,*">
+
+          <DockPanel Grid.Column="0" LastChildFill="True">
+            <TextBlock DockPanel.Dock="Top" Name="LblDofSummary" TextWrapping="Wrap" Margin="0,0,0,6"
+                       FontSize="{DynamicResource FontSizeSmall}" />
+            <DataGrid Name="GridObjects" AutoGenerateColumns="False" IsReadOnly="True"
+                      HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                      SelectionMode="Single" FontSize="{DynamicResource FontSizeSmall}">
+              <DataGrid.Columns>
+                <DataGridTextColumn Header="Object" Binding="{Binding Object}" Width="*" />
+                <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="110" />
+                <DataGridTextColumn Header="Missing" Binding="{Binding Missing}" Width="70" />
+              </DataGrid.Columns>
+            </DataGrid>
+          </DockPanel>
+
+          <GridSplitter Grid.Column="1" Width="8" ResizeDirection="Columns" Background="Transparent" />
+
+          <DockPanel Grid.Column="2" LastChildFill="True">
+            <StackPanel DockPanel.Dock="Top" Spacing="4" Margin="0,0,0,8">
+              <TextBlock Name="LblObjectTitle" FontWeight="Bold" FontSize="14"
+                         Text="Select an object to see the specifications its calculation mode reads." TextWrapping="Wrap" />
+              <TextBlock Name="LblObjectMode" FontSize="{DynamicResource FontSizeSmall}" Foreground="#888" />
+              <TextBlock Name="LblObjectNote" TextWrapping="Wrap" />
+              <Button Name="BtnOpenObject" Classes="panel" Content="Open Object" IsVisible="False" HorizontalAlignment="Left" />
+            </StackPanel>
+            <DataGrid Name="GridSlots" AutoGenerateColumns="False" IsReadOnly="True"
+                      HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                      SelectionMode="Single" FontSize="{DynamicResource FontSizeSmall}">
+              <DataGrid.Columns>
+                <DataGridTextColumn Header="Specification" Binding="{Binding Name}" Width="220" />
+                <DataGridTextColumn Header="Value" Binding="{Binding Value}" Width="140" />
+                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="80" />
+                <DataGridTextColumn Header="Note" Binding="{Binding Note}" Width="*" />
+              </DataGrid.Columns>
+            </DataGrid>
+          </DockPanel>
+
+        </Grid>
+      </TabItem>
+
+    </TabControl>
+
+  </DockPanel>
+
+</Window>

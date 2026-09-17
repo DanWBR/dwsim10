@@ -270,12 +270,19 @@ namespace DWSIM.Automation.FluentAPI.Builders
 
         internal void Apply()
         {
+            // The composition is applied through per-compound flows, which moves the stream's
+            // flow basis to whatever basis the fractions were given on. A flow the caller set
+            // beforehand is restored on its own basis afterwards, so 10 kg/s stays 10 kg/s.
+            var basis = _stream.DefinedFlow;
+            var mass = Usable(_stream.GetMassFlow());
+            var mole = Usable(_stream.GetMolarFlow());
+            var volume = Usable(_stream.GetVolumetricFlow());
+
             if (_mole.Count > 0)
             {
                 double sum = 0; foreach (var v in _mole.Values) sum += v;
                 if (sum <= 0) throw new InvalidOperationException("Mole fractions sum to zero.");
-                var n = _stream.GetMolarFlow();
-                if (n <= 0) n = 1.0; // default basis
+                var n = mole > 0 ? mole : 1.0; // default basis
                 foreach (var kv in _mole)
                     _stream.SetOverallCompoundMolarFlow(kv.Key, kv.Value / sum * n);
             }
@@ -283,11 +290,23 @@ namespace DWSIM.Automation.FluentAPI.Builders
             {
                 double sum = 0; foreach (var v in _mass.Values) sum += v;
                 if (sum <= 0) throw new InvalidOperationException("Mass fractions sum to zero.");
-                var m = _stream.GetMassFlow();
-                if (m <= 0) m = 1.0;
+                var m = mass > 0 ? mass : 1.0;
                 foreach (var kv in _mass)
                     _stream.SetOverallCompoundMassFlow(kv.Key, kv.Value / sum * m);
             }
+
+            switch (basis)
+            {
+                case DWSIM.Interfaces.Enums.FlowSpec.Mass: if (mass > 0) _stream.SetMassFlow(mass); break;
+                case DWSIM.Interfaces.Enums.FlowSpec.Mole: if (mole > 0) _stream.SetMolarFlow(mole); break;
+                case DWSIM.Interfaces.Enums.FlowSpec.Volumetric: if (volume > 0) _stream.SetVolumetricFlow(volume); break;
+            }
+        }
+
+        /// <summary>A flow that can be restored: finite and positive, else zero.</summary>
+        private static double Usable(double flow)
+        {
+            return double.IsNaN(flow) || double.IsInfinity(flow) || flow <= 0 ? 0.0 : flow;
         }
     }
 }

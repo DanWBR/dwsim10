@@ -39,7 +39,8 @@ Imports DWSIM.Automation.FluentAPI
 ''' <c>/api/all-objects</c>, <c>/api/unit-system</c>, <c>/api/property-packages</c>,
 ''' <c>/api/screenshot</c>, <c>/api/flowsheet-xml</c>, <c>/api/diagnostics</c>,
 ''' <c>/api/list-sections</c>, <c>/api/object/{name}/property/{prop}</c>,
-''' <c>/api/fluent/catalog</c>.
+''' <c>/api/fluent/catalog</c>, <c>/api/flowsheet/check</c>, <c>/api/flowsheet/dof</c>,
+''' <c>/api/flowsheet/explain</c>.
 ''' </para>
 ''' <para>
 ''' <b>Write/action endpoints</b> (POST):
@@ -729,6 +730,39 @@ Public Class Server
                 ' What is wrong with the flowsheet before anything is solved. Cheap, and it
                 ' turns most failed solves into a fix applied beforehand.
                 body = FlowsheetChecks.Check(Flowsheet).ToString(Formatting.None)
+
+            ElseIf req.HttpMethod = "GET" AndAlso path = "/api/flowsheet/dof" Then
+
+                ' The specifications each object's calculation mode reads, and which are missing.
+                Dim objName = req.QueryString("object")
+                If String.IsNullOrEmpty(objName) Then
+                    body = FlowsheetChecks.DegreesOfFreedom(Flowsheet).ToString(Formatting.None)
+                Else
+                    Dim target = Flowsheet.SimulationObjects.Values.FirstOrDefault(
+                        Function(o) o.GraphicObject IsNot Nothing AndAlso
+                            String.Equals(o.GraphicObject.Tag, objName, StringComparison.OrdinalIgnoreCase))
+                    If target Is Nothing Then
+                        resp.StatusCode = 404
+                        body = String.Format("{{""error"":""No object is tagged '{0}'.""}}", EscJ(objName))
+                    Else
+                        Dim dof = DegreesOfFreedomAnalysis.Analyze(Flowsheet, target)
+                        body = FlowsheetChecks.DegreesOfFreedom(dof).ToString(Formatting.None)
+                    End If
+                End If
+
+            ElseIf req.HttpMethod = "GET" AndAlso path = "/api/flowsheet/explain" Then
+
+                ' The written explanation of a diagnostic code, for whoever meets it first.
+                Dim code = req.QueryString("code")
+                If String.IsNullOrEmpty(code) Then
+                    Dim codes As New JArray()
+                    For Each entry In FlowsheetCodes.All
+                        codes.Add(New JObject() From {{"code", entry.Key}, {"summary", entry.Value}})
+                    Next
+                    body = New JObject() From {{"count", codes.Count}, {"codes", codes}}.ToString(Formatting.None)
+                Else
+                    body = FlowsheetChecks.Explanation(code).ToString(Formatting.None)
+                End If
 
             ElseIf req.HttpMethod = "POST" AndAlso path = "/api/solve" Then
 
