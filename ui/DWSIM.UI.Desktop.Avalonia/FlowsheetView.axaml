@@ -114,6 +114,7 @@
         <MenuItem Header="Mass and Energy _Balance Summary..." Name="MenuBalance" />
         <MenuItem Header="Flowsheet Chec_k..."   Name="MenuFlowsheetCheck" InputGesture="F8" />
         <MenuItem Header="E_xplain Result..."   Name="MenuExplainResult" />
+        <MenuItem Header="Scenario Compa_rison..."   Name="MenuScenarioComparison" />
         <MenuItem Header="Property _Chart..."        Name="MenuPropertyChart" />
       </MenuItem>
       <MenuItem Header="_Results">

@@ -20,6 +20,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using DWSIM.Automation.DynamicRunner.Insight;
+using DWSIM.Automation.DynamicRunner.Scenarios;
 using DWSIM.GlobalSettings;
 using DWSIM.Interfaces;
 using DWSIM.Interfaces.Enums.GraphicObjects;
@@ -291,6 +292,54 @@ namespace DWSIM.Engine.SmokeTests
                 Assert.That(r.Lines.Any(l => l.StartsWith("Feed ") && l.Contains("enters stage")), string.Join(Environment.NewLine, r.Lines));
                 Assert.That(r.Lines.Any(l => l.StartsWith("Fenske: N_min")), "Fenske line: " + string.Join(Environment.NewLine, r.Lines));
             }
+        }
+
+        /// <summary>
+        /// Scenario comparison on the propane train: raising the heater outlet temperature is the
+        /// one specification that changed, the downstream stream and compressor results move, the
+        /// feed stream does not, and the snapshot survives a file round trip.
+        /// </summary>
+        [Test]
+        public void ScenarioComparisonFindsTheChangedSpecAndItsEffects()
+        {
+            var fs = NewFlowsheet("Propane");
+            var s1 = Stream(fs, "S1"); var s2 = Stream(fs, "S2"); var s3 = Stream(fs, "S3");
+            var heater = Unit<Heater>(fs, ObjectType.Heater, "H-1");
+            var comp = Unit<Compressor>(fs, ObjectType.Compressor, "C-1");
+            var e1 = fs.AddObject(ObjectType.EnergyStream, 0, 0, "E1");
+            var e2 = fs.AddObject(ObjectType.EnergyStream, 0, 0, "E2");
+            fs.ConnectObjects(s1.GraphicObject, heater.GraphicObject, 0, 0);
+            fs.ConnectObjects(heater.GraphicObject, s2.GraphicObject, 0, 0);
+            fs.ConnectObjects(e1.GraphicObject, heater.GraphicObject, 0, 1);
+            fs.ConnectObjects(s2.GraphicObject, comp.GraphicObject, 0, 0);
+            fs.ConnectObjects(comp.GraphicObject, s3.GraphicObject, 0, 0);
+            fs.ConnectObjects(e2.GraphicObject, comp.GraphicObject, 0, 1);
+            s1.SetTemperature(300.0); s1.SetPressure(5e5); s1.SetMassFlow(1.0); s1.SetOverallComposition(new[] { 1.0 });
+            heater.CalcMode = Heater.CalculationMode.OutletTemperature;
+            heater.OutletTemperature = 320.0;
+            comp.CalcMode = Compressor.CalculationMode.OutletPressure;
+            comp.POut = 15e5;
+            Solve(fs);
+            var a = ScenarioComparison.Snapshot(fs, "base");
+            Assert.That(a.Values.Count, Is.GreaterThan(20));
+
+            heater.OutletTemperature = 340.0;
+            Solve(fs);
+            var b = ScenarioComparison.Snapshot(fs, "hotter");
+            var path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "scenario_test" + ScenarioSnapshot.FileExtension);
+            b.SaveToFile(path);
+            var b2 = ScenarioSnapshot.LoadFromFile(path);
+            Assert.That(b2.Values.Count, Is.EqualTo(b.Values.Count));
+
+            var r = ScenarioComparison.Compare(a, b2);
+            Console.WriteLine(r.TextReport);
+            var inputs = r.Differences.Where(d => d.Changed && d.IsInput).ToList();
+            Assert.That(inputs.Any(d => d.ObjectTag == "H-1" && d.Property.Contains("PROP_HT") ), "the heater outlet temperature is the changed spec: " + string.Join(", ", inputs.Select(d => d.ObjectTag + " " + d.Property)));
+            Assert.That(r.Differences.Any(d => d.Changed && d.ObjectTag == "S3" && !d.IsInput), "the compressor outlet moved");
+            Assert.That(r.Differences.Any(d => d.Changed && d.ObjectTag == "C-1" && !d.IsInput), "the compressor results moved");
+            Assert.That(r.Differences.Where(d => d.ObjectTag == "S1" && !d.IsInput).All(d => !d.Changed), "the feed did not move");
+            Assert.That(r.Summary.Any(l => l.StartsWith("1 specification(s) changed")), string.Join(Environment.NewLine, r.Summary));
+            Assert.That(r.Differences[0].IsInput && r.Differences[0].Changed, "changed specifications come first");
         }
 
         /// <summary>Mixer and splitter: the balance tables and the pressure rule.</summary>

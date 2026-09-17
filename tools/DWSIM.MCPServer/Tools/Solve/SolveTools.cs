@@ -1,228 +1,280 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using Newtonsoft.Json.Linq;
-using DWSIM.Automation.FluentAPI;
-using DWSIM.Automation.FluentAPI.Diagnostics;
-using DWSIM.Automation.DynamicRunner.Insight;
-using DWSIM.MCPServer.Sessions;
-
-namespace DWSIM.MCPServer.Tools.Solve
-{
-    public class SolveTools
-    {
-        private readonly SessionManager _sessions;
-
-        public SolveTools(SessionManager sessions) { _sessions = sessions; }
-
-        [McpTool("dwsim_flowsheet_check",
-            "Check the flowsheet for the faults that stop it solving - dangling streams, unconnected " +
-            "unit operations, feeds with no flow, a loop with no recycle - without solving it. " +
-            "Cheap, so call it before dwsim_solve_run. Each finding carries the fix for it.")]
-        public JObject Check(
-            [McpParam("Flowsheet handle")] string flowsheet_id)
-        {
-            var fs = _sessions.GetFlowsheet(flowsheet_id);
-            var findings = FlowsheetDiagnostics.Check(fs.Inner);
-
-            var report = FindingsJson.Report(findings);
-            report["object_count"] = fs.Inner.SimulationObjects.Count;
-            report["compound_count"] = fs.Inner.SelectedCompounds.Count;
-            return report;
-        }
-
-        [McpTool("dwsim_flowsheet_degrees_of_freedom",
-            "List, for every object or for one, the specifications its calculation mode reads and " +
-            "whether each has a value: the degrees of freedom still open. A remaining count of zero " +
-            "means the object is fully specified. Objects with holes come first.")]
-        public JObject DegreesOfFreedom(
-            [McpParam("Flowsheet handle")] string flowsheet_id,
-            [McpParam("Tag of one object; omit for the whole flowsheet", Required = false)] string object_name = null)
-        {
-            var fs = _sessions.GetFlowsheet(flowsheet_id);
-            var inner = fs.Inner;
-
-            if (string.IsNullOrEmpty(object_name))
-                return FindingsJson.DegreesOfFreedom(DegreesOfFreedomAnalysis.Analyze(inner));
-
-            var obj = inner.SimulationObjects.Values.FirstOrDefault(o =>
-                o.GraphicObject != null && string.Equals(o.GraphicObject.Tag, object_name, StringComparison.OrdinalIgnoreCase));
-            if (obj == null) throw new ArgumentException("No object is tagged '" + object_name + "'.");
-
-            var dof = DegreesOfFreedomAnalysis.Analyze(inner, obj);
-            if (dof == null) throw new ArgumentException("'" + object_name + "' is not a process object.");
-            return FindingsJson.DegreesOfFreedom(dof);
-        }
-
-        [McpTool("dwsim_explain_finding",
-            "Explain a diagnostic code in full: what it means, why it happens, how to fix it and " +
-            "where to read more. With no code, lists every code the checks can emit.")]
-        public JObject ExplainFinding(
-            [McpParam("A diagnostic code such as FEED_NO_TEMPERATURE; omit to list them all", Required = false)] string code = null)
-        {
-            if (!string.IsNullOrEmpty(code)) return FindingsJson.Explanation(code);
-
-            var codes = new JArray();
-            foreach (var entry in FlowsheetCodes.All)
-                codes.Add(new JObject { ["code"] = entry.Key, ["summary"] = entry.Value });
-            return new JObject { ["count"] = codes.Count, ["codes"] = codes };
-        }
-
-        [McpTool("dwsim_explain_result",
-            "Explain why a solved object gave its result, as a teacher would: the balances and " +
-            "equilibrium relations it satisfied with the flowsheet's numbers substituted in, plus the " +
-            "textbook diagram of the case as data (Rachford-Rice function and K values of a flash or " +
-            "separator, heating curve of a heater, T-Q diagram and pinch of an exchanger, isenthalpic " +
-            "path of a valve, isentropic reference of a compressor or expander, Levenspiel plot of a " +
-            "kinetic reactor, Fenske-Underwood-Gilliland of a shortcut column). The object must be solved.")]
-        public JObject ExplainResult(
-            [McpParam("Flowsheet handle")] string flowsheet_id,
-            [McpParam("Tag of the object to explain")] string object_name)
-        {
-            var fs = _sessions.GetFlowsheet(flowsheet_id);
-            var inner = fs.Inner;
-            var obj = inner.SimulationObjects.Values.FirstOrDefault(o =>
-                o.GraphicObject != null && string.Equals(o.GraphicObject.Tag, object_name, StringComparison.OrdinalIgnoreCase));
-            if (obj == null) throw new ArgumentException("No object is tagged '" + object_name + "'.");
-            if (!UnitInsightStudy.Supports(obj)) throw new ArgumentException("'" + object_name + "' is a " + obj.GraphicObject.ObjectType + "; there is no explanation for that type yet.");
-
-            var r = UnitInsightStudy.Explain(inner, obj);
-            var tables = new JArray();
-            foreach (var t in r.Tables)
-                tables.Add(new JObject
-                {
-                    ["title"] = t.Title,
-                    ["columns"] = new JArray(t.Columns),
-                    ["rows"] = new JArray(t.Rows.Select(row => new JArray(row)))
-                });
-            var charts = new JArray();
-            foreach (var ch in r.Charts)
-                charts.Add(new JObject
-                {
-                    ["title"] = ch.Title,
-                    ["x_title"] = ch.XTitle,
-                    ["y_title"] = ch.YTitle,
-                    ["series"] = new JArray(ch.Series.Select(se => new JObject
-                    {
-                        ["title"] = se.Title,
-                        ["x"] = new JArray(se.X),
-                        ["y"] = new JArray(se.Y)
-                    }))
-                });
-            return new JObject
-            {
-                ["object"] = r.ObjectTag,
-                ["type"] = r.ObjectType,
-                ["title"] = r.Title,
-                ["lines"] = new JArray(r.Lines),
-                ["tables"] = tables,
-                ["charts"] = charts,
-                ["warnings"] = new JArray(r.Warnings),
-                ["text"] = r.TextReport
-            };
-        }
-
-        [McpTool("dwsim_solve_run",
-            "Solve the flowsheet. On failure the response carries diagnostic findings naming the " +
-            "object at fault and what to do about it; call dwsim_flowsheet_check first to catch " +
-            "the same faults without paying for a solve.")]
-        public JObject Run(
-            [McpParam("Flowsheet handle")] string flowsheet_id,
-            [McpParam("Solver timeout in seconds", Required = false, JsonType = "integer")] int timeout_s = 300)
-        {
-            var fs = _sessions.GetFlowsheet(flowsheet_id);
-
-            // Use FlowsheetSolver2 (parallel-safe) if McpFlowsheet is available,
-            // otherwise fall back to FluentAPI's TrySolve.
-            var mcpFs = _sessions.GetMcpFlowsheet(flowsheet_id);
-            IReadOnlyList<Exception> errors;
-
-            if (mcpFs != null)
-            {
-                Console.Error.WriteLine($"[dwsim-mcp] Solving flowsheet {flowsheet_id} with FlowsheetSolver2 (timeout={timeout_s}s)...");
-                using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(timeout_s)))
-                {
-                    errors = mcpFs.SolveFlowsheet(cts.Token, timeout_s);
-                }
-            }
-            else
-            {
-                Console.Error.WriteLine($"[dwsim-mcp] Solving flowsheet {flowsheet_id} with FluentAPI TrySolve...");
-                errors = fs.TrySolve();
-            }
-
-            Console.Error.WriteLine($"[dwsim-mcp] Solve complete. Errors: {errors.Count}");
-
-            var objectStatuses = new JArray();
-            foreach (var obj in fs.Inner.SimulationObjects.Values)
-            {
-                var go = obj.GraphicObject;
-                if (go == null) continue;
-                objectStatuses.Add(new JObject
-                {
-                    ["name"] = go.Tag,
-                    ["type"] = go.ObjectType.ToString(),
-                    ["calculated"] = obj.Calculated,
-                    ["error"] = obj.ErrorMessage ?? ""
-                });
-            }
-
-            var errorMessages = new JArray();
-            foreach (var ex in errors)
-                errorMessages.Add(ex.Message);
-
-            var result = new JObject
-            {
-                ["ok"] = errors.Count == 0,
-                ["error_count"] = errors.Count,
-                ["errors"] = errorMessages,
-                ["objects"] = objectStatuses
-            };
-
-            // A raw exception message tells a caller what threw, not what to do. Diagnosing on the
-            // way out costs nothing next to the solve and turns the failure into a next step.
-            var findings = FlowsheetDiagnostics.Diagnose(fs.Inner, errors);
-            if (findings.Count > 0)
-            {
-                result["findings"] = FindingsJson.From(findings);
-                result["blockers"] = findings.Count(f => f.Severity == DiagnosticSeverity.Blocker);
-            }
-
-            return result;
-        }
-
-        [McpTool("dwsim_solve_diagnostics",
-            "Explain a flowsheet that did not solve: which object failed and why, plus the setup " +
-            "faults behind it. Call after dwsim_solve_run reports errors.")]
-        public JObject Diagnostics(
-            [McpParam("Flowsheet handle")] string flowsheet_id)
-        {
-            var fs = _sessions.GetFlowsheet(flowsheet_id);
-            var inner = fs.Inner;
-
-            // The solver's own exceptions are gone by now; what survives is each object's state,
-            // which is what Diagnose reads when it is given no exceptions.
-            var findings = FlowsheetDiagnostics.Diagnose(inner, null);
-
-            var report = FindingsJson.Report(findings);
-
-            var unsolved = new JArray();
-            foreach (var obj in inner.SimulationObjects.Values)
-            {
-                var go = obj.GraphicObject;
-                if (go == null || obj.Calculated) continue;
-                unsolved.Add(new JObject
-                {
-                    ["name"] = go.Tag,
-                    ["type"] = go.ObjectType.ToString(),
-                    ["error"] = string.IsNullOrEmpty(obj.ErrorMessage) ? "Not calculated" : obj.ErrorMessage
-                });
-            }
-
-            report["unsolved"] = unsolved;
-            report["unsolved_count"] = unsolved.Count;
-            return report;
-        }
-    }
-}
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using Newtonsoft.Json.Linq;
+using DWSIM.Automation.FluentAPI;
+using DWSIM.Automation.FluentAPI.Diagnostics;
+using DWSIM.Automation.DynamicRunner.Insight;
+using DWSIM.Automation.DynamicRunner.Scenarios;
+using DWSIM.MCPServer.Sessions;
+
+namespace DWSIM.MCPServer.Tools.Solve
+{
+    public class SolveTools
+    {
+        private readonly SessionManager _sessions;
+
+        public SolveTools(SessionManager sessions) { _sessions = sessions; }
+
+        [McpTool("dwsim_flowsheet_check",
+            "Check the flowsheet for the faults that stop it solving - dangling streams, unconnected " +
+            "unit operations, feeds with no flow, a loop with no recycle - without solving it. " +
+            "Cheap, so call it before dwsim_solve_run. Each finding carries the fix for it.")]
+        public JObject Check(
+            [McpParam("Flowsheet handle")] string flowsheet_id)
+        {
+            var fs = _sessions.GetFlowsheet(flowsheet_id);
+            var findings = FlowsheetDiagnostics.Check(fs.Inner);
+
+            var report = FindingsJson.Report(findings);
+            report["object_count"] = fs.Inner.SimulationObjects.Count;
+            report["compound_count"] = fs.Inner.SelectedCompounds.Count;
+            return report;
+        }
+
+        [McpTool("dwsim_flowsheet_degrees_of_freedom",
+            "List, for every object or for one, the specifications its calculation mode reads and " +
+            "whether each has a value: the degrees of freedom still open. A remaining count of zero " +
+            "means the object is fully specified. Objects with holes come first.")]
+        public JObject DegreesOfFreedom(
+            [McpParam("Flowsheet handle")] string flowsheet_id,
+            [McpParam("Tag of one object; omit for the whole flowsheet", Required = false)] string object_name = null)
+        {
+            var fs = _sessions.GetFlowsheet(flowsheet_id);
+            var inner = fs.Inner;
+
+            if (string.IsNullOrEmpty(object_name))
+                return FindingsJson.DegreesOfFreedom(DegreesOfFreedomAnalysis.Analyze(inner));
+
+            var obj = inner.SimulationObjects.Values.FirstOrDefault(o =>
+                o.GraphicObject != null && string.Equals(o.GraphicObject.Tag, object_name, StringComparison.OrdinalIgnoreCase));
+            if (obj == null) throw new ArgumentException("No object is tagged '" + object_name + "'.");
+
+            var dof = DegreesOfFreedomAnalysis.Analyze(inner, obj);
+            if (dof == null) throw new ArgumentException("'" + object_name + "' is not a process object.");
+            return FindingsJson.DegreesOfFreedom(dof);
+        }
+
+        [McpTool("dwsim_explain_finding",
+            "Explain a diagnostic code in full: what it means, why it happens, how to fix it and " +
+            "where to read more. With no code, lists every code the checks can emit.")]
+        public JObject ExplainFinding(
+            [McpParam("A diagnostic code such as FEED_NO_TEMPERATURE; omit to list them all", Required = false)] string code = null)
+        {
+            if (!string.IsNullOrEmpty(code)) return FindingsJson.Explanation(code);
+
+            var codes = new JArray();
+            foreach (var entry in FlowsheetCodes.All)
+                codes.Add(new JObject { ["code"] = entry.Key, ["summary"] = entry.Value });
+            return new JObject { ["count"] = codes.Count, ["codes"] = codes };
+        }
+
+        [McpTool("dwsim_explain_result",
+            "Explain why a solved object gave its result, as a teacher would: the balances and " +
+            "equilibrium relations it satisfied with the flowsheet's numbers substituted in, plus the " +
+            "textbook diagram of the case as data (Rachford-Rice function and K values of a flash or " +
+            "separator, heating curve of a heater, T-Q diagram and pinch of an exchanger, isenthalpic " +
+            "path of a valve, isentropic reference of a compressor or expander, Levenspiel plot of a " +
+            "kinetic reactor, Fenske-Underwood-Gilliland of a shortcut column). The object must be solved.")]
+        public JObject ExplainResult(
+            [McpParam("Flowsheet handle")] string flowsheet_id,
+            [McpParam("Tag of the object to explain")] string object_name)
+        {
+            var fs = _sessions.GetFlowsheet(flowsheet_id);
+            var inner = fs.Inner;
+            var obj = inner.SimulationObjects.Values.FirstOrDefault(o =>
+                o.GraphicObject != null && string.Equals(o.GraphicObject.Tag, object_name, StringComparison.OrdinalIgnoreCase));
+            if (obj == null) throw new ArgumentException("No object is tagged '" + object_name + "'.");
+            if (!UnitInsightStudy.Supports(obj)) throw new ArgumentException("'" + object_name + "' is a " + obj.GraphicObject.ObjectType + "; there is no explanation for that type yet.");
+
+            var r = UnitInsightStudy.Explain(inner, obj);
+            var tables = new JArray();
+            foreach (var t in r.Tables)
+                tables.Add(new JObject
+                {
+                    ["title"] = t.Title,
+                    ["columns"] = new JArray(t.Columns),
+                    ["rows"] = new JArray(t.Rows.Select(row => new JArray(row)))
+                });
+            var charts = new JArray();
+            foreach (var ch in r.Charts)
+                charts.Add(new JObject
+                {
+                    ["title"] = ch.Title,
+                    ["x_title"] = ch.XTitle,
+                    ["y_title"] = ch.YTitle,
+                    ["series"] = new JArray(ch.Series.Select(se => new JObject
+                    {
+                        ["title"] = se.Title,
+                        ["x"] = new JArray(se.X),
+                        ["y"] = new JArray(se.Y)
+                    }))
+                });
+            return new JObject
+            {
+                ["object"] = r.ObjectTag,
+                ["type"] = r.ObjectType,
+                ["title"] = r.Title,
+                ["lines"] = new JArray(r.Lines),
+                ["tables"] = tables,
+                ["charts"] = charts,
+                ["warnings"] = new JArray(r.Warnings),
+                ["text"] = r.TextReport
+            };
+        }
+
+        private static readonly Dictionary<string, ScenarioSnapshot> _snapshots = new Dictionary<string, ScenarioSnapshot>();
+
+        [McpTool("dwsim_scenario_snapshot",
+            "Capture every property of every object of the solved flowsheet under a label, so a later " +
+            "dwsim_scenario_compare can show what changed. Solve, snapshot 'base', change a spec, solve, " +
+            "snapshot 'case', then compare the two.")]
+        public JObject ScenarioSnapshotTool(
+            [McpParam("Flowsheet handle")] string flowsheet_id,
+            [McpParam("A label for the snapshot, e.g. base or hotter-feed")] string label)
+        {
+            var fs = _sessions.GetFlowsheet(flowsheet_id);
+            var snap = ScenarioComparison.Snapshot(fs.Inner, label);
+            lock (_snapshots) _snapshots[flowsheet_id + "|" + label] = snap;
+            return new JObject { ["label"] = label, ["values"] = snap.Values.Count, ["objects"] = snap.Values.Select(v => v.ObjectTag).Distinct().Count(), ["taken"] = snap.Taken.ToString("o") };
+        }
+
+        [McpTool("dwsim_scenario_compare",
+            "Compare two snapshots taken with dwsim_scenario_snapshot: the changed specifications first, " +
+            "then every result ordered by how much it moved, with a written summary of what the change did " +
+            "and which objects it did not reach.")]
+        public JObject ScenarioCompare(
+            [McpParam("Flowsheet handle")] string flowsheet_id,
+            [McpParam("Label of the first snapshot")] string label_a,
+            [McpParam("Label of the second snapshot")] string label_b,
+            [McpParam("Only the values that changed (default true)", Required = false, JsonType = "boolean")] bool only_changed = true,
+            [McpParam("At most this many rows (default 200)", Required = false, JsonType = "integer")] int limit = 200)
+        {
+            ScenarioSnapshot a, b;
+            lock (_snapshots)
+            {
+                if (!_snapshots.TryGetValue(flowsheet_id + "|" + label_a, out a)) throw new ArgumentException("No snapshot labelled '" + label_a + "' for this flowsheet.");
+                if (!_snapshots.TryGetValue(flowsheet_id + "|" + label_b, out b)) throw new ArgumentException("No snapshot labelled '" + label_b + "' for this flowsheet.");
+            }
+            var r = ScenarioComparison.Compare(a, b);
+            var rows = new JArray();
+            foreach (var d in r.Differences.Where(d => !only_changed || d.Changed).Take(Math.Max(1, limit)))
+                rows.Add(new JObject
+                {
+                    ["object"] = d.ObjectTag, ["property"] = d.Name, ["id"] = d.Property, ["specification"] = d.IsInput,
+                    ["a"] = double.IsNaN(d.A) ? (JToken)d.TextA : d.A, ["b"] = double.IsNaN(d.B) ? (JToken)d.TextB : d.B,
+                    ["change"] = double.IsNaN(d.Delta) ? null : (double?)d.Delta, ["percent"] = double.IsNaN(d.Percent) ? null : (double?)d.Percent,
+                    ["unit"] = d.Unit, ["changed"] = d.Changed
+                });
+            return new JObject
+            {
+                ["a"] = label_a, ["b"] = label_b,
+                ["specifications_changed"] = r.InputsChanged, ["results_changed"] = r.OutputsChanged, ["unchanged"] = r.Unchanged,
+                ["summary"] = new JArray(r.Summary), ["rows"] = rows, ["text"] = r.TextReport
+            };
+        }
+
+        [McpTool("dwsim_solve_run",
+            "Solve the flowsheet. On failure the response carries diagnostic findings naming the " +
+            "object at fault and what to do about it; call dwsim_flowsheet_check first to catch " +
+            "the same faults without paying for a solve.")]
+        public JObject Run(
+            [McpParam("Flowsheet handle")] string flowsheet_id,
+            [McpParam("Solver timeout in seconds", Required = false, JsonType = "integer")] int timeout_s = 300)
+        {
+            var fs = _sessions.GetFlowsheet(flowsheet_id);
+
+            // Use FlowsheetSolver2 (parallel-safe) if McpFlowsheet is available,
+            // otherwise fall back to FluentAPI's TrySolve.
+            var mcpFs = _sessions.GetMcpFlowsheet(flowsheet_id);
+            IReadOnlyList<Exception> errors;
+
+            if (mcpFs != null)
+            {
+                Console.Error.WriteLine($"[dwsim-mcp] Solving flowsheet {flowsheet_id} with FlowsheetSolver2 (timeout={timeout_s}s)...");
+                using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(timeout_s)))
+                {
+                    errors = mcpFs.SolveFlowsheet(cts.Token, timeout_s);
+                }
+            }
+            else
+            {
+                Console.Error.WriteLine($"[dwsim-mcp] Solving flowsheet {flowsheet_id} with FluentAPI TrySolve...");
+                errors = fs.TrySolve();
+            }
+
+            Console.Error.WriteLine($"[dwsim-mcp] Solve complete. Errors: {errors.Count}");
+
+            var objectStatuses = new JArray();
+            foreach (var obj in fs.Inner.SimulationObjects.Values)
+            {
+                var go = obj.GraphicObject;
+                if (go == null) continue;
+                objectStatuses.Add(new JObject
+                {
+                    ["name"] = go.Tag,
+                    ["type"] = go.ObjectType.ToString(),
+                    ["calculated"] = obj.Calculated,
+                    ["error"] = obj.ErrorMessage ?? ""
+                });
+            }
+
+            var errorMessages = new JArray();
+            foreach (var ex in errors)
+                errorMessages.Add(ex.Message);
+
+            var result = new JObject
+            {
+                ["ok"] = errors.Count == 0,
+                ["error_count"] = errors.Count,
+                ["errors"] = errorMessages,
+                ["objects"] = objectStatuses
+            };
+
+            // A raw exception message tells a caller what threw, not what to do. Diagnosing on the
+            // way out costs nothing next to the solve and turns the failure into a next step.
+            var findings = FlowsheetDiagnostics.Diagnose(fs.Inner, errors);
+            if (findings.Count > 0)
+            {
+                result["findings"] = FindingsJson.From(findings);
+                result["blockers"] = findings.Count(f => f.Severity == DiagnosticSeverity.Blocker);
+            }
+
+            return result;
+        }
+
+        [McpTool("dwsim_solve_diagnostics",
+            "Explain a flowsheet that did not solve: which object failed and why, plus the setup " +
+            "faults behind it. Call after dwsim_solve_run reports errors.")]
+        public JObject Diagnostics(
+            [McpParam("Flowsheet handle")] string flowsheet_id)
+        {
+            var fs = _sessions.GetFlowsheet(flowsheet_id);
+            var inner = fs.Inner;
+
+            // The solver's own exceptions are gone by now; what survives is each object's state,
+            // which is what Diagnose reads when it is given no exceptions.
+            var findings = FlowsheetDiagnostics.Diagnose(inner, null);
+
+            var report = FindingsJson.Report(findings);
+
+            var unsolved = new JArray();
+            foreach (var obj in inner.SimulationObjects.Values)
+            {
+                var go = obj.GraphicObject;
+                if (go == null || obj.Calculated) continue;
+                unsolved.Add(new JObject
+                {
+                    ["name"] = go.Tag,
+                    ["type"] = go.ObjectType.ToString(),
+                    ["error"] = string.IsNullOrEmpty(obj.ErrorMessage) ? "Not calculated" : obj.ErrorMessage
+                });
+            }
+
+            report["unsolved"] = unsolved;
+            report["unsolved_count"] = unsolved.Count;
+            return report;
+        }
+    }
+}
