@@ -62,6 +62,7 @@ Version 10.2.9
 - [FIX] Dynamic rigorous column: the condenser and reboiler duties never reached the stages (collected from the wrong dictionary, referenced by a placeholder), the condenser duty entered with the wrong sign, a negative pressure difference between stages produced NaN vapor flows that the validity check let through, and the rate limiters could never leave zero
 - [FIX] Material stream Subtract conserves enthalpy (the remaining holdup kept its specific enthalpy and boiled without end in the dynamic column); IsValidDouble rejects NaN and infinity
 - [FIX] Dynamic rigorous column: products and side draws leave with the state of the holdup phase they are drawn from and never more than it holds; the vapor a stage sends up is what arrived to it in the sub-step plus a slow inventory correction (the rate limiter piled vapor on the trays and released it as a pressure surge); a pressure-enthalpy flash of a holdup on its bubble point that comes back as vapor is put back on the liquid side; the sump liquid head on the bottoms outlet was zero
+- [FIX] Classic UI: closing a document tab of the dock panel goes back to the tab that was active before it (the PFD most of the time) instead of a neighbouring tab
 
 Version 10.2.8
 
