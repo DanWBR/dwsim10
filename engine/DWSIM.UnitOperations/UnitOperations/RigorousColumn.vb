@@ -142,7 +142,7 @@ Namespace UnitOperations
 
                         Dim newdist = condrec.GraphicObject.OutputConnectors(0).AttachedConnector.AttachedTo.Owner
 
-                        Dim si As New StreamInformation With {.AssociatedStage = Stages(0).Name, .ID = Guid.NewGuid().ToString(),
+                        Dim si As New StreamInformation With {.AssociatedStage = Stages(0).ID, .ID = Guid.NewGuid().ToString(),
                             .StreamBehavior = StreamInformation.Behavior.Feed,
                             .StreamPhase = StreamInformation.Phase.L, .StreamType = StreamInformation.Type.Material,
                             .StreamPosition = StreamInformation.Position.Above, .StreamID = newdist.Name}
@@ -153,7 +153,7 @@ Namespace UnitOperations
 
                         Dim overhs As MaterialStream = cond.GraphicObject.InputConnectors(0).AttachedConnector.AttachedFrom.Owner
 
-                        si = New StreamInformation With {.AssociatedStage = Stages(0).Name, .ID = Guid.NewGuid().ToString(),
+                        si = New StreamInformation With {.AssociatedStage = Stages(0).ID, .ID = Guid.NewGuid().ToString(),
                             .StreamBehavior = StreamInformation.Behavior.OverheadVapor,
                             .StreamPhase = StreamInformation.Phase.V, .StreamType = StreamInformation.Type.Material,
                             .StreamPosition = StreamInformation.Position.Above, .StreamID = overhs.Name}
@@ -212,7 +212,7 @@ Namespace UnitOperations
 
                         Dim newrebfeed As MaterialStream = rebrec.GraphicObject.OutputConnectors(0).AttachedConnector.AttachedTo.Owner
 
-                        Dim si As New StreamInformation With {.AssociatedStage = Stages.Last.Name, .ID = Guid.NewGuid().ToString(),
+                        Dim si As New StreamInformation With {.AssociatedStage = Stages.Last.ID, .ID = Guid.NewGuid().ToString(),
                             .StreamBehavior = StreamInformation.Behavior.Feed,
                             .StreamPhase = StreamInformation.Phase.B, .StreamType = StreamInformation.Type.Material,
                             .StreamPosition = StreamInformation.Position.Above, .StreamID = newrebfeed.Name}
@@ -221,7 +221,7 @@ Namespace UnitOperations
 
                         Dim newreb As MaterialStream = rebspl.GraphicObject.InputConnectors(0).AttachedConnector.AttachedFrom.Owner
 
-                        si = New StreamInformation With {.AssociatedStage = Stages.Last.Name, .ID = Guid.NewGuid().ToString(),
+                        si = New StreamInformation With {.AssociatedStage = Stages.Last.ID, .ID = Guid.NewGuid().ToString(),
                             .StreamBehavior = StreamInformation.Behavior.BottomsLiquid,
                             .StreamPhase = StreamInformation.Phase.B, .StreamType = StreamInformation.Type.Material,
                             .StreamPosition = StreamInformation.Position.Below, .StreamID = newreb.Name}
@@ -249,7 +249,7 @@ Namespace UnitOperations
                 If Not con.IsAttached Then
                     FlowSheet.ConnectObjects(feed.GraphicObject, GraphicObject, 0, i)
                     Dim msi As New StreamInformation With {.ID = feed.Name, .StreamID = feed.Name,
-                        .AssociatedStage = Stages(stagenumber).Name,
+                        .AssociatedStage = Stages(stagenumber).ID,
                         .StreamBehavior = StreamInformation.Behavior.Feed,
                         .StreamType = StreamInformation.Type.Material}
                     MaterialStreams.Add(msi.ID, msi)
@@ -266,7 +266,7 @@ Namespace UnitOperations
 
             FlowSheet.ConnectObjects(GraphicObject, stream.GraphicObject, 9, 0)
             Dim msi As New StreamInformation With {.ID = stream.Name, .StreamID = stream.Name,
-                        .AssociatedStage = Stages(0).Name,
+                        .AssociatedStage = Stages(0).ID,
                         .StreamBehavior = StreamInformation.Behavior.OverheadVapor,
                         .StreamType = StreamInformation.Type.Material}
             MaterialStreams.Add(msi.ID, msi)
@@ -277,7 +277,7 @@ Namespace UnitOperations
 
             FlowSheet.ConnectObjects(GraphicObject, stream.GraphicObject, 0, 0)
             Dim msi As New StreamInformation With {.ID = stream.Name, .StreamID = stream.Name,
-                        .AssociatedStage = Stages(0).Name,
+                        .AssociatedStage = Stages(0).ID,
                         .StreamBehavior = StreamInformation.Behavior.Distillate,
                         .StreamType = StreamInformation.Type.Material}
             MaterialStreams.Add(msi.ID, msi)
@@ -288,7 +288,7 @@ Namespace UnitOperations
 
             FlowSheet.ConnectObjects(GraphicObject, stream.GraphicObject, 1, 0)
             Dim msi As New StreamInformation With {.ID = stream.Name, .StreamID = stream.Name,
-                        .AssociatedStage = Stages.Last.Name,
+                        .AssociatedStage = Stages.Last.ID,
                         .StreamBehavior = StreamInformation.Behavior.BottomsLiquid,
                         .StreamType = StreamInformation.Type.Material}
             MaterialStreams.Add(msi.ID, msi)
@@ -299,7 +299,7 @@ Namespace UnitOperations
 
             FlowSheet.ConnectObjects(GraphicObject, stream.GraphicObject, 10, 0)
             Dim msi As New StreamInformation With {.ID = stream.Name, .StreamID = stream.Name,
-                        .AssociatedStage = Stages(0).Name,
+                        .AssociatedStage = Stages(0).ID,
                         .StreamBehavior = StreamInformation.Behavior.Distillate,
                         .StreamType = StreamInformation.Type.Energy}
             EnergyStreams.Add(msi.ID, msi)
@@ -310,7 +310,7 @@ Namespace UnitOperations
 
             FlowSheet.ConnectObjects(stream.GraphicObject, GraphicObject, 0, 10)
             Dim msi As New StreamInformation With {.ID = stream.Name, .StreamID = stream.Name,
-                        .AssociatedStage = Stages.Last.Name,
+                        .AssociatedStage = Stages.Last.ID,
                         .StreamBehavior = StreamInformation.Behavior.BottomsLiquid,
                         .StreamType = StreamInformation.Type.Energy}
             EnergyStreams.Add(msi.ID, msi)
@@ -748,7 +748,7 @@ Namespace UnitOperations
                     Try
                         Dim streamtag = FlowSheet.SimulationObjects(si.StreamID).GraphicObject.Tag
                         If prop = String.Format("Stream '{0}' Stage Index", streamtag) Then
-                            si.AssociatedStage = Stages(Convert.ToInt32(propval)).Name
+                            si.AssociatedStage = Stages(Convert.ToInt32(propval)).ID
                             Exit For
                         End If
                     Catch ex As Exception
@@ -860,7 +860,7 @@ Namespace UnitOperations
                 If Not con.IsAttached Then
                     FlowSheet.ConnectObjects(feed.GraphicObject, GraphicObject, 0, i)
                     Dim msi As New StreamInformation With {.ID = feed.Name, .StreamID = feed.Name,
-                        .AssociatedStage = Stages(stagenumber).Name,
+                        .AssociatedStage = Stages(stagenumber).ID,
                         .StreamBehavior = StreamInformation.Behavior.Feed,
                         .StreamType = StreamInformation.Type.Material}
                     MaterialStreams.Add(msi.ID, msi)
@@ -884,7 +884,7 @@ Namespace UnitOperations
 
             FlowSheet.ConnectObjects(GraphicObject, stream.GraphicObject, 0, 0)
             Dim msi As New StreamInformation With {.ID = stream.Name, .StreamID = stream.Name,
-                        .AssociatedStage = Stages(0).Name,
+                        .AssociatedStage = Stages(0).ID,
                         .StreamBehavior = StreamInformation.Behavior.OverheadVapor,
                         .StreamType = StreamInformation.Type.Material}
             MaterialStreams.Add(msi.ID, msi)
@@ -895,7 +895,7 @@ Namespace UnitOperations
 
             FlowSheet.ConnectObjects(GraphicObject, stream.GraphicObject, 1, 0)
             Dim msi As New StreamInformation With {.ID = stream.Name, .StreamID = stream.Name,
-                        .AssociatedStage = Stages.Last.Name,
+                        .AssociatedStage = Stages.Last.ID,
                         .StreamBehavior = StreamInformation.Behavior.BottomsLiquid,
                         .StreamType = StreamInformation.Type.Material}
             MaterialStreams.Add(msi.ID, msi)
@@ -1253,7 +1253,7 @@ Namespace UnitOperations
                     Try
                         Dim streamtag = FlowSheet.SimulationObjects(si.StreamID).GraphicObject.Tag
                         If prop = String.Format("Stream '{0}' Stage Index", streamtag) Then
-                            si.AssociatedStage = Stages(Convert.ToInt32(propval)).Name
+                            si.AssociatedStage = Stages(Convert.ToInt32(propval)).ID
                             Exit For
                         End If
                     Catch ex As Exception
@@ -1481,6 +1481,8 @@ Namespace UnitOperations
 
             Dim _StageIDs As New List(Of String)
 
+            ResolveStageReferences()
+
             Dim _BottomsProduct As StreamInformation = Nothing
 
             Dim _TopProduct As StreamInformation = Nothing
@@ -1494,7 +1496,7 @@ Namespace UnitOperations
                     Throw New Exception("Column needs to be (re)initialized")
                 End If
                 _Streams.Add(s.AccumulationStream)
-                _StageIDs.Add(s.Name)
+                _StageIDs.Add(s.ID)
             Next
 
             If BottomsAccumulationStream Is Nothing Then
@@ -2030,14 +2032,28 @@ Namespace UnitOperations
             Dim dif As Integer = ne - nep
 
             If dif < 0 Then
-                Stages.RemoveRange(nep + dif - 1, -dif)
-                With InitialEstimates
-                    .LiqCompositions.RemoveRange(nep + dif - 1, -dif)
-                    .VapCompositions.RemoveRange(nep + dif - 1, -dif)
-                    .LiqMolarFlows.RemoveRange(nep + dif - 1, -dif)
-                    .VapMolarFlows.RemoveRange(nep + dif - 1, -dif)
-                    .StageTemps.RemoveRange(nep + dif - 1, -dif)
-                End With
+                'remove interior stages from the bottom up, skipping the ones a feed, a draw or a duty is attached to
+                Dim refs = ReferencedStageIDs()
+                Dim removed As Integer = 0
+                Dim i As Integer = nep - 2
+                While removed < -dif AndAlso i > 0
+                    If Not refs.Contains(Stages(i).ID) Then
+                        Stages.RemoveAt(i)
+                        With InitialEstimates
+                            If .LiqCompositions.Count > i Then .LiqCompositions.RemoveAt(i)
+                            If .VapCompositions.Count > i Then .VapCompositions.RemoveAt(i)
+                            If .LiqMolarFlows.Count > i Then .LiqMolarFlows.RemoveAt(i)
+                            If .VapMolarFlows.Count > i Then .VapMolarFlows.RemoveAt(i)
+                            If .StageTemps.Count > i Then .StageTemps.RemoveAt(i)
+                        End With
+                        removed += 1
+                    End If
+                    i -= 1
+                End While
+                If removed < -dif Then
+                    NumberOfStages = Stages.Count
+                    FlowSheet?.ShowMessage(String.Format("{0}: only {1} of {2} stages removed; the others carry feeds, draws or duties. The column keeps {3} stages.", GraphicObject?.Tag, removed, -dif, Stages.Count), IFlowsheet.MessageType.Warning)
+                End If
             ElseIf dif > 0 Then
                 Dim i As Integer
                 For i = 1 To dif
@@ -2056,6 +2072,8 @@ Namespace UnitOperations
                     End With
                 Next
             End If
+
+            RefreshStageNames()
 
         End Sub
 
@@ -2209,6 +2227,10 @@ Namespace UnitOperations
                 Next
 
             End If
+
+            ResolveStageReferences()
+            RefreshStageNames()
+
             Return True
         End Function
 
@@ -2323,24 +2345,7 @@ Namespace UnitOperations
             Dim i As Integer
             For i = 0 To Me.NumberOfStages - 1
                 _st.Add(New Stage(Guid.NewGuid().ToString))
-                Select Case Me.ColumnType
-                    Case ColType.DistillationColumn
-                        If i = 0 Then
-                            _st(_st.Count - 1).Name = FlowSheet.GetTranslatedString("DCCondenser")
-                        ElseIf i = Me.NumberOfStages - 1 Then
-                            _st(_st.Count - 1).Name = FlowSheet.GetTranslatedString("DCReboiler")
-                        Else
-                            _st(_st.Count - 1).Name = "Stage" & _st.Count - 1
-                        End If
-                    Case ColType.AbsorptionColumn
-                        If i = 0 Then
-                            _st(_st.Count - 1).Name = "TopStage"
-                        ElseIf i = NumberOfStages - 1 Then
-                            _st(_st.Count - 1).Name = "BottomStage"
-                        Else
-                            _st(_st.Count - 1).Name = "Stage" & _st.Count - 1
-                        End If
-                End Select
+                _st(_st.Count - 1).Name = StageNameFor(i, Me.NumberOfStages)
             Next
 
             InitialEstimates = RebuildEstimates()
@@ -2739,6 +2744,99 @@ Namespace UnitOperations
                 i = i + 1
             Next
             Return i
+        End Function
+
+        Private Function TranslatedOr(key As String, fallback As String) As String
+            If FlowSheet Is Nothing Then Return fallback
+            Dim t = FlowSheet.GetTranslatedString(key)
+            If String.IsNullOrWhiteSpace(t) OrElse t = key Then Return fallback
+            Return t
+        End Function
+
+        ''' <summary>The name a stage at this position gets when nobody typed one: Stage1 to StageN counted from the top,
+        ''' the condenser being stage 1 and the reboiler stage N, each with its role in parentheses.</summary>
+        Public Function StageNameFor(index As Integer, count As Integer) As String
+            Dim n = "Stage" & (index + 1)
+            If ColumnType = ColType.DistillationColumn Then
+                Dim dc = TryCast(Me, DistillationColumn)
+                Dim noCondenser = dc IsNot Nothing AndAlso dc.ReboiledAbsorber
+                Dim noReboiler = dc IsNot Nothing AndAlso dc.RefluxedAbsorber
+                If index = 0 AndAlso Not noCondenser Then Return n & " (" & TranslatedOr("DCCondenser", "Condenser") & ")"
+                If index = count - 1 AndAlso Not noReboiler Then Return n & " (" & TranslatedOr("DCReboiler", "Reboiler") & ")"
+            End If
+            Return n
+        End Function
+
+        ''' <summary>True for a name the column generated itself (StageN with an optional role in parentheses, the legacy
+        ''' condenser, reboiler, TopStage and BottomStage names, or nothing); a name typed by the user is left alone.</summary>
+        Public Function IsAutomaticStageName(name As String) As Boolean
+            If String.IsNullOrWhiteSpace(name) Then Return True
+            Dim t = name.Trim()
+            If System.Text.RegularExpressions.Regex.IsMatch(t, "^Stage\s*\d+(\s*\(.*\))?$") Then Return True
+            'older files: the translated word for stage, an underscore or a space and the number (Estágio_1, Stage_1, Etapa 3)
+            If System.Text.RegularExpressions.Regex.IsMatch(t, "^[^\s\d_]+_\d+$") Then Return True
+            If System.Text.RegularExpressions.Regex.IsMatch(t, "^(Estágio|Estagio|Etapa|Stufe|Étape|Etape|Stadio|Ступень|Тарелка|段|阶段)\s*\d+$", System.Text.RegularExpressions.RegexOptions.IgnoreCase) Then Return True
+            If LegacyEndStageNames().Contains(t) Then Return True
+            Return False
+        End Function
+
+        ''' <summary>The condenser and reboiler names older files carry, in every language DWSIM has spoken, plus the
+        ''' absorber's TopStage and BottomStage.</summary>
+        Private Function LegacyEndStageNames() As HashSet(Of String)
+            Dim names As New HashSet(Of String) From {"TopStage", "BottomStage", "Condenser", "Reboiler", "Condensador", "Refervedor", "Rehervidor",
+                                                      "Kondensator", "Verdampfer", "Aufkocher", "Condensateur", "Rebouilleur", "Condensatore", "Ribollitore",
+                                                      "冷凝器", "再沸器", "Конденсатор", "Ребойлер", "Кипятильник"}
+            names.Add(TranslatedOr("DCCondenser", "Condenser"))
+            names.Add(TranslatedOr("DCReboiler", "Reboiler"))
+            If FlowSheet IsNot Nothing Then
+                For Each locale In {"en", "pt-BR", "es", "de", "fr", "it", "zh-CN", "ru", "ja", "nl"}
+                    Try
+                        Dim c = FlowSheet.GetTranslatedString("DCCondenser", locale)
+                        Dim r = FlowSheet.GetTranslatedString("DCReboiler", locale)
+                        If Not String.IsNullOrWhiteSpace(c) Then names.Add(c)
+                        If Not String.IsNullOrWhiteSpace(r) Then names.Add(r)
+                    Catch ex As Exception
+                    End Try
+                Next
+            End If
+            Return names
+        End Function
+
+        ''' <summary>Gives every stage carrying an automatic name the name of its current position, so the numbering runs
+        ''' 1 to N from the top after stages were added, removed or moved. Call ResolveStageReferences first when a
+        ''' stream may still be attached to a stage by name.</summary>
+        Public Sub RefreshStageNames()
+            For i = 0 To Stages.Count - 1
+                If IsAutomaticStageName(Stages(i).Name) Then Stages(i).Name = StageNameFor(i, Stages.Count)
+            Next
+        End Sub
+
+        ''' <summary>Re-keys every stream attached to a stage by its name (older files, scripts) to the stage ID, so
+        ''' renaming or renumbering the stages never moves a feed, a draw or a duty.</summary>
+        Public Sub ResolveStageReferences()
+            Dim ids As New HashSet(Of String)(Stages.Select(Function(st) st.ID))
+            Dim infos As New List(Of StreamInformation)
+            infos.AddRange(MaterialStreams.Values)
+            infos.AddRange(EnergyStreams.Values)
+            For Each si In infos
+                'products and duties of older files carry an empty value or a bare "0": the stream behaviour places them
+                If String.IsNullOrWhiteSpace(si.AssociatedStage) OrElse ids.Contains(si.AssociatedStage) Then Continue For
+                Dim byName = Stages.FirstOrDefault(Function(st) st.Name = si.AssociatedStage)
+                If byName IsNot Nothing Then si.AssociatedStage = byName.ID
+            Next
+        End Sub
+
+        ''' <summary>The IDs of the stages a stream, a draw or a duty is attached to.</summary>
+        Public Function ReferencedStageIDs() As HashSet(Of String)
+            ResolveStageReferences()
+            Dim refs As New HashSet(Of String)
+            For Each si In MaterialStreams.Values
+                If si.AssociatedStage IsNot Nothing Then refs.Add(si.AssociatedStage)
+            Next
+            For Each si In EnergyStreams.Values
+                If si.AssociatedStage IsNot Nothing Then refs.Add(si.AssociatedStage)
+            Next
+            Return refs
         End Function
 
         Public Property AutoUpdateInitialEstimates As Boolean

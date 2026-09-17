@@ -330,12 +330,10 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
                 }
                 else
                 {
-                    var referenced = new HashSet<string>();
-                    foreach (var si in c.MaterialStreams.Values) referenced.Add(si.AssociatedStage);
-                    foreach (var si in c.EnergyStreams.Values) referenced.Add(si.AssociatedStage);
+                    var referenced = c.ReferencedStageIDs();
                     var removable = new List<int>();
                     for (int i = from; i <= to; i++)
-                        if (!referenced.Contains(c.Stages[i].ID) && !referenced.Contains(c.Stages[i].Name)) removable.Add(i);
+                        if (!referenced.Contains(c.Stages[i].ID)) removable.Add(i);
                     int toRemove = Math.Min(nOld - nNew, removable.Count);
                     if (toRemove < nOld - nNew) log.Add(s.Name + ": only " + toRemove + " of " + (nOld - nNew) + " stages could be removed; the others carry feeds, draws or duties.");
                     var picked = new List<int>();
@@ -343,8 +341,8 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
                     foreach (var i in picked.Distinct().OrderByDescending(x => x)) c.Stages.RemoveAt(i);
                     delta = -picked.Distinct().Count();
                 }
-                for (int i = 0; i < c.Stages.Count; i++)
-                    if (i > 0 && i < c.Stages.Count - 1 && (string.IsNullOrEmpty(c.Stages[i].Name) || c.Stages[i].Name.StartsWith("Stage"))) c.Stages[i].Name = "Stage" + i;
+                c.ResolveStageReferences();
+                c.RefreshStageNames();
                 changes.Add(Tuple.Create(s.FromStage, s.ToStage, delta));
                 log.Add(s.Name + ": " + nOld + " stages to " + (nOld + delta) + " (bed " + s.BedHeight.ToString("0.00") + " m / HETP " + sr.AverageHETP.ToString("0.000") + " m).");
             }

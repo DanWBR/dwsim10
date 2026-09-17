@@ -1756,7 +1756,7 @@ namespace DWSIM.UI.Desktop.Editors
             {
                 int idx = stageIdx++;
                 var st = stage;
-                panel.CreateAndAddLabelRow2($"Stage {idx + 1}: {st.Name}");
+                panel.CreateAndAddLabelRow2(col.IsAutomaticStageName(st.Name) ? st.Name : $"Stage {idx + 1}: {st.Name}");
                 panel.CreateAndAddTextBoxRow(nf, "  Pressure (" + su.pressure + ")",
                     cv.ConvertFromSI(su.pressure, st.P),
                     (tb, e) => { if (TryVal(tb.Text, out var v)) st.P = cv.ConvertToSI(su.pressure, v); });
