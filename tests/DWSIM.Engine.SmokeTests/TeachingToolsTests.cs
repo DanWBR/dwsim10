@@ -21,6 +21,7 @@ using System.IO;
 using System.Linq;
 using DWSIM.Automation.DynamicRunner.EosExplorer;
 using DWSIM.Automation.DynamicRunner.McCabeThiele;
+using DWSIM.Automation.DynamicRunner.PackageComparison;
 using DWSIM.GlobalSettings;
 using NUnit.Framework;
 
@@ -50,6 +51,8 @@ namespace DWSIM.Engine.SmokeTests
             _host.AddPropertyPackage(pp);
             var nrtl = new DWSIM.Thermodynamics.PropertyPackages.NRTLPropertyPackage { Flowsheet = _host, Tag = "NRTL" };
             _host.AddPropertyPackage(nrtl);
+            var raoult = new DWSIM.Thermodynamics.PropertyPackages.RaoultPropertyPackage { Flowsheet = _host, Tag = "Raoult" };
+            _host.AddPropertyPackage(raoult);
         }
 
         // ------------------------------------------------------------------ McCabe-Thiele
@@ -184,6 +187,51 @@ namespace DWSIM.Engine.SmokeTests
             Console.WriteLine("vdW deviation " + devVdw + ", PR deviation " + devPr);
             Assert.That(devPr, Is.LessThan(devVdw));
             Assert.That(devPr, Is.LessThan(0.05));
+        }
+    
+        // ------------------------------------------------------------------ property package comparison
+
+        /// <summary>
+        /// Ethanol-water at 1 atm against five literature points: NRTL (fitted parameters, an
+        /// azeotrope) beats Raoult's law (ideal liquid, no azeotrope), and the verdict says so.
+        /// </summary>
+        [Test]
+        public void EthanolWaterComparisonRanksNrtlAboveRaoult()
+        {
+            var input = new PackageComparisonInput { Compound1 = "Ethanol", Compound2 = "Water", Kind = DiagramKind.Txy, Pressure = 101325, Points = 41, DatasetLabel = "literature" };
+            input.SetPackages(new[] { "NRTL", "Raoult" });
+            input.SetData(new[]
+            {
+                new ExperimentalPoint { X1 = 0.10, Y1 = 0.437, T = 359.8, P = 101325 },
+                new ExperimentalPoint { X1 = 0.30, Y1 = 0.575, T = 354.8, P = 101325 },
+                new ExperimentalPoint { X1 = 0.50, Y1 = 0.652, T = 352.9, P = 101325 },
+                new ExperimentalPoint { X1 = 0.70, Y1 = 0.755, T = 351.5, P = 101325 },
+                new ExperimentalPoint { X1 = 0.90, Y1 = 0.898, T = 351.3, P = 101325 },
+            });
+            var r = PackageComparisonStudy.Run(_host, input);
+            Console.WriteLine(r.TextReport);
+
+            Assert.That(r.Curves.Count, Is.EqualTo(2));
+            var nrtl = r.Curves.First(c => c.Tag == "NRTL");
+            var raoult = r.Curves.First(c => c.Tag == "Raoult");
+            Assert.That(nrtl.Failed, Is.False, string.Join(" | ", nrtl.Warnings));
+            Assert.That(raoult.Failed, Is.False, string.Join(" | ", raoult.Warnings));
+            Assert.That(nrtl.PointsCompared, Is.EqualTo(5));
+            Assert.That(nrtl.AadBubble, Is.LessThan(1.5), "NRTL within 1.5 K of the data");
+            Assert.That(raoult.AadBubble, Is.GreaterThan(nrtl.AadBubble), "Raoult's law worse than NRTL");
+            Assert.That(nrtl.Azeotrope, Is.EqualTo(0.89).Within(0.05), "NRTL sees the azeotrope");
+            Assert.That(double.IsNaN(raoult.Azeotrope), "Raoult's law cannot see one");
+            Assert.That(r.Ranking[0], Is.EqualTo("NRTL"));
+            Assert.That(r.Verdict.Any(v => v.Contains("fits best")), string.Join(Environment.NewLine, r.Verdict));
+            Assert.That(r.Verdict.Any(v => v.Contains("azeotrope")), string.Join(Environment.NewLine, r.Verdict));
+
+            // the case file round-trips the points and the package list
+            var path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "compare_test" + PackageComparisonInput.FileExtension);
+            input.SaveToFile(path);
+            var back = PackageComparisonInput.LoadFromFile(path);
+            Assert.That(back.Data().Count, Is.EqualTo(5));
+            Assert.That(back.PackageList(), Is.EqualTo(new[] { "NRTL", "Raoult" }));
+            Assert.That(back.Data()[2].Y1, Is.EqualTo(0.652).Within(1e-12));
         }
     }
 }

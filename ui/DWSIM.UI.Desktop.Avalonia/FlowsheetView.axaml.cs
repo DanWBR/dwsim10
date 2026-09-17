@@ -2002,6 +2002,12 @@ public partial class FlowsheetView : UserControl
             if (_flowsheet.SelectedCompounds.Count < 2) { AppendLog("The McCabe-Thiele diagram needs two compounds in the simulation."); return; }
             new McCabeThieleWindow(_flowsheet).Show(HostWindow);
         };
+        MenuPackageComparison.Click += (_, _) =>
+        {
+            if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
+            if (_flowsheet.SelectedCompounds.Count < 2) { AppendLog("The property package comparison needs two compounds in the simulation."); return; }
+            new PackageComparisonWindow(_flowsheet).Show(HostWindow);
+        };
         MenuEosExplorer.Click += (_, _) =>
         {
             if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }

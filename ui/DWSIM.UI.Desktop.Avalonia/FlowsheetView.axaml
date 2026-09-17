@@ -106,6 +106,7 @@
         <Separator />
         <MenuItem Header="_McCabe-Thiele Diagram..."  Name="MenuMcCabeThiele" />
         <MenuItem Header="_Equation of State Explorer..." Name="MenuEosExplorer" />
+        <MenuItem Header="Property Package _Comparison..." Name="MenuPackageComparison" />
       </MenuItem>
       <MenuItem Header="Flowsheet _Analysis">
         <MenuItem Header="_Sensitivity Analysis..."  Name="MenuSensitivity" />
