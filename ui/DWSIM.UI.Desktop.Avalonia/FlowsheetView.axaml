@@ -46,8 +46,6 @@
         <MenuItem Header="_Force Solve"          Name="MenuSolveCustom" InputGesture="Ctrl+Alt+F5" />
         <MenuItem Header="_Abort"                Name="MenuStop" />
         <Separator />
-        <MenuItem Header="Flowsheet Chec_k..."   Name="MenuFlowsheetCheck" InputGesture="F8" />
-        <Separator />
         <MenuItem Header="Flowsheet _Calculator Active" Name="MenuCalculatorActive" ToggleType="CheckBox" InputGesture="F6" />
         <MenuItem Header="Si_multaneous Adjust Solver"  Name="MenuSimultAdjust"     ToggleType="CheckBox" InputGesture="F7" />
       </MenuItem>
@@ -110,6 +108,7 @@
         <MenuItem Header="_Sensitivity Analysis..."  Name="MenuSensitivity" />
         <MenuItem Header="_Multivariate Optimizer..." Name="MenuOptimizer" />
         <MenuItem Header="Mass and Energy _Balance Summary..." Name="MenuBalance" />
+        <MenuItem Header="Flowsheet Chec_k..."   Name="MenuFlowsheetCheck" InputGesture="F8" />
         <MenuItem Header="Property _Chart..."        Name="MenuPropertyChart" />
       </MenuItem>
       <MenuItem Header="_Results">
