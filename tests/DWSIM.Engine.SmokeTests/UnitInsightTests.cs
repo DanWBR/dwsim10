@@ -264,6 +264,35 @@ namespace DWSIM.Engine.SmokeTests
             Assert.That(vp, Is.LessThan(vc), "a PFR needs less volume for a rate that falls with conversion");
         }
 
+        /// <summary>
+        /// The extractive distillation sample: every rigorous column gets its balances, its
+        /// reflux, the key pair with Fenske and Underwood, and the three stage profiles.
+        /// </summary>
+        [Test]
+        public void RigorousColumnsAreExplainedWithProfilesAndTheKeyPair()
+        {
+            var folder = TestContext.CurrentContext.TestDirectory;
+            while (folder != null && !System.IO.Directory.Exists(System.IO.Path.Combine(folder, "tests", "flowsheets")))
+                folder = System.IO.Path.GetDirectoryName(folder);
+            Assert.That(folder, Is.Not.Null);
+            var fs = new DWSIM.DynamicRunner.Flowsheet(null, null);
+            fs.Init();
+            fs.LoadZippedXML(System.IO.Path.Combine(folder, "tests", "flowsheets", "ExtractiveDistillation.dwxmz"));
+            Solve(fs);
+
+            var columns = fs.SimulationObjects.Values.Where(o => o.GraphicObject.ObjectType == ObjectType.DistillationColumn).ToList();
+            Assert.That(columns, Is.Not.Empty);
+            foreach (var col in columns)
+            {
+                var r = Explain(fs, col.GraphicObject.Tag);
+                Assert.That(r.Charts.Select(ch => ch.Title), Is.EquivalentTo(new[] { "Temperature profile", "Internal flows", "Liquid composition profile" }));
+                Assert.That(r.Tables.Any(t => t.Title.StartsWith("Molar flows")));
+                Assert.That(r.Lines.Any(l => l.StartsWith("Reflux ratio R = L / D")), string.Join(Environment.NewLine, r.Lines));
+                Assert.That(r.Lines.Any(l => l.StartsWith("Feed ") && l.Contains("enters stage")), string.Join(Environment.NewLine, r.Lines));
+                Assert.That(r.Lines.Any(l => l.StartsWith("Fenske: N_min")), "Fenske line: " + string.Join(Environment.NewLine, r.Lines));
+            }
+        }
+
         /// <summary>Mixer and splitter: the balance tables and the pressure rule.</summary>
         [Test]
         public void MixerAndSplitterAreExplained()

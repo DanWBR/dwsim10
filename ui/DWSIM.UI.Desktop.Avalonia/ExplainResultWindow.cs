@@ -68,7 +68,7 @@ public sealed class ExplainResultWindow : Window
         var hint = new TextBlock
         {
             Margin = new Thickness(12, 0, 12, 4), Opacity = 0.75, TextWrapping = TextWrapping.Wrap, FontSize = UiScale.Font(11),
-            Text = "Streams, separators, heaters and coolers, heat exchangers, pumps, compressors and expanders, valves, mixers and splitters, reactors and shortcut columns. The object must be solved."
+            Text = "Streams, separators, heaters and coolers, heat exchangers, pumps, compressors and expanders, valves, mixers and splitters, reactors, shortcut and rigorous columns. The object must be solved."
         };
         var top = new StackPanel { Children = { bar, hint } };
 

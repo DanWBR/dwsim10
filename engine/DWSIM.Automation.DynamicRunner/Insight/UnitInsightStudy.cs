@@ -28,6 +28,7 @@ using DWSIM.SharedClasses.SystemsOfUnits;
 using DWSIM.Thermodynamics.PropertyPackages;
 using DWSIM.UnitOperations.Reactors;
 using DWSIM.UnitOperations.UnitOperations;
+using DWSIM.UnitOperations.UnitOperations.Auxiliary.SepOps;
 
 namespace DWSIM.Automation.DynamicRunner.Insight
 {
@@ -110,6 +111,10 @@ namespace DWSIM.Automation.DynamicRunner.Insight
                 case ObjectType.RCT_CSTR:
                 case ObjectType.RCT_PFR:
                 case ObjectType.ShortcutColumn:
+                case ObjectType.DistillationColumn:
+                case ObjectType.AbsorptionColumn:
+                case ObjectType.ReboiledAbsorber:
+                case ObjectType.RefluxedAbsorber:
                     return true;
                 default:
                     return false;
@@ -158,6 +163,10 @@ namespace DWSIM.Automation.DynamicRunner.Insight
                     case ObjectType.RCT_CSTR:
                     case ObjectType.RCT_PFR: ExplainReactor(ctx); break;
                     case ObjectType.ShortcutColumn: ExplainShortcutColumn(ctx); break;
+                    case ObjectType.DistillationColumn:
+                    case ObjectType.AbsorptionColumn:
+                    case ObjectType.ReboiledAbsorber:
+                    case ObjectType.RefluxedAbsorber: ExplainRigorousColumn(ctx); break;
                 }
             }
             catch (Exception ex)
@@ -999,6 +1008,157 @@ namespace DWSIM.Automation.DynamicRunner.Insight
                 Series(ch, "CSTR rectangle", new[] { 0.0, Xout, Xout }, new[] { h, h, 0.0 }, false, true);
                 Series(ch, "reactor outlet", new[] { Xout }, new[] { h }, true);
             }
+        }
+
+        // ------------------------------------------------------------------ rigorous column
+
+        private static void ExplainRigorousColumn(Ctx c)
+        {
+            var col = (Column)c.Obj;
+            bool distillation = col.ColumnType == Column.ColType.DistillationColumn;
+            string kind = distillation ? "Distillation column" : col.ColumnType == Column.ColType.AbsorptionColumn ? "Absorber" : col.ColumnType == Column.ColType.ReboiledAbsorber ? "Reboiled absorber" : "Refluxed absorber";
+            c.R.Title = kind + " " + c.R.ObjectTag + ": stage by stage";
+            int n = col.NumberOfStages;
+            var Tf = col.Tf; var Lf = col.Lf; var Vf = col.Vf;
+            if (Tf == null || Tf.Length < n || Lf.Length < n || Vf.Length < n || col.xf.Count < n) { c.Warn("The column has no stored stage profiles; solve it again."); return; }
+            var names = new List<string>();
+            foreach (var id in col.compids) names.Add(id.ToString());
+            int nc = names.Count;
+
+            // streams by role
+            var feeds = new List<Tuple<IMaterialStream, int>>();
+            var products = new List<Tuple<IMaterialStream, string>>();
+            foreach (var si in col.MaterialStreams.Values)
+            {
+                ISimulationObject o;
+                if (string.IsNullOrEmpty(si.StreamID) || !c.Fs.SimulationObjects.TryGetValue(si.StreamID, out o)) continue;
+                var ms = o as IMaterialStream;
+                if (ms == null) continue;
+                int stage = col.Stages.FindIndex(st => st.ID == si.AssociatedStage) + 1;
+                switch (si.StreamBehavior)
+                {
+                    case StreamInformation.Behavior.Feed: feeds.Add(Tuple.Create(ms, stage)); break;
+                    case StreamInformation.Behavior.Distillate: products.Add(Tuple.Create(ms, "distillate")); break;
+                    case StreamInformation.Behavior.OverheadVapor: products.Add(Tuple.Create(ms, "overhead vapour")); break;
+                    case StreamInformation.Behavior.BottomsLiquid: products.Add(Tuple.Create(ms, "bottoms")); break;
+                    case StreamInformation.Behavior.Sidedraw: products.Add(Tuple.Create(ms, "side draw, stage " + stage)); break;
+                }
+            }
+            if (feeds.Count == 0 || products.Count == 0) { c.Warn("The column needs at least one feed and one product connected."); return; }
+
+            c.Heading("What fixes the result");
+            c.Line(n + " equilibrium stages numbered from the top" + (distillation ? ", the condenser being stage 1 (" + col.CondenserType.ToString().Replace('_', ' ').ToLowerInvariant() + ") and the reboiler stage " + n : "") + ". On every stage the vapour leaving is in equilibrium with the liquid leaving (y_i = K_i x_i, stage efficiency allowing), and the stage closes its mass and energy balances: the MESH equations, solved together by the " + col.SolvingMethodName + " method.");
+            foreach (var f in feeds) c.Line("Feed " + c.Tag(f.Item1) + " enters stage " + f.Item2 + " at " + c.T(Temp(f.Item1)) + ", vapour fraction " + c.N(VapFrac(f.Item1), "F3") + ", " + c.Mol(MolarFlow(f.Item1)) + ".");
+            foreach (var kv in col.Specs)
+            {
+                var sp = kv.Value;
+                string where = kv.Key == "C" ? "Condenser" : "Reboiler";
+                c.Line(where + " specification: " + sp.SType.ToString().Replace('_', ' ').ToLowerInvariant() + " = " + c.N(sp.SpecValue) + " " + sp.SpecUnit + (string.IsNullOrEmpty(sp.ComponentID) ? "" : " of " + sp.ComponentID) + ".");
+            }
+            c.Line("Two specifications fix the two degrees of freedom of a column with a given number of stages, feeds and pressure: change one and the whole profile moves.");
+
+            // mass balance
+            c.Heading("Mass balance");
+            var cols = new List<string> { "Compound" };
+            cols.AddRange(feeds.Select(f => "in: " + c.Tag(f.Item1)));
+            cols.AddRange(products.Select(pr => "out: " + c.Tag(pr.Item1)));
+            cols.Add("recovery to " + c.Tag(products[0].Item1) + " (%)");
+            var t = Table(c, "Molar flows (" + c.Su.molarflow + ")", cols.ToArray());
+            var recovery = new Dictionary<string, double>();
+            foreach (var nm in names)
+            {
+                double fin = feeds.Sum(f => f.Item1.Phases[0].Compounds[nm].MolarFlow.GetValueOrDefault());
+                double top = products[0].Item1.Phases[0].Compounds[nm].MolarFlow.GetValueOrDefault();
+                recovery[nm] = fin > 0 ? top / fin : 0;
+                var row = new List<string> { nm };
+                row.AddRange(feeds.Select(f => c.N(c.C(f.Item1.Phases[0].Compounds[nm].MolarFlow.GetValueOrDefault(), c.Su.molarflow))));
+                row.AddRange(products.Select(pr => c.N(c.C(pr.Item1.Phases[0].Compounds[nm].MolarFlow.GetValueOrDefault(), c.Su.molarflow))));
+                row.Add(fin > 0 ? c.N(100 * recovery[nm], "F2") : "");
+                t.Rows.Add(row.ToArray());
+            }
+            c.Line("Every compound that enters leaves in a product; the split between top and bottom is what the stages and the reflux buy. A compound recovered almost fully at the top is lighter than the keys, one recovered almost fully at the bottom is heavier.");
+
+            c.Heading("Energy balance");
+            double hin = feeds.Sum(f => EnergyFlow(f.Item1)), hout = products.Sum(pr => EnergyFlow(pr.Item1));
+            // the reboiler adds heat and the condenser removes it; the stored signs follow the solver's convention, so magnitudes are used
+            double qc = Math.Abs(col.CondenserDuty), qb = Math.Abs(col.ReboilerDuty);
+            double residual = hin + qb - hout - qc;
+            c.Line("sum(m H)_feeds + Q_reboiler = sum(m H)_products + Q_condenser:  " + c.Qsi(hin) + " + " + c.Qsi(qb) + " = " + c.Qsi(hout) + " + " + c.Qsi(qc) + (Math.Abs(residual) < 1e-2 * Math.Max(1, Math.Max(Math.Abs(hin), qb)) ? " (closed)." : " (residual " + c.Q(residual) + ")."));
+            if (distillation && qb > 0 && qc > 0) c.Line("The reboiler puts in " + c.Q(qb) + " and the condenser takes out " + c.Q(qc) + ": nearly the same amount. That is the price of the separation, the heat that boils the vapour that carries the light compound up and is condensed again at the top.");
+
+            // reflux and the keys
+            if (distillation && products.Count >= 2 && products.Any(pr => pr.Item2 == "bottoms"))
+            {
+                var dist = products[0].Item1;
+                var bott = products.First(pr => pr.Item2 == "bottoms").Item1;
+                double D = MolarFlow(dist), L = Lf[0], V = Vf.Length > 1 ? Vf[1] : double.NaN;
+                c.Heading("Reflux");
+                c.Line("Reflux ratio R = L / D = " + c.Mol(L) + " / " + c.Mol(D) + " = " + c.N(D > 0 ? L / D : double.NaN, "F3") + " (column reports " + c.N(col.RefluxRatio, "F3") + "). The vapour reaching the condenser is V = (R + 1) D = " + c.Mol(V) + ".");
+                c.Line("More reflux means more liquid down the column washing the heavy compound back, so a sharper split with the same stages, at the cost of a larger reboiler duty (V goes with R).");
+
+                // keys: the least volatile compound mostly recovered at the top, and the most volatile one mostly sent to the bottom
+                int feedStage = Math.Max(0, Math.Min(n - 1, (feeds[0].Item2 > 0 ? feeds[0].Item2 : n / 2) - 1));
+                var Kfeed = (double[])col.Kf[feedStage];
+                var order = Enumerable.Range(0, nc).OrderByDescending(i => Kfeed[i]).ToList();   // most volatile first
+                // the keys are the adjacent pair, in volatility order, across which the recovery to the top drops the most
+                int lk = -1, hk = -1; double drop = 0.05;
+                for (int k = 0; k + 1 < order.Count; k++)
+                {
+                    double d = recovery[names[order[k]]] - recovery[names[order[k + 1]]];
+                    if (d > drop) { drop = d; lk = order[k]; hk = order[k + 1]; }
+                }
+                if (lk >= 0 && hk >= 0)
+                {
+                    string LK = names[lk], HK = names[hk];
+                    double xDl = dist.Phases[0].Compounds[LK].MoleFraction.GetValueOrDefault(), xDh = dist.Phases[0].Compounds[HK].MoleFraction.GetValueOrDefault();
+                    double xBl = bott.Phases[0].Compounds[LK].MoleFraction.GetValueOrDefault(), xBh = bott.Phases[0].Compounds[HK].MoleFraction.GetValueOrDefault();
+                    var Ktop = (double[])col.Kf[0]; var Kbot = (double[])col.Kf[n - 1];
+                    double aTop = Ktop[lk] / Ktop[hk], aBot = Kbot[lk] / Kbot[hk], alpha = Math.Sqrt(aTop * aBot);
+                    c.Heading("The key pair against the shortcut methods");
+                    c.Line("Light key " + LK + " (" + c.N(100 * recovery[LK], "F1") + " % to the distillate), heavy key " + HK + " (" + c.N(100 * recovery[HK], "F1") + " %). Relative volatility alpha = K_LK / K_HK: " + c.N(aTop, "F3") + " at the top, " + c.N(aBot, "F3") + " at the bottom, geometric mean " + c.N(alpha, "F3") + ".");
+                    if (xDh > 0 && xBl > 0 && alpha > 1)
+                    {
+                        double nmin = Math.Log((xDl / xDh) * (xBh / xBl)) / Math.Log(alpha);
+                        c.Line("Fenske: N_min = ln[(x_D,LK / x_D,HK)(x_B,HK / x_B,LK)] / ln(alpha) = ln[(" + c.N(xDl, "F4") + " / " + c.N(xDh, "F4") + ")(" + c.N(xBh, "F4") + " / " + c.N(xBl, "F4") + ")] / ln(" + c.N(alpha, "F3") + ") = " + c.N(nmin, "F1") + " stages at total reflux; this column has " + n + ".");
+                        if (xBl < 1e-4 || xDh < 1e-4) c.Line("A product this pure (a key below 0.0001 in a product) makes Fenske's count hang on a trace composition, so N_min can come out above the real stage count; the column reaches the purity with fewer stages because alpha is larger where it matters.");
+                        // Underwood with the feed-stage volatilities, q from the feed's vapour fraction
+                        var z = names.Select(nm => feeds.Sum(f => f.Item1.Phases[0].Compounds[nm].MolarFlow.GetValueOrDefault())).ToArray();
+                        double ztot = z.Sum(); if (ztot > 0) for (int i = 0; i < nc; i++) z[i] /= ztot;
+                        double q = 1 - feeds.Sum(f => VapFrac(f.Item1) * MolarFlow(f.Item1)) / Math.Max(1e-12, feeds.Sum(f => MolarFlow(f.Item1)));
+                        var a = Enumerable.Range(0, nc).Select(i => Kfeed[i] / Kfeed[hk]).ToArray();
+                        Func<double, double> fu = th => { double sum = 0; for (int i = 0; i < nc; i++) sum += a[i] * z[i] / (a[i] - th); return sum - (1 - q); };
+                        double lo = 1.0 + 1e-6, hi = a[lk] - 1e-6, theta = double.NaN;
+                        if (hi > lo && fu(lo) * fu(hi) < 0)
+                        {
+                            for (int it = 0; it < 100; it++) { double m = 0.5 * (lo + hi); if (fu(lo) * fu(m) <= 0) hi = m; else lo = m; }
+                            theta = 0.5 * (lo + hi);
+                        }
+                        if (!double.IsNaN(theta))
+                        {
+                            double rmin = -1; for (int i = 0; i < nc; i++) rmin += a[i] * dist.Phases[0].Compounds[names[i]].MoleFraction.GetValueOrDefault() / (a[i] - theta);
+                            double ratio = rmin > 0 ? col.RefluxRatio / rmin : double.NaN;
+                            c.Line("Underwood: with the feed-stage volatilities and q = " + c.N(q, "F3") + ", theta = " + c.N(theta, "F4") + " between alpha_HK = 1 and alpha_LK = " + c.N(a[lk], "F3") + ", and R_min = sum_i alpha_i x_D,i / (alpha_i - theta) - 1 = " + c.N(rmin, "F3") + ". The column runs at R / R_min = " + c.N(ratio, "F2") + (ratio < 1.05 ? ": so close to the minimum that the stages near the feed do almost nothing (a pinch)." : ratio > 3 ? ": far above the usual 1.2 to 1.5; the reboiler works harder than the separation needs." : ", in the usual design range."));
+                        }
+                        c.Line("Try it: the McCabe-Thiele tool on the Utilities menu draws the stages for " + LK + " / " + HK + " at this reflux.");
+                    }
+                }
+            }
+
+            // profiles
+            var stages = Enumerable.Range(1, n).Select(i => (double)i).ToArray();
+            var chT = Chart(c, "Temperature profile", "Stage (1 = top)", "T (" + c.Su.temperature + ")");
+            Series(chT, "T", stages, Tf.Take(n).Select(v => c.C(v, c.Su.temperature)));
+            var chF = Chart(c, "Internal flows", "Stage (1 = top)", "Molar flow (" + c.Su.molarflow + ")");
+            Series(chF, "liquid leaving the stage", stages, Lf.Take(n).Select(v => c.C(v, c.Su.molarflow)));
+            Series(chF, "vapour leaving the stage", stages, Vf.Take(n).Select(v => c.C(v, c.Su.molarflow)));
+            var chX = Chart(c, "Liquid composition profile", "Stage (1 = top)", "x (mole fraction)");
+            for (int j = 0; j < nc; j++)
+            {
+                int jj = j;
+                Series(chX, names[j], stages, Enumerable.Range(0, n).Select(i => ((double[])col.xf[i])[jj]));
+            }
+            c.Heading("Profiles");
+            c.Line("Temperature rises from the top (light compounds boil lower) to the bottom. A flat stretch in the composition profile is a run of stages doing little: too many stages for the reflux, or a pinch near the feed. The liquid and vapour flows jump at the feed stage by the liquid and vapour the feed brings.");
         }
 
         // ------------------------------------------------------------------ shortcut column
