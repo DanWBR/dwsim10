@@ -103,6 +103,9 @@
         <MenuItem Header="_True Critical Point..."    Name="MenuUtilTCP" />
         <MenuItem Header="Petroleum Cold _Flow Properties..." Name="MenuColdFlow" />
         <MenuItem Header="Natural Gas H_ydrates..."   Name="MenuHydrates" />
+        <Separator />
+        <MenuItem Header="_McCabe-Thiele Diagram..."  Name="MenuMcCabeThiele" />
+        <MenuItem Header="_Equation of State Explorer..." Name="MenuEosExplorer" />
       </MenuItem>
       <MenuItem Header="Flowsheet _Analysis">
         <MenuItem Header="_Sensitivity Analysis..."  Name="MenuSensitivity" />

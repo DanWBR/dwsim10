@@ -1996,6 +1996,18 @@ public partial class FlowsheetView : UserControl
             if (_flowsheet == null) return;
             if (utility is DWSIM.Automation.DynamicRunner.ColumnInternals.ColumnInternalsUtility ci) new ColumnInternalsWindow(_flowsheet, ci).Show(HostWindow);
         };
+        MenuMcCabeThiele.Click += (_, _) =>
+        {
+            if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
+            if (_flowsheet.SelectedCompounds.Count < 2) { AppendLog("The McCabe-Thiele diagram needs two compounds in the simulation."); return; }
+            new McCabeThieleWindow(_flowsheet).Show(HostWindow);
+        };
+        MenuEosExplorer.Click += (_, _) =>
+        {
+            if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
+            if (_flowsheet.SelectedCompounds.Count < 1) { AppendLog("The equation of state explorer needs a compound in the simulation."); return; }
+            new EosExplorerWindow(_flowsheet).Show(HostWindow);
+        };
         MenuPsvSizing.Click += (_, _) =>
         {
             if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
