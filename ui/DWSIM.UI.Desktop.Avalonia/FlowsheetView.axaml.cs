@@ -2040,6 +2040,11 @@ public partial class FlowsheetView : UserControl
             if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
             new BalanceSummaryWindow(_flowsheet).Show();
         };
+        MenuExplainResult.Click += (_, _) =>
+        {
+            if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
+            new ExplainResultWindow(_flowsheet, _surface?.SelectedObject?.Name).Show(HostWindow);
+        };
         MenuFlowsheetCheck.Click += (_, _) =>
         {
             if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
@@ -2668,6 +2673,14 @@ public partial class FlowsheetView : UserControl
                 catch (Exception ex) { AppendLog($"Debug error: {ex.Message}"); }
             };
             ctx.Items.Add(debug);
+
+            // Why this result: the balances and the diagram of the solved object
+            if (simObj != null && DWSIM.Automation.DynamicRunner.Insight.UnitInsightStudy.Supports(simObj))
+            {
+                var explain = new MenuItem { Header = "Explain Result...", Icon = IconHelper.MIcon("💡") }; // light bulb
+                explain.Click += (_, _) => { if (_flowsheet != null) new ExplainResultWindow(_flowsheet, simObj.Name).Show(HostWindow); };
+                ctx.Items.Add(explain);
+            }
 
             ctx.Items.Add(new Separator());
 

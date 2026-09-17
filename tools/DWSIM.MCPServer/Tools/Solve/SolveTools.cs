@@ -5,6 +5,7 @@ using System.Threading;
 using Newtonsoft.Json.Linq;
 using DWSIM.Automation.FluentAPI;
 using DWSIM.Automation.FluentAPI.Diagnostics;
+using DWSIM.Automation.DynamicRunner.Insight;
 using DWSIM.MCPServer.Sessions;
 
 namespace DWSIM.MCPServer.Tools.Solve
@@ -66,6 +67,60 @@ namespace DWSIM.MCPServer.Tools.Solve
             foreach (var entry in FlowsheetCodes.All)
                 codes.Add(new JObject { ["code"] = entry.Key, ["summary"] = entry.Value });
             return new JObject { ["count"] = codes.Count, ["codes"] = codes };
+        }
+
+        [McpTool("dwsim_explain_result",
+            "Explain why a solved object gave its result, as a teacher would: the balances and " +
+            "equilibrium relations it satisfied with the flowsheet's numbers substituted in, plus the " +
+            "textbook diagram of the case as data (Rachford-Rice function and K values of a flash or " +
+            "separator, heating curve of a heater, T-Q diagram and pinch of an exchanger, isenthalpic " +
+            "path of a valve, isentropic reference of a compressor or expander, Levenspiel plot of a " +
+            "kinetic reactor, Fenske-Underwood-Gilliland of a shortcut column). The object must be solved.")]
+        public JObject ExplainResult(
+            [McpParam("Flowsheet handle")] string flowsheet_id,
+            [McpParam("Tag of the object to explain")] string object_name)
+        {
+            var fs = _sessions.GetFlowsheet(flowsheet_id);
+            var inner = fs.Inner;
+            var obj = inner.SimulationObjects.Values.FirstOrDefault(o =>
+                o.GraphicObject != null && string.Equals(o.GraphicObject.Tag, object_name, StringComparison.OrdinalIgnoreCase));
+            if (obj == null) throw new ArgumentException("No object is tagged '" + object_name + "'.");
+            if (!UnitInsightStudy.Supports(obj)) throw new ArgumentException("'" + object_name + "' is a " + obj.GraphicObject.ObjectType + "; there is no explanation for that type yet.");
+
+            var r = UnitInsightStudy.Explain(inner, obj);
+            var tables = new JArray();
+            foreach (var t in r.Tables)
+                tables.Add(new JObject
+                {
+                    ["title"] = t.Title,
+                    ["columns"] = new JArray(t.Columns),
+                    ["rows"] = new JArray(t.Rows.Select(row => new JArray(row)))
+                });
+            var charts = new JArray();
+            foreach (var ch in r.Charts)
+                charts.Add(new JObject
+                {
+                    ["title"] = ch.Title,
+                    ["x_title"] = ch.XTitle,
+                    ["y_title"] = ch.YTitle,
+                    ["series"] = new JArray(ch.Series.Select(se => new JObject
+                    {
+                        ["title"] = se.Title,
+                        ["x"] = new JArray(se.X),
+                        ["y"] = new JArray(se.Y)
+                    }))
+                });
+            return new JObject
+            {
+                ["object"] = r.ObjectTag,
+                ["type"] = r.ObjectType,
+                ["title"] = r.Title,
+                ["lines"] = new JArray(r.Lines),
+                ["tables"] = tables,
+                ["charts"] = charts,
+                ["warnings"] = new JArray(r.Warnings),
+                ["text"] = r.TextReport
+            };
         }
 
         [McpTool("dwsim_solve_run",
