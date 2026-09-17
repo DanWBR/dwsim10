@@ -115,6 +115,7 @@
         <MenuItem Header="Flowsheet Chec_k..."   Name="MenuFlowsheetCheck" InputGesture="F8" />
         <MenuItem Header="E_xplain Result..."   Name="MenuExplainResult" />
         <MenuItem Header="Scenario Compa_rison..."   Name="MenuScenarioComparison" />
+        <MenuItem Header="_Live Sliders..."   Name="MenuLiveSliders" />
         <MenuItem Header="Property _Chart..."        Name="MenuPropertyChart" />
       </MenuItem>
       <MenuItem Header="_Results">

@@ -2046,6 +2046,11 @@ public partial class FlowsheetView : UserControl
             if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
             new BalanceSummaryWindow(_flowsheet).Show();
         };
+        MenuLiveSliders.Click += (_, _) =>
+        {
+            if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
+            new LiveSlidersWindow(_flowsheet).Show(HostWindow);
+        };
         MenuScenarioComparison.Click += (_, _) =>
         {
             if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }

@@ -23,7 +23,6 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Xml.Linq;
-using DWSIM.Automation.FluentAPI.Diagnostics;
 using DWSIM.Interfaces;
 using DWSIM.Interfaces.Enums;
 using DWSIM.Interfaces.Enums.GraphicObjects;
@@ -147,41 +146,17 @@ namespace DWSIM.Automation.DynamicRunner.Scenarios
             var s = new ScenarioSnapshot { Label = label ?? "", FlowsheetPath = fs.FlowsheetOptions.FilePath ?? "", UnitSystem = su != null ? su.Name : "" };
             foreach (var obj in fs.SimulationObjects.Values.OrderBy(o => o.GraphicObject != null ? o.GraphicObject.Tag : o.Name, StringComparer.CurrentCultureIgnoreCase))
             {
-                if (obj.GraphicObject == null) continue;
+                if (SpecificationFinder.IsDecoration(obj)) continue;
                 var type = obj.GraphicObject.ObjectType;
-                if (type == ObjectType.GO_Text || type == ObjectType.GO_Image || type == ObjectType.GO_Table || type == ObjectType.GO_MasterTable || type == ObjectType.GO_SpreadsheetTable || type == ObjectType.GO_FloatingTable || type == ObjectType.GO_Chart || type == ObjectType.GO_Rectangle || type == ObjectType.GO_HTMLText) continue;
-                string[] inputs, all;
-                try { inputs = obj.GetProperties(PropertyType.WR) ?? new string[0]; } catch (Exception) { inputs = new string[0]; }
+                string[] all;
                 try { all = obj.GetProperties(PropertyType.ALL) ?? new string[0]; } catch (Exception) { continue; }
-                var writable = new HashSet<string>(inputs);
-                // Which writable properties are the specifications of the current calculation mode: a stream
-                // fed by a unit has none; a unit's are the slots the degrees-of-freedom analysis lists, matched
-                // by value in SI (the slots name CLR properties, the property ids name the same numbers).
-                bool isStream = type == ObjectType.MaterialStream || type == ObjectType.EnergyStream;
-                // an energy stream carries what a unit gives or takes; when a unit reads it, the unit's own duty slot is the spec
-                bool fedByUnit = type == ObjectType.EnergyStream || (isStream && obj.GraphicObject.InputConnectors.Any(c => c.IsAttached));
-                List<double> specValues = null;
-                if (!isStream)
-                {
-                    try
-                    {
-                        var dof = DegreesOfFreedomAnalysis.Analyze(fs, obj);
-                        if (dof != null && dof.Supported) specValues = dof.Slots.Where(sl => sl.Required && sl.IsSet && sl.Value.HasValue).Select(sl => sl.Value.Value).ToList();
-                    }
-                    catch (Exception) { }
-                }
+                var specs = SpecificationFinder.Specifications(fs, obj);
                 foreach (var prop in all.Distinct())
                 {
                     object raw;
                     try { raw = obj.GetPropertyValue(prop, su); } catch (Exception) { continue; }
                     if (raw == null) continue;
-                    bool isInput = writable.Contains(prop) && !fedByUnit;
-                    if (isInput && specValues != null)
-                    {
-                        double si;
-                        try { si = Convert.ToDouble(obj.GetPropertyValue(prop, null), Ci); } catch (Exception) { si = double.NaN; }
-                        isInput = !double.IsNaN(si) && specValues.Any(sv => Math.Abs(sv - si) <= 1e-7 * Math.Max(1.0, Math.Abs(sv)));
-                    }
+                    bool isInput = specs.Contains(prop);
                     var v = new ScenarioValue { ObjectName = obj.Name, ObjectTag = obj.GraphicObject.Tag, ObjectType = type.ToString(), Property = prop, IsInput = isInput };
                     try { v.Unit = obj.GetPropertyUnit(prop, su) ?? ""; } catch (Exception) { }
                     try { v.Name = fs.GetTranslatedString(prop); } catch (Exception) { v.Name = prop; }

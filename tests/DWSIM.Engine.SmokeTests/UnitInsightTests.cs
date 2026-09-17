@@ -20,6 +20,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using DWSIM.Automation.DynamicRunner.Insight;
+using DWSIM.Automation.DynamicRunner.LiveSliders;
 using DWSIM.Automation.DynamicRunner.Scenarios;
 using DWSIM.GlobalSettings;
 using DWSIM.Interfaces;
@@ -340,6 +341,66 @@ namespace DWSIM.Engine.SmokeTests
             Assert.That(r.Differences.Where(d => d.ObjectTag == "S1" && !d.IsInput).All(d => !d.Changed), "the feed did not move");
             Assert.That(r.Summary.Any(l => l.StartsWith("1 specification(s) changed")), string.Join(Environment.NewLine, r.Summary));
             Assert.That(r.Differences[0].IsInput && r.Differences[0].Changed, "changed specifications come first");
+        }
+
+        /// <summary>
+        /// Live sliders on the same train: the heater offers its outlet temperature as a
+        /// specification (and the feed its T, P and flow), the compressor offers none of its results;
+        /// applying two slider positions re-solves and the watched compressor power follows.
+        /// </summary>
+        [Test]
+        public void LiveSlidersOfferSpecificationsAndResolveOnApply()
+        {
+            var fs = NewFlowsheet("Propane");
+            var s1 = Stream(fs, "S1"); var s2 = Stream(fs, "S2"); var s3 = Stream(fs, "S3");
+            var heater = Unit<Heater>(fs, ObjectType.Heater, "H-1");
+            var comp = Unit<Compressor>(fs, ObjectType.Compressor, "C-1");
+            var e1 = fs.AddObject(ObjectType.EnergyStream, 0, 0, "E1");
+            var e2 = fs.AddObject(ObjectType.EnergyStream, 0, 0, "E2");
+            fs.ConnectObjects(s1.GraphicObject, heater.GraphicObject, 0, 0);
+            fs.ConnectObjects(heater.GraphicObject, s2.GraphicObject, 0, 0);
+            fs.ConnectObjects(e1.GraphicObject, heater.GraphicObject, 0, 1);
+            fs.ConnectObjects(s2.GraphicObject, comp.GraphicObject, 0, 0);
+            fs.ConnectObjects(comp.GraphicObject, s3.GraphicObject, 0, 0);
+            fs.ConnectObjects(e2.GraphicObject, comp.GraphicObject, 0, 1);
+            s1.SetTemperature(300.0); s1.SetPressure(5e5); s1.SetMassFlow(1.0); s1.SetOverallComposition(new[] { 1.0 });
+            heater.CalcMode = Heater.CalculationMode.OutletTemperature;
+            heater.OutletTemperature = 320.0;
+            comp.CalcMode = Compressor.CalculationMode.OutletPressure;
+            comp.POut = 15e5;
+            Solve(fs);
+
+            var specObjects = LiveSliderStudy.ObjectsWithSpecifications(fs).Select(o => o.GraphicObject.Tag).ToList();
+            Console.WriteLine("objects with specifications: " + string.Join(", ", specObjects));
+            Assert.That(specObjects, Does.Contain("H-1").And.Contain("S1").And.Contain("C-1"));
+            Assert.That(specObjects, Does.Not.Contain("S2").And.Not.Contain("E1"));
+            var heaterSpecs = LiveSliderStudy.Specifications(fs, heater);
+            Console.WriteLine("heater specs: " + string.Join(", ", heaterSpecs.Select(c => c.Label + " = " + c.Value)));
+            Assert.That(heaterSpecs.Count, Is.EqualTo(1), "one spec in outlet-temperature mode");
+            Assert.That(heaterSpecs[0].Name, Does.Contain("Outlet Temperature"));
+            var compResults = LiveSliderStudy.Results(fs, comp);
+            Assert.That(compResults.Any(c => c.Name.Contains("Power")), "the compressor power is a result");
+
+            var slider = new SliderDefinition { ObjectName = heater.Name, Property = heaterSpecs[0].Property };
+            double lo, hi;
+            LiveSliderStudy.DefaultRange(heaterSpecs[0].Value, heaterSpecs[0].Unit, out lo, out hi);
+            slider.Min = lo; slider.Max = hi;
+            var watch = new WatchDefinition { ObjectName = comp.Name, Property = compResults.First(c => c.Name.Contains("Power")).Property };
+            var t0 = LiveSliderStudy.GetValue(fs, heater.Name, slider.Property);
+            var a = LiveSliderStudy.Apply(fs, new[] { slider }, new[] { t0 }, new[] { watch });
+            var b = LiveSliderStudy.Apply(fs, new[] { slider }, new[] { t0 + 20 }, new[] { watch });
+            Console.WriteLine("power at T0: " + a.Outputs[0] + ", at T0 + 20: " + b.Outputs[0] + " (" + b.Seconds.ToString("F2") + " s)");
+            Assert.That(a.Solved && b.Solved, a.Error + " " + b.Error);
+            Assert.That(b.Outputs[0], Is.GreaterThan(a.Outputs[0] * 1.02), "a hotter suction takes more power");
+
+            var input = new LiveSliderInput();
+            input.SetSliders(new[] { slider }); input.SetWatches(new[] { watch });
+            var path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "sliders_test" + LiveSliderInput.FileExtension);
+            input.SaveToFile(path);
+            var back = LiveSliderInput.LoadFromFile(path);
+            Assert.That(back.Sliders().Count, Is.EqualTo(1));
+            Assert.That(back.Sliders()[0].Max, Is.EqualTo(hi).Within(1e-9));
+            Assert.That(back.Watches()[0].Property, Is.EqualTo(watch.Property));
         }
 
         /// <summary>Mixer and splitter: the balance tables and the pressure rule.</summary>
