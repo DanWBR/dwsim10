@@ -427,6 +427,10 @@ Namespace UnitOperations
                     For i = 1 To Me.Stages.Count
                         proplist.Add("Stage_Temperature_" + CStr(i))
                     Next
+                    For i = 1 To Me.Stages.Count
+                        proplist.Add("Stage_VaporFlow_" + CStr(i))
+                        proplist.Add("Stage_LiquidFlow_" + CStr(i))
+                    Next
                     proplist.Add("Sump_LiquidLevel")
                 Case PropertyType.RW, PropertyType.ALL
                     For i = 2 To 2
@@ -447,6 +451,12 @@ Namespace UnitOperations
                     For i = 1 To Me.Stages.Count
                         proplist.Add("Stage_LiquidLevel_" + CStr(i))
                     Next
+                    If proptype = PropertyType.ALL Then
+                        For i = 1 To Me.Stages.Count
+                            proplist.Add("Stage_VaporFlow_" + CStr(i))
+                            proplist.Add("Stage_LiquidFlow_" + CStr(i))
+                        Next
+                    End If
                     proplist.Add("Sump_LiquidLevel")
                     proplist.Add("Condenser_Specification_Value")
                     proplist.Add("Reboiler_Specification_Value")
@@ -583,6 +593,17 @@ Namespace UnitOperations
                     If Me.Stages.Count >= stageindex Then value = SystemsOfUnits.Converter.ConvertFromSI(su.distance, Me.Stages(stageindex - 1).LiquidLevel)
                 End If
 
+                'the vapor a stage sends up and the liquid it sends down (the last steady-state or dynamic rates)
+                If prop.Contains("Stage_VaporFlow_") Then
+                    Dim stageindex As Integer = prop.Split("_")(2)
+                    If Me.Stages.Count >= stageindex Then value = SystemsOfUnits.Converter.ConvertFromSI(su.molarflow, Me.Stages(stageindex - 1).Vout.Value)
+                End If
+
+                If prop.Contains("Stage_LiquidFlow_") Then
+                    Dim stageindex As Integer = prop.Split("_")(2)
+                    If Me.Stages.Count >= stageindex Then value = SystemsOfUnits.Converter.ConvertFromSI(su.molarflow, Me.Stages(stageindex - 1).Lout.Value)
+                End If
+
                 If prop.Contains("Stage_Efficiency_") Then
                     Dim stageindex As Integer = prop.Split("_")(2)
                     If Me.Stages.Count >= stageindex Then value = Me.Stages(stageindex - 1).Efficiency
@@ -692,6 +713,7 @@ Namespace UnitOperations
                 If prop.Contains("Stage_Pressure") Then value = su.pressure
                 If prop.Contains("Stage_Temperature") Then value = su.temperature
                 If prop.Contains("Stage_LiquidLevel") Then value = su.distance
+                If prop.Contains("Stage_VaporFlow") OrElse prop.Contains("Stage_LiquidFlow") Then value = su.molarflow
                 If prop = "Sump_LiquidLevel" Then value = su.distance
                 If prop.Contains("Stage_Efficiency") Then value = ""
                 If prop.Contains("Molar Flow") Then value = su.molarflow
@@ -1385,6 +1407,13 @@ Namespace UnitOperations
             AddDynamicProperty("Apply Murphree Efficiency", "Apply stage Murphree efficiency to dynamic simulation. Stage efficiency values are used.", False, UnitOfMeasure.none, True.GetType())
             AddDynamicProperty("Quasi-Steady Vapor", "Treat the vapor as quasi-steady: a stage keeps the vapor its free volume holds and sends the excess up within the step, the condenser drum is the pressure state and the stage pressures follow from the tray hydraulics top-down. Off, the vapor holdup of every tray is integrated against the pressure-driven flow law, which needs sub-steps of milliseconds on a real column.", False, UnitOfMeasure.none, True.GetType())
             AddDynamicProperty("Calibrate Tray Coefficients", "When the dynamic holdup is seeded from the steady state, set the dry tray pressure drop coefficient of every tray so the steady-state vapor rate passes through its holes at the steady-state stage pressure drop. Without it the coefficients are whatever the stages carry.", False, UnitOfMeasure.none, True.GetType())
+            AddDynamicProperty("Start Empty", "Seed the first dynamic step with an empty column instead of the steady-state holdup: every stage and the sump hold a film of liquid of the feed composition at the initial temperature and pressure (the sump the initial level), with no vapor. The run is then a startup driven by the schedule: feed on, reboiler duty ramp, level controllers to automatic. Quasi-steady vapor and tray weeping on.", False, UnitOfMeasure.none, True.GetType())
+            AddDynamicProperty("Initial Pressure", "Pressure of the empty column at the start (the inert blanket).", 101325.0, UnitOfMeasure.pressure, 1.0.GetType())
+            AddDynamicProperty("Initial Temperature", "Temperature of the empty column at the start.", 298.15, UnitOfMeasure.temperature, 1.0.GetType())
+            AddDynamicProperty("Initial Sump Level", "Liquid of the feed composition in the sump when the column starts empty.", 0.0, UnitOfMeasure.distance, 1.0.GetType())
+            AddDynamicProperty("Minimum Pressure", "The condenser drum pressure cannot fall below this value (an inert blanket, a vent to atmosphere). Zero for none. Quasi-steady vapor only.", 0.0, UnitOfMeasure.pressure, 1.0.GetType())
+            AddDynamicProperty("Coolant Temperature", "The condenser removes no heat from a holdup colder than this; a duty stage that holds only a film of liquid warms or cools by at most 25 K per sub-step.", 298.15, UnitOfMeasure.temperature, 1.0.GetType())
+            AddDynamicProperty("Tray Weeping", "Liquid weeps through the holes of a sieve tray when the dry pressure drop of the vapor cannot hold the liquid head (Fair criterion): with no vapor a tray drains to the stage below, and as the boilup rises the trays begin to hold liquid. Quasi-steady vapor only.", False, UnitOfMeasure.none, True.GetType())
 
         End Sub
         ''' <summary>Seeds the dynamic holdup of every stage and of the sump from the last steady-state solution: the
@@ -1393,13 +1422,16 @@ Namespace UnitOperations
         ''' step when nothing is seeded yet; call it yourself to inspect or adjust the initial state before a run.</summary>
         Public Sub InitializeDynamicsFromSteadyStateSolution()
 
+            ResetQuasiSteadyState()
             CalculateDowncomerAreas()
 
             Dim sol = GetLastSolution()
 
             Dim calibrate As Boolean = False
+            Dim qsVapor As Boolean = False
             Try
                 calibrate = Convert.ToBoolean(GetDynamicProperty("Calibrate Tray Coefficients"))
+                qsVapor = Convert.ToBoolean(GetDynamicProperty("Quasi-Steady Vapor"))
             Catch ex As Exception
             End Try
             Dim colArea = Math.PI * EstimatedDiameter ^ 2 / 4.0
@@ -1454,8 +1486,13 @@ Namespace UnitOperations
                     Dim Lss = Math.Max(0.0, sol.LiqMolarFlows(i).Value)
                     Dim area = colArea - s.DowncomerArea
                     Dim stageVol As Double
+                    Dim rebIsSump As Boolean = qsVapor AndAlso i = Stages.Count - 1
                     If i = 0 Then
                         stageVol = colArea * BottomSpacing
+                    ElseIf rebIsSump Then
+                        'the reboiler stage of the quasi-steady model is the sump: the stage height plus the top spacing
+                        stageVol = colArea * (Math.Max(s.StageHeight, 0.05) + TopSpacing)
+                        area = colArea
                     Else
                         stageVol = colArea * Math.Max(s.StageHeight, 0.05)
                     End If
@@ -1465,6 +1502,8 @@ Namespace UnitOperations
                         Dim hL = beta * s.DowncomerHeight
                         If Lss > 0 Then hL += beta * (Lss * vl / (alpha * s.DowncomerLength)) ^ (2.0 / 3.0)
                         Dim liqVol = Math.Min(hL * area, 0.95 * stageVol)
+                        'the sump starts half full
+                        If rebIsSump Then liqVol = 0.5 * stageVol
                         Dim nL = liqVol / vl
                         Dim nV As Double = 0.0
                         If vvap > 0 AndAlso qv > 0 Then nV = Math.Max(stageVol - liqVol, 0.0) / (vvap / qv)
@@ -1516,8 +1555,13 @@ Namespace UnitOperations
             BottomsAccumulationStream.AssignSelfToPP()
             BottomsAccumulationStream.Calculate()
 
-            'the sump starts half full of the reboiler stage liquid
-            If EstimatedDiameter > 0 Then
+            'the sump starts half full of the reboiler stage liquid (explicit model); in the quasi-steady model the
+            'reboiler stage is the sump and the separate holdup is carried along as a film
+            If EstimatedDiameter > 0 AndAlso qsVapor Then
+                BottomsAccumulationStream.SetMolarFlow(Math.Max(1.0E-3 * BottomsAccumulationStream.GetMolarFlow(), 1.0E-6))
+                BottomsAccumulationStream.SetFlashSpec("PT")
+                BottomsAccumulationStream.Calculate()
+            ElseIf EstimatedDiameter > 0 Then
                 Dim sump = BottomsAccumulationStream
                 Dim vliq = sump.OverallLiquid.Properties.volumetric_flow.GetValueOrDefault()
                 Dim ql = sump.OverallLiquid.Properties.molarflow.GetValueOrDefault()
@@ -1535,7 +1579,12 @@ Namespace UnitOperations
                 End If
             End If
 
-            BottomLiquidLevel = BottomsAccumulationStream.OverallLiquid.Properties.volumetric_flow.GetValueOrDefault() / (Math.PI * EstimatedDiameter ^ 2 / 4)
+            If qsVapor Then
+                BottomLiquidLevel = Stages.Last.AccumulationStream.OverallLiquid.Properties.volumetric_flow.GetValueOrDefault() / colArea
+                Stages.Last.LiquidLevel = BottomLiquidLevel
+            Else
+                BottomLiquidLevel = BottomsAccumulationStream.OverallLiquid.Properties.volumetric_flow.GetValueOrDefault() / (Math.PI * EstimatedDiameter ^ 2 / 4)
+            End If
 
             'the dry tray coefficient of every tray so the steady-state vapor rate leaves stage i upward through the holes
             'of stage i-1 at the steady-state pressure drop between the two
@@ -1571,7 +1620,16 @@ Namespace UnitOperations
             ' Nothing and the run below throws "Column needs to be (re)initialized" - and no UI step ever
             ' triggered the initialisation. Runs once; the holdup then evolves with the dynamics.
             If BottomsAccumulationStream Is Nothing OrElse Stages.Any(Function(st) st.AccumulationStream Is Nothing) Then
-                InitializeDynamicsFromSteadyStateSolution()
+                Dim startEmpty As Boolean = False
+                Try
+                    startEmpty = Convert.ToBoolean(GetDynamicProperty("Start Empty"))
+                Catch ex As Exception
+                End Try
+                If startEmpty Then
+                    InitializeDynamicsEmpty()
+                Else
+                    InitializeDynamicsFromSteadyStateSolution()
+                End If
             End If
 
             Dim integratorID = FlowSheet.DynamicsManager.ScheduleList(FlowSheet.DynamicsManager.CurrentSchedule).CurrentIntegrator
@@ -1592,6 +1650,16 @@ Namespace UnitOperations
                 quasiSteadyVapor = Convert.ToBoolean(GetDynamicProperty("Quasi-Steady Vapor"))
             Catch ex As Exception
             End Try
+            Dim minP As Double = 0.0, coolantT As Double = 298.15
+            Dim weeping As Boolean = False
+            Try
+                minP = Convert.ToDouble(GetDynamicProperty("Minimum Pressure"))
+                coolantT = Convert.ToDouble(GetDynamicProperty("Coolant Temperature"))
+                weeping = Convert.ToBoolean(GetDynamicProperty("Tray Weeping"))
+            Catch ex As Exception
+            End Try
+            If Not minP.IsValidDouble() OrElse minP < 0 Then minP = 0.0
+            If Not coolantT.IsValidDouble() Then coolantT = 0.0
 
             Dim floodingDetected As Boolean = False
             Dim weepingDetected As Boolean = False
@@ -1670,8 +1738,8 @@ Namespace UnitOperations
             If quasiSteadyVapor Then
 
             QuasiSteadyVaporSubstep(_Streams, _StageIDs, _Feeds, _SideDraws, _HeatStreams, _TopProduct, _Distillate, _BottomsProduct,
-                                    timestep, maxDP, maxDV, C_SB, applyMurphree, floodingDetected, weepingDetected)
-            If C_SB > 0 OrElse Stages.Any(Function(st) st.IsPacked) Then
+                                    timestep, maxDP, maxDV, C_SB, applyMurphree, minP, coolantT, weeping, floodingDetected, weepingDetected)
+            If C_SB > 0 OrElse weeping OrElse Stages.Any(Function(st) st.IsPacked) Then
                 SetDynamicProperty("Flooding Alarm", floodingDetected)
                 SetDynamicProperty("Weeping Alarm", weepingDetected)
             End If
@@ -1978,7 +2046,10 @@ Namespace UnitOperations
 
             End If 'quasi-steady or explicit
 
-            'update connected streams
+            'update connected streams (the bottoms come from the reboiler stage in the quasi-steady model, from the
+            'sump in the explicit one)
+
+            Dim bottomsIndex As Integer = If(quasiSteadyVapor, Stages.Count - 1, _Streams.Count - 1)
 
             For i = 0 To _Streams.Count - 1
                 Dim stageid = _StageIDs(i)
@@ -2017,11 +2088,13 @@ Namespace UnitOperations
                         diststream.SpecType = StreamSpec.Pressure_and_Enthalpy
                         diststream.AtEquilibrium = False
                     End If
-                ElseIf i = _Streams.Count - 1 Then
+                ElseIf i = bottomsIndex Then
                     If _BottomsProduct IsNot Nothing Then
                         Dim bottomstream = DirectCast(FlowSheet.SimulationObjects(_BottomsProduct.StreamID), MaterialStream)
                         bottomstream.AssignFromPhase(PhaseLabel.Liquid1, _Streams(i), False)
-                        bottomstream.SetPressure(bottomstream.GetPressure() + bottomstream.Liquid1.Properties.density.GetValueOrDefault() * 9.8 * BottomLiquidLevel)
+                        'the liquid head of the sump on the bottoms outlet (the holdup's own liquid density: the
+                        'stream's phase properties were just cleared by the assignment)
+                        bottomstream.SetPressure(_Streams(i).GetPressure() + _Streams(i).OverallLiquid.Properties.density.GetValueOrDefault() * 9.80665 * BottomLiquidLevel)
                         bottomstream.SpecType = StreamSpec.Pressure_and_Enthalpy
                         bottomstream.AtEquilibrium = False
                     End If

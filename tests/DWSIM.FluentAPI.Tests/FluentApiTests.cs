@@ -57,6 +57,8 @@ namespace DWSIM.FluentAPI.Tests
 
         [Test] public void ATankFillsAtTheRateItIsFed() => DynamicsTankFillingTest.Run();
         [Test] public void ADynamicColumnRidesAFeedStep() => DynamicsColumnCaseTest.Run();
+        [Test] public void AColumnStartsUpFromEmpty() => DynamicsColumnStartupCaseTest.Run();
+        [Test] public void AColumnShutsDown() => DynamicsColumnShutdownCaseTest.Run();
 
         [Test] public void NaturalLayoutLaysRecyclesOutAsARectangle() => RecycleLayoutTest.Run();
 

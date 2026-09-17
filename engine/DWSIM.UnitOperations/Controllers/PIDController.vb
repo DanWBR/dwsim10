@@ -794,6 +794,8 @@ Namespace SpecialOps
                 DTerm = rawDerivative
             End If
 
+            Dim ITermBefore = ITerm
+
             ITerm += CurrentError * timestep
 
             If ITerm < -WindupGuard Then
@@ -864,6 +866,11 @@ Namespace SpecialOps
                 Else
                     OutputAbs = (1.0 + Output) * BaseSP + ffOutput
                 End If
+
+                'no integration while the output sits beyond a limit: the integral would wind up through a long
+                'saturation (a pressure controller waiting for a column to pressurise) and hold the output at the
+                'limit long after the error reversed
+                If OutputAbs > OutputMax OrElse OutputAbs < OutputMin Then ITerm = ITermBefore
 
                 If OutputAbs > OutputMax Then OutputAbs = OutputMax
 
