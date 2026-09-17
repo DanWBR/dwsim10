@@ -2077,6 +2077,25 @@ public partial class FlowsheetView : UserControl
         };
 
         // View > Show/Hide panels: toggle proportion to 0 or restore
+        // Stream colour mode: stored on the flowsheet, so it travels with the file.
+        var streamColorItems = new[] { MenuStreamColorStatus, MenuStreamColorT, MenuStreamColorP,
+                                       MenuStreamColorVF, MenuStreamColorPhase, MenuStreamColorFlow };
+        for (var i = 0; i < streamColorItems.Length; i++)
+        {
+            var mode = i;
+            streamColorItems[i].Click += (_, _) =>
+            {
+                if (_flowsheet == null) return;
+                _flowsheet.FlowsheetOptions.StreamColorMode = mode;
+                Canvas.Refresh();
+            };
+        }
+        MenuStreamColor.SubmenuOpened += (_, _) =>
+        {
+            var current = _flowsheet?.FlowsheetOptions.StreamColorMode ?? 0;
+            for (var i = 0; i < streamColorItems.Length; i++) streamColorItems[i].IsChecked = i == current;
+        };
+
         MenuShowEditor.Click += (_, _) => ToggleDockTool(_dockFactory?.EditorTool);
         MenuShowPalette.Click += (_, _) => ToggleDockTool(_dockFactory?.PaletteTool);
         MenuShowResults.Click += (_, _) => ToggleDockTool(_dockFactory?.LogTool);

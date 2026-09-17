@@ -582,6 +582,13 @@ Public Class GraphicsSurface
             DrawOverlaysAction.Invoke(DrawingCanvas)
         End If
 
+        ' The colour scale of the stream colour mode, in screen pixels over everything else.
+        If Not NetworkMode Then
+            Dim bounds = DrawingCanvas.DeviceClipBounds
+            StreamColoring.DrawLegend(DrawingCanvas, Flowsheet, bounds.Width, bounds.Height,
+                                      GlobalSettings.Settings.DarkMode, RegularTypeFace)
+        End If
+
         RaiseEvent FinishedDrawing(DrawingCanvas)
 
         For Each dobj As GraphicObject In Me.DrawingObjects

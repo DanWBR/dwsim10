@@ -90,6 +90,13 @@ Namespace GraphicObjects.Shapes
             CreateConnectors(0, 0)
             UpdateStatus()
 
+            ' In a property colour mode a solved stream takes the colour of its value on the
+            ' scale; an unsolved one keeps the status colour, so a hole still shows as salmon.
+            If Not OverrideColors AndAlso DrawMode <> 1 Then
+                Dim scaled = StreamColoring.ColorOf(TryCast(Owner, IMaterialStream))
+                If scaled.HasValue Then LineColor = scaled.Value
+            End If
+
             MyBase.Draw(g)
 
             Using myPen As New SKPaint()

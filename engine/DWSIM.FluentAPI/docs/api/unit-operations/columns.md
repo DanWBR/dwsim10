@@ -37,6 +37,8 @@ stage-by-stage rigorous solver.
 | `WithTopPressure(p)` | Top-stage pressure. |
 | `WithColumnPressureDrop(dp)` | Total drop across the column. |
 | `WithTemperatureStepFraction(f)` | Fraction of the bubble-point stage-temperature update the Wang-Henke solvers apply each sweep, 0 to 1 (default 0.5). |
+| `WithSolvingMethod(name)` | The column solver: `"Wang-Henke (Bubble Point)"` (default), `"Napthali-Sandholm"` (simultaneous correction, the robust choice for sharp, high-purity separations), `"Modified Wang-Henke Solver"`, or an external solver's name. |
+| `WithMaxIterations(n)` | Iteration cap of the column solver (default 100). |
 
 ```csharp
 fs.AddDistillationColumn("T-101")

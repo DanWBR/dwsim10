@@ -125,6 +125,15 @@
         <Separator />
         <MenuItem Header="Close All Opened _Editors" Name="MenuCloseAllEditors" />
         <Separator />
+        <MenuItem Header="Colour Streams _By" Name="MenuStreamColor">
+          <MenuItem Header="Solver _Status"    Name="MenuStreamColorStatus"   ToggleType="Radio" GroupName="StreamColor" />
+          <MenuItem Header="_Temperature"      Name="MenuStreamColorT"        ToggleType="Radio" GroupName="StreamColor" />
+          <MenuItem Header="_Pressure"         Name="MenuStreamColorP"        ToggleType="Radio" GroupName="StreamColor" />
+          <MenuItem Header="_Vapour Fraction"  Name="MenuStreamColorVF"       ToggleType="Radio" GroupName="StreamColor" />
+          <MenuItem Header="P_hase"            Name="MenuStreamColorPhase"    ToggleType="Radio" GroupName="StreamColor" />
+          <MenuItem Header="_Mass Flow"        Name="MenuStreamColorFlow"     ToggleType="Radio" GroupName="StreamColor" />
+        </MenuItem>
+        <Separator />
         <MenuItem Header="_Zoom In"        Name="MenuZoomIn" />
         <MenuItem Header="Zoom _Out"       Name="MenuZoomOut" />
         <MenuItem Header="Fit to _Window"  Name="MenuZoomFit" />

@@ -10,6 +10,14 @@ namespace DWSIM.Automation.FluentAPI.Builders
 
         /// <summary>Sets <c>Number Of Stages</c> and returns this builder for chaining.</summary>
         public DistillationColumnBuilder WithNumberOfStages(int n) { Object.SetNumberOfStages(n); return this; }
+        /// <summary>
+        /// Chooses the column solver by name: <c>"Wang-Henke (Bubble Point)"</c> (the default),
+        /// <c>"Napthali-Sandholm"</c> (simultaneous correction, the robust choice for sharp
+        /// separations), <c>"Modified Wang-Henke Solver"</c> or an external solver's name.
+        /// </summary>
+        public DistillationColumnBuilder WithSolvingMethod(string name) { Object.SolvingMethodName = name; return this; }
+        /// <summary>Sets the iteration cap of the column solver (default 100) and returns this builder for chaining.</summary>
+        public DistillationColumnBuilder WithMaxIterations(int n) { Object.MaxIterations = n; return this; }
         /// <summary>Sets <c>Top Pressure</c> (SI) and returns this builder for chaining.</summary>
         public DistillationColumnBuilder WithTopPressure(Quantity p) { Object.SetTopPressure(p.SI); return this; }
         /// <summary>Sets <c>Column Pressure Drop</c> (SI) and returns this builder for chaining.</summary>

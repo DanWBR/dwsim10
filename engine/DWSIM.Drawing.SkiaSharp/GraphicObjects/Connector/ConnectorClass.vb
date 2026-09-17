@@ -98,6 +98,17 @@ Namespace GraphicObjects
 
 #End Region
 
+        ''' <summary>The material stream this connector runs from or into, if either end is one.</summary>
+        Private Function StreamAtEitherEnd() As IMaterialStream
+            If AttachedFrom IsNot Nothing AndAlso AttachedFrom.ObjectType = ObjectType.MaterialStream Then
+                Return TryCast(AttachedFrom.Owner, IMaterialStream)
+            End If
+            If AttachedTo IsNot Nothing AndAlso AttachedTo.ObjectType = ObjectType.MaterialStream Then
+                Return TryCast(AttachedTo.Owner, IMaterialStream)
+            End If
+            Return Nothing
+        End Function
+
         Public Sub UpdateStatus2(ByRef ConnPen As SKPaint, ByVal Conn As ConnectorGraphic)
 
             ConnPen.Color = GraphicsSurface.ForegroundColor
@@ -765,6 +776,10 @@ Namespace GraphicObjects
                                 End If
                                 .PathEffect = SKPathEffect.CreateCompose(SKPathEffect.CreateDash(New Single() {2, 2}, 4), .PathEffect)
                             End If
+                            ' The line takes the colour of the material stream at either end
+                            ' of it when the flowsheet paints streams by a property.
+                            Dim streamColor = StreamColoring.ColorOf(StreamAtEitherEnd())
+                            If streamColor.HasValue Then .Color = streamColor.Value
                         End With
 
                         Using myPen2 As New SKPaint

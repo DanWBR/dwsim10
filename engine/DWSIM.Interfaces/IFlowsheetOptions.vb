@@ -107,6 +107,12 @@ Public Interface IFlowsheetOptions
 
     Property FlowsheetColorTheme As Integer
 
+    ''' <summary>
+    ''' How material streams are coloured on the flowsheet: 0 by solver status (the default),
+    ''' 1 by temperature, 2 by pressure, 3 by vapour fraction, 4 by phase, 5 by mass flow.
+    ''' </summary>
+    Property StreamColorMode As Integer
+
     Property BoldItalicFontName As String
 
     Property DisplayEnergyStreamPowerValue As Boolean

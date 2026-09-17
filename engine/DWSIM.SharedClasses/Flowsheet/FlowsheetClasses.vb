@@ -260,6 +260,8 @@ Namespace DWSIM.Flowsheet
 
         Public Property FlowsheetColorTheme As Integer = 0 Implements IFlowsheetOptions.FlowsheetColorTheme
 
+        Public Property StreamColorMode As Integer = 0 Implements IFlowsheetOptions.StreamColorMode
+
         Public Property RegularFontName As String = "OpenSans_SemiCondensed-Regular" Implements IFlowsheetOptions.RegularFontName
 
         Public Property BoldFontName As String = "OpenSans_SemiCondensed-SemiBold" Implements IFlowsheetOptions.BoldFontName
