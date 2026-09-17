@@ -1,4 +1,5 @@
-using System;
+﻿using System;
+using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
@@ -80,6 +81,7 @@ namespace DWSIM.FluentAPI.Tests
 
                     CheckModifyUnit(http, fs);
                     CheckFlowsheetCheck(http);
+                    CheckDegreesOfFreedomAndExplain(http);
                 }
             }
             finally
@@ -195,6 +197,61 @@ namespace DWSIM.FluentAPI.Tests
             {
                 if (answer[field] == null)
                     throw new Exception("The check response has no '" + field + "'.");
+            }
+        }
+
+        /// <summary>
+        /// The two routes the assistant reads after a check: what an object still needs, and what
+        /// a code means. Both are contracts with the assistant's tools, so the field names matter.
+        /// </summary>
+        private static void CheckDegreesOfFreedomAndExplain(HttpClient http)
+        {
+            var dof = Get(http, "/api/flowsheet/dof");
+            Console.WriteLine("flowsheet/dof: " + dof.ToString(Newtonsoft.Json.Formatting.None));
+            foreach (var field in new[] { "fully_specified", "remaining", "unsupported", "objects" })
+            {
+                if (dof[field] == null) throw new Exception("The dof response has no '" + field + "'.");
+            }
+
+            // CheckModifyUnit put the cooler in outlet-temperature mode at 320 K, so it is fully
+            // specified and the slot carries that value.
+            var cooler = Get(http, "/api/flowsheet/dof?object=CD-1");
+            if (cooler["remaining"] == null || cooler["remaining"].ToObject<int>() != 0)
+                throw new Exception("The cooler given its outlet temperature should have nothing open: " + cooler);
+            var slot = cooler["slots"]?.FirstOrDefault(x => x["property"]?.ToString() == "OutletTemperature");
+            if (slot == null || Math.Abs(slot["value"].ToObject<double>() - 320.0) > 1e-6)
+                throw new Exception("The outlet temperature slot should carry 320 K: " + cooler);
+            foreach (var field in new[] { "object", "type", "mode", "supported", "required", "specified", "missing", "slots" })
+            {
+                if (cooler[field] == null) throw new Exception("The object dof response has no '" + field + "'.");
+            }
+
+            var missing = http.GetAsync(BaseUrl + "/api/flowsheet/dof?object=NO-SUCH").GetAwaiter().GetResult();
+            if ((int)missing.StatusCode != 404)
+                throw new Exception("An unknown object should answer 404, got " + (int)missing.StatusCode + ".");
+
+            var explanation = Get(http, "/api/flowsheet/explain?code=SPEC_MISSING");
+            foreach (var field in new[] { "code", "title", "meaning", "why", "how_to_fix", "learn_more" })
+            {
+                if (explanation[field] == null) throw new Exception("The explanation has no '" + field + "'.");
+            }
+
+            var catalogue = Get(http, "/api/flowsheet/explain");
+            if (catalogue["codes"] == null || catalogue["count"].ToObject<int>() == 0)
+                throw new Exception("The explain route without a code should list the codes.");
+        }
+
+        private static JObject Get(HttpClient http, string path)
+        {
+            var reply = http.GetAsync(BaseUrl + path).GetAwaiter().GetResult();
+            var body = reply.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+            try
+            {
+                return JObject.Parse(body);
+            }
+            catch (Exception)
+            {
+                throw new Exception($"{path} answered {(int)reply.StatusCode} with: {body}");
             }
         }
 
