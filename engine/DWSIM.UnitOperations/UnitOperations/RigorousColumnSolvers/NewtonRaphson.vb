@@ -44,6 +44,7 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
         Dim _spval1, _spval2 As Double
         Dim _spci1, _spci2 As Integer
         Dim _eff, _F, _Q, _P, _HF As Double()
+        Dim _effc()() As Double = Nothing
         Dim _fc()() As Double
         Public _pp As PropertyPackages.PropertyPackage
         Dim _coltype As Column.ColType
@@ -694,7 +695,7 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                                 E(i, j) = lc(i)(j) / _maxlc
                             ElseIf _condtype = condtype.Partial_Condenser Then
                                 M(i, j) = lc(i)(j) * (1 + Sl(i)) + vc(i)(j) * (1 + Sv(i)) - vc(i + 1)(j) - fc(i)(j)
-                                E(i, j) = eff(i) * Kval(i)(j) * lvr(i)(j) - vc(i)(j) + (1 - eff(i)) * vc(i + 1)(j) * sumvkj(i) / sumvkj(i + 1)
+                                E(i, j) = Ef(_effc, eff, i, j) * Kval(i)(j) * lvr(i)(j) - vc(i)(j) + (1 - Ef(_effc, eff, i, j)) * vc(i + 1)(j) * sumvkj(i) / sumvkj(i + 1)
                             Else
                                 'total condenser
                                 Dim sum1 As Double = 0
@@ -710,14 +711,14 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                             End If
                         Else
                             M(i, j) = lc(i)(j) * (1 + Sl(i)) + vc(i)(j) * (1 + Sv(i)) - vc(i + 1)(j) - fc(i)(j)
-                            E(i, j) = eff(i) * Kval(i)(j) * lvr(i)(j) - vc(i)(j) + (1 - eff(i)) * vc(i + 1)(j) * sumvkj(i) / sumvkj(i + 1)
+                            E(i, j) = Ef(_effc, eff, i, j) * Kval(i)(j) * lvr(i)(j) - vc(i)(j) + (1 - Ef(_effc, eff, i, j)) * vc(i + 1)(j) * sumvkj(i) / sumvkj(i + 1)
                         End If
                     ElseIf i = ns Then
                         M(i, j) = lc(i)(j) * (1 + Sl(i)) + vc(i)(j) * (1 + Sv(i)) - lc(i - 1)(j) - fc(i)(j)
-                        E(i, j) = eff(i) * Kval(i)(j) * lvr(i)(j) - vc(i)(j)
+                        E(i, j) = Ef(_effc, eff, i, j) * Kval(i)(j) * lvr(i)(j) - vc(i)(j)
                     Else
                         M(i, j) = lc(i)(j) * (1 + Sl(i)) + vc(i)(j) * (1 + Sv(i)) - lc(i - 1)(j) - vc(i + 1)(j) - fc(i)(j)
-                        E(i, j) = eff(i) * Kval(i)(j) * lvr(i)(j) - vc(i)(j) + (1 - eff(i)) * vc(i + 1)(j) * sumvkj(i) / sumvkj(i + 1)
+                        E(i, j) = Ef(_effc, eff, i, j) * Kval(i)(j) * lvr(i)(j) - vc(i)(j) + (1 - Ef(_effc, eff, i, j)) * vc(i + 1)(j) * sumvkj(i) / sumvkj(i + 1)
                     End If
                 Next
                 If i = 0 Then
@@ -1028,19 +1029,20 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                     Dim lcj As Double = _stlc(i)(j), vcj As Double = _stvc(i)(j)
                     Dim rE As Integer = bc + 1 + nc + j
                     Dim rM As Integer = bc + 1 + j
+                    Dim ej As Double = Ef(_effc, _steff, i, j)
 
                     ' E row: dE/dT(i)
-                    g(rE, bc) = e * dKdT(j) * lcj * svsum / slsum * sT
+                    g(rE, bc) = ej * dKdT(j) * lcj * svsum / slsum * sT
                     For m As Integer = 0 To nc - 1
                         Dim kr As Double = If(m = j, 1.0, 0.0)
                         Dim colV As Integer = bc + 1 + m
                         Dim colL As Integer = bc + 1 + nc + m
                         ' dE/dlc(i,m): K via xc chain (dKnL/slsum), explicit lcj and 1/slsum factors
-                        Dim dEdlc As Double = e * svsum * (dKnL(j, m) / slsum * lcj / slsum + K * kr / slsum - K * lcj / (slsum * slsum))
+                        Dim dEdlc As Double = ej * svsum * (dKnL(j, m) / slsum * lcj / slsum + K * kr / slsum - K * lcj / (slsum * slsum))
                         g(rE, colL) = dEdlc * sL
                         ' dE/dvc(i,m): K via yc chain (dKnV), svsum factor, and -vcj term
-                        Dim dEdvc As Double = e * lcj / slsum * (dKnV(j, m) + K) - kr
-                        If i < ns Then dEdvc += (1.0 - e) * _stvc(i + 1)(j) / _stsumv(i + 1)
+                        Dim dEdvc As Double = ej * lcj / slsum * (dKnV(j, m) + K) - kr
+                        If i < ns Then dEdvc += (1.0 - ej) * _stvc(i + 1)(j) / _stsumv(i + 1)
                         g(rE, colV) = dEdvc * sV
                         ' M row (with side-draw terms; reduces to +-1 coefficients when no draws)
                         g(rM, colL) = (kr * (1.0 + sldraw) - lcj * sldraw / slsum) * 1000000.0 * sL
@@ -1051,7 +1053,7 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                         Dim svnext As Double = _stsumv(i + 1)
                         For m As Integer = 0 To nc - 1
                             Dim kr As Double = If(m = j, 1.0, 0.0)
-                            g(rE, (i + 1) * block + 1 + m) = (1.0 - e) * svsum * (kr / svnext - _stvc(i + 1)(j) / (svnext * svnext)) * sV
+                            g(rE, (i + 1) * block + 1 + m) = (1.0 - ej) * svsum * (kr / svnext - _stvc(i + 1)(j) / (svnext * svnext)) * sV
                         Next
                     End If
                     ' M row inter-stage coupling
@@ -1325,7 +1327,8 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                                 ByVal pp As PropertyPackages.PropertyPackage,
                                 ByVal specs As Dictionary(Of String, SepOps.ColumnSpec),
                               ByVal CalcMode As Integer,
-                              Optional ByVal LLEX As Boolean = False) As Object
+                              Optional ByVal LLEX As Boolean = False,
+                              Optional ByVal effc()() As Double = Nothing) As Object
 
             _names = pp.RET_VNAMES()
 
@@ -1590,6 +1593,7 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
             _spci1 = spci1
             _spci2 = spci2
             _eff = eff.Clone
+            _effc = effc
             _F = F.Clone
             _Q = Q.Clone
             _P = P.Clone
@@ -2069,7 +2073,7 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
 
             result = Solve(col, nc, ns, maxits, tol, F, V, Q, L, VSS, LSS, Kval, x, y, z, fc, HF, T, P,
                                input.CondenserType, eff, input.ColumnType, col.PropertyPackage, col.Specs, input.CalculationMode,
-                               llextractor)
+                               llextractor, If(input.ComponentEfficiencies Is Nothing, Nothing, input.ComponentEfficiencies.ToArray()))
 
             Dim output As New ColumnSolverOutputData
 

@@ -39,6 +39,9 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
 
         Inherits ColumnSolver
 
+        'rate-based mode: the Murphree efficiency of every component on every stage (Nothing = the stage values)
+        Private _effc()() As Double = Nothing
+
         Private _subcoolingdeltat As Double = 0.0
 
         ''' <summary>Gets the solver display name.</summary>
@@ -99,9 +102,11 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                                 ByVal coltype As Column.ColType,
                                 ByVal pp As PropertyPackages.PropertyPackage,
                                 ByVal specs As Dictionary(Of String, SepOps.ColumnSpec),
-                                ByVal IdealK As Boolean, ByVal IdealH As Boolean) As Object
+                                ByVal IdealK As Boolean, ByVal IdealH As Boolean,
+                                Optional ByVal effc()() As Double = Nothing) As Object
 
             Dim tolerance = tol(0)
+            _effc = effc
 
             Dim flashalgs As New List(Of FlashAlgorithm)
 
@@ -1800,7 +1805,7 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                         If i = ns Then
                             yc(i)(j) = K(i)(j) * xc(i)(j)
                         Else
-                            yc(i)(j) = eff(i) * K(i)(j) * xc(i)(j) + (1 - eff(i)) * yc(i + 1)(j)
+                            yc(i)(j) = Ef(_effc, eff, i, j) * K(i)(j) * xc(i)(j) + (1 - Ef(_effc, eff, i, j)) * yc(i + 1)(j)
                         End If
                         sumy(i) += yc(i)(j)
                     Next
@@ -2261,7 +2266,8 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
             _subcoolingdeltat = input.SubcoolingDeltaT
 
             Dim result As Object() = Solve(col, nc, ns, maxits, tol, F, V, Q, L, VSS, LSS, Kval, x, y, z, fc, HF, T, P,
-                               input.CondenserType, input.EarlyStopIteration, eff, input.ColumnType, col.PropertyPackage, col.Specs, False, False)
+                               input.CondenserType, input.EarlyStopIteration, eff, input.ColumnType, col.PropertyPackage, col.Specs, False, False,
+                               If(input.ComponentEfficiencies Is Nothing, Nothing, input.ComponentEfficiencies.ToArray()))
 
             Dim output As New ColumnSolverOutputData
 

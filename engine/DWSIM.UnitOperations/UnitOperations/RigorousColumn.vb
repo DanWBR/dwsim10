@@ -3528,7 +3528,7 @@ Namespace UnitOperations
 
             i = 0
             For Each st As Stage In Me.Stages
-                eff(i) = st.Efficiency
+                eff(i) = StageEfficiencyForSolver(i)
                 If Me.UseTemperatureEstimates And InitialEstimates.ValidateTemperatures() And Not ignoreuserestimates Then
                     T(i) = Me.InitialEstimates.StageTemps(i).Value
                 Else
@@ -3869,6 +3869,7 @@ Namespace UnitOperations
                 .StagePressures = P.ToList
                 .StageHeats = Q.ToList
                 .StageEfficiencies = eff.ToList
+                .ComponentEfficiencies = ComponentEfficienciesForSolver()
                 .NumberOfCompounds = nc
                 .NumberOfStages = ns
                 .ColumnType = ColumnType
@@ -4560,7 +4561,7 @@ Namespace UnitOperations
 
             i = 0
             For Each st As Stage In Me.Stages
-                eff(i) = st.Efficiency
+                eff(i) = StageEfficiencyForSolver(i)
                 If Me.UseTemperatureEstimates And InitialEstimates.ValidateTemperatures() And Not ignoreuserestimates Then
                     T(i) = Me.InitialEstimates.StageTemps(i).Value
                 Else
@@ -4921,6 +4922,7 @@ Namespace UnitOperations
                 .StagePressures = P.ToList
                 .StageHeats = Q.ToList
                 .StageEfficiencies = eff.ToList
+                .ComponentEfficiencies = ComponentEfficienciesForSolver()
                 .NumberOfCompounds = nc
                 .NumberOfStages = ns
                 .ColumnType = ColumnType
@@ -5559,7 +5561,7 @@ Namespace UnitOperations
 
             i = 0
             For Each st As Stage In Me.Stages
-                eff(i) = st.Efficiency
+                eff(i) = StageEfficiencyForSolver(i)
 
                 ' Temperature profile: linear interpolation between T1 and T2
                 If Me.UseTemperatureEstimates And InitialEstimates.ValidateTemperatures() And Not ignoreuserestimates Then
@@ -5943,6 +5945,7 @@ Namespace UnitOperations
                 .StagePressures = P.ToList
                 .StageHeats = Q.ToList
                 .StageEfficiencies = eff.ToList
+                .ComponentEfficiencies = ComponentEfficienciesForSolver()
                 .NumberOfCompounds = nc
                 .NumberOfStages = ns
                 .ColumnType = ColumnType
@@ -6512,6 +6515,9 @@ Namespace UnitOperations
 
             End If
 
+            'rate-based mode: the efficiencies come from the solution just found; solve again while they move
+            If RateBased Then RunRateBasedPasses(args)
+
         End Sub
 
         Private Sub GeneratePropertiesProfileReport()
@@ -6519,6 +6525,36 @@ Namespace UnitOperations
             Dim units = FlowSheet.FlowsheetOptions.SelectedUnitSystem
 
             Dim reporter = New Text.StringBuilder()
+
+            If RateBased AndAlso RateBasedEfficiencies IsNot Nothing Then
+                reporter.AppendLine("========================================================")
+                reporter.AppendLine("Rate-Based Stage Efficiencies (Murphree, from mass transfer)")
+                reporter.AppendLine("========================================================")
+                Dim cnames As String() = DirectCast(PropertyPackage, DWSIM.Thermodynamics.PropertyPackages.PropertyPackage).RET_VNAMES()
+                Dim header As New Text.StringBuilder()
+                For Each n In cnames
+                    header.Append(String.Format("{0,12}  ", If(n.Length > 12, n.Substring(0, 12), n)))
+                Next
+                reporter.AppendLine(String.Format("{0,-8}{1,10}  {2}", "Stage", "Mean", header.ToString()))
+                For i = 0 To RateBasedEfficiencies.Length - 1
+                    Dim e = RateBasedEfficiencies(i)
+                    If e Is Nothing OrElse e.Length = 0 Then Continue For
+                    Dim row As New Text.StringBuilder()
+                    Dim mean As Double = 0.0
+                    For Each v In e
+                        row.Append(String.Format("{0,12:F3}  ", v))
+                        mean += v / e.Length
+                    Next
+                    reporter.AppendLine(String.Format("{0,-8}{1,10:F3}  {2}", i + 1, mean, row.ToString()))
+                Next
+                For Each l In RateBasedStageNotes
+                    reporter.AppendLine(l)
+                Next
+                For Each l In RateBasedLog
+                    reporter.AppendLine(l)
+                Next
+                reporter.AppendLine()
+            End If
 
             reporter.AppendLine("========================================================")
             reporter.AppendLine(String.Format("Column Properties Profile"))
@@ -7372,6 +7408,9 @@ Namespace UnitOperations.Auxiliary.SepOps
         Public Property StageHeats As List(Of Double)
         Public Property StageEfficiencies As List(Of Double)
 
+        ''' <summary>Rate-based mode: the Murphree efficiency of every component on every stage (stage x compound); Nothing to use the stage values.</summary>
+        Public Property ComponentEfficiencies As List(Of Double()) = Nothing
+
         Public Property FeedFlows As List(Of Double)
         Public Property FeedCompositions As List(Of Double())
         Public Property FeedEnthalpies As List(Of Double)
@@ -7556,6 +7595,12 @@ Namespace UnitOperations.Auxiliary.SepOps
     End Class
 
     Public MustInherit Class ColumnSolver
+
+        ''' <summary>The Murphree efficiency of component j on stage i: the rate-based value when there is one, the stage value otherwise.</summary>
+        Protected Shared Function Ef(effc()() As Double, eff() As Double, i As Integer, j As Integer) As Double
+            If effc IsNot Nothing AndAlso i < effc.Length AndAlso effc(i) IsNot Nothing AndAlso j < effc(i).Length Then Return effc(i)(j)
+            Return eff(i)
+        End Function
 
         Public MustOverride ReadOnly Property Name As String
 

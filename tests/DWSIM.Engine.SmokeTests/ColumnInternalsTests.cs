@@ -814,6 +814,94 @@ namespace DWSIM.Engine.SmokeTests
             }
         }
 
+        // ------------------------------------------------------------------ rate-based column
+
+        /// <summary>Perry 7th ed. Example 12 (ethylbenzene-styrene sieve tray): with h_L 23.23 mm, froth density 0.284, 74 % of flood,
+        /// D_G 2.09e-5 and D_L 3.74e-9 m2/s, lambda 1.17 the Chan-Fair route gives N_G 1.51, N_L 18.6 and E_OG 0.75.</summary>
+        [Test]
+        public void ChanFairPointEfficiencyReproducesPerryExample12()
+        {
+            double phi = 0.284, hL = 0.02323, Aa = 4.41, QG = 14.73, QL = 0.00727;
+            var tG = (1 - phi) * hL * Aa / (phi * QG);
+            Assert.That(tG, Is.EqualTo(0.0175).Within(0.0005));
+            var ng = TrayMassTransfer.GasTransferUnits(TrayMassTransferMethod.ChanFair, 0.05, 0, 0, 1, 2.09e-5, hL, phi, tG, 0.74);
+            Assert.That(ng, Is.EqualTo(1.51).Within(0.03), "N_G");
+            var tL = hL * Aa / QL;
+            Assert.That(tL, Is.EqualTo(14.1).Within(0.2));
+            var nl = TrayMassTransfer.LiquidTransferUnits(3.74e-9, 3.34 * Math.Sqrt(0.481), tL);
+            Assert.That(nl, Is.EqualTo(18.6).Within(0.6), "N_L");
+            var nog = 1 / (1 / ng + 1.17 / nl);
+            Assert.That(1 - Math.Exp(-nog), Is.EqualTo(0.75).Within(0.01), "E_OG");
+            Assert.That(TrayMassTransfer.FrothDensity(3.34, 0.481, 841), Is.EqualTo(0.284).Within(0.01), "froth density");
+            Assert.That(TrayMassTransfer.MurphreeFromPoint(0.75, 1.17, 0), Is.EqualTo(0.75).Within(1e-9), "fully mixed liquid");
+            Assert.That(TrayMassTransfer.MurphreeFromPoint(0.75, 1.17, 1e5), Is.EqualTo((Math.Exp(1.17 * 0.75) - 1) / 1.17).Within(1e-6), "plug flow");
+            var partial = TrayMassTransfer.MurphreeFromPoint(0.75, 1.17, 10);
+            Assert.That(partial, Is.InRange(0.75, (Math.Exp(1.17 * 0.75) - 1) / 1.17), "partial mixing between the limits");
+            Assert.That(TrayMassTransfer.PackedStageEfficiency(1.0, 1.5), Is.EqualTo(1.0).Within(1e-9));
+            Assert.That(TrayMassTransfer.PackedStageEfficiency(0.5, 1.0), Is.EqualTo(0.5).Within(1e-9));
+            var dg = Diffusivities.Fuller(298.15, 101325, 78.1, 28.0, 90.7, 17.9);
+            Assert.That(dg, Is.EqualTo(0.96e-5).Within(0.15e-5), "benzene in nitrogen, Fuller");
+            var dl = Diffusivities.WilkeChang(298.15, 0.89e-3, 18.0, 2.6, 96.5);
+            Assert.That(dl, Is.EqualTo(1.0e-9).Within(0.3e-9), "benzene in water, Wilke-Chang");
+        }
+
+        /// <summary>The rate-based column: efficiencies from the mass transfer on the sieve trays of the extractive distillation
+        /// sample, settled by the solve-rate-solve passes, on the Wang-Henke and on the Naphtali-Sandholm solvers, and on a packed bed.</summary>
+        [Test]
+        public void TheRateBasedColumnSettlesItsEfficienciesFromMassTransfer()
+        {
+            var flowsheet = Load("ExtractiveDistillation.dwxmz");
+            Assert.That(flowsheet.SolveFlowsheet2(), Is.Empty);
+            var name = ColumnInternalsStudy.ColumnNames(flowsheet)[0];
+            var column = (DWSIM.UnitOperations.UnitOperations.Column)ColumnInternalsStudy.FindColumn(flowsheet, name);
+            int n = column.Stages.Count;
+            var inp = new ColumnInternalsInput { ColumnName = name };
+            inp.Sections.Add(new InternalsSection { Name = "Trays", FromStage = 2, ToStage = n - 1, Type = InternalType.SieveTray });
+            var rated = ColumnInternalsStudy.Run(flowsheet, inp);
+            ColumnInternalsStudy.ApplyToColumn(column, rated, false, false);   // diameter and heights
+            ColumnInternalsStudy.StoreCaseInColumn(column, inp);
+            var oconnell = rated.Sections[0].Stages.Where(r => !double.IsNaN(r.OConnellEfficiency)).Select(r => r.OConnellEfficiency).Average();
+
+            column.RateBased = true;
+            column.RateBasedTrayMethod = 1;
+            Assert.That(flowsheet.SolveFlowsheet2(), Is.Empty, "rate-based Wang-Henke");
+            Assert.That(column.RateBasedEfficiencies, Is.Not.Null);
+            foreach (var l in column.RateBasedLog) TestContext.Out.WriteLine(l);
+            foreach (var l in column.RateBasedStageNotes.Take(4)) TestContext.Out.WriteLine(l);
+            var means = Enumerable.Range(1, n - 2).Select(i => column.RateBasedStageEfficiency(i)).ToList();
+            TestContext.Out.WriteLine("stage efficiencies: " + string.Join(" ", means.Select(m => m.ToString("0.00"))) + "; O'Connell " + oconnell.ToString("0.00"));
+            foreach (var m in means) Assert.That(m, Is.InRange(0.15, 1.0), "a tray efficiency from mass transfer");
+            Assert.That(means.Average(), Is.InRange(0.4 * oconnell, 2.5 * oconnell), "the same order as O'Connell");
+            Assert.That(column.RateBasedLog.Last(), Does.Not.Contain("ran out"), "the passes settled");
+            Assert.That(column.ColumnPropertiesProfile, Does.Contain("Rate-Based Stage Efficiencies"));
+            Assert.That(string.Concat(column.SaveData().Select(x => x.ToString())), Does.Contain("RateBased"), "the mode is saved");
+
+            column.SolvingMethodName = "Napthali-Sandholm (Simultaneous Correction)";
+            var errors = flowsheet.SolveFlowsheet2();
+            TestContext.Out.WriteLine("Naphtali-Sandholm: " + string.Join("; ", errors.Select(e => e.Message)) + " | " + string.Join(" | ", column.RateBasedLog));
+            if (errors.Count == 0)
+            {
+                var meansNR = Enumerable.Range(1, n - 2).Select(i => column.RateBasedStageEfficiency(i)).ToList();
+                Assert.That(meansNR.Average(), Is.EqualTo(means.Average()).Within(0.15), "both solvers land on the same efficiencies");
+            }
+            column.SolvingMethodName = "Wang-Henke (Bubble Point)";
+
+            // a packed bed: efficiencies from the HETP of each component against the height of the stage
+            inp.Sections.Clear();
+            inp.Sections.Add(new InternalsSection { Name = "Bed", FromStage = 2, ToStage = n - 1, Type = InternalType.RandomPacking, PackingName = "Pall rings Metal 50 mm" });
+            column.RateBased = false;
+            Assert.That(flowsheet.SolveFlowsheet2(), Is.Empty);
+            var packed = ColumnInternalsStudy.Run(flowsheet, inp);
+            ColumnInternalsStudy.ApplyToColumn(column, packed, false, false);
+            ColumnInternalsStudy.StoreCaseInColumn(column, inp);
+            column.RateBased = true;
+            Assert.That(flowsheet.SolveFlowsheet2(), Is.Empty, "rate-based on a packed bed");
+            var meansPacked = Enumerable.Range(1, n - 2).Select(i => column.RateBasedStageEfficiency(i)).ToList();
+            TestContext.Out.WriteLine("packed stage efficiencies: " + string.Join(" ", meansPacked.Select(m => m.ToString("0.00"))) + " | " + string.Join(" | ", column.RateBasedLog));
+            foreach (var m in meansPacked) Assert.That(m, Is.InRange(0.02, 1.0));
+            Assert.That(meansPacked.Average(), Is.InRange(0.3, 1.0), "a slice of bed one HETP tall is close to a theoretical stage");
+        }
+
         /// <summary>The utility attached to the column keeps the case in the simulation and rates on Update.</summary>
         [Test]
         public void TheAttachedUtilityKeepsTheCaseAndRatesTheColumn()

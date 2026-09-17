@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -150,6 +150,16 @@ namespace DWSIM.UI.Desktop.Editors
 
             panel.CreateAndAddValueUnitRow(column, "Tray Spacing (Sizing)", UnitOfMeasure.distance,
                 column.TraySpacing, v => column.TraySpacing = v);
+
+            panel.CreateAndAddCheckBoxRow("Rate-based: stage efficiencies from mass transfer", column.RateBased,
+                (cb, e) => column.RateBased = cb.IsChecked.GetValueOrDefault());
+            panel.CreateAndAddDescriptionRow("The Murphree efficiency of every component on every stage comes from the AIChE or Chan-Fair transfer units on trays and from the HETP of each component on packed stages, using the tray geometry and packings of the column internals case saved in the column (standard sieve trays where there is none). The column solves, rates its stages and solves again until the efficiencies settle; the values are listed in the properties report.");
+            panel.CreateAndAddDropDownRow("Tray transfer units", new List<string> { "AIChE (1958)", "Chan and Fair (1984), sieve trays" }, column.RateBasedTrayMethod,
+                (dd, e) => { if (dd.SelectedIndex >= 0) column.RateBasedTrayMethod = dd.SelectedIndex; });
+            panel.CreateAndAddTextBoxRow(nf, "Rate-based passes at most", column.RateBasedMaxPasses,
+                (tb, e) => { if (UnitOpEditorRows.TryParse(tb.Text, out var v) && v >= 1) column.RateBasedMaxPasses = (int)v; });
+            panel.CreateAndAddTextBoxRow(nf, "Rate-based efficiency change that stops the passes", column.RateBasedTolerance,
+                (tb, e) => { if (UnitOpEditorRows.TryParse(tb.Text, out var v) && v > 0) column.RateBasedTolerance = v; });
 
             panel.CreateAndAddTextBoxRow(nf, "Maximum Number of Iterations", column.MaxIterations,
                 (tb, e) => { if (UnitOpEditorRows.TryParse(tb.Text, out var v)) column.MaxIterations = (int)v; });
