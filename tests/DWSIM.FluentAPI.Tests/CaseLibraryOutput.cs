@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using DWSIM.Automation.FluentAPI;
@@ -40,8 +40,13 @@ namespace DWSIM.FluentAPI.Tests
                 throw new Exception(
                     $"{caseName}: the saved flowsheet does not re-solve: {errors[0].Message}");
 
+            // gauges and other indicators display, they do not calculate
             var broken = reloaded.Inner.SimulationObjects.Values
                 .Where(o => !o.Calculated)
+                .Where(o => o.GraphicObject == null ||
+                            (o.GraphicObject.ObjectType != DWSIM.Interfaces.Enums.GraphicObjects.ObjectType.AnalogGauge &&
+                             o.GraphicObject.ObjectType != DWSIM.Interfaces.Enums.GraphicObjects.ObjectType.DigitalGauge &&
+                             o.GraphicObject.ObjectType != DWSIM.Interfaces.Enums.GraphicObjects.ObjectType.LevelGauge))
                 .Select(o => o.GraphicObject?.Tag ?? o.Name)
                 .ToList();
             if (broken.Count > 0)

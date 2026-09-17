@@ -288,7 +288,18 @@ Public Module General
     <System.Runtime.CompilerServices.Extension()>
     Public Function IsValidDouble(obj As Object) As Boolean
 
-        Return Double.TryParse(obj.ToString, New Double)
+        'a NaN or an infinity parses as a double, and is exactly what the callers guard against
+        If TypeOf obj Is Double Then
+            Dim d = DirectCast(obj, Double)
+            Return Not Double.IsNaN(d) AndAlso Not Double.IsInfinity(d)
+        End If
+        If TypeOf obj Is Single Then
+            Dim f = DirectCast(obj, Single)
+            Return Not Single.IsNaN(f) AndAlso Not Single.IsInfinity(f)
+        End If
+        Dim parsed As Double
+        If Not Double.TryParse(obj.ToString, parsed) Then Return False
+        Return Not Double.IsNaN(parsed) AndAlso Not Double.IsInfinity(parsed)
 
     End Function
 

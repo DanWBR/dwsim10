@@ -836,19 +836,32 @@ Namespace Streams
         ''' Triggers a full equilibrium and property calculation for this stream, respecting flowsheet options.
         ''' </summary>
         ''' <param name="args">Optional calculation arguments (unused).</param>
-    ''' <summary>
-    ''' Set when the phase split of this stream was worked out by something other than the
-    ''' property package of the flowsheet, as a CAPE-OPEN unit operation does with its own
-    ''' thermodynamics. The next calculation keeps that split and only works out the properties,
-    ''' then clears the flag.
-    ''' </summary>
-    ''' <remarks>
-    ''' Recalculating it here is what used to make a saturated product change phase on the way
-    ''' out: on the bubble or the dew curve, temperature and pressure cannot hold a phase split,
-    ''' and the two models disagree on where that curve is by a fraction of a degree.
-    ''' </remarks>
-    <Xml.Serialization.XmlIgnore> Public Property EquilibriumCalculatedExternally As Boolean = False
-
+    ''' <summary>
+
+    ''' Set when the phase split of this stream was worked out by something other than the
+
+    ''' property package of the flowsheet, as a CAPE-OPEN unit operation does with its own
+
+    ''' thermodynamics. The next calculation keeps that split and only works out the properties,
+
+    ''' then clears the flag.
+
+    ''' </summary>
+
+    ''' <remarks>
+
+    ''' Recalculating it here is what used to make a saturated product change phase on the way
+
+    ''' out: on the bubble or the dew curve, temperature and pressure cannot hold a phase split,
+
+    ''' and the two models disagree on where that curve is by a fraction of a degree.
+
+    ''' </remarks>
+
+    <Xml.Serialization.XmlIgnore> Public Property EquilibriumCalculatedExternally As Boolean = False
+
+
+
         Public Overrides Sub Calculate(Optional ByVal args As Object = Nothing)
             UpdateStreamType()
             If EquilibriumCalculatedExternally Then
@@ -9815,7 +9828,16 @@ Namespace Streams
                 If Not totalm.IsValidDouble() Then totalm = 0.0
                 .Phases(0).Properties.massflow = total
                 .Phases(0).Properties.molarflow = totalm
-                .SpecType = StreamSpec.Temperature_and_Pressure
+                'the energy leaves with the mass: what remains keeps (H0 W0 - H1 W1) and is flashed at its pressure,
+                'the mirror of Add. Pinned at the old temperature instead, a holdup that sends its vapor away kept the
+                'latent heat and boiled without end.
+                Dim Wout = Factor * W1
+                If total > 0.0 AndAlso H0.IsValidDouble() AndAlso H1.IsValidDouble() AndAlso W0 > Wout Then
+                    .SetMassEnthalpy((H0 * W0 - H1 * Wout) / total)
+                    .SpecType = StreamSpec.Pressure_and_Enthalpy
+                Else
+                    .SpecType = StreamSpec.Temperature_and_Pressure
+                End If
             End With
 
             Return newstream
