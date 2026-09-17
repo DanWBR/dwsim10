@@ -278,7 +278,7 @@ public partial class MainWindow : Window
         BtnCaseLibraryContribute.Click += (_, _) => OpenUrl("https://github.com/DanWBR/dwsim-case-library/blob/main/CONTRIBUTING.md");
         CaseLibraryList.DoubleTapped += (_, _) => OpenCaseLibraryFlowsheet();
 
-        BtnSettings.Click += async (_, _) => await new PreferencesWindow().ShowDialog(this);
+        BtnSettings.Click += async (_, _) => { await new PreferencesWindow().ShowDialog(this); FlowsheetView.NotifyGlobalSettingsChanged(); };
         BtnAbout.Click += (_, _) => ShowAbout();
     }
 
@@ -556,7 +556,7 @@ public partial class MainWindow : Window
         MenuOpen.Click  += async (_, _) => await OpenFileDialogAsync();
         MenuExit.Click  += (_, _) => Close();
         MenuAbout.Click += (_, _) => ShowAbout();
-        MenuPrefs.Click += async (_, _) => await new PreferencesWindow().ShowDialog(this);
+        MenuPrefs.Click += async (_, _) => { await new PreferencesWindow().ShowDialog(this); FlowsheetView.NotifyGlobalSettingsChanged(); };
         MenuUserGuide.Click += (_, _) => OpenUserGuide();
         MenuHelpSupport.Click += (_, _) => OpenUrl("https://dwsim.org/wiki/index.php?title=Support");
         MenuHelpBug.Click += (_, _) => OpenUrl("https://github.com/DanWBR/dwsim10/issues");

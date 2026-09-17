@@ -1,4 +1,4 @@
-'    DWSIM Flowsheet Solver & Auxiliary Functions
+﻿'    DWSIM Flowsheet Solver & Auxiliary Functions
 '    Copyright 2008-2022 Daniel Wagner O. de Medeiros
 '
 '    This file is part of DWSIM.
@@ -1193,6 +1193,16 @@ Public Delegate Sub CustomEvent2(ByVal objinfo As CalculationArgs)
 
     End Function
 
+    Private Shared _parallelSuspendedByInspector As Boolean = False
+
+    ''' <summary>Gives parallel processing back after a solve the inspector ran sequentially.</summary>
+    Private Shared Sub RestoreParallelProcessing()
+        If _parallelSuspendedByInspector Then
+            GlobalSettings.Settings.EnableParallelProcessing = True
+            _parallelSuspendedByInspector = False
+        End If
+    End Sub
+
     ''' <summary>
     ''' Calculate all objects in the Flowsheet using an ordering method.
     ''' </summary>
@@ -1229,8 +1239,14 @@ Public Delegate Sub CustomEvent2(ByVal objinfo As CalculationArgs)
 
             Inspector.Host.CurrentSolutionID = Date.Now.ToBinary
 
+            'the inspector needs a sequential run: parallel processing is suspended for this solve only and the
+            'user's setting comes back at the end (or at the start of the next solve if this one is interrupted)
+            RestoreParallelProcessing()
             If GlobalSettings.Settings.InspectorEnabled Then
-                GlobalSettings.Settings.EnableParallelProcessing = False
+                If GlobalSettings.Settings.EnableParallelProcessing Then
+                    GlobalSettings.Settings.EnableParallelProcessing = False
+                    _parallelSuspendedByInspector = True
+                End If
                 mode = 1
             End If
 
@@ -1828,6 +1844,8 @@ Public Delegate Sub CustomEvent2(ByVal objinfo As CalculationArgs)
             fgui.UpdateInterface()
 
             GlobalSettings.Settings.CalculatorBusy = False
+
+            RestoreParallelProcessing()
 
             fgui.ProcessScripts(Scripts.EventType.SolverFinished, Scripts.ObjectType.Solver, "")
 

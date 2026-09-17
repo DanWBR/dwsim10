@@ -1557,14 +1557,34 @@ public partial class FlowsheetView : UserControl
                 ExitConnectMode();
         };
 
+        // the toggle shows the saved setting; the solver itself runs sequentially while the inspector is on
+        BtnInspector.IsChecked = DWSIM.GlobalSettings.Settings.InspectorEnabled;
         BtnInspector.IsCheckedChanged += (_, _) =>
         {
+            if (_syncingInspectorToggle) return;
             var enabled = BtnInspector.IsChecked.GetValueOrDefault();
             DWSIM.GlobalSettings.Settings.InspectorEnabled = enabled;
-            if (enabled)
-                DWSIM.GlobalSettings.Settings.EnableParallelProcessing = false;
             AppendLog($"Inspector {(enabled ? "enabled" : "disabled")}.");
+            GlobalSettingsChanged?.Invoke();
         };
+        GlobalSettingsChanged += SyncInspectorToggle;
+    }
+
+    private bool _syncingInspectorToggle;
+
+    /// <summary>Raised by whoever changes a global setting from a window (preferences, inspector), so every
+    /// open flowsheet view can refresh the toolbar state it mirrors.</summary>
+    public static event Action? GlobalSettingsChanged;
+
+    public static void NotifyGlobalSettingsChanged() => GlobalSettingsChanged?.Invoke();
+
+    private void SyncInspectorToggle()
+    {
+        var enabled = DWSIM.GlobalSettings.Settings.InspectorEnabled;
+        if (BtnInspector.IsChecked == enabled) return;
+        _syncingInspectorToggle = true;
+        try { BtnInspector.IsChecked = enabled; }
+        finally { _syncingInspectorToggle = false; }
     }
 
     // -------------------------------------------------------------------------
@@ -1876,7 +1896,7 @@ public partial class FlowsheetView : UserControl
         MenuAddChart.Click             += (_, _) => AddAnnotationAtCenter(ObjectType.GO_Chart);
 
         // Global Settings
-        MenuGlobalSettings.Click += async (_, _) => await new PreferencesWindow().ShowDialog(HostWindow);
+        MenuGlobalSettings.Click += async (_, _) => { await new PreferencesWindow().ShowDialog(HostWindow); GlobalSettingsChanged?.Invoke(); };
 
         // Simultaneous Adjust, on the toolbar as in the WinForms UI
         BtnSimultAdjust.IsCheckedChanged += (_, _) =>
@@ -2004,7 +2024,9 @@ public partial class FlowsheetView : UserControl
         };
         MenuInspector.Click += (_, _) =>
         {
-            new InspectorReportsWindow().Show();
+            var w = new InspectorReportsWindow();
+            w.Closed += (_, _) => GlobalSettingsChanged?.Invoke();
+            w.Show();
         };
         MenuCreateCompound.Click += (_, _) =>
         {
