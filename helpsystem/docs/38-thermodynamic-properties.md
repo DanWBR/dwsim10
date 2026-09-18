@@ -769,7 +769,7 @@ For cubic equations of state, enthalpy, entropy, and heat capacities are compute
 \]
 
 
-values for $X$ and $Y$ are calculated by the PR and SRK EOS, according to the table [18](#tab:Entalpia/Entropia-por-equações):\
+values for $X$ and $Y$ are calculated by the PR and SRK EOS, according to the table [24](#tab:Entalpia/Entropia-por-equações):\
 
 
 
@@ -895,9 +895,9 @@ Z=Z^{(0)}+\frac{\omega}{\omega^{(r)}}\left(Z^{(r)}-Z^{(0)}\right),
 
 where the $(0)$ superscript refers to the simple fluid while the $(r)$ superscript refers to the reference fluid. This way, property calculation by the Lee-Kesler model should follow the sequence below (enthalpy calculation example):
 
-1.  $V_{r}$ and $Z^{(0)}$ are calculated for the simple fluid at the fluid $T_{r}$ and $P_{r}$ . using the equation [\[eq:LKH\]](#eq:LKH), and with the constants for the simple fluid, as shown in the table [19](#tab:Constantes-para-o), $(H-H^{0})/RT_{c}$ is calculated. This term is $\left[(H-H^{0})/RT_{c}\right]^{(0)}$ . in this calculation, $Z$ in the equation [\[eq:LKH\]](#eq:LKH) is $Z^{(0)}$ .
+1.  $V_{r}$ and $Z^{(0)}$ are calculated for the simple fluid at the fluid $T_{r}$ and $P_{r}$ . using the equation [\[eq:LKH\]](#eq:LKH), and with the constants for the simple fluid, as shown in the table [25](#tab:Constantes-para-o), $(H-H^{0})/RT_{c}$ is calculated. This term is $\left[(H-H^{0})/RT_{c}\right]^{(0)}$ . in this calculation, $Z$ in the equation [\[eq:LKH\]](#eq:LKH) is $Z^{(0)}$ .
 
-2.  The step 1 is repeated, using the same $T_{r}$ and $P_{r}$ , but using the constants for the reference fluid as shown in table [19](#tab:Constantes-para-o). With these values, the equation [\[eq:LKH\]](#eq:LKH) allows the calculation of $\left[(H-H^{0})/RT_{c}\right]^{(r)}$ . In this step, $Z$ in the equation [\[eq:LKH\]](#eq:LKH) is $Z^{(r)}$ .
+2.  The step 1 is repeated, using the same $T_{r}$ and $P_{r}$ , but using the constants for the reference fluid as shown in table [25](#tab:Constantes-para-o). With these values, the equation [\[eq:LKH\]](#eq:LKH) allows the calculation of $\left[(H-H^{0})/RT_{c}\right]^{(r)}$ . In this step, $Z$ in the equation [\[eq:LKH\]](#eq:LKH) is $Z^{(r)}$ .
 
 3.  Finally, one determines the residual enthalpy for the fluid of interest by
 

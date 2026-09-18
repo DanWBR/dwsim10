@@ -4,7 +4,7 @@ This section groups the bioprocess-oriented unit operations added to DWSIM in su
 
 #### Biomass Pretreatment
 
-###### Overview {#overview-23 .unnumbered}
+###### Overview {#overview-26 .unnumbered}
 
 The Pretreatment block converts a lignocellulosic slurry (cellulose + hemicellulose + lignin) into a pretreated slurry suitable for downstream enzymatic hydrolysis or direct fermentation. Four technologies are selectable via the **Technology** parameter: Dilute Acid, Steam Explosion, Alkaline, and Organosolv. Selecting one preloads a typical set of conversion fractions that the user may override.
 
@@ -48,7 +48,7 @@ The Pretreatment block converts a lignocellulosic slurry (cellulose + hemicellul
 
 #### Bioreactor
 
-###### Overview {#overview-24 .unnumbered}
+###### Overview {#overview-27 .unnumbered}
 
 The Bioreactor models a microbial culture system in which biomass (cells) grows on a limiting substrate and, optionally, produces one or more metabolic products. Unlike the chemical reactors described above, the Bioreactor does not rely on the reactions defined in the flowsheet Reactions Manager. Instead, it uses Monod-family kinetic expressions together with user-selected compound roles (biomass, substrate, product, O $_{2}$ , CO $_{2}$ , N-source, water) to compute cell growth, substrate consumption, product formation and — for aerobic cultures — oxygen uptake and carbon dioxide evolution.
 
@@ -239,7 +239,7 @@ Every Bioreactor calculation now records the full internal trajectory of the for
 
 #### CFB Fast Pyrolysis Reactor
 
-###### Overview {#overview-25 .unnumbered}
+###### Overview {#overview-28 .unnumbered}
 
 The Circulating Fluidized Bed (CFB) Fast Pyrolysis Reactor models a dilute-riser reactor for the rapid thermochemical conversion of dry lignocellulosic biomass into bio-oil, non-condensable gas, and char. Hot circulating sand (typically silica or olivine) supplies the endothermic pyrolysis heat; the sand is either returned at a user-fixed temperature (external mode) or re-heated by combusting the produced char in a coupled regenerator (internal char combustor mode). The block is intended as a drop-in replacement for Aspen/CHEMCAD-style equilibrium black boxes that cannot resolve axial temperature, residence-time, or yield profiles.
 
@@ -261,7 +261,7 @@ Every Calculate records the full axial profile — temperature $T(z)$ , cumulati
 
 #### Anaerobic Digester
 
-###### Overview {#overview-26 .unnumbered}
+###### Overview {#overview-29 .unnumbered}
 
 The Anaerobic Digester converts a single user-selected Organic Substrate compound into biogas (CH $_{4}$ + CO $_{2}$ ) plus sludge biomass, using Buswell-type stoichiometry driven by the substrate’s elemental formula and scaled by a user-specified COD-removal efficiency. The model is a black-box Tier-A representation suitable for flowsheet-level mass and energy balances and biogas yield estimation.
 
@@ -353,11 +353,13 @@ Biomass grows with yields Y $_{j}$ on each substrate and decays at first order (
 
 A third fidelity mode (**Digester Model = ADM1Full**) activates the complete IWA Anaerobic Digestion Model No. 1 as specified by Batstone et al. and implemented per Rosen & Jeppsson for the IWA BSM2 benchmark. The ADM1-Full path integrates 31 dynamic state variables — 12 soluble species (monosaccharides, amino acids, LCFA, valerate, butyrate, propionate, acetate, dissolved H $_{2}$ , dissolved CH $_{4}$ , inorganic C, inorganic N, soluble inerts), 12 particulates (composites, carbohydrates, proteins, lipids, seven biomass populations, particulate inerts), 2 ion surrogates (S $_{cat}$ , S $_{an}$ ), 4 gas-phase species (H $_{2}$ , CH $_{4}$ , CO $_{2}$ , H $_{2}$ S) and dissolved inorganic sulfide — the last two being the sulfur extension, which reduces to standard ADM1 exactly when no sulfur is declared; the state vector carries five more (the dissolved sulfate and four sulfate-reducing populations) that only ADM1-S moves — under 19 biochemical processes, Hill pH envelopes on the three acidogen/acetoclast/hydrogenotroph groups, free-NH $_{3}$ and H $_{2}$ inhibition, and gas-liquid transfer with per-species Henry constants. Inorganic carbon and nitrogen are closed over all 19 processes from the carbon and nitrogen content of every component, so the CO $_{2}$ in the biogas is the carbon the reactions actually release and the ammonia climbs as cell lysis returns it. An algebraic charge-balance pH is solved by Newton-Raphson (with bisection fallback) at every ODE stage, and the acid-base and Henry constants are corrected from their 25 °C reference to the reactor temperature by van’t Hoff, so setting the operating temperature moves the whole chemistry with it.
 
+That charge-balance pH is what the Feed Alkalinity input (eq/L) acts on. It is the strong mineral cations the feed liquid carries (potassium, sodium, calcium, magnesium) beyond the ammonia and the bicarbonate, not the total alkalinity a titration reports. The titrated alkalinity of a slurry already counts the bicarbonate and the ammonia, and the model generates both of those on its own from the carbon and the nitrogen of the substrate, so entering the titrated figure double-counts them and drives the pH far too high (a manure supernatant of 457 meq/L, entered as is, takes the digester to pH 12). Set Feed Alkalinity by calibration: raise it until the pH the digester reports matches the pH measured on the substrate or the digestate, which for a healthy digester sits near 7. For an ammonia-rich substrate such as pig slurry the calibrated value is a small fraction of the titrated alkalinity, because most of that titrated alkalinity is the ammonia the model is already accounting for.
+
 The system is advanced with a Cash-Karp embedded RK45 adaptive integrator. Dissolved H $_{2}$ is not integrated but solved from its own mass balance at each stage (the DAE form of Rosen & Jeppsson): it sits near $2.5\times10^{-7}$ kg COD/m³ against a half-saturation of $7\times10^{-6}$ , which gives it a time constant of a fraction of a second in a model whose retention time is weeks, and an explicit method has to resolve the fastest mode it is given. Integrating it directly pins the step at about $2\times10^{-6}$ d and the run never finishes.
 
 The trajectory result carries whether the run converged, the time it actually reached, the step count and, if it stopped early, why. A run that fails to reach its horizon raises an error rather than reporting a half-finished transient as an answer. Sampling is decoupled from the adaptive step — accepted steps are interpolated onto a fixed sample grid (default 500 points, capped at 2000) for reporting and charting.
 
-Validation: the model reproduces the published BSM2 steady state (Rosen & Jeppsson 2006; 3400 m³ liquid, 178.47 m³/d, 35 °C) to within 0.1 % on pH, 0.8 % on biogas flow and 1.3 % on CH $_{4}$ fraction, and converges back to it from a perturbed start.
+Validation: the model reproduces the published BSM2 open-loop steady state (Rosen & Jeppsson 2006; 3400 m³ liquid, 178.47 m³/d, 35 °C) to within 0.25 % across the whole state vector: the volatile fatty acids, the biomass populations, inorganic carbon and nitrogen, the gas-phase concentrations, pH and free ammonia. It also converges back to this steady state from a perturbed start. An automated regression test drives the integrator with the exact benchmark influent and checks the full effluent against the published steady-state table on every build, so the agreement is guarded against future changes.
 
 ###### What the Feed Stream Must Supply {#what-the-feed-stream-must-supply .unnumbered}
 
@@ -371,7 +373,7 @@ Validation: the model reproduces the published BSM2 steady state (Rosen & Jeppss
 
 - Two product MaterialStreams must be connected to the digester outputs: Output 0 = liquid effluent (digestate), Output 1 = biogas. An Energy Stream may be optionally attached to pick up the thermal duty.
 
-The operating flag **UseInfluentFromFeedStream** (in the ADM1 Parameters dialog, Operating tab) selects how the influent vector S $_{in}$ is built: when **true** the entire feed COD is routed to the hydrolysable-carbohydrate slot X $_{ch}$ (pragmatic default for any organic substrate), while inorganic C/N, cations, anions and inerts come from the JSON defaults. When **false**, the full fine-grained influent (Sin\_ $\ast$ , Xin\_ $\ast$ ) and the flow Q $_{in}$ are both taken from the parameter set, not from the stream — this is the mode used for BSM2-style runs, where the influent is the benchmark’s rather than the flowsheet’s. The operating temperature still follows the feed stream either way.
+The operating flag **UseInfluentFromFeedStream** (in the ADM1 Parameters dialog, Operating tab) selects how the influent vector S $_{in}$ is built: when **true** the entire feed COD is routed to the hydrolysable-carbohydrate slot X $_{ch}$ (pragmatic default for any organic substrate), while inorganic C/N, cations, anions and inerts come from the JSON defaults. When **false**, the full fine-grained influent (Sin\_ $\ast$ , Xin\_ $\ast$ ) and the flow Q $_{in}$ are both taken from the parameter set, not from the stream — this is the mode used for BSM2-style runs, where the influent is the benchmark’s rather than the flowsheet’s. The operating temperature that drives the kinetics and acid-base chemistry comes from the reactor’s Thermal Mode either way: the feed temperature under Isothermal or Adiabatic operation, or the fixed reactor temperature when the Thermal Mode sets one.
 
 Note that in this mode there is no influent sulfate slot: the parameter set carries Sin_IS, which is sulfide, already reduced, and the COD debit does not apply to it because you are stating the influent state directly. To model sulfate reduction and the methane it costs, use the feed-stream mode and the Influent Sulfate Sulfur input.
 
@@ -450,7 +452,7 @@ A sulfate reducer whose population starts at exactly zero stays there, because i
 
 #### Centrifuge
 
-###### Overview {#overview-27 .unnumbered}
+###### Overview {#overview-30 .unnumbered}
 
 The Centrifuge is a solids/liquid separator typically used as the first downstream step after a bioreactor (cell harvest), or for sludge dewatering downstream of an anaerobic digester. Three technology presets are available: Disk-Stack (continuous clarification), Decanter (high-solids dewatering), and Tubular (high-G small-scale).
 
@@ -476,7 +478,7 @@ Each compound is split between a Heavy (concentrate) and Light (clarified) outle
 
 #### Cell Lysis / High-Pressure Homogenizer {#cell-lysis-high-pressure-homogenizer}
 
-###### Overview {#overview-28 .unnumbered}
+###### Overview {#overview-31 .unnumbered}
 
 The Cell Lysis unit models the release of intracellular products (recombinant proteins, PHB, pigments, DNA) by mechanical, chemical or enzymatic disruption of cells. The Hetherington first-order release model is used to compute release as a function of the number of passes and operating pressure:
 
@@ -526,7 +528,7 @@ where $P_{a}$ is the acoustic power density (W/mL), t the total sonication time 
 
 #### Crossflow Ultrafiltration / Diafiltration (UF/DF) {#crossflow-ultrafiltration-diafiltration-ufdf}
 
-###### Overview {#overview-29 .unnumbered}
+###### Overview {#overview-32 .unnumbered}
 
 The Crossflow UF/DF unit concentrates or buffer-exchanges a liquid stream using a membrane described by per-compound sieving coefficients $\sigma_{i}\in[0,1]$ (0 = fully retained, 1 = freely permeable). Two operating modes are supported.
 
@@ -562,7 +564,7 @@ Two additional operating modes, **ConcentrationDynamic** and **DiafiltrationDyna
 
 #### Chromatography
 
-###### Overview {#overview-30 .unnumbered}
+###### Overview {#overview-33 .unnumbered}
 
 The Chromatography unit models a packed-bed column with Langmuir-style binding. Two operating modes and five chemistry presets are available.
 
@@ -606,7 +608,7 @@ where k $_{Th}$ is the Thomas rate constant (`ThomasRateConstant_Lgs`, L/(g·s))
 
 #### Crystallizer
 
-###### Overview {#overview-31 .unnumbered}
+###### Overview {#overview-34 .unnumbered}
 
 The Crystallizer splits a liquid stream between a Crystals outlet and a Mother-Liquor outlet based on the solubility of a selected solute in a selected solvent. Three operating modes are available.
 
@@ -649,7 +651,7 @@ The crystallized mass is $\max(0,\,\dot{m}_{solute,in}-C_{sat}\cdot\dot{m}_{solv
 
 #### Biogas Upgrader
 
-###### Overview {#overview-32 .unnumbered}
+###### Overview {#overview-35 .unnumbered}
 
 The Biogas Upgrader processes a raw biogas stream (typically 50–65 % CH $_{4}$ , 35–50 % CO $_{2}$ , traces of H $_{2}$ S and water) into pipeline-specification Renewable Natural Gas (RNG). Four upgrading technologies are selectable, each preloading typical removal efficiencies and CH $_{4}$ slippage losses: WaterScrubbing, Amine absorption, Pressure-Swing Adsorption (PSA), and MembraneSeparation.
 

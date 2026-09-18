@@ -97,7 +97,7 @@ Recycle Block Output Properties
 
 #### Energy Recycle
 
-##### Overview {#overview-44}
+##### Overview {#overview-47}
 
 The Energy Recycle logical block is analogous to the Recycle block but operates on energy streams instead of material streams. It is used when an energy stream from a downstream unit must feed back to an upstream unit.
 
@@ -159,7 +159,7 @@ Energy Recycle Block Parameters
 
 #### Adjust
 
-##### Overview {#overview-45}
+##### Overview {#overview-48}
 
 The Adjust logical block implements a feedback controller that manipulates a variable in one object to drive a controlled variable in another object to a desired set point. It is conceptually equivalent to a single-loop controller and can be used, for example, to adjust a heater duty until a stream reaches a target temperature.
 
@@ -210,7 +210,7 @@ When enabled, multiple Adjust blocks are solved simultaneously as a system of eq
 
 #### Specification (Spec)
 
-##### Overview {#overview-46}
+##### Overview {#overview-49}
 
 The Specification (Spec) logical block establishes an algebraic relationship between a source variable and a target variable using a user-defined mathematical expression. Unlike the Adjust block (which iterates), the Spec block directly computes and assigns the target variable value from the expression.
 
@@ -268,7 +268,7 @@ Spec Block Parameters
 
 #### Information Carrier
 
-##### Overview {#overview-47}
+##### Overview {#overview-50}
 
 The Information Carrier logical block transfers a property value from a source object to up to three target objects. It is used to propagate information across the flowsheet without requiring a physical stream connection, enabling non-standard data flows between unit operations.
 

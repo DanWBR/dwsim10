@@ -233,6 +233,10 @@ DWSIM includes a number of utilities which give the user more information about 
 
 - **Gas-Liquid Separator Sizing** - vertical and horizontal separator dimensions.
 
+- **Vessel Depressurization** - the pressure, temperature, released flow and wall temperature history of a vessel blown down through an orifice or a valve, or relieving under a pool fire; it lives on the Dynamics menu (see Section[2.45](#sec:vessel_depressurization)).
+
+- **Column Internals** - the fraction of flood, pressure drop, weeping, entrainment and downcomer backup of the trays, or the pressure drop, holdup, HETP and bed height of the packings of a solved rigorous column, stage by stage, with sizing for a target fraction of flood (see Section[2.46](#sec:column_internals)).
+
 **Pure Compound Properties**, which needs no stream at all, is on the **Tools** menu together with the compound creation and petroleum characterization tools.
 
 Utilities calculate their properties for a single stream only. In the majority of cases, this object must be calculated in order to be available for selection in the utility window.

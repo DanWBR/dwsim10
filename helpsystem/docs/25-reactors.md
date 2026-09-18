@@ -30,7 +30,7 @@ Heterogeneous Catalytic reactions in DWSIM must obey the Langmuir–Hinshelwood 
 
 DWSIM provides two kinetic reactor models for simulating systems governed by reaction rate expressions: the Continuous Stirred-Tank Reactor (CSTR) and the Plug Flow Reactor (PFR). Both support kinetic and heterogeneous catalytic reactions and can operate in multiple thermal modes.
 
-##### Overview {#overview-19}
+##### Overview {#overview-22}
 
 ###### Supported Reaction Types {#supported-reaction-types .unnumbered}
 
@@ -1235,7 +1235,7 @@ Summary comparison of the CSTR and PFR models in DWSIM.
 
 ##### Conversion Reactor
 
-###### Overview {#overview-20 .unnumbered}
+###### Overview {#overview-23 .unnumbered}
 
 The Conversion Reactor is the simplest reaction model available in DWSIM. The user specifies directly the fractional conversion of one or more reactions, and the model calculates the resulting outlet composition and energy balance. It does not require kinetic expressions or equilibrium data, making it ideal for preliminary studies, mass balance verification, or situations where only the overall conversion is known.
 
@@ -1333,7 +1333,7 @@ Conversion Reactor operating modes
 
 ##### Equilibrium Reactor
 
-###### Overview {#overview-21 .unnumbered}
+###### Overview {#overview-24 .unnumbered}
 
 The Equilibrium Reactor calculates the outlet composition based on chemical equilibrium. Instead of specifying how fast or how far a reaction proceeds, the user defines the equilibrium relationship, and the model finds the set of reaction extents that satisfy those equilibrium conditions simultaneously.
 
@@ -1432,7 +1432,7 @@ The energy balance works identically to the Conversion Reactor:
 
 ##### Gibbs Reactor
 
-###### Overview {#overview-22 .unnumbered}
+###### Overview {#overview-25 .unnumbered}
 
 The Gibbs Reactor finds the outlet composition that minimizes the total Gibbs energy of the system, subject to element balance constraints. Unlike the Equilibrium Reactor, it does not require the user to specify which reactions occur — the model determines the equilibrium composition automatically based on thermodynamic principles.
 

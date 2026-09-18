@@ -125,7 +125,7 @@ a_i = \gamma_i \, m_i
 \]
 
 
-Table [32](#tab:ion_params) lists the ionic size parameters $a_i$ and charges $z_i$ used in the EDHE model.
+Table [41](#tab:ion_params) lists the ionic size parameters $a_i$ and charges $z_i$ used in the EDHE model.
 
 
 
@@ -170,7 +170,7 @@ Three corrosion mechanisms are evaluated independently. The total corrosion rate
 \]
 
 
-Risk is classified according to the thresholds of NACE SP0775 (Table [33](#tab:corr_risk)).
+Risk is classified according to the thresholds of NACE SP0775 (Table [42](#tab:corr_risk)).
 
 
 
@@ -217,7 +217,7 @@ The corrected rate is:
 \]
 
 
-**Temperature factor** $f_{T}$: above approximately 60 °C a precipitated FeCO$_{3}$ layer becomes protective, reducing the corrosion rate. Values are based on NORSOK M-506 (Table [34](#tab:fT)).
+**Temperature factor** $f_{T}$: above approximately 60 °C a precipitated FeCO$_{3}$ layer becomes protective, reducing the corrosion rate. Values are based on NORSOK M-506 (Table [43](#tab:fT)).
 
 
 
@@ -267,7 +267,7 @@ The upper limit of 10 prevents pH from reducing the rate by more than one order 
 
 where $Sc = \nu/D_{\mathrm{CO_{2}}}$, $k_{r}$ is the surface reaction rate constant , and $d$ is the internal diameter.
 
-**Material factor** $f_{\mathrm{mat}}$: corrosion-resistant alloys exhibit substantially lower rates than carbon steel (Table [35](#tab:fmat)).
+**Material factor** $f_{\mathrm{mat}}$: corrosion-resistant alloys exhibit substantially lower rates than carbon steel (Table [44](#tab:fmat)).
 
 
 
@@ -382,7 +382,7 @@ where $Q_{i}$ is the ionic product computed from ionic activities and $K_{\mathr
 
 ##### Solubility Products {#solubility-products .unnumbered}
 
-Temperature-dependent $K_{\mathrm{sp}}$ values are given in Table [36](#tab:Ksp).
+Temperature-dependent $K_{\mathrm{sp}}$ values are given in Table [45](#tab:Ksp).
 
 
 
@@ -444,7 +444,7 @@ The RSI provides better field correlation than LSI:
 \]
 
 
-Interpretation is given in Table [37](#tab:RSI).
+Interpretation is given in Table [46](#tab:RSI).
 
 
 
@@ -627,7 +627,7 @@ k_{\mathrm{ads}}(T)
 \]
 
 
-Parameters by inhibitor family are listed in Table [39](#tab:inh_params).
+Parameters by inhibitor family are listed in Table [48](#tab:inh_params).
 
 
 
@@ -763,7 +763,7 @@ The precipitation front is defined as the relative axial position $x_{f}$ where 
 
 #### Configuration Parameters {#sec:csm:params}
 
-All configurable parameters and their defaults are listed in Table [40](#tab:params).
+All configurable parameters and their defaults are listed in Table [49](#tab:params).
 
 
 
@@ -783,7 +783,7 @@ All configurable parameters and their defaults are listed in Table [40](#tab:pa
 </thead>
 <tbody>
 <tr>
-<td colspan="4" style="text-align: center;">Table <a href="#tab:params" data-reference-type="ref" data-reference="tab:params">40</a> (continued)</td>
+<td colspan="4" style="text-align: center;">Table <a href="#tab:params" data-reference-type="ref" data-reference="tab:params">49</a> (continued)</td>
 </tr>
 <tr>
 <td style="text-align: left;">Parameter</td>
@@ -933,7 +933,7 @@ All configurable parameters and their defaults are listed in Table [40](#tab:pa
 
 #### Output Properties {#sec:csm:outputs}
 
-After calculation, results are available as `ExtraProperties` of the unit operation, accessible through the DWSIM object editor, the IronPython console, and the CAPE-OPEN API (Table [41](#tab:outputs)).
+After calculation, results are available as `ExtraProperties` of the unit operation, accessible through the DWSIM object editor, the IronPython console, and the CAPE-OPEN API (Table [50](#tab:outputs)).
 
 
 

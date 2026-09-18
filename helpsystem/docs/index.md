@@ -2,7 +2,7 @@
 
 **User Guide**
 
-**Version 10.2.1**
+**Version 10.2.8**
 
-August 2026
+September 2026
 

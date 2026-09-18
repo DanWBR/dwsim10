@@ -370,7 +370,7 @@ $API$ Oil API degree
 
 #### Hypothetical Components
 
-The majority of properties of the hypothetical components is calculated, when necessary, using the group contribution methods, with the UNIFAC structure of the hypo as the basis of calculation. The table [31](#tab:Métodos-de-cálculo) lists the properties and their calculation methods.
+The majority of properties of the hypothetical components is calculated, when necessary, using the group contribution methods, with the UNIFAC structure of the hypo as the basis of calculation. The table [40](#tab:Métodos-de-cálculo) lists the properties and their calculation methods.
 
 
 

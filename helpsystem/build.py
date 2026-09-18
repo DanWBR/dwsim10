@@ -603,7 +603,7 @@ class LyxParser:
         return m.get(quote_code.strip(), '"')
 
     def _parse_formula_inset(self, inline_content: str) -> str:
-        """Formula content can be on the begin line (inline like `$\phi=1$`)
+        r"""Formula content can be on the begin line (inline like `$\phi=1$`)
         or span multiple lines (e.g. \\begin{equation}...\\end{equation}).
         We collect everything until \\end_inset and emit as-is."""
         parts: list[str] = []
@@ -1180,6 +1180,15 @@ def step_expand_macros(latex: str) -> str:
     latex = re.sub(r"\\CRm(\b|\{\})", r"\\mathrm{CR}", latex)
     latex = re.sub(r"\\SIidx(\b|\{\})", r"\\mathrm{SI}", latex)
     latex = re.sub(r"\\Ksp(\b|\{\})", r"K_{\\mathrm{sp}}", latex)
+    # \newcolumntype definitions (array package) are beyond pandoc's LaTeX reader: drop them and turn the
+    # fixed-width column letters they define, C{0.2} / L{0.3} / R{0.1}, into plain c / l / r in the
+    # tabular and longtable preambles
+    latex = re.sub(r"^\\newcolumntype\{[^}]*\}(\[\d+\])?\{.*\}[ \t]*\n?", "", latex, flags=re.M)
+
+    def _plain_columns(m):
+        spec = re.sub(r"([CLR])\{[0-9.]+\}", lambda c: c.group(1).lower(), m.group(2))
+        return m.group(1) + spec + "}"
+    latex = re.sub(r"(\\begin\{(?:tabular|longtable)\}\{)([^\n]*)\}[ \t]*$", _plain_columns, latex, flags=re.M)
     return latex
 
 

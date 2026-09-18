@@ -4462,7 +4462,7 @@ Performs an adiabatic flash split. The vapour outlet supplies the gas phase stre
 
 ###### Additional Blocks (Nodal Solver)
 
-With the nodal Newton solver ([2.31.6](#sec:solver)) the palette adds blocks for water distribution and petroleum production: a **Water Pipe** (a lightweight single-phase pipe using the Hazen–Williams  or Darcy–Weisbach correlation with static head, for water grids), a **Reservoir/Tank** fixed-head boundary, a **Pressure Control Valve** (a reducing PRV holding the downstream pressure, or a sustaining PSV holding the upstream pressure), an **Inflow Performance (IPR)** well block, and a **Choke** bean restriction (see [2.31.7](#sec:pn_nodal)).
+With the nodal Newton solver ([2.31.6](#sec:solver)) the palette adds blocks for water distribution and petroleum production: a **Water Pipe** (a lightweight single-phase pipe using the Hazen–Williams  or Darcy–Weisbach correlation with static head, for water grids), a **Reservoir/Tank** fixed-head boundary, a **Pressure Control Valve** (a reducing PRV holding the downstream pressure, or a sustaining PSV holding the upstream pressure), an **Inflow Performance (IPR)** well block, and a **Choke** bean restriction (see [2.31.8](#sec:pn_nodal)).
 
 ##### Node Balance Equations {#sec:node_balances}
 
@@ -4716,9 +4716,120 @@ The recommended default for new networks is a sparse nodal Newton method based o
 
 The nodal Newton solver offers two flow models. In the **incompressible** (single-phase) model each pipe is a closed-form pressure-drop law— Hazen–Williams , or Darcy–Weisbach with the Churchill friction factor —plus the static head; this is the model for water distribution grids. In the **compositional** (multiphase) model each pipe wraps the full two-phase pipe segment ([2.31.4](#sec:pressure_drop)) as a black box, and an outer loop refreshes the pressure and temperature of every branch while the inner Newton step resolves the hydraulics; this is the model for petroleum gathering and production networks.
 
+###### Spatial Discretisation and Richardson Extrapolation
+
+In the compositional flow model each pipe is walked increment by increment, and that walk is *first order* in the increment size: halving the increment removes about half of the remaining error. For a single-phase liquid line the point is moot, because the pressure gradient is essentially constant along the pipe and any discretisation returns the same answer. For multiphase flow it is not: holdup, in-situ density and phase velocities all vary along the pipe, and on a gathering or production network the computed rate can move by a few percent between the discretisation a network was drawn with and a grid fine enough to have converged. Refining the grid pays for that badly, since first-order convergence means eight times the work buys roughly six times less error.
+
+Two grids and an extrapolation buy considerably more. Writing $f(h)$ for the outlet state computed with increment size $h$, a first-order error gives
+
+
+
+<a id="eq:richardson"></a>
+
+\[
+f_{\mathrm{exact}} \;\approx\; 2\,f(h/2) - f(h),
+\]
+
+
+which cancels the leading term. With **Richardson extrapolation** enabled, every pipe is evaluated on its own grid and on one twice as fine, and [\[eq:richardson\]](#eq:richardson) is applied to the outlet pressure and temperature. It costs three pipe calculations where there was one, and in exchange it typically reaches a converged answer from the discretisation the network already carries.
+
+The extrapolation is applied only where it is meaningful. When the two grids disagree by more than a quarter of the pressure drop, the pair is not in the asymptotic range, there is no single leading term to cancel, and the finer grid is delivered unextrapolated; the same fallback applies if the extrapolated state would be unphysical. This also sets the honest expectation for the feature: it corrects a discretisation that is already close, and it is not a substitute for one that is too coarse to be in the asymptotic range at all. A network whose rate is still moving substantially between successive grid refinements needs more increments, not extrapolation.
+
+The option is off by default, because it triples the cost of every pipe evaluation and it changes the result of an existing network.
+
 ###### Degrees of Freedom
 
 Before solving, the model checks that the network is properly specified. For each source the number of fixed quantities (pressure, mass flow, or both) determines the degrees of freedom contributed to the system. A network with unconnected sources or insufficient boundary conditions will not converge.
+
+##### Dynamic Mode {#sec:pn_dynamic}
+
+The Pipe Network takes part in a dynamic (time-domain) simulation. It is a *quasi-steady* participant: at every pressure-flow step of the integration the network is re-solved in steady state against the boundary conditions of that instant, using the solver and flow model configured for it. The network itself holds no inventory, so nothing accumulates in it between steps and the only memory it carries from one step to the next is its converged solution.
+
+###### Validity
+
+The quasi-steady treatment is valid whenever the dynamics of interest are slower than the transit time of the line, which covers everything driven by control: level and pressure loops, valve and choke movements, well shut-ins, ramping demand. It is *not* a transient hydraulic model. Line pack, surge and water hammer are not represented, and a case whose answer depends on them must be posed differently. A natural arrangement is therefore one where the inventory sits elsewhere on the flowsheet, in a vessel or a tank, and the network supplies the hydraulics: the line settles in seconds while the vessel takes tens of minutes, so the network is the algebraic part of the problem and the vessel holds the state.
+
+###### Step Structure
+
+DWSIM’s integrator separates each step into a pressure-flow part and an equilibrium part, and can run them at different rates. The network moves only on the pressure-flow part, because with no inventory there is nothing for the equilibrium part to relax. On a step where equilibrium is not scheduled the network still solves its hydraulics but skips the flash of its boundary streams.
+
+###### Warm Start
+
+Each step seeds the solver with the previous step’s node pressures, branch flows, temperatures and mixed compositions. This is what makes dynamic operation practical on compositional networks: a field case that needs minutes from a cold start settles a step in seconds once it is following its own solution.
+
+###### State Between Attempts
+
+An implicit or step-doubling integration solves the same interval more than once from the same starting point, restoring every object’s state in between. The network hands over the warm start, the commanded actuator targets, the queue of commands still inside their dead time, and the current actuator positions. Restoring all four is what makes the repeated attempts start from the same guess and the same geometry; without it the error estimate would be measuring the solver’s initialisation rather than the integration.
+
+Because the network carries no inventory, it reports no contents to the adaptive integrator and therefore does not vote on the step-size error estimate. Step size is governed by the objects that do accumulate.
+
+###### Actuator Dynamics
+
+A controller writing a step change to a network block is a discontinuity: the solver is handed a network that jumped, the warm start no longer describes it, and the branch model may be pushed into a region where it offers no gradient to follow. Real final control elements cannot step either. The blocks whose manipulated quantity is normally driven by a controller therefore move towards a commanded value through a first-order lag with dead time.
+
+
+
+
+
+
+
+| **Block**              | **Actuated quantity**   |
+|:-----------------------|:------------------------|
+| Valve                  | Opening                 |
+| Choke                  | Bean diameter           |
+| Pump (ESP)             | Operating frequency     |
+| Pressure Control Valve | Setting pressure        |
+| Gas Lift               | Surface casing pressure |
+
+
+
+A command issued at time $t$ becomes the target $x_{\mathrm{sp}}$ after the dead time $t_d$ has elapsed, and the actuator position $x$ then advances over an integration step $\Delta t$ by the exact solution of $\tau\,\dot{x} = x_{\mathrm{sp}} - x$:
+
+
+
+<a id="eq:pn_actuator"></a>
+
+\[
+x(t + \Delta t) = x(t)
+        + \left[x_{\mathrm{sp}} - x(t)\right]
+          \left(1 - e^{-\Delta t / \tau}\right)
+\]
+
+
+Using the closed form rather than an explicit increment means the result does not depend on how the integrator chose to slice the interval, and a large step cannot overshoot the target. The time constant $\tau$ and the dead time $t_d$ are properties of each block and are saved with the flowsheet. Both default to zero, which reproduces instantaneous movement exactly, so a network built before actuators existed behaves as it always did. Neither has any effect on a steady-state solve.
+
+###### Controlling the Network
+
+Every block inside the network publishes its own properties to the flowsheet under a composite name of the form `<block>: <property>`. A PID controller placed on the flowsheet can therefore read a node pressure or a branch flow as its process variable and write a valve opening, a choke bean or a pressure control valve setting as its manipulated variable, without the controller needing to know that the two live inside a single unit operation.
+
+When the controlled and manipulated quantities are in different units and of different magnitude, which is the usual case here (a flow in kg s$^{-1}$ held by a pressure in Pa), the controller’s *manipulated variable span* should be set so that its output is scaled on the manipulated variable’s own scale about a bias, rather than about the setpoint of the controlled variable.
+
+###### Specification Rules
+
+Dynamic mode is stricter than steady state about boundary conditions, and the rules are checked before the first step rather than in the middle of a run. At least one boundary must fix a pressure: with every boundary on flow the network has no pressure level and the nodal system is singular, something a steady-state solve only ever closed by accident. The network writes the mass flow of its boundary streams, so those streams should carry a *flow* dynamics specification; a boundary stream left on a pressure specification competes with the network for the same variable and the answer becomes dependent on calculation order.
+
+###### Settings
+
+
+
+
+
+
+
+| **Setting**                     | **Unit** | **Default**            |
+|:--------------------------------|:---------|:-----------------------|
+| Pressure-flow calculation rate  | steps    | 1                      |
+| Fail mode                       | —        | Hold the last solution |
+| Maximum solve time              | s        | 0 (uncapped)           |
+| Diagram refresh rate            | steps    | 1                      |
+| Actuator time constant $\tau$ | s        | 0                      |
+| Actuator dead time $t_d$      | s        | 0                      |
+
+
+
+The first four are properties of the network and are set on the **Dynamics** tab of its editor; the last two are properties of each actuated block. Raising the pressure-flow calculation rate re-solves the network only every $N$ steps, which is worth doing when a large compositional network is too slow to solve at every step and its hydraulics are much faster than the loop being studied. The fail mode decides what happens when a step does not solve: holding the last solution and warning lets an integration survive a single bad step, whereas aborting stops the run at it. The maximum solve time is a wall-clock ceiling on one step, and the diagram refresh rate limits how often the open network editor is rebuilt during a run.
+
+Running a pipe network in dynamic mode requires the higher subscription tier. Unlike the choice of solver, which degrades to a slower method, there is nothing to degrade to here.
 
 ##### Producing Wells and Nodal Analysis {#sec:pn_nodal}
 
@@ -4831,11 +4942,12 @@ The designer’s Tools menu collects the analysis views. Besides *Flow Assurance
 
 
 
-| **Parameter**         | **Symbol**   | **Unit** | **Default**  |
-|:----------------------|:-------------|:---------|:-------------|
-| Solver method         | —            | —        | Nodal Newton |
-| Maximum iterations    | $N_{\max}$ | —        | 1000         |
-| Convergence tolerance | $\epsilon$ | —        | $10^{-4}$  |
+| **Parameter**            | **Symbol**   | **Unit** | **Default**  |
+|:-------------------------|:-------------|:---------|:-------------|
+| Solver method            | —            | —        | Nodal Newton |
+| Maximum iterations       | $N_{\max}$ | —        | 1000         |
+| Convergence tolerance    | $\epsilon$ | —        | $10^{-4}$  |
+| Richardson extrapolation | —            | —        | Off          |
 
 
 
@@ -4855,6 +4967,7 @@ The designer’s Tools menu collects the analysis views. Besides *Flow Assurance
 | Inclination angle | $\theta$ | $^\circ$ | Angle from horizontal |
 | Ambient temperature | $T_{\mathrm{amb}}$ | K | Surrounding temperature |
 | Overall HTC | $U_o$ | W m$^{-2}$ K$^{-1}$ | Based on outer diameter |
+| Increments per section | — | — | Cells the segment is walked in |
 | Pressure-drop model | — | — | BB / LM / PA |
 | Joule-Thomson correction | — | — | On / Off |
 | Emulsion correction | — | — | On / Off |
@@ -4892,7 +5005,7 @@ For each node, the solver also reports the dimensionless mass, pressure, and ene
 
 ##### Assumptions and Limitations
 
-1.  **Steady state** – the model does not resolve transient behaviour such as surge, water hammer, or slug initiation. All flows and pressures represent time-averaged steady-state conditions.
+1.  **Steady state, or quasi-steady** – the model does not resolve transient behaviour such as surge, water hammer, or slug initiation. All flows and pressures represent time-averaged steady-state conditions. In a dynamic simulation the network still solves in steady state at each step, against that instant’s boundary conditions ([2.31.7](#sec:pn_dynamic)); what changes with time are the boundaries and the actuator positions, not the state of the fluid in the line.
 
 2.  **One-dimensional flow** – each pipe segment is treated as a 1-D plug-flow element. Radial temperature and concentration gradients within the pipe cross-section are neglected.
 
@@ -4906,7 +5019,9 @@ For each node, the solver also reports the dimensionless mass, pressure, and ene
 
 7.  **Single composition throughout** – the network does not currently support reactions. Composition changes arise only from phase equilibrium at separator or equilibrium-flash-enabled pipe objects.
 
-8.  **Pressure-drop correlation range** – the empirical correlations (Beggs–Brill, Lockhart–Martinelli) were developed from data sets at specific pressure, velocity, and fluid-property ranges. Extrapolation beyond these ranges may reduce accuracy. The Petalas–Aziz mechanistic model generally has wider applicability.
+8.  **Spatial discretisation** – the increment walk along a pipe is first order, so the number of increments a segment is divided into is an accuracy setting and not only a reporting resolution. On multiphase flow the computed rate can move by a few percent between a coarse discretisation and a converged one, which on such a network is a larger error than any of the numerical tolerances. Refine a segment until the answer stops moving, or enable the Richardson extrapolation described in [2.31.6](#sec:solver). A single-phase liquid line is unaffected, its gradient being essentially constant along the pipe.
+
+9.  **Pressure-drop correlation range** – the empirical correlations (Beggs–Brill, Lockhart–Martinelli) were developed from data sets at specific pressure, velocity, and fluid-property ranges. Extrapolation beyond these ranges may reduce accuracy. The Petalas–Aziz mechanistic model generally has wider applicability.
 
 ##### Numerical Solution Procedure
 
@@ -4951,6 +5066,8 @@ For each node, the solver also reports the dimensionless mass, pressure, and ene
 7.  Return to the main flowsheet and run the simulation. The solver iterates until the objective function falls below the convergence tolerance or the iteration limit is reached.
 
 8.  Inspect results by opening the network editor: each object displays its pressure, temperature, and flow results, and nodes show their balance residuals as convergence indicators.
+
+9.  To carry the converged network into a dynamic run, set the boundary streams to a flow specification, give the actuated blocks a time constant on their editors, review the **Dynamics** tab of the network editor, and drive it from the flowsheet’s Dynamics Manager ([2.31.7](#sec:pn_dynamic)).
 
 #### Restriction Orifice {#sec:restriction_orifice}
 
@@ -7197,4 +7314,976 @@ The outlet stream is a direct copy of the inlet stream ($\text{outlet} \leftarro
 7.  **Material Stream Mapper – no energy balance**: property overrides (temperature, pressure, flow) are applied directly without checking an overall energy or mass balance around the block. It is the user’s responsibility to ensure that overridden values are physically consistent.
 
 8.  **Premium requirement**: all additional unit operations require an active DWSIM Premium Supporter subscription.
+
+#### Free-Radical Polymerization Reactor
+
+##### Overview {#overview-19}
+
+The **Polymerization Reactor** models a homogeneous, isothermal free-radical polymerization of one or two monomers. It solves the steady-state or transient population balances by the *method of moments* and reports the monomer conversion, the number- and weight-average molar masses ($M_n$, $M_w$), the polydispersity index (PDI), and, for two monomers, the copolymer composition. A single vessel can be operated in four ways:
+
+- **Continuous stirred tank (CSTR)** – a perfectly mixed reactor solved at steady state; the composition is fixed at the outlet condition.
+
+- **Plug flow / batch (PFR)** – the balances are integrated along the residence time; the composition drifts as the more reactive monomer depletes.
+
+- **Semibatch** – an initial charge plus a metered feed; feeding the reactive monomer holds the copolymer composition constant.
+
+- **Dynamic mode** – the reactor is driven by the DWSIM dynamic integrator as a well-mixed holdup, producing the transient conversion and molar-mass trajectories.
+
+The kinetic model follows the standard free-radical scheme : initiator decomposition, propagation, termination by combination and by disproportionation, and chain transfer to monomer and to a solvent or chain-transfer agent. For two monomers the *terminal model* is used, with the molar-mass averages obtained through the pseudo-kinetic rate-constant method . The auto-acceleration (gel) effect is available as an optional conversion-dependent reduction of the rate constants.
+
+##### Stream Topology {#stream-topology-5}
+
+
+
+
+
+
+
+| **Port** | **Direction** | **Description** |
+|:---|:---|:---|
+| Feed | Inlet (material) | Monomer(s), initiator, optional solvent / CTA |
+| Product | Outlet (material) | Unreacted feed plus the polymer |
+| Energy | Inlet (energy) | Heat duty (isothermal / outlet-temperature modes) |
+
+
+
+The monomer, initiator, optional solvent, and polymer product are identified by configurable compound names. The polymer product is a non-volatile pseudo-compound already present in the flowsheet (for example a PC-SAFT polymer); its molar mass is set to the computed $M_n$ so that the mass balance closes. Setting a second monomer switches the reactor to the binary copolymerization model.
+
+##### Kinetic Scheme {#sec:poly_kinetics}
+
+Every rate constant is of the Arrhenius form $k = A\,\exp(-E/RT)$, with the pre-exponential $A$ in s$^{-1}$ (initiator) or L mol$^{-1}$ s$^{-1}$ (bimolecular) and the activation energy $E$ in J mol$^{-1}$. For a single monomer the elementary steps are
+
+
+
+<a id="eq:poly_init"></a><a id="eq:poly_prop"></a><a id="eq:poly_term"></a><a id="eq:poly_transfer"></a>
+
+\[
+\begin{align}
+    \text{Initiation:}    &\quad \ce{I ->[k_d] 2R^{.}}, \qquad
+                                  \ce{R^{.} + M ->[k_i] P_1^{.}} \\
+    \text{Propagation:}   &\quad \ce{P_n^{.} + M ->[k_p] P_{n+1}^{.}} \\
+    \text{Termination:}   &\quad \ce{P_n^{.} + P_m^{.} ->[k_{tc}] D_{n+m}}, \quad
+                                  \ce{P_n^{.} + P_m^{.} ->[k_{td}] D_n + D_m} \\
+    \text{Transfer:}      &\quad \ce{P_n^{.} + M ->[k_{trM}] D_n + P_1^{.}}, \quad
+                                  \ce{P_n^{.} + S ->[k_{trS}] D_n + P_1^{.}}
+\end{align}
+\]
+
+
+where $I$ is the initiator, $M$ the monomer, $S$ the solvent or chain-transfer agent, $P_n^{.}$ a live radical of length $n$, and $D_n$ a dead chain. The total termination constant is $k_t = k_{tc} + k_{td}$.
+
+###### Radical population
+
+The live-radical concentration is obtained from the quasi-steady-state assumption (the radical lifetime is far shorter than the reactor time), giving the classical result
+
+
+<a id="eq:poly_mu0"></a>
+
+\[
+\mu_0 = \sqrt{\frac{f\,k_d\,[I]}{k_t}}
+\]
+
+
+where $f$ is the initiator efficiency and $\mu_0$ is the total live-radical concentration (the zeroth live moment).
+
+##### Steady-State CSTR {#sec:poly_cstr}
+
+In a perfectly mixed reactor of volume $V$ fed at volumetric rate $Q$, the residence time is $\theta = V/Q$. The initiator decomposes by first order, so its outlet is closed form,
+
+
+<a id="eq:poly_initiator"></a>
+
+\[
+[I] = \frac{[I]_{\mathrm{in}}}{1 + k_d\,\theta}
+\]
+
+
+and the monomer, consumed by propagation and transfer to monomer, follows
+
+
+<a id="eq:poly_monomer"></a>
+
+\[
+[M] = \frac{[M]_{\mathrm{in}}}{1 + \theta\,(k_p + k_{trM})\,\mu_0},
+    \qquad
+    X = 1 - \frac{[M]}{[M]_{\mathrm{in}}},
+    \qquad
+    R_p = k_p\,\mu_0\,[M]
+\]
+
+
+where $X$ is the conversion and $R_p$ the rate of polymerization.
+
+###### Method of moments
+
+With the most-probable closure (exact in the long-chain limit), the live moments are set by the propagation probability
+
+
+<a id="eq:poly_alpha"></a>
+
+\[
+\alpha = \frac{k_p\,[M]}{k_p\,[M] + \Psi},
+    \qquad
+    \Psi = k_t\,\mu_0 + k_{trM}\,[M] + k_{trS}\,[S]
+\]
+
+
+where $\Psi$ is the total chain-stopping rate. The first two live moments are
+
+
+<a id="eq:poly_livemoments"></a>
+
+\[
+\mu_1 = \frac{\mu_0}{1-\alpha},
+    \qquad
+    \mu_2 = \frac{\mu_0\,(1+\alpha)}{(1-\alpha)^2}
+\]
+
+
+The dead chains are generated by termination and transfer. Writing the transfer rate as $\tau = k_{trM}\,[M] + k_{trS}\,[S]$, the moment source terms are
+
+
+<a id="eq:poly_G0"></a><a id="eq:poly_G1"></a><a id="eq:poly_G2"></a>
+
+\[
+\begin{align}
+    G_0 &= \tau\,\mu_0 + \left(k_{td} + \tfrac{1}{2}k_{tc}\right)\mu_0^2
+    \\
+    G_1 &= \tau\,\mu_1 + k_t\,\mu_0\,\mu_1
+    \\
+    G_2 &= \tau\,\mu_2 + k_t\,\mu_0\,\mu_2 + k_{tc}\,\mu_1^2
+\end{align}
+\]
+
+
+The $\tfrac{1}{2}k_{tc}$ factor in $G_0$ counts one dead chain per combination event, while the $k_{tc}\,\mu_1^2$ term in $G_2$ is the convolution of two combining chains. In a CSTR the dead chains are only generated and swept out, so each dead moment is explicit,
+
+
+<a id="eq:poly_deadmoments"></a>
+
+\[
+\lambda_k = \theta\,G_k
+\]
+
+
+and the molar-mass averages follow directly:
+
+
+<a id="eq:poly_mnmw"></a>
+
+\[
+M_n = M_0\,\frac{\lambda_1}{\lambda_0},
+    \qquad
+    M_w = M_0\,\frac{\lambda_2}{\lambda_1},
+    \qquad
+    \mathrm{PDI} = \frac{\lambda_0\,\lambda_2}{\lambda_1^2}
+\]
+
+
+where $M_0$ is the monomer molar mass. In the long-chain limit the polydispersity reaches the theoretical values of $3/2$ for termination purely by combination and $2$ for termination purely by disproportionation ; chain transfer broadens it towards $2$.
+
+##### Binary Copolymerization (Terminal Model) {#sec:poly_copolymer}
+
+With a second monomer the reactor uses the terminal model, in which the reactivity of a growing chain depends only on the terminal unit. Propagation is described by the two homo-propagation constants $k_{p,11}$, $k_{p,22}$ and the two reactivity ratios
+
+
+<a id="eq:poly_ratios"></a>
+
+\[
+r_1 = \frac{k_{p,11}}{k_{p,12}},
+    \qquad
+    r_2 = \frac{k_{p,22}}{k_{p,21}}
+\]
+
+
+The fraction of radicals ending in monomer 1 follows from the steady state on the radical types,
+
+
+<a id="eq:poly_phi"></a>
+
+\[
+\phi_1 = \frac{k_{p,21}\,[M_1]}{k_{p,21}\,[M_1] + k_{p,12}\,[M_2]}
+\]
+
+
+and the instantaneous copolymer composition is the Mayo-Lewis equation
+
+
+<a id="eq:poly_mayolewis"></a>
+
+\[
+F_1 = \frac{r_1 f_1^2 + f_1 f_2}
+               {r_1 f_1^2 + 2 f_1 f_2 + r_2 f_2^2}
+\]
+
+
+where $f_i = [M_i]/([M_1]+[M_2])$ is the monomer mole fraction and $F_1$ is the mole fraction of monomer 1 in the copolymer formed. The reactor recovers $F_1$ directly from the monomer consumption rates, so it is identical to Eq. [\[eq:poly_mayolewis\]](#eq:poly_mayolewis) by construction.
+
+###### Molar mass by the pseudo-kinetic method
+
+The molar-mass averages are obtained by treating the copolymerization as a homopolymerization with pseudo-kinetic (radical-fraction-averaged) rate constants . The pseudo-propagation constant is $\bar{k}_p = R_p/(\mu_0\,[M])$ with $[M] = [M_1]+[M_2]$, the average chain-transfer-to-monomer constant is $\bar{k}_{trM} = \phi_1 k_{trM,1} + \phi_2 k_{trM,2}$, and the average repeat-unit mass is
+
+
+<a id="eq:poly_mbar"></a>
+
+\[
+\bar{M} = F_1\,M_{0,1} + (1 - F_1)\,M_{0,2}
+\]
+
+
+Equations [\[eq:poly_alpha\]](#eq:poly_alpha)–[\[eq:poly_mnmw\]](#eq:poly_mnmw) then apply with $k_p \to \bar{k}_p$, $M_0 \to \bar{M}$, and the transfer terms built from the averaged constants. The reactivity ratios are unchanged by chain transfer and by the gel effect, so the composition and the molar mass are decoupled: the composition always follows Eq. [\[eq:poly_mayolewis\]](#eq:poly_mayolewis), while transfer and the gel effect act only on the chain length.
+
+##### Gel (Trommsdorff) Effect {#sec:poly_gel}
+
+At high conversion the medium thickens and chain termination becomes diffusion-controlled, causing auto-acceleration . This is represented by a multiplicative factor $g(X) \in (0,1]$ on the termination constant, and optionally on the propagation constant near vitrification (the glass effect), of the empirical exponential-polynomial form
+
+
+<a id="eq:poly_gel"></a>
+
+\[
+g(X) = \exp\!\left[-\left(c_1 X + c_2 X^2 + c_3 X^3\right)\right]
+\]
+
+
+so that $k_t(X) = k_{t,0}\,g_t(X)$ and $k_p(X) = k_{p,0}\,g_p(X)$. Because the factors depend on the conversion, which depends on them, they are resolved by a fixed-point iteration around the reactor balances; with the default model disabled ($g \equiv 1$) the kinetics are unchanged. A lower $k_t$ raises both the conversion and the molar mass, reproducing the observed auto-acceleration.
+
+##### Plug-Flow and Batch Operation {#sec:poly_pfr}
+
+A plug-flow reactor (equivalently a batch reactor, with the residence time read as the reaction time) is not perfectly mixed in the direction of flow, so the composition *drifts* as conversion builds. The monomer, initiator, dead-chain moment, and incorporated-monomer balances are integrated along the residence time by a fourth-order Runge-Kutta method, with the instantaneous kinetics of Sections [2.44.4](#sec:poly_cstr) and [2.44.5](#sec:poly_copolymer) evaluated pointwise. The reactor reports both the *instantaneous* composition (the Mayo-Lewis value at the local monomer ratio, which moves along the reactor) and the *cumulative* composition (the average over all polymer formed),
+
+
+<a id="eq:poly_cumcomp"></a>
+
+\[
+F_1^{\mathrm{cum}} = \frac{\Psi_1}{\Psi_1 + \Psi_2}
+\]
+
+
+where $\Psi_i$ is the total moles of monomer $i$ incorporated into chains. For a non-azeotropic feed the two diverge as the more reactive monomer depletes; at the azeotropic composition ($F_1 = f_1$) there is no drift. The cumulative polydispersity broadens beyond the instantaneous combination limit of $3/2$ as the batch accumulates chains formed under changing conditions.
+
+##### Semibatch Operation and Composition Control {#sec:poly_semibatch}
+
+In a semibatch reactor the holdup grows as feed is added, so the balances are written on total amounts (moles, volume) rather than concentrations and are integrated in time. The feed policy is an initial charge plus constant molar and volumetric feed rates over a feed window. Metering the more reactive monomer in during the run holds the reactor monomer ratio, and hence the instantaneous copolymer composition, roughly constant – the industrial route to a uniform copolymer. In the monomer-*starved* limit (a high radical flux and a slow feed) the monomers react as fast as they are fed, so the copolymer composition equals the *feed* composition rather than the Mayo-Lewis value of that ratio, and the drift is suppressed.
+
+##### Dynamic Mode {#sec:poly_dynamic}
+
+When the flowsheet is solved in dynamic mode, the DWSIM integrator advances the reactor as a well-mixed holdup: at each integration step the inlet feed is added to the holdup, the reaction is integrated over the step, and the conversion, molar-mass averages, and composition are updated from the accumulated state. Charging the vessel and then cutting the feed reproduces the batch trajectory; metering the feed in reproduces the semibatch trajectory. The step is sub-integrated internally, so a coarse integration step remains accurate. Operation is isothermal.
+
+##### Energy Balance {#sec:poly_energy}
+
+The heat released by polymerization is proportional to the monomer converted,
+
+
+<a id="eq:poly_qgen"></a>
+
+\[
+\dot{Q}_{\mathrm{gen}} = \dot{n}_{\mathrm{conv}}\,(-\Delta H_p)
+\]
+
+
+where $\dot{n}_{\mathrm{conv}}$ is the molar rate of monomer added to chains (both monomers in copolymer mode) and $\Delta H_p < 0$ is the heat of polymerization per mole of monomer. In isothermal or outlet-temperature operation the duty holds the reactor at the set temperature, $\dot{Q} = \dot{m}\,c_p\,(T_r - T_{\mathrm{in}}) - \dot{Q}_{\mathrm{gen}}$ (negative when heat is removed, the usual case for an exothermic polymerization). In adiabatic operation no heat is removed and the temperature rise and the conversion are coupled through Eq. [\[eq:poly_qgen\]](#eq:poly_qgen) and the Arrhenius constants; they are solved together to a fixed point.
+
+##### Molar-Mass Distribution Emission {#sec:poly_mwd}
+
+By default the polymer leaves the reactor as a single lumped compound whose molar mass is set to $M_n$. Optionally the reactor emits a real molar-mass distribution: the Schulz-Zimm or log-normal distribution reproducing the computed $M_n$ and $M_w$ is discretized into a set of pseudo-component cuts that share the base polymer’s parameters, and the reacted mass is distributed over the cuts so that both the total mass and the number-average molar mass are preserved. A non-volatile cut set lets the downstream property package resolve devolatilization (stripping residual monomer while the polymer stays in the liquid).
+
+##### Model Parameters {#sec:poly_parameters}
+
+###### Configuration
+
+
+
+
+
+
+
+| **Parameter**          | **Symbol**     | **SI Unit**    |
+|:-----------------------|:---------------|:---------------|
+| Reactor volume         | $V$          | m$^3$        |
+| Operating temperature  | $T_r$        | K              |
+| Heat of polymerization | $\Delta H_p$ | J mol$^{-1}$ |
+| Initiator efficiency   | $f$          | –              |
+
+
+
+###### Arrhenius rate constants
+
+Each constant is entered as a pre-exponential $A$ and an activation energy $E$: initiator decomposition ($k_d$), propagation ($k_p$), termination by combination ($k_{tc}$) and by disproportionation ($k_{td}$), transfer to monomer ($k_{trM}$), and transfer to solvent ($k_{trS}$). In copolymer mode the second monomer adds its propagation constant $k_{p,22}$, its transfer-to-monomer constant, its molar mass, and the two reactivity ratios $r_1$, $r_2$. A styrene/AIBN preset (homopolymer) and a styrene/methyl methacrylate preset (copolymer) are provided as starting points and should be replaced with data for the system of interest.
+
+###### Gel effect and distribution
+
+The gel model is off by default. When enabled, the termination coefficients $c_1$, $c_2$, $c_3$ (and optionally the propagation coefficients) of Eq. [\[eq:poly_gel\]](#eq:poly_gel) are supplied by the user. The distribution emission is controlled by the number of cuts and the distribution shape.
+
+##### Assumptions and Limitations
+
+1.  **Homogeneous, isothermal medium** – the reactor contents are a single well-mixed phase (CSTR, semibatch, dynamic) or a plug-flow stream (PFR), at a uniform temperature. Emulsion, suspension, and precipitation polymerizations are not represented.
+
+2.  **Quasi-steady-state radicals** – the live-radical population follows Eq. [\[eq:poly_mu0\]](#eq:poly_mu0); the radical lifetime is assumed far shorter than the reactor or step time.
+
+3.  **Long-chain / most-probable closure** – the live-radical moments are closed with the most-probable distribution, exact in the long-chain limit.
+
+4.  **Terminal copolymerization model** – reactivity depends only on the terminal unit; penultimate-unit effects are not included. The molar mass uses the pseudo-kinetic averaging, and transfer to monomer is taken independent of which monomer is abstracted.
+
+5.  **Constant density** – the volumetric flow (and, in semibatch, the holdup volume) are additive in the feed; volume change on reaction is neglected.
+
+6.  **Empirical gel effect** – the gel and glass factors are an empirical correlation in conversion (Eq. [\[eq:poly_gel\]](#eq:poly_gel)); the coefficients are system-specific and must be fitted to data.
+
+##### Numerical Solution Procedure
+
+1.  Read the feed conditions and the monomer, initiator, and optional solvent molar flows; form the inlet concentrations and the residence time $\theta = V/Q$.
+
+2.  Determine the reaction temperature $T_r$ from the operating mode (isothermal, outlet-temperature, or adiabatic); for adiabatic operation iterate $T_r$ and the conversion to a fixed point through the energy balance.
+
+3.  Solve the kinetics at $T_r$:
+
+    1.  *CSTR:* the closed-form balances (Eqs. [\[eq:poly_initiator\]](#eq:poly_initiator)–[\[eq:poly_deadmoments\]](#eq:poly_deadmoments)), with an outer fixed point for the gel factors and, in copolymer mode, an inner iteration for the coupled monomer balances.
+
+    2.  *PFR / batch:* integrate the balances along the residence time by Runge-Kutta.
+
+    3.  *Semibatch / dynamic:* integrate the total-amount balances in time, adding the feed each step.
+
+4.  Form $M_n$, $M_w$, PDI (Eq. [\[eq:poly_mnmw\]](#eq:poly_mnmw)) and, in copolymer mode, the composition (Eq. [\[eq:poly_mayolewis\]](#eq:poly_mayolewis) or [\[eq:poly_cumcomp\]](#eq:poly_cumcomp)).
+
+5.  Apply the energy balance (Eq. [\[eq:poly_qgen\]](#eq:poly_qgen)) and set the heat duty.
+
+6.  Write the outlet: unreacted monomer(s) and initiator, plus the polymer as a lumped compound at $M_n$ or as the emitted distribution.
+
+##### Typical Usage Workflow
+
+1.  Add the polymer product as a non-volatile compound to the flowsheet (for example a PC-SAFT polymer), and add the monomer(s) and initiator.
+
+2.  Drop the *Polymerization Reactor* block and connect the feed, product, and (for isothermal or outlet-temperature operation) energy streams.
+
+3.  On the editor, select the flow model (CSTR, PFR/batch) and the operation mode (isothermal, adiabatic, outlet temperature). Assign the monomer, initiator, optional solvent, and polymer product compounds; for a copolymer, also assign the second monomer and the reactivity ratios.
+
+4.  Load a preset or enter the Arrhenius constants, the initiator efficiency, the heat of polymerization, and (optionally) the gel coefficients.
+
+5.  To emit a molar-mass distribution, set the number of cuts and the shape, generate the cuts, and enable distribution emission.
+
+6.  Run the simulation and read the conversion, $M_n$, $M_w$, PDI, and copolymer composition on the **Results** tab. For a transient study, configure a dynamic schedule and monitor the conversion and molar mass over time.
+
+##### Worked Example
+
+A bulk styrene polymerization initiated by AIBN at 60 °C in a CSTR with a one-hour residence time and 0.02 mol L$^{-1}$ initiator gives a few percent conversion, a number-average molar mass of order $10^5$ g mol$^{-1}$, and a polydispersity near the combination limit of $1.5$, broadened slightly by transfer to monomer. Replacing styrene with a styrene/methyl methacrylate feed and assigning the reactivity ratios $r_1 = 0.52$, $r_2 = 0.46$ produces a near-alternating copolymer (both ratios below one): for an equimolar feed the instantaneous composition is close to $0.5$, and the same feed run as a batch to high conversion shows the styrene fraction drifting downward as the faster monomer depletes, while a starved semibatch feed at the target ratio holds the composition constant.
+
+#### Vessel Depressurization (Blowdown) {#sec:vessel_depressurization}
+
+##### Overview {#overview-20}
+
+The **Vessel Depressurization** tool (Dynamics menu, both the classic and the cross-platform interfaces) computes the pressure, temperature, released flow and wall temperature history of a vessel that is blown down through a restriction orifice or a blowdown valve, or that is exposed to a pool fire while it relieves. It answers the questions a depressurization study asks in the sense of API Standard 521 : how long the vessel takes to reach a target pressure, what the lowest fluid and metal temperatures are (the minimum design metal temperature check), what relief rate a fire imposes and how hot the unwetted metal gets.
+
+The tool takes a material stream of the flowsheet as its source, which supplies the composition and the property package (on the classic interface it can also be attached to a stream through Utilities, Add Utility). Everything else is entered in the utility itself: initial pressure and temperature, initial liquid level, vessel orientation and dimensions, head type, wall thickness and material, the outlet nozzle height, the orifice bore and discharge coefficient (or a valve $C_v$), the back pressure, the valve opening time, the heat case (adiabatic, fire or isothermal), the ambient temperature, the API 521 fire parameters, the time step and the duration. The results are a summary (time to the stop pressure, peak flow, released mass, minimum fluid and wall temperatures, maximum dry wall temperature), three plots (pressure, temperatures, released flow) and the full time series, which can be exported.
+
+The utility runs the same dynamic vessel and valve models that a dynamic flowsheet uses; it builds a private flowsheet with a vessel, a blowdown valve and a sink, and integrates it with the standard integrator. The dynamic properties described below are therefore also available on a Vessel block in a dynamic simulation.
+
+##### Vessel content
+
+The vessel is a rigid volume $V$ holding a mass $m$ of the fluid at a uniform temperature $T$ and pressure $P$. Over a time step $\Delta t$ the content changes by the inlet and outlet flows,
+
+
+\[
+m_{1} = m_{0} + \sum_{\text{in}} \dot{m}_{i}\,\Delta t
+              - \sum_{\text{out}} \dot{m}_{o}\,\Delta t ,
+\]
+
+
+and, with the **Rigorous Energy Balance (UV)** property on, the internal energy changes by the enthalpy carried in and out and by the heat received through the wall,
+
+
+<a id="eq:blowdown_uv"></a>
+
+\[
+U_{1} = m_{0}\,h_{0} - P_{0}\,V
+            + \sum_{\text{in}} \dot{m}_{i} h_{i}\,\Delta t
+            - \sum_{\text{out}} \dot{m}_{o} h_{o}\,\Delta t
+            + Q\,\Delta t .
+\]
+
+
+The new state is the solution of a volume-internal energy flash: the temperature and pressure at which the mixture of mass $m_{1}$ occupies exactly $V$ with the internal energy $U_{1}$. The flash is solved as an outer temperature search closed by a volume-temperature flash for the pressure, so the content is always on the property package’s own pressure-volume-temperature-energy surface. A gas expanding through the orifice therefore cools along the isentrope corrected for the heat it receives, a boiling liquid cools along its bubble curve, and a fire heats the content and raises its pressure. With the energy balance off the legacy behaviour is kept: the content is flashed at constant temperature, which is the isothermal case.
+
+Two details of the volume flashes matter for a blowdown. A pure compound (or a mixture with more than 99.9 % of one compound, which a stripped CO$_2$ or steam inventory becomes) has no two-phase pressure window: at a given temperature it is liquid above its vapour pressure, vapour below it and any split exactly at it. The volume-temperature flash handles that case with the package’s bubble pressure and the lever rule between the saturated liquid and vapour volumes. A compressed liquid takes its saturated volume from the liquid density correlation of the package and its compression from the equation of state, so that pressure, volume and internal energy come from one consistent surface; the pressure correction of the density correlations is far too stiff near the critical point, and used on its own it makes a liquid-full vessel lose most of its pressure in the first step. Above the mixture’s critical locus, where no bubble point exists, the dense phase takes its volume from the equation of state.
+
+The **Minimum Pressure** property is a floor: a vessel vented to the atmosphere, or fitted with a vacuum breaker, stays at that pressure and keeps its liquid level once the blowdown is over.
+
+##### Outlets
+
+The liquid level follows from the liquid volume of the flash and the vessel geometry (vertical or horizontal cylinder with the selected heads). The gas outlet carries vapour while the level is below its nozzle and liquid once the level has reached it, with a mass-weighted blend across a short transition band so that the integration never sees a step. With the nozzle at the top (the default) a liquid-full vessel blows down as liquid until a gas space forms; with the nozzle at mid-height, a pipe blown down through a hole at its end passes liquid until the level falls below the hole; a nozzle below the top is taken as a hole spanning its own diameter, so the outlet passes a blend while the level is within it. With the **Gas Outlet Homogeneous** option the outlet takes the content at its bulk quality while both phases exist, which is the homogeneous two-phase flow of a pipe blown down through a hole at its end, where the flow sweeps the liquid to the hole. The liquid outlet is the mirror image: it carries liquid while the level is above its nozzle and gas once the level has dropped below it, which is the gas blow-by case a downstream low-pressure system has to be checked for. The gas fraction of the liquid outlet and the liquid fraction of the gas outlet are reported as read-only properties.
+
+##### Blowdown orifice
+
+The blowdown valve is a Valve block in $K_v$ mode with the **Use Orifice Flow** option, given by its bore $d$ and discharge coefficient $C_d$. The mass flow is that of a homogeneous-equilibrium nozzle on the property package’s own isentrope. The fluid expands from the vessel state $(h_{0}, s_{0})$ to a throat pressure $P_{t}$ along the isentrope, and the mass flux is
+
+
+<a id="eq:blowdown_hem"></a>
+
+\[
+G(P_{t}) = \frac{\sqrt{2\,\left[h_{0} - h(P_{t}, s_{0})\right]}}
+                    {v(P_{t}, s_{0})} ,
+    \qquad
+    \dot{m} = C_d\,\frac{\pi d^{2}}{4}\,\max_{P_{2} \le P_{t} \le P_{1}} G(P_{t}) ,
+\]
+
+
+where $v$ is the specific volume of the (possibly two-phase) mixture at the throat. The flux rises as the throat pressure falls until the mixture reaches its own speed of sound; the flow is choked there and no longer responds to the back pressure. For an ideal gas this reduces to the textbook nozzle formula with the critical pressure ratio $(2/(k+1))^{k/(k-1)}$. For a dense supercritical fluid or a flashing liquid the choke sits far above the ideal-gas ratio, which is the case a blowdown valve or a leak on a high-pressure line has to be sized for . The throat pressure is searched by a golden-section method over the logarithm of the pressure, or by a short hill climb from the previous time step’s throat, and is reported by the valve. When the isentropic flash cannot be followed the closed forms are used as a fallback: the ideal-gas nozzle for a gas and $C_d A \sqrt{2 \rho \Delta P}$ for a liquid. The valve opening can be ramped linearly over a given time, which scales the open area.
+
+A valve given by its flow coefficient uses the ISA/IEC 60534 sizing forms of the Valve block instead, with choking for gas and the two-phase form for a mixed inlet.
+
+##### Wall and heat transfer
+
+With the **Split Wall (Wetted/Dry)** property on, the wall is two metal segments, the one wetted by the liquid and the one in contact with the vapour, with areas that follow the liquid level. Each segment is a one-dimensional conduction slab across the wall thickness, discretized in three to twelve nodes and integrated implicitly (backward Euler with a tridiagonal solve), so that thin walls need no smaller time step than the vessel itself. The inner node exchanges heat with the fluid through the film coefficient of the phase it touches, the outer node with the ambient through the external coefficient and receives any solar or fire flux. The inner-surface temperatures are the ones reported and tracked as the minimum wetted and dry wall temperatures, which is what a thermocouple or a minimum design metal temperature check looks at; the hottest node of the dry segment is the maximum dry wall temperature of the fire case.
+
+A still vessel has no forced convection, so the film coefficients are those of turbulent natural convection on a wall,
+
+
+<a id="eq:blowdown_natconv"></a>
+
+\[
+\mathrm{Nu} = 0.13\,(\mathrm{Gr}\,\mathrm{Pr})^{1/3}
+    \quad \Rightarrow \quad
+    h = 0.13\,k\left(\frac{g\,\beta\,|T_{w} - T|\,\rho^{2}}{\mu^{2}}\,\mathrm{Pr}\right)^{1/3} ,
+\]
+
+
+in which the length scale cancels . The properties are those of the liquid for the wetted segment and of the vapour for the dry one, evaluated at the vessel pressure, so the coefficient on the gas side falls with the density as the vessel empties. A floor of 50 and 5 W/(m$^2$K) keeps the exchange from switching off. The **Internal Heat Transfer Factor** multiplies both coefficients; it is the knob for a sensitivity study, and the validation below shows what a factor of 0.5 to 0.7 does to a cold blowdown. When the thermal profile of the vessel is set to a user-defined overall coefficient, that value is used for both segments instead.
+
+In the fire case the heat absorbed by the liquid follows API 521 ,
+
+
+<a id="eq:blowdown_fire"></a>
+
+\[
+Q_{\text{fire}} = C\,F\,A_{w}^{0.82} ,
+\]
+
+
+with $C = 43\,200$ W/m$^{1.64}$ when there is adequate drainage and prompt firefighting and $70\,900$ otherwise, $F$ the environment factor and $A_{w}$ the wetted area within 7.6 m of grade, counted from the **Vessel Bottom Elevation**. The wetted metal stays at the liquid temperature, as API 521 assumes for a wall backed by boiling liquid. The dry wall receives the user-given **Fire Dry Wall Heat Flux** on its outer face and passes heat to the vapour through the conduction slab, so the vapour superheats and the unwetted metal temperature is tracked.
+
+##### Integration
+
+The vessel is integrated with an explicit first-order step of the chosen length; the flashes and the wall are solved implicitly inside the step. A step of 0.5 to 1 s is adequate for a gas blowdown of minutes; a liquid-full vessel, whose pressure falls by megapascals per kilogram released, needs 0.1 to 0.2 s until a gas space forms. The run stops at the given duration or when the stop pressure is reached, and a warning is issued if the integration stops early.
+
+##### Validation
+
+The model was checked against a closed-form solution, against its own property package and against the published cases below. All runs use the Peng-Robinson package. The tests are part of the engine test suite (`DepressurizationValidationTests`), so the figures are reproduced on every build.
+
+###### Ideal-gas blowdown
+
+Adiabatic blowdown of an ideal gas through a choked orifice has a closed form: with $a = (C_d A/V)\,c_0\,\psi$, $\psi = (2/(k+1))^{(k+1)/(2(k-1))}$ and $c_0 = \sqrt{k R T_0/M}$,
+
+
+\[
+\frac{P}{P_0} = \left[1 + \tfrac{k-1}{2}\,a\,t\right]^{-2k/(k-1)},
+    \qquad
+    \frac{T}{T_0} = \left[1 + \tfrac{k-1}{2}\,a\,t\right]^{-2} .
+\]
+
+
+Methane at 10 bar and 300 K is within 2 % of ideal. Over a 280 s blowdown to 2 bar the model follows the pressure curve within 0.8 % and the temperature within 5 K (the closed form takes a constant $k$; the package’s $c_p$ varies with temperature).
+
+###### Real-gas isentrope
+
+With the wall switched off, the content of a blowdown must stay on the isentrope of the property package. A 60 to 5 bar blowdown of a real gas stays within 1.4 K of the temperature that a pressure-entropy flash gives at the same pressure, which is the drift of the explicit step.
+
+###### Nitrogen blowdown of Haque et al. {#nitrogen-blowdown-of-haque-et-al.}
+
+Haque, Richardson, Saville, Chamberlain and Shirvill blew down nitrogen from 150 bar and about 20 $^{\circ}$C in a 0.273 m ID $\times$ 1.524 m vertical vessel with a 25 mm carbon steel wall through a 6.35 mm top orifice; the record is redrawn in the review of Shafiq et al. , Fig. 5b, as changes from the initial temperature. Table [9](#tab:blowdown_haque) compares the run with the figure. The wall is reproduced, the pressure is reproduced, and the gas minimum comes out 15 to 20 K warmer than measured with the natural-convection coefficient as estimated; a factor of 0.6 to 0.7 on the coefficient reproduces the measured gas curve, which is why the factor is exposed. The adiabatic bound is given for reference.
+
+
+
+<a id="tab:blowdown_haque"></a>
+
+
+
+| Quantity | Measured | Model, factor 1.0 | Model, factor 0.5 | Adiabatic |
+|:---|:--:|:--:|:--:|:--:|
+| Gas temperature drop at its minimum | 108 K at $\approx$<!-- -->40 s | 90 K at 32 s | 115 K at 42 s | 230 K |
+| Gas temperature drop at 100 s | 60 K | 43 K | 76 K | 214 K |
+| Inner wall temperature drop | 5.5 K | 4 K | 2.6 K | 0 |
+| Time to atmospheric pressure | $\approx$<!-- -->100 s | 2 bar at 82 s, 1 bar at 100 s | 2 bar at 84 s | 2 bar at 78 s |
+
+Nitrogen blowdown of Haque et al. : 150 bar, 6.35 mm orifice, 0.0892 m$^3$, 25 mm wall.
+
+
+
+###### CO$_2$ blowdown of Fredenhagen and Eggers
+
+Fredenhagen and Eggers blew down CO$_2$ with a nitrogen impurity from a top-vented, liquid-full 0.05 m$^3$ vessel (0.242 m ID) at 14 MPa and 298 K through a 17 mm$^2$ orifice; pressure and temperature transients are redrawn in , Figs. 10 and 11. The nitrogen content is not given in the review and was inferred from the kink of the pressure record at 8 MPa, the end of the liquid-full stage: 6 mol% gives a bubble pressure of 7.3 MPa at 286 K, and the Peng-Robinson bubble curve ends between 7 and 8 % at that temperature. The vessel was run with a 25 mm carbon steel wall and $C_d = 0.8$. Table [10](#tab:blowdown_co2) gives the comparison for pure CO$_2$ and for the inferred mixture. The two-phase stage, which is the one of interest, is reproduced within 0.5 MPa and 5 K to 100 s. The duration of the liquid-full stage is right for pure CO$_2$ and too short for the mixture, whose dense phase Peng-Robinson makes too compressible near the critical locus; at the end of the run the mixture cools too fast as it approaches the triple point of CO$_2$, which the model does not represent.
+
+
+
+<a id="tab:blowdown_co2"></a>
+
+
+
+| Quantity | Measured | Pure CO$_2$ | CO$_2$ + 6 % N$_2$ |
+|:---|:--:|:--:|:--:|
+| End of the liquid-full stage | $\approx$<!-- -->3 s, at 8 MPa | 3.5 s, at 4.8 MPa | $<$<!-- -->1 s, at 6.7 MPa |
+| Pressure at 20 / 40 / 80 s, MPa | 5.6 / 3.9 / 2.05 | 4.0 / 3.3 / 2.2 | 4.8 / 3.4 / 1.9 |
+| Temperature at 20 / 40 / 80 s, K | 277 / 270 / 255 | 279 / 271 / 257 | 275 / 266 / 251 |
+| Temperature at 150 s, K | 236 | 241 | 225 |
+
+CO$_2$ blowdown of Fredenhagen and Eggers : 0.05 m$^3$, 14 MPa, 298 K, 17 mm$^2$ orifice, liquid-full.
+
+
+
+###### Ethylene hole flows of Saville, Richardson and Barker
+
+Saville, Richardson and Barker computed with the BLOWDOWN program the flow of ethylene at 10 $^{\circ}$C from a pipeline through 10 and 50 mm holes to the atmosphere, with the fluid supercritical (90, 79, 69 and 59.6 bar) or gaseous (44 and 28 bar), and found the hole choked even for the all-liquid dense phase, at a throat pressure of 41 to 45 bar, far above the ideal-gas critical ratio. These are predictions of a homogeneous-equilibrium model, not measurements, so the comparison in Table [11](#tab:blowdown_ethylene) is between two implementations of the same physics. The orifice model of equation ([\[eq:blowdown_hem\]](#eq:blowdown_hem)) with $C_d = 1$ reproduces the flows within 8 % for the dense phase and 3 % for the gas, and the dense-phase throat within 4 bar. The model runs 3 to 8 % high in the dense phase, consistent with the Peng-Robinson density at 90 bar (367 kg/m$^3$, some 6 % below the real value). In the gas cases the flux curve is bimodal, with a gas-side maximum near 27 bar and a two-phase one near 15 bar of the same height; the paper reports the two-phase one.
+
+
+
+<a id="tab:blowdown_ethylene"></a>
+
+
+
+| $P_0$ (bar) | Hole (mm) | State | $\dot{m}$ BLOWDOWN (kg/s) | $\dot{m}$ DWSIM (kg/s) | Deviation | $P_t$ BLOWDOWN (bar) | $P_t$ DWSIM (bar) |
+|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
+| 90 | 10 | dense | 4.40 | 4.75 | +7.9 % | 41.4 | 37.9 |
+| 79 | 10 | dense | 3.80 | 4.05 | +6.5 % | 43.1 | 39.4 |
+| 69 | 10 | dense | 3.20 | 3.31 | +3.4 % | 45.4 | 41.1 |
+| 59.6 | 10 | dense | 2.30 | 2.45 | +6.4 % | n/a | 43.6 |
+| 44 | 10 | gas | 0.95 | 0.98 | +2.7 % | 15.5 | 27.3 |
+| 28 | 10 | gas | 0.55 | 0.56 | +2.6 % | n/a | 15.7 |
+| 90 | 50 | dense | 114 | 118 | +3.6 % | 45.4 | 37.8 |
+| 44 | 50 | gas | 24 | 24.4 | +1.7 % | 17.7 | 27.4 |
+
+Ethylene at 283 K through a hole to the atmosphere, $C_d = 1$: BLOWDOWN predictions against the orifice model. $\dot{m}$ is the mass flow and $P_t$ the throat pressure.
+
+
+
+###### LPG pipeline blowdown of Richardson and Saville
+
+Richardson and Saville compared BLOWDOWN with the Isle of Grain tests, in which 100 m lines full of LPG (95 mol% propane, 5 % butane) were blown down through orifices at their end. Test P47 used the 154 mm ID line (7.3 mm wall, 1.86 m$^3$) at 21.3 bar and 14.6 $^{\circ}$C, ambient 15.4 $^{\circ}$C, with a 50 mm nominal orifice for which the paper adopts an equivalent diameter of 70.4 mm and $C_d = 0.80$. The orifice is small against the bore, and the paper notes that the open- and closed-end pressures nearly coincide in this test, so the line can be treated as a vessel. BLOWDOWN takes the flow along the line as homogeneous two-phase, and Table [12](#tab:blowdown_lpg) compares the measured record (Fig. 4 of the paper, closed end) with the model run the same way, the outlet taking the bulk quality, and with the stratified run in which the hole passes the phase at its level. The homogeneous run follows the measurement to about 60 s, within 0.6 bar, 3 K and 0.07 t; it then empties the line, as the BLOWDOWN prediction also did, whereas the measured inventory keeps a residual of about 0.1 t because the orifice acts as a dam, and the measured pressure and temperature tail off more slowly. The stratified run holds the liquid back below the hole and lets the pressure fall too fast, which is why the homogeneous option exists.
+
+
+
+<a id="tab:blowdown_lpg"></a>
+
+
+
+<table>
+<caption>Isle of Grain test P47 <span class="citation" data-cites="Richardson1996"></span>: LPG, 21.3 bar, 14.6 <span class="math inline">\(^{\circ}\)</span>C, 70.4 mm equivalent orifice, <span class="math inline">\(C_d = 0.80\)</span>. Closed-end pressure and temperature; inventory in tonnes. The measured pressure at 0 s is the value after the sub-second expansion of the compressed liquid.</caption>
+<tbody>
+<tr>
+<td style="text-align: center;">Time (s)</td>
+<td colspan="3" style="text-align: center;">Measured</td>
+<td colspan="3" style="text-align: center;">Model, homogeneous outlet</td>
+</tr>
+<tr>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"><span class="math inline">\(P\)</span> (bar)</td>
+<td style="text-align: center;"><span class="math inline">\(T\)</span> (<span class="math inline">\(^{\circ}\)</span>C)</td>
+<td style="text-align: center;">Inventory (t)</td>
+<td style="text-align: center;"><span class="math inline">\(P\)</span> (bar)</td>
+<td style="text-align: center;"><span class="math inline">\(T\)</span> (<span class="math inline">\(^{\circ}\)</span>C)</td>
+<td style="text-align: center;">Inventory (t)</td>
+</tr>
+<tr>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">7.4</td>
+<td style="text-align: center;">14.6</td>
+<td style="text-align: center;">0.95</td>
+<td style="text-align: center;">21.3</td>
+<td style="text-align: center;">14.6</td>
+<td style="text-align: center;">0.97</td>
+</tr>
+<tr>
+<td style="text-align: center;">20</td>
+<td style="text-align: center;">7.0</td>
+<td style="text-align: center;">11</td>
+<td style="text-align: center;">0.60</td>
+<td style="text-align: center;">6.4</td>
+<td style="text-align: center;">11.7</td>
+<td style="text-align: center;">0.64</td>
+</tr>
+<tr>
+<td style="text-align: center;">40</td>
+<td style="text-align: center;">6.3</td>
+<td style="text-align: center;">5</td>
+<td style="text-align: center;">0.37</td>
+<td style="text-align: center;">5.8</td>
+<td style="text-align: center;">8.1</td>
+<td style="text-align: center;">0.36</td>
+</tr>
+<tr>
+<td style="text-align: center;">60</td>
+<td style="text-align: center;">5.0</td>
+<td style="text-align: center;">–3</td>
+<td style="text-align: center;">0.22</td>
+<td style="text-align: center;">4.5</td>
+<td style="text-align: center;">–0.5</td>
+<td style="text-align: center;">0.15</td>
+</tr>
+<tr>
+<td style="text-align: center;">80</td>
+<td style="text-align: center;">3.3</td>
+<td style="text-align: center;">–13</td>
+<td style="text-align: center;">0.15</td>
+<td style="text-align: center;">2.1</td>
+<td style="text-align: center;">–23</td>
+<td style="text-align: center;">0.03</td>
+</tr>
+<tr>
+<td style="text-align: center;">100</td>
+<td style="text-align: center;">2.0</td>
+<td style="text-align: center;">–24</td>
+<td style="text-align: center;">0.11</td>
+<td style="text-align: center;">1.0</td>
+<td style="text-align: center;">–40</td>
+<td style="text-align: center;">0.01</td>
+</tr>
+<tr>
+<td style="text-align: center;">Minimum</td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;">–33</td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;">–40</td>
+<td style="text-align: center;"></td>
+</tr>
+<tr>
+<td colspan="7" style="text-align: center;">Stratified outlet, for comparison: 4.3 bar, –1.4 <span class="math inline">\(^{\circ}\)</span>C and 0.50 t at 40 s; 1.8 bar, –26 <span class="math inline">\(^{\circ}\)</span>C and 0.37 t at 80 s.</td>
+</tr>
+</tbody>
+</table>
+
+
+
+##### Limitations
+
+The content is one well-mixed gas zone and one well-mixed liquid zone at a common temperature; the model has no thermal stratification of the gas, no non-equilibrium (metastable) flashing at the orifice, no solid formation (dry ice, hydrates), no free-water zone and no pressure drop along a pipeline. A pipe is represented as a vessel only when the hole is small against the bore. The wall is a slab: the heads take the shell thickness, and there is no axial conduction. The natural-convection correlation runs warm on the gas minimum of a cold blowdown, as shown above; a conservative minimum fluid temperature is obtained with the heat transfer factor at 0.5.
+
+#### Column Internals (Trays and Packings) {#sec:column_internals}
+
+##### Overview {#overview-21}
+
+The **Column Internals** tool (Utilities menu, both the classic and the cross-platform interfaces) rates the internals of a rigorous column stage by stage after the column has been solved. For a trayed section it reports the fraction of flood, the pressure drop, the weeping margin, the fractional entrainment, the downcomer backup and the downcomer residence time of every tray, plus the valve state of a valve tray and the slot opening of a bubble-cap tray; for a packed section it reports the fraction of flood, the pressure drop per metre, the liquid holdup, the wetting ratio, the HETP and the bed height the stages of the section need. A section whose diameter is left at zero is sized so that its worst stage sits at a target fraction of flood; a section with a diameter is rated as it is.
+
+The tool also exists as a utility attached to a column (Add Utility on the classic interface, the Utilities tab of the column editor on the cross-platform one). The attached utility keeps the case in the simulation file, publishes the highest fraction of flood, the column pressure drop, the required diameter and the internals height among the column’s properties, and rates the column again whenever the flowsheet is solved with the update option on.
+
+The tool reads everything it needs from the column’s last solution: the vapour rising into each stage, the liquid leaving it, and the densities, viscosities and surface tension of both phases at the stage temperature, pressure and compositions, computed by the column’s property package. The column is divided into **sections**, ranges of stages that carry one kind of internal (sieve, valve or bubble-cap tray, random or structured packing) with one geometry. Stage 1 is the top stage; on a distillation column the condenser and the reboiler are stages 1 and $N$ and are normally left out of the sections.
+
+The inputs are the design targets (fraction of flood for sizing trays and packings, minimum downcomer residence time, turndown ratio checked for weeping), the settings of the iteration with the solver, and, per section, the geometry: for every tray the tray spacing, downcomer area fraction, weir height, downcomer clearance, plate thickness, the flooding correlation and a system (foaming) factor; for sieve trays the hole diameter and hole area fraction; for valve trays the valves per unit of active area, the deck hole diameter, the valve thickness, material density, legs and orifice shape; for bubble-cap trays the cap and riser diameters, the pitch, the slots (number, width, height), the static seal, the skirt clearance and, optionally, the liquid gradient; for packings the packing from the built-in catalogue or a user-defined one, the bed height, the capacity and pressure drop model, the HETP model and the diffusivities of the transferring component. Cases are saved to `.dwint` files and a case file that carries the flowsheet’s own name next to it is loaded when the tool opens.
+
+##### Sieve trays
+
+The tray rating follows the design procedure of Towler and Sinnott (also Coulson and Richardson volume 6), with the alternatives Kister recommends . All heads are in millimetres of clear liquid, as the books tabulate them.
+
+###### Areas
+
+With the column diameter $D_c$, the total area $A_c$, the downcomer area $A_d = f_d A_c$ (a segment of the circle; the weir length $l_w$ follows from the chord geometry, $A_d/A_c = (\theta - \sin\theta)/2\pi$ with $l_w/D_c = \sin(\theta/2)$), the net area $A_n = A_c - A_d$ available to the vapour above the tray, the active area $A_a = A_c - 2A_d$ and the hole area $A_h = f_h A_a$.
+
+###### Entrainment flooding
+
+The flow parameter is $F_{LV} = (L_w/V_w)\sqrt{\rho_V/\rho_L}$ on the mass flows. With the default Fair (1961) correlation the flooding velocity on the net area is
+
+
+\[
+u_f = K_1 \left(\frac{\sigma}{0.02}\right)^{0.2}
+          \sqrt{\frac{\rho_L - \rho_V}{\rho_V}} ,
+\]
+
+
+where $K_1(F_{LV}, l_t)$ is the Fair chart (Towler Figure 11.29) in the analytical form of Lygeros and Magoulas ,
+
+
+\[
+K_1 = 0.0105 + 8.127\times10^{-4}\, l_t^{\,0.755}
+          \exp\left(-1.463\,F_{LV}^{\,0.842}\right) ,
+\]
+
+
+with $l_t$ the tray spacing in millimetres and $K_1$ in m/s. The fit reproduces the chart within 3 % over $0.01 \le F_{LV} \le 1$. The alternative is the Kister and Haas correlation , which Kister recommends for sieve and valve trays,
+
+
+\[
+C_{SB} = 0.144 \left(\frac{d_h^2 \sigma}{\rho_L}\right)^{0.125}
+             \left(\frac{\rho_V}{\rho_L}\right)^{0.1}
+             \left(\frac{S}{h_{ct}}\right)^{0.5} ,
+\]
+
+
+in ft/s with $d_h$, $S$ and $h_{ct}$ in inches, $\sigma$ in dyn/cm (capped at 25) and the densities in lb/ft$^3$; $h_{ct}$ is the clear liquid height at the froth-to-spray transition from the Jeronimo and Sawistowski correlation with the Kister and Haas property correction (Kister equations 6.68 to 6.70). For valve trays the open valve area replaces the hole area. The fraction of flood is $u_n/u_f$ with $u_n$ the vapour velocity on the net area, after the system factor.
+
+###### Entrainment
+
+The fractional entrainment $\psi$ (kg entrained per kg of gross liquid flow) is read from Fair’s chart (Towler Figure 11.31), digitised as a table in $F_{LV}$ and percent of flood. Its effect on the tray efficiency is Colburn’s $E_a = E_{mv}/[1 + E_{mv}\psi/(1-\psi)]$.
+
+###### Weeping
+
+The weir crest is the Francis formula for a segmental weir, $h_{ow} = 750\,[L_w/(\rho_L l_w)]^{2/3}$, and the weep-point hole velocity is
+
+
+\[
+u_{h,\min} = \frac{K_2 - 0.90\,(25.4 - d_h)}{\sqrt{\rho_V}} ,
+\]
+
+
+with $d_h$ in mm and $K_2$ the Eduljee constant read from Towler Figure 11.32 at the clear liquid depth $h_w + h_{ow}$ of the turndown rate. The tool reports the ratio of the actual hole velocity to the weep point at the design rate and at turndown.
+
+###### Pressure drop {#pressure-drop}
+
+The dry plate drop is the orifice form $h_d = 51\,(u_h/C_0)^2\,\rho_V/\rho_L$ with the Liebson coefficient $C_0$ (Towler Figure 11.36) as a function of the plate thickness to hole diameter ratio and of the hole area fraction; the residual head is $h_r = 12500/\rho_L$; the total head is $h_t = h_d + h_w + h_{ow} + h_r$ and the pressure drop $9.81\times10^{-3}\,h_t\rho_L$ Pa.
+
+###### Downcomer
+
+The head loss under the apron is $h_{dc} = 166\,[L_w/(\rho_L A_m)]^2$, with $A_m$ the smaller of the downcomer area and the area under the apron; the backup is $h_b = h_w + h_{ow} + h_t + h_{dc}$ and must stay below half the tray spacing plus the weir height; the residence time is $A_d h_b \rho_L/L_w$ and should exceed 3 s.
+
+###### Efficiency
+
+Each tray also reports the O’Connell overall efficiency in the Eduljee form used by Towler and Sinnott (equation 11.67), $E_o = 0.51 - 0.325\log_{10}(\mu_L \alpha)$, with $\mu_L$ the liquid viscosity in mPa$\cdot$s and $\alpha$ the relative volatility of the two key components on the stage (the component transferring most to the vapour against the one transferring most to the liquid).
+
+###### Writing the rating back into the column
+
+Two buttons send the rating to the column. **Pressures to column** keeps the top stage pressure and adds the rated pressure drop of each tray (or of each packed stage’s share of the bed) to the stage below, and switches the column’s linear pressure drop off so the solver uses the stage pressures. **Efficiencies to column** writes the O’Connell value of every rated tray into the stage efficiency. The column is left to be solved again; rating it once more closes the loop, and a second pass usually changes the pressure drop by a few percent only.
+
+###### Packed beds and the number of stages
+
+A packed section whose bed height is given carries its own number of theoretical stages: bed height divided by the average HETP of the section. **Stages to column** sets it on the column, inserting theoretical stages evenly into the section or removing stages that carry no feed, draw or duty, so every stream keeps the stage it is connected to; the stage ranges of the other sections move to follow. The rating also writes the sized diameter, the internals height and the height of every rated stage (the tray spacing, or the HETP of a packed stage) into the column, where the costing and the dynamic holdups read them, and sets the efficiency of a packed stage to 1, since the HETP already carries the efficiency of the bed. The case itself (sections, geometry, models) is kept in the column and saved with the simulation; the tool loads it back when the column is picked, before looking for a case file next to the flowsheet.
+
+###### Packed stages in the dynamic column
+
+The rating also marks every stage of a packed section as packed and records its packing (the catalogue name, or the constants of a user-defined packing) and its capacity model on the stage, and these are saved with the column. In dynamic mode such a stage is a slice of bed of height equal to its HETP: the vapour flowing up through it comes from the bed pressure drop correlation of the section (Robbins, Billet and Schultes or Rocha, Bravo and Fair, at the liquid rate of the moment) inverted for the pressure difference between the stage below and the stage, and the liquid draining from it comes from the bed holdup correlation (Rocha, Bravo and Fair for a structured packing with its corrugation side, Billet and Schultes otherwise) inverted for the liquid the slice holds, in place of the orifice and weir equations of a tray. When the dynamics start, the content of a packed stage is scaled so that its liquid volume equals the holdup of the bed at the steady-state liquid rate. The Flooding alarm of the column trips when a packed stage passes the flood point of its packing correlation and the Weeping alarm when it falls below the minimum wetting rate of the packing; tray stages keep the Souders-Brown check.
+
+###### Iteration with the solver
+
+**Rate and iterate with the solver** closes that loop on its own: it rates the column, re-stages the packed beds that have a bed height (this can be switched off), writes the pressures and the efficiencies (each can be switched off), solves the flowsheet, rates again and repeats until the column pressure drop changes by less than the tolerance (2 % by default), no stage efficiency moves by more than 0.01 and the number of stages stops changing, or until the passes run out (six by default). The summary lists every pass. On the extractive distillation sample the profile settles after a single pass.
+
+##### Valve trays
+
+Valve trays share the areas, the weir crest, the downcomer and the entrainment of the sieve tray procedure, and either flooding correlation: Fair, or Kister and Haas on the open valve area. The dry pressure drop follows Klein , the procedure Kister recommends (section 6.3.2 and Table 6.9 of ), which fine-tunes the Bolles (1976) model. The hole velocity $u_h$ is taken on the deck holes, $A_h = n_v\,\pi d_v^2/4$ with $n_v$ the number of valves and $d_v$ the deck hole diameter (standardised at 1.5 in). Two balance points come from the weight of the valve: at the closed balance point the vapour starts to lift the valves,
+
+
+\[
+u_{h,CBP} = \sqrt{t_v R_{vw}\,\frac{C_{vw}}{K_c}\,\frac{\rho_{vm}}{\rho_V}}
+    \quad\text{(ft/s, $t_v$ in inches)},
+\]
+
+
+with $t_v$ the valve thickness, $R_{vw}$ the ratio of the weight with legs to the weight without (1.23, 1.34 and 1.00 for flat valves with three legs, four legs and caged; 1.29, 1.45 and 1.00 for venturi valves), $C_{vw} = 1.3$ the eddy loss coefficient, $K_c$ the closed loss coefficient (6.154 flat, 3.077 venturi) and $\rho_{vm}$ the valve metal density; at the open balance point all valves are open, $u_{h,OBP} = u_{h,CBP}\sqrt{K_c/K_o}$ with the open loss coefficient $K_o$ (0.448 for venturi valves; 0.821, 0.931 and 1.104 for flat valves on 0.134, 0.104 and 0.074 in decks, scaled with $1/\sqrt{t}$ at other deck thicknesses). The dry drop is then $h_d = K\,(\rho_V/\rho_L)\,u_h^2$ in inches with $K = K_c$ below the closed balance point, $K = K_o$ above the open balance point and, between them, the constant value of the closed balance point. The aerated liquid is $h_L = \beta\,(h_w + h_{ow})$ with the aeration factor $\beta = 0.5 + 0.48\exp(-1.4 F_{va})$, a fit of the Fair and Bolles curve (Kister Figure 6.22) through the valve tray point of Klein’s example, $F_{va} = u_a\sqrt{\rho_V}$ in ft/s(lb/ft$^3$)$^{0.5}$ on the active area. Weeping is read against the closed balance point: below it the valves sit on the deck and the liquid finds the crevices, so the tray warns when $u_h$ at turndown falls under $u_{h,CBP}$, and when the unit reference $u_h/u_{h,OBP}$ at turndown falls under 40 % (Kister asks 40, 60 and 80 % for one-, two- and four-pass trays to avoid vapour channelling). The table reports the valve state and the unit reference of every tray.
+
+###### Glitsch procedure
+
+The alternative for valve trays is the procedure of the Glitsch Ballast Tray Design Manual , in the units of the manual (vapour load $V_{load} = CFS\sqrt{D_V/(D_L - D_V)}$ in ft$^3$/s, liquid in gpm, areas in ft$^2$, lengths in inches, heads in inches of liquid). The vapour capacity factor at zero liquid load, $CAF_0$, is read from Figure 5 of the manual for the tray spacing and the vapour density (the chart’s curves for 12 to 48 in, tabulated and interpolated; the low-density equation $CAF_0 = TS^{0.63} D_V^{1/6}/12$ below 0.17 lb/ft$^3$; the limit line above 4 lb/ft$^3$; the smallest of the three), $CAF = CAF_0$ times the system factor, and the per cent of flood at constant V/L is
+
+
+\[
+\frac{\%\,\text{flood}}{100} = \frac{V_{load} + GPM\,FPL/13000}{AA\,CAF} ,
+\]
+
+
+with $AA$ the active area and $FPL$ the flow path length of a single-pass tray, $12 D_T$ less twice the downcomer width. A weir taller than 15 % of the spacing shortens the spacing used for $CAF_0$ by the excess. The downcomer is checked against its design velocity, the smallest of 250, $41\sqrt{D_L - D_V}$ and $7.5\sqrt{TS}\sqrt{D_L - D_V}$ gpm/ft$^2$ times the system factor. The dry pressure drop is the larger of $1.35\,t_m D_m/D_L + K_1 V_H^2 D_V/D_L$ (units part open) and $K_2 V_H^2 D_V/D_L$ (units fully open), with the hole velocity $V_H$ on $NU/78.5$ ft$^2$ of holes for $NU$ Ballast units, $K_1 = 0.20$ and $K_2 = 1.18$, 0.95, 0.86, 0.67 and 0.61 on decks of 0.074 to 0.250 in for V-1 (flat orifice) units, $K_1 = 0.10$ and $K_2 = 0.68$ for V-4 (venturi) units; the total is $\Delta P = \Delta P_{dry} + 0.4\,(GPM/L_{wi})^{2/3}
++ 0.4 H_w$ and the backup $H_{dc} = H_w + 0.4\,(GPM/L_{wi})^{2/3} + (\Delta P + H_{ud})\,D_L/(D_L - D_V)$ with $H_{ud} = 0.65 V_{ud}^2$ under the downcomer, limited to 40, 50 or 60 % of the spacing as the vapour density is above 3, between 1 and 3 or below 1 lb/ft$^3$. The leakage point is the manual’s table of $V_H\sqrt{D_V/D_L}$ against the liquid level for V-1 and V-4 units, and a dry drop above 0.2 times the spacing is the manual’s capacity limit by pressure drop.
+
+##### Bubble-cap trays
+
+Bubble-cap trays follow the Bolles (1956) method as Ludwig presents it (chapter 8, equations 8-225 to 8-245, Figures 8-108, 8-113 and 8-114), in the US units of the original: heads in inches of liquid, $V$ the vapour load in ft$^3$/s, areas in ft$^2$. The caps are laid on a triangular pitch over the active area, $N_c$ caps of inside diameter $d_c$ with risers of inside diameter $d_r$ (cap walls 2 mm, riser walls 1 mm). The riser, reversal and annulus drop is
+
+
+\[
+h_{pc} = K_c\,\frac{\rho_V}{\rho_L - \rho_V}\left(\frac{V}{A_r}\right)^2 ,
+\]
+
+
+with $A_r$ the total riser area and $K_c$ read from Bolles’ chart against the annular to riser area ratio (0.65 at 1.0, 0.515 at 1.2, 0.42 at 1.5); the slot opening of rectangular slots, $N_s$ per cap of width $w_s$ (in inches) and height $H_s$,
+
+
+\[
+h_s = 32\left(\frac{\rho_V}{\rho_L - \rho_V}\right)^{1/3}
+          \left(\frac{V}{N_c N_s w_s}\right)^{2/3} ,
+\]
+
+
+is compared with the slot height (Bolles designs the slots 50 to 60 % open; a fully open slot blows vapour under the cap skirt, an opening under 0.5 in at turndown makes the tray pulse) and the vapour load with the maximum slot capacity $V_m = 0.79 A_s [H_s(\rho_L - \rho_V)/\rho_V]^{1/2}$. Trapezoidal slots, with the top width $R_s$ times the base width, take Bolles’ equation 8-227 for the capacity, $V_m = 2.36 A_s\,[\tfrac{2}{3}R_s/(1+R_s) + \tfrac{4}{15}(1-R_s)/(1+R_s)]
+[H_s(\rho_L - \rho_V)/\rho_V]^{1/2}$ (0.63, 0.74 and 0.79 times $A_s[\ldots]^{1/2}$ for $R_s$ = 0, 0.5 and 1), and the opening from the generalised correlation of his Figure 8-107, which follows from integrating the orifice flow over the open strip of the slot with the liquid depth below the top of the slot as the head,
+
+
+\[
+\frac{V}{V_m} = \frac{\tfrac{2}{3}R_s\,x^{3/2} + \tfrac{4}{15}(1-R_s)\,x^{5/2}}
+                        {\tfrac{2}{3}R_s + \tfrac{4}{15}(1-R_s)} , \qquad x = \frac{h_s}{H_s} ;
+\]
+
+
+for $R_s = 1$ this is $x = (V/V_m)^{2/3}$, the rectangular slot equation above, and for a triangular slot $x = (V/V_m)^{0.4}$. The total tray drop is Bolles’ equation 8-239, $h_t = h_{pc} + h_s + h_{ss} + h_{ow} + \Delta/2$, with $h_{ss}$ the static seal (top of the weir above the top of the slots) and $\Delta$ the liquid gradient across the tray; $h_{ss} + h_{ow} + \Delta/2$ is the dynamic seal Bolles tabulates by operating pressure.
+
+The **modified Dauphine** relations (Bolles after Dauphine, Ludwig equations 8-232 to 8-237) are the alternative cap pressure drop: the riser drop $h_r = 0.111\,(d_r/\rho_L)\,[\rho_V^{1/2} V/A_r]^{2.09}$ when the reversal area exceeds the riser area (with $(a_r/a_x)^{1/2}$ and the exponent 2.1 otherwise), the reversal and annulus drop $h_{ra} = 0.68/\rho_L\,[(2a_r^2/a_x a_c)\,\rho_V^{1/2} V/A_r]^{1.71}$ for risers taller than 2.5 in, and the dry slot drop $h'_s = 0.163/\rho_L\,[(d_c\rho_V)^{1/2} V/A_s]^{1.73}$, with $d_r$ and $d_c$ the riser and cap inside diameters in inches and $a_r$, $a_x$ and $a_c$ the riser, reversal (the cylinder between the top of the riser and the cap ceiling, which needs the riser height and the cap inside height) and cap inside areas per cap. The dry cap drop $h'_c = h_r + h_{ra} + h'_s$ over the wet cap correction $C_w$ of Dauphine’s chart (Ludwig Figure 8-115, against $(V/A_s)\,[(\rho_V/\rho_L)(a_s/a_{an})]^{1/2}$) is the wet cap drop $h_c$, and the tray drop is $h_c + h_{ss} + h_{ow} + \Delta/2$. The cap must not exceed $h_r + h_{ra}$ plus the slot height (and the shroud ring), or the vapour blows under the shroud ring; the tool warns. The gradient is entered by the user or estimated by the Davies equation as Bolles charts it: the gradient per row of caps $\Delta'_r$ solves
+
+
+\[
+\frac{Q/L_w}{C_d} = 25.8\,\frac{\gamma}{1+\gamma}\,\Delta_r'^{\,1/2}
+    \left[1.6\Delta'_r + 3\left(h_l + \frac{0.3 s}{\gamma}\right)\right] ,
+\]
+
+
+the left-hand side read from Bolles’ Figure 8-108 against the liquid load per foot of mean tray width, $\gamma$ the gap between caps over the cap diameter, $h_l$ the clear liquid depth and $s$ the skirt clearance in inches; the gradient is the per-row value times the rows of caps along the flow path, times the Davies vapour load correction (Figure 8-113). Bolles keeps the vapour distribution ratio $\Delta/h_c$, with $h_c = h_{pc} + h_s$ the cap drop, below 0.5; above it the inlet caps stop bubbling, and the tool warns. The downcomer backup is Ludwig’s equation 8-245, $H_d = h_w + h_{ow} + \Delta + h_{dc} + h_t$. Flooding is by Fair’s chart, which was drawn for bubble-cap and sieve trays; the positive slot seal removes the weeping check.
+
+##### Packings
+
+###### Robbins and Kister-Gill
+
+The default capacity route needs only the packing factor. The pressure drop is the Robbins correlation in the general forms of Perry’s Handbook :
+
+
+\[
+\begin{align}
+    \Delta P &= C_3 G_f^2 10^{C_4 L_f}
+              + 0.4 \left(\frac{L_f}{20000}\right)^{0.1}
+                \left[C_3 G_f^2 10^{C_4 L_f}\right]^4 , \\
+    G_f &= 986\,F_s \left(\frac{F_{pd}}{20}\right)^{0.5} 10^{0.3\rho_G} ,
+\end{align}
+\]
+
+
+with $C_3 = 7.4\times10^{-8}$, $C_4 = 2.7\times10^{-5}$, the liquid loading factor $L_f = L\,(62.4/\rho_L)(F_{pd}/20)^{0.5}\mu_L^{0.2}$ for $F_{pd} > 200$ or $L\,(62.4/\rho_L)(20/F_{pd})^{0.5}\mu_L^{0.1}$ below, and the US units of the original ($\Delta P$ in inches of water per foot, $F_s$ in ft/s(lb/ft$^3$)$^{0.5}$, $L$ in lb/h ft$^2$, $\mu_L$ in cP, $F_{pd}$ in 1/ft). The flood point is the vapour velocity at which this pressure drop reaches the Kister and Gill value , $\Delta P_{flood} = 0.115\,F_p^{0.7}$ inches of water per foot with $F_p$ in 1/ft.
+
+###### Billet and Schultes
+
+When the packing has the Billet and Schultes constants , their model gives the holdup below the loading point,
+
+
+\[
+h_L = \left(12\,\frac{Fr_L}{Re_L}\right)^{1/3}
+          \left(\frac{a_h}{a}\right)^{2/3} , \qquad
+    \frac{a_h}{a} = C_h Re_L^{0.15} Fr_L^{0.1}\ (Re_L < 5),\quad
+    0.85\,C_h Re_L^{0.25} Fr_L^{0.1}\ (Re_L \ge 5),
+\]
+
+
+the loading velocity (Seader and Henley , equations 6-105 to 6-108), the flooding velocity $u_{V,f} = u_{V,l}/0.7$, the dry bed pressure drop $\Delta P_0/l = \Psi_0\,(a/\varepsilon^3)(u_V^2\rho_V/2)/K_W$ with $\Psi_0 = C_p\,(64/Re_V + 1.8/Re_V^{0.08})$ and the wall factor $K_W$, and the irrigated pressure drop $\Delta P/\Delta P_0 = [\varepsilon/(\varepsilon - h_L)]^{1.5}
+\exp(13300\,Fr_L^{0.5}/a^{1.5})$. The heights of a transfer unit are their equations 6-132 and 6-133 with the constants $C_L$ and $C_V$ and the interface area ratio of equations 6-136 to 6-140.
+
+###### Rocha, Bravo and Fair
+
+Structured (corrugated sheet) packings are rated with the model of Rocha, Bravo and Fair , in the form Kooijman and Taylor list it . The geometry is the corrugation side $S$ (catalogue values of Fair and Bravo for Flexipac 2, Gempak 2A, Intalox 2T, Montz B1-200, Mellapak 250Y and Sulzer BX; $4.5\varepsilon/a$ for the others, which reproduces those within about 15 %), the corrugation angle $\theta$ (45$^\circ$, 60$^\circ$ for the X types), the void fraction and the specific area. The holdup correction factor
+
+
+\[
+F_t = \frac{29.12\,(We_L Fr_L)^{0.15} S^{0.359}}
+               {Re_L^{0.2}\,\varepsilon^{0.6}\,(\sin\theta)^{0.3}\,(1 - 0.93\cos\gamma)} ,
+\]
+
+
+with $\cos\gamma = 0.9$ below 0.0453 N/m and $5.211\times10^{-16.835\sigma}$ above, gives the holdup $h_t = (4F_t/S)^{2/3}[3\mu_L u_L/(\rho_L\sin\theta\,\varepsilon\,g_{eff})]^{1/3}$ at the effective gravity $g_{eff} = g\,[(\rho_L - \rho_V)/\rho_L]\,[1 - (\Delta P/\Delta z)/(\Delta P/\Delta z)_{flood}]$, and the pressure drop
+
+
+\[
+\frac{\Delta P}{\Delta z} = \left[\frac{0.177\rho_V}{S\varepsilon^2\sin^2\theta}\,u_V^2
+        + \frac{88.774\mu_V}{S^2\varepsilon\sin\theta}\,u_V\right]
+        \left(\frac{1}{1 - K_2 h_t}\right)^5 , \qquad K_2 = 0.614 + 71.35 S .
+\]
+
+
+Holdup and pressure drop are solved together; the flood pressure drop is the Kister and Gill value of the packing factor (1025 Pa/m, the authors’ figure, when the packing has no factor), and the flooding velocity is the vapour rate above which the pair has no solution below it. For the HETP, the effective velocities $u_{Le} = u_L/(\varepsilon h_t\sin\theta)$ and $u_{Ge} = u_V/[\varepsilon(1 - h_t)\sin\theta]$ give $k_G = 0.054\,(D_G/S)\,Re_G^{0.8}Sc_G^{0.33}$ with $Re_G$ on $u_{Ge} + u_{Le}$, $k_L = 2\sqrt{D_L C_E u_{Le}/(\pi S)}$ with $C_E = 0.9$, and the effective area $a_e = F_{SE}F_t a_p$ with the surface enhancement factor $F_{SE} = 0.35$ of embossed sheet metal. A structured section takes this model by default; a random packing asked for it falls back to Robbins and Onda with a note.
+
+###### Onda
+
+For random packings without mass transfer constants the HETP comes from the Onda, Takeuchi and Okumoto correlations for the wetted area, $k_L$ and $k_G$, with $H_L = u_L/(k_L a_w)$, $H_G = u_V/(k_G a_w)$, $H_{OG} = H_G + \lambda H_L$ and $\text{HETP} = H_{OG}\ln\lambda/(\lambda - 1)$, where $\lambda = K V/L$ is the stripping factor of the component transferring to the vapour on the stage.
+
+###### Rules of thumb and wetting
+
+The rule-of-thumb HETP is always reported beside the model value, as Kister advises : $1.5\,d_p$ for Pall rings and similar random packings, $100/a + 4/12$ ft (with $a$ in ft$^2$/ft$^3$) for structured packings, and at least the column diameter below 2 ft (Seader equations 6-116 to 6-118). The liquid velocity is checked against the minimum wetting rates of the packing material (ceramic 0.15, oxidized metal 0.3, bright metal 0.9, plastic 1.2 mm/s). The bed height of a section is the sum of the HETPs of its stages, or the height given by the user.
+
+###### Catalogue
+
+The packing catalogue carries the random and structured packings of Seader and Henley Table 6.8 (specific area, void fraction, $F_p$ and the Billet and Schultes constants) and of Perry’s Handbook Tables 14-7a and 14-7b ($F_p$ of Kister and Gill and $F_{pd}$ of Robbins), each row with its source, plus the corrugation sides of Fair and Bravo for the structured packings they measured. A user-defined packing takes the same fields, with the corrugation side, angle and surface enhancement factor for a structured one.
+
+##### Rate-based column
+
+With **Rate-based** switched on in the column editor, the rigorous column keeps its equilibrium-stage solvers (Wang-Henke, Naphtali-Sandholm) but takes the Murphree vapour efficiency of every component on every stage from mass transfer, and lets it follow the solution: the column solves, rates its stages from the flows, compositions and properties it just found, solves again with the new efficiencies and repeats until no efficiency moves by more than the tolerance (0.01 by default, eight passes at most). The solvers carry the component-wise efficiencies in their equilibrium equations, $y_{ij} = E_{ij} K_{ij} x_{ij} + (1 - E_{ij})\,y_{i+1,j}$, in the Naphtali-Sandholm Jacobian included. The tray geometry and the packings come from the column internals case saved in the column; a stage outside the case is a standard sieve tray (50 mm weir, 12 % downcomer) on the column’s estimated diameter.
+
+###### Trays
+
+The point efficiency is $E_{OG,j} = 1 - \exp(-N_{OG,j})$ with $1/N_{OG,j} = 1/N_{G,j} + \lambda_j/N_{L,j}$ and $\lambda_j = K_j V/L$ the stripping factor of the component on the stage (Perry’s Handbook , equations 14-132 to 14-142). The transfer units are those of the AIChE Bubble-Tray Design Manual, $N_{G} = (0.776 + 4.57 h_w - 0.238 F_{va} + 104.8 Q_L/W_l)/\sqrt{Sc_G}$ and $N_L = 19700\sqrt{D_L}\,(0.4 F_{va} + 0.17)\,t_L$ (SI, with $F_{va} = u_a\sqrt{\rho_V}$ on the active area and $t_L = h_L A_a/Q_L$), or, for the gas phase of sieve trays, Chan and Fair, $k_G a = 316\sqrt{D_G}\,(1030 f - 867 f^2)/\sqrt{h_L}$ with $h_L$ in mm and $f$ the fraction of flood from the tray rating, $N_G = k_G a\,t_G$ with $t_G = (1 - \phi_e) h_L A_a/(\phi_e Q_G)$. The clear liquid height is Bennett’s, $h_L = \phi_e [h_w + C (Q_L/W_l\phi_e)^{0.67}]$ with the froth density $\phi_e = \exp(-12.55 K_s^{0.91})$ and $C = 0.5 + 0.438 e^{-137.8 h_w}$. The Murphree tray efficiency follows from the point efficiency with the partial-mixing relation of Gerster et al. (Seader and Henley , equations 6-34 to 6-36), with the Peclet number $Pe = Z_L^2/(D_E t_L)$ and the AIChE eddy diffusivity $D_E = (3.93\times10^{-3} + 0.0171 u_a + 3.67 Q_L/W_l + 0.18 h_w)^2$. A long flow path with little back-mixing gives a Murphree efficiency above 1 (Seader’s example reaches 1.25) and the column applies it as computed, kept between 0.02 and 3. On a component the stage strips (its equilibrium vapour value below the vapour arriving from the stage below) an efficiency above 1 overshoots that value, and past $y_{n+1}/(y_{n+1} - y^*)$ the outlet fraction would turn negative; the solvers stop the overshoot at half the equilibrium value, so trace components stay positive. The clear liquid height, the transfer units, the point efficiency, the Peclet number and the Murphree efficiency of every tray are listed in the stage notes of the properties report.
+
+###### Packed stages
+
+A packed stage is a slice of bed of height $H$ (its stage height, set by the rating to the HETP). For each component the packing model of the section (Onda, Billet and Schultes or Rocha, Bravo and Fair) gives the HETP with that component’s diffusivities and stripping factor, the slice holds $n_j = H/\text{HETP}_j$ theoretical stages of it, and the equivalent Murphree efficiency is the Lewis relation inverted, $E_j = (\lambda_j^{n_j} - 1)/(\lambda_j - 1)$ (equal to $n_j$ at $\lambda_j = 1$), kept between 0.02 and 1.
+
+###### Diffusivities
+
+Unless the internals section gives them, the gas diffusivities come from Fuller, Schettler and Giddings, $D_{AB} = 1.013\times10^{-2}\,T^{1.75}(1/M_A + 1/M_B)^{1/2}/[P (v_A^{1/3} + v_B^{1/3})^2]$, combined into the diffusivity of each component through the mixture by the Wilke and Fairbanks rule, and the liquid diffusivities from Wilke and Chang with the mixture as the solvent (association factor 2.6 when water carries more than half the moles). The molar volumes at the boiling point are Tyn and Calus estimates from the critical volume, $V_b = 0.285 V_c^{1.048}$, and the Fuller diffusion volumes are taken as 0.8 of them, so these are order-of-magnitude values; entering measured diffusivities in the section is the way to do better. The efficiencies of every pass and the final component values are listed in the column’s properties report.
+
+##### Validation
+
+The tray hydraulics reproduce Example 11.11 of Towler and Sinnott , the bottom plate of an acetone-water column (Table [13](#tab:internals_towler)). The differences come from the chart readings of the book and from its rounding of the areas (the book rounds the net area to 0.44 m$^2$ and the hole area to 0.038 m$^2$).
+
+
+
+<a id="tab:internals_towler"></a>
+
+
+
+| Quantity                                   | Book     | DWSIM      |
+|:-------------------------------------------|:---------|:-----------|
+| Flow parameter $F_{LV}$                  | 0.14     | 0.137      |
+| $K_1$ at 0.5 m spacing (chart, fit)      | 0.075    | 0.078      |
+| Flooding velocity, m/s                     | 3.38     | 3.49       |
+| Weir crest $h_{ow}$, mm                  | 27       | 27.6       |
+| $K_2$ at 72 mm, weep point velocity, m/s | 30.6, 14 | 30.6, 14.5 |
+| Hole velocity, m/s                         | 29.7     | 30.3       |
+| $C_0$, dry drop $h_d$, mm              | 0.84, 48 | 0.839, 50  |
+| Total head $h_t$, mm                     | 138      | 141        |
+| Downcomer backup $h_b$, mm               | 221      | 223        |
+| Downcomer residence time, s                | 3.1      | 3.09       |
+| Percent of flood                           | 76       | 75         |
+| Entrainment $\psi$                       | 0.018    | 0.016      |
+| Diameter for 85 % flood, m                 | 0.77     | 0.74       |
+
+Sieve plate of Towler and Sinnott Example 11.11: 0.79 m diameter, 0.5 m spacing, 12 % downcomer, 50 mm weir, 5 mm holes at 10 % of the active area; vapour 0.81 kg/s at 0.72 kg/m$^3$, liquid 4.06 kg/s at 954 kg/m$^3$, $\sigma$ = 57 mN/m.
+
+
+
+The Kister and Haas transition height matches the first trial of Kister’s sizing example (section 6.5 of ): with 0.5 in holes, a 10 % hole area and 6.45 gpm per inch of weir the water value is 0.937 in in the book and 0.950 in here.
+
+The Billet and Schultes implementation reproduces the worked examples of Seader and Henley (Table [14](#tab:internals_seader)). In Example 6.15 the book prints a holdup of 0.0128 for the 1.5 in Pall-like rings, while its own equations 6-97 and 6-101 with the stated numbers give 0.0182; the transfer units in the table were checked with the book’s holdup so that equations 6-132 and 6-133 are compared on their own.
+
+
+
+<a id="tab:internals_seader"></a>
+
+
+
+| Quantity | Book | DWSIM |
+|:---|:---|:---|
+| Ex. 6.12, holdup of 50 mm metal Hiflow rings, m$^3$/m$^3$ | 0.0637 | 0.0637 |
+| Ex. 6.12, holdup of Montz B1-200, m$^3$/m$^3$ | 0.0722 | 0.0721 |
+| Ex. 6.14, 25 mm metal Bialecki rings: loading velocity, m/s | 1.46 | 1.463 |
+| Ex. 6.14, flooding velocity, m/s | 2.09 | 2.09 |
+| Ex. 6.14, holdup at the loading point | 0.0440 | 0.0440 |
+| Ex. 6.14, wall factor $K_W$ | 0.944 | 0.945 |
+| Ex. 6.14, dry and irrigated pressure drop, Pa/m | 281, 331 | 282, 332 |
+| Ex. 6.15, interface area ratio $a_{Ph}/a$ | 0.242 | 0.242 |
+| Ex. 6.15, $H_L$, $H_G$, m | 0.26, 1.03 | 0.260, 1.031 |
+| Ex. 6.15, $H_{OG}$, HETP, ft | 3.96, 4.73 | 3.97, 4.75 |
+
+Billet and Schultes examples of Seader and Henley.
+
+
+
+For the Robbins route, Example 6.13 of the same book rates 1 in metal IMTP at 70 % of flood and $F_{LV}$ = 0.092: the GPDC chart gives 0.88 inches of water per foot and the manufacturer’s data 0.63; Robbins gives 0.56, and the Kister and Gill flood point puts the flooding velocity at 2.58 m/s against the 8.5 ft/s (2.59 m/s) the book reads from the chart.
+
+The stage properties are taken from the column exactly as the column’s own properties profile computes them; a test on the extractive distillation sample checks that every tray between the condenser and the reboiler carries both phases with physical densities, viscosities and surface tension, and that a sieve tray section sized for 80 % flood lands its worst stage on that value.
+
+The valve tray balance points reproduce Klein’s worked example (Ludwig Example 8-41): venturi valves of 16 gauge with four legs in carbon steel, $\rho_V = 1.91$ and $\rho_L = 31.0$ lb/ft$^3$, give 3.06 ft/s at the closed and 8.01 ft/s at the open balance point and a dry drop of 1.77 in of liquid while the valves open, the aeration factor 0.61 at $F_{va} = 1.04$. The Glitsch procedure reproduces the manual’s own design example (a C$_3$ splitter on 20 in spacing, vapour at 2.75 and liquid at 29.33 lb/ft$^3$): $CAF_0$ 0.395 from the chart, a downcomer design velocity of 170 gpm/ft$^2$, 68.6 % of flood, a dry drop of 1.75 in through 534 V-1 units, 3.88 in in total and a backup of 7.88 in. The bubble-cap tray reproduces the top tray of Ludwig’s Example 8-36 (the 6 ft vacuum finishing tower with 129 caps of 3 7/8 in on 5.5 in centres, 50 slots of 1/8 by 1.5 in, 0.5 in static seal): with the cap count laid out by the tool (132), $h_{pc}$ 0.11 against 0.118 in, $h_s$ 0.61 against 0.626 in, $h_{ow}$ 0.10 against 0.099 in, a gradient of 0.09 against 0.12 in and a total of 1.37 against 1.50 in; the tool, like the book, finds the slot opening on the low side. By the modified Dauphine relations the same tray gives $h_r$ 0.063, $h_{ra}$ 0.045 and $h'_s$ 0.031 in as the book, $C_w$ 0.18 against 0.16, a wet cap drop within 0.1 in of the book’s 0.87 in and a total within 0.2 in of its 1.53 in. Rocha, Bravo and Fair on Mellapak 250Y at total reflux with cyclohexane / n-heptane-like properties at 1 atm gives a flood F-factor of 2.5 Pa$^{0.5}$, 212 Pa/m and a holdup of 0.08 at $F = 2$, and an HETP of 0.41 m against the 0.50 m rule of thumb. The tray mass transfer reproduces Example 12 of Perry’s Handbook (ethylbenzene-styrene sieve tray at 74 % of flood): $N_G$ 1.51, $N_L$ 18.6 and a point efficiency of 0.75 by Chan and Fair. On the extractive distillation sample the rate-based column settles its efficiencies in a few passes at values of the same order as O’Connell’s.
+
+##### Dynamic model of the column
+
+The tray and packing geometry the rating writes on the stages is what the dynamic model of the column runs on. Every stage holds a content (a material stream flashed at its own pressure and enthalpy), the condenser stage doubles as the reflux drum (its volume is the column area times the Bottom Spacing, its liquid leaves through the weir relation, so a short Downcomer Length with a Downcomer Height equal to the dead height of the drum makes a reflux line whose flow answers the drum level gently) and, in the quasi-steady formulation, the reboiler stage doubles as the sump (it keeps its liquid, its volume is the stage height plus the Top Spacing, it takes the reboiler duty and gives the bottoms product, as a kettle or thermosiphon reboiler does with the column bottoms). The stage levels, the sump level, the stage temperatures and the vapour and liquid rates every stage sends up and down are properties of the column (`Stage_LiquidLevel_i`, `Sump_LiquidLevel`, `Stage_Temperature_i`, `Stage_VaporFlow_i`, `Stage_LiquidFlow_i`) that an integrator can monitor and a controller can read.
+
+###### Quasi-steady vapour
+
+With **Quasi-Steady Vapor** on, the liquid holdups are the states and the vapour is not: a stage keeps the vapour its free volume holds at its pressure and sends the rest up within the sub-step, swept from the sump to the top, so a change of boilup reaches the condenser at once, as it does in a real column where the vapour transit time is far below any liquid time constant. The condenser drum is the one pressure state, at the bubble pressure of its liquid (a hair above it), and every stage below sits at the drum pressure plus the dry drop of the vapour through the tray above it and the liquid head on that tray, top-down, from the vapour rates of the previous sub-step. The explicit formulation (the option off) integrates the vapour holdup of every tray against the pressure-driven flow law, which has a time constant of milliseconds on a real column and cannot be run at any step a user would choose. The integration step is divided in sub-steps (**Time step discretization**); one-second sub-steps are enough once the vapour is quasi-steady, the liquid time constant of a tray being of the order of ten seconds.
+
+###### Initial state
+
+The first dynamic step seeds the holdups from the steady state: every stage at its steady-state composition and temperature, the trays at the level that passes the steady-state liquid rate over the weir, the vapour space full at the stage pressure, the sump half full. With **Calibrate Tray Coefficients** the dry tray pressure drop coefficient of every tray is set so the steady-state vapour rate crosses its holes at the steady-state stage pressure drop, and the column then stays where it is when nothing changes, which is the first thing to check of any dynamic column.
+
+###### Startup from an empty column
+
+With **Start Empty** the first step seeds an empty column instead: a film of liquid of the feed composition on every stage and in the sump (or the **Initial Sump Level**), at the **Initial Pressure** (the inert blanket) and the **Initial Temperature**, with no vapour and no flows. The run is then a startup driven by the schedule the way an operator would do it: feed on, the liquid falls through the holes of the trays the vapour does not yet hold up (**Tray Weeping**: the orifice flow of the clear liquid head through the hole area, scaled by how far the dry pressure drop of the vapour falls short of 0.4 of that head, Fair’s weep point), the reboiler duty ramps once its stage is covered, the vapour climbs and fills the drum, the reflux starts on the drum level, the column pressurises from the blanket to the setpoint of the pressure controller, and the level controllers are switched from manual to automatic by events (the `ManualOverride` property of the PID controller; in manual the controller writes its manual output, zero by default, to the valve). The **Minimum Pressure** is the pressure the drum cannot fall below, an inert blanket or a vent to atmosphere; the **Coolant Temperature** keeps the condenser from removing heat from a holdup already colder than its coolant, and a duty stage that holds only a film of liquid warms or cools by at most 25 K per sub-step. Both the startup and the weeping need the quasi-steady vapour. The benzene-toluene column of the case library is started this way from an empty, cold column to its design steady state in two hours of simulated time.
+
+##### Scope and limits
+
+Valve trays take Klein’s dry pressure drop and the Bolles extension of the weep point through the closed balance point, with the flooding velocity from Fair or from Kister and Haas on the open valve area, or the Glitsch procedure for single-pass V-1 and V-4 Ballast trays; the Glitsch multipass allocation of downcomer areas and its tray efficiency chart are not included. Bubble-cap trays take the Bolles method with rectangular or trapezoidal slots and, as an alternative, the modified Dauphine relations with the wet cap correction; Bolles’ gradient charts by cap spacing are not included, the gradient coming from the Davies equation they were drawn from (or from the user). The Rocha, Bravo and Fair model needs the corrugation side, which the catalogue carries for six packings and estimates for the rest; gauze packings take the same equations with the sheet metal surface enhancement factor. The rate-based column is a nonequilibrium model through component efficiencies computed from the mass transfer on each stage, with the equilibrium at the interface implied by the K-values; it does not solve the interface compositions and the film equations of a Maxwell-Stefan model, so the coupling among the fluxes of a multicomponent mixture is not represented. The iteration with the solver writes the O’Connell efficiencies of the trays and the pressure profile; it does not resize the sections between passes.
 

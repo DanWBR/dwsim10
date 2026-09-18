@@ -4,11 +4,11 @@ This section describes a suite of shortcut unit operation models intended for co
 
 #### Shortcut Crude Distillation Unit (CDU)
 
-##### Overview {#overview-33}
+##### Overview {#overview-36}
 
 The **Shortcut CDU** models an atmospheric (optionally coupled with vacuum) crude distillation tower as a set of TBP-cut-point separations. The feed crude assay is characterised by a set of pseudocomponents generated from the bulk TBP curve following the method of Riazi and Daubert . No tray-by-tray calculation is performed; the tower is treated as an idealised sequence of sharp cuts with user-specified overlap expressed through a cut-point uncertainty band.
 
-##### Stream Topology {#stream-topology-5}
+##### Stream Topology {#stream-topology-6}
 
 
 
@@ -71,11 +71,11 @@ with a mass-balance closure step that renormalises the distribution so that the 
 
 #### Hydrodesulphurisation (HDS) Reactor
 
-##### Overview {#overview-34}
+##### Overview {#overview-37}
 
 The **Shortcut HDS** model represents a fixed-bed hydrotreating reactor operating on middle-distillate feeds. Sulfur conversion follows an $n$-th order power-law kinetic expression with explicit hydrogen partial-pressure dependence , evaluated at liquid hourly space velocity (LHSV). Nitrogen removal is optionally computed using an independent Arrhenius law.
 
-##### Stream Topology {#stream-topology-6}
+##### Stream Topology {#stream-topology-7}
 
 
 
@@ -147,11 +147,11 @@ with stoichiometric coefficients $\alpha_{\mathrm{S}}$ (mol H$_2$ / kg S) and $\
 
 #### Fluid Catalytic Cracking (FCC) Unit
 
-##### Overview {#overview-35}
+##### Overview {#overview-38}
 
 The **Shortcut FCC** supports two yield methods: an empirical *yield-slate* adjusted by feed quality (CCR) and a simplified three-lump *Weekman kinetic* model . The unit models the riser/regenerator pair lumped as a single conversion volume operating at a specified temperature, pressure, and catalyst-to-oil ratio.
 
-##### Stream Topology {#stream-topology-7}
+##### Stream Topology {#stream-topology-8}
 
 
 
@@ -235,11 +235,11 @@ with $\Delta H_{\mathrm{coke}}^{\mathrm{comb}}$ a user-editable coke combustion 
 
 #### Hydrocracker (HCR)
 
-##### Overview {#overview-36}
+##### Overview {#overview-39}
 
 The **Shortcut HCR** converts VGO / atmospheric residue into light ends, naphtha, kerosene, diesel, and unconverted oil (UCO) according to a target conversion and a yield slate that is adjusted as conversion moves away from the reference point. Hydrogen consumption is derived from conversion and heat of reaction.
 
-##### Stream Topology {#stream-topology-8}
+##### Stream Topology {#stream-topology-9}
 
 
 
@@ -292,11 +292,11 @@ with $\Delta H_{\mathrm{conv}}$ the enthalpy released per kg of gas-oil converte
 
 #### Delayed Coker
 
-##### Overview {#overview-37}
+##### Overview {#overview-40}
 
 The **Shortcut Coker** models a delayed-coking drum at a specified heater outlet temperature and drum pressure. Product yields are computed from empirical CCR-based correlations in the Gary, Handwerk & Kaiser style, with explicit partitioning of dry gas from total gas and LGO from total gas-oil.
 
-##### Stream Topology {#stream-topology-9}
+##### Stream Topology {#stream-topology-10}
 
 
 
@@ -347,11 +347,11 @@ Total gas is split into dry gas and LPG through the fraction $\phi_{\mathrm{dg}}
 
 #### Catalytic Reformer
 
-##### Overview {#overview-38}
+##### Overview {#overview-41}
 
 The **Shortcut Reformer** models a fixed-bed catalytic reformer operating on heavy naphtha feed. Product yields (H$_2$, light ends, reformate) depend on the target RON severity; the RON-sensitivity coefficients allow the user to calibrate the model to a specific catalyst generation (semi-regenerative, cyclic, or CCR).
 
-##### Stream Topology {#stream-topology-10}
+##### Stream Topology {#stream-topology-11}
 
 
 
@@ -385,11 +385,11 @@ where $s_i$ is the RON sensitivity (typically $s_{\mathrm{H_2}}>0$, $s_{\mathrm{
 
 #### Amine Treater
 
-##### Overview {#overview-39}
+##### Overview {#overview-42}
 
 The **Shortcut Amine Treater** separates H$_2$S and CO$_2$ from a sour gas using an aqueous alkanolamine solvent. Rather than resolving the vapour–liquid equilibrium of the reactive H$_2$S/CO$_2$/amine system, the unit uses user-specified removal fractions calibrated against rigorous column simulations or operating data.
 
-##### Stream Topology {#stream-topology-11}
+##### Stream Topology {#stream-topology-12}
 
 
 
@@ -436,11 +436,11 @@ where $\lambda$ is the user-specified amine circulation (L of amine solution per
 
 #### Claus Sulfur Recovery Unit
 
-##### Overview {#overview-40}
+##### Overview {#overview-43}
 
 The **Shortcut Claus** models a two- or three-stage modified Claus SRU as a lumped conversion reactor. The unit takes acid gas (H$_2$S + CO$_2$, typically from the Amine regenerator) and converts H$_2$S to elemental sulfur at a specified recovery fraction that reflects the global equilibrium + kinetic limitations of the Claus reactors and condensers.
 
-##### Stream Topology {#stream-topology-12}
+##### Stream Topology {#stream-topology-13}
 
 
 
@@ -498,11 +498,11 @@ The reaction releases a user-tuneable heat per mol of H$_2$S reacted $\Delta H_{
 
 #### Product Blender
 
-##### Overview {#overview-41}
+##### Overview {#overview-44}
 
 The **Product Blender** pools multiple material-stream inlets into a single outlet, aggregating mass, energy, composition, and contaminant load. It is most commonly used upstream of a storage tank or to form a combined off-site feed in TEA/LCA flow-sheet closures.
 
-##### Stream Topology {#stream-topology-13}
+##### Stream Topology {#stream-topology-14}
 
 The blender has a variable number of inlet ports ($n_{\mathrm{inlets}} \ge 2$) and a single outlet.
 
@@ -550,11 +550,11 @@ x_{\mathrm{out}}^{\mathrm{cont}}
 
 #### Isomerization Unit
 
-##### Overview {#overview-42}
+##### Overview {#overview-45}
 
 The **Shortcut Isomerization** unit converts light straight-run naphtha (C$_5$–C$_6$) to a high-octane isomerate through $n$-paraffin to iso-paraffin rearrangement over a Pt/Al$_2$O$_3$-Cl or zeolitic catalyst. Yields are parameterised as a function of the octane uplift from feed RON to isomerate RON.
 
-##### Stream Topology {#stream-topology-14}
+##### Stream Topology {#stream-topology-15}
 
 
 
@@ -588,11 +588,11 @@ The heater duty is $\dot Q = h_{\mathrm{heater}}\, \dot m_{\mathrm{feed}}$. Sulf
 
 #### Alkylation Unit
 
-##### Overview {#overview-43}
+##### Overview {#overview-46}
 
 The **Shortcut Alkylation** unit models the acid-catalysed alkylation of isobutane with light olefins (propylene and butenes) to produce a high-octane, low-sulfur alkylate. The model is a lumped olefin-conversion yield calculation at a specified reactor temperature, pressure, iC$_4$/olefin mol ratio, and olefin conversion.
 
-##### Stream Topology {#stream-topology-15}
+##### Stream Topology {#stream-topology-16}
 
 
 

@@ -82,7 +82,7 @@ More information about CoolProp can be found at <http://www.coolprop.org>.
 
 #### Electrolyte NRTL (eNRTL) {#sec:enrtl}
 
-##### Overview {#overview-48}
+##### Overview {#overview-51}
 
 The Electrolyte Non-Random Two-Liquid (eNRTL) model computes activity coefficients for aqueous electrolyte solutions by splitting the excess Gibbs energy into two additive contributions :
 
@@ -277,7 +277,7 @@ When a salt encountered at runtime has no $\tau$ entry in `enrtl_parameters.json
 
 #### Extended UNIQUAC {#sec:exuniquac}
 
-##### Overview {#overview-49}
+##### Overview {#overview-52}
 
 The Extended UNIQUAC model of Thomsen et al.  computes activity coefficients for water and ionic species in aqueous electrolyte solutions. It adds an extended Debye–Hückel electrostatic term to the standard UNIQUAC expression :
 
@@ -503,7 +503,7 @@ For Fe$^{2+/3+}$, Cu$^{2+}$, Zn$^{2+}$, Ni$^{2+}$, Co$^{2+}$, Mn$^{2+}$, Cd$^{2+
 
 #### Kent–Eisenberg {#sec:ke}
 
-##### Overview {#overview-50}
+##### Overview {#overview-53}
 
 The Kent–Eisenberg model  describes the vapour–liquid equilibrium of acid gases ( and/or ) absorbed in aqueous amine solutions (MEA, DEA, MDEA). It uses chemical equilibrium constants to describe the ionic speciation in the liquid phase, and Henry’s law to relate liquid-phase molecular concentrations to gas-phase partial pressures. Activity coefficients are absorbed into effective, regressed equilibrium constants, resulting in a simplified model well suited to process-simulation contexts .
 
@@ -546,7 +546,7 @@ All equilibrium constants follow the three-parameter correlation:
 \]
 
 
-Table [20](#tab:ke_params) lists the fitted parameters calibrated over the range 298–403 K (25–130 °C).
+Table [26](#tab:ke_params) lists the fitted parameters calibrated over the range 298–403 K (25–130 °C).
 
 
 
@@ -679,7 +679,7 @@ The Kent–Eisenberg model bundles activity coefficients into effective equilibr
 
 #### Sour Water (Edwards Model) {#sec:sourwater}
 
-##### Overview {#overview-51}
+##### Overview {#overview-54}
 
 The Sour Water model is based on the fugacity-based VLE framework of Edwards, Maurer, Newman and Prausnitz . It targets aqueous systems containing , , , and dissolved in water. Activity coefficients for the dissolved molecular species are calculated by a simplified Margules–Pitzer expression.
 
@@ -709,7 +709,7 @@ Following Edwards et al. , the activity coefficient of each dissolved molecular
 \]
 
 
-where $I$ (mol/kg) is the ionic strength and $\beta_{i}$ is an empirical molecule–ion interaction parameter. Values from Edwards et al.  are listed in Table [21](#tab:beta).
+where $I$ (mol/kg) is the ionic strength and $\beta_{i}$ is an empirical molecule–ion interaction parameter. Values from Edwards et al.  are listed in Table [27](#tab:beta).
 
 
 
@@ -800,7 +800,7 @@ K(T) = K_{25}\exp\!\left[
 \]
 
 
-Table [22](#tab:sw_keq) lists the reference constants and reaction enthalpies.
+Table [28](#tab:sw_keq) lists the reference constants and reaction enthalpies.
 
 
 
@@ -822,7 +822,7 @@ Equilibrium constants and reaction enthalpies at 25 °C
 
 
 
-Henry constants and temperature coefficients are given in Table [23](#tab:sw_henry).
+Henry constants and temperature coefficients are given in Table [29](#tab:sw_henry).
 
 
 
@@ -947,7 +947,7 @@ B_{i}(T) = B_{i}^{25} + \frac{dB_{i}}{dT}\,(T - 298.15)
 \]
 
 
-Representative values from Marcus  and Jenkins & Marcus  are listed in Table [24](#tab:jones_dole_B).
+Representative values from Marcus  and Jenkins & Marcus  are listed in Table [30](#tab:jones_dole_B).
 
 
 
@@ -996,7 +996,7 @@ where $\lambda_{0}$ is the pure-water thermal conductivity and $\alpha_{i}$ (L/m
 
 Most ions *decrease* thermal conductivity ($\alpha > 0$) by disrupting the hydrogen-bond network that makes water an unusually efficient thermal conductor. Notable exceptions are and ($\alpha < 0$), which *increase* $\lambda$ via the Grotthuss proton-hopping mechanism .
 
-Representative $\alpha$ values compiled from Horvath  are listed in Table [25](#tab:riedel_alpha).
+Representative $\alpha$ values compiled from Horvath  are listed in Table [31](#tab:riedel_alpha).
 
 
 
@@ -1057,7 +1057,7 @@ For the eNRTL and Extended UNIQUAC packages, the sum is taken over all ionic spe
 
 #### H$_2$O–HCl (Pitzer) {#sec:hcl_pitzer}
 
-##### Overview {#overview-52}
+##### Overview {#overview-55}
 
 The H$_2$O–HCl property package implements the binary Pitzer ion-interaction model with the high-temperature parameter fit of Ruaya & Seward , validated experimentally to 350 $^{\circ}$C and 3 mol/kg HCl. HCl is treated as a fully dissociated 1–1 strong electrolyte (); the model returns mean ionic and individual-ion activity coefficients, water activity, osmotic coefficient, solution pH, HCl partial pressure, and excess enthalpy / heat capacity.
 
@@ -1116,7 +1116,7 @@ P(T) = q_{1} + \frac{q_{2}}{T - 1/T_{\mathrm{ref}}}
 \]
 
 
-with $q$ coefficients from Ruaya & Seward Table 2 (reproduced in Table [26](#tab:hcl_pitzer_params)). $C^{\varphi}$ is intentionally set to zero in this fit; for systems requiring third-virial accuracy at $m > 3$ and $T < 100~^{\circ}$C, the Pitzer & Mayorga 1973  value $C^{\varphi}(298) = 8.0\times10^{-4}$ is the standard reference.
+with $q$ coefficients from Ruaya & Seward Table 2 (reproduced in Table [32](#tab:hcl_pitzer_params)). $C^{\varphi}$ is intentionally set to zero in this fit; for systems requiring third-virial accuracy at $m > 3$ and $T < 100~^{\circ}$C, the Pitzer & Mayorga 1973  value $C^{\varphi}(298) = 8.0\times10^{-4}$ is the standard reference.
 
 
 
@@ -1341,7 +1341,7 @@ For 2–2 electrolytes a fourth coefficient $\beta^{2}$ is included with $\alpha
 
 #### Carbon Capture (eNRTL) {#sec:ccus_capture}
 
-##### Overview {#overview-53}
+##### Overview {#overview-56}
 
 The Carbon Capture property package provides rigorous thermodynamic modelling of aqueous amine–CO$_2$ systems used in post-combustion carbon capture. It extends the eNRTL framework (Section [6.5](#sec:enrtl)) with amine-specific chemical equilibria, species registries, and CO$_2$ mass-transfer correlations.
 
@@ -1400,7 +1400,7 @@ Amine protonation constants are expressed via the three-parameter correlation
 \]
 
 
-Table [28](#tab:cap_pka) lists the reference p$K_{a}$ values at 25 $^{\circ}$C.
+Table [34](#tab:cap_pka) lists the reference p$K_{a}$ values at 25 $^{\circ}$C.
 
 
 
@@ -1469,7 +1469,7 @@ Carbon Capture PP recommended operating envelope
 
 #### CO$_2$ Transport (Span-Wagner / PR) {#sec:ccus_transport}
 
-##### Overview {#overview-54}
+##### Overview {#overview-57}
 
 The CO$_2$ Transport property package provides high-accuracy thermodynamic and transport properties for CO$_2$-rich streams in pipeline and shipping applications. Two equation-of-state regimes are used depending on stream purity:
 
@@ -1542,7 +1542,7 @@ where the critical enhancement $\Delta\lambda_{\mathrm{crit}}$ is significant ne
 
 ##### Mixture Mode — Peng–Robinson with Transport $k_{ij}$ {#mixture-mode-pengrobinson-with-transport-k_ij}
 
-For impure CO$_2$ streams, the Peng–Robinson EOS  is used with binary interaction parameters fitted to pipeline-relevant mixtures. Table [29](#tab:transport_kij) lists the shipped $k_{ij}$ values.
+For impure CO$_2$ streams, the Peng–Robinson EOS  is used with binary interaction parameters fitted to pipeline-relevant mixtures. Table [35](#tab:transport_kij) lists the shipped $k_{ij}$ values.
 
 
 
@@ -1592,7 +1592,7 @@ Pure CO$_2$ density from Span–Wagner matches the NIST WebBook reference data t
 
 #### CO$_2$ Storage (eNRTL / Duan–Sun) {#sec:ccus_storage}
 
-##### Overview {#overview-55}
+##### Overview {#overview-58}
 
 The CO$_2$ Storage property package models CO$_2$ behaviour in geological storage contexts: saline aquifer injection, CO$_2$-enhanced oil recovery, and mineral trapping. It combines the eNRTL activity coefficient model (Section [6.5](#sec:enrtl)) for aqueous speciation with the Duan–Sun model  for CO$_2$ solubility in brine and Span–Wagner  for the CO$_2$ fugacity at reservoir pressures.
 
@@ -1686,9 +1686,210 @@ CO$_2$ Storage PP recommended operating envelope
 
 - **Well integrity:** pH and carbonate chemistry in cement–brine interactions near the wellbore.
 
+#### PC-SAFT for Polymers {#sec:pcsaft_polymers}
+
+##### Overview {#overview-59}
+
+The Perturbed-Chain SAFT equation of state  writes the residual Helmholtz energy of a mixture as the sum of a hard-chain reference, a dispersion contribution and, for hydrogen-bonding species, an association term :
+
+
+<a id="eq:pcsaft_ares"></a>
+
+\[
+\tilde{a}^{\mathrm{res}} = \tilde{a}^{\mathrm{hc}} + \tilde{a}^{\mathrm{disp}}
+    + \tilde{a}^{\mathrm{assoc}}
+\]
+
+
+where each molecule is a chain of $m$ tangent spheres of diameter $\sigma$ and dispersion energy $\varepsilon/k$. DWSIM extends the model to polymers by scaling the segment number with molar mass, by adding numerical safeguards that keep the solution stable at the very large segment numbers of a macromolecule, by seeding the liquid–liquid flash so that a polymer solution demixes without a manual estimate, and by supplying transport properties for polymer-containing phases. The polymer treatment follows Tumakaka et al.  and the parameter work of Tihic et al.  and Kontogeorgis and Folas .
+
+##### Segment Number and Pure-Component Parameters
+
+A polymer of number-average molar mass $M_n$ is a chain whose segment number grows linearly with the molar mass. DWSIM stores a molar-mass-specific ratio $(m/M)$ per repeat unit and computes
+
+
+<a id="eq:pcsaft_msegment"></a>
+
+\[
+m = \left(\frac{m}{M}\right) M_n
+\]
+
+
+so a single parameter row covers any chain length; small molecules keep their tabulated absolute $m$. Only three pure-component parameters are needed per polymer: the ratio $(m/M)$ and the segment size $\sigma$ and energy $\varepsilon/k$, all referred to the repeat unit. Table [36](#tab:pcsaft_polymers) lists the built-in polymers. The critical constants of the injected pseudo-compound only seed the initial guesses; the PC-SAFT fugacity uses $(m/M)$, $\sigma$ and $\varepsilon/k$ exclusively.
+
+
+
+<a id="tab:pcsaft_polymers"></a>
+
+
+
+| Polymer | $m/M$ (mol/g) | $\sigma$ (Å) | $\varepsilon/k$ (K) | Association |
+|:---|:--:|:--:|:--:|:---|
+| Polyethylene (HDPE) | 0.0263 | 4.0217 | 252.0 | none |
+| Polyethylene (LDPE) | 0.0263 | 4.0217 | 249.5 | none |
+| Polypropylene | 0.02305 | 4.1000 | 217.0 | none |
+| Polybutene | 0.0140 | 4.2000 | 230.0 | none |
+| Polyisobutene | 0.02350 | 4.1000 | 265.5 | none |
+| Polystyrene | 0.0190 | 4.1071 | 267.0 | none |
+| Poly(vinyl acetate) | 0.03211 | 3.3972 | 204.65 | none |
+| Polydimethylsiloxane | 0.0324 | 3.5310 | 204.9 | none |
+| Poly(n-butyl methacrylate) | 0.0241 | 3.8840 | 264.7 | none |
+| Polybutadiene | 0.0245 | 4.0970 | 288.84 | none |
+| Poly($\alpha$-methylstyrene) | 0.0204 | 4.2040 | 354.05 | none |
+| Poly(methyl methacrylate) | 0.0270 | 3.5530 | 264.60 | none |
+| Poly(methyl acrylate) | 0.0292 | 3.5110 | 268.3 | none |
+| Poly(ethylene glycol) | 0.0192 | 4.0890 | 322.2 | 4C/ether |
+
+Built-in PC-SAFT polymer parameters (per repeat unit)
+
+
+
+For most polymers $\sigma$ and $\varepsilon/k$ are taken as the high-molar-mass asymptotic values, which is accurate for the macromolecular range. For the glycols, $\sigma$ and $\varepsilon/k$ are genuinely molar-mass dependent, so the oligomer range requires molar-mass-specific parameters rather than the single shipped row.
+
+##### Association with Site Multiplicity
+
+For a hydrogen-bonding polymer the association term uses the site model of Chapman and Huang–Radosz . The association strength between site $A$ on molecule $i$ and site $B$ on molecule $j$ is
+
+
+<a id="eq:pcsaft_delta"></a>
+
+\[
+\Delta^{A_i B_j} = d_{ij}^{3}\, g_{ij}^{\mathrm{hs}}\, \kappa^{A_i B_j}
+    \left[ \exp\!\left(\frac{\varepsilon^{A_i B_j}}{kT}\right) - 1 \right]
+\]
+
+
+where $\kappa$ and $\varepsilon$ are the association volume and energy, and $g_{ij}^{\mathrm{hs}}$ the hard-sphere radial distribution function. Cross associations between unlike species use the standard combining rules, $\varepsilon^{A_i B_j} = \tfrac{1}{2}(\varepsilon^{A_i}+\varepsilon^{B_j})$ and a geometric-mean $\kappa$ scaled by the segment sizes.
+
+The fraction $X^{A_i}$ of sites of type $A$ on molecule $i$ that are *not* bonded follows from the mass-action balance
+
+
+<a id="eq:pcsaft_xa"></a>
+
+\[
+X^{A_i} = \left[ 1 + \sum_{j} \rho\, x_j \sum_{B_j}
+    n_{B_j}\, X^{B_j}\, \Delta^{A_i B_j} \right]^{-1}
+\]
+
+
+where $\rho$ is the number density, $x_j$ the mole fraction, and $n_{B_j}$ the *multiplicity* of site type $B$, that is, how many identical sites of that type each molecule carries. The association contribution to the Helmholtz energy is then
+
+
+<a id="eq:pcsaft_aassoc"></a>
+
+\[
+\tilde{a}^{\mathrm{assoc}} = \sum_i x_i \sum_{A_i} n_{A_i}
+    \left[ \ln X^{A_i} - \frac{X^{A_i}}{2} + \frac{1}{2} \right] .
+\]
+
+
+The multiplicity $n$ lets a single donor and a single acceptor site type stand for many identical sites, which is what makes a long associating chain tractable: without it a molecule with hundreds of bonding sites would need an equally large site-fraction system. Three schemes are supported: *2B* (one donor and one acceptor), *4C* (two donors and two acceptors), and *4C/ether*, the poly(ethylene glycol) model of Kontogeorgis and Folas . In the 4C/ether scheme the two hydroxyl end groups give two donor and two acceptor sites, and each ether oxygen along the backbone adds one acceptor site, with the count growing with molar mass as
+
+
+<a id="eq:peg_ether"></a>
+
+\[
+N_{\mathrm{ether}} = 0.022\, M_n - 1.409 .
+\]
+
+
+Poly(ethylene glycol) is therefore represented with two donor sites and $2 + N_{\mathrm{ether}}$ acceptor sites, all carrying the same association volume $\kappa = 0.0235$ and energy $\varepsilon/k = 2080$ K.
+
+##### Numerical Treatment at High Segment Numbers
+
+Three safeguards keep the calculation stable when $m$ is large.
+
+###### Logarithmic fugacity
+
+The fugacity coefficient of a macromolecule underflows to zero in double precision, because $\ln\varphi_i$ is of the order of the segment number and can reach several hundred to a few thousand in magnitude. DWSIM therefore carries the *logarithm* of the fugacity coefficient throughout, and the phase-split ratio is obtained as
+
+
+<a id="eq:pcsaft_kvalue"></a>
+
+\[
+K_i = \exp\!\left( \ln\varphi_i^{\,L} - \ln\varphi_i^{\,V} \right)
+\]
+
+
+rather than as a ratio $\varphi_i^{L}/\varphi_i^{V}$ of two numbers that both round to zero.
+
+###### Bracketed density root
+
+The reduced density (packing fraction $\eta$) is found by bracketing the sign changes of $P - P_{\mathrm{calc}}(\eta)$ over the physical range $(0,\,0.7405)$ and selecting the liquid (highest-$\eta$) or vapour (lowest-$\eta$) root. This avoids the spurious low-density roots and the close-packing singularity that a squared-objective minimiser can fall into for a polymer-rich phase.
+
+###### Bounded site-fraction solve
+
+The site fractions of Equation [\[eq:pcsaft_xa\]](#eq:pcsaft_xa) are solved by damped successive substitution, which keeps every fraction in $(0,1]$ by construction. An unconstrained minimiser can return a negative fraction and turn the $\ln X^{A_i}$ terms into a non-number, especially for a high-segment associating chain.
+
+##### Liquid–Liquid Equilibrium
+
+A polymer solution demixes at extreme dilution on a mole basis (the polymer mole fraction at the phase boundary can be of order $10^{-5}$), which the ordinary stability search from pure-component estimates does not reach. DWSIM seeds the split from the equation-of-state *spinodal*: the limit of intrinsic stability is located from the analytical composition derivative of the logarithmic fugacity coefficient, and the two liquid estimates are placed just outside that window. The split is then converged by directly descending the two-phase Gibbs energy, which walks away from the trivial (single-phase) solution that a plain successive-substitution or residual-Newton step collapses onto. Phase identity is judged on a *mass* basis, since the two liquids of a polymer system are almost indistinguishable by mole fraction but well separated by weight fraction. With this seeding the miscibility gap is reached automatically from both the dedicated Simple LLE flash and the general Nested Loops (VLLE) flash used by a material stream, with no manual phase estimate.
+
+##### Properties of Polymer-Containing Phases
+
+The density of a polymer phase comes from the equation of state, $\rho = PM/(ZRT)$ with the compressibility $Z$ from PC-SAFT, rather than from a low-molar-mass correlation. Transport properties use the user-supplied data of each compound when present. When a polymer carries no data, a per-polymer estimate is used instead of a corresponding-states correlation, since the latter relies on the polymer critical constants, which are only placeholders: liquid thermal conductivity from a Van Krevelen reduced curve anchored at the value at 298 K, and surface tension from a reference value at 293 K with a linear temperature slope. Mixture transport properties are combined on a mass-fraction basis, logarithmically (Arrhenius) for viscosity, whose values span orders of magnitude, and linearly for thermal conductivity and surface tension. A mole-fraction average would let the trace polymer mole fraction erase the polymer contribution.
+
+##### Polydispersity
+
+A real polymer is a mixture of chain lengths, not a single molar mass. The Polymer Characterization tool (on the Tools menu) discretizes a molar-mass distribution into a small number of pseudo-components of the same chemistry and different molar mass, so a polydisperse sample can be modelled directly. Two distributions are provided, Schulz-Zimm (a Gamma distribution) and log-normal; both are entered through the number-average molar mass $M_n$ and the polydispersity index $M_w/M_n$. The cut molar masses and mole fractions are chosen so that the number-average and weight-average molar mass of the cuts equal the targets. The cuts share the base polymer’s parameters, differing only in molar mass (hence segment number), and the liquid–liquid flash resolves them into a dilute and a concentrated phase, fractionating the chain lengths between the two.
+
+##### Copolymers
+
+PC-SAFT also models random and alternating copolymers, following Gross, Spuhl, Tumakaka and Sadowski . A copolymer is treated at the level of its repeat-unit *segments*: the hard-chain and dispersion terms are summed over segment types rather than over whole molecules, so a copolymer of repeat units R and S reuses the pure-component parameters of the two homopolymers. It is defined by the two repeat units, the copolymer composition (the mass fraction of each repeat unit) and the number-average molar mass; the segment number of each type follows from $m_{iR} = w_{iR}\,M\,(m/M)_R$, and the fraction of bonds between like and unlike segments is fixed by the composition. The unlike segment–segment interactions use the same combining rules as the homopolymers, with the segment–segment binary interaction parameters, including an internal repeat-unit correction, read from the interaction-parameter table by the segment CAS numbers (for example the ethylene–propylene correction $k_{ij} = -0.009$ of poly(ethylene-co-propylene)). A copolymer is built from the Polymer Characterization tool by choosing the two repeat units, the mass fraction and the sequence, and then takes part in vapour–liquid and liquid–liquid equilibria like any other compound.
+
+##### Validation
+
+###### Non-associating polymer solutions (liquid–liquid). {#non-associating-polymer-solutions-liquidliquid.}
+
+Table [37](#tab:pcsaft_polymer_val) compares the model against literature cloud data. The polypropylene/$n$-pentane and high-density-polyethylene/ethylene cloud pressures reproduce the measurements of Tumakaka et al.  to within a few bar and a few tens of bar respectively, and the poly(methyl methacrylate)/1-chlorobutane upper critical solution temperature matches the dome of Kontogeorgis and Folas  to within about two kelvin.
+
+
+
+<a id="tab:pcsaft_polymer_val"></a>
+
+
+
+| System | Quantity | Experiment | Model |
+|:---|:---|:---|:---|
+| PP/$n$-pentane ($M_w$ 50.4 kg/mol) | cloud $P$, 5 wt%, 177/187/197 °C | 47/59/73 bar | 48/62/72 bar |
+| HDPE/ethylene ($M_w$ 118 kg/mol) | cloud $P$, 5 wt%, 140/150/170 °C | 1850/1780/1650 bar | 1850/1750/1650 bar |
+| PMMA/1-chlorobutane ($M_w$ 36.5 kg/mol) | UCST ($k_{ij} = -0.0032$) | $\approx 281$ K | $\approx 283$ K |
+
+PC-SAFT polymer LLE validation
+
+
+
+###### Associating systems (cross-association). {#associating-systems-cross-association.}
+
+The association term drives every mixture in which two components hydrogen-bond, including the aqueous polymer solutions, and is validated separately. Table [38](#tab:pcsaft_assoc_val) lists the infinite-dilution activity coefficient of methanol, ethanol and 1-propanol in water at 323 K against the DECHEMA compilation . With the small water–alcohol $k_{ij}$ shipped for the common alcohols, the model reproduces the alcohol-in-water activity coefficient, the deviation that sets the water–alcohol azeotrope. The same cross-association gives poly(ethylene glycol) in water the correct *sign* of the deviation from Raoult’s law: the water activity is suppressed below the ideal value at every composition and molar mass, the negative deviation that makes the polymer water-soluble.
+
+
+
+<a id="tab:pcsaft_assoc_val"></a>
+
+
+
+| System | $k_{ij}$ | Experiment $\gamma^{\infty}$ | Model $\gamma^{\infty}$ |
+|:---|:---|:---|:---|
+| methanol in water | 0.17 | $\approx 1.8$ | 1.8 |
+| ethanol in water | 0.06 | $\approx 5$ | 5.6 |
+| 1-propanol in water | 0.015 | $\approx 14$ | 14.3 |
+
+PC-SAFT cross-association validation: infinite-dilution activity coefficient in water at 323 K
+
+
+
+###### Copolymers. {#copolymers.}
+
+The segment-level copolymer model reproduces the two homopolymer limits and interpolates between them. A poly(ethylene-co-propylene) solution in $n$-pentane demixes into a polymer-rich phase whose composition lies between those of the polyethylene and polypropylene solutions at the same temperature and pressure, using the shipped ethylene–propylene internal parameter and the homopolymer–solvent parameters.
+
+##### Validity Range and Limitations
+
+The polymer model is accurate for non-associating and weakly interacting polymer–solvent systems, where a single small binary interaction parameter $k_{ij}$ captures the mixture, and for the vapour–liquid equilibrium of such systems. A few limitations should be kept in mind. Strongly hydrogen-bonding aqueous systems are reproduced only semi-quantitatively. Cross-association is included and gives the correct sign of the deviation from ideality, but the arithmetic-mean combining rule sets the cross-association energy to the average of the two self-association energies, which is weaker than the water self-association; so the water-rich vapour–liquid branch of poly(ethylene glycol) in water measured by Herskowitz and Gottlieb  still needs a fitted $k_{ij}$ for quantitative agreement, the experimental closed-loop liquid–liquid behaviour is not reproduced, and water–alcohol vapour–liquid equilibrium needs the small $k_{ij}$ shipped for the common alcohols. Oligomers require molar-mass-specific $\sigma$ and $\varepsilon/k$ rather than the asymptotic shipped values. A polydisperse polymer is entered as several pseudo-components, which the Polymer Characterization tool generates from a Schulz-Zimm or log-normal distribution, and the copolymer treatment is limited to two repeat units.
+
 #### Patel–Teja Equation of State {#sec:pt}
 
-##### Overview {#overview-56}
+##### Overview {#overview-60}
 
 The Patel–Teja (PT) equation of state  is a three-parameter cubic EOS that generalises the Peng–Robinson and Soave–Redlich–Kwong forms by introducing an additional volume-translation parameter $c$:
 
@@ -1802,7 +2003,7 @@ Patel–Teja EOS parameters
 
 #### Schmidt–Wenzel Equation of State {#sec:sw}
 
-##### Overview {#overview-57}
+##### Overview {#overview-61}
 
 The Schmidt–Wenzel (SW) EOS  is a three-parameter cubic equation that incorporates the acentric factor $\omega$ directly into the repulsive/attractive volume term, giving a single, acentric-factor-dependent EOS form:
 
@@ -1855,7 +2056,7 @@ The same van der Waals one-fluid mixing rules as in Eq. [\[eq:pt_abc\]](#eq:p
 
 #### Cubic-Plus-Association (CPA) Equation of State {#sec:cpa}
 
-##### Overview {#overview-58}
+##### Overview {#overview-62}
 
 The Cubic-Plus-Association (CPA) EOS, proposed by Kontogeorgis et al. , combines a standard cubic EOS with the associating term from Wertheim’s first-order perturbation theory . Two variants are available depending on the underlying cubic:
 
@@ -1938,7 +2139,7 @@ where $g^{\mathrm{hs}}$ is the radial distribution function at contact for hard 
 
 ##### Association Schemes
 
-Common association schemes and their site types are listed in Table [30](#tab:cpa_schemes).
+Common association schemes and their site types are listed in Table [39](#tab:cpa_schemes).
 
 
 
@@ -1963,7 +2164,7 @@ Each associating compound requires five CPA parameters: $a_{0}$ (J$\cdot$m$^{3}$
 
 #### Perturbed-Chain Statistical Associating Fluid Theory (PC-SAFT) {#sec:pcsaft}
 
-##### Overview {#overview-59}
+##### Overview {#overview-63}
 
 The Perturbed-Chain SAFT (PC-SAFT) EOS of Gross & Sadowski  models molecules as chains of hard-sphere segments with dispersive (van der Waals) and associative interactions. The total residual Helmholtz energy per mole is
 
@@ -2034,7 +2235,7 @@ Each non-associating molecule requires three pure-component parameters: $m$ (seg
 
 #### Simplified Perturbed-Chain SAFT (SPC-SAFT) {#sec:spcsaft}
 
-##### Overview {#overview-60}
+##### Overview {#overview-64}
 
 SPC-SAFT  retains the PC-SAFT chain and association terms but replaces the full second-order perturbation dispersion with a simplified first-order expression based on a mean-field approximation. The residual Helmholtz energy is
 
@@ -2060,7 +2261,7 @@ This formulation reduces computational cost while preserving accuracy for indust
 
 #### SAFT-VR Mie Equation of State {#sec:saftvrmie}
 
-##### Overview {#overview-61}
+##### Overview {#overview-65}
 
 The SAFT-VR Mie EOS of Lafitte et al.  uses the generalised Mie pair potential instead of the hard-sphere/square-well potentials of earlier SAFT variants. This provides an additional degree of freedom in modelling the “softness” of the repulsive core and the range of the attractive well.
 
@@ -2143,7 +2344,7 @@ SAFT-VR Mie pure-component parameters
 
 #### SAFT-VRQ Mie Equation of State {#sec:saftvrqmie}
 
-##### Overview {#overview-62}
+##### Overview {#overview-66}
 
 SAFT-VRQ Mie  extends SAFT-VR Mie to quantum-mechanical effects relevant for light molecules such as , , , and . Quantum corrections are incorporated via the Feynman–Hibbs (FH) perturbation approach .
 
@@ -2190,7 +2391,7 @@ Larger $Q$ (smaller mass, smaller potential well) indicates stronger quantum eff
 
 #### Modified Benedict–Webb–Rubin Equation (MBWR) {#sec:mbwr}
 
-##### Overview {#overview-63}
+##### Overview {#overview-67}
 
 The Modified Benedict–Webb–Rubin (MBWR) equation is a high-accuracy multiparameter EOS expressed as a power series in molar density $\rho$. Two variants are available in the ThermoPack library:
 
@@ -2252,7 +2453,7 @@ All thermodynamic properties are derived analytically from Eq. [\[eq:mbwr19\]](
 
 #### NIST Multiparameter Equation of State (NIST-MEOS) {#sec:nistmeos}
 
-##### Overview {#overview-64}
+##### Overview {#overview-68}
 
 The NIST multiparameter equations of state, developed predominantly by Span, Lemmon, Wagner, and co-workers , represent the state of the art in pure-fluid thermodynamic accuracy. They are formulated as explicit functions of the reduced Helmholtz energy $\alpha(\delta,\tau)$:
 
