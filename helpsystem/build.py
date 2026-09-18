@@ -1685,7 +1685,9 @@ def step_prune_unreferenced_images() -> None:
     if not img_root.exists():
         return
 
-    ref_re = re.compile(r"images/([A-Za-z0-9_./%-]+\.(?:png|jpg|jpeg|gif|svg))", re.IGNORECASE)
+    # file names with spaces (the "Captura de tela ..." screenshots) are referenced with the spaces as they
+    # are, so the pattern has to accept them or the prune deletes every one of those images
+    ref_re = re.compile(r"images/([A-Za-z0-9_./%\- ]+?\.(?:png|jpg|jpeg|gif|svg))", re.IGNORECASE)
     referenced: set[str] = set()
     for md in DOCS_DIR.glob("*.md"):
         text = md.read_text(encoding="utf-8", errors="ignore")
