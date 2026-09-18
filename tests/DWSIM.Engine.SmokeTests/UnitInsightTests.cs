@@ -1,4 +1,4 @@
-//    Unit operation insight: the written explanations against hand-built flowsheets.
+﻿//    Unit operation insight: the written explanations against hand-built flowsheets.
 //    Copyright 2026 Daniel Wagner Oliveira de Medeiros
 //
 //    This file is part of DWSIM.
@@ -110,7 +110,7 @@ namespace DWSIM.Engine.SmokeTests
             Solve(fs);
 
             var r = Explain(fs, "Feed");
-            Assert.That(r.Title, Does.Contain("flash"));
+            Assert.That(r.Title, Does.Contain("how its state was found"));
             Assert.That(r.Charts.Any(c => c.Title.Contains("Rachford-Rice")), "the stream gets a Rachford-Rice chart");
             var rr = r.Charts.First(c => c.Title.Contains("Rachford-Rice"));
             var solution = rr.Series.First(s => s.Title == "solution");
@@ -121,7 +121,7 @@ namespace DWSIM.Engine.SmokeTests
 
             var v = Explain(fs, "V-1");
             Assert.That(v.Tables.Any(t => t.Title.StartsWith("Molar flows")));
-            Assert.That(v.Lines.Any(l => l.Contains("(closed)")), "the energy balance closes: " + string.Join("\n", v.Lines));
+            Assert.That(v.Lines.Any(l => l.Contains("which closes")), "the energy balance closes: " + string.Join("\n", v.Lines));
             Assert.That(v.Charts.Any(c => c.Title.Contains("Rachford-Rice")));
         }
 
@@ -162,7 +162,7 @@ namespace DWSIM.Engine.SmokeTests
             Solve(fs);
 
             var h = Explain(fs, "H-1");
-            Assert.That(h.Lines.Any(l => l.StartsWith("Calculation mode")));
+            Assert.That(h.Lines.Any(l => l.Contains("is calculated in the mode")));
             Assert.That(h.Charts.Any(c => c.Title.StartsWith("Heating curve")), "heating curve drawn");
             var vf = h.Charts.First(c => c.Title.Contains("Vapour fraction")).Series[0];
             Assert.That(vf.Y.First(), Is.EqualTo(0).Within(1e-6), "starts liquid");
@@ -208,13 +208,13 @@ namespace DWSIM.Engine.SmokeTests
             var tq = r.Charts.FirstOrDefault(c => c.Title == "T-Q diagram");
             Assert.That(tq, Is.Not.Null, "T-Q chart drawn");
             Assert.That(tq.Series.Count, Is.EqualTo(3));
-            var pinchLine = r.Lines.First(l => l.StartsWith("Closest approach"));
+            var pinchLine = r.Lines.First(l => l.StartsWith("The two lines come closest"));
             Console.WriteLine(pinchLine);
-            Assert.That(r.Lines.Any(l => l.StartsWith("LMTD = ")), string.Join("\n", r.Lines));
+            Assert.That(r.Lines.Any(l => l.Contains("LMTD = (dT1 - dT2)")), string.Join("\n", r.Lines));
             Assert.That(r.Lines.Any(l => l.Contains("U A = Q / (F LMTD)")));
             // equal flows of the same fluid: parallel lines, the approach is the same at both ends and equals the pinch
             double dt1 = hin.GetTemperature() - cout.GetTemperature();
-            var pinchValue = double.Parse(pinchLine.Split(':')[1].Trim().Split(' ')[0], System.Globalization.CultureInfo.InvariantCulture);
+            var pinchValue = double.Parse(pinchLine.Split(new[] { "a gap of " }, StringSplitOptions.None)[1].Split(' ')[0], System.Globalization.CultureInfo.InvariantCulture);
             Assert.That(pinchValue, Is.EqualTo(dt1).Within(0.5));
         }
 
@@ -289,8 +289,8 @@ namespace DWSIM.Engine.SmokeTests
                 var r = Explain(fs, col.GraphicObject.Tag);
                 Assert.That(r.Charts.Select(ch => ch.Title), Is.EquivalentTo(new[] { "Temperature profile", "Internal flows", "Liquid composition profile" }));
                 Assert.That(r.Tables.Any(t => t.Title.StartsWith("Molar flows")));
-                Assert.That(r.Lines.Any(l => l.StartsWith("Reflux ratio R = L / D")), string.Join(Environment.NewLine, r.Lines));
-                Assert.That(r.Lines.Any(l => l.StartsWith("Feed ") && l.Contains("enters stage")), string.Join(Environment.NewLine, r.Lines));
+                Assert.That(r.Lines.Any(l => l.Contains("R = L / D")), string.Join(Environment.NewLine, r.Lines));
+                Assert.That(r.Lines.Any(l => l.StartsWith("The feed ") && l.Contains("enters on stage")), string.Join(Environment.NewLine, r.Lines));
                 Assert.That(r.Lines.Any(l => l.StartsWith("Fenske: N_min")), "Fenske line: " + string.Join(Environment.NewLine, r.Lines));
             }
         }
@@ -424,7 +424,7 @@ namespace DWSIM.Engine.SmokeTests
 
             var r = Explain(fs, "MIX-1");
             Assert.That(r.Tables[0].Rows.Count, Is.EqualTo(2));
-            Assert.That(r.Lines.Any(l => l.StartsWith("Rule: Minimum")), string.Join("\n", r.Lines));
+            Assert.That(r.Lines.Any(l => l.Contains("follows the rule \"Minimum")), string.Join("\n", r.Lines));
             var sp = Explain(fs, "SPL-1");
             Assert.That(sp.Lines.Any(l => l.Contains("0.3000 of")), string.Join("\n", sp.Lines));
         }
