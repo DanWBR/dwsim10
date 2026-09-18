@@ -73,32 +73,94 @@ Public Class Server
     ''' <summary>
     ''' Starts the HTTP listener on <c>http://localhost:5002/</c> and launches the
     ''' background listening thread. No-op if the server is already running.
+    ''' Returns True when the listener is up afterwards. On failure the reason is
+    ''' shown on the flowsheet and the listener is discarded, so a later call can
+    ''' try again instead of finding a dead one and giving up.
     ''' </summary>
-    Sub StartServer()
+    Function StartServer() As Boolean
 
-        If Server Is Nothing Then
+        If Server IsNot Nothing AndAlso Server.IsListening Then Return True
 
-            Try
-
-                Server = New HttpListener()
-                Server.Prefixes.Add("http://localhost:5002/")
-                Server.Start()
-                Console.WriteLine("[DWSIM HTTP] Listening at http://localhost:5002/")
-
-                ListeningTask = New System.Threading.Thread(Sub() ListenLoop(Server))
-                ListeningTask.IsBackground = True
-                ListeningTask.Start()
-
-            Catch ex As Exception
-
-                Flowsheet?.ShowMessage("Failed to start AI Assistant Server: " & ex.Message, IFlowsheet.MessageType.GeneralError)
-
-            End Try
-
-
+        If Server IsNot Nothing Then
+            Try : Server.Close() : Catch : End Try
         End If
 
-    End Sub
+        Try
+
+            Server = New HttpListener()
+            Server.Prefixes.Add("http://localhost:5002/")
+            Server.Start()
+            Console.WriteLine("[DWSIM HTTP] Listening at http://localhost:5002/")
+
+            ListeningTask = New System.Threading.Thread(Sub() ListenLoop(Server))
+            ListeningTask.IsBackground = True
+            ListeningTask.Start()
+            Return True
+
+        Catch ex As Exception
+
+            Server = Nothing
+            Flowsheet?.ShowMessage(DescribeStartFailure(ex), IFlowsheet.MessageType.GeneralError)
+            Return False
+
+        End Try
+
+    End Function
+
+    ''' <summary>True while this instance's listener is accepting requests.</summary>
+    Friend ReadOnly Property IsListening As Boolean
+        Get
+            Return Server IsNot Nothing AndAlso Server.IsListening
+        End Get
+    End Property
+
+    ''' <summary>
+    ''' Turns a listener start-up failure into a message that says what to do. The case
+    ''' that matters is the port being held: on Windows HTTP.sys keeps accepting TCP
+    ''' connections on 5002 on behalf of a DWSIM that hung or crashed, or of a second
+    ''' instance, so from the outside the bridge looks alive while every request from the
+    ''' assistant times out. The generic "failed to start" text gave no way to tell.
+    ''' </summary>
+    Private Shared Function DescribeStartFailure(ex As Exception) As String
+
+        Dim held As Boolean = False
+        Dim denied As Boolean = False
+        Dim onWindows As Boolean = Environment.OSVersion.Platform = PlatformID.Win32NT
+
+        Dim hle = TryCast(ex, HttpListenerException)
+        If hle IsNot Nothing Then
+            If onWindows Then
+                ' 183 ERROR_ALREADY_EXISTS: the prefix is registered by another process
+                ' 32 ERROR_SHARING_VIOLATION, 5 ERROR_ACCESS_DENIED
+                held = hle.ErrorCode = 183 OrElse hle.ErrorCode = 32
+                denied = hle.ErrorCode = 5
+            Else
+                ' errno: EADDRINUSE is 98 on Linux and 48 on macOS; EACCES is 13
+                held = hle.ErrorCode = 98 OrElse hle.ErrorCode = 48
+                denied = hle.ErrorCode = 13
+            End If
+        End If
+
+        Dim se = TryCast(ex, System.Net.Sockets.SocketException)
+        If se Is Nothing Then se = TryCast(ex.InnerException, System.Net.Sockets.SocketException)
+        If se IsNot Nothing AndAlso se.SocketErrorCode = System.Net.Sockets.SocketError.AddressAlreadyInUse Then
+            held = True
+        End If
+
+        If held Then
+            Return "The AI Assistant could not open port 5002 because another process is holding it - " &
+                   "most likely a DWSIM that did not close (look in Task Manager for a DWSIM still " &
+                   "running, possibly left over from a crash) or a second DWSIM instance. End that " &
+                   "process and open the assistant again."
+        End If
+        If denied Then
+            Return "The AI Assistant could not open port 5002: access denied. Reserve the URL once from " &
+                   "an elevated prompt: netsh http add urlacl url=http://localhost:5002/ user=" &
+                   Environment.UserName
+        End If
+        Return "Failed to start AI Assistant Server: " & ex.Message
+
+    End Function
 
     ''' <summary>Aborts the HTTP listener. The listening thread ends on its own once the listener
     ''' stops, so it is not aborted here - Thread.Abort throws PlatformNotSupportedException on

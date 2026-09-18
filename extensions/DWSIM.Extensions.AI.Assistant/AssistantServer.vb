@@ -78,10 +78,21 @@ Friend Module ReportExportHelper
         End Try
     End Function
 
-    ''' <summary>Starts the flowsheet HTTP bridge on port 5002, unless it is already listening.</summary>
+    ''' <summary>Starts the flowsheet HTTP bridge on port 5002, or points the one this process
+    ''' already runs at <paramref name="flowsheet"/>. Throws when no bridge could be started.</summary>
     Friend Sub EnsureApiServerRunning(flowsheet As IFlowsheet)
-        If IsPortListening(5002) Then Return
+        ' A bridge this process already runs only has to follow the active flowsheet.
+        If _ownedServer IsNot Nothing AndAlso _ownedServer.IsListening Then
+            _ownedServer.Flowsheet = flowsheet
+            Return
+        End If
 
+        ' Whatever we had is gone; start a fresh one. There is deliberately no "is the port
+        ' in use" probe first: on Windows a TCP connect to 5002 succeeds for any HTTP.sys
+        ' registration - a DWSIM that hung or crashed, a second instance - and taking that
+        ' for "already running" left this process with no bridge of its own and every
+        ' request timing out with nothing in the log to say why (dwsim10 issue #84).
+        ' Binding tells the truth, and StartServer reports what is in the way.
         If _ownedServer IsNot Nothing Then
             Try
                 _ownedServer.StopServer()
@@ -90,7 +101,11 @@ Friend Module ReportExportHelper
         End If
 
         _ownedServer = New Server() With {.Flowsheet = flowsheet}
-        _ownedServer.StartServer()
+        If Not _ownedServer.StartServer() Then
+            _ownedServer = Nothing
+            Throw New InvalidOperationException(
+                "the flowsheet bridge on port 5002 did not start (see the message above)")
+        End If
     End Sub
 
     ''' <summary>Stops the flowsheet HTTP bridge this process started, if any.</summary>
