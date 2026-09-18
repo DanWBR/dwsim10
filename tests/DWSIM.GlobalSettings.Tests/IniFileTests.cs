@@ -239,6 +239,42 @@ namespace DWSIM.GlobalSettings.Tests
         }
 
         [Test]
+        public void ASiteSettingsFileOverridesTheUsersFileOnEveryLoad()
+        {
+            var folder = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+            Directory.CreateDirectory(folder);
+            var user = Path.Combine(folder, "dwsim.ini");
+            var site = Path.Combine(folder, "dwsim.site.ini");
+            try
+            {
+                Settings.PreferredSystemOfUnits = "CGS";
+                Settings.CultureInfo = "en";
+                Settings.InspectorEnabled = true;
+                Settings.CheckForUpdates = true;
+                Settings.SaveSettings(user);
+
+                File.WriteAllText(site, string.Join(Environment.NewLine, "[Localization]", "CultureInfo = pt-BR", "[Misc]", "InspectorEnabled = False", "CheckForUpdates = False", ""));
+                Environment.SetEnvironmentVariable("DWSIM_SITE_INI", site);
+                Settings.LoadSettings(user);
+
+                Assert.That(Settings.SiteSettingsFile, Is.EqualTo(site));
+                Assert.That(Settings.CultureInfo, Is.EqualTo("pt-BR"), "the site pins the language");
+                Assert.That(Settings.InspectorEnabled, Is.False);
+                Assert.That(Settings.CheckForUpdates, Is.False);
+                Assert.That(Settings.PreferredSystemOfUnits, Is.EqualTo("CGS"), "keys the site does not name keep the user's value");
+
+                Environment.SetEnvironmentVariable("DWSIM_SITE_INI", null);
+                Settings.LoadSettings(user);
+                Assert.That(Settings.SiteSettingsFile, Is.EqualTo(""));
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable("DWSIM_SITE_INI", null);
+                Directory.Delete(folder, true);
+            }
+        }
+
+        [Test]
         public void ThePythonBridgeAsksForAPathBeforeItStarts()
         {
             Settings.PythonPath = "";
