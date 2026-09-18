@@ -74,6 +74,7 @@ public sealed class EosExplorerWindow : Window
         IconHelper.ApplyWindowIcon(this);
         Content = BuildContent();
         AutoLoadCase();
+        HelpLinks.AttachF1(this, "eos-explorer");
     }
 
     // ---------------------------------------------------------------- case files

@@ -147,6 +147,8 @@
         <MenuItem Header="_Reset Zoom"     Name="MenuZoomReset" />
       </MenuItem>
       <MenuItem Header="_Help">
+        <MenuItem Header="Help for the _Selection" Name="MenuHelpContext" InputGesture="F1" />
+        <MenuItem Header="Online _Tutorials"       Name="MenuHelpTutorials" />
         <MenuItem Header="_User Guide (HTML)..."   Name="MenuHelpHtml" />
         <Separator />
         <MenuItem Header="_Support"                Name="MenuHelpSupport" />

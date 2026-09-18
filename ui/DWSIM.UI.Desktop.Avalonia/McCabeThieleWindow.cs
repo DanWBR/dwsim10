@@ -79,6 +79,7 @@ public sealed class McCabeThieleWindow : Window
         IconHelper.ApplyWindowIcon(this);
         Content = BuildContent();
         AutoLoadCase();
+        HelpLinks.AttachF1(this, "mccabe-thiele");
     }
 
     // ---------------------------------------------------------------- case files

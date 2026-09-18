@@ -76,6 +76,7 @@ public sealed class PackageComparisonWindow : Window
         IconHelper.ApplyWindowIcon(this);
         Content = BuildContent();
         AutoLoadCase();
+        HelpLinks.AttachF1(this, "package-comparison");
     }
 
     // ---------------------------------------------------------------- case files

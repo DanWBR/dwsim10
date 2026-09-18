@@ -22,6 +22,8 @@ using System.Linq;
 using DWSIM.Automation.DynamicRunner.EosExplorer;
 using DWSIM.Automation.DynamicRunner.McCabeThiele;
 using DWSIM.Automation.DynamicRunner.PackageComparison;
+using DWSIM.Automation.FluentAPI.Diagnostics;
+using DWSIM.Interfaces.Enums.GraphicObjects;
 using DWSIM.GlobalSettings;
 using NUnit.Framework;
 
@@ -232,6 +234,22 @@ namespace DWSIM.Engine.SmokeTests
             Assert.That(back.Data().Count, Is.EqualTo(5));
             Assert.That(back.PackageList(), Is.EqualTo(new[] { "NRTL", "Raoult" }));
             Assert.That(back.Data()[2].Y1, Is.EqualTo(0.652).Within(1e-12));
+        }
+    
+        // ------------------------------------------------------------------ contextual help
+
+        /// <summary>F1 links: every object type has a page, the Portuguese site gets its own page names, unknown tools land on the track index.</summary>
+        [Test]
+        public void ContextualHelpLinksResolveInBothLanguages()
+        {
+            Assert.That(ContextualHelp.UrlFor(ObjectType.Heater), Is.EqualTo("https://dwsim.org/tutorials/en/beginner/03-heater-cooler.html"));
+            Assert.That(ContextualHelp.UrlFor(ObjectType.Heater, "pt-BR"), Is.EqualTo("https://dwsim.org/tutorials/pt-BR/iniciante/03-aquecedor-resfriador.html"));
+            Assert.That(ContextualHelp.UrlFor(ObjectType.OT_Recycle, "pt-BR"), Does.EndWith("fundamentos/03-reciclos-e-convergencia.html"));
+            Assert.That(ContextualHelp.UrlFor(ObjectType.GO_Text), Does.EndWith("en/fundamentals/index.html"), "a decoration falls back to the track index");
+            Assert.That(ContextualHelp.UrlForTool("mccabe-thiele", "pt-BR"), Does.EndWith("fundamentos/07-as-ferramentas-de-aprendizado.html#mccabe-thiele-diagram"));
+            Assert.That(ContextualHelp.UrlForTool("no-such-tool"), Does.EndWith("en/fundamentals/index.html"));
+            foreach (ObjectType t in Enum.GetValues(typeof(ObjectType)))
+                Assert.That(ContextualHelp.UrlFor(t, "pt-BR"), Does.StartWith("https://dwsim.org/tutorials/"), t.ToString());
         }
     }
 }

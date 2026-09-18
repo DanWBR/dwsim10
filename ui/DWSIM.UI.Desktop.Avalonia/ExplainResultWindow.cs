@@ -41,6 +41,7 @@ public sealed class ExplainResultWindow : Window
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         IconHelper.ApplyWindowIcon(this);
         Content = BuildContent();
+        HelpLinks.AttachF1(this, "explain-result");
 
         int idx = objectName == null ? -1 : _objects.FindIndex(o => o.Name == objectName);
         if (idx >= 0) { _objectBox.SelectedIndex = idx; _ = RunAsync(); }

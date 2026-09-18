@@ -68,6 +68,7 @@ public partial class FlowsheetCheckWindow : Window
         _flowsheet = flowsheet!;
         _locate = locate;
         InitializeComponent();
+        HelpLinks.AttachF1(this, "flowsheet-check");
         IconHelper.ApplyWindowIcon(this);
         if (flowsheet == null) return;
 

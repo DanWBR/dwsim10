@@ -439,6 +439,11 @@ public partial class FlowsheetView : UserControl
                 MenuFlowsheetCheck.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
                 e.Handled = true;
             }
+            else if (e.Key == Key.F1)
+            {
+                OpenContextualHelp();
+                e.Handled = true;
+            }
             else if (e.Key == Key.S && e.KeyModifiers.HasFlag(KeyModifiers.Control) &&
                      e.KeyModifiers.HasFlag(KeyModifiers.Shift))
             {
@@ -2252,6 +2257,8 @@ public partial class FlowsheetView : UserControl
         };
 
         // --- Help menu ---
+        MenuHelpContext.Click += (_, _) => OpenContextualHelp();
+        MenuHelpTutorials.Click += (_, _) => OpenUrl(DWSIM.Automation.FluentAPI.Diagnostics.FindingExplanations.TutorialsRoot);
         MenuHelpHtml.Click += (_, _) => OpenUrl(Path.Combine(
             AppDomain.CurrentDomain.BaseDirectory, "docs", "dwsim-help", "index.html"));
         MenuHelpSupport.Click += (_, _) => OpenUrl("https://dwsim.org/wiki/index.php?title=Support");
@@ -3294,6 +3301,15 @@ public partial class FlowsheetView : UserControl
     // -------------------------------------------------------------------------
     // URL / utility helpers
     // -------------------------------------------------------------------------
+
+    /// <summary>F1: the tutorials page that explains the selected object, or the Fundamentals track when nothing is selected.</summary>
+    private void OpenContextualHelp()
+    {
+        var obj = _surface?.SelectedObject;
+        OpenUrl(obj != null
+            ? DWSIM.Automation.FluentAPI.Diagnostics.ContextualHelp.UrlFor(obj.ObjectType, HelpLinks.Language())
+            : DWSIM.Automation.FluentAPI.Diagnostics.ContextualHelp.DefaultUrl(HelpLinks.Language()));
+    }
 
     private static void OpenUrl(string url)
     {

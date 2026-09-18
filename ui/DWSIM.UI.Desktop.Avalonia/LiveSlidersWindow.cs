@@ -72,6 +72,7 @@ public sealed class LiveSlidersWindow : Window
         IconHelper.ApplyWindowIcon(this);
         Content = BuildContent();
         AutoLoadCase();
+        HelpLinks.AttachF1(this, "live-sliders");
     }
 
     // ---------------------------------------------------------------- layout

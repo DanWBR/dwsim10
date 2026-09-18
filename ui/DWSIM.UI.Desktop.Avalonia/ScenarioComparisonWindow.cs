@@ -58,6 +58,7 @@ public sealed class ScenarioComparisonWindow : Window
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         IconHelper.ApplyWindowIcon(this);
         Content = BuildContent();
+        HelpLinks.AttachF1(this, "scenario-comparison");
     }
 
     private Control BuildContent()

@@ -117,11 +117,27 @@ namespace DWSIM.Automation.FluentAPI.Diagnostics
             { "intermediate/04-recycle-loops.html", "intermediario/04-loops-reciclo.html" },
             { "intermediate/05-phase-envelope.html", "intermediario/05-envelope-fases.html" },
             { "reference/property-packages-guide.html", "referencia/guia-pacotes-termodinamicos.html" },
+            { "advanced/01-refrigeration-cycle.html", "avancado/01-ciclo-refrigeracao.html" },
+            { "advanced/02-ammonia-synthesis.html", "avancado/02-sintese-amonia.html" },
+            { "advanced/03-benzene-toluene-separation.html", "avancado/03-separacao-benzeno-tolueno.html" },
+            { "advanced/04-natural-gas-processing.html", "avancado/04-processamento-gas-natural.html" },
+            { "advanced/05-ethanol-plant.html", "avancado/05-planta-etanol.html" },
+            { "advanced/07-methanol-synthesis.html", "avancado/07-sintese-metanol.html" },
+            { "features/index.html", "funcionalidades/index.html" },
+            { "fundamentals/index.html", "fundamentos/index.html" },
+            { "fundamentals/01-streams-state-and-balances.html", "fundamentos/01-correntes-estado-balancos.html" },
+            { "fundamentals/02-degrees-of-freedom.html", "fundamentos/02-graus-de-liberdade.html" },
+            { "fundamentals/03-recycles-and-convergence.html", "fundamentos/03-reciclos-e-convergencia.html" },
+            { "fundamentals/04-choosing-a-thermodynamic-model.html", "fundamentos/04-escolhendo-o-modelo-termodinamico.html" },
+            { "fundamentals/05-units-and-numbers.html", "fundamentos/05-unidades-e-numeros.html" },
+            { "fundamentals/06-common-mistakes.html", "fundamentos/06-erros-comuns.html" },
+            { "fundamentals/07-the-learning-tools.html", "fundamentos/07-as-ferramentas-de-aprendizado.html" },
             { "reference/troubleshooting.html", "referencia/solucao-problemas.html" },
             { CataloguePage, "referencia/diagnosticos.html" }
         };
 
-        private static string Localise(string page, string language)
+        /// <summary>Puts the language root in front of an English page path, translating the path for the Portuguese site.</summary>
+        public static string Localise(string page, string language)
         {
             if (string.IsNullOrEmpty(language) || !language.StartsWith("pt", StringComparison.OrdinalIgnoreCase))
                 return "en/" + page;
