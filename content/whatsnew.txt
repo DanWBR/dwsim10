@@ -22,7 +22,7 @@
 - [CHG] PID controller: no integration while the output sits beyond a limit (conditional anti-windup)
 - [CHG] Pump in dynamic mode: Rated Speed property, the dynamic pressure rise scales with (current speed / rated speed)^2; valves accept a locked stem and a minimum opening at run time
 - [CHG] CAPE-OPEN registration carries the full author name and the dwsim.org URLs
-- [CHG] Offline help regenerated from the current User Guide; tutorials site gains a Fundamentals track and an Operator Training section (English and Portuguese)
+- [CHG] Offline help regenerated from the current User Guide; tutorials site gains a Fundamentals track and an Operator Training section (English and Portuguese) with three sample plants and their scenario packs, an instructor kit, example reports, a Python batch runner and a FAQ; the User Guide gains an Operator Training Simulator chapter
 - [FIX] Reactors (conversion, equilibrium, Gibbs, CSTR): the extent and conversion properties of a reaction whose name carries an underscore threw an index error in property tables and property lookups
 - [FIX] Adjust and specification blocks were reported as having no target on every check; the recycle estimate rule read a tolerance instead of the outlet flow
 - [FIX] FluentAPI: a mass flow set before the composition was replaced by 1 mol/s when the composition was applied
@@ -33,4 +33,5 @@
 - [FIX] Classic UI: closing a document tab of the dock panel goes back to the tab that was active before it (the PFD most of the time) instead of a neighbouring tab
 - [FIX] Property packages in the "Experimental Liquid Cp" enthalpy mode: the vapor enthalpy and entropy below the normal boiling point added the ideal gas heating from 25 C on top of the liquid heating to T and the vaporization at T, counting the sensible heat twice (latent heat of water at 62 C came out 2424 kJ/kg against 2353 from the steam tables, evaporator duties 3 % high)
 - [FIX] Liquid density: the physical-bound guard added in 10.2.4 used the Peng-Robinson covolume as the limit, which real water exceeds, so every water stream got the equation-of-state density instead of the experimental one (Raoult's Law: 0.6 kg/m3, an ideal gas; PR: 815 kg/m3; SRK: 724 kg/m3, against 971.8 at 80 C); the bound now comes from the critical volume and the fallback only stands for a liquid-like root
+- [FIX] PID controller in manual: the manipulated value typed by the operator (control panel editor, OTS faceplates, OPC UA) was overwritten with the valve's current position at every step, so a manual output never reached the valve
 - [FIX] AI Assistant: the flowsheet bridge on localhost:5002 accepted connections but never answered when another process held the port; the bridge is started from ownership and a held port gets its own message (#84)
