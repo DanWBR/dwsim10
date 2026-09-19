@@ -68,6 +68,7 @@ Version 10.2.9
 - [FIX] Material stream Subtract conserves enthalpy (the remaining holdup kept its specific enthalpy and boiled without end in the dynamic column); IsValidDouble rejects NaN and infinity
 - [FIX] Dynamic rigorous column: products and side draws leave with the state of the holdup phase they are drawn from and never more than it holds; the vapor a stage sends up is what arrived to it in the sub-step plus a slow inventory correction (the rate limiter piled vapor on the trays and released it as a pressure surge); a pressure-enthalpy flash of a holdup on its bubble point that comes back as vapor is put back on the liquid side; the sump liquid head on the bottoms outlet was zero
 - [FIX] Classic UI: closing a document tab of the dock panel goes back to the tab that was active before it (the PFD most of the time) instead of a neighbouring tab
+- [FIX] Property packages in the "Experimental Liquid Cp" enthalpy mode: the vapor enthalpy and entropy below the normal boiling point added the ideal gas heating from 25 C on top of the liquid heating to T and the vaporization at T, counting the sensible heat twice (latent heat of water at 62 C came out 2424 kJ/kg against 2353 from the steam tables, evaporator duties 3 % high)
 
 Version 10.2.8
 

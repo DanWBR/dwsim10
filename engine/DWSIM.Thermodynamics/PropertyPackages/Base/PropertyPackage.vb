@@ -9924,24 +9924,24 @@ Final3:
             t2 = 0
             t3 = 0
 
+            ' path: liquid from 298.15 K up to Tv = min(T, Tb), vaporization at Tv, ideal gas from Tv up to T.
+            ' Below Tb the gas leg is empty; integrating the ideal gas Cp from 298.15 K again would count the
+            ' sensible heat twice.
+            Dim Tv, Tvm As Double
             For i As Integer = 0 To Vz.Length - 1
                 Tb = props(i).Normal_Boiling_Point
                 If Tb = 0.0 Then Tb = 0.7 * props(i).Critical_Temperature
                 If Tb = 0.0 Then Throw New Exception("Unable to calculate Enthalpy from Liquid Cp data - Normal Boiling Point / Critical Temperature not defined")
                 If Vz(i) > 0.0 Then
-                    If T > Tb Then
-                        t1 += Vw(i) * AUX_INT_CPDTi_L(298.15, Tb, i) + P / 1000 / Me.AUX_LIQDENS(Tb, Vz, P)
-                        t2 += Vw(i) * AUX_HVAPi(props(i).Name, Tb)
-                        t3 += Vw(i) * RET_Hid_i(Tb, T, props(i).Name)
-                    Else
-                        t1 += Vw(i) * AUX_INT_CPDTi_L(298.15, T, i) + P / 1000 / Me.AUX_LIQDENS(T, Vz, P)
-                        t2 += Vw(i) * AUX_HVAPi(props(i).Name, T)
-                        t3 += Vw(i) * RET_Hid_i(298.15, T, props(i).Name)
-                    End If
+                    Tv = If(T > Tb, Tb, T)
+                    Tvm += Vw(i) * Tv
+                    t1 += Vw(i) * AUX_INT_CPDTi_L(298.15, Tv, i)
+                    t2 += Vw(i) * AUX_HVAPi(props(i).Name, Tv)
+                    t3 += Vw(i) * RET_Hid_i(Tv, T, props(i).Name)
                 End If
             Next
 
-            H = t1 + t2 + t3
+            H = t1 + t2 + t3 + P / 1000 / Me.AUX_LIQDENS(Tvm, Vz, P)
 
             Return H
 
@@ -9959,24 +9959,22 @@ Final3:
             t2 = 0
             t3 = 0
 
+            ' same path as RET_Hid_FromLiqCp: below Tb only the pressure term of the ideal gas entropy remains
+            Dim Tv, Tvm As Double
             For i As Integer = 0 To Vz.Length - 1
                 Tb = props(i).Normal_Boiling_Point
                 If Tb = 0.0 Then Tb = 0.7 * props(i).Critical_Temperature
                 If Tb = 0.0 Then Throw New Exception("Unable to calculate Entropy from Liquid Cp data - Normal Boiling Point / Critical Temperature not defined")
                 If Vz(i) > 0.0 Then
-                    If T > Tb Then
-                        t1 += Vw(i) * AUX_INT_CPDTi_L(298.15, Tb, i) / T + P / 1000 / Me.AUX_LIQDENS(Tb, Vz, P) / T
-                        t2 += Vw(i) * AUX_HVAPi(props(i).Name, Tb) / T
-                        t3 += Vw(i) * RET_Sid_i(Tb, T, P, props(i).Name)
-                    Else
-                        t1 += Vw(i) * AUX_INT_CPDTi_L(298.15, T, i) / T + P / 1000 / Me.AUX_LIQDENS(T, Vz, P) / T
-                        t2 += Vw(i) * AUX_HVAPi(props(i).Name, T) / T
-                        t3 += Vw(i) * RET_Sid_i(298.15, T, P, props(i).Name)
-                    End If
+                    Tv = If(T > Tb, Tb, T)
+                    Tvm += Vw(i) * Tv
+                    t1 += Vw(i) * AUX_INT_CPDTi_L(298.15, Tv, i) / T
+                    t2 += Vw(i) * AUX_HVAPi(props(i).Name, Tv) / T
+                    t3 += Vw(i) * RET_Sid_i(Tv, T, P, props(i).Name)
                 End If
             Next
 
-            S = t1 + t2 + t3
+            S = t1 + t2 + t3 + P / 1000 / Me.AUX_LIQDENS(Tvm, Vz, P) / T
 
             Return S
 
