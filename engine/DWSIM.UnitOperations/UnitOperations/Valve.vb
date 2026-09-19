@@ -125,6 +125,24 @@ Namespace UnitOperations
         Private _opening As Double = 50.0
 
         ''' <summary>
+        ''' Runtime-only. While True, writes to <see cref="OpeningPct"/> from controllers, events or
+        ''' the user are ignored and the stem stays where it is; <see cref="ForceOpening"/> still moves it.
+        ''' Operator-training malfunctions (stuck valve, valve driven to its fail position) set this.
+        ''' </summary>
+        <Xml.Serialization.XmlIgnore> Public Property StemLocked As Boolean = False
+
+        ''' <summary>
+        ''' Runtime-only. Lowest opening (%) the stem can reach: a passing valve that no longer shuts
+        ''' tight. Zero for a healthy valve.
+        ''' </summary>
+        <Xml.Serialization.XmlIgnore> Public Property MinimumOpening As Double = 0.0
+
+        ''' <summary>Moves the stem to <paramref name="value"/> (%) regardless of the lock or the actuator delay.</summary>
+        Public Sub ForceOpening(value As Double)
+            _opening = Math.Max(0.0, Math.Min(100.0, value))
+        End Sub
+
+        ''' <summary>
         ''' Gets or sets the valve stem opening as a percentage (0–100).
         ''' In dynamic mode with actuator delay configured, setting this value enqueues the new opening
         ''' for deferred application rather than applying it immediately.
@@ -134,6 +152,8 @@ Namespace UnitOperations
                 Return _opening
             End Get
             Set(value As Double)
+                If StemLocked Then Return
+                If value < MinimumOpening Then value = MinimumOpening
                 If FlowSheet IsNot Nothing Then
                     If FlowSheet.DynamicMode AndAlso DelayedOpenings IsNot Nothing Then
                         Dim AD As Double = GetDynamicProperty("Actuator Delay")

@@ -687,6 +687,7 @@ Namespace UnitOperations
             AddDynamicProperty("Current Speed", "Current rotational speed (RPM).", 1450.0, UnitOfMeasure.none, 1.0.GetType())
             AddDynamicProperty("Target Speed", "Target rotational speed (RPM). Speed ramps towards this value based on inertia.", 1450.0, UnitOfMeasure.none, 1.0.GetType())
             AddDynamicProperty("Motor Torque", "Available motor torque (N.m).", 100.0, UnitOfMeasure.none, 1.0.GetType())
+            AddDynamicProperty("Rated Speed", "Speed (RPM) at which the pump delivers its full pressure rise. The dynamic pressure rise scales with (Current Speed / Rated Speed)^2, so a pump coasting down loses head.", 1450.0, UnitOfMeasure.none, 1.0.GetType())
 
         End Sub
 
@@ -782,6 +783,12 @@ Namespace UnitOperations
 
             Dim Wi = ims.GetMassFlow()
             Dim DeltaP = (Wi / Kr) ^ 2
+
+            'affinity law: the pressure rise falls with the square of the speed ratio, so a tripped
+            'pump stops boosting the pressure as it coasts down. Flowsheets saved before this
+            'property existed read the default, which reproduces the speed-independent result.
+            Dim ratedSpeed As Double = GetDynamicProperty("Rated Speed")
+            If ratedSpeed > 0.0 Then DeltaP *= (currentSpeed / ratedSpeed) ^ 2
 
             ims.SetPressure(Pressure)
             oms.AssignFromPhase(PhaseLabel.Mixture, AccumulationStream, False)
