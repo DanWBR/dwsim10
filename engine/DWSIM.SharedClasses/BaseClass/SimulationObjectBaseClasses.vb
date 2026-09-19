@@ -1668,19 +1668,19 @@ Namespace UnitOperations
 
         Public Overridable ReadOnly Property ProductAuthor As String Implements IProductInformation.ProductAuthor
             Get
-                Return "Daniel Wagner"
+                Return "Daniel Wagner Oliveira de Medeiros"
             End Get
         End Property
 
         Public Overridable ReadOnly Property ProductContactInfo As String Implements IProductInformation.ProductContactInfo
             Get
-                Return "https://dwsim.inforside.com.br"
+                Return "https://dwsim.org"
             End Get
         End Property
 
         Public Overridable ReadOnly Property ProductPage As String Implements IProductInformation.ProductPage
             Get
-                Return "https://dwsim.inforside.com.br"
+                Return "https://dwsim.org"
             End Get
         End Property
 

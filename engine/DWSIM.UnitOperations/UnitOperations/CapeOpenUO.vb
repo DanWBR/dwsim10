@@ -1533,7 +1533,7 @@ Namespace UnitOperations
                 If _seluo IsNot Nothing Then
                     Return _seluo.HelpURL
                 Else
-                    Return "https://dwsim.inforside.com.br"
+                    Return "https://dwsim.org"
                 End If
             End Get
         End Property
@@ -1543,7 +1543,7 @@ Namespace UnitOperations
                 If _seluo IsNot Nothing Then
                     Return _seluo.VendorURL
                 Else
-                    Return "https://dwsim.inforside.com.br"
+                    Return "https://dwsim.org"
                 End If
             End Get
         End Property
