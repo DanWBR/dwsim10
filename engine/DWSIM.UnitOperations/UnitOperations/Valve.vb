@@ -616,42 +616,8 @@ Namespace UnitOperations
 
                 Case Else
 
-                    Dim FC As Double 'flow coefficient
-
-                    If FlowCoefficient = FlowCoefficientType.Cv Then
-                        'Cv = 1.16 Kv
-                        'Kv = Cv / 1.16
-                        FC = Kv / 1.16
-                    Else
-                        FC = Kv
-                    End If
-
-                    If EnableOpeningKvRelationship Then
-                        Select Case DefinedOpeningKvRelationShipType
-                            Case OpeningKvRelationshipType.UserDefined
-                                Try
-                                    ExpressionCache.SetVariable(_expressions.GetContext("OP"), "OP", OpeningPct)
-                                    Kvc = FC * _expressions.GetCompiled("OP", PercentOpeningVersusPercentKvExpression).Evaluate() / 100
-                                Catch ex As Exception
-                                    Throw New Exception("Invalid expression for Kv[Cv]/Opening relationship.")
-                                End Try
-                            Case OpeningKvRelationshipType.QuickOpening
-                                Kvc = (OpeningPct / 100.0) ^ 0.5 * FC
-                            Case OpeningKvRelationshipType.Linear
-                                Kvc = OpeningPct / 100.0 * FC
-                            Case OpeningKvRelationshipType.EqualPercentage
-                                Kvc = CharacteristicParameter ^ (OpeningPct / 100.0 - 1.0) * FC
-                            Case OpeningKvRelationshipType.DataTable
-                                Try
-                                    Dim factor = MathNet.Numerics.Interpolate.RationalWithoutPoles(OpeningKvRelDataTableX, OpeningKvRelDataTableY).Interpolate(OpeningPct) / 100.0
-                                    Kvc = factor * FC
-                                Catch ex As Exception
-                                    Throw New Exception("Error calculating Kv from tabulated data: " + ex.Message)
-                                End Try
-                        End Select
-                    Else
-                        Kvc = FC
-                    End If
+                    Dim FC As Double = GetBaseKv()
+                    Kvc = GetEffectiveKv()
 
                     If ims.DynamicsSpec = Dynamics.DynamicsSpecType.Flow And
                         oms.DynamicsSpec = Dynamics.DynamicsSpecType.Flow Then
@@ -667,60 +633,7 @@ Namespace UnitOperations
 
                         P2 = oms.GetPressure
 
-                        If UseOrificeFlow AndAlso (CalcMode = CalculationMode.Kv_General Or CalcMode = CalculationMode.Kv_Gas Or CalcMode = CalculationMode.Kv_Liquid) Then
-                            'restriction orifice / blowdown valve by bore and Cd: compressible orifice equations,
-                            'the opening characteristic scaling the open area
-                            Wi = OrificeMassFlow(ims, P1, P2, Ti, If(FC > 0.0, Kvc / FC, 1.0))
-                        ElseIf CalcMode = CalculationMode.Kv_General Or CalcMode = CalculationMode.Kv_Gas Or CalcMode = CalculationMode.Kv_Liquid Then
-                            'the same ISA/IEC 60534 forms as the steady-state sizing, so a wide-open valve,
-                            'a blowdown valve or a restriction orifice (Kv from KvFromOrifice) chokes where it
-                            'should: gas at x = Fk.xT, liquid at dP = FL^2 (P1 - FF.Pv). All forms return kg/h.
-                            If ims.Phases(1).Properties.molarfraction > 0.99 Or CalcMode = CalculationMode.Kv_Liquid Then
-                                ims.PropertyPackage.CurrentMaterialStream = ims
-                                rhol = ims.Phases(0).Properties.density.GetValueOrDefault
-                                Pc = ims.PropertyPackage.AUX_PCM(PropertyPackages.Phase.Liquid)
-                                Pv = ims.PropertyPackage.AUX_PVAPM(PropertyPackages.Phase.Liquid, Ti)
-                                If Double.IsNaN(Pv) Or Pv <= 0.0 Then Pv = 0.0
-                                If Double.IsNaN(Pc) Or Pc <= 0.0 Then Pc = P1
-                                Wi = WLiquid(Kvc, P1 / 100000.0, P2 / 100000.0, rhol, Pv / 100000.0, Pc / 100000.0) / 3600
-                            ElseIf ims.Phases(2).Properties.molarfraction > 0.99 Or CalcMode = CalculationMode.Kv_Gas Then
-                                ims.PropertyPackage.CurrentMaterialStream = ims
-                                rhog = ims.Phases(0).Properties.density.GetValueOrDefault
-                                Cp_ig = ims.PropertyPackage.AUX_CPm(PropertyPackages.Phase.Vapor, Ti) * ims.Phases(0).Properties.molecularWeight.GetValueOrDefault
-                                k = Cp_ig / (Cp_ig - 8.314)
-                                If Double.IsNaN(k) Or k <= 1.0 Then k = 1.3
-                                Wi = WGas(Kvc, P1 / 100000.0, P2 / 100000.0, k, rhog) / 3600
-                            Else
-                                ims.PropertyPackage.CurrentMaterialStream = ims
-                                rhog = ims.Phases(2).Properties.density.GetValueOrDefault
-                                Cp_ig = ims.PropertyPackage.AUX_CPm(PropertyPackages.Phase.Vapor, Ti) * ims.Phases(2).Properties.molecularWeight.GetValueOrDefault
-                                k = Cp_ig / (Cp_ig - 8.314)
-                                rhol = ims.Phases(1).Properties.density.GetValueOrDefault
-                                Pc = ims.PropertyPackage.AUX_PCM(PropertyPackages.Phase.Liquid)
-                                Pv = ims.PropertyPackage.AUX_PVAPM(PropertyPackages.Phase.Liquid, Ti)
-
-                                massfrac_gas = ims.Phases(2).Properties.massflow.GetValueOrDefault / ims.Phases(0).Properties.massflow.GetValueOrDefault
-                                massfrac_liq = ims.Phases(1).Properties.massflow.GetValueOrDefault / ims.Phases(0).Properties.massflow.GetValueOrDefault
-
-                                If Double.IsNaN(massfrac_gas) Or Double.IsNaN(massfrac_liq) Then
-                                    Wi = 0.0
-                                Else
-                                    'WTwoPhase returns kg/h, like the liquid and gas forms above
-                                    Wi = WTwoPhase(Kvc, P1 / 100000.0, P2 / 100000.0, rhog, rhol, k, Pv / 100000.0, Pc / 100000.0, massfrac_gas, massfrac_liq) / 3600
-                                End If
-
-                            End If
-                        ElseIf CalcMode = CalculationMode.Kv_Steam Then
-                            If P2 > P1 / 2 Then
-                                v2 = 1 / ims.PropertyPackage.AUX_VAPDENS(Ti, P2)
-                                Wi = Kvc * 31.62 / (v2 / ((P1 - P2) / 100000.0)) ^ 0.5 / 3600
-                            Else
-                                v2 = 1 / ims.PropertyPackage.AUX_VAPDENS(Ti, P1 / 2)
-                                Wi = Kvc * 31.62 / (2 * v2 / (P1 / 100000.0)) ^ 0.5 / 3600
-                            End If
-                        End If
-
-                        If Double.IsNaN(Wi) Or Double.IsInfinity(Wi) Or Wi < 0.0 Then Wi = 0.0
+                        Wi = CalculateDynamicMassFlow(P1, P2)
 
                         If ims.MaximumAllowableDynamicMassFlowRate.HasValue Then
                             Dim WiMax = ims.MaximumAllowableDynamicMassFlowRate.Value
@@ -985,6 +898,123 @@ Namespace UnitOperations
         Public Function KvTwoPhase(Wi As Double, P1 As Double, P2 As Double, rhog As Double, rhol As Double, k As Double, Pv As Double, Pc As Double, massfrac_gas As Double, massfrac_liq As Double) As Double
 
             KvTwoPhase = (massfrac_gas * KvGas(Wi, P1, P2, k, rhog) ^ 2 + massfrac_liq * KvLiquid(Wi, P1, P2, rhol, Pv, Pc) ^ 2) ^ 0.5
+        End Function
+
+        ''' <summary>
+        ''' The flow coefficient on the Kv basis, before the opening characteristic.
+        ''' </summary>
+        Public Function GetBaseKv() As Double
+            If FlowCoefficient = FlowCoefficientType.Cv Then
+                'Cv = 1.16 Kv
+                Return Kv / 1.16
+            Else
+                Return Kv
+            End If
+        End Function
+
+        ''' <summary>
+        ''' The flow coefficient (Kv basis) at the current opening, through the opening/Kv relationship.
+        ''' </summary>
+        Public Function GetEffectiveKv() As Double
+            Dim Kvc As Double
+            Dim FC As Double = GetBaseKv()
+
+            If EnableOpeningKvRelationship Then
+                Select Case DefinedOpeningKvRelationShipType
+                    Case OpeningKvRelationshipType.UserDefined
+                        Try
+                            ExpressionCache.SetVariable(_expressions.GetContext("OP"), "OP", OpeningPct)
+                            Kvc = FC * _expressions.GetCompiled("OP", PercentOpeningVersusPercentKvExpression).Evaluate() / 100
+                        Catch ex As Exception
+                            Throw New Exception("Invalid expression for Kv[Cv]/Opening relationship.")
+                        End Try
+                    Case OpeningKvRelationshipType.QuickOpening
+                        Kvc = (OpeningPct / 100.0) ^ 0.5 * FC
+                    Case OpeningKvRelationshipType.Linear
+                        Kvc = OpeningPct / 100.0 * FC
+                    Case OpeningKvRelationshipType.EqualPercentage
+                        Kvc = CharacteristicParameter ^ (OpeningPct / 100.0 - 1.0) * FC
+                    Case OpeningKvRelationshipType.DataTable
+                        Try
+                            Dim factor = MathNet.Numerics.Interpolate.RationalWithoutPoles(OpeningKvRelDataTableX, OpeningKvRelDataTableY).Interpolate(OpeningPct) / 100.0
+                            Kvc = factor * FC
+                        Catch ex As Exception
+                            Throw New Exception("Error calculating Kv from tabulated data: " + ex.Message)
+                        End Try
+                End Select
+            Else
+                Kvc = FC
+            End If
+            Return Kvc
+        End Function
+
+        ''' <summary>
+        ''' Mass flow through the valve in dynamic mode (kg/s) for the given inlet and outlet pressures
+        ''' (Pa), from the inlet stream's current state and the current opening. Nothing on the
+        ''' streams changes, so a pressure-flow network solver can call it repeatedly.
+        ''' </summary>
+        Public Function CalculateDynamicMassFlow(P1 As Double, P2 As Double) As Double
+            Dim ims As MaterialStream = Me.GetInletMaterialStream(0)
+            Dim Ti As Double = ims.Phases(0).Properties.temperature.GetValueOrDefault
+            Dim FC As Double = GetBaseKv()
+            Dim Kvc As Double = GetEffectiveKv()
+            Dim Wi, v2, Pv, Pc, rhol, rhog, k, Cp_ig, massfrac_gas, massfrac_liq As Double
+
+            If UseOrificeFlow AndAlso (CalcMode = CalculationMode.Kv_General Or CalcMode = CalculationMode.Kv_Gas Or CalcMode = CalculationMode.Kv_Liquid) Then
+                'restriction orifice / blowdown valve by bore and Cd: compressible orifice equations,
+                'the opening characteristic scaling the open area
+                Wi = OrificeMassFlow(ims, P1, P2, Ti, If(FC > 0.0, Kvc / FC, 1.0))
+            ElseIf CalcMode = CalculationMode.Kv_General Or CalcMode = CalculationMode.Kv_Gas Or CalcMode = CalculationMode.Kv_Liquid Then
+                'the same ISA/IEC 60534 forms as the steady-state sizing, so a wide-open valve,
+                'a blowdown valve or a restriction orifice (Kv from KvFromOrifice) chokes where it
+                'should: gas at x = Fk.xT, liquid at dP = FL^2 (P1 - FF.Pv). All forms return kg/h.
+                If ims.Phases(1).Properties.molarfraction > 0.99 Or CalcMode = CalculationMode.Kv_Liquid Then
+                    ims.PropertyPackage.CurrentMaterialStream = ims
+                    rhol = ims.Phases(0).Properties.density.GetValueOrDefault
+                    Pc = ims.PropertyPackage.AUX_PCM(PropertyPackages.Phase.Liquid)
+                    Pv = ims.PropertyPackage.AUX_PVAPM(PropertyPackages.Phase.Liquid, Ti)
+                    If Double.IsNaN(Pv) Or Pv <= 0.0 Then Pv = 0.0
+                    If Double.IsNaN(Pc) Or Pc <= 0.0 Then Pc = P1
+                    Wi = WLiquid(Kvc, P1 / 100000.0, P2 / 100000.0, rhol, Pv / 100000.0, Pc / 100000.0) / 3600
+                ElseIf ims.Phases(2).Properties.molarfraction > 0.99 Or CalcMode = CalculationMode.Kv_Gas Then
+                    ims.PropertyPackage.CurrentMaterialStream = ims
+                    rhog = ims.Phases(0).Properties.density.GetValueOrDefault
+                    Cp_ig = ims.PropertyPackage.AUX_CPm(PropertyPackages.Phase.Vapor, Ti) * ims.Phases(0).Properties.molecularWeight.GetValueOrDefault
+                    k = Cp_ig / (Cp_ig - 8.314)
+                    If Double.IsNaN(k) Or k <= 1.0 Then k = 1.3
+                    Wi = WGas(Kvc, P1 / 100000.0, P2 / 100000.0, k, rhog) / 3600
+                Else
+                    ims.PropertyPackage.CurrentMaterialStream = ims
+                    rhog = ims.Phases(2).Properties.density.GetValueOrDefault
+                    Cp_ig = ims.PropertyPackage.AUX_CPm(PropertyPackages.Phase.Vapor, Ti) * ims.Phases(2).Properties.molecularWeight.GetValueOrDefault
+                    k = Cp_ig / (Cp_ig - 8.314)
+                    rhol = ims.Phases(1).Properties.density.GetValueOrDefault
+                    Pc = ims.PropertyPackage.AUX_PCM(PropertyPackages.Phase.Liquid)
+                    Pv = ims.PropertyPackage.AUX_PVAPM(PropertyPackages.Phase.Liquid, Ti)
+
+                    massfrac_gas = ims.Phases(2).Properties.massflow.GetValueOrDefault / ims.Phases(0).Properties.massflow.GetValueOrDefault
+                    massfrac_liq = ims.Phases(1).Properties.massflow.GetValueOrDefault / ims.Phases(0).Properties.massflow.GetValueOrDefault
+
+                    If Double.IsNaN(massfrac_gas) Or Double.IsNaN(massfrac_liq) Then
+                        Wi = 0.0
+                    Else
+                        'WTwoPhase returns kg/h, like the liquid and gas forms above
+                        Wi = WTwoPhase(Kvc, P1 / 100000.0, P2 / 100000.0, rhog, rhol, k, Pv / 100000.0, Pc / 100000.0, massfrac_gas, massfrac_liq) / 3600
+                    End If
+
+                End If
+            ElseIf CalcMode = CalculationMode.Kv_Steam Then
+                If P2 > P1 / 2 Then
+                    v2 = 1 / ims.PropertyPackage.AUX_VAPDENS(Ti, P2)
+                    Wi = Kvc * 31.62 / (v2 / ((P1 - P2) / 100000.0)) ^ 0.5 / 3600
+                Else
+                    v2 = 1 / ims.PropertyPackage.AUX_VAPDENS(Ti, P1 / 2)
+                    Wi = Kvc * 31.62 / (2 * v2 / (P1 / 100000.0)) ^ 0.5 / 3600
+                End If
+            End If
+
+            If Double.IsNaN(Wi) Or Double.IsInfinity(Wi) Or Wi < 0.0 Then Wi = 0.0
+            Return Wi
         End Function
 
         ''' <summary>
