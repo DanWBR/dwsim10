@@ -730,7 +730,9 @@ Namespace SpecialOps
 
             PVValue = CurrentValue
 
-            MVValue = CurrentManipulatedValue
+            ' In manual the MV is what the operator asked for, not what the valve reports: refreshing it
+            ' from the manipulated object here threw the operator's value away before Calculate could use it.
+            If Not ManualOverride Then MVValue = CurrentManipulatedValue
 
         End Sub
 
