@@ -2115,6 +2115,15 @@ Public Class Server
                 resp.StatusCode = dynamicsResult.StatusCode
                 body = dynamicsResult.Body
 
+                ' ── /api/ext/<prefix>/* ─────────────────────────────────────────────
+                ' Routes another extender answers (the Operator Training Simulator, for one).
+            ElseIf ExtensionRoutes.Owns(path) Then
+
+                Dim extResult = ExtensionRoutes.Handle(Flowsheet, method, path, body,
+                                                       Sub() Flowsheet.UpdateInterface())
+                resp.StatusCode = extResult.StatusCode
+                body = extResult.Body
+
             Else
 
                 resp.StatusCode = 404
