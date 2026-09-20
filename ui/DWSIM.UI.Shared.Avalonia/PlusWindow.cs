@@ -45,6 +45,12 @@ public class PlusWindow : UserControl
     /// </summary>
     public PixelPoint? Position { get; set; }
 
+    /// <summary>
+    /// Lets the desktop window take the size of its content (a faceplate, a small dialog) instead of
+    /// the Width and Height set on the form. Ignored on a single-view host.
+    /// </summary>
+    public SizeToContent SizeToContent { get; set; } = SizeToContent.Manual;
+
     /// <summary>The desktop window behind this form once shown; null before that and on a single-view host.</summary>
     public Window? NativeWindow => _window;
 
@@ -123,6 +129,7 @@ public class PlusWindow : UserControl
         };
         if (!double.IsNaN(width)) _window.Width = width;
         if (!double.IsNaN(height)) _window.Height = height;
+        _window.SizeToContent = SizeToContent;
         if (Position is PixelPoint p)
         {
             _window.WindowStartupLocation = WindowStartupLocation.Manual;
