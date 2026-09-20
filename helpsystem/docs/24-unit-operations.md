@@ -5927,7 +5927,51 @@ v_\mathrm{crit} = 3.3\,f_n\,d_o
 
 ##### Design Mode {#sec:ahx:design}
 
-In Design mode the user specifies one outlet temperature. The model first estimates the required area from a shortcut LMTD calculation with an assumed $U = 500$ W/m$^2$ K, computes the initial tube count as $N_t = A_\mathrm{req}/(\pi\,d_o\,L_t)$, and derives the shell diameter from tube-count correlations. It then iterates (up to 20 times) by running a full Rating calculation and adjusting $N_t$ by the ratio $Q_\mathrm{req}/Q_\mathrm{calc}$ until convergence within 2%. If a maximum shell-side pressure drop constraint is active, the baffle spacing is increased by 20% in each iteration where the constraint is violated.
+In Design mode the user specifies one outlet temperature. The model first estimates the required area from a shortcut LMTD calculation with an assumed $U = 500$ W/m$^2$ K, computes the initial tube count as $N_t = A_\mathrm{req}/(\pi\,d_o\,L_t)$, and derives the shell diameter from the tube-count rule $D_\mathrm{otl}^2 = (4/\pi)(C_L/C_\mathrm{TP})\,N_t\,p_t^2$ ($C_L = 1$ for square and $0.866$ for triangular layouts, $C_\mathrm{TP}$ the pass-partition factor), the same rule the geometry check applies, with a 2% margin. It then iterates (up to 20 times) by running a full Rating calculation and adjusting $N_t$ by the ratio $Q_\mathrm{req}/Q_\mathrm{calc}$ until convergence within 2%. If a maximum shell-side pressure drop constraint is active, the baffle spacing is increased by 20% in each iteration where the constraint is violated.
+
+##### Kettle Reboiler {#sec:ahx:kettle}
+
+The exchanger can be run as a kettle reboiler (TEMA K shell), the usual choice for the reboiler of a distillation column. The option is on the Shell Side page. In this mode the boiling process fluid is the cold fluid and has to be on the shell side; the heating medium (steam, thermal oil, hot process stream) goes through the tubes.
+
+###### Thermal model {#thermal-model}
+
+The shell side of a kettle is a pool of liquid at one temperature, with no baffles and no flow across the bundle. The incremental integration of Section [2.33.4](#sec:ahx:rating) is kept for the tube side, and the shell side is taken as a well-mixed pool at the outlet state of the process fluid: the pool temperature and vapor fraction are the outlet temperature and vapor fraction, and are settled with the outer iterations of the rating. The coefficient on the bundle is the nucleate boiling coefficient of Mostinski  at the pseudo-critical pressure of the mixture (the mole-fraction average of the critical pressures), solved together with the local heat flux, once the pool is at its bubble point; while the pool is still subcooled the coefficient is that of natural convection over a horizontal tube (Churchill and Chu). The Bell–Delaware corrections, the shell-side pressure drop and the vibration checks do not apply to a pool and are not computed.
+
+###### Kettle shell
+
+The shell inside diameter of the geometry page is the port that holds the tube bundle. The kettle shell around it is sized from the service:
+
+- the liquid level is the bundle diameter plus the bottom clearance plus the height the weir keeps above the top row of tubes (75 mm by default), which is the weir height;
+
+- the vapor velocity across the free liquid surface (the chord of the shell at the liquid level times the tube length) must stay below the allowable value $u_\mathrm{v} = K \sqrt{(\rho_L - \rho_V)/\rho_V}$, with $K = 0.2$ m/s by default ;
+
+- the vapor space above the liquid must not be smaller than the minimum given (300 mm by default).
+
+When the kettle shell diameter is left at zero, the largest of 1.6 times the bundle diameter, the liquid level plus the minimum vapor space, and the diameter that satisfies the velocity limit is taken, rounded up to 10 mm. When a diameter is given, the checks are reported against it. The results give the kettle shell diameter and its ratio to the bundle, the weir height, the vapor space, the free surface area, the vapor velocity and its allowable value, the vapor generated and the fraction of the feed vaporized, the pool temperature, and the liquid inventory up to the weir (the circular segment below the liquid level less the tubes). The shell-side volume and the weights follow the kettle shell.
+
+###### Heat flux
+
+The design heat flux $q = Q/A$ is compared with the critical heat flux of the bundle,
+
+
+<a id="eq:ahx:kettlechf"></a>
+
+\[
+q_{c,b} = \phi_b \, q_{c,1}, \qquad
+  q_{c,1} = 3.67 \times 10^{4}\, P_c\, P_r^{0.35}\,(1 - P_r)^{0.9}, \qquad
+  \phi_b = \min\!\left(1,\; 3.1\,\frac{D_b}{N_t\, d_o}\right),
+\]
+
+
+where $q_{c,1}$ is the single-tube critical flux of Mostinski ($P_c$ in bar, result in W/m$^2$) and $\phi_b$ the bundle factor of Palen and Small , the ratio of the bundle envelope to the tube surface: the inner tubes of a big bundle are blanketed by the vapor of the tubes below them and the bundle reaches its maximum flux well before a single tube would. A warning is issued when $q$ exceeds the chosen fraction of $q_{c,b}$ (70% by default), and an absolute cap on the flux can be set for the company practices that limit it (Kern’s 40 kW/m$^2$ for organics, for instance).
+
+###### Design of a kettle
+
+In Design mode the duty can be given as the molar fraction of the bottoms liquid that has to be vaporized, the number the column gives (the vapor returned to the column over the liquid to the reboiler); the duty follows from a pressure and vapor fraction flash of the shell fluid. The hot outlet temperature specification of Section [2.33.12](#sec:ahx:design) remains available. After the tube count is settled for the duty, the heat flux is checked; when it is above the limit the tube count is raised until the flux is within it ($q \propto 1/N_t$ while $q_{c,b} \propto 1/\sqrt{N_t}$), and a warning tells that the area is set by the flux and that the heating medium has to be throttled to hold the specified vaporization.
+
+###### Methodology
+
+For the preliminary sizing of the reboiler of a column: take the reboiler duty, the liquid to the reboiler and the vapor generated from the solved column; put the bottoms liquid on the shell side and the heating medium on the tubes of an Advanced Heat Exchanger with the kettle option; run Design mode with the vapor fraction of the column; read the number and length of tubes, the bundle diameter, the kettle shell diameter, the weir height and the liquid inventory for the equipment list and the datasheet. The kettle shell is a conceptual size; the mechanical design belongs to the fabricator.
 
 ##### Simulation Mode {#sec:ahx:simulation}
 
@@ -6157,6 +6201,8 @@ After a successful calculation the following results are available:
 - Temperature, duty, and vapor-fraction profiles along the exchanger.
 
 - Vibration warnings (if any).
+
+- Kettle reboiler: shell diameter, weir height, vapor space, free surface, vapor velocity, vapor generated, heat flux against the bundle critical flux, liquid inventory and the kettle checks (Section [2.33.13](#sec:ahx:kettle)).
 
 #### Vapor Compression Chiller {#sec:vcc}
 
