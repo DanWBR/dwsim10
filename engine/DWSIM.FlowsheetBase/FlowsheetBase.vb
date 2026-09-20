@@ -1416,6 +1416,9 @@ Imports DWSIM.ExtensionMethods
                 DirectCast(uoobj, Interfaces.ISimulationObject).Name = gObj.Name
                 GraphicObjects.Add(gObj.Name, myNode)
                 DirectCast(uoobj, Interfaces.ISimulationObject).GraphicObject = myNode
+                'the external graphic builds its connectors through its owner; without the owner set
+                'here a headless creation (automation, fluent API) got an object with no ports
+                myNode.Owner = uoobj
                 myNode.CreateConnectors(0, 0)
                 SimulationObjects.Add(myNode.Name, uoobj)
 
