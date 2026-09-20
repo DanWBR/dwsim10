@@ -80,6 +80,7 @@ Version 10.2.9
 - [FIX] AI Assistant: the flowsheet bridge on localhost:5002 accepted connections but never answered when another process held the port; the bridge is started from ownership and a held port gets its own message (#84)
 - [FIX] Advanced Heat Exchanger Design mode stopped on "Too many tubes for this shell" on every run: the bundle diameter it sized for the tube count missed the 4/pi factor of the count rule the geometry check applies
 - [FIX] External unit operations created without the interface (automation, fluent API, MCP server) had no connection ports: the graphic built its connectors before its owner was set
+- [FIX] Advanced Heat Exchanger: the heat duty was shown and exposed as a property 1000 times too large (calculated in W, converted as if it were kW); the outlet streams were right
 
 Version 10.2.8
 
