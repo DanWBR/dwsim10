@@ -3829,6 +3829,10 @@ public partial class FlowsheetView : UserControl
                 extender.Level == DWSIM.Interfaces.Enums.ExtenderLevel.MainWindow)
                 continue;
 
+            // the collection's own top-level menu, resolved once: FindOrCreateTopLevelMenu empties
+            // an owned menu, so calling it per item would keep only the last entry
+            MenuItem? collectionMenu = null;
+
             foreach (var item in extender.Collection)
             {
                 if (item is not DWSIM.Interfaces.IExtender ext)
@@ -3889,7 +3893,7 @@ public partial class FlowsheetView : UserControl
                             // a collection filed under NewItem brings its own top-level menu, named after
                             // the collection, the way the Windows interface gives the Operator Training
                             // extender a menu of its own
-                            DWSIM.Interfaces.Enums.ExtenderCategory.NewItem   => FindOrCreateTopLevelMenu(extender),
+                            DWSIM.Interfaces.Enums.ExtenderCategory.NewItem   => collectionMenu ??= FindOrCreateTopLevelMenu(extender),
                             _ => null
                         };
 
