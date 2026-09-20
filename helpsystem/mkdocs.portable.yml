@@ -97,43 +97,44 @@ nav:
     - Unit Operation Dynamic Properties: 33-unit-operation-dynamic-properties.md
     - Dynamic Simulation Tools: 34-dynamic-simulation-tools.md
     - Supported Unit Operations: 35-supported-unit-operations.md
+    - Operator Training Simulator (OTS): 36-operator-training-simulator-ots.md
   - "Technical Basis: Methods and Procedures":
-    - Introduction: 37-introduction.md
-    - Thermodynamic Properties: 38-thermodynamic-properties.md
-    - Transport Properties: 39-transport-properties.md
-    - Thermal Properties: 40-thermal-properties.md
-    - Aqueous Solution Properties: 41-aqueous-solution-properties.md
-    - Specialized Models / Property Packages: 42-specialized-models-property-packages.md
-    - Reactions: 43-reactions.md
-    - Property Estimation Methods: 44-property-estimation-methods.md
-    - Other Properties: 45-other-properties.md
-    - "Corrosion & Scaling Monitor": 46-corrosion-scaling-monitor.md
+    - Introduction: 38-introduction.md
+    - Thermodynamic Properties: 39-thermodynamic-properties.md
+    - Transport Properties: 40-transport-properties.md
+    - Thermal Properties: 41-thermal-properties.md
+    - Aqueous Solution Properties: 42-aqueous-solution-properties.md
+    - Specialized Models / Property Packages: 43-specialized-models-property-packages.md
+    - Reactions: 44-reactions.md
+    - Property Estimation Methods: 45-property-estimation-methods.md
+    - Other Properties: 46-other-properties.md
+    - "Corrosion & Scaling Monitor": 47-corrosion-scaling-monitor.md
   - How-To Tutorials:
-    - Methane Steam Reforming: 48-methane-steam-reforming.md
-    - Extractive Distillation: 49-extractive-distillation.md
-    - Flowsheet Control with Python Scripts: 50-flowsheet-control-with-python-scripts.md
-    - Basic Dynamic Simulation Tutorial: 51-basic-dynamic-simulation-tutorial.md
+    - Methane Steam Reforming: 49-methane-steam-reforming.md
+    - Extractive Distillation: 50-extractive-distillation.md
+    - Flowsheet Control with Python Scripts: 51-flowsheet-control-with-python-scripts.md
+    - Basic Dynamic Simulation Tutorial: 52-basic-dynamic-simulation-tutorial.md
   - Advanced Topics:
-    - Python Scripting: 53-python-scripting.md
-    - Model Customization: 54-model-customization.md
-    - Overriding Calculated Properties: 55-overriding-calculated-properties.md
-    - Automation: 56-automation.md
-    - Excel Add-In for Thermo Calculations: 57-excel-add-in-for-thermo-calculations.md
-    - Property Package Methods and Correlation Profiles: 58-property-package-methods-and-correlation-profiles.md
-    - CAPE-OPEN Subsystem: 59-cape-open-subsystem.md
+    - Python Scripting: 54-python-scripting.md
+    - Model Customization: 55-model-customization.md
+    - Overriding Calculated Properties: 56-overriding-calculated-properties.md
+    - Automation: 57-automation.md
+    - Excel Add-In for Thermo Calculations: 58-excel-add-in-for-thermo-calculations.md
+    - Property Package Methods and Correlation Profiles: 59-property-package-methods-and-correlation-profiles.md
+    - CAPE-OPEN Subsystem: 60-cape-open-subsystem.md
   - Additional Resources:
-    - Online Courses and Videos: 61-online-courses-and-videos.md
-    - Learning Resources: 62-learning-resources.md
-    - Programming Help: 63-programming-help.md
+    - Online Courses and Videos: 62-online-courses-and-videos.md
+    - Learning Resources: 63-learning-resources.md
+    - Programming Help: 64-programming-help.md
   - "Appendix: Analytical Thermodynamic Derivatives":
-    - Overview: 64-appendix-analytical-thermodynamic-derivatives.md
-    - Scope and Notation: 65-scope-and-notation.md
-    - "Cubic Equations of State (PR, SRK, PR78)": 66-cubic-equations-of-state-pr-srk-pr78.md
-    - Peng-Robinson-Stryjek-Vera 2 (PRSV2 and PRSV2-VL): 67-peng-robinson-stryjek-vera-2-prsv2-and-prsv2-vl.md
-    - Chao-Seader and Grayson-Streed: 68-chao-seader-and-grayson-streed.md
-    - Lee-Kesler-Plocker: 69-lee-kesler-plocker.md
-    - Activity-Coefficient Models: 70-activity-coefficient-models.md
-    - Electrolyte Activity Models: 71-electrolyte-activity-models.md
-    - Add-on Activity Models: 72-add-on-activity-models.md
-    - Advanced Equation-of-State Packages: 73-advanced-equation-of-state-packages.md
-    - Use in the Flash and Column Solvers: 74-use-in-the-flash-and-column-solvers.md
+    - Overview: 65-appendix-analytical-thermodynamic-derivatives.md
+    - Scope and Notation: 66-scope-and-notation.md
+    - "Cubic Equations of State (PR, SRK, PR78)": 67-cubic-equations-of-state-pr-srk-pr78.md
+    - Peng-Robinson-Stryjek-Vera 2 (PRSV2 and PRSV2-VL): 68-peng-robinson-stryjek-vera-2-prsv2-and-prsv2-vl.md
+    - Chao-Seader and Grayson-Streed: 69-chao-seader-and-grayson-streed.md
+    - Lee-Kesler-Plocker: 70-lee-kesler-plocker.md
+    - Activity-Coefficient Models: 71-activity-coefficient-models.md
+    - Electrolyte Activity Models: 72-electrolyte-activity-models.md
+    - Add-on Activity Models: 73-add-on-activity-models.md
+    - Advanced Equation-of-State Packages: 74-advanced-equation-of-state-packages.md
+    - Use in the Flash and Column Solvers: 75-use-in-the-flash-and-column-solvers.md
