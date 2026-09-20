@@ -32,12 +32,13 @@ namespace DWSIM.Engine.SmokeTests
             _ => new RaoultPropertyPackage(),
         };
 
-        [TestCase("Raoult")]
-        [TestCase("Peng-Robinson")]
-        [TestCase("SRK")]
-        [TestCase("NRTL")]
-        [TestCase("Chao-Seader")]
-        public void LiquidWaterAt80CHasTheDensityOfLiquidWater(string package)
+        [TestCase("Raoult", 353.15, 100000.0, 971.8)]
+        [TestCase("Peng-Robinson", 353.15, 100000.0, 971.8)]
+        [TestCase("SRK", 353.15, 100000.0, 971.8)]
+        [TestCase("NRTL", 353.15, 100000.0, 971.8)]
+        [TestCase("Chao-Seader", 353.15, 100000.0, 971.8)]
+        [TestCase("Raoult", 298.15, 130000.0, 997.1)]   // as reported: 10 kg/s came out as 10.58 m3/s
+        public void LiquidWaterHasTheDensityOfLiquidWater(string package, double T, double P, double rhoIapws)
         {
             var fs = new DWSIM.DynamicRunner.Flowsheet(null, null);
             fs.Init();
@@ -52,17 +53,17 @@ namespace DWSIM.Engine.SmokeTests
             ms.PropertyPackage = pp;
             ms.AssignSelfToPP();
             ms.SetMassFlow(1.0);
-            ms.SetTemperature(353.15);
-            ms.SetPressure(100000.0);
+            ms.SetTemperature(T);
+            ms.SetPressure(P);
             ms.SetOverallComposition(new[] { 1.0 });
             ms.SetFlashSpec("PT");
             ms.Calculate();
 
             double rhoL = ms.Phases[3].Properties.density.GetValueOrDefault();
             double rhoMix = ms.Phases[0].Properties.density.GetValueOrDefault();
-            TestContext.WriteLine("{0,-16} liquid {1:F2} kg/m3, mixture {2:F2} kg/m3 (IAPWS 971.8)", package, rhoL, rhoMix);
+            TestContext.WriteLine("{0,-16} {1:F2} K {2:F0} Pa: liquid {3:F2} kg/m3, mixture {4:F2} kg/m3 (IAPWS {5:F1})", package, T, P, rhoL, rhoMix, rhoIapws);
 
-            Assert.That(rhoL, Is.EqualTo(971.8).Within(2.0).Percent, $"{package}: liquid density {rhoL:F2}");
+            Assert.That(rhoL, Is.EqualTo(rhoIapws).Within(2.0).Percent, $"{package}: liquid density {rhoL:F2}");
             Assert.That(rhoMix, Is.EqualTo(rhoL).Within(0.1).Percent);
         }
 
