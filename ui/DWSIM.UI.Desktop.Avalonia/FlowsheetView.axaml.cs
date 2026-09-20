@@ -3771,6 +3771,35 @@ public partial class FlowsheetView : UserControl
     }
 
     /// <summary>
+    /// The top-level menu an extension collection owns: found by its display text, or created and placed
+    /// at the position the collection asks for (before Help when it does not say). A menu created on an
+    /// earlier pass of <see cref="LoadFlowsheetExtensions"/> is emptied so its items are not doubled.
+    /// </summary>
+    private MenuItem FindOrCreateTopLevelMenu(DWSIM.Interfaces.IExtenderCollection extender)
+    {
+        var header = extender.DisplayText ?? "Extensions";
+        var menu = FindTopLevelMenu(header);
+        if (menu == null)
+        {
+            menu = new MenuItem { Header = header };
+            var at = (extender as DWSIM.Interfaces.IExtenderCollection2)?.InsertAtPosition ?? -1;
+            var help = MainMenuBar.Items.OfType<MenuItem>().FirstOrDefault(m => (m.Header?.ToString() ?? "").Replace("_", "") == "Help");
+            var last = help != null ? MainMenuBar.Items.IndexOf(help) : MainMenuBar.Items.Count;
+            if (at < 0 || at > last) at = last;
+            MainMenuBar.Items.Insert(at, menu);
+        }
+        else if (_ownedExtensionMenus.Contains(menu))
+        {
+            menu.Items.Clear();
+        }
+        _ownedExtensionMenus.Add(menu);
+        try { (extender as DWSIM.Interfaces.IExtenderCollection2)?.SetMenuItem(menu); } catch { }
+        return menu;
+    }
+
+    private readonly HashSet<MenuItem> _ownedExtensionMenus = new();
+
+    /// <summary>
     /// Loads FlowsheetView-level extenders (from MainWindow.Extenders).
     /// Mirrors Eto Flowsheet.eto.cs lines 2016-2085.
     /// </summary>
@@ -3857,12 +3886,18 @@ public partial class FlowsheetView : UserControl
                             DWSIM.Interfaces.Enums.ExtenderCategory.Optimization => FindTopLevelMenu("Tools"),
                             DWSIM.Interfaces.Enums.ExtenderCategory.Results   => FindTopLevelMenu("Results"),
                             DWSIM.Interfaces.Enums.ExtenderCategory.Help      => FindTopLevelMenu("Help"),
+                            // a collection filed under NewItem brings its own top-level menu, named after
+                            // the collection, the way the Windows interface gives the Operator Training
+                            // extender a menu of its own
+                            DWSIM.Interfaces.Enums.ExtenderCategory.NewItem   => FindOrCreateTopLevelMenu(extender),
                             _ => null
                         };
 
                         if (targetMenu != null)
                         {
-                            targetMenu.Items.Add(menuItem);
+                            var at = ext.InsertAtPosition;
+                            if (at >= 0 && at < targetMenu.Items.Count) targetMenu.Items.Insert(at, menuItem);
+                            else targetMenu.Items.Add(menuItem);
                         }
 
                         // the Windows interface keeps one entry at the right of its menu strip,

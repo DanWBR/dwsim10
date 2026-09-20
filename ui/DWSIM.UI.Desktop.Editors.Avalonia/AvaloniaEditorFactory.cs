@@ -123,6 +123,12 @@ namespace DWSIM.UI.Desktop.Editors
         /// </summary>
         private static global::Avalonia.Controls.Control BuildWindowsStyleEditor(ISimulationObject simobj)
         {
+            // an external unit operation owns its editor (PopulateEditorPanel) even when it derives from a
+            // built-in block, the way the OTS Transmitter derives from AnalogGauge; the type switch below
+            // would capture it through the base class and its own rows would never appear
+            if (simobj is IExternalUnitOperation && simobj.GraphicObject?.ObjectType == ObjectType.External)
+                return null;
+
             switch (simobj)
             {
                 case DWSIM.UnitOperations.UnitOperations.Heater heater:
