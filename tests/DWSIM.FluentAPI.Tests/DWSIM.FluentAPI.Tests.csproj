@@ -27,4 +27,8 @@
     <ProjectReference Include="..\..\engine\DWSIM.UnitOperations\DWSIM.UnitOperations.vbproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Include="..\Shared\TestTiming.cs" Link="TestTiming.cs" />
+  </ItemGroup>
+
 </Project>

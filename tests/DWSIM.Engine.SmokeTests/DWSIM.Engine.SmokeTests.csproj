@@ -29,4 +29,8 @@
     </Reference>
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Include="..\Shared\TestTiming.cs" Link="TestTiming.cs" />
+  </ItemGroup>
+
 </Project>
