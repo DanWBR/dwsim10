@@ -26,6 +26,18 @@ namespace DWSIM.FluentAPI.Tests
     [TestFixture]
     public class FluentApiTests
     {
+        /// <summary>
+        /// The cases that take minutes rather than seconds: the polymer models, which run PC-SAFT
+        /// flashes over long compound lists, and the dynamic column runs, which integrate hundreds of
+        /// steps. Together they are around 90 % of the time this suite takes, so they are left out of
+        /// an ordinary run and are meant to be run before cutting a release:
+        ///
+        ///     dotnet test tests\DWSIM.FluentAPI.Tests --filter TestCategory=ReleaseOnly
+        ///
+        /// tests\tests.runsettings is what keeps them out of a plain <c>dotnet test</c>.
+        /// </summary>
+        public const string Slow = "ReleaseOnly";
+
         [Test] public void AMixerBalancesMassAndEnergy() => MixerTest.Run();
 
         [Test] public void ABroydenRecycleConvergesLikeSubstitution() => RecycleBroydenTest.Run();
@@ -56,15 +68,17 @@ namespace DWSIM.FluentAPI.Tests
 
         [Test] public void APumpFollowsItsPerformanceCurves() => PumpCurvesTest.Run();
 
+        [Test] public void APumpReadsItsCurvesMeasuredAtSeveralSpeeds() => PumpMultiSpeedCurvesTest.Run();
+
         [Test] public void PropertyIdentifiersHaveReadableNames() => PropertyCatalogTest.Run();
         [Test] public void TheAssistantApiAnswersOverHttp() => AssistantHttpTest.Run();
         [Test] public void TheDiagnosticsNameAFlowsheetsFaults() => FlowsheetDiagnosticsTest.Run();
         [Test] public void ADynamicRunFollowsItsScheduledEvents() => DynamicsEventProfileTest.Run();
 
         [Test] public void ATankFillsAtTheRateItIsFed() => DynamicsTankFillingTest.Run();
-        [Test] public void ADynamicColumnRidesAFeedStep() => DynamicsColumnCaseTest.Run();
-        [Test] public void AColumnStartsUpFromEmpty() => DynamicsColumnStartupCaseTest.Run();
-        [Test] public void AColumnShutsDown() => DynamicsColumnShutdownCaseTest.Run();
+        [Test, Category(Slow)] public void ADynamicColumnRidesAFeedStep() => DynamicsColumnCaseTest.Run();
+        [Test, Category(Slow)] public void AColumnStartsUpFromEmpty() => DynamicsColumnStartupCaseTest.Run();
+        [Test, Category(Slow)] public void AColumnShutsDown() => DynamicsColumnShutdownCaseTest.Run();
 
         [Test] public void NaturalLayoutLaysRecyclesOutAsARectangle() => RecycleLayoutTest.Run();
 
@@ -91,14 +105,14 @@ namespace DWSIM.FluentAPI.Tests
 
         [Test] public void TheBiogasToGridSampleSolvesAndSaves() => BiogasToGridSample.Run();
 
-        [Test] public void ThePolymerDevolatilizationSampleSolvesAndSaves() => PolymerDevolatilizationSample.Run();
+        [Test, Category(Slow)] public void ThePolymerDevolatilizationSampleSolvesAndSaves() => PolymerDevolatilizationSample.Run();
 
-        [Test] public void ThePolymerCloudPointSampleSolvesAndSaves() => PolymerCloudPointSample.Run();
+        [Test, Category(Slow)] public void ThePolymerCloudPointSampleSolvesAndSaves() => PolymerCloudPointSample.Run();
 
-        [Test] public void TheCopolymerDevolatilizationSampleSolvesAndSaves() => CopolymerDevolatilizationSample.Run();
+        [Test, Category(Slow)] public void TheCopolymerDevolatilizationSampleSolvesAndSaves() => CopolymerDevolatilizationSample.Run();
 
-        [Test] public void ThePegDewateringSampleSolvesAndSaves() => PegDewateringSample.Run();
+        [Test, Category(Slow)] public void ThePegDewateringSampleSolvesAndSaves() => PegDewateringSample.Run();
 
-        [Test] public void TheStyrenePolymerizationSampleSolvesAndSaves() => StyrenePolymerizationSample.Run();
+        [Test, Category(Slow)] public void TheStyrenePolymerizationSampleSolvesAndSaves() => StyrenePolymerizationSample.Run();
     }
 }

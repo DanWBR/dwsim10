@@ -4,6 +4,7 @@
     <RootNamespace>DWSIM.Engine.SmokeTests</RootNamespace>
     <AssemblyName>DWSIM.Engine.SmokeTests</AssemblyName>
     <IsPackable>false</IsPackable>
+    <RunSettingsFilePath>$(MSBuildThisFileDirectory)../tests.runsettings</RunSettingsFilePath>
   </PropertyGroup>
 
   <ItemGroup>

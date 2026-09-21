@@ -1,4 +1,4 @@
-using NUnit.Framework;
+﻿using NUnit.Framework;
 using DWSIM.Automation.FluentAPI;
 using DWSIM.Automation.FluentAPI.Dynamics;
 using DWSIM.Thermodynamics.BaseClasses;
@@ -16,7 +16,7 @@ namespace DWSIM.FluentAPI.Tests
     [TestFixture]
     public class PolymerizationReactorTests
     {
-        [Test]
+        [Test, Category(FluentApiTests.Slow)]
         public void PolymerizationReactorSolvesOnAFlowsheet()
         {
             var poly = new ConstantProperties
@@ -69,7 +69,7 @@ namespace DWSIM.FluentAPI.Tests
             });
         }
 
-        [Test]
+        [Test, Category(FluentApiTests.Slow)]
         public void ReactorEmitsAMolecularWeightDistribution()
         {
             var poly = new ConstantProperties
@@ -135,7 +135,7 @@ namespace DWSIM.FluentAPI.Tests
             });
         }
 
-        [Test]
+        [Test, Category(FluentApiTests.Slow)]
         public void CopolymerReactorSolvesWithTwoMonomers()
         {
             // A second monomer switches the reactor to the terminal copolymerization model. Ethylbenzene (A)
@@ -205,7 +205,7 @@ namespace DWSIM.FluentAPI.Tests
             });
         }
 
-        [Test]
+        [Test, Category(FluentApiTests.Slow)]
         public void PlugFlowCopolymerReactorSolvesOnAFlowsheet()
         {
             // The plug-flow flag routes the copolymer reactor through the batch/PFR solver. A skewed feed run to
@@ -269,7 +269,7 @@ namespace DWSIM.FluentAPI.Tests
             });
         }
 
-        [Test]
+        [Test, Category(FluentApiTests.Slow)]
         public void DynamicModeDevelopsThePolymerInTime()
         {
             // Dynamic mode: the integrator steps the reactor, which reacts its holdup each timestep. Charging
@@ -340,7 +340,7 @@ namespace DWSIM.FluentAPI.Tests
             });
         }
 
-        [Test]
+        [Test, Category(FluentApiTests.Slow)]
         public void AdiabaticReactorHeatsUpFromTheExotherm()
         {
             // Phase 3: adiabatic operation. The exothermic polymerization has no cooling duty, so the reactor

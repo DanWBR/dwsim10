@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The slow cases (NUnit category "ReleaseOnly": the polymer models and the dynamic column runs) are
+  left out of an ordinary test run, where they were around 90 % of the time the FluentAPI suite took.
+
+  To run them, as before cutting a release, pass "TestCategory=ReleaseOnly" as the test filter on the
+  command line. A filter given there replaces the one below, so such a run is exactly that group.
+  FluentApiTests.Slow carries the same note with the full command.
+-->
+<RunSettings>
+  <RunConfiguration>
+    <TestCaseFilter>TestCategory!=ReleaseOnly</TestCaseFilter>
+  </RunConfiguration>
+</RunSettings>

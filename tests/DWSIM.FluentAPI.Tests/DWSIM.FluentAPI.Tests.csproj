@@ -4,6 +4,7 @@
     <RootNamespace>DWSIM.FluentAPI.Tests</RootNamespace>
     <AssemblyName>DWSIM.FluentAPI.Tests</AssemblyName>
     <IsPackable>false</IsPackable>
+    <RunSettingsFilePath>$(MSBuildThisFileDirectory)../tests.runsettings</RunSettingsFilePath>
   </PropertyGroup>
 
   <ItemGroup>

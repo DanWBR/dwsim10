@@ -17,6 +17,7 @@
     <RootNamespace>DWSIM.Validation.Tests</RootNamespace>
     <AssemblyName>DWSIM.Validation.Tests</AssemblyName>
     <IsPackable>false</IsPackable>
+    <RunSettingsFilePath>$(MSBuildThisFileDirectory)../tests.runsettings</RunSettingsFilePath>
     <!-- The runner's Main and the test host's would collide otherwise. -->
     <GenerateProgramFile>false</GenerateProgramFile>
   </PropertyGroup>
