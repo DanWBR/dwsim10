@@ -310,6 +310,7 @@ Namespace SpecialOps
             Dim CurrentManipulatedValue = SharedClasses.SystemsOfUnits.Converter.ConvertFromSI(ManipulatedObjectData.Units, ManipulatedObject.GetPropertyValue(ManipulatedObjectData.PropertyName))
 
             engine = IronPython.Hosting.Python.CreateEngine()
+            SharedClasses.Scripting.IronPythonHost.Prepare(engine)
             engine.Runtime.LoadAssembly(GetType(System.String).Assembly)
             scope = engine.CreateScope()
             scope.SetVariable("Flowsheet", FlowSheet)

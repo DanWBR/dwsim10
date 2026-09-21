@@ -348,6 +348,7 @@ Namespace Reactors
                 Dim opts As New Dictionary(Of String, Object)()
                 opts("Frames") = Microsoft.Scripting.Runtime.ScriptingRuntimeHelpers.True
                 Dim eng = IronPython.Hosting.Python.CreateEngine(opts)
+                SharedClasses.Scripting.IronPythonHost.Prepare(eng)
                 eng.Runtime.LoadAssembly(GetType(System.String).Assembly)
                 eng.Runtime.LoadAssembly(GetType(Thermodynamics.BaseClasses.ConstantProperties).Assembly)
                 Dim scope = eng.CreateScope()

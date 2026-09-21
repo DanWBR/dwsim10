@@ -34,6 +34,8 @@ namespace DWSIM.FluentAPI.Tests
 
         [Test] public void AConvergedBroydenRecycleHoldsWhileASlowerRecycleConverges() => RecycleBroydenTest.RunBesideSlowerSubstitution();
 
+        [Test] public void APythonScriptUnitOperationImportsTheStandardLibrary() => PythonScriptUOTest.Run();
+
         [Test] public void AConversionReactorConsumesItsReagents() => ConvReactorTest.Run();
 
         [Test] public void ADistillationColumnSeparates() => DistillationTest.Run();

@@ -1,4 +1,4 @@
-'    Reactor Base Class
+﻿'    Reactor Base Class
 '    Copyright 2008 Daniel Wagner O. de Medeiros
 '
 '    This file is part of DWSIM.
@@ -294,6 +294,7 @@ Namespace Reactors
                 Dim opts As New Dictionary(Of String, Object)()
                 opts("Frames") = Microsoft.Scripting.Runtime.ScriptingRuntimeHelpers.True
                 engine = IronPython.Hosting.Python.CreateEngine(opts)
+                SharedClasses.Scripting.IronPythonHost.Prepare(engine)
                 engine.Runtime.LoadAssembly(GetType(System.String).Assembly)
                 engine.Runtime.LoadAssembly(GetType(Thermodynamics.BaseClasses.ConstantProperties).Assembly)
                 engine.Runtime.LoadAssembly(GetType(Drawing.SkiaSharp.GraphicsSurface).Assembly)

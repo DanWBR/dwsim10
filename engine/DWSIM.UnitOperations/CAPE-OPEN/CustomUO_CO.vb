@@ -180,6 +180,7 @@ Namespace UnitOperations.CAPEOPENWrappers
                 Try
 
                     engine = IronPython.Hosting.Python.CreateEngine()
+                    SharedClasses.Scripting.IronPythonHost.Prepare(engine)
                     engine.Runtime.LoadAssembly(GetType(System.String).Assembly)
                     engine.Runtime.LoadAssembly(GetType(CAPEOPEN110.ICapeIdentification).Assembly)
                     engine.Runtime.LoadAssembly(GetType(CapeOpen.ICapeIdentification).Assembly)
