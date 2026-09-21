@@ -62,11 +62,17 @@
                 '
                 DENOM = (1.0# - THETA) * PTP + THETA * PTHY
                 '
-                For I = 0 To N ' DO 50 I=1,N
-                    For J = 0 To N ' DO 50 J=1,N
-                        H(I, J) = H(I, J) - THETA * XB(I) * FB(J) / DENOM
-                    Next J
-50:             Next I
+                ' a call on which X did not move (or F did not change) carries no secant
+                ' information: p'Hy is then exactly zero and the update would fill H with NaN,
+                ' which is what a converged recycle does while a slower one keeps the solver
+                ' looping (issue #83). Keep the previous H instead.
+                If DENOM <> 0.0# Then
+                    For I = 0 To N ' DO 50 I=1,N
+                        For J = 0 To N ' DO 50 J=1,N
+                            H(I, J) = H(I, J) - THETA * XB(I) * FB(J) / DENOM
+                        Next J
+50:                 Next I
+                End If
                 '
             End If
             For I = 0 To N '  DO 70 I=1,N

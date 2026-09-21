@@ -30,6 +30,10 @@ namespace DWSIM.FluentAPI.Tests
 
         [Test] public void ABroydenRecycleConvergesLikeSubstitution() => RecycleBroydenTest.Run();
 
+        [Test] public void ABroydenRecycleLeavesASubstitutionRecycleToConverge() => RecycleBroydenTest.RunBesideSubstitution();
+
+        [Test] public void AConvergedBroydenRecycleHoldsWhileASlowerRecycleConverges() => RecycleBroydenTest.RunBesideSlowerSubstitution();
+
         [Test] public void AConversionReactorConsumesItsReagents() => ConvReactorTest.Run();
 
         [Test] public void ADistillationColumnSeparates() => DistillationTest.Run();

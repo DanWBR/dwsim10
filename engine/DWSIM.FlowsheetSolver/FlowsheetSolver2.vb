@@ -987,8 +987,12 @@ Imports DWSIM.SharedClasses
                                                               rec.Values(kvp.Key) = recvars(i) + 0.7 * recdvars(i)
                                                               i += 1
                                                           Next
+                                                          ' only the recycles Broyden just stepped get their outlet written from Values.
+                                                          ' A recycle on substitution fills Values from its outlet BEFORE copying the inlet
+                                                          ' across, so writing them back here puts the outlet as it was and undoes the
+                                                          ' substitution on every pass (issue #83)
+                                                          rec.SetOutletStreamProperties()
                                                       End If
-                                                      rec.SetOutletStreamProperties()
                                                   Next
 
                                               End If
