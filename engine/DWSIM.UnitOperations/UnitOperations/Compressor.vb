@@ -713,7 +713,10 @@ Namespace UnitOperations
                             Me.CurveHead = ires
                         Else
                             'power
-                            If LHead.Count >= 2 Then
+                            If LPower.Count = 0 Then
+                                Throw New ArgumentException("No performance curve is enabled on this machine. Enable the head, power or efficiency curve of at least one rotation speed to run in Performance Curves mode.")
+                            End If
+                            If LPower.Count >= 2 Then
                                 ires = MathNet.Numerics.Interpolate.Linear(LPowerSpeed.ToArray, LPower.ToArray()).Interpolate(Speed)
                             Else
                                 ires = Convert.ToDouble(Speed) / LPowerSpeed(0) * LPower(0)
@@ -724,7 +727,7 @@ Namespace UnitOperations
 
                         If LEff.Count > 0 Then
                             'efficiency
-                            If LHead.Count >= 2 Then
+                            If LEff.Count >= 2 Then
                                 ires = MathNet.Numerics.Interpolate.Linear(LEffSpeed.ToArray, LEff.ToArray()).Interpolate(Speed)
                             Else
                                 ires = Convert.ToDouble(Speed) / LEffSpeed(0) * LEff(0)
