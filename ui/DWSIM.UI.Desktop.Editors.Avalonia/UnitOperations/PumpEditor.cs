@@ -87,7 +87,7 @@ namespace DWSIM.UI.Desktop.Editors
                     pump.NPSH.GetValueOrDefault());
 
                 curves = panel.CreateAndAddButtonRow("Edit Performance Curves", null,
-                    (btn, e) => PerformanceCurvesEditor.Show(pump, pump.PumpCurveSet,
+                    (btn, e) => PerformanceCurvesEditor.Show(pump, pump,
                         pump.GraphicObject.Tag + ": Performance Curves"));
 
                 speed = panel.CreateAndAddTextBoxRow(nf, "Operating Speed (rpm)",
