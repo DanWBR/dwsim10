@@ -1,0 +1,19 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The other half of tests.runsettings: this one runs ONLY the slow cases (NUnit category
+  "ReleaseOnly": the polymer models, the polymerization reactor and the dynamic column runs), which
+  is what to do before cutting a release. About 50 minutes, 14 cases.
+
+      dotnet test tests\DWSIM.FluentAPI.Tests /settings:tests\releaseonly.runsettings
+
+  Selecting the group with a test filter on the command line does NOT work: a filter given there is
+  combined with the one in tests.runsettings (TestCategory!=ReleaseOnly), the intersection is empty,
+  and the run reports success having executed nothing. Overriding RunConfiguration.TestCaseFilter
+  through the run settings arguments does not win over the project's settings file either. Replacing
+  the settings file, as above, is what selects the group. Check the case count on the summary line.
+-->
+<RunSettings>
+  <RunConfiguration>
+    <TestCaseFilter>TestCategory=ReleaseOnly</TestCaseFilter>
+  </RunConfiguration>
+</RunSettings>

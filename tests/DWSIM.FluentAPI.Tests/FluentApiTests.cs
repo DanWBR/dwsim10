@@ -32,9 +32,12 @@ namespace DWSIM.FluentAPI.Tests
         /// steps. Together they are around 90 % of the time this suite takes, so they are left out of
         /// an ordinary run and are meant to be run before cutting a release:
         ///
-        ///     dotnet test tests\DWSIM.FluentAPI.Tests --filter TestCategory=ReleaseOnly
+        ///     dotnet test tests\DWSIM.FluentAPI.Tests --settings tests\releaseonly.runsettings
         ///
-        /// tests\tests.runsettings is what keeps them out of a plain <c>dotnet test</c>.
+        /// tests\tests.runsettings is what keeps them out of a plain <c>dotnet test</c>, and
+        /// tests\releaseonly.runsettings is what selects them. A test filter on the command line does
+        /// not: it is combined with the settings file's own filter, the intersection is empty, and
+        /// the run executes nothing and still reports success.
         /// </summary>
         public const string Slow = "ReleaseOnly";
 
