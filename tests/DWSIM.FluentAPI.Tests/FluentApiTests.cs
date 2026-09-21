@@ -70,6 +70,8 @@ namespace DWSIM.FluentAPI.Tests
 
         [Test] public void APumpReadsItsCurvesMeasuredAtSeveralSpeeds() => PumpMultiSpeedCurvesTest.Run();
 
+        [Test] public void ADisplacementPumpDeliversWhatItDisplaces() => PositiveDisplacementPumpTest.Run();
+
         [Test] public void PropertyIdentifiersHaveReadableNames() => PropertyCatalogTest.Run();
         [Test] public void TheAssistantApiAnswersOverHttp() => AssistantHttpTest.Run();
         [Test] public void TheDiagnosticsNameAFlowsheetsFaults() => FlowsheetDiagnosticsTest.Run();

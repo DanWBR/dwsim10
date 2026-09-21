@@ -173,7 +173,8 @@ namespace DWSIM.FluentAPI.Tests
         private static void CheckWritableProperties(DWSIM.UnitOperations.UnitOperations.Pump pump)
         {
             // PROP_PU_0 delta P, _1 efficiency, _2 delta T, _3 power, _4 NPSH, _5 outlet P, _6 head,
-            // _7 NPSH, _8 operating speed
+            // _7 NPSH, _8 operating speed, _9 displacement, _10 volumetric efficiency,
+            // _11 relief setting, _12 delivered flow
             var expected = new Dictionary<DWSIM.UnitOperations.UnitOperations.Pump.CalculationMode, string[]>
             {
                 { DWSIM.UnitOperations.UnitOperations.Pump.CalculationMode.Delta_P, new[] { "PROP_PU_0", "PROP_PU_1" } },
@@ -183,6 +184,10 @@ namespace DWSIM.FluentAPI.Tests
                 { DWSIM.UnitOperations.UnitOperations.Pump.CalculationMode.EnergyStream, new[] { "PROP_PU_1", "PROP_PU_3" } },
                 // the speed is the one thing a Curves-mode pump can be told
                 { DWSIM.UnitOperations.UnitOperations.Pump.CalculationMode.Curves, new[] { "PROP_PU_1", "PROP_PU_8" } },
+                // a displacement machine is told its size, its speed and where its relief is set,
+                // and the system gives it the discharge pressure
+                { DWSIM.UnitOperations.UnitOperations.Pump.CalculationMode.PositiveDisplacement,
+                  new[] { "PROP_PU_1", "PROP_PU_10", "PROP_PU_11", "PROP_PU_5", "PROP_PU_8", "PROP_PU_9" } },
             };
 
             var original = pump.CalcMode;
@@ -200,8 +205,8 @@ namespace DWSIM.FluentAPI.Tests
                     throw new Exception($"{kv.Key}: writable is [{string.Join(", ", writable)}], expected [{string.Join(", ", kv.Value)}].");
                 if (writable.Intersect(ro).Any())
                     throw new Exception($"{kv.Key}: a property is both read-only and writable.");
-                if (writable.Length + ro.Length != all.Length || all.Length != 9)
-                    throw new Exception($"{kv.Key}: RO + WR must partition the 9 pump properties, got {ro.Length} + {writable.Length} of {all.Length}.");
+                if (writable.Length + ro.Length != all.Length || all.Length != 13)
+                    throw new Exception($"{kv.Key}: RO + WR must partition the 13 pump properties, got {ro.Length} + {writable.Length} of {all.Length}.");
             }
 
             // with an efficiency curve the speed is all that is left to specify

@@ -1767,6 +1767,18 @@
   <data name="PROP_PU_8" xml:space="preserve">
     <value>Operating Speed</value>
   </data>
+  <data name="PROP_PU_9" xml:space="preserve">
+    <value>Displacement per Revolution</value>
+  </data>
+  <data name="PROP_PU_10" xml:space="preserve">
+    <value>Volumetric Efficiency</value>
+  </data>
+  <data name="PROP_PU_11" xml:space="preserve">
+    <value>Relief Valve Setting</value>
+  </data>
+  <data name="PROP_PU_12" xml:space="preserve">
+    <value>Delivered Volumetric Flow</value>
+  </data>
   <data name="PROP_PF_11" xml:space="preserve">
     <value>Integration Step</value>
   </data>

@@ -294,6 +294,11 @@ Namespace UnitOperations
             Curves = 3
             ''' <summary>Calculate results from a specified shaft power value.</summary>
             Power = 4
+            ''' <summary>
+            ''' Positive displacement machine: the flow comes from the displacement and the
+            ''' speed, and the system decides the discharge pressure.
+            ''' </summary>
+            PositiveDisplacement = 5
         End Enum
 
         Protected m_dp As Nullable(Of Double)
@@ -333,6 +338,33 @@ Namespace UnitOperations
         ''' with the affinity laws.
         ''' </summary>
         Public Property CurveSets As New Dictionary(Of Integer, PumpOps.CurveSet)
+
+        ''' <summary>
+        ''' Gets or sets the volume the machine displaces per revolution (m3/rev), used by the
+        ''' PositiveDisplacement calculation mode. The flow it delivers is this volume times
+        ''' the speed times the volumetric efficiency, whatever the discharge pressure.
+        ''' </summary>
+        Public Property Displacement As Double = 0.0005
+
+        ''' <summary>
+        ''' Gets or sets the volumetric efficiency of a positive displacement machine (%), the
+        ''' share of the swept volume that leaves through the discharge rather than slipping
+        ''' back past the clearances.
+        ''' </summary>
+        Public Property VolumetricEfficiency As Double = 95.0
+
+        ''' <summary>
+        ''' Gets or sets the setting of the relief valve of a positive displacement machine
+        ''' (Pa). A displacement pump against a closed discharge has nothing to limit its
+        ''' pressure, so the relief is part of the machine. Zero leaves it unlimited.
+        ''' </summary>
+        Public Property ReliefPressure As Double = 0.0
+
+        ''' <summary>Gets the volumetric flow the machine displaced on the last run (m3/s).</summary>
+        Public Property DeliveredVolumetricFlow As Double = 0.0
+
+        ''' <summary>Gets the mass flow the machine displaced on the last run (kg/s).</summary>
+        Public Property DeliveredMassFlow As Double = 0.0
 
         ''' <summary>
         ''' Gets or sets the supply frequency (Hz) that drives the pump at the speed its reference
@@ -780,6 +812,11 @@ Namespace UnitOperations
 
             If ims Is Nothing OrElse oms Is Nothing Then Exit Sub
 
+            If CalcMode = CalculationMode.PositiveDisplacement Then
+                RunDynamicModelAsFlowSource(ims, oms, currentSpeed)
+                Exit Sub
+            End If
+
             Dim Wi = ims.GetMassFlow()
             Dim Pi = ims.GetPressure()
             Dim rho = ims.Phases(0).Properties.density.GetValueOrDefault
@@ -840,6 +877,55 @@ Namespace UnitOperations
             End If
 
         End Sub
+        ''' <summary>
+        ''' The positive displacement machine in dynamics: it is the element that sets the flow
+        ''' of the line, the volume it displaces at the speed it is turning, and the pressure is
+        ''' whatever the line imposes, up to the setting of its relief valve. This is the
+        ''' opposite causality of a centrifugal machine, and the reason a displacement pump
+        ''' against a closed discharge needs a relief while a centrifugal one does not.
+        ''' </summary>
+        Private Sub RunDynamicModelAsFlowSource(ims As MaterialStream, oms As MaterialStream, currentSpeed As Double)
+
+            Dim rho = ims.Phases(0).Properties.density.GetValueOrDefault
+            Dim Pi = ims.GetPressure()
+
+            Dim qd = Displacement * (currentSpeed / 60.0) * (VolumetricEfficiency / 100.0)
+            Dim Wd = qd * rho
+
+            DeliveredVolumetricFlow = qd
+            DeliveredMassFlow = Wd
+
+            'the discharge pressure is the one the line downstream is holding, and the relief
+            'is what caps it
+            Dim P2 = Math.Max(oms.GetPressure(), Pi)
+            If ReliefPressure > 0.0 AndAlso P2 > ReliefPressure Then P2 = ReliefPressure
+
+            Dim eff = Me.Eficiencia.GetValueOrDefault / 100
+            If eff <= 0.0 Then eff = 0.9
+
+            Me.DeltaP = P2 - Pi
+            Me.Pout = P2
+            Me.DeltaQ = qd * (P2 - Pi) / 1000.0 / eff
+            If rho > 0.0 Then Me.Head = (P2 - Pi) / 9.81 / rho
+
+            Dim H2 = ims.GetMassEnthalpy() + If(Wd > 0.0, Me.DeltaQ.GetValueOrDefault * eff / Wd, 0.0)
+
+            ims.SetMassFlow(Wd)
+
+            oms.AssignFromPhase(PhaseLabel.Mixture, ims, False)
+            oms.SetTemperature(ims.GetTemperature())
+            oms.SetMassEnthalpy(H2)
+            oms.SetMassFlow(Wd)
+            oms.SetPressure(P2)
+
+            Dim esin As Streams.EnergyStream = Me.GetInletEnergyStream(1)
+            If esin IsNot Nothing Then
+                esin.EnergyFlow = Me.DeltaQ.GetValueOrDefault
+                esin.GraphicObject.Calculated = True
+            End If
+
+        End Sub
+
         Public Overrides Sub RunDynamicModel()
 
             Dim integratorID = FlowSheet.DynamicsManager.ScheduleList(FlowSheet.DynamicsManager.CurrentSchedule).CurrentIntegrator
@@ -1577,6 +1663,64 @@ Namespace UnitOperations
                         Me.NPSH = Double.PositiveInfinity
                     End Try
 
+                Case CalculationMode.PositiveDisplacement
+
+                    'a positive displacement machine is a flow source: it delivers the volume its
+                    'displacement and its speed give, whatever the discharge pressure, and the
+                    'system decides that pressure. The relief valve is what stops it at the top.
+                    Me.PropertyPackage.CurrentMaterialStream = msin
+
+                    If OperatingSpeed <= 0.0 Then
+                        Throw New ArgumentException("A positive displacement pump needs its operating speed: the flow it delivers is the displacement times the speed.")
+                    End If
+
+                    If Displacement <= 0.0 Then
+                        Throw New ArgumentException("A positive displacement pump needs the volume it displaces per revolution.")
+                    End If
+
+                    Dim qd = Displacement * (OperatingSpeed / 60.0) * (VolumetricEfficiency / 100.0)
+
+                    DeliveredVolumetricFlow = qd
+                    DeliveredMassFlow = qd * rho_li
+
+                    P2 = If(Pout > 0.0, Pout, Pi + Me.DeltaP.GetValueOrDefault)
+
+                    If ReliefPressure > 0.0 AndAlso P2 > ReliefPressure Then
+                        FlowSheet?.ShowMessage(String.Format("{0}: the system asks for {1:F0} Pa at the discharge, above the relief setting of {2:F0} Pa. The relief holds the discharge at its setting.", GraphicObject?.Tag, P2, ReliefPressure), IFlowsheet.MessageType.Warning)
+                        P2 = ReliefPressure
+                    End If
+
+                    CheckSpec(P2, True, "outlet pressure")
+
+                    Pout = P2
+                    Me.DeltaP = P2 - Pi
+
+                    'the shaft power of a displacement machine is the volume it moves against the
+                    'pressure difference it moves it against, over the mechanical efficiency
+                    Me.DeltaQ = qd * (P2 - Pi) / 1000.0 / (Me.Eficiencia.GetValueOrDefault / 100)
+
+                    H2 = Hi + Me.DeltaQ.GetValueOrDefault / Math.Max(DeliveredMassFlow, 0.000000001)
+                    CheckSpec(H2, False, "outlet enthalpy")
+
+                    IObj?.SetCurrent()
+                    Dim tmppd = Me.PropertyPackage.CalculateEquilibrium2(FlashCalculationType.PressureEnthalpy, P2, H2, Ti)
+                    T2 = tmppd.CalculatedTemperature.GetValueOrDefault
+                    CheckSpec(T2, True, "outlet temperature")
+
+                    Me.DeltaT = T2 - Ti
+
+                    If Wi > 0.0 AndAlso Math.Abs(DeliveredMassFlow - Wi) > 0.001 * Wi Then
+                        FlowSheet?.ShowMessage(String.Format("{0}: the machine displaces {1:G4} kg/s at {2:G4} rpm while the stream feeding it carries {3:G4} kg/s. The outlet takes the displaced flow, so the balance only closes once the feed is set to it, or a recycle or an adjust makes it match.", GraphicObject?.Tag, DeliveredMassFlow, OperatingSpeed, Wi), IFlowsheet.MessageType.Warning)
+                    End If
+
+                    Try
+                        IObj?.SetCurrent()
+                        Dim Pbubpd = Me.PropertyPackage.CalculateEquilibrium2(FlashCalculationType.TemperatureVaporFraction, Ti, 0.0#, Pi).CalculatedPressure
+                        Me.NPSH = (Pi - Pbubpd) / (rho_li * 9.81)
+                    Catch ex As Exception
+                        Me.NPSH = Double.PositiveInfinity
+                    End Try
+
                 Case CalculationMode.Delta_P
 
                     Me.PropertyPackage.CurrentMaterialStream = msin
@@ -1711,7 +1855,13 @@ Namespace UnitOperations
                         comp.MassFraction = msin.Phases(0).Compounds(comp.Name).MassFraction
                         i += 1
                     Next
-                    .Phases(0).Properties.massflow = msin.Phases(0).Properties.massflow.GetValueOrDefault
+                    'a positive displacement machine sets the flow of the line it feeds; every
+                    'other mode passes on the flow it is given
+                    If CalcMode = CalculationMode.PositiveDisplacement Then
+                        .Phases(0).Properties.massflow = DeliveredMassFlow
+                    Else
+                        .Phases(0).Properties.massflow = msin.Phases(0).Properties.massflow.GetValueOrDefault
+                    End If
                     .DefinedFlow = FlowSpec.Mass
                     .SpecType = Interfaces.Enums.StreamSpec.Pressure_and_Enthalpy
                 End With
@@ -1805,6 +1955,18 @@ Namespace UnitOperations
                     Case 8
                         'PROP_PU_8 (Operating Speed)
                         value = EffectiveSpeed
+                    Case 9
+                        'PROP_PU_9 (Displacement per revolution)
+                        value = Displacement.ConvertFromSI(su.volume)
+                    Case 10
+                        'PROP_PU_10 (Volumetric Efficiency)
+                        value = VolumetricEfficiency
+                    Case 11
+                        'PROP_PU_11 (Relief Pressure)
+                        value = ReliefPressure.ConvertFromSI(su.pressure)
+                    Case 12
+                        'PROP_PU_12 (Delivered Volumetric Flow)
+                        value = DeliveredVolumetricFlow.ConvertFromSI(su.volumetricFlow)
                 End Select
 
                 Return value
@@ -1843,10 +2005,14 @@ Namespace UnitOperations
                     'efficiency curve to read it from.
                     If Not PumpCurveSet.CurveEfficiency.Enabled Then writable.Add(1)
                     writable.Add(8)
+                Case CalculationMode.PositiveDisplacement
+                    'the flow comes from the displacement and the speed, and the system gives
+                    'the discharge pressure; the delivered flow is a result, not a spec
+                    writable.AddRange(New Integer() {1, 5, 8, 9, 10, 11})
             End Select
             Select Case proptype
                 Case PropertyType.RO
-                    For i = 0 To 8
+                    For i = 0 To 12
                         If Not writable.Contains(i) Then proplist.Add("PROP_PU_" + CStr(i))
                     Next
                 Case PropertyType.RW, PropertyType.WR
@@ -1854,7 +2020,7 @@ Namespace UnitOperations
                         proplist.Add("PROP_PU_" + CStr(i))
                     Next
                 Case PropertyType.ALL
-                    For i = 0 To 8
+                    For i = 0 To 12
                         proplist.Add("PROP_PU_" + CStr(i))
                     Next
             End Select
