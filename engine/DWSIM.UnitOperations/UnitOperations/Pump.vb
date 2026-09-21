@@ -766,6 +766,80 @@ Namespace UnitOperations
 
         Private prevM, currentM As Double
 
+        ''' <summary>
+        ''' The pump as a pressure-flow element: the flow through it is whatever the network is
+        ''' passing, and the outlet takes the inlet pressure plus the head the machine makes at
+        ''' that flow and at the speed it is turning at. In Performance Curves mode the head comes
+        ''' from the measured map, and otherwise from the conductance of the casing scaled by the
+        ''' square of the speed ratio, as the capacity model did.
+        ''' </summary>
+        Private Sub RunDynamicModelAsPressureFlowElement(currentSpeed As Double)
+
+            Dim ims As MaterialStream = Me.GetInletMaterialStream(0)
+            Dim oms As MaterialStream = Me.GetOutletMaterialStream(0)
+
+            If ims Is Nothing OrElse oms Is Nothing Then Exit Sub
+
+            Dim Wi = ims.GetMassFlow()
+            Dim Pi = ims.GetPressure()
+            Dim rho = ims.Phases(0).Properties.density.GetValueOrDefault
+
+            Dim head As Double = Double.NaN
+            Dim eff As Double = Me.Eficiencia.GetValueOrDefault / 100
+
+            If CalcMode = CalculationMode.Curves AndAlso rho > 0.0 AndAlso Wi > 0.0 Then
+                Try
+                    Dim reading = ReadOperatingPoint(Wi / rho, currentSpeed)
+                    head = reading.Head
+                    CurveHead = reading.Head
+                    CurveSysHead = reading.Head
+                    CurveNPSHr = reading.NPSHr
+                    CurveFlow = Wi / rho
+                    If Not Double.IsNaN(reading.Efficiency) AndAlso reading.Efficiency > 0.0 Then
+                        eff = reading.Efficiency
+                        CurveEff = reading.Efficiency * 100
+                    End If
+                Catch ex As Exception
+                    'off the map: the conductance below keeps the run going
+                    head = Double.NaN
+                End Try
+            End If
+
+            Dim DeltaPdyn As Double
+
+            If Double.IsNaN(head) Then
+                Dim Kr As Double = GetDynamicProperty("Flow Conductance")
+                DeltaPdyn = (Wi / Kr) ^ 2
+                Dim ratedSpeed As Double = GetDynamicProperty("Rated Speed")
+                If ratedSpeed > 0.0 Then DeltaPdyn *= (currentSpeed / ratedSpeed) ^ 2
+                If rho > 0.0 Then head = DeltaPdyn / 9.81 / rho
+            Else
+                DeltaPdyn = head * 9.81 * rho
+            End If
+
+            If eff <= 0.0 Then eff = 0.75
+
+            Me.DeltaP = DeltaPdyn
+            Me.Head = head
+            Me.Pout = Pi + DeltaPdyn
+            Me.DeltaQ = If(Wi > 0.0, Wi * 9.81 * head / eff / 1000.0, 0.0)
+
+            'the fluid takes the useful part of the shaft power, as the steady state has it
+            Dim H2 = ims.GetMassEnthalpy() + If(Wi > 0.0, Me.DeltaQ.GetValueOrDefault * eff / Wi, 0.0)
+
+            oms.AssignFromPhase(PhaseLabel.Mixture, ims, False)
+            oms.SetTemperature(ims.GetTemperature())
+            oms.SetMassEnthalpy(H2)
+            oms.SetMassFlow(Wi)
+            oms.SetPressure(Pi + DeltaPdyn)
+
+            Dim esin As Streams.EnergyStream = Me.GetInletEnergyStream(1)
+            If esin IsNot Nothing Then
+                esin.EnergyFlow = Me.DeltaQ.GetValueOrDefault
+                esin.GraphicObject.Calculated = True
+            End If
+
+        End Sub
         Public Overrides Sub RunDynamicModel()
 
             Dim integratorID = FlowSheet.DynamicsManager.ScheduleList(FlowSheet.DynamicsManager.CurrentSchedule).CurrentIntegrator
@@ -791,6 +865,19 @@ Namespace UnitOperations
             Else
                 currentSpeed = targetSpeed
                 SetDynamicProperty("Current Speed", currentSpeed)
+            End If
+
+            'The casing of a pump is a small volume full of liquid. Integrating it against a rigid
+            'volume makes the machine a capacity, and with a liquid inside, any mismatch between the
+            'flow in and the flow out moves the pressure by hundreds of bar within one step: the
+            'model is too stiff for any step a user would choose. A pump in a pressure-flow network
+            'is not a capacity at all; it is the element that adds head to the line. So by default it
+            'passes the flow through and hands its outlet the inlet pressure plus the head it makes,
+            'and the capacity of the system sits where it physically is, in the vessels around it.
+            'The casing inventory remains available for whoever wants it.
+            If Not CBool(GetDynamicProperty("Integrate Casing Holdup")) Then
+                RunDynamicModelAsPressureFlowElement(currentSpeed)
+                Exit Sub
             End If
 
             Dim Vol As Double = GetDynamicProperty("Volume")
