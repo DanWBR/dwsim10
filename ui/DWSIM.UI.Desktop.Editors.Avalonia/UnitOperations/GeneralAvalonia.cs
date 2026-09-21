@@ -288,37 +288,10 @@ namespace DWSIM.UI.Desktop.Editors
         /// Opens the Avalonia file picker owned by the window hosting <paramref name="panel"/> and
         /// invokes <paramref name="onPicked"/> with the local path of the chosen file.
         /// </summary>
-        private static async void PickFile(AvaloniaEditorPanel panel, string title,
+        private static void PickFile(AvaloniaEditorPanel panel, string title,
             string[] patterns, Action<string> onPicked)
         {
-            try
-            {
-                var top = global::Avalonia.Controls.TopLevel.GetTopLevel(panel);
-                if (top == null || top.StorageProvider == null) return;
-
-                var options = new global::Avalonia.Platform.Storage.FilePickerOpenOptions
-                {
-                    Title = title,
-                    AllowMultiple = false
-                };
-                if (patterns != null && patterns.Length > 0)
-                {
-                    options.FileTypeFilter = new[]
-                    {
-                        new global::Avalonia.Platform.Storage.FilePickerFileType("Supported Files")
-                        {
-                            Patterns = patterns.ToList()
-                        }
-                    };
-                }
-
-                var files = await top.StorageProvider.OpenFilePickerAsync(options);
-                if (files == null || files.Count == 0) return;
-
-                var path = files[0].Path == null ? null : files[0].Path.LocalPath;
-                if (!string.IsNullOrEmpty(path)) onPicked(path);
-            }
-            catch { /* picker unavailable or cancelled */ }
+            EditorFilePicker.Open(panel, title, patterns, onPicked);
         }
 
         private static bool _unitRegistryWired;

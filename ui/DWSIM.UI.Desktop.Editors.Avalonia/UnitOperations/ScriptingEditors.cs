@@ -10,7 +10,6 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Layout;
 using Avalonia.Media;
 using DWSIM.Interfaces;
-using DWSIM.SharedClassesCSharp.FilePicker;
 using DWSIM.UI.Shared.Avalonia;
 using CapeOpenUO = DWSIM.UnitOperations.UnitOperations.CapeOpenUO;
 using FlowsheetUO = DWSIM.UnitOperations.UnitOperations.Flowsheet;
@@ -79,13 +78,13 @@ namespace DWSIM.UI.Desktop.Editors
             external.IsReadOnly = true;
 
             panel.CreateAndAddButtonRow("Browse...", null, (btn, e) =>
-            {
-                var picked = FileRows.Pick("Simulation Files", new[] { "*.dwxml", "*.dwxmz" });
-                if (picked == null) return;
-
-                uo.SimulationFile = picked;
-                external.Text = picked;
-            });
+                EditorFilePicker.Open(panel, "Select the Simulation File",
+                    new[] { "*.dwxml", "*.dwxmz" },
+                    path =>
+                    {
+                        uo.SimulationFile = path;
+                        external.Text = path;
+                    }, parent));
 
             panel.CreateAndAddCheckBoxRow("Initialize on Load", uo.InitializeOnLoad,
                 (cb, e) => uo.InitializeOnLoad = cb.IsChecked.GetValueOrDefault());
@@ -404,27 +403,4 @@ namespace DWSIM.UI.Desktop.Editors
 
 
     /// <summary>The open dialog these editors share for the files they point at.</summary>
-    internal static class FileRows
-    {
-
-        internal static string Pick(string description, string[] patterns)
-        {
-            try
-            {
-                var picker = FilePickerService.GetInstance().GetFilePicker();
-                var handler = picker.ShowOpenDialog(new List<FilePickerAllowedType>
-                {
-                    new FilePickerAllowedType(description, patterns)
-                });
-
-                return handler == null ? null : handler.Filename;
-            }
-            catch (Exception)
-            {
-                return null;
-            }
-        }
-
-    }
-
 }

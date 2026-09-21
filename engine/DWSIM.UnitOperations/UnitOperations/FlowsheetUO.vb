@@ -897,6 +897,18 @@ Label_00CC:
 
             IObj?.SetCurrent()
 
+            ' No file at all: say so before trying to open it, otherwise the reader raises an
+            ' empty-path ArgumentException that reads as an internal fault (issue #81).
+            If FileIsEmbedded Then
+                If EmbeddedFileName Is Nothing OrElse EmbeddedFileName = "" Then
+                    Throw New Exception("No embedded file is selected for this sub-flowsheet. " &
+                                        "Open this unit operation and pick one, or clear 'Use Embedded File' and browse for a simulation file.")
+                End If
+            ElseIf SimulationFile Is Nothing OrElse SimulationFile = "" Then
+                Throw New Exception("No simulation file is set for this sub-flowsheet. " &
+                                    "Open this unit operation and browse for the file it should run.")
+            End If
+
             InitializeInternalFlowsheet()
 
             If Initialized Then InitializeMappings()

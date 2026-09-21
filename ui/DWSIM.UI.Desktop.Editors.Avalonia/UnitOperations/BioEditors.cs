@@ -1143,13 +1143,13 @@ namespace DWSIM.UI.Desktop.Editors
                     external.IsReadOnly = true;
 
                     panel.CreateAndAddButtonRow("Browse...", null, (btn, e) =>
-                    {
-                        var picked = FileRows.Pick("YAML files", new[] { "*.yaml" });
-                        if (picked == null) return;
-
-                        reactor.ExternalDatabaseFileName = picked;
-                        external.Text = picked;
-                    });
+                        EditorFilePicker.Open(panel, "Select the External Database File",
+                            new[] { "*.yaml" },
+                            path =>
+                            {
+                                reactor.ExternalDatabaseFileName = path;
+                                external.Text = path;
+                            }, reactor.GetFlowsheet()));
 
                     BioRows.Section(panel, "Phases");
 
