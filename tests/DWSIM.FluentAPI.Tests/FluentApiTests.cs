@@ -101,6 +101,12 @@ namespace DWSIM.FluentAPI.Tests
 
         [Test] public void TheHydroelectricSampleSolvesAndSaves() => HydroelectricSample.Run();
 
+        [Test] public void ThePumpCurvesSampleSolvesAndSaves() => PumpCurvesSample.Run();
+
+        [Test] public void TheCompressorCurvesSampleSolvesAndSaves() => CompressorCurvesSample.Run();
+
+        [Test] public void TheExpanderCurvesSampleSolvesAndSaves() => ExpanderCurvesSample.Run();
+
         [Test] public void TheGreenHydrogenSampleSolvesAndSaves() => GreenHydrogenSample.Run();
 
         [Test] public void TheBiogasToGridSampleSolvesAndSaves() => BiogasToGridSample.Run();

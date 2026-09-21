@@ -1017,8 +1017,16 @@ Namespace UnitOperations
 
                     End If
 
-                    If CalcMode = CalculationMode.Head Then
-                        DeltaQ = AdiabaticHead / 1000 * Wi * 9.8 * (Me.AdiabaticEfficiency / 100)
+                    ' Performance Curves mode ends here as well: the curves give the head (or the
+                    ' fluid power, which the block above turned into a head) and the efficiency, and
+                    ' the generated power follows from them, as it does on the compressor. Without
+                    ' this the expander read its curves and then generated nothing.
+                    If CalcMode = CalculationMode.Head Or CalcMode = CalculationMode.Curves Then
+                        If ProcessPath = ProcessPathType.Adiabatic Then
+                            DeltaQ = AdiabaticHead / 1000 * Wi * 9.8 * (Me.AdiabaticEfficiency / 100)
+                        Else
+                            DeltaQ = PolytropicHead / 1000 * Wi * 9.8 * (Me.PolytropicEfficiency / 100)
+                        End If
                     End If
 
                     'CheckSpec(Me.DeltaQ, True, "power")
