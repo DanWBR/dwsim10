@@ -1871,6 +1871,14 @@ Namespace UnitOperations
                     str.AppendLine("    Outlet pressure: " & SystemsOfUnits.Converter.ConvertFromSI(su.pressure, Me.Pout).ToString(numberformat, ci) & " " & su.pressure)
                 Case CalculationMode.Power
                     str.AppendLine("    Power: " & SystemsOfUnits.Converter.ConvertFromSI(su.heatflow, Me.DeltaQ).ToString(numberformat, ci) & " " & su.heatflow)
+                Case CalculationMode.Curves
+                    str.AppendLine("    Operating speed: " & EffectiveSpeed.ToString(numberformat, ci) & " rpm")
+                    Dim measured = MeasuredCurveSets()
+                    If measured.Count = 1 Then
+                        str.AppendLine("    Curves measured at: " & measured(0).Key.ToString(numberformat, ci) & " rpm")
+                    Else
+                        str.AppendLine("    Curves measured at: " & String.Join(", ", measured.Select(Function(kvp) kvp.Key.ToString(numberformat, ci))) & " rpm")
+                    End If
             End Select
             str.AppendLine("    Efficiency: " & Me.Eficiencia.GetValueOrDefault.ToString(numberformat, ci))
             str.AppendLine()
@@ -1886,6 +1894,10 @@ Namespace UnitOperations
                 Case CalculationMode.Power
                     str.AppendLine("    Outlet pressure: " & SystemsOfUnits.Converter.ConvertFromSI(su.pressure, Me.Pout).ToString(numberformat, ci) & " " & su.pressure)
                     str.AppendLine("    Pressure increase: " & SystemsOfUnits.Converter.ConvertFromSI(su.deltaP, Me.DeltaP).ToString(numberformat, ci) & " " & su.deltaP)
+                Case CalculationMode.Curves
+                    str.AppendLine("    Outlet pressure: " & SystemsOfUnits.Converter.ConvertFromSI(su.pressure, Me.Pout).ToString(numberformat, ci) & " " & su.pressure)
+                    str.AppendLine("    Power: " & SystemsOfUnits.Converter.ConvertFromSI(su.heatflow, Me.DeltaQ).ToString(numberformat, ci) & " " & su.heatflow)
+                    str.AppendLine("    Required NPSH: " & SystemsOfUnits.Converter.ConvertFromSI(su.distance, Me.CurveNPSHr).ToString(numberformat, ci) & " " & su.distance)
             End Select
             str.AppendLine("    Temperature increase: " & SystemsOfUnits.Converter.ConvertFromSI(su.deltaT, Me.DeltaT).ToString(numberformat, ci) & " " & su.deltaT)
             str.AppendLine("    Available NPSH: " & SystemsOfUnits.Converter.ConvertFromSI(su.distance, Me.NPSH).ToString(numberformat, ci) & " " & su.distance)
