@@ -1320,6 +1320,41 @@ Namespace SystemsOfUnits
 
         Public Shared Property SharedSI As New SI()
 
+        ''' <summary>
+        ''' The value to hand to <see cref="Interfaces.ISimulationObject.SetPropertyValue"/> for a value
+        ''' measured in <paramref name="units"/>.
+        ''' </summary>
+        ''' <remarks>
+        ''' A property write with no unit system falls back on the default SI set, and that set is not in
+        ''' SI units for every dimension: a diameter is in mm there and a heat flow in kW. Converting a
+        ''' value to SI and writing it straight made the object convert it a second time, so a dynamic
+        ''' event that asked for 500 kW of duty applied 500 MW and one that asked for a 30 mm bore applied
+        ''' 30 microns. Converting to SI and back into the unit the setter reads leaves every property
+        ''' whose set unit is already the SI one untouched.
+        '''
+        ''' An empty <paramref name="units"/> means the caller did not say, and the value is passed
+        ''' through as it always was.
+        ''' </remarks>
+        Public Shared Function ConvertForPropertyWrite(obj As Interfaces.ISimulationObject, prop As String,
+                                                       units As String, value As Double) As Double
+
+            If obj Is Nothing OrElse String.IsNullOrEmpty(units) Then Return value
+
+            Dim valueSI = ConvertToSI(units, value)
+
+            Dim target As String
+            Try
+                target = obj.GetPropertyUnit(prop, SharedSI)
+            Catch ex As Exception
+                Return valueSI
+            End Try
+
+            If String.IsNullOrEmpty(target) Then Return valueSI
+
+            Return ConvertFromSI(target, valueSI)
+
+        End Function
+
         Public Shared Function ConvertArrayToSI(ByVal units As String, ByVal values As Double()) As Double()
             Dim newarr As New List(Of Double)
             For Each d In values

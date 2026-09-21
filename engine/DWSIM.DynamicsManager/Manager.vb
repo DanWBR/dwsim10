@@ -228,7 +228,11 @@ Public Class Manager
                     Dim values = current.SimulationObjectPropertyValue
                     Dim units = current.SimulationObjectPropertyUnits
 
-                    Dim value = Converter.ConvertToSI(units, values.ToDoubleFromInvariant())
+                    ' in the unit a property write reads, which is also the unit value0 below comes
+                    ' back in: interpolating a target in SI against a reading in the set's own unit
+                    ' ramped a duty or a diameter toward the wrong number
+                    Dim value = Converter.ConvertForPropertyWrite(obj, current.SimulationObjectProperty,
+                                                                  units, values.ToDoubleFromInvariant())
 
                     Dim state As XDocument = Nothing
 

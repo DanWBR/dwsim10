@@ -1,4 +1,4 @@
-using DWSIM.ExtensionMethods;
+﻿using DWSIM.ExtensionMethods;
 using DWSIM.Interfaces;
 using System;
 using System.Collections.Generic;
@@ -217,11 +217,12 @@ namespace DWSIM.Automation.DynamicRunner
                 if (ev.EventType != Interfaces.Enums.Dynamics.DynamicsEventType.ChangeProperty) continue;
                 if (!Flowsheet.SimulationObjects.ContainsKey(ev.SimulationObjectID)) continue;
 
-                var value = SharedClasses.SystemsOfUnits.Converter.ConvertToSI(
-                    ev.SimulationObjectPropertyUnits,
+                var target = Flowsheet.SimulationObjects[ev.SimulationObjectID];
+                var value = SharedClasses.SystemsOfUnits.Converter.ConvertForPropertyWrite(
+                    target, ev.SimulationObjectProperty, ev.SimulationObjectPropertyUnits,
                     ev.SimulationObjectPropertyValue.ToDoubleFromInvariant());
 
-                Flowsheet.SimulationObjects[ev.SimulationObjectID].SetPropertyValue(ev.SimulationObjectProperty, value);
+                target.SetPropertyValue(ev.SimulationObjectProperty, value);
             }
         }
 

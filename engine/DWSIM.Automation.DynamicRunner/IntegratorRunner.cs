@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -683,9 +683,11 @@ namespace DWSIM.Automation.DynamicRunner
                 if (!ev.Enabled) continue;
                 if (ev.EventType != Dynamics.DynamicsEventType.ChangeProperty) continue;
                 if (!flowsheet.SimulationObjects.ContainsKey(ev.SimulationObjectID)) continue;
-                var value = DWSIM.SharedClasses.SystemsOfUnits.Converter.ConvertToSI(
-                    ev.SimulationObjectPropertyUnits, ev.SimulationObjectPropertyValue.ToDoubleFromInvariant());
-                flowsheet.SimulationObjects[ev.SimulationObjectID].SetPropertyValue(ev.SimulationObjectProperty, value);
+                var target = flowsheet.SimulationObjects[ev.SimulationObjectID];
+                var value = DWSIM.SharedClasses.SystemsOfUnits.Converter.ConvertForPropertyWrite(
+                    target, ev.SimulationObjectProperty, ev.SimulationObjectPropertyUnits,
+                    ev.SimulationObjectPropertyValue.ToDoubleFromInvariant());
+                target.SetPropertyValue(ev.SimulationObjectProperty, value);
             }
         }
 
@@ -716,9 +718,11 @@ namespace DWSIM.Automation.DynamicRunner
         internal static void DoAlarmEffect(IFlowsheet flowsheet, IDynamicsCauseAndEffectItem ceitem)
         {
             if (!flowsheet.SimulationObjects.ContainsKey(ceitem.SimulationObjectID)) return;
-            var value = DWSIM.SharedClasses.SystemsOfUnits.Converter.ConvertToSI(
-                ceitem.SimulationObjectPropertyUnits, ceitem.SimulationObjectPropertyValue.ToDoubleFromInvariant());
-            flowsheet.SimulationObjects[ceitem.SimulationObjectID].SetPropertyValue(ceitem.SimulationObjectProperty, value);
+            var target = flowsheet.SimulationObjects[ceitem.SimulationObjectID];
+            var value = DWSIM.SharedClasses.SystemsOfUnits.Converter.ConvertForPropertyWrite(
+                target, ceitem.SimulationObjectProperty, ceitem.SimulationObjectPropertyUnits,
+                ceitem.SimulationObjectPropertyValue.ToDoubleFromInvariant());
+            target.SetPropertyValue(ceitem.SimulationObjectProperty, value);
         }
     }
 }

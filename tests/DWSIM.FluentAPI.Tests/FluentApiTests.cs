@@ -76,6 +76,7 @@ namespace DWSIM.FluentAPI.Tests
         [Test] public void TheAssistantApiAnswersOverHttp() => AssistantHttpTest.Run();
         [Test] public void TheDiagnosticsNameAFlowsheetsFaults() => FlowsheetDiagnosticsTest.Run();
         [Test] public void ADynamicRunFollowsItsScheduledEvents() => DynamicsEventProfileTest.Run();
+        [Test] public void AnEventWritesItsValueInTheRightUnit() => EventUnitConversionTest.Run();
 
         [Test] public void ATankFillsAtTheRateItIsFed() => DynamicsTankFillingTest.Run();
         [Test, Category(Slow)] public void ADynamicColumnRidesAFeedStep() => DynamicsColumnCaseTest.Run();
