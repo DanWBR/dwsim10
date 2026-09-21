@@ -284,6 +284,102 @@ Namespace UnitOperations
 
         ''' <summary>Creates a new set of empty HEAD, EFF, and POWER performance curve objects for this compressor.</summary>
         ''' <returns>A dictionary of named <see cref="PumpOps.Curve"/> objects.</returns>
+
+        ''' <summary>
+        ''' Reads the performance map at a flow and a speed. The curves of every measured speed
+        ''' are interpolated along their own flow axis (actual volumetric flow when the unit of
+        ''' that axis carries the @ P,T suffix, molar flow otherwise), and the readings are then
+        ''' interpolated across the measured speeds. Head, power and efficiency come back in SI
+        ''' (m, kW, fraction), and NaN where the machine has no enabled curve of that kind.
+        ''' </summary>
+        Public Sub ReadCurveMap(qactual As Double, qmolar As Double, atspeed As Double,
+                                ByRef head As Double, ByRef power As Double, ByRef efficiency As Double)
+
+            head = Double.NaN
+            power = Double.NaN
+            efficiency = Double.NaN
+
+            If Curves Is Nothing OrElse Curves.Count = 0 Then Exit Sub
+
+            Dim LHeadSpeed, LHead, LPowerSpeed, LPower, LEffSpeed, LEff As New List(Of Double)
+
+            For Each datapair In Curves
+
+                Dim chead = datapair.Value("HEAD")
+                Dim cpower = datapair.Value("POWER")
+                Dim ceff = datapair.Value("EFF")
+
+                If chead.Enabled AndAlso chead.x.Count > 0 Then
+                    Dim x, y As New List(Of Double)
+                    ReadPoints(chead, x, y, False)
+                    LHeadSpeed.Add(datapair.Key)
+                    LHead.Add(Interpolation.Interpolate(x.ToArray(), y.ToArray(), FlowFor(chead, qactual, qmolar)))
+                End If
+
+                If cpower.Enabled AndAlso cpower.x.Count > 0 Then
+                    Dim x, y As New List(Of Double)
+                    ReadPoints(cpower, x, y, False)
+                    LPowerSpeed.Add(datapair.Key)
+                    LPower.Add(Interpolation.Interpolate(x.ToArray(), y.ToArray(), FlowFor(cpower, qactual, qmolar)))
+                End If
+
+                If ceff.Enabled AndAlso ceff.x.Count > 0 Then
+                    Dim x, y As New List(Of Double)
+                    ReadPoints(ceff, x, y, True)
+                    LEffSpeed.Add(datapair.Key)
+                    LEff.Add(Interpolation.Interpolate(x.ToArray(), y.ToArray(), FlowFor(ceff, qactual, qmolar)))
+                End If
+
+            Next
+
+            head = AcrossSpeeds(LHeadSpeed, LHead, atspeed)
+            power = AcrossSpeeds(LPowerSpeed, LPower, atspeed)
+            efficiency = AcrossSpeeds(LEffSpeed, LEff, atspeed)
+
+        End Sub
+
+        ''' <summary>The flow the abscissa of a curve is written against.</summary>
+        Private Shared Function FlowFor(c As PumpOps.Curve, qactual As Double, qmolar As Double) As Double
+
+            If c.xunit.Contains("@ P,T") Then Return qactual
+
+            Return qmolar
+
+        End Function
+
+        ''' <summary>The points of a curve in SI, efficiency as a fraction.</summary>
+        Private Shared Sub ReadPoints(c As PumpOps.Curve, x As List(Of Double), y As List(Of Double), isefficiency As Boolean)
+
+            For i As Integer = 0 To Math.Min(c.x.Count, c.y.Count) - 1
+                If Double.TryParse(c.x(i), New Double) And Double.TryParse(c.y(i), New Double) Then
+                    x.Add(SystemsOfUnits.Converter.ConvertToSI(c.xunit.Replace(" @ P,T", ""), c.x(i)))
+                    If isefficiency AndAlso c.yunit = "%" Then
+                        y.Add(c.y(i) / 100)
+                    Else
+                        y.Add(SystemsOfUnits.Converter.ConvertToSI(c.yunit, c.y(i)))
+                    End If
+                End If
+            Next
+
+        End Sub
+
+        ''' <summary>
+        ''' The same quantity read at several speeds, interpolated to the speed the machine runs
+        ''' at. A single measured speed is scaled proportionally, which is all one curve supports.
+        ''' </summary>
+        Private Shared Function AcrossSpeeds(speeds As List(Of Double), values As List(Of Double), atspeed As Double) As Double
+
+            If values.Count = 0 Then Return Double.NaN
+
+            If values.Count = 1 Then
+                If speeds(0) = 0.0 Then Return values(0)
+                Return atspeed / speeds(0) * values(0)
+            End If
+
+            Return MathNet.Numerics.Interpolate.Linear(speeds.ToArray(), values.ToArray()).Interpolate(atspeed)
+
+        End Function
+
         Public Function CreateCurves() As Dictionary(Of String, PumpOps.Curve)
 
             Dim dict As New Dictionary(Of String, PumpOps.Curve)
@@ -432,7 +528,50 @@ Namespace UnitOperations
             AccumulationStream.SetPressure(Pressure)
 
             Dim Wi = ims.GetMassFlow()
-            Dim DeltaP_dyn = (Wi / Kr) ^ 2
+            Dim DeltaP_dyn As Double
+
+            Dim rho_dyn = AccumulationStream.Phases(0).Properties.density.GetValueOrDefault
+            Dim maphead_dyn As Double = Double.NaN
+
+            If CalcMode = CalculationMode.Curves AndAlso rho_dyn > 0.0 AndAlso Wi > 0.0 Then
+
+                'a machine described by its map keeps using it while it runs: the head is read
+                'at the flow it is passing and at the speed it is turning at on this step, so a
+                'speed controller moves a real variable instead of nothing. The compressor raises the pressure by the head it reads.
+                Try
+                    Dim maphead, mappower, mapeff As Double
+                    ReadCurveMap(Wi / rho_dyn, AccumulationStream.GetMolarFlow(), currentSpeed, maphead, mappower, mapeff)
+                    If Not Double.IsNaN(maphead) Then
+                        maphead_dyn = maphead
+                    ElseIf Not Double.IsNaN(mappower) Then
+                        maphead_dyn = mappower * 1000.0 / Wi / 9.8
+                    End If
+                    If Not Double.IsNaN(maphead_dyn) Then
+                        CurveHead = maphead_dyn
+                        If Not Double.IsNaN(mapeff) Then CurveEff = mapeff * 100
+                    End If
+                Catch ex As Exception
+                    'off the map: the resistance model below keeps the integration going
+                    maphead_dyn = Double.NaN
+                End Try
+
+            End If
+
+            If Double.IsNaN(maphead_dyn) Then
+
+                DeltaP_dyn = (Wi / Kr) ^ 2
+
+                'a machine with no map still slows down with its speed: the pressure change
+                'falls with the square of the speed ratio. The default rated speed equals the
+                'default current speed, so a flowsheet saved before this reads the same result.
+                Dim ratedSpeed_dyn As Double = GetDynamicProperty("Rated Speed")
+                If ratedSpeed_dyn > 0.0 Then DeltaP_dyn *= (currentSpeed / ratedSpeed_dyn) ^ 2
+
+            Else
+
+                DeltaP_dyn = maphead_dyn * 9.81 * rho_dyn
+
+            End If
 
             ims.SetPressure(Pressure)
             oms.AssignFromPhase(PhaseLabel.Mixture, AccumulationStream, False)
@@ -610,129 +749,31 @@ Namespace UnitOperations
 
                     If CalcMode = CalculationMode.Curves Then
 
-                        Dim chead, ceff, cpower As PumpOps.Curve
-
-                        If DebugMode Then AppendDebugLine(String.Format("Creating curves..."))
+                        If DebugMode Then AppendDebugLine(String.Format("Reading the performance map at {0} RPM...", Speed))
 
                         If Me.Curves.Count = 0 Then Me.Curves.Add(Speed, CreateCurves())
 
-                        Dim LHeadSpeed, LHead, LPowerSpeed, LPower, LEffSpeed, LEff As New List(Of Double)
+                        Dim maphead, mappower, mapeff As Double
 
-                        For Each datapair In Me.Curves
+                        ReadCurveMap(msin.Phases(0).Properties.volumetric_flow.GetValueOrDefault,
+                                     msin.Phases(0).Properties.molarflow.GetValueOrDefault,
+                                     Convert.ToDouble(Speed), maphead, mappower, mapeff)
 
-                            chead = datapair.Value("HEAD")
-                            ceff = datapair.Value("EFF")
-                            cpower = datapair.Value("POWER")
-
-                            Dim xhead, yhead, xeff, yeff, xpower, ypower As New ArrayList
-
-                            Dim q1, q2, q3 As Double
-
-                            If chead.xunit.Contains("@ P,T") Then
-                                'actual flow
-                                q1 = msin.Phases(0).Properties.volumetric_flow
-                            Else
-                                ' molar flow
-                                q1 = msin.Phases(0).Properties.molarflow
-                            End If
-
-                            If cpower.xunit.Contains("@ P,T") Then
-                                'actual flow
-                                q2 = msin.Phases(0).Properties.volumetric_flow
-                            Else
-                                ' molar flow
-                                q2 = msin.Phases(0).Properties.molarflow
-                            End If
-
-                            If ceff.xunit.Contains("@ P,T") Then
-                                'actual flow
-                                q3 = msin.Phases(0).Properties.volumetric_flow
-                            Else
-                                ' molar flow
-                                q3 = msin.Phases(0).Properties.molarflow
-                            End If
-
-                            Dim i As Integer
-
-                            For i = 0 To chead.x.Count - 1
-                                If Double.TryParse(chead.x(i), New Double) And Double.TryParse(chead.y(i), New Double) Then
-                                    xhead.Add(SystemsOfUnits.Converter.ConvertToSI(chead.xunit.Replace(" @ P,T", ""), chead.x(i)))
-                                    yhead.Add(SystemsOfUnits.Converter.ConvertToSI(chead.yunit, chead.y(i)))
-                                End If
-                            Next
-                            For i = 0 To cpower.x.Count - 1
-                                If Double.TryParse(cpower.x(i), New Double) And Double.TryParse(cpower.y(i), New Double) Then
-                                    xpower.Add(SystemsOfUnits.Converter.ConvertToSI(cpower.xunit.Replace(" @ P,T", ""), cpower.x(i)))
-                                    ypower.Add(SystemsOfUnits.Converter.ConvertToSI(cpower.yunit, cpower.y(i)))
-                                End If
-                            Next
-                            For i = 0 To ceff.x.Count - 1
-                                If Double.TryParse(ceff.x(i), New Double) And Double.TryParse(ceff.y(i), New Double) Then
-                                    xeff.Add(SystemsOfUnits.Converter.ConvertToSI(ceff.xunit.Replace(" @ P,T", ""), ceff.x(i)))
-                                    If ceff.yunit = "%" Then
-                                        yeff.Add(ceff.y(i) / 100)
-                                    Else
-                                        yeff.Add(ceff.y(i))
-                                    End If
-                                End If
-                            Next
-
-                            'get operating points
-                            Dim head, eff, power As Double
-
-                            If datapair.Value("HEAD").Enabled And datapair.Value("HEAD").x.Count > 0 Then
-                                head = Interpolation.Interpolate(xhead.ToArray(GetType(Double)), yhead.ToArray(GetType(Double)), q1)
-                                LHeadSpeed.Add(datapair.Key)
-                                LHead.Add(head)
-                            End If
-
-                            If datapair.Value("POWER").Enabled And datapair.Value("POWER").x.Count > 0 Then
-                                power = Interpolation.Interpolate(xpower.ToArray(GetType(Double)), ypower.ToArray(GetType(Double)), q2)
-                                LPowerSpeed.Add(datapair.Key)
-                                LPower.Add(power)
-                            End If
-
-                            If datapair.Value("EFF").Enabled And datapair.Value("EFF").x.Count > 0 Then
-                                eff = Interpolation.Interpolate(xeff.ToArray(GetType(Double)), yeff.ToArray(GetType(Double)), q3)
-                                LEffSpeed.Add(datapair.Key)
-                                LEff.Add(eff)
-                            End If
-
-                        Next
-
-                        Dim ires As Double
-
-                        If LHead.Count > 0 Then
-                            ' head has priority over power
-                            If LHead.Count >= 2 Then
-                                ires = MathNet.Numerics.Interpolate.Linear(LHeadSpeed.ToArray, LHead.ToArray()).Interpolate(Speed)
-                            Else
-                                ires = Convert.ToDouble(Speed) / LHeadSpeed(0) * LHead(0)
-                            End If
-                            Me.CurvePower = Double.NegativeInfinity
-                            Me.CurveHead = ires
-                        Else
-                            'power
-                            If LPower.Count = 0 Then
-                                Throw New ArgumentException("No performance curve is enabled on this machine. Enable the head, power or efficiency curve of at least one rotation speed to run in Performance Curves mode.")
-                            End If
-                            If LPower.Count >= 2 Then
-                                ires = MathNet.Numerics.Interpolate.Linear(LPowerSpeed.ToArray, LPower.ToArray()).Interpolate(Speed)
-                            Else
-                                ires = Convert.ToDouble(Speed) / LPowerSpeed(0) * LPower(0)
-                            End If
-                            Me.CurveHead = Double.NegativeInfinity
-                            Me.CurvePower = ires
+                        If Double.IsNaN(maphead) AndAlso Double.IsNaN(mappower) Then
+                            Throw New ArgumentException("No performance curve is enabled on this machine. Enable the head, power or efficiency curve of at least one rotation speed to run in Performance Curves mode.")
                         End If
 
-                        If LEff.Count > 0 Then
-                            'efficiency
-                            If LEff.Count >= 2 Then
-                                ires = MathNet.Numerics.Interpolate.Linear(LEffSpeed.ToArray, LEff.ToArray()).Interpolate(Speed)
-                            Else
-                                ires = Convert.ToDouble(Speed) / LEffSpeed(0) * LEff(0)
-                            End If
-                            Me.CurveEff = ires * 100
+                        If Not Double.IsNaN(maphead) Then
+                            ' the head map has priority over the power map
+                            Me.CurvePower = Double.NegativeInfinity
+                            Me.CurveHead = maphead
+                        Else
+                            Me.CurveHead = Double.NegativeInfinity
+                            Me.CurvePower = mappower
+                        End If
+
+                        If Not Double.IsNaN(mapeff) Then
+                            Me.CurveEff = mapeff * 100
                         Else
                             Me.CurveEff = Double.NegativeInfinity
                         End If

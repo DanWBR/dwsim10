@@ -855,13 +855,48 @@ Namespace UnitOperations
             AccumulationStream.SetPressure(Pressure)
 
             Dim Wi = ims.GetMassFlow()
-            Dim DeltaP = (Wi / Kr) ^ 2
+            Dim DeltaP As Double
 
-            'affinity law: the pressure rise falls with the square of the speed ratio, so a tripped
-            'pump stops boosting the pressure as it coasts down. Flowsheets saved before this
-            'property existed read the default, which reproduces the speed-independent result.
-            Dim ratedSpeed As Double = GetDynamicProperty("Rated Speed")
-            If ratedSpeed > 0.0 Then DeltaP *= (currentSpeed / ratedSpeed) ^ 2
+            Dim rho = AccumulationStream.Phases(0).Properties.density.GetValueOrDefault
+            Dim curvehead As Double = Double.NaN
+
+            If CalcMode = CalculationMode.Curves AndAlso rho > 0.0 AndAlso Wi > 0.0 Then
+
+                'a pump described by its curves keeps using them while it runs: the head is read at
+                'the flow it is passing and at the speed it is turning at on this step, which is what
+                'the drive of a variable-speed pump moves. Between measured speeds the sets are
+                'blended, as in the steady state.
+                Try
+                    Dim reading = ReadOperatingPoint(Wi / rho, currentSpeed)
+                    curvehead = reading.Head
+                    CurveHead = reading.Head
+                    CurveSysHead = reading.Head
+                    CurveNPSHr = reading.NPSHr
+                    CurveFlow = Wi / rho
+                    If Not Double.IsNaN(reading.Efficiency) Then CurveEff = reading.Efficiency * 100
+                Catch ex As Exception
+                    'off the map (a flow the curves do not cover, or no curve at this speed): the
+                    'resistance model below keeps the integration going instead of stopping it
+                    curvehead = Double.NaN
+                End Try
+
+            End If
+
+            If Double.IsNaN(curvehead) Then
+
+                DeltaP = (Wi / Kr) ^ 2
+
+                'affinity law: the pressure rise falls with the square of the speed ratio, so a tripped
+                'pump stops boosting the pressure as it coasts down. Flowsheets saved before this
+                'property existed read the default, which reproduces the speed-independent result.
+                Dim ratedSpeed As Double = GetDynamicProperty("Rated Speed")
+                If ratedSpeed > 0.0 Then DeltaP *= (currentSpeed / ratedSpeed) ^ 2
+
+            Else
+
+                DeltaP = curvehead * 9.81 * rho
+
+            End If
 
             ims.SetPressure(Pressure)
             oms.AssignFromPhase(PhaseLabel.Mixture, AccumulationStream, False)
@@ -1013,18 +1048,27 @@ Namespace UnitOperations
         ''' </summary>
         Private Function ReadOperatingPoint(qli As Double) As CurveReading
 
+            Return ReadOperatingPoint(qli, EffectiveSpeed)
+
+        End Function
+
+        ''' <summary>
+        ''' The operating point at a given speed, which the dynamic model uses with the speed the
+        ''' pump is turning at on this step rather than the steady-state operating speed.
+        ''' </summary>
+        Private Function ReadOperatingPoint(qli As Double, speed As Double) As CurveReading
+
             Dim sets = MeasuredCurveSets()
-            Dim speed = EffectiveSpeed
 
             If sets.Count <= 1 Then
 
                 Dim sratio As Double = 1.0
 
-                If OperatingSpeed > 0.0 Then
+                If speed > 0.0 AndAlso speed <> PumpCurveSet.ImpellerSpeed Then
                     If PumpCurveSet.ImpellerSpeed <= 0.0 Then
                         Throw New ArgumentException("The pump has an operating speed but the speed its curves were measured at (Impeller Speed) is not defined, so the curves cannot be scaled.")
                     End If
-                    sratio = OperatingSpeed / PumpCurveSet.ImpellerSpeed
+                    sratio = speed / PumpCurveSet.ImpellerSpeed
                 End If
 
                 If DebugMode Then AppendDebugLine(String.Format("Speed ratio: {0} ({1} RPM over the {2} RPM the curves were measured at)", sratio, speed, PumpCurveSet.ImpellerSpeed))
