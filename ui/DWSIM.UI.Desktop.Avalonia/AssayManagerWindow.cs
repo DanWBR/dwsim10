@@ -281,6 +281,25 @@ public sealed class AssayManagerWindow : Window
                 (cb, e) => { if (!_loading) a.HasViscCurves = cb.IsChecked.GetValueOrDefault(); });
         }
 
+        p.CreateAndAddLabelRow("Light Ends");
+        if (a.LightEndsCompounds == null || a.LightEndsCompounds.Count == 0)
+        {
+            p.CreateAndAddDescriptionRow("None declared. An assay reports its light ends apart from the curve, and they are added in the distillation curve characterization tool.");
+        }
+        else
+        {
+            p.CreateAndAddTwoLabelsRow("Basis", a.LightEndsBasis + " (%)");
+            p.CreateAndAddTwoLabelsRow("Included in the curve", a.LightEndsIncludedInCurve ? "Yes" : "No");
+            for (var i = 0; i < a.LightEndsCompounds.Count; i++)
+            {
+                var fraction = a.LightEndsFractions != null && i < a.LightEndsFractions.Count
+                    ? a.LightEndsFractions[i] : 0.0;
+                p.CreateAndAddTwoLabelsRow(a.LightEndsCompounds[i], (fraction * 100).ToString("N3") + " %");
+            }
+            p.CreateAndAddTwoLabelsRow("Total",
+                (a.LightEndsFractions.Sum() * 100).ToString("N3") + " % of the crude");
+        }
+
         p.CreateAndAddLabelRow("Contaminants");
         AddPlain(p, "Sulfur (wt %)", a.BulkSulfurWtPct, v => a.BulkSulfurWtPct = v);
         AddPlain(p, "Nitrogen (wt %)", a.BulkNitrogenWtPct, v => a.BulkNitrogenWtPct = v);

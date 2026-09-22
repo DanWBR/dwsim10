@@ -43,6 +43,61 @@ Partial Public Class QualityCheck
 
     End Sub
 
+    ''' <summary>
+    ''' What the characterization did with the light ends, and a word when it looks as though the
+    ''' assay has some and nobody said so.
+    ''' </summary>
+    ''' <remarks>
+    ''' A crude assay reports its light ends apart from the curve, and the curve is normally run on
+    ''' what is left after they are stripped off. Characterizing the curve alone then leaves out the
+    ''' few per cent that set the front end of the flash, and nothing in the numbers says so: the
+    ''' cuts still add up to one. The giveaway is a curve that starts below the boiling point of
+    ''' n-pentane, which is where the light ends live.
+    ''' </remarks>
+    Private Sub ReportLightEnds(su As Interfaces.IUnitsOfMeasure)
+
+        Const NPentaneNBP As Double = 309.2
+
+        If _assay.LightEndsCompounds IsNot Nothing AndAlso _assay.LightEndsCompounds.Count > 0 Then
+
+            _report.AppendLine("Light Ends")
+            For i = 0 To _assay.LightEndsCompounds.Count - 1
+                Dim fraction = 0.0
+                If _assay.LightEndsFractions IsNot Nothing AndAlso i < _assay.LightEndsFractions.Count Then
+                    fraction = _assay.LightEndsFractions(i)
+                End If
+                _report.AppendLine(String.Format("   {0}: {1:N3} % ({2})",
+                                                 _assay.LightEndsCompounds(i), fraction * 100, _assay.LightEndsBasis))
+            Next
+            If _assay.LightEndsIncludedInCurve Then
+                _report.AppendLine("   The curve covers them, so the cuts were taken above them.")
+            Else
+                _report.AppendLine("   The curve does not cover them, so the cuts share what they leave.")
+            End If
+            _report.AppendLine()
+
+        ElseIf _assay.PX IsNot Nothing AndAlso _assay.PY_NBP IsNot Nothing AndAlso _assay.PY_NBP.Count > 0 Then
+
+            Dim first = Double.MaxValue
+            For Each v In _assay.PY_NBP
+                Dim t = Convert.ToDouble(v)
+                If t < first Then first = t
+            Next
+
+            If first < NPentaneNBP Then
+                _report.AppendLine("Light Ends")
+                _report.AppendLine(String.Format(
+                    "   The curve starts at {0:N2} {1}, below the boiling point of n-pentane, and no light " &
+                    "ends were declared. Either the curve already covers them, and the assay is complete as " &
+                    "it stands, or they were left out and this crude will not make the gas the real one makes.",
+                    cv.ConvertFromSI(su.temperature, first), su.temperature))
+                _report.AppendLine()
+            End If
+
+        End If
+
+    End Sub
+
     Function GetQualityCheckReport() As String
 
         _compounds = _ms.Phases(0).Compounds.Values.Select(Function(x) x.ConstantProperties).ToList
@@ -60,6 +115,8 @@ Partial Public Class QualityCheck
         End If
 
         Dim pp = _ms.PropertyPackage
+
+        ReportLightEnds(su)
 
         If _assay.IsBulk Then
 

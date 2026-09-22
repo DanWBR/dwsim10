@@ -11,6 +11,7 @@ using DWSIM.MathOps.MathEx.Interpolation;
 using DWSIM.ExtensionMethods;
 
 using cv = DWSIM.SharedClasses.SystemsOfUnits.Converter;
+using LightEndsMix = DWSIM.SharedClasses.Utilities.PetroleumCharacterization.Assay.LightEnds;
 
 namespace DWSIM.UI.Desktop.Editors
 {
@@ -57,6 +58,31 @@ namespace DWSIM.UI.Desktop.Editors
 
         public bool hasmwc = false, hassgc = false, hasvisc100c = false, hasvisc210c = false;
         public bool adjustAf = true, adjustZR = true;
+
+        // ---- light ends
+        //
+        // A crude assay reports them apart from the curve: a short list of real compounds, methane
+        // through the pentanes, each with a fraction of the WHOLE crude beside it. They are a few
+        // per cent and they set the front end of the flash, so a characterization without them
+        // gives a crude that will not make the gas it makes in the plant.
+
+        /// <summary>Names of the light end compounds, as they are known to the compound database.</summary>
+        public List<string> lightEndsCompounds = new List<string>();
+        /// <summary>Fraction of the whole crude of each light end, in <see cref="lightEndsBasis"/>.</summary>
+        public List<double> lightEndsFractions = new List<double>();
+        /// <summary>"Mole", "Mass" or "Volume".</summary>
+        public string lightEndsBasis = LightEndsMix.MoleBasis;
+        /// <summary>
+        /// True when the curve was run on the whole crude and already covers the light ends, so the
+        /// cuts have to start above them instead of at the foot of the curve.
+        /// </summary>
+        public bool lightEndsIncludedInCurve = false;
+
+        /// <summary>
+        /// What the light ends ended up with, by compound name, in mole fractions of the whole
+        /// crude. Filled by <see cref="GenerateCompounds"/>; empty when none were declared.
+        /// </summary>
+        public Dictionary<string, double> LightEndsMoleFractions { get; } = new Dictionary<string, double>();
 
         /// <summary>Bulk molar weight and specific gravity. Zero means "not available".</summary>
         public double mwb, sgb;
@@ -281,6 +307,31 @@ namespace DWSIM.UI.Desktop.Editors
             coeff = (double[])obj[0];
 
             //TBP(K) = aa + bb*fv + cc*fv^2 + dd*fv^3 + ee*fv^4 + ff*fv^5 (fv 0 ~ 1)
+
+            // When the curve was run on the whole crude, the light ends ARE the foot of it. Cutting
+            // pseudocomponents from zero would then count that material twice, once as a real
+            // compound and once inside the first cut, so the cuts start where the light ends stop.
+            if (lightEndsIncludedInCurve && lightEndsFractions.Count > 0)
+            {
+                var share = LightEndsMix.TotalFraction(lightEndsFractions.ToArray());
+                var curveBasis = LightEndsMix.CurveBasisName(curvebasis);
+                if (!string.Equals(lightEndsBasis, curveBasis, StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new Exception("The light ends are on the " + lightEndsBasis.ToLower() +
+                        " basis and the curve is on the " + curveBasis.ToLower() + " one. To cut the " +
+                        "pseudocomponents above the light ends, both have to be read off the same axis: " +
+                        "give the light ends on the curve's basis, or say that the curve does not " +
+                        "include them.");
+                }
+                var tstart = GetT(coeff, share);
+                if (tstart >= Tmax)
+                {
+                    throw new Exception("The light ends take " + (share * 100).ToString("N2") +
+                        " % of the crude, which is past the top of the distillation curve. There is " +
+                        "nothing left to cut into pseudocomponents.");
+                }
+                Tmin = tstart;
+            }
 
             //create pseudos
 
@@ -681,6 +732,10 @@ namespace DWSIM.UI.Desktop.Editors
             assay.BulkVPpm = bulkVanadium;
             assay.BulkAsphaltenesWtPct = bulkAsphaltenes;
             assay.BSWVolPct = bulkWater;
+            assay.LightEndsCompounds = new List<string>(lightEndsCompounds);
+            assay.LightEndsFractions = new List<double>(lightEndsFractions);
+            assay.LightEndsBasis = lightEndsBasis;
+            assay.LightEndsIncludedInCurve = lightEndsIncludedInCurve;
             return assay;
         }
 
@@ -784,11 +839,19 @@ namespace DWSIM.UI.Desktop.Editors
                     break;
             }
 
+            // the cuts have the curve to themselves up to here; the light ends take their share of
+            // the crude and leave the rest to be divided in the proportions the curve gave
+            ApplyLightEnds(ccol);
+
             double wxtotal = 0;
 
             foreach (var subst in ccol.Values)
             {
                 wxtotal += subst.MoleFraction.GetValueOrDefault() * subst.ConstantProperties.Molar_Weight;
+            }
+            foreach (var le in LightEndsMoleFractions)
+            {
+                wxtotal += le.Value * LightEndProperties(le.Key).Molar_Weight;
             }
 
             foreach (var subst in ccol.Values)
@@ -796,6 +859,101 @@ namespace DWSIM.UI.Desktop.Editors
                 subst.MassFraction = subst.MoleFraction * subst.ConstantProperties.Molar_Weight / wxtotal;
             }
 
+        }
+
+        /// <summary>
+        /// Scales the cuts down to the share of the crude the light ends leave them, and records what
+        /// the light ends themselves come to in mole fractions of the whole crude.
+        /// </summary>
+        private void ApplyLightEnds(Dictionary<string, Compound> ccol)
+        {
+
+            LightEndsMoleFractions.Clear();
+
+            if (lightEndsCompounds.Count == 0) return;
+
+            if (lightEndsFractions.Count != lightEndsCompounds.Count)
+            {
+                throw new Exception("Every light end needs a fraction: " + lightEndsCompounds.Count +
+                    " compound(s) were named and " + lightEndsFractions.Count + " fraction(s) given.");
+            }
+
+            var cuts = ccol.Values.ToList();
+
+            var lightMW = new double[lightEndsCompounds.Count];
+            var lightSG = new double[lightEndsCompounds.Count];
+            for (int i = 0; i < lightEndsCompounds.Count; i++)
+            {
+                var cp = LightEndProperties(lightEndsCompounds[i]);
+                lightMW[i] = cp.Molar_Weight;
+                lightSG[i] = LightEndSG(cp);
+            }
+
+            double[] lightx = null, cutx = null;
+
+            LightEndsMix.Combine(lightEndsFractions.ToArray(), lightMW, lightSG, lightEndsBasis,
+                cuts.Select(c => c.MoleFraction.GetValueOrDefault()).ToArray(),
+                cuts.Select(c => c.ConstantProperties.Molar_Weight).ToArray(),
+                cuts.Select(c => c.ConstantProperties.PF_SG.GetValueOrDefault()).ToArray(),
+                ref lightx, ref cutx);
+
+            for (int p = 0; p < cuts.Count; p++) cuts[p].MoleFraction = cutx[p];
+            for (int i = 0; i < lightEndsCompounds.Count; i++)
+            {
+                var name = lightEndsCompounds[i];
+                LightEndsMoleFractions[name] = LightEndsMoleFractions.ContainsKey(name)
+                    ? LightEndsMoleFractions[name] + lightx[i]
+                    : lightx[i];
+            }
+
+        }
+
+        /// <summary>The database record of a light end, by name.</summary>
+        private ICompoundConstantProperties LightEndProperties(string name)
+        {
+            if (Flowsheet == null)
+                throw new Exception("The light ends need a flowsheet to read their properties from.");
+            if (Flowsheet.AvailableCompounds.ContainsKey(name))
+                return Flowsheet.AvailableCompounds[name];
+            if (Flowsheet.SelectedCompounds.ContainsKey(name))
+                return Flowsheet.SelectedCompounds[name];
+            throw new Exception("'" + name + "' was named as a light end and is not in the compound " +
+                "database. Check the spelling against the compound list.");
+        }
+
+        /// <summary>
+        /// The specific gravity a light end is counted with on the volume basis: its liquid density
+        /// at 15.6 C. The lightest of them are above their critical temperature there, and what the
+        /// correlation gives back is the pseudo-liquid density the assay itself is written with.
+        /// </summary>
+        private double LightEndSG(ICompoundConstantProperties cp)
+        {
+            if (!string.Equals(lightEndsBasis, LightEndsMix.VolumeBasis, StringComparison.OrdinalIgnoreCase))
+                return 0.0;
+
+            double density;
+            try
+            {
+                var pp = Flowsheet != null && Flowsheet.PropertyPackages.Count > 0
+                    ? (PropertyPackage)Flowsheet.PropertyPackages.Values.First()
+                    : new PengRobinsonPropertyPackage();
+                density = pp.AUX_LIQDENSi(cp, 288.706);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("The liquid density of '" + cp.Name + "' at 15.6 C could not be " +
+                    "computed (" + ex.Message + "), and the volume basis needs it. Give the light ends " +
+                    "on the mole or the mass basis instead.");
+            }
+
+            if (density <= 0.0 || double.IsNaN(density) || double.IsInfinity(density))
+            {
+                throw new Exception("The liquid density of '" + cp.Name + "' at 15.6 C came out as " +
+                    density.ToString("G4") + ", and the volume basis needs a real one. Give the light " +
+                    "ends on the mole or the mass basis instead.");
+            }
+
+            return density / 999.0;
         }
 
     }

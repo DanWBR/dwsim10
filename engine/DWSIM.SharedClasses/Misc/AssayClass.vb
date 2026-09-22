@@ -61,6 +61,12 @@ Namespace Utilities.PetroleumCharacterization.Assay
         Private _py_v1 As ArrayList
         Private _py_v2 As ArrayList
 
+        'Light ends, reported separately from the curve on a crude assay
+        Private _lightends_compounds As New List(Of String)
+        Private _lightends_fractions As New List(Of Double)
+        Private _lightends_basis As String = "Mole"
+        Private _lightends_in_curve As Boolean = False
+
         'Bulk contaminant totals (whole crude / whole assay)
         Private _bulk_wtpct_s As Double = 0.0
         Private _bulk_wtpct_n As Double = 0.0
@@ -354,6 +360,58 @@ Namespace Utilities.PetroleumCharacterization.Assay
         End Property
 
         ' Bulk contaminant totals
+
+        ''' <summary>
+        ''' The light ends of the assay, by compound name, as they are reported on a crude assay:
+        ''' separately from the distillation curve, which is normally measured on the material left
+        ''' after they are stripped off.
+        ''' </summary>
+        ''' <remarks>
+        ''' Held as two parallel lists because that is what the XML serializer carries. The fractions
+        ''' are in the basis named by <see cref="LightEndsBasis"/> and are fractions of the WHOLE
+        ''' crude, so they must sum to less than one; what is left over is the curve material.
+        ''' </remarks>
+        Public Property LightEndsCompounds() As List(Of String)
+            Get
+                Return _lightends_compounds
+            End Get
+            Set(ByVal value As List(Of String))
+                _lightends_compounds = value
+            End Set
+        End Property
+
+        Public Property LightEndsFractions() As List(Of Double)
+            Get
+                Return _lightends_fractions
+            End Get
+            Set(ByVal value As List(Of Double))
+                _lightends_fractions = value
+            End Set
+        End Property
+
+        ''' <summary>"Mole", "Mass" or "Volume": the basis the light end fractions are given in.</summary>
+        Public Property LightEndsBasis() As String
+            Get
+                Return _lightends_basis
+            End Get
+            Set(ByVal value As String)
+                _lightends_basis = value
+            End Set
+        End Property
+
+        ''' <summary>
+        ''' True when the distillation curve was measured on the whole crude and already covers the
+        ''' light ends, so the pseudocomponents have to be cut above them instead of over the whole
+        ''' curve. False, the usual case, when the curve is on a light-ends-free basis.
+        ''' </summary>
+        Public Property LightEndsIncludedInCurve() As Boolean
+            Get
+                Return _lightends_in_curve
+            End Get
+            Set(ByVal value As Boolean)
+                _lightends_in_curve = value
+            End Set
+        End Property
 
         Public Property BulkSulfurWtPct() As Double
             Get
