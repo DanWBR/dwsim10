@@ -168,7 +168,8 @@ public sealed class PetroleumCharacterizationWindow : Window
         DockPanel.SetDock(bottom, global::Avalonia.Controls.Dock.Bottom);
         dock.Children.Add(bottom);
         dock.Children.Add(_btnRun);
-        dock.Children.Add(new ScrollViewer { Content = p, Padding = new Thickness(8) });
+        // room under the last row, so it does not end up behind the button docked at the bottom
+        dock.Children.Add(new ScrollViewer { Content = p, Padding = new Thickness(8, 8, 8, 28) });
         return dock;
     }
 
