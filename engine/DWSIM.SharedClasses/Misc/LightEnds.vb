@@ -366,6 +366,44 @@ Namespace Utilities.PetroleumCharacterization.Assay
 
         End Function
 
+        ''' <summary>
+        ''' The compounds of the database that can be declared as light ends, lightest first: the ones
+        ''' that boil below the front of a distillation curve. This is the list the editors put in
+        ''' front of the user, so that a light end is picked rather than typed.
+        ''' </summary>
+        Public Shared Function Candidates(compounds As IEnumerable(Of Interfaces.ICompoundConstantProperties)) As List(Of String)
+
+            If compounds Is Nothing Then Return New List(Of String)
+
+            Return compounds.
+                Where(Function(c) c IsNot Nothing AndAlso c.IsPF <> 1 AndAlso
+                                  c.Normal_Boiling_Point > 0.0 AndAlso c.Normal_Boiling_Point <= HeptaneNBP).
+                OrderBy(Function(c) c.Normal_Boiling_Point).
+                Select(Function(c) c.Name).
+                Distinct().
+                ToList()
+
+        End Function
+
+        ''' <summary>
+        ''' The compounds of the database that can sit below a plus fraction, lightest first: the ones
+        ''' whose molar weight is under the weight the plus fraction starts at.
+        ''' </summary>
+        Public Shared Function CandidatesBelowPlusFraction(compounds As IEnumerable(Of Interfaces.ICompoundConstantProperties),
+                                                           plusFractionMW As Double) As List(Of String)
+
+            If compounds Is Nothing Then Return New List(Of String)
+
+            Return compounds.
+                Where(Function(c) c IsNot Nothing AndAlso c.IsPF <> 1 AndAlso c.Molar_Weight > 0.0 AndAlso
+                                  (plusFractionMW <= 0.0 OrElse c.Molar_Weight < plusFractionMW)).
+                OrderBy(Function(c) c.Molar_Weight).
+                Select(Function(c) c.Name).
+                Distinct().
+                ToList()
+
+        End Function
+
         ''' <summary>The blocking issues in one message, or an empty string when there are none.</summary>
         Public Shared Function BlockingMessage(issues As IEnumerable(Of Issue)) As String
 
