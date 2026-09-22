@@ -257,6 +257,7 @@ public sealed class DistillationCurveWindow : Window
             }
 
             AddToFlowsheet(comps);
+            StoreAssay();
             _flowsheet.UpdateInterface();
             _status.Text = $"Material stream '{_c.assayname}' added with {comps.Count} generated compound(s).";
             _flowsheet.ShowMessage(_status.Text, IFlowsheet.MessageType.Information);
@@ -377,6 +378,32 @@ public sealed class DistillationCurveWindow : Window
         var issues = _c.ValidateLightEnds();
         var warnings = issues.Where(i => !i.Blocking).Select(i => i.Message).ToList();
         if (warnings.Count > 0) _status.Text = string.Join(" ", warnings);
+    }
+
+    /// <summary>
+    /// Keeps the assay with the simulation, so the curve, the contaminants and the light ends that
+    /// were typed here survive the save and can be read again in the assay manager. The Windows
+    /// interface has a button for this; here it follows the characterization, which is the only
+    /// moment the assay is complete.
+    /// </summary>
+    private void StoreAssay()
+    {
+        try
+        {
+            // the list lives on the concrete options class, not on the interface
+            var options = (global::DWSIM.SharedClasses.DWSIM.Flowsheet.FlowsheetVariables)_flowsheet.FlowsheetOptions;
+            if (options.PetroleumAssays == null)
+                options.PetroleumAssays = new Dictionary<string, DWSIM.SharedClasses.Utilities.PetroleumCharacterization.Assay.Assay>();
+
+            var assay = _c.BuildAssay();
+            assay.Name = _c.assayname;
+            options.PetroleumAssays[assay.Name] = assay;
+        }
+        catch (Exception ex)
+        {
+            _flowsheet.ShowMessage("The assay could not be stored with the simulation: " + ex.Message,
+                IFlowsheet.MessageType.Warning);
+        }
     }
 
     private void AddToFlowsheet(Dictionary<string, Compound> comps)

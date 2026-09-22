@@ -3005,6 +3005,29 @@ Imports DWSIM.ExtensionMethods
 
         End If
 
+        If xdoc.Element("DWSIM_Simulation_Data").Element("PetroleumAssays") IsNot Nothing Then
+
+            If FlowsheetOptions.PetroleumAssays Is Nothing Then
+                FlowsheetOptions.PetroleumAssays = New Dictionary(Of String, SharedClasses.Utilities.PetroleumCharacterization.Assay.Assay)
+            End If
+            FlowsheetOptions.PetroleumAssays.Clear()
+
+            data = xdoc.Element("DWSIM_Simulation_Data").Element("PetroleumAssays").Elements.ToList
+
+            For Each xel As XElement In data
+                Try
+                    Dim obj As New SharedClasses.Utilities.PetroleumCharacterization.Assay.Assay()
+                    obj.LoadData(xel.Elements.ToList)
+                    If Not FlowsheetOptions.PetroleumAssays.ContainsKey(obj.Name) Then
+                        FlowsheetOptions.PetroleumAssays.Add(obj.Name, obj)
+                    End If
+                Catch ex As Exception
+                    excs.Add(New Exception("Error Loading Petroleum Assay Information", ex))
+                End Try
+            Next
+
+        End If
+
         Scripts = New Dictionary(Of String, Interfaces.IScript)
 
         If xdoc.Element("DWSIM_Simulation_Data").Element("ScriptItems") IsNot Nothing Then
@@ -3253,6 +3276,20 @@ Imports DWSIM.ExtensionMethods
 
         For Each pp As Optimization.SensitivityAnalysisCase In SensAnalysisCollection
             xel.Add(New XElement("SensitivityAnalysisCase", {pp.SaveData().ToArray()}))
+        Next
+
+        ' The petroleum assays of the simulation. They were written by the Windows interface and by
+        ' nothing else, so a crude characterized in the cross-platform one lost its assay, and with it
+        ' the curve, the contaminants and the light ends, on the first save.
+        xdoc.Element("DWSIM_Simulation_Data").Add(New XElement("PetroleumAssays"))
+        xel = xdoc.Element("DWSIM_Simulation_Data").Element("PetroleumAssays")
+
+        If FlowsheetOptions.PetroleumAssays Is Nothing Then
+            FlowsheetOptions.PetroleumAssays = New Dictionary(Of String, SharedClasses.Utilities.PetroleumCharacterization.Assay.Assay)
+        End If
+
+        For Each pa In FlowsheetOptions.PetroleumAssays
+            xel.Add(New XElement("Assay", pa.Value.SaveData().ToArray()))
         Next
 
         xdoc.Element("DWSIM_Simulation_Data").Add(New XElement("ScriptItems"))

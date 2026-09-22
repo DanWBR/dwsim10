@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using DWSIM.Automation.FluentAPI;
 using LightEnds = DWSIM.SharedClasses.Utilities.PetroleumCharacterization.Assay.LightEnds;
 using Assay = DWSIM.SharedClasses.Utilities.PetroleumCharacterization.Assay.Assay;
 
@@ -26,6 +27,60 @@ namespace DWSIM.FluentAPI.Tests
             WhatCanBeALightEnd();
             WhatCanSitBelowAPlusFraction();
             TheAssayCarriesThem();
+            TheSimulationCarriesTheAssay();
+        }
+
+        /// <summary>
+        /// The assay has to survive a save and a load of the simulation itself, which is where the
+        /// light ends were being lost: the cross-platform save never wrote the assay list, so a crude
+        /// characterized outside the Windows interface came back without its curve, its contaminants
+        /// or its light ends.
+        /// </summary>
+        private static void TheSimulationCarriesTheAssay()
+        {
+            var fs = Flowsheet.Create("AssayRoundTrip")
+                .WithCompound("Water")
+                .WithPropertyPackage(PropertyPackages.SteamTables);
+
+            var options = (DWSIM.SharedClasses.DWSIM.Flowsheet.FlowsheetVariables)fs.Inner.FlowsheetOptions;
+            options.PetroleumAssays["Light crude"] = new Assay
+            {
+                Name = "Light crude",
+                MW = 210.0,
+                API = 34.0,
+                BulkSulfurWtPct = 0.42,
+                LightEndsCompounds = new List<string> { "Methane", "Propane" },
+                LightEndsFractions = new List<double> { 0.005, 0.018 },
+                LightEndsBasis = LightEnds.MoleBasis,
+                LightEndsIncludedInCurve = true
+            };
+
+            var path = System.IO.Path.Combine(System.IO.Path.GetTempPath(),
+                "dwsim-assay-roundtrip-" + Guid.NewGuid().ToString("N") + ".dwxmz");
+
+            try
+            {
+                fs.Save(path);
+                var reloaded = Flowsheet.Load(path);
+                var back = (DWSIM.SharedClasses.DWSIM.Flowsheet.FlowsheetVariables)reloaded.Inner.FlowsheetOptions;
+
+                var assay = back.PetroleumAssays.Values.FirstOrDefault(a => a.Name == "Light crude");
+
+                new ResultTable("An assay saved with the simulation")
+                    .Row("the assay came back", 1.0, assay == null ? 0.0 : 1.0, 0.0)
+                    .Row("with its bulk sulfur", 0.42, assay?.BulkSulfurWtPct ?? 0.0, 1e-12, "wt %")
+                    .Row("and both light ends", 2, assay?.LightEndsCompounds?.Count ?? 0, 0.0)
+                    .Row("with the propane fraction", 0.018,
+                         assay?.LightEndsFractions != null && assay.LightEndsFractions.Count > 1
+                             ? assay.LightEndsFractions[1] : 0.0, 1e-12)
+                    .Row("the basis", 1.0, assay?.LightEndsBasis == LightEnds.MoleBasis ? 1.0 : 0.0, 0.0)
+                    .Row("and the curve flag", 1.0, assay != null && assay.LightEndsIncludedInCurve ? 1.0 : 0.0, 0.0)
+                    .PrintAndThrowIfFailed();
+            }
+            finally
+            {
+                try { if (System.IO.File.Exists(path)) System.IO.File.Delete(path); } catch (Exception) { }
+            }
         }
 
         /// <summary>
