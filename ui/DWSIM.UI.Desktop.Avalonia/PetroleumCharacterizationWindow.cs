@@ -48,7 +48,7 @@ public sealed class PetroleumCharacterizationWindow : Window
     private readonly List<string> _definedCompounds = new();
     private readonly List<double> _definedFractions = new();
     private ComboBox _definedBasis = null!;
-    private TextBox _definedData = null!;
+    private CompoundFractionList _defined = null!;
     private readonly Dictionary<string, double> _definedMoleFractions = new();
 
     private double _sulfur, _nitrogen, _nickel, _vanadium, _asphaltenes, _water;
@@ -136,11 +136,14 @@ public sealed class PetroleumCharacterizationWindow : Window
         p.CreateAndAddTextBoxRow(nf, "Aromatics (wt %)", _pnaA, (tb, e) => { if (UtilityHelpers.TryVal(tb.Text, out var v)) _pnaA = v; });
 
         p.CreateAndAddLabelRow("Defined Composition");
-        p.CreateAndAddDescriptionRow("What the analysis of the fluid reports compound by compound before the plus fraction takes over: the inerts and the light hydrocarbons, each with its fraction of the whole fluid. One per line, as 'Compound name, fraction', with the fraction as a percentage. Leave it empty to characterize the plus fraction on its own, as before.");
-        p.CreateAndAddDescriptionRow("Example:  Nitrogen, 0.4   /   Carbon dioxide, 1.2   /   Methane, 38.5   /   Ethane, 7.1   /   Propane, 4.3   /   N-hexane, 2.0");
+        p.CreateAndAddDescriptionRow("What the analysis of the fluid reports compound by compound before the plus fraction takes over: the inerts and the light hydrocarbons, each with its fraction of the whole fluid. Add one row per compound, with its percentage beside it; a compound that is not in the simulation yet is added when the characterization runs. Leave the list empty to characterize the plus fraction on its own, as before.");
         _definedBasis = p.CreateAndAddDropDownRow("Composition Basis",
             new List<string> { "Molar (%)", "Mass (%)", "Liquid Volume (%)" }, 0, null);
-        _definedData = p.CreateAndAddMultilineMonoSpaceTextBoxRow("", 120, false, null);
+        // the list is asked for each time a row is added, so it follows the molar weight the plus
+        // fraction starts at
+        _defined = new CompoundFractionList(
+            () => LightEndsMix.CandidatesBelowPlusFraction(_flowsheet.AvailableCompounds.Values, _mw0));
+        p.Children.Add(_defined);
         p.CreateAndAddDescriptionRow("Every compound here has to be lighter than the plus fraction: the molar weight above is where that fraction starts. The pseudocomponents then take what the defined composition leaves, in the proportions the distribution gave them.");
 
         p.CreateAndAddLabelRow("Pseudo Compounds");
@@ -181,27 +184,10 @@ public sealed class PetroleumCharacterizationWindow : Window
         _definedFractions.Clear();
         _definedMoleFractions.Clear();
 
-        foreach (var raw in (_definedData.Text ?? "").Split('\n'))
+        foreach (var row in _defined.Rows)
         {
-            var line = raw.Trim();
-            if (line.Length == 0) continue;
-
-            var parts = line.Split(new[] { ',', ';', '\t' }, StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length < 2)
-                throw new Exception("'" + line + "' needs a compound name and a percentage, separated by a comma.");
-
-            var name = string.Join(",", parts.Take(parts.Length - 1)).Trim();
-            var value = parts[parts.Length - 1].Trim();
-
-            if (!_flowsheet.AvailableCompounds.ContainsKey(name))
-                throw new Exception("'" + name + "' is not in the compound database. Check the spelling against the compound list.");
-
-            if (!double.TryParse(value, NumberStyles.Any, CultureInfo.CurrentCulture, out var pct) &&
-                !double.TryParse(value, NumberStyles.Any, CultureInfo.InvariantCulture, out pct))
-                throw new Exception("'" + value + "' on the line for " + name + " is not a number.");
-
-            _definedCompounds.Add(name);
-            _definedFractions.Add(pct / 100.0);
+            _definedCompounds.Add(row.Compound);
+            _definedFractions.Add(row.Percent / 100.0);
         }
 
         if (_definedCompounds.Count == 0) return;
