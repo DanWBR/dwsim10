@@ -302,6 +302,70 @@ Namespace Utilities.PetroleumCharacterization.Assay
 
         End Function
 
+        ''' <summary>
+        ''' The same check for a plus fraction rather than a distillation curve: the defined
+        ''' composition of a reservoir fluid, measured compound by compound up to the point where the
+        ''' plus fraction takes over.
+        ''' </summary>
+        ''' <remarks>
+        ''' The boiling point rule of <see cref="Validate"/> is wrong here. A condensate analysis
+        ''' routinely lists the heptanes, octanes and nonanes one by one before a C10+ fraction, and
+        ''' those are not light ends by any reading; what makes a compound belong to the defined
+        ''' composition is being lighter than the plus fraction itself. That line is the molar weight
+        ''' of the lightest member of the plus fraction, which the tool already asks for.
+        ''' </remarks>
+        ''' <param name="names">The compound names, in the order they were declared.</param>
+        ''' <param name="mw">The molar weight of each, kg/kmol. Zero where it is not known.</param>
+        ''' <param name="isPetroleumFraction">True for a pseudocomponent, which is never a defined compound.</param>
+        ''' <param name="plusFractionMW">Molar weight of the lightest member of the plus fraction.</param>
+        Public Shared Function ValidateAgainstPlusFraction(names As IList(Of String), mw As IList(Of Double),
+                                                           isPetroleumFraction As IList(Of Boolean),
+                                                           plusFractionMW As Double) As List(Of Issue)
+
+            Dim issues As New List(Of Issue)
+
+            If names Is Nothing Then Return issues
+
+            Dim seen As New Dictionary(Of String, Integer)(StringComparer.OrdinalIgnoreCase)
+
+            For i = 0 To names.Count - 1
+
+                Dim name = names(i)
+
+                If seen.ContainsKey(name) Then
+                    issues.Add(New Issue(name, True,
+                        name & " is declared twice. Give it one line with its total fraction."))
+                Else
+                    seen.Add(name, i)
+                End If
+
+                If isPetroleumFraction IsNot Nothing AndAlso i < isPetroleumFraction.Count AndAlso isPetroleumFraction(i) Then
+                    issues.Add(New Issue(name, True,
+                        name & " is a petroleum fraction. The defined composition is the real compounds the " &
+                        "analysis reports one by one, and a pseudocomponent is what the plus fraction is split into."))
+                    Continue For
+                End If
+
+                Dim m = 0.0
+                If mw IsNot Nothing AndAlso i < mw.Count Then m = mw(i)
+
+                If m <= 0.0 Then
+                    issues.Add(New Issue(name, False,
+                        "The molar weight of " & name & " is not in the database, so there is no saying " &
+                        "whether it sits below the plus fraction."))
+                ElseIf plusFractionMW > 0.0 AndAlso m >= plusFractionMW Then
+                    issues.Add(New Issue(name, True,
+                        name & " has a molar weight of " & m.ToString("N1") & " kg/kmol, at or above the " &
+                        plusFractionMW.ToString("N1") & " kg/kmol the plus fraction starts at. That material is " &
+                        "already in the pseudocomponents, and declaring it here counts it twice."))
+                End If
+
+            Next
+
+            Return issues
+
+        End Function
+
         ''' <summary>The blocking issues in one message, or an empty string when there are none.</summary>
         Public Shared Function BlockingMessage(issues As IEnumerable(Of Issue)) As String
 

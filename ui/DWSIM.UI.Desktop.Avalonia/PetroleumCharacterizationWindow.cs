@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -12,7 +12,9 @@ using DWSIM.Interfaces;
 using DWSIM.Interfaces.Enums.GraphicObjects;
 using DWSIM.Thermodynamics.BaseClasses;
 using DWSIM.Thermodynamics.Streams;
+using DWSIM.Thermodynamics.PropertyPackages;
 using DWSIM.Thermodynamics.Utilities.PetroleumCharacterization;
+using LightEndsMix = DWSIM.SharedClasses.Utilities.PetroleumCharacterization.Assay.LightEnds;
 using DWSIM.UI.Shared.Avalonia;
 using cv = DWSIM.SharedClasses.SystemsOfUnits.Converter;
 
@@ -40,6 +42,14 @@ public sealed class PetroleumCharacterizationWindow : Window
     private double? _mw, _sg, _nbp;
     private double _mw0 = 80.0, _sg0 = 0.70, _nbp0 = 333.0;
     private double _t1 = 38 + 273.15, _t2 = 98.9 + 273.15, _v1, _v2;
+
+    // ---- the defined composition of the fluid: what the analysis reports compound by compound
+    // ---- before the plus fraction takes over. The pseudocomponents share what it leaves.
+    private readonly List<string> _definedCompounds = new();
+    private readonly List<double> _definedFractions = new();
+    private ComboBox _definedBasis = null!;
+    private TextBox _definedData = null!;
+    private readonly Dictionary<string, double> _definedMoleFractions = new();
 
     private double _sulfur, _nitrogen, _nickel, _vanadium, _asphaltenes, _water;
     private double _pnaP, _pnaN, _pnaA;
@@ -125,6 +135,14 @@ public sealed class PetroleumCharacterizationWindow : Window
         p.CreateAndAddTextBoxRow(nf, "Naphthenes (wt %)", _pnaN, (tb, e) => { if (UtilityHelpers.TryVal(tb.Text, out var v)) _pnaN = v; });
         p.CreateAndAddTextBoxRow(nf, "Aromatics (wt %)", _pnaA, (tb, e) => { if (UtilityHelpers.TryVal(tb.Text, out var v)) _pnaA = v; });
 
+        p.CreateAndAddLabelRow("Defined Composition");
+        p.CreateAndAddDescriptionRow("What the analysis of the fluid reports compound by compound before the plus fraction takes over: the inerts and the light hydrocarbons, each with its fraction of the whole fluid. One per line, as 'Compound name, fraction', with the fraction as a percentage. Leave it empty to characterize the plus fraction on its own, as before.");
+        p.CreateAndAddDescriptionRow("Example:  Nitrogen, 0.4   /   Carbon dioxide, 1.2   /   Methane, 38.5   /   Ethane, 7.1   /   Propane, 4.3   /   N-hexane, 2.0");
+        _definedBasis = p.CreateAndAddDropDownRow("Composition Basis",
+            new List<string> { "Molar (%)", "Mass (%)", "Liquid Volume (%)" }, 0, null);
+        _definedData = p.CreateAndAddMultilineMonoSpaceTextBoxRow("", 120, false, null);
+        p.CreateAndAddDescriptionRow("Every compound here has to be lighter than the plus fraction: the molar weight above is where that fraction starts. The pseudocomponents then take what the defined composition leaves, in the proportions the distribution gave them.");
+
         p.CreateAndAddLabelRow("Pseudo Compounds");
         p.CreateAndAddTextBoxRow("N0", "Number of Compounds", _ncomps,
             (tb, e) => { if (UtilityHelpers.TryVal(tb.Text, out var v) && v >= 1) _ncomps = (int)v; });
@@ -153,11 +171,142 @@ public sealed class PetroleumCharacterizationWindow : Window
 
     // -------------------------------------------------------------------------
 
+    /// <summary>
+    /// Reads the defined composition, one compound per line as a name, a comma and a percentage of
+    /// the whole fluid, and checks that each one really sits below the plus fraction.
+    /// </summary>
+    private void ParseDefinedComposition()
+    {
+        _definedCompounds.Clear();
+        _definedFractions.Clear();
+        _definedMoleFractions.Clear();
+
+        foreach (var raw in (_definedData.Text ?? "").Split('\n'))
+        {
+            var line = raw.Trim();
+            if (line.Length == 0) continue;
+
+            var parts = line.Split(new[] { ',', ';', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length < 2)
+                throw new Exception("'" + line + "' needs a compound name and a percentage, separated by a comma.");
+
+            var name = string.Join(",", parts.Take(parts.Length - 1)).Trim();
+            var value = parts[parts.Length - 1].Trim();
+
+            if (!_flowsheet.AvailableCompounds.ContainsKey(name))
+                throw new Exception("'" + name + "' is not in the compound database. Check the spelling against the compound list.");
+
+            if (!double.TryParse(value, NumberStyles.Any, CultureInfo.CurrentCulture, out var pct) &&
+                !double.TryParse(value, NumberStyles.Any, CultureInfo.InvariantCulture, out pct))
+                throw new Exception("'" + value + "' on the line for " + name + " is not a number.");
+
+            _definedCompounds.Add(name);
+            _definedFractions.Add(pct / 100.0);
+        }
+
+        if (_definedCompounds.Count == 0) return;
+
+        var props = _definedCompounds.Select(n => _flowsheet.AvailableCompounds[n]).ToList();
+        var issues = LightEndsMix.ValidateAgainstPlusFraction(
+            _definedCompounds,
+            props.Select(c => c.Molar_Weight).ToList(),
+            props.Select(c => c.IsPF == 1).ToList(),
+            _mw0);
+
+        var blocking = LightEndsMix.BlockingMessage(issues);
+        if (!string.IsNullOrEmpty(blocking)) throw new Exception(blocking);
+
+        var warnings = issues.Where(i => !i.Blocking).Select(i => i.Message).ToList();
+        if (warnings.Count > 0) _status.Text = string.Join(" ", warnings);
+    }
+
+    /// <summary>
+    /// Scales the pseudocompounds down to the share of the fluid the defined composition leaves them.
+    /// </summary>
+    private void ApplyDefinedComposition(Dictionary<string, ICompound> comps)
+    {
+        _definedMoleFractions.Clear();
+
+        if (_definedCompounds.Count == 0) return;
+
+        var props = _definedCompounds.Select(n => _flowsheet.AvailableCompounds[n]).ToList();
+        var pseudos = comps.Values.ToList();
+
+        var basis = _definedBasis.SelectedIndex switch
+        {
+            1 => LightEndsMix.MassBasis,
+            2 => LightEndsMix.VolumeBasis,
+            _ => LightEndsMix.MoleBasis,
+        };
+
+        double[] definedx = null, pseudox = null;
+
+        LightEndsMix.Combine(
+            _definedFractions.ToArray(),
+            props.Select(c => c.Molar_Weight).ToArray(),
+            props.Select(c => DefinedSG(c, basis)).ToArray(),
+            basis,
+            pseudos.Select(c => c.MoleFraction.GetValueOrDefault()).ToArray(),
+            pseudos.Select(c => c.ConstantProperties.Molar_Weight).ToArray(),
+            pseudos.Select(c => c.ConstantProperties.PF_SG.GetValueOrDefault()).ToArray(),
+            ref definedx, ref pseudox);
+
+        for (var p = 0; p < pseudos.Count; p++) pseudos[p].MoleFraction = pseudox[p];
+        for (var i = 0; i < _definedCompounds.Count; i++)
+        {
+            var name = _definedCompounds[i];
+            _definedMoleFractions[name] = _definedMoleFractions.ContainsKey(name)
+                ? _definedMoleFractions[name] + definedx[i]
+                : definedx[i];
+        }
+    }
+
+    /// <summary>
+    /// The specific gravity a defined compound is counted with on the volume basis: its liquid
+    /// density at 15.6 C, which for the inerts and the lightest hydrocarbons is the pseudo-liquid
+    /// density the analysis itself is written with.
+    /// </summary>
+    private double DefinedSG(ICompoundConstantProperties cp, string basis)
+    {
+        if (!string.Equals(basis, LightEndsMix.VolumeBasis, StringComparison.OrdinalIgnoreCase)) return 0.0;
+
+        double density;
+        try
+        {
+            var pp = _flowsheet.PropertyPackages.Count > 0
+                ? (PropertyPackage)_flowsheet.PropertyPackages.Values.First()
+                : new PengRobinsonPropertyPackage();
+            density = pp.AUX_LIQDENSi(cp, 288.706);
+        }
+        catch (Exception ex)
+        {
+            throw new Exception("The liquid density of '" + cp.Name + "' at 15.6 C could not be computed (" +
+                ex.Message + "), and the volume basis needs it. Give the composition on the mole or the mass basis instead.");
+        }
+
+        if (density <= 0.0 || double.IsNaN(density) || double.IsInfinity(density))
+            throw new Exception("The liquid density of '" + cp.Name + "' at 15.6 C came out as " +
+                density.ToString("G4") + ", and the volume basis needs a real one. Give the composition on the " +
+                "mole or the mass basis instead.");
+
+        return density / 999.0;
+    }
+
     private async Task CharacterizeAsync()
     {
         if (!_mw.HasValue && !_sg.HasValue && !_nbp.HasValue)
         {
             _status.Text = "Define at least one assay property (molar weight, specific gravity or average NBP).";
+            return;
+        }
+
+        try
+        {
+            ParseDefinedComposition();
+        }
+        catch (Exception ex)
+        {
+            _status.Text = "Error reading the defined composition: " + ex.Message;
             return;
         }
 
@@ -174,6 +323,17 @@ public sealed class PetroleumCharacterizationWindow : Window
         catch (Exception ex)
         {
             _status.Text = "Characterization failed: " + (ex.InnerException?.Message ?? ex.Message);
+            _btnRun.IsEnabled = true;
+            return;
+        }
+
+        try
+        {
+            ApplyDefinedComposition(comps);
+        }
+        catch (Exception ex)
+        {
+            _status.Text = "The defined composition could not be combined with the pseudocompounds: " + ex.Message;
             _btnRun.IsEnabled = true;
             return;
         }
@@ -209,10 +369,31 @@ public sealed class PetroleumCharacterizationWindow : Window
                 }
             }
 
+            // the defined compounds are already in the database: they only have to be selected into
+            // the simulation, and they carry the fractions the analysis gave them
+            foreach (var name in _definedMoleFractions.Keys)
+            {
+                if (!_flowsheet.SelectedCompounds.ContainsKey(name))
+                    _flowsheet.SelectedCompounds.Add(name, _flowsheet.AvailableCompounds[name]);
+
+                foreach (MaterialStream obj in _flowsheet.SimulationObjects.Values
+                             .Where(x => x.GraphicObject != null && x.GraphicObject.ObjectType == ObjectType.MaterialStream))
+                {
+                    foreach (var phase in obj.Phases.Values)
+                    {
+                        if (phase.Compounds.ContainsKey(name)) continue;
+                        phase.Compounds.Add(name, new Compound(name, ""));
+                        phase.Compounds[name].ConstantProperties = _flowsheet.SelectedCompounds[name];
+                    }
+                }
+            }
+
             var ms = (MaterialStream)_flowsheet.AddObject(ObjectType.MaterialStream, 100, 100, _assayName);
 
             double wtotal = comps.Values
                 .Select(x => x.MoleFraction.GetValueOrDefault() * x.ConstantProperties.Molar_Weight).Sum();
+            wtotal += _definedMoleFractions
+                .Select(x => x.Value * _flowsheet.SelectedCompounds[x.Key].Molar_Weight).Sum();
 
             foreach (var c in ms.Phases[0].Compounds.Values) { c.MassFraction = 0.0; c.MoleFraction = 0.0; }
             foreach (var c in comps.Values)
@@ -223,9 +404,19 @@ public sealed class PetroleumCharacterizationWindow : Window
                 ms.Phases[0].Compounds[c.Name].MassFraction = c.MassFraction.GetValueOrDefault();
                 ms.Phases[0].Compounds[c.Name].MoleFraction = c.MoleFraction.GetValueOrDefault();
             }
+            foreach (var d in _definedMoleFractions)
+            {
+                var mw = _flowsheet.SelectedCompounds[d.Key].Molar_Weight;
+                ms.Phases[0].Compounds[d.Key].MoleFraction = d.Value;
+                ms.Phases[0].Compounds[d.Key].MassFraction = wtotal > 0 ? d.Value * mw / wtotal : 0.0;
+            }
 
             _flowsheet.UpdateInterface();
-            _status.Text = $"Material stream '{_assayName}' added with {comps.Count} generated compound(s).";
+            _status.Text = _definedMoleFractions.Count == 0
+                ? $"Material stream '{_assayName}' added with {comps.Count} generated compound(s)."
+                : $"Material stream '{_assayName}' added with {comps.Count} generated compound(s) and " +
+                  $"{_definedMoleFractions.Count} defined compound(s) taking " +
+                  $"{_definedMoleFractions.Values.Sum() * 100:N2} mol % of the fluid.";
             _flowsheet.ShowMessage(_status.Text, IFlowsheet.MessageType.Information);
 
             await OfferXmlExportAsync(comps);

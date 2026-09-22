@@ -24,6 +24,7 @@ namespace DWSIM.FluentAPI.Tests
             TheShareComesBack();
             Refusals();
             WhatCanBeALightEnd();
+            WhatCanSitBelowAPlusFraction();
             TheAssayCarriesThem();
         }
 
@@ -129,6 +130,43 @@ namespace DWSIM.FluentAPI.Tests
             }
 
             table.PrintAndThrowIfFailed();
+        }
+
+        /// <summary>
+        /// The same question for a reservoir fluid, where the line is not the boiling point of the
+        /// pentanes but the molar weight the plus fraction starts at. A condensate analysis lists the
+        /// heptanes and the octanes one by one in front of a C10+ fraction, and those are not light
+        /// ends by any reading.
+        /// </summary>
+        private static void WhatCanSitBelowAPlusFraction()
+        {
+            var names = new List<string> { "Nitrogen", "Methane", "N-heptane", "N-decane", "PSEUDO-1", "Exotic" };
+            var mw = new List<double> { 28.01, 16.04, 100.2, 142.3, 250.0, 0.0 };
+            var pseudo = new List<bool> { false, false, false, false, true, false };
+
+            // a C10+ fluid: the plus fraction starts at 134 kg/kmol, so n-heptane is a defined
+            // compound and n-decane is inside the pseudocomponents
+            var issues = LightEnds.ValidateAgainstPlusFraction(names, mw, pseudo, 134.0);
+
+            var blocking = issues.Where(i => i.Blocking).Select(i => i.Compound).ToList();
+            var warnings = issues.Where(i => !i.Blocking).Select(i => i.Compound).ToList();
+
+            // the same n-heptane against a C7+ fluid, where the plus fraction starts at 90
+            var c7 = LightEnds.ValidateAgainstPlusFraction(
+                new List<string> { "N-heptane" }, new List<double> { 100.2 }, new List<bool> { false }, 90.0);
+
+            new ResultTable("What can sit below a plus fraction")
+                .Row("nitrogen and methane pass", 0.0,
+                     issues.Count(i => i.Compound == "Nitrogen" || i.Compound == "Methane"), 0.0)
+                .Row("n-heptane passes below a C10+ fraction", 0.0,
+                     issues.Count(i => i.Compound == "N-heptane"), 0.0)
+                .Row("and is refused below a C7+ one", 1.0, c7.Count(i => i.Blocking), 0.0)
+                .Row("n-decane is refused", 1.0, blocking.Count(c => c == "N-decane"), 0.0)
+                .Row("a pseudocomponent is refused", 1.0, blocking.Count(c => c == "PSEUDO-1"), 0.0)
+                .Row("a compound with no molar weight is a warning", 1.0, warnings.Count(c => c == "Exotic"), 0.0)
+                .Row("the message says where the fraction starts", 1.0,
+                     LightEnds.BlockingMessage(issues).Contains("134.0") ? 1.0 : 0.0, 0.0)
+                .PrintAndThrowIfFailed();
         }
 
         private static void Refusals()
