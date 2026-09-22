@@ -216,6 +216,104 @@ Namespace Utilities.PetroleumCharacterization.Assay
 
         End Function
 
+        ''' <summary>The boiling point of n-pentane, where an assay usually cuts its light ends off.</summary>
+        Public Const PentaneNBP As Double = 309.2
+
+        ''' <summary>
+        ''' The boiling point of n-heptane. Above it a compound is curve material, whatever the sheet
+        ''' calls it, and declaring it as a light end counts the same oil twice.
+        ''' </summary>
+        Public Const HeptaneNBP As Double = 371.6
+
+        ''' <summary>Something the matters about a compound declared as a light end.</summary>
+        Public Class Issue
+
+            Public Property Compound As String
+            ''' <summary>True when the characterization cannot go on with it.</summary>
+            Public Property Blocking As Boolean
+            Public Property Message As String
+
+            Public Sub New(compound As String, blocking As Boolean, message As String)
+                Me.Compound = compound
+                Me.Blocking = blocking
+                Me.Message = message
+            End Sub
+
+        End Class
+
+        ''' <summary>
+        ''' Checks that what was declared as a light end can be one. The light ends of an assay are the
+        ''' compounds that boil below the front of the curve, methane through the pentanes; a heavier
+        ''' compound named here is material the curve already carries, and counting it on both sides
+        ''' inflates the crude.
+        ''' </summary>
+        ''' <param name="names">The compound names, in the order they were declared.</param>
+        ''' <param name="nbp">The normal boiling point of each, K. Zero where it is not known.</param>
+        ''' <param name="isPetroleumFraction">True for a pseudocomponent, which is never a light end.</param>
+        Public Shared Function Validate(names As IList(Of String), nbp As IList(Of Double),
+                                        isPetroleumFraction As IList(Of Boolean)) As List(Of Issue)
+
+            Dim issues As New List(Of Issue)
+
+            If names Is Nothing Then Return issues
+
+            Dim seen As New Dictionary(Of String, Integer)(StringComparer.OrdinalIgnoreCase)
+
+            For i = 0 To names.Count - 1
+
+                Dim name = names(i)
+
+                If seen.ContainsKey(name) Then
+                    issues.Add(New Issue(name, True,
+                        name & " is declared twice in the light ends. Give it one line with its total fraction."))
+                Else
+                    seen.Add(name, i)
+                End If
+
+                If isPetroleumFraction IsNot Nothing AndAlso i < isPetroleumFraction.Count AndAlso isPetroleumFraction(i) Then
+                    issues.Add(New Issue(name, True,
+                        name & " is a petroleum fraction. The light ends are the real compounds the assay " &
+                        "reports beside the curve, and a pseudocomponent is the curve itself."))
+                    Continue For
+                End If
+
+                Dim t = 0.0
+                If nbp IsNot Nothing AndAlso i < nbp.Count Then t = nbp(i)
+
+                If t <= 0.0 Then
+                    issues.Add(New Issue(name, False,
+                        "The normal boiling point of " & name & " is not in the database, so there is no " &
+                        "saying whether it belongs with the light ends."))
+                ElseIf t > HeptaneNBP Then
+                    issues.Add(New Issue(name, True,
+                        name & " boils at " & (t - 273.15).ToString("N1") & " C, well inside the range the " &
+                        "distillation curve covers. Declaring it as a light end counts that material twice, " &
+                        "once here and once in the cuts."))
+                ElseIf t > PentaneNBP Then
+                    issues.Add(New Issue(name, False,
+                        name & " boils at " & (t - 273.15).ToString("N1") & " C, above the pentanes. Some " &
+                        "assays do report the hexanes with the light ends; check that the curve does not " &
+                        "cover it as well."))
+                End If
+
+            Next
+
+            Return issues
+
+        End Function
+
+        ''' <summary>The blocking issues in one message, or an empty string when there are none.</summary>
+        Public Shared Function BlockingMessage(issues As IEnumerable(Of Issue)) As String
+
+            If issues Is Nothing Then Return ""
+
+            Dim blocking = issues.Where(Function(x) x.Blocking).Select(Function(x) x.Message).ToList()
+            If blocking.Count = 0 Then Return ""
+
+            Return String.Join(" ", blocking)
+
+        End Function
+
         ''' <summary>The basis name the curve of an assay is on, for the NBP type the assay carries.</summary>
         Public Shared Function CurveBasisName(curvebasis As Integer) As String
             Select Case curvebasis

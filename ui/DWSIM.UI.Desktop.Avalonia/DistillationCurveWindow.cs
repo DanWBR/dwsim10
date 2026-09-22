@@ -394,6 +394,12 @@ public sealed class DistillationCurveWindow : Window
             _c.lightEndsCompounds.Add(name);
             _c.lightEndsFractions.Add(pct / 100.0);
         }
+
+        // said here rather than deep inside the characterization, so a name that cannot be a light
+        // end is heard before the fitting runs
+        var issues = _c.ValidateLightEnds();
+        var warnings = issues.Where(i => !i.Blocking).Select(i => i.Message).ToList();
+        if (warnings.Count > 0) _status.Text = string.Join(" ", warnings);
     }
 
     private void AddToFlowsheet(Dictionary<string, Compound> comps)

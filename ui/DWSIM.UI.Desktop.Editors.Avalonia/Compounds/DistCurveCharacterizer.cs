@@ -878,6 +878,8 @@ namespace DWSIM.UI.Desktop.Editors
                     " compound(s) were named and " + lightEndsFractions.Count + " fraction(s) given.");
             }
 
+            ValidateLightEnds();
+
             var cuts = ccol.Values.ToList();
 
             var lightMW = new double[lightEndsCompounds.Count];
@@ -906,6 +908,27 @@ namespace DWSIM.UI.Desktop.Editors
                     : lightx[i];
             }
 
+        }
+
+        /// <summary>
+        /// Checks the declared light ends against what a light end can be, and stops the
+        /// characterization on anything that would count the same oil twice.
+        /// </summary>
+        public List<LightEndsMix.Issue> ValidateLightEnds()
+        {
+            var props = lightEndsCompounds.Select(LightEndProperties).ToList();
+
+            var issues = LightEndsMix.Validate(
+                lightEndsCompounds,
+                props.Select(c => c.Normal_Boiling_Point).ToList(),
+                props.Select(c => c.IsPF == 1).ToList());
+
+            var blocking = LightEndsMix.BlockingMessage(issues);
+            if (!string.IsNullOrEmpty(blocking)) throw new Exception(blocking);
+
+            foreach (var issue in issues) OnError(issue.Message);
+
+            return issues;
         }
 
         /// <summary>The database record of a light end, by name.</summary>

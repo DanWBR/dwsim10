@@ -23,7 +23,44 @@ namespace DWSIM.FluentAPI.Tests
             Combining();
             TheShareComesBack();
             Refusals();
+            WhatCanBeALightEnd();
             TheAssayCarriesThem();
+        }
+
+        /// <summary>
+        /// A light end is a compound that boils below the front of the curve. Anything heavier named
+        /// here is material the curve already carries, and counting it on both sides inflates the crude.
+        /// </summary>
+        private static void WhatCanBeALightEnd()
+        {
+            var names = new List<string> { "Methane", "Propane", "N-hexane", "N-decane", "PSEUDO-1", "Propane", "Exotic" };
+            var nbp = new List<double> { 111.7, 231.1, 341.9, 447.3, 500.0, 231.1, 0.0 };
+            var pseudo = new List<bool> { false, false, false, false, true, false, false };
+
+            var issues = LightEnds.Validate(names, nbp, pseudo);
+
+            var blocking = issues.Where(i => i.Blocking).Select(i => i.Compound).ToList();
+            var warnings = issues.Where(i => !i.Blocking).Select(i => i.Compound).ToList();
+
+            new ResultTable("What can be declared as a light end")
+                .Row("methane and propane pass", 0.0,
+                     issues.Count(i => i.Compound == "Methane") + issues.Count(i => i.Compound == "Propane" && !i.Blocking), 0.0)
+                .Row("n-hexane is a warning, not a refusal", 1.0,
+                     warnings.Count(c => c == "N-hexane"), 0.0)
+                .Row("n-decane is refused", 1.0, blocking.Count(c => c == "N-decane"), 0.0)
+                .Row("a pseudocomponent is refused", 1.0, blocking.Count(c => c == "PSEUDO-1"), 0.0)
+                .Row("the repeated propane is refused", 1.0, blocking.Count(c => c == "Propane"), 0.0)
+                .Row("a compound with no boiling point is a warning", 1.0, warnings.Count(c => c == "Exotic"), 0.0)
+                .Row("the blocking message names them", 1.0,
+                     LightEnds.BlockingMessage(issues).Contains("N-decane") ? 1.0 : 0.0, 0.0)
+                .Row("a clean list has nothing to say", 0.0,
+                     LightEnds.Validate(new List<string> { "Methane", "Ethane", "Isobutane" },
+                                        new List<double> { 111.7, 184.6, 261.4 },
+                                        new List<bool> { false, false, false }).Count, 0.0)
+                .Row("and nothing blocking", 0.0,
+                     LightEnds.BlockingMessage(LightEnds.Validate(new List<string> { "Methane" },
+                                        new List<double> { 111.7 }, new List<bool> { false })).Length, 0.0)
+                .PrintAndThrowIfFailed();
         }
 
         private static void Combining()
