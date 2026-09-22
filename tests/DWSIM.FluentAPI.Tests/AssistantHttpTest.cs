@@ -79,6 +79,7 @@ namespace DWSIM.FluentAPI.Tests
                         return;
                     }
 
+                    CheckLivenessProbe(server);
                     CheckModifyUnit(http, fs);
                     CheckFlowsheetCheck(http);
                     CheckDegreesOfFreedomAndExplain(http);
@@ -117,6 +118,21 @@ namespace DWSIM.FluentAPI.Tests
 
             Console.WriteLine("  last attempt: " + (last == null ? "(none)" : last.GetBaseException().Message));
             return false;
+        }
+
+        /// <summary>
+        /// Opening the assistant a second time reuses the bridge this process runs, and what
+        /// decides that is the probe, not the listener's own flag. A probe that answered false
+        /// on a healthy bridge would tear it down and rebuild it on every open; one that could
+        /// not answer true at all would leave the old defect in place, where a bridge the kernel
+        /// no longer routes to is trusted and every request from the assistant hangs.
+        /// </summary>
+        private static void CheckLivenessProbe(Server server)
+        {
+            if (!server.Answers(2000))
+                throw new Exception("A bridge that has just bound does not answer its own probe.");
+
+            Console.WriteLine("  the bridge answers its liveness probe");
         }
 
         /// <summary>

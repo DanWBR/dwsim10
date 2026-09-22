@@ -95,6 +95,13 @@ Public Class Server
             ListeningTask = New System.Threading.Thread(Sub() ListenLoop(Server))
             ListeningTask.IsBackground = True
             ListeningTask.Start()
+
+            ' Also on the flowsheet, not only on the console: the console output of the
+            ' Classic interface goes to a window of its own that nobody has open, so a
+            ' report of the assistant failing arrived with a log that said nothing about
+            ' the bridge either way, and there was no telling a fresh bind from a reuse.
+            Flowsheet?.ShowMessage("The flowsheet bridge is listening at http://localhost:5002/.",
+                                   IFlowsheet.MessageType.Information)
             Return True
 
         Catch ex As Exception
@@ -113,6 +120,49 @@ Public Class Server
             Return Server IsNot Nothing AndAlso Server.IsListening
         End Get
     End Property
+
+    ''' <summary>
+    ''' True when the bridge answers a request within <paramref name="timeoutMs"/>.
+    ''' </summary>
+    ''' <remarks>
+    ''' <see cref="IsListening"/> says only what this object believes. On Windows the
+    ''' registration lives in HTTP.sys, outside the process, and it can be taken away from
+    ''' under a listener that goes on reporting that it is listening: restarting the HTTP
+    ''' service while DWSIM is open does exactly that. The kernel still accepts the TCP
+    ''' connection and queues the request, and nothing dequeues it, so every call from the
+    ''' assistant times out with no error anywhere. A request that comes back is the only
+    ''' proof the accept loop is alive, and any status code proves it, since the auth gate
+    ''' answers before the flowsheet is touched.
+    ''' </remarks>
+    Public Function Answers(timeoutMs As Integer) As Boolean
+
+        If Not IsListening Then Return False
+
+        ' on a thread of its own, so a caller on the UI thread cannot be held by it
+        Dim probe = Task.Run(Function() As Boolean
+                                 Try
+                                     Using client As New System.Net.Http.HttpClient()
+                                         client.Timeout = TimeSpan.FromMilliseconds(timeoutMs)
+                                         client.DefaultRequestHeaders.Add("X-DWSIM-Token",
+                                                                          ReportExportHelper.AssistantToken)
+                                         Using resp = client.GetAsync("http://localhost:5002/api/check").
+                                             GetAwaiter().GetResult()
+                                             Return True
+                                         End Using
+                                     End Using
+                                 Catch
+                                     Return False
+                                 End Try
+                             End Function)
+
+        Try
+            If Not probe.Wait(timeoutMs + 500) Then Return False
+            Return probe.Result
+        Catch
+            Return False
+        End Try
+
+    End Function
 
     ''' <summary>
     ''' Turns a listener start-up failure into a message that says what to do. The case
