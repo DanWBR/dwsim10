@@ -85,6 +85,7 @@ namespace DWSIM.FluentAPI.Tests
         [Test] public void ATankFillsAtTheRateItIsFed() => DynamicsTankFillingTest.Run();
         [Test] public void ACompressorRaisesItsSurgeAlarmBelowTheSurgeFlow() => CompressorSurgeAlarmTest.Run();
         [Test] public void AReliefValveHoldsABlockedVesselInsideItsLiftBand() => ReliefValveDynamicsTest.Run();
+        [Test] public void ACoolerOnAFixedHeatRemovedCoolsItsOutlet() => CoolerDynamicsTest.Run();
         [Test, Category(Slow)] public void ADynamicColumnRidesAFeedStep() => DynamicsColumnCaseTest.Run();
         [Test, Category(Slow)] public void AColumnStartsUpFromEmpty() => DynamicsColumnStartupCaseTest.Run();
         [Test, Category(Slow)] public void AColumnShutsDown() => DynamicsColumnShutdownCaseTest.Run();

@@ -344,7 +344,23 @@ Namespace UnitOperations
             Ha = AccumulationStream.GetMassEnthalpy
             Wa = AccumulationStream.GetMassFlow
 
-            Dim Qsource As Double = DeltaQ.GetValueOrDefault
+            ' DeltaQ is the heat removed, positive when the cooler cools, so it leaves the holdup here.
+            ' In Energy Stream mode the inlet energy stream carries heat added, as in the heater.
+
+            Dim Qsource As Double = 0.0
+
+            Select Case CalcMode
+
+                Case CalculationMode.EnergyStream
+
+                    Dim esin = GetInletEnergyStream(1)
+                    If esin IsNot Nothing Then Qsource = esin.EnergyFlow.GetValueOrDefault
+
+                Case CalculationMode.HeatRemoved
+
+                    Qsource = -DeltaQ.GetValueOrDefault
+
+            End Select
 
             Dim Tambient As Double = GetDynamicProperty("Ambient Temperature")
             Dim UA As Double = GetDynamicProperty("Ambient UA Product")
