@@ -59,7 +59,7 @@ public sealed class PsvSizingWindow : Window
             .ToList();
 
         _valves = p.CreateAndAddDropDownRow("Valve", tags, tags.Count > 0 ? 0 : -1, null);
-        p.CreateAndAddDescriptionRow("The inlet stream sets the relieving conditions and the outlet stream sets the back pressure. Solve the flowsheet before sizing.");
+        p.CreateAndAddDescriptionRow("The inlet stream sets the relieving conditions and its pressure is taken as the set pressure; the outlet stream sets the back pressure. Both are absolute pressures. Solve the flowsheet before sizing.");
 
         p.CreateAndAddLabelRow("Sizing Basis");
         var fluids = new List<string> { "Liquid", "Vapor", "Two-Phase (gas-liquid)" };
@@ -69,12 +69,14 @@ public sealed class PsvSizingWindow : Window
         p.CreateAndAddLabelRow("Coefficients");
         p.CreateAndAddTextBoxRow(_nf, "Discharge Coefficient Kd", _kd,
             (tb, e) => { if (UtilityHelpers.TryVal(tb.Text, out var v)) _kd = v; });
-        p.CreateAndAddTextBoxRow(_nf, "Back Pressure Correction Kb", _kb,
+        p.CreateAndAddTextBoxRow(_nf, "Back Pressure Correction Kb (Kw for liquid)", _kb,
             (tb, e) => { if (UtilityHelpers.TryVal(tb.Text, out var v)) _kb = v; });
         p.CreateAndAddTextBoxRow(_nf, "Rupture Disk Combination Kc", _kc,
             (tb, e) => { if (UtilityHelpers.TryVal(tb.Text, out var v)) _kc = v; });
-        p.CreateAndAddTextBoxRow(_nf, "Overpressure (%)", _overpressure,
+        p.CreateAndAddTextBoxRow(_nf, "Overpressure (% of the gauge set pressure)", _overpressure,
             (tb, e) => { if (UtilityHelpers.TryVal(tb.Text, out var v)) _overpressure = v; });
+        p.CreateAndAddDescriptionRow("API 520 relieving pressure: P1 = set pressure (gauge) x (1 + overpressure) + 1 atm, absolute.");
+        p.CreateAndAddDescriptionRow("The API 520 gas equation assumes an ideal gas with an ideal-gas k = Cp/Cv. The tool passes the real Cp/Cv of the vapour, so near-critical or dense gases (Z far from 1, large Cp/Cv) need a check by the direct integration (HDI) method of API 520 Annex B.");
 
         _btnRun = new Button
         {
@@ -129,44 +131,48 @@ public sealed class PsvSizingWindow : Window
         double P = inlet.Phases[0].Properties.pressure.GetValueOrDefault();
         double BP = outlet.Phases[0].Properties.pressure.GetValueOrDefault();
 
-        double me_m = inlet.Phases[0].Properties.density.GetValueOrDefault();
-        double QT = inlet.Phases[0].Properties.volumetric_flow.GetValueOrDefault();
+        double WT = inlet.Phases[0].Properties.massflow.GetValueOrDefault();
 
         double visc_l = inlet.Phases[3].Properties.viscosity.GetValueOrDefault();
         double me_l = inlet.Phases[3].Properties.density.GetValueOrDefault();
         double QL = inlet.Phases[3].Properties.volumetric_flow.GetValueOrDefault();
 
         double WV = inlet.Phases[2].Properties.massflow.GetValueOrDefault();
-        double me_v = inlet.Phases[2].Properties.density.GetValueOrDefault();
         double zg = inlet.Phases[2].Properties.compressibilityFactor.GetValueOrDefault();
         double cp = inlet.Phases[2].Properties.heatCapacityCp.GetValueOrDefault();
         double cvv = inlet.Phases[2].Properties.heatCapacityCv.GetValueOrDefault();
         double cpcv = cvv == 0.0 ? 1.0 : cp / cvv;
         double mm_g = inlet.Phases[2].Properties.molecularWeight.GetValueOrDefault();
-        double xm_g = inlet.Phases[2].Properties.massfraction.GetValueOrDefault();
 
-        // the API correlations take pressures in kgf/cm2 absolute
-        double Prel = (P * 1.033 / 101325) * (1 + _overpressure / 100);
-        double Pback = BP * 1.033 / 101325;
+        // the stream pressures are absolute; P1 = set pressure (gauge) x (1 + overpressure) + 1 atm
+        double P1 = PSV.Sizing.RelievingPressure(P, _overpressure);
 
-        var sz = new PSV.Sizing();
         double Ao;
+        string? warning = null;
+        var extra = new List<(string, string)>();
 
         try
         {
             switch (_fluid.SelectedIndex)
             {
                 case 0:
-                    Ao = Convert.ToDouble(sz.PSV_LCC_D(QL * 24 * 3600, Prel, Pback, me_l, visc_l, _kd, _kc));
+                    Ao = PSV.Sizing.LiquidArea(QL, P1, BP, me_l, visc_l, _kd, _kb, _kc);
                     break;
                 case 2:
-                    var rho90 = DensityAtReducedPressure(inlet);
-                    var tmp2 = (object[])sz.PSV_GL_D23_D(xm_g, me_v, me_m, rho90,
-                        Prel - 1.033, Pback - 1.033, QT * 24 * 3600, _kd, _kb, _kc);
-                    Ao = Convert.ToDouble(tmp2[0]);
+                    var v = PSV.Sizing.OmegaSpecificVolumes(inlet);
+                    var tp = PSV.Sizing.TwoPhaseArea(v[0], v[1], P1, BP, WT, _kd, _kb, _kc);
+                    Ao = tp[0];
+                    extra.Add(("Omega Parameter", tp[1].ToString("N3")));
+                    extra.Add(("Flow Regime", tp[4] > 0.5 ? "Critical" : "Subcritical"));
+                    if (!(tp[1] > 0.0))
+                        warning = "The mixture does not expand on the isentropic flash to 90 % of the inlet pressure, so the omega method does not apply. Size it as a liquid.";
                     break;
                 default:
-                    Ao = Convert.ToDouble(sz.PSV_G_D(Prel, Pback, T, WV * 3600, zg, mm_g, cpcv, _kd, _kb, _kc));
+                    Ao = PSV.Sizing.GasArea(P1, BP, T, WV, zg, mm_g, cpcv, _kd, _kb, _kc);
+                    extra.Add(("Compressibility Factor Z", zg.ToString("N3")));
+                    extra.Add(("Cp/Cv", cpcv.ToString("N3")));
+                    extra.Add(("Flow Regime", BP <= PSV.Sizing.CriticalFlowPressure(P1, cpcv) ? "Critical" : "Subcritical"));
+                    warning = PSV.Sizing.IdealGasWarning(zg, cpcv);
                     break;
             }
         }
@@ -178,39 +184,43 @@ public sealed class PsvSizingWindow : Window
 
         if (double.IsNaN(Ao) || double.IsInfinity(Ao) || Ao <= 0)
         {
-            _status.Text = "The orifice area could not be calculated. Check the relieving conditions and the stream phases.";
+            _status.Text = warning ?? "The orifice area could not be calculated. Check the relieving conditions and the stream phases.";
             return;
         }
 
-        var orif = (object[])sz.ORIF_API(Ao);
+        var orif = PSV.Sizing.StandardOrifice(Ao);
 
         var p = new AvaloniaEditorPanel();
         p.CreateAndAddLabelRow("Relieving Conditions");
         p.CreateAndAddTwoLabelsRow("Temperature", cv.ConvertFromSI(_su.temperature, T).ToString(_nf) + " " + _su.temperature);
-        p.CreateAndAddTwoLabelsRow("Set Pressure", cv.ConvertFromSI(_su.pressure, P).ToString(_nf) + " " + _su.pressure);
-        p.CreateAndAddTwoLabelsRow("Back Pressure", cv.ConvertFromSI(_su.pressure, BP).ToString(_nf) + " " + _su.pressure);
+        p.CreateAndAddTwoLabelsRow("Set Pressure (inlet stream)", FormatPressure(P));
+        p.CreateAndAddTwoLabelsRow("Relieving Pressure P1", FormatPressure(P1));
+        p.CreateAndAddTwoLabelsRow("Back Pressure (outlet stream)", FormatPressure(BP));
+        foreach (var (label, value) in extra) p.CreateAndAddTwoLabelsRow(label, value);
 
         p.CreateAndAddLabelRow("Results");
-        p.CreateAndAddTwoLabelsRow("Required Orifice Area", Ao.ToString("N2") + " cm2");
-        p.CreateAndAddTwoLabelsRow("API Orifice Designation", Convert.ToString(orif[1]));
-        p.CreateAndAddTwoLabelsRow("API Orifice Area", Convert.ToDouble(orif[2]).ToString("N2") + " cm2");
+        p.CreateAndAddTwoLabelsRow("Required Orifice Area", Ao.ToString("N3") + " in2 (" + (Ao * 645.16).ToString("N0") + " mm2)");
+        if (orif.Item2 > 0)
+        {
+            p.CreateAndAddTwoLabelsRow("API Orifice Designation", orif.Item1);
+            p.CreateAndAddTwoLabelsRow("API Orifice Area", orif.Item2.ToString("N3") + " in2 (" + (orif.Item2 * 645.16).ToString("N0") + " mm2)");
+        }
+        else
+        {
+            p.CreateAndAddTwoLabelsRow("API Orifice Designation", "Larger than T: use several valves");
+        }
 
         _results.Children.Add(p);
-        _status.Text = "Done.";
+        _status.Text = warning ?? "Done.";
     }
 
     /// <summary>
-    /// Two-phase sizing needs the mixture density at 90 % of the relieving pressure, from a
-    /// flash on a copy of the inlet stream.
+    /// An absolute pressure in the flowsheet unit, marked absolute, or gauge when the unit is a gauge unit.
     /// </summary>
-    private static double DensityAtReducedPressure(MaterialStream inlet)
+    private string FormatPressure(double paAbsolute)
     {
-        var clone = (MaterialStream)inlet.Clone();
-        clone.SetFlowsheet(inlet.GetFlowsheet());
-        clone.PropertyPackage = inlet.PropertyPackage;
-        clone.Phases[0].Properties.pressure = inlet.Phases[0].Properties.pressure.GetValueOrDefault() * 0.9;
-        clone.PropertyPackage.CurrentMaterialStream = clone;
-        clone.Calculate();
-        return clone.Phases[0].Properties.density.GetValueOrDefault();
+        var u = _su.pressure;
+        var gauge = u is "barg" or "psig" or "kPag" or "kgf/cm2g";
+        return cv.ConvertFromSI(u, paAbsolute).ToString(_nf) + " " + u + (gauge ? " (gauge)" : " (absolute)");
     }
 }

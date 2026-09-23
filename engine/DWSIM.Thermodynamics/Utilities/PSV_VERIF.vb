@@ -215,10 +215,7 @@
             alpha0 = x * vg0 / v0
             W = 9 * (v9 / v0 - 1)
 
-            eta_c = 0
-            Do
-                eta_c = eta_c + 0.00001
-            Loop Until System.Math.Abs(eta_c ^ 2 + (W ^ 2 - 2 * W) * (1 - eta_c) ^ 2 + 2 * W ^ 2 * System.Math.Log(eta_c) + 2 * W ^ 2 * (1 - eta_c)) < 0.00001
+            eta_c = Sizing.OmegaCriticalPressureRatio(W)
 
             Pc = eta_c * P
 
@@ -228,7 +225,7 @@
 
             Else
 
-                G = 68.09 * (-2 * (W / System.Math.Log(BP / P) + (W - 1) * (1 - BP / P))) ^ 0.5 * (P / v0) ^ 0.5 / (W * (P / BP - 1) + 1)
+                G = 68.09 * (-2 * (W * System.Math.Log(BP / P) + (W - 1) * (1 - BP / P))) ^ 0.5 * (P / v0) ^ 0.5 / (W * (P / BP - 1) + 1)
 
             End If
 
