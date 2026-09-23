@@ -1184,12 +1184,21 @@ Namespace Reactors
 
             T0 = ims.Phases(0).Properties.temperature.GetValueOrDefault
 
+            'the previous solution is reused only when it exists and has one value per reacting compound.
+
+            Dim usePrevious As Boolean = InitializeFromPreviousSolution AndAlso
+                InitialEstimates.Count = Me.ComponentIDs.Count AndAlso
+                InitialEstimates.All(Function(v) Not Double.IsNaN(v) AndAlso Not Double.IsInfinity(v))
+
             Select Case Me.ReactorOperationMode
                 Case OperationMode.Adiabatic
+                    'initial value only, the outlet temperature is found by the energy balance loop below.
                     If Tab.HasValue Then
                         T = Tab.Value
-                    Else
+                    ElseIf usePrevious AndAlso OutletTemperature > 0.0 Then
                         T = OutletTemperature
+                    Else
+                        T = T0
                     End If
                 Case OperationMode.Isothermic
                     T = T0
@@ -1275,13 +1284,8 @@ Namespace Reactors
             For i = 0 To N.Count - 1
                 lbo(i) = 0.0000000001
                 ubo(i) = W0tot / CProps(i).Molar_Weight * 1000 * 10.0
-                If InitializeFromPreviousSolution Then
-                    Try
-                        ival(i) = InitialEstimates(i)
-                    Catch ex As Exception
-                        InitializeFromPreviousSolution = False
-                        Throw New Exception("invalid initial estimates.")
-                    End Try
+                If usePrevious Then
+                    ival(i) = InitialEstimates(i)
                 Else
                     ival(i) = N0(Me.ComponentIDs(i))
                 End If
@@ -1355,6 +1359,9 @@ Namespace Reactors
             Dim gfunc = Function(Tx)
 
                             T = Tx
+
+                            'the flash inside the objective function runs on tms, so it must be at the current temperature.
+                            tms.SetTemperature(T)
 
                             If cnt > 0 Then
                                 For i = 0 To N.Count - 1
@@ -1486,7 +1493,6 @@ Namespace Reactors
                             For i = 0 To N.Count - 1
                                 N(keys(i)) = NFv(i)
                                 DN(keys(i)) = N(keys(i)) - N0(keys(i))
-                                i += 1
                             Next
 
                             ElementBalance = ebal
@@ -1599,8 +1605,13 @@ Namespace Reactors
 
             If ReactorOperationMode = OperationMode.Adiabatic Then
                 Dim adberror As Double
+                Dim adbcount As Integer = 0
                 Do
                     adberror = gfunc.Invoke(T)
+                    adbcount += 1
+                    If adbcount >= 100 Then
+                        Throw New Exception(String.Format("The adiabatic outlet temperature loop did not converge after {0} iterations (last temperature change: {1:F2} K).", adbcount, Math.Sqrt(adberror)))
+                    End If
                 Loop Until adberror <= 0.1
             Else
                 gfunc.Invoke(T)

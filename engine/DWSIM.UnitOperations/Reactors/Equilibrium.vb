@@ -1146,8 +1146,10 @@ Namespace Reactors
                 Case OperationMode.Adiabatic
                     If Tab.HasValue Then
                         T = Tab.Value
-                    Else
+                    ElseIf OutletTemperature > 0.0 Then
                         T = OutletTemperature
+                    Else
+                        T = T0
                     End If
                 Case OperationMode.Isothermic
                     T = T0
@@ -2032,8 +2034,10 @@ Namespace Reactors
                 Case OperationMode.Adiabatic
                     If Tab.HasValue Then
                         T = Tab.Value
-                    Else
+                    ElseIf OutletTemperature > 0.0 Then
                         T = OutletTemperature
+                    Else
+                        T = T0
                     End If
                 Case OperationMode.Isothermic
                     T = T0
@@ -2810,7 +2814,7 @@ Namespace Reactors
                 Select Case Me.ReactorOperationMode
                     Case OperationMode.Adiabatic
                         T = OutletTemperature
-                        If Math.Abs(T - T0) > 100.0 Then T = T0
+                        If T <= 0.0 OrElse Math.Abs(T - T0) > 100.0 Then T = T0
                     Case OperationMode.Isothermic
                         T = T0
                     Case OperationMode.OutletTemperature
