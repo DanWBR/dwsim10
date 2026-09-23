@@ -480,12 +480,19 @@ Namespace UnitOperations
 
             P1 = ims.GetPressure()
 
-            Dim OpeningPct = (P1 - SetPointPressure) / (FullyOpenedPressure - SetPointPressure)
+            'lift as a fraction: shut at the set pressure, fully open at the fully opened pressure
+            Dim lift As Double
+            If FullyOpenedPressure > SetPointPressure Then
+                lift = (P1 - SetPointPressure) / (FullyOpenedPressure - SetPointPressure)
+            Else
+                lift = If(P1 >= SetPointPressure, 1.0, 0.0)
+            End If
 
-            If OpeningPct < 0.0 Then OpeningPct = 0.0
-            If OpeningPct > 1.0 Then OpeningPct = 1.0
+            If Double.IsNaN(lift) OrElse lift < 0.0 Then lift = 0.0
+            If lift > 1.0 Then lift = 1.0
 
-            If Double.IsInfinity(OpeningPct) Then OpeningPct = 1.0
+            'the opening/Kv relationships below take the opening in percent, as the control valve does
+            Dim OpeningPct = lift * 100.0
 
             Select Case DefinedOpeningKvRelationShipType
                 Case OpeningKvRelationshipType.UserDefined
@@ -510,6 +517,9 @@ Namespace UnitOperations
                     End Try
             End Select
 
+            'below the set pressure the valve is shut whatever the curve says at zero opening
+            If lift <= 0.0 Then Kvc = 0.0
+
             T1 = ims.GetTemperature()
             P1 = ims.GetPressure()
             H1 = ims.GetMassEnthalpy()
@@ -524,6 +534,7 @@ Namespace UnitOperations
 
             CpCv = ims.Phases(2).Properties.idealGasHeatCapacityRatio.GetValueOrDefault()
 
+            'critical pressure ratio: below it the flow through the orifice is choked
             Dim choked_factor = (2.0 / (CpCv + 1)) ^ (CpCv / (CpCv - 1))
 
             Dim A = OrificeArea
@@ -538,17 +549,17 @@ Namespace UnitOperations
 
                 'vapor flow
 
-                If (P2 / P1) >= choked_factor Then
+                If (P2 / P1) <= choked_factor Then
 
-                    'choked flow
+                    'choked flow (API 520 critical flow: W = A Kd Kb sqrt(k P1 rho (2/(k+1))^((k+1)/(k-1))))
 
-                    W = A * Kvc * Kd * Kb * (P1 * CpCv / V1 * (2 / (CpCv + 1)) ^ ((CpCv - 1) / (CpCv + 1))) ^ 0.5
+                    W = A * Kvc * Kd * Kb * (P1 * CpCv / V1 * (2 / (CpCv + 1)) ^ ((CpCv + 1) / (CpCv - 1))) ^ 0.5
 
                 Else
 
-                    'non-choked flow
+                    'non-choked flow (isentropic nozzle; equals the choked flow at the critical ratio)
 
-                    W = A * Kvc * Kd * (P1 / V1 * (2 * CpCv / (CpCv + 1)) * ((P2 / P1) ^ (2.0 / CpCv) - (P2 / P1) ^ ((CpCv + 1) / CpCv))) ^ 0.5
+                    W = A * Kvc * Kd * (P1 / V1 * (2 * CpCv / (CpCv - 1)) * ((P2 / P1) ^ (2.0 / CpCv) - (P2 / P1) ^ ((CpCv + 1) / CpCv))) ^ 0.5
 
                 End If
 
