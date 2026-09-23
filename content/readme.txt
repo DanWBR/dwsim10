@@ -81,6 +81,9 @@ Version 10.2.9
 - [FIX] Advanced Heat Exchanger Design mode stopped on "Too many tubes for this shell" on every run: the bundle diameter it sized for the tube count missed the 4/pi factor of the count rule the geometry check applies
 - [FIX] External unit operations created without the interface (automation, fluent API, MCP server) had no connection ports: the graphic built its connectors before its owner was set
 - [FIX] Advanced Heat Exchanger: the heat duty was shown and exposed as a property 1000 times too large (calculated in W, converted as if it were kW); the outlet streams were right
+- [FIX] Gibbs reactor in adiabatic mode: the phase split inside the Gibbs minimization was computed at the starting temperature and never refreshed, so a reactor solved for the first time settled on a composition that is not an equilibrium (water-gas shift at 600 K and 10 atm: 910 K and 79 % CO conversion against 827 K and 56 % from the equilibrium reactor); the loop now follows the trial temperature, starts from the inlet temperature and stops with a message after 100 passes
+- [FIX] Gibbs reactor: the first solve of a new reactor stopped on "invalid initial estimates" and only the second attempt ran; the feed is the starting point when there is no stored solution
+- [FIX] Equilibrium reactor in adiabatic mode: a fresh reactor with no outlet temperature estimate evaluated the equilibrium constant at 0 K and stopped on "evaluated to infinity"; the inlet temperature is the starting point
 
 Version 10.2.8
 
