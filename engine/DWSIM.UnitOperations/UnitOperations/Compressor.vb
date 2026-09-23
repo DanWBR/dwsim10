@@ -172,6 +172,12 @@ Namespace UnitOperations
         ''' <summary>Gets or sets the operating rotation speed (RPM) used for curve interpolation.</summary>
         Public Property Speed As Integer = 1500
 
+        ''' <summary>
+        ''' Inlet volumetric flow (m3/s) recorded by the last steady-state calculation. The dynamic
+        ''' surge alarm compares the running inlet flow against a fraction of this value.
+        ''' </summary>
+        Public Property DesignInletVolumetricFlow As Double = 0.0
+
         ''' <summary>Returns the list of available calculation mode names and IDs.</summary>
         ''' <returns>An array of strings describing each mode.</returns>
         Public Overrides Function GetCalculationModes() As String()
@@ -434,10 +440,116 @@ Namespace UnitOperations
             AddDynamicProperty("Motor Torque", "Available motor torque (N.m).", 200.0, UnitOfMeasure.none, 1.0.GetType())
             AddDynamicProperty("Surge Flow Fraction", "Fraction of design flow below which surge occurs (0-1). Set to 0 to disable.", 0.0, UnitOfMeasure.none, 1.0.GetType())
             AddDynamicProperty("Surge Alarm", "True when operating below surge flow limit.", False, UnitOfMeasure.none, True.GetType())
+            AddDynamicProperty("Design Inlet Volumetric Flow", "Inlet volumetric flow recorded by the last steady-state calculation. The surge limit is Surge Flow Fraction times this value. Read-only.", 0.0, UnitOfMeasure.volumetricFlow, 1.0.GetType())
+            AddDynamicProperty("Integrate Casing Holdup", "Integrates the casing volume as a capacity. When False (default) the compressor passes the flow through and adds its pressure rise to the inlet pressure.", False, UnitOfMeasure.none, True.GetType())
+            AddDynamicProperty("Rated Speed", "Speed (RPM) at which the compressor delivers its full pressure rise. The dynamic pressure rise scales with (Current Speed / Rated Speed)^2, so a compressor coasting down loses head.", 3000.0, UnitOfMeasure.none, 1.0.GetType())
 
         End Sub
 
         Private prevM_dyn, currentM_dyn As Double
+
+        ''' <summary>
+        ''' The compressor as a pressure-flow element: the flow through it is whatever the network
+        ''' is passing, and the outlet takes the inlet pressure plus the pressure rise the machine
+        ''' makes at that flow and at the speed it is turning at. In Curves mode the head comes from
+        ''' the map, and otherwise from the flow conductance scaled by the square of the speed ratio.
+        ''' </summary>
+        Private Sub RunDynamicModelAsPressureFlowElement(currentSpeed As Double)
+
+            Dim ims As MaterialStream = Me.GetInletMaterialStream(0)
+            Dim oms As MaterialStream = Me.GetOutletMaterialStream(0)
+
+            If ims Is Nothing OrElse oms Is Nothing Then Exit Sub
+
+            Dim Wi = ims.GetMassFlow()
+            Dim Pi = ims.GetPressure()
+            Dim rho = ims.Phases(0).Properties.density.GetValueOrDefault
+
+            Dim head As Double = Double.NaN
+            Dim eff As Double = AdiabaticEfficiency / 100.0
+
+            If CalcMode = CalculationMode.Curves AndAlso rho > 0.0 AndAlso Wi > 0.0 Then
+                Try
+                    Dim maphead, mappower, mapeff As Double
+                    ReadCurveMap(Wi / rho, ims.GetMolarFlow(), currentSpeed, maphead, mappower, mapeff)
+                    If Not Double.IsNaN(maphead) Then
+                        head = maphead
+                    ElseIf Not Double.IsNaN(mappower) Then
+                        head = mappower * 1000.0 / Wi / 9.8
+                    End If
+                    If Not Double.IsNaN(head) Then
+                        CurveHead = head
+                        CurveFlow = Wi / rho
+                        If Not Double.IsNaN(mapeff) AndAlso mapeff > 0.0 Then
+                            eff = mapeff
+                            CurveEff = mapeff * 100
+                        End If
+                    End If
+                Catch ex As Exception
+                    'off the map: the conductance below keeps the run going
+                    head = Double.NaN
+                End Try
+            End If
+
+            Dim DeltaPdyn As Double
+
+            If Double.IsNaN(head) Then
+                Dim Kr As Double = GetDynamicProperty("Flow Conductance")
+                DeltaPdyn = If(Kr > 0.0, (Wi / Kr) ^ 2, 0.0)
+                Dim ratedSpeed As Double = GetDynamicProperty("Rated Speed")
+                If ratedSpeed > 0.0 Then DeltaPdyn *= (currentSpeed / ratedSpeed) ^ 2
+                head = If(rho > 0.0, DeltaPdyn / 9.81 / rho, 0.0)
+            Else
+                DeltaPdyn = head * 9.81 * rho
+            End If
+
+            If eff <= 0.0 Then eff = 0.75
+
+            Me.DeltaP = DeltaPdyn
+            Me.POut = Pi + DeltaPdyn
+            Me.DeltaQ = If(Wi > 0.0, Wi * 9.81 * head / eff / 1000.0, 0.0)
+
+            'an adiabatic machine puts all of its shaft power into the gas
+            Dim H2 = ims.GetMassEnthalpy() + If(Wi > 0.0, Me.DeltaQ / Wi, 0.0)
+
+            oms.AssignFromPhase(PhaseLabel.Mixture, ims, False)
+            oms.SetTemperature(ims.GetTemperature())
+            oms.SetMassEnthalpy(H2)
+            oms.SetMassFlow(Wi)
+            oms.SetPressure(Pi + DeltaPdyn)
+
+            Dim esin As Streams.EnergyStream = Me.GetInletEnergyStream(1)
+            If esin IsNot Nothing Then
+                esin.EnergyFlow = Me.DeltaQ
+                esin.GraphicObject.Calculated = True
+            End If
+
+            UpdateSurgeAlarm(ims)
+
+        End Sub
+
+        ''' <summary>
+        ''' Compares the running inlet volumetric flow against the surge limit, a fraction of the
+        ''' design flow recorded by the last steady-state calculation. A flowsheet that enters
+        ''' dynamics without one takes the flow of its first step as the design flow.
+        ''' </summary>
+        Private Sub UpdateSurgeAlarm(ims As MaterialStream)
+
+            Dim Wi = ims.GetMassFlow()
+            Dim rho = ims.Phases(0).Properties.density.GetValueOrDefault
+            Dim currentFlow = If(rho > 0.0, Wi / rho, ims.GetVolumetricFlow())
+
+            If DesignInletVolumetricFlow <= 0.0 AndAlso currentFlow > 0.0 Then DesignInletVolumetricFlow = currentFlow
+            SetDynamicProperty("Design Inlet Volumetric Flow", DesignInletVolumetricFlow)
+
+            Dim surgeFraction As Double = GetDynamicProperty("Surge Flow Fraction")
+            If surgeFraction > 0.0 AndAlso DesignInletVolumetricFlow > 0.0 Then
+                SetDynamicProperty("Surge Alarm", currentFlow < surgeFraction * DesignInletVolumetricFlow)
+            Else
+                SetDynamicProperty("Surge Alarm", False)
+            End If
+
+        End Sub
 
         Public Overrides Sub RunDynamicModel()
 
@@ -464,6 +576,18 @@ Namespace UnitOperations
             Else
                 currentSpeed = targetSpeed
                 SetDynamicProperty("Current Speed", currentSpeed)
+            End If
+
+            'The casing of a compressor is a small volume of gas. Integrated as a capacity it holds
+            'a few grams, and its outlet flow is whatever the last steady state left on the outlet
+            'stream, so a feed step empties it within one step and the volume flash loses its
+            'bracket. A compressor in a pressure-flow network is the element that adds head to the
+            'line, as the pump is, so by default it passes the flow through and hands its outlet the
+            'inlet pressure plus the pressure rise it makes at that flow and speed. The casing
+            'inventory remains available for whoever wants it.
+            If Not CBool(GetDynamicProperty("Integrate Casing Holdup")) Then
+                RunDynamicModelAsPressureFlowElement(currentSpeed)
+                Exit Sub
             End If
 
             Dim Vol As Double = GetDynamicProperty("Volume")
@@ -579,14 +703,7 @@ Namespace UnitOperations
             oms.SetMassEnthalpy(AccumulationStream.GetMassEnthalpy)
             oms.SetPressure(Pressure + DeltaP_dyn)
 
-            Dim surgeFraction As Double = GetDynamicProperty("Surge Flow Fraction")
-            If surgeFraction > 0 Then
-                Dim designFlow = ims.GetVolumetricFlow()
-                Dim surgeLimit = surgeFraction * designFlow
-                SetDynamicProperty("Surge Alarm", designFlow > 0 AndAlso designFlow < surgeLimit)
-            Else
-                SetDynamicProperty("Surge Alarm", False)
-            End If
+            UpdateSurgeAlarm(ims)
 
         End Sub
 
@@ -1300,6 +1417,9 @@ Namespace UnitOperations
                     End If
 
             End Select
+
+            'the inlet flow of the steady state is the design flow the dynamic surge alarm refers to
+            If args Is Nothing Then DesignInletVolumetricFlow = msin.GetVolumetricFlow()
 
             If DebugMode Then AppendDebugLine("Calculation finished successfully.")
 

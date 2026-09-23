@@ -793,6 +793,7 @@ Namespace UnitOperations
             AddDynamicProperty("Target Speed", "Target rotational speed (RPM). Speed ramps towards this value based on inertia.", 1450.0, UnitOfMeasure.none, 1.0.GetType())
             AddDynamicProperty("Motor Torque", "Available motor torque (N.m).", 100.0, UnitOfMeasure.none, 1.0.GetType())
             AddDynamicProperty("Rated Speed", "Speed (RPM) at which the pump delivers its full pressure rise. The dynamic pressure rise scales with (Current Speed / Rated Speed)^2, so a pump coasting down loses head.", 1450.0, UnitOfMeasure.none, 1.0.GetType())
+            AddDynamicProperty("Integrate Casing Holdup", "Integrates the casing volume as a capacity. When False (default) the pump passes the flow through and adds its head to the inlet pressure.", False, UnitOfMeasure.none, True.GetType())
 
         End Sub
 

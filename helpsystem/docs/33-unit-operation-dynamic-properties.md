@@ -48,9 +48,11 @@ The dynamic Heat Exchanger adds fouling growth and wall thermal mass:
 
 #### Pump, Compressor, and Expander
 
-These three rotating equipment unit operations, previously limited to steady-state delegation in dynamic mode, now have full dynamic models with material accumulation, pressure tracking, and rotational inertia:
+These three rotating equipment unit operations have dynamic models with rotational inertia, speed-dependent pressure rise and an optional casing hold-up. By default the pump and the compressor behave as pressure-flow elements: the flow through them is what the network passes, and the outlet takes the inlet pressure plus the head the machine makes at that flow and speed. The pressure-flow network sets the pressure where the capacity physically is, in the vessels around them.
 
-- **Volume**: internal casing volume used for the accumulation stream and pressure-volume flash.
+- **Integrate Casing Holdup** (Pump and Compressor): when True, the casing volume is integrated as a capacity, with an accumulation stream and a pressure-volume flash at every step. Off by default, since a casing holds a few grams of gas or a few litres of liquid and any mismatch between the flow in and the flow out moves its pressure by a large amount within one step.
+
+- **Volume**: internal casing volume used for the accumulation stream and pressure-volume flash when the casing hold-up is integrated.
 
 - **Rotational Inertia** ( $J$ , kg.m2): moment of inertia of the rotating assembly (motor/generator + impeller/rotor). When \> 0, the speed ramps toward the target according to $J\,d\omega/dt=\pm\tau_{motor}$ instead of changing instantaneously.
 
@@ -58,7 +60,9 @@ These three rotating equipment unit operations, previously limited to steady-sta
 
 - **Motor Torque** / **Generator Torque** (N.m): available driving or braking torque.
 
-- **Surge Flow Fraction** and **Surge Alarm** (Compressor only): when the volumetric flow drops below the specified fraction of the design flow, the surge alarm is set to True.
+- **Rated Speed** (RPM): speed at which the machine delivers its full pressure rise. Without a performance curve, the dynamic pressure rise scales with the square of the ratio between the current speed and the rated speed, so a machine coasting down loses head.
+
+- **Surge Flow Fraction**, **Surge Alarm** and **Design Inlet Volumetric Flow** (Compressor only): the design flow is the inlet volumetric flow of the last steady-state calculation, which the compressor records and shows in the read-only property. When the running inlet volumetric flow drops below the surge fraction times the design flow, the surge alarm is set to True. A fraction of 0 disables the alarm.
 
 #### Rigorous Distillation Column
 
