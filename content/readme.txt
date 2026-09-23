@@ -84,6 +84,7 @@ Version 10.2.9
 - [FIX] Gibbs reactor in adiabatic mode: the phase split inside the Gibbs minimization was computed at the starting temperature and never refreshed, so a reactor solved for the first time settled on a composition that is not an equilibrium (water-gas shift at 600 K and 10 atm: 910 K and 79 % CO conversion against 827 K and 56 % from the equilibrium reactor); the loop now follows the trial temperature, starts from the inlet temperature and stops with a message after 100 passes
 - [FIX] Gibbs reactor: the first solve of a new reactor stopped on "invalid initial estimates" and only the second attempt ran; the feed is the starting point when there is no stored solution
 - [FIX] Equilibrium reactor in adiabatic mode: a fresh reactor with no outlet temperature estimate evaluated the equilibrium constant at 0 K and stopped on "evaluated to infinity"; the inlet temperature is the starting point
+- [FIX] Recycle block: in the default (non-legacy) mode a tear stream of a single compound never converged (the outlet was flashed at pressure and the enthalpy it happened to carry, so it never met the inlet), and the Wegstein and dominant eigenvalue accelerations chosen in the block were ignored; enthalpy and entropy now travel with the temperature, Wegstein acts on every tear variable within Qmin/Qmax on the block's schedule, the dominant eigenvalue is estimated from two consecutive plain passes, and the first pass of a solve is plain substitution
 
 Version 10.2.8
 
