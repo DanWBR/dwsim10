@@ -45,6 +45,13 @@ Namespace SpecialOps
         Protected m_AccelMethod As AccelMethod = AccelMethod.None
         Protected m_WegPars As Helpers.Recycle.WegsteinParameters
 
+        ' The last pass, kept for Wegstein's secant and the dominant-eigenvalue error ratio: the compound
+        ' mass flows the inlet brought (g) and the outlet carried (x), and the norm of the relative error.
+        <NonSerialized> <Xml.Serialization.XmlIgnore> Private m_PrevInletFlows As Double() = Nothing
+        <NonSerialized> <Xml.Serialization.XmlIgnore> Private m_PrevOutletFlows As Double() = Nothing
+        <NonSerialized> <Xml.Serialization.XmlIgnore> Private m_PrevErrorNorm As Double = 0.0
+        <NonSerialized> <Xml.Serialization.XmlIgnore> Private m_PrevPassAccelerated As Boolean = False
+
         Protected m_MaxIterations As Integer = 50
         Protected m_IterationCount As Integer = 0
         Protected m_InternalCounterT As Integer = 0
@@ -175,7 +182,7 @@ Namespace SpecialOps
             End Set
         End Property
 
-        ''' <summary>Gets or sets the convergence acceleration method (None, Wegstein, or GlobalBroyden).</summary>
+        ''' <summary>Gets or sets the convergence acceleration method (None, Wegstein, Dominant_Eigenvalue or GlobalBroyden).</summary>
         Public Property AccelerationMethod() As AccelMethod Implements Interfaces.IRecycle.AccelerationMethod
             Get
                 Return m_AccelMethod
@@ -350,7 +357,7 @@ Namespace SpecialOps
                 Throw New Exception(FlowSheet.GetTranslatedString("Verifiqueasconexesdo"))
             End If
 
-            Dim Tnew, Pnew, Wnew, Hnew, Snew As Double
+            Dim Tnew, Pnew, Hnew, Snew As Double
 
             Dim ems As MaterialStream = FlowSheet.SimulationObjects(Me.GraphicObject.InputConnectors(0).AttachedConnector.AttachedFrom.Name)
             Dim oms As MaterialStream = FlowSheet.SimulationObjects(Me.GraphicObject.OutputConnectors(0).AttachedConnector.AttachedTo.Name)
@@ -392,6 +399,11 @@ Namespace SpecialOps
                 Hnew = .enthalpy.GetValueOrDefault
                 Snew = .entropy.GetValueOrDefault
 
+                Me.ConvergenceHistory.EntalpiaE0 = Me.ConvergenceHistory.EntalpiaE
+                Me.ConvergenceHistory.EntalpiaE = Hnew - oms.Phases(0).Properties.enthalpy.GetValueOrDefault
+                Me.ConvergenceHistory.Entalpia0 = Me.ConvergenceHistory.Entalpia
+                Me.ConvergenceHistory.Entalpia = Hnew
+
                 If Me.Errors.Count = 0 Then
                     Me.Errors.Add("Temperature", .temperature.GetValueOrDefault)
                     Me.Errors.Add("Pressure", .pressure.GetValueOrDefault)
@@ -429,61 +441,134 @@ Namespace SpecialOps
 
             ems.PropertyPackage.CurrentMaterialStream = ems
 
+            ' The state the outlet gets for the next pass. Plain substitution hands it the inlet as it
+            ' is. Damping (SmoothingFactor below 1) blends the inlet with the outlet as it was, and
+            ' Wegstein or the dominant eigenvalue extrapolate from the last two passes. Every one of
+            ' them needs a previous pass, so the first pass of a solve is always plain substitution.
+            Dim Wnew As Double() = DirectCast(v1.Clone(), Double())
+            Tnew = Me.ConvergenceHistory.Temperatura
+            Pnew = Me.ConvergenceHistory.Pressao
+            Dim accelerated As Boolean = False
+
+            Dim errnorm As Double = RelativeErrorNorm(v1, v2, Wsum)
+
+            Dim haveprevious As Boolean = Me.IterationCount > 0 AndAlso m_PrevInletFlows IsNot Nothing AndAlso
+                m_PrevInletFlows.Length = v1.Length AndAlso m_PrevOutletFlows IsNot Nothing AndAlso m_PrevOutletFlows.Length = v2.Length
+
+            If haveprevious AndAlso Me.AccelerationMethod <> AccelMethod.GlobalBroyden Then
+
+                With Me.ConvergenceHistory
+
+                    Dim sf As Double = SmoothingFactor
+                    If sf > 0.0 AndAlso sf < 1.0 Then
+                        Tnew = sf * .Temperatura + (1.0 - sf) * (.Temperatura - .TemperaturaE)
+                        Pnew = sf * .Pressao + (1.0 - sf) * (.Pressao - .PressaoE)
+                        Hnew = sf * .Entalpia + (1.0 - sf) * (.Entalpia - .EntalpiaE)
+                        For i = 0 To v1.Length - 1
+                            Wnew(i) = sf * v1(i) + (1.0 - sf) * v2(i)
+                        Next
+                        accelerated = True
+                    End If
+
+                    Dim delay As Integer = Math.Max(Convert.ToInt32(Me.WegsteinParameters.AccelDelay), 1)
+                    Dim freq As Integer = Math.Max(Convert.ToInt32(Me.WegsteinParameters.AccelFreq), 1)
+                    Dim due As Boolean = Me.IterationCount >= delay AndAlso (Me.IterationCount - delay) Mod freq = 0
+
+                    Select Case Me.AccelerationMethod
+
+                        Case AccelMethod.Wegstein
+
+                            ' one secant per tear variable, bounded by the block's Qmin/Qmax; a variable that
+                            ' did not move between the passes (a fixed pressure, say) is handed over as it is
+                            If due Then
+                                Tnew = WegsteinStep(.Temperatura, .Temperatura0, .Temperatura - .TemperaturaE, .Temperatura0 - .TemperaturaE0)
+                                Pnew = WegsteinStep(.Pressao, .Pressao0, .Pressao - .PressaoE, .Pressao0 - .PressaoE0)
+                                Hnew = WegsteinStep(.Entalpia, .Entalpia0, .Entalpia - .EntalpiaE, .Entalpia0 - .EntalpiaE0)
+                                For i = 0 To v1.Length - 1
+                                    Wnew(i) = WegsteinStep(v1(i), m_PrevInletFlows(i), v2(i), m_PrevOutletFlows(i))
+                                Next
+                                accelerated = True
+                            End If
+
+                        Case AccelMethod.Dominant_Eigenvalue
+
+                            ' the ratio of the error norms of two consecutive plain passes estimates the
+                            ' dominant eigenvalue of the loop; the whole error is then extrapolated by
+                            ' 1/(1 - lambda), capped by the same bound as Wegstein's q
+                            If due AndAlso Not m_PrevPassAccelerated AndAlso m_PrevErrorNorm > 0.0 Then
+                                Dim lambda As Double = errnorm / m_PrevErrorNorm
+                                Dim lambdamax As Double = 1.0 - 1.0 / (1.0 - Math.Min(Me.WegsteinParameters.Qmin, -1.0))
+                                If lambda.IsValid AndAlso lambda > 0.0 Then
+                                    lambda = Math.Min(lambda, lambdamax)
+                                    Dim f As Double = lambda / (1.0 - lambda)
+                                    Tnew = .Temperatura + f * .TemperaturaE
+                                    Pnew = .Pressao + f * .PressaoE
+                                    Hnew = .Entalpia + f * .EntalpiaE
+                                    For i = 0 To v1.Length - 1
+                                        Wnew(i) = v1(i) + f * (v1(i) - v2(i))
+                                    Next
+                                    accelerated = True
+                                End If
+                            End If
+
+                    End Select
+
+                    ' an extrapolation that leaves the physical range falls back to the inlet value
+                    If Not Tnew.IsValid OrElse Tnew <= 0.0 Then Tnew = .Temperatura
+                    If Not Pnew.IsValid OrElse Pnew <= 0.0 Then Pnew = .Pressao
+                    If Not Hnew.IsValid Then Hnew = .Entalpia
+                    For i = 0 To v1.Length - 1
+                        If Not Wnew(i).IsValid OrElse Wnew(i) < 0.0 Then Wnew(i) = v1(i)
+                    Next
+
+                End With
+
+            End If
+
+            m_PrevInletFlows = v1
+            m_PrevOutletFlows = v2
+            m_PrevErrorNorm = errnorm
+            m_PrevPassAccelerated = accelerated
+
             If LegacyMode Then
 
-                Tnew = Me.ConvergenceHistory.Temperatura
-                Pnew = Me.ConvergenceHistory.Pressao
-                Wnew = Me.ConvergenceHistory.VazaoMassica
-
+                ' the whole inlet is copied over, phases included; an accelerated pass then overwrites
+                ' the tear variables on top of that copy
                 If Me.CopyOnStreamDataError Then
                     copydata = True
                 Else
-                    If Not Tnew.IsValid Or Not Pnew.IsValid Or Not Wnew.IsValid Or Not ems.PropertyPackage.RET_VMOL(PropertyPackages.Phase.Mixture).Sum.IsValid Then copydata = False
+                    If Not Tnew.IsValid Or Not Pnew.IsValid Or Not Wnew.Sum.IsValid Or Not ems.PropertyPackage.RET_VMOL(PropertyPackages.Phase.Mixture).Sum.IsValid Then copydata = False
                 End If
 
                 If Not Me.AccelerationMethod = AccelMethod.GlobalBroyden And copydata Then
 
-                    Dim msfrom, msto As MaterialStream
-                    msfrom = FlowSheet.SimulationObjects(Me.GraphicObject.InputConnectors(0).AttachedConnector.AttachedFrom.Name)
-
-                    If Not msfrom.Calculated And Not msfrom.AtEquilibrium Then
+                    If Not ems.Calculated And Not ems.AtEquilibrium Then
                         Throw New Exception(FlowSheet.GetTranslatedString("RecycleStreamNotCalculated"))
                     End If
 
-                    msto = FlowSheet.SimulationObjects(Me.GraphicObject.OutputConnectors(0).AttachedConnector.AttachedTo.Name)
-                    Dim prevspec = msto.SpecType
-                    msto.Assign(msfrom)
-                    msto.AssignProps(msfrom)
-                    msto.SpecType = prevspec
-                    msto.AtEquilibrium = False
+                    Dim prevspec = oms.SpecType
+                    oms.Assign(ems)
+                    oms.AssignProps(ems)
+                    oms.SpecType = prevspec
+                    oms.AtEquilibrium = False
+
+                    If accelerated Then WriteOutletState(oms, Tnew, Pnew, Hnew, Snew, Wnew)
 
                 End If
 
             Else
 
-                Dim sf = SmoothingFactor
-
-                Tnew = sf * Me.ConvergenceHistory.Temperatura + (1.0 - sf) * Me.ConvergenceHistory.Temperatura0
-                Pnew = sf * Me.ConvergenceHistory.Pressao + (1.0 - sf) * Me.ConvergenceHistory.Pressao0
-                Wnew = sf * Me.ConvergenceHistory.VazaoMassica + (1.0 - sf) * Me.ConvergenceHistory.VazaoMassica0
-
+                ' only the tear variables are written; the solver flashes the outlet afterwards. The
+                ' enthalpy and entropy go along with the temperature because that flash may be run at
+                ' pressure and enthalpy (a single-compound outlet always is), and an outlet flashed at
+                ' the enthalpy it happened to carry never meets the inlet.
                 If Not Me.AccelerationMethod = AccelMethod.GlobalBroyden Then
 
                     If Not oms.Calculated And Not oms.AtEquilibrium Then
                         Throw New Exception(FlowSheet.GetTranslatedString("RecycleStreamNotCalculated"))
                     End If
 
-                    oms.AtEquilibrium = False
-                    oms.SetTemperature(Tnew)
-                    oms.SetPressure(Pnew)
-
-                    v1 = ems.Phases(0).Compounds.Values.Select(Function(x) x.MassFlow.GetValueOrDefault).ToArray
-                    v2 = oms.Phases(0).Compounds.Values.Select(Function(x) x.MassFlow.GetValueOrDefault).ToArray
-
-                    For i = 0 To v1.Length - 1
-                        Dim newf = sf * v1(i) + (1.0 - sf) * v2(i)
-                        oms.SetOverallCompoundMassFlow(i, newf)
-                    Next
+                    WriteOutletState(oms, Tnew, Pnew, Hnew, Snew, Wnew)
 
                 End If
 
@@ -528,6 +613,82 @@ Namespace SpecialOps
         Public Overloads Sub DeCalculate()
 
             Me.IterationCount = 0
+
+        End Sub
+
+        ''' <summary>
+        ''' One Wegstein step of a tear variable: <paramref name="g"/> and <paramref name="g0"/> are what the
+        ''' inlet brought on this pass and the one before, <paramref name="x"/> and <paramref name="x0"/> what
+        ''' the outlet carried on those passes. The secant slope of the loop gives q = s/(s-1), bounded by
+        ''' the block's Qmin/Qmax, and the outlet gets q*x + (1-q)*g. Without a usable slope the inlet value
+        ''' is handed over as it is.
+        ''' </summary>
+        Private Function WegsteinStep(g As Double, g0 As Double, x As Double, x0 As Double) As Double
+
+            Dim dx As Double = x - x0
+            If Not dx.IsValid OrElse Math.Abs(dx) <= 0.000000000001 * Math.Max(1.0, Math.Abs(x)) Then Return g
+
+            Dim s As Double = (g - g0) / dx
+            If Not s.IsValid Then Return g
+
+            Dim q As Double = s / (s - 1.0)
+            If Not q.IsValid Then q = Me.WegsteinParameters.Qmin
+            q = Math.Min(Math.Max(q, Me.WegsteinParameters.Qmin), Me.WegsteinParameters.Qmax)
+
+            Dim xnew As Double = q * x + (1.0 - q) * g
+            If Not xnew.IsValid Then Return g
+            Return xnew
+
+        End Function
+
+        ''' <summary>
+        ''' The norm of the relative inlet-outlet error over every tear variable: temperature, pressure,
+        ''' enthalpy and each compound mass flow (scaled by the total inlet flow).
+        ''' </summary>
+        Private Function RelativeErrorNorm(inletflows As Double(), outletflows As Double(), totalflow As Double) As Double
+
+            Dim sum As Double = 0.0
+            With Me.ConvergenceHistory
+                sum += (.TemperaturaE / Math.Max(Math.Abs(.Temperatura), 0.000000000001)) ^ 2
+                sum += (.PressaoE / Math.Max(Math.Abs(.Pressao), 0.000000000001)) ^ 2
+                sum += (.EntalpiaE / Math.Max(Math.Abs(.Entalpia), 1.0)) ^ 2
+            End With
+            Dim scale As Double = Math.Max(Math.Abs(totalflow), 0.000000000001)
+            For i As Integer = 0 To inletflows.Length - 1
+                sum += ((inletflows(i) - outletflows(i)) / scale) ^ 2
+            Next
+            Return Math.Sqrt(sum)
+
+        End Function
+
+        ''' <summary>
+        ''' Hands a tear state to the outlet stream: the compound mass flows (which set the total flow and the
+        ''' composition), then temperature, pressure, enthalpy and entropy, so that the flash the solver runs
+        ''' on the outlet finds the state whichever specification it uses.
+        ''' </summary>
+        Private Sub WriteOutletState(oms As MaterialStream, T As Double, P As Double, H As Double, S As Double, flows As Double())
+
+            Dim total As Double = flows.Sum
+
+            If total > 0.0 Then
+                oms.SetOverallComposition(oms.MassFractionsToMoleFractions(flows.NormalizeY))
+            End If
+            oms.SetMassFlow(total)
+
+            Dim molarflow As Double = oms.GetMolarFlow()
+            Dim i As Integer = 0
+            For Each c In oms.Phases(0).Compounds.Values
+                c.MassFlow = flows(i)
+                c.MassFraction = If(total > 0.0, flows(i) / total, 0.0)
+                c.MolarFlow = c.MoleFraction.GetValueOrDefault * molarflow
+                i += 1
+            Next
+
+            oms.SetTemperature(T)
+            oms.SetPressure(P)
+            oms.SetMassEnthalpy(H)
+            oms.SetMassEntropy(S)
+            oms.AtEquilibrium = False
 
         End Sub
 
@@ -878,16 +1039,16 @@ Namespace SpecialOps.Helpers.Recycle
 
     End Class
 
-    ''' <summary>Holds the tuning parameters for the Wegstein convergence acceleration method.</summary>
+    ''' <summary>Holds the tuning parameters of the Wegstein and dominant-eigenvalue accelerations: their schedule and the bounds of Wegstein's q.</summary>
     <System.Serializable()> Public Class WegsteinParameters
 
-        ''' <summary>Gets or sets how often (every N iterations) Wegstein acceleration is applied.</summary>
+        ''' <summary>Gets or sets how often the acceleration is applied once the delay has passed: on every Nth pass, so 1 accelerates every pass.</summary>
         Public AccelFreq As Integer = 4
         ''' <summary>Gets or sets the maximum value of the Wegstein q parameter.</summary>
         Public Qmax As Double = 0
         ''' <summary>Gets or sets the minimum value of the Wegstein q parameter.</summary>
         Public Qmin As Double = -20
-        ''' <summary>Gets or sets the number of initial iterations to skip before applying Wegstein acceleration.</summary>
+        ''' <summary>Gets or sets the number of plain substitution passes before the first accelerated one.</summary>
         Public AccelDelay = 2
 
     End Class
