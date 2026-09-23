@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using DWSIM.Thermodynamics.Streams;
 using DWSIM.UnitOperations.Streams;
 using PP = DWSIM.Thermodynamics.PropertyPackages;
@@ -48,27 +49,84 @@ namespace DWSIM.Automation.FluentAPI.Builders
             return this;
         }
 
-        /// <summary>Sets overall compound molar flow (mol/s).</summary>
+        /// <summary>
+        /// Sets the overall molar flow (mol/s) of one compound. On a stream created by
+        /// <see cref="Flowsheet.AddMaterialStream"/> the compounds never named through the builder
+        /// are set to zero, so a feed defined one compound at a time carries only the compounds
+        /// named; on any other stream the other compounds keep their flows.
+        /// </summary>
         public MaterialStreamBuilder SetCompoundMolarFlow(string compound, double molPerSecond)
         {
             Object.SetOverallCompoundMolarFlow(compound, molPerSecond);
+            ClearUnnamed(new[] { compound }, molar: true);
             return this;
         }
 
-        /// <summary>Sets overall compound mass flow (kg/s).</summary>
+        /// <summary>
+        /// Sets the overall mass flow (kg/s) of one compound. On a stream created by
+        /// <see cref="Flowsheet.AddMaterialStream"/> the compounds never named through the builder
+        /// are set to zero, so a feed defined one compound at a time carries only the compounds
+        /// named; on any other stream the other compounds keep their flows.
+        /// </summary>
         public MaterialStreamBuilder SetCompoundMassFlow(string compound, double kgPerSecond)
         {
             Object.SetOverallCompoundMassFlow(compound, kgPerSecond);
+            ClearUnnamed(new[] { compound }, molar: false);
             return this;
         }
 
-        /// <summary>Configures composition fluently. Use <c>.Mole</c> / <c>.Mass</c> inside the builder.</summary>
+        /// <summary>
+        /// Configures the whole composition fluently. Use <c>.Mole</c> / <c>.Mass</c> inside the
+        /// builder; every compound not named is set to zero.
+        /// </summary>
         public MaterialStreamBuilder WithComposition(Action<CompositionBuilder> configure)
         {
             var c = new CompositionBuilder(Object);
             configure(c);
             c.Apply();
+            if (_named.TryGetValue(Object, out var named))
+                foreach (var name in c.Named) named.Add(name);
             return this;
+        }
+
+        // ------------------------------------------------------- Composition tracking
+
+        // A new stream starts with every compound at the flowsheet's default share, so setting one
+        // compound's flow would leave that share on every compound the caller never mentioned.
+        // Streams the builder creates are tracked here with the compounds named so far; the
+        // rest are zeroed on each per-compound call. A stream loaded from a file or created
+        // elsewhere is not tracked and keeps the per-compound override semantics.
+        private static readonly ConditionalWeakTable<MaterialStream, HashSet<string>> _named =
+            new ConditionalWeakTable<MaterialStream, HashSet<string>>();
+
+        /// <summary>Starts composition tracking on a stream the builder just created.</summary>
+        internal static void TrackNew(MaterialStream stream)
+        {
+            _named.GetOrCreateValue(stream);
+        }
+
+        /// <summary>
+        /// Records <paramref name="compounds"/> as named and zeroes every other compound of a tracked
+        /// stream, once the named compounds carry a positive flow to normalise against.
+        /// </summary>
+        private void ClearUnnamed(IEnumerable<string> compounds, bool molar)
+        {
+            if (!_named.TryGetValue(Object, out var named)) return;
+            foreach (var c in compounds) named.Add(c);
+
+            var all = Object.Phases[0].Compounds.Values.ToList();
+            double Flow(DWSIM.Interfaces.ICompound c) =>
+                molar ? c.MolarFlow.GetValueOrDefault() : c.MassFlow.GetValueOrDefault();
+
+            double kept = all.Where(c => named.Contains(c.Name)).Sum(Flow);
+            if (!(kept > 0)) return;
+
+            foreach (var c in all)
+            {
+                if (named.Contains(c.Name) || Flow(c) == 0) continue;
+                if (molar) Object.SetOverallCompoundMolarFlow(c.Name, 0.0);
+                else Object.SetOverallCompoundMassFlow(c.Name, 0.0);
+            }
         }
 
         // ------------------------------------------------------- Read accessors
@@ -260,6 +318,9 @@ namespace DWSIM.Automation.FluentAPI.Builders
 
         internal CompositionBuilder(MaterialStream stream) { _stream = stream; }
 
+        /// <summary>The compounds named through <see cref="Mole"/> or <see cref="Mass"/>.</summary>
+        internal IEnumerable<string> Named => _mole.Count > 0 ? _mole.Keys : _mass.Keys;
+
         /// <summary>Adds a compound mole fraction. All entries are normalized when applied.</summary>
         public CompositionBuilder Mole(string compound, double fraction)
         { _mole[compound] = fraction; return this; }
@@ -285,6 +346,9 @@ namespace DWSIM.Automation.FluentAPI.Builders
                 var n = mole > 0 ? mole : 1.0; // default basis
                 foreach (var kv in _mole)
                     _stream.SetOverallCompoundMolarFlow(kv.Key, kv.Value / sum * n);
+                foreach (var c in _stream.Phases[0].Compounds.Values.ToList())
+                    if (!_mole.ContainsKey(c.Name) && c.MolarFlow.GetValueOrDefault() != 0)
+                        _stream.SetOverallCompoundMolarFlow(c.Name, 0.0);
             }
             else if (_mass.Count > 0)
             {
@@ -293,6 +357,9 @@ namespace DWSIM.Automation.FluentAPI.Builders
                 var m = mass > 0 ? mass : 1.0;
                 foreach (var kv in _mass)
                     _stream.SetOverallCompoundMassFlow(kv.Key, kv.Value / sum * m);
+                foreach (var c in _stream.Phases[0].Compounds.Values.ToList())
+                    if (!_mass.ContainsKey(c.Name) && c.MassFlow.GetValueOrDefault() != 0)
+                        _stream.SetOverallCompoundMassFlow(c.Name, 0.0);
             }
 
             switch (basis)

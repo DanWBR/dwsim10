@@ -174,6 +174,7 @@ namespace DWSIM.Automation.FluentAPI
         {
             var (x, y) = NextPos();
             var s = (MaterialStream)Inner.AddObject(ObjectType.MaterialStream, (int)x, (int)y, tag);
+            MaterialStreamBuilder.TrackNew(s);
             return new MaterialStreamBuilder(this, s);
         }
 

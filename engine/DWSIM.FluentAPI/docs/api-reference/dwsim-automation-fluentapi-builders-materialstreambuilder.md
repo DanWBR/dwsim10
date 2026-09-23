@@ -84,15 +84,15 @@ Rotates the stream on the canvas; use 0, 90, 180 or 270 degrees.
 
 ### `SetCompoundMassFlow(string, double)`
 
-Sets overall compound mass flow (kg/s).
+Sets the overall mass flow (kg/s) of one compound. On a stream created by `Flowsheet.AddMaterialStream` the compounds never named through the builder are set to zero, so a feed defined one compound at a time carries only the compounds named; on any other stream the other compounds keep their flows.
 
 ### `SetCompoundMolarFlow(string, double)`
 
-Sets overall compound molar flow (mol/s).
+Sets the overall molar flow (mol/s) of one compound. On a stream created by `Flowsheet.AddMaterialStream` the compounds never named through the builder are set to zero, so a feed defined one compound at a time carries only the compounds named; on any other stream the other compounds keep their flows.
 
 ### `WithComposition(Action{CompositionBuilder})`
 
-Configures composition fluently. Use `.Mole` / `.Mass` inside the builder.
+Configures the whole composition fluently. Use `.Mole` / `.Mass` inside the builder; every compound not named is set to zero.
 
 ### `WithDynamicsSpec(DWSIM.Interfaces.Enums.Dynamics.DynamicsSpecType)`
 

@@ -16,9 +16,9 @@
 | `WithMolarFlow(n)` | Sets total molar flow. |
 | `WithVolumetricFlow(q)` | Sets total volumetric flow. |
 | `WithVaporFraction(frac)` | Sets molar vapor fraction. |
-| `SetCompoundMolarFlow(name, mol/s)` | Per-compound molar flow override. |
-| `SetCompoundMassFlow(name, kg/s)` | Per-compound mass flow override. |
-| `WithComposition(c => …)` | Composition builder — see below. |
+| `SetCompoundMolarFlow(name, mol/s)` | Molar flow of one compound; on a new stream, the compounds never named are set to zero. |
+| `SetCompoundMassFlow(name, kg/s)` | Mass flow of one compound; on a new stream, the compounds never named are set to zero. |
+| `WithComposition(c => …)` | Composition builder — see below. Compounds not named are set to zero. |
 | `Configure(action)` | Escape hatch for the underlying `MaterialStream`. |
 
 ### Composition builder
@@ -34,6 +34,25 @@ fs.AddMaterialStream("feed")
 
 `Mole` and `Mass` entries are normalized when applied; mole takes precedence
 when both are populated. The total flow set on the stream defines the basis.
+Compounds not named are set to zero.
+
+### Per-compound flows
+
+A new stream starts with every compound at the flowsheet's default share. On a
+stream created by `AddMaterialStream`, the first `SetCompoundMolarFlow` or
+`SetCompoundMassFlow` call zeroes every compound not named through the builder,
+so a feed defined one compound at a time carries only the compounds named:
+
+```csharp
+fs.AddMaterialStream("syngas")
+  .At(300.Kelvin(), 30.Bar())
+  .SetCompoundMolarFlow("Hydrogen", 2.0)
+  .SetCompoundMolarFlow("Carbon monoxide", 1.0);   // Methanol ends at zero
+```
+
+On a stream obtained with `fs.MaterialStream(tag)` that the builder did not
+create (one loaded from a file, for instance), each call changes only the
+compound named and the others keep their flows.
 
 ### Read-back (after `Solve`)
 
