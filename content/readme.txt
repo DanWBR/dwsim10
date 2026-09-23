@@ -93,6 +93,7 @@ Version 10.2.9
 - [FIX] Compressor surge alarm compared the inlet flow against a design flow the steady state never recorded; the design inlet volumetric flow is now recorded (read-only dynamic property) and the alarm fires below the surge flow fraction of it
 - [FIX] Cooler in dynamic mode: the heat removed was applied to the cooler contents as heat added, so a cooler with a positive duty warmed its outlet and a temperature controller on it ran away; the duty now leaves the contents and the outlet settles at the steady-state temperature
 - [FIX] Heater in dynamic mode: the Heat Added/Removed calculation mode ran with no duty at all, and Energy Stream mode with no energy stream connected crashed instead of reporting the missing stream
+- [FIX] Custom Mixer sample: in Inlet Average mode the script divided the sum of the inlet pressures by the number of inlets minus one (three inlets at 1.01, 10.13 and 7.5 bar gave 9.32 bar for an average of 6.21 bar); the outlet now leaves at 6.21 bar and 269.5 K
 
 Version 10.2.8
 
