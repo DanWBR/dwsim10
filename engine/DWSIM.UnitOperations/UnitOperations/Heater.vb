@@ -365,9 +365,11 @@ Namespace UnitOperations
 
                 Case CalculationMode.EnergyStream
 
-                    Qsource = GetInletEnergyStream(1).EnergyFlow
+                    Dim esin = GetInletEnergyStream(1)
+                    If esin Is Nothing Then Throw New Exception(FlowSheet.GetTranslatedString("SecondaryEnergyStreamRequired"))
+                    Qsource = esin.EnergyFlow.GetValueOrDefault
 
-                Case CalculationMode.HeatAdded
+                Case CalculationMode.HeatAdded, CalculationMode.HeatAddedRemoved
 
                     Qsource = DeltaQ.GetValueOrDefault
 

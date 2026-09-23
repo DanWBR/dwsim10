@@ -91,6 +91,7 @@ Version 10.2.9
 - [FIX] Techno-Economic Analysis: typed prices, chosen materials and utilities, correction factors and comments were lost on Update All, and a typed price still received the cost-index correction; edits now survive, a typed price counts as current money, every price edit re-runs the costs, cash flow and report, and Reset Defaults rebuilds from the databases
 - [FIX] Compressor surge alarm compared the inlet flow against a design flow the steady state never recorded; the design inlet volumetric flow is now recorded (read-only dynamic property) and the alarm fires below the surge flow fraction of it
 - [FIX] Cooler in dynamic mode: the heat removed was applied to the cooler contents as heat added, so a cooler with a positive duty warmed its outlet and a temperature controller on it ran away; the duty now leaves the contents and the outlet settles at the steady-state temperature
+- [FIX] Heater in dynamic mode: the Heat Added/Removed calculation mode ran with no duty at all, and Energy Stream mode with no energy stream connected crashed instead of reporting the missing stream
 
 Version 10.2.8
 
