@@ -28,7 +28,18 @@ namespace DWSIM.FluentAPI.Tests
 
         public static void Run()
         {
-            var fs = Flowsheet.Create("FluentDynamicsCoolerHeatRemoved")
+            // At the default efficiency the run checks the sign of the duty. At 80 % it checks that the
+            // dynamic model scales the duty by the efficiency as the steady state does: left out, the
+            // outlet would overshoot the steady-state temperature by a quarter of the temperature change.
+            RunAt(100.0);
+            RunAt(80.0);
+        }
+
+        private static void RunAt(double efficiencyPercent)
+        {
+            Console.WriteLine("efficiency = " + efficiencyPercent.ToString("F0") + " %");
+
+            var fs = Flowsheet.Create("FluentDynamicsCoolerHeatRemoved" + (int)efficiencyPercent)
                 .WithCompound("Methane")
                 .WithCompound("Ethane")
                 .WithCompound("Propane")
@@ -48,6 +59,7 @@ namespace DWSIM.FluentAPI.Tests
             // dynamic model only accepts the heat removed and energy stream modes.
             var cooler = fs.AddCooler("E-01")
                 .WithOutletTemperature(OutletTemperatureK.Kelvin())
+                .WithEfficiencyPercent(efficiencyPercent)
                 .WithDynamicProperty("Volume", 0.05.CubicMeters())
                 .WithDynamicProperty("Flow Conductance", 0.003)
                 .WithDynamicProperty("Initialize using Inlet Stream", true)
@@ -113,7 +125,7 @@ namespace DWSIM.FluentAPI.Tests
             // The holdup turns over in about a second, so the outlet reaches the steady-state
             // temperature long before the run ends. The tolerance covers the flash of the same
             // enthalpy at the holdup pressure, which the constant-volume cooling lowers a little.
-            new ResultTable("Dynamic cooler on a fixed heat removed")
+            new ResultTable("Dynamic cooler on a fixed heat removed at " + efficiencyPercent.ToString("F0") + " % efficiency")
                 .Row("outlet temperature at the end of the run", steadyOutletK, outletT.Final, 1.5, "K")
                 .Row("outlet temperature after one minute", steadyOutletK, outletT.ValueAt(60.0), 1.5, "K")
                 .Row("outlet temperature at half the run", steadyOutletK, outletT.ValueAt(DurationSeconds / 2.0), 1.5, "K")

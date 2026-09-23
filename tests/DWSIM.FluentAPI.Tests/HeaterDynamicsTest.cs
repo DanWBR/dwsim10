@@ -24,7 +24,18 @@ namespace DWSIM.FluentAPI.Tests
 
         public static void Run()
         {
-            var fs = Flowsheet.Create("FluentDynamicsHeaterHeatAdded")
+            // At the default efficiency the run checks the sign of the duty. At 80 % it checks that the
+            // dynamic model scales the duty by the efficiency as the steady state does: left out, the
+            // outlet would overshoot the steady-state temperature by a quarter of the temperature change.
+            RunAt(100.0);
+            RunAt(80.0);
+        }
+
+        private static void RunAt(double efficiencyPercent)
+        {
+            Console.WriteLine("efficiency = " + efficiencyPercent.ToString("F0") + " %");
+
+            var fs = Flowsheet.Create("FluentDynamicsHeaterHeatAdded" + (int)efficiencyPercent)
                 .WithCompound("Methane")
                 .WithCompound("Ethane")
                 .WithCompound("Propane")
@@ -42,6 +53,7 @@ namespace DWSIM.FluentAPI.Tests
 
             var heater = fs.AddHeater("E-01")
                 .WithOutletTemperature(OutletTemperatureK.Kelvin())
+                .WithEfficiencyPercent(efficiencyPercent)
                 .WithDynamicProperty("Volume", 0.05.CubicMeters())
                 .WithDynamicProperty("Flow Conductance", 0.003)
                 .WithDynamicProperty("Initialize using Inlet Stream", true)
@@ -104,7 +116,7 @@ namespace DWSIM.FluentAPI.Tests
                     " K with the feed at " + feedT.Final.ToString("F2") +
                     " K: a positive heat added is not warming the holdup.");
 
-            new ResultTable("Dynamic heater on a fixed heat added")
+            new ResultTable("Dynamic heater on a fixed heat added at " + efficiencyPercent.ToString("F0") + " % efficiency")
                 .Row("outlet temperature at the end of the run", steadyOutletK, outletT.Final, 1.5, "K")
                 .Row("outlet temperature after one minute", steadyOutletK, outletT.ValueAt(60.0), 1.5, "K")
                 .Row("outlet temperature at half the run", steadyOutletK, outletT.ValueAt(DurationSeconds / 2.0), 1.5, "K")

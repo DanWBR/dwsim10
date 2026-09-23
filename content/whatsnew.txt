@@ -27,6 +27,7 @@
 - [CHG] CAPE-OPEN registration carries the full author name and the dwsim.org URLs
 - [CHG] Offline help regenerated from the current User Guide; tutorials site gains a Fundamentals track and an Operator Training section (English and Portuguese) with three sample plants and their scenario packs, an instructor kit, example reports, a Python batch runner and a FAQ; the User Guide gains an Operator Training Simulator chapter
 - [CHG] Compressor in dynamic mode is a pressure-flow element by default, as the pump is; the casing capacity comes back with Integrate Casing Holdup; Rated Speed declared on the compressor
+- [CHG] Heater and cooler in dynamic mode: the efficiency scales the duty that reaches the fluid, as it does at steady state (nothing changes at the default 100 %)
 - [FIX] Reactors (conversion, equilibrium, Gibbs, CSTR): the extent and conversion properties of a reaction whose name carries an underscore threw an index error in property tables and property lookups
 - [FIX] Adjust and specification blocks were reported as having no target on every check; the recycle estimate rule read a tolerance instead of the outlet flow
 - [FIX] FluentAPI: a mass flow set before the composition was replaced by 1 mol/s when the composition was applied
