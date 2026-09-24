@@ -40,13 +40,15 @@ namespace DWSIM.FluentAPI.Tests
                 throw new Exception(
                     $"{caseName}: the saved flowsheet does not re-solve: {errors[0].Message}");
 
-            // gauges and other indicators display, they do not calculate
+            // gauges and other indicators display, they do not calculate; a PID controller calculates only
+            // during a dynamic run, so a file saved before its first run carries it uncalculated
             var broken = reloaded.Inner.SimulationObjects.Values
                 .Where(o => !o.Calculated)
                 .Where(o => o.GraphicObject == null ||
                             (o.GraphicObject.ObjectType != DWSIM.Interfaces.Enums.GraphicObjects.ObjectType.AnalogGauge &&
                              o.GraphicObject.ObjectType != DWSIM.Interfaces.Enums.GraphicObjects.ObjectType.DigitalGauge &&
-                             o.GraphicObject.ObjectType != DWSIM.Interfaces.Enums.GraphicObjects.ObjectType.LevelGauge))
+                             o.GraphicObject.ObjectType != DWSIM.Interfaces.Enums.GraphicObjects.ObjectType.LevelGauge &&
+                             o.GraphicObject.ObjectType != DWSIM.Interfaces.Enums.GraphicObjects.ObjectType.Controller_PID))
                 .Select(o => o.GraphicObject?.Tag ?? o.Name)
                 .ToList();
             if (broken.Count > 0)

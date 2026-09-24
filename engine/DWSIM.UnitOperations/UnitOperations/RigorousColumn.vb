@@ -2051,6 +2051,12 @@ Namespace UnitOperations
 
             Dim bottomsIndex As Integer = If(quasiSteadyVapor, Stages.Count - 1, _Streams.Count - 1)
 
+            'what a product may take over the next step: nine tenths of what the phase holds, the cap the draw
+            'applies. Handed to the product stream, it bounds the flow the valve downstream computes from its
+            'pressure difference, so an empty drum or sump gives no flow instead of the valve equation's number.
+            Dim liquidDrawLimit = Function(k As Integer) 0.9 * _Streams(k).OverallLiquid.Properties.massflow.GetValueOrDefault() / fullstep
+            Dim vaporDrawLimit = Function(k As Integer) 0.9 * _Streams(k).Phases(2).Properties.massflow.GetValueOrDefault() / fullstep
+
             For i = 0 To _Streams.Count - 1
                 Dim stageid = _StageIDs(i)
                 Dim feed = _Feeds.Where(Function(f) f.AssociatedStage = stageid).FirstOrDefault()
@@ -2065,8 +2071,10 @@ Namespace UnitOperations
                     Dim sidestream = DirectCast(FlowSheet.SimulationObjects(side.StreamID), MaterialStream)
                     If side.StreamPhase = StreamInformation.Phase.L Then
                         sidestream.AssignFromPhase(PhaseLabel.Liquid1, _Streams(i), False)
+                        sidestream.MaximumAllowableDynamicMassFlowRate = liquidDrawLimit(i)
                     ElseIf side.StreamPhase = StreamInformation.Phase.V Then
                         sidestream.AssignFromPhase(PhaseLabel.Vapor, _Streams(i), False)
+                        sidestream.MaximumAllowableDynamicMassFlowRate = vaporDrawLimit(i)
                     End If
                     sidestream.SetPressure(_Streams(i).GetPressure())
                     sidestream.SpecType = StreamSpec.Pressure_and_Enthalpy
@@ -2076,6 +2084,7 @@ Namespace UnitOperations
                     If _TopProduct IsNot Nothing Then
                         Dim topstream = DirectCast(FlowSheet.SimulationObjects(_TopProduct.StreamID), MaterialStream)
                         topstream.AssignFromPhase(PhaseLabel.Vapor, _Streams(i), False)
+                        topstream.MaximumAllowableDynamicMassFlowRate = vaporDrawLimit(i)
                         topstream.SetPressure(_Streams(i).GetPressure())
                         topstream.SpecType = StreamSpec.Pressure_and_Enthalpy
                         topstream.AtEquilibrium = False
@@ -2084,6 +2093,7 @@ Namespace UnitOperations
                         'Liquid distillate: assign from the condenser holdup liquid phase.
                         Dim diststream = DirectCast(FlowSheet.SimulationObjects(_Distillate.StreamID), MaterialStream)
                         diststream.AssignFromPhase(PhaseLabel.Liquid1, _Streams(i), False)
+                        diststream.MaximumAllowableDynamicMassFlowRate = liquidDrawLimit(i)
                         diststream.SetPressure(_Streams(i).GetPressure())
                         diststream.SpecType = StreamSpec.Pressure_and_Enthalpy
                         diststream.AtEquilibrium = False
@@ -2092,6 +2102,7 @@ Namespace UnitOperations
                     If _BottomsProduct IsNot Nothing Then
                         Dim bottomstream = DirectCast(FlowSheet.SimulationObjects(_BottomsProduct.StreamID), MaterialStream)
                         bottomstream.AssignFromPhase(PhaseLabel.Liquid1, _Streams(i), False)
+                        bottomstream.MaximumAllowableDynamicMassFlowRate = liquidDrawLimit(i)
                         'the liquid head of the sump on the bottoms outlet (the holdup's own liquid density: the
                         'stream's phase properties were just cleared by the assignment)
                         bottomstream.SetPressure(_Streams(i).GetPressure() + _Streams(i).OverallLiquid.Properties.density.GetValueOrDefault() * 9.80665 * BottomLiquidLevel)

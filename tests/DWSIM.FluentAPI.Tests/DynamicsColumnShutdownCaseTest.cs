@@ -11,7 +11,9 @@ namespace DWSIM.FluentAPI.Tests
     /// The benzene-toluene column shut down from its design steady state: the feed is cut, the reboiler duty
     /// ramps to zero while the reflux keeps running, the pressure controller takes the condenser duty to zero
     /// as the boilup dies, and the two level controllers are given low setpoints to drain the sump and the drum.
-    /// The run is checked for the drained levels and the dead duties and emitted for the case library.
+    /// The flowsheet is emitted for the case library before the run, at the design steady state, with that state
+    /// stored as "Design" and selected as the schedule's initial state; the run is then checked for the drained
+    /// levels and the dead duties.
     /// </summary>
     internal static class DynamicsColumnShutdownCaseTest
     {
@@ -58,10 +60,13 @@ namespace DWSIM.FluentAPI.Tests
                 .AddStepChange("LC-02", "SetPointAbs", 0.10, at: drainSumpAt.Seconds(), units: "m", description: "drain the sump: level setpoint to 0.10 m")
                 .AddStepChange("LC-01", "SetPointAbs", 0.05, at: drainDrumAt.Seconds(), units: "m", description: "drain the reflux drum: level setpoint to 0.05 m");
 
+            // the design steady state, seeded, is the state every run starts from: stored with the file
             fs.Dynamics.WithHistorian(true, 5000);
+            fs.Dynamics.StoreCurrentStateAs("Design");
             fs.Dynamics.DefineSchedule("Shutdown")
                 .WithIntegrator("Shutdown")
                 .WithEventSet("Shutdown")
+                .WithInitialState("Design")
                 .MakeCurrent();
 
             // ---------------------------------------------------------------- what the PFD shows
@@ -81,7 +86,11 @@ namespace DWSIM.FluentAPI.Tests
                 .Where(f => f.Severity == DiagnosticSeverity.Blocker).ToList();
             if (blockers.Count > 0) throw new Exception("Readiness check blocked the run: " + string.Join("; ", blockers));
 
+            // ---------------------------------------------------------------- case library
+            // the file stored is the design steady state with the schedule configured, ready to press play:
+            // saved before the run, so it carries the design levels, setpoints and pressures
             var dir = CaseLibraryOutput.DirFor(CaseName);
+            if (duration >= 3000) CaseLibraryOutput.Emit(fs, CaseName);
             var tracePath = Path.Combine(dir, "trace.csv");
             using (var trace = new StreamWriter(tracePath))
             {
@@ -112,7 +121,7 @@ namespace DWSIM.FluentAPI.Tests
             foreach (var n in names)
                 Console.WriteLine($"  {n}: initial {series[n].Initial:G5}, at 600 s {series[n].ValueAt(600):G5}, at 1200 s {series[n].ValueAt(1200):G5}, at 2400 s {series[n].ValueAt(2400):G5}, final {series[n].Final:G5}");
 
-            if (duration < 3000) return;   // a short exploratory run: no closure check, nothing emitted
+            if (duration < 3000) return;   // a short exploratory run: no closure check
             new ResultTable("Dynamic column, shutdown")
                 .RowInRange("feed cut", -1e-6, 1e-6, series["feed mass flow"].Final, "kg/s")
                 .RowInRange("reboiler duty at zero", -1e-6, 1e-6, series["reboiler duty"].Final, "kW")
@@ -121,15 +130,6 @@ namespace DWSIM.FluentAPI.Tests
                 .RowInRange("drum drained to its low setpoint", 0.0, 0.15, series["condenser level"].Final, "m")
                 .RowInRange("pressure back at the blanket", 101.0, 105.0, series["top pressure"].Final / 1000.0, "kPa")
                 .PrintAndThrowIfFailed();
-
-            // ---------------------------------------------------------------- case library
-            // the file stored is the steady state with the schedule configured, ready to press play
-            c.Lv1.WithOpeningPercent(50.0).WithOpeningSetpoint(50.0);
-            c.Lv2.WithOpeningPercent(50.0).WithOpeningSetpoint(50.0);
-            c.Feed.Object.SetMassFlow(c.FeedKgs);
-            fs.Solve();
-            BenzeneTolueneDynamicColumn.SetProductBoundaries(c);
-            CaseLibraryOutput.Emit(fs, CaseName);
         }
     }
 }

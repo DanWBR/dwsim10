@@ -598,19 +598,13 @@ Namespace UnitOperations
                     Wi = oms.GetMassFlow
                     If Double.IsNaN(Wi) Or Double.IsInfinity(Wi) Or Wi < 0.0 Then Wi = 1.0E-20
 
-                    If ims.MaximumAllowableDynamicMassFlowRate.HasValue Then
-                        Dim WiMax = ims.MaximumAllowableDynamicMassFlowRate.Value
-                        If Wi > WiMax Then
-                            ims.SetMassFlow(WiMax)
-                            oms.SetMassFlow(WiMax)
-                        Else
-                            ims.SetMassFlow(Wi)
-                            oms.SetMassFlow(Wi)
-                        End If
-                    Else
-                        ims.SetMassFlow(Wi)
-                        oms.SetMassFlow(Wi)
+                    'the inlet may carry a limit set by the holdup upstream (a drum or sump that is nearly empty): the
+                    'flow written below, and the compositions after the Select, must carry the capped value
+                    If ims.MaximumAllowableDynamicMassFlowRate.HasValue AndAlso Wi > ims.MaximumAllowableDynamicMassFlowRate.Value Then
+                        Wi = ims.MaximumAllowableDynamicMassFlowRate.Value
                     End If
+                    ims.SetMassFlow(Wi)
+                    oms.SetMassFlow(Wi)
 
                     ims.SetMassFlow(Wi)
 
@@ -635,19 +629,13 @@ Namespace UnitOperations
 
                         Wi = CalculateDynamicMassFlow(P1, P2)
 
-                        If ims.MaximumAllowableDynamicMassFlowRate.HasValue Then
-                            Dim WiMax = ims.MaximumAllowableDynamicMassFlowRate.Value
-                            If Wi > WiMax Then
-                                ims.SetMassFlow(WiMax)
-                                oms.SetMassFlow(WiMax)
-                            Else
-                                ims.SetMassFlow(Wi)
-                                oms.SetMassFlow(Wi)
-                            End If
-                        Else
-                            ims.SetMassFlow(Wi)
-                            oms.SetMassFlow(Wi)
+                        'the inlet may carry a limit set by the holdup upstream (a drum or sump that is nearly empty): the
+                        'flow written below, and the compositions after the Select, must carry the capped value
+                        If ims.MaximumAllowableDynamicMassFlowRate.HasValue AndAlso Wi > ims.MaximumAllowableDynamicMassFlowRate.Value Then
+                            Wi = ims.MaximumAllowableDynamicMassFlowRate.Value
                         End If
+                        ims.SetMassFlow(Wi)
+                        oms.SetMassFlow(Wi)
 
                     ElseIf ims.DynamicsSpec = Dynamics.DynamicsSpecType.Flow And
                                 oms.DynamicsSpec = Dynamics.DynamicsSpecType.Pressure Then
