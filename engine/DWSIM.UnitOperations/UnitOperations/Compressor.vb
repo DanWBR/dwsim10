@@ -517,6 +517,10 @@ Namespace UnitOperations
             oms.SetMassEnthalpy(H2)
             oms.SetMassFlow(Wi)
             oms.SetPressure(Pi + DeltaPdyn)
+            'the stream recalculates itself on its own spec: on temperature and pressure it would flash
+            'at the temperature written above and throw the enthalpy away
+            oms.SpecType = StreamSpec.Pressure_and_Enthalpy
+            oms.AtEquilibrium = False
 
             Dim esin As Streams.EnergyStream = Me.GetInletEnergyStream(1)
             If esin IsNot Nothing Then
@@ -702,6 +706,10 @@ Namespace UnitOperations
             oms.SetTemperature(AccumulationStream.GetTemperature)
             oms.SetMassEnthalpy(AccumulationStream.GetMassEnthalpy)
             oms.SetPressure(Pressure + DeltaP_dyn)
+            'the stream recalculates itself on its own spec: on temperature and pressure it would flash
+            'at the temperature written above and throw the enthalpy away
+            oms.SpecType = StreamSpec.Pressure_and_Enthalpy
+            oms.AtEquilibrium = False
 
             UpdateSurgeAlarm(ims)
 
