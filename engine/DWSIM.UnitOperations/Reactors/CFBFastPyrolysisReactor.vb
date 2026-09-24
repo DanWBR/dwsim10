@@ -1075,6 +1075,79 @@ Namespace Reactors
 
         End Sub
 
+
+        ''' <summary>Chart names the PFD chart object can embed: the axial profiles of the last riser integration.</summary>
+        Public Overrides Function GetChartModelNames() As List(Of String)
+            Return New List(Of String)({"Temperature Profile", "Species Profile", "Riser Hydrodynamics", "Vapor Residence Time"})
+        End Function
+
+        ''' <summary>Builds an OxyPlot model of one axial profile group of the last trajectory, riser height on the x axis.</summary>
+        Public Overrides Function GetChartModel(name As String) As Object
+
+            Dim traj = LastTrajectory
+            If traj Is Nothing OrElse traj.Z_m Is Nothing OrElse traj.Z_m.Count = 0 Then Return Nothing
+
+            Dim series As New List(Of Tuple(Of String, String))()
+            Dim yTitle As String = "Value"
+            Select Case name
+                Case "Temperature Profile"
+                    series.Add(Tuple.Create("T_K", "Riser temperature (K)"))
+                    yTitle = "Temperature (K)"
+                Case "Species Profile"
+                    For Each k In traj.Species.Keys
+                        series.Add(Tuple.Create(k, k))
+                    Next
+                    yTitle = "Mass fraction"
+                Case "Riser Hydrodynamics"
+                    series.Add(Tuple.Create("SolidVelocity_ms", "Solid velocity (m/s)"))
+                    series.Add(Tuple.Create("GasVelocity_ms", "Gas velocity (m/s)"))
+                    series.Add(Tuple.Create("SolidsHoldup", "Solids holdup"))
+                    yTitle = "Velocity (m/s) and holdup"
+                Case "Vapor Residence Time"
+                    series.Add(Tuple.Create("VaporResidenceTime_s", "Cumulative vapor residence time (s)"))
+                    yTitle = "Residence time (s)"
+                Case Else
+                    Return Nothing
+            End Select
+
+            Dim model = New OxyPlot.PlotModel() With {.Subtitle = name, .Title = GraphicObject.Tag}
+            model.TitleFontSize = 11
+            model.SubtitleFontSize = 10
+            model.LegendFontSize = 9
+            model.LegendPlacement = OxyPlot.LegendPlacement.Outside
+            model.LegendOrientation = OxyPlot.LegendOrientation.Horizontal
+            model.LegendPosition = OxyPlot.LegendPosition.BottomCenter
+            model.TitleHorizontalAlignment = OxyPlot.TitleHorizontalAlignment.CenteredWithinView
+            model.Axes.Add(New OxyPlot.Axes.LinearAxis() With {
+                .MajorGridlineStyle = OxyPlot.LineStyle.Dash,
+                .MinorGridlineStyle = OxyPlot.LineStyle.Dot,
+                .Position = OxyPlot.Axes.AxisPosition.Bottom,
+                .FontSize = 10,
+                .Title = "Axial position z (m)"
+            })
+            model.Axes.Add(New OxyPlot.Axes.LinearAxis() With {
+                .MajorGridlineStyle = OxyPlot.LineStyle.Dash,
+                .MinorGridlineStyle = OxyPlot.LineStyle.Dot,
+                .Position = OxyPlot.Axes.AxisPosition.Left,
+                .FontSize = 10,
+                .Title = yTitle
+            })
+
+            Dim z = traj.Z_m.ToArray()
+            Dim colors = {OxyPlot.OxyColors.Red, OxyPlot.OxyColors.Blue, OxyPlot.OxyColors.Green, OxyPlot.OxyColors.Orange, OxyPlot.OxyColors.Purple, OxyPlot.OxyColors.Brown, OxyPlot.OxyColors.Teal, OxyPlot.OxyColors.Gray}
+            For i = 0 To series.Count - 1
+                Dim y = traj.GetSeries(series(i).Item1)
+                Dim ls As New OxyPlot.Series.LineSeries() With {.Title = series(i).Item2, .StrokeThickness = 1.5, .Color = colors(i Mod colors.Length)}
+                For j = 0 To Math.Min(z.Length, y.Length) - 1
+                    If Not Double.IsNaN(y(j)) AndAlso Not Double.IsInfinity(y(j)) Then ls.Points.Add(New OxyPlot.DataPoint(z(j), y(j)))
+                Next
+                model.Series.Add(ls)
+            Next
+
+            Return model
+
+        End Function
+
     End Class
 
 End Namespace

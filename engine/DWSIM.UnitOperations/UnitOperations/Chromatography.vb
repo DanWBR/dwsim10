@@ -581,6 +581,76 @@ Namespace UnitOperations
             BioOpsDrawHelper.DrawFlange(canvas, gx + 0.92F * w, gy + 0.95F * h, 0.07F * w, mono)
         End Sub
 
+
+        ''' <summary>Chart names the PFD chart object can embed: the curves of the last dynamic bind-elute run.</summary>
+        Public Overrides Function GetChartModelNames() As List(Of String)
+            If Mode <> ChromatographyMode.BindElute_Dynamic Then Return New List(Of String)()
+            Return New List(Of String)({"Breakthrough Curve", "Cumulative Load"})
+        End Function
+
+        ''' <summary>Builds an OxyPlot model of the breakthrough curve (against bed volumes) or of the cumulative load (against time).</summary>
+        Public Overrides Function GetChartModel(name As String) As Object
+
+            Dim traj = LastTrajectory
+            If traj Is Nothing OrElse traj.Times Is Nothing OrElse traj.Times.Count = 0 Then Return Nothing
+
+            Dim series As New List(Of Tuple(Of String, String))()
+            Dim x() As Double
+            Dim xTitle As String
+            Dim yTitle As String
+            Select Case name
+                Case "Breakthrough Curve"
+                    series.Add(Tuple.Create("C_over_C0", "C / C0"))
+                    series.Add(Tuple.Create("Breakthrough", "1 - C/C0"))
+                    x = traj.GetSeries("BedVolumes")
+                    xTitle = "Bed volumes"
+                    yTitle = "Fraction"
+                Case "Cumulative Load"
+                    series.Add(Tuple.Create("QLoaded", "q loaded (g/L resin)"))
+                    x = traj.GetTimes()
+                    xTitle = "Time (s)"
+                    yTitle = "Load (g/L resin)"
+                Case Else
+                    Return Nothing
+            End Select
+
+            Dim model = New OxyPlot.PlotModel() With {.Subtitle = name, .Title = GraphicObject.Tag}
+            model.TitleFontSize = 11
+            model.SubtitleFontSize = 10
+            model.LegendFontSize = 9
+            model.LegendPlacement = OxyPlot.LegendPlacement.Outside
+            model.LegendOrientation = OxyPlot.LegendOrientation.Horizontal
+            model.LegendPosition = OxyPlot.LegendPosition.BottomCenter
+            model.TitleHorizontalAlignment = OxyPlot.TitleHorizontalAlignment.CenteredWithinView
+            model.Axes.Add(New OxyPlot.Axes.LinearAxis() With {
+                .MajorGridlineStyle = OxyPlot.LineStyle.Dash,
+                .MinorGridlineStyle = OxyPlot.LineStyle.Dot,
+                .Position = OxyPlot.Axes.AxisPosition.Bottom,
+                .FontSize = 10,
+                .Title = xTitle
+            })
+            model.Axes.Add(New OxyPlot.Axes.LinearAxis() With {
+                .MajorGridlineStyle = OxyPlot.LineStyle.Dash,
+                .MinorGridlineStyle = OxyPlot.LineStyle.Dot,
+                .Position = OxyPlot.Axes.AxisPosition.Left,
+                .FontSize = 10,
+                .Title = yTitle
+            })
+
+            Dim colors = {OxyPlot.OxyColors.Red, OxyPlot.OxyColors.Blue}
+            For i = 0 To series.Count - 1
+                Dim y = traj.GetSeries(series(i).Item1)
+                Dim ls As New OxyPlot.Series.LineSeries() With {.Title = series(i).Item2, .StrokeThickness = 1.5, .Color = colors(i Mod colors.Length)}
+                For j = 0 To Math.Min(x.Length, y.Length) - 1
+                    If Not Double.IsNaN(y(j)) AndAlso Not Double.IsInfinity(y(j)) Then ls.Points.Add(New OxyPlot.DataPoint(x(j), y(j)))
+                Next
+                model.Series.Add(ls)
+            Next
+
+            Return model
+
+        End Function
+
     End Class
 
 End Namespace
