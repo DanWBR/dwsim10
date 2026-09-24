@@ -1944,6 +1944,124 @@ Namespace UnitOperations
             End If
         End Function
 
+
+        ''' <summary>Chart names the PFD chart object can embed: the performance map, one series per measured speed, with the operating point.</summary>
+        Public Overrides Function GetChartModelNames() As List(Of String)
+            If CalcMode <> CalculationMode.Curves Then Return New List(Of String)()
+            Return New List(Of String)({"Head Map", "Efficiency Map", "Power Map"})
+        End Function
+
+        ''' <summary>Builds an OxyPlot model of one map kind in the units of the first enabled curve, with the operating point marked when the flow axis is an actual volumetric flow.</summary>
+        Public Overrides Function GetChartModel(name As String) As Object
+
+            If Curves Is Nothing OrElse Curves.Count = 0 Then Return Nothing
+
+            Dim key As String, yLabel As String, opY As Double
+            Select Case name
+                Case "Head Map" : key = "HEAD" : yLabel = "Head" : opY = CurveHead
+                Case "Efficiency Map" : key = "EFF" : yLabel = "Efficiency" : opY = CurveEff
+                Case "Power Map" : key = "POWER" : yLabel = "Power" : opY = CurvePower
+                Case Else : Return Nothing
+            End Select
+
+            Dim speeds As New List(Of Integer)(Curves.Keys)
+            speeds.Sort()
+
+            Dim xunitRef As String = "", yunitRef As String = ""
+            For Each sp In speeds
+                Dim d = Curves(sp)
+                If d IsNot Nothing AndAlso d.ContainsKey(key) AndAlso d(key).Enabled AndAlso d(key).X IsNot Nothing AndAlso d(key).X.Count > 0 Then
+                    xunitRef = d(key).xunit : yunitRef = d(key).yunit : Exit For
+                End If
+            Next
+            If xunitRef = "" AndAlso yunitRef = "" Then Return Nothing
+            Dim actualFlowAxis As Boolean = xunitRef.Contains("@ P,T")
+            Dim xunitBase As String = xunitRef.Replace(" @ P,T", "").Replace("@ P,T", "").Trim()
+            Dim yunitDisplay As String = If(key = "EFF", "%", yunitRef)
+
+            Dim model = New OxyPlot.PlotModel() With {.Subtitle = name, .Title = GraphicObject.Tag}
+            model.TitleFontSize = 11
+            model.SubtitleFontSize = 10
+            model.LegendFontSize = 9
+            model.LegendPlacement = OxyPlot.LegendPlacement.Outside
+            model.LegendOrientation = OxyPlot.LegendOrientation.Horizontal
+            model.LegendPosition = OxyPlot.LegendPosition.BottomCenter
+            model.TitleHorizontalAlignment = OxyPlot.TitleHorizontalAlignment.CenteredWithinView
+            model.Axes.Add(New OxyPlot.Axes.LinearAxis() With {
+                .MajorGridlineStyle = OxyPlot.LineStyle.Dash,
+                .MinorGridlineStyle = OxyPlot.LineStyle.Dot,
+                .Position = OxyPlot.Axes.AxisPosition.Bottom,
+                .FontSize = 10,
+                .Title = "Flow (" + xunitRef + ")"
+            })
+            model.Axes.Add(New OxyPlot.Axes.LinearAxis() With {
+                .MajorGridlineStyle = OxyPlot.LineStyle.Dash,
+                .MinorGridlineStyle = OxyPlot.LineStyle.Dot,
+                .Position = OxyPlot.Axes.AxisPosition.Left,
+                .FontSize = 10,
+                .Title = yLabel + " (" + yunitDisplay + ")"
+            })
+
+            Dim colors = {OxyPlot.OxyColors.Red, OxyPlot.OxyColors.Blue, OxyPlot.OxyColors.Green, OxyPlot.OxyColors.Orange, OxyPlot.OxyColors.Purple, OxyPlot.OxyColors.Brown}
+            Dim added As Integer = 0
+            For Each sp In speeds
+                Dim d = Curves(sp)
+                If d Is Nothing OrElse Not d.ContainsKey(key) Then Continue For
+                Dim curve = d(key)
+                If curve Is Nothing OrElse Not curve.Enabled OrElse curve.X Is Nothing OrElse curve.X.Count = 0 Then Continue For
+                Dim cxBase As String = curve.xunit.Replace(" @ P,T", "").Replace("@ P,T", "").Trim()
+                Dim ls As New OxyPlot.Series.LineSeries() With {
+                    .Title = sp.ToString() + " rpm",
+                    .StrokeThickness = 1.5,
+                    .Color = colors(added Mod colors.Length),
+                    .MarkerType = OxyPlot.MarkerType.Circle,
+                    .MarkerSize = 3,
+                    .MarkerFill = colors(added Mod colors.Length)
+                }
+                For i = 0 To Math.Min(curve.X.Count, curve.Y.Count) - 1
+                    Dim xv As Double = curve.X(i)
+                    If cxBase <> xunitBase AndAlso cxBase <> "" AndAlso xunitBase <> "" Then
+                        xv = DWSIM.SharedClasses.SystemsOfUnits.Converter.ConvertFromSI(xunitBase, DWSIM.SharedClasses.SystemsOfUnits.Converter.ConvertToSI(cxBase, curve.X(i)))
+                    End If
+                    Dim yv As Double
+                    If key = "EFF" Then
+                        yv = If(curve.yunit = "%", curve.Y(i), curve.Y(i) * 100.0)
+                    ElseIf curve.yunit <> yunitRef AndAlso curve.yunit <> "" AndAlso yunitRef <> "" Then
+                        yv = DWSIM.SharedClasses.SystemsOfUnits.Converter.ConvertFromSI(yunitRef, DWSIM.SharedClasses.SystemsOfUnits.Converter.ConvertToSI(curve.yunit, curve.Y(i)))
+                    Else
+                        yv = curve.Y(i)
+                    End If
+                    If Not Double.IsNaN(xv) AndAlso Not Double.IsNaN(yv) Then ls.Points.Add(New OxyPlot.DataPoint(xv, yv))
+                Next
+                model.Series.Add(ls)
+                added += 1
+            Next
+            If added = 0 Then Return Nothing
+
+            If actualFlowAxis AndAlso CurveFlow > 0.0 AndAlso Not Double.IsNaN(opY) Then
+                Dim op As New OxyPlot.Series.ScatterSeries() With {
+                    .Title = "Operating point (" + Speed.ToString() + " rpm)",
+                    .MarkerType = OxyPlot.MarkerType.Diamond,
+                    .MarkerSize = 6,
+                    .MarkerFill = OxyPlot.OxyColors.Black
+                }
+                Dim opX = DWSIM.SharedClasses.SystemsOfUnits.Converter.ConvertFromSI(xunitBase, CurveFlow)
+                Dim opYd As Double
+                If key = "EFF" Then
+                    opYd = opY
+                ElseIf yunitRef <> "" Then
+                    opYd = DWSIM.SharedClasses.SystemsOfUnits.Converter.ConvertFromSI(yunitRef, opY)
+                Else
+                    opYd = opY
+                End If
+                op.Points.Add(New OxyPlot.Series.ScatterPoint(opX, opYd))
+                model.Series.Add(op)
+            End If
+
+            Return model
+
+        End Function
+
     End Class
 
 End Namespace
