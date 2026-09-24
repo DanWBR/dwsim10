@@ -156,7 +156,6 @@ That leaves real gaps, and they are worth knowing:
 | `NO_PROPERTY_PACKAGE` | The flowsheet has no property package, so nothing can be flashed. |
 | `DUPLICATE_TAG` | Two or more objects share a tag, so addressing one by tag is ambiguous. |
 | `STREAM_DANGLING` | A stream is connected to nothing at either end. |
-| `ENERGY_STREAM_HALF_CONNECTED` | An energy stream is attached at one end only. |
 | `UNIT_UNCONNECTED` | A unit operation has nothing connected to it. |
 | `UNIT_NO_FEED` | A unit operation has no feed, so it has nothing to process. |
 | `UNIT_NO_PRODUCT` | A unit operation has no product, so its result has nowhere to go. |

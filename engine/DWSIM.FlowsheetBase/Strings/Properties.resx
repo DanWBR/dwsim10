@@ -1854,4 +1854,22 @@
   <data name="PROP_PF_34" xml:space="preserve">
     <value>Catalyst Particle Sphericity</value>
   </data>
+  <data name="Condenser_Specification_Value" xml:space="preserve">
+    <value>Condenser Specification Value</value>
+  </data>
+  <data name="Reboiler_Specification_Value" xml:space="preserve">
+    <value>Reboiler Specification Value</value>
+  </data>
+  <data name="Condenser_Calculated_Value" xml:space="preserve">
+    <value>Condenser Specification Calculated Value</value>
+  </data>
+  <data name="Reboiler_Calculated_Value" xml:space="preserve">
+    <value>Reboiler Specification Calculated Value</value>
+  </data>
+  <data name="Global_Stage_Efficiency" xml:space="preserve">
+    <value>Global Stage Efficiency</value>
+  </data>
+  <data name="Sump_LiquidLevel" xml:space="preserve">
+    <value>Sump Liquid Level</value>
+  </data>
 </root>

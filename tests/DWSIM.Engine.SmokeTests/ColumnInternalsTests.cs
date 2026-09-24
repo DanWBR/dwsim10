@@ -877,7 +877,7 @@ namespace DWSIM.Engine.SmokeTests
             Assert.That(column.ColumnPropertiesProfile, Does.Contain("Rate-Based Stage Efficiencies"));
             Assert.That(string.Concat(column.SaveData().Select(x => x.ToString())), Does.Contain("RateBased"), "the mode is saved");
 
-            column.SolvingMethodName = "Napthali-Sandholm (Simultaneous Correction)";
+            column.SolvingMethodName = "Naphtali-Sandholm (Simultaneous Correction)";
             var errors = flowsheet.SolveFlowsheet2();
             TestContext.Out.WriteLine("Naphtali-Sandholm: " + string.Join("; ", errors.Select(e => e.Message)) + " | " + string.Join(" | ", column.RateBasedLog));
             if (errors.Count == 0) AssertNoNegativeFractions(column);

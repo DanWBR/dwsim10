@@ -241,6 +241,14 @@ Namespace UnitOperations
 
         End Sub
 
+        ''' <summary>Connects a feed to the stage named as the editor shows it, e.g. "Stage10" (Stage1 is the
+        ''' condenser when there is one).</summary>
+        Public Sub ConnectFeed(feed As ISimulationObject, stageName As String)
+            ConnectFeed(feed, StageIndexOf(stageName))
+        End Sub
+
+        ''' <summary>Connects a feed to a stage by its zero-based index: 0 is the top stage (the condenser, which
+        ''' the editor calls Stage1), so the editor's StageN is index N - 1.</summary>
         Public Sub ConnectFeed(feed As ISimulationObject, stagenumber As Integer)
 
             Dim i As Integer = 0
@@ -326,7 +334,7 @@ Namespace UnitOperations
             Dim sp As New ColumnSpec()
             [Enum].TryParse(Of ColumnSpec.SpecType)(spectype, sp.SType)
             sp.SpecValue = value
-            sp.SpecUnit = units
+            sp.SpecUnit = If(sp.SType = ColumnSpec.SpecType.Component_Fraction, FractionBasis(units), units)
             sp.ComponentID = compound
 
             Specs("C") = sp
@@ -342,7 +350,7 @@ Namespace UnitOperations
             Dim sp As New ColumnSpec()
             [Enum].TryParse(Of ColumnSpec.SpecType)(spectype, sp.SType)
             sp.SpecValue = value
-            sp.SpecUnit = units
+            sp.SpecUnit = If(sp.SType = ColumnSpec.SpecType.Component_Fraction, FractionBasis(units), units)
             sp.ComponentID = compound
 
             Specs("R") = sp
@@ -353,6 +361,22 @@ Namespace UnitOperations
         ''' Takes the unit out of a spec type that carries it in parentheses, as the property grid
         ''' writes it: "Product Flow Rate (mol/s)". An explicit unit argument wins.
         ''' </summary>
+        ''' <summary>
+        ''' The basis of a component fraction spec as the solvers read it: "Molar" or "Mass". An empty
+        ''' unit is a mole fraction, the way the editor and the texts quote purities; the solvers read
+        ''' anything but "M" or "Molar" as mass, so an empty unit used to become a mass fraction.
+        ''' </summary>
+        Private Shared Function FractionBasis(units As String) As String
+            Select Case If(units, "").Trim().ToLowerInvariant()
+                Case "mass", "w", "we", "kg/kg", "mass fraction", "wt"
+                    Return "Mass"
+                Case "", "m", "mol", "mole", "molar", "mol/mol", "mole fraction", "molar fraction"
+                    Return "Molar"
+                Case Else
+                    Throw New ArgumentException(String.Format("'{0}' is not a basis for a component fraction spec. Use ""Molar"" or ""Mass"".", units))
+            End Select
+        End Function
+
         Private Shared Sub ParseSpecUnits(ByRef spectype As String, ByRef units As String)
 
             Dim parenStart = spectype.IndexOf("("c)
@@ -888,6 +912,14 @@ Namespace UnitOperations
         Public _opmode As OpMode = OpMode.Absorber
 
 
+        ''' <summary>Connects a feed to the stage named as the editor shows it, e.g. "Stage10" (Stage1 is the
+        ''' condenser when there is one).</summary>
+        Public Sub ConnectFeed(feed As ISimulationObject, stageName As String)
+            ConnectFeed(feed, StageIndexOf(stageName))
+        End Sub
+
+        ''' <summary>Connects a feed to a stage by its zero-based index: 0 is the top stage (the condenser, which
+        ''' the editor calls Stage1), so the editor's StageN is index N - 1.</summary>
         Public Sub ConnectFeed(feed As ISimulationObject, stagenumber As Integer)
 
             Dim i As Integer = 0
@@ -2233,7 +2265,17 @@ Namespace UnitOperations
 
         Public Property TopSpacing As Double = 0.1 'm
 
-        Public Property SolvingMethodName As String = "Wang-Henke (Bubble Point)"
+        Private _solvingMethodName As String = "Wang-Henke (Bubble Point)"
+
+        ''' <summary>The column solver. Names saved with the old spelling "Napthali" are read as "Naphtali".</summary>
+        Public Property SolvingMethodName As String
+            Get
+                Return _solvingMethodName
+            End Get
+            Set(value As String)
+                _solvingMethodName = If(value Is Nothing, Nothing, value.Replace("Napthali", "Naphtali"))
+            End Set
+        End Property
 
         'column type
         Private _type As ColType = Column.ColType.DistillationColumn
@@ -3037,6 +3079,17 @@ Namespace UnitOperations
 
         ''' <summary>The name a stage at this position gets when nobody typed one: Stage1 to StageN counted from the top,
         ''' the condenser being stage 1 and the reboiler stage N, each with its role in parentheses.</summary>
+        ''' <summary>The zero-based index of the stage named as the editor shows it: "Stage10", "Stage1 (Condenser)"
+        ''' or a name the user typed.</summary>
+        Public Function StageIndexOf(stageName As String) As Integer
+            Dim key = If(stageName, "").Trim()
+            For i = 0 To Stages.Count - 1
+                Dim n = If(Stages(i).Name, "")
+                If n.Equals(key, StringComparison.OrdinalIgnoreCase) OrElse n.StartsWith(key & " (", StringComparison.OrdinalIgnoreCase) Then Return i
+            Next
+            Throw New ArgumentException(String.Format("The column has no stage named '{0}'. Its stages are Stage1 to Stage{1}.", stageName, Stages.Count))
+        End Function
+
         Public Function StageNameFor(index As Integer, count As Integer) As String
             Dim n = "Stage" & (index + 1)
             If ColumnType = ColType.DistillationColumn Then
@@ -6476,7 +6529,7 @@ Namespace UnitOperations
                         SetColumnSolver(New SolvingMethods.WangHenkeMethod())
                         so = Solver.SolveColumn(GetSolverInputData(True))
                     End If
-                ElseIf SolvingMethodName.Contains("Napthali") Then
+                ElseIf SolvingMethodName.Contains("Naphtali") Then
                     Try
                         inputdata.CalculationMode = 0
                         SetColumnSolver(New SolvingMethods.NaphtaliSandholmMethod())

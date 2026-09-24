@@ -215,15 +215,6 @@ namespace DWSIM.Automation.FluentAPI.Diagnostics
                     "outlet only; a product at its inlet only.",
                     "beginner/02-mixer-basics.html"),
 
-                Entry(FlowsheetCodes.EnergyStreamHalfConnected, "Energy stream with a loose end",
-                    "An energy stream is attached to a unit at one end only.",
-                    "An energy stream carries a duty: heat into a heater, work into a pump, heat out of a cooler. A unit " +
-                    "in Energy Stream mode reads its duty from the stream, so the stream needs a value from somewhere. " +
-                    "One loose end means the duty comes from nowhere, or goes nowhere.",
-                    "Connect the other end, set the duty on the stream by hand if it is a boundary energy input, or delete " +
-                    "the stream if the unit computes its own duty from a temperature specification.",
-                    "beginner/03-heater-cooler.html"),
-
                 Entry(FlowsheetCodes.UnitUnconnected, "Unconnected unit operation",
                     "A unit operation has no stream attached to any of its ports.",
                     "The solver walks from the feeds through the units in flow order. A unit with no connections is " +

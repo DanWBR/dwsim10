@@ -1733,6 +1733,8 @@ Namespace UnitOperations
 
             Else
 
+                ' Co-current: the outlets meet at one temperature. The counter-current bound brackets that
+                ' duty from above; the value left by the previous solve did not, and was zero on a first solve.
                 MaxHeatExchange = MathNet.Numerics.RootFinding.Brent.FindRoot(
                     Function(q)
 
@@ -1762,7 +1764,7 @@ Namespace UnitOperations
 
                         Return Thx - Tcx
 
-                    End Function, 0.0, MaxHeatExchange)
+                    End Function, 0.0, Min(DeltaHc, DeltaHh))
 
             End If
 
@@ -2253,6 +2255,9 @@ Namespace UnitOperations
                             Dim tmp = StInCold.PropertyPackage.CalculateEquilibrium2(FlashCalculationType.PressureTemperature, Pc2, Tc2, 0)
                             Hc2 = OverriddenEnthalpy(StInCold, Pc2, Tc2, tmp.CalculatedEnthalpy)
                             Q = Wc * (Hc2 - Hc1)
+                            If Q <= 0.0 Then
+                                Throw New ArgumentException(String.Format("The cold fluid outlet temperature ({0:F2} K) is not above the cold fluid inlet ({1:F2} K), so the exchanger would cool the cold fluid. Enter a cold outlet temperature between the cold inlet and the hot inlet ({2:F2} K), or specify the hot fluid outlet.", Tc2, Tc1, Th1))
+                            End If
                             DeltaHh = -(Q + HeatLoss) / Wh
                             Hh2 = Hh1 + DeltaHh
                             StInHot.PropertyPackage.CurrentMaterialStream = StInHot
@@ -2272,6 +2277,9 @@ Namespace UnitOperations
                             Dim tmp = StInHot.PropertyPackage.CalculateEquilibrium2(FlashCalculationType.PressureTemperature, Ph2, Th2, 0)
                             Hh2 = OverriddenEnthalpy(StInHot, Ph2, Th2, tmp.CalculatedEnthalpy)
                             Q = -Wh * (Hh2 - Hh1)
+                            If Q <= 0.0 Then
+                                Throw New ArgumentException(String.Format("The hot fluid outlet temperature ({0:F2} K) is not below the hot fluid inlet ({1:F2} K), so the exchanger would heat the hot fluid. Enter a hot outlet temperature between the cold inlet ({2:F2} K) and the hot inlet, or specify the cold fluid outlet.", Th2, Th1, Tc1))
+                            End If
                             DeltaHc = (Q - HeatLoss) / Wc
                             Hc2 = Hc1 + DeltaHc
                             StInCold.PropertyPackage.CurrentMaterialStream = StInCold
@@ -3167,13 +3175,15 @@ Namespace UnitOperations
 
                 Next
 
-                Me.HeatProfile = qprof.ToArray
-                Me.TemperatureProfileCold = tcprof.ToArray
-                Me.TemperatureProfileHot = thprof.ToArray
-
                 If Not PinchPointAtOutlets And FlowDir = FlowDirection.CounterCurrent Then
                     thprof.Reverse()
                 End If
+
+                ' Stored after the reversal, as the pinch point mode does: in counter-current the hot
+                ' fluid at a point of the heat axis is the one facing the cold fluid there.
+                Me.HeatProfile = qprof.ToArray
+                Me.TemperatureProfileCold = tcprof.ToArray
+                Me.TemperatureProfileHot = thprof.ToArray
 
                 ' Signed on purpose: where the hot stream runs colder than the cold stream the
                 ' approach is negative and the arrangement is infeasible. Taking the absolute value

@@ -239,7 +239,7 @@ namespace DWSIM.Engine.SmokeTests
             var flowsheet = Load("TraceMethaneStripper.dwxmz");
 
             var column = flowsheet.SimulationObjects.Values.OfType<DistillationColumn>().Single();
-            column.SolvingMethodName = "Napthali-Sandholm";
+            column.SolvingMethodName = "Naphtali-Sandholm";
 
             var errors = flowsheet.SolveFlowsheet2();
 
@@ -298,7 +298,7 @@ namespace DWSIM.Engine.SmokeTests
             spec.SType = ColumnSpec.SpecType.Heat_Duty;
             spec.SpecValue = duty;
             spec.SpecUnit = "kW";
-            column.SolvingMethodName = "Napthali-Sandholm";
+            column.SolvingMethodName = "Naphtali-Sandholm";
 
             errors = flowsheet.SolveFlowsheet2();
             Assert.That(errors, Is.Empty,

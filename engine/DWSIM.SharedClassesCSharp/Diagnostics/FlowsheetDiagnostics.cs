@@ -174,20 +174,14 @@ namespace DWSIM.Automation.FluentAPI.Diagnostics
                     var attachedIn = graphic.InputConnectors.Any(c => c.IsAttached);
                     var attachedOut = graphic.OutputConnectors.Any(c => c.IsAttached);
 
-                    // A stream attached at neither end is in the flowsheet but not in the process.
+                    // A stream attached at neither end is in the flowsheet but not in the process. An
+                    // energy stream attached at one end is the normal case: the duty of a heater, the
+                    // power of a pump or a compressor, the heat a cooler removes.
                     if (!attachedIn && !attachedOut)
                     {
                         findings.Add(new Finding(FlowsheetCodes.StreamDangling, DiagnosticSeverity.Blocker, tag,
                             "This stream is connected to nothing at either end.",
                             "Connect it to a unit operation, or remove it."));
-                    }
-                    else if (type == ObjectType.EnergyStream && !(attachedIn && attachedOut))
-                    {
-                        // An energy stream carries duty between two units; one loose end means the
-                        // duty comes from nowhere, or goes nowhere.
-                        findings.Add(new Finding(FlowsheetCodes.EnergyStreamHalfConnected, DiagnosticSeverity.Warning, tag,
-                            "This energy stream is attached at one end only, so its duty has no source or no destination.",
-                            "Connect both ends, or delete it if the unit computes its own duty."));
                     }
                     continue;
                 }

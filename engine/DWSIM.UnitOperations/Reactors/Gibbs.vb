@@ -1072,9 +1072,7 @@ Namespace Reactors
             Qin = 0.0
 
             'energy stream
-            If GetInletEnergyStream(1) IsNot Nothing Then
-                Qin = GetInletEnergyStream(1).EnergyFlow.GetValueOrDefault()
-            End If
+            Qin = InletHeatInput()
 
             Dim IObj As InspectorItem = Host.GetNewInspectorItem()
 
@@ -1706,14 +1704,10 @@ Namespace Reactors
                     .Phases(0).Properties.pressure = P
                     Dim comp As BaseClasses.Compound
                     For Each comp In .Phases(0).Compounds.Values
-                        If xv = 0.0# Then
-                            comp.MoleFraction = 0.0#
-                            comp.MassFraction = 0.0#
-                        Else
-                            comp.MoleFraction = Vy(ids2.IndexOf(comp.Name))
-                            comp.MassFraction = Vwy(ids2.IndexOf(comp.Name))
-                        End If
+                        comp.MoleFraction = Vy(ids2.IndexOf(comp.Name))
+                        comp.MassFraction = Vwy(ids2.IndexOf(comp.Name))
                     Next
+                    If xv = 0.0# Then SetProductComposition(ms, ims.GetOverallComposition(), ids2)
                     .PropertyPackage.CurrentMaterialStream = ms
                     Hv = .PropertyPackage.DW_CalcEnthalpy(ms.GetOverallComposition(), T, P, PropertyPackages.State.Vapor)
                     .Phases(0).Properties.enthalpy = Hv
@@ -1731,16 +1725,15 @@ Namespace Reactors
                     .Phases(0).Properties.pressure = P
                     If wv < 1.0# Then .Phases(0).Properties.enthalpy = H / (1 - wv) Else .Phases(0).Properties.enthalpy = 0.0#
                     Dim comp As BaseClasses.Compound
-                    For Each comp In .Phases(0).Compounds.Values
-                        If (1 - xv) = 0.0# Then
-                            comp.MoleFraction = 0.0#
-                            comp.MassFraction = 0.0#
-                        Else
+                    If (1 - xv) = 0.0# Then
+                        SetProductComposition(ms, ims.GetOverallComposition(), ids2)
+                    Else
+                        For Each comp In .Phases(0).Compounds.Values
                             comp.MoleFraction = (Vx(ids2.IndexOf(comp.Name)) * xl + Vs(ids2.IndexOf(comp.Name)) * xs) / (1 - xv)
                             comp.MassFraction = (Vwx(ids2.IndexOf(comp.Name)) * wl + Vws(ids2.IndexOf(comp.Name)) * ws) / (1 - wv)
-                        End If
-                    Next
-                    .Phases(0).Properties.enthalpy = (H - Hv * wv) / (1 - wv)
+                        Next
+                    End If
+                    .Phases(0).Properties.enthalpy = If(wv < 1.0#, (H - Hv * wv) / (1 - wv), H)
                     .Phases(0).Properties.massflow = W * (1 - wv)
                     .DefinedFlow = FlowSpec.Mass
                 End With
@@ -1752,6 +1745,7 @@ Namespace Reactors
                     .EnergyFlow = Me.DeltaQ.GetValueOrDefault
                     .GraphicObject.Calculated = True
                 End With
+                WrittenEnergyFlow = Me.DeltaQ.GetValueOrDefault
             End If
 
         End Sub
@@ -2594,14 +2588,10 @@ Namespace Reactors
                     .Phases(0).Properties.enthalpy = H / wv
                     Dim comp As BaseClasses.Compound
                     For Each comp In .Phases(0).Compounds.Values
-                        If xv = 0.0# Then
-                            comp.MoleFraction = 0.0#
-                            comp.MassFraction = 0.0#
-                        Else
-                            comp.MoleFraction = Vy(ids2.IndexOf(comp.Name))
-                            comp.MassFraction = Vwy(ids2.IndexOf(comp.Name))
-                        End If
+                        comp.MoleFraction = Vy(ids2.IndexOf(comp.Name))
+                        comp.MassFraction = Vwy(ids2.IndexOf(comp.Name))
                     Next
+                    If xv = 0.0# Then SetProductComposition(ms, ims.GetOverallComposition(), ids2)
                     .Phases(0).Properties.massflow = W * wv
                 End With
             End If
@@ -2616,15 +2606,14 @@ Namespace Reactors
                     .Phases(0).Properties.pressure = P
                     If wv < 1.0# Then .Phases(0).Properties.enthalpy = H / (1 - wv) Else .Phases(0).Properties.enthalpy = 0.0#
                     Dim comp As BaseClasses.Compound
-                    For Each comp In .Phases(0).Compounds.Values
-                        If (1 - xv) = 0.0# Then
-                            comp.MoleFraction = 0.0#
-                            comp.MassFraction = 0.0#
-                        Else
+                    If (1 - xv) = 0.0# Then
+                        SetProductComposition(ms, ims.GetOverallComposition(), ids2)
+                    Else
+                        For Each comp In .Phases(0).Compounds.Values
                             comp.MoleFraction = (Vx(ids2.IndexOf(comp.Name)) * xl + Vs(ids2.IndexOf(comp.Name)) * xs) / (1 - xv)
                             comp.MassFraction = (Vwx(ids2.IndexOf(comp.Name)) * wl + Vws(ids2.IndexOf(comp.Name)) * ws) / (1 - wv)
-                        End If
-                    Next
+                        Next
+                    End If
                     .Phases(0).Properties.massflow = W * (1 - wv)
                 End With
             End If
@@ -2790,6 +2779,7 @@ Namespace Reactors
         Public Overrides Function SetPropertyValue(ByVal prop As String, ByVal propval As Object, Optional ByVal su As Interfaces.IUnitsOfMeasure = Nothing) As Boolean
 
             If MyBase.SetPropertyValue(prop, propval, su) Then Return True
+            If Not prop.StartsWith("PROP_") Then Return SetNamedPropertyValue(prop, propval)
 
             If su Is Nothing Then su = New SystemsOfUnits.SI
             Dim cv As New SystemsOfUnits.Converter

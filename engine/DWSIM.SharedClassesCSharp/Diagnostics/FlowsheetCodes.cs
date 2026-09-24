@@ -14,7 +14,6 @@ namespace DWSIM.Automation.FluentAPI.Diagnostics
         public const string NoPropertyPackage = "NO_PROPERTY_PACKAGE";
         public const string DuplicateTag = "DUPLICATE_TAG";
         public const string StreamDangling = "STREAM_DANGLING";
-        public const string EnergyStreamHalfConnected = "ENERGY_STREAM_HALF_CONNECTED";
         public const string UnitUnconnected = "UNIT_UNCONNECTED";
         public const string UnitNoFeed = "UNIT_NO_FEED";
         public const string UnitNoProduct = "UNIT_NO_PRODUCT";
@@ -68,7 +67,6 @@ namespace DWSIM.Automation.FluentAPI.Diagnostics
             { NoPropertyPackage, "The flowsheet has no property package, so nothing can be flashed." },
             { DuplicateTag, "Two or more objects share a tag, so addressing one by tag is ambiguous." },
             { StreamDangling, "A stream is connected to nothing at either end." },
-            { EnergyStreamHalfConnected, "An energy stream is attached at one end only." },
             { UnitUnconnected, "A unit operation has nothing connected to it." },
             { UnitNoFeed, "A unit operation has no feed, so it has nothing to process." },
             { UnitNoProduct, "A unit operation has no product, so its result has nowhere to go." },

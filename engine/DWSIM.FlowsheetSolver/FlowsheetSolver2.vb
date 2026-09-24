@@ -1237,6 +1237,13 @@ Imports DWSIM.SharedClasses
 
                 Loop
 
+                If Not converged Then
+                    'the step vanished before the targets were met: the manipulated variables no longer move the
+                    'controlled ones, so the targets cannot be reached from here
+                    Dim tags = String.Join(", ", fbag.SimulationObjects.Values.Where(Function(a) TypeOf a Is IAdjust AndAlso DirectCast(a, IAdjust).SimultaneousAdjust AndAlso a.GraphicObject.Active).Select(Function(a) a.GraphicObject.Tag))
+                    Throw New Exception(String.Format("The simultaneous adjust solver stopped without meeting the targets of {0} (sum of squared errors {1:G4}). The manipulated variables no longer change the controlled ones: check that each target can be reached within the range of its manipulated variable.", tags, il_err))
+                End If
+
             End If
 
         End If

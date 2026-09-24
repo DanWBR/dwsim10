@@ -261,12 +261,12 @@ namespace DWSIM.UI.Desktop.Editors
                 ? new List<string>
                 {
                     "Burningham-Otto (Sum Rates)",
-                    "Napthali-Sandholm (Simultaneous Correction)"
+                    "Naphtali-Sandholm (Simultaneous Correction)"
                 }
                 : new List<string>
                 {
                     "Wang-Henke (Bubble Point)",
-                    "Napthali-Sandholm (Simultaneous Correction)",
+                    "Naphtali-Sandholm (Simultaneous Correction)",
                     "Modified Wang-Henke (Bubble Point)"
                 };
 

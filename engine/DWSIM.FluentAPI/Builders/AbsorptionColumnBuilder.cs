@@ -11,7 +11,7 @@ namespace DWSIM.Automation.FluentAPI.Builders
         public AbsorptionColumnBuilder WithNumberOfStages(int n) { Object.SetNumberOfStages(n); return this; }
         /// <summary>
         /// Chooses the column solver by name: <c>"Wang-Henke (Bubble Point)"</c> (the default),
-        /// <c>"Napthali-Sandholm"</c> (simultaneous correction, the robust choice for sharp
+        /// <c>"Naphtali-Sandholm"</c> (simultaneous correction, the robust choice for sharp
         /// separations), <c>"Modified Wang-Henke Solver"</c> or an external solver's name.
         /// </summary>
         public AbsorptionColumnBuilder WithSolvingMethod(string name) { Object.SolvingMethodName = name; return this; }
@@ -24,9 +24,16 @@ namespace DWSIM.Automation.FluentAPI.Builders
         /// <summary>Sets <c>Temperature Step Fraction</c> of the bubble-point solvers (0 to 1, default 0.5) and returns this builder for chaining.</summary>
         public AbsorptionColumnBuilder WithTemperatureStepFraction(double fraction) { Object.TemperatureStepFraction = fraction; return this; }
 
-        /// <summary>Sets <c>Feed</c> and returns this builder for chaining.</summary>
+        /// <summary>Connects a feed to a stage by its zero-based index and returns this builder for chaining.
+        /// Index 0 is the top stage, which the editor calls Stage1, so the editor's StageN is index N - 1:
+        /// <c>WithFeed(feed, 10)</c> feeds Stage11. <see cref="WithFeed(MaterialStreamBuilder, string)"/> takes the name.</summary>
         public AbsorptionColumnBuilder WithFeed(MaterialStreamBuilder feed, int stageNumber)
         { Object.ConnectFeed(feed.Object, stageNumber); return this; }
+
+        /// <summary>Connects a feed to the stage named as the editor shows it (<c>"Stage10"</c>) and returns this
+        /// builder for chaining.</summary>
+        public AbsorptionColumnBuilder WithFeed(MaterialStreamBuilder feed, string stageName)
+        { Object.ConnectFeed(feed.Object, stageName); return this; }
 
         /// <summary>Sets <c>Top Product</c> and returns this builder for chaining.</summary>
         public AbsorptionColumnBuilder WithTopProduct(MaterialStreamBuilder top)

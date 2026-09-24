@@ -26,7 +26,8 @@ stage-by-stage rigorous solver.
 | Method | Purpose |
 |---|---|
 | `WithNumberOfStages(n)` | Total stages (incl. condenser & reboiler). |
-| `WithFeed(stream, stageNumber)` | Feed location. |
+| `WithFeed(stream, stageIndex)` | Feed location by zero-based index: 0 is the top stage, which the editor calls Stage1, so `10` feeds Stage11. |
+| `WithFeed(stream, "Stage11")` | Feed location by the stage name the editor shows. |
 | `WithDistillate(stream)` | Top product. |
 | `WithBottoms(stream)` | Bottom product. |
 | `WithVaporProduct(stream)` | Optional second-phase top product. |
@@ -37,7 +38,7 @@ stage-by-stage rigorous solver.
 | `WithTopPressure(p)` | Top-stage pressure. |
 | `WithColumnPressureDrop(dp)` | Total drop across the column. |
 | `WithTemperatureStepFraction(f)` | Fraction of the bubble-point stage-temperature update the Wang-Henke solvers apply each sweep, 0 to 1 (default 0.5). |
-| `WithSolvingMethod(name)` | The column solver: `"Wang-Henke (Bubble Point)"` (default), `"Napthali-Sandholm"` (simultaneous correction, the robust choice for sharp, high-purity separations), `"Modified Wang-Henke Solver"`, or an external solver's name. |
+| `WithSolvingMethod(name)` | The column solver: `"Wang-Henke (Bubble Point)"` (default), `"Naphtali-Sandholm"` (simultaneous correction, the robust choice for sharp, high-purity separations), `"Modified Wang-Henke Solver"`, or an external solver's name. |
 | `WithMaxIterations(n)` | Iteration cap of the column solver (default 100). |
 
 ```csharp
@@ -66,10 +67,10 @@ rigorous absorber. Surface mirrors the distillation builder minus condenser
 ```csharp
 fs.AddAbsorptionColumn("ABS-1")
   .WithNumberOfStages(15)
-  .WithLeanSolvent(solvent, stage: 1)
-  .WithGasFeed(feed, stage: 15)
-  .WithRichSolvent(richOut)
-  .WithTreatedGas(gasOut)
+  .WithFeed(solvent, "Stage1")
+  .WithFeed(gas, "Stage15")
+  .WithTopProduct(gasOut)
+  .WithBottoms(richOut)
   .WithTopPressure(1.Atm())
   .WithColumnPressureDrop(0.1.Bar());
 ```

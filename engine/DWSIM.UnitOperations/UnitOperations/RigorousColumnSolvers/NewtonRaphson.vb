@@ -188,13 +188,13 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
 
         Public Overrides ReadOnly Property Name As String
             Get
-                Return "Napthali-Sandholm"
+                Return "Naphtali-Sandholm"
             End Get
         End Property
 
         Public Overrides ReadOnly Property Description As String
             Get
-                Return "Napthali-Sandholm Simultaneous Correction (SC) Solver"
+                Return "Naphtali-Sandholm Simultaneous Correction (SC) Solver"
             End Get
         End Property
 
@@ -1797,8 +1797,6 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                         Catch ex As Exception
                             traceEx("Newton", ex)
                         End Try
-                    Else
-                        Console.WriteLine("[GPU-Column] Force-Newton: skipping Broyden")
                     End If
                     If haderror Then
                         Dim nsolv As New NewtonSolver()

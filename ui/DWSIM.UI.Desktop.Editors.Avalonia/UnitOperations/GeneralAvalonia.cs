@@ -1643,7 +1643,7 @@ namespace DWSIM.UI.Desktop.Editors
             {
                 "Wang-Henke (Bubble Point)",
                 "Modified Wang-Henke (Bubble Point)",
-                "Napthali-Sandholm (Simultaneous Correction)"
+                "Naphtali-Sandholm (Simultaneous Correction)"
             };
             panel.CreateAndAddDropDownRow("Solving Method", solvingMethods,
                 Math.Max(0, solvingMethods.IndexOf(col.SolvingMethodName ?? "")),

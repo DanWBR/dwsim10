@@ -111,6 +111,12 @@ Namespace Reactors
             MyBase.LoadData(data)
             Dim ci As Globalization.CultureInfo = Globalization.CultureInfo.InvariantCulture
 
+            'files saved before WrittenEnergyFlow existed: a reactor saved in a mode that writes its duty into the
+            'energy stream left DeltaQ there
+            If Not data.Any(Function(x) x.Name = "WrittenEnergyFlow") AndAlso ReactorOperationMode <> OperationMode.Adiabatic AndAlso DeltaQ.HasValue Then
+                WrittenEnergyFlow = DeltaQ
+            End If
+
             Try
                 For Each xel2 As XElement In (From xel As XElement In data Select xel Where xel.Name = "ReactionConversions").LastOrDefault.Elements
                     m_conversions.Add(xel2.@ID, Double.Parse(xel2.Value, ci))
@@ -348,6 +354,63 @@ Namespace Reactors
 
         ''' <summary>Gets or sets the specified reactor outlet temperature (K) when <see cref="OperationMode.OutletTemperature"/> is selected.</summary>
         Public Property OutletTemperature As Double = 298.15#
+
+        ''' <summary>The heat duty (kW) this reactor last wrote into its inlet energy stream while solving in a
+        ''' mode other than adiabatic; empty when the stream holds a value the user set.</summary>
+        Public Property WrittenEnergyFlow As Nullable(Of Double)
+
+        ''' <summary>Heat added through the inlet energy stream (kW), read by the adiabatic mode. A duty the
+        ''' reactor wrote there itself in the isothermal or outlet temperature mode is a leftover of that mode:
+        ''' in the adiabatic mode it counts as zero and the stream is reset.</summary>
+        Protected Function InletHeatInput() As Double
+            Dim es = GetInletEnergyStream(1)
+            If es Is Nothing Then Return 0.0
+            Dim q = es.EnergyFlow.GetValueOrDefault()
+            If ReactorOperationMode = OperationMode.Adiabatic AndAlso WrittenEnergyFlow.HasValue AndAlso
+                Math.Abs(q - WrittenEnergyFlow.Value) <= 0.000001 * Math.Max(1.0, Math.Abs(q)) Then
+                es.EnergyFlow = 0.0
+                WrittenEnergyFlow = Nothing
+                Return 0.0
+            End If
+            Return q
+        End Function
+
+        ''' <summary>Sets a reactor property addressed by its name in the property list: "Calculation Mode" takes
+        ''' the mode name as the editor shows it ("Adiabatic", "Isothermic", "Defined Temperature",
+        ''' "Heat Exchange"), the enum name or its number.</summary>
+        ''' <returns><c>True</c> when the name is a property handled here.</returns>
+        Protected Function SetNamedPropertyValue(prop As String, propval As Object) As Boolean
+            If prop <> "Calculation Mode" Then Return False
+            Dim s = Convert.ToString(propval, Globalization.CultureInfo.InvariantCulture).Trim()
+            Dim n As Integer
+            Dim mode As OperationMode
+            If Integer.TryParse(s, n) AndAlso [Enum].IsDefined(GetType(OperationMode), n) Then
+                mode = CType(n, OperationMode)
+            ElseIf s.Equals("Defined Temperature", StringComparison.OrdinalIgnoreCase) OrElse s.Equals("Outlet Temperature", StringComparison.OrdinalIgnoreCase) Then
+                mode = OperationMode.OutletTemperature
+            ElseIf s.Equals("Isothermal", StringComparison.OrdinalIgnoreCase) Then
+                mode = OperationMode.Isothermic
+            ElseIf s.Equals("Heat Exchange", StringComparison.OrdinalIgnoreCase) Then
+                mode = OperationMode.HeatExchange
+            ElseIf Not [Enum].TryParse(s, True, mode) Then
+                Throw New ArgumentException(String.Format("'{0}' is not a calculation mode of this reactor. Use Adiabatic, Isothermic or Defined Temperature.", s))
+            End If
+            ReactorOperationMode = mode
+            Return True
+        End Function
+
+        ''' <summary>Writes the overall composition of the reactor product into an outlet whose phase is absent,
+        ''' so the stream leaves with zero flow and a defined composition.</summary>
+        Protected Shared Sub SetProductComposition(ms As Thermodynamics.Streams.MaterialStream, overall As Double(), ids As List(Of String))
+            Dim mw = 0.0
+            For Each c In ms.Phases(0).Compounds.Values
+                c.MoleFraction = overall(ids.IndexOf(c.Name))
+                mw += c.MoleFraction.GetValueOrDefault() * c.ConstantProperties.Molar_Weight
+            Next
+            For Each c In ms.Phases(0).Compounds.Values
+                c.MassFraction = If(mw > 0.0, c.MoleFraction.GetValueOrDefault() * c.ConstantProperties.Molar_Weight / mw, 0.0)
+            Next
+        End Sub
 
         ''' <summary>Gets or sets the ordered sequence of reaction groups (parallel reactions within each group are solved simultaneously).</summary>
         <Xml.Serialization.XmlIgnore()> Public Property ReactionsSequence() As List(Of List(Of String))
