@@ -72,6 +72,7 @@ Version 10.2.9
 - [CHG] Compressor in dynamic mode is a pressure-flow element by default, as the pump is; the casing capacity comes back with Integrate Casing Holdup; Rated Speed declared on the compressor
 - [CHG] Heater and cooler in dynamic mode: the efficiency scales the duty that reaches the fluid, as it does at steady state (nothing changes at the default 100 %)
 - [CHG] Tutorial Fluent API example scripts run under pythonnet as published (bootstrap, Q.* quantities, Plus tools from DWSIM_PATRON_KEY), and the pages that quote them were resynced
+- [CHG] Flowsheet Check: PUMP_VAPOR_INLET (a pump fed with no liquid stops; a partly vapour feed is a warning) and PROPERTY_PACKAGE_CHANGED (results computed with a property package that was since replaced)
 - [FIX] Reactors (conversion, equilibrium, Gibbs, CSTR): the extent and conversion properties of a reaction whose name carries an underscore threw an index error in property tables and property lookups
 - [FIX] Adjust and specification blocks were reported as having no target on every check; the recycle estimate rule read a tolerance instead of the outlet flow
 - [FIX] FluentAPI: a mass flow set before the composition was replaced by 1 mol/s when the composition was applied
@@ -106,6 +107,11 @@ Version 10.2.9
 - [FIX] Dynamic column: a valve on a drained reflux drum or sump passes nothing
 - [FIX] Dynamic properties set from a script survive a stored flowsheet state
 - [FIX] FluentAPI: the stream builder zeroes every compound a feed never names; the ammonia, ethanol and methanol tutorial samples regenerated with the tutorial feed
+- [FIX] Files saved from the API carried no build version, so the loader switched off the skip-equilibrium option and re-flashed every unit-operation product with a trace of the other phase
+- [FIX] Pump: a feed with no liquid stops with an error instead of solving with zero power
+- [FIX] NRTL, UNIQUAC and Wilson: a failed estimation of missing interaction parameters is reported as a warning instead of running the pair as ideal in silence
+- [FIX] Separator: an outlet with no flow takes the vessel state and the feed composition instead of stale phase data
+- [FIX] A stream whose composition is empty or undefined fails with a message; the fraction setters no longer divide by a zero sum
 
 Version 10.2.8
 
