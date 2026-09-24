@@ -1018,9 +1018,12 @@ Public Class GraphicsSurface
 
                             If flowsheet IsNot Nothing Then
 
+                                'In a pipe network a block that failed keeps its message, and the table is
+                                'where the pointer reads it.
                                 If gobj.Calculated Or gobj.ObjectType = ObjectType.OT_Adjust Or
                                 gobj.ObjectType = ObjectType.OT_Spec Or gobj.ObjectType = ObjectType.OT_Recycle Or
-                                gobj.ObjectType = ObjectType.OT_EnergyRecycle Then
+                                gobj.ObjectType = ObjectType.OT_EnergyRecycle Or
+                                (NetworkMode AndAlso gobj.Owner IsNot Nothing AndAlso Not String.IsNullOrEmpty(gobj.Owner.ErrorMessage)) Then
 
                                     If gobj.Owner IsNot Nothing Then
 
