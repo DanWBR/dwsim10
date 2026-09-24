@@ -302,17 +302,10 @@ Namespace PropertyPackages
                                 ipset.Value.A12 = 0.0000000001
                                 ipset.Value.A21 = 0.0000000001
 
-                                'If verbose Then
-                                '    Console.WriteLine(String.Format("Error estimating UNIQUAC IP set for {0}/{1}: {2}",
-                                '                                 comp1.Name, comp2.Name, ex.ToString()))
-
-                                '    If Flowsheet IsNot Nothing Then
-                                '        Flowsheet.ShowMessage(String.Format("Error estimating UNIQUAC IP set for {0}/{1}: {2}",
-                                '                                 comp1.Name, comp2.Name, ex.ToString()),
-                                '                                 Interfaces.IFlowsheet.MessageType.Information)
-                                '    End If
-
-                                'End If
+                                If Flowsheet IsNot Nothing Then
+                                    Flowsheet.ShowMessage(String.Format("Could not estimate the UNIQUAC interaction parameters for {0}/{1}: {2}. The pair is treated as ideal; enter its parameters by hand or pick a package with data for it.",
+                                                                        comp1.Name, comp2.Name, ex.Message.TrimEnd("."c)), Interfaces.IFlowsheet.MessageType.Warning)
+                                End If
 
                             End Try
 

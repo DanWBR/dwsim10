@@ -483,7 +483,23 @@ namespace DWSIM.Automation.FluentAPI.Diagnostics
                     "no valve to account for it.",
                     "Put a valve on the high-pressure inlet, or a pump on the low-pressure one, so the mixing pressure " +
                     "is a decision. If the drop is intended, the finding can be ignored.",
-                    "beginner/02-mixer-basics.html")
+                    "beginner/02-mixer-basics.html"),
+
+                Entry(FlowsheetCodes.PumpVaporInlet, "Vapour in the pump feed",
+                    "The stream feeding a pump carries vapour: part of it, or all of it, in which case the pump cannot be solved.",
+                    "A pump moves liquid. Its head and power come from the liquid volumetric flow and density, so any " +
+                    "vapour in the feed is left out of the calculation, and in a real pump it cavitates or vapour-locks " +
+                    "the impeller. A feed that is all vapour leaves nothing to pump, and the solver stops.",
+                    "Cool or pressurise the feed until it is liquid, connect the pump to the liquid product of the " +
+                    "separator, or use a compressor if the stream really is a gas.",
+                    "beginner/04-simple-flash-drum.html"),
+
+                Entry(FlowsheetCodes.PropertyPackageChanged, "Results from a replaced property package",
+                    "The object still shows results computed with a property package it no longer uses.",
+                    "Replacing a property package clears nothing: every object keeps its numbers and its solved status " +
+                    "until the flowsheet is solved again, so the table in front of you was computed with the old model.",
+                    "Solve the flowsheet again before reading or comparing results.",
+                    "fundamentals/04-choosing-a-thermodynamic-model.html")
             };
 
             var map = new Dictionary<string, FindingExplanation>(StringComparer.Ordinal);

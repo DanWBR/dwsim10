@@ -30,6 +30,7 @@ namespace DWSIM.FluentAPI.Tests
             EveryCodeIsExplained();
             DegreesOfFreedomAreCounted();
             ImplausibleResultsAreFlagged();
+            APumpRefusesVapourAndStaleResultsAreFlagged();
         }
 
         /// <summary>
@@ -410,6 +411,64 @@ namespace DWSIM.FluentAPI.Tests
         }
 
         // ── Helpers ───────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// A pump fed with steam stops with a code of its own, a pump fed with a wet stream is warned
+        /// about, and an object handed another property package without a new solve is flagged
+        /// before anyone reads its numbers.
+        /// </summary>
+        private static void APumpRefusesVapourAndStaleResultsAreFlagged()
+        {
+            var fs = Flowsheet.Create("DiagnosticsPumpVapour")
+                .WithCompound("Water")
+                .WithPropertyPackage(PropertyPackages.SteamTables)
+                .WithPropertyPackage(PropertyPackages.PengRobinson);
+
+            var steam = fs.AddMaterialStream("steam")
+                .At(400.Kelvin(), 101325.0.Pascal())
+                .WithMassFlow(1.KgPerSecond())
+                .WithComposition(c => c.Mole("Water", 1.0));
+            var pumped = fs.AddMaterialStream("pumped");
+            fs.AddPump("P-steam")
+                .WithOutletPressure(300000.0.Pascal())
+                .WithEfficiencyPercent(75)
+                .ConnectFeed(steam, 0)
+                .ConnectProduct(pumped, 0);
+
+            var wet = fs.AddMaterialStream("wet")
+                .At(373.15.Kelvin(), 101325.0.Pascal())
+                .WithMassFlow(1.KgPerSecond())
+                .WithComposition(c => c.Mole("Water", 1.0));
+            wet.Object.SpecType = DWSIM.Interfaces.Enums.StreamSpec.Pressure_and_VaporFraction;
+            wet.Object.Phases[2].Properties.molarfraction = 0.5;
+            var wetPumped = fs.AddMaterialStream("wetPumped");
+            fs.AddPump("P-wet")
+                .WithOutletPressure(300000.0.Pascal())
+                .WithEfficiencyPercent(75)
+                .ConnectFeed(wet, 0)
+                .ConnectProduct(wetPumped, 0);
+
+            fs.AutoLayout();
+
+            var errors = fs.TrySolve();
+            var after = FlowsheetDiagnostics.Diagnose(fs.Inner, errors);
+            Report("Pumps fed with steam and with a wet stream", after);
+            RequireCode(after, FlowsheetCodes.PumpVaporInlet, "P-steam");
+            RequireCode(after, FlowsheetCodes.PumpVaporInlet, "P-wet");
+            if (after.First(f => f.Code == FlowsheetCodes.PumpVaporInlet && f.ObjectTag == "P-steam").Severity != DiagnosticSeverity.Blocker)
+                throw new Exception("A pump with no liquid to move was not reported as a blocker.");
+            if (after.First(f => f.Code == FlowsheetCodes.PumpVaporInlet && f.ObjectTag == "P-wet").Severity != DiagnosticSeverity.Warning)
+                throw new Exception("A pump with a wet feed was not reported as a warning.");
+
+            // The wet feed solved with the steam tables; hand it the other package and solve nothing.
+            var solvedWith = wet.Object.PropertyPackage.UniqueID;
+            wet.Object.PropertyPackage = (DWSIM.Thermodynamics.PropertyPackages.PropertyPackage)fs.Inner.PropertyPackages.Values.First(p => p.UniqueID != solvedWith);
+            var stale = FlowsheetDiagnostics.Check(fs.Inner);
+            Report("After swapping the package of the wet feed", stale);
+            RequireCode(stale, FlowsheetCodes.PropertyPackageChanged, "wet");
+            if (stale.Any(f => f.Code == FlowsheetCodes.PropertyPackageChanged && f.ObjectTag == "steam"))
+                throw new Exception("An object that kept its package was reported as stale.");
+        }
 
         private static void RequireCode(IReadOnlyList<Finding> findings, string code, string tag = null)
         {

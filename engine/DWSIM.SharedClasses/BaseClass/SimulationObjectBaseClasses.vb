@@ -368,7 +368,38 @@ Namespace UnitOperations
 
         Public Property PreferredFlashAlgorithmTag As String = "" Implements ISimulationObject.PreferredFlashAlgorithmTag
 
-        Public Property Calculated As Boolean = False Implements Interfaces.ISimulationObject.Calculated
+        ''' <summary>
+        ''' UniqueID of the property package in place when Calculated was last set, or an empty string
+        ''' when the object was never solved. Declared before Calculated so that a saved value is read
+        ''' back before the Calculated setter runs on load.
+        ''' </summary>
+        Public Property LastSolvedPropertyPackageID As String = "" Implements Interfaces.ISimulationObject.LastSolvedPropertyPackageID
+
+        Private _calculated As Boolean = False
+
+        Public Property Calculated As Boolean Implements Interfaces.ISimulationObject.Calculated
+            Get
+                Return _calculated
+            End Get
+            Set(value As Boolean)
+                _calculated = value
+                'On load the package is assigned after the object's data, so a missing package
+                'leaves the value that came from the file.
+                If value Then
+                    Dim id = CurrentPropertyPackageID()
+                    If id <> "" Then LastSolvedPropertyPackageID = id
+                End If
+            End Set
+        End Property
+
+        ''' <summary>
+        ''' UniqueID of the package the object calculates with, or an empty string. A material
+        ''' stream resolves its package by ID and overrides this.
+        ''' </summary>
+        Protected Overridable Function CurrentPropertyPackageID() As String
+            If PropertyPackage Is Nothing Then Return ""
+            Return PropertyPackage.UniqueID
+        End Function
 
         Public Property DebugMode As Boolean = False Implements Interfaces.ISimulationObject.DebugMode
 

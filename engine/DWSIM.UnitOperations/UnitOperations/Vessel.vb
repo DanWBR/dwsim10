@@ -1729,6 +1729,7 @@ Namespace UnitOperations
                         .Phases(2).Properties.molarfraction = 1.0
                         .AtEquilibrium = True
                     End With
+                    If MixedStream.Phases(2).Properties.massflow.GetValueOrDefault <= 0.0 Then SetEmptyOutlet(ms, T, P)
                 End If
 
                 'calculate liquid densities.
@@ -1778,6 +1779,7 @@ Namespace UnitOperations
                                 .AtEquilibrium = True
                             End If
                         End With
+                        If W1 <= 0.0 Then SetEmptyOutlet(ms, T, P)
                     End If
 
                     cp = Me.GraphicObject.OutputConnectors(2) 'liquid 2
@@ -1813,6 +1815,7 @@ Namespace UnitOperations
                                 .AtEquilibrium = True
                             End If
                         End With
+                        If W2 <= 0.0 Then SetEmptyOutlet(ms, T, P)
                     Else
                         If MixedStream.Phases(4).Properties.massflow.GetValueOrDefault > 0.0# Then Throw New Exception(FlowSheet.GetTranslatedString("SeparatorVessel_SecondLiquidPhaseFound"))
                     End If
@@ -1843,6 +1846,7 @@ Namespace UnitOperations
                                 .AtEquilibrium = True
                             End If
                         End With
+                        If W2 <= 0.0 Then SetEmptyOutlet(ms, T, P)
                     End If
 
                     cp = Me.GraphicObject.OutputConnectors(2) 'liquid 2
@@ -1869,6 +1873,7 @@ Namespace UnitOperations
                                 .AtEquilibrium = True
                             End If
                         End With
+                        If W1 <= 0.0 Then SetEmptyOutlet(ms, T, P)
                     Else
                         If MixedStream.Phases(3).Properties.massflow.GetValueOrDefault > 0.0# Then Throw New Exception(FlowSheet.GetTranslatedString("SeparatorVessel_SecondLiquidPhaseFound"))
                     End If
@@ -1896,6 +1901,28 @@ Namespace UnitOperations
             IObj?.Close()
 
         End Sub
+        ''' <summary>
+        ''' Gives an outlet that carries no flow a consistent state: the vessel temperature and
+        ''' pressure, the feed composition and zero flow. Without this the stream keeps whatever
+        ''' the flash left in the phase it was meant to carry, and shows a temperature and a
+        ''' vapour fraction that belong to no real stream.
+        ''' </summary>
+        Private Sub SetEmptyOutlet(ms As MaterialStream, T As Double, P As Double)
+            With ms
+                .Clear()
+                .ClearAllProps()
+                .SpecType = Interfaces.Enums.StreamSpec.Temperature_and_Pressure
+                .SetTemperature(T)
+                .SetPressure(P)
+                .SetMassFlow(0.0)
+                For Each comp As BaseClasses.Compound In .Phases(0).Compounds.Values
+                    comp.MoleFraction = MixedStream.Phases(0).Compounds(comp.Name).MoleFraction.GetValueOrDefault
+                    comp.MassFraction = MixedStream.Phases(0).Compounds(comp.Name).MassFraction.GetValueOrDefault
+                Next
+                .AtEquilibrium = False
+            End With
+        End Sub
+
 
         ''' <summary>Clears all calculated results.</summary>
         Public Overrides Sub DeCalculate()

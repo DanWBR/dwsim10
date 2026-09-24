@@ -57,6 +57,7 @@ namespace DWSIM.Automation.FluentAPI.Diagnostics
             CheckFeeds(flowsheet, findings);
             CheckSpecifications(flowsheet, findings);
             CheckLogicalObjects(flowsheet, findings);
+            CheckStaleResults(flowsheet, findings);
 
             return Order(findings);
         }
@@ -127,6 +128,34 @@ namespace DWSIM.Automation.FluentAPI.Diagnostics
                 findings.Add(new Finding(FlowsheetCodes.DuplicateTag, DiagnosticSeverity.Warning, duplicate.Key,
                     duplicate.Value + " objects share this tag, so addressing one of them by tag is ambiguous.",
                     "Rename all but one."));
+            }
+        }
+
+        /// <summary>
+        /// Results that belong to a property package the object no longer uses.
+        /// </summary>
+        /// <remarks>
+        /// Replacing a package does not clear anything: every object keeps Calculated and its
+        /// numbers until the next solve, and a student comparing packages reads the old ones.
+        /// Objects saved before this check exist carry no record and are left alone.
+        /// </remarks>
+        private static void CheckStaleResults(IFlowsheet flowsheet, List<Finding> findings)
+        {
+            foreach (var obj in flowsheet.SimulationObjects.Values)
+            {
+                var graphic = obj.GraphicObject;
+                if (graphic == null || !graphic.Active || !obj.Calculated) continue;
+
+                // A material stream resolves its package by ID behind a property that shadows the
+                // base one, so the base property may be empty; ask the stream for its own.
+                var stream = obj as IMaterialStream;
+                var package = (stream != null ? stream.GetPropertyPackageObject() as IPropertyPackage : null) ?? obj.PropertyPackage;
+                var solvedWith = obj.LastSolvedPropertyPackageID;
+                if (package == null || string.IsNullOrEmpty(solvedWith) || solvedWith == package.UniqueID) continue;
+
+                findings.Add(new Finding(FlowsheetCodes.PropertyPackageChanged, DiagnosticSeverity.Warning, TagOf(obj),
+                    "Its results were computed with a property package that has since been replaced by " + package.Tag + ".",
+                    "Solve the flowsheet again before reading them."));
             }
         }
 
@@ -513,6 +542,16 @@ namespace DWSIM.Automation.FluentAPI.Diagnostics
                     continue;
                 }
 
+                // The pump refuses a feed with no liquid in it. That is a process fault with a
+                // remedy of its own, so it gets its own code.
+                if (message.IndexOf("nothing for a pump to move", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    findings.Add(new Finding(FlowsheetCodes.PumpVaporInlet, DiagnosticSeverity.Blocker,
+                        OwnerOf(flowsheet, error), message,
+                        "Feed the pump from a liquid stream, or use a compressor for a gas."));
+                    continue;
+                }
+
                 findings.Add(new Finding(FlowsheetCodes.SolverException, DiagnosticSeverity.Blocker,
                     OwnerOf(flowsheet, error), message,
                     "Check that object's specification, and its feed."));
@@ -626,6 +665,9 @@ namespace DWSIM.Automation.FluentAPI.Diagnostics
                         CheckHeatDirection(flowsheet, obj, tag, graphic.ObjectType == ObjectType.Heater, findings);
                         break;
                     case ObjectType.Pump:
+                        CheckPumpInlet(flowsheet, obj, tag, findings);
+                        CheckPressureDirection(flowsheet, obj, tag, graphic.ObjectType, findings);
+                        break;
                     case ObjectType.Compressor:
                     case ObjectType.Expander:
                     case ObjectType.Valve:
@@ -680,6 +722,25 @@ namespace DWSIM.Automation.FluentAPI.Diagnostics
                     "A cooler removes heat, so its duty is positive and its outlet temperature is below its inlet. " +
                     "An outlet temperature above the inlet calls for a heater."));
             }
+        }
+
+        /// <summary>
+        /// A pump whose feed is partly vapour. A feed with no liquid at all stops the solve and is
+        /// reported from the exception instead.
+        /// </summary>
+        private static void CheckPumpInlet(IFlowsheet flowsheet, ISimulationObject obj, string tag, List<Finding> findings)
+        {
+            var inlet = FirstAttached(flowsheet, obj.GraphicObject.InputConnectors, ConType.ConIn);
+            if (inlet == null) return;
+
+            double vapour;
+            try { vapour = inlet.GetPhase("Vapor").Properties.molarfraction.GetValueOrDefault(); }
+            catch (Exception) { return; }
+            if (double.IsNaN(vapour) || vapour <= 0.001) return;
+
+            findings.Add(new Finding(FlowsheetCodes.PumpVaporInlet, DiagnosticSeverity.Warning, tag,
+                "Its feed is " + (vapour * 100.0).ToString("0.#") + " mol% vapour; the head and the power were computed from the liquid part alone.",
+                "Cool or pressurise the feed until it is all liquid, or take the pump feed from the liquid product of a separator."));
         }
 
         private static void CheckPressureDirection(IFlowsheet flowsheet, ISimulationObject obj, string tag, ObjectType type, List<Finding> findings)

@@ -431,8 +431,22 @@ Namespace Streams
             If Not Me.Phases(0).Properties.enthalpy.IsValid Then Throw New ArgumentException(Me.FlowSheet.GetTranslatedString("ErrorInvalidMSSpecValue") & " (stream: " & mytag & ", name: enthalpy, value: " & Me.Phases(0).Properties.enthalpy.GetValueOrDefault & ")")
             'entropy
             If Not Me.Phases(0).Properties.entropy.IsValid Then Throw New ArgumentException(Me.FlowSheet.GetTranslatedString("ErrorInvalidMSSpecValue") & " (stream: " & mytag & ", name: entropy, value: " & Me.Phases(0).Properties.entropy.GetValueOrDefault & ")")
+            'composition
+            Dim sumx As Double = 0.0
+            For Each comp In Me.Phases(0).Compounds.Values
+                Dim x = comp.MoleFraction.GetValueOrDefault
+                If Double.IsNaN(x) OrElse Double.IsInfinity(x) Then Throw New ArgumentException("The composition of stream " & mytag & " is not defined: the mole fraction of " & comp.Name & " is not a number. Enter the composition and normalise it.")
+                sumx += x
+            Next
+            If sumx <= 0.0 Then Throw New ArgumentException("The composition of stream " & mytag & " is not defined: the mole fractions add up to zero. Enter the composition and normalise it.")
 
         End Sub
+
+        Protected Overrides Function CurrentPropertyPackageID() As String
+            Dim pp = PropertyPackage
+            If pp Is Nothing Then Return ""
+            Return pp.UniqueID
+        End Function
 
         ''' <summary>
         ''' Gets or sets if this stream is at thermodynamic equilbirium or not.
@@ -943,6 +957,13 @@ Namespace Streams
             For Each subs In Me.Phases(0).Compounds.Values
                 comp += subs.MoleFraction.GetValueOrDefault
             Next
+
+            'A composition that is empty or not a number never solves anything, and the flash
+            'would skip in silence; say so instead.
+            If Double.IsNaN(comp) OrElse comp <= 0.0 Then
+                Dim tag = If(GraphicObject IsNot Nothing, GraphicObject.Tag, Name)
+                Throw New ArgumentException("The composition of stream " & tag & " is not defined: the mole fractions add up to " & comp.ToString() & ". Enter the composition and normalise it.")
+            End If
 
             IObj?.Paragraphs.Add(String.Format("Total Molar Composition: {0}", comp.ToString))
 
@@ -3296,7 +3317,7 @@ Namespace Streams
                                 mtotal += comp.MoleFraction.GetValueOrDefault * comp.ConstantProperties.Molar_Weight
                             Next
                             For Each comp As Compound In Me.Phases(0).Compounds.Values
-                                comp.MassFraction = comp.MoleFraction.GetValueOrDefault * comp.ConstantProperties.Molar_Weight / mtotal
+                                comp.MassFraction = If(mtotal > 0.0, comp.MoleFraction.GetValueOrDefault * comp.ConstantProperties.Molar_Weight / mtotal, 0.0)
                             Next
                             Me.PropertyPackage.DW_CalcCompMassFlow(0)
                         End If
@@ -3309,7 +3330,7 @@ Namespace Streams
                                 mtotal += comp.MassFraction.GetValueOrDefault / comp.ConstantProperties.Molar_Weight
                             Next
                             For Each comp As Compound In Me.Phases(0).Compounds.Values
-                                comp.MoleFraction = comp.MassFraction.GetValueOrDefault / comp.ConstantProperties.Molar_Weight / mtotal
+                                comp.MoleFraction = If(mtotal > 0.0, comp.MassFraction.GetValueOrDefault / comp.ConstantProperties.Molar_Weight / mtotal, 0.0)
                             Next
                             Me.PropertyPackage.DW_CalcCompMolarFlow(0)
                         End If

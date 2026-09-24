@@ -1408,6 +1408,13 @@ Namespace UnitOperations
                 FlowSheet.ShowMessage(GraphicObject.Tag + ": " + FlowSheet.GetTranslatedString("Vapor phase detected in pump inlet"), IFlowsheet.MessageType.Warning)
             End If
 
+            'The head and the power come from the liquid part of the feed. With no liquid at all the
+            'pump would report zero power and a meaningless outlet, so it stops here instead.
+            If msin.Phases(0).Properties.massflow.GetValueOrDefault() > 0.0 AndAlso
+                msin.Phases(1).Properties.massflow.GetValueOrDefault() <= 0.0 Then
+                Throw New ArgumentException("The inlet stream carries no liquid, so there is nothing for a pump to move. Cool or pressurise the feed until it condenses, or use a compressor if it is a gas.")
+            End If
+
             Me.PropertyPackage.CurrentMaterialStream = msin
 
             Me.PropertyPackage.CurrentMaterialStream.Validate()

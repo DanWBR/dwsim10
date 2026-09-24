@@ -2755,7 +2755,11 @@ Imports DWSIM.ExtensionMethods
                 AvailableSystemsOfUnits.Add(Options.SelectedUnitSystem1)
             End If
 
-            If sver < New Version("6.3.0.0") Then
+            'Files older than 6.3 predate the option and keep the behaviour they were saved with.
+            'A file whose settings carry the option keeps its own value whatever its version says:
+            'a headless save used to write no build version at all.
+            If sver < New Version("6.3.0.0") AndAlso
+                Not data.Any(Function(x) x.Name = "SkipEquilibriumCalculationOnDefinedStreams") Then
                 Options.SkipEquilibriumCalculationOnDefinedStreams = False
             End If
 
@@ -3152,9 +3156,11 @@ Imports DWSIM.ExtensionMethods
         xdoc.Element("DWSIM_Simulation_Data").Add(New XElement("GeneralInfo"))
         xel = xdoc.Element("DWSIM_Simulation_Data").Element("GeneralInfo")
 
+        'The loader reads the build version to decide which defaults a file predates, so a
+        'headless save writes it too; without an entry assembly it is this assembly's version.
+        Dim appver = If(Assembly.GetEntryAssembly()?.GetName().Version, GetType(FlowsheetBase).Assembly.GetName().Version)
+        xel.Add(New XElement("BuildVersion", appver.ToString))
         If Not DWSIM.GlobalSettings.Settings.AutomationMode Then
-            Dim appver = Assembly.GetEntryAssembly().GetName().Version
-            xel.Add(New XElement("BuildVersion", appver.ToString))
             xel.Add(New XElement("BuildDate", CType("01/01/2000", DateTime).AddDays(appver.Build).AddSeconds(appver.Revision * 2)))
             If GlobalSettings.Settings.RunningPlatform() = GlobalSettings.Settings.Platform.Mac Then
                 xel.Add(New XElement("OSInfo", "macOS " + Environment.OSVersion.ToString()))

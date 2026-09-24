@@ -37,6 +37,9 @@ namespace DWSIM.Automation.FluentAPI.Diagnostics
         public const string RecycleNoEstimate = "RECYCLE_NO_ESTIMATE";
         public const string LogicalTargetMissing = "LOGICAL_TARGET_MISSING";
 
+        // Stale results
+        public const string PropertyPackageChanged = "PROPERTY_PACKAGE_CHANGED";
+
         // After solving
         public const string SolverException = "SOLVER_EXCEPTION";
         public const string InfiniteLoop = "INFINITE_LOOP";
@@ -55,6 +58,7 @@ namespace DWSIM.Automation.FluentAPI.Diagnostics
         public const string TemperatureBelowFreezing = "TEMPERATURE_BELOW_FREEZING";
         public const string ColumnRefluxBelowMinimum = "COLUMN_REFLUX_BELOW_MINIMUM";
         public const string MixerPressureMismatch = "MIXER_PRESSURE_MISMATCH";
+        public const string PumpVaporInlet = "PUMP_VAPOR_INLET";
 
         /// <summary>Every code, mapped to a one-line explanation.</summary>
         public static readonly IReadOnlyDictionary<string, string> All = new Dictionary<string, string>
@@ -94,7 +98,9 @@ namespace DWSIM.Automation.FluentAPI.Diagnostics
             { HeatExchangerHeatFlowReversed, "A heat exchanger moved heat from the cold side to the hot side." },
             { TemperatureBelowFreezing, "A liquid stream is below the melting point of its main compound." },
             { ColumnRefluxBelowMinimum, "A shortcut column runs below its minimum reflux ratio." },
-            { MixerPressureMismatch, "The inlets of a mixer arrive at different pressures." }
+            { MixerPressureMismatch, "The inlets of a mixer arrive at different pressures." },
+            { PumpVaporInlet, "The stream feeding a pump carries vapour." },
+            { PropertyPackageChanged, "The results of an object were computed with a property package it no longer uses." }
         };
     }
 }

@@ -66,6 +66,12 @@ Public Interface ISimulationObject
 
     Property Calculated As Boolean
 
+    ''' <summary>
+    ''' UniqueID of the property package the object had when Calculated was last set, or an empty
+    ''' string. Lets a check tell results that belong to a package the object no longer uses.
+    ''' </summary>
+    Property LastSolvedPropertyPackageID As String
+
     Property DebugMode As Boolean
 
     Property DebugText As String
