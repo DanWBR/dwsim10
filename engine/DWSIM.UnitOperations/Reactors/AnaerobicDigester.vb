@@ -2651,6 +2651,104 @@ Namespace Reactors
             End Using
         End Sub
 
+
+        ''' <summary>Chart names the PFD chart object can embed: the groups of the last ADM1 trajectory.</summary>
+        Public Overrides Function GetChartModelNames() As List(Of String)
+            If Model = DigesterModel.BlackBox Then Return New List(Of String)()
+            Return New List(Of String)({"Biogas", "VFAs and Acids", "pH and Inorganic", "Biomass", "Substrates", "Dissolved Gases"})
+        End Function
+
+        ''' <summary>Builds an OxyPlot model of one group of the last ADM1 trajectory, time in days on the x axis.</summary>
+        Public Overrides Function GetChartModel(name As String) As Object
+
+            Dim traj = ADM1LastTrajectory
+            If traj Is Nothing OrElse traj.States Is Nothing OrElse traj.States.Count = 0 Then Return Nothing
+
+            Dim series As New List(Of Tuple(Of String, String))()
+            Dim yTitle As String = "Value"
+            Select Case name
+                Case "Biogas"
+                    series.Add(Tuple.Create("Q_gas", "Biogas flow (Nm3/d)"))
+                    series.Add(Tuple.Create("x_CH4", "CH4 mole fraction"))
+                    series.Add(Tuple.Create("x_CO2", "CO2 mole fraction"))
+                    series.Add(Tuple.Create("x_H2", "H2 mole fraction"))
+                    yTitle = "Flow and fractions"
+                Case "VFAs and Acids"
+                    series.Add(Tuple.Create("S_va", "S_va"))
+                    series.Add(Tuple.Create("S_bu", "S_bu"))
+                    series.Add(Tuple.Create("S_pro", "S_pro"))
+                    series.Add(Tuple.Create("S_ac", "S_ac"))
+                    series.Add(Tuple.Create("Total_VFA", "Total VFA"))
+                    yTitle = "Concentration (kg COD/m3)"
+                Case "pH and Inorganic"
+                    series.Add(Tuple.Create("pH", "pH"))
+                    series.Add(Tuple.Create("S_IC", "S_IC (kmol/m3)"))
+                    series.Add(Tuple.Create("S_IN", "S_IN (kmol/m3)"))
+                    yTitle = "pH and concentration"
+                Case "Biomass"
+                    series.Add(Tuple.Create("X_su", "X_su"))
+                    series.Add(Tuple.Create("X_aa", "X_aa"))
+                    series.Add(Tuple.Create("X_fa", "X_fa"))
+                    series.Add(Tuple.Create("X_c4", "X_c4"))
+                    series.Add(Tuple.Create("X_pro", "X_pro"))
+                    series.Add(Tuple.Create("X_ac", "X_ac"))
+                    series.Add(Tuple.Create("X_h2", "X_h2"))
+                    yTitle = "Biomass (kg COD/m3)"
+                Case "Substrates"
+                    series.Add(Tuple.Create("S_su", "S_su"))
+                    series.Add(Tuple.Create("S_aa", "S_aa"))
+                    series.Add(Tuple.Create("S_fa", "S_fa"))
+                    series.Add(Tuple.Create("X_c", "X_c"))
+                    series.Add(Tuple.Create("X_ch", "X_ch"))
+                    series.Add(Tuple.Create("X_pr", "X_pr"))
+                    series.Add(Tuple.Create("X_li", "X_li"))
+                    yTitle = "Concentration (kg COD/m3)"
+                Case "Dissolved Gases"
+                    series.Add(Tuple.Create("S_h2", "S_h2 (kg COD/m3)"))
+                    series.Add(Tuple.Create("S_ch4", "S_ch4 (kg COD/m3)"))
+                    yTitle = "Concentration (kg COD/m3)"
+                Case Else
+                    Return Nothing
+            End Select
+
+            Dim model = New OxyPlot.PlotModel() With {.Subtitle = name, .Title = GraphicObject.Tag}
+            model.TitleFontSize = 11
+            model.SubtitleFontSize = 10
+            model.LegendFontSize = 9
+            model.LegendPlacement = OxyPlot.LegendPlacement.Outside
+            model.LegendOrientation = OxyPlot.LegendOrientation.Horizontal
+            model.LegendPosition = OxyPlot.LegendPosition.BottomCenter
+            model.TitleHorizontalAlignment = OxyPlot.TitleHorizontalAlignment.CenteredWithinView
+            model.Axes.Add(New OxyPlot.Axes.LinearAxis() With {
+                .MajorGridlineStyle = OxyPlot.LineStyle.Dash,
+                .MinorGridlineStyle = OxyPlot.LineStyle.Dot,
+                .Position = OxyPlot.Axes.AxisPosition.Bottom,
+                .FontSize = 10,
+                .Title = "Time (d)"
+            })
+            model.Axes.Add(New OxyPlot.Axes.LinearAxis() With {
+                .MajorGridlineStyle = OxyPlot.LineStyle.Dash,
+                .MinorGridlineStyle = OxyPlot.LineStyle.Dot,
+                .Position = OxyPlot.Axes.AxisPosition.Left,
+                .FontSize = 10,
+                .Title = yTitle
+            })
+
+            Dim t = traj.GetTimes()
+            Dim colors = {OxyPlot.OxyColors.Red, OxyPlot.OxyColors.Blue, OxyPlot.OxyColors.Green, OxyPlot.OxyColors.Orange, OxyPlot.OxyColors.Purple, OxyPlot.OxyColors.Brown, OxyPlot.OxyColors.Teal}
+            For i = 0 To series.Count - 1
+                Dim y = traj.GetSeries(series(i).Item1)
+                Dim ls As New OxyPlot.Series.LineSeries() With {.Title = series(i).Item2, .StrokeThickness = 1.5, .Color = colors(i Mod colors.Length)}
+                For j = 0 To Math.Min(t.Length, y.Length) - 1
+                    If Not Double.IsNaN(y(j)) AndAlso Not Double.IsInfinity(y(j)) Then ls.Points.Add(New OxyPlot.DataPoint(t(j), y(j)))
+                Next
+                model.Series.Add(ls)
+            Next
+
+            Return model
+
+        End Function
+
     End Class
 
 End Namespace
