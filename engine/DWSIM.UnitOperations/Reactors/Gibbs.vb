@@ -1707,7 +1707,7 @@ Namespace Reactors
                         comp.MoleFraction = Vy(ids2.IndexOf(comp.Name))
                         comp.MassFraction = Vwy(ids2.IndexOf(comp.Name))
                     Next
-                    If xv = 0.0# Then SetProductComposition(ms, ims.GetOverallComposition(), ids2)
+                    If xv <= 0.0# OrElse Vy.Sum() <= 0.0# Then SetProductComposition(ms, ims.GetOverallComposition(), ids2)
                     .PropertyPackage.CurrentMaterialStream = ms
                     Hv = .PropertyPackage.DW_CalcEnthalpy(ms.GetOverallComposition(), T, P, PropertyPackages.State.Vapor)
                     .Phases(0).Properties.enthalpy = Hv
@@ -1725,7 +1725,7 @@ Namespace Reactors
                     .Phases(0).Properties.pressure = P
                     If wv < 1.0# Then .Phases(0).Properties.enthalpy = H / (1 - wv) Else .Phases(0).Properties.enthalpy = 0.0#
                     Dim comp As BaseClasses.Compound
-                    If (1 - xv) = 0.0# Then
+                    If xl + xs <= 0.0# Then
                         SetProductComposition(ms, ims.GetOverallComposition(), ids2)
                     Else
                         For Each comp In .Phases(0).Compounds.Values
@@ -2591,7 +2591,7 @@ Namespace Reactors
                         comp.MoleFraction = Vy(ids2.IndexOf(comp.Name))
                         comp.MassFraction = Vwy(ids2.IndexOf(comp.Name))
                     Next
-                    If xv = 0.0# Then SetProductComposition(ms, ims.GetOverallComposition(), ids2)
+                    If xv <= 0.0# OrElse Vy.Sum() <= 0.0# Then SetProductComposition(ms, ims.GetOverallComposition(), ids2)
                     .Phases(0).Properties.massflow = W * wv
                 End With
             End If
@@ -2606,7 +2606,7 @@ Namespace Reactors
                     .Phases(0).Properties.pressure = P
                     If wv < 1.0# Then .Phases(0).Properties.enthalpy = H / (1 - wv) Else .Phases(0).Properties.enthalpy = 0.0#
                     Dim comp As BaseClasses.Compound
-                    If (1 - xv) = 0.0# Then
+                    If xl + xs <= 0.0# Then
                         SetProductComposition(ms, ims.GetOverallComposition(), ids2)
                     Else
                         For Each comp In .Phases(0).Compounds.Values

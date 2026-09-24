@@ -888,7 +888,7 @@ Namespace Reactors
                         comp.MoleFraction = Vy(ids.IndexOf(comp.Name))
                         comp.MassFraction = Vwy(ids.IndexOf(comp.Name))
                     Next
-                    If xv = 0.0# Then SetProductComposition(ms, ims.GetOverallComposition(), ids)
+                    If xv <= 0.0# OrElse Vy.Sum() <= 0.0# Then SetProductComposition(ms, ims.GetOverallComposition(), ids)
                     .PropertyPackage.CurrentMaterialStream = ms
                     Hv = .PropertyPackage.DW_CalcEnthalpy(ms.GetOverallComposition(), T, P, PropertyPackages.State.Vapor)
                     .Phases(0).Properties.enthalpy = Hv
