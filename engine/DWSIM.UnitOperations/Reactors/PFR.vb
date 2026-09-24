@@ -704,6 +704,11 @@ Namespace Reactors
 
                 Dim nsec = AccumulationStreams.Count
 
+                For Each astr In AccumulationStreams
+                    astr.SetFlowsheet(FlowSheet)
+                    astr.SetPropertyPackage(PropertyPackage)
+                Next
+
                 TransportCarry += timestep * nsec / ResidenceTime
 
                 Dim whole = Math.Floor(TransportCarry + 0.000000001)
@@ -722,6 +727,10 @@ Namespace Reactors
             oms1.AssignFromPhase(PhaseLabel.Mixture, AccumulationStreams.Last, False)
 
             AccumulationStream = Nothing
+
+            'the profile and the conversions read the concentrations of the last section integration,
+            'which a step with no shift after loading a file has not run yet
+            If C Is Nothing OrElse N00 Is Nothing Then Exit Sub
 
             'update profile
 
