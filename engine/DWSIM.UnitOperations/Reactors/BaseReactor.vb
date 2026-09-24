@@ -355,6 +355,10 @@ Namespace Reactors
         ''' <summary>Gets or sets the specified reactor outlet temperature (K) when <see cref="OperationMode.OutletTemperature"/> is selected.</summary>
         Public Property OutletTemperature As Double = 298.15#
 
+        ''' <summary>Set by the editors when the user types the outlet temperature in the adiabatic mode: the
+        ''' equilibrium and Gibbs reactors start their next adiabatic solve from it, once.</summary>
+        <Xml.Serialization.XmlIgnore> Public Property OutletTemperatureIsEstimate As Boolean = False
+
         ''' <summary>The heat duty (kW) this reactor last wrote into its inlet energy stream while solving in a
         ''' mode other than adiabatic; empty when the stream holds a value the user set.</summary>
         Public Property WrittenEnergyFlow As Nullable(Of Double)

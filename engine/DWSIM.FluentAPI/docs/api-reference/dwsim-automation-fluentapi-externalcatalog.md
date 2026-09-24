@@ -12,4 +12,8 @@ Use these constants with [`AddExternalUnitOperation`](dwsim-automation-fluentapi
 
 ### `RequiresPlus(string)`
 
-True when `displayName` matches a Plus / DWSIMPlus component (refining, electrolyte ops, advanced HX, fired heater, ExtensionPack, etc.) and therefore requires an active patron key. Used by [`AddExternalUnitOperation`](dwsim-automation-fluentapi-flowsheet.md) and every typed Plus `AddX` method to decide whether to call [`RequirePlus`](dwsim-automation-fluentapi-license.md).
+True when `displayName` matches a Plus / DWSIMPlus component (refining, electrolyte ops, advanced HX, fired heater, ExtensionPack, etc.). These create and solve without a key, as in the application; saving a flowsheet that holds one needs the subscription level the component asks for.
+
+### `GatedAtCreation(string)`
+
+True for the Plus components that need an active patron key to be created (the thermodynamic property editor and the restriction orifice). Used by [`AddExternalUnitOperation`](dwsim-automation-fluentapi-flowsheet.md) to decide whether to call [`RequirePlus`](dwsim-automation-fluentapi-license.md).

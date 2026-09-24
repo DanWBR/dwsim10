@@ -1142,7 +1142,10 @@ Namespace Reactors
 
             Select Case Me.ReactorOperationMode
                 Case OperationMode.Adiabatic
-                    If Tab.HasValue Then
+                    If OutletTemperatureIsEstimate AndAlso OutletTemperature > 0.0 Then
+                        T = OutletTemperature
+                        OutletTemperatureIsEstimate = False
+                    ElseIf Tab.HasValue Then
                         T = Tab.Value
                     ElseIf OutletTemperature > 0.0 Then
                         T = OutletTemperature
@@ -2032,7 +2035,10 @@ Namespace Reactors
 
             Select Case Me.ReactorOperationMode
                 Case OperationMode.Adiabatic
-                    If Tab.HasValue Then
+                    If OutletTemperatureIsEstimate AndAlso OutletTemperature > 0.0 Then
+                        T = OutletTemperature
+                        OutletTemperatureIsEstimate = False
+                    ElseIf Tab.HasValue Then
                         T = Tab.Value
                     ElseIf OutletTemperature > 0.0 Then
                         T = OutletTemperature

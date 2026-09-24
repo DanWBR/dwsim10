@@ -1191,7 +1191,10 @@ Namespace Reactors
             Select Case Me.ReactorOperationMode
                 Case OperationMode.Adiabatic
                     'initial value only, the outlet temperature is found by the energy balance loop below.
-                    If Tab.HasValue Then
+                    If OutletTemperatureIsEstimate AndAlso OutletTemperature > 0.0 Then
+                        T = OutletTemperature
+                        OutletTemperatureIsEstimate = False
+                    ElseIf Tab.HasValue Then
                         T = Tab.Value
                     ElseIf usePrevious AndAlso OutletTemperature > 0.0 Then
                         T = OutletTemperature

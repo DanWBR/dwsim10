@@ -300,9 +300,9 @@ namespace DWSIM.Automation.FluentAPI
         /// a template whose display name matches; that template's <c>IExternalUnitOperation.ReturnInstance</c>
         /// is called to create a fresh instance, which is then placed on the surface.
         ///
-        /// Plus / DWSIMPlus components (refining, advanced HX, fired heater, etc.) require an active
-        /// patron key - call <see cref="License.Activate"/> first or <see cref="ExternalCatalog.RequiresPlus"/>
-        /// will throw.
+        /// Plus / DWSIMPlus components (refining, advanced HX, fired heater, etc.) are created without a
+        /// key, as in the application; saving the flowsheet needs the subscription level they ask for.
+        /// The few listed by <see cref="ExternalCatalog.GatedAtCreation"/> need <see cref="License.Activate"/> first.
         /// </summary>
         /// <param name="displayName">Display name of the UO, e.g. <c>"Anaerobic Digester"</c>, <c>"Shortcut FCC"</c>.
         /// See <see cref="ExternalCatalog"/> for the canonical constants.</param>
@@ -311,7 +311,7 @@ namespace DWSIM.Automation.FluentAPI
         {
             if (string.IsNullOrWhiteSpace(displayName))
                 throw new ArgumentException("displayName is required", nameof(displayName));
-            if (ExternalCatalog.RequiresPlus(displayName)) License.RequirePlus();
+            if (ExternalCatalog.GatedAtCreation(displayName)) License.RequirePlus();
 
             var registry = Inner.AvailableSimulationObjects;
             if (!registry.TryGetValue(displayName, out var template))

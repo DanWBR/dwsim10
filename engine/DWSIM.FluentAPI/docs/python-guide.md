@@ -97,5 +97,6 @@ as it is from C#.
 | `FileNotFoundException` on `Flowsheet.Create` | DWSIM bin folder not on `sys.path`. |
 | `TypeError: 'method-wrapper' object is not callable` on `.Kelvin()` | Used the extension-method form; switch to `Q.Kelvin(...)`. |
 | `KeyNotFoundException` on `AddExternalUnitOperation` | Plus DLL not present in `unitops/`. |
-| `InvalidOperationException("requires an active Patron key")` | Call `License.CheckLicense(...)` before any Plus surface. |
+| `InvalidOperationException("requires an active Patron key")` | Call `License.CheckLicense(...)` before a Plus property package, LCA, TEA, the property editor or the restriction orifice. |
+| "You need a higher level DWSIM Patreon subscription to save data from this component" on `Save` | Plus unit operations create and solve without a key; saving needs the subscription level. |
 | Solver throws but the flowsheet looks correct | Use `fs.TrySolve()` to inspect the per-UO error list. |

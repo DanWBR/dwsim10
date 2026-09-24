@@ -1104,7 +1104,7 @@ namespace DWSIM.UI.Desktop.Editors
                         (dd, e) => { if (dd.SelectedIndex >= 0 && dd.SelectedIndex < reqModeVals.Length) req.ReactorOperationMode = reqModeVals[dd.SelectedIndex]; });
                     panel.CreateAndAddTextBoxRow(nf, "Outlet Temperature (" + su.temperature + ")",
                         cv.ConvertFromSI(su.temperature, req.OutletTemperature),
-                        (tb, e) => { if (TryVal(tb.Text, out var v)) req.OutletTemperature = cv.ConvertToSI(su.temperature, v); });
+                        (tb, e) => { if (TryVal(tb.Text, out var v)) { req.OutletTemperature = cv.ConvertToSI(su.temperature, v); req.OutletTemperatureIsEstimate = req.ReactorOperationMode == OperationMode.Adiabatic; } });
                     panel.CreateAndAddTextBoxRow(nf, "Pressure Drop (" + su.pressure + ")",
                         cv.ConvertFromSI(su.pressure, req.DeltaP.GetValueOrDefault()),
                         (tb, e) => { if (TryVal(tb.Text, out var v)) req.DeltaP = cv.ConvertToSI(su.pressure, v); });

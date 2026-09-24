@@ -158,10 +158,10 @@ namespace DWSIM.Automation.FluentAPI
 
         /// <summary>
         /// True when <paramref name="displayName"/> matches a Plus / DWSIMPlus component
-        /// (refining, electrolyte ops, advanced HX, fired heater, ExtensionPack, etc.)
-        /// and therefore requires an active patron key. Used by
-        /// <see cref="Flowsheet.AddExternalUnitOperation"/> and every typed Plus
-        /// <c>AddX</c> method to decide whether to call <see cref="License.RequirePlus"/>.
+        /// (refining, electrolyte ops, advanced HX, fired heater, ExtensionPack, etc.).
+        /// These create and solve without a key, as in the application; saving a flowsheet
+        /// that holds one needs the subscription level the component asks for.
+        /// <see cref="GatedAtCreation"/> names the few that need the key to be created.
         /// </summary>
         public static bool RequiresPlus(string displayName)
         {
@@ -172,6 +172,17 @@ namespace DWSIM.Automation.FluentAPI
             foreach (var n in Plus.All)
                 if (string.Equals(n, displayName, StringComparison.Ordinal)) return true;
             return false;
+        }
+
+        /// <summary>
+        /// True for the Plus components that do not guard their own saving and so need an active
+        /// patron key to be created: the thermodynamic property editor and the restriction orifice.
+        /// Used by <see cref="Flowsheet.AddExternalUnitOperation"/>.
+        /// </summary>
+        public static bool GatedAtCreation(string displayName)
+        {
+            return string.Equals(displayName, Plus.ThermoPropertyEditor, StringComparison.Ordinal)
+                || string.Equals(displayName, "Restriction Orifice", StringComparison.Ordinal);
         }
     }
 }

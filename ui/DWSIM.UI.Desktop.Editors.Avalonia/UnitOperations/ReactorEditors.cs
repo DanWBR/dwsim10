@@ -565,8 +565,11 @@ namespace DWSIM.UI.Desktop.Editors
 
             void Apply()
             {
+                // In the adiabatic mode the equilibrium and Gibbs reactors take the typed value as the
+                // starting temperature of their energy balance.
                 if (outletT != null)
-                    outletT.IsEnabled = reactor.ReactorOperationMode == OperationMode.OutletTemperature;
+                    outletT.IsEnabled = reactor.ReactorOperationMode == OperationMode.OutletTemperature ||
+                        (reactor.ReactorOperationMode == OperationMode.Adiabatic && (reactor is Reactor_Equilibrium || reactor is Reactor_Gibbs));
             }
 
             panel.CreateAndAddDropDownRow("Calculation Mode", modes,
@@ -579,7 +582,11 @@ namespace DWSIM.UI.Desktop.Editors
                 });
 
             outletT = panel.CreateAndAddValueUnitRow(reactor, "Outlet Temperature",
-                UnitOfMeasure.temperature, reactor.OutletTemperature, v => reactor.OutletTemperature = v);
+                UnitOfMeasure.temperature, reactor.OutletTemperature, v =>
+                {
+                    reactor.OutletTemperature = v;
+                    reactor.OutletTemperatureIsEstimate = reactor.ReactorOperationMode == OperationMode.Adiabatic;
+                });
 
             panel.CreateAndAddValueUnitRow(reactor, "Pressure Drop", UnitOfMeasure.deltaP,
                 reactor.DeltaP.GetValueOrDefault(), v => reactor.DeltaP = v);
