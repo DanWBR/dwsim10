@@ -661,6 +661,56 @@ Namespace Reactors
             Return str.ToString()
         End Function
 
+
+        ''' <summary>Chart names the PFD chart object can embed: the molecular weight distribution of the last calculation.</summary>
+        Public Overrides Function GetChartModelNames() As List(Of String)
+            Return New List(Of String)({"Molecular Weight Distribution"})
+        End Function
+
+        ''' <summary>Builds an OxyPlot model of the Schulz-Zimm weight distribution from Mn and PDI, as the editor draws it.</summary>
+        Public Overrides Function GetChartModel(name As String) As Object
+
+            If name <> "Molecular Weight Distribution" Then Return Nothing
+            If Mn <= 0.0 OrElse PDI <= 1.0 Then Return Nothing
+
+            Dim logM() As Double = Nothing, w() As Double = Nothing
+            PolymerCharacterization.SchulzZimmWeightDistribution(Mn, PDI, 200, logM, w)
+            If logM Is Nothing OrElse w Is Nothing OrElse logM.Length = 0 Then Return Nothing
+
+            Dim model = New OxyPlot.PlotModel() With {.Subtitle = String.Format("Mn = {0:G4} g/mol, Mw = {1:G4} g/mol, PDI = {2:G3}", Mn, Mw, PDI), .Title = GraphicObject.Tag}
+            model.TitleFontSize = 11
+            model.SubtitleFontSize = 10
+            model.LegendFontSize = 9
+            model.LegendPlacement = OxyPlot.LegendPlacement.Outside
+            model.LegendOrientation = OxyPlot.LegendOrientation.Horizontal
+            model.LegendPosition = OxyPlot.LegendPosition.BottomCenter
+            model.TitleHorizontalAlignment = OxyPlot.TitleHorizontalAlignment.CenteredWithinView
+            model.Axes.Add(New OxyPlot.Axes.LinearAxis() With {
+                .MajorGridlineStyle = OxyPlot.LineStyle.Dash,
+                .MinorGridlineStyle = OxyPlot.LineStyle.Dot,
+                .Position = OxyPlot.Axes.AxisPosition.Bottom,
+                .FontSize = 10,
+                .Title = "log10(M / g/mol)"
+            })
+            model.Axes.Add(New OxyPlot.Axes.LinearAxis() With {
+                .MajorGridlineStyle = OxyPlot.LineStyle.Dash,
+                .MinorGridlineStyle = OxyPlot.LineStyle.Dot,
+                .Position = OxyPlot.Axes.AxisPosition.Left,
+                .FontSize = 10,
+                .Minimum = 0.0,
+                .Title = "dW / dlog M (normalized)"
+            })
+
+            Dim ls As New OxyPlot.Series.LineSeries() With {.Title = "Weight fraction", .StrokeThickness = 2.0, .Color = OxyPlot.OxyColors.SteelBlue}
+            For i = 0 To Math.Min(logM.Length, w.Length) - 1
+                If Not Double.IsNaN(w(i)) Then ls.Points.Add(New OxyPlot.DataPoint(logM(i), w(i)))
+            Next
+            model.Series.Add(ls)
+
+            Return model
+
+        End Function
+
     End Class
 
 End Namespace
