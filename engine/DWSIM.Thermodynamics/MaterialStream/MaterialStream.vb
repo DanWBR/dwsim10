@@ -438,9 +438,19 @@ Namespace Streams
                 If Double.IsNaN(x) OrElse Double.IsInfinity(x) Then Throw New ArgumentException("The composition of stream " & mytag & " is not defined: the mole fraction of " & comp.Name & " is not a number. Enter the composition and normalise it.")
                 sumx += x
             Next
-            If sumx <= 0.0 Then Throw New ArgumentException("The composition of stream " & mytag & " is not defined: the mole fractions add up to zero. Enter the composition and normalise it.")
+            If sumx <= 0.0 AndAlso CarriesFlow() Then Throw New ArgumentException("The composition of stream " & mytag & " is not defined: the mole fractions add up to zero. Enter the composition and normalise it.")
 
         End Sub
+
+        ''' <summary>True when an empty composition is an input error: the stream carries a mass or molar flow (a value
+        ''' that is not a number counts as flow) and no dynamic run is in progress. During a run an empty holdup
+        ''' passes an empty composition to its outlets for a step, which is not an error.</summary>
+        Private Function CarriesFlow() As Boolean
+            If FlowSheet IsNot Nothing AndAlso FlowSheet.DynamicMode Then Return False
+            Dim w = Phases(0).Properties.massflow.GetValueOrDefault()
+            Dim n = Phases(0).Properties.molarflow.GetValueOrDefault()
+            Return w > 0.0 OrElse n > 0.0 OrElse Double.IsNaN(w) OrElse Double.IsNaN(n)
+        End Function
 
         Protected Overrides Function CurrentPropertyPackageID() As String
             Try
@@ -963,8 +973,9 @@ Namespace Streams
             Next
 
             'A composition that is empty or not a number never solves anything, and the flash
-            'would skip in silence; say so instead.
-            If Double.IsNaN(comp) OrElse comp <= 0.0 Then
+            'would skip in silence; say so instead. A stream with no flow is exempt: the holdup of an
+            'empty vessel carries no composition, and a dynamic run starts from exactly that.
+            If (Double.IsNaN(comp) OrElse comp <= 0.0) AndAlso CarriesFlow() Then
                 Dim tag = If(GraphicObject IsNot Nothing, GraphicObject.Tag, Name)
                 Throw New ArgumentException("The composition of stream " & tag & " is not defined: the mole fractions add up to " & comp.ToString() & ". Enter the composition and normalise it.")
             End If
