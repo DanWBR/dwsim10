@@ -385,6 +385,76 @@ Namespace UnitOperations
 
         End Function
 
+
+        ''' <summary>Chart names the PFD chart object can embed: every output parameter of the last run that carries a curve (polarization, power, efficiency against the current).</summary>
+        Public Overrides Function GetChartModelNames() As List(Of String)
+            Dim names As New List(Of String)()
+            If OutputParameters Is Nothing Then Return names
+            For Each kvp In OutputParameters
+                Dim p = kvp.Value
+                If p IsNot Nothing AndAlso p.ValuesX IsNot Nothing AndAlso p.ValuesY IsNot Nothing AndAlso p.ValuesX.Count > 1 AndAlso p.ValuesY.Count > 1 Then
+                    names.Add(ChartNameFor(p))
+                End If
+            Next
+            Return names
+        End Function
+
+        Private Function ChartNameFor(p As Auxiliary.PEMFuelCellModelParameter) As String
+            Dim xname = If(String.IsNullOrEmpty(p.TitleX), "Current", p.TitleX)
+            Return If(String.IsNullOrEmpty(p.Description), p.Name, p.Description) + " vs " + xname
+        End Function
+
+        ''' <summary>Builds an OxyPlot model of one output curve of the last run, with the axis titles and units the model reported.</summary>
+        Public Overrides Function GetChartModel(name As String) As Object
+
+            If OutputParameters Is Nothing Then Return Nothing
+            Dim p As Auxiliary.PEMFuelCellModelParameter = Nothing
+            For Each kvp In OutputParameters
+                If kvp.Value IsNot Nothing AndAlso ChartNameFor(kvp.Value) = name Then
+                    p = kvp.Value
+                    Exit For
+                End If
+            Next
+            If p Is Nothing OrElse p.ValuesX Is Nothing OrElse p.ValuesY Is Nothing OrElse p.ValuesX.Count = 0 Then Return Nothing
+
+            Dim xname = If(String.IsNullOrEmpty(p.TitleX), "Current", p.TitleX)
+            Dim xunit = If(String.IsNullOrEmpty(p.UnitsX), "A", p.UnitsX)
+            Dim yname = If(String.IsNullOrEmpty(p.Description), p.Name, p.Description)
+            Dim yunit = If(String.IsNullOrEmpty(p.UnitsY), p.Units, p.UnitsY)
+
+            Dim model = New OxyPlot.PlotModel() With {.Subtitle = name, .Title = GraphicObject.Tag}
+            model.TitleFontSize = 11
+            model.SubtitleFontSize = 10
+            model.LegendFontSize = 9
+            model.LegendPlacement = OxyPlot.LegendPlacement.Outside
+            model.LegendOrientation = OxyPlot.LegendOrientation.Horizontal
+            model.LegendPosition = OxyPlot.LegendPosition.BottomCenter
+            model.TitleHorizontalAlignment = OxyPlot.TitleHorizontalAlignment.CenteredWithinView
+            model.Axes.Add(New OxyPlot.Axes.LinearAxis() With {
+                .MajorGridlineStyle = OxyPlot.LineStyle.Dash,
+                .MinorGridlineStyle = OxyPlot.LineStyle.Dot,
+                .Position = OxyPlot.Axes.AxisPosition.Bottom,
+                .FontSize = 10,
+                .Title = If(String.IsNullOrEmpty(xunit), xname, xname + " (" + xunit + ")")
+            })
+            model.Axes.Add(New OxyPlot.Axes.LinearAxis() With {
+                .MajorGridlineStyle = OxyPlot.LineStyle.Dash,
+                .MinorGridlineStyle = OxyPlot.LineStyle.Dot,
+                .Position = OxyPlot.Axes.AxisPosition.Left,
+                .FontSize = 10,
+                .Title = If(String.IsNullOrEmpty(yunit), yname, yname + " (" + yunit + ")")
+            })
+
+            Dim ls As New OxyPlot.Series.LineSeries() With {.Title = yname, .StrokeThickness = 1.5, .Color = OxyPlot.OxyColors.Blue, .MarkerType = OxyPlot.MarkerType.Circle, .MarkerSize = 2.5}
+            For i = 0 To Math.Min(p.ValuesX.Count, p.ValuesY.Count) - 1
+                If Not Double.IsNaN(p.ValuesX(i)) AndAlso Not Double.IsNaN(p.ValuesY(i)) Then ls.Points.Add(New OxyPlot.DataPoint(p.ValuesX(i), p.ValuesY(i)))
+            Next
+            model.Series.Add(ls)
+
+            Return model
+
+        End Function
+
     End Class
 
 End Namespace
