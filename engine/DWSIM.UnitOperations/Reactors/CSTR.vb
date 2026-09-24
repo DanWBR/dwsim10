@@ -433,14 +433,15 @@ Namespace Reactors
                 oms1.MaximumAllowableDynamicMassFlowRate = 0.9 * Wholdup / timestep
             End If
 
-            'comp. conversions: what comes in against what goes out
+            'comp. conversions: what comes in against what goes out, between 0 and 1 (a vessel that is being
+            'drawn down sends out more than it receives)
 
             For Each sb As Compound In ims1.Phases(0).Compounds.Values
                 If ComponentConversions.ContainsKey(sb.Name) Then
                     Dim n0 = sb.MolarFlow.GetValueOrDefault()
                     Dim nf = oms1.Phases(0).Compounds(sb.Name).MolarFlow.GetValueOrDefault()
                     If oms2 IsNot Nothing Then nf += oms2.Phases(0).Compounds(sb.Name).MolarFlow.GetValueOrDefault()
-                    If n0 > 0.0 Then ComponentConversions(sb.Name) = Abs(n0 - nf) / n0
+                    If n0 > 0.0 Then ComponentConversions(sb.Name) = Math.Min(Math.Max((n0 - nf) / n0, 0.0), 1.0)
                 End If
             Next
 
