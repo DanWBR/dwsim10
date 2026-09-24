@@ -957,6 +957,80 @@ Namespace UnitOperations
 
         End Sub
 
+
+        ''' <summary>Chart names the PFD chart object can embed: the time series of the last dynamic run.</summary>
+        Public Overrides Function GetChartModelNames() As List(Of String)
+            If OperatingMode <> CrossflowUFMode.ConcentrationDynamic AndAlso OperatingMode <> CrossflowUFMode.DiafiltrationDynamic Then
+                Return New List(Of String)()
+            End If
+            Return New List(Of String)({"Flux and Volume", "VCF and Diavolumes", "Retentate Concentrations"})
+        End Function
+
+        ''' <summary>Builds an OxyPlot model of one group of the last dynamic trajectory, time in seconds on the x axis.</summary>
+        Public Overrides Function GetChartModel(name As String) As Object
+
+            Dim traj = LastTrajectory
+            If traj Is Nothing OrElse traj.Times Is Nothing OrElse traj.Times.Count = 0 Then Return Nothing
+
+            Dim series As New List(Of Tuple(Of String, String))()
+            Dim yTitle As String = "Value"
+            Select Case name
+                Case "Flux and Volume"
+                    series.Add(Tuple.Create("J", "Permeate flux J (kg/m2/s)"))
+                    series.Add(Tuple.Create("V_ret", "Retentate volume (m3)"))
+                    yTitle = "Flux and volume"
+                Case "VCF and Diavolumes"
+                    series.Add(Tuple.Create("VCF_instant", "Instantaneous VCF"))
+                    series.Add(Tuple.Create("Diavolumes", "Diavolumes swept"))
+                    yTitle = "VCF and diavolumes"
+                Case "Retentate Concentrations"
+                    For Each k In traj.Concentrations.Keys
+                        series.Add(Tuple.Create("C_" & k, k & " (g/L)"))
+                    Next
+                    If series.Count = 0 Then Return Nothing
+                    yTitle = "Concentration (g/L)"
+                Case Else
+                    Return Nothing
+            End Select
+
+            Dim model = New OxyPlot.PlotModel() With {.Subtitle = name, .Title = GraphicObject.Tag}
+            model.TitleFontSize = 11
+            model.SubtitleFontSize = 10
+            model.LegendFontSize = 9
+            model.LegendPlacement = OxyPlot.LegendPlacement.Outside
+            model.LegendOrientation = OxyPlot.LegendOrientation.Horizontal
+            model.LegendPosition = OxyPlot.LegendPosition.BottomCenter
+            model.TitleHorizontalAlignment = OxyPlot.TitleHorizontalAlignment.CenteredWithinView
+            model.Axes.Add(New OxyPlot.Axes.LinearAxis() With {
+                .MajorGridlineStyle = OxyPlot.LineStyle.Dash,
+                .MinorGridlineStyle = OxyPlot.LineStyle.Dot,
+                .Position = OxyPlot.Axes.AxisPosition.Bottom,
+                .FontSize = 10,
+                .Title = "Time (s)"
+            })
+            model.Axes.Add(New OxyPlot.Axes.LinearAxis() With {
+                .MajorGridlineStyle = OxyPlot.LineStyle.Dash,
+                .MinorGridlineStyle = OxyPlot.LineStyle.Dot,
+                .Position = OxyPlot.Axes.AxisPosition.Left,
+                .FontSize = 10,
+                .Title = yTitle
+            })
+
+            Dim t = traj.GetTimes()
+            Dim colors = {OxyPlot.OxyColors.Red, OxyPlot.OxyColors.Blue, OxyPlot.OxyColors.Green, OxyPlot.OxyColors.Orange, OxyPlot.OxyColors.Purple, OxyPlot.OxyColors.Brown, OxyPlot.OxyColors.Teal, OxyPlot.OxyColors.Gray}
+            For i = 0 To series.Count - 1
+                Dim y = traj.GetSeries(series(i).Item1)
+                Dim ls As New OxyPlot.Series.LineSeries() With {.Title = series(i).Item2, .StrokeThickness = 1.5, .Color = colors(i Mod colors.Length)}
+                For j = 0 To Math.Min(t.Length, y.Length) - 1
+                    If Not Double.IsNaN(y(j)) AndAlso Not Double.IsInfinity(y(j)) Then ls.Points.Add(New OxyPlot.DataPoint(t(j), y(j)))
+                Next
+                model.Series.Add(ls)
+            Next
+
+            Return model
+
+        End Function
+
     End Class
 
 End Namespace

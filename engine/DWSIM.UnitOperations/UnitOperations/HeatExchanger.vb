@@ -4088,6 +4088,64 @@ Namespace UnitOperations
                 Return p
             End If
         End Function
+
+        ''' <summary>Chart names the PFD chart object can embed: the heat exchange (T-Q) profile of the last calculation.</summary>
+        Public Overrides Function GetChartModelNames() As List(Of String)
+            Return New List(Of String)({"Heat Exchange Profile"})
+        End Function
+
+        ''' <summary>Builds an OxyPlot model of the hot and cold temperature profiles against the heat exchanged, in the flowsheet's units.</summary>
+        Public Overrides Function GetChartModel(name As String) As Object
+
+            If name <> "Heat Exchange Profile" Then Return Nothing
+            If HeatProfile Is Nothing OrElse HeatProfile.Length = 0 Then Return Nothing
+            If TemperatureProfileHot Is Nothing OrElse TemperatureProfileCold Is Nothing Then Return Nothing
+
+            Dim su = FlowSheet.FlowsheetOptions.SelectedUnitSystem
+
+            Dim model = New OxyPlot.PlotModel() With {.Subtitle = name, .Title = GraphicObject.Tag}
+            model.TitleFontSize = 11
+            model.SubtitleFontSize = 10
+            model.LegendFontSize = 9
+            model.LegendPlacement = OxyPlot.LegendPlacement.Outside
+            model.LegendOrientation = OxyPlot.LegendOrientation.Horizontal
+            model.LegendPosition = OxyPlot.LegendPosition.BottomCenter
+            model.TitleHorizontalAlignment = OxyPlot.TitleHorizontalAlignment.CenteredWithinView
+            model.Axes.Add(New OxyPlot.Axes.LinearAxis() With {
+                .MajorGridlineStyle = OxyPlot.LineStyle.Dash,
+                .MinorGridlineStyle = OxyPlot.LineStyle.Dot,
+                .Position = OxyPlot.Axes.AxisPosition.Bottom,
+                .FontSize = 10,
+                .Title = "Heat exchanged (" + su.heatflow + ")"
+            })
+            model.Axes.Add(New OxyPlot.Axes.LinearAxis() With {
+                .MajorGridlineStyle = OxyPlot.LineStyle.Dash,
+                .MinorGridlineStyle = OxyPlot.LineStyle.Dot,
+                .Position = OxyPlot.Axes.AxisPosition.Left,
+                .FontSize = 10,
+                .Title = "Temperature (" + su.temperature + ")"
+            })
+
+            Dim q = DWSIM.SharedClasses.SystemsOfUnits.Converter.ConvertArrayFromSI(su.heatflow, HeatProfile)
+            Dim th = DWSIM.SharedClasses.SystemsOfUnits.Converter.ConvertArrayFromSI(su.temperature, TemperatureProfileHot)
+            Dim tc = DWSIM.SharedClasses.SystemsOfUnits.Converter.ConvertArrayFromSI(su.temperature, TemperatureProfileCold)
+
+            Dim hot As New OxyPlot.Series.LineSeries() With {.Title = "Hot fluid", .StrokeThickness = 1.5, .Color = OxyPlot.OxyColors.Red, .MarkerType = OxyPlot.MarkerType.Circle, .MarkerSize = 3}
+            For j = 0 To Math.Min(q.Length, th.Length) - 1
+                If Not Double.IsNaN(th(j)) Then hot.Points.Add(New OxyPlot.DataPoint(q(j), th(j)))
+            Next
+            model.Series.Add(hot)
+
+            Dim cold As New OxyPlot.Series.LineSeries() With {.Title = "Cold fluid", .StrokeThickness = 1.5, .Color = OxyPlot.OxyColors.Blue, .MarkerType = OxyPlot.MarkerType.Circle, .MarkerSize = 3}
+            For j = 0 To Math.Min(q.Length, tc.Length) - 1
+                If Not Double.IsNaN(tc(j)) Then cold.Points.Add(New OxyPlot.DataPoint(q(j), tc(j)))
+            Next
+            model.Series.Add(cold)
+
+            Return model
+
+        End Function
+
     End Class
 
 End Namespace
