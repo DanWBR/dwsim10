@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using DWSIM.Automation.DynamicRunner.ColumnInternals;
 using DWSIM.Automation.FluentAPI;
@@ -201,6 +201,21 @@ namespace DWSIM.FluentAPI.Tests
         {
             c.DistProduct.Object.SetPressure(90000.0);
             c.BotProduct.Object.SetPressure(90000.0);
+        }
+
+        /// <summary>The feed pressure of the case. The dynamic run leaves the feed stream at the pressure of its
+        /// stage (about 1.25 bar); call before the steady-state solve that prepares the file.</summary>
+        public static void RestoreFeedPressure(BenzeneTolueneDynamicColumn c)
+        {
+            c.Feed.Object.SetPressure(150000.0);
+        }
+
+        /// <summary>The diameter the tray hydraulics were sized for. Every steady-state solve of the column
+        /// re-estimates its diameter from a flooding correlation (2.78 m here), and the dynamic model reads that
+        /// field for the tray areas and the drum and sump volumes; call after the solve that prepares the file.</summary>
+        public static void RestoreRatedDiameter(BenzeneTolueneDynamicColumn c)
+        {
+            c.Col.EstimatedDiameter = c.Diameter;
         }
 
         /// <summary>The variables every dynamic case of this column records.</summary>

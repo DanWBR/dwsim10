@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using DWSIM.Automation.FluentAPI;
@@ -151,7 +151,9 @@ namespace DWSIM.FluentAPI.Tests
             c.Lv1.WithOpeningPercent(50.0).WithOpeningSetpoint(50.0);
             c.Lv2.WithOpeningPercent(50.0).WithOpeningSetpoint(50.0);
             c.Feed.Object.SetMassFlow(c.FeedKgs);
+            BenzeneTolueneDynamicColumn.RestoreFeedPressure(c);
             fs.Solve();
+            BenzeneTolueneDynamicColumn.RestoreRatedDiameter(c);
             BenzeneTolueneDynamicColumn.SetProductBoundaries(c);
             c.Lc1.Object.ManualOverride = true; c.Lc1.Object.MVValue = 0.0;
             c.Lc2.Object.ManualOverride = true; c.Lc2.Object.MVValue = 0.0;

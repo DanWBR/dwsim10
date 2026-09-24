@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using DWSIM.Automation.FluentAPI;
@@ -112,8 +112,11 @@ namespace DWSIM.FluentAPI.Tests
             // the file stored is the steady state with the schedule configured, ready to press play
             c.Lv1.WithOpeningPercent(50.0).WithOpeningSetpoint(50.0);
             c.Lv2.WithOpeningPercent(50.0).WithOpeningSetpoint(50.0);
+            BenzeneTolueneDynamicColumn.RestoreFeedPressure(c);
             fs.Solve();
+            BenzeneTolueneDynamicColumn.RestoreRatedDiameter(c);
             BenzeneTolueneDynamicColumn.SetProductBoundaries(c);
+            Console.WriteLine($"file: feed P {c.Feed.Object.GetPressure():F0} Pa, column diameter {c.Col.EstimatedDiameter:F3} m, LV-01 {c.Lv1.Object.OpeningPct:F0} %, LV-02 {c.Lv2.Object.OpeningPct:F0} %");
             CaseLibraryOutput.Emit(fs, CaseName);
         }
     }
