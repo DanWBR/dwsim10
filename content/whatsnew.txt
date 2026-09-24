@@ -6,7 +6,7 @@
 - [NEW] Refining Blender: octane (linear, Ethyl RT-70 or user coefficients) and RVP (linear or Chevron index) blending on a volume or mass basis, with the blended RON, MON, AKI, sensitivity and RVP on the outlet; Average pressure mode mass-weighted; settings saved with the flowsheet
 - [NEW] Petroleum C7+ characterization: the defined composition of the fluid (inerts and light hydrocarbons, in mole, mass or liquid volume per cent) is typed beside the plus fraction; the pseudocomponents are scaled to what it leaves them and the real compounds go into the stream
 - [NEW] Petroleum assay: light ends (methane through the pentanes, with their fractions and basis) carried by the assay and by the characterization tool of both interfaces, each picked from the compound database; the pseudocomponents are scaled to their share and the cuts start above them when the curve covers the whole crude
-- [NEW] Pump: positive displacement calculation mode (displacement, volumetric efficiency, relief setting; the flow set by the speed, the pressure by the line); in dynamics the delivered flow follows the drive speed; dosing example in the case library
+- [NEW] Pump: positive displacement calculation mode (displacement, volumetric efficiency, relief setting, in both pump editors; the flow set by the speed, the pressure by the line; at steady state the outlet carries the feed flow); in dynamics the delivered flow follows the drive speed; dosing example in the case library
 - [NEW] Pump: performance curve sets measured at several speeds (variable-frequency drives), blended between measured speeds and scaled by the affinity laws outside them; saved with the simulation and carried by the JSON import and export
 - [CHG] Compressor in dynamic mode is a pressure-flow element by default, as the pump is; the casing capacity comes back with Integrate Casing Holdup; Rated Speed declared on the compressor
 - [CHG] Heater and cooler in dynamic mode: the efficiency scales the duty that reaches the fluid, as it does at steady state (nothing changes at the default 100 %)
@@ -16,6 +16,8 @@
 - [CHG] Distillation column: feed connected by stage name ("Stage10") from scripts and the Fluent API, readable names for the specification and efficiency properties, Naphtali-Sandholm spelling (old files open with the same solver)
 - [CHG] Equilibrium and Gibbs reactors: the outlet temperature typed in the adiabatic mode is the starting estimate of the next solve (the box is no longer disabled)
 - [CHG] Fluent API: Plus unit operations are created and solved without a key, as in the application; saving still needs the subscription level (the property editor and the restriction orifice keep the key check)
+- [CHG] Dynamics: real-time runs restore the schedule's initial state and apply its events and cause-and-effect matrix; controllers use the real-time step
+- [CHG] PID controller: offset, span and manual output can be set by events, ramps and cause-and-effect items
 - [FIX] Gibbs reactor in adiabatic mode: the phase split inside the Gibbs minimization was computed at the starting temperature and never refreshed, so a reactor solved for the first time settled on a composition that is not an equilibrium (water-gas shift at 600 K and 10 atm: 910 K and 79 % CO conversion against 827 K and 56 % from the equilibrium reactor); the loop now follows the trial temperature, starts from the inlet temperature and stops with a message after 100 passes
 - [FIX] Gibbs reactor: the first solve of a new reactor stopped on "invalid initial estimates" and only the second attempt ran; the feed is the starting point when there is no stored solution
 - [FIX] Equilibrium reactor in adiabatic mode: a fresh reactor with no outlet temperature estimate evaluated the equilibrium constant at 0 K and stopped on "evaluated to infinity"; the inlet temperature is the starting point
@@ -65,3 +67,10 @@
 - [FIX] Dynamics: cause-and-effect matrices are saved with the flowsheet (they were lost on save)
 - [FIX] Dynamics: a run from a stored state starts each PID from the valve opening the state carries (the loops jumped back to their offset)
 - [FIX] Dynamics Wizard: the proposed level controller moves its valve (reverse acting, span around the current opening)
+- [FIX] Dynamics: a cause-and-effect matrix fires in headless runs and with its gauge off screen (gauges updated their alarms only when drawn)
+- [FIX] PFR dynamics: the outlet lags the inlet by the residence time and matches the steady state at rest (it answered in half the time with the wrong heat); runs from a state stored after a PFR run no longer stop at the first step
+- [FIX] Dynamics: a stored state taken with an empty unit empties it on restore
+- [FIX] Dynamics: a valve closed against a flow-specified feed stops the run with a clear message (was a flash error)
+- [FIX] Tank: warning when the level passes the tank height
+- [FIX] Pipe Network: subscription messages name level 3, the current level and the blocks that need it
+- [FIX] Dynamics: Reset Contents is described as rebuilding the holdup (it said empties)
