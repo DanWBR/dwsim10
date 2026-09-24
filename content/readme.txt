@@ -80,7 +80,7 @@ Version 10.2.10
 - [FIX] Pump: a feed with no liquid stops with an error instead of solving with zero power
 - [FIX] NRTL, UNIQUAC and Wilson: a failed estimation of missing interaction parameters is reported as a warning instead of running the pair as ideal in silence
 - [FIX] Separator: an outlet with no flow takes the vessel state and the feed composition instead of stale phase data
-- [FIX] A stream whose composition is empty or undefined fails with a message; the fraction setters no longer divide by a zero sum
+- [FIX] A stream that carries flow with an empty or undefined composition fails with a message (streams with no flow and dynamic runs are exempt); the fraction setters no longer divide by a zero sum
 - [FIX] Petroleum assays are written and read by the file format whichever interface saved the simulation; the distillation curve tool of the cross-platform interface keeps the assay it builds
 - [FIX] Cross-platform C7+ and distillation curve windows scroll past their last row
 - [FIX] Pipe network: a boundary held shut by a check valve no longer refuses the solve; the reversal guard measures the flow against the size of the network
@@ -103,6 +103,9 @@ Version 10.2.10
 - [FIX] Liquid Phase Viscosity Override Script sample: 1.5 in pipe, so the case solves instead of stopping on a negative pressure
 - [FIX] Distillation column: purity specifications on both products converge from the initial estimate (lever rule for the product split, end compositions at the specified fractions); Naphtali-Sandholm ran without end with the feed on some stages
 - [FIX] Distillation column: the Internal 3 (Robust) initial estimates provider no longer stops on a late-bound Select
+- [FIX] Dynamics: cause-and-effect matrices are saved with the flowsheet (they were lost on save)
+- [FIX] Dynamics: a run from a stored state starts each PID from the valve opening the state carries (the loops jumped back to their offset)
+- [FIX] Dynamics Wizard: the proposed level controller moves its valve (reverse acting, span around the current opening)
 
 Version 10.2.9
 
