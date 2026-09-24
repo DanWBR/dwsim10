@@ -384,6 +384,7 @@ Namespace UnitOperations
             End If
 
             Dim esin = GetInletEnergyStream(1)
+            _sweepEnergyKW = If(esin Is Nothing, 0.0, esin.EnergyFlow.GetValueOrDefault())
 
             Dim names = msin.Phases(0).Compounds.Keys.ToList()
 
@@ -553,6 +554,81 @@ Namespace UnitOperations
 
         End Sub
 
+
+
+        Private _sweepEnergyKW As Double = 0.0
+
+        ''' <summary>Chart names the PFD chart object can embed: the model swept over the cell voltage at the energy input of the last calculation.</summary>
+        Public Overrides Function GetChartModelNames() As List(Of String)
+            Return New List(Of String)({"Voltage Sweep"})
+        End Function
+
+        ''' <summary>Builds an OxyPlot model of the efficiency (left axis) and the hydrogen production (right axis) against the cell voltage, from the reversible voltage upwards, by the same balance the calculation uses, with the operating point marked.</summary>
+        Public Overrides Function GetChartModel(name As String) As Object
+
+            If name <> "Voltage Sweep" Then Return Nothing
+            If ThermoNeutralVoltage <= 0.0 OrElse ReversibleVoltage <= 0.0 Then Return Nothing
+
+            Dim vth = ThermoNeutralVoltage
+            Dim vrev = ReversibleVoltage
+            Dim vEnd = Math.Max(2.5, 1.6 * vth)
+            Dim pkW = _sweepEnergyKW
+            Const F As Double = 96485.3365
+            Const n As Integer = 120
+
+            Dim model = New OxyPlot.PlotModel() With {.Subtitle = name, .Title = GraphicObject.Tag}
+            model.TitleFontSize = 11
+            model.SubtitleFontSize = 10
+            model.LegendFontSize = 9
+            model.LegendPlacement = OxyPlot.LegendPlacement.Outside
+            model.LegendOrientation = OxyPlot.LegendOrientation.Horizontal
+            model.LegendPosition = OxyPlot.LegendPosition.BottomCenter
+            model.TitleHorizontalAlignment = OxyPlot.TitleHorizontalAlignment.CenteredWithinView
+            model.Axes.Add(New OxyPlot.Axes.LinearAxis() With {
+                .MajorGridlineStyle = OxyPlot.LineStyle.Dash,
+                .MinorGridlineStyle = OxyPlot.LineStyle.Dot,
+                .Position = OxyPlot.Axes.AxisPosition.Bottom,
+                .FontSize = 10,
+                .Title = "Cell voltage (V)"
+            })
+            model.Axes.Add(New OxyPlot.Axes.LinearAxis() With {
+                .MajorGridlineStyle = OxyPlot.LineStyle.Dash,
+                .MinorGridlineStyle = OxyPlot.LineStyle.Dot,
+                .Position = OxyPlot.Axes.AxisPosition.Left,
+                .FontSize = 10,
+                .Key = "eff",
+                .Title = "Efficiency (thermoneutral basis)"
+            })
+            If pkW > 0.0 Then
+                model.Axes.Add(New OxyPlot.Axes.LinearAxis() With {
+                    .Position = OxyPlot.Axes.AxisPosition.Right,
+                    .FontSize = 10,
+                    .Key = "h2",
+                    .Title = "Hydrogen production (mol/s)"
+                })
+            End If
+
+            Dim eff As New OxyPlot.Series.LineSeries() With {.Title = "Efficiency", .StrokeThickness = 1.6, .Color = OxyPlot.OxyColors.Blue, .YAxisKey = "eff"}
+            Dim h2 As New OxyPlot.Series.LineSeries() With {.Title = "H2 production", .StrokeThickness = 1.6, .Color = OxyPlot.OxyColors.Red, .YAxisKey = "h2"}
+            For i = 0 To n
+                Dim vcell = vrev + (vEnd - vrev) * i / n
+                ' waste heat = (Vcell - Vth) * I * N and P = Vcell * I * N, so the efficiency is Vth / Vcell
+                eff.Points.Add(New OxyPlot.DataPoint(vcell, vth / vcell))
+                ' at a fixed energy input: I * N = P / Vcell and H2 = I * N / (2 F)
+                If pkW > 0.0 Then h2.Points.Add(New OxyPlot.DataPoint(vcell, pkW * 1000.0 / vcell / (2.0 * F)))
+            Next
+            model.Series.Add(eff)
+            If pkW > 0.0 Then model.Series.Add(h2)
+
+            If CellVoltage > 0.0 AndAlso Efficiency > 0.0 Then
+                Dim op As New OxyPlot.Series.ScatterSeries() With {.Title = "Operating point", .MarkerType = OxyPlot.MarkerType.Diamond, .MarkerSize = 6, .MarkerFill = OxyPlot.OxyColors.Black, .YAxisKey = "eff"}
+                op.Points.Add(New OxyPlot.Series.ScatterPoint(CellVoltage, Efficiency))
+                model.Series.Add(op)
+            End If
+
+            Return model
+
+        End Function
 
     End Class
 
