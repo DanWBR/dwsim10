@@ -189,7 +189,7 @@ Namespace UnitOperations
             AddDynamicProperty("Volume", "Internal holdup volume (m3).", 0.1, UnitOfMeasure.volume, 1.0.GetType())
             AddDynamicProperty("Minimum Pressure", "Minimum dynamic pressure.", 101325.0, UnitOfMeasure.pressure, 1.0.GetType())
             AddDynamicProperty("Initialize using Inlet Stream", "Initializes volume content from the inlet stream.", True, UnitOfMeasure.none, True.GetType())
-            AddDynamicProperty("Reset Content", "Empties the volume content on the next run.", False, UnitOfMeasure.none, True.GetType())
+            AddDynamicProperty("Reset Content", "Discards the current holdup at the next run step and builds it again as on a first run (see Initialize using Inlet Stream).", False, UnitOfMeasure.none, True.GetType())
 
         End Sub
 

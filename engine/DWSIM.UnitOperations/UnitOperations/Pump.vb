@@ -787,7 +787,7 @@ Namespace UnitOperations
             AddDynamicProperty("Volume", "Internal volume of the pump casing.", 0.01, UnitOfMeasure.volume, 1.0.GetType())
             AddDynamicProperty("Minimum Pressure", "Minimum dynamic pressure.", 101325.0, UnitOfMeasure.pressure, 1.0.GetType())
             AddDynamicProperty("Initialize using Inlet Stream", "Initializes the volume content from the inlet stream.", True, UnitOfMeasure.none, True.GetType())
-            AddDynamicProperty("Reset Content", "Empties the volume content on the next run.", False, UnitOfMeasure.none, True.GetType())
+            AddDynamicProperty("Reset Content", "Discards the current holdup at the next run step and builds it again as on a first run (see Initialize using Inlet Stream).", False, UnitOfMeasure.none, True.GetType())
             AddDynamicProperty("Rotational Inertia", "Moment of inertia J of the pump+motor assembly (kg.m2). Set to 0 for instantaneous speed changes.", 0.0, UnitOfMeasure.none, 1.0.GetType())
             AddDynamicProperty("Current Speed", "Current rotational speed (RPM).", 1450.0, UnitOfMeasure.none, 1.0.GetType())
             AddDynamicProperty("Target Speed", "Target rotational speed (RPM). Speed ramps towards this value based on inertia.", 1450.0, UnitOfMeasure.none, 1.0.GetType())
@@ -1715,11 +1715,16 @@ Namespace UnitOperations
                     Pout = P2
                     Me.DeltaP = P2 - Pi
 
+                    'At steady state the machine passes what it is fed, so the balance closes: the flow its
+                    'displacement and speed would deliver is reported, and a mismatch is flagged with the
+                    'speed that would deliver the feed. In dynamics it is a flow source (RunDynamicModel).
+                    Dim qpass = If(Wi > 0.0, Wi / rho_li, qd)
+
                     'the shaft power of a displacement machine is the volume it moves against the
                     'pressure difference it moves it against, over the mechanical efficiency
-                    Me.DeltaQ = qd * (P2 - Pi) / 1000.0 / (Me.Eficiencia.GetValueOrDefault / 100)
+                    Me.DeltaQ = qpass * (P2 - Pi) / 1000.0 / (Me.Eficiencia.GetValueOrDefault / 100)
 
-                    H2 = Hi + Me.DeltaQ.GetValueOrDefault / Math.Max(DeliveredMassFlow, 0.000000001)
+                    H2 = Hi + Me.DeltaQ.GetValueOrDefault / Math.Max(qpass * rho_li, 0.000000001)
                     CheckSpec(H2, False, "outlet enthalpy")
 
                     IObj?.SetCurrent()
@@ -1730,7 +1735,8 @@ Namespace UnitOperations
                     Me.DeltaT = T2 - Ti
 
                     If Wi > 0.0 AndAlso Math.Abs(DeliveredMassFlow - Wi) > 0.001 * Wi Then
-                        FlowSheet?.ShowMessage(String.Format("{0}: the machine displaces {1:G4} kg/s at {2:G4} rpm while the stream feeding it carries {3:G4} kg/s. The outlet takes the displaced flow, so the balance only closes once the feed is set to it, or a recycle or an adjust makes it match.", GraphicObject?.Tag, DeliveredMassFlow, OperatingSpeed, Wi), IFlowsheet.MessageType.Warning)
+                        Dim nfeed = OperatingSpeed * Wi / DeliveredMassFlow
+                        FlowSheet?.ShowMessage(String.Format("{0}: the machine displaces {1:G4} kg/s at {2:G4} rpm while the stream feeding it carries {3:G4} kg/s. The steady state passes the feed flow; {4:G4} rpm would deliver it. In a dynamic run the displaced flow sets the line.", GraphicObject?.Tag, DeliveredMassFlow, OperatingSpeed, Wi, nfeed), IFlowsheet.MessageType.Warning)
                     End If
 
                     Try
@@ -1875,9 +1881,9 @@ Namespace UnitOperations
                         comp.MassFraction = msin.Phases(0).Compounds(comp.Name).MassFraction
                         i += 1
                     Next
-                    'a positive displacement machine sets the flow of the line it feeds; every
-                    'other mode passes on the flow it is given
-                    If CalcMode = CalculationMode.PositiveDisplacement Then
+                    'every mode passes on the flow it is given at steady state; a positive displacement
+                    'machine sets the flow of its line in dynamics only
+                    If CalcMode = CalculationMode.PositiveDisplacement AndAlso msin.Phases(0).Properties.massflow.GetValueOrDefault <= 0.0 Then
                         .Phases(0).Properties.massflow = DeliveredMassFlow
                     Else
                         .Phases(0).Properties.massflow = msin.Phases(0).Properties.massflow.GetValueOrDefault

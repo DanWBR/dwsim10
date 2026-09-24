@@ -700,7 +700,7 @@ Namespace Reactors
             AddDynamicProperty("Height", "Available Height for Liquid", 2, UnitOfMeasure.distance, 1.0.GetType())
             AddDynamicProperty("Minimum Pressure", "Minimum Dynamic Pressure for this Unit Operation.", 101325, UnitOfMeasure.pressure, 1.0.GetType())
             AddDynamicProperty("Initialize using Inlet Stream", "Initializes the Reactor's available space with information from the inlet stream, if the vessel content is null.", 0, UnitOfMeasure.none, True.GetType())
-            AddDynamicProperty("Reset Contents", "Empties the Reactor's space on the next run.", 0, UnitOfMeasure.none, True.GetType())
+            AddDynamicProperty("Reset Contents", "Discards the current holdup at the next run step and builds it again as on a first run (see Initialize using Inlet Stream).", 0, UnitOfMeasure.none, True.GetType())
             RemoveDynamicProperty("Reset Content")
 
         End Sub

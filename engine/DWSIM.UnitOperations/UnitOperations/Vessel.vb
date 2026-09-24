@@ -232,7 +232,7 @@ Namespace UnitOperations
             AddDynamicProperty("Height", "Available height for liquid (define if no dimensions set)", 2, UnitOfMeasure.distance, 1.0.GetType())
             AddDynamicProperty("Minimum Pressure", "Minimum dynamic pressure", 101325, UnitOfMeasure.pressure, 1.0.GetType())
             AddDynamicProperty("Initialize using Inlet Stream", "Initializes the vessel content with information from the inlet stream, if the vessel content is null", True, UnitOfMeasure.none, True.GetType())
-            AddDynamicProperty("Reset Content", "Empties the vessel's content on the next run", False, UnitOfMeasure.none, True.GetType())
+            AddDynamicProperty("Reset Content", "Discards the current holdup at the next run step and builds it again as on a first run (see Initialize using Inlet Stream).", False, UnitOfMeasure.none, True.GetType())
             AddDynamicProperty("Liquid Outlet Nozzle Elevation", "Height of the liquid outlet nozzle above the vessel bottom. When the liquid level falls below it, gas leaves through the liquid outlet (gas blow-by)", 0, UnitOfMeasure.distance, 1.0.GetType())
             AddDynamicProperty("Gas Outlet Nozzle Elevation", "Height of the gas outlet nozzle above the vessel bottom (0 = at the top). When the liquid level reaches it, liquid leaves through the gas outlet (liquid carry-over, liquid-full blowdown)", 0, UnitOfMeasure.distance, 1.0.GetType())
             AddDynamicProperty("Gas Outlet Transition Height", "Height band below the gas nozzle over which the gas outlet changes from all gas to all liquid, so the integration does not see a step", 0.01, UnitOfMeasure.distance, 1.0.GetType())

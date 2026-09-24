@@ -169,7 +169,7 @@ Namespace UnitOperations
             AddDynamicProperty("Liquid Level", "Current Liquid Level", 0, UnitOfMeasure.distance, 1.0.GetType())
             AddDynamicProperty("Height", "Available Liquid Height", 2, UnitOfMeasure.distance, 1.0.GetType())
             AddDynamicProperty("Initialize using Inlet Stream", "Initializes the tank's content with information from the inlet stream, if the vessel content is null.", False, UnitOfMeasure.none, True.GetType())
-            AddDynamicProperty("Reset Content", "Empties the tank's content on the next run.", False, UnitOfMeasure.none, True.GetType())
+            AddDynamicProperty("Reset Content", "Discards the current holdup at the next run step and builds it again as on a first run (see Initialize using Inlet Stream).", False, UnitOfMeasure.none, True.GetType())
             AddDynamicProperty("Closed Tank", "Model as a closed tank with vapor space pressure calculation instead of atmospheric.", False, UnitOfMeasure.none, True.GetType())
             AddDynamicProperty("Ambient Temperature", "Ambient temperature for heat loss calculation (K).", 298.15, UnitOfMeasure.temperature, 1.0.GetType())
             AddDynamicProperty("Ambient UA Product", "Overall heat transfer coefficient times area for ambient heat loss (W/K). Set to 0 to disable.", 0.0, UnitOfMeasure.heat_transf_coeff, 1.0.GetType())
@@ -179,6 +179,8 @@ Namespace UnitOperations
         End Sub
 
         Private prevM, currentM As Double
+
+        Private OverflowReported As Boolean = False
 
         ''' <summary>
         ''' Executes one dynamic simulation step for the tank: integrates inlet and outlet
@@ -311,6 +313,17 @@ Namespace UnitOperations
 
                 SetDynamicProperty("Liquid Level", RelativeLevel * Height)
                 SetDynamicProperty("Operating Pressure", AccumulationStream.GetPressure())
+
+                'the model has no overflow nozzle: the liquid keeps rising above the top, so say so once
+                'each time it happens
+                If RelativeLevel > 1.0 Then
+                    If Not OverflowReported Then
+                        FlowSheet.ShowMessage(String.Format("{0}: the liquid level ({1:F2} m) is above the tank height ({2:F2} m). The tank has no overflow in this model: the excess stays inside and the level goes on rising.", GraphicObject?.Tag, RelativeLevel * Height, Height), IFlowsheet.MessageType.Warning)
+                        OverflowReported = True
+                    End If
+                Else
+                    OverflowReported = False
+                End If
 
                 Dim liqdens = AccumulationStream.Phases(3).Properties.density.GetValueOrDefault
 

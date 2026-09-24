@@ -147,7 +147,7 @@ Namespace UnitOperations
             AddDynamicProperty("Condenser UA", "Overall heat transfer coefficient times area for the condenser (W/K).", 10000.0, UnitOfMeasure.none, 1.0.GetType())
             AddDynamicProperty("Reboiler UA", "Overall heat transfer coefficient times area for the reboiler (W/K).", 10000.0, UnitOfMeasure.none, 1.0.GetType())
             AddDynamicProperty("Initialize using Inlet Stream", "Initializes both accumulators from the feed stream.", True, UnitOfMeasure.none, True.GetType())
-            AddDynamicProperty("Reset Content", "Empties both accumulators on the next run.", False, UnitOfMeasure.none, True.GetType())
+            AddDynamicProperty("Reset Content", "Discards both accumulators at the next run step and builds them again as on a first run (see Initialize using Inlet Stream).", False, UnitOfMeasure.none, True.GetType())
 
         End Sub
 

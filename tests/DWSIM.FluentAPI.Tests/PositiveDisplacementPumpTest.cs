@@ -11,6 +11,8 @@ namespace DWSIM.FluentAPI.Tests
     /// displacement and speed give and the system decides the discharge pressure, where a centrifugal
     /// machine gives the head its curve has at the flow the system asks for. The flow must therefore
     /// follow the speed exactly, ignore the discharge pressure, and stop at the relief setting.
+    /// At steady state the balance still closes: the outlet carries the feed (2.0 kg/s here, against
+    /// 1.894 displaced) and the pump reports the flow its displacement and speed give.
     /// </summary>
     internal static class PositiveDisplacementPumpTest
     {
@@ -75,12 +77,13 @@ namespace DWSIM.FluentAPI.Tests
 
             new ResultTable("Positive displacement pump")
                 .Row("delivered volumetric flow", expectedQ, pump.DeliveredVolumetricFlow, 1e-9, "m3/s")
-                .Row("delivered mass flow", expectedW, outlet.MassFlowKgPerSecond, 1e-6, "kg/s")
+                .Row("displaced mass flow", expectedW, pump.DeliveredMassFlow, 1e-6, "kg/s")
+                .Row("the steady state passes the feed", 2.0, outlet.MassFlowKgPerSecond, 1e-6, "kg/s")
                 .Row("the flow follows the speed", expectedW * 1.5, atHigherSpeed, 1e-6, "kg/s")
                 .Row("the flow ignores the discharge pressure", expectedW, atHigherPressure, 1e-6, "kg/s")
                 .Row("the relief caps the discharge", 2500000.0, reliefPressure, 1e-9, "Pa")
                 .Row("power rises with the pressure it works against",
-                     expectedQ * (1800000.0 - 200000.0) / 1000.0 / 0.9, powerAtHigherPressure, 1e-6, "kW")
+                     2.0 / rho * (1800000.0 - 200000.0) / 1000.0 / 0.9, powerAtHigherPressure, 1e-6, "kW")
                 .PrintAndThrowIfFailed();
 
             CheckSpeedIsRequired(fs, pump);

@@ -301,7 +301,7 @@ namespace DWSIM.Automation.DynamicRunner
             bool restored = false;
             if (!options.Resume)
             {
-                if (options.RestoreInitialState && !options.RealTime && !schedule.UseCurrentStateAsInitial)
+                if (options.RestoreInitialState && !schedule.UseCurrentStateAsInitial)
                     restored = RestoreState(flowsheet, schedule.InitialFlowsheetStateID);
 
                 integrator.MonitoredVariableValues.Clear();
@@ -464,13 +464,12 @@ namespace DWSIM.Automation.DynamicRunner
 
                     sw.Stop();
 
-                    if (!options.RealTime)
-                    {
-                        if (schedule.UsesEventList)
-                            ProcessEvents(flowsheet, schedule.CurrentEventList, integrator.CurrentTime, integrator.IntegrationStep);
-                        if (schedule.UsesCauseAndEffectMatrix)
-                            ProcessCEMatrix(flowsheet, schedule.CurrentCauseAndEffectMatrix);
-                    }
+                    // Events and the cause-and-effect matrix act in real time too, over the real-time step:
+                    // the matrix is the plant's interlock, and real time is when an operator drives the plant.
+                    if (schedule.UsesEventList)
+                        ProcessEvents(flowsheet, schedule.CurrentEventList, integrator.CurrentTime, TimeSpan.FromSeconds(interval));
+                    if (schedule.UsesCauseAndEffectMatrix)
+                        ProcessCEMatrix(flowsheet, schedule.CurrentCauseAndEffectMatrix);
 
                     i += interval;
                 }
@@ -705,6 +704,11 @@ namespace DWSIM.Automation.DynamicRunner
                 if (!item.Enabled) continue;
                 if (!flowsheet.SimulationObjects.ContainsKey(item.AssociatedIndicator)) continue;
                 var indicator = (IIndicator)flowsheet.SimulationObjects[item.AssociatedIndicator];
+
+                // A gauge works out its alarms in Calculate, which only the drawing called: a run with the
+                // gauge off screen, or with no interface at all, never fired the matrix.
+                try { flowsheet.SimulationObjects[item.AssociatedIndicator].Calculate(); }
+                catch { }
 
                 bool fire;
                 switch (item.AssociatedIndicatorAlarm)

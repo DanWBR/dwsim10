@@ -648,8 +648,15 @@ Namespace UnitOperations
 
                         P2 = oms.GetPressure()
 
+                        If Kvc <= 0.0 AndAlso Wi > 0.0 Then
+                            Throw New Exception(String.Format("The valve is closed (Kv = 0), but its inlet stream {0} has a specified flow ({1:G4} kg/s) that a closed valve cannot pass. " +
+                                                              "Give {0} a Pressure dynamic specification, or take its flow to zero together with the valve.", ims.GraphicObject.Tag, Wi))
+                        End If
+
                         If CalcMode = CalculationMode.Kv_General Or CalcMode = CalculationMode.Kv_Gas Or CalcMode = CalculationMode.Kv_Liquid Then
-                            If ims.Phases(1).Properties.molarfraction = 1 Or CalcMode = CalculationMode.Kv_Liquid Then
+                            If Wi <= 0.0 Then
+                                P1 = P2 / 100000.0
+                            ElseIf ims.Phases(1).Properties.molarfraction = 1 Or CalcMode = CalculationMode.Kv_Liquid Then
                                 P1 = P2 / 100000.0 + 1 / (1000.0 * rho) * (Wi * 3600 / Kvc) ^ 2
                             ElseIf ims.Phases(2).Properties.molarfraction = 1 Or CalcMode = CalculationMode.Kv_Gas Then
                                 ims.PropertyPackage.CurrentMaterialStream = ims

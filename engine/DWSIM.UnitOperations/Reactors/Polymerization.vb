@@ -487,7 +487,7 @@ Namespace Reactors
         Public Overrides ReadOnly Property HasPropertiesForDynamicMode As Boolean = True
 
         Public Overrides Sub CreateDynamicProperties()
-            AddDynamicProperty("Reset Contents", "Empties the reactor's contents on the next run.", False, UnitOfMeasure.none, True.GetType())
+            AddDynamicProperty("Reset Contents", "Discards the current holdup at the next run step and builds it again as on a first run (see Initialize using Inlet Stream).", False, UnitOfMeasure.none, True.GetType())
             AddDynamicProperty("Initialize using Inlet Stream", "Charges the reactor with the inlet composition on the first step.", True, UnitOfMeasure.none, True.GetType())
             AddDynamicProperty("Operating Pressure", "Current operating pressure.", 101325.0, UnitOfMeasure.pressure, 1.0.GetType())
         End Sub

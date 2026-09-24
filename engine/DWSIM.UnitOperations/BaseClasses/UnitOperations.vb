@@ -257,11 +257,10 @@ Namespace UnitOperations
             If Not ael Is Nothing Then
                 AccumulationStream = New Thermodynamics.Streams.MaterialStream()
                 AccumulationStream.LoadData(ael.Elements.ToList)
-                For Each phase In AccumulationStream.Phases.Values
-                    For Each comp In phase.Compounds.Values
-                        comp.ConstantProperties = FlowSheet.SelectedCompounds(comp.Name)
-                    Next
-                Next
+                BindLoadedContents(AccumulationStream)
+            Else
+                'a stored state taken while the unit was empty must empty it on restore
+                AccumulationStream = Nothing
             End If
 
             Dim aeel = (From xel As XElement In data Select xel Where xel.Name = "AttachedExtensions").FirstOrDefault
@@ -374,6 +373,16 @@ Namespace UnitOperations
                 Return Double.NaN
             End If
         End Function
+
+        ''' <summary>Links the compounds of a content stream read from XML to the flowsheet's compound data.</summary>
+        Protected Sub BindLoadedContents(ms As Thermodynamics.Streams.MaterialStream)
+            If FlowSheet Is Nothing Then Exit Sub
+            For Each phase In ms.Phases.Values
+                For Each comp In phase.Compounds.Values
+                    If FlowSheet.SelectedCompounds.ContainsKey(comp.Name) Then comp.ConstantProperties = FlowSheet.SelectedCompounds(comp.Name)
+                Next
+            Next
+        End Sub
 
         Public Overrides Function SaveDynamicState() As Object
             If AccumulationStream IsNot Nothing Then

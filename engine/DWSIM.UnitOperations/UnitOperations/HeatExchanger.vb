@@ -335,6 +335,7 @@ Namespace UnitOperations
                 For Each xel In aelh.Elements
                     Dim as1 As New Thermodynamics.Streams.MaterialStream()
                     as1.LoadData(xel.Elements.ToList)
+                    BindLoadedContents(as1)
                     AccumulationStreamsHot.Add(as1)
                 Next
             End If
@@ -343,6 +344,7 @@ Namespace UnitOperations
                 For Each xel In aelc.Elements
                     Dim as1 As New Thermodynamics.Streams.MaterialStream()
                     as1.LoadData(xel.Elements.ToList)
+                    BindLoadedContents(as1)
                     AccumulationStreamsCold.Add(as1)
                 Next
             End If
@@ -579,7 +581,7 @@ Namespace UnitOperations
             AddDynamicProperty("Hot Side Pressure", "Dynamic Pressure for the Hot Fluid side.", 101325, UnitOfMeasure.pressure, 1.0.GetType())
             AddDynamicProperty("Minimum Pressure", "Minimum Dynamic Pressure for this Unit Operation.", 101325, UnitOfMeasure.pressure, 1.0.GetType())
             AddDynamicProperty("Initialize using Inlet Streams", "Initializes the volume contents with information from the inlet streams, if the content is null.", False, UnitOfMeasure.none, True.GetType())
-            AddDynamicProperty("Reset Contents", "Empties the volume contents on the next run.", False, UnitOfMeasure.none, True.GetType())
+            AddDynamicProperty("Reset Contents", "Discards the current holdup at the next run step and builds it again as on a first run (see Initialize using Inlet Stream).", False, UnitOfMeasure.none, True.GetType())
             AddDynamicProperty("Fouling Rate", "Linear fouling growth rate in m2.K/kW per second. Set to 0 to disable.", 0.0, UnitOfMeasure.none, 1.0.GetType())
             AddDynamicProperty("Current Fouling Resistance", "Current total fouling resistance (m2.K/kW).", 0.0, UnitOfMeasure.none, 1.0.GetType())
             AddDynamicProperty("Wall Thermal Mass", "Product of wall mass and specific heat (J/K). Set to 0 for instantaneous heat transfer.", 0.0, UnitOfMeasure.none, 1.0.GetType())

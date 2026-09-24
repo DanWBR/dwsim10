@@ -22,7 +22,8 @@ namespace DWSIM.UI.Desktop.Editors
             "Outlet Pressure",
             "Power Required",
             "Energy Stream",
-            "Performance Curves"
+            "Performance Curves",
+            "Positive Displacement"
         };
 
         private static readonly Pump.CalculationMode[] ModeOrder =
@@ -31,7 +32,8 @@ namespace DWSIM.UI.Desktop.Editors
             Pump.CalculationMode.OutletPressure,
             Pump.CalculationMode.Power,
             Pump.CalculationMode.EnergyStream,
-            Pump.CalculationMode.Curves
+            Pump.CalculationMode.Curves,
+            Pump.CalculationMode.PositiveDisplacement
         };
 
         public static Control Build(Pump pump)
@@ -40,8 +42,9 @@ namespace DWSIM.UI.Desktop.Editors
             {
                 var nf = pump.GetFlowsheet().FlowsheetOptions.NumberFormat;
 
-                UnitOpEditorRows.ValueRow pressureIncrease = null, outletPressure = null, power = null;
-                TextBox efficiency = null, speed = null;
+                UnitOpEditorRows.ValueRow pressureIncrease = null, outletPressure = null, power = null,
+                    displacement = null, relief = null;
+                TextBox efficiency = null, speed = null, volEfficiency = null;
                 Button curves = null;
 
                 void ApplyMode()
@@ -52,7 +55,11 @@ namespace DWSIM.UI.Desktop.Editors
                     if (power != null) power.IsEnabled = mode == Pump.CalculationMode.Power;
                     if (efficiency != null) efficiency.IsEnabled = mode != Pump.CalculationMode.Curves;
                     if (curves != null) curves.IsEnabled = mode == Pump.CalculationMode.Curves;
-                    if (speed != null) speed.IsEnabled = mode == Pump.CalculationMode.Curves;
+                    var pd = mode == Pump.CalculationMode.PositiveDisplacement;
+                    if (speed != null) speed.IsEnabled = mode == Pump.CalculationMode.Curves || pd;
+                    if (displacement != null) displacement.IsEnabled = pd;
+                    if (volEfficiency != null) volEfficiency.IsEnabled = pd;
+                    if (relief != null) relief.IsEnabled = pd;
                 }
 
                 panel.CreateAndAddDropDownRow("Calculation Type", new List<string>(Modes),
@@ -93,6 +100,17 @@ namespace DWSIM.UI.Desktop.Editors
                 speed = panel.CreateAndAddTextBoxRow(nf, "Operating Speed (rpm)",
                     pump.EffectiveSpeed,
                     (tb, e) => { if (UnitOpEditorRows.TryParse(tb.Text, out var v)) pump.OperatingSpeed = v; });
+
+                // Positive Displacement mode: delivered flow = displacement x speed x volumetric efficiency
+                displacement = panel.CreateAndAddValueUnitRow(pump, "Displacement per Revolution",
+                    UnitOfMeasure.volume, pump.Displacement, v => pump.Displacement = v);
+
+                volEfficiency = panel.CreateAndAddTextBoxRow(nf, "Volumetric Efficiency (0-100%)",
+                    pump.VolumetricEfficiency,
+                    (tb, e) => { if (UnitOpEditorRows.TryParse(tb.Text, out var v)) pump.VolumetricEfficiency = v; });
+
+                relief = panel.CreateAndAddValueUnitRow(pump, "Relief Pressure (0 = none)",
+                    UnitOfMeasure.pressure, pump.ReliefPressure, v => pump.ReliefPressure = v);
 
                 ApplyMode();
             });

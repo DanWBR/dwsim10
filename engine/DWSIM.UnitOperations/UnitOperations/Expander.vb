@@ -517,7 +517,7 @@ Namespace UnitOperations
             AddDynamicProperty("Volume", "Internal volume of the expander casing.", 0.01, UnitOfMeasure.volume, 1.0.GetType())
             AddDynamicProperty("Minimum Pressure", "Minimum dynamic pressure.", 101325.0, UnitOfMeasure.pressure, 1.0.GetType())
             AddDynamicProperty("Initialize using Inlet Stream", "Initializes the volume content from the inlet stream.", True, UnitOfMeasure.none, True.GetType())
-            AddDynamicProperty("Reset Content", "Empties the volume content on the next run.", False, UnitOfMeasure.none, True.GetType())
+            AddDynamicProperty("Reset Content", "Discards the current holdup at the next run step and builds it again as on a first run (see Initialize using Inlet Stream).", False, UnitOfMeasure.none, True.GetType())
             AddDynamicProperty("Rotational Inertia", "Moment of inertia J of the expander+generator assembly (kg.m2). Set to 0 for instantaneous speed changes.", 0.0, UnitOfMeasure.none, 1.0.GetType())
             AddDynamicProperty("Current Speed", "Current rotational speed (RPM).", 3000.0, UnitOfMeasure.none, 1.0.GetType())
             AddDynamicProperty("Target Speed", "Target rotational speed (RPM). Speed ramps towards this value based on inertia.", 3000.0, UnitOfMeasure.none, 1.0.GetType())

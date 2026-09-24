@@ -300,6 +300,8 @@ Namespace SpecialOps
             Dim integrator = FlowSheet.DynamicsManager.IntegratorList(integratorID)
 
             Dim timestep = integrator.IntegrationStep.TotalSeconds
+            'in real time the plant moves with the real-time step, and so must the controller
+            If integrator.RealTime Then timestep = Convert.ToDouble(integrator.RealTimeStepMs) / 1000.0
 
             Dim ControlledObject = GetFlowsheet.SimulationObjects.Values.Where(Function(x) x.Name = ControlledObjectData.ID).SingleOrDefault
 

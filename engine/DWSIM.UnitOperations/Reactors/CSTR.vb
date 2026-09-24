@@ -203,7 +203,7 @@ Namespace Reactors
             AddDynamicProperty("Height", "Available Height for Liquid", 1, UnitOfMeasure.distance, 1.0.GetType())
             AddDynamicProperty("Minimum Pressure", "Minimum Dynamic Pressure for this Reactor.", 101325, UnitOfMeasure.pressure, 1.0.GetType())
             AddDynamicProperty("Initialize using Inlet Stream", "Initializes the CSTR contents with information from the inlet stream.", False, UnitOfMeasure.none, True.GetType())
-            AddDynamicProperty("Reset Contents", "Empties the CSTR's content on the next run.", False, UnitOfMeasure.none, True.GetType())
+            AddDynamicProperty("Reset Contents", "Discards the current holdup at the next run step and builds it again as on a first run (see Initialize using Inlet Stream).", False, UnitOfMeasure.none, True.GetType())
 
         End Sub
 

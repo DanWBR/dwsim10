@@ -532,6 +532,10 @@ Namespace SpecialOps
                         Return OutputMax
                     Case "OutputAbs"
                         Return OutputAbs
+                    Case "Offset"
+                        Return Offset
+                    Case "ManipulatedVariableSpan"
+                        Return ManipulatedVariableSpan
                     Case Else
                         Return Nothing
                 End Select
@@ -583,6 +587,19 @@ Namespace SpecialOps
                     Ki = propval
                 Case "Kd"
                     Kd = propval
+                Case "Offset"
+                    Offset = propval
+                Case "ManipulatedVariableSpan"
+                    ManipulatedVariableSpan = propval
+                Case "OutputAbs"
+                    'the output in the manipulated variable's own units: in manual it is what the controller
+                    'holds and writes to the manipulated object at every step
+                    OutputAbs = propval
+                    If ManipulatedObjectData IsNot Nothing Then
+                        MVValue = SystemsOfUnits.Converter.ConvertToSI(ManipulatedObjectData.Units, Convert.ToDouble(propval))
+                    Else
+                        MVValue = Convert.ToDouble(propval)
+                    End If
                 Case Else
                     Return False
             End Select
@@ -662,6 +679,8 @@ Namespace SpecialOps
             Dim integrator = FlowSheet.DynamicsManager.IntegratorList(integratorID)
 
             Dim timestep = integrator.IntegrationStep.TotalSeconds
+            'in real time the plant moves with the real-time step, and so must the controller
+            If integrator.RealTime Then timestep = Convert.ToDouble(integrator.RealTimeStepMs) / 1000.0
 
             Dim ControlledObject = GetFlowsheet.SimulationObjects.Values.Where(Function(x) x.Name = ControlledObjectData.ID).SingleOrDefault
 
@@ -759,6 +778,8 @@ Namespace SpecialOps
             Dim integrator = FlowSheet.DynamicsManager.IntegratorList(integratorID)
 
             Dim timestep = integrator.IntegrationStep.TotalSeconds
+            'in real time the plant moves with the real-time step, and so must the controller
+            If integrator.RealTime Then timestep = Convert.ToDouble(integrator.RealTimeStepMs) / 1000.0
 
             UpdateVars()
 
