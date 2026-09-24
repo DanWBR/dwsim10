@@ -209,6 +209,12 @@ Namespace Reactors
 
         Private prevM, currentM As Double
 
+        'jacket duty (kW) of the last dynamic step, Heat Exchange mode
+        Private DynamicJacketDuty As Double
+
+        'below this mass (kg) the holdup is taken as empty: nothing reacts, no heat goes in, nothing is drawn
+        Private Const EmptyHoldupMass As Double = 0.000001
+
         ''' <summary>Executes one dynamic simulation time step for the CSTR.</summary>
         Public Overrides Sub RunDynamicModel()
 
@@ -254,18 +260,26 @@ Namespace Reactors
 
                 Else
 
-                    AccumulationStream = ims1.Subtract(oms1, timestep)
-                    If oms2 IsNot Nothing Then AccumulationStream = AccumulationStream.Subtract(oms2, timestep)
+                    'the vessel holds what leaves it: at the current (steady-state) solution, the outlet streams
+                    AccumulationStream = oms1.CloneXML
+                    If oms2 IsNot Nothing Then AccumulationStream = AccumulationStream.Add(oms2)
+                    If Not AccumulationStream.GetMassFlow() > 0.0 Then AccumulationStream = ims1.CloneXML
 
                 End If
 
-                Dim density = AccumulationStream.Phases(0).Properties.density.GetValueOrDefault
-
-                AccumulationStream.SetMassFlow(density * Volume)
+                AccumulationStream.SetFlowsheet(FlowSheet)
                 AccumulationStream.SpecType = StreamSpec.Temperature_and_Pressure
                 AccumulationStream.PropertyPackage = PropertyPackage
                 AccumulationStream.PropertyPackage.CurrentMaterialStream = AccumulationStream
                 AccumulationStream.Calculate()
+
+                Dim density = AccumulationStream.Phases(0).Properties.density.GetValueOrDefault
+
+                AccumulationStream.SetMassFlow(density * Volume)
+                AccumulationStream.PropertyPackage.CurrentMaterialStream = AccumulationStream
+                AccumulationStream.Calculate()
+
+                prevM = 0.0
 
             Else
 
@@ -281,31 +295,46 @@ Namespace Reactors
 
             AccumulationStream.SetFlowsheet(FlowSheet)
 
-            ' Calculate Temperature
+            If AccumulationStream.GetMassFlow() <= EmptyHoldupMass Then
+
+                'empty vessel: it stays as it is until something comes in
+                AccumulationStream.SetMassFlow(0.0)
+                prevM = 0.0
+                SetDynamicProperty("Liquid Level", 0.0)
+                SetDynamicProperty("Operating Pressure", Pmin)
+                oms1.MaximumAllowableDynamicMassFlowRate = 0.0
+                oms1.SetPressure(Pmin)
+                If oms2 IsNot Nothing Then
+                    oms2.MaximumAllowableDynamicMassFlowRate = 0.0
+                    oms2.SetPressure(Pmin)
+                End If
+                DeltaQ = 0.0
+                Exit Sub
+
+            End If
+
+            'heat added through the energy stream; in Heat Exchange mode the jacket is the heat path and the
+            'energy stream reports its duty
 
             Dim Qval, Ha, Wa As Double
 
             Ha = AccumulationStream.GetMassEnthalpy
             Wa = AccumulationStream.GetMassFlow
 
-            If es IsNot Nothing Then Qval = es.EnergyFlow.GetValueOrDefault
+            If es IsNot Nothing AndAlso Me.ReactorOperationMode <> OperationMode.HeatExchange Then Qval = es.EnergyFlow.GetValueOrDefault
 
             If Qval <> 0.0 Then
 
-                If Wa > 0 Then
+                AccumulationStream.SetMassEnthalpy(Ha + Qval * timestep / Wa)
 
-                    AccumulationStream.SetMassEnthalpy(Ha + Qval * timestep / Wa)
+                AccumulationStream.SpecType = StreamSpec.Pressure_and_Enthalpy
 
-                    AccumulationStream.SpecType = StreamSpec.Pressure_and_Enthalpy
+                AccumulationStream.PropertyPackage = PropertyPackage
+                AccumulationStream.PropertyPackage.CurrentMaterialStream = AccumulationStream
 
-                    AccumulationStream.PropertyPackage = PropertyPackage
-                    AccumulationStream.PropertyPackage.CurrentMaterialStream = AccumulationStream
+                If integrator.ShouldCalculateEquilibrium Then
 
-                    If integrator.ShouldCalculateEquilibrium Then
-
-                        AccumulationStream.Calculate(True, True)
-
-                    End If
+                    AccumulationStream.Calculate(True, True)
 
                 End If
 
@@ -383,17 +412,35 @@ Namespace Reactors
 
             DeltaT = OutletTemperature - ims1.GetTemperature()
 
-            DeltaP = AccumulationStream.GetPressure() - ims1.GetPressure()
+            DeltaP = ims1.GetPressure() - AccumulationStream.GetPressure()
 
-            DeltaQ = (AccumulationStream.GetMassEnthalpy() - ims1.GetMassEnthalpy()) * ims1.GetMassFlow()
+            'heat that crossed the wall over the step (kW)
+            If Me.ReactorOperationMode = OperationMode.HeatExchange Then
+                DeltaQ = DynamicJacketDuty
+                If es IsNot Nothing Then es.EnergyFlow = DynamicJacketDuty
+            Else
+                DeltaQ = Qval
+            End If
 
-            ' comp. conversions
+            'the outlets cannot draw more than the vessel holds
+
+            Dim Wholdup = AccumulationStream.GetMassFlow()
+            If oms2 IsNot Nothing Then
+                Dim Wvapor = AccumulationStream.Phases(2).Properties.massflow.GetValueOrDefault()
+                oms1.MaximumAllowableDynamicMassFlowRate = 0.9 * Math.Max(Wholdup - Wvapor, 0.0) / timestep
+                oms2.MaximumAllowableDynamicMassFlowRate = 0.9 * Wvapor / timestep
+            Else
+                oms1.MaximumAllowableDynamicMassFlowRate = 0.9 * Wholdup / timestep
+            End If
+
+            'comp. conversions: what comes in against what goes out
 
             For Each sb As Compound In ims1.Phases(0).Compounds.Values
-                If ComponentConversions.ContainsKey(sb.Name) > 0 Then
-                    Dim n0 = ims1.Phases(0).Compounds(sb.Name).MolarFlow.GetValueOrDefault()
-                    Dim nf = AccumulationStream.Phases(0).Compounds(sb.Name).MolarFlow.GetValueOrDefault()
-                    ComponentConversions(sb.Name) = Abs(n0 - nf) / nf
+                If ComponentConversions.ContainsKey(sb.Name) Then
+                    Dim n0 = sb.MolarFlow.GetValueOrDefault()
+                    Dim nf = oms1.Phases(0).Compounds(sb.Name).MolarFlow.GetValueOrDefault()
+                    If oms2 IsNot Nothing Then nf += oms2.Phases(0).Compounds(sb.Name).MolarFlow.GetValueOrDefault()
+                    If n0 > 0.0 Then ComponentConversions(sb.Name) = Abs(n0 - nf) / n0
                 End If
             Next
 
@@ -579,7 +626,11 @@ Namespace Reactors
             For i = 0 To NC - 1
                 Nin(i) = ims.Phases(0).Compounds(CompNames(i)).MolarFlow
                 Nout(i) = Nin(i)
-                If ReactorMode = EReactorMode.SingleOutlet Then
+                If dynamics Then
+                    'ims is the holdup: its "molar flows" are the moles it holds (mol), the same basis as the
+                    'extent dN = rate (mol/s) x step (s) added below
+                    NReac(i) = Nin(i)
+                ElseIf ReactorMode = EReactorMode.SingleOutlet Then
                     NReac(i) = Me.Volume * ims.Phases(0).Compounds(CompNames(i)).MolarFlow.GetValueOrDefault() *
                         ims.Phases(0).Properties.density.GetValueOrDefault / W / 1000.0 'global composition; headspace is ignored
                 Else
@@ -593,7 +644,12 @@ Namespace Reactors
             Next
 
             P0 = ims.Phases(0).Properties.pressure.GetValueOrDefault
-            P = P0 - DeltaP.GetValueOrDefault
+            If dynamics Then
+                'the holdup is already at the vessel pressure
+                P = P0
+            Else
+                P = P0 - DeltaP.GetValueOrDefault
+            End If
             ims.Phases(0).Properties.pressure = P
 
             T0 = ims.Phases(0).Properties.temperature.GetValueOrDefault
@@ -1018,14 +1074,24 @@ Namespace Reactors
 
                         ims.SpecType = StreamSpec.Pressure_and_Enthalpy
 
-                        Hp = Hr0 - DHr 'Products Enthalpy (kJ/kg * kg/s = kW)
+                        If dynamics Then
 
-                        Dim Hnew As Double = Hp / W
-                        If NIter > 0 Then
-                            Dim Hprev As Double = ims.Phases(0).Properties.enthalpy.GetValueOrDefault
-                            Hnew = AdiabaticHRelax * Hnew + (1.0 - AdiabaticHRelax) * Hprev
+                            'holdup enthalpy (kJ) plus the heat the reactions released over the step (kW x s)
+                            Hp = Hr0 - DHr * dT
+                            ims.Phases(0).Properties.enthalpy = Hp / W
+
+                        Else
+
+                            Hp = Hr0 - DHr 'Products Enthalpy (kJ/kg * kg/s = kW)
+
+                            Dim Hnew As Double = Hp / W
+                            If NIter > 0 Then
+                                Dim Hprev As Double = ims.Phases(0).Properties.enthalpy.GetValueOrDefault
+                                Hnew = AdiabaticHRelax * Hnew + (1.0 - AdiabaticHRelax) * Hprev
+                            End If
+                            ims.Phases(0).Properties.enthalpy = Hnew
+
                         End If
-                        ims.Phases(0).Properties.enthalpy = Hnew
 
                     Case OperationMode.HeatExchange
 
@@ -1087,7 +1153,13 @@ Namespace Reactors
 
                         Dim Q_hx As Double = U_eff * A_hx * (Tc_eff - T) / 1000.0 ' kW
 
-                        Hp = Hr0 - DHr + Q_hx 'Products Enthalpy (kJ/kg * kg/s = kW)
+                        If dynamics Then
+                            'holdup enthalpy (kJ) plus what the reactions and the jacket added over the step (kW x s)
+                            Hp = Hr0 + (Q_hx - DHr) * dT
+                            DynamicJacketDuty = Q_hx
+                        Else
+                            Hp = Hr0 - DHr + Q_hx 'Products Enthalpy (kJ/kg * kg/s = kW)
+                        End If
 
                         ims.Phases(0).Properties.enthalpy = Hp / W
 
@@ -1350,6 +1422,9 @@ out:        Dim ms1, ms2 As MaterialStream
                     OutletTemperature = T
 
                     Me.DeltaT = OutletTemperature - T0
+
+                    'adiabatic: no heat crosses the wall
+                    Me.DeltaQ = 0.0
 
                 End If
 
