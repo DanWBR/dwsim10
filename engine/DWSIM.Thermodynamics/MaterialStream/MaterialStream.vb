@@ -443,9 +443,13 @@ Namespace Streams
         End Sub
 
         Protected Overrides Function CurrentPropertyPackageID() As String
-            Dim pp = PropertyPackage
-            If pp Is Nothing Then Return ""
-            Return pp.UniqueID
+            Try
+                Dim pp = PropertyPackage
+                If pp Is Nothing Then Return ""
+                Return pp.UniqueID
+            Catch ex As Exception
+                Return ""
+            End Try
         End Function
 
         ''' <summary>

@@ -397,8 +397,14 @@ Namespace UnitOperations
         ''' stream resolves its package by ID and overrides this.
         ''' </summary>
         Protected Overridable Function CurrentPropertyPackageID() As String
-            If PropertyPackage Is Nothing Then Return ""
-            Return PropertyPackage.UniqueID
+            'called from the Calculated setter, also while the object is being read from a file, when the
+            'package getter may not be able to resolve anything yet
+            Try
+                If PropertyPackage Is Nothing Then Return ""
+                Return PropertyPackage.UniqueID
+            Catch ex As Exception
+                Return ""
+            End Try
         End Function
 
         Public Property DebugMode As Boolean = False Implements Interfaces.ISimulationObject.DebugMode
