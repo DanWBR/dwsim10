@@ -4,6 +4,10 @@
 - [NEW] Techno-Economic Analysis: the case (setup, cost percentages, economic parameters and the edits on the equipment, material and utility maps) is saved with the flowsheet and restored, with the analysis run again, when the tool is opened; the automation API reads the same stored edits
 - [NEW] Embedded charts on the flowsheet for more unit operations: a chart object bound to the object offers the curves of the bioreactor, the anaerobic digester (ADM1 trajectory), the CFB pyrolysis reactor (riser profiles), the chromatography column (breakthrough, load), the crossflow ultrafiltration (flux, VCF, concentrations), the heat exchanger (T-Q), the pump, compressor and expander (curves and maps of every speed with the operating point), the pipe network (profile of every solved pipe), the polymerization reactor (molecular weight distribution), the copper bed and zeolite adsorbers (breakthrough curve, PSA cycle pressure), the PEM fuel cells (output curves against the current), the ion exchange column (effluent against bed volumes, by sweeping the model) and the water electrolyzer (efficiency and hydrogen production against the cell voltage)
 - [NEW] Refining Blender: octane (linear, Ethyl RT-70 or user coefficients) and RVP (linear or Chevron index) blending on a volume or mass basis, with the blended RON, MON, AKI, sensitivity and RVP on the outlet; Average pressure mode mass-weighted; settings saved with the flowsheet
+- [NEW] Petroleum C7+ characterization: the defined composition of the fluid (inerts and light hydrocarbons, in mole, mass or liquid volume per cent) is typed beside the plus fraction; the pseudocomponents are scaled to what it leaves them and the real compounds go into the stream
+- [NEW] Petroleum assay: light ends (methane through the pentanes, with their fractions and basis) carried by the assay and by the characterization tool of both interfaces, each picked from the compound database; the pseudocomponents are scaled to their share and the cuts start above them when the curve covers the whole crude
+- [NEW] Pump: positive displacement calculation mode (displacement, volumetric efficiency, relief setting; the flow set by the speed, the pressure by the line); in dynamics the delivered flow follows the drive speed; dosing example in the case library
+- [NEW] Pump: performance curve sets measured at several speeds (variable-frequency drives), blended between measured speeds and scaled by the affinity laws outside them; saved with the simulation and carried by the JSON import and export
 - [CHG] Compressor in dynamic mode is a pressure-flow element by default, as the pump is; the casing capacity comes back with Integrate Casing Holdup; Rated Speed declared on the compressor
 - [CHG] Heater and cooler in dynamic mode: the efficiency scales the duty that reaches the fluid, as it does at steady state (nothing changes at the default 100 %)
 - [CHG] Tutorial Fluent API example scripts run under pythonnet as published (bootstrap, Q.* quantities, Plus tools from DWSIM_PATRON_KEY), and the pages that quote them were resynced
@@ -32,3 +36,13 @@
 - [FIX] NRTL, UNIQUAC and Wilson: a failed estimation of missing interaction parameters is reported as a warning instead of running the pair as ideal in silence
 - [FIX] Separator: an outlet with no flow takes the vessel state and the feed composition instead of stale phase data
 - [FIX] A stream whose composition is empty or undefined fails with a message; the fraction setters no longer divide by a zero sum
+- [FIX] Petroleum assays are written and read by the file format whichever interface saved the simulation; the distillation curve tool of the cross-platform interface keeps the assay it builds
+- [FIX] Cross-platform C7+ and distillation curve windows scroll past their last row
+- [FIX] Pipe network: a boundary held shut by a check valve no longer refuses the solve; the reversal guard measures the flow against the size of the network
+- [FIX] Dynamic events, cause-and-effect effects and ramps on a diameter or a wall thickness applied a thousandth of the value (double unit conversion)
+- [FIX] Pipe network: a valve inside the network is solved on its effective Kv (opening relationship, actuator, Cv basis); a zero coefficient is a shut branch
+- [FIX] Expander in Performance Curves mode generated no power
+- [FIX] Compressor and expander performance curves: power and efficiency interpolated between speed sets; a machine with no curve enabled says so
+- [FIX] Python scripts importing site failed on Linux and macOS (sys.executable unset); the shipped standard library on the path of every hosted engine (issue 85)
+- [FIX] Recycle on Global Convergence (Broyden) stopped the substitution recycles beside it from converging; NaN in the Broyden update when the variables stop moving (issue 83)
+- [FIX] Cross-platform editors: the Browse buttons of the sub-flowsheet and of the Reaktoro external database open the file dialog (issue 81)
