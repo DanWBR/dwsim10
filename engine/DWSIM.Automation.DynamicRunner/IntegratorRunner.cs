@@ -298,10 +298,11 @@ namespace DWSIM.Automation.DynamicRunner
 
             // A resumed run picks up the clock, the recorded history and the controllers' state
             // exactly as the paused one left them; only a fresh run starts any of that over.
+            bool restored = false;
             if (!options.Resume)
             {
                 if (options.RestoreInitialState && !options.RealTime && !schedule.UseCurrentStateAsInitial)
-                    RestoreState(flowsheet, schedule.InitialFlowsheetStateID);
+                    restored = RestoreState(flowsheet, schedule.InitialFlowsheetStateID);
 
                 integrator.MonitoredVariableValues.Clear();
             }
@@ -315,7 +316,9 @@ namespace DWSIM.Automation.DynamicRunner
 
             if (!options.Resume)
             {
-                foreach (var c in controllers) c.Reset();
+                // From a stored state every loop starts from the valve opening the state carries; a plain
+                // reset sent it back to its offset on the first step.
+                foreach (var c in controllers) { if (restored) c.StartFromManipulatedVariable(); else c.Reset(); }
                 foreach (var m in mpcControllers) m.Reset();
                 foreach (var c in pyControllers) c.ResetRequested = true;
 
@@ -556,12 +559,13 @@ namespace DWSIM.Automation.DynamicRunner
         }
 
         /// <summary>Reloads a stored flowsheet state (the schedule's starting point).</summary>
-        public static void RestoreState(IFlowsheet flowsheet, string stateID)
+        public static bool RestoreState(IFlowsheet flowsheet, string stateID)
         {
-            if (string.IsNullOrEmpty(stateID)) return;
-            if (!flowsheet.StoredSolutions.ContainsKey(stateID)) return;
+            if (string.IsNullOrEmpty(stateID)) return false;
+            if (!flowsheet.StoredSolutions.ContainsKey(stateID)) return false;
             flowsheet.LoadProcessData(flowsheet.StoredSolutions[stateID]);
             flowsheet.UpdateInterface();
+            return true;
         }
 
         /// <summary>

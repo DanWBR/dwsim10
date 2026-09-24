@@ -69,6 +69,12 @@ Public Class Manager
                                 DirectCast(kvp.Value, ICustomXMLSerialization).SaveData))
         Next
         data.Add(e3)
+        Dim e4 = New XElement("CauseAndEffectMatrixList")
+        For Each kvp As KeyValuePair(Of String, IDynamicsCauseAndEffectMatrix) In CauseAndEffectMatrixList
+            e4.Add(New XElement("CauseAndEffectMatrix",
+                                DirectCast(kvp.Value, ICustomXMLSerialization).SaveData))
+        Next
+        data.Add(e4)
         Return data
     End Function
 
@@ -99,6 +105,15 @@ Public Class Manager
                 Dim intg = New Integrator
                 DirectCast(intg, ICustomXMLSerialization).LoadData(xel2.Elements.ToList)
                 IntegratorList.Add(intg.ID, intg)
+            Next
+        End If
+        Dim elm4 As XElement = (From xel2 As XElement In data Select xel2 Where xel2.Name = "CauseAndEffectMatrixList").LastOrDefault
+        If Not elm4 Is Nothing Then
+            CauseAndEffectMatrixList = New Dictionary(Of String, IDynamicsCauseAndEffectMatrix)
+            For Each xel2 As XElement In elm4.Elements
+                Dim cem = New CauseAndEffectMatrix
+                DirectCast(cem, ICustomXMLSerialization).LoadData(xel2.Elements.ToList)
+                CauseAndEffectMatrixList.Add(cem.ID, cem)
             Next
         End If
         Return True

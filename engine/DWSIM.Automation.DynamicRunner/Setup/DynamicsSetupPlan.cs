@@ -692,8 +692,11 @@ namespace DWSIM.Automation.DynamicRunner.Setup
         }
 
         /// <summary>
-        /// Builds the level loop: the controller reads the vessel level and writes the valve's
-        /// opening setpoint, which the actuator model then moves towards.
+        /// Builds the level loop: the controller reads the vessel level and moves the valve opening,
+        /// reverse acting (a level above the setpoint opens the drain), on a 0-100 % span around the
+        /// opening the valve has now. A valve with an actuator time constant is driven through its
+        /// opening setpoint, which the actuator model follows; without one the setpoint does nothing,
+        /// so the opening itself is written.
         /// </summary>
         private static void CreateLevelController(IFlowsheet flowsheet, ISimulationObject vessel,
                                                   ISimulationObject valve, double setpoint)
@@ -709,8 +712,30 @@ namespace DWSIM.Automation.DynamicRunner.Setup
             var pid = created as PIDController;
             if (pid == null) return;
 
+            var opening = 50.0;
+            try { opening = Convert.ToDouble(valve.GetPropertyValue("PROP_VA_5"), CultureInfo.InvariantCulture); }
+            catch { }
+            if (double.IsNaN(opening) || opening < 0.0 || opening > 100.0) opening = 50.0;
+
+            var tau = 0.0;
+            try { tau = DynamicsReadiness.DynamicValue(valve, "Actuator Time Constant"); }
+            catch { }
+
             pid.ControlledObjectData = Describe(flowsheet, vessel, "Liquid Level");
-            pid.ManipulatedObjectData = Describe(flowsheet, valve, "Opening Setpoint");
+            if (tau > 0.0)
+            {
+                // the actuator starts where the valve is; its setpoint defaults to 100 %
+                try { (valve as Valve)?.SetDynamicProperty("Opening Setpoint", opening); } catch { }
+                pid.ManipulatedObjectData = Describe(flowsheet, valve, "Opening Setpoint");
+            }
+            else
+            {
+                pid.ManipulatedObjectData = Describe(flowsheet, valve, "PROP_VA_5");
+            }
+
+            pid.ReverseActing = true;
+            pid.ManipulatedVariableSpan = 100.0;
+            pid.Offset = opening;
 
             pid.SetPoint = setpoint;
             pid.OutputMin = 0.0;
@@ -934,7 +959,7 @@ namespace DWSIM.Automation.DynamicRunner.Setup
                 }
                 else if (obj is Valve)
                 {
-                    wanted.Add(new KeyValuePair<ISimulationObject, string>(obj, "Opening Setpoint"));
+                    wanted.Add(new KeyValuePair<ISimulationObject, string>(obj, "PROP_VA_5"));
                 }
                 else if (obj is PIDController)
                 {
