@@ -3358,6 +3358,27 @@ Namespace UnitOperations
 
         End Sub
 
+        ''' <summary>Sets compound <paramref name="ci"/> of an end composition estimate to <paramref name="x"/> and scales the
+        ''' others to share the rest (by the feed when the estimate held none of them).</summary>
+        Private Shared Sub SetEndFraction(v As Double(), ci As Integer, x As Double, zfeed As Double())
+            Dim others = 0.0
+            For k = 0 To v.Length - 1
+                If k <> ci Then others += v(k)
+            Next
+            If others <= 0.0 Then
+                For k = 0 To v.Length - 1
+                    If k <> ci Then v(k) = zfeed(k) : others += zfeed(k)
+                Next
+            End If
+            For k = 0 To v.Length - 1
+                If k = ci Then
+                    v(k) = x
+                ElseIf others > 0.0 Then
+                    v(k) = v(k) / others * (1.0 - x)
+                End If
+            Next
+        End Sub
+
         Public Overridable Function GetSolverInputData(Optional ByVal ignoreuserestimates As Boolean = False) As ColumnSolverInputData
 
             Dim IObj As Inspector.InspectorItem = Inspector.Host.GetNewInspectorItem()
@@ -3847,6 +3868,27 @@ Namespace UnitOperations
                     Next
                     distVx = distVx.NormalizeY()
             End Select
+
+            'Both products specified by the mole fraction of the same compound (the textbook binary case): the
+            'lever rule fixes the product split, and the end compositions start at the specified fractions. The
+            'estimates above read a fraction as a recovery, which started a 0.82 distillate as pure ethanol and
+            'left the Newton solver too far from the solution to reach it on some feed stages.
+            If ColumnType = ColType.DistillationColumn AndAlso CondenserType = condtype.Total_Condenser AndAlso
+                Specs("C").SType = ColumnSpec.SpecType.Component_Fraction AndAlso Specs("R").SType = ColumnSpec.SpecType.Component_Fraction AndAlso
+                Specs("C").ComponentID = Specs("R").ComponentID AndAlso
+                (Specs("C").SpecUnit = "Molar" OrElse Specs("C").SpecUnit = "M") AndAlso (Specs("R").SpecUnit = "Molar" OrElse Specs("R").SpecUnit = "M") AndAlso
+                Not (InitialEstimates.DistillateFlowRate IsNot Nothing AndAlso UseLiquidFlowEstimates AndAlso Not ignoreuserestimates) Then
+                Dim ci = Vn.IndexOf(Specs("C").ComponentID)
+                If ci >= 0 Then
+                    Dim xd = Specs("C").SpecValue, xb = Specs("R").SpecValue
+                    Dim split = If(Math.Abs(xd - xb) > 0.000001, (zm(ci) - xb) / (xd - xb), -1.0)
+                    If split > 0.0 AndAlso split < 1.0 Then
+                        distrate = (sumF - sum0_) * split
+                        SetEndFraction(distVx, ci, xd, zm)
+                        SetEndFraction(rebVx, ci, xb, zm)
+                    End If
+                End If
+            End If
 
             IObj?.Paragraphs.Add(String.Format("Estimated/Specified Distillate Rate: {0} mol/s", distrate))
             IObj?.Paragraphs.Add(String.Format("Estimated/Specified Vapor Overflow Rate: {0} mol/s", vaprate))
@@ -5572,7 +5614,7 @@ Namespace UnitOperations
             Dim Pref As Double = Stages.Select(Function(s) s.P).Average
 
             Dim feedFlash As Object() = pp.FlashBase.Flash_PT(zm, Pref, Tref, pp)
-            Dim Kref = feedFlash(9)
+            Dim Kref As Double() = DirectCast(feedFlash(9), Double())
 
             'â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             ' 6. IMPROVED: reflux ratio from relative volatility (Underwood-simplified)
