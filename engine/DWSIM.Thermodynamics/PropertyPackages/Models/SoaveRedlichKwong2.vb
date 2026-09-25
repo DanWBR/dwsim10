@@ -655,56 +655,15 @@ Namespace PropertyPackages.ThermoPlugs
         Shared Function CalcZ2(AG As Double, BG As Double) As List(Of Double)
 
             Dim coeff(3) As Double
-            Dim Vant(0, 4) As Double
 
             coeff(0) = -AG * BG
             coeff(1) = AG - BG - BG * BG
             coeff(2) = -1
             coeff(3) = 1
 
-            Dim temp1 = Poly_Roots(coeff)
-
-            Dim tv = 0.0#
-            Dim ZV, tv2 As Double
-
-            Dim result As New List(Of Double)
-
-            If temp1(0, 0) > temp1(1, 0) Then
-                tv = temp1(1, 0)
-                temp1(1, 0) = temp1(0, 0)
-                temp1(0, 0) = tv
-                tv2 = temp1(1, 1)
-                temp1(1, 1) = temp1(0, 1)
-                temp1(0, 1) = tv2
-            End If
-            If temp1(0, 0) > temp1(2, 0) Then
-                tv = temp1(2, 0)
-                temp1(2, 0) = temp1(0, 0)
-                temp1(0, 0) = tv
-                tv2 = temp1(2, 1)
-                temp1(2, 1) = temp1(0, 1)
-                temp1(0, 1) = tv2
-            End If
-            If temp1(1, 0) > temp1(2, 0) Then
-                tv = temp1(2, 0)
-                temp1(2, 0) = temp1(1, 0)
-                temp1(1, 0) = tv
-                tv2 = temp1(2, 1)
-                temp1(2, 1) = temp1(1, 1)
-                temp1(1, 1) = tv2
-            End If
-
-            ZV = temp1(2, 0)
-            If temp1(2, 1) <> 0 Then
-                ZV = temp1(1, 0)
-                If temp1(1, 1) <> 0 Then
-                    ZV = temp1(0, 0)
-                End If
-            End If
-
-            If temp1(0, 1) = 0.0# And temp1(0, 0) > 0.0# Then result.Add(temp1(0, 0))
-            If temp1(1, 1) = 0.0# And temp1(1, 0) > 0.0# Then result.Add(temp1(1, 0))
-            If temp1(2, 1) = 0.0# And temp1(2, 0) > 0.0# Then result.Add(temp1(2, 0))
+            ' analytical real roots above the covolume, as in PR.CalcZ2 (issue #40); the Newton roots of
+            ' Poly_Roots stop on an absolute residual of 1e-8, as large as a liquid Z at a few hundred Pa
+            Dim result = ValidZRoots(coeff, BG)
 
             If result.Count = 0 Then
                 Throw New Exception("SRK EOS: unable to calculate the compressibility factor at these conditions" &
