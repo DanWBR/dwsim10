@@ -4569,10 +4569,18 @@ redirect2:                  IObj?.SetCurrent()
                             Dim absDeltaP = If(relDistCP < 0.05, 10000.0, 50000.0)
                             Dim signT = Math.Sign(TCR - T)
                             Dim signP = Math.Sign(PCR - P)
+                            ' The step halves toward the critical point and never reaches it. Once it is
+                            ' negligible it only repeats the last point (and a zero step then breaks the slope
+                            ' and the extrapolated guess): the line has reached the critical point, which is
+                            ' added after the loop.
                             If beta < 20 Then
-                                T = T + signT * Math.Min(absDeltaT, Math.Abs(TCR - T) * 0.5)
+                                Dim stepT = Math.Min(absDeltaT, Math.Abs(TCR - T) * 0.5)
+                                If stopAtCP AndAlso stepT < 0.02 Then Exit Do
+                                T = T + signT * stepT
                             Else
-                                P = P + signP * Math.Min(absDeltaP, Math.Abs(PCR - P) * 0.5)
+                                Dim stepP = Math.Min(absDeltaP, Math.Abs(PCR - P) * 0.5)
+                                If stopAtCP AndAlso stepP < 500.0 Then Exit Do
+                                P = P + signP * stepP
                             End If
                         ElseIf beta < 20 Then
                             T = T + options.BubbleCurveDeltaT
@@ -4600,6 +4608,20 @@ redirect2:                  IObj?.SetCurrent()
 
                 Loop Until i >= options.BubbleCurveMaximumPoints Or PB(PB.Count - 1) = 0 Or PB(PB.Count - 1) < 0 Or TVB(TVB.Count - 1) < 0 Or
                         Double.IsNaN(PB(PB.Count - 1)) = True Or Double.IsNaN(TVB(TVB.Count - 1)) = True Or T >= options.BubbleCurveMaximumTemperature
+
+                ' Close the bubble line on the analytical critical point, as the dew line is: near the CP the
+                ' bubble flash converges loosely (flat objective) and stops a few tenths of a bar off Pc.
+                ' Only when the line already ended next to the CP and has not run past Tc.
+                If stopAtCP AndAlso PB.Count > 0 AndAlso TVB.Count > 0 Then
+                    Dim bubLastRelCP = Math.Max(Math.Abs(TVB(TVB.Count - 1) - TCR) / TCR, Math.Abs(PB(PB.Count - 1) - PCR) / PCR)
+                    If bubLastRelCP >= 0.001 AndAlso bubLastRelCP < 0.05 AndAlso TVB(TVB.Count - 1) <= TCR Then
+                        TVB.Add(TCR)
+                        PB.Add(PCR)
+                        HB.Add(Me.DW_CalcEnthalpy(Vz, TCR, PCR, State.Liquid))
+                        SB.Add(Me.DW_CalcEntropy(Vz, TCR, PCR, State.Liquid))
+                        VB.Add(1 / Me.AUX_LIQDENS(TCR, Vz, PCR, PCR) * Me.AUX_MMM(Phase.Mixture))
+                    End If
+                End If
 
                 Dim Switch = False
 

@@ -427,9 +427,15 @@ Namespace PropertyPackages.ThermoPlugs
             ' root is spurious (fails the vapour criterion 0.9/P < beta < 3/P), regenerate the vapour
             ' at a reduced pressure where a real vapour root exists, so the fugacity coefficient stays
             ' physical and the K-values do not collapse to the trivial solution near the critical point.
+            ' The root is spurious only when it is the single, liquid-like root of a subcritical
+            ' pseudo-pure fluid (am/(bm R T) above the ratio Omega_a/Omega_b): no vapour exists at that
+            ' composition. A dense vapour near the mixture critical point has a supercritical pseudo-fluid
+            ' and its own root is the right one; replacing it with a root from a lower pressure moves the
+            ' saturation line away from the critical point.
             If phase = 1 Then
                 Dim betav As Double = PGP_Beta(Z, T, P, aml, bml)
-                If betav <= 0.9 / P OrElse betav >= 3.0 / P Then
+                If _zarray.Count = 1 AndAlso betav <= 0.9 / P AndAlso
+                    aml / (bml * R * T) > 0.42748 / 0.08664 Then
                     Dim Zx, AGx, BGx As Double
                     If PGP_VaporRootReducingP(T, P, aml, bml, Zx, AGx, BGx) Then
                         Z = Zx
