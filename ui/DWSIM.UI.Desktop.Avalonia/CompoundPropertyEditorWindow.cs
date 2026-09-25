@@ -335,8 +335,18 @@ public sealed class CompoundPropertyEditorWindow : Window
                 else if (d.Key == "Comments")
                 {
                     panel.CreateAndAddLabelRow2(label);
-                    row = panel.CreateAndAddMultilineTextBoxRow(Convert.ToString(d.GetValue(_clone!)) ?? "", false, false,
-                        (tb, _) => { d.SetValue(_clone!, tb.Text ?? ""); MarkDirty(); });
+                    // Avalonia raises TextChanged for the initial text through the dispatcher, after the
+                    // window has been marked clean: only a text that differs from the committed one is an edit
+                    var committedComments = Convert.ToString(d.GetValue(_clone!)) ?? "";
+                    row = panel.CreateAndAddMultilineTextBoxRow(committedComments, false, false,
+                        (tb, _) =>
+                        {
+                            var text = tb.Text ?? "";
+                            if (text == committedComments) return;
+                            committedComments = text;
+                            d.SetValue(_clone!, text);
+                            MarkDirty();
+                        });
                 }
                 else
                 {
