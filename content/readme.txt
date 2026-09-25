@@ -59,6 +59,8 @@ Version 10.2.10
 - [CHG] Fluent API: Plus unit operations are created and solved without a key, as in the application; saving still needs the subscription level (the property editor and the restriction orifice keep the key check)
 - [CHG] Dynamics: real-time runs restore the schedule's initial state and apply its events and cause-and-effect matrix; controllers use the real-time step
 - [CHG] PID controller: offset, span and manual output can be set by events, ramps and cause-and-effect items
+- [CHG] PID controller: Manipulated Variable Span field on the Advanced tab of the editor in both interfaces
+- [CHG] Dynamics Wizard: the proposed level controller is tuned from the vessel and the valve (lambda tuning), so it no longer cycles on small vessels
 - [FIX] Gibbs reactor in adiabatic mode: the phase split inside the Gibbs minimization was computed at the starting temperature and never refreshed, so a reactor solved for the first time settled on a composition that is not an equilibrium (water-gas shift at 600 K and 10 atm: 910 K and 79 % CO conversion against 827 K and 56 % from the equilibrium reactor); the loop now follows the trial temperature, starts from the inlet temperature and stops with a message after 100 passes
 - [FIX] Gibbs reactor: the first solve of a new reactor stopped on "invalid initial estimates" and only the second attempt ran; the feed is the starting point when there is no stored solution
 - [FIX] Equilibrium reactor in adiabatic mode: a fresh reactor with no outlet temperature estimate evaluated the equilibrium constant at 0 K and stopped on "evaluated to infinity"; the inlet temperature is the starting point
@@ -115,6 +117,8 @@ Version 10.2.10
 - [FIX] Tank: warning when the level passes the tank height
 - [FIX] Pipe Network: subscription messages name level 3, the current level and the blocks that need it
 - [FIX] Dynamics: Reset Contents is described as rebuilding the holdup (it said empties)
+- [FIX] Dynamics: events stamped at the start of a run act before the first controller step (a span or setpoint set at 00:00:00 missed the first calculation)
+- [FIX] Relief valve: the back-pressure coefficient also applies to non-choked vapour flow (the flow jumped at the critical ratio with Kb below one)
 
 Version 10.2.9
 
