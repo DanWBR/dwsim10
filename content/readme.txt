@@ -119,6 +119,7 @@ Version 10.2.10
 - [FIX] Dynamics: Reset Contents is described as rebuilding the holdup (it said empties)
 - [FIX] Dynamics: events stamped at the start of a run act before the first controller step (a span or setpoint set at 00:00:00 missed the first calculation)
 - [FIX] Relief valve: the back-pressure coefficient also applies to non-choked vapour flow (the flow jumped at the critical ratio with Kb below one)
+- [FIX] Methane steam reforming sample: catalyst particle diameter 2 mm (it was stored as 2 m, so the reactor had almost no pressure drop)
 
 Version 10.2.9
 
