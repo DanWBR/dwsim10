@@ -318,7 +318,7 @@ Namespace UnitOperations
                 'each time it happens
                 If RelativeLevel > 1.0 Then
                     If Not OverflowReported Then
-                        FlowSheet.ShowMessage(String.Format("{0}: the liquid level ({1:F2} m) is above the tank height ({2:F2} m). The tank has no overflow in this model: the excess stays inside and the level goes on rising.", GraphicObject?.Tag, RelativeLevel * Height, Height), IFlowsheet.MessageType.Warning)
+                        FlowSheet.ShowMessage(String.Format("{0}: the liquid level ({1:F3} m) is above the tank height ({2:F3} m). The tank has no overflow in this model: the excess stays inside and the level goes on rising.", GraphicObject?.Tag, RelativeLevel * Height, Height), IFlowsheet.MessageType.Warning)
                         OverflowReported = True
                     End If
                 Else

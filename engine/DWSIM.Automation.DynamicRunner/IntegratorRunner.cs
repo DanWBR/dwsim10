@@ -358,6 +358,11 @@ namespace DWSIM.Automation.DynamicRunner
             // Simulated time already covered, which a resumed run carries on from.
             double i = options.Resume ? (integrator.CurrentTime - new DateTime()).TotalSeconds : 0;
 
+            // Events stamped at the start of the run (a span, a setpoint or a mode at 00:00:00) act
+            // before the first step: the loop applies each step's events after the controllers.
+            if (!options.Resume && schedule.UsesEventList)
+                ApplyStartEvents(flowsheet, schedule.CurrentEventList, integrator.CurrentTime);
+
             var runClock = Stopwatch.StartNew();
 
             try
@@ -657,6 +662,22 @@ namespace DWSIM.Automation.DynamicRunner
                 {
                     if (bobj.GetDynamicProperty(prop) != null) bobj.SetDynamicProperty(prop, 1);
                 }
+            }
+        }
+
+        private static void ApplyStartEvents(IFlowsheet flowsheet, string eventsetID, DateTime start)
+        {
+            if (!flowsheet.DynamicsManager.EventSetList.ContainsKey(eventsetID)) return;
+            foreach (var ev in flowsheet.DynamicsManager.EventSetList[eventsetID].Events.Values)
+            {
+                if (!ev.Enabled || ev.TimeStamp > start) continue;
+                if (ev.EventType != Dynamics.DynamicsEventType.ChangeProperty) continue;
+                if (!flowsheet.SimulationObjects.ContainsKey(ev.SimulationObjectID)) continue;
+                var target = flowsheet.SimulationObjects[ev.SimulationObjectID];
+                var value = DWSIM.SharedClasses.SystemsOfUnits.Converter.ConvertForPropertyWrite(
+                    target, ev.SimulationObjectProperty, ev.SimulationObjectPropertyUnits,
+                    ev.SimulationObjectPropertyValue.ToDoubleFromInvariant());
+                target.SetPropertyValue(ev.SimulationObjectProperty, value);
             }
         }
 

@@ -187,6 +187,11 @@ namespace DWSIM.UI.Desktop.Editors
             panel.CreateAndAddTextBoxRow(nf, "FF Lag Time (s)", pid.FeedforwardLagTime,
                 (tb, e) => { if (UnitOpEditorRows.TryParse(tb.Text, out var v)) pid.FeedforwardLagTime = v; });
 
+            // output = offset -/+ controller output x span, in the manipulated variable's units;
+            // zero keeps the output scaled by the setpoint
+            panel.CreateAndAddTextBoxRow(nf, "Manipulated Variable Span", pid.ManipulatedVariableSpan,
+                (tb, e) => { if (UnitOpEditorRows.TryParse(tb.Text, out var v)) pid.ManipulatedVariableSpan = v; });
+
             return panel;
         }
 
