@@ -570,6 +570,17 @@ Namespace PropertyPackages.Auxiliary
             delta_T = (Tsup - Tinf) / nsub
 
             i = 0
+            If TIPO <> "L" Then
+                'The vapour root satisfies Vr = Z Tr / Pr with Z < 2, so the scan from Vr = 1001 down
+                'finds no sign change above max(10, 2 Tr / Pr). Start on the first grid point below that,
+                'on the same grid, with the same total step budget: same bracket, same root.
+                Dim Vstart As Double = Math.Max(10.0, 2.0 * Tr / Pr)
+                If Vstart < Tinf Then
+                    Dim k0 As Integer = CInt(Math.Floor((Tinf - Vstart) / -delta_T))
+                    Tinf += k0 * delta_T
+                    i = k0
+                End If
+            End If
             Dim c4_tr_3 = c4 / Tr ^ 3
             Do
                 i = i + 1
