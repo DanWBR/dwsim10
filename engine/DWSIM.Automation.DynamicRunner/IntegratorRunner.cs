@@ -41,6 +41,15 @@ namespace DWSIM.Automation.DynamicRunner
         public bool RestoreInitialState = true;
 
         /// <summary>
+        /// The caller has just restored the schedule's initial state itself, and may have changed the
+        /// flowsheet since (a tuner applies its trial gains after the restore). The controllers then start
+        /// as they do after <see cref="RestoreInitialState"/>, from the manipulated variable the state
+        /// carries, and the state is not restored again. Only read when <see cref="RestoreInitialState"/>
+        /// is false and the run does not resume.
+        /// </summary>
+        public bool InitialStateRestored;
+
+        /// <summary>
         /// Carry on from where the last run stopped instead of starting over: keep the recorded
         /// history, the controllers' state and the integrator's clock, and pick the simulated time
         /// up where it was left. This is what a pause and a single step are made of.
@@ -303,6 +312,8 @@ namespace DWSIM.Automation.DynamicRunner
             {
                 if (options.RestoreInitialState && !schedule.UseCurrentStateAsInitial)
                     restored = RestoreState(flowsheet, schedule.InitialFlowsheetStateID);
+                else if (!options.RestoreInitialState && options.InitialStateRestored)
+                    restored = true;
 
                 integrator.MonitoredVariableValues.Clear();
             }

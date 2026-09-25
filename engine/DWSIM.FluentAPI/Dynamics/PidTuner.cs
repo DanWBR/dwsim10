@@ -156,8 +156,8 @@ namespace DWSIM.Automation.FluentAPI.Dynamics
     }
 
     /// <summary>
-    /// Tunes PID controllers by simulation: a Nelder-Mead simplex over their gains, running the
-    /// whole schedule once per trial and scoring the resulting transient.
+    /// Tunes PID controllers by simulation: a bounded DotNumerics Simplex search (COBYLA) over their
+    /// gains, running the whole schedule once per trial and scoring the resulting transient.
     /// </summary>
     /// <remarks>
     /// Trials are only comparable if they all start from the same state, so the schedule needs a
@@ -222,6 +222,7 @@ namespace DWSIM.Automation.FluentAPI.Dynamics
             Exception error = null;
             double[] best = null;
             var initialObjective = double.NaN;
+            var trials = new List<KeyValuePair<double[], double>>();
 
             try
             {
@@ -236,6 +237,7 @@ namespace DWSIM.Automation.FluentAPI.Dynamics
                     evaluations += 1;
                     var score = Evaluate(flowsheet, schedule, controllers, x, options, log, evaluations);
                     if (double.IsNaN(initialObjective)) initialObjective = score;
+                    trials.Add(new KeyValuePair<double[], double>((double[])x.Clone(), score));
                     return score;
                 };
 
@@ -269,7 +271,9 @@ namespace DWSIM.Automation.FluentAPI.Dynamics
 
             if (best != null && error == null)
             {
-                finalObjective = Score(flowsheet, controllers, options);
+                // The score of the trial that ran the returned gains, in the same measure as the initial one.
+                var hit = trials.FirstOrDefault(t => t.Key.SequenceEqual(best));
+                if (hit.Key != null) finalObjective = hit.Value;
 
                 for (var i = 0; i < controllers.Count; i++)
                 {
@@ -304,6 +308,9 @@ namespace DWSIM.Automation.FluentAPI.Dynamics
                 RealTime = false,
                 // The state was just restored; restoring again would undo the gains we just applied.
                 RestoreInitialState = false,
+                // The controllers still start as in a normal run of this schedule, from the
+                // manipulated variable the state carries, not from a plain reset.
+                InitialStateRestored = true,
                 // Hot path: a snapshot plus compression per step would dominate the cost, and
                 // nothing here interpolates event transitions.
                 EnableHistorian = false,
@@ -312,9 +319,10 @@ namespace DWSIM.Automation.FluentAPI.Dynamics
             });
 
             double score;
-            if (run.Exceptions.Count > 0)
+            if (run.Exceptions.Count > 0 || run.Aborted)
             {
-                // A gain set that breaks the solver is simply a bad one.
+                // A gain set that breaks the solver is simply a bad one. A run cut short (abort,
+                // MaxWallTimePerRun) has integrated less error and must not look better than a full one.
                 score = double.MaxValue;
             }
             else

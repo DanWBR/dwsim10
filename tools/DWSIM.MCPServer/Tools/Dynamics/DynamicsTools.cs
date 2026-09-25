@@ -940,7 +940,7 @@ namespace DWSIM.MCPServer.Tools.Dynamics
         // --------------------------------------------------------------- Tuning
 
         [McpTool("dwsim_dynamics_tune_pid",
-            "Tune PID controllers by simulation: a Nelder-Mead search over their gains, running the schedule " +
+            "Tune PID controllers by simulation: a bounded simplex search (COBYLA) over their gains, running the schedule " +
             "once per trial and scoring the transient. Returns a run_id; poll dwsim_dynamics_status. Needs a " +
             "stored initial state to make trials comparable, and captures one when the schedule has none.")]
         public JObject TunePid(
