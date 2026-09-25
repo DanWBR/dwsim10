@@ -557,9 +557,11 @@ Namespace UnitOperations
 
                 Else
 
-                    'non-choked flow (isentropic nozzle; equals the choked flow at the critical ratio)
+                    'non-choked flow (isentropic nozzle; equals the choked flow at the critical ratio).
+                    'the back-pressure coefficient applies here too, so the flow stays continuous across
+                    'the critical ratio when Kb < 1 and still falls to zero as P2 reaches P1
 
-                    W = A * Kvc * Kd * (P1 / V1 * (2 * CpCv / (CpCv - 1)) * ((P2 / P1) ^ (2.0 / CpCv) - (P2 / P1) ^ ((CpCv + 1) / CpCv))) ^ 0.5
+                    W = A * Kvc * Kd * Kb * (P1 / V1 * (2 * CpCv / (CpCv - 1)) * ((P2 / P1) ^ (2.0 / CpCv) - (P2 / P1) ^ ((CpCv + 1) / CpCv))) ^ 0.5
 
                 End If
 

@@ -686,7 +686,8 @@ namespace DWSIM.Automation.DynamicRunner.Setup
                     SuggestedValue = setpoint,
                     UnitType = UnitOfMeasure.distance,
                     Apply = v => CreateLevelController(flowsheet, vessel, finalElement,
-                                                       Convert.ToDouble(v, CultureInfo.InvariantCulture))
+                                                       Convert.ToDouble(v, CultureInfo.InvariantCulture),
+                                                       options.IntegrationStep.TotalSeconds)
                 });
             }
         }
@@ -699,7 +700,7 @@ namespace DWSIM.Automation.DynamicRunner.Setup
         /// so the opening itself is written.
         /// </summary>
         private static void CreateLevelController(IFlowsheet flowsheet, ISimulationObject vessel,
-                                                  ISimulationObject valve, double setpoint)
+                                                  ISimulationObject valve, double setpoint, double stepSeconds)
         {
             var vesselTag = vessel.GraphicObject != null ? vessel.GraphicObject.Tag : vessel.Name;
             var tag = UniqueTag(flowsheet, "LIC-" + vesselTag);
@@ -743,13 +744,71 @@ namespace DWSIM.Automation.DynamicRunner.Setup
             pid.Active = true;
             pid.ManualOverride = false;
 
-            // A level loop is an integrating process: mostly proportional, a little reset, no
-            // derivative. These are a starting point for the tuner, not a tuning.
+            // A level loop is an integrating process: proportional and reset, no derivative. The
+            // gains come from the vessel and the valve (lambda tuning); without the data for that,
+            // a generic starting point for the tuner.
             pid.Kp = 1.0;
             pid.Ki = 0.1;
             pid.Kd = 0.0;
+            double kp, ki;
+            if (LevelLoopTuning(flowsheet, vessel, valve, setpoint, opening, stepSeconds, out kp, out ki))
+            {
+                pid.Kp = kp;
+                pid.Ki = ki;
+                // the integral term must be able to carry the valve across its whole range
+                pid.WindupGuard = Math.Max(pid.WindupGuard, 1.5 / ki);
+            }
 
             flowsheet.UpdateInterface();
+        }
+
+        /// <summary>
+        /// Lambda tuning of a PI level loop. The level integrates the imbalance between feed and
+        /// drain, so the process gain is the drain flow one point of opening moves, over the liquid
+        /// mass one metre of level holds: kProc = (W0 / op0) / (rho A), in m/s per % (a linear valve
+        /// around its present opening). With the closed-loop time constant lambda set to a quarter
+        /// of the time the vessel takes to turn its liquid over at the setpoint (at least ten
+        /// integration steps), Kc = 2 / (kProc lambda) in % per m and Ti = 2 lambda. The controller
+        /// works on the error divided by the setpoint and on a 0-100 % span, so Kp = Kc SP / 100 and
+        /// Ki = Kp / Ti. Returns false when the flow, the density or the geometry is missing.
+        /// </summary>
+        private static bool LevelLoopTuning(IFlowsheet flowsheet, ISimulationObject vessel, ISimulationObject valve,
+                                            double setpoint, double opening, double stepSeconds,
+                                            out double kp, out double ki)
+        {
+            kp = 0.0; ki = 0.0;
+            try
+            {
+                var inlet = ConnectedStream(flowsheet, valve, 0, true);
+                if (inlet == null || setpoint <= 0.0 || opening <= 0.0) return false;
+
+                var w0 = inlet.GetMassFlow();
+                double rho = 0.0;
+                IPhase liquid;
+                if (inlet.Phases.TryGetValue(1, out liquid) && liquid != null)
+                    rho = liquid.Properties.density.GetValueOrDefault();
+                if (rho <= 0.0) rho = inlet.Phases[0].Properties.density.GetValueOrDefault();
+
+                var height = DynamicsReadiness.DynamicValue(vessel, "Height");
+                var volume = DynamicsReadiness.DynamicValue(vessel, "Volume");
+                var tank = vessel as Tank;
+                if (volume <= 0.0 && tank != null) volume = tank.Volume;
+
+                if (!(w0 > 0.0) || !(rho > 0.0) || !(height > 0.0) || !(volume > 0.0)) return false;
+
+                var area = volume / height;
+                var kProc = (w0 / opening) / (rho * area);
+                var turnover = rho * area * setpoint / w0;
+                var lambda = Math.Max(0.25 * turnover, 10.0 * Math.Max(stepSeconds, 0.1));
+
+                var kc = 2.0 / (kProc * lambda);
+                var ti = 2.0 * lambda;
+
+                kp = kc * setpoint / 100.0;
+                ki = kp / ti;
+                return !double.IsNaN(kp) && !double.IsInfinity(kp) && kp > 0.0 && ki > 0.0;
+            }
+            catch { return false; }
         }
 
         /// <summary>
