@@ -3007,7 +3007,12 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
 
             'check if converged to the trivial solution.
 
-            If result.Count > 1 Then
+            'An activity-coefficient package has no trivial solution: its K (gamma Psat / P) comes from
+            'two separate models and is near 1 only close to a real azeotrope, where Flash_PV_1 has already
+            'rejected K within 0.01 of 1. The loose 0.21 test flagged every near-azeotropic bubble or dew
+            'point as trivial and solved it 13 more times (from T = 0, then at 11 pressures from 1 atm up
+            'and an extrapolation), which returned the same temperature.
+            If result.Count > 1 AndAlso PP.PackageType <> PropertyPackages.PackageType.ActivityCoefficient Then
                 Kvals = result(6)
                 If PP.AUX_CheckTrivial(Kvals, 0.21) Then trivial = True
             End If
