@@ -4013,10 +4013,13 @@ redirect2:                  IObj?.SetCurrent()
         ''' step the pressure up to the critical pressure instead, solving for the (descending) dew
         ''' temperature at each step, then close the curve on the critical point. Used only for the
         ''' cubic packages, whose critical point is known analytically (stopAtCP).
+        ''' The saturation-line continuation (TraceDewNewtonToCP) is tried first; the pressure stepping
+        ''' and the Hermite nose below are the fallback when it fails.
         ''' </summary>
         Private Sub TraceDewRetrogradeToCP(Vz As Double(), PO As List(Of Double), TVD As List(Of Double),
                                            HO As List(Of Double), SO As List(Of Double), VO As List(Of Double),
-                                           TCR As Double, PCR As Double, deltaP As Double)
+                                           TCR As Double, PCR As Double, deltaP As Double, Ki As Double())
+            If TraceDewNewtonToCP(Vz, Ki, PO, TVD, HO, SO, VO, TCR, PCR) Then Return
             Dim pPrev As Double = PO(PO.Count - 1)
             Dim tPrev As Double = TVD(TVD.Count - 1)
             ' Which side of the critical temperature the retrograde branch runs on: from below for a
@@ -4073,6 +4076,223 @@ redirect2:                  IObj?.SetCurrent()
             ' closed with the same shape-preserving nose so the descending branch meets the CP smoothly.
             FillDewToCP(Vz, PO, TVD, HO, SO, VO, TCR, PCR)
         End Sub
+
+        ''' <summary>
+        ''' Follows the dew line from its last converged point (the last of TVD/PO, K-values Ki) into the
+        ''' analytical critical point by continuation on the saturation equations (Michelsen, 1980). Unknowns
+        ''' ln K, ln T and ln P; equations ln K_i + ln phiV_i(z) - ln phiL_i(x) = 0 with x = z/K, sum(x) = 1,
+        ''' plus one unknown held fixed, the one changing fastest along the line. Fixed-T and fixed-P dew
+        ''' flashes break down at the cricondenbar and the cricondentherm and fall into the trivial solution
+        ''' near the critical point; the continuation passes both and reaches the critical point, including a
+        ''' cricondenbar above Pc at T above Tc (lean gases). Adds the traced points and the critical point and
+        ''' returns True; adds nothing and returns False when the continuation fails.
+        ''' </summary>
+        Private Function TraceDewNewtonToCP(Vz As Double(), Ki As Double(), PO As List(Of Double), TVD As List(Of Double),
+                                            HO As List(Of Double), SO As List(Of Double), VO As List(Of Double),
+                                            TCR As Double, PCR As Double) As Boolean
+
+            If Ki Is Nothing OrElse Ki.Length <> Vz.Length OrElse PO.Count = 0 OrElse TVD.Count = 0 Then Return False
+            Dim idx = Enumerable.Range(0, Vz.Length).Where(Function(i) Vz(i) > 0.0).ToArray()
+            Dim nc = idx.Length
+            If nc < 2 Then Return False
+            Dim zsum = idx.Sum(Function(i) Vz(i))
+            Dim z = idx.Select(Function(i) Vz(i) / zsum).ToArray()
+            Dim nx = nc + 2
+
+            Dim lnphi As Func(Of Double(), Double, Double, State, Double()) =
+                Function(comp, Tx, Px, st)
+                    Dim full(Vz.Length - 1) As Double
+                    For k = 0 To nc - 1
+                        full(idx(k)) = comp(k)
+                    Next
+                    Dim phi = DW_CalcFugCoeff(full, Tx, Px, st)
+                    Return idx.Select(Function(i) Math.Log(phi(i))).ToArray()
+                End Function
+
+            ' residuals at w = (ln K, ln T, ln P), holding w(sIdx) = sVal
+            Dim resid As Func(Of Double(), Integer, Double, Double()) =
+                Function(w, sIdx, sVal)
+                    Dim Tx = Math.Exp(w(nc)), Px = Math.Exp(w(nc + 1))
+                    Dim xl(nc - 1) As Double, sx As Double = 0.0
+                    For k = 0 To nc - 1
+                        xl(k) = z(k) * Math.Exp(-w(k))
+                        sx += xl(k)
+                    Next
+                    Dim lnPhiV = lnphi(z, Tx, Px, State.Vapor)
+                    Dim lnPhiL = lnphi(xl.Select(Function(v) v / sx).ToArray(), Tx, Px, State.Liquid)
+                    Dim f(nx - 1) As Double
+                    For k = 0 To nc - 1
+                        f(k) = w(k) + lnPhiV(k) - lnPhiL(k)
+                    Next
+                    f(nc) = sx - 1.0
+                    f(nc + 1) = w(sIdx) - sVal
+                    Return f
+                End Function
+
+            ' solves J d = rhs (forward-difference Jacobian at w); Nothing if singular
+            Dim linsolve As Func(Of Double(), Integer, Double, Double(), Double(), Double()) =
+                Function(w, sIdx, sVal, f0, rhs)
+                    Dim J As New Mapack.Matrix(nx, nx), b As New Mapack.Matrix(nx, 1)
+                    For c = 0 To nx - 1
+                        Dim wc = DirectCast(w.Clone(), Double())
+                        wc(c) += 1.0E-6
+                        Dim fc = resid(wc, sIdx, sVal)
+                        For r = 0 To nx - 1
+                            J(r, c) = (fc(r) - f0(r)) / 1.0E-6
+                        Next
+                    Next
+                    For r = 0 To nx - 1
+                        b(r, 0) = rhs(r)
+                    Next
+                    Try
+                        Dim lu As New Mapack.LuDecomposition(J)
+                        Dim sol = lu.Solve(b)
+                        Dim d(nx - 1) As Double
+                        For r = 0 To nx - 1
+                            d(r) = sol(r, 0)
+                            If Double.IsNaN(d(r)) OrElse Double.IsInfinity(d(r)) Then Return Nothing
+                        Next
+                        Return d
+                    Catch ex As Exception
+                        Return Nothing
+                    End Try
+                End Function
+
+            ' Newton holding w(sIdx) = sVal, damped to 0.5 in ln K, 2 % in T and 5 % in P per iteration
+            Dim newton As Func(Of Double(), Integer, Double, Tuple(Of Double(), Integer, Boolean)) =
+                Function(w0, sIdx, sVal)
+                    Dim w = DirectCast(w0.Clone(), Double())
+                    For it = 0 To 24
+                        Dim f = resid(w, sIdx, sVal)
+                        If f.Any(Function(v) Double.IsNaN(v) OrElse Double.IsInfinity(v)) Then Return Tuple.Create(w, it, False)
+                        If f.Max(Function(v) Math.Abs(v)) < 1.0E-9 Then Return Tuple.Create(w, it, True)
+                        Dim d = linsolve(w, sIdx, sVal, f, f.Select(Function(v) -v).ToArray())
+                        If d Is Nothing Then Return Tuple.Create(w, it, False)
+                        Dim sc = Math.Max(1.0, Math.Max(d.Take(nc).Max(Function(v) Math.Abs(v)) / 0.5,
+                                                        Math.Max(Math.Abs(d(nc)) / 0.02, Math.Abs(d(nc + 1)) / 0.05)))
+                        For r = 0 To nx - 1
+                            w(r) += d(r) / sc
+                        Next
+                    Next
+                    Return Tuple.Create(w, 25, False)
+                End Function
+
+            Dim maxLnK = Function(w As Double()) w.Take(nc).Max(Function(v) Math.Abs(v))
+            Dim argMaxAbs = Function(w As Double(), cnt As Integer) Enumerable.Range(0, cnt).OrderByDescending(Function(r) Math.Abs(w(r))).First()
+
+            Dim T0 = TVD(TVD.Count - 1), P0 = PO(PO.Count - 1)
+            Dim u(nx - 1) As Double
+            For k = 0 To nc - 1
+                Dim kv = Ki(idx(k))
+                If Not kv > 0.0 OrElse Double.IsInfinity(kv) Then Return False
+                u(k) = Math.Log(kv)
+            Next
+            u(nc) = Math.Log(T0)
+            u(nc + 1) = Math.Log(P0)
+            If maxLnK(u) < 0.05 Then Return False
+
+            ' re-converge the starting point holding its largest ln K (well conditioned at a cricondentherm,
+            ' where the fixed-pressure dew point is a double root)
+            Dim k0 = argMaxAbs(u, nc)
+            Dim start = newton(u, k0, u(k0))
+            u = start.Item1
+            If Not start.Item3 OrElse Math.Abs(Math.Exp(u(nc)) - T0) > 1.0 OrElse Math.Abs(Math.Exp(u(nc + 1)) - P0) > 0.02 * P0 OrElse maxLnK(u) < 0.05 Then Return False
+            Dim mK0 = maxLnK(u)
+
+            Dim tList As New List(Of Double), pList As New List(Of Double)
+            Dim uPrev As Double() = Nothing
+            Dim dS = 0.05
+            Dim si = nc + 1
+            Dim ended = False
+            Do While tList.Count < 400
+                ' unit tangent: derivative of the unknowns along the currently held one
+                Dim eLast(nx - 1) As Double
+                eLast(nx - 1) = 1.0
+                Dim tg = linsolve(u, si, u(si), resid(u, si, u(si)), eLast)
+                If tg Is Nothing Then Return False
+                Dim nrm = Math.Sqrt(tg.Sum(Function(v) v * v))
+                For r = 0 To nx - 1
+                    tg(r) /= nrm
+                Next
+                Dim kmax = argMaxAbs(u, nc)
+                ' first step heads toward the critical point (every ln K goes to zero), then keeps its direction
+                Dim flip = If(uPrev Is Nothing, tg(kmax) * u(kmax) > 0.0, Enumerable.Range(0, nx).Sum(Function(r) tg(r) * (u(r) - uPrev(r))) < 0.0)
+                If flip Then
+                    For r = 0 To nx - 1
+                        tg(r) = -tg(r)
+                    Next
+                End If
+                si = argMaxAbs(tg, nx)
+                Dim Tcur = Math.Exp(u(nc)), Pcur = Math.Exp(u(nc + 1)), mK = maxLnK(u)
+                Dim uNew As Double() = Nothing, itNew As Integer = 0
+                For tries = 1 To 8
+                    ' at most 1 K and 1 bar per point, and never more than a quarter of the remaining ln K, so the
+                    ' approach cannot jump across the critical point
+                    Dim h = Math.Min(dS / Math.Abs(tg(si)),
+                            Math.Min(Math.Log(1.0 + 1.0 / Tcur) / Math.Max(Math.Abs(tg(nc)), 1.0E-12),
+                            Math.Min(Math.Log(1.0 + 100000.0 / Pcur) / Math.Max(Math.Abs(tg(nc + 1)), 1.0E-12),
+                                     0.25 * mK / Math.Max(tg.Take(nc).Max(Function(v) Math.Abs(v)), 1.0E-12))))
+                    Dim up(nx - 1) As Double
+                    For r = 0 To nx - 1
+                        up(r) = u(r) + h * tg(r)
+                    Next
+                    Dim rn = newton(up, si, up(si))
+                    If rn.Item3 AndAlso Enumerable.Range(0, nx).Max(Function(r) Math.Abs(rn.Item1(r) - up(r))) < 0.1 * Math.Max(mK, 0.1) Then
+                        uNew = rn.Item1
+                        itNew = rn.Item2
+                        Exit For
+                    End If
+                    dS *= 0.5
+                Next
+                If uNew Is Nothing Then Return False
+                ' stepped across the critical point (every ln K changed sign): close on it
+                If Enumerable.Range(0, nc).All(Function(k) uNew(k) * u(k) < 0.0) Then
+                    ended = True
+                    Exit Do
+                End If
+                ' the analytical critical point sits within a few tenths of a kelvin of the EOS saturation line:
+                ' next to it, once the line starts moving away from it, stop and close on it
+                Dim dOld = Math.Max(Math.Abs(Tcur - TCR) / TCR, Math.Abs(Pcur - PCR) / PCR)
+                Dim dNew = Math.Max(Math.Abs(Math.Exp(uNew(nc)) - TCR) / TCR, Math.Abs(Math.Exp(uNew(nc + 1)) - PCR) / PCR)
+                If dOld < 0.01 AndAlso dNew > dOld Then
+                    ended = True
+                    Exit Do
+                End If
+                uPrev = u
+                u = uNew
+                tList.Add(Math.Exp(u(nc)))
+                pList.Add(Math.Exp(u(nc + 1)))
+                mK = maxLnK(u)
+                ' moving away from the critical point: a stray branch
+                If mK > 1.5 * mK0 Then Return False
+                If mK < 0.03 Then
+                    ended = True
+                    Exit Do
+                End If
+                dS = Math.Min(0.1, dS * If(itNew < 4, 1.5, 0.7))
+            Loop
+            If Not ended Then Return False
+
+            ' the traced line must end next to the analytical critical point
+            Dim tLast = If(tList.Count > 0, tList(tList.Count - 1), T0)
+            Dim pLast = If(pList.Count > 0, pList(pList.Count - 1), P0)
+            If Math.Max(Math.Abs(tLast - TCR) / TCR, Math.Abs(pLast - PCR) / PCR) > 0.02 Then Return False
+
+            For k = 0 To tList.Count - 1
+                TVD.Add(tList(k))
+                PO.Add(pList(k))
+                HO.Add(Me.DW_CalcEnthalpy(Vz, tList(k), pList(k), State.Vapor))
+                SO.Add(Me.DW_CalcEntropy(Vz, tList(k), pList(k), State.Vapor))
+                VO.Add(1 / Me.AUX_VAPDENS(tList(k), pList(k)) * Me.AUX_MMM(Phase.Mixture))
+            Next
+            TVD.Add(TCR)
+            PO.Add(PCR)
+            HO.Add(Me.DW_CalcEnthalpy(Vz, TCR, PCR, State.Vapor))
+            SO.Add(Me.DW_CalcEntropy(Vz, TCR, PCR, State.Vapor))
+            VO.Add(1 / Me.AUX_VAPDENS(TCR, PCR) * Me.AUX_MMM(Phase.Mixture))
+            Return True
+
+        End Function
 
         ''' <summary>
         ''' Close the dew line from its last converged point onto the analytical critical point with a
@@ -4935,7 +5155,7 @@ redirect2:                  IObj?.SetCurrent()
                     Dim dewLastRelCP = Math.Max(Math.Abs(TVD(TVD.Count - 1) - TCR) / TCR, Math.Abs(PO(PO.Count - 1) - PCR) / PCR)
                     Dim dewAtCP = (Math.Abs(PO(PO.Count - 1) - PCR) / PCR < 0.001 AndAlso Math.Abs(TVD(TVD.Count - 1) - TCR) / TCR < 0.001)
                     If Not dewAtCP AndAlso dewLastRelCP < 0.5 AndAlso PO(PO.Count - 1) < PCR Then
-                        TraceDewRetrogradeToCP(Vz, PO, TVD, HO, SO, VO, TCR, PCR, options.DewCurveDeltaP)
+                        TraceDewRetrogradeToCP(Vz, PO, TVD, HO, SO, VO, TCR, PCR, options.DewCurveDeltaP, KI)
                     End If
                 End If
 
