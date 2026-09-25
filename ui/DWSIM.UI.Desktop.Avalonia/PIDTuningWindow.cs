@@ -187,9 +187,13 @@ public sealed class PIDTuningWindow : Window
                 var simplex = new Simplex { MaxFunEvaluations = maxIts };
                 int counter = 1;
 
-                return simplex.ComputeMin(x =>
+                var best = simplex.ComputeMin(x0 =>
                 {
                     if (_abort) return double.MaxValue;
+
+                    // COBYLA treats the bounds as constraints it may violate on the way; run the
+                    // schedule with the gains held inside them.
+                    var x = ClampToBounds(x0, vars);
 
                     AppendFromWorker($"Iteration #{counter}:");
 
@@ -228,6 +232,7 @@ public sealed class PIDTuningWindow : Window
                     counter += 1;
                     return totalError;
                 }, vars.ToArray());
+                return ClampToBounds(best, vars);
             });
         }
         catch (Exception ex)
@@ -261,6 +266,14 @@ public sealed class PIDTuningWindow : Window
     }
 
     // -------------------------------------------------------------------------
+
+    private static double[] ClampToBounds(double[] x, List<OptSimplexBoundVariable> vars)
+    {
+        var clamped = new double[x.Length];
+        for (var i = 0; i < x.Length; i++)
+            clamped[i] = Math.Min(Math.Max(x[i], vars[i].LowerBound), vars[i].UpperBound);
+        return clamped;
+    }
 
     private void Append(string line)
     {

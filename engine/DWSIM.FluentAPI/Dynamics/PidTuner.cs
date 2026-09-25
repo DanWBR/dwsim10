@@ -226,21 +226,6 @@ namespace DWSIM.Automation.FluentAPI.Dynamics
 
             try
             {
-                OptMultivariateFunction objective = x =>
-                {
-                    if (options.AbortRequested != null && options.AbortRequested())
-                    {
-                        aborted = true;
-                        return double.MaxValue;
-                    }
-
-                    evaluations += 1;
-                    var score = Evaluate(flowsheet, schedule, controllers, x, options, log, evaluations);
-                    if (double.IsNaN(initialObjective)) initialObjective = score;
-                    trials.Add(new KeyValuePair<double[], double>((double[])x.Clone(), score));
-                    return score;
-                };
-
                 var variables = new List<OptSimplexBoundVariable>();
                 foreach (var c in controllers)
                 {
@@ -249,8 +234,26 @@ namespace DWSIM.Automation.FluentAPI.Dynamics
                     variables.Add(new OptSimplexBoundVariable(c.Kd, 0.0, options.KdMax));
                 }
 
+                OptMultivariateFunction objective = x =>
+                {
+                    if (options.AbortRequested != null && options.AbortRequested())
+                    {
+                        aborted = true;
+                        return double.MaxValue;
+                    }
+
+                    // COBYLA treats the bounds as constraints it may violate on the way; run the
+                    // schedule with the gains held inside them.
+                    var gains = ClampToBounds(x, variables);
+                    evaluations += 1;
+                    var score = Evaluate(flowsheet, schedule, controllers, gains, options, log, evaluations);
+                    if (double.IsNaN(initialObjective)) initialObjective = score;
+                    trials.Add(new KeyValuePair<double[], double>(gains, score));
+                    return score;
+                };
+
                 var simplex = new Simplex { MaxFunEvaluations = options.MaxEvaluations };
-                best = simplex.ComputeMin(objective, variables.ToArray());
+                best = ClampToBounds(simplex.ComputeMin(objective, variables.ToArray()), variables);
             }
             catch (Exception ex)
             {
@@ -294,6 +297,15 @@ namespace DWSIM.Automation.FluentAPI.Dynamics
         }
 
         // -------------------------------------------------------------------------
+
+        /// <summary>The point with each coordinate moved inside its variable's bounds.</summary>
+        internal static double[] ClampToBounds(double[] x, IList<OptSimplexBoundVariable> variables)
+        {
+            var clamped = new double[x.Length];
+            for (var i = 0; i < x.Length; i++)
+                clamped[i] = Math.Min(Math.Max(x[i], variables[i].LowerBound), variables[i].UpperBound);
+            return clamped;
+        }
 
         private static double Evaluate(IFlowsheet flowsheet, IDynamicsSchedule schedule,
             List<PIDController> controllers, double[] gains, PidTuningOptions options,
