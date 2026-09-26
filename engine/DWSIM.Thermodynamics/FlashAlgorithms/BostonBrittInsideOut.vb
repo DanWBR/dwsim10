@@ -1744,8 +1744,12 @@ final:      d2 = Date.Now
                     End If
                     i += 1
                 Loop Until i = n + 1
-                Pmin = Common.Min(Vp)
-                Pmax = Common.Max(Vp)
+                ' vapour pressures of the compounds present only: one at z = 0 says nothing about this mixture
+                Dim Vpz = Enumerable.Range(0, n + 1).Where(Function(q) Vz(q) <> 0.0).Select(Function(q) Vp(q)).ToArray()
+                If Vpz.Length = 0 Then Vpz = Vp
+
+                Pmin = Common.Min(Vpz)
+                Pmax = Common.Max(Vpz)
                 Pref = Pmin + (1 - V) * (Pmax - Pmin)
             Else
                 Pmin = Pref * 0.8
