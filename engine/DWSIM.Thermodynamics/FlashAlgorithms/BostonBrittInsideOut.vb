@@ -1460,12 +1460,17 @@ restart:    Do
                 Return Flash_PV_IO(Vz, P, V, Tseed, PP, ReuseKI, PrevKi)
             Catch ex As Exception
                 Dim Tretry As Double = EstimatePVTemperature(Vz, P, V, PP)
-                If Tretry = Tseed OrElse Double.IsNaN(Tretry) Then Throw
-                Try
-                    Return Flash_PV_IO(Vz, P, V, Tretry, PP, False, Nothing)
-                Catch
-                    Throw ex
-                End Try
+                If Tretry <> Tseed AndAlso Not Double.IsNaN(Tretry) Then
+                    Try
+                        Return Flash_PV_IO(Vz, P, V, Tretry, PP, False, Nothing)
+                    Catch
+                    End Try
+                End If
+                'near the critical point both starts can end on a stationary point that is not the equilibrium
+                'split: the nested-loops flash, the default algorithm, answers if a PT flash confirms its result
+                Dim rn = NestedLoopsFallback(Vz, P, 0.0, V, PP, True)
+                If rn IsNot Nothing Then Return rn
+                Throw ex
             End Try
 
         End Function
@@ -1765,8 +1770,11 @@ final:      d2 = Date.Now
 
             dt = d2 - d1
 
-            If PP.AUX_CheckTrivial(Ki, 0.01, Vz) Then Throw New Exception("PV Flash [IO]: Invalid result: converged to the trivial solution (T = " & T & " ).")
-            If V > 0.0 AndAlso V < 1.0 AndAlso NearTrivialRejected(Vz, P, T, V, Ki, PP) Then Throw New Exception("PV Flash [IO]: Invalid result: converged next to the trivial solution (T = " & T & " ).")
+            'a single compound skips the loop (T is its saturation temperature) and its K values are 1 by definition
+            If Not PP.AUX_IS_SINGLECOMP(Vz) Then
+                If PP.AUX_CheckTrivial(Ki, 0.01, Vz) Then Throw New Exception("PV Flash [IO]: Invalid result: converged to the trivial solution (T = " & T & " ).")
+                If NearTrivialRejected(Vz, P, T, V, Ki, PP) Then Throw New Exception("PV Flash [IO]: Invalid result: converged next to the trivial solution (T = " & T & " ).")
+            End If
 
             WriteDebugInfo("PV Flash [IO]: Converged in " & ecount & " iterations. Time taken: " & dt.TotalMilliseconds & " ms. Error function value: " & AbsSum(fx))
 
@@ -1775,6 +1783,59 @@ final:      d2 = Date.Now
         End Function
 
         Public Overrides Function Flash_TV(ByVal Vz As Double(), ByVal T As Double, ByVal V As Double, ByVal Pref As Double, ByVal PP As PropertyPackages.PropertyPackage, Optional ByVal ReuseKI As Boolean = False, Optional ByVal PrevKi As Double() = Nothing) As Object
+
+            If PP.AUX_IS_SINGLECOMP(Vz) Then Return Flash_TV_IO(Vz, T, V, Pref, PP, ReuseKI, PrevKi)
+
+            'The Kb model is fitted to the EOS K values at the starting pressure. Far from the answer they can be
+            'all near 1 (the feed takes the vapour root as the liquid), the slope comes out near 1 and the pressure
+            'update divides by zero; after a failure the loop starts again from the ideal (Raoult) pressure of the
+            'specification, and then the nested-loops flash answers if a PT flash confirms its result.
+            Try
+                Return Flash_TV_IO(Vz, T, V, Pref, PP, ReuseKI, PrevKi)
+            Catch ex As Exception
+                Dim Pretry As Double = EstimateTVPressure(Vz, T, V, PP)
+                If Pretry <> Pref AndAlso Pretry > 0.0 AndAlso Not Double.IsInfinity(Pretry) Then
+                    Try
+                        Return Flash_TV_IO(Vz, T, V, Pretry, PP, False, Nothing)
+                    Catch
+                    End Try
+                End If
+                Dim rn = NestedLoopsFallback(Vz, 0.0, T, V, PP, False)
+                If rn IsNot Nothing Then Return rn
+                Throw ex
+            End Try
+
+        End Function
+
+        ''' <summary>
+        ''' Pressure at which the ideal (Raoult) K values meet the specified vapour fraction at T.
+        ''' </summary>
+        ''' <remarks>
+        ''' Above its critical temperature a compound's vapour pressure correlation is an extrapolation (hydrogen
+        ''' at 140 K gives 2E+5 bar); the Wilson estimate stands in for it there.
+        ''' </remarks>
+        Private Function EstimateTVPressure(Vz As Double(), T As Double, V As Double, PP As PropertyPackages.PropertyPackage) As Double
+            Dim nc As Integer = Vz.Length - 1
+            Dim Tc = PP.RET_VTC(), Pc = PP.RET_VPC(), w = PP.RET_VW()
+            Dim Ps(nc) As Double
+            For i As Integer = 0 To nc
+                If T < Tc(i) Then Ps(i) = PP.AUX_PVAPi(i, T) Else Ps(i) = Pc(i) * Exp(5.373 * (1 + w(i)) * (1 - Tc(i) / T))
+            Next
+            Dim present = Enumerable.Range(0, nc + 1).Where(Function(i) Vz(i) > 0.0 AndAlso Ps(i) > 0.0).ToArray()
+            If present.Length = 0 Then Return 0.0
+            If V <= 0.0 Then Return present.Sum(Function(i) Vz(i) * Ps(i))
+            If V >= 1.0 Then Return 1.0 / present.Sum(Function(i) Vz(i) / Ps(i))
+            'Rachford-Rice in P, decreasing in P between the lowest and the highest vapour pressure
+            Dim lo As Double = present.Min(Function(i) Ps(i)), hi As Double = present.Max(Function(i) Ps(i)), m As Double = lo
+            For k As Integer = 1 To 200
+                m = Sqrt(lo * hi)
+                If present.Sum(Function(i) Vz(i) * (Ps(i) / m - 1) / (1 + V * (Ps(i) / m - 1))) > 0.0 Then lo = m Else hi = m
+                If hi / lo < 1.0000001 Then Exit For
+            Next
+            Return m
+        End Function
+
+        Private Function Flash_TV_IO(ByVal Vz As Double(), ByVal T As Double, ByVal V As Double, ByVal Pref As Double, ByVal PP As PropertyPackages.PropertyPackage, ByVal ReuseKI As Boolean, ByVal PrevKi As Double()) As Object
 
             Dim d1, d2 As Date, dt As TimeSpan
             Dim i, j As Integer
@@ -1810,7 +1871,9 @@ final:      d2 = Date.Now
                 ' vapour pressures of the compounds present only: one at z = 0 says nothing about this mixture
                 ' and with a vapour pressure: above 0.9 Tc it is left at zero, and a zero Pmin gives P = 0 at V = 1
                 Dim Vpz = Enumerable.Range(0, n + 1).Where(Function(q) Vz(q) <> 0.0 AndAlso Vp(q) > 0.0).Select(Function(q) Vp(q)).ToArray()
-                If Vpz.Length = 0 Then Vpz = Vp
+                'every compound present above 0.9 Tc: start from the ideal pressure (Common.Min of the all-zero Vp read
+                'past its end)
+                If Vpz.Length = 0 Then Vpz = {EstimateTVPressure(Vz, T, V, PP)}
 
                 Pmin = Common.Min(Vpz)
                 Pmax = Common.Max(Vpz)
@@ -2050,8 +2113,11 @@ final:      d2 = Date.Now
 
             dt = d2 - d1
 
-            If PP.AUX_CheckTrivial(Ki, 0.01, Vz) Then Throw New Exception("TV Flash [IO]: Invalid result: converged to the trivial solution (P = " & P & " ).")
-            If V > 0.0 AndAlso V < 1.0 AndAlso NearTrivialRejected(Vz, P, T, V, Ki, PP) Then Throw New Exception("TV Flash [IO]: Invalid result: converged next to the trivial solution (P = " & P & " ).")
+            'a single compound skips the loop (P is its vapour pressure) and its K values are 1 by definition
+            If Not PP.AUX_IS_SINGLECOMP(Vz) Then
+                If PP.AUX_CheckTrivial(Ki, 0.01, Vz) Then Throw New Exception("TV Flash [IO]: Invalid result: converged to the trivial solution (P = " & P & " ).")
+                If NearTrivialRejected(Vz, P, T, V, Ki, PP) Then Throw New Exception("TV Flash [IO]: Invalid result: converged next to the trivial solution (P = " & P & " ).")
+            End If
 
             WriteDebugInfo("TV Flash [IO]: Converged in " & ecount & " iterations. Time taken: " & dt.TotalMilliseconds & " ms. Error function value: " & AbsSum(fx))
 
@@ -2089,22 +2155,74 @@ final:      d2 = Date.Now
         End Function
 
         ''' <summary>
-        ''' True when a two-phase PV/TV result sits next to the trivial solution and a PT flash does not confirm it.
+        ''' True when a PV/TV result lies next to the trivial solution or near the critical point and a PT flash at
+        ''' it does not confirm it.
         ''' </summary>
         ''' <remarks>
-        ''' Near the critical region the inside-out equations also hold at unstable stationary points where both
-        ''' phases are almost the feed, and the loop converges there as readily as on the real split. Only results
-        ''' whose K values span less than 0.1 in ln K are checked: a PT flash at the result has to give the
-        ''' specified vapour fraction within 0.01.
+        ''' Near the critical region the inside-out equations also hold at stationary points that are not the
+        ''' equilibrium split (both phases almost the feed, or a split a PT flash does not find), and the loop
+        ''' converges there as readily as on the real one; with the outer tolerance of the flash settings a
+        ''' near-critical split also lands some tenths of a kelvin away. Results whose K values span less than
+        ''' NearCriticalLnKSpan in ln K are checked with PTConfirms.
         ''' </remarks>
         Private Function NearTrivialRejected(Vz As Double(), P As Double, T As Double, V As Double, K As Double(), PP As PropertyPackages.PropertyPackage) As Boolean
             Dim lnK = Enumerable.Range(0, Vz.Length).Where(Function(i) Vz(i) <> 0.0 AndAlso K(i) > 0.0).Select(Function(i) Log(K(i))).ToArray()
-            If lnK.Length = 0 OrElse lnK.Max() - lnK.Min() >= 0.1 Then Return False
-            Dim pt As New BostonBrittInsideOut With {.FlashSettings = FlashSettings}
+            If lnK.Length = 0 OrElse lnK.Max() - lnK.Min() >= NearCriticalLnKSpan Then Return False
+            Return Not PTConfirms(Vz, P, T, V, PP)
+        End Function
+
+        ''' <summary>ln K span below which a PV/TV result is confirmed with a PT flash.</summary>
+        Private Const NearCriticalLnKSpan As Double = 1.5
+
+        ''' <summary>
+        ''' True when a PT flash at (T, P) gives the vapour fraction V: a two-phase V within 0.01, or within a quarter
+        ''' of the smaller phase fraction when that is less; a bubble or dew point within 0.01.
+        ''' </summary>
+        ''' <remarks>
+        ''' The PT flash runs to 1E-7 with up to 1000 iterations: with the default 1E-4 it is itself off by up to
+        ''' 0.06 near the critical point (a correct CO2/N2 dew point came out at V = 0.94) or stops at 100.
+        ''' </remarks>
+        Private Function PTConfirms(Vz As Double(), P As Double, T As Double, V As Double, PP As PropertyPackages.PropertyPackage) As Boolean
+            Dim tol As Double = If(V > 0.0 AndAlso V < 1.0, Math.Min(0.01, 0.25 * Math.Min(V, 1.0 - V)), 0.01)
+            Dim ptsettings As New Dictionary(Of Interfaces.Enums.FlashSetting, String)(FlashSettings)
+            ptsettings(Interfaces.Enums.FlashSetting.PTFlash_External_Loop_Tolerance) = "0.0000001"
+            ptsettings(Interfaces.Enums.FlashSetting.PTFlash_Maximum_Number_Of_External_Iterations) = "1000"
+            Dim pt As New BostonBrittInsideOut With {.FlashSettings = ptsettings}
             Try
-                Return Abs(CDbl(pt.Flash_PT(Vz, P, T, PP)(1)) - V) > 0.01
+                Return Abs(CDbl(pt.Flash_PT(Vz, P, T, PP)(1)) - V) <= tol
             Catch ex As Exception
-                Return True
+                Return False
+            End Try
+        End Function
+
+        ''' <summary>
+        ''' The nested-loops PV (TV) flash, returned only when it is an equilibrium state that a PT flash confirms;
+        ''' Nothing otherwise.
+        ''' </summary>
+        ''' <remarks>
+        ''' The K values at the result have to reproduce y/x within 0.01 in ln K, they must not be trivial, and
+        ''' PTConfirms must accept it wherever its K values lie: near the critical point the nested-loops flash
+        ''' also returns saturation points where the feed is two-phase.
+        ''' </remarks>
+        Private Function NestedLoopsFallback(Vz As Double(), P As Double, T As Double, V As Double, PP As PropertyPackages.PropertyPackage, pv As Boolean) As Object
+            Try
+                Dim nl As New NestedLoops() With {.FlashSettings = Me.FlashSettings}
+                Dim res As Object() = If(pv, nl.Flash_PV(Vz, P, V, 0.0, PP), nl.Flash_TV(Vz, T, V, 0.0, PP))
+                If pv Then T = Convert.ToDouble(res(4)) Else P = Convert.ToDouble(res(4))
+                Dim x = DirectCast(res(2), Double()), y = DirectCast(res(3), Double())
+                If Double.IsNaN(T) OrElse Double.IsNaN(P) OrElse T <= 0.0 OrElse P <= 0.0 Then Return Nothing
+                If Abs(Convert.ToDouble(res(1)) - V) > 0.000001 Then Return Nothing
+                Dim K = PP.DW_CalcKvalue(x, y, T, P)
+                For i As Integer = 0 To Vz.Length - 1
+                    If Vz(i) = 0.0 Then Continue For
+                    If Not (x(i) > 0.0 AndAlso y(i) > 0.0 AndAlso K(i) > 0.0) Then Return Nothing
+                    If Abs(Log(K(i)) - Log(y(i) / x(i))) > 0.01 Then Return Nothing
+                Next
+                If PP.AUX_CheckTrivial(K, 0.01, Vz) Then Return Nothing
+                If Not PTConfirms(Vz, P, T, V, PP) Then Return Nothing
+                Return res
+            Catch ex As Exception
+                Return Nothing
             End Try
         End Function
 
