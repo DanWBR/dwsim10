@@ -109,6 +109,11 @@ Namespace MathEx
             ElseIf Math.Abs(p) < 0.00000000000001 Then
                 'triple root
                 roots.Add(-shift)
+            ElseIf p > 0.0# Then
+                'p > 0 has one real root, and the trigonometric form below would take Sqrt(-p) (NaN, no root at all).
+                'Reached when 0 < disc <= 1E-12, next to a pure compound's critical point.
+                Dim s = Math.Sqrt(disc)
+                roots.Add(Cbrt(-q / 2.0# + s) + Cbrt(-q / 2.0# - s) - shift)
             Else
                 'three real roots (disc <= 0): trigonometric form
                 Dim m = 2.0# * Math.Sqrt(-p / 3.0#)
@@ -119,6 +124,11 @@ Namespace MathEx
                 For k = 0 To 2
                     roots.Add(m * Math.Cos(theta - 2.0# * Math.PI * k / 3.0#) - shift)
                 Next
+                ' Near a double root (|arg| close to 1) theta carries an error of about sqrt(eps), so the two close roots
+                ' come out with an absolute error far larger than their spacing; at |arg| = 1 they coincide at the local
+                ' extremum of the cubic, which is no root, and the polish below cannot leave it. The liquid pair of an EOS
+                ' at very low pressure (Z of the order of B, 1E-11 for C2/C3 at 85 K and 1E-4 Pa) is such a pair.
+                If Math.Abs(arg) > 0.999999 Then roots = SplitClosePair(a, b, c, roots)
             End If
 
             ' The closed forms carry an absolute error of about 1E-16 x the largest root. The liquid root of an
@@ -151,6 +161,41 @@ Namespace MathEx
                 f = fn
             Next
             Return r
+        End Function
+
+        ''' <summary>
+        ''' Recomputes the two close roots of a three-real-root cubic from the isolated one, which is well conditioned:
+        ''' it is polished, and the pair follows from Vieta's relations (product -c/r1; sum (b - product)/r1 when r1 is
+        ''' the largest root, -a - r1 otherwise) with the cancellation-free quadratic formula. A pair whose discriminant
+        ''' is negative beyond rounding is complex (the trigonometric form invented it by clamping arg) and is dropped.
+        ''' </summary>
+        Private Shared Function SplitClosePair(ByVal a As Double, ByVal b As Double, ByVal c As Double, ByVal roots As List(Of Double)) As List(Of Double)
+            Dim i1 As Integer = 0
+            Dim gap1 As Double = -1.0#
+            For k = 0 To 2
+                Dim g = Math.Min(Math.Abs(roots(k) - roots((k + 1) Mod 3)), Math.Abs(roots(k) - roots((k + 2) Mod 3)))
+                If g > gap1 Then
+                    gap1 = g
+                    i1 = k
+                End If
+            Next
+            Dim r1 = PolishCubicRoot(a, b, c, roots(i1))
+            If r1 = 0.0# Then Return roots
+            Dim prod = -c / r1
+            Dim sum As Double
+            If Math.Abs(r1) >= Math.Abs(roots((i1 + 1) Mod 3)) AndAlso Math.Abs(r1) >= Math.Abs(roots((i1 + 2) Mod 3)) Then
+                sum = (b - prod) / r1
+            Else
+                sum = -a - r1
+            End If
+            Dim d = sum * sum - 4.0# * prod
+            If d < 0.0# Then
+                If d < -0.00000000000001 * sum * sum Then Return New List(Of Double) From {r1}
+                Return New List(Of Double) From {r1, sum / 2.0#, sum / 2.0#}
+            End If
+            Dim h = (sum + If(sum < 0.0#, -Math.Sqrt(d), Math.Sqrt(d))) / 2.0#
+            If h = 0.0# Then Return roots
+            Return New List(Of Double) From {r1, h, prod / h}
         End Function
 
         Private Shared Function Cbrt(ByVal x As Double) As Double
