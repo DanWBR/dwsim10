@@ -236,9 +236,13 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
 
             If result(0) > 0 Then
 
-                Dim lps = GetPhaseSplitEstimates(T, P, L, result(2), PP)
+                'T and L are fields this instance has not set yet (T = 0 K made the stability test throw); the
+                'estimates belong to the two-phase result, whose vapour is not a second liquid
+                Dim lps = GetPhaseSplitEstimates(result(4), P, result(0), result(2), PP, result(3))
 
-                result = Flash_PH_3P(Vz, result(1), lps(0), lps(2), result(3), lps(1), lps(3), P, H, result(4), PP)
+                If lps(2) > 0 Then
+                    result = Flash_PH_3P(Vz, result(1), lps(0), lps(2), result(3), lps(1), lps(3), P, H, result(4), PP)
+                End If
 
             End If
 
@@ -267,9 +271,12 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
 
                 If result(0) > 0 Then
 
-                    Dim lps = GetPhaseSplitEstimates(T, P, L, result(2), PP)
+                    'as in Flash_PH
+                    Dim lps = GetPhaseSplitEstimates(result(4), P, result(0), result(2), PP, result(3))
 
-                    result = Flash_PS_3P(Vz, result(1), lps(0), lps(2), result(3), lps(1), lps(3), P, S, result(4), PP)
+                    If lps(2) > 0 Then
+                        result = Flash_PS_3P(Vz, result(1), lps(0), lps(2), result(3), lps(1), lps(3), P, S, result(4), PP)
+                    End If
 
                 End If
 
@@ -332,7 +339,7 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                     Vtrials(j, idx(j)) = 1
                 Next
 
-                Dim stresult = StabTest2(T, P, result(2), PP.RET_VTC, PP)
+                Dim stresult = WithoutKnownPhases(StabTest2(T, P, result(2), PP.RET_VTC, PP), result(2), result(3))
 
                 If stresult.Count > 0 Then
 
@@ -408,7 +415,7 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                     Vtrials(j, idx(j)) = 1
                 Next
 
-                Dim stresult = StabTest2(T, P, result(2), PP.RET_VTC, PP)
+                Dim stresult = WithoutKnownPhases(StabTest2(T, P, result(2), PP.RET_VTC, PP), result(2), result(3))
 
                 If stresult.Count > 0 Then
 
@@ -434,6 +441,19 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
             WriteDebugInfo("PV Flash [IO3P]: Converged in " & ecount & " iterations. Time taken: " & dt.TotalMilliseconds & " ms.")
 
             Return result
+
+        End Function
+
+        ''' <summary>
+        ''' The stability-test candidates that are neither the tested liquid x nor the vapour y (max |dx_i| &lt; 0.005),
+        ''' the rule GetPhaseSplitEstimates applies. StabTest2 calls a candidate a liquid when its liquid and vapour
+        ''' roots tie, so near a bubble point the vapour already present came back as a second liquid.
+        ''' </summary>
+        Private Shared Function WithoutKnownPhases(stresult As List(Of Double()), x As Double(), y As Double()) As List(Of Double())
+
+            Dim same = Function(cand As Double(), refc As Double()) cand.SubtractY(refc).Select(Function(dx) Math.Abs(dx)).Max < 0.005
+
+            Return stresult.Where(Function(cand) Not same(cand, x) AndAlso Not (y IsNot Nothing AndAlso y.Length = x.Length AndAlso y.SumY > 0.0 AndAlso same(cand, y))).ToList()
 
         End Function
 

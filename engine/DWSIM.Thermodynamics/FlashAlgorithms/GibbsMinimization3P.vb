@@ -385,8 +385,10 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
 
             L1 = result(0)
             V = result(1)
-            Vx1 = result(2)
-            Vy = result(3)
+            'copies: NL returns the feed array itself as the vapour of a single-phase result, and the
+            'three-phase objective below writes into Vx1 and Vy, which overwrote the caller's composition
+            Vx1 = DirectCast(result(2), Double()).Clone()
+            Vy = DirectCast(result(3), Double()).Clone()
 
             objfunc = ObjFuncType.MinGibbs
 
@@ -412,6 +414,11 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
             IObj?.SetCurrent
 
             Dim stresult = StabTest2(T, P, Vx1, PP.RET_VTC, PP)
+
+            'drop the candidates equal to the tested liquid or to the vapour (max |dx_i| < 0.005), as
+            'GetPhaseSplitEstimates does: near a bubble point StabTest2 returns the vapour as a liquid
+            Dim same = Function(cand As Double(), refc As Double()) cand.SubtractY(refc).Select(Function(dx) Math.Abs(dx)).Max < 0.005
+            stresult = stresult.Where(Function(cand) Not same(cand, Vx1) AndAlso Not (Vy.SumY > 0.0 AndAlso same(cand, Vy))).ToList()
 
             If stresult.Count > 0 Then
 
