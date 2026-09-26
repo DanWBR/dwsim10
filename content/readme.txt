@@ -61,6 +61,8 @@ Version 10.2.10
 - [CHG] PID controller: offset, span and manual output can be set by events, ramps and cause-and-effect items
 - [CHG] PID controller: Manipulated Variable Span field on the Advanced tab of the editor in both interfaces
 - [CHG] Dynamics Wizard: the proposed level controller is tuned from the vessel and the valve (lambda tuning), so it no longer cycles on small vessels
+- [CHG] Distillation columns with activity-coefficient models (NRTL, UNIQUAC, UNIFAC, Wilson) solve much faster with the Wang-Henke solvers (pressure-swing tutorial acetone column 48 s to 0.5 s, same results)
+- [CHG] PID tuning tool (Classic): the unused Solver box was removed and the settings laid out so the controller list no longer covers Max Iterations
 - [FIX] Gibbs reactor in adiabatic mode: the phase split inside the Gibbs minimization was computed at the starting temperature and never refreshed, so a reactor solved for the first time settled on a composition that is not an equilibrium (water-gas shift at 600 K and 10 atm: 910 K and 79 % CO conversion against 827 K and 56 % from the equilibrium reactor); the loop now follows the trial temperature, starts from the inlet temperature and stops with a message after 100 passes
 - [FIX] Gibbs reactor: the first solve of a new reactor stopped on "invalid initial estimates" and only the second attempt ran; the feed is the starting point when there is no stored solution
 - [FIX] Equilibrium reactor in adiabatic mode: a fresh reactor with no outlet temperature estimate evaluated the equilibrium constant at 0 K and stopped on "evaluated to infinity"; the inlet temperature is the starting point
@@ -120,6 +122,12 @@ Version 10.2.10
 - [FIX] Dynamics: events stamped at the start of a run act before the first controller step (a span or setpoint set at 00:00:00 missed the first calculation)
 - [FIX] Relief valve: the back-pressure coefficient also applies to non-choked vapour flow (the flow jumped at the critical ratio with Kb below one)
 - [FIX] Methane steam reforming sample: catalyst particle diameter 2 mm (it was stored as 2 m, so the reactor had almost no pressure drop)
+- [FIX] PID tuning: the window and the automation tuner (Fluent API, MCP, assistant) return the same gains; trials start from the initial state of the schedule, stay inside the gain bounds, and a cancelled trial never wins
+- [FIX] Phase envelope: bubble and dew lines traced into the critical point along the saturation equations (a lean gas dew line reaches its real cricondenbar above the critical pressure); critical point corrected by up to 0.3 K
+- [FIX] Phase envelope: a lean gas with SRK, mixtures with a compound at zero fraction and a pure compound among several failed; some PR78 methane/ethane envelopes took 30 s
+- [FIX] Peng-Robinson and SRK: liquid compressibility factor imprecise under deep vacuum (wrong bubble points below about 1 kPa, failed flashes)
+- [FIX] Bubble and dew points at a given temperature with a compound at zero fraction started from its vapour pressure (Boston-Britt and Simple LLE failed)
+- [FIX] Compound property editor opened as modified (Avalonia) or marked a compound modified on an unchanged cell (Classic)
 
 Version 10.2.9
 
