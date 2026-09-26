@@ -140,7 +140,9 @@ restart:        fV = TRIPLESUM(Vc_inf, Vz, VTc, VPc, VVc, Vw, VKIj)
                     fbb = fcc
                     fcc = faa
                 End If
-                tol11 = 0.000001
+                ' relative to the co-volume (critical volumes are ~3.5 b, about 1E-4 m3/mol): an absolute
+                ' 1E-6 m3/mol is a 1 % volume band, which moves the critical point 0.1-0.3 K along the spinodal
+                tol11 = 0.000000001 * b
                 xmm = 0.5 * (ccc - bbb)
                 If (Math.Abs(xmm) <= tol11) Or (fbb = 0) Then GoTo Final3
                 If Math.Abs(fbb) < tol11 Then GoTo Final3
