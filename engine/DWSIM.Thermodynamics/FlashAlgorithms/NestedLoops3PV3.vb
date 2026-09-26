@@ -1191,6 +1191,10 @@ out:
             '= Search entropy in operating range by iterating on either T or V                =
             '==================================================================================
 
+            'the iterate with the smallest entropy error; the T solve below starts there if this loop fails
+            Dim bestT As Double = T
+            Dim bestErr As Double = Double.MaxValue
+
             ecount = 0
             Do
 
@@ -1213,6 +1217,11 @@ out:
                 Vy = ErrRes(4)
                 Vx1 = ErrRes(5)
                 Vx2 = ErrRes(7)
+
+                If Abs(fx0) < bestErr Then
+                    bestErr = Abs(fx0)
+                    bestT = T
+                End If
 
                 IObj2?.SetCurrent()
 
@@ -1265,10 +1274,41 @@ out:
 
             Loop Until ecount > maxitEXT Or Double.IsNaN(X0)
 
-            If ecount > maxitEXT Or Double.IsNaN(X0) Then
+            'The PV route takes the temperature of a three-phase result from Flash_PV_3P, which solves it by
+            'gamma-Psat, and can keep a two-phase result where the PT flash finds three phases. Its entropy then
+            'matches the specification at a temperature where the PT flash gives another state. Such results,
+            'and a loop that did not converge, are solved on T with the PT flash.
+            Dim ErrPT As Object = Nothing
+            Try
+                If ecount > maxitEXT Or Double.IsNaN(X0) Then
+                    prevres = Nothing
+                    ecount += 1
+                    ErrPT = SolvePS_T(Vz, P, S, bestT, Serror("PT", bestT, S, P, bestT, Vz), tolEXT, maxitEXT, ecount)
+                ElseIf Type = "PV" Then
+                    prevres = Nothing
+                    Dim chk As Object = Serror("PT", T, S, P, T, Vz)
+                    Dim fchk As Double = chk(0)
+                    Dim l2chk As Double = chk(6)
+                    If Abs(fchk) >= tolEXT AndAlso (L2 > 0.0 OrElse l2chk > 0.0) Then
+                        ecount += 1
+                        ErrPT = SolvePS_T(Vz, P, S, T, chk, tolEXT, maxitEXT, ecount)
+                    End If
+                End If
+            Catch ex As Exception
                 IObj?.Close()
-                Throw New Exception(Calculator.GetLocalString("PropPack_FlashMaxIt"))
-            End If
+                Throw
+            End Try
+
+            'the PT flash of the check writes V, L1, L2 and the phase compositions of this instance, so the
+            'result is set again from the converged evaluation
+            Dim ErrFinal As Object = If(ErrPT, ErrRes)
+            T = ErrFinal(1)
+            V = ErrFinal(2)
+            L1 = ErrFinal(3)
+            Vy = ErrFinal(4)
+            Vx1 = ErrFinal(5)
+            L2 = ErrFinal(6)
+            Vx2 = ErrFinal(7)
 
             IObj?.Paragraphs.Add(String.Format("The PS Flash algorithm converged in {0} iterations. Final Temperature value: {1} K. Final vapor fraction: {2}", ecount, T, V))
 
@@ -1285,6 +1325,68 @@ out:
             IObj?.Close()
 
             Return New Object() {L1, V, Vx1, Vy, T, ecount, Ki, L2, Vx2, 0.0#, PP.RET_NullVector}
+
+        End Function
+
+        ''' <summary>
+        ''' Solves S(T) = S at pressure P with the PT flash of this class, from T0, whose Serror result is r0.
+        ''' Brackets the root with steps of 1, 2, 4... K, then narrows it by the Illinois regula falsi.
+        ''' Returns the Serror result at the solution and adds the flash calls to iterations.
+        ''' </summary>
+        Private Function SolvePS_T(Vz As Double(), P As Double, S As Double, T0 As Double, r0 As Object, tol As Double, maxit As Integer, ByRef iterations As Integer) As Object
+
+            Const Tlow As Double = 20.0, Thigh As Double = 10000.0
+
+            Dim a As Double = T0
+            Dim fa As Double = r0(0)
+            If Abs(fa) < tol Then Return r0
+
+            'the entropy grows with T, so the error (specified - calculated) falls with it
+            Dim h As Double = If(fa > 0.0, 1.0, -1.0)
+            Dim b, fb, c, fc As Double
+            Dim rb, rc As Object
+            Dim icount As Integer = 0
+
+            Do
+                b = Math.Min(Math.Max(a + h, Tlow), Thigh)
+                prevres = Nothing
+                rb = Serror("PT", b, S, P, b, Vz)
+                fb = rb(0)
+                icount += 1
+                If Abs(fb) < tol Then
+                    iterations += icount
+                    Return rb
+                End If
+                If Sign(fb) <> Sign(fa) Then Exit Do
+                If icount >= maxit OrElse b <= Tlow OrElse b >= Thigh Then Throw New Exception(Calculator.GetLocalString("PropPack_FlashMaxIt"))
+                a = b
+                fa = fb
+                h *= 2.0
+            Loop
+
+            Do
+                c = b - fb * (b - a) / (fb - fa)
+                prevres = Nothing
+                rc = Serror("PT", c, S, P, c, Vz)
+                fc = rc(0)
+                icount += 1
+                If Abs(fc) < tol Then
+                    iterations += icount
+                    Return rc
+                End If
+                If Sign(fc) <> Sign(fb) Then
+                    a = b
+                    fa = fb
+                Else
+                    fa /= 2.0
+                End If
+                b = c
+                fb = fc
+                If Abs(b - a) < 0.000001 Then
+                    Throw New Exception(String.Format("PS Flash [NL3P]: no temperature gives the specified entropy at {0} Pa. The entropy of the PT flash jumps across it at T = {1:G8} K.", P, b))
+                End If
+                If icount >= maxit Then Throw New Exception(Calculator.GetLocalString("PropPack_FlashMaxIt"))
+            Loop
 
         End Function
 
