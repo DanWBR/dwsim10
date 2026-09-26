@@ -1995,12 +1995,17 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
             IObj?.Paragraphs.Add(String.Format("Final converged values for K: {0}", K.ToMathArrayString))
             IObj?.Paragraphs.Add(String.Format("Final converged values for Q: {0}", Q.ToMathArrayString))
 
-            For Each Ki In _Kval
-                If pp.AUX_CheckTrivial(Ki) Then
-                    IObj?.Paragraphs.Add("Invalid result - converged to the trivial solution.")
-                    Throw New Exception("Invalid result - converged to the trivial solution.")
-                End If
-            Next
+            'an activity-coefficient package has no vapour-liquid trivial solution: a stage with every K within
+            '0.01 of 1 sits at a real azeotrope (the top stages of an ethanol/water column). A liquid-liquid
+            'extractor keeps the test, since one liquid phase there is the trivial solution.
+            If LLEX OrElse pp.PackageType <> PropertyPackages.PackageType.ActivityCoefficient Then
+                For Each Ki In _Kval
+                    If pp.AUX_CheckTrivial(Ki) Then
+                        IObj?.Paragraphs.Add("Invalid result - converged to the trivial solution.")
+                        Throw New Exception("Invalid result - converged to the trivial solution.")
+                    End If
+                Next
+            End If
 
             IObj?.Close()
 

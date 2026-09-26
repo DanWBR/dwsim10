@@ -3379,7 +3379,8 @@ Namespace UnitOperations
             Next
         End Sub
 
-        Public Overridable Function GetSolverInputData(Optional ByVal ignoreuserestimates As Boolean = False) As ColumnSolverInputData
+        Public Overridable Function GetSolverInputData(Optional ByVal ignoreuserestimates As Boolean = False,
+                                                       Optional ByVal splitFeedByVolatility As Boolean = False) As ColumnSolverInputData
 
             Dim IObj As Inspector.InspectorItem = Inspector.Host.GetNewInspectorItem()
 
@@ -3888,6 +3889,26 @@ Namespace UnitOperations
                         SetEndFraction(rebVx, ci, xb, zm)
                     End If
                 End If
+            End If
+
+            'Reflux ratio and product rates say nothing about the product compositions, and without them every
+            'stage starts at the feed composition, between the feed's bubble and dew points (an ethanol/water
+            'column at reflux ratio 8 then starts its condenser 8 K too hot, and neither solver gets back from
+            'there). When asked (the retry after a failed solve), split the feed sharply by volatility instead:
+            'the most volatile compounds fill the distillate rate, the rest leave in the bottoms, and the stage
+            'temperatures and compositions start on the line between the two products.
+            If splitFeedByVolatility AndAlso ColumnType = ColType.DistillationColumn AndAlso
+                CondenserType = condtype.Total_Condenser AndAlso distVx.Sum = 0.0 AndAlso rebVx.Sum = 0.0 AndAlso
+                distrate > 0.0 AndAlso distrate < sumF - sum0_ Then
+                Dim left As Double = distrate
+                For Each k In Enumerable.Range(0, nc).OrderByDescending(Function(c) Convert.ToDouble(Kref(c)))
+                    Dim take As Double = Math.Min(left, sumcf(k))
+                    distVx(k) = take
+                    rebVx(k) = sumcf(k) - take
+                    left -= take
+                Next
+                distVx = distVx.NormalizeY()
+                rebVx = rebVx.NormalizeY()
             End If
 
             IObj?.Paragraphs.Add(String.Format("Estimated/Specified Distillate Rate: {0} mol/s", distrate))
@@ -6593,10 +6614,10 @@ Namespace UnitOperations
                     End Try
                     If solvererror Then
                         FlowSheet.ShowMessage(GraphicObject.Tag + ": the column did not converge. DWSIM will try again with a different solver configuration...", IFlowsheet.MessageType.Warning)
-                        'try to solve with auto-generated initial estimates.
+                        'try to solve with auto-generated initial estimates, the products split by volatility.
                         inputdata.CalculationMode = 0
                         SetColumnSolver(New SolvingMethods.NaphtaliSandholmMethod())
-                        so = Solver.SolveColumn(GetSolverInputData(True))
+                        so = Solver.SolveColumn(GetSolverInputData(True, True))
                     End If
                 Else
                     If Column.ExternalColumnSolvers.ContainsKey(SolvingMethodName) Then
