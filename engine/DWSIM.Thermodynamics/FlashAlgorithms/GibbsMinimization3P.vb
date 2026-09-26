@@ -484,6 +484,17 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                     If initval2(i) > uconstr2(i) Then initval2(i) = uconstr2(i)
                 Next
 
+                ' The first liquid is what the other two phases leave of the feed. Where the estimate gives them all of
+                ' a compound, the first liquid starts without it, ln f of that compound there is -infinity and the solver
+                ' takes its first step from an infinite gradient; leave it a hundredth of the feed amount instead.
+                For i = 0 To n
+                    If Vz(i) > 0.0# AndAlso fi(i) * F - initval2(i) - initval2(i + n + 1) < 0.0001 * fi(i) * F Then
+                        Dim scale As Double = 0.99 * fi(i) * F / (initval2(i) + initval2(i + n + 1))
+                        initval2(i) *= scale
+                        initval2(i + n + 1) *= scale
+                    End If
+                Next
+
                 IObj?.Paragraphs.Add(String.Format("Initial Estimate for Vapor Phase Molar Fraction (V): {0}", V))
                 IObj?.Paragraphs.Add(String.Format("Initial Estimate for Liquid Phase 1 Molar Fraction (L1): {0}", L1))
                 IObj?.Paragraphs.Add(String.Format("Initial Estimate for Liquid Phase 2 Molar Fraction (L2): {0}", L2))
@@ -511,12 +522,16 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                         AddressOf eval_f, AddressOf eval_g,
                         AddressOf eval_grad_f, AddressOf eval_jac_g, AddressOf eval_h)
                     problem.AddOption("print_level", 1)
-                    problem.AddOption("tol", etol)
+                    ' Newton steps on the exact Hessian of the Gibbs energy (GibbsHessian), under a barrier that falls
+                    ' monotonically, to a tolerance on the equality of ln f: the barrier and the optimality error are in
+                    ' ln f units. No stall callback: the solver repeats the objective while it rebuilds a step, and
+                    ' stopping on the repeat left the phases far from equilibrium.
+                    problem.AddOption("tol", Math.Min(etol, 1.0E-8))
                     problem.AddOption("max_iter", maxit_e * 10)
-                    problem.AddOption("mu_strategy", "adaptive")
+                    problem.AddOption("mu_strategy", "monotone")
+                    problem.AddOption("mu_init", 0.1)
                     problem.AddOption("expect_infeasible_problem", "yes")
-                    problem.AddOption("hessian_approximation", "limited-memory")
-                    problem.SetIntermediateCallback(AddressOf intermediate)
+                    problem.AddOption("hessian_approximation", "exact")
                     'solve the problem 
                     status = problem.SolveProblem(initval2, obj, g, Nothing, Nothing, Nothing)
                     IPOPT_Failure = False
@@ -629,6 +644,18 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
 
                     End If
 
+                End If
+
+                'check if vapor and liquid1 phases are the same: a single phase the minimization split in two
+                If V > 0.0# AndAlso L1 > 0.0# Then
+                    Dim diffv1 As Double = 0.0#
+                    For i = 0 To n
+                        diffv1 += Math.Abs(Vx1(i) - Vy(i))
+                    Next
+                    If diffv1 < 0.01 * n Then
+                        V = V + L1
+                        L1 = 0.0
+                    End If
                 End If
 
                 If L2 < 0.01 Then
@@ -1202,6 +1229,73 @@ out:        Return result
 
         End Function
 
+        ''' <summary>
+        ''' The Hessian of the three-phase objective in the mole numbers of the vapour (x(0..n)) and of the second
+        ''' liquid (x(n+1..2n+1)), the first liquid taken by difference. With A_k(i, j) = d ln f_ik / d n_jk =
+        ''' (delta_ij / x_ik - 1 + d ln phi_ik / d n_j) / N_k, the blocks are A_V + A_L1, A_L1 (both off-diagonal
+        ''' blocks) and A_L2 + A_L1. Row-major, (2n+2) x (2n+2).
+        ''' </summary>
+        Private Function GibbsHessian(ByVal x() As Double) As Double()
+
+            Dim nc As Integer = n + 1
+            Dim nV, nL1, nL2 As Double
+            Dim y(n), x1(n), x2(n) As Double
+
+            nV = 0.0#
+            nL2 = 0.0#
+            For i As Integer = 0 To n
+                nV += x(i)
+                nL2 += x(i + nc)
+            Next
+            nL1 = F - nV - nL2
+
+            For i As Integer = 0 To n
+                y(i) = If(nV > 0.0#, x(i) / nV, 0.0#)
+                x2(i) = If(nL2 > 0.0#, x(i + nc) / nL2, 0.0#)
+                x1(i) = If(nL1 > 0.0#, (fi(i) * F - x(i) - x(i + nc)) / nL1, 0.0#)
+                If x1(i) < 0.0# Then x1(i) = 0.0#
+            Next
+
+            Dim AV = PhaseHessian(y, nV, State.Vapor)
+            Dim A1 = PhaseHessian(x1, nL1, State.Liquid)
+            Dim A2 = PhaseHessian(x2, nL2, State.Liquid)
+
+            Dim nt As Integer = 2 * nc
+            Dim h(nt * nt - 1) As Double
+            For i As Integer = 0 To n
+                For j As Integer = 0 To n
+                    h(i * nt + j) = AV(i, j) + A1(i, j)
+                    h(i * nt + j + nc) = A1(i, j)
+                    h((i + nc) * nt + j) = A1(i, j)
+                    h((i + nc) * nt + j + nc) = A2(i, j) + A1(i, j)
+                Next
+            Next
+
+            Return h
+
+        End Function
+
+        ''' <summary>d ln f_i / d n_j of one phase of composition xk and Nk moles.</summary>
+        Private Function PhaseHessian(ByVal xk() As Double, ByVal Nk As Double, ByVal st As State) As Double(,)
+
+            Dim A(n, n) As Double
+            If Nk <= 0.0# Then Return A
+
+            Dim J As Double(,) = proppack.DW_CalcdLnFugCoeffdn(xk, Tf, Pf, st)
+
+            For i As Integer = 0 To n
+                For k As Integer = 0 To n
+                    Dim v As Double = J(i, k) - 1.0#
+                    If i = k AndAlso xk(i) > 0.0# Then v += 1.0# / xk(i)
+                    If Double.IsNaN(v) OrElse Double.IsInfinity(v) Then v = 0.0#
+                    A(i, k) = v / Nk
+                Next
+            Next
+
+            Return A
+
+        End Function
+
         'IPOPT
 
         Public Function eval_f(ByVal n As Integer, ByVal x As Double(), ByVal new_x As Boolean, ByRef obj_value As Double) As Boolean
@@ -1272,7 +1366,7 @@ out:        Return result
                 ' The Hessian of the Lagrangian. The constraints are affine in x, so their second
                 ' derivatives are zero and lambda contributes nothing; what is left is the
                 ' objective's own Hessian, times the factor the solver asked for.
-                Dim hess As Double() = FunctionHessian(x)
+                Dim hess As Double() = GibbsHessian(x)
 
                 For i = 0 To hess.Length - 1
                     hess(i) *= obj_factor

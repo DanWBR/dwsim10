@@ -75,13 +75,12 @@ namespace DWSIM.Engine.SmokeTests
         }
 
         /// <summary>
-        /// What used to fail here was not the arithmetic: it was that the solver reported an
-        /// iteration in which it took no step. The line search would reject all forty-seven of
-        /// its trial points, the iteration would be spent rebuilding the quasi-Newton matrix from
-        /// the same point, and the next iteration would report the same objective to the last
-        /// bit. This flash watches the objective for a stall, on a threshold of 1e-10, and read
-        /// the repeat as convergence: it ended the solve at iteration 13 of the 26 it needed.
-        /// Those iterations are flagged as restoration now and are kept out of the callback.
+        /// What used to fail here was the solve, and the flash believing it. The constrained solver
+        /// measured its trial points under the new barrier parameter against the current point
+        /// under the old one, so after every fall of the parameter the line search rejected all
+        /// its trial points; and the flash's stall callback (objective repeated to 1e-10) read the
+        /// repeat as convergence. The solver now measures both under the same parameter, and the
+        /// flash takes Newton steps on the exact Hessian of the Gibbs energy with no stall callback.
         ///
         /// Water, n-hexane and methane at 10 bar and 350 K split into a vapour and two liquids, so
         /// the Gibbs flash runs its constrained minimization from a genuine second liquid. It is
@@ -89,9 +88,6 @@ namespace DWSIM.Engine.SmokeTests
         /// comparison free of cross-architecture last-bit differences.
         /// </summary>
         [Test]
-        [Ignore("The Gibbs flash stops after 257 iterations above the minimum on this genuine three-phase case " +
-                "(G/RT 11.52308 against 11.52152 from NestedLoops3PV3; hexane 3.9e-5 in the water phase against 5e-17). " +
-                "Open defect of GibbsMinimization3P; the test stays as its acceptance check.")]
         public void TheGibbsFlashMatchesTheNativeSolver()
         {
             var pp = Package(new DWSIM.Thermodynamics.PropertyPackages.PengRobinsonPropertyPackage(),

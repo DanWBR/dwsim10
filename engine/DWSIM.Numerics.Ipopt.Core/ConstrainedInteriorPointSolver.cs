@@ -185,8 +185,11 @@ namespace DWSIM.Numerics.Ipopt.Core
             var step = new double[n];
 
             double theta0 = Theta(m, g, s, slackOf, cl);
-            double thetaMax = Math.Max(1e4, 1e4 * theta0);
-            double thetaMin = Math.Min(1e-4, 1e-4 * theta0);
+            // Waechter and Biegler: 1e4 and 1e-4 times max(1, theta(x0)). A start that is feasible, theta0 = 0,
+            // made thetaMin zero, so the Armijo test never applied and a round-off violation sent the solve into
+            // restoration.
+            double thetaMax = 1e4 * Math.Max(1.0, theta0);
+            double thetaMin = 1e-4 * Math.Max(1.0, theta0);
 
             int iter = 0;
             int restorations = 0;
@@ -262,6 +265,10 @@ namespace DWSIM.Numerics.Ipopt.Core
                         filter.Clear();
                     }
                 }
+
+                // phi was taken under the mu of the previous iteration; the trial points are measured under this
+                // one, so a fall in mu made every trial look worse than the point it left and the line search fail.
+                phi = Barrier(n, ns, scaled.EvalF(x), x, s, xl, xu, hasXl, hasXu, sl, su, hasSl, hasSu, mu);
 
                 double tau = Math.Max(tauMin, 1.0 - mu);
 
