@@ -113,7 +113,8 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
             For ia As Integer = 0 To ns
                 Dim flashcopy = pp.FlashBase.GetNewInstance()
                 If flashcopy Is Nothing Then
-                    flashalgs.Add(New NestedLoops With {.FlashSettings = pp.FlashBase.FlashSettings})
+                    'this solver's outer loop relies on the old bubble-point acceptance (see NestedLoops.AcceptStalledSaturationPoint)
+                    flashalgs.Add(New NestedLoops With {.FlashSettings = pp.FlashBase.FlashSettings, .AcceptStalledSaturationPoint = True})
                 Else
                     flashalgs.Add(flashcopy)
                 End If

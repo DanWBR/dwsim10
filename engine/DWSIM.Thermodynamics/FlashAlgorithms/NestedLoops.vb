@@ -2377,7 +2377,7 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
 
         End Function
 
-        Public Function Flash_TV_1(ByVal Vz As Double(), ByVal T As Double, ByVal V As Double, ByVal Pref As Double, ByVal PP As PropertyPackages.PropertyPackage, Optional ByVal ReuseKI As Boolean = False, Optional ByVal PrevKi As Double() = Nothing) As Object
+        Public Function Flash_TV_1(ByVal Vz As Double(), ByVal T As Double, ByVal V As Double, ByVal Pref As Double, ByVal PP As PropertyPackages.PropertyPackage, Optional ByVal ReuseKI As Boolean = False, Optional ByVal PrevKi As Double() = Nothing, Optional ByVal IsRestart As Boolean = False) As Object
 
             Dim IObj As Inspector.InspectorItem = Inspector.Host.GetNewInspectorItem()
 
@@ -2417,6 +2417,7 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
             Dim dFdP As Double
 
             Dim VTc = PP.RET_VTC()
+            Dim seeded = (Pref = 0.0#)
 
             Vn = PP.RET_VNAMES()
             fi = Vz.Clone
@@ -2536,6 +2537,7 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                 ' the inner-loop test reads one compound: the first one present. One at z = 0 has x = y = 0 on every
                 ' pass, so testing it ended the inner loop on its second pass, unconverged.
                 Dim i0 = Math.Max(0, Array.FindIndex(Vz, Function(zi) zi <> 0.0))
+                Dim P0 = P
 
                 ecount = 0
                 Do
@@ -2674,7 +2676,9 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
 
                         deltaP = -fval / dFdP
 
-                        If Abs(deltaP) < etol / 1000 And ecount > 5 Then Exit Do
+                        ' a stalled step ends the loop only when it is small against P (the absolute 1E-7 Pa is no
+                        ' step at all below 1 Pa) and the objective is nearly met
+                        If Abs(deltaP) < etol / 1000 * Math.Min(1.0, P) And Abs(fval) < 10 * etol And ecount > 5 Then Exit Do
 
                         If Abs(deltaP) > 0.1 * P And ecount < 5 Then
                             P = P + Sign(deltaP) * 0.1 * P
@@ -2700,7 +2704,15 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                 ' |fval| < etol and the last Newton step on the fixed-composition derivative leave P up to a few
                 ' percent off the saturation line. Refine with a full Newton in (ln K, ln P); keep the loop's
                 ' result when the refinement fails.
-                If Not Double.IsNaN(P) AndAlso ecount <= maxit_e AndAlso Math.Abs(dFdP * P) < 0.1 AndAlso Not PP.AUX_CheckTrivial(Ki, 0.01, Vz) Then
+                ' A bubble point from the seed (Pref = 0) is also refined when its last inner loop did not converge.
+                ' The seed, the largest vapour pressure, is far above the bubble line when a compound is supercritical:
+                ' there the inner loop slides towards K = 1, sum(K x) - 1 goes to zero at any P, and the stop test
+                ' accepted pressures up to 1400 times the bubble pressure. A restart (IsRestart) accepts confirmed
+                ' results only.
+                Dim checked = V = 0.0 AndAlso (seeded OrElse IsRestart)
+                Dim slide = checked AndAlso marcador2 <> 1
+                Dim unconfirmed = False
+                If Not Double.IsNaN(P) AndAlso ecount <= maxit_e AndAlso (Math.Abs(dFdP * P) < 0.1 OrElse slide) AndAlso Not PP.AUX_CheckTrivial(Ki, 0.01, Vz) Then
                     Dim refined = RefineSaturationPoint(Vz, T, V, P, Ki, PP)
                     If refined IsNot Nothing Then
                         P = DirectCast(refined(0), Double)
@@ -2708,8 +2720,27 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                         Vx = DirectCast(refined(2), Double())
                         Vy = DirectCast(refined(3), Double())
                         IObj?.Paragraphs.Add(String.Format("Near-critical refinement (full Newton in ln K, ln P): P = {0} Pa", P))
+                    Else
+                        unconfirmed = slide OrElse (checked AndAlso IsRestart)
                     End If
                 End If
+
+                ' Unconfirmed, out of iterations or NaN: restart from pressures 15 % apart below the result (or below
+                ' the seed), down to 1/25 of it, and return the first confirmed result.
+                If checked AndAlso Not IsRestart AndAlso (unconfirmed OrElse ecount > maxit_e OrElse Double.IsNaN(P)) Then
+                    Dim Ptry = If(unconfirmed, Math.Min(P, P0), P0)
+                    For k = 1 To 20
+                        Ptry *= 0.85
+                        Try
+                            Dim restarted = Flash_TV_1(Vz, T, V, Ptry, PP, False, Nothing, True)
+                            IObj?.Paragraphs.Add(String.Format("Restarted from P = {0} Pa.", Ptry))
+                            IObj?.Close()
+                            Return restarted
+                        Catch ex As Exception
+                        End Try
+                    Next
+                End If
+                If unconfirmed OrElse (IsRestart AndAlso Double.IsNaN(P)) Then Throw New Exception("TV Flash [NL]: no bubble point found (the result at P = " & P & " Pa is not a saturation point).")
 
             Else
 
@@ -2851,7 +2882,9 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
 
                         deltaP = -fval / dFdP
 
-                        If Abs(deltaP) < etol / 1000 And ecount > 5 Then Exit Do
+                        ' a stalled step ends the loop only when it is small against P (the absolute 1E-7 Pa is no
+                        ' step at all below 1 Pa) and the objective is nearly met
+                        If Abs(deltaP) < etol / 1000 * Math.Min(1.0, P) And Abs(fval) < 10 * etol And ecount > 5 Then Exit Do
 
                         If Abs(deltaP) > 0.1 * P And ecount < 5 Then
                             P = P + Sign(deltaP) * 0.1 * P
@@ -3088,6 +3121,18 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
 
             End If
 
+            'A bubble or dew point that did not converge from the caller's seed is tried once more
+            'from the ideal-solution seed, with K values from the package, before the pressure
+            'stepping below, which costs a dozen flashes.
+            If Not AcceptStalledSaturationPoint And Math.Abs(deltaT) > 0.01 And (V = 0 Or V = 1) And (Tref <> 0.0 Or ReuseKI) Then
+                Dim retry As Object() = Flash_PV_1(Vz, P, V, 0.0, PP, False, Nothing)
+                If retry.Count = 1 Then retry = Flash_PV_1(Vz, P, V, 0.0, PP, False, Nothing, True)
+                If retry.Count > 1 AndAlso Math.Abs(retry(11)) <= 0.01 Then
+                    result = retry
+                    deltaT = retry(11)
+                End If
+            End If
+
             If Math.Abs(deltaT) > 0.01 And (V = 0 Or V = 1) Then
 
                 'solution is not valid. 
@@ -3196,6 +3241,10 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                     If result.Count = 1 Then result = Flash_PV_1(Vz, P, V, Tl, PP, True, Kvals, True)
                 End If
             End If
+
+            'The fallbacks above hand back their last attempt whether it converged or not. A bubble or
+            'dew point is returned only when the temperature loop converged on it.
+            If Not AcceptStalledSaturationPoint AndAlso result.Count > 1 AndAlso (V = 0 Or V = 1) AndAlso Math.Abs(result(11)) > 0.01 Then result = New Object() {-1}
 
             Dim idealcalc As Boolean = Me.FlashSettings(Interfaces.Enums.FlashSetting.PVFlash_TryIdealCalcOnFailure)
             If result.Count = 1 And idealcalc Then
@@ -3373,6 +3422,36 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                 If i < nonvolatile.Length AndAlso nonvolatile(i) Then K(i) = 1.0E-20
             Next
             Return K
+        End Function
+
+        ''' <summary>
+        ''' Keeps the bubble/dew point acceptance of earlier versions: a Brent exit of Flash_PV_1 reports a
+        ''' zero step whether or not the equation holds, and Flash_PV neither retries from the ideal seed
+        ''' nor rejects an unconverged fallback result.
+        ''' </summary>
+        ''' <remarks>
+        ''' For the Wang-Henke column solvers only, whose outer loop has come to rely on it: on
+        ''' WideBoilingStripper.dwxmz the top stage (no liquid) ends on a stalled bubble point, and with the
+        ''' stricter acceptance the column no longer converges.
+        ''' </remarks>
+        Public Property AcceptStalledSaturationPoint As Boolean = False
+
+        ''' <summary>
+        ''' Temperature step still left where a Brent exit of the bubble/dew loop stops.
+        ''' </summary>
+        ''' <remarks>
+        ''' The azeotrope and oscillation exits reported a step of zero whatever Brent found. When the
+        ''' bracket holds no root, Brent returns one of its ends and the zero step passed for
+        ''' convergence. Zero is kept when the bubble/dew equation holds to the loop tolerance;
+        ''' otherwise the remaining Newton step is returned.
+        ''' </remarks>
+        Private Function BrentExitStep(Ki As Double(), Vx As Double(), Vy As Double(), V As Double, dFdT As Double) As Double
+            If AcceptStalledSaturationPoint Then Return 0.0
+            Dim res As Double = If(V = 0.0, Ki.MultiplyY(Vx).SumY, Vy.DivideY(Ki).SumY) - 1.0
+            If Math.Abs(res) < etol Then Return 0.0
+            Dim stp As Double = -res / dFdT
+            If Double.IsNaN(stp) OrElse Double.IsInfinity(stp) OrElse Math.Abs(stp) <= 0.01 Then Return 100.0
+            Return stp
         End Function
 
         Public Function Flash_PV_1(ByVal Vz2 As Double(), ByVal P As Double, ByVal V As Double, ByVal Tref As Double, ByVal PP As PropertyPackages.PropertyPackage, Optional ByVal ReuseKI As Boolean = False, Optional ByVal PrevKi As Double() = Nothing, Optional OldTempEstimation As Boolean = False) As Object
@@ -3825,7 +3904,7 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                                 Else
                                     Vx = Vy.DivideY(Ki).NormalizeY()
                                 End If
-                                deltaT = 0
+                                deltaT = BrentExitStep(Ki, Vx, Vy, V, dFdT)
                                 Exit Do
                             End If
                         End If
@@ -3866,7 +3945,7 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                             Vx = Vy.DivideY(Ki).NormalizeY()
                         End If
 
-                        deltaT = 0
+                        deltaT = BrentExitStep(Ki, Vx, Vy, V, dFdT)
 
                         Exit Do
 
