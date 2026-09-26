@@ -4013,13 +4013,13 @@ redirect2:                  IObj?.SetCurrent()
         ''' step the pressure up to the critical pressure instead, solving for the (descending) dew
         ''' temperature at each step, then close the curve on the critical point. Used only for the
         ''' cubic packages, whose critical point is known analytically (stopAtCP).
-        ''' The saturation-line continuation (TraceDewNewtonToCP) is tried first; the pressure stepping
+        ''' The saturation-line continuation (TraceSaturationNewtonToCP) is tried first; the pressure stepping
         ''' and the Hermite nose below are the fallback when it fails.
         ''' </summary>
-        Private Sub TraceDewRetrogradeToCP(Vz As Double(), PO As List(Of Double), TVD As List(Of Double),
+        Private Function TraceDewRetrogradeToCP(Vz As Double(), PO As List(Of Double), TVD As List(Of Double),
                                            HO As List(Of Double), SO As List(Of Double), VO As List(Of Double),
-                                           TCR As Double, PCR As Double, deltaP As Double, Ki As Double())
-            If TraceDewNewtonToCP(Vz, Ki, PO, TVD, HO, SO, VO, TCR, PCR) Then Return
+                                           TCR As Double, PCR As Double, deltaP As Double, Ki As Double()) As Boolean
+            If TraceSaturationNewtonToCP(Vz, Ki, PO, TVD, HO, SO, VO, TCR, PCR) Then Return True
             Dim pPrev As Double = PO(PO.Count - 1)
             Dim tPrev As Double = TVD(TVD.Count - 1)
             ' Which side of the critical temperature the retrograde branch runs on: from below for a
@@ -4031,28 +4031,36 @@ redirect2:                  IObj?.SetCurrent()
                 ' spurious root past Tc), and forcing it is prohibitively slow. Draw a shape-preserving
                 ' curve from the last converged point to the analytical critical point instead.
                 FillDewToCP(Vz, PO, TVD, HO, SO, VO, TCR, PCR)
-                Return
+                Return False
             End If
             ' A cricondentherm above Tc: past it the retrograde branch is single-valued in pressure and
             ' the dew flash converges cheaply. Step pressure up to Pc, solving for the dew temperature
-            ' (Flash_PV), seeded by the local slope so the flash stays on the branch.
+            ' (DewTemperatureAtP, Flash_PV as the fallback), seeded by the local slope and the previous
+            ' K-values so the solution stays on the branch.
             Dim pStep As Double = If(deltaP > 0, deltaP, 25000.0)
             Dim pPrev2 As Double = If(PO.Count >= 2, PO(PO.Count - 2), pPrev)
             Dim tPrev2 As Double = If(TVD.Count >= 2, TVD(TVD.Count - 2), tPrev)
             Dim prevDist As Double = Math.Abs(tPrev - TCR)
             Dim pR As Double = pPrev + pStep
+            Dim kPrev As Double() = Ki
             Do While pR < PCR * 0.999
                 Dim tGuess As Double = tPrev
                 If Math.Abs(pPrev - pPrev2) > 1.0 Then
                     tGuess = tPrev + (tPrev - tPrev2) / (pPrev - pPrev2) * (pR - pPrev)
                 End If
                 Dim tR As Double
-                Try
-                    Dim rr = Me.FlashBase.Flash_PV(Vz, pR, 1, tGuess, Me)
-                    tR = CDbl(rr(4))
-                Catch
-                    Exit Do
-                End Try
+                Dim kR As Double() = Nothing
+                ' The fixed-pressure Newton from the previous point first; the generic PV flash only when it
+                ' fails or its temperature does not continue the descending branch.
+                If Not (DewTemperatureAtP(Vz, pR, tGuess, kPrev, tR, kR) AndAlso tR < tPrev) Then
+                    Try
+                        Dim rr = Me.FlashBase.Flash_PV(Vz, pR, 1, tGuess, Me)
+                        tR = CDbl(rr(4))
+                        kR = TryCast(rr(6), Double())
+                    Catch
+                        Exit Do
+                    End Try
+                End If
                 If tR <= 0.0 Then Exit Do
                 ' a root that has dropped below Tc while still below Pc is the spurious near-critical root
                 If tR < TCR Then Exit Do
@@ -4070,26 +4078,125 @@ redirect2:                  IObj?.SetCurrent()
                 pPrev2 = pPrev : tPrev2 = tPrev
                 pPrev = pR : tPrev = tR
                 prevDist = dist
+                If kR IsNot Nothing Then kPrev = kR
                 pR += pStep
             Loop
             ' A residual gap below Pc (the pressure-stepping stopped short where the roots merge) is
             ' closed with the same shape-preserving nose so the descending branch meets the CP smoothly.
             FillDewToCP(Vz, PO, TVD, HO, SO, VO, TCR, PCR)
-        End Sub
+            Return False
+        End Function
 
         ''' <summary>
-        ''' Follows the dew line from its last converged point (the last of TVD/PO, K-values Ki) into the
-        ''' analytical critical point by continuation on the saturation equations (Michelsen, 1980). Unknowns
-        ''' ln K, ln T and ln P; equations ln K_i + ln phiV_i(z) - ln phiL_i(x) = 0 with x = z/K, sum(x) = 1,
+        ''' Dew temperature at a fixed pressure by Newton on (ln K, ln T): ln K_i + ln phiV_i(z) - ln phiL_i(x) = 0
+        ''' with x = z/K, and sum(x) = 1, seeded with the K-values of the previous dew point and the extrapolated
+        ''' temperature. Next to the critical point the generic PV flash drifts toward the trivial solution, takes
+        ''' it for a binary azeotrope and runs Flash_PV_Azeotrope_Temperature (20 full PV flashes, each with its
+        ''' restart ladder): 10-15 s per point, for a result up to 1.7 K off the dew line.
+        ''' Returns False when the Newton does not converge or converges to the trivial solution.
+        ''' </summary>
+        Private Function DewTemperatureAtP(Vz As Double(), P As Double, Tguess As Double, Kguess As Double(),
+                                           ByRef T As Double, ByRef K As Double()) As Boolean
+
+            If Kguess Is Nothing OrElse Kguess.Length <> Vz.Length OrElse Not Tguess > 0.0 Then Return False
+            Dim idx = Enumerable.Range(0, Vz.Length).Where(Function(i) Vz(i) > 0.0).ToArray()
+            Dim nc = idx.Length
+            If nc < 2 Then Return False
+            Dim zsum = idx.Sum(Function(i) Vz(i))
+            Dim nx = nc + 1
+
+            ' residuals at w = (ln K, ln T)
+            Dim resid As Func(Of Double(), Double()) =
+                Function(w)
+                    Dim Tx = Math.Exp(w(nc))
+                    Dim zf(Vz.Length - 1) As Double, xf(Vz.Length - 1) As Double
+                    Dim sx As Double = 0.0
+                    For m = 0 To nc - 1
+                        zf(idx(m)) = Vz(idx(m)) / zsum
+                        xf(idx(m)) = zf(idx(m)) * Math.Exp(-w(m))
+                        sx += xf(idx(m))
+                    Next
+                    For m = 0 To nc - 1
+                        xf(idx(m)) /= sx
+                    Next
+                    Dim phiV = DW_CalcFugCoeff(zf, Tx, P, State.Vapor)
+                    Dim phiL = DW_CalcFugCoeff(xf, Tx, P, State.Liquid)
+                    Dim res(nx - 1) As Double
+                    For m = 0 To nc - 1
+                        res(m) = w(m) + Math.Log(phiV(idx(m))) - Math.Log(phiL(idx(m)))
+                    Next
+                    res(nc) = sx - 1.0
+                    Return res
+                End Function
+
+            Dim u(nx - 1) As Double
+            For m = 0 To nc - 1
+                Dim kv = Kguess(idx(m))
+                If Not kv > 0.0 OrElse Double.IsInfinity(kv) Then Return False
+                u(m) = Math.Log(kv)
+            Next
+            u(nc) = Math.Log(Tguess)
+
+            Try
+                For it = 0 To 24
+                    Dim fv = resid(u)
+                    If fv.Any(Function(v) Double.IsNaN(v) OrElse Double.IsInfinity(v)) Then Return False
+                    If fv.Max(Function(v) Math.Abs(v)) < 0.000000001 Then
+                        ' the trivial solution (x = z) is no dew point
+                        If u.Take(nc).Max(Function(v) Math.Abs(v)) < 0.001 Then Return False
+                        T = Math.Exp(u(nc))
+                        K = New Double(Vz.Length - 1) {}
+                        For m = 0 To nc - 1
+                            K(idx(m)) = Math.Exp(u(m))
+                        Next
+                        Return True
+                    End If
+                    ' forward-difference Jacobian, step damped to 0.5 in ln K and 2 % in T
+                    Dim jac As New Mapack.Matrix(nx, nx), rhs As New Mapack.Matrix(nx, 1)
+                    For c = 0 To nx - 1
+                        Dim wc = DirectCast(u.Clone(), Double())
+                        wc(c) += 0.000001
+                        Dim fc = resid(wc)
+                        For r = 0 To nx - 1
+                            jac(r, c) = (fc(r) - fv(r)) / 0.000001
+                        Next
+                    Next
+                    For r = 0 To nx - 1
+                        rhs(r, 0) = -fv(r)
+                    Next
+                    Dim lu As New Mapack.LuDecomposition(jac)
+                    Dim sol = lu.Solve(rhs)
+                    Dim sc As Double = 1.0
+                    For r = 0 To nx - 1
+                        Dim d = sol(r, 0)
+                        If Double.IsNaN(d) OrElse Double.IsInfinity(d) Then Return False
+                        sc = Math.Max(sc, Math.Abs(d) / If(r < nc, 0.5, 0.02))
+                    Next
+                    For r = 0 To nx - 1
+                        u(r) += sol(r, 0) / sc
+                    Next
+                Next
+            Catch ex As Exception
+                Return False
+            End Try
+            Return False
+
+        End Function
+
+        ''' <summary>
+        ''' Follows the dew line (or, with bubble, the bubble line) from its last converged point (the last of
+        ''' TVD/PO, K-values Ki) into the analytical critical point by continuation on the saturation equations
+        ''' (Michelsen, 1980). Unknowns ln K, ln T and ln P; dew: ln K_i + ln phiV_i(z) - ln phiL_i(x) = 0 with
+        ''' x = z/K, sum(x) = 1; bubble: ln K_i + ln phiV_i(y) - ln phiL_i(z) = 0 with y = K z, sum(y) = 1;
         ''' plus one unknown held fixed, the one changing fastest along the line. Fixed-T and fixed-P dew
         ''' flashes break down at the cricondenbar and the cricondentherm and fall into the trivial solution
         ''' near the critical point; the continuation passes both and reaches the critical point, including a
         ''' cricondenbar above Pc at T above Tc (lean gases). Adds the traced points and the critical point and
         ''' returns True; adds nothing and returns False when the continuation fails.
         ''' </summary>
-        Private Function TraceDewNewtonToCP(Vz As Double(), Ki As Double(), PO As List(Of Double), TVD As List(Of Double),
+        Private Function TraceSaturationNewtonToCP(Vz As Double(), Ki As Double(), PO As List(Of Double), TVD As List(Of Double),
                                             HO As List(Of Double), SO As List(Of Double), VO As List(Of Double),
-                                            TCR As Double, PCR As Double) As Boolean
+                                            TCR As Double, PCR As Double, Optional bubble As Boolean = False) As Boolean
 
             If Ki Is Nothing OrElse Ki.Length <> Vz.Length OrElse PO.Count = 0 OrElse TVD.Count = 0 Then Return False
             Dim idx = Enumerable.Range(0, Vz.Length).Where(Function(i) Vz(i) > 0.0).ToArray()
@@ -4113,13 +4220,15 @@ redirect2:                  IObj?.SetCurrent()
             Dim resid As Func(Of Double(), Integer, Double, Double()) =
                 Function(w, sIdx, sVal)
                     Dim Tx = Math.Exp(w(nc)), Px = Math.Exp(w(nc + 1))
+                    ' the incipient phase: liquid x = z/K on the dew line, vapour y = K z on the bubble line
                     Dim xl(nc - 1) As Double, sx As Double = 0.0
                     For k = 0 To nc - 1
-                        xl(k) = z(k) * Math.Exp(-w(k))
+                        xl(k) = z(k) * Math.Exp(If(bubble, w(k), -w(k)))
                         sx += xl(k)
                     Next
-                    Dim lnPhiV = lnphi(z, Tx, Px, State.Vapor)
-                    Dim lnPhiL = lnphi(xl.Select(Function(v) v / sx).ToArray(), Tx, Px, State.Liquid)
+                    Dim xn = xl.Select(Function(v) v / sx).ToArray()
+                    Dim lnPhiV = lnphi(If(bubble, xn, z), Tx, Px, State.Vapor)
+                    Dim lnPhiL = lnphi(If(bubble, z, xn), Tx, Px, State.Liquid)
                     Dim f(nx - 1) As Double
                     For k = 0 To nc - 1
                         f(k) = w(k) + lnPhiV(k) - lnPhiL(k)
@@ -4192,8 +4301,9 @@ redirect2:                  IObj?.SetCurrent()
             If maxLnK(u) < 0.05 Then Return False
 
             ' re-converge the starting point holding its largest ln K (well conditioned at a cricondentherm,
-            ' where the fixed-pressure dew point is a double root)
-            Dim k0 = argMaxAbs(u, nc)
+            ' where the fixed-pressure dew point is a double root); a bubble point comes from a fixed-temperature
+            ' flash whose K-values are loose, and holding a heavy ln K there moves T by degrees: hold T instead
+            Dim k0 = If(bubble, nc, argMaxAbs(u, nc))
             Dim start = newton(u, k0, u(k0))
             u = start.Item1
             If Not start.Item3 OrElse Math.Abs(Math.Exp(u(nc)) - T0) > 1.0 OrElse Math.Abs(Math.Exp(u(nc + 1)) - P0) > 0.02 * P0 OrElse maxLnK(u) < 0.05 Then Return False
@@ -4250,11 +4360,14 @@ redirect2:                  IObj?.SetCurrent()
                     ended = True
                     Exit Do
                 End If
-                ' the analytical critical point sits within a few tenths of a kelvin of the EOS saturation line:
-                ' next to it, once the line starts moving away from it, stop and close on it
+                ' next to the critical point the ln K no longer tell the dew side from the bubble side (the
+                ' equations are near-singular there, so the sign test above may never fire): once the line is
+                ' next to it and starts moving away from it, or has stepped past it, stop and close on it
                 Dim dOld = Math.Max(Math.Abs(Tcur - TCR) / TCR, Math.Abs(Pcur - PCR) / PCR)
                 Dim dNew = Math.Max(Math.Abs(Math.Exp(uNew(nc)) - TCR) / TCR, Math.Abs(Math.Exp(uNew(nc + 1)) - PCR) / PCR)
-                If dOld < 0.01 AndAlso dNew > dOld Then
+                Dim tNew = Math.Exp(uNew(nc)), pNew = Math.Exp(uNew(nc + 1))
+                Dim passedCP = ((tNew - Tcur) / TCR) * ((TCR - tNew) / TCR) + ((pNew - Pcur) / PCR) * ((PCR - pNew) / PCR) < 0.0
+                If dOld < 0.01 AndAlso (dNew > dOld OrElse passedCP) Then
                     ended = True
                     Exit Do
                 End If
@@ -4278,18 +4391,21 @@ redirect2:                  IObj?.SetCurrent()
             Dim pLast = If(pList.Count > 0, pList(pList.Count - 1), P0)
             If Math.Max(Math.Abs(tLast - TCR) / TCR, Math.Abs(pLast - PCR) / PCR) > 0.02 Then Return False
 
+            tList.Add(TCR)
+            pList.Add(PCR)
             For k = 0 To tList.Count - 1
                 TVD.Add(tList(k))
                 PO.Add(pList(k))
-                HO.Add(Me.DW_CalcEnthalpy(Vz, tList(k), pList(k), State.Vapor))
-                SO.Add(Me.DW_CalcEntropy(Vz, tList(k), pList(k), State.Vapor))
-                VO.Add(1 / Me.AUX_VAPDENS(tList(k), pList(k)) * Me.AUX_MMM(Phase.Mixture))
+                If bubble Then
+                    HO.Add(Me.DW_CalcEnthalpy(Vz, tList(k), pList(k), State.Liquid))
+                    SO.Add(Me.DW_CalcEntropy(Vz, tList(k), pList(k), State.Liquid))
+                    VO.Add(1 / Me.AUX_LIQDENS(tList(k), Vz, pList(k), pList(k)) * Me.AUX_MMM(Phase.Mixture))
+                Else
+                    HO.Add(Me.DW_CalcEnthalpy(Vz, tList(k), pList(k), State.Vapor))
+                    SO.Add(Me.DW_CalcEntropy(Vz, tList(k), pList(k), State.Vapor))
+                    VO.Add(1 / Me.AUX_VAPDENS(tList(k), pList(k)) * Me.AUX_MMM(Phase.Mixture))
+                End If
             Next
-            TVD.Add(TCR)
-            PO.Add(PCR)
-            HO.Add(Me.DW_CalcEnthalpy(Vz, TCR, PCR, State.Vapor))
-            SO.Add(Me.DW_CalcEntropy(Vz, TCR, PCR, State.Vapor))
-            VO.Add(1 / Me.AUX_VAPDENS(TCR, PCR) * Me.AUX_MMM(Phase.Mixture))
             Return True
 
         End Function
@@ -4450,6 +4566,8 @@ redirect2:                  IObj?.SetCurrent()
             Dim result As IFlashCalculationResult = Nothing
             Dim prevL1Comp As Double() = Nothing
             Dim KI(n) As Double
+            ' set when the saturation continuation drew the line into the critical point
+            Dim dewTraced As Boolean = False, bubTraced As Boolean = False
 
             Dim tpflash As New NestedLoops3PV3() With {.FlashSettings = Me.FlashBase.FlashSettings}
             tpflash.FlashSettings(Enums.FlashSetting.ThreePhaseFlashStabTestSeverity) = 2
@@ -4526,6 +4644,9 @@ redirect2:                  IObj?.SetCurrent()
                 i = 0
                 P = options.BubbleCurveInitialPressure
                 T = options.BubbleCurveInitialTemperature
+                ' K-values of each bubble point, to restart the continuation from a well converged one
+                Dim bubK As New List(Of Double())
+                Dim bubStart = TVB.Count
                 Do
 
                     If i < 2 Then
@@ -4544,6 +4665,7 @@ redirect2:                  IObj?.SetCurrent()
                             SB.Add(Me.DW_CalcEntropy(Vz, T, P, State.Liquid))
                             VB.Add(1 / Me.AUX_LIQDENS(T, Vz, P, P) * Me.AUX_MMM(Phase.Mixture))
                             KI = tmp2(6)
+                            bubK.Add(DirectCast(KI.Clone(), Double()))
                         Else
                             tmp2 = Me.FlashBase.Flash_PV(Vz, P, 0, options.BubbleCurveInitialTemperature, Me)
                             TVB.Add(tmp2(4))
@@ -4553,6 +4675,7 @@ redirect2:                  IObj?.SetCurrent()
                             SB.Add(Me.DW_CalcEntropy(Vz, T, P, State.Liquid))
                             VB.Add(1 / Me.AUX_LIQDENS(T, Vz, P, P) * Me.AUX_MMM(Phase.Mixture))
                             KI = tmp2(6)
+                            bubK.Add(DirectCast(KI.Clone(), Double()))
                         End If
 
                         'check instability
@@ -4657,6 +4780,7 @@ redirect2:                  IObj?.SetCurrent()
                                 SB.Add(Me.DW_CalcEntropy(Vz, T, P, State.Liquid))
                                 VB.Add(1 / Me.AUX_LIQDENS(T, Vz, P, P) * Me.AUX_MMM(Phase.Mixture))
                                 KI = tmp2(6)
+                                bubK.Add(DirectCast(KI.Clone(), Double()))
                                 beta = (Math.Log(PB(PB.Count - 1) / 101325) - Math.Log(PB(PB.Count - 2) / 101325)) / (Math.Log(TVB(TVB.Count - 1)) - Math.Log(TVB(TVB.Count - 2)))
                                 consecutiveFailures = 0
                             Catch ex As Exception
@@ -4710,6 +4834,7 @@ redirect2:                  IObj?.SetCurrent()
                                 SB.Add(Me.DW_CalcEntropy(Vz, T, P, State.Liquid))
                                 VB.Add(1 / Me.AUX_LIQDENS(T, Vz, P, P) * Me.AUX_MMM(Phase.Mixture))
                                 KI = tmp2(6)
+                                bubK.Add(DirectCast(KI.Clone(), Double()))
                                 beta = (Math.Log(PB(PB.Count - 1) / 101325) - Math.Log(PB(PB.Count - 2) / 101325)) / (Math.Log(TVB(TVB.Count - 1)) - Math.Log(TVB(TVB.Count - 2)))
                                 consecutiveFailures = 0
                             Catch ex As Exception
@@ -4829,10 +4954,38 @@ redirect2:                  IObj?.SetCurrent()
                 Loop Until i >= options.BubbleCurveMaximumPoints Or PB(PB.Count - 1) = 0 Or PB(PB.Count - 1) < 0 Or TVB(TVB.Count - 1) < 0 Or
                         Double.IsNaN(PB(PB.Count - 1)) = True Or Double.IsNaN(TVB(TVB.Count - 1)) = True Or T >= options.BubbleCurveMaximumTemperature
 
+                ' Near the CP the bubble flash converges loosely (flat objective): its last points sit up to
+                ' half a bar under the line. Redraw the stretch after the last point at least 5 % from the CP,
+                ' where the flash is tight, with the saturation continuation, which ends on the CP. Keep the
+                ' flash points when the continuation fails.
+                If stopAtCP AndAlso TVB.Count - bubStart >= 3 AndAlso bubK.Count = TVB.Count - bubStart Then
+                    Dim relCP = Function(q As Integer) Math.Max(Math.Abs(TVB(q) - TCR) / TCR, Math.Abs(PB(q) - PCR) / PCR)
+                    If relCP(TVB.Count - 1) < 0.15 Then
+                        Dim s = -1
+                        For q = TVB.Count - 1 To bubStart Step -1
+                            If relCP(q) >= 0.05 Then
+                                s = q
+                                Exit For
+                            End If
+                        Next
+                        If s >= bubStart Then
+                            Dim cut = TVB.Count - 1 - s
+                            Dim keepT = TVB.GetRange(s + 1, cut), keepP = PB.GetRange(s + 1, cut)
+                            Dim keepH = HB.GetRange(s + 1, cut), keepS = SB.GetRange(s + 1, cut), keepV = VB.GetRange(s + 1, cut)
+                            TVB.RemoveRange(s + 1, cut) : PB.RemoveRange(s + 1, cut) : HB.RemoveRange(s + 1, cut)
+                            SB.RemoveRange(s + 1, cut) : VB.RemoveRange(s + 1, cut)
+                            bubTraced = TraceSaturationNewtonToCP(Vz, bubK(s - bubStart), PB, TVB, HB, SB, VB, TCR, PCR, True)
+                            If Not bubTraced Then
+                                TVB.AddRange(keepT) : PB.AddRange(keepP) : HB.AddRange(keepH) : SB.AddRange(keepS) : VB.AddRange(keepV)
+                            End If
+                        End If
+                    End If
+                End If
+
                 ' Close the bubble line on the analytical critical point, as the dew line is: near the CP the
                 ' bubble flash converges loosely (flat objective) and stops a few tenths of a bar off Pc.
                 ' Only when the line already ended next to the CP and has not run past Tc.
-                If stopAtCP AndAlso PB.Count > 0 AndAlso TVB.Count > 0 Then
+                If stopAtCP AndAlso Not bubTraced AndAlso PB.Count > 0 AndAlso TVB.Count > 0 Then
                     Dim bubLastRelCP = Math.Max(Math.Abs(TVB(TVB.Count - 1) - TCR) / TCR, Math.Abs(PB(PB.Count - 1) - PCR) / PCR)
                     If bubLastRelCP >= 0.001 AndAlso bubLastRelCP < 0.05 AndAlso TVB(TVB.Count - 1) <= TCR Then
                         TVB.Add(TCR)
@@ -4854,6 +5007,9 @@ redirect2:                  IObj?.SetCurrent()
                     KI(j) = 0
                     j = j + 1
                 Loop Until j = n + 1
+
+                ' largest |ln K| of a set of K-values (0 while there are none)
+                Dim maxAbsLnK = Function(kv As Double()) If(kv Is Nothing, 0.0, kv.Where(Function(v) v > 0.0 AndAlso Not Double.IsInfinity(v)).Select(Function(v) Math.Abs(Math.Log(v))).DefaultIfEmpty(0.0).Max())
 
                 i = 0
                 P = options.DewCurveInitialPressure
@@ -4949,6 +5105,14 @@ redirect2:                  IObj?.SetCurrent()
                                 ' critical coordinate (the cricondentherm has T>Tc with P<Pc, the cricondenbar
                                 ' P>Pc with T<Tc), so crossing both means the curve has run past its end - stop.
                                 If T > TCR AndAlso Presult > PCR Then Exit Do
+                                ' Past the cricondentherm there is no dew point at this temperature, and the flash
+                                ' returns the near-trivial root instead (every K collapsed toward 1 in one step) at
+                                ' a pressure that is not on the line. Away from the critical point nothing else
+                                ' validates it. Stop at the last good point; the continuation after the loop
+                                ' (TraceSaturationNewtonToCP, seeded with its KI) takes the line around the cricondentherm.
+                                If stopAtCP AndAlso TVD.Count >= 3 AndAlso PO(PO.Count - 1) < PCR AndAlso
+                                   Math.Max(Math.Abs(TVD(TVD.Count - 1) - TCR) / TCR, Math.Abs(PO(PO.Count - 1) - PCR) / PCR) < 0.5 AndAlso
+                                   maxAbsLnK(DirectCast(tmp2(6), Double())) < 0.5 * maxAbsLnK(KI) Then Exit Do
                                 Dim dewPdeviation = If(Pguess > 0, Math.Abs(Presult - Pguess) / Pguess, 0.0)
                                 If dewValidate AndAlso dewPdeviation > 0.03 Then
                                     Flowsheet?.ShowMessage("Phase Envelope generation: Dew TVF point rejected (P=" & Presult.ToString("G6") & " vs expected " & Pguess.ToString("G6") & ")", IFlowsheet.MessageType.Warning)
@@ -5155,7 +5319,7 @@ redirect2:                  IObj?.SetCurrent()
                     Dim dewLastRelCP = Math.Max(Math.Abs(TVD(TVD.Count - 1) - TCR) / TCR, Math.Abs(PO(PO.Count - 1) - PCR) / PCR)
                     Dim dewAtCP = (Math.Abs(PO(PO.Count - 1) - PCR) / PCR < 0.001 AndAlso Math.Abs(TVD(TVD.Count - 1) - TCR) / TCR < 0.001)
                     If Not dewAtCP AndAlso dewLastRelCP < 0.5 AndAlso PO(PO.Count - 1) < PCR Then
-                        TraceDewRetrogradeToCP(Vz, PO, TVD, HO, SO, VO, TCR, PCR, options.DewCurveDeltaP, KI)
+                        dewTraced = TraceDewRetrogradeToCP(Vz, PO, TVD, HO, SO, VO, TCR, PCR, options.DewCurveDeltaP, KI)
                     End If
                 End If
 
@@ -5864,7 +6028,9 @@ redirect2:                  IObj?.SetCurrent()
             ' Near-CP monotonic approach filter for dew curve
             ' Once past cricondentherm (T decreasing) and within 10% of CP,
             ' each successive point must get closer to CP. Remove any that move away.
-            If TVD.Count >= 3 Then
+            ' Not for a line the saturation continuation drew: its points are on the curve, and a lean gas
+            ' has its cricondenbar above Pc past the cricondentherm, where the curve rises away from the CP.
+            If TVD.Count >= 3 AndAlso Not dewTraced Then
                 Dim cricoT = TVD.Max()
                 Dim cricoIdx = TVD.IndexOf(cricoT)
                 If cricoIdx >= 0 AndAlso cricoIdx < TVD.Count - 2 Then
@@ -5882,7 +6048,7 @@ redirect2:                  IObj?.SetCurrent()
             End If
 
             ' Near-CP monotonic approach filter for bubble curve
-            If TVB.Count >= 3 Then
+            If TVB.Count >= 3 AndAlso Not bubTraced Then
                 Dim cricoT = TVB.Max()
                 Dim cricoIdx = TVB.IndexOf(cricoT)
                 If cricoIdx >= 0 AndAlso cricoIdx < TVB.Count - 2 Then

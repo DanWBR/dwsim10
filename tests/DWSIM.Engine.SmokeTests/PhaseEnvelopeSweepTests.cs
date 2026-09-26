@@ -94,10 +94,10 @@ namespace DWSIM.Engine.SmokeTests
         /// <summary>
         /// Methane/ethane/propane at random compositions, sweeping methane from 0 to 100 percent with the
         /// balance split randomly between ethane and propane (fixed seed for reproducibility). Every
-        /// composition must build an envelope without throwing; genuine ternary mixtures (no component
-        /// vanishing) must produce a real envelope whose dew curve reaches the critical point. The
-        /// near-pure endpoints are tolerated: pure methane is degenerate, and the ethane/propane binary
-        /// at zero methane hits a separate critical-point-solver defect that is out of scope here.
+        /// composition must build an envelope without throwing; every mixture (two or more components
+        /// above 2 %) must produce a real envelope whose dew curve reaches the critical point. Only the
+        /// pure-methane endpoint is tolerated, as a single-component vapour-pressure line. The zero-methane
+        /// step is the ethane/propane binary 0.342/0.658, which must build like any other mixture.
         /// </summary>
         [Test]
         public void MethaneEthanePropaneEnvelopesBuildAcrossTheMethaneRange()
@@ -113,12 +113,9 @@ namespace DWSIM.Engine.SmokeTests
                 double xC2 = rest * split, xC3 = rest * (1.0 - split);
                 double sum = xC1 + xC2 + xC3;
                 var fr = new[] { xC1 / sum, xC2 / sum, xC3 / sum };
-                double minFrac = fr.Min();
-
-                // A near-pure endpoint (a component vanishing) is a degenerate case - a single-component
-                // vapour-pressure line, not a mixture envelope - so it is only required not to bring the
-                // generator down. A genuine ternary mixture must build a real envelope.
-                bool genuineMixture = minFrac > 0.02;
+                // Pure methane is a single-component vapour-pressure line, so it is only required not to
+                // bring the generator down. Any composition with two components above 2 % is a mixture.
+                bool genuineMixture = fr.Count(f => f > 0.02) >= 2;
 
                 try
                 {
