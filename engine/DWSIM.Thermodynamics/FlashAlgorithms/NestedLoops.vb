@@ -3324,7 +3324,7 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
         ''' natural gas can report a Tsat of 1000+ K at 40 bar), which sent the dew-side loop diverging to
         ''' NaN. Falls back to the Tsat-weighted average when the objective cannot be bracketed.
         ''' </remarks>
-        Private Function EstimatePVTemperature(ByVal Vz As Double(), ByVal P As Double, ByVal V As Double,
+        Friend Shared Function EstimatePVTemperature(ByVal Vz As Double(), ByVal P As Double, ByVal V As Double,
                                                ByVal PP As PropertyPackages.PropertyPackage, ByVal Tsat As Double()) As Double
 
             Dim nc As Integer = Vz.Length - 1
@@ -3881,7 +3881,17 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                             Else
                                 Vx = Vy.Clone()
                             End If
-                            deltaT = 0
+                            'The interpolated temperature stands only if the bubble/dew equation holds there with y = x.
+                            'Fugacity coefficients are used directly: DW_CalcKvalue replaces K values within 0.01 of 1,
+                            'which is what an equation-of-state azeotrope has, by the Wilson estimate.
+                            If AcceptStalledSaturationPoint Then
+                                deltaT = 0
+                            ElseIf Double.IsNaN(T) OrElse Double.IsInfinity(T) OrElse T <= 0.0 Then
+                                deltaT = 100
+                            Else
+                                Dim Kaz = PinNonVolatiles(PP.DW_CalcFugCoeff(Vx, T, P, State.Liquid).DivideY(PP.DW_CalcFugCoeff(Vy, T, P, State.Vapor)), nonvolatile)
+                                deltaT = BrentExitStep(Kaz, Vx, Vy, V, dFdT)
+                            End If
                             Exit Do
                         ElseIf xvals.Count >= 2 Then
                             'multicomponent azeotrope - use Brent bracketing on accumulated data
@@ -4211,7 +4221,8 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                 Return New Object() {-1}
             End If
 
-            If PP.AUX_CheckTrivial(Ki, 0.01, Vz) Then
+            'an activity-coefficient package has no trivial solution: K within 0.01 of 1 is a real azeotrope
+            If PP.PackageType <> PropertyPackages.PackageType.ActivityCoefficient AndAlso PP.AUX_CheckTrivial(Ki, 0.01, Vz) Then
                 IObj?.Close()
                 Return New Object() {-1}
             End If

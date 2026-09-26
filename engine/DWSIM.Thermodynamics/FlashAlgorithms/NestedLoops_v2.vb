@@ -2600,6 +2600,22 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
 
             End If
 
+            'A bubble or dew point that failed or stalled is tried once more from the ideal-solution
+            'temperature of NestedLoops (Raoult's law with the vapour pressures), with K values from the
+            'package; this class's own seed for a dew point, the highest Tsat, is where the loop stalls. A
+            'converged retry skips the pressure stepping below, which would end on a rerun from the first seed.
+            If StalledSaturationPoint(result, V, PP) Then
+                Dim Tsat(Vz.Length - 1) As Double
+                For j As Integer = 0 To Vz.Length - 1
+                    Tsat(j) = PP.AUX_TSATi(P, j)
+                Next
+                Dim retry As Object() = Flash_PV_1(Vz, P, V, NestedLoops.EstimatePVTemperature(Vz, P, V, PP, Tsat), PP, False, Nothing)
+                If Not StalledSaturationPoint(retry, V, PP) Then
+                    result = retry
+                    deltaT = 0.0
+                End If
+            End If
+
             If Math.Abs(deltaT) > 0.01 And (V = 0 Or V = 1) Then
 
                 'solution is not valid. 
@@ -2704,6 +2720,10 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                 End If
             End If
 
+            'The fallbacks above hand back their last attempt whether it converged or not. A bubble or dew
+            'point is returned only when the temperature loop converged on it.
+            If result.Count > 1 AndAlso StalledSaturationPoint(result, V, PP) Then result = New Object() {-1}
+
             Dim idealcalc As Boolean = Me.FlashSettings(Interfaces.Enums.FlashSetting.PVFlash_TryIdealCalcOnFailure)
             If result.Count = 1 And idealcalc Then
                 Using IPP As New RaoultPropertyPackage()
@@ -2804,6 +2824,58 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                 If i < nonvolatile.Length AndAlso nonvolatile(i) Then K(i) = 1.0E-20
             Next
             Return K
+        End Function
+
+        ''' <summary>
+        ''' Keeps the bubble/dew point acceptance of earlier versions: a Brent or azeotrope exit of Flash_PV_1
+        ''' reports a zero step whether or not the equation holds, K values within 0.01 of 1 are rejected for
+        ''' every package, and Flash_PV neither retries from the ideal seed nor rejects a stalled result.
+        ''' </summary>
+        Public Property AcceptStalledSaturationPoint As Boolean = False
+
+        ''' <summary>
+        ''' Temperature step still left where a Brent or azeotrope exit of the bubble/dew loop stops: zero when
+        ''' the bubble/dew equation holds to the loop tolerance, otherwise the remaining Newton step (100 when
+        ''' that step is not finite or is not above 0.01 K).
+        ''' </summary>
+        Private Function BrentExitStep(Ki As Double(), Vx As Double(), Vy As Double(), V As Double, dFdT As Double) As Double
+            If AcceptStalledSaturationPoint Then Return 0.0
+            Dim res As Double = If(V = 0.0, Ki.MultiplyY(Vx).SumY, Vy.DivideY(Ki).SumY) - 1.0
+            If Math.Abs(res) < etol Then Return 0.0
+            Dim stp As Double = -res / dFdT
+            If Double.IsNaN(stp) OrElse Double.IsInfinity(stp) OrElse Math.Abs(stp) <= 0.01 Then Return 100.0
+            Return stp
+        End Function
+
+        ''' <summary>
+        ''' True for a bubble or dew point (V = 0 or 1) that failed, or that ended on a step above 0.01 K with its
+        ''' equation not holding to the loop tolerance.
+        ''' </summary>
+        ''' <remarks>
+        ''' The loop stops on the residual after a single step, so a converged result routinely reports a last
+        ''' step above 0.01 K: the step alone cannot tell it from a stalled Brent or azeotrope exit. The residual
+        ''' is taken on the returned arrays, over the compounds not declared solid.
+        ''' </remarks>
+        Private Function StalledSaturationPoint(result As Object(), V As Double, PP As PropertyPackages.PropertyPackage) As Boolean
+            If AcceptStalledSaturationPoint OrElse Not (V = 0.0 Or V = 1.0) Then Return False
+            If result.Length < 12 Then Return result.Length = 1
+            If Math.Abs(Convert.ToDouble(result(11))) <= 0.01 Then Return False
+            Dim K = DirectCast(result(6), Double()), x = DirectCast(result(2), Double()), y = DirectCast(result(3), Double())
+            Dim res As Double
+            If V = 1.0 Then
+                res = y.DivideY(K).SumY - 1.0
+            Else
+                Dim cprops = PP.DW_GetConstantProperties()
+                Dim s, xs As Double
+                For i = 0 To K.Length - 1
+                    If Not cprops(i).IsSolid Then
+                        s += K(i) * x(i)
+                        xs += x(i)
+                    End If
+                Next
+                res = s / xs - 1.0
+            End If
+            Return Not (Math.Abs(res) < etol)
         End Function
 
         Public Function Flash_PV_1(ByVal Vz2 As Double(), ByVal P As Double, ByVal V As Double, ByVal Tref As Double, ByVal PP As PropertyPackages.PropertyPackage, Optional ByVal ReuseKI As Boolean = False, Optional ByVal PrevKi As Double() = Nothing, Optional OldTempEstimation As Boolean = False) As Object
@@ -3173,6 +3245,8 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                         dVxy(i) = Math.Abs(Vx(i) - Vy(i))
                     Next
                     If dVxy.Sum < 0.01 * (n + 1) And ecount > 20 And Not CalculatingAzeotrope Then
+                        ' slope of the residual over the last two iterates, for the step left at the exits below
+                        Dim dFdTs As Double = (fvals(fvals.Count - 1) - fvals(fvals.Count - 2)) / (xvals(xvals.Count - 1) - xvals(xvals.Count - 2))
                         If Vx.Length = 2 Then
                             ' Binary azeotrope - use interpolation method
                             T = Flash_PV_Azeotrope_Temperature(Vz, P, V, Tref, PP, ReuseKI, PrevKi)
@@ -3181,7 +3255,17 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                             Else
                                 Vx = Vy.Clone()
                             End If
-                            deltaT = 0
+                            'The interpolated temperature stands only if the bubble/dew equation holds there with y = x.
+                            'Fugacity coefficients are used directly: DW_CalcKvalue replaces K values within 0.01 of 1,
+                            'which is what an equation-of-state azeotrope has, by the Wilson estimate.
+                            If AcceptStalledSaturationPoint Then
+                                deltaT = 0
+                            ElseIf Double.IsNaN(T) OrElse Double.IsInfinity(T) OrElse T <= 0.0 Then
+                                deltaT = 100
+                            Else
+                                Dim Kaz = PinNonVolatiles(PP.DW_CalcFugCoeff(Vx, T, P, State.Liquid).DivideY(PP.DW_CalcFugCoeff(Vy, T, P, State.Vapor)), nonvolatile)
+                                deltaT = BrentExitStep(Kaz, Vx, Vy, V, dFdTs)
+                            End If
                             IObj2?.Close()
                             Exit Do
                         ElseIf xvals.Count >= 2 Then
@@ -3206,7 +3290,7 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                                     Else
                                         Vx = Vy.DivideY(Ki).NormalizeY()
                                     End If
-                                    deltaT = 0
+                                    deltaT = BrentExitStep(Ki, Vx, Vy, V, dFdTs)
                                     IObj2?.Close()
                                     Exit Do
                                 Catch
@@ -3401,7 +3485,7 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                                 Vx = Vx.NormalizeY()
                                 Vy = Vy.NormalizeY()
                             End If
-                            deltaT = 0
+                            deltaT = If(V = 0.0 Or V = 1.0, BrentExitStep(Ki, Vx, Vy, V, dFdT), 0.0)
                         Catch
                             ' Brent failed, continue iterating
                         End Try
@@ -3428,7 +3512,8 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                 Return New Object() {-1}
             End If
 
-            If PP.AUX_CheckTrivial(Ki, 0.01, Vz) Then
+            'an activity-coefficient package has no trivial solution: K within 0.01 of 1 is a real azeotrope
+            If (AcceptStalledSaturationPoint Or PP.PackageType <> PropertyPackages.PackageType.ActivityCoefficient) AndAlso PP.AUX_CheckTrivial(Ki, 0.01, Vz) Then
                 IObj?.Close()
                 Return New Object() {-1}
             End If
