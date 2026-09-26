@@ -6500,6 +6500,34 @@ Namespace UnitOperations
 
         End Sub
 
+        ''' <summary>
+        ''' The last attempt of the bubble-point solvers, from the auto-generated estimates. When that fails
+        ''' too, the column goes to the Naphtali-Sandholm solver, started from the estimates that split the
+        ''' feed by volatility: a column the bubble-point method cannot converge (a long section pinched
+        ''' against an azeotrope, for one) still converges. A column that converges on either bubble-point
+        ''' attempt never gets here. When Naphtali-Sandholm fails as well, the bubble-point error is reported.
+        ''' </summary>
+        Private Function SolveBubblePointRetry(bpsolver As ColumnSolver) As ColumnSolverOutputData
+            SetColumnSolver(bpsolver)
+            Try
+                Return Solver.SolveColumn(GetSolverInputData(True))
+            Catch oex As OperationCanceledException
+                Throw
+            Catch bpex As Exception
+                FlowSheet.ShowMessage(GraphicObject.Tag + ": the bubble-point solver did not converge (" + bpex.Message + "). DWSIM will solve the column with the Naphtali-Sandholm solver...", IFlowsheet.MessageType.Warning)
+                Dim nsinput = GetSolverInputData(True, True)
+                nsinput.CalculationMode = 0
+                SetColumnSolver(New SolvingMethods.NaphtaliSandholmMethod())
+                Try
+                    Return Solver.SolveColumn(nsinput)
+                Catch oex As OperationCanceledException
+                    Throw
+                Catch ex As Exception
+                    Throw bpex
+                End Try
+            End Try
+        End Function
+
         Public Overrides Sub Calculate(Optional ByVal args As Object = Nothing)
 
             ColumnPropertiesProfile = ""
@@ -6585,9 +6613,8 @@ Namespace UnitOperations
                     End Try
                     If solvererror Then
                         FlowSheet.ShowMessage(GraphicObject.Tag + ": Column Solver did not converge. Will reset some parameters and try again shortly...", IFlowsheet.MessageType.Warning)
-                        'try to solve with auto-generated initial estimates.
-                        SetColumnSolver(New SolvingMethods.WangHenkeMethod2())
-                        so = Solver.SolveColumn(GetSolverInputData(True))
+                        'try to solve with auto-generated initial estimates, then with Naphtali-Sandholm.
+                        so = SolveBubblePointRetry(New SolvingMethods.WangHenkeMethod2())
                     End If
                 ElseIf SolvingMethodName.Contains("Bubble") Then
                     Try
@@ -6598,9 +6625,8 @@ Namespace UnitOperations
                     End Try
                     If solvererror Then
                         FlowSheet.ShowMessage(GraphicObject.Tag + ": Column Solver did not converge. Will reset some parameters and try again shortly...", IFlowsheet.MessageType.Warning)
-                        'try to solve with auto-generated initial estimates.
-                        SetColumnSolver(New SolvingMethods.WangHenkeMethod())
-                        so = Solver.SolveColumn(GetSolverInputData(True))
+                        'try to solve with auto-generated initial estimates, then with Naphtali-Sandholm.
+                        so = SolveBubblePointRetry(New SolvingMethods.WangHenkeMethod())
                     End If
                 ElseIf SolvingMethodName.Contains("Naphtali") Then
                     Try

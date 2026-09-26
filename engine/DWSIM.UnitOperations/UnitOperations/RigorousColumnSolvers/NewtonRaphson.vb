@@ -1348,11 +1348,13 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
 
             'If CalcMode = 0 And esolv Is Nothing Then
             Try
-                'run 4 iterations of the bubble point method to enhance the initial estimates.
-                'if it doesn't suceeed, go on with the original estimates.
+                'solve the column with the bubble point method (to convergence, with its fallbacks) to
+                'enhance the initial estimates. a warm-up cut to a few sweeps leaves some columns (the
+                'natural gas deethanizer) out of Newton's reach. if it doesn't suceeed, go on with the
+                'original estimates.
 
                 Dim result = New WangHenkeMethod().Solve(dc, nc, ns, maxits, tol, F, V, Q, L, VSS, LSS, Kval,
-                                           x, y, z, fc, HF, T, P, condt, 1, eff,
+                                           x, y, z, fc, HF, T, P, condt, -1, eff,
                                            coltype, pp, specs, False, False)
                 T = result(0)
                 V = result(1)
