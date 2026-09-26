@@ -4250,7 +4250,8 @@ Namespace UnitOperations
                             x2trials.Add(xt2.ToArray())
                         End If
                         Dim rnd As New Random(counter)
-                        trialcomp = Enumerable.Repeat(0, nc).Select(Function(d) rnd.NextDouble()).ToArray
+                        'random trials only over the compounds in the column feed (same draws when all are present)
+                        trialcomp = Enumerable.Repeat(0, nc).Select(Function(d, jj) rnd.NextDouble() * If(zm(jj) <> 0.0, 1.0, 0.0)).ToArray
                         trialcomp = trialcomp.NormalizeY
                     Next
 
@@ -4290,7 +4291,8 @@ Namespace UnitOperations
                             x2trials.Add(xt2.ToArray())
                         End If
                         Dim rnd As New Random(counter)
-                        trialcomp = Enumerable.Repeat(0, nc).Select(Function(d) rnd.NextDouble()).ToArray
+                        'random trials only over the compounds in the column feed (same draws when all are present)
+                        trialcomp = Enumerable.Repeat(0, nc).Select(Function(d, jj) rnd.NextDouble() * If(zm(jj) <> 0.0, 1.0, 0.0)).ToArray
                         trialcomp = trialcomp.NormalizeY
                     Next
 
@@ -5288,7 +5290,8 @@ Namespace UnitOperations
                             x2trials.Add(xt2.ToArray())
                         End If
                         Dim rnd As New Random(counter)
-                        trialcomp = Enumerable.Repeat(0, nc).Select(Function(d) rnd.NextDouble()).ToArray
+                        'random trials only over the compounds in the column feed (same draws when all are present)
+                        trialcomp = Enumerable.Repeat(0, nc).Select(Function(d, jj) rnd.NextDouble() * If(zm(jj) <> 0.0, 1.0, 0.0)).ToArray
                         trialcomp = trialcomp.NormalizeY
                     Next
 
@@ -5328,7 +5331,8 @@ Namespace UnitOperations
                             x2trials.Add(xt2.ToArray())
                         End If
                         Dim rnd As New Random(counter)
-                        trialcomp = Enumerable.Repeat(0, nc).Select(Function(d) rnd.NextDouble()).ToArray
+                        'random trials only over the compounds in the column feed (same draws when all are present)
+                        trialcomp = Enumerable.Repeat(0, nc).Select(Function(d, jj) rnd.NextDouble() * If(zm(jj) <> 0.0, 1.0, 0.0)).ToArray
                         trialcomp = trialcomp.NormalizeY
                     Next
 
@@ -5631,8 +5635,12 @@ Namespace UnitOperations
                         ' Sort components by K-value; alpha = K_lightest / K_2nd-lightest
                         ' rr â‰ˆ alpha / (alpha - 1), then scale by Gilliland factor 1.3
                         If nc >= 2 Then
-                            Dim sortedK = Kref.Select(Function(k, idx) New With {.K = k, .Idx = idx}).
+                            'rank only the compounds in the column feed: one at zero in every feed carries whatever
+                            'K its model gives at zero fraction and would set alpha (all of them if fewer than two)
+                            Dim allK = Kref.Select(Function(k, idx) New With {.K = k, .Idx = idx}).
                                               OrderByDescending(Function(e) e.K).ToArray()
+                            Dim sortedK = allK.Where(Function(e) zm(e.Idx) <> 0.0).ToArray()
+                            If sortedK.Length < 2 Then sortedK = allK
                             Dim K1 = Math.Max(sortedK(0).K, 0.0000000001)
                             Dim K2 = Math.Max(sortedK(1).K, 0.0000000001)
                             Dim alpha_lk As Double = K1 / K2
@@ -6316,7 +6324,8 @@ Namespace UnitOperations
                             x2trials.Add(xt2.ToArray())
                         End If
                         Dim rnd As New Random(counter)
-                        trialcomp = Enumerable.Repeat(0, nc).Select(Function(d) rnd.NextDouble()).ToArray
+                        'random trials only over the compounds in the column feed (same draws when all are present)
+                        trialcomp = Enumerable.Repeat(0, nc).Select(Function(d, jj) rnd.NextDouble() * If(zm(jj) <> 0.0, 1.0, 0.0)).ToArray
                         trialcomp = trialcomp.NormalizeY
                     Next
 
@@ -6348,7 +6357,8 @@ Namespace UnitOperations
                             x2trials.Add(xt2.ToArray())
                         End If
                         Dim rnd As New Random(counter)
-                        trialcomp = Enumerable.Repeat(0, nc).Select(Function(d) rnd.NextDouble()).ToArray
+                        'random trials only over the compounds in the column feed (same draws when all are present)
+                        trialcomp = Enumerable.Repeat(0, nc).Select(Function(d, jj) rnd.NextDouble() * If(zm(jj) <> 0.0, 1.0, 0.0)).ToArray
                         trialcomp = trialcomp.NormalizeY
                     Next
 

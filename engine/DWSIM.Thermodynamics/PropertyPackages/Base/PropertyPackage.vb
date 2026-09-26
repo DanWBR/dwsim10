@@ -1554,7 +1554,10 @@ Namespace PropertyPackages
                 If Vx(i) <> 0.0 OrElse Vy(i) <> 0.0 Then Kpresent.Add(K(i))
             Next
 
-            If Me.AUX_CheckTrivial(If(Kpresent.Count > 0, Kpresent.ToArray(), K)) Then
+            'an activity-coefficient package has no vapour-liquid trivial solution: K = gamma Psat / P near 1 is a
+            'real azeotrope (liquid-liquid can still collapse onto one liquid)
+            Dim lvActivity = (type = "LV" AndAlso Me.PackageType = PackageType.ActivityCoefficient)
+            If Not lvActivity AndAlso Me.AUX_CheckTrivial(If(Kpresent.Count > 0, Kpresent.ToArray(), K)) Then
 
                 IObj?.Paragraphs.Add(String.Format("Trivial solution detected! Recalculating K-values..."))
 
@@ -1629,7 +1632,7 @@ Namespace PropertyPackages
                 If Convert.ToDouble(Vx.GetValue(i)) <> 0.0 Then Kfeed.Add(K(i))
             Next
 
-            If Me.AUX_CheckTrivial(If(Kfeed.Count > 0, Kfeed.ToArray(), K)) Then
+            If Me.PackageType <> PackageType.ActivityCoefficient AndAlso Me.AUX_CheckTrivial(If(Kfeed.Count > 0, Kfeed.ToArray(), K)) Then
                 For i = 0 To Vx.Length - 1
                     K(i) = Me.AUX_PVAPi(i, T) / P
                 Next
