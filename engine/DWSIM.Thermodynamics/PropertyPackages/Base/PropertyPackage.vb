@@ -4524,14 +4524,16 @@ redirect2:                  IObj?.SetCurrent()
 
             Dim options As PhaseEnvelopeOptions = peoptions.Clone()
 
-            ' Start temperature from the compounds present only (z > 0, the same test that selects the
-            ' compounds of the critical point above). A compound at z = 0 with a low fusion or critical
-            ' temperature started C2/C3 0.342/0.658 at 85.75 K (0.45 Tc of the absent methane), where its
-            ' bubble pressure is 0.15 Pa, instead of 137.39 K.
+            ' Start and maximum temperatures from the compounds present only (z > 0, the same test that
+            ' selects the compounds of the critical point above). A compound at z = 0 with a low fusion or
+            ' critical temperature started C2/C3 0.342/0.658 at 85.75 K (0.45 Tc of the absent methane), where
+            ' its bubble pressure is 0.15 Pa, instead of 137.39 K; an absent heavy compound (water in a gas)
+            ' set the stop limits.
             Dim present = Enumerable.Range(0, Vz.Length).Where(Function(q) Vz(q) > 0.0).ToArray()
             If present.Length = 0 Then present = Enumerable.Range(0, Vz.Length).ToArray()
             Dim vtfAll = RET_VTF(), vtcAll = RET_VTC()
             Dim tStart = Math.Max(present.Min(Function(q) vtfAll(q)), present.Min(Function(q) vtcAll(q)) * 0.45)
+            Dim tcMax = present.Max(Function(q) vtcAll(q))
 
             With options
                 If Not .BubbleUseCustomParameters Then
@@ -4545,7 +4547,7 @@ redirect2:                  IObj?.SetCurrent()
                     .BubbleCurveInitialTemperature = tStart
                     .BubbleCurveInitialFlash = "TVF"
                     .BubbleCurveMaximumPoints = 500
-                    .BubbleCurveMaximumTemperature = RET_VTC.Max * 1.2
+                    .BubbleCurveMaximumTemperature = tcMax * 1.2
                     .CheckLiquidInstability = False
                 End If
                 If Not .DewUseCustomParameters Then
@@ -4555,7 +4557,7 @@ redirect2:                  IObj?.SetCurrent()
                     .DewCurveInitialTemperature = tStart
                     .DewCurveInitialFlash = "PVF"
                     .DewCurveMaximumPoints = 500
-                    .DewCurveMaximumTemperature = RET_VTC.Max * 1.5
+                    .DewCurveMaximumTemperature = tcMax * 1.5
                 End If
             End With
 
@@ -5030,6 +5032,10 @@ redirect2:                  IObj?.SetCurrent()
                 ' largest |ln K| of a set of K-values (0 while there are none)
                 Dim maxAbsLnK = Function(kv As Double()) If(kv Is Nothing, 0.0, kv.Where(Function(v) v > 0.0 AndAlso Not Double.IsInfinity(v)).Select(Function(v) Math.Abs(Math.Log(v))).DefaultIfEmpty(0.0).Max())
 
+                ' K-values of each dew point, to restart the continuation from a well converged one
+                Dim dewK As New List(Of Double())
+                Dim dewStart = TVD.Count
+
                 i = 0
                 P = options.DewCurveInitialPressure
                 T = options.DewCurveInitialTemperature
@@ -5046,6 +5052,7 @@ redirect2:                  IObj?.SetCurrent()
                             SO.Add(Me.DW_CalcEntropy(Vz, T, P, State.Vapor))
                             VO.Add(1 / Me.AUX_VAPDENS(T, P) * Me.AUX_MMM(Phase.Mixture))
                             KI = tmp2(6)
+                            dewK.Add(DirectCast(KI.Clone(), Double()))
                             T = T + options.DewCurveDeltaT
                         Else
                             tmp2 = Me.FlashBase.Flash_PV(Vz, P, 1, 0, Me)
@@ -5056,6 +5063,7 @@ redirect2:                  IObj?.SetCurrent()
                             SO.Add(Me.DW_CalcEntropy(Vz, T, P, State.Vapor))
                             VO.Add(1 / Me.AUX_VAPDENS(T, P) * Me.AUX_MMM(Phase.Mixture))
                             KI = tmp2(6)
+                            dewK.Add(DirectCast(KI.Clone(), Double()))
                             P = P + options.DewCurveDeltaP
                         End If
 
@@ -5147,6 +5155,7 @@ redirect2:                  IObj?.SetCurrent()
                                 SO.Add(Me.DW_CalcEntropy(Vz, T, P, State.Vapor))
                                 VO.Add(1 / Me.AUX_VAPDENS(T, P) * Me.AUX_MMM(Phase.Mixture))
                                 KI = tmp2(6)
+                                dewK.Add(DirectCast(KI.Clone(), Double()))
                                 consecutiveFailures = 0
                             Catch ex As Exception
                                 Flowsheet?.ShowMessage("Phase Envelope generation: Dew TVF flash failed at T=" & T.ToString("G6") & " K: " & ex.Message, IFlowsheet.MessageType.Warning)
@@ -5228,6 +5237,7 @@ redirect2:                  IObj?.SetCurrent()
                                 SO.Add(Me.DW_CalcEntropy(Vz, T, P, State.Vapor))
                                 VO.Add(1 / Me.AUX_VAPDENS(T, P) * Me.AUX_MMM(Phase.Mixture))
                                 KI = tmp2(6)
+                                dewK.Add(DirectCast(KI.Clone(), Double()))
                                 consecutiveFailures = 0
                             Catch ex As Exception
                                 Flowsheet?.ShowMessage("Phase Envelope generation: Dew PVF flash failed at P=" & P.ToString("G6") & " Pa: " & ex.Message, IFlowsheet.MessageType.Warning)
@@ -5328,13 +5338,42 @@ redirect2:                  IObj?.SetCurrent()
                 Loop Until i >= options.DewCurveMaximumPoints Or PO(PO.Count - 1) = 0 Or PO(PO.Count - 1) < 0 Or TVD(TVD.Count - 1) < 0 Or
                         Double.IsNaN(PO(PO.Count - 1)) = True Or Double.IsNaN(TVD(TVD.Count - 1)) = True Or T >= options.DewCurveMaximumTemperature
 
+                ' Near the CP the dew flash converges loosely (flat objective) and the 3 % guess check lets an
+                ' off-line point through (C2/C3 0.342/0.658, PR78: 45.88 bar at 352.97 K, 47.2 on the line; the
+                ' finish below then drew a 4 K bulge). As on the bubble side, redraw the stretch after the last
+                ' point at least 5 % from the CP with the saturation continuation, which ends on the CP. Keep the
+                ' flash points, and the finish below, when the continuation fails.
+                If stopAtCP AndAlso TVD.Count - dewStart >= 3 AndAlso dewK.Count = TVD.Count - dewStart Then
+                    Dim relCP = Function(q As Integer) Math.Max(Math.Abs(TVD(q) - TCR) / TCR, Math.Abs(PO(q) - PCR) / PCR)
+                    If relCP(TVD.Count - 1) < 0.15 Then
+                        Dim s = -1
+                        For q = TVD.Count - 1 To dewStart Step -1
+                            If relCP(q) >= 0.05 Then
+                                s = q
+                                Exit For
+                            End If
+                        Next
+                        If s >= dewStart AndAlso s < TVD.Count - 1 Then
+                            Dim cut = TVD.Count - 1 - s
+                            Dim keepT = TVD.GetRange(s + 1, cut), keepP = PO.GetRange(s + 1, cut)
+                            Dim keepH = HO.GetRange(s + 1, cut), keepS = SO.GetRange(s + 1, cut), keepV = VO.GetRange(s + 1, cut)
+                            TVD.RemoveRange(s + 1, cut) : PO.RemoveRange(s + 1, cut) : HO.RemoveRange(s + 1, cut)
+                            SO.RemoveRange(s + 1, cut) : VO.RemoveRange(s + 1, cut)
+                            dewTraced = TraceSaturationNewtonToCP(Vz, dewK(s - dewStart), PO, TVD, HO, SO, VO, TCR, PCR)
+                            If Not dewTraced Then
+                                TVD.AddRange(keepT) : PO.AddRange(keepP) : HO.AddRange(keepH) : SO.AddRange(keepS) : VO.AddRange(keepV)
+                            End If
+                        End If
+                    End If
+                End If
+
                 ' The temperature-stepping tracer cannot cross the cricondentherm, so on a package
                 ' with an analytical critical point (stopAtCP) the dew line stops short of it - at the
                 ' cricondentherm, or where the genuine pressure steepening outruns the barycentric
                 ' guess and the point gets rejected. Whatever ended the loop, if the last dew point is
                 ' near the critical point but not on it, finish the line along its retrograde branch
                 ' (single-valued in pressure) up to the critical point.
-                If stopAtCP AndAlso PO.Count > 0 AndAlso TVD.Count > 0 Then
+                If stopAtCP AndAlso Not dewTraced AndAlso PO.Count > 0 AndAlso TVD.Count > 0 Then
                     Dim dewLastRelCP = Math.Max(Math.Abs(TVD(TVD.Count - 1) - TCR) / TCR, Math.Abs(PO(PO.Count - 1) - PCR) / PCR)
                     Dim dewAtCP = (Math.Abs(PO(PO.Count - 1) - PCR) / PCR < 0.001 AndAlso Math.Abs(TVD(TVD.Count - 1) - TCR) / TCR < 0.001)
                     If Not dewAtCP AndAlso dewLastRelCP < 0.5 AndAlso PO(PO.Count - 1) < PCR Then
@@ -5626,8 +5665,11 @@ redirect2:                  IObj?.SetCurrent()
             If TypeOf Me Is PengRobinsonPropertyPackage Or TypeOf Me Is PengRobinson1978PropertyPackage Then eos = "PR" Else eos = "SRK"
 
             Pest = PCR * 10
-            Dim Tmin As Double = MathEx.Common.Max(Me.RET_VTF)
-            If Tmin = 0.0# Then Tmin = MathEx.Common.Min(Me.RET_VTB) * 0.4
+            Dim Tmin As Double = present.Max(Function(q) vtfAll(q))
+            If Tmin = 0.0# Then
+                Dim vtbAll = Me.RET_VTB()
+                Tmin = present.Min(Function(q) vtbAll(q)) * 0.4
+            End If
             Tmax = TCR * 1.4
 
             If options.PhaseIdentificationCurve Then
