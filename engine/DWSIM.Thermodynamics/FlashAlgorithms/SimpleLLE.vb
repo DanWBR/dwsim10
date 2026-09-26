@@ -1698,6 +1698,9 @@ alt:            T = bo.BrentOpt(Tinf, Tsup, 10, tolEXT, maxitEXT, {P, Vz, PP})
                     ex.Data.Add("UserAction", "Try another Property Package and/or Flash Algorithm.")
                     Throw ex
                 End If
+                If conv AndAlso PP.AUX_CheckTrivial(Ki, 0.05, Vz) Then
+                    Throw New Exception(String.Format("TV Flash [SimpleLLE]: Invalid result: converged to the trivial solution (T = {0} K, P = {1} Pa, MoleFracs = {2})", T.ToString("N2"), P.ToString("G6"), Vz.ToArrayString()))
+                End If
 
             Else
 
@@ -1803,6 +1806,13 @@ alt:            T = bo.BrentOpt(Tinf, Tsup, 10, tolEXT, maxitEXT, {P, Vz, PP})
 
                 Loop Until Math.Abs(fval) < etol Or Double.IsNaN(P) = True Or ecount > maxit_e
 
+                If ecount > maxit_e AndAlso Not Math.Abs(fval) < etol Then
+                    Dim ex As New Exception(Calculator.GetLocalString("PropPack_FlashMaxIt2") & String.Format(" (T = {0} K, P = {1} Pa, MoleFracs = {2})", T.ToString("N2"), P.ToString("G6"), Vz.ToArrayString()))
+                    ex.Data.Add("DetailedDescription", "The Flash Algorithm was unable to converge to a solution.")
+                    ex.Data.Add("UserAction", "Try another Property Package and/or Flash Algorithm.")
+                    Throw ex
+                End If
+
             End If
 
             d2 = Date.Now
@@ -1816,6 +1826,11 @@ alt:            T = bo.BrentOpt(Tinf, Tsup, 10, tolEXT, maxitEXT, {P, Vz, PP})
         End Function
 
         Public Overrides Function Flash_PV(ByVal Vz As Double(), ByVal P As Double, ByVal V As Double, ByVal Tref As Double, ByVal PP As PropertyPackages.PropertyPackage, Optional ByVal ReuseKI As Boolean = False, Optional ByVal PrevKi As Double() = Nothing) As Object
+            Return Flash_PV_Attempt(Vz, P, V, Tref, PP, ReuseKI, PrevKi, 0)
+        End Function
+
+        ' attempt 0 starts from the caller's Tref, 1 from Tref = 0, 2 from Raoult's-law temperature (the last one)
+        Private Function Flash_PV_Attempt(ByVal Vz As Double(), ByVal P As Double, ByVal V As Double, ByVal Tref As Double, ByVal PP As PropertyPackages.PropertyPackage, ByVal ReuseKI As Boolean, ByVal PrevKi As Double(), ByVal attempt As Integer) As Object
 
             Dim Vn(1) As String, Vx(1), Vy(1), Vx_ant(1), Vy_ant(1), Vp(1), Ki(1), Ki_ant(1), fi(1) As Double
             Dim i, n, ecount As Integer
@@ -1844,6 +1859,8 @@ alt:            T = bo.BrentOpt(Tinf, Tsup, 10, tolEXT, maxitEXT, {P, Vz, PP})
             Vn = PP.RET_VNAMES()
             VTc = PP.RET_VTC()
             fi = Vz.Clone
+
+            Dim Tauto As Boolean = (Tref = 0.0#)
 
             If Tref = 0.0# Then
 
@@ -2026,6 +2043,19 @@ alt:            T = bo.BrentOpt(Tinf, Tsup, 10, tolEXT, maxitEXT, {P, Vz, PP})
 
                 Loop Until Math.Abs(T - Tant) < 0.1 Or Double.IsNaN(T) = True Or ecount > maxit_e Or Double.IsNaN(T) Or Double.IsInfinity(T)
 
+                ' a stop on the search limit or on the trivial solution (K = 1 over the compounds present: the incipient phase
+                ' collapsed onto the feed) is not a saturation temperature: try once more from another start, in the order
+                ' caller's Tref, Tref = 0 (limits from the critical temperatures), Raoult's-law temperature +- 50 K
+                Dim clamped As Boolean = Math.Abs(T - Tant) < 0.1 AndAlso (T = Tmin OrElse T = Tmax)
+                Dim trivial As Boolean = Math.Abs(T - Tant) < 0.1 AndAlso Not clamped AndAlso PP.AUX_CheckTrivial(Ki, 0.05, Vz)
+                If (clamped OrElse trivial) AndAlso attempt < 2 Then
+                    If Tauto Then
+                        Return Flash_PV_Attempt(Vz, P, V, RaoultTemperature(Vz, P, V, Tmin, Tmax, PP), PP, False, Nothing, 2)
+                    Else
+                        Return Flash_PV_Attempt(Vz, P, V, 0.0#, PP, False, Nothing, 1)
+                    End If
+                End If
+
                 ' out of iterations, or stopped on the Tmin/Tmax clamp (two clamped steps in a row pass the 0.1 K test
                 ' with the temperature sitting on the limit): neither is a saturation temperature
                 If ecount > maxit_e AndAlso Not Math.Abs(T - Tant) < 0.1 Then
@@ -2036,6 +2066,9 @@ alt:            T = bo.BrentOpt(Tinf, Tsup, 10, tolEXT, maxitEXT, {P, Vz, PP})
                 End If
                 If Math.Abs(T - Tant) < 0.1 AndAlso (T = Tmin OrElse T = Tmax) Then
                     Throw New Exception(String.Format("PV Flash [SimpleLLE]: the temperature stopped on the search limit without converging (T = {0} K, P = {1} Pa, MoleFracs = {2})", T.ToString("N2"), P.ToString("N2"), Vz.ToArrayString()))
+                End If
+                If trivial Then
+                    Throw New Exception(String.Format("PV Flash [SimpleLLE]: Invalid result: converged to the trivial solution (T = {0} K, P = {1} Pa, MoleFracs = {2})", T.ToString("N2"), P.ToString("N2"), Vz.ToArrayString()))
                 End If
 
             Else
@@ -2140,6 +2173,13 @@ alt:            T = bo.BrentOpt(Tinf, Tsup, 10, tolEXT, maxitEXT, {P, Vz, PP})
 
                 Loop Until Math.Abs(fval) < etol Or Double.IsNaN(T) = True Or ecount > maxit_e
 
+                If ecount > maxit_e AndAlso Not Math.Abs(fval) < etol Then
+                    Dim ex As New Exception(Calculator.GetLocalString("PropPack_FlashMaxIt2") & String.Format(" (T = {0} K, P = {1} Pa, MoleFracs = {2})", T.ToString("N2"), P.ToString("N2"), Vz.ToArrayString()))
+                    ex.Data.Add("DetailedDescription", "The Flash Algorithm was unable to converge to a solution.")
+                    ex.Data.Add("UserAction", "Try another Property Package and/or Flash Algorithm.")
+                    Throw ex
+                End If
+
             End If
 
             d2 = Date.Now
@@ -2150,6 +2190,23 @@ alt:            T = bo.BrentOpt(Tinf, Tsup, 10, tolEXT, maxitEXT, {P, Vz, PP})
 
             Return New Object() {L, V, Vx, Vy, T, ecount, Ki, 0.0#, PP.RET_NullVector, 0.0#, PP.RET_NullVector}
 
+        End Function
+
+        ' Raoult's-law bubble (V = 0) or dew (V = 1) temperature of the compounds present, by bisection in [Tmin, Tmax]
+        Private Function RaoultTemperature(ByVal Vz As Double(), ByVal P As Double, ByVal V As Double, ByVal Tmin As Double, ByVal Tmax As Double, ByVal PP As PropertyPackages.PropertyPackage) As Double
+            Dim Vn = PP.RET_VNAMES()
+            Dim a As Double = Tmin, b As Double = Tmax
+            For k As Integer = 1 To 50
+                Dim m As Double = (a + b) / 2, s As Double = 0.0#
+                For j As Integer = 0 To Vz.Length - 1
+                    If Vz(j) <> 0.0# Then
+                        Dim pvap As Double = PP.AUX_PVAPi(Vn(j), m)
+                        If V = 0.0# Then s += Vz(j) * pvap / P Else s += Vz(j) * P / pvap
+                    End If
+                Next
+                If If(V = 0.0#, s - 1.0#, 1.0# - s) > 0 Then b = m Else a = m
+            Next
+            Return (a + b) / 2
         End Function
 
         Function OBJ_FUNC_PH_FLASH(ByVal T As Double, ByVal H As Double, ByVal P As Double, ByVal Vz As Object, ByVal pp As PropertyPackage) As Object
