@@ -121,8 +121,36 @@ Namespace MathEx
                 Next
             End If
 
+            ' The closed forms carry an absolute error of about 1E-16 x the largest root. The liquid root of an
+            ' EOS at low pressure is of the order of B (1E-8 for C2/C3 at 86 K and 0.15 Pa), so Z - B, and with
+            ' it ln(Z - B) in the fugacity coefficient, had no correct digit left below about 1 Pa. Newton on the
+            ' cubic itself restores full relative precision.
+            For ir = 0 To roots.Count - 1
+                roots(ir) = PolishCubicRoot(a, b, c, roots(ir))
+            Next
+
             Return roots
 
+        End Function
+
+        ''' <summary>
+        ''' Newton steps on the monic cubic z^3 + a z^2 + b z + c from an approximate root, each kept only while
+        ''' it lowers |f|: a root already exact to rounding, or a spurious one from the trigonometric form, is
+        ''' returned unchanged.
+        ''' </summary>
+        Private Shared Function PolishCubicRoot(ByVal a As Double, ByVal b As Double, ByVal c As Double, ByVal r As Double) As Double
+            Dim f = ((r + a) * r + b) * r + c
+            For it = 1 To 8
+                If f = 0.0# Then Exit For
+                Dim df = (3.0# * r + 2.0# * a) * r + b
+                If df = 0.0# OrElse Double.IsNaN(df) OrElse Double.IsInfinity(df) Then Exit For
+                Dim rn = r - f / df
+                Dim fn = ((rn + a) * rn + b) * rn + c
+                If Not Math.Abs(fn) < Math.Abs(f) Then Exit For
+                r = rn
+                f = fn
+            Next
+            Return r
         End Function
 
         Private Shared Function Cbrt(ByVal x As Double) As Double
@@ -215,18 +243,24 @@ Namespace MathEx
         ''' starts stop on an absolute residual of 1E-8, which leaves a liquid root with no correct digit
         ''' when the root itself is that small (a liquid at low pressure, B below about 1E-4). Returns
         ''' False when the point does not polish into a root (a residual below 1E-8 away from any root).
+        ''' A multiple root (the triple root at a pure compound's critical point) converges only linearly
+        ''' and stalls on rounding noise before the step gets that small; it is accepted when its residual
+        ''' is at rounding level.
         ''' </summary>
         Private Shared Function PolishRoot(ByVal a As Double, ByVal b As Double, ByVal c As Double, ByVal d As Double, ByRef r As Double) As Boolean
             For k = 1 To 50
                 Dim fi = a * r * r * r + b * r * r + c * r + d
                 Dim dfidr = 3 * a * r * r + 2 * b * r + c
-                If dfidr = 0.0# OrElse Double.IsNaN(dfidr) OrElse Double.IsInfinity(dfidr) Then Return False
+                If Double.IsNaN(dfidr) OrElse Double.IsInfinity(dfidr) Then Return False
+                If dfidr = 0.0# Then Exit For
                 Dim stp = fi / dfidr
                 r -= stp
                 If Double.IsNaN(r) OrElse Double.IsInfinity(r) Then Return False
                 If Math.Abs(stp) <= 0.000000000001 * Math.Max(Math.Abs(r), Double.Epsilon) Then Return True
             Next
-            Return False
+            Dim fr = a * r * r * r + b * r * r + c * r + d
+            Dim scale = Math.Abs(a * r * r * r) + Math.Abs(b * r * r) + Math.Abs(c * r) + Math.Abs(d)
+            Return Math.Abs(fr) <= 0.00000000000001 * scale
         End Function
 
         Shared Function CalcRoots(ByVal a As Double, ByVal b As Double, ByVal c As Double, ByVal d As Double) As Double(,)
