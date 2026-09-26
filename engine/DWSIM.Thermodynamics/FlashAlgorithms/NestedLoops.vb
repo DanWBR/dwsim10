@@ -3130,6 +3130,11 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
 
             End If
 
+            'Every dew point is checked against the stability of the vapour once the fallbacks below have
+            'run: with more than one liquid branch the first attempt can converge on the wrong one.
+            Dim checkdew As Boolean = Not AcceptStalledSaturationPoint AndAlso V = 1.0
+            Dim Tfirst As Double = If(result.Count > 1, Convert.ToDouble(result(4)), Tref)
+
             'A bubble or dew point that did not converge from the caller's seed is tried once more
             'from the ideal-solution seed, with K values from the package, before the pressure
             'stepping below, which costs a dozen flashes.
@@ -3250,6 +3255,8 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                     If result.Count = 1 Then result = Flash_PV_1(Vz, P, V, Tl, PP, True, Kvals, True)
                 End If
             End If
+
+            If checkdew Then result = DewPointOnStableBranch(Vz, P, Tfirst, result, PP)
 
             'The fallbacks above hand back their last attempt whether it converged or not. A bubble or
             'dew point is returned only when the temperature loop converged on it.
@@ -3435,8 +3442,9 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
 
         ''' <summary>
         ''' Keeps the bubble/dew point acceptance of earlier versions: a Brent exit of Flash_PV_1 reports a
-        ''' zero step whether or not the equation holds, and Flash_PV neither retries from the ideal seed
-        ''' nor rejects an unconverged fallback result.
+        ''' zero step whether or not the equation holds, and Flash_PV neither retries from the ideal seed,
+        ''' nor rejects an unconverged fallback result, nor checks a dew point against the stability of the
+        ''' vapour.
         ''' </summary>
         ''' <remarks>
         ''' For the Wang-Henke column solvers only, whose outer loop has come to rely on it: on
@@ -3461,6 +3469,142 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
             Dim stp As Double = -res / dFdT
             If Double.IsNaN(stp) OrElse Double.IsInfinity(stp) OrElse Math.Abs(stp) <= 0.01 Then Return 100.0
             Return stp
+        End Function
+
+        ''' <summary>
+        ''' A dew point checked against the stability of the vapour: at the dew point the vapour of the feed
+        ''' composition is on the edge of stability, with its incipient liquid on the tangent plane (tpd = 0)
+        ''' and no composition below it. When the check fails, the lowest stationary point of the tangent
+        ''' plane distance seeds the K values of another Flash_PV_1 run, and the check is repeated.
+        ''' </summary>
+        ''' <remarks>
+        ''' A mixture with more than one liquid branch has one root of the dew equation per branch. For
+        ''' water/n-hexane/methane (0.5/0.3/0.2, Peng-Robinson) the loop reached the hexane-rich root at
+        ''' 5 bar (352.8 K, with the vapour already 1.7 below the tangent plane with respect to water; the
+        ''' dew point is 401.3 K). At 10 and 50 bar every attempt failed and the Raoult fallback answered
+        ''' (438.8 K, and 507.6 K unconverged; the dew points are 425.1 and 494.4 K). At 30 bar the
+        ''' azeotrope exit stopped on a liquid with no liquid root, whose K values, taken before the
+        ''' composition was updated, satisfied the dew equation (494.2 K, tpd of that liquid 0.2; the dew
+        ''' point is 470.0 K). A result that passes is returned as it came, with a zero step when its loop
+        ''' ended on a larger one. One that does not, and cannot be replaced within five runs, becomes a
+        ''' failure.
+        ''' </remarks>
+        Private Function DewPointOnStableBranch(Vz As Double(), P As Double, Tstart As Double, result As Object(), PP As PropertyPackages.PropertyPackage) As Object()
+
+            Dim n As Integer = Vz.Length - 1
+
+            'the check works on the whole feed: solids and salts, which Flash_PV_1 keeps out of the
+            'vapour, are left to the existing code
+            Dim cprops = PP.DW_GetConstantProperties()
+            For j = 0 To n
+                If Vz(j) > 0.0 AndAlso (cprops(j).IsSolid Or cprops(j).TemperatureOfFusion > 1000.0 Or cprops(j).Normal_Boiling_Point * 0.7 > 1000.0) Then Return result
+            Next
+            If PP.AUX_IS_SINGLECOMP(Vz) Then Return result
+
+            'log fugacity coefficients on the root of lower Gibbs energy
+            Dim lnphi = Function(w As Double(), Tw As Double) As Double()
+                            Dim lv = PP.DW_CalcLnFugCoeff(w, Tw, P, State.Vapor)
+                            Dim ll = PP.DW_CalcLnFugCoeff(w, Tw, P, State.Liquid)
+                            Dim gv, gl As Double
+                            For j = 0 To n
+                                If w(j) > 0.0 Then
+                                    gv += w(j) * lv(j)
+                                    gl += w(j) * ll(j)
+                                End If
+                            Next
+                            Return If(gl <= gv, ll, lv)
+                        End Function
+
+            'the mole-fraction average of the saturation temperatures, the seed of earlier versions: below
+            'the dew point, where the vapour is unstable and the incipient liquid is a stationary point
+            Dim Tlow As Double = 0.0
+            For j = 0 To n
+                Tlow += Vz(j) * PP.AUX_TSATi(P, j)
+            Next
+
+            Dim tol As Double = 10 * etol
+            Dim current As Object() = result
+            Dim T As Double = Tstart
+            If result.Count > 1 Then T = Convert.ToDouble(result(4))
+            Dim triedlow As Boolean = False
+            If T = 0.0 Then
+                T = Tlow
+                triedlow = True
+            End If
+
+            For hop As Integer = 0 To 4
+
+                If Double.IsNaN(T) OrElse Double.IsInfinity(T) OrElse T <= 0.0 Then Exit For
+
+                'tangent plane of the vapour at T, and the distance of a composition from it
+                Dim Tp As Double = T
+                Dim lnz = lnphi(Vz, Tp)
+                Dim tpd = Function(w0 As Double()) As Double
+                              Dim w = w0.NormalizeY()
+                              Dim lnw = lnphi(w, Tp)
+                              Dim s As Double = 0.0
+                              For j = 0 To n
+                                  If Vz(j) > 0.0 AndAlso w(j) > 0.0 Then s += w(j) * (Log(w(j)) + lnw(j) - Log(Vz(j)) - lnz(j))
+                              Next
+                              Return s
+                          End Function
+
+                'stationary points of the tangent plane distance
+                Dim cands As New List(Of Double())
+                Dim tpds As New List(Of Double)
+                Dim st As Object() = StabTest(T, P, Vz, PP.RET_VTC(), PP)
+                If Not st(0) Then
+                    Dim est As Double(,) = st(1)
+                    For k = 0 To est.GetLength(0) - 1
+                        Dim w As Double() = New Double(n) {}
+                        For j = 0 To n
+                            w(j) = est(k, j)
+                        Next
+                        w = w.NormalizeY()
+                        cands.Add(w)
+                        tpds.Add(tpd(w))
+                    Next
+                End If
+                Dim tpdmin As Double = If(tpds.Count > 0, tpds.Min, 0.0)
+
+                If current.Count > 1 AndAlso Math.Abs(tpd(DirectCast(current(2), Double()))) < tol AndAlso tpdmin > -tol Then
+                    'a dew point, whatever the last step of its loop was
+                    If Math.Abs(Convert.ToDouble(current(11))) > 0.01 Then current(11) = 0.0
+                    Return current
+                End If
+
+                'seed: the most negative stationary point, or the least positive one when the vapour is
+                'stable (T above the dew point), among those clearly apart from the vapour
+                Dim seed As Double() = Nothing
+                Dim seedtpd As Double = Double.MaxValue
+                For k = 0 To cands.Count - 1
+                    If cands(k).SubtractY(Vz).AbsSumY > 0.1 AndAlso tpds(k) < seedtpd Then
+                        seed = cands(k)
+                        seedtpd = tpds(k)
+                    End If
+                Next
+                If seed Is Nothing Then
+                    'T is too far above the dew point for a liquid-like stationary point: start again below it
+                    If triedlow Then Exit For
+                    T = Tlow
+                    triedlow = True
+                    current = New Object() {-1}
+                    Continue For
+                End If
+
+                Dim Ki(n) As Double
+                For j = 0 To n
+                    Ki(j) = If(Vz(j) > 0.0 AndAlso seed(j) > 0.0, Vz(j) / seed(j), 1.0)
+                Next
+
+                current = Flash_PV_1(Vz, P, 1.0, T, PP, True, Ki)
+                If current.Count = 1 Then Exit For
+                T = current(4)
+
+            Next
+
+            Return New Object() {-1}
+
         End Function
 
         Public Function Flash_PV_1(ByVal Vz2 As Double(), ByVal P As Double, ByVal V As Double, ByVal Tref As Double, ByVal PP As PropertyPackages.PropertyPackage, Optional ByVal ReuseKI As Boolean = False, Optional ByVal PrevKi As Double() = Nothing, Optional OldTempEstimation As Boolean = False) As Object
