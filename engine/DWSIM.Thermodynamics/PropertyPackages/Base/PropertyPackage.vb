@@ -1547,7 +1547,14 @@ Namespace PropertyPackages
 
             IObj?.Paragraphs.Add(String.Format("Calculated K-values: {0}", K.ToMathArrayString()))
 
-            If Me.AUX_CheckTrivial(K) Then
+            'judge the trivial solution on the compounds present in either phase: the K-value of a compound at
+            'zero fraction in both is not bounded by the equilibrium and would decide the test for the others
+            Dim Kpresent As New List(Of Double)
+            For i = 0 To n
+                If Vx(i) <> 0.0 OrElse Vy(i) <> 0.0 Then Kpresent.Add(K(i))
+            Next
+
+            If Me.AUX_CheckTrivial(If(Kpresent.Count > 0, Kpresent.ToArray(), K)) Then
 
                 IObj?.Paragraphs.Add(String.Format("Trivial solution detected! Recalculating K-values..."))
 
@@ -1616,10 +1623,15 @@ Namespace PropertyPackages
                 i += 1
             Next
 
-            If Me.AUX_CheckTrivial(K) Then
+            'same test over the compounds present in the feed (an absent one gets a Wilson K from 0/0 above)
+            Dim Kfeed As New List(Of Double)
+            For i = 0 To n
+                If Convert.ToDouble(Vx.GetValue(i)) <> 0.0 Then Kfeed.Add(K(i))
+            Next
+
+            If Me.AUX_CheckTrivial(If(Kfeed.Count > 0, Kfeed.ToArray(), K)) Then
                 For i = 0 To Vx.Length - 1
                     K(i) = Me.AUX_PVAPi(i, T) / P
-                    i += 1
                 Next
             End If
 
@@ -11019,6 +11031,20 @@ Final3:
 
             Return isTrivial
 
+        End Function
+
+        ''' <summary>
+        ''' The trivial-solution test over the compounds present (z &lt;&gt; 0) only. An absent compound carries
+        ''' whatever K its model gives at zero fraction, which says nothing about the phase split and could hide
+        ''' (or fake) a trivial solution. With every z &lt;&gt; 0 it is the plain test.
+        ''' </summary>
+        Public Function AUX_CheckTrivial(ByVal Ki As Double(), ByVal tolerance As Double, ByVal Vz As Double()) As Boolean
+            If Vz Is Nothing OrElse Vz.Length <> Ki.Length Then Return AUX_CheckTrivial(Ki, tolerance)
+            Dim present As New List(Of Double)
+            For i = 0 To Ki.Length - 1
+                If Vz(i) <> 0.0 Then present.Add(Ki(i))
+            Next
+            Return AUX_CheckTrivial(If(present.Count > 0, present.ToArray(), Ki), tolerance)
         End Function
 
         Public Shared Function CalcCSTDepProp(ByVal eqno As String, ByVal A As Double, ByVal B As Double, ByVal C As Double, ByVal D As Double, ByVal E As Double, ByVal T As Double, ByVal Tc As Double) As Double

@@ -1534,7 +1534,7 @@ alt:            T = bo.BrentOpt(Tinf, Tsup, 10, tolEXT, maxitEXT, {P, Vz, PP})
                     i += 1
                 Loop Until i = n + 1
             Else
-                If Not PP.AUX_CheckTrivial(PrevKi) Then
+                If Not PP.AUX_CheckTrivial(PrevKi, 0.01, Vz) Then
                     For i = 0 To n
                         Vp(i) = PP.AUX_PVAPi(Vn(i), T)
                         Ki(i) = PrevKi(i)
@@ -1577,6 +1577,8 @@ alt:            T = bo.BrentOpt(Tinf, Tsup, 10, tolEXT, maxitEXT, {P, Vz, PP})
             Loop Until i = n + 1
 
             Dim marcador3, marcador2, marcador As Integer
+            'judge the inner loop on the first compound present: one at z = 0 stays at zero and passes the test at once
+            Dim ic As Integer = Math.Max(Array.FindIndex(Vz, Function(zi) zi <> 0.0), 0)
             Dim stmp4_ant, stmp4, Pant, fval As Double
             Dim chk As Boolean = False
 
@@ -1634,11 +1636,11 @@ alt:            T = bo.BrentOpt(Tinf, Tsup, 10, tolEXT, maxitEXT, {P, Vz, PP})
                         marcador2 = 0
                         If marcador = 1 Then
                             If V = 0 Then
-                                If Math.Abs(Vy(0) - Vy_ant(0)) < itol Then
+                                If Math.Abs(Vy(ic) - Vy_ant(ic)) < itol Then
                                     marcador2 = 1
                                 End If
                             Else
-                                If Math.Abs(Vx(0) - Vx_ant(0)) < itol Then
+                                If Math.Abs(Vx(ic) - Vx_ant(ic)) < itol Then
                                     marcador2 = 1
                                 End If
                             End If
@@ -1861,7 +1863,7 @@ alt:            T = bo.BrentOpt(Tinf, Tsup, 10, tolEXT, maxitEXT, {P, Vz, PP})
                     i += 1
                 Loop Until i = n + 1
             Else
-                If Not PP.AUX_CheckTrivial(PrevKi) And Not Double.IsNaN(PrevKi(0)) Then
+                If Not PP.AUX_CheckTrivial(PrevKi, 0.01, Vz) And Not Double.IsNaN(PrevKi(0)) Then
                     For i = 0 To n
                         Vp(i) = PP.AUX_PVAPi(Vn(i), T)
                         Ki(i) = PrevKi(i)
@@ -1904,6 +1906,8 @@ alt:            T = bo.BrentOpt(Tinf, Tsup, 10, tolEXT, maxitEXT, {P, Vz, PP})
             Loop Until i = n + 1
 
             Dim marcador3, marcador2, marcador As Integer
+            'judge the inner loop on the first compound present: one at z = 0 stays at zero and passes the test at once
+            Dim ic As Integer = Math.Max(Array.FindIndex(Vz, Function(zi) zi <> 0.0), 0)
             Dim stmp4_ant, stmp4, Tant, fval As Double
             Dim chk As Boolean = False
 
@@ -1961,11 +1965,11 @@ alt:            T = bo.BrentOpt(Tinf, Tsup, 10, tolEXT, maxitEXT, {P, Vz, PP})
                         marcador2 = 0
                         If marcador = 1 Then
                             If V = 0 Then
-                                If Math.Abs(Vy(0) - Vy_ant(0)) < itol Then
+                                If Math.Abs(Vy(ic) - Vy_ant(ic)) < itol Then
                                     marcador2 = 1
                                 End If
                             Else
-                                If Math.Abs(Vx(0) - Vx_ant(0)) < itol Then
+                                If Math.Abs(Vx(ic) - Vx_ant(ic)) < itol Then
                                     marcador2 = 1
                                 End If
                             End If

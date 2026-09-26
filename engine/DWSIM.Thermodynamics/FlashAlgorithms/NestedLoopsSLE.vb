@@ -893,6 +893,8 @@ out:        d2 = Date.Now
                 Vmin = 1.0#
                 Vmax = 0.0#
                 For i = 0 To n
+                    'a compound absent from the VLE feed does not bound V (with K = 1 it would open the bracket to 0..1)
+                    If Vz(i) = 0.0# Then Continue For
                     If (Ki(i) * Vz(i) - 1) / (Ki(i) - 1) < Vmin Then Vmin = (Ki(i) * Vz(i) - 1) / (Ki(i) - 1)
                     If (1 - Vz(i)) / (1 - Ki(i)) > Vmax Then Vmax = (1 - Vz(i)) / (1 - Ki(i))
                 Next
@@ -1275,7 +1277,7 @@ out2:           If (Math.Abs(GL_old - L) < 0.0000005) And (Math.Abs(GV_old - V) 
                     i += 1
                 Loop Until i = n + 1
             Else
-                If Not PP.AUX_CheckTrivial(PrevKi) And Not Double.IsNaN(PrevKi(0)) Then
+                If Not PP.AUX_CheckTrivial(PrevKi, 0.01, Vz) And Not Double.IsNaN(PrevKi(0)) Then
                     For i = 0 To n
                         Vp(i) = PP.AUX_PVAPi(Vn(i), T)
                         Ki(i) = PrevKi(i)
@@ -1316,6 +1318,8 @@ out2:           If (Math.Abs(GL_old - L) < 0.0000005) And (Math.Abs(GV_old - V) 
             End If
 
             Dim marcador3, marcador2, marcador As Integer
+            'judge the inner loop on the first compound present: one at z = 0 stays at zero and passes the test at once
+            Dim ic As Integer = Math.Max(Array.FindIndex(Vz, Function(zi) zi <> 0.0), 0)
             Dim stmp4_ant, stmp4, Tant, fval As Double
             Dim chk As Boolean = False
 
@@ -1374,11 +1378,11 @@ out2:           If (Math.Abs(GL_old - L) < 0.0000005) And (Math.Abs(GV_old - V) 
                         marcador2 = 0
                         If marcador = 1 Then
                             If V = 0 Then
-                                If Math.Abs(Vy(0) - Vy_ant(0)) < itol Then
+                                If Math.Abs(Vy(ic) - Vy_ant(ic)) < itol Then
                                     marcador2 = 1
                                 End If
                             Else
-                                If Math.Abs(Vx(0) - Vx_ant(0)) < itol Then
+                                If Math.Abs(Vx(ic) - Vx_ant(ic)) < itol Then
                                     marcador2 = 1
                                 End If
                             End If
@@ -1591,7 +1595,7 @@ out2:           If (Math.Abs(GL_old - L) < 0.0000005) And (Math.Abs(GV_old - V) 
                 Throw New Exception(Calculator.GetLocalString("PropPack_FlashMaxIt2"))
             End If
 
-            If PP.AUX_CheckTrivial(Ki) Then Throw New Exception("PV Flash [SLE]: Invalid result: converged to the trivial solution (T = " & T & " ).")
+            If PP.AUX_CheckTrivial(Ki, 0.01, Vz) Then Throw New Exception("PV Flash [SLE]: Invalid result: converged to the trivial solution (T = " & T & " ).")
 
             WriteDebugInfo("PV Flash [SLE]: Converged in " & ecount & " iterations. Time taken: " & dt.TotalMilliseconds & " ms.")
 
@@ -1712,6 +1716,8 @@ out2:           If (Math.Abs(GL_old - L) < 0.0000005) And (Math.Abs(GV_old - V) 
             Loop Until i = n + 1
 
             Dim marcador3, marcador2, marcador As Integer
+            'judge the inner loop on the first compound present: one at z = 0 stays at zero and passes the test at once
+            Dim ic As Integer = Math.Max(Array.FindIndex(Vz, Function(zi) zi <> 0.0), 0)
             Dim stmp4_ant, stmp4, Tant, fval As Double
             Dim chk As Boolean = False
 
@@ -1778,11 +1784,11 @@ out2:           If (Math.Abs(GL_old - L) < 0.0000005) And (Math.Abs(GV_old - V) 
                     marcador2 = 0
                     If marcador = 1 Then
                         If L = 0 Then
-                            If Math.Abs(Vx(0) - Vx_ant(0)) < itol Then
+                            If Math.Abs(Vx(ic) - Vx_ant(ic)) < itol Then
                                 marcador2 = 1
                             End If
                         Else
-                            If Math.Abs(Vs(0) - Vs_ant(0)) < itol Then
+                            If Math.Abs(Vs(ic) - Vs_ant(ic)) < itol Then
                                 marcador2 = 1
                             End If
                         End If

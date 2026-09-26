@@ -313,7 +313,8 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                 'Kb = CalcKbj1(Ki)
 
                 For i = 0 To n
-                    uic(i) = Log(Ki(i))
+                    'a compound at z = 0 keeps its variable: it adds nothing to the error or to the update
+                    If fi(i) = 0.0 Then uic(i) = ui(i) Else uic(i) = Log(Ki(i))
                 Next
 
                 '-------------------------------------------
@@ -680,7 +681,8 @@ restart:    Do
                 Ki = PP.DW_CalcKvalue(Vx, Vy, T, P)
 
                 For i = 0 To n
-                    If Ki(i) > 0 AndAlso Kb > 0 Then
+                    'a compound at z = 0 keeps its variable: it adds nothing to the error or to the update
+                    If fi(i) <> 0.0 AndAlso Ki(i) > 0 AndAlso Kb > 0 Then
                         uic(i) = Log(Ki(i) / Kb)
                     Else
                         uic(i) = ui(i)
@@ -1199,7 +1201,8 @@ restart:    Do
                 Ki = PP.DW_CalcKvalue(Vx, Vy, T, P)
 
                 For i = 0 To n
-                    If Ki(i) > 0 AndAlso Kb > 0 Then
+                    'a compound at z = 0 keeps its variable: it adds nothing to the error or to the update
+                    If fi(i) <> 0.0 AndAlso Ki(i) > 0 AndAlso Kb > 0 Then
                         uic(i) = Log(Ki(i) / Kb)
                     Else
                         uic(i) = ui(i)
@@ -1496,7 +1499,7 @@ restart:    Do
                     i += 1
                 Loop Until i = n + 1
             Else
-                If Not PP.AUX_CheckTrivial(PrevKi) Then
+                If Not PP.AUX_CheckTrivial(PrevKi, 0.01, Vz) Then
                     For i = 0 To n
                         Vp(i) = PP.AUX_PVAPi(Vn(i), T)
                         Ki(i) = PrevKi(i)
@@ -1622,7 +1625,8 @@ restart:    Do
                 'Kb_ = CalcKbj1(PP.DW_CalcKvalue(Vx, Vy, T_, P))
 
                 For i = 0 To n
-                    uic(i) = Log(Ki(i) / Kb)
+                    'a compound at z = 0 keeps its variable: it adds nothing to the error or to the update
+                    If fi(i) = 0.0 Then uic(i) = ui(i) Else uic(i) = Log(Ki(i) / Kb)
                 Next
 
                 Bc = Log(Kb_ / Kb) / (1 / T_ - 1 / T)
@@ -1697,13 +1701,13 @@ restart:    Do
 
                 If Not proppack.CurrentMaterialStream.Flowsheet Is Nothing Then proppack.CurrentMaterialStream.Flowsheet.CheckStatus()
 
-            Loop Until AbsSum(fx) < etol * (n + 2)
+            Loop Until AbsSum(fx) < etol * (fi.Where(Function(zi) zi <> 0.0).Count() + 1)
 
 final:      d2 = Date.Now
 
             dt = d2 - d1
 
-            If PP.AUX_CheckTrivial(Ki) Then Throw New Exception("PV Flash [IO]: Invalid result: converged to the trivial solution (T = " & T & " ).")
+            If PP.AUX_CheckTrivial(Ki, 0.01, Vz) Then Throw New Exception("PV Flash [IO]: Invalid result: converged to the trivial solution (T = " & T & " ).")
 
             WriteDebugInfo("PV Flash [IO]: Converged in " & ecount & " iterations. Time taken: " & dt.TotalMilliseconds & " ms. Error function value: " & AbsSum(fx))
 
@@ -1790,7 +1794,7 @@ final:      d2 = Date.Now
                     i += 1
                 Loop Until i = n + 1
             Else
-                If Not PP.AUX_CheckTrivial(PrevKi) And Not Double.IsNaN(PrevKi(0)) Then
+                If Not PP.AUX_CheckTrivial(PrevKi, 0.01, Vz) And Not Double.IsNaN(PrevKi(0)) Then
                     For i = 0 To n
                         Vp(i) = PP.AUX_PVAPi(Vn(i), T)
                         Ki(i) = PrevKi(i)
@@ -1921,7 +1925,8 @@ final:      d2 = Date.Now
                 'Kb_ = CalcKbj1(PP.DW_CalcKvalue(Vx, Vy, T, P_))
 
                 For i = 0 To n
-                    uic(i) = Log(Ki(i) / Kb)
+                    'a compound at z = 0 keeps its variable: it adds nothing to the error or to the update
+                    If fi(i) = 0.0 Then uic(i) = ui(i) Else uic(i) = Log(Ki(i) / Kb)
                 Next
 
                 Bc = Log(Kb_ * P_ / (Kb0 * P0)) / Log(P_ / P0)
@@ -1985,13 +1990,13 @@ final:      d2 = Date.Now
 
 
 
-            Loop Until AbsSum(fx) < etol * (n + 2)
+            Loop Until AbsSum(fx) < etol * (fi.Where(Function(zi) zi <> 0.0).Count() + 1)
 
 final:      d2 = Date.Now
 
             dt = d2 - d1
 
-            If PP.AUX_CheckTrivial(Ki) Then Throw New Exception("TV Flash [IO]: Invalid result: converged to the trivial solution (P = " & P & " ).")
+            If PP.AUX_CheckTrivial(Ki, 0.01, Vz) Then Throw New Exception("TV Flash [IO]: Invalid result: converged to the trivial solution (P = " & P & " ).")
 
             WriteDebugInfo("TV Flash [IO]: Converged in " & ecount & " iterations. Time taken: " & dt.TotalMilliseconds & " ms. Error function value: " & AbsSum(fx))
 
@@ -2370,9 +2375,19 @@ final:      d2 = Date.Now
             Dim n As Integer = UBound(K)
 
             Dim Kbj1 As Double
+            Dim first As Integer = 0
 
-            Kbj1 = K(0)
-            For i = 1 To n
+            'the reference comes from a compound in the mixture: one at z = 0 has a K value but no
+            'part in the equilibrium
+            If fi IsNot Nothing AndAlso fi.Length = K.Length Then
+                Do While first < n AndAlso fi(first) = 0.0
+                    first += 1
+                Loop
+            End If
+
+            Kbj1 = K(first)
+            For i = first + 1 To n
+                If fi IsNot Nothing AndAlso fi.Length = K.Length AndAlso fi(i) = 0.0 Then Continue For
                 If Abs(K(i) - 1) < Abs(Kbj1 - 1) Then Kbj1 = K(i)
             Next
 

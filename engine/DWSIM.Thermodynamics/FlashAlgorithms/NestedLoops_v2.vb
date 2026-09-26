@@ -437,7 +437,7 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                 Vy = Vz
                 Vx = Vy.DivideY(Ki).NormalizeY
             End If
-            If PP.AUX_CheckTrivial(Ki, 0.1) And L > 0.0 And V > 0.0 Then
+            If PP.AUX_CheckTrivial(Ki, 0.1, Vz) And L > 0.0 And V > 0.0 Then
                 Dim gl = PP.DW_CalcGibbsEnergy(Vx, T, P, "L")
                 Dim gv = PP.DW_CalcGibbsEnergy(Vy, T, P, "V")
                 If Math.Abs(gl / gv - 1.0) < 0.01 Then
@@ -2260,7 +2260,7 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                     i += 1
                 Loop Until i = n + 1
             Else
-                If Not PP.AUX_CheckTrivial(PrevKi) Then
+                If Not PP.AUX_CheckTrivial(PrevKi, 0.01, Vz) Then
                     For i = 0 To n
                         Vp(i) = PP.AUX_PVAPi(i, T)
                         Ki(i) = PrevKi(i)
@@ -2510,7 +2510,7 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                 Throw ex
             End If
 
-            If PP.AUX_CheckTrivial(Ki) Then
+            If PP.AUX_CheckTrivial(Ki, 0.01, Vz) Then
                 IObj?.Close()
                 Throw New Exception("TV Flash [NL]: Invalid result: converged to the trivial solution (P = " & P & " ).")
             End If
@@ -2668,7 +2668,7 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
 
             If result.Count > 1 Then
                 Kvals = result(6)
-                If PP.AUX_CheckTrivial(Kvals, 0.21) Then trivial = True
+                If PP.AUX_CheckTrivial(Kvals, 0.21, Vz) Then trivial = True
             End If
 
             If result.Count = 1 Or trivial Then
@@ -2676,7 +2676,7 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                 If result.Count = 1 Then result = Flash_PV_1(Vz, P, V, 0.0, PP, False, Nothing, True)
                 If result.Count > 1 Then
                     Kvals = result(6)
-                    If PP.AUX_CheckTrivial(Kvals, 0.2) Then trivial = True
+                    If PP.AUX_CheckTrivial(Kvals, 0.2, Vz) Then trivial = True
                 End If
             End If
 
@@ -2945,7 +2945,7 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                     i += 1
                 Loop Until i = n + 1
             Else
-                If Not PP.AUX_CheckTrivial(PrevKi) And Not Double.IsNaN(PrevKi(0)) Then
+                If Not PP.AUX_CheckTrivial(PrevKi, 0.01, Vz) And Not Double.IsNaN(PrevKi(0)) Then
                     For i = 0 To n
                         IObj?.SetCurrent
                         Ki(i) = PrevKi(i)
@@ -3428,7 +3428,7 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                 Return New Object() {-1}
             End If
 
-            If PP.AUX_CheckTrivial(Ki) Then
+            If PP.AUX_CheckTrivial(Ki, 0.01, Vz) Then
                 IObj?.Close()
                 Return New Object() {-1}
             End If
@@ -3534,7 +3534,7 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                     i += 1
                 Loop Until i = n + 1
             Else
-                If Not PP.AUX_CheckTrivial(PrevKi) And Not Double.IsNaN(PrevKi(0)) Then
+                If Not PP.AUX_CheckTrivial(PrevKi, 0.01, Vz) And Not Double.IsNaN(PrevKi(0)) Then
                     For i = 0 To n
                         IObj?.SetCurrent
                         Ki(i) = PrevKi(i)
@@ -3681,7 +3681,7 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                 Return New Object() {-1}
             End If
 
-            If PP.AUX_CheckTrivial(Ki) Then
+            If PP.AUX_CheckTrivial(Ki, 0.01, Vz) Then
                 IObj?.Close()
                 Return New Object() {-1}
             End If
@@ -3794,7 +3794,7 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                     i += 1
                 Loop Until i = n + 1
             Else
-                If Not PP.AUX_CheckTrivial(PrevKi) And Not Double.IsNaN(PrevKi(0)) Then
+                If Not PP.AUX_CheckTrivial(PrevKi, 0.01, Vz) And Not Double.IsNaN(PrevKi(0)) Then
                     For i = 0 To n
                         IObj?.SetCurrent
                         Ki(i) = PrevKi(i)

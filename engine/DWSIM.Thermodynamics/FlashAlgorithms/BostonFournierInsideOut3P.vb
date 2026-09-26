@@ -1578,7 +1578,7 @@ out:
                 If Vx1(i) <> 0.0# Then Kl(i) = Vx2(i) / Vx1(i) Else Kl(i) = 0.0#
             Next
 
-            If PP.AUX_CheckTrivial(Kl) Then
+            If PP.AUX_CheckTrivial(Kl, 0.01, Vz) Then
                 'the liquid phases are the same. condense them into only one phase.
                 L1 = L1 + L2
                 L2 = 0.0#
