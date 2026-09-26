@@ -2254,6 +2254,17 @@ out:
                 gamma1 = resultL(9)
                 gamma2 = resultL(10)
 
+                'SimpleLLE returns gamma = P phi_L / Psat for an equation of state, so gamma Psat / P below is the liquid
+                'fugacity coefficient alone: the vapour was an ideal gas, and the temperature came out several K away
+                'from the one at which the PT flash of the same package gives V. Dividing by the fugacity coefficient
+                'of the vapour (at this temperature and the last vapour composition) makes K = phi_L / phi_V.
+                If PP.PackageType = PackageType.EOS AndAlso Vy.SumY > 0.0 Then
+                    Dim phiV As Double() = PP.DW_CalcFugCoeff(Vy.NormalizeY, T, P, State.Vapor)
+                    For i = 0 To n
+                        gamma1(i) /= phiV(i)
+                    Next
+                End If
+
                 'adjust boiling point by logarithmic interpolation
                 Dim cnt As Integer
                 Dim Pn, P1, P2, lnP, lnP1, lnP2, T1, T2, dTP As Double
@@ -2426,6 +2437,14 @@ out:        L1 = L1 * (1 - V) 'calculate global phase fractions
                 Vx2 = resultL(6)
                 gamma1 = resultL(9)
                 gamma2 = resultL(10)
+
+                'as in Flash_PV_3P: K = phi_L / phi_V for an equation of state
+                If PP.PackageType = PackageType.EOS AndAlso Vy.SumY > 0.0 Then
+                    Dim phiV As Double() = PP.DW_CalcFugCoeff(Vy.NormalizeY, T, Pant, State.Vapor)
+                    For i = 0 To n
+                        gamma1(i) /= phiV(i)
+                    Next
+                End If
 
                 'calculate new Ki's and vapour composition
                 S = 0
