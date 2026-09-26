@@ -1042,7 +1042,6 @@ will converge to this solution.")
             nt = n
 
             Dim Vtrials As New List(Of Double())
-            Dim Vestimates As New Concurrent.ConcurrentBag(Of Double())
             Dim idx(nt) As Integer
 
             For j = 0 To n
@@ -1156,6 +1155,10 @@ will converge to this solution.")
             Dim g_(m), beta(m), r(m), r_ant(m) As Double
             Dim excidx As New Concurrent.ConcurrentBag(Of Integer)
 
+            'One slot per trial phase. The trials run in parallel, and collecting them in the order the
+            'threads finished made the kept duplicate and the selected estimate change from call to call.
+            Dim Vestimates(m)() As Double
+
             Dim prevstatus = GlobalSettings.Settings.InspectorEnabled
 
             GlobalSettings.Settings.InspectorEnabled = False
@@ -1263,7 +1266,7 @@ will converge to this solution.")
                                            If finish Then
                                                ' check if trivial solution (Michelsen criterion)
                                                Dim isTrivial = (Math.Abs(g_(xi)) < 0.0000000001 AndAlso r(xi) > 0.9 AndAlso r(xi) < 1.1)
-                                               If Not isTrivial Then Vestimates.Add(Y)
+                                               If Not isTrivial Then Vestimates(xi) = Y
                                            End If
 
                                            If Double.IsNaN(Y.SumY) Then Exit Do
@@ -1276,8 +1279,8 @@ will converge to this solution.")
 
             IObj?.SetCurrent
 
-            ' Convert ConcurrentBag to List for consistent indexed access
-            Dim VestList As List(Of Double()) = Vestimates.ToList()
+            ' The converged trials in trial order
+            Dim VestList As List(Of Double()) = Vestimates.Where(Function(v) v IsNot Nothing).ToList()
             Dim excludeSet As New HashSet(Of Integer)
 
             ' Remove solutions that are too close to the feed composition (trivial)
@@ -1415,6 +1418,21 @@ will converge to this solution.")
 
         Function GetPhaseSplitEstimates(T As Double, P As Double, L As Double, Vx As Double(), pp As PropertyPackage) As Object()
 
+            Return GetPhaseSplitEstimates(T, P, L, Vx, pp, Nothing)
+
+        End Function
+
+        ''' <summary>
+        ''' Second-liquid estimates for the liquid Vx of a vapour-liquid result whose vapour is Vy.
+        ''' </summary>
+        ''' <remarks>
+        ''' With Vy given, a stability-test candidate with the composition of Vx (the trivial solution) or of
+        ''' Vy (the vapour already there) is dropped before one is chosen. StabTest2 calls a candidate a liquid
+        ''' when its liquid-root Gibbs energy is not above its vapour-root one, and where the equation of state
+        ''' has a single root the two are equal, so near a bubble point the vapour passed as the second liquid.
+        ''' </remarks>
+        Function GetPhaseSplitEstimates(T As Double, P As Double, L As Double, Vx As Double(), pp As PropertyPackage, Vy As Double()) As Object()
+
             If pp.UseImmiscibleListForLiquid2InitialEstimates And pp.ImmiscibleLiquids.Count > 0 Then
 
                 Return ProcessImmiscibleLiquids(pp, L, 0.0, Vx, pp.RET_NullVector())
@@ -1422,6 +1440,11 @@ will converge to this solution.")
             Else
 
                 Dim stresult = StabTest2(T, P, Vx, pp.RET_VTC, pp)
+
+                If Vy IsNot Nothing AndAlso Vy.Length = Vx.Length Then
+                    Dim same = Function(w As Double(), ref As Double()) w.SubtractY(ref).Select(Function(d) Math.Abs(d)).Max < 0.005
+                    stresult = stresult.Where(Function(w) Not same(w, Vx) AndAlso Not (Vy.Sum > 0.0 AndAlso same(w, Vy))).ToList()
+                End If
 
                 Dim n = Vx.Length - 1
 

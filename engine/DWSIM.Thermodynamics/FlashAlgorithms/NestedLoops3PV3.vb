@@ -142,7 +142,7 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
 
                 If L > 0.0 Then
 
-                    Dim lps = GetPhaseSplitEstimates(T, P, L, Vx, PP)
+                    Dim lps = GetPhaseSplitEstimates(T, P, L, Vx, PP, Vy)
 
                     L1 = lps(0)
                     Vx1 = lps(1)
@@ -184,7 +184,7 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
 
                     If L > 0.0 Then
 
-                        Dim lps = GetPhaseSplitEstimates(T, P, L, Vx, PP)
+                        Dim lps = GetPhaseSplitEstimates(T, P, L, Vx, PP, Vy)
 
                         L1 = lps(0)
                         Vx1 = lps(1)
@@ -837,6 +837,10 @@ out:
 
         Public Overrides Function Flash_PH(ByVal Vz As Double(), ByVal P As Double, ByVal H As Double, ByVal Tref As Double, ByVal PP As PropertyPackages.PropertyPackage, Optional ByVal ReuseKI As Boolean = False, Optional ByVal PrevKi As Double() = Nothing) As Object
 
+            'Flash_PT reuses prevres from one temperature to the next inside this PH flash; one left by an
+            'earlier call is no estimate for this one
+            prevres = Nothing
+
             Dim errflag As Boolean = True
             Try
                 Dim nl As New NestedLoops
@@ -1444,6 +1448,9 @@ out:
 
             Dim _nl As New NestedLoops
 
+            'a three-phase result from an earlier call is no estimate for this one
+            prevres = Nothing
+
             Dim result As Object = _nl.Flash_TV(Vz, T, V, Pref, PP, ReuseKI, PrevKi)
 
             P = result(4)
@@ -1451,29 +1458,56 @@ out:
             If result(0) > 0 Then
 
                 IObj?.SetCurrent
-                Dim lps As Object = GetPhaseSplitEstimates(T, P, result(0), result(2), PP)
+                Dim lps As Object = GetPhaseSplitEstimates(T, P, result(0), result(2), PP, result(3))
 
                 If lps(2) > 0 Then
 
-                    If Not prevres Is Nothing Then
+                    Dim result3 As Object = Nothing
 
-                        ' Warm start: this reuses the previous three-phase result through the PV route at the
-                        ' pressure the two-phase TV flash just found. Flash_PV_3P reports the temperature it
-                        ' solved for in element 4, which is right for a PV flash but not for this one, so put
-                        ' the pressure back before returning.
-                        result = Flash_PV_3P(Vz, prevres.V, prevres.L1, prevres.L2, prevres.Vy, prevres.Vx1, prevres.Vx2, P, V, T, PP)
-                        result(4) = P
+                    Try
 
+                        If Not prevres Is Nothing Then
+
+                            ' Warm start: this reuses the previous three-phase result through the PV route at the
+                            ' pressure the two-phase TV flash just found. Flash_PV_3P reports the temperature it
+                            ' solved for in element 4, which is right for a PV flash but not for this one, so put
+                            ' the pressure back before returning.
+                            result3 = Flash_PV_3P(Vz, prevres.V, prevres.L1, prevres.L2, prevres.Vy, prevres.Vx1, prevres.Vx2, P, V, T, PP)
+                            result3(4) = P
+
+                        Else
+
+                            L1 = lps(0)
+                            L2 = lps(2)
+                            Vx1 = lps(1)
+                            Vx2 = lps(3)
+                            IObj?.SetCurrent
+
+                            result3 = Flash_TV_3P(Vz, result(1), result(0) * L1, result(0) * L2, result(3), Vx1, Vx2, T, V, result(4), PP)
+
+                        End If
+
+                    Catch ex As Exception
+
+                        result3 = Nothing
+
+                    End Try
+
+                    'as in Flash_PV: a collapsed or failed three-phase solution has its pressure from its own
+                    'gamma-Psat bubble point, so the two-phase result stands
+                    Dim threephase As Boolean = False
+                    If result3 IsNot Nothing Then
+                        Dim l1_3p As Double = result3(0)
+                        Dim l2_3p As Double = result3(7)
+                        Dim dx12 As Double = DirectCast(result3(2), Double()).SubtractY(DirectCast(result3(8), Double())).AbsSumY
+                        threephase = l1_3p > 0.0 AndAlso l2_3p > 0.0 AndAlso Math.Min(l1_3p, l2_3p) / (l1_3p + l2_3p) > 0.00001 AndAlso dx12 >= 0.00001
+                    End If
+
+                    If threephase Then
+                        result = result3
                     Else
-
-                        L1 = lps(0)
-                        L2 = lps(2)
-                        Vx1 = lps(1)
-                        Vx2 = lps(3)
-                        IObj?.SetCurrent
-
-                        result = Flash_TV_3P(Vz, result(1), result(0) * L1, result(0) * L2, result(3), Vx1, Vx2, T, V, result(4), PP)
-
+                        prevres = Nothing
+                        P = result(4)
                     End If
 
                 End If
@@ -1519,6 +1553,9 @@ out:
 
             Dim _nl As New NestedLoops
 
+            'a three-phase result from an earlier call is no estimate for this one
+            prevres = Nothing
+
             IObj?.SetCurrent
             Dim result As Object = _nl.Flash_PV(Vz, P, V, Tref, PP, ReuseKI, PrevKi)
 
@@ -1527,7 +1564,7 @@ out:
                 T = result(4)
 
                 IObj?.SetCurrent
-                Dim lps As Object = GetPhaseSplitEstimates(T, P, result(0), result(2), PP)
+                Dim lps As Object = GetPhaseSplitEstimates(T, P, result(0), result(2), PP, result(3))
 
                 If lps(2) / (lps(0) + lps(2)) > 0.00001 Then
 
