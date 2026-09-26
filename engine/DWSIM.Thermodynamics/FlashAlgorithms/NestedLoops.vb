@@ -362,7 +362,16 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
             If vpPresent.Length = 0 Then vpPresent = Vp
             Dim vpMaxP = vpPresent.Max, vpMinP = vpPresent.Min
 
-            If vpMaxP < P And vpMinP > 0 Then
+            'Raoult's law puts every bubble pressure below the largest vapour pressure, but with activity
+            'coefficients above one the liquid can boil with every vapour pressure below P (water/1-butanol at
+            '1 atm, 366-372 K): for an activity-coefficient package the shortcut also needs the feed's own
+            'bubble pressure, sum(z K(z)) P, to be below P
+            Dim allLiquid As Boolean = vpMaxP < P And vpMinP > 0
+            If allLiquid AndAlso PP.PackageType = PropertyPackages.PackageType.ActivityCoefficient Then
+                allLiquid = PP.DW_CalcKvalue(Vz, Vz, T, P).MultiplyY(Vz).SumY < 1.0
+            End If
+
+            If allLiquid Then
 
                 'all liquid
                 L = 1
