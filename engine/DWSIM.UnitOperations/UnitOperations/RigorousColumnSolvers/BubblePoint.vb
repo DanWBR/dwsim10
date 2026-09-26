@@ -79,8 +79,7 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
             For ia As Integer = 0 To ns
                 Dim flashcopy = pp.FlashBase.GetNewInstance()
                 If flashcopy Is Nothing Then
-                    'this solver's outer loop relies on the old bubble-point acceptance (see NestedLoops.AcceptStalledSaturationPoint)
-                    flashalgs.Add(New NestedLoops With {.FlashSettings = pp.FlashBase.FlashSettings, .AcceptStalledSaturationPoint = True})
+                    flashalgs.Add(New NestedLoops With {.FlashSettings = pp.FlashBase.FlashSettings})
                 Else
                     flashalgs.Add(flashcopy)
                 End If
@@ -1116,6 +1115,10 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
             Dim fx(ns), xtj(ns), dfdx(ns, ns), fxb(ns), xtjb(ns), dxtj(ns) As Double
 
             Dim t_error_hist As New List(Of Double)
+
+            ' A stage whose bubble point cannot be found in a sweep keeps its temperature for that
+            ' sweep, and the iteration cannot end on such a sweep.
+            Dim bpfailed As Boolean = False
             Dim vf_error_hist As New List(Of Double)
             Dim dt_error_hist As New List(Of Double)
 
@@ -1276,6 +1279,16 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
 
                 'calculate new temperatures
 
+                ' Full reflux at a zero reflux ratio (a column with no condenser): no liquid leaves
+                ' stage 0 and, with no feed there, the vapour from the top tray passes through it. The
+                ' stage-0 liquid is then only the one in equilibrium with that vapour at the stage's
+                ' last temperature, so its bubble point gives back whatever temperature the stage had
+                ' and fixes nothing. The stage takes the top tray's temperature and K values instead
+                ' (the dew point of its vapour), as in the Naphtali-Sandholm solver.
+                Dim noliq0 As Boolean = Not rebabs AndAlso condt = Column.condtype.Full_Reflux AndAlso rr <= 0.0 AndAlso Fj(0) = 0.0
+
+                bpfailed = False
+
                 For i = 0 To ns
                     Tj_ant(i) = Tj(i)
                 Next
@@ -1289,6 +1302,7 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                         Dim t1 As Task = TaskHelper.Run(Sub()
                                                             Parallel.For(0, ns + 1,
                                                                      Sub(ipar)
+                                                                         If ipar = 0 AndAlso noliq0 Then Exit Sub
                                                                          Try
                                                                              Dim tmpvar As Object = flashalgs(ipar).Flash_PV(xc(ipar), P(ipar), 0.0, Tj(ipar), pp, True, K(ipar))
                                                                              Tj(ipar) = tmpvar(4)
@@ -1298,8 +1312,9 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                                                                                  Tj(ipar) = Tj_ant(ipar)
                                                                                  K(ipar) = Kant(ipar)
                                                                              End If
-                                                                         Catch ex As Exception
-                                                                             Throw New Exception(String.Format(pp.Flowsheet.GetTranslatedString("Error calculating bubble point temperature for stage {0} with P = {1} Pa and molar composition {2}"), ipar, P(ipar), xc(ipar).ToArrayString()), ex)
+                                                                         Catch ex As Exception When Not TypeOf ex Is OperationCanceledException
+                                                                             'the stage keeps its temperature and K values for this sweep
+                                                                             bpfailed = True
                                                                          End Try
                                                                      End Sub)
                                                         End Sub,
@@ -1311,10 +1326,13 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                         For i = 0 To ns
                             IObj2?.SetCurrent
                             pp.CurrentMaterialStream.Flowsheet.CheckStatus()
+                            If i = 0 AndAlso noliq0 Then Continue For
                             Try
                                 tmp = flashalgs(i).Flash_PV(xc(i), P(i), 0.0, Tj(i), pp, True, K(i))
-                            Catch ex As Exception
-                                Throw New Exception(String.Format(pp.Flowsheet.GetTranslatedString("Error calculating bubble point temperature for stage {0} with P = {1} Pa and molar composition {2}"), i, P(i), xc(i).ToArrayString()), ex)
+                            Catch ex As Exception When Not TypeOf ex Is OperationCanceledException
+                                'the stage keeps its temperature and K values for this sweep
+                                bpfailed = True
+                                Continue For
                             End Try
                             Tj(i) = tmp(4)
                             Kant(i) = K(i)
@@ -1444,6 +1462,11 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                         Next
                     End If
 
+                End If
+
+                If noliq0 Then
+                    Tj(0) = Tj(1)
+                    K(0) = DirectCast(K(1).Clone(), Double())
                 End If
 
                 For i = 0 To ns
@@ -1816,7 +1839,7 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                 reporter?.AppendLine()
                 reporter?.AppendLine()
 
-            Loop Until (t_error + vf_error) < tolerance * ns / 100 And x_error < tolerance And ic > 1
+            Loop Until (t_error + vf_error) < tolerance * ns / 100 And x_error < tolerance And ic > 1 And Not bpfailed
 
             'check mass balance
             For i = 0 To ns

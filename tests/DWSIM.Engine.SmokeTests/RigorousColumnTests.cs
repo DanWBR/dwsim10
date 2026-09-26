@@ -154,6 +154,13 @@ namespace DWSIM.Engine.SmokeTests
                         Is.EqualTo(8.072).Within(2.0).Percent, "overhead rate");
             Assert.That(bottoms.Phases[0].Properties.molarflow.GetValueOrDefault() * lbmolhr,
                         Is.EqualTo(11.928).Within(2.0).Percent, "bottoms rate");
+
+            // The column has no condenser: no liquid leaves its top stage, and the vapour from the
+            // top tray leaves at that tray's temperature, 350.0 K (the Peng-Robinson dew point of the
+            // overhead is 349.98 K). The bubble point of the liquid-free stage used to stall and put
+            // the overhead out at 542 K, hotter than the bottoms.
+            Assert.That(overhead.Phases[0].Properties.temperature.GetValueOrDefault(),
+                        Is.EqualTo(350.0).Within(2.0), "overhead temperature, K");
         }
 
         // A 12-stage reboiled stripper (full reflux, reflux ratio 0, bottoms rate spec) as a cold
