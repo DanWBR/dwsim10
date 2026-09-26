@@ -18,6 +18,7 @@
 '    along with DWSIM.  If not, see <http://www.gnu.org/licenses/>.
 
 Imports System.Math
+Imports System.Linq
 
 Imports DWSIM.MathOps.MathEx
 Imports DWSIM.MathOps.MathEx.Common
@@ -133,6 +134,9 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                 End If
             End If
 
+            'the two-phase result the answer is built on, if there is one
+            Dim nlres As Object = Nothing
+
             If prevres IsNot Nothing AndAlso prevres.L2 = 0.0 Then
 
                 V = prevres.V
@@ -156,12 +160,14 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                     Else
 
                         result = _nl.Flash_PT(Vz, P, T, PP, ReuseKI, PrevKi)
+                        nlres = result
 
                     End If
 
                 Else
 
                     result = _nl.Flash_PT(Vz, P, T, PP, ReuseKI, PrevKi)
+                    nlres = result
 
                 End If
 
@@ -176,6 +182,7 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                 Else
 
                     result = _nl.Flash_PT(Vz, P, T, PP, False, Nothing)
+                    nlres = result
 
                     L = result(0)
                     V = result(1)
@@ -203,7 +210,240 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
 
             End If
 
-            Return result
+            Return CheckPhases(Vz, P, T, PP, nlres, result)
+
+        End Function
+
+        ''' <summary>
+        ''' Checks a Flash_PT answer for the phases the two-phase flash and the liquid split test cannot see, and
+        ''' replaces it with a state of lower Gibbs energy when one is found. A stable answer is returned as is.
+        ''' </summary>
+        ''' <remarks>
+        ''' 1. NestedLoops returns a single phase, or a split with every K near 1, for feeds that are not stable.
+        '''    Water/n-hexane/methane at 1 bar and 307-343 K comes back as vapour: its successive substitution
+        '''    settles on the hexane-rich liquid branch, for which the vapour is stable, while water must condense.
+        '''    The liquid split test only looks at a liquid that is there. Such an answer is re-solved from the
+        '''    stability test of the feed (VLEFromFeedStability) and goes through the same liquid split.
+        ''' 2. StabTest calls a phase above SingleCompoundCheckThreshold stable without testing it, so vapour +
+        '''    almost pure water never gets its hydrocarbon liquid; the vapour is tested instead. A liquid-liquid
+        '''    answer (Flash_PT_3P hands a vanishing vapour to SimpleLLE) is tested for a vapour (ThirdPhase).
+        ''' </remarks>
+        Private Function CheckPhases(Vz As Double(), P As Double, T As Double, PP As PropertyPackages.PropertyPackage, nlres As Object, result As Object) As Object
+
+            Dim saved = prevres
+            Dim final As Object = WithThirdPhase(Vz, P, T, PP, result)
+
+            If nlres IsNot Nothing AndAlso Not IsThreePhase(final) AndAlso IsDoubtfulVLE(Vz, nlres, PP) Then
+                Dim nl2 As Object = VLEFromFeedStability(Vz, P, T, PP, nlres)
+                If nl2 IsNot Nothing Then
+                    Dim alt As Object = WithThirdPhase(Vz, P, T, PP, SplitLiquid(Vz, P, T, PP, nl2))
+                    If PhaseGibbs(alt, T, P, PP) < PhaseGibbs(final, T, P, PP) - 0.000001 Then final = alt
+                End If
+            End If
+
+            'never an answer of higher Gibbs energy than the two-phase flash it started from
+            If nlres IsNot Nothing AndAlso final IsNot nlres AndAlso PhaseGibbs(nlres, T, P, PP) < PhaseGibbs(final, T, P, PP) - 0.000001 Then final = nlres
+
+            'Flash_PT_3P stores its result for the next call (the PH and PS loops); keep what matches the answer
+            If final Is result Then
+                prevres = saved
+            Else
+                prevres = New PreviousResults With {.L1 = final(0), .L2 = final(5), .V = final(1), .Vy = final(3), .Vx1 = final(2), .Vx2 = final(6)}
+            End If
+
+            Return final
+
+        End Function
+
+        ''' <summary>
+        ''' r, or the three-phase result ThirdPhase finds from it if that has a lower Gibbs energy.
+        ''' </summary>
+        Private Function WithThirdPhase(Vz As Double(), P As Double, T As Double, PP As PropertyPackages.PropertyPackage, r As Object) As Object
+            If IsThreePhase(r) Then Return r
+            Dim r3 As Object = ThirdPhase(Vz, P, T, PP, r)
+            If r3 IsNot Nothing AndAlso PhaseGibbs(r3, T, P, PP) < PhaseGibbs(r, T, P, PP) - 0.000001 Then Return r3
+            Return r
+        End Function
+
+        Private Shared Function IsThreePhase(r As Object) As Boolean
+            Return r(1) > 0.0 AndAlso r(0) > 0.0 AndAlso r(5) > 0.0
+        End Function
+
+        ''' <summary>
+        ''' A NestedLoops answer that says one phase, or two phases with every K within 0.1 of 1.
+        ''' </summary>
+        Private Shared Function IsDoubtfulVLE(Vz As Double(), r As Object, PP As PropertyPackages.PropertyPackage) As Boolean
+            If r(0) <= 0.0 OrElse r(1) <= 0.0 Then Return True
+            Return DirectCast(r, Object()).Length > 9 AndAlso TypeOf r(9) Is Double() AndAlso PP.AUX_CheckTrivial(DirectCast(r(9), Double()), 0.1, Vz)
+        End Function
+
+        ''' <summary>
+        ''' Gibbs energy / RT per mole of feed of a result {L1, V, Vx1, Vy, ., L2, Vx2}: the vapour on the vapour
+        ''' root, the liquids on the liquid root.
+        ''' </summary>
+        Private Shared Function PhaseGibbs(r As Object, T As Double, P As Double, PP As PropertyPackages.PropertyPackage) As Double
+            Return GibbsTerm(r(1), r(3), State.Vapor, T, P, PP) + GibbsTerm(r(0), r(2), State.Liquid, T, P, PP) + GibbsTerm(r(5), r(6), State.Liquid, T, P, PP)
+        End Function
+
+        Private Shared Function GibbsTerm(beta As Double, w As Double(), st As State, T As Double, P As Double, PP As PropertyPackages.PropertyPackage) As Double
+            If beta <= 0.0 OrElse w Is Nothing Then Return 0.0
+            Dim lnf = PP.DW_CalcLnFugCoeff(w, T, P, st)
+            Dim g As Double = 0.0
+            For i As Integer = 0 To w.Length - 1
+                If w(i) > 0.0 Then g += beta * w(i) * (Log(w(i)) + lnf(i))
+            Next
+            Return g
+        End Function
+
+        ''' <summary>
+        ''' Tangent plane distance of a trial phase w (on its root of lower Gibbs energy) from the phase ref.
+        ''' </summary>
+        Private Shared Function TangentPlaneDistance(w As Double(), ref As Double(), stref As State, T As Double, P As Double, PP As PropertyPackages.PropertyPackage) As Double
+            Dim lnfr = PP.DW_CalcLnFugCoeff(ref, T, P, stref)
+            Dim lnfl = PP.DW_CalcLnFugCoeff(w, T, P, State.Liquid)
+            Dim lnfv = PP.DW_CalcLnFugCoeff(w, T, P, State.Vapor)
+            Dim gl As Double = 0.0, gv As Double = 0.0
+            For i As Integer = 0 To w.Length - 1
+                If w(i) > 0.0 Then
+                    gl += w(i) * (Log(w(i)) + lnfl(i))
+                    gv += w(i) * (Log(w(i)) + lnfv(i))
+                End If
+            Next
+            Dim lnfw = If(gl <= gv, lnfl, lnfv)
+            Dim tm As Double = 0.0
+            For i As Integer = 0 To w.Length - 1
+                If w(i) > 0.0 AndAlso ref(i) > 0.0 Then tm += w(i) * (Log(w(i)) + lnfw(i) - (Log(ref(i)) + lnfr(i)))
+            Next
+            Return tm
+        End Function
+
+        ''' <summary>
+        ''' NestedLoops restarted from each stability-test candidate of the feed, with K = z/w and K = w/z. Returns
+        ''' the two-phase result of lowest Gibbs energy if it is lower than that of r, else Nothing.
+        ''' </summary>
+        Private Function VLEFromFeedStability(Vz As Double(), P As Double, T As Double, PP As PropertyPackages.PropertyPackage, r As Object) As Object
+
+            Dim st As Object() = StabTest(T, P, Vz, PP.RET_VTC, PP)
+            If st(0) Then Return Nothing
+
+            Dim ests As Double(,) = st(1)
+            Dim n As Integer = Vz.Length - 1
+            Dim best As Object = Nothing
+            Dim gbest As Double = PhaseGibbs(r, T, P, PP)
+
+            'StabTest returns every non-trivial stationary point; only those below the feed's tangent plane count
+            Dim stz As State = If(GibbsTerm(1.0, Vz, State.Liquid, T, P, PP) <= GibbsTerm(1.0, Vz, State.Vapor, T, P, PP), State.Liquid, State.Vapor)
+
+            For k As Integer = 0 To ests.GetUpperBound(0)
+                Dim wk(n) As Double
+                For i As Integer = 0 To n
+                    wk(i) = ests(k, i)
+                Next
+                If TangentPlaneDistance(wk, Vz, stz, T, P, PP) >= -0.000001 Then Continue For
+                Dim zw(n), wz(n) As Double
+                For i As Integer = 0 To n
+                    Dim wi As Double = Math.Max(ests(k, i), 1.0E-20)
+                    zw(i) = Vz(i) / wi
+                    wz(i) = If(Vz(i) > 0.0, wi / Vz(i), 1.0)
+                Next
+                For Each Kseed In {zw, wz}
+                    Try
+                        Dim rk As Object = _nl.Flash_PT(Vz, P, T, PP, True, Kseed)
+                        Dim g As Double = PhaseGibbs(rk, T, P, PP)
+                        If g < gbest - 0.000001 Then
+                            best = rk
+                            gbest = g
+                        End If
+                    Catch ex As Exception
+                    End Try
+                Next
+            Next
+
+            Return best
+
+        End Function
+
+        ''' <summary>
+        ''' NestedLoops, re-solved from the stability test of the feed when its answer is one phase or trivial.
+        ''' </summary>
+        Private Function CheckedVLE(Vz As Double(), P As Double, T As Double, PP As PropertyPackages.PropertyPackage) As Object
+            Dim r As Object = _nl.Flash_PT(Vz, P, T, PP, False, Nothing)
+            If IsDoubtfulVLE(Vz, r, PP) Then
+                Dim r2 As Object = VLEFromFeedStability(Vz, P, T, PP, r)
+                If r2 IsNot Nothing Then Return r2
+            End If
+            Return r
+        End Function
+
+        ''' <summary>
+        ''' The liquid split of lines above: a second liquid from the stability test of the liquid of r.
+        ''' </summary>
+        Private Function SplitLiquid(Vz As Double(), P As Double, T As Double, PP As PropertyPackages.PropertyPackage, r As Object) As Object
+            If r(0) > 0.0 Then
+                Dim lps = GetPhaseSplitEstimates(T, P, r(0), r(2), PP, r(3))
+                If lps(2) > 0 Then Return Flash_PT_3P(Vz, r(1), lps(0), lps(2), r(3), lps(1), lps(3), P, T, PP)
+            End If
+            Return r
+        End Function
+
+        ''' <summary>
+        ''' A three-phase result from a two-phase one the existing tests cannot check: vapour + a single-compound
+        ''' liquid (the vapour is tested for a second liquid) or two liquids (the less pure one is tested for a
+        ''' vapour). Candidates below the tangent plane seed Flash_PT_3P in order of their distance.
+        ''' </summary>
+        Private Function ThirdPhase(Vz As Double(), P As Double, T As Double, PP As PropertyPackages.PropertyPackage, r As Object) As Object
+
+            Dim L1r As Double = r(0), Vr As Double = r(1), L2r As Double = r(5)
+            Dim x1 As Double() = r(2), y As Double() = r(3), x2 As Double() = r(6)
+            Dim tested As Double()
+            Dim stt As State
+            Dim known As New List(Of Double())
+
+            If Vr > 0.0 AndAlso L1r > 0.0 AndAlso L2r <= 0.0 AndAlso PP.AUX_IS_SINGLECOMP(x1) Then
+                tested = y
+                stt = State.Vapor
+                known.AddRange({x1, y})
+            ElseIf Vr <= 0.0 AndAlso L1r > 0.0 AndAlso L2r > 0.0 Then
+                tested = If(x1.Max > x2.Max, x2, x1)
+                stt = State.Liquid
+                known.AddRange({x1, x2})
+            Else
+                Return Nothing
+            End If
+
+            Dim st As Object() = StabTest(T, P, tested, PP.RET_VTC, PP)
+            If st(0) Then Return Nothing
+
+            Dim ests As Double(,) = st(1)
+            Dim n As Integer = Vz.Length - 1
+            Dim cands As New List(Of Tuple(Of Double, Double()))
+            For k As Integer = 0 To ests.GetUpperBound(0)
+                Dim w(n) As Double
+                For i As Integer = 0 To n
+                    w(i) = ests(k, i)
+                Next
+                If known.Any(Function(q) w.SubtractY(q).Select(Function(d) Math.Abs(d)).Max < 0.005) Then Continue For
+                Dim tm As Double = TangentPlaneDistance(w, tested, stt, T, P, PP)
+                If tm < -0.000001 Then cands.Add(Tuple.Create(tm, w))
+            Next
+
+            Const Ve As Double = 0.01
+            For Each cand In cands.OrderBy(Function(q) q.Item1)
+                Dim w As Double() = cand.Item2
+                Try
+                    Dim r3 As Object
+                    If Vr > 0.0 Then
+                        Dim L2e As Double = Vr * y(Array.IndexOf(w, w.Max))
+                        r3 = Flash_PT_3P(Vz, Vr - L2e, L1r, L2e, y, x1, w, P, T, PP)
+                    Else
+                        r3 = Flash_PT_3P(Vz, Ve, L1r * (1.0 - Ve), L2r * (1.0 - Ve), w, x1, x2, P, T, PP)
+                    End If
+                    If IsThreePhase(r3) Then Return r3
+                Catch ex As Exception
+                End Try
+            Next
+
+            Return Nothing
 
         End Function
 
@@ -680,10 +920,11 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                     IObj2?.Paragraphs.Add(String.Format("Updated Estimate for Liquid Phase 1 Molar Fraction (L1): {0}", L1))
                     IObj2?.Paragraphs.Add(String.Format("Updated Estimate for Liquid Phase 2 Molar Fraction (L2): {0}", L2))
 
-                    If (L1 = 0.0 And L2 > 0.0) Or (L1 > 0.0 And L2 = 0.0) Then
+                    'one liquid gone, or both (the step can take both to zero, which left an unchecked V = 1)
+                    If L1 = 0.0 Or L2 = 0.0 Then
 
-                        'do VLE flash
-                        Dim vle = _nl.Flash_PT(Vz, P, T, PP, False, Nothing)
+                        'do VLE flash, checked against the stability of the feed when it answers a single phase
+                        Dim vle = CheckedVLE(Vz, P, T, PP)
                         L1 = vle(0)
                         V = vle(1)
                         L2 = 0.0
@@ -1553,7 +1794,25 @@ out:
             'a three-phase result from an earlier call is no estimate for this one
             prevres = Nothing
 
-            Dim result As Object = _nl.Flash_TV(Vz, T, V, Pref, PP, ReuseKI, PrevKi)
+            Dim eos As Boolean = PP.PackageType = PropertyPackages.PackageType.EOS
+
+            Dim result As Object
+
+            Try
+                result = _nl.Flash_TV(Vz, T, V, Pref, PP, ReuseKI, PrevKi)
+            Catch ex As Exception
+                'the two-phase TV flash fails for some mixtures with a second liquid (water/n-hexane/methane at
+                '300-450 K); an equation of state is then solved on the PT flash from a Raoult's law estimate
+                If Not eos Then Throw
+                Try
+                    result = SolveVF(Vz, False, T, V, Log(RaoultPressure(Vz, T, V, PP)), PP)
+                Catch ex2 As Exception
+                    Throw ex
+                End Try
+                P = result(4)
+                IObj?.Close()
+                Return result
+            End Try
 
             P = result(4)
 
@@ -1562,7 +1821,26 @@ out:
                 IObj?.SetCurrent
                 Dim lps As Object = GetPhaseSplitEstimates(T, P, result(0), result(2), PP, result(3))
 
-                If lps(2) > 0 Then
+                Dim twoliquids As Boolean = lps(2) > 0
+
+                'Flash_TV_3P takes the pressure from gamma-Psat, and StabTest does not test a single-compound
+                'liquid for a second one: an equation of state is checked against its own PT flash instead
+                Dim checkedeos As Object = Nothing
+                If eos AndAlso (twoliquids OrElse PP.AUX_IS_SINGLECOMP(DirectCast(result(2), Double()))) Then
+                    Try
+                        checkedeos = CheckedVF(Vz, False, P, T, V, PP, result)
+                    Catch ex As Exception
+                        'a PT flash failed on the way: the answer is found as before
+                        checkedeos = Nothing
+                    End Try
+                End If
+
+                If checkedeos IsNot Nothing Then
+
+                    result = checkedeos
+                    P = result(4)
+
+                ElseIf twoliquids Then
 
                     Dim result3 As Object = Nothing
 
@@ -1668,7 +1946,27 @@ out:
                 IObj?.SetCurrent
                 Dim lps As Object = GetPhaseSplitEstimates(T, P, result(0), result(2), PP, result(3))
 
-                If lps(2) / (lps(0) + lps(2)) > 0.00001 Then
+                Dim eos As Boolean = PP.PackageType = PropertyPackages.PackageType.EOS
+                Dim twoliquids As Boolean = lps(2) / (lps(0) + lps(2)) > 0.00001
+
+                'Flash_PV_3P takes the temperature from gamma-Psat, and StabTest does not test a single-compound
+                'liquid for a second one: an equation of state is checked against its own PT flash instead
+                Dim checkedeos As Object = Nothing
+                If eos AndAlso (twoliquids OrElse PP.AUX_IS_SINGLECOMP(DirectCast(result(2), Double()))) Then
+                    Try
+                        checkedeos = CheckedVF(Vz, True, P, T, V, PP, result)
+                    Catch ex As Exception
+                        'a PT flash failed on the way: the answer is found as before
+                        checkedeos = Nothing
+                    End Try
+                End If
+
+                If checkedeos IsNot Nothing Then
+
+                    result = checkedeos
+                    T = result(4)
+
+                ElseIf twoliquids Then
 
                     Dim result3 As Object = Nothing
 
@@ -1731,6 +2029,135 @@ out:
 
             Return result
 
+        End Function
+
+        ''' <summary>
+        ''' A PV (isPV) or TV answer of an equation-of-state package at (P, T), checked with the PT flash of this
+        ''' class. If that finds a second liquid, or a vapour fraction more than 0.01 from V (beyond the scatter of
+        ''' the two-phase flashes), the answer is solved on the PT flash; otherwise it stands.
+        ''' </summary>
+        Private Function CheckedVF(Vz As Double(), isPV As Boolean, P As Double, T As Double, V As Double, PP As PropertyPackages.PropertyPackage, result As Object) As Object
+            prevres = Nothing
+            Dim chk As Object = Flash_PT(Vz, P, T, PP)
+            If chk(5) > 0.0 OrElse Abs(chk(1) - V) > 0.01 Then
+                If isPV Then Return SolveVF(Vz, True, P, V, T, PP)
+                Return SolveVF(Vz, False, T, V, Log(P), PP)
+            End If
+            Return result
+        End Function
+
+        ''' <summary>
+        ''' PV (isPV) or TV flash solved on the PT flash of this class: the temperature at P = fixedvalue, or the
+        ''' pressure at T = fixedvalue, at which Flash_PT gives the vapour fraction V. x is T, or ln P for TV; X0 is
+        ''' its starting value. Brackets with steps of 1, 2, 4... K (0.02, 0.04... in ln P), then narrows by the
+        ''' Illinois regula falsi to |V - Vspec| below the PT external loop tolerance. V = 0 and V = 1 give the
+        ''' bubble and dew points. Returns {L1, V, Vx1, Vy, T or P, PT flashes, Ki1, L2, Vx2, 0, null}.
+        ''' </summary>
+        Private Function SolveVF(Vz As Double(), isPV As Boolean, fixedvalue As Double, V As Double, X0 As Double, PP As PropertyPackages.PropertyPackage) As Object
+
+            Dim tolV As Double = Me.FlashSettings(Interfaces.Enums.FlashSetting.PTFlash_External_Loop_Tolerance).ToDoubleFromInvariant
+            Dim maxit As Integer = Me.FlashSettings(Interfaces.Enums.FlashSetting.PTFlash_Maximum_Number_Of_External_Iterations)
+
+            Dim lo, hi As Double
+            If isPV Then
+                lo = 20.0
+                hi = 2000.0
+            Else
+                lo = 0.0
+                hi = Log(1000000000.0)
+            End If
+
+            Dim count As Integer = 0
+            Dim a, b, c, fa, fb, fc, h As Double
+            Dim ra As Object = Nothing, rb As Object = Nothing, rc As Object = Nothing
+
+            a = Math.Min(Math.Max(X0, lo), hi)
+            fa = VFError(Vz, isPV, fixedvalue, V, a, PP, ra)
+            count += 1
+            If Abs(fa) < tolV Then Return VFResult(ra, a, isPV, count, PP)
+
+            h = If(isPV, 1.0, 0.02) * If(fa > 0.0, -1.0, 1.0)
+            Do
+                b = Math.Min(Math.Max(a + h, lo), hi)
+                fb = VFError(Vz, isPV, fixedvalue, V, b, PP, rb)
+                count += 1
+                If Abs(fb) < tolV Then Return VFResult(rb, b, isPV, count, PP)
+                If (fb > 0.0) <> (fa > 0.0) Then Exit Do
+                If count >= maxit OrElse b = lo OrElse b = hi Then Throw New Exception(Calculator.GetLocalString("PropPack_FlashMaxIt"))
+                a = b
+                fa = fb
+                ra = rb
+                h *= 2.0
+            Loop
+
+            Do
+                c = b - fb * (b - a) / (fb - fa)
+                fc = VFError(Vz, isPV, fixedvalue, V, c, PP, rc)
+                count += 1
+                If Abs(fc) < tolV Then Return VFResult(rc, c, isPV, count, PP)
+                If (fc > 0.0) <> (fb > 0.0) Then
+                    a = b
+                    fa = fb
+                    ra = rb
+                Else
+                    fa /= 2.0
+                End If
+                b = c
+                fb = fc
+                rb = rc
+                If Abs(b - a) < 0.00000001 * If(isPV, Abs(b), 1.0) Then
+                    'the vapour fraction of the PT flash jumps here. A bubble (dew) point is the side with a little
+                    'vapour (liquid); a larger jump means no state has the vapour fraction asked for
+                    Dim vfb As Double = rb(1), vfa As Double = ra(1)
+                    If (V <= 0.0 AndAlso vfb > 0.0 AndAlso vfb < 0.01) OrElse (V >= 1.0 AndAlso vfb < 1.0 AndAlso vfb > 0.99) Then Return VFResult(rb, b, isPV, count, PP)
+                    If (V <= 0.0 AndAlso vfa > 0.0 AndAlso vfa < 0.01) OrElse (V >= 1.0 AndAlso vfa < 1.0 AndAlso vfa > 0.99) Then Return VFResult(ra, a, isPV, count, PP)
+                    Throw New Exception(String.Format("{0} Flash [NL3P]: no {1} gives a vapour fraction of {2}. The vapour fraction of the PT flash jumps across it at {1} = {3:G8}.",
+                                                      If(isPV, "PV", "TV"), If(isPV, "temperature", "pressure"), V, If(isPV, b, Exp(b))))
+                End If
+                If count >= maxit Then Throw New Exception(Calculator.GetLocalString("PropPack_FlashMaxIt"))
+            Loop
+
+        End Function
+
+        ''' <summary>
+        ''' Vapour fraction error of the PT flash at x for SolveVF, signed so that it grows with x. Below the
+        ''' bubble point (V = 0) or above the dew point (V = 1) it is a unit step.
+        ''' </summary>
+        Private Function VFError(Vz As Double(), isPV As Boolean, fixedvalue As Double, V As Double, x As Double, PP As PropertyPackages.PropertyPackage, ByRef r As Object) As Double
+            prevres = Nothing
+            If isPV Then
+                r = Flash_PT(Vz, fixedvalue, x, PP)
+            Else
+                r = Flash_PT(Vz, Exp(x), fixedvalue, PP)
+            End If
+            Dim vr As Double = r(1)
+            Dim ferr As Double
+            If V <= 0.0 Then
+                ferr = If(vr > 0.0, vr, -1.0)
+            ElseIf V >= 1.0 Then
+                ferr = If(vr < 1.0, vr - 1.0, 1.0)
+            Else
+                ferr = vr - V
+            End If
+            Return If(isPV, ferr, -ferr)
+        End Function
+
+        Private Shared Function VFResult(r As Object, x As Double, isPV As Boolean, count As Integer, PP As PropertyPackages.PropertyPackage) As Object
+            Dim Ki As Object = If(DirectCast(r, Object()).Length > 9, r(9), Nothing)
+            Return New Object() {r(0), r(1), r(2), r(3), If(isPV, x, Exp(x)), count, Ki, r(5), r(6), 0.0#, PP.RET_NullVector}
+        End Function
+
+        ''' <summary>
+        ''' Raoult's law pressure for the vapour fraction V, interpolated in ln P between bubble and dew pressures.
+        ''' </summary>
+        Private Shared Function RaoultPressure(Vz As Double(), T As Double, V As Double, PP As PropertyPackages.PropertyPackage) As Double
+            Dim Pb As Double = 0.0, sd As Double = 0.0
+            For i As Integer = 0 To Vz.Length - 1
+                Dim pv As Double = PP.AUX_PVAPi(i, T)
+                Pb += Vz(i) * pv
+                If pv > 0.0 Then sd += Vz(i) / pv
+            Next
+            Return Exp((1.0 - V) * Log(Pb) + V * Log(1.0 / sd))
         End Function
 
         Public Function Flash_PV_3P(ByVal Vz() As Double, ByVal Vest As Double, ByVal L1est As Double, ByVal L2est As Double, ByVal VyEST As Double(), ByVal Vx1EST As Double(), ByVal Vx2EST As Double(), ByVal P As Double, ByVal V As Double, ByVal Tref As Double, ByVal PP As PropertyPackage, Optional ByVal ReuseKI As Boolean = False, Optional ByVal PrevKi() As Double = Nothing) As Object
