@@ -1773,7 +1773,9 @@ Namespace PropertyPackages
 
         ''' <summary>
         ''' Calculates the natural logarithm of the fugacity coefficients. The default takes the log of
-        ''' DW_CalcFugCoeff, reproducing the historical -500 sentinel for a zero coefficient. Packages
+        ''' DW_CalcFugCoeff, reproducing the historical -500 sentinel for a zero coefficient. A NaN
+        ''' coefficient (a failed EOS evaluation, e.g. a liquid root at or below the covolume) stays NaN,
+        ''' so DW_CalcKvalue replaces that K-value with its estimate. Packages
         ''' whose coefficient can underflow to zero (e.g. a high segment-number polymer in PC-SAFT,
         ''' whose ln is on the order of -1e3) must override this to return the log directly, so the
         ''' stability test and phase-split estimates keep the true chemical potential.
@@ -1786,8 +1788,10 @@ Namespace PropertyPackages
                     ln(i) = Math.Log(fc(i))
                 ElseIf fc(i) < 0.0# Then
                     ln(i) = Math.Log(Math.Abs(fc(i)))
-                Else
+                ElseIf fc(i) = 0.0# Then
                     ln(i) = -500.0
+                Else
+                    ln(i) = Double.NaN
                 End If
             Next
             Return ln
@@ -4520,6 +4524,15 @@ redirect2:                  IObj?.SetCurrent()
 
             Dim options As PhaseEnvelopeOptions = peoptions.Clone()
 
+            ' Start temperature from the compounds present only (z > 0, the same test that selects the
+            ' compounds of the critical point above). A compound at z = 0 with a low fusion or critical
+            ' temperature started C2/C3 0.342/0.658 at 85.75 K (0.45 Tc of the absent methane), where its
+            ' bubble pressure is 0.15 Pa, instead of 137.39 K.
+            Dim present = Enumerable.Range(0, Vz.Length).Where(Function(q) Vz(q) > 0.0).ToArray()
+            If present.Length = 0 Then present = Enumerable.Range(0, Vz.Length).ToArray()
+            Dim vtfAll = RET_VTF(), vtcAll = RET_VTC()
+            Dim tStart = Math.Max(present.Min(Function(q) vtfAll(q)), present.Min(Function(q) vtcAll(q)) * 0.45)
+
             With options
                 If Not .BubbleUseCustomParameters Then
                     .BubbleCurveDeltaP = 101325
@@ -4529,7 +4542,7 @@ redirect2:                  IObj?.SetCurrent()
                     ' no fusion temperature (RET_VTF returns 0), and a cold start at ~0 K puts the cubic
                     ' EOS past the point where it has any solution (B = infinity), which aborts the whole
                     ' envelope. A fraction of the lowest critical temperature is a safe, still-liquid start.
-                    .BubbleCurveInitialTemperature = Math.Max(RET_VTF.Min, RET_VTC.Min * 0.45)
+                    .BubbleCurveInitialTemperature = tStart
                     .BubbleCurveInitialFlash = "TVF"
                     .BubbleCurveMaximumPoints = 500
                     .BubbleCurveMaximumTemperature = RET_VTC.Max * 1.2
@@ -4539,7 +4552,7 @@ redirect2:                  IObj?.SetCurrent()
                     .DewCurveDeltaP = 25000
                     .DewCurveDeltaT = 1.0
                     .DewCurveInitialPressure = 101325.0
-                    .DewCurveInitialTemperature = Math.Max(RET_VTF.Min, RET_VTC.Min * 0.45)
+                    .DewCurveInitialTemperature = tStart
                     .DewCurveInitialFlash = "PVF"
                     .DewCurveMaximumPoints = 500
                     .DewCurveMaximumTemperature = RET_VTC.Max * 1.5
@@ -4925,6 +4938,12 @@ redirect2:                  IObj?.SetCurrent()
                             Else
                                 Dim stepP = Math.Min(absDeltaP, Math.Abs(PCR - P) * 0.5)
                                 If stopAtCP AndAlso stepP < 500.0 Then Exit Do
+                                ' Above Pc the step toward Pc goes DOWN in pressure while the line still rises
+                                ' (beta >= 20): it retraces the line or asks for a bubble point above the
+                                ' envelope, which the PV flash cannot find (1-2 s per attempt through its restart
+                                ' ladder, 10 attempts). The saturation continuation after the loop redraws this
+                                ' stretch from the last point 5 % away from the CP.
+                                If stopAtCP AndAlso signP < 0 Then Exit Do
                                 P = P + signP * stepP
                             End If
                         ElseIf beta < 20 Then
@@ -4941,7 +4960,7 @@ redirect2:                  IObj?.SetCurrent()
                         lastValidBeta = beta
                     End If
 
-                    If TypeOf Me Is PengRobinsonPropertyPackage Or TypeOf Me Is SRKPropertyPackage Then
+                    If TypeOf Me Is PengRobinsonPropertyPackage Or TypeOf Me Is PengRobinson1978PropertyPackage Or TypeOf Me Is SRKPropertyPackage Then
                         If Math.Abs(T - TCR) / TCR < 0.002 And Math.Abs(P - PCR) / PCR < 0.002 Then
                             Exit Do
                         End If

@@ -56,6 +56,18 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
 
         End Function
 
+        ''' <summary>
+        ''' K-values of the result: one per compound of the stream, including the compounds at zero, so a
+        ''' caller that indexes them by compound (the phase envelope) sees the stream's length.
+        ''' </summary>
+        Private Shared Function UnitK(Vz As Double()) As Double()
+            Dim K(Vz.Length - 1) As Double
+            For i = 0 To K.Length - 1
+                K(i) = 1.0
+            Next
+            Return K
+        End Function
+
         Public Overrides Function Flash_PT(ByVal Vz As Double(), ByVal P As Double, ByVal T As Double, ByVal PP As PropertyPackages.PropertyPackage, Optional ByVal ReuseKI As Boolean = False, Optional ByVal PrevKi As Double() = Nothing) As Object
 
             Dim idx = GetIndex(Vz)
@@ -202,7 +214,7 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
 
             End If
 
-            Return New Object() {1.0 - V - S, V, Vz, Vz, T, 0.0, New Double() {1.0}, 0.0, Vz, S, Vz}
+            Return New Object() {1.0 - V - S, V, Vz, Vz, T, 0.0, UnitK(Vz), 0.0, Vz, S, Vz}
 
         End Function
 
@@ -283,7 +295,7 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                                           End Function)
             End If
 
-            Return New Object() {1.0 - V - Sx, V, Vz, Vz, T, 0.0, New Double() {1.0}, 0.0, Vz, Sx, Vz}
+            Return New Object() {1.0 - V - Sx, V, Vz, Vz, T, 0.0, UnitK(Vz), 0.0, Vz, Sx, Vz}
 
         End Function
 
@@ -295,9 +307,9 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
             Dim Tfus = PP.RET_VTF(idx)
 
             If T > Tfus Then
-                Return New Object() {1.0 - V, V, Vz, Vz, Psat, 0, New Double() {1.0}, 0.0, Vz, 0.0, Vz} 'liquid + vapor
+                Return New Object() {1.0 - V, V, Vz, Vz, Psat, 0, UnitK(Vz), 0.0, Vz, 0.0, Vz} 'liquid + vapor
             Else
-                Return New Object() {0.0, V, Vz, Vz, Psat, 0, New Double() {1.0}, 0.0, Vz, 1.0 - V, Vz} 'solid + vapor
+                Return New Object() {0.0, V, Vz, Vz, Psat, 0, UnitK(Vz), 0.0, Vz, 1.0 - V, Vz} 'solid + vapor
             End If
 
 
@@ -311,9 +323,9 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
             Dim Tfus = PP.RET_VTF(idx)
 
             If Tsat > Tfus Then
-                Return New Object() {1.0 - V, V, Vz, Vz, Tsat, 0, New Double() {1.0}, 0.0, Vz, 0.0, Vz} 'liquid + vapor
+                Return New Object() {1.0 - V, V, Vz, Vz, Tsat, 0, UnitK(Vz), 0.0, Vz, 0.0, Vz} 'liquid + vapor
             Else
-                Return New Object() {0.0, V, Vz, Vz, Tsat, 0.0, New Double() {1.0}, 0.0, Vz, 1.0 - V, Vz} 'solid + vapor
+                Return New Object() {0.0, V, Vz, Vz, Tsat, 0.0, UnitK(Vz), 0.0, Vz, 1.0 - V, Vz} 'solid + vapor
             End If
 
         End Function
