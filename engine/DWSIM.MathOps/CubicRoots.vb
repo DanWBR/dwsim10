@@ -210,6 +210,25 @@ Namespace MathEx
 
         End Function
 
+        ''' <summary>
+        ''' Newton steps on a converged start of CalcRoots until the step is below 1E-12 relative. The
+        ''' starts stop on an absolute residual of 1E-8, which leaves a liquid root with no correct digit
+        ''' when the root itself is that small (a liquid at low pressure, B below about 1E-4). Returns
+        ''' False when the point does not polish into a root (a residual below 1E-8 away from any root).
+        ''' </summary>
+        Private Shared Function PolishRoot(ByVal a As Double, ByVal b As Double, ByVal c As Double, ByVal d As Double, ByRef r As Double) As Boolean
+            For k = 1 To 50
+                Dim fi = a * r * r * r + b * r * r + c * r + d
+                Dim dfidr = 3 * a * r * r + 2 * b * r + c
+                If dfidr = 0.0# OrElse Double.IsNaN(dfidr) OrElse Double.IsInfinity(dfidr) Then Return False
+                Dim stp = fi / dfidr
+                r -= stp
+                If Double.IsNaN(r) OrElse Double.IsInfinity(r) Then Return False
+                If Math.Abs(stp) <= 0.000000000001 * Math.Max(Math.Abs(r), Double.Epsilon) Then Return True
+            Next
+            Return False
+        End Function
+
         Shared Function CalcRoots(ByVal a As Double, ByVal b As Double, ByVal c As Double, ByVal d As Double) As Double(,)
 
             Dim cnt As Integer = 0
@@ -233,7 +252,7 @@ Namespace MathEx
 
             Dim r1, i1, r2, i2, r3, i3 As Double
 
-            If cnt >= 1000 Then
+            If cnt >= 1000 OrElse Not PolishRoot(a, b, c, d, r) Then
                 r1 = r
                 i1 = -1
             Else
@@ -259,7 +278,7 @@ Namespace MathEx
                 cnt += 1
             Loop Until Math.Abs(fi) < 0.00000001 Or cnt >= 1000
 
-            If cnt >= 1000 Then
+            If cnt >= 1000 OrElse Not PolishRoot(a, b, c, d, r) Then
                 r2 = r
                 i2 = -1
             Else
@@ -285,7 +304,7 @@ Namespace MathEx
                 cnt += 1
             Loop Until Math.Abs(fi) < 0.00000001 Or cnt >= 1000
 
-            If cnt >= 1000 Then
+            If cnt >= 1000 OrElse Not PolishRoot(a, b, c, d, r) Then
                 r3 = r
                 i3 = -1
             Else

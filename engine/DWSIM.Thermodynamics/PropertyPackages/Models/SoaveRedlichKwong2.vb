@@ -661,8 +661,7 @@ Namespace PropertyPackages.ThermoPlugs
             coeff(2) = -1
             coeff(3) = 1
 
-            ' analytical real roots above the covolume, as in PR.CalcZ2 (issue #40); the Newton roots of
-            ' Poly_Roots stop on an absolute residual of 1e-8, as large as a liquid Z at a few hundred Pa
+            ' analytical real roots above the covolume, as in PR.CalcZ2 (issue #40)
             Dim result = ValidZRoots(coeff, BG)
 
             If result.Count = 0 Then
