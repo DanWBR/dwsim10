@@ -395,12 +395,10 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
             objval = 0.0#
             objval0 = 0.0#
 
-            Dim obj As Double
             Dim status As IpoptReturnCode = IpoptReturnCode.Feasible_Point_Found
 
             Dim IPOPT_Failure As Boolean = True
 
-            Dim problem As Ipopt = Nothing
             Dim ex0 As New Exception
 
             Ki = Vy.DivideY(Vx1)
@@ -518,28 +516,10 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                 ex0 = New Exception
 
                 Try
-                    problem = New Ipopt(initval2.Length, lconstr2, uconstr2, n + 1, glow, gup, (n + 1) * 2, 0,
-                        AddressOf eval_f, AddressOf eval_g,
-                        AddressOf eval_grad_f, AddressOf eval_jac_g, AddressOf eval_h)
-                    problem.AddOption("print_level", 1)
-                    ' Newton steps on the exact Hessian of the Gibbs energy (GibbsHessian), under a barrier that falls
-                    ' monotonically, to a tolerance on the equality of ln f: the barrier and the optimality error are in
-                    ' ln f units. No stall callback: the solver repeats the objective while it rebuilds a step, and
-                    ' stopping on the repeat left the phases far from equilibrium.
-                    problem.AddOption("tol", Math.Min(etol, 1.0E-8))
-                    problem.AddOption("max_iter", maxit_e * 10)
-                    problem.AddOption("mu_strategy", "monotone")
-                    problem.AddOption("mu_init", 0.1)
-                    problem.AddOption("expect_infeasible_problem", "yes")
-                    problem.AddOption("hessian_approximation", "exact")
-                    'solve the problem 
-                    status = problem.SolveProblem(initval2, obj, g, Nothing, Nothing, Nothing)
+                    status = SolveThreePhase(initval2, lconstr2, uconstr2, glow, gup)
                     IPOPT_Failure = False
                 Catch ex As Exception
                     ex0 = ex
-                Finally
-                    problem?.Dispose()
-                    problem = Nothing
                 End Try
 
                 If IPOPT_Failure Then Throw New Exception("Failed to load IPOPT library: " + ex0.Message)
@@ -572,6 +552,54 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
 
                 If mbr > 0.01 * n Then
                     Throw New Exception("PT Flash: Invalid solution.")
+                End If
+
+                ' The minimization can end with the vapour and the first liquid as one phase: where the equation of state
+                ' has a single root, splitting a phase into a vapour and a liquid of the same composition costs nothing,
+                ' and the solve stops there without the phase that should separate from it. It can also stop short of
+                ' convergence with the two close together. In both cases test their sum for stability and, if a trial
+                ' phase other than the second liquid is found, minimize again from a start that gives the first liquid
+                ' that composition; keep the solution of lower Gibbs energy.
+                Dim dvl1 As Double = 0.0#
+                For i = 0 To n
+                    dvl1 += Math.Abs(Vx1(i) - Vy(i))
+                Next
+                If V > 0.0# AndAlso L1 > 0.0# AndAlso (dvl1 < 0.01 * n OrElse status <> IpoptReturnCode.Solve_Succeeded) Then
+                    Dim nh(n) As Double
+                    For i = 0 To n
+                        nh(i) = Math.Max(fi(i) * F - initval2(i + n + 1), 0.0#)
+                    Next
+                    Dim xh As Double() = nh.NormalizeY()
+                    Dim x2h As Double() = Vx2.Clone()
+                    Dim trials = StabTest2(T, P, xh, PP.RET_VTC, PP).Where(Function(w) Not same(w, xh) AndAlso Not same(w, x2h)).ToList()
+                    If trials.Count > 0 Then
+                        'first liquid: half the largest amount of the trial composition the vapour + first liquid can give
+                        Dim w As Double() = trials(0)
+                        Dim a As Double = Double.MaxValue
+                        For i = 0 To n
+                            If w(i) > 0.0# Then a = Math.Min(a, nh(i) / w(i))
+                        Next
+                        a *= 0.5
+                        Dim xr As Double() = initval2.Clone()
+                        For i = 0 To n
+                            xr(i) = nh(i) - Math.Max(a * w(i), 0.0001 * nh(i))
+                        Next
+                        Dim Gr As Double = Double.MaxValue
+                        Try
+                            SolveThreePhase(xr, lconstr2, uconstr2, glow, gup)
+                            For i = 0 To xr.Length - 1
+                                If Double.IsNaN(xr(i)) Then xr(i) = 0.0#
+                            Next
+                            Gr = FunctionValue(xr)
+                        Catch ex As Exception
+                            'keep the first solution
+                        End Try
+                        If Gr < Gz - 1.0E-8 * F AndAlso MassBalanceResidual() <= 0.01 * n Then
+                            initval2 = xr
+                        End If
+                        'the phase amounts and compositions of the solution kept
+                        Gz = FunctionValue(initval2)
+                    End If
                 End If
 
                 If Gz > Gz0 Then
@@ -720,6 +748,33 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
             IObj?.Close()
 
 out:        Return result
+
+        End Function
+
+        ''' <summary>
+        ''' Minimizes the three-phase objective from x, the mole numbers of the vapour (x(0..n)) and of the second liquid
+        ''' (x(n+1..2n+1)); x is overwritten with the solution.
+        ''' </summary>
+        Private Function SolveThreePhase(x As Double(), lb As Double(), ub As Double(), glow As Double(), gup As Double()) As IpoptReturnCode
+
+            Dim g(n) As Double, obj As Double
+
+            Using problem As New Ipopt(x.Length, lb, ub, n + 1, glow, gup, (n + 1) * 2, 0,
+                        AddressOf eval_f, AddressOf eval_g,
+                        AddressOf eval_grad_f, AddressOf eval_jac_g, AddressOf eval_h)
+                problem.AddOption("print_level", 1)
+                ' Newton steps on the exact Hessian of the Gibbs energy (GibbsHessian), under a barrier that falls
+                ' monotonically, to a tolerance on the equality of ln f: the barrier and the optimality error are in
+                ' ln f units. No stall callback: the solver repeats the objective while it rebuilds a step, and
+                ' stopping on the repeat left the phases far from equilibrium.
+                problem.AddOption("tol", Math.Min(etol, 1.0E-8))
+                problem.AddOption("max_iter", maxit_e * 10)
+                problem.AddOption("mu_strategy", "monotone")
+                problem.AddOption("mu_init", 0.1)
+                problem.AddOption("expect_infeasible_problem", "yes")
+                problem.AddOption("hessian_approximation", "exact")
+                Return problem.SolveProblem(x, obj, g, Nothing, Nothing, Nothing)
+            End Using
 
         End Function
 
