@@ -3261,6 +3261,13 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
             'The fallbacks above hand back their last attempt whether it converged or not. A bubble or
             'dew point is returned only when the temperature loop converged on it.
             If Not AcceptStalledSaturationPoint AndAlso result.Count > 1 AndAlso (V = 0 Or V = 1) AndAlso Math.Abs(result(11)) > 0.01 Then result = New Object() {-1}
+            'Nor is one whose incipient phase is none: Wilson's K values, which the package substitutes next to
+            'the trivial solution, can hold the loop on a point where the model has a single phase. That result
+            'fails outright, since the ideal-solution fallback below would put Raoult's law in its place. The
+            'bubble and dew points of the azeotrope interpolation keep the earlier acceptance.
+            If Not AcceptStalledSaturationPoint AndAlso Not CalculatingAzeotrope AndAlso result.Count > 1 AndAlso SaturationPointRejected(Vz, result(4), P, V, result(2), result(3), PP) Then
+                Throw New Exception("PV Flash [NL]: Invalid result: the feed has no incipient phase at T = " & result(4) & " K (not a saturation point).")
+            End If
 
             Dim idealcalc As Boolean = Me.FlashSettings(Interfaces.Enums.FlashSetting.PVFlash_TryIdealCalcOnFailure)
             If result.Count = 1 And idealcalc Then

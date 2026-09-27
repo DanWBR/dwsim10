@@ -437,6 +437,91 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
         Public MustOverride Function Flash_TV(ByVal Vz As Double(), ByVal T As Double, ByVal V As Double, ByVal Pref As Double, ByVal PP As PropertyPackages.PropertyPackage, Optional ByVal ReuseKI As Boolean = False, Optional ByVal PrevKi As Double() = Nothing) As Object
 
         ''' <summary>
+        ''' True when a bubble or dew point (V = 0 or 1) returned by a PV or TV flash is not a saturation point of
+        ''' the model: its incipient phase is no stationary point of the feed's tangent-plane distance.
+        ''' </summary>
+        ''' <remarks>
+        ''' DW_CalcKvalue replaces K values that are all within 0.01 of 1 by Wilson's, to move an iteration off the
+        ''' trivial solution. Where the model has a single phase and its K values at Wilson-split phases stay that
+        ''' close to 1 (similar compounds past the critical region: n-decane/n-dodecane at 40 bar with Peng-Robinson),
+        ''' the replacement becomes a fixed point, and the bubble/dew loop converges on Wilson's bubble or dew point
+        ''' (695 and 703 K there, above both critical temperatures). Only a result on which the replacement acts is
+        ''' examined, that is, one where the package hands back Wilson's K values at the returned phases. The
+        ''' tangent-plane distance of the feed at (T, P) is then minimized by successive substitution (Michelsen),
+        ''' starting from the returned incipient phase. At a saturation point that phase is a stationary point with
+        ''' zero distance, and the iteration stays on it or finds a negative distance. At Wilson's point the phase is
+        ''' no stationary point, the iteration collapses onto the feed, and the result is rejected. A result whose
+        ''' incipient phase is the feed itself, and an iteration that does not settle, are left alone.
+        ''' </remarks>
+        Protected Function SaturationPointRejected(Vz As Double(), T As Double, P As Double, V As Double,
+                                                   Vx As Double(), Vy As Double(), PP As PropertyPackages.PropertyPackage) As Boolean
+
+            If Not (V = 0.0 OrElse V = 1.0) Then Return False
+            If PP.PackageType = PropertyPackages.PackageType.ActivityCoefficient OrElse PP.OverrideKvalFugCoeff Then Return False
+            If PP.AUX_IS_SINGLECOMP(Vz) Then Return False
+
+            Dim n As Integer = Vz.Length - 1
+
+            'the package replaced the K values at the returned phases by Wilson's
+            Dim K As Double() = PP.DW_CalcKvalue(Vx, Vy, T, P)
+            Dim cprops = PP.DW_GetConstantProperties()
+            For i As Integer = 0 To n
+                If Vx(i) = 0.0 AndAlso Vy(i) = 0.0 Then Continue For
+                Dim Kw As Double = cprops(i).Critical_Pressure / P * Math.Exp(5.373 * (1 + cprops(i).Acentric_Factor) * (1 - cprops(i).Critical_Temperature / T))
+                If Not (Math.Abs(K(i) - Kw) <= 0.000000000001 * Kw) Then Return False
+            Next
+
+            'tangent-plane distance of the feed, from the returned incipient phase
+            Dim feed, trial As Double(), lnfeed As Double(), sttrial As PropertyPackages.State
+            If V = 0.0 Then
+                feed = Vx : trial = Vy : sttrial = PropertyPackages.State.Vapor
+                lnfeed = PP.DW_CalcLnFugCoeff(Vx, T, P, PropertyPackages.State.Liquid)
+            Else
+                feed = Vy : trial = Vx : sttrial = PropertyPackages.State.Liquid
+                lnfeed = PP.DW_CalcLnFugCoeff(Vy, T, P, PropertyPackages.State.Vapor)
+            End If
+
+            Dim d(n), Wt(n) As Double
+            Dim dist As Double = 0.0
+            For i As Integer = 0 To n
+                If feed(i) > 0.0 Then
+                    If Not (trial(i) > 0.0) Then Return False
+                    d(i) = Math.Log(feed(i)) + lnfeed(i)
+                    Wt(i) = trial(i)
+                    dist = Math.Max(dist, Math.Abs(Math.Log(trial(i) / feed(i))))
+                End If
+            Next
+            If Not (dist >= 0.0001) Then Return False
+
+            For iter As Integer = 1 To 100
+                Dim lnw As Double() = PP.DW_CalcLnFugCoeff(Wt.NormalizeY(), T, P, sttrial)
+                Dim Wn(n) As Double
+                Dim tm As Double = 1.0, dmax As Double = 0.0
+                For i As Integer = 0 To n
+                    If feed(i) > 0.0 Then
+                        tm += Wt(i) * (Math.Log(Wt(i)) + lnw(i) - d(i) - 1.0)
+                        Wn(i) = Math.Exp(d(i) - lnw(i))
+                        dmax = Math.Max(dmax, Math.Abs(Math.Log(Wn(i) / Wt(i))))
+                    End If
+                Next
+                'a negative distance: the feed is unstable, an incipient phase exists
+                If tm < -0.00000001 OrElse Double.IsNaN(tm) OrElse Double.IsNaN(dmax) Then Return False
+                Wt = Wn
+                If dmax < 0.000000001 Then
+                    dist = 0.0
+                    For i As Integer = 0 To n
+                        If feed(i) > 0.0 Then dist = Math.Max(dist, Math.Abs(Math.Log(Wt(i) / feed(i))))
+                    Next
+                    'collapsed onto the feed: the returned phase is no incipient phase
+                    Return dist < 0.0001
+                End If
+            Next
+
+            Return False
+
+        End Function
+
+        ''' <summary>
         ''' Mixture molar volume (m3/mol) of a PT flash result, from the liquid densities and the vapour
         ''' compressibility of the property package. Phases that are absent contribute nothing.
         ''' </summary>

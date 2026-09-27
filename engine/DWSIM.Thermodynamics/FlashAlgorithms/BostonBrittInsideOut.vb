@@ -1775,6 +1775,7 @@ final:      d2 = Date.Now
                 If PP.AUX_CheckTrivial(Ki, 0.01, Vz) Then Throw New Exception("PV Flash [IO]: Invalid result: converged to the trivial solution (T = " & T & " ).")
                 If NearTrivialRejected(Vz, P, T, V, Ki, PP) Then Throw New Exception("PV Flash [IO]: Invalid result: converged next to the trivial solution (T = " & T & " ).")
             End If
+            If SaturationPointRejected(Vz, T, P, V, Vx, Vy, PP) Then Throw New Exception("PV Flash [IO]: Invalid result: the feed has no incipient phase at T = " & T & " K (not a saturation point).")
 
             WriteDebugInfo("PV Flash [IO]: Converged in " & ecount & " iterations. Time taken: " & dt.TotalMilliseconds & " ms. Error function value: " & AbsSum(fx))
 
