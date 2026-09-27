@@ -516,6 +516,19 @@ namespace DWSIM.Automation.DynamicRunner.Depressurization
                 if (f > 0) result.Warnings.Add("The fluid is all vapour at the initial condition; the vessel starts gas-filled.");
                 f = 0.0;
                 w = wg; mass = rg * volume;
+                // a dense fluid the flash calls vapour (CO2 + 6 % N2 at 298 K and 140 bar): the vessel's volume
+                // flashes give it the dense-phase volume, not the stream's vapour density, so fill from that surface
+                // as the liquid-full vessel does below; an ordinary gas has the same volume on both and keeps rg
+                try
+                {
+                    dynamic ppd = pp;
+                    ppd.CurrentMaterialStream = probe;
+                    double vm = (double)ppd.FlashBase.MixtureMolarVolumeAtTP(z, input.InitialTemperature, input.InitialPressure, ppd);
+                    double mw = (double)ppd.AUX_MMM(z);
+                    double mv = volume / vm * mw / 1000.0;
+                    if (vm > 0 && !double.IsNaN(vm) && Math.Abs(mv / mass - 1.0) > 1e-6) mass = mv;
+                }
+                catch { }
             }
             else if (vapFrac <= 1e-6 || rg <= 0.0 || f >= 0.999)
             {

@@ -568,13 +568,24 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                 End If
                 'Near the critical point the flash cannot tell a dense phase's label (the same CO2 + N2 at 298 K
                 'is called liquid at 124 bar and vapour at 140 bar), and the correlations above have no believable
-                'saturated volume for a mixture there. The liquid then takes its volume from the equation of state,
-                'as the vapour does, so one dense phase has one volume whatever it is called; the share of the
-                'equation of state grows smoothly with the reduced temperature (see NearCriticalVolumeWeight).
+                'saturated volume for a mixture there. The liquid then takes the dense-phase map of DenseVolume, as
+                'a dense vapour does, so one dense phase has one volume whatever it is called; the share of the map
+                'grows smoothly with the reduced temperature (see NearCriticalVolumeWeight). The map keeps the
+                'correlation's volume ratio to the equation of state, so the blend only bridges a small difference
+                'of basis: towards the bare equation of state, 10 to 25 % off for water, ammonia or methanol, the
+                'blend's own thermal expansion outgrew the heat capacity and the VU flash found spurious roots.
+                Dim onePhase = V <= 0.0 AndAlso L2 <= 0.0
                 Dim w = NearCriticalVolumeWeight(x, T, PP)
                 If w > 0.0 Then
-                    Dim ze = If(V <= 0.0 AndAlso L2 <= 0.0, StableRootZ(x, T, P, PP), PP.AUX_Z(x, T, P, Interfaces.Enums.PhaseName.Liquid))
-                    If ze > 0.0 AndAlso Not Double.IsNaN(ze) Then VL1 = (1.0 - w) * VL1 + w * L1 * ze * 8.314 * T / P
+                    Dim vm = DenseVolume(x, T, P, Interfaces.Enums.PhaseName.Liquid, onePhase, 0.8, PP)
+                    If Not vm > 0.0 Then
+                        Dim ze = If(onePhase, StableRootZ(x, T, P, PP), PP.AUX_Z(x, T, P, Interfaces.Enums.PhaseName.Liquid))
+                        If ze > 0.0 AndAlso Not Double.IsNaN(ze) Then vm = ze * 8.314 * T / P
+                    End If
+                    If vm > 0.0 AndAlso Not Double.IsNaN(vm) Then VL1 = (1.0 - w) * VL1 + w * L1 * vm
+                Else
+                    Dim vpd = DenseVolume(x, T, P, Interfaces.Enums.PhaseName.Liquid, onePhase, 0.9, PP)
+                    If vpd > 0.0 Then VL1 = L1 * vpd
                 End If
             End If
             If L2 > 0.0 Then
@@ -583,6 +594,9 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
             End If
             If V > 0.0 Then
                 VV = V * PP.AUX_Z(flashresult.GetVaporPhaseMoleFractions, T, P, Interfaces.Enums.PhaseName.Vapor) * 8.314 * T / P 'm3/mol
+                'a fluid called vapour near or above its critical temperature can be as dense as the liquid next to it
+                Dim vpd = DenseVolume(flashresult.GetVaporPhaseMoleFractions, T, P, Interfaces.Enums.PhaseName.Vapor, L1 <= 0.0 AndAlso L2 <= 0.0, 0.9, PP)
+                If vpd > 0.0 Then VV = V * vpd
             End If
             If Double.IsInfinity(VL1) Or Double.IsNaN(VL1) Then VL1 = 0.0
             If Double.IsInfinity(VL2) Or Double.IsNaN(VL2) Then VL2 = 0.0
@@ -591,10 +605,10 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
         End Function
 
         ''' <summary>
-        ''' Share of the equation-of-state volume in the volume of a liquid of composition x at T (equation-of-state
+        ''' Share of the dense-phase map (DenseVolume) in the volume of a liquid of composition x at T (equation-of-state
         ''' packages, mixtures): 0 up to 0.8 x Kay's Tc, 1 from 0.9 x Kay's Tc, where the volume above already falls
         ''' back on the equation of state when no bubble point is found, and a smooth step in between. A pure or
-        ''' nearly pure liquid keeps its saturation-based volume (the volume flash handles it with the lever rule).
+        ''' nearly pure liquid takes the map above 0.9 x Tc directly (the volume flash handles it with the lever rule).
         ''' The step sits where the liquid is still stiff: moved closer to the critical point, the change of basis
         ''' with temperature cancels the heat capacity along an isochore and the VU flash finds spurious roots.
         ''' </summary>
@@ -629,6 +643,71 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                 If x(i) > 0.0 Then gl += x(i) * fl(i) : gv += x(i) * fv(i)
             Next
             Return If(gv < gl, zv, zl)
+        End Function
+
+        ''' <summary>
+        ''' Molar volume (m3/mol) of a dense phase of composition x above tLow x Kay's Tc (equation-of-state packages),
+        ''' or 0 where the saturation-based volume above stands. Below 0.9 x Tc a compressed liquid takes its volume
+        ''' from the correlation at the bubble pressure and its compression from the equation of state,
+        ''' v = G(T) x v_EOS(T, P), with G = v_corr / v_EOS of the saturated liquid. Towards Tc the correlation runs
+        ''' into the experimental critical density with an infinite slope (a mixture's has no believable value there
+        ''' at all), while the vapour, and every phase above Tc, take the equation of state's volume: for CO2, G(T)
+        ''' went from about 0.83 to 1 at Tc (a step of 15 % in the density at 100 bar), and its slope just below Tc
+        ''' made the internal energy fall along isochores (spurious roots of the VU flash).
+        ''' Here the ratio is held at its value at 0.9 x Tc (0.8 x Kay's Tc for a mixture), G1, and fades to 1 with the reduced density of the
+        ''' equation of state, from 1.6 x its critical density (the equation of state's own at Kay's Tc and Pc) down
+        ''' to it. The reference pressure of G1 is the vapour pressure, or for a mixture the sum of x times the
+        ''' compounds' vapour pressures (Wilson's estimate for a compound above its Tc). Up to Tc the map from the
+        ''' equation-of-state volume to this one does not depend on temperature, so it adds no thermal expansion of
+        ''' its own along an isochore; the saturated liquid meets the vapour at the critical point, and a
+        ''' supercritical fluid has one volume whether the flash calls it liquid or vapour. Above Tc the correction
+        ''' fades out slowly, to the plain equation of state at 1.5 x Tc. A single phase of a mixture uses the root
+        ''' of lower Gibbs energy. A dense phase called liquid where the correction is off (gas-like, or above
+        ''' 1.5 x Tc) gets the equation of state's volume: the saturation-based path above then has only the
+        ''' correlation's extrapolated vapour pressure to work from, and returned about 1E+20 kg/m3 for CO2 at 350 K
+        ''' and 200 bar.
+        ''' </summary>
+        Private Shared Function DenseVolume(x As Double(), T As Double, P As Double, phase As Interfaces.Enums.PhaseName, singlePhase As Boolean, tLow As Double, PP As PropertyPackages.PropertyPackage) As Double
+            If PP.PackageType <> PropertyPackages.PackageType.EOS Then Return 0.0
+            Dim tc = 0.0, pc = 0.0
+            Dim vtc = PP.RET_VTC(), vpc = PP.RET_VPC()
+            For i = 0 To x.Length - 1
+                tc += x(i) * vtc(i)
+                pc += x(i) * vpc(i)
+            Next
+            If Not (tc > 0.0 AndAlso pc > 0.0) OrElse T <= tLow * tc Then Return 0.0
+            Dim z = If(singlePhase AndAlso x.Max() <= 1.0 - 0.001, StableRootZ(x, T, P, PP), PP.AUX_Z(x, T, P, phase))
+            Dim zc = PP.AUX_Z(x, tc, pc, Interfaces.Enums.PhaseName.Vapor)
+            If Not (z > 0.0 AndAlso zc > 0.0) Then Return 0.0
+            Dim v = z * 8.314 * T / P
+            Dim dr = (zc * 8.314 * tc / pc) / v 'reduced density on the equation of state
+            'gas-like, or far above Tc: the equation of state's volume, the one a vapour already has
+            If dr <= 1.0 OrElse T >= 1.5 * tc Then Return If(phase = Interfaces.Enums.PhaseName.Liquid, v, 0.0)
+            'G1 from the saturated liquid at 0.9 x Tc for a pure compound, where its map starts, and at 0.8 x Kay's Tc
+            'for a mixture, where the blend to the map starts and the correlation is still sound for its light compounds
+            Dim t1 = If(x.Max() > 1.0 - 0.001, 0.9, 0.8) * tc, ps1 = 0.0
+            Dim vw = PP.RET_VW()
+            For i = 0 To x.Length - 1
+                If x(i) > 0.0 Then
+                    If t1 < vtc(i) Then
+                        ps1 += x(i) * PP.AUX_PVAPi(i, t1)
+                    Else
+                        ps1 += x(i) * vpc(i) * Math.Exp(5.373 * (1.0 + vw(i)) * (1.0 - vtc(i) / t1))
+                    End If
+                End If
+            Next
+            If Not ps1 > 0.0 Then Return If(phase = Interfaces.Enums.PhaseName.Liquid, v, 0.0)
+            Dim z1 = PP.AUX_Z(x, t1, ps1, Interfaces.Enums.PhaseName.Liquid)
+            Dim g1 = PP.AUX_MMM(x) / 1000.0 / PP.AUX_LIQDENS(t1, x, ps1) / (z1 * 8.314 * t1 / ps1)
+            If Not (g1 > 0.5 AndAlso g1 < 1.5) Then Return If(phase = Interfaces.Enums.PhaseName.Liquid, v, 0.0)
+            'share of G1: 1 from 1.6 x the critical density, 0 at it, and fading above Tc to 0 at 1.5 x Tc
+            Dim s = Math.Min((dr - 1.0) / (1.6 - 1.0), 1.0)
+            Dim f = s * s * (3.0 - 2.0 * s)
+            If T > tc Then
+                Dim q = (T / tc - 1.0) / 0.5
+                f *= 1.0 - q * q * (3.0 - 2.0 * q)
+            End If
+            Return (1.0 - f + f * g1) * v
         End Function
 
         ''' <summary>
@@ -754,8 +833,17 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                     pbub = Psat : pbubKnown = True
                     Dim VL = PP.AUX_MMM(Vz) / 1000.0 / PP.AUX_LIQDENS(T, Vz, Psat) 'm3/mol
                     Dim VV = PP.AUX_Z(Vz, T, Psat, Interfaces.Enums.PhaseName.Vapor) * 8.314 * T / Psat
+                    'Above Tc the saturation pressure is the correlation's extrapolation and the equation of state has
+                    'a single root there: there is no split to share the volume out, only the search below. Below Tc
+                    'the saturated liquid takes the basis of the liquid just above it (see DenseVolume).
+                    Dim split = True
+                    If PP.PackageType = PropertyPackages.PackageType.EOS Then
+                        split = PP.AUX_Z(Vz, T, Psat, Interfaces.Enums.PhaseName.Liquid) < PP.AUX_Z(Vz, T, Psat, Interfaces.Enums.PhaseName.Vapor)
+                        Dim vpd = DenseVolume(Vz, T, Psat, Interfaces.Enums.PhaseName.Liquid, False, 0.9, PP)
+                        If split AndAlso vpd > 0.0 Then VL = vpd
+                    End If
                     If VL > 0.0 AndAlso VV > VL Then
-                        If Vspec > VL * (1.0 + 1.0E-9) AndAlso Vspec < VV * (1.0 - 1.0E-9) Then
+                        If split AndAlso Vspec > VL * (1.0 + 1.0E-9) AndAlso Vspec < VV * (1.0 - 1.0E-9) Then
                             Dim vf = (Vspec - VL) / (VV - VL)
                             flashresult = CalculateEquilibrium(FlashSpec.T, FlashSpec.VAP, T, vf, PP, Vz, PrevKi, Psat)
                             flashresult.CalculatedPressure = Psat
