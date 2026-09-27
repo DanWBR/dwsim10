@@ -97,4 +97,6 @@
 - [FIX] Boston-Britt Inside-Out: two-phase feeds near an azeotrope reported as single phase; vapour fraction flashes near the critical point converged next to the trivial solution; bubble and dew points of light gases never confirmed (natural gas bubble point 242 K for 206 K)
 - [FIX] Nested Loops dew points on the wrong liquid branch for mixtures that form two liquids (water/n-hexane/methane between 5 and 50 bar)
 - [FIX] Bubble and dew points of similar heavy compounds above their critical region (n-decane/n-dodecane at 40 bar gave 695 and 703 K); now rejected by a stability test
+- [FIX] Volume flashes of vessels, depressurization and dynamics: a near-critical dense mixture took a different volume when labelled liquid or vapour, and a false bubble pressure; a liquid-full CO2 blowdown now stays liquid-full for 2.6 s (measured about 3 s)
+- [FIX] Classic interface: closing the spreadsheet, settings, optimizer, chart, log or attached utility tab returns to the previously active document
 - [FIX] Distillation column (Wang-Henke): a top stage without liquid or a failed stage bubble point stopped the column; extractor and Internal 3 estimates used compounds absent from the feeds
