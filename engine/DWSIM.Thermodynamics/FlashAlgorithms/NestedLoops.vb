@@ -1493,6 +1493,10 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                 Dim hres = PerformHeuristicsTest(Vz, T, P, PP)
                 If hres.SolidPhase Then V = 0.5
                 H1 = Hb
+                'the enthalpy error falls from Hb > 0 at V = 0 to Hd < 0 at V = 1: Vlo and Vhi keep the
+                'interval that holds its root, used once a secant step has gone past an end of [0, 1]
+                Dim Vlo As Double = 0.0, Vhi As Double = 1.0
+                Dim bracketed As Boolean = False
                 Do
 
                     ecount += 1
@@ -1502,6 +1506,8 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                     Else
                         V2 = V1 - 0.01
                     End If
+                    'inside the interval the derivative is taken inside it too (no vapour fraction above 1)
+                    If bracketed Then V2 = If(Vhi - V1 >= V1 - Vlo, V1 + 0.5 * Math.Min(0.02, Vhi - V1), V1 - 0.5 * Math.Min(0.02, V1 - Vlo))
                     IObj?.SetCurrent()
                     herrfunc = Herror("PV", V2, P, Vz, PP, True, Ki)
                     H2 = herrfunc(0)
@@ -1509,13 +1515,31 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                     Vx1 = herrfunc(5)
                     Ki = Vy.DivideY(Vx1)
                     V = V1 + (V2 - V1) * (0 - H1) / (H2 - H1)
+                    If bracketed AndAlso Not (V > Vlo AndAlso V < Vhi) Then V = 0.5 * (Vlo + Vhi)
                     If V < 0 Then V = 0.0#
                     If V > 1 Then V = 1.0#
                     IObj?.Paragraphs.Add(String.Format("Updated Vapor Fraction estimate: {0}", V))
                     IObj?.SetCurrent()
                     resultFlash = Herror("PV", V, P, Vz, PP, True, Ki)
                     H1 = resultFlash(0)
-                    If V = 1.0 Or V = 0.0 And Math.Abs(H1) < 0.01 Then Exit Do
+                    If (V = 1.0 Or V = 0.0) And Math.Abs(H1) < 0.01 Then Exit Do
+                    If H1 > 0 Then Vlo = Math.Max(Vlo, V) Else Vhi = Math.Min(Vhi, V)
+                    If Not bracketed AndAlso (V = 1.0 Or V = 0.0) Then
+                        'The secant step went past an end of [0, 1] and the enthalpy is not met there: the
+                        'enthalpy is far from linear in V when a light end boils off first. From here on the
+                        'steps stay inside the interval that holds the root, starting from its middle.
+                        bracketed = True
+                        V = 0.5 * (Vlo + Vhi)
+                        IObj?.SetCurrent()
+                        resultFlash = Herror("PV", V, P, Vz, PP, True, Ki)
+                        H1 = resultFlash(0)
+                        If H1 > 0 Then Vlo = Math.Max(Vlo, V) Else Vhi = Math.Min(Vhi, V)
+                    End If
+                    'an interval that closes on a jump of the enthalpy holds no root: the bubble and dew points
+                    'were no pair of this feed
+                    If bracketed AndAlso Vhi - Vlo < 0.000001 AndAlso Math.Abs(H1) > 0.01 Then
+                        Throw New Exception("PH Flash [NL]: Invalid result: the enthalpy is met at no vapour fraction between the bubble and dew points (P = " & P & " Pa).")
+                    End If
                     IObj?.Paragraphs.Add(String.Format("Enthalpy Error (Spec - Calculated): {0}", H1))
                 Loop Until Abs(H1) < itol Or ecount > maxitEXT
 
@@ -2105,6 +2129,10 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                 ecount = 0
                 V = 0
                 S1 = Sb
+                'the entropy error falls from Sb > 0 at V = 0 to Sd < 0 at V = 1: Vlo and Vhi keep the
+                'interval that holds its root, used once a secant step has gone past an end of [0, 1]
+                Dim Vlo As Double = 0.0, Vhi As Double = 1.0
+                Dim bracketed As Boolean = False
                 Do
                     ecount += 1
                     V1 = V
@@ -2113,6 +2141,8 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                     Else
                         V2 = V1 - 0.01
                     End If
+                    'inside the interval the derivative is taken inside it too (no vapour fraction above 1)
+                    If bracketed Then V2 = If(Vhi - V1 >= V1 - Vlo, V1 + 0.5 * Math.Min(0.02, Vhi - V1), V1 - 0.5 * Math.Min(0.02, V1 - Vlo))
 
                     IObj?.SetCurrent()
                     serrfunc = Serror("PV", V2, P, Vz, PP, True, Ki)
@@ -2121,13 +2151,31 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                     Vx1 = serrfunc(5)
                     Ki = Vy.DivideY(Vx1)
                     V = V1 + (V2 - V1) * (0 - S1) / (S2 - S1)
+                    If bracketed AndAlso Not (V > Vlo AndAlso V < Vhi) Then V = 0.5 * (Vlo + Vhi)
                     If V < 0 Then V = 0
                     If V > 1 Then V = 1
                     IObj?.Paragraphs.Add(String.Format("Updated Vapor Fraction estimate: {0}", V))
                     IObj?.SetCurrent()
                     resultFlash = Serror("PV", V, P, Vz, PP, True, Ki)
                     S1 = resultFlash(0)
-                    If V = 1.0 Or V = 0.0 And Math.Abs(S1) < 0.01 Then Exit Do
+                    If (V = 1.0 Or V = 0.0) And Math.Abs(S1) < 0.01 Then Exit Do
+                    If S1 > 0 Then Vlo = Math.Max(Vlo, V) Else Vhi = Math.Min(Vhi, V)
+                    If Not bracketed AndAlso (V = 1.0 Or V = 0.0) Then
+                        'The secant step went past an end of [0, 1] and the entropy is not met there: the
+                        'entropy is far from linear in V when a light end boils off first. From here on the
+                        'steps stay inside the interval that holds the root, starting from its middle.
+                        bracketed = True
+                        V = 0.5 * (Vlo + Vhi)
+                        IObj?.SetCurrent()
+                        resultFlash = Serror("PV", V, P, Vz, PP, True, Ki)
+                        S1 = resultFlash(0)
+                        If S1 > 0 Then Vlo = Math.Max(Vlo, V) Else Vhi = Math.Min(Vhi, V)
+                    End If
+                    'an interval that closes on a jump of the entropy holds no root: the bubble and dew points
+                    'were no pair of this feed
+                    If bracketed AndAlso Vhi - Vlo < 0.000001 AndAlso Math.Abs(S1) > 0.01 Then
+                        Throw New Exception("PS Flash [NL]: Invalid result: the entropy is met at no vapour fraction between the bubble and dew points (P = " & P & " Pa).")
+                    End If
                     IObj?.Paragraphs.Add(String.Format("Entropy Error (Spec - Calculated): {0}", S1))
                 Loop Until Abs(S1) < itol Or ecount > maxitEXT
 
