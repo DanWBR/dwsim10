@@ -2515,6 +2515,11 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                 Throw New Exception("TV Flash [NL]: Invalid result: converged to the trivial solution (P = " & P & " ).")
             End If
 
+            If SaturationPointRejected(Vz, T, P, V, Vx, Vy, PP) Then
+                IObj?.Close()
+                Throw New Exception("TV Flash [NL]: Invalid result: the feed has no incipient phase at P = " & P & " Pa (not a saturation point).")
+            End If
+
             WriteDebugInfo("TV Flash [NL]: Converged in " & ecount & " iterations. Time taken: " & dt.TotalMilliseconds & " ms.")
 
             IObj?.Paragraphs.Add("The algorithm converged in " & ecount & " iterations. Time taken: " & dt.TotalMilliseconds & " ms.")

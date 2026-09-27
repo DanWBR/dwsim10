@@ -2983,6 +2983,7 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
             End If
 
             If PP.AUX_CheckTrivial(Ki, 0.01, Vz) Then Throw New Exception("TV Flash [NL]: Invalid result: converged to the trivial solution (P = " & P & " ).")
+            If SaturationPointRejected(Vz, T, P, V, Vx, Vy, PP) Then Throw New Exception("TV Flash [NL]: Invalid result: the feed has no incipient phase at P = " & P & " Pa (not a saturation point).")
 
             WriteDebugInfo("TV Flash [NL]: Converged in " & ecount & " iterations. Time taken: " & dt.TotalMilliseconds & " ms.")
 
