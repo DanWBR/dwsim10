@@ -698,6 +698,7 @@ Namespace UnitOperations
             PropertyPackage.CurrentMaterialStream = AccumulationStream
 
             Dim LiquidVolume, RelativeLevel As Double
+            Dim uvResult As IFlashCalculationResult = Nothing
 
             If M > 0.0 Then
 
@@ -715,6 +716,7 @@ Namespace UnitOperations
                         result = ppx.FlashBase.Flash_VU(ppx.RET_VMOL(DWSIM.Thermodynamics.PropertyPackages.Phase.Mixture), currentM, U1 / m1, Pressure, Temperature, ppx)
                         Temperature = result.CalculatedTemperature
                         AccumulationStream.SetTemperature(Temperature)
+                        uvResult = result
                     Else
                         result = PropertyPackage.CalculateEquilibrium2(FlashCalculationType.VolumeTemperature, currentM, Temperature, Pressure)
                     End If
@@ -772,6 +774,22 @@ Namespace UnitOperations
             If integrator.ShouldCalculateEquilibrium And Pressure > 0.0 Then
 
                 AccumulationStream.Calculate(True, True)
+
+                'The volume-energy flash above has already found the state. Flashing it again at (P, H) gives it
+                'back, except where the vapour fraction swings across a tiny pressure or temperature interval: a
+                'boiling CO2 left with 0.1 % of N2 has its vapour fraction go from 0.05 to 1 within 2 kPa, and the
+                'PH flash there returned all vapour with H 297 kJ/kg above the one asked for (the next step then
+                'heated the vessel to 410 K and 210 bar), or states 0.1-4 kJ/kg off that cooled the content by an
+                'extra kelvin a second. The energy balance carries the enthalpy of this stream into the next step,
+                'so when the re-flash misses the enthalpy the stream takes the volume-energy flash's own state.
+                If uvResult IsNot Nothing AndAlso Pressure = uvResult.CalculatedPressure.GetValueOrDefault() AndAlso
+                    Math.Abs(AccumulationStream.GetMassEnthalpy() - Enthalpy) > 0.00001 * Math.Max(1.0, Math.Abs(Enthalpy)) Then
+                    Dim ppu = DirectCast(PropertyPackage, DWSIM.Thermodynamics.PropertyPackages.PropertyPackage)
+                    ppu.CurrentMaterialStream = AccumulationStream
+                    AccumulationStream.SetTemperature(Temperature)
+                    ppu.DW_ApplyFlashResult(uvResult, Temperature, Pressure, Enthalpy)
+                    AccumulationStream.Calculate(False, True)
+                End If
 
             End If
 
