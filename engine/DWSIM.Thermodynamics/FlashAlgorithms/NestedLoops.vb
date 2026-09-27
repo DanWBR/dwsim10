@@ -369,6 +369,17 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
             Dim allLiquid As Boolean = vpMaxP < P And vpMinP > 0
             If allLiquid AndAlso PP.PackageType = PropertyPackages.PackageType.ActivityCoefficient Then
                 allLiquid = PP.DW_CalcKvalue(Vz, Vz, T, P).MultiplyY(Vz).SumY < 1.0
+            ElseIf allLiquid AndAlso PP.PackageType = PropertyPackages.PackageType.EOS Then
+                'an equation of state can have the vapour root of the feed below its liquid root in Gibbs energy
+                'while every vapour pressure is below P (water/benzene/toluene 0.5/0.25/0.25 at 5 bar from 401.5 K;
+                'benzene's vapour pressure reaches 5 bar only at 416 K, and the feed is all vapour from 412 K)
+                Dim lnzl = PP.DW_CalcLnFugCoeff(Vz, T, P, State.Liquid)
+                Dim lnzv = PP.DW_CalcLnFugCoeff(Vz, T, P, State.Vapor)
+                Dim dglv As Double = 0.0
+                For i = 0 To n
+                    If Vz(i) > 0.0# Then dglv += Vz(i) * (lnzl(i) - lnzv(i))
+                Next
+                allLiquid = dglv <= 0.0#
             End If
 
             If allLiquid Then
@@ -497,7 +508,16 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                     Dim zl = PP.AUX_Z(Vx, T, P, Interfaces.Enums.PhaseName.Liquid)
                     Dim zv = PP.AUX_Z(Vy, T, P, Interfaces.Enums.PhaseName.Vapor)
                     Dim zc = PP.RET_VZC().MultiplyY(Vz).Sum
-                    If zl > zc And zv > zc Then
+                    Dim vapour As Boolean = zl > zc And zv > zc
+                    'Z of the feed has a minimum along a near-critical isotherm, so against the critical Z it gave
+                    'the same one-root fluid both labels (CO2/N2 0.94/0.06, 298 K: liquid at 98 bar, vapour at
+                    '100-122 and 138-140 bar, liquid at 124-136 bar from the overshoot of the loop)
+                    If PP.PackageType = PropertyPackages.PackageType.EOS Then
+                        Dim zfl = PP.AUX_Z(Vz, T, P, Interfaces.Enums.PhaseName.Liquid)
+                        Dim zfv = PP.AUX_Z(Vz, T, P, Interfaces.Enums.PhaseName.Vapor)
+                        If Math.Abs(zfl - zfv) <= 0.0000000001 * Math.Abs(zfv) Then vapour = Not PTSingleIsLiquid(Vz, T, P, PP)
+                    End If
+                    If vapour Then
                         V = 1.0#
                         L = 0.0#
                         Vy = Vz
@@ -508,6 +528,24 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                         Vx = Vz
                         Vy = Ki.MultiplyY(Vx).NormalizeY
                     End If
+                End If
+            End If
+
+            'a split that raises the Gibbs energy of the feed, and a single phase reached on K values near
+            'unity, are checked against the stability of the feed (a failure of the check keeps the result)
+            If PP.PackageType = PropertyPackages.PackageType.EOS AndAlso Not hasNonVol Then
+                Dim chk As Object() = Nothing
+                Try
+                    chk = PTStabilityCheck(Vz, P, T, PP, V, Vx, Vy, Ki)
+                Catch ex As Exception
+                    chk = Nothing
+                End Try
+                If chk IsNot Nothing Then
+                    V = chk(0)
+                    L = 1.0# - V
+                    Vx = chk(1)
+                    Vy = chk(2)
+                    Ki = chk(3)
                 End If
             End If
 
@@ -575,6 +613,225 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
 
             End If
 
+        End Function
+
+        ''' <summary>
+        ''' Checks a result of the Rachford-Rice loop of Flash_PT_1 that the loop itself cannot vouch for, against
+        ''' the stability of the feed: a two-phase split whose Gibbs energy is above that of the feed as one
+        ''' phase, and a single phase reached on K values within 10 % of unity. Returns Nothing when the result
+        ''' stands, otherwise {V, Vx, Vy, Ki}.
+        ''' </summary>
+        ''' <remarks>
+        ''' The loop stops when the Rachford-Rice residual, evaluated with the K values just recomputed, is below
+        ''' the tolerance; nothing checks that the K values themselves have settled. Near a critical point, and
+        ''' anywhere the feed has a single root, K goes to 1 and the residual is small for any split: CO2/N2
+        ''' (0.94/0.06, Peng-Robinson, 298 K) stopped at 74 bar after two iterations with V = 0.38 while the feed
+        ''' is stable (|d ln f| 0.18), and methane/propane (50/50, 300 K) above its bubble pressure (88 bar) gave
+        ''' V = 0.12-0.34. A split above the Gibbs energy of the feed cannot be the equilibrium. The trivial
+        ''' solution is reached alike by a stable and by an unstable feed: water/n-hexane/methane (0.5/0.3/0.2,
+        ''' 10 bar, 399 K) ended as all vapour on K within 0.03 of 1, while it splits into vapour and water (the
+        ''' split is 0.16 below the feed in G/RT).
+        ''' The stability test decides. An unstable feed is split again by successive substitution from its most
+        ''' negative stationary point, and that split is kept when it lowers the Gibbs energy of the feed.
+        ''' Otherwise a single phase stands as it came, and a split becomes one phase: with two roots, the one
+        ''' of lower Gibbs energy; with one, the label of PTSingleIsLiquid.
+        ''' </remarks>
+        Private Function PTStabilityCheck(Vz As Double(), P As Double, T As Double, PP As PropertyPackages.PropertyPackage,
+                                          V As Double, Vx As Double(), Vy As Double(), Ki As Double()) As Object()
+
+            Dim n As Integer = Vz.Length - 1
+
+            Dim split As Boolean = V > 0.0# AndAlso V < 1.0#
+            If Not split AndAlso Not PP.AUX_CheckTrivial(Ki, 0.1, Vz) Then Return Nothing
+
+            'single compounds, solids and salts are left to the existing code
+            If PP.AUX_IS_SINGLECOMP(Vz) Then Return Nothing
+            Dim cprops = PP.DW_GetConstantProperties()
+            For j = 0 To n
+                If Vz(j) > 0.0 AndAlso (cprops(j).IsSolid Or cprops(j).TemperatureOfFusion > 1000.0 Or cprops(j).Normal_Boiling_Point * 0.7 > 1000.0) Then Return Nothing
+            Next
+
+            'G/RT of one mole of a phase with the given log fugacity coefficients
+            Dim gphase = Function(w As Double(), lnphi As Double()) As Double
+                             Dim s As Double = 0.0
+                             For j = 0 To n
+                                 If w(j) > 0.0 Then s += w(j) * (Log(w(j)) + lnphi(j))
+                             Next
+                             Return s
+                         End Function
+
+            Dim lnzl = PP.DW_CalcLnFugCoeff(Vz, T, P, State.Liquid)
+            Dim lnzv = PP.DW_CalcLnFugCoeff(Vz, T, P, State.Vapor)
+            Dim gzl As Double = gphase(Vz, lnzl)
+            Dim gzv As Double = gphase(Vz, lnzv)
+            Dim gfeed As Double = Math.Min(gzl, gzv)
+
+            If split Then
+                Dim gsplit As Double = (1.0 - V) * gphase(Vx, PP.DW_CalcLnFugCoeff(Vx, T, P, State.Liquid)) +
+                                       V * gphase(Vy, PP.DW_CalcLnFugCoeff(Vy, T, P, State.Vapor))
+                If Not gsplit - gfeed > 0.0000000001 Then Return Nothing
+            End If
+
+            'log fugacity coefficients on the root of lower Gibbs energy, and the tangent plane of the feed
+            Dim lnphimin = Function(w As Double()) As Double()
+                               Dim ll = PP.DW_CalcLnFugCoeff(w, T, P, State.Liquid)
+                               Dim lv = PP.DW_CalcLnFugCoeff(w, T, P, State.Vapor)
+                               Return If(gphase(w, ll) <= gphase(w, lv), ll, lv)
+                           End Function
+            Dim lnz As Double() = If(gzl <= gzv, lnzl, lnzv)
+            Dim tpd = Function(w0 As Double()) As Double
+                          Dim w = w0.NormalizeY()
+                          Dim lnw = lnphimin(w)
+                          Dim s As Double = 0.0
+                          For j = 0 To n
+                              If Vz(j) > 0.0 AndAlso w(j) > 0.0 Then s += w(j) * (Log(w(j)) + lnw(j) - Log(Vz(j)) - lnz(j))
+                          Next
+                          Return s
+                      End Function
+
+            'the most negative stationary point of the tangent plane distance
+            Dim seed As Double() = Nothing
+            Dim seedtpd As Double = -0.00000001
+            Dim st As Object() = StabTest(T, P, Vz, PP.RET_VTC(), PP)
+            If Not st(0) Then
+                Dim est As Double(,) = st(1)
+                For k = 0 To est.GetLength(0) - 1
+                    Dim w As Double() = New Double(n) {}
+                    For j = 0 To n
+                        w(j) = If(Vz(j) > 0.0, est(k, j), 0.0)
+                    Next
+                    If w.SumY <= 0.0 Then Continue For
+                    w = w.NormalizeY()
+                    Dim tw As Double = tpd(w)
+                    If tw < seedtpd Then
+                        seed = w
+                        seedtpd = tw
+                    End If
+                Next
+            End If
+
+            If seed IsNot Nothing Then
+                'the new phase is the vapour when it is the less dense of the two (on their roots of lower
+                'Gibbs energy); the other assignment is tried when the first one gives no split
+                Dim Zof = Function(w As Double()) As Double
+                              Dim ll = PP.DW_CalcLnFugCoeff(w, T, P, State.Liquid)
+                              Dim lv = PP.DW_CalcLnFugCoeff(w, T, P, State.Vapor)
+                              If gphase(w, ll) <= gphase(w, lv) Then
+                                  Return PP.AUX_Z(w, T, P, Interfaces.Enums.PhaseName.Liquid)
+                              Else
+                                  Return PP.AUX_Z(w, T, P, Interfaces.Enums.PhaseName.Vapor)
+                              End If
+                          End Function
+                Dim seedIsVapour As Boolean = Zof(seed) > Zof(Vz)
+                For Each asVapour In {seedIsVapour, Not seedIsVapour}
+                    Dim K0(n) As Double
+                    For j = 0 To n
+                        If Vz(j) > 0.0 AndAlso seed(j) > 0.0 Then
+                            K0(j) = If(asVapour, seed(j) / Vz(j), Vz(j) / seed(j))
+                        Else
+                            K0(j) = 1.0
+                        End If
+                    Next
+                    Dim r = PTStabSplit(Vz, P, T, K0, PP)
+                    If r IsNot Nothing Then
+                        Dim Vn As Double = r(0)
+                        Dim xn As Double() = r(1), yn As Double() = r(2)
+                        Dim gyv As Double = gphase(yn, PP.DW_CalcLnFugCoeff(yn, T, P, State.Vapor))
+                        Dim gn As Double = (1.0 - Vn) * gphase(xn, PP.DW_CalcLnFugCoeff(xn, T, P, State.Liquid)) + Vn * gyv
+                        'a vapour whose liquid root has the lower Gibbs energy is a second liquid, which this
+                        'vapour-liquid flash cannot represent (ethyl acetate/water, Peng-Robinson, 330 K, 1 atm)
+                        If gfeed - gn > 0.0000000001 AndAlso gyv <= gphase(yn, PP.DW_CalcLnFugCoeff(yn, T, P, State.Liquid)) Then Return r
+                    End If
+                Next
+            End If
+
+            'a single phase stands as it came
+            If Not split Then Return Nothing
+
+            'a split that does not lower the Gibbs energy of the feed: one phase, on the root of lower Gibbs
+            'energy, or with a single root, by PTSingleIsLiquid
+            Dim oneroot As Boolean = True
+            For j = 0 To n
+                If Vz(j) > 0.0 AndAlso Math.Abs(lnzl(j) - lnzv(j)) > 0.0000000001 Then
+                    oneroot = False
+                    Exit For
+                End If
+            Next
+            Dim liquid As Boolean = If(oneroot, PTSingleIsLiquid(Vz, T, P, PP), gzl <= gzv)
+
+            If liquid Then
+                Return New Object() {0.0#, Vz, Ki.MultiplyY(Vz).NormalizeY, Ki}
+            Else
+                Return New Object() {1.0#, Vz.DivideY(Ki).NormalizeY, Vz, Ki}
+            End If
+
+        End Function
+
+        ''' <summary>
+        ''' Two-phase split by successive substitution from the K values K0, with the vapour fraction solved
+        ''' exactly at each step. Returns {V, Vx, Vy, Ki}, or Nothing when it ends outside the two-phase region.
+        ''' </summary>
+        ''' <remarks>
+        ''' K values seeded from a stationary point of the tangent plane distance put the Rachford-Rice root on
+        ''' the edge (the new phase is incipient), so the vapour fraction is held at 0 or 1 until the K values
+        ''' move it inside.
+        ''' </remarks>
+        Private Function PTStabSplit(Vz As Double(), P As Double, T As Double, K0 As Double(), PP As PropertyPackages.PropertyPackage) As Object()
+
+            Dim n As Integer = Vz.Length - 1
+            Dim K As Double() = DirectCast(K0.Clone(), Double())
+            Dim Vx As Double() = Nothing, Vy As Double() = Nothing
+            Dim V As Double = 0.0
+
+            For it As Integer = 1 To maxit_e
+                Dim Kc As Double() = K
+                Dim rr As Func(Of Double, Double) = Function(vv) Vz.MultiplyY(Kc.AddConstY(-1).DivideY(Kc.AddConstY(-1).MultiplyConstY(vv).AddConstY(1))).SumY
+                If rr(0.0#) <= 0.0# Then
+                    V = 0.0#
+                ElseIf rr(1.0#) >= 0.0# Then
+                    V = 1.0#
+                Else
+                    V = Brent.BrentOpt3(0.0#, 1.0#, 20, 0.0000000001, 100, rr)
+                End If
+                Vx = Vz.DivideY(Kc.AddConstY(-1).MultiplyConstY(V).AddConstY(1)).NormalizeY()
+                Vy = Vx.MultiplyY(Kc).NormalizeY()
+                Dim Knew = PP.DW_CalcKvalue(Vx, Vy, T, P)
+                Dim dk As Double = 0.0
+                For j = 0 To n
+                    If Vz(j) > 0.0 Then dk = Math.Max(dk, Math.Abs(Log(Knew(j) / Kc(j))))
+                Next
+                If Double.IsNaN(dk) OrElse Double.IsInfinity(dk) Then Return Nothing
+                K = Knew
+                If dk < 0.00000001 Then Exit For
+            Next
+
+            If V <= 0.0# OrElse V >= 1.0# Then Return Nothing
+            Return New Object() {V, Vx, Vy, K}
+
+        End Function
+
+        ''' <summary>
+        ''' Liquid or vapour, for one phase with a single root of the equation of state: liquid above the line
+        ''' ln(P/Ppc) = 5.373 (1 + w) (T/Tpc - 1), with the Kay's-rule critical temperature Tpc, critical
+        ''' pressure Ppc and acentric factor w of the feed.
+        ''' </summary>
+        ''' <remarks>
+        ''' Near the critical point the line is the Wilson vapour pressure curve of that pseudo-component; above
+        ''' it, it is the similarity law of the Widom line (Banuti et al., J. Supercrit. Fluids 2017), which
+        ''' separates liquid-like from vapour-like states. Every isotherm and every isobar crosses it once. For
+        ''' CO2/N2 (0.94/0.06) at 298 K it lies at 78.9 bar (the mixture critical point is 299.96 K, 81.8 bar), so
+        ''' the dense phase above the bubble point is liquid. Hot dense gases stay vapour (natural gas at 300 K up
+        ''' to 460 bar), as the loop's own overshoot out of [0, 1] reports them.
+        ''' </remarks>
+        Private Function PTSingleIsLiquid(Vz As Double(), T As Double, P As Double, PP As PropertyPackages.PropertyPackage) As Boolean
+            Dim Tc = PP.RET_VTC(), Pc = PP.RET_VPC(), w = PP.RET_VW()
+            Dim Tpc As Double = 0.0, Ppc As Double = 0.0, wpc As Double = 0.0
+            For j = 0 To Vz.Length - 1
+                Tpc += Vz(j) * Tc(j)
+                Ppc += Vz(j) * Pc(j)
+                wpc += Vz(j) * w(j)
+            Next
+            Return P > Ppc * Exp(5.373 * (1.0 + wpc) * (T / Tpc - 1.0))
         End Function
 
         Protected Function ConvergeVF(IObj As InspectorItem, V As Double, Vz As Double(), Vx As Double(), Vy As Double(), Ki As Double(), P As Double, T As Double, PP As PropertyPackage, damplevel As Integer) As Object()
