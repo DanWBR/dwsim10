@@ -132,10 +132,12 @@ Version 10.2.10
 - [FIX] Nested Loops bubble and dew points: a calculation that stalled near the critical point or next to the trivial solution was returned as converged; it is now refined or reported as an error
 - [FIX] Nested Loops with activity-coefficient models: two-phase feeds reported as all liquid (water/1-butanol at 1 atm between 367 and 372 K)
 - [FIX] Activity-coefficient models at an azeotrope: K values replaced by the ideal ones, binary azeotrope bubble and dew points failed, Naphtali-Sandholm lost the azeotropic stage
-- [FIX] Three-phase flash: water/hydrocarbon/gas mixtures returned as vapour only or without the second liquid, the vapour taken as a second liquid, results that depended on the compound order (Nested Loops 3P, Boston-Fournier); Nested Loops 3P entropy flash failed near its bubble and dew points
-- [FIX] Gibbs Minimization three-phase flash stopped short of equilibrium, failed on about a third of the cases tested and changed its answer with tiny temperature changes
+- [FIX] Three-phase flash: water/hydrocarbon/gas mixtures returned as vapour only or without the second liquid, the vapour taken as a second liquid, results that depended on the compound order (Nested Loops 3P, Boston-Fournier); Nested Loops 3P entropy flash failed near its bubble and dew points; its three-phase vapour fraction routines treated the vapour as an ideal gas with equations of state
+- [FIX] Gibbs Minimization three-phase flash stopped short of equilibrium, failed on about a third of the cases tested and changed its answer with tiny temperature changes; it could also merge the vapour and the first liquid and miss the hydrocarbon liquid
 - [FIX] Simple LLE bubble and dew points returned the trivial solution or an unconverged estimate
-- [FIX] Boston-Britt Inside-Out: two-phase feeds near an azeotrope reported as single phase; vapour fraction flashes near the critical point converged next to the trivial solution
+- [FIX] Boston-Britt Inside-Out: two-phase feeds near an azeotrope reported as single phase; vapour fraction flashes near the critical point converged next to the trivial solution; bubble and dew points of light gases never confirmed (natural gas bubble point 242 K for 206 K)
+- [FIX] Nested Loops dew points on the wrong liquid branch for mixtures that form two liquids (water/n-hexane/methane between 5 and 50 bar)
+- [FIX] Bubble and dew points of similar heavy compounds above their critical region (n-decane/n-dodecane at 40 bar gave 695 and 703 K); now rejected by a stability test
 - [FIX] Distillation column (Wang-Henke): a top stage without liquid or a failed stage bubble point stopped the column; extractor and Internal 3 estimates used compounds absent from the feeds
 
 Version 10.2.9
