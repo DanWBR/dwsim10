@@ -193,7 +193,10 @@ namespace DWSIM.Engine.SmokeTests
         // 3.9 at 40, 2.8 at 60, 2.05 at 80; the liquid goes 298 K, 277 K at 20 s, 270 at 40, 262 at 60,
         // 255 at 80, 246 at 120, 236 at 150. The N2 content is not given in the review; it is inferred
         // from the bubble point at the kink (8 MPa near 290 K) and printed. Both runs are printed for the
-        // report; the assertions take the inferred composition.
+        // report; the assertions take the inferred composition. At 298 K and 14 MPa the mixture is a compressed
+        // liquid (Peng-Robinson bubble point 8.2 MPa, mixture critical point near 300 K and 8.2 MPa), one dense
+        // phase that fills the vessel; the flash may call it liquid or vapour, so the liquid-full stage is checked
+        // on the pressure and on the discharge of the dense phase instead of on the label of the vent stream.
         [TestCase(0.0)]
         [TestCase(-1.0)]
         public void FredenhagenEggersCarbonDioxideBlowdownIsReproducedInOutline(double nitrogen)
@@ -240,7 +243,9 @@ namespace DWSIM.Engine.SmokeTests
 
             DepressurizationPoint At(double t) => r.Points.First(p => p.Time >= t - 1e-6);
             if (!inferred) return;
-            Assert.That(1 - At(0.2).VapourFractionOut, Is.GreaterThan(0.9), "the top vent carries liquid while the vessel is liquid-full");
+            Assert.That(At(0.2).Pressure / 1e6, Is.GreaterThan(9.5), "MPa: at 0.2 s the vessel is still liquid-full, above the bubble point");
+            Assert.That(At(0.2).MassFlow, Is.GreaterThan(3.0 * At(5.0).MassFlow), "kg/s: the liquid-full vessel discharges the dense phase, several times the flow after the kink");
+            Assert.That(At(2.0).Pressure / 1e6, Is.GreaterThan(7.5), "MPa: the liquid-full stage lasts about 3 s (measured kink near 8 MPa)");
             Assert.That(At(5.0).Pressure / 1e6, Is.InRange(6.0, 9.5), "MPa: the liquid-full stage ends at the bubble point (measured near 8 MPa) within a few seconds");
             Assert.That(At(20.0).Pressure / 1e6, Is.InRange(4.5, 6.8), "MPa at 20 s (measured 5.6)");
             Assert.That(At(80.0).Pressure / 1e6, Is.InRange(1.5, 2.8), "MPa at 80 s (measured 2.05)");

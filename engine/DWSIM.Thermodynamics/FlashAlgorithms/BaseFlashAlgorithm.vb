@@ -566,6 +566,16 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                     Dim rho = PP.AUX_LIQDENS(T, x, Pdens) / PP.AUX_MMM(x) * 1000 'mol/m3
                     VL1 = L1 / rho * ratio
                 End If
+                'Near the critical point the flash cannot tell a dense phase's label (the same CO2 + N2 at 298 K
+                'is called liquid at 124 bar and vapour at 140 bar), and the correlations above have no believable
+                'saturated volume for a mixture there. The liquid then takes its volume from the equation of state,
+                'as the vapour does, so one dense phase has one volume whatever it is called; the share of the
+                'equation of state grows smoothly with the reduced temperature (see NearCriticalVolumeWeight).
+                Dim w = NearCriticalVolumeWeight(x, T, PP)
+                If w > 0.0 Then
+                    Dim ze = If(V <= 0.0 AndAlso L2 <= 0.0, StableRootZ(x, T, P, PP), PP.AUX_Z(x, T, P, Interfaces.Enums.PhaseName.Liquid))
+                    If ze > 0.0 AndAlso Not Double.IsNaN(ze) Then VL1 = (1.0 - w) * VL1 + w * L1 * ze * 8.314 * T / P
+                End If
             End If
             If L2 > 0.0 Then
                 Dim rho = PP.AUX_LIQDENS(T, flashresult.GetLiquidPhase2MoleFractions, P) / PP.AUX_MMM(flashresult.GetLiquidPhase2MoleFractions) * 1000 'mol/m3
@@ -578,6 +588,73 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
             If Double.IsInfinity(VL2) Or Double.IsNaN(VL2) Then VL2 = 0.0
             If Double.IsInfinity(VV) Or Double.IsNaN(VV) Then VV = 0.0
             Return VL1 + VL2 + VV
+        End Function
+
+        ''' <summary>
+        ''' Share of the equation-of-state volume in the volume of a liquid of composition x at T (equation-of-state
+        ''' packages, mixtures): 0 up to 0.8 x Kay's Tc, 1 from 0.9 x Kay's Tc, where the volume above already falls
+        ''' back on the equation of state when no bubble point is found, and a smooth step in between. A pure or
+        ''' nearly pure liquid keeps its saturation-based volume (the volume flash handles it with the lever rule).
+        ''' The step sits where the liquid is still stiff: moved closer to the critical point, the change of basis
+        ''' with temperature cancels the heat capacity along an isochore and the VU flash finds spurious roots.
+        ''' </summary>
+        Private Shared Function NearCriticalVolumeWeight(x As Double(), T As Double, PP As PropertyPackages.PropertyPackage) As Double
+            If PP.PackageType <> PropertyPackages.PackageType.EOS Then Return 0.0
+            If x.Max() > 1.0 - 0.001 Then Return 0.0
+            Dim tc = 0.0
+            Dim vtc = PP.RET_VTC()
+            For i = 0 To x.Length - 1
+                tc += x(i) * vtc(i)
+            Next
+            If Not tc > 0.0 Then Return 0.0
+            Dim tr = T / tc
+            If tr <= 0.8 Then Return 0.0
+            If tr >= 0.9 Then Return 1.0
+            Dim s = (tr - 0.8) / (0.9 - 0.8)
+            Return s * s * (3.0 - 2.0 * s)
+        End Function
+
+        ''' <summary>
+        ''' Compressibility factor of a single phase on the root of lower Gibbs energy, whatever the flash called it.
+        ''' </summary>
+        Private Shared Function StableRootZ(x As Double(), T As Double, P As Double, PP As PropertyPackages.PropertyPackage) As Double
+            Dim zl = PP.AUX_Z(x, T, P, Interfaces.Enums.PhaseName.Liquid)
+            Dim zv = PP.AUX_Z(x, T, P, Interfaces.Enums.PhaseName.Vapor)
+            If zl = zv OrElse Not zv > 0.0 Then Return zl
+            If Not zl > 0.0 Then Return zv
+            Dim fl = PP.DW_CalcLnFugCoeff(x, T, P, State.Liquid)
+            Dim fv = PP.DW_CalcLnFugCoeff(x, T, P, State.Vapor)
+            Dim gl = 0.0, gv = 0.0
+            For i = 0 To x.Length - 1
+                If x(i) > 0.0 Then gl += x(i) * fl(i) : gv += x(i) * fv(i)
+            Next
+            Return If(gv < gl, zv, zl)
+        End Function
+
+        ''' <summary>
+        ''' The bubble pressure a compressed-liquid volume at (T, P) scales from, or 0. Not asked for when the liquid
+        ''' volume is the equation of state's alone. Near the critical point the flash, started from P (above the bubble
+        ''' line), often fails or lands on a false point at or above P (112.9 bar for CO2 + 6 % N2 at 298 K, where the
+        ''' bubble point is 82.2 bar), and a failure switches the volume to another basis: there it is asked again from
+        ''' lower pressures, and only an answer below P is kept.
+        ''' </summary>
+        Private Function VolumeBubblePressure(Vz As Double(), T As Double, P As Double, PP As PropertyPackages.PropertyPackage, PrevKi As Double()) As Double
+            Dim w = NearCriticalVolumeWeight(Vz, T, PP)
+            If w >= 1.0 Then Return 0.0
+            Dim starts = If(w > 0.0, New Double() {1.0, 0.75, 0.6, 0.5, 0.4}, New Double() {1.0})
+            Dim pbub = 0.0
+            For Each fr In starts
+                pbub = 0.0
+                Try
+                    pbub = Convert.ToDouble(CalculateEquilibrium(FlashSpec.T, FlashSpec.VAP, T, 0.0, PP, Vz, PrevKi, P * fr).CalculatedPressure)
+                    If Double.IsNaN(pbub) OrElse pbub <= 0.0 OrElse pbub > 1.0E+9 Then pbub = 0.0
+                Catch ex As Exception
+                    pbub = 0.0
+                End Try
+                If w <= 0.0 OrElse (pbub > 0.0 AndAlso pbub < P) Then Exit For
+                pbub = 0.0
+            Next
+            Return pbub
         End Function
 
         ''' <summary>
@@ -651,12 +728,7 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                         flashresult = CalculateEquilibrium(FlashSpec.P, FlashSpec.T, P, T, PP, Vz, PrevKi, 0.0)
                         If Not pbubKnown AndAlso flashresult.GetVaporPhaseMoleFraction <= 0.0 AndAlso flashresult.GetLiquidPhase2MoleFraction <= 0.0 Then
                             pbubKnown = True
-                            Try
-                                pbub = Convert.ToDouble(CalculateEquilibrium(FlashSpec.T, FlashSpec.VAP, T, 0.0, PP, Vz, PrevKi, P).CalculatedPressure)
-                                If Double.IsNaN(pbub) OrElse pbub <= 0.0 OrElse pbub > 1.0E+9 Then pbub = 0.0
-                            Catch ex As Exception
-                                pbub = 0.0
-                            End Try
+                            pbub = VolumeBubblePressure(Vz, T, P, PP, PrevKi)
                         End If
                         Return (Vspec - MixtureMolarVolume(flashresult, T, P, PP, pbub)) / Vspec
                     End Function
@@ -723,12 +795,7 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
             Dim r = CalculateEquilibrium(FlashSpec.P, FlashSpec.T, P, T, PP, Vz, Nothing, 0.0)
             Dim pbub = 0.0
             If r.GetVaporPhaseMoleFraction <= 0.0 AndAlso r.GetLiquidPhase2MoleFraction <= 0.0 Then
-                Try
-                    pbub = Convert.ToDouble(CalculateEquilibrium(FlashSpec.T, FlashSpec.VAP, T, 0.0, PP, Vz, Nothing, P).CalculatedPressure)
-                    If Double.IsNaN(pbub) OrElse pbub <= 0.0 OrElse pbub > 1.0E+9 Then pbub = 0.0
-                Catch ex As Exception
-                    pbub = 0.0
-                End Try
+                pbub = VolumeBubblePressure(Vz, T, P, PP, Nothing)
             End If
             Return MixtureMolarVolume(r, T, P, PP, pbub)
         End Function
