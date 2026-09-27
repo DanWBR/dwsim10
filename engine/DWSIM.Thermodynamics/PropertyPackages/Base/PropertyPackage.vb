@@ -4677,6 +4677,7 @@ redirect2:                  IObj?.SetCurrent()
                 ' K-values of each bubble point, to restart the continuation from a well converged one
                 Dim bubK As New List(Of Double())
                 Dim bubStart = TVB.Count
+                Dim bubRestarts = 0
                 Do
 
                     If i < 2 Then
@@ -4816,7 +4817,136 @@ redirect2:                  IObj?.SetCurrent()
                             Catch ex As Exception
                                 Flowsheet?.ShowMessage("Phase Envelope generation: Bubble TVF flash failed at T=" & T.ToString("G6") & " K: " & ex.Message, IFlowsheet.MessageType.Warning)
                                 consecutiveFailures += 1
-                                If consecutiveFailures >= 10 Then Exit Do
+                                If consecutiveFailures >= 10 Then
+                                    ' Far from the critical point the liquid can have no bubble point over a whole range
+                                    ' of temperature. With Peng-Robinson, CO2 + 6 % N2 has one from the start at 63 K
+                                    ' (the fusion temperature of N2) to 87 K and again from 124 K up to the critical
+                                    ' point: in between the liquid splits into two liquids. The stretch below the gap
+                                    ' does not lead to the critical point, and it lies far below the freezing point of
+                                    ' the liquid (216.6 K for CO2), so it is dropped, and the line starts again at the
+                                    ' lowest temperature above the gap where a stable liquid has a bubble point, found
+                                    ' by stepping up from the last point and bisecting to half a kelvin.
+                                    Dim tFail = TVB(TVB.Count - 1)
+                                    If bubRestarts < 3 AndAlso Math.Abs(tFail - TCR) / TCR >= 0.2 Then
+                                        ' tangent-plane distance of the liquid z at (Tt, Pt), by successive substitution from
+                                        ' Wilson's vapour- and liquid-like phases and from one phase rich in each compound
+                                        Dim liquidStable = Function(Tt As Double, Pt As Double) As Boolean
+                                                               Dim lnMin = Function(w As Double()) As Double()
+                                                                               Dim fl = Me.DW_CalcLnFugCoeff(w, Tt, Pt, State.Liquid)
+                                                                               Dim fv = Me.DW_CalcLnFugCoeff(w, Tt, Pt, State.Vapor)
+                                                                               Dim gl = 0.0, gv = 0.0
+                                                                               For q = 0 To n
+                                                                                   If w(q) > 0.0 Then
+                                                                                       gl += w(q) * fl(q)
+                                                                                       gv += w(q) * fv(q)
+                                                                                   End If
+                                                                               Next
+                                                                               Return If(gv < gl, fv, fl)
+                                                                           End Function
+                                                               Dim lnz = lnMin(Vz)
+                                                               Dim trials As New List(Of Double())
+                                                               Dim wv(n), wl(n) As Double
+                                                               For q = 0 To n
+                                                                   If Vz(q) > 0.0 Then
+                                                                       Dim kw = Vpc(q) / Pt * Math.Exp(5.373 * (1 + Vw(q)) * (1 - VTc(q) / Tt))
+                                                                       wv(q) = Vz(q) * kw
+                                                                       wl(q) = Vz(q) / kw
+                                                                   End If
+                                                               Next
+                                                               trials.Add(wv)
+                                                               trials.Add(wl)
+                                                               For c = 0 To n
+                                                                   If Vz(c) > 0.0 AndAlso Vz(c) < 1.0 Then
+                                                                       Dim wc(n) As Double
+                                                                       For q = 0 To n
+                                                                           If Vz(q) > 0.0 Then wc(q) = If(q = c, 0.99, 0.01 * Vz(q) / (1.0 - Vz(c)))
+                                                                       Next
+                                                                       trials.Add(wc)
+                                                                   End If
+                                                               Next
+                                                               For Each w0 In trials
+                                                                   Dim Wt = DirectCast(w0.Clone(), Double())
+                                                                   For it = 1 To 300
+                                                                       Dim sw = Wt.Sum()
+                                                                       If Not sw > 0.0 OrElse Double.IsNaN(sw) OrElse Double.IsInfinity(sw) Then Exit For
+                                                                       Dim lw = lnMin(Wt.Select(Function(v) v / sw).ToArray())
+                                                                       Dim Wn(n) As Double
+                                                                       Dim dmax = 0.0
+                                                                       For q = 0 To n
+                                                                           If Vz(q) > 0.0 Then
+                                                                               Wn(q) = Math.Exp(Math.Log(Vz(q)) + lnz(q) - lw(q))
+                                                                               dmax = Math.Max(dmax, Math.Abs(Math.Log(Wn(q) / Wt(q))))
+                                                                           End If
+                                                                       Next
+                                                                       Wt = Wn
+                                                                       If 1.0 - Wt.Sum() < -0.000001 Then Return False
+                                                                       If dmax < 0.0000000001 Then Exit For
+                                                                   Next
+                                                               Next
+                                                               Return True
+                                                           End Function
+                                        Dim bubbleAt = Function(Tt As Double) As Object
+                                                           Try
+                                                               Dim r = Me.FlashBase.Flash_TV(Vz, Tt, 0, 0, Me)
+                                                               Dim pr = CDbl(r(4))
+                                                               If Not (pr > 0.0 AndAlso pr < 1.0E+9) Then Return Nothing
+                                                               ' a genuine bubble point: the incipient vapour differs from the liquid
+                                                               Dim xr = DirectCast(r(2), Double()), yr = DirectCast(r(3), Double())
+                                                               Dim dxy = 0.0
+                                                               For q = 0 To n
+                                                                   If xr(q) > 0.0 AndAlso yr(q) > 0.0 Then dxy = Math.Max(dxy, Math.Abs(Math.Log(yr(q) / xr(q))))
+                                                               Next
+                                                               If Not dxy > 0.001 Then Return Nothing
+                                                               ' and a stable liquid just above it: inside its liquid-liquid split the liquid has
+                                                               ' bubble points too (CO2 + 6 % N2 at 122 K), but they bound no region
+                                                               Return If(liquidStable(Tt, pr * 1.001), r, Nothing)
+                                                           Catch ex2 As Exception
+                                                               Return Nothing
+                                                           End Try
+                                                       End Function
+                                        Dim rOk As Object = Nothing, tOk = 0.0, dTup = 2.0
+                                        Do While tFail + dTup < 0.9 * TCR
+                                            rOk = bubbleAt(tFail + dTup)
+                                            If rOk IsNot Nothing Then
+                                                tOk = tFail + dTup
+                                                Exit Do
+                                            End If
+                                            tFail += dTup
+                                            dTup *= 2.0
+                                        Loop
+                                        If rOk IsNot Nothing Then
+                                            Do While tOk - tFail > 0.5
+                                                Dim rMid = bubbleAt(0.5 * (tFail + tOk))
+                                                If rMid IsNot Nothing Then
+                                                    tOk = 0.5 * (tFail + tOk)
+                                                    rOk = rMid
+                                                Else
+                                                    tFail = 0.5 * (tFail + tOk)
+                                                End If
+                                            Loop
+                                            Dim cut = TVB.Count - bubStart
+                                            TVB.RemoveRange(bubStart, cut) : PB.RemoveRange(bubStart, cut)
+                                            HB.RemoveRange(bubStart, cut) : SB.RemoveRange(bubStart, cut) : VB.RemoveRange(bubStart, cut)
+                                            bubK.Clear()
+                                            T = tOk
+                                            P = CDbl(rOk(4))
+                                            TVB.Add(T)
+                                            PB.Add(P)
+                                            HB.Add(Me.DW_CalcEnthalpy(Vz, T, P, State.Liquid))
+                                            SB.Add(Me.DW_CalcEntropy(Vz, T, P, State.Liquid))
+                                            VB.Add(1 / Me.AUX_LIQDENS(T, Vz, P, P) * Me.AUX_MMM(Phase.Mixture))
+                                            KI = rOk(6)
+                                            bubK.Add(DirectCast(KI.Clone(), Double()))
+                                            Flowsheet?.ShowMessage("Phase Envelope generation: the liquid has no stable bubble point from " & tFail.ToString("G6") & " K down; the bubble line starts at " & tOk.ToString("G6") & " K.", IFlowsheet.MessageType.Warning)
+                                            T += options.BubbleCurveDeltaT
+                                            beta = 10.0
+                                            consecutiveFailures = 0
+                                            bubRestarts += 1
+                                            Continue Do
+                                        End If
+                                    End If
+                                    Exit Do
+                                End If
                                 Dim lastGoodT = TVB(TVB.Count - 1)
                                 If Math.Abs(lastGoodT - TCR) / TCR < 0.2 Then
                                     T = lastGoodT + (TCR - lastGoodT) * 0.1 * consecutiveFailures
