@@ -1931,7 +1931,8 @@ out:
 
             d1 = Date.Now
 
-            Dim _nl As New NestedLoops
+            'NestedLoops hands over, as before, the results it cannot verify: its answers are estimates for the paths below
+            Dim _nl As New NestedLoops With {.CheckedByCaller = True}
 
             'a three-phase result from an earlier call is no estimate for this one
             prevres = Nothing
