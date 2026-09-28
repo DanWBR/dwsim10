@@ -442,7 +442,16 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                 Dim gv = PP.DW_CalcGibbsEnergy(Vy, T, P, "V")
                 If Math.Abs(gl / gv - 1.0) < 0.01 Then
                     ' Trivial solution detected - select the phase with lower Gibbs energy
-                    If gv < gl Then
+                    Dim vapour As Boolean = gv < gl
+                    'with one root of the equation of state at the feed composition, the two Gibbs energies differ
+                    'only by the compositions of the trivial split, so the same fluid got both labels (CO2/N2
+                    '0.94/0.06, 298 K, above 83 bar); the label then comes from PTSingleIsLiquid, as in NestedLoops
+                    If PP.PackageType = PropertyPackages.PackageType.EOS Then
+                        Dim zfl = PP.AUX_Z(Vz, T, P, Interfaces.Enums.PhaseName.Liquid)
+                        Dim zfv = PP.AUX_Z(Vz, T, P, Interfaces.Enums.PhaseName.Vapor)
+                        If Math.Abs(zfl - zfv) <= 0.0000000001 * Math.Abs(zfv) Then vapour = Not PTSingleIsLiquid(Vz, T, P, PP)
+                    End If
+                    If vapour Then
                         V = 1.0#
                         L = 0.0#
                         Vy = Vz
@@ -453,6 +462,24 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                         Vx = Vz
                         Vy = Ki.MultiplyY(Vx).NormalizeY
                     End If
+                End If
+            End If
+
+            'a split that raises the Gibbs energy of the feed, and a single phase reached on K values near
+            'unity, are checked against the stability of the feed (a failure of the check keeps the result)
+            If PP.PackageType = PropertyPackages.PackageType.EOS AndAlso Not PP.RET_VNONVOLATILE().Contains(True) Then
+                Dim chk As Object() = Nothing
+                Try
+                    chk = PTStabilityCheck(Vz, P, T, PP, V, Vx, Vy, Ki)
+                Catch ex As Exception
+                    chk = Nothing
+                End Try
+                If chk IsNot Nothing Then
+                    V = chk(0)
+                    L = 1.0# - V
+                    Vx = chk(1)
+                    Vy = chk(2)
+                    Ki = chk(3)
                 End If
             End If
 
@@ -499,6 +526,221 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
 
             End If
 
+        End Function
+
+        ''' <summary>
+        ''' Checks a result of the Rachford-Rice loop of Flash_PT_1 that the loop itself cannot vouch for, against
+        ''' the stability of the feed: a two-phase split whose Gibbs energy is above that of the feed as one
+        ''' phase, and a single phase reached on K values within 10 % of unity. Returns Nothing when the result
+        ''' stands, otherwise {V, Vx, Vy, Ki}.
+        ''' </summary>
+        ''' <remarks>
+        ''' The same check as NestedLoops.PTStabilityCheck; this class inherits FlashAlgorithm, so it has its own
+        ''' copy. ConvergeVF here stops on the same test, a Rachford-Rice residual below the tolerance with the K
+        ''' values just recomputed, and so left the same false splits where the feed is stable: methane/propane
+        ''' (50/50, Peng-Robinson, 300 K) V = 0.42 at 90 bar and 0.43 at 100 bar, above its bubble pressure of
+        ''' 88 bar, and CO2/N2 (0.94/0.06, 298 K, 83 bar) V = 0.064.
+        ''' The stability test decides. An unstable feed is split again by successive substitution from its most
+        ''' negative stationary point, and that split is kept when it lowers the Gibbs energy of the feed.
+        ''' Otherwise a single phase stands as it came, and a split becomes one phase: with two roots, the one
+        ''' of lower Gibbs energy; with one, the label of PTSingleIsLiquid.
+        ''' </remarks>
+        Private Function PTStabilityCheck(Vz As Double(), P As Double, T As Double, PP As PropertyPackages.PropertyPackage,
+                                          V As Double, Vx As Double(), Vy As Double(), Ki As Double()) As Object()
+
+            Dim n As Integer = Vz.Length - 1
+
+            Dim split As Boolean = V > 0.0# AndAlso V < 1.0#
+            If Not split AndAlso Not PP.AUX_CheckTrivial(Ki, 0.1, Vz) Then Return Nothing
+
+            'single compounds, solids and salts are left to the existing code
+            If PP.AUX_IS_SINGLECOMP(Vz) Then Return Nothing
+            Dim cprops = PP.DW_GetConstantProperties()
+            For j = 0 To n
+                If Vz(j) > 0.0 AndAlso (cprops(j).IsSolid Or cprops(j).TemperatureOfFusion > 1000.0 Or cprops(j).Normal_Boiling_Point * 0.7 > 1000.0) Then Return Nothing
+            Next
+
+            'G/RT of one mole of a phase with the given log fugacity coefficients
+            Dim gphase = Function(w As Double(), lnphi As Double()) As Double
+                             Dim s As Double = 0.0
+                             For j = 0 To n
+                                 If w(j) > 0.0 Then s += w(j) * (Log(w(j)) + lnphi(j))
+                             Next
+                             Return s
+                         End Function
+
+            Dim lnzl = PP.DW_CalcLnFugCoeff(Vz, T, P, State.Liquid)
+            Dim lnzv = PP.DW_CalcLnFugCoeff(Vz, T, P, State.Vapor)
+            Dim gzl As Double = gphase(Vz, lnzl)
+            Dim gzv As Double = gphase(Vz, lnzv)
+            Dim gfeed As Double = Math.Min(gzl, gzv)
+
+            If split Then
+                Dim gsplit As Double = (1.0 - V) * gphase(Vx, PP.DW_CalcLnFugCoeff(Vx, T, P, State.Liquid)) +
+                                       V * gphase(Vy, PP.DW_CalcLnFugCoeff(Vy, T, P, State.Vapor))
+                If Not gsplit - gfeed > 0.0000000001 Then Return Nothing
+            End If
+
+            'log fugacity coefficients on the root of lower Gibbs energy, and the tangent plane of the feed
+            Dim lnphimin = Function(w As Double()) As Double()
+                               Dim ll = PP.DW_CalcLnFugCoeff(w, T, P, State.Liquid)
+                               Dim lv = PP.DW_CalcLnFugCoeff(w, T, P, State.Vapor)
+                               Return If(gphase(w, ll) <= gphase(w, lv), ll, lv)
+                           End Function
+            Dim lnz As Double() = If(gzl <= gzv, lnzl, lnzv)
+            Dim tpd = Function(w0 As Double()) As Double
+                          Dim w = w0.NormalizeY()
+                          Dim lnw = lnphimin(w)
+                          Dim s As Double = 0.0
+                          For j = 0 To n
+                              If Vz(j) > 0.0 AndAlso w(j) > 0.0 Then s += w(j) * (Log(w(j)) + lnw(j) - Log(Vz(j)) - lnz(j))
+                          Next
+                          Return s
+                      End Function
+
+            'the most negative stationary point of the tangent plane distance
+            Dim seed As Double() = Nothing
+            Dim seedtpd As Double = -0.00000001
+            Dim st As Object() = StabTest(T, P, Vz, PP.RET_VTC(), PP)
+            If Not st(0) Then
+                Dim est As Double(,) = st(1)
+                For k = 0 To est.GetLength(0) - 1
+                    Dim w As Double() = New Double(n) {}
+                    For j = 0 To n
+                        w(j) = If(Vz(j) > 0.0, est(k, j), 0.0)
+                    Next
+                    If w.SumY <= 0.0 Then Continue For
+                    w = w.NormalizeY()
+                    Dim tw As Double = tpd(w)
+                    If tw < seedtpd Then
+                        seed = w
+                        seedtpd = tw
+                    End If
+                Next
+            End If
+
+            If seed IsNot Nothing Then
+                'the new phase is the vapour when it is the less dense of the two (on their roots of lower
+                'Gibbs energy); the other assignment is tried when the first one gives no split
+                Dim Zof = Function(w As Double()) As Double
+                              Dim ll = PP.DW_CalcLnFugCoeff(w, T, P, State.Liquid)
+                              Dim lv = PP.DW_CalcLnFugCoeff(w, T, P, State.Vapor)
+                              If gphase(w, ll) <= gphase(w, lv) Then
+                                  Return PP.AUX_Z(w, T, P, Interfaces.Enums.PhaseName.Liquid)
+                              Else
+                                  Return PP.AUX_Z(w, T, P, Interfaces.Enums.PhaseName.Vapor)
+                              End If
+                          End Function
+                Dim seedIsVapour As Boolean = Zof(seed) > Zof(Vz)
+                For Each asVapour In {seedIsVapour, Not seedIsVapour}
+                    Dim K0(n) As Double
+                    For j = 0 To n
+                        If Vz(j) > 0.0 AndAlso seed(j) > 0.0 Then
+                            K0(j) = If(asVapour, seed(j) / Vz(j), Vz(j) / seed(j))
+                        Else
+                            K0(j) = 1.0
+                        End If
+                    Next
+                    Dim r = PTStabSplit(Vz, P, T, K0, PP)
+                    If r IsNot Nothing Then
+                        Dim Vn As Double = r(0)
+                        Dim xn As Double() = r(1), yn As Double() = r(2)
+                        Dim gyv As Double = gphase(yn, PP.DW_CalcLnFugCoeff(yn, T, P, State.Vapor))
+                        Dim gn As Double = (1.0 - Vn) * gphase(xn, PP.DW_CalcLnFugCoeff(xn, T, P, State.Liquid)) + Vn * gyv
+                        'a vapour whose liquid root has the lower Gibbs energy is a second liquid, which this
+                        'vapour-liquid flash cannot represent (ethyl acetate/water, Peng-Robinson, 330 K, 1 atm)
+                        If gfeed - gn > 0.0000000001 AndAlso gyv <= gphase(yn, PP.DW_CalcLnFugCoeff(yn, T, P, State.Liquid)) Then Return r
+                    End If
+                Next
+            End If
+
+            'a single phase stands as it came
+            If Not split Then Return Nothing
+
+            'a split that does not lower the Gibbs energy of the feed: one phase, on the root of lower Gibbs
+            'energy, or with a single root, by PTSingleIsLiquid
+            Dim oneroot As Boolean = True
+            For j = 0 To n
+                If Vz(j) > 0.0 AndAlso Math.Abs(lnzl(j) - lnzv(j)) > 0.0000000001 Then
+                    oneroot = False
+                    Exit For
+                End If
+            Next
+            Dim liquid As Boolean = If(oneroot, PTSingleIsLiquid(Vz, T, P, PP), gzl <= gzv)
+
+            If liquid Then
+                Return New Object() {0.0#, Vz, Ki.MultiplyY(Vz).NormalizeY, Ki}
+            Else
+                Return New Object() {1.0#, Vz.DivideY(Ki).NormalizeY, Vz, Ki}
+            End If
+
+        End Function
+
+        ''' <summary>
+        ''' Two-phase split by successive substitution from the K values K0, with the vapour fraction solved
+        ''' exactly at each step. Returns {V, Vx, Vy, Ki}, or Nothing when it ends outside the two-phase region.
+        ''' </summary>
+        ''' <remarks>
+        ''' K values seeded from a stationary point of the tangent plane distance put the Rachford-Rice root on
+        ''' the edge (the new phase is incipient), so the vapour fraction is held at 0 or 1 until the K values
+        ''' move it inside.
+        ''' </remarks>
+        Private Function PTStabSplit(Vz As Double(), P As Double, T As Double, K0 As Double(), PP As PropertyPackages.PropertyPackage) As Object()
+
+            Dim n As Integer = Vz.Length - 1
+            Dim K As Double() = DirectCast(K0.Clone(), Double())
+            Dim Vx As Double() = Nothing, Vy As Double() = Nothing
+            Dim V As Double = 0.0
+
+            For it As Integer = 1 To maxit_e
+                Dim Kc As Double() = K
+                Dim rr As Func(Of Double, Double) = Function(vv) Vz.MultiplyY(Kc.AddConstY(-1).DivideY(Kc.AddConstY(-1).MultiplyConstY(vv).AddConstY(1))).SumY
+                If rr(0.0#) <= 0.0# Then
+                    V = 0.0#
+                ElseIf rr(1.0#) >= 0.0# Then
+                    V = 1.0#
+                Else
+                    V = Brent.BrentOpt3(0.0#, 1.0#, 20, 0.0000000001, 100, rr)
+                End If
+                Vx = Vz.DivideY(Kc.AddConstY(-1).MultiplyConstY(V).AddConstY(1)).NormalizeY()
+                Vy = Vx.MultiplyY(Kc).NormalizeY()
+                Dim Knew = PP.DW_CalcKvalue(Vx, Vy, T, P)
+                Dim dk As Double = 0.0
+                For j = 0 To n
+                    If Vz(j) > 0.0 Then dk = Math.Max(dk, Math.Abs(Log(Knew(j) / Kc(j))))
+                Next
+                If Double.IsNaN(dk) OrElse Double.IsInfinity(dk) Then Return Nothing
+                K = Knew
+                If dk < 0.00000001 Then Exit For
+            Next
+
+            If V <= 0.0# OrElse V >= 1.0# Then Return Nothing
+            Return New Object() {V, Vx, Vy, K}
+
+        End Function
+
+        ''' <summary>
+        ''' Liquid or vapour, for one phase with a single root of the equation of state: liquid above the line
+        ''' ln(P/Ppc) = 5.373 (1 + w) (T/Tpc - 1), with the Kay's-rule critical temperature Tpc, critical
+        ''' pressure Ppc and acentric factor w of the feed.
+        ''' </summary>
+        ''' <remarks>
+        ''' Near the critical point the line is the Wilson vapour pressure curve of that pseudo-component; above
+        ''' it, it is the similarity law of the Widom line (Banuti et al., J. Supercrit. Fluids 2017), which
+        ''' separates liquid-like from vapour-like states. Every isotherm and every isobar crosses it once. For
+        ''' CO2/N2 (0.94/0.06) at 298 K it lies at 78.9 bar (the mixture critical point is 299.96 K, 81.8 bar), so
+        ''' the dense phase above the bubble point is liquid. Hot dense gases stay vapour (natural gas at 300 K up
+        ''' to 460 bar), as the loop's own overshoot out of [0, 1] reports them.
+        ''' </remarks>
+        Private Function PTSingleIsLiquid(Vz As Double(), T As Double, P As Double, PP As PropertyPackages.PropertyPackage) As Boolean
+            Dim Tc = PP.RET_VTC(), Pc = PP.RET_VPC(), w = PP.RET_VW()
+            Dim Tpc As Double = 0.0, Ppc As Double = 0.0, wpc As Double = 0.0
+            For j = 0 To Vz.Length - 1
+                Tpc += Vz(j) * Tc(j)
+                Ppc += Vz(j) * Pc(j)
+                wpc += Vz(j) * w(j)
+            Next
+            Return P > Ppc * Exp(5.373 * (1.0 + wpc) * (T / Tpc - 1.0))
         End Function
 
         Protected Function ConvergeVF(IObj As InspectorItem, V As Double, Vz As Double(), Vx As Double(), Vy As Double(), Ki As Double(), P As Double, T As Double, PP As PropertyPackage, damplevel As Integer) As Object()
@@ -1340,6 +1582,10 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                 Dim hres = PerformHeuristicsTest(Vz, T, P, PP)
                 If hres.SolidPhase Then V = 0.5
                 H1 = Hb
+                'the enthalpy error falls from Hb > 0 at V = 0 to Hd < 0 at V = 1: Vlo and Vhi keep the
+                'interval that holds its root, used once a secant step has gone past an end of [0, 1]
+                Dim Vlo As Double = 0.0, Vhi As Double = 1.0
+                Dim bracketed As Boolean = False
                 Do
 
                     ecount += 1
@@ -1349,6 +1595,8 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                     Else
                         V2 = V1 - 0.01
                     End If
+                    'inside the interval the derivative is taken inside it too (no vapour fraction above 1)
+                    If bracketed Then V2 = If(Vhi - V1 >= V1 - Vlo, V1 + 0.5 * Math.Min(0.02, Vhi - V1), V1 - 0.5 * Math.Min(0.02, V1 - Vlo))
                     IObj?.SetCurrent()
                     herrfunc = Herror("PV", V2, P, Vz, PP, True, Ki)
                     H2 = herrfunc(0)
@@ -1356,13 +1604,31 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                     Vx1 = herrfunc(5)
                     Ki = Vy.DivideY(Vx1)
                     V = V1 + (V2 - V1) * (0 - H1) / (H2 - H1)
+                    If bracketed AndAlso Not (V > Vlo AndAlso V < Vhi) Then V = 0.5 * (Vlo + Vhi)
                     If V < 0 Then V = 0.0#
                     If V > 1 Then V = 1.0#
                     IObj?.Paragraphs.Add(String.Format("Updated Vapor Fraction estimate: {0}", V))
                     IObj?.SetCurrent()
                     resultFlash = Herror("PV", V, P, Vz, PP, True, Ki)
                     H1 = resultFlash(0)
-                    If V = 1.0 Or V = 0.0 And Math.Abs(H1) < 0.01 Then Exit Do
+                    If (V = 1.0 Or V = 0.0) And Math.Abs(H1) < 0.01 Then Exit Do
+                    If H1 > 0 Then Vlo = Math.Max(Vlo, V) Else Vhi = Math.Min(Vhi, V)
+                    If Not bracketed AndAlso (V = 1.0 Or V = 0.0) Then
+                        'The secant step went past an end of [0, 1] and the enthalpy is not met there: the
+                        'enthalpy is far from linear in V when a light end boils off first. From here on the
+                        'steps stay inside the interval that holds the root, starting from its middle.
+                        bracketed = True
+                        V = 0.5 * (Vlo + Vhi)
+                        IObj?.SetCurrent()
+                        resultFlash = Herror("PV", V, P, Vz, PP, True, Ki)
+                        H1 = resultFlash(0)
+                        If H1 > 0 Then Vlo = Math.Max(Vlo, V) Else Vhi = Math.Min(Vhi, V)
+                    End If
+                    'an interval that closes on a jump of the enthalpy holds no root: the bubble and dew points
+                    'were no pair of this feed
+                    If bracketed AndAlso Vhi - Vlo < 0.000001 AndAlso Math.Abs(H1) > 0.01 Then
+                        Throw New Exception("PH Flash [NL]: Invalid result: the enthalpy is met at no vapour fraction between the bubble and dew points (P = " & P & " Pa).")
+                    End If
                     IObj?.Paragraphs.Add(String.Format("Enthalpy Error (Spec - Calculated): {0}", H1))
                 Loop Until Abs(H1) < itol Or ecount > maxitEXT
 
@@ -1893,6 +2159,10 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                 ecount = 0
                 V = 0
                 S1 = Sb
+                'the entropy error falls from Sb > 0 at V = 0 to Sd < 0 at V = 1: Vlo and Vhi keep the
+                'interval that holds its root, used once a secant step has gone past an end of [0, 1]
+                Dim Vlo As Double = 0.0, Vhi As Double = 1.0
+                Dim bracketed As Boolean = False
                 Do
                     ecount += 1
                     V1 = V
@@ -1901,6 +2171,8 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                     Else
                         V2 = V1 - 0.01
                     End If
+                    'inside the interval the derivative is taken inside it too (no vapour fraction above 1)
+                    If bracketed Then V2 = If(Vhi - V1 >= V1 - Vlo, V1 + 0.5 * Math.Min(0.02, Vhi - V1), V1 - 0.5 * Math.Min(0.02, V1 - Vlo))
 
                     IObj?.SetCurrent()
                     serrfunc = Serror("PV", V2, P, Vz, PP, True, Ki)
@@ -1909,13 +2181,31 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                     Vx1 = serrfunc(5)
                     Ki = Vy.DivideY(Vx1)
                     V = V1 + (V2 - V1) * (0 - S1) / (S2 - S1)
+                    If bracketed AndAlso Not (V > Vlo AndAlso V < Vhi) Then V = 0.5 * (Vlo + Vhi)
                     If V < 0 Then V = 0
                     If V > 1 Then V = 1
                     IObj?.Paragraphs.Add(String.Format("Updated Vapor Fraction estimate: {0}", V))
                     IObj?.SetCurrent()
                     resultFlash = Serror("PV", V, P, Vz, PP, True, Ki)
                     S1 = resultFlash(0)
-                    If V = 1.0 Or V = 0.0 And Math.Abs(S1) < 0.01 Then Exit Do
+                    If (V = 1.0 Or V = 0.0) And Math.Abs(S1) < 0.01 Then Exit Do
+                    If S1 > 0 Then Vlo = Math.Max(Vlo, V) Else Vhi = Math.Min(Vhi, V)
+                    If Not bracketed AndAlso (V = 1.0 Or V = 0.0) Then
+                        'The secant step went past an end of [0, 1] and the entropy is not met there: the
+                        'entropy is far from linear in V when a light end boils off first. From here on the
+                        'steps stay inside the interval that holds the root, starting from its middle.
+                        bracketed = True
+                        V = 0.5 * (Vlo + Vhi)
+                        IObj?.SetCurrent()
+                        resultFlash = Serror("PV", V, P, Vz, PP, True, Ki)
+                        S1 = resultFlash(0)
+                        If S1 > 0 Then Vlo = Math.Max(Vlo, V) Else Vhi = Math.Min(Vhi, V)
+                    End If
+                    'an interval that closes on a jump of the entropy holds no root: the bubble and dew points
+                    'were no pair of this feed
+                    If bracketed AndAlso Vhi - Vlo < 0.000001 AndAlso Math.Abs(S1) > 0.01 Then
+                        Throw New Exception("PS Flash [NL]: Invalid result: the entropy is met at no vapour fraction between the bubble and dew points (P = " & P & " Pa).")
+                    End If
                     IObj?.Paragraphs.Add(String.Format("Entropy Error (Spec - Calculated): {0}", S1))
                 Loop Until Abs(S1) < itol Or ecount > maxitEXT
 
