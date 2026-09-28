@@ -574,6 +574,10 @@ Namespace UnitOperations
                 If _ppid Is Nothing Then _ppid = ""
                 If _pp IsNot Nothing And _ppwasset Then
                     Return _pp
+                ElseIf FlowSheet Is Nothing Then
+                    'no flowsheet to resolve the package by ID (an object being read from a file, a block
+                    'inside a network before its owner is attached): only a package set directly is known
+                    Return _pp
                 ElseIf _pp IsNot Nothing AndAlso FlowSheet.PropertyPackages.ContainsKey(_pp.UniqueID) Then
                     Return FlowSheet.PropertyPackages(_pp.UniqueID)
                 Else
