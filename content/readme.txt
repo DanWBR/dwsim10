@@ -136,9 +136,14 @@ Version 10.2.10
 - [FIX] Gibbs Minimization three-phase flash stopped short of equilibrium, failed on about a third of the cases tested and changed its answer with tiny temperature changes; it could also merge the vapour and the first liquid and miss the hydrocarbon liquid
 - [FIX] Simple LLE bubble and dew points returned the trivial solution or an unconverged estimate
 - [FIX] Boston-Britt Inside-Out: two-phase feeds near an azeotrope reported as single phase; vapour fraction flashes near the critical point converged next to the trivial solution; bubble and dew points of light gases never confirmed (natural gas bubble point 242 K for 206 K)
-- [FIX] Nested Loops dew points on the wrong liquid branch for mixtures that form two liquids (water/n-hexane/methane between 5 and 50 bar)
-- [FIX] Bubble and dew points of similar heavy compounds above their critical region (n-decane/n-dodecane at 40 bar gave 695 and 703 K); now rejected by a stability test
-- [FIX] Volume flashes of vessels, depressurization and dynamics: a near-critical dense mixture took a different volume when labelled liquid or vapour, and a false bubble pressure; a liquid-full CO2 blowdown now stays liquid-full for 2.6 s (measured about 3 s)
+- [FIX] Nested Loops and Nested Loops v2 dew points on the wrong liquid branch for mixtures that form two liquids (water/n-hexane/methane between 5 and 50 bar)
+- [FIX] Bubble and dew points of similar heavy compounds above their critical region (n-decane/n-dodecane at 40 bar gave 695 and 703 K); now rejected by a stability test, also for saturation pressures
+- [FIX] Volume flashes of vessels, depressurization and dynamics: a near-critical dense fluid took a different volume when labelled liquid or vapour, and a false bubble pressure; pure CO2 jumped in density at its critical temperature; a liquid-full CO2 blowdown now stays liquid-full for about 3 s as measured
+- [FIX] Vessels: a nearly pure boiling content (CO2 with 0.1 % N2) cooled too much or jumped in temperature when its re-flash missed the enthalpy
+- [FIX] Nested Loops and Nested Loops v2: false two-phase splits where the feed is stable, and near-critical phase labels that changed with pressure
+- [FIX] Nested Loops vapour fraction flashes: unchecked ideal-solution answers (n-decane/n-dodecane bubble point 786.7 K at 40 bar) and unconverged split results; they now report an error
+- [FIX] Nested Loops and Nested Loops v2 enthalpy and entropy flashes in normal mode returned the dew temperature for wide-boiling feeds
+- [FIX] Phase envelope: the CO2/N2 bubble line stopped at 87 K; it now runs from the lowest stable liquid to the critical point
 - [FIX] Classic interface: closing the spreadsheet, settings, optimizer, chart, log or attached utility tab returns to the previously active document
 - [FIX] Distillation column (Wang-Henke): a top stage without liquid or a failed stage bubble point stopped the column; extractor and Internal 3 estimates used compounds absent from the feeds
 
