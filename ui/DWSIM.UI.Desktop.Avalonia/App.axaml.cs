@@ -32,6 +32,10 @@ public class App : Application
         // (scaling reverted to 1.0 every restart). Load them before anything reads them.
         try { DWSIM.GlobalSettings.Settings.LoadSettings("dwsim_newui.ini"); } catch { }
 
+        // The Inspector always starts disabled: it slows every calculation down, and a session that
+        // needs its reports turns it on from the toolbar or the settings.
+        DWSIM.GlobalSettings.Settings.InspectorEnabled = false;
+
         // Honor the persisted DarkMode flag. Engine wrote it last session; we read it here
         // before any window is shown so the choice is reflected from the splash onward.
         if (DWSIM.GlobalSettings.Settings.DarkMode)
