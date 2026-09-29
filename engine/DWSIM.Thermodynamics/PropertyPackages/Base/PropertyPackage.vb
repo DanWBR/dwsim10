@@ -1788,9 +1788,9 @@ Namespace PropertyPackages
 
         ''' <summary>
         ''' Calculates the natural logarithm of the fugacity coefficients. The default takes the log of
-        ''' DW_CalcFugCoeff, reproducing the historical -500 sentinel for a zero coefficient. A NaN
-        ''' coefficient (a failed EOS evaluation, e.g. a liquid root at or below the covolume) stays NaN,
-        ''' so DW_CalcKvalue replaces that K-value with its estimate. Packages
+        ''' DW_CalcFugCoeff, reproducing the historical -500 sentinel for a zero or NaN coefficient (a NaN
+        ''' passed on made the stability test of the activity-coefficient liquid-liquid flash miss the
+        ''' second liquid: UNIQUAC water/toluene/acetone and water/1-butanol came out as one liquid). Packages
         ''' whose coefficient can underflow to zero (e.g. a high segment-number polymer in PC-SAFT,
         ''' whose ln is on the order of -1e3) must override this to return the log directly, so the
         ''' stability test and phase-split estimates keep the true chemical potential.
@@ -1803,10 +1803,8 @@ Namespace PropertyPackages
                     ln(i) = Math.Log(fc(i))
                 ElseIf fc(i) < 0.0# Then
                     ln(i) = Math.Log(Math.Abs(fc(i)))
-                ElseIf fc(i) = 0.0# Then
-                    ln(i) = -500.0
                 Else
-                    ln(i) = Double.NaN
+                    ln(i) = -500.0
                 End If
             Next
             Return ln
