@@ -161,7 +161,36 @@ Public Class Settings
 
     Public Shared Property CalculationRequestID As String = ""
 
-    Public Shared Property InspectorEnabled As Boolean = False
+    Private Shared _InspectorEnabled As Boolean = False
+    Private Shared _InspectorSuspendCount As Integer = 0
+
+    ''' <summary>
+    ''' The user's Inspector setting. It reads False while a calculation has suspended the Inspector
+    ''' (SuspendInspector / ResumeInspector), without changing what the user chose.
+    ''' </summary>
+    Public Shared Property InspectorEnabled As Boolean
+        Get
+            Return _InspectorEnabled AndAlso Threading.Volatile.Read(_InspectorSuspendCount) = 0
+        End Get
+        Set(value As Boolean)
+            _InspectorEnabled = value
+        End Set
+    End Property
+
+    ''' <summary>
+    ''' Turns the Inspector off for the duration of a calculation (parallel regions whose threads must not
+    ''' write reports), without overwriting the user's setting: a calculation that saved the setting, set it
+    ''' to False and wrote the saved value back undid a change the user made in the meantime, and two such
+    ''' calculations on different threads could leave either value behind. Calls nest; pair each with
+    ''' ResumeInspector in a Finally block.
+    ''' </summary>
+    Public Shared Sub SuspendInspector()
+        Threading.Interlocked.Increment(_InspectorSuspendCount)
+    End Sub
+
+    Public Shared Sub ResumeInspector()
+        Threading.Interlocked.Decrement(_InspectorSuspendCount)
+    End Sub
 
     Public Shared Property ClearInspectorHistoryOnNewCalculationRequest As Boolean = True
 

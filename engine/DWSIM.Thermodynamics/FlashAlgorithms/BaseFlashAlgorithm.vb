@@ -1399,9 +1399,10 @@ will converge to this solution.")
             'threads finished made the kept duplicate and the selected estimate change from call to call.
             Dim Vestimates(m)() As Double
 
-            Dim prevstatus = GlobalSettings.Settings.InspectorEnabled
+            'no Inspector reports from the parallel trials; the user's setting is left as it is
+            GlobalSettings.Settings.SuspendInspector()
 
-            GlobalSettings.Settings.InspectorEnabled = False
+            Try
 
             'start stability test for each one of the initial estimate vectors
             Parallel.For(0, m + 1, Sub(xi)
@@ -1515,7 +1516,9 @@ will converge to this solution.")
 
                                    End Sub)
 
-            GlobalSettings.Settings.InspectorEnabled = prevstatus
+            Finally
+                GlobalSettings.Settings.ResumeInspector()
+            End Try
 
             IObj?.SetCurrent
 
