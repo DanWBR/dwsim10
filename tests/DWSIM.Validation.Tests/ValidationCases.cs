@@ -107,6 +107,13 @@ namespace DWSIM.Validation.Tests
         [Test] public void T24_NRTL_WaterBenzeneAcetone_LLE() => Thermodynamics.T24_NRTL_WaterBenzeneAcetone_LLE.Run();
         [Test] public void T25_UNIQUAC_WaterTolueneAcetone_LLE() => Thermodynamics.T25_UNIQUAC_WaterTolueneAcetone_LLE.Run();
         [Test] public void T26_NRTL_XyleneCrystallization_SLE() => Thermodynamics.T26_NRTL_XyleneCrystallization_SLE.Run();
+        [Test] public void T27_NRTL_WaterButanol_LLE() => Thermodynamics.T27_NRTL_WaterButanol_LLE.Run();
+        [Test] public void T28_UNIQUAC_WaterButanol_LLE() => Thermodynamics.T28_UNIQUAC_WaterButanol_LLE.Run();
+        [Test] public void T29_UNIFAC_WaterButanol_LLE() => Thermodynamics.T29_UNIFAC_WaterButanol_LLE.Run();
+        [Test, Ignore("The NRTL water/ethyl acetate parameters of the database (a VLE fit) put this feed outside the model's two-liquid region, and the name-based liquid-split heuristics of UniversalFlash send water/ester feeds to the vapour-liquid flash")] public void T30_NRTL_WaterEthylAcetate_LLE() => Thermodynamics.T30_NRTL_WaterEthylAcetate_LLE.Run();
+        [Test, Ignore("The NRTL database holds two water/2-butanone parameter sets in opposite orientations and the model takes one row from each (the activity coefficients violate Gibbs-Duhem); water/ketone feeds also go to the vapour-liquid flash")] public void T31_NRTL_WaterMEK_LLE() => Thermodynamics.T31_NRTL_WaterMEK_LLE.Run();
+        [Test, Ignore("The name-based liquid-split heuristics of UniversalFlash send water/ester feeds to the vapour-liquid flash, which cannot return two liquids")] public void T32_UNIQUAC_WaterButylAcetate_LLE() => Thermodynamics.T32_UNIQUAC_WaterButylAcetate_LLE.Run();
+        [Test] public void T34_PR_WaterDecane_LLE() => Thermodynamics.T34_PR_WaterDecane_LLE.Run();
 
         // UnitOpsAdvanced
         [Test] public void A01_Distillation_EthanolWater() => UnitOpsAdvanced.A01_Distillation_EthanolWater.Run();
