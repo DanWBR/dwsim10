@@ -66,6 +66,7 @@ Version 10.2.10
 - [CHG] PID tuning tool (Classic): the unused Solver box was removed and the settings laid out so the controller list no longer covers Max Iterations
 - [CHG] Distillation column: when the Wang-Henke solver fails from the given and the automatic estimates, the column is solved with Naphtali-Sandholm from a volatility split of the feed
 - [CHG] Pipe Network: field production report and pipe scaling/corrosion results shown as formatted reports; the field report copies as CSV or Markdown
+- [CHG] The Inspector starts disabled in every session, in both interfaces
 - [FIX] Gibbs reactor in adiabatic mode: the phase split inside the Gibbs minimization was computed at the starting temperature and never refreshed, so a reactor solved for the first time settled on a composition that is not an equilibrium (water-gas shift at 600 K and 10 atm: 910 K and 79 % CO conversion against 827 K and 56 % from the equilibrium reactor); the loop now follows the trial temperature, starts from the inlet temperature and stops with a message after 100 passes
 - [FIX] Gibbs reactor: the first solve of a new reactor stopped on "invalid initial estimates" and only the second attempt ran; the feed is the starting point when there is no stored solution
 - [FIX] Equilibrium reactor in adiabatic mode: a fresh reactor with no outlet temperature estimate evaluated the equilibrium constant at 0 K and stopped on "evaluated to infinity"; the inlet temperature is the starting point
@@ -146,6 +147,7 @@ Version 10.2.10
 - [FIX] Nested Loops vapour fraction flashes: unchecked ideal-solution answers (n-decane/n-dodecane bubble point 786.7 K at 40 bar) and unconverged split results; they now report an error
 - [FIX] Nested Loops and Nested Loops v2 enthalpy and entropy flashes in normal mode returned the dew temperature for wide-boiling feeds
 - [FIX] Phase envelope: the CO2/N2 bubble line stopped at 87 K; it now runs from the lowest stable liquid to the critical point
+- [FIX] Inspector: unchecking it while a calculation was running could turn it back on and keep it on in later sessions
 - [FIX] Classic interface: closing the spreadsheet, settings, optimizer, chart, log or attached utility tab returns to the previously active document
 - [FIX] Distillation column (Wang-Henke): a top stage without liquid or a failed stage bubble point stopped the column; extractor and Internal 3 estimates used compounds absent from the feeds
 
