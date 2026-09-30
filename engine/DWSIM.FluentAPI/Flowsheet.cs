@@ -124,6 +124,19 @@ namespace DWSIM.Automation.FluentAPI
             return this;
         }
 
+        /// <summary>
+        /// Orthogonal layout: feeds on the left, products on the right, streams lined up on the ports they
+        /// connect so the connectors come out straight; energy streams, controllers and tables beside the
+        /// objects they belong to. <paramref name="wrapRows"/> wraps the columns into rows (each read left to
+        /// right) for the smallest drawing whose width stays between half and twice its height.
+        /// </summary>
+        public Flowsheet OrthogonalLayout(bool wrapRows = false)
+        {
+            var surface = Inner.GetSurface();
+            surface?.GetType().GetMethod("OrthogonalArrange")?.Invoke(surface, new object[] { wrapRows });
+            return this;
+        }
+
         // ------------------------------------------------------------- Compounds
 
         /// <summary>Adds a single compound by its DWSIM database name (e.g. <c>"Water"</c>, <c>"Methane"</c>).</summary>

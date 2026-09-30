@@ -2239,6 +2239,23 @@ Public Class GraphicsSurface
 
     End Sub
 
+    ''' <summary>
+    ''' Orthogonal layered layout: feeds on the left, products on the right, streams lined up on the ports
+    ''' they connect so the connectors come out straight; <paramref name="wrapRows"/> wraps the columns into
+    ''' rows (each read left to right) for the smallest drawing with its width between half and twice its
+    ''' height. Undone by <see cref="RestoreLayout"/>.
+    ''' </summary>
+    Public Sub OrthogonalArrange(Optional wrapRows As Boolean = False)
+
+        PrevPositions = New Dictionary(Of String, Tuple(Of Point, Boolean))
+        For Each obj In DrawingObjects
+            If Not obj.IsConnector Then PrevPositions(obj.Name) = New Tuple(Of Point, Boolean)(New Point(obj.X, obj.Y), obj.FlippedH)
+        Next
+
+        OrthogonalFlowsheetLayout.Arrange(DrawingObjects, wrapRows)
+
+    End Sub
+
     Public Sub RestoreLayout()
 
         If PrevPositions.Count > 0 Then

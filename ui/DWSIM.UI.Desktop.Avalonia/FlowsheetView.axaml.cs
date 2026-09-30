@@ -2848,6 +2848,25 @@ public partial class FlowsheetView : UserControl
             };
             ctx.Items.Add(autoLayout);
 
+            // orthogonal layout: streams lined up on their ports, feeds left, products right; optionally
+            // wrapped into rows for a drawing between half and twice as wide as it is tall
+            foreach (var wrap in new[] { false, true })
+            {
+                var ortho = new MenuItem { Header = wrap ? "Orthogonal Layout (Wrapped Rows)" : "Orthogonal Layout", Icon = IconHelper.MIcon("\U0001F4D0") };
+                ortho.Click += (_, _) =>
+                {
+                    try
+                    {
+                        _surface?.OrthogonalArrange(wrap);
+                        ZoomFit();
+                        Canvas.Refresh();
+                        AppendLog("Orthogonal layout applied.");
+                    }
+                    catch (Exception ex) { AppendLog($"Orthogonal layout error: {ex.Message}"); }
+                };
+                ctx.Items.Add(ortho);
+            }
+
             var restoreLayout = new MenuItem { Header = "Restore Layout", Icon = IconHelper.MIcon("↩") }; // undo
             restoreLayout.Click += (_, _) =>
             {
