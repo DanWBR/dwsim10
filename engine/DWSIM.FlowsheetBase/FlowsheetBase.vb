@@ -1406,7 +1406,14 @@ Imports DWSIM.ExtensionMethods
 
             Case ObjectType.External
 
-                Dim myNode As New ExternalUnitOperationGraphic(mpx, mpy, 40, 40)
+                ' the block's own preferred size, as the classic surface does
+                Dim pw As Integer = 40, ph As Integer = 40
+                Dim pso = TryCast(uoobj, Interfaces.ISimulationObject)
+                If pso IsNot Nothing Then
+                    If pso.GetPreferredGraphicObjectWidth() > 0 Then pw = CInt(pso.GetPreferredGraphicObjectWidth())
+                    If pso.GetPreferredGraphicObjectHeight() > 0 Then ph = CInt(pso.GetPreferredGraphicObjectHeight())
+                End If
+                Dim myNode As New ExternalUnitOperationGraphic(mpx, mpy, pw, ph)
                 myNode.Tag = uoobj.Prefix + objindex
                 If tag <> "" Then myNode.Tag = tag
                 gObj = myNode
