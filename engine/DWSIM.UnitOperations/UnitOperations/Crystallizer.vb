@@ -297,7 +297,17 @@ Namespace UnitOperations
         Public Overrides Function GetProperties(proptype As PropertyType) As String()
             Dim baseprops = MyBase.GetProperties(proptype)
             Select Case proptype
-                Case PropertyType.WR : Return _inputProps
+                Case PropertyType.WR
+                    'only the inputs the mode reads: the evaporation fraction in Evaporative mode, the
+                    'solubility reduction in Antisolvent mode, which runs at the inlet temperature.
+                    Dim unused As New List(Of String)
+                    If Mode <> CrystallizerMode.Evaporative Then unused.Add("Evaporation Fraction")
+                    If Mode <> CrystallizerMode.Antisolvent Then
+                        unused.Add("Solubility Reduction By Antisolvent")
+                    Else
+                        unused.Add("Operating T")
+                    End If
+                    Return _inputProps.Where(Function(p) Not unused.Contains(p)).ToArray()
                 Case PropertyType.RO : Return _outputProps
                 Case Else : Return _inputProps.Concat(_outputProps).Concat(baseprops).ToArray()
             End Select

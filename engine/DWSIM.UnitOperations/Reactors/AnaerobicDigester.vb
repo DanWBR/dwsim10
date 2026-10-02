@@ -2109,7 +2109,18 @@ Namespace Reactors
         Public Overrides Function GetProperties(proptype As PropertyType) As String()
             Dim baseprops = MyBase.GetProperties(proptype)
             Select Case proptype
-                Case PropertyType.WR : Return _inputProps
+                Case PropertyType.WR
+                    'only the inputs the selected model reads. The COD removal, sludge yield and methane
+                    'override belong to the black box; the "ADM1" rate constants to ADM1-Lite (ADM1-Full
+                    'and ADM1-S take theirs from the parameter set); the full models compute the pH the
+                    'sulfide speciation needs; and only ADM1-S leaves sulfate to carry out.
+                    Dim blackbox As String() = {"COD Removal Efficiency", "Biomass Yield on COD", "Methane Fraction Override"}
+                    Dim unused As New HashSet(Of String)
+                    If Model <> DigesterModel.BlackBox Then unused.UnionWith(blackbox)
+                    If Model <> DigesterModel.ADM1Lite Then unused.UnionWith(_inputProps.Where(Function(p) p.StartsWith("ADM1 ")))
+                    If Model = DigesterModel.ADM1Full OrElse Model = DigesterModel.ADM1Sulfate Then unused.Add("Assumed pH for Sulfide")
+                    If Model <> DigesterModel.ADM1Sulfate Then unused.Add("Sulfate Compound")
+                    Return _inputProps.Where(Function(p) Not unused.Contains(p)).ToArray()
                 Case PropertyType.RO : Return _outputProps
                 Case Else : Return _inputProps.Concat(_outputProps).Concat(baseprops).ToArray()
             End Select

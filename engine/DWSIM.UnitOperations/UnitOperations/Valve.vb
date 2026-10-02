@@ -1880,7 +1880,24 @@ Namespace UnitOperations
                         proplist.Add("PROP_VA_" + CStr(i))
                     Next
                 Case PropertyType.WR
-                    For i = 0 To 6
+                    'only the inputs the active calculation mode reads; Calculate overwrites the others.
+                    'the calculation mode (PROP_VA_0) can always be switched. The temperature drop is a result.
+                    Dim writable As New List(Of Integer) From {0}
+                    Select Case CalcMode
+                        Case CalculationMode.DeltaP
+                            writable.Add(1)
+                        Case CalculationMode.OutletPressure
+                            writable.Add(2)
+                        Case Else
+                            'the Kv modes: the opening only matters through the opening/Kv relationship,
+                            'and the characteristic parameter only for the equal percentage one.
+                            writable.Add(4)
+                            If EnableOpeningKvRelationship Then
+                                writable.Add(5)
+                                If DefinedOpeningKvRelationShipType = OpeningKvRelationshipType.EqualPercentage Then writable.Add(6)
+                            End If
+                    End Select
+                    For Each i In writable
                         proplist.Add("PROP_VA_" + CStr(i))
                     Next
                 Case PropertyType.ALL

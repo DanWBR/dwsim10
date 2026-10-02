@@ -495,9 +495,23 @@ Namespace UnitOperations
             Dim proplist As New ArrayList
             Dim basecol = MyBase.GetProperties(proptype)
             If basecol.Length > 0 Then proplist.AddRange(basecol)
-            For i = 0 To 7
-                proplist.Add("PROP_FT_" + CStr(i))
-            Next
+            If proptype = PropertyType.WR Then
+                'only the inputs the active calculation mode reads: Design gives the area from the
+                'pressure drop, Simulation the pressure drop from the area. The energy balance is a result.
+                Dim writable As New List(Of Integer) From {2, 3, 4, 5, 6}
+                If CalcMode = CalculationMode.Design Then
+                    writable.Add(7)
+                Else
+                    writable.Insert(0, 1)
+                End If
+                For Each i In writable
+                    proplist.Add("PROP_FT_" + CStr(i))
+                Next
+            Else
+                For i = 0 To 7
+                    proplist.Add("PROP_FT_" + CStr(i))
+                Next
+            End If
             Return proplist.ToArray(GetType(System.String))
             proplist = Nothing
         End Function

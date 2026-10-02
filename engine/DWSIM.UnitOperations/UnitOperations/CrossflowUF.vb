@@ -591,7 +591,13 @@ Namespace UnitOperations
         Public Overrides Function GetProperties(proptype As PropertyType) As String()
             Dim baseprops = MyBase.GetProperties(proptype)
             Select Case proptype
-                Case PropertyType.WR : Return _inputProps
+                Case PropertyType.WR
+                    'only the inputs the operating mode reads: the concentration modes run to a VCF,
+                    'the diafiltration modes for a number of diavolumes.
+                    Dim diafiltration As Boolean = (OperatingMode = CrossflowUFMode.DiafiltrationConstantVolume OrElse
+                                                    OperatingMode = CrossflowUFMode.DiafiltrationDynamic)
+                    Dim unused As String = If(diafiltration, "VCF", "Diavolumes")
+                    Return _inputProps.Where(Function(p) p <> unused).ToArray()
                 Case PropertyType.RO : Return _outputProps
                 Case Else : Return _inputProps.Concat(_outputProps).Concat(baseprops).ToArray()
             End Select

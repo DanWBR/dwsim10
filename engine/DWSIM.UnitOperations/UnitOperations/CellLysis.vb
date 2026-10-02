@@ -285,7 +285,12 @@ Namespace UnitOperations
         Public Overrides Function GetProperties(proptype As PropertyType) As String()
             Dim baseprops = MyBase.GetProperties(proptype)
             Select Case proptype
-                Case PropertyType.WR : Return _inputProps
+                Case PropertyType.WR
+                    'only the inputs the selected technology reads: the ultrasound parameters for
+                    'sonication, the Hetherington ones for every other technology.
+                    Dim ultrasound As Boolean = (Technology = LysisTechnology.Ultrasound)
+                    Dim hetherington As String() = {"Passes", "Pressure", "Hetherington k", "Hetherington alpha"}
+                    Return _inputProps.Where(Function(p) If(ultrasound, Not hetherington.Contains(p), Not p.StartsWith("Ultrasound "))).ToArray()
                 Case PropertyType.RO : Return _outputProps
                 Case Else : Return _inputProps.Concat(_outputProps).Concat(baseprops).ToArray()
             End Select

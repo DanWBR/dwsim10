@@ -638,14 +638,21 @@ Namespace UnitOperations
             Dim basecol = MyBase.GetProperties(proptype)
             If basecol.Length > 0 Then proplist.AddRange(basecol)
 
-            proplist.Add("PROP_SP_1")
-            proplist.Add("PROP_SP_2")
-
             If GraphicObject IsNot Nothing Then
                 OutCount = 0
                 For Each cp In GraphicObject.OutputConnectors
                     If cp.IsAttached Then OutCount += 1
                 Next
+            End If
+
+            'the writable list only carries the inputs the active operation mode reads: the split
+            'ratios, or the flow specs (the second one only with three outlets).
+            If proptype <> PropertyType.WR Then
+                proplist.Add("PROP_SP_1")
+                proplist.Add("PROP_SP_2")
+            ElseIf OperationMode <> OpMode.SplitRatios Then
+                proplist.Add("PROP_SP_1")
+                If OutCount >= 3 Then proplist.Add("PROP_SP_2")
             End If
 
             Select Case proptype
@@ -654,9 +661,11 @@ Namespace UnitOperations
                         proplist.Add("SR" + CStr(i))
                     Next
                 Case PropertyType.WR
-                    For i = 1 To OutCount - 1
-                        proplist.Add("SR" + CStr(i))
-                    Next
+                    If OperationMode = OpMode.SplitRatios Then
+                        For i = 1 To OutCount - 1
+                            proplist.Add("SR" + CStr(i))
+                        Next
+                    End If
                 Case PropertyType.ALL
                     For i = 1 To OutCount
                         proplist.Add("SR" + CStr(i))

@@ -37,7 +37,10 @@ namespace DWSIM.Automation.FluentAPI
             var applied = new List<string>();
             if (properties == null) return applied;
 
-            foreach (var entry in properties)
+            // the calculation mode first: it decides which inputs the unit lists as writable
+            var ordered = properties.OrderBy(e => IsCalculationMode(e.Key) ? 0 : 1).ToList();
+
+            foreach (var entry in ordered)
             {
                 if (TrySet(obj, entry.Key, entry.Value, units))
                 {
@@ -68,7 +71,10 @@ namespace DWSIM.Automation.FluentAPI
                 return true;
             }
 
-            var writable = obj.GetProperties(Interfaces.Enums.PropertyType.WR) ?? new string[0];
+            // WR lists the inputs of the active mode; RW keeps every input, so a setting for another
+            // mode can still be stored before the mode is switched
+            var writable = (obj.GetProperties(Interfaces.Enums.PropertyType.WR) ?? new string[0])
+                .Concat(obj.GetProperties(Interfaces.Enums.PropertyType.RW) ?? new string[0]);
             if (writable.Contains(name))
             {
                 obj.SetPropertyValue(name, AsDouble(value), units);

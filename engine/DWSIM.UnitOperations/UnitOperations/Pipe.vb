@@ -2956,6 +2956,66 @@ Namespace UnitOperations
             Dim proplist As New ArrayList
             Dim basecol = MyBase.GetProperties(proptype)
             If basecol.Length > 0 Then proplist.AddRange(basecol)
+            If proptype = PropertyType.WR Then
+                'only the inputs the active specification and thermal profile read. The pressure and
+                'temperature drops, the totals and the segment results are calculated; the outlet
+                'pressure spec solves for the length of the (single) section, and the outlet
+                'temperature spec for the heat exchanged, overriding the thermal profile.
+                Dim heatspec As Boolean = (Specification <> Specmode.OutletTemperature)
+                Dim profiletype = ThermalProfile.TipoPerfil
+                Select Case Specification
+                    Case Specmode.OutletPressure
+                        proplist.Add("PROP_PS_3")
+                    Case Specmode.OutletTemperature
+                        proplist.Add("PROP_PS_4")
+                End Select
+                If heatspec Then
+                    Select Case profiletype
+                        Case ThermalEditorDefinitions.ThermalProfileType.Definir_Q
+                            proplist.Add("PROP_PS_2")
+                        Case ThermalEditorDefinitions.ThermalProfileType.Definir_CGTC
+                            If Not ThermalProfile.UseUserDefinedU Then
+                                For i = 5 To 7
+                                    proplist.Add("PROP_PS_" + CStr(i))
+                                Next
+                            End If
+                    End Select
+                End If
+                For Each ps In Profile.Sections
+                    If Not (Specification = Specmode.OutletPressure AndAlso ps.Key = 1) Then
+                        proplist.Add("HydraulicSegment," + ps.Key.ToString + ",Length")
+                    End If
+                    proplist.Add("HydraulicSegment," + ps.Key.ToString + ",Elevation")
+                    proplist.Add("HydraulicSegment," + ps.Key.ToString + ",InternalDiameter")
+                    proplist.Add("HydraulicSegment," + ps.Key.ToString + ",ExternalDiameter")
+                    proplist.Add("HydraulicSegment," + ps.Key.ToString + ",Sections")
+                Next
+                If heatspec Then
+                    proplist.Add("ThermalProfile,CalculationType")
+                    Select Case profiletype
+                        Case ThermalEditorDefinitions.ThermalProfileType.Definir_Q
+                            proplist.Add("ThermalProfile,HeatExchanged")
+                        Case ThermalEditorDefinitions.ThermalProfileType.Definir_CGTC
+                            If Not ThermalProfile.UseUserDefinedU Then
+                                proplist.Add("ThermalProfile,OverallHTC")
+                                proplist.Add("ThermalProfile,ExternalTemperatureDefinedHTC")
+                                proplist.Add("ThermalProfile,ExternalTemperatureGradientDefinedHTC")
+                            End If
+                        Case ThermalEditorDefinitions.ThermalProfileType.Estimar_CGTC
+                            proplist.Add("ThermalProfile,ExternalTemperatureEstimatedHTC")
+                            proplist.Add("ThermalProfile,ExternalTemperatureGradientEstimatedHTC")
+                            proplist.Add("ThermalProfile,IncludeWallHTC")
+                            proplist.Add("ThermalProfile,IncludeInternalHTC")
+                            proplist.Add("ThermalProfile,IncludeInsulationHTC")
+                            proplist.Add("ThermalProfile,InsulationThickness")
+                            proplist.Add("ThermalProfile,InsulationThermalConductivity")
+                            proplist.Add("ThermalProfile,IncludeExternalHTC")
+                            proplist.Add("ThermalProfile,ExternalEnvironmentType")
+                            proplist.Add("ThermalProfile,ExternalEnvironmentVelocityOrDeepness")
+                    End Select
+                End If
+                Return proplist.ToArray(GetType(System.String))
+            End If
             For i = 0 To 9
                 proplist.Add("PROP_PS_" + CStr(i))
             Next

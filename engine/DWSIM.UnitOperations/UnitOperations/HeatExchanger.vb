@@ -3483,17 +3483,45 @@ Namespace UnitOperations
                         proplist.Add("PROP_HX_" + CStr(i))
                     Next
                 Case PropertyType.WR
-                    For i = 0 To 16
-                        proplist.Add("PROP_HX_" + CStr(i))
-                    Next
-                    proplist.Add("PROP_HX_27")
-                    proplist.Add("PROP_HX_28")
-                    proplist.Add("PROP_HX_29")
-                    proplist.Add("PROP_HX_30")
-                    proplist.Add("PROP_HX_31")
-                    proplist.Add("PROP_HX_32")
-                    proplist.Add("PROP_HX_33")
-                    For i = 35 To 48
+                    'only the inputs the active calculation mode reads; Calculate overwrites the others.
+                    Dim writable As New List(Of Integer)
+                    Select Case CalcMode
+                        Case HeatExchangerCalcMode.CalcTempHotOut
+                            writable.AddRange(New Integer() {1, 3, 28, 29, 32, 33})
+                        Case HeatExchangerCalcMode.CalcTempColdOut
+                            'this branch does not apply the LMTD correction factor
+                            writable.AddRange(New Integer() {1, 4, 28, 32, 33})
+                        Case HeatExchangerCalcMode.CalcBothTemp
+                            writable.AddRange(New Integer() {1, 2, 28, 29, 32, 33})
+                        Case HeatExchangerCalcMode.CalcBothTemp_UA
+                            writable.AddRange(New Integer() {0, 1, 28, 29, 32, 33})
+                        Case HeatExchangerCalcMode.CalcArea
+                            writable.Add(0)
+                            writable.Add(If(DefinedTemperature = SpecifiedTemperature.Cold_Fluid, 3, 4))
+                            writable.AddRange(New Integer() {28, 29, 32, 33})
+                        Case HeatExchangerCalcMode.PinchPoint
+                            writable.AddRange(New Integer() {0, 27, 28, 29, 32, 33})
+                        Case HeatExchangerCalcMode.ThermalEfficiency
+                            'the thermal efficiency itself (PROP_HX_25) has no setter
+                            writable.AddRange(New Integer() {0, 28, 29, 32, 33})
+                        Case HeatExchangerCalcMode.OutletVaporFraction1
+                            writable.AddRange(New Integer() {1, 28, 29, 30, 32, 33})
+                        Case HeatExchangerCalcMode.OutletVaporFraction2
+                            writable.AddRange(New Integer() {1, 28, 29, 31, 32, 33})
+                        Case HeatExchangerCalcMode.ShellandTube_Rating
+                            'the geometry gives the area, U and the pressure drops; the design and test
+                            'pressures and temperatures (37 to 42) are recalculated from the inlets.
+                            For i = 5 To 16
+                                writable.Add(i)
+                            Next
+                            writable.AddRange(New Integer() {28, 29, 35, 36, 43, 44, 45, 46, 47, 48})
+                        Case HeatExchangerCalcMode.ShellandTube_CalcFoulingFactor
+                            'the outlet temperatures are specified and the overall fouling is the
+                            'result, so the shell and tube fouling factors (6, 13) are not read.
+                            writable.AddRange(New Integer() {3, 4, 5, 7, 8, 9, 10, 11, 12, 14, 15, 16})
+                            writable.AddRange(New Integer() {28, 29, 35, 36, 43, 44, 45, 46, 47, 48})
+                    End Select
+                    For Each i In writable
                         proplist.Add("PROP_HX_" + CStr(i))
                     Next
                 Case PropertyType.ALL

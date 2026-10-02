@@ -1567,15 +1567,38 @@ Namespace UnitOperations
                     proplist.Add("RotationSpeed")
                     proplist.Add("PressureRatio")
                 Case PropertyType.WR
-                    For i = 0 To 1
-                        proplist.Add("PROP_CO_" + CStr(i))
-                    Next
-                    proplist.Add("PROP_CO_3")
-                    proplist.Add("PROP_CO_4")
-                    proplist.Add("AdiabaticHead")
-                    proplist.Add("PolytropicHead")
-                    proplist.Add("RotationSpeed")
-                    proplist.Add("PressureRatio")
+                    'only the inputs the active calculation mode reads; Calculate overwrites the others.
+                    'the efficiency of the selected process path is read in every mode (the adiabatic
+                    'one is recalculated from the polytropic one on the polytropic path), except in
+                    'Curves mode when an efficiency curve supplies it.
+                    Dim polytropic As Boolean = (ProcessPath = ProcessPathType.Polytropic)
+                    Dim efficiency As String = If(polytropic, "PolytropicEfficiency", "PROP_CO_1")
+                    Select Case CalcMode
+                        Case CalculationMode.OutletPressure
+                            proplist.Add(efficiency)
+                            proplist.Add("PROP_CO_4")
+                        Case CalculationMode.Delta_P
+                            proplist.Add("PROP_CO_0")
+                            proplist.Add(efficiency)
+                        Case CalculationMode.PressureRatio
+                            proplist.Add(efficiency)
+                            proplist.Add("PressureRatio")
+                        Case CalculationMode.PowerRequired
+                            proplist.Add(efficiency)
+                            proplist.Add("PROP_CO_3")
+                        Case CalculationMode.EnergyStream
+                            'the power comes from the energy stream
+                            proplist.Add(efficiency)
+                        Case CalculationMode.Head
+                            proplist.Add(efficiency)
+                            proplist.Add(If(polytropic, "PolytropicHead", "AdiabaticHead"))
+                        Case CalculationMode.Curves
+                            'the head (or the power) comes from the curves at the rotation speed
+                            Dim effcurve As Boolean = Curves IsNot Nothing AndAlso
+                                Curves.Values.Any(Function(c) c.ContainsKey("EFF") AndAlso c("EFF").Enabled AndAlso c("EFF").x.Count > 0)
+                            If Not effcurve Then proplist.Add(efficiency)
+                            proplist.Add("RotationSpeed")
+                    End Select
                 Case PropertyType.ALL
                     For i = 0 To 4
                         proplist.Add("PROP_CO_" + CStr(i))

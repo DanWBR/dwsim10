@@ -672,7 +672,12 @@ Namespace Reactors
         Public Overrides Function GetProperties(proptype As PropertyType) As String()
             Dim baseprops = MyBase.GetProperties(proptype)
             Select Case proptype
-                Case PropertyType.WR : Return _inputProps
+                Case PropertyType.WR
+                    'only the inputs the sand mode reads: the char combustor ones belong to the
+                    'internal combustor loop.
+                    If SandMode = CFBSandMode.InternalCharCombustor Then Return _inputProps
+                    Dim combustor As String() = {"Char LHV", "Char Combustor Excess Air", "Char Combustor Heat Loss"}
+                    Return _inputProps.Where(Function(p) Not combustor.Contains(p)).ToArray()
                 Case PropertyType.RO : Return _outputProps
                 Case Else : Return _inputProps.Concat(_outputProps).Concat(baseprops).ToArray()
             End Select

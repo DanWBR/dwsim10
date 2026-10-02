@@ -1849,11 +1849,66 @@ Namespace Reactors
             "Outlet Temperature"
         }
 
+        ''' <summary>
+        ''' The inputs the active kinetic model and operating mode do not read. The writable list
+        ''' leaves them out, since Calculate would ignore any value given to them.
+        ''' </summary>
+        Private Function UnusedInputs() As HashSet(Of String)
+
+            Dim unused As New HashSet(Of String)
+
+            'the batch duration is the integration time of the batch and fed-batch modes only
+            If OperatingMode = BioReactorMode.Continuous Then unused.Add("Batch Duration")
+
+            Dim growth As String() = {"Heat per mol O2", "Aerobic", "Biomass Compound", "Oxygen Compound",
+                                      "CO2 Compound", "Nitrogen Source Compound", "Sulfur Source Compound",
+                                      "Max Specific Growth Rate", "Saturation Constant", "Inhibition Constant",
+                                      "Moser Exponent", "Biomass Yield on Substrate", "Product Yield on Substrate",
+                                      "Maintenance Coefficient", "Death Rate Constant",
+                                      "Volumetric Oxygen Transfer Coefficient", "Dissolved Oxygen Saturation",
+                                      "User Kinetics Script Name"}
+            Dim hydrolysis As String() = {"Hemicellulose Compound", "Xylose Compound", "Enzyme Compound",
+                                          "EH Cellulose Rate Constant", "EH Hemicellulose Rate Constant",
+                                          "EH Glucose Inhibition Constant", "EH Xylose Inhibition Constant",
+                                          "EH Enzyme Loading", "EH Heat Per Gram Product"}
+
+            If KineticModel = BioKineticModel.EnzymaticHydrolysis Then
+                'no microbial growth: the hydrolysis path has its own roles and rate constants
+                unused.UnionWith(growth)
+                Return unused
+            End If
+
+            unused.UnionWith(hydrolysis)
+
+            'the metabolic heat follows the oxygen uptake, and the aeration inputs only matter
+            'for an aerobic culture
+            If Not IsAerobic Then
+                unused.UnionWith({"Heat per mol O2", "Oxygen Compound",
+                                  "Volumetric Oxygen Transfer Coefficient", "Dissolved Oxygen Saturation"})
+            End If
+
+            'the growth rate constants each model reads; a user script is handed mu_max, Ks and Ki
+            Select Case KineticModel
+                Case BioKineticModel.Monod, BioKineticModel.Contois
+                    unused.UnionWith({"Inhibition Constant", "Moser Exponent", "User Kinetics Script Name"})
+                Case BioKineticModel.Moser
+                    unused.UnionWith({"Inhibition Constant", "User Kinetics Script Name"})
+                Case BioKineticModel.Haldane
+                    unused.UnionWith({"Moser Exponent", "User Kinetics Script Name"})
+                Case BioKineticModel.UserScript
+                    unused.Add("Moser Exponent")
+            End Select
+
+            Return unused
+
+        End Function
+
         Public Overrides Function GetProperties(proptype As PropertyType) As String()
             Dim baseprops = MyBase.GetProperties(proptype)
             Select Case proptype
                 Case PropertyType.WR
-                    Return _inputProps
+                    Dim unused = UnusedInputs()
+                    Return _inputProps.Where(Function(p) Not unused.Contains(p)).ToArray()
                 Case PropertyType.RO
                     Return _outputProps
                 Case Else

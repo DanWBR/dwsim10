@@ -913,7 +913,22 @@ Namespace UnitOperations
                         proplist.Add("PROP_CL_" + CStr(i))
                     Next
                 Case PropertyType.WR
-                    For i = 0 To 5
+                    'only the inputs the active calculation mode reads; Calculate overwrites the others.
+                    'the pressure drop and the efficiency are read in every mode.
+                    Dim writable As New List(Of Integer) From {0, 1}
+                    Select Case CalcMode
+                        Case CalculationMode.HeatRemoved
+                            writable.Add(3)
+                        Case CalculationMode.OutletTemperature
+                            writable.Add(2)
+                        Case CalculationMode.OutletVaporFraction
+                            writable.Add(4)
+                        Case CalculationMode.TemperatureChange
+                            writable.Add(5)
+                        Case CalculationMode.EnergyStream
+                            'the duty comes from the energy stream
+                    End Select
+                    For Each i In writable
                         proplist.Add("PROP_CL_" + CStr(i))
                     Next
                 Case PropertyType.ALL
