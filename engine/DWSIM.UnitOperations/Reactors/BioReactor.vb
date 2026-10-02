@@ -55,7 +55,8 @@ Namespace Reactors
 
     ''' <summary>Defines the operation mode of the BioReactor.</summary>
     Public Enum BioReactorMode
-        ''' <summary>Continuous operation (steady-state CSTR).</summary>
+        ''' <summary>Continuous operation (steady-state CSTR): the broth in the vessel has the outlet
+        ''' composition and the balances are solved at the dilution rate D = Q/V.</summary>
         Continuous = 0
         ''' <summary>Batch operation - inlet feed represents initial charge; residence time is batch duration.</summary>
         Batch = 1
@@ -232,7 +233,8 @@ Namespace Reactors
         ''' <summary>Final product concentration at outlet (g/L).</summary>
         Public Property Result_P_gL As Double = 0.0
 
-        ''' <summary>Average specific growth rate during integration (1/h).</summary>
+        ''' <summary>Average specific growth rate during integration (1/h). In Continuous mode, the
+        ''' specific growth rate of the steady-state broth.</summary>
         Public Property Result_Mu_h As Double = 0.0
 
         ''' <summary>Oxygen uptake rate (g O2 / L / h).</summary>
@@ -372,6 +374,215 @@ Namespace Reactors
                 FlowSheet.ShowMessage("BioReactor user kinetic script error: " & ex.Message, IFlowsheet.MessageType.GeneralError)
                 Return 0.0
             End Try
+
+        End Function
+
+        ''' <summary>
+        ''' Biomass balance residual of the steady-state CSTR at a trial substrate level S (g/L).
+        ''' X and P come from the substrate and product balances,
+        '''   X = D (S_in - S) / (mu/Yxs + ms),   P = P_in + (Yps mu/Yxs) X / D,
+        ''' iterated to a fixed point when mu depends on X or P (Contois, user script); X and Px
+        ''' come in holding the starting values and go out holding the solution. Returns
+        '''   g(S) = mu - kd - D + D X_in / X   (1/s),
+        ''' the biomass balance divided by X. Dividing by X takes out the washout root X = 0, so
+        ''' g = 0 only at a steady state where the culture grows.
+        ''' </summary>
+        Private Function ChemostatResidual(S As Double, Sin As Double, Xin As Double, Pin As Double,
+                                           D As Double, T As Double, P As Double,
+                                           ByRef X As Double, ByRef Px As Double, ByRef mu As Double) As Double
+
+            Dim Y = Max(YieldXS, 0.000000000001)
+            Dim kd = DeathRate_h / 3600.0
+            Dim ms = Maintenance_gSg_cellh / 3600.0
+            Dim coupled = (KineticModel = BioKineticModel.Contois OrElse KineticModel = BioKineticModel.UserScript)
+
+            mu = ComputeMu(S, X, Px, T, P)
+            For iter As Integer = 1 To 200
+                Dim qS = Max(mu / Y + ms, 1.0E-300)
+                Dim Xn = D * (Sin - S) / qS
+                Dim Pn = Pin
+                If YieldPS > 0.0 Then Pn = Pin + YieldPS * mu / Y * Xn / D
+                Dim dXn = Abs(Xn - X)
+                Dim dPn = Abs(Pn - Px)
+                X = Xn
+                Px = Pn
+                If Not coupled Then Exit For
+                mu = ComputeMu(S, X, Px, T, P)
+                If dXn <= 0.000000000001 * (1.0 + X) AndAlso dPn <= 0.000000000001 * (1.0 + Px) Then Exit For
+            Next
+
+            If X > 0.0 Then
+                Return mu - kd - D + D * Xin / X
+            ElseIf Xin > 0.0 Then
+                Return Double.MaxValue
+            Else
+                Return mu - kd - D
+            End If
+
+        End Function
+
+        ''' <summary>
+        ''' Substrate level (g/L) of the sterile-feed chemostat without maintenance, from
+        ''' mu(S) = D + kd: the starting point for the Newton iteration. NaN when the culture
+        ''' cannot reach that growth rate at any substrate level.
+        ''' </summary>
+        Private Function ChemostatInitialGuess(Sin As Double, D As Double) As Double
+
+            Dim r = D + DeathRate_h / 3600.0
+            Dim muMaxSI = MuMax_h / 3600.0
+            If muMaxSI <= r Then Return Double.NaN
+
+            Select Case KineticModel
+                Case BioKineticModel.Moser
+                    Return Ks_gL * Pow(r / (muMaxSI - r), 1.0 / MoserN)
+                Case BioKineticModel.Haldane
+                    ' r S^2/Ki + (r - mu_max) S + r Ks = 0; the lower root is the stable branch,
+                    ' written as 2c/(-b + sqrt(disc)) so a large Ki does not cancel it away
+                    Dim a = r / Max(Ki_gL, 0.000000000001)
+                    Dim b = r - muMaxSI
+                    Dim c = r * Ks_gL
+                    Dim disc = b * b - 4.0 * a * c
+                    If disc < 0.0 Then Return Double.NaN
+                    Return 2.0 * c / (-b + Sqrt(disc))
+                Case BioKineticModel.Contois
+                    ' S = Ks X r / (mu_max - r) with X = Yxs (S_in - S)
+                    Dim f = Ks_gL * r / (muMaxSI - r) * YieldXS
+                    Return f * Sin / (1.0 + f)
+                Case Else
+                    ' Monod closed form, also the start for user scripts
+                    Return Ks_gL * r / (muMaxSI - r)
+            End Select
+
+        End Function
+
+        ''' <summary>
+        ''' Steady state of the continuous stirred bioreactor (chemostat) at dilution rate D = Q/V
+        ''' (1/s), with inlet concentrations Sin, Xin, Pin (g/L):
+        '''   0 = D (S_in - S) - (mu/Yxs + ms) X
+        '''   0 = D (X_in - X) + (mu - kd) X
+        '''   0 = D (P_in - P) + (Yps mu/Yxs) X
+        ''' X and P are eliminated through ChemostatResidual, leaving one equation g(S) = 0 on
+        ''' 0 &lt; S &lt; S_in. Newton starts from the closed-form sterile-feed solution and is
+        ''' accepted on a rising branch of g (dg/dS &gt; 0, the stable steady state). Otherwise a
+        ''' log-spaced scan takes the lowest crossing of g from negative to positive, refined by
+        ''' regula falsi. Returns "Growth", "Washout" (sterile feed and D above the growth the
+        ''' feed can sustain: the broth leaves with the feed composition), "SubstrateLimited"
+        ''' (the inflowing cells demand more substrate than the feed carries) or "NoReaction".
+        ''' </summary>
+        Private Function SolveChemostat(Sin As Double, Xin As Double, Pin As Double, D As Double,
+                                        T As Double, P As Double,
+                                        ByRef S As Double, ByRef X As Double, ByRef Px As Double,
+                                        ByRef mu As Double) As String
+
+            S = Sin : X = Xin : Px = Pin : mu = 0.0
+            If Sin <= 0.000000000001 OrElse D <= 0.0 Then Return "NoReaction"
+
+            Dim Y = Max(YieldXS, 0.000000000001)
+            Dim kd = DeathRate_h / 3600.0
+            Dim ms = Maintenance_gSg_cellh / 3600.0
+            Dim Slo = Sin * 0.0000000001
+            Dim Shi = Sin * (1.0 - 0.000000001)
+            Dim tolG = 0.0000000001 * (D + kd + Abs(MuMax_h / 3600.0))
+
+            ' Starting X and P for the fixed point inside the residual, refreshed after every
+            ' evaluation that returned a usable biomass level.
+            Dim Xw = Max(D * Sin / ((D + kd) / Y + ms), Xin)
+            Dim Pw = Pin
+            Dim Xc, Pc, muc As Double
+            Dim resid As Func(Of Double, Double) =
+                Function(St As Double) As Double
+                    Xc = Xw
+                    Pc = Pw
+                    Dim g = ChemostatResidual(St, Sin, Xin, Pin, D, T, P, Xc, Pc, muc)
+                    If Xc > 0.0 AndAlso Xc < 1.0E+30 Then
+                        Xw = Xc
+                        Pw = Pc
+                    End If
+                    Return g
+                End Function
+
+            ' 1. Newton on g(S) from the closed-form solution.
+            Dim Sg = ChemostatInitialGuess(Sin, D)
+            If Double.IsNaN(Sg) OrElse Double.IsInfinity(Sg) Then Sg = 0.5 * Shi
+            Sg = Min(Max(Sg, Slo), Shi)
+            Dim converged As Boolean = False
+            For iter As Integer = 1 To 50
+                Dim g = resid(Sg)
+                If Double.IsNaN(g) OrElse Double.IsInfinity(g) Then Exit For
+                Dim h = 0.000001 * Max(Sg, 0.000001 * Sin)
+                Dim Sh = If(Sg + h < Shi, Sg + h, Sg - h)
+                Dim gp = (resid(Sh) - g) / (Sh - Sg)
+                If Abs(g) <= tolG AndAlso gp > 0.0 Then
+                    converged = True
+                    Exit For
+                End If
+                If Not (gp > 0.0) OrElse Double.IsInfinity(gp) Then Exit For
+                Dim Sn = Sg - g / gp
+                If Sn <= Slo Then
+                    Sn = Max(0.1 * Sg, Slo)
+                ElseIf Sn >= Shi Then
+                    Sn = 0.5 * (Sg + Shi)
+                End If
+                Sg = Sn
+            Next
+            If converged Then
+                resid.Invoke(Sg)
+                S = Sg : X = Xc : Px = Pc : mu = muc
+                Return "Growth"
+            End If
+
+            ' 2. Bounded search. With Haldane kinetics g crosses zero twice; the upper crossing
+            ' is the unstable steady state, so take the lowest crossing from below.
+            Const nGrid As Integer = 60
+            Dim grid(nGrid - 1) As Double
+            Dim gGrid(nGrid - 1) As Double
+            For i As Integer = 0 To nGrid - 1
+                grid(i) = Slo * Pow(Shi / Slo, i / (nGrid - 1.0))
+                gGrid(i) = resid(grid(i))
+            Next
+            If gGrid(0) > 0.0 Then
+                S = 0.0 : X = D * Xin / (D + kd) : Px = Pin : mu = 0.0
+                Return "SubstrateLimited"
+            End If
+            Dim ia As Integer = -1
+            For i As Integer = 0 To nGrid - 2
+                If gGrid(i) <= 0.0 AndAlso gGrid(i + 1) > 0.0 Then
+                    ia = i
+                    Exit For
+                End If
+            Next
+            If ia < 0 Then
+                S = Sin : X = Xin : Px = Pin : mu = 0.0
+                Return "Washout"
+            End If
+
+            ' Regula falsi (Illinois) inside the bracket.
+            Dim sa = grid(ia), sb = grid(ia + 1)
+            Dim ga = gGrid(ia), gb = gGrid(ia + 1)
+            Dim sc As Double = sa
+            Dim side As Integer = 0
+            For iter As Integer = 1 To 200
+                If gb < 1.0E+299 AndAlso gb - ga > 0.0 Then
+                    sc = (sa * gb - sb * ga) / (gb - ga)
+                Else
+                    sc = 0.5 * (sa + sb)
+                End If
+                If Not (sc > sa AndAlso sc < sb) Then sc = 0.5 * (sa + sb)
+                Dim gc = resid(sc)
+                If gc <= 0.0 Then
+                    sa = sc : ga = gc
+                    If side = -1 Then gb *= 0.5
+                    side = -1
+                Else
+                    sb = sc : gb = gc
+                    If side = 1 Then ga *= 0.5
+                    side = 1
+                End If
+                If Abs(gc) <= tolG OrElse (sb - sa) <= 0.0000000000001 * sb Then Exit For
+            Next
+            resid.Invoke(sc)
+            S = sc : X = Xc : Px = Pc : mu = muc
+            Return "Growth"
 
         End Function
 
@@ -718,7 +929,9 @@ Namespace Reactors
             ' Integration time and "effective" volumetric flow used to convert the integrated
             ' concentration changes (g/L) back into mass-flow deltas (kg/s).
             '
-            '  Continuous : Q_eff = Q_liquid (the inlet volumetric flow); tau = V/Q (HRT)
+            '  Continuous : Q_eff = Q_liquid (the inlet volumetric flow); tau = V/Q (HRT). Nothing
+            '               is integrated: the outlet is the steady state of the stirred vessel
+            '               at D = 1/tau (SolveChemostat).
             '  Batch      : Q_eff = V/BatchDuration (cycle-averaged equivalent volumetric flow,
             '               as if the reactor processed one V-volume charge every BatchDuration
             '               seconds and discharged it instantly); tau = BatchDuration
@@ -775,95 +988,140 @@ Namespace Reactors
             ' --- Trajectory capture ---
             Dim traj As New BioReactorTrajectoryResult() With {.Mode = "Growth"}
             LastTrajectory = traj
-            Dim nStepsExpected = Max(1, CInt(Math.Ceiling(tau / Max(dt, 0.000000000001))))
-            Dim sampleInterval As Integer = Max(1, nStepsExpected \ 500)
-            Dim maxSamples As Integer = 2000
-            Dim stepCount As Integer = 0
 
-            ' Initial sample
-            traj.Times.Add(0.0)
-            traj.X.Add(X) : traj.S.Add(S) : traj.P.Add(Px)
-            Dim mu0 = ComputeMu(S, X, Px, T, P)
-            traj.Mu.Add(mu0 * 3600.0)
-            Dim qS0 = (mu0 / Max(YieldXS, 0.000000000001) + ms_SI) * 3600.0
-            traj.qS.Add(qS0)
-            Dim qP0 = If(YieldPS > 0.0, YieldPS * mu0 / Max(YieldXS, 0.000000000001) * 3600.0, 0.0)
-            traj.qP.Add(qP0)
-            traj.OUR.Add(0.0) : traj.CER.Add(0.0) : traj.RQ.Add(0.0)
+            If OperatingMode = BioReactorMode.Continuous Then
 
-            While tt < tau
-                Dim h = Min(dt, tau - tt)
+                ' Steady-state CSTR (chemostat). The broth in a stirred vessel has the outlet
+                ' composition, so the balances are algebraic at the dilution rate D = Q/V:
+                '   0 = D (S_in - S) - (mu/Yxs + ms) X
+                '   0 = D (X_in - X) + (mu - kd) X
+                '   0 = D (P_in - P) + (Yps mu/Yxs) X
+                Dim regime = SolveChemostat(S0, X0, P0c, Q_liquid / Volume, T, P, S, X, Px, muAvg)
+                Select Case regime
+                    Case "Washout"
+                        FlowSheet.ShowMessage(String.Format(
+                            "BioReactor '{0}': washout. The dilution rate Q/V ({1:G4} 1/h) is above the net growth rate the culture can reach at the feed substrate level, and the feed carries no cells, so the broth leaves with the feed composition.",
+                            Me.GraphicObject.Tag, Q_liquid / Volume * 3600.0),
+                            IFlowsheet.MessageType.Warning)
+                    Case "SubstrateLimited"
+                        FlowSheet.ShowMessage(String.Format(
+                            "BioReactor '{0}': the cells entering with the feed need more substrate for maintenance than the feed carries. The substrate is used up and the biomass only decays.",
+                            Me.GraphicObject.Tag),
+                            IFlowsheet.MessageType.Warning)
+                End Select
 
-                Dim mu = ComputeMu(S, X, Px, T, P)
-                Dim rX = (mu - kd_SI) * X           ' g/L/s
-                Dim qS = mu / Max(YieldXS, 0.000000000001) + ms_SI ' g S / g X / s
-                Dim rS = -qS * X
-                Dim qP = 0.0
-                If YieldPS > 0.0 Then qP = YieldPS * mu / Max(YieldXS, 0.000000000001)
-                Dim rP = qP * X
+                ' Net concentration changes across the vessel. These are the same totals the
+                ' batch integration accumulates, so everything below is shared by all modes.
+                integrated_rS_total = S0 - S
+                integrated_rX_total = X - X0
+                integrated_rP_total = Px - P0c
+                integrated_S_Cmol_total = integrated_rS_total / MW_S * subsComp.C
 
-                ' Forward Euler step (simple, robust)
-                Dim dX = rX * h
-                Dim dS = rS * h
-                Dim dP = rP * h
+                ' The vessel is uniform, so the profile over one residence time is flat. OUR,
+                ' CER and RQ are filled in once the stoichiometry is known.
+                Dim qS_ss = (muAvg / Max(YieldXS, 0.000000000001) + ms_SI) * 3600.0
+                Dim qP_ss = If(YieldPS > 0.0, YieldPS * muAvg / Max(YieldXS, 0.000000000001) * 3600.0, 0.0)
+                For Each tSample As Double In New Double() {0.0, tau}
+                    traj.Times.Add(tSample)
+                    traj.X.Add(X) : traj.S.Add(S) : traj.P.Add(Px)
+                    traj.Mu.Add(muAvg * 3600.0)
+                    traj.qS.Add(qS_ss) : traj.qP.Add(qP_ss)
+                    traj.OUR.Add(0.0) : traj.CER.Add(0.0) : traj.RQ.Add(0.0)
+                Next
 
-                ' Take the realised deltas, not the ones the rate laws asked for: a state that
-                ' hits its floor must stop contributing to the totals, or the reactor keeps
-                ' charging itself for substrate the broth no longer holds.
-                Dim Xn = Max(X + dX, 0.0)
-                Dim Sn = Max(S + dS, 0.0)
-                Dim Pn = Max(Px + dP, 0.0)
-                dX = Xn - X
-                dS = Sn - S
-                dP = Pn - Px
-                X = Xn : S = Sn : Px = Pn
+            Else
 
-                ' Track cumulative metabolic fluxes (g/L total over the integration).
-                ' delta(S) in C-mol/L:
-                Dim dS_Cmol_per_L = (-dS) / MW_S * subsComp.C ' g/L -> mol/L -> C-mol/L
-                integrated_rS_total += -dS ' g/L consumed (positive)
-                integrated_rX_total += dX
-                integrated_rP_total += dP
-                integrated_S_Cmol_total += dS_Cmol_per_L
+                Dim nStepsExpected = Max(1, CInt(Math.Ceiling(tau / Max(dt, 0.000000000001))))
+                Dim sampleInterval As Integer = Max(1, nStepsExpected \ 500)
+                Dim maxSamples As Integer = 2000
+                Dim stepCount As Integer = 0
 
-                muAccum += mu * h
-                tAccum += h
-                tt += h
-                stepCount += 1
+                ' Initial sample
+                traj.Times.Add(0.0)
+                traj.X.Add(X) : traj.S.Add(S) : traj.P.Add(Px)
+                Dim mu0 = ComputeMu(S, X, Px, T, P)
+                traj.Mu.Add(mu0 * 3600.0)
+                Dim qS0 = (mu0 / Max(YieldXS, 0.000000000001) + ms_SI) * 3600.0
+                traj.qS.Add(qS0)
+                Dim qP0 = If(YieldPS > 0.0, YieldPS * mu0 / Max(YieldXS, 0.000000000001) * 3600.0, 0.0)
+                traj.qP.Add(qP0)
+                traj.OUR.Add(0.0) : traj.CER.Add(0.0) : traj.RQ.Add(0.0)
 
-                ' Sample capture (respecting cap)
-                If traj.Times.Count < maxSamples AndAlso (stepCount Mod sampleInterval = 0) Then
-                    Dim ourInst = aa * ((qS * X) / Max(MW_S, 0.000000000001)) * subsComp.C * MW_O2 * 3600.0 ' g O2/L/h (approx via consumed rate)
-                    Dim cerInst = cc * ((qS * X) / Max(MW_S, 0.000000000001)) * subsComp.C * MW_CO2 * 3600.0 ' g CO2/L/h
-                    Dim rqInst As Double = 0.0
-                    If ourInst > 0.000000001 Then rqInst = (cerInst / MW_CO2) / (ourInst / MW_O2)
+                While tt < tau
+                    Dim h = Min(dt, tau - tt)
+
+                    Dim mu = ComputeMu(S, X, Px, T, P)
+                    Dim rX = (mu - kd_SI) * X           ' g/L/s
+                    Dim qS = mu / Max(YieldXS, 0.000000000001) + ms_SI ' g S / g X / s
+                    Dim rS = -qS * X
+                    Dim qP = 0.0
+                    If YieldPS > 0.0 Then qP = YieldPS * mu / Max(YieldXS, 0.000000000001)
+                    Dim rP = qP * X
+
+                    ' Forward Euler step (simple, robust)
+                    Dim dX = rX * h
+                    Dim dS = rS * h
+                    Dim dP = rP * h
+
+                    ' Take the realised deltas, not the ones the rate laws asked for: a state that
+                    ' hits its floor must stop contributing to the totals, or the reactor keeps
+                    ' charging itself for substrate the broth no longer holds.
+                    Dim Xn = Max(X + dX, 0.0)
+                    Dim Sn = Max(S + dS, 0.0)
+                    Dim Pn = Max(Px + dP, 0.0)
+                    dX = Xn - X
+                    dS = Sn - S
+                    dP = Pn - Px
+                    X = Xn : S = Sn : Px = Pn
+
+                    ' Track cumulative metabolic fluxes (g/L total over the integration).
+                    ' delta(S) in C-mol/L:
+                    Dim dS_Cmol_per_L = (-dS) / MW_S * subsComp.C ' g/L -> mol/L -> C-mol/L
+                    integrated_rS_total += -dS ' g/L consumed (positive)
+                    integrated_rX_total += dX
+                    integrated_rP_total += dP
+                    integrated_S_Cmol_total += dS_Cmol_per_L
+
+                    muAccum += mu * h
+                    tAccum += h
+                    tt += h
+                    stepCount += 1
+
+                    ' Sample capture (respecting cap)
+                    If traj.Times.Count < maxSamples AndAlso (stepCount Mod sampleInterval = 0) Then
+                        Dim ourInst = aa * ((qS * X) / Max(MW_S, 0.000000000001)) * subsComp.C * MW_O2 * 3600.0 ' g O2/L/h (approx via consumed rate)
+                        Dim cerInst = cc * ((qS * X) / Max(MW_S, 0.000000000001)) * subsComp.C * MW_CO2 * 3600.0 ' g CO2/L/h
+                        Dim rqInst As Double = 0.0
+                        If ourInst > 0.000000001 Then rqInst = (cerInst / MW_CO2) / (ourInst / MW_O2)
+                        traj.Times.Add(tt)
+                        traj.X.Add(X) : traj.S.Add(S) : traj.P.Add(Px)
+                        traj.Mu.Add(mu * 3600.0)
+                        traj.qS.Add(qS * 3600.0)
+                        traj.qP.Add(qP * 3600.0)
+                        traj.OUR.Add(If(IsAerobic, ourInst, 0.0))
+                        traj.CER.Add(cerInst)
+                        traj.RQ.Add(rqInst)
+                        ' Geometric fallback if sample count would exceed cap
+                        If traj.Times.Count >= maxSamples \ 2 Then
+                            sampleInterval = Max(sampleInterval, sampleInterval * 2)
+                        End If
+                    End If
+                End While
+
+                ' Final sample
+                If traj.Times.Count = 0 OrElse traj.Times(traj.Times.Count - 1) < tt - 0.000000001 Then
                     traj.Times.Add(tt)
                     traj.X.Add(X) : traj.S.Add(S) : traj.P.Add(Px)
-                    traj.Mu.Add(mu * 3600.0)
-                    traj.qS.Add(qS * 3600.0)
-                    traj.qP.Add(qP * 3600.0)
-                    traj.OUR.Add(If(IsAerobic, ourInst, 0.0))
-                    traj.CER.Add(cerInst)
-                    traj.RQ.Add(rqInst)
-                    ' Geometric fallback if sample count would exceed cap
-                    If traj.Times.Count >= maxSamples \ 2 Then
-                        sampleInterval = Max(sampleInterval, sampleInterval * 2)
-                    End If
+                    Dim muF = ComputeMu(S, X, Px, T, P)
+                    traj.Mu.Add(muF * 3600.0)
+                    traj.qS.Add((muF / Max(YieldXS, 0.000000000001) + ms_SI) * 3600.0)
+                    traj.qP.Add(If(YieldPS > 0.0, YieldPS * muF / Max(YieldXS, 0.000000000001) * 3600.0, 0.0))
+                    traj.OUR.Add(0.0) : traj.CER.Add(0.0) : traj.RQ.Add(0.0)
                 End If
-            End While
 
-            ' Final sample
-            If traj.Times.Count = 0 OrElse traj.Times(traj.Times.Count - 1) < tt - 0.000000001 Then
-                traj.Times.Add(tt)
-                traj.X.Add(X) : traj.S.Add(S) : traj.P.Add(Px)
-                Dim muF = ComputeMu(S, X, Px, T, P)
-                traj.Mu.Add(muF * 3600.0)
-                traj.qS.Add((muF / Max(YieldXS, 0.000000000001) + ms_SI) * 3600.0)
-                traj.qP.Add(If(YieldPS > 0.0, YieldPS * muF / Max(YieldXS, 0.000000000001) * 3600.0, 0.0))
-                traj.OUR.Add(0.0) : traj.CER.Add(0.0) : traj.RQ.Add(0.0)
+                If tAccum > 0 Then muAvg = muAccum / tAccum
+
             End If
-
-            If tAccum > 0 Then muAvg = muAccum / tAccum
 
             ' -------------------------------------------------------
             ' Re-solve the stoichiometry on the yields the integration actually realised.
@@ -905,6 +1163,13 @@ Namespace Reactors
                 Result_RQ = (Result_CER_gLh / MW_CO2) / (Result_OUR_gLh / MW_O2)
             Else
                 Result_RQ = 0.0
+            End If
+            If OperatingMode = BioReactorMode.Continuous Then
+                For i As Integer = 0 To traj.Times.Count - 1
+                    traj.OUR(i) = If(IsAerobic, Result_OUR_gLh, 0.0)
+                    traj.CER(i) = Result_CER_gLh
+                    traj.RQ(i) = Result_RQ
+                Next
             End If
 
             ' -------------------------------------------------------
@@ -1214,45 +1479,87 @@ Namespace Reactors
             ' --- Trajectory capture ---
             Dim traj As New BioReactorTrajectoryResult() With {.Mode = "EnzymaticHydrolysis"}
             LastTrajectory = traj
-            Dim nStepsExpectedEH = Max(1, CInt(Math.Ceiling(tau / Max(dt, 0.000000000001))))
-            Dim sampleIntervalEH As Integer = Max(1, nStepsExpectedEH \ 500)
-            Dim maxSamplesEH As Integer = 2000
-            Dim stepCountEH As Integer = 0
-            traj.Times.Add(0.0)
-            traj.Cellulose.Add(Cc) : traj.Hemicellulose.Add(Ch)
-            traj.Glucose.Add(Cg) : traj.Xylose.Add(Cx)
 
-            While tt < tau
-                Dim h = Min(dt, tau - tt)
-                Dim inhib = 1.0 + Cg / Max(EH_KG_glucose_gL, 0.000000000001) +
-                            Cx / Max(EH_KX_xylose_gL, 0.000000000001)
-                Dim rC = k1_SI * E_gL * Cc / inhib ' g/L/s
-                Dim rH = k2_SI * E_gL * Ch / inhib
-                Dim dCc = -rC * h
-                Dim dCh = -rH * h
-                Cc = Max(Cc + dCc, 0.0)
-                Ch = Max(Ch + dCh, 0.0)
-                Cg += -dCc * 1.111  ' 180.16 / 162.14
-                Cx += -dCh * 1.1364 ' 150.13 / 132.12
-                sumRCell += -dCc
-                sumRHemi += -dCh
-                tt += h
-                stepCountEH += 1
+            If OperatingMode = BioReactorMode.Continuous Then
 
-                If traj.Times.Count < maxSamplesEH AndAlso (stepCountEH Mod sampleIntervalEH = 0) Then
+                ' Steady-state CSTR. With tau = V/Q the vessel balances give
+                '   Cc = Cc_in / (1 + k1 E tau / I),   Ch = Ch_in / (1 + k2 E tau / I)
+                ' where the inhibition factor I = 1 + G/K_G + Xyl/K_X is taken at the outlet
+                ' sugar levels. I grows with conversion and conversion falls with I, so
+                ' f(I) = I(conversion(I)) - I has a single root, bracketed by I at the feed
+                ' and I at full conversion; bisect on it.
+                Dim Cc0 = Cc, Ch0 = Ch, Cg0 = Cg, Cx0 = Cx
+                Dim KG = Max(EH_KG_glucose_gL, 0.000000000001)
+                Dim KX = Max(EH_KX_xylose_gL, 0.000000000001)
+                Dim a1 = k1_SI * E_gL * tau
+                Dim a2 = k2_SI * E_gL * tau
+                Dim ILo = 1.0 + Cg0 / KG + Cx0 / KX
+                Dim IHi = 1.0 + (Cg0 + 1.111 * Cc0) / KG + (Cx0 + 1.1364 * Ch0) / KX
+                For iter As Integer = 1 To 200
+                    Dim Im = 0.5 * (ILo + IHi)
+                    Dim fI = 1.0 + (Cg0 + 1.111 * (Cc0 - Cc0 / (1.0 + a1 / Im))) / KG +
+                             (Cx0 + 1.1364 * (Ch0 - Ch0 / (1.0 + a2 / Im))) / KX - Im
+                    If fI > 0.0 Then ILo = Im Else IHi = Im
+                    If IHi - ILo <= 0.00000000000001 * IHi Then Exit For
+                Next
+                Dim Iss = 0.5 * (ILo + IHi)
+                Cc = Cc0 / (1.0 + a1 / Iss)
+                Ch = Ch0 / (1.0 + a2 / Iss)
+                sumRCell = Cc0 - Cc
+                sumRHemi = Ch0 - Ch
+                Cg = Cg0 + 1.111 * sumRCell
+                Cx = Cx0 + 1.1364 * sumRHemi
+
+                ' The vessel is uniform, so the profile over one residence time is flat.
+                For Each tSample As Double In New Double() {0.0, tau}
+                    traj.Times.Add(tSample)
+                    traj.Cellulose.Add(Cc) : traj.Hemicellulose.Add(Ch)
+                    traj.Glucose.Add(Cg) : traj.Xylose.Add(Cx)
+                Next
+
+            Else
+
+                Dim nStepsExpectedEH = Max(1, CInt(Math.Ceiling(tau / Max(dt, 0.000000000001))))
+                Dim sampleIntervalEH As Integer = Max(1, nStepsExpectedEH \ 500)
+                Dim maxSamplesEH As Integer = 2000
+                Dim stepCountEH As Integer = 0
+                traj.Times.Add(0.0)
+                traj.Cellulose.Add(Cc) : traj.Hemicellulose.Add(Ch)
+                traj.Glucose.Add(Cg) : traj.Xylose.Add(Cx)
+
+                While tt < tau
+                    Dim h = Min(dt, tau - tt)
+                    Dim inhib = 1.0 + Cg / Max(EH_KG_glucose_gL, 0.000000000001) +
+                                Cx / Max(EH_KX_xylose_gL, 0.000000000001)
+                    Dim rC = k1_SI * E_gL * Cc / inhib ' g/L/s
+                    Dim rH = k2_SI * E_gL * Ch / inhib
+                    Dim dCc = -rC * h
+                    Dim dCh = -rH * h
+                    Cc = Max(Cc + dCc, 0.0)
+                    Ch = Max(Ch + dCh, 0.0)
+                    Cg += -dCc * 1.111  ' 180.16 / 162.14
+                    Cx += -dCh * 1.1364 ' 150.13 / 132.12
+                    sumRCell += -dCc
+                    sumRHemi += -dCh
+                    tt += h
+                    stepCountEH += 1
+
+                    If traj.Times.Count < maxSamplesEH AndAlso (stepCountEH Mod sampleIntervalEH = 0) Then
+                        traj.Times.Add(tt)
+                        traj.Cellulose.Add(Cc) : traj.Hemicellulose.Add(Ch)
+                        traj.Glucose.Add(Cg) : traj.Xylose.Add(Cx)
+                        If traj.Times.Count >= maxSamplesEH \ 2 Then
+                            sampleIntervalEH = Max(sampleIntervalEH, sampleIntervalEH * 2)
+                        End If
+                    End If
+                End While
+
+                If traj.Times.Count = 0 OrElse traj.Times(traj.Times.Count - 1) < tt - 0.000000001 Then
                     traj.Times.Add(tt)
                     traj.Cellulose.Add(Cc) : traj.Hemicellulose.Add(Ch)
                     traj.Glucose.Add(Cg) : traj.Xylose.Add(Cx)
-                    If traj.Times.Count >= maxSamplesEH \ 2 Then
-                        sampleIntervalEH = Max(sampleIntervalEH, sampleIntervalEH * 2)
-                    End If
                 End If
-            End While
 
-            If traj.Times.Count = 0 OrElse traj.Times(traj.Times.Count - 1) < tt - 0.000000001 Then
-                traj.Times.Add(tt)
-                traj.Cellulose.Add(Cc) : traj.Hemicellulose.Add(Ch)
-                traj.Glucose.Add(Cg) : traj.Xylose.Add(Cx)
             End If
 
             ' Mass flow changes (kg/s)
