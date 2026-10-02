@@ -1,8 +1,8 @@
 '    CFB Fast Pyrolysis - Ranzi Multi-Step Kinetic Scheme
-'    Simplified Ranzi et al. (2008) scheme for lignocellulosic biomass fast pyrolysis,
-'    expressed as three pseudo-components (cellulose, hemicellulose, lignin) going
-'    through activated intermediates to primary vapors, non-condensable gas and char,
-'    plus secondary vapor cracking.
+'    The CRECK-2014 scheme of the Ranzi group (Corbetta et al. 2013/2014) for lignocellulosic
+'    biomass fast pyrolysis, reduced to three pseudo-components (cellulose, hemicellulose,
+'    lignin) going through activated intermediates to primary vapors, non-condensable gas
+'    and char, plus secondary vapor cracking.
 '    Copyright 2026 Daniel Wagner O. de Medeiros
 '
 '    This file is part of DWSIM.
@@ -27,17 +27,17 @@ Namespace Reactors.CFBPyrolysis
         CELLA = 1
         ''' <summary>Native hemicellulose (solid reactant).</summary>
         HCE = 2
-        ''' <summary>Activated hemicellulose (solid intermediate).</summary>
+        ''' <summary>Activated hemicellulose, HCE1 of the CRECK scheme (solid intermediate).</summary>
         HCEA = 3
         ''' <summary>Native lignin (solid reactant).</summary>
         LIG = 4
-        ''' <summary>Activated lignin (solid intermediate).</summary>
+        ''' <summary>Activated lignin, LIGOH of the CRECK scheme (solid residue that leaves with the char).</summary>
         LIGA = 5
         ''' <summary>Char (solid final product).</summary>
         CHAR_S = 6
-        ''' <summary>Condensable primary vapors - bio-oil lump (gas phase).</summary>
+        ''' <summary>Condensable primary vapors and reaction water - bio-oil (total liquid) lump (gas phase).</summary>
         BIO_OIL = 7
-        ''' <summary>Non-condensable gas lump - CO/CO2/CH4/H2/H2O (gas phase).</summary>
+        ''' <summary>Non-condensable gas lump - CO/CO2/CH4/H2/C2H4 (gas phase).</summary>
         GAS = 8
     End Enum
 
@@ -57,12 +57,11 @@ Namespace Reactors.CFBPyrolysis
     End Class
 
     ''' <summary>
-    ''' Reduced Ranzi (2008) multi-step kinetic scheme for lignocellulose fast pyrolysis.
-    ''' Three pseudo-components (cellulose, hemicellulose, lignin) each follow a two-branch
-    ''' activation → {primary vapor vs. char+gas} path; primary vapors are then cracked to
-    ''' non-condensable gas at high temperature and vapor residence time.
-    ''' Parameters reflect the compact scheme used in Anca-Couce (2016) and Debiagi et al.
-    ''' (2018) biomass pyrolysis reviews, consistent with Ranzi et al. (2008).
+    ''' Multi-step kinetic scheme for lignocellulose fast pyrolysis: the CRECK-2014 scheme
+    ''' (Corbetta, Pierucci, Ranzi et al., Energy Fuels 28 (2014) 3884) reduced to nine species.
+    ''' Cellulose, hemicellulose and lignin go through activated intermediates to primary vapors,
+    ''' gas and char; primary vapors are then cracked to non-condensable gas at high temperature
+    ''' and vapor residence time.
     ''' </summary>
     Public Module RanziKinetics
 
@@ -80,103 +79,67 @@ Namespace Reactors.CFBPyrolysis
 
             Dim L As New List(Of PyroReaction)
 
-            ' --- CELLULOSE branch ---
-            ' 1. CELL -> CELLA  (activation)
-            L.Add(New PyroReaction() With {
-                .Name = "CELL_activation",
-                .Reactant = PyroSpecies.CELL,
+            ' Reduced CRECK-2014 primary pyrolysis scheme: Corbetta, Pierucci, Ranzi, Bennadji, Fisher (2013),
+            ' XXXVI Meeting of the Italian Section of the Combustion Institute, Table 1 (published as Corbetta
+            ' et al., Energy Fuels 28 (2014) 3884). Lumps: char, the trapped G{} species and LIGCC -> CHAR_S;
+            ' organics and reaction water -> BIO_OIL; CO, CO2, H2, CH4, C2H4 -> GAS. HCEA = HCE1, LIGA = LIGOH.
+            ' A*T pre-exponentials are folded at 773 K. Lignin split LIG-C/H/O = 6/7/9 (hardwood, Anca-Couce 2017).
+            ' DH is the H0R of the same table, J per kg of reactant (+ endothermic).
+
+            ' --- CELLULOSE ---
+            L.Add(New PyroReaction() With {.Name = "CELL_activation", .Reactant = PyroSpecies.CELL,
                 .ProductYields = New Dictionary(Of PyroSpecies, Double)() From {{PyroSpecies.CELLA, 1.0}},
-                .A = 0.00000000000004 * 0.0000000000000000000000000000000001 ' placeholder override below
-            })
-            ' Use explicit values to avoid precision loss in VB long literals
-            L(L.Count - 1).A = 40000000000000000.0         ' 4e16 1/s (Ranzi)
-            L(L.Count - 1).Ea_JmolK = 198000.0             ' 198 kJ/mol
-            L(L.Count - 1).DH_Jkg = 0.0
-
-            ' 2. CELLA -> BIO_OIL (primary vapors, high-T branch)
-            L.Add(New PyroReaction() With {
-                .Name = "CELLA_to_oil",
-                .Reactant = PyroSpecies.CELLA,
+                .A = 40000000000000.0, .Ea_JmolK = 188280.0, .DH_Jkg = 0.0})
+            L.Add(New PyroReaction() With {.Name = "CELLA_fragmentation", .Reactant = PyroSpecies.CELLA,
+                .ProductYields = New Dictionary(Of PyroSpecies, Double)() From {
+                    {PyroSpecies.BIO_OIL, 0.8605}, {PyroSpecies.GAS, 0.0948}, {PyroSpecies.CHAR_S, 0.0447}},
+                .A = 500000000.0, .Ea_JmolK = 121336.0, .DH_Jkg = 620000.0})
+            L.Add(New PyroReaction() With {.Name = "CELLA_to_levoglucosan", .Reactant = PyroSpecies.CELLA,
                 .ProductYields = New Dictionary(Of PyroSpecies, Double)() From {{PyroSpecies.BIO_OIL, 1.0}},
-                .A = 3300000000.0,                         ' 3.3e9 1/s
-                .Ea_JmolK = 125000.0,
-                .DH_Jkg = 255000.0                         ' +255 kJ/kg (endothermic)
-            })
-
-            ' 3. CELLA -> 0.35 CHAR + 0.65 GAS (low-T/char branch)
-            L.Add(New PyroReaction() With {
-                .Name = "CELLA_to_char_gas",
-                .Reactant = PyroSpecies.CELLA,
+                .A = 3783.0, .Ea_JmolK = 48268.3, .DH_Jkg = 364000.0})          ' 1.8*T exp(-10 kcal/RT)
+            L.Add(New PyroReaction() With {.Name = "CELL_to_char_water", .Reactant = PyroSpecies.CELL,
                 .ProductYields = New Dictionary(Of PyroSpecies, Double)() From {
-                    {PyroSpecies.CHAR_S, 0.35}, {PyroSpecies.GAS, 0.65}},
-                .A = 1300000000.0,                         ' 1.3e9 1/s
-                .Ea_JmolK = 150000.0,
-                .DH_Jkg = -20000.0                         ' -20 kJ/kg (mildly exothermic char formation)
-            })
+                    {PyroSpecies.CHAR_S, 0.4445}, {PyroSpecies.BIO_OIL, 0.5555}},
+                .A = 40000000.0, .Ea_JmolK = 129704.0, .DH_Jkg = -1913000.0})
 
-            ' --- HEMICELLULOSE branch ---
-            ' 4. HCE -> HCEA
-            L.Add(New PyroReaction() With {
-                .Name = "HCE_activation",
-                .Reactant = PyroSpecies.HCE,
-                .ProductYields = New Dictionary(Of PyroSpecies, Double)() From {{PyroSpecies.HCEA, 1.0}},
-                .A = 10000000000.0,                        ' 1e10 1/s
-                .Ea_JmolK = 129000.0,
-                .DH_Jkg = 0.0
-            })
-
-            ' 5. HCEA -> BIO_OIL
-            L.Add(New PyroReaction() With {
-                .Name = "HCEA_to_oil",
-                .Reactant = PyroSpecies.HCEA,
+            ' --- HEMICELLULOSE ---
+            L.Add(New PyroReaction() With {.Name = "HCE_activation", .Reactant = PyroSpecies.HCE,
+                .ProductYields = New Dictionary(Of PyroSpecies, Double)() From {
+                    {PyroSpecies.HCEA, 0.4}, {PyroSpecies.CHAR_S, 0.3576}, {PyroSpecies.BIO_OIL, 0.1652}, {PyroSpecies.GAS, 0.0772}},
+                .A = 3300000000.0, .Ea_JmolK = 129704.0, .DH_Jkg = 227200.0})   ' R5 + 0.6 x R9 (HCE2 decomposes with HCE)
+            L.Add(New PyroReaction() With {.Name = "HCEA_to_gas_char", .Reactant = PyroSpecies.HCEA,
+                .ProductYields = New Dictionary(Of PyroSpecies, Double)() From {
+                    {PyroSpecies.GAS, 0.3256}, {PyroSpecies.CHAR_S, 0.4126}, {PyroSpecies.BIO_OIL, 0.2618}},
+                .A = 1000000000.0, .Ea_JmolK = 133888.0, .DH_Jkg = -92000.0})
+            L.Add(New PyroReaction() With {.Name = "HCEA_to_char", .Reactant = PyroSpecies.HCEA,
+                .ProductYields = New Dictionary(Of PyroSpecies, Double)() From {
+                    {PyroSpecies.CHAR_S, 0.7183}, {PyroSpecies.GAS, 0.2302}, {PyroSpecies.BIO_OIL, 0.0515}},
+                .A = 105.08, .Ea_JmolK = 39900.3, .DH_Jkg = -1860000.0})        ' 0.05*T exp(-8 kcal/RT)
+            L.Add(New PyroReaction() With {.Name = "HCEA_to_xylan", .Reactant = PyroSpecies.HCEA,
                 .ProductYields = New Dictionary(Of PyroSpecies, Double)() From {{PyroSpecies.BIO_OIL, 1.0}},
-                .A = 3000000000.0,                         ' 3e9 1/s
-                .Ea_JmolK = 113000.0,
-                .DH_Jkg = 190000.0
-            })
+                .A = 1891.5, .Ea_JmolK = 52452.3, .DH_Jkg = 588000.0})          ' 0.9*T exp(-11 kcal/RT)
 
-            ' 6. HCEA -> 0.40 CHAR + 0.60 GAS
-            L.Add(New PyroReaction() With {
-                .Name = "HCEA_to_char_gas",
-                .Reactant = PyroSpecies.HCEA,
+            ' --- LIGNIN (LIG-C, LIG-H and LIG-O lumped) ---
+            L.Add(New PyroReaction() With {.Name = "LIG_activation", .Reactant = PyroSpecies.LIG,
                 .ProductYields = New Dictionary(Of PyroSpecies, Double)() From {
-                    {PyroSpecies.CHAR_S, 0.4}, {PyroSpecies.GAS, 0.6}},
-                .A = 1000000000.0,                         ' 1e9 1/s
-                .Ea_JmolK = 130000.0,
-                .DH_Jkg = -30000.0
-            })
-
-            ' --- LIGNIN branch (aggregated LIG-C/LIG-O/LIG-H) ---
-            ' 7. LIG -> LIGA
-            L.Add(New PyroReaction() With {
-                .Name = "LIG_activation",
-                .Reactant = PyroSpecies.LIG,
-                .ProductYields = New Dictionary(Of PyroSpecies, Double)() From {{PyroSpecies.LIGA, 1.0}},
-                .A = 1000000000.0,                         ' 1e9 1/s
-                .Ea_JmolK = 108000.0,
-                .DH_Jkg = 0.0
-            })
-
-            ' 8. LIGA -> 0.7 BIO_OIL + 0.3 CHAR
-            L.Add(New PyroReaction() With {
-                .Name = "LIGA_to_oil_char",
-                .Reactant = PyroSpecies.LIGA,
+                    {PyroSpecies.LIGA, 0.6423}, {PyroSpecies.CHAR_S, 0.2414}, {PyroSpecies.BIO_OIL, 0.0947}, {PyroSpecies.GAS, 0.0216}},
+                .A = 138880000000.0, .Ea_JmolK = 143390.1, .DH_Jkg = 80636.0})
+            L.Add(New PyroReaction() With {.Name = "LIGA_to_oil", .Reactant = PyroSpecies.LIGA,
                 .ProductYields = New Dictionary(Of PyroSpecies, Double)() From {
-                    {PyroSpecies.BIO_OIL, 0.7}, {PyroSpecies.CHAR_S, 0.3}},
-                .A = 100000000.0,                          ' 1e8 1/s
-                .Ea_JmolK = 125000.0,
-                .DH_Jkg = 150000.0
-            })
-
-            ' 9. LIGA -> GAS (slow alternative channel for high-T)
-            L.Add(New PyroReaction() With {
-                .Name = "LIGA_to_gas",
-                .Reactant = PyroSpecies.LIGA,
-                .ProductYields = New Dictionary(Of PyroSpecies, Double)() From {{PyroSpecies.GAS, 1.0}},
-                .A = 30000000.0,                           ' 3e7 1/s
-                .Ea_JmolK = 125000.0,
-                .DH_Jkg = 100000.0
-            })
+                    {PyroSpecies.BIO_OIL, 0.6415}, {PyroSpecies.CHAR_S, 0.3262}, {PyroSpecies.GAS, 0.0323}},
+                .A = 76317.0, .Ea_JmolK = 91713.2, .DH_Jkg = 257492.0})         ' LIGOH -> LIG -> FE2MACR
+            L.Add(New PyroReaction() With {.Name = "LIGA_to_gas_oil_char", .Reactant = PyroSpecies.LIGA,
+                .ProductYields = New Dictionary(Of PyroSpecies, Double)() From {
+                    {PyroSpecies.CHAR_S, 0.6389}, {PyroSpecies.BIO_OIL, 0.2463}, {PyroSpecies.GAS, 0.1148}},
+                .A = 6060000000.0, .Ea_JmolK = 160615.9, .DH_Jkg = -378631.0})
+            L.Add(New PyroReaction() With {.Name = "LIGA_to_char_gas", .Reactant = PyroSpecies.LIGA,
+                .ProductYields = New Dictionary(Of PyroSpecies, Double)() From {
+                    {PyroSpecies.CHAR_S, 0.778}, {PyroSpecies.BIO_OIL, 0.1516}, {PyroSpecies.GAS, 0.0704}},
+                .A = 2639.3, .Ea_JmolK = 74977.2, .DH_Jkg = -1035114.0})
+            L.Add(New PyroReaction() With {.Name = "LIGA_to_char", .Reactant = PyroSpecies.LIGA,
+                .ProductYields = New Dictionary(Of PyroSpecies, Double)() From {
+                    {PyroSpecies.CHAR_S, 0.8873}, {PyroSpecies.BIO_OIL, 0.0714}, {PyroSpecies.GAS, 0.0413}},
+                .A = 33.0, .Ea_JmolK = 62760.0, .DH_Jkg = -1604000.0})
 
             ' --- SECONDARY VAPOR CRACKING (gas-phase) ---
             ' 10. BIO_OIL -> GAS
@@ -202,7 +165,8 @@ Namespace Reactors.CFBPyrolysis
         Public Sub EvaluateRates(w() As Double, T As Double,
                                  reactions As List(Of PyroReaction),
                                  ByRef dwdt() As Double,
-                                 ByRef qRxn_Wkg As Double)
+                                 ByRef qRxn_Wkg As Double,
+                                 Optional solidTimeFactor As Double = 1.0)
 
             Dim n As Integer = w.Length
             If dwdt Is Nothing OrElse dwdt.Length <> n Then ReDim dwdt(n - 1)
@@ -217,6 +181,8 @@ Namespace Reactors.CFBPyrolysis
                 Dim wi As Double = w(CInt(rxn.Reactant))
                 If wi <= 0.0 Then Continue For
                 Dim k As Double = rxn.A * Exp(-rxn.Ea_JmolK * invRT)
+                ' the solids stay solidTimeFactor times longer than the vapors in each cell
+                If IsSolid(rxn.Reactant) Then k *= solidTimeFactor
                 Dim r As Double = k * wi    ' mass-fraction/second consumption
                 dwdt(CInt(rxn.Reactant)) -= r
                 For Each kv In rxn.ProductYields
@@ -227,6 +193,11 @@ Namespace Reactors.CFBPyrolysis
             Next
 
         End Sub
+
+        ''' <summary>True for the solid species (native and activated biomass, char).</summary>
+        Public Function IsSolid(s As PyroSpecies) As Boolean
+            Return s <> PyroSpecies.BIO_OIL AndAlso s <> PyroSpecies.GAS
+        End Function
 
         ''' <summary>
         ''' Map the three bulk mass-fraction inputs (cellulose, hemicellulose, lignin, dry basis)

@@ -17,6 +17,8 @@ namespace DWSIM.Automation.FluentAPI.Builders.Bioprocess
         public CFBFastPyrolysisBuilder WithCarrierGasVelocityMPerS(double v) { Object.CarrierGasVelocity_ms = v; return this; }
         /// <summary>Sets <c>Solids Holdup</c> and returns this builder for chaining.</summary>
         public CFBFastPyrolysisBuilder WithSolidsHoldup(double frac) { Object.SolidsHoldup = frac; return this; }
+        /// <summary>Solids residence time over vapor residence time (1 = no slip; risers run at 2 to 3).</summary>
+        public CFBFastPyrolysisBuilder WithSolidsSlipFactor(double factor) { Object.SolidsSlipFactor = factor; return this; }
         /// <summary>Sets <c>Sand Mode</c> and returns this builder for chaining.</summary>
         public CFBFastPyrolysisBuilder WithSandMode(CFBSandMode mode) { Object.SandMode = mode; return this; }
         /// <summary>Sets <c>Sand Inlet Temperature</c> (SI) and returns this builder for chaining.</summary>

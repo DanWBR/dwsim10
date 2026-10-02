@@ -87,6 +87,9 @@ Namespace Reactors
         ''' Default 0.05 is typical for Geldart-A sand at u_g &gt;&gt; u_mf in a dilute riser.</summary>
         Public Property SolidsHoldup As Double = 0.05
 
+        ''' <summary>Solids residence time over vapor residence time in the riser (slip factor, 1 = no slip). Risers run at 2 to 3.</summary>
+        Public Property SolidsSlipFactor As Double = 1.0
+
         ''' <summary>Bed material (sand/olivine) density (kg/m3). Default 2600 (silica sand).</summary>
         Public Property BedMaterialDensity_kgm3 As Double = 2600.0
 
@@ -471,20 +474,28 @@ Namespace Reactors
                 vaporTau += dt_cell
 
                 ' --- Sub-step Ranzi ODEs with explicit RK2 over dt_cell ---
-                Dim nSub = Max(5, CInt(dt_cell / 0.02) + 1)
+                ' keep k*h below 0.5 for the fastest reaction so the explicit march stays stable
+                Dim slip = Max(1.0, SolidsSlipFactor)
+                Dim kMax As Double = 0.0
+                For Each rxn In reactions
+                    Dim kr = rxn.A * Exp(-rxn.Ea_JmolK / (RanziKinetics.R_JmolK * Max(T, T_sand)))
+                    If RanziKinetics.IsSolid(rxn.Reactant) Then kr *= slip
+                    kMax = Max(kMax, kr)
+                Next
+                Dim nSub = CInt(Min(20000.0, Max(Max(5.0, dt_cell / 0.02 + 1.0), System.Math.Ceiling(dt_cell * kMax / 0.5))))
                 Dim h = dt_cell / nSub
                 Dim dwdt() As Double = Nothing
                 Dim qRxn As Double = 0.0
                 Dim QcellTotal As Double = 0.0
 
                 For j = 1 To nSub
-                    RanziKinetics.EvaluateRates(w, T, reactions, dwdt, qRxn)
+                    RanziKinetics.EvaluateRates(w, T, reactions, dwdt, qRxn, slip)
                     ' RK2 (midpoint)
                     Dim wMid(w.Length - 1) As Double
                     For k = 0 To w.Length - 1 : wMid(k) = w(k) + 0.5 * h * dwdt(k) : Next
                     Dim dwdt_mid() As Double = Nothing
                     Dim qRxn_mid As Double = 0.0
-                    RanziKinetics.EvaluateRates(wMid, T, reactions, dwdt_mid, qRxn_mid)
+                    RanziKinetics.EvaluateRates(wMid, T, reactions, dwdt_mid, qRxn_mid, slip)
                     For k = 0 To w.Length - 1 : w(k) = Max(0.0, w(k) + h * dwdt_mid(k)) : Next
 
                     ' Energy balance for the sub-step (per kg of reacting mixture, rate W/kg)
@@ -520,11 +531,11 @@ Namespace Reactors
             ' ----- Summary yields -----
             traj.OutletYield_Oil = w(CInt(PyroSpecies.BIO_OIL))
             traj.OutletYield_Gas = w(CInt(PyroSpecies.GAS))
-            traj.OutletYield_Char = w(CInt(PyroSpecies.CHAR_S))
+            ' the activated lignin (LIGOH) is a solid residue that leaves with the char
+            traj.OutletYield_Char = w(CInt(PyroSpecies.CHAR_S)) + w(CInt(PyroSpecies.LIGA))
             traj.OutletYield_UnreactedSolid = w(CInt(PyroSpecies.CELL)) + w(CInt(PyroSpecies.HCE)) +
                                               w(CInt(PyroSpecies.LIG)) +
-                                              w(CInt(PyroSpecies.CELLA)) + w(CInt(PyroSpecies.HCEA)) +
-                                              w(CInt(PyroSpecies.LIGA))
+                                              w(CInt(PyroSpecies.CELLA)) + w(CInt(PyroSpecies.HCEA))
             traj.OutletTemperature_K = T
             traj.OutletVaporResidenceTime_s = vaporTau
             traj.RequiredSandCirculation_kgps = m_sand
@@ -641,7 +652,7 @@ Namespace Reactors
 
         Private Shared ReadOnly _inputProps As String() = {
             "Riser Height", "Riser Diameter", "Num Axial Cells",
-            "Solids Holdup", "Bed Material Density", "Bed Material Cp",
+            "Solids Holdup", "Solids Slip Factor", "Bed Material Density", "Bed Material Cp",
             "Carrier Gas Velocity",
             "Sand Mode", "Sand Inlet Temperature", "Sand To Biomass Ratio", "Heat Loss Fraction",
             "Cellulose Mass Fraction", "Hemicellulose Mass Fraction", "Lignin Mass Fraction",
@@ -673,6 +684,7 @@ Namespace Reactors
                 Case "Riser Diameter" : Return RiserDiameter_m
                 Case "Num Axial Cells" : Return NumAxialCells
                 Case "Solids Holdup" : Return SolidsHoldup
+                Case "Solids Slip Factor" : Return SolidsSlipFactor
                 Case "Bed Material Density" : Return BedMaterialDensity_kgm3
                 Case "Bed Material Cp" : Return BedMaterialCp_JkgK
                 Case "Carrier Gas Velocity" : Return CarrierGasVelocity_ms
@@ -738,6 +750,7 @@ Namespace Reactors
                 Case "Riser Diameter" : RiserDiameter_m = d : Return True
                 Case "Num Axial Cells" : NumAxialCells = CInt(d) : Return True
                 Case "Solids Holdup" : SolidsHoldup = d : Return True
+                Case "Solids Slip Factor" : SolidsSlipFactor = d : Return True
                 Case "Bed Material Density" : BedMaterialDensity_kgm3 = d : Return True
                 Case "Bed Material Cp" : BedMaterialCp_JkgK = d : Return True
                 Case "Carrier Gas Velocity" : CarrierGasVelocity_ms = d : Return True
@@ -839,6 +852,14 @@ Namespace Reactors
                                              Sub(tb, e)
                                                  If tb.Text.IsValidDoubleExpression() Then
                                                      SolidsHoldup = tb.Text.ParseExpressionToDouble()
+                                                     FlowSheet.RequestCalculation()
+                                                 End If
+                                             End Sub)
+
+            container.CreateAndAddTextBoxRow(nf, "Solids Slip Factor (-)", SolidsSlipFactor,
+                                             Sub(tb, e)
+                                                 If tb.Text.IsValidDoubleExpression() Then
+                                                     SolidsSlipFactor = tb.Text.ParseExpressionToDouble()
                                                      FlowSheet.RequestCalculation()
                                                  End If
                                              End Sub)

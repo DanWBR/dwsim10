@@ -12,7 +12,7 @@ namespace DWSIM.Validation.Tests.Bioprocess
         public static void Run()
         {
             var fs = Flowsheet.Create("B10_CFB")
-                .WithCompounds("Water", "Carbon dioxide", "Carbon monoxide", "Methane", "Biomass_Generic")
+                .WithCompounds("Water", "Carbon dioxide", "Carbon monoxide", "Methane", "Biomass_Generic", "Carbon", "Phenol")
                 .WithPropertyPackage(PropertyPackages.PengRobinson);
 
             var feed = fs.AddMaterialStream("biomass")
@@ -34,7 +34,13 @@ namespace DWSIM.Validation.Tests.Bioprocess
                 .WithSandToBiomassRatio(15.0)
                 .WithHeatLossFraction(0.05)
                 .WithBiomassComposition(0.42, 0.25, 0.33)
-                .Configure(o => o.BiomassCompound = "Biomass_Generic")
+                .Configure(o =>
+                {
+                    o.BiomassCompound = "Biomass_Generic";
+                    o.CharCompound = "Carbon";
+                    o.BioOilCompound = "Phenol";
+                    o.GasLumpCompound = "Carbon monoxide";
+                })
                 .ConnectFeed(feed, 0)
                 .ConnectProduct(prod, 0);
 

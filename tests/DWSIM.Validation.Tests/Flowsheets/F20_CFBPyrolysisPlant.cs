@@ -26,7 +26,7 @@ namespace DWSIM.Validation.Tests.Flowsheets
         {
             var fs = Flowsheet.Create("F20A_Pine")
                 .WithCompounds("Water", "Carbon dioxide", "Carbon monoxide", "Methane",
-                               "Biomass_Generic")
+                               "Biomass_Generic", "Carbon", "Phenol")
                 .WithPropertyPackage(PropertyPackages.PengRobinson);
 
             var feed = fs.AddMaterialStream("biomass")
@@ -48,7 +48,13 @@ namespace DWSIM.Validation.Tests.Flowsheets
                 .WithSandToBiomassRatio(20.0)
                 .WithHeatLossFraction(0.03)
                 .WithBiomassComposition(0.42, 0.25, 0.33)
-                .Configure(o => o.BiomassCompound = "Biomass_Generic")
+                .Configure(o =>
+                {
+                    o.BiomassCompound = "Biomass_Generic";
+                    o.CharCompound = "Carbon";
+                    o.BioOilCompound = "Phenol";
+                    o.GasLumpCompound = "Carbon monoxide";
+                })
                 .ConnectFeed(feed, 0)
                 .ConnectProduct(prod, 0);
 
@@ -92,7 +98,7 @@ namespace DWSIM.Validation.Tests.Flowsheets
         {
             var fs = Flowsheet.Create("F20B_Residue")
                 .WithCompounds("Water", "Carbon dioxide", "Carbon monoxide", "Methane",
-                               "Oxygen", "Nitrogen", "Biomass_Generic")
+                               "Oxygen", "Nitrogen", "Biomass_Generic", "Carbon", "Phenol")
                 .WithPropertyPackage(PropertyPackages.PengRobinson);
 
             var feed = fs.AddMaterialStream("biomass")
@@ -116,6 +122,9 @@ namespace DWSIM.Validation.Tests.Flowsheets
                 .Configure(o =>
                 {
                     o.BiomassCompound = "Biomass_Generic";
+                    o.CharCompound = "Carbon";
+                    o.BioOilCompound = "Phenol";
+                    o.GasLumpCompound = "Carbon monoxide";
                     o.OxygenCompound = "Oxygen";
                     o.CO2Compound = "Carbon dioxide";
                     o.NitrogenCompound = "Nitrogen";
