@@ -1444,11 +1444,15 @@ namespace DWSIM.UI.Desktop.Editors
                     panel.CreateAndAddDropDownRow("Pressure Tappings",
                         new List<string> { "Corner", "Flange", "Radius" }, (int)op.OrifType,
                         (dd, e) => { if (dd.SelectedIndex >= 0) op.OrifType = (OrificePlate.OrificeType)dd.SelectedIndex; });
-                    // Diameters are stored in the display unit here, matching the Classic editor.
-                    panel.CreateAndAddTextBoxRow(nf, "Orifice Diameter (" + su.diameter + ")", op.OrificeDiameter,
-                        (tb, e) => { if (TryVal(tb.Text, out var v)) op.OrificeDiameter = v; });
-                    panel.CreateAndAddTextBoxRow(nf, "Internal Pipe Diameter (" + su.diameter + ")", op.InternalPipeDiameter,
-                        (tb, e) => { if (TryVal(tb.Text, out var v)) op.InternalPipeDiameter = v; });
+                    panel.CreateAndAddTextBoxRow(nf, "Orifice Diameter (" + su.diameter + ")",
+                        cv.ConvertFromSI(su.diameter, op.OrificeDiameter),
+                        (tb, e) => { if (TryVal(tb.Text, out var v)) op.OrificeDiameter = cv.ConvertToSI(su.diameter, v); });
+                    panel.CreateAndAddTextBoxRow(nf, "Internal Pipe Diameter (" + su.diameter + ")",
+                        cv.ConvertFromSI(su.diameter, op.InternalPipeDiameter),
+                        (tb, e) => { if (TryVal(tb.Text, out var v)) op.InternalPipeDiameter = cv.ConvertToSI(su.diameter, v); });
+                    panel.CreateAndAddDropDownRow("Two-Phase Model",
+                        new List<string> { "Homogeneous", "Slip (Chisholm)" }, (int)op.CalculationMethod,
+                        (dd, e) => { if (dd.SelectedIndex >= 0) op.CalculationMethod = (OrificePlate.CalcMethod)dd.SelectedIndex; });
                     panel.CreateAndAddTextBoxRow(nf, "Correction Factor", op.CorrectionFactor,
                         (tb, e) => { if (TryVal(tb.Text, out var v)) op.CorrectionFactor = v; });
                     break;
