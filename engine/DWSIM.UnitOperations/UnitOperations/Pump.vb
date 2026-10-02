@@ -1602,11 +1602,13 @@ Namespace UnitOperations
                         End With
                     End If
 
-                    H2 = Hi + Me.DeltaQ.GetValueOrDefault * (Me.Eficiencia.GetValueOrDefault / 100) / Wi
-                    CheckSpec(H2, False, "outlet enthalpy")
-
-                    P2 = Pi + (H2 - Hi) * rho_li * 1000
+                    'the efficient part of the shaft power raises the pressure; all of it reaches the
+                    'liquid, the rest as heat, as in the Delta_P and OutletPressure modes
+                    P2 = Pi + Me.DeltaQ.GetValueOrDefault * (Me.Eficiencia.GetValueOrDefault / 100) / Wi * rho_li * 1000
                     CheckSpec(P2, True, "outlet pressure")
+
+                    H2 = Hi + Me.DeltaQ.GetValueOrDefault / Wi
+                    CheckSpec(H2, False, "outlet enthalpy")
 
                     DeltaP = P2 - Pi
 
@@ -1656,11 +1658,13 @@ Namespace UnitOperations
                         End With
                     End If
 
-                    H2 = Hi + Me.DeltaQ.GetValueOrDefault * (Me.Eficiencia.GetValueOrDefault / 100) / Wi
-                    CheckSpec(H2, False, "outlet enthalpy")
-
-                    P2 = Pi + (H2 - Hi) * rho_li * 1000
+                    'the efficient part of the shaft power raises the pressure; all of it reaches the
+                    'liquid, the rest as heat, as in the Delta_P and OutletPressure modes
+                    P2 = Pi + Me.DeltaQ.GetValueOrDefault * (Me.Eficiencia.GetValueOrDefault / 100) / Wi * rho_li * 1000
                     CheckSpec(P2, True, "outlet pressure")
+
+                    H2 = Hi + Me.DeltaQ.GetValueOrDefault / Wi
+                    CheckSpec(H2, False, "outlet enthalpy")
 
                     DeltaP = P2 - Pi
 
