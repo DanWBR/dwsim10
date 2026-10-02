@@ -681,6 +681,8 @@ Namespace SpecialOps
             Dim timestep = integrator.IntegrationStep.TotalSeconds
             'in real time the plant moves with the real-time step, and so must the controller
             If integrator.RealTime Then timestep = Convert.ToDouble(integrator.RealTimeStepMs) / 1000.0
+            'the controllers run every CalculationRateControl steps
+            timestep *= Math.Max(1, integrator.CalculationRateControl)
 
             Dim ControlledObject = GetFlowsheet.SimulationObjects.Values.Where(Function(x) x.Name = ControlledObjectData.ID).SingleOrDefault
 
@@ -780,6 +782,8 @@ Namespace SpecialOps
             Dim timestep = integrator.IntegrationStep.TotalSeconds
             'in real time the plant moves with the real-time step, and so must the controller
             If integrator.RealTime Then timestep = Convert.ToDouble(integrator.RealTimeStepMs) / 1000.0
+            'the controllers run every CalculationRateControl steps
+            timestep *= Math.Max(1, integrator.CalculationRateControl)
 
             UpdateVars()
 
