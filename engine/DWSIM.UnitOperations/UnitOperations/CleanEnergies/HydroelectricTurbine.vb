@@ -187,13 +187,13 @@ Namespace UnitOperations
 
             list.Add(New Tuple(Of ReportItemType, String())(ReportItemType.TripleColumn,
                            New String() {"Velocity Head",
-                           Me.VelocityHead.ConvertFromSI(su.velocity).ToString(nf),
-                           su.velocity}))
+                           Me.VelocityHead.ConvertFromSI(su.distance).ToString(nf),
+                           su.distance}))
 
             list.Add(New Tuple(Of ReportItemType, String())(ReportItemType.TripleColumn,
                            New String() {"Total Head",
-                           Me.TotalHead.ConvertFromSI(su.velocity).ToString(nf),
-                           su.velocity}))
+                           Me.TotalHead.ConvertFromSI(su.distance).ToString(nf),
+                           su.distance}))
 
             list.Add(New Tuple(Of ReportItemType, String())(ReportItemType.TripleColumn,
                            New String() {"Generated Power",
@@ -209,8 +209,8 @@ Namespace UnitOperations
 
             Dim sb As New Text.StringBuilder()
 
-            sb.AppendLine(String.Format("Velocity Head: {0} {1}", VelocityHead.ConvertFromSI(su.velocity).ToString(numberformat), su.velocity))
-            sb.AppendLine(String.Format("Total Head: {0} {1}", TotalHead.ConvertFromSI(su.velocity).ToString(numberformat), su.velocity))
+            sb.AppendLine(String.Format("Velocity Head: {0} {1}", VelocityHead.ConvertFromSI(su.distance).ToString(numberformat), su.distance))
+            sb.AppendLine(String.Format("Total Head: {0} {1}", TotalHead.ConvertFromSI(su.distance).ToString(numberformat), su.distance))
             sb.AppendLine(String.Format("Generated Power: {0} {1}", GeneratedPower.ConvertFromSI(su.heatflow).ToString(numberformat), su.heatflow))
 
             Return sb.ToString()
@@ -282,7 +282,7 @@ Namespace UnitOperations
 
             Dim rho = msin.GetPhase("Liquid").Properties.density.GetValueOrDefault()
 
-            Dim g = 9.8
+            Dim g = 9.80665
 
             Dim hs = StaticHead
 
@@ -303,7 +303,10 @@ Namespace UnitOperations
 
             msout.AssignFromPhase(Enums.PhaseLabel.Mixture, msin, True)
             msout.SetPressure(msin.GetPressure)
-            msout.SetMassEnthalpy(msin.GetMassEnthalpy() - GeneratedPower / msin.GetMassFlow())
+            ' The power comes from the potential and kinetic energy of the water, which its enthalpy
+            ' does not carry; what the water keeps is the part the efficiency loses, as heat.
+            Dim losses = (1.0 - eta) * rho * g * (hs + hv) * q / 1000.0 ' kW
+            msout.SetMassEnthalpy(msin.GetMassEnthalpy() + losses / msin.GetMassFlow())
             msout.SetFlashSpec("PH")
 
             msout.AtEquilibrium = False
