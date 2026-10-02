@@ -11,8 +11,17 @@ namespace DWSIM.Automation.FluentAPI.Builders
         public PumpBuilder WithCalcMode(Pump.CalculationMode mode) { Object.CalcMode = mode; return this; }
         /// <summary>Sets <c>Pressure Increase</c> (SI) and returns this builder for chaining.</summary>
         public PumpBuilder WithPressureIncrease(Quantity dp) { Object.DeltaP = dp.SI; Object.CalcMode = Pump.CalculationMode.Delta_P; return this; }
-        /// <summary>Sets <c>Outlet Pressure</c> (SI) and returns this builder for chaining.</summary>
-        public PumpBuilder WithOutletPressure(Quantity p) { Object.Pout = p.SI; Object.CalcMode = Pump.CalculationMode.OutletPressure; return this; }
+        /// <summary>
+        /// Sets <c>Outlet Pressure</c> (SI) and switches the pump to the OutletPressure mode. A pump
+        /// already in PositiveDisplacement mode stays in it, since that mode reads the outlet pressure too.
+        /// </summary>
+        public PumpBuilder WithOutletPressure(Quantity p)
+        {
+            Object.Pout = p.SI;
+            if (Object.CalcMode != Pump.CalculationMode.PositiveDisplacement)
+                Object.CalcMode = Pump.CalculationMode.OutletPressure;
+            return this;
+        }
         /// <summary>Sets <c>Power</c> (SI) and returns this builder for chaining.</summary>
         public PumpBuilder WithPower(Quantity power) { Object.DeltaQ = power.SI; Object.CalcMode = Pump.CalculationMode.Power; return this; }
         /// <summary>Sets <c>Efficiency Percent</c> and returns this builder for chaining.</summary>
