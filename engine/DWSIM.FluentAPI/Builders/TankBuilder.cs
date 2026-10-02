@@ -10,6 +10,12 @@ namespace DWSIM.Automation.FluentAPI.Builders
         /// <summary>Sets the tank's internal volume.</summary>
         public TankBuilder WithVolume(Quantity volume) { Object.Volume = volume.SI; return this; }
 
+        /// <summary>Sets the pressure drop from the inlet to the outlet of the tank.</summary>
+        public TankBuilder WithPressureDrop(Quantity dp) { Object.DeltaP = dp.SI; return this; }
+
+        /// <summary>Read-back of the residence time, volume over volumetric flow, in seconds (populated after <c>Solve</c>).</summary>
+        public double ResidenceTimeSeconds => Object.ResidenceTime;
+
         // ------------------------------------------------------ Dynamic mode
 
         /// <summary>Sets the liquid height available for accumulation, which fixes the level-to-volume ratio.</summary>

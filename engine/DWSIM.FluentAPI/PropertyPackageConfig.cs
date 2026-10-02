@@ -54,6 +54,43 @@ namespace DWSIM.Automation.FluentAPI
         public PropertyPackageBuilder WithFlashSetting(FlashSetting key, bool value)
             => WithFlashSetting(key, value ? "True" : "False");
 
+        /// <summary>
+        /// Marks compounds as forced solids: the flash puts them in the solid phase whatever the
+        /// temperature, which is what the filter and the solids separator read. A compound already
+        /// in the list is not added twice.
+        /// </summary>
+        /// <example>
+        /// <code>
+        /// fs.WithPropertyPackage(PropertyPackages.Raoult, pp => pp.WithForcedSolids("Benzoic acid"));
+        /// </code>
+        /// </example>
+        public PropertyPackageBuilder WithForcedSolids(params string[] compounds)
+        {
+            var pp = Inner as PP.PropertyPackage
+                     ?? throw new InvalidOperationException("Forced solids need a DWSIM property package; '" + Inner.Tag + "' is not one.");
+            if (pp.ForcedSolids == null) pp.ForcedSolids = new List<string>();
+            foreach (var c in compounds ?? Array.Empty<string>())
+            {
+                if (string.IsNullOrWhiteSpace(c)) continue;
+                if (!pp.ForcedSolids.Contains(c)) pp.ForcedSolids.Add(c);
+            }
+            return this;
+        }
+
+        /// <summary>Removes compounds from the forced solids list; with no compound named, clears it.</summary>
+        public PropertyPackageBuilder WithoutForcedSolids(params string[] compounds)
+        {
+            var pp = Inner as PP.PropertyPackage;
+            if (pp?.ForcedSolids == null) return this;
+            if (compounds == null || compounds.Length == 0) pp.ForcedSolids.Clear();
+            else foreach (var c in compounds) pp.ForcedSolids.Remove(c);
+            return this;
+        }
+
+        /// <summary>The compounds the flash keeps in the solid phase.</summary>
+        public IReadOnlyList<string> ForcedSolids =>
+            (Inner as PP.PropertyPackage)?.ForcedSolids?.ToList() ?? new List<string>();
+
         /// <summary>Configures Peng-Robinson (PR / PR78 / PRSV2) interaction parameters via a typed sub-builder.</summary>
         public PropertyPackageBuilder ConfigurePR(Action<PRConfig> configure)
         {

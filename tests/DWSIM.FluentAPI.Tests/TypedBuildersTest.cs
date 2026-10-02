@@ -5,13 +5,49 @@ namespace DWSIM.FluentAPI.Tests
 {
     /// <summary>
     /// Verifies the typed bioprocess builders compile, instantiate through the
-    /// IExternalUnitOperation path, and accept fluent setter calls.
+    /// IExternalUnitOperation path, and accept fluent setter calls; and that the typed builders
+    /// of the logical blocks, controllers, separators and the shortcut column do the same.
     /// </summary>
     internal static class TypedBuildersTest
     {
         public static void Run()
         {
             ProbeBioprocess();
+            ProbeLogicalBlocksAndSeparators();
+        }
+
+        private static void ProbeLogicalBlocksAndSeparators()
+        {
+            var fs = Flowsheet.Create("LogicalBuildersProbe")
+                .WithCompounds("Water", "Benzoic acid")
+                .WithPropertyPackage(PropertyPackages.Raoult, pp => pp.WithForcedSolids("Benzoic acid"));
+
+            fs.AddMaterialStream("S-1").At(300.0.Kelvin(), 1.0.Bar()).WithVaporFraction(0.0);
+            fs.AddMaterialStream("S-2");
+            fs.AddHeater("H-1").WithOutletTemperature(320.0.Kelvin());
+            fs.AddHeater("H-2").WithOutletTemperature(320.0.Kelvin());
+            fs.AddTank("T-1").WithVolume(1.0.CubicMeters()).WithPressureDrop(0.1.Bar());
+            fs.AddValve("V-1");
+
+            fs.AddAdjust("ADJ-1").Manipulates("H-1", "PROP_HT_3").Controls("S-2", "PROP_MS_0")
+                .WithTargetValue(330.0.Kelvin()).WithTolerance(0.01);
+            fs.AddSpec("SPEC-1").WithSource("S-1", "PROP_MS_0").WithTarget("H-2", "PROP_HT_2")
+                .WithExpression("X + 5");
+            fs.AddInformationCarrier("IC-1").WithSource("H-1", "PROP_HT_2").WithTarget("H-2", "PROP_HT_2");
+            fs.AddPythonController("PC-1").Controls("T-1", "Liquid Level", "m").Manipulates("V-1", "PROP_VA_5", "")
+                .WithScript("SP = 1.0\nMV = 50.0");
+            fs.AddMPCController("MPC-1").Controls("T-1", "Liquid Level", "m", 0.9, 1.1)
+                .Manipulates("V-1", "PROP_VA_5", "", 0.0, 100.0).WithIntegratingModel(0, 0, -0.0004)
+                .WithSampleTime(5.0.Seconds()).WithHorizons(30, 5);
+            fs.AddComponentSeparator("CS-1").WithSpecifiedOutlet(1).WithMassPercent("Water", 10.0);
+            fs.AddSolidsSeparator("SS-1").WithSolidsSeparationEfficiency(99.0).WithLiquidSeparationEfficiency(90.0);
+            fs.AddFilter("F-1").WithFilterArea(5.0).WithCycleTime(60.0.Seconds());
+            fs.AddShortcutColumn("SC-1").WithKeys("Water", "Benzoic acid").WithRefluxRatio(2.0)
+                .WithPressures(1.0.Atm(), 1.0.Atm());
+
+            int n = fs.Inner.SimulationObjects.Count;
+            Console.WriteLine("Logical blocks, controllers and separators instantiated: " + n);
+            if (n < 15) throw new Exception("Expected 15 objects, got " + n);
         }
 
         private static void ProbeBioprocess()
