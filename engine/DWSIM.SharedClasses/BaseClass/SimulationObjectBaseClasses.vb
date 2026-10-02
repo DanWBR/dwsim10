@@ -1846,7 +1846,7 @@ Namespace UnitOperations
 
         Public Sub ConnectProductEnergyStream(stream As ISimulationObject, portnumber As Integer) Implements ISimulationObject.ConnectProductEnergyStream
 
-            FlowSheet.ConnectObjects(GraphicObject, stream.GraphicObject, 0, portnumber)
+            FlowSheet.ConnectObjects(GraphicObject, stream.GraphicObject, portnumber, 0)
 
         End Sub
 
