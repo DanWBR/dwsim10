@@ -283,7 +283,8 @@ Namespace UnitOperations
                     Me.TotalFilterArea = At
                 Case CalculationMode.Simulation
                     At = Me.TotalFilterArea
-                    dp = ((n * Rm) ^ 2 + (n * Rm + Wsin * alpha / At) ^ 2) / (2 * c * alpha * f * n / mu)
+                    ' the Design equation solved for the pressure drop
+                    dp = ((n * Rm + Wsin * alpha / At) ^ 2 - (n * Rm) ^ 2) / (2 * c * alpha * f * n / mu)
                     Me.PressureDrop = dp
             End Select
 
