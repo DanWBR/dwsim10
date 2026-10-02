@@ -487,7 +487,7 @@ Namespace UnitOperations
             CheckSpec(Hi, False, "inlet enthalpy")
             CheckSpec(Wi, True, "inlet mass flow")
             CheckSpec(Wo1, True, "outlet mass flow")
-            CheckSpec(Wo1, True, "outlet mass flow")
+            CheckSpec(Wo2, True, "outlet mass flow")
 
             'do a flash calculation on streams to calculate energy imbalance
 

@@ -461,7 +461,7 @@ Namespace UnitOperations
             Dim basecol = MyBase.GetProperties(proptype)
             If basecol.Length > 0 Then proplist.AddRange(basecol)
             Select Case proptype
-                Case PropertyType.RW
+                Case PropertyType.RO
                     For i = 2 To 2
                         proplist.Add("PROP_TK_" + CStr(i))
                     Next
