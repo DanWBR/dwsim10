@@ -2080,6 +2080,15 @@ Namespace UnitOperations
                 Case 8
                     'PROP_PU_8 (Operating Speed)
                     Me.OperatingSpeed = propval
+                Case 9
+                    'PROP_PU_9 (Displacement per revolution)
+                    Me.Displacement = SystemsOfUnits.Converter.ConvertToSI(su.volume, propval)
+                Case 10
+                    'PROP_PU_10 (Volumetric Efficiency)
+                    Me.VolumetricEfficiency = propval
+                Case 11
+                    'PROP_PU_11 (Relief Pressure)
+                    Me.ReliefPressure = SystemsOfUnits.Converter.ConvertToSI(su.pressure, propval)
             End Select
             Return 1
         End Function
