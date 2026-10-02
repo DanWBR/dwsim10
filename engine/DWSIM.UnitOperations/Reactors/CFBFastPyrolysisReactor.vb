@@ -122,8 +122,9 @@ Namespace Reactors
         ''' <summary>Lignin mass fraction of dry biomass (0â€“1). Typical 0.20â€“0.30.</summary>
         Public Property LigninMassFrac As Double = 0.25
 
-        ''' <summary>Enthalpy of pyrolysis per kg of dry biomass feed (J/kg).
-        ''' Positive = endothermic. Default 250 kJ/kg (Bridgwater 2012).</summary>
+        ''' <summary>Enthalpy of pyrolysis per kg of dry biomass feed (J/kg), for reference.
+        ''' Positive = endothermic. Default 250 kJ/kg (Bridgwater 2012). The duty comes from the
+        ''' riser energy balance, which uses the reaction heats of the kinetic scheme.</summary>
         Public Property HeatOfPyrolysis_Jkg As Double = 250000.0
 
         ' -------- COMPOUND ROLES --------
@@ -246,6 +247,11 @@ Namespace Reactors
             Dim compounds = ims.Phases(0).Compounds
             If Not compounds.ContainsKey(BiomassCompound) Then _
                 Throw New Exception("CFB Fast Pyrolysis: biomass compound '" & BiomassCompound & "' not in stream.")
+            ' every product needs a compound to go to, or its mass would leave the balance
+            For Each role In {Tuple.Create("char", CharCompound), Tuple.Create("bio-oil", BioOilCompound), Tuple.Create("gas", GasLumpCompound)}
+                If String.IsNullOrEmpty(role.Item2) OrElse Not compounds.ContainsKey(role.Item2) Then _
+                    Throw New Exception("CFB Fast Pyrolysis: assign the " & role.Item1 & " compound; the pyrolysis products need all three of char, bio-oil and gas.")
+            Next
 
             Dim m_biomass As Double = compounds(BiomassCompound).MassFlow.GetValueOrDefault  ' kg/s
             If m_biomass <= 0.0 Then _
@@ -524,7 +530,10 @@ Namespace Reactors
             traj.RequiredSandCirculation_kgps = m_sand
             traj.SandInletTemperature_K = T_sand_in
             traj.SandOutletTemperature_K = T_sand
-            traj.NetPyrolysisDuty_kW = (m_biomass * HeatOfPyrolysis_Jkg) / 1000.0   ' kW
+            ' heat the sand hands to the reacting mixture: sensible heat plus the reaction heats, and
+            ' the preheat the march skips by starting the mixture at 450 K
+            Dim Q_preheat = m_biomass * cpMix * (Max(T_in, 450.0) - T_in)
+            traj.NetPyrolysisDuty_kW = (Q_total + Q_preheat) / 1000.0   ' kW
 
             ReDim wOut(w.Length - 1)
             Array.Copy(w, wOut, w.Length)
