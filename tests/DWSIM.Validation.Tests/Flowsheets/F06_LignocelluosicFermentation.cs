@@ -12,8 +12,8 @@ namespace DWSIM.Validation.Tests.Flowsheets
     /// <summary>F06 - Lignocellulosic (2G) fermentation train.
     /// feed (sugary mash + seed biomass) → Pretreatment → BioReactor (Monod) →
     /// Centrifuge (DiskStack) → clarified broth + yeast cream.
-    /// Bio UOs are invoked manually in topological order (FlowsheetSolver does not
-    /// enqueue IExternalUnitOperation in headless mode).</summary>
+    /// Bio UOs are invoked one by one in topological order, so each check reads the unit it
+    /// targets (a full fs.Solve() runs the external unit operations too).</summary>
     internal static class F06_LignocelluosicFermentation
     {
         public static void Run()

@@ -38,7 +38,7 @@ namespace DWSIM.Validation.Tests.Bioprocess
                 .ConnectProduct(heavy, 0)
                 .ConnectProduct(light, 1);
 
-            // External UOs in headless mode: call Calculate directly (FlowsheetSolver does not enqueue them)
+            // the unit alone, calculated directly (a full fs.Solve() runs it as well)
             c.Object.Calculate();
 
             double mFeed = feed.MassFlowKgPerSecond;
