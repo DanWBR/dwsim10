@@ -86,10 +86,10 @@ Namespace UnitOperations
         ''' <summary>Gets or sets the reversible (equilibrium) cell voltage (V).</summary>
         Public Property ReversibleVoltage As Double
 
-        ''' <summary>Gets or sets the calculated electrolyser efficiency (%).</summary>
+        ''' <summary>Gets or sets the calculated electrolyser efficiency (fraction, 0 to 1).</summary>
         Public Property Efficiency As Double
 
-        ''' <summary>Gets or sets the user-specified input efficiency (%).</summary>
+        ''' <summary>Gets or sets the user-specified input efficiency (fraction, 0 to 1); used when no cell voltage is given.</summary>
         Public Property InputEfficiency As Double
 
         ''' <summary>Returns an array of property identifiers for the specified property type.</summary>

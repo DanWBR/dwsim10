@@ -512,18 +512,18 @@ Namespace UnitOperations
                 Case "Efficiency"
                     Efficiency = Convert.ToDouble(propval)
                 Case "User-Defined Wind Speed"
-                    UserDefinedWindSpeed = Convert.ToDouble(propval).ConvertFromSI(su.velocity)
+                    UserDefinedWindSpeed = Convert.ToDouble(propval).ConvertToSI(su.velocity)
                 Case "User-Defined Air Temperature"
-                    UserDefinedAirTemperature = Convert.ToDouble(propval).ConvertFromSI(su.temperature)
+                    UserDefinedAirTemperature = Convert.ToDouble(propval).ConvertToSI(su.temperature)
                 Case "User-Defined Air Pressure"
-                    UserDefinedAirPressure = Convert.ToDouble(propval).ConvertFromSI(su.pressure)
+                    UserDefinedAirPressure = Convert.ToDouble(propval).ConvertToSI(su.pressure)
                 Case "User-Defined Relative Humidity"
                     UserDefinedRelativeHumidity = Convert.ToDouble(propval)
                 Case "Disk Area"
-                    DiskArea = Convert.ToDouble(propval).ConvertFromSI(su.area)
+                    DiskArea = Convert.ToDouble(propval).ConvertToSI(su.area)
                     RotorDiameter = (DiskArea * 4 / Math.PI) ^ 0.5
                 Case "Rotor Diameter"
-                    RotorDiameter = Convert.ToDouble(propval).ConvertFromSI(su.distance)
+                    RotorDiameter = Convert.ToDouble(propval).ConvertToSI(su.distance)
                     DiskArea = Math.PI * RotorDiameter ^ 2 / 4
                 Case "Number of Units"
                     NumberOfTurbines = Convert.ToDouble(propval)
