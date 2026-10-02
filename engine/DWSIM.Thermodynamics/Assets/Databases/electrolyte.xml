@@ -1543,9 +1543,9 @@
     <Salt>False</Salt>
     <HydratedSalt>False</HydratedSalt>
     <Charge>1</Charge>
-    <DelGF_kJ_mol>0</DelGF_kJ_mol>
-    <DelHf_kJ_mol>0</DelHf_kJ_mol>
-    <Cp_J_mol_K>0</Cp_J_mol_K>
+    <DelGF_kJ_mol>-237.129</DelGF_kJ_mol>
+    <DelHf_kJ_mol>-285.83</DelHf_kJ_mol>
+    <Cp_J_mol_K>75.29</Cp_J_mol_K>
     <CpAq_a>0</CpAq_a>
     <CpAq_b>0</CpAq_b>
     <CpAq_c>0</CpAq_c>
