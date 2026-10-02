@@ -201,29 +201,37 @@ Namespace Reactors
                 m_lignin_in = compounds(LigninCompound).MassFlow.GetValueOrDefault
 
             ' Cellulose â†’ glucose (with subsequent glucose â†’ HMF)
-            Dim dm_cell = m_cell_in * Max(0.0, Min(1.0, CelluloseConversion))
-            ' 1 g cellulose (162.14) + H2O (18.02) â†’ 1.111 g glucose (180.16)
+            ' A reaction runs only when its product has a compound to go to; otherwise the reactant
+            ' stays as it is, so no mass leaves the balance.
+            Dim assigned = Function(name As String) Not String.IsNullOrEmpty(name) AndAlso newMass.ContainsKey(name)
+
+            ' Cellulose to glucose (with subsequent glucose to HMF)
+            Dim dm_cell = If(assigned(GlucoseCompound), m_cell_in * Max(0.0, Min(1.0, CelluloseConversion)), 0.0)
+            ' 1 g cellulose (162.14) + H2O (18.02) to 1.111 g glucose (180.16)
             Dim dm_glu_gross = dm_cell * 1.111
             Dim dm_h2o_cell = dm_cell * 0.111 ' water consumed by cellulose hydrolysis
-            Dim dm_hmf = dm_glu_gross * Max(0.0, Min(1.0, GlucoseToHMF))
-            ' glucose (180.16) â†’ HMF (126.11) + 3 H2O (54.05); 1 g glu â†’ 0.70 g HMF + 0.30 g H2O
+            Dim dm_hmf = If(assigned(HMFCompound), dm_glu_gross * Max(0.0, Min(1.0, GlucoseToHMF)), 0.0)
+            ' glucose (180.16) to HMF (126.11) + 3 H2O (54.05); 1 g glu to 0.70 g HMF + 0.30 g H2O
             Dim dm_glu_net = dm_glu_gross - dm_hmf / 0.70
-            Dim dm_h2o_hmf_release = dm_hmf * 0.30 / 0.70 ' water released by glucose â†’ HMF
+            Dim dm_h2o_hmf_release = dm_hmf * 0.30 / 0.70 ' water released by glucose to HMF
 
-            ' Hemicellulose â†’ xylose (with subsequent xylose â†’ furfural) + acetic acid
-            Dim dm_hemi = m_hemi_in * Max(0.0, Min(1.0, HemicelluloseConversion))
-            ' 1 g xylan (132.12) + H2O (18.02) â†’ 1.136 g xylose (150.13)
-            Dim dm_xyl_gross = dm_hemi * 1.1364
-            Dim dm_h2o_hemi = dm_hemi * 0.1364
-            Dim dm_fur = dm_xyl_gross * Max(0.0, Min(1.0, XyloseToFurfural))
-            ' xylose (150.13) â†’ furfural (96.08) + 3 H2O (54.05); 1 g xyl â†’ 0.64 g fur + 0.36 g H2O
+            ' Hemicellulose to xylose (with subsequent xylose to furfural); its acetyl groups give acetic acid:
+            ' R-O-COCH3 + H2O to R-OH + CH3COOH, so 60.05 g of acid take 42.04 g from the chain and 18.02 g of water.
+            Dim dm_hemi = If(assigned(XyloseCompound), m_hemi_in * Max(0.0, Min(1.0, HemicelluloseConversion)), 0.0)
+            Dim dm_acetic = If(assigned(AceticAcidCompound), dm_hemi * Max(0.0, AceticAcidYieldOnHemi), 0.0)
+            Dim dm_acetyl = dm_acetic * 42.04 / 60.05
+            Dim dm_h2o_acetic = dm_acetic * 18.02 / 60.05
+            Dim dm_xylan = Max(dm_hemi - dm_acetyl, 0.0)
+            ' 1 g xylan (132.12) + H2O (18.02) to 1.136 g xylose (150.13)
+            Dim dm_xyl_gross = dm_xylan * 1.1364
+            Dim dm_h2o_hemi = dm_xylan * 0.1364
+            Dim dm_fur = If(assigned(FurfuralCompound), dm_xyl_gross * Max(0.0, Min(1.0, XyloseToFurfural)), 0.0)
+            ' xylose (150.13) to furfural (96.08) + 3 H2O (54.05); 1 g xyl to 0.64 g fur + 0.36 g H2O
             Dim dm_xyl_net = dm_xyl_gross - dm_fur / 0.64
             Dim dm_h2o_fur_release = dm_fur * 0.36 / 0.64
 
-            Dim dm_acetic = dm_hemi * Max(0.0, AceticAcidYieldOnHemi)
-
-            ' Lignin solubilization (mass conservative: lignin â†’ soluble lignin; if no soluble form chosen, just convert in place)
-            Dim dm_lignin_sol = m_lignin_in * Max(0.0, Min(1.0, LigninSolubilization))
+            ' Lignin solubilization: without a soluble-lignin compound the lignin stays where it is.
+            Dim dm_lignin_sol = If(assigned(SolubleLigninCompound), m_lignin_in * Max(0.0, Min(1.0, LigninSolubilization)), 0.0)
 
             ' Apply mass balances
             If Not String.IsNullOrEmpty(CelluloseCompound) AndAlso newMass.ContainsKey(CelluloseCompound) Then _
@@ -246,7 +254,7 @@ Namespace Reactors
             If Not String.IsNullOrEmpty(AceticAcidCompound) AndAlso newMass.ContainsKey(AceticAcidCompound) Then _
                 newMass(AceticAcidCompound) += dm_acetic
 
-            Dim dm_h2o_net = -(dm_h2o_cell + dm_h2o_hemi) + dm_h2o_hmf_release + dm_h2o_fur_release
+            Dim dm_h2o_net = -(dm_h2o_cell + dm_h2o_hemi + dm_h2o_acetic) + dm_h2o_hmf_release + dm_h2o_fur_release
             If Not String.IsNullOrEmpty(WaterCompound) AndAlso newMass.ContainsKey(WaterCompound) Then _
                 newMass(WaterCompound) = Max(newMass(WaterCompound) + dm_h2o_net, 0.0)
 
