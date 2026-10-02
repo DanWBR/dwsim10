@@ -39,11 +39,16 @@ Namespace SpecialOps
 
         Inherits UnitOperations.SpecialOpBaseClass
 
+        Implements Interfaces.IEnergyRecycle
+
         ''' <summary>
         ''' Asked whether the recycle should keep iterating past its maximum. The host assigns
-        ''' it; without one the recycle keeps going, which is what answering yes did.
+        ''' it; without one the recycle stops with a timeout, as the material recycle does.
         ''' </summary>
         Public Shared Property ContinuePastMaximumIterations As Func(Of String, String, Boolean)
+
+        ''' <summary>True when the last pass changed the recycled energy flow by less than the tolerance.</summary>
+        Public Property Converged As Boolean = False Implements Interfaces.IEnergyRecycle.Converged
 
         <NonSerialized> <Xml.Serialization.XmlIgnore> Public f As Object
 
@@ -317,27 +322,29 @@ SS:             Enew = Me.ConvergenceHistory.Energy
                 .GraphicObject.Calculated = True
             End With
 
+            'the solver iterates until Converged, so reaching the limit has to end the loop
             If Me.IterationCount >= Me.MaximumIterations Then
-                Dim keepgoing As Boolean = True
+                Dim keepgoing As Boolean = False
                 If ContinuePastMaximumIterations IsNot Nothing Then
                     keepgoing = ContinuePastMaximumIterations.Invoke(
                         Me.GraphicObject.Tag & " - " & FlowSheet.GetTranslatedString("Nmeromximodeiteraesa3"),
                         FlowSheet.GetTranslatedString("Onmeromximodeiteraes"))
                 End If
+                Me.IterationCount = 0
                 If Not keepgoing Then
-                    GoTo final
-                Else
-                    Me.IterationCount = 0
+                    Me.Converged = False
+                    Throw New TimeoutException(Me.GraphicObject.Tag & " - " & FlowSheet.GetTranslatedString("Nmeromximodeiteraesa3"))
                 End If
             End If
 
             Me.IterationCount += 1
 
             If Math.Abs(Me.ConvergenceHistory.EnergyE) > Me.ConvergenceParameters.Energy Then
-
+                Me.Converged = False
             Else
-final:          Me.IterationsTaken = Me.IterationCount.ToString
+                Me.IterationsTaken = Me.IterationCount
                 Me.IterationCount = 0
+                Me.Converged = True
             End If
 
         End Sub

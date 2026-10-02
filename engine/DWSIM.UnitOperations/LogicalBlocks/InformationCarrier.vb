@@ -271,16 +271,31 @@ Namespace SpecialOps
         End Sub
 
         ''' <summary>
-        ''' Marks this information carrier as calculated when the graphic object is active.
+        ''' Copies the source property value to every configured target property, in SI units.
+        ''' A carrier without a source does nothing.
         ''' </summary>
         ''' <param name="args">Optional calculation arguments (not used).</param>
         Public Overrides Sub Calculate(Optional ByVal args As Object = Nothing)
 
-            If GraphicObject.Active Then
+            If Not GraphicObject.Active Then Exit Sub
 
-                GraphicObject.Calculated = True
+            Dim objects = FlowSheet.SimulationObjects
+
+            If SourceObjectData IsNot Nothing AndAlso Not String.IsNullOrEmpty(SourceObjectData.ID) AndAlso
+               Not String.IsNullOrEmpty(SourceObjectData.PropertyName) AndAlso objects.ContainsKey(SourceObjectData.ID) Then
+
+                Dim value = objects(SourceObjectData.ID).GetPropertyValue(SourceObjectData.PropertyName)
+
+                For Each target In {TargetObjectData, TargetObjectData2, TargetObjectData3}
+                    If target IsNot Nothing AndAlso Not String.IsNullOrEmpty(target.ID) AndAlso
+                       Not String.IsNullOrEmpty(target.PropertyName) AndAlso objects.ContainsKey(target.ID) Then
+                        objects(target.ID).SetPropertyValue(target.PropertyName, value)
+                    End If
+                Next
 
             End If
+
+            GraphicObject.Calculated = True
 
         End Sub
 

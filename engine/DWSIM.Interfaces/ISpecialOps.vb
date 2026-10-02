@@ -30,6 +30,17 @@ Public Interface IRecycle
 
 End Interface
 
+''' <summary>
+''' An energy recycle: the solver keeps iterating the flowsheet until every one of them has converged.
+''' </summary>
+<InterfaceType(ComInterfaceType.InterfaceIsIDispatch)>
+Public Interface IEnergyRecycle
+
+    ''' <summary>True when the last pass changed the recycled energy flow by less than the tolerance.</summary>
+    Property Converged As Boolean
+
+End Interface
+
 <InterfaceType(ComInterfaceType.InterfaceIsIDispatch)>
 Public Interface IRecycleConvergenceHistory
 

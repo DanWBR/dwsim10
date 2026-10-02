@@ -126,7 +126,7 @@ Public Delegate Sub CustomEvent2(ByVal objinfo As CalculationArgs)
                                 End If
 
                                 If myUnitOp.IsInfoCarrierAttached = True Then
-                                    If myUnitOp.InfoCarrierVarType = SpecVarType.Target And fbag.FlowsheetOptions.InformationCarrierCalculationMode = SpecCalcMode.AfterSourceObject Then
+                                    If myUnitOp.InfoCarrierVarType = SpecVarType.Source And fbag.FlowsheetOptions.InformationCarrierCalculationMode = SpecCalcMode.AfterSourceObject Then
                                         fbag.SimulationObjects(myUnitOp.AttachedInfoCarrierId).Solve()
                                     End If
                                 End If
@@ -277,7 +277,7 @@ Public Delegate Sub CustomEvent2(ByVal objinfo As CalculationArgs)
                     End If
 
                     If myObj.IsInfoCarrierAttached = True Then
-                        If myObj.InfoCarrierVarType = SpecVarType.Target And fbag.FlowsheetOptions.InformationCarrierCalculationMode = SpecCalcMode.AfterSourceObject Then
+                        If myObj.InfoCarrierVarType = SpecVarType.Source And fbag.FlowsheetOptions.InformationCarrierCalculationMode = SpecCalcMode.AfterSourceObject Then
                             fbag.SimulationObjects(myObj.AttachedInfoCarrierId).Solve()
                         End If
                     End If
@@ -338,7 +338,7 @@ Public Delegate Sub CustomEvent2(ByVal objinfo As CalculationArgs)
                         End If
                     End If
                     If myObj.IsInfoCarrierAttached = True Then
-                        If myObj.InfoCarrierVarType = SpecVarType.Target And fbag.FlowsheetOptions.InformationCarrierCalculationMode = SpecCalcMode.AfterSourceObject Then
+                        If myObj.InfoCarrierVarType = SpecVarType.Source And fbag.FlowsheetOptions.InformationCarrierCalculationMode = SpecCalcMode.AfterSourceObject Then
                             fbag.SimulationObjects(myObj.AttachedInfoCarrierId).Solve()
                         End If
                     End If
@@ -390,7 +390,7 @@ Public Delegate Sub CustomEvent2(ByVal objinfo As CalculationArgs)
                         End If
                     End If
                     If myObj.IsInfoCarrierAttached = True Then
-                        If myObj.InfoCarrierVarType = SpecVarType.Target And fbag.FlowsheetOptions.InformationCarrierCalculationMode = SpecCalcMode.AfterSourceObject Then
+                        If myObj.InfoCarrierVarType = SpecVarType.Source And fbag.FlowsheetOptions.InformationCarrierCalculationMode = SpecCalcMode.AfterSourceObject Then
                             fbag.SimulationObjects(myObj.AttachedInfoCarrierId).Solve()
                         End If
                     End If
@@ -457,7 +457,7 @@ Public Delegate Sub CustomEvent2(ByVal objinfo As CalculationArgs)
             End If
         End If
         If ms.IsInfoCarrierAttached = True Then
-            If ms.InfoCarrierVarType = SpecVarType.Target And fbag.FlowsheetOptions.InformationCarrierCalculationMode = SpecCalcMode.AfterSourceObject Then
+            If ms.InfoCarrierVarType = SpecVarType.Source And fbag.FlowsheetOptions.InformationCarrierCalculationMode = SpecCalcMode.AfterSourceObject Then
                 fbag.SimulationObjects(ms.AttachedInfoCarrierId).Solve()
             End If
         End If
@@ -544,7 +544,7 @@ Public Delegate Sub CustomEvent2(ByVal objinfo As CalculationArgs)
             End If
         End If
         If ms.IsInfoCarrierAttached = True Then
-            If ms.InfoCarrierVarType = SpecVarType.Target And fbag.FlowsheetOptions.InformationCarrierCalculationMode = SpecCalcMode.AfterSourceObject Then
+            If ms.InfoCarrierVarType = SpecVarType.Source And fbag.FlowsheetOptions.InformationCarrierCalculationMode = SpecCalcMode.AfterSourceObject Then
                 fbag.SimulationObjects(ms.AttachedInfoCarrierId).Solve()
             End If
         End If
@@ -1418,12 +1418,14 @@ Public Delegate Sub CustomEvent2(ByVal objinfo As CalculationArgs)
             IObj?.Paragraphs.Add("The solver will now check for Recycles connected to 'tear' Material Streams...")
 
             Dim recycles As New List(Of String)
+            Dim energyrecycles As New List(Of String)
             Dim totalv As Integer = 0
             Dim totalr As Integer = 0
 
             For Each r In objstack
                 If fbag.SimulationObjects.ContainsKey(r) Then
                     Dim robj = fbag.SimulationObjects(r)
+                    If TypeOf robj Is IEnergyRecycle Then energyrecycles.Add(robj.Name)
                     If robj.GraphicObject.ObjectType = ObjectType.OT_Recycle Then
                         recycles.Add(robj.Name)
                         Dim rec As IRecycle = fbag.SimulationObjects(robj.Name)
@@ -1548,16 +1550,16 @@ Public Delegate Sub CustomEvent2(ByVal objinfo As CalculationArgs)
 
                                                       'calc specs
 
-                                                      If fbag.FlowsheetOptions.SpecCalculationMode = SpecCalcMode.AfterFlowsheet Then
+                                                      If fbag.FlowsheetOptions.SpecCalculationMode = SpecCalcMode.AfterFlowsheet Or fbag.FlowsheetOptions.InformationCarrierCalculationMode = SpecCalcMode.AfterFlowsheet Then
 
                                                           For Each obj In fbag.SimulationObjects.Values.Where(Function(o) TypeOf o Is ISpec)
                                                               Dim spec = DirectCast(obj, ISpec)
-                                                              If spec.SpecCalculationMode = SpecCalcMode2.GlobalSetting Or spec.SpecCalculationMode = SpecCalcMode2.AfterFlowsheet Then
+                                                              If fbag.FlowsheetOptions.SpecCalculationMode = SpecCalcMode.AfterFlowsheet AndAlso (spec.SpecCalculationMode = SpecCalcMode2.GlobalSetting Or spec.SpecCalculationMode = SpecCalcMode2.AfterFlowsheet) Then
                                                                   obj.Solve()
                                                               End If
                                                           Next
 
-                                                          If fbag.FlowsheetOptions.InformationCarrierCalculationMode = SpecCalcMode.BeforeFlowsheet Then
+                                                          If fbag.FlowsheetOptions.InformationCarrierCalculationMode = SpecCalcMode.AfterFlowsheet Then
                                                               For Each obj In fbag.SimulationObjects.Values.Where(Function(o) TypeOf o Is IInformationCarrier)
                                                                   Dim carrier = DirectCast(obj, IInformationCarrier)
                                                                   If carrier.CalculationMode = SpecCalcMode2.GlobalSetting Or carrier.CalculationMode = SpecCalcMode2.AfterFlowsheet Then
@@ -1608,6 +1610,14 @@ Public Delegate Sub CustomEvent2(ByVal objinfo As CalculationArgs)
                                                           If Not converged Then Exit For
                                                       Next
 
+                                                      'an energy recycle closes its loop the same way
+                                                      If converged Then
+                                                          For Each r As String In energyrecycles
+                                                              converged = DirectCast(fbag.SimulationObjects(r), IEnergyRecycle).Converged
+                                                              If Not converged Then Exit For
+                                                          Next
+                                                      End If
+
                                                       'in dynamic mode, recycles are redundant
 
                                                       If fbag.DynamicMode Then converged = True
@@ -1630,7 +1640,7 @@ Public Delegate Sub CustomEvent2(ByVal objinfo As CalculationArgs)
                                                           Next
 
                                                           avgerr *= 100
-                                                          avgerr /= rcount
+                                                          If rcount > 0 Then avgerr /= rcount
 
                                                           fgui.ClearLog()
 
