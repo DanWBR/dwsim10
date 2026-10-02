@@ -818,7 +818,7 @@ restart:    B = F - D
                             'PROP_SC_4	Reboiler Pressure
                             value = SystemsOfUnits.Converter.ConvertFromSI(su.pressure, Me.m_boilerpressure)
                         Case 5
-                            'PROP_SC_5	Minimun Reflux Ratio
+                            'PROP_SC_5	Minimum Reflux Ratio
                             value = Me.m_Rmin
                         Case 6
                             'PROP_SC_6	Minimum Stages
@@ -990,7 +990,7 @@ restart:    B = F - D
                             'PROP_SC_4	Reboiler Pressure
                             value = su.pressure
                         Case 5
-                            'PROP_SC_5	Minimun Reflux Ratio
+                            'PROP_SC_5	Minimum Reflux Ratio
                             value = ""
                         Case 6
                             'PROP_SC_6	Minimum Stages

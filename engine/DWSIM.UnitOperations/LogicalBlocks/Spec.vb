@@ -547,6 +547,16 @@ Namespace SpecialOps
 
         End Sub
 
+        ''' <summary>Readable names for the property identifiers, which are the .NET property names.</summary>
+        Public Overrides Function GetPropertyDescription(prop As String) As String
+            Select Case prop
+                Case "SpecMin" : Return "Target Variable Minimum"
+                Case "SpecMax" : Return "Target Variable Maximum"
+                Case "Expression" : Return "Expression"
+                Case Else : Return MyBase.GetPropertyDescription(prop)
+            End Select
+        End Function
+
         ''' <summary>
         ''' Returns the value of the specified property.
         ''' </summary>

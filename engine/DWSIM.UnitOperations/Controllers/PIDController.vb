@@ -499,6 +499,28 @@ Namespace SpecialOps
 
         End Sub
 
+        ''' <summary>Readable names for the property identifiers, which are the .NET property names.</summary>
+        Public Overrides Function GetPropertyDescription(prop As String) As String
+            Select Case prop
+                Case "Active" : Return "Active"
+                Case "ManualOverride" : Return "Manual Override"
+                Case "LastError" : Return "Previous Error"
+                Case "CurrentError" : Return "Current Error"
+                Case "CumulativeError" : Return "Integral of the Error"
+                Case "SetPointAbs" : Return "Set Point"
+                Case "Kp" : Return "Proportional Gain (Kp)"
+                Case "Ki" : Return "Integral Gain (Ki)"
+                Case "Kd" : Return "Derivative Gain (Kd)"
+                Case "Output" : Return "Controller Output (normalized)"
+                Case "OutputMin" : Return "Controller Output Minimum"
+                Case "OutputMax" : Return "Controller Output Maximum"
+                Case "OutputAbs" : Return "Manipulated Variable Value"
+                Case "Offset" : Return "Manipulated Variable at Zero Output"
+                Case "ManipulatedVariableSpan" : Return "Manipulated Variable Span"
+                Case Else : Return MyBase.GetPropertyDescription(prop)
+            End Select
+        End Function
+
         Public Overrides Function GetPropertyValue(ByVal prop As String, Optional ByVal su As Interfaces.IUnitsOfMeasure = Nothing) As Object
             Dim val0 As Object = MyBase.GetPropertyValue(prop, su)
 

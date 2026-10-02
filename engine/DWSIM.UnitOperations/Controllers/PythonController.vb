@@ -218,6 +218,16 @@ Namespace SpecialOps
 
         End Sub
 
+        ''' <summary>Readable names for the property identifiers, which are the .NET property names.</summary>
+        Public Overrides Function GetPropertyDescription(prop As String) As String
+            Select Case prop
+                Case "Active" : Return "Active"
+                Case "SetPoint" : Return "Set Point"
+                Case "Output" : Return "Controller Output"
+                Case Else : Return MyBase.GetPropertyDescription(prop)
+            End Select
+        End Function
+
         Public Overrides Function GetPropertyValue(ByVal prop As String, Optional ByVal su As Interfaces.IUnitsOfMeasure = Nothing) As Object
             Dim val0 As Object = MyBase.GetPropertyValue(prop, su)
 

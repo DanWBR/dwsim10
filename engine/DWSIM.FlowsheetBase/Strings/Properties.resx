@@ -1652,7 +1652,7 @@
     <comment>1</comment>
   </data>
   <data name="PROP_SC_5" xml:space="preserve">
-    <value>Minimun Reflux Ratio</value>
+    <value>Minimum Reflux Ratio</value>
     <comment>0</comment>
   </data>
   <data name="PROP_SC_6" xml:space="preserve">
@@ -1875,5 +1875,149 @@
   </data>
   <data name="Sump_LiquidLevel" xml:space="preserve">
     <value>Sump Liquid Level</value>
+  </data>
+  <data name="PROP_HX_35" xml:space="preserve">
+    <value>TEMA Front Head Type</value>
+    <comment>0</comment>
+  </data>
+  <data name="PROP_HX_36" xml:space="preserve">
+    <value>TEMA Rear Head Type</value>
+    <comment>0</comment>
+  </data>
+  <data name="PROP_HX_37" xml:space="preserve">
+    <value>Shell Design Pressure</value>
+    <comment>0</comment>
+  </data>
+  <data name="PROP_HX_38" xml:space="preserve">
+    <value>Tube Design Pressure</value>
+    <comment>0</comment>
+  </data>
+  <data name="PROP_HX_39" xml:space="preserve">
+    <value>Shell Design Temperature</value>
+    <comment>0</comment>
+  </data>
+  <data name="PROP_HX_40" xml:space="preserve">
+    <value>Tube Design Temperature</value>
+    <comment>0</comment>
+  </data>
+  <data name="PROP_HX_41" xml:space="preserve">
+    <value>Shell Test Pressure</value>
+    <comment>0</comment>
+  </data>
+  <data name="PROP_HX_42" xml:space="preserve">
+    <value>Tube Test Pressure</value>
+    <comment>0</comment>
+  </data>
+  <data name="PROP_HX_43" xml:space="preserve">
+    <value>Corrosion Allowance</value>
+    <comment>0</comment>
+  </data>
+  <data name="PROP_HX_44" xml:space="preserve">
+    <value>Shell Wall Thickness</value>
+    <comment>0</comment>
+  </data>
+  <data name="PROP_HX_45" xml:space="preserve">
+    <value>Shell Inlet Nozzle Diameter</value>
+    <comment>0</comment>
+  </data>
+  <data name="PROP_HX_46" xml:space="preserve">
+    <value>Shell Outlet Nozzle Diameter</value>
+    <comment>0</comment>
+  </data>
+  <data name="PROP_HX_47" xml:space="preserve">
+    <value>Tube Inlet Nozzle Diameter</value>
+    <comment>0</comment>
+  </data>
+  <data name="PROP_HX_48" xml:space="preserve">
+    <value>Tube Outlet Nozzle Diameter</value>
+    <comment>0</comment>
+  </data>
+  <data name="PROP_HX_49" xml:space="preserve">
+    <value>Tube Bundle Diameter</value>
+    <comment>0</comment>
+  </data>
+  <data name="PROP_HX_50" xml:space="preserve">
+    <value>Effective Tube Length</value>
+    <comment>0</comment>
+  </data>
+  <data name="PROP_HX_51" xml:space="preserve">
+    <value>Heat Transfer Area (Internal)</value>
+    <comment>0</comment>
+  </data>
+  <data name="PROP_HX_52" xml:space="preserve">
+    <value>Heat Transfer Area (External)</value>
+    <comment>0</comment>
+  </data>
+  <data name="PROP_HX_53" xml:space="preserve">
+    <value>Number of Baffles</value>
+    <comment>0</comment>
+  </data>
+  <data name="PROP_HX_54" xml:space="preserve">
+    <value>Tube Side Flow Area</value>
+    <comment>0</comment>
+  </data>
+  <data name="PROP_HX_55" xml:space="preserve">
+    <value>Shell Side Flow Area</value>
+    <comment>0</comment>
+  </data>
+  <data name="PROP_HX_56" xml:space="preserve">
+    <value>Tube Side Velocity</value>
+    <comment>0</comment>
+  </data>
+  <data name="PROP_HX_57" xml:space="preserve">
+    <value>Shell Side Velocity</value>
+    <comment>0</comment>
+  </data>
+  <data name="PROP_HX_58" xml:space="preserve">
+    <value>Shell Inlet Nozzle Velocity</value>
+    <comment>0</comment>
+  </data>
+  <data name="PROP_HX_59" xml:space="preserve">
+    <value>Shell Outlet Nozzle Velocity</value>
+    <comment>0</comment>
+  </data>
+  <data name="PROP_HX_60" xml:space="preserve">
+    <value>Tube Inlet Nozzle Velocity</value>
+    <comment>0</comment>
+  </data>
+  <data name="PROP_HX_61" xml:space="preserve">
+    <value>Tube Outlet Nozzle Velocity</value>
+    <comment>0</comment>
+  </data>
+  <data name="PROP_HX_62" xml:space="preserve">
+    <value>Shell Inlet Nozzle rho.v2</value>
+    <comment>0</comment>
+  </data>
+  <data name="PROP_HX_63" xml:space="preserve">
+    <value>Shell Outlet Nozzle rho.v2</value>
+    <comment>0</comment>
+  </data>
+  <data name="PROP_HX_64" xml:space="preserve">
+    <value>Tube Inlet Nozzle rho.v2</value>
+    <comment>0</comment>
+  </data>
+  <data name="PROP_HX_65" xml:space="preserve">
+    <value>Tube Outlet Nozzle rho.v2</value>
+    <comment>0</comment>
+  </data>
+  <data name="PROP_HX_66" xml:space="preserve">
+    <value>Shell Side Volume</value>
+    <comment>0</comment>
+  </data>
+  <data name="PROP_HX_67" xml:space="preserve">
+    <value>Tube Side Volume</value>
+    <comment>0</comment>
+  </data>
+  <data name="PROP_HX_68" xml:space="preserve">
+    <value>Empty Weight</value>
+    <comment>0</comment>
+  </data>
+  <data name="PROP_HX_69" xml:space="preserve">
+    <value>Operating Weight</value>
+    <comment>0</comment>
+  </data>
+  <data name="PROP_HX_70" xml:space="preserve">
+    <value>Water Test Weight</value>
+    <comment>0</comment>
   </data>
 </root>

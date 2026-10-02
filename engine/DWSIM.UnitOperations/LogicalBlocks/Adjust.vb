@@ -419,6 +419,18 @@ Namespace SpecialOps
 
         End Sub
 
+        ''' <summary>Readable names for the property identifiers, which are the .NET property names.</summary>
+        Public Overrides Function GetPropertyDescription(prop As String) As String
+            Select Case prop
+                Case "MinVal" : Return "Manipulated Variable Minimum"
+                Case "MaxVal" : Return "Manipulated Variable Maximum"
+                Case "Tolerance" : Return "Tolerance (Maximum Error)"
+                Case "StepSize" : Return "Initial Step Size"
+                Case "MaximumIterations" : Return "Maximum Iterations"
+                Case Else : Return MyBase.GetPropertyDescription(prop)
+            End Select
+        End Function
+
         ''' <summary>
         ''' Returns the value of the specified property.
         ''' </summary>
