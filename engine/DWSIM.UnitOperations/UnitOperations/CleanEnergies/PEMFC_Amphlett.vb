@@ -117,7 +117,7 @@ Namespace UnitOperations
             Dim Pin1, Pin2 As Double
 
             Pin1 = msin1.GetPressure()
-            Pin2 = msin1.GetPressure()
+            Pin2 = msin2.GetPressure()
 
             Dim T = (msin1.GetTemperature() + msin2.GetTemperature()) / 2
 
@@ -261,6 +261,9 @@ Namespace UnitOperations
                     ElseIf names(j) = "Oxygen" Then
                         Nf(j) = N01(j) + N02(j) - o2r
                         If (Nf(j) < 0.0) Then Throw New Exception("Negative Oxygen molar flow calculated. Please check inputs.")
+                    Else
+                        ' inerts (N2 from air, say) pass through from both inlets
+                        Nf(j) = N01(j) + N02(j)
                     End If
                 Next
 
