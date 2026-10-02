@@ -1691,7 +1691,8 @@ Namespace Reactors
 
             ' Map back to standard result fields
             Dim sFinal = traj.FinalState
-            Dim Q_gas_m3d = ADM1.ADM1Equations.BiogasFlow_Nm3_d(sFinal, ADM1Params)
+            ' dry flow: the mole fractions below are on a dry basis
+            Dim Q_gas_m3d = ADM1.ADM1Equations.BiogasFlowDry_Nm3_d(sFinal, ADM1Params)
             Dim x_CH4 = ADM1.ADM1Equations.CH4MoleFraction(sFinal, ADM1Params)
             Dim x_CO2 = ADM1.ADM1Equations.CO2MoleFraction(sFinal, ADM1Params)
             Dim x_H2S = ADM1.ADM1Equations.H2SMoleFraction(sFinal, ADM1Params)
