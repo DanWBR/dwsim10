@@ -45,11 +45,13 @@ Namespace Reactors
         <NonSerialized> <Xml.Serialization.XmlIgnore> Public f As Object
 
         ''' <summary>
-        ''' Gets or sets the name of the Reaktoro thermodynamic database, e.g. "supcrt07". A name
+        ''' Gets or sets the name of the Reaktoro thermodynamic database, e.g. "supcrtbl". A name
         ''' stored by an older version carries a file extension, which is dropped when the database
         ''' is opened: Reaktoro 2 carries its databases embedded and names them without one.
+        ''' supcrtbl is the default: the H2O(g) of supcrt98/07/16 loses its heat capacity above
+        ''' about 1000 K, which pushes the gas-phase equilibrium constants off at reforming temperatures.
         ''' </summary>
-        Public Property DatabaseName As String = "supcrt07"
+        Public Property DatabaseName As String = "supcrtbl"
 
         ''' <summary>Gets or sets whether an external (user-supplied) database file is used instead of the built-in one.</summary>
         Public Property UseExternalDatabase As Boolean = False

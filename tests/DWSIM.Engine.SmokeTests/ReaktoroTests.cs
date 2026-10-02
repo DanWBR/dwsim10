@@ -50,6 +50,8 @@ namespace DWSIM.Engine.SmokeTests
 
             Assert.That(maps["Carbonate (ion)"].AqueousName, Is.EqualTo("CO3-2"));
             Assert.That(maps["Sulfate (ion)"].AqueousName, Is.EqualTo("SO4-2"));
+            // Reaktoro 1 called aqueous water H2O(l)
+            Assert.That(maps["Water"].AqueousName, Is.EqualTo("H2O(aq)"));
         }
 
         /// <summary>

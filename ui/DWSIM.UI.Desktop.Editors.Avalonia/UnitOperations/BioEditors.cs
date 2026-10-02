@@ -1010,6 +1010,8 @@ namespace DWSIM.UI.Desktop.Editors
                 reactor.NumAxialCells, v => reactor.NumAxialCells = (int)v);
             BioRows.Number(panel, reactor, "Solids Holdup (0-1)",
                 reactor.SolidsHoldup, v => reactor.SolidsHoldup = v);
+            BioRows.Number(panel, reactor, "Solids Slip Factor",
+                reactor.SolidsSlipFactor, v => reactor.SolidsSlipFactor = v);
 
             BioRows.Section(panel, "Bed Material");
 
@@ -1124,11 +1126,12 @@ namespace DWSIM.UI.Desktop.Editors
                 {
                     var databases = new List<string>
                     {
-                        "supcrt98.xml", "supcrt98-organics.xml", "supcrt07.xml", "supcrt07-organics.xml"
+                        "supcrt98", "supcrt98-organics", "supcrt07", "supcrt07-organics",
+                        "supcrt16", "supcrt16-organics", "supcrtbl", "supcrtbl-organics"
                     };
 
                     panel.CreateAndAddDropDownRow("Database", databases,
-                        Math.Max(0, databases.IndexOf(reactor.DatabaseName ?? "")), (dd, e) =>
+                        Math.Max(0, databases.IndexOf(System.IO.Path.GetFileNameWithoutExtension(reactor.DatabaseName ?? ""))), (dd, e) =>
                         {
                             if (dd.SelectedIndex < 0) return;
                             reactor.DatabaseName = databases[dd.SelectedIndex];
