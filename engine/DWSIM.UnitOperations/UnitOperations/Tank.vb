@@ -172,7 +172,7 @@ Namespace UnitOperations
             AddDynamicProperty("Reset Content", "Discards the current holdup at the next run step and builds it again as on a first run (see Initialize using Inlet Stream).", False, UnitOfMeasure.none, True.GetType())
             AddDynamicProperty("Closed Tank", "Model as a closed tank with vapor space pressure calculation instead of atmospheric.", False, UnitOfMeasure.none, True.GetType())
             AddDynamicProperty("Ambient Temperature", "Ambient temperature for heat loss calculation (K).", 298.15, UnitOfMeasure.temperature, 1.0.GetType())
-            AddDynamicProperty("Ambient UA Product", "Overall heat transfer coefficient times area for ambient heat loss (W/K). Set to 0 to disable.", 0.0, UnitOfMeasure.heat_transf_coeff, 1.0.GetType())
+            AddDynamicProperty("Ambient UA Product", "Overall heat transfer coefficient times area for ambient heat loss (W/K). Set to 0 to disable.", 0.0, UnitOfMeasure.none, 1.0.GetType())
             AddDynamicProperty("Operating Pressure", "Current operating pressure (read-only in open tank mode).", 101325.0, UnitOfMeasure.pressure, 1.0.GetType())
             AddDynamicProperty("Minimum Pressure", "Minimum dynamic pressure.", 101325.0, UnitOfMeasure.pressure, 1.0.GetType())
 

@@ -732,7 +732,8 @@ Namespace Reactors
             Select Case prop
                 Case "Riser Height", "Riser Diameter" : Return "m"
                 Case "Bed Material Density" : Return "kg/m3"
-                Case "Bed Material Cp", "Char LHV", "Heat Of Pyrolysis" : Return "J/kg"
+                Case "Bed Material Cp" : Return "J/(kg.K)"
+                Case "Char LHV", "Heat Of Pyrolysis" : Return "J/kg"
                 Case "Carrier Gas Velocity" : Return "m/s"
                 Case "Sand Inlet Temperature", "Sand Outlet Temperature", "Outlet Temperature",
                      "Combustor Flue Temperature" : Return "K"
