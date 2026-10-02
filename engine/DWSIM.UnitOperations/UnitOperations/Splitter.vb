@@ -438,7 +438,7 @@ Namespace UnitOperations
 
                     Select Case OutCount
                         Case 1
-                            m1 = m1
+                            m1 = Me.StreamFlowSpec
                             mn(0) = m1
                         Case 2
                             If M >= Me.StreamFlowSpec Then
@@ -495,7 +495,7 @@ Namespace UnitOperations
 
                     Select Case OutCount
                         Case 1
-                            v1 = v1
+                            v1 = Me.StreamFlowSpec
                             vn(0) = v1
                         Case 2
                             If V >= Me.StreamFlowSpec Then

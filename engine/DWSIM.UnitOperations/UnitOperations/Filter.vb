@@ -480,7 +480,7 @@ Namespace UnitOperations
                         value = Me.SubmergedAreaFraction
                     Case 7
                         'PROP_FT_7	Total Pressure Drop	
-                        value = SystemsOfUnits.Converter.ConvertFromSI(su.pressure, Me.PressureDrop)
+                        value = SystemsOfUnits.Converter.ConvertFromSI(su.deltaP, Me.PressureDrop)
                 End Select
 
                 Return value

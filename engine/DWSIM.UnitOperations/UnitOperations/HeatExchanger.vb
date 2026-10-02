@@ -3371,7 +3371,7 @@ Namespace UnitOperations
                         value = CorrectionFactorLMTD
                     Case 30
                         value = OutletVaporFraction1
-                    Case 21
+                    Case 31
                         value = OutletVaporFraction2
                     Case 32
                         value = SystemsOfUnits.Converter.ConvertFromSI(su.deltaP, ColdSidePressureDrop)

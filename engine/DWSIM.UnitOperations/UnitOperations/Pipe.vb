@@ -2763,7 +2763,12 @@ Namespace UnitOperations
                     Case 6
                         value = cv.ConvertFromSI(su.temperature, ThermalProfile.Temp_amb_definir)
                     Case 7
-                        value = cv.ConvertFromSI(su.deltaT, ThermalProfile.AmbientTemperatureGradient) / cv.ConvertFromSI(su.distance, 1.0#)
+                        ' the gradient of the active thermal profile
+                        If ThermalProfile.TipoPerfil = ThermalEditorDefinitions.ThermalProfileType.Estimar_CGTC Then
+                            value = cv.ConvertFromSI(su.deltaT, ThermalProfile.AmbientTemperatureGradient_EstimateHTC) / cv.ConvertFromSI(su.distance, 1.0#)
+                        Else
+                            value = cv.ConvertFromSI(su.deltaT, ThermalProfile.AmbientTemperatureGradient) / cv.ConvertFromSI(su.distance, 1.0#)
+                        End If
                     Case 8
                         Dim tval As Double = 0
                         For Each section In Profile.Sections.Values
@@ -3130,8 +3135,12 @@ Namespace UnitOperations
                     Case 6
                         ThermalProfile.Temp_amb_definir = SystemsOfUnits.Converter.ConvertToSI(su.temperature, propval)
                     Case 7
-                        ThermalProfile.AmbientTemperatureGradient = SystemsOfUnits.Converter.ConvertToSI(su.deltaT, propval) / SystemsOfUnits.Converter.ConvertToSI(su.distance, 1.0#)
-                        ThermalProfile.AmbientTemperatureGradient_EstimateHTC = SystemsOfUnits.Converter.ConvertToSI(su.deltaT, propval) / SystemsOfUnits.Converter.ConvertToSI(su.distance, 1.0#)
+                        ' the gradient of the active thermal profile
+                        If ThermalProfile.TipoPerfil = ThermalEditorDefinitions.ThermalProfileType.Estimar_CGTC Then
+                            ThermalProfile.AmbientTemperatureGradient_EstimateHTC = SystemsOfUnits.Converter.ConvertToSI(su.deltaT, propval) / SystemsOfUnits.Converter.ConvertToSI(su.distance, 1.0#)
+                        Else
+                            ThermalProfile.AmbientTemperatureGradient = SystemsOfUnits.Converter.ConvertToSI(su.deltaT, propval) / SystemsOfUnits.Converter.ConvertToSI(su.distance, 1.0#)
+                        End If
                 End Select
             Else
                 Try

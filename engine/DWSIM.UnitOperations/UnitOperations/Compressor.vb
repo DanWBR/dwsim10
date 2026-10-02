@@ -466,7 +466,8 @@ Namespace UnitOperations
             Dim rho = ims.Phases(0).Properties.density.GetValueOrDefault
 
             Dim head As Double = Double.NaN
-            Dim eff As Double = AdiabaticEfficiency / 100.0
+            ' the efficiency that goes with the head of the selected process path
+            Dim eff As Double = If(ProcessPath = ProcessPathType.Polytropic, PolytropicEfficiency, AdiabaticEfficiency) / 100.0
 
             If CalcMode = CalculationMode.Curves AndAlso rho > 0.0 AndAlso Wi > 0.0 Then
                 Try
