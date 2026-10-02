@@ -502,7 +502,7 @@ Namespace Utilities.PetroleumCharacterization.Methods
         ''' Riazi (2005) correlation, eq. 2.115 of MNL50.
         ''' </summary>
         Public Shared Function CHRatio_Riazi(ByVal Tb As Double, ByVal SG As Double) As Double
-            Return 3.4707 * Math.Exp(0.01485 * Tb + 16.94 * SG - 0.012492 * Tb * SG) * Tb ^ (-2.725) * SG ^ 6.798
+            Return 3.4707 * Math.Exp(0.01485 * Tb + 16.94 * SG - 0.012492 * Tb * SG) * Tb ^ (-2.725) * SG ^ (-6.798)
         End Function
 
         ''' <summary>
