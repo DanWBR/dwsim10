@@ -57,7 +57,9 @@ Namespace PropertyPackages
 
             MyBase.New(comode)
 
-            EnthalpyEntropyCpCvCalculationMode = EnthalpyEntropyCpCvCalcMode.LeeKesler
+            ' liquid H, S and Cp from the liquid heat capacity data: Lee-Kesler overestimates the liquid Cp
+            ' of associating compounds (water by about 26 %, ethanol by about 40 %)
+            EnthalpyEntropyCpCvCalculationMode = EnthalpyEntropyCpCvCalcMode.ExpData
 
             LiquidDensityCalculationMode_Subcritical = LiquidDensityCalcMode.COSTALD
 
@@ -1355,7 +1357,7 @@ Namespace PropertyPackages
                                 result = resultObj(1)
                             Case 1, 3 'Ideal/Experimental
                                 result = Me.AUX_LIQCPm(T, phaseID)
-                            Case 2 'Excess
+                            Case 2, 4 'Excess / Experimental Liquid + Excess
                                 result = Me.AUX_LIQCPm(T, phaseID) + Me.m_act.CalcExcessHeatCapacity(T, RET_VMOL(phase), Me.GetArguments()) / Me.AUX_MMM(phase)
                         End Select
                     End If
@@ -1371,7 +1373,7 @@ Namespace PropertyPackages
                                 result = resultObj(2)
                             Case 1, 3 'Ideal/Experimental
                                 result = Me.AUX_LIQCPm(T, phaseID)
-                            Case 2 'Excess
+                            Case 2, 4 'Excess / Experimental Liquid + Excess
                                 result = Me.AUX_LIQCPm(T, phaseID) + Me.m_act.CalcExcessHeatCapacity(T, RET_VMOL(phase), Me.GetArguments()) / Me.AUX_MMM(phase)
                         End Select
                     End If
@@ -1527,7 +1529,7 @@ Namespace PropertyPackages
                         result = Me.AUX_LIQCPm(T, phaseID)
                         Me.CurrentMaterialStream.Phases(phaseID).Properties.heatCapacityCp = result
                         Me.CurrentMaterialStream.Phases(phaseID).Properties.heatCapacityCv = result
-                    Case 2 'Excess
+                    Case 2, 4 'Excess / Experimental Liquid + Excess
                         result = Me.AUX_LIQCPm(T, phaseID) + Me.m_act.CalcExcessHeatCapacity(T, RET_VMOL(dwpl), Me.GetArguments()) / Me.AUX_MMM(dwpl)
                         Me.CurrentMaterialStream.Phases(phaseID).Properties.heatCapacityCp = result
                         Me.CurrentMaterialStream.Phases(phaseID).Properties.heatCapacityCv = result
