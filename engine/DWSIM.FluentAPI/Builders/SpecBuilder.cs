@@ -63,12 +63,31 @@ namespace DWSIM.Automation.FluentAPI.Builders
 
         /// <summary>
         /// Sets when the solver evaluates specs: after the source object (the default) or before the
-        /// target object, for instance. This is a flowsheet setting and applies to every spec in it;
-        /// the solver does not read a per-spec mode.
+        /// target object, for instance. This is a flowsheet setting and applies to every spec whose own
+        /// mode is <see cref="SpecCalcMode2.GlobalSetting"/> (see <see cref="WithCalculationMode"/>).
         /// </summary>
         public SpecBuilder WithFlowsheetCalculationMode(SpecCalcMode mode)
         {
             Flowsheet.Inner.FlowsheetOptions.SpecCalculationMode = mode;
+            return this;
+        }
+
+        /// <summary>
+        /// Sets when the solver evaluates this spec, overriding the flowsheet setting for it alone.
+        /// <see cref="SpecCalcMode2.BeforeObject"/> and <see cref="SpecCalcMode2.AfterObject"/> run the
+        /// spec right before or after the object tagged <paramref name="referenceObjectTag"/>, which is
+        /// required for those two modes and ignored by the others.
+        /// <see cref="SpecCalcMode2.GlobalSetting"/> (the default) follows the flowsheet setting.
+        /// </summary>
+        public SpecBuilder WithCalculationMode(SpecCalcMode2 mode, string referenceObjectTag = null)
+        {
+            if (mode == SpecCalcMode2.BeforeObject || mode == SpecCalcMode2.AfterObject)
+            {
+                if (string.IsNullOrWhiteSpace(referenceObjectTag))
+                    throw new ArgumentException("BeforeObject and AfterObject need the tag of the reference object.", nameof(referenceObjectTag));
+                Object.ReferenceObjectID = Flowsheet.ResolveByTag(referenceObjectTag).Name;
+            }
+            Object.SpecCalculationMode = mode;
             return this;
         }
     }

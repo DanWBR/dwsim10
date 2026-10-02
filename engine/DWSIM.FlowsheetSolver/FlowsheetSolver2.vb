@@ -54,7 +54,7 @@ Imports DWSIM.SharedClasses
                 Case ObjectType.EnergyStream
                     Dim myObj = fbag.SimulationObjects(objArgs.Name)
                     If myObj.IsSpecAttached = True Then
-                        If myObj.SpecVarType = SpecVarType.Target And fbag.FlowsheetOptions.SpecCalculationMode = SpecCalcMode.BeforeTargetObject Then
+                        If myObj.SpecVarType = SpecVarType.Target AndAlso FlowsheetSolver.SpecRunsAt(fbag, myObj.AttachedSpecId, SpecCalcMode2.BeforeTargetObject) Then
                             fbag.SimulationObjects(myObj.AttachedSpecId).Solve()
                         End If
                     End If
@@ -71,7 +71,7 @@ Imports DWSIM.SharedClasses
                     Next
                     myObj.Solve()
                     If myObj.IsSpecAttached = True Then
-                        If myObj.SpecVarType = SpecVarType.Source And fbag.FlowsheetOptions.SpecCalculationMode = SpecCalcMode.AfterSourceObject Then
+                        If myObj.SpecVarType = SpecVarType.Source AndAlso FlowsheetSolver.SpecRunsAt(fbag, myObj.AttachedSpecId, SpecCalcMode2.AfterSourceObject) Then
                             fbag.SimulationObjects(myObj.AttachedSpecId).Solve()
                         End If
                     End If
@@ -90,7 +90,7 @@ Imports DWSIM.SharedClasses
                 Case Else
                     Dim myObj As ISimulationObject = fbag.SimulationObjects(objArgs.Name)
                     If myObj.IsSpecAttached = True Then
-                        If myObj.SpecVarType = SpecVarType.Target And fbag.FlowsheetOptions.SpecCalculationMode = SpecCalcMode.BeforeTargetObject Then
+                        If myObj.SpecVarType = SpecVarType.Target AndAlso FlowsheetSolver.SpecRunsAt(fbag, myObj.AttachedSpecId, SpecCalcMode2.BeforeTargetObject) Then
                             fbag.SimulationObjects(myObj.AttachedSpecId).Solve()
                         End If
                     End If
@@ -115,7 +115,7 @@ Imports DWSIM.SharedClasses
                     Next
                     myObj.Calculated = True
                     If myObj.IsSpecAttached = True Then
-                        If myObj.SpecVarType = SpecVarType.Source And fbag.FlowsheetOptions.SpecCalculationMode = SpecCalcMode.AfterSourceObject Then
+                        If myObj.SpecVarType = SpecVarType.Source AndAlso FlowsheetSolver.SpecRunsAt(fbag, myObj.AttachedSpecId, SpecCalcMode2.AfterSourceObject) Then
                             fbag.SimulationObjects(myObj.AttachedSpecId).Solve()
                         End If
                     End If
@@ -126,7 +126,7 @@ Imports DWSIM.SharedClasses
                     End If
                     For Each obj In fbag.SimulationObjects.Values.Where(Function(o) TypeOf o Is ISpec)
                         Dim spec = DirectCast(obj, ISpec)
-                        If spec.SpecCalculationMode = SpecCalcMode2.BeforeObject And spec.ReferenceObjectID = objArgs.Name Then
+                        If spec.SpecCalculationMode = SpecCalcMode2.AfterObject And spec.ReferenceObjectID = objArgs.Name Then
                             obj.Solve()
                         End If
                     Next
@@ -155,7 +155,7 @@ Imports DWSIM.SharedClasses
         fgui.ProcessScripts(Scripts.EventType.ObjectCalculationStarted, Scripts.ObjectType.FlowsheetObject, ms.Name)
 
         If ms.IsSpecAttached = True Then
-            If ms.SpecVarType = SpecVarType.Target And fbag.FlowsheetOptions.SpecCalculationMode = SpecCalcMode.BeforeTargetObject Then
+            If ms.SpecVarType = SpecVarType.Target AndAlso FlowsheetSolver.SpecRunsAt(fbag, ms.AttachedSpecId, SpecCalcMode2.BeforeTargetObject) Then
                 fbag.SimulationObjects(ms.AttachedSpecId).Solve()
             End If
         End If
@@ -181,7 +181,7 @@ Imports DWSIM.SharedClasses
         fgui.ProcessScripts(Scripts.EventType.ObjectCalculationFinished, Scripts.ObjectType.FlowsheetObject, ms.Name)
 
         If ms.IsSpecAttached = True Then
-            If ms.SpecVarType = SpecVarType.Source And fbag.FlowsheetOptions.SpecCalculationMode = SpecCalcMode.AfterSourceObject Then
+            If ms.SpecVarType = SpecVarType.Source AndAlso FlowsheetSolver.SpecRunsAt(fbag, ms.AttachedSpecId, SpecCalcMode2.AfterSourceObject) Then
                 fbag.SimulationObjects(ms.AttachedSpecId).Solve()
             End If
         End If
@@ -193,7 +193,7 @@ Imports DWSIM.SharedClasses
 
         For Each obj In fbag.SimulationObjects.Values.Where(Function(o) TypeOf o Is ISpec)
             Dim spec = DirectCast(obj, ISpec)
-            If spec.SpecCalculationMode = SpecCalcMode2.BeforeObject And spec.ReferenceObjectID = ms.Name Then
+            If spec.SpecCalculationMode = SpecCalcMode2.AfterObject And spec.ReferenceObjectID = ms.Name Then
                 obj.Solve()
             End If
         Next
@@ -787,14 +787,9 @@ Imports DWSIM.SharedClasses
 
                                           'calc specs
 
-                                          If fbag.FlowsheetOptions.SpecCalculationMode = SpecCalcMode.BeforeFlowsheet Then
-                                              For Each obj In fbag.SimulationObjects.Values.Where(Function(o) TypeOf o Is ISpec)
-                                                  Dim spec = DirectCast(obj, ISpec)
-                                                  If spec.SpecCalculationMode = SpecCalcMode2.GlobalSetting Or spec.SpecCalculationMode = SpecCalcMode2.BeforeFlowsheet Then
-                                                      obj.Solve()
-                                                  End If
-                                              Next
-                                          End If
+                                          For Each obj In fbag.SimulationObjects.Values.Where(Function(o) TypeOf o Is ISpec)
+                                              If FlowsheetSolver.EffectiveSpecMode(fbag, DirectCast(obj, ISpec)) = SpecCalcMode2.BeforeFlowsheet Then obj.Solve()
+                                          Next
 
                                           If fbag.FlowsheetOptions.InformationCarrierCalculationMode = SpecCalcMode.BeforeFlowsheet Then
                                               For Each obj In fbag.SimulationObjects.Values.Where(Function(o) TypeOf o Is IInformationCarrier)
@@ -853,11 +848,12 @@ Imports DWSIM.SharedClasses
 
                                           'calc specs
 
-                                          If fbag.FlowsheetOptions.SpecCalculationMode = SpecCalcMode.AfterFlowsheet Or fbag.FlowsheetOptions.InformationCarrierCalculationMode = SpecCalcMode.AfterFlowsheet Then
+                                          If fbag.FlowsheetOptions.SpecCalculationMode = SpecCalcMode.AfterFlowsheet Or fbag.FlowsheetOptions.InformationCarrierCalculationMode = SpecCalcMode.AfterFlowsheet OrElse
+                                              fbag.SimulationObjects.Values.Any(Function(o) TypeOf o Is ISpec AndAlso DirectCast(o, ISpec).SpecCalculationMode = SpecCalcMode2.AfterFlowsheet) Then
 
                                               For Each obj In fbag.SimulationObjects.Values.Where(Function(o) TypeOf o Is ISpec)
                                                   Dim spec = DirectCast(obj, ISpec)
-                                                  If fbag.FlowsheetOptions.SpecCalculationMode = SpecCalcMode.AfterFlowsheet AndAlso (spec.SpecCalculationMode = SpecCalcMode2.GlobalSetting Or spec.SpecCalculationMode = SpecCalcMode2.AfterFlowsheet) Then
+                                                  If FlowsheetSolver.EffectiveSpecMode(fbag, spec) = SpecCalcMode2.AfterFlowsheet Then
                                                       obj.Solve()
                                                   End If
                                               Next
