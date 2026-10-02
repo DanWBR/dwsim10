@@ -115,7 +115,21 @@ namespace DWSIM.Automation.FluentAPI
 
             // Per-flowsheet selection.
             var selected = fs.Inner.SelectedCompounds;
-            if (!selected.ContainsKey(cp.Name)) selected.Add(cp.Name, cp);
+            if (!selected.ContainsKey(cp.Name))
+            {
+                // The property packages cache constant properties by ID, so two compounds sharing
+                // one (a new pseudo-component arrives with 0) would both get the first one's
+                // properties. Give it a negative ID no other compound uses, as the GUI does.
+                int minId = 0;
+                bool clash = cp.ID == 0;
+                foreach (var other in selected.Values)
+                {
+                    if (other.ID == cp.ID) clash = true;
+                    if (other.ID < minId) minId = other.ID;
+                }
+                if (clash) cp.ID = minId - 1;
+                selected.Add(cp.Name, cp);
+            }
         }
     }
 }
