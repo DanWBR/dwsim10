@@ -970,6 +970,7 @@ Label_00CC:
                             Next
 
                             msto.Phases(0).Properties.massflow = wt
+                            msto.DefinedFlow = FlowSpec.Mass
 
                             For Each s In CompoundMappings
                                 If msfrom.Phases(0).Compounds.ContainsKey(s.Key) And msto.Phases(0).Compounds.ContainsKey(s.Value) Then
@@ -983,6 +984,7 @@ Label_00CC:
                         Case FlowsheetUOMassTransferMode.CompoundMassFractions
 
                             msto.Phases(0).Properties.massflow = msfrom.Phases(0).Properties.massflow.GetValueOrDefault
+                            msto.DefinedFlow = FlowSpec.Mass
 
                             For Each s In CompoundMappings
                                 If msfrom.Phases(0).Compounds.ContainsKey(s.Key) And msto.Phases(0).Compounds.ContainsKey(s.Value) Then
@@ -1005,6 +1007,7 @@ Label_00CC:
                             Next
 
                             msto.Phases(0).Properties.molarflow = mt
+                            msto.DefinedFlow = FlowSpec.Mole
 
                             For Each s In CompoundMappings
                                 If msfrom.Phases(0).Compounds.ContainsKey(s.Key) And msto.Phases(0).Compounds.ContainsKey(s.Value) Then
@@ -1018,6 +1021,7 @@ Label_00CC:
                         Case FlowsheetUOMassTransferMode.CompoundMoleFractions
 
                             msto.Phases(0).Properties.molarflow = msfrom.Phases(0).Properties.molarflow.GetValueOrDefault
+                            msto.DefinedFlow = FlowSpec.Mole
 
                             For Each s In CompoundMappings
                                 If msfrom.Phases(0).Compounds.ContainsKey(s.Key) And msto.Phases(0).Compounds.ContainsKey(s.Value) Then
