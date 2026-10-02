@@ -759,6 +759,11 @@ namespace DWSIM.UI.Desktop.Editors
             panel.CreateAndAddResultRow(recycle, "Mass Flow Error", UnitOfMeasure.massflow,
                 history.VazaoMassicaE);
 
+            // a fraction of the recycled flow; 0 leaves the absolute tolerance alone
+            panel.CreateAndAddTextBoxRow(recycle.GetFlowsheet().FlowsheetOptions.NumberFormat,
+                "Relative Mass Flow Tolerance (0 = absolute only)", parameters.VazaoMassicaRelativa,
+                (tb, e) => { if (UnitOpEditorRows.TryParse(tb.Text, out var v) && v >= 0.0) parameters.VazaoMassicaRelativa = v; });
+
             return panel;
         }
 

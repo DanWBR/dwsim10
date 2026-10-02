@@ -1608,6 +1608,10 @@
     <value>Pressure Error</value>
     <comment>0</comment>
   </data>
+  <data name="PROP_RY_7" xml:space="preserve">
+    <value>Relative Mass Flow Tolerance</value>
+    <comment>0</comment>
+  </data>
   <data name="PROP_SC_0" xml:space="preserve">
     <value>Reflux Ratio</value>
     <comment>1</comment>
