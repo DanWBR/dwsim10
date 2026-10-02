@@ -211,7 +211,8 @@ Namespace Polymers
             Dim ktrSavgF = phiA * ktrSA + (1.0 - phiA) * ktrSB
             Dim transferRate = ktrMavgF * M + ktrSavgF * S
 
-            Dim stopRate = kt * mu0 + transferRate
+            ' termination counted as the radical balance counts it, Rt = 2*kt*mu0^2 (see FreeRadicalCSTR)
+            Dim stopRate = 2.0 * kt * mu0 + transferRate
             If M <= 0.0 OrElse stopRate <= 0.0 OrElse kpBar <= 0.0 Then
                 res.Converged = False
                 Return res
@@ -225,9 +226,9 @@ Namespace Polymers
 
             Dim mu1 = mu0 / oneMinusAlpha
             Dim mu2 = mu0 * (1.0 + alpha) / (oneMinusAlpha * oneMinusAlpha)
-            Dim G0 = transferRate * mu0 + (ktd + 0.5 * ktc) * mu0 * mu0
-            Dim G1 = transferRate * mu1 + kt * mu0 * mu1
-            Dim G2 = transferRate * mu2 + kt * mu0 * mu2 + ktc * mu1 * mu1
+            Dim G0 = transferRate * mu0 + (2.0 * ktd + ktc) * mu0 * mu0
+            Dim G1 = transferRate * mu1 + 2.0 * kt * mu0 * mu1
+            Dim G2 = transferRate * mu2 + 2.0 * kt * mu0 * mu2 + 2.0 * ktc * mu1 * mu1
             Dim L0 = theta * G0, L1 = theta * G1, L2 = theta * G2
 
             If L0 > 0.0 AndAlso L1 > 0.0 Then

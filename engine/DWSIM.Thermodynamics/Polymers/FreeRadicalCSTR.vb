@@ -158,8 +158,9 @@ Namespace Polymers
             res.Conversion = 1.0 - M / MonomerFeed
             res.Rp = kp_e * mu0 * M
 
-            ' Propagation probability and the live-radical moments (most-probable closure).
-            Dim stopRate = kt_e * mu0 + ktrM * M + ktrS * S
+            ' Propagation probability and the live-radical moments (most-probable closure). Termination is
+            ' counted as the radical balance above counts it, Rt = 2*kt*mu0^2: each radical is lost at 2*kt*mu0.
+            Dim stopRate = 2.0 * kt_e * mu0 + ktrM * M + ktrS * S
             If stopRate <= 0.0 Then
                 res.Converged = False
                 Return res
@@ -171,11 +172,13 @@ Namespace Polymers
             Dim mu1 = mu0 / oneMinusAlpha
             Dim mu2 = mu0 * (1.0 + alpha) / (oneMinusAlpha * oneMinusAlpha)
 
-            ' Dead-chain moment generation; combination convolves two live chains (the mu1^2 term).
+            ' Dead-chain moment generation; combination convolves two live chains (the mu1^2 term). Same
+            ' convention: a disproportionation event (rate ktd*mu0^2) leaves two dead chains, a combination
+            ' event (rate ktc*mu0^2) one.
             Dim transfer = ktrM * M + ktrS * S
-            Dim G0 = transfer * mu0 + (ktd_e + 0.5 * ktc_e) * mu0 * mu0
-            Dim G1 = transfer * mu1 + kt_e * mu0 * mu1
-            Dim G2 = transfer * mu2 + kt_e * mu0 * mu2 + ktc_e * mu1 * mu1
+            Dim G0 = transfer * mu0 + (2.0 * ktd_e + ktc_e) * mu0 * mu0
+            Dim G1 = transfer * mu1 + 2.0 * kt_e * mu0 * mu1
+            Dim G2 = transfer * mu2 + 2.0 * kt_e * mu0 * mu2 + 2.0 * ktc_e * mu1 * mu1
 
             ' In a CSTR the dead chains are only generated and swept out, so each moment is explicit.
             res.Lambda0 = theta * G0

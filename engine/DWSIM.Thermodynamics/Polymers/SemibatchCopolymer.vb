@@ -141,7 +141,7 @@ Namespace Polymers
 
                             Dim kpBar = If(mu0 > 0.0, RpProp / (mu0 * M), 0.0)
                             Dim transferRate = ktrMavg * M + ktrSavg * 0.0    ' solvent / CTA slot unused in the semibatch policy
-                            Dim stopRate = kt * mu0 + transferRate
+                            Dim stopRate = 2.0 * kt * mu0 + transferRate   ' Rt = 2*kt*mu0^2, as the radical balance counts it
                             If stopRate <= 0.0 Then Return
                             Dim alpha = kpBar * M / (kpBar * M + stopRate)
                             Dim oneMinusAlpha = 1.0 - alpha
@@ -152,9 +152,9 @@ Namespace Polymers
                             ' Extensive balances: consumption per volume times the current holdup.
                             dydt(0) = FA - rateA * V
                             dydt(1) = FB - rateB * V
-                            dydt(4) = (transferRate * mu0 + (ktd + 0.5 * ktc) * mu0 * mu0) * V
-                            dydt(5) = (transferRate * mu1 + kt * mu0 * mu1) * V
-                            dydt(6) = (transferRate * mu2 + kt * mu0 * mu2 + ktc * mu1 * mu1) * V
+                            dydt(4) = (transferRate * mu0 + (2.0 * ktd + ktc) * mu0 * mu0) * V
+                            dydt(5) = (transferRate * mu1 + 2.0 * kt * mu0 * mu1) * V
+                            dydt(6) = (transferRate * mu2 + 2.0 * kt * mu0 * mu2 + 2.0 * ktc * mu1 * mu1) * V
                             dydt(7) = RAprop * V
                             dydt(8) = RBprop * V
                         End Sub
