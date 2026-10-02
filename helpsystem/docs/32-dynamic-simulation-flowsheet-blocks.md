@@ -207,9 +207,11 @@ The MPC controller has the following main tuning parameters:
 
 - **Control Horizon** ( $M$ ): the number of future control moves that the optimizer calculates. After $M$ steps, the control move is held constant for the remainder of the prediction horizon. Default: 5.
 
-- **Sample Time**: the time interval in seconds between consecutive control actions. This should match the step response model discretization. Default: 1.0 s.
+- **Sample Time**: the time interval in seconds between consecutive control actions. In a dynamic run the controller acts at whole multiples of the integrator's control interval (the integration step times the control calculation rate): the sample time is rounded to the nearest multiple, and a sample time shorter than one interval makes the controller act at every interval. The step response coefficients are generated at the interval actually used. Default: 1.0 s.
 
-- **Move Suppression Weight** ( $\lambda$ ): penalizes large control moves to produce smoother MV trajectories. Higher values give more conservative, slower control. Default: 0.1.
+- **Move Suppression Weight** ( $\lambda$ ): penalizes large control moves to produce smoother MV trajectories. Higher values give more conservative, slower control. The weight is relative to the mean diagonal of $A^TQA$ for each MV, so it carries no units and keeps its meaning whatever the size of the process gain. Values between 0.1 and 1 suit most loops; $\lambda=0$ gives the fastest response and is too aggressive for integrating processes. Default: 0.1.
+
+The prediction horizon times the sample time should cover most of the process response (dead time plus three to four time constants). A control horizon of 1 gives a smooth, slower response; 3 to 5 moves give a faster one.
 
 ##### Controlled and Manipulated Variables
 
@@ -243,6 +245,39 @@ y(t)=K\left(1-e^{-(t-\theta)/\tau}\right),\quad t\geq\theta
 
 To identify the FOPDT parameters for a given CV-MV pair, perform a step test: make a small step change in the MV and record the CV response over time. From the response curve, determine the gain (ratio of steady-state CV change to MV change), the time constant (time to reach 63.2% of the final value after the response begins), and the dead time (initial delay before the CV starts responding).
 
+A level moved by an outlet valve keeps rising or falling after a step in the MV. For such a CV, mark the model as **Integrating**: the gain is then the slope of the response, in CV units per MV unit per second (for a level, minus the change in outflow per unit of opening divided by the liquid density and the tank cross-section area), the time constant is an optional lag before the ramp, and the step response becomes
+
+
+
+\[
+y(t)=K\left[(t-\theta)-\tau\left(1-e^{-(t-\theta)/\tau}\right)\right],\quad t\geq\theta
+\]
+
+
+The controller also treats the model error of an integrating CV as a ramp, so the level returns to its setpoint after a change in the inflow.
+
+##### Control Law
+
+At each control step $k$ the controller keeps $\hat{y}(k+i)$, the CV values predicted from all past MV moves. The prediction is shifted one sample, updated with the MV moves measured since the last step, and moved onto the measurement by the model error $d(k)=y(k)-\hat{y}(k)$. The free response over the prediction horizon is
+
+
+
+\[
+\hat{y}^{0}(k+i)=\hat{y}(k+i)+d(k)\quad\left(+\,i\,d(k)\ \text{for an integrating CV}\right),\quad i=1\ldots P
+\]
+
+
+The $M$ future moves $\Delta u$ minimize $\left\Vert r-\hat{y}^{0}-A\Delta u\right\Vert _{Q}^{2}+\Delta u^{T}R\,\Delta u$, where $r$ is the setpoint (the middle of the CV range), $A$ is the dynamic matrix built from the step response coefficients ($A_{ij}=s_{i-j+1}$ for $i\geq j$, zero otherwise), $Q$ holds the CV weights and $R=\lambda$ times the mean diagonal of $A^{T}QA$:
+
+
+
+\[
+\Delta u=\left(A^{T}QA+R\right)^{-1}A^{T}Q\left(r-\hat{y}^{0}\right)
+\]
+
+
+Only the first move of each MV is applied, clamped to the MV limits, and the calculation is repeated at the next step. Moves made by the operator or limited by the clamp enter the prediction as measured.
+
 ##### DWSIM Implementation
 
 The MPC Controller is available in the Dynamic Simulation Flowsheet Blocks palette. To set up an MPC controller:
@@ -251,7 +286,7 @@ The MPC Controller is available in the Dynamic Simulation Flowsheet Blocks palet
 
 2.  Add manipulated variables (MVs) by selecting the simulation objects and properties that the controller will adjust. Set physical constraints (min/max) for each MV.
 
-3.  Add a step response model for each CV-MV pair. Enter the FOPDT parameters (gain, time constant, dead time) obtained from step testing or process knowledge. The controller generates the discrete step response coefficients automatically.
+3.  Add a step response model for each CV-MV pair. Enter the FOPDT parameters (gain, time constant, dead time) obtained from step testing or process knowledge, and mark the model as integrating for a level or another CV that integrates the MV. The controller generates the discrete step response coefficients automatically.
 
 4.  Configure the prediction horizon, control horizon, sample time, and move suppression weight.
 

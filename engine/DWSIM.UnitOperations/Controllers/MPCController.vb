@@ -63,18 +63,52 @@ Namespace SpecialOps
         Public Property TimeConstant As Double = 60.0
         Public Property DeadTime As Double = 0.0
 
+        ''' <summary>
+        ''' True for a CV that integrates the MV, such as a level moved by an outlet valve. Gain is then the
+        ''' slope (CV units per MV unit per second) and Time Constant an optional lag before the ramp.
+        ''' </summary>
+        Public Property Integrating As Boolean = False
+
         Public Sub GenerateFromFOPDT(sampleTime As Double, horizonLength As Integer)
             StepCoefficients.Clear()
+            Dim tau = Math.Max(TimeConstant, 0.001)
             For i = 0 To horizonLength - 1
                 Dim t = (i + 1) * sampleTime
                 Dim tEff = t - DeadTime
                 If tEff <= 0 Then
                     StepCoefficients.Add(0.0)
+                ElseIf Integrating Then
+                    If TimeConstant > 0.0 Then
+                        StepCoefficients.Add(Gain * (tEff - tau * (1.0 - Math.Exp(-tEff / tau))))
+                    Else
+                        StepCoefficients.Add(Gain * tEff)
+                    End If
                 Else
-                    StepCoefficients.Add(Gain * (1.0 - Math.Exp(-tEff / Math.Max(TimeConstant, 0.001))))
+                    StepCoefficients.Add(Gain * (1.0 - Math.Exp(-tEff / tau)))
                 End If
             Next
         End Sub
+
+        ''' <summary>
+        ''' Step response coefficient s(n), n >= 1. Past the stored coefficients the response is held,
+        ''' or continued as a ramp for an integrating model.
+        ''' </summary>
+        Public Function Coefficient(n As Integer) As Double
+            Dim count = StepCoefficients.Count
+            If count = 0 OrElse n < 1 Then Return 0.0
+            If n <= count Then Return StepCoefficients(n - 1)
+            If Integrating AndAlso count >= 2 Then
+                Return StepCoefficients(count - 1) + (n - count) * (StepCoefficients(count - 1) - StepCoefficients(count - 2))
+            End If
+            Return StepCoefficients(count - 1)
+        End Function
+
+        ''' <summary>
+        ''' Samples the response needs to settle: dead time plus five time constants.
+        ''' </summary>
+        Public Function SettlingSamples(sampleTime As Double) As Double
+            Return Math.Ceiling((Math.Max(DeadTime, 0.0) + 5.0 * Math.Max(TimeConstant, 0.0)) / sampleTime) + 2
+        End Function
 
     End Class
 
@@ -100,8 +134,18 @@ Namespace SpecialOps
 
         Public Property ExecutionOrder As Integer = 0
 
-        Private PastMoves As New List(Of Double())
-        Private Predictions As New List(Of Double())
+        Private Const MaxModelLength As Integer = 20000
+
+        'controller state between calls; rebuilt when the models or the tuning change
+        <System.NonSerialized> Private Prediction As Double(,)
+        <System.NonSerialized> Private LastMV As Double()
+        <System.NonSerialized> Private GainRows As Double(,)
+        <System.NonSerialized> Private IntegratingCV As Boolean()
+        <System.NonSerialized> Private ModelLength As Integer = 0
+        <System.NonSerialized> Private ModelKey As String = ""
+        <System.NonSerialized> Private TuningKey As String = ""
+        <System.NonSerialized> Private CallCount As Integer = 0
+        <System.NonSerialized> Private LastCallTime As DateTime? = Nothing
 
         Public Property CVHistory As New List(Of Double())
         Public Property MVHistory As New List(Of Double())
@@ -149,8 +193,12 @@ Namespace SpecialOps
         <System.NonSerialized> Private f As Object
 
         Public Sub Reset()
-            PastMoves.Clear()
-            Predictions.Clear()
+            Prediction = Nothing
+            LastMV = Nothing
+            ModelKey = ""
+            TuningKey = ""
+            CallCount = 0
+            LastCallTime = Nothing
             CVHistory.Clear()
             MVHistory.Clear()
             For Each cv In ControlledVariables
@@ -162,11 +210,20 @@ Namespace SpecialOps
         End Sub
 
         Public Sub InitializeModels()
+            Dim ts = Math.Max(SampleTime, 0.001)
+            Dim NS = GetModelLength(ts, Math.Max(1, PredictionHorizon))
             For Each model In StepResponseModels
-                model.GenerateFromFOPDT(SampleTime, PredictionHorizon)
+                model.GenerateFromFOPDT(ts, NS)
             Next
         End Sub
 
+        ''' <summary>
+        ''' Dynamic Matrix Control. At each control step the predicted CV trajectory is shifted one sample,
+        ''' updated with the MV moves measured since the last step and moved onto the current measurement
+        ''' (model error correction). The first of the M moves that minimize the weighted squared error over
+        ''' P samples plus the move suppression term is applied, within the MV limits. For an integrating CV
+        ''' the model error is also extrapolated as a ramp, which removes the offset a load change leaves.
+        ''' </summary>
         Public Overrides Sub Calculate(Optional args As Object = Nothing)
 
             If ControlledVariables.Count = 0 OrElse ManipulatedVariables.Count = 0 Then Return
@@ -174,14 +231,63 @@ Namespace SpecialOps
 
             Dim nCV = ControlledVariables.Count
             Dim nMV = ManipulatedVariables.Count
-            Dim P = PredictionHorizon
-            Dim M = Math.Min(ControlHorizon, P)
+            Dim P = Math.Max(1, PredictionHorizon)
+            Dim M = Math.Max(1, Math.Min(ControlHorizon, P))
 
-            For Each model In StepResponseModels
-                If model.StepCoefficients.Count = 0 Then
-                    model.GenerateFromFOPDT(SampleTime, P)
-                End If
-            Next
+            'in dynamic mode the controller is called once per control calculation of the integrator and
+            'acts every n-th call, n = Sample Time / call interval rounded and at least 1
+            Dim interval = 0.0
+            Dim simTime As DateTime? = Nothing
+            Dim integrator = GetIntegrator()
+            If integrator IsNot Nothing Then
+                interval = integrator.IntegrationStep.TotalSeconds
+                If integrator.RealTime Then interval = Convert.ToDouble(integrator.RealTimeStepMs) / 1000.0
+                interval *= Math.Max(1, integrator.CalculationRateControl)
+                simTime = integrator.CurrentTime
+            End If
+
+            Dim every = 1
+            Dim ts = Math.Max(SampleTime, 0.001)
+            If interval > 0.0 Then
+                every = Math.Max(1, CInt(Math.Round(SampleTime / interval)))
+                ts = every * interval
+            End If
+
+            If simTime.HasValue AndAlso LastCallTime.HasValue Then
+                Dim gap = (simTime.Value - LastCallTime.Value).TotalSeconds
+                'already acted at this time
+                If gap = 0.0 Then Return
+                'calls missed (controller switched off) or the clock went back: start the prediction over
+                If gap < 0.0 OrElse gap > 1.5 * interval Then Prediction = Nothing
+            End If
+            LastCallTime = simTime
+
+            Dim mKey = GetModelKey(ts, P)
+            If mKey <> ModelKey Then
+                ModelLength = GetModelLength(ts, P)
+                For Each model In StepResponseModels
+                    model.GenerateFromFOPDT(ts, ModelLength)
+                Next
+                IntegratingCV = New Boolean(nCV - 1) {}
+                For Each model In StepResponseModels
+                    If IsValid(model, nCV, nMV) AndAlso model.Integrating Then IntegratingCV(model.CVIndex) = True
+                Next
+                ModelKey = mKey
+                TuningKey = ""
+                Prediction = Nothing
+            End If
+
+            Dim tKey = GetTuningKey(M)
+            If tKey <> TuningKey Then
+                BuildGain(P, M)
+                TuningKey = tKey
+            End If
+
+            If Prediction Is Nothing Then CallCount = 0
+            CallCount += 1
+            If (CallCount - 1) Mod every <> 0 Then Return
+
+            Dim NS = ModelLength
 
             Dim cvValues(nCV - 1) As Double
             Dim mvValues(nMV - 1) As Double
@@ -196,55 +302,239 @@ Namespace SpecialOps
             CVHistory.Add(DirectCast(cvValues.Clone(), Double()))
             MVHistory.Add(DirectCast(mvValues.Clone(), Double()))
 
+            Dim modelError(nCV - 1) As Double
+
+            If Prediction Is Nothing Then
+                'start from steady state at the measured values
+                Prediction = New Double(nCV - 1, NS - 1) {}
+                For i = 0 To nCV - 1
+                    For k = 0 To NS - 1
+                        Prediction(i, k) = cvValues(i)
+                    Next
+                Next
+            Else
+                'shift one sample; the last point is held, or carried along the ramp for an integrating CV
+                For i = 0 To nCV - 1
+                    Dim last = Prediction(i, NS - 1)
+                    Dim slope = If(IntegratingCV(i) AndAlso NS > 1, last - Prediction(i, NS - 2), 0.0)
+                    For k = 0 To NS - 2
+                        Prediction(i, k) = Prediction(i, k + 1)
+                    Next
+                    Prediction(i, NS - 1) = last + slope
+                Next
+                'moves since the last step as measured, so clamping and manual changes are accounted for
+                For Each model In StepResponseModels
+                    If Not IsValid(model, nCV, nMV) Then Continue For
+                    Dim du = mvValues(model.MVIndex) - LastMV(model.MVIndex)
+                    If du = 0.0 Then Continue For
+                    For k = 0 To NS - 1
+                        Prediction(model.CVIndex, k) += model.Coefficient(k + 1) * du
+                    Next
+                Next
+                For i = 0 To nCV - 1
+                    modelError(i) = cvValues(i) - Prediction(i, 0)
+                    For k = 0 To NS - 1
+                        Prediction(i, k) += modelError(i)
+                    Next
+                Next
+            End If
+
+            LastMV = DirectCast(mvValues.Clone(), Double())
+
             Dim setpoints(nCV - 1) As Double
             For i = 0 To nCV - 1
                 setpoints(i) = (ControlledVariables(i).MinValue + ControlledVariables(i).MaxValue) / 2.0
             Next
 
-            Dim errors(nCV - 1) As Double
+            'du = (A'QA + R)^-1 A'Q (r - free response); only the first move of each MV is applied
+            Dim moves(nMV - 1) As Double
             For i = 0 To nCV - 1
-                errors(i) = setpoints(i) - cvValues(i)
-            Next
-
-            Dim bestMoves(nMV - 1) As Double
-
-            For mv = 0 To nMV - 1
-                Dim totalMove As Double = 0.0
-
-                For cv = 0 To nCV - 1
-                    Dim model = StepResponseModels.Where(
-                        Function(srm) srm.CVIndex = cv AndAlso srm.MVIndex = mv).FirstOrDefault()
-                    If model Is Nothing Then Continue For
-                    If model.StepCoefficients.Count = 0 Then Continue For
-
-                    Dim s1 = model.StepCoefficients(0)
-                    If Math.Abs(s1) < 1.0E-20 Then
-                        If model.StepCoefficients.Count > 1 Then s1 = model.StepCoefficients(1)
-                        If Math.Abs(s1) < 1.0E-20 Then Continue For
-                    End If
-
-                    Dim cvWeight = ControlledVariables(cv).Weight
-                    totalMove += cvWeight * errors(cv) / s1
+                For k = 1 To P
+                    Dim free = Prediction(i, Math.Min(k, NS - 1))
+                    If IntegratingCV(i) Then free += k * modelError(i)
+                    Dim e = setpoints(i) - free
+                    For j = 0 To nMV - 1
+                        moves(j) += GainRows(j, i * P + k - 1) * e
+                    Next
                 Next
-
-                Dim suppression = 1.0 / (1.0 + MoveSuppressionWeight)
-                bestMoves(mv) = totalMove * suppression
-
-                Dim newMV = mvValues(mv) + bestMoves(mv)
-                If newMV > ManipulatedVariables(mv).MaxValue Then newMV = ManipulatedVariables(mv).MaxValue
-                If newMV < ManipulatedVariables(mv).MinValue Then newMV = ManipulatedVariables(mv).MinValue
-
-                ManipulatedVariables(mv).SetCurrentValue(FlowSheet, newMV)
-                ManipulatedVariables(mv).LastValue = newMV
             Next
 
-            PastMoves.Add(bestMoves)
+            For j = 0 To nMV - 1
+                Dim newMV = mvValues(j) + moves(j)
+                If newMV > ManipulatedVariables(j).MaxValue Then newMV = ManipulatedVariables(j).MaxValue
+                If newMV < ManipulatedVariables(j).MinValue Then newMV = ManipulatedVariables(j).MinValue
+
+                ManipulatedVariables(j).SetCurrentValue(FlowSheet, newMV)
+                ManipulatedVariables(j).LastValue = newMV
+            Next
 
             For i = 0 To nCV - 1
                 ControlledVariables(i).LastValue = cvValues(i)
             Next
 
         End Sub
+
+        Private Sub BuildGain(P As Integer, M As Integer)
+
+            Dim nCV = ControlledVariables.Count
+            Dim nMV = ManipulatedVariables.Count
+            Dim rows = nCV * P
+            Dim cols = nMV * M
+
+            'dynamic matrix: block (cv, mv) holds s(k - l + 1) at prediction k and move l, k >= l
+            Dim Amat(rows - 1, cols - 1) As Double
+            For Each model In StepResponseModels
+                If Not IsValid(model, nCV, nMV) Then Continue For
+                For k = 1 To P
+                    For l = 1 To Math.Min(k, M)
+                        Amat(model.CVIndex * P + k - 1, model.MVIndex * M + l - 1) += model.Coefficient(k - l + 1)
+                    Next
+                Next
+            Next
+
+            'Q: CV weights along the prediction horizon
+            Dim AtQ(cols - 1, rows - 1) As Double
+            For r = 0 To rows - 1
+                Dim q = ControlledVariables(r \ P).Weight
+                For c = 0 To cols - 1
+                    AtQ(c, r) = Amat(r, c) * q
+                Next
+            Next
+
+            Dim H(cols - 1, cols - 1) As Double
+            For c1 = 0 To cols - 1
+                For c2 = c1 To cols - 1
+                    Dim sum = 0.0
+                    For r = 0 To rows - 1
+                        sum += AtQ(c1, r) * Amat(r, c2)
+                    Next
+                    H(c1, c2) = sum
+                    H(c2, c1) = sum
+                Next
+            Next
+
+            'R: lambda times the mean diagonal of the MV's block, so lambda carries no units
+            Dim lambda = Math.Max(MoveSuppressionWeight, 0.000001)
+            For j = 0 To nMV - 1
+                Dim scale = 0.0
+                For l = 0 To M - 1
+                    scale += H(j * M + l, j * M + l)
+                Next
+                scale /= M
+                If Not scale > 0.0 Then scale = 1.0
+                For l = 0 To M - 1
+                    H(j * M + l, j * M + l) += lambda * scale
+                Next
+            Next
+
+            Dim gainMatrix = SolveLinear(H, AtQ)
+
+            GainRows = New Double(nMV - 1, rows - 1) {}
+            For j = 0 To nMV - 1
+                For r = 0 To rows - 1
+                    GainRows(j, r) = gainMatrix(j * M, r)
+                Next
+            Next
+
+        End Sub
+
+        Private Shared Function SolveLinear(H As Double(,), B As Double(,)) As Double(,)
+
+            'Gaussian elimination with partial pivoting, several right-hand sides
+            Dim size = H.GetLength(0)
+            Dim nrhs = B.GetLength(1)
+            Dim mat = DirectCast(H.Clone(), Double(,))
+            Dim x = DirectCast(B.Clone(), Double(,))
+
+            For k = 0 To size - 1
+                Dim piv = k
+                For r = k + 1 To size - 1
+                    If Math.Abs(mat(r, k)) > Math.Abs(mat(piv, k)) Then piv = r
+                Next
+                If piv <> k Then
+                    For c = 0 To size - 1
+                        Dim tmp = mat(k, c) : mat(k, c) = mat(piv, c) : mat(piv, c) = tmp
+                    Next
+                    For c = 0 To nrhs - 1
+                        Dim tmp = x(k, c) : x(k, c) = x(piv, c) : x(piv, c) = tmp
+                    Next
+                End If
+                If mat(k, k) = 0.0 Then Continue For
+                For r = k + 1 To size - 1
+                    Dim f = mat(r, k) / mat(k, k)
+                    If f = 0.0 Then Continue For
+                    For c = k To size - 1
+                        mat(r, c) -= f * mat(k, c)
+                    Next
+                    For c = 0 To nrhs - 1
+                        x(r, c) -= f * x(k, c)
+                    Next
+                Next
+            Next
+
+            For k = size - 1 To 0 Step -1
+                For c = 0 To nrhs - 1
+                    Dim sum = x(k, c)
+                    For j = k + 1 To size - 1
+                        sum -= mat(k, j) * x(j, c)
+                    Next
+                    x(k, c) = If(mat(k, k) <> 0.0, sum / mat(k, k), 0.0)
+                Next
+            Next
+
+            Return x
+
+        End Function
+
+        Private Function GetModelLength(ts As Double, P As Integer) As Integer
+            'long enough for the prediction horizon and for every model to settle
+            Dim length As Double = P + 1
+            For Each model In StepResponseModels
+                length = Math.Max(length, model.SettlingSamples(ts))
+            Next
+            Return CInt(Math.Min(length, Math.Max(MaxModelLength, P + 1)))
+        End Function
+
+        Private Shared Function IsValid(model As StepResponseModel, nCV As Integer, nMV As Integer) As Boolean
+            Return model.CVIndex >= 0 AndAlso model.CVIndex < nCV AndAlso model.MVIndex >= 0 AndAlso model.MVIndex < nMV
+        End Function
+
+        Private Function GetModelKey(ts As Double, P As Integer) As String
+            Dim ci = Globalization.CultureInfo.InvariantCulture
+            Dim sb As New System.Text.StringBuilder()
+            sb.Append(ts.ToString("R", ci)).Append("|"c).Append(P).Append("|"c)
+            sb.Append(ControlledVariables.Count).Append("|"c).Append(ManipulatedVariables.Count)
+            For Each model In StepResponseModels
+                sb.Append("|"c).Append(model.CVIndex).Append(","c).Append(model.MVIndex).Append(","c)
+                sb.Append(model.Gain.ToString("R", ci)).Append(","c).Append(model.TimeConstant.ToString("R", ci)).Append(","c)
+                sb.Append(model.DeadTime.ToString("R", ci)).Append(","c).Append(model.Integrating)
+            Next
+            Return sb.ToString()
+        End Function
+
+        Private Function GetTuningKey(M As Integer) As String
+            Dim ci = Globalization.CultureInfo.InvariantCulture
+            Dim sb As New System.Text.StringBuilder()
+            sb.Append(M).Append("|"c).Append(MoveSuppressionWeight.ToString("R", ci))
+            For Each cv In ControlledVariables
+                sb.Append("|"c).Append(cv.Weight.ToString("R", ci))
+            Next
+            Return sb.ToString()
+        End Function
+
+        Private Function GetIntegrator() As IDynamicsIntegrator
+            Try
+                If Not FlowSheet.DynamicMode Then Return Nothing
+                Dim dm = FlowSheet.DynamicsManager
+                If dm Is Nothing OrElse dm.CurrentSchedule Is Nothing Then Return Nothing
+                If Not dm.ScheduleList.ContainsKey(dm.CurrentSchedule) Then Return Nothing
+                Dim id = dm.ScheduleList(dm.CurrentSchedule).CurrentIntegrator
+                If id Is Nothing OrElse Not dm.IntegratorList.ContainsKey(id) Then Return Nothing
+                Return dm.IntegratorList(id)
+            Catch ex As Exception
+                Return Nothing
+            End Try
+        End Function
 
         Public Overrides Function GetChartModel(name As String) As Object
 
