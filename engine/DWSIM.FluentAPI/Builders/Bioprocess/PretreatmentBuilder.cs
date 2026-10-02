@@ -7,8 +7,16 @@ namespace DWSIM.Automation.FluentAPI.Builders.Bioprocess
     {
         internal PretreatmentBuilder(Flowsheet f, Reactor_Pretreatment o) : base(f, o) { }
 
-        /// <summary>Sets <c>Technology</c> and returns this builder for chaining.</summary>
-        public PretreatmentBuilder WithTechnology(PretreatmentType t) { Object.Technology = t; return this; }
+        /// <summary>
+        /// Sets <c>Technology</c> and loads its default conversions, as the editor does when the
+        /// technology is picked. Set any conversion afterwards to override its default.
+        /// </summary>
+        public PretreatmentBuilder WithTechnology(PretreatmentType t)
+        {
+            Object.Technology = t;
+            Object.ApplyTechnologyDefaults();
+            return this;
+        }
         /// <summary>Sets <c>Severity Log R0</c> and returns this builder for chaining.</summary>
         public PretreatmentBuilder WithSeverityLogR0(double logR0) { Object.SeverityLogR0 = logR0; return this; }
         /// <summary>Sets <c>Residence Time</c> (SI) and returns this builder for chaining.</summary>

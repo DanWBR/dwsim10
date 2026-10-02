@@ -95,6 +95,12 @@ Namespace UnitOperations
         ''' <summary>Gets or sets the calculated air density (kg/m³).</summary>
         Public Property AirDensity As Double = 0.0
 
+        ''' <summary>
+        ''' Gets or sets an air density (kg/m³) to use instead of the one calculated from the air
+        ''' temperature, pressure and humidity. Zero, the default, calculates it.
+        ''' </summary>
+        Public Property UserDefinedAirDensity As Double = 0.0
+
         ''' <summary>Gets or sets the calculated generated electrical power (kW).</summary>
         Public Property GeneratedPower As Double = 0.0
 
@@ -250,6 +256,7 @@ Namespace UnitOperations
             sb.AppendLine(String.Format("Disk Area: {0} {1}", DiskArea.ConvertFromSI(su.area).ToString(nf), su.area))
             sb.AppendLine(String.Format("Efficiency: {0}", Efficiency.ToString(nf)))
             sb.AppendLine()
+            If UserDefinedAirDensity > 0.0 Then sb.AppendLine("Air density given by the user, not calculated")
             sb.AppendLine(String.Format("Calculated Air Density: {0} {1}", AirDensity.ConvertFromSI(su.density).ToString(nf), su.density))
             sb.AppendLine(String.Format("Maximum Theoretical Power: {0} {1}", MaximumTheoreticalPower.ConvertFromSI(su.heatflow).ToString(nf), su.heatflow))
             sb.AppendLine(String.Format("Generated Power: {0} {1}", GeneratedPower.ConvertFromSI(su.heatflow).ToString(nf), su.heatflow))
@@ -337,43 +344,51 @@ Namespace UnitOperations
             ActualRelativeHumidity = rh
             ActualWindSpeed = ws
 
-            'calculate air density
+            'calculate air density, unless the user gave one
 
-            If calc Is Nothing Then
-                calc = New Thermodynamics.CalculatorInterface.Calculator()
-                calc.Initialize()
-                rpp = New Thermodynamics.PropertyPackages.RaoultPropertyPackage()
+            If UserDefinedAirDensity > 0.0 Then
+
+                AirDensity = UserDefinedAirDensity
+
+            Else
+
+                If calc Is Nothing Then
+                    calc = New Thermodynamics.CalculatorInterface.Calculator()
+                    calc.Initialize()
+                    rpp = New Thermodynamics.PropertyPackages.RaoultPropertyPackage()
+                End If
+
+                Dim airstr = calc.CreateMaterialStream({"Air", "Water"}, {1.0, 1.0})
+                airstr.SetMassFlow(1.0)
+                airstr.SetTemperature(at)
+                airstr.SetPressure(ap)
+                airstr.SetFlowsheet(FlowSheet)
+                airstr.PropertyPackage = rpp
+                rpp.CurrentMaterialStream = airstr
+
+                airstr.Calculate()
+
+                Dim wc = airstr.Phases(2).Compounds("Water").MoleFraction.GetValueOrDefault()
+
+                'add relative humidity
+                wc = wc * rh / 100.0
+
+                airstr = calc.CreateMaterialStream({"Air", "Water"}, {1.0 - wc, wc})
+                airstr.SetMassFlow(1.0)
+                airstr.SetTemperature(at)
+                airstr.SetPressure(ap)
+                airstr.SetFlowsheet(FlowSheet)
+                airstr.PropertyPackage = rpp
+                rpp.CurrentMaterialStream = airstr
+
+                airstr.Calculate()
+
+                AirDensity = airstr.Phases(2).Properties.density.GetValueOrDefault()
+
+                airstr.Dispose()
+                airstr = Nothing
+
             End If
-
-            Dim airstr = calc.CreateMaterialStream({"Air", "Water"}, {1.0, 1.0})
-            airstr.SetMassFlow(1.0)
-            airstr.SetTemperature(at)
-            airstr.SetPressure(ap)
-            airstr.SetFlowsheet(FlowSheet)
-            airstr.PropertyPackage = rpp
-            rpp.CurrentMaterialStream = airstr
-
-            airstr.Calculate()
-
-            Dim wc = airstr.Phases(2).Compounds("Water").MoleFraction.GetValueOrDefault()
-
-            'add relative humidity
-            wc = wc * rh / 100.0
-
-            airstr = calc.CreateMaterialStream({"Air", "Water"}, {1.0 - wc, wc})
-            airstr.SetMassFlow(1.0)
-            airstr.SetTemperature(at)
-            airstr.SetPressure(ap)
-            airstr.SetFlowsheet(FlowSheet)
-            airstr.PropertyPackage = rpp
-            rpp.CurrentMaterialStream = airstr
-
-            airstr.Calculate()
-
-            AirDensity = airstr.Phases(2).Properties.density.GetValueOrDefault()
-
-            airstr.Dispose()
-            airstr = Nothing
 
             If RotorDiameter <> 0.0 Then
                 DiskArea = Math.PI * RotorDiameter ^ 2 / 4
@@ -396,10 +411,11 @@ Namespace UnitOperations
                 Case PropertyType.ALL, PropertyType.RW, PropertyType.RO
                     Return New String() {"Efficiency", "User-Defined Wind Speed", "Actual Wind Speed", "User-Defined Air Temperature", "Actual Air Temperature",
                         "User-Defined Air Pressure", "Actual Air Pressure", "User-Defined Relative Humidity", "Actual Relative Humidity",
-                        "Disk Area", "Rotor Diameter", "Number of Units", "Generated Power", "Maximum Theoretical Power", "Calculated Air Density"}
+                        "Disk Area", "Rotor Diameter", "Number of Units", "Generated Power", "Maximum Theoretical Power", "Calculated Air Density", "User-Defined Air Density"}
                 Case PropertyType.WR
                     Return New String() {"Efficiency", "User-Defined Wind Speed", "User-Defined Air Temperature",
-                        "User-Defined Air Pressure", "User-Defined Relative Humidity", "Rotor Diameter", "Number of Units"}
+                        "User-Defined Air Pressure", "User-Defined Relative Humidity", "Rotor Diameter", "Number of Units",
+                        "User-Defined Air Density"}
             End Select
 
         End Function
@@ -440,6 +456,8 @@ Namespace UnitOperations
                     Return MaximumTheoreticalPower.ConvertFromSI(su.heatflow)
                 Case "Calculated Air Density"
                     Return AirDensity.ConvertFromSI(su.density)
+                Case "User-Defined Air Density"
+                    Return UserDefinedAirDensity.ConvertFromSI(su.density)
             End Select
 
         End Function
@@ -480,6 +498,8 @@ Namespace UnitOperations
                     Return (su.heatflow)
                 Case "Calculated Air Density"
                     Return (su.density)
+                Case "User-Defined Air Density"
+                    Return (su.density)
             End Select
 
         End Function
@@ -507,6 +527,8 @@ Namespace UnitOperations
                     DiskArea = Math.PI * RotorDiameter ^ 2 / 4
                 Case "Number of Units"
                     NumberOfTurbines = Convert.ToDouble(propval)
+                Case "User-Defined Air Density"
+                    UserDefinedAirDensity = Convert.ToDouble(propval).ConvertToSI(su.density)
             End Select
 
             Return True

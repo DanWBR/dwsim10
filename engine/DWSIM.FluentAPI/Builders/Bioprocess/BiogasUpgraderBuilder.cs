@@ -7,8 +7,16 @@ namespace DWSIM.Automation.FluentAPI.Builders.Bioprocess
     {
         internal BiogasUpgraderBuilder(Flowsheet f, UnitOp_BiogasUpgrader o) : base(f, o) { }
 
-        /// <summary>Sets <c>Technology</c> and returns this builder for chaining.</summary>
-        public BiogasUpgraderBuilder WithTechnology(BiogasUpgraderTech tech) { Object.Technology = tech; return this; }
+        /// <summary>
+        /// Sets <c>Technology</c> and loads its default CO2 removal and CH4 loss, as the editor does
+        /// when the technology is picked. Set either afterwards to override the default.
+        /// </summary>
+        public BiogasUpgraderBuilder WithTechnology(BiogasUpgraderTech tech)
+        {
+            Object.Technology = tech;
+            Object.ApplyTechnologyDefaults();
+            return this;
+        }
         /// <summary>Sets <c>H2SRemoval</c> and returns this builder for chaining. Has no effect unless
         /// <see cref="WithH2SCompound"/> assigns the compound to strip; the upgrader logs a warning if
         /// the feed carries H2S with no compound assigned.</summary>

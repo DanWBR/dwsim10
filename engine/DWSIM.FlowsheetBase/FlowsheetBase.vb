@@ -2286,6 +2286,13 @@ Imports DWSIM.ExtensionMethods
                 gObj.Description = extowner.Description
             End If
             SimulationObjects(gObj.Name).SetFlowsheet(Me)
+            'The external graphic builds its ports through its owner. The clean-energy blocks and the
+            'Reaktoro reactor call CreateConnectors before the owner is assigned above, so a headless
+            'creation (automation, fluent API) left them with no ports. Build them now; the owners'
+            'CreateConnectors reuse the ports that already exist, so this never duplicates them.
+            If extowner IsNot Nothing AndAlso TypeOf gObj Is ExternalUnitOperationGraphic Then
+                gObj.CreateConnectors(0, 0)
+            End If
             FlowsheetSurface.AddObject(gObj)
         End If
 

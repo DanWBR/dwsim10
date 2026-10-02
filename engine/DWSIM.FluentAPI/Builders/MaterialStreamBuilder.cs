@@ -23,30 +23,85 @@ namespace DWSIM.Automation.FluentAPI.Builders
             Object = obj;
         }
 
-        /// <summary>Sets temperature and pressure.</summary>
+        /// <summary>
+        /// Sets temperature and pressure. A stream given a vapor fraction through
+        /// <see cref="WithVaporFraction"/> stays specified by pressure and vapor fraction, and the
+        /// temperature is then only a starting estimate.
+        /// </summary>
         public MaterialStreamBuilder At(Quantity temperature, Quantity pressure)
         {
             Object.SetTemperature(temperature.SI);
             Object.SetPressure(pressure.SI);
+            StateOf(Object).Temperature = true;
+            StateOf(Object).Pressure = true;
+            ApplyVaporFractionSpec();
             return this;
         }
 
         /// <summary>Sets <c>Temperature</c> (SI) and returns this builder for chaining.</summary>
-        public MaterialStreamBuilder WithTemperature(Quantity t) { Object.SetTemperature(t.SI); return this; }
+        public MaterialStreamBuilder WithTemperature(Quantity t)
+        {
+            Object.SetTemperature(t.SI);
+            StateOf(Object).Temperature = true;
+            ApplyVaporFractionSpec();
+            return this;
+        }
+
         /// <summary>Sets <c>Pressure</c> (SI) and returns this builder for chaining.</summary>
-        public MaterialStreamBuilder WithPressure(Quantity p) { Object.SetPressure(p.SI); return this; }
+        public MaterialStreamBuilder WithPressure(Quantity p)
+        {
+            Object.SetPressure(p.SI);
+            StateOf(Object).Pressure = true;
+            ApplyVaporFractionSpec();
+            return this;
+        }
         /// <summary>Sets <c>Mass Flow</c> (SI) and returns this builder for chaining.</summary>
         public MaterialStreamBuilder WithMassFlow(Quantity m) { Object.SetMassFlow(m.SI); return this; }
         /// <summary>Sets <c>Molar Flow</c> (SI) and returns this builder for chaining.</summary>
         public MaterialStreamBuilder WithMolarFlow(Quantity n) { Object.SetMolarFlow(n.SI); return this; }
         /// <summary>Sets <c>Volumetric Flow</c> (SI) and returns this builder for chaining.</summary>
         public MaterialStreamBuilder WithVolumetricFlow(Quantity q) { Object.SetVolumetricFlow(q.SI); return this; }
-        /// <summary>Sets <c>Vapor Fraction</c> and returns this builder for chaining.</summary>
+        /// <summary>
+        /// Sets the molar vapor fraction (0 = bubble point, 1 = dew point) and specifies the stream by it:
+        /// by pressure and vapor fraction, so the flash finds the temperature, or by temperature and
+        /// vapor fraction when the builder was given a temperature and no pressure, so the flash finds
+        /// the pressure. The specification follows later <see cref="WithTemperature"/>,
+        /// <see cref="WithPressure"/> and <see cref="At"/> calls on the same rule.
+        /// </summary>
         public MaterialStreamBuilder WithVaporFraction(double frac)
         {
-            // Use SetMolarVaporFraction when available; PhasesEnum is also acceptable.
-            Object.GetType().GetMethod("SetMolarFraction")?.Invoke(Object, new object[] { frac });
+            if (double.IsNaN(frac) || frac < 0.0 || frac > 1.0)
+                throw new ArgumentOutOfRangeException(nameof(frac), frac, "The vapor fraction must be between 0 and 1.");
+            Object.Phases[2].Properties.molarfraction = frac;
+            Object.AtEquilibrium = false;
+            StateOf(Object).VaporFraction = true;
+            ApplyVaporFractionSpec();
             return this;
+        }
+
+        // What the builder was told about a stream's state, kept per stream so that a builder
+        // obtained later through Flowsheet.MaterialStream(tag) sees the same history.
+        private sealed class StateSpec
+        {
+            public bool Temperature, Pressure, VaporFraction;
+        }
+
+        private static readonly ConditionalWeakTable<MaterialStream, StateSpec> _state =
+            new ConditionalWeakTable<MaterialStream, StateSpec>();
+
+        private static StateSpec StateOf(MaterialStream stream) => _state.GetOrCreateValue(stream);
+
+        /// <summary>
+        /// Picks the flash specification once a vapor fraction was given: temperature and vapor
+        /// fraction when only a temperature was given, pressure and vapor fraction otherwise.
+        /// </summary>
+        private void ApplyVaporFractionSpec()
+        {
+            var state = StateOf(Object);
+            if (!state.VaporFraction) return;
+            Object.SpecType = state.Temperature && !state.Pressure
+                ? DWSIM.Interfaces.Enums.StreamSpec.Temperature_and_VaporFraction
+                : DWSIM.Interfaces.Enums.StreamSpec.Pressure_and_VaporFraction;
         }
 
         /// <summary>
@@ -141,6 +196,8 @@ namespace DWSIM.Automation.FluentAPI.Builders
         public double MolarFlowMolPerSecond => Object.GetMolarFlow();
         /// <summary>Read-back of <c>Volumetric Flow M3Per Second</c> from the underlying object (populated after <c>Solve</c>).</summary>
         public double VolumetricFlowM3PerSecond => Object.GetVolumetricFlow();
+        /// <summary>Read-back of the molar vapor fraction (populated after <c>Solve</c>).</summary>
+        public double VaporFraction => Object.Phases[2].Properties.molarfraction.GetValueOrDefault();
 
         /// <summary>Mole fraction of <paramref name="compound"/> in the overall (mixture) phase.</summary>
         public double OverallMoleFraction(string compound)
