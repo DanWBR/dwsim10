@@ -61,7 +61,7 @@ namespace DWSIM.Engine.SmokeTests
         /// <remarks>
         /// The numbers are the ones the release itself was checked against, from the other side of
         /// the boundary: <c>scripts/check_runtime.py</c> in DanWBR/reaktoro loads the same runtime
-        /// through ctypes and gets 1.019233 mol aqueous and 0.050767 mol gaseous for this feed, on
+        /// through ctypes and gets 1.018978 mol aqueous and 0.051022 mol gaseous for this feed, on
         /// every platform it builds for. Agreeing with that is what proves the marshalling.
         /// </remarks>
         [Test]
@@ -96,8 +96,8 @@ namespace DWSIM.Engine.SmokeTests
                 TestContext.WriteLine("aqueous {0:F6} mol, gaseous {1:F6} mol",
                                       result.AqueousAmount, result.GaseousAmount);
 
-                Assert.That(result.AqueousAmount, Is.EqualTo(1.019233).Within(1e-5));
-                Assert.That(result.GaseousAmount, Is.EqualTo(0.050767).Within(1e-5));
+                Assert.That(result.AqueousAmount, Is.EqualTo(1.018978).Within(1e-5));
+                Assert.That(result.GaseousAmount, Is.EqualTo(0.051022).Within(1e-5));
                 Assert.That(result.SpeciesAmounts.Sum(), Is.EqualTo(1.07).Within(1e-5));
 
                 // Water is the solvent and its activity coefficient sits near one; the ions are

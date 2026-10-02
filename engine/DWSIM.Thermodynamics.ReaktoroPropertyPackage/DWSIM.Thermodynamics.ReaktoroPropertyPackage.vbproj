@@ -51,7 +51,7 @@
     DanWBR/reaktoro pinned by tag below, and cached under native\ where .gitignore keeps them.
   -->
   <PropertyGroup>
-    <ReaktoroRuntimeTag>runtimes-2.13.0</ReaktoroRuntimeTag>
+    <ReaktoroRuntimeTag>runtimes-2.13.1</ReaktoroRuntimeTag>
     <ReaktoroRid Condition="'$(ReaktoroRid)' == ''">$(RuntimeIdentifier)</ReaktoroRid>
     <ReaktoroRid Condition="'$(ReaktoroRid)' == ''">$(NETCoreSdkPortableRuntimeIdentifier)</ReaktoroRid>
     <ReaktoroRid Condition="'$(ReaktoroRid)' == ''">$(NETCoreSdkRuntimeIdentifier)</ReaktoroRid>
