@@ -170,6 +170,95 @@ Namespace SpecialOps
             Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of MPCController)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
         End Function
 
+        ' the generic serializer skips the variable and model lists, so they are written here
+        Public Overrides Function SaveData() As List(Of System.Xml.Linq.XElement)
+
+            Dim elements = MyBase.SaveData()
+            Dim ci = Globalization.CultureInfo.InvariantCulture
+
+            Dim saveVars = Function(tag As String, vars As List(Of MPCVariable))
+                               Dim xel As New System.Xml.Linq.XElement(tag)
+                               For Each v In vars
+                                   xel.Add(New System.Xml.Linq.XElement("Variable",
+                                           New System.Xml.Linq.XAttribute("ObjectID", If(v.ObjectID, "")),
+                                           New System.Xml.Linq.XAttribute("PropertyName", If(v.PropertyName, "")),
+                                           New System.Xml.Linq.XAttribute("Units", If(v.Units, "")),
+                                           New System.Xml.Linq.XAttribute("UnitsType", v.UnitsType.ToString()),
+                                           New System.Xml.Linq.XAttribute("Name", If(v.Name, "")),
+                                           New System.Xml.Linq.XAttribute("MinValue", v.MinValue.ToString("R", ci)),
+                                           New System.Xml.Linq.XAttribute("MaxValue", v.MaxValue.ToString("R", ci)),
+                                           New System.Xml.Linq.XAttribute("Weight", v.Weight.ToString("R", ci))))
+                               Next
+                               Return xel
+                           End Function
+
+            elements.Add(saveVars("MPCControlledVariables", ControlledVariables))
+            elements.Add(saveVars("MPCManipulatedVariables", ManipulatedVariables))
+            elements.Add(saveVars("MPCDisturbanceVariables", DisturbanceVariables))
+
+            Dim models As New System.Xml.Linq.XElement("MPCStepResponseModels")
+            For Each m In StepResponseModels
+                models.Add(New System.Xml.Linq.XElement("Model",
+                           New System.Xml.Linq.XAttribute("CVIndex", m.CVIndex),
+                           New System.Xml.Linq.XAttribute("MVIndex", m.MVIndex),
+                           New System.Xml.Linq.XAttribute("Gain", m.Gain.ToString("R", ci)),
+                           New System.Xml.Linq.XAttribute("TimeConstant", m.TimeConstant.ToString("R", ci)),
+                           New System.Xml.Linq.XAttribute("DeadTime", m.DeadTime.ToString("R", ci)),
+                           New System.Xml.Linq.XAttribute("Integrating", m.Integrating)))
+            Next
+            elements.Add(models)
+
+            Return elements
+
+        End Function
+
+        Public Overrides Function LoadData(data As List(Of System.Xml.Linq.XElement)) As Boolean
+
+            MyBase.LoadData(data)
+
+            Dim ci = Globalization.CultureInfo.InvariantCulture
+
+            Dim loadVars = Sub(tag As String, vars As List(Of MPCVariable))
+                               Dim xel = data.Where(Function(x) x.Name = tag).FirstOrDefault()
+                               If xel Is Nothing Then Return
+                               vars.Clear()
+                               For Each xv In xel.Elements("Variable")
+                                   Dim v As New MPCVariable With {
+                                       .ObjectID = xv.@ObjectID,
+                                       .PropertyName = xv.@PropertyName,
+                                       .Units = xv.@Units,
+                                       .Name = xv.@Name,
+                                       .MinValue = Double.Parse(xv.@MinValue, ci),
+                                       .MaxValue = Double.Parse(xv.@MaxValue, ci),
+                                       .Weight = Double.Parse(xv.@Weight, ci)}
+                                   Dim ut As UnitOfMeasure
+                                   If [Enum].TryParse(xv.@UnitsType, ut) Then v.UnitsType = ut
+                                   vars.Add(v)
+                               Next
+                           End Sub
+
+            loadVars("MPCControlledVariables", ControlledVariables)
+            loadVars("MPCManipulatedVariables", ManipulatedVariables)
+            loadVars("MPCDisturbanceVariables", DisturbanceVariables)
+
+            Dim models = data.Where(Function(x) x.Name = "MPCStepResponseModels").FirstOrDefault()
+            If models IsNot Nothing Then
+                StepResponseModels.Clear()
+                For Each xm In models.Elements("Model")
+                    StepResponseModels.Add(New StepResponseModel With {
+                        .CVIndex = Integer.Parse(xm.@CVIndex, ci),
+                        .MVIndex = Integer.Parse(xm.@MVIndex, ci),
+                        .Gain = Double.Parse(xm.@Gain, ci),
+                        .TimeConstant = Double.Parse(xm.@TimeConstant, ci),
+                        .DeadTime = Double.Parse(xm.@DeadTime, ci),
+                        .Integrating = Boolean.Parse(xm.@Integrating)})
+                Next
+            End If
+
+            Return True
+
+        End Function
+
         Public Overrides ReadOnly Property MobileCompatible As Boolean
             Get
                 Return False
