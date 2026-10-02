@@ -638,11 +638,19 @@ Namespace UnitOperations
                         Dim myparam As ICapeParameterSpec = myparms.Item(i)
                         Dim ip As ICapeParameter = DirectCast(myparam, ICapeParameter)
                         Try
-                            If Not ip.Mode = CapeParamMode.CAPE_OUTPUT Then ip.value = _params(i - 1).value
+                            If Not ip.Mode = CapeParamMode.CAPE_OUTPUT Then
+                                ' the array wrapper keeps its value in its own property; ICapeParameter.value
+                                ' on it is the base class member and returns Nothing
+                                Dim arrp = TryCast(_params(i - 1), Auxiliary.CapeOpen.CapeArrayParameter)
+                                If arrp IsNot Nothing Then
+                                    If arrp.value IsNot Nothing Then ip.value = ToVariantArray(arrp.value)
+                                Else
+                                    ip.value = _params(i - 1).value
+                                End If
+                            End If
                         Catch ex As Exception
-                            'Console.WriteLine(ex.ToString)
-                            'Dim ecu As CapeOpen.ECapeUser = myuo
-                            'Me.FlowSheet.ShowMessage(Me.GraphicObject.Tag & ": CAPE-OPEN Exception: " & ecu.code & " at " & ecu.interfaceName & ". Reason: " & ecu.description, Color.DarkGray, DWSIM.Flowsheet.MessageType.Warning)
+                            FlowSheet?.ShowMessage(If(GraphicObject IsNot Nothing, GraphicObject.Tag, ComponentName) & ": the component did not accept the value of parameter '" &
+                                                   CType(myparam, ICapeIdentification).ComponentName & "': " & DescribeCapeError(ex, myuo), IFlowsheet.MessageType.Warning)
                         End Try
                     Next
                 End If
@@ -663,13 +671,16 @@ Namespace UnitOperations
                     For i = 1 To paramcount
                         Dim myparam As ICapeParameterSpec = myparms.Item(i)
                         Dim ip As ICapeParameter = CType(myparam, ICapeParameter)
-                        If Not myparam.Type = CapeParamType.CAPE_ARRAY Then
-                            Try
+                        Try
+                            If myparam.Type = CapeParamType.CAPE_ARRAY Then
+                                Dim arrp = TryCast(_params(i - 1), Auxiliary.CapeOpen.CapeArrayParameter)
+                                If arrp IsNot Nothing Then arrp.value = ip.value
+                            Else
                                 _params(i - 1).value = ip.value
-                            Catch ex As Exception
-                                Console.WriteLine(ex.ToString)
-                            End Try
-                        End If
+                            End If
+                        Catch ex As Exception
+                            Console.WriteLine(ex.ToString)
+                        End Try
                     Next
                 End If
             End If
@@ -1389,16 +1400,47 @@ Namespace UnitOperations
 
             For Each p As ICapeIdentification In Me._params
                 If p.ComponentName = prop Then
+                    ' the mode can change with the component's own settings, so ask the component
+                    Dim mode As CapeParamMode = DirectCast(p, ICapeParameter).Mode
+                    Try
+                        Dim col As ICapeCollection = DirectCast(_couo, CapeOpen.ICapeUtilities).parameters
+                        Dim live As ICapeParameter = DirectCast(col.Item(_params.IndexOf(DirectCast(p, ICapeParameter)) + 1), ICapeParameter)
+                        mode = live.Mode
+                    Catch ex As Exception
+                    End Try
+                    If mode = CapeParamMode.CAPE_OUTPUT Then
+                        ' RestoreParams never sends an output, so storing the value here would only make
+                        ' GetPropertyValue report a setting the component does not have
+                        FlowSheet?.ShowMessage(If(GraphicObject IsNot Nothing, GraphicObject.Tag, ComponentName) & ": parameter '" & prop &
+                                               "' is an output of the component; change it in the component's own editor.", IFlowsheet.MessageType.Warning)
+                        Return False
+                    End If
                     If TypeOf p Is Auxiliary.CapeOpen.CapeArrayParameter Then
-                        DirectCast(p, Auxiliary.CapeOpen.CapeArrayParameter).value = propval
+                        DirectCast(p, Auxiliary.CapeOpen.CapeArrayParameter).value = ToVariantArray(propval)
                     Else
                         DirectCast(p, ICapeParameter).value = propval
                     End If
                     RestoreParams()
-                    Return 1
+                    Return True
                 End If
             Next
-            Return 0
+            Return False
+        End Function
+
+        ''' <summary>
+        ''' Array parameter values go to the component as a VARIANT array (Object()): COCO rejects a
+        ''' Double() with HRESULT 0x80040501. Any array or list (Double(), List(Of Double)) is accepted.
+        ''' </summary>
+        Private Shared Function ToVariantArray(value As Object) As Object
+            If value Is Nothing OrElse TypeOf value Is Object() Then Return value
+            Dim items = TryCast(value, System.Collections.IEnumerable)
+            If TypeOf value Is String Then items = Nothing
+            If items Is Nothing Then Return New Object() {value}
+            Dim list As New List(Of Object)
+            For Each x In items
+                list.Add(x)
+            Next
+            Return list.ToArray()
         End Function
 
 #End Region

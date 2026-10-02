@@ -4062,6 +4062,57 @@ Namespace Streams
 
 #End Region
 
+#Region "    CAPE-OPEN overall enthalpy and entropy specifications"
+
+        ' A hosted unit may set the overall enthalpy or entropy before the composition (the COCO units
+        ' call SetOverallProp("enthalpy", "Mole", ...) ahead of SetOverallProp("fraction", ...)). The
+        ' molar value can only be turned into the mass value the flash reads once the composition is
+        ' known, so it is kept here and converted when the equilibrium is requested.
+        <NonSerialized> <Xml.Serialization.XmlIgnore> Private _coOverallH As Double?
+        <NonSerialized> <Xml.Serialization.XmlIgnore> Private _coOverallHMolar As Boolean
+        <NonSerialized> <Xml.Serialization.XmlIgnore> Private _coOverallS As Double?
+        <NonSerialized> <Xml.Serialization.XmlIgnore> Private _coOverallSMolar As Boolean
+
+        Private Sub KeepOverallSpec(prop As String, basis As String, value As Double)
+            Dim molar As Boolean = basis IsNot Nothing AndAlso basis.ToLower().StartsWith("mol")
+            Select Case prop.ToLower()
+                Case "enthalpy", "enthalpynf"
+                    _coOverallH = value
+                    _coOverallHMolar = molar
+                Case "entropy", "entropynf"
+                    _coOverallS = value
+                    _coOverallSMolar = molar
+            End Select
+        End Sub
+
+        Private Sub ApplyOverallSpecs()
+            Dim mw As Double = PropertyPackage.AUX_MMM(PropertyPackages.Phase.Mixture)
+            With Phases(0).Properties
+                If _coOverallH.HasValue Then
+                    If _coOverallHMolar Then
+                        .molar_enthalpy = _coOverallH.Value
+                        If mw > 0.0 Then .enthalpy = _coOverallH.Value / mw
+                    Else
+                        .enthalpy = _coOverallH.Value / 1000.0
+                        .molar_enthalpy = _coOverallH.Value / 1000.0 * mw
+                    End If
+                End If
+                If _coOverallS.HasValue Then
+                    If _coOverallSMolar Then
+                        .molar_entropy = _coOverallS.Value
+                        If mw > 0.0 Then .entropy = _coOverallS.Value / mw
+                    Else
+                        .entropy = _coOverallS.Value / 1000.0
+                        .molar_entropy = _coOverallS.Value / 1000.0 * mw
+                    End If
+                End If
+            End With
+            _coOverallH = Nothing
+            _coOverallS = Nothing
+        End Sub
+
+#End Region
+
 #Region "    CAPE-OPEN ICapeIdentification"
 
         ''' <summary>
@@ -4106,6 +4157,7 @@ Namespace Streams
         ''' The Material Object may or may not delegate this call to a Property Package.</remarks>
         Public Sub CalcEquilibrium(ByVal flashType As String, ByVal props As Object) Implements CapeOpen.ICapeThermoMaterialObject.CalcEquilibrium
             Me.PropertyPackage.CurrentMaterialStream = Me
+            ApplyOverallSpecs()
             Try
                 Me.PropertyPackage.CalcEquilibrium(Me, flashType, props)
             Catch ex As Exception
@@ -4721,6 +4773,7 @@ Namespace Streams
                             Me.Phases(f).Properties.density = 1 / values(0)
                     End Select
                 Case "enthalpy", "enthalpynf"
+                    If f = 0 Then KeepOverallSpec([property], basis, values(0))
                     Select Case basis
                         Case "Molar", "molar", "mole", "Mole"
                             Me.Phases(f).Properties.molar_enthalpy = values(0)
@@ -4728,9 +4781,10 @@ Namespace Streams
                             If val <> 0.0# Then Me.Phases(f).Properties.enthalpy = values(0) / val
                         Case "Mass", "mass"
                             Me.Phases(f).Properties.enthalpy = values(0) / 1000
-                            Me.Phases(f).Properties.molar_enthalpy = values(0) * Me.PropertyPackage.AUX_MMM(phs)
+                            Me.Phases(f).Properties.molar_enthalpy = values(0) / 1000 * Me.PropertyPackage.AUX_MMM(phs)
                     End Select
                 Case "entropy", "entropynf"
+                    If f = 0 Then KeepOverallSpec([property], basis, values(0))
                     Select Case basis
                         Case "Molar", "molar", "mole", "Mole"
                             Me.Phases(f).Properties.molar_entropy = values(0)
@@ -4738,7 +4792,7 @@ Namespace Streams
                             If val <> 0.0# Then Me.Phases(f).Properties.entropy = values(0) / val
                         Case "Mass", "mass"
                             Me.Phases(f).Properties.entropy = values(0) / 1000
-                            Me.Phases(f).Properties.molar_entropy = values(0) * Me.PropertyPackage.AUX_MMM(phs)
+                            Me.Phases(f).Properties.molar_entropy = values(0) / 1000 * Me.PropertyPackage.AUX_MMM(phs)
                     End Select
                 Case "enthalpyf"
                     Select Case basis
@@ -5407,6 +5461,8 @@ Namespace Streams
             Me.PropertyPackage.CurrentMaterialStream = Nothing
             AtEquilibrium = False
             MaximumAllowableDynamicMassFlowRate = Nothing
+            _coOverallH = Nothing
+            _coOverallS = Nothing
         End Sub
 
         ''' <summary>
@@ -6442,6 +6498,7 @@ Namespace Streams
                             Me.Phases(f).Properties.density = 1 / values(0)
                     End Select
                 Case "enthalpy", "enthalpynf"
+                    If f = 0 Then KeepOverallSpec([property], basis, values(0))
                     Select Case basis
                         Case "Molar", "molar", "mole", "Mole"
                             Me.Phases(f).Properties.molar_enthalpy = values(0)
@@ -6449,9 +6506,10 @@ Namespace Streams
                             If val <> 0.0# Then Me.Phases(f).Properties.enthalpy = values(0) / val
                         Case "Mass", "mass"
                             Me.Phases(f).Properties.enthalpy = values(0) / 1000
-                            Me.Phases(f).Properties.molar_enthalpy = values(0) * Me.PropertyPackage.AUX_MMM(phs)
+                            Me.Phases(f).Properties.molar_enthalpy = values(0) / 1000 * Me.PropertyPackage.AUX_MMM(phs)
                     End Select
                 Case "entropy", "entropynf"
+                    If f = 0 Then KeepOverallSpec([property], basis, values(0))
                     Select Case basis
                         Case "Molar", "molar", "mole", "Mole"
                             Me.Phases(f).Properties.molar_entropy = values(0)
@@ -6459,7 +6517,7 @@ Namespace Streams
                             If val <> 0.0# Then Me.Phases(f).Properties.entropy = values(0) / val
                         Case "Mass", "mass"
                             Me.Phases(f).Properties.entropy = values(0) / 1000
-                            Me.Phases(f).Properties.molar_entropy = values(0) * Me.PropertyPackage.AUX_MMM(phs)
+                            Me.Phases(f).Properties.molar_entropy = values(0) / 1000 * Me.PropertyPackage.AUX_MMM(phs)
                     End Select
                 Case "enthalpyf"
                     Select Case basis
@@ -6514,7 +6572,7 @@ Namespace Streams
                 Case "moles"
                     DefinedFlow = FlowSpec.Mole
                     Me.Phases(f).Properties.molarflow = values(0)
-                Case "Mass"
+                Case "mass"
                     DefinedFlow = FlowSpec.Mass
                     Me.Phases(f).Properties.massflow = values(0)
                 Case "molecularweight"
@@ -7172,6 +7230,7 @@ Namespace Streams
         ''' fraction) and composition for all Phases present.</remarks>
         Public Sub CalcEquilibrium1(ByVal specification1 As Object, ByVal specification2 As Object, ByVal solutionType As String) Implements ICapeThermoEquilibriumRoutine.CalcEquilibrium
             Me.PropertyPackage.CurrentMaterialStream = Me
+            ApplyOverallSpecs()
             Try
                 Me.PropertyPackage.CalcEquilibrium1(specification1, specification2, solutionType)
             Catch ex As Exception
