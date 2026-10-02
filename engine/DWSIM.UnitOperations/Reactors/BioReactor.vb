@@ -1377,6 +1377,8 @@ Namespace Reactors
                     .Phases(0).Properties.massflow = totalNewMass
                     .DefinedFlow = FlowSpec.Mass
                     .SpecType = StreamSpec.Temperature_and_Pressure
+                    'a single-compound outlet would otherwise be re-flashed at PH with the H cleared above
+                    .OverrideSingleCompoundFlashBehavior = True
                 End With
             End If
 
@@ -2235,6 +2237,8 @@ Namespace Reactors
                 .Phases(0).Properties.massflow = total
                 .DefinedFlow = FlowSpec.Mass
                 .SpecType = StreamSpec.Temperature_and_Pressure
+                'a single-compound outlet would otherwise be re-flashed at PH with the H cleared above
+                .OverrideSingleCompoundFlashBehavior = True
             End With
         End Sub
 
