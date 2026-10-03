@@ -51,13 +51,7 @@ namespace DWSIM.Validation.Tests.Bioprocess
             feed.Object.SetPropertyPackageInstance(pp);
             feed.Object.Calculate(true, true);
             ad.Object.SetPropertyPackageInstance(pp);
-            try { ad.Object.Calculate(); }
-            catch (System.ArgumentOutOfRangeException)
-            {
-                // Known bug in AnaerobicDigester.CalculateBlackBox: it tries to update GetInletEnergyStream(1)
-                // even when AD has no InputConnectors[1] (energy lives in GraphicObject.EnergyConnector).
-                // The main calculation (mass/COD/biogas) already completed before this final step.
-            }
+            ad.Object.Calculate();
 
             double ch4Out = biogas.OverallMassFraction("Methane") * biogas.MassFlowKgPerSecond;
             double glcRemoved = 0.05 - effluent.OverallMassFraction("Glucose") * effluent.MassFlowKgPerSecond;

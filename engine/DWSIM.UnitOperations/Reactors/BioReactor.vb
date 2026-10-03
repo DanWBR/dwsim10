@@ -1369,7 +1369,8 @@ Namespace Reactors
             DeltaQ = Result_Q_duty_kW
             Dim es = GetEnergyStream()
             If es IsNot Nothing Then
-                es.EnergyFlow = Result_Q_duty_kW
+                'the energy connector is an outlet port, like the cooler's: its stream carries the heat removed
+                es.EnergyFlow = -Result_Q_duty_kW
                 es.GraphicObject.Calculated = True
             End If
 
@@ -1702,7 +1703,8 @@ Namespace Reactors
             DeltaQ = Result_Q_duty_kW
             Dim es = GetEnergyStream()
             If es IsNot Nothing Then
-                es.EnergyFlow = Result_Q_duty_kW
+                'the energy connector is an outlet port, like the cooler's: its stream carries the heat removed
+                es.EnergyFlow = -Result_Q_duty_kW
                 es.GraphicObject.Calculated = True
             End If
 

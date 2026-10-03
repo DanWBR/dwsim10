@@ -107,8 +107,7 @@ namespace DWSIM.Validation.Tests.Flowsheets
             feed.Object.Calculate(true, true);
 
             ad.Object.SetPropertyPackageInstance(pp);
-            try { ad.Object.Calculate(); }
-            catch (System.ArgumentOutOfRangeException) { /* known InputConnectors[1] bug */ }
+            ad.Object.Calculate();
 
             // Regular cooler: use fs.Solve for queueable UOs
             biogasRaw.Object.SetPropertyPackageInstance(pp);
