@@ -1783,6 +1783,78 @@
   <data name="PROP_PU_12" xml:space="preserve">
     <value>Delivered Volumetric Flow</value>
   </data>
+  <data name="PROP_RV_0" xml:space="preserve">
+    <value>Calculation Mode</value>
+    <comment>1</comment>
+  </data>
+  <data name="PROP_RV_1" xml:space="preserve">
+    <value>Set Pressure</value>
+    <comment>1</comment>
+  </data>
+  <data name="PROP_RV_2" xml:space="preserve">
+    <value>Overpressure</value>
+    <comment>1</comment>
+  </data>
+  <data name="PROP_RV_3" xml:space="preserve">
+    <value>Back Pressure</value>
+    <comment>1</comment>
+  </data>
+  <data name="PROP_RV_4" xml:space="preserve">
+    <value>Discharge Coefficient (Kd)</value>
+    <comment>1</comment>
+  </data>
+  <data name="PROP_RV_5" xml:space="preserve">
+    <value>Back Pressure Correction Factor (Kb)</value>
+    <comment>1</comment>
+  </data>
+  <data name="PROP_RV_6" xml:space="preserve">
+    <value>Combination Correction Factor (Kc)</value>
+    <comment>1</comment>
+  </data>
+  <data name="PROP_RV_7" xml:space="preserve">
+    <value>Orifice Area</value>
+    <comment>1</comment>
+  </data>
+  <data name="PROP_RV_8" xml:space="preserve">
+    <value>Standard Orifice</value>
+    <comment>1</comment>
+  </data>
+  <data name="PROP_RV_9" xml:space="preserve">
+    <value>Relieving Pressure</value>
+    <comment>0</comment>
+  </data>
+  <data name="PROP_RV_10" xml:space="preserve">
+    <value>Relieving Capacity</value>
+    <comment>0</comment>
+  </data>
+  <data name="PROP_RV_11" xml:space="preserve">
+    <value>Required Orifice Area</value>
+    <comment>0</comment>
+  </data>
+  <data name="PROP_RV_12" xml:space="preserve">
+    <value>Choked Flow</value>
+    <comment>0</comment>
+  </data>
+  <data name="PROP_RV_13" xml:space="preserve">
+    <value>Fully-Opened Pressure</value>
+    <comment>1</comment>
+  </data>
+  <data name="PROP_RV_14" xml:space="preserve">
+    <value>Viscosity Correction Factor (Kv)</value>
+    <comment>1</comment>
+  </data>
+  <data name="PROP_RV_15" xml:space="preserve">
+    <value>Liquid Back Pressure Correction Factor (Kw)</value>
+    <comment>1</comment>
+  </data>
+  <data name="PROP_RV_16" xml:space="preserve">
+    <value>Calculate Viscosity Correction</value>
+    <comment>1</comment>
+  </data>
+  <data name="PROP_RV_17" xml:space="preserve">
+    <value>Update Outlet Stream</value>
+    <comment>1</comment>
+  </data>
   <data name="PROP_PF_11" xml:space="preserve">
     <value>Integration Step</value>
   </data>

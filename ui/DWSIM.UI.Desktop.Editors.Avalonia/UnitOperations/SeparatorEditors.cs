@@ -435,6 +435,12 @@ namespace DWSIM.UI.Desktop.Editors
             "Linear", "Equal Percentage", "Quick Opening", "User-Defined Expression", "Data Table"
         };
 
+        /// <summary>The steady-state modes, in the order of ReliefValveCalculationMode.</summary>
+        private static readonly List<string> CalculationModes = new List<string>
+        {
+            "Rating (capacity of the orifice)", "Sizing (required orifice area)"
+        };
+
         private sealed class PointRow : INotifyPropertyChanged
         {
             private readonly ReliefValve _valve;
@@ -498,8 +504,10 @@ namespace DWSIM.UI.Desktop.Editors
                     panel.CreateAndAddTextBoxRow(nf, "Back Pressure Coefficient", valve.BackPressureCoefficient,
                         (tb, e) => { if (UnitOpEditorRows.TryParse(tb.Text, out var v)) valve.BackPressureCoefficient = v; });
 
-                    panel.CreateAndAddTextBoxRow(nf, "Viscosity Coefficient", valve.ViscosityCoefficient,
+                    // the steady state writes Kv when it works the correction out
+                    var kv = panel.CreateAndAddTextBoxRow(nf, "Viscosity Coefficient", valve.ViscosityCoefficient,
                         (tb, e) => { if (UnitOpEditorRows.TryParse(tb.Text, out var v)) valve.ViscosityCoefficient = v; });
+                    kv.IsEnabled = !valve.CalculateViscosityCorrection;
 
                     var area = panel.CreateAndAddValueUnitRow(valve, "Valve Size (Orifice Area)",
                         UnitOfMeasure.area, valve.OrificeArea, v => valve.OrificeArea = v);
@@ -525,6 +533,64 @@ namespace DWSIM.UI.Desktop.Editors
                         area.Value.Text = cv.ConvertFromSI(su.area, valve.OrificeArea)
                                             .ToString(nf, CultureInfo.CurrentCulture);
                     });
+
+                    // steady state: API 520 rating or sizing at the relieving conditions
+                    panel.CreateAndAddLabelRow("Steady State (API 520)");
+
+                    panel.CreateAndAddDropDownRow("Calculation Mode", CalculationModes,
+                        (int)valve.CalculationMode, (dd, e) =>
+                        {
+                            if (dd.SelectedIndex < 0) return;
+                            valve.CalculationMode = (ReliefValve.ReliefValveCalculationMode)dd.SelectedIndex;
+                        });
+
+                    panel.CreateAndAddTextBoxRow(nf, "Overpressure (%)", valve.OverpressurePercent,
+                        (tb, e) => { if (UnitOpEditorRows.TryParse(tb.Text, out var v)) valve.OverpressurePercent = v; });
+
+                    panel.CreateAndAddValueUnitRow(valve, "Back Pressure", UnitOfMeasure.pressure,
+                        valve.BackPressure, v => valve.BackPressure = v);
+
+                    panel.CreateAndAddTextBoxRow(nf, "Combination Correction Factor (Kc)", valve.CombinationCorrectionFactor,
+                        (tb, e) => { if (UnitOpEditorRows.TryParse(tb.Text, out var v)) valve.CombinationCorrectionFactor = v; });
+
+                    panel.CreateAndAddTextBoxRow(nf, "Liquid Back Pressure Correction Factor (Kw)", valve.LiquidBackPressureCoefficient,
+                        (tb, e) => { if (UnitOpEditorRows.TryParse(tb.Text, out var v)) valve.LiquidBackPressureCoefficient = v; });
+
+                    panel.CreateAndAddCheckBoxRow("Calculate Viscosity Correction (Kv)", valve.CalculateViscosityCorrection,
+                        (cb, e) =>
+                        {
+                            valve.CalculateViscosityCorrection = cb.IsChecked == true;
+                            kv.IsEnabled = !valve.CalculateViscosityCorrection;
+                        });
+
+                    panel.CreateAndAddCheckBoxRow("Update Outlet Stream", valve.UpdateOutletStream,
+                        (cb, e) => valve.UpdateOutletStream = cb.IsChecked == true);
+
+                    panel.CreateAndAddDescriptionRow(
+                        "The inlet stream is the relieving state. With a set pressure, the relieving pressure is the " +
+                        "set pressure plus the overpressure; without one, it is the inlet pressure. With Update Outlet " +
+                        "Stream checked, the outlet gets the inlet flow at the back pressure and the inlet enthalpy.");
+                },
+                results: panel =>
+                {
+                    if (string.IsNullOrEmpty(valve.ResultFlowRegime) && string.IsNullOrEmpty(valve.ResultMessage)) return;
+
+                    var nf = valve.GetFlowsheet().FlowsheetOptions.NumberFormat;
+
+                    panel.CreateAndAddTwoLabelsRow("Flow Regime", valve.ResultFlowRegime);
+                    panel.CreateAndAddResultRow(valve, "Relieving Pressure", UnitOfMeasure.pressure,
+                        valve.ResultRelievingPressure);
+                    panel.CreateAndAddResultRow(valve, "Required Orifice Area", UnitOfMeasure.area,
+                        valve.ResultRequiredArea);
+                    panel.CreateAndAddTwoLabelsRow("Standard Orifice (API 526)", valve.ResultStandardOrifice);
+                    panel.CreateAndAddResultRow(valve, "Relieving Capacity", UnitOfMeasure.massflow,
+                        valve.ResultCapacity);
+                    panel.CreateAndAddTwoLabelsRow("Choked Flow", valve.ResultChokedFlow ? "Yes" : "No");
+                    if (valve.CalculateViscosityCorrection && valve.ResultFlowRegime == "Liquid")
+                        panel.CreateAndAddTwoLabelsRow("Viscosity Correction Factor (Kv)",
+                            valve.ViscosityCoefficient.ToString(nf, CultureInfo.CurrentCulture));
+                    if (!string.IsNullOrEmpty(valve.ResultMessage))
+                        panel.CreateAndAddDescriptionRow(valve.ResultMessage);
                 },
                 extras: new[] { ("Opening / Kv Relationship", BuildRelationship(valve)) });
         }
