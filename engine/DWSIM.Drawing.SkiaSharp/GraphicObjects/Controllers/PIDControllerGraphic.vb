@@ -139,7 +139,7 @@
                 Owner?.UpdateVars()
                 canvas.DrawText("SP " + Convert.ToDouble(Owner?.SPValue).ToString("G2"), X + Width + 3 * f, Y + Height * 0.8, paint)
                 canvas.DrawText("PV " + Convert.ToDouble(Owner?.PVValue).ToString("G2"), X + Width + 3 * f, Y + Height * 0.8 + trect.Height + 2 * f, paint)
-                canvas.DrawText("MV " + Convert.ToDouble(Owner?.MVValue).ToString("G2"), X + Width + 3 * f, Y + Height * 0.8 + 2 * trect.Height + 4 * f, paint)
+                canvas.DrawText("MV " + Convert.ToDouble(Owner?.MVValueDisplay).ToString("G2"), X + Width + 3 * f, Y + Height * 0.8 + 2 * trect.Height + 4 * f, paint)
             End Using
 
             If Not Owner?.Active Then

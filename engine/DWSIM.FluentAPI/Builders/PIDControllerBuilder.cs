@@ -171,7 +171,7 @@ namespace DWSIM.Automation.FluentAPI.Builders
         public double SetPoint => Object.SPValue;
 
         /// <summary>The manipulated variable at the last solved step, in display units.</summary>
-        public double ManipulatedVariable => Object.MVValue;
+        public double ManipulatedVariable => Object.MVValueDisplay;
 
         /// <summary>The controller output at the last solved step.</summary>
         public double Output => Object.Output;

@@ -59,7 +59,7 @@ namespace DWSIM.Automation.FluentAPI.Dynamics
             Kd = pid.Kd;
             SetPoint = pid.SetPoint;
             ProcessVariable = pid.PVValue;
-            ManipulatedVariable = pid.MVValue;
+            ManipulatedVariable = pid.MVValueDisplay;
             Output = pid.Output;
             OutputMin = pid.OutputMin;
             OutputMax = pid.OutputMax;
@@ -110,7 +110,7 @@ namespace DWSIM.Automation.FluentAPI.Dynamics
         /// <summary>Process variable at the last solved step.</summary>
         public double ProcessVariable { get; }
 
-        /// <summary>Manipulated variable at the last solved step.</summary>
+        /// <summary>Manipulated variable at the last solved step, in <see cref="ManipulatedUnits"/>.</summary>
         public double ManipulatedVariable { get; }
 
         /// <summary>Controller output at the last solved step.</summary>
