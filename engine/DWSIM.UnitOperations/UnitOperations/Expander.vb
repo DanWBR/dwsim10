@@ -532,6 +532,7 @@ Namespace UnitOperations
             AddDynamicProperty("Current Speed", "Current rotational speed (RPM).", 3000.0, UnitOfMeasure.none, 1.0.GetType())
             AddDynamicProperty("Target Speed", "Target rotational speed (RPM). Speed ramps towards this value based on inertia.", 3000.0, UnitOfMeasure.none, 1.0.GetType())
             AddDynamicProperty("Generator Torque", "Resistive generator/load torque (N.m).", 200.0, UnitOfMeasure.none, 1.0.GetType())
+            AddDynamicProperty("Rated Speed", "Speed (RPM) at which the expander delivers its full pressure drop. Without a performance map the dynamic pressure drop scales with (Current Speed / Rated Speed)^2.", 3000.0, UnitOfMeasure.none, 1.0.GetType())
 
         End Sub
 

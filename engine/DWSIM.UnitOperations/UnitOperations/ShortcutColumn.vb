@@ -1150,7 +1150,7 @@ restart:    B = F - D
             str.AppendLine("    Heavy key: " & Me.m_heavykey.ToString)
             str.AppendLine("    Heavy key mole fraction: " & Me.m_heavykeymolarfrac.ToString(numberformat, ci))
             str.AppendLine("    Condenser pressure: " & SystemsOfUnits.Converter.ConvertFromSI(su.pressure, Me.m_condenserpressure).ToString(numberformat, ci) & " " & su.pressure)
-            str.AppendLine("    Reboiler pressure: " & SystemsOfUnits.Converter.ConvertFromSI(su.pressure, Me.m_condenserpressure).ToString(numberformat, ci) & " " & su.pressure)
+            str.AppendLine("    Reboiler pressure: " & SystemsOfUnits.Converter.ConvertFromSI(su.pressure, Me.m_boilerpressure).ToString(numberformat, ci) & " " & su.pressure)
             str.AppendLine("    Stage/Tray height: " & SystemsOfUnits.Converter.ConvertFromSI(su.distance, Me.StageHeight).ToString(numberformat, ci) & " " & su.distance)
             str.AppendLine()
             str.AppendLine("Results")
@@ -1164,7 +1164,7 @@ restart:    B = F - D
             str.AppendLine("    Stripping liquid mole flow: " & SystemsOfUnits.Converter.ConvertFromSI(su.molarflow, Me.L_).ToString(numberformat, ci) & " " & su.molarflow)
             str.AppendLine("    Rectifying liquid mole flow: " & SystemsOfUnits.Converter.ConvertFromSI(su.molarflow, Me.L).ToString(numberformat, ci) & " " & su.molarflow)
             str.AppendLine("    Stripping vapor mole flow: " & SystemsOfUnits.Converter.ConvertFromSI(su.molarflow, Me.V_).ToString(numberformat, ci) & " " & su.molarflow)
-            str.AppendLine("    Rectifying liquid mole flow: " & SystemsOfUnits.Converter.ConvertFromSI(su.molarflow, Me.V).ToString(numberformat, ci) & " " & su.molarflow)
+            str.AppendLine("    Rectifying vapor mole flow: " & SystemsOfUnits.Converter.ConvertFromSI(su.molarflow, Me.V).ToString(numberformat, ci) & " " & su.molarflow)
             str.AppendLine("    Estimated column height: " & SystemsOfUnits.Converter.ConvertFromSI(su.distance, Me.EstimatedHeight).ToString(numberformat, ci) & " " & su.distance)
             str.AppendLine("    Estimated column diameter: " & SystemsOfUnits.Converter.ConvertFromSI(su.distance, Me.EstimatedDiameter).ToString(numberformat, ci) & " " & su.distance)
 
