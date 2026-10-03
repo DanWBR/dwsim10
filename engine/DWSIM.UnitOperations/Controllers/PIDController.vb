@@ -285,6 +285,8 @@ Namespace SpecialOps
         ''' DTerm). 2 = series (interacting), Kp * (1 + 1 / (Ti s)) * (1 + Td s): Output = Kp * ((1 + Td / Ti) *
         ''' beta * e + ITerm / Ti + Td * DTerm), the same as the ISA form with Kp * (1 + Td / Ti), Ti + Td and Ti
         ''' * Td / (Ti + Td). Any other value is calculated with the ISA form.
+        ''' Since Ti and Td are taken from Ki and Kd, the ISA output equals the parallel one and both are
+        ''' calculated as PTerm + Ki * ITerm + Kd * DTerm, which stays finite at Kp = 0.
         ''' </summary>
         Public Property PIDForm As Integer = 0
 
@@ -350,6 +352,8 @@ Namespace SpecialOps
         Private LastFeedforwardInput As Double = 0.0
 
         Private LastDisturbanceValue As Double = 0.0
+
+        Private FeedforwardInitialized As Boolean = False
 
         ''' <summary>
         ''' Gets or sets the controller setpoint, in the controlled variable's units. Same value as <see
@@ -942,6 +946,11 @@ Namespace SpecialOps
             LastSetPoint = Nothing
             WasManualOverride = False
 
+            FeedforwardFilterState = 0.0
+            LastFeedforwardInput = 0.0
+            LastDisturbanceValue = 0.0
+            FeedforwardInitialized = False
+
             PVHistory.Clear()
             MVHistory.Clear()
             SPHistory.Clear()
@@ -1117,7 +1126,8 @@ Namespace SpecialOps
             Dim rawDerivative As Double = 0.0
 
             If UseDerivativeOnPV Then
-                If prevPV <> 0.0 Then rawDerivative = -(LastPV - prevPV) / timestep
+                'the error is (PV - SP) / BaseSP, so on a constant setpoint its change is the change of PV / BaseSP
+                If prevPV <> 0.0 Then rawDerivative = (LastPV - prevPV) / timestep
             Else
                 Dim delta_error = CurrentError - LastError
                 'derivative setpoint weight gamma: the derivative acts on (PV - gamma SP) / BaseSP, which is the
@@ -1181,12 +1191,10 @@ Namespace SpecialOps
                 ' so it must not be folded into the dimensionless controller output here
                 Dim bias As Double = If(ManipulatedVariableSpan > 0.0, 0.0, Offset / BaseSP)
 
-                If PIDForm = 0 Then
-                    Output = PTerm + Ki * ITerm + Kd * DTerm + bias
-                Else
-                    'ISA, or series with the interaction factor (1 at any other form)
-                    Output = Kp * (seriesFactor * beta * CurrentError + ITerm / Ti + Td * DTerm) + bias
-                End If
+                'with Ti = Kp / Ki and Td = Kd / Kp, the ISA form Kp (beta e + ITerm / Ti + Td DTerm) is
+                'PTerm + Ki ITerm + Kd DTerm, which stays finite at Kp = 0; the series form differs only by the
+                'interaction factor already in PTerm
+                Output = PTerm + Ki * ITerm + Kd * DTerm + bias
 
                 Dim ffOutput As Double = 0.0
 
@@ -1199,6 +1207,11 @@ Namespace SpecialOps
                                 m_DisturbanceObjectData.Units,
                                 dvObj.GetPropertyValue(m_DisturbanceObjectData.PropertyName))
 
+                            'the first reading is the reference: no change, so no kick on the first step
+                            If Not FeedforwardInitialized Then
+                                LastDisturbanceValue = dvVal
+                                FeedforwardInitialized = True
+                            End If
                             Dim dvChange = dvVal - LastDisturbanceValue
                             LastDisturbanceValue = dvVal
 
