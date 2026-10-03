@@ -718,7 +718,11 @@ namespace DWSIM.UI.Desktop.Editors
                     panel.CreateAndAddResultRow(crystallizer, "Solute in feed", UnitOfMeasure.massflow, crystallizer.Result_SoluteInFeed_kgs);
                     panel.CreateAndAddResultRow(crystallizer, "Crystallized", UnitOfMeasure.massflow, crystallizer.Result_Cryst_kgs);
                     panel.CreateAndAddResultRow(crystallizer, "Mother liquor", UnitOfMeasure.massflow, crystallizer.Result_MotherLiquor_kgs);
+                    panel.CreateAndAddResultRow(crystallizer, "Vapor (evaporated solvent)", UnitOfMeasure.massflow, crystallizer.Result_Vapor_kgs);
                     BioRows.Result(panel, crystallizer, "Crystallization Yield", crystallizer.Result_Yield * 100.0, "%");
+
+                    BioRows.Section(panel, "Energy");
+                    panel.CreateAndAddResultRow(crystallizer, "Heat Duty", UnitOfMeasure.heatflow, crystallizer.Result_Duty_kW);
                 });
         }
 

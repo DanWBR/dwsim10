@@ -31,11 +31,21 @@ Namespace UnitOperations
     ''' Crystallizer (cooling / evaporative / antisolvent). Splits the inlet between a Crystals outlet
     ''' and a Mother-Liquor outlet. Solubility of the target solute in the solvent is described by a
     ''' modified Apelblat/Van't-Hoff form:
-    '''   C_sat(T)  [g solute / g solvent]  =  A + BÂ·(T âˆ’ 298) + CÂ·(T âˆ’ 298)^2
-    ''' At steady state, mass crystallized = max(0, m_solute_in âˆ’ C_sat Â· m_solvent_in).
-    ''' In Evaporative mode the solvent mass is reduced by EvaporationFraction before the check.
+    '''   C_sat(T)  [g solute / g solvent]  =  A + B*(T - 298) + C*(T - 298)^2
+    ''' At steady state, mass crystallized = max(0, m_solute_in - C_sat * m_solvent_in).
+    ''' In Evaporative mode the solvent mass is reduced by EvaporationFraction before the check. The
+    ''' evaporated solvent leaves through the optional Vapor outlet (port 2) as vapor at the operating
+    ''' temperature, at the feed pressure or, when that is above the solvent vapor pressure at the
+    ''' operating temperature, at that vapor pressure (saturated vapor: the vessel runs under the
+    ''' vacuum at which the solvent boils at the operating temperature). With no Vapor stream connected
+    ''' the evaporated solvent stays in the Mother Liquor outlet, which closes the mass balance, and a
+    ''' warning is shown; the crystallized mass is the same in both cases.
     ''' In Antisolvent mode, an additional stream adds solvent that "dilutes" the solubility by a
-    ''' user-set factor (SolubilityReductionByAntisolvent âˆˆ [0, 1]).
+    ''' user-set factor (SolubilityReductionByAntisolvent, 0 to 1).
+    ''' The heat duty is the enthalpy balance of the streams, sum of the outlets minus sum of the
+    ''' inlets, with the outlet enthalpies from flashes at the outlet conditions; in Evaporative mode it
+    ''' includes the latent heat of the evaporated solvent. It is reported in Result_Duty_kW (positive =
+    ''' heat added).
     ''' </summary>
     <System.Serializable()> Public Partial Class UnitOp_Crystallizer
 
@@ -68,14 +78,14 @@ Namespace UnitOperations
         ''' <summary>Gets or sets the name of the solvent compound used as the basis of the solubility. Required. Default "Water".</summary>
         Public Property SolventCompound As String = "Water"
         ''' <summary>Gets or sets the operating temperature in Cooling and Evaporative modes, in K. Both outlets leave at this temperature. Default 278.15.</summary>
-        Public Property OperatingT_K As Double = 278.15 ' 5 Â°C for cooling
+        Public Property OperatingT_K As Double = 278.15 ' 5 C for cooling
         ''' <summary>Gets or sets the constant term A of the solubility correlation C_sat = A + B(T - 298.15) + C(T - 298.15)^2, in g solute per g solvent. Default 0.35.</summary>
         Public Property Sol_A As Double = 0.35
         ''' <summary>Gets or sets the linear coefficient B of the solubility correlation, in g solute per g solvent per K. Default 0.005.</summary>
         Public Property Sol_B As Double = 0.005
         ''' <summary>Gets or sets the quadratic coefficient C of the solubility correlation, in g solute per g solvent per K2. Default 0.</summary>
         Public Property Sol_C As Double = 0.0
-        ''' <summary>Gets or sets the fraction (0-1) of the solvent evaporated in Evaporative mode. The evaporated solvent leaves the balance and does not appear in either outlet. Default 0.30.</summary>
+        ''' <summary>Gets or sets the fraction (0-1) of the solvent evaporated in Evaporative mode. The evaporated solvent leaves through the Vapor outlet, or stays in the Mother Liquor outlet when no Vapor stream is connected. Default 0.30.</summary>
         Public Property EvaporationFraction As Double = 0.30
         ''' <summary>Gets or sets the fractional reduction (0-1) of the solute solubility in Antisolvent mode; the saturation concentration is multiplied by (1 - value). Default 0.7.</summary>
         Public Property SolubilityReductionByAntisolvent As Double = 0.7
@@ -92,6 +102,10 @@ Namespace UnitOperations
         Public Property Result_Yield As Double = 0.0
         ''' <summary>Gets or sets the saturation concentration used in the last calculation, in g solute per g solvent. Calculated result.</summary>
         Public Property Result_Csat_gg As Double = 0.0
+        ''' <summary>Gets or sets the Vapor outlet mass flow (evaporated solvent), in kg/s. Zero outside Evaporative mode and when no Vapor stream is connected. Calculated result.</summary>
+        Public Property Result_Vapor_kgs As Double = 0.0
+        ''' <summary>Gets or sets the heat duty from the enthalpy balance (outlets minus inlets), in kW; positive = heat added. Calculated result.</summary>
+        Public Property Result_Duty_kW As Double = 0.0
 
         ''' <summary>The classic (WinForms) editor window open for this unit operation, if any. Not saved with the flowsheet.</summary>
         <NonSerialized> <Xml.Serialization.XmlIgnore> Public f As Object
@@ -211,20 +225,36 @@ Namespace UnitOperations
             Dim m_cryst = Max(0.0, m_solute - max_dissolved)
             Dim m_solute_in_liquor = m_solute - m_cryst
 
-            ' Build outlet streams. Crystals outlet: essentially pure solute (crystallized). Mother
-            ' liquor: everything else (remaining solute + all solvent + all impurities + evaporated
-            ' solvent is reported in the solvent-loss but we return only two streams, so we keep the
-            ' un-evaporated solvent in mother liquor).
+            ' Evaporated solvent (Evaporative mode only): to the Vapor outlet when one is connected,
+            ' otherwise back into the mother liquor so that the mass balance closes.
+            Dim m_evap As Double = m_solvent - solvent_effective
+            Dim vaporConnected As Boolean = Me.GraphicObject.OutputConnectors.Count > 2 AndAlso
+                                            Me.GraphicObject.OutputConnectors(2).IsAttached
+            Dim m_vap As Double = 0.0
+            If m_evap > 0.0 Then
+                If vaporConnected Then
+                    m_vap = m_evap
+                Else
+                    FlowSheet.ShowMessage(Me.GraphicObject.Tag & ": no Vapor outlet connected, the evaporated solvent stays in the Mother Liquor outlet.",
+                                          IFlowsheet.MessageType.Warning)
+                End If
+            End If
+
+            ' Build outlet streams. Crystals outlet: pure solute (crystallized). Mother liquor:
+            ' remaining solute, the solvent left after evaporation (plus the evaporated solvent when
+            ' there is no Vapor outlet) and all other compounds. Vapor: the evaporated solvent.
             Dim cryst As New Dictionary(Of String, Double)
             Dim liquor As New Dictionary(Of String, Double)
+            Dim vapor As New Dictionary(Of String, Double)
             For Each kv In feedComp
+                vapor(kv.Key) = 0.0
                 If kv.Key = SoluteCompound Then
                     cryst(kv.Key) = m_cryst
                     liquor(kv.Key) = m_solute_in_liquor
                 ElseIf kv.Key = SolventCompound Then
                     cryst(kv.Key) = 0.0
-                    ' mother liquor keeps effective solvent (post-evaporation in Evaporative mode)
-                    liquor(kv.Key) = solvent_effective
+                    liquor(kv.Key) = solvent_effective + (m_evap - m_vap)
+                    vapor(kv.Key) = m_vap
                 Else
                     cryst(kv.Key) = 0.0
                     liquor(kv.Key) = kv.Value
@@ -235,17 +265,75 @@ Namespace UnitOperations
             For Each v In cryst.Values : m_c += v : Next
             For Each v In liquor.Values : m_l += v : Next
 
+            ' The vapor leaves at the operating temperature. When the feed pressure is above the
+            ' solvent vapor pressure there, the solvent cannot boil at that pressure: the vapor then
+            ' leaves saturated at the solvent vapor pressure (the vessel vacuum).
+            Dim P_vap As Double = P
+            Dim vaporSaturated As Boolean = False
+            If m_vap > 0.0 Then
+                PropertyPackage.CurrentMaterialStream = feed
+                Dim Psat = PropertyPackage.AUX_PVAPi(SolventCompound, T_op)
+                If Psat > 0.0 AndAlso Psat < P Then
+                    P_vap = Psat
+                    vaporSaturated = True
+                End If
+            End If
+
             Result_SoluteInFeed_kgs = m_solute
             Result_Cryst_kgs = m_c
             Result_MotherLiquor_kgs = m_l
+            Result_Vapor_kgs = m_vap
             If m_solute > 0 Then Result_Yield = m_c / m_solute Else Result_Yield = 0.0
+
+            ' Heat duty from the enthalpy balance of the streams (kW, positive = heat added).
+            Try
+                Dim H_in As Double = feed.Phases(0).Properties.enthalpy.GetValueOrDefault *
+                                     feed.Phases(0).Properties.massflow.GetValueOrDefault
+                If antisolvent IsNot Nothing Then
+                    H_in += antisolvent.Phases(0).Properties.enthalpy.GetValueOrDefault *
+                            antisolvent.Phases(0).Properties.massflow.GetValueOrDefault
+                End If
+                Dim H_out As Double = OutletEnthalpyFlow(feed, cryst, m_c, T_op, P, False) +
+                                      OutletEnthalpyFlow(feed, liquor, m_l, T_op, P, False) +
+                                      OutletEnthalpyFlow(feed, vapor, m_vap, T_op, P_vap, vaporSaturated)
+                Result_Duty_kW = H_out - H_in
+            Catch ex As Exception
+                Result_Duty_kW = Double.NaN
+                FlowSheet.ShowMessage(Me.GraphicObject.Tag & ": heat duty not calculated (" & ex.Message & ").",
+                                      IFlowsheet.MessageType.Warning)
+            End Try
 
             WriteStream(FlowSheet.SimulationObjects(Me.GraphicObject.OutputConnectors(0).AttachedConnector.AttachedTo.Name),
                         cryst, m_c, T_op, P)
             WriteStream(FlowSheet.SimulationObjects(Me.GraphicObject.OutputConnectors(1).AttachedConnector.AttachedTo.Name),
                         liquor, m_l, T_op, P)
+            If vaporConnected Then
+                Dim msv As MaterialStream = FlowSheet.SimulationObjects(Me.GraphicObject.OutputConnectors(2).AttachedConnector.AttachedTo.Name)
+                WriteStream(msv, vapor, m_vap, T_op, P_vap)
+                If vaporSaturated Then
+                    msv.SpecType = StreamSpec.Pressure_and_VaporFraction
+                    msv.Phases(2).Properties.molarfraction = 1.0
+                End If
+            End If
 
         End Sub
+
+        ''' <summary>Enthalpy flow of an outlet, in kW, from a flash of a copy of the feed carrying the outlet composition.</summary>
+        Private Function OutletEnthalpyFlow(template As MaterialStream, m As Dictionary(Of String, Double), total As Double,
+                                            T As Double, P As Double, saturatedVapor As Boolean) As Double
+            If total <= 0.0 Then Return 0.0
+            Dim tms As MaterialStream = template.Clone
+            tms.SetFlowsheet(Me.FlowSheet)
+            tms.SetPropertyPackage(PropertyPackage)
+            WriteStream(tms, m, total, T, P)
+            If saturatedVapor Then
+                tms.SpecType = StreamSpec.Pressure_and_VaporFraction
+                tms.Phases(2).Properties.molarfraction = 1.0
+            End If
+            PropertyPackage.CurrentMaterialStream = tms
+            tms.Calculate(True, True)
+            Return tms.Phases(0).Properties.enthalpy.GetValueOrDefault * total
+        End Function
 
         Private Shared Sub WriteStream(ms As MaterialStream, m As Dictionary(Of String, Double), total As Double, T As Double, P As Double)
             With ms
@@ -275,7 +363,7 @@ Namespace UnitOperations
         End Sub
 
         Public Overrides Sub DeCalculate()
-            For i = 0 To Math.Min(1, Me.GraphicObject.OutputConnectors.Count - 1)
+            For i = 0 To Me.GraphicObject.OutputConnectors.Count - 1
                 Dim cp = Me.GraphicObject.OutputConnectors(i)
                 If cp.IsAttached Then
                     Dim ms As MaterialStream = FlowSheet.SimulationObjects(cp.AttachedConnector.AttachedTo.Name)
@@ -325,7 +413,9 @@ Namespace UnitOperations
             s.AppendLine("Solute in feed:      " & Result_SoluteInFeed_kgs.ToString(numberformat, ci) & " kg/s")
             s.AppendLine("Crystallized:        " & Result_Cryst_kgs.ToString(numberformat, ci) & " kg/s")
             s.AppendLine("Mother liquor:       " & Result_MotherLiquor_kgs.ToString(numberformat, ci) & " kg/s")
+            s.AppendLine("Vapor:               " & Result_Vapor_kgs.ToString(numberformat, ci) & " kg/s")
             s.AppendLine("Crystallization yield: " & (Result_Yield * 100).ToString(numberformat, ci) & " %")
+            s.AppendLine("Heat duty:           " & Result_Duty_kW.ToString(numberformat, ci) & " kW")
             Return s.ToString()
         End Function
 
@@ -334,7 +424,8 @@ Namespace UnitOperations
             "Solubility A", "Solubility B", "Solubility C",
             "Evaporation Fraction", "Solubility Reduction By Antisolvent", "Mean Crystal Size"}
         Private Shared ReadOnly _outputProps As String() = {
-            "Solute In Feed", "Crystallized Mass", "Mother Liquor Mass", "Crystallization Yield", "Saturation Concentration"}
+            "Solute In Feed", "Crystallized Mass", "Mother Liquor Mass", "Crystallization Yield", "Saturation Concentration",
+            "Vapor Mass", "Heat Duty"}
 
         Public Overrides Function GetProperties(proptype As PropertyType) As String()
             Dim baseprops = MyBase.GetProperties(proptype)
@@ -372,6 +463,8 @@ Namespace UnitOperations
                 Case "Mother Liquor Mass" : Return Result_MotherLiquor_kgs
                 Case "Crystallization Yield" : Return Result_Yield
                 Case "Saturation Concentration" : Return Result_Csat_gg
+                Case "Vapor Mass" : Return Result_Vapor_kgs
+                Case "Heat Duty" : Return Result_Duty_kW
                 Case Else : Return MyBase.GetPropertyValue(prop, su)
             End Select
         End Function
@@ -380,7 +473,8 @@ Namespace UnitOperations
             Select Case prop
                 Case "Operating T" : Return "K"
                 Case "Mean Crystal Size" : Return "um"
-                Case "Solute In Feed", "Crystallized Mass", "Mother Liquor Mass" : Return "kg/s"
+                Case "Solute In Feed", "Crystallized Mass", "Mother Liquor Mass", "Vapor Mass" : Return "kg/s"
+                Case "Heat Duty" : Return "kW"
                 Case "Saturation Concentration" : Return "g/g"
                 Case Else : Return "-"
             End Select
@@ -523,7 +617,7 @@ Namespace UnitOperations
                                                  End If
                                              End Sub)
 
-            container.CreateAndAddTextBoxRow(nf, "Mean Crystal Size (Î¼m, reported only)", MeanCrystalSize_um,
+            container.CreateAndAddTextBoxRow(nf, "Mean Crystal Size (um, reported only)", MeanCrystalSize_um,
                                              Sub(tb, e)
                                                  If tb.Text.IsValidDoubleExpression() Then
                                                      MeanCrystalSize_um = tb.Text.ParseExpressionToDouble()
@@ -537,7 +631,8 @@ Namespace UnitOperations
             If GraphicObject Is Nothing Then Return
             Dim w = GraphicObject.Width, h = GraphicObject.Height
             Dim gx = GraphicObject.X, gy = GraphicObject.Y
-            If GraphicObject.InputConnectors.Count = 2 AndAlso GraphicObject.OutputConnectors.Count = 2 Then
+            If GraphicObject.InputConnectors.Count = 2 AndAlso
+               (GraphicObject.OutputConnectors.Count = 2 OrElse GraphicObject.OutputConnectors.Count = 3) Then
                 GraphicObject.InputConnectors(0).Position = New Point(gx, gy + 0.4 * h)
                 GraphicObject.InputConnectors(0).ConnectorName = "Feed"
                 GraphicObject.InputConnectors(1).Position = New Point(gx + 0.3 * w, gy)
@@ -548,6 +643,14 @@ Namespace UnitOperations
                 GraphicObject.OutputConnectors(0).Direction = ConDir.Up
                 GraphicObject.OutputConnectors(1).Position = New Point(gx + w, gy + 0.4 * h)
                 GraphicObject.OutputConnectors(1).ConnectorName = "Mother Liquor"
+                'flowsheets saved before the Vapor outlet have two outlets; it goes at the end, so the
+                'saved connections keep their indices.
+                If GraphicObject.OutputConnectors.Count = 2 Then
+                    GraphicObject.OutputConnectors.Add(New ConnectionPoint With {.Type = ConType.ConOut})
+                End If
+                GraphicObject.OutputConnectors(2).Position = New Point(gx + 0.7 * w, gy)
+                GraphicObject.OutputConnectors(2).ConnectorName = "Vapor (Optional)"
+                GraphicObject.OutputConnectors(2).Direction = ConDir.Up
             Else
                 GraphicObject.InputConnectors.Clear() : GraphicObject.OutputConnectors.Clear()
                 GraphicObject.InputConnectors.Add(New ConnectionPoint With {
@@ -562,6 +665,9 @@ Namespace UnitOperations
                 GraphicObject.OutputConnectors.Add(New ConnectionPoint With {
                     .Position = New Point(gx + w, gy + 0.4 * h), .Type = ConType.ConOut,
                     .Direction = ConDir.Right, .ConnectorName = "Mother Liquor"})
+                GraphicObject.OutputConnectors.Add(New ConnectionPoint With {
+                    .Position = New Point(gx + 0.7 * w, gy), .Type = ConType.ConOut,
+                    .Direction = ConDir.Up, .ConnectorName = "Vapor (Optional)"})
             End If
             GraphicObject.EnergyConnector.Active = False
         End Sub
