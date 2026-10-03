@@ -1155,7 +1155,7 @@ Namespace UnitOperations
         ''' <param name="Wi">Mass flow rate in kg/h.</param>
         ''' <param name="P1">Inlet pressure in bar.</param>
         ''' <param name="P2">Outlet pressure in bar.</param>
-        ''' <param name="rho">Liquid relative density (specific gravity referenced to water at 15 °C).</param>
+        ''' <param name="rho">Liquid density in kg/m³.</param>
         ''' <param name="Pv">Liquid vapour pressure at inlet temperature in bar.</param>
         ''' <param name="Pc">Mixture critical pressure in bar.</param>
         ''' <returns>The calculated Kv value (m³/h at 1 bar drop).</returns>
@@ -1177,7 +1177,7 @@ Namespace UnitOperations
         ''' <param name="Kv">Effective flow coefficient (m³/h at 1 bar drop).</param>
         ''' <param name="P1">Inlet pressure in bar.</param>
         ''' <param name="P2">Outlet pressure in bar.</param>
-        ''' <param name="rho">Liquid relative density (specific gravity referenced to water at 15 °C).</param>
+        ''' <param name="rho">Liquid density in kg/m³.</param>
         ''' <param name="Pv">Liquid vapour pressure at inlet temperature in bar.</param>
         ''' <param name="Pc">Mixture critical pressure in bar.</param>
         ''' <returns>The liquid mass flow rate in kg/h.</returns>
@@ -1281,7 +1281,7 @@ Namespace UnitOperations
         ''' <param name="Wi">Mass flow rate in kg/h.</param>
         ''' <param name="Kv">Effective flow coefficient (m³/h at 1 bar drop).</param>
         ''' <param name="P1">Inlet pressure in bar.</param>
-        ''' <param name="rho">Liquid relative density (specific gravity referenced to water at 15 °C).</param>
+        ''' <param name="rho">Liquid density in kg/m³.</param>
         ''' <param name="Pv">Liquid vapour pressure at inlet temperature in bar.</param>
         ''' <param name="Pc">Mixture critical pressure in bar.</param>
         ''' <returns>The calculated outlet pressure P2 in bar.</returns>
