@@ -984,14 +984,11 @@ Namespace Reactors
 
             ' Energy stream
             DeltaQ = Result_Q_duty_kW
-            Try
-                Dim es = GetInletEnergyStream(1)
-                If es IsNot Nothing Then
-                    es.EnergyFlow = Result_Q_duty_kW
-                    es.GraphicObject.Calculated = True
-                End If
-            Catch ex As ArgumentOutOfRangeException
-            End Try
+            Dim es = GetEnergyStream()
+            If es IsNot Nothing Then
+                es.EnergyFlow = Result_Q_duty_kW
+                es.GraphicObject.Calculated = True
+            End If
 
             OutletTemperature = T_out_K
 
@@ -1456,14 +1453,11 @@ Namespace Reactors
             End If
 
             DeltaQ = Result_Q_duty_kW
-            Try
-                Dim es = GetInletEnergyStream(1)
-                If es IsNot Nothing Then
-                    es.EnergyFlow = Result_Q_duty_kW
-                    es.GraphicObject.Calculated = True
-                End If
-            Catch ex As ArgumentOutOfRangeException
-            End Try
+            Dim es = GetEnergyStream()
+            If es IsNot Nothing Then
+                es.EnergyFlow = Result_Q_duty_kW
+                es.GraphicObject.Calculated = True
+            End If
 
             OutletTemperature = T_out_K
 
@@ -1882,14 +1876,11 @@ Namespace Reactors
             End If
 
             DeltaQ = Result_Q_duty_kW
-            Try
-                Dim es = GetInletEnergyStream(1)
-                If es IsNot Nothing Then
-                    es.EnergyFlow = Result_Q_duty_kW
-                    es.GraphicObject.Calculated = True
-                End If
-            Catch ex As ArgumentOutOfRangeException
-            End Try
+            Dim es = GetEnergyStream()
+            If es IsNot Nothing Then
+                es.EnergyFlow = Result_Q_duty_kW
+                es.GraphicObject.Calculated = True
+            End If
 
             OutletTemperature = T_out_K
 

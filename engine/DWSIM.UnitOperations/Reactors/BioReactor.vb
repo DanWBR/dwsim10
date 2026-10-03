@@ -1367,11 +1367,10 @@ Namespace Reactors
             ' Energy stream - publish the duty computed by the thermal mode.
             ' DWSIM EnergyFlow convention: kW added to the unit (positive = heating).
             DeltaQ = Result_Q_duty_kW
-            If GetInletEnergyStream(1) IsNot Nothing Then
-                With GetInletEnergyStream(1)
-                    .EnergyFlow = Result_Q_duty_kW
-                    .GraphicObject.Calculated = True
-                End With
+            Dim es = GetEnergyStream()
+            If es IsNot Nothing Then
+                es.EnergyFlow = Result_Q_duty_kW
+                es.GraphicObject.Calculated = True
             End If
 
             OutletTemperature = T
@@ -1701,11 +1700,10 @@ Namespace Reactors
             End If
 
             DeltaQ = Result_Q_duty_kW
-            If GetInletEnergyStream(1) IsNot Nothing Then
-                With GetInletEnergyStream(1)
-                    .EnergyFlow = Result_Q_duty_kW
-                    .GraphicObject.Calculated = True
-                End With
+            Dim es = GetEnergyStream()
+            If es IsNot Nothing Then
+                es.EnergyFlow = Result_Q_duty_kW
+                es.GraphicObject.Calculated = True
             End If
 
             OutletTemperature = T
