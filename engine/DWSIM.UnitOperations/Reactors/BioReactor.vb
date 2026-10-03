@@ -202,12 +202,12 @@ Namespace Reactors
         ''' If the enzyme is not tracked as a stream compound, leave empty and use EH_EnzymeLoading_gL.</summary>
         Public Property EnzymeCompound As String = ""
 
-        ''' <summary>(Enzymatic Hydrolysis) Cellulose hydrolysis rate constant k1, in L/(g_enzymeÂ·h).
-        ''' Typical value 0.02â€“0.10 L/(gÂ·h) for commercial cellulase cocktails at 50 Â°C.</summary>
+        ''' <summary>(Enzymatic Hydrolysis) Cellulose hydrolysis rate constant k1, in L/(g_enzyme.h).
+        ''' Typical value 0.02-0.10 L/(g.h) for commercial cellulase cocktails at 50 deg C.</summary>
         Public Property EH_k1_Lgh As Double = 0.04
 
-        ''' <summary>(Enzymatic Hydrolysis) Hemicellulose hydrolysis rate constant k2, in L/(g_enzymeÂ·h).
-        ''' Typically 0.3â€“0.7 Ã— k1 for hemicellulases bundled with cellulase cocktails.</summary>
+        ''' <summary>(Enzymatic Hydrolysis) Hemicellulose hydrolysis rate constant k2, in L/(g_enzyme.h).
+        ''' Typically 0.3-0.7 * k1 for hemicellulases bundled with cellulase cocktails.</summary>
         Public Property EH_k2_Lgh As Double = 0.02
 
         ''' <summary>(Enzymatic Hydrolysis) Glucose competitive-inhibition constant (g/L). Smaller = stronger inhibition.</summary>
@@ -220,7 +220,7 @@ Namespace Reactors
         Public Property EH_EnzymeLoading_gL As Double = 2.0
 
         ''' <summary>(Enzymatic Hydrolysis) Heat released per gram of sugar produced (J/g, negative = exothermic).
-        ''' Net hydrolysis is mildly exothermic, â‰ˆ âˆ’11 J/g glucose; set to 0 to disable the thermal contribution.</summary>
+        ''' Net hydrolysis is mildly exothermic, ~ -11 J/g glucose; set to 0 to disable the thermal contribution.</summary>
         Public Property EH_HeatPerGProduct_Jg As Double = -11.0
 
         ' ---------------- RESULT PROPERTIES ----------------
@@ -1384,8 +1384,8 @@ Namespace Reactors
         '''   (C6H10O5)n + n H2O -> n C6H12O6          (1.111 g glucose per g cellulose)
         '''   (C5H8O4)n  + n H2O -> n C5H10O5          (1.136 g xylose per g xylan)
         ''' Rate law (g/L/h):
-        '''   r_cell = k1 Â· E Â· C_cell / (1 + G/K_G + X/K_X)
-        '''   r_hemi = k2 Â· E Â· C_hemi / (1 + G/K_G + X/K_X)
+        '''   r_cell = k1 * E * C_cell / (1 + G/K_G + X/K_X)
+        '''   r_hemi = k2 * E * C_hemi / (1 + G/K_G + X/K_X)
         ''' Reuses the compound role map: Substrate -> cellulose, Product -> glucose,
         ''' Hemicellulose / Xylose / Enzyme via dedicated role properties.
         ''' </summary>
@@ -1621,7 +1621,7 @@ Namespace Reactors
 
             ' Thermal balance - EH is mildly exothermic; parameterized per g of sugar produced
             Dim sugar_kg_s As Double = Max(dm_glu, 0.0) + Max(dm_xyl, 0.0) ' kg/s sugar produced
-            Dim Q_met_W = Abs(EH_HeatPerGProduct_Jg) * sugar_kg_s * 1000.0 ' J/g Â· g/s = W ; sign convention: positive = exothermic
+            Dim Q_met_W = Abs(EH_HeatPerGProduct_Jg) * sugar_kg_s * 1000.0 ' J/g * g/s = W ; sign convention: positive = exothermic
             If EH_HeatPerGProduct_Jg > 0.0 Then Q_met_W = -Q_met_W ' endothermic override
             Result_Q_metabolic_kW = Q_met_W / 1000.0
 
@@ -1792,8 +1792,8 @@ Namespace Reactors
                 If HemicelluloseCompound <> "" Then str.AppendLine("    Hemicellulose:            " & HemicelluloseCompound)
                 If XyloseCompound <> "" Then str.AppendLine("    Xylose:                   " & XyloseCompound)
                 If EnzymeCompound <> "" Then str.AppendLine("    Enzyme:                   " & EnzymeCompound)
-                str.AppendLine("    k1 (cellulose):           " & EH_k1_Lgh.ToString(numberformat, ci) & " L/(gÂ·h)")
-                str.AppendLine("    k2 (hemicellulose):       " & EH_k2_Lgh.ToString(numberformat, ci) & " L/(gÂ·h)")
+                str.AppendLine("    k1 (cellulose):           " & EH_k1_Lgh.ToString(numberformat, ci) & " L/(g.h)")
+                str.AppendLine("    k2 (hemicellulose):       " & EH_k2_Lgh.ToString(numberformat, ci) & " L/(g.h)")
                 str.AppendLine("    K_G (glucose inhibition): " & EH_KG_glucose_gL.ToString(numberformat, ci) & " g/L")
                 str.AppendLine("    K_X (xylose inhibition):  " & EH_KX_xylose_gL.ToString(numberformat, ci) & " g/L")
                 str.AppendLine("    Enzyme loading (default): " & EH_EnzymeLoading_gL.ToString(numberformat, ci) & " g/L")
@@ -1815,7 +1815,7 @@ Namespace Reactors
             str.AppendLine("Thermal Balance")
             str.AppendLine("    Mode:              " & ThermalMode.ToString)
             str.AppendLine("    Metabolic heat:    " & Result_Q_metabolic_kW.ToString(numberformat, ci) & " kW")
-            str.AppendLine("    Net heat duty:     " & Result_Q_duty_kW.ToString(numberformat, ci) & " kW  (+ heating / âˆ’ cooling)")
+            str.AppendLine("    Net heat duty:     " & Result_Q_duty_kW.ToString(numberformat, ci) & " kW  (+ heating / - cooling)")
             str.AppendLine("    Outlet temperature:" & Result_OutletTemperature_K.ToString(numberformat, ci) & " K")
             Return str.ToString()
 
@@ -2215,7 +2215,7 @@ Namespace Reactors
                                                  End If
                                              End Sub)
 
-            container.CreateAndAddTextBoxRow(nf, "Maintenance m_s (g/gÂ·h)", Maintenance_gSg_cellh,
+            container.CreateAndAddTextBoxRow(nf, "Maintenance m_s (g/g.h)", Maintenance_gSg_cellh,
                                              Sub(tb, e)
                                                  If tb.Text.IsValidDoubleExpression() Then
                                                      Maintenance_gSg_cellh = tb.Text.ParseExpressionToDouble()
@@ -2259,7 +2259,7 @@ Namespace Reactors
 
             container.CreateAndAddLabelRow("Enzymatic Hydrolysis (EnzymaticHydrolysis mode only)")
 
-            container.CreateAndAddTextBoxRow(nf, "k1 Cellulose-Glucose (L/gÂ·h)", EH_k1_Lgh,
+            container.CreateAndAddTextBoxRow(nf, "k1 Cellulose-Glucose (L/g.h)", EH_k1_Lgh,
                                              Sub(tb, e)
                                                  If tb.Text.IsValidDoubleExpression() Then
                                                      EH_k1_Lgh = tb.Text.ParseExpressionToDouble()
@@ -2267,7 +2267,7 @@ Namespace Reactors
                                                  End If
                                              End Sub)
 
-            container.CreateAndAddTextBoxRow(nf, "k2 Hemicellulose-Xylose (L/gÂ·h)", EH_k2_Lgh,
+            container.CreateAndAddTextBoxRow(nf, "k2 Hemicellulose-Xylose (L/g.h)", EH_k2_Lgh,
                                              Sub(tb, e)
                                                  If tb.Text.IsValidDoubleExpression() Then
                                                      EH_k2_Lgh = tb.Text.ParseExpressionToDouble()

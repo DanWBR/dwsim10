@@ -48,8 +48,8 @@ Namespace Reactors
     ''' <summary>
     ''' Anaerobic digester with three selectable model fidelities:
     '''   BlackBox  - steady-state Buswell / COD-removal (Tier A, default).
-    '''   ADM1Lite  - reduced ADM1 ODE with hydrolysis â†’ acidogenesis â†’ acetogenesis (H2-inhibited)
-    '''               â†’ acetoclastic + hydrogenotrophic methanogenesis.
+    '''   ADM1Lite  - reduced ADM1 ODE with hydrolysis -> acidogenesis -> acetogenesis (H2-inhibited)
+    '''               -> acetoclastic + hydrogenotrophic methanogenesis.
     '''   ADM1Full  - the full Batstone 2002 / Rosen &amp; Jeppsson 2006 benchmark.
     '''   ADM1S     - ADM1Full plus kinetic sulfate reduction (Fedorovich 2003, Barrera 2015).
     ''' All modes share compound roles, ports, thermal-balance and energy-stream plumbing.
@@ -128,20 +128,20 @@ Namespace Reactors
         ''' </summary>
         Public Property SulfateCompound As String = ""
 
-        ''' <summary>Fractional COD removal (0â€“1). Typical 0.65â€“0.90 for mesophilic AD.</summary>
+        ''' <summary>Fractional COD removal (0-1). Typical 0.65-0.90 for mesophilic AD.</summary>
         Public Property CODRemovalEfficiency As Double = 0.85
 
-        ''' <summary>Biomass yield on COD removed (g VSS / g COD). Typical 0.04â€“0.10 for mesophilic AD.</summary>
+        ''' <summary>Biomass yield on COD removed (g VSS / g COD). Typical 0.04-0.10 for mesophilic AD.</summary>
         Public Property BiomassYield_gVSSpergCOD As Double = 0.08
 
-        ''' <summary>User override for the methane fraction of the biogas (mol/mol). Set â‰¤0 to use the Buswell-predicted split.</summary>
+        ''' <summary>User override for the methane fraction of the biogas (mol/mol). Set &lt;=0 to use the Buswell-predicted split.</summary>
         Public Property MethaneFractionOverride As Double = 0.0
 
         ''' <summary>Thermal mode (reuses the BioReactor enum for consistency).</summary>
         Public Property ThermalMode As BioReactorThermalMode = BioReactorThermalMode.Isothermal
 
         ''' <summary>Heat release per gram of COD removed (J/g COD, negative = exothermic).
-        ''' Anaerobic digestion is only mildly exothermic, â‰ˆ âˆ’3500 J/g COD (â‰ˆ 8 % of aerobic).</summary>
+        ''' Anaerobic digestion is only mildly exothermic, ~ -3500 J/g COD (~ 8 % of aerobic).</summary>
         Public Property HeatPerGCODremoved_Jg As Double = -3500.0
 
         ''' <summary>Model fidelity selector (BlackBox Buswell or ADM1-Lite reduced dynamic model).</summary>
@@ -292,7 +292,7 @@ Namespace Reactors
         ''' <summary>Carbon dioxide flow (kg/s).</summary>
         Public Property Result_CO2_kgs As Double = 0.0
 
-        ''' <summary>Methane mole fraction in biogas (â€“).</summary>
+        ''' <summary>Methane mole fraction in biogas (-).</summary>
         Public Property Result_CH4MoleFraction As Double = 0.0
 
         ''' <summary>Specific methane yield (Nm3 CH4 / kg COD removed).</summary>
@@ -325,7 +325,7 @@ Namespace Reactors
         ''' <summary>Metabolic heat release (kW, positive = exothermic).</summary>
         Public Property Result_Q_metabolic_kW As Double = 0.0
 
-        ''' <summary>Net heat duty published to the energy stream (kW, + heating / âˆ’ cooling).</summary>
+        ''' <summary>Net heat duty published to the energy stream (kW, + heating / - cooling).</summary>
         Public Property Result_Q_duty_kW As Double = 0.0
 
         ''' <summary>Outlet temperature (K) resulting from the selected thermal mode.</summary>
@@ -410,8 +410,8 @@ Namespace Reactors
 
         ''' <summary>
         ''' Buswell stoichiometry per mol of substrate C_a H_b O_c N_d S_e:
-        '''   CaHbOcNdSe + (a âˆ’ b/4 âˆ’ c/2 + 3d/4 + e/2) H2O
-        '''     -> (a/2 âˆ’ b/8 + c/4 + 3d/8 + e/4) CO2 + (a/2 + b/8 âˆ’ c/4 âˆ’ 3d/8 âˆ’ e/4) CH4
+        '''   CaHbOcNdSe + (a - b/4 - c/2 + 3d/4 + e/2) H2O
+        '''     -> (a/2 - b/8 + c/4 + 3d/8 + e/4) CO2 + (a/2 + b/8 - c/4 - 3d/8 - e/4) CH4
         '''        + d NH3 + e H2S
         ''' </summary>
         Private Shared Sub BuswellCoefficients(a As Double, b As Double, c As Double, d As Double, e As Double,
@@ -691,10 +691,10 @@ Namespace Reactors
             Dim dm_S_cons = COD_removed_kgs / codFactor
 
             ' Biomass (sludge) synthesis (kg/s)
-            Dim dm_Biom = COD_removed_kgs * BiomassYield_gVSSpergCOD * 1000.0 / 1000.0 ' g COD Ã— (g VSS / g COD) - keep kg/s
+            Dim dm_Biom = COD_removed_kgs * BiomassYield_gVSSpergCOD * 1000.0 / 1000.0 ' g COD * (g VSS / g COD) - keep kg/s
             ' The above is identity because g/g * kg/s = kg/s. Kept explicit for readability.
 
-            ' Mass of substrate actually sent to gas production = total consumed âˆ’ that going to biomass.
+            ' Mass of substrate actually sent to gas production = total consumed - that going to biomass.
             ' Crudely we assume biomass COD equivalent = 1.42 g COD / g VSS, so biomass "consumes"
             ' dm_Biom * 1.42 of the removed COD and the remainder drives Buswell.
             Dim COD_to_gas_kgs = Max(COD_removed_kgs - 1.42 * dm_Biom, 0.0)
@@ -800,7 +800,7 @@ Namespace Reactors
                 Result_CH4MoleFraction = 0.0
             End If
             If COD_removed_kgs > 0 Then
-                ' 22.414 L/mol at STP Ã— mol/s / kg_COD/s = L/kg Ã— (1 Nm3/1000 L) = Nm3/kg
+                ' 22.414 L/mol at STP * mol/s / kg_COD/s = L/kg * (1 Nm3/1000 L) = Nm3/kg
                 Result_SpecificCH4Yield_Nm3kgCOD = (n_CH4_mols * 0.022414) / COD_removed_kgs
             Else
                 Result_SpecificCH4Yield_Nm3kgCOD = 0.0
@@ -883,7 +883,7 @@ Namespace Reactors
             ' -------------------------------------------------------
             ' THERMAL BALANCE
             ' -------------------------------------------------------
-            Dim Q_met_W As Double = Abs(HeatPerGCODremoved_Jg) * (COD_removed_kgs * 1000.0) ' J/g Ã— g/s = W
+            Dim Q_met_W As Double = Abs(HeatPerGCODremoved_Jg) * (COD_removed_kgs * 1000.0) ' J/g * g/s = W
             If HeatPerGCODremoved_Jg > 0.0 Then Q_met_W = -Q_met_W
             Result_Q_metabolic_kW = Q_met_W / 1000.0
 
@@ -997,11 +997,11 @@ Namespace Reactors
 
         ''' <summary>
         ''' ADM1-Lite reduced model. Four populations and four soluble substrates (lumped):
-        '''   Hydrolysis (1st order): Particulate substrate  â†’ S_s
-        '''   Acidogenesis:            S_s     â†’ 0.60 S_VFA + 0.32 S_Ac + 0.08 S_H2 + CO2   [by X_hyd]
-        '''   Acetogenesis (H2 inh.):  S_VFA   â†’ 0.75 S_Ac  + 0.25 S_H2                     [by X_ace]
-        '''   Acetoclastic MG:         S_Ac    â†’ CH4 + CO2                                  [by X_am]
-        '''   Hydrogenotrophic MG:     S_H2 + CO2 â†’ CH4                                     [by X_hm]
+        '''   Hydrolysis (1st order): Particulate substrate  -> S_s
+        '''   Acidogenesis:            S_s     -> 0.60 S_VFA + 0.32 S_Ac + 0.08 S_H2 + CO2   [by X_hyd]
+        '''   Acetogenesis (H2 inh.):  S_VFA   -> 0.75 S_Ac  + 0.25 S_H2                     [by X_ace]
+        '''   Acetoclastic MG:         S_Ac    -> CH4 + CO2                                  [by X_am]
+        '''   Hydrogenotrophic MG:     S_H2 + CO2 -> CH4                                     [by X_hm]
         ''' Monod kinetics with non-competitive H2 inhibition on acetogens
         '''   (I_h2 = 1 / (1 + S_H2/K_I_h2)). All populations decay 1st-order.
         ''' Integration: forward Euler over HRT (continuous) or BatchDuration (batch),
@@ -1094,7 +1094,7 @@ Namespace Reactors
 
             Dim m_sub_in = sub_.MassFlow.GetValueOrDefault ' kg/s
 
-            ' Liquid volumetric flow (mÂ³/s)
+            ' Liquid volumetric flow (m3/s)
             Dim Q_liquid = LiquidVolumetricFlow(ims)
 
             ' Sulfur load. Like ADM1-Full and unlike BlackBox, this path sees COD as a single lump
@@ -1113,12 +1113,12 @@ Namespace Reactors
             Dim CODin_kgs = m_sub_in * codFactor
 
             ' Inlet substrate COD concentration (g COD/L), net of the electrons the sulfide carries.
-            Dim c_IS_in = nS_total_kmols / Q_liquid                            ' kmol S/mÂ³
-            Dim codDebit = ADM1.ADM1State.COD_per_kmol_S * c_IS_in            ' kg COD/mÂ³
-            Dim S_s_feed = CODin_kgs / Q_liquid ' kg COD / mÂ³ = g COD/L
+            Dim c_IS_in = nS_total_kmols / Q_liquid                            ' kmol S/m3
+            Dim codDebit = ADM1.ADM1State.COD_per_kmol_S * c_IS_in            ' kg COD/m3
+            Dim S_s_feed = CODin_kgs / Q_liquid ' kg COD / m3 = g COD/L
             If codDebit > S_s_feed Then
                 FlowSheet?.ShowMessage(String.Format(
-                    "{0}: the sulfur load needs {1:G4} kg COD/mÂ³ of electrons but the feed only supplies " &
+                    "{0}: the sulfur load needs {1:G4} kg COD/m3 of electrons but the feed only supplies " &
                     "{2:G4}. The debit is being capped; this simplified balance cannot represent a " &
                     "sulfate-limited digester.", Me.GraphicObject.Tag, codDebit, S_s_feed),
                     IFlowsheet.MessageType.Warning)
@@ -1155,7 +1155,7 @@ Namespace Reactors
             Dim D_sec As Double = If(continuous AndAlso tau_s > 0, 1.0 / tau_s, 0.0)
 
             ' Integration time
-            Dim t_end_s As Double = If(continuous, Max(tau_s * 10.0, 86400.0), tau_s) ' 10Ã— HRT to reach SS, or batch time
+            Dim t_end_s As Double = If(continuous, Max(tau_s * 10.0, 86400.0), tau_s) ' 10x HRT to reach SS, or batch time
             Dim nsteps As Integer = 20000
             Dim dt As Double = t_end_s / nsteps
 
@@ -1228,7 +1228,7 @@ Namespace Reactors
 
             ' Convert CH4 COD to mass of CH4. COD of CH4: 64 g COD / 16 g CH4 = 4 g COD / g CH4.
             Const COD_per_CH4 As Double = 4.0
-            Dim cum_CH4_kgL = (cum_CH4_Ac + cum_CH4_H2) / COD_per_CH4 / 1000.0 ' kg CH4/L (accumulated over t_end for batch; per-unit-volume-per-second â‰ˆ for continuous)
+            Dim cum_CH4_kgL = (cum_CH4_Ac + cum_CH4_H2) / COD_per_CH4 / 1000.0 ' kg CH4/L (accumulated over t_end for batch; per-unit-volume-per-second ~ for continuous)
 
             Dim m_CH4_kgs As Double
             Dim m_CO2_kgs As Double
@@ -1236,30 +1236,30 @@ Namespace Reactors
             Dim m_decayed_kgs As Double = 0.0 ' decayed (lysed) biomass leaving as inert sludge
 
             If continuous Then
-                ' Steady-state rates: CH4 volumetric production rate (kg/mÂ³/s) Ã— Q gives kg/s
-                ' cum_CH4 integrated over 10Ã— HRT; divide by 10Ã— HRT to get rate per second
+                ' Steady-state rates: CH4 volumetric production rate (kg/m3/s) * Q gives kg/s
+                ' cum_CH4 integrated over 10x HRT; divide by 10x HRT to get rate per second
                 Dim CH4_rate_gCODLs = (cum_CH4_Ac + cum_CH4_H2) / t_end_s
-                Dim CH4_rate_kgCODs = CH4_rate_gCODLs / 1000.0 * (Q_liquid * tau_s) ' g COD/L/s Ã— L(=mÂ³Â·1000) Ã— tau = integral? simpler:
-                ' CH4 rate at steady-state (kg CH4/s) = CH4_rate_gCODLs (g COD/L/s) Ã— V_broth (L) / COD_per_CH4
+                Dim CH4_rate_kgCODs = CH4_rate_gCODLs / 1000.0 * (Q_liquid * tau_s) ' g COD/L/s * L(=m3*1000) * tau = integral? simpler:
+                ' CH4 rate at steady-state (kg CH4/s) = CH4_rate_gCODLs (g COD/L/s) * V_broth (L) / COD_per_CH4
                 Dim V_L = Volume * 1000.0
                 Dim m_CH4_kgCOD_per_s = CH4_rate_gCODLs / 1000.0 * V_L ' kg COD/s
                 m_CH4_kgs = m_CH4_kgCOD_per_s / COD_per_CH4
 
                 ' CO2 from acetoclastic MG: 1 mol CH4 + 1 mol CO2 per mol acetate (44 g CO2 : 16 g CH4 molar),
                 ' but on COD basis acetoclastic path gives 1 CH4 + 1 CO2 in moles. Approx mass ratio:
-                ' CO2 produced from Ac pathway â‰ˆ 44/16 Ã— CH4 mass from that pathway
+                ' CO2 produced from Ac pathway ~ 44/16 * CH4 mass from that pathway
                 Dim CH4_Ac_rate = cum_CH4_Ac / t_end_s / 1000.0 * V_L / COD_per_CH4 ' kg CH4/s from Ac
                 Dim CH4_H2_rate = cum_CH4_H2 / t_end_s / 1000.0 * V_L / COD_per_CH4 ' kg CH4/s from H2
-                ' Hydrogenotrophic consumes CO2 (1 mol CO2 per mol CH4) so net CO2 = Ac-path CO2 âˆ’ H2-path CO2
+                ' Hydrogenotrophic consumes CO2 (1 mol CO2 per mol CH4) so net CO2 = Ac-path CO2 - H2-path CO2
                 m_CO2_kgs = CH4_Ac_rate * (44.0 / 16.0) - CH4_H2_rate * (44.0 / 16.0)
                 If m_CO2_kgs < 0 Then m_CO2_kgs = 0.0
 
-                ' Biomass production rate (kg/s): sum of growth minus decay of all populations Ã— Volume
+                ' Biomass production rate (kg/s): sum of growth minus decay of all populations * Volume
                 m_biomass_kgs = (ADM1_Y_su + ADM1_Y_ace + ADM1_Y_am + ADM1_Y_hm) * 0.25 *
-                                CH4_rate_gCODLs / 1000.0 * V_L * 0.3 ' heuristic 30% yield Ã— weighted
-                ' simpler: use endogenous balance XÂ·D at SS
+                                CH4_rate_gCODLs / 1000.0 * V_L * 0.3 ' heuristic 30% yield * weighted
+                ' simpler: use endogenous balance X*D at SS
                 m_biomass_kgs = (X_hyd + X_ace + X_am + X_hm) / 1000.0 * V_L * D_sec
-                ' Decayed biomass rate (kg VSS/s): cum_X_decayed in g VSS/L over t_end_s, Ã— V_L
+                ' Decayed biomass rate (kg VSS/s): cum_X_decayed in g VSS/L over t_end_s, * V_L
                 m_decayed_kgs = cum_X_decayed / t_end_s / 1000.0 * V_L
 
             Else
@@ -1286,10 +1286,10 @@ Namespace Reactors
             ADM1_Result_X_ace = X_ace
             ADM1_Result_X_am = X_am
             ADM1_Result_X_hm = X_hm
-            ' Crude pH: pH = 7 âˆ’ log10(1 + S_VFAÂ·5) (lower pH when VFA accumulates; only for reporting)
+            ' Crude pH: pH = 7 - log10(1 + S_VFA*5) (lower pH when VFA accumulates; only for reporting)
             ADM1_Result_pH = 7.0 - Log10(1.0 + S_VFA * 5.0)
 
-            ' COD removed = feed COD âˆ’ effluent soluble COD  (assumes particulate fully hydrolysed â‰ˆ feed)
+            ' COD removed = feed COD - effluent soluble COD  (assumes particulate fully hydrolysed ~ feed)
             Dim CODeff_gL = S_s + S_VFA + S_Ac + S_H2
             Dim CODeff_kgs = CODeff_gL * Q_liquid ' g/L = kg/m3; kg/m3 * m3/s = kg/s
             Dim COD_removed_kgs = Max(CODin_kgs - CODeff_kgs, 0.0)
@@ -1371,7 +1371,7 @@ Namespace Reactors
             ' Live biomass washout + decayed (lysed) biomass both leave with the effluent as
             ' BiomassCompound (treated as inert VSS sludge in this lumped model).
             If biom IsNot Nothing Then effMass(biom.Name) = Max(effMass(biom.Name) + m_biomass_kgs + m_decayed_kgs, 0.0)
-            ' NH3 release: rough 12% of substrate N content, negligible for carbohydrates â†’ skip by default
+            ' NH3 release: rough 12% of substrate N content, negligible for carbohydrates -> skip by default
 
             gasMass(ch4.Name) = effMass(ch4.Name) + m_CH4_kgs
             gasMass(co2.Name) = effMass(co2.Name) + m_CO2_kgs
@@ -1601,7 +1601,7 @@ Namespace Reactors
             If useStream Then
                 Sin = New Double(ADM1.ADM1State.NDynamic - 1) {}
                 CharacteriseCompositeFromSubstrate(cpSub)
-                ' Feed COD concentration (kg COD/mÂ³)
+                ' Feed COD concentration (kg COD/m3)
                 Dim S_in_COD = CODin_kgs / Q_liquid_m3s
                 Dim c_SO4_in = nSO4_kmols / Q_liquid_m3s            ' kmol S/m³ as sulfate
                 Dim c_IS_in = (nS_total_kmols - nSO4_kmols) / Q_liquid_m3s ' organic S + fed sulfide
@@ -1744,7 +1744,7 @@ Namespace Reactors
             Result_SulfateReduction = If(Sin(31) > 0.0,
                                          Max(1.0 - sFinal.S_so4 / Sin(31), 0.0), 0.0)
 
-            ' Biomass (sludge) COD â†’ mass via same factor as substrate (approximation)
+            ' Biomass (sludge) COD to mass via same factor as substrate (approximation)
             Dim X_bio_total = sFinal.X_su + sFinal.X_aa + sFinal.X_fa + sFinal.X_c4 + sFinal.X_pro + sFinal.X_ac + sFinal.X_h2 + X_srb_total
             Result_Sludge_kgs = X_bio_total * Q_liquid_m3s / Max(codFactor, 0.1) ' kg biomass/s
 
@@ -1904,7 +1904,7 @@ Namespace Reactors
         ''' </remarks>
         ''' <param name="p">ADM1 parameter set.</param>
         ''' <param name="ic">Initial conditions.</param>
-        ''' <param name="qInflow_m3d">Influent volumetric flow (mÂ³/d).</param>
+        ''' <param name="qInflow_m3d">Influent volumetric flow (m3/d).</param>
         ''' <param name="Sin">Influent concentrations in state order (ADM1State.NDynamic entries).</param>
         ''' <param name="tEnd_d">Integration endpoint (days).</param>
         Public Function RunADM1Simulation(p As ADM1.ADM1Parameters,
@@ -2058,7 +2058,7 @@ Namespace Reactors
             str.AppendLine("Thermal Balance")
             str.AppendLine("    Mode:               " & ThermalMode.ToString)
             str.AppendLine("    Metabolic heat:     " & Result_Q_metabolic_kW.ToString(numberformat, ci) & " kW")
-            str.AppendLine("    Net heat duty:      " & Result_Q_duty_kW.ToString(numberformat, ci) & " kW  (+ heating / âˆ’ cooling)")
+            str.AppendLine("    Net heat duty:      " & Result_Q_duty_kW.ToString(numberformat, ci) & " kW  (+ heating / - cooling)")
             str.AppendLine("    Outlet temperature: " & Result_OutletTemperature_K.ToString(numberformat, ci) & " K")
             Return str.ToString()
 

@@ -3508,7 +3508,7 @@ Namespace UnitOperations
 
             IObj?.SetCurrent()
 
-            IObj?.Paragraphs.Add("For any stage in a countercurrent cascade, assume (1) phase equilibrium is achieved at each stage, (2) no chemical reactions occur, and (3) entrainment of liquid drops in vapor and occlusion of vapor bubbles in liquid are negligible. Figure 1 represents such a stage for the vaporï¿½liquid case, where the stages are numbered down from the top. The same representation applies to liquidï¿½liquid extraction if the higher-density liquid phases are represented by liquid streams and the lower-density liquid phases are represented by vapor streams.")
+            IObj?.Paragraphs.Add("For any stage in a countercurrent cascade, assume (1) phase equilibrium is achieved at each stage, (2) no chemical reactions occur, and (3) entrainment of liquid drops in vapor and occlusion of vapor bubbles in liquid are negligible. Figure 1 represents such a stage for the vapor-liquid case, where the stages are numbered down from the top. The same representation applies to liquid-liquid extraction if the higher-density liquid phases are represented by liquid streams and the lower-density liquid phases are represented by vapor streams.")
 
             IObj?.Paragraphs.Add(InspectorItem.GetImageHTML("image1.jpg"))
 
@@ -3522,23 +3522,23 @@ Namespace UnitOperations
 
             IObj?.Paragraphs.Add("Associated with each general stage are the following indexed equations expressed in terms of the variable set in Figure 1. However, variables other than those shown in Figure 1 can be used, e.g. component flow rates can replace mole fractions, and sidestream flow rates can be expressed as fractions of interstage flow rates. The equations are referred to as MESH equations, after Wang and Henke.")
 
-            IObj?.Paragraphs.Add("M equationsï¿½Material balance for each component (C equations for each stage).")
+            IObj?.Paragraphs.Add("M equations - Material balance for each component (C equations for each stage).")
 
             IObj?.Paragraphs.Add("<m>M_{i,j}=L_{j-1}x_{i,j-1}+V_{j+1}y_{i,j+1}+F_jz_{i,j}-(L_j+U_j)x_{i,j}-(V_j+W_j)y_{i,j}</m>")
 
-            IObj?.Paragraphs.Add("E equationsï¿½phase-Equilibrium relation for each component (C equations for each stage),")
+            IObj?.Paragraphs.Add("E equations - phase-Equilibrium relation for each component (C equations for each stage),")
 
             IObj?.Paragraphs.Add("<m>E_{i,j}=y_{i,j}-K_{i,j}x_{i,j}=0</m>")
 
             IObj?.Paragraphs.Add("where <mi>K_{i,j}</mi> is the phase-equilibrium ratio or K-value.")
 
-            IObj?.Paragraphs.Add("S equationsï¿½mole-fraction Summations (one for each stage),")
+            IObj?.Paragraphs.Add("S equations - mole-fraction Summations (one for each stage),")
 
             IObj?.Paragraphs.Add("<m>(S_y)_j=\sum\limits_{i=1}^{C}{y_{i,j}}-1=0</m>")
 
             IObj?.Paragraphs.Add("<m>(S_x)_j=\sum\limits_{i=1}^{C}{x_{i,j}} -1=0</m>")
 
-            IObj?.Paragraphs.Add("H equationï¿½energy balance (one for each stage).")
+            IObj?.Paragraphs.Add("H equation - energy balance (one for each stage).")
 
             IObj?.Paragraphs.Add("<m>H_j=L_{j-1}h_{L_{j-1}}+V_{j+1}h_{V_{j+1}}+F_jh_{F_j}-(L_j+U_j)h_{L_j}-(V_j+W_j)h_{V_j}-Q_j=0</m>")
 
@@ -4538,7 +4538,7 @@ Namespace UnitOperations
 
             IObj?.SetCurrent()
 
-            IObj?.Paragraphs.Add("For any stage in a countercurrent cascade, assume (1) phase equilibrium is achieved at each stage, (2) no chemical reactions occur, and (3) entrainment of liquid drops in vapor and occlusion of vapor bubbles in liquid are negligible. Figure 1 represents such a stage for the vaporï¿½liquid case, where the stages are numbered down from the top. The same representation applies to liquidï¿½liquid extraction if the higher-density liquid phases are represented by liquid streams and the lower-density liquid phases are represented by vapor streams.")
+            IObj?.Paragraphs.Add("For any stage in a countercurrent cascade, assume (1) phase equilibrium is achieved at each stage, (2) no chemical reactions occur, and (3) entrainment of liquid drops in vapor and occlusion of vapor bubbles in liquid are negligible. Figure 1 represents such a stage for the vapor-liquid case, where the stages are numbered down from the top. The same representation applies to liquid-liquid extraction if the higher-density liquid phases are represented by liquid streams and the lower-density liquid phases are represented by vapor streams.")
 
             IObj?.Paragraphs.Add(InspectorItem.GetImageHTML("image1.jpg"))
 
@@ -4552,23 +4552,23 @@ Namespace UnitOperations
 
             IObj?.Paragraphs.Add("Associated with each general stage are the following indexed equations expressed in terms of the variable set in Figure 1. However, variables other than those shown in Figure 1 can be used, e.g. component flow rates can replace mole fractions, and sidestream flow rates can be expressed as fractions of interstage flow rates. The equations are referred to as MESH equations, after Wang and Henke.")
 
-            IObj?.Paragraphs.Add("M equationsï¿½Material balance for each component (C equations for each stage).")
+            IObj?.Paragraphs.Add("M equations - Material balance for each component (C equations for each stage).")
 
             IObj?.Paragraphs.Add("<m>M_{i,j}=L_{j-1}x_{i,j-1}+V_{j+1}y_{i,j+1}+F_jz_{i,j}-(L_j+U_j)x_{i,j}-(V_j+W_j)y_{i,j}</m>")
 
-            IObj?.Paragraphs.Add("E equationsï¿½phase-Equilibrium relation for each component (C equations for each stage),")
+            IObj?.Paragraphs.Add("E equations - phase-Equilibrium relation for each component (C equations for each stage),")
 
             IObj?.Paragraphs.Add("<m>E_{i,j}=y_{i,j}-K_{i,j}x_{i,j}=0</m>")
 
             IObj?.Paragraphs.Add("where <mi>K_{i,j}</mi> is the phase-equilibrium ratio or K-value.")
 
-            IObj?.Paragraphs.Add("S equationsï¿½mole-fraction Summations (one for each stage),")
+            IObj?.Paragraphs.Add("S equations - mole-fraction Summations (one for each stage),")
 
             IObj?.Paragraphs.Add("<m>(S_y)_j=\sum\limits_{i=1}^{C}{y_{i,j}}-1=0</m>")
 
             IObj?.Paragraphs.Add("<m>(S_x)_j=\sum\limits_{i=1}^{C}{x_{i,j}} -1=0</m>")
 
-            IObj?.Paragraphs.Add("H equationï¿½energy balance (one for each stage).")
+            IObj?.Paragraphs.Add("H equation - energy balance (one for each stage).")
 
             IObj?.Paragraphs.Add("<m>H_j=L_{j-1}h_{L_{j-1}}+V_{j+1}h_{V_{j+1}}+F_jh_{F_j}-(L_j+U_j)h_{L_j}-(V_j+W_j)h_{V_j}-Q_j=0</m>")
 
@@ -5608,9 +5608,9 @@ Namespace UnitOperations
             Me.Validate()
             Me.CheckConnPos()
 
-            'â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            '---------------------------------------------------------------------
             ' 1. Basic setup
-            'â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            '---------------------------------------------------------------------
 
             Dim llextractor As Boolean = False
             Dim myabs As AbsorptionColumn = TryCast(Me, AbsorptionColumn)
@@ -5644,9 +5644,9 @@ Namespace UnitOperations
                 Array.Resize(Kval(i), nc)
             Next
 
-            'â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            '---------------------------------------------------------------------
             ' 2. Pressure profile
-            'â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            '---------------------------------------------------------------------
 
             If Not Double.IsNaN(ColumnPressureDrop) Then
                 For i = 1 To ns
@@ -5667,9 +5667,9 @@ Namespace UnitOperations
                 i += 1
             Next
 
-            'â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            '---------------------------------------------------------------------
             ' 3. Collect feed data from connected streams
-            'â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            '---------------------------------------------------------------------
 
             Dim sumcf(nc - 1), sumF, zm(nc - 1) As Double
             Dim firstF As Integer = -1
@@ -5737,9 +5737,9 @@ Namespace UnitOperations
             Dim mwf = pp.AUX_MMM(zm)
             Dim Vprops = pp.DW_GetConstantProperties()
 
-            'â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            '---------------------------------------------------------------------
             ' 4. Cumulative feed / sidestream balance
-            'â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            '---------------------------------------------------------------------
 
             Dim sum1(ns), sum0_ As Double
             sum0_ = 0
@@ -5751,9 +5751,9 @@ Namespace UnitOperations
                 sum0_ += LSS(i) + VSS(i)
             Next
 
-            'â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            '---------------------------------------------------------------------
             ' 5. Reference flash at feed conditions for K-values and alpha
-            'â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            '---------------------------------------------------------------------
 
             Dim Tref As Double = FT.Where(Function(ti) ti > 0).Average
             Dim Pref As Double = Stages.Select(Function(s) s.P).Average
@@ -5761,9 +5761,9 @@ Namespace UnitOperations
             Dim feedFlash As Object() = pp.FlashBase.Flash_PT(zm, Pref, Tref, pp)
             Dim Kref As Double() = DirectCast(feedFlash(9), Double())
 
-            'â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            '---------------------------------------------------------------------
             ' 6. IMPROVED: reflux ratio from relative volatility (Underwood-simplified)
-            'â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            '---------------------------------------------------------------------
 
             rr = 2.5
             If TypeOf Me Is DistillationColumn Then
@@ -5774,7 +5774,7 @@ Namespace UnitOperations
                         rr = Me.Specs("C").SpecValue
                     Else
                         ' Sort components by K-value; alpha = K_lightest / K_2nd-lightest
-                        ' rr â‰ˆ alpha / (alpha - 1), then scale by Gilliland factor 1.3
+                        ' rr ~ alpha / (alpha - 1), then scale by Gilliland factor 1.3
                         If nc >= 2 Then
                             'rank only the compounds in the column feed: one at zero in every feed carries whatever
                             'K its model gives at zero fraction and would set alpha (all of them if fewer than two)
@@ -5803,10 +5803,10 @@ Namespace UnitOperations
                 rr = InitialEstimates.RefluxRatio
             End If
 
-            'â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            '---------------------------------------------------------------------
             ' 7. Product flow rate estimates from column specifications
             '    (identical logic to GetSolverInputData)
-            'â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            '---------------------------------------------------------------------
 
             Dim distVx(nc - 1), rebVx(nc - 1), distVy(nc - 1), rebVy(nc - 1) As Double
             Dim hamount As Double = 0.0
@@ -6062,9 +6062,9 @@ Namespace UnitOperations
                     distVx = distVx.NormalizeY()
             End Select
 
-            'â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            '---------------------------------------------------------------------
             ' 8. IMPROVED: condenser (T1) and reboiler (T2) temperature estimates
-            'â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            '---------------------------------------------------------------------
 
             Dim T1, T2 As Double
             Dim xtop(nc - 1), ytop(nc - 1), xbot(nc - 1), ybot(nc - 1) As Double
@@ -6179,9 +6179,9 @@ Namespace UnitOperations
             T(0) = T1
             T(ns) = T2
 
-            'â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            '---------------------------------------------------------------------
             ' 9. Stage profiles: T, V, L, x, y, K
-            'â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            '---------------------------------------------------------------------
 
             compids = New ArrayList
             For Each compName As String In Vn
@@ -6387,10 +6387,10 @@ Namespace UnitOperations
                     Q(0) = 0
             End Select
 
-            'â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-            ' 10. IMPROVED: needsXYestimates â†’ per-stage PT flash with accumulated
+            '---------------------------------------------------------------------
+            ' 10. IMPROVED: needsXYestimates -> per-stage PT flash with accumulated
             '     feed composition (richer in lights near top, heavies near bottom)
-            'â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            '---------------------------------------------------------------------
 
             Dim L1trials, L2trials As New List(Of Double())
             Dim x1trials, x2trials As New List(Of Double()())
@@ -6522,9 +6522,9 @@ Namespace UnitOperations
 
             End If
 
-            'â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            '---------------------------------------------------------------------
             ' 11. Process spec component indices and legacy stage-number fixup
-            'â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            '---------------------------------------------------------------------
 
             For Each sp As Auxiliary.SepOps.ColumnSpec In Me.Specs.Values
                 If sp.SType = ColumnSpec.SpecType.Component_Fraction Or
@@ -6547,9 +6547,9 @@ Namespace UnitOperations
 
             IObj?.Close()
 
-            'â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            '---------------------------------------------------------------------
             ' 12. Tridiagonal refinement for distillation columns (from _New)
-            'â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            '---------------------------------------------------------------------
 
             If Me.ColumnType = ColType.DistillationColumn Then
                 Try
@@ -6570,9 +6570,9 @@ Namespace UnitOperations
                 End Try
             End If
 
-            'â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            '---------------------------------------------------------------------
             ' 13. Build and return solver input
-            'â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            '---------------------------------------------------------------------
 
             Dim solverinput As New ColumnSolverInputData
             With solverinput

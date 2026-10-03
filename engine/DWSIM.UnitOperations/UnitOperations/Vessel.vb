@@ -277,10 +277,10 @@ Namespace UnitOperations
         End Sub
 
         ''' <summary>
-        ''' Computes the internal volume of the vessel (mÂ³) based on either the user-entered value
+        ''' Computes the internal volume of the vessel (m3) based on either the user-entered value
         ''' or the configured geometry (diameter, length, and head type) from the dimensions list.
         ''' </summary>
-        ''' <returns>Internal vessel volume in mÂ³.</returns>
+        ''' <returns>Internal vessel volume in m3.</returns>
         Public Function CalculateVolume() As Double
 
             Dim Vol As Double = GetDynamicProperty("Volume")
@@ -340,7 +340,7 @@ Namespace UnitOperations
         End Function
 
         ''' <summary>Returns the dynamic simulation volume of the vessel by delegating to <see cref="CalculateVolume"/>.</summary>
-        ''' <returns>Vessel internal volume in mÂ³.</returns>
+        ''' <returns>Vessel internal volume in m3.</returns>
         Public Overrides Function GetDynamicVolume() As Double
 
             Return CalculateVolume()
@@ -2105,7 +2105,7 @@ Namespace UnitOperations
                 _U = _U + 1.0E+30
             End If
 
-            Return New Double() {1 / _U, U_int, U_parede} '[W/mÂ².K]
+            Return New Double() {1 / _U, U_int, U_parede} '[W/m2.K]
 
         End Function
 
@@ -2192,7 +2192,7 @@ Namespace UnitOperations
                 _U = _U + 1.0E+30
             End If
 
-            Return New Double() {1 / _U, U_parede, U_isol, U_ext} '[W/mÂ².K]
+            Return New Double() {1 / _U, U_parede, U_isol, U_ext} '[W/m2.K]
 
         End Function
 

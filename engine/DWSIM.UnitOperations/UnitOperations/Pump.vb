@@ -446,7 +446,7 @@ Namespace UnitOperations
 
         End Function
 
-        ''' <summary>Gets or sets the adiabatic pump efficiency as a percentage (0â€“100).</summary>
+        ''' <summary>Gets or sets the adiabatic pump efficiency as a percentage (0-100).</summary>
         Public Property Efficiency As Double
             Get
                 Return Eficiencia.GetValueOrDefault()
@@ -581,7 +581,7 @@ Namespace UnitOperations
 
         End Function
 
-        ''' <summary>Gets or sets the volumetric flow rate at the pump's operating point on the performance curve (mÂ³/s).</summary>
+        ''' <summary>Gets or sets the volumetric flow rate at the pump's operating point on the performance curve (m3/s).</summary>
         Public Property CurveFlow() As Double
             Get
                 Return _curveflow
@@ -739,7 +739,7 @@ Namespace UnitOperations
             End Set
         End Property
 
-        ''' <summary>Gets or sets the adiabatic efficiency of the pump as a percentage (0â€“100).</summary>
+        ''' <summary>Gets or sets the adiabatic efficiency of the pump as a percentage (0-100).</summary>
         Public Property Eficiencia() As Nullable(Of Double)
             Get
                 Return m_eta
@@ -1351,15 +1351,15 @@ Namespace UnitOperations
                             stream is used). In the first method, we have the following 
                             sequence:")
 
-            IObj?.Paragraphs.Add("ï¿½ Outlet stream enthalpy:")
+            IObj?.Paragraphs.Add("- Outlet stream enthalpy:")
 
             IObj?.Paragraphs.Add("<m>H_{2}=H_{1}+\frac{\Delta P}{\rho},</m>")
 
-            IObj?.Paragraphs.Add("ï¿½ Pump discharge pressure:")
+            IObj?.Paragraphs.Add("- Pump discharge pressure:")
 
             IObj?.Paragraphs.Add("<m>P_{2}=P_{1}+\Delta P</m>")
 
-            IObj?.Paragraphs.Add("ï¿½ Pump required power:")
+            IObj?.Paragraphs.Add("- Pump required power:")
 
             IObj?.Paragraphs.Add("<m>Pot=\frac{W(H_{2}-H_{1})}{\eta},</m>")
 
@@ -1375,24 +1375,24 @@ Namespace UnitOperations
 
             IObj?.Paragraphs.Add("<mi>\eta</mi> pump efficiency")
 
-            IObj?.Paragraphs.Add("ï¿½ Outlet temperature: PH Flash (with P2 and H2).")
+            IObj?.Paragraphs.Add("- Outlet temperature: PH Flash (with P2 and H2).")
 
             IObj?.Paragraphs.Add("In the second case (calculated outlet pressure), we have the 
                                 following sequence:")
 
-            IObj?.Paragraphs.Add("ï¿½ Outlet stream enthalpy:")
+            IObj?.Paragraphs.Add("- Outlet stream enthalpy:")
 
             IObj?.Paragraphs.Add("<m>H_{2}=H_{1}+\frac{Pot\,\eta}{W},</m>")
 
-            IObj?.Paragraphs.Add("ï¿½ <mi>\Delta P</mi>:")
+            IObj?.Paragraphs.Add("- <mi>\Delta P</mi>:")
 
             IObj?.Paragraphs.Add("<m>\Delta P=\rho(H_{2}-H_{1}),</m>")
 
-            IObj?.Paragraphs.Add("ï¿½ Discharge pressure:")
+            IObj?.Paragraphs.Add("- Discharge pressure:")
 
             IObj?.Paragraphs.Add("<m>P_{2}=P_{1}+\Delta P</m>")
 
-            IObj?.Paragraphs.Add("ï¿½ Outlet temperature: PH Flash.")
+            IObj?.Paragraphs.Add("- Outlet temperature: PH Flash.")
 
             If args Is Nothing Then
                 If Not Me.GraphicObject.OutputConnectors(0).IsAttached Then

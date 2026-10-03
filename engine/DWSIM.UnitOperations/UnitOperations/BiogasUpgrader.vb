@@ -473,7 +473,7 @@ Namespace UnitOperations
         ''' <summary>Returns the localized description string for this unit operation type.</summary>
         ''' <returns>A translated description string identifying this unit operation type.</returns>
         Public Overrides Function GetDisplayDescription() As String
-            Return "Biogas Upgrader (H2S + CO2 removal â†’ RNG)"
+            Return "Biogas Upgrader (H2S + CO2 removal -> RNG)"
         End Function
         ''' <summary>Returns the localized display name for this unit operation type.</summary>
         ''' <returns>A translated name string for this unit operation type.</returns>
@@ -649,7 +649,7 @@ Namespace UnitOperations
 
             container.CreateAndAddLabelRow("Removal Efficiencies (0-1)")
 
-            container.CreateAndAddTextBoxRow(nf, "Hâ‚‚S Removal Efficiency", H2SRemovalEfficiency,
+            container.CreateAndAddTextBoxRow(nf, "H2S Removal Efficiency", H2SRemovalEfficiency,
                                              Sub(tb, e)
                                                  If tb.Text.IsValidDoubleExpression() Then
                                                      H2SRemovalEfficiency = tb.Text.ParseExpressionToDouble()
@@ -657,7 +657,7 @@ Namespace UnitOperations
                                                  End If
                                              End Sub)
 
-            container.CreateAndAddTextBoxRow(nf, "COâ‚‚ Removal Efficiency", CO2RemovalEfficiency,
+            container.CreateAndAddTextBoxRow(nf, "CO2 Removal Efficiency", CO2RemovalEfficiency,
                                              Sub(tb, e)
                                                  If tb.Text.IsValidDoubleExpression() Then
                                                      CO2RemovalEfficiency = tb.Text.ParseExpressionToDouble()
@@ -665,7 +665,7 @@ Namespace UnitOperations
                                                  End If
                                              End Sub)
 
-            container.CreateAndAddTextBoxRow(nf, "Hâ‚‚O Removal Efficiency", H2ORemovalEfficiency,
+            container.CreateAndAddTextBoxRow(nf, "H2O Removal Efficiency", H2ORemovalEfficiency,
                                              Sub(tb, e)
                                                  If tb.Text.IsValidDoubleExpression() Then
                                                      H2ORemovalEfficiency = tb.Text.ParseExpressionToDouble()
@@ -673,7 +673,7 @@ Namespace UnitOperations
                                                  End If
                                              End Sub)
 
-            container.CreateAndAddTextBoxRow(nf, "CHâ‚„ Loss to Off-gas", CH4LossFraction,
+            container.CreateAndAddTextBoxRow(nf, "CH4 Loss to Off-gas", CH4LossFraction,
                                              Sub(tb, e)
                                                  If tb.Text.IsValidDoubleExpression() Then
                                                      CH4LossFraction = tb.Text.ParseExpressionToDouble()
@@ -721,11 +721,11 @@ Namespace UnitOperations
                                                       End Sub)
                 End Sub
 
-            addCompoundDropdown("Methane (CHâ‚„)", MethaneCompound, Sub(v) MethaneCompound = v)
-            addCompoundDropdown("Carbon Dioxide (COâ‚‚)", CO2Compound, Sub(v) CO2Compound = v)
-            addCompoundDropdown("Hydrogen Sulfide (Hâ‚‚S)", H2SCompound, Sub(v) H2SCompound = v)
-            addCompoundDropdown("Water (Hâ‚‚O)", WaterCompound, Sub(v) WaterCompound = v)
-            addCompoundDropdown("Nitrogen (Nâ‚‚)", N2Compound, Sub(v) N2Compound = v)
+            addCompoundDropdown("Methane (CH4)", MethaneCompound, Sub(v) MethaneCompound = v)
+            addCompoundDropdown("Carbon Dioxide (CO2)", CO2Compound, Sub(v) CO2Compound = v)
+            addCompoundDropdown("Hydrogen Sulfide (H2S)", H2SCompound, Sub(v) H2SCompound = v)
+            addCompoundDropdown("Water (H2O)", WaterCompound, Sub(v) WaterCompound = v)
+            addCompoundDropdown("Nitrogen (N2)", N2Compound, Sub(v) N2Compound = v)
 
         End Sub
 

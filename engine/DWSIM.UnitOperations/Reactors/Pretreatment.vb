@@ -49,10 +49,10 @@ Namespace Reactors
     ''' first order in R0 (Abatzoglou et al., 1992) and the sugars degrade by the consecutive model of
     ''' Saeman (1945), with rate constants calibrated so that log R0 = 3.5 reproduces the technology defaults.
     ''' Reactions:
-    '''   (C6H10O5)n + H2O -> C6H12O6                  (cellulose â†’ glucose)
-    '''   C6H12O6       -> C6H6O3 + 3 H2O             (glucose â†’ HMF)
-    '''   (C5H8O4)n  + H2O -> C5H10O5                  (xylan â†’ xylose)
-    '''   C5H10O5       -> C5H4O2 + 3 H2O             (xylose â†’ furfural)
+    '''   (C6H10O5)n + H2O -> C6H12O6                  (cellulose to glucose)
+    '''   C6H12O6       -> C6H6O3 + 3 H2O             (glucose to HMF)
+    '''   (C5H8O4)n  + H2O -> C5H10O5                  (xylan to xylose)
+    '''   C5H10O5       -> C5H4O2 + 3 H2O             (xylose to furfural)
     ''' Acetic acid is released from acetyl groups in the hemicellulose, proportionally to the
     ''' hemicellulose mass consumed.
     ''' </summary>
@@ -154,7 +154,7 @@ Namespace Reactors
         ''' Read in UserFractions mode; in Severity mode the applied value is <see cref="Result_XyloseToFurfural"/>.</summary>
         Public Property XyloseToFurfural As Double = 0.07
 
-        ''' <summary>Fraction of lignin solubilized (0â€“1). Strong for alkaline/organosolv; low for dilute acid.</summary>
+        ''' <summary>Fraction of lignin solubilized (0-1). Strong for alkaline/organosolv; low for dilute acid.</summary>
         Public Property LigninSolubilization As Double = 0.15
 
         ''' <summary>g acetic acid released per g hemicellulose consumed (mass fraction). Default 0.12.</summary>
@@ -390,7 +390,7 @@ Namespace Reactors
             If Not String.IsNullOrEmpty(LigninCompound) AndAlso compounds.ContainsKey(LigninCompound) Then _
                 m_lignin_in = compounds(LigninCompound).MassFlow.GetValueOrDefault
 
-            ' Cellulose â†’ glucose (with subsequent glucose â†’ HMF)
+            ' Cellulose to glucose (with subsequent glucose to HMF)
             ' A reaction runs only when its product has a compound to go to; otherwise the reactant
             ' stays as it is, so no mass leaves the balance.
             Dim assigned = Function(name As String) Not String.IsNullOrEmpty(name) AndAlso newMass.ContainsKey(name)

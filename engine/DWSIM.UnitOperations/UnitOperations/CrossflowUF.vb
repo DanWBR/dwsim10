@@ -32,7 +32,7 @@ Namespace UnitOperations
         Concentration = 0
         ''' <summary>Constant-volume diafiltration: N diavolumes of buffer exchanged at constant retentate volume.</summary>
         DiafiltrationConstantVolume = 1
-        ''' <summary>Dynamic batch concentration with Hermia pore-blocking flux decline J(t) = J0 / (1 + t/Ï„).</summary>
+        ''' <summary>Dynamic batch concentration with Hermia pore-blocking flux decline J(t) = J0 / (1 + t/tau).</summary>
         ConcentrationDynamic = 2
         ''' <summary>Dynamic constant-volume diafiltration with Hermia pore-blocking flux decline.</summary>
         DiafiltrationDynamic = 3
@@ -41,11 +41,11 @@ Namespace UnitOperations
     ''' <summary>
     ''' Crossflow ultrafiltration / diafiltration unit. Splits an inlet (plus an optional diafiltration-
     ''' buffer inlet) into a concentrated Retentate outlet and a Permeate outlet using per-compound
-    ''' sieving coefficients Ïƒáµ¢ âˆˆ [0, 1] (0 = fully retained, 1 = freely permeable).
+    ''' sieving coefficients sigma_i in [0, 1] (0 = fully retained, 1 = freely permeable).
     '''
     ''' Two operating modes are supported:
-    '''   Concentration                - retentate volume = feed volume / VCF;  m_ret_i / m_feed_i = VCF^(âˆ’Ïƒáµ¢)
-    '''   DiafiltrationConstantVolume  - retentate volume is held constant; m_ret_i / m_feed_i = exp(âˆ’NÂ·(1âˆ’Ïƒáµ¢))
+    '''   Concentration                - retentate volume = feed volume / VCF;  m_ret_i / m_feed_i = VCF^(-sigma_i)
+    '''   DiafiltrationConstantVolume  - retentate volume is held constant; m_ret_i / m_feed_i = exp(-N*(1-sigma_i))
     ''' </summary>
     <System.Serializable()> Public Partial Class UnitOp_CrossflowUF
 
@@ -83,7 +83,7 @@ Namespace UnitOperations
         Public Property Diavolumes As Double = 5.0
 
         ''' <summary>
-        ''' Per-compound sieving coefficients Ïƒáµ¢ âˆˆ [0, 1]. Compounds absent from this dictionary
+        ''' Per-compound sieving coefficients sigma_i in [0, 1]. Compounds absent from this dictionary
         ''' use DefaultSievingCoefficient (default 1.0 = freely permeable).
         ''' </summary>
         Public Property SievingCoefficients As Dictionary(Of String, Double)
@@ -91,16 +91,16 @@ Namespace UnitOperations
         ''' <summary>Default sieving coefficient for compounds not listed in SievingCoefficients.</summary>
         Public Property DefaultSievingCoefficient As Double = 1.0
 
-        ''' <summary>Permeate flux through the membrane (kg/mÂ²/s). If > 0 the required membrane area is reported.</summary>
+        ''' <summary>Permeate flux through the membrane (kg/m2/s). If > 0 the required membrane area is reported.</summary>
         Public Property MembraneFlux_kgm2s As Double = 0.02 ' ~72 LMH of water
 
         ''' <summary>Transmembrane pressure (Pa). Reported only; not used in the flux calculation.</summary>
         Public Property TMP_Pa As Double = 100000.0
 
-        ''' <summary>Fouling half-life (s). Hermia cake-filtration decay J(t) = J0 / (1 + t/Ï„). Set â‰¤ 0 to disable (no decline).</summary>
+        ''' <summary>Fouling half-life (s). Hermia cake-filtration decay J(t) = J0 / (1 + t/tau). Set &lt;= 0 to disable (no decline).</summary>
         Public Property FoulingHalfLife_s As Double = 0.0
 
-        ''' <summary>Membrane area (mÂ²) used only in dynamic modes. If â‰¤ 0 it is auto-sized from J0 and retentate flow.</summary>
+        ''' <summary>Membrane area (m2) used only in dynamic modes. If &lt;= 0 it is auto-sized from J0 and retentate flow.</summary>
         Public Property MembraneArea_m2 As Double = 10.0
 
         ''' <summary>Last dynamic-mode trajectory (populated by Calculate in dynamic modes). Not persisted.</summary>
@@ -121,7 +121,7 @@ Namespace UnitOperations
         ''' <summary>Permeate mass flow (kg/s).</summary>
         Public Property Result_Permeate_kgs As Double = 0.0
 
-        ''' <summary>Required membrane area (mÂ²) at the specified flux. 0 if flux â‰¤ 0.</summary>
+        ''' <summary>Required membrane area (m2) at the specified flux. 0 if flux &lt;= 0.</summary>
         Public Property Result_MembraneArea_m2 As Double = 0.0
 
         ''' <summary>Effective volume concentration factor actually realised.</summary>
@@ -242,11 +242,11 @@ Namespace UnitOperations
 
                 Case CrossflowUFMode.Concentration
                     ' Ignore buffer in concentration mode.
-                    ' Per compound:  m_ret_i / m_feed_i = VCF^(âˆ’Ïƒáµ¢)
+                    ' Per compound:  m_ret_i / m_feed_i = VCF^(-sigma_i)
                     Dim vcfEff = Max(VCF, 1.0)
                     For Each k In feedCompMass.Keys
-                        Dim Ïƒ = SigmaFor(k)
-                        Dim retFrac = Pow(vcfEff, -Ïƒ)
+                        Dim sigma = SigmaFor(k)
+                        Dim retFrac = Pow(vcfEff, -sigma)
                         retentateMass(k) = feedCompMass(k) * retFrac
                         permeateMass(k) = feedCompMass(k) - retentateMass(k)
                         If permeateMass(k) < 0 Then permeateMass(k) = 0.0
@@ -255,14 +255,14 @@ Namespace UnitOperations
 
                 Case CrossflowUFMode.DiafiltrationConstantVolume
                     ' Constant-volume DF. For each compound, buffer contribution joins the retentate
-                    ' initially, then the CV-DF sieving law removes it:  m_ret / m_in = exp(âˆ’NÂ·(1âˆ’Ïƒ))
+                    ' initially, then the CV-DF sieving law removes it:  m_ret / m_in = exp(-N*(1-sigma))
                     Dim N = Max(Diavolumes, 0.0)
                     For Each k In retentateMass.Keys
-                        Dim Ïƒ = SigmaFor(k)
+                        Dim sigma = SigmaFor(k)
                         Dim m_in = 0.0
                         If feedCompMass.ContainsKey(k) Then m_in += feedCompMass(k)
                         If bufCompMass.ContainsKey(k) Then m_in += bufCompMass(k)
-                        Dim retFrac = Exp(-N * (1.0 - Ïƒ))
+                        Dim retFrac = Exp(-N * (1.0 - sigma))
                         retentateMass(k) = m_in * retFrac
                         permeateMass(k) = m_in - retentateMass(k)
                     Next
@@ -307,8 +307,8 @@ Namespace UnitOperations
 
         ''' <summary>
         ''' Dynamic batch concentration with Hermia cake-filtration flux decline.
-        ''' J(t) = J0 / (1 + t/Ï„). Feed volume V0 is concentrated to V0/VCF. Per-compound retentate
-        ''' mass evolves as dm_i/dt = -(1-Ïƒ_i) Â· J(t) Â· A Â· c_i(t) (for sieving fraction through the membrane).
+        ''' J(t) = J0 / (1 + t/tau). Feed volume V0 is concentrated to V0/VCF. Per-compound retentate
+        ''' mass evolves as dm_i/dt = -(1-sigma_i) * J(t) * A * c_i(t) (for sieving fraction through the membrane).
         ''' We integrate with simple explicit Euler; 500 samples default (cap 2000).
         ''' Populates LastTrajectory and writes retentate / permeate mass dictionaries.
         ''' </summary>
@@ -339,7 +339,7 @@ Namespace UnitOperations
                 m_i(k) = feedCompMass(k)
             Next
 
-            ' Integrate dV/dt = -J(t)Â·A/rho  (kg/m2/s * m2 / (kg/m3) = m3/s)
+            ' Integrate dV/dt = -J(t)*A/rho  (kg/m2/s * m2 / (kg/m3) = m3/s)
             Dim V As Double = V0
             Dim t As Double = 0.0
             Dim dt As Double = 1.0   ' initial step, seconds
@@ -373,14 +373,14 @@ Namespace UnitOperations
                 ' choose a step that removes at most 1% of remaining volume
                 Dim h = Min(dt, (V - Vfinal) * 0.5 / Max(Math.Abs(dVdt), 0.000000000001))
                 If h <= 0.0 Then Exit While
-                ' Update per-compound mass (permeate flux draws Ïƒ_i fraction)
+                ' Update per-compound mass (permeate flux draws sigma_i fraction)
                 For Each k In m_i.Keys.ToList()
-                    Dim Ïƒ = SigmaFor(k)
+                    Dim sigma = SigmaFor(k)
                     Dim c_gL = If(V > 0.0, (m_i(k) / V), 0.0) ' kg/m3
-                    Dim dm = -Ïƒ * Jt * A * c_gL / Max(rho_L, 0.000000000001) ' simplified: ÏƒÂ·JÂ·AÂ·c(mass/vol ratio)
-                    ' proper: dm/dt = -ÏƒÂ·JÂ·AÂ·c with c in kg/m3 and J in kg/m2/s, but flux J is typically water-based.
-                    ' Here we interpret JÂ·A/rho = dV/dt and Ïƒ governs solute passage:  dm = -ÏƒÂ·cÂ·|dV|
-                    dm = -Ïƒ * c_gL * Math.Abs(dVdt) * h
+                    Dim dm = -sigma * Jt * A * c_gL / Max(rho_L, 0.000000000001) ' simplified: sigma*J*A*c(mass/vol ratio)
+                    ' proper: dm/dt = -sigma*J*A*c with c in kg/m3 and J in kg/m2/s, but flux J is typically water-based.
+                    ' Here we interpret J*A/rho = dV/dt and sigma governs solute passage:  dm = -sigma*c*|dV|
+                    dm = -sigma * c_gL * Math.Abs(dVdt) * h
                     m_i(k) = Max(m_i(k) + dm, 0.0)
                 Next
                 V += dVdt * h
@@ -407,7 +407,7 @@ Namespace UnitOperations
 
         ''' <summary>
         ''' Dynamic constant-volume diafiltration with Hermia flux decline. V is held constant;
-        ''' fresh buffer replaces permeate volume. Compound mass decays as dm/dt = -(1-Ïƒ)Â·(JÂ·A)Â·cÂ·(1/rho).
+        ''' fresh buffer replaces permeate volume. Compound mass decays as dm/dt = -(1-sigma)*(J*A)*c*(1/rho).
         ''' </summary>
         Private Sub CalculateDynamicDiafiltration(feed As MaterialStream, buffer As MaterialStream,
                                                   feedCompMass As Dictionary(Of String, Double),
@@ -466,9 +466,9 @@ Namespace UnitOperations
                 Dim h = Math.Min(dt, (Ntarget - dv) * V / dVol_dt)
                 If h <= 0.0 Then Exit While
                 For Each k In m_i.Keys.ToList()
-                    Dim Ïƒ = SigmaFor(k)
+                    Dim sigma = SigmaFor(k)
                     Dim c = m_i(k) / V
-                    Dim dm = -Ïƒ * c * dVol_dt * h
+                    Dim dm = -sigma * c * dVol_dt * h
                     m_i(k) = Max(m_i(k) + dm, 0.0)
                 Next
                 t += h
@@ -580,8 +580,8 @@ Namespace UnitOperations
             Else
                 str.AppendLine("    Diavolumes:           " & Diavolumes.ToString(numberformat, ci))
             End If
-            str.AppendLine("    Default Ïƒ:            " & DefaultSievingCoefficient.ToString(numberformat, ci))
-            str.AppendLine("    Membrane Flux:        " & MembraneFlux_kgm2s.ToString(numberformat, ci) & " kg/mÂ²/s")
+            str.AppendLine("    Default sigma:        " & DefaultSievingCoefficient.ToString(numberformat, ci))
+            str.AppendLine("    Membrane Flux:        " & MembraneFlux_kgm2s.ToString(numberformat, ci) & " kg/m2/s")
             str.AppendLine()
             str.AppendLine("Results")
             str.AppendLine("    Feed Mass Flow:       " & Result_FeedMass_kgs.ToString(numberformat, ci) & " kg/s")
@@ -589,7 +589,7 @@ Namespace UnitOperations
             str.AppendLine("    Retentate Flow:       " & Result_Retentate_kgs.ToString(numberformat, ci) & " kg/s")
             str.AppendLine("    Permeate Flow:        " & Result_Permeate_kgs.ToString(numberformat, ci) & " kg/s")
             str.AppendLine("    Effective VCF:        " & Result_EffectiveVCF.ToString(numberformat, ci))
-            str.AppendLine("    Membrane Area:        " & Result_MembraneArea_m2.ToString(numberformat, ci) & " mÂ²")
+            str.AppendLine("    Membrane Area:        " & Result_MembraneArea_m2.ToString(numberformat, ci) & " m2")
             Return str.ToString()
 
         End Function
@@ -761,7 +761,7 @@ Namespace UnitOperations
                                                  End If
                                              End Sub)
 
-            container.CreateAndAddTextBoxRow(nf, "Membrane Flux J0 (kg/m2Â·s)", MembraneFlux_kgm2s,
+            container.CreateAndAddTextBoxRow(nf, "Membrane Flux J0 (kg/m2.s)", MembraneFlux_kgm2s,
                                              Sub(tb, e)
                                                  If tb.Text.IsValidDoubleExpression() Then
                                                      MembraneFlux_kgm2s = tb.Text.ParseExpressionToDouble()

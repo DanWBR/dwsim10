@@ -29,14 +29,14 @@ Namespace UnitOperations
         Osmotic = 4
         ''' <summary>Ultrasonic / sonication lysis (acoustic cavitation). Hetherington parameters are
         ''' reinterpreted: N = number of sonication cycles (or seconds / 10 s unit), P = acoustic
-        ''' power density (W/mL or similar), with k, Î± fit to the chosen basis.</summary>
+        ''' power density (W/mL or similar), with k, alpha fit to the chosen basis.</summary>
         Ultrasound = 5
     End Enum
 
     ''' <summary>
     ''' Cell lysis / homogenizer unit. Uses the Hetherington correlation
-    '''   R = 1 âˆ’ exp(âˆ’k Â· N Â· P^Î±)
-    ''' to compute the release fraction R for each intracellular compound (per-compound k and Î± via
+    '''   R = 1 - exp(-k * N * P^alpha)
+    ''' to compute the release fraction R for each intracellular compound (per-compound k and alpha via
     ''' default suggestions based on MW). The resulting fraction is routed to the Lysate outlet; the
     ''' complement is routed to the Debris outlet along with the biomass compound itself.
     ''' </summary>
@@ -145,12 +145,12 @@ Namespace UnitOperations
             Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of UnitOp_CellLysis)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
         End Function
 
-        ''' <summary>Hetherington release factor for a given compound: R = 1 âˆ’ exp(âˆ’kÂ·NÂ·P^Î±).</summary>
+        ''' <summary>Hetherington release factor for a given compound: R = 1 - exp(-k*N*P^alpha).</summary>
         Public Function HetheringtonRelease() As Double
             Return 1.0 - Exp(-HetheringtonK * Passes * Pow(Pressure_MPa, HetheringtonAlpha))
         End Function
 
-        ''' <summary>Ultrasound release factor: R_u = 1 âˆ’ exp(âˆ’k_u Â· P_a^Î² Â· t).</summary>
+        ''' <summary>Ultrasound release factor: R_u = 1 - exp(-k_u * P_a^beta * t).</summary>
         Public Function UltrasoundRelease() As Double
             Dim Pa = Max(0.0, Ultrasound_PowerDensity_WmL)
             Dim t = Max(0.0, Ultrasound_Time_s)
@@ -172,7 +172,7 @@ Namespace UnitOperations
             If mw > 5000.0 Then
                 Return Max(0.0, Min(1.0, IntrinsicRelease() * DefaultReleaseFraction))
             End If
-            ' Small solutes diffuse freely out of lysed cells â†’ fully in lysate
+            ' Small solutes diffuse freely out of lysed cells -> fully in lysate
             Return 1.0
         End Function
 
@@ -444,7 +444,7 @@ Namespace UnitOperations
                                                   FlowSheet.RequestCalculation()
                                               End Sub)
 
-            container.CreateAndAddLabelRow("Hetherington Parameters (R = 1 - exp(-kÂ·NÂ·P^Î±))")
+            container.CreateAndAddLabelRow("Hetherington Parameters (R = 1 - exp(-k*N*P^alpha))")
 
             container.CreateAndAddTextBoxRow(nf, "Number of Passes (N)", Passes,
                                              Sub(tb, e)
@@ -470,7 +470,7 @@ Namespace UnitOperations
                                                  End If
                                              End Sub)
 
-            container.CreateAndAddTextBoxRow(nf, "Hetherington Î±", HetheringtonAlpha,
+            container.CreateAndAddTextBoxRow(nf, "Hetherington alpha", HetheringtonAlpha,
                                              Sub(tb, e)
                                                  If tb.Text.IsValidDoubleExpression() Then
                                                      HetheringtonAlpha = tb.Text.ParseExpressionToDouble()
@@ -486,7 +486,7 @@ Namespace UnitOperations
                                                  End If
                                              End Sub)
 
-            container.CreateAndAddLabelRow("Ultrasound Parameters (R = 1 - exp(-kÂ·P^Î²Â·t))")
+            container.CreateAndAddLabelRow("Ultrasound Parameters (R = 1 - exp(-k*P^beta*t))")
 
             container.CreateAndAddTextBoxRow(nf, "Acoustic Power Density (W/mL)", Ultrasound_PowerDensity_WmL,
                                              Sub(tb, e)
@@ -512,7 +512,7 @@ Namespace UnitOperations
                                                  End If
                                              End Sub)
 
-            container.CreateAndAddTextBoxRow(nf, "Ultrasound Î²", Ultrasound_Beta,
+            container.CreateAndAddTextBoxRow(nf, "Ultrasound beta", Ultrasound_Beta,
                                              Sub(tb, e)
                                                  If tb.Text.IsValidDoubleExpression() Then
                                                      Ultrasound_Beta = tb.Text.ParseExpressionToDouble()

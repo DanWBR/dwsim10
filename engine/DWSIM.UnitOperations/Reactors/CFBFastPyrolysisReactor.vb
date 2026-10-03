@@ -75,10 +75,10 @@ Namespace Reactors
 
         ' -------- GEOMETRY / HYDRODYNAMICS --------
 
-        ''' <summary>Riser height (m). Typical industrial CFB fast-pyrolysis risers: 5â€“15 m.</summary>
+        ''' <summary>Riser height (m). Typical industrial CFB fast-pyrolysis risers: 5-15 m.</summary>
         Public Property RiserHeight_m As Double = 8.0
 
-        ''' <summary>Riser internal diameter (m). Typical 0.2â€“1.5 m for 1â€“100 t/day plants.</summary>
+        ''' <summary>Riser internal diameter (m). Typical 0.2-1.5 m for 1-100 t/day plants.</summary>
         Public Property RiserDiameter_m As Double = 0.5
 
         ''' <summary>Number of axial discretisation cells for the 1-D PFR (>= 5, &lt;= 500).</summary>
@@ -94,7 +94,7 @@ Namespace Reactors
         ''' <summary>Bed material (sand/olivine) density (kg/m3). Default 2600 (silica sand).</summary>
         Public Property BedMaterialDensity_kgm3 As Double = 2600.0
 
-        ''' <summary>Bed material specific heat (J/kg/K). Default 830 (silica sand at 500 Â°C).</summary>
+        ''' <summary>Bed material specific heat (J/kg/K). Default 830 (silica sand at 500 deg C).</summary>
         Public Property BedMaterialCp_JkgK As Double = 830.0
 
         ''' <summary>Carrier gas superficial velocity at inlet (m/s). Default 5 m/s for fast-fluidised CFB.</summary>
@@ -105,7 +105,7 @@ Namespace Reactors
         ''' <summary>Sand-supply mode (external constant T, or coupled char combustor).</summary>
         Public Property SandMode As CFBSandMode = CFBSandMode.External
 
-        ''' <summary>Sand inlet temperature (K) when SandMode = External. Typical 700â€“850 K.</summary>
+        ''' <summary>Sand inlet temperature (K) when SandMode = External. Typical 700-850 K.</summary>
         Public Property SandInletTemperature_K As Double = 820.0
 
         ''' <summary>Sand mass-flow / biomass-feed mass-flow ratio (kg/kg). Default 15.
@@ -117,13 +117,13 @@ Namespace Reactors
 
         ' -------- BIOMASS COMPOSITION (dry basis) --------
 
-        ''' <summary>Cellulose mass fraction of dry biomass (0â€“1). Typical woody biomass 0.40â€“0.50.</summary>
+        ''' <summary>Cellulose mass fraction of dry biomass (0-1). Typical woody biomass 0.40-0.50.</summary>
         Public Property CelluloseMassFrac As Double = 0.45
 
-        ''' <summary>Hemicellulose mass fraction of dry biomass (0â€“1). Typical 0.25â€“0.35.</summary>
+        ''' <summary>Hemicellulose mass fraction of dry biomass (0-1). Typical 0.25-0.35.</summary>
         Public Property HemicelluloseMassFrac As Double = 0.3
 
-        ''' <summary>Lignin mass fraction of dry biomass (0â€“1). Typical 0.20â€“0.30.</summary>
+        ''' <summary>Lignin mass fraction of dry biomass (0-1). Typical 0.20-0.30.</summary>
         Public Property LigninMassFrac As Double = 0.25
 
         ''' <summary>Enthalpy of pyrolysis per kg of dry biomass feed (J/kg), for reference.
@@ -318,7 +318,7 @@ Namespace Reactors
                     If Qneed <= 0.0 Then Exit Do
                     Dim ratio_closure = Qcomb_available / Qneed
                     If Abs(ratio_closure - 1.0) < tol Then Exit Do
-                    ' Adjust sand ratio: more sand â†’ higher duty delivered â†’ less needed per kg char
+                    ' Adjust sand ratio: more sand -> higher duty delivered -> less needed per kg char
                     ' Simpler: adjust sand ratio to reach required sand_dT for given char supply.
                     Dim dT_sand_target = Qcomb_available / (sandRatio * m_biomass * BedMaterialCp_JkgK)
                     If dT_sand_target > 200.0 Then dT_sand_target = 200.0
@@ -342,7 +342,7 @@ Namespace Reactors
             Dim mChar_out = m_biomass * traj.OutletYield_Char
             If SandMode = CFBSandMode.InternalCharCombustor Then
                 traj.InternalCharCombustor = True
-                ' Stoichiometric O2 for CH (approximation): char â‰ˆ CH0.5O0.2 â†’ 1.13 kg O2 / kg char
+                ' Stoichiometric O2 for CH (approximation): char ~ CH0.5O0.2 -> 1.13 kg O2 / kg char
                 Dim O2stoich_kg = mChar_out * 1.13
                 Dim airStoich = O2stoich_kg / 0.232      ' 23.2 wt% O2 in air
                 Dim airActual = airStoich * (1.0 + CharCombustorExcessAir)
@@ -468,7 +468,7 @@ Namespace Reactors
 
             ' Composition vector (mass fractions over reacting mixture: solid + vapors)
             Dim w = RanziKinetics.InitialComposition(wCell, wHemi, wLig)
-            Dim T = Max(T_in, 450.0)  ' Â°K, biomass preheats quickly in contact with sand
+            Dim T = Max(T_in, 450.0)  ' K, biomass preheats quickly in contact with sand
 
             Dim m_sand = sandRatio * m_biomass
             Dim T_sand = T_sand_in
@@ -524,11 +524,11 @@ Namespace Reactors
 
                     ' Energy balance for the sub-step (per kg of reacting mixture, rate W/kg)
                     ' Mixture gets heat from sand, loses heat to reactions
-                    ' Hot-sand â†’ mixture: dT_mix/dt = (m_sand*cpSand*(T_sand-T) * UA_frac - qRxn_abs) / (m_biomass*cpMix)
-                    ' Simplified: assume complete thermal contact per cell â†’ Î”T approach with approach=0.3
+                    ' Hot-sand to mixture: dT_mix/dt = (m_sand*cpSand*(T_sand-T) * UA_frac - qRxn_abs) / (m_biomass*cpMix)
+                    ' Simplified: assume complete thermal contact per cell -> delta T approach with approach=0.3
                     Dim Thermal_approach = 0.3   ' 30 % of driving force closed per cell
                     Dim dT_from_sand = (T_sand - T) * Thermal_approach / nSub
-                    ' Convert qRxn (W/kg of mixture) to Î”T per kg: divide by cp
+                    ' Convert qRxn (W/kg of mixture) to delta T per kg: divide by cp
                     Dim dT_from_rxn = qRxn_mid * h / cpMix
                     Dim dT = dT_from_sand + dT_from_rxn
                     T += dT
@@ -913,7 +913,7 @@ Namespace Reactors
                                                  End If
                                              End Sub)
 
-            container.CreateAndAddTextBoxRow(nf, "Bed Material Cp (J/kgÂ·K)", BedMaterialCp_JkgK,
+            container.CreateAndAddTextBoxRow(nf, "Bed Material Cp (J/kg.K)", BedMaterialCp_JkgK,
                                              Sub(tb, e)
                                                  If tb.Text.IsValidDoubleExpression() Then
                                                      BedMaterialCp_JkgK = tb.Text.ParseExpressionToDouble()
@@ -1117,10 +1117,10 @@ Namespace Reactors
             Dim regen As New SKRect(gx + 0.15F * w, gy + 0.30F * h, gx + 0.35F * w, gy + 0.88F * h)
             UnitOperations.BioOpsDrawHelper.DrawVerticalTank(canvas, regen, mono)
 
-            ' Sand transfer line: cyclone â†’ downcomer â†’ regen
+            ' Sand transfer line: cyclone to downcomer to regen
             UnitOperations.BioOpsDrawHelper.DrawPipe(canvas, New SKPoint(cyclone.Left + 2, gy + 0.18F * h),
                                                     New SKPoint(gx + 0.25F * w, gy + 0.30F * h), 0.02F * w, mono)
-            ' Hot-sand return line: regen top â†’ riser base
+            ' Hot-sand return line: regen top to riser base
             UnitOperations.BioOpsDrawHelper.DrawPipe(canvas, New SKPoint(gx + 0.35F * w, gy + 0.35F * h),
                                                     New SKPoint(gx + 0.58F * w, gy + 0.85F * h), 0.02F * w, mono)
 
