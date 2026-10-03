@@ -59,7 +59,9 @@ Namespace Reactors
         Dim Rxi As New Dictionary(Of String, Double)
         ''' <summary>
         ''' Overall rate of each reaction in the last calculation, keyed by reaction ID and reported as the reaction extent.
-        ''' For kinetic reactions it is the rate times the volume of the reacting phase over the base compound stoichiometric coefficient, in mol/s.
+        ''' It is the rate times the volume of the reacting phase (kinetic reactions) or times the catalyst amount
+        ''' (heterogeneous catalytic reactions), over the base compound stoichiometric coefficient, in mol/s.
+        ''' Rates from a Python script follow the same rule.
         ''' </summary>
         Public RxiT As New Dictionary(Of String, Double)
         ''' <summary>Heat of each reaction in the last calculation, keyed by reaction ID, in kW.</summary>
@@ -159,10 +161,20 @@ Namespace Reactors
         ''' <summary>Gets or sets the mass of catalyst loaded in the reactor (kg).</summary>
         Public Property CatalystAmount As Double = 0.0#
 
+        ''' <summary>
+        ''' Gets or sets whether a Mixture-phase reaction in a CSTR with a single outlet reacts in Volume + Headspace.
+        ''' When False (new reactors) it reacts in Volume, the same space as the liquid and vapour reactions with one outlet.
+        ''' Reactors saved before this setting existed load with True, as they ran then. With two outlets the
+        ''' reacting volume of a Mixture reaction is always Volume + Headspace.
+        ''' </summary>
+        Public Property MixtureUsesHeadspaceInSingleOutlet As Boolean = True
+
         ''' <summary>Initializes a new default instance of the <see cref="Reactor_CSTR"/> class.</summary>
         Public Sub New()
 
             MyBase.New()
+
+            MixtureUsesHeadspaceInSingleOutlet = False
 
         End Sub
 
@@ -176,6 +188,8 @@ Namespace Reactors
             MyBase.New()
             Me.ComponentName = name
             Me.ComponentDescription = description
+
+            MixtureUsesHeadspaceInSingleOutlet = False
 
             N00 = New Dictionary(Of String, Double)
             N0 = New Dictionary(Of String, Double)
@@ -199,6 +213,20 @@ Namespace Reactors
         ''' <summary>Creates a deep copy of this reactor via JSON serialization.</summary>
         Public Overrides Function CloneJSON() As Object
             Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of Reactor_CSTR)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
+        End Function
+
+        ''' <summary>Restores the reactor state from XML.</summary>
+        ''' <param name="data">List of XML elements containing the serialized state.</param>
+        ''' <returns><c>True</c> if the data was loaded successfully.</returns>
+        Public Overrides Function LoadData(data As System.Collections.Generic.List(Of System.Xml.Linq.XElement)) As Boolean
+
+            MyBase.LoadData(data)
+
+            'saved before the setting existed: a Mixture reaction with one outlet reacted in Volume + Headspace, as it ran then
+            If Not data.Any(Function(x) x.Name = "MixtureUsesHeadspaceInSingleOutlet") Then MixtureUsesHeadspaceInSingleOutlet = True
+
+            Return True
+
         End Function
 
         ''' <summary>Registers the dynamic properties for dynamic simulation mode.</summary>
@@ -580,10 +608,17 @@ Namespace Reactors
                     End If
 
                     'Check if reaction has a volume 
+                    Dim twoOutlets As Boolean = Me.GraphicObject.OutputConnectors(1).IsAttached
                     If (rxn.ReactionPhase = PhaseName.Liquid And Volume <= 0) Then
                         ErrCode = "No reactor volume defined"
-                    ElseIf (rxn.ReactionPhase = PhaseName.Vapor And Headspace <= 0) Then
+                    ElseIf (rxn.ReactionPhase = PhaseName.Vapor And Headspace <= 0 And twoOutlets) Then
+                        'the headspace is the vapour volume only with two outlets; with one outlet the vapour reacts in Volume
                         ErrCode = "No reactor headspace defined"
+                    ElseIf (rxn.ReactionPhase = PhaseName.Vapor And Volume <= 0 And Not twoOutlets) Then
+                        ErrCode = "No reactor volume defined"
+                    ElseIf (rxn.ReactionPhase = PhaseName.Mixture And Volume <= 0 And Not twoOutlets And Not MixtureUsesHeadspaceInSingleOutlet) Then
+                        'one outlet: mixture reactions use Volume only
+                        ErrCode = "No reactor volume defined"
                     ElseIf (rxn.ReactionPhase = PhaseName.Mixture And Volume + Headspace <= 0) Then
                         ErrCode = "No reactor volume and headspace defined"
                     Else
@@ -619,6 +654,16 @@ Namespace Reactors
             End If
 
             dT = ResidenceTimeL / 10 'initial time step
+
+            If dT <= 0.0 Then
+                'no liquid or solid in the feed: start from the residence time of the vapour (the whole volume
+                'with one outlet, the headspace with two); a zero step would leave the composition unchanged
+                If ReactorMode = EReactorMode.SingleOutlet Then
+                    If Q > 0.0 Then dT = Volume / Q / 10
+                Else
+                    dT = ResidenceTimeV / 10
+                End If
+            End If
 
             If dynamics Then
                 Dim integratorID = FlowSheet.DynamicsManager.ScheduleList(FlowSheet.DynamicsManager.CurrentSchedule).CurrentIntegrator
@@ -800,7 +845,11 @@ Namespace Reactors
 
                         Case ReactionPhase.Mixture
 
-                            Qr = Me.Volume + Me.Headspace
+                            If ReactorMode = EReactorMode.SingleOutlet And Not MixtureUsesHeadspaceInSingleOutlet Then
+                                Qr = Me.Volume 'one outlet: the headspace is not a separate volume
+                            Else
+                                Qr = Me.Volume + Me.Headspace
+                            End If
 
                             For Each comp As Compound In ims.Phases(0).Compounds.Values
                                 C.Add(comp.Name, comp.MolarFlow / Q) 'C: mol/mï¿½
@@ -938,7 +987,8 @@ Namespace Reactors
                             End If
 
                             Rxi(rxn.ID) = Rx
-                            RxiT.Add(rxn.ID, Rxi(rxn.ID))
+                            'RxiT: mol/s
+                            RxiT.Add(rxn.ID, Rxi(rxn.ID) / scBC * CatalystAmount)
 
                         End If
 
@@ -972,7 +1022,12 @@ Namespace Reactors
                         Rx = SystemsOfUnits.Converter.ConvertToSI(rxn.VelUnit, r)
 
                         Rxi(rxn.ID) = Rx
-                        RxiT.Add(rxn.ID, Rxi(rxn.ID))
+                        'RxiT: mol/s, with the same volume or catalyst amount as Ri below
+                        If rxn.ReactionType = ReactionType.Kinetic Then
+                            RxiT.Add(rxn.ID, Rxi(rxn.ID) / scBC * Qr)
+                        Else
+                            RxiT.Add(rxn.ID, Rxi(rxn.ID) / scBC * CatalystAmount)
+                        End If
 
                     End If
 
@@ -990,10 +1045,11 @@ Namespace Reactors
 
                     'calculate heat of reaction
                     'Reaction Heat released (or absorbed) (kJ/s = kW) (Ideal Gas)
+                    'ReactionHeat is per kmol of base compound and RxiT is per mol of reaction (base compound / scBC)
                     'kW (kJ/s) = kJ/kmol * mol/s * 0.001 mol/kmol
-                    Hr = rxn.ReactionHeat * RxiT(rxn.ID) * 0.001 '/ scBC
+                    Hr = rxn.ReactionHeat * RxiT(rxn.ID) * scBC * 0.001
                     DHRi.Add(rxn.ID, Hr)
-                    DHr += Hr 'Total Heat released 
+                    DHr += Hr 'Total Heat released, per reactor (kW)
 
                 Next
 
@@ -1062,8 +1118,11 @@ Namespace Reactors
                     'If MaxChange < 0.3 Then
                     '    dT *= 1.2
                     'End If
-                    If dT > 0.2 * ResidenceTimeL Then
-                        dT = 0.2 * ResidenceTimeL
+                    'two outlets and no liquid or solid left: the vapour residence time limits the step
+                    Dim tauStep As Double = ResidenceTimeL
+                    If tauStep <= 0.0 Then tauStep = ResidenceTimeV
+                    If dT > 0.2 * tauStep Then
+                        dT = 0.2 * tauStep
                     End If
 
                 End If
@@ -1574,6 +1633,8 @@ out:        Dim ms1, ms2 As MaterialStream
                 Else
 
                     Select Case prop
+                        Case "Mixture Reactions Use Headspace"
+                            Return MixtureUsesHeadspaceInSingleOutlet
                         Case "Calculation Mode"
                             Select Case ReactorOperationMode
                                 Case OperationMode.Adiabatic
@@ -1641,14 +1702,17 @@ out:        Dim ms1, ms2 As MaterialStream
                     For i = 0 To 32
                         proplist.Add("PROP_CS_" + CStr(i))
                     Next
+                    proplist.Add("Mixture Reactions Use Headspace")
                 Case PropertyType.WR
                     For i = 0 To 32
                         proplist.Add("PROP_CS_" + CStr(i))
                     Next
+                    proplist.Add("Mixture Reactions Use Headspace")
                 Case PropertyType.ALL, PropertyType.RO
                     For i = 0 To 32
                         proplist.Add("PROP_CS_" + CStr(i))
                     Next
+                    proplist.Add("Mixture Reactions Use Headspace")
                     proplist.Add("Calculation Mode")
                     For Each item In ComponentConversions
                         proplist.Add(item.Key + ": Conversion")
@@ -1671,6 +1735,10 @@ out:        Dim ms1, ms2 As MaterialStream
         Public Overrides Function SetPropertyValue(ByVal prop As String, ByVal propval As Object, Optional ByVal su As Interfaces.IUnitsOfMeasure = Nothing) As Boolean
 
             If MyBase.SetPropertyValue(prop, propval, su) Then Return True
+            If prop = "Mixture Reactions Use Headspace" Then
+                MixtureUsesHeadspaceInSingleOutlet = Convert.ToBoolean(propval)
+                Return True
+            End If
             If Not prop.StartsWith("PROP_") Then Return SetNamedPropertyValue(prop, propval)
 
             If su Is Nothing Then su = New SystemsOfUnits.SI
@@ -1811,7 +1879,7 @@ out:        Dim ms1, ms2 As MaterialStream
                 Else
 
                     Select Case prop
-                        Case "Calculation Mode"
+                        Case "Calculation Mode", "Mixture Reactions Use Headspace"
                             Return ""
                         Case Else
                             If prop.Contains("Conversion") Then value = "%"
@@ -2033,6 +2101,8 @@ out:        Dim ms1, ms2 As MaterialStream
                 Return "Define the active volume of this reactor."
             ElseIf p.Equals("Catalyst Amount") Then
                 Return "Enter the amount of catalyst in the reactor (for HetCat reactions only)."
+            ElseIf p.Equals("Mixture Reactions Use Headspace") Then
+                Return "With a single outlet, mixture-phase reactions take place in the reactor volume plus the headspace when True, or in the reactor volume only when False. New reactors use False; files saved before this option keep True."
             Else
                 Return p
             End If

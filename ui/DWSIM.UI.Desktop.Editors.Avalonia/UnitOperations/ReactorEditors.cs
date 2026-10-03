@@ -200,6 +200,9 @@ namespace DWSIM.UI.Desktop.Editors
                         reactor.Volume, v => reactor.Volume = v);
                     general.CreateAndAddValueUnitRow(reactor, "Reactor Headspace", UnitOfMeasure.volume,
                         reactor.Headspace, v => reactor.Headspace = v);
+                    general.CreateAndAddCheckBoxRow("Mixture Reactions Use Headspace (Single Outlet)",
+                        reactor.MixtureUsesHeadspaceInSingleOutlet,
+                        (cb, e) => reactor.MixtureUsesHeadspaceInSingleOutlet = cb.IsChecked.GetValueOrDefault());
                     general.CreateAndAddValueUnitRow(reactor, "Reactor Pressure Drop", UnitOfMeasure.deltaP,
                         reactor.DeltaP.GetValueOrDefault(), v => reactor.DeltaP = v);
                     general.CreateAndAddValueUnitRow(reactor, "Reactor Diameter", UnitOfMeasure.diameter,

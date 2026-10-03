@@ -744,6 +744,9 @@ namespace DWSIM.UI.Desktop.Editors
                     panel.CreateAndAddTextBoxRow(nf, "Headspace Volume (" + su.volume + ")",
                         cv.ConvertFromSI(su.volume, cstr.Headspace),
                         (tb, e) => { if (TryVal(tb.Text, out var v)) cstr.Headspace = cv.ConvertToSI(su.volume, v); });
+                    panel.CreateAndAddCheckBoxRow("Mixture Reactions Use Headspace (Single Outlet)",
+                        cstr.MixtureUsesHeadspaceInSingleOutlet,
+                        (cb, e) => cstr.MixtureUsesHeadspaceInSingleOutlet = cb.IsChecked.GetValueOrDefault());
                     panel.CreateAndAddTextBoxRow(nf, "Catalyst Amount (" + su.mass + ")",
                         cv.ConvertFromSI(su.mass, cstr.CatalystAmount),
                         (tb, e) => { if (TryVal(tb.Text, out var v)) cstr.CatalystAmount = cv.ConvertToSI(su.mass, v); });
