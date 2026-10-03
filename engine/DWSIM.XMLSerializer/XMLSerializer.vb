@@ -363,9 +363,9 @@ Public Class XMLSerializer
                             ElseIf TypeOf obj.GetType.GetProperty(prop.Name).GetValue(obj, Nothing) Is ArrayList Then
                                 .Add(New XElement(prop.Name, ArrayToString(obj.GetType.GetProperty(prop.Name).GetValue(obj, Nothing), ci)))
                             ElseIf TypeOf obj.GetType.GetProperty(prop.Name).GetValue(obj, Nothing) Is Single Then
-                                .Add(New XElement(prop.Name, Single.Parse(CStr(obj.GetType.GetProperty(prop.Name).GetValue(obj, Nothing))).ToString("R", ci)))
+                                .Add(New XElement(prop.Name, DirectCast(obj.GetType.GetProperty(prop.Name).GetValue(obj, Nothing), Single).ToString("R", ci)))
                             ElseIf TypeOf obj.GetType.GetProperty(prop.Name).GetValue(obj, Nothing) Is Double Then
-                                .Add(New XElement(prop.Name, Double.Parse(CStr(obj.GetType.GetProperty(prop.Name).GetValue(obj, Nothing))).ToString("R", ci)))
+                                .Add(New XElement(prop.Name, DirectCast(obj.GetType.GetProperty(prop.Name).GetValue(obj, Nothing), Double).ToString("R", ci)))
                             ElseIf TypeOf obj.GetType.GetProperty(prop.Name).GetValue(obj, Nothing) Is Nullable(Of Double) Then
                                 .Add(New XElement(prop.Name, DirectCast(obj.GetType.GetProperty(prop.Name).GetValue(obj, Nothing), Nullable(Of Double)).GetValueOrDefault.ToString("R", ci)))
                             ElseIf TypeOf obj.GetType.GetProperty(prop.Name).GetValue(obj, Nothing) Is Nullable(Of Single) Then
@@ -403,7 +403,7 @@ Public Class XMLSerializer
                                 Try
                                     Dim inner_elements As New List(Of XElement)
                                     For Each item In DirectCast(obj.GetType.GetProperty(prop.Name).GetValue(obj, Nothing), List(Of Double))
-                                        inner_elements.Add(New XElement("Item", item.ToString(ci)))
+                                        inner_elements.Add(New XElement("Item", item.ToString("R", ci)))
                                     Next
                                     .Add(New XElement(prop.Name, inner_elements))
                                 Catch ex As Exception
@@ -412,7 +412,7 @@ Public Class XMLSerializer
                                 Try
                                     Dim inner_elements As New List(Of XElement)
                                     For Each item In DirectCast(obj.GetType.GetProperty(prop.Name).GetValue(obj, Nothing), List(Of Single))
-                                        inner_elements.Add(New XElement("Item", item.ToString(ci)))
+                                        inner_elements.Add(New XElement("Item", item.ToString("R", ci)))
                                     Next
                                     .Add(New XElement(prop.Name, inner_elements))
                                 Catch ex As Exception
@@ -430,7 +430,7 @@ Public Class XMLSerializer
                                 Try
                                     Dim inner_elements As New List(Of XElement)
                                     For Each item In DirectCast(obj.GetType.GetProperty(prop.Name).GetValue(obj, Nothing), Dictionary(Of String, Double))
-                                        inner_elements.Add(New XElement("Item", New XAttribute("Key", item.Key), New XAttribute("Value", item.Value.ToString(ci))))
+                                        inner_elements.Add(New XElement("Item", New XAttribute("Key", item.Key), New XAttribute("Value", item.Value.ToString("R", ci))))
                                     Next
                                     .Add(New XElement(prop.Name, inner_elements))
                                 Catch ex As Exception
@@ -500,7 +500,7 @@ Public Class XMLSerializer
 
             For Each obj As Object In sourcearray
                 If TypeOf obj Is Double Then
-                    sb += Double.Parse(CStr(obj)).ToString("R", ci) + ","
+                    sb += DirectCast(obj, Double).ToString("R", ci) + ","
                 Else
                     sb += obj.ToString + ","
                 End If
@@ -523,7 +523,7 @@ Public Class XMLSerializer
 
                 For Each obj As Object In sourcearray
                     If TypeOf obj Is Double Then
-                        sb += Double.Parse(CStr(obj)).ToString("R", ci) + ","
+                        sb += DirectCast(obj, Double).ToString("R", ci) + ","
                     Else
                         sb += obj.ToString + ","
                     End If
