@@ -355,18 +355,32 @@ namespace DWSIM.UI.Desktop.Editors
                         upgrader.GetFlowsheet().UpdateOpenEditForms();
                     });
 
+                    // Target solves the CO2 removal for the purity; the editor is rebuilt so the rows say which one applies
+                    var target = upgrader.PurityMode == UOps.BiogasUpgraderPurityMode.Target;
+
+                    BioRows.Section(panel, "Methane Purity");
+
+                    BioRows.Choice(panel, "Purity Mode", () => upgrader.PurityMode, v =>
+                    {
+                        upgrader.PurityMode = v;
+                        upgrader.GetFlowsheet().UpdateOpenEditForms();
+                    });
+                    BioRows.Number(panel, upgrader,
+                        target ? "Target CH4 Purity (mole fraction)" : "Target CH4 Purity (mole fraction, reference only)",
+                        upgrader.TargetCH4Purity, v => upgrader.TargetCH4Purity = v);
+
                     BioRows.Section(panel, "Removal Efficiencies (0-1)");
 
                     BioRows.Number(panel, upgrader, "H2S Removal",
                         upgrader.H2SRemovalEfficiency, v => upgrader.H2SRemovalEfficiency = v);
-                    BioRows.Number(panel, upgrader, "CO2 Removal",
+                    BioRows.Number(panel, upgrader, target ? "CO2 Removal (not used: solved for the target)" : "CO2 Removal",
                         upgrader.CO2RemovalEfficiency, v => upgrader.CO2RemovalEfficiency = v);
                     BioRows.Number(panel, upgrader, "CH4 Loss (to offgas)",
                         upgrader.CH4LossFraction, v => upgrader.CH4LossFraction = v);
                     BioRows.Number(panel, upgrader, "H2O Removal",
                         upgrader.H2ORemovalEfficiency, v => upgrader.H2ORemovalEfficiency = v);
-                    BioRows.Number(panel, upgrader, "Target CH4 Purity (reporting)",
-                        upgrader.TargetCH4Purity, v => upgrader.TargetCH4Purity = v);
+                    BioRows.Number(panel, upgrader, "N2 Removal (needs the N2 Compound)",
+                        upgrader.N2RemovalFraction, v => upgrader.N2RemovalFraction = v);
 
                     BioRows.Section(panel, "Compound Roles");
 
@@ -389,8 +403,16 @@ namespace DWSIM.UI.Desktop.Editors
                     panel.CreateAndAddResultRow(upgrader, "Off-gas", UnitOfMeasure.massflow, upgrader.Result_OffgasMass_kgs);
 
                     BioRows.Section(panel, "Quality");
-                    BioRows.Result(panel, upgrader, "Upgraded CH4 mass fraction", upgrader.Result_UpgradedCH4Fraction * 100.0, "%");
+                    BioRows.Result(panel, upgrader, "Upgraded CH4 (mole basis)", upgrader.Result_UpgradedCH4MoleFraction * 100.0, "mol %");
+                    BioRows.Result(panel, upgrader, "Upgraded CH4 (mass basis)", upgrader.Result_UpgradedCH4Fraction * 100.0, "mass %");
+                    BioRows.Result(panel, upgrader, "Highest CH4 reachable (all CO2 removed)", upgrader.Result_MaxCH4MoleFraction * 100.0, "mol %");
+                    BioRows.Result(panel, upgrader, "CO2 removal applied", upgrader.Result_CO2RemovalApplied * 100.0, "%");
                     BioRows.Result(panel, upgrader, "CH4 recovery", upgrader.Result_CH4RecoveryFraction * 100.0, "%");
+
+                    BioRows.Section(panel, "Gas Quality (ISO 6976 ideal gas, combustion 25 °C, metering 0 °C)");
+                    BioRows.Result(panel, upgrader, "Higher heating value", upgrader.Result_HHV_MJm3, "MJ/m3");
+                    BioRows.Result(panel, upgrader, "Relative density (air = 1)", upgrader.Result_RelativeDensity, "");
+                    BioRows.Result(panel, upgrader, "Wobbe index (gross)", upgrader.Result_WobbeIndex, "MJ/m3");
                 });
         }
 
