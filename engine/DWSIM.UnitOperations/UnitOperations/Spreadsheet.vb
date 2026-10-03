@@ -17,9 +17,12 @@
 '    along with DWSIM.  If not, see <http://www.gnu.org/licenses/>.
 
 
+#If Not NETCOREAPP Then
 Imports Excel = NetOffice.ExcelApi
 Imports NetOffice.ExcelApi.Enums
 Imports GS = GemBox.Spreadsheet
+#End If
+Imports XL = OfficeOpenXml
 Imports DWSIM.Thermodynamics
 Imports DWSIM.Thermodynamics.Streams
 Imports DWSIM.SharedClasses
@@ -44,6 +47,18 @@ Namespace UnitOperations.Auxiliary
         Public Annotation As String = ""
     End Class
 
+    ''' <summary>
+    ''' Selects what recalculates the workbook of the <see cref="UnitOperations.ExcelUO"/>.
+    ''' </summary>
+    Public Enum SpreadsheetCalculationEngine
+        ''' <summary>Microsoft Excel when it is installed, the internal engine otherwise.</summary>
+        Automatic = 0
+        ''' <summary>Always Microsoft Excel, through COM automation (Windows only).</summary>
+        Excel = 1
+        ''' <summary>Always the internal engine (EPPlus), which reads .xlsx and .xlsm workbooks.</summary>
+        Internal = 2
+    End Enum
+
 End Namespace
 
 Namespace UnitOperations
@@ -66,6 +81,8 @@ Namespace UnitOperations
         ''' <summary>Gets a value indicating whether this unit operation supports dynamic simulation mode.</summary>
         Public Overrides ReadOnly Property SupportsDynamicMode As Boolean = True
 
+#If Not NETCOREAPP Then
+
         Private Declare Function GetWindowThreadProcessId Lib "user32.dll" (ByVal hWnd As Integer, ByRef lpdwProcessId As Integer) As Integer
 
         Private Function GetExcelProcess(ByVal excelApp As Object) As Process
@@ -83,6 +100,8 @@ Namespace UnitOperations
             Catch ex As System.Runtime.InteropServices.InvalidComObjectException
             End Try
         End Sub
+
+#End If
 
 
 
@@ -130,6 +149,12 @@ Namespace UnitOperations
                 m_FileName = value
             End Set
         End Property
+
+        ''' <summary>
+        ''' Gets or sets what recalculates the workbook. Automatic (the default) uses Excel when it
+        ''' is installed and the internal engine otherwise.
+        ''' </summary>
+        Public Property CalculationEngine As SpreadsheetCalculationEngine = SpreadsheetCalculationEngine.Automatic
 
         ''' <summary>
         ''' Initializes a new instance of the <see cref="ExcelUO"/> class with a name and description.
@@ -202,11 +227,7 @@ Namespace UnitOperations
 
             IObj?.SetCurrent()
 
-            Dim k, ci, co As Integer
-
             Dim su = FlowSheet.FlowsheetOptions.SelectedUnitSystem
-
-            Dim excelType As Type = Nothing
 
             If Not FileIsEmbedded Then
 
@@ -231,9 +252,26 @@ Namespace UnitOperations
 
             End If
 
+            Dim reason As String = ""
+            Dim engine = SelectEngine(reason)
+
+            If engine = EngineChoice.Unavailable Then Throw New Exception(reason)
+
+            If engine = EngineChoice.Internal Then
+                CalculateWithInternalEngine()
+                IObj?.Close()
+                Return
+            End If
+
+#If Not NETCOREAPP Then
+
+            Dim k, ci, co As Integer
+
+            Dim excelType As Type = Nothing
+
             If Not Calculator.IsRunningOnMono Then excelType = Type.GetTypeFromProgID("Excel.Application")
 
-            If Not Calculator.IsRunningOnMono And Not excelType Is Nothing Then
+            If engine = EngineChoice.ExcelCom And Not excelType Is Nothing Then
 
                 Dim excelProxy As Object = Activator.CreateInstance(excelType)
 
@@ -538,10 +576,6 @@ Namespace UnitOperations
                 Dim mysheetOut As GS.ExcelWorksheet = xcl.Worksheets("Output")
                 '=====================================================================================================
 
-                If Not Me.GraphicObject.InputConnectors(4).IsAttached Then 'Check if Energy stream existing
-                    Throw New Exception(FlowSheet.GetTranslatedString("NohcorrentedeEnergyFlow1"))
-                End If
-
                 'check if at least one input and output connection is available
                 For k = 0 To 3
                     If GraphicObject.InputConnectors(k).IsAttached Then ci += 1
@@ -552,7 +586,10 @@ Namespace UnitOperations
                 End If
 
                 Dim Ti, Pi, Hi, Wi, T2, P2, H2, Hin, Hout, Win, Wout, MassBal As Double
-                Dim es As Streams.EnergyStream = FlowSheet.SimulationObjects(Me.GraphicObject.InputConnectors(4).AttachedConnector.AttachedFrom.Name)
+                Dim es As Streams.EnergyStream = Nothing
+                If GetInletEnergyStream(4) IsNot Nothing Then
+                    es = FlowSheet.SimulationObjects(Me.GraphicObject.InputConnectors(4).AttachedConnector.AttachedFrom.Name)
+                End If
                 Dim ParName As String
                 Dim i As Integer
 
@@ -719,7 +756,25 @@ Namespace UnitOperations
 
                 '======= caclculate output stream data ====================================================
 
-                Me.DeltaQ = Hout - Hin
+                Dim hfin, hfout As Double
+
+                k = 0
+                For Each ic In GraphicObject.InputConnectors
+                    If ic.IsAttached And ic.Type = GraphicObjects.ConType.ConIn Then
+                        hfin += GetInletMaterialStream(k).GetOverallHeatOfFormation()
+                    End If
+                    k += 1
+                Next
+
+                k = 0
+                For Each oc In GraphicObject.OutputConnectors
+                    If oc.IsAttached Then
+                        hfout += GetOutletMaterialStream(k).GetOverallHeatOfFormation()
+                    End If
+                    k += 1
+                Next
+
+                Me.DeltaQ = Hout - Hin + hfout - hfin
 
                 'energy stream - update energy flow value (kW)
                 If es IsNot Nothing Then
@@ -760,6 +815,8 @@ Namespace UnitOperations
                 End If
 
             End If
+
+#End If
 
             IObj?.Close()
 
@@ -822,11 +879,32 @@ Namespace UnitOperations
 
                 End If
 
+                Dim reason As String = ""
+                Dim engine = SelectEngine(reason)
+
+                If engine = EngineChoice.Unavailable Then Exit Sub
+
+                If engine = EngineChoice.Internal Then
+                    Using pk = OpenInternalWorkbook()
+                        'a workbook written by a library carries no cached results, so recalculate before reading
+                        Try
+                            ExpandExponentLiterals(pk)
+                            XL.CalculationExtension.Calculate(pk.Workbook)
+                        Catch ex As Exception
+                        End Try
+                        ReadInternalParameters(pk)
+                    End Using
+                    ParamsLoaded = True
+                    Exit Sub
+                End If
+
+#If Not NETCOREAPP Then
+
                 Dim excelType As Type = Nothing
 
                 If Not Calculator.IsRunningOnMono Then excelType = Type.GetTypeFromProgID("Excel.Application")
 
-                If Not Calculator.IsRunningOnMono And Not excelType Is Nothing Then
+                If engine = EngineChoice.ExcelCom And Not excelType Is Nothing Then
 
                     Dim excelProxy As Object = Activator.CreateInstance(excelType)
 
@@ -975,12 +1053,16 @@ Namespace UnitOperations
                     Do
                         Dim ExlPar As New ExcelParameter
 
-                        ParName = mysheetOut.Cells(5 + i, 7).Value
+                        ParName = mysheetOut.Cells(4 + i, 6).Value
                         If ParName <> "" Then
                             ExlPar.Name = ParName
-                            ExlPar.Value = mysheetIn.Cells(4 + i, 7).Value
-                            ExlPar.Unit = mysheetIn.Cells(4 + i, 8).Value
-                            ExlPar.Annotation = mysheetIn.Cells(4 + i, 9).Value
+                            Try
+                                ExlPar.Value = mysheetOut.Cells(4 + i, 7).Value
+                            Catch ex As Exception
+                                ExlPar.Value = Nothing
+                            End Try
+                            ExlPar.Unit = mysheetOut.Cells(4 + i, 8).Value
+                            ExlPar.Annotation = mysheetOut.Cells(4 + i, 9).Value
                             OutputParams.Add(ExlPar.Name, ExlPar)
 
                             i += 1
@@ -998,9 +1080,386 @@ Namespace UnitOperations
 
                 End If
 
+#End If
+
             End If
 
         End Sub
+
+        Private Enum EngineChoice
+            ExcelCom
+            Internal
+            GemBoxRoundTrip
+            Unavailable
+        End Enum
+
+        ''' <summary>
+        ''' Picks the engine for the current settings and workbook format. Automatic keeps the
+        ''' Excel path whenever Excel is installed, so existing flowsheets behave as before.
+        ''' </summary>
+        Private Function SelectEngine(ByRef reason As String) As EngineChoice
+
+            Dim workbook = If(FileIsEmbedded, EmbeddedFileName, Filename)
+            Dim ext = Path.GetExtension(If(workbook, "")).ToLowerInvariant()
+            Dim openXml = (ext = ".xlsx" Or ext = ".xlsm")
+            Dim formatReason = "The internal spreadsheet engine reads only .xlsx and .xlsm workbooks (" & Path.GetFileName(workbook) & ")."
+
+#If NETCOREAPP Then
+            Dim excelInstalled = False
+#Else
+            Dim excelInstalled = Not Calculator.IsRunningOnMono AndAlso Type.GetTypeFromProgID("Excel.Application") IsNot Nothing
+#End If
+
+            Select Case CalculationEngine
+                Case SpreadsheetCalculationEngine.Excel
+                    If excelInstalled Then Return EngineChoice.ExcelCom
+                    reason = "The calculation engine is set to Excel, and Excel is not available. Set it to Automatic or Internal."
+                    Return EngineChoice.Unavailable
+                Case SpreadsheetCalculationEngine.Internal
+                    If openXml Then Return EngineChoice.Internal
+                    reason = formatReason
+                    Return EngineChoice.Unavailable
+                Case Else
+                    If excelInstalled Then Return EngineChoice.ExcelCom
+                    If openXml Then Return EngineChoice.Internal
+#If NETCOREAPP Then
+                    reason = formatReason
+                    Return EngineChoice.Unavailable
+#Else
+                    Return EngineChoice.GemBoxRoundTrip
+#End If
+            End Select
+
+        End Function
+
+        Private Function OpenInternalWorkbook() As XL.ExcelPackage
+
+            If FileIsEmbedded Then
+                Using ms = FlowSheet.FileDatabaseProvider.GetFileStream(EmbeddedFileName)
+                    ms.Position = 0
+                    Return New XL.ExcelPackage(ms)
+                End Using
+            Else
+                Using fs As New FileStream(Filename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite)
+                    Return New XL.ExcelPackage(fs)
+                End Using
+            End If
+
+        End Function
+
+        Private Shared Function CellText(ws As XL.ExcelWorksheet, row As Integer, col As Integer) As String
+            Return Convert.ToString(ws.Cells(row, col).Value, Globalization.CultureInfo.InvariantCulture)
+        End Function
+
+        ''' <summary>
+        ''' Reads a cell as a number. Empty cells read as zero, as they do through Excel. Error values
+        ''' and text that is not a number return False.
+        ''' </summary>
+        Private Shared Function TryCellNumber(ws As XL.ExcelWorksheet, row As Integer, col As Integer, ByRef value As Double) As Boolean
+            Dim v = ws.Cells(row, col).Value
+            value = 0.0
+            If v Is Nothing Then Return True
+            If TypeOf v Is XL.ExcelErrorValue Then
+                value = Double.NaN
+                Return False
+            End If
+            If TypeOf v Is String Then
+                Dim s = DirectCast(v, String).Trim()
+                If s = "" Then Return True
+                If Double.TryParse(s, Globalization.NumberStyles.Float, Globalization.CultureInfo.InvariantCulture, value) Then Return True
+                value = Double.NaN
+                Return False
+            End If
+            If TypeOf v Is Boolean Then
+                value = If(DirectCast(v, Boolean), 1.0, 0.0)
+                Return True
+            End If
+            value = Convert.ToDouble(v, Globalization.CultureInfo.InvariantCulture)
+            Return True
+        End Function
+
+        Private Function CellNumberOrThrow(ws As XL.ExcelWorksheet, row As Integer, col As Integer) As Double
+            Dim value As Double
+            If Not TryCellNumber(ws, row, col, value) Then
+                Dim c = ws.Cells(row, col)
+                Throw New Exception(ws.Name & "!" & c.Address & If(c.Formula <> "", " (=" & c.Formula & ")", "") &
+                                    " evaluated to '" & Convert.ToString(c.Value, Globalization.CultureInfo.InvariantCulture) &
+                                    "' in the internal spreadsheet engine. The formula may use a function the internal engine does not implement; use Excel or rewrite the formula.")
+            End If
+            Return value
+        End Function
+
+        Private Function ReadInternalParameterList(ws As XL.ExcelWorksheet, failed As List(Of String)) As Dictionary(Of String, ExcelParameter)
+            Dim list As New Dictionary(Of String, ExcelParameter)
+            Dim k As Integer = 0
+            Do
+                Dim parName = CellText(ws, 5 + k, 7)
+                If parName = "" Then Exit Do
+                Dim par As New ExcelParameter With {.Name = parName}
+                If Not TryCellNumber(ws, 5 + k, 8, par.Value) Then failed?.Add(ws.Name & "!H" & (5 + k).ToString() & " (" & parName & ")")
+                par.Unit = CellText(ws, 5 + k, 9)
+                par.Annotation = CellText(ws, 5 + k, 10)
+                list.Add(par.Name, par)
+                k += 1
+            Loop
+            Return list
+        End Function
+
+        Private Sub ReadInternalParameters(pk As XL.ExcelPackage, Optional failed As List(Of String) = Nothing)
+            InputParams = ReadInternalParameterList(pk.Workbook.Worksheets("Input"), failed)
+            OutputParams = ReadInternalParameterList(pk.Workbook.Worksheets("Output"), failed)
+        End Sub
+
+        ''' <summary>
+        ''' Excel keeps a number typed in a formula with an exponent (1.380649E-23) in that form, and the
+        ''' EPPlus parser does not read exponents. Rewrites those literals as plain decimals.
+        ''' </summary>
+        Private Shared Sub ExpandExponentLiterals(pk As XL.ExcelPackage)
+            For Each ws In pk.Workbook.Worksheets
+                If ws.Dimension Is Nothing Then Continue For
+                Dim changes As New List(Of Tuple(Of String, String))
+                For Each c In ws.Cells(ws.Dimension.Address)
+                    Dim f = c.Formula
+                    If f <> "" AndAlso (f.Contains("E") Or f.Contains("e")) Then
+                        Dim nf = ExpandExponentLiterals(f)
+                        If nf <> f Then changes.Add(Tuple.Create(c.Address, nf))
+                    End If
+                Next
+                For Each change In changes
+                    ws.Cells(change.Item1).Formula = change.Item2
+                Next
+            Next
+        End Sub
+
+        Private Shared ReadOnly ExponentLiteral As New Text.RegularExpressions.Regex("(?<![A-Za-z0-9_.$!:])(\d+\.?\d*|\.\d+)[eE]([+-]?\d+)(?![A-Za-z0-9_(.])")
+
+        Friend Shared Function ExpandExponentLiterals(formula As String) As String
+            'leave text inside double quotes (strings) and single quotes (sheet names) alone
+            Dim sb As New Text.StringBuilder
+            Dim seg As New Text.StringBuilder
+            Dim quote As Char = Nothing
+            For Each ch In formula
+                If quote <> Nothing Then
+                    sb.Append(ch)
+                    If ch = quote Then quote = Nothing
+                ElseIf ch = """"c Or ch = "'"c Then
+                    sb.Append(ExponentLiteral.Replace(seg.ToString(), AddressOf ExpandExponentMatch))
+                    seg.Clear()
+                    sb.Append(ch)
+                    quote = ch
+                Else
+                    seg.Append(ch)
+                End If
+            Next
+            sb.Append(ExponentLiteral.Replace(seg.ToString(), AddressOf ExpandExponentMatch))
+            Return sb.ToString()
+        End Function
+
+        Private Shared Function ExpandExponentMatch(m As Text.RegularExpressions.Match) As String
+            Dim mantissa = m.Groups(1).Value
+            Dim exponent = Integer.Parse(m.Groups(2).Value, Globalization.CultureInfo.InvariantCulture)
+            Dim dot = mantissa.IndexOf("."c)
+            Dim digits = mantissa.Replace(".", "")
+            Dim point = If(dot < 0, mantissa.Length, dot) + exponent
+            Dim result As String
+            If point <= 0 Then
+                result = "0." & New String("0"c, -point) & digits
+            ElseIf point >= digits.Length Then
+                result = digits & New String("0"c, point - digits.Length)
+            Else
+                result = digits.Substring(0, point) & "." & digits.Substring(point)
+            End If
+            If result.Contains(".") Then result = result.TrimEnd("0"c).TrimEnd("."c)
+            result = result.TrimStart("0"c)
+            If result = "" Then Return "0"
+            If result.StartsWith(".") Then result = "0" & result
+            Return result
+        End Function
+
+        ''' <summary>
+        ''' Same exchange as the Excel path, with EPPlus loading the workbook and recalculating its
+        ''' formulas: inlet streams go into the Input sheet, outlet streams come from the same cells of
+        ''' the Output sheet. The workbook file is left untouched.
+        ''' </summary>
+        Private Sub CalculateWithInternalEngine()
+
+            Dim k, ci, co As Integer
+
+            For k = 0 To 3
+                If GraphicObject.InputConnectors(k).IsAttached Then ci += 1
+                If GraphicObject.OutputConnectors(k).IsAttached Then co += 1
+            Next
+            If ci = 0 Or co = 0 Then
+                Throw New Exception(FlowSheet.GetTranslatedString("Verifiqueasconexesdo"))
+            End If
+
+            Dim es As Streams.EnergyStream = Nothing
+            If GetInletEnergyStream(4) IsNot Nothing Then
+                es = FlowSheet.SimulationObjects(Me.GraphicObject.InputConnectors(4).AttachedConnector.AttachedFrom.Name)
+            End If
+
+            Using pk = OpenInternalWorkbook()
+
+                Dim mysheetIn = pk.Workbook.Worksheets("Input")
+                Dim mysheetOut = pk.Workbook.Worksheets("Output")
+
+                If mysheetIn Is Nothing Or mysheetOut Is Nothing Then
+                    Throw New Exception("The workbook needs an 'Input' and an 'Output' sheet.")
+                End If
+
+                Dim Ti, Pi, Hi, Wi, T2, P2, H2, Hin, Hout, Win, Wout, MassBal As Double
+
+                '======= write data to the sheet ======================================================
+                mysheetIn.Cells("B5:E8").Value = Nothing 'delete Name, T, P, H of streams
+                mysheetIn.Cells("A12:E150").Value = Nothing 'delete molar flows of streams
+
+                For k = 0 To 3
+                    If GraphicObject.InputConnectors(k).IsAttached Then
+                        mysheetIn.Cells(5, 2 + k).Value = Me.GraphicObject.InputConnectors(k).AttachedConnector.AttachedFrom.Tag
+                    Else
+                        mysheetIn.Cells(5, 2 + k).Value = Nothing
+                    End If
+                    If GraphicObject.OutputConnectors(k).IsAttached Then
+                        mysheetOut.Cells(5, 2 + k).Value = Me.GraphicObject.OutputConnectors(k).AttachedConnector.AttachedTo.Tag
+                    Else
+                        mysheetOut.Cells(5, 2 + k).Value = Nothing
+                    End If
+                Next
+
+                k = 0
+                For Each EP As ExcelParameter In InputParams.Values
+                    mysheetIn.Cells(5 + k, 8).Value = EP.Value
+                    k += 1
+                Next
+
+                Dim S As MaterialStream
+                For k = 0 To 3
+                    If Me.GraphicObject.InputConnectors(k).IsAttached Then
+                        S = FlowSheet.SimulationObjects(Me.GraphicObject.InputConnectors(k).AttachedConnector.AttachedFrom.Name)
+                        Me.PropertyPackage.CurrentMaterialStream = S
+                        Ti = S.Phases(0).Properties.temperature.GetValueOrDefault
+                        Pi = S.Phases(0).Properties.pressure.GetValueOrDefault
+                        Hi = S.Phases(0).Properties.enthalpy.GetValueOrDefault
+                        Wi = S.Phases(0).Properties.massflow.GetValueOrDefault
+                        Hin += Hi * Wi
+                        Win += Wi
+
+                        mysheetIn.Cells(6, 2 + k).Value = Ti
+                        mysheetIn.Cells(7, 2 + k).Value = Pi
+                        mysheetIn.Cells(8, 2 + k).Value = Hi
+
+                        Dim dy As Integer = 0
+                        For Each comp As BaseClasses.Compound In S.Phases(0).Compounds.Values
+                            mysheetIn.Cells(12 + dy, 1).Value = comp.ConstantProperties.Name
+                            mysheetOut.Cells(12 + dy, 1).Value = comp.ConstantProperties.Name
+                            mysheetIn.Cells(12 + dy, 2 + k).Value = If(comp.MolarFlow.HasValue, CObj(comp.MolarFlow.Value), Nothing)
+                            dy += 1
+                        Next
+                    End If
+                Next
+
+                '======= recalculate ==================================================================
+                ExpandExponentLiterals(pk)
+                Try
+                    XL.CalculationExtension.Calculate(pk.Workbook)
+                Catch ex As XL.FormulaParsing.Exceptions.CircularReferenceException
+                    Throw New Exception("The workbook has a circular reference, which the internal spreadsheet engine does not iterate. Use Excel or remove the circular reference.", ex)
+                End Try
+
+                '======= read results =================================================================
+                Dim Vmol As New Dictionary(Of String, Double)
+                Dim v As Double
+                Dim SMass, SMole As Double
+                Dim i As Integer
+
+                For k = 0 To 3
+                    If Me.GraphicObject.OutputConnectors(k).IsAttached Then
+                        Me.PropertyPackage.CurrentMaterialStream = FlowSheet.SimulationObjects(Me.GraphicObject.OutputConnectors(k).AttachedConnector.AttachedTo.Name)
+
+                        T2 = CellNumberOrThrow(mysheetOut, 6, 2 + k)
+                        P2 = CellNumberOrThrow(mysheetOut, 7, 2 + k)
+
+                        With Me.PropertyPackage.CurrentMaterialStream
+                            .Phases(0).Properties.temperature = T2
+                            .Phases(0).Properties.pressure = P2
+
+                            Dim comp As BaseClasses.Compound
+                            i = 0
+                            SMole = 0
+                            SMass = 0
+                            Vmol.Clear()
+                            For Each comp In .Phases(0).Compounds.Values
+                                v = CellNumberOrThrow(mysheetOut, 12 + i, 2 + k)
+                                Vmol.Add(comp.Name, v)
+                                SMole += Vmol(comp.Name)
+                                SMass += Vmol(comp.Name) * comp.ConstantProperties.Molar_Weight / 1000
+                                i += 1
+                            Next
+                            For Each comp In .Phases(0).Compounds.Values
+                                comp.MoleFraction = Vmol(comp.Name) / SMole
+                                comp.MassFraction = Vmol(comp.Name) * comp.ConstantProperties.Molar_Weight / SMass / 1000
+                            Next
+                            .Phases(0).Properties.massflow = SMass
+
+                            Try
+                                Dim tmp = Me.PropertyPackage.CalculateEquilibrium2(FlashCalculationType.PressureTemperature, P2, T2, 0)
+                                H2 = tmp.CalculatedEnthalpy
+                                .Phases(0).Properties.enthalpy = H2
+                            Catch ex As Exception
+                                Throw New Exception("Flash calculation error")
+                            End Try
+
+                            Hout += H2 * SMass
+                            Wout += SMass
+                        End With
+
+                    End If
+                Next
+
+                Dim hfin, hfout As Double
+
+                k = 0
+                For Each ic In GraphicObject.InputConnectors
+                    If ic.IsAttached And ic.Type = GraphicObjects.ConType.ConIn Then
+                        hfin += GetInletMaterialStream(k).GetOverallHeatOfFormation()
+                    End If
+                    k += 1
+                Next
+
+                k = 0
+                For Each oc In GraphicObject.OutputConnectors
+                    If oc.IsAttached Then
+                        hfout += GetOutletMaterialStream(k).GetOverallHeatOfFormation()
+                    End If
+                    k += 1
+                Next
+
+                Me.DeltaQ = Hout - Hin + hfout - hfin
+
+                If es IsNot Nothing Then
+                    With es
+                        .EnergyFlow = Me.DeltaQ.GetValueOrDefault
+                        .GraphicObject.Calculated = True
+                    End With
+                End If
+
+                Dim failed As New List(Of String)
+                ReadInternalParameters(pk, failed)
+                ParamsLoaded = True
+
+                If failed.Count > 0 Then
+                    FlowSheet.ShowMessage(Me.GraphicObject.Tag & ": " & "parameters that did not evaluate to a number in the internal spreadsheet engine: " & String.Join(", ", failed), IFlowsheet.MessageType.Warning)
+                End If
+
+                MassBal = 100 * (Wout - Win) / (Win)
+                If Math.Abs(MassBal) > 0.001 Then
+                    FlowSheet.ShowMessage(Me.GraphicObject.Tag & ": " & "Mass balance error: " & MassBal & "%", IFlowsheet.MessageType.GeneralError)
+                End If
+
+            End Using
+
+        End Sub
+
         ''' <summary>Returns the value of the specified property.</summary>
         Public Overrides Function GetPropertyValue(ByVal prop As String, Optional ByVal su As Interfaces.IUnitsOfMeasure = Nothing) As Object
 

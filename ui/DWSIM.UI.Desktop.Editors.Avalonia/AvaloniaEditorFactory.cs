@@ -209,6 +209,8 @@ namespace DWSIM.UI.Desktop.Editors
                     return InfoCarrierEditor.Build(carrier);
                 case DWSIM.UnitOperations.UnitOperations.Flowsheet subflowsheet:
                     return FlowsheetUOEditor.Build(subflowsheet);
+                case DWSIM.UnitOperations.UnitOperations.ExcelUO spreadsheet:
+                    return SpreadsheetUOEditor.Build(spreadsheet);
                 case DWSIM.UnitOperations.UnitOperations.CustomUO script:
                     return ScriptUOEditor.Build(script);
                 case DWSIM.UnitOperations.UnitOperations.CapeOpenUO capeOpen:

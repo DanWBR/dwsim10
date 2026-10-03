@@ -12,12 +12,6 @@
   -->
 
   <ItemGroup>
-    <!--
-      The Excel unit operation drives Excel over COM, or a commercial spreadsheet library; there
-      is no cross-platform version of either.
-    -->
-    <Compile Remove="UnitOperations\Spreadsheet.vb" />
-    <None Include="UnitOperations\Spreadsheet.vb" />
     <Compile Remove="UnitOperations\CleanEnergies\PEMFC_ChamberlineKim.vb" />
     <Compile Remove="UnitOperations\CleanEnergies\PEMFC_LarminieDicks.vb" />
     <None Include="UnitOperations\CleanEnergies\PEMFC_ChamberlineKim.vb" />
@@ -71,6 +65,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The spreadsheet unit operation recalculates its workbook with EPPlus where Excel is not available. -->
+    <PackageReference Include="EPPlus" />
     <PackageReference Include="IronPython" />
     <PackageReference Include="Mages" />
     <PackageReference Include="MathNet.Numerics" />
