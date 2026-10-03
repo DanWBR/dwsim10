@@ -39,12 +39,10 @@ namespace DWSIM.Automation.FluentAPI.Builders.Bioprocess
         public ChromatographyBuilder WithDynamicBindingCapacityGPerL(double gl) { Object.DynamicBindingCapacity_gL = gl; return this; }
         /// <summary>Sets <c>Default Recovery To Product</c> and returns this builder for chaining.</summary>
         public ChromatographyBuilder WithDefaultRecoveryToProduct(double frac) { Object.DefaultRecoveryToProduct = frac; return this; }
-        /// <summary>Sets <c>Recovery To Product</c> and returns this builder for chaining.</summary>
+        /// <summary>Sets the recovery to product of one compound as a user value (<see cref="UnitOp_Chromatography.SetRecoveryToProduct"/>) and returns this builder for chaining.</summary>
         public ChromatographyBuilder WithRecoveryToProduct(string compound, double frac)
         {
-            if (Object.RecoveryToProduct == null)
-                Object.RecoveryToProduct = new System.Collections.Generic.Dictionary<string, double>();
-            Object.RecoveryToProduct[compound] = frac;
+            Object.SetRecoveryToProduct(compound, frac);
             return this;
         }
         /// <summary>Sets <c>Thomas Rate Constant LPer GS</c> and returns this builder for chaining.</summary>

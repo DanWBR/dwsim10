@@ -86,23 +86,30 @@ namespace DWSIM.UI.Desktop.Editors
     /// <summary>
     /// A per-compound coefficient: the value the unit uses for each compound, with where it came
     /// from. Editing a row pins the value, which is what the Windows grids call "user-set".
+    /// A row built with a <c>current</c> function asks the unit for its value and source each time it shows them.
     /// </summary>
     internal sealed class CompoundCoefficientRow : INotifyPropertyChanged
     {
         private readonly Dictionary<string, double> _values;
         private readonly string _compound;
         private readonly string _nf;
+        private readonly Func<(double Value, string Note)> _current;
+        private readonly Action<double> _commit;
         private double _seed;
         private string _note;
 
         internal CompoundCoefficientRow(Dictionary<string, double> values, string compound,
-                                        double seed, string note, string nf)
+                                        double seed, string note, string nf,
+                                        Func<(double Value, string Note)> current = null,
+                                        Action<double> commit = null)
         {
             _values = values;
             _compound = compound;
             _seed = seed;
             _note = note;
             _nf = nf;
+            _current = current;
+            _commit = commit;
         }
 
         public string Compound { get { return _compound; } }
@@ -111,7 +118,9 @@ namespace DWSIM.UI.Desktop.Editors
         {
             get
             {
-                var value = _values.ContainsKey(_compound) ? _values[_compound] : _seed;
+                double value;
+                if (_current != null) value = _current().Value;
+                else value = _values.ContainsKey(_compound) ? _values[_compound] : _seed;
                 return value.ToString(_nf, CultureInfo.CurrentCulture);
             }
             set
@@ -120,7 +129,8 @@ namespace DWSIM.UI.Desktop.Editors
                 if (v < 0.0) v = 0.0;
                 if (v > 1.0) v = 1.0;
 
-                _values[_compound] = v;
+                if (_commit != null) _commit(v);
+                else _values[_compound] = v;
                 _note = "user-set";
 
                 Raise("Value");
@@ -128,7 +138,7 @@ namespace DWSIM.UI.Desktop.Editors
             }
         }
 
-        public string Note { get { return _note; } }
+        public string Note { get { return _current != null ? _current().Note : _note; } }
 
         public event PropertyChangedEventHandler PropertyChanged;
         private void Raise(string name)
@@ -143,16 +153,31 @@ namespace DWSIM.UI.Desktop.Editors
         /// <summary>
         /// Builds the grid from a seeding rule applied to each compound, which is how the Windows
         /// editors suggest a value from the molecular weight before the user pins one.
+        /// With <paramref name="current"/>, each row shows the value and source the unit itself reports
+        /// for the compound, pinned or not, and <paramref name="seed"/> is not used;
+        /// <paramref name="commit"/> then stores an edited value in place of a plain write to <paramref name="values"/>.
         /// </summary>
         internal static Control Build(ISimulationObject obj, Dictionary<string, double> values,
                                       string valueHeader,
-                                      Func<ICompoundConstantProperties, (double Value, string Note)> seed)
+                                      Func<ICompoundConstantProperties, (double Value, string Note)> seed,
+                                      Func<ICompoundConstantProperties, (double Value, string Note)> current = null,
+                                      Action<string, double> commit = null)
         {
             var nf = obj.GetFlowsheet().FlowsheetOptions.NumberFormat;
             var rows = new ObservableCollection<CompoundCoefficientRow>();
 
             foreach (ICompoundConstantProperties compound in obj.GetFlowsheet().SelectedCompounds.Values)
             {
+                if (current != null)
+                {
+                    var c = compound;
+                    var now = current(c);
+                    rows.Add(new CompoundCoefficientRow(values, c.Name, now.Value, now.Note, nf,
+                        () => current(c),
+                        commit == null ? (Action<double>)null : v => commit(c.Name, v)));
+                    continue;
+                }
+
                 var suggested = seed(compound);
 
                 var note = values.ContainsKey(compound.Name) ? "user-set" : suggested.Note;
@@ -777,21 +802,11 @@ namespace DWSIM.UI.Desktop.Editors
             if (column.RecoveryToProduct == null)
                 column.RecoveryToProduct = new Dictionary<string, double>();
 
-            var bindElute = column.Mode == UOps.ChromatographyMode.BindElute;
-
+            // each row shows the recovery the calculation uses and where it comes from
             return CompoundCoefficientGrid.Build(column, column.RecoveryToProduct,
-                "Recovery to Product",
-                compound =>
-                {
-                    if (compound.Molar_Weight > 5000)
-                        return bindElute
-                            ? (0.90, "macromolecule (binds, elutes to product)")
-                            : (0.10, "macromolecule (binds, stays on column)");
-
-                    return bindElute
-                        ? (column.DefaultRecoveryToProduct, "small solute (flows through)")
-                        : (0.95, "small solute (passes through)");
-                });
+                "Recovery to Product", null,
+                current: compound => (column.RecoveryFor(compound.Name), column.RecoverySource(compound.Name)),
+                commit: column.SetRecoveryToProduct);
         }
 
     }

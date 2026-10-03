@@ -124,6 +124,11 @@ Namespace UnitOperations
         ''' The remainder goes to the Waste outlet. In bind-elute mode this is the elution yield; in flow-through mode it is the pass-through fraction.</summary>
         Public Property RecoveryToProduct As Dictionary(Of String, Double)
 
+        ''' <summary>Gets or sets the names of the compounds whose <see cref="RecoveryToProduct"/> entry was filled by <see cref="ApplyChemistryDefaults"/>.
+        ''' The editors label these rows as chemistry defaults; <see cref="SetRecoveryToProduct"/> takes a compound off the list when the user sets its recovery.
+        ''' The calculation does not read it. Empty by default, so files saved before it existed show every entry as user-set.</summary>
+        Public Property RecoveryFromChemistryDefaults As List(Of String) = New List(Of String)()
+
         ''' <summary>Gets or sets the name of the target compound (the product the column captures or polishes).
         ''' Empty (default): every compound above 5000 g/mol counts as a target for the recovery, the load ratio and the Thomas breakthrough.
         ''' <see cref="ApplyChemistryDefaults"/> gives the target the chemistry yield and treats the other macromolecules as impurities.</summary>
@@ -179,6 +184,9 @@ Namespace UnitOperations
         <Xml.Serialization.XmlIgnore> <Newtonsoft.Json.JsonIgnore>
         Public Property LastTrajectory As ChromatographyTrajectoryResult
 
+        ' set by Calculate when the feed has no target and the breakthrough curve falls back to C0 = 0.001 g/L; read by the report
+        <NonSerialized> <Xml.Serialization.XmlIgnore> <Newtonsoft.Json.JsonIgnore> Private _thomasNominalC0 As Boolean = False
+
         ''' <summary>The classic (WinForms) editor window open for this unit operation, if any. Not saved with the flowsheet.</summary>
         <NonSerialized> <Xml.Serialization.XmlIgnore> Public f As Object
 
@@ -221,7 +229,8 @@ Namespace UnitOperations
             Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of UnitOp_Chromatography)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
         End Function
 
-        ''' <summary>Returns the fraction of a compound sent to the Product outlet: its entry in <see cref="RecoveryToProduct"/>, or <see cref="DefaultRecoveryToProduct"/> when it has none, clamped to 0 to 1.</summary>
+        ''' <summary>Returns the fraction of a compound sent to the Product outlet: its entry in <see cref="RecoveryToProduct"/>, or <see cref="DefaultRecoveryToProduct"/> when it has none, clamped to 0 to 1.
+        ''' <see cref="Calculate"/> splits the feed with it and the editors show it in the recovery grids, so both always agree.</summary>
         ''' <param name="compName">The compound name.</param>
         ''' <returns>The recovery-to-product fraction, between 0 and 1.</returns>
         Public Function RecoveryFor(compName As String) As Double
@@ -230,6 +239,26 @@ Namespace UnitOperations
             End If
             Return Max(0.0, Min(1.0, DefaultRecoveryToProduct))
         End Function
+
+        ''' <summary>Returns where the recovery of a compound comes from, as the editors label it: "user-set" (an entry the user typed),
+        ''' "chemistry default" (an entry filled by <see cref="ApplyChemistryDefaults"/>) or "default recovery" (no entry; <see cref="DefaultRecoveryToProduct"/> applies).</summary>
+        ''' <param name="compName">The compound name.</param>
+        ''' <returns>A short label for the source of the value <see cref="RecoveryFor"/> returns.</returns>
+        Public Function RecoverySource(compName As String) As String
+            If RecoveryToProduct Is Nothing OrElse Not RecoveryToProduct.ContainsKey(compName) Then Return "default recovery"
+            If RecoveryFromChemistryDefaults IsNot Nothing AndAlso RecoveryFromChemistryDefaults.Contains(compName) Then Return "chemistry default"
+            Return "user-set"
+        End Function
+
+        ''' <summary>Sets the recovery to product of one compound as a user value: writes its <see cref="RecoveryToProduct"/> entry
+        ''' and takes it off <see cref="RecoveryFromChemistryDefaults"/>. The editors and the FluentAPI <c>WithRecoveryToProduct</c> call it.</summary>
+        ''' <param name="compName">The compound name.</param>
+        ''' <param name="value">The fraction (0 to 1) of the compound feed mass sent to the Product outlet.</param>
+        Public Sub SetRecoveryToProduct(compName As String, value As Double)
+            If RecoveryToProduct Is Nothing Then RecoveryToProduct = New Dictionary(Of String, Double)()
+            RecoveryToProduct(compName) = value
+            If RecoveryFromChemistryDefaults IsNot Nothing Then RecoveryFromChemistryDefaults.Remove(compName)
+        End Sub
 
         Private Function HasTargetCompound() As Boolean
             Return Not String.IsNullOrWhiteSpace(TargetCompound)
@@ -310,16 +339,28 @@ Namespace UnitOperations
         ''' host cell proteins (a compound named HCP or host cell protein) and, with a named target, the other compounds above 5000 g/mol get 10^-LRV.
         ''' Size exclusion sets the binding capacity to 0 and gives every compound 1 - Kav (<see cref="SizeExclusionKav"/>).
         ''' Water, and the small solutes outside size exclusion, keep their entries or <see cref="DefaultRecoveryToProduct"/>.
+        ''' Entries a previous call filled (those on <see cref="RecoveryFromChemistryDefaults"/>) are removed first, so a compound the new
+        ''' chemistry does not cover returns to <see cref="DefaultRecoveryToProduct"/>; entries the user typed stay.
+        ''' Each compound it fills goes on <see cref="RecoveryFromChemistryDefaults"/>.
         ''' </summary>
         Public Sub ApplyChemistryDefaults()
             Dim d = GetChemistryDefaults(Chemistry)
             DynamicBindingCapacity_gL = d.DynamicBindingCapacity_gL
             If d.ThomasRateConstant_Lgs > 0.0 Then ThomasRateConstant_Lgs = d.ThomasRateConstant_Lgs
             If RecoveryToProduct Is Nothing Then RecoveryToProduct = New Dictionary(Of String, Double)()
+            If RecoveryFromChemistryDefaults Is Nothing Then RecoveryFromChemistryDefaults = New List(Of String)()
             If FlowSheet Is Nothing Then Return
+            'entries filled by the previous chemistry go back to the default recovery; entries the user typed stay
+            For Each compName In RecoveryFromChemistryDefaults
+                RecoveryToProduct.Remove(compName)
+            Next
+            RecoveryFromChemistryDefaults.Clear()
             For Each c In FlowSheet.SelectedCompounds.Values
                 Dim r = ChemistryDefaultRecovery(c)
-                If r.HasValue Then RecoveryToProduct(c.Name) = r.Value
+                If r.HasValue Then
+                    RecoveryToProduct(c.Name) = r.Value
+                    If Not RecoveryFromChemistryDefaults.Contains(c.Name) Then RecoveryFromChemistryDefaults.Add(c.Name)
+                End If
             Next
         End Sub
 
@@ -397,10 +438,15 @@ Namespace UnitOperations
             End If
 
             ' Dynamic Thomas breakthrough for the loading step, if in dynamic mode
+            _thomasNominalC0 = False
             If Mode = ChromatographyMode.BindElute_Dynamic Then
                 If Q_vol <= 0.0 Then Q_vol = 0.000000000001
                 Dim Q_Ls = Q_vol * 1000.0          ' L/s
                 Dim C0_gL = If(target_in > 0.0 AndAlso Q_vol > 0.0, target_in / Q_vol, 0.001) ' kg/s / (m3/s) = g/L
+                If target_in <= 0.0 Then
+                    _thomasNominalC0 = True
+                    FlowSheet.ShowMessage(GraphicObject.Tag & ": no target compound in the feed, so the Thomas breakthrough curve uses a nominal feed concentration of 0.001 g/L.", IFlowsheet.MessageType.Warning)
+                End If
                 BuildThomasBreakthrough(C0_gL, Q_Ls)
             End If
 
@@ -559,6 +605,9 @@ Namespace UnitOperations
             s.AppendLine("Load time to fill capacity:   " & Result_TimeToCapacity_s.ToString(numberformat, ci) & " s")
             s.AppendLine("Load volume per cycle:        " & (Result_LoadVolumeFraction * 100).ToString(numberformat, ci) & " % of CV")
             If Result_Saturated Then s.AppendLine("  Column is SATURATED - binding capacity exceeded.")
+            If _thomasNominalC0 Then
+                s.AppendLine("  No target compound in the feed: the Thomas breakthrough curve uses a nominal feed concentration of 0.001 g/L.")
+            End If
             If Chemistry = ChromatographyChemistry.SizeExclusion AndAlso Result_LoadVolumeFraction > 0.05 Then
                 s.AppendLine("  Size exclusion load above 5 % of CV: resolution drops (typical 2 to 5 %).")
             End If
