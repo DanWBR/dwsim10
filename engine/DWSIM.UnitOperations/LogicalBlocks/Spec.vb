@@ -229,7 +229,7 @@ Namespace SpecialOps
                     .ID = xel.@ID
                     .Name = xel.@Name
                     .PropertyName = xel.@Property
-                    .ObjectType = xel.@ObjectType
+                    .ObjectType = If(xel.@Type, xel.@ObjectType)
                 End With
 
             End If
@@ -242,7 +242,7 @@ Namespace SpecialOps
                     .ID = xel.@ID
                     .Name = xel.@Name
                     .PropertyName = xel.@Property
-                    .ObjectType = xel.@ObjectType
+                    .ObjectType = If(xel.@Type, xel.@ObjectType)
                 End With
 
             End If
@@ -583,7 +583,9 @@ Namespace SpecialOps
         End Function
 
         ''' <summary>
-        ''' Returns the list of property identifiers available for this spec block.
+        ''' Returns the list of property identifiers available for this spec block. The expression is text,
+        ''' so it is listed only under <see cref="Interfaces.Enums.PropertyType.ALL"/>: the numeric lists that
+        ''' adjusts and sensitivity analyses offer leave it out.
         ''' </summary>
         ''' <param name="proptype">The type of properties to retrieve.</param>
         ''' <returns>An array of property identifier strings.</returns>
@@ -594,7 +596,7 @@ Namespace SpecialOps
             If basecol.Length > 0 Then proplist.AddRange(basecol)
             proplist.Add("SpecMin")
             proplist.Add("SpecMax")
-            proplist.Add("Expression")
+            If proptype = Interfaces.Enums.PropertyType.ALL Then proplist.Add("Expression")
             Return proplist.ToArray(GetType(System.String))
             proplist = Nothing
         End Function
@@ -616,7 +618,7 @@ Namespace SpecialOps
                 Case "SpecMax"
                     MaxVal = propval
                 Case "Expression"
-                    Expression = propval
+                    Expression = If(propval Is Nothing, "", Convert.ToString(propval, Globalization.CultureInfo.InvariantCulture))
             End Select
             Return True
         End Function

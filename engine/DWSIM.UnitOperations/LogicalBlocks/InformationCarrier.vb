@@ -113,7 +113,7 @@ Namespace SpecialOps
                     .ID = xel.@ID
                     .Name = xel.@Name
                     .PropertyName = xel.@Property
-                    .ObjectType = xel.@ObjectType
+                    .ObjectType = If(xel.@Type, xel.@ObjectType)
                 End With
 
             End If
@@ -126,7 +126,7 @@ Namespace SpecialOps
                     .ID = xel.@ID
                     .Name = xel.@Name
                     .PropertyName = xel.@Property
-                    .ObjectType = xel.@ObjectType
+                    .ObjectType = If(xel.@Type, xel.@ObjectType)
                 End With
 
             End If
@@ -139,7 +139,7 @@ Namespace SpecialOps
                     .ID = xel.@ID
                     .Name = xel.@Name
                     .PropertyName = xel.@Property
-                    .ObjectType = xel.@ObjectType
+                    .ObjectType = If(xel.@Type, xel.@ObjectType)
                 End With
 
             End If
@@ -152,32 +152,32 @@ Namespace SpecialOps
                     .ID = xel.@ID
                     .Name = xel.@Name
                     .PropertyName = xel.@Property
-                    .ObjectType = xel.@ObjectType
+                    .ObjectType = If(xel.@Type, xel.@ObjectType)
                 End With
 
             End If
 
             Try
                 Me.SourceObject = Me.FlowSheet.SimulationObjects(Me.SourceObjectData.ID)
-                If Not Me.SourceObject Is Nothing Then Me.SourceObject.IsSpecAttached = True
+                If Not Me.SourceObject Is Nothing Then Me.SourceObject.IsInfoCarrierAttached = True : If String.IsNullOrEmpty(Me.SourceObject.AttachedInfoCarrierId) Then Me.SourceObject.AttachedInfoCarrierId = Me.Name
             Catch ex As Exception
             End Try
 
             Try
                 Me.TargetObject = Me.FlowSheet.SimulationObjects(Me.TargetObjectData.ID)
-                If Not Me.TargetObject Is Nothing Then Me.TargetObject.IsSpecAttached = True
+                If Not Me.TargetObject Is Nothing Then Me.TargetObject.IsInfoCarrierAttached = True : If String.IsNullOrEmpty(Me.TargetObject.AttachedInfoCarrierId) Then Me.TargetObject.AttachedInfoCarrierId = Me.Name
             Catch ex As Exception
             End Try
 
             Try
                 Me.TargetObject2 = Me.FlowSheet.SimulationObjects(Me.TargetObjectData2.ID)
-                If Not Me.TargetObject2 Is Nothing Then Me.TargetObject2.IsSpecAttached = True
+                If Not Me.TargetObject2 Is Nothing Then Me.TargetObject2.IsInfoCarrierAttached = True : If String.IsNullOrEmpty(Me.TargetObject2.AttachedInfoCarrierId) Then Me.TargetObject2.AttachedInfoCarrierId = Me.Name
             Catch ex As Exception
             End Try
 
             Try
                 Me.TargetObject3 = Me.FlowSheet.SimulationObjects(Me.TargetObjectData3.ID)
-                If Not Me.TargetObject3 Is Nothing Then Me.TargetObject3.IsSpecAttached = True
+                If Not Me.TargetObject3 Is Nothing Then Me.TargetObject3.IsInfoCarrierAttached = True : If String.IsNullOrEmpty(Me.TargetObject3.AttachedInfoCarrierId) Then Me.TargetObject3.AttachedInfoCarrierId = Me.Name
             Catch ex As Exception
             End Try
 
@@ -299,8 +299,43 @@ Namespace SpecialOps
 
         End Sub
 
+        ''' <summary>The link of the given property identifier: source, or target 1 to 3.</summary>
+        Private Function GetLink(prop As String) As SpecialOps.Helpers.SpecialOpObjectInfo
+            Select Case prop
+                Case "SourceObjectTag", "SourceProperty" : Return SourceObjectData
+                Case "TargetObjectTag", "TargetProperty" : Return TargetObjectData
+                Case "TargetObject2Tag", "TargetProperty2" : Return TargetObjectData2
+                Case "TargetObject3Tag", "TargetProperty3" : Return TargetObjectData3
+                Case Else : Return Nothing
+            End Select
+        End Function
+
+        ''' <summary>The linked object, or Nothing when the link is empty or the object no longer exists.</summary>
+        Private Function GetLinkedObject(link As SpecialOps.Helpers.SpecialOpObjectInfo) As Interfaces.ISimulationObject
+            If link Is Nothing OrElse String.IsNullOrEmpty(link.ID) OrElse FlowSheet Is Nothing Then Return Nothing
+            If Not FlowSheet.SimulationObjects.ContainsKey(link.ID) Then Return Nothing
+            Return FlowSheet.SimulationObjects(link.ID)
+        End Function
+
+        ''' <summary>Readable names for the property identifiers.</summary>
+        Public Overrides Function GetPropertyDescription(prop As String) As String
+            Select Case prop
+                Case "CarriedValue" : Return "Carried Value"
+                Case "SourceObjectTag" : Return "Source Object"
+                Case "SourceProperty" : Return "Source Property"
+                Case "TargetObjectTag" : Return "Target Object"
+                Case "TargetProperty" : Return "Target Property"
+                Case "TargetObject2Tag" : Return "Target Object 2"
+                Case "TargetProperty2" : Return "Target Property 2"
+                Case "TargetObject3Tag" : Return "Target Object 3"
+                Case "TargetProperty3" : Return "Target Property 3"
+                Case Else : Return MyBase.GetPropertyDescription(prop)
+            End Select
+        End Function
+
         ''' <summary>
-        ''' Returns the value of the specified property converted to the given unit system.
+        ''' Returns the value of the specified property converted to the given unit system. "CarriedValue"
+        ''' is the current value of the source property; the object and property links come as text.
         ''' </summary>
         ''' <param name="prop">The property identifier string.</param>
         ''' <param name="su">The unit system to use; defaults to SI if not provided.</param>
@@ -312,19 +347,44 @@ Namespace SpecialOps
             If Not val0 Is Nothing Then
                 Return val0
             Else
-                Return Nothing
+                Select Case prop
+                    Case "CarriedValue"
+                        Dim source = GetLinkedObject(SourceObjectData)
+                        If source Is Nothing OrElse String.IsNullOrEmpty(SourceObjectData.PropertyName) Then Return Double.NaN
+                        Return source.GetPropertyValue(SourceObjectData.PropertyName, If(su, New SystemsOfUnits.SI))
+                    Case "SourceObjectTag", "TargetObjectTag", "TargetObject2Tag", "TargetObject3Tag"
+                        Dim link = GetLink(prop)
+                        Dim obj = GetLinkedObject(link)
+                        If obj IsNot Nothing AndAlso obj.GraphicObject IsNot Nothing Then Return obj.GraphicObject.Tag
+                        Return If(link?.Name, "")
+                    Case "SourceProperty", "TargetProperty", "TargetProperty2", "TargetProperty3"
+                        Return If(GetLink(prop)?.PropertyName, "")
+                    Case Else
+                        Return Nothing
+                End Select
             End If
         End Function
 
         ''' <summary>
-        ''' Returns the list of property identifiers available for this information carrier (always empty).
+        ''' Returns the list of property identifiers available for this information carrier. The value
+        ''' carried is read-only; the object and property links are text and are listed only under
+        ''' <see cref="PropertyType.ALL"/>.
         ''' </summary>
         ''' <param name="proptype">The type of properties to retrieve.</param>
-        ''' <returns>An empty array - information carriers expose no settable properties.</returns>
+        ''' <returns>An array of property identifier strings.</returns>
         Public Overloads Overrides Function GetProperties(ByVal proptype As Interfaces.Enums.PropertyType) As String()
-            Dim proplist As New ArrayList
-            Return proplist.ToArray(GetType(System.String))
-            proplist = Nothing
+            Dim proplist As New List(Of String)
+            Dim basecol = MyBase.GetProperties(proptype)
+            If basecol.Length > 0 Then proplist.AddRange(basecol)
+            Select Case proptype
+                Case PropertyType.RO
+                    proplist.Add("CarriedValue")
+                Case PropertyType.ALL
+                    proplist.AddRange({"CarriedValue", "SourceObjectTag", "SourceProperty",
+                                      "TargetObjectTag", "TargetProperty", "TargetObject2Tag", "TargetProperty2",
+                                      "TargetObject3Tag", "TargetProperty3"})
+            End Select
+            Return proplist.ToArray()
         End Function
 
         ''' <summary>
@@ -343,14 +403,38 @@ Namespace SpecialOps
         End Function
 
         ''' <summary>
-        ''' Returns the unit string for the specified property (always an empty string for this block).
+        ''' Returns the unit string for the specified property: the carried value has the units of the
+        ''' source property in the given unit system (SI when none is given).
         ''' </summary>
         ''' <param name="prop">The property identifier string.</param>
         ''' <param name="su">The unit system to use; defaults to SI if not provided.</param>
-        ''' <returns>An empty string.</returns>
+        ''' <returns>A unit string, or an empty string if the property has no units.</returns>
         Public Overrides Function GetPropertyUnit(ByVal prop As String, Optional ByVal su As Interfaces.IUnitsOfMeasure = Nothing) As String
 
-            Return ""
+            Select Case prop
+                Case "CarriedValue"
+                    Dim source = GetLinkedObject(SourceObjectData)
+                    If source Is Nothing OrElse String.IsNullOrEmpty(SourceObjectData.PropertyName) Then Return ""
+                    Try
+                        Dim u = source.GetPropertyUnit(SourceObjectData.PropertyName, If(su, New SystemsOfUnits.SI))
+                        If u IsNot Nothing AndAlso u <> "NF" Then Return u
+                    Catch ex As Exception
+                    End Try
+                    Return ""
+                Case "SourceObjectTag", "SourceProperty", "TargetObjectTag", "TargetProperty",
+                     "TargetObject2Tag", "TargetProperty2", "TargetObject3Tag", "TargetProperty3"
+                    Return ""
+            End Select
+
+            If FlowSheet Is Nothing AndAlso su Is Nothing Then Return ""
+
+            Dim u0 As String = MyBase.GetPropertyUnit(prop, su)
+
+            If u0 <> "NF" Then
+                Return u0
+            Else
+                Return ""
+            End If
 
         End Function
 

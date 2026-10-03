@@ -69,11 +69,25 @@ namespace DWSIM.Automation.FluentAPI.Builders
         /// <summary>
         /// Sets when the solver runs the information carriers: after the source object (the default)
         /// or before the target object, for instance. This is a flowsheet setting and applies to every
-        /// information carrier in it.
+        /// information carrier whose own mode is <see cref="SpecCalcMode2.GlobalSetting"/>
+        /// (see <see cref="WithCalculationMode"/>).
         /// </summary>
         public InformationCarrierBuilder WithFlowsheetCalculationMode(SpecCalcMode mode)
         {
             Flowsheet.Inner.FlowsheetOptions.InformationCarrierCalculationMode = mode;
+            return this;
+        }
+
+        /// <summary>
+        /// Sets when the solver runs this information carrier, overriding the flowsheet setting for it
+        /// alone: <see cref="SpecCalcMode2.AfterSourceObject"/>, <see cref="SpecCalcMode2.BeforeTargetObject"/>,
+        /// <see cref="SpecCalcMode2.BeforeFlowsheet"/> or <see cref="SpecCalcMode2.AfterFlowsheet"/>.
+        /// <see cref="SpecCalcMode2.GlobalSetting"/> (the default) follows the flowsheet setting; an
+        /// information carrier has no reference object, so BeforeObject and AfterObject follow it too.
+        /// </summary>
+        public InformationCarrierBuilder WithCalculationMode(SpecCalcMode2 mode)
+        {
+            Object.CalculationMode = mode;
             return this;
         }
 

@@ -325,6 +325,37 @@ namespace DWSIM.Engine.SmokeTests
             Assert.That(t3 - t2, Is.EqualTo(10.0).Within(Tol), "S3 = S2 + 10 C");
         }
 
+        // ------------------------------------------------------------------ the expression as a property
+
+        /// <summary>
+        /// The expression is text: it is listed only among all the properties, so the numeric lists
+        /// an adjust or a sensitivity analysis offers leave it out, and it is written as text by
+        /// SetPropertyValue and by the Fluent API property setter.
+        /// </summary>
+        [Test]
+        public void TheExpressionIsATextPropertyOutsideTheNumericLists()
+        {
+            var c = SpecCase("S1", "X + 30", SpecCalcMode.AfterSourceObject);
+            var spec = c.Spec.Object;
+
+            foreach (var type in new[] { PropertyType.RO, PropertyType.RW, PropertyType.WR })
+                Assert.That(spec.GetProperties(type), Does.Not.Contain("Expression"), type.ToString());
+            Assert.That(spec.GetProperties(PropertyType.ALL), Does.Contain("Expression"));
+
+            Assert.That(spec.SetPropertyValue("Expression", "X + 5"), Is.True);
+            Assert.That(spec.GetPropertyValue("Expression"), Is.EqualTo("X + 5"));
+
+            var units = c.Fs.Inner.FlowsheetOptions.SelectedUnitSystem;
+            Assert.That(PropertySetter.TrySet(spec, "Expression", "X + 7", units), Is.True, "by the property id");
+            Assert.That(spec.Expression, Is.EqualTo("X + 7"));
+            var applied = PropertySetter.Apply(spec, new Dictionary<string, object> { { "expression", "X + 12" } }, units);
+            Assert.That(applied, Has.Count.EqualTo(1), "by the .NET name, any case");
+            Assert.That(spec.Expression, Is.EqualTo("X + 12"));
+
+            SolveClean(c.Fs, false);
+            Check(c, 37.0, 37.0, "expression set by the property setter");
+        }
+
         // ------------------------------------------------------------------ attachment without a spec
 
         /// <summary>

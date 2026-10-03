@@ -59,7 +59,7 @@ Imports DWSIM.SharedClasses
                         End If
                     End If
                     If myObj.IsInfoCarrierAttached = True Then
-                        If myObj.InfoCarrierVarType = SpecVarType.Target And fbag.FlowsheetOptions.InformationCarrierCalculationMode = SpecCalcMode.BeforeTargetObject Then
+                        If myObj.InfoCarrierVarType = SpecVarType.Target AndAlso FlowsheetSolver.CarrierRunsAt(fbag, myObj.AttachedInfoCarrierId, SpecCalcMode2.BeforeTargetObject) Then
                             fbag.SimulationObjects(myObj.AttachedInfoCarrierId).Solve()
                         End If
                     End If
@@ -76,7 +76,7 @@ Imports DWSIM.SharedClasses
                         End If
                     End If
                     If myObj.IsInfoCarrierAttached = True Then
-                        If myObj.InfoCarrierVarType = SpecVarType.Source And fbag.FlowsheetOptions.InformationCarrierCalculationMode = SpecCalcMode.AfterSourceObject Then
+                        If myObj.InfoCarrierVarType = SpecVarType.Source AndAlso FlowsheetSolver.CarrierRunsAt(fbag, myObj.AttachedInfoCarrierId, SpecCalcMode2.AfterSourceObject) Then
                             fbag.SimulationObjects(myObj.AttachedInfoCarrierId).Solve()
                         End If
                     End If
@@ -95,7 +95,7 @@ Imports DWSIM.SharedClasses
                         End If
                     End If
                     If myObj.IsInfoCarrierAttached = True Then
-                        If myObj.InfoCarrierVarType = SpecVarType.Target And fbag.FlowsheetOptions.InformationCarrierCalculationMode = SpecCalcMode.BeforeTargetObject Then
+                        If myObj.InfoCarrierVarType = SpecVarType.Target AndAlso FlowsheetSolver.CarrierRunsAt(fbag, myObj.AttachedInfoCarrierId, SpecCalcMode2.BeforeTargetObject) Then
                             fbag.SimulationObjects(myObj.AttachedInfoCarrierId).Solve()
                         End If
                     End If
@@ -120,7 +120,7 @@ Imports DWSIM.SharedClasses
                         End If
                     End If
                     If myObj.IsInfoCarrierAttached = True Then
-                        If myObj.InfoCarrierVarType = SpecVarType.Source And fbag.FlowsheetOptions.InformationCarrierCalculationMode = SpecCalcMode.AfterSourceObject Then
+                        If myObj.InfoCarrierVarType = SpecVarType.Source AndAlso FlowsheetSolver.CarrierRunsAt(fbag, myObj.AttachedInfoCarrierId, SpecCalcMode2.AfterSourceObject) Then
                             fbag.SimulationObjects(myObj.AttachedInfoCarrierId).Solve()
                         End If
                     End If
@@ -160,7 +160,7 @@ Imports DWSIM.SharedClasses
             End If
         End If
         If ms.IsInfoCarrierAttached = True Then
-            If ms.InfoCarrierVarType = SpecVarType.Target And fbag.FlowsheetOptions.InformationCarrierCalculationMode = SpecCalcMode.BeforeTargetObject Then
+            If ms.InfoCarrierVarType = SpecVarType.Target AndAlso FlowsheetSolver.CarrierRunsAt(fbag, ms.AttachedInfoCarrierId, SpecCalcMode2.BeforeTargetObject) Then
                 fbag.SimulationObjects(ms.AttachedInfoCarrierId).Solve()
             End If
         End If
@@ -186,7 +186,7 @@ Imports DWSIM.SharedClasses
             End If
         End If
         If ms.IsInfoCarrierAttached = True Then
-            If ms.InfoCarrierVarType = SpecVarType.Source And fbag.FlowsheetOptions.InformationCarrierCalculationMode = SpecCalcMode.AfterSourceObject Then
+            If ms.InfoCarrierVarType = SpecVarType.Source AndAlso FlowsheetSolver.CarrierRunsAt(fbag, ms.AttachedInfoCarrierId, SpecCalcMode2.AfterSourceObject) Then
                 fbag.SimulationObjects(ms.AttachedInfoCarrierId).Solve()
             End If
         End If
@@ -791,14 +791,9 @@ Imports DWSIM.SharedClasses
                                               If FlowsheetSolver.EffectiveSpecMode(fbag, DirectCast(obj, ISpec)) = SpecCalcMode2.BeforeFlowsheet Then obj.Solve()
                                           Next
 
-                                          If fbag.FlowsheetOptions.InformationCarrierCalculationMode = SpecCalcMode.BeforeFlowsheet Then
-                                              For Each obj In fbag.SimulationObjects.Values.Where(Function(o) TypeOf o Is IInformationCarrier)
-                                                  Dim carrier = DirectCast(obj, IInformationCarrier)
-                                                  If carrier.CalculationMode = SpecCalcMode2.GlobalSetting Or carrier.CalculationMode = SpecCalcMode2.BeforeFlowsheet Then
-                                                      obj.Solve()
-                                                  End If
-                                              Next
-                                          End If
+                                          For Each obj In fbag.SimulationObjects.Values.Where(Function(o) TypeOf o Is IInformationCarrier)
+                                              If FlowsheetSolver.EffectiveCarrierMode(fbag, DirectCast(obj, IInformationCarrier)) = SpecCalcMode2.BeforeFlowsheet Then obj.Solve()
+                                          Next
 
                                           'add the objects to the calculation queue.
 
@@ -849,7 +844,8 @@ Imports DWSIM.SharedClasses
                                           'calc specs
 
                                           If fbag.FlowsheetOptions.SpecCalculationMode = SpecCalcMode.AfterFlowsheet Or fbag.FlowsheetOptions.InformationCarrierCalculationMode = SpecCalcMode.AfterFlowsheet OrElse
-                                              fbag.SimulationObjects.Values.Any(Function(o) TypeOf o Is ISpec AndAlso DirectCast(o, ISpec).SpecCalculationMode = SpecCalcMode2.AfterFlowsheet) Then
+                                              fbag.SimulationObjects.Values.Any(Function(o) (TypeOf o Is ISpec AndAlso DirectCast(o, ISpec).SpecCalculationMode = SpecCalcMode2.AfterFlowsheet) OrElse
+                                                  (TypeOf o Is IInformationCarrier AndAlso DirectCast(o, IInformationCarrier).CalculationMode = SpecCalcMode2.AfterFlowsheet)) Then
 
                                               For Each obj In fbag.SimulationObjects.Values.Where(Function(o) TypeOf o Is ISpec)
                                                   Dim spec = DirectCast(obj, ISpec)
@@ -858,14 +854,9 @@ Imports DWSIM.SharedClasses
                                                   End If
                                               Next
 
-                                              If fbag.FlowsheetOptions.InformationCarrierCalculationMode = SpecCalcMode.AfterFlowsheet Then
-                                                  For Each obj In fbag.SimulationObjects.Values.Where(Function(o) TypeOf o Is IInformationCarrier)
-                                                      Dim carrier = DirectCast(obj, IInformationCarrier)
-                                                      If carrier.CalculationMode = SpecCalcMode2.GlobalSetting Or carrier.CalculationMode = SpecCalcMode2.AfterFlowsheet Then
-                                                          obj.Solve()
-                                                      End If
-                                                  Next
-                                              End If
+                                              For Each obj In fbag.SimulationObjects.Values.Where(Function(o) TypeOf o Is IInformationCarrier)
+                                                  If FlowsheetSolver.EffectiveCarrierMode(fbag, DirectCast(obj, IInformationCarrier)) = SpecCalcMode2.AfterFlowsheet Then obj.Solve()
+                                              Next
 
                                               'calc again
 
