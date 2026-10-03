@@ -341,11 +341,16 @@ Namespace UnitOperations
 
                     Using Py.GIL
 
+                        Dim savedStreams As Object() = Nothing
+
                         Try
 
                             Dim sys As Object = Py.Import("sys")
-                            Dim codeToRedirectOutput As String = "import sys" & vbCrLf + "from io import BytesIO as StringIO" & vbCrLf + "sys.stdout = mystdout = StringIO()" & vbCrLf + "sys.stdout.flush()" & vbCrLf + "sys.stderr = mystderr = StringIO()" & vbCrLf + "sys.stderr.flush()"
-                            PythonEngine.RunSimpleString(codeToRedirectOutput)
+                            ' capture what the script prints; the Finally below gives the interpreter its own streams back
+                            Dim pyio As Object = Py.Import("io")
+                            savedStreams = New Object() {sys.stdout, sys.stderr}
+                            sys.stdout = pyio.StringIO()
+                            sys.stderr = pyio.StringIO()
 
                             Me.ErrorMessage = ""
 
@@ -408,6 +413,12 @@ Namespace UnitOperations
                             Throw New Exception(ex.Message & vbCrLf & ex.StackTrace.Replace("\n", vbCrLf), ex)
 
                         Finally
+
+                            If savedStreams IsNot Nothing Then
+                                Dim sysmodule As Object = Py.Import("sys")
+                                sysmodule.stdout = savedStreams(0)
+                                sysmodule.stderr = savedStreams(1)
+                            End If
 
                         End Try
 

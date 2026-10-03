@@ -2129,11 +2129,7 @@ Imports DWSIM.ExtensionMethods
                 If id <> "" Then gObj.Name = id
                 GraphicObjects.Add(gObj.Name, myEUO)
                 'OBJETO DWSIM
-                Dim myCOEUO As ISimulationObject = Nothing
-                CreateSpreadsheetUnitOperation(myEUO.Name, myCOEUO)
-                If myCOEUO Is Nothing Then
-                    Throw New NotSupportedException("The spreadsheet unit operation drives Excel, and is not available in this build.")
-                End If
+                Dim myCOEUO As ExcelUO = New ExcelUO(myEUO.Name, "ExcelUnitOp")
                 myCOEUO.GraphicObject = myEUO
                 SimulationObjects.Add(myEUO.Name, myCOEUO)
 
@@ -4454,6 +4450,11 @@ Label_00CC:
 
         If GlobalSettings.Settings.RunningPlatform <> Settings.Platform.Windows Then
 
+            If Not GlobalSettings.Settings.PythonInitialized AndAlso PythonEngine.IsInitialized Then
+                ' inside a Python process: adopt the interpreter of the host
+                GlobalSettings.Settings.InitializePythonEnvironment()
+            End If
+
             If Not GlobalSettings.Settings.PythonInitialized Then
 
                 Runtime.PythonDLL = GlobalSettings.Settings.PythonPath
@@ -4465,12 +4466,17 @@ Label_00CC:
 
             Using Py.GIL
 
+                Dim savedStreams As Object() = Nothing
+
                 Try
 
                     Dim sys As Object = Py.Import("sys")
 
-                    Dim codeToRedirectOutput As String = "import sys" & vbCrLf + "from io import BytesIO as StringIO" & vbCrLf + "sys.stdout = mystdout = StringIO()" & vbCrLf + "sys.stdout.flush()" & vbCrLf + "sys.stderr = mystderr = StringIO()" & vbCrLf + "sys.stderr.flush()"
-                    PythonEngine.RunSimpleString(codeToRedirectOutput)
+                    ' capture what the script prints; the Finally below gives the interpreter its own streams back
+                    Dim pyio As Object = Py.Import("io")
+                    savedStreams = New Object() {sys.stdout, sys.stderr}
+                    sys.stdout = pyio.StringIO()
+                    sys.stderr = pyio.StringIO()
 
                     Dim locals As New PyDict()
 
@@ -4499,6 +4505,12 @@ Label_00CC:
 
                 Finally
 
+                    If savedStreams IsNot Nothing Then
+                        Dim sysmodule As Object = Py.Import("sys")
+                        sysmodule.stdout = savedStreams(0)
+                        sysmodule.stderr = savedStreams(1)
+                    End If
+
                 End Try
 
             End Using
@@ -4509,13 +4521,18 @@ Label_00CC:
 
             Using Py.GIL
 
+                Dim savedStreams As Object() = Nothing
+
                 Try
 
                     Dim sys As Object = Py.Import("sys")
 
                     'If Not GlobalSettings.Settings.IsRunningOnMono() Then
-                    Dim codeToRedirectOutput As String = "import sys" & vbCrLf + "from io import BytesIO as StringIO" & vbCrLf + "sys.stdout = mystdout = StringIO()" & vbCrLf + "sys.stdout.flush()" & vbCrLf + "sys.stderr = mystderr = StringIO()" & vbCrLf + "sys.stderr.flush()"
-                    PythonEngine.RunSimpleString(codeToRedirectOutput)
+                    ' capture what the script prints; the Finally below gives the interpreter its own streams back
+                    Dim pyio As Object = Py.Import("io")
+                    savedStreams = New Object() {sys.stdout, sys.stderr}
+                    sys.stdout = pyio.StringIO()
+                    sys.stderr = pyio.StringIO()
                     'End If
 
                     Dim locals As New PyDict()
@@ -4544,6 +4561,12 @@ Label_00CC:
                     ShowMessage("Error running script: " & ex.ToString, IFlowsheet.MessageType.GeneralError)
 
                 Finally
+
+                    If savedStreams IsNot Nothing Then
+                        Dim sysmodule As Object = Py.Import("sys")
+                        sysmodule.stdout = savedStreams(0)
+                        sysmodule.stderr = savedStreams(1)
+                    End If
 
                 End Try
 
@@ -4589,13 +4612,6 @@ Label_00CC:
     ''' This keeps the engine free of a hard-coded System.Windows.Forms.Form reference.
     ''' </summary>
     Public Property CustomCalcOrderEditor As Func(Of List(Of String), List(Of String))
-
-    ''' <summary>
-    ''' Builds the spreadsheet unit operation, which drives Excel. Leaves the argument alone
-    ''' where that unit operation is not built.
-    ''' </summary>
-    Partial Private Sub CreateSpreadsheetUnitOperation(name As String, ByRef unitop As ISimulationObject)
-    End Sub
 
 
     ''' <summary>

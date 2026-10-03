@@ -2,10 +2,8 @@
 
 Hydrogen + air → electrical power + water vapour.
 
-The fuel cell runs the Amphlett static model of the OPEM library, so DWSIM
-needs a Python distribution for it. The desktop application takes its folder
-from General Settings; a script does not read those settings and sets
-`Settings.PythonPath` itself before solving. The builder has no typed setters
+The fuel cell runs the Amphlett static model of the OPEM library, ported to
+.NET, so it needs no Python distribution. The builder has no typed setters
 yet; the model inputs live in `InputParameters`, under the OPEM names: `N`
 is the number of cells, `A` the active area in cm² and `i-stop` the current
 in A at which the stack runs. The stack temperature is the mean of the two
@@ -14,15 +12,9 @@ inlet temperatures. The electric power leaves through outlet port 1.
 === "Python"
 
     ```python
-    import sys
-    import clr
-    clr.AddReference("DWSIM.GlobalSettings")
-    from DWSIM.GlobalSettings import Settings
     from System import Action
     from DWSIM.Automation.FluentAPI import Flowsheet, PropertyPackages, Q
     from DWSIM.Automation.FluentAPI.Builders import CompositionBuilder
-
-    Settings.PythonPath = sys.base_prefix    # a Python 3 distribution for OPEM
 
     fs = (Flowsheet.Create("PyPEMFC")
           .WithCompounds("Hydrogen", "Oxygen", "Nitrogen", "Water")
@@ -60,8 +52,6 @@ inlet temperatures. The electric power leaves through outlet port 1.
 
     ```csharp
     using DWSIM.Automation.FluentAPI;
-
-    DWSIM.GlobalSettings.Settings.PythonPath = @"C:\Python312";    // a Python 3 distribution for OPEM
 
     var fs = Flowsheet.Create("PEMFC")
         .WithCompounds("Hydrogen", "Oxygen", "Nitrogen", "Water")
@@ -101,8 +91,6 @@ inlet temperatures. The electric power leaves through outlet port 1.
 
     ```vbnet
     Imports DWSIM.Automation.FluentAPI
-
-    DWSIM.GlobalSettings.Settings.PythonPath = "C:\Python312"    ' a Python 3 distribution for OPEM
 
     Dim fs = Flowsheet.Create("PEMFC") _
         .WithCompounds("Hydrogen", "Oxygen", "Nitrogen", "Water") _

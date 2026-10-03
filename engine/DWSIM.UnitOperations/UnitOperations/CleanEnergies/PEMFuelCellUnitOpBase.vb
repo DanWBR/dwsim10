@@ -4,14 +4,13 @@ Imports DWSIM.DrawingTools.Point
 Imports DWSIM.Interfaces.Enums
 Imports DWSIM.Interfaces.Enums.GraphicObjects
 Imports DWSIM.UnitOperations.UnitOperations
-Imports Python.Runtime
 Imports SkiaSharp
 
 Namespace UnitOperations.Auxiliary
 
     ''' <summary>
     ''' Represents a single named parameter (scalar or tabular) exchanged between the
-    ''' flowsheet and the OPEM Python fuel-cell model.
+    ''' flowsheet and the fuel-cell polarisation model.
     ''' </summary>
     Public Class PEMFuelCellModelParameter
 
@@ -81,7 +80,7 @@ End Namespace
 Namespace UnitOperations
 
     ''' <summary>
-    ''' Abstract base class for PEM Fuel Cell unit operations that use the OPEM Python library
+    ''' Abstract base class for PEM Fuel Cell unit operations based on the OPEM static models
     ''' to model different fuel-cell polarisation curves (Amphlett, Chamberline–Kim, Larminie–Dicks).
     ''' </summary>
     Public MustInherit Partial Class PEMFuelCellUnitOpBase
@@ -96,21 +95,18 @@ Namespace UnitOperations
 
         <Xml.Serialization.XmlIgnore> Public f As Object
 
-        ''' <summary>Gets or sets the relative path to the embedded OPEM Python runtime.</summary>
-        Public Property OPEMPath As String = "main\python-3.9.4.amd64"
-
-        ''' <summary>Gets or sets the generated HTML report from the OPEM model.</summary>
+        ''' <summary>Gets or sets the generated HTML report of the last calculation.</summary>
         Public Property HTMLreport As String = ""
-        ''' <summary>Gets or sets the generated CSV report from the OPEM model.</summary>
+        ''' <summary>Gets or sets the generated CSV report (one row per current) of the last calculation.</summary>
         Public Property CSVreport As String = ""
-        ''' <summary>Gets or sets the generated plain-text OPEM report.</summary>
+        ''' <summary>Gets or sets the generated plain-text report (inputs and summary) of the last calculation.</summary>
         Public Property OPEMreport As String = ""
 
 
-        ''' <summary>Gets or sets the dictionary of input parameters sent to the OPEM model.</summary>
+        ''' <summary>Gets or sets the dictionary of input parameters of the model (OPEM names).</summary>
         Public Property InputParameters As Dictionary(Of String, Auxiliary.PEMFuelCellModelParameter) = New Dictionary(Of String, Auxiliary.PEMFuelCellModelParameter)()
 
-        ''' <summary>Gets or sets the dictionary of output parameters received from the OPEM model.</summary>
+        ''' <summary>Gets or sets the dictionary of output parameters of the model.</summary>
         Public Property OutputParameters As Dictionary(Of String, Auxiliary.PEMFuelCellModelParameter) = New Dictionary(Of String, Auxiliary.PEMFuelCellModelParameter)()
 
         ''' <summary>Gets a value indicating this unit operation acts as an energy source.</summary>
@@ -310,23 +306,6 @@ Namespace UnitOperations
             End With
 
             Return elements
-
-        End Function
-
-        ''' <summary>Converts a Python list object to a .NET List(Of Double).</summary>
-        Public Function ToList(pythonlist As Object) As List(Of Double)
-
-            Using Py.GIL
-
-                Dim list As New List(Of Double)
-
-                For i As Integer = 0 To pythonlist.Length - 1
-                    list.Add(pythonlist(i).ToString().ToDoubleFromInvariant())
-                Next
-
-                Return list
-
-            End Using
 
         End Function
 

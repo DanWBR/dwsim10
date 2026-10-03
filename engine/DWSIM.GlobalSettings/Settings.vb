@@ -1,5 +1,6 @@
 ﻿Imports System.Threading
 Imports System.IO
+Imports System.Reflection
 Imports System.Runtime.InteropServices
 Imports Python.Runtime
 
@@ -136,6 +137,12 @@ Public Class Settings
 
     Public Shared Property PythonInitialized As Boolean = False
 
+    ''' <summary>
+    ''' True when DWSIM runs inside a Python process (pythonnet) and uses the interpreter of that
+    ''' process. DWSIM never shuts that interpreter down.
+    ''' </summary>
+    Public Shared Property PythonHosted As Boolean = False
+
     Public Shared Property EnableBackupCopies As Boolean = True
 
     Public Shared Property SaveExistingFile As Boolean = True
@@ -252,7 +259,61 @@ Public Class Settings
 
     End Function
 
+    Shared Sub New()
+
+        PreferHostPythonRuntime()
+
+    End Sub
+
+    ''' <summary>
+    ''' Inside a Python process that already runs pythonnet, binds the references of the DWSIM
+    ''' assemblies to Python.Runtime to the copy the host loaded and initialized, so the process
+    ''' keeps a single Python.NET runtime and a single import hook. Must not use any Python.Runtime
+    ''' type: it runs before the first method that does is compiled.
+    ''' </summary>
+    Private Shared Sub PreferHostPythonRuntime()
+
+        Try
+            Dim wanted = GetType(Settings).Assembly.GetReferencedAssemblies().FirstOrDefault(Function(a) a.Name = "Python.Runtime")
+            If wanted Is Nothing Then Return
+            Dim loaded = AppDomain.CurrentDomain.GetAssemblies().Where(Function(a) a.GetName().Name = "Python.Runtime").ToList()
+            If loaded.Count <> 1 Then Return
+            Dim host = loaded(0)
+            If host.IsDynamic OrElse String.IsNullOrEmpty(host.Location) Then Return
+            If String.Equals(Path.GetDirectoryName(host.Location), Path.GetDirectoryName(GetType(Settings).Assembly.Location),
+                             StringComparison.OrdinalIgnoreCase) Then Return
+            Dim isInit = host.GetType("Python.Runtime.PythonEngine")?.GetProperty("IsInitialized", BindingFlags.Public Or BindingFlags.Static)
+            If isInit Is Nothing OrElse Not CBool(isInit.GetValue(Nothing)) Then Return
+            Dim gil = host.GetType("Python.Runtime.Py")?.GetMethod("GIL", Type.EmptyTypes)
+            Dim exec = host.GetType("Python.Runtime.PythonEngine").GetMethods(BindingFlags.Public Or BindingFlags.Static).FirstOrDefault(
+                Function(m) m.Name = "Exec" AndAlso m.GetParameters().Length > 0 AndAlso m.GetParameters()(0).ParameterType Is GetType(String))
+            If gil Is Nothing OrElse exec Is Nothing Then Return
+            AddHandler AppDomain.CurrentDomain.AssemblyResolve,
+                Function(sender, e) If(New AssemblyName(e.Name).Name = "Python.Runtime", host, Nothing)
+            ' Bind the reference once from the host side. Loaded from here, the reference would be
+            ' found beside the DWSIM assemblies; asked by the host runtime, it is not found beside
+            ' that one either, goes through AssemblyResolve and comes back as the host copy, and the
+            ' binder reuses that answer for every later reference from the DWSIM assemblies.
+            Using DirectCast(gil.Invoke(Nothing, Nothing), IDisposable)
+                Dim args(exec.GetParameters().Length - 1) As Object
+                ' no names are bound: the code may run with the globals of the caller's module
+                args(0) = "__import__('System').Reflection.Assembly.Load('" & wanted.FullName & "')"
+                exec.Invoke(Nothing, args)
+            End Using
+        Catch ex As Exception
+        End Try
+
+    End Sub
+
     Public Shared Sub InitializePythonEnvironment(Optional ByVal pythonpath As String = "")
+
+        ' inside a Python process the interpreter is already running: use it as it is
+        If Not Settings.PythonInitialized AndAlso PythonEngine.IsInitialized Then
+            PythonInitialized = True
+            PythonHosted = True
+            DWSIM.Logging.Logger.LogInfo("Using the Python interpreter of the host process")
+            Return
+        End If
 
         If Not Settings.PythonInitialized Then
 
@@ -308,7 +369,7 @@ Public Class Settings
 
     Public Shared Sub ShutdownPythonEnvironment()
 
-        If PythonInitialized Then
+        If PythonInitialized AndAlso Not PythonHosted Then
             Try
                 PythonEngine.Shutdown()
             Catch ex As Exception
@@ -332,22 +393,19 @@ Public Class Settings
 
             Dim append As String = ppath + ";" + Path.Combine(ppath, "Library", "bin") + ";"
 
-            Dim p1 As String = append + Environment.GetEnvironmentVariable("PATH", EnvironmentVariableTarget.Machine)
-            ' Set Path
-            Environment.SetEnvironmentVariable("PATH", p1, EnvironmentVariableTarget.Process)
-            ' Set PythonHome
+            ' Set Path (the distribution first, then what the process already had)
+            Environment.SetEnvironmentVariable("PATH", append + Environment.GetEnvironmentVariable("PATH", EnvironmentVariableTarget.Process), EnvironmentVariableTarget.Process)
+            ' Set PythonHome; with it the interpreter finds Lib and site-packages by itself, so PYTHONPATH stays as it is
             Environment.SetEnvironmentVariable("PYTHONHOME", ppath, EnvironmentVariableTarget.Process)
-            ' Set PythonPath
-            Environment.SetEnvironmentVariable("PYTHONPATH", Path.Combine(p1, "Lib"), EnvironmentVariableTarget.Process)
 
             'set PYDLL
-            Dim pydll = Directory.GetFiles(ppath, "python3*.dll")
-            If pydll.Count > 0 Then
-                Environment.SetEnvironmentVariable("PYTHONNET_PYDLL", pydll(1), EnvironmentVariableTarget.Process)
-                Runtime.PythonDLL = pydll(1)
-                DWSIM.Logging.Logger.LogInfo("Python Runtime DLL path set to " + pydll(1))
+            Dim pydll = FindPythonDll(ppath)
+            If pydll IsNot Nothing Then
+                Environment.SetEnvironmentVariable("PYTHONNET_PYDLL", pydll, EnvironmentVariableTarget.Process)
+                Runtime.PythonDLL = pydll
+                DWSIM.Logging.Logger.LogInfo("Python Runtime DLL path set to " + pydll)
             Else
-                Throw New Exception("Could not find Python DLL in the defined Python path.")
+                Throw New Exception("Could not find the Python library (python3XY.dll) in the defined Python path.")
             End If
 
             AddDllDirectory(ppath)
@@ -356,6 +414,30 @@ Public Class Settings
         End If
 
     End Sub
+
+    ''' <summary>
+    ''' The versioned CPython library of a Windows distribution folder (python3XY.dll). python3.dll
+    ''' only forwards the stable ABI and pythonXY_d.dll is a debug build; neither hosts Python.NET.
+    ''' With more than one candidate, the one that matches the version of python.exe wins.
+    ''' </summary>
+    Friend Shared Function FindPythonDll(folder As String) As String
+
+        Dim rx As New System.Text.RegularExpressions.Regex("^python3(\d+)\.dll$", System.Text.RegularExpressions.RegexOptions.IgnoreCase)
+        Dim found = Directory.GetFiles(folder, "python3*.dll").Where(Function(f) rx.IsMatch(Path.GetFileName(f))).ToList()
+        If found.Count <= 1 Then Return found.FirstOrDefault()
+
+        Dim minor = Function(f As String) Integer.Parse(rx.Match(Path.GetFileName(f)).Groups(1).Value)
+        Dim exe = Path.Combine(folder, "python.exe")
+        If File.Exists(exe) Then
+            Dim fv = System.Diagnostics.FileVersionInfo.GetVersionInfo(exe)
+            If fv.FileMajorPart = 3 Then
+                Dim match = found.FirstOrDefault(Function(f) minor(f) = fv.FileMinorPart)
+                If match IsNot Nothing Then Return match
+            End If
+        End If
+        Return found.OrderByDescending(minor).First()
+
+    End Function
 
     Shared Sub LoadExcelSettings(Optional ByVal configfile As String = "")
 
