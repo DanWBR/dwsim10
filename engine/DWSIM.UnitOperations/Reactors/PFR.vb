@@ -121,13 +121,15 @@ Namespace Reactors
         Public Rxi As New Dictionary(Of String, Double)
         ''' <summary>
         ''' Extent of each reaction over the whole reactor, keyed by reaction ID. Computed after the solve from the
-        ''' change in the base reactant molar flow between feed and outlet, divided by its stoichiometric coefficient
-        ''' and by 1000, and split among reactions that share the base reactant in proportion to their rates.
+        ''' change in the base reactant molar flow between feed and outlet, divided by its stoichiometric coefficient,
+        ''' and split among reactions that share the base reactant in proportion to their rates. Stored in mol/s,
+        ''' the SI molar flow unit, like the CSTR.
         ''' </summary>
         Public RxiT As New Dictionary(Of String, Double)
         ''' <summary>
-        ''' Heat of each reaction over the whole reactor, keyed by reaction ID: the reaction heat times the
-        ''' extent in <see cref="RxiT"/>, reported as a heat flow in kW.
+        ''' Heat of each reaction over the whole reactor, keyed by reaction ID: the reaction heat (kJ/kmol of base compound)
+        ''' times the base compound consumed (the extent in <see cref="RxiT"/> times its stoichiometric coefficient, mol/s)
+        ''' divided by 1000, a heat flow in kW.
         ''' </summary>
         Public DHRi As New Dictionary(Of String, Double)
         ''' <summary>Heat of reaction released in each integration segment along the reactor, in kW, one entry per segment.</summary>
@@ -1927,10 +1929,11 @@ Namespace Reactors
                         Dim f = Abs(Rxi(rxn.ID)) / totalrxi
                         If Double.IsNaN(f) Or Double.IsInfinity(f) Then f = 1.0#
 
+                        'extent in mol/s (SI molar flow), heat in kW = kJ/kmol of base compound * mol/s of base compound / 1000
                         RxiT.Add(rxn.ID, (ims.GetPhase("Mixture").Compounds(rxn.BaseReactant).MolarFlow.GetValueOrDefault() -
                                  feed.GetPhase("Mixture").Compounds(rxn.BaseReactant).MolarFlow.GetValueOrDefault()) /
-                                 rxn.Components(rxn.BaseReactant).StoichCoeff / 1000 * f)
-                        DHRi.Add(rxn.ID, rxn.ReactionHeat * RxiT(rxn.ID))
+                                 rxn.Components(rxn.BaseReactant).StoichCoeff * f)
+                        DHRi.Add(rxn.ID, rxn.ReactionHeat * RxiT(rxn.ID) * Abs(rxn.Components(rxn.BaseReactant).StoichCoeff) / 1000)
 
                         i += 1
 
