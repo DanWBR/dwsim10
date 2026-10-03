@@ -42,6 +42,7 @@ Namespace UnitOperations
         ''' <summary>Gets a value indicating whether this unit operation exposes properties for dynamic mode.</summary>
         Public Overrides ReadOnly Property HasPropertiesForDynamicMode As Boolean = False
 
+        ''' <summary>The classic (WinForms) editor window open for this unit operation, if any. Not saved with the flowsheet.</summary>
         <NonSerialized> <Xml.Serialization.XmlIgnore> Public f As Object
 
         ''' <summary>Defines how the outlet pressure is computed from the inlet stream pressures.</summary>

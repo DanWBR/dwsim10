@@ -23,6 +23,7 @@ Namespace UnitOperations
 
         Private Image As SKImage
 
+        ''' <summary>The classic (WinForms) editor window open for this unit operation, if any. Not saved with the flowsheet.</summary>
         <Xml.Serialization.XmlIgnore> Public f As Object
 
         ''' <summary>Gets the list of equipment sub-types (PEM, Alkaline, Solid Oxide).</summary>

@@ -42,8 +42,10 @@ Namespace UnitOperations
         Inherits UnitOperations.UnitOpBaseClass
 
         Implements IExternalUnitOperation
+        ''' <summary>Gets a value indicating that this unit operation belongs to the Bio group of the object palette. Always <c>True</c>.</summary>
         Public ReadOnly Property IsBio As Boolean = True
 
+        ''' <summary>Gets or sets the simulation object class category (Separators). The getter always returns <c>Separators</c>.</summary>
         Public Overrides Property ObjectClass As SimulationObjectClass
             Get
                 Return SimulationObjectClass.Separators
@@ -59,52 +61,81 @@ Namespace UnitOperations
         ''' <summary>Gets or sets the display description for this unit operation.</summary>
         Public Overrides Property ComponentDescription As String = GetDisplayDescription()
 
+        ''' <summary>Gets or sets the crystallization mode: Cooling (0) solves at <see cref="OperatingT_K"/>; Evaporative (1) solves at <see cref="OperatingT_K"/> after removing <see cref="EvaporationFraction"/> of the solvent; Antisolvent (2) keeps the feed temperature and reduces the solubility by <see cref="SolubilityReductionByAntisolvent"/>. Default Cooling.</summary>
         Public Property Mode As CrystallizerMode = CrystallizerMode.Cooling
+        ''' <summary>Gets or sets the name of the solute compound that crystallizes. Required.</summary>
         Public Property SoluteCompound As String = ""
+        ''' <summary>Gets or sets the name of the solvent compound used as the basis of the solubility. Required. Default "Water".</summary>
         Public Property SolventCompound As String = "Water"
+        ''' <summary>Gets or sets the operating temperature in Cooling and Evaporative modes, in K. Both outlets leave at this temperature. Default 278.15.</summary>
         Public Property OperatingT_K As Double = 278.15 ' 5 Â°C for cooling
+        ''' <summary>Gets or sets the constant term A of the solubility correlation C_sat = A + B(T - 298.15) + C(T - 298.15)^2, in g solute per g solvent. Default 0.35.</summary>
         Public Property Sol_A As Double = 0.35
+        ''' <summary>Gets or sets the linear coefficient B of the solubility correlation, in g solute per g solvent per K. Default 0.005.</summary>
         Public Property Sol_B As Double = 0.005
+        ''' <summary>Gets or sets the quadratic coefficient C of the solubility correlation, in g solute per g solvent per K2. Default 0.</summary>
         Public Property Sol_C As Double = 0.0
+        ''' <summary>Gets or sets the fraction (0-1) of the solvent evaporated in Evaporative mode. The evaporated solvent leaves the balance and does not appear in either outlet. Default 0.30.</summary>
         Public Property EvaporationFraction As Double = 0.30
+        ''' <summary>Gets or sets the fractional reduction (0-1) of the solute solubility in Antisolvent mode; the saturation concentration is multiplied by (1 - value). Default 0.7.</summary>
         Public Property SolubilityReductionByAntisolvent As Double = 0.7
+        ''' <summary>Gets or sets the mean crystal size, in micrometres. Reported only; the calculation does not use it. Default 200.</summary>
         Public Property MeanCrystalSize_um As Double = 200.0 ' reported only
 
+        ''' <summary>Gets or sets the solute mass flow in the combined feed, in kg/s. Calculated result.</summary>
         Public Property Result_SoluteInFeed_kgs As Double = 0.0
+        ''' <summary>Gets or sets the crystals outlet mass flow, in kg/s. Calculated result.</summary>
         Public Property Result_Cryst_kgs As Double = 0.0
+        ''' <summary>Gets or sets the mother liquor outlet mass flow, in kg/s. Calculated result.</summary>
         Public Property Result_MotherLiquor_kgs As Double = 0.0
+        ''' <summary>Gets or sets the crystallization yield, the crystallized mass over the solute mass in the feed (0-1). Calculated result.</summary>
         Public Property Result_Yield As Double = 0.0
+        ''' <summary>Gets or sets the saturation concentration used in the last calculation, in g solute per g solvent. Calculated result.</summary>
         Public Property Result_Csat_gg As Double = 0.0
 
+        ''' <summary>The classic (WinForms) editor window open for this unit operation, if any. Not saved with the flowsheet.</summary>
         <NonSerialized> <Xml.Serialization.XmlIgnore> Public f As Object
 
+        ''' <summary>Gets a value indicating whether this unit operation supports dynamic simulation mode. Always <c>False</c>; it is calculated as a steady-state model.</summary>
         Public Overrides ReadOnly Property SupportsDynamicMode As Boolean = False
+        ''' <summary>Gets a value indicating whether this unit operation is compatible with mobile interfaces. Always <c>False</c>.</summary>
         Public Overrides ReadOnly Property MobileCompatible As Boolean
             Get
                 Return False
             End Get
         End Property
 
+        ''' <summary>Initializes a new default instance of the <see cref="UnitOp_Crystallizer"/> class.</summary>
         Public Sub New()
             MyBase.New()
         End Sub
 
+        ''' <summary>Initializes a new instance of the <see cref="UnitOp_Crystallizer"/> class with a name and description.</summary>
+        ''' <param name="name">The name of this unit operation.</param>
+        ''' <param name="description">A brief description of this unit operation.</param>
         Public Sub New(ByVal name As String, ByVal description As String)
             MyBase.New()
             Me.ComponentName = name
             Me.ComponentDescription = description
         End Sub
 
+        ''' <summary>Creates a deep copy of this object by round-tripping through XML serialization.</summary>
+        ''' <returns>A new <see cref="UnitOp_Crystallizer"/> instance with the same property values.</returns>
         Public Overrides Function CloneXML() As Object
             Dim obj As ICustomXMLSerialization = New UnitOp_Crystallizer()
             obj.LoadData(Me.SaveData)
             Return obj
         End Function
 
+        ''' <summary>Creates a deep copy of this object by round-tripping through JSON serialization.</summary>
+        ''' <returns>A new <see cref="UnitOp_Crystallizer"/> instance with the same property values.</returns>
         Public Overrides Function CloneJSON() As Object
             Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of UnitOp_Crystallizer)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
         End Function
 
+        ''' <summary>Evaluates the solubility correlation A + B(T - 298.15) + C(T - 298.15)^2, clipped at zero.</summary>
+        ''' <param name="T_K">The temperature, in K.</param>
+        ''' <returns>The saturation concentration, in g solute per g solvent.</returns>
         Public Function SolubilityAt(T_K As Double) As Double
             Dim x = T_K - 298.15
             Return Max(0.0, Sol_A + Sol_B * x + Sol_C * x * x)
@@ -261,16 +292,27 @@ Namespace UnitOperations
             Next
         End Sub
 
+        ''' <summary>Returns the raw bytes of the icon image for this unit operation.</summary>
+        ''' <returns>A byte array containing the PNG image data for the icon.</returns>
         Public Overrides Function GetIconBitmapBytes() As Byte()
             Return BioOpsDrawHelper.RenderIconToPngBytes(64, 64, AddressOf DrawIcon)
         End Function
+        ''' <summary>Returns the localized description string for this unit operation type.</summary>
+        ''' <returns>A translated description string identifying this unit operation type.</returns>
         Public Overrides Function GetDisplayDescription() As String
             Return "Crystallizer (cooling / evaporative / antisolvent)"
         End Function
+        ''' <summary>Returns the localized display name for this unit operation type.</summary>
+        ''' <returns>A translated name string for this unit operation type.</returns>
         Public Overrides Function GetDisplayName() As String
             Return "Crystallizer"
         End Function
 
+        ''' <summary>Generates a plain-text results report for this unit operation.</summary>
+        ''' <param name="su">The unit system used for formatting output values.</param>
+        ''' <param name="ci">The culture info used for number formatting.</param>
+        ''' <param name="numberformat">A .NET numeric format string (e.g. "G6") applied to output values.</param>
+        ''' <returns>A formatted multi-line string report.</returns>
         Public Overrides Function GetReport(su As IUnitsOfMeasure, ci As Globalization.CultureInfo, numberformat As String) As String
             Dim s As New Text.StringBuilder
             s.AppendLine("Crystallizer: " & Me.GraphicObject.Tag)

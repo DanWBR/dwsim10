@@ -44,6 +44,7 @@ Namespace UnitOperations
         ''' <summary>Gets a value indicating whether this unit operation exposes dedicated properties for dynamic mode.</summary>
         Public Overrides ReadOnly Property HasPropertiesForDynamicMode As Boolean = False
 
+        ''' <summary>The classic (WinForms) editor window open for this unit operation, if any. Not saved with the flowsheet.</summary>
         <NonSerialized> <Xml.Serialization.XmlIgnore> Public f As Object
 
         ''' <summary>Defines the two-phase flow model used when both liquid and vapour phases are present.</summary>
@@ -60,7 +61,7 @@ Namespace UnitOperations
             CornerTaps = 0
             ''' <summary>Pressure taps located 1 inch (25.4 mm) from each face of the orifice plate.</summary>
             FlangeTaps = 1
-            ''' <summary>Pressure taps located at D and D/2 from the orifice plate (radius or D&frac12;D taps).</summary>
+            ''' <summary>Pressure taps located at D and D/2 from the orifice plate (radius or D and D/2 taps).</summary>
             RadiusTaps = 2
         End Enum
 

@@ -48,6 +48,7 @@ Namespace Streams
         'CAPE-OPEN Error Interfaces
         Implements ECapeUser, ECapeUnknown, ECapeRoot
 
+        ''' <summary>The classic (WinForms) editor window open for this energy stream, if any. Not saved with the flowsheet.</summary>
         <NonSerialized> <Xml.Serialization.XmlIgnore> Public f As Object
 
         Private WithEvents m_work As CapeOpen.RealParameter
@@ -108,6 +109,10 @@ Namespace Streams
 
         End Sub
 
+        ''' <summary>
+        ''' Initializes the CAPE-OPEN parameter collection of this energy stream (skipped when running on Mono)
+        ''' and marks the stream as initialized.
+        ''' </summary>
         Sub Init()
 
             If Type.GetType("Mono.Runtime") Is Nothing Then CreateParamCol()
@@ -115,6 +120,10 @@ Namespace Streams
 
         End Sub
 
+        ''' <summary>
+        ''' Creates the CAPE-OPEN real parameters exposed by this energy stream: "work" (the energy flow, in J/s),
+        ''' "temperatureLow" and "temperatureHigh" (in K).
+        ''' </summary>
         Sub CreateParamCol()
 
             m_work = New CapeOpen.RealParameter("work", Me.EnergyFlow.GetValueOrDefault * 1000.0, 0.0#, "J/s")

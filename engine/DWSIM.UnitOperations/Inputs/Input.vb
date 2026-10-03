@@ -20,14 +20,25 @@ Imports DWSIM.Interfaces.Enums
 
 Namespace UnitOperations
 
+    ''' <summary>
+    ''' Input box placed on the flowsheet: a value entered in it is written directly to the property
+    ''' <see cref="SelectedProperty"/> of the object named by <see cref="SelectedObjectID"/>, and reading
+    ''' its "Value" property returns the current value of that target property. It has no calculation of its own.
+    ''' </summary>
     <System.Serializable()> Public Partial Class Input
 
         Inherits UnitOperations.UnitOpBaseClass
 
         Implements Interfaces.IInput, IControllableObject
 
+        ''' <summary>
+        ''' Gets or sets the simulation object class category (Inputs).
+        ''' </summary>
         Public Overrides Property ObjectClass As SimulationObjectClass = SimulationObjectClass.Inputs
 
+        ''' <summary>
+        ''' The classic (WinForms) editor window open for this input box, if any. Not saved with the flowsheet.
+        ''' </summary>
         <NonSerialized> <Xml.Serialization.XmlIgnore> Public f As Object
 
         <Xml.Serialization.XmlIgnore> Public Property ControlPanel As Object Implements IControllableObject.ControlPanel
@@ -40,8 +51,16 @@ Namespace UnitOperations
 
         Public Property SelectedPropertyUnits As String = "" Implements IInput.SelectedPropertyUnits
 
+        ''' <summary>
+        ''' Gets a value indicating whether this input box can run in dynamic simulation mode. Always <c>True</c>.
+        ''' </summary>
         Public Overrides ReadOnly Property SupportsDynamicMode As Boolean = True
 
+        ''' <summary>
+        ''' Initializes a new instance of the <see cref="Input"/> class with a name and description.
+        ''' </summary>
+        ''' <param name="name">The name of this input box.</param>
+        ''' <param name="description">A brief description of this input box.</param>
         Public Sub New(ByVal name As String, ByVal description As String)
 
             MyBase.CreateNew()
@@ -50,16 +69,27 @@ Namespace UnitOperations
 
         End Sub
 
+        ''' <summary>
+        ''' Creates a deep copy of this object by round-tripping through XML serialization.
+        ''' </summary>
+        ''' <returns>A new <see cref="Input"/> instance with the same property values.</returns>
         Public Overrides Function CloneXML() As Object
             Dim obj As ICustomXMLSerialization = New Input()
             obj.LoadData(Me.SaveData)
             Return obj
         End Function
 
+        ''' <summary>
+        ''' Creates a deep copy of this object by round-tripping through JSON serialization.
+        ''' </summary>
+        ''' <returns>A new <see cref="Input"/> instance with the same property values.</returns>
         Public Overrides Function CloneJSON() As Object
             Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of Input)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
         End Function
 
+        ''' <summary>
+        ''' Initializes a new default instance of the <see cref="Input"/> class.
+        ''' </summary>
         Public Sub New()
             MyBase.New()
         End Sub
@@ -203,20 +233,35 @@ Namespace UnitOperations
 
         End Function
 
+        ''' <summary>
+        ''' Returns the raw bytes of the icon image for this input box.
+        ''' </summary>
+        ''' <returns>A byte array containing the PNG image data for the icon.</returns>
         Public Overrides Function GetIconBitmapBytes() As Byte()
 
             Return GetBytesFromResource("DWSIM.UnitOperations.input.png")
 
         End Function
 
+        ''' <summary>
+        ''' Returns the localized description string for this object type.
+        ''' </summary>
+        ''' <returns>A translated description string identifying this object type.</returns>
         Public Overrides Function GetDisplayDescription() As String
             Return ResMan.GetLocalString("IN_Desc")
         End Function
 
+        ''' <summary>
+        ''' Returns the localized display name for this object type.
+        ''' </summary>
+        ''' <returns>A translated name string for this object type.</returns>
         Public Overrides Function GetDisplayName() As String
             Return ResMan.GetLocalString("IN_Name")
         End Function
 
+        ''' <summary>
+        ''' Gets a value indicating whether this input box is compatible with mobile interfaces. Always <c>False</c>.
+        ''' </summary>
         Public Overrides ReadOnly Property MobileCompatible As Boolean
             Get
                 Return False

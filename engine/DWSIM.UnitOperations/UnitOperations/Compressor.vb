@@ -45,6 +45,7 @@ Namespace UnitOperations
         ''' <summary>Gets a value indicating whether this unit operation exposes properties for dynamic mode.</summary>
         Public Overrides ReadOnly Property HasPropertiesForDynamicMode As Boolean = True
 
+        ''' <summary>The classic (WinForms) editor window open for this unit operation, if any. Not saved with the flowsheet.</summary>
         <NonSerialized> <Xml.Serialization.XmlIgnore> Public f As Object
 
         ''' <summary>Gets the list of equipment sub-types available for this compressor.</summary>
@@ -386,6 +387,11 @@ Namespace UnitOperations
 
         End Function
 
+        ''' <summary>
+        ''' Creates an empty set of performance curves for one rotational speed: head ("HEAD"), efficiency ("EFF")
+        ''' and power ("POWER").
+        ''' </summary>
+        ''' <returns>A dictionary of new, empty curves keyed by "HEAD", "EFF" and "POWER".</returns>
         Public Function CreateCurves() As Dictionary(Of String, PumpOps.Curve)
 
             Dim dict As New Dictionary(Of String, PumpOps.Curve)
@@ -427,6 +433,10 @@ Namespace UnitOperations
             Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of Compressor)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
         End Function
 
+        ''' <summary>
+        ''' Registers the dynamic properties for dynamic simulation mode: flow conductance, casing volume and holdup options,
+        ''' minimum pressure, rotor inertia, current, target and rated speeds (RPM), motor torque, and the surge limit and alarm.
+        ''' </summary>
         Public Overrides Sub CreateDynamicProperties()
 
             AddDynamicProperty("Flow Conductance", "Flow conductance (inverse of resistance).", 1, UnitOfMeasure.conductance, 1.0.GetType())
@@ -556,6 +566,13 @@ Namespace UnitOperations
 
         End Sub
 
+        ''' <summary>
+        ''' Runs one dynamic-mode integration step. The rotor speed moves towards the target speed at a rate set by the
+        ''' motor torque and inertia. By default the compressor acts as a pressure-flow element and sets the outlet to the
+        ''' inlet pressure plus the pressure rise at the current flow and speed; with "Integrate Casing Holdup" enabled it
+        ''' integrates the casing volume as a capacity. The pressure rise comes from the curve map in Curves mode, or from
+        ''' the flow conductance scaled by the square of the speed ratio. The surge alarm is updated at the end.
+        ''' </summary>
         Public Overrides Sub RunDynamicModel()
 
             Dim integratorID = FlowSheet.DynamicsManager.ScheduleList(FlowSheet.DynamicsManager.CurrentSchedule).CurrentIntegrator

@@ -50,6 +50,7 @@ Namespace SpecialOps
         ''' <summary>True when the last pass changed the recycled energy flow by less than the tolerance.</summary>
         Public Property Converged As Boolean = False Implements Interfaces.IEnergyRecycle.Converged
 
+        ''' <summary>The classic (WinForms) editor window open for this logical block, if any. Not saved with the flowsheet.</summary>
         <NonSerialized> <Xml.Serialization.XmlIgnore> Public f As Object
 
         Protected m_ConvPar As ConvergenceParametersE

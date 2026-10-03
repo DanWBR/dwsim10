@@ -38,8 +38,10 @@ Namespace UnitOperations
         Inherits UnitOperations.UnitOpBaseClass
 
         Implements IExternalUnitOperation
+        ''' <summary>Gets a value that marks this unit operation as a bioprocess unit. The object palettes read this flag by reflection to list it in the Biochemical group.</summary>
         Public ReadOnly Property IsBio As Boolean = True
 
+        ''' <summary>Gets or sets the simulation object class category (always <c>Separators</c>).</summary>
         Public Overrides Property ObjectClass As SimulationObjectClass
             Get
                 Return SimulationObjectClass.Separators
@@ -55,31 +57,48 @@ Namespace UnitOperations
         ''' <summary>Gets or sets the display description for this unit operation.</summary>
         Public Overrides Property ComponentDescription As String = GetDisplayDescription()
 
+        ''' <summary>Gets or sets the centrifuge type: <c>DiskStack</c> (0, default), <c>Decanter</c> (1) or <c>Tubular</c> (2).
+        ''' Informational only; it appears in the report and does not change the calculation.</summary>
         Public Property Technology As CentrifugeType = CentrifugeType.DiskStack
+        ''' <summary>Gets or sets the bowl rotational speed, in rpm. Default 6000 rpm. Informational only; it is reported and does not change the split.</summary>
         Public Property BowlSpeed_rpm As Double = 6000.0
+        ''' <summary>Gets or sets the sigma factor (equivalent settling area), in m2. Default 1000 m2. Informational only; it is reported and does not change the split.</summary>
         Public Property SigmaFactor_m2 As Double = 1000.0
+        ''' <summary>Gets or sets the fraction (0 to 1) of each compound sent to the Heavy outlet when the compound has no entry in <see cref="RecoveryToHeavy"/>. Default 0.05.</summary>
         Public Property DefaultRecoveryToHeavy As Double = 0.05
+        ''' <summary>Gets or sets the per-compound fraction (0 to 1) of the feed mass sent to the Heavy (concentrate) outlet, keyed by compound name. The remainder goes to the Light (clarified) outlet.</summary>
         Public Property RecoveryToHeavy As Dictionary(Of String, Double)
 
+        ''' <summary>Gets or sets the calculated feed mass flow, in kg/s.</summary>
         Public Property Result_FeedMass_kgs As Double = 0.0
+        ''' <summary>Gets or sets the calculated Heavy (concentrate) outlet mass flow, in kg/s.</summary>
         Public Property Result_HeavyMass_kgs As Double = 0.0
+        ''' <summary>Gets or sets the calculated Light (clarified) outlet mass flow, in kg/s.</summary>
         Public Property Result_LightMass_kgs As Double = 0.0
+        ''' <summary>Gets or sets the calculated solids recovery (0 to 1): the fraction of the compounds with molecular weight above 10000 g/mol that goes to the Heavy outlet. Zero when no such compound is present.</summary>
         Public Property Result_SolidsRecovery As Double = 0.0
 
+        ''' <summary>The classic (WinForms) editor window open for this unit operation, if any. Not saved with the flowsheet.</summary>
         <NonSerialized> <Xml.Serialization.XmlIgnore> Public f As Object
 
+        ''' <summary>Gets a value indicating whether this unit operation supports dynamic simulation mode. Always <c>False</c>.</summary>
         Public Overrides ReadOnly Property SupportsDynamicMode As Boolean = False
+        ''' <summary>Gets a value indicating whether this unit operation is compatible with mobile interfaces. Always <c>False</c>.</summary>
         Public Overrides ReadOnly Property MobileCompatible As Boolean
             Get
                 Return False
             End Get
         End Property
 
+        ''' <summary>Initializes a new default instance of the <see cref="UnitOp_Centrifuge"/> class.</summary>
         Public Sub New()
             MyBase.New()
             RecoveryToHeavy = New Dictionary(Of String, Double)()
         End Sub
 
+        ''' <summary>Initializes a new instance of the <see cref="UnitOp_Centrifuge"/> class with a name and description.</summary>
+        ''' <param name="name">The name of this unit operation.</param>
+        ''' <param name="description">A brief description of this unit operation.</param>
         Public Sub New(ByVal name As String, ByVal description As String)
             MyBase.New()
             Me.ComponentName = name
@@ -87,16 +106,23 @@ Namespace UnitOperations
             RecoveryToHeavy = New Dictionary(Of String, Double)()
         End Sub
 
+        ''' <summary>Creates a deep copy of this object by round-tripping through XML serialization.</summary>
+        ''' <returns>A new <see cref="UnitOp_Centrifuge"/> instance with the same property values.</returns>
         Public Overrides Function CloneXML() As Object
             Dim obj As ICustomXMLSerialization = New UnitOp_Centrifuge()
             obj.LoadData(Me.SaveData)
             Return obj
         End Function
 
+        ''' <summary>Creates a deep copy of this object by round-tripping through JSON serialization.</summary>
+        ''' <returns>A new <see cref="UnitOp_Centrifuge"/> instance with the same property values.</returns>
         Public Overrides Function CloneJSON() As Object
             Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of UnitOp_Centrifuge)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
         End Function
 
+        ''' <summary>Returns the fraction of a compound sent to the Heavy outlet: its entry in <see cref="RecoveryToHeavy"/>, or <see cref="DefaultRecoveryToHeavy"/> when it has none, clamped to 0 to 1.</summary>
+        ''' <param name="compName">The compound name.</param>
+        ''' <returns>The recovery-to-heavy fraction, between 0 and 1.</returns>
         Public Function RecoveryFor(compName As String) As Double
             If RecoveryToHeavy IsNot Nothing AndAlso RecoveryToHeavy.ContainsKey(compName) Then
                 Return Max(0.0, Min(1.0, RecoveryToHeavy(compName)))
@@ -200,16 +226,27 @@ Namespace UnitOperations
             Next
         End Sub
 
+        ''' <summary>Returns the raw bytes of the icon image for this unit operation.</summary>
+        ''' <returns>A byte array containing the PNG image data for the icon.</returns>
         Public Overrides Function GetIconBitmapBytes() As Byte()
             Return BioOpsDrawHelper.RenderIconToPngBytes(64, 64, AddressOf DrawIcon)
         End Function
+        ''' <summary>Returns the description string for this unit operation type.</summary>
+        ''' <returns>A description string identifying this unit operation type.</returns>
         Public Overrides Function GetDisplayDescription() As String
             Return "Centrifuge (disk-stack / decanter / tubular)"
         End Function
+        ''' <summary>Returns the display name for this unit operation type.</summary>
+        ''' <returns>The name string for this unit operation type.</returns>
         Public Overrides Function GetDisplayName() As String
             Return "Centrifuge"
         End Function
 
+        ''' <summary>Generates a plain-text results report for this unit operation.</summary>
+        ''' <param name="su">The unit system used for formatting output values (not used; values are reported in fixed units).</param>
+        ''' <param name="ci">The culture info used for number formatting.</param>
+        ''' <param name="numberformat">A .NET numeric format string (e.g. "G6") applied to output values.</param>
+        ''' <returns>A formatted multi-line string report.</returns>
         Public Overrides Function GetReport(su As IUnitsOfMeasure, ci As Globalization.CultureInfo, numberformat As String) As String
             Dim s As New Text.StringBuilder
             s.AppendLine("Centrifuge: " & Me.GraphicObject.Tag)

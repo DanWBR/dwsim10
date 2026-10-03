@@ -55,6 +55,7 @@ Namespace Reactors
         Inherits Reactor
 
         Implements IExternalUnitOperation
+        ''' <summary>Gets a value that marks this reactor as a bioprocess unit. The object palettes read this flag by reflection to list it in the Biochemical group.</summary>
         Public ReadOnly Property IsBio As Boolean = True
 
         Public Overrides Property ObjectClass As SimulationObjectClass
@@ -169,49 +170,72 @@ Namespace Reactors
 
         ' -------- RESULT PROPERTIES --------
 
+        ''' <summary>Gets or sets the calculated bio-oil (condensable vapor) yield at the riser outlet, as a mass fraction of the biomass feed.</summary>
         Public Property Result_OilYield_wfrac As Double = 0.0
+        ''' <summary>Gets or sets the calculated non-condensable gas yield at the riser outlet, as a mass fraction of the biomass feed.</summary>
         Public Property Result_GasYield_wfrac As Double = 0.0
+        ''' <summary>Gets or sets the calculated char yield at the riser outlet (char plus activated lignin residue), as a mass fraction of the biomass feed.</summary>
         Public Property Result_CharYield_wfrac As Double = 0.0
+        ''' <summary>Gets or sets the calculated fraction of the biomass feed that leaves the riser unconverted (cellulose, hemicellulose and lignin, native or activated), as a mass fraction.</summary>
         Public Property Result_UnreactedSolid_wfrac As Double = 0.0
+        ''' <summary>Gets or sets the calculated temperature of the reacting mixture at the riser outlet, in K. The outlet stream is written at this temperature.</summary>
         Public Property Result_OutletTemperature_K As Double = 0.0
+        ''' <summary>Gets or sets the calculated vapor residence time in the riser, in s.</summary>
         Public Property Result_VaporResidenceTime_s As Double = 0.0
+        ''' <summary>Gets or sets the calculated sand (bed material) circulation rate through the riser, in kg/s. In <c>InternalCharCombustor</c> mode this is the rate that closes the combustor energy balance.</summary>
         Public Property Result_SandCirculation_kgps As Double = 0.0
+        ''' <summary>Gets or sets the calculated sand temperature at the riser outlet, in K.</summary>
         Public Property Result_SandOutletTemperature_K As Double = 0.0
+        ''' <summary>Gets or sets the calculated pyrolysis duty, in kW: the heat the sand delivers to the reacting mixture (sensible heat, reaction heats and feed preheat). In <c>External</c> sand mode this value is written to the energy stream.</summary>
         Public Property Result_PyrolysisDuty_kW As Double = 0.0
+        ''' <summary>Gets or sets the calculated heat released by the internal char combustor after its heat loss, in kW. Zero in <c>External</c> sand mode.</summary>
         Public Property Result_CombustorDuty_kW As Double = 0.0
+        ''' <summary>Gets or sets the calculated air mass flow fed to the internal char combustor, including excess air, in kg/s. Zero in <c>External</c> sand mode.</summary>
         Public Property Result_CombustorAirFlow_kgps As Double = 0.0
+        ''' <summary>Gets or sets the estimated adiabatic flue gas temperature of the internal char combustor, in K. Zero in <c>External</c> sand mode.</summary>
         Public Property Result_CombustorFlueT_K As Double = 0.0
 
         ''' <summary>Last axial trajectory (not persisted - recomputed on each Calculate).</summary>
         <Xml.Serialization.XmlIgnore> <Newtonsoft.Json.JsonIgnore>
         Public Property LastTrajectory As CFBPyrolysisTrajectoryResult
 
+        ''' <summary>The classic (WinForms) editor window open for this reactor, if any. Not saved with the flowsheet.</summary>
         <NonSerialized> <Xml.Serialization.XmlIgnore> Public f As Object
 
+        ''' <summary>Gets a value indicating whether this reactor supports dynamic simulation mode. Always <c>False</c>.</summary>
         Public Overrides ReadOnly Property SupportsDynamicMode As Boolean = False
 
+        ''' <summary>Gets a value indicating whether this reactor is compatible with mobile interfaces. Always <c>False</c>.</summary>
         Public Overrides ReadOnly Property MobileCompatible As Boolean
             Get
                 Return False
             End Get
         End Property
 
+        ''' <summary>Initializes a new default instance of the <see cref="Reactor_CFBFastPyrolysis"/> class.</summary>
         Public Sub New()
             MyBase.New()
         End Sub
 
+        ''' <summary>Initializes a new instance of the <see cref="Reactor_CFBFastPyrolysis"/> class with a name and description.</summary>
+        ''' <param name="name">The name of this reactor.</param>
+        ''' <param name="description">A brief description of this reactor.</param>
         Public Sub New(ByVal name As String, ByVal description As String)
             MyBase.New()
             Me.ComponentName = name
             Me.ComponentDescription = description
         End Sub
 
+        ''' <summary>Creates a deep copy of this object by round-tripping through XML serialization.</summary>
+        ''' <returns>A new <see cref="Reactor_CFBFastPyrolysis"/> instance with the same property values.</returns>
         Public Overrides Function CloneXML() As Object
             Dim obj As ICustomXMLSerialization = New Reactor_CFBFastPyrolysis()
             obj.LoadData(Me.SaveData)
             Return obj
         End Function
 
+        ''' <summary>Creates a deep copy of this object by round-tripping through JSON serialization.</summary>
+        ''' <returns>A new <see cref="Reactor_CFBFastPyrolysis"/> instance with the same property values.</returns>
         Public Overrides Function CloneJSON() As Object
             Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of Reactor_CFBFastPyrolysis)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
         End Function
@@ -594,18 +618,29 @@ Namespace Reactors
         '                 Identity / Drawing / Edit
         ' ------------------------------------------------------------
 
+        ''' <summary>Returns the raw bytes of the icon image for this reactor.</summary>
+        ''' <returns>A byte array containing the PNG image data for the icon.</returns>
         Public Overrides Function GetIconBitmapBytes() As Byte()
             Return UnitOperations.BioOpsDrawHelper.RenderIconToPngBytes(64, 64, AddressOf DrawIcon)
         End Function
 
+        ''' <summary>Returns the description string for this reactor type.</summary>
+        ''' <returns>A description string identifying this reactor type.</returns>
         Public Overrides Function GetDisplayDescription() As String
             Return "CFB fast pyrolysis reactor (1-D axial PFR, Ranzi multi-step kinetics, optional char combustor)"
         End Function
 
+        ''' <summary>Returns the display name for this reactor type.</summary>
+        ''' <returns>The name string for this reactor type.</returns>
         Public Overrides Function GetDisplayName() As String
             Return "CFB Fast Pyrolysis"
         End Function
 
+        ''' <summary>Generates a plain-text results report for this reactor.</summary>
+        ''' <param name="su">The unit system used for formatting output values (not used; values are reported in fixed units).</param>
+        ''' <param name="ci">The culture info used for number formatting.</param>
+        ''' <param name="numberformat">A .NET numeric format string (e.g. "G6") applied to output values.</param>
+        ''' <returns>A formatted multi-line string report.</returns>
         Public Overrides Function GetReport(su As IUnitsOfMeasure, ci As Globalization.CultureInfo, numberformat As String) As String
             Dim s As New Text.StringBuilder
             s.AppendLine("CFB Fast Pyrolysis Reactor: " & Me.GraphicObject.Tag)

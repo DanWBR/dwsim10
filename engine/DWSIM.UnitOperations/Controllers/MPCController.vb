@@ -112,26 +112,69 @@ Namespace SpecialOps
 
     End Class
 
+    ''' <summary>
+    ''' Model predictive controller for dynamic simulations, based on Dynamic Matrix Control (DMC). It moves
+    ''' several manipulated variables at once to keep several controlled variables inside their ranges,
+    ''' using first-order plus dead time step response models between each pair.
+    ''' </summary>
     <System.Serializable()> Public Partial Class MPCController
 
         Inherits UnitOperations.SpecialOpBaseClass
 
         Public Overrides Property ObjectClass As SimulationObjectClass = SimulationObjectClass.Controllers
 
+        ''' <summary>
+        ''' Gets or sets whether the controller acts during a dynamic run. The integrator skips an inactive
+        ''' controller. Default <c>True</c>.
+        ''' </summary>
         Public Property Active As Boolean = True
 
+        ''' <summary>
+        ''' Prediction horizon P, in samples: the number of future samples over which the controlled variable
+        ''' error is minimized. Default 30.
+        ''' </summary>
         Public Property PredictionHorizon As Integer = 30
+        ''' <summary>
+        ''' Control horizon M, in samples: the number of future moves computed for each manipulated variable
+        ''' (only the first is applied). Limited to the prediction horizon. Default 5.
+        ''' </summary>
         Public Property ControlHorizon As Integer = 5
+        ''' <summary>
+        ''' Control interval, in s. In dynamic mode the controller acts every n-th call, with n the sample time
+        ''' divided by the integrator call interval, rounded and at least 1. Default 1.
+        ''' </summary>
         Public Property SampleTime As Double = 1.0
 
+        ''' <summary>
+        ''' Controlled variables. Each one is driven to the middle of its range (MinValue + MaxValue) / 2, with
+        ''' its Weight in the objective.
+        ''' </summary>
         Public Property ControlledVariables As New List(Of MPCVariable)
+        ''' <summary>Manipulated variables moved by the controller, each clamped to its MinValue and MaxValue.</summary>
         Public Property ManipulatedVariables As New List(Of MPCVariable)
+        ''' <summary>
+        ''' Measured disturbance variables. Saved with the controller; the current calculation does not use
+        ''' them.
+        ''' </summary>
         Public Property DisturbanceVariables As New List(Of MPCVariable)
 
+        ''' <summary>
+        ''' Step response models, one per controlled/manipulated variable pair, indexed by CVIndex and MVIndex
+        ''' in the variable lists.
+        ''' </summary>
         Public Property StepResponseModels As New List(Of StepResponseModel)
 
+        ''' <summary>
+        ''' Move suppression weight (lambda), dimensionless. It is scaled by the mean diagonal of each
+        ''' manipulated variable's block of the dynamic matrix; larger values give smaller, smoother moves.
+        ''' Default 0.1.
+        ''' </summary>
         Public Property MoveSuppressionWeight As Double = 0.1
 
+        ''' <summary>
+        ''' Position of this controller in the order the dynamic integrator runs the MPC controllers, in
+        ''' ascending order. Default 0.
+        ''' </summary>
         Public Property ExecutionOrder As Integer = 0
 
         Private Const MaxModelLength As Integer = 20000
@@ -147,25 +190,43 @@ Namespace SpecialOps
         <System.NonSerialized> Private CallCount As Integer = 0
         <System.NonSerialized> Private LastCallTime As DateTime? = Nothing
 
+        ''' <summary>
+        ''' Controlled variable values recorded at each control step, one array per step in the variables'
+        ''' units, for the trend charts.
+        ''' </summary>
         Public Property CVHistory As New List(Of Double())
+        ''' <summary>
+        ''' Manipulated variable values recorded at each control step, one array per step in the variables'
+        ''' units, for the trend charts.
+        ''' </summary>
         Public Property MVHistory As New List(Of Double())
 
+        ''' <summary>Initializes a new default instance of the <see cref="MPCController"/> class.</summary>
         Public Sub New()
             MyBase.New()
         End Sub
 
+        ''' <summary>
+        ''' Initializes a new instance of the <see cref="MPCController"/> class with a name and description.
+        ''' </summary>
+        ''' <param name="name">The name of this controller.</param>
+        ''' <param name="description">A brief description of this controller.</param>
         Public Sub New(name As String, description As String)
             MyBase.CreateNew()
             Me.ComponentName = name
             Me.ComponentDescription = description
         End Sub
 
+        ''' <summary>Creates a deep copy of this object by round-tripping through XML serialization.</summary>
+        ''' <returns>A new <see cref="MPCController"/> instance with the same property values.</returns>
         Public Overrides Function CloneXML() As Object
             Dim obj As ICustomXMLSerialization = New MPCController()
             obj.LoadData(Me.SaveData)
             Return obj
         End Function
 
+        ''' <summary>Creates a deep copy of this object by round-tripping through JSON serialization.</summary>
+        ''' <returns>A new <see cref="MPCController"/> instance with the same property values.</returns>
         Public Overrides Function CloneJSON() As Object
             Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of MPCController)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
         End Function
@@ -259,20 +320,30 @@ Namespace SpecialOps
 
         End Function
 
+        ''' <summary>
+        ''' Gets a value indicating whether this controller is compatible with mobile interfaces. Always
+        ''' <c>False</c>.
+        ''' </summary>
         Public Overrides ReadOnly Property MobileCompatible As Boolean
             Get
                 Return False
             End Get
         End Property
 
+        ''' <summary>Returns the display name for this controller type.</summary>
+        ''' <returns>The name "MPC Controller".</returns>
         Public Overrides Function GetDisplayName() As String
             Return "MPC Controller"
         End Function
 
+        ''' <summary>Returns the description string for this controller type.</summary>
+        ''' <returns>The description "Model Predictive Controller (DMC)".</returns>
         Public Overrides Function GetDisplayDescription() As String
             Return "Model Predictive Controller (DMC)"
         End Function
 
+        ''' <summary>Returns the raw bytes of the icon image for this controller.</summary>
+        ''' <returns>A byte array containing the PNG image data for the icon.</returns>
         Public Overrides Function GetIconBitmapBytes() As Byte()
 
             Return GetBytesFromResource("DWSIM.UnitOperations.control_panel.png")
@@ -281,6 +352,10 @@ Namespace SpecialOps
 
         <System.NonSerialized> Private f As Object
 
+        ''' <summary>
+        ''' Clears the controller state: the predicted trajectories, the last moves, the cached model and
+        ''' tuning, the call counter, the histories and the last values of the variables.
+        ''' </summary>
         Public Sub Reset()
             Prediction = Nothing
             LastMV = Nothing
@@ -298,6 +373,11 @@ Namespace SpecialOps
             Next
         End Sub
 
+        ''' <summary>
+        ''' Regenerates the step response coefficients of every model from its gain, time constant and dead
+        ''' time, at the current sample time and a length that covers the prediction horizon and the settling of
+        ''' each model.
+        ''' </summary>
         Public Sub InitializeModels()
             Dim ts = Math.Max(SampleTime, 0.001)
             Dim NS = GetModelLength(ts, Math.Max(1, PredictionHorizon))
@@ -625,6 +705,9 @@ Namespace SpecialOps
             End Try
         End Function
 
+        ''' <summary>Builds the trend chart with the given name.</summary>
+        ''' <param name="name">The chart name: "CV Trends" (also used for an empty name) or "MV Trends".</param>
+        ''' <returns>An OxyPlot <c>PlotModel</c> with one series per controlled or manipulated variable.</returns>
         Public Overrides Function GetChartModel(name As String) As Object
 
             Dim model = New PlotModel() With {.Subtitle = name, .Title = If(GraphicObject IsNot Nothing, GraphicObject.Tag, "MPC")}
@@ -685,6 +768,8 @@ Namespace SpecialOps
 
         End Function
 
+        ''' <summary>Returns the names of the charts this controller can embed in the flowsheet.</summary>
+        ''' <returns>A list with "CV Trends" and "MV Trends".</returns>
         Public Overrides Function GetChartModelNames() As List(Of String)
             Return New List(Of String) From {"CV Trends", "MV Trends"}
         End Function

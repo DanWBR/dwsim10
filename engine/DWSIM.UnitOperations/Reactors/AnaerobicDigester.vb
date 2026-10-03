@@ -71,6 +71,7 @@ Namespace Reactors
         Inherits Reactor
 
         Implements IExternalUnitOperation
+        ''' <summary>Gets a value that marks this reactor as a bioprocess unit. The object palettes read this flag by reflection to list it in the Biochemical group.</summary>
         Public ReadOnly Property IsBio As Boolean = True
 
         Public Overrides Property ObjectClass As SimulationObjectClass
@@ -232,14 +233,24 @@ Namespace Reactors
 
         ' ----------- ADM1-LITE RESULT STATE -----------
 
+        ''' <summary>(ADM1-Lite) Final soluble substrate concentration (lumped sugars, amino acids and LCFA) from the last calculation, in g COD/L.</summary>
         Public Property ADM1_Result_S_s As Double = 0.0
+        ''' <summary>(ADM1-Lite) Final volatile fatty acid concentration (lumped propionate, butyrate and valerate) from the last calculation, in g COD/L.</summary>
         Public Property ADM1_Result_S_VFA As Double = 0.0
+        ''' <summary>(ADM1-Lite) Final acetate concentration from the last calculation, in g COD/L.</summary>
         Public Property ADM1_Result_S_Ac As Double = 0.0
+        ''' <summary>(ADM1-Lite) Final dissolved hydrogen concentration from the last calculation, in g COD/L.</summary>
         Public Property ADM1_Result_S_H2 As Double = 0.0
+        ''' <summary>(ADM1-Lite) Final acidogen/hydrolyser biomass concentration from the last calculation, in g VSS/L.</summary>
         Public Property ADM1_Result_X_hyd As Double = 0.0
+        ''' <summary>(ADM1-Lite) Final acetogen biomass concentration from the last calculation, in g VSS/L.</summary>
         Public Property ADM1_Result_X_ace As Double = 0.0
+        ''' <summary>(ADM1-Lite) Final acetoclastic methanogen biomass concentration from the last calculation, in g VSS/L.</summary>
         Public Property ADM1_Result_X_am As Double = 0.0
+        ''' <summary>(ADM1-Lite) Final hydrogenotrophic methanogen biomass concentration from the last calculation, in g VSS/L.</summary>
         Public Property ADM1_Result_X_hm As Double = 0.0
+        ''' <summary>Digester pH from the last calculation. ADM1-Lite reports a rough estimate from the VFA level (7 - log10(1 + 5 S_VFA)), for display only;
+        ''' ADM1-Full and ADM1-S report the pH solved from the charge balance at the end of the simulation. Default 7.</summary>
         Public Property ADM1_Result_pH As Double = 7.0
 
         ' ----------- FULL ADM1 (Batstone 2002) -----------
@@ -320,8 +331,10 @@ Namespace Reactors
         ''' <summary>Outlet temperature (K) resulting from the selected thermal mode.</summary>
         Public Property Result_OutletTemperature_K As Double = 0.0
 
+        ''' <summary>The classic (WinForms) editor window open for this reactor, if any. Not saved with the flowsheet.</summary>
         <NonSerialized> <Xml.Serialization.XmlIgnore> Public f As Object
 
+        ''' <summary>Gets a value indicating whether this reactor supports dynamic simulation mode. Always <c>False</c>.</summary>
         Public Overrides ReadOnly Property SupportsDynamicMode As Boolean = False
 
         Public Overrides ReadOnly Property EquipmentTypes As List(Of String)
@@ -339,22 +352,30 @@ Namespace Reactors
             Dimensions(0).Value = Volume
         End Sub
 
+        ''' <summary>Initializes a new default instance of the <see cref="Reactor_AnaerobicDigester"/> class.</summary>
         Public Sub New()
             MyBase.New()
         End Sub
 
+        ''' <summary>Initializes a new instance of the <see cref="Reactor_AnaerobicDigester"/> class with a name and description.</summary>
+        ''' <param name="name">The name of this reactor.</param>
+        ''' <param name="description">A brief description of this reactor.</param>
         Public Sub New(ByVal name As String, ByVal description As String)
             MyBase.New()
             Me.ComponentName = name
             Me.ComponentDescription = description
         End Sub
 
+        ''' <summary>Creates a deep copy of this object by round-tripping through XML serialization.</summary>
+        ''' <returns>A new <see cref="Reactor_AnaerobicDigester"/> instance with the same property values.</returns>
         Public Overrides Function CloneXML() As Object
             Dim obj As ICustomXMLSerialization = New Reactor_AnaerobicDigester()
             obj.LoadData(Me.SaveData)
             Return obj
         End Function
 
+        ''' <summary>Creates a deep copy of this object by round-tripping through JSON serialization.</summary>
+        ''' <returns>A new <see cref="Reactor_AnaerobicDigester"/> instance with the same property values.</returns>
         Public Overrides Function CloneJSON() As Object
             Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of Reactor_AnaerobicDigester)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
         End Function
@@ -1460,12 +1481,6 @@ Namespace Reactors
         ' ================================================================================
 
         ''' <summary>
-        ''' Full ADM1 dynamic simulation. Integrates the 29-variable ODE system with algebraic
-        ''' pH over ADM1Params.Operating.SimulationTime_d (default 200 d) using Cash-Karp RK45.
-        ''' Trajectory is stored in ADM1LastTrajectory; final state in ADM1LastState. Results
-        ''' are mapped back to outlet liquid and biogas streams on a COD basis.
-        ''' </summary>
-        ''' <summary>
         ''' Temperature (K) at which the digester contents actually react. Isothermal and Adiabatic run
         ''' at the influent temperature <paramref name="feedT_K"/>; a defined outlet temperature means the
         ''' vessel is heated or cooled to that setpoint, so the biology, acid-base equilibria and gas-liquid
@@ -1479,6 +1494,10 @@ Namespace Reactors
             Return feedT_K
         End Function
 
+        ''' <summary>Calculates the digester with the full ADM1 model (Batstone et al. 2002), used when <see cref="Model"/> is <c>ADM1Full</c> or <c>ADM1Sulfate</c>
+        ''' (the latter adds kinetic sulfate reduction). Integrates the ADM1 state equations over the configured simulation time, stores the
+        ''' trajectory in <see cref="ADM1LastTrajectory"/> and the final state in <see cref="ADM1LastState"/>, fills the result properties,
+        ''' and writes the Effluent and Biogas outlet streams on a COD basis.</summary>
         Public Sub CalculateADM1Full()
 
             ' Hydrate parameter object from JSON if we just came back from a save/load
@@ -1972,24 +1991,36 @@ Namespace Reactors
             Next
         End Sub
 
+        ''' <summary>Returns the raw bytes of the icon image for this reactor.</summary>
+        ''' <returns>A byte array containing the PNG image data for the icon.</returns>
         Public Overrides Function GetIconBitmapBytes() As Byte()
             Return UnitOperations.BioOpsDrawHelper.RenderIconToPngBytes(64, 64, AddressOf DrawIcon)
         End Function
 
+        ''' <summary>Returns the description string for this reactor type.</summary>
+        ''' <returns>A description string identifying this reactor type.</returns>
         Public Overrides Function GetDisplayDescription() As String
             Return "Anaerobic Digester (black-box Buswell + COD removal)"
         End Function
 
+        ''' <summary>Returns the display name for this reactor type.</summary>
+        ''' <returns>The name string for this reactor type.</returns>
         Public Overrides Function GetDisplayName() As String
             Return "Anaerobic Digester"
         End Function
 
+        ''' <summary>Gets a value indicating whether this reactor is compatible with mobile interfaces. Always <c>False</c>.</summary>
         Public Overrides ReadOnly Property MobileCompatible As Boolean
             Get
                 Return False
             End Get
         End Property
 
+        ''' <summary>Generates a plain-text results report for this reactor.</summary>
+        ''' <param name="su">The unit system used for formatting output values (not used; values are reported in fixed units).</param>
+        ''' <param name="ci">The culture info used for number formatting.</param>
+        ''' <param name="numberformat">A .NET numeric format string (e.g. "G6") applied to output values.</param>
+        ''' <returns>A formatted multi-line string report.</returns>
         Public Overrides Function GetReport(su As IUnitsOfMeasure, ci As Globalization.CultureInfo, numberformat As String) As String
 
             Dim str As New Text.StringBuilder

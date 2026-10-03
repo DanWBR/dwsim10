@@ -245,6 +245,8 @@ Namespace UnitOperations
 
 #Region "Automatic Drawing Support"
 
+        ''' <summary>Returns the raw bytes of the icon image for this unit operation.</summary>
+        ''' <returns>A byte array containing the PNG image data for the icon.</returns>
         Public Overrides Function GetIconBitmapBytes() As Byte()
 
             Return GetBytesFromResource("DWSIM.UnitOperations.relief_valve.png")
@@ -406,6 +408,7 @@ Namespace UnitOperations
 
 #Region "Classic UI and Cross-Platform UI Editor Support"
 
+        ''' <summary>Reserved handle for an editor window; not assigned or read by the current code. Not saved with the flowsheet.</summary>
         <Xml.Serialization.XmlIgnore> Public editwindow As Object
 
         'display the editor on the classic user interface

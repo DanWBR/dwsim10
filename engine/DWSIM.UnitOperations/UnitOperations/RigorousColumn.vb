@@ -41,20 +41,48 @@ Imports DWSIM.Thermodynamics.PropertyPackages
 
 Namespace UnitOperations
 
+    ''' <summary>
+    ''' Rigorous distillation column: a staged column with an optional condenser on the top stage and an optional
+    ''' reboiler on the bottom stage, solved by the equilibrium stage solvers of the <see cref="Column"/> base class.
+    ''' With <see cref="ReboiledAbsorber"/> or <see cref="RefluxedAbsorber"/> set, the condenser or the reboiler is
+    ''' left out of the stage model.
+    ''' </summary>
     <Serializable()> Public Class DistillationColumn
 
         Inherits Column
 
+        ''' <summary>
+        ''' Subcooling of the condenser liquid below its bubble point, in K. The solvers evaluate the top stage
+        ''' K-values at the stage temperature minus this value. Default 0 (saturated liquid).
+        ''' </summary>
         Public Property TotalCondenserSubcoolingDeltaT As Double = 0.0
 
+        ''' <summary>
+        ''' Gets or sets whether the column has no condenser. When <c>True</c> the top stage is a plain stage and the
+        ''' condenser specification is ignored. Set by <see cref="ConvertToComplex"/> after the condenser is moved to
+        ''' separate flowsheet objects. Default <c>False</c>.
+        ''' </summary>
         Public Property ReboiledAbsorber As Boolean = False
 
+        ''' <summary>
+        ''' Gets or sets whether the column has no reboiler. When <c>True</c> the bottom stage is a plain stage and the
+        ''' reboiler specification is ignored. Set by <see cref="ConvertToComplex"/> after the reboiler is moved to
+        ''' separate flowsheet objects. Default <c>False</c>.
+        ''' </summary>
         Public Property RefluxedAbsorber As Boolean = False
 
+        ''' <summary>Initializes a new default instance of the <see cref="DistillationColumn"/> class.</summary>
         Public Sub New()
             MyBase.New()
         End Sub
 
+        ''' <summary>
+        ''' Initializes a new instance of the <see cref="DistillationColumn"/> class with a name and description,
+        ''' creates the default stages and sets every stage pressure to 101325 Pa.
+        ''' </summary>
+        ''' <param name="name">The name of this unit operation.</param>
+        ''' <param name="description">A brief description of this unit operation.</param>
+        ''' <param name="fs">The flowsheet that owns this column.</param>
         Public Sub New(ByVal name As String, ByVal description As String, fs As IFlowsheet)
             MyBase.New(name, description, fs)
             Me.ColumnType = ColType.DistillationColumn
@@ -64,6 +92,14 @@ Namespace UnitOperations
             Next
         End Sub
 
+        ''' <summary>
+        ''' Replaces the built-in condenser and reboiler with separate flowsheet objects. For the condenser it adds a
+        ''' vessel, a splitter, a pump, a valve and a recycle block that returns the reflux to the top stage; for the
+        ''' reboiler it adds a splitter, a vessel, a pump, a valve and a recycle block that returns the boilup to the
+        ''' bottom stage. The existing product and duty streams are reconnected to the new objects, the end stages are
+        ''' removed, and <see cref="ReboiledAbsorber"/> and <see cref="RefluxedAbsorber"/> are set accordingly.
+        ''' Does nothing when the column is not on a flowsheet.
+        ''' </summary>
         Public Sub ConvertToComplex()
 
             If FlowSheet IsNot Nothing Then
@@ -270,6 +306,8 @@ Namespace UnitOperations
 
         End Sub
 
+        ''' <summary>Connects the overhead vapor product stream to the top stage (condenser) of the column.</summary>
+        ''' <param name="stream">The material stream that receives the overhead vapor.</param>
         Public Sub ConnectVaporProduct(stream As ISimulationObject)
 
             FlowSheet.ConnectObjects(GraphicObject, stream.GraphicObject, 9, 0)
@@ -281,6 +319,8 @@ Namespace UnitOperations
 
         End Sub
 
+        ''' <summary>Connects the distillate (liquid top product) stream to the top stage (condenser) of the column.</summary>
+        ''' <param name="stream">The material stream that receives the distillate.</param>
         Public Sub ConnectDistillate(stream As ISimulationObject)
 
             FlowSheet.ConnectObjects(GraphicObject, stream.GraphicObject, 0, 0)
@@ -292,6 +332,8 @@ Namespace UnitOperations
 
         End Sub
 
+        ''' <summary>Connects the bottoms liquid product stream to the bottom stage (reboiler) of the column.</summary>
+        ''' <param name="stream">The material stream that receives the bottoms product.</param>
         Public Sub ConnectBottoms(stream As ISimulationObject)
 
             FlowSheet.ConnectObjects(GraphicObject, stream.GraphicObject, 1, 0)
@@ -303,6 +345,8 @@ Namespace UnitOperations
 
         End Sub
 
+        ''' <summary>Connects the energy stream that carries the condenser duty out of the column.</summary>
+        ''' <param name="stream">The energy stream for the condenser duty.</param>
         Public Sub ConnectCondenserDuty(stream As ISimulationObject)
 
             FlowSheet.ConnectObjects(GraphicObject, stream.GraphicObject, 10, 0)
@@ -314,6 +358,8 @@ Namespace UnitOperations
 
         End Sub
 
+        ''' <summary>Connects the energy stream that supplies the reboiler duty to the column.</summary>
+        ''' <param name="stream">The energy stream for the reboiler duty.</param>
         Public Sub ConnectReboilerDuty(stream As ISimulationObject)
 
             FlowSheet.ConnectObjects(stream.GraphicObject, GraphicObject, 0, 10)
@@ -325,6 +371,17 @@ Namespace UnitOperations
 
         End Sub
 
+        ''' <summary>
+        ''' Sets the condenser specification. The spec type is a <c>ColumnSpec.SpecType</c> name (Heat_Duty,
+        ''' Product_Molar_Flow_Rate, Component_Molar_Flow_Rate, Product_Mass_Flow_Rate, Component_Mass_Flow_Rate,
+        ''' Component_Fraction, Component_Recovery, Stream_Ratio, Temperature, Feed_Recovery) or a common alias such as
+        ''' "Reflux_Ratio", "Duty" or "Temp"; a unit in parentheses after the name is used when
+        ''' <paramref name="units"/> is empty.
+        ''' </summary>
+        ''' <param name="spectype">The specification type name or alias.</param>
+        ''' <param name="value">The specification value, expressed in <paramref name="units"/>.</param>
+        ''' <param name="units">The unit of the value. For a component fraction spec this is the basis, "Molar" (default when empty) or "Mass".</param>
+        ''' <param name="compound">The compound name for component-based specifications.</param>
         Public Sub SetCondenserSpec(spectype As String, value As Double, units As String, Optional compound As String = "")
 
             ParseSpecUnits(spectype, units)
@@ -341,6 +398,17 @@ Namespace UnitOperations
 
         End Sub
 
+        ''' <summary>
+        ''' Sets the reboiler specification. The spec type is a <c>ColumnSpec.SpecType</c> name (Heat_Duty,
+        ''' Product_Molar_Flow_Rate, Component_Molar_Flow_Rate, Product_Mass_Flow_Rate, Component_Mass_Flow_Rate,
+        ''' Component_Fraction, Component_Recovery, Stream_Ratio, Temperature, Feed_Recovery) or a common alias such as
+        ''' "Boilup_Ratio", "Duty" or "Temp"; a unit in parentheses after the name is used when
+        ''' <paramref name="units"/> is empty.
+        ''' </summary>
+        ''' <param name="spectype">The specification type name or alias.</param>
+        ''' <param name="value">The specification value, expressed in <paramref name="units"/>.</param>
+        ''' <param name="units">The unit of the value. For a component fraction spec this is the basis, "Molar" (default when empty) or "Mass".</param>
+        ''' <param name="compound">The compound name for component-based specifications.</param>
         Public Sub SetReboilerSpec(spectype As String, value As Double, units As String, Optional compound As String = "")
 
             ParseSpecUnits(spectype, units)
@@ -358,10 +426,6 @@ Namespace UnitOperations
         End Sub
 
         ''' <summary>
-        ''' Takes the unit out of a spec type that carries it in parentheses, as the property grid
-        ''' writes it: "Product Flow Rate (mol/s)". An explicit unit argument wins.
-        ''' </summary>
-        ''' <summary>
         ''' The basis of a component fraction spec as the solvers read it: "Molar" or "Mass". An empty
         ''' unit is a mole fraction, the way the editor and the texts quote purities; the solvers read
         ''' anything but "M" or "Molar" as mass, so an empty unit used to become a mass fraction.
@@ -377,6 +441,10 @@ Namespace UnitOperations
             End Select
         End Function
 
+        ''' <summary>
+        ''' Takes the unit out of a spec type that carries it in parentheses, as the property grid
+        ''' writes it: "Product Flow Rate (mol/s)". An explicit unit argument wins.
+        ''' </summary>
         Private Shared Sub ParseSpecUnits(ByRef spectype As String, ByRef units As String)
 
             Dim parenStart = spectype.IndexOf("("c)
@@ -428,12 +496,16 @@ Namespace UnitOperations
 
         End Function
 
+        ''' <summary>Creates a deep copy of this object by round-tripping through XML serialization.</summary>
+        ''' <returns>A new <see cref="DistillationColumn"/> instance with the same property values.</returns>
         Public Overrides Function CloneXML() As Object
             Dim obj As ICustomXMLSerialization = New DistillationColumn()
             obj.LoadData(Me.SaveData)
             Return obj
         End Function
 
+        ''' <summary>Creates a deep copy of this object by round-tripping through JSON serialization.</summary>
+        ''' <returns>A new <see cref="DistillationColumn"/> instance with the same property values.</returns>
         Public Overrides Function CloneJSON() As Object
             Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of DistillationColumn)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
         End Function
@@ -833,26 +905,38 @@ Namespace UnitOperations
 
         End Function
 
+        ''' <summary>Returns the raw bytes of the icon image for this unit operation.</summary>
+        ''' <returns>A byte array containing the PNG image data for the icon.</returns>
         Public Overrides Function GetIconBitmapBytes() As Byte()
 
             Return GetBytesFromResource("DWSIM.UnitOperations.col_dc_32.png")
 
         End Function
 
+        ''' <summary>Returns the localized description string for this unit operation type.</summary>
+        ''' <returns>A translated description string identifying this unit operation type.</returns>
         Public Overrides Function GetDisplayDescription() As String
             Return ResMan.GetLocalString("CDEST_Desc")
         End Function
 
+        ''' <summary>Returns the localized display name for this unit operation type.</summary>
+        ''' <returns>A translated name string for this unit operation type.</returns>
         Public Overrides Function GetDisplayName() As String
             Return ResMan.GetLocalString("CDEST_Name")
         End Function
 
+        ''' <summary>Gets a value indicating whether this unit operation is compatible with mobile interfaces. Always <c>True</c>.</summary>
         Public Overrides ReadOnly Property MobileCompatible As Boolean
             Get
                 Return True
             End Get
         End Property
 
+        ''' <summary>Generates a plain-text results report for this unit operation: condenser type, number of stages, condenser and reboiler duties, and the stage temperature, pressure, vapor flow and liquid flow profiles.</summary>
+        ''' <param name="su">The unit system used for formatting output values.</param>
+        ''' <param name="ci">The culture info used for number formatting.</param>
+        ''' <param name="numberformat">A .NET numeric format string (e.g. "G6") applied to output values.</param>
+        ''' <returns>A formatted multi-line string report.</returns>
         Public Overrides Function GetReport(su As IUnitsOfMeasure, ci As Globalization.CultureInfo, numberformat As String) As String
 
             Dim str As New Text.StringBuilder
@@ -904,11 +988,17 @@ Namespace UnitOperations
 
     End Class
 
+    ''' <summary>
+    ''' Rigorous absorption column: a staged column without condenser or reboiler, solved by the equilibrium stage
+    ''' solvers of the <see cref="Column"/> base class. In extractor mode (<see cref="OperationMode"/>) it models a
+    ''' liquid-liquid extraction column.
+    ''' </summary>
     <Serializable()> Public Class AbsorptionColumn
 
         Inherits Column
 
 
+        ''' <summary>Backing field for <see cref="OperationMode"/>. Default <c>OpMode.Absorber</c>.</summary>
         Public _opmode As OpMode = OpMode.Absorber
 
 
@@ -959,6 +1049,8 @@ Namespace UnitOperations
 
         End Sub
 
+        ''' <summary>Connects the bottoms liquid product stream to the bottom stage of the column.</summary>
+        ''' <param name="stream">The material stream that receives the bottoms product.</param>
         Public Sub ConnectBottoms(stream As ISimulationObject)
 
             FlowSheet.ConnectObjects(GraphicObject, stream.GraphicObject, 1, 0)
@@ -970,6 +1062,7 @@ Namespace UnitOperations
 
         End Sub
 
+        ''' <summary>Initializes a new default instance of the <see cref="AbsorptionColumn"/> class.</summary>
         Public Sub New()
             MyBase.New()
         End Sub
@@ -979,6 +1072,10 @@ Namespace UnitOperations
             Extractor = 1
         End Enum
 
+        ''' <summary>
+        ''' Gets or sets the operation mode: <c>Absorber</c> (0) for gas-liquid absorption, <c>Extractor</c> (1) for
+        ''' liquid-liquid extraction, where the solvers treat the two phases as two liquids.
+        ''' </summary>
         Public Property OperationMode() As OpMode
             Get
                 Return _opmode
@@ -988,6 +1085,13 @@ Namespace UnitOperations
             End Set
         End Property
 
+        ''' <summary>
+        ''' Initializes a new instance of the <see cref="AbsorptionColumn"/> class with a name and description,
+        ''' creates the default stages and sets every stage pressure to 101325 Pa.
+        ''' </summary>
+        ''' <param name="name">The name of this unit operation.</param>
+        ''' <param name="description">A brief description of this unit operation.</param>
+        ''' <param name="fs">The flowsheet that owns this column.</param>
         Public Sub New(ByVal name As String, ByVal description As String, fs As IFlowsheet)
             MyBase.New(name, description, fs)
             Me.ColumnType = ColType.AbsorptionColumn
@@ -997,12 +1101,16 @@ Namespace UnitOperations
             Next
         End Sub
 
+        ''' <summary>Creates a deep copy of this object by round-tripping through XML serialization.</summary>
+        ''' <returns>A new <see cref="AbsorptionColumn"/> instance with the same property values.</returns>
         Public Overrides Function CloneXML() As Object
             Dim obj As ICustomXMLSerialization = New AbsorptionColumn()
             obj.LoadData(Me.SaveData)
             Return obj
         End Function
 
+        ''' <summary>Creates a deep copy of this object by round-tripping through JSON serialization.</summary>
+        ''' <returns>A new <see cref="AbsorptionColumn"/> instance with the same property values.</returns>
         Public Overrides Function CloneJSON() As Object
             Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of AbsorptionColumn)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
         End Function
@@ -1350,26 +1458,38 @@ Namespace UnitOperations
 
         End Function
 
+        ''' <summary>Returns the raw bytes of the icon image for this unit operation.</summary>
+        ''' <returns>A byte array containing the PNG image data for the icon.</returns>
         Public Overrides Function GetIconBitmapBytes() As Byte()
 
             Return GetBytesFromResource("DWSIM.UnitOperations.col_abs_32.png")
 
         End Function
 
+        ''' <summary>Returns the localized description string for this unit operation type.</summary>
+        ''' <returns>A translated description string identifying this unit operation type.</returns>
         Public Overrides Function GetDisplayDescription() As String
             Return ResMan.GetLocalString("CABS_Desc")
         End Function
 
+        ''' <summary>Returns the localized display name for this unit operation type.</summary>
+        ''' <returns>A translated name string for this unit operation type.</returns>
         Public Overrides Function GetDisplayName() As String
             Return ResMan.GetLocalString("CABS_Name")
         End Function
 
+        ''' <summary>Gets a value indicating whether this unit operation is compatible with mobile interfaces. Always <c>True</c>.</summary>
         Public Overrides ReadOnly Property MobileCompatible As Boolean
             Get
                 Return True
             End Get
         End Property
 
+        ''' <summary>Generates a plain-text results report for this unit operation: number of stages and the stage temperature, pressure, vapor flow and liquid flow profiles.</summary>
+        ''' <param name="su">The unit system used for formatting output values.</param>
+        ''' <param name="ci">The culture info used for number formatting.</param>
+        ''' <param name="numberformat">A .NET numeric format string (e.g. "G6") applied to output values.</param>
+        ''' <returns>A formatted multi-line string report.</returns>
         Public Overrides Function GetReport(su As IUnitsOfMeasure, ci As Globalization.CultureInfo, numberformat As String) As String
 
             Dim str As New Text.StringBuilder

@@ -161,6 +161,7 @@ Namespace UnitOperations
 
         End Sub
 
+        ''' <summary>The classic (WinForms) editor window open for this unit operation, if any. Not saved with the flowsheet.</summary>
         <NonSerialized> <Xml.Serialization.XmlIgnore> Public f As Object
 
         Protected m_Q As Nullable(Of Double) = 0
@@ -171,6 +172,10 @@ Namespace UnitOperations
         Protected TempColdOut As Nullable(Of Double) = 298.15#
         Protected m_tempdiff As Double = 0
         Protected FoulingFactor As Nullable(Of Double) = 0
+        ''' <summary>
+        ''' Gets or sets the exchanger geometry type as the integer value of <see cref="HeatExchangerType"/>:
+        ''' 0 = double pipe (default), 1 to 7 = TEMA shell types E, F, G, H, J, K and X. Used for the TEMA designation in reports.
+        ''' </summary>
         Public Property HXType As Integer
         Protected CalcMode As HeatExchangerCalcMode = HeatExchangerCalcMode.CalcBothTemp_UA
         Protected m_HotSidePressureDrop As Double = 0

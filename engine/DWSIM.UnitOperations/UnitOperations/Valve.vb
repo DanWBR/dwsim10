@@ -96,6 +96,7 @@ Namespace UnitOperations
         ''' </summary>
         Public Overrides ReadOnly Property HasPropertiesForDynamicMode As Boolean = True
 
+        ''' <summary>The classic (WinForms) editor window open for this unit operation, if any. Not saved with the flowsheet.</summary>
         <NonSerialized> <Xml.Serialization.XmlIgnore> Public f As Object
 
         Protected m_dp As Double?
@@ -1089,11 +1090,34 @@ Namespace UnitOperations
         End Function
 
 
+        ''' <summary>
+        ''' Calculates the equivalent flow coefficient (Kv) of a round orifice, as the water flow in m3/h
+        ''' (density 1000 kg/m3) that passes it with a 1 bar pressure drop.
+        ''' </summary>
+        ''' <param name="diameter">Orifice diameter in m.</param>
+        ''' <param name="dischargeCoefficient">Orifice discharge coefficient (dimensionless).</param>
+        ''' <returns>The equivalent Kv in m3/h at 1 bar drop.</returns>
         Public Shared Function KvFromOrifice(diameter As Double, dischargeCoefficient As Double) As Double
             Dim area = Math.PI * diameter ^ 2 / 4.0
             Return 3600.0 * dischargeCoefficient * area * Math.Sqrt(2.0 * 100000.0 / 1000.0)
         End Function
 
+        ''' <summary>
+        ''' Calculates the total mass flow rate through the valve for two-phase service given a known Kv,
+        ''' combining the ISA liquid (<c>WLiquid</c>) and gas (<c>WGas</c>) flow equations weighted by the phase mass fractions,
+        ''' including their choked-flow limits.
+        ''' </summary>
+        ''' <param name="Kv">Effective flow coefficient (m3/h at 1 bar drop).</param>
+        ''' <param name="P1">Inlet pressure in bar.</param>
+        ''' <param name="P2">Outlet pressure in bar.</param>
+        ''' <param name="rhog">Vapour phase density at inlet conditions in kg/m3.</param>
+        ''' <param name="rhol">Liquid phase density at inlet conditions in kg/m3.</param>
+        ''' <param name="k">Ratio of specific heats (Cp/Cv) of the vapour phase.</param>
+        ''' <param name="Pv">Liquid vapour pressure at inlet temperature in bar.</param>
+        ''' <param name="Pc">Mixture critical pressure in bar.</param>
+        ''' <param name="massfrac_gas">Mass fraction of the vapour phase.</param>
+        ''' <param name="massfrac_liq">Mass fraction of the liquid phase.</param>
+        ''' <returns>The total mass flow rate in kg/h.</returns>
         Public Function WTwoPhase(Kv As Double, P1 As Double, P2 As Double, rhog As Double, rhol As Double, k As Double, Pv As Double, Pc As Double, massfrac_gas As Double, massfrac_liq As Double) As Double
             WTwoPhase = 1 / (massfrac_liq / WLiquid(Kv, P1, P2, rhol, Pv, Pc) ^ 2 + massfrac_gas / WGas(Kv, P1, P2, k, rhog) ^ 2) ^ 0.5
         End Function

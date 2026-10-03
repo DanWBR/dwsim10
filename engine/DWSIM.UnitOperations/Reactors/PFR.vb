@@ -114,11 +114,29 @@ Namespace Reactors
 
         Dim N00 As Dictionary(Of String, Double)
 
+        ''' <summary>
+        ''' Rate of each reaction at the current integration point, keyed by reaction ID, converted to SI units
+        ''' from the reaction's rate unit.
+        ''' </summary>
         Public Rxi As New Dictionary(Of String, Double)
+        ''' <summary>
+        ''' Extent of each reaction over the whole reactor, keyed by reaction ID. Computed after the solve from the
+        ''' change in the base reactant molar flow between feed and outlet, divided by its stoichiometric coefficient
+        ''' and by 1000, and split among reactions that share the base reactant in proportion to their rates.
+        ''' </summary>
         Public RxiT As New Dictionary(Of String, Double)
+        ''' <summary>
+        ''' Heat of each reaction over the whole reactor, keyed by reaction ID: the reaction heat times the
+        ''' extent in <see cref="RxiT"/>, reported as a heat flow in kW.
+        ''' </summary>
         Public DHRi As New Dictionary(Of String, Double)
+        ''' <summary>Heat of reaction released in each integration segment along the reactor, in kW, one entry per segment.</summary>
         Public DHRT As New List(Of Double)
 
+        ''' <summary>
+        ''' Profile data points along the reactor, used by the profile charts. Each entry is a Double array with the
+        ''' axial position (m), the molar concentration of each compound (mol/m3), the temperature (K) and the pressure (Pa).
+        ''' </summary>
         Public points As ArrayList
 
         ''' <summary>Gets or sets the composition/flow/temperature profile computed along the reactor length.</summary>
@@ -135,6 +153,7 @@ Namespace Reactors
         Public Overrides ReadOnly Property HasPropertiesForDynamicMode As Boolean = True
 
 
+        ''' <summary>The classic (WinForms) editor window open for this reactor, if any. Not saved with the flowsheet.</summary>
         <NonSerialized> <Xml.Serialization.XmlIgnore> Public f As Object
 
         Private VolumeFraction As Double = 1.0

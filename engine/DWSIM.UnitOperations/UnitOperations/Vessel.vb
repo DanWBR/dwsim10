@@ -113,12 +113,27 @@ Namespace UnitOperations
         Dim rhol, rhov, ql, qv, qe, rhoe, wl, wv As Double
         Dim C, VGI, VMAX, K As Double
         Dim BeH, BSGH, BSLH As Double
+        ''' <summary>
+        ''' Results of the horizontal vessel sizing (<see cref="SizeHorizontal"/>): AH is the vessel length
+        ''' and DH the vessel diameter, both in m.
+        ''' </summary>
         Public AH, DH As Double
         Dim BeV, BSGV, BSLV As Double
+        ''' <summary>
+        ''' Results of the vertical vessel sizing (<see cref="SizeVertical"/>): AV is the vessel height
+        ''' and DV the vessel diameter, both in m.
+        ''' </summary>
         Public AV, DV As Double
 
+        ''' <summary>
+        ''' The classic (WinForms) editor window open for this vessel, if any. Not saved with the flowsheet.
+        ''' </summary>
         <NonSerialized> <Xml.Serialization.XmlIgnore> Public f As Object
 
+        ''' <summary>
+        ''' Internal material stream holding the mixture of all connected inlet streams, rebuilt on each
+        ''' steady-state calculation before the flash. Not saved with the flowsheet.
+        ''' </summary>
         <NonSerialized> <Xml.Serialization.XmlIgnore> Public MixedStream As MaterialStream
 
         Protected m_DQ As Nullable(Of Double)
@@ -984,6 +999,19 @@ Namespace UnitOperations
         ' Turbulent natural convection on a wall, Nu = 0.13 (Gr Pr)^(1/3): the length scale cancels, so
         ' h = 0.13 k (g beta |dT| rho^2 / mu^2 Pr)^(1/3). Cp in kJ/(kg.K) as the streams carry it; beta the
         ' thermal expansion (1/T for a gas). Never below the floor, so the exchange never switches off.
+        ''' <summary>
+        ''' Heat transfer coefficient for turbulent natural convection on a wall, from Nu = 0.13 (Gr Pr)^(1/3),
+        ''' in which the length scale cancels. The result is never lower than <paramref name="floor"/>.
+        ''' </summary>
+        ''' <param name="k">Fluid thermal conductivity, in W/(m.K).</param>
+        ''' <param name="rho">Fluid density, in kg/m3.</param>
+        ''' <param name="mu">Fluid dynamic viscosity, in Pa.s.</param>
+        ''' <param name="cpKJ">Fluid heat capacity, in kJ/(kg.K).</param>
+        ''' <param name="dT">Wall-to-fluid temperature difference, in K (the sign is ignored).</param>
+        ''' <param name="T">Fluid temperature, in K. Not used in the current correlation.</param>
+        ''' <param name="beta">Fluid thermal expansion coefficient, in 1/K (1/T for an ideal gas).</param>
+        ''' <param name="floor">Minimum value returned, in W/(m2.K); also returned when the properties are invalid.</param>
+        ''' <returns>The natural convection heat transfer coefficient, in W/(m2.K).</returns>
         Public Shared Function NaturalConvectionHTC(k As Double, rho As Double, mu As Double, cpKJ As Double, dT As Double, T As Double, beta As Double, floor As Double) As Double
             If k <= 0.0 OrElse rho <= 0.0 OrElse mu <= 0.0 OrElse cpKJ <= 0.0 OrElse Double.IsNaN(k + rho + mu + cpKJ) Then Return floor
             Dim pr = cpKJ * 1000.0 * mu / k
@@ -1991,6 +2019,30 @@ Namespace UnitOperations
 
         End Sub
 
+        ''' <summary>
+        ''' Calculates the heat transfer coefficient between the vessel contents and the wall, combining the
+        ''' internal film coefficient (Petukhov correlation with holdup-weighted mixture properties) and the
+        ''' conduction resistance of the wall.
+        ''' </summary>
+        ''' <param name="EL">Liquid holdup (volume fraction of liquid), used to weight the phase properties.</param>
+        ''' <param name="L">Vessel length, in m. Not used.</param>
+        ''' <param name="Dint">Internal diameter, in m.</param>
+        ''' <param name="Dext">External diameter, in m.</param>
+        ''' <param name="rugosidade">Wall roughness, in m. Not used; the roughness of <see cref="WallMaterial"/> is used instead.</param>
+        ''' <param name="T">Temperature used to evaluate the wall thermal conductivity, in K.</param>
+        ''' <param name="Text">External temperature, in K. Not used.</param>
+        ''' <param name="vel_g">Vapor velocity, in m/s.</param>
+        ''' <param name="vel_l">Liquid velocity, in m/s.</param>
+        ''' <param name="Cpl">Liquid heat capacity, in kJ/(kg.K).</param>
+        ''' <param name="Cpv">Vapor heat capacity, in kJ/(kg.K).</param>
+        ''' <param name="kl">Liquid thermal conductivity, in W/(m.K).</param>
+        ''' <param name="kv">Vapor thermal conductivity, in W/(m.K).</param>
+        ''' <param name="mu_l">Liquid viscosity, in Pa.s.</param>
+        ''' <param name="mu_v">Vapor viscosity, in Pa.s.</param>
+        ''' <param name="rho_l">Liquid density, in kg/m3.</param>
+        ''' <param name="rho_v">Vapor density, in kg/m3.</param>
+        ''' <returns>An array with the overall internal coefficient, the internal film coefficient and the wall
+        ''' conduction coefficient, all in W/(m2.K).</returns>
         Function CalcOverallInternalHeatTransferCoefficient(ByVal EL As Double, ByVal L As Double,
                             ByVal Dint As Double, ByVal Dext As Double, ByVal rugosidade As Double,
                             ByVal T As Double, ByVal Text As Double, ByVal vel_g As Double, ByVal vel_l As Double,
@@ -2057,6 +2109,19 @@ Namespace UnitOperations
 
         End Function
 
+        ''' <summary>
+        ''' Calculates the heat transfer coefficient between the wall and the surrounding air, combining the wall
+        ''' conduction resistance, the optional insulation layer (from <see cref="ThermalProperties"/>) and forced
+        ''' convection to air at 101325 Pa at the velocity set in <see cref="ThermalProperties"/> (Holman correlation).
+        ''' </summary>
+        ''' <param name="Dint">Internal diameter, in m.</param>
+        ''' <param name="Dext">External diameter, in m.</param>
+        ''' <param name="rugosidade">Wall roughness, in m. Not used.</param>
+        ''' <param name="T">Temperature used to evaluate the wall thermal conductivity, in K.</param>
+        ''' <param name="Text">Ambient air temperature, in K.</param>
+        ''' <param name="isolamento"><c>True</c> to include the insulation layer.</param>
+        ''' <returns>An array with the overall external coefficient, the wall conduction coefficient, the
+        ''' insulation coefficient and the external air film coefficient, all in W/(m2.K).</returns>
         Function CalcOverallExternalHeatTransferCoefficient(Dint As Double, Dext As Double, rugosidade As Double,
                             T As Double, Text As Double, isolamento As Boolean) As Double()
 
@@ -2132,6 +2197,11 @@ Namespace UnitOperations
         End Function
 
 
+        ''' <summary>
+        ''' Returns the thermal conductivity of the wall material (<see cref="WallMaterial"/>) at the given temperature.
+        ''' </summary>
+        ''' <param name="T">Wall temperature, in K.</param>
+        ''' <returns>The wall thermal conductivity, in W/(m.K); zero for an unknown material.</returns>
         Function Kwall(ByVal T As Double) As Double
 
             Dim kp As Double
@@ -2153,6 +2223,10 @@ Namespace UnitOperations
 
         End Function
 
+        ''' <summary>
+        ''' Returns the density of the wall material (<see cref="WallMaterial"/>).
+        ''' </summary>
+        ''' <returns>The wall density, in kg/m3 (7850 for an unknown material).</returns>
         Function WallDensity() As Double
             Select Case WallMaterial
                 Case "Steel"
@@ -2170,6 +2244,10 @@ Namespace UnitOperations
             End Select
         End Function
 
+        ''' <summary>
+        ''' Returns the specific heat of the wall material (<see cref="WallMaterial"/>).
+        ''' </summary>
+        ''' <returns>The wall specific heat, in J/(kg.K) (490 for an unknown material).</returns>
         Function WallSpecificHeat() As Double
             Select Case WallMaterial
                 Case "Steel"
@@ -2187,6 +2265,13 @@ Namespace UnitOperations
             End Select
         End Function
 
+        ''' <summary>
+        ''' Returns the heat capacity of the cylindrical vessel wall (mass times specific heat), used by the transient wall model.
+        ''' </summary>
+        ''' <param name="D">Internal diameter, in m.</param>
+        ''' <param name="DE">External diameter, in m.</param>
+        ''' <param name="L">Vessel length, in m.</param>
+        ''' <returns>The wall heat capacity, in J/K.</returns>
         Function WallThermalMass(D As Double, DE As Double, L As Double) As Double
             Dim Vwall = Math.PI / 4.0 * (DE * DE - D * D) * L
             Return WallDensity() * WallSpecificHeat() * Vwall

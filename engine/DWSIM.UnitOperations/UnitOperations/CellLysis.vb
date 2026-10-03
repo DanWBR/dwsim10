@@ -45,8 +45,10 @@ Namespace UnitOperations
         Inherits UnitOperations.UnitOpBaseClass
 
         Implements IExternalUnitOperation
+        ''' <summary>Gets a value indicating that this unit operation belongs to the Bio group of the object palette. Always <c>True</c>.</summary>
         Public ReadOnly Property IsBio As Boolean = True
 
+        ''' <summary>Gets or sets the simulation object class category (Separators). The getter always returns <c>Separators</c>.</summary>
         Public Overrides Property ObjectClass As SimulationObjectClass
             Get
                 Return SimulationObjectClass.Separators
@@ -62,43 +64,66 @@ Namespace UnitOperations
         ''' <summary>Gets or sets the display description for this unit operation.</summary>
         Public Overrides Property ComponentDescription As String = GetDisplayDescription()
 
+        ''' <summary>Gets or sets the lysis technology: HighPressureHomogenizer (0), BeadMill (1), Chemical (2), Enzymatic (3), Osmotic (4) or Ultrasound (5). Ultrasound uses the sonication model; every other value uses the Hetherington correlation. Default HighPressureHomogenizer.</summary>
         Public Property Technology As LysisTechnology = LysisTechnology.HighPressureHomogenizer
+        ''' <summary>Gets or sets the number of passes N in the Hetherington correlation R = 1 - exp(-k N P^alpha). Default 2.</summary>
         Public Property Passes As Integer = 2
+        ''' <summary>Gets or sets the homogenizer operating pressure P in the Hetherington correlation, in MPa. Default 80.</summary>
         Public Property Pressure_MPa As Double = 80.0
+        ''' <summary>Gets or sets the rate constant k of the Hetherington correlation, consistent with pressure in MPa. Default 0.0045.</summary>
         Public Property HetheringtonK As Double = 0.0045
+        ''' <summary>Gets or sets the pressure exponent alpha of the Hetherington correlation. Default 2.</summary>
         Public Property HetheringtonAlpha As Double = 2.0
+        ''' <summary>Gets or sets the name of the biomass (cell) compound. It is always routed entirely to the debris outlet.</summary>
         Public Property BiomassCompound As String = ""
+        ''' <summary>Gets or sets the factor (0-1) applied to the model release fraction for macromolecules (molar mass above 5000 g/mol) without an entry in <see cref="ReleaseFraction"/>. Default 0.9.</summary>
         Public Property DefaultReleaseFraction As Double = 0.9
+        ''' <summary>Gets or sets the user-specified release fractions (0-1) by compound name. A compound listed here goes to the lysate in this fraction, overriding the model.</summary>
         Public Property ReleaseFraction As Dictionary(Of String, Double)
 
         ' Ultrasound / sonication parameters. First-order kinetic model with acoustic power density:
         '   R_u = 1 - exp(-k_u * (P_a^beta) * t)
         ' where P_a is the acoustic power density (W/mL) and t the total sonication time (s). The
         ' defaults correspond to moderately tough microbial cells at bench-scale probe sonication.
+        ''' <summary>Gets or sets the acoustic power density P_a of the sonication model R_u = 1 - exp(-k_u P_a^beta t), in W/mL. Default 0.5.</summary>
         Public Property Ultrasound_PowerDensity_WmL As Double = 0.5
+        ''' <summary>Gets or sets the total sonication time t of the ultrasound model, in s. Default 300.</summary>
         Public Property Ultrasound_Time_s As Double = 300.0
+        ''' <summary>Gets or sets the rate constant k_u of the ultrasound model, consistent with power density in W/mL and time in s. Default 0.008.</summary>
         Public Property Ultrasound_k As Double = 0.008
+        ''' <summary>Gets or sets the power density exponent beta of the ultrasound model. Default 1.2.</summary>
         Public Property Ultrasound_Beta As Double = 1.2
 
+        ''' <summary>Gets or sets the feed mass flow, in kg/s. Calculated result.</summary>
         Public Property Result_FeedMass_kgs As Double = 0.0
+        ''' <summary>Gets or sets the lysate outlet mass flow, in kg/s. Calculated result.</summary>
         Public Property Result_LysateMass_kgs As Double = 0.0
+        ''' <summary>Gets or sets the debris outlet mass flow, in kg/s. Calculated result.</summary>
         Public Property Result_DebrisMass_kgs As Double = 0.0
+        ''' <summary>Gets or sets the overall release fraction (0-1) of the macromolecules (molar mass above 5000 g/mol, excluding the biomass compound) into the lysate. Calculated result.</summary>
         Public Property Result_OverallRelease As Double = 0.0
 
+        ''' <summary>The classic (WinForms) editor window open for this unit operation, if any. Not saved with the flowsheet.</summary>
         <NonSerialized> <Xml.Serialization.XmlIgnore> Public f As Object
 
+        ''' <summary>Gets a value indicating whether this unit operation supports dynamic simulation mode. Always <c>False</c>; it is calculated as a steady-state model.</summary>
         Public Overrides ReadOnly Property SupportsDynamicMode As Boolean = False
+        ''' <summary>Gets a value indicating whether this unit operation is compatible with mobile interfaces. Always <c>False</c>.</summary>
         Public Overrides ReadOnly Property MobileCompatible As Boolean
             Get
                 Return False
             End Get
         End Property
 
+        ''' <summary>Initializes a new default instance of the <see cref="UnitOp_CellLysis"/> class.</summary>
         Public Sub New()
             MyBase.New()
             ReleaseFraction = New Dictionary(Of String, Double)()
         End Sub
 
+        ''' <summary>Initializes a new instance of the <see cref="UnitOp_CellLysis"/> class with a name and description.</summary>
+        ''' <param name="name">The name of this unit operation.</param>
+        ''' <param name="description">A brief description of this unit operation.</param>
         Public Sub New(ByVal name As String, ByVal description As String)
             MyBase.New()
             Me.ComponentName = name
@@ -106,12 +131,16 @@ Namespace UnitOperations
             ReleaseFraction = New Dictionary(Of String, Double)()
         End Sub
 
+        ''' <summary>Creates a deep copy of this object by round-tripping through XML serialization.</summary>
+        ''' <returns>A new <see cref="UnitOp_CellLysis"/> instance with the same property values.</returns>
         Public Overrides Function CloneXML() As Object
             Dim obj As ICustomXMLSerialization = New UnitOp_CellLysis()
             obj.LoadData(Me.SaveData)
             Return obj
         End Function
 
+        ''' <summary>Creates a deep copy of this object by round-tripping through JSON serialization.</summary>
+        ''' <returns>A new <see cref="UnitOp_CellLysis"/> instance with the same property values.</returns>
         Public Overrides Function CloneJSON() As Object
             Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of UnitOp_CellLysis)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
         End Function
@@ -244,16 +273,27 @@ Namespace UnitOperations
             Next
         End Sub
 
+        ''' <summary>Returns the raw bytes of the icon image for this unit operation.</summary>
+        ''' <returns>A byte array containing the PNG image data for the icon.</returns>
         Public Overrides Function GetIconBitmapBytes() As Byte()
             Return BioOpsDrawHelper.RenderIconToPngBytes(64, 64, AddressOf DrawIcon)
         End Function
+        ''' <summary>Returns the localized description string for this unit operation type.</summary>
+        ''' <returns>A translated description string identifying this unit operation type.</returns>
         Public Overrides Function GetDisplayDescription() As String
             Return "Cell Lysis / High-Pressure Homogenizer"
         End Function
+        ''' <summary>Returns the localized display name for this unit operation type.</summary>
+        ''' <returns>A translated name string for this unit operation type.</returns>
         Public Overrides Function GetDisplayName() As String
             Return "Cell Lysis"
         End Function
 
+        ''' <summary>Generates a plain-text results report for this unit operation.</summary>
+        ''' <param name="su">The unit system used for formatting output values.</param>
+        ''' <param name="ci">The culture info used for number formatting.</param>
+        ''' <param name="numberformat">A .NET numeric format string (e.g. "G6") applied to output values.</param>
+        ''' <returns>A formatted multi-line string report.</returns>
         Public Overrides Function GetReport(su As IUnitsOfMeasure, ci As Globalization.CultureInfo, numberformat As String) As String
             Dim s As New Text.StringBuilder
             s.AppendLine("CellLysis: " & Me.GraphicObject.Tag)

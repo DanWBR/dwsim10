@@ -36,6 +36,7 @@ Namespace SpecialOps
 
         Implements IInformationCarrier
 
+        ''' <summary>The classic (WinForms) editor window open for this logical block, if any. Not saved with the flowsheet.</summary>
         <NonSerialized> <Xml.Serialization.XmlIgnore> Public f As Object
 
         ''' <summary>Gets a value indicating whether this block supports dynamic simulation mode.</summary>

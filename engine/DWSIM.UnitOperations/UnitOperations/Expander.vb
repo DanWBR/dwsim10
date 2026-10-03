@@ -90,6 +90,7 @@ Namespace UnitOperations
         End Sub
 
 
+        ''' <summary>The classic (WinForms) editor window open for this unit operation, if any. Not saved with the flowsheet.</summary>
         <NonSerialized> <XML.Serialization.XmlIgnore> Public f As Object
 
         ''' <summary>
@@ -462,6 +463,11 @@ Namespace UnitOperations
 
         End Function
 
+        ''' <summary>
+        ''' Creates an empty set of performance curves for one rotational speed: head ("HEAD"), efficiency ("EFF")
+        ''' and power ("POWER").
+        ''' </summary>
+        ''' <returns>A dictionary of new, empty curves keyed by "HEAD", "EFF" and "POWER".</returns>
         Public Function CreateCurves() As Dictionary(Of String, PumpOps.Curve)
 
             Dim dict As New Dictionary(Of String, PumpOps.Curve)
@@ -511,6 +517,10 @@ Namespace UnitOperations
             Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of Expander)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
         End Function
 
+        ''' <summary>
+        ''' Registers the dynamic properties for dynamic simulation mode: flow conductance, casing volume, minimum pressure,
+        ''' holdup initialization and reset options, rotor inertia, current and target speeds (RPM) and generator torque.
+        ''' </summary>
         Public Overrides Sub CreateDynamicProperties()
 
             AddDynamicProperty("Flow Conductance", "Flow conductance (inverse of resistance).", 1, UnitOfMeasure.conductance, 1.0.GetType())
@@ -527,6 +537,12 @@ Namespace UnitOperations
 
         Private prevM_dyn, currentM_dyn As Double
 
+        ''' <summary>
+        ''' Runs one dynamic-mode integration step. The rotor speed moves towards the target speed at a rate set by the
+        ''' generator torque and inertia, the casing holdup is integrated and its pressure updated, and the outlet takes
+        ''' the holdup pressure minus the pressure drop (from the curve map in Curves mode, otherwise from the flow
+        ''' conductance), limited below by the minimum pressure.
+        ''' </summary>
         Public Overrides Sub RunDynamicModel()
 
             Dim integratorID = FlowSheet.DynamicsManager.ScheduleList(FlowSheet.DynamicsManager.CurrentSchedule).CurrentIntegrator

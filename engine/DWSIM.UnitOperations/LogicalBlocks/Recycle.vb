@@ -38,6 +38,7 @@ Namespace SpecialOps
 
         Implements Interfaces.IRecycle
 
+        ''' <summary>The classic (WinForms) editor window open for this logical block, if any. Not saved with the flowsheet.</summary>
         <NonSerialized> <Xml.Serialization.XmlIgnore> Public f As Object
 
         Protected m_ConvPar As Helpers.Recycle.ConvergenceParameters

@@ -89,10 +89,12 @@ Namespace UnitOperations
         ''' <summary>Gets or sets the simulation object class category (UserModels).</summary>
         Public Overrides Property ObjectClass As SimulationObjectClass = SimulationObjectClass.UserModels
 
+        ''' <summary>The classic (WinForms) editor window open for this unit operation, if any. Not saved with the flowsheet.</summary>
         <NonSerialized> <Xml.Serialization.XmlIgnore> Public f As Object
 
         ''' <summary>Gets or sets the file path to the sub-flowsheet simulation file.</summary>
         Public Property SimulationFile As String = ""
+        ''' <summary>Gets or sets whether the sub-flowsheet has been loaded into <see cref="Fsheet"/>. Not saved with the flowsheet.</summary>
         <System.Xml.Serialization.XmlIgnore> Public Property Initialized As Boolean = False
         ''' <summary>Gets or sets whether the sub-flowsheet is initialized when the parent flowsheet loads.</summary>
         Public Property InitializeOnLoad As Boolean = False
@@ -104,6 +106,7 @@ Namespace UnitOperations
         Public Property InputParams As Dictionary(Of String, FlowsheetUOParameter)
         ''' <summary>Gets or sets the dictionary of output parameter mappings, keyed by parameter ID.</summary>
         Public Property OutputParams As Dictionary(Of String, FlowsheetUOParameter)
+        ''' <summary>The sub-flowsheet loaded from the simulation file or the embedded file. Not saved with the flowsheet.</summary>
         <System.Xml.Serialization.XmlIgnore> <System.NonSerialized> Public Fsheet As Interfaces.IFlowsheet
 
         ''' <summary>Why the sub-flowsheet did not load, kept so the failure can say so.</summary>
@@ -204,6 +207,11 @@ Namespace UnitOperations
 
         End Sub
 
+        ''' <summary>
+        ''' Extracts all files of a compressed simulation file (.dwxmz) into the system temporary folder.
+        ''' </summary>
+        ''' <param name="zippath">Full path of the compressed simulation file.</param>
+        ''' <returns>The full path of the extracted XML file, or an empty string if the archive contains none.</returns>
         Shared Function ExtractXML(ByVal zippath As String) As String
 
             Dim pathtosave As String = IO.Path.GetTempPath().TrimEnd(IO.Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar
@@ -596,6 +604,17 @@ Label_00CC:
 
         End Function
 
+        ''' <summary>
+        ''' Creates the graphic objects described by the XML elements of a saved simulation, adds them to a flowsheet
+        ''' and restores their material and energy connections. Errors are collected instead of thrown.
+        ''' </summary>
+        ''' <param name="fs">The flowsheet that receives the graphic objects.</param>
+        ''' <param name="mainfs">The parent flowsheet, used to resolve external unit operations by description.</param>
+        ''' <param name="data">The "GraphicObjects" XML elements of the saved simulation.</param>
+        ''' <param name="excs">Collection that receives any exception raised while loading objects or connections.</param>
+        ''' <param name="pkey">Optional prefix added to every object name (and its connection references); when not empty, duplicate tags are renumbered.</param>
+        ''' <param name="shift">Optional offset added to the X and Y coordinates of every object, in drawing units.</param>
+        ''' <param name="reconnectinlets">Optional. If <c>True</c>, inlet connections are also re-created from the source objects' free outlet ports.</param>
         Shared Sub AddGraphicObjects(fs As IFlowsheet, mainfs As IFlowsheet, data As List(Of XElement), excs As Concurrent.ConcurrentBag(Of Exception),
                        Optional ByVal pkey As String = "", Optional ByVal shift As Integer = 0, Optional ByVal reconnectinlets As Boolean = False)
 

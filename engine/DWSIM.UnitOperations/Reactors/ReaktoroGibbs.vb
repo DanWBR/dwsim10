@@ -42,6 +42,7 @@ Namespace Reactors
         ''' <summary>Gets or sets whether the embedded image is used for the unit operation icon.</summary>
         Public Property UseEmbeddedImage As Boolean = False
 
+        ''' <summary>The classic (WinForms) editor window open for this reactor, if any. Not saved with the flowsheet.</summary>
         <NonSerialized> <Xml.Serialization.XmlIgnore> Public f As Object
 
         ''' <summary>

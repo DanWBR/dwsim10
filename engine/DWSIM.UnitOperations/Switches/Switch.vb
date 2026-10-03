@@ -20,14 +20,25 @@ Imports DWSIM.Interfaces.Enums
 
 Namespace UnitOperations
 
+    ''' <summary>
+    ''' Logical block that writes one of two values to a property of another flowsheet object: when
+    ''' <see cref="IsOn"/> is <c>True</c> it applies <see cref="OnValue"/>, otherwise <see cref="OffValue"/>,
+    ''' to the property <see cref="SelectedProperty"/> of the object named by <see cref="SelectedObjectID"/>.
+    ''' </summary>
     <System.Serializable()> Public Partial Class Switch
 
         Inherits UnitOperations.UnitOpBaseClass
 
         Implements Interfaces.ISwitch
 
+        ''' <summary>
+        ''' Gets or sets the simulation object class category (Switches).
+        ''' </summary>
         Public Overrides Property ObjectClass As SimulationObjectClass = SimulationObjectClass.Switches
 
+        ''' <summary>
+        ''' The classic (WinForms) editor window open for this switch, if any. Not saved with the flowsheet.
+        ''' </summary>
         <NonSerialized> <Xml.Serialization.XmlIgnore> Public f As Object
 
         Public Property SelectedObjectID As String = "" Implements ISwitch.SelectedObjectID
@@ -44,8 +55,16 @@ Namespace UnitOperations
 
         Public Property IsOn As Boolean = False Implements ISwitch.IsOn
 
+        ''' <summary>
+        ''' Gets a value indicating whether this switch can run in dynamic simulation mode. Always <c>True</c>.
+        ''' </summary>
         Public Overrides ReadOnly Property SupportsDynamicMode As Boolean = True
 
+        ''' <summary>
+        ''' Initializes a new instance of the <see cref="Switch"/> class with a name and description.
+        ''' </summary>
+        ''' <param name="name">The name of this switch.</param>
+        ''' <param name="description">A brief description of this switch.</param>
         Public Sub New(ByVal name As String, ByVal description As String)
 
             MyBase.CreateNew()
@@ -54,16 +73,27 @@ Namespace UnitOperations
 
         End Sub
 
+        ''' <summary>
+        ''' Creates a deep copy of this object by round-tripping through XML serialization.
+        ''' </summary>
+        ''' <returns>A new <see cref="Switch"/> instance with the same property values.</returns>
         Public Overrides Function CloneXML() As Object
             Dim obj As ICustomXMLSerialization = New Switch()
             obj.LoadData(Me.SaveData)
             Return obj
         End Function
 
+        ''' <summary>
+        ''' Creates a deep copy of this object by round-tripping through JSON serialization.
+        ''' </summary>
+        ''' <returns>A new <see cref="Switch"/> instance with the same property values.</returns>
         Public Overrides Function CloneJSON() As Object
             Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of Switch)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
         End Function
 
+        ''' <summary>
+        ''' Initializes a new default instance of the <see cref="Switch"/> class.
+        ''' </summary>
         Public Sub New()
             MyBase.New()
         End Sub
@@ -245,20 +275,35 @@ Namespace UnitOperations
 
         End Function
 
+        ''' <summary>
+        ''' Returns the raw bytes of the icon image for this switch.
+        ''' </summary>
+        ''' <returns>A byte array containing the PNG image data for the icon.</returns>
         Public Overrides Function GetIconBitmapBytes() As Byte()
 
             Return GetBytesFromResource("DWSIM.UnitOperations.switch_on.png")
 
         End Function
 
+        ''' <summary>
+        ''' Returns the localized description string for this object type.
+        ''' </summary>
+        ''' <returns>A translated description string identifying this object type.</returns>
         Public Overrides Function GetDisplayDescription() As String
             Return ResMan.GetLocalString("SW_Desc")
         End Function
 
+        ''' <summary>
+        ''' Returns the localized display name for this object type.
+        ''' </summary>
+        ''' <returns>A translated name string for this object type.</returns>
         Public Overrides Function GetDisplayName() As String
             Return ResMan.GetLocalString("SW_Name")
         End Function
 
+        ''' <summary>
+        ''' Gets a value indicating whether this switch is compatible with mobile interfaces. Always <c>False</c>.
+        ''' </summary>
         Public Overrides ReadOnly Property MobileCompatible As Boolean
             Get
                 Return False

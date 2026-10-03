@@ -54,6 +54,7 @@ Namespace Reactors
         ''' <summary>Gets or sets whether the alternate (Lagrange multiplier) solving method is used.</summary>
         Public Property AlternateSolvingMethod As Boolean = False
 
+        ''' <summary>The classic (WinForms) editor window open for this reactor, if any. Not saved with the flowsheet.</summary>
         <NonSerialized> <Xml.Serialization.XmlIgnore> Public f As Object
 
         ''' <summary>Defines the solution approach for the Gibbs reactor.</summary>

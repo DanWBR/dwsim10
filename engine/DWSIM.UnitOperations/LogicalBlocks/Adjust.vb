@@ -38,6 +38,7 @@ Namespace SpecialOps
 
         Implements Interfaces.IAdjust
 
+        ''' <summary>The classic (WinForms) editor window open for this logical block, if any. Not saved with the flowsheet.</summary>
         <NonSerialized> <Xml.Serialization.XmlIgnore> Public f As Object
 
         Protected m_ManipulatedObject As SharedClasses.UnitOperations.BaseClass
@@ -555,6 +556,15 @@ Namespace SpecialOps
             End Get
         End Property
 
+        ''' <summary>
+        ''' Solves the adjust with a numerical root finder: changes the manipulated variable and re-solves the flowsheet
+        ''' until the controlled variable matches the target value (or the referenced variable plus the target offset).
+        ''' If the solver fails, the manipulated variable is restored to its initial value and the exception is rethrown.
+        ''' </summary>
+        ''' <param name="solver">Root finder to use (case-insensitive): "secant", "brent", "newton" or "ipopt".</param>
+        ''' <param name="minval">Optional lower bound of the manipulated variable, in the flowsheet's selected units. Used by the Brent and IPOPT solvers; when both bounds are given, the secant solver takes its limits from <c>MinVal</c> and <c>MaxVal</c>.</param>
+        ''' <param name="maxval">Optional upper bound of the manipulated variable, in the flowsheet's selected units, used in the same way as <paramref name="minval"/>.</param>
+        ''' <returns>The last residual (controlled value minus target, in SI units), or <c>NaN</c> when a referenced variable is in use and has no value (not calculated or zero).</returns>
         Public Function PerformAdjust(solver As String, Optional minval As Double = Double.NaN, Optional maxval As Double = Double.NaN) As Double
 
             Dim su = GetFlowsheet().FlowsheetOptions.SelectedUnitSystem

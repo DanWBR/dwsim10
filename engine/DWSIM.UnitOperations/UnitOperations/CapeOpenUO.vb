@@ -37,10 +37,19 @@ Imports System.Threading
 
 Namespace UnitOperations
 
+    ''' <summary>
+    ''' Hosts an external CAPE-OPEN unit operation (a COM component registered on Windows) in the flowsheet.
+    ''' It creates the COM object, mirrors its ports as flowsheet connectors and its parameters as a local
+    ''' collection, connects the attached streams to the ports, calls the component's Calculate, and saves the
+    ''' component state through its persistence interfaces. CAPE-OPEN unit operations run only on Windows.
+    ''' </summary>
     <System.Serializable()> Public Partial Class CapeOpenUO
 
         Inherits UnitOperations.UnitOpBaseClass
 
+        ''' <summary>
+        ''' The classic (WinForms) editor window open for this unit operation, if any. Not saved with the flowsheet.
+        ''' </summary>
         <NonSerialized> <Xml.Serialization.XmlIgnore> Public f As Object
 
         <System.NonSerialized()> Private _couo As Object
@@ -49,8 +58,20 @@ Namespace UnitOperations
         Private m_reactionSetID As String = "DefaultSet"
         Private m_reactionSetName As String = ""
 
+        ''' <summary>
+        ''' Registry information of the hosted CAPE-OPEN unit operation (name, description, ProgID, version,
+        ''' vendor and location), chosen by the user or by a host selector. Used to recreate the COM object on load.
+        ''' </summary>
         Public _seluo As Auxiliary.CapeOpen.CapeOpenUnitOpInfo
+        ''' <summary>
+        ''' Local copy of the ports of the COM component (name, description, direction, type and connected
+        ''' object), used to build the flowsheet connectors and to reconnect the ports.
+        ''' </summary>
         Public Shadows _ports As List(Of ICapeUnitPort)
+        ''' <summary>
+        ''' Local copy of the parameters of the COM component (real, integer, boolean, option and array
+        ''' parameters), read from the component and written back to it. Not serialized.
+        ''' </summary>
         <System.NonSerialized()> Public _params As List(Of ICapeParameter)
 
         <System.NonSerialized> Private _tempdata As List(Of XElement)
@@ -232,6 +253,13 @@ Namespace UnitOperations
         End Function
 
 
+        ''' <summary>
+        ''' Restores the state of the COM component from the persisted data, through its
+        ''' <c>IPersistStreamInit</c> or <c>IPersistStream</c> interface, creating the COM object first if needed.
+        ''' Then reads the parameters from the component or, when the component could not load its own data,
+        ''' writes the stored parameter values back to it.
+        ''' </summary>
+        ''' <param name="context">Streaming context. Not used.</param>
         Sub PersistLoad(ByVal context As System.Runtime.Serialization.StreamingContext)
 
             If Type.GetType("Mono.Runtime") Is Nothing Then
@@ -295,6 +323,11 @@ Namespace UnitOperations
 
         End Sub
 
+        ''' <summary>
+        ''' Asks the COM component to save its state through its <c>IPersistStreamInit</c> or <c>IPersistStream</c>
+        ''' interface and keeps the bytes for <see cref="SaveData"/>. Components without either interface save nothing.
+        ''' </summary>
+        ''' <param name="context">Streaming context. Not used.</param>
         Sub PersistSave(ByVal context As System.Runtime.Serialization.StreamingContext)
 
             'If the Unit Operation doesn't implement any of the IPersist interfaces, the _istr variable will be null.
@@ -454,6 +487,10 @@ Namespace UnitOperations
         ''' </summary>
         Public Shared Property ChemSepFinderOverride As Func(Of Auxiliary.CapeOpen.CapeOpenUnitOpInfo)
 
+        ''' <summary>
+        ''' Selects the CAPE-OPEN unit operation to host, through <see cref="SelectorOverride"/> when set or the
+        ''' WinForms selector dialog otherwise. A ChemSep selection also resizes the graphic object.
+        ''' </summary>
         Sub ShowForm()
 
             If SelectorOverride IsNot Nothing Then
@@ -480,6 +517,10 @@ Namespace UnitOperations
             Instantiate(False)
         End Sub
 
+        ''' <summary>
+        ''' Calls <c>IPersistStreamInit.InitNew</c> on the COM component, if it implements it, so it starts from a
+        ''' fresh state. Errors are ignored.
+        ''' </summary>
         Overloads Sub InitNew()
 
             Dim myuo As Interfaces2.IPersistStreamInit = TryCast(_couo, Interfaces2.IPersistStreamInit)
@@ -492,6 +533,10 @@ Namespace UnitOperations
 
         End Sub
 
+        ''' <summary>
+        ''' Initializes the COM component (<c>ICapeUtilities.Initialize</c>), gives it the flowsheet as simulation
+        ''' context and sets its name and description from the graphic object.
+        ''' </summary>
         Sub Init()
 
             If Calculator.IsRunningOnMono Then
@@ -521,6 +566,9 @@ Namespace UnitOperations
 
         End Sub
 
+        ''' <summary>
+        ''' Calls <c>ICapeUtilities.Terminate</c> on the COM component, if one exists.
+        ''' </summary>
         Sub Terminate()
 
             If Not _couo Is Nothing Then
@@ -530,6 +578,10 @@ Namespace UnitOperations
 
         End Sub
 
+        ''' <summary>
+        ''' Reads the ports of the COM component and appends a local copy of each one (name, description,
+        ''' direction and type) to <see cref="_ports"/>.
+        ''' </summary>
         Sub GetPorts()
             If Not _couo Is Nothing Then
                 Dim myuo As CapeOpen.ICapeUnit = _couo
@@ -546,6 +598,10 @@ Namespace UnitOperations
             End If
         End Sub
 
+        ''' <summary>
+        ''' Reads the parameters of the COM component and appends a local copy of each one (real, integer,
+        ''' boolean, option or array, with value, default, bounds and mode) to <see cref="_params"/>.
+        ''' </summary>
         Sub GetParams()
             If Not _couo Is Nothing Then
                 If _params Is Nothing Then _params = New List(Of ICapeParameter)
@@ -590,6 +646,10 @@ Namespace UnitOperations
             End If
         End Sub
 
+        ''' <summary>
+        ''' Reconnects the ports of the COM component to the flowsheet objects recorded in <see cref="_ports"/>,
+        ''' disconnecting any object a port is already connected to first.
+        ''' </summary>
         Sub RestorePorts()
             If Not _couo Is Nothing Then
                 Dim cnobj As Object = Nothing
@@ -627,6 +687,10 @@ Namespace UnitOperations
             End If
         End Sub
 
+        ''' <summary>
+        ''' Writes the values stored in <see cref="_params"/> back to the parameters of the COM component,
+        ''' skipping output parameters. A value the component rejects produces a flowsheet warning.
+        ''' </summary>
         Sub RestoreParams()
             If Not _couo Is Nothing Then
                 Dim myuo As CapeOpen.ICapeUtilities = _couo
@@ -657,6 +721,10 @@ Namespace UnitOperations
             End If
         End Sub
 
+        ''' <summary>
+        ''' Copies the current parameter values of the COM component into <see cref="_params"/>, rebuilding the
+        ''' local collection first when the number of parameters changed.
+        ''' </summary>
         Sub UpdateParams()
             If Not _couo Is Nothing Then
                 Dim myuo As CapeOpen.ICapeUtilities = _couo
@@ -686,6 +754,11 @@ Namespace UnitOperations
             End If
         End Sub
 
+        ''' <summary>
+        ''' Creates the graphic connectors from <see cref="_ports"/>: one inlet connector on the left side for each
+        ''' inlet port and one outlet connector on the right side for each outlet port, of material or energy type
+        ''' and named after the port.
+        ''' </summary>
         Sub CreateConnectors()
             Me.GraphicObject.InputConnectors = New List(Of Interfaces.IConnectionPoint)
             Me.GraphicObject.OutputConnectors = New List(Of Interfaces.IConnectionPoint)
@@ -732,6 +805,11 @@ Namespace UnitOperations
             UpdateConnectorPositions()
         End Sub
 
+        ''' <summary>
+        ''' Rebuilds the graphic connectors from the current ports of the COM component (for example after its
+        ''' editor added or removed ports): disconnects all existing flowsheet connections, recreates the connectors
+        ''' and reconnects the streams each port reports as connected.
+        ''' </summary>
         Sub UpdateConnectors()
 
             ' disconnect existing connections
@@ -838,6 +916,10 @@ Namespace UnitOperations
             End If
         End Sub
 
+        ''' <summary>
+        ''' Used after loading a flowsheet: updates the type, position and name of the existing graphic connectors
+        ''' from the ports of the COM component and connects each port to the stream attached to its connector.
+        ''' </summary>
         Sub UpdateConnectors2()
 
             'called only when loading simulation from XML file.
@@ -908,6 +990,10 @@ Namespace UnitOperations
             End If
         End Sub
 
+        ''' <summary>
+        ''' Stores the connector offsets relative to the graphic object position in its <c>AdditionalInfo</c>,
+        ''' so the connectors keep their places when the object is drawn or moved.
+        ''' </summary>
         Sub UpdateConnectorPositions()
             Dim i As Integer = 0
             Dim obj1(Me.GraphicObject.InputConnectors.Count), obj2(Me.GraphicObject.InputConnectors.Count) As Double
@@ -926,6 +1012,10 @@ Namespace UnitOperations
             Me.GraphicObject.AdditionalInfo = New Object() {obj1, obj2, obj3, obj4}
         End Sub
 
+        ''' <summary>
+        ''' Rebuilds <see cref="_ports"/> from the current ports of the COM component, including the flowsheet
+        ''' object each port is connected to.
+        ''' </summary>
         Sub UpdatePorts()
             If Not _couo Is Nothing Then
                 Dim cnobj As Object = Nothing
@@ -956,6 +1046,11 @@ Namespace UnitOperations
             End If
         End Sub
 
+        ''' <summary>
+        ''' Synchronizes <see cref="_ports"/> with the graphic connectors (disconnects ports whose connector is
+        ''' free, connects ports whose connector has a stream attached) and then applies the result to the COM
+        ''' component with <see cref="RestorePorts"/>.
+        ''' </summary>
         Sub UpdatePortsFromConnectors()
 
             Dim cnobj As Object = Nothing
@@ -997,6 +1092,9 @@ Namespace UnitOperations
 
         End Sub
 
+        ''' <summary>
+        ''' Disconnects every connected port of the COM component. Called when the unit operation is disposed.
+        ''' </summary>
         Sub DisconnectPorts()
             If Not _couo Is Nothing Then
                 Dim cnobj As Object = Nothing
@@ -1024,6 +1122,10 @@ Namespace UnitOperations
         End Sub
 
 
+        ''' <summary>
+        ''' Opens the COM component's own editor (<c>ICapeUtilities.Edit</c>) after reconnecting its ports, then
+        ''' reads back the parameters and ports and rebuilds the graphic connectors.
+        ''' </summary>
         Public Sub Edit()
             If Not _couo Is Nothing Then
                 Dim myuo As CapeOpen.ICapeUtilities = _couo
@@ -1169,11 +1271,21 @@ Namespace UnitOperations
             End Set
         End Property
 
+        ''' <summary>
+        ''' Returns whether the given type implements the CAPE-OPEN <c>ICapeUnit</c> interface.
+        ''' </summary>
+        ''' <param name="t">The type to test.</param>
+        ''' <returns><c>True</c> if <paramref name="t"/> implements <c>ICapeUnit</c>.</returns>
         Function isCOUnit(ByVal t As Type)
             Dim interfaceTypes As New List(Of Type)(t.GetInterfaces())
             Return (interfaceTypes.Contains(GetType(CapeOpen.ICapeUnit)))
         End Function
 
+        ''' <summary>
+        ''' Loads a .NET assembly and returns the first non-abstract type in it that implements <c>ICapeUnit</c>.
+        ''' </summary>
+        ''' <param name="filepath">Full path of the assembly file.</param>
+        ''' <returns>The CAPE-OPEN unit operation type, or <c>Nothing</c> if the assembly has none.</returns>
         Function GetManagedUnitType(ByVal filepath As String) As Type
 
             Dim mya As Assembly = Assembly.LoadFile(filepath)
@@ -1570,6 +1682,7 @@ Namespace UnitOperations
             End Get
         End Property
 
+        ''' <summary>Gets the help URL registered by the COM unit operation, or the DWSIM website if none is selected.</summary>
         Public Overrides ReadOnly Property ProductContactInfo As String
             Get
                 If _seluo IsNot Nothing Then
@@ -1580,6 +1693,7 @@ Namespace UnitOperations
             End Get
         End Property
 
+        ''' <summary>Gets the vendor URL registered by the COM unit operation, or the DWSIM website if none is selected.</summary>
         Public Overrides ReadOnly Property ProductPage As String
             Get
                 If _seluo IsNot Nothing Then
@@ -1590,6 +1704,7 @@ Namespace UnitOperations
             End Get
         End Property
 
+        ''' <summary>Gets the component version registered by the COM unit operation, or the version of this assembly if none is selected.</summary>
         Public Overrides ReadOnly Property ProductVersion As String
             Get
                 If _seluo IsNot Nothing Then
@@ -1600,6 +1715,7 @@ Namespace UnitOperations
             End Get
         End Property
 
+        ''' <summary>Gets the file location (server path) registered by the COM unit operation, or the name of this assembly if none is selected.</summary>
         Public Overrides ReadOnly Property ProductAssembly As String
             Get
                 If _seluo IsNot Nothing Then

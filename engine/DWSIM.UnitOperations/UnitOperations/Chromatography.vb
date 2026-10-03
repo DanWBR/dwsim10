@@ -50,8 +50,10 @@ Namespace UnitOperations
         Inherits UnitOperations.UnitOpBaseClass
 
         Implements IExternalUnitOperation
+        ''' <summary>Gets a value that marks this unit operation as a bioprocess unit. The object palettes read this flag by reflection to list it in the Biochemical group.</summary>
         Public ReadOnly Property IsBio As Boolean = True
 
+        ''' <summary>Gets or sets the simulation object class category (always <c>Separators</c>).</summary>
         Public Overrides Property ObjectClass As SimulationObjectClass
             Get
                 Return SimulationObjectClass.Separators
@@ -67,18 +69,34 @@ Namespace UnitOperations
         ''' <summary>Gets or sets the display description for this unit operation.</summary>
         Public Overrides Property ComponentDescription As String = GetDisplayDescription()
 
+        ''' <summary>Gets or sets the operating mode: <c>BindElute</c> (0, default), <c>FlowThrough</c> (1) or <c>BindElute_Dynamic</c> (2).
+        ''' The compound split always uses the per-compound recoveries; <c>BindElute_Dynamic</c> also builds a Thomas-model breakthrough curve for the loading step.</summary>
         Public Property Mode As ChromatographyMode = ChromatographyMode.BindElute
+        ''' <summary>Gets or sets the resin chemistry: <c>IonExchange</c> (default), <c>Affinity</c>, <c>HIC</c> (hydrophobic interaction), <c>SizeExclusion</c> or <c>MixedMode</c>.
+        ''' Informational only; it appears in the report and does not change the calculation.</summary>
         Public Property Chemistry As ChromatographyChemistry = ChromatographyChemistry.IonExchange
+        ''' <summary>Gets or sets the packed column (resin bed) volume, in L. Default 10 L.</summary>
         Public Property ColumnVolume_L As Double = 10.0
+        ''' <summary>Gets or sets the dynamic binding capacity of the resin, in g per L of column volume. Default 40 g/L.
+        ''' Used for the load ratio check and as q_max in the Thomas breakthrough model.</summary>
         Public Property DynamicBindingCapacity_gL As Double = 40.0
+        ''' <summary>Gets or sets the fraction (0 to 1) of each compound sent to the Product outlet when the compound has no entry in <see cref="RecoveryToProduct"/>. Default 0.05.</summary>
         Public Property DefaultRecoveryToProduct As Double = 0.05
+        ''' <summary>Gets or sets the per-compound fraction (0 to 1) of the feed mass sent to the Product outlet, keyed by compound name.
+        ''' The remainder goes to the Waste outlet. In bind-elute mode this is the elution yield; in flow-through mode it is the pass-through fraction.</summary>
         Public Property RecoveryToProduct As Dictionary(Of String, Double)
 
+        ''' <summary>Gets or sets the calculated feed mass flow, in kg/s.</summary>
         Public Property Result_FeedMass_kgs As Double = 0.0
+        ''' <summary>Gets or sets the calculated Product outlet mass flow, in kg/s.</summary>
         Public Property Result_ProductMass_kgs As Double = 0.0
+        ''' <summary>Gets or sets the calculated Waste outlet mass flow, in kg/s.</summary>
         Public Property Result_WasteMass_kgs As Double = 0.0
+        ''' <summary>Gets or sets the calculated recovery (0 to 1) of the target compounds in the Product outlet. Targets are the compounds with molecular weight above 5000 g/mol.</summary>
         Public Property Result_TargetRecovery As Double = 0.0
+        ''' <summary>Gets or sets the calculated load ratio: target compound feed mass flow (kg/s) divided by the column binding capacity (dynamic binding capacity times column volume, in kg). Values above 1 mean the column is saturated.</summary>
         Public Property Result_LoadRatio As Double = 0.0
+        ''' <summary>Gets or sets a value indicating whether the last calculation exceeded the binding capacity (load ratio above 1).</summary>
         Public Property Result_Saturated As Boolean = False
 
         ''' <summary>Thomas rate constant k_Th (L/g/s). Typical: 1e-4 â€¦ 1e-2.</summary>
@@ -94,20 +112,27 @@ Namespace UnitOperations
         <Xml.Serialization.XmlIgnore> <Newtonsoft.Json.JsonIgnore>
         Public Property LastTrajectory As ChromatographyTrajectoryResult
 
+        ''' <summary>The classic (WinForms) editor window open for this unit operation, if any. Not saved with the flowsheet.</summary>
         <NonSerialized> <Xml.Serialization.XmlIgnore> Public f As Object
 
+        ''' <summary>Gets a value indicating whether this unit operation supports dynamic simulation mode. Always <c>False</c>.</summary>
         Public Overrides ReadOnly Property SupportsDynamicMode As Boolean = False
+        ''' <summary>Gets a value indicating whether this unit operation is compatible with mobile interfaces. Always <c>False</c>.</summary>
         Public Overrides ReadOnly Property MobileCompatible As Boolean
             Get
                 Return False
             End Get
         End Property
 
+        ''' <summary>Initializes a new default instance of the <see cref="UnitOp_Chromatography"/> class.</summary>
         Public Sub New()
             MyBase.New()
             RecoveryToProduct = New Dictionary(Of String, Double)()
         End Sub
 
+        ''' <summary>Initializes a new instance of the <see cref="UnitOp_Chromatography"/> class with a name and description.</summary>
+        ''' <param name="name">The name of this unit operation.</param>
+        ''' <param name="description">A brief description of this unit operation.</param>
         Public Sub New(ByVal name As String, ByVal description As String)
             MyBase.New()
             Me.ComponentName = name
@@ -115,16 +140,23 @@ Namespace UnitOperations
             RecoveryToProduct = New Dictionary(Of String, Double)()
         End Sub
 
+        ''' <summary>Creates a deep copy of this object by round-tripping through XML serialization.</summary>
+        ''' <returns>A new <see cref="UnitOp_Chromatography"/> instance with the same property values.</returns>
         Public Overrides Function CloneXML() As Object
             Dim obj As ICustomXMLSerialization = New UnitOp_Chromatography()
             obj.LoadData(Me.SaveData)
             Return obj
         End Function
 
+        ''' <summary>Creates a deep copy of this object by round-tripping through JSON serialization.</summary>
+        ''' <returns>A new <see cref="UnitOp_Chromatography"/> instance with the same property values.</returns>
         Public Overrides Function CloneJSON() As Object
             Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of UnitOp_Chromatography)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
         End Function
 
+        ''' <summary>Returns the fraction of a compound sent to the Product outlet: its entry in <see cref="RecoveryToProduct"/>, or <see cref="DefaultRecoveryToProduct"/> when it has none, clamped to 0 to 1.</summary>
+        ''' <param name="compName">The compound name.</param>
+        ''' <returns>The recovery-to-product fraction, between 0 and 1.</returns>
         Public Function RecoveryFor(compName As String) As Double
             If RecoveryToProduct IsNot Nothing AndAlso RecoveryToProduct.ContainsKey(compName) Then
                 Return Max(0.0, Min(1.0, RecoveryToProduct(compName)))
@@ -306,16 +338,27 @@ Namespace UnitOperations
             Next
         End Sub
 
+        ''' <summary>Returns the raw bytes of the icon image for this unit operation.</summary>
+        ''' <returns>A byte array containing the PNG image data for the icon.</returns>
         Public Overrides Function GetIconBitmapBytes() As Byte()
             Return BioOpsDrawHelper.RenderIconToPngBytes(64, 64, AddressOf DrawIcon)
         End Function
+        ''' <summary>Returns the description string for this unit operation type.</summary>
+        ''' <returns>A description string identifying this unit operation type.</returns>
         Public Overrides Function GetDisplayDescription() As String
             Return "Chromatography column (bind-elute or flow-through)"
         End Function
+        ''' <summary>Returns the display name for this unit operation type.</summary>
+        ''' <returns>The name string for this unit operation type.</returns>
         Public Overrides Function GetDisplayName() As String
             Return "Chromatography Column"
         End Function
 
+        ''' <summary>Generates a plain-text results report for this unit operation.</summary>
+        ''' <param name="su">The unit system used for formatting output values (not used; values are reported in fixed units).</param>
+        ''' <param name="ci">The culture info used for number formatting.</param>
+        ''' <param name="numberformat">A .NET numeric format string (e.g. "G6") applied to output values.</param>
+        ''' <returns>A formatted multi-line string report.</returns>
         Public Overrides Function GetReport(su As IUnitsOfMeasure, ci As Globalization.CultureInfo, numberformat As String) As String
             Dim s As New Text.StringBuilder
             s.AppendLine("Chromatography: " & Me.GraphicObject.Tag)

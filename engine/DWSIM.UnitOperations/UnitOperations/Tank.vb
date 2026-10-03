@@ -66,6 +66,7 @@ Namespace UnitOperations
 
         End Sub
 
+        ''' <summary>The classic (WinForms) editor window open for this unit operation, if any. Not saved with the flowsheet.</summary>
         <NonSerialized> <Xml.Serialization.XmlIgnore> Public f As Object
 
         Protected m_dp As Nullable(Of Double)

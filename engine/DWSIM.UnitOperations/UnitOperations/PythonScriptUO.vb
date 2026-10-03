@@ -60,9 +60,12 @@ Namespace UnitOperations
             PythonNET = 1
         End Enum
 
+        ''' <summary>The classic (WinForms) editor window open for this unit operation, if any. Not saved with the flowsheet.</summary>
         <NonSerialized> <Xml.Serialization.XmlIgnore> Public f As Object
 
+        ''' <summary>Reserved handle for a script editor window; not assigned or read by the current code. Not saved with the flowsheet.</summary>
         <NonSerialized> <Xml.Serialization.XmlIgnore> Public fs As Object
+        ''' <summary>Reserved handle for a script editor window on Mono; not assigned or read by the current code. Not saved with the flowsheet.</summary>
         <NonSerialized> <Xml.Serialization.XmlIgnore> Public fsmono As Object
 
         <NonSerialized> <Xml.Serialization.XmlIgnore> Private engine As ScriptEngine

@@ -141,6 +141,7 @@ Namespace UnitOperations
 
         Inherits UnitOperations.UnitOpBaseClass
 
+        ''' <summary>The classic (WinForms) editor window open for this unit operation, if any. Not saved with the flowsheet.</summary>
         <NonSerialized> <Xml.Serialization.XmlIgnore> Public f As Object
 
         ''' <summary>
@@ -180,10 +181,16 @@ Namespace UnitOperations
             Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of ComponentSeparator)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
         End Function
 
+        ''' <summary>Gets a value indicating whether this unit operation supports dynamic simulation mode.</summary>
         Public Overrides ReadOnly Property SupportsDynamicMode As Boolean = True
 
+        ''' <summary>Gets a value indicating whether this unit operation exposes properties for dynamic mode.</summary>
         Public Overrides ReadOnly Property HasPropertiesForDynamicMode As Boolean = True
 
+        ''' <summary>
+        ''' Registers the dynamic properties for dynamic simulation mode: holdup volume (m3), minimum pressure (Pa),
+        ''' initialization from the inlet stream and the reset flag for the holdup content.
+        ''' </summary>
         Public Overrides Sub CreateDynamicProperties()
 
             AddDynamicProperty("Volume", "Internal holdup volume (m3).", 0.1, UnitOfMeasure.volume, 1.0.GetType())
@@ -193,6 +200,11 @@ Namespace UnitOperations
 
         End Sub
 
+        ''' <summary>
+        ''' Runs one dynamic-mode integration step: integrates the holdup (adds the inlet, subtracts both outlets over
+        ''' the time step), keeps its pressure at or above the minimum pressure, and assigns the holdup composition,
+        ''' temperature, enthalpy and pressure to both outlet streams.
+        ''' </summary>
         Public Overrides Sub RunDynamicModel()
 
             Dim integratorID = FlowSheet.DynamicsManager.ScheduleList(FlowSheet.DynamicsManager.CurrentSchedule).CurrentIntegrator

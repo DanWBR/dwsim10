@@ -37,6 +37,7 @@ Namespace Reactors
 
         Inherits Reactor
 
+        ''' <summary>The classic (WinForms) editor window open for this unit operation, if any. Not saved with the flowsheet.</summary>
         <NonSerialized> <Xml.Serialization.XmlIgnore> Public f As Object
 
         ''' <summary>Transient holdup state carried across integration steps in dynamic mode.</summary>
@@ -70,19 +71,33 @@ Namespace Reactors
         Public Property HeatOfPolymerization As Double = -70000.0
 
         ' --- Arrhenius kinetics (k = A*exp(-E/RT); A in 1/s or L/mol/s, E in J/mol), styrene/AIBN defaults ---
+        ''' <summary>Arrhenius pre-exponential factor for initiator decomposition, in 1/s. Rate constant k = A*exp(-E/(R*T)). Default 1.58E+15 (AIBN).</summary>
         Public Property Kd_A As Double = 1.58E+15
+        ''' <summary>Arrhenius activation energy for initiator decomposition, in J/mol. Default 128000 (AIBN).</summary>
         Public Property Kd_E As Double = 128000.0
+        ''' <summary>Initiator efficiency f: the fraction of the radicals formed by initiator decomposition that start a chain. Default 0.6.</summary>
         Public Property Efficiency As Double = 0.6
+        ''' <summary>Arrhenius pre-exponential factor for propagation (homo-propagation of monomer A in copolymer mode), in L/(mol.s). Default 4.266E+7 (styrene).</summary>
         Public Property Kp_A As Double = 4.266E+7
+        ''' <summary>Arrhenius activation energy for propagation (homo-propagation of monomer A in copolymer mode), in J/mol. Default 32510 (styrene).</summary>
         Public Property Kp_E As Double = 32510.0
+        ''' <summary>Arrhenius pre-exponential factor for termination by combination, in L/(mol.s). Rate constant k = A*exp(-E/(R*T)); 0 disables this pathway.</summary>
         Public Property Ktc_A As Double = 1.255E+9
+        ''' <summary>Arrhenius activation energy for termination by combination, in J/mol.</summary>
         Public Property Ktc_E As Double = 8000.0
+        ''' <summary>Arrhenius pre-exponential factor for termination by disproportionation, in L/(mol.s). Rate constant k = A*exp(-E/(R*T)); 0 disables this pathway.</summary>
         Public Property Ktd_A As Double = 0.0
+        ''' <summary>Arrhenius activation energy for termination by disproportionation, in J/mol.</summary>
         Public Property Ktd_E As Double = 0.0
+        ''' <summary>Arrhenius pre-exponential factor for chain transfer to monomer (from a monomer A radical in copolymer mode), in L/(mol.s). Rate constant k = A*exp(-E/(R*T)); 0 disables this pathway.</summary>
         Public Property KtrM_A As Double = 4.266E+7 * 6.0E-5
+        ''' <summary>Arrhenius activation energy for chain transfer to monomer (from a monomer A radical in copolymer mode), in J/mol.</summary>
         Public Property KtrM_E As Double = 32510.0
+        ''' <summary>Arrhenius pre-exponential factor for chain transfer to the solvent or chain-transfer agent, in L/(mol.s). Rate constant k = A*exp(-E/(R*T)); 0 disables this pathway.</summary>
         Public Property KtrS_A As Double = 0.0
+        ''' <summary>Arrhenius activation energy for chain transfer to the solvent or chain-transfer agent, in J/mol.</summary>
         Public Property KtrS_E As Double = 0.0
+        ''' <summary>Molar mass of the monomer (monomer A in copolymer mode), in g/mol. Default 104.15 (styrene).</summary>
         Public Property MonomerMolarMass As Double = 104.15
 
         ' --- copolymer (binary) configuration; setting a second monomer switches the reactor to the terminal
@@ -115,11 +130,15 @@ Namespace Reactors
         Public Property GelModel As GelModelType = GelModelType.None
         ''' <summary>Termination gel factor coefficients, g_t = exp(-(c1*X + c2*X^2 + c3*X^3)).</summary>
         Public Property GelGtC1 As Double = 0.0
+        ''' <summary>Termination gel factor coefficient c2 in g_t = exp(-(c1*X + c2*X^2 + c3*X^3)), where X is the monomer conversion.</summary>
         Public Property GelGtC2 As Double = 0.0
+        ''' <summary>Termination gel factor coefficient c3 in g_t = exp(-(c1*X + c2*X^2 + c3*X^3)), where X is the monomer conversion.</summary>
         Public Property GelGtC3 As Double = 0.0
         ''' <summary>Propagation glass factor coefficients, g_p = exp(-(c1*X + c2*X^2 + c3*X^3)).</summary>
         Public Property GelGpC1 As Double = 0.0
+        ''' <summary>Propagation glass factor coefficient c2 in g_p = exp(-(c1*X + c2*X^2 + c3*X^3)), where X is the monomer conversion.</summary>
         Public Property GelGpC2 As Double = 0.0
+        ''' <summary>Propagation glass factor coefficient c3 in g_p = exp(-(c1*X + c2*X^2 + c3*X^3)), where X is the monomer conversion.</summary>
         Public Property GelGpC3 As Double = 0.0
 
         ' --- molecular-weight distribution emission ---
@@ -141,20 +160,30 @@ Namespace Reactors
         Public Property CutMoleFractions As New List(Of Double)
 
         ' --- results (read-only outputs) ---
+        ''' <summary>Calculated overall molar conversion of the monomer feed (both monomers in copolymer mode), as a fraction from 0 to 1.</summary>
         Public Property Conversion As Double = 0.0
+        ''' <summary>Calculated number-average molar mass of the polymer, in g/mol.</summary>
         Public Property Mn As Double = 0.0
+        ''' <summary>Calculated weight-average molar mass of the polymer, in g/mol.</summary>
         Public Property Mw As Double = 0.0
+        ''' <summary>Calculated polydispersity index of the polymer, Mw/Mn.</summary>
         Public Property PDI As Double = 0.0
+        ''' <summary>Calculated rate of polymerization (monomer consumption rate), in mol/(L.s).</summary>
         Public Property RateOfPolymerization As Double = 0.0
+        ''' <summary>Calculated residence time, reactor volume divided by the feed volumetric flow, in s.</summary>
         Public Property ResidenceTime As Double = 0.0
 
         ''' <summary>Instantaneous mole fraction of monomer A in the copolymer (copolymer mode only).</summary>
         Public Property CopolymerCompositionA As Double = 0.0
 
+        ''' <summary>Initializes a new default instance of the <see cref="Reactor_Polymerization"/> class.</summary>
         Public Sub New()
             MyBase.New()
         End Sub
 
+        ''' <summary>Initializes a new instance of the <see cref="Reactor_Polymerization"/> class with a name and description, in isothermal operation mode.</summary>
+        ''' <param name="name">The name of this reactor.</param>
+        ''' <param name="description">A brief description of this reactor.</param>
         Public Sub New(ByVal name As String, ByVal description As String)
             MyBase.New()
             Me.ComponentName = name
@@ -162,12 +191,16 @@ Namespace Reactors
             Me.ReactorOperationMode = OperationMode.Isothermic
         End Sub
 
+        ''' <summary>Creates a deep copy of this object by round-tripping through XML serialization.</summary>
+        ''' <returns>A new <see cref="Reactor_Polymerization"/> instance with the same property values.</returns>
         Public Overrides Function CloneXML() As Object
             Dim obj As ICustomXMLSerialization = New Reactor_Polymerization()
             obj.LoadData(Me.SaveData)
             Return obj
         End Function
 
+        ''' <summary>Creates a deep copy of this object by round-tripping through JSON serialization.</summary>
+        ''' <returns>A new <see cref="Reactor_Polymerization"/> instance with the same property values.</returns>
         Public Overrides Function CloneJSON() As Object
             Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of Reactor_Polymerization)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
         End Function
@@ -484,8 +517,10 @@ Namespace Reactors
             End If
         End Sub
 
+        ''' <summary>Gets a value indicating whether this reactor has properties used in dynamic mode. Always <c>True</c>.</summary>
         Public Overrides ReadOnly Property HasPropertiesForDynamicMode As Boolean = True
 
+        ''' <summary>Registers the dynamic properties for dynamic simulation mode: content reset, initialization from the inlet stream and operating pressure.</summary>
         Public Overrides Sub CreateDynamicProperties()
             AddDynamicProperty("Reset Contents", "Discards the current holdup at the next run step and builds it again as on a first run (see Initialize using Inlet Stream).", False, UnitOfMeasure.none, True.GetType())
             AddDynamicProperty("Initialize using Inlet Stream", "Charges the reactor with the inlet composition on the first step.", True, UnitOfMeasure.none, True.GetType())
@@ -624,24 +659,36 @@ Namespace Reactors
             End Select
         End Function
 
+        ''' <summary>Returns the raw bytes of the icon image for this reactor.</summary>
+        ''' <returns>A byte array containing the PNG image data for the icon.</returns>
         Public Overrides Function GetIconBitmapBytes() As Byte()
             Return GetBytesFromResource("DWSIM.UnitOperations.cstr.png")
         End Function
 
+        ''' <summary>Returns the description string for this unit operation type.</summary>
+        ''' <returns>A description string identifying this unit operation type.</returns>
         Public Overrides Function GetDisplayDescription() As String
             Return "Free-radical polymerization reactor (isothermal CSTR, method of moments)"
         End Function
 
+        ''' <summary>Returns the display name for this unit operation type.</summary>
+        ''' <returns>The name string for this unit operation type.</returns>
         Public Overrides Function GetDisplayName() As String
             Return "Polymerization Reactor"
         End Function
 
+        ''' <summary>Gets a value indicating whether this unit operation is compatible with mobile interfaces. Always <c>False</c>.</summary>
         Public Overrides ReadOnly Property MobileCompatible As Boolean
             Get
                 Return False
             End Get
         End Property
 
+        ''' <summary>Generates a plain-text results report for this reactor: compounds, operation mode, residence time, conversion, temperature rise, heat duty, Mn, Mw and PDI.</summary>
+        ''' <param name="su">The unit system used for formatting output values.</param>
+        ''' <param name="ci">The culture info used for number formatting.</param>
+        ''' <param name="numberformat">A .NET numeric format string (e.g. "G6") applied to output values.</param>
+        ''' <returns>A formatted multi-line string report.</returns>
         Public Overrides Function GetReport(su As IUnitsOfMeasure, ci As Globalization.CultureInfo, numberformat As String) As String
             Dim str As New Text.StringBuilder
             str.AppendLine("Polymerization Reactor: " & Me.GraphicObject.Tag)

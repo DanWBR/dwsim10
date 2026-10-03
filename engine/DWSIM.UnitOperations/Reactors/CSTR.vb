@@ -57,7 +57,12 @@ Namespace Reactors
         Dim Kf, Kr As ArrayList
         Dim N00, N0 As Dictionary(Of String, Double)
         Dim Rxi As New Dictionary(Of String, Double)
+        ''' <summary>
+        ''' Overall rate of each reaction in the last calculation, keyed by reaction ID and reported as the reaction extent.
+        ''' For kinetic reactions it is the rate times the volume of the reacting phase over the base compound stoichiometric coefficient, in mol/s.
+        ''' </summary>
         Public RxiT As New Dictionary(Of String, Double)
+        ''' <summary>Heat of each reaction in the last calculation, keyed by reaction ID, in kW.</summary>
         Public DHRi As New Dictionary(Of String, Double)
 
         Dim activeAL As Integer = 0
@@ -91,6 +96,7 @@ Namespace Reactors
         Public Overrides ReadOnly Property HasPropertiesForDynamicMode As Boolean = True
 
 
+        ''' <summary>The classic (WinForms) editor window open for this reactor, if any. Not saved with the flowsheet.</summary>
         <NonSerialized> <Xml.Serialization.XmlIgnore> Public f As Object
 
         ''' <summary>Gets or sets the liquid/solid residence time (s).</summary>
@@ -459,6 +465,11 @@ Namespace Reactors
         End Sub
 
 
+        ''' <summary>
+        ''' Runs the CSTR calculation called by <see cref="Calculate"/>: solves the reaction rates, the outlet composition
+        ''' and the energy balance for the selected operation mode. In dynamic mode the reactor holdup is used in place of the inlet stream.
+        ''' </summary>
+        ''' <param name="args">Optional. <c>True</c> for a dynamic-mode call; <c>Nothing</c> or <c>False</c> for steady state.</param>
         Public Sub Calculate_Internal_1(Optional ByVal args As Object = Nothing)
 
             ResetExpressionCache()

@@ -24,6 +24,12 @@ Imports OxyPlot.Series
 
 Namespace SpecialOps
 
+    ''' <summary>
+    ''' Proportional-integral-derivative (PID) feedback controller for dynamic simulations. At each control
+    ''' step it reads the controlled (process) variable of one flowsheet object, compares it with the
+    ''' setpoint and writes a new value to the manipulated variable of another object. Supports manual
+    ''' override, cascade control, feedforward from a measured disturbance and integral anti-windup.
+    ''' </summary>
     <System.Serializable()> Public Partial Class PIDController
 
         Inherits UnitOperations.SpecialOpBaseClass
@@ -32,6 +38,9 @@ Namespace SpecialOps
 
         Public Overrides Property ObjectClass As SimulationObjectClass = SimulationObjectClass.Controllers
 
+        ''' <summary>
+        ''' The classic (WinForms) editor window open for this controller, if any. Not saved with the flowsheet.
+        ''' </summary>
         <NonSerialized> <Xml.Serialization.XmlIgnore> Public f As Object
 
         <Xml.Serialization.XmlIgnore> Public Property ControlPanel As Object Implements IControllableObject.ControlPanel
@@ -67,6 +76,11 @@ Namespace SpecialOps
         Protected m_maxVal As Nullable(Of Double) = Nothing
         Protected m_initialEstimate As Nullable(Of Double) = Nothing
 
+        ''' <summary>
+        ''' Manipulated variable value at zero controller output, in the manipulated variable's units. With <see
+        ''' cref="ManipulatedVariableSpan"/> at zero it enters the normalized output as a bias of Offset / |SP|;
+        ''' with a positive span the manipulated variable is Offset -/+ Output * Span. Default 0.
+        ''' </summary>
         Public Property Offset As Double = 0.0
 
         ''' <summary>
@@ -83,62 +97,173 @@ Namespace SpecialOps
         ''' </summary>
         Public Property ManipulatedVariableSpan As Double = 0.0
 
+        ''' <summary>
+        ''' Proportional gain, dimensionless, applied to the error normalized by the setpoint magnitude <see
+        ''' cref="BaseSP"/>. Default 10.
+        ''' </summary>
         Public Property Kp As Double = 10.0
 
+        ''' <summary>
+        ''' Derivative gain, in s, applied to the rate of change of the normalized error (or of the process
+        ''' variable when <see cref="UseDerivativeOnPV"/> is set). Default 2.
+        ''' </summary>
         Public Property Kd As Double = 2.0
 
+        ''' <summary>
+        ''' Integral gain, in 1/s, applied to the time integral of the normalized error <see cref="ITerm"/>. In
+        ''' the ISA form the integral time is Kp / Ki. Default 2.
+        ''' </summary>
         Public Property Ki As Double = 2.0
 
+        ''' <summary>
+        ''' Anti-windup limit: the integral term <see cref="ITerm"/> is clamped to the range [-WindupGuard,
+        ''' WindupGuard], in normalized error times seconds. Default 20.
+        ''' </summary>
         Public Property WindupGuard As Double = 20.0
 
+        ''' <summary>
+        ''' Normalized error of the last control step, (PV - SP) / <see cref="BaseSP"/>, dimensionless.
+        ''' </summary>
         Public Property CurrentError As Double = 0.0
 
+        ''' <summary>Normalized error of the previous control step, dimensionless.</summary>
         Public Property LastError As Double = 0.0
 
+        ''' <summary>
+        ''' Running sum of the absolute normalized error, one term per control step, since the last reset.
+        ''' Reported as the integral of the error.
+        ''' </summary>
         Public Property CumulativeError As Double = 0.0
 
+        ''' <summary>Proportional contribution of the last step: Kp * SetpointWeightP * CurrentError.</summary>
         Public Property PTerm As Double = 0.0
 
+        ''' <summary>
+        ''' Time integral of the normalized error, in seconds, accumulated since the last reset. It is clamped
+        ''' by <see cref="WindupGuard"/> and held while the output sits at a limit.
+        ''' </summary>
         Public Property ITerm As Double = 0.0
 
+        ''' <summary>
+        ''' Derivative of the last step, in 1/s: the rate of change of the normalized error, or of the negative
+        ''' normalized process variable when <see cref="UseDerivativeOnPV"/> is set, after the optional
+        ''' derivative filter.
+        ''' </summary>
         Public Property DTerm As Double = 0.0
 
+        ''' <summary>
+        ''' Normalized (dimensionless) controller output of the last step. It is converted into the manipulated
+        ''' variable value <see cref="OutputAbs"/> using the setpoint magnitude or <see
+        ''' cref="ManipulatedVariableSpan"/>.
+        ''' </summary>
         Public Property Output As Double = 0.0
 
+        ''' <summary>
+        ''' Manipulated variable value of the last step, in the manipulated variable's units, clamped to [<see
+        ''' cref="OutputMin"/>, <see cref="OutputMax"/>]. Setting it through <c>SetPropertyValue</c> also sets
+        ''' the value held in manual mode.
+        ''' </summary>
         Public Property OutputAbs As Double = 0.0
 
+        ''' <summary>
+        ''' Process variable values recorded at each control step, divided by <see cref="BaseSP"/>, for the
+        ''' history chart. Not saved in the XML flowsheet file.
+        ''' </summary>
         <Xml.Serialization.XmlIgnore> Public Property PVHistory As New List(Of Double)
 
+        ''' <summary>
+        ''' Normalized controller output recorded at each control step, for the history chart. Not saved in the
+        ''' XML flowsheet file.
+        ''' </summary>
         <Xml.Serialization.XmlIgnore> Public Property MVHistory As New List(Of Double)
 
+        ''' <summary>
+        ''' Setpoint values recorded at each control step, divided by <see cref="BaseSP"/>, for the history
+        ''' chart. Not saved in the XML flowsheet file.
+        ''' </summary>
         <Xml.Serialization.XmlIgnore> Public Property SPHistory As New List(Of Double)
 
+        ''' <summary>
+        ''' Setpoint magnitude |SP| captured at the first control step after a reset, used to normalize the
+        ''' error, the output and the histories. <c>Nothing</c> until the first step.
+        ''' </summary>
         Public BaseSP As Nullable(Of Double)
 
+        ''' <summary>
+        ''' Gets or sets whether the controller acts during a dynamic run. The integrator skips an inactive
+        ''' controller. Default <c>True</c>.
+        ''' </summary>
         Public Property Active As Boolean = True
 
+        ''' <summary>
+        ''' When <c>True</c> the controller is in manual: it writes the operator's value <see cref="MVValue"/>
+        ''' to the manipulated object and back-calculates <see cref="Output"/> from it. Returning to automatic
+        ''' sets the integral term so the output continues from the manual value. Default <c>False</c>.
+        ''' </summary>
         Public Property ManualOverride As Boolean = False
 
+        ''' <summary>
+        ''' Controller action. <c>False</c> (default): a process variable above the setpoint lowers the
+        ''' manipulated variable. <c>True</c>: a process variable above the setpoint raises it.
+        ''' </summary>
         Public Property ReverseActing As Boolean = False
 
+        ''' <summary>
+        ''' Lower limit of the manipulated variable value <see cref="OutputAbs"/>, in the manipulated variable's
+        ''' units. Default -1000.
+        ''' </summary>
         Public Property OutputMin As Double = -1000.0
 
+        ''' <summary>
+        ''' Upper limit of the manipulated variable value <see cref="OutputAbs"/>, in the manipulated variable's
+        ''' units. Default 1000.
+        ''' </summary>
         Public Property OutputMax As Double = 1000.0
 
+        ''' <summary>
+        ''' Process (controlled) variable value read at the last update, in the controlled variable's units.
+        ''' </summary>
         Public Property PVValue As Double = 0.0
 
+        ''' <summary>Setpoint value at the last update, in the controlled variable's units.</summary>
         Public Property SPValue As Double = 0.0
 
+        ''' <summary>
+        ''' Manipulated variable value written to the manipulated object at the end of each step, in SI units.
+        ''' In manual mode it holds the operator's value. In automatic mode <see cref="UpdateVars"/> first
+        ''' refreshes it from the manipulated object in the manipulated variable's units.
+        ''' </summary>
         Public Property MVValue As Double = 0.0
 
+        ''' <summary>
+        ''' Coefficient alpha of the first-order derivative filter, DTerm = alpha * DTerm_previous + (1 - alpha)
+        ''' * DTerm_raw. Values outside the open range (0, 1) disable the filter. Default 0.
+        ''' </summary>
         Public Property DerivativeFilterCoefficient As Double = 0.0
 
+        ''' <summary>
+        ''' When <c>True</c> the derivative term acts on the rate of change of the process variable (derivative
+        ''' on measurement), which avoids a derivative kick when the setpoint changes. Default <c>False</c>
+        ''' (derivative on the error).
+        ''' </summary>
         Public Property UseDerivativeOnPV As Boolean = False
 
+        ''' <summary>
+        ''' Setpoint weight (beta) of the proportional term: PTerm = Kp * beta * CurrentError. Default 1.
+        ''' </summary>
         Public Property SetpointWeightP As Double = 1.0
 
+        ''' <summary>
+        ''' Setpoint weight (gamma) of the derivative term. Stored and shown in the editors; the current
+        ''' calculation does not use it. Default 1.
+        ''' </summary>
         Public Property SetpointWeightD As Double = 1.0
 
+        ''' <summary>
+        ''' PID algorithm form: 0 = parallel, Output = PTerm + Ki * ITerm + Kd * DTerm; 1 = ISA (standard); 2 =
+        ''' series. Any value other than 0 is calculated with the ISA form, Kp * (beta * e + ITerm / Ti + Td *
+        ''' DTerm) with Ti = Kp / Ki and Td = Kd / Kp. Default 0.
+        ''' </summary>
         Public Property PIDForm As Integer = 0
 
         Private FilteredDerivative As Double = 0.0
@@ -147,12 +272,23 @@ Namespace SpecialOps
 
         Private WasManualOverride As Boolean = False
 
+        ''' <summary>
+        ''' Position of this controller in the order the dynamic integrator runs the PID controllers, in
+        ''' ascending order. Default 0.
+        ''' </summary>
         Public Property ExecutionOrder As Integer = 0
 
+        ''' <summary>
+        ''' Name (ID) of the master PID controller of a cascade. When set, this controller takes its setpoint
+        ''' from the master's <see cref="OutputAbs"/> at every step. Empty (default) for no cascade.
+        ''' </summary>
         Public Property CascadeMasterID As String = ""
 
         Protected m_DisturbanceObjectData As New SpecialOps.Helpers.SpecialOpObjectInfo
 
+        ''' <summary>
+        ''' Measured disturbance for feedforward control: the object, property and units read at every step.
+        ''' </summary>
         Public Property DisturbanceObjectData() As SpecialOps.Helpers.SpecialOpObjectInfo
             Get
                 Return m_DisturbanceObjectData
@@ -162,16 +298,33 @@ Namespace SpecialOps
             End Set
         End Property
 
+        ''' <summary>
+        ''' Feedforward gain, in manipulated variable units per disturbance unit, applied to the change of the
+        ''' disturbance since the previous step and added to the manipulated variable value. Zero (default)
+        ''' disables feedforward.
+        ''' </summary>
         Public Property FeedforwardGain As Double = 0.0
 
+        ''' <summary>
+        ''' Feedforward lead time, in s. Stored and shown in the editors; the current calculation does not use
+        ''' it. Default 0.
+        ''' </summary>
         Public Property FeedforwardLeadTime As Double = 0.0
 
+        ''' <summary>
+        ''' Time constant, in s, of the first-order lag filter applied to the disturbance change before the
+        ''' feedforward gain. Zero or less disables the filter. Default 1.
+        ''' </summary>
         Public Property FeedforwardLagTime As Double = 1.0
 
         Private FeedforwardFilterState As Double = 0.0
 
         Private LastDisturbanceValue As Double = 0.0
 
+        ''' <summary>
+        ''' Gets or sets the controller setpoint, in the controlled variable's units. Same value as <see
+        ''' cref="AdjustValue"/>.
+        ''' </summary>
         Public Property SetPoint As Double
             Get
                 Return AdjustValue
@@ -181,14 +334,19 @@ Namespace SpecialOps
             End Set
         End Property
 
+        ''' <summary>Gets a value indicating whether this controller runs in dynamic mode. Always <c>True</c>.</summary>
         Public Overrides ReadOnly Property SupportsDynamicMode As Boolean = True
 
+        ''' <summary>Creates a deep copy of this object by round-tripping through XML serialization.</summary>
+        ''' <returns>A new <see cref="PIDController"/> instance with the same property values.</returns>
         Public Overrides Function CloneXML() As Object
             Dim obj As ICustomXMLSerialization = New PIDController()
             obj.LoadData(Me.SaveData)
             Return obj
         End Function
 
+        ''' <summary>Creates a deep copy of this object by round-tripping through JSON serialization.</summary>
+        ''' <returns>A new <see cref="PIDController"/> instance with the same property values.</returns>
         Public Overrides Function CloneJSON() As Object
             Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of PIDController)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
         End Function
@@ -202,6 +360,9 @@ Namespace SpecialOps
             End Set
         End Property
 
+        ''' <summary>
+        ''' Optional initial estimate of the manipulated variable. The PID calculation does not use it.
+        ''' </summary>
         Public Property InitialEstimate() As Nullable(Of Double)
             Get
                 Return m_initialEstimate
@@ -211,6 +372,10 @@ Namespace SpecialOps
             End Set
         End Property
 
+        ''' <summary>
+        ''' Optional upper bound of the manipulated variable. The PID calculation does not use it; the output
+        ''' limit is <see cref="OutputMax"/>.
+        ''' </summary>
         Public Property MaxVal() As Nullable(Of Double)
             Get
                 Return m_maxVal
@@ -220,6 +385,10 @@ Namespace SpecialOps
             End Set
         End Property
 
+        ''' <summary>
+        ''' Optional lower bound of the manipulated variable. The PID calculation does not use it; the output
+        ''' limit is <see cref="OutputMin"/>.
+        ''' </summary>
         Public Property MinVal() As Nullable(Of Double)
             Get
                 Return m_minVal
@@ -229,6 +398,9 @@ Namespace SpecialOps
             End Set
         End Property
 
+        ''' <summary>
+        ''' Flag indicating that the reference variable is defined. The PID calculation does not use it.
+        ''' </summary>
         Public Property RvOk() As Boolean
             Get
                 Return m_RV_OK
@@ -238,6 +410,9 @@ Namespace SpecialOps
             End Set
         End Property
 
+        ''' <summary>
+        ''' Flag indicating that the manipulated variable is defined. The PID calculation does not use it.
+        ''' </summary>
         Public Property MvOk() As Boolean
             Get
                 Return m_MV_OK
@@ -247,6 +422,9 @@ Namespace SpecialOps
             End Set
         End Property
 
+        ''' <summary>
+        ''' Flag indicating that the controlled variable is defined. The PID calculation does not use it.
+        ''' </summary>
         Public Property CvOk() As Boolean
             Get
                 Return m_CV_OK
@@ -283,6 +461,10 @@ Namespace SpecialOps
             End Set
         End Property
 
+        ''' <summary>
+        ''' The flowsheet object whose property the controller manipulates. <see cref="UpdateVars"/> resolves it
+        ''' from <see cref="ManipulatedObjectData"/> at every step. Not serialized.
+        ''' </summary>
         <Xml.Serialization.XmlIgnore()> Public Property ManipulatedObject() As SharedClasses.UnitOperations.BaseClass
             Get
                 Return Me.m_ManipulatedObject
@@ -292,6 +474,10 @@ Namespace SpecialOps
             End Set
         End Property
 
+        ''' <summary>
+        ''' The flowsheet object whose property is controlled, linked when the flowsheet or the graphic connects
+        ''' it. The calculation resolves the object from <see cref="ControlledObjectData"/>. Not serialized.
+        ''' </summary>
         <Xml.Serialization.XmlIgnore()> Public Property ControlledObject() As SharedClasses.UnitOperations.BaseClass
             Get
                 Return Me.m_ControlledObject
@@ -301,6 +487,10 @@ Namespace SpecialOps
             End Set
         End Property
 
+        ''' <summary>
+        ''' Reference object, linked from <see cref="ReferencedObjectData"/> when the flowsheet loads. The PID
+        ''' calculation does not use it. Not serialized.
+        ''' </summary>
         <Xml.Serialization.XmlIgnore()> Public Property ReferenceObject() As SharedClasses.UnitOperations.BaseClass
             Get
                 Return Me.m_ReferenceObject
@@ -310,6 +500,10 @@ Namespace SpecialOps
             End Set
         End Property
 
+        ''' <summary>
+        ''' Name of the manipulated property. The PID calculation does not read it; the property comes from <see
+        ''' cref="ManipulatedObjectData"/>.
+        ''' </summary>
         Public Property ManipulatedVariable() As String
             Get
                 Return Me.m_ManipulatedVariable
@@ -319,6 +513,10 @@ Namespace SpecialOps
             End Set
         End Property
 
+        ''' <summary>
+        ''' Name of the controlled property. The PID calculation does not read it; the property comes from <see
+        ''' cref="ControlledObjectData"/>.
+        ''' </summary>
         Public Property ControlledVariable() As String
             Get
                 Return Me.m_ControlledVariable
@@ -328,6 +526,7 @@ Namespace SpecialOps
             End Set
         End Property
 
+        ''' <summary>Name of the reference property. The PID calculation does not use it.</summary>
         Public Property ReferenceVariable() As String
             Get
                 Return Me.m_ReferenceVariable
@@ -337,6 +536,7 @@ Namespace SpecialOps
             End Set
         End Property
 
+        ''' <summary>Free-text status string. The PID calculation does not set it.</summary>
         Public Property Status() As String
             Get
                 Return Me.m_Status
@@ -364,6 +564,9 @@ Namespace SpecialOps
             End Set
         End Property
 
+        ''' <summary>
+        ''' Step size inherited from the adjust layout. The PID calculation does not use it. Default 0.1.
+        ''' </summary>
         Public Property StepSize() As Double
             Get
                 Return Me.m_StepSize
@@ -382,6 +585,10 @@ Namespace SpecialOps
             End Set
         End Property
 
+        ''' <summary>
+        ''' Maximum number of iterations inherited from the adjust layout. The PID calculation does not use it.
+        ''' Default 10.
+        ''' </summary>
         Public Property MaximumIterations() As Integer
             Get
                 Return Me.m_MaxIterations
@@ -484,10 +691,16 @@ Namespace SpecialOps
 
         End Function
 
+        ''' <summary>Initializes a new default instance of the <see cref="PIDController"/> class.</summary>
         Public Sub New()
             MyBase.New()
         End Sub
 
+        ''' <summary>
+        ''' Initializes a new instance of the <see cref="PIDController"/> class with a name and description.
+        ''' </summary>
+        ''' <param name="name">The name of this controller.</param>
+        ''' <param name="description">A brief description of this controller.</param>
         Public Sub New(ByVal name As String, ByVal description As String)
 
             MyBase.CreateNew()
@@ -638,20 +851,27 @@ Namespace SpecialOps
             End If
         End Function
 
+        ''' <summary>Returns the raw bytes of the icon image for this controller.</summary>
+        ''' <returns>A byte array containing the PNG image data for the icon.</returns>
         Public Overrides Function GetIconBitmapBytes() As Byte()
 
             Return GetBytesFromResource("DWSIM.UnitOperations.control_panel.png")
 
         End Function
 
+        ''' <summary>Returns the localized description string for this controller type.</summary>
+        ''' <returns>A translated description string identifying this controller type.</returns>
         Public Overrides Function GetDisplayDescription() As String
             Return ResMan.GetLocalString("PID_Desc")
         End Function
 
+        ''' <summary>Returns the localized display name for this controller type.</summary>
+        ''' <returns>A translated name string for this controller type.</returns>
         Public Overrides Function GetDisplayName() As String
             Return ResMan.GetLocalString("PID_Name")
         End Function
 
+        ''' <summary>Gets a value indicating whether this controller is compatible with mobile interfaces.</summary>
         Public Overrides ReadOnly Property MobileCompatible As Boolean
             Get
                 Return True
@@ -671,6 +891,10 @@ Namespace SpecialOps
             InitializeFromMV = True
         End Sub
 
+        ''' <summary>
+        ''' Clears the controller state: the P, I and D terms, the errors, the output, the derivative filter,
+        ''' the histories and <see cref="BaseSP"/>. Tuning, limits and the setpoint are kept.
+        ''' </summary>
         Public Sub Reset()
 
             PTerm = 0.0
@@ -695,6 +919,10 @@ Namespace SpecialOps
 
         End Sub
 
+        ''' <summary>
+        ''' Estimates starting values for the tuning from the current error and the current integrator time
+        ''' step: Kp and Kd are set from the mid-point of the output range, and Ki is set to zero.
+        ''' </summary>
         Public Sub EstimateParameters()
 
             Dim integratorID = FlowSheet.DynamicsManager.ScheduleList(FlowSheet.DynamicsManager.CurrentSchedule).CurrentIntegrator
@@ -758,6 +986,12 @@ Namespace SpecialOps
 
         End Sub
 
+        ''' <summary>
+        ''' Reads the setpoint, the process variable and, in automatic mode, the manipulated variable from the
+        ''' flowsheet into <see cref="SPValue"/>, <see cref="PVValue"/> and <see cref="MVValue"/>, and resolves
+        ''' <see cref="ManipulatedObject"/>. Leaves the values unchanged when the controller is not fully
+        ''' configured.
+        ''' </summary>
         Public Sub UpdateVars()
 
             ' An unconfigured controller (freshly added, or one being drawn on the flowsheet before its
@@ -982,6 +1216,12 @@ Namespace SpecialOps
 
         End Sub
 
+        ''' <summary>
+        ''' Builds the history chart with the normalized setpoint, process variable and controller output per
+        ''' control step.
+        ''' </summary>
+        ''' <param name="name">The chart name, shown as the subtitle ("History").</param>
+        ''' <returns>An OxyPlot <c>PlotModel</c> with the SP, PV and MV series.</returns>
         Public Overrides Function GetChartModel(name As String) As Object
 
             Dim model = New PlotModel() With {.Subtitle = name, .Title = GraphicObject.Tag}
@@ -1036,6 +1276,8 @@ Namespace SpecialOps
 
         End Function
 
+        ''' <summary>Returns the names of the charts this controller can embed in the flowsheet.</summary>
+        ''' <returns>A list with the single chart name "History".</returns>
         Public Overrides Function GetChartModelNames() As List(Of String)
             Return New List(Of String)({"History"})
         End Function

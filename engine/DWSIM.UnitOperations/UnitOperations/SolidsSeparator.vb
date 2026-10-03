@@ -40,6 +40,7 @@ Namespace UnitOperations
         ''' <summary>Gets or sets the simulation object class category for this unit operation (Solids).</summary>
         Public Overrides Property ObjectClass As SimulationObjectClass = SimulationObjectClass.Solids
 
+        ''' <summary>The classic (WinForms) editor window open for this unit operation, if any. Not saved with the flowsheet.</summary>
         <NonSerialized> <Xml.Serialization.XmlIgnore> Public f As Object
 
         ''' <summary>Gets or sets Base64-encoded embedded image data used when a custom icon is displayed.</summary>
@@ -109,10 +110,16 @@ Namespace UnitOperations
             Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of SolidsSeparator)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
         End Function
 
+        ''' <summary>Gets a value indicating whether this unit operation supports dynamic simulation mode.</summary>
         Public Overrides ReadOnly Property SupportsDynamicMode As Boolean = True
 
+        ''' <summary>Gets a value indicating whether this unit operation exposes properties for dynamic mode.</summary>
         Public Overrides ReadOnly Property HasPropertiesForDynamicMode As Boolean = True
 
+        ''' <summary>
+        ''' Registers the dynamic properties for dynamic simulation mode: the solids holdup (kg), the maximum
+        ''' solids holdup before discharge (kg, 0 for continuous discharge) and the discharge state flag.
+        ''' </summary>
         Public Overrides Sub CreateDynamicProperties()
 
             AddDynamicProperty("Solids Holdup", "Current accumulated solids mass (kg).", 0.0, UnitOfMeasure.mass, 1.0.GetType())
@@ -121,6 +128,10 @@ Namespace UnitOperations
 
         End Sub
 
+        ''' <summary>
+        ''' Runs one dynamic-mode integration step: accumulates the captured solids, flags a discharge when the holdup
+        ''' reaches its maximum (or on every step for continuous discharge), then runs the steady-state split.
+        ''' </summary>
         Public Overrides Sub RunDynamicModel()
 
             Dim integratorID = FlowSheet.DynamicsManager.ScheduleList(FlowSheet.DynamicsManager.CurrentSchedule).CurrentIntegrator

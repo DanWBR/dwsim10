@@ -22,6 +22,7 @@ Namespace UnitOperations
 
         Private Image As SKImage
 
+        ''' <summary>The classic (WinForms) editor window open for this unit operation, if any. Not saved with the flowsheet.</summary>
         <Xml.Serialization.XmlIgnore> Public f As Object
 
         ''' <summary>Gets or sets the default name prefix for this unit operation.</summary>
@@ -178,6 +179,8 @@ Namespace UnitOperations
 
         End Sub
 
+        ''' <summary>Generates a structured (tabular) results report for display in the UI.</summary>
+        ''' <returns>A list of three-column rows (name, value, unit) with the velocity head, total head and generated power in the flowsheet's selected units.</returns>
         Public Overrides Function GetStructuredReport() As List(Of Tuple(Of ReportItemType, String()))
 
             Dim su As IUnitsOfMeasure = GetFlowsheet().FlowsheetOptions.SelectedUnitSystem

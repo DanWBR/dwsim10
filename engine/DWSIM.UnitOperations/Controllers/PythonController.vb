@@ -28,6 +28,12 @@ Imports OxyPlot.Series
 
 Namespace SpecialOps
 
+    ''' <summary>
+    ''' Controller for dynamic simulations whose control law is an IronPython script. At each control step
+    ''' the script receives the process variable as <c>PV</c> and must set <c>MV</c> (the manipulated
+    ''' variable value, in its units) and <c>SP</c> (the setpoint); the controller then writes MV to the
+    ''' manipulated object.
+    ''' </summary>
     <System.Serializable()> Public Partial Class PythonController
 
         Inherits UnitOperations.SpecialOpBaseClass
@@ -36,34 +42,80 @@ Namespace SpecialOps
 
         Public Overrides Property ObjectClass As SimulationObjectClass = SimulationObjectClass.Controllers
 
+        ''' <summary>
+        ''' The classic (WinForms) editor window open for this controller, if any. Not saved with the flowsheet.
+        ''' </summary>
         <NonSerialized> <Xml.Serialization.XmlIgnore> Public f As Object
 
         <NonSerialized> <Xml.Serialization.XmlIgnore> Private engine As ScriptEngine
 
         <NonSerialized> <Xml.Serialization.XmlIgnore> Private scope As ScriptScope
 
+        ''' <summary>
+        ''' Set to <c>True</c> by the dynamic runner when a fresh run starts, so the script (through <c>Me</c>
+        ''' or <c>This</c>) can reinitialize its own state. The controller itself never clears it.
+        ''' </summary>
         Public Property ResetRequested As Boolean = False
 
+        ''' <summary>
+        ''' IronPython source of the control law. The script sees <c>Flowsheet</c>, <c>Me</c>/<c>This</c> and
+        ''' <c>PV</c>, and must define <c>MV</c> and <c>SP</c>.
+        ''' </summary>
         Public Property PythonScript As String = ""
 
+        ''' <summary>
+        ''' Controller output of the last step: the <c>MV</c> value returned by the script, in the manipulated
+        ''' variable's units.
+        ''' </summary>
         Public Property Output As Double = 0.0
 
+        ''' <summary>
+        ''' Process variable values recorded at each control step, divided by <see cref="BaseSP"/>, for the
+        ''' history chart.
+        ''' </summary>
         Public Property PVHistory As New List(Of Double)
 
+        ''' <summary>
+        ''' Controller outputs recorded at each control step, in the manipulated variable's units, for the
+        ''' history chart.
+        ''' </summary>
         Public Property MVHistory As New List(Of Double)
 
+        ''' <summary>
+        ''' Setpoint values recorded at each control step, divided by <see cref="BaseSP"/>, for the history
+        ''' chart.
+        ''' </summary>
         Public Property SPHistory As New List(Of Double)
 
+        ''' <summary>
+        ''' Setpoint magnitude |SP| captured at the first control step, used to normalize the PV and SP
+        ''' histories. <c>Nothing</c> until the first step.
+        ''' </summary>
         Public BaseSP As Nullable(Of Double)
 
+        ''' <summary>
+        ''' Gets or sets whether the controller acts during a dynamic run. The integrator skips an inactive
+        ''' controller. Default <c>True</c>.
+        ''' </summary>
         Public Property Active As Boolean = True
 
+        ''' <summary>
+        ''' Process (controlled) variable value read at the last step, in the controlled variable's units.
+        ''' </summary>
         Public Property PVValue As Double = 0.0
 
+        ''' <summary>Setpoint value at the last step, in the controlled variable's units.</summary>
         Public Property SPValue As Double = 0.0
 
+        ''' <summary>
+        ''' Manipulated variable value written to the manipulated object at the last step, in SI units.
+        ''' </summary>
         Public Property MVValue As Double = 0.0
 
+        ''' <summary>
+        ''' Gets or sets the controller setpoint, in the controlled variable's units. Same value as <see
+        ''' cref="AdjustValue"/>; the script overwrites it with <c>SP</c> at every step.
+        ''' </summary>
         Public Property SetPoint As Double
             Get
                 Return AdjustValue
@@ -73,14 +125,19 @@ Namespace SpecialOps
             End Set
         End Property
 
+        ''' <summary>Gets a value indicating whether this controller runs in dynamic mode. Always <c>True</c>.</summary>
         Public Overrides ReadOnly Property SupportsDynamicMode As Boolean = True
 
+        ''' <summary>Creates a deep copy of this object by round-tripping through XML serialization.</summary>
+        ''' <returns>A new <see cref="PythonController"/> instance with the same property values.</returns>
         Public Overrides Function CloneXML() As Object
             Dim obj As ICustomXMLSerialization = New PythonController()
             obj.LoadData(Me.SaveData)
             Return obj
         End Function
 
+        ''' <summary>Creates a deep copy of this object by round-tripping through JSON serialization.</summary>
+        ''' <returns>A new <see cref="PythonController"/> instance with the same property values.</returns>
         Public Overrides Function CloneJSON() As Object
             Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of PythonController)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
         End Function
@@ -93,10 +150,22 @@ Namespace SpecialOps
 
         Public Property ReferencedObjectData As Interfaces.ISpecialOpObjectInfo Implements Interfaces.IAdjust.ReferencedObjectData
 
+        ''' <summary>
+        ''' The flowsheet object whose property the controller manipulates. The calculation resolves the object
+        ''' from <see cref="ManipulatedObjectData"/>. Not serialized.
+        ''' </summary>
         <Xml.Serialization.XmlIgnore()> Public Property ManipulatedObject As SharedClasses.UnitOperations.BaseClass
 
+        ''' <summary>
+        ''' The flowsheet object whose property is controlled. The calculation resolves the object from <see
+        ''' cref="ControlledObjectData"/>. Not serialized.
+        ''' </summary>
         <Xml.Serialization.XmlIgnore()> Public Property ControlledObject As SharedClasses.UnitOperations.BaseClass
 
+        ''' <summary>
+        ''' Reference object, linked from <see cref="ReferencedObjectData"/> when the flowsheet loads. The
+        ''' calculation does not use it. Not serialized.
+        ''' </summary>
         <Xml.Serialization.XmlIgnore()> Public Property ReferenceObject As SharedClasses.UnitOperations.BaseClass
 
         Public Property AdjustValue As Double Implements Interfaces.IAdjust.AdjustValue
@@ -105,6 +174,7 @@ Namespace SpecialOps
 
         Public Property Tolerance As Double Implements IAdjust.Tolerance
 
+        ''' <summary>Maximum number of iterations. The Python controller calculation does not use it.</summary>
         Public Property MaximumIterations As Integer
 
         Public Overrides Function LoadData(data As System.Collections.Generic.List(Of System.Xml.Linq.XElement)) As Boolean
@@ -200,6 +270,7 @@ Namespace SpecialOps
 
         End Function
 
+        ''' <summary>Initializes a new default instance of the <see cref="PythonController"/> class.</summary>
         Public Sub New()
             MyBase.New()
             ManipulatedObjectData = New SpecialOps.Helpers.SpecialOpObjectInfo
@@ -207,6 +278,11 @@ Namespace SpecialOps
             ReferencedObjectData = New SpecialOps.Helpers.SpecialOpObjectInfo
         End Sub
 
+        ''' <summary>
+        ''' Initializes a new instance of the <see cref="PythonController"/> class with a name and description.
+        ''' </summary>
+        ''' <param name="name">The name of this controller.</param>
+        ''' <param name="description">A brief description of this controller.</param>
         Public Sub New(ByVal name As String, ByVal description As String)
 
             MyBase.CreateNew()
@@ -284,20 +360,27 @@ Namespace SpecialOps
             End If
         End Function
 
+        ''' <summary>Returns the raw bytes of the icon image for this controller.</summary>
+        ''' <returns>A byte array containing the PNG image data for the icon.</returns>
         Public Overrides Function GetIconBitmapBytes() As Byte()
 
             Return GetBytesFromResource("DWSIM.UnitOperations.typewriter.png")
 
         End Function
 
+        ''' <summary>Returns the description string for this controller type.</summary>
+        ''' <returns>The description "IronPython Script Custom Controller".</returns>
         Public Overrides Function GetDisplayDescription() As String
             Return "IronPython Script Custom Controller"
         End Function
 
+        ''' <summary>Returns the display name for this controller type.</summary>
+        ''' <returns>The name "Python Controller".</returns>
         Public Overrides Function GetDisplayName() As String
             Return "Python Controller"
         End Function
 
+        ''' <summary>Gets a value indicating whether this controller is compatible with mobile interfaces.</summary>
         Public Overrides ReadOnly Property MobileCompatible As Boolean
             Get
                 Return True
@@ -368,6 +451,7 @@ Namespace SpecialOps
 
         End Sub
 
+        ''' <summary>Clears the SP, PV and MV histories.</summary>
         Public Sub ClearHistory()
 
             SPHistory.Clear()
@@ -376,6 +460,12 @@ Namespace SpecialOps
 
         End Sub
 
+        ''' <summary>
+        ''' Builds the history chart with the normalized setpoint and process variable and the controller output
+        ''' per control step.
+        ''' </summary>
+        ''' <param name="name">The chart name, shown as the subtitle ("History").</param>
+        ''' <returns>An OxyPlot <c>PlotModel</c> with the SP, PV and MV series.</returns>
         Public Overrides Function GetChartModel(name As String) As Object
 
             Dim model = New PlotModel() With {.Subtitle = name, .Title = GraphicObject.Tag}
@@ -430,6 +520,8 @@ Namespace SpecialOps
 
         End Function
 
+        ''' <summary>Returns the names of the charts this controller can embed in the flowsheet.</summary>
+        ''' <returns>A list with the single chart name "History".</returns>
         Public Overrides Function GetChartModelNames() As List(Of String)
             Return New List(Of String)({"History"})
         End Function

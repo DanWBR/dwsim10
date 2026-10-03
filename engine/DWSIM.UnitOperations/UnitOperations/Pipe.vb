@@ -79,6 +79,9 @@ Namespace UnitOperations
         ''' <summary>Gets or sets the simulation object class category (PressureChangers).</summary>
         Public Overrides Property ObjectClass As SimulationObjectClass = SimulationObjectClass.PressureChangers
 
+        ''' <summary>
+        ''' The classic (WinForms) editor window open for this pipe segment, if any. Not saved with the flowsheet.
+        ''' </summary>
         <NonSerialized> <Xml.Serialization.XmlIgnore> Public f As Object
 
         ''' <summary>Holds the compiled wall thermal conductivity expressions between calculations.</summary>
@@ -2085,6 +2088,14 @@ Namespace UnitOperations
 
 #Region "        Funcoes"
 
+        ''' <summary>
+        ''' Returns the pressure loss data of a pipe fitting. The fitting is identified by the index written
+        ''' between square brackets at the end of its name (e.g. "... [7]" for a globe valve).
+        ''' </summary>
+        ''' <param name="name2">The fitting name, ending with its index in square brackets.</param>
+        ''' <returns>A two-element array: element 0 is the loss value and element 1 its type. When element 1
+        ''' is 1, element 0 is an equivalent length ratio L/D; when it is 0, element 0 is a resistance
+        ''' coefficient K applied to the velocity head. Unknown indices return zeros.</returns>
         Function Kfit(ByVal name2 As String) As Double()
 
             Dim name As String = name2.Substring(name2.IndexOf("[") + 1, name2.Length - name2.IndexOf("[") - 2)
@@ -2236,6 +2247,13 @@ Namespace UnitOperations
 
         End Function
 
+        ''' <summary>
+        ''' Returns a tabulated thermal conductivity for an insulation material. Not called by the
+        ''' current pipe calculation, which reads the insulation conductivity from the thermal profile.
+        ''' </summary>
+        ''' <param name="meio">Insulation material index: 0 = asphalt, 1 = concrete, 2 = polyurethane foam,
+        ''' 3 = PVC foam, 4 = fiberglass, 5 = plastic, 6 = glass, 7 = user defined (returns 0).</param>
+        ''' <returns>The insulation thermal conductivity, in W/(m.K).</returns>
         Function cond_isol(ByVal meio As Integer) As Double
 
             'Asfalto
@@ -2317,6 +2335,15 @@ Namespace UnitOperations
 
         End Function
 
+        ''' <summary>
+        ''' Returns the thermal conductivity of the pipe wall material at the given temperature. Built-in
+        ''' materials use temperature correlations; any other material evaluates the section's user expression
+        ''' (<c>PipeWallThermalConductivityExpression</c>, in the flowsheet's unit system, with T in K).
+        ''' </summary>
+        ''' <param name="material">The wall material name (translated or invariant).</param>
+        ''' <param name="T">Wall temperature, in K.</param>
+        ''' <param name="section">The pipe section, used for the user-defined conductivity expression.</param>
+        ''' <returns>The wall thermal conductivity, in W/(m.K).</returns>
         Function k_parede(ByVal material As String, ByVal T As Double, section As PipeSection) As Double
 
             Dim kp As Double
@@ -2350,6 +2377,12 @@ Namespace UnitOperations
 
         End Function
 
+        ''' <summary>
+        ''' Returns the thermal conductivity of the soil around a buried pipe.
+        ''' </summary>
+        ''' <param name="terreno">External medium index from the thermal profile: 2 = gravel (1.1),
+        ''' 3 = stones (1.95), 4 = dry soil (0.5), 5 = moist soil (2.2); other values return 0.</param>
+        ''' <returns>The soil thermal conductivity, in W/(m.K).</returns>
         Function k_terreno(ByVal terreno As Integer) As Double
 
             Dim kt = 0.0#
@@ -2363,6 +2396,38 @@ Namespace UnitOperations
 
         End Function
 
+        ''' <summary>
+        ''' Calculates the overall heat transfer coefficient between the fluid and the surroundings as a series
+        ''' of resistances: internal film (Petukhov correlation with holdup-weighted mixture properties), pipe
+        ''' wall conduction, insulation layer and the external medium from the thermal profile (air with forced,
+        ''' natural and radiative contributions; water by forced convection; or buried in soil).
+        ''' </summary>
+        ''' <param name="section">The pipe section being calculated.</param>
+        ''' <param name="materialparede">The pipe wall material name.</param>
+        ''' <param name="EL">Liquid holdup (volume fraction of liquid), used to weight the phase properties.</param>
+        ''' <param name="L">Segment length, in m. Only reported in the inspector.</param>
+        ''' <param name="Dint">Internal diameter, in m.</param>
+        ''' <param name="Dext">External diameter, in m.</param>
+        ''' <param name="rugosidade">Wall roughness, in m. Only reported in the inspector; the roughness of
+        ''' <paramref name="materialparede"/> is used instead.</param>
+        ''' <param name="T">Fluid temperature, in K.</param>
+        ''' <param name="Text">Ambient (external medium) temperature, in K.</param>
+        ''' <param name="vel_g">Vapor velocity, in m/s.</param>
+        ''' <param name="vel_l">Liquid velocity, in m/s.</param>
+        ''' <param name="Cpl">Liquid heat capacity, in kJ/(kg.K).</param>
+        ''' <param name="Cpv">Vapor heat capacity, in kJ/(kg.K).</param>
+        ''' <param name="kl">Liquid thermal conductivity, in W/(m.K).</param>
+        ''' <param name="kv">Vapor thermal conductivity, in W/(m.K).</param>
+        ''' <param name="mu_l">Liquid viscosity, in Pa.s.</param>
+        ''' <param name="mu_v">Vapor viscosity, in Pa.s.</param>
+        ''' <param name="rho_l">Liquid density, in kg/m3.</param>
+        ''' <param name="rho_v">Vapor density, in kg/m3.</param>
+        ''' <param name="hinterno"><c>True</c> to include the internal film coefficient.</param>
+        ''' <param name="isolamento"><c>True</c> to include the insulation layer.</param>
+        ''' <param name="parede"><c>True</c> to include the pipe wall conduction resistance.</param>
+        ''' <param name="hexterno"><c>True</c> to include the external medium coefficient.</param>
+        ''' <returns>An array with the overall coefficient, the internal film coefficient, the wall coefficient,
+        ''' the insulation coefficient and the external coefficient, all in W/(m2.K).</returns>
         Function CalcOverallHeatTransferCoefficient(ByVal section As PipeSection, ByVal materialparede As String, ByVal EL As Double, ByVal L As Double,
                             ByVal Dint As Double, ByVal Dext As Double, ByVal rugosidade As Double,
                             ByVal T As Double, ByVal Text As Double, ByVal vel_g As Double, ByVal vel_l As Double,
@@ -2617,24 +2682,58 @@ Namespace UnitOperations
 
         End Function
 
+        ''' <summary>
+        ''' Calculates the Reynolds number, rho v D / mu.
+        ''' </summary>
+        ''' <param name="rho">Density, in kg/m3.</param>
+        ''' <param name="v">Velocity, in m/s.</param>
+        ''' <param name="D">Characteristic diameter, in m.</param>
+        ''' <param name="mu">Dynamic viscosity, in Pa.s.</param>
+        ''' <returns>The Reynolds number (dimensionless).</returns>
         Shared Function NRe(ByVal rho As Double, ByVal v As Double, ByVal D As Double, ByVal mu As Double) As Double
 
             NRe = rho * v * D / mu
 
         End Function
 
+        ''' <summary>
+        ''' Calculates the Prandtl number, Cp mu / k.
+        ''' </summary>
+        ''' <param name="Cp">Heat capacity, in J/(kg.K).</param>
+        ''' <param name="mu">Dynamic viscosity, in Pa.s.</param>
+        ''' <param name="k">Thermal conductivity, in W/(m.K).</param>
+        ''' <returns>The Prandtl number (dimensionless).</returns>
         Shared Function NPr(ByVal Cp As Double, ByVal mu As Double, ByVal k As Double) As Double
 
             NPr = Cp * mu / k
 
         End Function
 
+        ''' <summary>
+        ''' Calculates the external convection coefficient of a cylinder in cross flow with the Holman
+        ''' correlation, Nu = 0.25 Re^0.6 Pr^0.38.
+        ''' </summary>
+        ''' <param name="k">Thermal conductivity of the external fluid, in W/(m.K).</param>
+        ''' <param name="Dext">Outer diameter, in m.</param>
+        ''' <param name="NRe">Reynolds number based on <paramref name="Dext"/>.</param>
+        ''' <param name="NPr">Prandtl number of the external fluid.</param>
+        ''' <returns>The external heat transfer coefficient, in W/(m2.K).</returns>
         Shared Function hext_holman(ByVal k As Double, ByVal Dext As Double, ByVal NRe As Double, ByVal NPr As Double) As Double
 
             hext_holman = k / Dext * 0.25 * NRe ^ 0.6 * NPr ^ 0.38
 
         End Function
 
+        ''' <summary>
+        ''' Calculates the internal convection coefficient for turbulent pipe flow with the Petukhov-Gnielinski
+        ''' correlation, Nu = (f/8)(Re - 1000)Pr / (1 + 12.7 (f/8)^0.5 (Pr^(2/3) - 1)).
+        ''' </summary>
+        ''' <param name="k">Fluid thermal conductivity, in W/(m.K).</param>
+        ''' <param name="D">Internal diameter, in m.</param>
+        ''' <param name="f">Darcy friction factor.</param>
+        ''' <param name="NRe">Reynolds number.</param>
+        ''' <param name="NPr">Prandtl number.</param>
+        ''' <returns>The internal heat transfer coefficient, in W/(m2.K).</returns>
         Shared Function hint_petukhov(ByVal k, ByVal D, ByVal f, ByVal NRe, ByVal NPr)
 
             'If NRe > 1000 Then
@@ -2645,6 +2744,13 @@ Namespace UnitOperations
 
         End Function
 
+        ''' <summary>
+        ''' Estimates the properties of air at the given temperature from simple temperature correlations.
+        ''' </summary>
+        ''' <param name="Tamb">Air temperature, in K.</param>
+        ''' <param name="Pamb">Air pressure, in Pa. Not used by the correlations.</param>
+        ''' <returns>An array with density (kg/m3), dynamic viscosity (Pa.s), heat capacity (kJ/(kg.K))
+        ''' and thermal conductivity (W/(m.K)), in this order.</returns>
         Shared Function PropsAR(ByVal Tamb As Double, ByVal Pamb As Double)
 
             Dim T = Tamb
@@ -2673,6 +2779,13 @@ Namespace UnitOperations
 
         Protected m_iapws97 As New IAPWS_IF97
 
+        ''' <summary>
+        ''' Calculates the properties of water at the given temperature and pressure with the IAPWS-IF97 steam tables.
+        ''' </summary>
+        ''' <param name="Tamb">Water temperature, in K.</param>
+        ''' <param name="Pamb">Water pressure, in Pa.</param>
+        ''' <returns>An array with density (kg/m3), dynamic viscosity (Pa.s), heat capacity (kJ/(kg.K))
+        ''' and thermal conductivity (W/(m.K)), in this order.</returns>
         Function PropsAGUA(ByVal Tamb As Double, ByVal Pamb As Double)
 
             'massa molar
@@ -2711,6 +2824,16 @@ Namespace UnitOperations
 
         End Function
 
+        ''' <summary>
+        ''' Residual of the heat balance with a constant ambient temperature: U times the log-mean temperature
+        ''' difference between the fluid and the ambient, minus the heat duty. Not called by the current pipe calculation.
+        ''' </summary>
+        ''' <param name="T1">Inlet fluid temperature, in K.</param>
+        ''' <param name="T2">Outlet fluid temperature, in K.</param>
+        ''' <param name="Tamb">Ambient temperature, in K.</param>
+        ''' <param name="U">Heat transfer conductance (coefficient times area), in units consistent with <paramref name="DQ"/>.</param>
+        ''' <param name="DQ">Heat duty to match.</param>
+        ''' <returns>The heat balance residual, in the units of <paramref name="DQ"/>.</returns>
         Function FT2(ByVal T1 As Double, ByVal T2 As Double, ByVal Tamb As Double, ByVal U As Double, ByVal DQ As Double) As Double
 
             Dim f As Double

@@ -32,7 +32,7 @@ Imports IronPython.Zlib
 Namespace UnitOperations
 
     ''' <summary>
-    ''' Represents a shortcut distillation column unit operation that uses the Fenskeï¿½Underwoodï¿½Gilliland
+    ''' Represents a shortcut distillation column unit operation that uses the Fenske-Underwood-Gilliland
     ''' method to estimate the minimum number of stages, minimum reflux ratio, condenser and reboiler
     ''' duties, and optimum feed stage for a single-feed, two-product column.
     ''' </summary>
@@ -43,6 +43,7 @@ Namespace UnitOperations
         ''' <summary>Gets or sets the simulation object class category (Columns).</summary>
         Public Overrides Property ObjectClass As SimulationObjectClass = SimulationObjectClass.Columns
 
+        ''' <summary>The classic (WinForms) editor window open for this unit operation, if any. Not saved with the flowsheet.</summary>
         <NonSerialized> <Xml.Serialization.XmlIgnore> Public f As Object
 
         ''' <summary>Defines the condenser type for the shortcut column.</summary>
@@ -62,16 +63,33 @@ Namespace UnitOperations
         ''' <summary>Gets or sets the tray or packing height per theoretical stage (m).</summary>
         Public Property StageHeight As Double = 0.5 'm
 
+        ''' <summary>Name of the light key compound.</summary>
         Public m_lightkey As String = ""
+        ''' <summary>Name of the heavy key compound.</summary>
         Public m_heavykey As String = ""
+        ''' <summary>Specified mole fraction of the light key in the bottoms product. Default 0.01.</summary>
         Public m_lightkeymolarfrac As Double = 0.01
+        ''' <summary>Specified mole fraction of the heavy key in the distillate product. Default 0.01.</summary>
         Public m_heavykeymolarfrac As Double = 0.01
+        ''' <summary>Specified (actual) reflux ratio L/D. Must be greater than the calculated minimum reflux ratio. Default 1.5.</summary>
         Public m_refluxratio As Double = 1.5
+        ''' <summary>Reboiler pressure, in Pa. Default 101325 Pa.</summary>
         Public m_boilerpressure As Double = 101325.0#
+        ''' <summary>Condenser pressure, in Pa. Default 101325 Pa.</summary>
         Public m_condenserpressure As Double = 101325.0#
 
+        ''' <summary>
+        ''' Calculated results. <c>m_N</c>: actual number of stages (Gilliland). <c>m_Nmin</c>: minimum number of
+        ''' stages (Fenske). <c>m_Rmin</c>: minimum reflux ratio (Underwood). <c>m_Tc</c>, <c>m_Tb</c>: condenser and
+        ''' reboiler temperatures in K, set by the dynamic model from the holdup streams. <c>m_Qc</c>, <c>m_Qb</c>:
+        ''' condenser and reboiler duties, in kW. <c>L</c>, <c>V</c>: rectifying section liquid and vapor molar flows,
+        ''' in mol/s. <c>L_</c>, <c>V_</c>: stripping section liquid and vapor molar flows, in mol/s. <c>ofs</c>:
+        ''' optimum feed stage location, estimated as the number of stripping section stages (Fenske between feed and
+        ''' bottoms, scaled by m_N/m_Nmin).
+        ''' </summary>
         Public m_N, m_Nmin, m_Rmin, m_Tc, m_Tb, m_Qc, m_Qb, L, V, L_, V_, ofs As Double
 
+        ''' <summary>Condenser type: <c>TotalCond</c> (total condenser, liquid distillate) or <c>PartialCond</c> (partial condenser, vapor distillate). Default <c>TotalCond</c>.</summary>
         Public condtype As CondenserType = CondenserType.TotalCond
 
         ''' <summary>Initializes a new default instance of the <see cref="ShortcutColumn"/> class.</summary>
@@ -132,14 +150,28 @@ Namespace UnitOperations
             Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of ShortcutColumn)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
         End Function
 
+        ''' <summary>Gets a value indicating whether this unit operation can run in dynamic mode. Always <c>True</c>.</summary>
         Public Overrides ReadOnly Property SupportsDynamicMode As Boolean = True
 
+        ''' <summary>Gets a value indicating whether this unit operation has properties used in dynamic mode. Always <c>True</c>.</summary>
         Public Overrides ReadOnly Property HasPropertiesForDynamicMode As Boolean = True
 
+        ''' <summary>
+        ''' Material stream that holds the condenser (reflux drum) contents in dynamic mode. Its mass flow carries the
+        ''' holdup mass, in kg. Created on the first dynamic step and discarded by the "Reset Content" dynamic property.
+        ''' </summary>
         Public Property CondenserAccumulationStream As MaterialStream
 
+        ''' <summary>
+        ''' Material stream that holds the reboiler sump contents in dynamic mode. Its mass flow carries the holdup
+        ''' mass, in kg. Created on the first dynamic step and discarded by the "Reset Content" dynamic property.
+        ''' </summary>
         Public Property ReboilerAccumulationStream As MaterialStream
 
+        ''' <summary>
+        ''' Registers the dynamic properties for dynamic simulation mode: condenser and reboiler holdup volumes, condenser
+        ''' and reboiler UA, initialization from the feed stream and content reset.
+        ''' </summary>
         Public Overrides Sub CreateDynamicProperties()
 
             AddDynamicProperty("Condenser Volume", "Liquid holdup volume in the reflux drum (m3).", 1.0, UnitOfMeasure.volume, 1.0.GetType())
@@ -151,6 +183,14 @@ Namespace UnitOperations
 
         End Sub
 
+        ''' <summary>
+        ''' Runs one dynamic-mode integration step. The feed is added to the reboiler holdup and the products are
+        ''' withdrawn; the reboiler holdup is flashed at the reboiler pressure and its vapor moves to the condenser
+        ''' holdup; the condenser holdup is flashed at the condenser pressure and the reflux fraction R/(R+1) of its
+        ''' liquid returns to the reboiler. The distillate and bottoms take the liquid phase, temperature and enthalpy of
+        ''' the condenser and reboiler holdups. When no holdup exists and initialization from the feed is off, the
+        ''' steady-state calculation runs instead.
+        ''' </summary>
         Public Overrides Sub RunDynamicModel()
 
             Dim integratorID = FlowSheet.DynamicsManager.ScheduleList(FlowSheet.DynamicsManager.CurrentSchedule).CurrentIntegrator
@@ -288,11 +328,10 @@ Namespace UnitOperations
         End Function
 
         ''' <summary>
-        ''' Performs the Fenskeï¿½Underwoodï¿½Gilliland shortcut calculation: determines minimum stages,
+        ''' Performs the Fenske-Underwood-Gilliland shortcut calculation: determines minimum stages,
         ''' minimum reflux, actual number of stages, condenser/reboiler duties, and product compositions.
         ''' </summary>
         ''' <param name="args">Optional calculation arguments (not used).</param>
-        ''' <summary>Calculates the shortcut distillation column using the Fenskeï¿½Underwoodï¿½Gilliland method.</summary>
         Public Overrides Sub Calculate(Optional ByVal args As Object = Nothing)
 
             Dim IObj As Inspector.InspectorItem = Inspector.Host.GetNewInspectorItem()
@@ -738,6 +777,16 @@ restart:    B = F - D
 
         End Sub
 
+        ''' <summary>
+        ''' Objective function for the Underwood root search: the squared residual of
+        ''' sum(alpha_i z_i / (alpha_i - theta)) - 1 + q over the compounds present in the feed.
+        ''' </summary>
+        ''' <param name="x">The trial Underwood root theta.</param>
+        ''' <param name="alpha">The relative volatilities of the compounds with respect to the heavy key.</param>
+        ''' <param name="z">The feed mole fractions.</param>
+        ''' <param name="q">The feed thermal condition (liquid fraction of the feed).</param>
+        ''' <param name="n">The index of the last compound (number of compounds minus one).</param>
+        ''' <returns>The squared Underwood residual, zero at a root.</returns>
         Function rminfunc(ByVal x As Double, alpha As Object, z As Object, q As Double, n As Integer) As Double
 
             Dim value As Double = 0.0
@@ -1064,6 +1113,11 @@ restart:    B = F - D
             End Get
         End Property
 
+        ''' <summary>Generates a plain-text results report for this unit operation: inlet conditions, calculation parameters and the shortcut results (minimum reflux, stage counts, feed stage, duties, section flows and estimated size).</summary>
+        ''' <param name="su">The unit system used for formatting output values.</param>
+        ''' <param name="ci">The culture info used for number formatting.</param>
+        ''' <param name="numberformat">A .NET numeric format string (e.g. "G6") applied to output values.</param>
+        ''' <returns>A formatted multi-line string report.</returns>
         Public Overrides Function GetReport(su As IUnitsOfMeasure, ci As Globalization.CultureInfo, numberformat As String) As String
 
             Dim str As New Text.StringBuilder

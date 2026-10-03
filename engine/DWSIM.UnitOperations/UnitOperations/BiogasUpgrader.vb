@@ -43,8 +43,10 @@ Namespace UnitOperations
 
         Implements IExternalUnitOperation
 
+        ''' <summary>Gets a value indicating that this unit operation belongs to the Bio group of the object palette. Always <c>True</c>.</summary>
         Public ReadOnly Property IsBio As Boolean = True
 
+        ''' <summary>Gets or sets the simulation object class category (Separators). The getter always returns <c>Separators</c>.</summary>
         Public Overrides Property ObjectClass As SimulationObjectClass
             Get
                 Return SimulationObjectClass.Separators
@@ -54,51 +56,81 @@ Namespace UnitOperations
             End Set
         End Property
 
+        ''' <summary>Gets or sets the CO2 removal technology: WaterScrubbing (0), Amine (1), PSA (2) or MembraneSeparation (3).
+        ''' <see cref="ApplyTechnologyDefaults"/> uses it to set <see cref="CO2RemovalEfficiency"/> and <see cref="CH4LossFraction"/>;
+        ''' the split itself reads only those values. Default Amine.</summary>
         Public Property Technology As BiogasUpgraderTech = BiogasUpgraderTech.Amine
+        ''' <summary>Gets or sets the fraction (0-1) of the H2S compound sent to the off-gas outlet. Applied only when <see cref="H2SCompound"/> is assigned. Default 0.99.</summary>
         Public Property H2SRemovalEfficiency As Double = 0.99
+        ''' <summary>Gets or sets the fraction (0-1) of the CO2 compound sent to the off-gas outlet. Default 0.95.</summary>
         Public Property CO2RemovalEfficiency As Double = 0.95
+        ''' <summary>Gets or sets the fraction (0-1) of the methane compound lost to the off-gas outlet. Default 0.01.</summary>
         Public Property CH4LossFraction As Double = 0.01 ' CH4 that ends up in off-gas
+        ''' <summary>Gets or sets the fraction (0-1) of the water compound sent to the off-gas outlet. Default 0.98.</summary>
         Public Property H2ORemovalEfficiency As Double = 0.98
+        ''' <summary>Gets or sets the target methane purity of the upgraded gas (0-1). Stored and shown for reference only; the calculation does not use it. Default 0.96.</summary>
         Public Property TargetCH4Purity As Double = 0.96 ' for reporting only
 
+        ''' <summary>Gets or sets the name of the methane compound. Default "Methane".</summary>
         Public Property MethaneCompound As String = "Methane"
+        ''' <summary>Gets or sets the name of the carbon dioxide compound. Default "Carbon dioxide".</summary>
         Public Property CO2Compound As String = "Carbon dioxide"
+        ''' <summary>Gets or sets the name of the hydrogen sulfide compound. Empty by default; while it is empty, any H2S in the feed passes to the upgraded gas and a warning is shown.</summary>
         Public Property H2SCompound As String = ""
+        ''' <summary>Gets or sets the name of the water compound. Default "Water".</summary>
         Public Property WaterCompound As String = "Water"
+        ''' <summary>Gets or sets the name of the nitrogen compound. Stored for reference; nitrogen, like every unassigned compound, goes entirely to the upgraded gas.</summary>
         Public Property N2Compound As String = ""
 
+        ''' <summary>Gets or sets the feed mass flow, in kg/s. Calculated result.</summary>
         Public Property Result_FeedMass_kgs As Double = 0.0
+        ''' <summary>Gets or sets the upgraded gas mass flow, in kg/s. Calculated result.</summary>
         Public Property Result_UpgradedMass_kgs As Double = 0.0
+        ''' <summary>Gets or sets the off-gas mass flow, in kg/s. Calculated result.</summary>
         Public Property Result_OffgasMass_kgs As Double = 0.0
+        ''' <summary>Gets or sets the methane mass fraction in the upgraded gas (0-1). Calculated result.</summary>
         Public Property Result_UpgradedCH4Fraction As Double = 0.0
+        ''' <summary>Gets or sets the fraction (0-1) of the feed methane recovered in the upgraded gas, on a mass basis. Calculated result.</summary>
         Public Property Result_CH4RecoveryFraction As Double = 0.0
+        ''' <summary>Gets or sets a rough Wobbe index estimate of the upgraded gas, in MJ/Nm3, taken as 35.9 times the methane mass fraction. Indicative only.</summary>
         Public Property Result_WobbeIndex As Double = 0.0 ' crude, reported for convenience
 
+        ''' <summary>The classic (WinForms) editor window open for this unit operation, if any. Not saved with the flowsheet.</summary>
         <NonSerialized> <Xml.Serialization.XmlIgnore> Public f As Object
 
+        ''' <summary>Gets a value indicating whether this unit operation supports dynamic simulation mode. Always <c>False</c>; it is calculated as a steady-state model.</summary>
         Public Overrides ReadOnly Property SupportsDynamicMode As Boolean = False
+        ''' <summary>Gets a value indicating whether this unit operation is compatible with mobile interfaces. Always <c>False</c>.</summary>
         Public Overrides ReadOnly Property MobileCompatible As Boolean
             Get
                 Return False
             End Get
         End Property
 
+        ''' <summary>Initializes a new default instance of the <see cref="UnitOp_BiogasUpgrader"/> class.</summary>
         Public Sub New()
             MyBase.New()
         End Sub
 
+        ''' <summary>Initializes a new instance of the <see cref="UnitOp_BiogasUpgrader"/> class with a name and description.</summary>
+        ''' <param name="name">The name of this unit operation.</param>
+        ''' <param name="description">A brief description of this unit operation.</param>
         Public Sub New(ByVal name As String, ByVal description As String)
             MyBase.New()
             Me.ComponentName = name
             Me.ComponentDescription = description
         End Sub
 
+        ''' <summary>Creates a deep copy of this object by round-tripping through XML serialization.</summary>
+        ''' <returns>A new <see cref="UnitOp_BiogasUpgrader"/> instance with the same property values.</returns>
         Public Overrides Function CloneXML() As Object
             Dim obj As ICustomXMLSerialization = New UnitOp_BiogasUpgrader()
             obj.LoadData(Me.SaveData)
             Return obj
         End Function
 
+        ''' <summary>Creates a deep copy of this object by round-tripping through JSON serialization.</summary>
+        ''' <returns>A new <see cref="UnitOp_BiogasUpgrader"/> instance with the same property values.</returns>
         Public Overrides Function CloneJSON() As Object
             Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of UnitOp_BiogasUpgrader)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
         End Function
@@ -251,16 +283,27 @@ Namespace UnitOperations
             Next
         End Sub
 
+        ''' <summary>Returns the raw bytes of the icon image for this unit operation.</summary>
+        ''' <returns>A byte array containing the PNG image data for the icon.</returns>
         Public Overrides Function GetIconBitmapBytes() As Byte()
             Return BioOpsDrawHelper.RenderIconToPngBytes(64, 64, AddressOf DrawIcon)
         End Function
+        ''' <summary>Returns the localized description string for this unit operation type.</summary>
+        ''' <returns>A translated description string identifying this unit operation type.</returns>
         Public Overrides Function GetDisplayDescription() As String
             Return "Biogas Upgrader (H2S + CO2 removal â†’ RNG)"
         End Function
+        ''' <summary>Returns the localized display name for this unit operation type.</summary>
+        ''' <returns>A translated name string for this unit operation type.</returns>
         Public Overrides Function GetDisplayName() As String
             Return "Biogas Upgrader"
         End Function
 
+        ''' <summary>Generates a plain-text results report for this unit operation.</summary>
+        ''' <param name="su">The unit system used for formatting output values.</param>
+        ''' <param name="ci">The culture info used for number formatting.</param>
+        ''' <param name="numberformat">A .NET numeric format string (e.g. "G6") applied to output values.</param>
+        ''' <returns>A formatted multi-line string report.</returns>
         Public Overrides Function GetReport(su As IUnitsOfMeasure, ci As Globalization.CultureInfo, numberformat As String) As String
             Dim s As New Text.StringBuilder
             s.AppendLine("BiogasUpgrader: " & Me.GraphicObject.Tag)
