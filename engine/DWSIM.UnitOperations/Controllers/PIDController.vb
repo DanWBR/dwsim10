@@ -326,32 +326,33 @@ Namespace SpecialOps
         End Property
 
         ''' <summary>
-        ''' Feedforward gain, in manipulated variable units per disturbance unit, applied to the change of the
-        ''' disturbance since the previous step, after the lead-lag of <see cref="FeedforwardLeadTime"/> and <see
-        ''' cref="FeedforwardLagTime"/>, and added to the manipulated variable value. Zero (default) disables
-        ''' feedforward.
+        ''' Feedforward gain, in manipulated variable units per disturbance unit, applied to the deviation of the
+        ''' disturbance from its first reading after a reset, after the lead-lag of <see cref="FeedforwardLeadTime"/>
+        ''' and <see cref="FeedforwardLagTime"/>, and added to the manipulated variable value for as long as the
+        ''' deviation lasts. Zero (default) disables feedforward.
         ''' </summary>
         Public Property FeedforwardGain As Double = 0.0
 
         ''' <summary>
         ''' Lead time constant, in s, of the feedforward lead-lag (FeedforwardLeadTime s + 1) /
-        ''' (<see cref="FeedforwardLagTime"/> s + 1) applied to the disturbance change before the feedforward
+        ''' (<see cref="FeedforwardLagTime"/> s + 1) applied to the disturbance deviation before the feedforward
         ''' gain. Zero or less (default 0) leaves the plain lag.
         ''' </summary>
         Public Property FeedforwardLeadTime As Double = 0.0
 
         ''' <summary>
-        ''' Lag time constant, in s, of the feedforward lead-lag applied to the disturbance change before the
+        ''' Lag time constant, in s, of the feedforward lead-lag applied to the disturbance deviation before the
         ''' feedforward gain. Zero or less disables the lag. Default 1.
         ''' </summary>
         Public Property FeedforwardLagTime As Double = 1.0
 
         Private FeedforwardFilterState As Double = 0.0
 
-        'disturbance change of the previous step, for the lead without a lag
+        'disturbance deviation of the previous step, for the lead without a lag
         Private LastFeedforwardInput As Double = 0.0
 
-        Private LastDisturbanceValue As Double = 0.0
+        'disturbance reading the feedforward deviation is measured from
+        Private FeedforwardReference As Double = 0.0
 
         Private FeedforwardInitialized As Boolean = False
 
@@ -948,7 +949,7 @@ Namespace SpecialOps
 
             FeedforwardFilterState = 0.0
             LastFeedforwardInput = 0.0
-            LastDisturbanceValue = 0.0
+            FeedforwardReference = 0.0
             FeedforwardInitialized = False
 
             PVHistory.Clear()
@@ -1207,32 +1208,32 @@ Namespace SpecialOps
                                 m_DisturbanceObjectData.Units,
                                 dvObj.GetPropertyValue(m_DisturbanceObjectData.PropertyName))
 
-                            'the first reading is the reference: no change, so no kick on the first step
+                            'the first reading is the reference, so the feedforward starts at zero; it then holds
+                            'gain times the deviation from it, as the PID output is positional
                             If Not FeedforwardInitialized Then
-                                LastDisturbanceValue = dvVal
+                                FeedforwardReference = dvVal
                                 FeedforwardInitialized = True
                             End If
-                            Dim dvChange = dvVal - LastDisturbanceValue
-                            LastDisturbanceValue = dvVal
+                            Dim dvDeviation = dvVal - FeedforwardReference
 
                             If FeedforwardLagTime > 0 Then
                                 Dim alphaFF = Math.Exp(-timestep / FeedforwardLagTime)
-                                FeedforwardFilterState = alphaFF * FeedforwardFilterState + (1.0 - alphaFF) * dvChange
+                                FeedforwardFilterState = alphaFF * FeedforwardFilterState + (1.0 - alphaFF) * dvDeviation
                                 If FeedforwardLeadTime > 0 Then
                                     'lead-lag (Tlead s + 1)/(Tlag s + 1) = Tlead/Tlag + (1 - Tlead/Tlag)/(Tlag s + 1):
                                     'a direct share of the input plus the rest through the same lag
                                     Dim leadRatio = FeedforwardLeadTime / FeedforwardLagTime
-                                    ffOutput = FeedforwardGain * (leadRatio * dvChange + (1.0 - leadRatio) * FeedforwardFilterState)
+                                    ffOutput = FeedforwardGain * (leadRatio * dvDeviation + (1.0 - leadRatio) * FeedforwardFilterState)
                                 Else
                                     ffOutput = FeedforwardGain * FeedforwardFilterState
                                 End If
                             ElseIf FeedforwardLeadTime > 0 Then
                                 'lead without a lag, Tlead s + 1, with a backward difference
-                                ffOutput = FeedforwardGain * (dvChange + FeedforwardLeadTime * (dvChange - LastFeedforwardInput) / timestep)
+                                ffOutput = FeedforwardGain * (dvDeviation + FeedforwardLeadTime * (dvDeviation - LastFeedforwardInput) / timestep)
                             Else
-                                ffOutput = FeedforwardGain * dvChange
+                                ffOutput = FeedforwardGain * dvDeviation
                             End If
-                            LastFeedforwardInput = dvChange
+                            LastFeedforwardInput = dvDeviation
                         End If
                     Catch
                     End Try
