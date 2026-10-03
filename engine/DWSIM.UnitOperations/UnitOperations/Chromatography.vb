@@ -30,20 +30,57 @@ Namespace UnitOperations
         BindElute_Dynamic = 2
     End Enum
 
+    ''' <summary>Resin chemistry of a chromatography column. <see cref="UnitOp_Chromatography.ApplyChemistryDefaults"/> fills typical platform values for each one.</summary>
     Public Enum ChromatographyChemistry
+        ''' <summary>Ion exchange (cation or anion). Typical DBC 60 g/L, target yield 0.90, host cell protein LRV 1.</summary>
         IonExchange = 0
+        ''' <summary>Affinity (Protein A for antibodies). Typical DBC 35 g/L, target yield 0.95, host cell protein LRV 2.</summary>
         Affinity = 1
+        ''' <summary>Hydrophobic interaction. Typical DBC 25 g/L, target yield 0.85, host cell protein LRV 1.</summary>
         HIC = 2
+        ''' <summary>Size exclusion (gel filtration). Nothing binds; each compound splits by its partition coefficient Kav, which falls with log MW. Load 2 to 5 % of the column volume per run.</summary>
         SizeExclusion = 3
+        ''' <summary>Mixed mode (multimodal). Typical DBC 50 g/L, target yield 0.85, host cell protein LRV 1.5.</summary>
         MixedMode = 4
     End Enum
 
+    ''' <summary>Typical platform values for one resin chemistry, as <see cref="UnitOp_Chromatography.GetChemistryDefaults"/> returns them.</summary>
+    ''' <remarks>
+    ''' Sources: Shukla et al. (2007), J. Chromatogr. B 848, 28-39 (platform capacities, step yields and host cell protein clearance);
+    ''' Hahn et al. (2003), J. Chromatogr. B 790, 35-51 (Protein A sorbents: capacity and pore diffusivity);
+    ''' Carta and Jungbauer (2010), Protein Chromatography: Process Development and Scale-Up, Wiley-VCH (ion exchange, HIC and SEC, Kav calibration, rate models).
+    ''' The Thomas rate constants are estimates from the pore-diffusion (shrinking core) limit, k_Th = 15 De / (rp^2 q0),
+    ''' with the typical effective pore diffusivity De and bead radius rp of each resin class and q0 = the dynamic binding capacity.
+    ''' </remarks>
+    Public Class ChromatographyChemistryDefaults
+        ''' <summary>Gets the dynamic binding capacity, in g per L of column volume. 0 for size exclusion (nothing binds).</summary>
+        Public ReadOnly Property DynamicBindingCapacity_gL As Double
+        ''' <summary>Gets the Thomas rate constant, in L/(g.s). 0 for size exclusion (no breakthrough model).</summary>
+        Public ReadOnly Property ThomasRateConstant_Lgs As Double
+        ''' <summary>Gets the step yield of the target compound (fraction of its feed sent to the Product outlet). Not used for size exclusion.</summary>
+        Public ReadOnly Property TargetRecovery As Double
+        ''' <summary>Gets the log reduction value of host cell proteins and other macromolecular impurities. Their recovery to the Product outlet is 10^-LRV. Not used for size exclusion.</summary>
+        Public ReadOnly Property ImpurityLRV As Double
+        ''' <summary>Gets a short note with the resin these values represent.</summary>
+        Public ReadOnly Property Note As String
+
+        ''' <summary>Initializes a new set of chemistry defaults.</summary>
+        Public Sub New(dbc_gL As Double, kTh_Lgs As Double, targetRecovery As Double, impurityLRV As Double, note As String)
+            DynamicBindingCapacity_gL = dbc_gL
+            ThomasRateConstant_Lgs = kTh_Lgs
+            Me.TargetRecovery = targetRecovery
+            Me.ImpurityLRV = impurityLRV
+            Me.Note = note
+        End Sub
+    End Class
+
     ''' <summary>
     ''' Chromatography column (simplified Langmuir-binding + user-specified resolution model).
-    ''' For each compound, the user specifies a "RecoveryToProduct" fraction (0â€“1) - for BindElute
-    ''' mode, this is the elution yield; for FlowThrough, it's the pass-through fraction. Default
-    ''' values are suggested by MW (macromolecules bind; small solutes flow through).
-    ''' The column's dynamic binding capacity is reported as a saturation check.
+    ''' For each compound, the user specifies a "RecoveryToProduct" fraction (0 to 1) - for BindElute
+    ''' mode, this is the elution yield; for FlowThrough, it's the pass-through fraction.
+    ''' <see cref="ApplyChemistryDefaults"/> fills the binding capacity, the Thomas rate constant and the recoveries
+    ''' with typical values for the selected chemistry; the editors and the FluentAPI call it when the chemistry changes.
+    ''' The column's dynamic binding capacity is checked against the target load of one cycle (feed rate times <see cref="CycleLoadTime_s"/>).
     ''' </summary>
     <System.Serializable()> Public Partial Class UnitOp_Chromatography
 
@@ -73,7 +110,8 @@ Namespace UnitOperations
         ''' The compound split always uses the per-compound recoveries; <c>BindElute_Dynamic</c> also builds a Thomas-model breakthrough curve for the loading step.</summary>
         Public Property Mode As ChromatographyMode = ChromatographyMode.BindElute
         ''' <summary>Gets or sets the resin chemistry: <c>IonExchange</c> (default), <c>Affinity</c>, <c>HIC</c> (hydrophobic interaction), <c>SizeExclusion</c> or <c>MixedMode</c>.
-        ''' Informational only; it appears in the report and does not change the calculation.</summary>
+        ''' The calculation does not read it; the editors and the FluentAPI <c>WithChemistry</c> call <see cref="ApplyChemistryDefaults"/> when it changes,
+        ''' which fills the binding capacity, the Thomas rate constant and the recoveries with typical values for the chemistry. Setting the property directly keeps the current values.</summary>
         Public Property Chemistry As ChromatographyChemistry = ChromatographyChemistry.IonExchange
         ''' <summary>Gets or sets the packed column (resin bed) volume, in L. Default 10 L.</summary>
         Public Property ColumnVolume_L As Double = 10.0
@@ -86,26 +124,55 @@ Namespace UnitOperations
         ''' The remainder goes to the Waste outlet. In bind-elute mode this is the elution yield; in flow-through mode it is the pass-through fraction.</summary>
         Public Property RecoveryToProduct As Dictionary(Of String, Double)
 
+        ''' <summary>Gets or sets the name of the target compound (the product the column captures or polishes).
+        ''' Empty (default): every compound above 5000 g/mol counts as a target for the recovery, the load ratio and the Thomas breakthrough.
+        ''' <see cref="ApplyChemistryDefaults"/> gives the target the chemistry yield and treats the other macromolecules as impurities.</summary>
+        Public Property TargetCompound As String = ""
+
+        ''' <summary>Gets or sets the duration of the load step of one cycle, in s. The target load per cycle is the target feed mass flow times this time,
+        ''' and <see cref="Result_LoadRatio"/> divides it by the binding capacity. Default 1 s, which reproduces the load ratio of earlier versions
+        ''' (target feed rate in kg/s over capacity in kg); set the real load time of the cycle. <see cref="Result_TimeToCapacity_s"/> gives the time that fills the capacity.</summary>
+        Public Property CycleLoadTime_s As Double = 1.0
+
+        ''' <summary>Gets or sets the exclusion limit of the size exclusion resin, in g/mol: compounds at or above it elute in the void volume (Kav = 0).
+        ''' Default 600 000 g/mol (Superdex 200 class, globular proteins). Read only by <see cref="ApplyChemistryDefaults"/> for <c>SizeExclusion</c>.</summary>
+        Public Property SEC_ExclusionLimit_gmol As Double = 600000.0
+
+        ''' <summary>Gets or sets the total permeation limit of the size exclusion resin, in g/mol: compounds at or below it reach the whole pore volume (Kav = 1).
+        ''' Default 10 000 g/mol (Superdex 200 class). Read only by <see cref="ApplyChemistryDefaults"/> for <c>SizeExclusion</c>.</summary>
+        Public Property SEC_PermeationLimit_gmol As Double = 10000.0
+
         ''' <summary>Gets or sets the calculated feed mass flow, in kg/s.</summary>
         Public Property Result_FeedMass_kgs As Double = 0.0
         ''' <summary>Gets or sets the calculated Product outlet mass flow, in kg/s.</summary>
         Public Property Result_ProductMass_kgs As Double = 0.0
         ''' <summary>Gets or sets the calculated Waste outlet mass flow, in kg/s.</summary>
         Public Property Result_WasteMass_kgs As Double = 0.0
-        ''' <summary>Gets or sets the calculated recovery (0 to 1) of the target compounds in the Product outlet. Targets are the compounds with molecular weight above 5000 g/mol.</summary>
+        ''' <summary>Gets or sets the calculated recovery (0 to 1) of the target compounds in the Product outlet. The target is <see cref="TargetCompound"/>, or every compound above 5000 g/mol when it is empty.</summary>
         Public Property Result_TargetRecovery As Double = 0.0
-        ''' <summary>Gets or sets the calculated load ratio: target compound feed mass flow (kg/s) divided by the column binding capacity (dynamic binding capacity times column volume, in kg). Values above 1 mean the column is saturated.</summary>
+        ''' <summary>Gets or sets the calculated load ratio (dimensionless): target load per cycle (target feed mass flow times <see cref="CycleLoadTime_s"/>, in kg)
+        ''' divided by the column binding capacity (dynamic binding capacity times column volume, in kg). Values above 1 mean the column is saturated.</summary>
         Public Property Result_LoadRatio As Double = 0.0
         ''' <summary>Gets or sets a value indicating whether the last calculation exceeded the binding capacity (load ratio above 1).</summary>
         Public Property Result_Saturated As Boolean = False
+        ''' <summary>Gets or sets the calculated target load per cycle, in kg: target feed mass flow times <see cref="CycleLoadTime_s"/>.</summary>
+        Public Property Result_LoadPerCycle_kg As Double = 0.0
+        ''' <summary>Gets or sets the calculated binding capacity of the column, in kg: dynamic binding capacity (g/L) times column volume (L) / 1000.</summary>
+        Public Property Result_BindingCapacity_kg As Double = 0.0
+        ''' <summary>Gets or sets the calculated load time that fills the binding capacity, in s: binding capacity over target feed mass flow. 0 when the feed has no target.</summary>
+        Public Property Result_TimeToCapacity_s As Double = 0.0
+        ''' <summary>Gets or sets the calculated feed volume loaded per cycle as a fraction of the column volume: feed volumetric flow times <see cref="CycleLoadTime_s"/> over the column volume.
+        ''' Size exclusion runs take 0.02 to 0.05 (2 to 5 % of CV).</summary>
+        Public Property Result_LoadVolumeFraction As Double = 0.0
 
-        ''' <summary>Thomas rate constant k_Th (L/g/s). Typical: 1e-4 â€¦ 1e-2.</summary>
+        ''' <summary>Thomas rate constant k_Th, in L/(g.s). Typical: 1e-4 to 1e-2. Used by <c>BindElute_Dynamic</c> only.</summary>
         Public Property ThomasRateConstant_Lgs As Double = 0.001
 
-        ''' <summary>Loading time (s) used for the dynamic breakthrough simulation. 0 = auto (to â‰ˆ99% saturation).</summary>
+        ''' <summary>Loading time (s) of the dynamic breakthrough simulation (<c>BindElute_Dynamic</c>). 0 = auto (to about 99 % saturation).</summary>
         Public Property LoadingTime_s As Double = 0.0
 
-        ''' <summary>Resin density (g/L column) used to convert q_max and DBC to absolute resin mass.</summary>
+        ''' <summary>Resin bulk density, in g/L of column. Not used by the calculation: the dynamic binding capacity is per litre of column,
+        ''' so the Thomas capacity term is q_max (g/L) times the column volume (L) and the resin density cancels. Kept so older files load.</summary>
         Public Property ResinDensity_gL As Double = 1000.0
 
         ''' <summary>Last breakthrough trajectory (populated by Calculate when in BindElute_Dynamic mode). Not persisted.</summary>
@@ -164,6 +231,98 @@ Namespace UnitOperations
             Return Max(0.0, Min(1.0, DefaultRecoveryToProduct))
         End Function
 
+        Private Function HasTargetCompound() As Boolean
+            Return Not String.IsNullOrWhiteSpace(TargetCompound)
+        End Function
+
+        ''' <summary>Returns the typical platform values of a resin chemistry: dynamic binding capacity, Thomas rate constant, target step yield and impurity log reduction.</summary>
+        ''' <param name="chemistry">The resin chemistry.</param>
+        ''' <returns>The values <see cref="ApplyChemistryDefaults"/> applies for this chemistry.</returns>
+        ''' <remarks>
+        ''' Capacities, yields and host cell protein clearance: Shukla et al. (2007), J. Chromatogr. B 848, 28-39; Hahn et al. (2003), J. Chromatogr. B 790, 35-51 (Protein A);
+        ''' Carta and Jungbauer (2010), Protein Chromatography, Wiley-VCH. The Thomas rate constants are pore-diffusion estimates, k_Th = 15 De / (rp^2 q0):
+        ''' Protein A De 5e-12 m2/s, 85 um beads; ion exchange De 3e-12 m2/s, 65 um; HIC De 5e-12 m2/s, 90 um; mixed mode De 3e-12 m2/s, 75 um.
+        ''' </remarks>
+        Public Shared Function GetChemistryDefaults(chemistry As ChromatographyChemistry) As ChromatographyChemistryDefaults
+            Select Case chemistry
+                Case ChromatographyChemistry.Affinity
+                    Return New ChromatographyChemistryDefaults(35.0, 0.0012, 0.95, 2.0, "Protein A affinity capture")
+                Case ChromatographyChemistry.IonExchange
+                    Return New ChromatographyChemistryDefaults(60.0, 0.0007, 0.9, 1.0, "ion exchange")
+                Case ChromatographyChemistry.HIC
+                    Return New ChromatographyChemistryDefaults(25.0, 0.0015, 0.85, 1.0, "hydrophobic interaction")
+                Case ChromatographyChemistry.MixedMode
+                    Return New ChromatographyChemistryDefaults(50.0, 0.0006, 0.85, 1.5, "mixed mode")
+                Case Else
+                    Return New ChromatographyChemistryDefaults(0.0, 0.0, 0.0, 0.0, "size exclusion: no binding, split by Kav, load 2 to 5 % of CV")
+            End Select
+        End Function
+
+        ''' <summary>Returns the size exclusion partition coefficient Kav for a molecular weight: linear in log10(MW) from 1 at
+        ''' <see cref="SEC_PermeationLimit_gmol"/> to 0 at <see cref="SEC_ExclusionLimit_gmol"/>, clamped to 0 to 1 (Carta and Jungbauer 2010).</summary>
+        ''' <param name="molarWeight">The molecular weight, in g/mol.</param>
+        ''' <returns>Kav, between 0 (excluded, elutes in the void volume) and 1 (reaches the whole pore volume).</returns>
+        Public Function SizeExclusionKav(molarWeight As Double) As Double
+            Dim mwExcl = SEC_ExclusionLimit_gmol, mwPerm = SEC_PermeationLimit_gmol
+            If molarWeight <= 0.0 OrElse mwPerm <= 0.0 OrElse mwExcl <= mwPerm Then
+                Return If(molarWeight >= mwExcl AndAlso mwExcl > 0.0, 0.0, 1.0)
+            End If
+            Dim kav = (Log10(mwExcl) - Log10(molarWeight)) / (Log10(mwExcl) - Log10(mwPerm))
+            Return Max(0.0, Min(1.0, kav))
+        End Function
+
+        Private Shared Function IsWater(compound As ICompoundConstantProperties) As Boolean
+            Return String.Equals(compound.Name, "Water", StringComparison.OrdinalIgnoreCase) OrElse
+                   String.Equals(compound.CAS_Number, "7732-18-5", StringComparison.OrdinalIgnoreCase)
+        End Function
+
+        Private Shared Function IsHostCellProtein(name As String) As Boolean
+            If String.IsNullOrEmpty(name) Then Return False
+            Dim lower = name.ToLowerInvariant()
+            If lower.Replace(" ", "").Replace("_", "").Replace("-", "").Contains("hostcell") Then Return True
+            Return lower.Split({" "c, "_"c, "-"c, "("c, ")"c, "."c}, StringSplitOptions.RemoveEmptyEntries).Any(Function(t) t = "hcp" OrElse t = "hcps")
+        End Function
+
+        ''' <summary>Returns the recovery to product that <see cref="ApplyChemistryDefaults"/> gives a compound under the current <see cref="Chemistry"/>,
+        ''' or <c>Nothing</c> when the defaults leave the compound alone (water, and small solutes outside size exclusion).</summary>
+        ''' <param name="compound">The compound.</param>
+        ''' <returns>The default recovery to product, between 0 and 1, or <c>Nothing</c>.</returns>
+        Public Function ChemistryDefaultRecovery(compound As ICompoundConstantProperties) As Double?
+            If compound Is Nothing OrElse IsWater(compound) Then Return Nothing
+            If Chemistry = ChromatographyChemistry.SizeExclusion Then Return 1.0 - SizeExclusionKav(compound.Molar_Weight)
+            Dim d = GetChemistryDefaults(Chemistry)
+            Dim impurity = Pow(10.0, -d.ImpurityLRV)
+            If HasTargetCompound() Then
+                If compound.Name = TargetCompound Then Return d.TargetRecovery
+                If IsHostCellProtein(compound.Name) OrElse compound.Molar_Weight > 5000.0 Then Return impurity
+                Return Nothing
+            End If
+            If IsHostCellProtein(compound.Name) Then Return impurity
+            If compound.Molar_Weight > 5000.0 Then Return d.TargetRecovery
+            Return Nothing
+        End Function
+
+        ''' <summary>
+        ''' Fills <see cref="DynamicBindingCapacity_gL"/>, <see cref="ThomasRateConstant_Lgs"/> and the <see cref="RecoveryToProduct"/> entries with typical
+        ''' platform values for <see cref="Chemistry"/> (see <see cref="GetChemistryDefaults"/>). The editors and the FluentAPI <c>WithChemistry</c> call it when
+        ''' the chemistry changes; <see cref="Calculate"/> never does, so a saved flowsheet keeps the values it was saved with.
+        ''' Recoveries: the target (<see cref="TargetCompound"/>, or every compound above 5000 g/mol when it is empty) gets the chemistry step yield;
+        ''' host cell proteins (a compound named HCP or host cell protein) and, with a named target, the other compounds above 5000 g/mol get 10^-LRV.
+        ''' Size exclusion sets the binding capacity to 0 and gives every compound 1 - Kav (<see cref="SizeExclusionKav"/>).
+        ''' Water, and the small solutes outside size exclusion, keep their entries or <see cref="DefaultRecoveryToProduct"/>.
+        ''' </summary>
+        Public Sub ApplyChemistryDefaults()
+            Dim d = GetChemistryDefaults(Chemistry)
+            DynamicBindingCapacity_gL = d.DynamicBindingCapacity_gL
+            If d.ThomasRateConstant_Lgs > 0.0 Then ThomasRateConstant_Lgs = d.ThomasRateConstant_Lgs
+            If RecoveryToProduct Is Nothing Then RecoveryToProduct = New Dictionary(Of String, Double)()
+            If FlowSheet Is Nothing Then Return
+            For Each c In FlowSheet.SelectedCompounds.Values
+                Dim r = ChemistryDefaultRecovery(c)
+                If r.HasValue Then RecoveryToProduct(c.Name) = r.Value
+            Next
+        End Sub
+
         Public Overrides Sub Calculate(Optional ByVal args As Object = Nothing)
 
             If Not Me.GraphicObject.InputConnectors(0).IsAttached Then _
@@ -191,32 +350,54 @@ Namespace UnitOperations
             Dim m_p As Double = 0.0, m_w As Double = 0.0
             Dim target_in As Double = 0.0, target_out As Double = 0.0
 
+            ' the named target when it is in the feed; otherwise every macromolecule (MW > 5000)
+            Dim namedTarget = HasTargetCompound() AndAlso feedComp.ContainsKey(TargetCompound)
+
             For Each kv In feedComp
                 Dim r = RecoveryFor(kv.Key)
                 prod(kv.Key) = kv.Value * r
                 waste(kv.Key) = kv.Value * (1.0 - r)
                 m_p += prod(kv.Key) : m_w += waste(kv.Key)
-                ' Treat macromolecules (MW > 5000) as "targets" for the recovery metric in BindElute mode
                 Dim c = feed.Phases(0).Compounds(kv.Key)
-                If c.ConstantProperties IsNot Nothing AndAlso c.ConstantProperties.Molar_Weight > 5000.0 Then
+                Dim isTarget As Boolean
+                If namedTarget Then
+                    isTarget = (kv.Key = TargetCompound)
+                Else
+                    isTarget = c.ConstantProperties IsNot Nothing AndAlso c.ConstantProperties.Molar_Weight > 5000.0
+                End If
+                If isTarget Then
                     target_in += kv.Value
                     target_out += prod(kv.Key)
                 End If
             Next
 
-            ' Load-ratio check vs dynamic binding capacity (macromolecule mass / resin volume Ã— DBC)
-            Dim dbc_kgs As Double = DynamicBindingCapacity_gL / 1000.0 * ColumnVolume_L ' kg of "bindable" per cycle
-            If dbc_kgs > 0 Then
-                Result_LoadRatio = target_in / dbc_kgs
+            Dim Q_vol = feed.Phases(1).Properties.volumetric_flow.GetValueOrDefault
+            If Q_vol <= 0.0 Then Q_vol = feed.Phases(0).Properties.volumetric_flow.GetValueOrDefault
+
+            ' load check: target load of one cycle (kg/s x s = kg) against the binding capacity (g/L x L / 1000 = kg)
+            Dim capacity_kg As Double = DynamicBindingCapacity_gL / 1000.0 * ColumnVolume_L
+            Dim loadTime_s As Double = Max(CycleLoadTime_s, 0.0)
+            Result_BindingCapacity_kg = capacity_kg
+            Result_LoadPerCycle_kg = target_in * loadTime_s
+            If capacity_kg > 0 Then
+                Result_LoadRatio = Result_LoadPerCycle_kg / capacity_kg
             Else
                 Result_LoadRatio = 0.0
             End If
             Result_Saturated = (Result_LoadRatio > 1.0)
+            If target_in > 0.0 AndAlso capacity_kg > 0.0 Then
+                Result_TimeToCapacity_s = capacity_kg / target_in
+            Else
+                Result_TimeToCapacity_s = 0.0
+            End If
+            If ColumnVolume_L > 0.0 Then
+                Result_LoadVolumeFraction = Max(Q_vol, 0.0) * loadTime_s / (ColumnVolume_L / 1000.0)
+            Else
+                Result_LoadVolumeFraction = 0.0
+            End If
 
             ' Dynamic Thomas breakthrough for the loading step, if in dynamic mode
             If Mode = ChromatographyMode.BindElute_Dynamic Then
-                Dim Q_vol = feed.Phases(1).Properties.volumetric_flow.GetValueOrDefault
-                If Q_vol <= 0.0 Then Q_vol = feed.Phases(0).Properties.volumetric_flow.GetValueOrDefault
                 If Q_vol <= 0.0 Then Q_vol = 0.000000000001
                 Dim Q_Ls = Q_vol * 1000.0          ' L/s
                 Dim C0_gL = If(target_in > 0.0 AndAlso Q_vol > 0.0, target_in / Q_vol, 0.001) ' kg/s / (m3/s) = g/L
@@ -237,9 +418,10 @@ Namespace UnitOperations
 
         ''' <summary>
         ''' Build a Thomas-model breakthrough curve C/C0 vs time for the loading step.
-        '''   C/C0 = 1 / (1 + exp((k_Th / Q) Â· (q_max Â· m_resin âˆ’ C0 Â· Q Â· t)))
-        ''' C0 in g/L, Q in L/s, q_max = DynamicBindingCapacity_gL (g/L resin),
-        ''' m_resin = ColumnVolume_L Â· Ï_resin / 1000 (kg).
+        '''   C/C0 = 1 / (1 + exp((k_Th / Q) (q_max V_col - C0 Q t)))
+        ''' C0 in g/L, Q in L/s, k_Th in L/(g.s), q_max = DynamicBindingCapacity_gL (g per L of column),
+        ''' V_col = ColumnVolume_L (L), so q_max V_col is the binding capacity in g and the exponent is dimensionless.
+        ''' The classic form q0 M (g/g resin times g resin) gives the same capacity; the resin density cancels.
         ''' </summary>
         Private Sub BuildThomasBreakthrough(C0_gL As Double, Q_Ls As Double)
 
@@ -248,18 +430,16 @@ Namespace UnitOperations
             If C0_gL <= 0.0 OrElse Q_Ls <= 0.0 OrElse ColumnVolume_L <= 0.0 Then Return
 
             Dim kTh = Max(ThomasRateConstant_Lgs, 0.000000000001)
-            Dim qmax = Max(DynamicBindingCapacity_gL, 0.000000000001) ' g / L resin
-            Dim m_resin_g = ColumnVolume_L * Max(ResinDensity_gL, 0.000000000001) / 1000.0 * 1000.0
-            ' m_resin_g = CV(L) * rho(g/L) : g of resin. Simpler:
-            m_resin_g = ColumnVolume_L * ResinDensity_gL ' g resin
+            Dim qmax = Max(DynamicBindingCapacity_gL, 0.000000000001) ' g / L column
+            Dim capacity_g = qmax * ColumnVolume_L                     ' g
 
             ' Time horizon: auto-compute if LoadingTime_s <= 0
             Dim t_end As Double = LoadingTime_s
             If t_end <= 0.0 Then
                 ' Time to reach ~99% saturation: C/C0 = 0.99 => exp(...) = 1/99
-                '   kTh/Q * (qmax*m - C0*Q*t) = -ln(99)
-                '   t = (qmax*m + ln(99)*Q/kTh) / (C0*Q)
-                t_end = (qmax * m_resin_g + Math.Log(99.0) * Q_Ls / kTh) / (Math.Max(C0_gL * Q_Ls, 0.000000000001))
+                '   kTh/Q * (capacity - C0*Q*t) = -ln(99)
+                '   t = (capacity + ln(99)*Q/kTh) / (C0*Q)
+                t_end = (capacity_g + Math.Log(99.0) * Q_Ls / kTh) / (Math.Max(C0_gL * Q_Ls, 0.000000000001))
                 t_end = Max(t_end, 1.0)
             End If
 
@@ -268,7 +448,7 @@ Namespace UnitOperations
             Dim qLoaded As Double = 0.0
             For i = 0 To N
                 Dim t = i * dt
-                Dim expArg = (kTh / Q_Ls) * (qmax * m_resin_g - C0_gL * Q_Ls * t)
+                Dim expArg = (kTh / Q_Ls) * (capacity_g - C0_gL * Q_Ls * t)
                 ' clamp for numerical safety
                 If expArg > 700 Then expArg = 700
                 If expArg < -700 Then expArg = -700
@@ -277,12 +457,12 @@ Namespace UnitOperations
                 ' Cumulative mass adsorbed (trap integration of (1-C/C0) * C0 * Q)
                 If i > 0 Then
                     Dim tPrev = (i - 1) * dt
-                    Dim eaPrev = (kTh / Q_Ls) * (qmax * m_resin_g - C0_gL * Q_Ls * tPrev)
+                    Dim eaPrev = (kTh / Q_Ls) * (capacity_g - C0_gL * Q_Ls * tPrev)
                     If eaPrev > 700 Then eaPrev = 700
                     If eaPrev < -700 Then eaPrev = -700
                     Dim CoverPrev = 1.0 / (1.0 + Math.Exp(eaPrev))
                     Dim absRate = C0_gL * Q_Ls * 0.5 * ((1.0 - CoverPrev) + (1.0 - CoverC0))  ' g/s
-                    qLoaded += absRate * dt / Max(ColumnVolume_L, 0.000000000001)             ' g/L resin
+                    qLoaded += absRate * dt / Max(ColumnVolume_L, 0.000000000001)             ' g/L column
                 End If
                 traj.Times.Add(t)
                 traj.BedVolumes.Add(bv)
@@ -366,18 +546,27 @@ Namespace UnitOperations
             s.AppendLine("Chemistry:   " & Chemistry.ToString())
             s.AppendLine("CV:          " & ColumnVolume_L.ToString(numberformat, ci) & " L")
             s.AppendLine("DBC:         " & DynamicBindingCapacity_gL.ToString(numberformat, ci) & " g/L")
+            s.AppendLine("Target:      " & If(HasTargetCompound(), TargetCompound, "compounds above 5 kDa"))
+            s.AppendLine("Load time per cycle: " & CycleLoadTime_s.ToString(numberformat, ci) & " s")
             s.AppendLine()
             s.AppendLine("Feed:           " & Result_FeedMass_kgs.ToString(numberformat, ci) & " kg/s")
             s.AppendLine("Product:        " & Result_ProductMass_kgs.ToString(numberformat, ci) & " kg/s")
             s.AppendLine("Waste:          " & Result_WasteMass_kgs.ToString(numberformat, ci) & " kg/s")
-            s.AppendLine("Target recovery (MW > 5 kDa): " & (Result_TargetRecovery * 100).ToString(numberformat, ci) & " %")
-            s.AppendLine("Load ratio (load/DBC):        " & Result_LoadRatio.ToString(numberformat, ci))
-            If Result_Saturated Then s.AppendLine("  âš  Column is SATURATED - binding capacity exceeded.")
+            s.AppendLine("Target recovery:              " & (Result_TargetRecovery * 100).ToString(numberformat, ci) & " %")
+            s.AppendLine("Target load per cycle:        " & Result_LoadPerCycle_kg.ToString(numberformat, ci) & " kg")
+            s.AppendLine("Binding capacity (DBC x CV):  " & Result_BindingCapacity_kg.ToString(numberformat, ci) & " kg")
+            s.AppendLine("Load ratio (load/capacity):   " & Result_LoadRatio.ToString(numberformat, ci))
+            s.AppendLine("Load time to fill capacity:   " & Result_TimeToCapacity_s.ToString(numberformat, ci) & " s")
+            s.AppendLine("Load volume per cycle:        " & (Result_LoadVolumeFraction * 100).ToString(numberformat, ci) & " % of CV")
+            If Result_Saturated Then s.AppendLine("  Column is SATURATED - binding capacity exceeded.")
+            If Chemistry = ChromatographyChemistry.SizeExclusion AndAlso Result_LoadVolumeFraction > 0.05 Then
+                s.AppendLine("  Size exclusion load above 5 % of CV: resolution drops (typical 2 to 5 %).")
+            End If
             Return s.ToString()
         End Function
 
-        Private Shared ReadOnly _inputProps As String() = {"Mode", "Chemistry", "Column Volume", "Dynamic Binding Capacity", "Default Recovery To Product"}
-        Private Shared ReadOnly _outputProps As String() = {"Feed Mass", "Product Mass", "Waste Mass", "Target Recovery", "Load Ratio", "Saturated"}
+        Private Shared ReadOnly _inputProps As String() = {"Mode", "Chemistry", "Target Compound", "Column Volume", "Dynamic Binding Capacity", "Default Recovery To Product", "Cycle Load Time", "Thomas Rate Constant", "Loading Time"}
+        Private Shared ReadOnly _outputProps As String() = {"Feed Mass", "Product Mass", "Waste Mass", "Target Recovery", "Load Per Cycle", "Binding Capacity", "Load Ratio", "Time To Capacity", "Load Volume Fraction", "Saturated"}
 
         Public Overrides Function GetProperties(proptype As PropertyType) As String()
             Dim baseprops = MyBase.GetProperties(proptype)
@@ -392,6 +581,14 @@ Namespace UnitOperations
             Select Case prop
                 Case "Mode" : Return Mode.ToString()
                 Case "Chemistry" : Return Chemistry.ToString()
+                Case "Target Compound" : Return TargetCompound
+                Case "Cycle Load Time" : Return CycleLoadTime_s
+                Case "Thomas Rate Constant" : Return ThomasRateConstant_Lgs
+                Case "Loading Time" : Return LoadingTime_s
+                Case "Load Per Cycle" : Return Result_LoadPerCycle_kg
+                Case "Binding Capacity" : Return Result_BindingCapacity_kg
+                Case "Time To Capacity" : Return Result_TimeToCapacity_s
+                Case "Load Volume Fraction" : Return Result_LoadVolumeFraction
                 Case "Column Volume" : Return ColumnVolume_L
                 Case "Dynamic Binding Capacity" : Return DynamicBindingCapacity_gL
                 Case "Default Recovery To Product" : Return DefaultRecoveryToProduct
@@ -410,6 +607,9 @@ Namespace UnitOperations
                 Case "Column Volume" : Return "L"
                 Case "Dynamic Binding Capacity" : Return "g/L"
                 Case "Feed Mass", "Product Mass", "Waste Mass" : Return "kg/s"
+                Case "Cycle Load Time", "Loading Time", "Time To Capacity" : Return "s"
+                Case "Thomas Rate Constant" : Return "L/(g.s)"
+                Case "Load Per Cycle", "Binding Capacity" : Return "kg"
                 Case Else : Return "-"
             End Select
         End Function
@@ -430,6 +630,10 @@ Namespace UnitOperations
                     Dim c As ChromatographyChemistry
                     If [Enum].TryParse(Of ChromatographyChemistry)(propval?.ToString(), c) Then Me.Chemistry = c
                     Return True
+                Case "Target Compound" : TargetCompound = If(propval?.ToString(), "") : Return True
+                Case "Cycle Load Time" : CycleLoadTime_s = d : Return True
+                Case "Thomas Rate Constant" : ThomasRateConstant_Lgs = d : Return True
+                Case "Loading Time" : LoadingTime_s = d : Return True
                 Case "Column Volume" : ColumnVolume_L = d : Return True
                 Case "Dynamic Binding Capacity" : DynamicBindingCapacity_gL = d : Return True
                 Case "Default Recovery To Product" : DefaultRecoveryToProduct = d : Return True
@@ -475,11 +679,24 @@ Namespace UnitOperations
                                                   FlowSheet.RequestCalculation()
                                               End Sub)
 
+            Dim compIds = FlowSheet.SelectedCompounds.Values.Select(Function(c) c.Name).ToList()
+            Dim targetIdx = compIds.IndexOf(If(TargetCompound, ""))
+            container.CreateAndAddDropDownRow("Target Compound",
+                                              New List(Of String)(New String() {"(MW > 5 kDa)"}.Concat(compIds)),
+                                              If(targetIdx < 0, 0, targetIdx + 1),
+                                              Sub(dd, e)
+                                                  TargetCompound = If(dd.SelectedIndex > 0, compIds(dd.SelectedIndex - 1), "")
+                                                  FlowSheet.RequestCalculation()
+                                              End Sub)
+
+            ' a new chemistry brings its typical capacity, rate constant and recoveries
             container.CreateAndAddDropDownRow("Chemistry",
                                               New List(Of String)({"Ion Exchange", "Affinity", "HIC", "Size Exclusion", "Mixed Mode"}),
                                               CInt(Chemistry),
                                               Sub(dd, e)
                                                   Chemistry = CType(dd.SelectedIndex, ChromatographyChemistry)
+                                                  ApplyChemistryDefaults()
+                                                  FlowSheet.UpdateOpenEditForms()
                                                   FlowSheet.RequestCalculation()
                                               End Sub)
 
@@ -501,10 +718,10 @@ Namespace UnitOperations
                                                  End If
                                              End Sub)
 
-            container.CreateAndAddTextBoxRow(nf, "Resin Density (g/L)", ResinDensity_gL,
+            container.CreateAndAddTextBoxRow(nf, "Load Time per Cycle (s)", CycleLoadTime_s,
                                              Sub(tb, e)
                                                  If tb.Text.IsValidDoubleExpression() Then
-                                                     ResinDensity_gL = tb.Text.ParseExpressionToDouble()
+                                                     CycleLoadTime_s = tb.Text.ParseExpressionToDouble()
                                                      FlowSheet.RequestCalculation()
                                                  End If
                                              End Sub)
@@ -521,7 +738,7 @@ Namespace UnitOperations
 
             container.CreateAndAddLabelRow("Thomas Dynamic Model (Bind-Elute Dynamic only)")
 
-            container.CreateAndAddTextBoxRow(nf, "Thomas Rate Constant (L/gÂ·s)", ThomasRateConstant_Lgs,
+            container.CreateAndAddTextBoxRow(nf, "Thomas Rate Constant (L/(g.s))", ThomasRateConstant_Lgs,
                                              Sub(tb, e)
                                                  If tb.Text.IsValidDoubleExpression() Then
                                                      ThomasRateConstant_Lgs = tb.Text.ParseExpressionToDouble()
@@ -529,7 +746,7 @@ Namespace UnitOperations
                                                  End If
                                              End Sub)
 
-            container.CreateAndAddTextBoxRow(nf, "Loading Time (s)", LoadingTime_s,
+            container.CreateAndAddTextBoxRow(nf, "Loading Time (s, 0 = auto to 99%)", LoadingTime_s,
                                              Sub(tb, e)
                                                  If tb.Text.IsValidDoubleExpression() Then
                                                      LoadingTime_s = tb.Text.ParseExpressionToDouble()

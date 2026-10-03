@@ -493,12 +493,14 @@ namespace DWSIM.UI.Desktop.Editors
 
     }
 
-    /// <summary>Centrifuge editor: the bowl and the recovery each compound sees to the heavy phase.</summary>
+    /// <summary>Centrifuge editor: the bowl, the recovery model and the recovery each compound sees to the heavy phase.</summary>
     public static class CentrifugeEditor
     {
 
         public static Control Build(UOps.UnitOp_Centrifuge centrifuge)
         {
+            var sigmaTheory = centrifuge.RecoveryModel == UOps.CentrifugeRecoveryModel.SigmaTheory;
+
             return UnitOpEditor.Build(centrifuge,
                 input: panel =>
                 {
@@ -506,11 +508,46 @@ namespace DWSIM.UI.Desktop.Editors
 
                     BioRows.Choice(panel, "Technology", () => centrifuge.Technology, v => centrifuge.Technology = v);
                     BioRows.Number(panel, centrifuge, "Bowl Speed (rpm)",
-                        centrifuge.BowlSpeed_rpm, v => centrifuge.BowlSpeed_rpm = v);
+                        centrifuge.BowlSpeed_rpm, v => centrifuge.ChangeBowlSpeed(v));
                     BioRows.Number(panel, centrifuge, "Sigma Factor (m2)",
                         centrifuge.SigmaFactor_m2, v => centrifuge.SigmaFactor_m2 = v);
                     BioRows.Number(panel, centrifuge, "Default Recovery to Heavy",
                         centrifuge.DefaultRecoveryToHeavy, v => centrifuge.DefaultRecoveryToHeavy = v);
+
+                    BioRows.Choice(panel, "Recovery Model", () => centrifuge.RecoveryModel, v =>
+                    {
+                        centrifuge.RecoveryModel = v;
+                        centrifuge.GetFlowsheet().UpdateOpenEditForms();
+                    });
+
+                    // the Sigma theory inputs only matter when it is the recovery model
+                    if (!sigmaTheory) return;
+
+                    BioRows.Section(panel, "Sigma Theory");
+
+                    panel.CreateAndAddDescriptionRow("The particulate compounds (cells, debris, solids) are recovered by Stokes settling over the " +
+                        "effective Sigma; the other compounds keep the recovery fractions. The Sigma factor is the value at the reference speed " +
+                        "(0 = at the bowl speed) and scales with the square of the speed.");
+
+                    BioRows.Number(panel, centrifuge, "Reference Bowl Speed (rpm, 0 = bowl speed)",
+                        centrifuge.ReferenceBowlSpeed_rpm, v => centrifuge.ReferenceBowlSpeed_rpm = v);
+                    BioRows.Number(panel, centrifuge,
+                        "Sigma Efficiency (0 = " + UOps.UnitOp_Centrifuge.TechnologySigmaEfficiency(centrifuge.Technology)
+                            .ToString("0.00", CultureInfo.CurrentCulture) + " for the technology)",
+                        centrifuge.SigmaEfficiency, v => centrifuge.SigmaEfficiency = v);
+
+                    BioRows.Section(panel, "Bowl Geometry (optional, replaces the Sigma factor)");
+
+                    BioRows.Number(panel, centrifuge, "Number of Discs (disk stack)",
+                        centrifuge.NumberOfDiscs, v => centrifuge.NumberOfDiscs = (int)Math.Round(v));
+                    BioRows.Number(panel, centrifuge, "Disc Half-Angle (deg, disk stack)",
+                        centrifuge.DiscAngle_deg, v => centrifuge.DiscAngle_deg = v);
+                    BioRows.Number(panel, centrifuge, "Bowl Length (m, tubular/decanter)",
+                        centrifuge.BowlLength_m, v => centrifuge.BowlLength_m = v);
+                    BioRows.Number(panel, centrifuge, "Outer Radius (m, disc or bowl wall)",
+                        centrifuge.OuterRadius_m, v => centrifuge.OuterRadius_m = v);
+                    BioRows.Number(panel, centrifuge, "Inner Radius (m, disc or liquid surface)",
+                        centrifuge.InnerRadius_m, v => centrifuge.InnerRadius_m = v);
                 },
                 results: panel =>
                 {
@@ -520,10 +557,35 @@ namespace DWSIM.UI.Desktop.Editors
                     panel.CreateAndAddResultRow(centrifuge, "Light (Clarified)", UnitOfMeasure.massflow, centrifuge.Result_LightMass_kgs);
 
                     BioRows.Section(panel, "Performance");
-                    BioRows.Result(panel, centrifuge, "Solids Recovery (MW > 10 kDa)",
+                    BioRows.Result(panel, centrifuge,
+                        sigmaTheory ? "Solids Recovery (particulate compounds)" : "Solids Recovery (MW > 10 kDa)",
                         centrifuge.Result_SolidsRecovery * 100.0, "%");
+
+                    if (!sigmaTheory) return;
+
+                    BioRows.Section(panel, "Sigma Theory");
+                    panel.CreateAndAddResultRow(centrifuge,
+                        centrifuge.Result_SigmaFromGeometry ? "Sigma at Bowl Speed (from geometry)" : "Sigma at Bowl Speed",
+                        UnitOfMeasure.area, centrifuge.Result_Sigma_m2);
+                    BioRows.Result(panel, centrifuge, "Sigma Efficiency", centrifuge.Result_SigmaEfficiency, "");
+                    panel.CreateAndAddResultRow(centrifuge, "Effective Sigma", UnitOfMeasure.area, centrifuge.Result_SigmaEffective_m2);
+                    panel.CreateAndAddResultRow(centrifuge, "Liquid Flow (Q)", UnitOfMeasure.volumetricFlow, centrifuge.Result_LiquidFlow_m3s);
+                    panel.CreateAndAddResultRow(centrifuge, "Liquid Density", UnitOfMeasure.density, centrifuge.Result_LiquidDensity_kgm3);
+                    panel.CreateAndAddResultRow(centrifuge, "Liquid Viscosity", UnitOfMeasure.viscosity, centrifuge.Result_LiquidViscosity_Pas);
+
+                    if (centrifuge.Result_CutSize_um == null || centrifuge.Result_Recovery == null) return;
+                    foreach (var kv in centrifuge.Result_CutSize_um)
+                    {
+                        BioRows.Result(panel, centrifuge, kv.Key + ": cut size d50", kv.Value, "um");
+                        var recovery = centrifuge.Result_Recovery.ContainsKey(kv.Key) ? centrifuge.Result_Recovery[kv.Key] : 0.0;
+                        BioRows.Result(panel, centrifuge, kv.Key + ": recovery to heavy", recovery * 100.0, "%");
+                    }
                 },
-                extras: new[] { ("Recovery", BuildRecovery(centrifuge)) });
+                extras: new[]
+                {
+                    ("Recovery", BuildRecovery(centrifuge)),
+                    ("Particles (Sigma Theory)", sigmaTheory ? BuildParticles(centrifuge) : null)
+                });
         }
 
         private static Control BuildRecovery(UOps.UnitOp_Centrifuge centrifuge)
@@ -541,6 +603,101 @@ namespace DWSIM.UI.Desktop.Editors
                 });
         }
 
+        /// <summary>The particle size distribution and density of each compound; a d50 of 0 leaves the compound to its recovery fraction.</summary>
+        private static Control BuildParticles(UOps.UnitOp_Centrifuge centrifuge)
+        {
+            if (centrifuge.ParticleMedianDiameter_um == null) centrifuge.ParticleMedianDiameter_um = new Dictionary<string, double>();
+            if (centrifuge.ParticleSizeSpread == null) centrifuge.ParticleSizeSpread = new Dictionary<string, double>();
+            if (centrifuge.ParticleDensity_kgm3 == null) centrifuge.ParticleDensity_kgm3 = new Dictionary<string, double>();
+
+            var nf = centrifuge.GetFlowsheet().FlowsheetOptions.NumberFormat;
+            var rows = new ObservableCollection<CentrifugeParticleRow>();
+
+            foreach (ICompoundConstantProperties compound in centrifuge.GetFlowsheet().SelectedCompounds.Values)
+                rows.Add(new CentrifugeParticleRow(centrifuge, compound, nf));
+
+            var grid = new DataGrid
+            {
+                ItemsSource = rows,
+                AutoGenerateColumns = false,
+                CanUserSortColumns = false,
+                HeadersVisibility = DataGridHeadersVisibility.Column,
+                GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
+                Height = 260
+            };
+
+            grid.Columns.Add(GridColumns.Text("Compound", "Compound", 1.4, readOnly: true));
+            grid.Columns.Add(GridColumns.Text("d50 (um, 0 = none)", "Diameter", 1.0));
+            grid.Columns.Add(GridColumns.Text("Sigma g", "Spread", 0.8));
+            grid.Columns.Add(GridColumns.Text("Density (kg/m3)", "Density", 1.0));
+            grid.Columns.Add(GridColumns.Text("Source", "Note", 1.6, readOnly: true));
+
+            return grid;
+        }
+
+    }
+
+    /// <summary>One compound of the centrifuge particle grid. Editing a cell pins that value for the compound.</summary>
+    internal sealed class CentrifugeParticleRow : INotifyPropertyChanged
+    {
+        private readonly UOps.UnitOp_Centrifuge _centrifuge;
+        private readonly ICompoundConstantProperties _compound;
+        private readonly string _nf;
+
+        internal CentrifugeParticleRow(UOps.UnitOp_Centrifuge centrifuge, ICompoundConstantProperties compound, string nf)
+        {
+            _centrifuge = centrifuge;
+            _compound = compound;
+            _nf = nf;
+        }
+
+        public string Compound { get { return _compound.Name; } }
+
+        public string Diameter
+        {
+            get { return _centrifuge.ParticleFor(_compound).Diameter_um.ToString(_nf, CultureInfo.CurrentCulture); }
+            set { Pin(_centrifuge.ParticleMedianDiameter_um, value, 0.0); }
+        }
+
+        public string Spread
+        {
+            get { return _centrifuge.ParticleFor(_compound).Spread.ToString(_nf, CultureInfo.CurrentCulture); }
+            set { Pin(_centrifuge.ParticleSizeSpread, value, 1.0); }
+        }
+
+        public string Density
+        {
+            get { return _centrifuge.ParticleFor(_compound).Density_kgm3.ToString(_nf, CultureInfo.CurrentCulture); }
+            set { Pin(_centrifuge.ParticleDensity_kgm3, value, 0.0); }
+        }
+
+        public string Note
+        {
+            get
+            {
+                var name = _compound.Name;
+                if (_centrifuge.ParticleMedianDiameter_um.ContainsKey(name) || _centrifuge.ParticleSizeSpread.ContainsKey(name) ||
+                    _centrifuge.ParticleDensity_kgm3.ContainsKey(name))
+                    return "user-set";
+                return UOps.UnitOp_Centrifuge.ParticleDefaults(_compound).Source;
+            }
+        }
+
+        private void Pin(Dictionary<string, double> values, string text, double minimum)
+        {
+            if (!UnitOpEditorRows.TryParse(text, out var v)) return;
+            values[_compound.Name] = Math.Max(minimum, v);
+            Raise("Diameter");
+            Raise("Spread");
+            Raise("Density");
+            Raise("Note");
+        }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+        private void Raise(string name)
+        {
+            if (PropertyChanged != null) PropertyChanged(this, new PropertyChangedEventArgs(name));
+        }
     }
 
     /// <summary>Chromatography editor: the column, its chemistry and the recovery per compound.</summary>
@@ -560,12 +717,23 @@ namespace DWSIM.UI.Desktop.Editors
                         column.GetFlowsheet().UpdateOpenEditForms();
                     });
 
-                    BioRows.Choice(panel, "Chemistry", () => column.Chemistry, v => column.Chemistry = v);
+                    BioRows.Compound(panel, column, "Target Compound (blank = MW > 5 kDa)",
+                        () => column.TargetCompound, v => column.TargetCompound = v);
+
+                    // a new chemistry brings its typical capacity, rate constant and recoveries
+                    BioRows.Choice(panel, "Chemistry", () => column.Chemistry, v =>
+                    {
+                        column.Chemistry = v;
+                        column.ApplyChemistryDefaults();
+                        column.GetFlowsheet().UpdateOpenEditForms();
+                    });
 
                     BioRows.Number(panel, column, "Column Volume (L)",
                         column.ColumnVolume_L, v => column.ColumnVolume_L = v);
                     BioRows.Number(panel, column, "Dynamic Binding Capacity (g/L)",
                         column.DynamicBindingCapacity_gL, v => column.DynamicBindingCapacity_gL = v);
+                    BioRows.Number(panel, column, "Load Time per Cycle (s)",
+                        column.CycleLoadTime_s, v => column.CycleLoadTime_s = v);
                     BioRows.Number(panel, column, "Default Recovery to Product",
                         column.DefaultRecoveryToProduct, v => column.DefaultRecoveryToProduct = v);
 
@@ -578,8 +746,6 @@ namespace DWSIM.UI.Desktop.Editors
                         column.ThomasRateConstant_Lgs, v => column.ThomasRateConstant_Lgs = v);
                     BioRows.Number(panel, column, "Loading Time (s, 0 = auto to 99%)",
                         column.LoadingTime_s, v => column.LoadingTime_s = v);
-                    BioRows.Number(panel, column, "Resin Density (g/L)",
-                        column.ResinDensity_gL, v => column.ResinDensity_gL = v);
                 },
                 results: panel =>
                 {
@@ -589,9 +755,17 @@ namespace DWSIM.UI.Desktop.Editors
                     panel.CreateAndAddResultRow(column, "Waste", UnitOfMeasure.massflow, column.Result_WasteMass_kgs);
 
                     BioRows.Section(panel, "Performance");
-                    BioRows.Result(panel, column, "Target Recovery (MW > 5 kDa)",
+                    BioRows.Result(panel, column,
+                        string.IsNullOrWhiteSpace(column.TargetCompound)
+                            ? "Target Recovery (MW > 5 kDa)"
+                            : "Target Recovery (" + column.TargetCompound + ")",
                         column.Result_TargetRecovery * 100.0, "%");
-                    BioRows.Result(panel, column, "Load Ratio (load/DBC)", column.Result_LoadRatio, "");
+                    BioRows.Result(panel, column, "Target Load per Cycle", column.Result_LoadPerCycle_kg, "kg");
+                    BioRows.Result(panel, column, "Binding Capacity (DBC x CV)", column.Result_BindingCapacity_kg, "kg");
+                    BioRows.Result(panel, column, "Load Ratio (load/capacity)", column.Result_LoadRatio, "");
+                    BioRows.Result(panel, column, "Load Time to Fill Capacity", column.Result_TimeToCapacity_s, "s");
+                    BioRows.Result(panel, column, "Load Volume per Cycle",
+                        column.Result_LoadVolumeFraction * 100.0, "% of CV");
                     panel.CreateAndAddTwoLabelsRow("Saturated?",
                         column.Result_Saturated ? "YES - column exceeded" : "no");
                 },
@@ -752,7 +926,8 @@ namespace DWSIM.UI.Desktop.Editors
 
     /// <summary>
     /// Pretreatment reactor editor: the severity of the treatment, which compound plays each role
-    /// in the biomass, and the conversions the reactor applies.
+    /// in the biomass, and the conversions the reactor applies, entered by the user or computed
+    /// from the severity.
     /// </summary>
     public static class PretreatmentEditor
     {
@@ -771,7 +946,13 @@ namespace DWSIM.UI.Desktop.Editors
                         reactor.GetFlowsheet().UpdateOpenEditForms();
                     });
 
-                    BioRows.Number(panel, reactor, "Severity log R0",
+                    BioRows.Choice(panel, "Conversion Mode", () => reactor.ConversionMode, v =>
+                    {
+                        reactor.ConversionMode = v;
+                        reactor.GetFlowsheet().UpdateOpenEditForms();
+                    });
+
+                    BioRows.Number(panel, reactor, "Severity log R0 (when residence time is 0)",
                         reactor.SeverityLogR0, v => reactor.SeverityLogR0 = v);
 
                     panel.CreateAndAddValueUnitRow(reactor, "Residence Time", UnitOfMeasure.time,
@@ -806,17 +987,24 @@ namespace DWSIM.UI.Desktop.Editors
                         () => reactor.AceticAcidCompound, v => reactor.AceticAcidCompound = v);
                     BioRows.Compound(panel, reactor, "Water",
                         () => reactor.WaterCompound, v => reactor.WaterCompound = v);
+                    BioRows.Compound(panel, reactor, "Acid (optional)",
+                        () => reactor.AcidCompound, v => reactor.AcidCompound = v);
+                    BioRows.Number(panel, reactor, "Acid Second pKa (1.99 sulfuric)",
+                        reactor.AcidSecondPKa, v => reactor.AcidSecondPKa = v);
 
                     BioRows.Section(panel, "Conversion Fractions (0-1)");
 
-                    BioRows.Number(panel, reactor, "Cellulose to Glucose",
-                        reactor.CelluloseConversion, v => reactor.CelluloseConversion = v);
-                    BioRows.Number(panel, reactor, "Glucose to HMF",
-                        reactor.GlucoseToHMF, v => reactor.GlucoseToHMF = v);
-                    BioRows.Number(panel, reactor, "Hemicellulose to Xylose",
-                        reactor.HemicelluloseConversion, v => reactor.HemicelluloseConversion = v);
-                    BioRows.Number(panel, reactor, "Xylose to Furfural",
-                        reactor.XyloseToFurfural, v => reactor.XyloseToFurfural = v);
+                    if (reactor.ConversionMode == Reactors.PretreatmentConversionMode.UserFractions)
+                    {
+                        BioRows.Number(panel, reactor, "Cellulose to Glucose",
+                            reactor.CelluloseConversion, v => reactor.CelluloseConversion = v);
+                        BioRows.Number(panel, reactor, "Glucose to HMF (g/g glucose)",
+                            reactor.GlucoseToHMF, v => reactor.GlucoseToHMF = v);
+                        BioRows.Number(panel, reactor, "Hemicellulose to Xylose",
+                            reactor.HemicelluloseConversion, v => reactor.HemicelluloseConversion = v);
+                        BioRows.Number(panel, reactor, "Xylose to Furfural (g/g xylose)",
+                            reactor.XyloseToFurfural, v => reactor.XyloseToFurfural = v);
+                    }
                     BioRows.Number(panel, reactor, "Lignin Solubilization",
                         reactor.LigninSolubilization, v => reactor.LigninSolubilization = v);
                     BioRows.Number(panel, reactor, "Acetic Acid Yield on Hemi (g/g)",
@@ -824,6 +1012,20 @@ namespace DWSIM.UI.Desktop.Editors
                 },
                 results: panel =>
                 {
+                    BioRows.Section(panel, "Severity");
+                    panel.CreateAndAddResultRow(reactor, "Temperature", UnitOfMeasure.temperature, reactor.Result_SeverityTemperature_K);
+                    BioRows.Result(panel, reactor, "log R0", reactor.Result_LogR0, "");
+                    BioRows.Result(panel, reactor, "Feed Solids Loading", reactor.Result_SolidsLoading_wfrac, "w/w");
+                    BioRows.Result(panel, reactor, "Acid in Liquid", reactor.Result_AcidConcentration_molkg, "mol/kg");
+                    BioRows.Result(panel, reactor, "pH (25 C)", reactor.Result_pH, "");
+                    BioRows.Result(panel, reactor, "Combined Severity (log R0 - pH)", reactor.Result_CombinedSeverity, "");
+
+                    BioRows.Section(panel, "Applied Conversions");
+                    BioRows.Result(panel, reactor, "Cellulose to Glucose", reactor.Result_CelluloseConversion, "");
+                    BioRows.Result(panel, reactor, "Glucose to HMF (g/g glucose)", reactor.Result_GlucoseToHMF, "");
+                    BioRows.Result(panel, reactor, "Hemicellulose to Xylose", reactor.Result_HemicelluloseConversion, "");
+                    BioRows.Result(panel, reactor, "Xylose to Furfural (g/g xylose)", reactor.Result_XyloseToFurfural, "");
+
                     BioRows.Section(panel, "Consumed");
                     panel.CreateAndAddResultRow(reactor, "Cellulose", UnitOfMeasure.massflow, reactor.Result_CelluloseConsumed_kgs);
                     panel.CreateAndAddResultRow(reactor, "Hemicellulose", UnitOfMeasure.massflow, reactor.Result_HemicelluloseConsumed_kgs);
