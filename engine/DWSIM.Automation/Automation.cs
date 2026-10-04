@@ -391,7 +391,6 @@ namespace DWSIM.Automation
             var directories = new List<string>
             {
                 Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
-                Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "avalonia"),
                 Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "extenders"),
                 Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "ppacks"),
                 Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "unitops"),
@@ -401,6 +400,11 @@ namespace DWSIM.Automation
                 Directory.GetCurrentDirectory(),
                 Path.Combine(Directory.GetCurrentDirectory(), "extenders")
             };
+
+            // the avalonia folder holds .NET 8+ builds; a .NET Framework process that loaded them
+            // would bind their dependencies to the framework facades and fail
+            if (Environment.Version.Major >= 5)
+                directories.Insert(1, Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "avalonia"));
 
             foreach (var dir in directories)
             {
