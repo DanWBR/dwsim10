@@ -1562,6 +1562,32 @@ Public Class GraphicsSurface
 
     End Function
 
+    ''' <summary>
+    ''' Restores, while a flowsheet loads, the link from a unit operation's EnergyConnector to an energy stream;
+    ''' <paramref name="connect"/> makes the link. A link the unit no longer accepts (an external unit operation
+    ''' whose EnergyConnector is now inactive) is skipped: the connectors marked as attached by the failed attempt
+    ''' are released and a warning naming both objects is returned, so the load can go on. Returns Nothing when
+    ''' the link was made.
+    ''' </summary>
+    Public Shared Function RestoreEnergyConnectorLink(gObjFrom As IGraphicObject, gObjTo As IGraphicObject, connect As Action) As String
+
+        Dim freeSlots = gObjFrom.OutputConnectors.Concat(gObjTo.InputConnectors).Where(Function(c) Not c.IsAttached).ToList()
+        If Not gObjFrom.EnergyConnector.IsAttached Then freeSlots.Add(gObjFrom.EnergyConnector)
+
+        Try
+            connect()
+            Return Nothing
+        Catch ex As Exception
+            If freeSlots.Any(Function(c) c.AttachedConnector IsNot Nothing) Then Throw
+            For Each c In freeSlots
+                c.IsAttached = False
+            Next
+            Dim reason = If(gObjFrom.EnergyConnector.Active, ex.Message.TrimEnd("."c), "its energy connector is inactive")
+            Return String.Format("The energy stream '{0}' was left unconnected: it could not be reconnected to '{1}' ({2}).", gObjTo.Tag, gObjFrom.Tag, reason)
+        End Try
+
+    End Function
+
     Public Sub DisconnectObject(ByVal gObjFrom As GraphicObject, ByVal gObjTo As GraphicObject, Optional ByVal triggercalc As Boolean = False)
 
         Dim conObj As ConnectorGraphic = Nothing
