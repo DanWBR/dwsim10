@@ -6,15 +6,18 @@ namespace DWSIM.Automation.FluentAPI.Builders
     /// <summary>
     /// Fluent builder for the model predictive controller (dynamic matrix control). Call
     /// <see cref="Flowsheet.AddMPCController"/> to obtain one. It runs once per sample time in a dynamic
-    /// run. Controlled and manipulated variables are numbered in the order they are added, from 0;
-    /// a step response model links one of each.
+    /// run. Controlled, manipulated and disturbance variables are numbered in the order they are added,
+    /// from 0; a step response model links a controlled variable to a manipulated one, and a disturbance
+    /// model links it to a measured disturbance, which then acts as feedforward.
     /// </summary>
     /// <example>
     /// <code>
     /// fs.AddMPCController("LC-MPC")
     ///   .Controls("T-01", "Liquid Level", "m", 0.9, 1.1)
     ///   .Manipulates("V-02", "PROP_VA_5", "", 0.0, 100.0)
+    ///   .Measures("Inlet", "PROP_MS_2", "kg/s")
     ///   .WithIntegratingModel(0, 0, -0.0004)
+    ///   .WithIntegratingDisturbanceModel(0, 0, 0.001)
     ///   .WithSampleTime(5.0.Seconds())
     ///   .WithHorizons(30, 5);
     /// </code>
@@ -43,7 +46,11 @@ namespace DWSIM.Automation.FluentAPI.Builders
             return this;
         }
 
-        /// <summary>Adds a measured disturbance variable.</summary>
+        /// <summary>
+        /// Adds a measured disturbance variable, read in <paramref name="units"/> (with null, the
+        /// property's own units in the flowsheet's unit system). It acts as feedforward once a
+        /// disturbance model links it to a controlled variable; the model gain is per unit of these units.
+        /// </summary>
         public MPCControllerBuilder Measures(string objectTag, string propertyId, string units = null)
         {
             Object.DisturbanceVariables.Add(Variable(objectTag, propertyId, units, double.MinValue, double.MaxValue, 1.0));
@@ -90,6 +97,53 @@ namespace DWSIM.Automation.FluentAPI.Builders
             return this;
         }
 
+        /// <summary>
+        /// Adds a first order plus dead time response of controlled variable <paramref name="cvIndex"/>
+        /// to measured disturbance <paramref name="dvIndex"/>: the steady-state gain, in CV units per
+        /// disturbance unit, the time constant and the dead time.
+        /// </summary>
+        public MPCControllerBuilder WithFirstOrderDisturbanceModel(int cvIndex, int dvIndex, double gain,
+            Quantity timeConstant, Quantity deadTime = default)
+        {
+            Object.DisturbanceModels.Add(new StepResponseModel
+            {
+                CVIndex = cvIndex,
+                DVIndex = dvIndex,
+                Gain = gain,
+                TimeConstant = timeConstant.SI,
+                DeadTime = deadTime.SI,
+                Integrating = false
+            });
+            return this;
+        }
+
+        /// <summary>
+        /// Adds an integrating response of controlled variable <paramref name="cvIndex"/> to measured
+        /// disturbance <paramref name="dvIndex"/>, such as a level fed by the disturbance flow:
+        /// <paramref name="slope"/> is the CV rate of change per disturbance unit, in CV units per second,
+        /// with an optional lag before the ramp and a dead time.
+        /// </summary>
+        public MPCControllerBuilder WithIntegratingDisturbanceModel(int cvIndex, int dvIndex, double slope,
+            Quantity lag = default, Quantity deadTime = default)
+        {
+            Object.DisturbanceModels.Add(new StepResponseModel
+            {
+                CVIndex = cvIndex,
+                DVIndex = dvIndex,
+                Gain = slope,
+                TimeConstant = lag.SI,
+                DeadTime = deadTime.SI,
+                Integrating = true
+            });
+            return this;
+        }
+
+        /// <summary>
+        /// Switches the feedforward from the disturbance models on or off. Off, the controller still
+        /// records the disturbances but predicts as if it had no disturbance models.
+        /// </summary>
+        public MPCControllerBuilder UseMeasuredDisturbances(bool use = true) { Object.UseMeasuredDisturbances = use; return this; }
+
         /// <summary>Sets the time between two control moves; usually the integration step.</summary>
         public MPCControllerBuilder WithSampleTime(Quantity time)
         {
@@ -122,6 +176,9 @@ namespace DWSIM.Automation.FluentAPI.Builders
 
         /// <summary>The current value of manipulated variable <paramref name="index"/>, in its units.</summary>
         public double ManipulatedValue(int index) => Object.ManipulatedVariables[index].GetCurrentValue(Flowsheet.Inner);
+
+        /// <summary>The current value of measured disturbance <paramref name="index"/>, in its units.</summary>
+        public double DisturbanceValue(int index) => Object.DisturbanceVariables[index].GetCurrentValue(Flowsheet.Inner);
 
         private MPCVariable Variable(string objectTag, string propertyId, string units,
             double minimum, double maximum, double weight)

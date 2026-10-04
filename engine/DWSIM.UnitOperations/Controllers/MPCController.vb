@@ -37,12 +37,17 @@ Namespace SpecialOps
         Public Property Weight As Double = 1.0
         Public Property LastValue As Double = 0.0
 
+        ''' <summary>
+        ''' Reads the variable's current value from the flowsheet, in its units.
+        ''' </summary>
+        ''' <param name="fs">The flowsheet that holds the linked object.</param>
+        ''' <returns>The value, or <c>Double.NaN</c> when the linked object is not on the flowsheet.</returns>
         Public Function GetCurrentValue(fs As IFlowsheet) As Double
             Dim obj = fs.SimulationObjects.Values.Where(Function(x) x.Name = ObjectID).SingleOrDefault()
             If obj IsNot Nothing Then
                 Return SystemsOfUnits.Converter.ConvertFromSI(Units, obj.GetPropertyValue(PropertyName))
             End If
-            Return 0.0
+            Return Double.NaN
         End Function
 
         Public Sub SetCurrentValue(fs As IFlowsheet, value As Double)
@@ -58,6 +63,14 @@ Namespace SpecialOps
 
         Public Property CVIndex As Integer = 0
         Public Property MVIndex As Integer = 0
+
+        ''' <summary>
+        ''' Index of the measured disturbance variable in a model of the controller's DisturbanceModels list,
+        ''' which relates that disturbance to controlled variable CVIndex. Models in StepResponseModels use
+        ''' MVIndex instead and ignore this one. Default 0.
+        ''' </summary>
+        Public Property DVIndex As Integer = 0
+
         Public Property StepCoefficients As New List(Of Double)
         Public Property Gain As Double = 1.0
         Public Property TimeConstant As Double = 60.0
@@ -153,8 +166,10 @@ Namespace SpecialOps
         ''' <summary>Manipulated variables moved by the controller, each clamped to its MinValue and MaxValue.</summary>
         Public Property ManipulatedVariables As New List(Of MPCVariable)
         ''' <summary>
-        ''' Measured disturbance variables. Saved with the controller; the current calculation does not use
-        ''' them.
+        ''' Measured disturbance variables. The controller reads them at each control step; a disturbance
+        ''' with a model in <see cref="DisturbanceModels"/> acts as feedforward, its change since the last
+        ''' step entering the predicted trajectory of the controlled variable as a manipulated variable move
+        ''' does. MinValue, MaxValue and Weight are not used.
         ''' </summary>
         Public Property DisturbanceVariables As New List(Of MPCVariable)
 
@@ -163,6 +178,21 @@ Namespace SpecialOps
         ''' in the variable lists.
         ''' </summary>
         Public Property StepResponseModels As New List(Of StepResponseModel)
+
+        ''' <summary>
+        ''' Disturbance models, one per controlled/disturbance variable pair, indexed by CVIndex and DVIndex
+        ''' in the variable lists: the response of the controlled variable to a unit step in the measured
+        ''' disturbance, first order plus dead time or integrating. The disturbance is taken as constant over
+        ''' the prediction horizon. An empty list leaves the controller as it is without disturbances.
+        ''' </summary>
+        Public Property DisturbanceModels As New List(Of StepResponseModel)
+
+        ''' <summary>
+        ''' Gets or sets whether the disturbance models act as feedforward. With <c>False</c> the controller
+        ''' still reads and records the disturbances but predicts as if it had no disturbance models.
+        ''' Default <c>True</c>.
+        ''' </summary>
+        Public Property UseMeasuredDisturbances As Boolean = True
 
         ''' <summary>
         ''' Move suppression weight (lambda), dimensionless. It is scaled by the mean diagonal of each
@@ -182,6 +212,7 @@ Namespace SpecialOps
         'controller state between calls; rebuilt when the models or the tuning change
         <System.NonSerialized> Private Prediction As Double(,)
         <System.NonSerialized> Private LastMV As Double()
+        <System.NonSerialized> Private LastDV As Double()
         <System.NonSerialized> Private GainRows As Double(,)
         <System.NonSerialized> Private IntegratingCV As Boolean()
         <System.NonSerialized> Private ModelLength As Integer = 0
@@ -200,6 +231,11 @@ Namespace SpecialOps
         ''' units, for the trend charts.
         ''' </summary>
         Public Property MVHistory As New List(Of Double())
+        ''' <summary>
+        ''' Measured disturbance values recorded at each control step, one array per step in the variables'
+        ''' units, for the trend charts. Recorded only when the controller has disturbance variables.
+        ''' </summary>
+        Public Property DVHistory As New List(Of Double())
 
         ''' <summary>Initializes a new default instance of the <see cref="MPCController"/> class.</summary>
         Public Sub New()
@@ -269,6 +305,18 @@ Namespace SpecialOps
             Next
             elements.Add(models)
 
+            Dim dmodels As New System.Xml.Linq.XElement("MPCDisturbanceModels")
+            For Each m In DisturbanceModels
+                dmodels.Add(New System.Xml.Linq.XElement("Model",
+                            New System.Xml.Linq.XAttribute("CVIndex", m.CVIndex),
+                            New System.Xml.Linq.XAttribute("DVIndex", m.DVIndex),
+                            New System.Xml.Linq.XAttribute("Gain", m.Gain.ToString("R", ci)),
+                            New System.Xml.Linq.XAttribute("TimeConstant", m.TimeConstant.ToString("R", ci)),
+                            New System.Xml.Linq.XAttribute("DeadTime", m.DeadTime.ToString("R", ci)),
+                            New System.Xml.Linq.XAttribute("Integrating", m.Integrating)))
+            Next
+            elements.Add(dmodels)
+
             Return elements
 
         End Function
@@ -302,19 +350,30 @@ Namespace SpecialOps
             loadVars("MPCManipulatedVariables", ManipulatedVariables)
             loadVars("MPCDisturbanceVariables", DisturbanceVariables)
 
-            Dim models = data.Where(Function(x) x.Name = "MPCStepResponseModels").FirstOrDefault()
-            If models IsNot Nothing Then
-                StepResponseModels.Clear()
-                For Each xm In models.Elements("Model")
-                    StepResponseModels.Add(New StepResponseModel With {
-                        .CVIndex = Integer.Parse(xm.@CVIndex, ci),
-                        .MVIndex = Integer.Parse(xm.@MVIndex, ci),
-                        .Gain = Double.Parse(xm.@Gain, ci),
-                        .TimeConstant = Double.Parse(xm.@TimeConstant, ci),
-                        .DeadTime = Double.Parse(xm.@DeadTime, ci),
-                        .Integrating = Boolean.Parse(xm.@Integrating)})
-                Next
-            End If
+            'an attribute an older file lacks keeps the model's default
+            Dim loadModels = Sub(tag As String, list As List(Of StepResponseModel), disturbance As Boolean)
+                                 Dim xel = data.Where(Function(x) x.Name = tag).FirstOrDefault()
+                                 If xel Is Nothing Then Return
+                                 list.Clear()
+                                 For Each xm In xel.Elements("Model")
+                                     Dim m As New StepResponseModel()
+                                     Dim iv As Integer, dv As Double, bv As Boolean
+                                     If Integer.TryParse(xm.@CVIndex, Globalization.NumberStyles.Integer, ci, iv) Then m.CVIndex = iv
+                                     If disturbance Then
+                                         If Integer.TryParse(xm.@DVIndex, Globalization.NumberStyles.Integer, ci, iv) Then m.DVIndex = iv
+                                     Else
+                                         If Integer.TryParse(xm.@MVIndex, Globalization.NumberStyles.Integer, ci, iv) Then m.MVIndex = iv
+                                     End If
+                                     If Double.TryParse(xm.@Gain, Globalization.NumberStyles.Float, ci, dv) Then m.Gain = dv
+                                     If Double.TryParse(xm.@TimeConstant, Globalization.NumberStyles.Float, ci, dv) Then m.TimeConstant = dv
+                                     If Double.TryParse(xm.@DeadTime, Globalization.NumberStyles.Float, ci, dv) Then m.DeadTime = dv
+                                     If Boolean.TryParse(xm.@Integrating, bv) Then m.Integrating = bv
+                                     list.Add(m)
+                                 Next
+                             End Sub
+
+            loadModels("MPCStepResponseModels", StepResponseModels, False)
+            loadModels("MPCDisturbanceModels", DisturbanceModels, True)
 
             Return True
 
@@ -359,24 +418,29 @@ Namespace SpecialOps
         Public Sub Reset()
             Prediction = Nothing
             LastMV = Nothing
+            LastDV = Nothing
             ModelKey = ""
             TuningKey = ""
             CallCount = 0
             LastCallTime = Nothing
             CVHistory.Clear()
             MVHistory.Clear()
+            DVHistory.Clear()
             For Each cv In ControlledVariables
                 cv.LastValue = 0.0
             Next
             For Each mv In ManipulatedVariables
                 mv.LastValue = 0.0
             Next
+            For Each dv In DisturbanceVariables
+                dv.LastValue = 0.0
+            Next
         End Sub
 
         ''' <summary>
-        ''' Regenerates the step response coefficients of every model from its gain, time constant and dead
-        ''' time, at the current sample time and a length that covers the prediction horizon and the settling of
-        ''' each model.
+        ''' Regenerates the step response coefficients of every model, disturbance models included, from its
+        ''' gain, time constant and dead time, at the current sample time and a length that covers the
+        ''' prediction horizon and the settling of each model.
         ''' </summary>
         Public Sub InitializeModels()
             Dim ts = Math.Max(SampleTime, 0.001)
@@ -384,7 +448,22 @@ Namespace SpecialOps
             For Each model In StepResponseModels
                 model.GenerateFromFOPDT(ts, NS)
             Next
+            For Each model In DisturbanceModels
+                model.GenerateFromFOPDT(ts, NS)
+            Next
         End Sub
+
+        ''' <summary>
+        ''' The disturbance models the prediction uses: none when the disturbances are switched off, otherwise
+        ''' those that point to an existing controlled and disturbance variable.
+        ''' </summary>
+        Private Function ActiveDisturbanceModels() As List(Of StepResponseModel)
+            If Not UseMeasuredDisturbances Then Return New List(Of StepResponseModel)
+            Dim nCV = ControlledVariables.Count
+            Dim nDV = DisturbanceVariables.Count
+            Return DisturbanceModels.Where(Function(m) m.CVIndex >= 0 AndAlso m.CVIndex < nCV AndAlso
+                                                       m.DVIndex >= 0 AndAlso m.DVIndex < nDV).ToList()
+        End Function
 
         ''' <summary>
         ''' Dynamic Matrix Control. At each control step the predicted CV trajectory is shifted one sample,
@@ -392,6 +471,8 @@ Namespace SpecialOps
         ''' (model error correction). The first of the M moves that minimize the weighted squared error over
         ''' P samples plus the move suppression term is applied, within the MV limits. For an integrating CV
         ''' the model error is also extrapolated as a ramp, which removes the offset a load change leaves.
+        ''' The changes of the measured disturbances that have a disturbance model enter the prediction the
+        ''' same way as the MV moves (feedforward).
         ''' </summary>
         Public Overrides Sub Calculate(Optional args As Object = Nothing)
 
@@ -431,15 +512,25 @@ Namespace SpecialOps
             End If
             LastCallTime = simTime
 
+            Dim nDV = DisturbanceVariables.Count
+            Dim dvModels = ActiveDisturbanceModels()
+
             Dim mKey = GetModelKey(ts, P)
             If mKey <> ModelKey Then
                 ModelLength = GetModelLength(ts, P)
                 For Each model In StepResponseModels
                     model.GenerateFromFOPDT(ts, ModelLength)
                 Next
+                For Each model In DisturbanceModels
+                    model.GenerateFromFOPDT(ts, ModelLength)
+                Next
                 IntegratingCV = New Boolean(nCV - 1) {}
                 For Each model In StepResponseModels
                     If IsValid(model, nCV, nMV) AndAlso model.Integrating Then IntegratingCV(model.CVIndex) = True
+                Next
+                'a disturbance the CV integrates makes it an integrating CV as well
+                For Each model In dvModels
+                    If model.Integrating Then IntegratingCV(model.CVIndex) = True
                 Next
                 ModelKey = mKey
                 TuningKey = ""
@@ -468,8 +559,28 @@ Namespace SpecialOps
                 mvValues(i) = ManipulatedVariables(i).GetCurrentValue(FlowSheet)
             Next
 
+            'a controlled or manipulated variable that cannot be read (its object is gone) stops the
+            'controller for this step; the prediction starts over once it reads again
+            If cvValues.Any(Function(v) Double.IsNaN(v)) OrElse mvValues.Any(Function(v) Double.IsNaN(v)) Then
+                Prediction = Nothing
+                Return
+            End If
+
+            Dim dvValues(nDV - 1) As Double
+            For i = 0 To nDV - 1
+                dvValues(i) = DisturbanceVariables(i).GetCurrentValue(FlowSheet)
+            Next
+
             CVHistory.Add(DirectCast(cvValues.Clone(), Double()))
             MVHistory.Add(DirectCast(mvValues.Clone(), Double()))
+            If nDV > 0 Then DVHistory.Add(DirectCast(dvValues.Clone(), Double()))
+
+            'a disturbance that cannot be read keeps its last reading, so it brings no move
+            If LastDV IsNot Nothing AndAlso LastDV.Length = nDV Then
+                For i = 0 To nDV - 1
+                    If Double.IsNaN(dvValues(i)) Then dvValues(i) = LastDV(i)
+                Next
+            End If
 
             Dim modelError(nCV - 1) As Double
 
@@ -500,6 +611,17 @@ Namespace SpecialOps
                         Prediction(model.CVIndex, k) += model.Coefficient(k + 1) * du
                     Next
                 Next
+                'feedforward: the disturbance changes measured since the last step enter as the MV moves
+                'do, as if made one sample ago; the disturbance is then held over the horizon
+                If LastDV IsNot Nothing AndAlso LastDV.Length = nDV Then
+                    For Each model In dvModels
+                        Dim dd = dvValues(model.DVIndex) - LastDV(model.DVIndex)
+                        If Double.IsNaN(dd) OrElse dd = 0.0 Then Continue For
+                        For k = 0 To NS - 1
+                            Prediction(model.CVIndex, k) += model.Coefficient(k + 1) * dd
+                        Next
+                    Next
+                End If
                 For i = 0 To nCV - 1
                     modelError(i) = cvValues(i) - Prediction(i, 0)
                     For k = 0 To NS - 1
@@ -509,6 +631,7 @@ Namespace SpecialOps
             End If
 
             LastMV = DirectCast(mvValues.Clone(), Double())
+            LastDV = DirectCast(dvValues.Clone(), Double())
 
             Dim setpoints(nCV - 1) As Double
             For i = 0 To nCV - 1
@@ -539,6 +662,10 @@ Namespace SpecialOps
 
             For i = 0 To nCV - 1
                 ControlledVariables(i).LastValue = cvValues(i)
+            Next
+
+            For i = 0 To nDV - 1
+                DisturbanceVariables(i).LastValue = dvValues(i)
             Next
 
         End Sub
@@ -661,6 +788,9 @@ Namespace SpecialOps
             For Each model In StepResponseModels
                 length = Math.Max(length, model.SettlingSamples(ts))
             Next
+            For Each model In ActiveDisturbanceModels()
+                length = Math.Max(length, model.SettlingSamples(ts))
+            Next
             Return CInt(Math.Min(length, Math.Max(MaxModelLength, P + 1)))
         End Function
 
@@ -678,6 +808,15 @@ Namespace SpecialOps
                 sb.Append(model.Gain.ToString("R", ci)).Append(","c).Append(model.TimeConstant.ToString("R", ci)).Append(","c)
                 sb.Append(model.DeadTime.ToString("R", ci)).Append(","c).Append(model.Integrating)
             Next
+            Dim dvModels = ActiveDisturbanceModels()
+            If dvModels.Count > 0 Then
+                sb.Append("|D").Append(DisturbanceVariables.Count)
+                For Each model In dvModels
+                    sb.Append("|"c).Append(model.CVIndex).Append(","c).Append(model.DVIndex).Append(","c)
+                    sb.Append(model.Gain.ToString("R", ci)).Append(","c).Append(model.TimeConstant.ToString("R", ci)).Append(","c)
+                    sb.Append(model.DeadTime.ToString("R", ci)).Append(","c).Append(model.Integrating)
+                Next
+            End If
             Return sb.ToString()
         End Function
 
@@ -706,8 +845,10 @@ Namespace SpecialOps
         End Function
 
         ''' <summary>Builds the trend chart with the given name.</summary>
-        ''' <param name="name">The chart name: "CV Trends" (also used for an empty name) or "MV Trends".</param>
-        ''' <returns>An OxyPlot <c>PlotModel</c> with one series per controlled or manipulated variable.</returns>
+        ''' <param name="name">The chart name: "CV Trends" (also used for an empty name), "MV Trends" or
+        ''' "DV Trends".</param>
+        ''' <returns>An OxyPlot <c>PlotModel</c> with one series per controlled, manipulated or disturbance
+        ''' variable.</returns>
         Public Overrides Function GetChartModel(name As String) As Object
 
             Dim model = New PlotModel() With {.Subtitle = name, .Title = If(GraphicObject IsNot Nothing, GraphicObject.Tag, "MPC")}
@@ -761,6 +902,21 @@ Namespace SpecialOps
                 Next
             End If
 
+            If name = "DV Trends" Then
+                For dv = 0 To DisturbanceVariables.Count - 1
+                    Dim series = New LineSeries() With {
+                        .Title = DisturbanceVariables(dv).Name,
+                        .MarkerType = MarkerType.None
+                    }
+                    For i = 0 To DVHistory.Count - 1
+                        If dv < DVHistory(i).Length Then
+                            series.Points.Add(New DataPoint(i, DVHistory(i)(dv)))
+                        End If
+                    Next
+                    model.Series.Add(series)
+                Next
+            End If
+
             model.LegendFontSize = 10
             model.LegendPlacement = LegendPlacement.Outside
 
@@ -769,9 +925,12 @@ Namespace SpecialOps
         End Function
 
         ''' <summary>Returns the names of the charts this controller can embed in the flowsheet.</summary>
-        ''' <returns>A list with "CV Trends" and "MV Trends".</returns>
+        ''' <returns>A list with "CV Trends" and "MV Trends", and "DV Trends" when the controller has
+        ''' disturbance variables.</returns>
         Public Overrides Function GetChartModelNames() As List(Of String)
-            Return New List(Of String) From {"CV Trends", "MV Trends"}
+            Dim names As New List(Of String) From {"CV Trends", "MV Trends"}
+            If DisturbanceVariables.Count > 0 Then names.Add("DV Trends")
+            Return names
         End Function
 
         Public Overrides Function GetProperties(proptype As PropertyType) As String()
@@ -783,6 +942,7 @@ Namespace SpecialOps
                     proplist.Add("Sample Time")
                     proplist.Add("Move Suppression Weight")
                     proplist.Add("Active")
+                    proplist.Add("Use Measured Disturbances")
             End Select
             Return proplist.ToArray()
         End Function
@@ -794,6 +954,7 @@ Namespace SpecialOps
                 Case "Sample Time" : Return SampleTime
                 Case "Move Suppression Weight" : Return MoveSuppressionWeight
                 Case "Active" : Return Active
+                Case "Use Measured Disturbances" : Return UseMeasuredDisturbances
             End Select
             Return Nothing
         End Function
@@ -812,6 +973,7 @@ Namespace SpecialOps
                 Case "Sample Time" : SampleTime = Convert.ToDouble(propval)
                 Case "Move Suppression Weight" : MoveSuppressionWeight = Convert.ToDouble(propval)
                 Case "Active" : Active = Convert.ToBoolean(propval)
+                Case "Use Measured Disturbances" : UseMeasuredDisturbances = Convert.ToBoolean(propval)
             End Select
             Return True
         End Function

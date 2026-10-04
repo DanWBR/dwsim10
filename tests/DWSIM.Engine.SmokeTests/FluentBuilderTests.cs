@@ -450,6 +450,47 @@ namespace DWSIM.Engine.SmokeTests
             Assert.That(opening.Values.Any(v => Math.Abs(v - 29.0) > 1e-6), Is.True, "the controller moved the valve");
         }
 
+        /// <summary>
+        /// The MPC builder adds a measured disturbance with its models, and the controller records the
+        /// disturbance at each control step.
+        /// </summary>
+        [Test]
+        public void TheMPCControllerBuilderAddsDisturbanceModels()
+        {
+            var (fs, _) = LevelLoop("MPCDV");
+
+            var mpc = fs.AddMPCController("LC-MPC")
+                .Controls("T-01", "Liquid Level", "m", 0.9, 1.1)
+                .Manipulates("V-02", "PROP_VA_5", "", 0.0, 100.0)
+                .Measures("Inlet", "PROP_MS_2", "kg/s")
+                .WithIntegratingModel(0, 0, -0.0004)
+                .WithIntegratingDisturbanceModel(0, 0, 0.001, 10.0.Seconds())
+                .WithFirstOrderDisturbanceModel(0, 0, 0.0005, 60.0.Seconds(), 5.0.Seconds())
+                .WithSampleTime(5.0.Seconds())
+                .WithHorizons(30, 5);
+
+            var models = mpc.Object.DisturbanceModels;
+            Assert.That(models.Count, Is.EqualTo(2));
+            Assert.That(models[0].DVIndex, Is.EqualTo(0));
+            Assert.That(models[0].Integrating, Is.True);
+            Assert.That(models[0].Gain, Is.EqualTo(0.001));
+            Assert.That(models[0].TimeConstant, Is.EqualTo(10.0));
+            Assert.That(models[1].Integrating, Is.False);
+            Assert.That(models[1].TimeConstant, Is.EqualTo(60.0));
+            Assert.That(models[1].DeadTime, Is.EqualTo(5.0));
+            Assert.That(mpc.Object.StepResponseModels.Count, Is.EqualTo(1), "disturbance models stay out of the step response models");
+            Assert.That(mpc.DisturbanceValue(0), Is.EqualTo(10.0).Within(1e-6));
+            Assert.That(mpc.Object.GetPropertyValue("Use Measured Disturbances"), Is.EqualTo(true));
+            Assert.That(mpc.Object.GetChartModelNames(), Does.Contain("DV Trends"));
+
+            var result = fs.RunDynamics("Run").Execute();
+            Assert.That(result.Errors, Is.Empty, string.Join("; ", result.Errors.Select(e => e.Message)));
+
+            Assert.That(mpc.Object.DVHistory.Count, Is.EqualTo(mpc.Object.CVHistory.Count));
+            Assert.That(mpc.Object.DVHistory.Last()[0], Is.EqualTo(10.0).Within(1e-6));
+            Assert.That(mpc.ManipulatedValue(0), Is.InRange(0.0, 100.0));
+        }
+
         // ------------------------------------------------------------------ separators, column, tank
 
         /// <summary>The component separator sends the specified shares to the specified outlet.</summary>
