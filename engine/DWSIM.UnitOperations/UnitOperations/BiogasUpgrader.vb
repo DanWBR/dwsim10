@@ -171,12 +171,6 @@ Namespace UnitOperations
             Return obj
         End Function
 
-        ''' <summary>Creates a deep copy of this object by round-tripping through JSON serialization.</summary>
-        ''' <returns>A new <see cref="UnitOp_BiogasUpgrader"/> instance with the same property values.</returns>
-        Public Overrides Function CloneJSON() As Object
-            Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of UnitOp_BiogasUpgrader)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
-        End Function
-
         ''' <summary>Apply default removal efficiencies for the selected technology.</summary>
         ''' <remarks>
         ''' Nitrogen: water scrubbing and amine absorption leave N2 (and O2) in the biomethane; carbon molecular sieve PSA

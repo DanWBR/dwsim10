@@ -110,12 +110,6 @@ Namespace UnitOperations
             Return obj
         End Function
 
-        ''' <summary>Creates a deep copy of this tank by serializing and deserializing via JSON.</summary>
-        ''' <returns>A new <see cref="Tank"/> instance with the same property values.</returns>
-        Public Overrides Function CloneJSON() As Object
-            Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of Tank)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
-        End Function
-
         ''' <summary>Gets or sets the tank total volume (m³).</summary>
         Public Property Volume() As Double
             Get

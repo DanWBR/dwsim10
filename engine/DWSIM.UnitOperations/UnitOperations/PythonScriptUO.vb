@@ -167,11 +167,6 @@ Namespace UnitOperations
             Return obj
         End Function
 
-        ''' <summary>Creates a deep copy via JSON serialization.</summary>
-        Public Overrides Function CloneJSON() As Object
-            Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of CustomUO)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
-        End Function
-
         ''' <summary>Executes the script in dynamic simulation mode.</summary>
         Public Overrides Sub RunDynamicModel()
 

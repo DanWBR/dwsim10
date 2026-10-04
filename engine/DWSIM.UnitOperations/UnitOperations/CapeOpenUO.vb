@@ -218,11 +218,6 @@ Namespace UnitOperations
             Return obj
         End Function
 
-        ''' <summary>Creates a deep copy via JSON serialization.</summary>
-        Public Overrides Function CloneJSON() As Object
-            Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of CapeOpenUO)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
-        End Function
-
 #Region "    CAPE-OPEN Specifics"
 
         ''' <summary>

@@ -141,12 +141,6 @@ Namespace UnitOperations
             Return obj
         End Function
 
-        ''' <summary>Creates a deep copy of this object by round-tripping through JSON serialization.</summary>
-        ''' <returns>A new <see cref="UnitOp_Crystallizer"/> instance with the same property values.</returns>
-        Public Overrides Function CloneJSON() As Object
-            Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of UnitOp_Crystallizer)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
-        End Function
-
         ''' <summary>Evaluates the solubility correlation A + B(T - 298.15) + C(T - 298.15)^2, clipped at zero.</summary>
         ''' <param name="T_K">The temperature, in K.</param>
         ''' <returns>The saturation concentration, in g solute per g solvent.</returns>

@@ -427,12 +427,6 @@ Namespace UnitOperations
             Return obj
         End Function
 
-        ''' <summary>Creates a deep copy of this compressor via JSON serialization.</summary>
-        ''' <returns>A new <see cref="Compressor"/> instance with the same data.</returns>
-        Public Overrides Function CloneJSON() As Object
-            Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of Compressor)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
-        End Function
-
         ''' <summary>
         ''' Registers the dynamic properties for dynamic simulation mode: flow conductance, casing volume and holdup options,
         ''' minimum pressure, rotor inertia, current, target and rated speeds (RPM), motor torque, and the surge limit and alarm.

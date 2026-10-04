@@ -504,12 +504,6 @@ Namespace UnitOperations
             Return obj
         End Function
 
-        ''' <summary>Creates a deep copy of this object by round-tripping through JSON serialization.</summary>
-        ''' <returns>A new <see cref="DistillationColumn"/> instance with the same property values.</returns>
-        Public Overrides Function CloneJSON() As Object
-            Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of DistillationColumn)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
-        End Function
-
         Public Overloads Overrides Function GetProperties(ByVal proptype As Interfaces.Enums.PropertyType) As String()
             Dim i As Integer = 0
             Dim proplist As New ArrayList
@@ -1107,12 +1101,6 @@ Namespace UnitOperations
             Dim obj As ICustomXMLSerialization = New AbsorptionColumn()
             obj.LoadData(Me.SaveData)
             Return obj
-        End Function
-
-        ''' <summary>Creates a deep copy of this object by round-tripping through JSON serialization.</summary>
-        ''' <returns>A new <see cref="AbsorptionColumn"/> instance with the same property values.</returns>
-        Public Overrides Function CloneJSON() As Object
-            Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of AbsorptionColumn)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
         End Function
 
         Public Overloads Overrides Function GetProperties(ByVal proptype As Interfaces.Enums.PropertyType) As String()

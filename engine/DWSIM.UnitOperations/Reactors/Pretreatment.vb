@@ -257,12 +257,6 @@ Namespace Reactors
             Return obj
         End Function
 
-        ''' <summary>Creates a deep copy of this object by round-tripping through JSON serialization.</summary>
-        ''' <returns>A new <see cref="Reactor_Pretreatment"/> instance with the same property values.</returns>
-        Public Overrides Function CloneJSON() As Object
-            Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of Reactor_Pretreatment)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
-        End Function
-
         ''' <summary>Preset default conversions for a given pretreatment technology.</summary>
         Public Sub ApplyTechnologyDefaults()
             Dim d = TechnologyDefaults(Technology)

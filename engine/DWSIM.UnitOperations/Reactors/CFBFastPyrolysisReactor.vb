@@ -234,12 +234,6 @@ Namespace Reactors
             Return obj
         End Function
 
-        ''' <summary>Creates a deep copy of this object by round-tripping through JSON serialization.</summary>
-        ''' <returns>A new <see cref="Reactor_CFBFastPyrolysis"/> instance with the same property values.</returns>
-        Public Overrides Function CloneJSON() As Object
-            Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of Reactor_CFBFastPyrolysis)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
-        End Function
-
         ' ------------------------------------------------------------
         '                         CALCULATE
         ' ------------------------------------------------------------

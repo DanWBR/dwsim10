@@ -494,12 +494,6 @@ Namespace UnitOperations
             Return obj
         End Function
 
-        ''' <summary>Creates a deep copy of this pump object by round-tripping through JSON serialization.</summary>
-        ''' <returns>A new <see cref="Pump"/> instance with the same property values.</returns>
-        Public Overrides Function CloneJSON() As Object
-            Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of Pump)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
-        End Function
-
         ''' <summary>Restores the pump's state from a list of XML elements, including legacy curve data.</summary>
         ''' <param name="data">The XML element list produced by a previous <see cref="SaveData"/> call.</param>
         ''' <returns><c>True</c> if loading succeeded.</returns>

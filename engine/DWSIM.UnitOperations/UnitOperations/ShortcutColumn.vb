@@ -144,12 +144,6 @@ Namespace UnitOperations
             Return obj
         End Function
 
-        ''' <summary>Creates a deep copy of this shortcut column via JSON serialization.</summary>
-        ''' <returns>A new <see cref="ShortcutColumn"/> instance with the same state.</returns>
-        Public Overrides Function CloneJSON() As Object
-            Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of ShortcutColumn)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
-        End Function
-
         ''' <summary>Gets a value indicating whether this unit operation can run in dynamic mode. Always <c>True</c>.</summary>
         Public Overrides ReadOnly Property SupportsDynamicMode As Boolean = True
 

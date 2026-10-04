@@ -58,12 +58,6 @@ Namespace UnitOperations
             Return obj
         End Function
 
-        ''' <summary>Creates a deep copy of this dummy unit operation via JSON serialization.</summary>
-        ''' <returns>A new <see cref="DummyUnitOperation"/> instance with the same state.</returns>
-        Public Overrides Function CloneJSON() As Object
-            Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of DummyUnitOperation)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
-        End Function
-
         ''' <summary>Initializes a new default instance of the <see cref="DummyUnitOperation"/> class.</summary>
         Public Sub New()
             MyBase.New()

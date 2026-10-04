@@ -79,13 +79,6 @@ Namespace UnitOperations
 
         End Function
 
-        ''' <summary>Creates a deep copy via JSON serialization (not implemented).</summary>
-        Public Overrides Function CloneJSON() As Object
-
-            Throw New NotImplementedException()
-
-        End Function
-
         ''' <summary>Performs the Amphlett PEM fuel-cell calculation.</summary>
         Public Overrides Sub Calculate(Optional args As Object = Nothing)
 

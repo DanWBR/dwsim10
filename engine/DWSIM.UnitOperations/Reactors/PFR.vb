@@ -240,11 +240,6 @@ Namespace Reactors
             Return obj
         End Function
 
-        ''' <summary>Creates a deep copy of this reactor via JSON serialization.</summary>
-        Public Overrides Function CloneJSON() As Object
-            Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of Reactor_PFR)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
-        End Function
-
         ''' <summary>Restores the reactor state, including accumulation streams and profile data, from XML.</summary>
         Public Overrides Function LoadData(data As List(Of XElement)) As Boolean
 

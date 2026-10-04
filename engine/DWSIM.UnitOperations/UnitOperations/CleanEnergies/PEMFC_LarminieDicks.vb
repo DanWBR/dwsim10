@@ -65,13 +65,6 @@ Namespace UnitOperations
 
         End Function
 
-        ''' <summary>Creates a deep copy via JSON serialization (not implemented).</summary>
-        Public Overrides Function CloneJSON() As Object
-
-            Throw New NotImplementedException()
-
-        End Function
-
     End Class
 
 End Namespace

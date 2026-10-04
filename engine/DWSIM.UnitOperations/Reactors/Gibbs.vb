@@ -121,11 +121,6 @@ Namespace Reactors
             Return obj
         End Function
 
-        ''' <summary>Creates a deep copy of this reactor via JSON serialization.</summary>
-        Public Overrides Function CloneJSON() As Object
-            Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of Reactor_Gibbs)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
-        End Function
-
         ''' <summary>Restores the reactor state, including element matrices and initial estimates, from XML.</summary>
         Public Overrides Function LoadData(data As System.Collections.Generic.List(Of System.Xml.Linq.XElement)) As Boolean
 

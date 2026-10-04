@@ -96,12 +96,6 @@ Namespace UnitOperations
             Return obj
         End Function
 
-        ''' <summary>Creates a deep copy of this orifice plate via JSON serialization.</summary>
-        ''' <returns>A new <see cref="OrificePlate"/> instance with the same state.</returns>
-        Public Overrides Function CloneJSON() As Object
-            Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of OrificePlate)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
-        End Function
-
         ''' <summary>Gets or sets the pressure tap configuration of this orifice plate.</summary>
         Public Property OrifType() As OrificeType
             Get

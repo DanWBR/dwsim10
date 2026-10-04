@@ -191,12 +191,6 @@ Namespace UnitOperations
             Return obj
         End Function
 
-        ''' <summary>Creates a deep copy of this object by round-tripping through JSON serialization.</summary>
-        ''' <returns>A new <see cref="UnitOp_Centrifuge"/> instance with the same property values.</returns>
-        Public Overrides Function CloneJSON() As Object
-            Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of UnitOp_Centrifuge)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
-        End Function
-
         ''' <summary>Returns the fraction of a compound sent to the Heavy outlet: its entry in <see cref="RecoveryToHeavy"/>, or <see cref="DefaultRecoveryToHeavy"/> when it has none, clamped to 0 to 1.</summary>
         ''' <param name="compName">The compound name.</param>
         ''' <returns>The recovery-to-heavy fraction, between 0 and 1.</returns>

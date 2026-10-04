@@ -75,12 +75,6 @@ Namespace Reactors
             Return obj
         End Function
 
-        ''' <summary>Creates a deep copy of this reactor via JSON serialization.</summary>
-        ''' <returns>A new <see cref="Reactor_Conversion"/> instance with the same state.</returns>
-        Public Overrides Function CloneJSON() As Object
-            Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of Reactor_Conversion)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
-        End Function
-
         ''' <summary>Validates that inlet and outlet streams are connected before calculation.</summary>
         Public Overrides Sub Validate()
 

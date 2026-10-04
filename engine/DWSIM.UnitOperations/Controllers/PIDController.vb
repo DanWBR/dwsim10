@@ -380,12 +380,6 @@ Namespace SpecialOps
             Return obj
         End Function
 
-        ''' <summary>Creates a deep copy of this object by round-tripping through JSON serialization.</summary>
-        ''' <returns>A new <see cref="PIDController"/> instance with the same property values.</returns>
-        Public Overrides Function CloneJSON() As Object
-            Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of PIDController)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
-        End Function
-
         Public Property SimultaneousAdjust() As Boolean Implements Interfaces.IAdjust.SimultaneousAdjust
             Get
                 Return m_IsSimultAdjustEnabled

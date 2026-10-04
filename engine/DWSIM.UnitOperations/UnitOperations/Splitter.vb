@@ -134,14 +134,6 @@ Namespace UnitOperations
         End Function
 
         ''' <summary>
-        ''' Creates a deep copy of this splitter instance by serializing and deserializing through JSON.
-        ''' </summary>
-        ''' <returns>A new <see cref="Splitter"/> instance with identical state.</returns>
-        Public Overrides Function CloneJSON() As Object
-            Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of Splitter)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
-        End Function
-
-        ''' <summary>
         ''' Restores the splitter state from a list of XML elements previously produced by <see cref="SaveData"/>.
         ''' </summary>
         ''' <param name="data">A list of <see cref="XElement"/> objects containing the serialized splitter data.</param>

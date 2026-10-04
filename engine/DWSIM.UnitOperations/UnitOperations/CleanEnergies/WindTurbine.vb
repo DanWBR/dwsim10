@@ -289,13 +289,6 @@ Namespace UnitOperations
 
         End Function
 
-        ''' <summary>Creates a deep copy via JSON serialization.</summary>
-        Public Overrides Function CloneJSON() As Object
-
-            Throw New NotImplementedException()
-
-        End Function
-
         ''' <summary>Restores the wind turbine state from XML.</summary>
         Public Overrides Function LoadData(data As System.Collections.Generic.List(Of System.Xml.Linq.XElement)) As Boolean
 

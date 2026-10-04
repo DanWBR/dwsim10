@@ -124,11 +124,6 @@ Namespace UnitOperations
             Return obj
         End Function
 
-        ''' <summary>Creates a deep copy via JSON serialization.</summary>
-        Public Overrides Function CloneJSON() As Object
-            Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of Filter)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
-        End Function
-
         ''' <summary>Gets a value indicating whether this unit operation supports dynamic simulation mode.</summary>
         Public Overrides ReadOnly Property SupportsDynamicMode As Boolean = True
 

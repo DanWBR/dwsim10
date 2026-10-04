@@ -179,12 +179,6 @@ Namespace UnitOperations
             Return obj
         End Function
 
-        ''' <summary>Creates a deep copy of this spreadsheet UO via JSON serialization.</summary>
-        ''' <returns>A new <see cref="ExcelUO"/> instance with the same state.</returns>
-        Public Overrides Function CloneJSON() As Object
-            Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of ExcelUO)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
-        End Function
-
         ''' <summary>Gets or sets the calculated energy imbalance / heat duty (kW).</summary>
         Public Property DeltaQ() As Nullable(Of Double)
             Get

@@ -136,12 +136,6 @@ Namespace SpecialOps
             Return obj
         End Function
 
-        ''' <summary>Creates a deep copy of this object by round-tripping through JSON serialization.</summary>
-        ''' <returns>A new <see cref="PythonController"/> instance with the same property values.</returns>
-        Public Overrides Function CloneJSON() As Object
-            Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of PythonController)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
-        End Function
-
         Public Property SimultaneousAdjust As Boolean Implements Interfaces.IAdjust.SimultaneousAdjust
 
         Public Property ManipulatedObjectData As Interfaces.ISpecialOpObjectInfo Implements Interfaces.IAdjust.ManipulatedObjectData

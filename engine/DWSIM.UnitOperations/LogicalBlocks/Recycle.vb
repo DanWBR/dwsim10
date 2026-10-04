@@ -103,12 +103,6 @@ Namespace SpecialOps
             Return obj
         End Function
 
-        ''' <summary>Creates a deep copy of this recycle block via JSON serialization.</summary>
-        ''' <returns>A new <see cref="Recycle"/> instance with the same data.</returns>
-        Public Overrides Function CloneJSON() As Object
-            Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of Recycle)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
-        End Function
-
         ''' <summary>
         ''' Restores the recycle block state from a list of XML elements.
         ''' </summary>

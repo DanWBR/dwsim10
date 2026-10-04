@@ -223,12 +223,6 @@ Namespace UnitOperations
             Return obj
         End Function
 
-        ''' <summary>Creates a deep copy of this object by round-tripping through JSON serialization.</summary>
-        ''' <returns>A new <see cref="UnitOp_Chromatography"/> instance with the same property values.</returns>
-        Public Overrides Function CloneJSON() As Object
-            Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of UnitOp_Chromatography)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
-        End Function
-
         ''' <summary>Returns the fraction of a compound sent to the Product outlet: its entry in <see cref="RecoveryToProduct"/>, or <see cref="DefaultRecoveryToProduct"/> when it has none, clamped to 0 to 1.
         ''' <see cref="Calculate"/> splits the feed with it and the editors show it in the recovery grids, so both always agree.</summary>
         ''' <param name="compName">The compound name.</param>

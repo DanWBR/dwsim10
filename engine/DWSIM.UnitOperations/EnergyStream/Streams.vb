@@ -392,14 +392,6 @@ Namespace Streams
         End Function
 
         ''' <summary>
-        ''' Creates a deep copy of this energy stream by serializing and deserializing via JSON.
-        ''' </summary>
-        ''' <returns>A new <see cref="EnergyStream"/> instance with the same data as this instance.</returns>
-        Public Overrides Function CloneJSON() As Object
-            Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of EnergyStream)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
-        End Function
-
-        ''' <summary>
         ''' Returns the raw bytes of the energy stream icon image resource.
         ''' </summary>
         ''' <returns>A byte array containing the PNG image data for the energy stream icon.</returns>

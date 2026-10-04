@@ -139,12 +139,6 @@ Namespace UnitOperations
             Return obj
         End Function
 
-        ''' <summary>Creates a deep copy of this object by round-tripping through JSON serialization.</summary>
-        ''' <returns>A new <see cref="UnitOp_CellLysis"/> instance with the same property values.</returns>
-        Public Overrides Function CloneJSON() As Object
-            Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of UnitOp_CellLysis)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
-        End Function
-
         ''' <summary>Hetherington release factor for a given compound: R = 1 - exp(-k*N*P^alpha).</summary>
         Public Function HetheringtonRelease() As Double
             Return 1.0 - Exp(-HetheringtonK * Passes * Pow(Pressure_MPa, HetheringtonAlpha))

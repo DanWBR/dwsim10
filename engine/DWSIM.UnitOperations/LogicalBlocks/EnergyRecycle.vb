@@ -80,14 +80,6 @@ Namespace SpecialOps
         End Function
 
         ''' <summary>
-        ''' Creates a deep copy of this energy recycle block by serializing and deserializing via JSON.
-        ''' </summary>
-        ''' <returns>A new <see cref="EnergyRecycle"/> instance with the same data.</returns>
-        Public Overrides Function CloneJSON() As Object
-            Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of EnergyRecycle)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
-        End Function
-
-        ''' <summary>
         ''' Restores the energy recycle state from a list of XML elements.
         ''' </summary>
         ''' <param name="data">The list of <see cref="XElement"/> objects containing the serialized state.</param>

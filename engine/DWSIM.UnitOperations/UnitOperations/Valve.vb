@@ -399,14 +399,6 @@ Namespace UnitOperations
         End Function
 
         ''' <summary>
-        ''' Creates a deep copy of this valve by serialising and deserialising via JSON.
-        ''' </summary>
-        ''' <returns>A new <see cref="Valve"/> instance with identical property values.</returns>
-        Public Overrides Function CloneJSON() As Object
-            Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of Valve)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
-        End Function
-
-        ''' <summary>
         ''' Gets or sets the specified or calculated outlet pressure (Pa).
         ''' </summary>
         Public Property OutletPressure() As Nullable(Of Double)

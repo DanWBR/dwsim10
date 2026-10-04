@@ -374,12 +374,6 @@ Namespace Reactors
             Return obj
         End Function
 
-        ''' <summary>Creates a deep copy of this object by round-tripping through JSON serialization.</summary>
-        ''' <returns>A new <see cref="Reactor_AnaerobicDigester"/> instance with the same property values.</returns>
-        Public Overrides Function CloneJSON() As Object
-            Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of Reactor_AnaerobicDigester)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
-        End Function
-
         ''' <summary>
         ''' Returns the theoretical COD equivalent of a compound (g COD / g substrate) from its
         ''' elemental formula C_a H_b O_c N_d S_e, oxidising C to CO2, N to NH3 and S to sulfate:

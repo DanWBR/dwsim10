@@ -92,10 +92,6 @@ Namespace UnitOperations
             Return obj
         End Function
 
-        Public Overrides Function CloneJSON() As Object
-            Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of DigitalGauge)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
-        End Function
-
         Public Sub New()
             MyBase.New()
         End Sub

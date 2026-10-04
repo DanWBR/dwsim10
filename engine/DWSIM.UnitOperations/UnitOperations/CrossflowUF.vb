@@ -164,12 +164,6 @@ Namespace UnitOperations
             Return obj
         End Function
 
-        ''' <summary>Creates a deep copy of this object by round-tripping through JSON serialization.</summary>
-        ''' <returns>A new <see cref="UnitOp_CrossflowUF"/> instance with the same property values.</returns>
-        Public Overrides Function CloneJSON() As Object
-            Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of UnitOp_CrossflowUF)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
-        End Function
-
         ''' <summary>Returns the sieving coefficient for a compound - uses the dict or the default.</summary>
         Public Function SigmaFor(compName As String) As Double
             If SievingCoefficients IsNot Nothing AndAlso SievingCoefficients.ContainsKey(compName) Then

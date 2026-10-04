@@ -83,12 +83,6 @@ Namespace SpecialOps
             Return obj
         End Function
 
-        ''' <summary>Creates a deep copy of this adjust block via JSON serialization.</summary>
-        ''' <returns>A new <see cref="Adjust"/> instance with the same data.</returns>
-        Public Overrides Function CloneJSON() As Object
-            Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of Adjust)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
-        End Function
-
         ''' <summary>Gets or sets whether this block participates in simultaneous adjustment with other Adjust blocks.</summary>
         Public Property SimultaneousAdjust() As Boolean Implements Interfaces.IAdjust.SimultaneousAdjust
             Get

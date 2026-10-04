@@ -93,12 +93,6 @@ Namespace UnitOperations
             Return obj
         End Function
 
-        ''' <summary>Creates a deep copy of this mixer via JSON serialization.</summary>
-        ''' <returns>A new <see cref="Mixer"/> instance with the same data.</returns>
-        Public Overrides Function CloneJSON() As Object
-            Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of Mixer)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
-        End Function
-
         ''' <summary>Executes the mixer calculation in dynamic simulation mode.</summary>
         Public Overrides Sub RunDynamicModel()
 

@@ -261,12 +261,6 @@ Namespace SpecialOps
             Return obj
         End Function
 
-        ''' <summary>Creates a deep copy of this object by round-tripping through JSON serialization.</summary>
-        ''' <returns>A new <see cref="MPCController"/> instance with the same property values.</returns>
-        Public Overrides Function CloneJSON() As Object
-            Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of MPCController)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
-        End Function
-
         ' the generic serializer skips the variable and model lists, so they are written here
         Public Overrides Function SaveData() As List(Of System.Xml.Linq.XElement)
 

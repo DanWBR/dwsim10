@@ -140,12 +140,6 @@ Namespace UnitOperations
             Return obj
         End Function
 
-        ''' <summary>Creates a deep copy of this cooler via JSON serialization.</summary>
-        ''' <returns>A new <see cref="Cooler"/> instance with the same data.</returns>
-        Public Overrides Function CloneJSON() As Object
-            Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of Cooler)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
-        End Function
-
         ''' <summary>Gets or sets the cooler efficiency as a percentage (0–100).</summary>
         Public Property Eficiencia() As Nullable(Of Double)
             Get

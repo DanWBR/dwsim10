@@ -7711,18 +7711,6 @@ Namespace Streams
         End Function
 
         ''' <summary>
-        ''' Creates a deep copy of this stream using JSON serialization.
-        ''' </summary>
-        ''' <returns>A deserialized <see cref="MaterialStream"/> copy.</returns>
-        Public Overrides Function CloneJSON() As Object
-            Dim settings As New Newtonsoft.Json.JsonSerializerSettings
-            settings.ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore
-            Dim ms = Newtonsoft.Json.JsonConvert.DeserializeObject(Of MaterialStream)(Newtonsoft.Json.JsonConvert.SerializeObject(Me), settings)
-            ms.AtEquilibrium = False
-            Return ms
-        End Function
-
-        ''' <summary>
         ''' Returns True to indicate that this stream is compatible with the DWSIM mobile client.
         ''' </summary>
         Public Overrides ReadOnly Property MobileCompatible As Boolean

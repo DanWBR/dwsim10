@@ -58,14 +58,6 @@ Namespace SpecialOps
             Return obj
         End Function
 
-        ''' <summary>
-        ''' Creates a deep copy of this information carrier by serializing and deserializing via JSON.
-        ''' </summary>
-        ''' <returns>A new <see cref="InformationCarrier"/> instance with the same data.</returns>
-        Public Overrides Function CloneJSON() As Object
-            Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of InformationCarrier)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
-        End Function
-
         ''' <summary>Gets or sets whether the target object should be recalculated after the information is transferred.</summary>
         Public Property CalculateTargetObject() As Boolean
 

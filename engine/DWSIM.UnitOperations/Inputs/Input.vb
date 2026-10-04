@@ -80,14 +80,6 @@ Namespace UnitOperations
         End Function
 
         ''' <summary>
-        ''' Creates a deep copy of this object by round-tripping through JSON serialization.
-        ''' </summary>
-        ''' <returns>A new <see cref="Input"/> instance with the same property values.</returns>
-        Public Overrides Function CloneJSON() As Object
-            Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of Input)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
-        End Function
-
-        ''' <summary>
         ''' Initializes a new default instance of the <see cref="Input"/> class.
         ''' </summary>
         Public Sub New()

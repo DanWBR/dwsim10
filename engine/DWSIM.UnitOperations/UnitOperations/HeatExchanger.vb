@@ -436,11 +436,6 @@ Namespace UnitOperations
             Return obj
         End Function
 
-        ''' <summary>Creates a deep copy via JSON serialization.</summary>
-        Public Overrides Function CloneJSON() As Object
-            Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of HeatExchanger)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
-        End Function
-
         ''' <summary>Gets or sets the heat-exchanger calculation mode (e.g. CalcBothTemp, CalcArea).</summary>
         Public Property CalculationMode() As HeatExchangerCalcMode
             Get

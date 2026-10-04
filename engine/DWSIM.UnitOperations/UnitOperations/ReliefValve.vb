@@ -232,16 +232,6 @@ Namespace UnitOperations
 
         End Function
 
-        ''' <summary>Creates a deep copy via JSON serialization.</summary>
-        Public Overrides Function CloneJSON() As Object
-
-            Dim jsonstring = Newtonsoft.Json.JsonConvert.SerializeObject(Me)
-            Dim newrf = Newtonsoft.Json.JsonConvert.DeserializeObject(Of ReliefValve)(jsonstring)
-
-            Return newrf
-
-        End Function
-
 
 #Region "Automatic Drawing Support"
 

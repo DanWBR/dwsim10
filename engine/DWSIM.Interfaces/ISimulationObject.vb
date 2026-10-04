@@ -254,6 +254,10 @@ Public Interface ISimulationObject
 
     Function CloneXML() As Object
 
+    ''' <summary>
+    ''' Returns a deep copy of this object made through the XML serialization, the same copy <see cref="CloneXML"/> returns.
+    ''' The name is kept for compatibility.
+    ''' </summary>
     Function CloneJSON() As Object
 
     Function GetPropertyDescription(prop As String) As String

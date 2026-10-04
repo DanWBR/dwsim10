@@ -93,12 +93,6 @@ Namespace SpecialOps
             Return obj
         End Function
 
-        ''' <summary>Creates a deep copy of this spec block via JSON serialization.</summary>
-        ''' <returns>A new <see cref="Spec"/> instance with the same data.</returns>
-        Public Overrides Function CloneJSON() As Object
-            Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of Spec)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
-        End Function
-
         ''' <summary>Gets or sets whether the target simulation object should be recalculated after the specification is applied.</summary>
         Public Property CalculateTargetObject() As Boolean
             Get

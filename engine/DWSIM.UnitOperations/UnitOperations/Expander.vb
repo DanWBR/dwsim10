@@ -510,14 +510,6 @@ Namespace UnitOperations
         End Function
 
         ''' <summary>
-        ''' Creates a deep copy of this expander by serializing and deserializing through JSON.
-        ''' </summary>
-        ''' <returns>A new <see cref="Expander"/> instance with the same state as this one.</returns>
-        Public Overrides Function CloneJSON() As Object
-            Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of Expander)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
-        End Function
-
-        ''' <summary>
         ''' Registers the dynamic properties for dynamic simulation mode: flow conductance, casing volume, minimum pressure,
         ''' holdup initialization and reset options, rotor inertia, current and target speeds (RPM) and generator torque.
         ''' </summary>

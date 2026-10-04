@@ -199,12 +199,6 @@ Namespace Reactors
             Return obj
         End Function
 
-        ''' <summary>Creates a deep copy of this object by round-tripping through JSON serialization.</summary>
-        ''' <returns>A new <see cref="Reactor_Polymerization"/> instance with the same property values.</returns>
-        Public Overrides Function CloneJSON() As Object
-            Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of Reactor_Polymerization)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
-        End Function
-
         Private Function BuildKinetics() As FreeRadicalKinetics
             Return New FreeRadicalKinetics With {
                 .Ad = Kd_A, .Ed = Kd_E, .Efficiency = Efficiency,

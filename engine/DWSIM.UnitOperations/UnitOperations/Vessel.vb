@@ -226,12 +226,6 @@ Namespace UnitOperations
             Return obj
         End Function
 
-        ''' <summary>Creates a deep copy of this vessel via JSON serialization.</summary>
-        ''' <returns>A new <see cref="Vessel"/> instance with the same state.</returns>
-        Public Overrides Function CloneJSON() As Object
-            Return Newtonsoft.Json.JsonConvert.DeserializeObject(Of Vessel)(Newtonsoft.Json.JsonConvert.SerializeObject(Me))
-        End Function
-
         ''' <summary>
         ''' Registers the dynamic properties that are exposed in dynamic simulation mode,
         ''' such as vessel orientation, operating pressure, liquid level, volume, and height.
