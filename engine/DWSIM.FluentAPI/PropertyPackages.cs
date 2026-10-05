@@ -86,8 +86,6 @@ namespace DWSIM.Automation.FluentAPI
             public const string Glycol = "Glycol (NRTL)";
             /// <summary>H2O-HCl Pitzer model for hydrogen-chloride aqueous systems.</summary>
             public const string HCl = "H2O-HCl (Pitzer)";
-            /// <summary>Kent-Eisenberg model for amine-CO2-H2S equilibrium (gas-treating units).</summary>
-            public const string KentEisenberg = "Kent-Eisenberg";
             /// <summary>Sour-water stripper model - H2O / NH3 / H2S / CO2 weak-electrolyte equilibrium.</summary>
             public const string SourWater = "Sour Water";
 
@@ -125,7 +123,7 @@ namespace DWSIM.Automation.FluentAPI
             public static IReadOnlyList<string> All => new[]
             {
                 ElectrolyteNRTL, ExtendedUNIQUAC, ReaktoroAqueous, Glycol, HCl,
-                KentEisenberg, SourWater,
+                SourWater,
                 MBWR19, MBWR32, NISTMEOS, PatelTeja, PCPSAFT, PRCPA,
                 SAFTVRMie, SAFTVRQMie, SchmidtWensel, SPCSAFT, SRKCPA,
                 CarbonCapture, CO2Transport, CO2Storage

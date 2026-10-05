@@ -56,7 +56,6 @@ calls `License.RequirePlus()` when handed a Plus name.
 | `Plus.ReaktoroAqueous` | Reaktoro (Aqueous Electrolytes) |
 | `Plus.Glycol` | Glycol (NRTL) |
 | `Plus.HCl` | H2O-HCl (Pitzer) |
-| `Plus.KentEisenberg` | Kent-Eisenberg |
 | `Plus.SourWater` | Sour Water |
 | `Plus.MBWR19` | MBWR19 (ThermoPack) |
 | `Plus.MBWR32` | MBWR32 |

@@ -40,10 +40,6 @@ Glycol-water mixtures with NRTL parameters tuned for MEG/DEG/TEG systems.
 
 H2O-HCl Pitzer model for hydrogen-chloride aqueous systems.
 
-### `KentEisenberg`
-
-Kent-Eisenberg model for amine-CO2-H2S equilibrium (gas-treating units).
-
 ### `MBWR19`
 
 ThermoPack MBWR19 - modified Benedict-Webb-Rubin (19-parameter) for cryogenic fluids.
