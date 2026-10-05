@@ -564,12 +564,13 @@ namespace DWSIM.UI.Desktop.Editors
 
             ReloadProperties();
 
-            propertyPicker = panel.CreateAndAddDropDownRow("Property", properties.ToList(), 0, null);
+            propertyPicker = panel.CreateAndAddDropDownRow("Property",
+                properties.Select(flowsheet.GetTranslatedString).ToList(), 0, null);
 
             objectPicker.SelectionChanged += (s, e) =>
             {
                 ReloadProperties();
-                propertyPicker.SetOptions(properties);
+                propertyPicker.SetOptions(properties.Select(flowsheet.GetTranslatedString));
                 propertyPicker.SelectedIndex = properties.Count > 0 ? 0 : -1;
             };
 

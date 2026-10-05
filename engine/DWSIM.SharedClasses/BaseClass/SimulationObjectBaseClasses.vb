@@ -297,7 +297,7 @@ Namespace UnitOperations
 
             If col1.ContainsKey(pname) Then col1.Remove(pname)
             If col2.ContainsKey(pname) Then col2.Remove(pname)
-            If col1.ContainsKey(pname) Then col3.Remove(pname)
+            If col3.ContainsKey(pname) Then col3.Remove(pname)
             If col4.ContainsKey(pname) Then col4.Remove(pname)
 
         End Sub

@@ -111,7 +111,11 @@ namespace DWSIM.UI.Desktop.Editors
                 var obj = objects.ElementAtOrDefault(objectPicker.SelectedIndex);
                 if (obj == null) return;
                 properties.AddRange(obj.GetProperties(kind) ?? new string[0]);
-                captions.AddRange(properties.Select(p => steadyState ? SteadyStatePropertyCaption.For(obj, p, p) : p));
+                captions.AddRange(properties.Select(p =>
+                {
+                    var name = flowsheet.GetTranslatedString(p);
+                    return steadyState ? SteadyStatePropertyCaption.For(obj, p, name) : name;
+                }));
             }
 
             void ShowValue()
