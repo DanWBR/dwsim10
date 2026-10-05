@@ -162,7 +162,7 @@ Namespace Reactors
                 Dim elm(n, m) As Double
                 For i As Integer = 0 To n
                     For j As Integer = 0 To m
-                        elm(i, j) = Double.Parse(rows(i).Split(",")(j))
+                        elm(i, j) = Double.Parse(rows(i).Split(",")(j), ci)
                     Next
                 Next
                 _el_mat = elm
@@ -808,6 +808,96 @@ Namespace Reactors
 
         End Sub
 
+        Private _elementMatrixChecked As Boolean = False
+
+        ''' <summary>
+        ''' Rebuilds the element matrix saved with the reactor when it was built from element
+        ''' counts that the compound formulas have since corrected (see
+        ''' <see cref="ConstantProperties.ElementsFromFile"/>), and says so in the flowsheet log.
+        ''' A matrix that matches neither the old nor the corrected counts was edited by hand; it
+        ''' is kept, with a warning. Runs once for each reactor loaded.
+        ''' </summary>
+        Private Sub CheckElementMatrix()
+
+            If _elementMatrixChecked Then Return
+            _elementMatrixChecked = True
+
+            If FlowSheet Is Nothing OrElse ComponentIDs Is Nothing OrElse ComponentIDs.Count = 0 Then Return
+            If ComponentIDs.Any(Function(id) Not FlowSheet.SelectedCompounds.ContainsKey(id)) Then Return
+
+            Dim corrected = ComponentIDs.Select(Function(id) TryCast(FlowSheet.SelectedCompounds(id), ConstantProperties)).
+                Where(Function(cp) cp IsNot Nothing AndAlso cp.ElementsFromFile IsNot Nothing).ToList()
+            If corrected.Count = 0 Then Return
+
+            If ElementMatrixMatches(Function(id) FlowSheet.SelectedCompounds(id).Elements) Then Return
+
+            Dim tag = If(GraphicObject IsNot Nothing, GraphicObject.Tag, Name)
+            Dim changes = String.Join("; ", corrected.Select(Function(cp) String.Format("{0}: {1} -> {2}",
+                cp.Name, ElementCountsText(cp.ElementsFromFile), ElementCountsText(cp.Elements))))
+
+            Dim builtFromOldCounts = ElementMatrixMatches(
+                Function(id)
+                    Dim cp = TryCast(FlowSheet.SelectedCompounds(id), ConstantProperties)
+                    If cp IsNot Nothing AndAlso cp.ElementsFromFile IsNot Nothing Then Return cp.ElementsFromFile
+                    Return FlowSheet.SelectedCompounds(id).Elements
+                End Function)
+
+            If builtFromOldCounts Then
+                CreateElementMatrix()
+                FlowSheet.ShowMessage(String.Format("Gibbs reactor '{0}': the element matrix saved with the flowsheet " &
+                    "was built from element counts that the compound formulas now correct ({1}). The matrix was " &
+                    "rebuilt from the formulas, so the results will differ from the ones saved.", tag, changes),
+                    IFlowsheet.MessageType.Warning)
+            Else
+                FlowSheet.ShowMessage(String.Format("Gibbs reactor '{0}': the compound formulas correct element counts " &
+                    "the flowsheet was saved with ({1}), but the element matrix was edited by hand and was kept as " &
+                    "saved. Review it, or rebuild it from the compound formulas in the reactor editor.", tag, changes),
+                    IFlowsheet.MessageType.Warning)
+            End If
+
+        End Sub
+
+        ''' <summary>
+        ''' True when <see cref="Elements"/> and <see cref="ElementMatrix"/> are what
+        ''' <see cref="CreateElementMatrix"/> builds from the given element counts of each compound.
+        ''' </summary>
+        ''' <param name="countsOf">Element counts of a compound, by compound name.</param>
+        Private Function ElementMatrixMatches(countsOf As Func(Of String, SortedList)) As Boolean
+
+            Dim symbols As New List(Of String)
+            For Each id In ComponentIDs
+                For Each el In countsOf(id).Keys
+                    If Not symbols.Contains(el.ToString()) Then symbols.Add(el.ToString())
+                Next
+            Next
+
+            If Elements Is Nothing OrElse ElementMatrix Is Nothing Then Return False
+            If Not Elements.SequenceEqual(symbols) Then Return False
+            If ElementMatrix.GetLength(0) <> symbols.Count OrElse ElementMatrix.GetLength(1) <> ComponentIDs.Count Then Return False
+
+            For i = 0 To symbols.Count - 1
+                For j = 0 To ComponentIDs.Count - 1
+                    Dim counts = countsOf(ComponentIDs(j))
+                    Dim n = If(counts.ContainsKey(symbols(i)), Convert.ToDouble(counts(symbols(i)), Globalization.CultureInfo.InvariantCulture), 0.0)
+                    If System.Math.Abs(ElementMatrix(i, j) - n) > 0.000000001 * System.Math.Max(1.0, System.Math.Abs(n)) Then Return False
+                Next
+            Next
+
+            Return True
+
+        End Function
+
+        ''' <summary>Element counts as text for the flowsheet log, such as "C 8, H 18".</summary>
+        Private Shared Function ElementCountsText(counts As SortedList) As String
+            Dim parts As New List(Of String)
+            For Each key In counts.Keys
+                Dim v = counts(key)
+                parts.Add(key.ToString() & " " & If(TypeOf v Is String, v.ToString(),
+                    Convert.ToDouble(v).ToString("G6", Globalization.CultureInfo.InvariantCulture)))
+            Next
+            Return String.Join(", ", parts)
+        End Function
+
 #End Region
 
         ''' <summary>
@@ -1060,6 +1150,8 @@ Namespace Reactors
         Public Sub Calculate_GibbsMin(Optional ByVal args As Object = Nothing)
 
             Me.Validate()
+
+            CheckElementMatrix()
 
             Dim dynamics As Boolean = False
 
@@ -1867,6 +1959,8 @@ Namespace Reactors
             'first we validate the connections.
 
             Me.Validate()
+
+            CheckElementMatrix()
 
             Dim i, j As Integer
 

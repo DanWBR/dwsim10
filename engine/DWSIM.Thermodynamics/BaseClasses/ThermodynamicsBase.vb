@@ -1833,6 +1833,89 @@ Namespace BaseClasses
 
         End Sub
 
+        Private Shared ReadOnly ElementSymbols As New HashSet(Of String)((
+            "H He Li Be B C N O F Ne Na Mg Al Si P S Cl Ar K Ca Sc Ti V Cr Mn Fe Co Ni Cu Zn Ga Ge As Se Br Kr " &
+            "Rb Sr Y Zr Nb Mo Tc Ru Rh Pd Ag Cd In Sn Sb Te I Xe Cs Ba La Ce Pr Nd Pm Sm Eu Gd Tb Dy Ho Er Tm Yb Lu " &
+            "Hf Ta W Re Os Ir Pt Au Hg Tl Pb Bi Po At Rn Fr Ra Ac Th Pa U Np Pu Am Cm Bk Cf Es Fm Md No Lr " &
+            "Rf Db Sg Bh Hs Mt Ds Rg Cn Nh Fl Mc Lv Ts Og D T").Split(" "c))
+
+        ''' <summary>
+        ''' Element counts the loaded file carried for this compound when they differ from the
+        ''' counts of its formula, which replaced them. Nothing when the file's counts were kept
+        ''' or agree with the formula. Set by LoadData and never saved; the Gibbs reactor uses it
+        ''' to tell an element matrix built from the old counts from one edited by hand.
+        ''' </summary>
+        <XmlIgnore> <Newtonsoft.Json.JsonIgnore>
+        Public Property ElementsFromFile As SortedList = Nothing
+
+        ''' <summary>
+        ''' True when <see cref="UpdateElements"/> reads the whole formula: symbols of the periodic
+        ''' table with their counts, groups in balanced parentheses, the dots of hydrates and double
+        ''' salts with the count of each part, spaces, the dashes of a bond or a ring closure
+        ''' ("-(CH2)6-" in ChemSep), and the charge at the end of an ion. A formula with anything
+        ''' else (a free-text name, the "n" of a polymer, brackets, a comma as decimal separator, a
+        ''' dash before a digit as in "He-3") is not read in full.
+        ''' </summary>
+        Private Function FormulaIsReadable() As Boolean
+
+            If String.IsNullOrWhiteSpace(Formula) Then Return False
+
+            Dim f = Formula.Trim()
+            If Charge <> 0 Then f = Regex.Replace(f, "\s*[+-]\d*$", "")
+            ' bonds and ring closures, which the parser skips; a dash before a digit is not one
+            f = Regex.Replace(f, "-(?!\d)", "")
+            ' the fraction in front of a hydrate part, as in K2CO3.11/2H2O
+            f = Regex.Replace(f, "(?<=[.\u00B7]\d+)/\d+(?=[A-Z(])", "")
+
+            If Not Regex.IsMatch(f, "^(?:[A-Z][a-z]?|[0-9.\s\u00B7()])+$") Then Return False
+
+            Dim depth = 0
+            For Each ch In f
+                If ch = "("c Then depth += 1
+                If ch = ")"c Then depth -= 1
+                If depth < 0 Then Return False
+            Next
+            If depth <> 0 Then Return False
+
+            For Each m As Match In Regex.Matches(f, "[A-Z][a-z]?")
+                If Not ElementSymbols.Contains(m.Value) Then Return False
+            Next
+
+            Return True
+
+        End Function
+
+        ''' <summary>
+        ''' Reads an element count saved in a file: invariant culture first, then with a comma
+        ''' as decimal separator (a count typed in the compound creator under such a culture).
+        ''' Text that is not a number is returned as it is, as the loader always did.
+        ''' </summary>
+        Private Shared Function ReadElementCount(text As String) As Object
+            Dim value As Double
+            If text Is Nothing Then Return 0.0
+            If Double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, value) Then Return value
+            If Double.TryParse(text.Replace(","c, "."c), NumberStyles.Float, CultureInfo.InvariantCulture, value) Then Return value
+            Return text
+        End Function
+
+        ''' <summary>
+        ''' True when two element lists have the same symbols with the same counts.
+        ''' </summary>
+        Private Shared Function SameElementCounts(a As SortedList, b As SortedList) As Boolean
+            If a.Count <> b.Count Then Return False
+            For Each key In a.Keys
+                If Not b.ContainsKey(key) Then Return False
+                Dim x = a(key), y = b(key)
+                If TypeOf x Is String OrElse TypeOf y Is String Then
+                    If Not String.Equals(Convert.ToString(x, CultureInfo.InvariantCulture),
+                                         Convert.ToString(y, CultureInfo.InvariantCulture)) Then Return False
+                ElseIf System.Math.Abs(Convert.ToDouble(x) - Convert.ToDouble(y)) > 0.000000001 * System.Math.Max(1.0, System.Math.Abs(Convert.ToDouble(y))) Then
+                    Return False
+                End If
+            Next
+            Return True
+        End Function
+
         ''' <summary>
         ''' Splits a formula at the dots that join the parts of a hydrate or double salt, and
         ''' reads the count in front of each part after the first. A plain formula is one part
@@ -2072,15 +2155,37 @@ Namespace BaseClasses
                 Me.NISTMODFACGroups.Add(xel2.@GroupID.ToString, xel2.@Value)
             Next
 
-            ' the Formula setter already rebuilt Elements from the formula during Deserialize; when the
-            ' XML carries its own element list it is the authoritative one, so replace instead of appending
+            ' The file keeps the element counts the compound had when it was saved, and the parser
+            ' has since learned to read ions ("Ca2+"), hydrates ("CaSO4.2H2O") and groups in
+            ' parentheses ("(CH3)3CCH2CH(CH3)2"). A formula it reads in full is counted again here,
+            ' now that Deserialize has set the charge too. The file's counts stay when the formula
+            ' is empty, has anything the parser does not read (a name, the "n" of a polymer, a
+            ' comma) or gives no elements. The counts are read in the invariant culture, the one
+            ' SaveData writes them in.
+            ElementsFromFile = Nothing
+            Dim fileElements As SortedList = Nothing
             Dim xelems = (From xel As XElement In data Select xel Where xel.Name = "Elements").FirstOrDefault
             If xelems IsNot Nothing AndAlso xelems.HasElements Then
-                If Me.Elements Is Nothing Then Me.Elements = New SortedList()
-                Me.Elements.Clear()
+                fileElements = New SortedList()
                 For Each xel2 As XElement In xelems.Elements
-                    Me.Elements.Add(xel2.@Name, xel2.@Value)
+                    If xel2.@Name Is Nothing Then Continue For
+                    fileElements(xel2.@Name) = ReadElementCount(xel2.@Value)
                 Next
+            End If
+
+            Dim counted As SortedList = Nothing
+            If FormulaIsReadable() Then
+                Try
+                    UpdateElements()
+                    If Elements IsNot Nothing AndAlso Elements.Count > 0 Then counted = Elements
+                Catch ex As Exception
+                End Try
+            End If
+
+            If counted IsNot Nothing Then
+                If fileElements IsNot Nothing AndAlso Not SameElementCounts(fileElements, counted) Then ElementsFromFile = fileElements
+            ElseIf fileElements IsNot Nothing Then
+                Elements = fileElements
             End If
 
             Return True
