@@ -827,10 +827,10 @@ Namespace UnitOperations
                 Select Case propidx
                     Case 0
                         'PROP_DC_0	Condenser Pressure
-                        Stages.First.P = SystemsOfUnits.Converter.ConvertToSI(su.pressure, propval)
+                        SetTopStagePressure(SystemsOfUnits.Converter.ConvertToSI(su.pressure, propval))
                     Case 1
                         'PROP_DC_1	Reboiler Pressure
-                        Stages.Last.P = SystemsOfUnits.Converter.ConvertToSI(su.pressure, propval)
+                        SetBottomStagePressure(SystemsOfUnits.Converter.ConvertToSI(su.pressure, propval))
                     Case 2
                         'PROP_DC_2	Condenser Pressure Drop
                         CondenserDeltaP = SystemsOfUnits.Converter.ConvertToSI(su.deltaP, propval)
@@ -1372,9 +1372,18 @@ Namespace UnitOperations
 
             End Try
 
+            If su Is Nothing Then su = New SystemsOfUnits.SI
+
             Select Case propidx
+                Case 0
+                    'PROP_AC_0	Top Stage Pressure
+                    If prop.StartsWith("PROP_AC_") Then SetTopStagePressure(SystemsOfUnits.Converter.ConvertToSI(su.pressure, propval))
+                Case 1
+                    'PROP_AC_1	Bottom Stage Pressure
+                    If prop.StartsWith("PROP_AC_") Then SetBottomStagePressure(SystemsOfUnits.Converter.ConvertToSI(su.pressure, propval))
                 Case 2
-                    SetNumberOfStages(propval)
+                    'PROP_AC_2	Number of Stages
+                    If prop.StartsWith("PROP_AC_") Then SetNumberOfStages(propval)
             End Select
 
             If prop.Contains("Stage_Efficiency_") Then
@@ -2446,6 +2455,58 @@ Namespace UnitOperations
 
         End Sub
 
+
+        ''' <summary>
+        ''' Sets the top stage pressure. With a uniform column pressure drop the profile follows from the
+        ''' top; with a per-stage profile every stage moves by the same amount, so the stage drops are kept.
+        ''' </summary>
+        ''' <param name="p">Top stage pressure, Pa.</param>
+        Public Sub SetTopStagePressure(p As Double)
+            If Stages.Count = 0 Then Return
+            Dim ns As Integer = Stages.Count - 1
+            If Not Double.IsNaN(ColumnPressureDrop) Then
+                Stages(0).P = p
+                For i As Integer = 1 To ns
+                    Stages(i).P = p + Convert.ToDouble(i) / Convert.ToDouble(ns) * ColumnPressureDrop
+                Next
+            Else
+                Dim delta As Double = p - Stages(0).P
+                For Each st As Stage In Stages
+                    st.P += delta
+                Next
+            End If
+        End Sub
+
+        ''' <summary>
+        ''' Sets the bottom stage pressure, keeping the top one. With a uniform column pressure drop the drop
+        ''' becomes bottom minus top; with a per-stage profile the stages between are rescaled linearly
+        ''' between the top and the new bottom.
+        ''' </summary>
+        ''' <param name="p">Bottom stage pressure, Pa.</param>
+        Public Sub SetBottomStagePressure(p As Double)
+            If Stages.Count = 0 Then Return
+            Dim ns As Integer = Stages.Count - 1
+            If ns = 0 Then
+                Stages(0).P = p
+                Return
+            End If
+            Dim top As Double = Stages(0).P
+            If Not Double.IsNaN(ColumnPressureDrop) Then
+                ColumnPressureDrop = p - top
+                For i As Integer = 1 To ns
+                    Stages(i).P = top + Convert.ToDouble(i) / Convert.ToDouble(ns) * ColumnPressureDrop
+                Next
+            Else
+                Dim oldBottom As Double = Stages(ns).P
+                For i As Integer = 1 To ns
+                    If Math.Abs(oldBottom - top) < 0.000001 Then
+                        Stages(i).P = top + Convert.ToDouble(i) / Convert.ToDouble(ns) * (p - top)
+                    Else
+                        Stages(i).P = top + (Stages(i).P - top) * (p - top) / (oldBottom - top)
+                    End If
+                Next
+            End If
+        End Sub
 
         ''' <summary>
         ''' Set the number of stages (n > 3)
