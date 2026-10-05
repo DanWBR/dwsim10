@@ -147,6 +147,12 @@
   <Hfus_at_Tf_kJ_mol>0</Hfus_at_Tf_kJ_mol>
   <DenS_T_C>-273.15</DenS_T_C>
   <DenS_g_mL>0</DenS_g_mL>
+  <StandardStateMolarVolume_cm3_mol>24.85</StandardStateMolarVolume_cm3_mol>
+  <MolarVolume_v2i>0.05112</MolarVolume_v2i>
+  <MolarVolume_v3i>-0.0008104</MolarVolume_v3i>
+  <MolarVolume_k1i>0.9606</MolarVolume_k1i>
+  <MolarVolume_k2i>-0.001363</MolarVolume_k2i>
+  <MolarVolume_k3i>0.0003613</MolarVolume_k3i>
 </compound>
 <compound>
   <Name>Chloride (ion)</Name>
@@ -198,6 +204,12 @@
   <Hfus_at_Tf_kJ_mol>0</Hfus_at_Tf_kJ_mol>
   <DenS_T_C>-273.15</DenS_T_C>
   <DenS_g_mL>0</DenS_g_mL>
+  <StandardStateMolarVolume_cm3_mol>44.2</StandardStateMolarVolume_cm3_mol>
+  <MolarVolume_v2i>0.1767</MolarVolume_v2i>
+  <MolarVolume_v3i>-0.001684</MolarVolume_v3i>
+  <MolarVolume_k1i>0.9606</MolarVolume_k1i>
+  <MolarVolume_k2i>-0.001363</MolarVolume_k2i>
+  <MolarVolume_k3i>0.0003613</MolarVolume_k3i>
 </compound>
 <compound>
   <Name>Cesium (ion)</Name>
@@ -219,6 +231,12 @@
   <Hfus_at_Tf_kJ_mol>2.09</Hfus_at_Tf_kJ_mol>
   <DenS_T_C>25</DenS_T_C>
   <DenS_g_mL>1.93</DenS_g_mL>
+  <StandardStateMolarVolume_cm3_mol>21.42</StandardStateMolarVolume_cm3_mol>
+  <MolarVolume_v2i>0.05645</MolarVolume_v2i>
+  <MolarVolume_v3i>-0.0004759</MolarVolume_v3i>
+  <MolarVolume_k1i>0.9606</MolarVolume_k1i>
+  <MolarVolume_k2i>-0.001363</MolarVolume_k2i>
+  <MolarVolume_k3i>0.0003613</MolarVolume_k3i>
 </compound>
 <compound>
   <Name>Cesium Sulfate</Name>
@@ -366,6 +384,12 @@
   <Hfus_at_Tf_kJ_mol>0</Hfus_at_Tf_kJ_mol>
   <DenS_T_C>-273.15</DenS_T_C>
   <DenS_g_mL>0</DenS_g_mL>
+  <StandardStateMolarVolume_cm3_mol>36.31</StandardStateMolarVolume_cm3_mol>
+  <MolarVolume_v2i>0.08055</MolarVolume_v2i>
+  <MolarVolume_v3i>-0.001017</MolarVolume_v3i>
+  <MolarVolume_k1i>0.9606</MolarVolume_k1i>
+  <MolarVolume_k2i>-0.001363</MolarVolume_k2i>
+  <MolarVolume_k3i>0.0003613</MolarVolume_k3i>
 </compound>
 <compound>
   <Name>Potassium Ion</Name>
@@ -387,7 +411,7 @@
   <Hfus_at_Tf_kJ_mol>0</Hfus_at_Tf_kJ_mol>
   <DenS_T_C>-273.15</DenS_T_C>
   <DenS_g_mL>0</DenS_g_mL>
-  <StandardStateMolarVolume_cm3_mol>-9</StandardStateMolarVolume_cm3_mol>
+  <StandardStateMolarVolume_cm3_mol>9.06</StandardStateMolarVolume_cm3_mol>
   <MolarVolume_v2i>6.331E-2</MolarVolume_v2i>
   <MolarVolume_v3i>-7.502E-4</MolarVolume_v3i>
   <MolarVolume_k1i>1.094</MolarVolume_k1i>
@@ -651,6 +675,12 @@
   <Hfus_at_Tf_kJ_mol>3</Hfus_at_Tf_kJ_mol>
   <DenS_T_C>20</DenS_T_C>
   <DenS_g_mL>0.532</DenS_g_mL>
+  <StandardStateMolarVolume_cm3_mol>-0.87</StandardStateMolarVolume_cm3_mol>
+  <MolarVolume_v2i>-0.01305</MolarVolume_v2i>
+  <MolarVolume_v3i>-3.868e-05</MolarVolume_v3i>
+  <MolarVolume_k1i>0.9606</MolarVolume_k1i>
+  <MolarVolume_k2i>-0.001363</MolarVolume_k2i>
+  <MolarVolume_k3i>0.0003613</MolarVolume_k3i>
 </compound>
 <compound>
   <Name>Lithium Sulfate</Name>
@@ -1681,6 +1711,12 @@
     <CpAq_a>0</CpAq_a>
     <CpAq_b>0</CpAq_b>
     <CpAq_c>0</CpAq_c>
+    <StandardStateMolarVolume_cm3_mol>18.08</StandardStateMolarVolume_cm3_mol>
+    <MolarVolume_v2i>0.00486</MolarVolume_v2i>
+    <MolarVolume_v3i>6.37e-05</MolarVolume_v3i>
+    <MolarVolume_k1i>0</MolarVolume_k1i>
+    <MolarVolume_k2i>0</MolarVolume_k2i>
+    <MolarVolume_k3i>0</MolarVolume_k3i>
   </compound>
 <compound>
   <Name>Hydroxide</Name>
@@ -1696,6 +1732,12 @@
   <CpAq_a>1418.2</CpAq_a>
   <CpAq_b>-3.4446</CpAq_b>
   <CpAq_c>-51473</CpAq_c>
+  <StandardStateMolarVolume_cm3_mol>-4.18</StandardStateMolarVolume_cm3_mol>
+  <MolarVolume_v2i>0.06114</MolarVolume_v2i>
+  <MolarVolume_v3i>-0.0009889</MolarVolume_v3i>
+  <MolarVolume_k1i>2.621</MolarVolume_k1i>
+  <MolarVolume_k2i>-0.04203</MolarVolume_k2i>
+  <MolarVolume_k3i>0.0002021</MolarVolume_k3i>
 </compound>
 <compound>
   <Name>Salt</Name>
@@ -1726,6 +1768,12 @@
   <Salt>False</Salt>
   <HydratedSalt>False</HydratedSalt>
   <Charge>-1</Charge>
+  <StandardStateMolarVolume_cm3_mol>20.65</StandardStateMolarVolume_cm3_mol>
+  <MolarVolume_v2i>0.05644</MolarVolume_v2i>
+  <MolarVolume_v3i>-0.0008687</MolarVolume_v3i>
+  <MolarVolume_k1i>0.9606</MolarVolume_k1i>
+  <MolarVolume_k2i>-0.001363</MolarVolume_k2i>
+  <MolarVolume_k3i>0.0003613</MolarVolume_k3i>
 </compound>
 <compound>
   <Name>Bicarbonate (ion)</Name>
@@ -1735,6 +1783,12 @@
   <Salt>False</Salt>
   <HydratedSalt>False</HydratedSalt>
   <Charge>-1</Charge>
+  <StandardStateMolarVolume_cm3_mol>24.6</StandardStateMolarVolume_cm3_mol>
+  <MolarVolume_v2i>0.07269</MolarVolume_v2i>
+  <MolarVolume_v3i>-0.0009485</MolarVolume_v3i>
+  <MolarVolume_k1i>0.9606</MolarVolume_k1i>
+  <MolarVolume_k2i>-0.001363</MolarVolume_k2i>
+  <MolarVolume_k3i>0.0003613</MolarVolume_k3i>
 </compound>
 <compound>
   <Name>Carbamate (ion)</Name>
@@ -1744,6 +1798,12 @@
   <Salt>False</Salt>
   <HydratedSalt>False</HydratedSalt>
   <Charge>-1</Charge>
+  <StandardStateMolarVolume_cm3_mol>30.95</StandardStateMolarVolume_cm3_mol>
+  <MolarVolume_v2i>0.0228</MolarVolume_v2i>
+  <MolarVolume_v3i>-0.0001661</MolarVolume_v3i>
+  <MolarVolume_k1i>0.9606</MolarVolume_k1i>
+  <MolarVolume_k2i>-0.001363</MolarVolume_k2i>
+  <MolarVolume_k3i>0.0003613</MolarVolume_k3i>
 </compound>
 <compound>
   <Name>Carbonate (ion)</Name>
@@ -1753,6 +1813,12 @@
   <Salt>False</Salt>
   <HydratedSalt>False</HydratedSalt>
   <Charge>-2</Charge>
+  <StandardStateMolarVolume_cm3_mol>-5.02</StandardStateMolarVolume_cm3_mol>
+  <MolarVolume_v2i>-0.00237</MolarVolume_v2i>
+  <MolarVolume_v3i>-0.0009727</MolarVolume_v3i>
+  <MolarVolume_k1i>5.308</MolarVolume_k1i>
+  <MolarVolume_k2i>-0.01897</MolarVolume_k2i>
+  <MolarVolume_k3i>4.773e-05</MolarVolume_k3i>
 </compound>
 <compound>
   <Name>Sulfide (ion)</Name>
@@ -1792,6 +1858,12 @@
     <Salt>False</Salt>
     <HydratedSalt>False</HydratedSalt>
     <Charge>1</Charge>
+    <StandardStateMolarVolume_cm3_mol>54.07</StandardStateMolarVolume_cm3_mol>
+    <MolarVolume_v2i>0.04374</MolarVolume_v2i>
+    <MolarVolume_v3i>7.249e-05</MolarVolume_v3i>
+    <MolarVolume_k1i>0.9606</MolarVolume_k1i>
+    <MolarVolume_k2i>-0.001363</MolarVolume_k2i>
+    <MolarVolume_k3i>0.0003613</MolarVolume_k3i>
   </compound>
   <compound>
     <Name>Protonated Diethanolamine (ion)</Name>
@@ -1801,6 +1873,12 @@
     <Salt>False</Salt>
     <HydratedSalt>False</HydratedSalt>
     <Charge>1</Charge>
+    <StandardStateMolarVolume_cm3_mol>89.81</StandardStateMolarVolume_cm3_mol>
+    <MolarVolume_v2i>0.05719</MolarVolume_v2i>
+    <MolarVolume_v3i>7.903e-05</MolarVolume_v3i>
+    <MolarVolume_k1i>0.9606</MolarVolume_k1i>
+    <MolarVolume_k2i>-0.001363</MolarVolume_k2i>
+    <MolarVolume_k3i>0.0003613</MolarVolume_k3i>
   </compound>
   <compound>
     <Name>Ethanolamine Carbamate (ion)</Name>
@@ -1810,6 +1888,12 @@
     <Salt>False</Salt>
     <HydratedSalt>False</HydratedSalt>
     <Charge>-1</Charge>
+    <StandardStateMolarVolume_cm3_mol>66.89</StandardStateMolarVolume_cm3_mol>
+    <MolarVolume_v2i>0.04374</MolarVolume_v2i>
+    <MolarVolume_v3i>7.249e-05</MolarVolume_v3i>
+    <MolarVolume_k1i>0.9606</MolarVolume_k1i>
+    <MolarVolume_k2i>-0.001363</MolarVolume_k2i>
+    <MolarVolume_k3i>0.0003613</MolarVolume_k3i>
   </compound>
   <compound>
     <Name>Diethanolamine Carbamate (ion)</Name>
@@ -1819,6 +1903,12 @@
     <Salt>False</Salt>
     <HydratedSalt>False</HydratedSalt>
     <Charge>-1</Charge>
+    <StandardStateMolarVolume_cm3_mol>102.63</StandardStateMolarVolume_cm3_mol>
+    <MolarVolume_v2i>0.05719</MolarVolume_v2i>
+    <MolarVolume_v3i>7.903e-05</MolarVolume_v3i>
+    <MolarVolume_k1i>0.9606</MolarVolume_k1i>
+    <MolarVolume_k2i>-0.001363</MolarVolume_k2i>
+    <MolarVolume_k3i>0.0003613</MolarVolume_k3i>
   </compound>
   <compound>
     <Name>Hydrogen sulfate (ion)</Name>
@@ -1828,6 +1918,12 @@
     <Salt>False</Salt>
     <HydratedSalt>False</HydratedSalt>
     <Charge>-1</Charge>
+    <StandardStateMolarVolume_cm3_mol>35.2</StandardStateMolarVolume_cm3_mol>
+    <MolarVolume_v2i>0.07738</MolarVolume_v2i>
+    <MolarVolume_v3i>-0.0009568</MolarVolume_v3i>
+    <MolarVolume_k1i>0.9606</MolarVolume_k1i>
+    <MolarVolume_k2i>-0.001363</MolarVolume_k2i>
+    <MolarVolume_k3i>0.0003613</MolarVolume_k3i>
   </compound>
 
   <!-- ========================================================================== -->
@@ -1852,6 +1948,12 @@
     <Hfus_at_Tf_kJ_mol>8.54</Hfus_at_Tf_kJ_mol>
     <DenS_T_C>20</DenS_T_C>
     <DenS_g_mL>1.55</DenS_g_mL>
+    <StandardStateMolarVolume_cm3_mol>-18.06</StandardStateMolarVolume_cm3_mol>
+    <MolarVolume_v2i>0.02503</MolarVolume_v2i>
+    <MolarVolume_v3i>-0.0005599</MolarVolume_v3i>
+    <MolarVolume_k1i>1.557</MolarVolume_k1i>
+    <MolarVolume_k2i>-0.01431</MolarVolume_k2i>
+    <MolarVolume_k3i>0.0002143</MolarVolume_k3i>
   </compound>
   <compound>
     <Name>Barium (ion)</Name>
@@ -1868,6 +1970,12 @@
     <Hfus_at_Tf_kJ_mol>7.12</Hfus_at_Tf_kJ_mol>
     <DenS_T_C>20</DenS_T_C>
     <DenS_g_mL>3.62</DenS_g_mL>
+    <StandardStateMolarVolume_cm3_mol>-12.6</StandardStateMolarVolume_cm3_mol>
+    <MolarVolume_v2i>0.0712</MolarVolume_v2i>
+    <MolarVolume_v3i>-0.0008524</MolarVolume_v3i>
+    <MolarVolume_k1i>1.525</MolarVolume_k1i>
+    <MolarVolume_k2i>-0.008228</MolarVolume_k2i>
+    <MolarVolume_k3i>0.0003447</MolarVolume_k3i>
   </compound>
   <compound>
     <Name>Strontium (ion)</Name>
@@ -1884,6 +1992,12 @@
     <Hfus_at_Tf_kJ_mol>7.43</Hfus_at_Tf_kJ_mol>
     <DenS_T_C>20</DenS_T_C>
     <DenS_g_mL>2.64</DenS_g_mL>
+    <StandardStateMolarVolume_cm3_mol>-17.41</StandardStateMolarVolume_cm3_mol>
+    <MolarVolume_v2i>0.00677</MolarVolume_v2i>
+    <MolarVolume_v3i>-0.0003859</MolarVolume_v3i>
+    <MolarVolume_k1i>1.525</MolarVolume_k1i>
+    <MolarVolume_k2i>-0.008228</MolarVolume_k2i>
+    <MolarVolume_k3i>0.0003447</MolarVolume_k3i>
   </compound>
   <compound>
     <Name>Rubidium (ion)</Name>
@@ -1900,6 +2014,12 @@
     <Hfus_at_Tf_kJ_mol>2.19</Hfus_at_Tf_kJ_mol>
     <DenS_T_C>20</DenS_T_C>
     <DenS_g_mL>1.532</DenS_g_mL>
+    <StandardStateMolarVolume_cm3_mol>14.26</StandardStateMolarVolume_cm3_mol>
+    <MolarVolume_v2i>0.02635</MolarVolume_v2i>
+    <MolarVolume_v3i>-0.0002528</MolarVolume_v3i>
+    <MolarVolume_k1i>0.9606</MolarVolume_k1i>
+    <MolarVolume_k2i>-0.001363</MolarVolume_k2i>
+    <MolarVolume_k3i>0.0003613</MolarVolume_k3i>
   </compound>
   <compound>
     <Name>Iron(II) (ion)</Name>
@@ -1916,6 +2036,12 @@
     <Hfus_at_Tf_kJ_mol>13.81</Hfus_at_Tf_kJ_mol>
     <DenS_T_C>20</DenS_T_C>
     <DenS_g_mL>7.874</DenS_g_mL>
+    <StandardStateMolarVolume_cm3_mol>-22.2</StandardStateMolarVolume_cm3_mol>
+    <MolarVolume_v2i>-0.01834</MolarVolume_v2i>
+    <MolarVolume_v3i>-0.0002751</MolarVolume_v3i>
+    <MolarVolume_k1i>1.525</MolarVolume_k1i>
+    <MolarVolume_k2i>-0.008228</MolarVolume_k2i>
+    <MolarVolume_k3i>0.0003447</MolarVolume_k3i>
   </compound>
   <compound>
     <Name>Iron(III) (ion)</Name>
@@ -1932,6 +2058,12 @@
     <Hfus_at_Tf_kJ_mol>0</Hfus_at_Tf_kJ_mol>
     <DenS_T_C>-273.15</DenS_T_C>
     <DenS_g_mL>0</DenS_g_mL>
+    <StandardStateMolarVolume_cm3_mol>-37.0</StandardStateMolarVolume_cm3_mol>
+    <MolarVolume_v2i>-0.04965</MolarVolume_v2i>
+    <MolarVolume_v3i>-0.0003611</MolarVolume_v3i>
+    <MolarVolume_k1i>1.525</MolarVolume_k1i>
+    <MolarVolume_k2i>-0.008228</MolarVolume_k2i>
+    <MolarVolume_k3i>0.0003447</MolarVolume_k3i>
   </compound>
   <compound>
     <Name>Copper(II) (ion)</Name>
@@ -1948,6 +2080,12 @@
     <Hfus_at_Tf_kJ_mol>13.26</Hfus_at_Tf_kJ_mol>
     <DenS_T_C>20</DenS_T_C>
     <DenS_g_mL>8.96</DenS_g_mL>
+    <StandardStateMolarVolume_cm3_mol>-24.6</StandardStateMolarVolume_cm3_mol>
+    <MolarVolume_v2i>-0.02266</MolarVolume_v2i>
+    <MolarVolume_v3i>-0.0002521</MolarVolume_v3i>
+    <MolarVolume_k1i>1.525</MolarVolume_k1i>
+    <MolarVolume_k2i>-0.008228</MolarVolume_k2i>
+    <MolarVolume_k3i>0.0003447</MolarVolume_k3i>
   </compound>
   <compound>
     <Name>Copper(I) (ion)</Name>
@@ -1964,6 +2102,12 @@
     <Hfus_at_Tf_kJ_mol>0</Hfus_at_Tf_kJ_mol>
     <DenS_T_C>-273.15</DenS_T_C>
     <DenS_g_mL>0</DenS_g_mL>
+    <StandardStateMolarVolume_cm3_mol>-7.99</StandardStateMolarVolume_cm3_mol>
+    <MolarVolume_v2i>0.00996</MolarVolume_v2i>
+    <MolarVolume_v3i>-0.0002735</MolarVolume_v3i>
+    <MolarVolume_k1i>0.9606</MolarVolume_k1i>
+    <MolarVolume_k2i>-0.001363</MolarVolume_k2i>
+    <MolarVolume_k3i>0.0003613</MolarVolume_k3i>
   </compound>
   <compound>
     <Name>Zinc (ion)</Name>
@@ -1980,6 +2124,12 @@
     <Hfus_at_Tf_kJ_mol>7.32</Hfus_at_Tf_kJ_mol>
     <DenS_T_C>20</DenS_T_C>
     <DenS_g_mL>7.134</DenS_g_mL>
+    <StandardStateMolarVolume_cm3_mol>-24.3</StandardStateMolarVolume_cm3_mol>
+    <MolarVolume_v2i>0.01299</MolarVolume_v2i>
+    <MolarVolume_v3i>-0.0005291</MolarVolume_v3i>
+    <MolarVolume_k1i>1.525</MolarVolume_k1i>
+    <MolarVolume_k2i>-0.008228</MolarVolume_k2i>
+    <MolarVolume_k3i>0.0003447</MolarVolume_k3i>
   </compound>
   <compound>
     <Name>Manganese(II) (ion)</Name>
@@ -1996,6 +2146,12 @@
     <Hfus_at_Tf_kJ_mol>12.05</Hfus_at_Tf_kJ_mol>
     <DenS_T_C>20</DenS_T_C>
     <DenS_g_mL>7.43</DenS_g_mL>
+    <StandardStateMolarVolume_cm3_mol>-17.1</StandardStateMolarVolume_cm3_mol>
+    <MolarVolume_v2i>-0.00926</MolarVolume_v2i>
+    <MolarVolume_v3i>-0.0003361</MolarVolume_v3i>
+    <MolarVolume_k1i>1.525</MolarVolume_k1i>
+    <MolarVolume_k2i>-0.008228</MolarVolume_k2i>
+    <MolarVolume_k3i>0.0003447</MolarVolume_k3i>
   </compound>
   <compound>
     <Name>Aluminum (ion)</Name>
@@ -2012,6 +2168,12 @@
     <Hfus_at_Tf_kJ_mol>10.71</Hfus_at_Tf_kJ_mol>
     <DenS_T_C>20</DenS_T_C>
     <DenS_g_mL>2.70</DenS_g_mL>
+    <StandardStateMolarVolume_cm3_mol>-45.3</StandardStateMolarVolume_cm3_mol>
+    <MolarVolume_v2i>-0.06315</MolarVolume_v2i>
+    <MolarVolume_v3i>-0.0003006</MolarVolume_v3i>
+    <MolarVolume_k1i>1.525</MolarVolume_k1i>
+    <MolarVolume_k2i>-0.008228</MolarVolume_k2i>
+    <MolarVolume_k3i>0.0003447</MolarVolume_k3i>
   </compound>
   <compound>
     <Name>Nickel(II) (ion)</Name>
@@ -2028,6 +2190,12 @@
     <Hfus_at_Tf_kJ_mol>17.48</Hfus_at_Tf_kJ_mol>
     <DenS_T_C>20</DenS_T_C>
     <DenS_g_mL>8.908</DenS_g_mL>
+    <StandardStateMolarVolume_cm3_mol>-29.0</StandardStateMolarVolume_cm3_mol>
+    <MolarVolume_v2i>-0.03007</MolarVolume_v2i>
+    <MolarVolume_v3i>-0.0002021</MolarVolume_v3i>
+    <MolarVolume_k1i>1.525</MolarVolume_k1i>
+    <MolarVolume_k2i>-0.008228</MolarVolume_k2i>
+    <MolarVolume_k3i>0.0003447</MolarVolume_k3i>
   </compound>
   <compound>
     <Name>Cobalt(II) (ion)</Name>
@@ -2044,6 +2212,12 @@
     <Hfus_at_Tf_kJ_mol>16.06</Hfus_at_Tf_kJ_mol>
     <DenS_T_C>20</DenS_T_C>
     <DenS_g_mL>8.86</DenS_g_mL>
+    <StandardStateMolarVolume_cm3_mol>-25.5</StandardStateMolarVolume_cm3_mol>
+    <MolarVolume_v2i>0.01998</MolarVolume_v2i>
+    <MolarVolume_v3i>-0.0005902</MolarVolume_v3i>
+    <MolarVolume_k1i>1.525</MolarVolume_k1i>
+    <MolarVolume_k2i>-0.008228</MolarVolume_k2i>
+    <MolarVolume_k3i>0.0003447</MolarVolume_k3i>
   </compound>
   <compound>
     <Name>Lead(II) (ion)</Name>
@@ -2060,6 +2234,12 @@
     <Hfus_at_Tf_kJ_mol>4.77</Hfus_at_Tf_kJ_mol>
     <DenS_T_C>20</DenS_T_C>
     <DenS_g_mL>11.34</DenS_g_mL>
+    <StandardStateMolarVolume_cm3_mol>-15.6</StandardStateMolarVolume_cm3_mol>
+    <MolarVolume_v2i>-0.00543</MolarVolume_v2i>
+    <MolarVolume_v3i>-0.0002724</MolarVolume_v3i>
+    <MolarVolume_k1i>1.525</MolarVolume_k1i>
+    <MolarVolume_k2i>-0.008228</MolarVolume_k2i>
+    <MolarVolume_k3i>0.0003447</MolarVolume_k3i>
   </compound>
   <compound>
     <Name>Cadmium (ion)</Name>
@@ -2076,6 +2256,12 @@
     <Hfus_at_Tf_kJ_mol>6.21</Hfus_at_Tf_kJ_mol>
     <DenS_T_C>20</DenS_T_C>
     <DenS_g_mL>8.65</DenS_g_mL>
+    <StandardStateMolarVolume_cm3_mol>-15.6</StandardStateMolarVolume_cm3_mol>
+    <MolarVolume_v2i>-0.07991</MolarVolume_v2i>
+    <MolarVolume_v3i>0.0002671</MolarVolume_v3i>
+    <MolarVolume_k1i>1.525</MolarVolume_k1i>
+    <MolarVolume_k2i>-0.008228</MolarVolume_k2i>
+    <MolarVolume_k3i>0.0003447</MolarVolume_k3i>
   </compound>
   <compound>
     <Name>Mercury(II) (ion)</Name>
@@ -2092,6 +2278,12 @@
     <Hfus_at_Tf_kJ_mol>2.29</Hfus_at_Tf_kJ_mol>
     <DenS_T_C>20</DenS_T_C>
     <DenS_g_mL>13.534</DenS_g_mL>
+    <StandardStateMolarVolume_cm3_mol>-19.6</StandardStateMolarVolume_cm3_mol>
+    <MolarVolume_v2i>-0.01244</MolarVolume_v2i>
+    <MolarVolume_v3i>-0.000238</MolarVolume_v3i>
+    <MolarVolume_k1i>1.525</MolarVolume_k1i>
+    <MolarVolume_k2i>-0.008228</MolarVolume_k2i>
+    <MolarVolume_k3i>0.0003447</MolarVolume_k3i>
   </compound>
   <compound>
     <Name>Silver (ion)</Name>
@@ -2108,6 +2300,12 @@
     <Hfus_at_Tf_kJ_mol>11.30</Hfus_at_Tf_kJ_mol>
     <DenS_T_C>20</DenS_T_C>
     <DenS_g_mL>10.49</DenS_g_mL>
+    <StandardStateMolarVolume_cm3_mol>-0.8</StandardStateMolarVolume_cm3_mol>
+    <MolarVolume_v2i>0.02421</MolarVolume_v2i>
+    <MolarVolume_v3i>-0.0002551</MolarVolume_v3i>
+    <MolarVolume_k1i>0.9606</MolarVolume_k1i>
+    <MolarVolume_k2i>-0.001363</MolarVolume_k2i>
+    <MolarVolume_k3i>0.0003613</MolarVolume_k3i>
   </compound>
   <compound>
     <Name>Chromium(III) (ion)</Name>
@@ -2124,6 +2322,12 @@
     <Hfus_at_Tf_kJ_mol>21.0</Hfus_at_Tf_kJ_mol>
     <DenS_T_C>20</DenS_T_C>
     <DenS_g_mL>7.19</DenS_g_mL>
+    <StandardStateMolarVolume_cm3_mol>-40.0</StandardStateMolarVolume_cm3_mol>
+    <MolarVolume_v2i>-0.05565</MolarVolume_v2i>
+    <MolarVolume_v3i>-0.00036</MolarVolume_v3i>
+    <MolarVolume_k1i>1.525</MolarVolume_k1i>
+    <MolarVolume_k2i>-0.008228</MolarVolume_k2i>
+    <MolarVolume_k3i>0.0003447</MolarVolume_k3i>
   </compound>
 
   <!-- ========================================================================== -->
@@ -2145,6 +2349,12 @@
     <Hfus_at_Tf_kJ_mol>0</Hfus_at_Tf_kJ_mol>
     <DenS_T_C>-273.15</DenS_T_C>
     <DenS_g_mL>0</DenS_g_mL>
+    <StandardStateMolarVolume_cm3_mol>-1.32</StandardStateMolarVolume_cm3_mol>
+    <MolarVolume_v2i>0.01104</MolarVolume_v2i>
+    <MolarVolume_v3i>-0.00061</MolarVolume_v3i>
+    <MolarVolume_k1i>0.9606</MolarVolume_k1i>
+    <MolarVolume_k2i>-0.001363</MolarVolume_k2i>
+    <MolarVolume_k3i>0.0003613</MolarVolume_k3i>
   </compound>
   <compound>
     <Name>Phosphate (ion)</Name>
@@ -2161,6 +2371,12 @@
     <Hfus_at_Tf_kJ_mol>0</Hfus_at_Tf_kJ_mol>
     <DenS_T_C>-273.15</DenS_T_C>
     <DenS_g_mL>0</DenS_g_mL>
+    <StandardStateMolarVolume_cm3_mol>-30.6</StandardStateMolarVolume_cm3_mol>
+    <MolarVolume_v2i>-0.05792</MolarVolume_v2i>
+    <MolarVolume_v3i>-0.001182</MolarVolume_v3i>
+    <MolarVolume_k1i>5.073</MolarVolume_k1i>
+    <MolarVolume_k2i>-0.01095</MolarVolume_k2i>
+    <MolarVolume_k3i>0.0003635</MolarVolume_k3i>
   </compound>
   <compound>
     <Name>Hydrogen Phosphate (ion)</Name>
@@ -2177,6 +2393,12 @@
     <Hfus_at_Tf_kJ_mol>0</Hfus_at_Tf_kJ_mol>
     <DenS_T_C>-273.15</DenS_T_C>
     <DenS_g_mL>0</DenS_g_mL>
+    <StandardStateMolarVolume_cm3_mol>5.4</StandardStateMolarVolume_cm3_mol>
+    <MolarVolume_v2i>0.01507</MolarVolume_v2i>
+    <MolarVolume_v3i>-0.001095</MolarVolume_v3i>
+    <MolarVolume_k1i>5.073</MolarVolume_k1i>
+    <MolarVolume_k2i>-0.01095</MolarVolume_k2i>
+    <MolarVolume_k3i>0.0003635</MolarVolume_k3i>
   </compound>
   <compound>
     <Name>Dihydrogen Phosphate (ion)</Name>
@@ -2193,6 +2415,12 @@
     <Hfus_at_Tf_kJ_mol>0</Hfus_at_Tf_kJ_mol>
     <DenS_T_C>-273.15</DenS_T_C>
     <DenS_g_mL>0</DenS_g_mL>
+    <StandardStateMolarVolume_cm3_mol>31.3</StandardStateMolarVolume_cm3_mol>
+    <MolarVolume_v2i>0.0702</MolarVolume_v2i>
+    <MolarVolume_v3i>-0.0009366</MolarVolume_v3i>
+    <MolarVolume_k1i>0.9606</MolarVolume_k1i>
+    <MolarVolume_k2i>-0.001363</MolarVolume_k2i>
+    <MolarVolume_k3i>0.0003613</MolarVolume_k3i>
   </compound>
   <compound>
     <Name>Cyanide (ion)</Name>
@@ -2209,6 +2437,12 @@
     <Hfus_at_Tf_kJ_mol>0</Hfus_at_Tf_kJ_mol>
     <DenS_T_C>-273.15</DenS_T_C>
     <DenS_g_mL>0</DenS_g_mL>
+    <StandardStateMolarVolume_cm3_mol>23.9</StandardStateMolarVolume_cm3_mol>
+    <MolarVolume_v2i>0.05818</MolarVolume_v2i>
+    <MolarVolume_v3i>-0.0008383</MolarVolume_v3i>
+    <MolarVolume_k1i>0.9606</MolarVolume_k1i>
+    <MolarVolume_k2i>-0.001363</MolarVolume_k2i>
+    <MolarVolume_k3i>0.0003613</MolarVolume_k3i>
   </compound>
   <compound>
     <Name>Thiocyanate (ion)</Name>
@@ -2225,6 +2459,12 @@
     <Hfus_at_Tf_kJ_mol>0</Hfus_at_Tf_kJ_mol>
     <DenS_T_C>-273.15</DenS_T_C>
     <DenS_g_mL>0</DenS_g_mL>
+    <StandardStateMolarVolume_cm3_mol>35.7</StandardStateMolarVolume_cm3_mol>
+    <MolarVolume_v2i>0.07857</MolarVolume_v2i>
+    <MolarVolume_v3i>-0.0009466</MolarVolume_v3i>
+    <MolarVolume_k1i>0.9606</MolarVolume_k1i>
+    <MolarVolume_k2i>-0.001363</MolarVolume_k2i>
+    <MolarVolume_k3i>0.0003613</MolarVolume_k3i>
   </compound>
   <compound>
     <Name>Hypochlorite (ion)</Name>
@@ -2241,6 +2481,12 @@
     <Hfus_at_Tf_kJ_mol>0</Hfus_at_Tf_kJ_mol>
     <DenS_T_C>-273.15</DenS_T_C>
     <DenS_g_mL>0</DenS_g_mL>
+    <StandardStateMolarVolume_cm3_mol>0.7</StandardStateMolarVolume_cm3_mol>
+    <MolarVolume_v2i>0.01894</MolarVolume_v2i>
+    <MolarVolume_v3i>-0.0005819</MolarVolume_v3i>
+    <MolarVolume_k1i>0.9606</MolarVolume_k1i>
+    <MolarVolume_k2i>-0.001363</MolarVolume_k2i>
+    <MolarVolume_k3i>0.0003613</MolarVolume_k3i>
   </compound>
   <compound>
     <Name>Chlorate (ion)</Name>
@@ -2257,6 +2503,12 @@
     <Hfus_at_Tf_kJ_mol>0</Hfus_at_Tf_kJ_mol>
     <DenS_T_C>-273.15</DenS_T_C>
     <DenS_g_mL>0</DenS_g_mL>
+    <StandardStateMolarVolume_cm3_mol>36.9</StandardStateMolarVolume_cm3_mol>
+    <MolarVolume_v2i>0.08099</MolarVolume_v2i>
+    <MolarVolume_v3i>-0.0009466</MolarVolume_v3i>
+    <MolarVolume_k1i>0.9606</MolarVolume_k1i>
+    <MolarVolume_k2i>-0.001363</MolarVolume_k2i>
+    <MolarVolume_k3i>0.0003613</MolarVolume_k3i>
   </compound>
   <compound>
     <Name>Bromate (ion)</Name>
@@ -2273,6 +2525,12 @@
     <Hfus_at_Tf_kJ_mol>0</Hfus_at_Tf_kJ_mol>
     <DenS_T_C>-273.15</DenS_T_C>
     <DenS_g_mL>0</DenS_g_mL>
+    <StandardStateMolarVolume_cm3_mol>35.4</StandardStateMolarVolume_cm3_mol>
+    <MolarVolume_v2i>0.07852</MolarVolume_v2i>
+    <MolarVolume_v3i>-0.0009274</MolarVolume_v3i>
+    <MolarVolume_k1i>0.9606</MolarVolume_k1i>
+    <MolarVolume_k2i>-0.001363</MolarVolume_k2i>
+    <MolarVolume_k3i>0.0003613</MolarVolume_k3i>
   </compound>
   <compound>
     <Name>Iodate (ion)</Name>
@@ -2289,6 +2547,12 @@
     <Hfus_at_Tf_kJ_mol>0</Hfus_at_Tf_kJ_mol>
     <DenS_T_C>-273.15</DenS_T_C>
     <DenS_g_mL>0</DenS_g_mL>
+    <StandardStateMolarVolume_cm3_mol>25.9</StandardStateMolarVolume_cm3_mol>
+    <MolarVolume_v2i>0.06195</MolarVolume_v2i>
+    <MolarVolume_v3i>-0.000842</MolarVolume_v3i>
+    <MolarVolume_k1i>0.9606</MolarVolume_k1i>
+    <MolarVolume_k2i>-0.001363</MolarVolume_k2i>
+    <MolarVolume_k3i>0.0003613</MolarVolume_k3i>
   </compound>
   <compound>
     <Name>Nitrite (ion)</Name>
@@ -2305,6 +2569,12 @@
     <Hfus_at_Tf_kJ_mol>0</Hfus_at_Tf_kJ_mol>
     <DenS_T_C>-273.15</DenS_T_C>
     <DenS_g_mL>0</DenS_g_mL>
+    <StandardStateMolarVolume_cm3_mol>25.0</StandardStateMolarVolume_cm3_mol>
+    <MolarVolume_v2i>0.06057</MolarVolume_v2i>
+    <MolarVolume_v3i>-0.0008265</MolarVolume_v3i>
+    <MolarVolume_k1i>0.9606</MolarVolume_k1i>
+    <MolarVolume_k2i>-0.001363</MolarVolume_k2i>
+    <MolarVolume_k3i>0.0003613</MolarVolume_k3i>
   </compound>
   <compound>
     <Name>Sulfite (ion)</Name>
@@ -2321,6 +2591,12 @@
     <Hfus_at_Tf_kJ_mol>0</Hfus_at_Tf_kJ_mol>
     <DenS_T_C>-273.15</DenS_T_C>
     <DenS_g_mL>0</DenS_g_mL>
+    <StandardStateMolarVolume_cm3_mol>-3.1</StandardStateMolarVolume_cm3_mol>
+    <MolarVolume_v2i>0.00117</MolarVolume_v2i>
+    <MolarVolume_v3i>-0.0009802</MolarVolume_v3i>
+    <MolarVolume_k1i>5.073</MolarVolume_k1i>
+    <MolarVolume_k2i>-0.01095</MolarVolume_k2i>
+    <MolarVolume_k3i>0.0003635</MolarVolume_k3i>
   </compound>
   <compound>
     <Name>Bisulfite (ion)</Name>
@@ -2337,6 +2613,12 @@
     <Hfus_at_Tf_kJ_mol>0</Hfus_at_Tf_kJ_mol>
     <DenS_T_C>-273.15</DenS_T_C>
     <DenS_g_mL>0</DenS_g_mL>
+    <StandardStateMolarVolume_cm3_mol>33.3</StandardStateMolarVolume_cm3_mol>
+    <MolarVolume_v2i>0.07457</MolarVolume_v2i>
+    <MolarVolume_v3i>-0.0009196</MolarVolume_v3i>
+    <MolarVolume_k1i>0.9606</MolarVolume_k1i>
+    <MolarVolume_k2i>-0.001363</MolarVolume_k2i>
+    <MolarVolume_k3i>0.0003613</MolarVolume_k3i>
   </compound>
   <compound>
     <Name>Thiosulfate (ion)</Name>
@@ -2353,6 +2635,12 @@
     <Hfus_at_Tf_kJ_mol>0</Hfus_at_Tf_kJ_mol>
     <DenS_T_C>-273.15</DenS_T_C>
     <DenS_g_mL>0</DenS_g_mL>
+    <StandardStateMolarVolume_cm3_mol>28.5</StandardStateMolarVolume_cm3_mol>
+    <MolarVolume_v2i>0.1511</MolarVolume_v2i>
+    <MolarVolume_v3i>-0.002066</MolarVolume_v3i>
+    <MolarVolume_k1i>5.073</MolarVolume_k1i>
+    <MolarVolume_k2i>-0.01095</MolarVolume_k2i>
+    <MolarVolume_k3i>0.0003635</MolarVolume_k3i>
   </compound>
   <compound>
     <Name>Permanganate (ion)</Name>
@@ -2369,6 +2657,12 @@
     <Hfus_at_Tf_kJ_mol>0</Hfus_at_Tf_kJ_mol>
     <DenS_T_C>-273.15</DenS_T_C>
     <DenS_g_mL>0</DenS_g_mL>
+    <StandardStateMolarVolume_cm3_mol>42.0</StandardStateMolarVolume_cm3_mol>
+    <MolarVolume_v2i>0.09015</MolarVolume_v2i>
+    <MolarVolume_v3i>-0.000985</MolarVolume_v3i>
+    <MolarVolume_k1i>0.9606</MolarVolume_k1i>
+    <MolarVolume_k2i>-0.001363</MolarVolume_k2i>
+    <MolarVolume_k3i>0.0003613</MolarVolume_k3i>
   </compound>
   <compound>
     <Name>Chromate (ion)</Name>
@@ -2385,6 +2679,12 @@
     <Hfus_at_Tf_kJ_mol>0</Hfus_at_Tf_kJ_mol>
     <DenS_T_C>-273.15</DenS_T_C>
     <DenS_g_mL>0</DenS_g_mL>
+    <StandardStateMolarVolume_cm3_mol>19.8</StandardStateMolarVolume_cm3_mol>
+    <MolarVolume_v2i>0.0408</MolarVolume_v2i>
+    <MolarVolume_v3i>-0.001201</MolarVolume_v3i>
+    <MolarVolume_k1i>5.073</MolarVolume_k1i>
+    <MolarVolume_k2i>-0.01095</MolarVolume_k2i>
+    <MolarVolume_k3i>0.0003635</MolarVolume_k3i>
   </compound>
   <compound>
     <Name>Dichromate (ion)</Name>
@@ -2401,6 +2701,12 @@
     <Hfus_at_Tf_kJ_mol>0</Hfus_at_Tf_kJ_mol>
     <DenS_T_C>-273.15</DenS_T_C>
     <DenS_g_mL>0</DenS_g_mL>
+    <StandardStateMolarVolume_cm3_mol>72.7</StandardStateMolarVolume_cm3_mol>
+    <MolarVolume_v2i>0.133</MolarVolume_v2i>
+    <MolarVolume_v3i>-0.001675</MolarVolume_v3i>
+    <MolarVolume_k1i>5.073</MolarVolume_k1i>
+    <MolarVolume_k2i>-0.01095</MolarVolume_k2i>
+    <MolarVolume_k3i>0.0003635</MolarVolume_k3i>
   </compound>
   <compound>
     <Name>Acetate (ion)</Name>
@@ -2417,6 +2723,12 @@
     <Hfus_at_Tf_kJ_mol>0</Hfus_at_Tf_kJ_mol>
     <DenS_T_C>-273.15</DenS_T_C>
     <DenS_g_mL>0</DenS_g_mL>
+    <StandardStateMolarVolume_cm3_mol>40.5</StandardStateMolarVolume_cm3_mol>
+    <MolarVolume_v2i>0.02641</MolarVolume_v2i>
+    <MolarVolume_v3i>-0.0005947</MolarVolume_v3i>
+    <MolarVolume_k1i>0.9606</MolarVolume_k1i>
+    <MolarVolume_k2i>-0.001363</MolarVolume_k2i>
+    <MolarVolume_k3i>0.0003613</MolarVolume_k3i>
   </compound>
   <compound>
     <Name>Formate (ion)</Name>
@@ -2433,6 +2745,12 @@
     <Hfus_at_Tf_kJ_mol>0</Hfus_at_Tf_kJ_mol>
     <DenS_T_C>-273.15</DenS_T_C>
     <DenS_g_mL>0</DenS_g_mL>
+    <StandardStateMolarVolume_cm3_mol>26.16</StandardStateMolarVolume_cm3_mol>
+    <MolarVolume_v2i>0.02292</MolarVolume_v2i>
+    <MolarVolume_v3i>-0.0005619</MolarVolume_v3i>
+    <MolarVolume_k1i>0.9606</MolarVolume_k1i>
+    <MolarVolume_k2i>-0.001363</MolarVolume_k2i>
+    <MolarVolume_k3i>0.0003613</MolarVolume_k3i>
   </compound>
   <compound>
     <Name>Oxalate (ion)</Name>
@@ -2449,6 +2767,12 @@
     <Hfus_at_Tf_kJ_mol>0</Hfus_at_Tf_kJ_mol>
     <DenS_T_C>-273.15</DenS_T_C>
     <DenS_g_mL>0</DenS_g_mL>
+    <StandardStateMolarVolume_cm3_mol>30.3</StandardStateMolarVolume_cm3_mol>
+    <MolarVolume_v2i>0.06984</MolarVolume_v2i>
+    <MolarVolume_v3i>-0.001445</MolarVolume_v3i>
+    <MolarVolume_k1i>5.073</MolarVolume_k1i>
+    <MolarVolume_k2i>-0.01095</MolarVolume_k2i>
+    <MolarVolume_k3i>0.0003635</MolarVolume_k3i>
   </compound>
 
   <!-- ========================================================================== -->

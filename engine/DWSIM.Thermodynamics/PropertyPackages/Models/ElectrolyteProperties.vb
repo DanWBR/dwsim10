@@ -327,6 +327,11 @@ Namespace PropertyPackages.Auxiliary
                         vol += Vx(i) * ((.StandardStateMolarVolume + .MolarVolume_v2i * (T - 298.15) + .MolarVolume_v3i * (T - 298.15) ^ 2) +
                                 (.MolarVolume_k1i + .MolarVolume_k2i * (T - 298.15) + .MolarVolume_k3i * (T - 298.15) ^ 2) * Im ^ 0.5) * 0.001 'm3/kmol
                     End With
+                ElseIf Vx(i) > 0.0# AndAlso Not cprops(i).IsSalt AndAlso Not cprops(i).IsHydratedSalt Then
+                    'molecular solute (amine, alcohol, glycol, sugar, dissolved gas): its molar volume
+                    'as a pure liquid, ideal mixing of volumes
+                    Dim vi As Double = MolecularSoluteVolume(cprops(i), T)
+                    If vi > 0.0# AndAlso Not Double.IsInfinity(vi) Then vol += Vx(i) * vi 'm3/kmol
                 Else
                     vol += 0.0#
                 End If
@@ -334,6 +339,33 @@ Namespace PropertyPackages.Auxiliary
             Next
 
             If MW = 0.0 Then Return 0.0 Else Return MW / vol 'kJ/kg
+
+        End Function
+
+        ''' <summary>
+        ''' Molar volume [m3/kmol] of a molecular solute as a pure liquid at min(T, Tb), from the
+        ''' compound's liquid density equation (Rackett when it has none), as in AUX_LIQDENSi.
+        ''' Above its normal boiling point a solute (a dissolved gas) takes its liquid volume at Tb,
+        ''' which is close to the partial molar volume of a gas dissolved in water.
+        ''' </summary>
+        Public Shared Function MolecularSoluteVolume(cp As Interfaces.ICompoundConstantProperties, T As Double) As Double
+
+            Dim Tb As Double = cp.Normal_Boiling_Point
+            Dim Ti As Double = If(Tb > 0.0# AndAlso Tb < T, Tb, T)
+            Dim rho As Double
+
+            If cp.LiquidDensityEquation <> "" AndAlso cp.LiquidDensityEquation <> "0" Then
+                If Integer.TryParse(cp.LiquidDensityEquation, New Integer) Then
+                    rho = PropertyPackage.CalcCSTDepProp(cp.LiquidDensityEquation, cp.Liquid_Density_Const_A, cp.Liquid_Density_Const_B, cp.Liquid_Density_Const_C, cp.Liquid_Density_Const_D, cp.Liquid_Density_Const_E, Ti, cp.Critical_Temperature)
+                Else
+                    rho = PropertyPackage.ParseEquation(cp.LiquidDensityEquation, cp.Liquid_Density_Const_A, cp.Liquid_Density_Const_B, cp.Liquid_Density_Const_C, cp.Liquid_Density_Const_D, cp.Liquid_Density_Const_E, Ti)
+                End If
+                If cp.OriginalDB <> "CoolProp" And cp.OriginalDB <> "User" And cp.OriginalDB <> "ChEDL Thermo" Then rho = cp.Molar_Weight * rho
+            Else
+                rho = PROPS.liq_dens_rackett(Ti, cp.Critical_Temperature, cp.Critical_Pressure, cp.Acentric_Factor, cp.Molar_Weight, cp.Z_Rackett)
+            End If
+
+            Return cp.Molar_Weight / rho 'kg/kmol / (kg/m3) = m3/kmol
 
         End Function
 
