@@ -357,6 +357,7 @@ public partial class OptimizerWindow : Window
     /// <summary>
     /// The picker shows the translated caption but carries the raw property ID, which is what
     /// gets written into the case (and what the engine's Get/SetPropertyValue expect).
+    /// The properties the object only uses in dynamic simulations are marked as such.
     /// </summary>
     private void PopulateVarProps()
     {
@@ -367,7 +368,8 @@ public partial class OptimizerWindow : Window
         // ALL, because DEP/AUX/CON variables only need to be readable.
         var props = obj.GetProperties(PropertyType.ALL) ?? Array.Empty<string>();
         foreach (var p in props.OrderBy(x => _flowsheet.GetTranslatedString(x)))
-            CbVarProp.Items.Add(new PropItem(p, _flowsheet.GetTranslatedString(p)));
+            CbVarProp.Items.Add(new PropItem(p, global::DWSIM.UI.Desktop.Editors.SteadyStatePropertyCaption.For(
+                obj, p, _flowsheet.GetTranslatedString(p))));
         if (selected != null)
         {
             var idx = IndexOfPropID(CbVarProp, selected);

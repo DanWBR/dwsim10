@@ -18,6 +18,30 @@ namespace DWSIM.UI.Desktop.Editors
 {
 
     /// <summary>
+    /// The caption of a property in the pickers of the steady-state tools (Adjust, Spec, Sensitivity
+    /// Analysis, Optimizer). A property the object only uses in dynamic simulations, one it added
+    /// with AddDynamicProperty, gets " (dynamics only)" after its name. The property ID is untouched.
+    /// </summary>
+    public static class SteadyStatePropertyCaption
+    {
+
+        public const string DynamicsOnlySuffix = " (dynamics only)";
+
+        public static string For(ISimulationObject obj, string propertyId, string caption)
+        {
+            if (string.IsNullOrEmpty(caption)) caption = propertyId;
+            try
+            {
+                if (obj != null && !string.IsNullOrEmpty(propertyId) && obj.IsDynamicProperty(propertyId))
+                    return caption + DynamicsOnlySuffix;
+            }
+            catch (Exception) { }
+            return caption;
+        }
+
+    }
+
+    /// <summary>
     /// The variable a logical block points at: an object, one of its properties and the value it
     /// currently holds, which is the block both the Adjust and the Spec editors repeat.
     /// </summary>
@@ -67,7 +91,12 @@ namespace DWSIM.UI.Desktop.Editors
             var tags = objects.Select(x => x.GraphicObject.Tag).ToList();
             var kind = writable ? PropertyType.WR : PropertyType.ALL;
 
+            // Adjust and Spec solve in steady state, so they mark the dynamics-only properties;
+            // the controllers that share this picker run in dynamics and list them plainly
+            var steadyState = block is Adjust || block is Spec;
+
             var properties = new List<string>();
+            var captions = new List<string>();
             ComboBox propertyPicker = null;
             TextBlock valueLabel = null;
 
@@ -78,9 +107,11 @@ namespace DWSIM.UI.Desktop.Editors
             void ReloadProperties()
             {
                 properties.Clear();
+                captions.Clear();
                 var obj = objects.ElementAtOrDefault(objectPicker.SelectedIndex);
                 if (obj == null) return;
                 properties.AddRange(obj.GetProperties(kind) ?? new string[0]);
+                captions.AddRange(properties.Select(p => steadyState ? SteadyStatePropertyCaption.For(obj, p, p) : p));
             }
 
             void ShowValue()
@@ -134,7 +165,7 @@ namespace DWSIM.UI.Desktop.Editors
 
             ReloadProperties();
 
-            propertyPicker = panel.CreateAndAddDropDownRow(label + " Property", properties.ToList(),
+            propertyPicker = panel.CreateAndAddDropDownRow(label + " Property", captions.ToList(),
                 Math.Max(0, properties.IndexOf(info.PropertyName ?? "")), (dd, e) => StoreProperty());
 
             if (withUnits) AddUnitPickers(panel, su, info, label, () => ShowValue());
@@ -159,7 +190,7 @@ namespace DWSIM.UI.Desktop.Editors
                 // the picker was populated through Items (CreateAndAddDropDownRow), and Avalonia throws
                 // if ItemsSource is then assigned on top of that, so refill Items in place instead.
                 propertyPicker.Items.Clear();
-                foreach (var p in properties) propertyPicker.Items.Add(p);
+                foreach (var c in captions) propertyPicker.Items.Add(c);
                 propertyPicker.SelectedIndex = Math.Max(0, properties.IndexOf(info.PropertyName ?? ""));
 
                 StoreProperty();

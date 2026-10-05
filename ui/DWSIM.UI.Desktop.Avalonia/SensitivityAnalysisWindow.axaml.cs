@@ -289,12 +289,14 @@ public partial class SensitivityAnalysisWindow : Window
     /// <summary>
     /// Property pickers show the translated caption but carry the raw property ID, which is
     /// what gets written into the case (and what the engine's SetPropertyValue expects).
+    /// The properties the object only uses in dynamic simulations are marked as such.
     /// </summary>
     private void FillProps(ComboBox cb, ISimulationObject obj, PropertyType type)
     {
         var props = obj.GetProperties(type) ?? Array.Empty<string>();
         foreach (var p in props.OrderBy(x => _flowsheet.GetTranslatedString(x)))
-            cb.Items.Add(new PropItem(p, _flowsheet.GetTranslatedString(p)));
+            cb.Items.Add(new PropItem(p, global::DWSIM.UI.Desktop.Editors.SteadyStatePropertyCaption.For(
+                obj, p, _flowsheet.GetTranslatedString(p))));
     }
 
     private static string? SelectedPropID(ComboBox cb) =>
