@@ -1903,35 +1903,47 @@ Namespace BaseClasses
             Dim el As New Dictionary(Of String, Double)
 
             Dim useParenthesis As Boolean = _molecule.Contains("(") And _molecule.Contains(")")
-            Dim findMatches = Regex.Matches(_molecule, "\(?[A-Z][a-z]?\d*\)?")
 
             ' Get all elements
 
             If useParenthesis Then
-                Dim strval = If(Regex.IsMatch(_molecule, "\)\d+"), Regex.Match(_molecule, "\)\d+").Value.Remove(0, 1), "1")
-                Dim endNumber As Double = Double.Parse(strval, NumberStyles.AllowDecimalPoint, System.Globalization.CultureInfo.InvariantCulture)
-                ' Finds the number after the ')'
-                For Each i As Match In findMatches
-                    Dim element As String = Regex.Match(i.Value, "[A-Z][a-z]?").Value
-                    ' Gets the element
-                    Dim amountOfElement As Double = 0
-                    If Regex.IsMatch(i.Value, "[\(\)]") Then
-                        If Not Double.TryParse(Regex.Replace(i.Value, "(\(|\)|[A-Z]|[a-z])", ""), amountOfElement) Then
-                            ' If the element has either '(' or ')' and doesn't specify an amount, then set it equal to the endnumber
-                            amountOfElement = endNumber
-                        Else
-                            ' If the element has either '(' or ')' and specifies an amount, then multiply it by the end number
-                            amountOfElement = amountOfElement * endNumber
-                        End If
-                    Else
-                        amountOfElement = Double.Parse(If(String.IsNullOrWhiteSpace(i.Value.Replace(element, "")), "1", i.Value.Replace(element, "")))
-                    End If
-                    If el.ContainsKey(element) Then
-                        el(element) += amountOfElement
-                    Else
-                        el.Add(element, amountOfElement)
+                ' A group in parentheses counts its atoms times the number after its ")", and a
+                ' group may hold other groups: "(CH3)3CCH2CH(CH3)2", "((CH3)2CH)2NH", or the air
+                ' of ChemSep, "(N2)0.781 (O2)0.209 (Ar)0.01". The number after the first ")" in
+                ' the formula multiplied only the first and the last atom of every group, so
+                ' isooctane gave C9H21 and cumene, (C6H5)CH(CH3)2, gave C15H17.
+                Dim count = Function(digits As String) If(digits = "" OrElse digits = ".", 1.0,
+                                                          Double.Parse(digits, CultureInfo.InvariantCulture))
+                Dim add = Sub(target As Dictionary(Of String, Double), element As String, amount As Double)
+                              If target.ContainsKey(element) Then
+                                  target(element) += amount
+                              Else
+                                  target.Add(element, amount)
+                              End If
+                          End Sub
+                Dim groups As New Stack(Of Dictionary(Of String, Double))
+                groups.Push(New Dictionary(Of String, Double))
+                For Each token As Match In Regex.Matches(_molecule, "([A-Z][a-z]?)(\d*\.?\d*)|(\()|\)(\d*\.?\d*)")
+                    If token.Groups(1).Success Then
+                        add(groups.Peek(), token.Groups(1).Value, count(token.Groups(2).Value))
+                    ElseIf token.Groups(3).Success Then
+                        groups.Push(New Dictionary(Of String, Double))
+                    ElseIf groups.Count > 1 Then
+                        Dim n = count(token.Groups(4).Value)
+                        Dim group = groups.Pop()
+                        For Each item In group
+                            add(groups.Peek(), item.Key, item.Value * n)
+                        Next
                     End If
                 Next
+                ' a group left open counts once
+                While groups.Count > 1
+                    Dim group = groups.Pop()
+                    For Each item In group
+                        add(groups.Peek(), item.Key, item.Value)
+                    Next
+                End While
+                el = groups.Pop()
             Else
                 ' Allow fractional atom counts (pseudo-compounds such as a lumped biomass formula
                 ' C15.90H29.78O12.68N1.00S0.33): a plain [0-9]* stops at the decimal point, so S0.33
