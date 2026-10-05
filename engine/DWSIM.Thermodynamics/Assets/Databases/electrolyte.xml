@@ -1094,6 +1094,92 @@
   <DenS_g_mL>1.6</DenS_g_mL>
 </compound>
 <compound>
+  <Name>Sodium Calcium Sulfate (Glauberite)</Name>
+  <Formula>Na2Ca(SO4)2</Formula>
+  <MW>278.18</MW>
+  <Ion>False</Ion>
+  <Salt>True</Salt>
+  <PositiveIon>Na2Ca4+</PositiveIon>
+  <NegativeIon>SO42-</NegativeIon>
+  <PositiveIonStoichCoeff>1</PositiveIonStoichCoeff>
+  <NegativeIonStoichCoeff>2</NegativeIonStoichCoeff>
+  <StoichSum>3</StoichSum>
+  <Charge>0</Charge>
+  <DelGF_kJ_mol>-2596.99</DelGF_kJ_mol>
+  <DelHf_kJ_mol>-2826.67</DelHf_kJ_mol>
+  <Cp_J_mol_K>227.9</Cp_J_mol_K>
+  <Tf_C>-273.15</Tf_C>
+  <Hfus_at_Tf_kJ_mol>0</Hfus_at_Tf_kJ_mol>
+  <DenS_T_C>25</DenS_T_C>
+  <DenS_g_mL>2.77</DenS_g_mL>
+</compound>
+<compound>
+  <Name>Potassium Calcium Magnesium Sulfate Dihydrate (Polyhalite)</Name>
+  <Formula>K2Ca2Mg(SO4)4.2H2O</Formula>
+  <MW>602.94</MW>
+  <Ion>False</Ion>
+  <Salt>True</Salt>
+  <HydratedSalt>True</HydratedSalt>
+  <PositiveIon>K2Ca2Mg8+</PositiveIon>
+  <NegativeIon>SO42-</NegativeIon>
+  <HydrationNumber>2</HydrationNumber>
+  <PositiveIonStoichCoeff>1</PositiveIonStoichCoeff>
+  <NegativeIonStoichCoeff>4</NegativeIonStoichCoeff>
+  <StoichSum>5</StoichSum>
+  <Charge>0</Charge>
+  <DelGF_kJ_mol>-5659.33</DelGF_kJ_mol>
+  <DelHf_kJ_mol>-6266.01</DelHf_kJ_mol>
+  <Cp_J_mol_K>508.5</Cp_J_mol_K>
+  <Tf_C>-273.15</Tf_C>
+  <Hfus_at_Tf_kJ_mol>0</Hfus_at_Tf_kJ_mol>
+  <DenS_T_C>25</DenS_T_C>
+  <DenS_g_mL>2.78</DenS_g_mL>
+</compound>
+<compound>
+  <Name>Sodium Magnesium Sulfate Tetrahydrate (Bloedite)</Name>
+  <Formula>Na2Mg(SO4)2.4H2O</Formula>
+  <MW>334.47</MW>
+  <Ion>False</Ion>
+  <Salt>True</Salt>
+  <HydratedSalt>True</HydratedSalt>
+  <PositiveIon>Na2Mg4+</PositiveIon>
+  <NegativeIon>SO42-</NegativeIon>
+  <HydrationNumber>4</HydrationNumber>
+  <PositiveIonStoichCoeff>1</PositiveIonStoichCoeff>
+  <NegativeIonStoichCoeff>2</NegativeIonStoichCoeff>
+  <StoichSum>3</StoichSum>
+  <Charge>0</Charge>
+  <DelGF_kJ_mol>-3429.58</DelGF_kJ_mol>
+  <DelHf_kJ_mol>-3908.95</DelHf_kJ_mol>
+  <Cp_J_mol_K>387.1</Cp_J_mol_K>
+  <Tf_C>-273.15</Tf_C>
+  <Hfus_at_Tf_kJ_mol>0</Hfus_at_Tf_kJ_mol>
+  <DenS_T_C>25</DenS_T_C>
+  <DenS_g_mL>2.23</DenS_g_mL>
+</compound>
+<compound>
+  <Name>Potassium Magnesium Chloride Sulfate Trihydrate (Kainite)</Name>
+  <Formula>KMgClSO4.3H2O</Formula>
+  <MW>248.96</MW>
+  <Ion>False</Ion>
+  <Salt>True</Salt>
+  <HydratedSalt>True</HydratedSalt>
+  <PositiveIon>KMg3+</PositiveIon>
+  <NegativeIon>ClSO43-</NegativeIon>
+  <HydrationNumber>3</HydrationNumber>
+  <PositiveIonStoichCoeff>1</PositiveIonStoichCoeff>
+  <NegativeIonStoichCoeff>1</NegativeIonStoichCoeff>
+  <StoichSum>2</StoichSum>
+  <Charge>0</Charge>
+  <DelGF_kJ_mol>-2326.32</DelGF_kJ_mol>
+  <DelHf_kJ_mol>-2653.15</DelHf_kJ_mol>
+  <Cp_J_mol_K>269.6</Cp_J_mol_K>
+  <Tf_C>-273.15</Tf_C>
+  <Hfus_at_Tf_kJ_mol>0</Hfus_at_Tf_kJ_mol>
+  <DenS_T_C>25</DenS_T_C>
+  <DenS_g_mL>2.13</DenS_g_mL>
+</compound>
+<compound>
   <Name>Sodium (ion)</Name>
   <Formula>Na+</Formula>
   <MW>22.99</MW>
