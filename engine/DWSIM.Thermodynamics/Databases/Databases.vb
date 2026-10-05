@@ -1885,6 +1885,13 @@ Namespace Databases
                         End Select
                     Next
 
+                    ' The formula comes before the charge in the file, so its elements were
+                    ' counted before the charge was known; count them again now that it is.
+                    Try
+                        .UpdateElements()
+                    Catch ex As Exception
+                    End Try
+
                     .ID = i
                     .IsHYPO = False
                     .IsPF = False

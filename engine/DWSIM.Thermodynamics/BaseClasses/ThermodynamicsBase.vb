@@ -1791,6 +1791,23 @@ Namespace BaseClasses
 
             Dim _molecule = Formula
 
+            ' An ion's formula ends in its charge: "Na+", "CO3-2", "Ca2+", "SO42-". The sign and
+            ' the digits after it are not atoms. The digits in front of it usually are ("NH4+",
+            ' "HCO3-", "NO2-"), unless they end in the ion's own charge, as in "Ca2+" and "SO42-",
+            ' which were read as Ca = 2 and O = 42. Only the charge tells the two apart, so
+            ' neutral compounds are left exactly as they were.
+            If Charge <> 0 AndAlso _molecule IsNot Nothing Then
+                Dim suffix = Regex.Match(_molecule, "^(.*\D)(\d*)\s*[+-](\d*)$")
+                If suffix.Success Then
+                    Dim digits = suffix.Groups(2).Value
+                    Dim z = System.Math.Abs(Charge).ToString(CultureInfo.InvariantCulture)
+                    If suffix.Groups(3).Value = "" AndAlso System.Math.Abs(Charge) > 1 AndAlso digits.EndsWith(z) Then
+                        digits = digits.Substring(0, digits.Length - z.Length)
+                    End If
+                    _molecule = suffix.Groups(1).Value + digits
+                End If
+            End If
+
             Dim useParenthesis As Boolean = _molecule.Contains("(") And _molecule.Contains(")")
             Dim findMatches = Regex.Matches(_molecule, "\(?[A-Z][a-z]?\d*\)?")
 
