@@ -932,6 +932,138 @@
   <DenS_g_mL>2.793</DenS_g_mL>
 </compound>
 <compound>
+  <Name>Magnesium Chloride Hexahydrate (Bischofite)</Name>
+  <Formula>MgCl2.6H2O</Formula>
+  <MW>203.30</MW>
+  <Ion>False</Ion>
+  <Salt>True</Salt>
+  <HydratedSalt>True</HydratedSalt>
+  <PositiveIon>Mg2+</PositiveIon>
+  <NegativeIon>Cl-</NegativeIon>
+  <HydrationNumber>6</HydrationNumber>
+  <PositiveIonStoichCoeff>1</PositiveIonStoichCoeff>
+  <NegativeIonStoichCoeff>2</NegativeIonStoichCoeff>
+  <StoichSum>3</StoichSum>
+  <Charge>0</Charge>
+  <DelGF_kJ_mol>-2113.82</DelGF_kJ_mol>
+  <DelHf_kJ_mol>-2494.97</DelHf_kJ_mol>
+  <Cp_J_mol_K>315.0</Cp_J_mol_K>
+  <Tf_C>-273.15</Tf_C>
+  <Hfus_at_Tf_kJ_mol>0</Hfus_at_Tf_kJ_mol>
+  <DenS_T_C>25</DenS_T_C>
+  <DenS_g_mL>1.569</DenS_g_mL>
+</compound>
+<compound>
+  <Name>Magnesium Chloride Tetrahydrate</Name>
+  <Formula>MgCl2.4H2O</Formula>
+  <MW>167.27</MW>
+  <Ion>False</Ion>
+  <Salt>True</Salt>
+  <HydratedSalt>True</HydratedSalt>
+  <PositiveIon>Mg2+</PositiveIon>
+  <NegativeIon>Cl-</NegativeIon>
+  <HydrationNumber>4</HydrationNumber>
+  <PositiveIonStoichCoeff>1</PositiveIonStoichCoeff>
+  <NegativeIonStoichCoeff>2</NegativeIonStoichCoeff>
+  <StoichSum>3</StoichSum>
+  <Charge>0</Charge>
+  <DelGF_kJ_mol>-1625.94</DelGF_kJ_mol>
+  <DelHf_kJ_mol>-1910.23</DelHf_kJ_mol>
+  <Cp_J_mol_K>233.8</Cp_J_mol_K>
+  <Tf_C>-273.15</Tf_C>
+  <Hfus_at_Tf_kJ_mol>0</Hfus_at_Tf_kJ_mol>
+  <DenS_T_C>25</DenS_T_C>
+  <DenS_g_mL>1.65</DenS_g_mL>
+</compound>
+<compound>
+  <Name>Magnesium Sulfate Heptahydrate (Epsomite)</Name>
+  <Formula>MgSO4.7H2O</Formula>
+  <MW>246.48</MW>
+  <Ion>False</Ion>
+  <Salt>True</Salt>
+  <HydratedSalt>True</HydratedSalt>
+  <PositiveIon>Mg2+</PositiveIon>
+  <NegativeIon>SO42-</NegativeIon>
+  <HydrationNumber>7</HydrationNumber>
+  <PositiveIonStoichCoeff>1</PositiveIonStoichCoeff>
+  <NegativeIonStoichCoeff>1</NegativeIonStoichCoeff>
+  <StoichSum>2</StoichSum>
+  <Charge>0</Charge>
+  <DelGF_kJ_mol>-2869.78</DelGF_kJ_mol>
+  <DelHf_kJ_mol>-3389.25</DelHf_kJ_mol>
+  <Cp_J_mol_K>380.7</Cp_J_mol_K>
+  <Tf_C>-273.15</Tf_C>
+  <Hfus_at_Tf_kJ_mol>0</Hfus_at_Tf_kJ_mol>
+  <DenS_T_C>25</DenS_T_C>
+  <DenS_g_mL>1.68</DenS_g_mL>
+</compound>
+<compound>
+  <Name>Magnesium Sulfate Hexahydrate (Hexahydrite)</Name>
+  <Formula>MgSO4.6H2O</Formula>
+  <MW>228.46</MW>
+  <Ion>False</Ion>
+  <Salt>True</Salt>
+  <HydratedSalt>True</HydratedSalt>
+  <PositiveIon>Mg2+</PositiveIon>
+  <NegativeIon>SO42-</NegativeIon>
+  <HydrationNumber>6</HydrationNumber>
+  <PositiveIonStoichCoeff>1</PositiveIonStoichCoeff>
+  <NegativeIonStoichCoeff>1</NegativeIonStoichCoeff>
+  <StoichSum>2</StoichSum>
+  <Charge>0</Charge>
+  <DelGF_kJ_mol>-2631.05</DelGF_kJ_mol>
+  <DelHf_kJ_mol>-3086.34</DelHf_kJ_mol>
+  <Cp_J_mol_K>340.1</Cp_J_mol_K>
+  <Tf_C>-273.15</Tf_C>
+  <Hfus_at_Tf_kJ_mol>0</Hfus_at_Tf_kJ_mol>
+  <DenS_T_C>25</DenS_T_C>
+  <DenS_g_mL>1.757</DenS_g_mL>
+</compound>
+<compound>
+  <Name>Magnesium Sulfate Monohydrate (Kieserite)</Name>
+  <Formula>MgSO4.H2O</Formula>
+  <MW>138.39</MW>
+  <Ion>False</Ion>
+  <Salt>True</Salt>
+  <HydratedSalt>True</HydratedSalt>
+  <PositiveIon>Mg2+</PositiveIon>
+  <NegativeIon>SO42-</NegativeIon>
+  <HydrationNumber>1</HydrationNumber>
+  <PositiveIonStoichCoeff>1</PositiveIonStoichCoeff>
+  <NegativeIonStoichCoeff>1</NegativeIonStoichCoeff>
+  <StoichSum>2</StoichSum>
+  <Charge>0</Charge>
+  <DelGF_kJ_mol>-1437.99</DelGF_kJ_mol>
+  <DelHf_kJ_mol>-1632.75</DelHf_kJ_mol>
+  <Cp_J_mol_K>137.1</Cp_J_mol_K>
+  <Tf_C>-273.15</Tf_C>
+  <Hfus_at_Tf_kJ_mol>0</Hfus_at_Tf_kJ_mol>
+  <DenS_T_C>25</DenS_T_C>
+  <DenS_g_mL>2.57</DenS_g_mL>
+</compound>
+<compound>
+  <Name>Potassium Magnesium Chloride Hexahydrate (Carnallite)</Name>
+  <Formula>KMgCl3.6H2O</Formula>
+  <MW>277.85</MW>
+  <Ion>False</Ion>
+  <Salt>True</Salt>
+  <HydratedSalt>True</HydratedSalt>
+  <PositiveIon>KMg3+</PositiveIon>
+  <NegativeIon>Cl-</NegativeIon>
+  <HydrationNumber>6</HydrationNumber>
+  <PositiveIonStoichCoeff>1</PositiveIonStoichCoeff>
+  <NegativeIonStoichCoeff>3</NegativeIonStoichCoeff>
+  <StoichSum>4</StoichSum>
+  <Charge>0</Charge>
+  <DelGF_kJ_mol>-2529.28</DelGF_kJ_mol>
+  <DelHf_kJ_mol>-2941.92</DelHf_kJ_mol>
+  <Cp_J_mol_K>366.3</Cp_J_mol_K>
+  <Tf_C>-273.15</Tf_C>
+  <Hfus_at_Tf_kJ_mol>0</Hfus_at_Tf_kJ_mol>
+  <DenS_T_C>25</DenS_T_C>
+  <DenS_g_mL>1.6</DenS_g_mL>
+</compound>
+<compound>
   <Name>Sodium (ion)</Name>
   <Formula>Na+</Formula>
   <MW>22.99</MW>
