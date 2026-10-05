@@ -1808,6 +1808,100 @@ Namespace BaseClasses
                 End If
             End If
 
+            ' Hydrates and double salts are written as their parts joined by a dot, each part
+            ' after the first with an optional count in front: "CaSO4.2H2O", "HCl.H2O",
+            ' "Na2SO4.(NH4)2SO4.4H2O", "K2CO3.11/2H2O" (5.5 H2O), or "CuSO4·5H2O" with a middle
+            ' dot. Read as one formula, the dot became a decimal point and the count went to
+            ' the atom before it: CaSO4.2H2O gave O = 5.2 and H = 2 where it has O = 6 and H = 4,
+            ' and NaCl.2H2O gave Cl = 0.2. Each part is counted on its own, times its count.
+            For Each part In FormulaParts(_molecule)
+                For Each item In ElementCounts(part.Value)
+                    Dim n = part.Key * item.Value
+                    If el.ContainsKey(item.Key) Then
+                        el(item.Key) += n
+                    Else
+                        el.Add(item.Key, n)
+                    End If
+                Next
+            Next
+
+            Elements = New SortedList()
+
+            For Each item In el
+                Elements.Add(item.Key, item.Value)
+            Next
+
+        End Sub
+
+        ''' <summary>
+        ''' Splits a formula at the dots that join the parts of a hydrate or double salt, and
+        ''' reads the count in front of each part after the first. A plain formula is one part
+        ''' with a count of one.
+        ''' </summary>
+        ''' <remarks>
+        ''' A dot with a letter or a parenthesis on either side joins two parts ("HCl.H2O",
+        ''' "NaCl.2H2O"). A dot between two digits may also be a decimal point, as in the lumped
+        ''' biomass formula C5H7NO2S0.03 or C15.90H29.78O12.68. It joins two parts when what
+        ''' follows the digits is water of hydration closing the formula or the next part
+        ''' ("CaSO4.2H2O", "K2CO3.NaHCO3.2H2O"), a fraction or a parenthesis ("K2CO3.11/2H2O"),
+        ''' or an element already counted, which a decimal count is never followed by
+        ''' ("Na2CO3.2Na2SO4", "(NH4)2SO4.2NH4NO3"). Any other dot is a decimal point, as before.
+        ''' </remarks>
+        Private Shared Function FormulaParts(formula As String) As List(Of KeyValuePair(Of Double, String))
+
+            Const MiddleDot As Char = ChrW(&HB7)
+            Dim parts As New List(Of KeyValuePair(Of Double, String))
+            Dim start = 0
+
+            For i = 1 To formula.Length - 2
+                Dim c = formula(i)
+                If c <> "."c AndAlso c <> MiddleDot Then Continue For
+                Dim after = formula.Substring(i + 1)
+                Dim joins As Boolean
+                If c = MiddleDot Then
+                    joins = True
+                ElseIf Not (Char.IsDigit(formula(i - 1)) AndAlso Char.IsDigit(formula(i + 1))) Then
+                    joins = Regex.IsMatch(after, "^(\d+(/\d+)?)?[A-Z(]")
+                Else
+                    Dim m = Regex.Match(after, "^\d+(/\d+)?(\(|[A-Z][a-z]?)")
+                    If Not m.Success Then
+                        joins = False
+                    ElseIf m.Groups(1).Success OrElse m.Groups(2).Value = "(" Then
+                        joins = True
+                    Else
+                        Dim symbol = m.Groups(2).Value
+                        Dim rest = Regex.Match(after, "^\d+([^." + MiddleDot + "]*)").Groups(1).Value
+                        Dim counted = Regex.Matches(formula.Substring(0, i), "[A-Z][a-z]?").Cast(Of Match)()
+                        joins = rest = "H2O" OrElse counted.Any(Function(x) x.Value = symbol)
+                    End If
+                End If
+                If joins Then
+                    parts.Add(New KeyValuePair(Of Double, String)(1.0, formula.Substring(start, i - start)))
+                    start = i + 1
+                End If
+            Next
+            parts.Add(New KeyValuePair(Of Double, String)(1.0, formula.Substring(start)))
+
+            For j = 1 To parts.Count - 1
+                Dim m = Regex.Match(parts(j).Value, "^(\d+)(?:/(\d+))?(?=[A-Z(])")
+                If m.Success Then
+                    Dim count = Double.Parse(m.Groups(1).Value, CultureInfo.InvariantCulture)
+                    If m.Groups(2).Success Then count /= Double.Parse(m.Groups(2).Value, CultureInfo.InvariantCulture)
+                    parts(j) = New KeyValuePair(Of Double, String)(count, parts(j).Value.Substring(m.Length))
+                End If
+            Next
+
+            Return parts
+
+        End Function
+
+        ''' <summary>
+        ''' Counts the atoms of each element in a formula with no dots joining parts.
+        ''' </summary>
+        Private Shared Function ElementCounts(_molecule As String) As Dictionary(Of String, Double)
+
+            Dim el As New Dictionary(Of String, Double)
+
             Dim useParenthesis As Boolean = _molecule.Contains("(") And _molecule.Contains(")")
             Dim findMatches = Regex.Matches(_molecule, "\(?[A-Z][a-z]?\d*\)?")
 
@@ -1857,13 +1951,9 @@ Namespace BaseClasses
                 Next
             End If
 
-            Elements = New SortedList()
+            Return el
 
-            For Each item In el
-                Elements.Add(item.Key, item.Value)
-            Next
-
-        End Sub
+        End Function
 
         Public Function Clone() As Object Implements System.ICloneable.Clone
 
