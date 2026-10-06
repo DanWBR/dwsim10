@@ -2493,7 +2493,9 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
             A = zeros(sum(NumAss) * numC, sum(NumAss) * numC)
             B = zeros(sum(NumAss) * numC)
 
-            delta = zeros(numC * numC, numC * DirectCast(NumAss, Double()).Max)
+            ' indexed by the global site numbers (indx1, indx2 up to sum(NumAss)): numC * numC rows are too few
+            ' for a single associating compound on its own (two sites, one row).
+            delta = zeros(sum(NumAss), sum(NumAss))
 
             indx3 = 0
             For i2 = 1 To numC
