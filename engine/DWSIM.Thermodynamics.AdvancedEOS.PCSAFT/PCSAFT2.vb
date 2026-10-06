@@ -2396,6 +2396,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
                                     epsilon2 = max(mix.comp(k).assocEps)
                                     kappa_ = Sqrt(kappa1 * kappa2) * (Sqrt(sigma(i) * sigma(k)) / (0.5 * (sigma(i) + sigma(k)))) ^ 3
                                     epsilon_ = 0.5 * (epsilon1 + epsilon2)
+                                    If j = l Then kappa_ = 0.0 ' donor-donor or acceptor-acceptor: no bond
                                 End If
                                 ddeltaAB_droi(indx1, indx2, i2) = ((d(i) + d(k)) / 2) ^ 3 * dgij_drok(i, k, i2) * (Exp(epsilon_ / T) - 1) * kappa_
                             Next
@@ -2518,6 +2519,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
                                     epsilon2 = max(mix.comp(k).assocEps)
                                     kappa = Sqrt(kappa1 * kappa2) * (Sqrt(sigma(i) * sigma(k)) / (0.5 * (sigma(i) + sigma(k)))) ^ 3
                                     epsilon = 0.5 * (epsilon1 + epsilon2)
+                                    If j = l Then kappa = 0.0 ' donor-donor or acceptor-acceptor: no bond
                                 End If
                                 delta(indx1, indx2) = ((d(i) + d(k)) / 2) ^ 3 * ghs(i, k) * kappa * (Exp(epsilon / T) - 1)
                                 sum1 = sum1 + dens_num * mix.x(k) * multG(indx2) * (Xa(indx2) * ddeltaAB_droi(indx1, indx2, i2))
@@ -2539,6 +2541,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
                                 epsilon2 = max(mix.comp(i2).assocEps)
                                 kappa = Sqrt(kappa1 * kappa2) * (Sqrt(sigma(i) * sigma(i2)) / (0.5 * (sigma(i) + sigma(i2)))) ^ 3
                                 epsilon = 0.5 * (epsilon1 + epsilon2)
+                                If j = k Then kappa = 0.0 ' donor-donor or acceptor-acceptor: no bond
                             End If
                             delta_ = ((d(i) + d(i2)) / 2) ^ 3 * ghs(i, i2) * kappa * (Exp(epsilon / T) - 1)
                             Dim gk As Integer = CInt(DirectCast(NumAss, Double()).Take(i2 - 1).Sum) + k
@@ -2984,6 +2987,8 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
                             Else 'combining rules for unlike components
                                 kappa_ = Sqrt(max(mix.comp(i).assocKappa) * max(mix.comp(k).assocKappa)) * (Sqrt(sigma(i) * sigma(k)) / (0.5 * (sigma(i) + sigma(k)))) ^ 3
                                 epsilon_ = 0.5 * (max(mix.comp(i).assocEps) + max(mix.comp(k).assocEps))
+                                ' only a donor with an acceptor, as inside a molecule (site 1 donor, site 2 acceptor)
+                                If j = l Then kappa_ = 0.0
                             End If
                             delta(inda, indb) = ((d(i) + d(k)) / 2) ^ 3 * ghs(i, k) * kappa_ * (Exp(epsilon_ / T) - 1)
                         Next
@@ -3071,6 +3076,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
                                 epsilon2 = max(epsilon_v(k))
                                 kappa_ = Sqrt(kappa1 * kappa2) * (Sqrt(sigma(i) * sigma(k)) / (0.5 * (sigma(i) + sigma(k)))) ^ 3
                                 epsilon_ = 0.5 * (epsilon1 + epsilon2)
+                                If j = l Then kappa_ = 0.0 ' donor-donor or acceptor-acceptor: no bond
                             End If
                             delta(indx1, indx2) = ((d(i) + d(k)) / 2) ^ 3 * ghs(i, k) * kappa_ * (Exp(epsilon_ / T) - 1)
                         Next

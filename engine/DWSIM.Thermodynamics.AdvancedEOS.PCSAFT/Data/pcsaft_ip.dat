@@ -31,7 +31,6 @@ ethanol	64-17-5	n-butane	106-97-8	0.028
 2-propanol	67-63-0	benzene	71-43-2	0.021
 1-butanol	71-36-3	n-butane	106-97-8	0.015
 1-pentanol	71-41-0	benzene	71-43-2	0.0135
-water	7732-18-5	1-pentanol	71-41-0	0.016
 Polypropylene	9003-07-0	N-pentane	109-66-0	0.0137
 Polyethylene HDPE	9002-88-4	ethylene	74-85-1	0.0404
 Polyethylene HDPE	9002-88-4	carbon dioxide	124-38-9	0.181
@@ -43,8 +42,8 @@ Polydimethylsiloxane	63148-62-9	N-octane	111-65-9	0.010
 Polydimethylsiloxane	63148-62-9	cyclohexane	110-82-7	-0.030
 Polyethylene LDPE	9002-88-4-L	ethylene	74-85-1	0.013
 Poly(methyl methacrylate)	9011-14-7	1-chlorobutane	109-69-3	-0.0032
-water	7732-18-5	methanol	67-56-1	0.05
-water	7732-18-5	ethanol	64-17-5	0.06
-water	7732-18-5	1-propanol	71-23-8	0.05
+water	7732-18-5	methanol	67-56-1	-0.06
+water	7732-18-5	ethanol	64-17-5	-0.035
+water	7732-18-5	1-propanol	71-23-8	-0.04
 Polyethylene HDPE	9002-88-4	N-pentane	109-66-0	0.0073
 Polyethylene HDPE	9002-88-4	Polypropylene	9003-07-0	-0.009

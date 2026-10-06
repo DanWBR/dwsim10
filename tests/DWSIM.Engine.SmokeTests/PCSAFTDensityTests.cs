@@ -156,13 +156,14 @@ namespace DWSIM.Engine.SmokeTests
             var lnphi = pp.DW_CalcLnFugCoeff(new[] { 0.5, 0.5 }, 298.15, 101325.0,
                 DWSIM.Thermodynamics.PropertyPackages.State.Liquid);
             TestContext.WriteLine($"lnphi water={lnphi[0]:R}  ethanol={lnphi[1]:R}");
-            // Values include water-ethanol cross-association AND the shipped water/ethanol kij = 0.06, with
-            // the association chemical potential taken from the Helmholtz energy (two associating
-            // compounds). The earlier closed-form chemical potential gave -2.73699 / -2.62671, which fail
-            // the Gibbs-Duhem check; before the max() off-by-one fix cross-association was silently absent
-            // and they were -2.01189 / -1.72609.
-            Assert.That(lnphi[0], Is.EqualTo(-2.8135299036878365).Within(1e-9), "water lnphi (2B cross-association + kij)");
-            Assert.That(lnphi[1], Is.EqualTo(-2.551250075441075).Within(1e-9), "ethanol lnphi (2B cross-association + kij)");
+            // Values include water-ethanol cross-association between donor and acceptor sites only AND the
+            // shipped water/ethanol kij = -0.035, with the association chemical potential taken from the
+            // Helmholtz energy (two associating compounds). With every site pair bonding across the two
+            // compounds and kij = 0.06 they were -2.81353 / -2.55125; the earlier closed-form chemical
+            // potential gave -2.73699 / -2.62671, which fail the Gibbs-Duhem check; before the max()
+            // off-by-one fix cross-association was silently absent and they were -2.01189 / -1.72609.
+            Assert.That(lnphi[0], Is.EqualTo(-2.9534153645478556).Within(1e-9), "water lnphi (2B cross-association + kij)");
+            Assert.That(lnphi[1], Is.EqualTo(-2.341988539133337).Within(1e-9), "ethanol lnphi (2B cross-association + kij)");
         }
 
         /// <summary>
@@ -197,6 +198,32 @@ namespace DWSIM.Engine.SmokeTests
                 TestContext.WriteLine($"Water/{c.a} {c.P / 1000:F1} kPa x_w={c.xw:F3}: T={T:F2} K (exp {c.T:F2}), y_w={yw:F3} (exp {c.yw:F3})");
                 Assert.That(T, Is.EqualTo(c.T).Within(4.0), $"{c.a}: bubble temperature at x_w = {c.xw:F3}");
                 Assert.That(yw, Is.EqualTo(c.yw).Within(0.06), $"{c.a}: vapour composition at x_w = {c.xw:F3}");
+            }
+        }
+
+        /// <summary>
+        /// Water and the short alcohols mix in all proportions, so the liquid must be stable everywhere:
+        /// d ln a_alcohol / d x_alcohol > 0 at 298.15 K and 1 atm across the whole composition range. A
+        /// negative slope means the model splits the liquid into two phases, which is what a water/alcohol
+        /// kij that is too large does once the association chemical potential is consistent.
+        /// </summary>
+        [Test]
+        public void WaterShortAlcoholsAreMiscibleAt298K()
+        {
+            var st = DWSIM.Thermodynamics.PropertyPackages.State.Liquid;
+            foreach (var a in new[] { "Methanol", "Ethanol", "1-propanol" })
+            {
+                var pp = Package(fs => { fs.AddCompound("Water"); fs.AddCompound(a); });
+                double prev = double.NaN, minSlope = double.MaxValue;
+                for (int i = 1; i <= 49; i++)
+                {
+                    double xa = 0.02 * i;
+                    double lna = Math.Log(xa) + pp.DW_CalcLnFugCoeff(new[] { 1.0 - xa, xa }, 298.15, 101325.0, st)[1];
+                    if (!double.IsNaN(prev)) minSlope = Math.Min(minSlope, (lna - prev) / 0.02);
+                    prev = lna;
+                }
+                TestContext.WriteLine($"Water/{a}: min d ln a/dx = {minSlope:F3}");
+                Assert.That(minSlope, Is.GreaterThan(0.0), $"{a}: water + {a} must not split into two liquids at 298.15 K");
             }
         }
 
