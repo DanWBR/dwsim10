@@ -2197,7 +2197,67 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
         End Function
 
+        ''' <summary>
+        ''' A shallow copy of the mixture with other mole fractions (same compounds, parameters and kij), so the
+        ''' association Helmholtz energy can be evaluated at a perturbed composition without touching the mixture
+        ''' the caller holds (CalcHr evaluates the Helmholtz energy on two threads).
+        ''' </summary>
+        Private Shared Function WithComposition(mixt As mixture, x As Double()) As mixture
+            Return New mixture With {.comp = mixt.comp, .x = x, .k1 = mixt.k1, .k1T = mixt.k1T, .numC = mixt.numC, .MW = mixt.MW,
+                                     .nseg = mixt.nseg, .segParent = mixt.segParent, .segM = mixt.segM, .segSigma = mixt.segSigma,
+                                     .segEps = mixt.segEps, .segK = mixt.segK, .segKT = mixt.segKT, .bondA = mixt.bondA,
+                                     .bondB = mixt.bondB, .bondF = mixt.bondF, .hasCopolymer = mixt.hasCopolymer}
+        End Function
+
+        ''' <summary>
+        ''' Association chemical potential from the Helmholtz energy itself (Gross and Sadowski 2001, eq. A33 form):
+        ''' mu_i = a + Z + da/dx_i - sum_j x_j da/dx_j, all association parts, the composition derivatives at constant
+        ''' number density by central differences and Z = rho da/drho likewise. Consistent with HelmholtzAss by
+        ''' construction, so Z_ass = sum x_i mu_i - a and the fugacities satisfy Gibbs-Duhem.
+        ''' </summary>
+        Private Function mu_AssNumeric(T As Double, dens_num As Double, mixt As mixture) As Double()
+            ' Five-point central differences with a step of 1e-3 (relative in density, absolute in mole
+            ' fraction): the truncation error is of order 1e-12, and the round-off left by the site-fraction
+            ' solve stays near 1e-8, small enough for the composition derivatives the flashes take of mu.
+            Dim nc As Integer = mixt.numC
+            Dim a0 As Double = HelmholtzAss(T, dens_num, mixt)
+            Dim hr As Double = 0.001
+            Dim zass As Double = (HelmholtzAss(T, dens_num * (1 - 2 * hr), mixt) - 8 * HelmholtzAss(T, dens_num * (1 - hr), mixt) +
+                                  8 * HelmholtzAss(T, dens_num * (1 + hr), mixt) - HelmholtzAss(T, dens_num * (1 + 2 * hr), mixt)) / (12 * hr)
+            Dim dadx(nc) As Double
+            Dim h As Double = 0.001
+            For k As Integer = 1 To nc
+                Dim f(3) As Double
+                Dim steps = New Double() {-2 * h, -h, h, 2 * h}
+                For s As Integer = 0 To 3
+                    Dim xs = DirectCast(mixt.x.Clone(), Double())
+                    xs(k) += steps(s)
+                    f(s) = HelmholtzAss(T, dens_num, WithComposition(mixt, xs))
+                Next
+                dadx(k) = (f(0) - 8 * f(1) + 8 * f(2) - f(3)) / (12 * h)
+            Next
+            Dim sx As Double = 0.0
+            For j As Integer = 1 To nc
+                sx += mixt.x(j) * dadx(j)
+            Next
+            Dim mu(nc) As Double
+            For i As Integer = 1 To nc
+                mu(i) = a0 + zass + dadx(i) - sx
+            Next
+            Return mu
+        End Function
+
         Friend Function mu_Ass(T As Double, dens_num As Double, mix As mixture) As Double()
+
+            ' Two or more associating compounds: the closed form below does not reproduce the composition
+            ' derivative of the association Helmholtz energy (Gibbs-Duhem fails, water + ethanol included), so the
+            ' chemical potential is taken from the Helmholtz energy itself. One associating compound keeps the closed
+            ' form, which is consistent there.
+            Dim nAssoc As Integer = 0
+            For ia As Integer = 1 To mix.numC
+                If CInt(mix.comp(ia).EoSParam(4)) > 0 Then nAssoc += 1
+            Next
+            If nAssoc >= 2 Then Return mu_AssNumeric(T, dens_num, mix)
 
             'Calculates the association contribution to the residual chemical potential
             'of mixture mix at temperature T And pressure P using SAFT EoS

@@ -722,7 +722,13 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
             ' corrected to constant pressure. Central differencing matters where the change in one
             ' component's lnphi from another's mole number is tiny, e.g. the solvent's dependence on a
             ' trace polymer, which a one-sided difference resolves poorly.
-            Dim delta As Double = 0.000001
+            ' With two or more associating compounds the association chemical potential is itself a numerical
+            ' derivative (mu_AssNumeric), so the composition step is larger to keep its round-off out of D.
+            Dim nAssocComp As Integer = 0
+            For Each ccp In DW_GetConstantProperties()
+                If IsAssociating(ccp.CAS_Number) Then nAssocComp += 1
+            Next
+            Dim delta As Double = If(nAssocComp >= 2, 0.0001, 0.000001)
             For j = 0 To n
                 Dim useCentral As Boolean = Vx(j) > 2.0 * delta
                 Dim nplus(n), nminus(n) As Double
