@@ -66,7 +66,8 @@ public class PropertyPackageEditorWindow : Window
     {
         var tabs = new TabControl();
 
-        if (SupportedIPTypes.Contains(_pp.ComponentName))
+        // Packages derived from the PC-SAFT package (the Ionic Liquids package, for one) share its editor.
+        if (SupportedIPTypes.Contains(_pp.ComponentName) || _pp is PCSAFT2PropertyPackage)
         {
             _ipTab = new TabItem { Header = "Interaction Parameters", Content = BuildIPTab() };
             tabs.Items.Add(_ipTab);
@@ -154,6 +155,9 @@ public class PropertyPackageEditorWindow : Window
                 break;
             case "PC-SAFT (with Association Support) (.NET Code)":
                 BuildPCSAFT(panel);
+                break;
+            default:
+                if (_pp is PCSAFT2PropertyPackage) BuildPCSAFT(panel);
                 break;
         }
 

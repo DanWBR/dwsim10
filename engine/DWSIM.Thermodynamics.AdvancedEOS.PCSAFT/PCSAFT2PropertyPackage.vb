@@ -49,6 +49,9 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
         Public compound2 As String = ""
         Public casno2 As String = ""
         Public kij As Double = 0.0#
+        ' Optional linear temperature dependence: kij(T) = kij + kij_T * (T - 298.15 K). Zero, the default and
+        ' the value of every pcsaft_ip.dat row without a sixth column, keeps the constant kij.
+        <FieldOptional()> <FieldNullValue(0.0#)> Public kij_T As Double = 0.0#
 
         Public Function Clone() As Object Implements System.ICloneable.Clone
 
@@ -59,6 +62,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
                 .casno1 = Me.casno1
                 .casno2 = Me.casno2
                 .kij = Me.kij
+                .kij_T = Me.kij_T
             End With
             Return newclass
         End Function
@@ -1315,7 +1319,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
                 For Each kvp2 As KeyValuePair(Of String, PCSIP) In kvp.Value
                     If (Not (Me.CurrentMaterialStream) Is Nothing) Then
                         If (casnos.Contains(kvp.Key) And casnos.Contains(kvp2.Key)) Then
-                            data((data.Count - 1)).Add(New XElement("InteractionParameter", New XAttribute("Compound1", kvp2.Value.compound1), New XAttribute("Compound2", kvp2.Value.compound2), New XAttribute("CAS1", kvp.Key), New XAttribute("CAS2", kvp2.Key), New XAttribute("Value", kvp2.Value.kij.ToString(ci))))
+                            data((data.Count - 1)).Add(New XElement("InteractionParameter", New XAttribute("Compound1", kvp2.Value.compound1), New XAttribute("Compound2", kvp2.Value.compound2), New XAttribute("CAS1", kvp.Key), New XAttribute("CAS2", kvp2.Key), New XAttribute("Value", kvp2.Value.kij.ToString(ci)), If(kvp2.Value.kij_T <> 0.0, New XAttribute("ValueT", kvp2.Value.kij_T.ToString(ci)), Nothing)))
                         End If
                     End If
                 Next
@@ -1359,10 +1363,12 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
                     .casno1 = xel.Attribute("CAS1").Value
                     .casno2 = xel.Attribute("CAS2").Value
                     .kij = Double.Parse(xel.Attribute("Value").Value, ci)
+                    Dim aT = xel.Attribute("ValueT") : If aT IsNot Nothing Then .kij_T = Double.Parse(aT.Value, ci)
                 End With
 
+                ' The inner dictionary is keyed by the second compound (CAS2), as in ReadParameters.
                 Dim dic As Dictionary(Of String, PCSIP) = New Dictionary(Of String, PCSIP)
-                dic.Add(xel.Attribute("CAS1").Value, ip)
+                dic.Add(xel.Attribute("CAS2").Value, ip)
 
                 If Not Me.InteractionParameters.ContainsKey(xel.Attribute("CAS1").Value) Then
                     Me.InteractionParameters.Add(xel.Attribute("CAS1").Value, dic)

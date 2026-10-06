@@ -33,6 +33,9 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
         Public Property k1 As Double(,)
 
+        ' Temperature coefficient of k1: kij(T) = k1 + k1T * (T - 298.15 K). Zero when the pair has none.
+        Public Property k1T As Double(,)
+
         Public Property numC As Integer
 
         Public Property MW As Double
@@ -48,6 +51,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
         Public Property segSigma As Double()
         Public Property segEps As Double()
         Public Property segK As Double(,)        ' segment-segment kij (1-based, nseg x nseg)
+        Public Property segKT As Double(,)       ' its temperature coefficient, kij(T) = segK + segKT * (T - 298.15)
         ' Hard-chain bonds, per compound (element i-1 holds compound i, 1-based). A homopolymer or small
         ' molecule has a single self-bond with bonding fraction 1; a copolymer has the Table 1 bonds.
         Public Property bondA As List(Of Integer())   ' global segment index of bond end A
@@ -138,6 +142,17 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
             End If
             If pp.InteractionParameters.ContainsKey(casB) AndAlso pp.InteractionParameters(casB).ContainsKey(casA) Then
                 Return pp.InteractionParameters(casB)(casA).kij
+            End If
+            Return 0.0
+        End Function
+
+        ' Temperature coefficient of the same pair (PCSIP.kij_T), in either order; zero when absent.
+        Private Function SegKijT(pp As PCSAFT2PropertyPackage, casA As String, casB As String) As Double
+            If pp.InteractionParameters.ContainsKey(casA) AndAlso pp.InteractionParameters(casA).ContainsKey(casB) Then
+                Return pp.InteractionParameters(casA)(casB).kij_T
+            End If
+            If pp.InteractionParameters.ContainsKey(casB) AndAlso pp.InteractionParameters(casB).ContainsKey(casA) Then
+                Return pp.InteractionParameters(casB)(casA).kij_T
             End If
             Return 0.0
         End Function
@@ -255,9 +270,11 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
             Next
 
             mixt.segK = New Double(total, total) {}
+            mixt.segKT = New Double(total, total) {}
             For a = 1 To total
                 For b = 1 To total
                     mixt.segK(a, b) = SegKij(pp, segCasFlat(a), segCasFlat(b))
+                    mixt.segKT(a, b) = SegKijT(pp, segCasFlat(a), segCasFlat(b))
                 Next
             Next
 
@@ -283,10 +300,13 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
             dens_red = dens_red * PI / 6 * dens_num
             prom1 = 0
             prom2 = 0
+            Dim dT As Double = T - 298.15
             For sa = 1 To ns
                 For sb = 1 To ns
                     Dim sij As Double = 0.5 * (mixt.segSigma(sa) + mixt.segSigma(sb))
-                    Dim eij As Double = Sqrt(mixt.segEps(sa) * mixt.segEps(sb)) * (1 - mixt.segK(sa, sb))
+                    Dim kab As Double = mixt.segK(sa, sb)
+                    If mixt.segKT IsNot Nothing Then kab += mixt.segKT(sa, sb) * dT
+                    Dim eij As Double = Sqrt(mixt.segEps(sa) * mixt.segEps(sb)) * (1 - kab)
                     prom1 = prom1 + w(sa) * w(sb) * eij / T * sij ^ 3
                     prom2 = prom2 + w(sa) * w(sb) * (eij / T) ^ 2 * sij ^ 3
                 Next
@@ -394,6 +414,14 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
             Next
 
             mix.k1 = kvec
+
+            Dim kTvec(nk, nk) As Double
+            For i = 1 To nk
+                For j = 1 To nk
+                    If i <> j Then kTvec(i, j) = SegKijT(pp, compounds(i - 1).CAS_Number, compounds(j - 1).CAS_Number)
+                Next
+            Next
+            mix.k1T = kTvec
 
             Dim assocparam, assocparaml(), vm, em As String
             Dim na As Integer
@@ -1638,7 +1666,9 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
             For i = 1 To mix.numC
                 For j = 1 To mix.numC
                     sigmaij(i, j) = 0.5 * (sigma(i) + sigma(j)) 'Eq. A14 of reference
-                    epsilonij(i, j) = Sqrt(epsilon(i) * epsilon(j)) * (1 - mix.k1(i, j)) 'Eq A15 of reference           
+                    Dim kij As Double = mix.k1(i, j)
+                    If mix.k1T IsNot Nothing Then kij += mix.k1T(i, j) * (T - 298.15)
+                    epsilonij(i, j) = Sqrt(epsilon(i) * epsilon(j)) * (1 - kij) 'Eq A15 of reference
                 Next
             Next
 

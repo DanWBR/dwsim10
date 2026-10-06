@@ -119,6 +119,10 @@ namespace DWSIM.Automation.FluentAPI
             /// <summary>CCUS CO2 Storage - eNRTL/Duan-Sun for CO2 geological storage in saline aquifers.</summary>
             public const string CO2Storage = "CO2 Storage (eNRTL/Duan-Sun)";
 
+            /// <summary>Ionic liquids as physical solvents - PC-SAFT with fitted parameters for 29 ionic liquids and their
+            /// binary parameters with CO2, CH4, N2, H2, H2S and water.</summary>
+            public const string IonicLiquids = "Ionic Liquids (PC-SAFT)";
+
             /// <summary>Every Plus property-package name as a flat list (electrolyte + ThermoPack suites).</summary>
             public static IReadOnlyList<string> All => new[]
             {
@@ -126,7 +130,8 @@ namespace DWSIM.Automation.FluentAPI
                 SourWater,
                 MBWR19, MBWR32, NISTMEOS, PatelTeja, PCPSAFT, PRCPA,
                 SAFTVRMie, SAFTVRQMie, SchmidtWensel, SPCSAFT, SRKCPA,
-                CarbonCapture, CO2Transport, CO2Storage
+                CarbonCapture, CO2Transport, CO2Storage,
+                IonicLiquids
             };
         }
 
