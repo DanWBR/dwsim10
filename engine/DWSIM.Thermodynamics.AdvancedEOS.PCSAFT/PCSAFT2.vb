@@ -2848,51 +2848,167 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
             ' The variable is the reduced density (packing fraction eta), physically in (0, ~0.74).
             ' obj_SAFT(eta) = P - Pcalc(eta) is finite over that range and crosses zero at each real
-            ' root; beyond close packing the hard-sphere (1 - eta) terms turn singular and it goes NaN.
-            ' Scan for sign changes and pick the liquid (highest-eta) or gas (lowest-eta) root - robust
-            ' for a polymer-rich phase, where the old simplex-on-squared-objective slid onto a spurious
-            ' low-density root or wandered into the NaN region.
+            ' root. Scan for sign changes, then choose among the mechanically stable roots (dP/drho > 0,
+            ' the crossings where P - Pcalc goes from positive to negative): the gas takes the lowest-eta
+            ' one, the liquid the highest-eta one, or the one with the lowest residual Gibbs energy when
+            ' more than one dense stable root exists. The hard-sphere pole is at eta = 1, so at low
+            ' temperature (or with a large epsilon/k) Pcalc can turn down again before eta = 0.74, and
+            ' the highest-eta root in range is then a mechanically unstable one.
             Dim etaMax As Double = 0.7404
             Dim etaMin As Double = 0.000001
             Dim npts As Integer = 60
             Dim roots As New List(Of Double)
+            Dim rootStable As New List(Of Boolean)
+            Dim rootK As New List(Of Integer)
+            Dim gEta(npts), gF(npts) As Double
             Dim etaPrev As Double = etaMin
             Dim fPrev As Double = obj_SAFT(etaPrev, T, P, mix)(0)
+            gEta(0) = etaPrev : gF(0) = fPrev
             For k As Integer = 1 To npts
                 Dim eta As Double = etaMin + (etaMax - etaMin) * k / npts
                 Dim fCur As Double = obj_SAFT(eta, T, P, mix)(0)
+                gEta(k) = eta : gF(k) = fCur
                 If Not Double.IsNaN(fPrev) AndAlso Not Double.IsNaN(fCur) AndAlso fPrev * fCur < 0.0 Then
-                    Dim a As Double = etaPrev, b As Double = eta, fa As Double = fPrev
-                    For it As Integer = 1 To 60
-                        Dim mmid As Double = 0.5 * (a + b)
-                        If (b - a) < 0.000000000001 Then Exit For
-                        Dim fm As Double = obj_SAFT(mmid, T, P, mix)(0)
-                        If Double.IsNaN(fm) Then Exit For
-                        If fa * fm <= 0.0 Then
-                            b = mmid
-                        Else
-                            a = mmid : fa = fm
-                        End If
-                    Next
-                    roots.Add(0.5 * (a + b))
+                    roots.Add(BisectEta(etaPrev, eta, fPrev, T, P, mix))
+                    rootStable.Add(fPrev > 0.0)
+                    rootK.Add(k)
                 End If
                 etaPrev = eta : fPrev = fCur
             Next
 
+            ' Roots the 60-interval scan cannot see. Searched only when the scan leaves a gap, so the
+            ' roots it does find (and every state with a single stable root) keep their exact values.
+            ' The vapour side is searched for a gas request, and for a liquid request that found no stable
+            ' root at all (the vapour root is then the only physical answer).
+            If phase = "gas" OrElse Not rootStable.Contains(True) Then
+                If Not Double.IsNaN(gF(0)) AndAlso gF(0) < 0.0 Then
+                    ' Vapour root below etaMin (low pressure): P - Pcalc is P > 0 as eta -> 0.
+                    Dim lo As Double = etaMin, flo As Double = gF(0)
+                    Do While flo < 0.0 AndAlso lo > 1.0E-280
+                        lo /= 100.0
+                        flo = obj_SAFT(lo, T, P, mix)(0)
+                    Loop
+                    If flo > 0.0 Then
+                        roots.Insert(0, BisectEta(lo, etaMin, flo, T, P, mix))
+                        rootStable.Insert(0, True)
+                        rootK.Insert(0, 0)
+                    End If
+                ElseIf roots.Count = 0 OrElse rootK(0) > 1 Then
+                    ' A vapour root and the unstable root above it can share one interval: when the sampled
+                    ' P - Pcalc left of the first root is not monotonic, look for a dip below zero around
+                    ' its lowest sample.
+                    Dim kEnd As Integer = If(roots.Count > 0, rootK(0) - 1, npts)
+                    Dim iMin As Integer = 0
+                    For i As Integer = 1 To kEnd
+                        If gF(i) < gF(iMin) Then iMin = i
+                    Next
+                    If iMin < kEnd AndAlso gF(iMin) > 0.0 Then
+                        Dim pair = HiddenRootPair(gEta(Math.Max(iMin - 1, 0)), gEta(iMin + 1), -1.0, T, P, mix)
+                        If pair IsNot Nothing Then
+                            roots.Insert(0, pair(1)) : rootStable.Insert(0, False) : rootK.Insert(0, iMin + 1)
+                            roots.Insert(0, pair(0)) : rootStable.Insert(0, True) : rootK.Insert(0, iMin + 1)
+                        End If
+                    End If
+                End If
+            End If
+            If phase = "liq" Then
+                Dim nst As Integer = rootStable.Where(Function(s) s).Count
+                If nst = 1 AndAlso rootStable(0) AndAlso Not Double.IsNaN(gF(0)) AndAlso gF(0) > 0.0 Then
+                    ' Only the vapour-like first crossing is stable: a liquid root and the unstable root
+                    ' below it can share one interval near the liquid spinodal. Look for a rise of P - Pcalc
+                    ' above zero around the first sampled local maximum right of that root.
+                    Dim kEnd As Integer = If(roots.Count > 1, rootK(1) - 1, npts - 1)
+                    For i As Integer = Math.Max(rootK(0), 1) To kEnd
+                        If gF(i) < 0.0 AndAlso gF(i) >= gF(i - 1) AndAlso gF(i) >= gF(i + 1) Then
+                            Dim pair = HiddenRootPair(gEta(i - 1), gEta(i + 1), 1.0, T, P, mix)
+                            If pair IsNot Nothing Then
+                                roots.Insert(1, pair(1)) : rootStable.Insert(1, True) : rootK.Insert(1, i)
+                                roots.Insert(1, pair(0)) : rootStable.Insert(1, False) : rootK.Insert(1, i)
+                            End If
+                            Exit For
+                        End If
+                    Next
+                End If
+            End If
+
             Dim etaSol As Double
+            Dim stableIdx As New List(Of Integer)
+            For i As Integer = 0 To roots.Count - 1
+                If rootStable(i) Then stableIdx.Add(i)
+            Next
             If roots.Count = 0 Then
                 ' No bracketed root (e.g. numerical noise): fall back to the ideal-density guess.
                 etaSol = Math.Min(Math.Max(ini, etaMin), etaMax)
+            ElseIf stableIdx.Count = 0 Then
+                etaSol = If(phase = "liq", roots.Max, roots.Min)
             ElseIf phase = "liq" Then
-                etaSol = roots.Max
+                ' Dense candidates: every stable root except a vapour-like lowest one (a first crossing
+                ' from P - Pcalc > 0 at etaMin) when there is more than one stable root.
+                Dim cand As New List(Of Integer)(stableIdx)
+                If cand.Count > 1 AndAlso stableIdx(0) = 0 AndAlso Not Double.IsNaN(gF(0)) AndAlso gF(0) > 0.0 Then cand.RemoveAt(0)
+                etaSol = roots(cand(cand.Count - 1))
+                If cand.Count > 1 Then
+                    ' More than one dense stable root: the one with the lowest residual Gibbs energy.
+                    Dim gBest As Double = Double.MaxValue
+                    For Each i In cand
+                        Dim Zi As Double = obj_SAFT(roots(i), T, P, mix)(1)
+                        Dim gi As Double = Helmholtz(T, P, mix, phase, Zi) + Zi - 1.0 - Log(Zi)
+                        If gi < gBest Then gBest = gi : etaSol = roots(i)
+                    Next
+                End If
             Else
-                etaSol = roots.Min
+                etaSol = roots(stableIdx(0))
             End If
 
             Return obj_SAFT(etaSol, T, P, mix)(1)
 
             'End If
 
+        End Function
+
+        ''' <summary>Bisection of P - Pcalc(eta) on [a, b] (fa = value at a), as the root scan of compr does.</summary>
+        Private Function BisectEta(a As Double, b As Double, fa As Double, T As Double, P As Double, mix As mixture) As Double
+            For it As Integer = 1 To 60
+                Dim mmid As Double = 0.5 * (a + b)
+                If (b - a) < 0.000000000001 Then Exit For
+                Dim fm As Double = obj_SAFT(mmid, T, P, mix)(0)
+                If Double.IsNaN(fm) Then Exit For
+                If fa * fm <= 0.0 Then
+                    b = mmid
+                Else
+                    a = mmid : fa = fm
+                End If
+            Next
+            Return 0.5 * (a + b)
+        End Function
+
+        ''' <summary>
+        ''' Looks inside [a, b], where P - Pcalc(eta) has the same sign at both ends, for an extremum that
+        ''' crosses zero: sense = -1 searches a dip below zero (positive ends), +1 a rise above zero
+        ''' (negative ends), by golden-section search. Returns the two roots on either side of the
+        ''' extremum (lower eta first), or Nothing when there is none.
+        ''' </summary>
+        Private Function HiddenRootPair(a As Double, b As Double, sense As Double, T As Double, P As Double, mix As mixture) As Double()
+            Dim fa As Double = obj_SAFT(a, T, P, mix)(0)
+            Dim gr As Double = (Sqrt(5.0) - 1.0) / 2.0
+            Dim lo As Double = a, hi As Double = b
+            Dim c As Double = hi - gr * (hi - lo), d As Double = lo + gr * (hi - lo)
+            Dim gc As Double = sense * obj_SAFT(c, T, P, mix)(0), gd As Double = sense * obj_SAFT(d, T, P, mix)(0)
+            For it As Integer = 1 To 40
+                If Double.IsNaN(gc) OrElse Double.IsNaN(gd) Then Return Nothing
+                If gc > 0.0 OrElse gd > 0.0 Then Exit For
+                If gc > gd Then
+                    hi = d : d = c : gd = gc
+                    c = hi - gr * (hi - lo) : gc = sense * obj_SAFT(c, T, P, mix)(0)
+                Else
+                    lo = c : c = d : gc = gd
+                    d = lo + gr * (hi - lo) : gd = sense * obj_SAFT(d, T, P, mix)(0)
+                End If
+            Next
+            Dim xm As Double = If(gc >= gd, c, d)
+            Dim gm As Double = Math.Max(gc, gd)
+            If Not (gm > 0.0) Then Return Nothing
+            Return New Double() {BisectEta(a, xm, fa, T, P, mix), BisectEta(xm, b, sense * gm, T, P, mix)}
         End Function
 
         Public Function eval_g(ByVal n As Integer, ByVal x As Double(), ByVal new_x As Boolean, ByVal m As Integer, ByRef g As Double()) As Boolean
