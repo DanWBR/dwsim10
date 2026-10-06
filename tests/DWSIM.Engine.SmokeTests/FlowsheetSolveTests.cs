@@ -118,6 +118,8 @@ namespace DWSIM.Engine.SmokeTests
             Assert.That(flowsheet.PropertyPackages.Count, Is.GreaterThan(0), "no property package was read");
         }
 
+        [TestCase("BiodieselProduction.dwxmz")]
+        [TestCase("LiquidLiquidExtraction.dwxmz")]
         [TestCase("CavettProblem.dwxml")]
         [TestCase("ExtractiveDistillation.dwxmz")]
         [TestCase("GibbsAndEquilibriumReactors.dwxml")]
@@ -148,25 +150,5 @@ namespace DWSIM.Engine.SmokeTests
             Assert.That(streams.All(s => s.Calculated), "some material stream was left uncalculated");
         }
 
-        // The two samples below do not solve, and do not solve on the .NET Framework build of the
-        // engine either: the same object reports the same message there. Both are columns that
-        // miss the tolerance. They are pinned here so that the day one of them starts behaving
-        // differently, the suite says so. (The acetone column of ExtractiveDistillation and the
-        // debutanizer of NaturalGasProcessingUnit used to be pinned too; both solve since the
-        // bubble-point solver stopped sharing one composition array between stages. The absorber
-        // of SimpleAbsorberSample was pinned too; it solves since the simultaneous solver scales
-        // its Newton step as a whole instead of clipping it variable by variable.)
-        [TestCase("BiodieselProduction.dwxmz", "Biodiesel Purification: DCErrorStillHigh")]
-        [TestCase("LiquidLiquidExtraction.dwxmz", "ABS-002: DCErrorStillHigh")]
-        public void AFlowsheetFailsTheWayItAlreadyDid(string filename, string expected)
-        {
-            var flowsheet = Load(filename);
-
-            var errors = flowsheet.SolveFlowsheet2();
-
-            Assert.That(errors.Count, Is.EqualTo(1),
-                        "the solver reported: " + string.Join("; ", errors.Select(e => e.Message)));
-            Assert.That(errors[0].Message, Does.Contain(expected));
-        }
     }
 }
