@@ -72,14 +72,17 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
         Public assocEps As Double(,)
         Private assocCached As Boolean
 
+        ' Called from the parallel tasks of one PCSAFT2 instance: the flag is published after the two
+        ' matrices (volatile write) and read with acquire semantics, so a thread that sees it set also
+        ' sees the matrices.
         Public Sub EnsureAssocCache()
-            If assocCached Then Return
+            If System.Threading.Volatile.Read(assocCached) Then Return
             Dim ep = TryCast(EosParam, System.Collections.IList)
             If ep IsNot Nothing AndAlso ep.Count > 6 Then
                 assocKappa = TryCast(ep(5), Double(,))
                 assocEps = TryCast(ep(6), Double(,))
             End If
-            assocCached = True
+            System.Threading.Volatile.Write(assocCached, True)
         End Sub
 
     End Class
@@ -103,33 +106,43 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
         ' The temperature-dependent segment diameter d(i) is a function of T only (Eq. 3), but it was
         ' recomputed - each with an Exp - in every Z_hc/Z_disp/Z_ass/mu call, i.e. once per component
         ' on every density-solver iteration. mix is fixed for the life of this instance, so cache d by T.
-        Private _dCacheT As Double = Double.NaN
-        Private _dCache As Double()
+        ' CalcHr, CalcCp, CalcCv and CalcJT evaluate this instance at two temperatures on two threads, so
+        ' the temperature and its diameters live in one immutable entry, replaced by a single reference
+        ' store: a reader gets one whole entry, never the T of one call with the diameters of another.
+        Private NotInheritable Class DiameterCache
+            Public ReadOnly Temperature As Double
+            Public ReadOnly Diameters As Double()
+            Public Sub New(temperature As Double, diameters As Double())
+                Me.Temperature = temperature
+                Me.Diameters = diameters
+            End Sub
+        End Class
+
+        Private _dCache As DiameterCache
 
         Private Function GetD(T As Double) As Double()
-            If _dCache IsNot Nothing AndAlso _dCacheT = T Then Return _dCache
+            Dim c = System.Threading.Volatile.Read(_dCache)
+            If c IsNot Nothing AndAlso c.Temperature = T Then Return c.Diameters
             Dim d = zeros(mix.numC)
             For i = 1 To mix.numC
                 d(i) = HardSphereDiameter(T, mix.comp(i).EoSParam(1), mix.comp(i).EoSParam(2), mix.comp(i).EoSParam(3))
             Next
-            _dCache = d
-            _dCacheT = T
+            System.Threading.Volatile.Write(_dCache, New DiameterCache(T, d))
             Return d
         End Function
 
-        Private _segDCacheT As Double = Double.NaN
-        Private _segDCache As Double()
+        Private _segDCache As DiameterCache
 
         ' Temperature-dependent diameter d of every SEGMENT type (Eq. 3, independent of m). Cached by T on
         ' the instance, like GetD. For a one-segment-per-compound mixture these equal the compound diameters.
         Private Function GetSegD(mixt As mixture, T As Double) As Double()
-            If _segDCache IsNot Nothing AndAlso _segDCacheT = T Then Return _segDCache
+            Dim c = System.Threading.Volatile.Read(_segDCache)
+            If c IsNot Nothing AndAlso c.Temperature = T Then Return c.Diameters
             Dim d = zeros(mixt.nseg)
             For s = 1 To mixt.nseg
                 d(s) = mixt.segSigma(s) * (1 - 0.12 * Exp(-3 * mixt.segEps(s) / T))
             Next
-            _segDCache = d
-            _segDCacheT = T
+            System.Threading.Volatile.Write(_segDCache, New DiameterCache(T, d))
             Return d
         End Function
 
