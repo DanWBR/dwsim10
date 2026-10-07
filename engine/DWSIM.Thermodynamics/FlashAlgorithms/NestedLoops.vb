@@ -283,6 +283,15 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
             If hasNonVol Then VmaxCap = 1.0 - sumnonvol
             MaxVaporFraction = VmaxCap
 
+            'a compound present whose vapour pressure is below 1e-10 P without being flagged non-volatile (an
+            'ionic liquid near ambient temperature: its model-fluid vapour pressure is 1e-15 to 1e-6 Pa at 298 K).
+            'The single-root stability test, the K check of the split and the phase-label check below apply only
+            'to such feeds
+            Dim nearNonVol As Boolean = False
+            For i = 0 To n
+                If Vz(i) > 0.0# AndAlso Vp(i) > 0.0# AndAlso Vp(i) < 0.0000000001 * P Then nearNonVol = True
+            Next
+
             If Not ReuseKI Then
                 Ki = Vp.MultiplyConstY(1 / P)
                 For i = 0 To n
@@ -367,6 +376,7 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
             '1 atm, 366-372 K): for an activity-coefficient package the shortcut also needs the feed's own
             'bubble pressure, sum(z K(z)) P, to be below P
             Dim allLiquid As Boolean = vpMaxP < P And vpMinP > 0
+            Dim allLiquidOneRoot As Boolean = False
             If allLiquid AndAlso PP.PackageType = PropertyPackages.PackageType.ActivityCoefficient Then
                 allLiquid = PP.DW_CalcKvalue(Vz, Vz, T, P).MultiplyY(Vz).SumY < 1.0
             ElseIf allLiquid AndAlso PP.PackageType = PropertyPackages.PackageType.EOS Then
@@ -380,6 +390,8 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                     If Vz(i) > 0.0# Then dglv += Vz(i) * (lnzl(i) - lnzv(i))
                 Next
                 allLiquid = dglv <= 0.0#
+                'dglv is exactly zero when the feed has a single density root, and then it says nothing
+                allLiquidOneRoot = dglv = 0.0#
             End If
 
             If allLiquid Then
@@ -390,6 +402,28 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                 Vx = Vz
                 Vy = Vx.MultiplyY(Ki).NormalizeY()
                 Vy = Vy.ReplaceInvalidsWithZeroes()
+
+                'a single-root feed with an effectively non-volatile compound (nearNonVol) is tested for
+                'stability before it is reported as one liquid: CO2 + an ionic liquid at 313 K and 90 bar, above the
+                'extrapolated CO2 vapour pressure (89.9 bar), splits into a CO2-rich phase and the ionic-liquid-rich
+                'liquid. A stable feed (or a failed test), and every other feed, stays as above.
+                If allLiquidOneRoot AndAlso nearNonVol AndAlso Not hasNonVol Then
+                    Dim chk1 As Object() = Nothing
+                    Try
+                        chk1 = PTStabilityCheck(Vz, P, T, PP, 0.0#, Vx, Vy, Enumerable.Repeat(1.0#, n + 1).ToArray())
+                    Catch ex As Exception
+                        chk1 = Nothing
+                    End Try
+                    If chk1 IsNot Nothing Then
+                        V = chk1(0)
+                        L = 1.0# - V
+                        Vx = chk1(1)
+                        Vy = chk1(2)
+                        Ki = chk1(3)
+                        GoTo labels
+                    End If
+                End If
+
                 GoTo out
 
             ElseIf vpMinP > P And vpMinP > 0 Then
@@ -489,6 +523,37 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
             F = r1(4)
             ecount = r1(5)
 
+            'ConvergeVF stops on the Rachford-Rice residual, which can be met with the K values still moving: with
+            'an effectively non-volatile compound it is met after one or two iterations (CO2 + [omim][Tf2N],
+            '324 K, 38 bar: x(CO2) = 0.612 against 0.583 at equilibrium, ln K still 0.064 off). A split whose K
+            'values are more than 1 % off the ones of its own phase compositions, in a feed with an effectively
+            'non-volatile compound (nearNonVol), is finished by the damped successive substitution; any other split
+            'stands as it came.
+            If V > 0.0# AndAlso V < 1.0# AndAlso nearNonVol AndAlso Not hasNonVol Then
+                Dim Kchk = PP.DW_CalcKvalue(Vx, Vy, T, P)
+                Dim dkchk As Double = 0.0
+                For i = 0 To n
+                    If Vz(i) > 0.0# AndAlso Ki(i) > 0.0# AndAlso Kchk(i) > 0.0# Then dkchk = Math.Max(dkchk, Math.Abs(Log(Kchk(i) / Ki(i))))
+                Next
+                If dkchk > 0.01 Then
+                    Dim rk As Object() = Nothing
+                    Try
+                        rk = ConvergeVFDamped(Vz, Ki, P, T, PP)
+                    Catch exk As Exception
+                        rk = Nothing
+                    End Try
+                    If rk IsNot Nothing Then
+                        V = rk(0)
+                        L = 1 - V
+                        Vx = rk(1)
+                        Vy = rk(2)
+                        Ki = rk(3)
+                        F = rk(4)
+                        ecount = rk(5)
+                    End If
+                End If
+            End If
+
             If V <= 0.0# Then
                 V = 0.0#
                 L = 1.0#
@@ -546,6 +611,44 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                     Vx = chk(1)
                     Vy = chk(2)
                     Ki = chk(3)
+                End If
+            End If
+
+labels:     'two dense phases with a single root each can converge either way round (CO2 + an ionic liquid,
+            '313 K, 88 bar: pure CO2 as the "liquid", the ionic-liquid-rich phase as the "vapour", V = 0.997).
+            'When the vapour holds more of the least volatile compound than the liquid, and it is also the denser
+            'phase (mass density, each phase on its root of lower Gibbs energy), the labels are swapped.
+            If V > 0.0# AndAlso V < 1.0# AndAlso nearNonVol Then
+                Dim ih As Integer = -1
+                For i = 0 To n
+                    If Vz(i) > 0.0# AndAlso (ih < 0 OrElse Vp(i) < Vp(ih)) Then ih = i
+                Next
+                If ih >= 0 AndAlso Vy(ih) > Vx(ih) Then
+                    Dim mw = PP.RET_VMM()
+                    'mass density over P / (R T): MW / Z on the root of lower Gibbs energy
+                    Dim rhoOf = Function(w As Double()) As Double
+                                    Dim ll = PP.DW_CalcLnFugCoeff(w, T, P, State.Liquid)
+                                    Dim lv = PP.DW_CalcLnFugCoeff(w, T, P, State.Vapor)
+                                    Dim gl As Double = 0.0, gv As Double = 0.0
+                                    For j = 0 To n
+                                        If w(j) > 0.0 Then
+                                            gl += w(j) * (Log(w(j)) + ll(j))
+                                            gv += w(j) * (Log(w(j)) + lv(j))
+                                        End If
+                                    Next
+                                    Dim zz As Double = If(gl <= gv, PP.AUX_Z(w, T, P, Interfaces.Enums.PhaseName.Liquid), PP.AUX_Z(w, T, P, Interfaces.Enums.PhaseName.Vapor))
+                                    Return w.MultiplyY(mw).SumY / zz
+                                End Function
+                    If rhoOf(Vy) > rhoOf(Vx) Then
+                        Dim tmp As Double() = Vx
+                        Vx = Vy
+                        Vy = tmp
+                        V = 1.0# - V
+                        L = 1.0# - V
+                        For i = 0 To n
+                            If Ki(i) <> 0.0# Then Ki(i) = 1.0# / Ki(i)
+                        Next
+                    End If
                 End If
             End If
 
@@ -989,6 +1092,22 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                     Throw ex
                 End If
                 If ecount > maxit_e Then
+                    'the Newton step on V with K lagged one iteration cycles when K moves strongly with the phase
+                    'compositions (H2S in an ionic liquid, 298 K, 7.5 bar: V between 0.26 and 0.62 for all the
+                    'iterations); before giving up, for a feed with a compound whose vapour pressure is below
+                    '1e-10 P (an ionic liquid), damped successive substitution from the last K values
+                    Dim rd As Object() = Nothing
+                    Try
+                        Dim vpd = PP.RET_VPVAP(T)
+                        Dim nnv As Boolean = False
+                        For j = 0 To n
+                            If Vz(j) > 0.0# AndAlso vpd(j) > 0.0# AndAlso vpd(j) < 0.0000000001 * P Then nnv = True
+                        Next
+                        If nnv Then rd = ConvergeVFDamped(Vz, Ki, P, T, PP)
+                    Catch exd As Exception
+                        rd = Nothing
+                    End Try
+                    If rd IsNot Nothing Then Return rd
                     Dim ex As New Exception(Calculator.GetLocalString("PropPack_FlashMaxIt2") & String.Format(" (T = {0} K, P = {1} Pa, MoleFracs = {2})", T.ToString("N2"), P.ToString("N2"), Vz.ToArrayString()))
                     ex.Data.Add("DetailedDescription", "The Flash Algorithm was unable to converge to a solution.")
                     ex.Data.Add("UserAction", "Try another Property Package and/or Flash Algorithm.")
@@ -1010,6 +1129,57 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
             Loop
 
             Return New Object() {V, Vx, Vy, Ki, F, ecount, overshoot}
+
+        End Function
+
+        ''' <summary>
+        ''' Successive substitution with the vapour fraction solved exactly at each step and K damped in ln K
+        ''' (the step halves whenever the change in K grows), for a run of ConvergeVF that reached its iteration
+        ''' limit. Returns the result in the form of ConvergeVF, or Nothing when it does not converge either.
+        ''' </summary>
+        Private Function ConvergeVFDamped(Vz As Double(), K0 As Double(), P As Double, T As Double, PP As PropertyPackage) As Object()
+
+            Dim n As Integer = Vz.Length - 1
+            Dim K As Double() = DirectCast(K0.Clone(), Double())
+            Dim Vmax As Double = MaxVaporFraction
+            Dim w As Double = 0.5, dkprev As Double = Double.MaxValue
+            Dim V As Double, Vx As Double(), Vy As Double()
+
+            For it As Integer = 1 To 4 * maxit_e
+                Dim Kc As Double() = K
+                Dim rr As Func(Of Double, Double) = Function(vv) Vz.MultiplyY(Kc.AddConstY(-1).DivideY(Kc.AddConstY(-1).MultiplyConstY(vv).AddConstY(1))).SumY
+                If rr(0.0#) <= 0.0# Then
+                    V = 0.0#
+                ElseIf rr(Vmax) >= 0.0# Then
+                    V = Vmax
+                Else
+                    V = Brent.BrentOpt3(0.0#, Vmax, 20, 0.0000000001, 100, rr)
+                End If
+                Vx = Vz.DivideY(Kc.AddConstY(-1).MultiplyConstY(V).AddConstY(1)).NormalizeY()
+                Vy = Vx.MultiplyY(Kc).NormalizeY()
+                Dim Knew = PP.DW_CalcKvalue(Vx, Vy, T, P)
+                Dim dk As Double = 0.0
+                For j = 0 To n
+                    If Vz(j) > 0.0 Then dk = Math.Max(dk, Math.Abs(Log(Knew(j) / Kc(j))))
+                Next
+                If Double.IsNaN(dk) OrElse Double.IsInfinity(dk) Then Return Nothing
+                If dk < 0.000001 Then
+                    Return New Object() {V, Vx, Vy, Knew, rr(V), maxit_e + it, False}
+                End If
+                If dk > dkprev Then w = Math.Max(0.5 * w, 0.05)
+                dkprev = dk
+                Dim Kd(n) As Double
+                For j = 0 To n
+                    If Vz(j) > 0.0 AndAlso Kc(j) > 0.0 AndAlso Knew(j) > 0.0 Then
+                        Kd(j) = Exp(Log(Kc(j)) + w * Log(Knew(j) / Kc(j)))
+                    Else
+                        Kd(j) = Knew(j)
+                    End If
+                Next
+                K = Kd
+            Next
+
+            Return Nothing
 
         End Function
 
