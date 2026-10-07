@@ -2963,11 +2963,17 @@ Errortrap:
         End Function
 
 
+        ' Set once each coefficient table below is completely filled (volatile write), and read before using it.
+        ' The tables used to be tested on one of their own entries, written first, so a second thread could see
+        ' the marker and read coefficients still being filled; InitIF97_2 tested an entry that is never written
+        ' and refilled its table on every call.
+        Private _initIAPWS95, _initF03, _initIF97_1, _initIF97_2, _initIAPWS08 As Boolean
+
         Private Sub InitIAPWS95()
 
             Dim i As Integer
 
-            If di(1) = 1 Then Exit Sub
+            If System.Threading.Volatile.Read(_initIAPWS95) Then Exit Sub
 
             'Coefficients defined in Table 1 of IAPWS-95
             'Numerical values of the coefficients and parameters of the ideal-gas
@@ -3058,6 +3064,7 @@ Errortrap:
             'cp extension below 130 K
             ee = 0.278296458178592
 
+            System.Threading.Volatile.Write(_initIAPWS95, True)
         End Sub
 
 
@@ -3723,6 +3730,13 @@ JackettCode:
 
         'Control parameters of the density iteration
         Private ctrl_initialized As Integer
+        ' One flag per iteration family: the four control blocks below come from separate modules of the library,
+        ' each with its own flag, and sharing one let the first routine stop the others from setting their defaults.
+        ' Every flag is published (volatile write) after its block is filled, so a second thread never runs with
+        ' half-set controls.
+        Private ctrl_initialized_pottemp As Integer
+        Private ctrl_initialized_entropy As Integer
+        Private ctrl_initialized_salinity As Integer
         Private ctrl_mode_liquid As Integer
         Private ctrl_mode_vapour As Integer
 
@@ -4709,9 +4723,7 @@ ExitFunction:
 
         Private Sub init_it_ctrl_density()
 
-            If ctrl_initialized = -1 Then Exit Sub
-
-            ctrl_initialized = -1
+            If System.Threading.Volatile.Read(ctrl_initialized) = -1 Then Exit Sub
 
             'Set default values and modes for density iteration
             ctrl_mode_liquid = 0
@@ -4730,6 +4742,7 @@ ExitFunction:
             ctrl_density2_liquid = 0  'default = .5 * Newton step
             ctrl_density2_vapour = 0  'default = .5 * Newton step
 
+            System.Threading.Volatile.Write(ctrl_initialized, -1)
         End Sub
 
 
@@ -4955,7 +4968,7 @@ ExitFunction:
 
         Private Sub InitF03()
 
-            If gc(2, 0) = -12357.785933039 Then Exit Sub
+            If System.Threading.Volatile.Read(_initF03) Then Exit Sub
 
             gc(2, 0) = -12357.785933039
             gc(3, 0) = 736.741204151612
@@ -5017,6 +5030,7 @@ ExitFunction:
             'gc(0, 0) = gc(0, 0) - g + pt * gp
             'gc(1, 0) = gc(1, 0) - gt * tu
 
+            System.Threading.Volatile.Write(_initF03, True)
         End Sub
 
 
@@ -5309,7 +5323,7 @@ ExitFunction:
 
             Dim i As Integer
 
-            If n1i(1) = 0.14632971213167 Then Exit Sub
+            If System.Threading.Volatile.Read(_initIF97_1) Then Exit Sub
 
             'Table 2. Numerical values of the coefficients and exponents of the dimensionless Gibbs free energy
             'for region 1, Eq. (7)
@@ -5332,6 +5346,7 @@ ExitFunction:
             i = 16 : i1i(i) = 2 : j1i(i) = 0 : n1i(i) = -0.00030001780793026 : i = 33 : i1i(i) = 31 : j1i(i) = -40 : n1i(i) = 1.8228094581404E-24
             i = 17 : i1i(i) = 2 : j1i(i) = 1 : n1i(i) = 0.000047661393906987 : i = 34 : i1i(i) = 32 : j1i(i) = -41 : n1i(i) = -9.3537087292458E-26
 
+            System.Threading.Volatile.Write(_initIF97_1, True)
         End Sub
 
 
@@ -5339,7 +5354,7 @@ ExitFunction:
 
             Dim i As Integer
 
-            If n0i(i) = -9.6927686500217 Then Exit Sub
+            If System.Threading.Volatile.Read(_initIF97_2) Then Exit Sub
 
             'Table 10. Numerical values of the coefficients and exponents of the ideal-gas part gamma_0 of the
             'dimensionless Gibbs free energy for region 2, Eq. (16)
@@ -5408,6 +5423,7 @@ ExitFunction:
             i = 42 : iri(i) = 24 : jri(i) = 40 : nri(i) = 5.5414715350778E-17
             i = 43 : iri(i) = 24 : jri(i) = 58 : nri(i) = -0.0000009436970724121
 
+            System.Threading.Volatile.Write(_initIF97_2, True)
         End Sub
 
 
@@ -5787,9 +5803,8 @@ ExitFunction:
 
             Const ups = SO_salinity_si / 35.0#
             Const su = 40.0# * ups
-            Const gi100 = 5812.81456626732 * 0.5 / su
 
-            If gi(1, 0, 0) = gi100 Then Exit Sub
+            If System.Threading.Volatile.Read(_initIAPWS08) Then Exit Sub
 
             Dim gc(maxs, maxt2, maxp2) As Double       'Local array of coeffs of the Gibbs function
             Dim i As Integer, j As Integer, k As Integer
@@ -5919,6 +5934,7 @@ ExitFunction:
                 Next k
             Next j
 
+            System.Threading.Volatile.Write(_initIAPWS08, True)
         End Sub
 
 
@@ -8464,9 +8480,7 @@ ExitFunction:
 
         Private Sub init_it_ctrl_pottemp()
 
-            If ctrl_initialized = -1 Then Exit Sub
-
-            ctrl_initialized = -1
+            If System.Threading.Volatile.Read(ctrl_initialized_pottemp) = -1 Then Exit Sub
 
             'Set default values and modes for temperature iteration
             ctrl_loop_maximum = 100
@@ -8474,6 +8488,7 @@ ExitFunction:
             ctrl_init_pottemp = 273.15
             ctrl_eps_exit_pottemp = 0.0001  'default = 0.1 mK
 
+            System.Threading.Volatile.Write(ctrl_initialized_pottemp, -1)
         End Sub
 
 
@@ -9343,9 +9358,7 @@ ExitFunction:
 
         Private Sub init_it_ctrl_entropy()
 
-            If ctrl_initialized = -1 Then Exit Sub
-
-            ctrl_initialized = -1
+            If System.Threading.Volatile.Read(ctrl_initialized_entropy) = -1 Then Exit Sub
 
             'Set default values and modes for entropy iteration
             ctrl_loop_maximum = 100
@@ -9353,6 +9366,7 @@ ExitFunction:
             ctrl_eps_exit_entropy = 0.0001  'default = 1E-4 J/kgK
             ctrl_init_entropy = 0
 
+            System.Threading.Volatile.Write(ctrl_initialized_entropy, -1)
         End Sub
 
 
@@ -9662,9 +9676,7 @@ ExitFunction:
 
         Private Sub init_it_ctrl_salinity()
 
-            If ctrl_initialized = -1 Then Exit Sub
-
-            ctrl_initialized = -1
+            If System.Threading.Volatile.Read(ctrl_initialized_salinity) = -1 Then Exit Sub
 
             'Set default values and modes for salinity iteration
             ctrl_loop_maximum = 100
@@ -9672,6 +9684,7 @@ ExitFunction:
             ctrl_init_salinity = SO_salinity_si
             ctrl_eps_exit_salinity = 0.0000001  'default = 0.0001 g/kg
 
+            System.Threading.Volatile.Write(ctrl_initialized_salinity, -1)
         End Sub
 
 
