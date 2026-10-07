@@ -1332,7 +1332,7 @@ Final3:
             coeff(3) = 1
 
             Dim temp1 = Poly_Roots(coeff)
-            Dim tv = 0
+            Dim tv = 0.0#
             Dim tv2
 
             If Not IsNumeric(temp1) Then

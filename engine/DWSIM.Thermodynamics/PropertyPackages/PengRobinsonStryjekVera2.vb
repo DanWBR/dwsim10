@@ -421,43 +421,27 @@ Namespace PropertyPackages
         End Function
 
         Public Function RET_KIJ(ByVal id1 As String, ByVal id2 As String) As Double
-            If Me.m_pr.InteractionParameters.ContainsKey(id1.ToLower) Then
-                If Me.m_pr.InteractionParameters(id1.ToLower).ContainsKey(id2.ToLower) Then
-                    Return m_pr.InteractionParameters(id1.ToLower)(id2.ToLower).kij
-                Else
-                    If Me.m_pr.InteractionParameters.ContainsKey(id2.ToLower) Then
-                        If Me.m_pr.InteractionParameters(id2.ToLower).ContainsKey(id1.ToLower) Then
-                            Return m_pr.InteractionParameters(id2.ToLower)(id1.ToLower).kij
-                        Else
-                            Return 0
-                        End If
-                    Else
-                        Return 0
-                    End If
-                End If
-            Else
-                Return 0
+            Dim k1 = id1.ToLower, k2 = id2.ToLower
+            If m_pr.InteractionParameters.ContainsKey(k1) AndAlso m_pr.InteractionParameters(k1).ContainsKey(k2) Then
+                Return m_pr.InteractionParameters(k1)(k2).kij
             End If
+            ' a pair is stored once; read from the other side, kij and kji trade places
+            If m_pr.InteractionParameters.ContainsKey(k2) AndAlso m_pr.InteractionParameters(k2).ContainsKey(k1) Then
+                Return m_pr.InteractionParameters(k2)(k1).kji
+            End If
+            Return 0
         End Function
 
         Public Function RET_KIJ2(ByVal id1 As String, ByVal id2 As String) As Double
-            If Me.m_pr.InteractionParameters.ContainsKey(id1.ToLower) Then
-                If Me.m_pr.InteractionParameters(id1.ToLower).ContainsKey(id2.ToLower) Then
-                    Return m_pr.InteractionParameters(id1.ToLower)(id2.ToLower).kji
-                Else
-                    If Me.m_pr.InteractionParameters.ContainsKey(id2.ToLower) Then
-                        If Me.m_pr.InteractionParameters(id2.ToLower).ContainsKey(id1.ToLower) Then
-                            Return m_pr.InteractionParameters(id2.ToLower)(id1.ToLower).kji
-                        Else
-                            Return 0
-                        End If
-                    Else
-                        Return 0
-                    End If
-                End If
-            Else
-                Return 0
+            Dim k1 = id1.ToLower, k2 = id2.ToLower
+            If m_pr.InteractionParameters.ContainsKey(k1) AndAlso m_pr.InteractionParameters(k1).ContainsKey(k2) Then
+                Return m_pr.InteractionParameters(k1)(k2).kji
             End If
+            ' a pair is stored once; read from the other side, kij and kji trade places
+            If m_pr.InteractionParameters.ContainsKey(k2) AndAlso m_pr.InteractionParameters(k2).ContainsKey(k1) Then
+                Return m_pr.InteractionParameters(k2)(k1).kij
+            End If
+            Return 0
         End Function
 
         Public Function RET_KAPPA1() As Double()
