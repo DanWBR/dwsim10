@@ -898,9 +898,21 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
             Return K
         End Function
 
-        ' Largest entry of the association volume and energy matrices of an associationparams string
-        ' ("n", "[kappa matrix]", "[epsilon matrix]"); zero when the string defines no association.
-        Private Shared Sub AssociationFromMatrices(assocparam As String, ByRef kappa As Double, ByRef eps As Double)
+        ''' <summary>
+        ''' The associationparams string of a two-site-type (donor/acceptor) compound with association volume
+        ''' <paramref name="kappa"/> and energy <paramref name="eps"/> (K), in the form the parameter tables use.
+        ''' </summary>
+        Public Shared Function AssociationMatrices(kappa As Double, eps As Double) As String
+            Dim ci = Globalization.CultureInfo.InvariantCulture
+            Dim k As String = kappa.ToString(ci), e As String = eps.ToString(ci)
+            Return "2" & Environment.NewLine & $"[0 {k}; {k} 0]" & Environment.NewLine & $"[0 {e}; {e} 0]"
+        End Function
+
+        ''' <summary>
+        ''' Largest entry of the association volume and energy matrices of an associationparams string
+        ''' ("n", "[kappa matrix]", "[epsilon matrix]"); zero when the string defines no association.
+        ''' </summary>
+        Public Shared Sub AssociationFromMatrices(assocparam As String, ByRef kappa As Double, ByRef eps As Double)
             kappa = 0.0 : eps = 0.0
             If String.IsNullOrWhiteSpace(assocparam) Then Return
             Dim lines = assocparam.Split(New String() {vbCrLf, vbLf, vbCr}, StringSplitOptions.RemoveEmptyEntries)
@@ -917,9 +929,13 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
             Return mx
         End Function
 
+        ' Read from the association matrices, the data the calculation itself uses, so a compound whose
+        ' association was entered in an editor (which writes only the matrices) is seen as associating too.
         Private Function IsAssociating(cas As String) As Boolean
-            Return CompoundParameters.ContainsKey(cas) AndAlso
-                   CompoundParameters(cas).kAiBi > 0.0 AndAlso CompoundParameters(cas).epsilon2 > 0.0
+            If Not CompoundParameters.ContainsKey(cas) Then Return False
+            Dim kappa, eps As Double
+            AssociationFromMatrices(CompoundParameters(cas).associationparams, kappa, eps)
+            Return kappa > 0.0 AndAlso eps > 0.0
         End Function
 
         ' The Lee-Kesler caloric route uses Tc/Pc/omega corresponding states: it cannot represent the
@@ -1416,14 +1432,14 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
                     .sigma = Double.Parse(xel.Attribute("sigma").Value, ci)
                     .epsilon = Double.Parse(xel.Attribute("epsilon_k").Value, ci)
                     .associationparams = xel.Attribute("assocparam").Value.Replace("|", System.Environment.NewLine)
-                    ' The association strength and energy decide the caloric route (see IsAssociating). Files
-                    ' saved without them carry the same numbers in the association matrices.
-                    Dim aK = xel.Attribute("kAiBi"), aE = xel.Attribute("epsilon_AiBi")
-                    If aK IsNot Nothing AndAlso aE IsNot Nothing Then
-                        .kAiBi = Double.Parse(aK.Value, ci)
-                        .epsilon2 = Double.Parse(aE.Value, ci)
-                    Else
+                    ' The association strength and energy follow the association matrices, which an editor may
+                    ' have changed without updating them; files saved without matrices keep the stored values.
+                    If Not String.IsNullOrWhiteSpace(.associationparams) Then
                         AssociationFromMatrices(.associationparams, .kAiBi, .epsilon2)
+                    Else
+                        Dim aK = xel.Attribute("kAiBi"), aE = xel.Attribute("epsilon_AiBi")
+                        If aK IsNot Nothing Then .kAiBi = Double.Parse(aK.Value, ci)
+                        If aE IsNot Nothing Then .epsilon2 = Double.Parse(aE.Value, ci)
                     End If
                     ' Newer fields (absent in files saved before they existed): polymer m/M, association
                     ' scheme, and the copolymer definition, so a copolymer round-trips through a save.

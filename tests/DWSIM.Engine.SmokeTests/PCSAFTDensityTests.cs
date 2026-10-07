@@ -309,6 +309,27 @@ namespace DWSIM.Engine.SmokeTests
             }
         }
 
+        /// <summary>
+        /// The package editors write a compound's association as the matrices alone (they leave the kAiBi
+        /// and epsilon2 fields of the parameter row untouched). Such a compound must still count as
+        /// associating, so its enthalpy takes the PC-SAFT departure with Lee-Kesler enabled.
+        /// </summary>
+        [Test]
+        public void AssociationEnteredAsMatricesBypassesLeeKesler()
+        {
+            var st = DWSIM.Thermodynamics.PropertyPackages.State.Liquid;
+            var z = new[] { 0.5, 0.5 };
+            var pp = Package(fs => { fs.AddCompound("Water"); fs.AddCompound("Ethanol"); });
+            foreach (var row in pp.CompoundParameters.Values) { row.kAiBi = 0.0; row.epsilon2 = 0.0; }
+            pp.UseLeeKeslerEnthalpy = true;
+            double hLk = pp.DW_CalcEnthalpy(z, 350.0, 2e5, st);
+            pp.UseLeeKeslerEnthalpy = false;
+            double hNat = pp.DW_CalcEnthalpy(z, 350.0, 2e5, st);
+            TestContext.WriteLine($"water/ethanol H, association in the matrices only: LK-flag-on={hLk:G10}  native={hNat:G10}");
+            Assert.That(hLk, Is.EqualTo(hNat).Within(1e-9).Percent,
+                "a compound associating through its matrices must use the PC-SAFT departure");
+        }
+
         private static DWSIM.Thermodynamics.AdvancedEOS.PCSAFT2PropertyPackage PmmaChlorobutane(double Mn, double Msolv)
         {
             var fs = new DWSIM.DynamicRunner.Flowsheet(null, null);
