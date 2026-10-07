@@ -676,20 +676,55 @@ Namespace PropertyPackages
 
         End Function
 
+        ''' <summary>
+        ''' A single-phase property of the current stream's phase at T and P, computed on a copy of the stream:
+        ''' the stream itself is not changed. The phase label and the stream phase come from the phase mappings.
+        ''' </summary>
+        Private Function IsolProperty(Phase1 As Phase, T As Double, P As Double, prop As String,
+                                      read As Func(Of Interfaces.IPhaseProperties, Double?)) As Double
+
+            Dim key As String
+            Select Case Phase1
+                Case Phase.Vapor : key = "Vapor"
+                Case Phase.Liquid2 : key = "Liquid2"
+                Case Phase.Liquid3 : key = "Liquid3"
+                Case Phase.Aqueous : key = "Aqueous"
+                Case Phase.Solid : key = "Solid"
+                Case Else : key = "Liquid1"
+            End Select
+            If Not PhaseMappings.ContainsKey(key) Then Return 0.0
+            Dim label = PhaseMappings(key).PhaseLabel
+            Dim index = PhaseMappings(key).DWPhaseIndex
+            If label = "" OrElse label = "Disabled" Then Return 0.0
+
+            Dim tstr As Interfaces.IMaterialStream = Me.CurrentMaterialStream.Clone
+            tstr.Phases(0).Properties.temperature = T
+            tstr.Phases(0).Properties.pressure = P
+
+            ' a package that does not give the density gives the volume, which the stream turns into a density
+            If _coversion = "1.0" Then
+                Try
+                    CType(_copp, ICapeThermoCalculationRoutine).CalcProp(tstr, New String() {prop}, New String() {label}, "Mixture")
+                Catch ex As Exception When prop = "density"
+                    CType(_copp, ICapeThermoCalculationRoutine).CalcProp(tstr, New String() {"volume"}, New String() {label}, "Mixture")
+                End Try
+            Else
+                EnsureMaterial(tstr)
+                If prop = "density" AndAlso Not CType(_copp, ICapeThermoPropertyRoutine).CheckSinglePhasePropSpec("density", label) Then prop = "volume"
+                CType(_copp, ICapeThermoPropertyRoutine).CalcSinglePhaseProp(New String() {prop}, label)
+            End If
+
+            Return read(tstr.Phases(index).Properties).GetValueOrDefault
+
+        End Function
+
         Public Overrides Function DW_CalcCp_ISOL(ByVal Phase1 As PropertyPackages.Phase, ByVal T As Double, ByVal P As Double) As Double
 
             SyncLock CoLock()
                 Dim pstr As Interfaces.IMaterialStream = Me.CurrentMaterialStream
-                ' CAPE-OPEN 1.1 computes on the material it was last given: make sure that is this stream
-                ' (a clone of this package that shares the object may have given it another one since)
-                If _coversion <> "1.0" Then EnsureMaterial(pstr)
-                Dim tprev = pstr.Phases(0).Properties.temperature
-                Dim pprev = pstr.Phases(0).Properties.pressure
                 Try
                     Return DW_CalcCp_ISOLCore(Phase1, T, P)
                 Finally
-                    pstr.Phases(0).Properties.temperature = tprev
-                    pstr.Phases(0).Properties.pressure = pprev
                     If Not ReferenceEquals(Me.CurrentMaterialStream, pstr) Then Me.CurrentMaterialStream = pstr
                 End Try
             End SyncLock
@@ -698,31 +733,7 @@ Namespace PropertyPackages
 
         Private Function DW_CalcCp_ISOLCore(ByVal Phase1 As PropertyPackages.Phase, ByVal T As Double, ByVal P As Double) As Double
 
-            Dim res As Double = 0.0#, myphase As String = "", tant As Double, pant As Double
-
-            Select Case Phase1
-                Case Phase.Vapor
-                    myphase = "Vapor"
-                Case Phase.Liquid
-                    myphase = "Liquid"
-            End Select
-
-            tant = Me.CurrentMaterialStream.Phases(0).Properties.temperature.GetValueOrDefault
-            pant = Me.CurrentMaterialStream.Phases(0).Properties.pressure.GetValueOrDefault
-
-            Me.CurrentMaterialStream.Phases(0).Properties.temperature = T
-            Me.CurrentMaterialStream.Phases(0).Properties.pressure = P
-
-            If _coversion = "1.0" Then
-                CType(_copp, ICapeThermoCalculationRoutine).CalcProp(Me.CurrentMaterialStream, New String() {"heatCapacity"}, New String() {myphase}, "Mixture")
-                Return Me.CurrentMaterialStream.Phases(Phase1).Properties.heatCapacityCp.GetValueOrDefault
-            Else
-                CType(_copp, ICapeThermoPropertyRoutine).CalcSinglePhaseProp(New String() {"heatCapacity"}, myphase)
-                Return Me.CurrentMaterialStream.Phases(Phase1).Properties.heatCapacityCp.GetValueOrDefault
-            End If
-
-            Me.CurrentMaterialStream.Phases(0).Properties.temperature = tant
-            Me.CurrentMaterialStream.Phases(0).Properties.pressure = pant
+            Return IsolProperty(Phase1, T, P, "heatCapacity", Function(pr) pr.heatCapacityCp)
 
         End Function
 
@@ -736,16 +747,9 @@ Namespace PropertyPackages
 
             SyncLock CoLock()
                 Dim pstr As Interfaces.IMaterialStream = Me.CurrentMaterialStream
-                ' CAPE-OPEN 1.1 computes on the material it was last given: make sure that is this stream
-                ' (a clone of this package that shares the object may have given it another one since)
-                If _coversion <> "1.0" Then EnsureMaterial(pstr)
-                Dim tprev = pstr.Phases(0).Properties.temperature
-                Dim pprev = pstr.Phases(0).Properties.pressure
                 Try
                     Return DW_CalcK_ISOLCore(Phase1, T, P)
                 Finally
-                    pstr.Phases(0).Properties.temperature = tprev
-                    pstr.Phases(0).Properties.pressure = pprev
                     If Not ReferenceEquals(Me.CurrentMaterialStream, pstr) Then Me.CurrentMaterialStream = pstr
                 End Try
             End SyncLock
@@ -754,31 +758,7 @@ Namespace PropertyPackages
 
         Private Function DW_CalcK_ISOLCore(ByVal Phase1 As PropertyPackages.Phase, ByVal T As Double, ByVal P As Double) As Double
 
-            Dim res As Double = 0.0#, myphase As String = "", tant As Double, pant As Double
-
-            Select Case Phase1
-                Case Phase.Vapor
-                    myphase = "Vapor"
-                Case Phase.Liquid
-                    myphase = "Liquid"
-            End Select
-
-            tant = Me.CurrentMaterialStream.Phases(0).Properties.temperature.GetValueOrDefault
-            pant = Me.CurrentMaterialStream.Phases(0).Properties.pressure.GetValueOrDefault
-
-            Me.CurrentMaterialStream.Phases(0).Properties.temperature = T
-            Me.CurrentMaterialStream.Phases(0).Properties.pressure = P
-
-            If _coversion = "1.0" Then
-                CType(_copp, ICapeThermoCalculationRoutine).CalcProp(Me.CurrentMaterialStream, New String() {"thermalConductivity"}, New String() {myphase}, "Mixture")
-                Return Me.CurrentMaterialStream.Phases(Phase1).Properties.thermalConductivity.GetValueOrDefault
-            Else
-                CType(_copp, ICapeThermoPropertyRoutine).CalcSinglePhaseProp(New String() {"thermalConductivity"}, myphase)
-                Return Me.CurrentMaterialStream.Phases(Phase1).Properties.thermalConductivity.GetValueOrDefault
-            End If
-
-            Me.CurrentMaterialStream.Phases(0).Properties.temperature = tant
-            Me.CurrentMaterialStream.Phases(0).Properties.pressure = pant
+            Return IsolProperty(Phase1, T, P, "thermalConductivity", Function(pr) pr.thermalConductivity)
 
         End Function
 
@@ -786,16 +766,9 @@ Namespace PropertyPackages
 
             SyncLock CoLock()
                 Dim pstr As Interfaces.IMaterialStream = Me.CurrentMaterialStream
-                ' CAPE-OPEN 1.1 computes on the material it was last given: make sure that is this stream
-                ' (a clone of this package that shares the object may have given it another one since)
-                If _coversion <> "1.0" Then EnsureMaterial(pstr)
-                Dim tprev = pstr.Phases(0).Properties.temperature
-                Dim pprev = pstr.Phases(0).Properties.pressure
                 Try
                     Return DW_CalcMassaEspecifica_ISOLCore(Phase1, T, P, pvp)
                 Finally
-                    pstr.Phases(0).Properties.temperature = tprev
-                    pstr.Phases(0).Properties.pressure = pprev
                     If Not ReferenceEquals(Me.CurrentMaterialStream, pstr) Then Me.CurrentMaterialStream = pstr
                 End Try
             End SyncLock
@@ -804,31 +777,7 @@ Namespace PropertyPackages
 
         Private Function DW_CalcMassaEspecifica_ISOLCore(ByVal Phase1 As PropertyPackages.Phase, ByVal T As Double, ByVal P As Double, Optional ByVal pvp As Double = 0) As Double
 
-            Dim res As Double = 0.0#, myphase As String = "", tant As Double, pant As Double
-
-            Select Case Phase1
-                Case Phase.Vapor
-                    myphase = "Vapor"
-                Case Phase.Liquid
-                    myphase = "Liquid"
-            End Select
-
-            tant = Me.CurrentMaterialStream.Phases(0).Properties.temperature.GetValueOrDefault
-            pant = Me.CurrentMaterialStream.Phases(0).Properties.pressure.GetValueOrDefault
-
-            Me.CurrentMaterialStream.Phases(0).Properties.temperature = T
-            Me.CurrentMaterialStream.Phases(0).Properties.pressure = P
-
-            If _coversion = "1.0" Then
-                CType(_copp, ICapeThermoCalculationRoutine).CalcProp(Me.CurrentMaterialStream, New String() {"density"}, New String() {myphase}, "Mixture")
-                Return Me.CurrentMaterialStream.Phases(Phase1).Properties.density.GetValueOrDefault
-            Else
-                CType(_copp, ICapeThermoPropertyRoutine).CalcSinglePhaseProp(New String() {"density"}, myphase)
-                Return Me.CurrentMaterialStream.Phases(Phase1).Properties.density.GetValueOrDefault
-            End If
-
-            Me.CurrentMaterialStream.Phases(0).Properties.temperature = tant
-            Me.CurrentMaterialStream.Phases(0).Properties.pressure = pant
+            Return IsolProperty(Phase1, T, P, "density", Function(pr) pr.density)
 
         End Function
 
@@ -987,16 +936,9 @@ Namespace PropertyPackages
 
             SyncLock CoLock()
                 Dim pstr As Interfaces.IMaterialStream = Me.CurrentMaterialStream
-                ' CAPE-OPEN 1.1 computes on the material it was last given: make sure that is this stream
-                ' (a clone of this package that shares the object may have given it another one since)
-                If _coversion <> "1.0" Then EnsureMaterial(pstr)
-                Dim tprev = pstr.Phases(0).Properties.temperature
-                Dim pprev = pstr.Phases(0).Properties.pressure
                 Try
                     Return DW_CalcTensaoSuperficial_ISOLCore(Phase1, T, P)
                 Finally
-                    pstr.Phases(0).Properties.temperature = tprev
-                    pstr.Phases(0).Properties.pressure = pprev
                     If Not ReferenceEquals(Me.CurrentMaterialStream, pstr) Then Me.CurrentMaterialStream = pstr
                 End Try
             End SyncLock
@@ -1005,24 +947,19 @@ Namespace PropertyPackages
 
         Private Function DW_CalcTensaoSuperficial_ISOLCore(ByVal Phase1 As PropertyPackages.Phase, ByVal T As Double, ByVal P As Double) As Double
 
-            Dim res As Double = 0.0#, phase As String = "", tant As Double, pant As Double
-
-            tant = Me.CurrentMaterialStream.Phases(0).Properties.temperature.GetValueOrDefault
-            pant = Me.CurrentMaterialStream.Phases(0).Properties.pressure.GetValueOrDefault
-
-            Me.CurrentMaterialStream.Phases(0).Properties.temperature = T
-            Me.CurrentMaterialStream.Phases(0).Properties.pressure = P
+            Dim vl = PhaseMappings("Vapor").PhaseLabel, ll = PhaseMappings("Liquid1").PhaseLabel
+            Dim tstr As Interfaces.IMaterialStream = Me.CurrentMaterialStream.Clone
+            tstr.Phases(0).Properties.temperature = T
+            tstr.Phases(0).Properties.pressure = P
 
             If _coversion = "1.0" Then
-                CType(_copp, ICapeThermoCalculationRoutine).CalcProp(Me.CurrentMaterialStream, New String() {"surfaceTension"}, New String() {phase}, "Mixture")
-                Return Me.CurrentMaterialStream.Phases(Phase1).Properties.surfaceTension.GetValueOrDefault
+                CType(_copp, ICapeThermoCalculationRoutine).CalcProp(tstr, New String() {"surfaceTension"}, New String() {ll}, "Mixture")
             Else
-                CType(_copp, ICapeThermoPropertyRoutine).CalcTwoPhaseProp(New String() {"surfaceTension"}, New String() {"VaporLiquid"})
-                Return Me.CurrentMaterialStream.Phases(Phase1).Properties.surfaceTension.GetValueOrDefault
+                EnsureMaterial(tstr)
+                CType(_copp, ICapeThermoPropertyRoutine).CalcTwoPhaseProp(New String() {"surfaceTension"}, New String() {vl, ll})
             End If
 
-            Me.CurrentMaterialStream.Phases(0).Properties.temperature = tant
-            Me.CurrentMaterialStream.Phases(0).Properties.pressure = pant
+            Return tstr.Phases(0).Properties.surfaceTension.GetValueOrDefault
 
         End Function
 
@@ -1034,16 +971,9 @@ Namespace PropertyPackages
 
             SyncLock CoLock()
                 Dim pstr As Interfaces.IMaterialStream = Me.CurrentMaterialStream
-                ' CAPE-OPEN 1.1 computes on the material it was last given: make sure that is this stream
-                ' (a clone of this package that shares the object may have given it another one since)
-                If _coversion <> "1.0" Then EnsureMaterial(pstr)
-                Dim tprev = pstr.Phases(0).Properties.temperature
-                Dim pprev = pstr.Phases(0).Properties.pressure
                 Try
                     Return DW_CalcViscosidadeDinamica_ISOLCore(Phase1, T, P)
                 Finally
-                    pstr.Phases(0).Properties.temperature = tprev
-                    pstr.Phases(0).Properties.pressure = pprev
                     If Not ReferenceEquals(Me.CurrentMaterialStream, pstr) Then Me.CurrentMaterialStream = pstr
                 End Try
             End SyncLock
@@ -1052,31 +982,7 @@ Namespace PropertyPackages
 
         Private Function DW_CalcViscosidadeDinamica_ISOLCore(ByVal Phase1 As PropertyPackages.Phase, ByVal T As Double, ByVal P As Double) As Double
 
-            Dim res As Double = 0.0#, myphase As String = "", tant As Double, pant As Double
-
-            Select Case Phase1
-                Case Phase.Vapor
-                    myphase = Me.PhaseMappings("Vapor").PhaseLabel
-                Case Phase.Liquid
-                    myphase = Me.PhaseMappings("Liquid1").PhaseLabel
-            End Select
-
-            tant = Me.CurrentMaterialStream.Phases(0).Properties.temperature.GetValueOrDefault
-            pant = Me.CurrentMaterialStream.Phases(0).Properties.pressure.GetValueOrDefault
-
-            Me.CurrentMaterialStream.Phases(0).Properties.temperature = T
-            Me.CurrentMaterialStream.Phases(0).Properties.pressure = P
-
-            If _coversion = "1.0" Then
-                CType(_copp, ICapeThermoCalculationRoutine).CalcProp(Me.CurrentMaterialStream, New String() {"viscosity"}, New String() {myphase}, "Mixture")
-                Return Me.CurrentMaterialStream.Phases(Phase1).Properties.viscosity.GetValueOrDefault
-            Else
-                CType(_copp, ICapeThermoPropertyRoutine).CalcSinglePhaseProp(New String() {"viscosity"}, myphase)
-                Return Me.CurrentMaterialStream.Phases(Phase1).Properties.viscosity.GetValueOrDefault
-            End If
-
-            Me.CurrentMaterialStream.Phases(0).Properties.temperature = tant
-            Me.CurrentMaterialStream.Phases(0).Properties.pressure = pant
+            Return IsolProperty(Phase1, T, P, "viscosity", Function(pr) pr.viscosity)
 
         End Function
 
@@ -1307,16 +1213,9 @@ Namespace PropertyPackages
 
             SyncLock CoLock()
                 Dim pstr As Interfaces.IMaterialStream = Me.CurrentMaterialStream
-                ' CAPE-OPEN 1.1 computes on the material it was last given: make sure that is this stream
-                ' (a clone of this package that shares the object may have given it another one since)
-                If _coversion <> "1.0" Then EnsureMaterial(pstr)
-                Dim tprev = pstr.Phases(0).Properties.temperature
-                Dim pprev = pstr.Phases(0).Properties.pressure
                 Try
                     Return DW_CalcCv_ISOLCore(Phase1, T, P)
                 Finally
-                    pstr.Phases(0).Properties.temperature = tprev
-                    pstr.Phases(0).Properties.pressure = pprev
                     If Not ReferenceEquals(Me.CurrentMaterialStream, pstr) Then Me.CurrentMaterialStream = pstr
                 End Try
             End SyncLock
@@ -1325,31 +1224,7 @@ Namespace PropertyPackages
 
         Private Function DW_CalcCv_ISOLCore(ByVal Phase1 As Phase, ByVal T As Double, ByVal P As Double) As Double
 
-            Dim res As Double = 0.0#, myphase As String = "", tant As Double, pant As Double
-
-            Select Case Phase1
-                Case Phase.Vapor
-                    myphase = "Vapor"
-                Case Phase.Liquid
-                    myphase = "Liquid"
-            End Select
-
-            tant = Me.CurrentMaterialStream.Phases(0).Properties.temperature.GetValueOrDefault
-            pant = Me.CurrentMaterialStream.Phases(0).Properties.pressure.GetValueOrDefault
-
-            Me.CurrentMaterialStream.Phases(0).Properties.temperature = T
-            Me.CurrentMaterialStream.Phases(0).Properties.pressure = P
-
-            If _coversion = "1.0" Then
-                CType(_copp, ICapeThermoCalculationRoutine).CalcProp(Me.CurrentMaterialStream, New String() {"heatCapacityCv"}, New String() {myphase}, "Mixture")
-                Return Me.CurrentMaterialStream.Phases(Phase1).Properties.heatCapacityCp.GetValueOrDefault
-            Else
-                CType(_copp, ICapeThermoPropertyRoutine).CalcSinglePhaseProp(New String() {"heatCapacityCv"}, myphase)
-                Return Me.CurrentMaterialStream.Phases(Phase1).Properties.heatCapacityCp.GetValueOrDefault
-            End If
-
-            Me.CurrentMaterialStream.Phases(0).Properties.temperature = tant
-            Me.CurrentMaterialStream.Phases(0).Properties.pressure = pant
+            Return IsolProperty(Phase1, T, P, "heatCapacityCv", Function(pr) pr.heatCapacityCv)
 
         End Function
 
@@ -1498,16 +1373,9 @@ Namespace PropertyPackages
 
             SyncLock CoLock()
                 Dim pstr As Interfaces.IMaterialStream = Me.CurrentMaterialStream
-                ' CAPE-OPEN 1.1 computes on the material it was last given: make sure that is this stream
-                ' (a clone of this package that shares the object may have given it another one since)
-                If _coversion <> "1.0" Then EnsureMaterial(pstr)
-                Dim tprev = pstr.Phases(0).Properties.temperature
-                Dim pprev = pstr.Phases(0).Properties.pressure
                 Try
                     Return AUX_VAPDENSCore(T, P)
                 Finally
-                    pstr.Phases(0).Properties.temperature = tprev
-                    pstr.Phases(0).Properties.pressure = pprev
                     If Not ReferenceEquals(Me.CurrentMaterialStream, pstr) Then Me.CurrentMaterialStream = pstr
                 End Try
             End SyncLock
@@ -1516,32 +1384,7 @@ Namespace PropertyPackages
 
         Private Function AUX_VAPDENSCore(ByVal T As Double, ByVal P As Double) As Double
 
-            Dim res As Double = 0.0#, phase As String = "Vapor", tant As Double, pant As Double
-
-            tant = Me.CurrentMaterialStream.Phases(0).Properties.temperature.GetValueOrDefault
-            pant = Me.CurrentMaterialStream.Phases(0).Properties.temperature.GetValueOrDefault
-
-            Me.CurrentMaterialStream.Phases(0).Properties.temperature = T
-            Me.CurrentMaterialStream.Phases(0).Properties.pressure = P
-
-            If _coversion = "1.0" Then
-                Try
-                    Me.CalcProp(Me.CurrentMaterialStream, New String() {"density"}, New String() {"Vapor"}, "Mixture")
-                Catch ex As Exception
-                    Me.CalcProp(Me.CurrentMaterialStream, New String() {"volume"}, New String() {"Vapor"}, "Mixture")
-                End Try
-                Return Me.CurrentMaterialStream.Phases(2).Properties.density.GetValueOrDefault
-            Else
-                If CType(_copp, ICapeThermoPropertyRoutine).CheckSinglePhasePropSpec("density", "Vapor") Then
-                    Me.CalcSinglePhaseProp(New String() {"density"}, "Vapor")
-                Else
-                    Me.CalcSinglePhaseProp(New String() {"volume"}, "Vapor")
-                End If
-                Return Me.CurrentMaterialStream.Phases(2).Properties.density.GetValueOrDefault
-            End If
-
-            Me.CurrentMaterialStream.Phases(0).Properties.temperature = tant
-            Me.CurrentMaterialStream.Phases(0).Properties.pressure = pant
+            Return IsolProperty(Phase.Vapor, T, P, "density", Function(pr) pr.density)
 
         End Function
 
