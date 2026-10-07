@@ -10722,6 +10722,14 @@ Final3:
 
         End Function
 
+        ''' <summary>
+        ''' Binary interaction parameters at the given temperature (K) and pressure (Pa). Packages whose kij
+        ''' depend on T or P override this; the others return RET_VKij().
+        ''' </summary>
+        Public Overridable Function RET_VKijAt(T As Double, P As Double) As Double(,)
+            Return RET_VKij()
+        End Function
+
         Public Function RET_VCSACIDS()
 
             Dim val(Me.CurrentMaterialStream.Phases(0).Compounds.Count - 1) As String

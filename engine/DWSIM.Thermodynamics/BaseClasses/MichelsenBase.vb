@@ -165,7 +165,7 @@ Namespace PropertyPackages
 
             If eos = "SRK" Then
 
-                tmp = ThermoPlugs.SRK.ReturnParameters(T, P, Vx, pp.RET_VKij, pp.RET_VTC, pp.RET_VPC, pp.RET_VW)
+                tmp = ThermoPlugs.SRK.ReturnParameters(T, P, Vx, pp.RET_VKijAt(T, P), pp.RET_VTC, pp.RET_VPC, pp.RET_VW)
 
                 a = tmp(0)
                 b = tmp(1)
@@ -177,7 +177,7 @@ Namespace PropertyPackages
 
             ElseIf eos = "PR78" Then
 
-                tmp = ThermoPlugs.PR78.ReturnParameters(T, P, Vx, pp.RET_VKij, pp.RET_VTC, pp.RET_VPC, pp.RET_VW)
+                tmp = ThermoPlugs.PR78.ReturnParameters(T, P, Vx, pp.RET_VKijAt(T, P), pp.RET_VTC, pp.RET_VPC, pp.RET_VW)
 
                 a = tmp(0)
                 b = tmp(1)
@@ -189,7 +189,7 @@ Namespace PropertyPackages
 
             Else
 
-                tmp = ThermoPlugs.PR.ReturnParameters(T, P, Vx, pp.RET_VKij, pp.RET_VTC, pp.RET_VPC, pp.RET_VW)
+                tmp = ThermoPlugs.PR.ReturnParameters(T, P, Vx, pp.RET_VKijAt(T, P), pp.RET_VTC, pp.RET_VPC, pp.RET_VW)
 
                 a = tmp(0)
                 b = tmp(1)
@@ -224,7 +224,7 @@ Namespace PropertyPackages
 
             If eos = "SRK" Then
 
-                tmp = ThermoPlugs.SRK.ReturnParameters(T, P, Vx, pp.RET_VKij, pp.RET_VTC, pp.RET_VPC, pp.RET_VW)
+                tmp = ThermoPlugs.SRK.ReturnParameters(T, P, Vx, pp.RET_VKijAt(T, P), pp.RET_VTC, pp.RET_VPC, pp.RET_VW)
 
                 a = tmp(0)
                 b = tmp(1)
@@ -235,7 +235,7 @@ Namespace PropertyPackages
 
             ElseIf eos = "PR78" Then
 
-                tmp = ThermoPlugs.PR78.ReturnParameters(T, P, Vx, pp.RET_VKij, pp.RET_VTC, pp.RET_VPC, pp.RET_VW)
+                tmp = ThermoPlugs.PR78.ReturnParameters(T, P, Vx, pp.RET_VKijAt(T, P), pp.RET_VTC, pp.RET_VPC, pp.RET_VW)
 
                 a = tmp(0)
                 b = tmp(1)
@@ -246,7 +246,7 @@ Namespace PropertyPackages
 
             Else
 
-                tmp = ThermoPlugs.PR.ReturnParameters(T, P, Vx, pp.RET_VKij, pp.RET_VTC, pp.RET_VPC, pp.RET_VW)
+                tmp = ThermoPlugs.PR.ReturnParameters(T, P, Vx, pp.RET_VKijAt(T, P), pp.RET_VTC, pp.RET_VPC, pp.RET_VW)
 
                 a = tmp(0)
                 b = tmp(1)

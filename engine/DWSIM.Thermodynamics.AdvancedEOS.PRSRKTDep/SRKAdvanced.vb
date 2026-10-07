@@ -52,6 +52,19 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
         Public Overrides Function RET_VKij() As Double(,)
 
+            Dim tp = _callTP?.Value
+            Return KijMatrix(If(tp Is Nothing, TInternal, tp(0)), If(tp Is Nothing, PInternal, tp(1)))
+
+        End Function
+
+        Public Overrides Function RET_VKijAt(T As Double, P As Double) As Double(,)
+
+            Return KijMatrix(T, P)
+
+        End Function
+
+        Private Function KijMatrix(T As Double, P As Double) As Double(,)
+
             Dim vn As String() = RET_VNAMES()
             Dim n As Integer = vn.Length - 1
 
@@ -61,7 +74,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
             For i = 0 To n
                 For l = 0 To n
-                    Dim kval = KIJ2(vn(i), vn(l))
+                    Dim kval = KIJ2(vn(i), vn(l), T, P)
                     If kval = 0.0 Then
                         val(i, l) = KIJ(vn(i), vn(l))
                     Else
@@ -76,13 +89,19 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
         Public Function KIJ2(id1 As String, id2 As String) As Double
 
+            Dim tp = _callTP?.Value
+            Return KIJ2(id1, id2, If(tp Is Nothing, TInternal, tp(0)), If(tp Is Nothing, PInternal, tp(1)))
+
+        End Function
+
+        Public Function KIJ2(id1 As String, id2 As String, T As Double, P As Double) As Double
+
             SyncLock ec
 
                 Dim context = ec.GetContext("PT")
 
-                Dim tp = _callTP?.Value
-                DWSIM.SharedClasses.ExpressionCache.SetVariable(context, "P", If(tp Is Nothing, PInternal, tp(1)))
-                DWSIM.SharedClasses.ExpressionCache.SetVariable(context, "T", If(tp Is Nothing, TInternal, tp(0)))
+                DWSIM.SharedClasses.ExpressionCache.SetVariable(context, "P", P)
+                DWSIM.SharedClasses.ExpressionCache.SetVariable(context, "T", T)
 
                 Dim pair As String = id1 + "/" + id2
                 Dim pair2 As String = id2 + "/" + id1

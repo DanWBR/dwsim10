@@ -1856,11 +1856,11 @@ will converge to this solution.")
             If eos = "SRK" Then
                 t1 = 1
                 t2 = 0
-                tmp = ThermoPlugs.SRK.ReturnParameters(T, P, Vx, pp.RET_VKij, pp.RET_VTC, pp.RET_VPC, pp.RET_VW)
+                tmp = ThermoPlugs.SRK.ReturnParameters(T, P, Vx, pp.RET_VKijAt(T, P), pp.RET_VTC, pp.RET_VPC, pp.RET_VW)
             Else
                 t1 = 1 + 2 ^ 0.5
                 t2 = 1 - 2 ^ 0.5
-                tmp = ThermoPlugs.PR.ReturnParameters(T, P, Vx, pp.RET_VKij, pp.RET_VTC, pp.RET_VPC, pp.RET_VW)
+                tmp = ThermoPlugs.PR.ReturnParameters(T, P, Vx, pp.RET_VKijAt(T, P), pp.RET_VTC, pp.RET_VPC, pp.RET_VW)
             End If
 
             a = tmp(0)
