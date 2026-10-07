@@ -12,6 +12,24 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
         Private TInternal As Double = 0.0
         Private PInternal As Double = 0.0
 
+        ' T and P of the call in progress, per call flow. One instance serves several calls at once (K at T+-eps,
+        ' bubble and dew together, column stages in parallel), so each kij(T) expression reads the T and P set by
+        ' its own call and by nothing running beside it. TInternal/PInternal still hold the last values set on the
+        ' instance, read only by a call flow that has set none.
+        <NonSerialized> Private _callTP As System.Threading.AsyncLocal(Of Double())
+
+        Private Sub SetTP(T As Double, P As Double)
+            TInternal = T
+            PInternal = P
+            If _callTP Is Nothing Then System.Threading.Interlocked.CompareExchange(_callTP, New System.Threading.AsyncLocal(Of Double()), Nothing)
+            ' a task started inside this call already carries the same pair: setting it again only costs
+            Dim cur = _callTP.Value
+            If cur Is Nothing OrElse BitConverter.DoubleToInt64Bits(cur(0)) <> BitConverter.DoubleToInt64Bits(T) OrElse
+               BitConverter.DoubleToInt64Bits(cur(1)) <> BitConverter.DoubleToInt64Bits(P) Then
+                _callTP.Value = New Double() {T, P}
+            End If
+        End Sub
+
         ''' <summary>Holds the compiled kij expressions between calls.</summary>
         <NonSerialized> Private ec As New DWSIM.SharedClasses.ExpressionCache
 
@@ -62,8 +80,9 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
                 Dim context = ec.GetContext("PT")
 
-                DWSIM.SharedClasses.ExpressionCache.SetVariable(context, "P", PInternal)
-                DWSIM.SharedClasses.ExpressionCache.SetVariable(context, "T", TInternal)
+                Dim tp = _callTP?.Value
+                DWSIM.SharedClasses.ExpressionCache.SetVariable(context, "P", If(tp Is Nothing, PInternal, tp(1)))
+                DWSIM.SharedClasses.ExpressionCache.SetVariable(context, "T", If(tp Is Nothing, TInternal, tp(0)))
 
                 Dim pair As String = id1 + "/" + id2
                 Dim pair2 As String = id2 + "/" + id1
@@ -108,92 +127,77 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
         End Function
 
         Public Overrides Function AUX_LIQDENS(T As Double, Optional P As Double = 0, Optional Pvp As Double = 0, Optional phaseid As Integer = 3, Optional FORCE_EOS As Boolean = False) As Double
-            TInternal = T
-            PInternal = P
+            SetTP(T, P)
             Return MyBase.AUX_LIQDENS(T, P, Pvp, phaseid, FORCE_EOS)
         End Function
 
         Public Overrides Function AUX_LIQDENS(T As Double, Vx As Array, Optional P As Double = 0, Optional Pvp As Double = 0, Optional FORCE_EOS As Boolean = False) As Double
-            TInternal = T
-            PInternal = P
+            SetTP(T, P)
             Return MyBase.AUX_LIQDENS(T, Vx, P, Pvp, FORCE_EOS)
         End Function
 
         Public Overrides Function AUX_VAPDENS(T As Double, P As Double) As Double
-            TInternal = T
-            PInternal = P
+            SetTP(T, P)
             Return MyBase.AUX_VAPDENS(T, P)
         End Function
 
         Public Overrides Function AUX_Z(Vx() As Double, T As Double, P As Double, state As PhaseName) As Double
-            TInternal = T
-            PInternal = P
+            SetTP(T, P)
             Return MyBase.AUX_Z(Vx, T, P, state)
         End Function
 
         Public Overrides Function CalcSpeedOfSound(p As IPhase) As Double
-            TInternal = CurrentMaterialStream.Phases(0).Properties.temperature.GetValueOrDefault
-            PInternal = CurrentMaterialStream.Phases(0).Properties.pressure.GetValueOrDefault
+            SetTP(CurrentMaterialStream.Phases(0).Properties.temperature.GetValueOrDefault, CurrentMaterialStream.Phases(0).Properties.pressure.GetValueOrDefault)
             Return MyBase.CalcSpeedOfSound(p)
         End Function
 
         Public Overrides Sub DW_CalcPhaseProps(Phase As Phase)
-            TInternal = CurrentMaterialStream.Phases(0).Properties.temperature.GetValueOrDefault
-            PInternal = CurrentMaterialStream.Phases(0).Properties.pressure.GetValueOrDefault
+            SetTP(CurrentMaterialStream.Phases(0).Properties.temperature.GetValueOrDefault, CurrentMaterialStream.Phases(0).Properties.pressure.GetValueOrDefault)
             MyBase.DW_CalcPhaseProps(Phase)
         End Sub
 
         Public Overrides Sub DW_CalcCompPartialVolume(phase As Phase, T As Double, P As Double)
-            TInternal = T
-            PInternal = P
+            SetTP(T, P)
             MyBase.DW_CalcCompPartialVolume(phase, T, P)
         End Sub
 
         Public Overrides Function DW_CalcCp_ISOL(Phase1 As Phase, T As Double, P As Double) As Double
-            TInternal = T
-            PInternal = P
+            SetTP(T, P)
             Return MyBase.DW_CalcCp_ISOL(Phase1, T, P)
         End Function
 
         Public Overrides Function DW_CalcCv_ISOL(Phase1 As Phase, T As Double, P As Double) As Double
-            TInternal = T
-            PInternal = P
+            SetTP(T, P)
             Return MyBase.DW_CalcCv_ISOL(Phase1, T, P)
         End Function
 
         Public Overrides Function DW_CalcEnthalpy(Vx As Array, T As Double, P As Double, st As State) As Double
-            TInternal = T
-            PInternal = P
+            SetTP(T, P)
             Return MyBase.DW_CalcEnthalpy(Vx, T, P, st)
         End Function
 
         Public Overrides Function DW_CalcEntropy(Vx As Array, T As Double, P As Double, st As State) As Double
-            TInternal = T
-            PInternal = P
+            SetTP(T, P)
             Return MyBase.DW_CalcEntropy(Vx, T, P, st)
         End Function
 
         Public Overrides Function DW_CalcFugCoeff(Vx As Array, T As Double, P As Double, st As State) As Double()
-            TInternal = T
-            PInternal = P
+            SetTP(T, P)
             Return MyBase.DW_CalcFugCoeff(Vx, T, P, st)
         End Function
 
         Public Overrides Function DW_CalcKvalue(Vx As Array, T As Double, P As Double) As Double()
-            TInternal = T
-            PInternal = P
+            SetTP(T, P)
             Return MyBase.DW_CalcKvalue(Vx, T, P)
         End Function
 
         Public Overrides Function DW_CalcKvalue(Vx() As Double, Vy() As Double, T As Double, P As Double, Optional type As String = "LV") As Double()
-            TInternal = T
-            PInternal = P
+            SetTP(T, P)
             Return MyBase.DW_CalcKvalue(Vx, Vy, T, P, type)
         End Function
 
         Public Overrides Function DW_CalcMassaEspecifica_ISOL(Phase1 As Phase, T As Double, P As Double, Optional pvp As Double = 0) As Double
-            TInternal = T
-            PInternal = P
+            SetTP(T, P)
             Return MyBase.DW_CalcMassaEspecifica_ISOL(Phase1, T, P, pvp)
         End Function
 
