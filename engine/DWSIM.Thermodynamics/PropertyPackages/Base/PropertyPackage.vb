@@ -14584,6 +14584,12 @@ Final3:
                     'pp.m_pr.InteractionParameters.Clear()
                     For Each xel As XElement In (From xel2 As XElement In data Select xel2 Where xel2.Name = "InteractionParameters").FirstOrDefault.Elements.ToList
                         Dim ip As New Auxiliary.PRSV2_IPData() With {.id1 = xel.@Compound1, .id2 = xel.@Compound2, .kij = Double.Parse(xel.@Value, ci)}
+                        If xel.@kji IsNot Nothing Then
+                            ip.kji = Double.Parse(xel.@kji, ci)
+                        Else
+                            ' written before kji was saved: keep the one the package already holds for the pair
+                            ip.kji = pp.RET_KIJ2(xel.@Compound1, xel.@Compound2)
+                        End If
                         Dim dic As New Dictionary(Of String, Auxiliary.PRSV2_IPData)
                         dic.Add(xel.@Compound2, ip)
                         If Not pp.m_pr.InteractionParameters.ContainsKey(xel.@Compound1) Then
@@ -15054,8 +15060,10 @@ Final3:
 
             If CurrentMaterialStream Is Nothing Then Return True
 
-            Return CurrentMaterialStream.Phases(0).Compounds.ContainsKey(compound1) AndAlso
-                   CurrentMaterialStream.Phases(0).Compounds.ContainsKey(compound2)
+            ' the PRSV2 packages key their parameters in lower case
+            Dim names = CurrentMaterialStream.Phases(0).Compounds.Keys
+            Return names.Any(Function(n) String.Equals(n, compound1, StringComparison.OrdinalIgnoreCase)) AndAlso
+                   names.Any(Function(n) String.Equals(n, compound2, StringComparison.OrdinalIgnoreCase))
 
         End Function
 
@@ -15164,7 +15172,8 @@ Final3:
                                 If ShouldPersist(kvp.Key, kvp2.Key) Then
                                     .Item(.Count - 1).Add(New XElement("InteractionParameter", New XAttribute("Compound1", kvp.Key),
                                                                     New XAttribute("Compound2", kvp2.Key),
-                                                                    New XAttribute("Value", kvp2.Value.kij.ToString(ci))))
+                                                                    New XAttribute("Value", kvp2.Value.kij.ToString(ci)),
+                                                                    New XAttribute("kji", kvp2.Value.kji.ToString(ci))))
                                 End If
                             Next
                         Next
