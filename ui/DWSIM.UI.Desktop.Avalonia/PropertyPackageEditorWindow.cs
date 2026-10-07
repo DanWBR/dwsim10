@@ -339,9 +339,9 @@ public class PropertyPackageEditorWindow : Window
 
         var grid = new Grid { Margin = new Thickness(0, 0, 0, 6) };
         grid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
-        for (int k = 0; k < 5; k++) grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(110)));
+        for (int k = 0; k < 7; k++) grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(110)));
 
-        string[] heads = { "Compound", "Segments (m)", "σ (Å)", "ε/k (K)", "m/M (polymer)", "Assoc. scheme" };
+        string[] heads = { "Compound", "Segments (m)", "σ (Å)", "ε/k (K)", "m/M (polymer)", "κAB (assoc.)", "εAB/k (K)", "Assoc. scheme" };
         grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
         for (int c = 0; c < heads.Length; c++)
         {
@@ -379,6 +379,15 @@ public class PropertyPackageEditorWindow : Window
             AddParamCell(grid, row, 3, p.epsilon, v => p.epsilon = v);
             AddParamCell(grid, row, 4, p.m_over_M, v => p.m_over_M = v);
 
+            // association volume and energy, kept in step with the matrices the calculation reads
+            double ka = 0.0, ea = 0.0;
+            PCSAFT2PropertyPackage.AssociationFromMatrices(p.associationparams, ref ka, ref ea);
+            p.kAiBi = ka;
+            p.epsilon2 = ea;
+            var passoc = p;
+            AddParamCell(grid, row, 5, ka, v => { passoc.kAiBi = v; passoc.associationparams = PCSAFT2PropertyPackage.AssociationMatrices(passoc.kAiBi, passoc.epsilon2); });
+            AddParamCell(grid, row, 6, ea, v => { passoc.epsilon2 = v; passoc.associationparams = PCSAFT2PropertyPackage.AssociationMatrices(passoc.kAiBi, passoc.epsilon2); });
+
             var pcap = p;
             var items = new[] { "", "2B", "4C", "4C/ETHER" };
             var cb = new ComboBox { FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11), Margin = new Thickness(1), MinWidth = 100 };
@@ -388,7 +397,7 @@ public class PropertyPackageEditorWindow : Window
             cb.SelectedItem = cur;
             cb.SelectionChanged += (_, _) => pcap.scheme = (cb.SelectedItem as string) ?? "";
             Grid.SetRow(cb, row);
-            Grid.SetColumn(cb, 5);
+            Grid.SetColumn(cb, 7);
             grid.Children.Add(cb);
 
             row++;
@@ -403,7 +412,7 @@ public class PropertyPackageEditorWindow : Window
 
         panel.Children.Add(new TextBlock
         {
-            Text = "For a polymer, set m/M (segments per gram) and leave Segments (m) at zero; the segment number becomes m/M x molar weight. The association scheme selects 2B, 4C, or the PEG-type 4C/ETHER, whose ether sites grow with molar mass.",
+            Text = "For a polymer, set m/M (segments per gram) and leave Segments (m) at zero; the segment number becomes m/M x molar weight. κAB and εAB/k are the association volume and energy between a donor and an acceptor site; zero for a compound that does not associate. The association scheme selects 2B, 4C, or the PEG-type 4C/ETHER, whose ether sites grow with molar mass.",
             TextWrapping = TextWrapping.Wrap,
             FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(10),
             Foreground = Brushes.Gray,
@@ -411,7 +420,7 @@ public class PropertyPackageEditorWindow : Window
         });
 
         // ---- kij ----
-        panel.Children.Add(MakeHeader("Binary interaction parameters (kij)"));
+        panel.Children.Add(MakeHeader("Binary interaction parameters (kij(T) = kij + kij_T (T - 298.15 K))"));
         EnsurePCSAFTPairs(comps, pp.InteractionParameters);
         foreach (var c1 in comps)
             foreach (var c2 in comps)
@@ -421,6 +430,7 @@ public class PropertyPackageEditorWindow : Window
                 if (!pp.InteractionParameters[c1.CAS_Number].ContainsKey(c2.CAS_Number)) continue;
                 var d = pp.InteractionParameters[c1.CAS_Number][c2.CAS_Number];
                 panel.Children.Add(MakeTextBoxRow($"{c1.Name} / {c2.Name}  kij", d.kij, v => d.kij = v));
+                panel.Children.Add(MakeTextBoxRow($"{c1.Name} / {c2.Name}  kij_T (1/K)", d.kij_T, v => d.kij_T = v));
             }
     }
 
