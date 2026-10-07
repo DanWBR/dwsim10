@@ -3970,6 +3970,18 @@ public partial class FlowsheetView : UserControl
             return;
         }
 
+        // The Linux binding builds its browser through WebKitGTK 4.0 and waits for it on this
+        // thread. Where that library is missing (Ubuntu 24.04 and later ship only 4.1) the wait never
+        // ends and the whole window freezes (dwsim10 issue #92), so check for it before embedding.
+        if (OperatingSystem.IsLinux() && !LinuxEmbeddedBrowserAvailable())
+        {
+            AppendLog($"'{title}' opens in your web browser: the panel needs WebKitGTK 4.0 " +
+                      "(libwebkit2gtk-4.0-37), which is not installed.");
+            try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); }
+            catch (Exception ex) { AppendLog($"Could not open '{title}': {ex.Message}"); }
+            return;
+        }
+
         if (_dockFactory.WebTool != null)
         {
             // already open: just bring it forward. The host builds its own browser when shown.
@@ -3987,6 +3999,24 @@ public partial class FlowsheetView : UserControl
             AppendLog($"Could not open '{title}' here: {ex.Message}");
             try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); } catch { }
         }
+    }
+
+    private static bool? _linuxEmbeddedBrowser;
+
+    /// <summary>True when the GTK 3 and WebKitGTK 4.0 libraries the Linux web view binds to load.</summary>
+    private static bool LinuxEmbeddedBrowserAvailable()
+    {
+        if (_linuxEmbeddedBrowser is bool known) return known;
+
+        static bool Loads(string name)
+        {
+            if (!System.Runtime.InteropServices.NativeLibrary.TryLoad(name, out var handle)) return false;
+            System.Runtime.InteropServices.NativeLibrary.Free(handle);
+            return true;
+        }
+
+        _linuxEmbeddedBrowser = Loads("libgtk-3.so.0") && Loads("libwebkit2gtk-4.0.so.37");
+        return _linuxEmbeddedBrowser.Value;
     }
 
     /// <summary>
