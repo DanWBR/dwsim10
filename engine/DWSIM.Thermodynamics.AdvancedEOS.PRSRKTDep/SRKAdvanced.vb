@@ -201,6 +201,54 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
             Return MyBase.DW_CalcMassaEspecifica_ISOL(Phase1, T, P, pvp)
         End Function
 
+        ' The entries below come from the base package and read kij too, but had no T of their own here: kij(T)
+        ' was evaluated at the T of whichever call set it last. Each now sets the T and P of its own call.
+
+        Public Overrides Function DW_CalcEnthalpyDeparture(Vx As Array, T As Double, P As Double, st As State) As Double
+            SetTP(T, P)
+            Return MyBase.DW_CalcEnthalpyDeparture(Vx, T, P, st)
+        End Function
+
+        Public Overrides Function DW_CalcEntropyDeparture(Vx As Array, T As Double, P As Double, st As State) As Double
+            SetTP(T, P)
+            Return MyBase.DW_CalcEntropyDeparture(Vx, T, P, st)
+        End Function
+
+        Public Overrides Function DW_CalcdLnFugCoeffdT(Vx As Double(), T As Double, P As Double, st As State) As Double()
+            SetTP(T, P)
+            Return MyBase.DW_CalcdLnFugCoeffdT(Vx, T, P, st)
+        End Function
+
+        Public Overrides Function DW_CalcdLnFugCoeffdn(Vx As Double(), T As Double, P As Double, st As State) As Double(,)
+            SetTP(T, P)
+            Return MyBase.DW_CalcdLnFugCoeffdn(Vx, T, P, st)
+        End Function
+
+        Public Overrides Function DW_CalcdKdT(Vx As Double(), Vy As Double(), T As Double, P As Double, Optional type As String = "LV") As Double()
+            SetTP(T, P)
+            Return MyBase.DW_CalcdKdT(Vx, Vy, T, P, type)
+        End Function
+
+        Public Overrides Function DW_CalcdKdComposition(Vx As Double(), Vy As Double(), T As Double, P As Double, withRespectTo As State, Optional type As String = "LV") As Double(,)
+            SetTP(T, P)
+            Return MyBase.DW_CalcdKdComposition(Vx, Vy, T, P, withRespectTo, type)
+        End Function
+
+        Public Overrides Function DW_CalcEnergyFlowMistura_ISOL(T As Double, P As Double) As Double
+            SetTP(T, P)
+            Return MyBase.DW_CalcEnergyFlowMistura_ISOL(T, P)
+        End Function
+
+        Public Overrides Sub DW_CalcProp([property] As String, phase As Phase)
+            SetTP(CurrentMaterialStream.Phases(0).Properties.temperature.GetValueOrDefault, CurrentMaterialStream.Phases(0).Properties.pressure.GetValueOrDefault)
+            MyBase.DW_CalcProp([property], phase)
+        End Sub
+
+        ' No T of its own: the stream's, as in DW_CalcPhaseProps.
+        Public Overrides Function DW_CalculateCriticalPoints() As List(Of Double())
+            SetTP(CurrentMaterialStream.Phases(0).Properties.temperature.GetValueOrDefault, CurrentMaterialStream.Phases(0).Properties.pressure.GetValueOrDefault)
+            Return MyBase.DW_CalculateCriticalPoints()
+        End Function
         Public Overrides Function SaveData() As List(Of XElement)
 
             Dim elements = MyBase.SaveData()
