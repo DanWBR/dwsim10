@@ -2,6 +2,7 @@
 Imports DWSIM.Interfaces
 Imports DWSIM.Interfaces.Enums
 Imports DWSIM.Thermodynamics.PropertyPackages
+Imports CubicDerivs = DWSIM.Thermodynamics.PropertyPackages.ThermoPlugs.CubicEOSDerivatives
 
 Namespace DWSIM.Thermodynamics.AdvancedEOS
 
@@ -84,6 +85,28 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
             Next
 
             Return val
+
+        End Function
+
+        ' d(kij)/dT of every pair, by central difference on the kij expressions; Nothing when no kij depends on T.
+        Private Function KijTDerivatives(T As Double, P As Double) As Double(,)
+
+            Const h As Double = 0.01
+
+            Dim kp = KijMatrix(T + h, P)
+            Dim km = KijMatrix(T - h, P)
+            Dim n0 As Integer = kp.GetLength(0) - 1, n1 As Integer = kp.GetLength(1) - 1
+            Dim d(n0, n1) As Double
+            Dim tdep As Boolean = False
+
+            For i As Integer = 0 To n0
+                For j As Integer = 0 To n1
+                    d(i, j) = (kp(i, j) - km(i, j)) / (2.0 * h)
+                    If d(i, j) <> 0.0 Then tdep = True
+                Next
+            Next
+
+            Return If(tdep, d, Nothing)
 
         End Function
 
@@ -233,9 +256,13 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
             Return MyBase.DW_CalcEntropyDeparture(Vx, T, P, st)
         End Function
 
+        ' The analytical derivatives of the base package hold kij constant; with kij(T) they also carry d(kij)/dT.
         Public Overrides Function DW_CalcdLnFugCoeffdT(Vx As Double(), T As Double, P As Double, st As State) As Double()
             SetTP(T, P)
-            Return MyBase.DW_CalcdLnFugCoeffdT(Vx, T, P, st)
+            Dim dKijdT = If(AnalyticalDerivativesDisabled, Nothing, KijTDerivatives(T, P))
+            If dKijdT Is Nothing Then Return MyBase.DW_CalcdLnFugCoeffdT(Vx, T, P, st)
+            Dim res = CubicDerivs.Calc(CubicDerivs.EOS_SRK, T, P, Vx, KijMatrix(T, P), RET_VTC, RET_VPC, RET_VW, If(st = State.Liquid, 0, 1), dKijdT)
+            Return DirectCast(res(1), Double())
         End Function
 
         Public Overrides Function DW_CalcdLnFugCoeffdn(Vx As Double(), T As Double, P As Double, st As State) As Double(,)
@@ -245,7 +272,18 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
         Public Overrides Function DW_CalcdKdT(Vx As Double(), Vy As Double(), T As Double, P As Double, Optional type As String = "LV") As Double()
             SetTP(T, P)
-            Return MyBase.DW_CalcdKdT(Vx, Vy, T, P, type)
+            Dim dKijdT = If(AnalyticalDerivativesDisabled OrElse type <> "LV", Nothing, KijTDerivatives(T, P))
+            If dKijdT Is Nothing Then Return MyBase.DW_CalcdKdT(Vx, Vy, T, P, type)
+            Dim kij = KijMatrix(T, P)
+            Dim resL = CubicDerivs.Calc(CubicDerivs.EOS_SRK, T, P, Vx, kij, RET_VTC, RET_VPC, RET_VW, 0, dKijdT)
+            Dim resV = CubicDerivs.Calc(CubicDerivs.EOS_SRK, T, P, Vy, kij, RET_VTC, RET_VPC, RET_VW, 1, dKijdT)
+            Dim dLdT = DirectCast(resL(1), Double()), dVdT = DirectCast(resV(1), Double())
+            Dim K As Double() = DW_CalcKvalue(Vx, Vy, T, P, type)
+            Dim deriv(Vx.Length - 1) As Double
+            For i As Integer = 0 To Vx.Length - 1
+                deriv(i) = K(i) * (dLdT(i) - dVdT(i))
+            Next
+            Return deriv
         End Function
 
         Public Overrides Function DW_CalcdKdComposition(Vx As Double(), Vy As Double(), T As Double, P As Double, withRespectTo As State, Optional type As String = "LV") As Double(,)

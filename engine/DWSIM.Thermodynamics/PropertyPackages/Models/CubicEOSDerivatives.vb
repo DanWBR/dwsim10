@@ -43,10 +43,11 @@ Namespace PropertyPackages.ThermoPlugs
         ''' </summary>
         ''' <param name="eosType">EOS_PR or EOS_SRK.</param>
         ''' <param name="phase">0 = liquid (minimum Z), 1 = vapour (maximum Z), otherwise minimum-Gibbs root.</param>
+        ''' <param name="dKijdT">d(kij)/dT for temperature-dependent kij; Nothing when kij is constant.</param>
         ''' <returns>Object(){ lnphi() As Double(), dlnphidT() As Double(), dlnphidn(,) As Double(,) }.</returns>
         Public Shared Function Calc(ByVal eosType As Integer, ByVal T As Double, ByVal P As Double, ByVal Vx As Double(),
                                     ByVal VKij As Double(,), ByVal Tc As Double(), ByVal Pc As Double(), ByVal w As Double(),
-                                    ByVal phase As Integer) As Object
+                                    ByVal phase As Integer, Optional ByVal dKijdT As Double(,) = Nothing) As Object
 
             Dim n As Integer = Vx.Length - 1
             Const R As Double = 8.314
@@ -85,6 +86,7 @@ Namespace PropertyPackages.ThermoPlugs
                 For j As Integer = 0 To n
                     aij(i, j) = Sqrt(ai(i) * ai(j)) * (1.0 - VKij(i, j))
                     daijdT(i, j) = 0.5 * aij(i, j) * (daidT(i) / ai(i) + daidT(j) / ai(j))
+                    If dKijdT IsNot Nothing Then daijdT(i, j) -= Sqrt(ai(i) * ai(j)) * dKijdT(i, j)
                 Next
             Next
 
