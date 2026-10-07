@@ -46,12 +46,14 @@
   <ItemGroup>
     <ProjectReference Include="..\DWSIM.UI.Desktop.Editors.Avalonia\DWSIM.UI.Desktop.Editors.Avalonia.csproj" />
     <ProjectReference Include="..\DWSIM.UI.Shared.Avalonia\DWSIM.UI.Shared.Avalonia.csproj" />
+    <ProjectReference Include="..\..\engine\DWSIM.Automation\DWSIM.Automation.csproj" />
     <ProjectReference Include="..\..\engine\DWSIM.Automation.DynamicRunner\DWSIM.Automation.DynamicRunner.csproj" />
     <ProjectReference Include="..\..\engine\DWSIM.Drawing.SkiaSharp\DWSIM.Drawing.SkiaSharp.vbproj" />
     <ProjectReference Include="..\..\engine\DWSIM.DynamicsManager\DWSIM.DynamicsManager.vbproj" />
     <ProjectReference Include="..\..\engine\DWSIM.ExtensionMethods\DWSIM.ExtensionMethods.vbproj" />
     <ProjectReference Include="..\..\engine\DWSIM.FlowsheetBase\DWSIM.FlowsheetBase.vbproj" />
     <ProjectReference Include="..\..\engine\DWSIM.FlowsheetSolver\DWSIM.FlowsheetSolver.vbproj" />
+    <ProjectReference Include="..\..\engine\DWSIM.FluentAPI\DWSIM.FluentAPI.csproj" />
     <ProjectReference Include="..\..\engine\DWSIM.GlobalSettings\DWSIM.GlobalSettings.vbproj" />
     <ProjectReference Include="..\..\engine\DWSIM.Inspector\DWSIM.Inspector.vbproj" />
     <ProjectReference Include="..\..\engine\DWSIM.Interfaces\DWSIM.Interfaces.vbproj" />
@@ -113,10 +115,11 @@
 
   <!--
     The AI Assistant launcher is loaded at run time from the extenders folder, not linked into the
-    application, so it is built on the side and its assembly dropped into extenders/, together with
-    the few dependencies the application does not already carry. The assistant server executable
-    itself is a separate, proprietary program: it is not built here, and is placed under
-    extenders/AIAssistantFiles/ by the release process.
+    application, so it is built on the side and its assembly dropped into extenders/. Its own
+    dependencies, DWSIM.Automation and DWSIM.Automation.FluentAPI among them, are referenced by the
+    application, so they sit beside it. The assistant server executable itself is a separate,
+    proprietary program: it is not built here, and is placed under extenders/AIAssistantFiles/ by the
+    release process.
   -->
   <PropertyGroup>
     <AssistantExtenderProject>$(MSBuildThisFileDirectory)..\..\extensions\DWSIM.Extensions.AI.Assistant\DWSIM.Extensions.AI.Assistant.vbproj</AssistantExtenderProject>
@@ -134,31 +137,12 @@
     </MSBuild>
   </Target>
 
-  <!--
-    Assemblies of the launcher's output that the application does not carry (DWSIM.Automation and
-    DWSIM.Automation.FluentAPI) travel with it into extenders/, where Assembly.LoadFrom resolves them.
-    Without them every request to the flowsheet bridge failed to compile its handler and got no answer.
-  -->
   <Target Name="CopyAssistantExtenderToOutput" AfterTargets="Build" DependsOnTargets="_ResolveAssistantExtender">
-    <PropertyGroup>
-      <_AssistantExtenderDir>@(AssistantExtenderDll->'%(RootDir)%(Directory)')</_AssistantExtenderDir>
-    </PropertyGroup>
-    <ItemGroup>
-      <_AssistantExtenderDeps Include="$(_AssistantExtenderDir)*.dll" />
-      <_AssistantExtenderMissing Include="@(_AssistantExtenderDeps)" Condition="!Exists('$(OutDir)%(_AssistantExtenderDeps.Filename)%(_AssistantExtenderDeps.Extension)')" />
-    </ItemGroup>
-    <Copy SourceFiles="@(AssistantExtenderDll);@(_AssistantExtenderMissing)" DestinationFolder="$(OutDir)extenders" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(AssistantExtenderDll)" DestinationFolder="$(OutDir)extenders" SkipUnchangedFiles="true" />
   </Target>
 
   <Target Name="CopyAssistantExtenderToPublish" AfterTargets="Publish" DependsOnTargets="_ResolveAssistantExtender">
-    <PropertyGroup>
-      <_AssistantExtenderDir>@(AssistantExtenderDll->'%(RootDir)%(Directory)')</_AssistantExtenderDir>
-    </PropertyGroup>
-    <ItemGroup>
-      <_AssistantExtenderPublishDeps Include="$(_AssistantExtenderDir)*.dll" />
-      <_AssistantExtenderPublishMissing Include="@(_AssistantExtenderPublishDeps)" Condition="!Exists('$(PublishDir)%(_AssistantExtenderPublishDeps.Filename)%(_AssistantExtenderPublishDeps.Extension)')" />
-    </ItemGroup>
-    <Copy SourceFiles="@(AssistantExtenderDll);@(_AssistantExtenderPublishMissing)" DestinationFolder="$(PublishDir)extenders" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(AssistantExtenderDll)" DestinationFolder="$(PublishDir)extenders" SkipUnchangedFiles="true" />
   </Target>
 
 </Project>
