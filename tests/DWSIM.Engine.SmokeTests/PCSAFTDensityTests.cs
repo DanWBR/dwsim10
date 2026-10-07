@@ -275,6 +275,40 @@ namespace DWSIM.Engine.SmokeTests
                 "a plain non-associating mixture keeps using Lee-Kesler (differs from the PC-SAFT departure)");
         }
 
+        /// <summary>
+        /// The caloric guard reads the association strength and energy of each compound from the parameter
+        /// table, so they must survive a save and reload of the package: a water + ethanol flowsheet saved
+        /// and opened again keeps the PC-SAFT enthalpy. Files saved without those two fields carry the same
+        /// numbers in the association matrices, and must reload the same way.
+        /// </summary>
+        [Test]
+        public void AssociatingCaloricGuardSurvivesSaveAndLoad()
+        {
+            var st = DWSIM.Thermodynamics.PropertyPackages.State.Liquid;
+            var z = new[] { 0.5, 0.5 };
+            var pp = Package(fs => { fs.AddCompound("Water"); fs.AddCompound("Ethanol"); });
+            pp.UseLeeKeslerEnthalpy = true;
+            double h0 = pp.DW_CalcEnthalpy(z, 350.0, 2e5, st);
+            var data = pp.SaveData();
+
+            foreach (bool oldFile in new[] { false, true })
+            {
+                var saved = new System.Collections.Generic.List<System.Xml.Linq.XElement>(data.Select(e => new System.Xml.Linq.XElement(e)));
+                if (oldFile)
+                    foreach (var set in saved.Where(e => e.Name == "CompoundParameters").SelectMany(e => e.Elements()))
+                    {
+                        set.Attribute("kAiBi")?.Remove();
+                        set.Attribute("epsilon_AiBi")?.Remove();
+                    }
+                var pp2 = Package(fs => { fs.AddCompound("Water"); fs.AddCompound("Ethanol"); });
+                pp2.LoadData(saved);
+                double h1 = pp2.DW_CalcEnthalpy(z, 350.0, 2e5, st);
+                TestContext.WriteLine($"water/ethanol H before save {h0:G10}, after load ({(oldFile ? "file without the fields" : "current file")}) {h1:G10}");
+                Assert.That(h1, Is.EqualTo(h0).Within(1e-9).Percent,
+                    "the enthalpy of an associating mixture must not change when the package is saved and loaded");
+            }
+        }
+
         private static DWSIM.Thermodynamics.AdvancedEOS.PCSAFT2PropertyPackage PmmaChlorobutane(double Mn, double Msolv)
         {
             var fs = new DWSIM.DynamicRunner.Flowsheet(null, null);

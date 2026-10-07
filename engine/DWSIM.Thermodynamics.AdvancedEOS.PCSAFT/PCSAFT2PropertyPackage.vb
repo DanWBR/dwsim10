@@ -898,6 +898,25 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
             Return K
         End Function
 
+        ' Largest entry of the association volume and energy matrices of an associationparams string
+        ' ("n", "[kappa matrix]", "[epsilon matrix]"); zero when the string defines no association.
+        Private Shared Sub AssociationFromMatrices(assocparam As String, ByRef kappa As Double, ByRef eps As Double)
+            kappa = 0.0 : eps = 0.0
+            If String.IsNullOrWhiteSpace(assocparam) Then Return
+            Dim lines = assocparam.Split(New String() {vbCrLf, vbLf, vbCr}, StringSplitOptions.RemoveEmptyEntries)
+            If lines.Length < 3 Then Return
+            kappa = MatrixMax(lines(1))
+            eps = MatrixMax(lines(2))
+        End Sub
+
+        Private Shared Function MatrixMax(m As String) As Double
+            Dim mx As Double = 0.0, v As Double
+            For Each item In m.Trim().Trim("["c, "]"c).Split(New Char() {";"c, " "c}, StringSplitOptions.RemoveEmptyEntries)
+                If Double.TryParse(item, Globalization.NumberStyles.Float, Globalization.CultureInfo.InvariantCulture, v) Then mx = Math.Max(mx, v)
+            Next
+            Return mx
+        End Function
+
         Private Function IsAssociating(cas As String) As Boolean
             Return CompoundParameters.ContainsKey(cas) AndAlso
                    CompoundParameters(cas).kAiBi > 0.0 AndAlso CompoundParameters(cas).epsilon2 > 0.0
@@ -1335,7 +1354,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
             For Each kvp As KeyValuePair(Of String, PCSParam) In CompoundParameters
                 If (Not (Me.CurrentMaterialStream) Is Nothing) Then
                     If casnos.Contains(kvp.Key) Then
-                        data((data.Count - 1)).Add(New XElement("CompoundParameterSet", New XAttribute("Compound", kvp.Value.compound), New XAttribute("CAS_ID", kvp.Value.casno), New XAttribute("MW", kvp.Value.mw.ToString(ci)), New XAttribute("m", kvp.Value.m.ToString(ci)), New XAttribute("sigma", kvp.Value.sigma.ToString(ci)), New XAttribute("epsilon_k", kvp.Value.epsilon.ToString(ci)), New XAttribute("assocparam", kvp.Value.associationparams.Replace(System.Environment.NewLine, "|")), New XAttribute("m_over_M", kvp.Value.m_over_M.ToString(ci)), New XAttribute("scheme", If(kvp.Value.scheme, "")), New XAttribute("copolymer", If(kvp.Value.copolymer, "")), New XAttribute("coseq", If(kvp.Value.coseq, ""))))
+                        data((data.Count - 1)).Add(New XElement("CompoundParameterSet", New XAttribute("Compound", kvp.Value.compound), New XAttribute("CAS_ID", kvp.Value.casno), New XAttribute("MW", kvp.Value.mw.ToString(ci)), New XAttribute("m", kvp.Value.m.ToString(ci)), New XAttribute("sigma", kvp.Value.sigma.ToString(ci)), New XAttribute("epsilon_k", kvp.Value.epsilon.ToString(ci)), New XAttribute("assocparam", kvp.Value.associationparams.Replace(System.Environment.NewLine, "|")), New XAttribute("kAiBi", kvp.Value.kAiBi.ToString(ci)), New XAttribute("epsilon_AiBi", kvp.Value.epsilon2.ToString(ci)), New XAttribute("m_over_M", kvp.Value.m_over_M.ToString(ci)), New XAttribute("scheme", If(kvp.Value.scheme, "")), New XAttribute("copolymer", If(kvp.Value.copolymer, "")), New XAttribute("coseq", If(kvp.Value.coseq, ""))))
                     End If
                 End If
             Next
@@ -1397,6 +1416,15 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
                     .sigma = Double.Parse(xel.Attribute("sigma").Value, ci)
                     .epsilon = Double.Parse(xel.Attribute("epsilon_k").Value, ci)
                     .associationparams = xel.Attribute("assocparam").Value.Replace("|", System.Environment.NewLine)
+                    ' The association strength and energy decide the caloric route (see IsAssociating). Files
+                    ' saved without them carry the same numbers in the association matrices.
+                    Dim aK = xel.Attribute("kAiBi"), aE = xel.Attribute("epsilon_AiBi")
+                    If aK IsNot Nothing AndAlso aE IsNot Nothing Then
+                        .kAiBi = Double.Parse(aK.Value, ci)
+                        .epsilon2 = Double.Parse(aE.Value, ci)
+                    Else
+                        AssociationFromMatrices(.associationparams, .kAiBi, .epsilon2)
+                    End If
                     ' Newer fields (absent in files saved before they existed): polymer m/M, association
                     ' scheme, and the copolymer definition, so a copolymer round-trips through a save.
                     Dim aMoM = xel.Attribute("m_over_M") : If aMoM IsNot Nothing Then .m_over_M = Double.Parse(aMoM.Value, ci)
