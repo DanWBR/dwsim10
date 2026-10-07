@@ -112,7 +112,7 @@ namespace DWSIM.Automation.FluentAPI
             /// <summary>ThermoPack SRK with cubic-plus-association term (water/alcohols).</summary>
             public const string SRKCPA = "SRK-CPA";
 
-            /// <summary>CCUS Carbon Capture - eNRTL for CO2 capture with MEA, DEA, MDEA, PZ, AMP.</summary>
+            /// <summary>CCUS Carbon Capture - eNRTL with chemical equilibrium for CO2 capture with MEA, DEA, MDEA, PZ and MDEA + PZ.</summary>
             public const string CarbonCapture = "CO2 Capture (eNRTL)";
             /// <summary>CCUS CO2 Transport - Span-Wagner EOS for pure CO2, PR for CO2-rich mixtures.</summary>
             public const string CO2Transport = "CO2 Transport (Span-Wagner/PR)";
