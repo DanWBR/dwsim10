@@ -1127,6 +1127,9 @@ Namespace PropertyPackages
                 Return tstr.Phases(pid).Properties.enthalpy.GetValueOrDefault
             Else
                 Try
+                    ' 1.1 computes on the material it holds: hand it the copy, which carries this call's T, P
+                    ' and composition (the stream it held before gave the value of that stream's phase)
+                    EnsureMaterial(tstr)
                     CType(_copp, ICapeThermoPropertyRoutine).CalcSinglePhaseProp(New String() {"enthalpy"}, phase)
                 Catch ex As Exception
                     tstr.Flowsheet.ShowMessage(Me.ComponentName & ": " & DescribeCapeError(ex, _copp), Interfaces.IFlowsheet.MessageType.GeneralError)
@@ -1179,6 +1182,9 @@ Namespace PropertyPackages
                 Return tstr.Phases(pid).Properties.excessEnthalpy.GetValueOrDefault
             Else
                 Try
+                    ' 1.1 computes on the material it holds: hand it the copy, which carries this call's T, P
+                    ' and composition (the stream it held before gave the value of that stream's phase)
+                    EnsureMaterial(tstr)
                     CType(_copp, ICapeThermoPropertyRoutine).CalcSinglePhaseProp(New String() {"excessEnthalpy"}, phase)
                 Catch ex As Exception
                     tstr.Flowsheet.ShowMessage(Me.ComponentName & ": " & DescribeCapeError(ex, _copp), Interfaces.IFlowsheet.MessageType.GeneralError)
@@ -1230,6 +1236,9 @@ Namespace PropertyPackages
                 Return tstr.Phases(pid).Properties.entropy.GetValueOrDefault
             Else
                 Try
+                    ' 1.1 computes on the material it holds: hand it the copy, which carries this call's T, P
+                    ' and composition (the stream it held before gave the value of that stream's phase)
+                    EnsureMaterial(tstr)
                     CType(_copp, ICapeThermoPropertyRoutine).CalcSinglePhaseProp(New String() {"entropy"}, phase)
                 Catch ex As Exception
                     tstr.Flowsheet.ShowMessage(Me.ComponentName & ": " & DescribeCapeError(ex, _copp), Interfaces.IFlowsheet.MessageType.GeneralError)
@@ -1282,6 +1291,9 @@ Namespace PropertyPackages
                 Return tstr.Phases(pid).Properties.excessEntropy.GetValueOrDefault
             Else
                 Try
+                    ' 1.1 computes on the material it holds: hand it the copy, which carries this call's T, P
+                    ' and composition (the stream it held before gave the value of that stream's phase)
+                    EnsureMaterial(tstr)
                     CType(_copp, ICapeThermoPropertyRoutine).CalcSinglePhaseProp(New String() {"excessEntropy"}, phase)
                 Catch ex As Exception
                     tstr.Flowsheet.ShowMessage(Me.ComponentName & ": " & DescribeCapeError(ex, _copp), Interfaces.IFlowsheet.MessageType.GeneralError)
