@@ -63,7 +63,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
     Public Class pccompound
 
-        Public Property EosParam() As Object
+        Public Property EosParam() As List(Of Object)
 
         ' Typed cache of the association kappa (EoSParam(5)) and epsilon (EoSParam(6)) matrices, extracted
         ' once from the Object-typed EoSParam list so the association hot loops read them without late-bound
@@ -1091,14 +1091,14 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
         End Function
 
-        Friend Function FugF(T, P, mix, phase, Zestimate)
+        Friend Function FugF(T As Double, P As Double, mix As mixture, phase As String, Zestimate As Double) As Double()
             ' Fugacity coefficients. A high segment-number polymer has a log coefficient on the order
             ' of -1e3, so the exponential underflows to zero here; callers that must keep the true
             ' chemical potential (stability test, phase-split estimates) use LogFugF instead.
             Return LogFugF(T, P, mix, phase, Zestimate).Select(Function(lf) Math.Exp(lf)).ToArray()
         End Function
 
-        Friend Function LogFugF(T, P, mix, phase, Zestimate) As Double()
+        Friend Function LogFugF(T As Double, P As Double, mix As mixture, phase As String, Zestimate As Double) As Double()
 
             'Calculates the fugacity And compresibility coefficient of mixture mix at temperature T
             'And pressure P using PC-SAFT EoS
@@ -1286,7 +1286,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
             molefractions.CopyTo(mix.x, 1)
         End Sub
 
-        Friend Function HardSphereDiameter(T, m, sigma, epsilon)
+        Friend Function HardSphereDiameter(T As Double, m As Double, sigma As Double, epsilon As Double) As Double
 
             'Hard Sphere Diameter with PC-SAFT EoS
             'Auxiliary function, Not to be used directly
@@ -1309,7 +1309,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
         End Function
 
-        Friend Function Helmholtz(T, P, mix, phase, Z)
+        Friend Function Helmholtz(T As Double, P As Double, mix As mixture, phase As String, Z As Double) As Double
 
             'Calculates the residual Helmholtz energy And compresibility coefficient of mixture mix at temperature T
             'And pressure P using PC-SAFT EoS
@@ -1401,7 +1401,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
         End Function
 
-        Friend Function HelmholtzDisp(T As Double, dens_num As Double, mix As mixture)
+        Friend Function HelmholtzDisp(T As Double, dens_num As Double, mix As mixture) As Double
 
             'Calculates the dispersion contribution to the residual Helmholtz energy 
             'of mixture mix at temperature T And pressure P using PC-SAFT EoS
@@ -1482,7 +1482,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
             term2 = (1 - m_prom) * (20 * dens_red - 27 * dens_red ^ 2 + 12 * dens_red ^ 3 - 2 * dens_red ^ 4) / ((1 - dens_red) * (2 - dens_red)) ^ 2
             C1 = (1 + term1 + term2) ^ -1 'Eq. A11 of reference
 
-            Dim I1, I2 As Double, Adisp
+            Dim I1, I2, Adisp As Double
 
             I1 = 0
             I2 = 0
@@ -1500,7 +1500,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
         End Function
 
-        Friend Function HelmholtzHC(T As Double, dens_num As Double, mix As mixture)
+        Friend Function HelmholtzHC(T As Double, dens_num As Double, mix As mixture) As Double
 
             'Calculates the Hard Chain contribution to the residual Helmholtz energy 
             'of mixture mix at temperature T and pressure P using PC-SAFT EoS
@@ -1600,7 +1600,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
         End Function
 
-        Friend Function mu_Disp(T As Double, dens_num As Double, mix As mixture)
+        Friend Function mu_Disp(T As Double, dens_num As Double, mix As mixture) As Double()
 
             'Calculates the dispersion contribution to the residual chemical potential 
             'of mixture mix at temperature T and pressure P using PC-SAFT EoS
@@ -1794,7 +1794,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
         End Function
 
-        Friend Function mu_HC(T As Double, dens_num As Double, mix As mixture)
+        Friend Function mu_HC(T As Double, dens_num As Double, mix As mixture) As Double()
 
             'Calculates the hard chain contribution to the residual chemical potential 
             'of mixture mix at temperature T and pressure P using PC-SAFT EoS
@@ -1942,7 +1942,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
         End Function
 
-        Friend Function obj_SAFT(dens_red As Double, T As Double, P As Double, mix As mixture)
+        Friend Function obj_SAFT(dens_red As Double, T As Double, P As Double, mix As mixture) As Double()
 
             'Objective function for the calculation of Z with PC-SAFT EoS
             'Auxiliary function, not to be used directly
@@ -2018,7 +2018,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
         End Function
 
-        Friend Function Z_disp(T As Double, dens_num As Double, mix As mixture)
+        Friend Function Z_disp(T As Double, dens_num As Double, mix As mixture) As Double
 
             'Dispersive contribution to the compressibility coefficient with PC-SAFT EoS
             'Auxiliary function, Not to be used directly
@@ -2116,7 +2116,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
         End Function
 
-        Friend Function Z_hc(T As Double, dens_num As Double, mix As mixture)
+        Friend Function Z_hc(T As Double, dens_num As Double, mix As mixture) As Double
 
             'Hard-chain contribution to the compressibility coefficient with PC-SAFT EoS
             'Auxiliary function, not to be used directly
@@ -2742,7 +2742,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
 
         End Function
 
-        Friend Function compr(T As Double, P As Double, mix As mixture, phase As String, Zestimate As Double)
+        Friend Function compr(T As Double, P As Double, mix As mixture, phase As String, Zestimate As Double) As Double
 
             'Calculates the compressibility coefficient of mixture mix at temperature T
             'And pressure P using SAFT EoS
@@ -3040,7 +3040,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
             Return False
         End Function
 
-        Friend Function GlobalMult(mix, NumAss) As Double()
+        Friend Function GlobalMult(mix As mixture, NumAss As Double()) As Double()
 
             'Flattens the per-compound site multiplicities (EoSParam(7)) into one global site vector
             'aligned with the flattened site index used throughout the association routines. A site
