@@ -66,7 +66,8 @@ Namespace PropertyPackages.Auxiliary
             Tnfp = cprops(wid).TemperatureOfFusion
             DHm = cprops(wid).EnthalpyOfFusionAtTf
 
-            DT = 0.00831447 * Tnfp ^ 2 / DHm * Math.Log(Vx(wid) * activcoeff(wid))
+            'depression DT = -R Tf^2/DHfus ln(a_w), positive for a_w < 1
+            DT = -0.00831447 * Tnfp ^ 2 / DHm * Math.Log(Vx(wid) * activcoeff(wid))
             Td = Tnfp - DT
 
             Return New Double() {Td, DT}
