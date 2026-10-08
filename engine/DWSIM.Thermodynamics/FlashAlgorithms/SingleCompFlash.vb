@@ -205,6 +205,7 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                     S = 0.0
                     Dim Tmin As Double
                     If Tfus > 0 Then Tmin = Tfus * 1.01 Else Tmin = Tsat * 0.3
+                    Tmin = LowerLiquidBound(Tmin, Function(Tx) OBJ_FUNC_PH_FLASH(H, "PT", Tx, P, Vz, PP, False, Nothing)(0))
                     T = New Brent().BrentOpt2(Tmin, Tsat, 10, 0.000001, 100,
                                               Function(Tx)
                                                   Return OBJ_FUNC_PH_FLASH(H, "PT", Tx, P, Vz, PP, False, Nothing)(0)
@@ -289,7 +290,8 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                 'pure liquid
                 V = 0.0
                 Sx = 0.0
-                T = New Brent().BrentOpt2(Tsat * 0.3, Tsat, 10, 0.000001, 100,
+                Dim Tmin = LowerLiquidBound(Tsat * 0.3, Function(Tx) OBJ_FUNC_PS_FLASH(S, "PT", Tx, P, Vz, PP, False, Nothing)(0))
+                T = New Brent().BrentOpt2(Tmin, Tsat, 10, 0.000001, 100,
                                           Function(Tx)
                                               Return OBJ_FUNC_PS_FLASH(S, "PT", Tx, P, Vz, PP, False, Nothing)(0)
                                           End Function)
@@ -328,6 +330,28 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                 Return New Object() {0.0, V, Vz, Vz, Tsat, 0.0, UnitK(Vz), 0.0, Vz, 1.0 - V, Vz} 'solid + vapor
             End If
 
+        End Function
+
+        ''' <summary>
+        ''' Lowers the bottom of a liquid temperature bracket until the objective (specified minus
+        ''' calculated enthalpy or entropy) is no longer negative there. The bracket of the last liquid
+        ''' branches starts at 0.3 Tsat, or just above a melting point given without an enthalpy of
+        ''' fusion, and that can sit above the liquid's temperature: when Tsat is high (a heavy or
+        ''' non-volatile compound, or a pressure above the critical, where Tsat extrapolates the vapour
+        ''' pressure curve) or the liquid is subcooled. With no root inside, the search ends on a
+        ''' temperature whose enthalpy is far from the specified one (a pure ionic liquid at 30 bar and
+        ''' 30 C landed at 764 C). A bracket that already holds the root is returned unchanged.
+        ''' </summary>
+        Private Shared Function LowerLiquidBound(Tmin As Double, objective As Func(Of Double, Double)) As Double
+            Dim Tlow As Double = Tmin
+            Do While Tlow > 20.0
+                Dim err As Double = objective(Tlow)
+                If Double.IsNaN(err) Then Exit Do
+                Tmin = Tlow
+                If err >= 0.0 Then Exit Do
+                Tlow *= 0.8
+            Loop
+            Return Tmin
         End Function
 
         Function OBJ_FUNC_PH_FLASH(Hf As Double, ByVal Type As String, ByVal X As Double, ByVal P As Double, ByVal Vz() As Double, ByVal PP As PropertyPackages.PropertyPackage, ByVal ReuseKi As Boolean, ByVal Ki() As Double) As Object
