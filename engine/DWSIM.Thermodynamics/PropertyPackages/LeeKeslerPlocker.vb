@@ -87,6 +87,8 @@ Namespace PropertyPackages
                         Return 0
                     End If
                 End If
+            ElseIf Me.m_lk.InteractionParameters.ContainsKey(id2) AndAlso Me.m_lk.InteractionParameters(id2).ContainsKey(id1) Then
+                Return m_lk.InteractionParameters(id2)(id1).kij
             Else
                 Return 0
             End If
