@@ -125,7 +125,7 @@ a_i = \gamma_i \, m_i
 \]
 
 
-Table [67](#tab:ion_params) lists the ionic size parameters $a_i$ and charges $z_i$ used in the EDHE model.
+Table [58](#tab:ion_params) lists the ionic size parameters $a_i$ and charges $z_i$ used in the EDHE model.
 
 
 
@@ -170,7 +170,7 @@ Three corrosion mechanisms are evaluated independently. The total corrosion rate
 \]
 
 
-Risk is classified according to the thresholds of NACE SP0775 (Table [68](#tab:corr_risk)).
+Risk is classified according to the thresholds of NACE SP0775 (Table [59](#tab:corr_risk)).
 
 
 
@@ -217,7 +217,7 @@ The corrected rate is:
 \]
 
 
-**Temperature factor** $f_{T}$: above approximately 60 °C a precipitated FeCO$_{3}$ layer becomes protective, reducing the corrosion rate. Values are based on NORSOK M-506 (Table [69](#tab:fT)).
+**Temperature factor** $f_{T}$: above approximately 60 °C a precipitated FeCO$_{3}$ layer becomes protective, reducing the corrosion rate. Values are based on NORSOK M-506 (Table [60](#tab:fT)).
 
 
 
@@ -267,7 +267,7 @@ The upper limit of 10 prevents pH from reducing the rate by more than one order 
 
 where $V_{r} = \mathrm{CR}_{\mathrm{base}}\,f_{\mathrm{pH}}$ is the reaction-controlled rate (mm/yr), $V_{m}$ is the mass-transfer-limited rate (mm/yr), $U$ is the liquid velocity (m s$^{-1}$), $d$ is the internal diameter (m) and $p_{\mathrm{CO_{2}}}$ is in bar. The factor approaches 1 when mass transfer is fast ($V_{m} \gg V_{r}$) and falls as the flow slows. When no velocity is available the factor is 1.
 
-**Material factor** $f_{\mathrm{mat}}$: corrosion-resistant alloys exhibit substantially lower rates than carbon steel (Table [70](#tab:fmat)).
+**Material factor** $f_{\mathrm{mat}}$: corrosion-resistant alloys exhibit substantially lower rates than carbon steel (Table [61](#tab:fmat)).
 
 
 
@@ -382,7 +382,7 @@ where $Q_{i}$ is the ionic product computed from ionic activities and $K_{\mathr
 
 ##### Solubility Products {#solubility-products .unnumbered}
 
-Temperature-dependent $K_{\mathrm{sp}}$ values are given in Table [71](#tab:Ksp).
+Temperature-dependent $K_{\mathrm{sp}}$ values are given in Table [62](#tab:Ksp).
 
 
 
@@ -444,7 +444,7 @@ The RSI provides better field correlation than LSI:
 \]
 
 
-Interpretation is given in Table [72](#tab:RSI).
+Interpretation is given in Table [63](#tab:RSI).
 
 
 
@@ -610,7 +610,7 @@ Maximum inspection intervals by risk category .
 
 #### Chemical Inhibitor Dosing {#sec:csm:inhibitors}
 
-In the extension run, the corrosion inhibitor is sized at the point with the highest corrosion rate and the scale inhibitors at the point with the highest LSI. The injection volumes use the liquid volumetric flow of the host’s inlet stream, with the default targets of Table [75](#tab:params).
+In the extension run, the corrosion inhibitor is sized at the point with the highest corrosion rate and the scale inhibitors at the point with the highest LSI. The injection volumes use the liquid volumetric flow of the host’s inlet stream, with the default targets of Table [66](#tab:params).
 
 ##### Corrosion Inhibitor {#corrosion-inhibitor .unnumbered}
 
@@ -635,7 +635,7 @@ k_{\mathrm{ads}}(T)
 \]
 
 
-Parameters by inhibitor family are listed in Table [74](#tab:inh_params).
+Parameters by inhibitor family are listed in Table [65](#tab:inh_params).
 
 
 
@@ -771,7 +771,7 @@ The precipitation front is defined as the relative axial position $x_{f}$ where 
 
 #### Configuration Parameters {#sec:csm:params}
 
-All configurable parameters and their defaults are listed in Table [75](#tab:params). When the monitor runs as an extension, the geometry, velocity, pressure and flow come from the host unit operation (Sections [10.4](#sec:csm:rul) and [10.5](#sec:csm:inhibitors)) and the other entries keep their defaults.
+All configurable parameters and their defaults are listed in Table [66](#tab:params). When the monitor runs as an extension, the geometry, velocity, pressure and flow come from the host unit operation (Sections [10.4](#sec:csm:rul) and [10.5](#sec:csm:inhibitors)) and the other entries keep their defaults.
 
 
 
@@ -791,7 +791,7 @@ All configurable parameters and their defaults are listed in Table [75](#tab:pa
 </thead>
 <tbody>
 <tr>
-<td colspan="4" style="text-align: center;">Table <a href="#tab:params" data-reference-type="ref" data-reference="tab:params">75</a> (continued)</td>
+<td colspan="4" style="text-align: center;">Table <a href="#tab:params" data-reference-type="ref" data-reference="tab:params">66</a> (continued)</td>
 </tr>
 <tr>
 <td style="text-align: left;">Parameter</td>
@@ -941,7 +941,7 @@ All configurable parameters and their defaults are listed in Table [75](#tab:pa
 
 #### Output Properties {#sec:csm:outputs}
 
-After calculation, results are available as `ExtraProperties` of the host unit operation, accessible through the DWSIM object editor, the IronPython console, and the CAPE-OPEN API (Table [76](#tab:outputs)). A pipe segment also carries per-section keys (`CSA_Sec{n}_…`) and per-increment profiles (`CSA_Inc…`); a heat exchanger carries the conditions of its worst corrosion and scaling segments (`CSA_WorstCR_…`, `CSA_WorstLSI_…`).
+After calculation, results are available as `ExtraProperties` of the host unit operation, accessible through the DWSIM object editor, the IronPython console, and the CAPE-OPEN API (Table [67](#tab:outputs)). A pipe segment also carries per-section keys (`CSA_Sec{n}_…`) and per-increment profiles (`CSA_Inc…`); a heat exchanger carries the conditions of its worst corrosion and scaling segments (`CSA_WorstCR_…`, `CSA_WorstLSI_…`).
 
 
 

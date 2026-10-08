@@ -1189,7 +1189,43 @@ def step_expand_macros(latex: str) -> str:
         spec = re.sub(r"([CLR])\{[0-9.]+\}", lambda c: c.group(1).lower(), m.group(2))
         return m.group(1) + spec + "}"
     latex = re.sub(r"(\\begin\{(?:tabular|longtable)\}\{)([^\n]*)\}[ \t]*$", _plain_columns, latex, flags=re.M)
+    latex = flatten_cell_tabulars(latex)
     return wrap_text_mode_ce(latex)
+
+
+def flatten_cell_tabulars(latex: str) -> str:
+    r"""Turn a tabular nested in a table cell into one line of text.
+
+    A header such as \begin{tabular}[b]{@{}r@{}}AAD\\(kJ/mol)\end{tabular} breaks a cell over
+    two lines in the PDF; pandoc renders it as a whole table inside the cell, caption and all.
+    Cell tabulars are the ones with a position option ([b], [t] or [c]); their rows are joined
+    with a space.
+    """
+    out, i = [], 0
+    head = re.compile(r"\\begin\{tabular\}\[[btc]\]\{")
+    while True:
+        m = head.search(latex, i)
+        if not m:
+            out.append(latex[i:])
+            break
+        # skip the column specification, which may hold braces of its own (@{}r@{})
+        j, depth = m.end(), 1
+        while j < len(latex) and depth:
+            if latex[j] == "{":
+                depth += 1
+            elif latex[j] == "}":
+                depth -= 1
+            j += 1
+        end = latex.find("\\end{tabular}", j)
+        if end < 0:
+            out.append(latex[i:])
+            break
+        body = latex[j:end]
+        text = " ".join(part.strip() for part in re.split(r"\\\\", body) if part.strip())
+        out.append(latex[i:m.start()])
+        out.append(text)
+        i = end + len("\\end{tabular}")
+    return "".join(out)
 
 
 _MATH_ENVS = {"equation", "equation*", "align", "align*", "eqnarray", "eqnarray*", "multline",

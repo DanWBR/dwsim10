@@ -7519,7 +7519,7 @@ The kinetic model follows the standard free-radical scheme : initiator decomposi
 
 
 
-The monomer, initiator, optional solvent, and polymer product are identified by configurable compound names. The polymer product is a non-volatile pseudo-compound already present in the flowsheet (for example a PC-SAFT polymer); its molar mass is set to the computed $M_n$ so that the mass balance closes. Setting a second monomer switches the reactor to the binary copolymerization model.
+The monomer, initiator, optional solvent, and polymer product are identified by configurable compound names. The polymer product is a non-volatile pseudo-compound already present in the flowsheet (for example a PC-SAFT polymer); its molar mass is set to the computed $M_n$. The heat-capacity correlations of a pseudo-compound are stored per kmol at its molar mass, so the reactor scales them by the same factor as the molar mass: the specific heat capacity of the polymer, and with it its specific enthalpy, stays that of its chemistry whatever the chain length. Setting a second monomer switches the reactor to the binary copolymerization model.
 
 ##### Kinetic Scheme {#sec:poly_kinetics}
 
@@ -7755,9 +7755,13 @@ The heat released by polymerization is proportional to the monomer converted,
 
 where $\dot{n}_{\mathrm{conv}}$ is the molar rate of monomer added to chains (both monomers in copolymer mode) and $\Delta H_p < 0$ is the heat of polymerization per mole of monomer. In isothermal or outlet-temperature operation the duty holds the reactor at the set temperature, $\dot{Q} = \dot{m}\,c_p\,(T_r - T_{\mathrm{in}}) - \dot{Q}_{\mathrm{gen}}$ (negative when heat is removed, the usual case for an exothermic polymerization). In adiabatic operation no heat is removed and the temperature rise and the conversion are coupled through Eq. [\[eq:poly_qgen\]](#eq:poly_qgen) and the Arrhenius constants; they are solved together to a fixed point.
 
+###### Mass balance
+
+The polymer formed carries the mass of the reacted monomer, taken at the molar mass of the monomer compound, plus the mass of the consumed initiator, whose fragments become chain end groups. Polymer already present in the feed keeps its mass and leaves as moles of the same compound at the new $M_n$. The product mass flow therefore equals the feed mass flow, and the unreacted monomer in the product matches the reported conversion.
+
 ##### Molar-Mass Distribution Emission {#sec:poly_mwd}
 
-By default the polymer leaves the reactor as a single lumped compound whose molar mass is set to $M_n$. Optionally the reactor emits a real molar-mass distribution: the Schulz-Zimm or log-normal distribution reproducing the computed $M_n$ and $M_w$ is discretized into a set of pseudo-component cuts that share the base polymer’s parameters, and the reacted mass is distributed over the cuts so that both the total mass and the number-average molar mass are preserved. A non-volatile cut set lets the downstream property package resolve devolatilization (stripping residual monomer while the polymer stays in the liquid).
+By default the polymer leaves the reactor as a single lumped compound whose molar mass is set to $M_n$. Optionally the reactor emits a real molar-mass distribution: the Schulz-Zimm or log-normal distribution reproducing the computed $M_n$ and $M_w$ is discretized into a set of pseudo-component cuts that share the base polymer’s parameters, and the reacted mass is distributed over the cuts so that both the total mass and the number-average molar mass are preserved. A non-volatile cut set lets the downstream property package resolve devolatilization (stripping residual monomer while the polymer stays in the liquid). Each cut is a clone of the base polymer at its own molar mass, with its heat-capacity correlations scaled in the same way, so all cuts share the base polymer’s specific heat capacity.
 
 ##### Model Parameters {#sec:poly_parameters}
 
@@ -7818,7 +7822,7 @@ The gel model is off by default. When enabled, the termination coefficients $c_1
 
 5.  Apply the energy balance (Eq. [\[eq:poly_qgen\]](#eq:poly_qgen)) and set the heat duty.
 
-6.  Write the outlet: unreacted monomer(s) and initiator, plus the polymer as a lumped compound at $M_n$ or as the emitted distribution.
+6.  Write the outlet: unreacted monomer(s) and initiator, plus the polymer (the reacted monomer and the consumed initiator, and any feed polymer at its own mass) as a lumped compound at $M_n$ or as the emitted distribution.
 
 ##### Typical Usage Workflow
 

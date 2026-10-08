@@ -1883,13 +1883,13 @@ The main limitations are:
 
 - **MEA heats.** The differential heat at 313 K comes out up to 13 kJ/mol more exothermic than the calorimetry of Mondal et al.  between 0.2 and 0.45 mol/mol, while the integral heats of Arcis et al. at 322.5 K, which the fit follows, lie at $-88$ to $-97$ kJ/mol.
 
-- **Amine volatility.** No measured MEA volatility over loaded solutions was at hand; MEA in the vapour follows from the water–MEA parameters and the speciation (about 1.9 Pa over 30 mass % MEA at 0.4 mol/mol and 40 °C). MDEA in the vapour over MDEA-rich mixtures comes out about 50 % above the data of Soames et al. (Table [48](#tab:capture_amine_volatility)).
+- **Amine volatility.** No measured MEA volatility over loaded solutions was at hand; MEA in the vapour follows from the water–MEA parameters and the speciation (about 1.9 Pa over 30 mass % MEA at 0.4 mol/mol and 40 °C). MDEA in the vapour over MDEA-rich mixtures comes out about 50 % above the data of Soames et al. (Table [42](#tab:capture_amine_volatility)).
 
 - **Speed.** The PZ speciation, with eleven true species, takes about twice the time of MEA; the MDEA + PZ blend, with thirteen, about three times that of MDEA alone.
 
 ##### Validation
 
-Tables [43](#tab:capture_co2_solubility) to [52](#tab:capture_density) compare the package with experimental data. They were produced by the script `validate.py` in the fitting folder of the package source (`Capture/Fitting`), which calls the shipped package over every data point: liquid fugacities, enthalpies and densities at the apparent composition of each point, without a flash. The same folder holds the data files (one per source, with the citation, DOI and the use of each row), the fit scripts and the point-by-point results.
+Tables [40](#tab:capture_co2_solubility) to [43](#tab:capture_density) compare the package with experimental data. They were produced by the script `validate.py` in the fitting folder of the package source (`Capture/Fitting`), which calls the shipped package over every data point: liquid fugacities, enthalpies and densities at the apparent composition of each point, without a flash. The same folder holds the data files (one per source, with the citation, DOI and the use of each row), the fit scripts and the point-by-point results.
 
 The *Use* column tells how each data set entered the package: *fit* means the parameters were regressed to it, *check* means it was only compared. The measured $\ce{CO2}$ partial pressure is taken to a fugacity with the second virial coefficient of $\ce{CO2}$ and compared with the $\ce{CO2}$ fugacity of the liquid; for data sets that report the total pressure, the $\ce{CO2}$ partial pressure is the total pressure less the water partial pressure from Raoult’s law. The loading column gives the mean difference between the measured loading and the loading at which the package meets the measured partial pressure. The integral heat of solution is the enthalpy of the loaded liquid less that of the lean liquid and of the $\ce{CO2}$ gas at $T$ and $P$, per mol of $\ce{CO2}$; the differential heat is the same over a loading step of 0.02 mol/mol.
 
@@ -1913,436 +1913,45 @@ The short names in the tables refer to the following sources. $\ce{CO2}$ solubil
 
 
 
-<table>
-<caption>CO<span class="math inline">\(_2\)</span> partial pressure over aqueous amines loaded with CO<span class="math inline">\(_2\)</span>: the CO<span class="math inline">\(_2\)</span> Capture package against experimental data. pCO<span class="math inline">\(_2\)</span>: 100 (calc/exp - 1) at the measured loading; <span class="math inline">\(|\ln|\)</span>: mean <span class="math inline">\(|\ln(\mathrm{calc}/\mathrm{exp})|\)</span>; loading: mean |calc - exp| of the loading at which the package meets the measured pCO<span class="math inline">\(_2\)</span>. Loadings in mol CO<span class="math inline">\(_2\)</span> per mol of amine (MDEA + PZ: per mol of MDEA + PZ).</caption>
-<thead>
-<tr>
-<th style="text-align: left;">System</th>
-<th style="text-align: left;">Source</th>
-<th style="text-align: left;">Conditions</th>
-<th style="text-align: center;">Use</th>
-<th style="text-align: right;"><span class="math inline">\(n\)</span></th>
-<th style="text-align: right;"><div id="tab:capture_co2_solubility">
-<table>
-<caption>CO<span class="math inline">\(_2\)</span> partial pressure over aqueous amines loaded with CO<span class="math inline">\(_2\)</span>: the CO<span class="math inline">\(_2\)</span> Capture package against experimental data. pCO<span class="math inline">\(_2\)</span>: 100 (calc/exp - 1) at the measured loading; <span class="math inline">\(|\ln|\)</span>: mean <span class="math inline">\(|\ln(\mathrm{calc}/\mathrm{exp})|\)</span>; loading: mean |calc - exp| of the loading at which the package meets the measured pCO<span class="math inline">\(_2\)</span>. Loadings in mol CO<span class="math inline">\(_2\)</span> per mol of amine (MDEA + PZ: per mol of MDEA + PZ).</caption>
-<tbody>
-<tr>
-<td style="text-align: right;"><span class="math inline">\(p_{\mathrm{CO_2}}\)</span> AAD</td>
-</tr>
-<tr>
-<td style="text-align: right;">(%)</td>
-</tr>
-</tbody>
-</table>
+| System | Source | Conditions | Use | $n$ | $p_{\mathrm{CO_2}}$ AAD (%) | Bias (%) | $|\ln|$ | Loading AAD (mol/mol) |
+|:---|:---|:---|:--:|---:|---:|---:|---:|---:|
+| MEA | Jou 1995 | mol/kg, 313-393 K | fit | $17$ | $41$ | $+34$ | $0.31$ | $0.013$ |
+| MEA | Tong 2012 | mol/kg, 313-393 K | check | $17$ | $35$ | $+7$ | $0.30$ | $0.019$ |
+| MEA | Wagner 2013 | -7.3 mol/kg, 313-393 K | fit | $59$ | $14$ | $-8$ | $0.15$ | $0.008$ |
+| MEA | Dugas 2011 | -13.0 mol/kg, 313-373 K | check | $50$ | $18$ | $+3$ | $0.19$ | $0.009$ |
+| MEA | Li 2015 | mol/kg, 313-393 K | check | $31$ | $18$ | $-12$ | $0.21$ | $0.013$ |
+| MEA | Bernhardsen 2019 | mol/kg, 313-393 K | check | $50$ | $20$ | $+3$ | $0.18$ | $0.009$ |
+| DEA | Ghalib 2016 | mol/kg, 313-353 K | fit | $15$ | $29$ | $+8$ | $0.29$ | $0.025$ |
+| DEA | Suleman 2016 | -6.4 mol/kg, 303-343 K | fit | $18$ | $15$ | $-4$ | $0.15$ | $0.016$ |
+| DEA | Dash 2011 | mol/kg, 323 K | check | $11$ | $12$ | $-7$ | $0.13$ | $0.011$ |
+| DEA | Han 2017 | -9.7 mol/kg, 298 K | check | $5$ | $65$ | $-64$ | $1.69$ | $0.111$ |
+| MDEA | Dey 2018 | mol/kg, 313 K | fit | $9$ | $97$ | $+97$ | $0.67$ | $0.102$ |
+| MDEA | Najafloo 2015 | -5.4 mol/kg, 313-358 K | fit | $29$ | $12$ | $-7$ | $0.13$ | $0.019$ |
+| MDEA | Najafloo 2015, total pressure | mol/kg, 298-348 K | check | $25$ | $15$ | $-13$ | $0.18$ | $0.019$ |
+| MDEA | Xiao 2018 | mol/kg, 298-313 K | fit | $20$ | $20$ | $-19$ | $0.24$ | $0.044$ |
+| MDEA | Shokouhi 2015 | mol/kg, 303-363 K | fit | $23$ | $12$ | $-2$ | $0.14$ | $0.017$ |
+| MDEA | Leontiadis 2019 | -2.6 mol/kg, 298-333 K | check | $69$ | $14$ | $-13$ | $0.15$ | $0.019$ |
+| MDEA | Suleman 2016 | -7.1 mol/kg, 303-343 K | check | $18$ | $40$ | $-6$ | $0.44$ | $0.065$ |
+| MDEA | Zoghi 2012 | -8.1 mol/kg, 313-343 K | check | $17$ | $71$ | $-71$ | $1.40$ | $0.230$ |
+| MDEA | Shirazizadeh 2019 | mol/kg, 313 K | check | $5$ | $6$ | $-5$ | $0.07$ | $0.008$ |
+| MDEA | Harris 2009 | mol/kg, 313 K | check | $3$ | $83$ | $-83$ | $1.99$ | $0.285$ |
+| MDEA | Sairi 2015 | mol/kg, 303 K | check | $3$ | $18$ | $-11$ | $0.20$ | $0.038$ |
+| MDEA | Arcis 2008, 2009, solubility limits | -3.6 mol/kg, 322-373 K | check | $8$ | $17$ | $+7$ | $0.16$ | $0.026$ |
+| PZ | Dugas 2011 | -12.0 mol/kg, 313-373 K | fit | $43$ | $32$ | $+26$ | $0.26$ | $0.028$ |
+| PZ | Ermatchkov 2006 | -4.4 mol/kg, 313-393 K | fit | $52$ | $16$ | $-9$ | $0.20$ | $0.015$ |
+| PZ | Xu 2011 | -9.9 mol/kg, 354-423 K | fit | $123$ | $28$ | $+6$ | $0.27$ | $0.034$ |
+| PZ | Hilliard 2008 | -5.2 mol/kg, 313-333 K | check | $62$ | $28$ | $+20$ | $0.25$ | $0.024$ |
+| PZ | Bougie 2011 | -2.0 mol/kg, 287-313 K | check | $56$ | $61$ | $-38$ | $1.59$ | $0.125$ |
+| PZ | Suleman 2016 | -6.0 mol/kg, 303-343 K | check | $15$ | $60$ | $-18$ | $0.78$ | $0.056$ |
+| PZ | Dash 2011 | -7.2 mol/kg, 298-328 K | check | $293$ | $55$ | $-52$ | $1.42$ | $0.113$ |
+| MDEA + PZ | Chen 2011 | m MDEA/2 m PZ, 313-373 K | fit | $13$ | $19$ | $-16$ | $0.24$ | $0.011$ |
+| MDEA + PZ | Chen 2011 | m MDEA/5 m PZ, 313-373 K | fit | $13$ | $20$ | $+17$ | $0.18$ | $0.017$ |
+| MDEA + PZ | Xu 2011 | m MDEA/2 m PZ, 373-423 K | check | $14$ | $51$ | $-51$ | $0.74$ | $0.111$ |
+| MDEA + PZ | Xu 2011 | m MDEA/5 m PZ, 373-423 K | check | $10$ | $23$ | $-23$ | $0.28$ | $0.055$ |
 
-</th>
-<th style="text-align: right;">
-
-<a id="tab:capture_co2_solubility"></a>
-
-
-<table>
-<caption>CO<span class="math inline">\(_2\)</span> partial pressure over aqueous amines loaded with CO<span class="math inline">\(_2\)</span>: the CO<span class="math inline">\(_2\)</span> Capture package against experimental data. pCO<span class="math inline">\(_2\)</span>: 100 (calc/exp - 1) at the measured loading; <span class="math inline">\(|\ln|\)</span>: mean <span class="math inline">\(|\ln(\mathrm{calc}/\mathrm{exp})|\)</span>; loading: mean |calc - exp| of the loading at which the package meets the measured pCO<span class="math inline">\(_2\)</span>. Loadings in mol CO<span class="math inline">\(_2\)</span> per mol of amine (MDEA + PZ: per mol of MDEA + PZ).</caption>
-<tbody>
-<tr>
-<td style="text-align: right;">Bias</td>
-</tr>
-<tr>
-<td style="text-align: right;">(%)</td>
-</tr>
-</tbody>
-</table>
-
-</th>
-<th style="text-align: right;"><span class="math inline">\(|\ln|\)</span></th>
-<th style="text-align: right;">
-
-<a id="tab:capture_co2_solubility"></a>
+CO$_2$ partial pressure over aqueous amines loaded with CO$_2$: the CO$_2$ Capture package against experimental data. pCO$_2$: 100 (calc/exp - 1) at the measured loading; $|\ln|$: mean $|\ln(\mathrm{calc}/\mathrm{exp})|$; loading: mean \|calc - exp\| of the loading at which the package meets the measured pCO$_2$. Loadings in mol CO$_2$ per mol of amine (MDEA + PZ: per mol of MDEA + PZ).
 
 
-<table>
-<caption>CO<span class="math inline">\(_2\)</span> partial pressure over aqueous amines loaded with CO<span class="math inline">\(_2\)</span>: the CO<span class="math inline">\(_2\)</span> Capture package against experimental data. pCO<span class="math inline">\(_2\)</span>: 100 (calc/exp - 1) at the measured loading; <span class="math inline">\(|\ln|\)</span>: mean <span class="math inline">\(|\ln(\mathrm{calc}/\mathrm{exp})|\)</span>; loading: mean |calc - exp| of the loading at which the package meets the measured pCO<span class="math inline">\(_2\)</span>. Loadings in mol CO<span class="math inline">\(_2\)</span> per mol of amine (MDEA + PZ: per mol of MDEA + PZ).</caption>
-<tbody>
-<tr>
-<td style="text-align: right;">Loading AAD</td>
-</tr>
-<tr>
-<td style="text-align: right;">(mol/mol)</td>
-</tr>
-</tbody>
-</table>
-
-</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td style="text-align: left;">MEA</td>
-<td style="text-align: left;">Jou 1995</td>
-<td style="text-align: left;">mol/kg, 313-393 K</td>
-<td style="text-align: center;">fit</td>
-<td style="text-align: right;"><span class="math inline">\(17\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(41\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(+34\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.31\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.013\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">MEA</td>
-<td style="text-align: left;">Tong 2012</td>
-<td style="text-align: left;">mol/kg, 313-393 K</td>
-<td style="text-align: center;">check</td>
-<td style="text-align: right;"><span class="math inline">\(17\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(35\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(+7\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.30\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.019\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">MEA</td>
-<td style="text-align: left;">Wagner 2013</td>
-<td style="text-align: left;">-7.3 mol/kg, 313-393 K</td>
-<td style="text-align: center;">fit</td>
-<td style="text-align: right;"><span class="math inline">\(59\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(14\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(-8\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.15\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.008\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">MEA</td>
-<td style="text-align: left;">Dugas 2011</td>
-<td style="text-align: left;">-13.0 mol/kg, 313-373 K</td>
-<td style="text-align: center;">check</td>
-<td style="text-align: right;"><span class="math inline">\(50\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(18\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(+3\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.19\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.009\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">MEA</td>
-<td style="text-align: left;">Li 2015</td>
-<td style="text-align: left;">mol/kg, 313-393 K</td>
-<td style="text-align: center;">check</td>
-<td style="text-align: right;"><span class="math inline">\(31\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(18\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(-12\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.21\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.013\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">MEA</td>
-<td style="text-align: left;">Bernhardsen 2019</td>
-<td style="text-align: left;">mol/kg, 313-393 K</td>
-<td style="text-align: center;">check</td>
-<td style="text-align: right;"><span class="math inline">\(50\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(20\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(+3\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.18\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.009\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">DEA</td>
-<td style="text-align: left;">Ghalib 2016</td>
-<td style="text-align: left;">mol/kg, 313-353 K</td>
-<td style="text-align: center;">fit</td>
-<td style="text-align: right;"><span class="math inline">\(15\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(29\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(+8\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.29\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.025\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">DEA</td>
-<td style="text-align: left;">Suleman 2016</td>
-<td style="text-align: left;">-6.4 mol/kg, 303-343 K</td>
-<td style="text-align: center;">fit</td>
-<td style="text-align: right;"><span class="math inline">\(18\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(15\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(-4\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.15\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.016\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">DEA</td>
-<td style="text-align: left;">Dash 2011</td>
-<td style="text-align: left;">mol/kg, 323 K</td>
-<td style="text-align: center;">check</td>
-<td style="text-align: right;"><span class="math inline">\(11\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(12\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(-7\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.13\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.011\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">DEA</td>
-<td style="text-align: left;">Han 2017</td>
-<td style="text-align: left;">-9.7 mol/kg, 298 K</td>
-<td style="text-align: center;">check</td>
-<td style="text-align: right;"><span class="math inline">\(5\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(65\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(-64\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(1.69\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.111\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">MDEA</td>
-<td style="text-align: left;">Dey 2018</td>
-<td style="text-align: left;">mol/kg, 313 K</td>
-<td style="text-align: center;">fit</td>
-<td style="text-align: right;"><span class="math inline">\(9\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(97\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(+97\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.67\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.102\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">MDEA</td>
-<td style="text-align: left;">Najafloo 2015</td>
-<td style="text-align: left;">-5.4 mol/kg, 313-358 K</td>
-<td style="text-align: center;">fit</td>
-<td style="text-align: right;"><span class="math inline">\(29\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(12\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(-7\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.13\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.019\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">MDEA</td>
-<td style="text-align: left;">Najafloo 2015, total pressure</td>
-<td style="text-align: left;">mol/kg, 298-348 K</td>
-<td style="text-align: center;">check</td>
-<td style="text-align: right;"><span class="math inline">\(25\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(15\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(-13\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.18\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.019\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">MDEA</td>
-<td style="text-align: left;">Xiao 2018</td>
-<td style="text-align: left;">mol/kg, 298-313 K</td>
-<td style="text-align: center;">fit</td>
-<td style="text-align: right;"><span class="math inline">\(20\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(20\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(-19\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.24\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.044\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">MDEA</td>
-<td style="text-align: left;">Shokouhi 2015</td>
-<td style="text-align: left;">mol/kg, 303-363 K</td>
-<td style="text-align: center;">fit</td>
-<td style="text-align: right;"><span class="math inline">\(23\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(12\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(-2\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.14\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.017\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">MDEA</td>
-<td style="text-align: left;">Leontiadis 2019</td>
-<td style="text-align: left;">-2.6 mol/kg, 298-333 K</td>
-<td style="text-align: center;">check</td>
-<td style="text-align: right;"><span class="math inline">\(69\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(14\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(-13\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.15\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.019\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">MDEA</td>
-<td style="text-align: left;">Suleman 2016</td>
-<td style="text-align: left;">-7.1 mol/kg, 303-343 K</td>
-<td style="text-align: center;">check</td>
-<td style="text-align: right;"><span class="math inline">\(18\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(40\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(-6\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.44\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.065\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">MDEA</td>
-<td style="text-align: left;">Zoghi 2012</td>
-<td style="text-align: left;">-8.1 mol/kg, 313-343 K</td>
-<td style="text-align: center;">check</td>
-<td style="text-align: right;"><span class="math inline">\(17\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(71\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(-71\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(1.40\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.230\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">MDEA</td>
-<td style="text-align: left;">Shirazizadeh 2019</td>
-<td style="text-align: left;">mol/kg, 313 K</td>
-<td style="text-align: center;">check</td>
-<td style="text-align: right;"><span class="math inline">\(5\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(6\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(-5\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.07\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.008\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">MDEA</td>
-<td style="text-align: left;">Harris 2009</td>
-<td style="text-align: left;">mol/kg, 313 K</td>
-<td style="text-align: center;">check</td>
-<td style="text-align: right;"><span class="math inline">\(3\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(83\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(-83\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(1.99\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.285\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">MDEA</td>
-<td style="text-align: left;">Sairi 2015</td>
-<td style="text-align: left;">mol/kg, 303 K</td>
-<td style="text-align: center;">check</td>
-<td style="text-align: right;"><span class="math inline">\(3\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(18\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(-11\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.20\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.038\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">MDEA</td>
-<td style="text-align: left;">Arcis 2008, 2009, solubility limits</td>
-<td style="text-align: left;">-3.6 mol/kg, 322-373 K</td>
-<td style="text-align: center;">check</td>
-<td style="text-align: right;"><span class="math inline">\(8\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(17\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(+7\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.16\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.026\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">PZ</td>
-<td style="text-align: left;">Dugas 2011</td>
-<td style="text-align: left;">-12.0 mol/kg, 313-373 K</td>
-<td style="text-align: center;">fit</td>
-<td style="text-align: right;"><span class="math inline">\(43\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(32\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(+26\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.26\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.028\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">PZ</td>
-<td style="text-align: left;">Ermatchkov 2006</td>
-<td style="text-align: left;">-4.4 mol/kg, 313-393 K</td>
-<td style="text-align: center;">fit</td>
-<td style="text-align: right;"><span class="math inline">\(52\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(16\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(-9\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.20\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.015\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">PZ</td>
-<td style="text-align: left;">Xu 2011</td>
-<td style="text-align: left;">-9.9 mol/kg, 354-423 K</td>
-<td style="text-align: center;">fit</td>
-<td style="text-align: right;"><span class="math inline">\(123\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(28\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(+6\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.27\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.034\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">PZ</td>
-<td style="text-align: left;">Hilliard 2008</td>
-<td style="text-align: left;">-5.2 mol/kg, 313-333 K</td>
-<td style="text-align: center;">check</td>
-<td style="text-align: right;"><span class="math inline">\(62\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(28\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(+20\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.25\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.024\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">PZ</td>
-<td style="text-align: left;">Bougie 2011</td>
-<td style="text-align: left;">-2.0 mol/kg, 287-313 K</td>
-<td style="text-align: center;">check</td>
-<td style="text-align: right;"><span class="math inline">\(56\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(61\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(-38\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(1.59\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.125\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">PZ</td>
-<td style="text-align: left;">Suleman 2016</td>
-<td style="text-align: left;">-6.0 mol/kg, 303-343 K</td>
-<td style="text-align: center;">check</td>
-<td style="text-align: right;"><span class="math inline">\(15\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(60\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(-18\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.78\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.056\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">PZ</td>
-<td style="text-align: left;">Dash 2011</td>
-<td style="text-align: left;">-7.2 mol/kg, 298-328 K</td>
-<td style="text-align: center;">check</td>
-<td style="text-align: right;"><span class="math inline">\(293\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(55\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(-52\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(1.42\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.113\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">MDEA + PZ</td>
-<td style="text-align: left;">Chen 2011</td>
-<td style="text-align: left;">m MDEA/2 m PZ, 313-373 K</td>
-<td style="text-align: center;">fit</td>
-<td style="text-align: right;"><span class="math inline">\(13\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(19\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(-16\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.24\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.011\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">MDEA + PZ</td>
-<td style="text-align: left;">Chen 2011</td>
-<td style="text-align: left;">m MDEA/5 m PZ, 313-373 K</td>
-<td style="text-align: center;">fit</td>
-<td style="text-align: right;"><span class="math inline">\(13\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(20\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(+17\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.18\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.017\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">MDEA + PZ</td>
-<td style="text-align: left;">Xu 2011</td>
-<td style="text-align: left;">m MDEA/2 m PZ, 373-423 K</td>
-<td style="text-align: center;">check</td>
-<td style="text-align: right;"><span class="math inline">\(14\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(51\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(-51\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.74\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.111\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">MDEA + PZ</td>
-<td style="text-align: left;">Xu 2011</td>
-<td style="text-align: left;">m MDEA/5 m PZ, 373-423 K</td>
-<td style="text-align: center;">check</td>
-<td style="text-align: right;"><span class="math inline">\(10\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(23\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(-23\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.28\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.055\)</span></td>
-</tr>
-</tbody>
-</table>
-
-</div>
 
 fit: the parameters of the package were regressed to these data; check: compared only. pCO$_2$ of the total-pressure sets is the total pressure less the water partial pressure (Raoult).
 
@@ -2352,194 +1961,23 @@ fit: the parameters of the package were regressed to these data; check: compared
 
 
 
-<table>
-<caption>Heat of absorption of CO<span class="math inline">\(_2\)</span> in aqueous amines: the CO<span class="math inline">\(_2\)</span> Capture package (enthalpy of the loaded liquid less that of the lean liquid and of the CO<span class="math inline">\(_2\)</span> gas) against calorimetric data, calc - exp in kJ/mol CO<span class="math inline">\(_2\)</span>.</caption>
-<thead>
-<tr>
-<th style="text-align: left;">System</th>
-<th style="text-align: left;">Source</th>
-<th style="text-align: left;">Heat</th>
-<th style="text-align: left;">Conditions</th>
-<th style="text-align: center;">Use</th>
-<th style="text-align: right;"><span class="math inline">\(n\)</span></th>
-<th style="text-align: right;"><div id="tab:capture_heat">
-<table>
-<caption>Heat of absorption of CO<span class="math inline">\(_2\)</span> in aqueous amines: the CO<span class="math inline">\(_2\)</span> Capture package (enthalpy of the loaded liquid less that of the lean liquid and of the CO<span class="math inline">\(_2\)</span> gas) against calorimetric data, calc - exp in kJ/mol CO<span class="math inline">\(_2\)</span>.</caption>
-<tbody>
-<tr>
-<td style="text-align: right;">AAD</td>
-</tr>
-<tr>
-<td style="text-align: right;">(kJ/mol)</td>
-</tr>
-</tbody>
-</table>
+| System | Source | Heat | Conditions | Use | $n$ | AAD (kJ/mol) | Bias (kJ/mol) | Max (kJ/mol) |
+|:---|:---|:---|:---|:--:|---:|---:|---:|---:|
+| MEA | Arcis 2011 | integral | 2.9-7.0 mol/kg, 322.5 K | fit | $46$ | $3.2$ | $+0.5$ | $11.2$ |
+| MEA | Arcis 2011 | integral | 2.9-7.0 mol/kg, 372.9 K | fit | $90$ | $3.9$ | $-1.3$ | $13.0$ |
+| MEA | Mondal 2017 | differential | 7.0 mol/kg, 313.1 K | check | $10$ | $7.9$ | $-7.3$ | $12.4$ |
+| MEA | Ojala 2014 | integral | 1.8-4.1 mol/kg, 298.0 K | check | $8$ | $2.1$ | $+2.0$ | $3.7$ |
+| DEA | Arcis 2012 | integral | 1.7-4.1 mol/kg, 322.5 K | fit | $75$ | $3.3$ | $-0.1$ | $8.4$ |
+| DEA | Arcis 2012 | integral | 1.7-4.1 mol/kg, 372.9 K | fit | $52$ | $4.3$ | $-1.2$ | $11.2$ |
+| MDEA | Arcis 2008 | integral | 1.5-3.6 mol/kg, 322.5 K | fit | $61$ | $3.2$ | $+2.8$ | $6.5$ |
+| MDEA | Arcis 2009 | integral | 1.5-3.6 mol/kg, 372.9 K | fit | $70$ | $3.8$ | $-3.6$ | $13.4$ |
+| PZ | Kim 2007 | differential | 2.4 mol/kg, 313.1 K | fit | $17$ | $6.0$ | $-5.1$ | $9.5$ |
+| PZ | Kim 2007 | differential | 2.4 mol/kg, 353.1 K | fit | $16$ | $7.1$ | $+6.7$ | $13.2$ |
+| PZ | Kim 2007 | differential | 2.4 mol/kg, 393.1 K | check | $14$ | $32.8$ | $+32.8$ | $45.8$ |
 
-</th>
-<th style="text-align: right;">
-
-<a id="tab:capture_heat"></a>
+Heat of absorption of CO$_2$ in aqueous amines: the CO$_2$ Capture package (enthalpy of the loaded liquid less that of the lean liquid and of the CO$_2$ gas) against calorimetric data, calc - exp in kJ/mol CO$_2$.
 
 
-<table>
-<caption>Heat of absorption of CO<span class="math inline">\(_2\)</span> in aqueous amines: the CO<span class="math inline">\(_2\)</span> Capture package (enthalpy of the loaded liquid less that of the lean liquid and of the CO<span class="math inline">\(_2\)</span> gas) against calorimetric data, calc - exp in kJ/mol CO<span class="math inline">\(_2\)</span>.</caption>
-<tbody>
-<tr>
-<td style="text-align: right;">Bias</td>
-</tr>
-<tr>
-<td style="text-align: right;">(kJ/mol)</td>
-</tr>
-</tbody>
-</table>
-
-</th>
-<th style="text-align: right;">
-
-<a id="tab:capture_heat"></a>
-
-
-<table>
-<caption>Heat of absorption of CO<span class="math inline">\(_2\)</span> in aqueous amines: the CO<span class="math inline">\(_2\)</span> Capture package (enthalpy of the loaded liquid less that of the lean liquid and of the CO<span class="math inline">\(_2\)</span> gas) against calorimetric data, calc - exp in kJ/mol CO<span class="math inline">\(_2\)</span>.</caption>
-<tbody>
-<tr>
-<td style="text-align: right;">Max</td>
-</tr>
-<tr>
-<td style="text-align: right;">(kJ/mol)</td>
-</tr>
-</tbody>
-</table>
-
-</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td style="text-align: left;">MEA</td>
-<td style="text-align: left;">Arcis 2011</td>
-<td style="text-align: left;">integral</td>
-<td style="text-align: left;">2.9-7.0 mol/kg, 322.5 K</td>
-<td style="text-align: center;">fit</td>
-<td style="text-align: right;"><span class="math inline">\(46\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(3.2\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(+0.5\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(11.2\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">MEA</td>
-<td style="text-align: left;">Arcis 2011</td>
-<td style="text-align: left;">integral</td>
-<td style="text-align: left;">2.9-7.0 mol/kg, 372.9 K</td>
-<td style="text-align: center;">fit</td>
-<td style="text-align: right;"><span class="math inline">\(90\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(3.9\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(-1.3\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(13.0\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">MEA</td>
-<td style="text-align: left;">Mondal 2017</td>
-<td style="text-align: left;">differential</td>
-<td style="text-align: left;">7.0 mol/kg, 313.1 K</td>
-<td style="text-align: center;">check</td>
-<td style="text-align: right;"><span class="math inline">\(10\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(7.9\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(-7.3\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(12.4\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">MEA</td>
-<td style="text-align: left;">Ojala 2014</td>
-<td style="text-align: left;">integral</td>
-<td style="text-align: left;">1.8-4.1 mol/kg, 298.0 K</td>
-<td style="text-align: center;">check</td>
-<td style="text-align: right;"><span class="math inline">\(8\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(2.1\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(+2.0\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(3.7\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">DEA</td>
-<td style="text-align: left;">Arcis 2012</td>
-<td style="text-align: left;">integral</td>
-<td style="text-align: left;">1.7-4.1 mol/kg, 322.5 K</td>
-<td style="text-align: center;">fit</td>
-<td style="text-align: right;"><span class="math inline">\(75\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(3.3\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(-0.1\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(8.4\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">DEA</td>
-<td style="text-align: left;">Arcis 2012</td>
-<td style="text-align: left;">integral</td>
-<td style="text-align: left;">1.7-4.1 mol/kg, 372.9 K</td>
-<td style="text-align: center;">fit</td>
-<td style="text-align: right;"><span class="math inline">\(52\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(4.3\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(-1.2\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(11.2\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">MDEA</td>
-<td style="text-align: left;">Arcis 2008</td>
-<td style="text-align: left;">integral</td>
-<td style="text-align: left;">1.5-3.6 mol/kg, 322.5 K</td>
-<td style="text-align: center;">fit</td>
-<td style="text-align: right;"><span class="math inline">\(61\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(3.2\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(+2.8\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(6.5\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">MDEA</td>
-<td style="text-align: left;">Arcis 2009</td>
-<td style="text-align: left;">integral</td>
-<td style="text-align: left;">1.5-3.6 mol/kg, 372.9 K</td>
-<td style="text-align: center;">fit</td>
-<td style="text-align: right;"><span class="math inline">\(70\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(3.8\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(-3.6\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(13.4\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">PZ</td>
-<td style="text-align: left;">Kim 2007</td>
-<td style="text-align: left;">differential</td>
-<td style="text-align: left;">2.4 mol/kg, 313.1 K</td>
-<td style="text-align: center;">fit</td>
-<td style="text-align: right;"><span class="math inline">\(17\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(6.0\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(-5.1\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(9.5\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">PZ</td>
-<td style="text-align: left;">Kim 2007</td>
-<td style="text-align: left;">differential</td>
-<td style="text-align: left;">2.4 mol/kg, 353.1 K</td>
-<td style="text-align: center;">fit</td>
-<td style="text-align: right;"><span class="math inline">\(16\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(7.1\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(+6.7\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(13.2\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">PZ</td>
-<td style="text-align: left;">Kim 2007</td>
-<td style="text-align: left;">differential</td>
-<td style="text-align: left;">2.4 mol/kg, 393.1 K</td>
-<td style="text-align: center;">check</td>
-<td style="text-align: right;"><span class="math inline">\(14\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(32.8\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(+32.8\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(45.8\)</span></td>
-</tr>
-</tbody>
-</table>
-
-</div>
 
 Integral heat: from zero loading to the measured loading; differential heat: partial molar enthalpy of absorption at the measured loading.
 
@@ -2579,242 +2017,29 @@ DEA and PZ: the water-amine pairs are taken as published (Posey 1996; Hilliard 2
 
 
 
-<table>
-<caption>Density of aqueous amines, lean and loaded with CO<span class="math inline">\(_2\)</span>: the CO<span class="math inline">\(_2\)</span> Capture package against experimental data, calc - exp in kg/m<span class="math inline">\(^3\)</span>.</caption>
-<thead>
-<tr>
-<th style="text-align: left;">System</th>
-<th style="text-align: left;">Source</th>
-<th style="text-align: left;">Conditions</th>
-<th style="text-align: left;">Use</th>
-<th style="text-align: center;"><span class="math inline">\(n\)</span></th>
-<th style="text-align: right;"><div id="tab:capture_density">
-<table>
-<caption>Density of aqueous amines, lean and loaded with CO<span class="math inline">\(_2\)</span>: the CO<span class="math inline">\(_2\)</span> Capture package against experimental data, calc - exp in kg/m<span class="math inline">\(^3\)</span>.</caption>
-<tbody>
-<tr>
-<td style="text-align: right;">AAD</td>
-</tr>
-<tr>
-<td style="text-align: right;">(kg/m<span class="math inline">\(^3\)</span>)</td>
-</tr>
-</tbody>
-</table>
+| System | Source | Conditions | Use | $n$ | AAD (kg/m$^3$) | Bias (kg/m$^3$) | Max (kg/m$^3$) |
+|:---|:---|:---|:---|:--:|---:|---:|---:|
+| MEA | Amundsen 2009 | lean and loaded, 298-353 K | fit | $103$ | $2.6$ | $+0.1$ | $7.2$ |
+| DEA | Han 2012 | lean and loaded, 298-393 K | fit | $278$ | $1.2$ | $-0.2$ | $4.6$ |
+| DEA | Jayarathna 2012 | lean and loaded, 293-423 K | check | $304$ | $3.8$ | $+3.8$ | $10.8$ |
+| MDEA | Han 2012 | lean and loaded, 298-393 K | fit | $271$ | $2.0$ | $-0.4$ | $8.2$ |
+| MDEA | Jayarathna 2012 | lean and loaded, 293-423 K | check | $247$ | $2.8$ | $+2.1$ | $11.5$ |
+| PZ | Freeman 2011 | lean and loaded, 293-333 K | fit | $147$ | $3.7$ | $+0.1$ | $17.4$ |
+| PZ | Samanta 2006 | lean, 298-333 K | fit | $32$ | $0.9$ | $-0.9$ | $2.5$ |
+| PZ | Muhammad 2009 | lean, 298-338 K | check | $27$ | $0.7$ | $-0.4$ | $1.0$ |
+| PZ | Derks 2005 | lean, 293-323 K | check | $19$ | $0.4$ | $-0.1$ | $0.7$ |
+| PZ | Speyer 2010 | lean, 293 K | check | $6$ | $0.2$ | $+0.2$ | $0.6$ |
+| MDEA + PZ | Paul 2006 | lean, 288-333 K | fit | $40$ | $1.7$ | $-1.4$ | $3.3$ |
+| MDEA + PZ | Muhammad 2009 | lean, 298-338 K | fit | $54$ | $2.4$ | $+1.7$ | $9.7$ |
+| MDEA + PZ | Derks 2008 | lean, 293-323 K | fit | $78$ | $1.4$ | $-1.4$ | $2.9$ |
+| MDEA + PZ | Böttger 2009 | lean, 289-303 K | fit | $24$ | $1.0$ | $-1.0$ | $2.1$ |
+| MDEA + PZ | Kessler 2019 | lean, 293-353 K | fit | $7$ | $3.9$ | $-3.9$ | $4.6$ |
+| MDEA + PZ | Speyer 2010 | lean, 293 K | fit | $37$ | $1.1$ | $-0.5$ | $3.1$ |
+| MDEA + PZ | Frailie 2014 | lean and loaded, 293-333 K | check | $16$ | $2.0$ | $-1.9$ | $4.9$ |
 
-</th>
-<th style="text-align: right;">
-
-<a id="tab:capture_density"></a>
+Density of aqueous amines, lean and loaded with CO$_2$: the CO$_2$ Capture package against experimental data, calc - exp in kg/m$^3$.
 
 
-<table>
-<caption>Density of aqueous amines, lean and loaded with CO<span class="math inline">\(_2\)</span>: the CO<span class="math inline">\(_2\)</span> Capture package against experimental data, calc - exp in kg/m<span class="math inline">\(^3\)</span>.</caption>
-<tbody>
-<tr>
-<td style="text-align: right;">Bias</td>
-</tr>
-<tr>
-<td style="text-align: right;">(kg/m<span class="math inline">\(^3\)</span>)</td>
-</tr>
-</tbody>
-</table>
-
-</th>
-<th style="text-align: right;">
-
-<a id="tab:capture_density"></a>
-
-
-<table>
-<caption>Density of aqueous amines, lean and loaded with CO<span class="math inline">\(_2\)</span>: the CO<span class="math inline">\(_2\)</span> Capture package against experimental data, calc - exp in kg/m<span class="math inline">\(^3\)</span>.</caption>
-<tbody>
-<tr>
-<td style="text-align: right;">Max</td>
-</tr>
-<tr>
-<td style="text-align: right;">(kg/m<span class="math inline">\(^3\)</span>)</td>
-</tr>
-</tbody>
-</table>
-
-</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td style="text-align: left;">MEA</td>
-<td style="text-align: left;">Amundsen 2009</td>
-<td style="text-align: left;">lean and loaded, 298-353 K</td>
-<td style="text-align: left;">fit</td>
-<td style="text-align: center;"><span class="math inline">\(103\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(2.6\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(+0.1\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(7.2\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">DEA</td>
-<td style="text-align: left;">Han 2012</td>
-<td style="text-align: left;">lean and loaded, 298-393 K</td>
-<td style="text-align: left;">fit</td>
-<td style="text-align: center;"><span class="math inline">\(278\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(1.2\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(-0.2\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(4.6\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">DEA</td>
-<td style="text-align: left;">Jayarathna 2012</td>
-<td style="text-align: left;">lean and loaded, 293-423 K</td>
-<td style="text-align: left;">check</td>
-<td style="text-align: center;"><span class="math inline">\(304\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(3.8\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(+3.8\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(10.8\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">MDEA</td>
-<td style="text-align: left;">Han 2012</td>
-<td style="text-align: left;">lean and loaded, 298-393 K</td>
-<td style="text-align: left;">fit</td>
-<td style="text-align: center;"><span class="math inline">\(271\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(2.0\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(-0.4\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(8.2\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">MDEA</td>
-<td style="text-align: left;">Jayarathna 2012</td>
-<td style="text-align: left;">lean and loaded, 293-423 K</td>
-<td style="text-align: left;">check</td>
-<td style="text-align: center;"><span class="math inline">\(247\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(2.8\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(+2.1\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(11.5\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">PZ</td>
-<td style="text-align: left;">Freeman 2011</td>
-<td style="text-align: left;">lean and loaded, 293-333 K</td>
-<td style="text-align: left;">fit</td>
-<td style="text-align: center;"><span class="math inline">\(147\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(3.7\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(+0.1\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(17.4\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">PZ</td>
-<td style="text-align: left;">Samanta 2006</td>
-<td style="text-align: left;">lean, 298-333 K</td>
-<td style="text-align: left;">fit</td>
-<td style="text-align: center;"><span class="math inline">\(32\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.9\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(-0.9\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(2.5\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">PZ</td>
-<td style="text-align: left;">Muhammad 2009</td>
-<td style="text-align: left;">lean, 298-338 K</td>
-<td style="text-align: left;">check</td>
-<td style="text-align: center;"><span class="math inline">\(27\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.7\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(-0.4\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(1.0\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">PZ</td>
-<td style="text-align: left;">Derks 2005</td>
-<td style="text-align: left;">lean, 293-323 K</td>
-<td style="text-align: left;">check</td>
-<td style="text-align: center;"><span class="math inline">\(19\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.4\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(-0.1\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.7\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">PZ</td>
-<td style="text-align: left;">Speyer 2010</td>
-<td style="text-align: left;">lean, 293 K</td>
-<td style="text-align: left;">check</td>
-<td style="text-align: center;"><span class="math inline">\(6\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.2\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(+0.2\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(0.6\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">MDEA + PZ</td>
-<td style="text-align: left;">Paul 2006</td>
-<td style="text-align: left;">lean, 288-333 K</td>
-<td style="text-align: left;">fit</td>
-<td style="text-align: center;"><span class="math inline">\(40\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(1.7\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(-1.4\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(3.3\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">MDEA + PZ</td>
-<td style="text-align: left;">Muhammad 2009</td>
-<td style="text-align: left;">lean, 298-338 K</td>
-<td style="text-align: left;">fit</td>
-<td style="text-align: center;"><span class="math inline">\(54\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(2.4\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(+1.7\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(9.7\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">MDEA + PZ</td>
-<td style="text-align: left;">Derks 2008</td>
-<td style="text-align: left;">lean, 293-323 K</td>
-<td style="text-align: left;">fit</td>
-<td style="text-align: center;"><span class="math inline">\(78\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(1.4\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(-1.4\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(2.9\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">MDEA + PZ</td>
-<td style="text-align: left;">B<span>ö</span>ttger 2009</td>
-<td style="text-align: left;">lean, 289-303 K</td>
-<td style="text-align: left;">fit</td>
-<td style="text-align: center;"><span class="math inline">\(24\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(1.0\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(-1.0\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(2.1\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">MDEA + PZ</td>
-<td style="text-align: left;">Kessler 2019</td>
-<td style="text-align: left;">lean, 293-353 K</td>
-<td style="text-align: left;">fit</td>
-<td style="text-align: center;"><span class="math inline">\(7\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(3.9\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(-3.9\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(4.6\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">MDEA + PZ</td>
-<td style="text-align: left;">Speyer 2010</td>
-<td style="text-align: left;">lean, 293 K</td>
-<td style="text-align: left;">fit</td>
-<td style="text-align: center;"><span class="math inline">\(37\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(1.1\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(-0.5\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(3.1\)</span></td>
-</tr>
-<tr>
-<td style="text-align: left;">MDEA + PZ</td>
-<td style="text-align: left;">Frailie 2014</td>
-<td style="text-align: left;">lean and loaded, 293-333 K</td>
-<td style="text-align: left;">check</td>
-<td style="text-align: center;"><span class="math inline">\(16\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(2.0\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(-1.9\)</span></td>
-<td style="text-align: right;"><span class="math inline">\(4.9\)</span></td>
-</tr>
-</tbody>
-</table>
-
-</div>
 
 MDEA + PZ: the parameters of each amine plus one MDEA-PZ term fitted to the lean blends.
 
@@ -2904,7 +2129,7 @@ where $\Delta\lambda_{\mathrm{crit}}$ is the critical enhancement. The package l
 
 ##### Mixture Mode: Peng–Robinson with Transport $k_{ij}$
 
-For impure CO$_2$ streams, the Peng–Robinson EOS  is used with binary interaction parameters taken from the literature for the usual pipeline impurities; the package editor shows the source of each pair. Table [53](#tab:transport_kij) lists the shipped $k_{ij}$ values.
+For impure CO$_2$ streams, the Peng–Robinson EOS  is used with binary interaction parameters taken from the literature for the usual pipeline impurities; the package editor shows the source of each pair. Table [44](#tab:transport_kij) lists the shipped $k_{ij}$ values.
 
 
 
@@ -3037,7 +2262,7 @@ f_{\ce{H2O}}^{L} = a_{w}\,P_{w}^{\mathrm{sat}}\,\varphi_{w}^{\mathrm{sat}}
 
 
 with $P_{w}^{\mathrm{sat}}$ and the liquid volume $V_{w}$ from IAPWS-IF97 , $\varphi_{w}^{\mathrm{sat}}$ from the vapour equation of state at saturation, and the sum over every dissolved particle (the ions of a salt counted apart, dissolved $\ce{CO2}$ and other solutes). The fugacity coefficient is $\varphi_{\ce{H2O}}^{L} =
-f_{\ce{H2O}}^{L}/(x_{\ce{H2O}}P)$, so the dilution of water by the solutes is counted once. Raoult’s law carries no osmotic coefficient: the water vapour pressure over 3.6 mol/kg NaCl comes out 2.2 % high (Table [59](#tab:storage_brine_vapour_pressure)).
+f_{\ce{H2O}}^{L}/(x_{\ce{H2O}}P)$, so the dilution of water by the solutes is counted once. Raoult’s law carries no osmotic coefficient: the water vapour pressure over 3.6 mol/kg NaCl comes out 2.2 % high (Table [50](#tab:storage_brine_vapour_pressure)).
 
 ##### CO$_2$-Rich Phase
 
@@ -3125,7 +2350,7 @@ where IAP is the ion activity product from the speciation (Davies coefficients).
 \]
 
 
-with $\log_{10}K_{sp} = a + bT + c/T + d\log_{10}T + eT^{2} + f/T^{2}$. Calcite follows Plummer and Busenberg  (0 to 90 °C), magnesite, siderite and dolomite the measurements of Benezeth et al. (50 to 200, 25 to 250 and 50 to 253 °C), and dawsonite the `llnl.dat` database of PHREEQC , moved to this basis with the second dissociation constant of carbonic acid of Plummer and Busenberg and the ion product of water of `llnl.dat`. Outside these ranges the correlations are extrapolated. The package carries no aluminium species, so dawsonite has a solubility product but no saturation index. Table [60](#tab:storage_ksp) compares the correlations with `llnl.dat`.
+with $\log_{10}K_{sp} = a + bT + c/T + d\log_{10}T + eT^{2} + f/T^{2}$. Calcite follows Plummer and Busenberg  (0 to 90 °C), magnesite, siderite and dolomite the measurements of Benezeth et al. (50 to 200, 25 to 250 and 50 to 253 °C), and dawsonite the `llnl.dat` database of PHREEQC , moved to this basis with the second dissociation constant of carbonic acid of Plummer and Busenberg and the ion product of water of `llnl.dat`. Outside these ranges the correlations are extrapolated. The package carries no aluminium species, so dawsonite has a solubility product but no saturation index. Table [51](#tab:storage_ksp) compares the correlations with `llnl.dat`.
 
 ##### Validity Range and Limitations
 
@@ -3147,17 +2372,17 @@ CO$_2$ Storage PP recommended operating envelope
 
 
 
-- Duan and Sun count $\ce{K+}$ as $\ce{Na+}$ and $\ce{Mg^{2+}}$ as $\ce{Ca^{2+}}$ (Eq. [\[eq:duansun_gamma\]](#eq:duansun_gamma)). In KCl, $\ce{CaCl2}$ and $\ce{MgCl2}$ brines the model salts out more $\ce{CO2}$ than measured, most at high molality and low temperature: on average 18 % low in KCl, 11 % in $\ce{CaCl2}$ and 10 % in $\ce{MgCl2}$ (Table [55](#tab:storage_co2_solubility)), and up to 24 % at 6 mol/kg $\ce{CaCl2}$ and 15 % at 5 mol/kg $\ce{MgCl2}$.
+- Duan and Sun count $\ce{K+}$ as $\ce{Na+}$ and $\ce{Mg^{2+}}$ as $\ce{Ca^{2+}}$ (Eq. [\[eq:duansun_gamma\]](#eq:duansun_gamma)). In KCl, $\ce{CaCl2}$ and $\ce{MgCl2}$ brines the model salts out more $\ce{CO2}$ than measured, most at high molality and low temperature: on average 18 % low in KCl, 11 % in $\ce{CaCl2}$ and 10 % in $\ce{MgCl2}$ (Table [46](#tab:storage_co2_solubility)), and up to 24 % at 6 mol/kg $\ce{CaCl2}$ and 15 % at 5 mol/kg $\ce{MgCl2}$.
 
 - The flash forms no solid salt phase. At 473 K and 1 bar a brine can dry out completely, and the package does not precipitate the salt.
 
-- The water content of the $\ce{CO2}$ phase follows Spycher and Pruess and the dew points of Kim et al. ; the Raman data of Wang et al.  lie well above both (Table [58](#tab:storage_water_in_co2)).
+- The water content of the $\ce{CO2}$ phase follows Spycher and Pruess and the dew points of Kim et al. ; the Raman data of Wang et al.  lie well above both (Table [49](#tab:storage_water_in_co2)).
 
 - The pH and the saturation indices use Davies activity coefficients and are indicative above an ionic strength of about 0.5 mol/kg.
 
 ##### Validation
 
-Tables [55](#tab:storage_co2_solubility) to [60](#tab:storage_ksp) compare the package with experimental data. They were produced by the script `validate.py` in the fitting folder of the package source (`Storage/Fitting`), which runs about 3000 flashes of the shipped package, one or more per data point; the same folder holds the data files with their citations and DOIs, the fit scripts and the point-by-point results. In the *Use* column, *fit* means the parameters were regressed to the data set and *check* means it was only compared. No parameter was fitted to the $\ce{CO2}$ solubility data: the Duan–Sun parameters are the published ones. The data sets of Song et al., Hebach et al., Kim et al. and Nasirzadeh et al. were not used in any fit.
+Tables [46](#tab:storage_co2_solubility) to [51](#tab:storage_ksp) compare the package with experimental data. They were produced by the script `validate.py` in the fitting folder of the package source (`Storage/Fitting`), which runs about 3000 flashes of the shipped package, one or more per data point; the same folder holds the data files with their citations and DOIs, the fit scripts and the point-by-point results. In the *Use* column, *fit* means the parameters were regressed to the data set and *check* means it was only compared. No parameter was fitted to the $\ce{CO2}$ solubility data: the Duan–Sun parameters are the published ones. The data sets of Song et al., Hebach et al., Kim et al. and Nasirzadeh et al. were not used in any fit.
 
 The NaCl set of Mohammadian et al. lies far from the other NaCl sets (24 % above the model on average and up to 240 % on single points, against 1.5 to 5 % for the others) and is left out of the NaCl total. Also left out: the points of McBride-Wright et al. at 100 MPa (the fit stops at 70 MPa), the points of Kamps et al. without $\ce{CO2}$, the KI and $\ce{AlCl3}$ sets of Al Ghafri et al., and set 5 of Song et al., which repeats the $\ce{CO2}$-free points of sets 1 to 4 and is used once as the brine check.
 
@@ -3342,7 +2567,7 @@ m = \left(\frac{m}{M}\right) M_n
 \]
 
 
-so a single parameter row covers any chain length; small molecules keep their tabulated absolute $m$. Only three pure-component parameters are needed per polymer: the ratio $(m/M)$ and the segment size $\sigma$ and energy $\varepsilon/k$, all referred to the repeat unit. Table [61](#tab:pcsaft_polymers) lists the built-in polymers. The critical constants of the injected pseudo-compound only seed the initial guesses; the PC-SAFT fugacity uses $(m/M)$, $\sigma$ and $\varepsilon/k$ exclusively.
+so a single parameter row covers any chain length; small molecules keep their tabulated absolute $m$. Only three pure-component parameters are needed per polymer: the ratio $(m/M)$ and the segment size $\sigma$ and energy $\varepsilon/k$, all referred to the repeat unit. Table [52](#tab:pcsaft_polymers) lists the built-in polymers. The critical constants of the injected pseudo-compound only seed the initial guesses; the PC-SAFT fugacity uses $(m/M)$, $\sigma$ and $\varepsilon/k$ exclusively.
 
 
 
@@ -3468,7 +2693,7 @@ PC-SAFT also models random and alternating copolymers, following Gross, Spuhl, T
 
 ###### Non-associating polymer solutions (liquid–liquid)
 
-Table [62](#tab:pcsaft_polymer_val) compares the model against literature cloud data. The polypropylene/$n$-pentane and high-density-polyethylene/ethylene cloud pressures reproduce the measurements of Tumakaka et al.  to within a few bar and a few tens of bar respectively, and the poly(methyl methacrylate)/1-chlorobutane upper critical solution temperature matches the dome of Kontogeorgis and Folas  to within about two kelvin.
+Table [53](#tab:pcsaft_polymer_val) compares the model against literature cloud data. The polypropylene/$n$-pentane and high-density-polyethylene/ethylene cloud pressures reproduce the measurements of Tumakaka et al.  to within a few bar and a few tens of bar respectively, and the poly(methyl methacrylate)/1-chlorobutane upper critical solution temperature matches the dome of Kontogeorgis and Folas  to within about two kelvin.
 
 
 
@@ -3488,7 +2713,7 @@ PC-SAFT polymer LLE validation
 
 ###### Associating systems (cross-association)
 
-The association term drives every mixture in which two components hydrogen-bond, including the aqueous polymer solutions, and is validated separately. Unlike sites cross-associate between a donor and an acceptor only, and the chemical potential of association follows from the association Helmholtz energy whenever two or more compounds associate, so that the model satisfies the Gibbs-Duhem relation. Table [63](#tab:pcsaft_assoc_val) compares bubble points of water with methanol and ethanol, computed with the water–alcohol $k_{ij}$ shipped in the parameter table (methanol $-0.06$, ethanol $-0.035$, 1-propanol $-0.04$), with isobaric data of Yang et al.  and Kamihama et al. . Bubble temperatures agree within 0.7 K and vapour compositions within 0.03 in mole fraction. With these $k_{ij}$ the three alcohols stay miscible with water over the whole composition range at 298 K, as they are. The two-site water of the parameter table cannot reproduce at the same time the vapour-liquid equilibrium and the infinite-dilution activity coefficients of the alcohols in water; the $k_{ij}$ follow the vapour-liquid data. The same cross-association gives poly(ethylene glycol) in water the correct *sign* of the deviation from Raoult’s law: the water activity is suppressed below the ideal value at every composition and molar mass, the negative deviation that makes the polymer water-soluble.
+The association term drives every mixture in which two components hydrogen-bond, including the aqueous polymer solutions, and is validated separately. Unlike sites cross-associate between a donor and an acceptor only, and the chemical potential of association follows from the association Helmholtz energy whenever two or more compounds associate, so that the model satisfies the Gibbs-Duhem relation. Table [54](#tab:pcsaft_assoc_val) compares bubble points of water with methanol and ethanol, computed with the water–alcohol $k_{ij}$ shipped in the parameter table (methanol $-0.06$, ethanol $-0.035$, 1-propanol $-0.04$), with isobaric data of Yang et al.  and Kamihama et al. . Bubble temperatures agree within 0.7 K and vapour compositions within 0.03 in mole fraction. With these $k_{ij}$ the three alcohols stay miscible with water over the whole composition range at 298 K, as they are. The two-site water of the parameter table cannot reproduce at the same time the vapour-liquid equilibrium and the infinite-dilution activity coefficients of the alcohols in water; the $k_{ij}$ follow the vapour-liquid data. The same cross-association gives poly(ethylene glycol) in water the correct *sign* of the deviation from Raoult’s law: the water activity is suppressed below the ideal value at every composition and molar mass, the negative deviation that makes the polymer water-soluble.
 
 
 
@@ -3577,7 +2802,7 @@ A pair of $\ce{CH4}$, $\ce{N2}$, $\ce{H2}$ or $\ce{H2S}$ without data takes the 
 
 ##### Validation
 
-Tables (tab.) to [64](#tab:il_co2_heat) compare the package with experimental data. They were produced by the script `validate.py` in the fitting folder of the package source (`Fitting`), which calls the shipped package over every data point. The same folder holds the data files (NIST ILThermo sets with their citation, DOI and the use of each row), the fit scripts, which reproduce the shipped parameters, and the point-by-point results.
+Tables (tab.) to [55](#tab:il_co2_heat) compare the package with experimental data. They were produced by the script `validate.py` in the fitting folder of the package source (`Fitting`), which calls the shipped package over every data point. The same folder holds the data files (NIST ILThermo sets with their citation, DOI and the use of each row), the fit scripts, which reproduce the shipped parameters, and the point-by-point results.
 
 ###### Pure liquids
 
@@ -3587,7 +2812,7 @@ Over all the ionic liquids the liquid density is within 0.47 % of the data the 
 
 The median deviation of the $\ce{CO2}$ solubility is 9.5 % on the fitted data and 16 % on the data held out; part of the difference is disagreement between laboratories. $\ce{H2S}$ and $\ce{H2}$ are reproduced within a few percent, $\ce{CH4}$ and $\ce{N2}$ within about 6 to 14 %. For water the median deviation of the partial pressure is 9.0 % fitted and 12.9 % held out. The pooled water deviation of the held-out data (47.6 %) comes from three sets that disagree with the fitted ones (\[bmim\]\[BF$_4$\] up to 448 K, \[emim\]\[Ac\] and \[emim\]\[EtSO$_4$\]).
 
-The heat of absorption of $\ce{CO2}$ follows from the temperature dependence of the Henry constant of the package (Table [64](#tab:il_co2_heat)) and agrees with the data within 1 to 2 kJ/mol for most ionic liquids. \[omim\]\[Tf$_2$N\] is the exception: its $k_{ij,T}$ was fitted to the solubility alone and gives too weak a temperature dependence.
+The heat of absorption of $\ce{CO2}$ follows from the temperature dependence of the Henry constant of the package (Table [55](#tab:il_co2_heat)) and agrees with the data within 1 to 2 kJ/mol for most ionic liquids. \[omim\]\[Tf$_2$N\] is the exception: its $k_{ij,T}$ was fitted to the solubility alone and gives too weak a temperature dependence.
 
 
 
@@ -3893,7 +3118,7 @@ where $g^{\mathrm{hs}}$ is the radial distribution function at contact for hard 
 
 ##### Association Schemes
 
-Common association schemes and their site types are listed in Table [65](#tab:cpa_schemes).
+Common association schemes and their site types are listed in Table [56](#tab:cpa_schemes).
 
 
 
