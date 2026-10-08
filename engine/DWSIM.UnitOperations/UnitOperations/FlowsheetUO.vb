@@ -655,7 +655,7 @@ Label_00CC:
                             obj.CreateConnectors(xel.Element("InputConnectors").Elements.Count, xel.Element("OutputConnectors").Elements.Count)
                             obj.PositionConnectors()
                         ElseIf TypeOf obj Is ExternalUnitOperationGraphic Then
-                            Dim euo = mainfs.AvailableExternalUnitOperations.Values.Where(Function(x) x.Description = obj.Description).FirstOrDefault
+                            Dim euo = SharedClasses.Utility.FindExternalUnitOperation(mainfs.AvailableExternalUnitOperations.Values, obj.Description)
                             If euo IsNot Nothing Then
                                 obj.Owner = euo
                                 DirectCast(euo, Interfaces.ISimulationObject).GraphicObject = obj

@@ -662,6 +662,25 @@ Public Class Utility
 
     End Function
 
+    ''' <summary>
+    ''' The external unit operation whose Description matches the one stored with a graphic object:
+    ''' an exact match first, then a match on letters and digits only, so that a description whose
+    ''' punctuation or special characters changed (an arrow written as "->") still finds its owner.
+    ''' </summary>
+    Shared Function FindExternalUnitOperation(candidates As IEnumerable(Of IExternalUnitOperation), description As String) As IExternalUnitOperation
+        Dim exact = candidates.Where(Function(x) x.Description = description).FirstOrDefault()
+        If exact IsNot Nothing OrElse String.IsNullOrEmpty(description) Then Return exact
+        Dim key = AlphanumericKey(description)
+        If key = "" Then Return Nothing
+        Dim loose = candidates.Where(Function(x) AlphanumericKey(x.Description) = key).ToList()
+        Return If(loose.Count = 1, loose(0), Nothing)
+    End Function
+
+    Private Shared Function AlphanumericKey(text As String) As String
+        If text Is Nothing Then Return ""
+        Return New String(text.Where(Function(c) (c >= "a"c AndAlso c <= "z"c) OrElse (c >= "A"c AndAlso c <= "Z"c) OrElse (c >= "0"c AndAlso c <= "9"c)).ToArray())
+    End Function
+
     Shared Function LoadAdditionalPropertyPackages() As List(Of IPropertyPackage)
 
         Dim ppacks As New List(Of IPropertyPackage)
