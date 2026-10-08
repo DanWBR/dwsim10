@@ -52,6 +52,30 @@ k_{\mathrm{H_{2}},k}=0.2036+0.002246\,T_{c,k}+0.8364\,w_{k}+1.2111\,V_{c,k}^{1/3
 
 with $T_{c,k}$ in K and $V_{c,k}$ in m3/kmol, fitted to the eleven hydrogen pairs of the table and to hydrogen solubilities in n-dodecane, benzene, toluene, cyclohexane and methylcyclohexane. Table values and values set by the user are kept. Because the hydrogen constants depend on temperature, the temperature derivatives of the fugacity coefficients are taken by finite differences when hydrogen is present.
 
+Other pairs missing from the table get an estimate when one compound is a hydrocarbon (elements C and H only, or a petroleum fraction) and the other a lighter hydrocarbon, nitrogen or carbon monoxide, provided $T_{c2}/T_{c1}\geq1.3$ (component 2 the heavier):
+
+
+
+<a id="eq:d-lkp-hckij"></a>
+
+\[
+k_{12}=1+0.2802\,\ln\frac{T_{c2}}{T_{c1}}\,\ln\frac{V_{c2}}{V_{c1}}-0.0561\,\ln\frac{T_{c2}}{T_{c1}}
+\]
+
+
+Carbon dioxide with a hydrocarbon of $T_{c}\geq304.21$ K takes
+
+
+
+<a id="eq:d-lkp-co2kij"></a>
+
+\[
+k_{\mathrm{CO_{2}},k}=0.9276+0.10719\,X+0.04505\,X^{2},\qquad X=\ln\frac{T_{c,k}}{304.21}\,\ln\frac{V_{c,k}}{0.094}
+\]
+
+
+with $V_{c,k}$ in m3/kmol, and hydrogen sulfide the carbon dioxide value less 0.027. Equation [\[eq:d-lkp-hckij\]](#eq:d-lkp-hckij) fits the 87 hydrocarbon pairs of the table with an rms deviation of 0.011, and the nitrogen row within 0.02; both correlations were fitted to the table and to parameters regressed from about 800 solubility points of methane, ethane, nitrogen, carbon monoxide, carbon dioxide and hydrogen sulfide in heavy alkanes, aromatics and naphthenes. All other pairs take 1. Table values and values set by the user are never replaced, and the parameter editor shows the estimates.
+
 #### Compressibility and fugacity coefficient
 
 Each fluid (simple $s$ and reference $h$ , with its own constant set) gives a compressibility from the reduced volume $V_{r}=P_{c}V/(RT_{c})$ , and the mixture interpolates with $w_{h}=0.3978$ :

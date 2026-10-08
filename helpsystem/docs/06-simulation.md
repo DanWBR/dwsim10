@@ -176,7 +176,7 @@ Use the PRSV2 Property Package. Check if it has the required parameters for your
 
 ####### Systems with high Hydrogen content
 
-You can use the Chao-Seader, Grayson-Streed or Lee-Kesler-Plöcker model. The LKP model is very slow but can be more reliable depending on the system. The LKP model is very sensitive to the interaction parameter values being used. LKP gives hydrogen the effective critical constants of Gunn, Chueh and Prausnitz, which the hydrogen interaction parameters of its table were fitted with, and estimates the parameter of a hydrogen pair missing from the table from the partner’s critical constants. Other pairs missing from the table take 1, which is far too low for a light gas such as methane, nitrogen or carbon dioxide with a heavy hydrocarbon: enter or regress those parameters.
+You can use the Chao-Seader, Grayson-Streed or Lee-Kesler-Plöcker model. The LKP model is very slow but can be more reliable depending on the system. The LKP model is very sensitive to the interaction parameter values being used. LKP gives hydrogen the effective critical constants of Gunn, Chueh and Prausnitz, which the hydrogen interaction parameters of its table were fitted with, and estimates the parameter of a pair missing from the table when one compound is a hydrocarbon or a petroleum fraction and the other is hydrogen, a lighter hydrocarbon, nitrogen, carbon monoxide, carbon dioxide or hydrogen sulfide. Hydrocarbons whose critical temperatures are within a factor of 1.3, and all other pairs, take 1. The parameter editor shows the estimates; table values and values entered by the user are kept.
 
 ####### Air Separation / Refrigeration systems {#air-separation-refrigeration-systems}
 

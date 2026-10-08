@@ -3873,7 +3873,7 @@ No iteration is required for either mode; the calculation is explicit given the 
 
 ##### Overview
 
-The **Copper Bed Mercury Adsorber** models a fixed-bed guard vessel used to remove elemental mercury () from natural gas, NGL, and LNG process streams. The unit represents a once-through, non-regenerable sorbent bed based on copper sulphide (CuS/Al$_2$O$_3$), metallic copper on activated carbon (Cu/C), or sulphur-impregnated activated carbon (SIAC).
+The **Copper Bed Mercury Adsorber** models a fixed-bed guard vessel used to remove elemental mercury ($\ce{Hg^0}$) from natural gas, NGL, and LNG process streams. The unit represents a once-through, non-regenerable sorbent bed based on copper sulphide (CuS/Al$_2$O$_3$), metallic copper on activated carbon (Cu/C), or sulphur-impregnated activated carbon (SIAC).
 
 Mercury occurs in natural gas at trace concentrations (typically 0.001–10,000 μg/Nm$^3$) and must be removed to protect aluminium heat exchangers, catalyst beds, and downstream equipment, as well as to comply with product-quality specifications . The primary removal mechanism is irreversible chemisorption:
 

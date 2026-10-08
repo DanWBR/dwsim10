@@ -1189,7 +1189,88 @@ def step_expand_macros(latex: str) -> str:
         spec = re.sub(r"([CLR])\{[0-9.]+\}", lambda c: c.group(1).lower(), m.group(2))
         return m.group(1) + spec + "}"
     latex = re.sub(r"(\\begin\{(?:tabular|longtable)\}\{)([^\n]*)\}[ \t]*$", _plain_columns, latex, flags=re.M)
-    return latex
+    return wrap_text_mode_ce(latex)
+
+
+_MATH_ENVS = {"equation", "equation*", "align", "align*", "eqnarray", "eqnarray*", "multline",
+              "multline*", "gather", "gather*", "displaymath", "math", "flalign", "flalign*"}
+
+
+def wrap_text_mode_ce(latex: str) -> str:
+    r"""Wrap every \ce{...} that sits outside math mode in $...$.
+
+    Pandoc's LaTeX reader drops \ce in running text ("systems containing , , and dissolved in
+    water"); inside math it keeps the TeX, and MathJax renders it with the mhchem extension.
+    Math mode is tracked through $, $$, \( \), \[ \] and the display environments; comments and
+    escaped characters are skipped.
+    """
+    out = []
+    i, n = 0, len(latex)
+    inline = display = False
+    env_depth = 0
+    while i < n:
+        c = latex[i]
+        if c == "%":
+            j = latex.find("\n", i)
+            j = n if j < 0 else j
+            out.append(latex[i:j])
+            i = j
+            continue
+        if c == "\\":
+            m = re.match(r"\\(begin|end)\{([^}]+)\}", latex[i:i + 80])
+            if m and m.group(1) == "begin" and m.group(2) in ("verbatim", "Verbatim", "lstlisting", "minted"):
+                end = latex.find("\\end{" + m.group(2) + "}", i)
+                j = n if end < 0 else end + len("\\end{" + m.group(2) + "}")
+                out.append(latex[i:j])
+                i = j
+                continue
+            if m:
+                if m.group(2) in _MATH_ENVS:
+                    env_depth += 1 if m.group(1) == "begin" else -1
+                    env_depth = max(env_depth, 0)
+                out.append(m.group(0))
+                i += len(m.group(0))
+                continue
+            two = latex[i:i + 2]
+            if two in ("\\(", "\\["):
+                env_depth += 1
+                out.append(two)
+                i += 2
+                continue
+            if two in ("\\)", "\\]"):
+                env_depth = max(env_depth - 1, 0)
+                out.append(two)
+                i += 2
+                continue
+            if latex.startswith("\\ce{", i) and not (inline or display or env_depth):
+                depth, j = 0, i + 3
+                while j < n:
+                    if latex[j] == "\\":
+                        j += 2
+                        continue
+                    if latex[j] == "{":
+                        depth += 1
+                    elif latex[j] == "}":
+                        depth -= 1
+                        if depth == 0:
+                            break
+                    j += 1
+                out.append("$" + latex[i:j + 1] + "$")
+                i = j + 1
+                continue
+            out.append(latex[i:i + 2])
+            i += 2
+            continue
+        if c == "$":
+            if latex.startswith("$$", i):
+                display = not display
+                out.append("$$")
+                i += 2
+                continue
+            inline = not inline
+        out.append(c)
+        i += 1
+    return "".join(out)
 
 
 def step_pandoc_to_md(latex: str) -> str:

@@ -20,7 +20,7 @@ The Data Regression Utility supports regression of experimental binary data for 
 
 - Lee-Kesler-Plöcker
 
-The default range of the Lee-Kesler-Plöcker parameter, 0.9 to 1.1, is too narrow for hydrogen and for light gases with heavy hydrocarbons, whose values lie between about 1 and 4: widen the bounds before regressing these pairs.
+The default range of the Lee-Kesler-Plöcker parameter is 0.5 to 4, which covers hydrogen and light gases with heavy hydrocarbons; start from the value the parameter editor shows.
 
 The following data sets are supported:
 

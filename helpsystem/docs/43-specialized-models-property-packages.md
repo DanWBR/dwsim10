@@ -168,7 +168,7 @@ where $\alpha = 0.2$ (default for molecule–ion pairs) is the non-randomness pa
 
 ###### Water–electrolyte parameters
 
-For a single salt dissolved in water, two asymmetric $\tau$ parameters are required: $\tau_{w,ca}$ (water around the cation–anion pair) and $\tau_{ca,w}$ (ion pair around water). Temperature dependence is expressed via the three-parameter Gibbs–Helmholtz form of Hossain, Bhattacharia and Chen :
+For a single salt $\ce{C_{\nu+}A_{\nu-}}$ dissolved in water, two asymmetric $\tau$ parameters are required: $\tau_{w,ca}$ (water around the cation–anion pair) and $\tau_{ca,w}$ (ion pair around water). Temperature dependence is expressed via the three-parameter Gibbs–Helmholtz form of Hossain, Bhattacharia and Chen :
 
 
 <a id="eq:tau_T"></a>
@@ -505,7 +505,7 @@ For Fe$^{2+/3+}$, Cu$^{2+}$, Zn$^{2+}$, Ni$^{2+}$, Co$^{2+}$, Mn$^{2+}$, Cd$^{2+
 
 ##### Overview {#overview-53}
 
-The Sour Water model is based on the fugacity-based VLE framework of Edwards, Maurer, Newman and Prausnitz . It targets aqueous systems containing , , , and dissolved in water. Activity coefficients for the dissolved molecular species are calculated by a simplified Margules–Pitzer expression. The package finds the five compounds by name (`Water`, `Hydrogen sulfide`, `Ammonia`, `Carbon dioxide`, `Hydrogen cyanide`); a stream may hold any subset of them, in any order, together with other compounds.
+The Sour Water model is based on the fugacity-based VLE framework of Edwards, Maurer, Newman and Prausnitz . It targets aqueous systems containing $\ce{H2S}$, $\ce{NH3}$, $\ce{CO2}$, and $\ce{HCN}$ dissolved in water. Activity coefficients for the dissolved molecular species are calculated by a simplified Margules–Pitzer expression. The package finds the five compounds by name (`Water`, `Hydrogen sulfide`, `Ammonia`, `Carbon dioxide`, `Hydrogen cyanide`); a stream may hold any subset of them, in any order, together with other compounds.
 
 ##### Vapour–Liquid Equilibrium
 
@@ -541,12 +541,12 @@ where $I$ (mol/kg) is the ionic strength and $\beta_{i}$ is an empirical molecul
 
 
 
-| Species | $\beta_{i}$ |
-|:--------|:-------------:|
-|         |  $-0.324$   |
-|         |  $-0.190$   |
-|         |  $-0.292$   |
-|         |  $-0.160$   |
+| Species      | $\beta_{i}$ |
+|:-------------|:-------------:|
+| $\ce{H2S}$ |  $-0.324$   |
+| $\ce{NH3}$ |  $-0.190$   |
+| $\ce{CO2}$ |  $-0.292$   |
+| $\ce{HCN}$ |  $-0.160$   |
 
 Molecule–ion interaction parameters $\beta_{i}$ (kg/mol)
 
@@ -564,7 +564,7 @@ I = \tfrac{1}{2}\sum_{i} c_{i}\,z_{i}^{2}
 \]
 
 
-where the sum runs over all ionic species. For the sour water system (, , , , , , , ):
+where the sum runs over all ionic species. For the sour water system ($\ce{HS-}$, $\ce{S^{2-}}$, $\ce{NH4+}$, $\ce{HCO3-}$, $\ce{CO3^{2-}}$, $\ce{CN-}$, $\ce{H+}$, $\ce{OH-}$):
 
 
 \[
@@ -585,7 +585,7 @@ I = \tfrac{1}{2}\!\left(
 
 Ionic concentrations are computed from total dissolved-gas concentrations and solution pH via dissociation fractions. With $h = 10^{-\mathrm{pH}}$ mol/L:
 
-######  system: {#system}
+###### $\ce{H2S}$ system:
 
 
 
@@ -598,9 +598,9 @@ Ionic concentrations are computed from total dissolved-gas concentrations and so
 \]
 
 
-with $D_{\ce{H2S}} = 1 + K_{a1}/h + K_{a1}\,K_{a2}/h^{2}$. Analogous expressions apply to the and systems.
+with $D_{\ce{H2S}} = 1 + K_{a1}/h + K_{a1}\,K_{a2}/h^{2}$. Analogous expressions apply to the $\ce{CO2}$ and $\ce{HCN}$ systems.
 
-######  system: {#system-1}
+###### $\ce{NH3}$ system:
 
 
 
@@ -634,22 +634,22 @@ Table [28](#tab:sw_keq) lists the reference constants, from Edwards et al. , a
 
 | Reaction | $K_{25}$ | $\Delta H_{\mathrm{rxn}}$ (J/mol) | Source of $\Delta H_{\mathrm{rxn}}$ |
 |:---|:---|:---|:---|
-|  | $1.02\times10^{-7}$ | $+22{,}100$ |  |
-|  | $1.30\times10^{-14}$ | $+50{,}600$ |  |
-|  | $1.80\times10^{-5}$ | $+3{,}860$ |  |
-|  | $4.30\times10^{-7}$ | $+9{,}150$ |  |
-|  | $4.70\times10^{-11}$ | $+14{,}900$ |  |
-|  | $6.20\times10^{-10}$ | $+43{,}500$ |  |
-|  | $1.01\times10^{-14}$ | $+55{,}800$ |  |
+| $\ce{H2S <=> H+ + HS-}$ | $1.02\times10^{-7}$ | $+22{,}100$ |  |
+| $\ce{HS- <=> H+ + S^{2-}}$ | $1.30\times10^{-14}$ | $+50{,}600$ |  |
+| $\ce{NH3 + H2O <=> NH4+ + OH-}$ | $1.80\times10^{-5}$ | $+3{,}860$ |  |
+| $\ce{CO2 + H2O <=> H+ + HCO3-}$ | $4.30\times10^{-7}$ | $+9{,}150$ |  |
+| $\ce{HCO3- <=> H+ + CO3^{2-}}$ | $4.70\times10^{-11}$ | $+14{,}900$ |  |
+| $\ce{HCN <=> H+ + CN-}$ | $6.20\times10^{-10}$ | $+43{,}500$ |  |
+| $\ce{H2O <=> H+ + OH-}$ | $1.01\times10^{-14}$ | $+55{,}800$ |  |
 
 Equilibrium constants and reaction enthalpies at 25 °C
 
 
 
-The enthalpy is $\Delta H(K_{w}) - \Delta H(\ce{NH4+ <=> NH3 + H+})
+The $\ce{NH3}$ enthalpy is $\Delta H(K_{w}) - \Delta H(\ce{NH4+ <=> NH3 + H+})
 = 55.81 - 51.95$ kJ/mol: $K_{b}$ grows by a factor of about 1.2 between 25 and 100 °C.
 
-The Henry constants follow $H_{i}(T) = H_{i,25}\exp\!\left[-C_{H,i}\left(1/T - 1/298.15\right)\right]$, with the values of Table [29](#tab:sw_henry). $H_{25}$ of and comes from their solubilities at 25 °C and 1 atm (0.10 and 0.034 mol/L).
+The Henry constants follow $H_{i}(T) = H_{i,25}\exp\!\left[-C_{H,i}\left(1/T - 1/298.15\right)\right]$, with the values of Table [29](#tab:sw_henry). $H_{25}$ of $\ce{H2S}$ and $\ce{CO2}$ comes from their solubilities at 25 °C and 1 atm (0.10 and 0.034 mol/L).
 
 
 
@@ -659,10 +659,10 @@ The Henry constants follow $H_{i}(T) = H_{i,25}\exp\!\left[-C_{H,i}\left(1/T - 1
 
 | Species | $H_{25}$ (Pa$\cdot$m$^{3}$/mol) | $C_{H}$ (K) | Source |
 |:---|:---|:---|:---|
-|  | $1013$ | 2100 | solubility; $C_{H}$ |
-|  | $1.76$ | 4100 | ; $C_{H}$ |
-|  | $2980$ | 2400 | solubility; $C_{H}$ |
-|  | $8.4$ | 5000 | ; $C_{H}$ |
+| $\ce{H2S}$ | $1013$ | 2100 | solubility; $C_{H}$ |
+| $\ce{NH3}$ | $1.76$ | 4100 | ; $C_{H}$ |
+| $\ce{CO2}$ | $2980$ | 2400 | solubility; $C_{H}$ |
+| $\ce{HCN}$ | $8.4$ | 5000 | ; $C_{H}$ |
 
 Henry constants at 25 °C for the sour water model
 
@@ -678,7 +678,7 @@ The $K$-values depend on the liquid composition through the speciation, so the f
 
 - **PV and TV flashes:** for a vapour fraction between 0 and 1 the temperature (or pressure) is bisected between the bubble and dew points on the vapour fraction of PT flashes.
 
-For a stripper feed with 0.6 mol/kg and 0.45 mol/kg , the bubble pressure at 40 °C is 0.22 bar and the bubble temperature at 1 atm is 72 °C.
+For a stripper feed with 0.6 mol/kg $\ce{NH3}$ and 0.45 mol/kg $\ce{H2S}$, the bubble pressure at 40 °C is 0.22 bar and the bubble temperature at 1 atm is 72 °C.
 
 #### Vapour-Phase Fugacity Convention {#sec:vapor_fugacity_mode}
 
@@ -708,7 +708,7 @@ How each electrolyte PP honours the vapour-fugacity mode
 
 ###### When to switch
 
-The default `Ideal` mode is appropriate for the vast majority of electrolyte applications, where the vapour phase contains water vapour and traces of dissolved acid gases (, , , ) at near-atmospheric total pressure. Switching to `PengRobinson` is recommended when:
+The default `Ideal` mode is appropriate for the vast majority of electrolyte applications, where the vapour phase contains water vapour and traces of dissolved acid gases ($\ce{CO2}$, $\ce{H2S}$, $\ce{HCl}$, $\ce{NH3}$) at near-atmospheric total pressure. Switching to `PengRobinson` is recommended when:
 
 - Total pressure exceeds $\sim$<!-- -->30 bar (sour-gas treating, geothermal wellhead chemistry, deep-water injection).
 
@@ -795,19 +795,19 @@ Representative values from Marcus  and Jenkins & Marcus  are listed in Table 
 
 
 
-| Cation | $B^{25}$ | Anion | $B^{25}$ |
-|:-------|-----------:|:------|-----------:|
-|        |  $0.068$ |       | $-0.007$ |
-|        |  $0.150$ |       |  $0.112$ |
-|        |  $0.086$ |       |  $0.107$ |
-|        | $-0.007$ |       | $-0.032$ |
-|        | $-0.007$ |       | $-0.068$ |
-|        |  $0.285$ |       |  $0.032$ |
-|        |  $0.385$ |       |  $0.294$ |
-|        |  $0.220$ |       |  $0.208$ |
-|        |  $0.428$ |       |  $0.030$ |
-|        |  $0.744$ |       | $-0.046$ |
-|        |  $0.690$ |       |  $0.030$ |
+| Cation           | $B^{25}$ | Anion             | $B^{25}$ |
+|:-----------------|-----------:|:------------------|-----------:|
+| $\ce{H+}$      |  $0.068$ | $\ce{Cl-}$      | $-0.007$ |
+| $\ce{Li+}$     |  $0.150$ | $\ce{OH-}$      |  $0.112$ |
+| $\ce{Na+}$     |  $0.086$ | $\ce{F-}$       |  $0.107$ |
+| $\ce{K+}$      | $-0.007$ | $\ce{Br-}$      | $-0.032$ |
+| $\ce{NH4+}$    | $-0.007$ | $\ce{I-}$       | $-0.068$ |
+| $\ce{Ca^{2+}}$ |  $0.285$ | $\ce{HCO3-}$    |  $0.032$ |
+| $\ce{Mg^{2+}}$ |  $0.385$ | $\ce{CO3^{2-}}$ |  $0.294$ |
+| $\ce{Ba^{2+}}$ |  $0.220$ | $\ce{SO4^{2-}}$ |  $0.208$ |
+| $\ce{Fe^{2+}}$ |  $0.428$ | $\ce{HS-}$      |  $0.030$ |
+| $\ce{Al^{3+}}$ |  $0.744$ | $\ce{NO3-}$     | $-0.046$ |
+| $\ce{Fe^{3+}}$ |  $0.690$ | $\ce{CN-}$      |  $0.030$ |
 
 Jones–Dole $B$-coefficients at 25 °C (L/mol)
 
@@ -834,7 +834,7 @@ The Riedel equation  provides an analogous ion-additive correction for the ther
 
 where $\lambda_{0}$ is the thermal conductivity of the ion-free solvent and $\alpha_{i}$ (L/mol) is the ion-specific thermal conductivity decrement coefficient. For 1 mol/kg NaCl at 25 °C the package gives 0.604 W/(m$\cdot$K).
 
-Most ions *decrease* thermal conductivity ($\alpha > 0$) by disrupting the hydrogen-bond network that makes water an unusually efficient thermal conductor. Notable exceptions are and ($\alpha < 0$), which *increase* $\lambda$ via the Grotthuss proton-hopping mechanism .
+Most ions *decrease* thermal conductivity ($\alpha > 0$) by disrupting the hydrogen-bond network that makes water an unusually efficient thermal conductor. Notable exceptions are $\ce{H+}$ and $\ce{OH-}$ ($\alpha < 0$), which *increase* $\lambda$ via the Grotthuss proton-hopping mechanism .
 
 Representative $\alpha$ values compiled from Horvath  are listed in Table [31](#tab:riedel_alpha).
 
@@ -844,18 +844,18 @@ Representative $\alpha$ values compiled from Horvath  are listed in Table [31]
 
 
 
-| Cation | $\alpha$ | Anion | $\alpha$ |
-|:-------|-----------:|:------|-----------:|
-|        | $-0.030$ |       | $0.0053$ |
-|        |  $0.023$ |       | $-0.016$ |
-|        | $0.0044$ |       | $-0.002$ |
-|        | $-0.010$ |       |  $0.019$ |
-|        | $-0.007$ |       |  $0.035$ |
-|        | $0.0045$ |       |  $0.010$ |
-|        |  $0.003$ |       |  $0.005$ |
-|        |  $0.013$ |       | $-0.003$ |
-|        |  $0.009$ |       |  $0.008$ |
-|        |  $0.012$ |       |  $0.011$ |
+| Cation           | $\alpha$ | Anion             | $\alpha$ |
+|:-----------------|-----------:|:------------------|-----------:|
+| $\ce{H+}$      | $-0.030$ | $\ce{Cl-}$      | $0.0053$ |
+| $\ce{Li+}$     |  $0.023$ | $\ce{OH-}$      | $-0.016$ |
+| $\ce{Na+}$     | $0.0044$ | $\ce{F-}$       | $-0.002$ |
+| $\ce{K+}$      | $-0.010$ | $\ce{Br-}$      |  $0.019$ |
+| $\ce{NH4+}$    | $-0.007$ | $\ce{I-}$       |  $0.035$ |
+| $\ce{Ca^{2+}}$ | $0.0045$ | $\ce{HCO3-}$    |  $0.010$ |
+| $\ce{Mg^{2+}}$ |  $0.003$ | $\ce{CO3^{2-}}$ |  $0.005$ |
+| $\ce{Ba^{2+}}$ |  $0.013$ | $\ce{SO4^{2-}}$ | $-0.003$ |
+| $\ce{Fe^{2+}}$ |  $0.009$ | $\ce{HS-}$      |  $0.008$ |
+| $\ce{Al^{3+}}$ |  $0.012$ | $\ce{NO3-}$     |  $0.011$ |
 
 Riedel $\alpha$-coefficients at 25 °C (L/mol)
 
@@ -877,9 +877,9 @@ For the eNRTL and Extended UNIQUAC packages, the pH is obtained from the equilib
 \]
 
 
-The hydrogen ion is the compound `Hydron` () or `Hydronium` ().
+The hydrogen ion is the compound `Hydron` ($\ce{H+}$) or `Hydronium` ($\ce{H3O+}$).
 
-For the Sour Water package, the pH is computed by the Edwards-model `PHSolver`, which solves the coupled charge-balance for the –––– system (Section [6.7](#sec:sourwater)).
+For the Sour Water package, the pH is computed by the Edwards-model `PHSolver`, which solves the coupled charge-balance for the $\ce{H2S}$–$\ce{NH3}$–$\ce{CO2}$–$\ce{HCN}$–$\ce{H2O}$ system (Section [6.7](#sec:sourwater)).
 
 For the CO$_2$ Capture package with an amine, the pH comes from the speciation of the amine model (Section [6.15](#sec:ccus_capture)); for the CO$_2$ Storage package, from its carbonate speciation (Section [6.17](#sec:ccus_storage)).
 
@@ -914,7 +914,7 @@ For the eNRTL and Extended UNIQUAC packages, the sum is taken over all ionic spe
 
 ##### Overview {#overview-54}
 
-The H$_2$O–HCl property package implements the binary Pitzer ion-interaction model with the high-temperature parameter fit of Ruaya & Seward , validated experimentally to 350 $^{\circ}$C and 3 mol/kg HCl. HCl is treated as a fully dissociated 1–1 strong electrolyte (); the model returns mean ionic and individual-ion activity coefficients, water activity, osmotic coefficient, solution pH, HCl partial pressure, and the integral heat of solution and apparent molar heat capacity of HCl.
+The H$_2$O–HCl property package implements the binary Pitzer ion-interaction model with the high-temperature parameter fit of Ruaya & Seward , validated experimentally to 350 $^{\circ}$C and 3 mol/kg HCl. HCl is treated as a fully dissociated 1–1 strong electrolyte ($\ce{HCl(aq) -> H+ + Cl-}$); the model returns mean ionic and individual-ion activity coefficients, water activity, osmotic coefficient, solution pH, HCl partial pressure, and the integral heat of solution and apparent molar heat capacity of HCl.
 
 The package additionally provides:
 
@@ -1053,7 +1053,7 @@ with $K_{sp} = (\gamma_{\pm}m)^{2}\,a_{w}^{n}$. The flash of the package is a va
 
 ##### HCl Partial Pressure
 
-The HCl partial pressure over the solution is $p_{\mathrm{HCl}} = K_{H}(T)\,m^{2}\gamma_{\pm}^{2}$, where $K_{H}$ is the inverse of the equilibrium constant of on the molal scale. It is integrated from 298.15 K with a constant reaction heat capacity:
+The HCl partial pressure over the solution is $p_{\mathrm{HCl}} = K_{H}(T)\,m^{2}\gamma_{\pm}^{2}$, where $K_{H}$ is the inverse of the equilibrium constant of $\ce{HCl(g) <=> H+(aq) + Cl-(aq)}$ on the molal scale. It is integrated from 298.15 K with a constant reaction heat capacity:
 
 
 \[
@@ -1105,7 +1105,7 @@ H_{\mathrm{HCl}}^{\mathrm{app}}(m,T) = \Delta_{\mathrm{sol}}H^{\infty}
 
 
 with $\Delta_{\mathrm{sol}}H^{\infty} = \Delta_{f}H^{\circ}(\ce{Cl-},\mathrm{aq})
-- \Delta_{f}H^{\circ}(\ce{HCl},\mathrm{g}) = -74.852$ kJ/mol and the relative apparent molar enthalpy $\phi_{L}$ from the NBS tables  ($\Delta_{f}H$ of HCl in $n$ , $n$ = 1 to 50 000) and the apparent molar heat capacity $\phi_{C_p}$ from Parker  at 25 °C, both interpolated in $\sqrt{m}$. Water and the other compounds keep the enthalpy of the electrolyte model; the liquid heat capacity adds $n_{\mathrm{HCl}}\,\phi_{C_p}(m)$. Above 55.5 mol/kg (one HCl per water) the term blends linearly to pure liquid HCl.
+- \Delta_{f}H^{\circ}(\ce{HCl},\mathrm{g}) = -74.852$ kJ/mol and the relative apparent molar enthalpy $\phi_{L}$ from the NBS tables  ($\Delta_{f}H$ of HCl in $n$ $\ce{H2O}$, $n$ = 1 to 50 000) and the apparent molar heat capacity $\phi_{C_p}$ from Parker  at 25 °C, both interpolated in $\sqrt{m}$. Water and the other compounds keep the enthalpy of the electrolyte model; the liquid heat capacity adds $n_{\mathrm{HCl}}\,\phi_{C_p}(m)$. Above 55.5 mol/kg (one HCl per water) the term blends linearly to pure liquid HCl.
 
 
 
@@ -1335,13 +1335,13 @@ For 2–2 electrolytes a fourth coefficient $\beta^{2}$ is included with $\alpha
 
 ##### Overview {#overview-55}
 
-The CO$_2$ Capture property package describes aqueous amine solvents loaded with , as found in the absorbers and strippers of post-combustion capture and gas treating units. It covers five solvents: monoethanolamine (MEA), diethanolamine (DEA), methyldiethanolamine (MDEA), piperazine (PZ), and the blend of MDEA with piperazine.
+The CO$_2$ Capture property package describes aqueous amine solvents loaded with $\ce{CO2}$, as found in the absorbers and strippers of post-combustion capture and gas treating units. It covers five solvents: monoethanolamine (MEA), diethanolamine (DEA), methyldiethanolamine (MDEA), piperazine (PZ), and the blend of MDEA with piperazine.
 
-The flash works on the apparent compounds of the material stream: water, the amine, and any other gases. Whenever the flash needs the fugacities of a liquid, the package splits that liquid into its true species (the molecules and ions in chemical equilibrium) and computes their activity coefficients with a generalized electrolyte NRTL model. At chemical equilibrium the chemical potential of an apparent compound equals that of its molecular form, so the fugacity of apparent is the fugacity of in the speciated liquid, and the same holds for water and the amine. Stream compositions stay on the apparent basis, and the phase equilibrium carries the chemistry. All parameters are compiled into the package; it reads no data files.
+The flash works on the apparent compounds of the material stream: water, the amine, $\ce{CO2}$ and any other gases. Whenever the flash needs the fugacities of a liquid, the package splits that liquid into its true species (the molecules and ions in chemical equilibrium) and computes their activity coefficients with a generalized electrolyte NRTL model. At chemical equilibrium the chemical potential of an apparent compound equals that of its molecular form, so the fugacity of apparent $\ce{CO2}$ is the fugacity of $\ce{CO2(aq)}$ in the speciated liquid, and the same holds for water and the amine. Stream compositions stay on the apparent basis, and the phase equilibrium carries the chemistry. All parameters are compiled into the package; it reads no data files.
 
 ##### True Species
 
-Table [37](#tab:cap_species) lists the true species of each solvent. MDEA is a tertiary amine and forms no carbamate. Piperazine is a diamine: besides the carbamate it forms the protonated carbamate $\mathrm{H^{+}PZCOO^{-}}$, a zwitterion that the model treats as a molecular solute, and the dicarbamate $\mathrm{PZ(COO^{-})_2}$. The diprotonated ion $\mathrm{PZH_2^{2+}}$ is left out, as in the models of Hilliard  and Frailie ; below 0.5 mol per mol of alkalinity its amount is negligible. The MDEA + PZ blend carries the species and reactions of both amines in one liquid, with a mass balance for each amine.
+Table [37](#tab:cap_species) lists the true species of each solvent. MDEA is a tertiary amine and forms no carbamate. Piperazine is a diamine: besides the carbamate it forms the protonated carbamate $\mathrm{H^{+}PZCOO^{-}}$, a zwitterion that the model treats as a molecular solute, and the dicarbamate $\mathrm{PZ(COO^{-})_2}$. The diprotonated ion $\mathrm{PZH_2^{2+}}$ is left out, as in the models of Hilliard  and Frailie ; below 0.5 mol $\ce{CO2}$ per mol of alkalinity its amount is negligible. The MDEA + PZ blend carries the species and reactions of both amines in one liquid, with a mass balance for each amine.
 
 
 
@@ -1399,7 +1399,7 @@ The equilibrium constants are thermodynamic constants on the mole-fraction scale
 \]
 
 
-where $\nu_{i,r}$ is the stoichiometric coefficient of true species $i$ in reaction $r$. Water and the amine are referred to the pure liquid; , $\mathrm{H^{+}PZCOO^{-}}$ and the ions are referred to infinite dilution in water ($\gamma_{i}^{*} \to 1$ as $x_{\ce{H2O}} \to 1$).
+where $\nu_{i,r}$ is the stoichiometric coefficient of true species $i$ in reaction $r$. Water and the amine are referred to the pure liquid; $\ce{CO2(aq)}$, $\mathrm{H^{+}PZCOO^{-}}$ and the ions are referred to infinite dilution in water ($\gamma_{i}^{*} \to 1$ as $x_{\ce{H2O}} \to 1$).
 
 Most published constants are on the molality scale with every solute at infinite dilution. The package converts them with
 
@@ -1434,7 +1434,7 @@ The three piperazine carbamate constants come from the $^{1}$H NMR measurements 
 \]
 
 
-The values at 313.15 K are those of the source. The reaction enthalpies were shifted by small amounts in the fit of the pair parameters to the partial pressures and heats up to 150 °C, since the NMR data stop at 333 K. Reactions [\[rxn:cap_r5\]](#rxn:cap_r5) and [\[rxn:cap_r7\]](#rxn:cap_r7) for PZ are obtained by combining these constants with reaction [\[rxn:cap_r2\]](#rxn:cap_r2), and PZ is moved to its pure-liquid reference with $\ln\gamma_{\mathrm{PZ}}^{\infty}$ as in Eq. [\[eq:cap_k4\]](#eq:cap_k4).
+The values at 313.15 K are those of the source. The reaction enthalpies were shifted by small amounts in the fit of the pair parameters to the $\ce{CO2}$ partial pressures and heats up to 150 °C, since the NMR data stop at 333 K. Reactions [\[rxn:cap_r5\]](#rxn:cap_r5) and [\[rxn:cap_r7\]](#rxn:cap_r7) for PZ are obtained by combining these constants with reaction [\[rxn:cap_r2\]](#rxn:cap_r2), and PZ is moved to its pure-liquid reference with $\ln\gamma_{\mathrm{PZ}}^{\infty}$ as in Eq. [\[eq:cap_k4\]](#eq:cap_k4).
 
 
 
@@ -1493,7 +1493,7 @@ with closest-approach parameter $\rho = 14.9$ and the Debye–Hückel parameter 
 
 ###### Short-range term
 
-The local-composition term has one cell for each molecular species $m$ (water, the amine, and, for PZ, $\mathrm{H^{+}PZCOO^{-}}$) and one for each ion. With $X_{j} = x_{j}C_{j}$ ($C_{j} = |z_{j}|$ for ions and 1 for molecules), the molecular cells contribute
+The local-composition term has one cell for each molecular species $m$ (water, the amine, $\ce{CO2(aq)}$ and, for PZ, $\mathrm{H^{+}PZCOO^{-}}$) and one for each ion. With $X_{j} = x_{j}C_{j}$ ($C_{j} = |z_{j}|$ for ions and 1 for molecules), the molecular cells contribute
 
 
 <a id="eq:cap_lc_mol"></a>
@@ -1518,7 +1518,7 @@ where $j$ runs over all species. For a molecule–molecule pair, $G_{jm} = \exp(
 \]
 
 
-and the anion cells are written the same way. The non-randomness factor is $\alpha = 0.2$ for every pair. The ions, and $\mathrm{H^{+}PZCOO^{-}}$ are referred to infinite dilution in water by subtracting from $G^{\mathrm{ex}}$ the part linear in their amounts at infinite dilution in pure water. The activity coefficients are the derivatives $\ln\gamma_{i} = \partial(G^{\mathrm{ex}}/RT)/\partial n_{i}$, taken exactly in one pass over the true amounts, so they satisfy the Gibbs–Duhem equation.
+and the anion cells are written the same way. The non-randomness factor is $\alpha = 0.2$ for every pair. The ions, $\ce{CO2(aq)}$ and $\mathrm{H^{+}PZCOO^{-}}$ are referred to infinite dilution in water by subtracting from $G^{\mathrm{ex}}$ the part linear in their amounts at infinite dilution in pure water. The activity coefficients are the derivatives $\ln\gamma_{i} = \partial(G^{\mathrm{ex}}/RT)/\partial n_{i}$, taken exactly in one pass over the true amounts, so they satisfy the Gibbs–Duhem equation.
 
 Every pair parameter has the form
 
@@ -1530,7 +1530,7 @@ Every pair parameter has the form
 \]
 
 
-except the water–PZ pair, which uses $\tau = a + d\,T$ as published by Hilliard . Table [39](#tab:cap_tau) lists the parameters and the data each set was fitted to. The water–amine pairs of MEA and MDEA were fitted to amine + water vapour–liquid equilibrium; the water–DEA and water–PZ pairs are published values used as they are. The molecule–ion-pair parameters were fitted to partial pressures and calorimetric heats of absorption together. Every pair not listed takes the defaults of Chen and Evans : $\tau_{m,ca} = 8$ and $\tau_{ca,m} = -4$ for molecule–ion pairs, zero for molecule–molecule pairs (water– and amine– included).
+except the water–PZ pair, which uses $\tau = a + d\,T$ as published by Hilliard . Table [39](#tab:cap_tau) lists the parameters and the data each set was fitted to. The water–amine pairs of MEA and MDEA were fitted to amine + water vapour–liquid equilibrium; the water–DEA and water–PZ pairs are published values used as they are. The molecule–ion-pair parameters were fitted to $\ce{CO2}$ partial pressures and calorimetric heats of absorption together. Every pair not listed takes the defaults of Chen and Evans : $\tau_{m,ca} = 8$ and $\tau_{ca,m} = -4$ for molecule–ion pairs, zero for molecule–molecule pairs (water–$\ce{CO2}$ and amine–$\ce{CO2}$ included).
 
 
 
@@ -1577,7 +1577,7 @@ except the water–PZ pair, which uses $\tau = a + d\,T$ as published by Hilliar
 <td style="text-align: left;">water, (MEAH<span class="math inline">\(^{+}\)</span>, MEACOO<span class="math inline">\(^{-}\)</span>)</td>
 <td style="text-align: right;"><span class="math inline">\(8.6390\)</span></td>
 <td style="text-align: right;"><span class="math inline">\(4330.6\)</span></td>
-<td style="text-align: left;">partial pressures <span class="citation" data-cites="Jou1995 Wagner2013"></span>; integral heats of solution <span class="citation" data-cites="Arcis2011"></span></td>
+<td style="text-align: left;"><span class="math inline">\(\ce{CO2}\)</span> partial pressures <span class="citation" data-cites="Jou1995 Wagner2013"></span>; integral heats of solution <span class="citation" data-cites="Arcis2011"></span></td>
 </tr>
 <tr>
 <td style="text-align: left;">(MEAH<span class="math inline">\(^{+}\)</span>, MEACOO<span class="math inline">\(^{-}\)</span>), water</td>
@@ -1619,7 +1619,7 @@ except the water–PZ pair, which uses $\tau = a + d\,T$ as published by Hilliar
 <td style="text-align: left;">water, (DEAH<span class="math inline">\(^{+}\)</span>, DEACOO<span class="math inline">\(^{-}\)</span>)</td>
 <td style="text-align: right;"><span class="math inline">\(11.5183\)</span></td>
 <td style="text-align: right;"><span class="math inline">\(554.4\)</span></td>
-<td style="text-align: left;">partial pressures <span class="citation" data-cites="Ghalib2016 Suleman2016"></span>; integral heats of solution <span class="citation" data-cites="Arcis2012"></span></td>
+<td style="text-align: left;"><span class="math inline">\(\ce{CO2}\)</span> partial pressures <span class="citation" data-cites="Ghalib2016 Suleman2016"></span>; integral heats of solution <span class="citation" data-cites="Arcis2012"></span></td>
 </tr>
 <tr>
 <td style="text-align: left;">(DEAH<span class="math inline">\(^{+}\)</span>, DEACOO<span class="math inline">\(^{-}\)</span>), water</td>
@@ -1661,7 +1661,7 @@ except the water–PZ pair, which uses $\tau = a + d\,T$ as published by Hilliar
 <td style="text-align: left;">water, (MDEAH<span class="math inline">\(^{+}\)</span>, HCO<span class="math inline">\(_3^{-}\)</span>)</td>
 <td style="text-align: right;"><span class="math inline">\(8.3416\)</span></td>
 <td style="text-align: right;"><span class="math inline">\(3958.8\)</span></td>
-<td style="text-align: left;">partial pressures <span class="citation" data-cites="Dey2018 Najafloo2015 Xiao2018 Shokouhi2015"></span>; integral heats of solution <span class="citation" data-cites="Arcis2008 Arcis2009"></span></td>
+<td style="text-align: left;"><span class="math inline">\(\ce{CO2}\)</span> partial pressures <span class="citation" data-cites="Dey2018 Najafloo2015 Xiao2018 Shokouhi2015"></span>; integral heats of solution <span class="citation" data-cites="Arcis2008 Arcis2009"></span></td>
 </tr>
 <tr>
 <td style="text-align: left;">(MDEAH<span class="math inline">\(^{+}\)</span>, HCO<span class="math inline">\(_3^{-}\)</span>), water</td>
@@ -1701,7 +1701,7 @@ except the water–PZ pair, which uses $\tau = a + d\,T$ as published by Hilliar
 <td style="text-align: left;">water, (PZH<span class="math inline">\(^{+}\)</span>, PZCOO<span class="math inline">\(^{-}\)</span>)</td>
 <td style="text-align: right;"><span class="math inline">\(6.7270\)</span></td>
 <td style="text-align: right;"><span class="math inline">\(0\)</span></td>
-<td style="text-align: left;">partial pressures <span class="citation" data-cites="Dugas2011 Ermatchkov2006 Xu2011"></span>; differential heats of absorption measured by Kim (2007) and tabulated by Hilliard <span class="citation" data-cites="Hilliard2008"></span>; fitted together with the three carbamate enthalpy shifts</td>
+<td style="text-align: left;"><span class="math inline">\(\ce{CO2}\)</span> partial pressures <span class="citation" data-cites="Dugas2011 Ermatchkov2006 Xu2011"></span>; differential heats of absorption measured by Kim (2007) and tabulated by Hilliard <span class="citation" data-cites="Hilliard2008"></span>; fitted together with the three carbamate enthalpy shifts</td>
 </tr>
 <tr>
 <td style="text-align: left;">(PZH<span class="math inline">\(^{+}\)</span>, PZCOO<span class="math inline">\(^{-}\)</span>), water</td>
@@ -1731,7 +1731,7 @@ except the water–PZ pair, which uses $\tau = a + d\,T$ as published by Hilliar
 <td style="text-align: left;">MDEA, PZ (MDEA around PZ)</td>
 <td style="text-align: right;"><span class="math inline">\(-0.0629\)</span></td>
 <td style="text-align: right;"><span class="math inline">\(0\)</span></td>
-<td style="text-align: left;">partial pressures over 7 m MDEA/2 m PZ and 5 m MDEA/5 m PZ <span class="citation" data-cites="ChenX2011"></span>; PZ and MDEA partial pressures over the same blends <span class="citation" data-cites="Nguyen2013"></span></td>
+<td style="text-align: left;"><span class="math inline">\(\ce{CO2}\)</span> partial pressures over 7 m MDEA/2 m PZ and 5 m MDEA/5 m PZ <span class="citation" data-cites="ChenX2011"></span>; PZ and MDEA partial pressures over the same blends <span class="citation" data-cites="Nguyen2013"></span></td>
 </tr>
 <tr>
 <td style="text-align: left;">PZ, MDEA</td>
@@ -1770,7 +1770,7 @@ except the water–PZ pair, which uses $\tau = a + d\,T$ as published by Hilliar
 
 ###### Notes on the binary pairs
 
-The water–PZ pair of Hilliard reproduces the PZ partial pressures over unloaded PZ measured by Hilliard  (0.9 to 5 mol/kg, 33 to 63 °C) within 24 % and those of Nguyen  within 12 and 21 %, none of which were fitted. No open DEA + water vapour–liquid data in the range of the model were at hand: Austgen  and Posey  fitted their water–DEA pairs mainly to unpublished total pressures. The pair of Posey reproduces the excess enthalpies of DEA + water measured by Li et al.  to 5.2 % on average and gives a better fit than the pair of Austgen, so the package uses it.
+The water–PZ pair of Hilliard reproduces the PZ partial pressures over unloaded PZ measured by Hilliard  (0.9 to 5 mol/kg, 33 to 63 °C) within 24 % and those of Nguyen  within 12 and 21 %, none of which were fitted. No open DEA + water vapour–liquid data in the range of the model were at hand: Austgen  and Posey  fitted their water–DEA pairs mainly to unpublished total pressures. The pair of Posey reproduces the excess enthalpies of DEA + water measured by Li et al.  to 5.2 % on average and gives a better $\ce{CO2}$ fit than the pair of Austgen, so the package uses it.
 
 ##### Phase Equilibrium and Flash
 
@@ -1791,7 +1791,7 @@ The liquid fugacities of the apparent compounds are those of their molecular spe
 \]
 
 
-where $x_{i}$ and $\gamma_{i}$ are the true mole fraction and activity coefficient. $P^{\mathrm{sat}}$ is the vapour pressure of the pure liquid; for the amines it is the liquid vapour pressure also below the melting point (piperazine melts at 106 °C, DEA at 28 °C). The Henry constant of in water is that of Carroll, Slupsky and Mather ,
+where $x_{i}$ and $\gamma_{i}$ are the true mole fraction and activity coefficient. $P^{\mathrm{sat}}$ is the vapour pressure of the pure liquid; for the amines it is the liquid vapour pressure also below the melting point (piperazine melts at 106 °C, DEA at 28 °C). The Henry constant of $\ce{CO2}$ in water is that of Carroll, Slupsky and Mather ,
 
 
 <a id="eq:cap_henry"></a>
@@ -1802,12 +1802,12 @@ where $x_{i}$ and $\gamma_{i}$ are the true mole fraction and activity coefficie
 \]
 
 
-and $\bar{v}_{\ce{CO2}}^{\infty} = 34$ cm$^{3}$/mol is the partial molar volume of at infinite dilution in water. The fugacity coefficient the flash uses is $\varphi_{i}^{L} = f_{i}^{L}/(x_{i}^{\mathrm{app}}P)$, with $x_{i}^{\mathrm{app}}$ the apparent mole fraction. The vapour phase follows the Peng–Robinson equation of state .
+and $\bar{v}_{\ce{CO2}}^{\infty} = 34$ cm$^{3}$/mol is the partial molar volume of $\ce{CO2}$ at infinite dilution in water. The fugacity coefficient the flash uses is $\varphi_{i}^{L} = f_{i}^{L}/(x_{i}^{\mathrm{app}}P)$, with $x_{i}^{\mathrm{app}}$ the apparent mole fraction. The vapour phase follows the Peng–Robinson equation of state .
 
-The speciation solves the equilibrium equations [\[eq:cap_keq\]](#eq:cap_keq) together with the balances of each amine, carbon and oxygen and electroneutrality, by Newton’s method on the logarithms of the true amounts (8 to 13 unknowns), with the derivatives of the activity coefficients in the Jacobian and a line search. Each speciation starts from the nearest of the recent ones. Gases other than (, , and so on) take part in no reaction: they dissolve physically (Henry’s law for and the supercritical gases) and only dilute the true species. The package therefore does not describe treating.
+The speciation solves the equilibrium equations [\[eq:cap_keq\]](#eq:cap_keq) together with the balances of each amine, carbon and oxygen and electroneutrality, by Newton’s method on the logarithms of the true amounts (8 to 13 unknowns), with the derivatives of the activity coefficients in the Jacobian and a line search. Each speciation starts from the nearest of the recent ones. Gases other than $\ce{CO2}$ ($\ce{N2}$, $\ce{O2}$, $\ce{H2S}$ and so on) take part in no reaction: they dissolve physically (Henry’s law for $\ce{H2S}$ and the supercritical gases) and only dilute the true species. The package therefore does not describe $\ce{H2S}$ treating.
 
 The PT flash solves $\ln K_{i} = \ln\varphi_{i}^{L}(\boldsymbol{x})
-- \ln\varphi_{i}^{V}(\boldsymbol{y})$ with Newton’s method on $\ln K$ after a few damped substitution steps. Near a loading of 0.5 mol/mol the partial pressure rises tenfold within a few hundredths of loading, and plain successive substitution oscillates there. The Rachford–Rice equation is solved as a negative flash, so the PV and TV flashes locate the bubble or dew point by bracketing on a continuous vapour fraction. The PH and PS flashes call the PT flash; for MDEA + PZ they bracket the temperature directly, because the steep boiling curve of the blend near its bubble point could stop the standard PH algorithm at a wrong temperature. A trial liquid in which is more than half of water + amine + lies outside the model and takes the molecular fugacities described below for streams without an amine.
+- \ln\varphi_{i}^{V}(\boldsymbol{y})$ with Newton’s method on $\ln K$ after a few damped substitution steps. Near a loading of 0.5 mol/mol the $\ce{CO2}$ partial pressure rises tenfold within a few hundredths of loading, and plain successive substitution oscillates there. The Rachford–Rice equation is solved as a negative flash, so the PV and TV flashes locate the bubble or dew point by bracketing on a continuous vapour fraction. The PH and PS flashes call the PT flash; for MDEA + PZ they bracket the temperature directly, because the steep boiling curve of the blend near its bubble point could stop the standard PH algorithm at a wrong temperature. A trial liquid in which $\ce{CO2}$ is more than half of water + amine + $\ce{CO2}$ lies outside the model and takes the molecular fugacities described below for streams without an amine.
 
 ##### Enthalpy and Entropy
 
@@ -1822,9 +1822,9 @@ The partial molar enthalpy of a compound relative to its ideal gas follows from 
 \]
 
 
-For , kept on its ideal-gas reference, this term holds the heat of physical solution, the enthalpies of the reactions (through the temperature slopes of their constants) and the excess enthalpy of the electrolyte NRTL model, so the heat of absorption comes out of the enthalpy balance of any unit operation. Water and the amine keep the heat of vaporization of the package for the $\partial\ln P^{\mathrm{sat}}/\partial T$ part and add $-RT^{2}\,\partial\ln(x\gamma)/\partial T$ of their true species. The derivatives are central differences on speciations at $T \pm 0.01$ K. The entropy is consistent with the enthalpy through $G^{R} = RT\sum_{i} x_{i}^{\mathrm{app}}\ln(f_{i}/f_{i}^{\mathrm{ref}})$ with the same reference fugacities.
+For $\ce{CO2}$, kept on its ideal-gas reference, this term holds the heat of physical solution, the enthalpies of the reactions (through the temperature slopes of their constants) and the excess enthalpy of the electrolyte NRTL model, so the heat of absorption comes out of the enthalpy balance of any unit operation. Water and the amine keep the heat of vaporization of the package for the $\partial\ln P^{\mathrm{sat}}/\partial T$ part and add $-RT^{2}\,\partial\ln(x\gamma)/\partial T$ of their true species. The derivatives are central differences on speciations at $T \pm 0.01$ K. The entropy is consistent with the enthalpy through $G^{R} = RT\sum_{i} x_{i}^{\mathrm{app}}\ln(f_{i}/f_{i}^{\mathrm{ref}})$ with the same reference fugacities.
 
-A liquid without an amine takes the enthalpy of the electrolyte packages (ideal gas less the heat of vaporization), plus the excess enthalpy of the brine when that option is on (Section [6.17](#sec:ccus_storage)). The vapour enthalpy and entropy are the ideal-gas values plus the residual of the Peng–Robinson vapour root, with the same $k_{ij}$ as the vapour fugacities: for at 40 °C and 30 bar the residual enthalpy is $-28.9$ kJ/kg (CoolProp $-28.1$), and a compressor from 1.5 to 30 bar at 75 % efficiency takes 1425.4 kW (CoolProp 1423.8 kW).
+A liquid without an amine takes the enthalpy of the electrolyte packages (ideal gas less the heat of vaporization), plus the excess enthalpy of the brine when that option is on (Section [6.17](#sec:ccus_storage)). The vapour enthalpy and entropy are the ideal-gas values plus the residual of the Peng–Robinson vapour root, with the same $k_{ij}$ as the vapour fugacities: for $\ce{CO2}$ at 40 °C and 30 bar the residual enthalpy is $-28.9$ kJ/kg (CoolProp $-28.1$), and a $\ce{CO2}$ compressor from 1.5 to 30 bar at 75 % efficiency takes 1425.4 kW (CoolProp 1423.8 kW).
 
 ##### Liquid Density
 
@@ -1841,7 +1841,7 @@ V = x_{W}V_{W}(T) + x_{A}V_{A}(T) + x_{W}x_{A}(k_{0} + k_{1}\theta)
 \]
 
 
-where W, A and C stand for water, the amine and , $V_{A} = A_{0} + A_{1}\theta$ and $V_{W}$ is a quadratic fit to the IAPWS-95 density of water at 0.1 MPa . The apparent molar volume of is close to zero (about 0.4 cm$^{3}$/mol for MEA): the carbamate and bicarbonate it forms take almost no room, which is why a loaded solvent is denser than a lean one. The parameters were fitted to Amundsen, Øi and Eimer  for MEA, Han et al.  for DEA and MDEA, and Freeman and Rochelle  with Samanta and Bandyopadhyay  for PZ. For piperazine, $V_{A}$ and $k_{0}$ are fitted constants of the aqueous solution and do not represent the volume of liquid piperazine. The MDEA + PZ blend takes the terms of each amine, the term weighted by the amine mole fractions, and one cross term $x_{\mathrm{MDEA}}x_{\mathrm{PZ}}k_{MP}$ fitted to lean blends . Any other dissolved compound adds its own liquid molar volume.
+where W, A and C stand for water, the amine and $\ce{CO2}$, $V_{A} = A_{0} + A_{1}\theta$ and $V_{W}$ is a quadratic fit to the IAPWS-95 density of water at 0.1 MPa . The apparent molar volume of $\ce{CO2}$ is close to zero (about 0.4 cm$^{3}$/mol for MEA): the carbamate and bicarbonate it forms take almost no room, which is why a loaded solvent is denser than a lean one. The parameters were fitted to Amundsen, Øi and Eimer  for MEA, Han et al.  for DEA and MDEA, and Freeman and Rochelle  with Samanta and Bandyopadhyay  for PZ. For piperazine, $V_{A}$ and $k_{0}$ are fitted constants of the aqueous solution and do not represent the volume of liquid piperazine. The MDEA + PZ blend takes the terms of each amine, the $\ce{CO2}$ term weighted by the amine mole fractions, and one cross term $x_{\mathrm{MDEA}}x_{\mathrm{PZ}}k_{MP}$ fitted to lean blends . Any other dissolved compound adds its own liquid molar volume.
 
 ##### pH and Ionic Strength
 
@@ -1863,21 +1863,21 @@ The package detects the amine by its CAS number, then by its name (case, spaces 
 
 - Water with MEA, DEA, MDEA, PZ, or MDEA with PZ (no ions or salts): the electrolyte NRTL model with chemical equilibrium described above.
 
-- Water and gases without an amine: a molecular flash, with the vapour pressure for water, Henry’s law for and (also below their critical temperature when water is present) and Peng–Robinson for the vapour.
+- Water and gases without an amine: a molecular flash, with the vapour pressure for water, Henry’s law for $\ce{CO2}$ and $\ce{H2S}$ (also below their critical temperature when water is present) and Peng–Robinson for the vapour.
 
 - Water with ions or salts and no amine: the electrolyte speciation of the base electrolyte package.
 
-The package refuses, with a message in the flash, AMP and every amine blend other than MDEA + PZ, and any amine together with ions or salts (heat-stable salts, , and so on). The model has no parameters for other ions, and the ion speciation of the base package carries no amine chemistry consistent with it.
+The package refuses, with a message in the flash, AMP and every amine blend other than MDEA + PZ, and any amine together with ions or salts (heat-stable salts, $\ce{Na+}$, $\ce{Cl-}$ and so on). The model has no parameters for other ions, and the ion speciation of the base package carries no amine chemistry consistent with it.
 
 The main limitations are:
 
-- **Fitted ranges.** MEA: 15 and 30 mass % (2.8 to 7.3 mol/kg), 313 to 393 K. DEA: 2 and 4 M, 303 to 353 K. MDEA: 298 to 363 K, with the heats at 322.5 and 372.9 K; above 100 °C the solubility rests on the protonation constant of Posey (data to 150 °C) and on the heats. PZ: 1 to 12 mol/kg, 313 to 423 K. MDEA + PZ: the cross parameters rest on two compositions (7 m/2 m and 5 m/5 m) from 40 to 100 °C; above 100 °C the 7/2 blend comes out about a factor of 2 below Xu . partial pressures up to 1.2 MPa (MEA up to 500 kPa). Above 120 °C the MEA and DEA carbamate constants of Austgen extrapolate.
+- **Fitted ranges.** MEA: 15 and 30 mass % (2.8 to 7.3 mol/kg), 313 to 393 K. DEA: 2 and 4 M, 303 to 353 K. MDEA: 298 to 363 K, with the heats at 322.5 and 372.9 K; above 100 °C the solubility rests on the protonation constant of Posey (data to 150 °C) and on the heats. PZ: 1 to 12 mol/kg, 313 to 423 K. MDEA + PZ: the cross parameters rest on two compositions (7 m/2 m and 5 m/5 m) from 40 to 100 °C; above 100 °C the 7/2 blend comes out about a factor of 2 below Xu . $\ce{CO2}$ partial pressures up to 1.2 MPa (MEA up to 500 kPa). Above 120 °C the MEA and DEA carbamate constants of Austgen extrapolate.
 
-- **Solid piperazine.** The solid PZ hexahydrate (and, in very rich solutions, the hydrate of $\mathrm{H^{+}PZCOO^{-}}$) is not modelled. Freeman  finds 8 to 10 mol/kg PZ insoluble below about 0.22 to 0.25 mol per mol of alkalinity at 21 °C and below about 0.05 at 40 °C. A flash in those regions returns a liquid that would in fact precipitate.
+- **Solid piperazine.** The solid PZ hexahydrate (and, in very rich solutions, the hydrate of $\mathrm{H^{+}PZCOO^{-}}$) is not modelled. Freeman  finds 8 to 10 mol/kg PZ insoluble below about 0.22 to 0.25 mol $\ce{CO2}$ per mol of alkalinity at 21 °C and below about 0.05 at 40 °C. A flash in those regions returns a liquid that would in fact precipitate.
 
 - **Heat of absorption of PZ at 120 °C.** The 393 K differential heats of Kim (2007) lie 25 to 35 kJ/mol above the model, while his 313 and 353 K heats and the temperature slope of the solubility data put the heat near 70 to 82 kJ/mol. The model heat of 8 mol/kg PZ at 0.5 mol/mol is 80, 73, 67 and 63 kJ/mol at 40, 80, 120 and 150 °C.
 
-- **MDEA kinetics.** The flash is an equilibrium flash. The slow reaction of with MDEA in a real absorber is not modelled; a rate-based column model has to supply it.
+- **MDEA kinetics.** The flash is an equilibrium flash. The slow reaction of $\ce{CO2}$ with MDEA in a real absorber is not modelled; a rate-based column model has to supply it.
 
 - **Water–DEA pair.** The pair comes from Posey, who fitted it to unpublished total pressures; the only open check is the excess enthalpy of DEA + water. The total pressures of Shin and Kim  at 393 K imply a water activity coefficient of 2.5 at $x_{\ce{H2O}} = 0.23$, where both published water–DEA pairs give 0.48 to 0.5, and were not used.
 
@@ -1891,21 +1891,21 @@ The main limitations are:
 
 Tables [43](#tab:capture_co2_solubility) to [52](#tab:capture_density) compare the package with experimental data. They were produced by the script `validate.py` in the fitting folder of the package source (`Capture/Fitting`), which calls the shipped package over every data point: liquid fugacities, enthalpies and densities at the apparent composition of each point, without a flash. The same folder holds the data files (one per source, with the citation, DOI and the use of each row), the fit scripts and the point-by-point results.
 
-The *Use* column tells how each data set entered the package: *fit* means the parameters were regressed to it, *check* means it was only compared. The measured partial pressure is taken to a fugacity with the second virial coefficient of and compared with the fugacity of the liquid; for data sets that report the total pressure, the partial pressure is the total pressure less the water partial pressure from Raoult’s law. The loading column gives the mean difference between the measured loading and the loading at which the package meets the measured partial pressure. The integral heat of solution is the enthalpy of the loaded liquid less that of the lean liquid and of the gas at $T$ and $P$, per mol of ; the differential heat is the same over a loading step of 0.02 mol/mol.
+The *Use* column tells how each data set entered the package: *fit* means the parameters were regressed to it, *check* means it was only compared. The measured $\ce{CO2}$ partial pressure is taken to a fugacity with the second virial coefficient of $\ce{CO2}$ and compared with the $\ce{CO2}$ fugacity of the liquid; for data sets that report the total pressure, the $\ce{CO2}$ partial pressure is the total pressure less the water partial pressure from Raoult’s law. The loading column gives the mean difference between the measured loading and the loading at which the package meets the measured partial pressure. The integral heat of solution is the enthalpy of the loaded liquid less that of the lean liquid and of the $\ce{CO2}$ gas at $T$ and $P$, per mol of $\ce{CO2}$; the differential heat is the same over a loading step of 0.02 mol/mol.
 
-Some points were left out: the data of Wagner et al. above 500 kPa of , the other data above 1.2 MPa, the PZ and MDEA + PZ data above 150 °C, and the heats of Arcis et al. past the solubility limit of each run (with the MEA runs near 5 MPa at 372.9 K).
+Some points were left out: the data of Wagner et al. above 500 kPa of $\ce{CO2}$, the other $\ce{CO2}$ data above 1.2 MPa, the PZ and MDEA + PZ data above 150 °C, and the heats of Arcis et al. past the solubility limit of each run (with the MEA runs near 5 MPa at 372.9 K).
 
 Several data sets disagree with the others, and the fit follows the majority:
 
 - MDEA: the sets of Dey et al., Zoghi et al. and Harris et al. lie a factor of 2 to 8 away from the others at the same concentration and temperature. At 313 K and about 0.47 mol/mol, Dey et al. give 8 kPa in 30 mass % MDEA where Leontiadis et al. give 20 kPa in 23.4 mass %.
 
-- PZ: the sets of Bougie and Iliuta, Dash et al. and Suleman et al. differ from the University of Texas and Maurer data by one to three orders of magnitude in partial pressure at the same loading (for 4.35 mol/kg PZ at 0.77 mol/mol and 308 K, 1048 kPa against about 3 kPa from the model, which follows Dugas and Rochelle there).
+- PZ: the sets of Bougie and Iliuta, Dash et al. and Suleman et al. differ from the University of Texas and Maurer data by one to three orders of magnitude in $\ce{CO2}$ partial pressure at the same loading (for 4.35 mol/kg PZ at 0.77 mol/mol and 308 K, 1048 kPa against about 3 kPa from the model, which follows Dugas and Rochelle there).
 
-- DEA: Ghalib et al. and Suleman et al. disagree with each other between 0.5 and 0.8 mol/mol at 313 K; the model lies up to 70 % above the first and up to 30 % below the second. The points of Han and Wee, read as grams of per kg of solvent, lie 0.1 to 0.15 mol/mol below the model above 20 mass % DEA.
+- DEA: Ghalib et al. and Suleman et al. disagree with each other between 0.5 and 0.8 mol/mol at 313 K; the model lies up to 70 % above the first and up to 30 % below the second. The points of Han and Wee, read as grams of $\ce{CO2}$ per kg of solvent, lie 0.1 to 0.15 mol/mol below the model above 20 mass % DEA.
 
 - MEA: near 0.5 mol/mol, Jou et al. and Wagner et al. disagree by a factor of about 2 at 313 K; the model lies between them.
 
-The short names in the tables refer to the following sources. solubility: Jou 1995 , Tong 2012 , Wagner 2013 , Dugas 2011 , Li 2015 , Bernhardsen 2019 , Ghalib 2016 , Suleman 2016 , Dash 2011 (DEA) , Han 2017 , Dey 2018 , Najafloo 2015 , Xiao 2018 , Shokouhi 2015 , Leontiadis 2019 , Zoghi 2012 , Shirazizadeh 2019 , Harris 2009 , Sairi 2015 , Arcis 2008, 2009 , Ermatchkov 2006 , Xu 2011 , Hilliard 2008 , Bougie 2011 , Dash 2011 (PZ) , Chen 2011 . Heats: Arcis 2008 to 2012 , Mondal 2017 , Ojala 2014 , and Kim 2007, tabulated by Hilliard . Amine and water: Belabbaci 2009 , Kim 2008 , Soames 2018 , Barreau 2007 , Li 2015 , Shin 2023 , Hilliard 2008 , Nguyen 2013 . Density: Amundsen 2009 , Han 2012 , Jayarathna 2012 , Freeman 2011 , Samanta 2006 , Muhammad 2009 , Derks 2005 , Derks 2008 , Speyer 2010 , Paul 2006 , Böttger 2009 , Kessler 2019 , Frailie 2014 .
+The short names in the tables refer to the following sources. $\ce{CO2}$ solubility: Jou 1995 , Tong 2012 , Wagner 2013 , Dugas 2011 , Li 2015 , Bernhardsen 2019 , Ghalib 2016 , Suleman 2016 , Dash 2011 (DEA) , Han 2017 , Dey 2018 , Najafloo 2015 , Xiao 2018 , Shokouhi 2015 , Leontiadis 2019 , Zoghi 2012 , Shirazizadeh 2019 , Harris 2009 , Sairi 2015 , Arcis 2008, 2009 , Ermatchkov 2006 , Xu 2011 , Hilliard 2008 , Bougie 2011 , Dash 2011 (PZ) , Chen 2011 . Heats: Arcis 2008 to 2012 , Mondal 2017 , Ojala 2014 , and Kim 2007, tabulated by Hilliard . Amine and water: Belabbaci 2009 , Kim 2008 , Soames 2018 , Barreau 2007 , Li 2015 , Shin 2023 , Hilliard 2008 , Nguyen 2013 . Density: Amundsen 2009 , Han 2012 , Jayarathna 2012 , Freeman 2011 , Samanta 2006 , Muhammad 2009 , Derks 2005 , Derks 2008 , Speyer 2010 , Paul 2006 , Böttger 2009 , Kessler 2019 , Frailie 2014 .
 
 
 
@@ -2822,9 +2822,9 @@ MDEA + PZ: the parameters of each amine plus one MDEA-PZ term fitted to the lean
 
 - **Post-combustion CO$_2$ capture:** absorber and stripper design with MEA, PZ, or MDEA + PZ, including the heat duty of the reboiler through the heat of absorption.
 
-- **CO$_2$ removal from natural gas and syngas:** MDEA and MDEA + PZ solvents (equilibrium only; is not part of the chemistry).
+- **CO$_2$ removal from natural gas and syngas:** MDEA and MDEA + PZ solvents (equilibrium only; $\ce{H2S}$ is not part of the chemistry).
 
-- **Solvent comparison:** capacity, partial pressure curves and regeneration heat of the five solvents.
+- **Solvent comparison:** $\ce{CO2}$ capacity, partial pressure curves and regeneration heat of the five solvents.
 
 #### CO$_2$ Transport (Span-Wagner / PR) {#sec:ccus_transport}
 
@@ -2870,7 +2870,7 @@ The residual part $\alpha^{r}$ contains 42 terms : 7 polynomial, 27 exponential
 
 with $\Delta = \theta^{2} + B_{i}[(\delta-1)^{2}]^{a_{i}}$, $\theta = (1-\tau) + A_{i}[(\delta-1)^{2}]^{1/(2\beta_{i})}$ and $\psi = e^{-C_{i}(\delta-1)^{2} - D_{i}(\tau-1)^{2}}$. All thermodynamic properties (pressure, enthalpy, entropy, heat capacity, speed of sound, fugacity coefficient) are obtained as analytical derivatives of $\alpha(\delta,\tau)$. Density is determined by iterative solution of $P = \rho RT(1 + \delta\,\partial\alpha^{r}/\partial\delta)$.
 
-The package takes density, enthalpy, entropy, fugacity, heat capacities and speed of sound from Span–Wagner (pure ) or from Peng–Robinson with the transport $k_{ij}$ (mixtures, exact $C_{p}$ and $C_{v}$ of the equation of state). For pure the heat capacities and the speed of sound agree with the reference implementation (CoolProp) to 0.00 % at 12 points of the gas, liquid, dense and near-critical regions; at 25 °C and 110 bar the stream shows $C_{p} = 2.694$ kJ/(kg$\cdot$K), $C_{v} = 0.937$ kJ/(kg$\cdot$K) and $w = 456.4$ m/s, the NIST values. For 95 % with 5 % the Peng–Robinson $C_{p}$ is within 1 to 9 %, $C_{v}$ 5 to 10 % low and the speed of sound within 4 % of a multiparameter mixture model.
+The package takes density, enthalpy, entropy, fugacity, heat capacities and speed of sound from Span–Wagner (pure $\ce{CO2}$) or from Peng–Robinson with the transport $k_{ij}$ (mixtures, exact $C_{p}$ and $C_{v}$ of the equation of state). For pure $\ce{CO2}$ the heat capacities and the speed of sound agree with the reference implementation (CoolProp) to 0.00 % at 12 points of the gas, liquid, dense and near-critical regions; at 25 °C and 110 bar the stream shows $C_{p} = 2.694$ kJ/(kg$\cdot$K), $C_{v} = 0.937$ kJ/(kg$\cdot$K) and $w = 456.4$ m/s, the NIST values. For 95 % $\ce{CO2}$ with 5 % $\ce{N2}$ the Peng–Robinson $C_{p}$ is within 1 to 9 %, $C_{v}$ 5 to 10 % low and the speed of sound within 4 % of a multiparameter mixture model.
 
 ##### Transport Properties
 
@@ -2912,21 +2912,21 @@ For impure CO$_2$ streams, the Peng–Robinson EOS  is used with binary interac
 
 
 
-| Pair |  $k_{ij}$ |
-|:-----|------------:|
-| –    |  $0.0070$ |
-| –    |  $0.1140$ |
-| –    |  $0.1150$ |
-| –    |  $0.0974$ |
-| –    |  $0.1896$ |
-| –    |  $0.0440$ |
-| –    |  $0.0919$ |
-| –    |  $0.0920$ |
-| –    |  $0.0490$ |
-| –    |  $0.0500$ |
-| –    | $-0.0119$ |
-| –    | $-0.0060$ |
-| –    | $-0.0200$ |
+| Pair                      |  $k_{ij}$ |
+|:--------------------------|------------:|
+| $\ce{CO2}$–$\ce{N2}$  |  $0.0070$ |
+| $\ce{CO2}$–$\ce{O2}$  |  $0.1140$ |
+| $\ce{CO2}$–$\ce{Ar}$  |  $0.1150$ |
+| $\ce{CO2}$–$\ce{H2S}$ |  $0.0974$ |
+| $\ce{CO2}$–$\ce{H2O}$ |  $0.1896$ |
+| $\ce{CO2}$–$\ce{SO2}$ |  $0.0440$ |
+| $\ce{CO2}$–$\ce{CH4}$ |  $0.0919$ |
+| $\ce{CO2}$–$\ce{H2}$  |  $0.0920$ |
+| $\ce{CO2}$–$\ce{CO}$  |  $0.0490$ |
+| $\ce{CO2}$–$\ce{NO2}$ |  $0.0500$ |
+| $\ce{N2}$–$\ce{O2}$   | $-0.0119$ |
+| $\ce{N2}$–$\ce{Ar}$   | $-0.0060$ |
+| $\ce{N2}$–$\ce{H2}$   | $-0.0200$ |
 
 CO$_2$ Transport binary interaction parameters
 
@@ -2961,23 +2961,23 @@ Pure CO$_2$ density from Span–Wagner matches the NIST WebBook reference data t
 
 ##### Overview {#overview-57}
 
-The CO$_2$ Storage property package describes with water and chloride brines at the conditions of geological storage: saline aquifer injection, CO$_2$-enhanced oil recovery and the brine chemistry that leads to mineral trapping. The apparent compounds are water, , other gases, and the ions or salts of the brine. Ions and salts are non-volatile and stay in the liquid.
+The CO$_2$ Storage property package describes $\ce{CO2}$ with water and chloride brines at the conditions of geological storage: saline aquifer injection, CO$_2$-enhanced oil recovery and the brine chemistry that leads to mineral trapping. The apparent compounds are water, $\ce{CO2}$, other gases, and the ions or salts of the brine. Ions and salts are non-volatile and stay in the liquid.
 
 The phase equilibrium combines four parts:
 
-- in the aqueous phase from the model of Duan and Sun , referred to a water-saturated phase computed with Peng–Robinson;
+- $\ce{CO2}$ in the aqueous phase from the model of Duan and Sun , referred to a water-saturated $\ce{CO2}$ phase computed with Peng–Robinson;
 
 - water from IAPWS-IF97 , with the Poynting correction and Raoult’s law on the dissolved particles;
 
-- the -rich phase from the Peng–Robinson equation of state  with a –water $k_{ij}$ fitted to the water content of the Spycher, Pruess and Ennis-King model ;
+- the $\ce{CO2}$-rich phase from the Peng–Robinson equation of state  with a $\ce{CO2}$–water $k_{ij}$ fitted to the water content of the Spycher, Pruess and Ennis-King model ;
 
-- and the supercritical gases by Henry’s law.
+- $\ce{H2S}$ and the supercritical gases by Henry’s law.
 
 The flash is the standard vapour–liquid algorithm of DWSIM for a molecular package, run on these fugacity coefficients. A PT result with less than $10^{-5}$ of vapour whose feed lies below its bubble point is returned as all liquid. All parameters are compiled into the package; it reads no data files.
 
 ##### CO$_2$ in the Aqueous Phase
 
-Duan and Sun  write the solubility of in a brine as
+Duan and Sun  write the solubility of $\ce{CO2}$ in a brine as
 
 
 <a id="eq:duansun"></a>
@@ -2988,7 +2988,7 @@ Duan and Sun  write the solubility of in a brine as
 \]
 
 
-where $m_{\ce{CO2}}$ is the molality of dissolved (mol/kg ), $P$ is in bar, $\mu^{l(0)}/RT$ is the standard chemical potential of dissolved (an 11-term function of $T$ and $P$ fitted by Duan and Sun to solubility data), and $\gamma_{\ce{CO2}}$ is the activity coefficient of dissolved on the molality scale, from their Eq. 9:
+where $m_{\ce{CO2}}$ is the molality of dissolved $\ce{CO2}$ (mol/kg $\ce{H2O}$), $P$ is in bar, $\mu^{l(0)}/RT$ is the standard chemical potential of dissolved $\ce{CO2}$ (an 11-term function of $T$ and $P$ fitted by Duan and Sun to solubility data), and $\gamma_{\ce{CO2}}$ is the activity coefficient of dissolved $\ce{CO2}$ on the molality scale, from their Eq. 9:
 
 
 <a id="eq:duansun_gamma"></a>
@@ -3002,10 +3002,10 @@ where $m_{\ce{CO2}}$ is the molality of dissolved (mol/kg ), $P$ is in bar, $\mu
 \]
 
 
-with $\lambda$ and $\zeta$ the – and –– interaction parameters, functions of $T$ and $P$ of the same form. Ions outside these classes are sorted by charge: a monovalent cation counts as , a divalent cation as , a cation of charge $z > 2$ as $z$ , a divalent anion as and any other anion as $|z|$ .
+with $\lambda$ and $\zeta$ the $\ce{CO2}$–$\ce{Na+}$ and $\ce{CO2}$–$\ce{Na+}$–$\ce{Cl-}$ interaction parameters, functions of $T$ and $P$ of the same form. Ions outside these classes are sorted by charge: a monovalent cation counts as $\ce{Na+}$, a divalent cation as $\ce{Ca^{2+}}$, a cation of charge $z > 2$ as $z$ $\ce{Na+}$, a divalent anion as $\ce{SO4^{2-}}$ and any other anion as $|z|$ $\ce{Cl-}$.
 
-Duan and Sun fitted $\mu^{l(0)}/RT$ with the phase taken as pure diluted by water at its vapour pressure, $y_{\ce{CO2}} =
-(P - P_{w}^{\mathrm{sat}})/P$, and with the fugacity coefficient of pure from the equation of state of Duan, Møller and Weare . The real water content of a phase at reservoir conditions is several times $P_{w}^{\mathrm{sat}}/P$, and Peng–Robinson gives a fugacity coefficient of its own. The package therefore writes the liquid fugacity of as
+Duan and Sun fitted $\mu^{l(0)}/RT$ with the $\ce{CO2}$ phase taken as pure $\ce{CO2}$ diluted by water at its vapour pressure, $y_{\ce{CO2}} =
+(P - P_{w}^{\mathrm{sat}})/P$, and with the fugacity coefficient of pure $\ce{CO2}$ from the equation of state of Duan, Møller and Weare . The real water content of a $\ce{CO2}$ phase at reservoir conditions is several times $P_{w}^{\mathrm{sat}}/P$, and Peng–Robinson gives $\ce{CO2}$ a fugacity coefficient of its own. The package therefore writes the liquid fugacity of $\ce{CO2}$ as
 
 
 <a id="eq:storage_fco2"></a>
@@ -3019,7 +3019,7 @@ f_{\ce{CO2}}^{L} = m_{\ce{CO2}}\,\gamma_{\ce{CO2}}\,
 \]
 
 
-where $f_{\ce{CO2}}^{\mathrm{PR}}$ is the fugacity of in a phase saturated with water, computed with the package’s own Peng–Robinson phase over pure water. Under a phase the flash then returns the Duan–Sun solubility (within 0.25 % in pure water), and $C$ tends to one in the ideal-gas limit. The fugacity coefficient the flash uses is $\varphi_{\ce{CO2}}^{L} = f_{\ce{CO2}}^{L}/(x_{\ce{CO2}}P)$, with $x_{\ce{CO2}}$ the apparent mole fraction. A liquid that holds no water (dense ) takes the fugacity of pure from the Span–Wagner equation of state .
+where $f_{\ce{CO2}}^{\mathrm{PR}}$ is the fugacity of $\ce{CO2}$ in a $\ce{CO2}$ phase saturated with water, computed with the package’s own Peng–Robinson phase over pure water. Under a $\ce{CO2}$ phase the flash then returns the Duan–Sun solubility (within 0.25 % in pure water), and $C$ tends to one in the ideal-gas limit. The fugacity coefficient the flash uses is $\varphi_{\ce{CO2}}^{L} = f_{\ce{CO2}}^{L}/(x_{\ce{CO2}}P)$, with $x_{\ce{CO2}}$ the apparent mole fraction. A liquid that holds no water (dense $\ce{CO2}$) takes the fugacity of pure $\ce{CO2}$ from the Span–Wagner equation of state .
 
 ##### Water
 
@@ -3036,12 +3036,12 @@ f_{\ce{H2O}}^{L} = a_{w}\,P_{w}^{\mathrm{sat}}\,\varphi_{w}^{\mathrm{sat}}
 \]
 
 
-with $P_{w}^{\mathrm{sat}}$ and the liquid volume $V_{w}$ from IAPWS-IF97 , $\varphi_{w}^{\mathrm{sat}}$ from the vapour equation of state at saturation, and the sum over every dissolved particle (the ions of a salt counted apart, dissolved and other solutes). The fugacity coefficient is $\varphi_{\ce{H2O}}^{L} =
+with $P_{w}^{\mathrm{sat}}$ and the liquid volume $V_{w}$ from IAPWS-IF97 , $\varphi_{w}^{\mathrm{sat}}$ from the vapour equation of state at saturation, and the sum over every dissolved particle (the ions of a salt counted apart, dissolved $\ce{CO2}$ and other solutes). The fugacity coefficient is $\varphi_{\ce{H2O}}^{L} =
 f_{\ce{H2O}}^{L}/(x_{\ce{H2O}}P)$, so the dilution of water by the solutes is counted once. Raoult’s law carries no osmotic coefficient: the water vapour pressure over 3.6 mol/kg NaCl comes out 2.2 % high (Table [59](#tab:storage_brine_vapour_pressure)).
 
 ##### CO$_2$-Rich Phase
 
-The vapour, or the dense -rich phase, follows Peng–Robinson on the molecular compounds. The –water binary parameter $k_{ij} = 0.193$ was fitted to the water content of the phase given by Spycher, Pruess and Ennis-King  from 288 to 373 K and 75 to 500 bar (2.6 % average deviation); with $k_{ij} = 0$ the water content was three to four times too high below 310 K. The root with the lower Gibbs energy is taken, except for a water-rich phase, which stays on the vapour root: below the critical temperature of and above its vapour pressure the -rich phase is a liquid, and its vapour root would be a metastable state with a fugacity about 50 % too high. The residual enthalpy and entropy of this phase come from the same Peng–Robinson fugacities.
+The vapour, or the dense $\ce{CO2}$-rich phase, follows Peng–Robinson on the molecular compounds. The $\ce{CO2}$–water binary parameter $k_{ij} = 0.193$ was fitted to the water content of the $\ce{CO2}$ phase given by Spycher, Pruess and Ennis-King  from 288 to 373 K and 75 to 500 bar (2.6 % average deviation); with $k_{ij} = 0$ the water content was three to four times too high below 310 K. The root with the lower Gibbs energy is taken, except for a water-rich phase, which stays on the vapour root: below the critical temperature of $\ce{CO2}$ and above its vapour pressure the $\ce{CO2}$-rich phase is a liquid, and its vapour root would be a metastable state with a fugacity about 50 % too high. The residual enthalpy and entropy of this phase come from the same Peng–Robinson fugacities.
 
 ##### Liquid Density
 
@@ -3058,11 +3058,11 @@ V = \frac{1}{\rho_{w}(T,P)} + \sum_{s} m_{s}\,V_{\varphi,s}(T,P,m^{*})
 \]
 
 
-where $\rho_{w}$ is the IAPWS-IF97 density of water. The brine is taken as the chlorides of its cations (Young’s rule), each apparent molar volume $V_{\varphi,s}$ evaluated at the ionic strength of the whole brine. The apparent molar volumes of NaCl, KCl, and are 13-term polynomials in $T$, $P$ and $\sqrt{m}$ fitted to the densities of Al Ghafri, Maitland and Trusler  (283 to 473 K, up to 68 MPa and 6 mol/kg). The apparent molar volume of dissolved is fitted to McBride-Wright, Maitland and Trusler  (274 to 449 K, up to 70 MPa). Other ions are mapped by charge: a monovalent cation other than and counts as , a divalent one as , a trivalent one as three ; an anion other than is taken as the chlorides of its charge with its own mass. Inside $V_{\varphi}$, temperature, pressure and molality are held to the fitted ranges. Other molecular solutes add their own liquid molar volume.
+where $\rho_{w}$ is the IAPWS-IF97 density of water. The brine is taken as the chlorides of its cations (Young’s rule), each apparent molar volume $V_{\varphi,s}$ evaluated at the ionic strength of the whole brine. The apparent molar volumes of NaCl, KCl, $\ce{CaCl2}$ and $\ce{MgCl2}$ are 13-term polynomials in $T$, $P$ and $\sqrt{m}$ fitted to the densities of Al Ghafri, Maitland and Trusler  (283 to 473 K, up to 68 MPa and 6 mol/kg). The apparent molar volume of dissolved $\ce{CO2}$ is fitted to McBride-Wright, Maitland and Trusler  (274 to 449 K, up to 70 MPa). Other ions are mapped by charge: a monovalent cation other than $\ce{Na+}$ and $\ce{K+}$ counts as $\ce{Na+}$, a divalent one as $\ce{Ca^{2+}}$, a trivalent one as three $\ce{Na+}$; an anion other than $\ce{Cl-}$ is taken as the chlorides of its charge with its own mass. Inside $V_{\varphi}$, temperature, pressure and molality are held to the fitted ranges. Other molecular solutes add their own liquid molar volume.
 
 ##### Enthalpy and Heat of Solution
 
-Dissolved sits on its ideal-gas reference, plus its partial molar enthalpy of solution from the temperature slope of the Duan–Sun chemical potential:
+Dissolved $\ce{CO2}$ sits on its ideal-gas reference, plus its partial molar enthalpy of solution from the temperature slope of the Duan–Sun chemical potential:
 
 
 <a id="eq:storage_hsol"></a>
@@ -3074,7 +3074,7 @@ Dissolved sits on its ideal-gas reference, plus its partial molar enthalpy of so
 \]
 
 
-The rest of the liquid takes the enthalpy of the electrolyte packages (ideal gas less the heat of vaporization). The excess enthalpy of the brine is an option, off by default: when it is on, $H^{E} = -RT^{2}\sum_{i}x_{i}\,\partial\ln\gamma_{i}/\partial T$ from the electrolyte NRTL model over the true species (water, the ions of the salts and the dissolved gases), with every cation–anion pair on NaCl parameters whose enthalpy terms were fitted to the relative apparent molar enthalpy of NaCl solutions of Pitzer, Peiper and Busey  (rms 119 J/mol at 25 °C, 151 at 60 °C and 169 at 100 °C). Only NaCl is validated, and KCl is within 260 J/mol of Parker’s data  up to 2.5 mol/kg. With the option on, the brine heat capacity moves away from the measured one (5 mol/kg NaCl at 20 °C: 3.550 against 3.345 kJ/(kg$\cdot$K), 3.197 with the option off), which is why it stays off. The vapour is the ideal gas plus the residual enthalpy of its Peng–Robinson fugacities. A liquid without water (dense that a flash labels liquid) takes the enthalpy of the vapour equation of state, so that its label does not change its enthalpy.
+The rest of the liquid takes the enthalpy of the electrolyte packages (ideal gas less the heat of vaporization). The excess enthalpy of the brine is an option, off by default: when it is on, $H^{E} = -RT^{2}\sum_{i}x_{i}\,\partial\ln\gamma_{i}/\partial T$ from the electrolyte NRTL model over the true species (water, the ions of the salts and the dissolved gases), with every cation–anion pair on NaCl parameters whose enthalpy terms were fitted to the relative apparent molar enthalpy of NaCl solutions of Pitzer, Peiper and Busey  (rms 119 J/mol at 25 °C, 151 at 60 °C and 169 at 100 °C). Only NaCl is validated, and KCl is within 260 J/mol of Parker’s data  up to 2.5 mol/kg. With the option on, the brine heat capacity moves away from the measured one (5 mol/kg NaCl at 20 °C: 3.550 against 3.345 kJ/(kg$\cdot$K), 3.197 with the option off), which is why it stays off. The vapour is the ideal gas plus the residual enthalpy of its Peng–Robinson fugacities. A liquid without water (dense $\ce{CO2}$ that a flash labels liquid) takes the enthalpy of the vapour equation of state, so that its label does not change its enthalpy.
 
 ##### pH and Carbonate Speciation
 
@@ -3090,7 +3090,7 @@ The pH and the ionic strength of a liquid come from a carbonate speciation at it
 \]
 
 
-dissolved takes the Duan–Sun coefficient of Eq. [\[eq:duansun_gamma\]](#eq:duansun_gamma), and the water activity is that of Eq. [\[eq:storage_fw\]](#eq:storage_fw). The pH is $-\log_{10}(\gamma_{\ce{H+}}
+dissolved $\ce{CO2}$ takes the Duan–Sun coefficient of Eq. [\[eq:duansun_gamma\]](#eq:duansun_gamma), and the water activity is that of Eq. [\[eq:storage_fw\]](#eq:storage_fw). The pH is $-\log_{10}(\gamma_{\ce{H+}}
 m_{\ce{H+}})$. The Davies equation loses accuracy above an ionic strength of about 0.5 mol/kg, so the pH of concentrated brines is indicative.
 
 ##### Mineral Trapping
@@ -3105,21 +3105,21 @@ The package reports the saturation index of carbonate minerals in the brine,
 \]
 
 
-where IAP is the ion activity product from the speciation (Davies coefficients). $\mathrm{SI} > 0$ means the brine is supersaturated and the mineral can precipitate; $\mathrm{SI} < 0$ means it can dissolve. The solubility products are written on the basis:
+where IAP is the ion activity product from the speciation (Davies coefficients). $\mathrm{SI} > 0$ means the brine is supersaturated and the mineral can precipitate; $\mathrm{SI} < 0$ means it can dissolve. The solubility products are written on the $\ce{CO3^{2-}}$ basis:
 
 
 \[
 \begin{alignat}
 {2}
-  \ce{CaCO3}             &\;\ce{<=>}\; \ce{Ca^{2+} + CO3^{2-}}
+  $\ce{CaCO3}$             &\;$\ce{<=>}$\; $\ce{Ca^{2+} + CO3^{2-}}$
     &&\qquad \text{calcite~[Plummer1982]} \\
-  \ce{MgCO3}             &\;\ce{<=>}\; \ce{Mg^{2+} + CO3^{2-}}
+  $\ce{MgCO3}$             &\;$\ce{<=>}$\; $\ce{Mg^{2+} + CO3^{2-}}$
     &&\qquad \text{magnesite~[Benezeth2011]} \\
-  \ce{FeCO3}             &\;\ce{<=>}\; \ce{Fe^{2+} + CO3^{2-}}
+  $\ce{FeCO3}$             &\;$\ce{<=>}$\; $\ce{Fe^{2+} + CO3^{2-}}$
     &&\qquad \text{siderite~[Benezeth2009]} \\
-  \ce{CaMg(CO3)2}        &\;\ce{<=>}\; \ce{Ca^{2+} + Mg^{2+} + 2 CO3^{2-}}
+  $\ce{CaMg(CO3)2}$        &\;$\ce{<=>}$\; $\ce{Ca^{2+} + Mg^{2+} + 2 CO3^{2-}}$
     &&\qquad \text{dolomite~[Benezeth2018]} \\
-  \ce{NaAlCO3(OH)2}      &\;\ce{<=>}\; \ce{Na+ + Al^{3+} + CO3^{2-} + 2 OH-}
+  $\ce{NaAlCO3(OH)2}$      &\;$\ce{<=>}$\; $\ce{Na+ + Al^{3+} + CO3^{2-} + 2 OH-}$
     &&\qquad \text{dawsonite~[ParkhurstAppelo2013]}
 \end{alignat}
 \]
@@ -3139,7 +3139,7 @@ with $\log_{10}K_{sp} = a + bT + c/T + d\log_{10}T + eT^{2} + f/T^{2}$. Calcite 
 |:---|:---|
 | Temperature | 273–533 K (Duan–Sun); densities fitted to 283–473 K |
 | Pressure | up to 2000 bar (Duan–Sun); densities fitted up to 700 bar |
-| Salinity | NaCl up to about 6 mol/kg; see the limitations for KCl, , |
+| Salinity | NaCl up to about 6 mol/kg; see the limitations for KCl, $\ce{CaCl2}$, $\ce{MgCl2}$ |
 | CO$_2$ content | trace to saturation |
 | Minerals | calcite, magnesite, siderite, dolomite (dawsonite: $K_{sp}$ only) |
 
@@ -3147,21 +3147,21 @@ CO$_2$ Storage PP recommended operating envelope
 
 
 
-- Duan and Sun count as and as (Eq. [\[eq:duansun_gamma\]](#eq:duansun_gamma)). In KCl, and brines the model salts out more than measured, most at high molality and low temperature: on average 18 % low in KCl, 11 % in and 10 % in (Table [55](#tab:storage_co2_solubility)), and up to 24 % at 6 mol/kg and 15 % at 5 mol/kg .
+- Duan and Sun count $\ce{K+}$ as $\ce{Na+}$ and $\ce{Mg^{2+}}$ as $\ce{Ca^{2+}}$ (Eq. [\[eq:duansun_gamma\]](#eq:duansun_gamma)). In KCl, $\ce{CaCl2}$ and $\ce{MgCl2}$ brines the model salts out more $\ce{CO2}$ than measured, most at high molality and low temperature: on average 18 % low in KCl, 11 % in $\ce{CaCl2}$ and 10 % in $\ce{MgCl2}$ (Table [55](#tab:storage_co2_solubility)), and up to 24 % at 6 mol/kg $\ce{CaCl2}$ and 15 % at 5 mol/kg $\ce{MgCl2}$.
 
 - The flash forms no solid salt phase. At 473 K and 1 bar a brine can dry out completely, and the package does not precipitate the salt.
 
-- The water content of the phase follows Spycher and Pruess and the dew points of Kim et al. ; the Raman data of Wang et al.  lie well above both (Table [58](#tab:storage_water_in_co2)).
+- The water content of the $\ce{CO2}$ phase follows Spycher and Pruess and the dew points of Kim et al. ; the Raman data of Wang et al.  lie well above both (Table [58](#tab:storage_water_in_co2)).
 
 - The pH and the saturation indices use Davies activity coefficients and are indicative above an ionic strength of about 0.5 mol/kg.
 
 ##### Validation
 
-Tables [55](#tab:storage_co2_solubility) to [60](#tab:storage_ksp) compare the package with experimental data. They were produced by the script `validate.py` in the fitting folder of the package source (`Storage/Fitting`), which runs about 3000 flashes of the shipped package, one or more per data point; the same folder holds the data files with their citations and DOIs, the fit scripts and the point-by-point results. In the *Use* column, *fit* means the parameters were regressed to the data set and *check* means it was only compared. No parameter was fitted to the solubility data: the Duan–Sun parameters are the published ones. The data sets of Song et al., Hebach et al., Kim et al. and Nasirzadeh et al. were not used in any fit.
+Tables [55](#tab:storage_co2_solubility) to [60](#tab:storage_ksp) compare the package with experimental data. They were produced by the script `validate.py` in the fitting folder of the package source (`Storage/Fitting`), which runs about 3000 flashes of the shipped package, one or more per data point; the same folder holds the data files with their citations and DOIs, the fit scripts and the point-by-point results. In the *Use* column, *fit* means the parameters were regressed to the data set and *check* means it was only compared. No parameter was fitted to the $\ce{CO2}$ solubility data: the Duan–Sun parameters are the published ones. The data sets of Song et al., Hebach et al., Kim et al. and Nasirzadeh et al. were not used in any fit.
 
-The NaCl set of Mohammadian et al. lies far from the other NaCl sets (24 % above the model on average and up to 240 % on single points, against 1.5 to 5 % for the others) and is left out of the NaCl total. Also left out: the points of McBride-Wright et al. at 100 MPa (the fit stops at 70 MPa), the points of Kamps et al. without , the KI and sets of Al Ghafri et al., and set 5 of Song et al., which repeats the -free points of sets 1 to 4 and is used once as the brine check.
+The NaCl set of Mohammadian et al. lies far from the other NaCl sets (24 % above the model on average and up to 240 % on single points, against 1.5 to 5 % for the others) and is left out of the NaCl total. Also left out: the points of McBride-Wright et al. at 100 MPa (the fit stops at 70 MPa), the points of Kamps et al. without $\ce{CO2}$, the KI and $\ce{AlCl3}$ sets of Al Ghafri et al., and set 5 of Song et al., which repeats the $\ce{CO2}$-free points of sets 1 to 4 and is used once as the brine check.
 
-The short names in the tables refer to the following sources. solubility: Messabeb 2016 , Koschel 2006 , Qin 2008 , Lucile 2012 , Tong 2013 , Messabeb 2017 , Wang 2019 , Mohammadian 2015 , Carvalho 2015 , Guo 2016 , Kamps 2007 . Density: Al Ghafri 2012 , Song 2013 , McBride-Wright 2015 , Hebach 2004 . Heat of solution: Koschel 2006 . Water in the phase: Kim 2012 , Wang 2018 . Brine vapour pressure: Nasirzadeh 2004 .
+The short names in the tables refer to the following sources. $\ce{CO2}$ solubility: Messabeb 2016 , Koschel 2006 , Qin 2008 , Lucile 2012 , Tong 2013 , Messabeb 2017 , Wang 2019 , Mohammadian 2015 , Carvalho 2015 , Guo 2016 , Kamps 2007 . Density: Al Ghafri 2012 , Song 2013 , McBride-Wright 2015 , Hebach 2004 . Heat of solution: Koschel 2006 . Water in the $\ce{CO2}$ phase: Kim 2012 , Wang 2018 . Brine vapour pressure: Nasirzadeh 2004 .
 
 
 
@@ -3305,9 +3305,9 @@ The first row of each mineral is the package. llnl.dat values are moved to the C
 
 ###### Application domains
 
-- **Saline aquifer injection:** solubility, brine density and water content of the phase at reservoir $T$, $P$ and salinity.
+- **Saline aquifer injection:** $\ce{CO2}$ solubility, brine density and water content of the $\ce{CO2}$ phase at reservoir $T$, $P$ and salinity.
 
-- **CO$_2$-EOR and injection wells:** –brine phase behaviour and the heat of solution in the energy balance.
+- **CO$_2$-EOR and injection wells:** $\ce{CO2}$–brine phase behaviour and the heat of solution in the energy balance.
 
 - **Long-term storage:** saturation indices of carbonate minerals as a screen for mineral trapping (equilibrium only; no precipitation kinetics).
 
@@ -3521,7 +3521,7 @@ The polymer model is accurate for non-associating and weakly interacting polymer
 
 ##### Overview {#overview-59}
 
-The Ionic Liquids (PC-SAFT) property package (DWSIM Patreon) describes ionic liquids used as physical solvents for , , , , and water: the removal of from natural gas, syngas or biogas, where the gas dissolves in the liquid without reacting and is released again by lowering the pressure or by mild heating . It is the PC-SAFT package of Section [6.18](#sec:pcsaft_polymers) with two parameter tables of its own and a viscosity rule for phases that hold an ionic liquid. The equation of state, the flash and the caloric properties are those of the PC-SAFT package.
+The Ionic Liquids (PC-SAFT) property package (DWSIM Patreon) describes ionic liquids used as physical solvents for $\ce{CO2}$, $\ce{H2S}$, $\ce{CH4}$, $\ce{N2}$, $\ce{H2}$ and water: the removal of $\ce{CO2}$ from natural gas, syngas or biogas, where the gas dissolves in the liquid without reacting and is released again by lowering the pressure or by mild heating . It is the PC-SAFT package of Section [6.18](#sec:pcsaft_polymers) with two parameter tables of its own and a viscosity rule for phases that hold an ionic liquid. The equation of state, the flash and the caloric properties are those of the PC-SAFT package.
 
 Each ionic liquid is a single neutral compound, the ion pair, with two association sites (scheme 2B: one donor and one acceptor). The package carries 29 ionic liquids:
 
@@ -3539,15 +3539,15 @@ Each ionic liquid is a single neutral compound, the ion pair, with two associati
 
 - , \[bmim\]\[MeSO$_4$\] and \[P66614\]\[Cl\].
 
-The compounds are installed with the package (one compound file each, in the `addcomps` folder) and appear in the compound list like any other. The package also supplies PC-SAFT parameters for , which the general PC-SAFT table lacks.
+The compounds are installed with the package (one compound file each, in the `addcomps` folder) and appear in the compound list like any other. The package also supplies PC-SAFT parameters for $\ce{H2}$, which the general PC-SAFT table lacks.
 
-The acetates absorb and chemically, and the package does not represent that reaction: their and pairs carry no fitted parameter and the predicted solubilities of these two gases in the acetates are far below the measured ones. The acetates can be used with the other solutes.
+The acetates absorb $\ce{CO2}$ and $\ce{H2S}$ chemically, and the package does not represent that reaction: their $\ce{CO2}$ and $\ce{H2S}$ pairs carry no fitted parameter and the predicted solubilities of these two gases in the acetates are far below the measured ones. The acetates can be used with the other solutes.
 
 ##### Pure-Compound Parameters
 
 The segment number $m$, segment diameter $\sigma$ and dispersion energy $\varepsilon/k$ of each ionic liquid were fitted to the liquid densities of the NIST ILThermo database  over temperature and pressure (up to 400 points per ionic liquid, 250–480 K and up to 300 MPa) and, with a small weight, to the enthalpies of vaporization. The association energy and volume are the same for every ionic liquid, $\varepsilon^{AB}/k = 3134$ K and $\kappa^{AB} = 0.026$, the medians of the parameters fitted by Bülow et al. to twelve \[C$_2$mim\] ionic liquids .
 
-For the imidazolium families (\[BF$_4$\], \[PF$_6$\], \[Tf$_2$N\], \[OTf\], \[Ac\], \[DCA\], \[SCN\], \[TCM\]) the fit is joint: $m$, $m\sigma^3$ and $m\varepsilon/k$ are linear in the molar mass with the slopes per group of the $n$-alkanes of Gross and Sadowski , and only the three intercepts of each family are regressed. The parameters then change smoothly along a homologous series. The other ionic liquids were fitted one by one; \[emim\]\[EtSO$_4$\] and \[bmim\]\[MeSO$_4$\] were held at $\varepsilon/k \le 400$ K, because a higher dispersion energy gives the equation of state a second, spurious dense liquid root. Table (tab.) lists the parameters and the density deviations.
+For the imidazolium families (\[BF$_4$\], \[PF$_6$\], \[Tf$_2$N\], \[OTf\], \[Ac\], \[DCA\], \[SCN\], \[TCM\]) the fit is joint: $m$, $m\sigma^3$ and $m\varepsilon/k$ are linear in the molar mass with the slopes per $\ce{CH2}$ group of the $n$-alkanes of Gross and Sadowski , and only the three intercepts of each family are regressed. The parameters then change smoothly along a homologous series. The other ionic liquids were fitted one by one; \[emim\]\[EtSO$_4$\] and \[bmim\]\[MeSO$_4$\] were held at $\varepsilon/k \le 400$ K, because a higher dispersion energy gives the equation of state a second, spurious dense liquid root. Table (tab.) lists the parameters and the density deviations.
 
 Hydrogen is a single segment ($m = 1$) with $\sigma = 2.8183$ Å and $\varepsilon/k = 20.168$ K, fitted to the normal-hydrogen densities of the NIST Chemistry WebBook (equation of state of Leachman et al. ), 250–450 K and 1–30 MPa.
 
@@ -3571,9 +3571,9 @@ k_{ij}(T) = k_{ij} + k_{ij,T}\,(T - 298.15~\mathrm{K})
 \]
 
 
-and was fitted for each pair of an ionic liquid with , , , , and water to the ILThermo gas solubilities (liquid mole fraction at $T$ and $P$), Henry constants and water vapour-liquid data. The slope $k_{ij,T}$ was fitted when a pair had data over at least 30 K and 15 points; otherwise $k_{ij}$ is constant. About a quarter of the data sets of each pair (one point in four for a pair with a single set) were held out of the fit and used only to check it. Sets that disagreed with the rest by more than a factor of 1.6 after a first fit were left out; for only pressures of 10 bar and above were used, because the low-pressure Henry constants of different laboratories differ by a factor of two. Water associates with the ionic liquid through the donor-acceptor cross-association rule of the PC-SAFT package .
+and was fitted for each pair of an ionic liquid with $\ce{CO2}$, $\ce{CH4}$, $\ce{N2}$, $\ce{H2}$, $\ce{H2S}$ and water to the ILThermo gas solubilities (liquid mole fraction at $T$ and $P$), Henry constants and water vapour-liquid data. The slope $k_{ij,T}$ was fitted when a pair had data over at least 30 K and 15 points; otherwise $k_{ij}$ is constant. About a quarter of the data sets of each pair (one point in four for a pair with a single set) were held out of the fit and used only to check it. Sets that disagreed with the rest by more than a factor of 1.6 after a first fit were left out; for $\ce{H2}$ only pressures of 10 bar and above were used, because the low-pressure Henry constants of different laboratories differ by a factor of two. Water associates with the ionic liquid through the donor-acceptor cross-association rule of the PC-SAFT package .
 
-A pair of , , or without data takes the median of the fitted pairs of the same gas (the generic parameter). and water pairs without data are left at $k_{ij} = 0$. Table (tab.) summarizes the pairs; the parameter of every pair, with its deviations, is in the fitting folder of the package source.
+A pair of $\ce{CH4}$, $\ce{N2}$, $\ce{H2}$ or $\ce{H2S}$ without data takes the median of the fitted pairs of the same gas (the generic parameter). $\ce{CO2}$ and water pairs without data are left at $k_{ij} = 0$. Table (tab.) summarizes the pairs; the parameter of every pair, with its deviations, is in the fitting folder of the package source.
 
 ##### Validation
 
@@ -3585,9 +3585,9 @@ Over all the ionic liquids the liquid density is within 0.47 % of the data the 
 
 ###### Gases and water
 
-The median deviation of the solubility is 9.5 % on the fitted data and 16 % on the data held out; part of the difference is disagreement between laboratories. and are reproduced within a few percent, and within about 6 to 14 %. For water the median deviation of the partial pressure is 9.0 % fitted and 12.9 % held out. The pooled water deviation of the held-out data (47.6 %) comes from three sets that disagree with the fitted ones (\[bmim\]\[BF$_4$\] up to 448 K, \[emim\]\[Ac\] and \[emim\]\[EtSO$_4$\]).
+The median deviation of the $\ce{CO2}$ solubility is 9.5 % on the fitted data and 16 % on the data held out; part of the difference is disagreement between laboratories. $\ce{H2S}$ and $\ce{H2}$ are reproduced within a few percent, $\ce{CH4}$ and $\ce{N2}$ within about 6 to 14 %. For water the median deviation of the partial pressure is 9.0 % fitted and 12.9 % held out. The pooled water deviation of the held-out data (47.6 %) comes from three sets that disagree with the fitted ones (\[bmim\]\[BF$_4$\] up to 448 K, \[emim\]\[Ac\] and \[emim\]\[EtSO$_4$\]).
 
-The heat of absorption of follows from the temperature dependence of the Henry constant of the package (Table [64](#tab:il_co2_heat)) and agrees with the data within 1 to 2 kJ/mol for most ionic liquids. \[omim\]\[Tf$_2$N\] is the exception: its $k_{ij,T}$ was fitted to the solubility alone and gives too weak a temperature dependence.
+The heat of absorption of $\ce{CO2}$ follows from the temperature dependence of the Henry constant of the package (Table [64](#tab:il_co2_heat)) and agrees with the data within 1 to 2 kJ/mol for most ionic liquids. \[omim\]\[Tf$_2$N\] is the exception: its $k_{ij,T}$ was fitted to the solubility alone and gives too weak a temperature dependence.
 
 
 
@@ -3613,13 +3613,13 @@ Heat of absorption of CO$_2$ (kJ/mol) from the temperature dependence of the Hen
 
 ##### Scope and Limitations
 
-- Physical absorption only. The chemical absorption of and by the acetates, and by other basic anions, is not represented.
+- Physical absorption only. The chemical absorption of $\ce{CO2}$ and $\ce{H2S}$ by the acetates, and by other basic anions, is not represented.
 
-- Below the critical temperature of and above its vapour pressure, the -rich phase is a dense liquid, and the vapour-liquid flash reports it as the vapour; the composition of the ionic-liquid-rich phase is not affected. Above about 190 bar the model may give a single phase, its own mixture critical region.
+- Below the critical temperature of $\ce{CO2}$ and above its vapour pressure, the $\ce{CO2}$-rich phase is a dense liquid, and the vapour-liquid flash reports it as the vapour; the composition of the ionic-liquid-rich phase is not affected. Above about 190 bar the model may give a single phase, its own mixture critical region.
 
 - Liquid-liquid equilibrium of water with the hydrophobic ionic liquids is not fitted. Near a water mole fraction of 0.4 at high temperature the model may predict two liquid phases where the data show one.
 
-- The generic parameters of pairs without data are estimates. A or water pair without data has $k_{ij} = 0$.
+- The generic parameters of pairs without data are estimates. A $\ce{CO2}$ or water pair without data has $k_{ij} = 0$.
 
 - The association energy and volume are generic, so the results for water rely on the fitted $k_{ij}$; outside the range of the water data the deviations grow.
 
@@ -3635,7 +3635,7 @@ An ionic liquid that the package does not carry can be added to a simulation. It
 
 3.  **Enter the PC-SAFT parameters.** Open the editor of the Ionic Liquids (PC-SAFT) package. The new compound has a row of its own with zeros. Enter $m$, $\sigma$ (Å) and $\varepsilon/k$ (K), and the association volume and energy; the values of the shipped ionic liquids, $\kappa^{AB} = 0.026$ and $\varepsilon^{AB}/k = 3134$ K, are a consistent choice. A compound left with zero parameters stops the calculation with a message about missing PC-SAFT parameters.
 
-4.  **Enter the binary parameters.** In the same editor, enter $k_{ij}$ for each pair of the new ionic liquid with the other compounds, and $k_{ij,T}$ (1/K) where the parameter depends on temperature (Eq. [\[eq:il_kij\]](#eq:il_kij)). Pairs left blank have $k_{ij} = 0$. Without data, the generic parameters of the package are a reasonable start: $k_{ij} = -0.0615$ and $k_{ij,T} = 8.90\times10^{-4}$ K$^{-1}$ with , $-0.0275$ and 0 with , $-0.380$ and $1.21\times10^{-3}$ K$^{-1}$ with , $-0.0151$ and $5.67\times10^{-5}$ K$^{-1}$ with . For and water the fitted values vary too much from one ionic liquid to another for a generic value; take those of the closest shipped ionic liquid.
+4.  **Enter the binary parameters.** In the same editor, enter $k_{ij}$ for each pair of the new ionic liquid with the other compounds, and $k_{ij,T}$ (1/K) where the parameter depends on temperature (Eq. [\[eq:il_kij\]](#eq:il_kij)). Pairs left blank have $k_{ij} = 0$. Without data, the generic parameters of the package are a reasonable start: $k_{ij} = -0.0615$ and $k_{ij,T} = 8.90\times10^{-4}$ K$^{-1}$ with $\ce{CH4}$, $-0.0275$ and 0 with $\ce{N2}$, $-0.380$ and $1.21\times10^{-3}$ K$^{-1}$ with $\ce{H2}$, $-0.0151$ and $5.67\times10^{-5}$ K$^{-1}$ with $\ce{H2S}$. For $\ce{CO2}$ and water the fitted values vary too much from one ionic liquid to another for a generic value; take those of the closest shipped ionic liquid.
 
 5.  **Save the flowsheet.** The parameters live in the simulation file. To reuse them, keep a template flowsheet with the compound and its parameters.
 
@@ -4100,7 +4100,7 @@ SAFT-VR Mie pure-component parameters
 
 ##### Overview {#overview-66}
 
-SAFT-VRQ Mie  extends SAFT-VR Mie to quantum-mechanical effects relevant for light molecules such as , , , and . Quantum corrections are incorporated via the Feynman–Hibbs (FH) perturbation approach .
+SAFT-VRQ Mie  extends SAFT-VR Mie to quantum-mechanical effects relevant for light molecules such as $\ce{H2}$, $\ce{D2}$, $\ce{He}$, and $\ce{Ne}$. Quantum corrections are incorporated via the Feynman–Hibbs (FH) perturbation approach .
 
 ##### Quantum-Corrected Pair Potential
 
@@ -4129,7 +4129,7 @@ where $\mu = m_{1}m_{2}/(m_{1}+m_{2})$ is the reduced mass, and the Laplacian of
 \]
 
 
-A second-order correction $u^{\mathrm{FH2}}$ is available for the lightest species (, ) . The corrected potential is then used in place of $u^{\mathrm{Mie}}$ in all SAFT-VR Mie perturbation integrals.
+A second-order correction $u^{\mathrm{FH2}}$ is available for the lightest species ($\ce{H2}$, $\ce{He}$) . The corrected potential is then used in place of $u^{\mathrm{Mie}}$ in all SAFT-VR Mie perturbation integrals.
 
 ##### Dimensionless Quantum Parameter
 
@@ -4141,7 +4141,7 @@ Q^{2} = \frac{\hbar^{2}}{m\,\varepsilon\,\sigma^{2}\,k}
 \]
 
 
-Larger $Q$ (smaller mass, smaller potential well) indicates stronger quantum effects. For at 298 K the correction to the second virial coefficient exceeds 20% .
+Larger $Q$ (smaller mass, smaller potential well) indicates stronger quantum effects. For $\ce{H2}$ at 298 K the correction to the second virial coefficient exceeds 20% .
 
 #### Modified Benedict–Webb–Rubin Equation (MBWR) {#sec:mbwr}
 
