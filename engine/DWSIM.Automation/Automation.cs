@@ -286,6 +286,18 @@ namespace DWSIM.Automation
                 AvailablePropertyPackages.Add(((ICapeIdentification)pp).ComponentName, pp);
             }
 
+            // Reaktoro (Aqueous Electrolytes)
+            try
+            {
+                var rkpp = new DWSIM.Thermodynamics.ReaktoroPropertyPackage.ReaktoroPropertyPackage();
+                if (!AvailablePropertyPackages.ContainsKey(rkpp.ComponentName))
+                    AvailablePropertyPackages.Add(rkpp.ComponentName, rkpp);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error adding the Reaktoro property package: " + ex.Message);
+            }
+
             var otherpps = SharedClasses.Utility.LoadAdditionalPropertyPackages();
 
             foreach (var pp in otherpps)

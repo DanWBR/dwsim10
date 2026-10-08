@@ -4240,6 +4240,19 @@ Label_00CC:
             AvailablePropPacks.Add(DirectCast(pp, CapeOpen.ICapeIdentification).ComponentName, pp)
         Next
 
+        'Reaktoro (Aqueous Electrolytes) lives in an assembly this one does not reference: load it by name,
+        'skip it if it is missing.
+        Try
+            Dim rkType = Type.GetType("DWSIM.Thermodynamics.ReaktoroPropertyPackage.ReaktoroPropertyPackage, DWSIM.Thermodynamics.ReaktoroPropertyPackage", False)
+            If rkType IsNot Nothing Then
+                Dim rkpp = DirectCast(Activator.CreateInstance(rkType), IPropertyPackage)
+                Dim rkname = DirectCast(rkpp, CapeOpen.ICapeIdentification).ComponentName
+                If Not AvailablePropPacks.ContainsKey(rkname) Then AvailablePropPacks.Add(rkname, rkpp)
+            End If
+        Catch ex As Exception
+            Logging.Logger.LogError("Property Package Loading (Reaktoro)", ex)
+        End Try
+
         Dim otherpps = SharedClasses.Utility.LoadAdditionalPropertyPackages()
 
         For Each pp In otherpps

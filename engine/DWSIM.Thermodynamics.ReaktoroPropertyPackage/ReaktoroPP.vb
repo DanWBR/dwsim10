@@ -39,6 +39,8 @@ Imports System.Windows.Forms
 
         MyBase.New(comode)
 
+        SetPropertyMethodsInfo()
+
     End Sub
 
     Public Sub New()
@@ -47,6 +49,24 @@ Imports System.Windows.Forms
         ComponentDescription = "Reaktoro is a computational framework developed in C++ and Python that implements numerical methods for modeling chemically reactive processes governed by either chemical equilibrium, chemical kinetics, or a combination of both."
 
         IsConfigurable = True
+
+        SetPropertyMethodsInfo()
+
+    End Sub
+
+    ''' <summary>
+    ''' The methods this package uses, for the property package information panel: the aqueous
+    ''' phase is Reaktoro's HKF model chained with Drummond for CO2 (ReaktoroC), the gas phase an
+    ''' ideal gas, and enthalpies, densities and transport properties come from the electrolyte base.
+    ''' </summary>
+    Private Sub SetPropertyMethodsInfo()
+
+        PropertyMethodsInfo.Vapor_Fugacity = "Ideal Gas"
+        PropertyMethodsInfo.Vapor_Enthalpy_Entropy_CpCv = "Ideal Gas"
+        PropertyMethodsInfo.Vapor_Density = "Ideal Gas"
+        PropertyMethodsInfo.Liquid_Fugacity = "Reaktoro (HKF activity model, Drummond for CO2) + Vapor Pressure / Henry's Law"
+        PropertyMethodsInfo.Liquid_Enthalpy_Entropy_CpCv = "Ideal Gas - Heat of Vaporization, plus the excess enthalpy from the activity coefficients"
+        PropertyMethodsInfo.Liquid_Density = "Electrolyte Model (water, ionic standard molar volumes, molecular solutes as pure liquids)"
 
     End Sub
 
