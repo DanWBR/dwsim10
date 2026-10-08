@@ -212,6 +212,47 @@ namespace DWSIM.Engine.SmokeTests
                         Is.EqualTo(208.1).Within(2.0), "bottoms temperature, degF");
         }
 
+        // The same stabiliser with its reboiler on the boil-up ratio its bottoms-rate solution has
+        // (V/B = 0.2943 at 19.6 lbmol/h of bottoms). A boil-up ratio is met by an outer search on the
+        // bottoms rate, and as shipped that search called the bubble-point solver without the
+        // temperature-step fallbacks, so near the answer every inner solve ran at the half step
+        // this column cannot converge at; it started from the whole feed (the file's liquid
+        // estimates are the feed rate on every stage), its scans and expanding bracket tried
+        // bottoms rates up to twice the feed and below zero, and the column failed after more
+        // than an hour. The same answer as the bottoms-rate specification is expected, quickly.
+        [Test]
+        public void TheColdNaphthaStabiliserTakesABoilupRatio()
+        {
+            var flowsheet = Load("ColdNaphthaStabiliser.dwxmz");
+            var column = flowsheet.SimulationObjects.Values.OfType<DistillationColumn>().Single();
+
+            var spec = column.Specs["R"];
+            spec.SType = ColumnSpec.SpecType.Stream_Ratio;
+            spec.SpecValue = 0.2943;
+            spec.SpecUnit = "";
+
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            var errors = flowsheet.SolveFlowsheet2();
+            clock.Stop();
+
+            Assert.That(errors, Is.Empty,
+                        "the solver reported: " + string.Join("; ", errors.Select(e => e.Message)));
+
+            var streams = flowsheet.SimulationObjects.Values.OfType<MaterialStream>().ToList();
+            var overhead = streams.Single(s => s.GraphicObject.Tag == "OVERHEAD");
+            var bottoms = streams.Single(s => s.GraphicObject.Tag == "BOTTOMS");
+
+            const double lbmolhr = 7.93664;
+            Assert.That(bottoms.Phases[0].Properties.molarflow.GetValueOrDefault() * lbmolhr,
+                        Is.EqualTo(19.6).Within(0.5).Percent, "bottoms rate");
+            Assert.That((overhead.Phases[0].Properties.temperature.GetValueOrDefault() - 273.15) * 1.8 + 32.0,
+                        Is.EqualTo(135.1).Within(2.0), "overhead temperature, degF");
+            Assert.That((bottoms.Phases[0].Properties.temperature.GetValueOrDefault() - 273.15) * 1.8 + 32.0,
+                        Is.EqualTo(208.1).Within(2.0), "bottoms temperature, degF");
+            Assert.That(clock.Elapsed.TotalSeconds, Is.LessThan(600.0),
+                        "the bottoms-rate specification of the same column solves in about ten seconds");
+        }
+
         // The bubble-point solvers move each stage temperature a fraction of the way towards its new
         // bubble point on every sweep. TemperatureStepFraction makes that fraction a column setting,
         // default the historical 0.5, and it has to survive a save and a load like any other setting.
