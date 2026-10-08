@@ -66,6 +66,10 @@ namespace DWSIM.FluentAPI.Tests
                 Assert.That(reactor.PDI, Is.InRange(1.4, 2.1), "polydispersity near the free-radical range");
                 double xPolyProduct = product.Object.Phases[0].Compounds["Polystyrene"].MoleFraction.GetValueOrDefault();
                 Assert.That(xPolyProduct, Is.GreaterThan(0.0), "the product stream must contain polymer");
+                double monomerOut = product.Object.Phases[0].Compounds["Ethylbenzene"].MolarFlow.GetValueOrDefault();
+                double monomerIn = feed.Object.Phases[0].Compounds["Ethylbenzene"].MolarFlow.GetValueOrDefault();
+                Assert.That(1.0 - monomerOut / monomerIn, Is.EqualTo(reactor.Conversion).Within(1e-6),
+                            "the product monomer flow matches the reported conversion");
             });
         }
 

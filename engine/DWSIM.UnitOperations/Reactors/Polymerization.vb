@@ -432,21 +432,28 @@ Namespace Reactors
             Me.DeltaQ = duty
             Me.DeltaT = Tr - Tin
 
-            ' Reacted monomer mass (both monomers in copolymer mode) and the polymer chain molar flow.
+            ' Polymer formed (g/s): the reacted monomer (both monomers in copolymer mode) at the molar masses of
+            ' the monomer compounds, plus the consumed initiator, whose fragments end up as chain end groups.
+            ' The mass that leaves the monomer and initiator flows is the mass the polymer gains.
             Dim convAmol = monFlow * r.ConvA
             Dim convBmol = monBFlow * r.ConvB
-            Dim polymerMass = convAmol * MonomerMolarMass + convBmol * MonomerBMolarMass  ' g/s
-            Dim chainFlow = If(r.Mn > 0.0, polymerMass / r.Mn, 0.0)
             Dim iniRatio = r.IniRatio
+            Dim iniConsumed = iniFlow * Math.Max(1.0 - iniRatio, 0.0)
+            Dim polymerMass = convAmol * comps(MonomerID).ConstantProperties.Molar_Weight +
+                              iniConsumed * comps(InitiatorID).ConstantProperties.Molar_Weight
+            If IsCopolymer() Then polymerMass += convBmol * comps(MonomerBID).ConstantProperties.Molar_Weight
 
             ' Emit the polymer as a real molar-mass distribution over the generated cuts, or as a single
-            ' lumped polymer compound whose molar mass is set to Mn (so the reacted monomer mass is conserved).
+            ' lumped polymer compound whose molar mass is set to Mn. The lumped compound keeps its specific
+            ' heat capacity (see PolymerCharacterization.SetMolarMass), and the polymer already in the feed
+            ' keeps its mass: it leaves as moles of the same compound at the new molar mass.
             Dim distributing = EmitDistribution AndAlso CutCompoundNames.Count > 0 AndAlso
                                CutMoleFractions.Count = CutCompoundNames.Count AndAlso
                                CutCompoundNames.All(Function(nm) comps.ContainsKey(nm))
-            If Not distributing Then
-                comps(PolymerID).ConstantProperties.Molar_Weight = If(r.Mn > 0.0, r.Mn, comps(PolymerID).ConstantProperties.Molar_Weight)
-            End If
+            Dim polymerCP = comps(PolymerID).ConstantProperties
+            Dim feedPolymerMass = comps(PolymerID).MassFlow.GetValueOrDefault() * 1000.0   ' g/s
+            If feedPolymerMass <= 0.0 Then feedPolymerMass = comps(PolymerID).MolarFlow.GetValueOrDefault() * polymerCP.Molar_Weight
+            If Not distributing AndAlso r.Mn > 0.0 Then PolymerCharacterization.SetMolarMass(polymerCP, r.Mn)
 
             ' Outlet molar flows: monomer depleted, initiator partly consumed, polymer produced, rest inert.
             Dim outFlow As New Dictionary(Of String, Double)
@@ -459,7 +466,7 @@ Namespace Reactors
                 ElseIf c.Name = InitiatorID Then
                     fl = iniFlow * iniRatio
                 ElseIf c.Name = PolymerID AndAlso Not distributing Then
-                    fl = c.MolarFlow.GetValueOrDefault() + chainFlow
+                    fl = (feedPolymerMass + polymerMass) / polymerCP.Molar_Weight
                 End If
                 outFlow(c.Name) = Math.Max(fl, 0.0)
             Next

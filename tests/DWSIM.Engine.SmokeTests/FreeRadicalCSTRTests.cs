@@ -154,6 +154,33 @@ namespace DWSIM.Engine.SmokeTests
         }
 
         [Test]
+        public void PolymerMolarMassKeepsTheSpecificHeatCapacity()
+        {
+            // Database polystyrene: ideal-gas Cp 65e6 J/(kmol.K) at M = 50 000 g/mol, i.e. 1.3 kJ/(kg.K).
+            var ps = new ConstantProperties
+            {
+                Name = "Polystyrene", CAS_Number = "9003-53-6", Molar_Weight = 50000.0,
+                Ideal_Gas_Heat_Capacity_Const_A = 65.0e6, IdealgasCpEquation = "4",
+                Liquid_Heat_Capacity_Const_A = 90.0e6, Liquid_Heat_Capacity_Const_B = 1.0e5, LiquidHeatCapacityEquation = "100",
+                CurrentDB = "User", OriginalDB = "User"
+            };
+            PolymerCharacterization.SetMolarMass(ps, 10000.0);
+
+            double[] z = null;
+            var cuts = PolymerCharacterization.BuildCuts(ps, 10000.0, 2.0, 5, ref z);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ps.Molar_Weight, Is.EqualTo(10000.0));
+                Assert.That(ps.Ideal_Gas_Heat_Capacity_Const_A / ps.Molar_Weight, Is.EqualTo(1300.0).Within(1e-9), "ideal-gas Cp per kg");
+                Assert.That(ps.Liquid_Heat_Capacity_Const_A / ps.Molar_Weight, Is.EqualTo(1800.0).Within(1e-9), "liquid Cp per kg, A");
+                Assert.That(ps.Liquid_Heat_Capacity_Const_B / ps.Molar_Weight, Is.EqualTo(2.0).Within(1e-12), "liquid Cp per kg, B");
+                foreach (var c in cuts)
+                    Assert.That(c.Ideal_Gas_Heat_Capacity_Const_A / c.Molar_Weight, Is.EqualTo(1300.0).Within(1e-6), c.Name);
+            });
+        }
+
+        [Test]
         public void WeightDistributionPeaksAtMw()
         {
             // The reconstructed Schulz-Zimm weight distribution (for the MWD plot) must peak at Mw = Mn*PDI.

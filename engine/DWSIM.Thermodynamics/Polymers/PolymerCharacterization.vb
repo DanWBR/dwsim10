@@ -155,6 +155,77 @@ Namespace Polymers
         End Function
 
         ''' <summary>
+        ''' Sets a polymer compound's molar mass (a chain length) and multiplies its molar-basis heat-capacity
+        ''' correlations (ideal gas, liquid and solid, wherever the property package divides the correlation
+        ''' by the molar mass to get kJ/kg.K) by the ratio of the new to the old molar mass. The specific heat
+        ''' capacity, and with it the specific enthalpy and entropy of the polymer, then stay those of its
+        ''' chemistry whatever the chain length, the way the PC-SAFT segment number m = (m/M)*M already scales.
+        ''' </summary>
+        ''' <param name="cp">The polymer compound to change.</param>
+        ''' <param name="newMolarMass">The new molar mass (g/mol); ignored unless positive and finite.</param>
+        Public Shared Sub SetMolarMass(cp As Interfaces.ICompoundConstantProperties, newMolarMass As Double)
+
+            If cp Is Nothing OrElse Not (newMolarMass > 0.0) OrElse Double.IsInfinity(newMolarMass) Then Return
+
+            Dim oldMolarMass = cp.Molar_Weight
+            If oldMolarMass > 0.0 AndAlso newMolarMass <> oldMolarMass Then
+                Dim f = newMolarMass / oldMolarMass
+                With cp
+                    Select Case .OriginalDB
+                        Case "DWSIM", "", "CheResources"
+                            ' fixed polynomial in T, linear in every coefficient
+                            .Ideal_Gas_Heat_Capacity_Const_A *= f
+                            .Ideal_Gas_Heat_Capacity_Const_B *= f
+                            .Ideal_Gas_Heat_Capacity_Const_C *= f
+                            .Ideal_Gas_Heat_Capacity_Const_D *= f
+                            .Ideal_Gas_Heat_Capacity_Const_E *= f
+                        Case "ChemSep", "User"
+                            ScaleCorrelation(.IdealgasCpEquation, .Ideal_Gas_Heat_Capacity_Const_A, .Ideal_Gas_Heat_Capacity_Const_B,
+                                             .Ideal_Gas_Heat_Capacity_Const_C, .Ideal_Gas_Heat_Capacity_Const_D, .Ideal_Gas_Heat_Capacity_Const_E, f)
+                    End Select
+                    If .OriginalDB <> "CoolProp" AndAlso .OriginalDB <> "ChEDL Thermo" Then
+                        ScaleCorrelation(.LiquidHeatCapacityEquation, .Liquid_Heat_Capacity_Const_A, .Liquid_Heat_Capacity_Const_B,
+                                         .Liquid_Heat_Capacity_Const_C, .Liquid_Heat_Capacity_Const_D, .Liquid_Heat_Capacity_Const_E, f)
+                    End If
+                    If .OriginalDB = "ChemSep" OrElse .OriginalDB = "User" Then
+                        ScaleCorrelation(.SolidHeatCapacityEquation, .Solid_Heat_Capacity_Const_A, .Solid_Heat_Capacity_Const_B,
+                                         .Solid_Heat_Capacity_Const_C, .Solid_Heat_Capacity_Const_D, .Solid_Heat_Capacity_Const_E, f)
+                    End If
+                End With
+            End If
+
+            cp.Molar_Weight = newMolarMass
+
+        End Sub
+
+        ''' <summary>
+        ''' Multiplies a numbered temperature-dependent correlation (the equation numbers of CalcCSTDepProp) by
+        ''' f through the coefficients its value is proportional to. Correlations that are not proportional to
+        ''' a subset of their coefficients (the exponential forms) and user expressions are left unchanged.
+        ''' </summary>
+        Private Shared Sub ScaleCorrelation(eqno As String, ByRef A As Double, ByRef B As Double, ByRef C As Double,
+                                            ByRef D As Double, ByRef E As Double, f As Double)
+            Dim eq As Integer
+            If Not Integer.TryParse(eqno, eq) Then Return
+            Select Case eq
+                Case 1, 2, 3, 4, 5, 6, 45, 75, 100, 104, 114, 116
+                    ' linear in every coefficient
+                    A *= f : B *= f : C *= f : D *= f : E *= f
+                Case 102, 105, 106, 211
+                    ' proportional to A
+                    A *= f
+                Case 103
+                    A *= f : B *= f
+                Case 107, 117
+                    ' C and E are characteristic temperatures
+                    A *= f : B *= f : D *= f
+                Case 213
+                    ' E is a characteristic temperature
+                    A *= f : B *= f : C *= f : D *= f
+            End Select
+        End Sub
+
+        ''' <summary>
         ''' Builds N pseudo-component compounds by cloning a base polymer, one per cut of the chosen
         ''' distribution, each with its own molar mass and a distinguishing name and sharing the base CAS so
         ''' the equation of state reuses its parameters. Returns the compounds; the matching relative mole
@@ -177,7 +248,7 @@ Namespace Polymers
             Dim cuts As New List(Of BaseClasses.ConstantProperties)
             For i As Integer = 0 To M.Length - 1
                 Dim c = DirectCast(basePolymer.Clone(), BaseClasses.ConstantProperties)
-                c.Molar_Weight = M(i)
+                SetMolarMass(c, M(i))
                 c.Name = basePolymer.Name & " (M=" & CInt(M(i)).ToString() & ")"
                 cuts.Add(c)
             Next
