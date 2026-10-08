@@ -331,6 +331,7 @@ Namespace Reactors
                 cut.CurrentDB = baseCP.CurrentDB
                 cut.OriginalDB = baseCP.OriginalDB
                 If Not FlowSheet.SelectedCompounds.ContainsKey(cut.Name) Then
+                    cut.ID = PolymerCharacterization.NewCompoundID(FlowSheet.SelectedCompounds.Values)
                     FlowSheet.SelectedCompounds.Add(cut.Name, cut)
                     For Each so In FlowSheet.SimulationObjects.Values
                         If so.GraphicObject IsNot Nothing AndAlso so.GraphicObject.ObjectType = Interfaces.Enums.GraphicObjects.ObjectType.MaterialStream Then

@@ -155,6 +155,15 @@ Namespace Polymers
         End Function
 
         ''' <summary>
+        ''' True for a polymer pseudo-compound from the polymer database (its comments start with
+        ''' "Polymer pseudo-compound"), and for the cuts and copolymers cloned from one.
+        ''' </summary>
+        Public Shared Function IsPolymerPseudoCompound(cp As Interfaces.ICompoundConstantProperties) As Boolean
+            Return cp IsNot Nothing AndAlso cp.Comments IsNot Nothing AndAlso
+                   cp.Comments.StartsWith("Polymer pseudo-compound", StringComparison.OrdinalIgnoreCase)
+        End Function
+
+        ''' <summary>
         ''' Sets a polymer compound's molar mass (a chain length) and multiplies its molar-basis heat-capacity
         ''' correlations (ideal gas, liquid and solid, wherever the property package divides the correlation
         ''' by the molar mass to get kJ/kg.K) by the ratio of the new to the old molar mass. The specific heat
@@ -197,6 +206,20 @@ Namespace Polymers
             cp.Molar_Weight = newMolarMass
 
         End Sub
+
+        ''' <summary>
+        ''' Returns a compound ID that no compound in <paramref name="existing"/> uses: negative and one below the
+        ''' lowest, the numbering generated pseudo-components get. Property packages cache constant properties
+        ''' by ID, so a cut or a copolymer cloned from a polymer must not keep the polymer's ID, or the property
+        ''' package returns the first registered compound's data for all of them.
+        ''' </summary>
+        Public Shared Function NewCompoundID(existing As IEnumerable(Of Interfaces.ICompoundConstantProperties)) As Integer
+            Dim minId As Integer = 0
+            For Each c In existing
+                If c.ID < minId Then minId = c.ID
+            Next
+            Return minId - 1
+        End Function
 
         ''' <summary>
         ''' Multiplies a numbered temperature-dependent correlation (the equation numbers of CalcCSTDepProp) by

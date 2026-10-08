@@ -240,7 +240,12 @@ public class PolymerCharacterizationWindow : Window
             if (n == 0) { _status.Text = "Add a PC-SAFT property package to the flowsheet first, then build the copolymer."; return; }
 
             if (!_flowsheet.AvailableCompounds.ContainsKey(name)) _flowsheet.AvailableCompounds.Add(name, cp);
-            if (!_flowsheet.SelectedCompounds.ContainsKey(name)) _flowsheet.SelectedCompounds.Add(name, _flowsheet.AvailableCompounds[name]);
+            if (!_flowsheet.SelectedCompounds.ContainsKey(name))
+            {
+                var sel = _flowsheet.AvailableCompounds[name];
+                sel.ID = DWSIM.Thermodynamics.Polymers.PolymerCharacterization.NewCompoundID(_flowsheet.SelectedCompounds.Values);
+                _flowsheet.SelectedCompounds.Add(name, sel);
+            }
             foreach (MaterialStream obj in _flowsheet.SimulationObjects.Values
                          .Where(x => x.GraphicObject != null && x.GraphicObject.ObjectType == ObjectType.MaterialStream))
                 foreach (var phase in obj.Phases.Values)
@@ -267,7 +272,11 @@ public class PolymerCharacterizationWindow : Window
                 if (!_flowsheet.AvailableCompounds.ContainsKey(cp.Name))
                     _flowsheet.AvailableCompounds.Add(cp.Name, cp);
                 if (!_flowsheet.SelectedCompounds.ContainsKey(cp.Name))
-                    _flowsheet.SelectedCompounds.Add(cp.Name, _flowsheet.AvailableCompounds[cp.Name]);
+                {
+                    var sel = _flowsheet.AvailableCompounds[cp.Name];
+                    sel.ID = DWSIM.Thermodynamics.Polymers.PolymerCharacterization.NewCompoundID(_flowsheet.SelectedCompounds.Values);
+                    _flowsheet.SelectedCompounds.Add(cp.Name, sel);
+                }
 
                 foreach (MaterialStream obj in _flowsheet.SimulationObjects.Values
                              .Where(x => x.GraphicObject != null && x.GraphicObject.ObjectType == ObjectType.MaterialStream))

@@ -99,6 +99,14 @@ Namespace CompoundEditing
         ''' current culture second, so both decimal separators are accepted.
         ''' </summary>
         Public Sub SetValue(cp As ICompoundConstantProperties, value As Object)
+            ' a polymer's molar mass is its chain length: the per-kmol heat capacities scale with it
+            If Key = "Molar_Weight" AndAlso Polymers.PolymerCharacterization.IsPolymerPseudoCompound(cp) Then
+                Dim mw = ParseDouble(value)
+                If mw.HasValue AndAlso mw.Value > 0.0 Then
+                    Polymers.PolymerCharacterization.SetMolarMass(cp, mw.Value)
+                    Return
+                End If
+            End If
             Select Case Kind
                 Case CompoundPropertyKind.Double
                     _info.SetValue(cp, ParseDouble(value).GetValueOrDefault())
