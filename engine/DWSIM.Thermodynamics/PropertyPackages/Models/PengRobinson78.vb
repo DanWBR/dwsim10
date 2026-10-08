@@ -1467,48 +1467,9 @@ Namespace PropertyPackages.ThermoPlugs
             coeff(2) = BG - 1
             coeff(3) = 1
 
-            Dim temp1 = Poly_Roots(coeff)
-            Dim tv = 0.0#
-            Dim ZV, tv2 As Double
-
-            Dim result As New List(Of Double)
-
-            If temp1(0, 0) > temp1(1, 0) Then
-                tv = temp1(1, 0)
-                temp1(1, 0) = temp1(0, 0)
-                temp1(0, 0) = tv
-                tv2 = temp1(1, 1)
-                temp1(1, 1) = temp1(0, 1)
-                temp1(0, 1) = tv2
-            End If
-            If temp1(0, 0) > temp1(2, 0) Then
-                tv = temp1(2, 0)
-                temp1(2, 0) = temp1(0, 0)
-                temp1(0, 0) = tv
-                tv2 = temp1(2, 1)
-                temp1(2, 1) = temp1(0, 1)
-                temp1(0, 1) = tv2
-            End If
-            If temp1(1, 0) > temp1(2, 0) Then
-                tv = temp1(2, 0)
-                temp1(2, 0) = temp1(1, 0)
-                temp1(1, 0) = tv
-                tv2 = temp1(2, 1)
-                temp1(2, 1) = temp1(1, 1)
-                temp1(1, 1) = tv2
-            End If
-
-            ZV = temp1(2, 0)
-            If temp1(2, 1) <> 0 Then
-                ZV = temp1(1, 0)
-                If temp1(1, 1) <> 0 Then
-                    ZV = temp1(0, 0)
-                End If
-            End If
-
-            If temp1(0, 1) = 0.0# And temp1(0, 0) > 0.0# Then result.Add(temp1(0, 0))
-            If temp1(1, 1) = 0.0# And temp1(1, 0) > 0.0# Then result.Add(temp1(1, 0))
-            If temp1(2, 1) = 0.0# And temp1(2, 0) > 0.0# Then result.Add(temp1(2, 0))
+            'the real roots above the covolume, as the PR model takes them: a root at or below B is no
+            'phase (ln(Z - B) is undefined), and taking it as the liquid root gave NaN fugacity coefficients
+            Dim result = ValidZRoots(coeff, BG)
 
             IObj?.Paragraphs.Add(String.Format("Found {0} roots for the cubic equation.", result.Count))
             For Each item In result
@@ -1536,48 +1497,9 @@ Namespace PropertyPackages.ThermoPlugs
             coeff(2) = BG - 1
             coeff(3) = 1
 
-            Dim temp1 = Poly_Roots(coeff)
-            Dim tv = 0.0#
-            Dim ZV, tv2 As Double
-
-            Dim result As New List(Of Double)
-
-            If temp1(0, 0) > temp1(1, 0) Then
-                tv = temp1(1, 0)
-                temp1(1, 0) = temp1(0, 0)
-                temp1(0, 0) = tv
-                tv2 = temp1(1, 1)
-                temp1(1, 1) = temp1(0, 1)
-                temp1(0, 1) = tv2
-            End If
-            If temp1(0, 0) > temp1(2, 0) Then
-                tv = temp1(2, 0)
-                temp1(2, 0) = temp1(0, 0)
-                temp1(0, 0) = tv
-                tv2 = temp1(2, 1)
-                temp1(2, 1) = temp1(0, 1)
-                temp1(0, 1) = tv2
-            End If
-            If temp1(1, 0) > temp1(2, 0) Then
-                tv = temp1(2, 0)
-                temp1(2, 0) = temp1(1, 0)
-                temp1(1, 0) = tv
-                tv2 = temp1(2, 1)
-                temp1(2, 1) = temp1(1, 1)
-                temp1(1, 1) = tv2
-            End If
-
-            ZV = temp1(2, 0)
-            If temp1(2, 1) <> 0 Then
-                ZV = temp1(1, 0)
-                If temp1(1, 1) <> 0 Then
-                    ZV = temp1(0, 0)
-                End If
-            End If
-
-            If temp1(0, 1) = 0.0# And temp1(0, 0) > 0.0# Then result.Add(temp1(0, 0))
-            If temp1(1, 1) = 0.0# And temp1(1, 0) > 0.0# Then result.Add(temp1(1, 0))
-            If temp1(2, 1) = 0.0# And temp1(2, 0) > 0.0# Then result.Add(temp1(2, 0))
+            'the real roots above the covolume, as the PR model takes them: a root at or below B is no
+            'phase (ln(Z - B) is undefined), and taking it as the liquid root gave NaN fugacity coefficients
+            Dim result = ValidZRoots(coeff, BG)
 
             If result.Count = 0 Then
                 Throw New Exception("PR78 EOS: unable to calculate the compressibility factor at these conditions" &
