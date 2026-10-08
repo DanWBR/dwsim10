@@ -179,6 +179,10 @@ namespace DWSIM.UI.Desktop.Editors
             AddPropertyPackageRow(column, panel);
 
             var solvers = SolverNames(column);
+            // an absorber saved with the column default (Wang-Henke, which runs Naphtali-Sandholm) moves to sum
+            // rates, as the Windows form does, so the list shows the solver that runs
+            if (column is AbsorptionColumn && column.SolvingMethodName == "Wang-Henke (Bubble Point)")
+                column.SolvingMethodName = "Burningham-Otto (Sum Rates)";
             panel.CreateAndAddDropDownRow("Steady-State Column Solver", solvers,
                 Math.Max(0, solvers.IndexOf(column.SolvingMethodName ?? "")), (dd, e) =>
                 {

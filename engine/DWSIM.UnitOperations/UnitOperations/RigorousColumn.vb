@@ -1089,6 +1089,9 @@ Namespace UnitOperations
         Public Sub New(ByVal name As String, ByVal description As String, fs As IFlowsheet)
             MyBase.New(name, description, fs)
             Me.ColumnType = ColType.AbsorptionColumn
+            ' an absorber solves with sum rates or Naphtali-Sandholm; a new one starts on sum rates, the solver its
+            ' editors show first (a file keeps the solver it was saved with)
+            Me.SolvingMethodName = "Burningham-Otto (Sum Rates)"
             MyBase.AddStages()
             For k2 = 0 To Me.Stages.Count - 1
                 Me.Stages(k2).P = 101325
