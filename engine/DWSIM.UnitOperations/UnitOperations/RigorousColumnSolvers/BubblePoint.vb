@@ -506,7 +506,21 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
 
             ElseIf Not specR_OK Then
 
+                ' The outer loop searches the bottoms rate. A bottoms rate at or above what the feeds
+                ' leave after the side draws means no top product at all, where a boil-up ratio or a
+                ' bottoms composition has no root and the inner solve can only fail, slowly; every rate
+                ' the search tries is therefore kept strictly inside (0, bmax). Estimates that put the
+                ' feed's liquid on every stage hand the search the whole feed as its start: begin
+                ' from half of it instead.
+                Dim bmax As Double = F.Sum
+                For j = 1 To ns - 1
+                    bmax -= LSS(j) + VSS(j)
+                Next
+                Dim blo As Double = 0.001 * bmax
+                Dim bhi As Double = 0.999 * bmax
+
                 Dim bottomsrate As Double = L.Last
+                If Not (bottomsrate > blo AndAlso bottomsrate < bhi) Then bottomsrate = 0.5 * bmax
 
                 Dim newspecs As New Dictionary(Of String, ColumnSpec)
                 Dim rspec As New ColumnSpec()
@@ -531,7 +545,7 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                 Kval = result(7)
                 Q = result(8)
 
-                bottomsrate = L.Last
+                bottomsrate = Math.Min(Math.Max(L.Last, blo), bhi)
 
                 Dim counter As Integer = 0
                 Dim errfunc As Double = 1.0E+20
@@ -539,11 +553,14 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                 Dim freb As Func(Of Double, Integer, Double) =
                 Function(xvar, mode)
 
-                    rspec.SpecValue = xvar
+                    rspec.SpecValue = Math.Min(Math.Max(xvar, blo), bhi)
 
-                    result = Solve_Internal(rc, nc, ns, maxits, tolerance, F, V, Q, L, VSS, LSS, Kval,
+                    ' with the same temperature-step fallbacks as the column's own first solve (and as
+                    ' the condenser's outer loop above): a column that needs a smaller step needs it at
+                    ' every bottoms rate the search tries, not only at the first
+                    result = SolveWithFallbacks(rc, nc, ns, maxits, tolerance, F, V, Q, L, VSS, LSS, Kval,
                                                 x, y, z, fc, HF, T, P, condt, stopatitnumber, eff,
-                                                coltype, pp, newspecs, IdealK, IdealH, 0, flashalgs)
+                                                coltype, pp, newspecs, IdealK, IdealH, flashalgs)
 
                     errfunc = 0.0
 
@@ -654,61 +671,15 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
 
                 End Function
 
-                Dim success As Boolean = False
-
                 counter = 0
                 errfunc = 1.0E+20
 
                 ObjFunctionValues.Clear()
                 ResultsVector.Clear()
 
-                Try
-                    MathNet.Numerics.RootFinding.Broyden.FindRoot(Function(xvars)
-                                                                      If xvars(0) > F.Sum Then
-                                                                          xvars(0) = 0.99 * F.Sum
-                                                                      End If
-                                                                      Return New Double() {freb.Invoke(xvars(0), 0)}
-                                                                  End Function, New Double() {bottomsrate}, tolerance, maxits)
-                    success = True
-                Catch ex As Exception
-                    success = False
-                End Try
-
-                If Not success Then
-
-                    counter = 0
-                    errfunc = 1.0E+20
-
-                    ObjFunctionValues.Clear()
-                    ResultsVector.Clear()
-
-                    Try
-                        Dim br As New DWSIM.MathOps.MathEx.BrentOpt.Brent()
-                        br.BrentOpt2(bottomsrate * 0.1, F.Sum, 30, tolerance, maxits, Function(xvar)
-                                                                                          Return freb.Invoke(xvar, 1)
-                                                                                      End Function)
-                        success = True
-                    Catch ex As Exception
-                        success = False
-                    End Try
-
-                End If
-
-                If Not success Then
-
-                    counter = 0
-                    errfunc = 1.0E+20
-
-                    ObjFunctionValues.Clear()
-                    ResultsVector.Clear()
-
-                    MathNet.Numerics.RootFinding.Brent.FindRootExpand(Function(xvar)
-                                                                          Return freb.Invoke(xvar, 0)
-                                                                      End Function,
-                                                                          bottomsrate * 0.5,
-                                                                          bottomsrate * 1.02, tolerance, maxits)
-
-                End If
+                SearchBottomsRate(Function(xvar)
+                                      Return freb.Invoke(xvar, 1)
+                                  End Function, bottomsrate, blo, bhi, tolerance, maxits)
 
                 If Double.IsNaN(errfunc) Or Math.Abs(errfunc) > tolerance Then Throw New Exception(pp.Flowsheet?.GetTranslatedString("DCGeneralError"))
 
@@ -724,6 +695,102 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                                           stopatitnumber, eff, coltype, pp, specs, IdealK, IdealH, flashalgs)
 
             End If
+
+        End Function
+
+        ''' <summary>
+        ''' The root of a reboiler specification's residual f in the bottoms rate, inside (blo, bhi).
+        ''' Every evaluation is a full column solve, warm-started from the last one, and the solves
+        ''' that cost most are those near the ends of the interval, where the top product or the
+        ''' bottoms vanishes and the inner solve either cannot converge or fails slowly. So the ends
+        ''' are never evaluated: from the start the search walks towards the root by secant steps,
+        ''' each held to half the remaining distance to the end it is heading for, until the residual
+        ''' changes sign, and then closes the bracket by regula falsi (Illinois). An inner solve that
+        ''' fails marks the point as beyond reach: that end of the interval is moved to it and the
+        ''' search retries half way back. Throws when the residual has no root in reach.
+        ''' </summary>
+        Private Shared Function SearchBottomsRate(f As Func(Of Double, Double), b0 As Double,
+                                                  blo As Double, bhi As Double,
+                                                  tol As Double, maxits As Integer) As Double
+
+            Dim lo As Double = blo, hi As Double = bhi
+            Dim evals As Integer = 0, fails As Integer = 0
+
+            Dim fsafe As Func(Of Double, Double) = Function(b)
+                                                       evals += 1
+                                                       Try
+                                                           Return f(b)
+                                                       Catch ex As Exception
+                                                           fails += 1
+                                                           Return Double.NaN
+                                                       End Try
+                                                   End Function
+
+            Dim xa As Double = b0
+            Dim fa As Double = fsafe(xa)
+            If Double.IsNaN(fa) Then Throw New Exception("the column did not converge at the starting bottoms rate")
+            If Math.Abs(fa) <= tol Then Return xa
+
+            ' a second point a tenth of the way to the upper end (or the lower, if that one fails)
+            Dim xb As Double = xa + 0.1 * (hi - xa)
+            Dim fb As Double = fsafe(xb)
+            If Double.IsNaN(fb) Then
+                hi = xb
+                xb = xa - 0.1 * (xa - lo)
+                fb = fsafe(xb)
+                If Double.IsNaN(fb) Then Throw New Exception("the column did not converge either side of the starting bottoms rate")
+            End If
+
+            ' walk until the residual changes sign; xb is always the better of the two points
+            Do While Math.Sign(fa) = Math.Sign(fb)
+                If Math.Abs(fb) <= tol Then Return xb
+                If Math.Abs(fb) > Math.Abs(fa) Then
+                    Dim xt = xa, ft = fa
+                    xa = xb : fa = fb
+                    xb = xt : fb = ft
+                End If
+                If evals > maxits OrElse fails > 8 Then Throw New Exception("no bottoms rate in reach meets the reboiler specification")
+                Dim dir As Integer = Math.Sign(xb - xa)
+                Dim xend As Double = If(dir > 0, hi, lo)
+                Dim xmax As Double = xb + 0.5 * (xend - xb)
+                Dim xn As Double = xmax
+                If fb <> fa Then
+                    Dim xs As Double = xb - fb * (xb - xa) / (fb - fa)
+                    If (xs - xb) * dir > 0 AndAlso (xs - xmax) * dir < 0 Then xn = xs
+                End If
+                If Math.Abs(xn - xb) < 0.000000001 * (bhi - blo) Then Throw New Exception("no bottoms rate in reach meets the reboiler specification")
+                Dim fn As Double = fsafe(xn)
+                If Double.IsNaN(fn) Then
+                    If dir > 0 Then hi = xn Else lo = xn
+                Else
+                    xa = xb : fa = fb
+                    xb = xn : fb = fn
+                End If
+            Loop
+
+            ' bracketed: regula falsi with the Illinois correction
+            Dim side As Integer = 0
+            Do
+                If evals > maxits OrElse fails > 8 Then Throw New Exception("the bottoms rate search did not converge")
+                Dim xn As Double = xb - fb * (xb - xa) / (fb - fa)
+                If Double.IsNaN(xn) OrElse Double.IsInfinity(xn) Then xn = 0.5 * (xa + xb)
+                Dim fn As Double = fsafe(xn)
+                If Double.IsNaN(fn) Then
+                    xn = 0.5 * (xa + xb)
+                    fn = fsafe(xn)
+                    If Double.IsNaN(fn) Then Throw New Exception("the column did not converge inside the bracket on the bottoms rate")
+                End If
+                If Math.Abs(fn) <= tol Then Return xn
+                If Math.Sign(fn) = Math.Sign(fb) Then
+                    fa *= If(side = -1, 0.5, 1.0)
+                    side = -1
+                Else
+                    xa = xb : fa = fb
+                    side = 1
+                End If
+                xb = xn : fb = fn
+                If Math.Abs(xb - xa) < 0.000000000001 * (bhi - blo) Then Return xb
+            Loop
 
         End Function
 
