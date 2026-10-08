@@ -1,6 +1,6 @@
 ==================================================
 DWSIM - Open Source Process Simulator
-Version 10.2.10
+Version 10.2.11
 Copyright (c) 2017-2026 Daniel Wagner and contributors
 Copyright (c) 2008-2016 Daniel Wagner, Gregor Reichert, Gustavo Leon
 ==================================================
@@ -38,6 +38,151 @@ VERSION HISTORY / CHANGELOG
 ==================================================
 
 The full changelog including souce code changes can be viewed at https://github.com/DanWBR/dwsim10/commits/windows
+
+Version 10.2.11
+
+- [NEW] PC-SAFT: temperature-dependent binary interaction parameters (slope kij_T from their value at 298.15 K), entered in both editors and saved with the flowsheet
+- [NEW] Electrolyte NRTL and Extended UNIQUAC: salts, hydrates and double salts precipitate and redissolve, with solubility reactions built from the electrolyte database; Extended UNIQUAC accepts salts in the compound list
+- [NEW] Electrolyte database: bischofite, MgCl2.4H2O, epsomite, hexahydrite, kieserite, carnallite, glauberite, polyhalite, bloedite and kainite, from the Harvie-Moller-Weare solubility products
+- [NEW] Electrolyte NRTL: excess enthalpy and entropy of the solution; the dielectric constant and density of water follow the temperature
+- [NEW] Electrolyte packages: nitrogen, oxygen, argon, methane, ethane, hydrogen, helium, carbon monoxide and nitrous oxide dissolve by Henry's law (Sander 2015)
+- [NEW] Electrolyte packages: calculation options and custom parameters saved with the flowsheet and shown in a Calculation Options section of the editors
+- [NEW] Relief valve: steady-state API 520 rating and sizing (with the API 526 letter) for gas, liquid with viscosity correction and two-phase flow by the omega method
+- [NEW] Spreadsheet unit operation calculates .xlsx and .xlsm files with a built-in engine, without Excel
+- [NEW] Recycle: mass flow tolerance relative to the recycled flow
+- [NEW] Orifice plate: Chisholm two-phase multiplier with slip
+- [NEW] CSTR: "Mixture Reactions Use Headspace" chooses whether mixture-phase reactions in a single-outlet reactor use the liquid volume alone or the volume plus headspace
+- [NEW] MPC controller: Dynamic Matrix Control from first-order or integrating step-response models, with measured disturbances as feedforward
+- [NEW] PID controller: series form, setpoint weight on the derivative, lead time on the feedforward and manipulated variable span
+- [NEW] Pipe Network: Arrange Diagram (Orthogonal, Minimum Area) draws the network with straight runs and the smallest area
+- [NEW] Reverse osmosis and precipitation reactor: pump power and duty through energy streams
+- [NEW] Advanced heat exchanger: pressure drop limits; Design mode adds tubes or drops passes until the tube-side pressure drop fits, the other modes warn when a limit is exceeded
+- [NEW] Bioprocess: pretreatment severity model, Sigma theory for the disc-stack and bowl centrifuge, chromatography chemistry defaults, crystallizer vapour outlet, reduced CRECK pyrolysis kinetics in the CFB pyrolyzer, and target purity, nitrogen removal and Wobbe index in the biogas upgrader
+- [NEW] FluentAPI: builders for Adjust, Spec, Information Carrier, Python and MPC controllers, component and solids separators, filter, shortcut column and tank
+- [NEW] Classic interface: Orthogonal Layout and Orthogonal Layout (Wrapped Rows) in the flowsheet context menu
+- [NEW] API reference website for 87 simulation objects, DWSIM Plus included, each with an example that runs on every build, its output, ports, property IDs, units and calculation modes
+- [CHG] NRTL, UNIQUAC, UNIFAC, Modified UNIFAC and Sour Water: new packages compute the liquid enthalpy from the experimental liquid heat capacity
+- [CHG] Lee-Kesler-Plocker data regression: default bounds 0.5 to 4, so hydrogen and light gas pairs with heavy hydrocarbons can be reached
+- [CHG] A temperature and pressure flash whose phases do not add up to the feed raises an error in the stream calculation
+- [CHG] PC-SAFT property and flash calculations run 13 to 18 times faster with identical results
+- [CHG] Electrolyte brine flashes are faster: the seawater heater case solves in 22 to 29 s (72 to 118 s before)
+- [CHG] HCl Pitzer: a dew point at 1 atm takes 0.32 ms (409 ms before) and a vapour fraction specification 0.85 ms (9 ms)
+- [CHG] Sour Water: compounds are found by name, in any order and any subset
+- [CHG] Pipe Network block: 30 inlets and 30 outlets; files saved with fewer gain the missing ports and keep their connections
+- [CHG] Reaktoro Gibbs reactor: new reactors use supcrtbl, and the Reaktoro runtime is updated
+- [CHG] Property names: Adjust, Spec, PID and Python controller properties, 36 heat exchanger properties and the energy splitter split ratios show readable names in property lists
+- [CHG] Neutralization, precipitation, ion exchange and reverse osmosis: results listed as read-only properties; bed volume, design flow and membrane area follow the unit system
+- [CHG] FluentAPI: the list of writable properties follows the active calculation mode, and setting a property applies the calculation mode first
+- [CHG] Python scripting inside a pythonnet process reuses the host Python runtime
+- [CHG] Classic interface: Sensitivity Analysis, Optimizer, Adjust and Spec mark dynamics-only properties with "(dynamics only)"
+- [CHG] Electrolyte NRTL editor (cross-platform) notes the fitted molality range and the magnesium-rich brine limit
+- [CHG] Offline help rebuilt from the current User Guide, with the chemical formulas of running text and the broken cross references restored
+- [CHG] User Guide refreshed with this release's property package work
+- [FIX] Compound element counts: ion charges, hydrates, double salts and parenthesized groups are read correctly (99 database compounds had wrong counts); counts are recomputed on load and Gibbs reactor element matrices rebuilt
+- [FIX] Petroleum characterization: the Riazi C/H ratio uses SG^-6.798, as published
+- [FIX] Lee-Kesler-Plocker: hydrogen rows of the interaction table had lost their decimal points and pairs listed in the other order read as zero; hydrogen in n-hexane at 344 K and 3.36 MPa is 0.0253 mole fraction (0.0286 measured, 0.0044 before)
+- [FIX] Lee-Kesler-Plocker: pairs missing from the interaction table get an estimate from the critical constants (they took 1, so light gases hardly dissolved in heavy hydrocarbons); average deviation over 180 points 23.8 % (89.5 % before)
+- [FIX] Lee-Kesler-Plocker: the classic Windows build carries the corrected interaction table
+- [FIX] Lee-Kesler-Plocker parameter editor shows the estimated values and leaves them as they are (it wrote 1 for every pair missing from the table)
+- [FIX] Chao-Seader and Grayson-Streed: solubility parameters read in the model's units, so the liquid activity coefficients depart from 1; hydrogen in n-hexane at 344 K and 3.36 MPa is 0.032 mole fraction (0.0286 measured, 0.065 before)
+- [FIX] Steam Tables: the single-phase heat capacity asked by CAPE-OPEN hosts and scripts used the pressure in the wrong unit (steam at 150 C and 1 bar returned 4.31 kJ/kg/K), and bubble and dew pressures came back in bar
+- [FIX] Peng-Robinson 1978: only valid roots are kept, so dew points of nitrogen with heavy hydrocarbons meet their condition (157.9 C for nitrogen with 2 % n-hexadecane at 1 atm, 158.6 C before)
+- [FIX] PRSV2-VL and PRSV2-M: binary pairs are read from either side, with kij and kji swapped, and survive copying, saving and reloading (issue 93)
+- [FIX] PRSV2-VL: the roots of the cubic were rounded to whole numbers while being sorted, giving invalid fugacities and repeated saturation retries (issue 93)
+- [FIX] PR78 and SRK Advanced: temperature-dependent kij evaluated at the temperature and pressure of each calculation, and the temperature derivatives include dkij/dT
+- [FIX] PR78, SRK Advanced, Seawater, PC-SAFT and CAPE-OPEN property packages: calculations running in parallel keep their own conditions
+- [FIX] CAPE-OPEN 1.1 property packages: each request is answered at its own temperature, pressure and composition, and the stream is left as it was
+- [FIX] PC-SAFT: the association volume and energy of each compound are saved with the flowsheet and shown in both editors
+- [FIX] PC-SAFT: complete association term for two or more associating compounds, only donor and acceptor sites pair up, the density takes the stable root, a single associating compound no longer crashes, and the water-alcohol parameters are refitted
+- [FIX] Temperature and pressure flashes with a nearly non-volatile compound, such as an ionic liquid, reach equilibrium (11 failures in a test grid, 530 before)
+- [FIX] Single-compound enthalpy and entropy flashes find a pure liquid far below its boiling point (a pure ionic liquid stream ran away to 765 C)
+- [FIX] Glycol package: the water-glycol NRTL parameters were applied swapped; MEG, DEG and TEG parameters regressed to NIST ThermoML data (99 wt% TEG boils at 207.6 C at 1 atm)
+- [FIX] Glycol package: new packages take the liquid density from the compound data (MEG at 25 C 1110 kg/m3, 1108 measured, 1057 before)
+- [FIX] ThermoPack finds its Python package in the property package folder or in extenders/ThermoPack of the classic installation
+- [FIX] Compound editor and polymer characterization tools: a new polymer molecular weight scales the heat capacity, so the heat capacity per kg stays the same (PEG set to 10000 g/mol reached 10.5 kJ/kg/K)
+- [FIX] Electrolyte brines above 15 mol/kg: all the salt fed is accounted for as ions or solids (a seawater heater kept 7 % of it) and the heater energy balance closes
+- [FIX] Near-dry electrolyte brines boil at their own concentration (seawater heater at 2500 kW: 391.2 K, 381.1 K before)
+- [FIX] Magnesium-rich brines keep concentrating past a water activity of 0.747, and the vapour fraction flash is monotonic
+- [FIX] Electrolyte solver: every converged result is consistent with the composition it returns; one that cannot be made consistent is reported as not converged
+- [FIX] Electrolyte NRTL and Extended UNIQUAC: the flash fugacity coefficients use the electrolyte parameters of the speciation, on the molality scale for dissolved species
+- [FIX] Electrolyte NRTL: long-range term of the water activity corrected; NaCl, NaOH, HCl, Na2SO4, CaCl2 and MgCl2 parameters refitted to standard data
+- [FIX] Electrolyte NRTL with several salts: Chen and Evans mixing rule with the parameters of each salt and the NaCl-CaCl2, NaCl-Na2SO4 and NaCl-MgCl2 pairs fitted to Harvie-Moller-Weare
+- [FIX] Electrolyte packages: a stream without water flashes as vapour, and permanent gases follow Henry's law (nitrogen dissolved at about 90 times its real solubility)
+- [FIX] Electrolyte liquid density: molecular solutes add their liquid volume and 54 ions carry literature volumes (50 % methanol was 1995 kg/m3, now 884)
+- [FIX] Electrolyte flashes above the dew point return vapour plus solid salt, matching the enthalpy and entropy flashes, and the entropy flash converges
+- [FIX] Solid salts take their enthalpy and entropy from their heat capacity on the dissolved-ion reference
+- [FIX] Feeds that are not electroneutral: the hydroxide ion that closes the charge balance takes its water from the liquid, and a warning gives the charge excess
+- [FIX] Electrolyte custom parameters and model constants are saved with the flowsheet
+- [FIX] HCl Pitzer: Henry constant of HCl from NBS 1982, so HCl reaches the vapour and the acid has its azeotrope (18.9 wt% and 107.75 C at 1 atm, 20.22 wt% and 108.58 C measured)
+- [FIX] HCl Pitzer: liquid density within 0.06 % of Perry from 1 to 30 wt% (6 mol/kg at 25 C was 1066 kg/m3 against 1088)
+- [FIX] HCl Pitzer: the heat of solution follows NBS (dissolved HCl carried -9.22 kJ/mol at every molality); an adiabatic mixer of HCl gas and water to 3 mol/kg reaches 79.1 C (30.9 C before)
+- [FIX] HCl Pitzer: the package has its own vapour-liquid flash with a real two-phase region; the dew point lies above the bubble point and 40 to 90 wt% acid flashes converge
+- [FIX] HCl Pitzer: absorber and heater energy balances close, and the heater temperature rises smoothly with the duty (26.7 wt% acid stayed at 99.98 C for any duty)
+- [FIX] Sour Water: bubble and dew points of stripper feeds (bubble temperature at 1 atm 72.2 C, -113 C before)
+- [FIX] Sour Water: equilibrium constants from NBS 1982 and Goldberg 2002 (wrong dissociation enthalpy signs, NH3 constant 17 times too steep); K-values agree with Electrolyte NRTL and Extended UNIQUAC
+- [FIX] Sour Water: new packages take the liquid density from experimental data (water at 25 C 996.4 kg/m3, 1006.5 before)
+- [FIX] Electrolyte NRTL and Extended UNIQUAC: viscosity and thermal conductivity start from the water value with ion corrections (1 mol/kg NaCl had a viscosity below pure water)
+- [FIX] Electrolyte freezing point: the depression has the right sign (1 mol/kg NaCl froze at +3.66 C, now -3.48 C), and the osmotic coefficient comes from the water fugacity
+- [FIX] Hydronium counts as the hydrogen ion for the pH (reported 0.0) and in the Extended UNIQUAC speciation
+- [FIX] Extended UNIQUAC above 7.5 mol/kg: activity coefficients and water activity follow the concentration (KOH solutions boiled at 111.5 C at any concentration beyond 7.7 mol/kg)
+- [FIX] Electrolyte packages: dissolved gases taken by Henry's law report an activity coefficient of 1
+- [FIX] Electrolyte phase diagram tool: NaCl mean activity coefficient at 25 C and 6 mol/kg is 0.954 (0.784 before, 0.986 Robinson and Stokes)
+- [FIX] Pump in Power and Energy Stream modes: the whole shaft power goes into the outlet enthalpy
+- [FIX] Orifice plate: beta follows the orifice and pipe diameters
+- [FIX] Information Carrier copies its value, and the solver iterates Energy Recycle loops to convergence
+- [FIX] Full solves run each Spec and Information Carrier at the moment its own calculation mode says
+- [FIX] Hydroelectric turbine: power from the head with standard gravity (it came from the water enthalpy)
+- [FIX] PEM fuel cell: cathode pressure from the cathode inlet, inerts kept, and no Python required
+- [FIX] Water electrolyzer waste heat leaves out the vaporization of the water leaving with the hydrogen; wind turbine converts user weather inputs to SI
+- [FIX] Filter in Simulation mode inverts the design equation with the right sign
+- [FIX] CAPE-OPEN unit operations: outlet enthalpy, energy ports and array parameters
+- [FIX] A saved energy link to a switched-off energy connector is left unconnected with a warning, and the rest of the flowsheet loads
+- [FIX] Saved files store numbers exactly, whatever the regional number format
+- [FIX] Energy streams attach to the energy connector of bioprocess and Plus unit operations that take their duty there (bioreactor, anaerobic digester)
+- [FIX] Flowsheet unit operation: the flow written to a child inlet becomes the specification of that stream
+- [FIX] Dynamic compressor uses the polytropic efficiency on the polytropic path; a single-outlet splitter honours mole and volume flow specs; Ambient UA Product of heaters, coolers and tanks in W/K; heat exchanger, filter and pipe property values read right
+- [FIX] Absorption and Distillation Columns: top and bottom pressures set by Sensitivity Analysis, Adjust or scripts move the whole pressure profile
+- [FIX] Absorption Column: writing a stage efficiency no longer changes the number of stages
+- [FIX] Shortcut column report shows the reboiler pressure and labels V as vapour
+- [FIX] Absorption Column: a new column starts on Burningham-Otto (Sum Rates), and the cross-platform editor shows the solver that runs (issue 94)
+- [FIX] CSTR: catalytic extents scale with the catalyst amount, the reaction heat sums all reactions, and vapour-only feeds react
+- [FIX] PFR: extents and rates in mol/s, and the reaction heat scaled by the base compound coefficient
+- [FIX] Polymerization reactor: the number-average molecular weight came out twice the expected value
+- [FIX] Polymerization reactor: the polymer heat capacity per kg stays at the database value whatever the Mn, also for polymer cuts (polystyrene reached 6.41 kJ/kg/K)
+- [FIX] Polymerization reactor: the polymer formed carries the reacted monomer and the consumed initiator, feed polymer keeps its mass, and the product monomer matches the reported conversion
+- [FIX] Polymer cuts and copolymers get their own identification number
+- [FIX] Tutorial 16 sample: the feed is 1 kg/s of monomer solution without polymer, as the tutorial describes
+- [FIX] PID controller integrates over its own calculation interval
+- [FIX] PID controller: derivative on the process variable has the right sign, a zero gain gives a finite output, and the feedforward acts on the deviation of the disturbance from its first reading
+- [FIX] MPC controller: variables and step-response models are saved with the flowsheet
+- [FIX] Claus, alkylation, FCC, hydrocracker, coker, reformer, isomerization, reverse osmosis and neutralization duties reported in kW (they were W); coker, reformer and isomerization heater duty from the energy balance
+- [FIX] Copper bed mercury adsorber: bed capacity in kg (it was 1000 times too small)
+- [FIX] Ion exchange: cation and anion resins exchange their own ions, selectivities match by formula, and magnesium counts in the hardness
+- [FIX] Neutralization reactor: H3O+ or H+ reacts with OH-, with the heat of neutralization from the formation enthalpies
+- [FIX] Fired heater closes its energy balance, with the flue gas enthalpy from 25 C and the air and fuel sensible heat counted
+- [FIX] Zeolite adsorber loads its preset without the editor, and pressure swing desorbs at the adsorption temperature
+- [FIX] Ten Plus unit operations, the electrolyte units and the vapour compression chiller keep their data through save, load and copy
+- [FIX] Blender: RON, MON, RVP, olefins and aromatics listed as ordinary stream properties
+- [FIX] Falling film evaporator step pressure in vapour fraction mode, precipitation sludge temperature, air cooler tube roughness unit, and Thermo Property Editor binary parameters reaching the cubic packages
+- [FIX] Energy splitter: flow specifications follow the heat flow unit
+- [FIX] Bioprocess outlets holding a single compound keep their temperature
+- [FIX] Anaerobic digester biogas: dry mole fractions applied to the dry flow, and the normal volume counts the headspace pressure
+- [FIX] Bioreactor in Continuous mode solves the steady-state CSTR and reports washout
+- [FIX] Pretreatment acetic acid comes from the acetyl groups; the CFB pyrolyzer closes its mass balance and takes its duty from the riser energy balance
+- [FIX] Bioreactor and anaerobic digester write the heat removed to the energy stream, as a cooler does
+- [FIX] Chromatography editor shows the recovery the calculation uses and its source; a chemistry change replaces the old defaults; warning when the breakthrough curve uses a nominal feed concentration
+- [FIX] FluentAPI: each compound gets its own identifier (pseudocomponents shared one identifier and one set of cached properties)
+- [FIX] FluentAPI: compound flows set by mass and by moles on the same stream are both kept
+- [FIX] Aqueous Electrolytes (Reaktoro) package available in scripts and in the cross-platform interface
+- [FIX] Scripts: positive displacement pump properties are stored, the pump builder keeps the pump's mode, energy outlets connect to the unit's port, and each builder sets the inputs its unit reads
+- [FIX] AI assistant in the cross-platform interface reaches the open flowsheet (two libraries it needs were missing from the installation)
+- [FIX] Classic interface: a read-only property can be the Spec source
+- [FIX] Classic interface: copying some unit operations failed
+- [FIX] Classic interface: corrupted characters in labels and reports of bioprocess units, the pump, the vessel and the rigorous column
+- [FIX] Cross-platform property pickers of logical blocks, controllers and indicators refill safely and show the property names
+- [FIX] Linux: opening the assistant froze the cross-platform interface on systems without WebKitGTK 4.0; web panels open in the system browser when the embedded view cannot load (issue 92)
+- [FIX] FluentAPI examples (bioprocess train, anaerobic digester, electrolyte reverse osmosis, PEM fuel cell, recycle loop) run as printed
+- [FIX] Pervaporation sample solves on current SciPy versions
 
 Version 10.2.10
 
