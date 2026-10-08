@@ -2797,6 +2797,37 @@ Namespace PropertyPackages
             Return CalculateEquilibrium(calctype, val1, val2, RET_VMOL(Phase.Mixture), Nothing, initialestimate)
         End Function
 
+        ''' <summary>
+        ''' Throws when the phases of a PT flash result do not add up to the feed: such a result is no
+        ''' equilibrium state, and passing it on puts streams with a broken mass balance in the flowsheet.
+        ''' </summary>
+        ''' <remarks>
+        ''' Applies to the packages whose flash returns mole fractions on the feed basis (equations of state,
+        ''' corresponding states, Chao-Seader, activity coefficient and vapour pressure models). The tolerance is
+        ''' far above the convergence error of a flash (1E-5 or less) and far below a broken result.
+        ''' </remarks>
+        Private Sub CheckPTResultBalance(Vz As Double(), result As Object, T As Double, P As Double)
+            If Not (PackageType = PackageType.EOS OrElse PackageType = PackageType.CorrespondingStates OrElse PackageType = PackageType.ChaoSeader OrElse
+                    PackageType = PackageType.ActivityCoefficient OrElse PackageType = PackageType.VaporPressure) Then Exit Sub
+            Dim res As Object() = TryCast(result, Object())
+            If res Is Nothing OrElse res.Length < 9 Then Exit Sub
+            Dim phases = New Integer()() {New Integer() {0, 2}, New Integer() {1, 3}, New Integer() {5, 6}, New Integer() {7, 8}}
+            Dim maxdev As Double = 0.0
+            For i As Integer = 0 To Vz.Length - 1
+                Dim s As Double = 0.0
+                For Each ph In phases
+                    Dim f As Double = Convert.ToDouble(res(ph(0)))
+                    Dim w As Double() = TryCast(res(ph(1)), Double())
+                    If f <> 0.0 AndAlso w IsNot Nothing AndAlso w.Length = Vz.Length Then s += f * w(i)
+                Next
+                maxdev = Math.Max(maxdev, Math.Abs(s - Vz(i)))
+            Next
+            If maxdev > 0.001 OrElse Double.IsNaN(maxdev) Then
+                Throw New Exception(String.Format("{0}: the PT flash at T = {1} K and P = {2} Pa returned phases that do not add up to the feed (largest mole fraction error {3}).",
+                                                  ComponentName, T, P, maxdev.ToString("G3")))
+            End If
+        End Sub
+
         Public Overridable Sub DW_CalcEquilibrium(ByVal spec1 As FlashSpec, ByVal spec2 As FlashSpec)
 
             Dim IObj As Inspector.InspectorItem = Inspector.Host.GetNewInspectorItem()
@@ -2876,6 +2907,8 @@ Namespace PropertyPackages
                             IObj?.Paragraphs.Add("Calling PT Flash calculation routine...")
 
                             result = Me.FlashBase.Flash_PT(RET_VMOL(Phase.Mixture), P, T, Me)
+
+                            CheckPTResultBalance(RET_VMOL(Phase.Mixture), result, T, P)
 
                             xl = result(0)
                             xv = result(1)
