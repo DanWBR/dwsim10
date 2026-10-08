@@ -490,7 +490,7 @@ public class PropertyPackageEditorWindow : Window
             {
                 if (c1 != c2 && !ipl[c1].ContainsKey(c2))
                     if (ipl.ContainsKey(c2) && !ipl[c2].ContainsKey(c1))
-                        ipl[c1].Add(c2, new LKP_IPData());
+                        ipl[c1].Add(c2, new LKP_IPData { kij = DefaultLkpKij(c1, c2) });
             }
         }
 
@@ -501,6 +501,20 @@ public class PropertyPackageEditorWindow : Window
                 var d = ipl[c1][c2];
                 panel.Children.Add(MakeTextBoxRow($"{c1} / {c2}  kij", d.kij, v => d.kij = v));
             }
+    }
+
+    /// <summary>
+    /// kij a pair missing from the LKP table starts with: the package's estimate, or 1 when it has none.
+    /// </summary>
+    private double DefaultLkpKij(string c1, string c2)
+    {
+        var sc = _flowsheet.SelectedCompounds;
+        if (sc.ContainsKey(c1) && sc.ContainsKey(c2))
+        {
+            var k = LKPPropertyPackage.EstimateMissingKij(sc[c1], sc[c2]);
+            if (k > 0.0) return k;
+        }
+        return 1.0;
     }
 
     // --- PRSV2-M ---

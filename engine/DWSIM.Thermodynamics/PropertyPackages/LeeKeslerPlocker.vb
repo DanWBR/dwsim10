@@ -110,19 +110,128 @@ Namespace PropertyPackages
                 i = i + 1
             Next
 
-            Dim ih2 As Integer = HydrogenIndex()
-            If ih2 >= 0 Then
-                Dim vtc = RET_VTC(), vw = RET_VW(), vvc = RET_VVC()
-                For j As Integer = 0 To vtc.Length - 1
-                    If j <> ih2 AndAlso val(ih2, j) = 0.0 AndAlso val(j, ih2) = 0.0 Then
-                        val(ih2, j) = HydrogenKijEstimate(vtc(j), vw(j), vvc(j))
-                        val(j, ih2) = val(ih2, j)
+            Dim cprops = Me.CurrentMaterialStream.Phases(0).Compounds.Values.Select(Function(c) c.ConstantProperties).ToArray()
+            For i = 0 To cprops.Length - 1
+                For l = i + 1 To cprops.Length - 1
+                    If val(i, l) = 0.0 AndAlso val(l, i) = 0.0 Then
+                        Dim kest As Double = EstimateMissingKij(cprops(i), cprops(l))
+                        If kest > 0.0 Then
+                            val(i, l) = kest
+                            val(l, i) = kest
+                        End If
                     End If
                 Next
-            End If
+            Next
 
             Return val
 
+        End Function
+
+        ''' <summary>
+        ''' kij for a pair that has no value in the interaction parameter table and none set by the user,
+        ''' or zero when the pair keeps the default kij = 1.
+        ''' Hydrogen with any compound: HydrogenKijEstimate of the partner.
+        ''' Carbon dioxide or hydrogen sulfide with a hydrocarbon whose Tc is at least that of carbon dioxide: AcidGasKijEstimate.
+        ''' Two hydrocarbons (petroleum fractions included), or nitrogen or carbon monoxide with a hydrocarbon, whose critical
+        ''' temperatures differ by a factor of KijMinTcRatio or more: HydrocarbonKijEstimate. Closer pairs keep kij = 1.
+        ''' </summary>
+        Public Shared Function EstimateMissingKij(ByVal cp1 As Interfaces.ICompoundConstantProperties, ByVal cp2 As Interfaces.ICompoundConstantProperties) As Double
+
+            Dim g1 As String = LightGas(cp1), g2 As String = LightGas(cp2)
+
+            If g1 = "H2" AndAlso g2 = "H2" Then Return 0.0
+            If g1 = "H2" Then Return HydrogenKijEstimate(cp2.Critical_Temperature, cp2.Acentric_Factor, CriticalVolume(cp2))
+            If g2 = "H2" Then Return HydrogenKijEstimate(cp1.Critical_Temperature, cp1.Acentric_Factor, CriticalVolume(cp1))
+
+            If (g1 = "CO2" OrElse g1 = "H2S") AndAlso IsHydrocarbon(cp2) Then Return AcidGasKijEstimate(g1 = "H2S", cp2.Critical_Temperature, CriticalVolume(cp2))
+            If (g2 = "CO2" OrElse g2 = "H2S") AndAlso IsHydrocarbon(cp1) Then Return AcidGasKijEstimate(g2 = "H2S", cp1.Critical_Temperature, CriticalVolume(cp1))
+
+            Dim lt As Interfaces.ICompoundConstantProperties = cp1, hv As Interfaces.ICompoundConstantProperties = cp2
+            If cp2.Critical_Temperature < cp1.Critical_Temperature Then
+                lt = cp2
+                hv = cp1
+            End If
+            If Not IsHydrocarbon(hv) Then Return 0.0
+            Dim gl As String = LightGas(lt)
+            If Not (IsHydrocarbon(lt) OrElse gl = "N2" OrElse gl = "CO") Then Return 0.0
+            Return HydrocarbonKijEstimate(lt.Critical_Temperature, CriticalVolume(lt), hv.Critical_Temperature, CriticalVolume(hv))
+
+        End Function
+
+        ''' <summary>
+        ''' kij of a hydrocarbon, nitrogen or carbon monoxide (critical temperature Tc1 in K, critical volume Vc1 in m3/kmol)
+        ''' with a hydrocarbon of higher critical temperature Tc2 and critical volume Vc2:
+        ''' kij = 1 + 0.2802 ln(Tc2/Tc1) ln(Vc2/Vc1) - 0.0561 ln(Tc2/Tc1), or zero when Tc2/Tc1 is below KijMinTcRatio.
+        ''' Fitted to the 96 hydrocarbon, nitrogen and carbon monoxide pairs of the table (rms 0.011) and to kij regressed from
+        ''' 31 binary solubility data sets (rms 0.029): methane in n-C10 to n-C28, toluene, m-xylene, trans-decalin, naphthalene,
+        ''' 1-methylnaphthalene, phenanthrene and pyrene; ethane in n-C14, n-C18, n-C20 and toluene; nitrogen in n-C7 to n-C20 and
+        ''' benzene; carbon monoxide in n-C10 to n-C28, benzene and cyclohexane.
+        ''' </summary>
+        Public Shared Function HydrocarbonKijEstimate(ByVal Tc1 As Double, ByVal Vc1 As Double, ByVal Tc2 As Double, ByVal Vc2 As Double) As Double
+            If Not (Tc1 > 0.0 AndAlso Vc1 > 0.0 AndAlso Vc2 > 0.0) OrElse Tc2 / Tc1 < KijMinTcRatio Then Return 0.0
+            Dim rt As Double = Log(Tc2 / Tc1), rv As Double = Log(Vc2 / Vc1)
+            Return 1.0 + 0.2802 * rt * rv - 0.0561 * rt
+        End Function
+
+        ''' <summary>
+        ''' Smallest ratio of critical temperatures for which HydrocarbonKijEstimate applies. Below it the table pairs scatter
+        ''' around kij = 1 by about 0.02 and the pair keeps kij = 1.
+        ''' </summary>
+        Public Const KijMinTcRatio As Double = 1.3
+
+        ''' <summary>
+        ''' kij of carbon dioxide, or of hydrogen sulfide when H2S is true, with a hydrocarbon of critical temperature Tc (K) and
+        ''' critical volume Vc (m3/kmol), or zero when Tc is below that of carbon dioxide. With X = ln(Tc/304.21) ln(Vc/0.094):
+        ''' kij = 0.9276 + 0.10719 X + 0.04505 X^2 for carbon dioxide, 0.027 less for hydrogen sulfide.
+        ''' Carbon dioxide: fitted to the twelve hydrocarbon pairs of the table (rms 0.013) and to kij regressed from solubility data in
+        ''' n-C10, n-C12, n-C14, n-C16, n-C20, n-C28, toluene, m-xylene, cis-decalin and 1-methylnaphthalene (rms 0.028).
+        ''' Hydrogen sulfide: the offset is the mean difference to the isobutane pair of the table and to kij regressed from
+        ''' solubility data in propane, n-butane, n-pentane and n-heptane.
+        ''' </summary>
+        Public Shared Function AcidGasKijEstimate(ByVal H2S As Boolean, ByVal Tc As Double, ByVal Vc As Double) As Double
+            If Not (Vc > 0.0) OrElse Tc < 304.21 Then Return 0.0
+            Dim x As Double = Log(Tc / 304.21) * Log(Vc / 0.094)
+            Dim k As Double = 0.9276 + 0.10719 * x + 0.04505 * x * x
+            If H2S Then k -= 0.027
+            Return k
+        End Function
+
+        ''' <summary>
+        ''' "H2", "N2", "CO", "CO2" or "H2S" for these gases (by CAS number or name), an empty string otherwise.
+        ''' </summary>
+        Private Shared Function LightGas(ByVal cp As Interfaces.ICompoundConstantProperties) As String
+            Select Case cp.CAS_Number
+                Case "1333-74-0" : Return "H2"
+                Case "7727-37-9" : Return "N2"
+                Case "630-08-0" : Return "CO"
+                Case "124-38-9" : Return "CO2"
+                Case "7783-06-4" : Return "H2S"
+            End Select
+            Select Case cp.Name
+                Case "Hydrogen" : Return "H2"
+                Case "Nitrogen" : Return "N2"
+                Case "Carbon monoxide" : Return "CO"
+                Case "Carbon dioxide" : Return "CO2"
+                Case "Hydrogen sulfide" : Return "H2S"
+            End Select
+            Return ""
+        End Function
+
+        ''' <summary>
+        ''' True for petroleum fractions and for compounds made of carbon and hydrogen only.
+        ''' </summary>
+        Private Shared Function IsHydrocarbon(ByVal cp As Interfaces.ICompoundConstantProperties) As Boolean
+            If cp.IsPF = 1 Then Return True
+            Dim el = cp.Elements
+            Return el IsNot Nothing AndAlso el.Count = 2 AndAlso el.ContainsKey("C") AndAlso el.ContainsKey("H")
+        End Function
+
+        ''' <summary>
+        ''' Critical volume (m3/kmol) as RET_VVC returns it: the stored value, or the estimate from Tc, Pc and omega when it is zero.
+        ''' </summary>
+        Private Shared Function CriticalVolume(ByVal cp As Interfaces.ICompoundConstantProperties) As Double
+            If cp.Critical_Volume = 0.0# Then Return Auxiliary.PROPS.Vc(cp.Critical_Temperature, cp.Critical_Pressure, cp.Acentric_Factor)
+            Return cp.Critical_Volume
         End Function
 
         ''' <summary>

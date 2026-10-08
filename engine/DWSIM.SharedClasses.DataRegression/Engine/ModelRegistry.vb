@@ -46,7 +46,7 @@ Namespace Global.DWSIM.SharedClasses.DataRegression.Engine
             r("Lee-Kesler-Plöcker") = New ModelDefinition With {
                 .Name = "Lee-Kesler-Plöcker",
                 .PropertyPackageName = "Lee-Kesler-Plöcker",
-                .DefaultRows = {New ParameterRow("kij", 0.9, 1.0, 1.1, False)},
+                .DefaultRows = {New ParameterRow("kij", 0.5, 1.0, 4.0, False)},
                 .AllowEstimators = False,
                 .AllowIdealVaporOption = False,
                 .AllowTDepRegression = False,
