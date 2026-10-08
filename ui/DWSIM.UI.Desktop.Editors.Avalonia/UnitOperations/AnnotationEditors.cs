@@ -60,7 +60,7 @@ namespace DWSIM.UI.Desktop.Editors
                     return null;
             }
 
-            AddGeometryRows(obj, panel);
+            AddGeometryRows(obj, flowsheet, panel);
 
             // an annotation changes nothing in the process, so the after-edit hook only repaints
             if (redraw != null) panel.OnAfterEdit = redraw;
@@ -70,15 +70,24 @@ namespace DWSIM.UI.Desktop.Editors
 
         // ---------------------------------------------------------------------------------------
 
-        private static void AddGeometryRows(IGraphicObject obj, AvaloniaEditorPanel panel)
+        private static void AddGeometryRows(IGraphicObject obj, IFlowsheet flowsheet, AvaloniaEditorPanel panel)
         {
             panel.CreateAndAddEmptySpace();
             panel.CreateAndAddLabelRow("Position and Size");
 
-            panel.CreateAndAddNumericEditorRow("X", obj.X, -100000, 100000, 0,
-                (s, e) => obj.X = (int)(s.Value ?? 0));
-            panel.CreateAndAddNumericEditorRow("Y", obj.Y, -100000, 100000, 0,
-                (s, e) => obj.Y = (int)(s.Value ?? 0));
+            // X and Y are read-only while the object or the whole layout is locked
+            var layoutLocked = flowsheet?.FlowsheetOptions?.FlowsheetLockLayout ?? false;
+            var locked = layoutLocked || obj.PositionLocked;
+            var x = panel.CreateAndAddNumericEditorRow("X", obj.X, -100000, 100000, 0,
+                (s, e) => { if (!obj.PositionLocked) obj.X = (int)(s.Value ?? 0); });
+            var y = panel.CreateAndAddNumericEditorRow("Y", obj.Y, -100000, 100000, 0,
+                (s, e) => { if (!obj.PositionLocked) obj.Y = (int)(s.Value ?? 0); });
+            x.IsEnabled = !locked;
+            y.IsEnabled = !locked;
+            if (locked)
+                panel.CreateAndAddDescriptionRow(layoutLocked
+                    ? "The flowsheet layout is locked (Lock Layout on the flowsheet toolbar), so X and Y cannot be changed."
+                    : "The position is locked. Clear Lock Position in the context menu to move the object.");
             panel.CreateAndAddNumericEditorRow("Width", obj.Width, 1, 100000, 0,
                 (s, e) => obj.Width = (int)(s.Value ?? 1));
             panel.CreateAndAddNumericEditorRow("Height", obj.Height, 1, 100000, 0,

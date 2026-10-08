@@ -250,6 +250,8 @@ Namespace DWSIM.Flowsheet
 
         Public Property FlowsheetControlPanelMode As Boolean = False Implements IFlowsheetOptions.FlowsheetControlPanelMode
 
+        Public Property FlowsheetLockLayout As Boolean = False Implements IFlowsheetOptions.FlowsheetLockLayout
+
         Public Property SkipEquilibriumCalculationOnDefinedStreams As Boolean = True Implements IFlowsheetOptions.SkipEquilibriumCalculationOnDefinedStreams
 
         Public Property ForceStreamPhase As ForcedPhase = ForcedPhase.None Implements IFlowsheetOptions.ForceStreamPhase

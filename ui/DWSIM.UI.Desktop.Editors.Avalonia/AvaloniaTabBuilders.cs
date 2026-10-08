@@ -549,128 +549,21 @@ namespace DWSIM.UI.Desktop.Editors
         // Appearance tab
         // -----------------------------------------------------------------
 
-        public static AvaloniaEditorPanel BuildAppearance(ISimulationObject simobj)
+        /// <summary>
+        /// The appearance settings of the object, built from the shared appearance descriptors (the same
+        /// fields as the Edit Appearance window).
+        /// </summary>
+        public static global::Avalonia.Controls.Control BuildAppearance(ISimulationObject simobj, Action redraw = null)
         {
-            var panel = new AvaloniaEditorPanel();
-
-            // ShapeGraphic exposes Width/Height/Rotation/LineWidth/LineColor/OverrideColors/Flip.
-            // We use reflection so this file doesn't take a hard dependency on the SkiaSharp
-            // drawing project, which keeps the editor library lean and rebuild-friendly.
             var gobj = simobj.GraphicObject;
             if (gobj == null)
             {
+                var panel = new AvaloniaEditorPanel();
                 panel.CreateAndAddDescriptionRow("Object has no graphic representation.");
                 return panel;
             }
-
-            var t = gobj.GetType();
-
-            // Dimensions ---------------------------------------------------
-            panel.CreateAndAddLabelRow2("Dimensions");
-            BindIntProperty(panel, t, gobj, "Width",  v => gobj.Width  = v, "Width (px)",  10, 2000);
-            BindIntProperty(panel, t, gobj, "Height", v => gobj.Height = v, "Height (px)", 10, 2000);
-
-            // Transform ----------------------------------------------------
-            var rotationProp = t.GetProperty("Rotation");
-            if (rotationProp != null && rotationProp.CanWrite)
-            {
-                panel.CreateAndAddLabelRow2("Transform");
-                int rot = Convert.ToInt32(rotationProp.GetValue(gobj));
-                panel.CreateAndAddNumericEditorRow("Rotation (deg)", rot, 0, 360, 0,
-                    (sp, e) => rotationProp.SetValue(gobj, (int)sp.Value.GetValueOrDefault()));
-            }
-            BindBoolProperty(panel, t, gobj, "FlippedH", "Flip Horizontally");
-            BindBoolProperty(panel, t, gobj, "FlippedV", "Flip Vertically");
-
-            // Font ---------------------------------------------------------
-            var fontSizeProp = t.GetProperty("FontSize");
-            var fontStyleProp = t.GetProperty("FontStyle");
-            if (fontSizeProp != null || fontStyleProp != null)
-            {
-                panel.CreateAndAddLabelRow2("Font");
-                if (fontSizeProp != null && fontSizeProp.CanWrite)
-                {
-                    int sz = Convert.ToInt32(fontSizeProp.GetValue(gobj));
-                    panel.CreateAndAddNumericEditorRow("Font Size", sz, 6, 72, 0,
-                        (sp, e) => fontSizeProp.SetValue(gobj, (int)sp.Value.GetValueOrDefault()));
-                }
-                if (fontStyleProp != null && fontStyleProp.CanWrite)
-                {
-                    var enumType = fontStyleProp.PropertyType;
-                    var names = Enum.GetNames(enumType).ToList();
-                    int cur = Array.IndexOf(Enum.GetValues(enumType), fontStyleProp.GetValue(gobj));
-                    panel.CreateAndAddDropDownRow("Font Style", names, Math.Max(0, cur),
-                        (dd, e) => fontStyleProp.SetValue(gobj, Enum.Parse(enumType, names[dd.SelectedIndex])));
-                }
-            }
-
-            // Border / fill ------------------------------------------------
-            var lineWidthProp = t.GetProperty("LineWidth");
-            var overrideColorsProp = t.GetProperty("OverrideColors");
-            var lineColorProp = t.GetProperty("LineColor");
-            if (lineWidthProp != null || lineColorProp != null)
-            {
-                panel.CreateAndAddLabelRow2("Border / Fill");
-                if (lineWidthProp != null && lineWidthProp.CanWrite)
-                {
-                    int lw = Convert.ToInt32(lineWidthProp.GetValue(gobj));
-                    panel.CreateAndAddNumericEditorRow("Border Width", lw, 1, 10, 0,
-                        (sp, e) => lineWidthProp.SetValue(gobj, (int)sp.Value.GetValueOrDefault()));
-                }
-                if (overrideColorsProp != null && overrideColorsProp.CanWrite)
-                {
-                    bool ov = Convert.ToBoolean(overrideColorsProp.GetValue(gobj));
-                    panel.CreateAndAddCheckBoxRow("Override Default Color", ov,
-                        (cb, e) => overrideColorsProp.SetValue(gobj, cb.IsChecked.GetValueOrDefault()));
-                }
-                if (lineColorProp != null && lineColorProp.CanWrite)
-                {
-                    // LineColor is a SkiaSharp.SKColor; we round-trip through hex string so the
-                    // bridge stays free of SkiaSharp references.
-                    var raw = lineColorProp.GetValue(gobj);
-                    var hex = raw?.ToString() ?? "#000000";
-                    if (!global::Avalonia.Media.Color.TryParse(hex, out var parsed))
-                        parsed = global::Avalonia.Media.Colors.Black;
-                    panel.CreateAndAddColorPickerRow("Border Color", parsed,
-                        (Action<global::Avalonia.Controls.ColorPicker, EventArgs>)((cp, e) =>
-                        {
-                            try
-                            {
-                                var skColorType = lineColorProp.PropertyType;
-                                var parseMethod = skColorType.GetMethod("Parse", new[] { typeof(string) });
-                                if (parseMethod != null)
-                                {
-                                    var asHex = cp.Color.ToString();
-                                    var skColor = parseMethod.Invoke(null, new object[] { asHex });
-                                    lineColorProp.SetValue(gobj, skColor);
-                                }
-                            }
-                            catch { /* color parse failure shouldn't break the editor */ }
-                        }));
-                }
-            }
-
-            return panel;
-        }
-
-        private static void BindIntProperty(AvaloniaEditorPanel panel, Type t, object obj,
-            string propName, Action<int> setter, string label, int min, int max)
-        {
-            var p = t.GetProperty(propName);
-            if (p == null || !p.CanWrite) return;
-            int cur = Convert.ToInt32(p.GetValue(obj));
-            panel.CreateAndAddNumericEditorRow(label, cur, min, max, 0,
-                (sp, e) => setter((int)sp.Value.GetValueOrDefault()));
-        }
-
-        private static void BindBoolProperty(AvaloniaEditorPanel panel, Type t, object obj,
-            string propName, string label)
-        {
-            var p = t.GetProperty(propName);
-            if (p == null || !p.CanWrite) return;
-            bool cur = Convert.ToBoolean(p.GetValue(obj));
-            panel.CreateAndAddCheckBoxRow(label, cur,
-                (cb, e) => p.SetValue(obj, cb.IsChecked.GetValueOrDefault()));
+            var surface = simobj.GetFlowsheet()?.GetSurface() as DWSIM.Drawing.SkiaSharp.GraphicsSurface;
+            return new AppearanceEditorView(new[] { gobj }, redraw, () => surface?.LockLayout ?? false);
         }
     }
 }

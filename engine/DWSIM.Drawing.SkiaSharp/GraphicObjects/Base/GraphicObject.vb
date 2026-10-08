@@ -506,6 +506,8 @@ Namespace GraphicObjects
         Public Function Clone() As IGraphicObject Implements IGraphicObject.Clone
             Dim newobj = Activator.CreateInstance(Me.GetType)
             DirectCast(newobj, ICustomXMLSerialization).LoadData(Me.SaveData)
+            ' a copy is placed by whoever makes it, so it starts free to move
+            DirectCast(newobj, GraphicObject).PositionLocked = False
             Return newobj
         End Function
 
@@ -535,6 +537,13 @@ Namespace GraphicObjects
         Public Property Flowsheet As IFlowsheet Implements IGraphicObject.Flowsheet
 
         Public Property DrawLabel As Boolean = True Implements IGraphicObject.DrawLabel
+
+        ''' <summary>
+        ''' Keeps the object where it is: the surface skips it when dragging, aligning, snapping and laying
+        ''' out the flowsheet. The X and Y setters are not guarded, since panning and zooming the view
+        ''' move every object.
+        ''' </summary>
+        Public Property PositionLocked As Boolean = False Implements IGraphicObject.PositionLocked
 
         Public Function GetForeColor() As SKColor
 

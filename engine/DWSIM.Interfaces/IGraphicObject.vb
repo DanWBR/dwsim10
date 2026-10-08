@@ -112,6 +112,12 @@ Public Interface IGraphicObject
 
     Property DrawLabel As Boolean
 
+    ''' <summary>
+    ''' When True, the object keeps its position: dragging, aligning, snapping to the grid, the automatic
+    ''' layouts and the arrow keys leave it where it is. Panning and zooming the view still move it.
+    ''' </summary>
+    Property PositionLocked As Boolean
+
 End Interface
 
 <InterfaceType(ComInterfaceType.InterfaceIsIDispatch)>

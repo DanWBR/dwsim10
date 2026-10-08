@@ -167,4 +167,11 @@ Public Interface IFlowsheetOptions
 
     Property Metadata As IFlowsheetMetadata
     Property CurrentFlowsheetObjectZoomLevel As Double
+
+    ''' <summary>
+    ''' When True, no object on the flowsheet can be moved by the mouse, the keyboard, alignment or the
+    ''' automatic layouts. Panning and zooming the view are not affected.
+    ''' </summary>
+    Property FlowsheetLockLayout As Boolean
+
 End Interface

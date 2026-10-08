@@ -70,6 +70,52 @@ Public Class GraphicsSurface
 
     Public ControlPanelMode As Boolean = False
 
+    Private _lockLayout As Boolean = False
+
+    ''' <summary>
+    ''' Gives the flowsheet options to a surface whose Flowsheet is not set (a flowsheet run without a
+    ''' view). The Flowsheet property wins when both are there.
+    ''' </summary>
+    Public Property OptionsProvider As Func(Of IFlowsheetOptions)
+
+    Private Function CurrentOptions() As IFlowsheetOptions
+        If Flowsheet IsNot Nothing AndAlso Flowsheet.FlowsheetOptions IsNot Nothing Then Return Flowsheet.FlowsheetOptions
+        Return OptionsProvider?.Invoke()
+    End Function
+
+    ''' <summary>
+    ''' Freezes the position of every object on the surface. Stored in the flowsheet options
+    ''' (FlowsheetLockLayout), so it is saved with the file; a surface with no flowsheet keeps it itself.
+    ''' </summary>
+    Public Property LockLayout As Boolean
+        Get
+            Dim opts = CurrentOptions()
+            If opts IsNot Nothing Then Return opts.FlowsheetLockLayout
+            Return _lockLayout
+        End Get
+        Set(value As Boolean)
+            _lockLayout = value
+            Dim opts = CurrentOptions()
+            If opts IsNot Nothing Then opts.FlowsheetLockLayout = value
+        End Set
+    End Property
+
+    ''' <summary>
+    ''' True when the object must stay where it is: the whole layout is locked or the object itself is.
+    ''' Panning, zooming, centering and undo do not check this; dragging, aligning, snapping and the
+    ''' automatic layouts do.
+    ''' </summary>
+    Public Function IsPositionLocked(obj As IGraphicObject) As Boolean
+        If obj Is Nothing Then Return False
+        Return LockLayout OrElse obj.PositionLocked
+    End Function
+
+    ''' <summary>
+    ''' Draws the small padlock on locked objects. The flowsheet views set it around their own paint
+    ''' call, so images, prints and exports rendered through UpdateCanvas never show it.
+    ''' </summary>
+    Public Property DrawLockMarkers As Boolean = False
+
     Public NetworkMode As Boolean = False
 
     Private PrevPositions As New Dictionary(Of String, Tuple(Of Point, Boolean))
@@ -295,6 +341,40 @@ Public Class GraphicsSurface
         End If
 
         DrawingCanvas.DrawRect(normalizedRectangle, spaint)
+
+    End Sub
+
+    ''' <summary>
+    ''' A small padlock above the top right corner of every object whose position is locked on its
+    ''' own. When the whole layout is locked the toolbar shows it, so the objects are left clean.
+    ''' </summary>
+    Private Sub DrawPositionLocks(canvas As SKCanvas)
+
+        Dim color = If(GlobalSettings.Settings.DarkMode, New SKColor(200, 200, 200, 210), New SKColor(90, 90, 90, 200))
+        Dim scale As Single = CSng(Math.Min(2.0, Math.Max(1.0, 1.0 / Math.Max(Zoom, 0.01))))
+
+        Using body As New SKPaint With {.Color = color, .IsAntialias = True, .IsStroke = False},
+              shackle As New SKPaint With {.Color = color, .IsAntialias = True, .IsStroke = True, .StrokeWidth = 1.5F * scale}
+
+            For Each obj In DrawingObjects
+                If Not obj.PositionLocked OrElse obj.IsConnector Then Continue For
+                If obj.ObjectType = ObjectType.GO_FloatingTable Then Continue For
+                Dim w = 8.0F * scale, h = 6.0F * scale
+                Dim left = obj.X + obj.Width + 2.0F * scale
+                Dim top = obj.Y - h - 2.0F * scale
+                canvas.DrawRoundRect(New SKRect(left, top, left + w, top + h), 1.0F * scale, 1.0F * scale, body)
+                Using path As New SKPath()
+                    Dim r = w * 0.3F
+                    Dim cx = left + w / 2
+                    path.MoveTo(cx - r, top)
+                    path.LineTo(cx - r, top - r)
+                    path.ArcTo(New SKRect(cx - r, top - 2 * r, cx + r, top), 180, 180, False)
+                    path.LineTo(cx + r, top)
+                    canvas.DrawPath(path, shackle)
+                End Using
+            Next
+
+        End Using
 
     End Sub
 
@@ -572,6 +652,8 @@ Public Class GraphicsSurface
             Next
         End If
 
+        If DrawLockMarkers AndAlso Not ControlPanelMode Then DrawPositionLocks(DrawingCanvas)
+
         'draw selection rectangle (click and drag to select interface)
         'on top of everything else, but transparent
         If selectionDragging Then
@@ -696,60 +778,68 @@ Public Class GraphicsSurface
 
     End Sub
 
+    ''' <summary>
+    ''' Aligns or spaces the selected objects. Locked objects are not moved; when the selection has any,
+    ''' they are the reference the others line up with.
+    ''' </summary>
     Public Sub AlignSelectedObjects(direction As AlignDirection)
 
         If Me.SelectedObjects.Count > 1 Then
 
             Dim refpos As Integer = 0
 
+            ' locked objects cannot move, so when the selection has any they set the reference
+            Dim refset As List(Of IGraphicObject) = Me.SelectedObjects.Values.Where(Function(o) IsPositionLocked(o)).ToList()
+            If refset.Count = 0 Then refset = Me.SelectedObjects.Values.ToList()
+
             Select Case direction
                 Case AlignDirection.Lefts
                     refpos = 10000000
-                    For Each obj As IGraphicObject In Me.SelectedObjects.Values
+                    For Each obj As IGraphicObject In refset
                         If obj.X < refpos Then refpos = obj.X
                     Next
                     For Each obj As IGraphicObject In Me.SelectedObjects.Values
-                        obj.X = refpos
+                        If Not IsPositionLocked(obj) Then obj.X = refpos
                     Next
                 Case AlignDirection.Centers
-                    For Each obj As IGraphicObject In Me.SelectedObjects.Values
+                    For Each obj As IGraphicObject In refset
                         refpos += obj.X + obj.Width / 2
                     Next
-                    refpos /= Me.SelectedObjects.Count
+                    refpos /= refset.Count
                     For Each obj As IGraphicObject In Me.SelectedObjects.Values
-                        obj.X = refpos - obj.Width / 2
+                        If Not IsPositionLocked(obj) Then obj.X = refpos - obj.Width / 2
                     Next
                 Case AlignDirection.Rights
-                    For Each obj As IGraphicObject In Me.SelectedObjects.Values
+                    For Each obj As IGraphicObject In refset
                         refpos += obj.X + obj.Width
                     Next
-                    refpos /= Me.SelectedObjects.Count
+                    refpos /= refset.Count
                     For Each obj As IGraphicObject In Me.SelectedObjects.Values
-                        obj.X = refpos - obj.Width
+                        If Not IsPositionLocked(obj) Then obj.X = refpos - obj.Width
                     Next
                 Case AlignDirection.Tops
                     refpos = 10000000
-                    For Each obj As IGraphicObject In Me.SelectedObjects.Values
+                    For Each obj As IGraphicObject In refset
                         If obj.Y < refpos Then refpos = obj.Y
                     Next
                     For Each obj As IGraphicObject In Me.SelectedObjects.Values
-                        obj.Y = refpos
+                        If Not IsPositionLocked(obj) Then obj.Y = refpos
                     Next
                 Case AlignDirection.Middles
-                    For Each obj As IGraphicObject In Me.SelectedObjects.Values
+                    For Each obj As IGraphicObject In refset
                         refpos += obj.Y + obj.Height / 2
                     Next
-                    refpos /= Me.SelectedObjects.Count
+                    refpos /= refset.Count
                     For Each obj As IGraphicObject In Me.SelectedObjects.Values
-                        obj.Y = refpos - obj.Height / 2
+                        If Not IsPositionLocked(obj) Then obj.Y = refpos - obj.Height / 2
                     Next
                 Case AlignDirection.Bottoms
-                    For Each obj As IGraphicObject In Me.SelectedObjects.Values
+                    For Each obj As IGraphicObject In refset
                         refpos += obj.Y + obj.Height
                     Next
-                    refpos /= Me.SelectedObjects.Count
+                    refpos /= refset.Count
                     For Each obj As IGraphicObject In Me.SelectedObjects.Values
-                        obj.Y = refpos - obj.Height
+                        If Not IsPositionLocked(obj) Then obj.Y = refpos - obj.Height
                     Next
                 Case AlignDirection.EqualizeHorizontal
                     Dim orderedlist As List(Of IGraphicObject) = Me.SelectedObjects.Values.OrderBy(Function(o) o.X).ToList
@@ -759,7 +849,7 @@ Public Class GraphicsSurface
                     Next
                     avgdist /= (orderedlist.Count - 1)
                     For i = 1 To orderedlist.Count - 1
-                        orderedlist(i).X = orderedlist(i - 1).X + orderedlist(i - 1).Width + avgdist
+                        If Not IsPositionLocked(orderedlist(i)) Then orderedlist(i).X = orderedlist(i - 1).X + orderedlist(i - 1).Width + avgdist
                     Next
                 Case AlignDirection.EqualizeVertical
                     Dim orderedlist As List(Of IGraphicObject) = Me.SelectedObjects.Values.OrderBy(Function(o) o.Y).ToList
@@ -769,7 +859,7 @@ Public Class GraphicsSurface
                     Next
                     avgdist /= (orderedlist.Count - 1)
                     For i = 1 To orderedlist.Count - 1
-                        orderedlist(i).Y = orderedlist(i - 1).Y + orderedlist(i - 1).Height + avgdist
+                        If Not IsPositionLocked(orderedlist(i)) Then orderedlist(i).Y = orderedlist(i - 1).Y + orderedlist(i - 1).Height + avgdist
                     Next
             End Select
 
@@ -951,17 +1041,24 @@ Public Class GraphicsSurface
                             dragPoint.X += dragOffset.X
                             dragPoint.Y += dragOffset.Y
 
+                            Dim moved As Boolean = False
+
                             For Each gr As IGraphicObject In Me.SelectedObjects.Values
+                                ' a locked object stays put; the unlocked ones of the selection still move
+                                If IsPositionLocked(gr) Then Continue For
                                 Dim p As SKPoint = New SKPoint(gr.X, gr.Y)
                                 p.X += (x - dragStart.X) / Zoom
                                 p.Y += (y - dragStart.Y) / Zoom
                                 gr.X = p.X
                                 gr.Y = p.Y
+                                moved = True
                             Next
 
                             dragStart = New SKPoint(x, y)
 
-                            RaiseEvent StatusUpdate(Me, New StatusUpdateEventArgs(StatusUpdateType.ObjectMoved, Me.SelectedObject, String.Format("Object Moved to {0}, {1}", dragPoint.X, dragPoint.Y), dragPoint, 0))
+                            If moved Then
+                                RaiseEvent StatusUpdate(Me, New StatusUpdateEventArgs(StatusUpdateType.ObjectMoved, Me.SelectedObject, String.Format("Object Moved to {0}, {1}", dragPoint.X, dragPoint.Y), dragPoint, 0))
+                            End If
 
                         End If
 
@@ -1128,6 +1225,7 @@ Public Class GraphicsSurface
                 Dim oc As SKPoint
                 Dim snapx, snapy As Integer
                 For Each go As GraphicObject In Me.SelectedObjects.Values
+                    If IsPositionLocked(go) Then Continue For
                     oc = New SKPoint(go.X + go.Width / 2, go.Y + go.Height / 2)
                     snapx = Math.Round(oc.X / GridSize) * GridSize - go.Width / 2
                     snapy = Math.Round(oc.Y / GridSize) * GridSize - go.Height / 2
@@ -1932,7 +2030,68 @@ Public Class GraphicsSurface
 
     End Function
 
+    ''' <summary>
+    ''' Position and size (X, Y, width, height) of the objects before an automatic layout, to put the
+    ''' locked ones back afterwards.
+    ''' </summary>
+    Private Function TakeLayoutSnapshot() As Dictionary(Of IGraphicObject, Single())
+        Dim snap As New Dictionary(Of IGraphicObject, Single())
+        For Each obj In DrawingObjects
+            If Not obj.IsConnector AndAlso Not snap.ContainsKey(obj) Then
+                snap(obj) = New Single() {obj.X, obj.Y, obj.Width, obj.Height}
+            End If
+        Next
+        Return snap
+    End Function
+
+    ''' <summary>
+    ''' Puts the locked objects back where they were after an automatic layout and shifts everything the
+    ''' layout moved by the same amount, so the new layout is drawn around the locked objects. Objects the
+    ''' layout did not touch stay where they are.
+    ''' </summary>
+    Private Sub AnchorLayoutOnLockedObjects(snap As Dictionary(Of IGraphicObject, Single()))
+
+        Dim locked = snap.Keys.Where(Function(o) IsPositionLocked(o)).ToList()
+        If locked.Count = 0 Then Return
+
+        Dim movedLocked = locked.Where(Function(o) o.X <> snap(o)(0) OrElse o.Y <> snap(o)(1)).ToList()
+        Dim dx As Double = 0.0, dy As Double = 0.0
+        If movedLocked.Count > 0 Then
+            dx = movedLocked.Average(Function(o) snap(o)(0) - o.X)
+            dy = movedLocked.Average(Function(o) snap(o)(1) - o.Y)
+        End If
+
+        For Each kv In snap
+            Dim obj = kv.Key
+            If locked.Contains(obj) Then
+                obj.X = kv.Value(0)
+                obj.Y = kv.Value(1)
+                ' a frame drawn around a group is resized by the orthogonal layout; a locked one keeps its box
+                If obj.ObjectType = ObjectType.GO_Rectangle Then
+                    obj.Width = CInt(kv.Value(2))
+                    obj.Height = CInt(kv.Value(3))
+                End If
+            ElseIf obj.X <> kv.Value(0) OrElse obj.Y <> kv.Value(1) Then
+                obj.X = CSng(obj.X + dx)
+                obj.Y = CSng(obj.Y + dy)
+            End If
+        Next
+
+        For Each obj In snap.Keys
+            Try
+                obj.PositionConnectors()
+            Catch
+            End Try
+        Next
+
+    End Sub
+
     Public Sub AutoArrange(Optional ByVal DistanceFactor As Double = 1.0)
+
+        ' a locked layout has nothing to arrange
+        If LockLayout Then Exit Sub
+
+        Dim snap = TakeLayoutSnapshot()
 
         Dim graph As New GeometryGraph
         Dim rec1 As ICurve
@@ -2049,6 +2208,8 @@ Public Class GraphicsSurface
         layout = Nothing
         graph = Nothing
 
+        AnchorLayoutOnLockedObjects(snap)
+
         For Each obj In DrawingObjects
             If TypeOf obj Is ShapeGraphic And Not obj.IsConnector Then
                 DirectCast(obj, ShapeGraphic).PositionConnectors()
@@ -2062,7 +2223,9 @@ Public Class GraphicsSurface
                    obj.InputConnectors.Count = 1 AndAlso obj.OutputConnectors.Count = 1 AndAlso
                    Not obj.InputConnectors(0).IsAttached AndAlso obj.OutputConnectors(0).IsAttached Then
                     Dim dest = obj.OutputConnectors(0).AttachedConnector.AttachedTo
-                    If dest.FlippedH Then obj.X += CInt(dest.Width * 1.3) Else obj.X -= CInt(dest.Width * 1.3)
+                    If Not IsPositionLocked(obj) Then
+                        If dest.FlippedH Then obj.X += CInt(dest.Width * 1.3) Else obj.X -= CInt(dest.Width * 1.3)
+                    End If
                 End If
                 OrientAlongFlow(obj)
             End If
@@ -2134,6 +2297,11 @@ Public Class GraphicsSurface
     End Sub
 
     Public Sub ApplyNaturalLayout(orderedIds As List(Of String), deltaX As Integer)
+
+        ' a locked layout has nothing to arrange
+        If LockLayout Then Exit Sub
+
+        Dim snap = TakeLayoutSnapshot()
 
         PrevPositions = New Dictionary(Of String, Tuple(Of Point, Boolean))
         For Each objID In orderedIds
@@ -2226,6 +2394,8 @@ Public Class GraphicsSurface
         ' vertical runs are rotated.
         LayoutRecycleReturns(orderedIds, deltaX)
 
+        AnchorLayoutOnLockedObjects(snap)
+
         For Each objID In orderedIds
             Dim gobj = DrawingObjects.Where(Function(o) o.Name = objID).FirstOrDefault()
             If gobj IsNot Nothing Then OrientAlongFlow(gobj)
@@ -2300,24 +2470,52 @@ Public Class GraphicsSurface
     ''' </summary>
     Public Sub OrthogonalArrange(Optional wrapRows As Boolean = False)
 
+        ' a locked layout has nothing to arrange
+        If LockLayout Then Exit Sub
+
         PrevPositions = New Dictionary(Of String, Tuple(Of Point, Boolean))
         For Each obj In DrawingObjects
             If Not obj.IsConnector Then PrevPositions(obj.Name) = New Tuple(Of Point, Boolean)(New Point(obj.X, obj.Y), obj.FlippedH)
         Next
 
+        Dim snap = TakeLayoutSnapshot()
+
         OrthogonalFlowsheetLayout.Arrange(DrawingObjects, wrapRows)
+
+        AnchorLayoutOnLockedObjects(snap)
 
     End Sub
 
+    ''' <summary>
+    ''' Puts the objects back where they were before the last automatic layout. Locked objects keep their
+    ''' position; the others are placed relative to them, so a pan or zoom made after the layout does not
+    ''' pull them apart.
+    ''' </summary>
     Public Sub RestoreLayout()
 
         If PrevPositions.Count > 0 Then
 
+            If LockLayout Then Exit Sub
+
+            ' a locked object only moves with the view (pan, zoom, centre), so its shift since the layout
+            ' is the view's shift
+            Dim dx As Single = 0, dy As Single = 0
+            For Each item In PrevPositions
+                Dim lobj = DrawingObjects.Where(Function(x) x.Name = item.Key).FirstOrDefault()
+                If lobj IsNot Nothing AndAlso IsPositionLocked(lobj) Then
+                    dx = lobj.X - item.Value.Item1.X
+                    dy = lobj.Y - item.Value.Item1.Y
+                    Exit For
+                End If
+            Next
+
             For Each item In PrevPositions
                 Dim obj = DrawingObjects.Where(Function(x) x.Name = item.Key).FirstOrDefault()
                 If obj IsNot Nothing Then
-                    obj.X = item.Value.Item1.X
-                    obj.Y = item.Value.Item1.Y
+                    If Not IsPositionLocked(obj) Then
+                        obj.X = item.Value.Item1.X + dx
+                        obj.Y = item.Value.Item1.Y + dy
+                    End If
                     obj.FlippedH = item.Value.Item2
                 End If
             Next

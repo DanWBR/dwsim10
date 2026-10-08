@@ -216,6 +216,8 @@
         <WrapPanel Name="SubToolbarGroup" Orientation="Horizontal" VerticalAlignment="Center">
           <CheckBox Name="ChkDrawGrid" Content="Grid" VerticalAlignment="Center" FontSize="{DynamicResource FontSizeSmall}" />
           <CheckBox Name="ChkSnapToGrid" Content="Snap" VerticalAlignment="Center" FontSize="{DynamicResource FontSizeSmall}" />
+          <CheckBox Name="ChkLockLayout" Content="Lock Layout" VerticalAlignment="Center" FontSize="{DynamicResource FontSizeSmall}"
+                    ToolTip.Tip="Keep every object where it is: dragging, aligning, snapping and the automatic layouts move nothing. Panning and zooming still work. Saved with the flowsheet." />
           <CheckBox Name="ChkMultiSelect" Content="Multi-Select" VerticalAlignment="Center" FontSize="{DynamicResource FontSizeSmall}" />
           <Border Classes="vdivider" />
           <TextBlock Text="Align:" VerticalAlignment="Center" FontSize="{DynamicResource FontSizeSmall}" Margin="4,0,2,0" />
