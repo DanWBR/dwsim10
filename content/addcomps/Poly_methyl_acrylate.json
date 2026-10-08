@@ -17,7 +17,7 @@
   "Chao_Seader_Solubility_Parameter": 0.5,
   "Charge": 0,
   "ChemicalStructure": "",
-  "Comments": "Polymer pseudo-compound. PC-SAFT sPC-SAFT parameter from Kontogeorgis & Folas, Thermodynamic Models for Industrial Applications (Application of SAFT to Polymers), Table 14.4. Set Molar_Weight to your Mn.",
+  "Comments": "Polymer pseudo-compound. PC-SAFT sPC-SAFT parameter from Kontogeorgis & Folas, Thermodynamic Models for Industrial Applications (Application of SAFT to Polymers), Table 14.4. Molar_Weight is the number-average molar mass Mn. The ideal-gas heat capacity coefficients are per kmol at this Mn, so when you change Molar_Weight multiply them by the same factor to keep the heat capacity per kg (the polymerization reactor and the polymer tools do this through PolymerCharacterization.SetMolarMass).",
   "CompCreatorStudyFile": "",
   "COSMODBName": null,
   "Critical_Compressibility": 0.5,

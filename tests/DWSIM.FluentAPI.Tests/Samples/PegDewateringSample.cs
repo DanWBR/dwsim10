@@ -10,7 +10,7 @@ namespace DWSIM.FluentAPI.Tests
     /// PEG is a hydrogen-bonding polymer (its chain-end hydroxyls and the ether oxygens along the chain all
     /// associate with water), so it holds water strongly and is itself non-volatile. A 20 wt% PEG solution
     /// (Mn = 10 000 g/mol) is heated to 355 K under a mild vacuum (0.4 bar): the water flashes off as pure
-    /// vapour and the PEG is concentrated to about 70 wt%.
+    /// vapour and the PEG is concentrated to about 84 wt%.
     /// Property package: PC-SAFT with association (PEG modelled as a 4C + ether-site associating polymer),
     /// solved by the PC-SAFT flash that recomputes the solvent K-value at each trial composition - a plain
     /// vapour-liquid flash oscillates here because water's activity in PEG is strongly, steeply non-ideal.
@@ -27,7 +27,8 @@ namespace DWSIM.FluentAPI.Tests
         {
             var cp = Newtonsoft.Json.JsonConvert.DeserializeObject<DWSIM.Thermodynamics.BaseClasses.ConstantProperties>(
                 File.ReadAllText(Path.Combine(AddcompsDir(), "Poly_ethylene_glycol.json")));
-            cp.CurrentDB = "User"; cp.OriginalDB = "User"; cp.Molar_Weight = 10000.0;
+            cp.CurrentDB = "User"; cp.OriginalDB = "User";
+            DWSIM.Thermodynamics.Polymers.PolymerCharacterization.SetMolarMass(cp, 10000.0);   // keeps the per-kg heat capacity
 
             var fs = Flowsheet.Create("PegDewatering")
                 .WithCompounds("Water")

@@ -224,7 +224,9 @@ public class PolymerCharacterizationWindow : Window
             string cas = "COPO-" + Guid.NewGuid().ToString("N").Substring(0, 8);
 
             var cp = (ConstantProperties)cpA.Clone();
-            cp.Name = name; cp.CAS_Number = cas; cp.Molar_Weight = _coMn; cp.OriginalDB = "User"; cp.CurrentDB = "User";
+            // the repeat-unit polymer's heat capacity is per kmol at its own Mn: SetMolarMass keeps it per kg
+            DWSIM.Thermodynamics.Polymers.PolymerCharacterization.SetMolarMass(cp, _coMn);
+            cp.Name = name; cp.CAS_Number = cas; cp.OriginalDB = "User"; cp.CurrentDB = "User";
             if (string.IsNullOrEmpty(cp.Formula) || !cp.Formula.TrimEnd().EndsWith("n")) cp.Formula = "(copolymer)n";
 
             int n = 0;

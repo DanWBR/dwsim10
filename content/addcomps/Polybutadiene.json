@@ -17,7 +17,7 @@
   "Chao_Seader_Solubility_Parameter": 0.5,
   "Charge": 0,
   "ChemicalStructure": "",
-  "Comments": "Polymer pseudo-compound. PC-SAFT segment parameters come from pcsaft.dat (sPC-SAFT polymer parameters, Tihic et al., Fluid Phase Equilibria 281 (2009) 70; von Solms/Lindvig et al.), matched by CAS number. Molar_Weight is the default number-average molar mass Mn - set it to your polymer's Mn. Density comes from the PC-SAFT equation of state; thermal conductivity and surface tension are estimated by the PC-SAFT package when no data is supplied. Provide a liquid viscosity to model solution/melt viscosity.",
+  "Comments": "Polymer pseudo-compound. PC-SAFT segment parameters come from pcsaft.dat (sPC-SAFT polymer parameters, Tihic et al., Fluid Phase Equilibria 281 (2009) 70; von Solms/Lindvig et al.), matched by CAS number. Molar_Weight is the number-average molar mass Mn. The ideal-gas heat capacity coefficients are per kmol at this Mn, so when you change Molar_Weight multiply them by the same factor to keep the heat capacity per kg (the polymerization reactor and the polymer tools do this through PolymerCharacterization.SetMolarMass). Density comes from the PC-SAFT equation of state; thermal conductivity and surface tension are estimated by the PC-SAFT package when no data is supplied. Provide a liquid viscosity to model solution/melt viscosity.",
   "CompCreatorStudyFile": "",
   "COSMODBName": null,
   "Critical_Compressibility": 0.5,
