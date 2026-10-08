@@ -1,5 +1,6 @@
 ﻿Version 10.2.11
 
+- [NEW] Ionic Liquids (PC-SAFT) property package: 29 ionic liquids as physical solvents for CO2, CH4, N2, H2, H2S and water, with parameters fitted to NIST ILThermo (density within 0.47 %, CO2 solubility within 10.4 %), 156 fitted binary pairs, user-defined ionic liquids, and the CO2 Removal with an Ionic Liquid sample
 - [NEW] PC-SAFT: temperature-dependent binary interaction parameters (slope kij_T from their value at 298.15 K), entered in both editors and saved with the flowsheet
 - [NEW] Electrolyte NRTL and Extended UNIQUAC: salts, hydrates and double salts precipitate and redissolve, with solubility reactions built from the electrolyte database; Extended UNIQUAC accepts salts in the compound list
 - [NEW] Electrolyte database: bischofite, MgCl2.4H2O, epsomite, hexahydrite, kieserite, carnallite, glauberite, polyhalite, bloedite and kainite, from the Harvie-Moller-Weare solubility products
