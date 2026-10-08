@@ -79,7 +79,10 @@ Namespace PropertyPackages
             Dim i As Integer = 0
 
             For Each subst In Me.CurrentMaterialStream.Phases(0).Compounds.Values
-                val(i) = subst.ConstantProperties.Chao_Seader_Liquid_Molar_Volume
+                'a compound without a solubility parameter takes no part in the regular solution (gamma = 1)
+                If Auxiliary.CS.SolubilityParameterSI(subst.ConstantProperties.Chao_Seader_Solubility_Parameter) > 0.0 Then
+                    val(i) = subst.ConstantProperties.Chao_Seader_Liquid_Molar_Volume
+                End If
                 i += 1
             Next
 
@@ -109,7 +112,7 @@ Namespace PropertyPackages
             Dim i As Integer = 0
 
             For Each subst In Me.CurrentMaterialStream.Phases(0).Compounds.Values
-                val(i) = subst.ConstantProperties.Chao_Seader_Solubility_Parameter
+                val(i) = Auxiliary.CS.SolubilityParameterSI(subst.ConstantProperties.Chao_Seader_Solubility_Parameter)
                 i += 1
             Next
 

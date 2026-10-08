@@ -26,6 +26,24 @@ Namespace PropertyPackages.Auxiliary
 
         End Sub
 
+        ''' <summary>
+        ''' The solubility parameter of a compound in the unit this model works in, (J/m3)^0.5, from the value stored
+        ''' in the compound, which is (cal/cm3)^0.5.
+        ''' </summary>
+        ''' <remarks>
+        ''' Two other forms reach the model: flowsheets and user databases saved with the old ChemSep loader hold
+        ''' the ChemSep value multiplied by 0.238846E-6 (hydrogen 0.00159 instead of 3.25), and a value typed straight
+        ''' from ChemSep is in (J/m3)^0.5 (hydrogen 6648). The three ranges are orders of magnitude apart: (cal/cm3)^0.5
+        ''' runs from about 3 to 25, the old ChemSep form below 0.02, (J/m3)^0.5 above 5000. Zero or less means the
+        ''' compound has no parameter.
+        ''' </remarks>
+        Public Shared Function SolubilityParameterSI(ByVal stored As Double) As Double
+            If Double.IsNaN(stored) OrElse stored <= 0.0 Then Return 0.0
+            If stored < 0.1 Then Return stored / (0.238846 / 1000000.0)
+            If stored > 500.0 Then Return stored
+            Return stored / Math.Sqrt(0.238846 / 1000000.0)
+        End Function
+
         Public Function CalcLiqActCoeff(ByVal Vx As Object, ByVal VVL() As Double, ByVal VSP() As Double, ByVal T As Double) As Double()
 
             Dim n As Integer = UBound(VVL)
