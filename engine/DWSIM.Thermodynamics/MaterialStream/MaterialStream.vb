@@ -9353,7 +9353,6 @@ Namespace Streams
         ''' </summary>
         ''' <param name="compoundName">Name of the compound</param>
         ''' <param name="flow">flow rate in kg/s</param>
-        ''' <remarks>The stream must be fully calculated before calling this function.</remarks>
         Public Sub SetOverallCompoundMassFlow(compoundName As String, flow As Double)
 
             Dim compidx = Phases(0).Compounds.Values.Select(Function(c) c.Name).ToList().IndexOf(compoundName)
@@ -9367,26 +9366,15 @@ Namespace Streams
         ''' </summary>
         ''' <param name="compoundIndex">Name of the compound</param>
         ''' <param name="flow">flow rate in kg/s</param>
-        ''' <remarks>The stream must be fully calculated before calling this function.</remarks>
         Public Sub SetOverallCompoundMassFlow(compoundIndex As Integer, flow As Double)
 
-            Dim flows = Phases(0).Compounds.Values.Select(Function(c) c.MassFlow.GetValueOrDefault()).ToArray()
+            Dim massflows = Phases(0).Compounds.Values.Select(Function(c) c.MassFlow.GetValueOrDefault()).ToArray()
 
-            flows(compoundIndex) = flow
+            massflows(compoundIndex) = flow
 
-            SetMassFlow(flows.Sum)
+            Dim molarflows = Phases(0).Compounds.Values.Select(Function(c, i) massflows(i) / c.ConstantProperties.Molar_Weight * 1000.0).ToArray()
 
-            SetOverallComposition(MassFractionsToMoleFractions(flows.NormalizeY))
-
-            Dim i As Integer = 0
-            For Each c In Phases(0).Compounds.Values
-                c.MassFraction = flows(i) / flows.Sum
-                c.MassFlow = flows(i)
-                c.MolarFlow = c.MoleFraction * GetMolarFlow()
-                i += 1
-            Next
-
-            AtEquilibrium = False
+            SetOverallCompoundFlows(massflows, molarflows, True)
 
         End Sub
 
@@ -9395,7 +9383,6 @@ Namespace Streams
         ''' </summary>
         ''' <param name="compoundName">Name of the compound</param>
         ''' <param name="flow">flow rate in mol/s</param>
-        ''' <remarks>The stream must be fully calculated before calling this function.</remarks>
         Public Sub SetOverallCompoundMolarFlow(compoundName As String, flow As Double)
 
             Dim compidx = Phases(0).Compounds.Values.Select(Function(c) c.Name).ToList().IndexOf(compoundName)
@@ -9409,24 +9396,46 @@ Namespace Streams
         ''' </summary>
         ''' <param name="compoundIndex">Index of the compound</param>
         ''' <param name="flow">flow rate in mol/s</param>
-        ''' <remarks>The stream must be fully calculated before calling this function.</remarks>
         Public Sub SetOverallCompoundMolarFlow(compoundIndex As Integer, flow As Double)
 
-            Dim flows = Phases(0).Compounds.Values.Select(Function(c) c.MolarFlow.GetValueOrDefault()).ToArray()
+            Dim molarflows = Phases(0).Compounds.Values.Select(Function(c) c.MolarFlow.GetValueOrDefault()).ToArray()
 
-            flows(compoundIndex) = flow
+            molarflows(compoundIndex) = flow
 
-            SetMolarFlow(flows.Sum)
+            Dim massflows = Phases(0).Compounds.Values.Select(Function(c, i) molarflows(i) * c.ConstantProperties.Molar_Weight / 1000.0).ToArray()
 
-            SetOverallComposition(flows.NormalizeY)
+            SetOverallCompoundFlows(massflows, molarflows, False)
 
-            Dim massfracs = MoleFractionsToMassFractions(flows.NormalizeY)
+        End Sub
+
+        ''' <summary>
+        ''' Writes the compound flows on both bases, each converted through the compound's own molar mass,
+        ''' together with the composition and the mixture molar mass they imply, so that a later call on
+        ''' the other basis reads them right. SetMassFlow and SetMolarFlow convert the total through the
+        ''' mixture molar mass the stream carries, which still belongs to the previous composition (and is
+        ''' zero on a stream never calculated), so they run after it is updated.
+        ''' </summary>
+        Private Sub SetOverallCompoundFlows(massflows As Double(), molarflows As Double(), massbasis As Boolean)
+
+            Dim mtotal = massflows.Sum
+            Dim ntotal = molarflows.Sum
 
             Dim i As Integer = 0
+            If mtotal > 0.0 AndAlso ntotal > 0.0 Then
+                For Each c In Phases(0).Compounds.Values
+                    c.MassFraction = massflows(i) / mtotal
+                    c.MoleFraction = molarflows(i) / ntotal
+                    i += 1
+                Next
+                Phases(0).Properties.molecularWeight = mtotal / ntotal * 1000.0
+            End If
+
+            If massbasis Then SetMassFlow(mtotal) Else SetMolarFlow(ntotal)
+
+            i = 0
             For Each c In Phases(0).Compounds.Values
-                c.MolarFlow = c.MoleFraction * flows.Sum
-                c.MassFraction = massfracs(i)
-                c.MassFlow = massfracs(i) * GetMassFlow()
+                c.MassFlow = massflows(i)
+                c.MolarFlow = molarflows(i)
                 i += 1
             Next
 

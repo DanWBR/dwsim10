@@ -43,6 +43,8 @@ namespace DWSIM.FluentAPI.Tests
 
         [Test] public void AMixerBalancesMassAndEnergy() => MixerTest.Run();
 
+        [Test] public void AFeedTakesCompoundFlowsByMassAndByMoles() => CompoundFlowsTest.Run();
+
         [Test] public void ABroydenRecycleConvergesLikeSubstitution() => RecycleBroydenTest.Run();
 
         [Test] public void ABroydenRecycleLeavesASubstitutionRecycleToConverge() => RecycleBroydenTest.RunBesideSubstitution();
