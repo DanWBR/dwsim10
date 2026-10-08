@@ -28,7 +28,7 @@ The equilibrium constants can be expressed in terms of partial pressures (in atm
 
 In the reactor, methane (CH4) and water (H2O) are fed as reactants and carbon dioxide (CO2), carbon monoxide (CO), and hydrogen (H2) are produced over a nickel catalyst on an alumina support.
 
-In laboratory experiments, a nonreacting inert gas such as helium (He) may also be present. In the most general form, the governing conservation equations for each of these species is given below, where denotes the molar flow rate of species i in mol/h, ***W*** denotes the catalyst weight in g, and ***Ri*** denotes the reaction rate of equation i in units of mol/(g-h):
+In laboratory experiments, a nonreacting inert gas such as helium (He) may also be present. In the most general form, the governing conservation equations for each of these species is given below, where ***Fi*** denotes the molar flow rate of species i in mol/h, ***W*** denotes the catalyst weight in g, and ***Ri*** denotes the reaction rate of equation i in units of mol/(g-h):
 
 <span class="image placeholder" original-image-src="screens58/eq2.png" original-image-title="" width="50%">image</span>
 
@@ -50,14 +50,14 @@ The overall methane conversion as found on the original reference is equal to **
 
 #### DWSIM Model (Classic UI)
 
-1.  Create a New Steady State Simulation. Close the Simulation Wizard.
+1.  Create a New Steady-State Simulation. Close the Simulation Wizard.
 
     > 
     >
     > | *<span class="image placeholder" original-image-src="dialog-information.png" original-image-title="">image</span>* | <span class="sans-serif">*Remember to* **Save <span class="sans-serif"></span>your simulation at the end of each step.**</span> |
     > |:---|:--:|
 
-2.  Go to **Edit** \> **Simulation Settings** \> **Compounds**, and select Methane, Hydrogen, Water, Carbon Monoxide and Carbon Dioxide to add these compounds to the simulation.
+2.  Go to **Edit** \> **Simulation Settings** \> **Compounds**, and select Methane, Hydrogen, Water, Carbon Monoxide and Carbon Dioxide to add these compounds to the simulation. Add Methane before Water: the reaction rate expressions refer to the reactants and products by their position in the compound list.
 
     
 
@@ -68,7 +68,7 @@ The overall methane conversion as found on the original reference is equal to **
 
 
 
-3.  Go to **Thermodynamics** tab, select **Peng-Robinson (PR)** on the Available Property Packages section and click **Add**.
+3.  Go to **Thermodynamics** tab, select **Peng-Robinson (PR)** in the property package list; DWSIM adds it to the simulation right away, and it appears under **Added Property Packages**.
 
     
 
@@ -92,7 +92,7 @@ The overall methane conversion as found on the original reference is equal to **
 
 5.  After creating this Units Set, select it on the System of Units combobox.
 
-6.  Go to **Reactions** and create three Heterogeneous Catalytic reactions, with the following configuration. The denominator expression is the same for all three reactions: **(1+1.77E+5\*exp(-88680/8.314/T)\*R1/P1+ 6.12E-9\*exp(82900/8.314/T)\*P1+8.23E-5\*exp(70650/8.314/T)\*R2)^2**
+6.  Go to **Reactions** and create three Heterogeneous Catalytic reactions, with the following configuration (Basis: Partial Pressures, Phase: Vapor, Amount Units: atm, Rate Units: kmol/\[kg.h\]; the numerators are shown in the figures). Each reaction has its own denominator: the variables R1, R2 (reactants) and P1, P2 (products) are numbered in the order of the compounds in the list, and a compound that does not take part in a reaction has no variable, so its adsorption term is left out. The figures cut the denominators short; type them as follows. Overall Reaction: (1+6.65E-4\*exp(38280/8.314/T)\*R1+1.77E+5\*exp(-88680/8.314/T)\*R2/P1+6.12E-9\*exp(82900/8.314/T)\*P1)^2. Steam Reforming: (1+8.23E-5\*exp(70650/8.314/T)\*P2+6.65E-4\*exp(38280/8.314/T)\*R1+1.77E+5\*exp(-88680/8.314/T)\*R2/P1+6.12E-9\*exp(82900/8.314/T)\*P1)^2. Water Gas Shift: **(1+1.77E+5\*exp(-88680/8.314/T)\*R1/P1+6.12E-9\*exp(82900/8.314/T)\*P1+8.23E-5\*exp(70650/8.314/T)\*R2)^2**
 
     
 
@@ -132,7 +132,7 @@ The overall methane conversion as found on the original reference is equal to **
 
 
 
-8.  Configure the inlet stream (MSTR-000) as follows:
+8.  Configure the inlet stream (MSTR-000) as follows: temperature 726.85 C (1000 K), pressure 1.01325 bar (1 atm), and the compound amounts on the Compound Amounts tab with Basis set to Mole Flows (click Accept Changes):
 
     
 
@@ -143,7 +143,7 @@ The overall methane conversion as found on the original reference is equal to **
 
 
 
-9.  Configure the PFR as follows:
+9.  Configure the PFR as follows. On the General tab, set the Calculation Mode to Isothermic. Keep the defaults of the Dimensions tab (Reactive Volume 1 m3, Tube Length 1 m). On the Catalyst Info tab, enter a Catalyst Loading of 0.386 kg/m3, a Catalyst Particle Diameter of 2 mm and a Catalyst Void Fraction of 0.4. The catalyst weight is the Catalyst Loading times the Reactive Volume, 0.386 kg, close to the 382 g of the problem statement:
 
     
 
@@ -156,9 +156,9 @@ The overall methane conversion as found on the original reference is equal to **
 
 10. **Note:** when you create new reactions, they are automatically added to the **Default Reaction Set**. When you add new reactors to the flowsheet, they are automatically configured to use all supported and active reactions on the Default Reaction Set. You can create, edit and remove Reaction Sets at any time, and associate the individual reactors with different Reactions Sets too.
 
-11. Run the simulation (press F5 or click on the Solve Flowsheet button on the toolbar). Wait for the calculation to finish.
+11. Run the simulation (press F5 or click on the Solve button on the toolbar). Wait for the calculation to finish.
 
-12. Once finished, you should get the following results (methane conversion ~ **76.4%**):
+12. Once finished, you should get the following results (methane conversion ~ **76.1%**):
 
     
 
@@ -169,9 +169,9 @@ The overall methane conversion as found on the original reference is equal to **
 
 
 
-13. Create a new Sensitivity Analysis case to study the influence of the temperature on Methane conversion from 700 to 1000 C. Go to **Tools** \> **Sensitivity Analysis** and click on **Create New**.
+13. Create a new Sensitivity Analysis case to study the influence of the temperature on Methane conversion from 700 to 1000 C. Go to **Flowsheet Analysis** \> **Sensitivity Analysis** and click on **New Case**.
 
-14. Setup the Independent and Dependent Variables as follows:
+14. Set up the Independent Variable (MSTR-000, Temperature, Lower Limit 700, Upper Limit 1000, 5 points) and the Dependent Variable (PFR-000, Methane: Conversion) as follows:
 
     
 
@@ -182,7 +182,7 @@ The overall methane conversion as found on the original reference is equal to **
 
 
 
-15. Go to Results and run the Case. Wait for the calculations to finish.
+15. Go to the Results tab and click Start Sensitivity Analysis. Wait for the calculations to finish.
 
 16. Once finished, click on **Send Data to New Worksheet**.
 
@@ -195,7 +195,7 @@ The overall methane conversion as found on the original reference is equal to **
 
 
 
-17. With the data range selected on the flowsheet, right-click on it and select **Create 2D XY Chart from Selection**.
+17. With the data range selected on the spreadsheet, right-click on it and select **Create 2D XY Chart from Selection**.
 
     
 
@@ -215,7 +215,7 @@ The overall methane conversion as found on the original reference is equal to **
 
 
 
-18. You can also view the concentration profile of the PFR using the Charts utility. Click on **Add New 2D XY Chart**, select the PFR as the data source of the chart, select *Concentration Profile* as the **Chart Type** and click on **Update Chart Data:**
+18. You can also view the concentration profile of the PFR using the Charts utility. Go to the Charts tab of the flowsheet window and click on **Add New 2D XY Chart**, in the chart properties set Data Source to FlowsheetObject and Source Object to PFR-000, select *Concentration Profile* as the **Chart Type** and click on **Update Chart Data:**
 
     
 
@@ -223,164 +223,6 @@ The overall methane conversion as found on the original reference is equal to **
 ![PFR concentration profile](images/screens58/tut1/tut1-12.png)
 
 *PFR concentration profile*
-
-
-
-#### DWSIM Model (Cross-Platform UI)
-
-1.  Create a New Simulation. Close the Simulation Wizard.
-
-    > 
-    >
-    > | *<span class="image placeholder" original-image-src="dialog-information.png" original-image-title="">image</span>* | <span class="sans-serif">*Remember to* **Save <span class="sans-serif"></span>your simulation at the end of each step.**</span> |
-    > |:---|:--:|
-
-2.  Go to **Edit \> Simulation Settings \> Compounds**, and select Methane, Hydrogen, Water, Carbon Monoxide and Carbon Dioxide to add these compounds to the simulation.
-
-    
-
-
-![Compound Selection](images/screens58/tut1cp/tut1-1.png)
-
-*Compound Selection*
-
-
-
-3.  Go to **Edit \> Simulation Settings \> Thermodynamics** and select **Peng-Robinson (PR)** on the property package combobox to add a copy of this Property Package to the simulation.
-
-    
-
-
-![Property Package Selection](images/screens58/tut1cp/tut1-2.png)
-
-*Property Package Selection*
-
-
-
-4.  Go to **Tools \> Systems of Units** and create a new System of Units, with the following setup:
-
-    
-
-
-![New System of Units](images/screens58/tut1cp/tut1-11.png)
-
-*New System of Units*
-
-
-
-5.  After creating this Units Set, select it on the System of Units combobox.
-
-6.  Go to **Tools \> Reaction Manager** and create three new Heterogeneous Catalytic reactions, with the following configuration. The denominator expression is the same for all three reactions: **(1+1.77E+5\*exp(-88680/8.314/T)\* R1/P1+6.12E-9\*exp(82900/8.314/T)\*P1+8.23E-5\*exp(70650/8.314/T)\*R2)^2**
-
-    
-
-
-![Overall Reaction setup](images/screens58/tut1cp/tut1-3.png)
-
-*Overall Reaction setup*
-
-
-
-    
-
-
-![Steam Reforming Reaction setup](images/screens58/tut1cp/tut1-4.png)
-
-*Steam Reforming Reaction setup*
-
-
-
-    
-
-
-![Water Gas Shift Reaction setup](images/screens58/tut1cp/tut1-5.png)
-
-*Water Gas Shift Reaction setup*
-
-
-
-7.  Close the Basis panel, and drag two material streams, one energy stream and one PFR from the **Object Palette** to the **Flowsheet PFD**. Connect the streams to the PFR as shown on the following figure:
-
-    
-
-
-![PFD setup](images/screens58/tut1/tut1-19.png)
-
-*PFD setup*
-
-
-
-8.  Configure the inlet stream (MSTR-000) as follows (enter the temperature, pressure, molar flow and composition in molar fractions):
-
-    
-
-
-![Inlet Stream setup](images/screens58/tut1cp/tut1-6.png)
-
-*Inlet Stream setup*
-
-
-
-9.  Configure the PFR as follows:
-
-    
-
-
-![PFR setup](images/screens58/tut1cp/tut1-8.png)
-
-*PFR setup*
-
-
-
-10. **Note:** when you create new reactions, they are automatically added to the **Default Reaction Set**. When you add new reactors to the flowsheet, they are automatically configured to use all supported and active reactions on the Default Reaction Set. You can create, edit and remove Reaction Sets at any time, and associate the individual reactors with different Reactions Sets too.
-
-11. Run the simulation (press F5 or click on the **Solve Flowsheet** button on the toolbar). Wait for the calculation to finish.
-
-12. Once finished, you should get the following results (methane conversion ~ **76.4%**):
-
-    
-
-
-![PFR calculation results](images/screens58/tut1cp/tut1-9.png)
-
-*PFR calculation results*
-
-
-
-13. Create a new Sensitivity Analysis case to study the influence of the temperature on Methane conversion from 700 to 900 C. Go to **Tools** \> **Sensitivity Analysis**.
-
-14. Setup the Independent and Dependent Variables as follows:
-
-    
-
-
-![Sensitivity Analysis case setup](images/screens58/tut1cp/tut1-12.png)
-
-*Sensitivity Analysis case setup*
-
-
-
-15. Run the Analysis. Wait for the calculations to finish (the **View Report** and **View Chart** buttons will become active).
-
-16. Once finished, click on **View Chart**.
-
-    
-
-
-![Sensitivity Analysis results](images/screens58/tut1cp/tut1-13.png)
-
-*Sensitivity Analysis results*
-
-
-
-17. You can also view the concentration profile of the PFR using the Charts utility. Go to the **Charts tab** on the main flowsheet window, click on **Add New 2D XY Chart**, select the PFR as the data source of the chart, select *Concentration Profile* as the **Chart Type** and click on **Update Chart Data:**
-
-    
-
-
-![PFR concentration profile as visible on the Charts tool](images/screens58/tut1cp/tut1-14.png)
-
-*PFR concentration profile as visible on the Charts tool*
 
 
 

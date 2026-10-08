@@ -10,23 +10,23 @@ The Pretreatment block converts a lignocellulosic slurry (cellulose + hemicellul
 
 ###### Reactions and Stoichiometry {#reactions-and-stoichiometry .unnumbered}
 
-- **Cellulose → Glucose** (hydrolysis): $(C_{6}H_{10}O_{5})_{n}+n\,H_{2}O\rightarrow n\,C_{6}H_{12}O_{6}$ — 1.111 g glucose per g cellulose consumed.
+- **Cellulose → Glucose** (hydrolysis): $(C_{6}H_{10}O_{5})_{n}+n\,H_{2}O\rightarrow n\,C_{6}H_{12}O_{6}$ , 1.111 g glucose per g cellulose consumed.
 
-- **Glucose → HMF** (dehydration): C $_{6}$ H $_{12}$ O $_{6}\rightarrow$ C $_{6}$ H $_{6}$ O $_{3}+3\,H_{2}O$ — furanic inhibitor.
+- **Glucose → HMF** (dehydration): C $_{6}$ H $_{12}$ O $_{6}\rightarrow$ C $_{6}$ H $_{6}$ O $_{3}+3\,H_{2}O$ , a furanic inhibitor.
 
-- **Hemicellulose → Xylose**: $(C_{5}H_{8}O_{4})_{n}+n\,H_{2}O\rightarrow n\,C_{5}H_{10}O_{5}$ — 1.136 g xylose per g xylan.
+- **Hemicellulose → Xylose**: $(C_{5}H_{8}O_{4})_{n}+n\,H_{2}O\rightarrow n\,C_{5}H_{10}O_{5}$ , 1.136 g xylose per g xylan.
 
 - **Xylose → Furfural**: C $_{5}$ H $_{10}$ O $_{5}\rightarrow$ C $_{5}$ H $_{4}$ O $_{2}+3\,H_{2}O$ .
 
-- **Acetic acid release** — proportional to hemicellulose consumed, via the Acetic Acid Yield on Hemi parameter (default 0.12 g/g).
+- **Acetic acid release**: proportional to hemicellulose consumed, via the Acetic Acid Yield on Hemi parameter (default 0.12 g/g).
 
-- **Lignin solubilization** — a user-set fraction of the lignin is converted to a Soluble Lignin pseudo-compound.
+- **Lignin solubilization**: a user-set fraction of the lignin is converted to a Soluble Lignin pseudo-compound.
 
 ###### Ports {#ports .unnumbered}
 
-- **Biomass Slurry (inlet)** — lignocellulose suspended in water.
+- **Biomass Slurry (inlet)**: lignocellulose suspended in water.
 
-- **Pretreated Slurry (outlet)** — sugars, inhibitors, residual solids and soluble lignin.
+- **Pretreated Slurry (outlet)**: sugars, inhibitors, residual solids and soluble lignin.
 
 ###### Input Parameters {#input-parameters-14 .unnumbered}
 
@@ -50,15 +50,15 @@ The Pretreatment block converts a lignocellulosic slurry (cellulose + hemicellul
 
 ###### Overview {#overview-27 .unnumbered}
 
-The Bioreactor models a microbial culture system in which biomass (cells) grows on a limiting substrate and, optionally, produces one or more metabolic products. Unlike the chemical reactors described above, the Bioreactor does not rely on the reactions defined in the flowsheet Reactions Manager. Instead, it uses Monod-family kinetic expressions together with user-selected compound roles (biomass, substrate, product, O $_{2}$ , CO $_{2}$ , N-source, water) to compute cell growth, substrate consumption, product formation and — for aerobic cultures — oxygen uptake and carbon dioxide evolution.
+The Bioreactor models a microbial culture system in which biomass (cells) grows on a limiting substrate and, optionally, produces one or more metabolic products. Unlike the chemical reactors described above, the Bioreactor does not rely on the reactions defined in the flowsheet Reactions Manager. Instead, it uses Monod-family kinetic expressions together with user-selected compound roles (biomass, substrate, product, O $_{2}$ , CO $_{2}$ , N-source, water) to compute cell growth, substrate consumption, product formation and, for aerobic cultures, oxygen uptake and carbon dioxide evolution.
 
 The Bioreactor supports three operating modes:
 
-- **Continuous** — steady-state chemostat with constant feed and broth outlet flows.
+- **Continuous**: steady-state chemostat with constant feed and broth outlet flows.
 
-- **Batch** — represents a discontinuous batch reactor as a cycle-averaged steady-state for the surrounding flowsheet. The microbial balances are integrated from the inlet substrate/biomass concentrations over the user-specified*Batch Duration* $t_{b}$ ; the final concentrations $S(t_{b}),\,X(t_{b}),\,P(t_{b})$ are written to the broth outlet, and the equivalent volumetric flow seen by the flowsheet is $Q_{eff}=V/t_{b}$ (one V-volume charge processed every $t_{b}$ seconds). The inlet stream’s mass flows are scaled by $Q_{eff}/Q_{in}$ so the cycle-averaged inlet matches $Q_{eff}$ ; a warning is emitted when $Q_{in}$ from the upstream stream differs from $V/t_{b}$ by more than 5%.
+- **Batch**: represents a discontinuous batch reactor as a cycle-averaged steady-state for the surrounding flowsheet. The microbial balances are integrated from the inlet substrate/biomass concentrations over the user-specified*Batch Duration* $t_{b}$ ; the final concentrations $S(t_{b}),\,X(t_{b}),\,P(t_{b})$ are written to the broth outlet, and the equivalent volumetric flow seen by the flowsheet is $Q_{eff}=V/t_{b}$ (one V-volume charge processed every $t_{b}$ seconds). The inlet stream’s mass flows are scaled by $Q_{eff}/Q_{in}$ so the cycle-averaged inlet matches $Q_{eff}$ ; a warning is emitted when $Q_{in}$ from the upstream stream differs from $V/t_{b}$ by more than 5%.
 
-- **Fed-Batch** — same cycle-averaged steady-state representation as Batch in this simplified model: the reactor receives substrate continuously, fills to working volume $V$ over $t_{b}$ , and is discharged at the end. The equivalent flow seen by the flowsheet is again $Q_{eff}=V/t_{b}$ . A rigorous volume-ramping treatment (with diluting concentrations) is not yet implemented.
+- **Fed-Batch**: same cycle-averaged steady-state representation as Batch in this simplified model: the reactor receives substrate continuously, fills to working volume $V$ over $t_{b}$ , and is discharged at the end. The equivalent flow seen by the flowsheet is again $Q_{eff}=V/t_{b}$ . A rigorous volume-ramping treatment (with diluting concentrations) is not yet implemented.
 
 ###### Kinetic Models {#kinetic-models .unnumbered}
 
@@ -66,33 +66,33 @@ The specific growth rate $\mu$ (1/h) can be described by one of the following ex
 
 - **Monod**: $\mu=\mu_{max}\,S/(K_{s}+S)$ .
 
-- **Contois**: $\mu=\mu_{max}\,S/(K_{s}\,X+S)$ — saturation constant scales with biomass concentration; useful for dense cultures.
+- **Contois**: $\mu=\mu_{max}\,S/(K_{s}\,X+S)$ , where the saturation constant scales with biomass concentration; useful for dense cultures.
 
-- **Moser**: $\mu=\mu_{max}\,S^{n}/(K_{s}+S^{n})$ — generalization of Monod with exponent $n$ .
+- **Moser**: $\mu=\mu_{max}\,S^{n}/(K_{s}+S^{n})$ , a generalization of Monod with exponent $n$ .
 
-- **Haldane**: $\mu=\mu_{max}\,S/(K_{s}+S+S^{2}/K_{i})$ — includes substrate inhibition through $K_{i}$ .
+- **Haldane**: $\mu=\mu_{max}\,S/(K_{s}+S+S^{2}/K_{i})$ , which includes substrate inhibition through $K_{i}$ .
 
-- **User Script** — evaluate an IronPython script at every integration step; the script receives the current $X$ , $S$ , $P$ , $T$ , $p$ and must return the specific growth rate $\mu$ (1/s). This enables arbitrary models (Luedeking–Piret, Andrews, multi-substrate limitation, etc.). The following Python variables are available inside the script scope:
+- **User Script**: evaluate an IronPython script at every integration step; the script receives the current $X$ , $S$ , $P$ , $T$ , $p$ and must return the specific growth rate $\mu$ (1/s). This enables arbitrary models (Luedeking–Piret, Andrews, multi-substrate limitation, etc.). The following Python variables are available inside the script scope:
 
-- `S` — substrate concentration (g/L)
+- `S`: substrate concentration (g/L)
 
-- `X` — biomass concentration (g/L)
+- `X`: biomass concentration (g/L)
 
-- `Px` — product concentration (g/L)
+- `Px`: product concentration (g/L)
 
-- `T` — temperature (K)
+- `T`: temperature (K)
 
-- `P` — pressure (Pa)
+- `P`: pressure (Pa)
 
-- `mu_max` — maximum specific growth rate (1/s)
+- `mu_max`: maximum specific growth rate (1/s)
 
-- `Ks` — saturation constant (g/L)
+- `Ks`: saturation constant (g/L)
 
-- `Ki` — inhibition constant (g/L)
+- `Ki`: inhibition constant (g/L)
 
-- `reactor` — reference to the Bioreactor object
+- `reactor`: reference to the Bioreactor object
 
-- `Flowsheet` — reference to the flowsheet object
+- `Flowsheet`: reference to the flowsheet object
 
 The script must set the variable`mu` to the computed specific growth rate in 1/s units.
 
@@ -142,9 +142,9 @@ When the **Aerobic** flag is disabled, oxygen consumption is forced to zero and 
 
 The Bioreactor exposes two material outlets:
 
-- **Broth Outlet** (port 0, lateral) — carries the bulk liquid phase: residual substrate, biomass, product, water and dissolved nitrogen source.
+- **Broth Outlet** (port 0, lateral): carries the bulk liquid phase: residual substrate, biomass, product, water and dissolved nitrogen source.
 
-- **Offgas Outlet** (port 1, top) — carries the volatile species: CO $_{2}$ produced metabolically and, in aerobic mode, any oxygen that was not consumed. The off-gas port is optional; if no stream is connected, these components remain in the broth dictionary but are not written downstream.
+- **Offgas Outlet** (port 1, top): carries the volatile species: CO $_{2}$ produced metabolically and, in aerobic mode, any oxygen that was not consumed. The off-gas port is optional; if no stream is connected, these components remain in the broth dictionary but are not written downstream.
 
 ###### Thermal Balance {#thermal-balance .unnumbered}
 
@@ -161,11 +161,11 @@ where $\dot{n}_{O_{2}}$ is the molar oxygen uptake rate obtained from the elemen
 
 Three thermal modes are available via the **Thermal Mode** parameter:
 
-- **Isothermal** — the broth temperature is held at the inlet temperature and the required net duty is reported as cooling (negative $\dot{Q}_{duty}$ ). This is the default and the most common industrial operation mode.
+- **Isothermal**: the broth temperature is held at the inlet temperature and the required net duty is reported as cooling (negative $\dot{Q}_{duty}$ ). This is the default and the most common industrial operation mode.
 
-- **Adiabatic** — no external duty is applied; the metabolic heat raises the outlet temperature according to $\Delta T=\dot{Q}_{met}/(\dot{m}\,c_{p})$ for continuous operation, or $\Delta T=\dot{Q}_{met}\tau/(m_{holdup}\,c_{p})$ for batch / fed-batch.
+- **Adiabatic**: no external duty is applied; the metabolic heat raises the outlet temperature according to $\Delta T=\dot{Q}_{met}/(\dot{m}\,c_{p})$ for continuous operation, or $\Delta T=\dot{Q}_{met}\tau/(m_{holdup}\,c_{p})$ for batch / fed-batch.
 
-- **Defined Outlet Temperature** — the user prescribes the outlet temperature and the Bioreactor back-computes the net heat duty from the enthalpy balance $\dot{m}\,c_{p}(T_{out}-T_{in})=\dot{Q}_{met}+\dot{Q}_{duty}$ .
+- **Defined Outlet Temperature**: the user prescribes the outlet temperature and the Bioreactor back-computes the net heat duty from the enthalpy balance $\dot{m}\,c_{p}(T_{out}-T_{in})=\dot{Q}_{met}+\dot{Q}_{duty}$ .
 
 In all modes the computed $\dot{Q}_{duty}$ (kW, positive = heating, negative = cooling) is published through the attached **Heat Duty** energy stream.
 
@@ -179,15 +179,15 @@ A small database of common micro-organisms ships with DWSIM and can be added to 
 
 The Bioreactor exposes two inlet and two outlet streams:
 
-- **Inlet (Feed)** — liquid feed (substrate, inoculum, nutrients, water).
+- **Inlet (Feed)**: liquid feed (substrate, inoculum, nutrients, water).
 
-- **Sparger Gas Inlet (Optional)** — gas feed (typically air) for aerobic cultures; supplies O $_{2}$ and sweeps CO $_{2}$ .
+- **Sparger Gas Inlet (Optional)**: gas feed (typically air) for aerobic cultures; supplies O $_{2}$ and sweeps CO $_{2}$ .
 
-- **Broth Outlet** — liquid outlet containing residual substrate, biomass and products.
+- **Broth Outlet**: liquid outlet containing residual substrate, biomass and products.
 
-- **Offgas Outlet** — gas outlet carrying CO $_{2}$ , unreacted O $_{2}$ and water vapour.
+- **Offgas Outlet**: gas outlet carrying CO $_{2}$ , unreacted O $_{2}$ and water vapour.
 
-- **Heat Duty** (energy stream) — publishes the net thermal duty $\dot{Q}_{duty}$ (kW, positive = heating, negative = cooling) required to satisfy the selected thermal mode.
+- **Heat Duty** (energy stream): publishes the net thermal duty $\dot{Q}_{duty}$ (kW, positive = heating, negative = cooling) required to satisfy the selected thermal mode.
 
 ###### Input Parameters {#input-parameters-15 .unnumbered}
 
@@ -221,7 +221,7 @@ The Results tab reports, after calculation:
 
 - Net heat duty $\dot{Q}_{duty}$ (kW, positive = heating, negative = cooling) published to the Heat Duty energy stream.
 
-- Outlet temperature (K) — equal to the inlet temperature in Isothermal mode, solved from the enthalpy balance in Adiabatic mode, or equal to the user setpoint in Defined Outlet Temperature mode.
+- Outlet temperature (K): equal to the inlet temperature in Isothermal mode, solved from the enthalpy balance in Adiabatic mode, or equal to the user setpoint in Defined Outlet Temperature mode.
 
 ###### Practical Notes {#practical-notes-1 .unnumbered}
 
@@ -257,7 +257,7 @@ When*SandMode = InternalCharCombustor* the reactor iterates the sand-to-biomass 
 
 ###### Axial trajectory, charts and export {#axial-trajectory-charts-and-export .unnumbered}
 
-Every Calculate records the full axial profile — temperature $T(z)$ , cumulative vapor residence time $\tau(z)$ , solid and gas velocities, solids hold-up, and the 9-species mass-fraction tracks (CELL, CELLA, HCE, HCEA, LIG, LIGA, CHAR, BIO_OIL, GAS) — in a transient`LastTrajectory` property of type`CFBPyrolysisTrajectoryResult`. The Parameters tab of the editor exposes two buttons:*Results“ Charts…* opens an OxyPlot-based multi-tab dialog (Temperature, Species, Hydrodynamics, Vapor Residence, Summary, Custom, Data Table) with PNG export at 1600×900 and CSV export of the full profile plus the outlet summary;*Export Time Series…* is a one-click CSV shortcut. The trajectory is marked`XmlIgnore` /`JsonIgnore` and is re-populated on every Calculate (not persisted to the flowsheet file).
+Every Calculate records the full axial profile, temperature $T(z)$ , cumulative vapor residence time $\tau(z)$ , solid and gas velocities, solids hold-up, and the 9-species mass-fraction tracks (CELL, CELLA, HCE, HCEA, LIG, LIGA, CHAR, BIO_OIL, GAS), in a transient`LastTrajectory` property of type`CFBPyrolysisTrajectoryResult`. The Parameters tab of the editor exposes two buttons:*Results“ Charts…* opens an OxyPlot-based multi-tab dialog (Temperature, Species, Hydrodynamics, Vapor Residence, Summary, Custom, Data Table) with PNG export at 1600×900 and CSV export of the full profile plus the outlet summary;*Export Time Series…* is a one-click CSV shortcut. The trajectory is marked`XmlIgnore` /`JsonIgnore` and is re-populated on every Calculate (not persisted to the flowsheet file).
 
 #### Anaerobic Digester
 
@@ -282,13 +282,13 @@ Sulfur bound in the substrate formula needs no separate treatment here: Buswell 
 
 ###### Ports {#ports-2 .unnumbered}
 
-- **Feed (inlet)** — organic wastewater, sludge or agricultural residue slurry.
+- **Feed (inlet)**: organic wastewater, sludge or agricultural residue slurry.
 
-- **Effluent (outlet)** — stabilised liquid with residual COD, NH $_{3}$ and biomass (sludge).
+- **Effluent (outlet)**: stabilised liquid with residual COD, NH $_{3}$ and biomass (sludge).
 
-- **Biogas (outlet)** — CH $_{4}$ / CO $_{2}$ mixture, plus H $_{2}$ S if the feed carries sulfur (see Sulfur Balance below), plus any dissolved gas carried in from the feed.
+- **Biogas (outlet)**: CH $_{4}$ / CO $_{2}$ mixture, plus H $_{2}$ S if the feed carries sulfur (see Sulfur Balance below), plus any dissolved gas carried in from the feed.
 
-- **Heat Duty (energy stream)** — net thermal duty required to hold the selected Thermal Mode.
+- **Heat Duty (energy stream)**: net thermal duty required to hold the selected Thermal Mode.
 
 ###### Input Parameters {#input-parameters-16 .unnumbered}
 
@@ -306,7 +306,7 @@ Standard ADM1 (Batstone et al. 2002) leaves sulfate reduction out of scope, so n
 
 Sulfate and organic sulfur are declared separately because they behave differently, and the distinction is the whole point:
 
-- **Sulfate sulfur** carries no COD of its own. Reducing it to sulfide takes eight electrons per sulfur — 64 kg COD per kmol S, or 2 g COD per g S — drawn from the very pool that would otherwise have made methane. Expect a real loss of CH $_{4}$ .
+- **Sulfate sulfur** carries no COD of its own. Reducing it to sulfide takes eight electrons per sulfur, 64 kg COD per kmol S, or 2 g COD per g S, drawn from the very pool that would otherwise have made methane. Expect a real loss of CH $_{4}$ .
 
 - **Organic sulfur** arrives already reduced inside the substrate molecule. Mineralising it is not a redox step, so it makes H $_{2}$ S at no cost in methane.
 
@@ -320,7 +320,7 @@ Sulfide already dissolved in the feed joins the same pool rather than passing th
 
 - Feed COD, COD removed, substrate consumed, biogas molar flow, CH $_{4}$ and CO $_{2}$ mass flows, CH $_{4}$ mole fraction, specific CH $_{4}$ yield (Nm³/kg COD), sludge production, metabolic heat, net heat duty, outlet temperature.
 
-- Sulfur: H $_{2}$ S in Biogas (ppmv, dry basis — the number that sizes the desulfurisation stage), H $_{2}$ S mass flow, and Dissolved Sulfide in the effluent (kg S/m³).
+- Sulfur: H $_{2}$ S in Biogas (ppmv, dry basis, the number that sizes the desulfurisation stage), H $_{2}$ S mass flow, and Dissolved Sulfide in the effluent (kg S/m³).
 
 ###### Practical Notes {#practical-notes-2 .unnumbered}
 
@@ -328,7 +328,7 @@ Sulfide already dissolved in the feed joins the same pool rather than passing th
 
 ###### ADM1-Lite Model (reduced ADM1) {#adm1-lite-model-reduced-adm1 .unnumbered}
 
-A second fidelity mode (**Digester Model = ADM1Lite**) replaces the Buswell black-box stoichiometry with a reduced version of the IWA Anaerobic Digestion Model No. 1. The reduced model tracks four lumped soluble substrates — sugars S $_{s}$ , volatile fatty acids S $_{VFA}$ , acetate S $_{Ac}$ and hydrogen S $_{H_{2}}$ — and four microbial populations (hydrolysers/acidogens X $_{hyd}$ , acetogens X $_{ace}$ , acetoclastic methanogens X $_{am}$ , hydrogenotrophic methanogens X $_{hm}$ ). Monod kinetics drive each uptake step, with non-competitive H $_{2}$ inhibition on acetogenesis:
+A second fidelity mode (**Digester Model = ADM1Lite**) replaces the Buswell black-box stoichiometry with a reduced version of the IWA Anaerobic Digestion Model No. 1. The reduced model tracks four lumped soluble substrates (sugars S $_{s}$ , volatile fatty acids S $_{VFA}$ , acetate S $_{Ac}$ and hydrogen S $_{H_{2}}$ ) and four microbial populations (hydrolysers/acidogens X $_{hyd}$ , acetogens X $_{ace}$ , acetoclastic methanogens X $_{am}$ , hydrogenotrophic methanogens X $_{hm}$ ). Monod kinetics drive each uptake step, with non-competitive H $_{2}$ inhibition on acetogenesis:
 
 
 
@@ -351,13 +351,13 @@ Biomass grows with yields Y $_{j}$ on each substrate and decays at first order (
 
 ###### ADM1-Full Model (Batstone 2002 / BSM2) {#adm1-full-model-batstone-2002-bsm2 .unnumbered}
 
-A third fidelity mode (**Digester Model = ADM1Full**) activates the complete IWA Anaerobic Digestion Model No. 1 as specified by Batstone et al. and implemented per Rosen & Jeppsson for the IWA BSM2 benchmark. The ADM1-Full path integrates 31 dynamic state variables — 12 soluble species (monosaccharides, amino acids, LCFA, valerate, butyrate, propionate, acetate, dissolved H $_{2}$ , dissolved CH $_{4}$ , inorganic C, inorganic N, soluble inerts), 12 particulates (composites, carbohydrates, proteins, lipids, seven biomass populations, particulate inerts), 2 ion surrogates (S $_{cat}$ , S $_{an}$ ), 4 gas-phase species (H $_{2}$ , CH $_{4}$ , CO $_{2}$ , H $_{2}$ S) and dissolved inorganic sulfide — the last two being the sulfur extension, which reduces to standard ADM1 exactly when no sulfur is declared; the state vector carries five more (the dissolved sulfate and four sulfate-reducing populations) that only ADM1-S moves — under 19 biochemical processes, Hill pH envelopes on the three acidogen/acetoclast/hydrogenotroph groups, free-NH $_{3}$ and H $_{2}$ inhibition, and gas-liquid transfer with per-species Henry constants. Inorganic carbon and nitrogen are closed over all 19 processes from the carbon and nitrogen content of every component, so the CO $_{2}$ in the biogas is the carbon the reactions actually release and the ammonia climbs as cell lysis returns it. An algebraic charge-balance pH is solved by Newton-Raphson (with bisection fallback) at every ODE stage, and the acid-base and Henry constants are corrected from their 25 °C reference to the reactor temperature by van’t Hoff, so setting the operating temperature moves the whole chemistry with it.
+A third fidelity mode (**Digester Model = ADM1Full**) activates the complete IWA Anaerobic Digestion Model No. 1 as specified by Batstone et al. and implemented per Rosen & Jeppsson for the IWA BSM2 benchmark. The ADM1-Full path integrates 31 dynamic state variables: 12 soluble species (monosaccharides, amino acids, LCFA, valerate, butyrate, propionate, acetate, dissolved H $_{2}$ , dissolved CH $_{4}$ , inorganic C, inorganic N, soluble inerts), 12 particulates (composites, carbohydrates, proteins, lipids, seven biomass populations, particulate inerts), 2 ion surrogates (S $_{cat}$ , S $_{an}$ ), 4 gas-phase species (H $_{2}$ , CH $_{4}$ , CO $_{2}$ , H $_{2}$ S) and dissolved inorganic sulfide. The last two are the sulfur extension, which reduces to standard ADM1 exactly when no sulfur is declared; the state vector carries five more (the dissolved sulfate and four sulfate-reducing populations) that only ADM1-S moves. The integration runs under 19 biochemical processes, Hill pH envelopes on the three acidogen/acetoclast/hydrogenotroph groups, free-NH $_{3}$ and H $_{2}$ inhibition, and gas-liquid transfer with per-species Henry constants. Inorganic carbon and nitrogen are closed over all 19 processes from the carbon and nitrogen content of every component, so the CO $_{2}$ in the biogas is the carbon the reactions actually release and the ammonia climbs as cell lysis returns it. An algebraic charge-balance pH is solved by Newton-Raphson (with bisection fallback) at every ODE stage, and the acid-base and Henry constants are corrected from their 25 °C reference to the reactor temperature by van’t Hoff, so setting the operating temperature moves the whole chemistry with it.
 
 That charge-balance pH is what the Feed Alkalinity input (eq/L) acts on. It is the strong mineral cations the feed liquid carries (potassium, sodium, calcium, magnesium) beyond the ammonia and the bicarbonate, not the total alkalinity a titration reports. The titrated alkalinity of a slurry already counts the bicarbonate and the ammonia, and the model generates both of those on its own from the carbon and the nitrogen of the substrate, so entering the titrated figure double-counts them and drives the pH far too high (a manure supernatant of 457 meq/L, entered as is, takes the digester to pH 12). Set Feed Alkalinity by calibration: raise it until the pH the digester reports matches the pH measured on the substrate or the digestate, which for a healthy digester sits near 7. For an ammonia-rich substrate such as pig slurry the calibrated value is a small fraction of the titrated alkalinity, because most of that titrated alkalinity is the ammonia the model is already accounting for.
 
 The system is advanced with a Cash-Karp embedded RK45 adaptive integrator. Dissolved H $_{2}$ is not integrated but solved from its own mass balance at each stage (the DAE form of Rosen & Jeppsson): it sits near $2.5\times10^{-7}$ kg COD/m³ against a half-saturation of $7\times10^{-6}$ , which gives it a time constant of a fraction of a second in a model whose retention time is weeks, and an explicit method has to resolve the fastest mode it is given. Integrating it directly pins the step at about $2\times10^{-6}$ d and the run never finishes.
 
-The trajectory result carries whether the run converged, the time it actually reached, the step count and, if it stopped early, why. A run that fails to reach its horizon raises an error rather than reporting a half-finished transient as an answer. Sampling is decoupled from the adaptive step — accepted steps are interpolated onto a fixed sample grid (default 500 points, capped at 2000) for reporting and charting.
+The trajectory result carries whether the run converged, the time it actually reached, the step count and, if it stopped early, why. A run that fails to reach its horizon raises an error rather than reporting a half-finished transient as an answer. Sampling is decoupled from the adaptive step: accepted steps are interpolated onto a fixed sample grid (default 500 points, capped at 2000) for reporting and charting.
 
 Validation: the model reproduces the published BSM2 open-loop steady state (Rosen & Jeppsson 2006; 3400 m³ liquid, 178.47 m³/d, 35 °C) to within 0.25 % across the whole state vector: the volatile fatty acids, the biomass populations, inorganic carbon and nitrogen, the gas-phase concentrations, pH and free ammonia. It also converges back to this steady state from a perturbed start. An automated regression test drives the integrator with the exact benchmark influent and checks the full effluent against the published steady-state table on every build, so the agreement is guarded against future changes.
 
@@ -373,7 +373,7 @@ Validation: the model reproduces the published BSM2 open-loop steady state (Rose
 
 - Two product MaterialStreams must be connected to the digester outputs: Output 0 = liquid effluent (digestate), Output 1 = biogas. An Energy Stream may be optionally attached to pick up the thermal duty.
 
-The operating flag **UseInfluentFromFeedStream** (in the ADM1 Parameters dialog, Operating tab) selects how the influent vector S $_{in}$ is built: when **true** the entire feed COD is routed to the hydrolysable-carbohydrate slot X $_{ch}$ (pragmatic default for any organic substrate), while inorganic C/N, cations, anions and inerts come from the JSON defaults. When **false**, the full fine-grained influent (Sin\_ $\ast$ , Xin\_ $\ast$ ) and the flow Q $_{in}$ are both taken from the parameter set, not from the stream — this is the mode used for BSM2-style runs, where the influent is the benchmark’s rather than the flowsheet’s. The operating temperature that drives the kinetics and acid-base chemistry comes from the reactor’s Thermal Mode either way: the feed temperature under Isothermal or Adiabatic operation, or the fixed reactor temperature when the Thermal Mode sets one.
+The operating flag **UseInfluentFromFeedStream** (in the ADM1 Parameters dialog, Operating tab) selects how the influent vector S $_{in}$ is built: when **true** the entire feed COD is routed to the hydrolysable-carbohydrate slot X $_{ch}$ (pragmatic default for any organic substrate), while inorganic C/N, cations, anions and inerts come from the JSON defaults. When **false**, the full fine-grained influent (Sin\_ $\ast$ , Xin\_ $\ast$ ) and the flow Q $_{in}$ are both taken from the parameter set, not from the stream. This is the mode used for BSM2-style runs, where the influent is the benchmark’s rather than the flowsheet’s. The operating temperature that drives the kinetics and acid-base chemistry comes from the reactor’s Thermal Mode either way: the feed temperature under Isothermal or Adiabatic operation, or the fixed reactor temperature when the Thermal Mode sets one.
 
 Note that in this mode there is no influent sulfate slot: the parameter set carries Sin_IS, which is sulfide, already reduced, and the COD debit does not apply to it because you are stating the influent state directly. To model sulfate reduction and the methane it costs, use the feed-stream mode and the Influent Sulfate Sulfur input.
 
@@ -381,25 +381,25 @@ Note that in this mode there is no influent sulfate slot: the parameter set carr
 
 When **Digester Model = ADM1Full** is selected, three buttons appear at the bottom of the Parameters tab in the editing form:
 
-- **ADM1 Parameters…** — opens a modal dialog with seven tabs (Stoichiometry, Kinetics, Inhibition & pH, Physicochemical, Initial Conditions, Operating, Numerics) exposing every one of the ~100 parameters. Note that the Physicochemical constants are quoted at 25 °C and corrected to the operating temperature by the model, so editing them means editing the chemistry at 25 °C. Footer actions: Reset to Benchmark, Load JSON, Save JSON, OK, Cancel. Parameter sets round-trip via a JSON string persisted on the unit op and therefore travel with the flowsheet file.
+- **ADM1 Parameters…**: opens a modal dialog with seven tabs (Stoichiometry, Kinetics, Inhibition & pH, Physicochemical, Initial Conditions, Operating, Numerics) exposing every one of the ~100 parameters. Note that the Physicochemical constants are quoted at 25 °C and corrected to the operating temperature by the model, so editing them means editing the chemistry at 25 °C. Footer actions: Reset to Benchmark, Load JSON, Save JSON, OK, Cancel. Parameter sets round-trip via a JSON string persisted on the unit op and therefore travel with the flowsheet file.
 
-- **ADM1 Results & Charts…** — opens a modal dialog containing OxyPlot time-series charts on tabs for Biogas (Q $_{gas}$ , x $_{CH_{4}}$ , x $_{CO_{2}}$ , x $_{H_{2}}$ ), VFAs & Acids, pH & Inorganic, Biomass, Substrates, Dissolved gases, plus a Custom tab (pick-and-plot any series), a Data Table tab (full trajectory as a grid) and a toolbar for Export CSV, Export PNG (current chart), and Copy CSV to Clipboard.
+- **ADM1 Results & Charts…**: opens a modal dialog containing OxyPlot time-series charts on tabs for Biogas (Q $_{gas}$ , x $_{CH_{4}}$ , x $_{CO_{2}}$ , x $_{H_{2}}$ ), VFAs & Acids, pH & Inorganic, Biomass, Substrates, Dissolved gases, plus a Custom tab (pick-and-plot any series), a Data Table tab (full trajectory as a grid) and a toolbar for Export CSV, Export PNG (current chart), and Copy CSV to Clipboard.
 
-- **Export Time Series…** — shortcut that writes the full 29-state trajectory (plus derived pH and biogas composition) to a CSV file.
+- **Export Time Series…**: shortcut that writes the full 29-state trajectory (plus derived pH and biogas composition) to a CSV file.
 
 The Results and Export buttons are disabled until a successful calculation has populated a trajectory.
 
-- **ADM1 Regression…** — opens a modal parameter-fitting dialog. The user loads (or pastes) a CSV dataset of measured time-series observations — any combination of pH, biogas flow Q_gas, CH4/CO2/H2 fractions, individual ADM1 states (e.g. S_ac, S_pro, X_ac), or the derived Total_VFA — then selects ADM1 parameters to fit by their dotted reflection path (e.g.`Kinetics.k_m_ac`,`Kinetics.K_S_ac`,`Inhibition.K_I_nh3`,`GasTransfer.k_La`) with lower/upper bounds and an optional log-scale flag. A Nelder-Mead simplex (DotNumerics) minimises the range-normalised weighted sum of squared residuals between the simulated trajectory (linearly interpolated at measurement times) and the observations. Optimisation runs in a background worker with a live logarithmic SSR convergence chart and per-iteration log. When it finishes, the Results tab shows an Initial / Fitted / Ratio table and lets the user overlay measured points against the fitted simulated curve for any observable. Apply writes the fitted values back into the digester’s`ADM1Params` (and its JSON snapshot); Export Report writes a multi-section CSV with the dataset, parameter table, per-series RMSE, full iteration history and fitted trajectory.
+- **ADM1 Regression…**: opens a modal parameter-fitting dialog. The user loads (or pastes) a CSV dataset of measured time-series observations, any combination of pH, biogas flow Q_gas, CH4/CO2/H2 fractions, individual ADM1 states (e.g. S_ac, S_pro, X_ac), or the derived Total_VFA, then selects ADM1 parameters to fit by their dotted reflection path (e.g.`Kinetics.k_m_ac`,`Kinetics.K_S_ac`,`Inhibition.K_I_nh3`,`GasTransfer.k_La`) with lower/upper bounds and an optional log-scale flag. A Nelder-Mead simplex (DotNumerics) minimises the range-normalised weighted sum of squared residuals between the simulated trajectory (linearly interpolated at measurement times) and the observations. Optimisation runs in a background worker with a live logarithmic SSR convergence chart and per-iteration log. When it finishes, the Results tab shows an Initial / Fitted / Ratio table and lets the user overlay measured points against the fitted simulated curve for any observable. Apply writes the fitted values back into the digester’s`ADM1Params` (and its JSON snapshot); Export Report writes a multi-section CSV with the dataset, parameter table, per-series RMSE, full iteration history and fitted trajectory.
 
 ###### Sample Parameter Sets {#sample-parameter-sets .unnumbered}
 
 Three ready-to-load JSON files are installed alongside the engine, under` Reactors\ADM1\Samples`, and can be loaded from the **ADM1 Parameters…** dialog via **Load JSON**:
 
-- `ADM1_BSM2_Mesophilic.json` — the Rosen & Jeppsson BSM2 benchmark at 35 °C (V $_{liq}$ = 3400 m $^{3}$ , V $_{gas}$ = 300 m $^{3}$ , Q $_{in}$ = 178.47 m $^{3}$ /d). Expected steady state: pH ≈ 7.47, Q $_{gas}$ ≈ 2955 Nm $^{3}$ /d, x $_{CH_{4}}$ ≈ 0.650.
+- `ADM1_BSM2_Mesophilic.json`: the Rosen & Jeppsson BSM2 benchmark at 35 °C (V $_{liq}$ = 3400 m $^{3}$ , V $_{gas}$ = 300 m $^{3}$ , Q $_{in}$ = 178.47 m $^{3}$ /d). Expected steady state: pH ≈ 7.47, Q $_{gas}$ ≈ 2955 Nm $^{3}$ /d, x $_{CH_{4}}$ ≈ 0.650.
 
-- `ADM1_Thermophilic_55C.json` — same reactor geometry, thermophilic operation at 55 °C. Temperature-corrected K $_{w}$ , pK $_{a}$ (CO $_{2}$ /NH $_{3}$ ), Henry constants and P $_{gas,H_{2}O}$ ; kinetic rates ~1.75× mesophilic; lower K $_{I,NH_{3}}$ to reveal ammonia-inhibition effects on acetoclasts.
+- `ADM1_Thermophilic_55C.json`: same reactor geometry, thermophilic operation at 55 °C. Temperature-corrected K $_{w}$ , pK $_{a}$ (CO $_{2}$ /NH $_{3}$ ), Henry constants and P $_{gas,H_{2}O}$ ; kinetic rates ~1.75× mesophilic; lower K $_{I,NH_{3}}$ to reveal ammonia-inhibition effects on acetoclasts.
 
-- `ADM1_SwineManure_Mesophilic.json` — farm-scale high-strength mesophilic digester (V $_{liq}$ = 1000 m $^{3}$ , V $_{gas}$ = 100 m $^{3}$ , Q $_{in}$ = 50 m $^{3}$ /d, HRT ≈ 20 d) with a protein-rich, high-N influent to exercise NH $_{3}$ inhibition of the acetate-degrader population.
+- `ADM1_SwineManure_Mesophilic.json`: farm-scale high-strength mesophilic digester (V $_{liq}$ = 1000 m $^{3}$ , V $_{gas}$ = 100 m $^{3}$ , Q $_{in}$ = 50 m $^{3}$ /d, HRT ≈ 20 d) with a protein-rich, high-N influent to exercise NH $_{3}$ inhibition of the acetate-degrader population.
 
 ###### ADM1-Full Results {#adm1-full-results .unnumbered}
 
@@ -462,11 +462,11 @@ Each compound is split between a Heavy (concentrate) and Light (clarified) outle
 
 ###### Ports {#ports-3 .unnumbered}
 
-- **Feed (inlet)** — cell broth or slurry.
+- **Feed (inlet)**: cell broth or slurry.
 
-- **Heavy / Concentrate (outlet)** — cells, solids, cake.
+- **Heavy / Concentrate (outlet)**: cells, solids, cake.
 
-- **Light / Clarified (outlet)** — supernatant / centrate.
+- **Light / Clarified (outlet)**: supernatant / centrate.
 
 ###### Input Parameters {#input-parameters-17 .unnumbered}
 
@@ -497,11 +497,11 @@ Each compound is routed between a Lysate (cell-free supernatant) and a Debris (u
 
 ###### Ports {#ports-4 .unnumbered}
 
-- **Cell Broth (inlet)** — cell suspension from the centrifuge or bioreactor.
+- **Cell Broth (inlet)**: cell suspension from the centrifuge or bioreactor.
 
-- **Lysate (outlet)** — cell-free fraction with released intracellular content.
+- **Lysate (outlet)**: cell-free fraction with released intracellular content.
 
-- **Debris (outlet)** — whole/partial cells plus unreleased material.
+- **Debris (outlet)**: whole/partial cells plus unreleased material.
 
 ###### Input Parameters {#input-parameters-18 .unnumbered}
 
@@ -520,11 +520,11 @@ R_{u}=1-\exp\!\bigl(-k_{u}\,P_{a}^{\beta}\,t\bigr)
 \]
 
 
-where $P_{a}$ is the acoustic power density (W/mL), t the total sonication time (s), and k $_{u}$ , β are empirical fitting parameters (defaults 0.008 and 1.2 target bench-scale probe sonication of moderately tough microbial cells). All other plumbing — stream partitioning, MW-based default release, per-compound overrides and biomass routing — is identical to the mechanical modes, so the same Lysate/Debris outlets and the same release table apply.
+where $P_{a}$ is the acoustic power density (W/mL), t the total sonication time (s), and k $_{u}$ , β are empirical fitting parameters (defaults 0.008 and 1.2 target bench-scale probe sonication of moderately tough microbial cells). All other plumbing (stream partitioning, MW-based default release, per-compound overrides and biomass routing) is identical to the mechanical modes, so the same Lysate/Debris outlets and the same release table apply.
 
 ###### Results {#results-12 .unnumbered}
 
-- Feed, Lysate and Debris mass flows; intrinsic release R (%) — labeled *Hetherington R* for mechanical modes and *Ultrasound R* for sonication; Overall macromolecule release (%).
+- Feed, Lysate and Debris mass flows; intrinsic release R (%): labeled *Hetherington R* for mechanical modes and *Ultrasound R* for sonication; Overall macromolecule release (%).
 
 #### Crossflow Ultrafiltration / Diafiltration (UF/DF) {#crossflow-ultrafiltration-diafiltration-ufdf}
 
@@ -532,9 +532,9 @@ where $P_{a}$ is the acoustic power density (W/mL), t the total sonication time 
 
 The Crossflow UF/DF unit concentrates or buffer-exchanges a liquid stream using a membrane described by per-compound sieving coefficients $\sigma_{i}\in[0,1]$ (0 = fully retained, 1 = freely permeable). Two operating modes are supported.
 
-- **Concentration** — retentate volume is reduced by a user-set Volume Concentration Factor VCF (feed volume / retentate volume). Per compound, $\dot{m}_{ret,i}/\dot{m}_{feed,i}=VCF^{-\sigma_{i}}$ .
+- **Concentration**: retentate volume is reduced by a user-set Volume Concentration Factor VCF (feed volume / retentate volume). Per compound, $\dot{m}_{ret,i}/\dot{m}_{feed,i}=VCF^{-\sigma_{i}}$ .
 
-- **Constant-Volume Diafiltration** — N diavolumes of buffer are exchanged at constant retentate volume. $\dot{m}_{ret,i}/\dot{m}_{in,i}=\exp\!\bigl(-N\cdot(1-\sigma_{i})\bigr)$ .
+- **Constant-Volume Diafiltration**: N diavolumes of buffer are exchanged at constant retentate volume. $\dot{m}_{ret,i}/\dot{m}_{in,i}=\exp\!\bigl(-N\cdot(1-\sigma_{i})\bigr)$ .
 
 ###### Sieving-coefficient Defaults {#sieving-coefficient-defaults .unnumbered}
 
@@ -544,11 +544,11 @@ Suggested σ values are keyed to molecular weight: MW \< 200 Da → σ = 1 (free
 
 - **Feed (inlet)**.
 
-- **Diafiltration Buffer (inlet, optional)** — only meaningful in DF mode; its composition is added to the retentate pool before the sieving law is applied.
+- **Diafiltration Buffer (inlet, optional)**: only meaningful in DF mode; its composition is added to the retentate pool before the sieving law is applied.
 
-- **Retentate (outlet)** — concentrated product.
+- **Retentate (outlet)**: concentrated product.
 
-- **Permeate (outlet)** — membrane-permeated liquid + removed solutes.
+- **Permeate (outlet)**: membrane-permeated liquid + removed solutes.
 
 ###### Input Parameters {#input-parameters-19 .unnumbered}
 
@@ -568,9 +568,9 @@ Two additional operating modes, **ConcentrationDynamic** and **DiafiltrationDyna
 
 The Chromatography unit models a packed-bed column with Langmuir-style binding. Two operating modes and five chemistry presets are available.
 
-- **Bind-Elute** — targets bind to the resin during load and are recovered in the Product during elution.
+- **Bind-Elute**: targets bind to the resin during load and are recovered in the Product during elution.
 
-- **Flow-Through** — contaminants bind; the product flows through unretained.
+- **Flow-Through**: contaminants bind; the product flows through unretained.
 
 - **Chemistry presets**: IonExchange, Affinity, HIC (Hydrophobic Interaction), SizeExclusion, MixedMode.
 
@@ -580,11 +580,11 @@ Each compound is assigned a **RecoveryToProduct** fraction. MW-based defaults fl
 
 ###### Ports {#ports-6 .unnumbered}
 
-- **Feed (inlet)** — load stream.
+- **Feed (inlet)**: load stream.
 
-- **Product (outlet)** — eluate (BindElute) or pass-through (FlowThrough).
+- **Product (outlet)**: eluate (BindElute) or pass-through (FlowThrough).
 
-- **Waste (outlet)** — flow-through, strip and regeneration fractions lumped.
+- **Waste (outlet)**: flow-through, strip and regeneration fractions lumped.
 
 ###### Input Parameters {#input-parameters-20 .unnumbered}
 
@@ -612,11 +612,11 @@ where k $_{Th}$ is the Thomas rate constant (`ThomasRateConstant_Lgs`, L/(g·s))
 
 The Crystallizer splits a liquid stream between a Crystals outlet and a Mother-Liquor outlet based on the solubility of a selected solute in a selected solvent. Three operating modes are available.
 
-- **Cooling crystallization** — outlet temperature is user-specified (typically well below the feed T).
+- **Cooling crystallization**: outlet temperature is user-specified (typically well below the feed T).
 
-- **Evaporative crystallization** — a user-set Evaporation Fraction of the solvent is removed before the solubility check is applied.
+- **Evaporative crystallization**: a user-set Evaporation Fraction of the solvent is removed before the solubility check is applied.
 
-- **Antisolvent crystallization** — a second inlet (Antisolvent) is mixed with the feed; effective solubility is reduced by the user-set Solubility Reduction factor.
+- **Antisolvent crystallization**: a second inlet (Antisolvent) is mixed with the feed; effective solubility is reduced by the user-set Solubility Reduction factor.
 
 ###### Solubility and Yield {#solubility-and-yield .unnumbered}
 
@@ -633,13 +633,13 @@ The crystallized mass is $\max(0,\,\dot{m}_{solute,in}-C_{sat}\cdot\dot{m}_{solv
 
 ###### Ports {#ports-7 .unnumbered}
 
-- **Feed (inlet)** — supersaturated or saturable solution.
+- **Feed (inlet)**: supersaturated or saturable solution.
 
-- **Antisolvent (inlet, optional)** — only used in Antisolvent mode.
+- **Antisolvent (inlet, optional)**: only used in Antisolvent mode.
 
-- **Crystals (outlet)** — crystalline solid product.
+- **Crystals (outlet)**: crystalline solid product.
 
-- **Mother Liquor (outlet)** — saturated remainder containing residual solute, solvent and impurities.
+- **Mother Liquor (outlet)**: saturated remainder containing residual solute, solvent and impurities.
 
 ###### Input Parameters {#input-parameters-21 .unnumbered}
 
@@ -659,21 +659,21 @@ The Biogas Upgrader processes a raw biogas stream (typically 50–65 % CH $_{4}$
 
 A two-stage algebraic model splits each compound between an Upgraded-Gas (RNG) and an Off-gas outlet:
 
-- **H $_{2}$ S polishing** — ZnO bed or caustic wash; default 99 % removal.
+- **H $_{2}$ S polishing**: ZnO bed or caustic wash; default 99 % removal.
 
-- **CO $_{2}$ bulk removal** — technology-specific efficiency; associated CH $_{4}$ loss is routed to off-gas.
+- **CO $_{2}$ bulk removal**: technology-specific efficiency; associated CH $_{4}$ loss is routed to off-gas.
 
-- **H $_{2}$ O polishing** — optional drying step; default 98 % removal.
+- **H $_{2}$ O polishing**: optional drying step; default 98 % removal.
 
 - Inerts (N $_{2}$ , O $_{2}$ ) are carried through to the upgraded stream by default.
 
 ###### Ports {#ports-8 .unnumbered}
 
-- **Biogas (inlet)** — raw biogas, typically from the Anaerobic Digester.
+- **Biogas (inlet)**: raw biogas, typically from the Anaerobic Digester.
 
-- **Upgraded Gas / RNG (outlet)** — pipeline-spec methane (typically \> 95 % CH $_{4}$ ).
+- **Upgraded Gas / RNG (outlet)**: pipeline-spec methane (typically \> 95 % CH $_{4}$ ).
 
-- **Off-gas (outlet)** — CO $_{2}$ , H $_{2}$ S, water and lost CH $_{4}$ .
+- **Off-gas (outlet)**: CO $_{2}$ , H $_{2}$ S, water and lost CH $_{4}$ .
 
 ###### Input Parameters {#input-parameters-22 .unnumbered}
 

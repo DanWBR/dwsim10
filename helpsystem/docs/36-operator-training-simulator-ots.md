@@ -4,7 +4,7 @@
 
 A process simulator answers the question *what would the plant do?* An operator training simulator asks a different one: *what would the operator do?* The Operator Training Simulator (OTS) turns a dynamic DWSIM flowsheet into a training rig. An instructor runs the plant at a chosen speed, freezes it while talking, injects faults and scores the trainee. The trainee runs the plant from a control-room screen with faceplates, alarms, trends and interlocks, and never sees the flowsheet. Training simulators of this kind are standard practice in the process industries, and the reasons for using them (safer start-ups, fewer trips, operators who have already seen the abnormal situation before it happens) are well documented .
 
-The OTS is part of the Classic (Windows) edition of DWSIM Patreon, level 3 (Premium+). Once the subscription is active, an **Operator Training** menu appears on the main menu bar with five entries: **Instructor Station**, **Operator Panel**, **Operator Screens**, **Operator Screens Designer** and **Operator Station (Remote)**. The cross-platform edition does not have them.
+The OTS is part of DWSIM Patreon, level 3 (Premium+), in both interfaces: the Classic interface on Windows and the cross-platform interface on Windows, Linux and macOS. Once the subscription is active, an **Operator Training** menu appears on the main menu bar with five entries: **Instructor Station**, **Operator Panel**, **Operator Screens**, **Operator Screens Designer** and **Operator Station (Remote)**. Files, scenarios and screens are the same in both interfaces, so an instructor on one may hand a case to a trainee on the other.
 
 The system has six parts, all built on the dynamic flowsheet described earlier in this chapter:
 

@@ -87,7 +87,7 @@ Holding Shift while double-clicking an object opens its Connections tab directly
 
 ##### Entering process data
 
-The process data of an object - temperature, pressure, flow, composition and any other parameter - is entered in the **Editor** panel, docked at the left of the window. Clicking an object on the diagram brings its editor up; so does double-clicking it, or **Edit/View** in the object’s context menu. The editor is divided into tabs:
+The process data of an object - temperature, pressure, flow, composition and any other parameter - is entered in the **Editor** panel, docked at the left of the window. Clicking an object on the diagram brings its editor up; so does double-clicking it, or **Edit/View** in the object’s context menu. Streams and unit operations open an editor laid out like the one in the Classic UI: a unit operation shows its connections, calculation parameters and results as sections of one page, and a stream editor has the Input Data, Results, Annotations, Floating Tables and Utilities tabs. Other objects use a generic editor divided into tabs:
 
 - **Connections** - the inlet and outlet ports.
 
@@ -306,13 +306,13 @@ The Binary Envelope utility is a specialized phase envelope builder for viewing 
 
 #### Electrolyte Utilities
 
-DWSIM ships three flowsheet-level utilities dedicated to aqueous electrolyte systems. They are added to the**Utilities** menu whenever the Electrolytes extension package is installed. The utilities are independent of the property package currently assigned to the flowsheet — they operate on their own sidecar parameter databases so the canonical JSON files shipped with DWSIM are never mutated.
+DWSIM ships three flowsheet-level utilities dedicated to aqueous electrolyte systems. They are added to the**Utilities** menu whenever the Electrolytes extension package is installed. The utilities are independent of the property package currently assigned to the flowsheet: they operate on their own sidecar parameter databases so the canonical JSON files shipped with DWSIM are never mutated.
 
-- Electrolyte Phase Diagram — generates salt solubility and phase diagrams for binary and ternary aqueous electrolyte systems using either the eNRTL or Extended UNIQUAC model.
+- Electrolyte Phase Diagram: generates salt solubility and phase diagrams for binary and ternary aqueous electrolyte systems using either the eNRTL or Extended UNIQUAC model.
 
-- Extended UNIQUAC Parameter Fitting — regresses UNIQUAC volume/surface parameters (r, q) and binary interaction energies (u<sup>0</sup>, u<sup>T</sup>) against mean ionic activity coefficient, osmotic coefficient and solubility data.
+- Extended UNIQUAC Parameter Fitting: regresses UNIQUAC volume/surface parameters (r, q) and binary interaction energies (u<sup>0</sup>, u<sup>T</sup>) against mean ionic activity coefficient, osmotic coefficient and solubility data.
 
-- eNRTL Parameter Fitting — regresses the water–electrolyte ( $\tau_{w,ca}$ , $\tau_{ca,w}$ ) interaction parameters and, optionally, the non-randomness parameter $\alpha$ against the same data types.
+- eNRTL Parameter Fitting: regresses the water–electrolyte ( $\tau_{w,ca}$ , $\tau_{ca,w}$ ) interaction parameters and, optionally, the non-randomness parameter $\alpha$ against the same data types.
 
 ##### Electrolyte Phase Diagram
 

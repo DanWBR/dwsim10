@@ -111,7 +111,7 @@ nav:
     - "Corrosion & Scaling Monitor": 47-corrosion-scaling-monitor.md
   - How-To Tutorials:
     - Methane Steam Reforming: 49-methane-steam-reforming.md
-    - Extractive Distillation: 50-extractive-distillation.md
+    - Pressure-Swing Distillation: 50-pressure-swing-distillation.md
     - Flowsheet Control with Python Scripts: 51-flowsheet-control-with-python-scripts.md
     - Basic Dynamic Simulation Tutorial: 52-basic-dynamic-simulation-tutorial.md
   - Advanced Topics:

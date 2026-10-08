@@ -4,7 +4,7 @@
 
 ##### Overview
 
-The Mixer is a unit operation that combines two or more material streams into a single outlet stream. It performs rigorous mass and energy balances across all connected feeds, computing the outlet composition, temperature, pressure, and enthalpy from first principles. The Mixer is a passive unit — it adds no shaft work, heat, or pressure — and it models an ideal adiabatic mixing point.
+The Mixer is a unit operation that combines two or more material streams into a single outlet stream. It performs rigorous mass and energy balances across all connected feeds, computing the outlet composition, temperature, pressure, and enthalpy from first principles. The Mixer is a passive unit. It adds no shaft work, heat, or pressure, and it models an ideal adiabatic mixing point.
 
 ##### Connections
 
@@ -52,7 +52,7 @@ h_{\text{out}}=\frac{{\displaystyle \sum_{k=1}^{N}\dot{m}_{k}\,h_{k}}}{\dot{m}_{
 
 ##### Outlet pressure (user-configurable)
 
-The outlet temperature and phase state are not set directly — the outlet stream is sent to a flash calculation at the computed $(P_{\text{out}},h_{\text{out}})$ , and the thermodynamic property package resolves the temperature and phase fractions.
+The outlet temperature and phase state are not set directly. The outlet stream is sent to a flash calculation at the computed $(P_{\text{out}},h_{\text{out}})$ , and the thermodynamic property package resolves the temperature and phase fractions.
 
 When only a single inlet stream carries a non-zero flow, the outlet is assigned directly from that stream without a mixing flash, improving computational efficiency.
 
@@ -76,11 +76,11 @@ The Mixer supports dynamic simulation. In dynamic mode, the outlet pressure is p
 
 ##### Overview
 
-The Splitter divides a single material stream into two or three outlet streams. All outlets share the same temperature, pressure, composition, and specific enthalpy as the inlet — the Splitter performs no phase separation, heat exchange, or composition change. It is a purely mechanical flow distribution device, analogous to a pipe tee or manifold.
+The Splitter divides a single material stream into two or three outlet streams. All outlets share the same temperature, pressure, composition, and specific enthalpy as the inlet. The Splitter performs no phase separation, heat exchange, or composition change. It is a purely mechanical flow distribution device, analogous to a pipe tee or manifold.
 
 ##### Connections
 
-The Splitter has one material stream inlet and up to three material stream outlets. Outlet ports must be connected sequentially — port 2 cannot be used unless port 1 is already connected, and port 3 cannot be used unless port 2 is already connected.
+The Splitter has one material stream inlet and up to three material stream outlets. Outlet ports must be connected sequentially: port 2 cannot be used unless port 1 is already connected, and port 3 cannot be used unless port 2 is already connected.
 
 | **Port** | **Direction** | **Type** | **Description**                  |
 |:---------|:--------------|:---------|:---------------------------------|
@@ -105,7 +105,7 @@ Splitter Operating Modes
 
 ##### Calculation
 
-###### Split Ratios mode — outlet mass flows are: {#split-ratios-mode-outlet-mass-flows-are .unnumbered}
+###### Split Ratios mode: outlet mass flows {#split-ratios-mode-outlet-mass-flows .unnumbered}
 
 
 
@@ -153,7 +153,7 @@ T_{i}=T_{\text{in}},\quad P_{i}=P_{\text{in}},\quad h_{i}=h_{\text{in}},\quad x_
 \]
 
 
-No flash calculation is performed on the outlet streams — they inherit the inlet phase state and composition identically.
+No flash calculation is performed on the outlet streams: they inherit the inlet phase state and composition identically.
 
 ##### Split Fraction Specifications
 
@@ -183,7 +183,7 @@ In mass or mole flow specification modes, the sum of specified outlet flows must
 
 The Separator Vessel, also known as a Flash Drum, is a unit operation that separates a mixed feed stream into its vapor and liquid phases based on thermodynamic equilibrium. It is one of the most commonly used pieces of equipment in chemical process simulation, representing vessels where pressure reduction or heat addition/removal causes a feed to partially vaporize or condense, allowing the resulting phases to be collected separately.
 
-In DWSIM, the Separator Vessel accepts up to six material inlet streams and one optional energy (heat) stream. It produces up to four material outlet streams — one for the vapor phase, one or two for liquid phases, and one auxiliary outlet — plus an optional energy outlet stream.
+In DWSIM, the Separator Vessel accepts up to six material inlet streams and one optional energy (heat) stream. It produces up to four material outlet streams, one for the vapor phase, one or two for liquid phases, and one auxiliary outlet, plus an optional energy outlet stream.
 
 ##### Operating Modes
 
@@ -245,9 +245,9 @@ The Separator Vessel supports dynamic (time-dependent) simulation. In dynamic mo
 
 ##### Overview
 
-The Safety Valve, also referred to as a Pressure Safety Valve (PSV) or Relief Valve, is a unit operation designed for dynamic simulations. It models a spring-loaded pressure relief device intended to protect pressurized equipment — such as separator vessels, pipes, tanks, and reactors — from exceeding safe operating pressure limits. When the inlet pressure rises above a user-defined set point, the valve opens progressively, allowing fluid to discharge until the pressure is relieved. When the pressure falls back below the set point, the valve closes.
+The Safety Valve, also referred to as a Pressure Safety Valve (PSV) or Relief Valve, is a unit operation designed for dynamic simulations. It models a spring-loaded pressure relief device intended to protect pressurized equipment (such as separator vessels, pipes, tanks, and reactors) from exceeding safe operating pressure limits. When the inlet pressure rises above a user-defined set point, the valve opens progressively, allowing fluid to discharge until the pressure is relieved. When the pressure falls back below the set point, the valve closes.
 
-In DWSIM, the Safety Valve is classified as a pressure changer and uses the naming prefix "PSV-". It connects to the pressurized equipment on its inlet side and to a downstream relief header, blowdown drum, or atmosphere on its outlet side. Because it is purpose-built for dynamic simulation, its steady-state Calculate method performs no calculation — the valve only activates during dynamic integrator runs.
+In DWSIM, the Safety Valve is classified as a pressure changer and uses the naming prefix "PSV-". It connects to the pressurized equipment on its inlet side and to a downstream relief header, blowdown drum, or atmosphere on its outlet side. Because it is purpose-built for dynamic simulation, its steady-state Calculate method performs no calculation: the valve only activates during dynamic integrator runs.
 
 ##### Connections
 
@@ -351,7 +351,7 @@ K_{vc} = \sqrt{\frac{OP}{100}} \quad \text{(Quick Opening)}
 
 During each dynamic time step, the valve determines the mass flow rate through the orifice based on the phase of the inlet fluid.
 
-- **Vapor (gas) flow** — The valve first checks whether the flow is choked (sonic) by comparing the outlet-to-inlet pressure ratio against the critical pressure ratio:
+- **Vapor (gas) flow**: The valve first checks whether the flow is choked (sonic) by comparing the outlet-to-inlet pressure ratio against the critical pressure ratio:
 
 
 
@@ -397,7 +397,7 @@ where $\gamma=C_{p}/C_{v}$ is the heat capacity ratio of the gas.
 
 where $A$ is the orifice area, $P_{1}$ and $P_{2}$ are the inlet and outlet pressures, $v_{1}$ is the inlet specific volume, and \$\rho\$ is the inlet liquid density.
 
-The expansion across the valve is treated as isenthalpic — the outlet stream enthalpy equals the inlet stream enthalpy, and the fluid composition is preserved unchanged.
+The expansion across the valve is treated as isenthalpic: the outlet stream enthalpy equals the inlet stream enthalpy, and the fluid composition is preserved unchanged.
 
 **Note:** Two-phase (mixed vapor-liquid) flow through the valve is not currently supported. If the inlet vapor fraction falls between 0.01 and 0.99, the calculation will raise an error.
 
@@ -856,30 +856,35 @@ Actual flow coefficient value is determined by interpolating data from a user-de
 
 The Pump increases the pressure of a liquid stream by converting shaft work into hydraulic energy. The ideal (isentropic) work is corrected by a user-specified adiabatic efficiency to account for irreversibilities (friction, recirculation losses, etc.).
 
+###### *Calculation Modes* {#calculation-modes-1 .unnumbered}
+
+The calculation mode decides which values the user specifies and which ones the pump calculates.
+
+- Pressure Increase: the pressure rise is specified; the outlet pressure, the power and the outlet temperature are calculated.
+
+- Outlet Pressure: the discharge pressure is specified; the rest follows as in the previous mode.
+
+- Power: the shaft power is specified; the pressure rise is calculated.
+
+- Energy Stream: as in the Power mode, with the power read from the energy stream connected to the pump.
+
+- Performance Curves: the operating point is read from the head, efficiency, power and NPSHr curves (see below).
+
+- Positive Displacement: the flow rate comes from the displacement, the speed and the volumetric efficiency (see below).
+
 ###### *Input Parameters* {#input-parameters-4 .unnumbered}
 
-- Delta-P: pressure rise in the pump.
+- Efficiency (%): pump adiabatic efficiency. It is used in every mode except Performance Curves with an efficiency curve.
 
-- Efficiency: pump adiabatic efficiency;
+- Pressure Increase, Outlet Pressure or Power: the specification of the selected mode.
 
-- Ignore vapor in the inlet stream: defines if the calculator should ignore any vapor in the inlet stream;
+- Performance Curves: the curves and the operating speed.
 
-- Use the provided Delta-P: defines if the pressure of the outlet stream will be calculated by the user-defined Delta-P or the energy stream connected to the pump.
+- Positive Displacement: the displacement per revolution, the volumetric efficiency, the relief valve setting, the operating speed and the outlet pressure.
 
 ###### *Calculation Method* {#calculation-method-4 .unnumbered}
 
-Two operating modes are available. In the first mode, the pressure rise is specified and the required power is calculated:
-
-- Outlet stream enthalpy:
-
-
-
-\[
-H_{2}=H_{1}+\frac{\Delta P}{\rho},
-\]
-
-
-- Pump discharge pressure:
+In the Pressure Increase and Outlet Pressure modes the discharge pressure is known:
 
 
 
@@ -888,12 +893,46 @@ P_{2}=P_{1}+\Delta P
 \]
 
 
-- Pump required power:
+The shaft power and the outlet enthalpy follow from the pressure rise, the liquid density at the inlet and the efficiency:
 
 
 
 \[
-Pot=\frac{W\left(H_{2}-H_{1}\right)}{\eta},
+Pot=\frac{W\,\Delta P}{\rho\,\eta}
+\]
+
+
+
+
+\[
+H_{2}=H_{1}+\frac{Pot}{W}
+\]
+
+
+The work lost to the efficiency stays in the liquid as heat, so the outlet is slightly warmer than the inlet. The outlet temperature comes from a PH flash at $P_{2}$ and $H_{2}$ .
+
+In the Power and Energy Stream modes the power is known and the pressure rise is calculated. The efficient part of the power raises the pressure, and all of it reaches the liquid as enthalpy, the rest as heat, as in the other two modes:
+
+
+
+\[
+P_{2}=P_{1}+\frac{\rho\,\eta\,Pot}{W}
+\]
+
+
+
+
+\[
+H_{2}=H_{1}+\frac{Pot}{W}
+\]
+
+
+The outlet temperature again comes from a PH flash. The available NPSH is calculated from the bubble pressure of the feed at the inlet temperature:
+
+
+
+\[
+NPSH_{a}=\frac{P_{1}-P_{bub}\left(T_{1}\right)}{\rho\,g}
 \]
 
 
@@ -905,56 +944,49 @@ where:
 
 
 
-$Pot$ pump power
+$Pot$ shaft power
 
 $W$ mass flow
 
-$H_{2}$ outlet stream specific enthalpy
-
-$H_{1}$ inlet stream specific enthalpy
+$\rho$ liquid density at the inlet
 
 $\eta$ pump efficiency
 
+$H_{1},H_{2}$ inlet and outlet specific enthalpy
+
+$P_{1},P_{2}$ inlet and outlet pressure
+
+$P_{bub}$ bubble pressure of the feed
+
+$g$ gravitational acceleration
 
 
-- Outlet temperature: PH Flash (with P2 and H2).
-
-In the second mode, the available shaft power is specified (via an energy stream) and the achievable pressure rise is calculated:
-
-- Outlet stream enthalpy:
-
-
-
-\[
-H_{2}=H_{1}+\frac{Pot\,\eta}{W},
-\]
-
-
-- $\Delta P$ :
-
-
-
-\[
-\Delta P=\rho(H_{2}-H_{1}),
-\]
-
-
-- Discharge pressure:
-
-
-
-\[
-P_{2}=P_{1}+\Delta P
-\]
-
-
-- Outlet temperature: PH Flash.
 
 ###### *Outlet Parameters* {#outlet-parameters .unnumbered}
 
-- Delta-T: temperature variation in the pumping process.
+- Pressure Increase and Outlet Pressure, when they are not the specification.
 
-- Power required: power required by the pump.
+- Power Required: shaft power.
+
+- Temperature Difference: temperature rise of the liquid.
+
+- Head: pressure rise expressed as a height of liquid.
+
+- Available NPSH.
+
+###### *Performance Curves* {#performance-curves .unnumbered}
+
+In the Performance Curves calculation mode the pump is described by its measured curves instead of a fixed efficiency: head, power, efficiency and NPSHr against flow rate, each a table of points with its own units, edited in the curve editor of either interface. The head curve is required; with the efficiency curve disabled the pump falls back to the efficiency typed in the editor, and with the power curve disabled the power follows from the head and the efficiency. The pump refuses to extrapolate: a flow rate outside the range of a curve is reported as an error rather than guessed.
+
+A pump driven by a variable-frequency drive runs at a speed other than the one its curves were measured at. The Operating Speed field sets that speed; left at zero the pump runs at the speed of its curves. When the pump carries a single set of curves, the other speeds are covered by the affinity laws: the operating point is read at the flow rate divided by the speed ratio, head and NPSHr are scaled by the square of that ratio, power by its cube, and efficiency is taken as invariant along the affinity parabola. This is the right approximation for a pump with one published curve.
+
+A manufacturer usually publishes a dataset for a variable-frequency pump: one set of curves per measured speed. The curve editor takes any number of them, each keyed by the speed it was measured at and labelled with the supply frequency that would drive the pump there, which follows from the frequency given for the reference speed. Between two measured speeds the pump reads the operating point off both sets at the actual flow rate and interpolates linearly between the two readings, so the measured efficiency and NPSHr are followed instead of assumed. Above the highest measured speed or below the lowest, the nearest set is scaled with the affinity laws and the flowsheet log records that the curves were extrapolated. The sets are saved with the simulation, and the classic curve editor exports and imports the whole dataset as a JSON file.
+
+###### *Positive Displacement* {#positive-displacement .unnumbered}
+
+A metering, dosing or plunger pump is the opposite of a centrifugal one: it delivers the volume it sweeps per revolution, times its speed and its volumetric efficiency, so the flow rate is linear in the rotation and does not depend on the discharge pressure. The Positive Displacement calculation mode models the machine that way. The displacement, the volumetric efficiency and the relief setting are entered with the other pump data; the pressure at the discharge is the one the line imposes, limited by the relief setting, which stands for the relief valve every such machine needs. The shaft power follows from the delivered flow rate, the pressure rise and the pump efficiency.
+
+The delivered volumetric and mass flow rates are reported as properties of the pump, and the flowsheet log says when the feed stream brings a flow rate different from the one the pump displaces, which in a real installation is what the suction accumulator or the relief valve absorbs. In dynamic mode the machine acts as the flow source of its line: the delivered flow rate follows the drive speed through the motor inertia and torque, so a flow controller writing the speed is the loop that sets the dose. The affinity laws do not apply to this machine, and there is no head curve to scale.
 
 #### **Compressor/Expander**
 
@@ -1069,7 +1101,7 @@ $g$ Gravitational Constant (9.8 m/s2)
 
 The Heater and Cooler are single-sided heat exchange models: they add or remove thermal energy from a process stream without explicitly modeling the utility-side fluid. They are used to represent furnaces, electric heaters, cooling-water exchangers, or any other device whose duty or outlet condition is known but whose utility stream need not be simulated.
 
-###### *Calculation Modes* {#calculation-modes-1 .unnumbered}
+###### *Calculation Modes* {#calculation-modes-2 .unnumbered}
 
 - **Energy Stream:** the energy flow from a connected stream is used to heat or cool the inlet stream.
 
@@ -1126,7 +1158,7 @@ Condenser Types
 
 ##### Key Component Specification and Recovery
 
-The user designates one component as the **light key (LK)** — the most volatile component that should primarily report to the bottoms — and one as the **heavy key (HK)** — the least volatile component that should primarily report to the distillate. All components lighter than the LK are assumed to report entirely to the distillate (light non-keys); all components heavier than the HK are assumed to report entirely to the bottoms (heavy non-keys).
+The user designates one component as the **light key (LK)**, the most volatile component that should primarily report to the bottoms, and one as the **heavy key (HK)**, the least volatile component that should primarily report to the distillate. All components lighter than the LK are assumed to report entirely to the distillate (light non-keys); all components heavier than the HK are assumed to report entirely to the bottoms (heavy non-keys).
 
 Recovery is controlled indirectly through two purity specifications:
 
@@ -1138,7 +1170,7 @@ The distribution of all remaining (distributed) non-key components between the t
 
 ##### Calculation Sequence
 
-###### Step 1 — Feed Characterization {#step-1-feed-characterization .unnumbered}
+###### Step 1: Feed Characterization {#step-1-feed-characterization .unnumbered}
 
 The feed thermal condition parameter $q$ is computed from the feed enthalpy relative to its bubble-point and dew-point enthalpies:
 
@@ -1151,7 +1183,7 @@ q=1+\frac{h_{\text{bub}}-h_{F}}{h_{\text{dew}}-h_{\text{bub}}}
 
 where $h_{F}$ is the molar enthalpy of the feed, $h_{\text{bub}}$ is the enthalpy at the bubble point, and $h_{\text{dew}}$ is the enthalpy at the dew point at the feed pressure.
 
-###### Step 2 — Relative Volatilities {#step-2-relative-volatilities .unnumbered}
+###### Step 2: Relative Volatilities {#step-2-relative-volatilities .unnumbered}
 
 K-values for all components are evaluated at the feed temperature and pressure using the selected property package. The relative volatility of each component is defined with respect to the heavy key:
 
@@ -1164,7 +1196,7 @@ K-values for all components are evaluated at the feed temperature and pressure u
 
 Components are then classified as light non-keys ( $\alpha_{i}>\alpha_{\text{LK}}$ ), distributed non-keys ( $\alpha_{\text{HK}}<\alpha_{i}<\alpha_{\text{LK}}$ ), or heavy non-keys ( $\alpha_{i}<\alpha_{\text{HK}}$ ).
 
-###### Step 3 — Minimum Number of Stages (Fenske Equation) {#step-3-minimum-number-of-stages-fenske-equation .unnumbered}
+###### Step 3: Minimum Number of Stages (Fenske Equation) {#step-3-minimum-number-of-stages-fenske-equation .unnumbered}
 
 The minimum number of ideal stages at total reflux is:
 
@@ -1177,7 +1209,7 @@ N_{\min}=\frac{\ln\!\left(\dfrac{x_{D,\text{LK}}}{x_{D,\text{HK}}}\cdot\dfrac{x_
 
 The Fenske equation is also used iteratively to distribute each non-key component between the two products, consistent with the specified key recoveries.
 
-###### Step 4 — Minimum Reflux Ratio (Underwood’s Method) {#step-4-minimum-reflux-ratio-underwoods-method .unnumbered}
+###### Step 4: Minimum Reflux Ratio (Underwood’s Method) {#step-4-minimum-reflux-ratio-underwoods-method .unnumbered}
 
 The Underwood equation finds the root \$\theta\$ (in the interval $\alpha_{\text{HK}}<\theta<\alpha_{\text{LK}}$ ) of:
 
@@ -1199,7 +1231,7 @@ R_{\min}=\sum_{i=1}^{C}\frac{\alpha_{i}\,x_{D,i}}{\alpha_{i}-\theta}-1
 
 When distributed non-keys are present, multiple $\theta$ roots exist (one between each pair of adjacent component $\alpha$ values) and the resulting system of equations is solved by matrix inversion. If the specified reflux ratio is lower than $R_{\min}$ , the calculation raises an error.
 
-###### Step 5 — Actual Number of Stages (Gilliland Correlation) {#step-5-actual-number-of-stages-gilliland-correlation .unnumbered}
+###### Step 5: Actual Number of Stages (Gilliland Correlation) {#step-5-actual-number-of-stages-gilliland-correlation .unnumbered}
 
 The actual number of ideal stages is obtained from the Gilliland correlation:
 
@@ -1226,7 +1258,7 @@ N=\frac{Y+N_{\min}}{1-Y}
 
 where $R$ is the specified operating reflux ratio.
 
-###### Step 6 — Internal Flow Rates {#step-6-internal-flow-rates .unnumbered}
+###### Step 6: Internal Flow Rates {#step-6-internal-flow-rates .unnumbered}
 
 The molar flow rates in each column section are:
 
@@ -1244,7 +1276,7 @@ V' &= L' - B & &\text{(stripping vapor)}
 
 where $D$ is the distillate molar flow, $B$ is the bottoms molar flow, and $F$ is the feed molar flow.
 
-###### Step 7 — Optimal Feed Stage (Kirkbride/Fenske) {#step-7-optimal-feed-stage-kirkbridefenske .unnumbered}
+###### Step 7: Optimal Feed Stage (Kirkbride/Fenske) {#step-7-optimal-feed-stage-kirkbridefenske .unnumbered}
 
 The optimal feed stage location from the top is estimated as:
 
@@ -1257,13 +1289,13 @@ N_{F}=\frac{N_{\min,S}}{N_{\min}}\cdot N
 
 where $N_{\min,S}$ is the Fenske minimum stages for the stripping section alone, calculated using the stripping-section relative volatility and the bottoms key component compositions.
 
-###### Step 8 — Product Temperatures and Enthalpies {#step-8-product-temperatures-and-enthalpies .unnumbered}
+###### Step 8: Product Temperatures and Enthalpies {#step-8-product-temperatures-and-enthalpies .unnumbered}
 
 The distillate temperature is computed by flashing the distillate composition at the condenser pressure to a vapor fraction of 0 (total condenser) or 1 (partial condenser).
 
 The bottoms temperature is computed by flashing the bottoms composition at the reboiler pressure to a vapor fraction of 0 (bubble point).
 
-###### Step 9 — Heat Duties {#step-9-heat-duties .unnumbered}
+###### Step 9: Heat Duties {#step-9-heat-duties .unnumbered}
 
 **Condenser duty** (negative, heat removal):
 
@@ -1287,7 +1319,7 @@ Q_{C}=-\left(h_{L}-h_{D}\right)L
 
 where $h_{L}$ is the saturated liquid enthalpy at the condenser pressure and $h_{V}^{\text{sat}}$ (or $h_{D}$ ) is the saturated vapor enthalpy.
 
-**Reboiler duty** (positive, heat input) — from the overall column energy balance:
+**Reboiler duty** (positive, heat input), from the overall column energy balance:
 
 
 
@@ -1302,7 +1334,7 @@ All enthalpies are on a molar basis.
 
 ##### Overview
 
-The Rigorous Distillation Column is a unit operation that models the separation of a multicomponent mixture into two or more product streams by exploiting differences in component volatilities across a series of equilibrium stages. Unlike the Shortcut Column, which relies on approximate correlations (Fenske, Underwood, Gilliland), the rigorous model solves the full set of MESH equations — Material balances, Equilibrium relations, Summation constraints, and Heat (enthalpy) balances — simultaneously for every stage.
+The Rigorous Distillation Column is a unit operation that models the separation of a multicomponent mixture into two or more product streams by exploiting differences in component volatilities across a series of equilibrium stages. Unlike the Shortcut Column, which relies on approximate correlations (Fenske, Underwood, Gilliland), the rigorous model solves the full set of MESH equations (Material balances, Equilibrium relations, Summation constraints, and Heat (enthalpy) balances) simultaneously for every stage.
 
 In DWSIM, the Distillation Column supports multiple feed streams at arbitrary stages, liquid and vapor side draws, inter-stage heat exchangers, and pump-arounds. The column is bounded by a condenser at the top and a reboiler at the bottom. It can also be configured as a Reboiled Absorber (no condenser) or a Refluxed Absorber (no reboiler) to model stripping and enriching sections independently.
 
@@ -1372,7 +1404,7 @@ The column condenser can be configured in one of three modes:
 
 Condenser Types
 
-Two independent specifications are required to fully define the column — one associated with the condenser and one with the reboiler. The available specification types are:
+Two independent specifications are required to fully define the column: one associated with the condenser and one with the reboiler. The available specification types are:
 
 | **Specification Type** | **Description** |
 |:---|:---|
@@ -1491,7 +1523,7 @@ The column can be initialized from its steady-state solution before starting a d
 
 ##### Overview
 
-The Absorption Column models gas-liquid absorption and liquid-liquid extraction operations using a rigorous stage-by-stage approach. It shares the same mathematical framework and base class as the Distillation Column but operates without a condenser or reboiler by default. The overhead product exits as a vapor (in absorption mode) and the bottoms product exits as a liquid, with no reflux or boilup generated internally — separation is driven entirely by the contact between the feed gas and the solvent.
+The Absorption Column models gas-liquid absorption and liquid-liquid extraction operations using a rigorous stage-by-stage approach. It shares the same mathematical framework and base class as the Distillation Column but operates without a condenser or reboiler by default. The overhead product exits as a vapor (in absorption mode) and the bottoms product exits as a liquid, with no reflux or boilup generated internally. Separation is driven entirely by the contact between the feed gas and the solvent.
 
 ##### Operating Modes
 
@@ -1529,9 +1561,9 @@ Two variant configurations bridge the gap between the two column types:
 
 The Absorption Column uses the following solving methods:
 
-- **Burningham-Otto (Sum-Rates)** — the default method. It updates liquid flows from the summation of component material balances, which is well-suited for absorbers and strippers where the temperature profile is nearly flat and the energy balance has a weak influence on the solution. If convergence difficulties arise, the solver automatically retries with relaxation of temperature and composition updates.
+- **Burningham-Otto (Sum-Rates)**: the default method. It updates liquid flows from the summation of component material balances, which is well-suited for absorbers and strippers where the temperature profile is nearly flat and the energy balance has a weak influence on the solution. If convergence difficulties arise, the solver automatically retries with relaxation of temperature and composition updates.
 
-- **Naphtali-Sandholm (Simultaneous Correction)** — available as an alternative for more strongly coupled systems.
+- **Naphtali-Sandholm (Simultaneous Correction)**: available as an alternative for more strongly coupled systems.
 
 For the Extractor mode, the solver requires multiple sets of trial compositions for the two liquid phases. It iterates through each set of trial estimates until one leads to convergence; if all trials fail, the calculation raises an error.
 
@@ -1562,7 +1594,7 @@ Absorption Column Convergence Settings
 
 ##### Stage Properties
 
-Each stage in the Absorption Column has the same configurable properties as in the Distillation Column — pressure, Murphree efficiency, heat duty, and liquid/vapor side-draw rates. Tray hydraulic parameters (hole area, downcomer geometry, dry tray pressure drop coefficient) are also available for detailed design.
+Each stage in the Absorption Column has the same configurable properties as in the Distillation Column: pressure, Murphree efficiency, heat duty, and liquid/vapor side-draw rates. Tray hydraulic parameters (hole area, downcomer geometry, dry tray pressure drop coefficient) are also available for detailed design.
 
 ##### Dynamic Mode
 
@@ -1578,7 +1610,7 @@ For gas absorption, connect the gas feed to a stage near the bottom and the lean
 
 - For stripping applications requiring a heat source at the bottom, use the **Reboiled Absorber** variant. For applications requiring partial condensation at the top, use the **Refluxed Absorber** variant.
 
-- The stage pressure profile should be specified consistently — DWSIM does not compute hydraulic pressure drops between stages automatically; the user must set the pressure on each stage or specify an overall column pressure drop.
+- The stage pressure profile should be specified consistently: DWSIM does not compute hydraulic pressure drops between stages automatically; the user must set the pressure on each stage or specify an overall column pressure drop.
 
 #### Heat Exchanger
 
@@ -2605,7 +2637,7 @@ $A$ panel area (m2)
 
 ##### Overview
 
-The Fired Heater (also referred to as a process furnace or direct-fired heater) is a unit operation used extensively in petroleum refining and petrochemical processes. It transfers heat released by the combustion of a fuel — typically refinery fuel gas or natural gas — to a process fluid flowing through tubes inside the furnace.
+The Fired Heater (also referred to as a process furnace or direct-fired heater) is a unit operation used extensively in petroleum refining and petrochemical processes. It transfers heat released by the combustion of a fuel, typically refinery fuel gas or natural gas, to a process fluid flowing through tubes inside the furnace.
 
 This DWSIM implementation models a two-zone fired heater consisting of a radiant section, an optional shield (shock) section, and a convection section, topped by a stack (chimney). The model accepts two material streams as input: the process fluid to be heated and the fuel gas stream. It produces two output streams: the heated process fluid and the flue gas exhaust.
 
@@ -3302,9 +3334,9 @@ The model reports the following results: total duty absorbed $Q_{\text{total}}$ 
 
 The **Zeolite Adsorber** is a general-purpose gas-phase adsorption unit operation that models the separation of multicomponent gas mixtures on zeolite (or other microporous) adsorbents. The model supports two operating modes:
 
-- **Equilibrium mode** – a steady-state shortcut calculation based on working capacity at specified adsorption and desorption conditions.
+- **Equilibrium mode**: a steady-state shortcut calculation based on working capacity at specified adsorption and desorption conditions.
 
-- **PSA Cycle mode** – a simplified four-step Skarstrom pressure-swing (or temperature-swing) adsorption cycle that yields cycle-averaged raffinate and desorbate flows.
+- **PSA Cycle mode**: a simplified four-step Skarstrom pressure-swing (or temperature-swing) adsorption cycle that yields cycle-averaged raffinate and desorbate flows.
 
 Three isotherm families are available: single-site Langmuir, dual-site Langmuir (DSL), and Freundlich. Multicomponent competition is handled through the extended (competitive) Langmuir and DSL mixing rules.
 
@@ -3784,17 +3816,17 @@ Indicative Langmuir and DSL parameters for common zeolite–gas systems are prov
 
 ##### Assumptions and Limitations
 
-1.  **Local equilibrium** – the model assumes instantaneous equilibrium between the gas phase and the adsorbed phase (infinite mass-transfer rate). Real columns exhibit dispersive mass-transfer zones; the shortcut result represents the best achievable performance for a given set of equilibrium data.
+1.  **Local equilibrium**: the model assumes instantaneous equilibrium between the gas phase and the adsorbed phase (infinite mass-transfer rate). Real columns exhibit dispersive mass-transfer zones; the shortcut result represents the best achievable performance for a given set of equilibrium data.
 
-2.  **Steady-state cycle average** – the PSA Cycle mode converts a cyclic process to steady-state equivalent flows. Instantaneous concentration profiles within a cycle are not resolved.
+2.  **Steady-state cycle average**: the PSA Cycle mode converts a cyclic process to steady-state equivalent flows. Instantaneous concentration profiles within a cycle are not resolved.
 
-3.  **Real gas in void space** – the void-space inventory uses the compressibility factor $Z$ derived from the property-package molar density at adsorption conditions. The same $Z$ is applied at desorption conditions as an approximation.
+3.  **Real gas in void space**: the void-space inventory uses the compressibility factor $Z$ derived from the property-package molar density at adsorption conditions. The same $Z$ is applied at desorption conditions as an approximation.
 
-4.  **Simplified desorption composition** – the desorption partial pressures are approximated using feed mole fractions ([\[eq:des_partial\]](#eq:des_partial)). In reality the desorbate is enriched in the heavy component; a more rigorous treatment requires solving the column material balance iteratively.
+4.  **Simplified desorption composition**: the desorption partial pressures are approximated using feed mole fractions ([\[eq:des_partial\]](#eq:des_partial)). In reality the desorbate is enriched in the heavy component; a more rigorous treatment requires solving the column material balance iteratively.
 
-5.  **Isothermal operation** – for PSA calculations the bed temperature is held constant. Heat effects due to adsorption and desorption are not fed back into the energy balance; they are reported separately as $\dot{Q}_{\mathrm{ads}}$ ([\[eq:heat_ads\]](#eq:heat_ads)).
+5.  **Isothermal operation**: for PSA calculations the bed temperature is held constant. Heat effects due to adsorption and desorption are not fed back into the energy balance; they are reported separately as $\dot{Q}_{\mathrm{ads}}$ ([\[eq:heat_ads\]](#eq:heat_ads)).
 
-6.  **Ergun pressure drop** – the pressure drop is estimated from the Ergun equation ([\[eq:ergun\]](#eq:ergun)) using the gas density and viscosity from the property package. The calculation assumes uniform, isothermal, single-phase gas flow through a homogeneous packed bed.
+6.  **Ergun pressure drop**: the pressure drop is estimated from the Ergun equation ([\[eq:ergun\]](#eq:ergun)) using the gas density and viscosity from the property package. The calculation assumes uniform, isothermal, single-phase gas flow through a homogeneous packed bed.
 
 ##### Numerical Solution Procedure
 
@@ -3860,9 +3892,9 @@ Because the reaction is essentially irreversible, regeneration is not practised;
 
 Two calculation modes are available:
 
-- **Capacity-Based mode** – a simplified sizing model that uses the vendor-rated maximum mercury capacity $q_{\max}$ to compute the bed lifetime at a given inlet concentration and gas flow rate. Full removal (outlet concentration equal to the breakthrough specification) is assumed until the capacity is exhausted.
+- **Capacity-Based mode**: a simplified sizing model that uses the vendor-rated maximum mercury capacity $q_{\max}$ to compute the bed lifetime at a given inlet concentration and gas flow rate. Full removal (outlet concentration equal to the breakthrough specification) is assumed until the capacity is exhausted.
 
-- **Wheeler-Jonas mode** – a rigorous breakthrough model based on the Wheeler-Jonas equation , combined with a Langmuir or Freundlich adsorption isotherm. The model predicts the time-varying outlet Hg concentration as a function of bed age, inlet conditions, and mass-transfer kinetics.
+- **Wheeler-Jonas mode**: a rigorous breakthrough model based on the Wheeler-Jonas equation , combined with a Langmuir or Freundlich adsorption isotherm. The model predicts the time-varying outlet Hg concentration as a function of bed age, inlet conditions, and mass-transfer kinetics.
 
 ##### Stream Topology
 
@@ -4281,21 +4313,21 @@ $^\dagger$Used only when the Mercury compound is absent from the feed stream; ot
 
 ##### Assumptions and Limitations
 
-1.  **Irreversible chemisorption** – the sorbent is modelled as non-regenerable. The capacity-based mode assumes that the sorbent is fully effective (100 % removal) until breakthrough; deactivation kinetics or competing reactions are not modelled.
+1.  **Irreversible chemisorption**: the sorbent is modelled as non-regenerable. The capacity-based mode assumes that the sorbent is fully effective (100 % removal) until breakthrough; deactivation kinetics or competing reactions are not modelled.
 
-2.  **Elemental mercury only** – only elemental Hg$^0$ is considered. Organomercury compounds (e.g. dimethylmercury) and ionic species (Hg$^{2+}$) have different adsorption behaviour and require separate treatment.
+2.  **Elemental mercury only**: only elemental Hg$^0$ is considered. Organomercury compounds (e.g. dimethylmercury) and ionic species (Hg$^{2+}$) have different adsorption behaviour and require separate treatment.
 
-3.  **Local equilibrium in Wheeler-Jonas mode** – the model assumes that the axial dispersion and external film resistance are lumped into the single parameter $k_v$. Rigorous mass-transfer analysis (e.g. linear driving force or pore-diffusion models) is beyond the scope of this unit operation.
+3.  **Local equilibrium in Wheeler-Jonas mode**: the model assumes that the axial dispersion and external film resistance are lumped into the single parameter $k_v$. Rigorous mass-transfer analysis (e.g. linear driving force or pore-diffusion models) is beyond the scope of this unit operation.
 
-4.  **Ergun pressure drop** – the pressure drop is estimated from the Ergun equation ([\[eq:ergun_hg\]](#eq:ergun_hg)) using the gas density and viscosity from the property package. The calculation assumes uniform, isothermal, single-phase gas flow through a homogeneous packed bed.
+4.  **Ergun pressure drop**: the pressure drop is estimated from the Ergun equation ([\[eq:ergun_hg\]](#eq:ergun_hg)) using the gas density and viscosity from the property package. The calculation assumes uniform, isothermal, single-phase gas flow through a homogeneous packed bed.
 
-5.  **Isothermal operation** – the outlet gas temperature is set equal to the inlet value. The heat released by chemisorption ($\Delta H \approx 50\text{--}80$ kJ/mol) is not fed back into the energy balance; it is reported implicitly through the removed molar flow and the isosteric heat parameter.
+5.  **Isothermal operation**: the outlet gas temperature is set equal to the inlet value. The heat released by chemisorption ($\Delta H \approx 50\text{--}80$ kJ/mol) is not fed back into the energy balance; it is reported implicitly through the removed molar flow and the isosteric heat parameter.
 
-6.  **Real-gas properties** – all volumetric flows, gas densities, and mercury concentration conversions use the gas molar density from the property package, which accounts for real-gas compressibility effects. Normal-condition quantities (Nm$^3$) use the ideal-gas molar density at NTP as per the standard definition.
+6.  **Real-gas properties**: all volumetric flows, gas densities, and mercury concentration conversions use the gas molar density from the property package, which accounts for real-gas compressibility effects. Normal-condition quantities (Nm$^3$) use the ideal-gas molar density at NTP as per the standard definition.
 
-7.  **No competitive adsorption** – the isotherm parameters describe the Hg–sorbent interaction only. Competitive adsorption by H$_2$S, COS, or heavy hydrocarbons (which can reduce the effective Hg capacity) is not modelled.
+7.  **No competitive adsorption**: the isotherm parameters describe the Hg–sorbent interaction only. Competitive adsorption by H$_2$S, COS, or heavy hydrocarbons (which can reduce the effective Hg capacity) is not modelled.
 
-8.  **Uniform concentration profile** – the Wheeler-Jonas equation assumes an axially uniform initial Hg loading. It does not resolve the spatial concentration profile within the bed.
+8.  **Uniform concentration profile**: the Wheeler-Jonas equation assumes an axially uniform initial Hg loading. It does not resolve the spatial concentration profile within the bed.
 
 ##### Numerical Solution Procedure
 
@@ -4397,7 +4429,7 @@ This unrealistically long lifetime reveals that for this low flow rate the bottl
 
 The **Pipe Network** unit operation performs a rigorous steady-state simulation of fluid flow, pressure distribution, and heat transfer in arbitrarily connected piping systems. The model resolves the simultaneous mass, momentum, and energy balances for all segments and junction nodes in the network, supporting single-phase and two-phase (gas–liquid) flows with full thermodynamic property integration.
 
-The network is built by placing and connecting a set of *network objects*—pipes, nodes, pumps, compressors, valves, separators, sources, and sinks—on a graphical canvas. A nonlinear equation solver then determines the mass flow rates, pressures, and temperatures throughout the network that satisfy all governing balances simultaneously.
+The network is built by placing and connecting a set of *network objects* (pipes, nodes, pumps, compressors, valves, separators, sources and sinks) on a graphical canvas. A nonlinear equation solver then determines the mass flow rates, pressures, and temperatures throughout the network that satisfy all governing balances simultaneously.
 
 ##### Network Objects {#sec:network_objects}
 
@@ -4455,6 +4487,8 @@ The pipe segment calculates the pressure drop and thermal profile for a single p
 ###### Pump, Compressor, and Valve
 
 These objects wrap the corresponding DWSIM base unit operations in $\Delta P$ calculation mode, allowing them to be embedded directly in the network without separate flowsheet connections.
+
+A valve is solved on its flow coefficient, and how the opening reaches that coefficient is the valve’s own business: with the opening versus $K_v$ relationship enabled, the coefficient follows the opening through the characteristic chosen there (linear, equal percentage, quick opening, a table or an expression), which is what lets a controller, or the actuator of [2.31.7](#sec:pn_dynamic), move the valve during a run. With the relationship disabled, which is the default, the coefficient entered in the valve stands whatever the opening says. A coefficient of zero is a shut branch.
 
 ###### Separator
 
@@ -4586,7 +4620,7 @@ The elevation (hydrostatic) term uses the in-situ average density:
 \]
 
 
-The flow-pattern map identifies four regimes—segregated, intermittent, distributed, and transition—and the holdup correlation is applied per regime with an inclination correction factor $\psi(\theta, H_L)$. The friction factor is corrected by an empirical multiplier $e^S$ that depends on $\lambda_L / H_L^2$:
+The flow-pattern map identifies four regimes (segregated, intermittent, distributed and transition) and the holdup correlation is applied per regime with an inclination correction factor $\psi(\theta, H_L)$. The friction factor is corrected by an empirical multiplier $e^S$ that depends on $\lambda_L / H_L^2$:
 
 
 <a id="eq:bb_ftwo"></a>
@@ -4696,25 +4730,25 @@ F(\mathbf{x}) = \sum_k \left(r_{m,k}^2 + r_{P,k}^2 + r_{E,k}^2\right)
 \]
 
 
-For each evaluation of $F$, all network blocks are calculated sequentially— sources first, then pipes, pumps, compressors, valves, and separators—and the node residuals are assembled from the resulting stream conditions.
+For each evaluation of $F$, all network blocks are calculated sequentially (sources first, then pipes, pumps, compressors, valves and separators) and the node residuals are assembled from the resulting stream conditions.
 
 ###### Solver Options
 
 Two numerical methods are available:
 
-- **Simplex** (default) – derivative-free Nelder–Mead simplex method . Robust for moderate-size networks and does not require gradient information.
+- **Simplex** (default): derivative-free Nelder–Mead simplex method . Robust for moderate-size networks and does not require gradient information.
 
-- **IPOPT** – interior-point optimisation  using numerical gradients computed by finite differences. May converge faster for large or stiff networks.
+- **IPOPT**: interior-point optimisation  using numerical gradients computed by finite differences. May converge faster for large or stiff networks.
 
 The two methods above pose the network as a least-squares problem over the boundary pressures and flows and are retained for backward compatibility; they do not represent looped networks or flow reversal and are slower than the nodal Newton solver described next.
 
 ###### Nodal Newton Solver (Todini–Pilati)
 
-The recommended default for new networks is a sparse nodal Newton method based on the Global Gradient Algorithm of Todini and Pilati . The unknowns are the nodal pressures, obtained by solving a reduced symmetric positive-definite linear system at each iteration; the branch flows follow from the nodal pressures. Because each branch flow carries a sign, looped (meshed) networks and flow reversal are handled automatically—independent of the drawn direction—and the method converges in a few iterations to machine-precision continuity.
+The recommended default for new networks is a sparse nodal Newton method based on the Global Gradient Algorithm of Todini and Pilati . The unknowns are the nodal pressures, obtained by solving a reduced symmetric positive-definite linear system at each iteration; the branch flows follow from the nodal pressures. Because each branch flow carries a sign, looped (meshed) networks and flow reversal are handled automatically, whatever direction the pipe was drawn in, and the method converges in a few iterations to machine-precision continuity.
 
 ###### Flow Models
 
-The nodal Newton solver offers two flow models. In the **incompressible** (single-phase) model each pipe is a closed-form pressure-drop law— Hazen–Williams , or Darcy–Weisbach with the Churchill friction factor —plus the static head; this is the model for water distribution grids. In the **compositional** (multiphase) model each pipe wraps the full two-phase pipe segment ([2.31.4](#sec:pressure_drop)) as a black box, and an outer loop refreshes the pressure and temperature of every branch while the inner Newton step resolves the hydraulics; this is the model for petroleum gathering and production networks.
+The nodal Newton solver offers two flow models. In the **incompressible** (single-phase) model each pipe is a closed-form pressure-drop law, Hazen–Williams  or Darcy–Weisbach with the Churchill friction factor , plus the static head; this is the model for water distribution grids. In the **compositional** (multiphase) model each pipe wraps the full two-phase pipe segment ([2.31.4](#sec:pressure_drop)) as a black box, and an outer loop refreshes the pressure and temperature of every branch while the inner Newton step resolves the hydraulics; this is the model for petroleum gathering and production networks.
 
 ###### Spatial Discretisation and Richardson Extrapolation
 
@@ -4882,15 +4916,15 @@ A **Pump** block on the tubing represents an electrical submersible pump (ESP). 
 
 Selecting a solved pipe segment and choosing *Flow Assurance* from the designer’s Tools menu screens the pipe against a set of integrity limits along its length. Every screen reads the segment’s converged hydraulic profile, so the results are consistent with the solved network; a fluid lacking the phase or data a screen needs simply reports no risk for that screen.
 
-- **Erosion** – the API RP 14E erosional-velocity limit , $V_e = C/\sqrt{\rho_{ns}}$, evaluated on the no-slip mixture density $\rho_{ns} = \lambda_L\rho_L + (1-\lambda_L)\rho_g$; the plot draws the mixture velocity against the limit and flags any increment where the ratio reaches unity.
+- **Erosion**: the API RP 14E erosional-velocity limit , $V_e = C/\sqrt{\rho_{ns}}$, evaluated on the no-slip mixture density $\rho_{ns} = \lambda_L\rho_L + (1-\lambda_L)\rho_g$; the plot draws the mixture velocity against the limit and flags any increment where the ratio reaches unity.
 
-- **Hydrate** – the hydrate formation temperature at the pipe pressures, from the natural-gas-hydrate models (van der Waals–Platteeuw as implemented by Parrish and Prausnitz, Klauda–Sandler, and Chen–Guo)  , interpolated along the traverse; the flowing temperature is overlaid and the stretch that cools into the hydrate region is shaded. Requires water in the fluid.
+- **Hydrate**: the hydrate formation temperature at the pipe pressures, from the natural-gas-hydrate models (van der Waals–Platteeuw as implemented by Parrish and Prausnitz, Klauda–Sandler, and Chen–Guo)  , interpolated along the traverse; the flowing temperature is overlaid and the stretch that cools into the hydrate region is shaded. Requires water in the fluid.
 
-- **Wax** – the wax appearance temperature (cloud point), taken as the highest temperature at which a solid wax phase first precipitates at the pipe pressure in the engine’s solid–liquid equilibrium flash ; increments where the flowing temperature drops below it are flagged. Requires compounds carrying fusion data (heavy paraffins).
+- **Wax**: the wax appearance temperature (cloud point), taken as the highest temperature at which a solid wax phase first precipitates at the pipe pressure in the engine’s solid–liquid equilibrium flash ; increments where the flowing temperature drops below it are flagged. Requires compounds carrying fusion data (heavy paraffins).
 
-- **Asphaltene** – an indicative de Boer stability screening  that classifies the oil (no problem, slight-to-moderate, or severe) from its stock-tank density and the supersaturation $P_r - P_b$ at the inlet, and draws the rigorously computed bubble-point profile against the flowing pressure, flagging where the pipe crosses the bubble point. DWSIM has no first-principles asphaltene model, so the de Boer boundaries are an indicative screen to be tuned to field experience. Requires an oil with a bubble point.
+- **Asphaltene**: an indicative de Boer stability screening  that classifies the oil (no problem, slight-to-moderate, or severe) from its stock-tank density and the supersaturation $P_r - P_b$ at the inlet, and draws the rigorously computed bubble-point profile against the flowing pressure, flagging where the pipe crosses the bubble point. DWSIM has no first-principles asphaltene model, so the de Boer boundaries are an indicative screen to be tuned to field experience. Requires an oil with a bubble point.
 
-- **Liquid loading** – for gas wells, the Turner droplet criterion , with the critical gas velocity
+- **Liquid loading**: for gas wells, the Turner droplet criterion , with the critical gas velocity
 
 
 <a id="eq:turner"></a>
@@ -4926,11 +4960,103 @@ Because those correlations are generic, the Black Oil compound creator offers a 
 
 The designer’s Tools menu collects the analysis views. Besides *Flow Assurance* and *Scaling & Corrosion* it provides:
 
-- **Plot Profiles of Selected Pipes** – orders the selected pipe segments head-to-tail by their shared nodes and concatenates their per-increment profiles by cumulative distance, giving a single traverse along a well string or flow path (pressure, temperature, holdup, phase velocities and more).
+- **Plot Profiles of Selected Pipes**: orders the selected pipe segments head-to-tail by their shared nodes and concatenates their per-increment profiles by cumulative distance, giving a single traverse along a well string or flow path (pressure, temperature, holdup, phase velocities and more).
 
-- **Nodal Analysis Plot (IPR $\times$ VLP)** – for a producing well, plots the inflow (IPR) and outflow (VLP) curves in flowing bottomhole pressure versus rate and marks the operating point at their intersection. The curves are built from the same branch models the solver uses , so the operating point matches the solved network.
+- **Nodal Analysis Plot (IPR $\times$ VLP)**: for a producing well, plots the inflow (IPR) and outflow (VLP) curves in flowing bottomhole pressure versus rate and marks the operating point at their intersection. The curves are built from the same branch models the solver uses , so the operating point matches the solved network.
 
 - **Field Report**, **Gas Lift Allocation** and **Field Target** complete the production-analysis tools.
+
+##### Flare and Relief Networks {#sec:pn_flare}
+
+A flare network is a pipe network whose sources are pressure relief devices and whose only pressure boundary is the atmosphere behind the flare tip. The nodal solver then returns the built-up backpressure at every device implicitly. Four blocks and one flow model serve this service.
+
+###### Relief device
+
+A specialised source (PSV, balanced-bellows or pilot-operated valve, rupture disk) that injects its relieving rate, composition (its associated stream) and temperature into the node at its outlet flange. From the solved node pressure it reports, per API 520 Part I , the total and built-up backpressure as a percentage of the gauge set pressure against the allowable of its type: the built-up backpressure of a conventional valve may not exceed its allowable overpressure (10 % at 10 % overpressure), the total backpressure of a balanced-bellows valve is held to 30 % (with the Figure 30 capacity correction $K_b$ for the allowable overpressure up to 50 %) and that of a pilot-operated valve to 50 %. It also reports the flow regime (critical when the backpressure is below the critical-flow pressure), the effective area its rate needs (gas, liquid with the viscosity correction and the Figure 31 factor $K_w$, or two-phase by the omega method), the API 526 orifice  that holds it, and the rated capacity of the installed orifice at that backpressure. In the *Rated Capacity* mode the injected rate is the installed orifice’s capacity; in the *Sizing* mode the rate is given and the orifice is reported.
+
+###### Compressible-gas flow model
+
+For gas headers the network runs the *Compressible Gas* flow model: every pipe is marched in increments with the momentum balance
+
+
+<a id="eq:pn_gasmarch"></a>
+
+\[
+-\mathrm{d}p = \frac{f}{D}\,\frac{\rho v^2}{2}\,\mathrm{d}x
+    + K_f\,\frac{\rho v^2}{2}\,\frac{\mathrm{d}x}{L}
+    + G^2\,\mathrm{d}\!\left(\frac{1}{\rho}\right) + \rho g\,\mathrm{d}z
+\]
+
+
+where $G$ is the mass flux, $f$ the Churchill friction factor and $K_f$ the fittings resistance spread along the length; the gas state follows the isothermal path by default, which API 521 recommends for discharge piping as the slightly more conservative one, or the adiabatic (Fanno) path. Each pipe reports its maximum and outlet Mach number against a per-pipe limit (0.5 in headers, 0.7 in laterals for short peak loads ), the sonic exit pressure when it chokes, the minimum temperature along it and the friction, acceleration and static parts of its pressure drop. A choked pipe cannot pass more than its sonic rate, which the solver enforces through a smooth barrier so the network still converges; two-phase relief keeps the compositional model.
+
+###### Knockout drum, seal drum and flare tip
+
+The knockout drum is the inline separator with the API 521 sizing check: the allowable vapour velocity from the settling of the design droplet (300 to 600 $\mu$m) against the actual velocity, and the holdup volume the scenario’s liquid needs against the one available. The seal drum is a one-way branch whose pressure drop is the seal head $\rho_s g h$ plus a velocity-head loss. The flare tip drops the exit velocity head at the exit density, caps the rate at the sonic value of the tip and checks the exit Mach number; it also computes the heat release from the mixture’s lower heating value, the flame length $L = 0.00326\,Q^{0.478}$, the flame bent by the wind per the API 521 distortion chart (its horizontal and vertical extents against the ratio of the wind to the exit velocity, the flame centre at half of each), the radiant heat at a target
+
+
+<a id="eq:pn_radiation"></a>
+
+\[
+K = \frac{\tau F Q}{4 \pi D^2}
+\]
+
+
+with the API 521 transmissivity $\tau$ and fraction radiated $F$, the stack height that brings $K$ down to a limit (4.73 kW m$^{-2}$ where emergency actions of a few minutes are needed, 1.58 kW m$^{-2}$ for continuous exposure), and the sound pressure level at 30 m, $L_{30} = L(\mathrm{PR}) + 10\log_{10}(\tfrac{1}{2} m c^2)$, attenuated by $20\log_{10}(r/30)$ to the target .
+
+###### Relief scenarios and load cases
+
+A scenario is one contingency: the devices that relieve together and their rates; a device the scenario does not name stays shut. *Relief Scenarios* on the Tools menu keeps the device-by-scenario table, runs every scenario in turn (each solve warm-starting from the last) and names the governing scenario per device (the largest margin over the allowable backpressure), per pipe (the highest Mach number) and overall; the network is left solved under the governing one, and the *Active Relief Scenario* property selects the scenario every later solve imposes. *Relief Load Cases* computes the rates from the flowsheet by the API 521 methods: fire on a wetted vessel ($Q = C F A^{0.82}$ on the wetted area within the fire zone, $W = Q/\lambda$ at the relieving pressure), fire on a gas-filled vessel (wall-temperature form), blocked outlet behind a pump (head curve) or a wide-open control valve (ISA gas, liquid and two-phase forms), control valve fail-open and gas blow-by, loss of cooling and abnormal heat input ($W = Q/\lambda$), thermal expansion of a blocked-in liquid ($W = \alpha_v Q/c_p$), exchanger tube rupture (twice the tube area: choked or subsonic gas, orifice liquid, omega two-phase) and composite cases that sum others. The protected flowsheet object supplies the geometry, duty, curve and pressures; a case written into a scenario is recomputed on every batch run. The *Flare Network Report* collects the device, pipe, equipment and radiation tables of all scenarios.
+
+###### Design
+
+*Size Flare Network* grows the pipes marked for sizing through the ASME B36.10 nominal sizes  (standard or extra-strong wall), running every scenario on each pass, plus one scenario per device alone at the rated capacity of its installed orifice, since API 520 Part II (Section 5.3)  sizes the laterals and tailpipes of a device on its rated capacity and the common headers on the required capacities, until no pipe exceeds its Mach limit or chokes and every device is within its allowable backpressure: a Mach violation jumps the bore by $\sqrt{\mathrm{Ma}/\mathrm{Ma}_{\max}}$, a backpressure violation grows the largest-drop pipe on the device’s path to the flare. Devices in the Sizing mode receive the API 526 orifice their governing scenario needs. The drum, seal and tip findings stay in the report for the engineer.
+
+###### Flare stack sizing tool
+
+*Size Flare Stack* on the Tools menu takes the selected flare tip (its gas from the last solve) or typed inputs and works through Section 4.4.2 and 5.4.3 of API RP 521 : the tip diameter for a design Mach number (5.4.3.1.1, equation 24; 0.2 for normal flows, 0.5 for a short peak), the tip pressure drop, the heat release and flame length (Figure 9), the flame bent by the wind (Figure 10), the stack height that holds a radiation limit at a target (equation 20 with the C-2 transmissivity, solar radiation added), and the radial profiles downwind and upwind of the stack of the radiant heat, of the equilibrium temperature of an exposed surface (the heat balance of 4.4.2.3.2, absorbed radiation against convection and re-radiation), of the exposure time to the pain threshold (Table 7) and of the noise (5.4.4.3). It also marches the gas up the riser, isothermal or adiabatic with friction, fittings and gravity, and reports the pressure, temperature, velocity and Mach profile and the base pressure the stack puts on the header. The sized tip and stack can be written to the block.
+
+###### Knockout drum sizing tool
+
+*Size Knockout Drum* follows 5.4.2.1: the dropout velocity of the design droplet from the drag coefficient (Figure 20, equations 30 and 32), a vertical drum by the vapour area and the liquid holdup (equations 46 to 49), and the horizontal drum by the trial table of the standard (Tables 13 and 14): for each diameter the slop and holdup liquid segments, the vapour space left, the dropout time across it, the vapour velocity of one or two passes and the minimum cylindrical length; the smallest shell is picked and any feasible trial can be written to the block.
+
+###### Validation against the API worked examples
+
+The relief-network calculations were checked against the worked examples of API RP 520 Part I  and API RP 521 , run through the same code the blocks use. Table [7](#tab:pn_flare_valid) lists the cases, the section of the standard each one comes from, the value the standard gives and the value DWSIM returns.
+
+
+
+<a id="tab:pn_flare_valid"></a>
+
+
+
+| **Case** | **Reference** | **Standard** | **DWSIM** |
+|:---|:---|:---|:---|
+| Gas relief area, critical flow (24 260 kg/h, $M$ = 65, 348 K, 670 kPa, $Z$ = 0.84, $k$ = 1.09) | API 520 Pt I, 3.6.2.2 | 3179 mm$^2$ | 3185 mm$^2$ |
+| Gas relief area, subcritical flow (back pressure 532 kPa) | API 520 Pt I, 3.6.3.2 | 3610 mm$^2$ | 3644 mm$^2$ |
+| Critical flow pressure of the same case | API 520 Pt I, Table 7 | 395 kPa | 393 kPa |
+| Liquid relief area (6814 L/min, $G$ = 0.90, $K_d$ = 0.65, $K_w$ = 0.97) | API 520 Pt I, 3.8.2 | 3066 mm$^2$ | 3067 mm$^2$ |
+| Same, with the viscosity correction $K_v$ = 0.964 | API 520 Pt I, 3.8.2.5 | 3180 mm$^2$ | 3188 mm$^2$ |
+| Balanced-bellows $K_b$, 10 % overpressure, 40 % of set | API 520 Pt I, Fig. 30 | 0.85 | 0.85 |
+| Balanced-bellows $K_w$ (liquid), 50 % of set | API 520 Pt I, Fig. 31 | 0.67 | 0.67 |
+| Flame length at $Q$ = 6.3 $\times$ 10$^8$ W | API 521, Fig. 9 | 52 m | 52.4 m |
+| Flame distortion, $U_\infty/U_j$ = 0.156 ($\Sigma\Delta x$, $\Sigma\Delta y$) | API 521, C.2.4, Fig. 10 | 44.2 m, 18.2 m | 44.3 m, 18.1 m |
+| Flame distortion, $U_\infty/U_j$ = 0.062 | API 521, C.2.4, Fig. 10 | 37.4 m, 27.6 m | 37.5 m, 27.5 m |
+| Stack height for 6.3 kW/m$^2$ at 45.7 m, tip Mach 0.2 | API 521, C.2.5 | 33.7 m | 33.7 m |
+| Stack height for 6.3 kW/m$^2$ at 45.7 m, tip Mach 0.5 | API 521, C.2.5 | 27 m | 27.0 m |
+| Distance from the flame centre for 9.5 kW/m$^2$ ($Q$ = 6.3 $\times$ 10$^6$ kW, $F$ = 0.3) | API 521, C.3.4 | 126 m | 125.8 m |
+| Transmissivity, 50 % humidity, 30.5 m | API 521, eq. C-2 | 0.825 | 0.825 |
+| Tip diameter for Mach 0.2 and 0.5 (45 455 kg/h, $M$ = 46.1, 422 K) | API 521, C.2.2 | 0.46 m, 0.29 m | 0.457 m, 0.289 m |
+| Knockout drum dropout velocity (300 $\mu$m, 496.6 / 2.9 kg/m$^3$, 0.01 cP) | API 521, 5.4.2.1 | 0.71 m/s | 0.69 m/s |
+| Horizontal drum trial, $D$ = 2.44 m: vapour area, vapour velocity, minimum length | API 521, Table 14 | 1.89 m$^2$, 3.9 m/s, 5.6 m | 1.89 m$^2$, 3.88 m/s, 5.83 m |
+| Vertical drum diameter for the same case | API 521, eq. 49 | 3.6 m | 3.68 m |
+| Flare noise at 30 m (14.6 kg/s, $c$ = 353 m/s, PR = 3) | API 521, 5.4.4.3 | 114 dB | 113.6 dB |
+
+Flare network calculations against the API RP 520 / 521 worked examples
+
+
+
+The gas subcritical area and the dropout velocity differ from the standard by the reading of a chart: the standard reads $F_2$ = 0.86 from Figure 34 and the drag coefficient $C$ = 1.3 from Figure 20, where DWSIM evaluates the $F_2$ expression and the standard sphere drag curve. The other differences come from rounding in the standard’s arithmetic. The relief loads follow API 521 Section 3: fire on a wetted vessel by equations 3 and 4 with the Table 5 environment factors (3.15.2.1), fire on a gas-filled vessel by equation 8 (3.15.2.1.2), the 50 Btu/lb minimum latent heat near the critical point (3.15.3.1), tube rupture as two orifices (3.18.3), and power failure as the sum of the affected loads (3.17). The discharge piping follows Section 5.4.1.3: isothermal flow by default (5.4.1.3.2), the critical pressure at a pipe outlet (equations 25 and 26), the Table 11 fitting resistances entered as $K_f$, the built-up backpressure limit of about 10 % of set for conventional valves and 30 to 50 % for balanced valves (5.4.1.3.1), and the tip velocity of up to Mach 0.5 for peak flows (5.4.3.1.1). The seal depth follows equation 51 (5.4.2.2) and the drum check the dropout-velocity procedure of 5.4.2.1.
 
 ##### Model Parameters {#sec:pn_parameters}
 
@@ -5005,23 +5131,23 @@ For each node, the solver also reports the dimensionless mass, pressure, and ene
 
 ##### Assumptions and Limitations
 
-1.  **Steady state, or quasi-steady** – the model does not resolve transient behaviour such as surge, water hammer, or slug initiation. All flows and pressures represent time-averaged steady-state conditions. In a dynamic simulation the network still solves in steady state at each step, against that instant’s boundary conditions ([2.31.7](#sec:pn_dynamic)); what changes with time are the boundaries and the actuator positions, not the state of the fluid in the line.
+1.  **Steady state, or quasi-steady**: the model does not resolve transient behaviour such as surge, water hammer, or slug initiation. All flows and pressures represent time-averaged steady-state conditions. In a dynamic simulation the network still solves in steady state at each step, against that instant’s boundary conditions ([2.31.7](#sec:pn_dynamic)); what changes with time are the boundaries and the actuator positions, not the state of the fluid in the line.
 
-2.  **One-dimensional flow** – each pipe segment is treated as a 1-D plug-flow element. Radial temperature and concentration gradients within the pipe cross-section are neglected.
+2.  **One-dimensional flow**: each pipe segment is treated as a 1-D plug-flow element. Radial temperature and concentration gradients within the pipe cross-section are neglected.
 
-3.  **Homogeneous mixture in pipes** – unless a rigorous two-phase correlation is selected, the two phases are treated as a homogeneous mixture for property evaluation. Slip between phases is captured by the holdup correlations in the Beggs–Brill and Lockhart–Martinelli methods.
+3.  **Homogeneous mixture in pipes**: unless a rigorous two-phase correlation is selected, the two phases are treated as a homogeneous mixture for property evaluation. Slip between phases is captured by the holdup correlations in the Beggs–Brill and Lockhart–Martinelli methods.
 
-4.  **No condensation or vaporisation along pipes by default** – phase change within a pipe is accounted for only when the per-segment equilibrium flash option is enabled. Without it, the overall stream composition entering each segment is assumed constant.
+4.  **No condensation or vaporisation along pipes by default**: phase change within a pipe is accounted for only when the per-segment equilibrium flash option is enabled. Without it, the overall stream composition entering each segment is assumed constant.
 
-5.  **Instantaneous mixing at nodes** – streams mixing at a junction node are assumed to reach thermodynamic equilibrium instantaneously. Phase separation at nodes is not modelled; use a *Separator* object for this purpose.
+5.  **Instantaneous mixing at nodes**: streams mixing at a junction node are assumed to reach thermodynamic equilibrium instantaneously. Phase separation at nodes is not modelled; use a *Separator* object for this purpose.
 
-6.  **Adiabatic pump/compressor/valve by default** – thermal effects in pump, compressor, and valve elements follow the standard DWSIM base unit operation assumptions.
+6.  **Adiabatic pump/compressor/valve by default**: thermal effects in pump, compressor, and valve elements follow the standard DWSIM base unit operation assumptions.
 
-7.  **Single composition throughout** – the network does not currently support reactions. Composition changes arise only from phase equilibrium at separator or equilibrium-flash-enabled pipe objects.
+7.  **Single composition throughout**: the network does not currently support reactions. Composition changes arise only from phase equilibrium at separator or equilibrium-flash-enabled pipe objects.
 
-8.  **Spatial discretisation** – the increment walk along a pipe is first order, so the number of increments a segment is divided into is an accuracy setting and not only a reporting resolution. On multiphase flow the computed rate can move by a few percent between a coarse discretisation and a converged one, which on such a network is a larger error than any of the numerical tolerances. Refine a segment until the answer stops moving, or enable the Richardson extrapolation described in [2.31.6](#sec:solver). A single-phase liquid line is unaffected, its gradient being essentially constant along the pipe.
+8.  **Spatial discretisation**: the increment walk along a pipe is first order, so the number of increments a segment is divided into is an accuracy setting and not only a reporting resolution. On multiphase flow the computed rate can move by a few percent between a coarse discretisation and a converged one, which on such a network is a larger error than any of the numerical tolerances. Refine a segment until the answer stops moving, or enable the Richardson extrapolation described in [2.31.6](#sec:solver). A single-phase liquid line is unaffected, its gradient being essentially constant along the pipe.
 
-9.  **Pressure-drop correlation range** – the empirical correlations (Beggs–Brill, Lockhart–Martinelli) were developed from data sets at specific pressure, velocity, and fluid-property ranges. Extrapolation beyond these ranges may reduce accuracy. The Petalas–Aziz mechanistic model generally has wider applicability.
+9.  **Pressure-drop correlation range**: the empirical correlations (Beggs–Brill, Lockhart–Martinelli) were developed from data sets at specific pressure, velocity, and fluid-property ranges. Extrapolation beyond these ranges may reduce accuracy. The Petalas–Aziz mechanistic model generally has wider applicability.
 
 ##### Numerical Solution Procedure
 
@@ -5097,9 +5223,9 @@ The inlet stream must be 100 % vapour phase. Both outlet streams inherit the i
 
 ##### Calculation Modes
 
-1.  **Sizing mode** (`SizingMode = True`) – the user specifies the pipe internal diameter $D$, the permanent pressure drop $\Delta P_{\mathrm{perm}}$, and the *target* mass flow rate $\dot{m}_{\mathrm{spec}}$; the model iterates to find the required orifice diameter $d_o$.
+1.  **Sizing mode** (`SizingMode = True`): the user specifies the pipe internal diameter $D$, the permanent pressure drop $\Delta P_{\mathrm{perm}}$, and the *target* mass flow rate $\dot{m}_{\mathrm{spec}}$; the model iterates to find the required orifice diameter $d_o$.
 
-2.  **Operation mode** (`SizingMode = False`) – the user specifies $D$, $\Delta P_{\mathrm{perm}}$, and the orifice diameter $d_o$; the model iterates to find the actual volumetric flow rate $Q$ (and hence the mass flow $\dot{m}$) through the orifice.
+2.  **Operation mode** (`SizingMode = False`): the user specifies $D$, $\Delta P_{\mathrm{perm}}$, and the orifice diameter $d_o$; the model iterates to find the actual volumetric flow rate $Q$ (and hence the mass flow $\dot{m}$) through the orifice.
 
 ##### Orifice Geometry
 
@@ -5407,23 +5533,23 @@ A physical constraint enforces $\dot{m} \le \dot{m}_{\mathrm{in}}$; an exception
 
 ##### Assumptions and Limitations
 
-1.  **Gas phase only** – the inlet stream must be 100 % vapour. Liquid or two-phase streams are rejected with an error message.
+1.  **Gas phase only**: the inlet stream must be 100 % vapour. Liquid or two-phase streams are rejected with an error message.
 
-2.  **Corner taps** – the discharge coefficient is evaluated for corner-tap geometry ($L_1 = L_2 = 0$). The pressure-recovery term $c_2$ vanishes identically for this configuration ([\[eq:ro_c2\]](#eq:ro_c2)).
+2.  **Corner taps**: the discharge coefficient is evaluated for corner-tap geometry ($L_1 = L_2 = 0$). The pressure-recovery term $c_2$ vanishes identically for this configuration ([\[eq:ro_c2\]](#eq:ro_c2)).
 
-3.  **ISO 5167 applicability range** – the correlation is validated for $0.10 < \beta < 0.75$ and $Re > 4000$ (turbulent flow). Results outside these ranges are unreliable.
+3.  **ISO 5167 applicability range**: the correlation is validated for $0.10 < \beta < 0.75$ and $Re > 4000$ (turbulent flow). Results outside these ranges are unreliable.
 
-4.  **Subsonic flow** – no choked-flow (sonic) limit is modelled. The expansion factor correlations assume $\Pi > 0$; for very high pressure drops ($\Pi \to 0$) the model may not converge or may produce non-physical results.
+4.  **Subsonic flow**: no choked-flow (sonic) limit is modelled. The expansion factor correlations assume $\Pi > 0$; for very high pressure drops ($\Pi \to 0$) the model may not converge or may produce non-physical results.
 
-5.  **Adiabatic, no Joule-Thomson correction** – the outlet temperature equals the inlet temperature. The isentropic temperature drop through the orifice is not computed.
+5.  **Adiabatic, no Joule-Thomson correction**: the outlet temperature equals the inlet temperature. The isentropic temperature drop through the orifice is not computed.
 
-6.  **Constant inlet properties** – density $\rho_1$, viscosity $\mu$, and the isentropic exponent $\kappa$ are evaluated once at the inlet conditions and held fixed during the iteration.
+6.  **Constant inlet properties**: density $\rho_1$, viscosity $\mu$, and the isentropic exponent $\kappa$ are evaluated once at the inlet conditions and held fixed during the iteration.
 
-7.  **No fin or discharge length effects** – the model is strictly applicable to a thin, sharp-edged plate. Nozzles, venturi elements, or long-bore orifices require different coefficients.
+7.  **No fin or discharge length effects**: the model is strictly applicable to a thin, sharp-edged plate. Nozzles, venturi elements, or long-bore orifices require different coefficients.
 
-8.  **Horizontal pipe assumed** – no gravitational head correction is applied.
+8.  **Horizontal pipe assumed**: no gravitational head correction is applied.
 
-9.  **Premium requirement** – the calculation routine requires an active DWSIM Premium Supporter subscription.
+9.  **Premium requirement**: the calculation routine requires an active DWSIM Premium Supporter subscription.
 
 ##### Typical Usage Workflow
 
@@ -5445,13 +5571,13 @@ The **Advanced Heat Exchanger** is a rigorous shell-and-tube heat exchanger mode
 
 Four calculation modes are available:
 
-- **Rating** — Compute the heat duty, outlet temperatures, and pressure drops from a fully specified geometry.
+- **Rating**: Compute the heat duty, outlet temperatures, and pressure drops from a fully specified geometry.
 
-- **Design** — Size the exchanger (number of tubes and shell diameter) to meet a specified outlet temperature.
+- **Design**: Size the exchanger (number of tubes and shell diameter) to meet a specified outlet temperature.
 
-- **Simulation** — Use a user-supplied overall coefficient $U$ to compute the duty and outlet temperatures.
+- **Simulation**: Use a user-supplied overall coefficient $U$ to compute the duty and outlet temperatures.
 
-- **Fouling Factor** — Back-calculate the overall fouling resistance from known inlet and outlet temperatures.
+- **Fouling Factor**: Back-calculate the overall fouling resistance from known inlet and outlet temperatures.
 
 ##### Stream Topology
 
@@ -5991,7 +6117,7 @@ R_f = \frac{1}{U_\mathrm{dirty}} - \frac{1}{U_\mathrm{clean}}.
 
 ##### Parameters Summary
 
-Table [7](#tab:ahx:params) lists the principal user-configurable parameters.
+Table [8](#tab:ahx:params) lists the principal user-configurable parameters.
 
 
 
@@ -6210,7 +6336,7 @@ After a successful calculation the following results are available:
 
 The **Vapor Compression Chiller** is a custom unit operation that simulates a complete multi-stage mechanical refrigeration cycle. It is designed for refinery and petrochemical applications where process streams must be cooled below the temperature achievable by cooling water or air alone, as in LPG recovery, gas dewpoint control, alkylation feed chilling, and amine-unit intercooling.
 
-The model covers the full thermodynamic cycle—evaporation, compression, condensation, and expansion—together with preliminary sizing of the major equipment items: compressors and heat exchangers. All thermodynamic calculations are performed through the flowsheet property package, so any equation of state or activity-coefficient model available in DWSIM can be used for the refrigerant side.
+The model covers the full thermodynamic cycle (evaporation, compression, condensation and expansion) together with preliminary sizing of the major equipment items: compressors and heat exchangers. All thermodynamic calculations are performed through the flowsheet property package, so any equation of state or activity-coefficient model available in DWSIM can be used for the refrigerant side.
 
 ##### Stream Topology
 
@@ -6274,15 +6400,15 @@ The refrigerant composition is defined by selecting compounds already present in
 
 The refrigerant cycle is described by four canonical state points per stage:
 
-- **Point 1** — Evaporator exit: saturated (or slightly superheated) vapor at $P_{\mathrm{evap}}$, obtained from a dew-point flash.
+- **Point 1**: Evaporator exit: saturated (or slightly superheated) vapor at $P_{\mathrm{evap}}$, obtained from a dew-point flash.
 
-- **Point 2s** — Isentropic compressor discharge: entropy equals Point 1, pressure equals stage discharge pressure. Obtained from a $P$–$S$ flash.
+- **Point 2s**: Isentropic compressor discharge: entropy equals Point 1, pressure equals stage discharge pressure. Obtained from a $P$–$S$ flash.
 
-- **Point 2** — Actual compressor discharge: enthalpy corrected for isentropic efficiency.
+- **Point 2**: Actual compressor discharge: enthalpy corrected for isentropic efficiency.
 
-- **Point 3** — Condenser exit: saturated liquid at $P_{\mathrm{cond}}$, obtained from a bubble-point flash.
+- **Point 3**: Condenser exit: saturated liquid at $P_{\mathrm{cond}}$, obtained from a bubble-point flash.
 
-- **Point 4** — Expansion valve exit: isenthalpic flash to $P_{\mathrm{evap}}$.
+- **Point 4**: Expansion valve exit: isenthalpic flash to $P_{\mathrm{evap}}$.
 
 ###### Compressor
 
@@ -6469,7 +6595,7 @@ with the overall heat transfer coefficient:
 
 where $R_f$ is the combined fouling resistance (m$^2$ K/W).
 
-####### Evaporator—refrigerant-side boiling. {#evaporatorrefrigerant-side-boiling.}
+####### Evaporator: refrigerant-side boiling. {#evaporator-refrigerant-side-boiling.}
 
 The boiling heat transfer coefficient is estimated by the Cooper reduced-pressure pool boiling correlation :
 
@@ -6496,7 +6622,7 @@ h_{\mathrm{boil}}
 
 The critical pressure of a refrigerant mixture is estimated by Kay’s mixing rule: $P_{c,\mathrm{mix}} = \sum_i z_i\,P_{c,i}$.
 
-####### Condenser—refrigerant-side condensation. {#condenserrefrigerant-side-condensation.}
+####### Condenser: refrigerant-side condensation. {#condenser-refrigerant-side-condensation.}
 
 The condensing heat transfer coefficient is estimated by the Shah correlation  evaluated at a mean vapor quality of $x = 0.5$:
 
@@ -6516,7 +6642,7 @@ The heat transfer coefficient on the process (evaporator) or cooling (condenser)
 
 ##### Parameters Summary
 
-Table [8](#tab:vcc:params) lists all user-configurable parameters.
+Table [9](#tab:vcc:params) lists all user-configurable parameters.
 
 
 
@@ -6763,11 +6889,11 @@ where $\dot{V}_{\mathrm{ref}}$ (m$^3$ s$^{-1}$) and $N_{\mathrm{ref}}$ (rpm) a
 
 Three calculation modes are available:
 
-1.  **Specify Outlet Temperature** – the user fixes the hot-fluid outlet temperature $T_{h,\mathrm{out}}$; the model computes the heat load $Q$, the air outlet temperature $T_{c,\mathrm{out}}$, and the product $UA$.
+1.  **Specify Outlet Temperature**: the user fixes the hot-fluid outlet temperature $T_{h,\mathrm{out}}$; the model computes the heat load $Q$, the air outlet temperature $T_{c,\mathrm{out}}$, and the product $UA$.
 
-2.  **Specify Geometry** – the user provides the tube-bundle geometry; the model iterates to find $T_{h,\mathrm{out}}$ and $T_{c,\mathrm{out}}$ using the simplified Tinker method  for the shell-and-tube calculation.
+2.  **Specify Geometry**: the user provides the tube-bundle geometry; the model iterates to find $T_{h,\mathrm{out}}$ and $T_{c,\mathrm{out}}$ using the simplified Tinker method  for the shell-and-tube calculation.
 
-3.  **Specify Overall UA** – the user provides the product $UA$ (W K$^{-1}$); the model applies the $\varepsilon$-NTU method to find the outlet temperatures and $Q$.
+3.  **Specify Overall UA**: the user provides the product $UA$ (W K$^{-1}$); the model applies the $\varepsilon$-NTU method to find the outlet temperatures and $Q$.
 
 ##### Overall Heat Balance. {#overall-heat-balance.}
 
@@ -6997,11 +7123,11 @@ The **Falling Film Evaporator** (FFE) models a vertical shell-and-tube evaporato
 
 ##### Calculation Modes. {#calculation-modes.-1}
 
-1.  **Outlet Temperature** – the user specifies the exit temperature $T_{\mathrm{out}}$; the model integrates the enthalpy in $N_{\mathrm{steps}}$ equal temperature increments and reports the total heat duty.
+1.  **Outlet Temperature**: the user specifies the exit temperature $T_{\mathrm{out}}$; the model integrates the enthalpy in $N_{\mathrm{steps}}$ equal temperature increments and reports the total heat duty.
 
-2.  **Outlet Vapour Fraction** – the user specifies the exit vapour mole fraction $\psi_{\mathrm{out}}$; the model integrates in $N_{\mathrm{steps}}$ equal vapour-fraction increments.
+2.  **Outlet Vapour Fraction**: the user specifies the exit vapour mole fraction $\psi_{\mathrm{out}}$; the model integrates in $N_{\mathrm{steps}}$ equal vapour-fraction increments.
 
-3.  **Energy Stream** – the heat duty is read directly from the connected inlet energy stream; the model advances in enthalpy increments until the specified duty is consumed.
+3.  **Energy Stream**: the heat duty is read directly from the connected inlet energy stream; the model advances in enthalpy increments until the specified duty is consumed.
 
 ##### Stepwise Integration. {#stepwise-integration.}
 
@@ -7109,7 +7235,7 @@ The **Energy Splitter** divides one inlet energy stream into up to three outlet 
 
 ##### Calculation Modes. {#calculation-modes.-2}
 
-1.  **Split Ratios** – the user specifies the fractions $r_1, r_2, r_3$ with the constraint $\sum r_i = 1$. Each outlet receives
+1.  **Split Ratios**: the user specifies the fractions $r_1, r_2, r_3$ with the constraint $\sum r_i = 1$. Each outlet receives
 
 
 <a id="eq:esplit_ratio"></a>
@@ -7119,7 +7245,7 @@ The **Energy Splitter** divides one inlet energy stream into up to three outlet 
 \]
 
 
-2.  **Energy Flow Specification** – the user specifies the energy flows of the first (and optionally the second) outlet stream; the remaining stream is determined by the energy balance:
+2.  **Energy Flow Specification**: the user specifies the energy flows of the first (and optionally the second) outlet stream; the remaining stream is determined by the energy balance:
 
 
 <a id="eq:esplit_spec"></a>
@@ -7234,11 +7360,11 @@ All stream properties (composition, temperature, pressure, enthalpy) are copied 
 
 ##### Example Expressions. {#example-expressions.}
 
-- `T > 373.15` — route to Outlet 1 if temperature exceeds 100 $^\circ$C.
+- `T > 373.15`: route to Outlet 1 if temperature exceeds 100 $^\circ$C.
 
-- `VF > 0.5 AND P < 500000` — route to Outlet 1 if the stream is predominantly vapour at sub-5 bar pressure.
+- `VF > 0.5 AND P < 500000`: route to Outlet 1 if the stream is predominantly vapour at sub-5 bar pressure.
 
-- `W > 1.0` — route to Outlet 1 if mass flow exceeds 1 kg s$^{-1}$.
+- `W > 1.0`: route to Outlet 1 if mass flow exceeds 1 kg s$^{-1}$.
 
 #### Material Stream Mapper {#sec:msmapper}
 
@@ -7345,19 +7471,19 @@ The outlet stream is a direct copy of the inlet stream ($\text{outlet} \leftarro
 
 #### Assumptions and Limitations (Additional Unit Operations)
 
-1.  **Air Cooler 2 – pure-air assumption**: the cold-side fluid is treated as 100 % air using the Raoult property package. Humid air or alternative cooling media are not supported.
+1.  **Air Cooler 2, pure-air assumption**: the cold-side fluid is treated as 100 % air using the Raoult property package. Humid air or alternative cooling media are not supported.
 
-2.  **Air Cooler 2 – no fin model**: the current model computes the bare-tube external surface area (Eq. [\[eq:ac_area\]](#eq:ac_area)) and does not account for extended surfaces (fins). Users with finned tubes should apply an equivalent fin-efficiency correction to $A$ externally.
+2.  **Air Cooler 2, no fin model**: the current model computes the bare-tube external surface area (Eq. [\[eq:ac_area\]](#eq:ac_area)) and does not account for extended surfaces (fins). Users with finned tubes should apply an equivalent fin-efficiency correction to $A$ externally.
 
-3.  **Air Cooler 2 – cross-flow correction**: the correction factor $F$ is derived for a one-shell, two-tube-pass arrangement. Other configurations require manual adjustment of $F$.
+3.  **Air Cooler 2, cross-flow correction**: the correction factor $F$ is derived for a one-shell, two-tube-pass arrangement. Other configurations require manual adjustment of $F$.
 
-4.  **Falling Film Evaporator – no wall-temperature model**: the heat flux is distributed uniformly over the tube length (linear pressure drop); local dry-out or nucleation effects are not captured.
+4.  **Falling Film Evaporator, no wall-temperature model**: the heat flux is distributed uniformly over the tube length (linear pressure drop); local dry-out or nucleation effects are not captured.
 
-5.  **Falling Film Evaporator – equilibrium flash at each step**: the model assumes thermodynamic equilibrium at every integration step, which is equivalent to assuming an infinitely long residence time. Mass-transfer limitations are not modelled.
+5.  **Falling Film Evaporator, equilibrium flash at each step**: the model assumes thermodynamic equilibrium at every integration step, which is equivalent to assuming an infinitely long residence time. Mass-transfer limitations are not modelled.
 
-6.  **Stream switches – instantaneous evaluation**: the Boolean expression is evaluated once per solver iteration using the current stream properties. No hysteresis or deadband logic is built in; users requiring hysteresis must implement it via a custom Python script.
+6.  **Stream switches, instantaneous evaluation**: the Boolean expression is evaluated once per solver iteration using the current stream properties. No hysteresis or deadband logic is built in; users requiring hysteresis must implement it via a custom Python script.
 
-7.  **Material Stream Mapper – no energy balance**: property overrides (temperature, pressure, flow) are applied directly without checking an overall energy or mass balance around the block. It is the user’s responsibility to ensure that overridden values are physically consistent.
+7.  **Material Stream Mapper, no energy balance**: property overrides (temperature, pressure, flow) are applied directly without checking an overall energy or mass balance around the block. It is the user’s responsibility to ensure that overridden values are physically consistent.
 
 8.  **Premium requirement**: all additional unit operations require an active DWSIM Premium Supporter subscription.
 
@@ -7367,13 +7493,13 @@ The outlet stream is a direct copy of the inlet stream ($\text{outlet} \leftarro
 
 The **Polymerization Reactor** models a homogeneous, isothermal free-radical polymerization of one or two monomers. It solves the steady-state or transient population balances by the *method of moments* and reports the monomer conversion, the number- and weight-average molar masses ($M_n$, $M_w$), the polydispersity index (PDI), and, for two monomers, the copolymer composition. A single vessel can be operated in four ways:
 
-- **Continuous stirred tank (CSTR)** – a perfectly mixed reactor solved at steady state; the composition is fixed at the outlet condition.
+- **Continuous stirred tank (CSTR)**: a perfectly mixed reactor solved at steady state; the composition is fixed at the outlet condition.
 
-- **Plug flow / batch (PFR)** – the balances are integrated along the residence time; the composition drifts as the more reactive monomer depletes.
+- **Plug flow / batch (PFR)**: the balances are integrated along the residence time; the composition drifts as the more reactive monomer depletes.
 
-- **Semibatch** – an initial charge plus a metered feed; feeding the reactive monomer holds the copolymer composition constant.
+- **Semibatch**: an initial charge plus a metered feed; feeding the reactive monomer holds the copolymer composition constant.
 
-- **Dynamic mode** – the reactor is driven by the DWSIM dynamic integrator as a well-mixed holdup, producing the transient conversion and molar-mass trajectories.
+- **Dynamic mode**: the reactor is driven by the DWSIM dynamic integrator as a well-mixed holdup, producing the transient conversion and molar-mass trajectories.
 
 The kinetic model follows the standard free-radical scheme : initiator decomposition, propagation, termination by combination and by disproportionation, and chain transfer to monomer and to a solvent or chain-transfer agent. For two monomers the *terminal model* is used, with the molar-mass averages obtained through the pseudo-kinetic rate-constant method . The auto-acceleration (gel) effect is available as an optional conversion-dependent reduction of the rate constants.
 
@@ -7609,7 +7735,7 @@ where $\Psi_i$ is the total moles of monomer $i$ incorporated into chains. For 
 
 ##### Semibatch Operation and Composition Control {#sec:poly_semibatch}
 
-In a semibatch reactor the holdup grows as feed is added, so the balances are written on total amounts (moles, volume) rather than concentrations and are integrated in time. The feed policy is an initial charge plus constant molar and volumetric feed rates over a feed window. Metering the more reactive monomer in during the run holds the reactor monomer ratio, and hence the instantaneous copolymer composition, roughly constant – the industrial route to a uniform copolymer. In the monomer-*starved* limit (a high radical flux and a slow feed) the monomers react as fast as they are fed, so the copolymer composition equals the *feed* composition rather than the Mayo-Lewis value of that ratio, and the drift is suppressed.
+In a semibatch reactor the holdup grows as feed is added, so the balances are written on total amounts (moles, volume) rather than concentrations and are integrated in time. The feed policy is an initial charge plus constant molar and volumetric feed rates over a feed window. Metering the more reactive monomer in during the run holds the reactor monomer ratio, and hence the instantaneous copolymer composition, roughly constant. That is the industrial route to a uniform copolymer. In the monomer-*starved* limit (a high radical flux and a slow feed) the monomers react as fast as they are fed, so the copolymer composition equals the *feed* composition rather than the Mayo-Lewis value of that ratio, and the drift is suppressed.
 
 ##### Dynamic Mode {#sec:poly_dynamic}
 
@@ -7662,17 +7788,17 @@ The gel model is off by default. When enabled, the termination coefficients $c_1
 
 ##### Assumptions and Limitations
 
-1.  **Homogeneous, isothermal medium** – the reactor contents are a single well-mixed phase (CSTR, semibatch, dynamic) or a plug-flow stream (PFR), at a uniform temperature. Emulsion, suspension, and precipitation polymerizations are not represented.
+1.  **Homogeneous, isothermal medium**: the reactor contents are a single well-mixed phase (CSTR, semibatch, dynamic) or a plug-flow stream (PFR), at a uniform temperature. Emulsion, suspension, and precipitation polymerizations are not represented.
 
-2.  **Quasi-steady-state radicals** – the live-radical population follows Eq. [\[eq:poly_mu0\]](#eq:poly_mu0); the radical lifetime is assumed far shorter than the reactor or step time.
+2.  **Quasi-steady-state radicals**: the live-radical population follows Eq. [\[eq:poly_mu0\]](#eq:poly_mu0); the radical lifetime is assumed far shorter than the reactor or step time.
 
-3.  **Long-chain / most-probable closure** – the live-radical moments are closed with the most-probable distribution, exact in the long-chain limit.
+3.  **Long-chain / most-probable closure**: the live-radical moments are closed with the most-probable distribution, exact in the long-chain limit.
 
-4.  **Terminal copolymerization model** – reactivity depends only on the terminal unit; penultimate-unit effects are not included. The molar mass uses the pseudo-kinetic averaging, and transfer to monomer is taken independent of which monomer is abstracted.
+4.  **Terminal copolymerization model**: reactivity depends only on the terminal unit; penultimate-unit effects are not included. The molar mass uses the pseudo-kinetic averaging, and transfer to monomer is taken independent of which monomer is abstracted.
 
-5.  **Constant density** – the volumetric flow (and, in semibatch, the holdup volume) are additive in the feed; volume change on reaction is neglected.
+5.  **Constant density**: the volumetric flow (and, in semibatch, the holdup volume) are additive in the feed; volume change on reaction is neglected.
 
-6.  **Empirical gel effect** – the gel and glass factors are an empirical correlation in conversion (Eq. [\[eq:poly_gel\]](#eq:poly_gel)); the coefficients are system-specific and must be fitted to data.
+6.  **Empirical gel effect**: the gel and glass factors are an empirical correlation in conversion (Eq. [\[eq:poly_gel\]](#eq:poly_gel)); the coefficients are system-specific and must be fitted to data.
 
 ##### Numerical Solution Procedure
 
@@ -7833,7 +7959,7 @@ With the wall switched off, the content of a blowdown must stay on the isentrope
 
 ###### Nitrogen blowdown of Haque et al. {#nitrogen-blowdown-of-haque-et-al.}
 
-Haque, Richardson, Saville, Chamberlain and Shirvill blew down nitrogen from 150 bar and about 20 $^{\circ}$C in a 0.273 m ID $\times$ 1.524 m vertical vessel with a 25 mm carbon steel wall through a 6.35 mm top orifice; the record is redrawn in the review of Shafiq et al. , Fig. 5b, as changes from the initial temperature. Table [9](#tab:blowdown_haque) compares the run with the figure. The wall is reproduced, the pressure is reproduced, and the gas minimum comes out 15 to 20 K warmer than measured with the natural-convection coefficient as estimated; a factor of 0.6 to 0.7 on the coefficient reproduces the measured gas curve, which is why the factor is exposed. The adiabatic bound is given for reference.
+Haque, Richardson, Saville, Chamberlain and Shirvill blew down nitrogen from 150 bar and about 20 $^{\circ}$C in a 0.273 m ID $\times$ 1.524 m vertical vessel with a 25 mm carbon steel wall through a 6.35 mm top orifice; the record is redrawn in the review of Shafiq et al. , Fig. 5b, as changes from the initial temperature. Table [10](#tab:blowdown_haque) compares the run with the figure. The wall is reproduced, the pressure is reproduced, and the gas minimum comes out 15 to 20 K warmer than measured with the natural-convection coefficient as estimated; a factor of 0.6 to 0.7 on the coefficient reproduces the measured gas curve, which is why the factor is exposed. The adiabatic bound is given for reference.
 
 
 
@@ -7854,7 +7980,7 @@ Nitrogen blowdown of Haque et al. : 150 bar, 6.35 mm orifice, 0.0892 m$^3$, 2
 
 ###### CO$_2$ blowdown of Fredenhagen and Eggers
 
-Fredenhagen and Eggers blew down CO$_2$ with a nitrogen impurity from a top-vented, liquid-full 0.05 m$^3$ vessel (0.242 m ID) at 14 MPa and 298 K through a 17 mm$^2$ orifice; pressure and temperature transients are redrawn in , Figs. 10 and 11. The nitrogen content is not given in the review and was inferred from the kink of the pressure record at 8 MPa, the end of the liquid-full stage: 6 mol% gives a bubble pressure of 7.3 MPa at 286 K, and the Peng-Robinson bubble curve ends between 7 and 8 % at that temperature. The vessel was run with a 25 mm carbon steel wall and $C_d = 0.8$. Table [10](#tab:blowdown_co2) gives the comparison for pure CO$_2$ and for the inferred mixture. The two-phase stage, which is the one of interest, is reproduced within 0.5 MPa and 5 K to 100 s. The duration of the liquid-full stage is right for pure CO$_2$ and too short for the mixture, whose dense phase Peng-Robinson makes too compressible near the critical locus; at the end of the run the mixture cools too fast as it approaches the triple point of CO$_2$, which the model does not represent.
+Fredenhagen and Eggers blew down CO$_2$ with a nitrogen impurity from a top-vented, liquid-full 0.05 m$^3$ vessel (0.242 m ID) at 14 MPa and 298 K through a 17 mm$^2$ orifice; pressure and temperature transients are redrawn in , Figs. 10 and 11. The nitrogen content is not given in the review and was inferred from the kink of the pressure record at 8 MPa, the end of the liquid-full stage: 6 mol% gives a bubble pressure of 7.3 MPa at 286 K, and the Peng-Robinson bubble curve ends between 7 and 8 % at that temperature. The vessel was run with a 25 mm carbon steel wall and $C_d = 0.8$. Table [11](#tab:blowdown_co2) gives the comparison for pure CO$_2$ and for the inferred mixture. The two-phase stage, which is the one of interest, is reproduced within 0.5 MPa and 5 K to 100 s. The duration of the liquid-full stage is right for pure CO$_2$ and too short for the mixture, whose dense phase Peng-Robinson makes too compressible near the critical locus; at the end of the run the mixture cools too fast as it approaches the triple point of CO$_2$, which the model does not represent.
 
 
 
@@ -7875,7 +8001,7 @@ CO$_2$ blowdown of Fredenhagen and Eggers : 0.05 m$^3$, 14 MPa, 298 K, 17 mm
 
 ###### Ethylene hole flows of Saville, Richardson and Barker
 
-Saville, Richardson and Barker computed with the BLOWDOWN program the flow of ethylene at 10 $^{\circ}$C from a pipeline through 10 and 50 mm holes to the atmosphere, with the fluid supercritical (90, 79, 69 and 59.6 bar) or gaseous (44 and 28 bar), and found the hole choked even for the all-liquid dense phase, at a throat pressure of 41 to 45 bar, far above the ideal-gas critical ratio. These are predictions of a homogeneous-equilibrium model, not measurements, so the comparison in Table [11](#tab:blowdown_ethylene) is between two implementations of the same physics. The orifice model of equation ([\[eq:blowdown_hem\]](#eq:blowdown_hem)) with $C_d = 1$ reproduces the flows within 8 % for the dense phase and 3 % for the gas, and the dense-phase throat within 4 bar. The model runs 3 to 8 % high in the dense phase, consistent with the Peng-Robinson density at 90 bar (367 kg/m$^3$, some 6 % below the real value). In the gas cases the flux curve is bimodal, with a gas-side maximum near 27 bar and a two-phase one near 15 bar of the same height; the paper reports the two-phase one.
+Saville, Richardson and Barker computed with the BLOWDOWN program the flow of ethylene at 10 $^{\circ}$C from a pipeline through 10 and 50 mm holes to the atmosphere, with the fluid supercritical (90, 79, 69 and 59.6 bar) or gaseous (44 and 28 bar), and found the hole choked even for the all-liquid dense phase, at a throat pressure of 41 to 45 bar, far above the ideal-gas critical ratio. These are predictions of a homogeneous-equilibrium model, not measurements, so the comparison in Table [12](#tab:blowdown_ethylene) is between two implementations of the same physics. The orifice model of equation ([\[eq:blowdown_hem\]](#eq:blowdown_hem)) with $C_d = 1$ reproduces the flows within 8 % for the dense phase and 3 % for the gas, and the dense-phase throat within 4 bar. The model runs 3 to 8 % high in the dense phase, consistent with the Peng-Robinson density at 90 bar (367 kg/m$^3$, some 6 % below the real value). In the gas cases the flux curve is bimodal, with a gas-side maximum near 27 bar and a two-phase one near 15 bar of the same height; the paper reports the two-phase one.
 
 
 
@@ -7900,7 +8026,7 @@ Ethylene at 283 K through a hole to the atmosphere, $C_d = 1$: BLOWDOWN predict
 
 ###### LPG pipeline blowdown of Richardson and Saville
 
-Richardson and Saville compared BLOWDOWN with the Isle of Grain tests, in which 100 m lines full of LPG (95 mol% propane, 5 % butane) were blown down through orifices at their end. Test P47 used the 154 mm ID line (7.3 mm wall, 1.86 m$^3$) at 21.3 bar and 14.6 $^{\circ}$C, ambient 15.4 $^{\circ}$C, with a 50 mm nominal orifice for which the paper adopts an equivalent diameter of 70.4 mm and $C_d = 0.80$. The orifice is small against the bore, and the paper notes that the open- and closed-end pressures nearly coincide in this test, so the line can be treated as a vessel. BLOWDOWN takes the flow along the line as homogeneous two-phase, and Table [12](#tab:blowdown_lpg) compares the measured record (Fig. 4 of the paper, closed end) with the model run the same way, the outlet taking the bulk quality, and with the stratified run in which the hole passes the phase at its level. The homogeneous run follows the measurement to about 60 s, within 0.6 bar, 3 K and 0.07 t; it then empties the line, as the BLOWDOWN prediction also did, whereas the measured inventory keeps a residual of about 0.1 t because the orifice acts as a dam, and the measured pressure and temperature tail off more slowly. The stratified run holds the liquid back below the hole and lets the pressure fall too fast, which is why the homogeneous option exists.
+Richardson and Saville compared BLOWDOWN with the Isle of Grain tests, in which 100 m lines full of LPG (95 mol% propane, 5 % butane) were blown down through orifices at their end. Test P47 used the 154 mm ID line (7.3 mm wall, 1.86 m$^3$) at 21.3 bar and 14.6 $^{\circ}$C, ambient 15.4 $^{\circ}$C, with a 50 mm nominal orifice for which the paper adopts an equivalent diameter of 70.4 mm and $C_d = 0.80$. The orifice is small against the bore, and the paper notes that the open- and closed-end pressures nearly coincide in this test, so the line can be treated as a vessel. BLOWDOWN takes the flow along the line as homogeneous two-phase, and Table [13](#tab:blowdown_lpg) compares the measured record (Fig. 4 of the paper, closed end) with the model run the same way, the outlet taking the bulk quality, and with the stratified run in which the hole passes the phase at its level. The homogeneous run follows the measurement to about 60 s, within 0.6 bar, 3 K and 0.07 t; it then empties the line, as the BLOWDOWN prediction also did, whereas the measured inventory keeps a residual of about 0.1 t because the orifice acts as a dam, and the measured pressure and temperature tail off more slowly. The stratified run holds the liquid back below the hole and lets the pressure fall too fast, which is why the homogeneous option exists.
 
 
 
@@ -8252,7 +8378,7 @@ Unless the internals section gives them, the gas diffusivities come from Fuller,
 
 ##### Validation
 
-The tray hydraulics reproduce Example 11.11 of Towler and Sinnott , the bottom plate of an acetone-water column (Table [13](#tab:internals_towler)). The differences come from the chart readings of the book and from its rounding of the areas (the book rounds the net area to 0.44 m$^2$ and the hole area to 0.038 m$^2$).
+The tray hydraulics reproduce Example 11.11 of Towler and Sinnott , the bottom plate of an acetone-water column (Table [14](#tab:internals_towler)). The differences come from the chart readings of the book and from its rounding of the areas (the book rounds the net area to 0.44 m$^2$ and the hole area to 0.038 m$^2$).
 
 
 
@@ -8282,7 +8408,7 @@ Sieve plate of Towler and Sinnott Example 11.11: 0.79 m diameter, 0.5 m spacin
 
 The Kister and Haas transition height matches the first trial of Kister’s sizing example (section 6.5 of ): with 0.5 in holes, a 10 % hole area and 6.45 gpm per inch of weir the water value is 0.937 in in the book and 0.950 in here.
 
-The Billet and Schultes implementation reproduces the worked examples of Seader and Henley (Table [14](#tab:internals_seader)). In Example 6.15 the book prints a holdup of 0.0128 for the 1.5 in Pall-like rings, while its own equations 6-97 and 6-101 with the stated numbers give 0.0182; the transfer units in the table were checked with the book’s holdup so that equations 6-132 and 6-133 are compared on their own.
+The Billet and Schultes implementation reproduces the worked examples of Seader and Henley (Table [15](#tab:internals_seader)). In Example 6.15 the book prints a holdup of 0.0128 for the 1.5 in Pall-like rings, while its own equations 6-97 and 6-101 with the stated numbers give 0.0182; the transfer units in the table were checked with the book’s holdup so that equations 6-132 and 6-133 are compared on their own.
 
 
 

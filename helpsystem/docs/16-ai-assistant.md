@@ -2,7 +2,7 @@
 
 #### Overview
 
-The DWSIM AI Assistant is an artificial intelligence interface integrated directly into DWSIM that allows users to interact with their process simulations using natural language. Powered by large language models (LLMs), the Assistant understands the current state of the open flowsheet — streams, unit operations, compositions, and thermodynamic conditions — and can answer questions, modify parameters, run the solver, and generate professional reports, all through a conversational chat interface accessible from within DWSIM’s main window.
+The DWSIM AI Assistant is an artificial intelligence interface integrated directly into DWSIM that allows users to interact with their process simulations using natural language. Powered by large language models (LLMs), the Assistant understands the current state of the open flowsheet (streams, unit operations, compositions, and thermodynamic conditions) and can answer questions, modify parameters, run the solver, and generate professional reports, all through a conversational chat interface accessible from within DWSIM’s main window.
 
 
 
@@ -17,27 +17,27 @@ The DWSIM AI Assistant is an artificial intelligence interface integrated direct
 
 The Assistant supports multiple AI providers, which can be switched at runtime without restarting the application. Backends are organized into two groups:
 
-**Local backends** (all inference runs on the user’s machine — no data is sent to external servers):
+**Local backends** (all inference runs on the user’s machine, so no data is sent to external servers):
 
-- **Ollama** — free, open-source model runner. The Assistant auto-detects GPU memory and recommends models from lightweight sub-1B parameter models (CPU only) to 32B parameter models requiring 14 GB+ of VRAM.
+- **Ollama**: free, open-source model runner. The Assistant auto-detects GPU memory and recommends models from lightweight sub-1B parameter models (CPU only) to 32B parameter models requiring 14 GB+ of VRAM.
 
-- **LM Studio** — popular GUI-based local LLM engine (default port 1234). The Assistant can list, download, load, and unload models through LM Studio’s REST API.
+- **LM Studio**: popular GUI-based local LLM engine (default port 1234). The Assistant can list, download, load, and unload models through LM Studio’s REST API.
 
-- **llama.cpp (llama-server)** — high-performance inference engine. The Assistant includes a **bundled (embedded) llama-server** that can be downloaded and started automatically from within the settings panel — no external installation is required. Alternatively, users can connect to an external llama-server instance. GGUF model files can be downloaded directly from Hugging Face through the built-in catalog.
+- **llama.cpp (llama-server)**: high-performance inference engine. The Assistant includes a **bundled (embedded) llama-server** that can be downloaded and started automatically from within the settings panel, with no external installation required. Alternatively, users can connect to an external llama-server instance. GGUF model files can be downloaded directly from Hugging Face through the built-in catalog.
 
 **Cloud backends** (requires an API key or credentials):
 
-- **OpenAI** — GPT-4.1, GPT-4o, o3, and o4-mini series.
+- **OpenAI**: GPT-4.1, GPT-4o, o3, and o4-mini series.
 
-- **Anthropic Claude** — claude-sonnet-4-6, claude-opus-4-6, claude-haiku-4-5.
+- **Anthropic Claude**: claude-sonnet-4-6, claude-opus-4-6, claude-haiku-4-5.
 
-- **Google Gemini** — gemini-3-pro, gemini-3-flash, gemini-3-flash-lite.
+- **Google Gemini**: gemini-3-pro, gemini-3-flash, gemini-3-flash-lite.
 
-- **AWS Bedrock** — uses the Converse API and supports Claude, Nova, Llama, and Mistral model families.
+- **AWS Bedrock**: uses the Converse API and supports Claude, Nova, Llama, and Mistral model families.
 
-- **Azure OpenAI** — requires a valid DWSIM Premium Supporter license and a pre-configured Azure deployment.
+- **Azure OpenAI**: requires a valid DWSIM Premium Supporter license and a pre-configured Azure deployment.
 
-- **Custom Endpoint** — any OpenAI-compatible endpoint such as vLLM or NVIDIA NIM.
+- **Custom Endpoint**: any OpenAI-compatible endpoint such as vLLM or NVIDIA NIM.
 
 
 
@@ -61,9 +61,9 @@ The Assistant supports multiple AI providers, which can be switched at runtime w
 
 ###### What is Ollama?
 
-Ollama is a free, open-source tool that allows you to run large language models (LLMs) entirely on your own computer, with no internet connection, no API key, and no data sent to external servers. When configured as the active backend in DWSIM Assistant, all AI processing happens locally — your flowsheet data, prompts, and responses never leave your machine. This makes Ollama the recommended choice for users working in air-gapped environments, with confidential process data, or who simply prefer to avoid cloud services.
+Ollama is a free, open-source tool that allows you to run large language models (LLMs) entirely on your own computer, with no internet connection, no API key, and no data sent to external servers. When configured as the active backend in DWSIM Assistant, all AI processing happens locally: your flowsheet data, prompts, and responses never leave your machine. This makes Ollama the recommended choice for users working in air-gapped environments, with confidential process data, or who simply prefer to avoid cloud services.
 
-###### Step 1 — Install Ollama {#step-1-install-ollama}
+###### Step 1: Install Ollama
 
 1.  Open a web browser and go to **https://ollama.com**.
 
@@ -79,7 +79,7 @@ To verify that Ollama is running, open a terminal (Command Prompt or PowerShell 
 
 If Ollama is running correctly, this will display any models you have already downloaded (the list may be empty on a fresh install).
 
-###### Step 2 — Download a Model {#step-2-download-a-model}
+###### Step 2: Download a Model
 
 Ollama requires at least one model to be downloaded before it can process requests. DWSIM Assistant works with any model that supports tool calling (function calling). The recommended models and their hardware requirements are listed below.
 
@@ -109,7 +109,7 @@ The following models are officially supported and tested with DWSIM Assistant. M
 | `qwen3:1.7b` | $\sim$<!-- -->1.1 GB | 4 GB | 2 GB (optional) | Lightweight Qwen3 with native tool calling |
 | `qwen3.5:2b` | $\sim$<!-- -->1.5 GB | 4 GB | 2 GB (optional) | Light and fast on CPU |
 | `ministral-3:3b` | $\sim$<!-- -->2 GB | 4 GB | 2 GB (optional) | Compact Mistral, fast |
-| `qwen3.5:4b` | $\sim$<!-- -->2.3 GB | 8 GB | 4 GB (optional) | **Default** — runs well on CPU only; good balance for most users |
+| `qwen3.5:4b` | $\sim$<!-- -->2.3 GB | 8 GB | 4 GB (optional) | **Default**: runs well on CPU only; good balance for most users |
 | `qwen3:4b` | $\sim$<!-- -->2.6 GB | 8 GB | 4 GB (optional) | Native tool calling, 4 billion parameters |
 | `mistral:7b` | $\sim$<!-- -->4 GB | 8 GB | 6 GB (optional) | Solid general-purpose model |
 | `qwen3:8b` | $\sim$<!-- -->5 GB | 8 GB | 6 GB (optional) | Versatile Qwen3, good quality |
@@ -126,7 +126,7 @@ Recommended Ollama Models for DWSIM Assistant
 
 If you are unsure which model to choose, `qwen3.5:4b` is a good starting point for most computers. Users with a dedicated NVIDIA GPU and 8 GB or more of VRAM will get noticeably better performance with `qwen3:8b` or `qwen3.5:8b` .
 
-####### Step 3 — Configure DWSIM Assistant {#step-3-configure-dwsim-assistant}
+####### Step 3: Configure DWSIM Assistant
 
 Once Ollama is installed and a model has been downloaded:
 
@@ -192,7 +192,7 @@ The LM Studio tab includes a model manager that can list available models, downl
 
 llama.cpp is a high-performance C/C++ inference engine that runs GGUF-format models. DWSIM Assistant offers two ways to use it:
 
-###### Option A — Embedded Server (Recommended) {#option-a-embedded-server-recommended}
+###### Option A: Embedded Server (Recommended)
 
 The Assistant can automatically download the llama-server binary and a recommended model, then manage the server process internally:
 
@@ -208,7 +208,7 @@ The Assistant can automatically download the llama-server binary and a recommend
 
 Advanced settings (GPU layers, context size, port) can be adjusted in the expandable section before starting the server.
 
-###### Option B — External Server {#option-b-external-server}
+###### Option B: External Server
 
 If you already have a llama-server or llamafile instance running externally:
 
@@ -222,7 +222,7 @@ The llama.cpp tab also includes a GGUF model catalog for downloading models from
 
 #### Flowsheet Interaction
 
-The Assistant has direct, read-write access to the active simulation. It can retrieve a full summary of all objects in the flowsheet, query individual stream and unit operation properties, modify temperatures, pressures, molar flows, and compositions, add chemical compounds to material streams, and trigger the DWSIM solver — all as part of a natural language conversation. Results and changes are reflected immediately in the open flowsheet. When the user asks a question about process performance (such as conversions, yields, purities, or energy balances), the Assistant queries the flowsheet data directly rather than relying on general knowledge, ensuring that answers are always based on the current simulation state.
+The Assistant has direct, read-write access to the active simulation. It can retrieve a full summary of all objects in the flowsheet, query individual stream and unit operation properties, modify temperatures, pressures, molar flows, and compositions, add chemical compounds to material streams, and trigger the DWSIM solver, all as part of a natural language conversation. Results and changes are reflected immediately in the open flowsheet. When the user asks a question about process performance (such as conversions, yields, purities, or energy balances), the Assistant queries the flowsheet data directly rather than relying on general knowledge, ensuring that answers are always based on the current simulation state.
 
 #### Report Generation
 
@@ -236,35 +236,35 @@ The Assistant optionally integrates with OSIsoft/AVEVA PI Data Archive and OPC U
 
 All settings are accessible through the built-in settings panel, which is organized into ten tabs:
 
-- **General** — active backend, language, and model selection.
+- **General**: active backend, language, and model selection.
 
-- **Ollama** — port, model, and built-in model manager (download / install / remove).
+- **Ollama**: port, model, and built-in model manager (download / install / remove).
 
-- **LM Studio** — port, active model, and model manager (download, load/unload).
+- **LM Studio**: port, active model, and model manager (download, load/unload).
 
-- **llama.cpp** — embedded server (automatic download of binary and recommended model), port, active model, GGUF directory, and model catalog for download from Hugging Face.
+- **llama.cpp**: embedded server (automatic download of binary and recommended model), port, active model, GGUF directory, and model catalog for download from Hugging Face.
 
-- **Cloud APIs** — API keys for OpenAI, Anthropic Claude, Google Gemini, AWS Bedrock, and custom endpoints.
+- **Cloud APIs**: API keys for OpenAI, Anthropic Claude, Google Gemini, AWS Bedrock, and custom endpoints.
 
-- **License** — DWSIM Premium Supporter credentials to unlock Azure GPT and Flowsheet Design Mode.
+- **License**: DWSIM Premium Supporter credentials to unlock Azure GPT and Flowsheet Design Mode.
 
-- **PI SDK** — PI Data Archive server hostname and Windows credentials.
+- **PI SDK**: PI Data Archive server hostname and Windows credentials.
 
-- **OPC UA** — OPC UA server URL, credentials, and security policy.
+- **OPC UA**: OPC UA server URL, credentials, and security policy.
 
-- **Certificates** — CA bundle and client certificates for corporate environments with internal CAs.
+- **Certificates**: CA bundle and client certificates for corporate environments with internal CAs.
 
-- **Advanced** — token estimation, report formatting, data sharing, script execution, prompt compaction, and Local-Only Mode (privacy firewall).
+- **Advanced**: token estimation, report formatting, data sharing, script execution, prompt compaction, and Local-Only Mode (privacy firewall).
 
 The active backend and model can be changed at any time. The interface is available in twelve languages: English, Portuguese (pt-BR), Spanish, Chinese, French, German, Russian, Arabic, Hindi, Japanese, Korean, and Italian.
 
 #### MCP Tool Extensions
 
-Advanced users can extend the Assistant’s capabilities by connecting external tools through the Model Context Protocol (MCP), the same open standard used by Claude Desktop. By editing the mcp_servers.json configuration file, users can connect the Assistant to any MCP-compatible server — such as database connectors, web search tools, file system access, or custom in-house tooling — and those tools become automatically available to the LLM during conversation.
+Advanced users can extend the Assistant’s capabilities by connecting external tools through the Model Context Protocol (MCP), the same open standard used by Claude Desktop. By editing the mcp_servers.json configuration file, users can connect the Assistant to any MCP-compatible server (such as database connectors, web search tools, file system access, or custom in-house tooling), and those tools become automatically available to the LLM during conversation.
 
 #### AWS Bedrock Backend
 
-AWS Bedrock is supported as a fully streaming backend through the Converse API. This allows the Assistant to use any model available on Bedrock — including Claude (Anthropic), Nova (Amazon), Llama (Meta), and Mistral — without running local infrastructure. Authentication uses standard AWS credentials: an Access Key ID and Secret Access Key entered in the Cloud APIs tab, or the default credential chain (IAM roles on EC2, ECS task roles, or environment variables). The AWS region defaults to**us-east-1** but can be configured in the settings. Bedrock is a good choice for enterprise teams that already have an AWS account and want to avoid managing API keys for individual providers.
+AWS Bedrock is supported as a fully streaming backend through the Converse API. This allows the Assistant to use any model available on Bedrock, including Claude (Anthropic), Nova (Amazon), Llama (Meta), and Mistral, without running local infrastructure. Authentication uses standard AWS credentials: an Access Key ID and Secret Access Key entered in the Cloud APIs tab, or the default credential chain (IAM roles on EC2, ECS task roles, or environment variables). The AWS region defaults to**us-east-1** but can be configured in the settings. Bedrock is a good choice for enterprise teams that already have an AWS account and want to avoid managing API keys for individual providers.
 
 #### Google Gemini Backend
 
@@ -284,11 +284,11 @@ The chat interface supports file attachments. Users can attach images, documents
 
 For organizations that use corporate proxies, internal certificate authorities, or mutual TLS (mTLS) authentication, the Assistant provides a dedicated**Certificates** tab in the settings panel. Three fields are available:
 
-- **CA Bundle** (`.pem` /`.crt`) — path to a PEM file containing trusted CA certificates. Required when the network uses a corporate proxy or internal CA.
+- **CA Bundle** (`.pem` /`.crt`): path to a PEM file containing trusted CA certificates. Required when the network uses a corporate proxy or internal CA.
 
-- **Client Certificate** (`.pem` /`.crt`) — path to a PEM file with the client certificate. Required by servers that enforce mutual TLS.
+- **Client Certificate** (`.pem` /`.crt`): path to a PEM file with the client certificate. Required by servers that enforce mutual TLS.
 
-- **Client Private Key** (`.pem` /`.key`) — path to the private key for the client certificate. Can be omitted if the key is embedded in the client certificate file.
+- **Client Private Key** (`.pem` /`.key`): path to the private key for the client certificate. Can be omitted if the key is embedded in the client certificate file.
 
 Each field has a**Browse** button that opens a native file picker dialog. After saving, all MCP server connections (SSE and HTTP transports) and outbound API calls are automatically reconfigured with the new certificates. The environment variables`SSL_CERT_FILE`,`REQUESTS_CA_BUNDLE`, and`NODE_EXTRA_CA_CERTS` are also set, so any child process inherits the certificate configuration. A**Test Certificates** button validates that the configured files can be loaded correctly.
 
@@ -300,17 +300,17 @@ Flowsheet Design Mode is a special operating mode in which the Assistant can cre
 
 The**Advanced** tab in the settings panel provides fine-grained control over the Assistant’s behavior through six toggles:
 
-- **Confirm before sending** — when enabled, a dialog showing the estimated token count and cost breakdown appears before each message is sent to the LLM, allowing the user to review or cancel the request.
+- **Confirm before sending**: when enabled, a dialog showing the estimated token count and cost breakdown appears before each message is sent to the LLM, allowing the user to review or cancel the request.
 
-- **Normalise AI response formatting** — strips`<think>` tags (produced by some models’ chain-of-thought reasoning) and standardises bullet points and headings in exported reports. Enabled by default.
+- **Normalise AI response formatting**: strips`<think>` tags (produced by some models’ chain-of-thought reasoning) and standardises bullet points and headings in exported reports. Enabled by default.
 
-- **Share anonymized conversation data** — opt-in toggle that sends anonymized conversation logs to the development team’s Supabase instance to help improve the Assistant. Disabled by default.
+- **Share anonymized conversation data**: opt-in toggle that sends anonymized conversation logs to the development team’s Supabase instance to help improve the Assistant. Disabled by default.
 
-- **Enable IronPython script execution** — allows the Assistant to run arbitrary IronPython scripts inside DWSIM through the`generic_script` tool. Disabled by default for safety. Should only be enabled when the user trusts the prompts being submitted.
+- **Enable IronPython script execution**: allows the Assistant to run arbitrary IronPython scripts inside DWSIM through the`generic_script` tool. Disabled by default for safety. Should only be enabled when the user trusts the prompts being submitted.
 
-- **Compact prompts** — shrinks tool descriptions, truncates oversized tool results, and summarizes older conversation turns so that requests stay within per-call token limits. Enabled by default. Disabling this toggle sends the full uncompressed context, which may exceed the model’s context window on long conversations.
+- **Compact prompts**: shrinks tool descriptions, truncates oversized tool results, and summarizes older conversation turns so that requests stay within per-call token limits. Enabled by default. Disabling this toggle sends the full uncompressed context, which may exceed the model’s context window on long conversations.
 
-- **Local-Only Mode (privacy firewall)** — when enabled, blocks all outbound internet communication at the application layer. Only local backends (Ollama, LM Studio, llama.cpp) are allowed. Supabase telemetry is suppressed, license verification is skipped, and cloud API calls are rejected. A shield badge appears in the session bar to indicate the mode is active. This is the strongest privacy guarantee the Assistant offers: no data ever leaves the user’s machine. Ideal for air-gapped environments, sensitive processes, or users who want full control over data flow. Disabled by default.
+- **Local-Only Mode (privacy firewall)**: when enabled, blocks all outbound internet communication at the application layer. Only local backends (Ollama, LM Studio, llama.cpp) are allowed. Supabase telemetry is suppressed, license verification is skipped, and cloud API calls are rejected. A shield badge appears in the session bar to indicate the mode is active. This is the strongest privacy guarantee the Assistant offers: no data ever leaves the user’s machine. Ideal for air-gapped environments, sensitive processes, or users who want full control over data flow. Disabled by default.
 
 #### Chat History and Logging
 

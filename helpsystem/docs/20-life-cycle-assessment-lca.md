@@ -8,7 +8,7 @@ The **Life Cycle Assessment** (LCA) extension performs environmental impact asse
 
 The four-phase ISO 14040 framework is implemented as follows:
 
-##### Phase 1 — Goal and Scope Definition {#phase-1-goal-and-scope-definition}
+##### Phase 1: Goal and Scope Definition
 
 Configured via the Study Setup tab:
 
@@ -20,7 +20,7 @@ Configured via the Study Setup tab:
 
 - **Electricity grid mix**: selectable from 20 country/region profiles.
 
-##### Phase 2 — Life Cycle Inventory (LCI) {#phase-2-life-cycle-inventory-lci}
+##### Phase 2: Life Cycle Inventory (LCI)
 
 The inventory is built automatically from the flowsheet graph. The following flow types are identified:
 
@@ -46,40 +46,40 @@ Electricity emission factors are provided for 20 country/region grid mixes based
 
 The 11 shortcut refinery unit operations from the *Refining Unit Operations* package emit or consume utilities that are captured automatically during inventory construction:
 
-- **Hydrogen consumers** — the HDS and Hydrocracker units report hydrogen consumption via `Results.H2Consumption­KgPerS`. This is added as a *Raw Material* inventory item with CAS 1333-74-0, enabling the cradle-to-gate environmental burden of industrial H$_2$ production to be attributed to these units.
+- **Hydrogen consumers**: the HDS and Hydrocracker units report hydrogen consumption via `Results.H2Consumption­KgPerS`. This is added as a *Raw Material* inventory item with CAS 1333-74-0, enabling the cradle-to-gate environmental burden of industrial H$_2$ production to be attributed to these units.
 
-- **Endothermic reactors with fired heaters** — the Catalytic Reformer, Isomerization, and Delayed Coker report a feed-heater duty via `Results.HeaterDuty`. This is added as a *Heating* inventory item and uses the natural-gas boiler emission factor.
+- **Endothermic reactors with fired heaters**: the Catalytic Reformer, Isomerization, and Delayed Coker report a feed-heater duty via `Results.HeaterDuty`. This is added as a *Heating* inventory item and uses the natural-gas boiler emission factor.
 
-- **FCC regenerator direct emissions** — the Fluid Catalytic Cracker burns coke on the regenerated catalyst. CO$_2$ emissions are computed from $m_{\mathrm{coke}} \times 0.85 \times (44/12)$ (assuming coke is $\sim$<!-- -->85 wt % carbon) and SO$_2$ from $m_{\mathrm{coke}} \times w_{\mathrm{S,coke}} \times (64/32)$. Both are flagged as *DirectEmission* items.
+- **FCC regenerator direct emissions**: the Fluid Catalytic Cracker burns coke on the regenerated catalyst. CO$_2$ emissions are computed from $m_{\mathrm{coke}} \times 0.85 \times (44/12)$ (assuming coke is $\sim$<!-- -->85 wt % carbon) and SO$_2$ from $m_{\mathrm{coke}} \times w_{\mathrm{S,coke}} \times (64/32)$. Both are flagged as *DirectEmission* items.
 
-- **Claus SRU tail gas** — the un-recovered fraction of the fed H$_2$S is assumed to be flared, producing SO$_2$. Tail-gas SO$_2$ is computed as $m_{\mathrm{H_2S}}(1 - \eta_{\mathrm{rec}}) \times (64/34)$.
+- **Claus SRU tail gas**: the un-recovered fraction of the fed H$_2$S is assumed to be flared, producing SO$_2$. Tail-gas SO$_2$ is computed as $m_{\mathrm{H_2S}}(1 - \eta_{\mathrm{rec}}) \times (64/34)$.
 
-- **Alkylation and Hydrocracker cooling** — the exothermic reaction duty is treated as a cooling-utility demand (mechanical-draft cooling tower emission factor).
+- **Alkylation and Hydrocracker cooling**: the exothermic reaction duty is treated as a cooling-utility demand (mechanical-draft cooling tower emission factor).
 
-- **Amine circulation pump** — electricity demand is estimated at $\sim$<!-- -->2 kW/(L/s) of amine flow rate reported by `Results.AmineCirculationLPerS`.
+- **Amine circulation pump**: electricity demand is estimated at $\sim$<!-- -->2 kW/(L/s) of amine flow rate reported by `Results.AmineCirculationLPerS`.
 
-- **Shortcut CDU crude furnace** — the fired heater duty is approximated as $\sim$<!-- -->300 kJ/kg crude feed (a typical atmospheric distillation heat demand) and treated as a heating-utility item.
+- **Shortcut CDU crude furnace**: the fired heater duty is approximated as $\sim$<!-- -->300 kJ/kg crude feed (a typical atmospheric distillation heat demand) and treated as a heating-utility item.
 
-- **Passive units** — the Product Blender has no energy or emission contribution and is skipped.
+- **Passive units**: the Product Blender has no energy or emission contribution and is skipped.
 
 ###### PNA-aware inventory sensitivity
 
-The hydrogen, coke, and fired-heater inventory items above are computed from the refining block results and therefore inherit any PNA-driven modulation of the underlying yields (see the *PNA-Aware Yield Modulation* subsection of the Refining Unit Operations chapter). In particular, an aromatic-rich feed to the Hydrocracker or HDS increases `H2ConsumptionKgPerS` — and hence the raw-material H$_2$ burden — relative to a paraffinic feed at the same throughput; an aromatic-rich Coker or FCC feed increases coke yield and the associated regenerator or coke-handling emissions. No additional configuration is required: the LCA inventory is rebuilt from the current `Results` of each block on every run.
+The hydrogen, coke, and fired-heater inventory items above are computed from the refining block results and therefore inherit any PNA-driven modulation of the underlying yields (see the *PNA-Aware Yield Modulation* subsection of the Refining Unit Operations chapter). In particular, an aromatic-rich feed to the Hydrocracker or HDS increases `H2ConsumptionKgPerS`, and with it the raw-material H$_2$ burden, relative to a paraffinic feed at the same throughput; an aromatic-rich Coker or FCC feed increases coke yield and the associated regenerator or coke-handling emissions. No additional configuration is required: the LCA inventory is rebuilt from the current `Results` of each block on every run.
 
 ###### Bio operations {#sec:lca_bio}
 
 The six bio/biotech unit operations are detected by class name (independent of `ObjectType` because they inherit generic reactor / unit-op base classes) and dispatched to a dedicated bio handler. Their emissions and utility demands are captured as follows:
 
-- **BioReactor** — the net heat duty `Result_Q_duty_kW` (computed from the metabolic heat balance and thermal mode) is added as either a *Heating* or *Cooling* item depending on sign. For aerobic fermentation this is typically cooling because the metabolic oxidation is exothermic ($\sim$<!-- -->450 kJ/mol O$_2$). Agitation/aeration electricity is estimated at $\sim$<!-- -->1 kW/m$^3$ working volume (standard stirred-tank bioreactor design basis).
+- **BioReactor**: the net heat duty `Result_Q_duty_kW` (computed from the metabolic heat balance and thermal mode) is added as either a *Heating* or *Cooling* item depending on sign. For aerobic fermentation this is typically cooling because the metabolic oxidation is exothermic ($\sim$<!-- -->450 kJ/mol O$_2$). Agitation/aeration electricity is estimated at $\sim$<!-- -->1 kW/m$^3$ working volume (standard stirred-tank bioreactor design basis).
 
-- **Anaerobic Digester** — heating duty for maintaining mesophilic ($\sim$<!-- -->35 °C) or thermophilic ($\sim$<!-- -->55 °C) operating temperature is taken from `Result_Q_duty_kW`. The biogenic CO$_2$ output (`Result_CO2_kgs`) is flagged as a *DirectEmission* with CAS 124-38-9; the biogenic characterisation factor is conventionally zero under ISO 14067 but the flow is listed for transparency. Mixing electricity is estimated at $\sim$<!-- -->0.2 kW/m$^3$.
+- **Anaerobic Digester**: heating duty for maintaining mesophilic ($\sim$<!-- -->35 °C) or thermophilic ($\sim$<!-- -->55 °C) operating temperature is taken from `Result_Q_duty_kW`. The biogenic CO$_2$ output (`Result_CO2_kgs`) is flagged as a *DirectEmission* with CAS 124-38-9; the biogenic characterisation factor is conventionally zero under ISO 14067 but the flow is listed for transparency. Mixing electricity is estimated at $\sim$<!-- -->0.2 kW/m$^3$.
 
-- **Biomass Pretreatment** — heating duty scales with feed mass flow via a technology-specific specific energy (DiluteAcid 500 kJ/kg, SteamExplosion 1500 kJ/kg, Alkaline 300 kJ/kg, Organosolv 800 kJ/kg). Chemical consumption is added as a *Raw Material* input with its upstream cradle-to-gate emission factor: 1 wt % H$_2$SO$_4$ for DiluteAcid (CAS 7664-93-9), 2 wt % NaOH for Alkaline (CAS 1310-73-2), or 5 % of 0.5 kg/kg Ethanol make-up for Organosolv (CAS 64-17-5).
+- **Biomass Pretreatment**: heating duty scales with feed mass flow via a technology-specific specific energy (DiluteAcid 500 kJ/kg, SteamExplosion 1500 kJ/kg, Alkaline 300 kJ/kg, Organosolv 800 kJ/kg). Chemical consumption is added as a *Raw Material* input with its upstream cradle-to-gate emission factor: 1 wt % H$_2$SO$_4$ for DiluteAcid (CAS 7664-93-9), 2 wt % NaOH for Alkaline (CAS 1310-73-2), or 5 % of 0.5 kg/kg Ethanol make-up for Organosolv (CAS 64-17-5).
 
-- **Cell Lysis** — electricity depends on technology: high-pressure homogeniser uses $0.0005 \times\mathrm{passes}\times
+- **Cell Lysis**: electricity depends on technology: high-pressure homogeniser uses $0.0005 \times\mathrm{passes}\times
       p_{\mathrm{MPa}}$ kWh/kg (which gives $\sim$<!-- -->0.08 kWh/kg at 2 passes and 80 MPa); bead-mill $\sim$<!-- -->0.1 kWh/kg; ultrasound uses `Ultrasound_PowerDensity_WmL` directly scaled by flow; chemical / enzymatic / osmotic modes have negligible direct energy.
 
-- **Biogas Upgrader** — technology-dependent electricity and heat (per kg raw biogas):
+- **Biogas Upgrader**: technology-dependent electricity and heat (per kg raw biogas):
 
   - *WaterScrubbing*: 0.25 kWh$_e$/kg, no heat.
 
@@ -89,20 +89,20 @@ The six bio/biotech unit operations are detected by class name (independent of `
 
   - *MembraneSeparation*: 0.20 kWh$_e$/kg.
 
-  CH$_4$ slip (from `CH4LossFraction`) is added as a *DirectEmission* with CAS 74-82-8 to capture its GWP$_{100}$ = 28 impact — a critical hotspot for biogas-upgrading LCA.
+  CH$_4$ slip (from `CH4LossFraction`) is added as a *DirectEmission* with CAS 74-82-8 to capture its GWP$_{100}$ = 28 impact, which is the hotspot of a biogas-upgrading LCA.
 
-- **CFB Fast Pyrolysis** — the LCI is split by sand-supply mode (`SandMode`):
+- **CFB Fast Pyrolysis**: the LCI is split by sand-supply mode (`SandMode`):
 
   - *External* mode: the net pyrolysis duty `Result_PyrolysisDuty_kW` is supplied by an external heat source (natural-gas boiler or high-temperature utility sand) and is added as a *Heating* item.
 
-  - *InternalCharCombustor* mode: the reactor is autothermal — char is burned in-situ to regenerate hot sand. No external heat is consumed, but the combustion generates a biogenic CO$_2$ direct emission estimated at $m_{\mathrm{CO_2}} = 3.12 \, m_{\mathrm{char}}$ (from $m_{\mathrm{char}} = m_{\mathrm{biomass}} \times
+  - *InternalCharCombustor* mode: the reactor is autothermal: char is burned in-situ to regenerate hot sand. No external heat is consumed, but the combustion generates a biogenic CO$_2$ direct emission estimated at $m_{\mathrm{CO_2}} = 3.12 \, m_{\mathrm{char}}$ (from $m_{\mathrm{char}} = m_{\mathrm{biomass}} \times
             w_{\mathrm{char,yield}}$, assuming $\sim$<!-- -->85 % carbon in char and full conversion to CO$_2$). Biogenic CO$_2$ has a characterisation factor of 0 under ISO 14067 but is listed for transparency.
 
   Both modes share: carrier-gas blower electricity for the fluidisation N$_2$ stream ($\sim$<!-- -->0.05 kWh per kg biomass feed) and pneumatic sand-lift electricity ($\sim$<!-- -->0.02 kWh per kg sand circulated, using `Result_SandCirculation_kgps`). The reactor is also covered by the double-count guard.
 
 To prevent double-counting, the reactor-outlet emission scanner in the inventory builder skips any object whose class name matches a bio unit operation; their emissions are already captured explicitly above.
 
-##### Phase 3 — Life Cycle Impact Assessment (LCIA) {#phase-3-life-cycle-impact-assessment-lcia}
+##### Phase 3: Life Cycle Impact Assessment (LCIA)
 
 The LCIA applies the CML 2001 baseline midpoint method . For each impact category $j$, the total impact is computed as:
 
@@ -154,17 +154,17 @@ I_j^{\mathrm{FU}} = I_j \times \frac{m_{\mathrm{FU}}}{m_{\mathrm{product,annual}
 
 where $m_{\mathrm{FU}}$ is the functional unit mass (e.g., 1 kg) and $m_{\mathrm{product,annual}}$ is the total annual production.
 
-##### Phase 4 — Interpretation {#phase-4-interpretation}
+##### Phase 4: Interpretation
 
 The plant-wide form provides:
 
-- **Contribution analysis** — per-unit-operation breakdown of all impact categories (GWP, AP, EP, ADP), with percentage contributions and dominant category identification.
+- **Contribution analysis**: per-unit-operation breakdown of all impact categories (GWP, AP, EP, ADP), with percentage contributions and dominant category identification.
 
-- **Hotspot identification** — automatic highlighting of the top 3 contributors for *each* impact category.
+- **Hotspot identification**: automatic highlighting of the top 3 contributors for *each* impact category.
 
-- **Sensitivity to grid mix** — users can change the electricity grid region and re-run to assess the effect on results.
+- **Sensitivity to grid mix**: users can change the electricity grid region and re-run to assess the effect on results.
 
-- **AI-assisted interpretation** — LLM-generated expert analysis of results with improvement recommendations.
+- **AI-assisted interpretation**: LLM-generated expert analysis of results with improvement recommendations.
 
 #### Normalization and Weighting {#sec:lca_normweight}
 
@@ -273,21 +273,21 @@ Carbon intensity values (kg CO$_2$-eq/kWh) are provided for 20 regions based o
 
 The plant-wide LCA is launched from the **Tools** menu under **Life Cycle Assessment $\rightarrow$ Plant-Wide LCA**. The main form contains:
 
-- **Status bar** — “Run LCA” button, GWP/FU/Method summary labels, “Export CSV” button, and “Analyze with AI” button.
+- **Status bar**: “Run LCA” button, GWP/FU/Method summary labels, “Export CSV” button, and “Analyze with AI” button.
 
-- **Tab: Study Setup** — Study name, description, product stream selection, functional unit quantity, system boundary (cradle-to-gate or gate-to-gate), allocation method, electricity grid mix region, operating hours per year, carbon tax rate, and inclusion toggles (upstream, direct, utility emissions).
+- **Tab: Study Setup**: Study name, description, product stream selection, functional unit quantity, system boundary (cradle-to-gate or gate-to-gate), allocation method, electricity grid mix region, operating hours per year, carbon tax rate, and inclusion toggles (upstream, direct, utility emissions).
 
-- **Tab: Life Cycle Inventory** — Grid of all material and energy flows with flow rates, annual amounts, source unit operations, and matched emission factor indicators.
+- **Tab: Life Cycle Inventory**: Grid of all material and energy flows with flow rates, annual amounts, source unit operations, and matched emission factor indicators.
 
-- **Tab: Impact Assessment** — Side-by-side layout with colour-coded impact category cards (showing per-FU and annual values) and a detailed results table.
+- **Tab: Impact Assessment**: Side-by-side layout with colour-coded impact category cards (showing per-FU and annual values) and a detailed results table.
 
-- **Tab: Contribution Analysis** — Per-unit-operation breakdown across GWP, AP, EP, and ADP categories with GWP percentage and dominant category identification.
+- **Tab: Contribution Analysis**: Per-unit-operation breakdown across GWP, AP, EP, and ADP categories with GWP percentage and dominant category identification.
 
-- **Tab: Hotspot Analysis** — Top 3 contributors per impact category.
+- **Tab: Hotspot Analysis**: Top 3 contributors per impact category.
 
-- **Tab: Normalization & Weighting** — Normalised scores using CML 2001 world references, with editable weights per category and an aggregate single score (see §[2.3](#sec:lca_normweight)).
+- **Tab: Normalization & Weighting**: Normalised scores using CML 2001 world references, with editable weights per category and an aggregate single score (see §[2.3](#sec:lca_normweight)).
 
-- **Tab: Report** — Markdown report viewer. The report is auto-generated after each analysis run and includes impact results, contribution analysis, per-category hotspots, full life cycle inventory, and normalization/weighting results. The report can be enriched with AI-generated analysis.
+- **Tab: Report**: Markdown report viewer. The report is auto-generated after each analysis run and includes impact results, contribution analysis, per-category hotspots, full life cycle inventory, and normalization/weighting results. The report can be enriched with AI-generated analysis.
 
 ##### AI-Assisted Analysis
 
@@ -386,7 +386,7 @@ The `LCAApiResult` class contains:
 
 - **Inventory**: `InventorySummary` (counts by flow type) and `Inventory` (full list of inventory items).
 
-- **Report**: `MarkdownReport` — complete analysis in Markdown format.
+- **Report**: `MarkdownReport`, the complete analysis in Markdown format.
 
 The API automatically stores all results in the flowsheet’s `ExtraProperties` (see table above), making them accessible to other extensions, scripts, and the DWSIM AI assistant.
 

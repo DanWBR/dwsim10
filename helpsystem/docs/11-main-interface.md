@@ -16,13 +16,15 @@ The left-hand column groups everything that can be done before a simulation exis
 
 - **Application** - Preferences and About DWSIM.
 
-The right-hand side has three tabs:
+The right-hand side has four tabs:
 
 - **Recent Files** - the last fifteen simulations that were opened, most recent first. Double-click one to open it. The list can be emptied from File \> Open Recent \> Clear List.
 
 - **Samples** - the sample simulations shipped with DWSIM.
 
 - **FOSSEE Flowsheets** - the flowsheets contributed to the FOSSEE Flowsheeting Project. Double-clicking one downloads it and opens it.
+
+- **Case Library** - the worked cases of the DWSIM Case Library, an online collection; the list is downloaded when the tab opens. Double-clicking a case downloads it and opens it.
 
 
 
@@ -52,7 +54,7 @@ A new simulation starts with an empty flowsheet and the **Simulation Setup Wizar
 
 The simulation window is a set of dockable panels. Any of them can be resized, moved to another edge, stacked as a tab next to another panel, or pinned so that it collapses to a strip when it is not in use. The default arrangement is:
 
-- **Editor** (left) - the property editor of the object selected on the flowsheet, with tabs for Connections, Properties, Custom Properties, Dynamics, Results and Appearance. Only the tabs that apply to the selected object are shown.
+- **Editor** (left) - the property editor of the object selected on the flowsheet. Streams and unit operations open an editor laid out like the one in the Classic UI; other objects use a generic editor with tabs for Connections, Properties, Custom Properties, Dynamics, Results and Appearance, showing only the tabs that apply.
 
 - **Flowsheet** (centre) - the process flow diagram.
 

@@ -1,6 +1,6 @@
 # Corrosion & Scaling Monitor
 
-The *Corrosion & Scaling Monitor* (CSM) unit operation evaluates corrosion and scaling risks in pipes, heat exchangers, and metallic equipment from an aqueous DWSIM material stream. The operation is a *passthrough*: the outlet stream is identical to the inlet, and results are exposed as extra properties of the unit operation, visible in the object editor and the HTML report.
+The *Corrosion & Scaling Monitor* (CSM) evaluates corrosion and scaling risks in pipes, heat exchangers, and metallic equipment from an aqueous DWSIM material stream. It is a unit operation extension: it is attached to a Pipe Segment, a Heat Exchanger or an Advanced Shell-and-Tube Heat Exchanger through **Tools** $\rightarrow$ **Unit Operation Extension Manager**, and it runs each time the host unit operation is calculated. It reads the host’s inlet stream and its calculated temperature, pressure and velocity profiles, and it leaves every stream unchanged. Results are written as extra properties of the host unit operation (keys starting with `CSA_`) and as a Markdown report in `CSA_MarkdownReport`, which opens in the Markdown Report Viewer.
 
 The calculation is organised in four sequential modules: (1) ionic speciation; (2) corrosion rates; (3) scaling indices; (4) remaining useful life and inhibitor dosing.
 
@@ -22,7 +22,7 @@ I = \frac{1}{2}\sum_{i} m_i z_i^2
 
 where $m_i$ is the molality of ion $i$ (mol kg$^{-1}$) and $z_i$ is its charge number.
 
-##### Activity Coefficients {#activity-coefficients-1 .unnumbered}
+##### Activity Coefficients {#activity-coefficients-2 .unnumbered}
 
 The Extended Debye–Hückel model (EDHE) is used with individual ionic size parameters $a_i$ :
 
@@ -62,7 +62,7 @@ where $T$ is temperature in kelvin. For ionic strengths above 0.5 mol kg$^{-1
 \]
 
 
-##### Equilibrium Constants {#equilibrium-constants-2 .unnumbered}
+##### Equilibrium Constants {#equilibrium-constants .unnumbered}
 
 All equilibrium constants are corrected for temperature. The water ionization constant follows :
 
@@ -83,7 +83,7 @@ For the carbonate system, the first and second dissociation constants of carboni
 \[
 \begin{align}
   \log_{10}K_{a1,\mathrm{CO_{2}}}(T)
-    &\approx -14.84 + 3.3\times10^{-3}(T-298.15)
+    &\approx -6.35 + 5.0\times10^{-3}(T-298.15)
    \\
   \log_{10}K_{a2,\mathrm{CO_{2}}}(T)
     &\approx -10.33 - 1.4\times10^{-2}(T-298.15)
@@ -125,7 +125,7 @@ a_i = \gamma_i \, m_i
 \]
 
 
-Table [41](#tab:ion_params) lists the ionic size parameters $a_i$ and charges $z_i$ used in the EDHE model.
+Table [67](#tab:ion_params) lists the ionic size parameters $a_i$ and charges $z_i$ used in the EDHE model.
 
 
 
@@ -170,7 +170,7 @@ Three corrosion mechanisms are evaluated independently. The total corrosion rate
 \]
 
 
-Risk is classified according to the thresholds of NACE SP0775 (Table [42](#tab:corr_risk)).
+Risk is classified according to the thresholds of NACE SP0775 (Table [68](#tab:corr_risk)).
 
 
 
@@ -190,7 +190,7 @@ Corrosion risk classification .
 
 
 
-##### CO$_{2}$ Corrosion — de Waard & Milliams Model {#sec:csm:co2}
+##### CO$_{2}$ Corrosion: de Waard & Milliams Model {#sec:csm:co2}
 
 The CO$_{2}$ corrosion rate is calculated using the de Waard & Milliams model , extensively validated for oil and gas systems:
 
@@ -199,11 +199,11 @@ The CO$_{2}$ corrosion rate is calculated using the de Waard & Milliams model ,
 
 \[
 \log_{10}\mathrm{CR}_{\mathrm{base}}
-    = 4.762 - \frac{1710}{T} + 0.67\,\log_{10}p_{\mathrm{CO_{2}}}
+    = 5.8 - \frac{1710}{T} + 0.67\,\log_{10}p_{\mathrm{CO_{2}}}
 \]
 
 
-where $T$ is temperature in kelvin and $p_{\mathrm{CO_{2}}}$ is the CO$_{2}$ partial pressure in bar. The result is in mm/yr for bare carbon steel at the reference condition ($\mathrm{pH} \approx 3.8$, no protective film).
+where $T$ is temperature in kelvin and $p_{\mathrm{CO_{2}}}$ is the CO$_{2}$ partial pressure in bar. This is the equation behind the de Waard–Milliams nomogram. The result is in mm/yr for bare carbon steel at the reference condition ($\mathrm{pH} \approx 3.8$, no protective film).
 
 The corrected rate is:
 
@@ -217,7 +217,7 @@ The corrected rate is:
 \]
 
 
-**Temperature factor** $f_{T}$: above approximately 60 °C a precipitated FeCO$_{3}$ layer becomes protective, reducing the corrosion rate. Values are based on NORSOK M-506 (Table [43](#tab:fT)).
+**Temperature factor** $f_{T}$: above approximately 60 °C a precipitated FeCO$_{3}$ layer becomes protective, reducing the corrosion rate. Values are based on NORSOK M-506 (Table [69](#tab:fT)).
 
 
 
@@ -251,23 +251,23 @@ f_{\mathrm{pH}}
 
 The upper limit of 10 prevents pH from reducing the rate by more than one order of magnitude below the reference.
 
-**Mass-transfer factor** $f_{m}$: under turbulent flow the resistance to H$^{+}$ diffusion towards the metal surface may limit the rate. Using the Chilton–Colburn analogy:
+**Mass-transfer factor** $f_{m}$: the reaction at the steel surface and the transport of dissolved CO$_{2}$ to the wall act as resistances in series :
 
 
-<a id="eq:Sherwood"></a><a id="eq:km"></a><a id="eq:fm"></a>
+<a id="eq:resistances"></a><a id="eq:Vm"></a><a id="eq:fm"></a>
 
 \[
 \begin{align}
-  Sh &= 0.023\,Re^{0.8}\,Sc^{1/3}  \\
-  k_{m} &= \frac{Sh\,D_{\mathrm{CO_{2}}}}{d}  \\
-  f_{m} &= \frac{k_{m}\,k_{r}}{(k_{m}+k_{r})\,k_{r}}
+  \frac{1}{\mathrm{CR}} &= \frac{1}{V_{r}} + \frac{1}{V_{m}}  \\
+  V_{m} &= 2.45\,\frac{U^{0.8}}{d^{0.2}}\,p_{\mathrm{CO_{2}}}  \\
+  f_{m} &= \frac{V_{m}}{V_{r} + V_{m}}
 \end{align}
 \]
 
 
-where $Sc = \nu/D_{\mathrm{CO_{2}}}$, $k_{r}$ is the surface reaction rate constant , and $d$ is the internal diameter.
+where $V_{r} = \mathrm{CR}_{\mathrm{base}}\,f_{\mathrm{pH}}$ is the reaction-controlled rate (mm/yr), $V_{m}$ is the mass-transfer-limited rate (mm/yr), $U$ is the liquid velocity (m s$^{-1}$), $d$ is the internal diameter (m) and $p_{\mathrm{CO_{2}}}$ is in bar. The factor approaches 1 when mass transfer is fast ($V_{m} \gg V_{r}$) and falls as the flow slows. When no velocity is available the factor is 1.
 
-**Material factor** $f_{\mathrm{mat}}$: corrosion-resistant alloys exhibit substantially lower rates than carbon steel (Table [44](#tab:fmat)).
+**Material factor** $f_{\mathrm{mat}}$: corrosion-resistant alloys exhibit substantially lower rates than carbon steel (Table [70](#tab:fmat)).
 
 
 
@@ -382,7 +382,7 @@ where $Q_{i}$ is the ionic product computed from ionic activities and $K_{\mathr
 
 ##### Solubility Products {#solubility-products .unnumbered}
 
-Temperature-dependent $K_{\mathrm{sp}}$ values are given in Table [45](#tab:Ksp).
+Temperature-dependent $K_{\mathrm{sp}}$ values are given in Table [71](#tab:Ksp).
 
 
 
@@ -444,7 +444,7 @@ The RSI provides better field correlation than LSI:
 \]
 
 
-Interpretation is given in Table [46](#tab:RSI).
+Interpretation is given in Table [72](#tab:RSI).
 
 
 
@@ -558,6 +558,12 @@ and the remaining useful life:
 \]
 
 
+The projected life is capped at 100 years, since a corrosion rate close to zero gives an unbounded value.
+
+##### Component Basis in the Extension Run {#component-basis-in-the-extension-run .unnumbered}
+
+When the monitor runs as an extension, the remaining life is evaluated where the corrosion rate is highest: the pipe section with the highest rate, or the exchanger segment with the highest rate. The wall is taken as new at its nominal thickness, since the flowsheet carries no inspection history, and the design pressure is the inlet pressure of the pipe or of the exchanger’s process side. For a pipe, $t_{\min}$ is a structural minimum by pipe size (1.8 mm up to NPS 2, 2.0 mm for NPS 3, 2.3 mm for NPS 4, 2.8 mm for NPS 6 to 18 and 3.1 mm above), limited to half the nominal wall. For an exchanger tube, $t_{\min}$ is 60 % of the nominal wall, which corresponds to the usual plugging criterion of 40 % wall loss. When the exchanger has no shell-and-tube geometry, a 19.05 mm $\times$ 2.11 mm tube is assumed.
+
 ##### MAWP and Inspection Interval {#mawp-and-inspection-interval .unnumbered}
 
 The Maximum Allowable Working Pressure at the current thickness (ASME B31.3) is:
@@ -604,6 +610,8 @@ Maximum inspection intervals by risk category .
 
 #### Chemical Inhibitor Dosing {#sec:csm:inhibitors}
 
+In the extension run, the corrosion inhibitor is sized at the point with the highest corrosion rate and the scale inhibitors at the point with the highest LSI. The injection volumes use the liquid volumetric flow of the host’s inlet stream, with the default targets of Table [75](#tab:params).
+
 ##### Corrosion Inhibitor {#corrosion-inhibitor .unnumbered}
 
 The inhibition efficiency of film-forming amines and phosphates follows the Langmuir adsorption model :
@@ -627,7 +635,7 @@ k_{\mathrm{ads}}(T)
 \]
 
 
-Parameters by inhibitor family are listed in Table [48](#tab:inh_params).
+Parameters by inhibitor family are listed in Table [74](#tab:inh_params).
 
 
 
@@ -671,7 +679,7 @@ V_{\mathrm{prod}}
 
 where $Q$ is the fluid flow rate (m$^{3}$ day$^{-1}$) and $\chi_{\mathrm{active}}$ is the mass fraction of active ingredient in the commercial product.
 
-##### Scale Inhibitors — Threshold Model {#scale-inhibitors-threshold-model .unnumbered}
+##### Scale Inhibitors: Threshold Model {#scale-inhibitors-threshold-model .unnumbered}
 
 Threshold inhibition relies on sub-stoichiometric phosphonate or polymer concentrations to block crystal growth . The threshold dose for CaCO$_{3}$ is:
 
@@ -763,7 +771,7 @@ The precipitation front is defined as the relative axial position $x_{f}$ where 
 
 #### Configuration Parameters {#sec:csm:params}
 
-All configurable parameters and their defaults are listed in Table [49](#tab:params).
+All configurable parameters and their defaults are listed in Table [75](#tab:params). When the monitor runs as an extension, the geometry, velocity, pressure and flow come from the host unit operation (Sections [10.4](#sec:csm:rul) and [10.5](#sec:csm:inhibitors)) and the other entries keep their defaults.
 
 
 
@@ -783,7 +791,7 @@ All configurable parameters and their defaults are listed in Table [49](#tab:pa
 </thead>
 <tbody>
 <tr>
-<td colspan="4" style="text-align: center;">Table <a href="#tab:params" data-reference-type="ref" data-reference="tab:params">49</a> (continued)</td>
+<td colspan="4" style="text-align: center;">Table <a href="#tab:params" data-reference-type="ref" data-reference="tab:params">75</a> (continued)</td>
 </tr>
 <tr>
 <td style="text-align: left;">Parameter</td>
@@ -933,7 +941,7 @@ All configurable parameters and their defaults are listed in Table [49](#tab:pa
 
 #### Output Properties {#sec:csm:outputs}
 
-After calculation, results are available as `ExtraProperties` of the unit operation, accessible through the DWSIM object editor, the IronPython console, and the CAPE-OPEN API (Table [50](#tab:outputs)).
+After calculation, results are available as `ExtraProperties` of the host unit operation, accessible through the DWSIM object editor, the IronPython console, and the CAPE-OPEN API (Table [76](#tab:outputs)). A pipe segment also carries per-section keys (`CSA_Sec{n}_…`) and per-increment profiles (`CSA_Inc…`); a heat exchanger carries the conditions of its worst corrosion and scaling segments (`CSA_WorstCR_…`, `CSA_WorstLSI_…`).
 
 
 
@@ -941,28 +949,23 @@ After calculation, results are available as `ExtraProperties` of the unit operat
 
 
 
-| Property                | Unit    | Description                 |
-|:------------------------|:--------|:----------------------------|
-| `CR_Total_mmyr`         | mm/yr   | Total corrosion rate        |
-| `CR_CO2_mmyr`           | mm/yr   | CO$_{2}$ contribution     |
-| `CR_H2S_mmyr`           | mm/yr   | H$_{2}$S contribution     |
-| `CR_O2_mmyr`            | mm/yr   | O$_{2}$ contribution      |
-| `pH`                    | —       | Computed pH                 |
-| `SSC_Risk`              | —       | 1 = SSC risk; 0 = no risk   |
-| `Risk_Level`            | —       | NACE classification         |
-| `LSI`                   | —       | Langelier Saturation Index  |
-| `RSI`                   | —       | Ryznar Stability Index      |
-| `SDI`                   | —       | Stiff–Davis Index           |
-| `SI_Barite`             | —       | Barite saturation index     |
-| `SI_Gypsum`             | —       | Gypsum saturation index     |
-| `SI_Siderite`           | —       | Siderite saturation index   |
-| `RUL_yr`                | yr      | Remaining useful life       |
-| `t_current_mm`          | mm      | Estimated current thickness |
-| `MAWP_MPa`              | MPa     | MAWP at current thickness   |
-| `Status`                | —       | Integrity status (API 570)  |
-| `Next_Inspection`       | —       | Next inspection date        |
-| `Inhibitor_Dose_ppm`    | ppm     | Corrosion inhibitor dose    |
-| `Chemical_Cost_USD_day` | USD/day | Daily chemical cost         |
+| Property                     | Unit    | Description                        |
+|:-----------------------------|:--------|:-----------------------------------|
+| `CSA_MaxCR_mmyr`             | mm/yr   | Highest total corrosion rate       |
+| `CSA_MaxLSI`                 | —       | Highest Langelier Saturation Index |
+| `CSA_MaxSI_Barite`           | —       | Highest barite saturation index    |
+| `CSA_MaxSI_Gypsum`           | —       | Highest gypsum saturation index    |
+| `CSA_HasSSCRisk`             | —       | 1 = SSC risk; 0 = no risk          |
+| `CSA_RUL_yr`                 | yr      | Remaining useful life              |
+| `CSA_CurrentThickness_mm`    | mm      | Estimated current thickness        |
+| `CSA_RetirementThickness_mm` | mm      | Retirement thickness               |
+| `CSA_MAWP_MPa`               | MPa     | MAWP at current thickness          |
+| `CSA_IntegrityStatus`        | —       | Integrity status (API 570)         |
+| `CSA_NextInspection`         | —       | Next inspection date               |
+| `CSA_CorrInhib_Dose_ppm`     | ppm     | Corrosion inhibitor dose           |
+| `CSA_ChemCost_USD_day`       | USD/day | Daily chemical cost                |
+| `CSA_TreatmentStrategy`      | —       | Primary treatment strategy         |
+| `CSA_MarkdownReport`         | —       | Full report (Markdown)             |
 
 Main output properties of the Corrosion & Scaling Monitor.
 

@@ -536,7 +536,7 @@ The outlet pressure is either
 \]
 
 
-The outlet temperature is obtained from a flash at the outlet $(P, H)$. Contaminant concentrations of the pool are mass-weighted:
+The outlet temperature is the mass-flow-weighted average of the inlet temperatures. Contaminant concentrations of the pool are mass-weighted:
 
 
 <a id="eq:blender_contam"></a>
@@ -547,6 +547,53 @@ x_{\mathrm{out}}^{\mathrm{cont}}
                {\displaystyle\sum_{j} \dot m_j}
 \]
 
+
+##### Octane and RVP Blending
+
+When a gasoline pool is blended, the blender can also estimate the octane numbers and the Reid vapor pressure (RVP) of the product from per-inlet values, following the correlations in Gary and Handwerk (chapter 12). Each inlet $j$ carries a research octane number $r_j$, a motor octane number $m_j$, an RVP, and the olefins and aromatics contents $O_j$, $A_j$ (vol%). The values are read from the inlet stream extra properties (`RON`, `MON`, `RVP` in Pa, `OlefinsVolPct`, `AromaticsVolPct`) when present, and from the per-port configuration otherwise. An inlet without a value is left out of that blend, and the share of the pool it represents is reported as uncovered. When no MON is given, $m_j = r_j$ is assumed. When no aromatics content is given and the inlet carries PNA data, the aromatics mass fraction of the feed is used.
+
+The blend fractions $f_j$ are the inlet volumetric flows at stream conditions (basis *Volume*, the default) or the inlet mass flows (basis *Mass*); the volume basis falls back to mass when a volumetric flow is unavailable. With bars denoting fraction-weighted averages, $\bar r = \sum_j f_j r_j$, $\bar m = \sum_j f_j m_j$, $\overline{rs} = \sum_j f_j r_j s_j$ and so on, where $s_j = r_j - m_j$ is the sensitivity, the octane methods are:
+
+- *Linear*: $R = \bar r$, $M = \bar m$.
+
+- *Ethyl* (Ethyl RT-70 interaction method):
+
+
+<a id="eq:blender_ethyl"></a>
+
+\[
+\begin{align}
+          R &= \bar r + a_1 \left(\bar r\,\bar s - \overline{rs}\right)
+                      + a_2 \left(\bar O^2 - \overline{O^2}\right)
+                      + a_3 \left(\bar A^2 - \overline{A^2}\right) \
+          M &= \bar m + b_1 \left(\bar m\,\bar s - \overline{ms}\right)
+                      + b_2 \left(\bar O^2 - \overline{O^2}\right)
+                      + b_3 \left[\frac{\bar A^2 - \overline{A^2}}{100}\right]^2
+  \end{align}
+\]
+
+
+  with $a_1 = 0.03324$, $a_2 = 0.00085$, $a_3 = 0$, $b_1 = 0.04285$, $b_2 = 0.00066$ and $b_3 = -0.00632$.
+
+- *User Coefficients*: equation [\[eq:blender_ethyl\]](#eq:blender_ethyl) with the six coefficients entered by the user (they default to the published set).
+
+The anti-knock index $(R + M)/2$, the sensitivity $R - M$ and the linear averages are reported alongside the blended values.
+
+The RVP methods are *Linear*, $\mathrm{RVP} = \sum_j f_j\,
+\mathrm{RVP}_j$, and *Chevron Index*, which blends the Chevron blending index $\mathrm{RVPBI} = \mathrm{RVP}^{1.25}$ linearly:
+
+
+<a id="eq:blender_rvp"></a>
+
+\[
+\mathrm{RVP}_{\mathrm{blend}}
+        = \left(\sum_j f_j\, \mathrm{RVP}_j^{1.25}\right)^{1/1.25}
+\]
+
+
+The power law is scale invariant, so the pressure unit does not matter.
+
+The blended RON, MON, olefins, aromatics and RVP are written to the outlet stream extra properties under the same keys, so a downstream blender picks them up automatically.
 
 #### Isomerization Unit
 
@@ -703,7 +750,7 @@ to a base yield or consumption $y_{j}$ (with the modulated yield set renormalise
 
 | **Unit** | **Effect of feed PNA** |
 |:---|:---|
-| Reformer | H$_2$ and light-ends yields scale with $(\bar{x}_{\mathrm{P}} - \bar{x}^{\mathrm{ref}}_{\mathrm{P}})$ — paraffin-rich naphthas dehydrocyclise to aromatics, releasing H$_2$ and gas. |
+| Reformer | H$_2$ and light-ends yields scale with $(\bar{x}_{\mathrm{P}} - \bar{x}^{\mathrm{ref}}_{\mathrm{P}})$, so paraffin-rich naphthas dehydrocyclise to aromatics, releasing H$_2$ and gas. |
 | Isomerization | Aromatics are inert under C$_5$/C$_6$ isomerisation; an aromatic fraction above $\bar{x}^{\mathrm{ref}}_{\mathrm{A}}$ linearly penalises isomerate yield and increases the light-ends slip. |
 | FCC | Target riser conversion is scaled by $(1 + \alpha_{X}(\bar{x}_{\mathrm{P}} - \bar{x}^{\mathrm{ref}}_{\mathrm{P}}))$ (paraffin-rich gas oils crack more readily); the coke yield is bumped by $(1 + \alpha_{\mathrm{coke}}(\bar{x}_{\mathrm{A}} - \bar{x}^{\mathrm{ref}}_{\mathrm{A}}))$ on top of the CCR-driven baseline. |
 | HCR | Per-pass conversion is paraffin-accelerated through $(\bar{x}_{\mathrm{P}} - \bar{x}^{\mathrm{ref}}_{\mathrm{P}})$; chemical H$_2$ consumption per kg feed is aromatic-accelerated through $(\bar{x}_{\mathrm{A}} - \bar{x}^{\mathrm{ref}}_{\mathrm{A}})$ to account for ring saturation. |

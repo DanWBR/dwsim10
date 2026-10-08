@@ -10,13 +10,13 @@ The integration is accessible from the **Tools** menu under **TEA/LCA Integratio
 
 The settings dialog is divided into four sections:
 
-- **Auto-Run After Flowsheet Solve** — individual checkboxes to enable or disable automatic TEA and LCA execution after each flowsheet calculation completes.
+- **Auto-Run After Flowsheet Solve**: individual checkboxes to enable or disable automatic TEA and LCA execution after each flowsheet calculation completes.
 
-- **Common Parameters** — settings shared between TEA and LCA: product stream selection, operating hours per year, and carbon tax rate.
+- **Common Parameters**: settings shared between TEA and LCA: product stream selection, operating hours per year, and carbon tax rate.
 
-- **TEA Parameters** — discount rate, plant life, tax rate, construction period, working capital fraction, depreciation years, salvage value, product selling price, and annual production (kg/year).
+- **TEA Parameters**: discount rate, plant life, tax rate, construction period, working capital fraction, depreciation years, salvage value, product selling price, and annual production (kg/year).
 
-- **LCA Parameters** — functional unit quantity, system boundary, allocation method, electricity grid mix region, and emission inclusion toggles (upstream, direct, utility).
+- **LCA Parameters**: functional unit quantity, system boundary, allocation method, electricity grid mix region, and emission inclusion toggles (upstream, direct, utility).
 
 All settings are saved with the flowsheet file and automatically restored when the flowsheet is reopened.
 
@@ -79,7 +79,7 @@ In the DWSIM Sensitivity Analysis or Optimization tools, these `ExtraProperties`
 
 4.  Each optimisation iteration solves the flowsheet, which triggers auto-run TEA, updating the KPIs before the optimiser reads them.
 
-Multi-objective studies can combine TEA and LCA KPIs — for example, minimising both `TEA_ProductionCost_PerKg` and `LCA_GWP_PerFU` to find Pareto-optimal designs.
+Multi-objective studies can combine TEA and LCA KPIs: minimising both `TEA_ProductionCost_PerKg` and `LCA_GWP_PerFU` to find Pareto-optimal designs.
 
 #### TEA–LCA Interoperation {#sec:tea_lca_interop}
 

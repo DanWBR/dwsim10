@@ -176,7 +176,7 @@ Use the PRSV2 Property Package. Check if it has the required parameters for your
 
 ####### Systems with high Hydrogen content
 
-You can use the Chao-Seader, Grayson-Streed or Lee-Kesler-Plöcker model. The LKP model is very slow but can be more reliable depending on the system. The LKP model is very sensitive to the interaction parameter values being used.
+You can use the Chao-Seader, Grayson-Streed or Lee-Kesler-Plöcker model. The LKP model is very slow but can be more reliable depending on the system. The LKP model is very sensitive to the interaction parameter values being used. LKP gives hydrogen the effective critical constants of Gunn, Chueh and Prausnitz, which the hydrogen interaction parameters of its table were fitted with, and estimates the parameter of a hydrogen pair missing from the table from the partner’s critical constants. Other pairs missing from the table take 1, which is far too low for a light gas such as methane, nitrogen or carbon dioxide with a heavy hydrocarbon: enter or regress those parameters.
 
 ####### Air Separation / Refrigeration systems {#air-separation-refrigeration-systems}
 
@@ -842,6 +842,10 @@ DWSIM provides three tools for characterization of petroleum fractions. One of t
 
 The method itself requires a minimum of information to generate the pseudocomponents, though the more data the user provides, the better will be the results (Figure [41](#fig:figura-ps1)). It is recommended that the user provides the specific gravity of the C7+ fraction at least. Viscosity data is also very important.
 
+The tool splits the plus fraction alone, and the fractions it produces are fractions of that plus fraction. The rest of the fluid, which a reservoir or a gas analysis reports compound by compound, the inerts and the light hydrocarbons, goes in the Defined Composition list beside it: one row per compound, with its percentage of the whole fluid, on a molar, mass or liquid volume basis. The pseudocomponents are then scaled down to what that composition leaves them, in the proportions the distribution gave them, and the defined compounds are selected into the simulation and written into the stream. Leaving the list empty characterizes the plus fraction on its own.
+
+What may be declared there is measured against the plus fraction rather than against a fixed boiling point, because the line moves with the fluid: the heptanes belong to the defined composition of a C10+ fluid and sit inside the pseudocomponents of a C7+ one. The molar weight of the lightest compound of the plus fraction, which the tool already asks for, is what separates the two, and the compound list offered in each row follows it.
+
 
 
 <a id="fig:figura-ps1"></a>
@@ -886,15 +890,27 @@ The Bulk Create Pseudocompounds tool can be used to create pseudocompounds in a 
 
 
 
+####### ***- Light ends*** {#light-ends .unnumbered}
+
+A crude assay reports its light ends apart from the distillation curve. The curve is run on what is left after they are stripped off, and the light ends come as a short list of real compounds, methane through the pentanes, with a fraction of the whole crude beside each of them. They are only a few per cent, but they set the front end of the flash: a crude characterized from the curve alone will not make the gas the real one makes, and nothing in the numbers says so, because the cuts still add up to one.
+
+The Light Ends section of the characterization tool takes them. Each row is a compound picked from the database and its percentage of the whole crude; a compound that is not in the simulation yet is selected into it when the characterization runs. The percentages are read on the basis chosen beside the list, which can be molar, mass or liquid volume, and this matters more than it looks: the two halves of an assay are rarely reported on the same basis. Five weight per cent of propane in a crude averaging 200 kg/kmol is nineteen mole per cent, and the tool converts between the two rather than leaving the arithmetic to the user.
+
+What happens next depends on how the curve was measured, which is what the check box beside the list is for. For an ordinary assay, where the curve covers only the material left after the light ends were removed, the pseudocomponents are scaled down to the share the light ends leave them, in the proportions the curve gave them, and the light ends are written into the stream as the real compounds they are. When the curve was run on the whole crude and already covers the light ends, ticking the box makes the cuts start above them instead of at the foot of the curve, so that the same material is not counted twice; both halves then have to be given on the same basis, and the tool says so when they are not.
+
+Only a compound that can be a light end is accepted. One that boils above the n-heptane range is material the distillation curve already carries and is refused, as is a pseudocomponent or a compound named twice. A compound between the pentanes and that limit is accepted with a warning, because some assays do report the hexanes with the light ends. The quality check lists what went in, and when a curve starts below the boiling point of n-pentane with no light ends declared it says so: either the curve already covers them, or they were left out.
+
+The light ends belong to the assay, so they are kept with the simulation and can be read back in the Petroleum Assay Manager along with the curve and the contaminants.
+
 ####### ***- Contaminant and PNA composition on pseudocomponents*** {#contaminant-and-pna-composition-on-pseudocomponents .unnumbered}
 
 Starting with DWSIM 8.9, every generated pseudocomponent can carry a *contaminant vector* (total and mercaptan sulfur, nitrogen, Ni/V/Fe/Na, Conradson carbon, asphaltenes, TAN) and a *paraffin/naphthene/aromatic (PNA) triplet.* These optional properties are stored on the compound constants alongside molecular weight, specific gravity and NBP, and are propagated through the flowsheet by every refining unit operation (see the Refining Unit Operations chapter).
 
-- **Bulk properties (C7+)** — the corresponding tool ( *FormPCBulk*exposes three optional fields for the bulk paraffin, naphthene and aromatic mass fractions. When provided, each generated pseudocomponent receives the same PNA triplet, renormalised to unity.
+- **Bulk properties (C7+)**: the corresponding tool ( *FormPCBulk*exposes three optional fields for the bulk paraffin, naphthene and aromatic mass fractions. When provided, each generated pseudocomponent receives the same PNA triplet, renormalised to unity.
 
-- **Distillation curves** — the Distillation Curve Characterization wizard adds three optional columns ( *xP* *xN* *xA* in the assay grid. When at least two temperature-indexed points are entered, the PNA composition is interpolated at each pseudocomponent mean boiling point using the same barycentric (Floater–Hormann) scheme already used for molecular weight and specific gravity curves.
+- **Distillation curves**: the Distillation Curve Characterization wizard adds three optional columns ( *xP* *xN* *xA* in the assay grid. When at least two temperature-indexed points are entered, the PNA composition is interpolated at each pseudocomponent mean boiling point using the same barycentric (Floater–Hormann) scheme already used for molecular weight and specific gravity curves.
 
-- **Bulk creation** — the Bulk Create Pseudocompounds grid accepts per-row PNA columns and an optional contaminant block; missing values are left empty (and simply ignored by downstream units).
+- **Bulk creation**: the Bulk Create Pseudocompounds grid accepts per-row PNA columns and an optional contaminant block; missing values are left empty (and simply ignored by downstream units).
 
 PNA-aware refining blocks (Reformer, Isomerization, FCC, HCR, HDS, Coker) aggregate the feed PNA composition as a mass-weighted mean over petroleum-fraction compounds that have a triplet set, and use it to modulate yields and hydrogen/coke consumption. If no feed pseudocomponent carries PNA data, the PNA correction is bypassed and the baseline (PNA-independent) yield slates are used, so the enhancement is strictly additive with respect to pre-8.9 behaviour.
 

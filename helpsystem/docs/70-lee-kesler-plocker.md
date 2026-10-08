@@ -28,6 +28,30 @@ P_{cm} & =(0.2905-0.085\,w_{m})\frac{RT_{cm}}{V_{cm}},\qquad z_{cm}=\frac{P_{cm}
 \]
 
 
+Hydrogen enters these rules with the effective (quantum-corrected) constants of Gunn, Chueh and Prausnitz, evaluated at the temperature of the calculation with the molar mass $M$ (g/mol):
+
+
+
+<a id="eq:d-lkp-h2"></a>
+
+\[
+T_{c}=\frac{43.6}{1+21.8/(MT)}\ \mathrm{K},\qquad P_{c}=\frac{20.5}{1+44.2/(MT)}\ \mathrm{atm},\qquad V_{c}=\frac{51.5}{1-9.91/(MT)}\ \mathrm{cm^{3}/mol},\qquad w=0
+\]
+
+
+The hydrogen $k_{jk}$ of the table go with these constants. A hydrogen pair missing from the table takes
+
+
+
+<a id="eq:d-lkp-h2kij"></a>
+
+\[
+k_{\mathrm{H_{2}},k}=0.2036+0.002246\,T_{c,k}+0.8364\,w_{k}+1.2111\,V_{c,k}^{1/3}
+\]
+
+
+with $T_{c,k}$ in K and $V_{c,k}$ in m3/kmol, fitted to the eleven hydrogen pairs of the table and to hydrogen solubilities in n-dodecane, benzene, toluene, cyclohexane and methylcyclohexane. Table values and values set by the user are kept. Because the hydrogen constants depend on temperature, the temperature derivatives of the fugacity coefficients are taken by finite differences when hydrogen is present.
+
 #### Compressibility and fugacity coefficient
 
 Each fluid (simple $s$ and reference $h$ , with its own constant set) gives a compressibility from the reduced volume $V_{r}=P_{c}V/(RT_{c})$ , and the mixture interpolates with $w_{h}=0.3978$ :

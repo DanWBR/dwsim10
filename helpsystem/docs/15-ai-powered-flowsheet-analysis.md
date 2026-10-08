@@ -11,7 +11,7 @@ DWSIM integrates the AI Assistant directly into the simulation workflow at sever
 
 
 
-On any open flowsheet, the **Get Insights** and **Troubleshoot** buttons in the toolbar submit the entire flowsheet state to the Assistant and display a structured analysis in a Markdown viewer — the former focusing on optimization opportunities, the latter on diagnosing convergence or configuration issues.
+On any open flowsheet, the **Get Insights** and **Troubleshoot** buttons in the toolbar submit the entire flowsheet state to the Assistant and display a structured analysis in a Markdown viewer, the former focusing on optimization opportunities, the latter on diagnosing convergence or configuration issues.
 
 
 

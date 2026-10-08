@@ -36,11 +36,11 @@ DWSIM provides two kinetic reactor models for simulating systems governed by rea
 
 Both the CSTR and PFR support the following reaction types:
 
-- Kinetic reactions — defined by forward and reverse rate constants and power-law concentration dependences.
+- Kinetic reactions: defined by forward and reverse rate constants and power-law concentration dependences.
 
-- Heterogeneous catalytic reactions — defined by a Langmuir–Hinshelwood rate expression (numerator/denominator form) with rates proportional to catalyst mass.
+- Heterogeneous catalytic reactions: defined by a Langmuir–Hinshelwood rate expression (numerator/denominator form) with rates proportional to catalyst mass.
 
-- Script-based kinetics — user-defined IronPython scripts that return the reaction rate given concentrations and temperature.
+- Script-based kinetics: user-defined IronPython scripts that return the reaction rate given concentrations and temperature.
 
 Equilibrium and conversion reactions are not supported by these two reactor models; they are handled by the Equilibrium, Gibbs, and Conversion reactor unit operations.
 
@@ -472,9 +472,9 @@ where $U$ is the overall heat transfer coefficient (W/m $^{2}$ /K), $A$ is the h
 
 Three coolant flow configurations are supported:
 
-- **Constant Temperature** — the coolant temperature is fixed at $T_{c,in}$ (e.g., boiling/condensing utility or very large coolant flow rate).
+- **Constant Temperature**: the coolant temperature is fixed at $T_{c,in}$ (e.g., boiling/condensing utility or very large coolant flow rate).
 
-- **Co-current** or **Counter-current** — the coolant temperature changes as it absorbs or releases heat. Since the CSTR is perfectly mixed (uniform temperature on the process side), the co-current and counter-current configurations yield the same result. The effective coolant temperature is the arithmetic mean:
+- **Co-current** or **Counter-current**: the coolant temperature changes as it absorbs or releases heat. Since the CSTR is perfectly mixed (uniform temperature on the process side), the co-current and counter-current configurations yield the same result. The effective coolant temperature is the arithmetic mean:
 
 
 
@@ -521,7 +521,7 @@ where $h_{i}$ is the process-side (internal) heat transfer coefficient, $h_{o}$ 
 
 When wall properties are enabled, DWSIM can optionally auto-calculate the internal and external heat transfer coefficients from process and coolant fluid properties.
 
-**Internal HTC (process side)** — A stirred-vessel Nusselt correlation is used:
+**Internal HTC (process side)**. A stirred-vessel Nusselt correlation is used:
 
 
 
@@ -534,7 +534,7 @@ When wall properties are enabled, DWSIM can optionally auto-calculate the intern
 
 where the impeller Reynolds number is $\text{Re}_{imp}=\rho\,N\,d_{imp}^{2}/\mu$ , $N$ is the impeller speed (rev/s), $d_{imp}$ is the impeller diameter, $C$ is the impeller-dependent Nusselt constant (determined automatically from the selected impeller type), and $\rho$ , $\mu$ , $k$ , $D$ are the process fluid density, viscosity, thermal conductivity, and reactor diameter, respectively.
 
-**External HTC (coolant side)** — An annular-jacket Dittus–Boelter correlation is used:
+**External HTC (coolant side)**. An annular-jacket Dittus–Boelter correlation is used:
 
 
 
@@ -557,7 +557,7 @@ Because the outlet composition depends on the reaction rates, which themselves d
 
 
 
-Step 1 — Initialization The reactor inventory is initialized from the inlet stream and the residence time:
+Step 1: Initialization The reactor inventory is initialized from the inlet stream and the residence time:
 
 
 
@@ -578,7 +578,7 @@ The initial time step is $\Delta t=0.2\,\tau_{L}$ , with a fallback of 1 s when 
 
 
 
-Step 2 — Molar balance At each iteration $k$ , the reaction rates $R_{i}$ are evaluated at the current composition and temperature. The molar balance residual (mol/s) is
+Step 2: Molar balance At each iteration $k$ , the reaction rates $R_{i}$ are evaluated at the current composition and temperature. The molar balance residual (mol/s) is
 
 
 
@@ -597,7 +597,7 @@ b_{i}=\dot{n}_{i,\text{in}}+R_{i}-\dot{n}_{i,\text{out}}
 
 
 
-Step 3 — Adaptive time step. The time step is reset to $\Delta t=0.2\,\tau_{L}$ at the beginning of each iteration, then limited to prevent any component from being consumed by more than 80%:
+Step 3: Adaptive time step. The time step is reset to $\Delta t=0.2\,\tau_{L}$ at the beginning of each iteration, then limited to prevent any component from being consumed by more than 80%:
 
 
 
@@ -618,7 +618,7 @@ Resetting the time step each iteration (rather than only shrinking) allows large
 
 
 
-Step 4 — Inventory update The inventory is updated and clamped to non-negative values:
+Step 4: Inventory update The inventory is updated and clamped to non-negative values:
 
 
 
@@ -639,7 +639,7 @@ The updated mole fractions $y_{i}=N_{i}^{(k+1)}/\sum N_{j}^{(k+1)}$ are converte
 
 
 
-Step 5 — Oscillation damping If the composition error $E^{(k)}$ increases compared with the previous iteration $E^{(k-1)}$ , the solution is damped by blending with the previous composition:
+Step 5: Oscillation damping If the composition error $E^{(k)}$ increases compared with the previous iteration $E^{(k-1)}$ , the solution is damped by blending with the previous composition:
 
 
 
@@ -660,9 +660,9 @@ where $n_{osc}$ is the number of consecutive oscillating iterations. This preven
 
 
 
-Step 6 — Flash calculation The stream properties are updated. For isothermal and outlet-temperature modes, a temperature–pressure flash is performed. For adiabatic and heat exchange modes, a pressure–enthalpy flash determines the new temperature. To reduce computation time, flash calculations are skipped on some iterations when far from convergence in non-adiabatic modes (the flash is always performed in adiabatic and heat exchange modes because temperature is a coupled variable).
+Step 6: Flash calculation The stream properties are updated. For isothermal and outlet-temperature modes, a temperature–pressure flash is performed. For adiabatic and heat exchange modes, a pressure–enthalpy flash determines the new temperature. To reduce computation time, flash calculations are skipped on some iterations when far from convergence in non-adiabatic modes (the flash is always performed in adiabatic and heat exchange modes because temperature is a coupled variable).
 
-Step 7 — Convergence check The composition error is
+Step 7: Convergence check The composition error is
 
 
 
@@ -703,9 +703,9 @@ X_{i}=\frac{|\dot{n}_{i,\text{in}}-\dot{n}_{i,\text{out}}|}{\dot{n}_{i,\text{in}
 
 ###### Outlet Modes {#outlet-modes .unnumbered}
 
-- Single outlet — all phases exit through a single stream; the outlet composition equals the overall mixture composition in the reactor.
+- Single outlet: all phases exit through a single stream; the outlet composition equals the overall mixture composition in the reactor.
 
-- Two outlets — vapor exits through outlet 2; liquid and solid exit through outlet 1. Vapor-phase reactions occur in the headspace volume V_h; liquid/solid reactions occur in the reactor volume V.
+- Two outlets: vapor exits through outlet 2; liquid and solid exit through outlet 1. Vapor-phase reactions occur in the headspace volume V_h; liquid/solid reactions occur in the reactor volume V.
 
 ###### Dynamic Mode {#dynamic-mode-5 .unnumbered}
 
@@ -1034,9 +1034,9 @@ or as a user-specified fraction of the total area: $\delta A=A_{\text{user}}\cdo
 
 Three coolant flow configurations are supported:
 
-- **Constant Temperature** — the coolant temperature $T_{c}$ is fixed along the entire reactor length.
+- **Constant Temperature**: the coolant temperature $T_{c}$ is fixed along the entire reactor length.
 
-- **Co-current** — the coolant flows in the same direction as the process fluid. The coolant temperature is updated at each volume step:
+- **Co-current**: the coolant flows in the same direction as the process fluid. The coolant temperature is updated at each volume step:
 
 
 
@@ -1047,7 +1047,7 @@ T_{c}(V+\delta V)=T_{c}(V)-\frac{\delta\dot{Q}}{\dot{m}_{c}\,c_{p,c}}
 \]
 
 
-- **Counter-current** — the coolant flows in the opposite direction. This requires an iterative shooting method: the coolant outlet temperature (at the reactor inlet end) is guessed, the reactor is integrated forward tracking both process and coolant temperatures, and the coolant inlet temperature at the reactor outlet is compared with the specified value. The guess is updated with relaxation until convergence (tolerance 0.1 K, relaxation factor 0.5, up to 50 iterations).
+- **Counter-current**: the coolant flows in the opposite direction. This requires an iterative shooting method: the coolant outlet temperature (at the reactor inlet end) is guessed, the reactor is integrated forward tracking both process and coolant temperatures, and the coolant inlet temperature at the reactor outlet is compared with the specified value. The guess is updated with relaxation until convergence (tolerance 0.1 K, relaxation factor 0.5, up to 50 iterations).
 
 The coolant properties can be specified as simple parameters (inlet temperature, mass flow rate, specific heat) or read from a connected utility material stream. When a utility stream is connected, its phase properties are used for $c_{p,c}$ and $\dot{m}_{c}$ , and the outlet utility stream is updated with the calculated coolant outlet conditions.
 
@@ -1070,7 +1070,7 @@ where $h_{i}$ is the tube-side (internal) heat transfer coefficient, $h_{o}$ is 
 
 When wall properties are enabled, DWSIM can optionally auto-calculate the internal and external heat transfer coefficients at each volume step from the local process and coolant fluid properties.
 
-**Internal HTC (tube side)** — The Dittus–Boelter correlation is used:
+**Internal HTC (tube side)**. The Dittus–Boelter correlation is used:
 
 
 
@@ -1083,7 +1083,7 @@ When wall properties are enabled, DWSIM can optionally auto-calculate the intern
 
 where $n=0.4$ for heating ( $T_{c}>T$ ) and $n=0.3$ for cooling, the Reynolds number is $\text{Re}=\rho\,v\,D/\mu$ with velocity $v=\dot{m}/(\rho\,N_{t}\,\pi D^{2}/4)$ per tube, and a minimum Nusselt number of 3.66 is enforced for laminar flow. The process fluid properties (density $\rho$ , viscosity $\mu$ , heat capacity $c_{p}$ , thermal conductivity $k$ ) are taken from the process stream at each step.
 
-**External HTC (jacket/shell side)** — An annular-jacket Dittus–Boelter correlation is used:
+**External HTC (jacket/shell side)**. An annular-jacket Dittus–Boelter correlation is used:
 
 
 
@@ -1166,7 +1166,7 @@ up to 30 times. Concentrations that are negative but below the threshold $|C_{i}
 
 The PFR supports two pressure drop correlations, selected automatically based on whether a catalyst bed is present.
 
-####### Packed Bed — Ergun Equation {#packed-bed-ergun-equation .unnumbered}
+####### Packed Bed: Ergun Equation {#packed-bed-ergun-equation .unnumbered}
 
 For reactors containing a catalyst bed, the pressure drop per unit length is
 
@@ -1181,7 +1181,7 @@ For reactors containing a catalyst bed, the pressure drop per unit length is
 
 where $\mu$ is the fluid viscosity (Pa·s), $\epsilon_{b}$ the bed void fraction, $d_{p}$ the particle diameter (m), $\rho$ the fluid density (kg/m³), and $u$ the superficial velocity (m/s).
 
-####### Empty Tube — Beggs & Brill Correlation {#empty-tube-beggs-brill-correlation .unnumbered}
+####### Empty Tube: Beggs & Brill Correlation {#empty-tube-beggs-brill-correlation .unnumbered}
 
 For empty tubes (no catalyst), the Beggs & Brill multiphase flow correlation is used, which accounts for liquid holdup, flow pattern, and friction for gas–liquid systems.
 
@@ -1434,7 +1434,7 @@ The energy balance works identically to the Conversion Reactor:
 
 ###### Overview {#overview-25 .unnumbered}
 
-The Gibbs Reactor finds the outlet composition that minimizes the total Gibbs energy of the system, subject to element balance constraints. Unlike the Equilibrium Reactor, it does not require the user to specify which reactions occur — the model determines the equilibrium composition automatically based on thermodynamic principles.
+The Gibbs Reactor finds the outlet composition that minimizes the total Gibbs energy of the system, subject to element balance constraints. Unlike the Equilibrium Reactor, it does not require the user to specify which reactions occur: the model determines the equilibrium composition automatically based on thermodynamic principles.
 
 This is the most general equilibrium model available. It is especially useful when the reaction network is complex or unknown, since only the list of possible product species needs to be defined.
 
@@ -1525,7 +1525,7 @@ For thermal modes, the same options apply as the other reactors (isothermal, adi
 
 ###### Practical Tips {#practical-tips-2 .unnumbered}
 
-- In direct minimization mode, the set of species you include determines the solution. If a possible product species is absent from the list, it cannot appear in the outlet. Conversely, including too many species that are thermodynamically negligible usually does not cause problems — their equilibrium amounts will simply be very small.
+- In direct minimization mode, the set of species you include determines the solution. If a possible product species is absent from the list, it cannot appear in the outlet. Conversely, including too many species that are thermodynamically negligible usually does not cause problems; their equilibrium amounts will simply be very small.
 
 - The Gibbs Reactor tends to be more computationally expensive than the Equilibrium Reactor because it solves a full nonlinear optimization problem. For simple, well-defined reaction systems, the Equilibrium Reactor may be more efficient.
 

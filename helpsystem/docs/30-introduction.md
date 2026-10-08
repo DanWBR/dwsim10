@@ -6,13 +6,13 @@ While steady-state analysis is mainly used for process flowsheet design, usually
 
 - regulatory (i.e., PID) control scheme analysis and design;
 
-- design of optimal operating procedures – for example, to optimize transition between product grades;
+- design of optimal operating procedures, for example to optimize transition between product grades;
 
 - design of batch processes;
 
 - design of inherently dynamic continuous processes;
 
-- fitting data from non steady-state operations – for example, dynamic experiments, which contain much more information than steady-state experiments, or estimation of process parameters from transient plant data;
+- fitting data from non steady-state operations, for example dynamic experiments, which contain much more information than steady-state experiments, or estimation of process parameters from transient plant data;
 
 - safety analysis;
 

@@ -20,6 +20,8 @@ The Data Regression Utility supports regression of experimental binary data for 
 
 - Lee-Kesler-Plöcker
 
+The default range of the Lee-Kesler-Plöcker parameter, 0.9 to 1.1, is too narrow for hydrogen and for light gases with heavy hydrocarbons, whose values lie between about 1 and 4: widen the bounds before regressing these pairs.
+
 The following data sets are supported:
 
 - VLE Temperature and mole fractions (Txy)
@@ -165,7 +167,7 @@ The Data Regression utility includes a built-in search for binary phase-equilibr
 
 You can query by one or two compound identifiers (name, CAS number or InChIKey), and optionally filter by data type (VLE / LLE / SLE), measurement method (static cell, ebuliometer, headspace GC, DSC, etc.) and temperature or pressure range. Results are ranked by number of experimental points so that the most informative datasets appear first.
 
-Each result shows the component pair, phase-equilibrium type, number of points, T/P ranges, measurement method, and the full Crossref-enriched bibliographic citation (authors, journal, year, DOI). Double-clicking a result loads the full set of experimental points — temperature, pressure, liquid-phase mole fractions (x) and, for VLE datasets, vapor-phase mole fractions (y) — directly into the regression grid, ready for parameter fitting with any of the supported thermodynamic models (PC-SAFT, Peng-Robinson, PRSV2, SRK, UNIQUAC, NRTL, Lee-Kesler-Plöcker).
+Each result shows the component pair, phase-equilibrium type, number of points, T/P ranges, measurement method, and the full Crossref-enriched bibliographic citation (authors, journal, year, DOI). Double-clicking a result loads the full set of experimental points straight into the regression grid: temperature, pressure, liquid-phase mole fractions (x) and, for VLE datasets, vapor-phase mole fractions (y). The grid is then ready for parameter fitting with any of the supported thermodynamic models (PC-SAFT, Peng-Robinson, PRSV2, SRK, UNIQUAC, NRTL, Lee-Kesler-Plöcker).
 
 As with the pure-compound importer, the underlying LiteDB archive is cached locally under` %LOCALAPPDATA%/DWSIM/PhaseEquilibrium` and downloaded on first use. Searches are fully offline after that.
 

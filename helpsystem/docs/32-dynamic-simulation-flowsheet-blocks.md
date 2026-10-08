@@ -197,7 +197,7 @@ The feedforward output is added to the PID output before output limiting is appl
 
 Model Predictive Control (MPC) is an advanced process control strategy that uses a dynamic model of the process to predict future behavior and optimize control actions over a finite time horizon. Unlike single-loop PID controllers, MPC can handle multi-input multi-output (MIMO) systems with constraints on both inputs and outputs simultaneously.
 
-DWSIM implements the Dynamic Matrix Control (DMC) algorithm, one of the most widely used MPC formulations in the process industries. The controller uses step response models to relate changes in manipulated variables (MVs) to their effects on controlled variables (CVs).
+DWSIM implements the Dynamic Matrix Control (DMC) algorithm, one of the most widely used MPC formulations in the process industries. The controller uses step response models to relate changes in manipulated variables (MVs) to their effects on controlled variables (CVs). Measured disturbances (DVs) with models of their own add feedforward.
 
 ##### Configuration Parameters
 
@@ -207,9 +207,11 @@ The MPC controller has the following main tuning parameters:
 
 - **Control Horizon** ( $M$ ): the number of future control moves that the optimizer calculates. After $M$ steps, the control move is held constant for the remainder of the prediction horizon. Default: 5.
 
-- **Sample Time**: the time interval in seconds between consecutive control actions. In a dynamic run the controller acts at whole multiples of the integrator's control interval (the integration step times the control calculation rate): the sample time is rounded to the nearest multiple, and a sample time shorter than one interval makes the controller act at every interval. The step response coefficients are generated at the interval actually used. Default: 1.0 s.
+- **Sample Time**: the time interval in seconds between consecutive control actions. In a dynamic run the controller acts at whole multiples of the integrator’s control interval (the integration step times the control calculation rate): the sample time is rounded to the nearest multiple, and a sample time shorter than one interval makes the controller act at every interval. The step response coefficients are generated at the interval actually used. Default: 1.0 s.
 
-- **Move Suppression Weight** ( $\lambda$ ): penalizes large control moves to produce smoother MV trajectories. Higher values give more conservative, slower control. The weight is relative to the mean diagonal of $A^TQA$ for each MV, so it carries no units and keeps its meaning whatever the size of the process gain. Values between 0.1 and 1 suit most loops; $\lambda=0$ gives the fastest response and is too aggressive for integrating processes. Default: 0.1.
+- **Move Suppression Weight** ( $\lambda$ ): penalizes large control moves to produce smoother MV trajectories. Higher values give more conservative, slower control. The weight is relative to the mean diagonal of $A^{T}QA$ for each MV, so it carries no units and keeps its meaning whatever the size of the process gain. Values between 0.1 and 1 suit most loops; $\lambda=0$ gives the fastest response and is too aggressive for integrating processes. Default: 0.1.
+
+- **Use Measured Disturbances**: switches the feedforward from the disturbance models on or off. Switched off, the controller still reads and records the disturbances. Default: on.
 
 The prediction horizon times the sample time should cover most of the process response (dead time plus three to four time constants). A control horizon of 1 gives a smooth, slower response; 3 to 5 moves give a faster one.
 
@@ -245,7 +247,7 @@ y(t)=K\left(1-e^{-(t-\theta)/\tau}\right),\quad t\geq\theta
 
 To identify the FOPDT parameters for a given CV-MV pair, perform a step test: make a small step change in the MV and record the CV response over time. From the response curve, determine the gain (ratio of steady-state CV change to MV change), the time constant (time to reach 63.2% of the final value after the response begins), and the dead time (initial delay before the CV starts responding).
 
-A level moved by an outlet valve keeps rising or falling after a step in the MV. For such a CV, mark the model as **Integrating**: the gain is then the slope of the response, in CV units per MV unit per second (for a level, minus the change in outflow per unit of opening divided by the liquid density and the tank cross-section area), the time constant is an optional lag before the ramp, and the step response becomes
+A level moved by an outlet valve keeps rising or falling after a step in the MV. For such a CV, mark the model as**Integrating**: the gain is then the slope of the response, in CV units per MV unit per second (for a level, minus the change in outflow per unit of opening divided by the liquid density and the tank cross-section area), the time constant is an optional lag before the ramp, and the step response becomes
 
 
 
@@ -258,7 +260,7 @@ The controller also treats the model error of an integrating CV as a ramp, so th
 
 ##### Control Law
 
-At each control step $k$ the controller keeps $\hat{y}(k+i)$, the CV values predicted from all past MV moves. The prediction is shifted one sample, updated with the MV moves measured since the last step, and moved onto the measurement by the model error $d(k)=y(k)-\hat{y}(k)$. The free response over the prediction horizon is
+At each control step $k$ the controller keeps $\hat{y}(k+i)$ , the CV values predicted from all past MV moves. The prediction is shifted one sample, updated with the MV moves measured since the last step, and moved onto the measurement by the model error $d(k)=y(k)-\hat{y}(k)$ . The free response over the prediction horizon is
 
 
 
@@ -267,7 +269,7 @@ At each control step $k$ the controller keeps $\hat{y}(k+i)$, the CV values pred
 \]
 
 
-The $M$ future moves $\Delta u$ minimize $\left\Vert r-\hat{y}^{0}-A\Delta u\right\Vert _{Q}^{2}+\Delta u^{T}R\,\Delta u$, where $r$ is the setpoint (the middle of the CV range), $A$ is the dynamic matrix built from the step response coefficients ($A_{ij}=s_{i-j+1}$ for $i\geq j$, zero otherwise), $Q$ holds the CV weights and $R=\lambda$ times the mean diagonal of $A^{T}QA$:
+The $M$ future moves $\Delta u$ minimize $\left\Vert r-\hat{y}^{0}-A\Delta u\right\Vert _{Q}^{2}+\Delta u^{T}R\,\Delta u$ , where $r$ is the setpoint (the middle of the CV range), $A$ is the dynamic matrix built from the step response coefficients ( $A_{ij}=s_{i-j+1}$ for $i\geq j$ , zero otherwise), $Q$ holds the CV weights and $R$ is $\lambda$ times the mean diagonal of $A^{T}QA$ :
 
 
 
@@ -277,6 +279,25 @@ The $M$ future moves $\Delta u$ minimize $\left\Vert r-\hat{y}^{0}-A\Delta u\rig
 
 
 Only the first move of each MV is applied, clamped to the MV limits, and the calculation is repeated at the next step. Moves made by the operator or limited by the clamp enter the prediction as measured.
+
+##### Measured Disturbances
+
+A measured disturbance (DV) is a flowsheet property the controller reads and does not move, such as the feed flow to a tank. Linked to a CV by a disturbance model, it acts as feedforward: the controller moves the MVs as soon as the disturbance changes, before the CV has drifted away from its target.
+
+A disturbance model has the same form as a step response model, first order plus dead time or integrating, with the gain in CV units per DV unit (per DV unit per second for an integrating model). At each control step the change of each DV since the last step, $\Delta v(k)=v(k)-v(k-1)$ , enters the prediction as an MV move does:
+
+
+
+\[
+\hat{y}(k+i)\leftarrow\hat{y}(k+i)+s_{i+1}^{d}\,\Delta v(k),\quad i=0,1,\ldots
+\]
+
+
+where $s^{d}$ are the step response coefficients of the disturbance model. The disturbance is held constant over the horizon, so the free response carries the whole predicted effect of its past changes and the model error $d(k)$ keeps only what the models do not explain. The dynamic matrix and the control law stay as they are, since a disturbance is not a decision variable. An integrating disturbance model makes its CV an integrating CV, with the ramp extrapolation of the model error. The change is placed one sample in the past, as an MV move is, which is exact when the sample time equals the integration step: the events of a dynamic schedule are applied right after the controllers.
+
+Feedforward pays off when the disturbance reaches the CV through a lag or a dead time. On a level fed directly by the disturbance flow the ramp extrapolation of the model error already sees the new slope one sample after a step, and the controller moves the valve the same way with or without the disturbance model. With a second tank in front of the controlled one, a lag of about 115 s, the disturbance model brought the largest level deviation after a feed step from 10 to 15 kg/s down from 0.027 m to 0.009 m.
+
+A disturbance without a model, or with Use Measured Disturbances switched off, leaves the moves exactly as they are without disturbances. A disturbance that cannot be read (its object was removed) brings no move. The DV Trends chart shows the disturbance values recorded at each control step.
 
 ##### DWSIM Implementation
 
@@ -288,9 +309,11 @@ The MPC Controller is available in the Dynamic Simulation Flowsheet Blocks palet
 
 3.  Add a step response model for each CV-MV pair. Enter the FOPDT parameters (gain, time constant, dead time) obtained from step testing or process knowledge, and mark the model as integrating for a level or another CV that integrates the MV. The controller generates the discrete step response coefficients automatically.
 
-4.  Configure the prediction horizon, control horizon, sample time, and move suppression weight.
+4.  Optionally, add measured disturbances (DVs) and a disturbance model for each CV that a disturbance affects, with its gain, time constant, dead time and the integrating option, as for the step response models.
 
-The MPC controller executes at each dynamic integration step. It reads the current CV values, calculates the optimal MV moves based on the step response models and the configured weights and constraints, and applies the first control move to the simulation. The Execution Order property determines the sequence in which multiple controllers are evaluated when more than one is present in the flowsheet.
+5.  Configure the prediction horizon, control horizon, sample time, and move suppression weight.
+
+The MPC controller is called at each control calculation of the dynamic integrator and acts at the sample time. It reads the current CV values, calculates the optimal MV moves based on the step response models and the configured weights and constraints, and applies the first control move to the simulation. The Execution Order property determines the sequence in which multiple controllers are evaluated when more than one is present in the flowsheet. The variables, the step response and disturbance models and the tuning are saved with the simulation file.
 
 #### Python Controller
 

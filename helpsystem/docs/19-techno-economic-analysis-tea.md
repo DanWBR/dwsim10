@@ -404,11 +404,11 @@ where $m_{\mathrm{product}}$ is the annual production mass (kg/year) and $C_{\ma
 
 The breakeven analysis determines three critical thresholds at which NPV = 0:
 
-1.  **Breakeven selling price** — minimum product price (\$/kg) for the project to break even over the plant life.
+1.  **Breakeven selling price**: minimum product price (\$/kg) for the project to break even over the plant life.
 
-2.  **Breakeven production rate** — minimum annual production (kg/year) at the current selling price.
+2.  **Breakeven production rate**: minimum annual production (kg/year) at the current selling price.
 
-3.  **Breakeven CAPEX** — maximum total capital investment (TCI) that the project can sustain and still achieve NPV $\geq$ 0.
+3.  **Breakeven CAPEX**: maximum total capital investment (TCI) that the project can sustain and still achieve NPV $\geq$ 0.
 
 Each threshold is found by bisection on the NPV function with 100 iterations.
 
@@ -469,31 +469,31 @@ Higher values indicate better eco-efficiency. This metric is displayed in the Br
 
 The plant-wide TEA is launched from the **Tools** menu under **Techno-Economic Analysis $\rightarrow$ Plant-Wide TEA**. The main form contains:
 
-- **Status bar** — “Update All” button, CAPEX/OPEX summary labels, currency indicator, “Export CSV” button, and “Analyze with AI” button.
+- **Status bar**: “Update All” button, CAPEX/OPEX summary labels, currency indicator, “Export CSV” button, and “Analyze with AI” button.
 
-- **Tab: Report Setup** — Report name, description, base date, cost update index (CEPCI or IPC), current index value, reference currency, and base location (with location factors for regional construction cost correction).
+- **Tab: Report Setup**: Report name, description, base date, cost update index (CEPCI or IPC), current index value, reference currency, and base location (with location factors for regional construction cost correction).
 
-- **Tab: Equipment Mapping** — Editable grid listing all unit operations with matched correlations. Each row shows the property type, an editable sizing parameter, units, the computed base price, an editable correction factor, the resulting corrected price, an optional override price (user-specified fixed price that bypasses the correlation), and the effective price. Multi-item equipment (columns, air coolers) produces separate rows for each sub-item (see §[1.2.4](#sec:tea_multiitem)).
+- **Tab: Equipment Mapping**: Editable grid listing all unit operations with matched correlations. Each row shows the property type, an editable sizing parameter, units, the computed base price, an editable correction factor, the resulting corrected price, an optional override price (user-specified fixed price that bypasses the correlation), and the effective price. Multi-item equipment (columns, air coolers) produces separate rows for each sub-item (see §[1.2.4](#sec:tea_multiitem)).
 
-- **Tab: Material Stream Mapping** — Feed and product streams with mass flows and annual costs. Each row includes the material type (Raw Material or Product), the material composition (selected from the cost database), the dominant compound, unit price per kilogram, and an editable correction factor.
+- **Tab: Material Stream Mapping**: Feed and product streams with mass flows and annual costs. Each row includes the material type (Raw Material or Product), the material composition (selected from the cost database), the dominant compound, unit price per kilogram, and an editable correction factor.
 
-- **Tab: Utility Mapping** — Energy duties categorised by utility type with annual costs, unit prices, and editable correction factors.
+- **Tab: Utility Mapping**: Energy duties categorised by utility type with annual costs, unit prices, and editable correction factors.
 
-- **Tab: Capital Cost Summary** — Direct and indirect capital items with editable percentages (or absolute values) and running totals.
+- **Tab: Capital Cost Summary**: Direct and indirect capital items with editable percentages (or absolute values) and running totals.
 
-- **Tab: Operating Cost Summary** — Fixed, variable, and miscellaneous operating cost breakdown with automatic totals.
+- **Tab: Operating Cost Summary**: Fixed, variable, and miscellaneous operating cost breakdown with automatic totals.
 
-- **Tab: Cash Flow Analysis** — Economic parameters summary, key indicators (NPV, IRR, Payback, ROI, Production Cost), and year-by-year discounted cash-flow table. Parameters are configurable via the “Edit Parameters” dialog (discount rate, plant life, tax rate, construction period, depreciation, working capital fraction, operating hours, and product selling price).
+- **Tab: Cash Flow Analysis**: Economic parameters summary, key indicators (NPV, IRR, Payback, ROI, Production Cost), and year-by-year discounted cash-flow table. Parameters are configurable via the “Edit Parameters” dialog (discount rate, plant life, tax rate, construction period, depreciation, working capital fraction, operating hours, and product selling price).
 
-- **Tab: Breakeven** — Three breakeven points (selling price, production rate, CAPEX) and the eco-efficiency index (see §[1.12](#sec:tea_ecoeff)).
+- **Tab: Breakeven**: Three breakeven points (selling price, production rate, CAPEX) and the eco-efficiency index (see §[1.12](#sec:tea_ecoeff)).
 
-- **Tab: Sensitivity** — Tornado-ordered sensitivity results showing base value, $\pm 20\%$ values, NPV at each extreme, and swing for each parameter.
+- **Tab: Sensitivity**: Tornado-ordered sensitivity results showing base value, $\pm 20\%$ values, NPV at each extreme, and swing for each parameter.
 
-- **Tab: Monte Carlo** — Stochastic uncertainty results including statistical summary (mean, std dev, percentiles, probability of positive NPV, mean IRR, mean payback) and an NPV frequency histogram.
+- **Tab: Monte Carlo**: Stochastic uncertainty results including statistical summary (mean, std dev, percentiles, probability of positive NPV, mean IRR, mean payback) and an NPV frequency histogram.
 
-- **Tab: Scenario Comparison** — Save and compare multiple analysis runs side by side.
+- **Tab: Scenario Comparison**: Save and compare multiple analysis runs side by side.
 
-- **Tab: Report** — Markdown report viewer. The report is auto-generated after each analysis run and includes all key indicators, equipment costs, CAPEX/OPEX breakdown, cash-flow table, breakeven results, sensitivity table, Monte Carlo summary, and scenario comparison. The report can be enriched with AI-generated analysis.
+- **Tab: Report**: Markdown report viewer. The report is auto-generated after each analysis run and includes all key indicators, equipment costs, CAPEX/OPEX breakdown, cash-flow table, breakeven results, sensitivity table, Monte Carlo summary, and scenario comparison. The report can be enriched with AI-generated analysis.
 
 ##### AI-Assisted Analysis
 
@@ -585,7 +585,7 @@ The `TEAApiResult` class contains:
 
 - **Detailed lists**: `Equipment`, `Materials`, `Utilities`, `CashFlow`.
 
-- **Report**: `MarkdownReport` — complete analysis in Markdown format.
+- **Report**: `MarkdownReport`, the complete analysis in Markdown format.
 
 The API automatically stores all results in the flowsheet’s `ExtraProperties` (see table above), making them accessible to other extensions, scripts, and the DWSIM AI assistant.
 

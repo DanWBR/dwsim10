@@ -28,7 +28,7 @@ The selected flash specification determines which two intensive state variables 
 
 ###### Composition
 
-The stream composition can be specified on any of the following bases: mole fraction, mass fraction, mole flow, mass flow, standard liquid volumetric fraction, molality, or molarity. A material stream’s composition and state variables are editable only when it has no upstream connection—that is, when it serves as a feed to the flowsheet rather than as an outlet of a unit operation. When a stream receives its properties from an upstream unit operation, it becomes read-only: all its properties are computed by that upstream block.
+The stream composition can be specified on any of the following bases: mole fraction, mass fraction, mole flow, mass flow, standard liquid volumetric fraction, molality, or molarity. A material stream’s composition and state variables are editable only when it has no upstream connection, that is, when it serves as a feed to the flowsheet rather than as an outlet of a unit operation. When a stream receives its properties from an upstream unit operation, it becomes read-only: all its properties are computed by that upstream block.
 
 When specifying composition as mole or mass fractions, the values must sum to unity. DWSIM normalizes the input only after the user presses the "Apply / Commit Changes" button.
 
@@ -36,7 +36,7 @@ The molarity and molality input options are intended for electrolyte simulations
 
 ###### Flow
 
-At least one flow specification—mass, molar, or volumetric—must be provided. The remaining two are calculated from the equation of state once temperature and pressure are known. When the composition is given as individual component mole or mass flows, the total stream flow rate is computed as their sum. When the composition is given as fractions, a separate total flow rate must be specified at the stream level.
+At least one flow specification (mass, molar, or volumetric) must be provided. The remaining two are calculated from the equation of state once temperature and pressure are known. When the composition is given as individual component mole or mass flows, the total stream flow rate is computed as their sum. When the composition is given as fractions, a separate total flow rate must be specified at the stream level.
 
 ##### Calculation Method
 
