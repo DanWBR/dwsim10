@@ -393,7 +393,7 @@ At steady state, the molar balance for each component i in the reactor is
 \]
 
 
-where $n_{i,in}$ and $n_{i,out}$ are the inlet and outlet molar flow rates and $R_{i,j}$ is the production rate of component $i$ in reaction $j$ (Eq. $§$ ).
+where $n_{i,in}$ and $n_{i,out}$ are the inlet and outlet molar flow rates and $R_{i,j}$ is the production rate of component $i$ in reaction $j$ , given by the rate expression of the reaction over the reaction volume.
 
 ###### Residence Time {#residence-time .unnumbered}
 
@@ -440,7 +440,7 @@ No heat is exchanged with the surroundings (Q = 0). The outlet temperature is de
 \]
 
 
-where $\dot{Q_{r}}xn$ = sum of $Q_{rxn}$ , $j$ is the total reaction heat release (Eq. $§$ ). A pressure–enthalpy flash is then performed to obtain the new temperature.
+where $\dot{Q}_{\text{rxn}}=\sum_{j}\dot{Q}_{\text{rxn},j}$ is the total heat released by the reactions. A pressure–enthalpy flash is then performed to obtain the new temperature.
 
 ####### Outlet Temperature Mode {#outlet-temperature-mode .unnumbered}
 

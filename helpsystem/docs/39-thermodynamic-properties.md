@@ -579,7 +579,7 @@ The UNIFAC method is based on the UNIQUAC equation, where the activity coefficie
 \]
 
 
-The parameters $J_{i}$ e $L_{i}$ are still given by eqs. [\[eq:ji2\]](#eq:ji2) and (eq.). Furthermore, the following definitions apply:
+The parameters $J_{i}$ e $L_{i}$ are still given by eqs. [\[eq:ji\]](#eq:ji) and [\[eq:li\]](#eq:li). Furthermore, the following definitions apply:
 
 
 \[

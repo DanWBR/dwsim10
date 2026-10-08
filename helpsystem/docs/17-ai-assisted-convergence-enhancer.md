@@ -34,7 +34,7 @@ The degree of AI involvement is governed by a single integer parameter called th
 
 Levels 1–3 are recommended for most applications: the ANN accelerates convergence without sacrificing physical accuracy, because the iterative solver still enforces the rigorous thermodynamic model when possible. Levels 4 and 5 trade accuracy for speed and are intended for preliminary screening studies.
 
-#### Solution Provider Cascade
+#### Solution Provider Cascade {#sec:convenhancer_cascade}
 
 When ACE is asked for an estimate or solution it queries a chain of *solution providers* in priority order. The first provider that returns a non-null result is accepted; subsequent providers are not called. The default priority order is:
 
@@ -276,7 +276,7 @@ When ACE needs to run inference it queries the local model store and selects the
 
 - Among all qualifying models, the one with the lowest test-set MSE is selected.
 
-If no qualifying model exists, the provider returns null and the next provider in the cascade is queried (Section ).
+If no qualifying model exists, the provider returns null and the next provider in the cascade is queried (Section [3.4](#sec:convenhancer_cascade)).
 
 Compound names are sorted alphabetically before constructing both the training feature vector and the inference input vector, ensuring that a model is agnostic to the component ordering used in the flowsheet.
 
