@@ -110,8 +110,96 @@ Namespace PropertyPackages
                 i = i + 1
             Next
 
+            Dim ih2 As Integer = HydrogenIndex()
+            If ih2 >= 0 Then
+                Dim vtc = RET_VTC(), vw = RET_VW(), vvc = RET_VVC()
+                For j As Integer = 0 To vtc.Length - 1
+                    If j <> ih2 AndAlso val(ih2, j) = 0.0 AndAlso val(j, ih2) = 0.0 Then
+                        val(ih2, j) = HydrogenKijEstimate(vtc(j), vw(j), vvc(j))
+                        val(j, ih2) = val(ih2, j)
+                    End If
+                Next
+            End If
+
             Return val
 
+        End Function
+
+        ''' <summary>
+        ''' Position of normal hydrogen in the compound list, or -1 when the list has no hydrogen.
+        ''' </summary>
+        Private Function HydrogenIndex() As Integer
+            Dim i As Integer = 0
+            For Each cp As Interfaces.ICompound In Me.CurrentMaterialStream.Phases(0).Compounds.Values
+                If cp.ConstantProperties.CAS_Number = "1333-74-0" OrElse cp.Name = "Hydrogen" Then Return i
+                i += 1
+            Next
+            Return -1
+        End Function
+
+        ''' <summary>
+        ''' Hydrogen-compound kij for pairs missing from the interaction parameter table, from the
+        ''' partner's critical temperature Tc (K), acentric factor w and critical volume Vc (m3/kmol):
+        ''' kij = 0.2036 + 0.002246 Tc + 0.8364 w + 1.2111 Vc^(1/3).
+        ''' Fitted, with the effective hydrogen constants below, to the eleven hydrogen pairs of the
+        ''' table (N2, CO, CO2, CH4, C2H4, C2H6, C3H8, n-C4 to n-C7; within 2.4 %) and to kij regressed
+        ''' from hydrogen solubility data in n-dodecane (Gao, Gasem and Robinson, J. Chem. Eng. Data, 1999),
+        ''' benzene, toluene, cyclohexane and methylcyclohexane (Tsuji et al., Fluid Phase Equilib. 228-229
+        ''' (2005) 499; Aslam et al., J. Chem. Eng. Data 61 (2016), doi 10.1021/acs.jced.5b00789).
+        ''' </summary>
+        Public Shared Function HydrogenKijEstimate(ByVal Tc As Double, ByVal w As Double, ByVal Vc As Double) As Double
+            Return 0.20364576 + 0.00224603 * Tc + 0.83639928 * w + 1.21112134 * Vc ^ (1.0 / 3.0)
+        End Function
+
+        ''' <summary>
+        ''' Effective critical temperature, critical pressure, critical volume and acentric factor
+        ''' of normal hydrogen at temperature T (K), from Gunn, Chueh and Prausnitz, AIChE J. 12
+        ''' (1966) 937: Tc = 43.6/(1 + 21.8/(M T)) K, Pc = 20.5/(1 + 44.2/(M T)) atm,
+        ''' Vc = 51.5/(1 - 9.91/(M T)) cm3/mol, omega = 0. With these constants the hydrogen + n-hexane
+        ''' kij of the LKP table (Plöcker, Knapp and Prausnitz, 1978) reproduces the solubility data of
+        ''' Gao, Gasem and Robinson (344 to 411 K, 1 to 15 MPa) within 16 %.
+        ''' Returns Tc (K), Pc (Pa), Vc (m3/kmol), omega.
+        ''' </summary>
+        Public Shared Function HydrogenEffectiveConstants(ByVal T As Double, ByVal MW As Double) As Double()
+            Dim mt As Double = MW * T
+            Return New Double() {43.6 / (1.0 + 21.8 / mt), 20.5 * 101325.0 / (1.0 + 44.2 / mt), 0.0515 / (1.0 - 9.91 / mt), 0.0}
+        End Function
+
+        ''' <summary>
+        ''' Critical temperatures handed to the LKP model at temperature T; hydrogen takes its effective value.
+        ''' </summary>
+        Private Function LKP_VTC(ByVal T As Double) As Double()
+            Return ApplyHydrogenConstant(RET_VTC(), T, 0)
+        End Function
+
+        ''' <summary>
+        ''' Critical pressures handed to the LKP model at temperature T; hydrogen takes its effective value.
+        ''' </summary>
+        Private Function LKP_VPC(ByVal T As Double) As Double()
+            Return ApplyHydrogenConstant(RET_VPC(), T, 1)
+        End Function
+
+        ''' <summary>
+        ''' Critical volumes handed to the LKP model at temperature T; hydrogen takes its effective value.
+        ''' </summary>
+        Private Function LKP_VVC(ByVal T As Double) As Double()
+            Return ApplyHydrogenConstant(RET_VVC(), T, 2)
+        End Function
+
+        ''' <summary>
+        ''' Acentric factors handed to the LKP model; hydrogen takes zero.
+        ''' </summary>
+        Private Function LKP_VW() As Double()
+            Return ApplyHydrogenConstant(RET_VW(), 1.0, 3)
+        End Function
+
+        Private Function ApplyHydrogenConstant(ByVal values As Double(), ByVal T As Double, ByVal which As Integer) As Double()
+            Dim ih2 As Integer = HydrogenIndex()
+            If ih2 >= 0 Then
+                Dim mw As Double = RET_VMM()(ih2)
+                values(ih2) = HydrogenEffectiveConstants(T, mw)(which)
+            End If
+            Return values
         End Function
 
         Public Overrides Function DW_CalcCp_ISOL(ByVal Phase1 As PropertyPackages.Phase, ByVal T As Double, ByVal P As Double) As Double
@@ -136,8 +224,8 @@ Namespace PropertyPackages
 
             Dim HM, HV, HL As Double
 
-            HL = Me.m_lk.H_LK_MIX("L", T, P, RET_VMOL(Phase.Liquid), RET_VKij, RET_VTC, RET_VPC, RET_VW, RET_VMM, Me.RET_Hid(298.15, T, Phase.Liquid), Me.RET_VVC)
-            HV = Me.m_lk.H_LK_MIX("V", T, P, RET_VMOL(Phase.Vapor), RET_VKij, RET_VTC, RET_VPC, RET_VW, RET_VMM, Me.RET_Hid(298.15, T, Phase.Vapor), Me.RET_VVC)
+            HL = Me.m_lk.H_LK_MIX("L", T, P, RET_VMOL(Phase.Liquid), RET_VKij, LKP_VTC(T), LKP_VPC(T), LKP_VW(), RET_VMM, Me.RET_Hid(298.15, T, Phase.Liquid), Me.LKP_VVC(T))
+            HV = Me.m_lk.H_LK_MIX("V", T, P, RET_VMOL(Phase.Vapor), RET_VKij, LKP_VTC(T), LKP_VPC(T), LKP_VW(), RET_VMM, Me.RET_Hid(298.15, T, Phase.Vapor), Me.LKP_VVC(T))
             HM = Me.CurrentMaterialStream.Phases(1).Properties.massfraction.GetValueOrDefault * HL + Me.CurrentMaterialStream.Phases(2).Properties.massfraction.GetValueOrDefault * HV
 
             Dim ent_massica = HM
@@ -222,10 +310,10 @@ Namespace PropertyPackages
                     result = Me.m_lk.Z_LK(state, T / Me.AUX_TCM(phase), P / Me.AUX_PCM(phase), Me.AUX_WM(phase))(0)
                     Me.CurrentMaterialStream.Phases(phaseID).Properties.compressibilityFactor = result
                 Case "heatcapacity", "heatcapacitycp"
-                    resultObj = Me.m_lk.CpCvR_LK(state, T, P, RET_VMOL(phase), RET_VKij(), RET_VMAS(phase), RET_VTC(), RET_VPC(), RET_VCP(T), RET_VMM(), RET_VW(), RET_VZRa(), Me.RET_VVC)
+                    resultObj = Me.m_lk.CpCvR_LK(state, T, P, RET_VMOL(phase), RET_VKij(), RET_VMAS(phase), LKP_VTC(T), LKP_VPC(T), RET_VCP(T), RET_VMM(), LKP_VW(), RET_VZRa(), Me.LKP_VVC(T))
                     Me.CurrentMaterialStream.Phases(phaseID).Properties.heatCapacityCp = resultObj(1)
                 Case "heatcapacitycv"
-                    resultObj = Me.m_lk.CpCvR_LK(state, T, P, RET_VMOL(phase), RET_VKij(), RET_VMAS(phase), RET_VTC(), RET_VPC(), RET_VCP(T), RET_VMM(), RET_VW(), RET_VZRa(), Me.RET_VVC)
+                    resultObj = Me.m_lk.CpCvR_LK(state, T, P, RET_VMOL(phase), RET_VKij(), RET_VMAS(phase), LKP_VTC(T), LKP_VPC(T), RET_VCP(T), RET_VMM(), LKP_VW(), RET_VZRa(), Me.LKP_VVC(T))
                     Me.CurrentMaterialStream.Phases(phaseID).Properties.heatCapacityCv = resultObj(2)
                 Case "enthalpy", "enthalpynf"
                     result = DW_CalcEnthalpy(RET_VMOL(phase), T, P, If(state = "L", PropertyPackages.State.Liquid, PropertyPackages.State.Vapor))
@@ -238,10 +326,10 @@ Namespace PropertyPackages
                     result = Me.CurrentMaterialStream.Phases(phaseID).Properties.entropy.GetValueOrDefault * Me.CurrentMaterialStream.Phases(phaseID).Properties.molecularWeight.GetValueOrDefault
                     Me.CurrentMaterialStream.Phases(phaseID).Properties.molar_entropy = result
                 Case "excessenthalpy"
-                    result = Me.m_lk.H_LK_MIX(state, T, P, RET_VMOL(phase), RET_VKij, RET_VTC(), RET_VPC(), RET_VW(), RET_VMM(), 0, Me.RET_VVC)
+                    result = Me.m_lk.H_LK_MIX(state, T, P, RET_VMOL(phase), RET_VKij, LKP_VTC(T), LKP_VPC(T), LKP_VW(), RET_VMM(), 0, Me.LKP_VVC(T))
                     Me.CurrentMaterialStream.Phases(phaseID).Properties.excessEnthalpy = result
                 Case "excessentropy"
-                    result = Me.m_lk.S_LK_MIX(state, T, P, RET_VMOL(phase), RET_VKij, RET_VTC(), RET_VPC(), RET_VW(), RET_VMM(), 0, Me.RET_VVC)
+                    result = Me.m_lk.S_LK_MIX(state, T, P, RET_VMOL(phase), RET_VKij, LKP_VTC(T), LKP_VPC(T), LKP_VW(), RET_VMM(), 0, Me.LKP_VVC(T))
                     Me.CurrentMaterialStream.Phases(phaseID).Properties.excessEntropy = result
                 Case "enthalpyf"
                     Dim entF As Double = Me.AUX_HFm25(phase)
@@ -351,7 +439,7 @@ Namespace PropertyPackages
                 'result = Me.m_pr.Z_PR(T, P, RET_VMOL(dwpl), RET_VKij(), RET_VTC, RET_VPC, RET_VW, "L")
                 result = Me.m_lk.Z_LK("L", T / Me.AUX_TCM(dwpl), P / Me.AUX_PCM(dwpl), Me.AUX_WM(dwpl))(0)
                 Me.CurrentMaterialStream.Phases(phaseID).Properties.compressibilityFactor = result
-                resultObj = Me.m_lk.CpCvR_LK("L", T, P, RET_VMOL(dwpl), RET_VKij(), RET_VMAS(dwpl), RET_VTC(), RET_VPC(), RET_VCP(T), RET_VMM(), RET_VW(), RET_VZRa(), Me.RET_VVC)
+                resultObj = Me.m_lk.CpCvR_LK("L", T, P, RET_VMOL(dwpl), RET_VKij(), RET_VMAS(dwpl), LKP_VTC(T), LKP_VPC(T), RET_VCP(T), RET_VMM(), LKP_VW(), RET_VZRa(), Me.LKP_VVC(T))
                 Me.CurrentMaterialStream.Phases(phaseID).Properties.heatCapacityCp = resultObj(1)
                 Me.CurrentMaterialStream.Phases(phaseID).Properties.heatCapacityCv = resultObj(2)
                 result = Me.AUX_MMM(Phase)
@@ -378,7 +466,7 @@ Namespace PropertyPackages
                 result = Me.m_lk.Z_LK("V", T / Me.AUX_TCM(PropertyPackages.Phase.Vapor), P / Me.AUX_PCM(PropertyPackages.Phase.Vapor), Me.AUX_WM(PropertyPackages.Phase.Vapor))(0)
                 Me.CurrentMaterialStream.Phases(phaseID).Properties.compressibilityFactor = result
                 result = Me.AUX_CPm(PropertyPackages.Phase.Vapor, T)
-                resultObj = Me.m_lk.CpCvR_LK("V", T, P, RET_VMOL(PropertyPackages.Phase.Vapor), RET_VKij(), RET_VMAS(PropertyPackages.Phase.Vapor), RET_VTC(), RET_VPC(), RET_VCP(T), RET_VMM(), RET_VW(), RET_VZRa(), Me.RET_VVC)
+                resultObj = Me.m_lk.CpCvR_LK("V", T, P, RET_VMOL(PropertyPackages.Phase.Vapor), RET_VKij(), RET_VMAS(PropertyPackages.Phase.Vapor), LKP_VTC(T), LKP_VPC(T), RET_VCP(T), RET_VMM(), LKP_VW(), RET_VZRa(), Me.LKP_VVC(T))
                 Me.CurrentMaterialStream.Phases(phaseID).Properties.heatCapacityCp = resultObj(1)
                 Me.CurrentMaterialStream.Phases(phaseID).Properties.heatCapacityCv = resultObj(2)
                 result = Me.AUX_MMM(Phase)
@@ -445,11 +533,11 @@ Namespace PropertyPackages
             Dim H As Double
 
             If st = State.Liquid Then
-                H = Me.m_lk.H_LK_MIX("L", T, P, Vx, RET_VKij(), RET_VTC, RET_VPC, RET_VW, RET_VMM, Me.RET_Hid(298.15, T, Vx), Me.RET_VVC)
+                H = Me.m_lk.H_LK_MIX("L", T, P, Vx, RET_VKij(), LKP_VTC(T), LKP_VPC(T), LKP_VW(), RET_VMM, Me.RET_Hid(298.15, T, Vx), Me.LKP_VVC(T))
             ElseIf st = State.Vapor Then
-                H = Me.m_lk.H_LK_MIX("V", T, P, Vx, RET_VKij(), RET_VTC, RET_VPC, RET_VW, RET_VMM, Me.RET_Hid(298.15, T, Vx), Me.RET_VVC)
+                H = Me.m_lk.H_LK_MIX("V", T, P, Vx, RET_VKij(), LKP_VTC(T), LKP_VPC(T), LKP_VW(), RET_VMM, Me.RET_Hid(298.15, T, Vx), Me.LKP_VVC(T))
             ElseIf st = State.Solid Then
-                H = Me.m_lk.H_LK_MIX("L", T, P, Vx, RET_VKij(), RET_VTC, RET_VPC, RET_VW, RET_VMM, Me.RET_Hid(298.15, T, Vx), Me.RET_VVC) - Me.RET_HFUSM(AUX_CONVERT_MOL_TO_MASS(Vx), T)
+                H = Me.m_lk.H_LK_MIX("L", T, P, Vx, RET_VKij(), LKP_VTC(T), LKP_VPC(T), LKP_VW(), RET_VMM, Me.RET_Hid(298.15, T, Vx), Me.LKP_VVC(T)) - Me.RET_HFUSM(AUX_CONVERT_MOL_TO_MASS(Vx), T)
             End If
 
             Return H
@@ -460,11 +548,11 @@ Namespace PropertyPackages
             Dim H As Double
 
             If st = State.Liquid Then
-                H = Me.m_lk.H_LK_MIX("L", T, P, Vx, RET_VKij(), RET_VTC, RET_VPC, RET_VW, RET_VMM, 0, Me.RET_VVC)
+                H = Me.m_lk.H_LK_MIX("L", T, P, Vx, RET_VKij(), LKP_VTC(T), LKP_VPC(T), LKP_VW(), RET_VMM, 0, Me.LKP_VVC(T))
             ElseIf st = State.Vapor Then
-                H = Me.m_lk.H_LK_MIX("V", T, P, Vx, RET_VKij(), RET_VTC, RET_VPC, RET_VW, RET_VMM, 0, Me.RET_VVC)
+                H = Me.m_lk.H_LK_MIX("V", T, P, Vx, RET_VKij(), LKP_VTC(T), LKP_VPC(T), LKP_VW(), RET_VMM, 0, Me.LKP_VVC(T))
             ElseIf st = State.Solid Then
-                H = Me.m_lk.H_LK_MIX("L", T, P, Vx, RET_VKij(), RET_VTC, RET_VPC, RET_VW, RET_VMM, 0, Me.RET_VVC) - Me.RET_HFUSM(AUX_CONVERT_MOL_TO_MASS(Vx), T)
+                H = Me.m_lk.H_LK_MIX("L", T, P, Vx, RET_VKij(), LKP_VTC(T), LKP_VPC(T), LKP_VW(), RET_VMM, 0, Me.LKP_VVC(T)) - Me.RET_HFUSM(AUX_CONVERT_MOL_TO_MASS(Vx), T)
             End If
 
             Return H
@@ -573,11 +661,11 @@ Namespace PropertyPackages
             Dim S As Double
 
             If st = State.Liquid Then
-                S = Me.m_lk.S_LK_MIX("L", T, P, Vx, RET_VKij(), RET_VTC, RET_VPC, RET_VW, RET_VMM, Me.RET_Sid(298.15, T, P, Vx), Me.RET_VVC)
+                S = Me.m_lk.S_LK_MIX("L", T, P, Vx, RET_VKij(), LKP_VTC(T), LKP_VPC(T), LKP_VW(), RET_VMM, Me.RET_Sid(298.15, T, P, Vx), Me.LKP_VVC(T))
             ElseIf st = State.Vapor Then
-                S = Me.m_lk.S_LK_MIX("V", T, P, Vx, RET_VKij(), RET_VTC, RET_VPC, RET_VW, RET_VMM, Me.RET_Sid(298.15, T, P, Vx), Me.RET_VVC)
+                S = Me.m_lk.S_LK_MIX("V", T, P, Vx, RET_VKij(), LKP_VTC(T), LKP_VPC(T), LKP_VW(), RET_VMM, Me.RET_Sid(298.15, T, P, Vx), Me.LKP_VVC(T))
             ElseIf st = State.Solid Then
-                S = Me.m_lk.S_LK_MIX("L", T, P, Vx, RET_VKij(), RET_VTC, RET_VPC, RET_VW, RET_VMM, Me.RET_Sid(298.15, T, P, Vx), Me.RET_VVC) - Me.RET_HFUSM(AUX_CONVERT_MOL_TO_MASS(Vx), T) / T
+                S = Me.m_lk.S_LK_MIX("L", T, P, Vx, RET_VKij(), LKP_VTC(T), LKP_VPC(T), LKP_VW(), RET_VMM, Me.RET_Sid(298.15, T, P, Vx), Me.LKP_VVC(T)) - Me.RET_HFUSM(AUX_CONVERT_MOL_TO_MASS(Vx), T) / T
             End If
 
             Return S
@@ -588,11 +676,11 @@ Namespace PropertyPackages
             Dim S As Double
 
             If st = State.Liquid Then
-                S = Me.m_lk.S_LK_MIX("L", T, P, Vx, RET_VKij(), RET_VTC, RET_VPC, RET_VW, RET_VMM, 0, Me.RET_VVC)
+                S = Me.m_lk.S_LK_MIX("L", T, P, Vx, RET_VKij(), LKP_VTC(T), LKP_VPC(T), LKP_VW(), RET_VMM, 0, Me.LKP_VVC(T))
             ElseIf st = State.Solid Then
-                S = Me.m_lk.S_LK_MIX("L", T, P, Vx, RET_VKij(), RET_VTC, RET_VPC, RET_VW, RET_VMM, 0, Me.RET_VVC) - Me.RET_HFUSM(AUX_CONVERT_MOL_TO_MASS(Vx), T) / T
+                S = Me.m_lk.S_LK_MIX("L", T, P, Vx, RET_VKij(), LKP_VTC(T), LKP_VPC(T), LKP_VW(), RET_VMM, 0, Me.LKP_VVC(T)) - Me.RET_HFUSM(AUX_CONVERT_MOL_TO_MASS(Vx), T) / T
             Else
-                S = Me.m_lk.S_LK_MIX("V", T, P, Vx, RET_VKij(), RET_VTC, RET_VPC, RET_VW, RET_VMM, 0, Me.RET_VVC)
+                S = Me.m_lk.S_LK_MIX("V", T, P, Vx, RET_VKij(), LKP_VTC(T), LKP_VPC(T), LKP_VW(), RET_VMM, 0, Me.LKP_VVC(T))
             End If
 
             Return S
@@ -607,9 +695,9 @@ Namespace PropertyPackages
             Dim lnfug As Object
 
             If st = State.Liquid Then
-                lnfug = Me.m_lk.CalcLnFug("L", T, P, Vx, Me.RET_VKij, Me.RET_VTC, Me.RET_VPC, Me.RET_VW, Me.RET_VMM, Me.RET_VVC, Me.RET_Hid(298.15, T, Vx))
+                lnfug = Me.m_lk.CalcLnFug("L", T, P, Vx, Me.RET_VKij, Me.LKP_VTC(T), Me.LKP_VPC(T), Me.LKP_VW(), Me.RET_VMM, Me.LKP_VVC(T), Me.RET_Hid(298.15, T, Vx))
             Else
-                lnfug = Me.m_lk.CalcLnFug("V", T, P, Vx, Me.RET_VKij, Me.RET_VTC, Me.RET_VPC, Me.RET_VW, Me.RET_VMM, Me.RET_VVC, Me.RET_Hid(298.15, T, Vx))
+                lnfug = Me.m_lk.CalcLnFug("V", T, P, Vx, Me.RET_VKij, Me.LKP_VTC(T), Me.LKP_VPC(T), Me.LKP_VW(), Me.RET_VMM, Me.LKP_VVC(T), Me.RET_Hid(298.15, T, Vx))
             End If
 
             Dim n As Integer = UBound(lnfug)
@@ -635,16 +723,16 @@ Namespace PropertyPackages
         End Property
 
         Public Overrides Function DW_CalcdLnFugCoeffdT(ByVal Vx As Double(), ByVal T As Double, ByVal P As Double, st As State) As Double()
-            If AnalyticalDerivativesDisabled Then Return MyBase.DW_CalcdLnFugCoeffdT(Vx, T, P, st)
+            If AnalyticalDerivativesDisabled OrElse HydrogenIndex() >= 0 Then Return MyBase.DW_CalcdLnFugCoeffdT(Vx, T, P, st)
             Dim TIPO As String = If(st = State.Liquid, "L", "V")
-            Return DirectCast(m_lk.CalcLnFugDT(TIPO, T, P, Vx, RET_VKij, RET_VTC, RET_VPC, RET_VW, RET_VMM, RET_VVC), Double())
+            Return DirectCast(m_lk.CalcLnFugDT(TIPO, T, P, Vx, RET_VKij, LKP_VTC(T), LKP_VPC(T), LKP_VW(), RET_VMM, LKP_VVC(T)), Double())
         End Function
 
         Public Overrides Function DW_CalcdKdT(ByVal Vx As Double(), ByVal Vy As Double(), ByVal T As Double, ByVal P As Double, Optional ByVal type As String = "LV") As Double()
-            If AnalyticalDerivativesDisabled OrElse type <> "LV" Then Return MyBase.DW_CalcdKdT(Vx, Vy, T, P, type)
+            If AnalyticalDerivativesDisabled OrElse type <> "LV" OrElse HydrogenIndex() >= 0 Then Return MyBase.DW_CalcdKdT(Vx, Vy, T, P, type)
             Dim n As Integer = Vx.Length - 1
-            Dim dLdT = DirectCast(m_lk.CalcLnFugDT("L", T, P, Vx, RET_VKij, RET_VTC, RET_VPC, RET_VW, RET_VMM, RET_VVC), Double())
-            Dim dVdT = DirectCast(m_lk.CalcLnFugDT("V", T, P, Vy, RET_VKij, RET_VTC, RET_VPC, RET_VW, RET_VMM, RET_VVC), Double())
+            Dim dLdT = DirectCast(m_lk.CalcLnFugDT("L", T, P, Vx, RET_VKij, LKP_VTC(T), LKP_VPC(T), LKP_VW(), RET_VMM, LKP_VVC(T)), Double())
+            Dim dVdT = DirectCast(m_lk.CalcLnFugDT("V", T, P, Vy, RET_VKij, LKP_VTC(T), LKP_VPC(T), LKP_VW(), RET_VMM, LKP_VVC(T)), Double())
             Dim K As Double() = DW_CalcKvalue(Vx, Vy, T, P, type)
             Dim deriv(n) As Double
             For i As Integer = 0 To n
@@ -656,7 +744,7 @@ Namespace PropertyPackages
         Public Overrides Function DW_CalcdLnFugCoeffdn(ByVal Vx As Double(), ByVal T As Double, ByVal P As Double, st As State) As Double(,)
             If AnalyticalDerivativesDisabled Then Return MyBase.DW_CalcdLnFugCoeffdn(Vx, T, P, st)
             Dim TIPO As String = If(st = State.Liquid, "L", "V")
-            Return DirectCast(m_lk.CalcLnFugDN(TIPO, T, P, Vx, RET_VKij, RET_VTC, RET_VPC, RET_VW, RET_VMM, RET_VVC), Double(,))
+            Return DirectCast(m_lk.CalcLnFugDN(TIPO, T, P, Vx, RET_VKij, LKP_VTC(T), LKP_VPC(T), LKP_VW(), RET_VMM, LKP_VVC(T)), Double(,))
         End Function
 
         Public Overrides Function DW_CalcdKdComposition(ByVal Vx As Double(), ByVal Vy As Double(), ByVal T As Double, ByVal P As Double, ByVal withRespectTo As State, Optional ByVal type As String = "LV") As Double(,)
@@ -665,14 +753,14 @@ Namespace PropertyPackages
             Dim K As Double() = DW_CalcKvalue(Vx, Vy, T, P, type)
             Dim deriv(n, n) As Double
             If withRespectTo = State.Liquid Then
-                Dim dn = DirectCast(m_lk.CalcLnFugDN("L", T, P, Vx, RET_VKij, RET_VTC, RET_VPC, RET_VW, RET_VMM, RET_VVC), Double(,))
+                Dim dn = DirectCast(m_lk.CalcLnFugDN("L", T, P, Vx, RET_VKij, LKP_VTC(T), LKP_VPC(T), LKP_VW(), RET_VMM, LKP_VVC(T)), Double(,))
                 For i As Integer = 0 To n
                     For j As Integer = 0 To n
                         deriv(i, j) = K(i) * dn(i, j)
                     Next
                 Next
             Else
-                Dim dn = DirectCast(m_lk.CalcLnFugDN("V", T, P, Vy, RET_VKij, RET_VTC, RET_VPC, RET_VW, RET_VMM, RET_VVC), Double(,))
+                Dim dn = DirectCast(m_lk.CalcLnFugDN("V", T, P, Vy, RET_VKij, LKP_VTC(T), LKP_VPC(T), LKP_VW(), RET_VMM, LKP_VVC(T)), Double(,))
                 For i As Integer = 0 To n
                     For j As Integer = 0 To n
                         deriv(i, j) = -K(i) * dn(i, j)
@@ -723,7 +811,7 @@ Namespace PropertyPackages
 
             Dim P = DW_CalcP(Vz, T, V)
 
-            Return m_lk.CalcLnFugTV(T, P, V, Vz, RET_VKij, RET_VTC, RET_VPC, RET_VW, RET_VMM, RET_VVC, RET_Hid(298.15, T, Vz)).ExpY()
+            Return m_lk.CalcLnFugTV(T, P, V, Vz, RET_VKij, LKP_VTC(T), LKP_VPC(T), LKP_VW(), RET_VMM, LKP_VVC(T), RET_Hid(298.15, T, Vz)).ExpY()
 
         End Function
 
@@ -731,7 +819,7 @@ Namespace PropertyPackages
 
             'mixture critical properties
             Dim Tcm, Pcm, Vcm, wm As Double
-            Dim obj = m_lk.MixCritProp_LK(Vz, RET_VTC, RET_VPC, RET_VW, RET_VVC, RET_VKij)
+            Dim obj = m_lk.MixCritProp_LK(Vz, LKP_VTC(T), LKP_VPC(T), LKP_VW(), LKP_VVC(T), RET_VKij)
             Tcm = obj(0)
             Pcm = obj(1)
             Vcm = obj(2)
