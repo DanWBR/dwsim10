@@ -61,6 +61,8 @@ Version 10.2.11
 - [NEW] FluentAPI: builders for Adjust, Spec, Information Carrier, Python and MPC controllers, component and solids separators, filter, shortcut column and tank
 - [NEW] Classic interface: Orthogonal Layout and Orthogonal Layout (Wrapped Rows) in the flowsheet context menu
 - [NEW] API reference website for 87 simulation objects, DWSIM Plus included, each with an example that runs on every build, its output, ports, property IDs, units and calculation modes
+- [NEW] Lock Position (object context menu) keeps the selected objects in place, marked with a padlock; Lock Layout on the flowsheet toolbar freezes the whole drawing; both saved with the file, panning and zooming still work
+- [NEW] Edit Appearance window in both interfaces: line, fill, text, size, orientation and position settings with explanations, live preview, several objects at once, reset to defaults and one undo step; also for tables, text and rectangles
 - [CHG] NRTL, UNIQUAC, UNIFAC, Modified UNIFAC and Sour Water: new packages compute the liquid enthalpy from the experimental liquid heat capacity
 - [CHG] Lee-Kesler-Plocker data regression: default bounds 0.5 to 4, so hydrogen and light gas pairs with heavy hydrocarbons can be reached
 - [CHG] A temperature and pressure flash whose phases do not add up to the feed raises an error in the stream calculation
@@ -78,6 +80,7 @@ Version 10.2.11
 - [CHG] Electrolyte NRTL editor (cross-platform) notes the fitted molality range and the magnesium-rich brine limit
 - [CHG] Offline help rebuilt from the current User Guide, with the chemical formulas of running text and the broken cross references restored
 - [CHG] User Guide refreshed with this release's property package work
+- [CHG] Automatic layouts form around locked objects, and Restore Layout leaves them in place
 - [FIX] Compound element counts: ion charges, hydrates, double salts and parenthesized groups are read correctly (99 database compounds had wrong counts); counts are recomputed on load and Gibbs reactor element matrices rebuilt
 - [FIX] Petroleum characterization: the Riazi C/H ratio uses SG^-6.798, as published
 - [FIX] Lee-Kesler-Plocker: hydrogen rows of the interaction table had lost their decimal points and pairs listed in the other order read as zero; hydrogen in n-hexane at 344 K and 3.36 MPa is 0.0253 mole fraction (0.0286 measured, 0.0044 before)
@@ -183,6 +186,7 @@ Version 10.2.11
 - [FIX] Linux: opening the assistant froze the cross-platform interface on systems without WebKitGTK 4.0; web panels open in the system browser when the embedded view cannot load (issue 92)
 - [FIX] FluentAPI examples (bioprocess train, anaerobic digester, electrolyte reverse osmosis, PEM fuel cell, recycle loop) run as printed
 - [FIX] Pervaporation sample solves on current SciPy versions
+- [FIX] A line color chosen for an object was replaced by the calculation status color unless Override Colors was also set
 
 Version 10.2.10
 
