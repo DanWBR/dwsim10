@@ -837,7 +837,7 @@ FINAL:
             If Phase1 = Phase.Liquid Then
                 Return Me.m_iapws97.densW(T, P / 100000)
             ElseIf Phase1 = Phase.Vapor Then
-                If Me.m_iapws97.pSatW(T) / 100000 = P Then
+                If Me.m_iapws97.pSatW(T) * 100000 = P Then
                     Return Me.m_iapws97.densSatVapTW(T)
                 Else
                     Return Me.m_iapws97.densW(T, P / 100000)
@@ -856,7 +856,7 @@ FINAL:
             If Phase1 = Phase.Liquid Then
                 Return Me.m_iapws97.viscW(T, P / 100000)
             ElseIf Phase1 = Phase.Vapor Then
-                If Me.m_iapws97.pSatW(T) / 100000 = P Then
+                If Me.m_iapws97.pSatW(T) * 100000 = P Then
                     Return Me.m_iapws97.viscSatVapTW(T)
                 Else
                     Return Me.m_iapws97.viscW(T, P / 100000)
@@ -871,14 +871,14 @@ FINAL:
         End Function
 
         Public Overrides Function DW_CalcCp_ISOL(ByVal Phase1 As PropertyPackages.Phase, ByVal T As Double, ByVal P As Double) As Double
-            Return Me.m_iapws97.cpW(T, P / 10000)
+            Return Me.m_iapws97.cpW(T, P / 100000)
         End Function
 
         Public Overrides Function DW_CalcK_ISOL(ByVal Phase1 As PropertyPackages.Phase, ByVal T As Double, ByVal P As Double) As Double
             If Phase1 = Phase.Liquid Then
                 Return Me.m_iapws97.thconW(T, P / 100000)
             ElseIf Phase1 = Phase.Vapor Then
-                If Me.m_iapws97.pSatW(T) / 100000 = P Then
+                If Me.m_iapws97.pSatW(T) * 100000 = P Then
                     Return Me.m_iapws97.thconSatVapTW(T)
                 Else
                     Return Me.m_iapws97.thconW(T, P / 100000)
@@ -980,7 +980,7 @@ FINAL:
         End Function
 
         Public Overrides Function DW_CalcBubP(ByVal Vx As System.Array, ByVal T As Double, Optional ByVal Pref As Double = 0, Optional ByVal K As System.Array = Nothing, Optional ByVal ReuseK As Boolean = False) As Object
-            Return New Object() {Me.m_iapws97.pSatW(T) * 1.001}
+            Return New Object() {Me.m_iapws97.pSatW(T) * 100000 * 1.001}
         End Function
 
         Public Overrides Function DW_CalcBubT(ByVal Vx As System.Array, ByVal P As Double, Optional ByVal Tref As Double = 0, Optional ByVal K As System.Array = Nothing, Optional ByVal ReuseK As Boolean = False) As Object
@@ -988,7 +988,7 @@ FINAL:
         End Function
 
         Public Overrides Function DW_CalcDewP(ByVal Vx As System.Array, ByVal T As Double, Optional ByVal Pref As Double = 0, Optional ByVal K As System.Array = Nothing, Optional ByVal ReuseK As Boolean = False) As Object
-            Return New Object() {Me.m_iapws97.pSatW(T) * 0.999}
+            Return New Object() {Me.m_iapws97.pSatW(T) * 100000 * 0.999}
         End Function
 
         Public Overrides Function DW_CalcDewT(ByVal Vx As System.Array, ByVal P As Double, Optional ByVal Tref As Double = 0, Optional ByVal K As System.Array = Nothing, Optional ByVal ReuseK As Boolean = False) As Object
