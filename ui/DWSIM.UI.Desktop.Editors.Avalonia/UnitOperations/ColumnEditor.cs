@@ -568,17 +568,17 @@ namespace DWSIM.UI.Desktop.Editors
                 panel.CreateAndAddResultRow(column, "Reboiler Duty", UnitOfMeasure.heatflow,
                     distillation.ReboilerDuty);
 
-                panel.CreateAndAddTwoLabelsRow("Condenser Specification Value",
-                    column.Specs["C"].SpecValue.ToString(nf) + " " + column.Specs["C"].SpecUnit);
-                panel.CreateAndAddTwoLabelsRow("Condenser Specification Calculated Value",
-                    column.Specs["C"].CalculatedValue.ToString(nf) + " " + column.Specs["C"].SpecUnit);
-                panel.CreateAndAddTwoLabelsRow("Reboiler Specification Value",
-                    column.Specs["R"].SpecValue.ToString(nf) + " " + column.Specs["R"].SpecUnit);
-                panel.CreateAndAddTwoLabelsRow("Reboiler Specification Calculated Value",
-                    column.Specs["R"].CalculatedValue.ToString(nf) + " " + column.Specs["R"].SpecUnit);
+                panel.CreateAndAddResultRow("Condenser Specification Value",
+                    column.Specs["C"].SpecValue.ToString(nf), column.Specs["C"].SpecUnit);
+                panel.CreateAndAddResultRow("Condenser Specification Calculated Value",
+                    column.Specs["C"].CalculatedValue.ToString(nf), column.Specs["C"].SpecUnit);
+                panel.CreateAndAddResultRow("Reboiler Specification Value",
+                    column.Specs["R"].SpecValue.ToString(nf), column.Specs["R"].SpecUnit);
+                panel.CreateAndAddResultRow("Reboiler Specification Calculated Value",
+                    column.Specs["R"].CalculatedValue.ToString(nf), column.Specs["R"].SpecUnit);
             }
 
-            panel.CreateAndAddTwoLabelsRow("Iterations Taken", column.ic.ToString());
+            panel.CreateAndAddResultRow("Iterations Taken", column.ic.ToString());
             panel.CreateAndAddResultRow(column, "Estimated Height", UnitOfMeasure.diameter,
                 column.EstimatedHeight);
             panel.CreateAndAddResultRow(column, "Estimated Diameter", UnitOfMeasure.diameter,

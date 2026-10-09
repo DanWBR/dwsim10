@@ -152,12 +152,12 @@ namespace DWSIM.UI.Desktop.Editors
             // the diameter and the height come out of the sizing, so they are shown as they stand
             if (vessel.Dimensions != null && vessel.Dimensions.Count >= 2)
             {
-                panel.CreateAndAddTwoLabelsRow("Diameter",
-                    vessel.Dimensions[0].Value.ToString(nf, CultureInfo.CurrentCulture) + " " +
+                panel.CreateAndAddResultRow("Diameter",
+                    vessel.Dimensions[0].Value.ToString(nf, CultureInfo.CurrentCulture),
                     su.GetCurrentUnits(vessel.Dimensions[0].GetUnitsType()));
 
-                panel.CreateAndAddTwoLabelsRow("Height",
-                    vessel.Dimensions[1].Value.ToString(nf, CultureInfo.CurrentCulture) + " " +
+                panel.CreateAndAddResultRow("Height",
+                    vessel.Dimensions[1].Value.ToString(nf, CultureInfo.CurrentCulture),
                     su.GetCurrentUnits(vessel.Dimensions[1].GetUnitsType()));
             }
 
@@ -403,7 +403,7 @@ namespace DWSIM.UI.Desktop.Editors
                         plate.InternalPipeDiameter, v => plate.InternalPipeDiameter = v);
 
                     // beta is the ratio of the two diameters, so the calculation writes it
-                    panel.CreateAndAddTwoLabelsRow("Orifice Beta (d/D)",
+                    panel.CreateAndAddResultRow("Orifice Beta (d/D)",
                         plate.Beta.ToString(nf, CultureInfo.CurrentCulture));
 
                     panel.CreateAndAddTextBoxRow(nf, "Correction Factor", plate.CorrectionFactor,
@@ -577,17 +577,19 @@ namespace DWSIM.UI.Desktop.Editors
 
                     var nf = valve.GetFlowsheet().FlowsheetOptions.NumberFormat;
 
+                    // the text results above the table, the numbers in it
                     panel.CreateAndAddTwoLabelsRow("Flow Regime", valve.ResultFlowRegime);
+                    panel.CreateAndAddTwoLabelsRow("Standard Orifice (API 526)", valve.ResultStandardOrifice);
+                    panel.CreateAndAddTwoLabelsRow("Choked Flow", valve.ResultChokedFlow ? "Yes" : "No");
+
                     panel.CreateAndAddResultRow(valve, "Relieving Pressure", UnitOfMeasure.pressure,
                         valve.ResultRelievingPressure);
                     panel.CreateAndAddResultRow(valve, "Required Orifice Area", UnitOfMeasure.area,
                         valve.ResultRequiredArea);
-                    panel.CreateAndAddTwoLabelsRow("Standard Orifice (API 526)", valve.ResultStandardOrifice);
                     panel.CreateAndAddResultRow(valve, "Relieving Capacity", UnitOfMeasure.massflow,
                         valve.ResultCapacity);
-                    panel.CreateAndAddTwoLabelsRow("Choked Flow", valve.ResultChokedFlow ? "Yes" : "No");
                     if (valve.CalculateViscosityCorrection && valve.ResultFlowRegime == "Liquid")
-                        panel.CreateAndAddTwoLabelsRow("Viscosity Correction Factor (Kv)",
+                        panel.CreateAndAddResultRow("Viscosity Correction Factor (Kv)",
                             valve.ViscosityCoefficient.ToString(nf, CultureInfo.CurrentCulture));
                     if (!string.IsNullOrEmpty(valve.ResultMessage))
                         panel.CreateAndAddDescriptionRow(valve.ResultMessage);

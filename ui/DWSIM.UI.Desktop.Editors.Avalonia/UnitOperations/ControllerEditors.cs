@@ -120,12 +120,12 @@ namespace DWSIM.UI.Desktop.Editors
 
             if (pid.Active)
             {
-                panel.CreateAndAddTwoLabelsRow("P", pid.PTerm.ToString(nf, CultureInfo.CurrentCulture));
-                panel.CreateAndAddTwoLabelsRow("I", (pid.Ki * pid.ITerm).ToString(nf, CultureInfo.CurrentCulture));
-                panel.CreateAndAddTwoLabelsRow("D", (pid.Kd * pid.DTerm).ToString(nf, CultureInfo.CurrentCulture));
+                panel.CreateAndAddResultRow("P", pid.PTerm.ToString(nf, CultureInfo.CurrentCulture));
+                panel.CreateAndAddResultRow("I", (pid.Ki * pid.ITerm).ToString(nf, CultureInfo.CurrentCulture));
+                panel.CreateAndAddResultRow("D", (pid.Kd * pid.DTerm).ToString(nf, CultureInfo.CurrentCulture));
 
                 var factor = pid.ReverseActing ? 1.0 + pid.Output : 1.0 - pid.Output;
-                panel.CreateAndAddTwoLabelsRow("Abs. Output",
+                panel.CreateAndAddResultRow("Abs. Output",
                     (factor * pid.BaseSP.GetValueOrDefault()).ToString(nf, CultureInfo.CurrentCulture));
             }
             else

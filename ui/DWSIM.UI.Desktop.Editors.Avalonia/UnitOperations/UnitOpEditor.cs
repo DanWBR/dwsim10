@@ -326,12 +326,15 @@ namespace DWSIM.UI.Desktop.Editors
             return new ValueRow { Value = value, Unit = picker };
         }
 
-        /// <summary>Read-only result row, with the unit spelled out as the Windows editors do.</summary>
-        public static void CreateAndAddResultRow(this AvaloniaEditorPanel panel,
-                                                 ISimulationObject simobj,
-                                                 string label,
-                                                 UnitOfMeasure measure,
-                                                 double? siValue)
+        /// <summary>
+        /// Read-only result row in the results table (Property | Value | Unit), converted from SI
+        /// to the unit the flowsheet shows <paramref name="measure"/> in. Returns the value cell.
+        /// </summary>
+        public static TextBlock CreateAndAddResultRow(this AvaloniaEditorPanel panel,
+                                                      ISimulationObject simobj,
+                                                      string label,
+                                                      UnitOfMeasure measure,
+                                                      double? siValue)
         {
             var flowsheet = simobj.GetFlowsheet();
             var su = flowsheet.FlowsheetOptions.SelectedUnitSystem;
@@ -342,7 +345,26 @@ namespace DWSIM.UI.Desktop.Editors
                 ? cv.ConvertFromSI(unit, siValue.Value).ToString(nf, CultureInfo.CurrentCulture)
                 : "";
 
-            panel.CreateAndAddTwoLabelsRow(label + (string.IsNullOrEmpty(unit) ? "" : " (" + unit + ")"), text);
+            return panel.CreateAndAddResultRow(label, text, unit);
+        }
+
+        /// <summary>
+        /// Read-only result row for a value already in the unit it is shown in (or dimensionless,
+        /// with <paramref name="unit"/> left empty), in the flowsheet number format.
+        /// </summary>
+        public static TextBlock CreateAndAddResultRow(this AvaloniaEditorPanel panel,
+                                                      ISimulationObject simobj,
+                                                      string label,
+                                                      double? value,
+                                                      string unit = "")
+        {
+            var nf = simobj.GetFlowsheet().FlowsheetOptions.NumberFormat;
+
+            var text = value.HasValue && !double.IsNaN(value.Value)
+                ? value.Value.ToString(nf, CultureInfo.CurrentCulture)
+                : "";
+
+            return panel.CreateAndAddResultRow(label, text, unit);
         }
 
         public static string UnitOf(IUnitsOfMeasure su, UnitOfMeasure measure)

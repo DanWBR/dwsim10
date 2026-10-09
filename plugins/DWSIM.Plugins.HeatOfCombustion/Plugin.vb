@@ -102,8 +102,8 @@ Imports Avalonia.Controls
             End Sub)
 
         panel.CreateAndAddEmptySpace()
-        lblMass = panel.CreateAndAddTwoLabelsRow("Mass LHV (" & su.enthalpy & ")", "")
-        lblMolar = panel.CreateAndAddTwoLabelsRow("Molar LHV (" & su.molar_enthalpy & ")", "")
+        lblMass = panel.CreateAndAddResultRow("Mass LHV", "", su.enthalpy)
+        lblMolar = panel.CreateAndAddResultRow("Molar LHV", "", su.molar_enthalpy)
 
         Return AvaloniaCommon.GetDefaultEditorForm("Heat of Combustion Calculator", 460, 240, panel)
 

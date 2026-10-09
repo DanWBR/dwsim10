@@ -396,12 +396,12 @@ namespace DWSIM.UI.Desktop.Editors
                 },
                 results: panel =>
                 {
-                    panel.CreateAndAddTwoLabelsRow("Conversion", (reactor.Conversion * 100.0).ToString("N2", IC.InvariantCulture) + " %");
-                    panel.CreateAndAddTwoLabelsRow("Number-average molar mass Mn", reactor.Mn.ToString("N0", IC.InvariantCulture) + " g/mol");
-                    panel.CreateAndAddTwoLabelsRow("Weight-average molar mass Mw", reactor.Mw.ToString("N0", IC.InvariantCulture) + " g/mol");
-                    panel.CreateAndAddTwoLabelsRow("Polydispersity (Mw/Mn)", reactor.PDI.ToString("N3", IC.InvariantCulture));
+                    panel.CreateAndAddResultRow("Conversion", (reactor.Conversion * 100.0).ToString("N2", IC.InvariantCulture), "%");
+                    panel.CreateAndAddResultRow("Number-average molar mass Mn", reactor.Mn.ToString("N0", IC.InvariantCulture), "g/mol");
+                    panel.CreateAndAddResultRow("Weight-average molar mass Mw", reactor.Mw.ToString("N0", IC.InvariantCulture), "g/mol");
+                    panel.CreateAndAddResultRow("Polydispersity (Mw/Mn)", reactor.PDI.ToString("N3", IC.InvariantCulture));
                     if (reactor.IsCopolymer())
-                        panel.CreateAndAddTwoLabelsRow("Copolymer composition F1 (monomer A)",
+                        panel.CreateAndAddResultRow("Copolymer composition F1 (monomer A)",
                             reactor.CopolymerCompositionA.ToString("N4", IC.InvariantCulture));
                 });
         }
@@ -617,7 +617,7 @@ namespace DWSIM.UI.Desktop.Editors
                     gibbs.InitialGibbsEnergy);
                 panel.CreateAndAddResultRow(reactor, "Final Gibbs Free Energy", UnitOfMeasure.heatflow,
                     gibbs.FinalGibbsEnergy);
-                panel.CreateAndAddTwoLabelsRow("Mass Balance (Elements)", gibbs.ElementBalance.ToString("E"));
+                panel.CreateAndAddResultRow("Mass Balance (Elements)", gibbs.ElementBalance.ToString("E"));
             }
 
             if (reactor is Reactor_Equilibrium equilibrium)
@@ -644,7 +644,7 @@ namespace DWSIM.UI.Desktop.Editors
                     listed = true;
                 }
 
-                panel.CreateAndAddTwoLabelsRow(item.Key, (item.Value * 100).ToString(nf) + " %");
+                panel.CreateAndAddResultRow(item.Key, (item.Value * 100).ToString(nf), "%");
             }
         }
 

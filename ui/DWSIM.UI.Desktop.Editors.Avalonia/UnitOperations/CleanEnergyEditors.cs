@@ -168,17 +168,17 @@ namespace DWSIM.UI.Desktop.Editors
                 {
                     var nf = electrolyzer.GetFlowsheet().FlowsheetOptions.NumberFormat;
 
-                    panel.CreateAndAddTwoLabelsRow("Cell Voltage", electrolyzer.CellVoltage.ToString(nf) + " V");
-                    panel.CreateAndAddTwoLabelsRow("Reversible Voltage", electrolyzer.ReversibleVoltage.ToString(nf) + " V");
-                    panel.CreateAndAddTwoLabelsRow("Thermoneutral Voltage", electrolyzer.ThermoNeutralVoltage.ToString(nf) + " V");
-                    panel.CreateAndAddTwoLabelsRow("Current", electrolyzer.Current.ToString(nf) + " A");
+                    panel.CreateAndAddResultRow("Cell Voltage", electrolyzer.CellVoltage.ToString(nf), "V");
+                    panel.CreateAndAddResultRow("Reversible Voltage", electrolyzer.ReversibleVoltage.ToString(nf), "V");
+                    panel.CreateAndAddResultRow("Thermoneutral Voltage", electrolyzer.ThermoNeutralVoltage.ToString(nf), "V");
+                    panel.CreateAndAddResultRow("Current", electrolyzer.Current.ToString(nf), "A");
 
                     panel.CreateAndAddResultRow(electrolyzer, "Electron Transfer", UnitOfMeasure.molarflow,
                         electrolyzer.ElectronTransfer);
                     panel.CreateAndAddResultRow(electrolyzer, "Waste Heat", UnitOfMeasure.heatflow,
                         electrolyzer.WasteHeat);
 
-                    panel.CreateAndAddTwoLabelsRow("Calculated Efficiency", electrolyzer.Efficiency.ToString(nf));
+                    panel.CreateAndAddResultRow("Calculated Efficiency", electrolyzer.Efficiency.ToString(nf));
                 },
                 propertyPackage: false);
         }

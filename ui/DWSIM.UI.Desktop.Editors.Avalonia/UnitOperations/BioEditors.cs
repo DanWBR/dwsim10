@@ -75,10 +75,7 @@ namespace DWSIM.UI.Desktop.Editors
         internal static void Result(AvaloniaEditorPanel panel, ISimulationObject obj, string label,
                                     double value, string unit)
         {
-            var nf = obj.GetFlowsheet().FlowsheetOptions.NumberFormat;
-
-            panel.CreateAndAddTwoLabelsRow(label,
-                value.ToString(nf, CultureInfo.CurrentCulture) + (string.IsNullOrEmpty(unit) ? "" : " " + unit));
+            panel.CreateAndAddResultRow(obj, label, value, unit);
         }
 
     }

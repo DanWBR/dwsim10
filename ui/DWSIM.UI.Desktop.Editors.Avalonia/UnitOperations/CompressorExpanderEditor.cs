@@ -177,8 +177,8 @@ namespace DWSIM.UI.Desktop.Editors
                 machine.OutletTemperature);
             panel.CreateAndAddResultRow(simobj, "Temperature Change", UnitOfMeasure.deltaT,
                 machine.DeltaT);
-            panel.CreateAndAddTwoLabelsRow("Adiabatic Coefficient", machine.AdiabaticCoefficient.ToString(nf));
-            panel.CreateAndAddTwoLabelsRow("Polytropic Coefficient", machine.PolytropicCoefficient.ToString(nf));
+            panel.CreateAndAddResultRow("Adiabatic Coefficient", machine.AdiabaticCoefficient.ToString(nf));
+            panel.CreateAndAddResultRow("Polytropic Coefficient", machine.PolytropicCoefficient.ToString(nf));
 
             adiabaticHead = panel.CreateAndAddValueUnitRow(simobj, "Adiabatic Head",
                 UnitOfMeasure.distance, machine.AdiabaticHead, v => machine.AdiabaticHead = v);

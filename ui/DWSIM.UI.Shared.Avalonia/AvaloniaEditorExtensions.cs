@@ -755,6 +755,33 @@ public static class AvaloniaEditorExtensions
     }
 
     // -------------------------------------------------------------------------
+    // Result rows: Property | Value | Unit
+    // -------------------------------------------------------------------------
+
+    /// <summary>
+    /// A calculated result as a row of the results table at the bottom of the panel (see
+    /// <see cref="ResultsTable"/>): the value right-aligned and selectable, the unit in a column
+    /// of its own. Leave <paramref name="unit"/> empty for a dimensionless value.
+    /// Returns the value cell.
+    /// </summary>
+    public static TextBlock CreateAndAddResultRow(this AvaloniaEditorPanel panel,
+        string label, string value, string unit = "")
+    {
+        return ResultsTable.For(panel).AddRow(label, value ?? "", unit ?? "");
+    }
+
+    /// <summary>
+    /// A calculated result already in the unit it is shown in, formatted with
+    /// <paramref name="numberFormat"/>; a NaN leaves the value cell empty.
+    /// </summary>
+    public static TextBlock CreateAndAddResultRow(this AvaloniaEditorPanel panel,
+        string label, double value, string numberFormat, string unit = "")
+    {
+        var text = double.IsNaN(value) ? "" : value.ToString(numberFormat, CultureInfo.CurrentCulture);
+        return panel.CreateAndAddResultRow(label, text, unit);
+    }
+
+    // -------------------------------------------------------------------------
     // ListBox row
     // -------------------------------------------------------------------------
 

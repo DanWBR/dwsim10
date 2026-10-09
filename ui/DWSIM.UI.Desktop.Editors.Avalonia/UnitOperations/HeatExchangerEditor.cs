@@ -223,17 +223,17 @@ namespace DWSIM.UI.Desktop.Editors
             var nf = hx.GetFlowsheet().FlowsheetOptions.NumberFormat;
 
             panel.CreateAndAddResultRow(hx, "Maximum Heat Exchange", UnitOfMeasure.heatflow, hx.MaxHeatExchange);
-            panel.CreateAndAddTwoLabelsRow("Thermal Efficiency (%)", hx.ThermalEfficiency.ToString(nf));
+            panel.CreateAndAddResultRow("Thermal Efficiency", hx.ThermalEfficiency.ToString(nf), "%");
             panel.CreateAndAddResultRow(hx, "Log Mean Temperature Difference (LMTD)", UnitOfMeasure.deltaT, hx.LMTD);
-            panel.CreateAndAddTwoLabelsRow("LMTD Correction Factor (Shell and Tube)", hx.LMTD_F.ToString(nf));
+            panel.CreateAndAddResultRow("LMTD Correction Factor (Shell and Tube)", hx.LMTD_F.ToString(nf));
 
             var rating = hx.CalculationMode == HeatExchangerCalcMode.ShellandTube_Rating ||
                          hx.CalculationMode == HeatExchangerCalcMode.ShellandTube_CalcFoulingFactor;
 
             if (!rating) return;
 
-            panel.CreateAndAddTwoLabelsRow("Shell-side Reynolds Number", hx.STProperties.ReS.ToString(nf));
-            panel.CreateAndAddTwoLabelsRow("Tube-side Reynolds Number", hx.STProperties.ReT.ToString(nf));
+            panel.CreateAndAddResultRow("Shell-side Reynolds Number", hx.STProperties.ReS.ToString(nf));
+            panel.CreateAndAddResultRow("Tube-side Reynolds Number", hx.STProperties.ReT.ToString(nf));
             panel.CreateAndAddResultRow(hx, "Shell-side Resistance", UnitOfMeasure.foulingfactor, hx.STProperties.Fs);
             panel.CreateAndAddResultRow(hx, "Tube-side Resistance", UnitOfMeasure.foulingfactor, hx.STProperties.Ft);
             panel.CreateAndAddResultRow(hx, "Pipe Wall Resistance", UnitOfMeasure.foulingfactor, hx.STProperties.Fc);

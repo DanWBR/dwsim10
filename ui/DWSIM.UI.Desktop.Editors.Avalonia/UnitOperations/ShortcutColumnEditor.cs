@@ -80,10 +80,10 @@ namespace DWSIM.UI.Desktop.Editors
 
                     var nf = column.GetFlowsheet().FlowsheetOptions.NumberFormat;
 
-                    panel.CreateAndAddTwoLabelsRow("Minimum Reflux Ratio", column.m_Rmin.ToString(nf));
-                    panel.CreateAndAddTwoLabelsRow("Minimum Number of Stages", column.m_Nmin.ToString(nf));
-                    panel.CreateAndAddTwoLabelsRow("Actual Number of Stages", column.m_N.ToString(nf));
-                    panel.CreateAndAddTwoLabelsRow("Optimal Feed Stage", column.ofs.ToString(nf));
+                    panel.CreateAndAddResultRow("Minimum Reflux Ratio", column.m_Rmin.ToString(nf));
+                    panel.CreateAndAddResultRow("Minimum Number of Stages", column.m_Nmin.ToString(nf));
+                    panel.CreateAndAddResultRow("Actual Number of Stages", column.m_N.ToString(nf));
+                    panel.CreateAndAddResultRow("Optimal Feed Stage", column.ofs.ToString(nf));
 
                     panel.CreateAndAddResultRow(column, "Stripping Liquid", UnitOfMeasure.molarflow, column.L_);
                     panel.CreateAndAddResultRow(column, "Rectify Liquid", UnitOfMeasure.molarflow, column.L);
