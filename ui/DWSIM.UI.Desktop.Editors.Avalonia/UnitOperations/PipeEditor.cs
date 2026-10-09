@@ -25,11 +25,11 @@ namespace DWSIM.UI.Desktop.Editors
 {
 
     /// <summary>
-    /// Pipe segment editor, following the Windows EditingForm_Pipe: the General tab (calculation
-    /// mode, pressure drop correlation, tolerances) and the results, then the Hydraulic Profile
-    /// (the section grid, one column per section: type or fitting, quantity, increments,
+    /// Pipe segment editor, following the Windows EditingForm_Pipe, with three tabs in the
+    /// calculation parameters: General (calculation mode, pressure drop correlation, tolerances),
+    /// Hydraulic Profile (the section grid, one column per section: type or fitting, quantity, increments,
     /// material, roughness and wall conductivity of user-defined materials, length, elevation
-    /// and diameters, with the standard pipe sizes and the elevation chart) and the Thermal
+    /// and diameters, with the standard pipe sizes and the elevation chart) and Thermal
     /// Profile (defined HTC, defined heat exchange or calculated HTC, each with its inputs).
     /// </summary>
     public static class PipeEditor
@@ -60,13 +60,18 @@ namespace DWSIM.UI.Desktop.Editors
             if (pipe.ThermalProfile == null) pipe.ThermalProfile = new ThermalEditorDefinitions();
 
             return UnitOpEditor.Build(pipe,
-                input: panel => BuildParameters(pipe, panel),
-                results: panel => BuildResults(pipe, panel),
-                extras: new[]
+                input: panel =>
                 {
-                    ("Hydraulic Profile", new HydraulicProfileEditor(pipe).Build()),
-                    ("Thermal Profile", BuildThermalProfile(pipe))
-                });
+                    var general = new AvaloniaEditorPanel().AutoSolveOnEdit(pipe);
+                    BuildParameters(pipe, general);
+
+                    var tabs = new TabControl { Margin = new Thickness(0, 4, 0, 0) };
+                    tabs.Items.Add(new TabItem { Header = "General", Content = general });
+                    tabs.Items.Add(new TabItem { Header = "Hydraulic Profile", Content = new HydraulicProfileEditor(pipe).Build() });
+                    tabs.Items.Add(new TabItem { Header = "Thermal Profile", Content = BuildThermalProfile(pipe) });
+                    panel.Children.Add(tabs);
+                },
+                results: panel => BuildResults(pipe, panel));
         }
 
         private static void BuildParameters(Pipe pipe, AvaloniaEditorPanel panel)
