@@ -64,6 +64,8 @@ Version 10.2.11
 - [NEW] API reference website for 87 simulation objects, DWSIM Plus included, each with an example that runs on every build, its output, ports, property IDs, units and calculation modes
 - [NEW] Lock Position (object context menu) keeps the selected objects in place, marked with a padlock; Lock Layout on the flowsheet toolbar freezes the whole drawing; both saved with the file, panning and zooming still work
 - [NEW] Edit Appearance window in both interfaces: line, fill, text, size, orientation and position settings with explanations, live preview, several objects at once, reset to defaults and one undo step; also for tables, text and rectangles
+- [NEW] Cross-platform pipe editor: General, Hydraulic Profile and Thermal Profile tabs with the section grid, fittings, standard sizes, elevation chart and the thermal profile inputs
+- [NEW] Cross-platform editors show results as tables of property, value and unit
 - [CHG] NRTL, UNIQUAC, UNIFAC, Modified UNIFAC and Sour Water: new packages compute the liquid enthalpy from the experimental liquid heat capacity
 - [CHG] Lee-Kesler-Plocker data regression: default bounds 0.5 to 4, so hydrogen and light gas pairs with heavy hydrocarbons can be reached
 - [CHG] A temperature and pressure flash whose phases do not add up to the feed raises an error in the stream calculation
@@ -98,6 +100,7 @@ Version 10.2.11
 - [FIX] CAPE-OPEN 1.1 property packages: each request is answered at its own temperature, pressure and composition, and the stream is left as it was
 - [FIX] PC-SAFT: the association volume and energy of each compound are saved with the flowsheet and shown in both editors
 - [FIX] PC-SAFT: complete association term for two or more associating compounds, only donor and acceptor sites pair up, the density takes the stable root, a single associating compound no longer crashes, and the water-alcohol parameters are refitted
+- [FIX] Nested Loops flashes with a compound at zero fraction and a vanishing vapour pressure (glucose, maltose) converge and match the list without it (a Raoult compressor failed at 15 bar); also Nested Loops v2 and the stability check
 - [FIX] Temperature and pressure flashes with a nearly non-volatile compound, such as an ionic liquid, reach equilibrium (11 failures in a test grid, 530 before)
 - [FIX] Single-compound enthalpy and entropy flashes find a pure liquid far below its boiling point (a pure ionic liquid stream ran away to 765 C)
 - [FIX] Glycol package: the water-glycol NRTL parameters were applied swapped; MEG, DEG and TEG parameters regressed to NIST ThermoML data (99 wt% TEG boils at 207.6 C at 1 atm)
@@ -132,6 +135,7 @@ Version 10.2.11
 - [FIX] Electrolyte packages: dissolved gases taken by Henry's law report an activity coefficient of 1
 - [FIX] Electrolyte phase diagram tool: NaCl mean activity coefficient at 25 C and 6 mol/kg is 0.954 (0.784 before, 0.986 Robinson and Stokes)
 - [FIX] Separator with overridden temperature or pressure writes the heat it needs to its energy stream (it stayed empty)
+- [FIX] Pipe: the Fixed Delta-P fitting applies its pressure drop in any unit system (it was converted twice), and the PVC with glass fibre material of the classic editor uses the PVC values
 - [FIX] Pump in Power and Energy Stream modes: the whole shaft power goes into the outlet enthalpy
 - [FIX] Orifice plate: beta follows the orifice and pipe diameters
 - [FIX] Information Carrier copies its value, and the solver iterates Energy Recycle loops to convergence
