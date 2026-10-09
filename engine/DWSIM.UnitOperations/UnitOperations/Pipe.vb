@@ -401,7 +401,6 @@ Namespace UnitOperations
 
             Using filestr = System.Reflection.Assembly.GetExecutingAssembly().GetManifestResourceStream("DWSIM.UnitOperations.pipes.dat")
                 Using reader As New StreamReader(filestr)
-                    reader.ReadLine()
                     While Not reader.EndOfStream
                         line = reader.ReadLine()
                         Dim ssize As New StandardPipeDiameter With {
@@ -695,7 +694,7 @@ Namespace UnitOperations
                                                      If segmento.TipoSegmento.Contains("[27]") Then
                                                          'fixed deltaP (fitting effective geometry handled via Lcell/Elcell)
                                                          dph = 0
-                                                         dpf = segmento.DI.ConvertToSI(FlowSheet.FlowsheetOptions.SelectedUnitSystem.deltaP)
+                                                         dpf = segmento.DI 'the pressure drop of the fixed delta-P fitting is stored in Pa
                                                          dpt = dpf
                                                          resv(0) = ""
                                                          resv(1) = (Qlin + Qsin) / (Qvin + Qlin + Qsin)
@@ -1534,7 +1533,7 @@ Namespace UnitOperations
                                             If segmento.TipoSegmento.Contains("[27]") Then
                                                 'fixed deltaP (fitting effective geometry handled via Lcell/Elcell)
                                                 dph = 0
-                                                dpf = segmento.DI.ConvertToSI(FlowSheet.FlowsheetOptions.SelectedUnitSystem.deltaP)
+                                                dpf = segmento.DI 'the pressure drop of the fixed delta-P fitting is stored in Pa
                                                 dpt = dpf
                                                 resv(0) = ""
                                                 resv(1) = (Qlin + Qsin) / (Qvin + Qlin + Qsin)
@@ -2317,7 +2316,7 @@ Namespace UnitOperations
                     epsilon = 0.000045
                 Case "PVC"
                     epsilon = 0.0000015
-                Case "PVC+PFRV"
+                Case "PVC+PFRV", "PVC+PRFV"
                     epsilon = 0.0000015
                 Case FlowSheet.GetTranslatedString("CommercialCopper"), "CommercialCopper"
                     epsilon = 0.0000015
@@ -2353,7 +2352,7 @@ Namespace UnitOperations
                     kp = 14.6 + 0.0127 * (T - 273.15)
                 Case "PVC"
                     kp = 0.16
-                Case "PVC+PFRV"
+                Case "PVC+PFRV", "PVC+PRFV"
                     kp = 0.16
                 Case FlowSheet.GetTranslatedString("CommercialCopper"), "CommercialCopper", "Commercial Copper"
                     kp = 420.75 - 0.068493 * T
