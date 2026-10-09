@@ -1601,6 +1601,13 @@ Namespace UnitOperations
                         Me.DeltaQ = 0.0
                     Else
                         Me.DeltaQ = Hf - E0
+                        'energy stream - update energy flow value (kW)
+                        If es IsNot Nothing Then
+                            With es
+                                .EnergyFlow = Me.DeltaQ.GetValueOrDefault
+                                .GraphicObject.Calculated = True
+                            End With
+                        End If
                     End If
 
                     T = MixedStream.Phases(0).Properties.temperature.GetValueOrDefault
