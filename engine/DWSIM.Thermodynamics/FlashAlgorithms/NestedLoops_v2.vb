@@ -371,7 +371,7 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
 
             V = Brent.BrentOpt3(Vmin, Vmax, 2, 0.001, 100,
                            Function(Vb)
-                               Return Vz.MultiplyY(Ki.AddConstY(-1).DivideY(Ki.AddConstY(-1).MultiplyConstY(Vb).AddConstY(1))).SumY
+                               Return NestedLoops.ZeroAbsentNaN(Vz.MultiplyY(Ki.AddConstY(-1).DivideY(Ki.AddConstY(-1).MultiplyConstY(Vb).AddConstY(1))), Vz).SumY
                            End Function)
 
             If V > 1.0 Or V < 0.0 Then V = Vmin + (Vmax - Vmin) / 2
@@ -389,7 +389,7 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                 End If
             End If
 
-            Vy = Vz.MultiplyY(Ki).DivideY(Ki.AddConstY(-1).MultiplyConstY(V).AddConstY(1)).NormalizeY
+            Vy = NestedLoops.ZeroAbsentNaN(Vz.MultiplyY(Ki).DivideY(Ki.AddConstY(-1).MultiplyConstY(V).AddConstY(1)), Vz).NormalizeY
             Vx = Vy.DivideY(Ki).NormalizeY
 
             Array.Copy(Ki, Ki0, n + 1)
@@ -694,7 +694,7 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
 
             For it As Integer = 1 To maxit_e
                 Dim Kc As Double() = K
-                Dim rr As Func(Of Double, Double) = Function(vv) Vz.MultiplyY(Kc.AddConstY(-1).DivideY(Kc.AddConstY(-1).MultiplyConstY(vv).AddConstY(1))).SumY
+                Dim rr As Func(Of Double, Double) = Function(vv) NestedLoops.ZeroAbsentNaN(Vz.MultiplyY(Kc.AddConstY(-1).DivideY(Kc.AddConstY(-1).MultiplyConstY(vv).AddConstY(1))), Vz).SumY
                 If rr(0.0#) <= 0.0# Then
                     V = 0.0#
                 ElseIf rr(1.0#) >= 0.0# Then
@@ -702,7 +702,7 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                 Else
                     V = Brent.BrentOpt3(0.0#, 1.0#, 20, 0.0000000001, 100, rr)
                 End If
-                Vx = Vz.DivideY(Kc.AddConstY(-1).MultiplyConstY(V).AddConstY(1)).NormalizeY()
+                Vx = NestedLoops.ZeroAbsentNaN(Vz.DivideY(Kc.AddConstY(-1).MultiplyConstY(V).AddConstY(1)), Vz).NormalizeY()
                 Vy = Vx.MultiplyY(Kc).NormalizeY()
                 Dim Knew = PP.DW_CalcKvalue(Vx, Vy, T, P)
                 Dim dk As Double = 0.0
@@ -810,8 +810,8 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
 
                     Vant = V
 
-                    F = Vz.MultiplyY(Ki.AddConstY(-1).DivideY(Ki.AddConstY(-1).MultiplyConstY(V).AddConstY(1))).SumY
-                    dF = Vz.NegateY.MultiplyY(Ki.AddConstY(-1).MultiplyY(Ki.AddConstY(-1)).DivideY(Ki.AddConstY(-1).MultiplyConstY(V).AddConstY(1)).DivideY(Ki.AddConstY(-1).MultiplyConstY(V).AddConstY(1))).SumY
+                    F = NestedLoops.ZeroAbsentNaN(Vz.MultiplyY(Ki.AddConstY(-1).DivideY(Ki.AddConstY(-1).MultiplyConstY(V).AddConstY(1))), Vz).SumY
+                    dF = NestedLoops.ZeroAbsentNaN(Vz.NegateY.MultiplyY(Ki.AddConstY(-1).MultiplyY(Ki.AddConstY(-1)).DivideY(Ki.AddConstY(-1).MultiplyConstY(V).AddConstY(1)).DivideY(Ki.AddConstY(-1).MultiplyConstY(V).AddConstY(1))), Vz).SumY
 
                     IObj2?.Paragraphs.Add(String.Format("Current value of the Rachford-Rice error function: {0}", F))
 

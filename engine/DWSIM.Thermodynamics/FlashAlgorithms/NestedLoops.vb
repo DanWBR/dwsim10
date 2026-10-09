@@ -469,7 +469,7 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
 
             V = Brent.BrentOpt3(Vmin, Vmax, 10, 0.001, 100,
                            Function(Vb)
-                               Return Vz.MultiplyY(Ki.AddConstY(-1).DivideY(Ki.AddConstY(-1).MultiplyConstY(Vb).AddConstY(1))).SumY
+                               Return ZeroAbsentNaN(Vz.MultiplyY(Ki.AddConstY(-1).DivideY(Ki.AddConstY(-1).MultiplyConstY(Vb).AddConstY(1))), Vz).SumY
                            End Function)
 
             If V > 1.0 Or V < 0.0 Then V = Vmin + (Vmax - Vmin) / 2
@@ -487,7 +487,7 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                 End If
             End If
 
-            Vy = Vz.MultiplyY(Ki).DivideY(Ki.AddConstY(-1).MultiplyConstY(V).AddConstY(1)).NormalizeY
+            Vy = ZeroAbsentNaN(Vz.MultiplyY(Ki).DivideY(Ki.AddConstY(-1).MultiplyConstY(V).AddConstY(1)), Vz).NormalizeY
             Vx = Vy.DivideY(Ki).NormalizeY
 
             Array.Copy(Ki, Ki0, n + 1)
@@ -888,7 +888,7 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
 
             For it As Integer = 1 To maxit_e
                 Dim Kc As Double() = K
-                Dim rr As Func(Of Double, Double) = Function(vv) Vz.MultiplyY(Kc.AddConstY(-1).DivideY(Kc.AddConstY(-1).MultiplyConstY(vv).AddConstY(1))).SumY
+                Dim rr As Func(Of Double, Double) = Function(vv) ZeroAbsentNaN(Vz.MultiplyY(Kc.AddConstY(-1).DivideY(Kc.AddConstY(-1).MultiplyConstY(vv).AddConstY(1))), Vz).SumY
                 If rr(0.0#) <= 0.0# Then
                     V = 0.0#
                 ElseIf rr(1.0#) >= 0.0# Then
@@ -896,7 +896,7 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                 Else
                     V = Brent.BrentOpt3(0.0#, 1.0#, 20, 0.0000000001, 100, rr)
                 End If
-                Vx = Vz.DivideY(Kc.AddConstY(-1).MultiplyConstY(V).AddConstY(1)).NormalizeY()
+                Vx = ZeroAbsentNaN(Vz.DivideY(Kc.AddConstY(-1).MultiplyConstY(V).AddConstY(1)), Vz).NormalizeY()
                 Vy = Vx.MultiplyY(Kc).NormalizeY()
                 Dim Knew = PP.DW_CalcKvalue(Vx, Vy, T, P)
                 Dim dk As Double = 0.0
@@ -1008,8 +1008,8 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
 
                     Vant = V
 
-                    F = Vz.MultiplyY(Ki.AddConstY(-1).DivideY(Ki.AddConstY(-1).MultiplyConstY(V).AddConstY(1))).SumY
-                    dF = Vz.NegateY.MultiplyY(Ki.AddConstY(-1).MultiplyY(Ki.AddConstY(-1)).DivideY(Ki.AddConstY(-1).MultiplyConstY(V).AddConstY(1)).DivideY(Ki.AddConstY(-1).MultiplyConstY(V).AddConstY(1))).SumY
+                    F = ZeroAbsentNaN(Vz.MultiplyY(Ki.AddConstY(-1).DivideY(Ki.AddConstY(-1).MultiplyConstY(V).AddConstY(1))), Vz).SumY
+                    dF = ZeroAbsentNaN(Vz.NegateY.MultiplyY(Ki.AddConstY(-1).MultiplyY(Ki.AddConstY(-1)).DivideY(Ki.AddConstY(-1).MultiplyConstY(V).AddConstY(1)).DivideY(Ki.AddConstY(-1).MultiplyConstY(V).AddConstY(1))), Vz).SumY
 
                     IObj2?.Paragraphs.Add(String.Format("Current value of the Rachford-Rice error function: {0}", F))
 
@@ -1130,6 +1130,21 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
 
             Return New Object() {V, Vx, Vy, Ki, F, ecount, overshoot}
 
+        End Function
+
+        ''' <summary>
+        ''' Zeroes the NaN terms of compounds absent from the feed in a Rachford-Rice vector (returns the same array).
+        ''' </summary>
+        ''' <remarks>
+        ''' An absent compound with K below the resolution of 1 (K - 1 = -1 in double precision: glucose or maltose
+        ''' near ambient temperature, K ~ 1e-20) makes 1 + V (K - 1) exactly zero at V = 1, and its term, 0/0 or
+        ''' 0 * Inf, turned the whole sum or estimate into NaN. Finite terms are left untouched.
+        ''' </remarks>
+        Friend Shared Function ZeroAbsentNaN(terms As Double(), Vz As Double()) As Double()
+            For i As Integer = 0 To terms.Length - 1
+                If Vz(i) = 0.0# AndAlso Double.IsNaN(terms(i)) Then terms(i) = 0.0#
+            Next
+            Return terms
         End Function
 
         ''' <summary>
