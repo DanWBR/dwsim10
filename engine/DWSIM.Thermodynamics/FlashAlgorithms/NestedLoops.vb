@@ -1574,6 +1574,34 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
             Dim fx_bracket_pos As Double = Double.NaN
             Dim fx_bracket_neg As Double = Double.NaN
 
+            'A temperature interval does not bound enthalpy error near a vaporization front.
+            'Use the configured absolute enthalpy tolerance for every bracketed exit.
+            Dim bisectEnthalpy As Func(Of Double, Double, Double) =
+                Function(ta, tb)
+                    Dim lo = Math.Min(ta, tb)
+                    Dim hi = Math.Max(ta, tb)
+                    Dim flo As Double = Herror("PT", lo, P, Vz, PP, Ki_est IsNot Nothing, Ki_est)(0)
+                    Dim fhi As Double = Herror("PT", hi, P, Vz, PP, Ki_est IsNot Nothing, Ki_est)(0)
+                    If Double.IsNaN(flo) OrElse Double.IsNaN(fhi) Then Return Double.NaN
+                    If Math.Abs(flo) <= tolEXT Then Return lo
+                    If Math.Abs(fhi) <= tolEXT Then Return hi
+                    If Math.Sign(flo) = Math.Sign(fhi) Then Return Double.NaN
+                    For bcnt As Integer = 0 To 200
+                        Dim mid = lo + (hi - lo) / 2.0
+                        Dim fmid As Double = Herror("PT", mid, P, Vz, PP, Ki_est IsNot Nothing, Ki_est)(0)
+                        If Double.IsNaN(fmid) Then Return Double.NaN
+                        If Math.Abs(fmid) <= tolEXT Then Return mid
+                        If mid = lo OrElse mid = hi Then Return Double.NaN
+                        If Math.Sign(fmid) = Math.Sign(flo) Then
+                            lo = mid
+                            flo = fmid
+                        Else
+                            hi = mid
+                        End If
+                    Next
+                    Return Double.NaN
+                End Function
+
             Do
 
                 IObj?.SetCurrent()
@@ -1639,24 +1667,11 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                     signChanges += 1
                 End If
 
-                ' Oscillation fallback: use Brent on bracketed interval
+                ' Oscillation fallback: solve the enthalpy residual on the bracket
                 If signChanges >= 3 Then
 
                     If Not Double.IsNaN(T_bracket_pos) AndAlso Not Double.IsNaN(T_bracket_neg) Then
-                        Dim bmin As New Brent
-                        Dim Kbrent = Ki_est
-                        Dim Ta = Math.Min(T_bracket_pos, T_bracket_neg)
-                        Dim Tb = Math.Max(T_bracket_pos, T_bracket_neg)
-                        'a bracket that bisection has already collapsed to one temperature (the
-                        'residual flips sign on the noise of a dew-point flash) is the answer itself
-                        If Tb - Ta <= 1.0E-6 * Ta Then
-                            x1 = 0.5 * (Ta + Tb)
-                            Exit Do
-                        End If
-                        x1 = bmin.BrentOpt2(Ta, Tb, 100, tolEXT, maxitEXT,
-                            Function(tval)
-                                Return Herror("PT", tval, P, Vz, PP, Kbrent IsNot Nothing, Kbrent)(0)
-                            End Function)
+                        x1 = bisectEnthalpy(T_bracket_pos, T_bracket_neg)
                         Exit Do
                     Else
                         ' Cannot bracket, fall back to rigorous mode
@@ -1738,25 +1753,7 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
             ' than hand off to the rigorous mode, whose bubble/dew phase test is itself unreliable at
             ' high pressure here and can return a spurious all-vapour temperature far from the spec.
             If notConverged AndAlso haveBracket Then
-                Dim lo As Double = Math.Min(T_bracket_pos, T_bracket_neg)
-                Dim hi As Double = Math.Max(T_bracket_pos, T_bracket_neg)
-                Dim flo As Double = Herror("PT", lo, P, Vz, PP, Ki_est IsNot Nothing, Ki_est)(0)
-                Dim bcnt As Integer = 0
-                Do
-                    Dim mid As Double = (lo + hi) / 2.0
-                    Dim fmid As Double = Herror("PT", mid, P, Vz, PP, Ki_est IsNot Nothing, Ki_est)(0)
-                    If Double.IsNaN(fmid) Then Exit Do
-                    If Math.Abs(fmid) <= tolEXT OrElse (hi - lo) < 0.0005 Then
-                        lo = mid : hi = mid : Exit Do
-                    End If
-                    If Math.Sign(fmid) = Math.Sign(flo) Then
-                        lo = mid : flo = fmid
-                    Else
-                        hi = mid
-                    End If
-                    bcnt += 1
-                Loop Until bcnt > 200
-                T = (lo + hi) / 2.0
+                T = bisectEnthalpy(T_bracket_pos, T_bracket_neg)
                 notConverged = Double.IsNaN(T) OrElse T <= Tmin OrElse T >= Tmax
             End If
 

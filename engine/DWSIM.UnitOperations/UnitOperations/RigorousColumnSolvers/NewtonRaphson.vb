@@ -335,11 +335,9 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                 LSSj(0) = vc(0).Sum
                 yc(0) = _pp.DW_CalcBubT(xc(0), P(0), Tj(0), Nothing, False)(3)
             Else
-                If llextr Then
-                    LSSj(0) = F.Sum - Lj(ns) - sumLSS - sumVSS
-                Else
-                    LSSj(0) = 0.0
-                End If
+                'For an extractor Vj(0) is the second liquid-phase product. It already
+                'carries the extract out; adding a liquid draw here counts that outlet twice.
+                LSSj(0) = 0.0
             End If
 
             For i = 0 To ns

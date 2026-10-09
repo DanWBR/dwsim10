@@ -59,9 +59,9 @@ linear algebra and its façade, the fluent API, and the engine smoke tests, whic
 compound databases, register the property packages, and load and solve the fourteen sample
 flowsheets under `tests/flowsheets`.
 
-Five of those fourteen samples do not solve. They do not solve on the .NET Framework build of
-the engine either, with the same object reporting the same message, so they are pinned as such:
-four are columns that miss the tolerance, and one is a column that breaks its own mass balance.
+All fourteen sample flowsheets solve. The two liquid-liquid extraction samples are also
+checked with perturbed initial stage temperatures, component balances, column-model energy
+balances and stage equilibrium checks.
 
 ## The MCP server
 

@@ -56,6 +56,72 @@ namespace DWSIM.Engine.SmokeTests
             return flowsheet;
         }
 
+        // In extractor mode V is the second liquid phase. The extract already leaves as
+        // V[0]; treating F.Sum - L[last] as an additional stage-0 liquid draw counts that
+        // product twice and forces the material equations towards zero extract flow.
+        [TestCase("LiquidLiquidExtraction.dwxmz", false)]
+        [TestCase("LiquidLiquidExtraction.dwxmz", true)]
+        [TestCase("BiodieselProduction.dwxmz", false)]
+        [TestCase("BiodieselProduction.dwxmz", true)]
+        public void TheExtractorCountsItsTopProductOnce(string filename, bool perturbTemperatures)
+        {
+            var flowsheet = Load(filename);
+            var column = flowsheet.SimulationObjects.Values.OfType<AbsorptionColumn>().Single();
+            Assert.That(column.OperationMode, Is.EqualTo(AbsorptionColumn.OpMode.Extractor));
+            if (perturbTemperatures)
+                for (int i = 0; i < column.InitialEstimates.StageTemps.Count; ++i)
+                    column.InitialEstimates.StageTemps[i].Value += i % 2 == 0 ? 5.0 : -5.0;
+
+            var errors = flowsheet.SolveFlowsheet2();
+            Assert.That(errors, Is.Empty,
+                "the solver reported: " + string.Join("; ", errors.Select(e => e.Message)));
+
+            var feeds = column.MaterialStreams.Values
+                .Where(si => si.StreamBehavior == StreamInformation.Behavior.Feed)
+                .Select(si => (MaterialStream)flowsheet.SimulationObjects[si.StreamID]).ToList();
+            var products = column.MaterialStreams.Values
+                .Where(si => si.StreamBehavior != StreamInformation.Behavior.Feed)
+                .Select(si => (MaterialStream)flowsheet.SimulationObjects[si.StreamID]).ToList();
+            foreach (var name in flowsheet.SelectedCompounds.Keys)
+            {
+                double input = feeds.Sum(s => s.Phases[0].Compounds[name].MolarFlow.GetValueOrDefault());
+                double output = products.Sum(s => s.Phases[0].Compounds[name].MolarFlow.GetValueOrDefault());
+                Assert.That(output, Is.EqualTo(input).Within(System.Math.Max(1e-8, input * 1e-6)), name);
+            }
+
+            // Check the column energy balance using the returned two liquid phases, independently
+            // of the solver's residual. A downstream PH flash may change the product phase state.
+            var pp = (DWSIM.Thermodynamics.PropertyPackages.PropertyPackage)column.PropertyPackage;
+            int last = column.Stages.Count - 1;
+            var xBottom = (double[])column.xf[last];
+            var yTop = (double[])column.yf[0];
+            double inputEnergy = feeds.Sum(s => s.Phases[0].Properties.massflow.GetValueOrDefault()
+                * s.Phases[0].Properties.enthalpy.GetValueOrDefault());
+            double outputEnergy = column.Lf[last] * pp.DW_CalcEnthalpy(xBottom, column.Tf[last],
+                column.Stages[last].P, DWSIM.Thermodynamics.PropertyPackages.State.Liquid) * pp.AUX_MMM(xBottom) / 1000.0
+                + column.Vf[0] * pp.DW_CalcEnthalpy(yTop, column.Tf[0], column.Stages[0].P,
+                DWSIM.Thermodynamics.PropertyPackages.State.Liquid) * pp.AUX_MMM(yTop) / 1000.0;
+            Assert.That(outputEnergy - inputEnergy - column.Stages.Sum(st => st.Q.Value),
+                Is.EqualTo(0.0).Within(1e-3), "column energy balance, kW");
+
+            for (int i = 0; i <= last; ++i)
+            {
+                var x = (double[])column.xf[i];
+                var y = (double[])column.yf[i];
+                var k = (double[])pp.DW_CalcKvalue(x, y, column.Tf[i], column.Stages[i].P, "LL");
+                Assert.That(column.Lf[i], Is.GreaterThan(0.0));
+                Assert.That(column.Vf[i], Is.GreaterThan(0.0));
+                Assert.That(x.Sum(), Is.EqualTo(1.0).Within(1e-10));
+                Assert.That(y.Sum(), Is.EqualTo(1.0).Within(1e-10));
+                Assert.That(x.All(v => v >= 0.0) && y.All(v => v >= 0.0), Is.True);
+                Assert.That(x.Zip(y, (a, b) => System.Math.Abs(a - b)).Max(), Is.GreaterThan(1e-3),
+                    "the phases collapsed to a trivial homogeneous solution");
+                for (int j = 0; j < x.Length; ++j)
+                    Assert.That(k[j] * x[j] - y[j], Is.EqualTo(0.0).Within(1e-6),
+                        "liquid-liquid equilibrium, stage " + i + ", component " + j);
+            }
+        }
+
         // A 12-stage reboiled stripper (full reflux, reflux ratio 0, bottoms rate spec) on a
         // Fischer-Tropsch naphtha of 69 database compounds carrying trace dissolved gases
         // (methane 2e-4, H2 1e-4, CO2 4e-3, ...), Peng-Robinson. The feed is a subcooled liquid,
