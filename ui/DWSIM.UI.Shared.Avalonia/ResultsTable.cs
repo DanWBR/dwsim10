@@ -29,7 +29,10 @@ public sealed class ResultsTable : Border
     private static readonly IBrush HeaderBrush = new SolidColorBrush(Color.FromArgb(36, 128, 128, 128));
     private static readonly IBrush StripeBrush = new SolidColorBrush(Color.FromArgb(16, 128, 128, 128));
 
-    private static readonly Thickness CellMargin = new(6, 2, 6, 2);
+    private static readonly Thickness CellMargin = new(8, 3, 8, 3);
+
+    // the row height of a Windows Forms DataGridView at 100 % scaling
+    private const double RowHeight = 24;
 
     private readonly Grid _grid;
     private readonly FontFeatureCollection _tabularDigits = new() { FontFeature.Parse("tnum") };
@@ -76,7 +79,7 @@ public sealed class ResultsTable : Border
     public TextBlock AddRow(string property, string value, string unit)
     {
         var row = _grid.RowDefinitions.Count;
-        _grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+        _grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto) { MinHeight = RowHeight });
 
         if (_dataRows % 2 == 1)
         {
@@ -126,7 +129,7 @@ public sealed class ResultsTable : Border
 
     private void AddHeader()
     {
-        _grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+        _grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto) { MinHeight = RowHeight });
 
         var band = new Border
         {
