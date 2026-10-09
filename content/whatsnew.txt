@@ -90,6 +90,7 @@
 - [FIX] Extended UNIQUAC above 7.5 mol/kg: activity coefficients and water activity follow the concentration (KOH solutions boiled at 111.5 C at any concentration beyond 7.7 mol/kg)
 - [FIX] Electrolyte packages: dissolved gases taken by Henry's law report an activity coefficient of 1
 - [FIX] Electrolyte phase diagram tool: NaCl mean activity coefficient at 25 C and 6 mol/kg is 0.954 (0.784 before, 0.986 Robinson and Stokes)
+- [FIX] Separator with overridden temperature or pressure writes the heat it needs to its energy stream (it stayed empty)
 - [FIX] Pump in Power and Energy Stream modes: the whole shaft power goes into the outlet enthalpy
 - [FIX] Orifice plate: beta follows the orifice and pipe diameters
 - [FIX] Information Carrier copies its value, and the solver iterates Energy Recycle loops to convergence
