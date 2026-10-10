@@ -626,7 +626,7 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
 
             Select Case _specs("R").SType
                 Case ColumnSpec.SpecType.Component_Fraction
-                    If _specs("C").SpecUnit = "M" Or _specs("C").SpecUnit = "Molar" Then
+                    If _specs("R").SpecUnit = "M" Or _specs("R").SpecUnit = "Molar" Then
                         spfval2 = Log(xc(ns)(spci2) / spval2)
                         _specs("R").CalculatedValue = xc(ns)(spci2)
                     Else 'W
