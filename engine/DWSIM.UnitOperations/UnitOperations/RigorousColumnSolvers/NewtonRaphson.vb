@@ -663,7 +663,7 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                     spfval2 = Log((Tj(ns)) / spval2)
                     _specs("R").CalculatedValue = Tj(ns)
                 Case ColumnSpec.SpecType.Feed_Recovery
-                    spfval2 = Log(Lj(ns) / (spval1 / 100 * F.SumY))
+                    spfval2 = Log(Lj(ns) / (spval2 / 100 * F.SumY))
                     _specs("R").CalculatedValue = Lj(ns) / F.SumY * 100.0
             End Select
 
