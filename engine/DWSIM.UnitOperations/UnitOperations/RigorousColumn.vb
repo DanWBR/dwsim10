@@ -6762,6 +6762,68 @@ Namespace UnitOperations
             End Try
         End Function
 
+        'With the trial flows and compositions fixed, solve the stage energy
+        'balances for a temperature starting profile. No column equation or
+        'acceptance tolerance is changed. A failed estimate leaves the old ramp.
+        Private Shared Function ExtractorTrialTemperatures(input As ColumnSolverInputData,
+                                                           pp As PropertyPackages.PropertyPackage) As List(Of Double)
+            Dim original = input.StageTemperatures.ToArray()
+            Dim temperatures = DirectCast(original.Clone(), Double())
+            Dim n = temperatures.Length
+            Dim liquid = input.LiquidFlows.ToArray(), secondLiquid = input.VaporFlows.ToArray()
+            Dim x = input.LiquidCompositions.ToArray(), y = input.VaporCompositions.ToArray()
+            Dim p = input.StagePressures.ToArray()
+            Try
+                For iteration As Integer = 0 To 7
+                    If Settings.TaskCancellationTokenSource.IsCancellationRequested Then Throw New TaskCanceledException()
+                    Dim hl(n - 1), hv(n - 1), cl(n - 1), cv(n - 1) As Double
+                    For stage As Integer = 0 To n - 1
+                        Dim ml = pp.AUX_MMM(x(stage)) / 1000.0
+                        Dim mv = pp.AUX_MMM(y(stage)) / 1000.0
+                        hl(stage) = liquid(stage) * ml * pp.DW_CalcEnthalpy(x(stage), temperatures(stage), p(stage), PropertyPackages.State.Liquid)
+                        hv(stage) = secondLiquid(stage) * mv * pp.DW_CalcEnthalpy(y(stage), temperatures(stage), p(stage), PropertyPackages.State.Liquid)
+                        cl(stage) = (liquid(stage) * ml * pp.DW_CalcEnthalpy(x(stage), temperatures(stage) + 0.1, p(stage), PropertyPackages.State.Liquid) - hl(stage)) / 0.1
+                        cv(stage) = (secondLiquid(stage) * mv * pp.DW_CalcEnthalpy(y(stage), temperatures(stage) + 0.1, p(stage), PropertyPackages.State.Liquid) - hv(stage)) / 0.1
+                        If Not Double.IsFinite(cl(stage)) OrElse Not Double.IsFinite(cv(stage)) OrElse cl(stage) <= 0 OrElse cv(stage) <= 0 Then Return original.ToList()
+                    Next
+                    Dim lower(n - 1), diagonal(n - 1), upper(n - 1), rhs(n - 1), stepT(n - 1) As Double
+                    For stage As Integer = 0 To n - 1
+                        diagonal(stage) = cl(stage) + cv(stage)
+                        rhs(stage) = input.FeedFlows(stage) * input.FeedEnthalpies(stage) / 1000.0 + input.StageHeats(stage) - hl(stage) - hv(stage)
+                        If stage > 0 Then
+                            lower(stage) = -cl(stage - 1)
+                            rhs(stage) += hl(stage - 1)
+                        End If
+                        If stage < n - 1 Then
+                            upper(stage) = -cv(stage + 1)
+                            rhs(stage) += hv(stage + 1)
+                        End If
+                    Next
+                    For stage As Integer = 1 To n - 1
+                        Dim multiplier = lower(stage) / diagonal(stage - 1)
+                        diagonal(stage) -= multiplier * upper(stage - 1)
+                        rhs(stage) -= multiplier * rhs(stage - 1)
+                    Next
+                    For stage As Integer = n - 1 To 0 Step -1
+                        Dim value = rhs(stage)
+                        If stage < n - 1 Then value -= upper(stage) * stepT(stage + 1)
+                        stepT(stage) = value / diagonal(stage)
+                        If Not Double.IsFinite(stepT(stage)) Then Return original.ToList()
+                    Next
+                    Dim factor = Math.Min(1.0, 50.0 / Math.Max(1.0, stepT.Select(Function(value) Math.Abs(value)).Max()))
+                    For stage As Integer = 0 To n - 1
+                        temperatures(stage) += factor * stepT(stage)
+                        If Not Double.IsFinite(temperatures(stage)) OrElse temperatures(stage) <= 0 Then Return original.ToList()
+                    Next
+                Next
+                Return temperatures.ToList()
+            Catch ex As OperationCanceledException
+                Throw
+            Catch ex As Exception
+                Return original.ToList()
+            End Try
+        End Function
+
         Public Overrides Sub Calculate(Optional ByVal args As Object = Nothing)
 
             ColumnPropertiesProfile = ""
@@ -6915,6 +6977,11 @@ Namespace UnitOperations
                             inputdata.Kvalues = Kval.ToList()
                             inputdata.LiquidCompositions = x1trials(i).ToList()
                             inputdata.VaporCompositions = x2trials(i).ToList()
+                            If Not (UseTemperatureEstimates AndAlso InitialEstimates.ValidateTemperatures()) AndAlso
+                                inputdata.LiquidSideDraws.All(Function(value) value = 0.0) AndAlso
+                                inputdata.VaporSideDraws.All(Function(value) value = 0.0) Then
+                                inputdata.StageTemperatures = ExtractorTrialTemperatures(inputdata, pp)
+                            End If
                             so = Solver.SolveColumn(inputdata)
                             ex0 = Nothing
                             Exit For
