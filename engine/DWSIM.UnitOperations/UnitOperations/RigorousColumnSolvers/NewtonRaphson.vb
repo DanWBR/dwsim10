@@ -2149,7 +2149,7 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
             Select Case col.Specs("R").SType
                 Case ColumnSpec.SpecType.Component_Fraction
                     If col.Specs("R").SpecUnit = "M" Or col.Specs("R").SpecUnit = "Molar" Then
-                        col.Specs("R").CalculatedValue = x(ns)(spci1)
+                        col.Specs("R").CalculatedValue = x(ns)(spci2)
                     Else 'W
                         col.Specs("R").CalculatedValue = col.PropertyPackage.AUX_CONVERT_MOL_TO_MASS(x(ns))(spci2)
                     End If
