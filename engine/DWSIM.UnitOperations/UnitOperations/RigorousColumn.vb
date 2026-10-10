@@ -3564,6 +3564,31 @@ Namespace UnitOperations
             Next
         End Sub
 
+        'Flash liquid labels do not encode column flow directions. For generated
+        'compositions, match the pair to the two boundary feeds: phase 1 descends
+        'from the top and phase 2 rises from the bottom. This is an initial-guess
+        'choice only; the nonlinear column equations remain unchanged.
+        Private Shared Sub OrientExtractorTrialToFeeds(topFeed As Double(), bottomFeed As Double(),
+                                                        ByRef flow1 As Double, ByRef flow2 As Double,
+                                                        ByRef composition1 As Double(), ByRef composition2 As Double())
+            If flow1 <= 0.0 OrElse flow2 <= 0.0 Then Return
+            Dim directDistance, swappedDistance As Double
+            For component As Integer = 0 To topFeed.Length - 1
+                directDistance += (composition1(component) - topFeed(component)) ^ 2 +
+                                  (composition2(component) - bottomFeed(component)) ^ 2
+                swappedDistance += (composition2(component) - topFeed(component)) ^ 2 +
+                                   (composition1(component) - bottomFeed(component)) ^ 2
+            Next
+            If Not Double.IsFinite(directDistance) OrElse Not Double.IsFinite(swappedDistance) OrElse
+                swappedDistance >= directDistance Then Return
+            Dim savedFlow = flow1
+            flow1 = flow2
+            flow2 = savedFlow
+            Dim savedComposition = composition1
+            composition1 = composition2
+            composition2 = savedComposition
+        End Sub
+
         Public Overridable Function GetSolverInputData(Optional ByVal ignoreuserestimates As Boolean = False,
                                                        Optional ByVal splitFeedByVolatility As Boolean = False) As ColumnSolverInputData
 
@@ -4437,6 +4462,9 @@ Namespace UnitOperations
                             Vx1 = flashresult(2)
                             Vx2 = flashresult(6)
                             If L2 > 0.0 Then
+                                If Not UseCompositionEstimates AndAlso F(0) > 0.0 AndAlso F(ns) > 0.0 Then
+                                    OrientExtractorTrialToFeeds(fc(0), fc(ns), L1, L2, Vx1, Vx2)
+                                End If
                                 Dim L1t, L2t As New List(Of Double)
                                 Dim xt1, xt2 As New List(Of Double())
                                 For i = 0 To Stages.Count - 1
@@ -4487,6 +4515,9 @@ Namespace UnitOperations
                             Vx1 = flashresult(2)
                             Vx2 = flashresult(6)
                             If L2 > 0.0 And Vx1.SubtractY(Vx2).AbsSqrSumY > 0.001 Then
+                                If Not UseCompositionEstimates AndAlso F(0) > 0.0 AndAlso F(ns) > 0.0 Then
+                                    OrientExtractorTrialToFeeds(fc(0), fc(ns), L1, L2, Vx1, Vx2)
+                                End If
                                 Dim L1t, L2t As New List(Of Double)
                                 Dim xt1, xt2 As New List(Of Double())
                                 For i = 0 To Stages.Count - 1
