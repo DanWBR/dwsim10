@@ -4407,37 +4407,46 @@ Namespace UnitOperations
                     Dim L1, L2, Vx1(), Vx2() As Double
                     Dim trialcomp As Double() = zm.Clone
                     For counter As Integer = 0 To 100
-                        Dim flashresult = pp.FlashBase.Flash_PT(trialcomp, P.Average, T.Average, pp)
-                        L1 = flashresult(0)
-                        L2 = flashresult(5)
-                        Vx1 = flashresult(2)
-                        Vx2 = flashresult(6)
-                        If L2 > 0.0 Then
-                            Dim L1t, L2t As New List(Of Double)
-                            Dim xt1, xt2 As New List(Of Double())
-                            For i = 0 To Stages.Count - 1
-                                If UseLiquidFlowEstimates Then
-                                    L1t.Add(L(i))
-                                Else
-                                    L1t.Add(F.Sum * L1)
-                                End If
-                                If UseVaporFlowEstimates Then
-                                    L2t.Add(V(i))
-                                Else
-                                    L2t.Add(F.Sum * L2)
-                                End If
-                                If UseCompositionEstimates Then
-                                    xt1.Add(x(i).Clone)
-                                    xt2.Add(y(i).Clone)
-                                Else
-                                    xt1.Add(Vx1)
-                                    xt2.Add(Vx2)
-                                End If
-                            Next
-                            L1trials.Add(L1t.ToArray())
-                            L2trials.Add(L2t.ToArray())
-                            x1trials.Add(xt1.ToArray())
-                            x2trials.Add(xt2.ToArray())
+                        Dim flashresult As Object() = Nothing
+                        Try
+                            flashresult = pp.FlashBase.Flash_PT(trialcomp, P.Average, T.Average, pp)
+                        Catch ex As OperationCanceledException
+                            Throw
+                        Catch ex As Exception
+                            'A numerical failure of one trial must not discard the remaining trials.
+                        End Try
+                        If flashresult IsNot Nothing Then
+                            L1 = flashresult(0)
+                            L2 = flashresult(5)
+                            Vx1 = flashresult(2)
+                            Vx2 = flashresult(6)
+                            If L2 > 0.0 Then
+                                Dim L1t, L2t As New List(Of Double)
+                                Dim xt1, xt2 As New List(Of Double())
+                                For i = 0 To Stages.Count - 1
+                                    If UseLiquidFlowEstimates Then
+                                        L1t.Add(L(i))
+                                    Else
+                                        L1t.Add(F.Sum * L1)
+                                    End If
+                                    If UseVaporFlowEstimates Then
+                                        L2t.Add(V(i))
+                                    Else
+                                        L2t.Add(F.Sum * L2)
+                                    End If
+                                    If UseCompositionEstimates Then
+                                        xt1.Add(x(i).Clone)
+                                        xt2.Add(y(i).Clone)
+                                    Else
+                                        xt1.Add(Vx1)
+                                        xt2.Add(Vx2)
+                                    End If
+                                Next
+                                L1trials.Add(L1t.ToArray())
+                                L2trials.Add(L2t.ToArray())
+                                x1trials.Add(xt1.ToArray())
+                                x2trials.Add(xt2.ToArray())
+                            End If
                         End If
                         Dim rnd As New Random(counter)
                         'random trials only over the compounds in the column feed (same draws when all are present)
@@ -4448,37 +4457,46 @@ Namespace UnitOperations
                     trialcomp = zm.Clone
                     Dim lle As New PropertyPackages.Auxiliary.FlashAlgorithms.SimpleLLE()
                     For counter As Integer = 0 To 100
-                        Dim flashresult = lle.Flash_PT(trialcomp, P.Average, T.Average, pp)
-                        L1 = flashresult(0)
-                        L2 = flashresult(5)
-                        Vx1 = flashresult(2)
-                        Vx2 = flashresult(6)
-                        If L2 > 0.0 And Vx1.SubtractY(Vx2).AbsSqrSumY > 0.001 Then
-                            Dim L1t, L2t As New List(Of Double)
-                            Dim xt1, xt2 As New List(Of Double())
-                            For i = 0 To Stages.Count - 1
-                                If UseLiquidFlowEstimates Then
-                                    L1t.Add(L(i))
-                                Else
-                                    L1t.Add(F.Sum * L1)
-                                End If
-                                If UseVaporFlowEstimates Then
-                                    L2t.Add(V(i))
-                                Else
-                                    L2t.Add(F.Sum * L2)
-                                End If
-                                If UseCompositionEstimates Then
-                                    xt1.Add(x(i))
-                                    xt2.Add(y(i))
-                                Else
-                                    xt1.Add(Vx1)
-                                    xt2.Add(Vx2)
-                                End If
-                            Next
-                            L1trials.Add(L1t.ToArray())
-                            L2trials.Add(L2t.ToArray())
-                            x1trials.Add(xt1.ToArray())
-                            x2trials.Add(xt2.ToArray())
+                        Dim flashresult As Object() = Nothing
+                        Try
+                            flashresult = lle.Flash_PT(trialcomp, P.Average, T.Average, pp)
+                        Catch ex As OperationCanceledException
+                            Throw
+                        Catch ex As Exception
+                            'A numerical failure of one trial must not discard the remaining trials.
+                        End Try
+                        If flashresult IsNot Nothing Then
+                            L1 = flashresult(0)
+                            L2 = flashresult(5)
+                            Vx1 = flashresult(2)
+                            Vx2 = flashresult(6)
+                            If L2 > 0.0 And Vx1.SubtractY(Vx2).AbsSqrSumY > 0.001 Then
+                                Dim L1t, L2t As New List(Of Double)
+                                Dim xt1, xt2 As New List(Of Double())
+                                For i = 0 To Stages.Count - 1
+                                    If UseLiquidFlowEstimates Then
+                                        L1t.Add(L(i))
+                                    Else
+                                        L1t.Add(F.Sum * L1)
+                                    End If
+                                    If UseVaporFlowEstimates Then
+                                        L2t.Add(V(i))
+                                    Else
+                                        L2t.Add(F.Sum * L2)
+                                    End If
+                                    If UseCompositionEstimates Then
+                                        xt1.Add(x(i))
+                                        xt2.Add(y(i))
+                                    Else
+                                        xt1.Add(Vx1)
+                                        xt2.Add(Vx2)
+                                    End If
+                                Next
+                                L1trials.Add(L1t.ToArray())
+                                L2trials.Add(L2t.ToArray())
+                                x1trials.Add(xt1.ToArray())
+                                x2trials.Add(xt2.ToArray())
+                            End If
                         End If
                         Dim rnd As New Random(counter)
                         'random trials only over the compounds in the column feed (same draws when all are present)
