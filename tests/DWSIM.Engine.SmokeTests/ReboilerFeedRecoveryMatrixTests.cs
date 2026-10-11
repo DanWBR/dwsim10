@@ -17,7 +17,6 @@ namespace DWSIM.Engine.SmokeTests
             Settings.AutomationMode = true;
             Settings.InspectorEnabled = false;
             Settings.CultureInfo = "en";
-            Settings.EnableParallelProcessing = false;
         }
 
         // The requested recovery is chosen independently of the 50 mol/s seed.
