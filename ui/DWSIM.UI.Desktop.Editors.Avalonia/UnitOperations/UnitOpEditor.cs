@@ -246,6 +246,18 @@ namespace DWSIM.UI.Desktop.Editors
             public TextBox Value;
             public ComboBox Unit;
 
+            /// <summary>Formats an SI value the way the row shows it, in the unit of the simulation.</summary>
+            public Func<double, string> Show;
+
+            /// <summary>Shows a value set from elsewhere, without committing it.</summary>
+            public void Refresh(double siValue)
+            {
+                if (Value != null && Show != null) Value.Text = Show(siValue);
+                StoredEmpty = double.IsNaN(siValue);
+            }
+
+            internal bool StoredEmpty;
+
             public bool IsEnabled
             {
                 set
@@ -256,13 +268,18 @@ namespace DWSIM.UI.Desktop.Editors
             }
         }
 
+        /// <param name="emptyHint">
+        /// When set, the row accepts an empty field: NaN shows as an empty box with this hint, and
+        /// clearing the box commits NaN. Without it, NaN shows as a number and an empty box is ignored.
+        /// </param>
         public static ValueRow CreateAndAddValueUnitRow(this AvaloniaEditorPanel panel,
                                                        ISimulationObject simobj,
                                                        string label,
                                                        UnitOfMeasure measure,
                                                        double siValue,
                                                        Action<double> commit,
-                                                       bool enabled = true)
+                                                       bool enabled = true,
+                                                       string emptyHint = null)
         {
             var flowsheet = simobj.GetFlowsheet();
             var su = flowsheet.FlowsheetOptions.SelectedUnitSystem;
@@ -271,13 +288,22 @@ namespace DWSIM.UI.Desktop.Editors
             var unit = UnitOf(su, measure);
             var units = Units(su, measure);
 
+            var allowEmpty = emptyHint != null;
+
+            string Show(double si) => allowEmpty && double.IsNaN(si)
+                ? ""
+                : cv.ConvertFromSI(unit, si).ToString(nf, CultureInfo.CurrentCulture);
+
             var value = new TextBox
             {
-                Text = cv.ConvertFromSI(unit, siValue).ToString(nf, CultureInfo.CurrentCulture),
+                Text = Show(siValue),
                 TextAlignment = TextAlignment.Right,
                 IsEnabled = enabled,
                 MinWidth = 110
             };
+            if (allowEmpty) value.Watermark = emptyHint;
+
+            var row = new ValueRow { Value = value, Show = Show, StoredEmpty = allowEmpty && double.IsNaN(siValue) };
 
             var picker = new ComboBox
             {
@@ -287,11 +313,26 @@ namespace DWSIM.UI.Desktop.Editors
                 MinWidth = 90,
                 Margin = new Thickness(4, 0, 0, 0)
             };
+            row.Unit = picker;
 
             void Commit()
             {
+                if (allowEmpty && string.IsNullOrWhiteSpace(value.Text))
+                {
+                    // leaving a box that was already empty changes nothing
+                    if (row.StoredEmpty) return;
+                    row.StoredEmpty = true;
+                    flowsheet.RegisterSnapshot(SnapshotType.ObjectData, simobj);
+                    commit(double.NaN);
+                    value.Text = "";
+                    picker.SelectedIndex = Math.Max(0, units.IndexOf(unit));
+                    panel.OnAfterEdit?.Invoke();
+                    return;
+                }
+
                 if (!TryParse(value.Text, out var typed)) return;
                 var from = picker.SelectedItem as string ?? unit;
+                row.StoredEmpty = false;
 
                 flowsheet.RegisterSnapshot(SnapshotType.ObjectData, simobj);
                 commit(cv.ConvertToSI(from, typed));
@@ -305,7 +346,8 @@ namespace DWSIM.UI.Desktop.Editors
 
             // blue while the text parses, red while it does not, as the Windows editors colour it
             value.TextChanged += (s, e) => value.Foreground =
-                new SolidColorBrush(TryParse(value.Text, out _) ? Colors.Blue : Colors.Red);
+                new SolidColorBrush(TryParse(value.Text, out _) || (allowEmpty && string.IsNullOrWhiteSpace(value.Text))
+                    ? Colors.Blue : Colors.Red);
 
             value.KeyDown += (s, e) =>
             {
@@ -317,13 +359,13 @@ namespace DWSIM.UI.Desktop.Editors
             value.LostFocus += (s, e) => Commit();
             picker.SelectionChanged += (s, e) => { if (picker.IsFocused) Commit(); };
 
-            var row = new DockPanel();
+            var line = new DockPanel();
             DockPanel.SetDock(picker, global::Avalonia.Controls.Dock.Right);
-            row.Children.Add(picker);
-            row.Children.Add(value);
+            line.Children.Add(picker);
+            line.Children.Add(value);
 
-            panel.Children.Add(AvaloniaEditorPanel.MakeLabelControlRow(label, row));
-            return new ValueRow { Value = value, Unit = picker };
+            panel.Children.Add(AvaloniaEditorPanel.MakeLabelControlRow(label, line));
+            return row;
         }
 
         /// <summary>

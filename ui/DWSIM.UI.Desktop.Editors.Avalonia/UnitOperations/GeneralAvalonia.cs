@@ -1569,9 +1569,16 @@ namespace DWSIM.UI.Desktop.Editors
             panel.CreateAndAddTextBoxRow(nf, "Condenser Pressure Drop (" + su.deltaP + ")",
                 cv.ConvertFromSI(su.deltaP, col.CondenserDeltaP),
                 (tb, e) => { if (TryVal(tb.Text, out var v)) col.CondenserDeltaP = cv.ConvertToSI(su.deltaP, v); });
-            panel.CreateAndAddTextBoxRow(nf, "Column Pressure Drop (" + su.deltaP + ")",
+            // an empty drop (NaN) is a custom per-stage profile; clearing the box sets it
+            var colDrop = panel.CreateAndAddTextBoxRow(nf, "Column Pressure Drop (" + su.deltaP + ")",
                 cv.ConvertFromSI(su.deltaP, col.ColumnPressureDrop),
-                (tb, e) => { if (TryVal(tb.Text, out var v)) col.ColumnPressureDrop = cv.ConvertToSI(su.deltaP, v); });
+                (tb, e) =>
+                {
+                    if (string.IsNullOrWhiteSpace(tb.Text)) col.ColumnPressureDrop = double.NaN;
+                    else if (TryVal(tb.Text, out var v)) col.ColumnPressureDrop = cv.ConvertToSI(su.deltaP, v);
+                });
+            if (double.IsNaN(col.ColumnPressureDrop)) colDrop.Text = "";
+            colDrop.Watermark = "custom per-stage profile";
             panel.CreateAndAddTextBoxRow(nf, "Reflux Ratio", col.RefluxRatio,
                 (tb, e) => { if (TryVal(tb.Text, out var v)) col.RefluxRatio = v; });
             panel.CreateAndAddTextBoxRow(nf, "Distillate Flow Rate (" + su.molarflow + ")",

@@ -78,7 +78,7 @@ Namespace UnitOperations
 
         ''' <summary>
         ''' Initializes a new instance of the <see cref="DistillationColumn"/> class with a name and description,
-        ''' creates the default stages and sets every stage pressure to 101325 Pa.
+        ''' creates the default stages, sets every stage pressure to 101325 Pa and the column pressure drop to zero.
         ''' </summary>
         ''' <param name="name">The name of this unit operation.</param>
         ''' <param name="description">A brief description of this unit operation.</param>
@@ -90,6 +90,9 @@ Namespace UnitOperations
             For k2 = 0 To Me.Stages.Count - 1
                 Me.Stages(k2).P = 101325
             Next
+            ' a new column runs every stage from the top pressure plus a uniform drop; a loaded file keeps the
+            ' value it was saved with (NaN, the property default, means a custom per-stage profile)
+            Me.ColumnPressureDrop = 0.0
         End Sub
 
         ''' <summary>
@@ -1081,7 +1084,7 @@ Namespace UnitOperations
 
         ''' <summary>
         ''' Initializes a new instance of the <see cref="AbsorptionColumn"/> class with a name and description,
-        ''' creates the default stages and sets every stage pressure to 101325 Pa.
+        ''' creates the default stages, sets every stage pressure to 101325 Pa and the column pressure drop to zero.
         ''' </summary>
         ''' <param name="name">The name of this unit operation.</param>
         ''' <param name="description">A brief description of this unit operation.</param>
@@ -1096,6 +1099,9 @@ Namespace UnitOperations
             For k2 = 0 To Me.Stages.Count - 1
                 Me.Stages(k2).P = 101325
             Next
+            ' a new column runs every stage from the top pressure plus a uniform drop; a loaded file keeps the
+            ' value it was saved with (NaN, the property default, means a custom per-stage profile)
+            Me.ColumnPressureDrop = 0.0
         End Sub
 
         ''' <summary>Creates a deep copy of this object by round-tripping through XML serialization.</summary>
@@ -2359,6 +2365,11 @@ Namespace UnitOperations
 
         Public Property ColumnPropertiesProfile As String = ""
 
+        ''' <summary>
+        ''' Pressure drop across the column, Pa. Every stage then runs at the top pressure plus its share of the drop.
+        ''' NaN means a custom per-stage profile: the solvers use the stage pressures as stored. New columns start at
+        ''' zero; NaN stays the property default so a file saved without the value loads as it always did.
+        ''' </summary>
         Public Property ColumnPressureDrop As Double = Double.NaN
 
         ''' <summary>
@@ -2555,6 +2566,8 @@ Namespace UnitOperations
                 For i = 1 To dif
                     Stages.Insert(Stages.Count - 1, New Stage(Guid.NewGuid().ToString))
                     Stages(Stages.Count - 2).Name = "Stage" & Stages.Count - 2
+                    ' between its neighbours, so a custom pressure profile has no stage at zero pressure
+                    Stages(Stages.Count - 2).P = (Stages(Stages.Count - 3).P + Stages(Stages.Count - 1).P) / 2
                     With InitialEstimates
                         Dim d As New Dictionary(Of String, Parameter)
                         For Each cp In FlowSheet.SelectedCompounds.Values

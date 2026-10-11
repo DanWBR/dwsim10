@@ -19,8 +19,8 @@ namespace DWSIM.UI.Desktop.Editors
 {
 
     /// <summary>
-    /// The stages of a rigorous column: name, efficiency and the tray geometry the sizing reads,
-    /// as the Windows stages editor lists them, with the same bulk setters below the grid.
+    /// The stages of a rigorous column: name, pressure, efficiency and the tray geometry the sizing
+    /// reads, as the Windows stages editor lists them, with the same bulk setters below the grid.
     /// </summary>
     public static class ColumnStagesEditor
     {
@@ -30,13 +30,17 @@ namespace DWSIM.UI.Desktop.Editors
             private readonly Stage _stage;
             private readonly IUnitsOfMeasure _su;
             private readonly string _nf;
+            private readonly int _index;
+            private readonly Action<int, double> _setPressure;
 
-            public StageRow(int index, Stage stage, IUnitsOfMeasure su, string nf)
+            public StageRow(int index, Stage stage, IUnitsOfMeasure su, string nf, Action<int, double> setPressure)
             {
                 Stage = index.ToString();
+                _index = index;
                 _stage = stage;
                 _su = su;
                 _nf = nf;
+                _setPressure = setPressure;
             }
 
             public string Stage { get; private set; }
@@ -45,6 +49,16 @@ namespace DWSIM.UI.Desktop.Editors
             {
                 get { return _stage.Name; }
                 set { _stage.Name = value; Raise("Name"); }
+            }
+
+            public string Pressure
+            {
+                get { return cv.ConvertFromSI(_su.pressure, _stage.P).ToString(_nf, CultureInfo.CurrentCulture); }
+                set
+                {
+                    if (!UnitOpEditorRows.TryParse(value, out var v)) return;
+                    _setPressure(_index, cv.ConvertToSI(_su.pressure, v));
+                }
             }
 
             public string Efficiency
@@ -88,6 +102,7 @@ namespace DWSIM.UI.Desktop.Editors
 
             public void Refresh()
             {
+                Raise("Pressure");
                 Raise("Efficiency");
                 Raise("HoleArea");
                 Raise("DowncomerLength");
@@ -103,18 +118,48 @@ namespace DWSIM.UI.Desktop.Editors
 
         public static Control Build(Column column)
         {
+            return Build(column, null, out _);
+        }
+
+        /// <summary>
+        /// The stages grid. <paramref name="pressuresChanged"/> runs after a stage pressure is typed, so
+        /// the general tab can show the new top pressure and drop; <paramref name="refresh"/> redraws the
+        /// grid after the general tab changes them.
+        /// </summary>
+        public static Control Build(Column column, Action pressuresChanged, out Action refresh)
+        {
             var flowsheet = column.GetFlowsheet();
             var su = flowsheet.FlowsheetOptions.SelectedUnitSystem;
             var nf = flowsheet.FlowsheetOptions.NumberFormat;
 
             var rows = new ObservableCollection<StageRow>();
 
+            // The top stage moves the profile as the top pressure does in the general tab. Any other
+            // stage makes the profile a custom one: the column pressure drop is cleared, or the solver
+            // would recompute the stages from the top and the typed value would be lost.
+            void SetPressure(int index, double p)
+            {
+                if (column.Stages == null || index < 0 || index >= column.Stages.Count) return;
+                flowsheet.RegisterSnapshot(SnapshotType.ObjectData, column);
+                if (index == 0)
+                {
+                    column.SetTopStagePressure(p);
+                }
+                else
+                {
+                    column.ColumnPressureDrop = double.NaN;
+                    column.Stages[index].P = p;
+                }
+                foreach (var row in rows) row.Refresh();
+                pressuresChanged?.Invoke();
+            }
+
             if (column.Stages != null)
             {
                 var index = 0;
                 foreach (var stage in column.Stages)
                 {
-                    rows.Add(new StageRow(index, stage, su, nf));
+                    rows.Add(new StageRow(index, stage, su, nf, SetPressure));
                     index += 1;
                 }
             }
@@ -131,15 +176,28 @@ namespace DWSIM.UI.Desktop.Editors
 
             grid.Columns.Add(Column("Stage", "Stage", 0.6, readOnly: true));
             grid.Columns.Add(Column("Name", "Name", 1.4));
+            grid.Columns.Add(Column("Pressure (" + su.pressure + ")", "Pressure", 1.1));
             grid.Columns.Add(Column("Efficiency", "Efficiency", 1.0));
             grid.Columns.Add(Column("Total Hole Area (" + su.area + ")", "HoleArea", 1.2));
             grid.Columns.Add(Column("Downcomer Length (" + su.distance + ")", "DowncomerLength", 1.2));
             grid.Columns.Add(Column("Downcomer Height (" + su.distance + ")", "DowncomerHeight", 1.2));
 
+            var note = new TextBlock
+            {
+                Text = "Stage pressures follow the top pressure and the column pressure drop. Typing the pressure of a stage below the top makes the profile a custom one and clears the column pressure drop.",
+                TextWrapping = global::Avalonia.Media.TextWrapping.Wrap,
+                Opacity = 0.75,
+                Margin = new Thickness(4, 6, 4, 2)
+            };
+
             var host = new DockPanel();
             DockPanel.SetDock(grid, global::Avalonia.Controls.Dock.Top);
+            DockPanel.SetDock(note, global::Avalonia.Controls.Dock.Top);
             host.Children.Add(grid);
+            host.Children.Add(note);
             host.Children.Add(BuildBulkSetters(column, su, rows));
+
+            refresh = () => { foreach (var row in rows) row.Refresh(); };
 
             return host;
         }
