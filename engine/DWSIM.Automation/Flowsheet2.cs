@@ -53,7 +53,6 @@ namespace DWSIM.Automation
                     string rgfdata = rgfdataelement == null ? "" : rgfdataelement.Value;
                     if (!string.IsNullOrWhiteSpace(rgfdata))
                     {
-                        rgfdata = rgfdata.Replace("Calibri", "Arial").Replace("10.25", "10");
                         var sdict = Newtonsoft.Json.JsonConvert.DeserializeObject<Dictionary<string, string>>(rgfdata);
                         if (sdict == null || sdict.Count == 0) return;
                         Spreadsheet.RemoveWorksheet(0);
@@ -62,7 +61,7 @@ namespace DWSIM.Automation
                             var tmpfile = SharedClasses.Utility.GetTempFileName();
                             var sheet = Spreadsheet.CreateWorksheet(item.Key);
                             Spreadsheet.Worksheets.Add(sheet);
-                            var xmldoc = Newtonsoft.Json.JsonConvert.DeserializeXmlNode(item.Value);
+                            var xmldoc = Newtonsoft.Json.JsonConvert.DeserializeXmlNode(DefaultSheetFont(item.Value));
                             xmldoc.Save(tmpfile);
                             sheet.LoadRGF(tmpfile);
                             File.Delete(tmpfile);
@@ -109,6 +108,24 @@ namespace DWSIM.Automation
 
             updateUIaction = updateUIhandler;
 
+        }
+
+        private static readonly System.Text.RegularExpressions.Regex ClassicFontName =
+            new System.Text.RegularExpressions.Regex(@"(""@font"":"")Calibri("")");
+
+        private static readonly System.Text.RegularExpressions.Regex ClassicFontSize =
+            new System.Text.RegularExpressions.Regex(@"(""@font-size"":"")10\.25("")");
+
+        /// <summary>
+        /// Swap the classic spreadsheet's default font, Calibri 10.25, for Arial 10 in the styles of
+        /// a worksheet stored as RGF JSON. Only the style attributes change: a cell value or a formula
+        /// that holds "Calibri" or 10.25 is kept as it is.
+        /// </summary>
+        public static string DefaultSheetFont(string sheetJson)
+        {
+            if (string.IsNullOrEmpty(sheetJson)) return sheetJson;
+            sheetJson = ClassicFontName.Replace(sheetJson, "${1}Arial${2}");
+            return ClassicFontSize.Replace(sheetJson, "${1}10${2}");
         }
 
         private List<string[]> GetSpreadsheetDataFromRange(string range)

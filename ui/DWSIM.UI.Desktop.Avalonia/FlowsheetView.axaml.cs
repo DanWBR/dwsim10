@@ -1285,8 +1285,7 @@ public partial class FlowsheetView : UserControl
                 if (rgfEl != null && !string.IsNullOrEmpty(rgfEl.Value))
                 {
                     // RGF format: JSON dictionary of worksheet name -> RGF XML JSON
-                    var rgfdata = rgfEl.Value.Replace("Calibri", "Arial").Replace("10.25", "10");
-                    var sdict = Newtonsoft.Json.JsonConvert.DeserializeObject<Dictionary<string, string>>(rgfdata);
+                    var sdict = Newtonsoft.Json.JsonConvert.DeserializeObject<Dictionary<string, string>>(rgfEl.Value);
                     if (sdict != null && sdict.Count > 0)
                     {
                         Dispatcher.UIThread.Invoke(() =>
@@ -1298,7 +1297,8 @@ public partial class FlowsheetView : UserControl
                                 try
                                 {
                                     var sheet = _spreadsheet.Grid.NewWorksheet(item.Key);
-                                    var xmldoc = Newtonsoft.Json.JsonConvert.DeserializeXmlNode(item.Value);
+                                    var xmldoc = Newtonsoft.Json.JsonConvert.DeserializeXmlNode(
+                                        DWSIM.Automation.Flowsheet2.DefaultSheetFont(item.Value));
                                     var tmpfile = DWSIM.SharedClasses.Utility.GetTempFileName();
                                     xmldoc!.Save(tmpfile);
                                     sheet.LoadRGF(tmpfile);
