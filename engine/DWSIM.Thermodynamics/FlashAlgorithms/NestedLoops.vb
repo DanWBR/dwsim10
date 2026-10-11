@@ -3632,6 +3632,7 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
             Dim result As Object()
             Dim Kvals As Double()
             Dim trivial As Boolean = False
+            Dim fromzero As Object() = Nothing
 
             Dim estimate As Interfaces.IConvergenceHelperResponse = Nothing
 
@@ -3792,6 +3793,10 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                 If result.Count > 1 Then
                     Kvals = result(6)
                     If PP.AUX_CheckTrivial(Kvals, 0.2, Vz) Then trivial = True
+                    'A bubble point of the model found by this retry, away from the trivial solution, is kept: the
+                    'flag still sends the flash to the pressure stepping below, and where that finds nothing it stands.
+                    If trivial AndAlso Not AcceptStalledSaturationPoint AndAlso Not CalculatingAzeotrope AndAlso V = 0.0 AndAlso
+                        SaturationPointHolds(Vz, P, V, result, PP) Then fromzero = result
                 End If
             End If
 
@@ -3821,6 +3826,7 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                         result = New Object() {-1}
                     End If
                 End If
+                If result.Count = 1 AndAlso fromzero IsNot Nothing Then result = fromzero
             End If
 
             If checkdew Then result = DewPointOnStableBranch(Vz, P, Tfirst, result, PP)
@@ -4208,6 +4214,14 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
         Friend Property CheckedByCaller As Boolean = False
 
         ''' <summary>
+        ''' An instance that runs the checks below (SaturationPointHolds, IdealResultHolds) for NestedLoops2, with its
+        ''' flash settings and loop tolerance.
+        ''' </summary>
+        Friend Shared Function ForChecks(settings As Dictionary(Of Interfaces.Enums.FlashSetting, String), tol As Double) As NestedLoops
+            Return New NestedLoops With {.FlashSettings = settings, .etol = tol}
+        End Function
+
+        ''' <summary>
         ''' Whether the checks below apply: to an equation of state, a corresponding-states or an activity-coefficient
         ''' package whose K values come from its fugacity coefficients, and not to a single compound, nor to a feed with
         ''' solids or salts, which Flash_PV_1 keeps out of the vapour on another basis.
@@ -4248,7 +4262,7 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
         ''' energy), and no stationary point of the tangent plane distance lies below it. The test of
         ''' DewPointOnStableBranch, for a result that is not re-seeded.
         ''' </summary>
-        Private Function SaturationPointHolds(Vz As Double(), P As Double, V As Double, result As Object(), PP As PropertyPackages.PropertyPackage) As Boolean
+        Friend Function SaturationPointHolds(Vz As Double(), P As Double, V As Double, result As Object(), PP As PropertyPackages.PropertyPackage) As Boolean
 
             If result.Count < 7 OrElse Not (V = 0.0 OrElse V = 1.0) OrElse Not SaturationCheckApplies(Vz, PP) Then Return False
             'phases next to each other (y/x within 0.21 of 1, the trivial solution as Flash_PV takes it; within 0.01
@@ -4312,7 +4326,7 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
         ''' Whether the answer of the ideal-solution fallback holds for the model: a bubble or dew point that is one of
         ''' the model, or a two-phase state of the model. Feeds outside the saturation-point check keep the answer.
         ''' </summary>
-        Private Function IdealResultHolds(Vz As Double(), P As Double, V As Double, result As Object(), PP As PropertyPackages.PropertyPackage) As Boolean
+        Friend Function IdealResultHolds(Vz As Double(), P As Double, V As Double, result As Object(), PP As PropertyPackages.PropertyPackage) As Boolean
             If Not SaturationCheckApplies(Vz, PP) Then Return True
             If V = 0.0 OrElse V = 1.0 Then Return SaturationPointHolds(Vz, P, V, result, PP)
             Return TwoPhaseResultHolds(Vz, P, result, PP)

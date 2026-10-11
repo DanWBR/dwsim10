@@ -126,5 +126,68 @@ namespace DWSIM.Engine.SmokeTests
             TestContext.WriteLine("start 291.16 K -> {0:F4} K, sum K x = {1:F6}", T, s);
             Assert.That(s, Is.EqualTo(1.0).Within(1e-3));
         }
+
+        /// <summary>
+        /// From 298.16 K at 80 bar the first attempt ends on the trivial solution with a step under 0.01 K. The
+        /// retry from T = 0 finds the lower root, 197.54 K, a bubble point of the model, but the trivial flag
+        /// stayed set and the pressure stepping, which fails at 1 atm, replaced it: Nested Loops v2 answered
+        /// with its Raoult's law fallback (104.76 K, sum K x = 8.5 on the package's fugacity coefficients), and
+        /// Nested Loops (v1) failed, after which the package's fail-safe answered the same.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public void ARetryThatFindsABubblePointOfTheModelIsKept(bool nestedLoopsV2)
+        {
+            var pp = CarbonDioxideHydrogenMethane(nestedLoopsV2);
+            double[] x = { 0.90, 0.03, 0.07 };
+            const double P = 80e5;
+
+            var flash = (DWSIM.Thermodynamics.PropertyPackages.Auxiliary.FlashAlgorithms.FlashAlgorithm)
+                pp.FlashBase.Clone();
+            var r = (object[])flash.Flash_PV(x, P, 0.0, 298.16, pp, false, null);
+
+            var T = Convert.ToDouble(r[4]);
+            var y = (double[])r[3];
+            var phil = pp.DW_CalcFugCoeff(x, T, P, DWSIM.Thermodynamics.PropertyPackages.State.Liquid);
+            var phiv = pp.DW_CalcFugCoeff(y, T, P, DWSIM.Thermodynamics.PropertyPackages.State.Vapor);
+            double s = 0.0;
+            for (int i = 0; i < x.Length; i++) s += x[i] * phil[i] / phiv[i];
+
+            TestContext.WriteLine("start 298.16 K -> {0:F4} K, sum K x = {1:F6}", T, s);
+            Assert.That(s, Is.EqualTo(1.0).Within(1e-3));
+            Assert.That(T, Is.EqualTo(197.54).Within(0.05));
+        }
+
+        /// <summary>
+        /// 0.96 CO2 / 0.04 methane at 70 bar, no estimate: the rigorous bubble point fails, and Raoult's law
+        /// answers 199.75 K, where sum K x on the package's fugacity coefficients is 0.375. Nested Loops (v1)
+        /// rejects that answer; Nested Loops v2 returned it from its own ideal fallback. With the package's
+        /// fail-safe off, both now fail, so a caller's Catch can take over.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public void AnUnconfirmedIdealBubblePointIsRejected(bool nestedLoopsV2)
+        {
+            var fs = new DWSIM.DynamicRunner.Flowsheet(null, null);
+            fs.Init();
+            fs.AddCompound("Carbon dioxide");
+            fs.AddCompound("Methane");
+
+            var pp = new DWSIM.Thermodynamics.PropertyPackages.PengRobinsonPropertyPackage { Flowsheet = fs };
+            pp.FlashSettings[DWSIM.Interfaces.Enums.FlashSetting.NestedLoops_v2] = nestedLoopsV2 ? "True" : "False";
+            pp.FlashSettings[DWSIM.Interfaces.Enums.FlashSetting.FailSafeCalculationMode] = "3";
+
+            var obj = fs.AddObject(
+                DWSIM.Interfaces.Enums.GraphicObjects.ObjectType.MaterialStream, 0, 0, "liquid");
+            var ms = (DWSIM.Thermodynamics.Streams.MaterialStream)fs.SimulationObjects[obj.Name];
+            ms.SetFlowsheet(fs);
+            ms.SetPropertyPackage(pp);
+            pp.CurrentMaterialStream = ms;
+
+            var flash = (DWSIM.Thermodynamics.PropertyPackages.Auxiliary.FlashAlgorithms.FlashAlgorithm)
+                pp.FlashBase.Clone();
+
+            Assert.That(() => flash.Flash_PV(new[] { 0.96, 0.04 }, 70e5, 0.0, 0.0, pp, false, null), Throws.Exception);
+        }
     }
 }
