@@ -1431,7 +1431,7 @@ public partial class FlowsheetView : UserControl
             var ws = _spreadsheet.Grid.CurrentWorksheet;
             var cell = ws.Cells[ws.SelectionRange.StartPos];
             var units = dlg.SelectedUnit ?? "";
-            cell.Formula = string.Format("GETPROPVAL(\"{0}\";\"{1}\";\"{2}\")",
+            cell.Formula = SpreadsheetPanel.FormulaCall("GETPROPVAL",
                 dlg.SelectedObjectId, dlg.SelectedPropertyKey, units);
         };
 
@@ -1445,7 +1445,7 @@ public partial class FlowsheetView : UserControl
             var scell = ws.Cells[ws.SelectionRange.StartPos];
             var currdata = scell.Formula ?? scell.Data?.ToString() ?? "";
             var units = dlg.SelectedUnit ?? "";
-            scell.Formula = string.Format("SETPROPVAL(\"{0}\";\"{1}\";\"{2}\";\"{3}\")",
+            scell.Formula = SpreadsheetPanel.FormulaCall("SETPROPVAL",
                 dlg.SelectedObjectId, dlg.SelectedPropertyKey, currdata, units);
         };
 

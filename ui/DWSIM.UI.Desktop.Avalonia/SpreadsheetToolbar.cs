@@ -483,7 +483,7 @@ public sealed class SpreadsheetToolbar : DockPanel
         if (sheet == null) return;
 
         var cell = sheet.CreateAndGetCell(sheet.SelectionRange.StartPos);
-        cell.Formula = string.Format("GETPROPVAL(\"{0}\";\"{1}\";\"{2}\")",
+        cell.Formula = SpreadsheetPanel.FormulaCall("GETPROPVAL",
             dialog.SelectedObjectId, dialog.SelectedPropertyKey, dialog.SelectedUnit ?? "");
 
         sheet.Recalculate();
@@ -505,7 +505,7 @@ public sealed class SpreadsheetToolbar : DockPanel
         // what the cell already holds becomes the value written to the property
         var current = string.IsNullOrEmpty(cell.Formula) ? cell.Data?.ToString() ?? "" : cell.Formula;
 
-        cell.Formula = string.Format("SETPROPVAL(\"{0}\";\"{1}\";\"{2}\";\"{3}\")",
+        cell.Formula = SpreadsheetPanel.FormulaCall("SETPROPVAL",
             dialog.SelectedObjectId, dialog.SelectedPropertyKey, current, dialog.SelectedUnit ?? "");
 
         sheet.Recalculate();

@@ -55,6 +55,22 @@ public sealed class SpreadsheetPanel
     }
 
     // -----------------------------------------------------------------
+    // Formulas written by the property pickers
+    // -----------------------------------------------------------------
+
+    /// <summary>
+    /// A call to <paramref name="function"/> with text arguments, as the formula parser reads it on
+    /// this machine: ReoGrid separates arguments with the list separator of the current culture
+    /// ("," on en-US, ";" on pt-BR), so a fixed separator fails to parse on the other locales.
+    /// Quotes inside an argument are doubled, as the parser expects.
+    /// </summary>
+    public static string FormulaCall(string function, params string[] args)
+    {
+        var quoted = args.Select(a => "\"" + (a ?? "").Replace("\"", "\"\"") + "\"");
+        return function + "(" + string.Join(FormulaExtension.ParameterSeparator, quoted) + ")";
+    }
+
+    // -----------------------------------------------------------------
     // Custom DWSIM formula functions
     // -----------------------------------------------------------------
 
