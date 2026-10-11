@@ -310,7 +310,7 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                             Case ColumnSpec.SpecType.Component_Fraction
                                 If specs("R").SpecUnit = "M" Or specs("R").SpecUnit = "Molar" Then
                                     errfunc2 = Log((x2(ns)(spci2)) / spval2)
-                                    specs("R").CalculatedValue = x2(ns)(spci1)
+                                    specs("R").CalculatedValue = x2(ns)(spci2)
                                 Else 'W
                                     errfunc2 = Log((pp.AUX_CONVERT_MOL_TO_MASS(x2(ns))(spci2)) / spval2)
                                     specs("R").CalculatedValue = pp.AUX_CONVERT_MOL_TO_MASS(x2(ns))(spci2)
@@ -492,7 +492,7 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                         Select Case specs("R").SType
                             Case ColumnSpec.SpecType.Component_Fraction
                                 If specs("R").SpecUnit = "M" Or specs("R").SpecUnit = "Molar" Then
-                                    specs("R").CalculatedValue = x2(ns)(spci1)
+                                    specs("R").CalculatedValue = x2(ns)(spci2)
                                 Else 'W
                                     specs("R").CalculatedValue = pp.AUX_CONVERT_MOL_TO_MASS(x2(ns))(spci2)
                                 End If
@@ -643,7 +643,7 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                         Case ColumnSpec.SpecType.Component_Fraction
                             If specs("R").SpecUnit = "M" Or specs("R").SpecUnit = "Molar" Then
                                 errfunc = Log((x2(ns)(spci2)) / spval2)
-                                specs("R").CalculatedValue = x2(ns)(spci1)
+                                specs("R").CalculatedValue = x2(ns)(spci2)
                             Else 'W
                                 errfunc = Log((pp.AUX_CONVERT_MOL_TO_MASS(x2(ns))(spci2)) / spval2)
                                 specs("R").CalculatedValue = pp.AUX_CONVERT_MOL_TO_MASS(x2(ns))(spci2)
@@ -2365,7 +2365,7 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
             Select Case col.Specs("R").SType
                 Case ColumnSpec.SpecType.Component_Fraction
                     If col.Specs("R").SpecUnit = "M" Or col.Specs("R").SpecUnit = "Molar" Then
-                        col.Specs("R").CalculatedValue = x(ns)(spci1)
+                        col.Specs("R").CalculatedValue = x(ns)(spci2)
                     Else 'W
                         col.Specs("R").CalculatedValue = col.PropertyPackage.AUX_CONVERT_MOL_TO_MASS(x(ns))(spci2)
                     End If
