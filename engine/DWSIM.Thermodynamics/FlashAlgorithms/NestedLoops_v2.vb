@@ -2914,6 +2914,15 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                     result = retry
                     deltaT = 0.0
                 End If
+            ElseIf Not AcceptStalledSaturationPoint AndAlso result.Count > 1 AndAlso V = 0 AndAlso Math.Abs(deltaT) > 0.01 AndAlso
+                Not PP.AUX_CheckTrivial(DirectCast(result(6), Double()), 0.21, Vz) Then
+                'The bubble-point equation holds at the returned point, so it has converged whatever step the
+                'loop took last: Flash_PV_1 tests its residual after each step, and a loop that lands on the root
+                'in one or two steps reports a step of a kelvin or more. Taken for a failure, that point went to
+                'the fallbacks below, which start from 1 atm and from the ideal-solution seed, and can end on
+                'another root of the equation far from the caller's estimate. A result on the trivial solution
+                '(the test below), where the equation holds at any temperature, still takes the fallbacks.
+                deltaT = 0.0
             End If
 
             If Math.Abs(deltaT) > 0.01 And (V = 0 Or V = 1) Then

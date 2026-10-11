@@ -3632,6 +3632,17 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
             Dim checkdew As Boolean = Not AcceptStalledSaturationPoint AndAlso V = 1.0
             Dim Tfirst As Double = If(result.Count > 1, Convert.ToDouble(result(4)), Tref)
 
+            'A bubble point whose equation holds at the returned point has converged, whatever step the loop
+            'took last: Flash_PV_1 exits on its residual. It is neither retried from the ideal-solution seed nor
+            'sent to the pressure stepping below, both of which can end on another root of the equation, far
+            'from the caller's estimate. Only a point the check against the model at the end would keep
+            '(SaturationPointHolds, which also rejects the trivial solution, where the equation holds at any
+            'temperature) skips them; any other result takes the fallbacks as before.
+            If Not AcceptStalledSaturationPoint AndAlso Not CalculatingAzeotrope AndAlso V = 0 AndAlso Math.Abs(deltaT) > 0.01 AndAlso
+                BubblePointEquationHolds(result, PP) AndAlso SaturationPointHolds(Vz, P, V, result, PP) Then
+                deltaT = 0.0
+            End If
+
             'A bubble or dew point that did not converge from the caller's seed is tried once more
             'from the ideal-solution seed, with K values from the package, before the pressure
             'stepping below, which costs a dozen flashes.
@@ -4161,6 +4172,26 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                 If Vz(j) > 0.0 AndAlso (cprops(j).IsSolid Or cprops(j).TemperatureOfFusion > 1000.0 Or cprops(j).Normal_Boiling_Point * 0.7 > 1000.0) Then Return False
             Next
             Return Not PP.AUX_IS_SINGLECOMP(Vz)
+        End Function
+
+        ''' <summary>
+        ''' True for a bubble point result whose equation holds at the returned point: sum K x = 1 to the loop
+        ''' tolerance over the compounds not declared solid, with the K values and liquid it returns. As
+        ''' NestedLoops2.StalledSaturationPoint reads a result.
+        ''' </summary>
+        Private Function BubblePointEquationHolds(result As Object(), PP As PropertyPackages.PropertyPackage) As Boolean
+            If result.Length < 12 Then Return False
+            Dim K = DirectCast(result(6), Double()), x = DirectCast(result(2), Double())
+            Dim cprops = PP.DW_GetConstantProperties()
+            Dim s, xs As Double
+            For i = 0 To K.Length - 1
+                If Not cprops(i).IsSolid Then
+                    s += K(i) * x(i)
+                    xs += x(i)
+                End If
+            Next
+            If Not xs > 0.0 Then Return False
+            Return Math.Abs(s / xs - 1.0) < etol
         End Function
 
         ''' <summary>
