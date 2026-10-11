@@ -426,9 +426,14 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
 
                 GoTo out
 
-            ElseIf vpMinP > P And vpMinP > 0 Then
+            ElseIf vpMinP > P And vpMinP > 0 AndAlso Not (PP.PackageType = PropertyPackages.PackageType.EOS AndAlso vpMinP < 2.0# * P AndAlso EOSDewSum(Vz, Ki, T, P, PP) > 1.0#) Then
 
-                'all vapor
+                'all vapor. With an equation of state the vapour pressures above come from the compound
+                'correlation, and the dew point of the model can lie above the temperature where every one
+                'of them exceeds P (water with a user vapour pressure fit 13 % high at 373 K, 5 % oxygen,
+                'Peng-Robinson, 1 atm: all vapour by the correlation from 369.5 K, dew point 373.0 K). Within
+                'a factor of 2 of P the shortcut stands only when the incipient liquid of the model says so,
+                'sum(z/K) <= 1 (the tangent plane test with a liquid trial phase).
                 L = 0
                 V = 1
                 Vy = Vz
@@ -911,6 +916,49 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
             If V <= 0.0# OrElse V >= 1.0# Then Return Nothing
             Return New Object() {V, Vx, Vy, K}
 
+        End Function
+
+        ''' <summary>
+        ''' Dew-point sum, sum(z/K), of the feed as vapour against its incipient liquid on the model's own K
+        ''' values, by successive substitution from the K values K0. Above 1 the feed is below its dew point.
+        ''' Returns 0 when the substitution reaches the trivial solution or fails, so the caller keeps its result.
+        ''' </summary>
+        Private Function EOSDewSum(Vz As Double(), K0 As Double(), T As Double, P As Double, PP As PropertyPackages.PropertyPackage) As Double
+            Dim n As Integer = Vz.Length - 1
+            Dim x(n) As Double
+            Dim s As Double = 0.0#
+            Try
+                For j = 0 To n
+                    x(j) = If(Vz(j) > 0.0# AndAlso K0(j) > 0.0#, Vz(j) / K0(j), 0.0#)
+                Next
+                If x.SumY <= 0.0# Then Return 0.0#
+                x = x.NormalizeY()
+                For it As Integer = 1 To 50
+                    Dim K = PP.DW_CalcKvalue(x, Vz, T, P)
+                    Dim xn(n) As Double
+                    Dim trivial As Boolean = True
+                    s = 0.0#
+                    For j = 0 To n
+                        If Vz(j) > 0.0# Then
+                            If Double.IsNaN(K(j)) OrElse Double.IsInfinity(K(j)) OrElse K(j) <= 0.0# Then Return 0.0#
+                            xn(j) = Vz(j) / K(j)
+                            s += xn(j)
+                            If Math.Abs(Log(K(j))) > 0.0001 Then trivial = False
+                        End If
+                    Next
+                    If trivial Then Return 0.0#
+                    Dim dx As Double = 0.0#
+                    For j = 0 To n
+                        xn(j) /= s
+                        dx = Math.Max(dx, Math.Abs(xn(j) - x(j)))
+                    Next
+                    x = xn
+                    If dx < 0.000001 Then Exit For
+                Next
+            Catch ex As Exception
+                Return 0.0#
+            End Try
+            Return s
         End Function
 
         ''' <summary>
