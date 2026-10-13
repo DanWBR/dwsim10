@@ -71,7 +71,9 @@ if command -v systemctl >/dev/null 2>&1; then
 fi
 
 # Print how to reach the server, so the admin does not have to dig for it.
-opts=$( ( . /etc/dwsim-mcp/dwsim-mcp.conf 2>/dev/null; printf '%s' "$DWSIM_MCP_OPTS" ) )
+# Read the options without sourcing the file: it is a systemd EnvironmentFile, and an unquoted
+# value such as DWSIM_MCP_OPTS=--http --host 0.0.0.0 is not valid shell.
+opts=$(sed -n 's/^[[:space:]]*DWSIM_MCP_OPTS=//p' /etc/dwsim-mcp/dwsim-mcp.conf 2>/dev/null | tail -n 1 | tr -d '\r"'"'") || opts=""
 port=$(printf '%s' "$opts" | grep -oE -- '--port[= ]+[0-9]+' | grep -oE '[0-9]+' | head -1)
 port=${port:-5901}
 ip=$(hostname -I 2>/dev/null | awk '{print $1}')
