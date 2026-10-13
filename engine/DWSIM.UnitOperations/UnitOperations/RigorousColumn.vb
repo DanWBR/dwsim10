@@ -3579,7 +3579,7 @@ Namespace UnitOperations
                 swappedDistance += (composition2(component) - topFeed(component)) ^ 2 +
                                    (composition1(component) - bottomFeed(component)) ^ 2
             Next
-            If Not Double.IsFinite(directDistance) OrElse Not Double.IsFinite(swappedDistance) OrElse
+            If (Double.IsNaN(directDistance) OrElse Double.IsInfinity(directDistance)) OrElse (Double.IsNaN(swappedDistance) OrElse Double.IsInfinity(swappedDistance)) OrElse
                 swappedDistance >= directDistance Then Return
             Dim savedFlow = flow1
             flow1 = flow2
@@ -6784,7 +6784,7 @@ Namespace UnitOperations
                         hv(stage) = secondLiquid(stage) * mv * pp.DW_CalcEnthalpy(y(stage), temperatures(stage), p(stage), PropertyPackages.State.Liquid)
                         cl(stage) = (liquid(stage) * ml * pp.DW_CalcEnthalpy(x(stage), temperatures(stage) + 0.1, p(stage), PropertyPackages.State.Liquid) - hl(stage)) / 0.1
                         cv(stage) = (secondLiquid(stage) * mv * pp.DW_CalcEnthalpy(y(stage), temperatures(stage) + 0.1, p(stage), PropertyPackages.State.Liquid) - hv(stage)) / 0.1
-                        If Not Double.IsFinite(cl(stage)) OrElse Not Double.IsFinite(cv(stage)) OrElse cl(stage) <= 0 OrElse cv(stage) <= 0 Then Return original.ToList()
+                        If (Double.IsNaN(cl(stage)) OrElse Double.IsInfinity(cl(stage))) OrElse (Double.IsNaN(cv(stage)) OrElse Double.IsInfinity(cv(stage))) OrElse cl(stage) <= 0 OrElse cv(stage) <= 0 Then Return original.ToList()
                     Next
                     Dim lower(n - 1), diagonal(n - 1), upper(n - 1), rhs(n - 1), stepT(n - 1) As Double
                     For stage As Integer = 0 To n - 1
@@ -6808,12 +6808,12 @@ Namespace UnitOperations
                         Dim value = rhs(stage)
                         If stage < n - 1 Then value -= upper(stage) * stepT(stage + 1)
                         stepT(stage) = value / diagonal(stage)
-                        If Not Double.IsFinite(stepT(stage)) Then Return original.ToList()
+                        If (Double.IsNaN(stepT(stage)) OrElse Double.IsInfinity(stepT(stage))) Then Return original.ToList()
                     Next
                     Dim factor = Math.Min(1.0, 50.0 / Math.Max(1.0, stepT.Select(Function(value) Math.Abs(value)).Max()))
                     For stage As Integer = 0 To n - 1
                         temperatures(stage) += factor * stepT(stage)
-                        If Not Double.IsFinite(temperatures(stage)) OrElse temperatures(stage) <= 0 Then Return original.ToList()
+                        If (Double.IsNaN(temperatures(stage)) OrElse Double.IsInfinity(temperatures(stage))) OrElse temperatures(stage) <= 0 Then Return original.ToList()
                     Next
                 Next
                 Return temperatures.ToList()

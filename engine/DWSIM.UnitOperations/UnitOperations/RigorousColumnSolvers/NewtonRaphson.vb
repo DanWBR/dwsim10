@@ -207,7 +207,7 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
             Dim needsProjection As Boolean = False
             For index As Integer = 0 To variables.Length - 1
                 If index Mod block = 0 Then Continue For
-                If Not Double.IsFinite(variables(index)) OrElse variables(index) < -roundoff Then Return variables
+                If (Double.IsNaN(variables(index)) OrElse Double.IsInfinity(variables(index))) OrElse variables(index) < -roundoff Then Return variables
                 If variables(index) < 0.0 Then needsProjection = True
             Next
             If Not needsProjection Then Return variables
