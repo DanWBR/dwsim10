@@ -7,8 +7,11 @@ using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
+using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Threading;
 using DWSIM.Interfaces;
 using DWSIM.UI.Shared.Avalonia;
 using CapeOpenUO = DWSIM.UnitOperations.UnitOperations.CapeOpenUO;
@@ -382,73 +385,303 @@ namespace DWSIM.UI.Desktop.Editors
     /// Script unit operation editor: the engine that runs the script and the variables it reads
     /// and writes. The script itself is edited in the window the object opens.
     /// </summary>
+    /// <remarks>
+    /// The input variables (numbers and text) can be added, removed, renamed and edited, as in the
+    /// Windows editor. The output variables are what the last run of the script produced, so they
+    /// are read-only there too.
+    /// </remarks>
     public static class ScriptUOEditor
     {
 
-        private sealed class NumberRow : INotifyPropertyChanged
+        /// <summary>The names the script host defines itself, which an input variable would hide.</summary>
+        private static readonly HashSet<string> ReservedNames = new HashSet<string>(StringComparer.Ordinal)
         {
-            private readonly Dictionary<string, double> _values;
-            private readonly string _key;
-            private readonly string _nf;
-            private readonly bool _readOnly;
+            "Flowsheet", "flowsheet", "Me", "me", "This", "this",
+            "ims1", "ims2", "ims3", "ims4", "ims5", "ims6",
+            "oms1", "oms2", "oms3", "oms4", "oms5", "oms6",
+            "ies1", "oes1"
+        };
 
-            public NumberRow(Dictionary<string, double> values, string key, string nf, bool readOnly)
+        private static readonly System.Text.RegularExpressions.Regex Identifier =
+            new System.Text.RegularExpressions.Regex("^[A-Za-z_][A-Za-z0-9_]*$");
+
+        /// <summary>One variable of a list: its name and its value, as the grid edits them.</summary>
+        private sealed class VariableRow : INotifyPropertyChanged
+        {
+            private readonly VariableList _list;
+
+            public VariableRow(VariableList list, string key)
             {
-                _values = values;
-                _key = key;
-                _nf = nf;
-                _readOnly = readOnly;
+                _list = list;
+                Key = key;
             }
 
-            public string Name { get { return _key; } }
+            internal string Key;
+
+            public string Name
+            {
+                get { return Key; }
+                set { _list.Rename(this, value); }
+            }
 
             public string Value
             {
-                get { return _values[_key].ToString(_nf, CultureInfo.CurrentCulture); }
-                set
-                {
-                    if (_readOnly) return;
-                    if (!UnitOpEditorRows.TryParse(value, out var v)) return;
-                    _values[_key] = v;
-                    Raise("Value");
-                }
+                get { return _list.Format(Key); }
+                set { _list.SetValue(this, value); }
             }
 
             public event PropertyChangedEventHandler PropertyChanged;
-            private void Raise(string name)
+
+            internal void Raise(string name)
             {
                 if (PropertyChanged != null) PropertyChanged(this, new PropertyChangedEventArgs(name));
+            }
+
+            /// <summary>
+            /// Shows the stored value again after an edit was refused. Deferred, so the grid reads it
+            /// once it has finished writing the text the user typed.
+            /// </summary>
+            internal void Revert(string name)
+            {
+                Dispatcher.UIThread.Post(() => Raise(name));
             }
         }
 
-        private sealed class TextRow : INotifyPropertyChanged
+        /// <summary>
+        /// The rows of one dictionary of the script, numbers or text, and the edits made to it.
+        /// </summary>
+        private abstract class VariableList
         {
-            private readonly Dictionary<string, string> _values;
-            private readonly string _key;
+            protected readonly PythonScriptUO Uo;
+            public readonly ObservableCollection<VariableRow> Rows = new ObservableCollection<VariableRow>();
+            public readonly TextBlock Message = new TextBlock
+            {
+                Foreground = Brushes.Red,
+                TextWrapping = TextWrapping.Wrap,
+                IsVisible = false,
+                Margin = new Thickness(2, 4, 0, 0)
+            };
 
-            public TextRow(Dictionary<string, string> values, string key)
+            /// <summary>The other list of inputs, whose names share the script scope with this one.</summary>
+            public VariableList Other;
+
+            /// <summary>Runs after a change is stored: solves the object and refreshes the editors.</summary>
+            public Action Changed;
+
+            protected VariableList(PythonScriptUO uo)
+            {
+                Uo = uo;
+            }
+
+            public abstract string Kind { get; }
+            public abstract IEnumerable<string> Keys { get; }
+            public abstract bool Contains(string key);
+            public abstract string Format(string key);
+            protected abstract bool TryStore(string key, string text);
+            protected abstract void RenameKey(string oldKey, string newKey);
+            protected abstract void AddKey(string key);
+            protected abstract void RemoveKey(string key);
+
+            public void Load()
+            {
+                Rows.Clear();
+                foreach (var key in Keys.ToList()) Rows.Add(new VariableRow(this, key));
+            }
+
+            public void Show(string message)
+            {
+                Message.Text = message ?? "";
+                Message.IsVisible = !string.IsNullOrEmpty(message);
+            }
+
+            private void Snapshot()
+            {
+                Uo.GetFlowsheet()?.RegisterSnapshot(DWSIM.Interfaces.Enums.SnapshotType.ObjectData, Uo);
+            }
+
+            public void SetValue(VariableRow row, string text)
+            {
+                if (!Contains(row.Key)) return;
+                if (Format(row.Key) == (text ?? "")) { Show(null); return; }
+
+                Snapshot();
+                if (!TryStore(row.Key, text))
+                {
+                    Show("'" + text + "' is not a number. The value of " + row.Key + " was kept.");
+                    row.Revert("Value");
+                    return;
+                }
+
+                Show(null);
+                row.Raise("Value");
+                Changed?.Invoke();
+            }
+
+            public void Rename(VariableRow row, string text)
+            {
+                var name = (text ?? "").Trim();
+                if (name == row.Key) { Show(null); return; }
+
+                var problem = Check(name);
+                if (problem != null)
+                {
+                    Show(problem + " The name " + row.Key + " was kept.");
+                    row.Revert("Name");
+                    return;
+                }
+
+                Snapshot();
+                RenameKey(row.Key, name);
+                row.Key = name;
+                Show(null);
+                row.Raise("Name");
+                row.Raise("Value");
+                Changed?.Invoke();
+            }
+
+            /// <summary>Why a name cannot be used, or null when it can.</summary>
+            private string Check(string name)
+            {
+                if (name.Length == 0)
+                    return "The name cannot be empty.";
+                if (!Identifier.IsMatch(name))
+                    return "'" + name + "' is not a valid name. Use letters, digits and underscores, starting with a letter or an underscore.";
+                if (ReservedNames.Contains(name))
+                    return "'" + name + "' is a name the script already uses for the flowsheet or a connected stream.";
+                if (Contains(name))
+                    return "There is already a " + Kind + " input variable named '" + name + "'.";
+                if (Other != null && Other.Contains(name))
+                    return "There is already a " + Other.Kind + " input variable named '" + name + "'.";
+                return null;
+            }
+
+            /// <summary>Adds a variable with the next free name, at the end of the list.</summary>
+            public VariableRow Add()
+            {
+                var i = Rows.Count + 1;
+                string name;
+                do { name = "var" + i++; }
+                while (Contains(name) || (Other != null && Other.Contains(name)));
+
+                Snapshot();
+                AddKey(name);
+                var row = new VariableRow(this, name);
+                Rows.Add(row);
+                Show(null);
+                return row;
+            }
+
+            public void Remove(VariableRow row)
+            {
+                if (row == null || !Contains(row.Key)) return;
+                Snapshot();
+                RemoveKey(row.Key);
+                Rows.Remove(row);
+                Show(null);
+                Changed?.Invoke();
+            }
+        }
+
+        /// <summary>
+        /// Renames a key in place: the dictionary is rebuilt in the same order, so the renamed
+        /// variable keeps its position and the script object keeps the same dictionary.
+        /// </summary>
+        private static void RenameInPlace<T>(Dictionary<string, T> values, string oldKey, string newKey)
+        {
+            var pairs = values.ToList();
+            values.Clear();
+            foreach (var p in pairs)
+                values.Add(p.Key == oldKey ? newKey : p.Key, p.Value);
+        }
+
+        private sealed class NumberList : VariableList
+        {
+            private readonly Func<Dictionary<string, double>> _values;
+            private readonly string _nf;
+
+            public NumberList(PythonScriptUO uo, Func<Dictionary<string, double>> values) : base(uo)
             {
                 _values = values;
-                _key = key;
+                _nf = uo.GetFlowsheet().FlowsheetOptions.NumberFormat;
             }
 
-            public string Name { get { return _key; } }
+            private Dictionary<string, double> Values { get { return _values() ?? new Dictionary<string, double>(); } }
 
-            public string Value
+            public override string Kind { get { return "number"; } }
+            public override IEnumerable<string> Keys { get { return Values.Keys; } }
+            public override bool Contains(string key) { return Values.ContainsKey(key); }
+
+            public override string Format(string key)
             {
-                get { return _values[_key]; }
-                set { _values[_key] = value ?? ""; Raise("Value"); }
+                return Values.TryGetValue(key, out var v) ? v.ToString(_nf, CultureInfo.CurrentCulture) : "";
             }
 
-            public event PropertyChangedEventHandler PropertyChanged;
-            private void Raise(string name)
+            protected override bool TryStore(string key, string text)
             {
-                if (PropertyChanged != null) PropertyChanged(this, new PropertyChangedEventArgs(name));
+                if (!UnitOpEditorRows.TryParse(text, out var v)) return false;
+                Values[key] = v;
+                return true;
             }
+
+            protected override void RenameKey(string oldKey, string newKey) { RenameInPlace(Values, oldKey, newKey); }
+            protected override void AddKey(string key) { Values.Add(key, 0.0); }
+            protected override void RemoveKey(string key) { Values.Remove(key); }
+        }
+
+        private sealed class TextList : VariableList
+        {
+            public TextList(PythonScriptUO uo) : base(uo) { }
+
+            private Dictionary<string, string> Values
+            {
+                get
+                {
+                    if (Uo.InputStringVariables == null) Uo.InputStringVariables = new Dictionary<string, string>();
+                    return Uo.InputStringVariables;
+                }
+            }
+
+            public override string Kind { get { return "text"; } }
+            public override IEnumerable<string> Keys { get { return Values.Keys; } }
+            public override bool Contains(string key) { return Values.ContainsKey(key); }
+            public override string Format(string key) { return Values.TryGetValue(key, out var v) ? v ?? "" : ""; }
+
+            protected override bool TryStore(string key, string text)
+            {
+                Values[key] = text ?? "";
+                return true;
+            }
+
+            protected override void RenameKey(string oldKey, string newKey) { RenameInPlace(Values, oldKey, newKey); }
+            protected override void AddKey(string key) { Values.Add(key, ""); }
+            protected override void RemoveKey(string key) { Values.Remove(key); }
         }
 
         public static Control Build(PythonScriptUO uo)
         {
+            if (uo.InputVariables == null) uo.InputVariables = new Dictionary<string, double>();
+            if (uo.OutputVariables == null) uo.OutputVariables = new Dictionary<string, double>();
+
+            var numbers = new NumberList(uo, () => uo.InputVariables);
+            var texts = new TextList(uo);
+            numbers.Other = texts;
+            texts.Other = numbers;
+
+            // an edited variable solves the object and refreshes the open editors, as the other
+            // inputs of the editor do. Posted, so the grid finishes its commit before the editor
+            // that holds it is rebuilt.
+            Action changed = () => Dispatcher.UIThread.Post(() =>
+            {
+                var fs = uo.GetFlowsheet();
+                if (fs == null) return;
+                fs.RequestCalculation(uo);
+                fs.UpdateInterface();
+            });
+            numbers.Changed = changed;
+            texts.Changed = changed;
+
+            var outputs = new NumberList(uo, () => uo.OutputVariables);
+
             return UnitOpEditor.Build(uo,
                 input: panel =>
                 {
@@ -464,52 +697,161 @@ namespace DWSIM.UI.Desktop.Editors
                 },
                 extras: new[]
                 {
-                    ("Input (Numbers)", Numbers(uo, uo.InputVariables, readOnly: false)),
-                    ("Input (Text)", Texts(uo, uo.InputStringVariables)),
-                    ("Output", Numbers(uo, uo.OutputVariables, readOnly: true))
+                    ("Input (Numbers)", Editable(numbers, hint: true)),
+                    ("Input (Text)", Editable(texts, hint: false)),
+                    ("Output", ReadOnly(outputs))
                 });
         }
 
-        private static Control Numbers(PythonScriptUO uo, Dictionary<string, double> values, bool readOnly)
+        /// <summary>
+        /// A list of input variables: the grid, the buttons that add and remove a variable, and the
+        /// line that says why an edit was refused.
+        /// </summary>
+        private static Control Editable(VariableList list, bool hint)
         {
-            var nf = uo.GetFlowsheet().FlowsheetOptions.NumberFormat;
-            var rows = new ObservableCollection<NumberRow>();
+            list.Load();
+            var grid = Grid(list.Rows, readOnly: false);
 
-            if (values != null)
-                foreach (var key in values.Keys.ToList())
-                    rows.Add(new NumberRow(values, key, nf, readOnly));
+            var add = new Button { Content = "Add", MinWidth = 80 };
+            var remove = new Button { Content = "Remove", MinWidth = 80, Margin = new Thickness(6, 0, 0, 0) };
+            ToolTip.SetTip(add, "Adds a " + list.Kind + " input variable.");
+            ToolTip.SetTip(remove, "Removes the selected variable.");
 
-            return Grid(rows, readOnly);
+            void Refresh() => remove.IsEnabled = grid.SelectedItem is VariableRow;
+
+            add.Click += (s, e) =>
+            {
+                var row = list.Add();
+                grid.SelectedItem = row;
+                grid.ScrollIntoView(row, grid.Columns[0]);
+                grid.CurrentColumn = grid.Columns[0];
+                grid.Focus();
+                // the name is what the user types next
+                Dispatcher.UIThread.Post(() => grid.BeginEdit(), DispatcherPriority.Background);
+            };
+
+            remove.Click += (s, e) =>
+            {
+                var row = grid.SelectedItem as VariableRow;
+                if (row == null) return;
+                var index = list.Rows.IndexOf(row);
+                list.Remove(row);
+                if (list.Rows.Count > 0)
+                    grid.SelectedItem = list.Rows[Math.Min(index, list.Rows.Count - 1)];
+                Refresh();
+            };
+
+            grid.SelectionChanged += (s, e) => Refresh();
+
+            // Delete on a selected row, outside a cell being edited, removes the variable. Handled
+            // here so the key does not reach the flowsheet, which deletes the selected object.
+            grid.KeyDown += (s, e) =>
+            {
+                if (e.Source is TextBox) return;
+                if (e.Key == Key.Delete)
+                {
+                    remove.RaiseEvent(new global::Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+                    e.Handled = true;
+                }
+                else if (e.Key == Key.Back)
+                {
+                    e.Handled = true;
+                }
+            };
+
+            Refresh();
+
+            var buttons = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Margin = new Thickness(0, 6, 0, 0)
+            };
+            buttons.Children.Add(add);
+            buttons.Children.Add(remove);
+
+            var stack = new StackPanel();
+            stack.Children.Add(grid);
+            stack.Children.Add(list.Message);
+            stack.Children.Add(buttons);
+            if (hint)
+                stack.Children.Add(new TextBlock
+                {
+                    Text = "To edit a name or a value, double-click the cell, or select it and type. " +
+                           "Press Enter or leave the cell to apply the change.",
+                    TextWrapping = TextWrapping.Wrap,
+                    Opacity = 0.7,
+                    Margin = new Thickness(2, 4, 0, 0)
+                });
+            return stack;
         }
 
-        private static Control Texts(PythonScriptUO uo, Dictionary<string, string> values)
+        private static Control ReadOnly(VariableList list)
         {
-            var rows = new ObservableCollection<TextRow>();
-
-            if (values != null)
-                foreach (var key in values.Keys.ToList())
-                    rows.Add(new TextRow(values, key));
-
-            return Grid(rows, readOnly: false);
+            list.Load();
+            var grid = Grid(list.Rows, readOnly: true);
+            grid.KeyDown += (s, e) =>
+            {
+                if (e.Key == Key.Delete || e.Key == Key.Back) e.Handled = true;
+            };
+            return grid;
         }
 
-        private static Control Grid(System.Collections.IEnumerable rows, bool readOnly)
+        private static DataGrid Grid(ObservableCollection<VariableRow> rows, bool readOnly)
         {
             var grid = new DataGrid
             {
                 ItemsSource = rows,
                 AutoGenerateColumns = false,
                 CanUserSortColumns = false,
+                CanUserReorderColumns = false,
                 IsReadOnly = readOnly,
+                SelectionMode = DataGridSelectionMode.Single,
                 HeadersVisibility = DataGridHeadersVisibility.Column,
                 GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
                 Height = 180
             };
 
-            grid.Columns.Add(GridColumns.Text("Name", "Name", 1.4, readOnly: true));
+            grid.Columns.Add(GridColumns.Text("Name", "Name", 1.4, readOnly));
             grid.Columns.Add(GridColumns.Text("Value", "Value", 1.4, readOnly));
 
+            if (!readOnly) TypeToEdit(grid);
+
             return grid;
+        }
+
+        /// <summary>
+        /// Starts editing the current cell when the user types on it, as the Windows grid does; the
+        /// grid on its own only edits on a double-click, a second click or F2. The typed text
+        /// replaces the cell, and Enter or leaving the cell applies it.
+        /// </summary>
+        private static void TypeToEdit(DataGrid grid)
+        {
+            string pending = null;
+
+            grid.PreparingCellForEdit += (s, e) =>
+            {
+                if (pending == null) return;
+                var text = pending;
+                pending = null;
+                if (e.EditingElement is TextBox tb)
+                {
+                    tb.Text = text;
+                    tb.CaretIndex = text.Length;
+                    tb.ClearSelection();
+                }
+            };
+
+            grid.AddHandler(InputElement.TextInputEvent, (s, e) =>
+            {
+                if (e.Handled || string.IsNullOrEmpty(e.Text)) return;
+                if (e.Source is TextBox) return;
+                if (grid.SelectedItem == null || grid.CurrentColumn == null || grid.CurrentColumn.IsReadOnly) return;
+                if (char.IsControl(e.Text[0])) return;
+
+                pending = e.Text;
+                if (grid.BeginEdit()) e.Handled = true;
+                pending = null;
+            }, RoutingStrategies.Bubble);
         }
 
     }
