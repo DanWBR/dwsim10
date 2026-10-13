@@ -463,6 +463,8 @@ namespace DWSIM.Automation
             else
             {
                 fsheet.LoadFromXML(XDocument.Load(filepath));
+                fsheet.FilePath = filepath;
+                fsheet.Options.FilePath = filepath;
             }
             Settings.CalculatorActivated = true;
             return fsheet;
@@ -490,6 +492,8 @@ namespace DWSIM.Automation
             else
             {
                 fsheet.LoadFromXML(XDocument.Load(filepath));
+                fsheet.FilePath = filepath;
+                fsheet.Options.FilePath = filepath;
             }
             Settings.CalculatorActivated = true;
             return fsheet;

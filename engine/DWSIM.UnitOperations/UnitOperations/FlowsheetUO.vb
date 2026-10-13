@@ -192,13 +192,18 @@ Namespace UnitOperations
         ''' <summary>Resolves the sub-flowsheet file path relative to the parent flowsheet file.</summary>
         Public Sub ParseFilePath()
 
-            If Not IO.File.Exists(SimulationFile) Then
-                'look at the current simulation location to see if the file is there.
+            If String.IsNullOrWhiteSpace(SimulationFile) OrElse IO.File.Exists(SimulationFile) Then Exit Sub
+            'look at the current simulation location to see if the file is there; the parent's path is
+            'still empty while a file is being loaded through the automation interface
+            Dim parentpath As String = FlowSheet?.FlowsheetOptions?.FilePath
+            If String.IsNullOrWhiteSpace(parentpath) Then Exit Sub
+            Try
                 Dim fname As String = IO.Path.GetFileName(SimulationFile)
-                Dim currpath As String = IO.Path.GetDirectoryName(FlowSheet.FlowsheetOptions.FilePath)
+                Dim currpath As String = IO.Path.GetDirectoryName(parentpath)
                 Dim newpath As String = IO.Path.Combine(currpath, fname)
                 If IO.File.Exists(newpath) Then SimulationFile = newpath
-            End If
+            Catch ex As ArgumentException
+            End Try
 
         End Sub
 
@@ -1287,6 +1292,7 @@ Label_00CC:
                                                         Fsheet = UnitOperations.Flowsheet.InitializeFlowsheet(tmpfile, FlowSheet.GetNewInstance(), FlowSheet)
                                                         File.Delete(tmpfile)
                                                     Else
+                                                        ParseFilePath()
                                                         Fsheet = UnitOperations.Flowsheet.InitializeFlowsheet(SimulationFile, FlowSheet.GetNewInstance(), FlowSheet)
                                                     End If
                                                     Initialized = True
