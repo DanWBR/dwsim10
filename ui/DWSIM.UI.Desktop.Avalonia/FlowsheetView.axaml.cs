@@ -16,6 +16,7 @@ using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using Dock.Avalonia.Controls;
 using Dock.Model.Avalonia;
 using DWSIM.Drawing.SkiaSharp;
@@ -385,7 +386,21 @@ public partial class FlowsheetView : UserControl
 
         KeyDown += async (_, e) =>
         {
-            if (e.Key == Key.Delete || e.Key == Key.Back)
+            // The object shortcuts act only when the key comes from the flowsheet canvas. A key
+            // that bubbles up from an editor (a grid cell not being edited, a button, a check box)
+            // must not delete, copy, paste or select objects on the flowsheet.
+            bool fromCanvas = e.Source is Visual src && (ReferenceEquals(src, Canvas) || Canvas.IsVisualAncestorOf(src));
+
+            if ((e.Key == Key.Delete || e.Key == Key.Back) && !fromCanvas)
+            {
+                return;
+            }
+            else if (!fromCanvas && e.KeyModifiers.HasFlag(KeyModifiers.Control) &&
+                     (e.Key == Key.C || e.Key == Key.V || e.Key == Key.A))
+            {
+                return;
+            }
+            else if (e.Key == Key.Delete || e.Key == Key.Back)
             {
                 HandleDelete();
                 e.Handled = true;
