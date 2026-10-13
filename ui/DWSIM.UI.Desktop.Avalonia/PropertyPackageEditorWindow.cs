@@ -66,6 +66,10 @@ public class PropertyPackageEditorWindow : Window
     {
         var tabs = new TabControl();
 
+        // A CAPE-OPEN package does nothing until a manager and one of its packages are picked.
+        if (_pp is CAPEOPENPropertyPackage capeOpen)
+            tabs.Items.Add(new TabItem { Header = "CAPE-OPEN", Content = new CapeOpenPropertyPackagePanel(_flowsheet, capeOpen) });
+
         // Packages derived from the PC-SAFT package (the Ionic Liquids package, for one) share its editor.
         if (SupportedIPTypes.Contains(_pp.ComponentName) || _pp is PCSAFT2PropertyPackage)
         {

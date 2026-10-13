@@ -239,6 +239,8 @@ Namespace PropertyPackages
 
         Public Overrides Sub DW_CalcEquilibrium(ByVal spec1 As FlashSpec, ByVal spec2 As FlashSpec)
 
+            RequirePackage()
+
             SyncLock CoLock()
                 DW_CalcEquilibriumCore(spec1, spec2)
             End SyncLock
@@ -374,6 +376,8 @@ Namespace PropertyPackages
                                            mixmolefrac As Double(),
                                            initialKval As Double(),
                                            initialestimate As Double) As FlashCalculationResult
+
+            RequirePackage()
 
             SyncLock CoLock()
                 Dim pstr As Interfaces.IMaterialStream = Me.CurrentMaterialStream
@@ -603,15 +607,15 @@ Namespace PropertyPackages
 
             If _coversion = "1.0" Then
                 Try
-                    CType(_copp, ICapeThermoPropertyPackage).CalcEquilibrium(Me.CurrentMaterialStream, s11 + s22, Nothing)
+                    CType(RequirePackage(), ICapeThermoPropertyPackage).CalcEquilibrium(Me.CurrentMaterialStream, s11 + s22, Nothing)
                 Catch ex As Exception
                     Me.CurrentMaterialStream.Flowsheet.ShowMessage(Me.ComponentName & ": " & DescribeCapeError(ex, _copp), Interfaces.IFlowsheet.MessageType.GeneralError)
                 End Try
             Else
                 Try
-                    CType(_copp, ICapeThermoMaterialContext).SetMaterial(Me.CurrentMaterialStream)
-                    Dim ok As Boolean = CType(_copp, ICapeThermoEquilibriumRoutine).CheckEquilibriumSpec(s1, s2, "Unspecified")
-                    CType(_copp, ICapeThermoEquilibriumRoutine).CalcEquilibrium(s1, s2, "Unspecified")
+                    CType(RequirePackage(), ICapeThermoMaterialContext).SetMaterial(Me.CurrentMaterialStream)
+                    Dim ok As Boolean = CType(RequirePackage(), ICapeThermoEquilibriumRoutine).CheckEquilibriumSpec(s1, s2, "Unspecified")
+                    CType(RequirePackage(), ICapeThermoEquilibriumRoutine).CalcEquilibrium(s1, s2, "Unspecified")
                 Catch ex As Exception
                     Me.CurrentMaterialStream.Flowsheet.ShowMessage(Me.ComponentName & ": " & DescribeCapeError(ex, _copp), Interfaces.IFlowsheet.MessageType.GeneralError)
                 End Try
@@ -704,14 +708,14 @@ Namespace PropertyPackages
             ' a package that does not give the density gives the volume, which the stream turns into a density
             If _coversion = "1.0" Then
                 Try
-                    CType(_copp, ICapeThermoCalculationRoutine).CalcProp(tstr, New String() {prop}, New String() {label}, "Mixture")
+                    CType(RequirePackage(), ICapeThermoCalculationRoutine).CalcProp(tstr, New String() {prop}, New String() {label}, "Mixture")
                 Catch ex As Exception When prop = "density"
-                    CType(_copp, ICapeThermoCalculationRoutine).CalcProp(tstr, New String() {"volume"}, New String() {label}, "Mixture")
+                    CType(RequirePackage(), ICapeThermoCalculationRoutine).CalcProp(tstr, New String() {"volume"}, New String() {label}, "Mixture")
                 End Try
             Else
                 EnsureMaterial(tstr)
-                If prop = "density" AndAlso Not CType(_copp, ICapeThermoPropertyRoutine).CheckSinglePhasePropSpec("density", label) Then prop = "volume"
-                CType(_copp, ICapeThermoPropertyRoutine).CalcSinglePhaseProp(New String() {prop}, label)
+                If prop = "density" AndAlso Not CType(RequirePackage(), ICapeThermoPropertyRoutine).CheckSinglePhasePropSpec("density", label) Then prop = "volume"
+                CType(RequirePackage(), ICapeThermoPropertyRoutine).CalcSinglePhaseProp(New String() {prop}, label)
             End If
 
             Return read(tstr.Phases(index).Properties).GetValueOrDefault
@@ -953,10 +957,10 @@ Namespace PropertyPackages
             tstr.Phases(0).Properties.pressure = P
 
             If _coversion = "1.0" Then
-                CType(_copp, ICapeThermoCalculationRoutine).CalcProp(tstr, New String() {"surfaceTension"}, New String() {ll}, "Mixture")
+                CType(RequirePackage(), ICapeThermoCalculationRoutine).CalcProp(tstr, New String() {"surfaceTension"}, New String() {ll}, "Mixture")
             Else
                 EnsureMaterial(tstr)
-                CType(_copp, ICapeThermoPropertyRoutine).CalcTwoPhaseProp(New String() {"surfaceTension"}, New String() {vl, ll})
+                CType(RequirePackage(), ICapeThermoPropertyRoutine).CalcTwoPhaseProp(New String() {"surfaceTension"}, New String() {vl, ll})
             End If
 
             Return tstr.Phases(0).Properties.surfaceTension.GetValueOrDefault
@@ -1026,7 +1030,7 @@ Namespace PropertyPackages
 
             If _coversion = "1.0" Then
                 Try
-                    CType(_copp, ICapeThermoPropertyPackage).CalcProp(tstr, New String() {"enthalpy"}, New String() {phase}, "Mixture")
+                    CType(RequirePackage(), ICapeThermoPropertyPackage).CalcProp(tstr, New String() {"enthalpy"}, New String() {phase}, "Mixture")
                 Catch ex As Exception
                     tstr.Flowsheet.ShowMessage(Me.ComponentName & ": " & DescribeCapeError(ex, _copp), Interfaces.IFlowsheet.MessageType.GeneralError)
                 End Try
@@ -1036,7 +1040,7 @@ Namespace PropertyPackages
                     ' 1.1 computes on the material it holds: hand it the copy, which carries this call's T, P
                     ' and composition (the stream it held before gave the value of that stream's phase)
                     EnsureMaterial(tstr)
-                    CType(_copp, ICapeThermoPropertyRoutine).CalcSinglePhaseProp(New String() {"enthalpy"}, phase)
+                    CType(RequirePackage(), ICapeThermoPropertyRoutine).CalcSinglePhaseProp(New String() {"enthalpy"}, phase)
                 Catch ex As Exception
                     tstr.Flowsheet.ShowMessage(Me.ComponentName & ": " & DescribeCapeError(ex, _copp), Interfaces.IFlowsheet.MessageType.GeneralError)
                 End Try
@@ -1081,7 +1085,7 @@ Namespace PropertyPackages
 
             If _coversion = "1.0" Then
                 Try
-                    CType(_copp, ICapeThermoPropertyPackage).CalcProp(tstr, New String() {"excessEnthalpy"}, New String() {phase}, "Mixture")
+                    CType(RequirePackage(), ICapeThermoPropertyPackage).CalcProp(tstr, New String() {"excessEnthalpy"}, New String() {phase}, "Mixture")
                 Catch ex As Exception
                     tstr.Flowsheet.ShowMessage(Me.ComponentName & ": " & DescribeCapeError(ex, _copp), Interfaces.IFlowsheet.MessageType.GeneralError)
                 End Try
@@ -1091,7 +1095,7 @@ Namespace PropertyPackages
                     ' 1.1 computes on the material it holds: hand it the copy, which carries this call's T, P
                     ' and composition (the stream it held before gave the value of that stream's phase)
                     EnsureMaterial(tstr)
-                    CType(_copp, ICapeThermoPropertyRoutine).CalcSinglePhaseProp(New String() {"excessEnthalpy"}, phase)
+                    CType(RequirePackage(), ICapeThermoPropertyRoutine).CalcSinglePhaseProp(New String() {"excessEnthalpy"}, phase)
                 Catch ex As Exception
                     tstr.Flowsheet.ShowMessage(Me.ComponentName & ": " & DescribeCapeError(ex, _copp), Interfaces.IFlowsheet.MessageType.GeneralError)
                 End Try
@@ -1135,7 +1139,7 @@ Namespace PropertyPackages
             tstr.Phases(0).Properties.pressure = P
             If _coversion = "1.0" Then
                 Try
-                    CType(_copp, ICapeThermoPropertyPackage).CalcProp(tstr, New String() {"entropy"}, New String() {phase}, "Mixture")
+                    CType(RequirePackage(), ICapeThermoPropertyPackage).CalcProp(tstr, New String() {"entropy"}, New String() {phase}, "Mixture")
                 Catch ex As Exception
                     tstr.Flowsheet.ShowMessage(Me.ComponentName & ": " & DescribeCapeError(ex, _copp), Interfaces.IFlowsheet.MessageType.GeneralError)
                 End Try
@@ -1145,7 +1149,7 @@ Namespace PropertyPackages
                     ' 1.1 computes on the material it holds: hand it the copy, which carries this call's T, P
                     ' and composition (the stream it held before gave the value of that stream's phase)
                     EnsureMaterial(tstr)
-                    CType(_copp, ICapeThermoPropertyRoutine).CalcSinglePhaseProp(New String() {"entropy"}, phase)
+                    CType(RequirePackage(), ICapeThermoPropertyRoutine).CalcSinglePhaseProp(New String() {"entropy"}, phase)
                 Catch ex As Exception
                     tstr.Flowsheet.ShowMessage(Me.ComponentName & ": " & DescribeCapeError(ex, _copp), Interfaces.IFlowsheet.MessageType.GeneralError)
                 End Try
@@ -1190,7 +1194,7 @@ Namespace PropertyPackages
 
             If _coversion = "1.0" Then
                 Try
-                    CType(_copp, ICapeThermoPropertyPackage).CalcProp(tstr, New String() {"excessEntropy"}, New String() {phase}, "Mixture")
+                    CType(RequirePackage(), ICapeThermoPropertyPackage).CalcProp(tstr, New String() {"excessEntropy"}, New String() {phase}, "Mixture")
                 Catch ex As Exception
                     tstr.Flowsheet.ShowMessage(Me.ComponentName & ": " & DescribeCapeError(ex, _copp), Interfaces.IFlowsheet.MessageType.GeneralError)
                 End Try
@@ -1200,7 +1204,7 @@ Namespace PropertyPackages
                     ' 1.1 computes on the material it holds: hand it the copy, which carries this call's T, P
                     ' and composition (the stream it held before gave the value of that stream's phase)
                     EnsureMaterial(tstr)
-                    CType(_copp, ICapeThermoPropertyRoutine).CalcSinglePhaseProp(New String() {"excessEntropy"}, phase)
+                    CType(RequirePackage(), ICapeThermoPropertyRoutine).CalcSinglePhaseProp(New String() {"excessEntropy"}, phase)
                 Catch ex As Exception
                     tstr.Flowsheet.ShowMessage(Me.ComponentName & ": " & DescribeCapeError(ex, _copp), Interfaces.IFlowsheet.MessageType.GeneralError)
                 End Try
@@ -1427,7 +1431,7 @@ Namespace PropertyPackages
 
             If _coversion = "1.0" Then
                 Try
-                    CType(_copp, ICapeThermoPropertyPackage).CalcProp(tstr, New String() {"fugacityCoefficient"}, New String() {phase}, "Mixture")
+                    CType(RequirePackage(), ICapeThermoPropertyPackage).CalcProp(tstr, New String() {"fugacityCoefficient"}, New String() {phase}, "Mixture")
                 Catch ex As Exception
                     tstr.Flowsheet.ShowMessage(Me.ComponentName & ": " & DescribeCapeError(ex, _copp), Interfaces.IFlowsheet.MessageType.GeneralError)
                 End Try
@@ -1461,43 +1465,43 @@ Namespace PropertyPackages
 #Region "    CAPE-OPEN 1.0 Methods and Properties"
 
         Public Overrides Sub CalcEquilibrium(ByVal materialObject As Object, ByVal flashType As String, ByVal props As Object)
-            CType(_copp, ICapeThermoPropertyPackage).CalcEquilibrium(materialObject, flashType, props)
+            CType(RequirePackage(), ICapeThermoPropertyPackage).CalcEquilibrium(materialObject, flashType, props)
         End Sub
 
         Public Overrides Sub CalcProp(ByVal materialObject As Object, ByVal props As Object, ByVal phases As Object, ByVal calcType As String)
-            CType(_copp, ICapeThermoPropertyPackage).CalcProp(materialObject, props, phases, calcType)
+            CType(RequirePackage(), ICapeThermoPropertyPackage).CalcProp(materialObject, props, phases, calcType)
         End Sub
 
         Public Overrides Function GetComponentConstant(ByVal materialObject As Object, ByVal props As Object) As Object
-            Return CType(_copp, ICapeThermoPropertyPackage).GetComponentConstant(materialObject, props)
+            Return CType(RequirePackage(), ICapeThermoPropertyPackage).GetComponentConstant(materialObject, props)
         End Function
 
         Public Overrides Sub GetComponentList(ByRef compIds As Object, ByRef formulae As Object, ByRef names As Object, ByRef boilTemps As Object, ByRef molWt As Object, ByRef casNo As Object)
-            CType(_copp, ICapeThermoPropertyPackage).GetComponentList(compIds, formulae, names, boilTemps, molWt, casNo)
+            CType(RequirePackage(), ICapeThermoPropertyPackage).GetComponentList(compIds, formulae, names, boilTemps, molWt, casNo)
         End Sub
 
         Public Overrides Function GetPhaseList() As Object
-            Return CType(_copp, ICapeThermoPropertyPackage).GetPhaseList()
+            Return CType(RequirePackage(), ICapeThermoPropertyPackage).GetPhaseList()
         End Function
 
         Public Overrides Function GetPropList() As Object
-            Return CType(_copp, ICapeThermoPropertyPackage).GetPropList()
+            Return CType(RequirePackage(), ICapeThermoPropertyPackage).GetPropList()
         End Function
 
         Public Overrides Function GetUniversalConstant(ByVal materialObject As Object, ByVal props As Object) As Object
-            Return CType(_copp, ICapeThermoPropertyPackage).GetUniversalConstant(materialObject, props)
+            Return CType(RequirePackage(), ICapeThermoPropertyPackage).GetUniversalConstant(materialObject, props)
         End Function
 
         Public Overrides Function PropCheck(ByVal materialObject As Object, ByVal props As Object) As Object
-            Return CType(_copp, ICapeThermoPropertyPackage).PropCheck(materialObject, props)
+            Return CType(RequirePackage(), ICapeThermoPropertyPackage).PropCheck(materialObject, props)
         End Function
 
         Public Overrides Function ValidityCheck(ByVal materialObject As Object, ByVal props As Object) As Object
-            Return CType(_copp, ICapeThermoPropertyPackage).ValidityCheck(materialObject, props)
+            Return CType(RequirePackage(), ICapeThermoPropertyPackage).ValidityCheck(materialObject, props)
         End Function
 
         Public Overrides Sub Edit()
-            CType(_copp, ICapeUtilities).Edit()
+            CType(RequirePackage(), ICapeUtilities).Edit()
         End Sub
 
         Public Overrides Sub Initialize()
@@ -1506,50 +1510,50 @@ Namespace PropertyPackages
 
         Public Overrides ReadOnly Property parameters1() As Object
             Get
-                Return CType(_copp, ICapeUtilities).parameters()
+                Return CType(RequirePackage(), ICapeUtilities).parameters()
             End Get
         End Property
 
         Public Overrides WriteOnly Property simulationContext() As Object
             Set(ByVal value As Object)
-                CType(_copp, ICapeUtilities).simulationContext = value
+                CType(RequirePackage(), ICapeUtilities).simulationContext = value
             End Set
         End Property
 
         Public Overrides Sub Terminate()
-            CType(_copp, ICapeUtilities).Terminate()
+            If Not _copp Is Nothing Then CType(_copp, ICapeUtilities).Terminate()
         End Sub
 
         Public Overrides Sub CalcEquilibrium2(ByVal materialObject As Object, ByVal flashType As String, ByVal props As Object)
-            CType(_copp, ICapeThermoPropertyPackage).CalcEquilibrium(materialObject, flashType, props)
+            CType(RequirePackage(), ICapeThermoPropertyPackage).CalcEquilibrium(materialObject, flashType, props)
         End Sub
 
         Public Overrides Sub PropCheck1(ByVal materialObject As Object, ByVal flashType As String, ByVal props As Object, ByRef valid As Object)
-            CType(_copp, ICapeThermoEquilibriumServer).PropCheck(materialObject, flashType, props, valid)
+            CType(RequirePackage(), ICapeThermoEquilibriumServer).PropCheck(materialObject, flashType, props, valid)
         End Sub
 
         Public Overrides Sub PropList(ByRef flashType As Object, ByRef props As Object, ByRef phases As Object, ByRef calcType As Object)
-            CType(_copp, ICapeThermoEquilibriumServer).PropList(flashType, props, phases, calcType)
+            CType(RequirePackage(), ICapeThermoEquilibriumServer).PropList(flashType, props, phases, calcType)
         End Sub
 
         Public Overrides Sub ValidityCheck1(ByVal materialObject As Object, ByVal props As Object, ByRef relList As Object)
-            CType(_copp, ICapeThermoEquilibriumServer).ValidityCheck(materialObject, props, relList)
+            CType(RequirePackage(), ICapeThermoEquilibriumServer).ValidityCheck(materialObject, props, relList)
         End Sub
 
         Public Overrides Sub CalcProp1(ByVal materialObject As Object, ByVal props As Object, ByVal phases As Object, ByVal calcType As String)
-            CType(_copp, ICapeThermoCalculationRoutine).CalcProp(materialObject, props, phases, calcType)
+            CType(RequirePackage(), ICapeThermoCalculationRoutine).CalcProp(materialObject, props, phases, calcType)
         End Sub
 
         Public Overrides Function GetPropList1() As Object
-            Return CType(_copp, ICapeThermoCalculationRoutine).GetPropList()
+            Return CType(RequirePackage(), ICapeThermoCalculationRoutine).GetPropList()
         End Function
 
         Public Overrides Function PropCheck2(ByVal materialObject As Object, ByVal props As Object) As Object
-            Return CType(_copp, ICapeThermoCalculationRoutine).PropCheck(materialObject, props)
+            Return CType(RequirePackage(), ICapeThermoCalculationRoutine).PropCheck(materialObject, props)
         End Function
 
         Public Overrides Function ValidityCheck2(ByVal materialObject As Object, ByVal props As Object) As Object
-            Return CType(_copp, ICapeThermoCalculationRoutine).ValidityCheck(materialObject, props)
+            Return CType(RequirePackage(), ICapeThermoCalculationRoutine).ValidityCheck(materialObject, props)
         End Function
 
 #End Region
@@ -1558,96 +1562,96 @@ Namespace PropertyPackages
 
         Public Overrides Function GetCompoundConstant(ByVal props As Object, ByVal compIds As Object) As Object
             'Me.SetMaterial(Me.CurrentMaterialStream)
-            Return CType(_copp, ICapeThermoCompounds).GetCompoundConstant(props, compIds)
+            Return CType(RequirePackage(), ICapeThermoCompounds).GetCompoundConstant(props, compIds)
         End Function
 
         Public Overrides Sub GetCompoundList(ByRef compIds As Object, ByRef formulae As Object, ByRef names As Object, ByRef boilTemps As Object, ByRef molwts As Object, ByRef casnos As Object)
             'Me.SetMaterial(Me.CurrentMaterialStream)
-            CType(_copp, ICapeThermoCompounds).GetCompoundList(compIds, formulae, names, boilTemps, molwts, casnos)
+            CType(RequirePackage(), ICapeThermoCompounds).GetCompoundList(compIds, formulae, names, boilTemps, molwts, casnos)
         End Sub
 
         Public Overrides Function GetConstPropList() As Object
             'Me.SetMaterial(Me.CurrentMaterialStream)
-            Return CType(_copp, ICapeThermoCompounds).GetConstPropList()
+            Return CType(RequirePackage(), ICapeThermoCompounds).GetConstPropList()
         End Function
 
         Public Overrides Function GetNumCompounds() As Integer
             'Me.SetMaterial(Me.CurrentMaterialStream)
-            Return CType(_copp, ICapeThermoCompounds).GetNumCompounds()
+            Return CType(RequirePackage(), ICapeThermoCompounds).GetNumCompounds()
         End Function
 
         Public Overrides Sub GetPDependentProperty(ByVal props As Object, ByVal pressure As Double, ByVal compIds As Object, ByRef propVals As Object)
             'Me.SetMaterial(Me.CurrentMaterialStream)
-            CType(_copp, ICapeThermoCompounds).GetPDependentProperty(props, pressure, compIds, propVals)
+            CType(RequirePackage(), ICapeThermoCompounds).GetPDependentProperty(props, pressure, compIds, propVals)
         End Sub
 
         Public Overrides Function GetPDependentPropList() As Object
             'Me.SetMaterial(Me.CurrentMaterialStream)
-            Return CType(_copp, ICapeThermoCompounds).GetPDependentPropList
+            Return CType(RequirePackage(), ICapeThermoCompounds).GetPDependentPropList
         End Function
 
         Public Overrides Sub GetTDependentProperty(ByVal props As Object, ByVal temperature As Double, ByVal compIds As Object, ByRef propVals As Object)
             'Me.SetMaterial(Me.CurrentMaterialStream)
-            CType(_copp, ICapeThermoCompounds).GetTDependentProperty(props, temperature, compIds, propVals)
+            CType(RequirePackage(), ICapeThermoCompounds).GetTDependentProperty(props, temperature, compIds, propVals)
         End Sub
 
         Public Overrides Function GetTDependentPropList() As Object
             'Me.SetMaterial(Me.CurrentMaterialStream)
-            Return CType(_copp, ICapeThermoCompounds).GetTDependentPropList
+            Return CType(RequirePackage(), ICapeThermoCompounds).GetTDependentPropList
         End Function
 
         Public Overrides Function GetNumPhases() As Integer
             'Me.SetMaterial(Me.CurrentMaterialStream)
-            Return CType(_copp, ICapeThermoPhases).GetNumPhases
+            Return CType(RequirePackage(), ICapeThermoPhases).GetNumPhases
         End Function
 
         Public Overrides Function GetPhaseInfo(ByVal phaseLabel As String, ByVal phaseAttribute As String) As Object
             'Me.SetMaterial(Me.CurrentMaterialStream)
-            Return CType(_copp, ICapeThermoPhases).GetPhaseInfo(phaseLabel, phaseAttribute)
+            Return CType(RequirePackage(), ICapeThermoPhases).GetPhaseInfo(phaseLabel, phaseAttribute)
         End Function
 
         Public Overrides Sub GetPhaseList1(ByRef phaseLabels As Object, ByRef stateOfAggregation As Object, ByRef keyCompoundId As Object)
             'Me.SetMaterial(Me.CurrentMaterialStream)
-            CType(_copp, ICapeThermoPhases).GetPhaseList(phaseLabels, stateOfAggregation, keyCompoundId)
+            CType(RequirePackage(), ICapeThermoPhases).GetPhaseList(phaseLabels, stateOfAggregation, keyCompoundId)
         End Sub
 
         Public Overrides Sub CalcAndGetLnPhi(ByVal phaseLabel As String, ByVal temperature As Double, ByVal pressure As Double, ByVal moleNumbers As Object, ByVal fFlags As Integer, ByRef lnPhi As Object, ByRef lnPhiDT As Object, ByRef lnPhiDP As Object, ByRef lnPhiDn As Object)
             'Me.SetMaterial(Me.CurrentMaterialStream)
-            CType(_copp, ICapeThermoPropertyRoutine).CalcAndGetLnPhi(phaseLabel, temperature, pressure, moleNumbers, fFlags, lnPhi, lnPhiDT, lnPhiDP, lnPhiDn)
+            CType(RequirePackage(), ICapeThermoPropertyRoutine).CalcAndGetLnPhi(phaseLabel, temperature, pressure, moleNumbers, fFlags, lnPhi, lnPhiDT, lnPhiDP, lnPhiDn)
         End Sub
 
         Public Overrides Sub CalcSinglePhaseProp(ByVal props As Object, ByVal phaseLabel As String)
             'Me.SetMaterial(Me.CurrentMaterialStream)
-            CType(_copp, ICapeThermoPropertyRoutine).CalcSinglePhaseProp(props, phaseLabel)
+            CType(RequirePackage(), ICapeThermoPropertyRoutine).CalcSinglePhaseProp(props, phaseLabel)
         End Sub
 
         Public Overrides Sub CalcTwoPhaseProp(ByVal props As Object, ByVal phaseLabels As Object)
             'Me.SetMaterial(Me.CurrentMaterialStream)
-            CType(_copp, ICapeThermoPropertyRoutine).CalcTwoPhaseProp(props, phaseLabels)
+            CType(RequirePackage(), ICapeThermoPropertyRoutine).CalcTwoPhaseProp(props, phaseLabels)
         End Sub
 
         Public Overrides Function CheckSinglePhasePropSpec(ByVal [property] As String, ByVal phaseLabel As String) As Boolean
-            Return CType(_copp, ICapeThermoPropertyRoutine).CheckSinglePhasePropSpec([property], phaseLabel)
+            Return CType(RequirePackage(), ICapeThermoPropertyRoutine).CheckSinglePhasePropSpec([property], phaseLabel)
         End Function
 
         Public Overrides Function CheckTwoPhasePropSpec(ByVal [property] As String, ByVal phaseLabels As Object) As Boolean
-            Return CType(_copp, ICapeThermoPropertyRoutine).CheckTwoPhasePropSpec([property], phaseLabels)
+            Return CType(RequirePackage(), ICapeThermoPropertyRoutine).CheckTwoPhasePropSpec([property], phaseLabels)
         End Function
 
         Public Overrides Function GetSinglePhasePropList() As Object
-            Return CType(_copp, ICapeThermoPropertyRoutine).GetSinglePhasePropList()
+            Return CType(RequirePackage(), ICapeThermoPropertyRoutine).GetSinglePhasePropList()
         End Function
 
         Public Overrides Function GetTwoPhasePropList() As Object
-            Return CType(_copp, ICapeThermoPropertyRoutine).GetTwoPhasePropList()
+            Return CType(RequirePackage(), ICapeThermoPropertyRoutine).GetTwoPhasePropList()
         End Function
 
         Public Overrides Function GetUniversalConstant1(ByVal constantId As String) As Object
-            Return CType(_copp, ICapeThermoUniversalConstant).GetUniversalConstant(constantId)
+            Return CType(RequirePackage(), ICapeThermoUniversalConstant).GetUniversalConstant(constantId)
         End Function
 
         Public Overrides Function GetUniversalConstantList() As Object
-            Return CType(_copp, ICapeThermoUniversalConstant).GetUniversalConstantList()
+            Return CType(RequirePackage(), ICapeThermoUniversalConstant).GetUniversalConstantList()
         End Function
 
         Public Overrides Sub CalcEquilibrium1(ByVal specification1 As Object, ByVal specification2 As Object, ByVal solutionType As String)
@@ -1663,23 +1667,23 @@ Namespace PropertyPackages
 
             Me.CurrentMaterialStream.AtEquilibrium = False
 
-            CType(_copp, ICapeThermoEquilibriumRoutine).CalcEquilibrium(specification1, specification2, solutionType)
+            CType(RequirePackage(), ICapeThermoEquilibriumRoutine).CalcEquilibrium(specification1, specification2, solutionType)
 
             Me.CurrentMaterialStream.AtEquilibrium = True
 
         End Sub
 
         Public Overrides Function CheckEquilibriumSpec(ByVal specification1 As Object, ByVal specification2 As Object, ByVal solutionType As String) As Boolean
-            CType(_copp, ICapeThermoEquilibriumRoutine).CheckEquilibriumSpec(specification1, specification2, solutionType)
+            CType(RequirePackage(), ICapeThermoEquilibriumRoutine).CheckEquilibriumSpec(specification1, specification2, solutionType)
         End Function
 
         Public Overrides Sub SetMaterial(ByVal material As Object)
-            CType(_copp, ICapeThermoMaterialContext).SetMaterial(material)
+            CType(RequirePackage(), ICapeThermoMaterialContext).SetMaterial(material)
             Dim held = MaterialHeld()
             held.Material = material
             held.Copp = _copp
             Dim mcompounds As Integer = CType(material, ICapeThermoCompounds).GetNumCompounds
-            Dim pcompounds As Integer = CType(_copp, ICapeThermoCompounds).GetNumCompounds
+            Dim pcompounds As Integer = CType(RequirePackage(), ICapeThermoCompounds).GetNumCompounds
             If mcompounds <> pcompounds Then
                 Flowsheet.ShowMessage("The compounds in DWSIM and CAPE-OPEN Property Package don't match. Please check the compound associations in the Property Package Settings in DWSIM.", IFlowsheet.MessageType.GeneralError)
                 Throw New Exception("The compounds in DWSIM and CAPE-OPEN Property Package don't match. Please check the compound associations in the Property Package Settings in DWSIM.")
@@ -1687,7 +1691,7 @@ Namespace PropertyPackages
         End Sub
 
         Public Overrides Sub UnsetMaterial()
-            CType(_copp, ICapeThermoMaterialContext).UnsetMaterial()
+            CType(RequirePackage(), ICapeThermoMaterialContext).UnsetMaterial()
             MaterialHeld().Material = Nothing
         End Sub
 
@@ -1769,6 +1773,10 @@ Namespace PropertyPackages
                     End If
 
                 End If
+
+                ' a server was picked and saved before any of its packages: keep the server, and let
+                ' the package be picked in the configuration (solving says so until then)
+                If String.IsNullOrEmpty(_ppname) Then Exit Sub
 
                 Try
                     If _coversion = "1.0" Then
@@ -1893,11 +1901,17 @@ Namespace PropertyPackages
             End If
 
             Dim info As XElement = (From el As XElement In data Select el Where el.Name = "CAPEOPEN_Object_Info").SingleOrDefault
-            Try
-                _selts = New CapeOpenObjInfo
-                _selts.LoadData(info.Elements.ToList)
-            Catch ex As Exception
-            End Try
+            ' a package saved before a server was picked has no object info: leave it unselected
+            ' (an empty one sent PersistLoad looking for a server with no ProgID)
+            _selts = Nothing
+            If info IsNot Nothing Then
+                Try
+                    _selts = New CapeOpenObjInfo
+                    _selts.LoadData(info.Elements.ToList)
+                Catch ex As Exception
+                End Try
+                If _selts IsNot Nothing AndAlso String.IsNullOrEmpty(_selts.TypeName) Then _selts = Nothing
+            End If
 
             PersistLoad(Nothing)
 
