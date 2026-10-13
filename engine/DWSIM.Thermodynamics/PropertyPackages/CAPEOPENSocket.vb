@@ -708,9 +708,9 @@ Namespace PropertyPackages
             ' a package that does not give the density gives the volume, which the stream turns into a density
             If _coversion = "1.0" Then
                 Try
-                    CType(RequirePackage(), ICapeThermoCalculationRoutine).CalcProp(tstr, New String() {prop}, New String() {label}, "Mixture")
+                    CalcProp10(tstr, New String() {prop}, New String() {label})
                 Catch ex As Exception When prop = "density"
-                    CType(RequirePackage(), ICapeThermoCalculationRoutine).CalcProp(tstr, New String() {"volume"}, New String() {label}, "Mixture")
+                    CalcProp10(tstr, New String() {"volume"}, New String() {label})
                 End Try
             Else
                 EnsureMaterial(tstr)
@@ -721,6 +721,22 @@ Namespace PropertyPackages
             Return read(tstr.Phases(index).Properties).GetValueOrDefault
 
         End Function
+
+        ''' <summary>
+        ''' A CAPE-OPEN 1.0 mixture property calculation. A component registered as a calculation routine
+        ''' is called through that interface, as before; a 1.0 property package (what a Thermo System's
+        ''' ResolvePropertyPackage delivers, e.g. TEA) does not implement it, and is called through its own
+        ''' CalcProp, which takes the same arguments.
+        ''' </summary>
+        Private Sub CalcProp10(material As Object, props As String(), phases As String())
+            Dim package = RequirePackage()
+            Dim routine = TryCast(package, ICapeThermoCalculationRoutine)
+            If routine IsNot Nothing Then
+                routine.CalcProp(material, props, phases, "Mixture")
+            Else
+                CType(package, ICapeThermoPropertyPackage).CalcProp(material, props, phases, "Mixture")
+            End If
+        End Sub
 
         Public Overrides Function DW_CalcCp_ISOL(ByVal Phase1 As PropertyPackages.Phase, ByVal T As Double, ByVal P As Double) As Double
 
@@ -864,16 +880,21 @@ Namespace PropertyPackages
             Dim proplist As String()
 
             If _coversion = "1.0" Then
-                If myphase <> PropertyPackages.Phase.Liquid Then
+                ' the package knows its phases by the labels in the phase mappings, as in 1.1 below
+                ' (the DWSIM phase enum went in here, which a package does not recognise)
+                If phase <> "Overall" And phase <> "" Then
                     proplist = Me.GetPropList
                     For i = 0 To UBound(proplist) - 1
                         If Not proplist(i).ToLower.Contains(".d") Then
                             Try
-                                Me.CalcProp(Me.CurrentMaterialStream, New String() {proplist(i)}, New String() {myphase}, "Mixture")
+                                Me.CalcProp(Me.CurrentMaterialStream, New String() {proplist(i)}, New String() {phase}, "Mixture")
                             Catch ex As Exception
                             End Try
                         End If
                     Next
+                    result = overallmolarflow * phasemolarfrac * Me.AUX_MMM(myphase) / 1000 / Me.CurrentMaterialStream.Phases(phaseID).Properties.density.GetValueOrDefault
+                    If Double.IsNaN(result) Then result = 0.0
+                    Me.CurrentMaterialStream.Phases(phaseID).Properties.volumetric_flow = result
                 End If
             Else
                 If phase <> "Overall" And phase <> "" Then
@@ -957,7 +978,7 @@ Namespace PropertyPackages
             tstr.Phases(0).Properties.pressure = P
 
             If _coversion = "1.0" Then
-                CType(RequirePackage(), ICapeThermoCalculationRoutine).CalcProp(tstr, New String() {"surfaceTension"}, New String() {ll}, "Mixture")
+                CalcProp10(tstr, New String() {"surfaceTension"}, New String() {ll})
             Else
                 EnsureMaterial(tstr)
                 CType(RequirePackage(), ICapeThermoPropertyRoutine).CalcTwoPhaseProp(New String() {"surfaceTension"}, New String() {vl, ll})
