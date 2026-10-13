@@ -361,9 +361,10 @@ Namespace PropertyPackages
                 ' CAPE-OPEN 1.0 gives the labels only: read the state of aggregation off the label
                 states = labels.Select(Function(l)
                                            Dim low = l.ToLowerInvariant()
-                                           If low.StartsWith("vap") OrElse low = "gas" Then Return "Vapor"
-                                           If low.StartsWith("liq") Then Return "Liquid"
-                                           If low.StartsWith("sol") Then Return "Solid"
+                                           ' a label naming two phases (ChemSep's LiquidVapor) is neither
+                                           If low = "vapor" OrElse low = "vapour" OrElse low = "gas" Then Return "Vapor"
+                                           If low.StartsWith("liquid") AndAlso Not low.Contains("vap") Then Return "Liquid"
+                                           If low.StartsWith("solid") Then Return "Solid"
                                            Return ""
                                        End Function).ToList()
             End If

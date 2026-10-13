@@ -715,6 +715,13 @@ Namespace PropertyPackages
             Else
                 EnsureMaterial(tstr)
                 If prop = "density" AndAlso Not CType(RequirePackage(), ICapeThermoPropertyRoutine).CheckSinglePhasePropSpec("density", label) Then prop = "volume"
+                ' heatCapacity is the 1.0 name; 1.1 calls it heatCapacityCp
+                If prop = "heatCapacity" Then
+                    Try
+                        If CType(RequirePackage(), ICapeThermoPropertyRoutine).CheckSinglePhasePropSpec("heatCapacityCp", label) Then prop = "heatCapacityCp"
+                    Catch ex As Exception
+                    End Try
+                End If
                 CType(RequirePackage(), ICapeThermoPropertyRoutine).CalcSinglePhaseProp(New String() {prop}, label)
             End If
 
@@ -884,7 +891,7 @@ Namespace PropertyPackages
                 ' (the DWSIM phase enum went in here, which a package does not recognise)
                 If phase <> "Overall" And phase <> "" Then
                     proplist = Me.GetPropList
-                    For i = 0 To UBound(proplist) - 1
+                    For i = 0 To UBound(proplist)
                         If Not proplist(i).ToLower.Contains(".d") Then
                             Try
                                 Me.CalcProp(Me.CurrentMaterialStream, New String() {proplist(i)}, New String() {phase}, "Mixture")
@@ -899,7 +906,7 @@ Namespace PropertyPackages
             Else
                 If phase <> "Overall" And phase <> "" Then
                     proplist = Me.GetSinglePhasePropList
-                    For i = 0 To UBound(proplist) - 1
+                    For i = 0 To UBound(proplist)
                         If Not proplist(i).Contains(".D") Then
                             Try
                                 Me.CalcSinglePhaseProp(New String() {proplist(i)}, phase)
@@ -1259,12 +1266,25 @@ Namespace PropertyPackages
 
         End Sub
 
+        ''' <summary>
+        ''' The package's compound IDs and molecular weights: through ICapeThermoPropertyPackage in 1.0
+        ''' (a 1.0 package need not implement the 1.1 ICapeThermoCompounds; ChemSep's does not) and
+        ''' through ICapeThermoCompounds in 1.1.
+        ''' </summary>
+        Private Sub PackageCompoundList(ByRef complist As Object, ByRef mw As Object)
+            If _coversion = "1.0" Then
+                Me.GetComponentList(complist, Nothing, Nothing, Nothing, mw, Nothing)
+            Else
+                Me.GetCompoundList(complist, Nothing, Nothing, Nothing, mw, Nothing)
+            End If
+        End Sub
+
         Public Overrides Function AUX_MMM(Vz() As Double, Optional ByVal state As String = "") As Double
 
             Dim complist As Object = Nothing
             Dim mw As Object = Nothing
             Dim mw2 As New Dictionary(Of String, Double)
-            Me.GetCompoundList(complist, Nothing, Nothing, Nothing, mw, Nothing)
+            PackageCompoundList(complist, mw)
             Dim val As Double = 0.0#
             Dim subst As Interfaces.ICompound
             Dim i As Integer = 0
@@ -1286,7 +1306,7 @@ Namespace PropertyPackages
             Dim complist As Object = Nothing
             Dim mw As Object = Nothing
             Dim mw2 As New Dictionary(Of String, Double)
-            Me.GetCompoundList(complist, Nothing, Nothing, Nothing, mw, Nothing)
+            PackageCompoundList(complist, mw)
 
             Dim mwt As Double = 0.0#
             Dim i As Integer = 0
@@ -1306,7 +1326,7 @@ Namespace PropertyPackages
 
             Dim complist As Object = Nothing
             Dim mw As Object = Nothing
-            Me.GetCompoundList(complist, Nothing, Nothing, Nothing, mw, Nothing)
+            PackageCompoundList(complist, mw)
 
             Dim mol_x_mm As Double
             Dim sub1 As Interfaces.ICompound
@@ -1331,7 +1351,7 @@ Namespace PropertyPackages
 
             Dim complist As Object = Nothing
             Dim mw As Object = Nothing
-            Me.GetCompoundList(complist, Nothing, Nothing, Nothing, mw, Nothing)
+            PackageCompoundList(complist, mw)
 
             Dim mass_div_mm As Double
             Dim sub1 As Interfaces.ICompound
@@ -1352,7 +1372,7 @@ Namespace PropertyPackages
 
             Dim complist As Object = Nothing
             Dim mw As Object = Nothing
-            Me.GetCompoundList(complist, Nothing, Nothing, Nothing, mw, Nothing)
+            PackageCompoundList(complist, mw)
 
             Dim Vwe(Vz.Length - 1) As Double
             Dim mol_x_mm As Double = 0.0#
@@ -1376,7 +1396,7 @@ Namespace PropertyPackages
         Public Overrides Function AUX_CONVERT_MASS_TO_MOL(ByVal Vz As Double()) As Double()
 
             Dim complist As Object = Nothing
-            Me.GetCompoundList(complist, Nothing, Nothing, Nothing, Nothing, Nothing)
+            PackageCompoundList(complist, Nothing)
             Dim mw = DirectCast(Me.CurrentMaterialStream, ICapeThermoCompounds).GetCompoundConstant(New String() {"molecularWeight"}, complist)
 
             Dim Vw(Vz.Length - 1) As Double
@@ -1451,10 +1471,21 @@ Namespace PropertyPackages
             Dim lnphidn As Object = Nothing
 
             If _coversion = "1.0" Then
+                ' the copy carries the coefficients of the stream it was made from: clear them, so that
+                ' what is returned is what the package computed at Vx and not the stream's own phase
+                For Each c As Interfaces.ICompound In tstr.Phases(pid).Compounds.Values
+                    c.FugacityCoeff = Nothing
+                Next
                 Try
                     CType(RequirePackage(), ICapeThermoPropertyPackage).CalcProp(tstr, New String() {"fugacityCoefficient"}, New String() {phase}, "Mixture")
                 Catch ex As Exception
-                    tstr.Flowsheet.ShowMessage(Me.ComponentName & ": " & DescribeCapeError(ex, _copp), Interfaces.IFlowsheet.MessageType.GeneralError)
+                    ' a package can list fugacityCoefficient and still only compute its logarithm (TEA
+                    ' does), which the stream stores as the coefficient
+                    Try
+                        CType(RequirePackage(), ICapeThermoPropertyPackage).CalcProp(tstr, New String() {"logFugacityCoefficient"}, New String() {phase}, "Mixture")
+                    Catch ex2 As Exception
+                        tstr.Flowsheet.ShowMessage(Me.ComponentName & ": " & DescribeCapeError(ex, _copp), Interfaces.IFlowsheet.MessageType.GeneralError)
+                    End Try
                 End Try
                 Dim n As Integer = tstr.Phases(pid).Compounds.Count - 1
                 Dim i As Integer = 0
