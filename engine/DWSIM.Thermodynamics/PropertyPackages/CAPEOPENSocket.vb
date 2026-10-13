@@ -708,7 +708,7 @@ Namespace PropertyPackages
             ' a package that does not give the density gives the volume, which the stream turns into a density
             If _coversion = "1.0" Then
                 Try
-                    CalcProp10(tstr, New String() {prop}, New String() {label})
+                    CalcWithDensityRetry(prop, Sub(props) CalcProp10(tstr, props, New String() {label}))
                 Catch ex As Exception When prop = "density"
                     CalcProp10(tstr, New String() {"volume"}, New String() {label})
                 End Try
@@ -722,7 +722,7 @@ Namespace PropertyPackages
                     Catch ex As Exception
                     End Try
                 End If
-                CType(RequirePackage(), ICapeThermoPropertyRoutine).CalcSinglePhaseProp(New String() {prop}, label)
+                CalcSinglePhaseProp11(prop, label)
             End If
 
             Return read(tstr.Phases(index).Properties).GetValueOrDefault
@@ -743,6 +743,35 @@ Namespace PropertyPackages
             Else
                 CType(package, ICapeThermoPropertyPackage).CalcProp(material, props, phases, "Mixture")
             End If
+        End Sub
+
+        ''' <summary>
+        ''' Requests one property through <paramref name="calc"/>. ChemSep computes a vapour's thermal
+        ''' conductivity with a pressure correction that needs the phase density, and evaluates that
+        ''' density only when it is requested in the same call: asked for alone above about 1 atm, the
+        ''' conductivity fails with "One or more values are not finite". When the conductivity fails on
+        ''' its own, it is asked for again together with the density; a package that computes it alone
+        ''' (TEA) never reaches the second request, and when that fails too the first error is raised.
+        ''' </summary>
+        Private Shared Sub CalcWithDensityRetry(prop As String, calc As Action(Of String()))
+            Dim first As Exception = Nothing
+            Try
+                calc(New String() {prop})
+                Return
+            Catch ex As Exception When prop = "thermalConductivity"
+                first = ex
+            End Try
+            Try
+                calc(New String() {"density", prop})
+            Catch
+                System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(first).Throw()
+            End Try
+        End Sub
+
+        ''' <summary>A CAPE-OPEN 1.1 single-phase property of one phase (see CalcWithDensityRetry).</summary>
+        Private Sub CalcSinglePhaseProp11(prop As String, label As String)
+            Dim routine = CType(RequirePackage(), ICapeThermoPropertyRoutine)
+            CalcWithDensityRetry(prop, Sub(props) routine.CalcSinglePhaseProp(props, label))
         End Sub
 
         Public Overrides Function DW_CalcCp_ISOL(ByVal Phase1 As PropertyPackages.Phase, ByVal T As Double, ByVal P As Double) As Double
@@ -894,7 +923,7 @@ Namespace PropertyPackages
                     For i = 0 To UBound(proplist)
                         If Not proplist(i).ToLower.Contains(".d") Then
                             Try
-                                Me.CalcProp(Me.CurrentMaterialStream, New String() {proplist(i)}, New String() {phase}, "Mixture")
+                                CalcWithDensityRetry(proplist(i), Sub(props) Me.CalcProp(Me.CurrentMaterialStream, props, New String() {phase}, "Mixture"))
                             Catch ex As Exception
                             End Try
                         End If
@@ -909,7 +938,7 @@ Namespace PropertyPackages
                     For i = 0 To UBound(proplist)
                         If Not proplist(i).Contains(".D") Then
                             Try
-                                Me.CalcSinglePhaseProp(New String() {proplist(i)}, phase)
+                                CalcSinglePhaseProp11(proplist(i), phase)
                             Catch ex As Exception
                             End Try
                         End If
