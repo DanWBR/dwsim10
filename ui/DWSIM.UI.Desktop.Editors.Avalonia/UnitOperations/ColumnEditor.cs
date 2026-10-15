@@ -97,6 +97,7 @@ namespace DWSIM.UI.Desktop.Editors
                         var specs = new TabControl();
                         specs.Items.Add(new TabItem { Header = "Condenser", Content = BuildCondenser(distillation) });
                         specs.Items.Add(new TabItem { Header = "Reboiler", Content = BuildReboiler(distillation) });
+                        specs.Items.Add(new TabItem { Header = "Secondary", Content = ColumnSecondarySpecsEditor.Build(distillation) });
                         tabs.Items.Add(new TabItem { Header = "Specifications", Content = specs });
                     }
 

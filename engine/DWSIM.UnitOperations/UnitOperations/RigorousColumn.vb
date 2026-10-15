@@ -6826,6 +6826,12 @@ Namespace UnitOperations
 
         Public Overrides Sub Calculate(Optional ByVal args As Object = Nothing)
 
+            'secondary specifications: an outer loop around this same solve
+            If Not _secondarySpecPass AndAlso HasActiveSecondarySpecs() Then
+                SolveWithSecondarySpecs(args)
+                Exit Sub
+            End If
+
             ColumnPropertiesProfile = ""
 
             Dim inputdata As ColumnSolverInputData
