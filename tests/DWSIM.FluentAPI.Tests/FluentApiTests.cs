@@ -118,6 +118,10 @@ namespace DWSIM.FluentAPI.Tests
 
         [Test] public void TheBenzeneTolueneSampleSolvesAndSaves() => BenzeneTolueneSample.Run();
 
+        [Test] public void TheStraightRunDistillateCurvesSampleSolvesAndSaves() => DistillateFractionationSample.Run();
+
+        [Test] public void TheStraightRunDistillateSecondarySpecsSampleSolvesAndSaves() => DistillateFractionationSample.RunSecondarySpecs();
+
         [Test] public void TheEthanolDistillerySampleSolvesAndSaves() => EthanolDistillerySample.Run();
 
         [Test] public void TheNaturalGasSampleSolvesAndSaves() => NaturalGasProcessingSample.Run();
