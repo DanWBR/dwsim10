@@ -2592,6 +2592,16 @@ public partial class FlowsheetView : UserControl
     // Context menu
     // -------------------------------------------------------------------------
 
+    // the table and chart classes declare their own ClipboardData, which hides the base property
+    private static string? AnnotationClipboardText(object obj) => obj switch
+    {
+        DWSIM.Drawing.SkiaSharp.GraphicObjects.Tables.MasterTableGraphic t => t.ClipboardData,
+        DWSIM.Drawing.SkiaSharp.GraphicObjects.Tables.SpreadsheetTableGraphic t => t.ClipboardData,
+        DWSIM.Drawing.SkiaSharp.GraphicObjects.Tables.TableGraphic t => t.ClipboardData,
+        DWSIM.Drawing.SkiaSharp.GraphicObjects.Charts.OxyPlotGraphic c => c.ClipboardData,
+        _ => null
+    };
+
     private void ShowCanvasContextMenu()
     {
         var obj = _surface?.SelectedObject;
@@ -2653,7 +2663,21 @@ public partial class FlowsheetView : UserControl
             var copyData = new MenuItem { Header = "Copy Data to Clipboard", Icon = IconHelper.MIcon("\U0001F4CB") }; // clipboard
             copyData.Click += async (_, _) =>
             {
-                if (simObj == null) return;
+                if (simObj == null)
+                {
+                    // tables and charts keep the text of what they draw
+                    var text = AnnotationClipboardText(obj);
+                    if (text == null) return;
+                    try
+                    {
+                        var tclip = TopLevel.GetTopLevel(this)?.Clipboard;
+                        if (tclip != null)
+                            await tclip.SetTextAsync(text);
+                        AppendLog("Data copied to clipboard.");
+                    }
+                    catch (Exception ex) { AppendLog($"Copy failed: {ex.Message}", DWSIM.Interfaces.IFlowsheet.MessageType.GeneralError); }
+                    return;
+                }
                 try
                 {
                     var sb = new StringBuilder();
