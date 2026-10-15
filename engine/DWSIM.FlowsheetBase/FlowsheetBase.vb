@@ -3881,6 +3881,8 @@ Imports DWSIM.ExtensionMethods
                 Return New Utilities.PetroleumColdFlowUtility()
             Case FlowsheetUtility.PureCompoundProperties
                 Return New Utilities.PureCompoundPropertiesUtility()
+            Case FlowsheetUtility.DistillationCurves
+                Return New DWSIM.Thermodynamics.Utilities.PetroleumProperties.DistillationCurvesUtility()
             Case FlowsheetUtility.ColumnInternals
                 'lives in the runner assembly, which references this one; found by name in whatever assembly carries it
                 Return CreateUtilityByName("DWSIM.Automation.DynamicRunner.ColumnInternals.ColumnInternalsUtility")

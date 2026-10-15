@@ -133,29 +133,13 @@ Namespace Utilities.PetroleumProperties
 
             End If
 
-            'API Procedure 2B5.1
-            Dim Huang_I = 0.02266 * Exp(0.0003905 * (1.8 * MeABP) + 2.468 * SG - 0.0005704 * (1.8 * MeABP) * SG) * (1.8 * MeABP) ^ 0.0572 * SG ^ -0.72
-            res.RefractionIndex = ((1 + 2 * Huang_I) / (1 - Huang_I)) ^ 0.5
-
-            'API Procedure 2B7.1 (Pensky-Martens Closed Cup - ASTM D93)
-            Dim fp = 0.69 * ((t10ASTM - 273.15) * 9 / 5 + 32) - 118.2
-            res.FlashPoint = (fp - 32) * 5 / 9 + 273.15
-
-            'API Procedure 2B8.1
-            res.PourPoint = (753 + 136 * (1 - Exp(-0.15 * kv1 * 1000000.0)) - 572 * SG + 0.0512 * kv1 * 1000000.0 + 0.139 * (MeABP * 1.8)) / 1.8
-
-            'API Procedure 2B11.1
-            res.FreezingPoint = (-2390.42 + 1826 * SG + 122.49 * K - 0.135 * 1.8 * MeABP) / 1.8
-
-            'API Procedure 2B12.1
-            res.CloudPoint = (10 ^ (-7.41 + 5.49 * Log10(MeABP * 1.8) - 0.712 * (1.8 * MeABP) ^ 0.315 - 0.133 * SG)) / 1.8
-
-            'API Procedure 2B13.1
-            res.CetaneIndex = 415.26 - 7.673 * API + 0.186 * (MeABP * 1.8 - 458.67) + 3.503 * API * Log10(1.8 * MeABP - 458.67) - 193.816 * Log10(MeABP * 1.8 - 458.67)
-
-            'Reid Vapor Pressure
-            'reference: https://www.epa.gov/air-emissions-factors-and-quantification/ap-42-fifth-edition-volume-i-chapter-7-liquid-storage-0 , page 7.1-82
-            res.ReidVaporPressure = (10 ^ ((Log(TVP / 6894.76) + 7261 / (310.95 * 1.8) - 12.82) / (2799 / (310.95 * 1.8) - 2.227))) * 6894.76
+            res.RefractionIndex = PetroleumCorrelations.RefractionIndex(SG, MeABP)
+            res.FlashPoint = PetroleumCorrelations.FlashPointClosedCup(t10ASTM)
+            res.PourPoint = PetroleumCorrelations.PourPoint(SG, MeABP, kv1)
+            res.FreezingPoint = PetroleumCorrelations.FreezingPoint(SG, MeABP, K)
+            res.CloudPoint = PetroleumCorrelations.CloudPoint(SG, MeABP)
+            res.CetaneIndex = PetroleumCorrelations.CetaneIndex(API, MeABP)
+            res.ReidVaporPressure = PetroleumCorrelations.ReidVaporPressure(TVP)
 
             res.TrueVaporPressure = TVP
             res.Viscosity37C = v1

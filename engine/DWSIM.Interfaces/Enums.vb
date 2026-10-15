@@ -158,6 +158,7 @@ Namespace Enums
         PureCompoundProperties = 8
         Depressurization = 9
         ColumnInternals = 10
+        DistillationCurves = 11
     End Enum
 
     Public Enum UnitOfMeasure

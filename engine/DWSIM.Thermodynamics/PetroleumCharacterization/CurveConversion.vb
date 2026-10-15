@@ -70,9 +70,7 @@ Namespace Utilities.PetroleumCharacterization.Methods
 
             n = UBound(Tastmd2887)
 
-            For i = 0 To n
-                Tastmd2887(i) = (Tastmd2887(i) - 273.15) * 9 / 5 + 32
-            Next
+            Tastmd2887 = Tastmd2887.Select(Function(t) (t - 273.15) * 9 / 5 + 32).ToArray()
 
             a(0) = 0.15779
             a(1) = 0.011903
@@ -95,8 +93,8 @@ Namespace Utilities.PetroleumCharacterization.Methods
             Next
 
             Tpev(0) = Tastmd2887(3) - dT(0) - dT(1) - dT(2)   'T5
-            Tpev(1) = Tastmd2887(3) - dT(0) - dT(1)  'T10
-            Tpev(2) = Tastmd2887(3) - dT(0)  'T30
+            Tpev(1) = Tastmd2887(3) - dT(1) - dT(2)  'T10
+            Tpev(2) = Tastmd2887(3) - dT(2)  'T30
             Tpev(3) = Tastmd2887(3)  'T50
             Tpev(4) = Tastmd2887(3) + dT(3) 'T70
             Tpev(5) = Tastmd2887(3) + dT(3) + dT(4) 'T90
@@ -212,6 +210,220 @@ Namespace Utilities.PetroleumCharacterization.Methods
             Next
 
             Return Tpev10
+
+        End Function
+
+        ' API Technical Data Book, procedure 3A1.1 (Daubert, 1994), segments 0-10, 10-30, 30-50,
+        ' 50-70, 70-90 and 90-100 vol%: TBP difference = A (D86 difference)^B, in F
+        Private Shared ReadOnly D86TBP_A As Double() = {7.4012, 4.9004, 3.0305, 2.5282, 3.0419, 0.11798}
+        Private Shared ReadOnly D86TBP_B As Double() = {0.60244, 0.71644, 0.80076, 0.82002, 0.75497, 1.6606}
+
+        ' procedure 3A3.1, segments 5-10, 10-30, 30-50, 50-70, 70-90, 90-95 and 95-100 %:
+        ' TBP difference = C (D2887 difference)^D, in F
+        Private Shared ReadOnly SDTBP_C As Double() = {0.15779, 0.011903, 0.05342, 0.19861, 0.31531, 0.97476, 0.02172}
+        Private Shared ReadOnly SDTBP_D As Double() = {1.4296, 2.0253, 1.6988, 1.3975, 1.2938, 0.8723, 1.9733}
+
+        ' Riazi and Daubert, D86 to EFV at 0, 10, 30, 50, 70, 90 and 100 vol% (Riazi, MNL50, Eq. 3.16)
+        Private Shared ReadOnly D86EFV_a As Double() = {2.9747, 1.4459, 0.8506, 3.268, 8.2873, 10.6266, 7.9952}
+        Private Shared ReadOnly D86EFV_b As Double() = {0.8466, 0.9511, 1.0315, 0.8274, 0.6871, 0.6529, 0.6949}
+        Private Shared ReadOnly D86EFV_c As Double() = {0.4209, 0.1287, 0.0817, 0.6214, 0.934, 1.1025, 1.0737}
+
+        ' Edmister and Okamoto, API figure 3A2.1: ASTM D1160 difference against TBP difference at 10 mmHg, in F,
+        ' read from the figure. The 10-30 and 30-50 % segments share a curve, the 0-10 % segment has its own
+        ' and the segments above 50 % are equal on both curves.
+        Private Shared ReadOnly D1160_X As Double() = {0, 9, 15, 21, 27, 33, 39, 45, 51, 57, 63, 69, 75, 81, 87, 93, 99, 105, 111, 117, 123, 129, 135, 141, 147, 153, 159, 165, 171}
+        Private Shared ReadOnly D1160_Y1050 As Double() = {0, 11.7, 18.6, 25.9, 32.5, 39.7, 46.1, 52.5, 58.9, 65.1, 71.1, 76.8, 82.3, 87.8, 93.5, 98.8, 104.3, 109.8, 115.5, 121.5, 127.0, 132.5, 138.3, 143.8, 149.5, 155.0, 160.4, 165.6, 171}
+        Private Shared ReadOnly D1160_X010 As Double() = {0, 3, 9, 15, 21, 27, 33, 39, 45, 51, 57, 63, 69, 75, 81, 87, 93, 99, 105, 111, 117}
+        Private Shared ReadOnly D1160_Y010 As Double() = {0, 6.5, 18.8, 30.2, 41.5, 51.3, 60.0, 68.1, 75.9, 83.2, 89.7, 94.8, 100.0, 104.6, 109.3, 113.8, 117.9, 121.4, 125.0, 128.2, 130.8}
+
+        Private Shared Function KToF(T As Double) As Double
+            Return (T - 273.15) * 9 / 5 + 32
+        End Function
+
+        Private Shared Function FToK(T As Double) As Double
+            Return (T - 32) * 5 / 9 + 273.15
+        End Function
+
+        ''' <summary>
+        ''' Converts an ASTM D86 curve to a TBP curve at atmospheric pressure (API procedure 3A1.1, Daubert 1994).
+        ''' </summary>
+        ''' <param name="Td86">D86 temperatures at 0, 10, 30, 50, 70, 90 and 100 vol% distilled, in K.</param>
+        ''' <returns>TBP temperatures at the same points, in K.</returns>
+        Public Shared Function ASTMD86ToTBP_Daubert(Td86 As Double()) As Double()
+
+            Dim d = Td86.Select(Function(t) KToF(t)).ToArray()
+            Dim tbp(6) As Double
+
+            tbp(3) = 0.8718 * d(3) ^ 1.0258
+            For i = 2 To 0 Step -1
+                tbp(i) = tbp(i + 1) - D86TBP_A(i) * Max(0.0, d(i + 1) - d(i)) ^ D86TBP_B(i)
+            Next
+            For i = 4 To 6
+                tbp(i) = tbp(i - 1) + D86TBP_A(i - 1) * Max(0.0, d(i) - d(i - 1)) ^ D86TBP_B(i - 1)
+            Next
+
+            Return tbp.Select(Function(t) FToK(t)).ToArray()
+
+        End Function
+
+        ''' <summary>
+        ''' Converts a TBP curve at atmospheric pressure to an ASTM D86 curve (API procedure 3A1.1 in reverse).
+        ''' </summary>
+        ''' <param name="Ttbp">TBP temperatures at 0, 10, 30, 50, 70, 90 and 100 vol% distilled, in K.</param>
+        ''' <returns>D86 temperatures at the same points, in K.</returns>
+        Public Shared Function TBPToASTMD86_Daubert(Ttbp As Double()) As Double()
+
+            Dim t = Ttbp.Select(Function(x) KToF(x)).ToArray()
+            Dim d(6) As Double
+
+            d(3) = Exp(Log(t(3) / 0.8718) / 1.0258)
+            For i = 2 To 0 Step -1
+                d(i) = d(i + 1) - (Max(0.0, t(i + 1) - t(i)) / D86TBP_A(i)) ^ (1 / D86TBP_B(i))
+            Next
+            For i = 4 To 6
+                d(i) = d(i - 1) + (Max(0.0, t(i) - t(i - 1)) / D86TBP_A(i - 1)) ^ (1 / D86TBP_B(i - 1))
+            Next
+
+            Return d.Select(Function(x) FToK(x)).ToArray()
+
+        End Function
+
+        ''' <summary>
+        ''' Converts a TBP curve at atmospheric pressure to an ASTM D2887 (simulated distillation) curve
+        ''' (API procedure 3A3.1 in reverse). The TBP points are in vol% distilled, the D2887 points in wt%.
+        ''' </summary>
+        ''' <param name="Ttbp">TBP temperatures at 5, 10, 30, 50, 70, 90, 95 and 100 % distilled, in K.</param>
+        ''' <returns>D2887 temperatures at the same points, in K.</returns>
+        Public Shared Function TBPToASTMD2887_Daubert(Ttbp As Double()) As Double()
+
+            Dim t = Ttbp.Select(Function(x) KToF(x)).ToArray()
+            Dim sd(7) As Double
+
+            sd(3) = t(3)
+            For i = 2 To 0 Step -1
+                sd(i) = sd(i + 1) - (Max(0.0, t(i + 1) - t(i)) / SDTBP_C(i)) ^ (1 / SDTBP_D(i))
+            Next
+            For i = 4 To 7
+                sd(i) = sd(i - 1) + (Max(0.0, t(i) - t(i - 1)) / SDTBP_C(i - 1)) ^ (1 / SDTBP_D(i - 1))
+            Next
+
+            Return sd.Select(Function(x) FToK(x)).ToArray()
+
+        End Function
+
+        ''' <summary>
+        ''' Converts an ASTM D86 curve to an equilibrium flash vaporization curve at atmospheric pressure
+        ''' (Riazi and Daubert).
+        ''' </summary>
+        ''' <param name="Td86">D86 temperatures at 0, 10, 30, 50, 70, 90 and 100 vol% distilled, in K.</param>
+        ''' <param name="SG">Specific gravity 60F/60F.</param>
+        ''' <returns>EFV temperatures at the same points, in K.</returns>
+        Public Shared Function ASTMD86ToEFV_RiaziDaubert(Td86 As Double(), SG As Double) As Double()
+
+            Dim efv(6) As Double
+            For i = 0 To 6
+                efv(i) = D86EFV_a(i) * Td86(i) ^ D86EFV_b(i) * SG ^ D86EFV_c(i)
+            Next
+            Return efv
+
+        End Function
+
+        ''' <summary>
+        ''' Converts an ASTM D1160 curve at 10 mmHg to a TBP curve at 10 mmHg (Edmister and Okamoto, API figure 3A2.1).
+        ''' </summary>
+        ''' <param name="Td1160">D1160 temperatures at 0, 10, 30, 50, 70, 90 and 100 vol% distilled, in K.</param>
+        ''' <returns>TBP temperatures at 10 mmHg at the same points, in K.</returns>
+        Public Shared Function ASTMD1160ToTBP10mmHg_EdmisterOkamoto(Td1160 As Double()) As Double()
+
+            Dim d = Td1160.Select(Function(t) KToF(t)).ToArray()
+            Dim tbp(6) As Double
+
+            tbp(3) = d(3)
+            tbp(2) = tbp(3) - Interpolate(D1160_X, D1160_Y1050, Max(0.0, d(3) - d(2)))
+            tbp(1) = tbp(2) - Interpolate(D1160_X, D1160_Y1050, Max(0.0, d(2) - d(1)))
+            tbp(0) = tbp(1) - Interpolate(D1160_X010, D1160_Y010, Max(0.0, d(1) - d(0)))
+            For i = 4 To 6
+                tbp(i) = tbp(i - 1) + Max(0.0, d(i) - d(i - 1))
+            Next
+
+            Return tbp.Select(Function(t) FToK(t)).ToArray()
+
+        End Function
+
+        ''' <summary>
+        ''' Converts a TBP curve at 10 mmHg to an ASTM D1160 curve at 10 mmHg (API figure 3A2.1 in reverse).
+        ''' </summary>
+        ''' <param name="Ttbp">TBP temperatures at 10 mmHg at 0, 10, 30, 50, 70, 90 and 100 vol% distilled, in K.</param>
+        ''' <returns>D1160 temperatures at 10 mmHg at the same points, in K.</returns>
+        Public Shared Function TBP10mmHgToASTMD1160_EdmisterOkamoto(Ttbp As Double()) As Double()
+
+            Dim t = Ttbp.Select(Function(x) KToF(x)).ToArray()
+            Dim d(6) As Double
+
+            d(3) = t(3)
+            d(2) = d(3) - Interpolate(D1160_Y1050, D1160_X, Max(0.0, t(3) - t(2)))
+            d(1) = d(2) - Interpolate(D1160_Y1050, D1160_X, Max(0.0, t(2) - t(1)))
+            d(0) = d(1) - Interpolate(D1160_Y010, D1160_X010, Max(0.0, t(1) - t(0)))
+            For i = 4 To 6
+                d(i) = d(i - 1) + Max(0.0, t(i) - t(i - 1))
+            Next
+
+            Return d.Select(Function(x) FToK(x)).ToArray()
+
+        End Function
+
+        ''' <summary>
+        ''' Linear interpolation on an increasing table, extrapolated with the slope of the last two points.
+        ''' </summary>
+        Private Shared Function Interpolate(x As Double(), y As Double(), xi As Double) As Double
+
+            Dim n = x.Length
+            If xi <= x(0) Then Return y(0)
+            For i = 1 To n - 1
+                If xi <= x(i) Then
+                    Return y(i - 1) + (y(i) - y(i - 1)) * (xi - x(i - 1)) / (x(i) - x(i - 1))
+                End If
+            Next
+            Return y(n - 1) + (y(n - 1) - y(n - 2)) * (xi - x(n - 1)) / (x(n - 1) - x(n - 2))
+
+        End Function
+
+        ''' <summary>
+        ''' Converts a normal (atmospheric) boiling temperature to the boiling temperature at another pressure
+        ''' (Maxwell and Bonnell, API procedure 5A1.19). This is the reverse of <see cref="PEVsubToPEV_MaxwellBonnel"/>.
+        ''' </summary>
+        ''' <param name="Tb">Normal boiling temperature, in K.</param>
+        ''' <param name="P">Pressure, in Pa.</param>
+        ''' <param name="Kw">Watson K. Use 12 for no correction.</param>
+        ''' <returns>Boiling temperature at P, in K.</returns>
+        Public Shared Function PEVToPEVsub_MaxwellBonnel(Tb As Double, P As Double, Kw As Double) As Double
+
+            Dim Pmm = P * 760 / 101325
+            Dim TbR = 1.8 * Tb
+
+            Dim f As Double
+            If (TbR - 459.7) < 200 Then
+                f = 0
+            ElseIf (TbR - 459.7) > 400 Then
+                f = 1
+            Else
+                f = (TbR - 659.7) / 200
+            End If
+
+            Dim Tb_ = TbR + 2.5 * f * (Kw - 12) * Log10(Pmm / 760)
+
+            Dim X As Double
+            If Pmm < 2 Then
+                X = (6.76156 - 0.987672 * Log10(Pmm)) / (3000.538 - 43 * Log10(Pmm))
+            ElseIf Pmm > 760 Then
+                X = (6.412631 - 0.989679 * Log10(Pmm)) / (2770.085 - 36 * Log10(Pmm))
+            Else
+                X = (5.994296 - 0.972546 * Log10(Pmm)) / (2663.129 - 95.76 * Log10(Pmm))
+            End If
+
+            Dim TR = 1 / (0.0002867 - 0.2145 * X + 748.1 * X / Tb_)
+
+            Return TR / 1.8
 
         End Function
 

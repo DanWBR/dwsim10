@@ -29,6 +29,7 @@ namespace DWSIM.UI.Desktop.Editors
             (FlowsheetUtility.SeparatorSizing,        "Gas-Liquid Separator Sizing"),
             (FlowsheetUtility.PetroleumProperties,    "Petroleum Cold Flow Properties"),
             (FlowsheetUtility.PureCompoundProperties, "Pure Compound Properties"),
+            (FlowsheetUtility.DistillationCurves,     "Distillation Curves"),
         };
 
         /// <summary>The utilities a rigorous column takes.</summary>
@@ -121,6 +122,8 @@ namespace DWSIM.UI.Desktop.Editors
 
             panel.CreateAndAddLabelRow(label);
             var hasTool = utility.GetUtilityType() == FlowsheetUtility.ColumnInternals;
+            if (utility.GetUtilityType() == FlowsheetUtility.DistillationCurves && OpenUtility != null)
+                panel.CreateAndAddButtonRow("Open the distillation curves tool...", null, (_, _) => OpenUtility(utility));
             if (hasTool)
             {
                 panel.CreateAndAddDescriptionRow("The case (sections, geometry, models) is edited in the tool and travels with the simulation; the figures below are the last rating.");

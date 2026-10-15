@@ -2028,6 +2028,12 @@ public partial class FlowsheetView : UserControl
             if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
             new ColdFlowPropertiesWindow(_flowsheet).Show(HostWindow);
         };
+        MenuStreamDistCurves.Click += (_, _) =>
+        {
+            if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
+            var sel = _surface?.SelectedObject;
+            new StreamDistillationCurvesWindow(_flowsheet, sel != null && sel.ObjectType == ObjectType.MaterialStream ? sel.Tag : null).Show(HostWindow);
+        };
         MenuSepSizing.Click += (_, _) =>
         {
             if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
@@ -2047,6 +2053,7 @@ public partial class FlowsheetView : UserControl
         {
             if (_flowsheet == null) return;
             if (utility is DWSIM.Automation.DynamicRunner.ColumnInternals.ColumnInternalsUtility ci) new ColumnInternalsWindow(_flowsheet, ci).Show(HostWindow);
+            if (utility is DWSIM.Thermodynamics.Utilities.PetroleumProperties.DistillationCurvesUtility dc) new StreamDistillationCurvesWindow(_flowsheet, null, dc).Show(HostWindow);
         };
         MenuMcCabeThiele.Click += (_, _) =>
         {
