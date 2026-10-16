@@ -26,7 +26,7 @@ When auto-run is enabled, each flowsheet solve automatically updates all TEA and
 
 ###### TEA KPIs written to ExtraProperties
 
-The following keys are updated after each solve when TEA auto-run is enabled (see §[1.15](19-techno-economic-analysis-tea.md#sec:tea_api) for the complete list):
+The following keys are updated after each solve when TEA auto-run is enabled (see §[Programmatic API](19-techno-economic-analysis-tea.md#sec:tea_api) for the complete list):
 
 
 
@@ -49,7 +49,7 @@ The following keys are updated after each solve when TEA auto-run is enabled (se
 
 ###### LCA KPIs written to ExtraProperties
 
-The following keys are updated after each solve when LCA auto-run is enabled (see §[2.9](20-life-cycle-assessment-lca.md#sec:lca_api) for the complete list):
+The following keys are updated after each solve when LCA auto-run is enabled (see §[Programmatic API](20-life-cycle-assessment-lca.md#sec:lca_api) for the complete list):
 
 
 
@@ -87,7 +87,7 @@ When both extensions are active, they interoperate automatically:
 
 - The TEA extension reads GWP values from the LCA results to compute a “Carbon Tax” line in the OPEX breakdown, using the user-specified carbon price (\$/tonne CO$_2$-eq).
 
-- The eco-efficiency index in the TEA Breakeven tab combines TEA production cost with LCA Global Warming Potential (see §[1.12](19-techno-economic-analysis-tea.md#sec:tea_ecoeff)).
+- The eco-efficiency index in the TEA Breakeven tab combines TEA production cost with LCA Global Warming Potential (see §[Eco-Efficiency Index](19-techno-economic-analysis-tea.md#sec:tea_ecoeff)).
 
 Both extensions work standalone; interoperation features are available only when both have been run.
 

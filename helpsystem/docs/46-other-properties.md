@@ -14,7 +14,7 @@ A_{11} & A_{12} & \ldots & A_{1n}\\
 A_{21} & A_{22}\\
 \vdots\\
 A_{n1} & \ldots & \ldots & A_{nn}
-\end{array}\right|=0
+\end{array}\right|=0\tag{1}
 \]
 
 
@@ -29,7 +29,7 @@ A_{21} & A_{22}\\
 \vdots\\
 A_{n-1,1} & \ldots & \ldots & A_{n-1,n}\\
 \frac{\partial L}{\partial n_{1}} & \ldots & \ldots & \frac{\partial L}{\partial n_{n}}
-\end{array}\right|=0,
+\end{array}\right|=0,\tag{2}
 \]
 
 
@@ -42,7 +42,7 @@ A_{12}=\left(\frac{\partial^{2}A}{\partial n_{1}\partial n_{2}}\right)_{T,V}
 \]
 
 
-All the $A$ terms in the equations [§](#eq:PC1) and [§](#eq:PC2) are the second derivatives of the total Helmholtz energy $\underline{A}$ with respect to mols and constant $T$ and $V$ . The determinants expressed by [§](#eq:PC1) and [§](#eq:PC2) are simultaneously solved for the critical volume and temperature. The critical pressure is then found by using the original EOS.
+All the $A$ terms in the equations [1](#eq:PC1) and [2](#eq:PC2) are the second derivatives of the total Helmholtz energy $\underline{A}$ with respect to mols and constant $T$ and $V$ . The determinants expressed by [1](#eq:PC1) and [2](#eq:PC2) are simultaneously solved for the critical volume and temperature. The critical pressure is then found by using the original EOS.
 
 DWSIM utilizes the method described by Heidemann and Khalil for the true critical point calculation using the *Peng-Robinson* and *Soave-Redlich-Kwong* equations of state.
 
@@ -97,7 +97,7 @@ The table is persisted with the material stream when the simulation is saved, av
 
 ##### Refraction Index
 
-###### API Procedure 2B5.1 {#api-procedure-2b5.1 .unnumbered}
+###### API Procedure 2B5.1 {#api-procedure-2b5.1-.unnumbered}
 
 
 
@@ -135,7 +135,7 @@ $MeABP$ Mean Averaged Boiling Point (K)
 
 ##### Flash Point
 
-###### API Procedure 2B7.1 {#api-procedure-2b7.1 .unnumbered}
+###### API Procedure 2B7.1 {#api-procedure-2b7.1-.unnumbered}
 
 
 
@@ -161,7 +161,7 @@ $t_{10ASTM}$ ASTM D93 10% vaporized temperature (K)
 
 ##### Pour Point
 
-###### API Procedure 2B8.1 {#api-procedure-2b8.1 .unnumbered}
+###### API Procedure 2B8.1 {#api-procedure-2b8.1-.unnumbered}
 
 
 
@@ -187,7 +187,7 @@ $v_{100}$ Viscosity @ 100 °F (cSt)
 
 ##### Freezing Point
 
-###### API Procedure 2B11.1 {#api-procedure-2b11.1 .unnumbered}
+###### API Procedure 2B11.1 {#api-procedure-2b11.1-.unnumbered}
 
 
 
@@ -212,7 +212,7 @@ $K$ API characterization factor (API)
 
 ##### Cloud Point
 
-###### API Procedure 2B12.1 {#api-procedure-2b12.1 .unnumbered}
+###### API Procedure 2B12.1 {#api-procedure-2b12.1-.unnumbered}
 
 
 
@@ -235,7 +235,7 @@ $PN$ Cloud Point (K)
 
 ##### Cetane Index
 
-###### API Procedure 2B13.1 {#api-procedure-2b13.1 .unnumbered}
+###### API Procedure 2B13.1 {#api-procedure-2b13.1-.unnumbered}
 
 
 
@@ -303,7 +303,7 @@ T_{50}^{TBP}=0.87180\,\left(T_{50}^{D86}\right)^{1.0258}
 \]
 
 
-(temperatures in °F), and each segment of the curve by $\Delta T^{TBP}=A\,\left(\Delta T^{D86}\right)^{B}$, with the coefficients of Table [58](#tab:d86-tbp). Inverting the power law gives the D86 segments. A D86 segment is never wider than its TBP segment: past that point the inverted power law runs away (a few light ends in a side draw place the TBP initial boiling point far below its 10 % point), so each D86 segment is limited to the TBP segment it comes from.
+(temperatures in °F), and each segment of the curve by $\Delta T^{TBP}=A\,\left(\Delta T^{D86}\right)^{B}$, with the coefficients of Table [1](#tab:d86-tbp). Inverting the power law gives the D86 segments. A D86 segment is never wider than its TBP segment: past that point the inverted power law runs away (a few light ends in a side draw place the TBP initial boiling point far below its 10 % point), so each D86 segment is limited to the TBP segment it comes from.
 
 
 
@@ -320,13 +320,13 @@ T_{50}^{TBP}=0.87180\,\left(T_{50}^{D86}\right)^{1.0258}
 | 30–10           | 4.9004  | 0.71644 |
 | 10–0            | 7.4012  | 0.60244 |
 
-API procedure 3A1.1 coefficients
+Table 1: API procedure 3A1.1 coefficients
 
 
 
 ##### ASTM D2887 (Simulated Distillation)
 
-The D2887 curve (mass percent) comes from the TBP curve by API procedure 3A3.1 in reverse: the 50 % points are equal, and each segment follows $\Delta T^{TBP}=C\,\left(\Delta T^{SD}\right)^{D}$ with the coefficients of Table [59](#tab:sd-tbp).
+The D2887 curve (mass percent) comes from the TBP curve by API procedure 3A3.1 in reverse: the 50 % points are equal, and each segment follows $\Delta T^{TBP}=C\,\left(\Delta T^{SD}\right)^{D}$ with the coefficients of Table [2](#tab:sd-tbp).
 
 
 
@@ -344,7 +344,7 @@ The D2887 curve (mass percent) comes from the TBP curve by API procedure 3A3.1 i
 | 30–10       | 0.011903 | 2.0253 |
 | 10–5        | 0.15779  | 1.4296 |
 
-API procedure 3A3.1 coefficients
+Table 2: API procedure 3A3.1 coefficients
 
 
 
@@ -411,7 +411,7 @@ The aniline point (API 2B9.1), smoke point (API 2B10.1), refraction index, pour,
 
 ##### Using the Results
 
-Every curve point and property of an attached utility becomes a property of its stream, named as in the utility’s table: for example `D86 95%`, `TBP 10%`, `EFV 50%` or `Flash Point (Closed Cup)`. They can be read from the spreadsheet, swept in a sensitivity study, used by an Adjust, and used as secondary specifications of the rigorous distillation column (Section [§](24-unit-operations.md#sec:column-secondary-specs)). The utility recalculates whenever its stream changes, and its settings are saved with the simulation.
+Every curve point and property of an attached utility becomes a property of its stream, named as in the utility’s table: for example `D86 95%`, `TBP 10%`, `EFV 50%` or `Flash Point (Closed Cup)`. They can be read from the spreadsheet, swept in a sensitivity study, used by an Adjust, and used as secondary specifications of the rigorous distillation column (Section [Secondary Specifications](24-unit-operations.md#sec:column-secondary-specs)). The utility recalculates whenever its stream changes, and its settings are saved with the simulation.
 
 ##### Validation
 

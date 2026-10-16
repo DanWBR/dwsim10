@@ -11,7 +11,7 @@ With the pair quantities
 <a id="eq:d-lkp-pair"></a>
 
 \[
-v_{cjk}=\tfrac{1}{8}\!\left(V_{c,j}^{1/3}+V_{c,k}^{1/3}\right)^{3},\qquad t_{cjk}=\sqrt{T_{c,j}T_{c,k}}\;k_{jk}
+v_{cjk}=\tfrac{1}{8}\!\left(V_{c,j}^{1/3}+V_{c,k}^{1/3}\right)^{3},\qquad t_{cjk}=\sqrt{T_{c,j}T_{c,k}}\;k_{jk}\tag{1}
 \]
 
 
@@ -24,7 +24,7 @@ the mixture critical properties are
 \[
 \begin{aligned}w_{m} & =\sum_{i}x_{i}w_{i},\qquad V_{cm}=\sum_{j}\sum_{k}x_{j}x_{k}v_{cjk},\qquad T_{cm}=V_{cm}^{-1/4}\sum_{j}\sum_{k}x_{j}x_{k}\,v_{cjk}^{1/4}\,t_{cjk}\\
 P_{cm} & =(0.2905-0.085\,w_{m})\frac{RT_{cm}}{V_{cm}},\qquad z_{cm}=\frac{P_{cm}V_{cm}}{RT_{cm}}
-\end{aligned}
+\end{aligned}\tag{2}
 \]
 
 
@@ -35,7 +35,7 @@ Hydrogen enters these rules with the effective (quantum-corrected) constants of 
 <a id="eq:d-lkp-h2"></a>
 
 \[
-T_{c}=\frac{43.6}{1+21.8/(MT)}\ \mathrm{K},\qquad P_{c}=\frac{20.5}{1+44.2/(MT)}\ \mathrm{atm},\qquad V_{c}=\frac{51.5}{1-9.91/(MT)}\ \mathrm{cm^{3}/mol},\qquad w=0
+T_{c}=\frac{43.6}{1+21.8/(MT)}\ \mathrm{K},\qquad P_{c}=\frac{20.5}{1+44.2/(MT)}\ \mathrm{atm},\qquad V_{c}=\frac{51.5}{1-9.91/(MT)}\ \mathrm{cm^{3}/mol},\qquad w=0\tag{3}
 \]
 
 
@@ -46,7 +46,7 @@ The hydrogen $k_{jk}$ of the table go with these constants. A hydrogen pair miss
 <a id="eq:d-lkp-h2kij"></a>
 
 \[
-k_{\mathrm{H_{2}},k}=0.2036+0.002246\,T_{c,k}+0.8364\,w_{k}+1.2111\,V_{c,k}^{1/3}
+k_{\mathrm{H_{2}},k}=0.2036+0.002246\,T_{c,k}+0.8364\,w_{k}+1.2111\,V_{c,k}^{1/3}\tag{4}
 \]
 
 
@@ -59,7 +59,7 @@ Other pairs missing from the table get an estimate when one compound is a hydroc
 <a id="eq:d-lkp-hckij"></a>
 
 \[
-k_{12}=1+0.2802\,\ln\frac{T_{c2}}{T_{c1}}\,\ln\frac{V_{c2}}{V_{c1}}-0.0561\,\ln\frac{T_{c2}}{T_{c1}}
+k_{12}=1+0.2802\,\ln\frac{T_{c2}}{T_{c1}}\,\ln\frac{V_{c2}}{V_{c1}}-0.0561\,\ln\frac{T_{c2}}{T_{c1}}\tag{5}
 \]
 
 
@@ -70,11 +70,11 @@ Carbon dioxide with a hydrocarbon of $T_{c}\geq304.21$ K takes
 <a id="eq:d-lkp-co2kij"></a>
 
 \[
-k_{\mathrm{CO_{2}},k}=0.9276+0.10719\,X+0.04505\,X^{2},\qquad X=\ln\frac{T_{c,k}}{304.21}\,\ln\frac{V_{c,k}}{0.094}
+k_{\mathrm{CO_{2}},k}=0.9276+0.10719\,X+0.04505\,X^{2},\qquad X=\ln\frac{T_{c,k}}{304.21}\,\ln\frac{V_{c,k}}{0.094}\tag{6}
 \]
 
 
-with $V_{c,k}$ in m3/kmol, and hydrogen sulfide the carbon dioxide value less 0.027. Equation [§](#eq:d-lkp-hckij) fits the 87 hydrocarbon pairs of the table with an rms deviation of 0.011, and the nitrogen row within 0.02; both correlations were fitted to the table and to parameters regressed from about 800 solubility points of methane, ethane, nitrogen, carbon monoxide, carbon dioxide and hydrogen sulfide in heavy alkanes, aromatics and naphthenes. All other pairs take 1. Table values and values set by the user are never replaced, and the parameter editor shows the estimates.
+with $V_{c,k}$ in m3/kmol, and hydrogen sulfide the carbon dioxide value less 0.027. Equation [5](#eq:d-lkp-hckij) fits the 87 hydrocarbon pairs of the table with an rms deviation of 0.011, and the nitrogen row within 0.02; both correlations were fitted to the table and to parameters regressed from about 800 solubility points of methane, ethane, nitrogen, carbon monoxide, carbon dioxide and hydrogen sulfide in heavy alkanes, aromatics and naphthenes. All other pairs take 1. Table values and values set by the user are never replaced, and the parameter editor shows the estimates.
 
 #### Compressibility and fugacity coefficient
 
@@ -87,7 +87,7 @@ Each fluid (simple $s$ and reference $h$ , with its own constant set) gives a co
 \[
 \begin{aligned}z=\frac{P_{r}V_{r}}{T_{r}} & =1+\frac{B}{V_{r}}+\frac{C}{V_{r}^{2}}+\frac{D}{V_{r}^{5}}+\frac{c_{4}}{T_{r}^{3}V_{r}^{2}}\!\left(\beta+\frac{\gamma}{V_{r}^{2}}\right)e^{-\gamma/V_{r}^{2}}\\
 z_{m} & =z^{(s)}+\frac{w_{m}}{w_{h}}\!\left(z^{(h)}-z^{(s)}\right)
-\end{aligned}
+\end{aligned}\tag{7}
 \]
 
 
@@ -98,7 +98,7 @@ with $B=b_{1}-b_{2}/T_{r}-b_{3}/T_{r}^{2}-b_{4}/T_{r}^{3}$ , $C=c_{1}-c_{2}/T_{r
 <a id="eq:d-lkp-lnphi"></a>
 
 \[
-\ln\varphi_{i}=\ln\varphi_{m}-\frac{\hat{H}}{T}\,S_{i}^{a}+\frac{z_{m}-1}{P_{cm}}\,S_{i}^{b}-\Big(\tfrac{\partial\ln\varphi_{m}}{\partial w_{m}}\Big)S_{i}^{c}
+\ln\varphi_{i}=\ln\varphi_{m}-\frac{\hat{H}}{T}\,S_{i}^{a}+\frac{z_{m}-1}{P_{cm}}\,S_{i}^{b}-\Big(\tfrac{\partial\ln\varphi_{m}}{\partial w_{m}}\Big)S_{i}^{c}\tag{8}
 \]
 
 
@@ -109,7 +109,7 @@ where $\ln\varphi_{m}$ is the mixture (corresponding-states) fugacity coefficien
 <a id="eq:d-lkp-S"></a>
 
 \[
-S_{i}^{a}=\sum_{j\neq i}x_{j}\,T_{cm}^{(ij)},\qquad S_{i}^{b}=\sum_{j\neq i}x_{j}\,P_{cm}^{(ij)},\qquad S_{i}^{c}=\sum_{j\neq i}x_{j}(w_{j}-w_{i})
+S_{i}^{a}=\sum_{j\neq i}x_{j}\,T_{cm}^{(ij)},\qquad S_{i}^{b}=\sum_{j\neq i}x_{j}\,P_{cm}^{(ij)},\qquad S_{i}^{c}=\sum_{j\neq i}x_{j}(w_{j}-w_{i})\tag{9}
 \]
 
 
@@ -123,7 +123,7 @@ The pairwise mixing-rule derivatives are
 \begin{aligned}V_{cm}^{(ij)} & =2\sum_{l}x_{l}(v_{clj}-v_{cli}),\qquad Z_{cm}^{(ij)}=-0.085\,(w_{j}-w_{i})\\
 T_{cm}^{(ij)} & =V_{cm}^{-1/4}\!\left[2\sum_{l}x_{l}\!\left(v_{clj}^{1/4}t_{clj}-v_{cli}^{1/4}t_{cli}\right)-\tfrac{1}{4}V_{cm}^{-3/4}V_{cm}^{(ij)}T_{cm}\right]\\
 P_{cm}^{(ij)} & =P_{cm}\!\left(\frac{Z_{cm}^{(ij)}}{z_{cm}}+\frac{T_{cm}^{(ij)}}{T_{cm}}-\frac{V_{cm}^{(ij)}}{V_{cm}}\right)
-\end{aligned}
+\end{aligned}\tag{10}
 \]
 
 
@@ -139,7 +139,7 @@ Since $T_{r}=T/T_{cm}$ and $P_{r}=P/P_{cm}$ is constant in $T$ , each fluid need
 \begin{aligned}\frac{dV_{r}}{dT_{r}} & =-\frac{\partial\mathcal{R}/\partial T_{r}}{\partial\mathcal{R}/\partial V_{r}},\qquad\frac{dz}{dT_{r}}=\frac{P_{r}}{T_{r}}\frac{dV_{r}}{dT_{r}}-\frac{P_{r}V_{r}}{T_{r}^{2}}\\
 \frac{\partial\mathcal{R}}{\partial V_{r}} & =\frac{P_{r}}{T_{r}}+\frac{B}{V_{r}^{2}}+\frac{2C}{V_{r}^{3}}+\frac{5D}{V_{r}^{6}}-\frac{\partial\phi_{4}}{\partial V_{r}}\\
 \frac{\partial\mathcal{R}}{\partial T_{r}} & =-\frac{P_{r}V_{r}}{T_{r}^{2}}-\frac{B'}{V_{r}}-\frac{C'}{V_{r}^{2}}-\frac{D'}{V_{r}^{5}}+\frac{3\phi_{4}}{T_{r}}
-\end{aligned}
+\end{aligned}\tag{11}
 \]
 
 
@@ -153,7 +153,7 @@ with $B'=b_{2}/T_{r}^{2}+2b_{3}/T_{r}^{3}+3b_{4}/T_{r}^{4}$ , $C'=c_{2}/T_{r}^{2
 \begin{aligned}\ln\varphi & =z-1-\ln z+\frac{B}{V_{r}}+\frac{C}{2V_{r}^{2}}+\frac{D}{5V_{r}^{5}}+E\\
 \frac{d\ln\varphi}{dT_{r}} & =\frac{dz}{dT_{r}}\!\left(1-\frac{1}{z}\right)+\Big(\frac{B'}{V_{r}}-\frac{B}{V_{r}^{2}}\frac{dV_{r}}{dT_{r}}\Big)+\Big(\frac{C'}{2V_{r}^{2}}-\frac{C}{V_{r}^{3}}\frac{dV_{r}}{dT_{r}}\Big)\\
  & \quad{}+\Big(\frac{D'}{5V_{r}^{5}}-\frac{D}{V_{r}^{6}}\frac{dV_{r}}{dT_{r}}\Big)+\frac{dE}{dT_{r}}
-\end{aligned}
+\end{aligned}\tag{12}
 \]
 
 
@@ -164,7 +164,7 @@ where $E=\dfrac{c_{4}}{2T_{r}^{3}\gamma}\big[\beta+1-(\beta+1+\gamma/V_{r}^{2})e
 <a id="eq:d-lkp-dT"></a>
 
 \[
-\frac{\partial\ln\varphi_{i}}{\partial T}=\frac{1}{T_{cm}}\frac{d\ln\varphi_{m}}{dT_{r}}+S_{i}^{a}\!\left(\frac{\hat{H}}{T^{2}}-\frac{1}{T}\frac{d\hat{H}}{dT}\right)+\frac{S_{i}^{b}}{P_{cm}T_{cm}}\frac{dz_{m}}{dT_{r}}-\frac{S_{i}^{c}}{T_{cm}}\frac{d}{dT_{r}}\!\Big(\tfrac{\partial\ln\varphi_{m}}{\partial w_{m}}\Big)
+\frac{\partial\ln\varphi_{i}}{\partial T}=\frac{1}{T_{cm}}\frac{d\ln\varphi_{m}}{dT_{r}}+S_{i}^{a}\!\left(\frac{\hat{H}}{T^{2}}-\frac{1}{T}\frac{d\hat{H}}{dT}\right)+\frac{S_{i}^{b}}{P_{cm}T_{cm}}\frac{dz_{m}}{dT_{r}}-\frac{S_{i}^{c}}{T_{cm}}\frac{d}{dT_{r}}\!\Big(\tfrac{\partial\ln\varphi_{m}}{\partial w_{m}}\Big)\tag{13}
 \]
 
 

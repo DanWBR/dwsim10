@@ -4,7 +4,7 @@
 
 ##### Molecular weight
 
-###### Riazi and Al Sahhaf method  {#riazi-and-al-sahhaf-method .unnumbered}
+###### Riazi and Al Sahhaf method  {#riazi-and-al-sahhaf-method-.unnumbered}
 
 
 
@@ -39,7 +39,7 @@ MM & = & 42.965[\exp(2.097\times10^{-4}T_{b}-7.78712SG+ \\
 \]
 
 
-###### Winn  {#winn .unnumbered}
+###### Winn  {#winn-.unnumbered}
 
 
 
@@ -63,7 +63,7 @@ $d15$ Specific Gravity @ 60 °F
 
 
 
-###### Riazi {#riazi .unnumbered}
+###### Riazi {#riazi-.unnumbered}
 
 
 
@@ -75,7 +75,7 @@ MM & = & 42.965\exp(0.0002097PEMe-7.78d15+0.00208476\times PEMe\times d15)\times
 \]
 
 
-###### Lee-Kesler {#lee-kesler-1 .unnumbered}
+###### Lee-Kesler {#lee-kesler-1-.unnumbered}
 
 
 
@@ -91,7 +91,7 @@ MM & = & t_{1}+t_{2}+t_{3}
 \]
 
 
-###### Farah {#farah .unnumbered}
+###### Farah {#farah-.unnumbered}
 
 
 
@@ -118,7 +118,7 @@ $A,B$ *Walther-ASTM* equation parameters for viscosity calculation
 
 ##### Specific Gravity
 
-###### Riazi e Al Sahhaf  {#riazi-e-al-sahhaf .unnumbered}
+###### Riazi e Al Sahhaf  {#riazi-e-al-sahhaf-.unnumbered}
 
 
 
@@ -143,7 +143,7 @@ $MM$ Molecular weight (kg/kmol)
 
 ##### Critical Properties
 
-###### Lee-Kesler  {#lee-kesler-2 .unnumbered}
+###### Lee-Kesler  {#lee-kesler-2-.unnumbered}
 
 
 
@@ -179,7 +179,7 @@ $P_{c}$ Critical pressure (bar)
 
 
 
-###### Farah {#farah-1 .unnumbered}
+###### Farah {#farah-1-.unnumbered}
 
 
 
@@ -203,7 +203,7 @@ P_{c} & = & \exp(28.7605+0.7158\ln(A)-0.2796\ln(B)+2.3129\ln(d15)-2.4027\ln(PEMe
 \]
 
 
-###### Riazi-Daubert {#riazi-daubert .unnumbered}
+###### Riazi-Daubert {#riazi-daubert-.unnumbered}
 
 
 
@@ -225,7 +225,7 @@ P_{c} & = & 31958000000\exp(-0.008505PEMe-4.8014d15+0.005749\times PEMe\times d1
 \]
 
 
-###### Riazi {#riazi-1 .unnumbered}
+###### Riazi {#riazi-1-.unnumbered}
 
 
 
@@ -239,18 +239,18 @@ T_{c} & = & 35.9413\exp(-0.00069PEMe-1.4442d15+0.000491\times PEMe\times d15)\ti
 
 ##### Acentric Factor
 
-###### Lee-Kesler method  {#lee-kesler-method .unnumbered}
+###### Lee-Kesler method  {#lee-kesler-method-.unnumbered}
 
 
 
-<a id="eq:W LK"></a>
+<a id="eq:W-LK"></a>
 
 \[
-\omega=\frac{-\ln\frac{P_{c}}{1.10325}-5.92714+6.09648/T_{br}+1.28862\ln T_{br}-0.169347T_{br}^{6}}{15.2518-15.6875/T_{br}-13.472\ln T_{br}+0.43577T_{br}^{6}}
+\omega=\frac{-\ln\frac{P_{c}}{1.10325}-5.92714+6.09648/T_{br}+1.28862\ln T_{br}-0.169347T_{br}^{6}}{15.2518-15.6875/T_{br}-13.472\ln T_{br}+0.43577T_{br}^{6}}\tag{1}
 \]
 
 
-###### Korsten {#korsten .unnumbered}
+###### Korsten {#korsten-.unnumbered}
 
 
 
@@ -261,15 +261,15 @@ T_{c} & = & 35.9413\exp(-0.00069PEMe-1.4442d15+0.000491\times PEMe\times d15)\ti
 
 ##### Vapor Pressure
 
-###### Lee-Kesler method {#lee-kesler-method-1 .unnumbered}
+###### Lee-Kesler method {#lee-kesler-method-1-.unnumbered}
 
 
 
-<a id="eq:PVAP LK"></a>
+<a id="eq:PVAP-LK"></a>
 
 \[
 \begin{eqnarray}
-\ln P_{r}^{pv} & = & 5.92714-6.09648/T_{br}-1.28862\ln T_{br}+0.169347T_{br}^{6}+\\
+\ln P_{r}^{pv} & = & 5.92714-6.09648/T_{br}-1.28862\ln T_{br}+0.169347T_{br}^{6}+\tag{2}\\
  &  & +\omega(15.2518-15.6875/T_{br}-13.4721\ln T_{br}+0.43577T_{br}^{6}),
 \end{eqnarray}
 \]
@@ -293,7 +293,7 @@ $\omega$ Acentric factor
 
 ##### Viscosity
 
-###### Letsou-Stiel  {#letsou-stiel .unnumbered}
+###### Letsou-Stiel  {#letsou-stiel-.unnumbered}
 
 
 
@@ -325,7 +325,7 @@ $MM$ Molecular weight (kg/kmol)
 
 
 
-###### Abbott {#abbott .unnumbered}
+###### Abbott {#abbott-.unnumbered}
 
 
 
@@ -370,7 +370,7 @@ $API$ Oil API degree
 
 #### Hypothetical Components
 
-The majority of properties of the hypothetical components is calculated, when necessary, using the group contribution methods, with the UNIFAC structure of the hypo as the basis of calculation. The table [57](#tab:Métodos-de-cálculo) lists the properties and their calculation methods.
+The majority of properties of the hypothetical components is calculated, when necessary, using the group contribution methods, with the UNIFAC structure of the hypo as the basis of calculation. The table [1](#tab:Métodos-de-cálculo) lists the properties and their calculation methods.
 
 
 
@@ -385,13 +385,13 @@ The majority of properties of the hypothetical components is calculated, when ne
 | Critical pressure | $P_{c}$ | Joback |
 | Critical volume | $V_{c}$ | Joback |
 | Normal boiling point | $T_{b}$ | Joback |
-| Vapor pressure | $P^{pv}$ | Lee-Kesler (Eq. [§](#eq:PVAP LK)) |
-| Acentric factor | $\omega$ | Lee-Kesler (Eq. [§](#eq:W LK)) |
+| Vapor pressure | $P^{pv}$ | Lee-Kesler (Eq. [2](#eq:PVAP-LK)) |
+| Acentric factor | $\omega$ | Lee-Kesler (Eq. [1](#eq:W-LK)) |
 | Vaporization enthalpy | $\Delta H_{vap}$ | Vetere |
 | Ideal gas heat capacity | $C_{p}^{gi}$ | Harrison-Seaton |
 | Ideal gas enthalpy of formation | $\Delta H_{f}^{298}$ | Marrero-Gani |
 
-Hypo calculation methods.
+Table 1: Hypo calculation methods.
 
 
 

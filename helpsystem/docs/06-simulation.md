@@ -2,7 +2,7 @@
 
 #### User Interface
 
-The "Create a new steady-state simulation" button in the welcome window can be used to create a new simulation. After the simulation is created, the **configuration window** (Figure [3](#fig:figura-config)) is shown. The simulation configuration interface consists in a tabbed window:
+The "Create a new steady-state simulation" button in the welcome window can be used to create a new simulation. After the simulation is created, the **configuration window** (Figure [2](#fig:figura-config)) is shown. The simulation configuration interface consists in a tabbed window:
 
 - ***Compounds* -** Add or remove compounds to/from the simulation and petroleum fractions (pseudocompounents) utilities.
 
@@ -23,22 +23,22 @@ The "Create a new steady-state simulation" button in the welcome window can be u
 <a id="fig:figura-config-1"></a>
 ![<span id="fig:figura-config-1" data-label="fig:figura-config-1"></span>Simulation Configuration Wizard.](images/screens64/wizard_1.png)
 
-*<span id="fig:figura-config-1" data-label="fig:figura-config-1"></span>Simulation Configuration Wizard.*
+*Figure 1: <span id="fig:figura-config-1" data-label="fig:figura-config-1"></span>Simulation Configuration Wizard.*
 
 
 
-Since DWSIM 3.3, a new Simulation Configuration Wizard (Figure [2](#fig:figura-config-1)) is opened as soon as a new simulation is created, and will display the interfaces described in the following sections in a more streamlined way. The older simulation configuration window can be accessed anytime during the simulation or through a button located in the first page of the config wizard.
+Since DWSIM 3.3, a new Simulation Configuration Wizard (Figure [1](#fig:figura-config-1)) is opened as soon as a new simulation is created, and will display the interfaces described in the following sections in a more streamlined way. The older simulation configuration window can be accessed anytime during the simulation or through a button located in the first page of the config wizard.
 
 
 
 <a id="fig:figura-config"></a>
 ![<span id="fig:figura-config" data-label="fig:figura-config"></span>Simulation Configuration window.](images/screens84/1.png)
 
-*<span id="fig:figura-config" data-label="fig:figura-config"></span>Simulation Configuration window.*
+*Figure 2: <span id="fig:figura-config" data-label="fig:figura-config"></span>Simulation Configuration window.*
 
 
 
-The simulation configuration window (Figure [3](#fig:figura-config)) is the interface where all the functions for configuration and personalization of a simulation in DWSIM can be found. In this window, the user can manage the simulation components, the property package (thermodynamic model), configure the reactions environment, units system and number format, among other options.
+The simulation configuration window (Figure [2](#fig:figura-config)) is the interface where all the functions for configuration and personalization of a simulation in DWSIM can be found. In this window, the user can manage the simulation components, the property package (thermodynamic model), configure the reactions environment, units system and number format, among other options.
 
 > 
 >
@@ -59,7 +59,7 @@ DWSIM also features full compound data importing from **Online Sources** or from
 
 ###### Property Packages
 
-The Property Package consists in a set of methods and models for the calculation of physical and chemical properties of material streams in the simulation. It is composed of a thermodynamic model - an equation of state or a hybrid model - and methods for property calculation, like the surface tension of the liquid phase. The figure [4](#fig:figura-PP) shows the interface for configuration of the property package.
+The Property Package consists in a set of methods and models for the calculation of physical and chemical properties of material streams in the simulation. It is composed of a thermodynamic model - an equation of state or a hybrid model - and methods for property calculation, like the surface tension of the liquid phase. The figure [3](#fig:figura-PP) shows the interface for configuration of the property package.
 
 DWSIM allows multiple Property Packages to be added to a single simulation. The Property Packages can be associated to any unit operation and material stream on a individual basis. Each property package has its own settings, even if two or more packages are of the same type.
 
@@ -68,7 +68,7 @@ DWSIM allows multiple Property Packages to be added to a single simulation. The 
 <a id="fig:figura-PP"></a>
 ![<span id="fig:figura-PP" data-label="fig:figura-PP"></span>Property Package configuration interface.](images/screens100/16.png)
 
-*<span id="fig:figura-PP" data-label="fig:figura-PP"></span>Property Package configuration interface.*
+*Figure 3: <span id="fig:figura-PP" data-label="fig:figura-PP"></span>Property Package configuration interface.*
 
 
 
@@ -79,7 +79,7 @@ If the selected property package has any editable property, the "Configure" butt
 <a id="fig:figura-PP3"></a>
 ![<span id="fig:figura-PP3" data-label="fig:figura-PP3"></span>Property package configuration window (1).](images/screens64/ppconfig_new1.png)
 
-*<span id="fig:figura-PP3" data-label="fig:figura-PP3"></span>Property package configuration window (1).*
+*Figure 4: <span id="fig:figura-PP3" data-label="fig:figura-PP3"></span>Property package configuration window (1).*
 
 
 
@@ -106,7 +106,7 @@ Check this box if you want the DWSIM to calculate bubble and dew points at condi
 <a id="fig:figura-PP3-1"></a>
 ![<span id="fig:figura-PP3-1" data-label="fig:figura-PP3-1"></span>Property Package Equilibrium Calculation Settings.](images/screens84/3.png)
 
-*<span id="fig:figura-PP3-1" data-label="fig:figura-PP3-1"></span>Property Package Equilibrium Calculation Settings.*
+*Figure 5: <span id="fig:figura-PP3-1" data-label="fig:figura-PP3-1"></span>Property Package Equilibrium Calculation Settings.*
 
 
 
@@ -196,14 +196,14 @@ Use the Seawater Property Package.
 
 ##### Systems of Units
 
-Three basic units systems are present in DWSIM: ***SI System*** (selected by default), ***CGS System*** and ***English (Imperial) System***. The simulation’s units system can be viewed/modified in the "Units System" section of the "Options" tab in the simulation configuration window (Figure [7](#fig:figura-SU)).
+Three basic units systems are present in DWSIM: ***SI System*** (selected by default), ***CGS System*** and ***English (Imperial) System***. The simulation’s units system can be viewed/modified in the "Units System" section of the "Options" tab in the simulation configuration window (Figure [6](#fig:figura-SU)).
 
 
 
 <a id="fig:figura-SU"></a>
 ![<span id="fig:figura-SU" data-label="fig:figura-SU"></span>System of Units configuration interface.](images/screens84/7.png)
 
-*<span id="fig:figura-SU" data-label="fig:figura-SU"></span>System of Units configuration interface.*
+*Figure 6: <span id="fig:figura-SU" data-label="fig:figura-SU"></span>System of Units configuration interface.*
 
 
 
@@ -248,7 +248,7 @@ You can define how and when the specification blocks are calculated in the flows
 <a id="fig:figura-NF-2"></a>
 ![<span id="fig:figura-NF-2" data-label="fig:figura-NF-2"></span>Behavior settings interface.](images/screens86/behavior_86.png)
 
-*<span id="fig:figura-NF-2" data-label="fig:figura-NF-2"></span>Behavior settings interface.*
+*Figure 7: <span id="fig:figura-NF-2" data-label="fig:figura-NF-2"></span>Behavior settings interface.*
 
 
 
@@ -261,7 +261,7 @@ In the "Description" group box it is possible to edit some information about the
 <a id="fig:figura-NF"></a>
 ![<span id="fig:figura-NF" data-label="fig:figura-NF"></span>Information settings interface.](images/screens100/04.png)
 
-*<span id="fig:figura-NF" data-label="fig:figura-NF"></span>Information settings interface.*
+*Figure 8: <span id="fig:figura-NF" data-label="fig:figura-NF"></span>Information settings interface.*
 
 
 
@@ -274,7 +274,7 @@ In the "Property Tables" section you can define which properties are going to be
 <a id="fig:figura-NF-1"></a>
 ![<span id="fig:figura-NF-1" data-label="fig:figura-NF-1"></span>Property Tables settings interface.](images/screens84/8.png)
 
-*<span id="fig:figura-NF-1" data-label="fig:figura-NF-1"></span>Property Tables settings interface.*
+*Figure 9: <span id="fig:figura-NF-1" data-label="fig:figura-NF-1"></span>Property Tables settings interface.*
 
 
 
@@ -283,20 +283,20 @@ In the "Property Tables" section you can define which properties are going to be
 <a id="fig:figura-NF-1-1"></a>
 ![<span id="fig:figura-NF-1-1" data-label="fig:figura-NF-1-1"></span>Selected properties on the previous image are shown on the flowsheet for the Material Streams.](images/screens84/9.png)
 
-*<span id="fig:figura-NF-1-1" data-label="fig:figura-NF-1-1"></span>Selected properties on the previous image are shown on the flowsheet for the Material Streams.*
+*Figure 10: <span id="fig:figura-NF-1-1" data-label="fig:figura-NF-1-1"></span>Selected properties on the previous image are shown on the flowsheet for the Material Streams.*
 
 
 
 #### Process Modeling (Flowsheeting)
 
-After configuring the simulation, the user is taken to the main simulation window (Figure [12](#fig:figura-JanelaSImulacao)). In this window we can highlight the following areas:
+After configuring the simulation, the user is taken to the main simulation window (Figure [11](#fig:figura-JanelaSImulacao)). In this window we can highlight the following areas:
 
 
 
 <a id="fig:figura-JanelaSImulacao"></a>
 ![<span id="fig:figura-JanelaSImulacao" data-label="fig:figura-JanelaSImulacao"></span>DWSIM simulation window.](images/screens88/Captura de tela 2024-07-09 141013.png)
 
-*<span id="fig:figura-JanelaSImulacao" data-label="fig:figura-JanelaSImulacao"></span>DWSIM simulation window.*
+*Figure 11: <span id="fig:figura-JanelaSImulacao" data-label="fig:figura-JanelaSImulacao"></span>DWSIM simulation window.*
 
 
 
@@ -318,14 +318,14 @@ After configuring the simulation, the user is taken to the main simulation windo
 
 - ***Script Manager*** window: displays the script manager, which can be used to write Python scripts to automate certain simulation tasks.
 
-When running DWSIM on a Windows platform, the simulation windows can be freely repositioned, with the arrangement information being saved together with the rest of simulation data. To reposition a window, the user should click with the left mouse button in the window’s top bar and drag it to the desired place. A preview of how the window will be is shown in blue (Figure [13](#fig:figura-posicaojanelas)).
+When running DWSIM on a Windows platform, the simulation windows can be freely repositioned, with the arrangement information being saved together with the rest of simulation data. To reposition a window, the user should click with the left mouse button in the window’s top bar and drag it to the desired place. A preview of how the window will be is shown in blue (Figure [12](#fig:figura-posicaojanelas)).
 
 
 
 <a id="fig:figura-posicaojanelas"></a>
 ![<span id="fig:figura-posicaojanelas" data-label="fig:figura-posicaojanelas"></span>Window repositioning.](images/screens40/000036.png)
 
-*<span id="fig:figura-posicaojanelas" data-label="fig:figura-posicaojanelas"></span>Window repositioning.*
+*Figure 12: <span id="fig:figura-posicaojanelas" data-label="fig:figura-posicaojanelas"></span>Window repositioning.*
 
 
 
@@ -443,29 +443,29 @@ Additionally, the following logical operations are available in DWSIM:
 
 - ***Switch:*** used to switch the value of a property of an object between two values;
 
-Figure [14](#fig:figura-matno fluxog) shows a material stream added to the flowsheet by one of the method described above. It can be observed that the stream is selected and that its property editor is shown as a panel on the left part of the main window.
+Figure [13](#fig:figura-matno-fluxog) shows a material stream added to the flowsheet by one of the method described above. It can be observed that the stream is selected and that its property editor is shown as a panel on the left part of the main window.
 
 
 
-<a id="fig:figura-matno fluxog"></a>
-![<span id="fig:figura-matno fluxog" data-label="fig:figura-matno fluxog"></span>A material stream in the flowsheet.](images/screens58/cui_msonfs.png)
+<a id="fig:figura-matno-fluxog"></a>
+![<span id="fig:figura-matno-fluxog" data-label="fig:figura-matno-fluxog"></span>A material stream in the flowsheet.](images/screens58/cui_msonfs.png)
 
-*<span id="fig:figura-matno fluxog" data-label="fig:figura-matno fluxog"></span>A material stream in the flowsheet.*
+*Figure 13: <span id="fig:figura-matno-fluxog" data-label="fig:figura-matno-fluxog"></span>A material stream in the flowsheet.*
 
 
 
-###### *Connecting objects* {#connecting-objects .unnumbered}
+###### *Connecting objects* {#connecting-objects-.unnumbered}
 
 The material streams represent mass flowing between unit operations. There are two different ways in which a material stream can be connected to a unit operation (or *vice-versa*):
 
-- Through the context menu activated with a right mouse button click over the object (Figure [15](#fig:figura-contextmenu));
+- Through the context menu activated with a right mouse button click over the object (Figure [14](#fig:figura-contextmenu));
 
 
 
 <a id="fig:figura-contextmenu"></a>
 ![<span id="fig:figura-contextmenu" data-label="fig:figura-contextmenu"></span>Selected object context menu.](images/screens58/cui_connect.png)
 
-*<span id="fig:figura-contextmenu" data-label="fig:figura-contextmenu"></span>Selected object context menu.*
+*Figure 14: <span id="fig:figura-contextmenu" data-label="fig:figura-contextmenu"></span>Selected object context menu.*
 
 
 
@@ -476,7 +476,7 @@ The material streams represent mass flowing between unit operations. There are t
 <a id="fig:figura-contextmenu2"></a>
 ![<span id="fig:figura-contextmenu2" data-label="fig:figura-contextmenu2"></span>Connection selection menu.](images/screens40/000039.png)
 
-*<span id="fig:figura-contextmenu2" data-label="fig:figura-contextmenu2"></span>Connection selection menu.*
+*Figure 15: <span id="fig:figura-contextmenu2" data-label="fig:figura-contextmenu2"></span>Connection selection menu.*
 
 
 
@@ -487,28 +487,28 @@ The material streams represent mass flowing between unit operations. There are t
 <a id="fig:figura-contextmenu2-1"></a>
 ![<span id="fig:figura-contextmenu2-1" data-label="fig:figura-contextmenu2-1"></span>Create and Connect tool.](images/screens40/000040.png)
 
-*<span id="fig:figura-contextmenu2-1" data-label="fig:figura-contextmenu2-1"></span>Create and Connect tool.*
+*Figure 16: <span id="fig:figura-contextmenu2-1" data-label="fig:figura-contextmenu2-1"></span>Create and Connect tool.*
 
 
 
-An expander system with its connections is shown on Figure [18](#fig:figura-conexaorapida3).
+An expander system with its connections is shown on Figure [17](#fig:figura-conexaorapida3).
 
 
 
 <a id="fig:figura-conexaorapida3"></a>
 ![<span id="fig:figura-conexaorapida3" data-label="fig:figura-conexaorapida3"></span>Expander with all connections correctly configured.](images/screens58/cui_xpcon.png)
 
-*<span id="fig:figura-conexaorapida3" data-label="fig:figura-conexaorapida3"></span>Expander with all connections correctly configured.*
+*Figure 17: <span id="fig:figura-conexaorapida3" data-label="fig:figura-conexaorapida3"></span>Expander with all connections correctly configured.*
 
 
 
-###### *Disconnecting objects* {#disconnecting-objects .unnumbered}
+###### *Disconnecting objects* {#disconnecting-objects-.unnumbered}
 
 Tools to disconnect objects from each other can be found on the same locations as the connecting ones.
 
-###### *Removing objects from the flowsheet* {#removing-objects-from-the-flowsheet .unnumbered}
+###### *Removing objects from the flowsheet* {#removing-objects-from-the-flowsheet-.unnumbered}
 
-The selected object can be removed from the flowsheet by pressing the DEL keyboard button or by using the context menu - "Delete" item (Figure [15](#fig:figura-contextmenu)).
+The selected object can be removed from the flowsheet by pressing the DEL keyboard button or by using the context menu - "Delete" item (Figure [14](#fig:figura-contextmenu)).
 
 ###### Auto-Connect Added Objects
 
@@ -524,16 +524,16 @@ There are three different options for this setting:
 
 ##### Process data management
 
-###### Entering process data {#entering-process-data .unnumbered}
+###### Entering process data {#entering-process-data-.unnumbered}
 
-The objects’ process data (temperature, pressure, flow, composition and/or other parameters) can be entered in the property editor window (Figure [19](#fig:figura-visual1)). Properties that cannot be edited (read-only) are grayed-out.
+The objects’ process data (temperature, pressure, flow, composition and/or other parameters) can be entered in the property editor window (Figure [18](#fig:figura-visual1)). Properties that cannot be edited (read-only) are grayed-out.
 
 
 
 <a id="fig:figura-visual1"></a>
 ![<span id="fig:figura-visual1" data-label="fig:figura-visual1"></span>Viewing object properties in the editor window.](images/screens58/cui_edit1.png)
 
-*<span id="fig:figura-visual1" data-label="fig:figura-visual1"></span>Viewing object properties in the editor window.*
+*Figure 18: <span id="fig:figura-visual1" data-label="fig:figura-visual1"></span>Viewing object properties in the editor window.*
 
 
 
@@ -544,7 +544,7 @@ Most properties can be edited directly by typing a value in the textbox and pres
 <a id="fig:figura-editando1"></a>
 ![<span id="fig:figura-editando1" data-label="fig:figura-editando1"></span>Direct editing of a property.](images/screens40/000042.png)
 
-*<span id="fig:figura-editando1" data-label="fig:figura-editando1"></span>Direct editing of a property.*
+*Figure 19: <span id="fig:figura-editando1" data-label="fig:figura-editando1"></span>Direct editing of a property.*
 
 
 
@@ -555,7 +555,7 @@ You can also use the inline units converter to convert the value of a property f
 <a id="fig:figura-editando2"></a>
 ![<span id="fig:figura-editando2" data-label="fig:figura-editando2"></span>Converting 50 C to the current temperature units (K).](images/screens40/000017.png)
 
-*<span id="fig:figura-editando2" data-label="fig:figura-editando2"></span>Converting 50 C to the current temperature units (K).*
+*Figure 20: <span id="fig:figura-editando2" data-label="fig:figura-editando2"></span>Converting 50 C to the current temperature units (K).*
 
 
 
@@ -564,24 +564,24 @@ You can also use the inline units converter to convert the value of a property f
 <a id="fig:figura-editando3"></a>
 ![<span id="fig:figura-editando3" data-label="fig:figura-editando3"></span>Converted temperature value (323.15 K).](images/screens40/000018.png)
 
-*<span id="fig:figura-editando3" data-label="fig:figura-editando3"></span>Converted temperature value (323.15 K).*
+*Figure 21: <span id="fig:figura-editando3" data-label="fig:figura-editando3"></span>Converted temperature value (323.15 K).*
 
 
 
-If all object properties were correctly defined, it will be calculated by DWSIM and its flowsheet representation will have a blue border instead of a red one, indicating that the object was calculated successfully (Figure [23](#fig:figura-objcalc)).
+If all object properties were correctly defined, it will be calculated by DWSIM and its flowsheet representation will have a blue border instead of a red one, indicating that the object was calculated successfully (Figure [22](#fig:figura-objcalc)).
 
 
 
 <a id="fig:figura-objcalc"></a>
 ![<span id="fig:figura-objcalc" data-label="fig:figura-objcalc"></span>Calculated objects.](images/screens58/cui_calcobj.png)
 
-*<span id="fig:figura-objcalc" data-label="fig:figura-objcalc"></span>Calculated objects.*
+*Figure 22: <span id="fig:figura-objcalc" data-label="fig:figura-objcalc"></span>Calculated objects.*
 
 
 
 ##### Cut/Copy/Paste objects
 
-DWSIM also supports cutting, copying and pasting flowsheet objects inside a flowsheet or between different flowsheets. When copying objects between flowsheets, DWSIM may also copy compounds and property packages from one flowsheet to another. Cut/Copy/Paste behavior is an application setting and can be set in the General Settings menu (Section [§](09-general-settings.md#subsec:Other)).
+DWSIM also supports cutting, copying and pasting flowsheet objects inside a flowsheet or between different flowsheets. When copying objects between flowsheets, DWSIM may also copy compounds and property packages from one flowsheet to another. Cut/Copy/Paste behavior is an application setting and can be set in the General Settings menu (Section [Other](09-general-settings.md#subsec:Other)).
 
 ##### Simulation
 
@@ -589,38 +589,38 @@ DWSIM is a sequential modular process simulator, that is, all calculations are m
 
 **DWSIM’s calculation starts when the user edits a property which defines an object.** For example, editing a stream mass flow when its temperature, pressure and composition are already well-defined activates DWSIM‘s calculator.
 
-It is possible to control DWSIM’s calculator by using its button bar (Figure [24](#fig:figura-calculador)). Clicking on the <span class="image placeholder" original-image-src="screens58/cui_enablesolver.png" original-image-title="">image</span> button activates or deactivates the calculator. The <span class="image placeholder" original-image-src="screens58/cui_solvebtn.png" original-image-title="">image</span> button performs a full flowsheet recalculation. DWSIM’s calculator is enabled by default - if it is disabled, modifying of a property is accepted, but **does not** recalculate the object nor the ones that are downstream in the flowsheet. The <span class="image placeholder" original-image-src="screens58/cui_abortsolver.png" original-image-title="">image</span> button stops the any ongoing calculation.
+It is possible to control DWSIM’s calculator by using its button bar (Figure [23](#fig:figura-calculador)). Clicking on the <span class="image placeholder" original-image-src="screens58/cui_enablesolver.png" original-image-title="">image</span> button activates or deactivates the calculator. The <span class="image placeholder" original-image-src="screens58/cui_solvebtn.png" original-image-title="">image</span> button performs a full flowsheet recalculation. DWSIM’s calculator is enabled by default - if it is disabled, modifying of a property is accepted, but **does not** recalculate the object nor the ones that are downstream in the flowsheet. The <span class="image placeholder" original-image-src="screens58/cui_abortsolver.png" original-image-title="">image</span> button stops the any ongoing calculation.
 
 
 
 <a id="fig:figura-calculador"></a>
 ![<span id="fig:figura-calculador" data-label="fig:figura-calculador"></span>DWSIM’s calculator control bar.](images/screens58/cui_solverpanel.png)
 
-*<span id="fig:figura-calculador" data-label="fig:figura-calculador"></span>DWSIM’s calculator control bar.*
+*Figure 23: <span id="fig:figura-calculador" data-label="fig:figura-calculador"></span>DWSIM’s calculator control bar.*
 
 
 
-As DWSIM’s calculator does its job, messages are added to the "Information" window. These messages tell the user if the object was calculated successfully or if there was an error while calculating it, among others (Figure [25](#fig:figura-mensagem)).
+As DWSIM’s calculator does its job, messages are added to the "Information" window. These messages tell the user if the object was calculated successfully or if there was an error while calculating it, among others (Figure [24](#fig:figura-mensagem)).
 
 
 
 <a id="fig:figura-mensagem"></a>
 ![<span id="fig:figura-mensagem" data-label="fig:figura-mensagem"></span>A DWSIM’s calculator message.](images/screens84/10.png)
 
-*<span id="fig:figura-mensagem" data-label="fig:figura-mensagem"></span>A DWSIM’s calculator message.*
+*Figure 24: <span id="fig:figura-mensagem" data-label="fig:figura-mensagem"></span>A DWSIM’s calculator message.*
 
 
 
 ##### Results
 
-Results can be viewed in reports, generated (Figures [26](#fig:figura-relat) and [27](#fig:figura-relat2)) for printing. Report data can also be saved to ODT, ODS, XLS, TXT or XML files.
+Results can be viewed in reports, generated (Figures [25](#fig:figura-relat) and [26](#fig:figura-relat2)) for printing. Report data can also be saved to ODT, ODS, XLS, TXT or XML files.
 
 
 
 <a id="fig:figura-relat"></a>
 ![<span id="fig:figura-relat" data-label="fig:figura-relat"></span>Results report configuration.](images/screens84/11.png)
 
-*<span id="fig:figura-relat" data-label="fig:figura-relat"></span>Results report configuration.*
+*Figure 25: <span id="fig:figura-relat" data-label="fig:figura-relat"></span>Results report configuration.*
 
 
 
@@ -629,7 +629,7 @@ Results can be viewed in reports, generated (Figures [26](#fig:figura-relat) and
 <a id="fig:figura-relat2"></a>
 ![<span id="fig:figura-relat2" data-label="fig:figura-relat2"></span>Results report.](images/screens66/simreport.png)
 
-*<span id="fig:figura-relat2" data-label="fig:figura-relat2"></span>Results report.*
+*Figure 26: <span id="fig:figura-relat2" data-label="fig:figura-relat2"></span>Results report.*
 
 
 
@@ -642,7 +642,7 @@ The Sensitivity Study utility performs parametric sweeps over up to two independ
 <a id="fig:figura-SA1"></a>
 ![<span id="fig:figura-SA1" data-label="fig:figura-SA1"></span>Sensitivity Analysis Utility (1).](images/screens30/image0020.png)
 
-*<span id="fig:figura-SA1" data-label="fig:figura-SA1"></span>Sensitivity Analysis Utility (1).*
+*Figure 27: <span id="fig:figura-SA1" data-label="fig:figura-SA1"></span>Sensitivity Analysis Utility (1).*
 
 
 
@@ -659,7 +659,7 @@ The interface is very similar to Sensitivity Analysis’s one. One can define a 
 <a id="fig:figura-MO-1"></a>
 ![<span id="fig:figura-MO-1" data-label="fig:figura-MO-1"></span>Multivariate Optimization Utility (1).](images/imagens16/0009.png)
 
-*<span id="fig:figura-MO-1" data-label="fig:figura-MO-1"></span>Multivariate Optimization Utility (1).*
+*Figure 28: <span id="fig:figura-MO-1" data-label="fig:figura-MO-1"></span>Multivariate Optimization Utility (1).*
 
 
 
@@ -674,7 +674,7 @@ DWSIM only considers bounds for independent variables. Also, if the objective fu
 <a id="fig:figura-MO-2"></a>
 ![<span id="fig:figura-MO-2" data-label="fig:figura-MO-2"></span>Multivariate Optimization Utility (2).](images/imagens16/0010.png)
 
-*<span id="fig:figura-MO-2" data-label="fig:figura-MO-2"></span>Multivariate Optimization Utility (2).*
+*Figure 29: <span id="fig:figura-MO-2" data-label="fig:figura-MO-2"></span>Multivariate Optimization Utility (2).*
 
 
 
@@ -685,7 +685,7 @@ With all the variables defined and the case configured, the optimization can be 
 <a id="fig:figura-MO-3"></a>
 ![<span id="fig:figura-MO-3" data-label="fig:figura-MO-3"></span>Multivariate Optimization Utility (3).](images/imagens16/0011.png)
 
-*<span id="fig:figura-MO-3" data-label="fig:figura-MO-3"></span>Multivariate Optimization Utility (3).*
+*Figure 30: <span id="fig:figura-MO-3" data-label="fig:figura-MO-3"></span>Multivariate Optimization Utility (3).*
 
 
 
@@ -698,7 +698,7 @@ You can find the **Mass and Energy Balance Summary tool** in the Flowsheet Analy
 <a id="fig:figura-MO-3-1"></a>
 ![<span id="fig:figura-MO-3-1" data-label="fig:figura-MO-3-1"></span>Mass and Energy Balance Summary tool location.](images/screens75/mebs1.png)
 
-*<span id="fig:figura-MO-3-1" data-label="fig:figura-MO-3-1"></span>Mass and Energy Balance Summary tool location.*
+*Figure 31: <span id="fig:figura-MO-3-1" data-label="fig:figura-MO-3-1"></span>Mass and Energy Balance Summary tool location.*
 
 
 
@@ -711,7 +711,7 @@ At the bottom of the tool window, you’ll find the overall flowsheet mass balan
 <a id="fig:figura-MO-3-2"></a>
 ![<span id="fig:figura-MO-3-2" data-label="fig:figura-MO-3-2"></span>Mass and Energy Balance Summary tool.](images/screens75/mebs2.png)
 
-*<span id="fig:figura-MO-3-2" data-label="fig:figura-MO-3-2"></span>Mass and Energy Balance Summary tool.*
+*Figure 32: <span id="fig:figura-MO-3-2" data-label="fig:figura-MO-3-2"></span>Mass and Energy Balance Summary tool.*
 
 
 
@@ -746,53 +746,53 @@ Added/Attached Utilities will be visible on the context menu located on the obje
 <a id="fig:figura-utPCV-1-2"></a>
 ![<span id="fig:figura-utPCV-1-2" data-label="fig:figura-utPCV-1-2"></span>Accessing attached Utilities.](images/screens40/000045.png)
 
-*<span id="fig:figura-utPCV-1-2" data-label="fig:figura-utPCV-1-2"></span>Accessing attached Utilities.*
+*Figure 33: <span id="fig:figura-utPCV-1-2" data-label="fig:figura-utPCV-1-2"></span>Accessing attached Utilities.*
 
 
 
-- ***True Critical Point*** - utility to calculate the true critical point of a mixture (Figure [35](#fig:figura-utPCV)).
+- ***True Critical Point*** - utility to calculate the true critical point of a mixture (Figure [34](#fig:figura-utPCV)).
 
 
 
 <a id="fig:figura-utPCV"></a>
 ![<span id="fig:figura-utPCV" data-label="fig:figura-utPCV"></span>Utilities - True Critical Point.](images/screens/snap0020.png)
 
-*<span id="fig:figura-utPCV" data-label="fig:figura-utPCV"></span>Utilities - True Critical Point.*
+*Figure 34: <span id="fig:figura-utPCV" data-label="fig:figura-utPCV"></span>Utilities - True Critical Point.*
 
 
 
-- ***Phase Envelope*** - Material stream phase equilibria envelope calculation (Figure [36](#fig:figura-utDF));
+- ***Phase Envelope*** - Material stream phase equilibria envelope calculation (Figure [35](#fig:figura-utDF));
 
 
 
 <a id="fig:figura-utDF"></a>
 ![<span id="fig:figura-utDF" data-label="fig:figura-utDF"></span>Utilities - Phase Envelope.](images/screens34/0004.png)
 
-*<span id="fig:figura-utDF" data-label="fig:figura-utDF"></span>Utilities - Phase Envelope.*
+*Figure 35: <span id="fig:figura-utDF" data-label="fig:figura-utDF"></span>Utilities - Phase Envelope.*
 
 
 
-- ***Binary Envelope*** - special envelopes for binary mixtures (Figure [37](#fig:figura-utDB)).
+- ***Binary Envelope*** - special envelopes for binary mixtures (Figure [36](#fig:figura-utDB)).
 
 
 
 <a id="fig:figura-utDB"></a>
 ![<span id="fig:figura-utDB" data-label="fig:figura-utDB"></span>Utilities - Binary Envelope.](images/screens36/snap019_.png)
 
-*<span id="fig:figura-utDB" data-label="fig:figura-utDB"></span>Utilities - Binary Envelope.*
+*Figure 36: <span id="fig:figura-utDB" data-label="fig:figura-utDB"></span>Utilities - Binary Envelope.*
 
 
 
-- ***Distillation Curves*** - the TBP, ASTM D86, D1160, D2887 and EFV curves of a stream, with the properties of a petroleum product (flash point, densities, viscosities, cold flow points and cetane index). See Section [9.4](46-other-properties.md#sec:distillation-curves).
+- ***Distillation Curves*** - the TBP, ASTM D86, D1160, D2887 and EFV curves of a stream, with the properties of a petroleum product (flash point, densities, viscosities, cold flow points and cetane index). See Section [Distillation Curves and Petroleum Product Properties](46-other-properties.md#sec:distillation-curves).
 
-- ***Petroleum Cold Flow Properties*** - special properties of petroleum fractions, like cetane index, flash point, refraction index, etc. (Figure [38](#fig:figura-utDB-1)).
+- ***Petroleum Cold Flow Properties*** - special properties of petroleum fractions, like cetane index, flash point, refraction index, etc. (Figure [37](#fig:figura-utDB-1)).
 
 
 
 <a id="fig:figura-utDB-1"></a>
 ![<span id="fig:figura-utDB-1" data-label="fig:figura-utDB-1"></span>Utilities - Petroleum Cold Flow Properties.](images/snaps/pic0011.png)
 
-*<span id="fig:figura-utDB-1" data-label="fig:figura-utDB-1"></span>Utilities - Petroleum Cold Flow Properties.*
+*Figure 37: <span id="fig:figura-utDB-1" data-label="fig:figura-utDB-1"></span>Utilities - Petroleum Cold Flow Properties.*
 
 
 
@@ -812,25 +812,25 @@ DWSIM classifies chemical reactions in three different types: Conversion, where 
 > | *<span class="image placeholder" original-image-src="dialog-information.png" original-image-title="">image</span>* | <span class="sans-serif">*Please view DWSIM’s Technical Manual and Equipment and Utilities Guide for more details about chemical reactions and reactors, respectively.*</span> |
 > |:---|:--:|
 
-Chemical reactions in DWSIM are managed through the **Chemical Reactions Manager** (**Simulation Settings \> Reactions** panel) (Figure [39](#fig:Chemical-Reactions-Manager.)):
+Chemical reactions in DWSIM are managed through the **Chemical Reactions Manager** (**Simulation Settings \> Reactions** panel) (Figure [38](#fig:Chemical-Reactions-Manager.)):
 
 
 
 <a id="fig:Chemical-Reactions-Manager."></a>
 ![<span id="fig:Chemical-Reactions-Manager." data-label="fig:Chemical-Reactions-Manager."></span>Chemical Reactions Manager.](images/screens58/cui_rm.png)
 
-*<span id="fig:Chemical-Reactions-Manager." data-label="fig:Chemical-Reactions-Manager."></span>Chemical Reactions Manager.*
+*Figure 38: <span id="fig:Chemical-Reactions-Manager." data-label="fig:Chemical-Reactions-Manager."></span>Chemical Reactions Manager.*
 
 
 
-The user can define various reactions which are grouped in *Reaction Sets*. These reaction sets list all chemical reactions, and the user must activate only those he/she wants to become available for one or more reactors, since the reactor’s parameter is the **reaction set** and not the chemical reactions themselves. In the reaction set configuration window it is also possible to define the reaction ordering. Equal indexes define parallel reactions (Figure [40](#fig:Reaction-Set-editor.)):
+The user can define various reactions which are grouped in *Reaction Sets*. These reaction sets list all chemical reactions, and the user must activate only those he/she wants to become available for one or more reactors, since the reactor’s parameter is the **reaction set** and not the chemical reactions themselves. In the reaction set configuration window it is also possible to define the reaction ordering. Equal indexes define parallel reactions (Figure [39](#fig:Reaction-Set-editor.)):
 
 
 
 <a id="fig:Reaction-Set-editor."></a>
 ![<span id="fig:Reaction-Set-editor." data-label="fig:Reaction-Set-editor."></span>Reaction Set editor.](images/snaps/pic0015.png)
 
-*<span id="fig:Reaction-Set-editor." data-label="fig:Reaction-Set-editor."></span>Reaction Set editor.*
+*Figure 39: <span id="fig:Reaction-Set-editor." data-label="fig:Reaction-Set-editor."></span>Reaction Set editor.*
 
 
 
@@ -838,11 +838,11 @@ When the reactions and their respective reaction sets are correctly defined, the
 
 #### <span id="subsec:Componentes-hipotéticos-e" label="subsec:Componentes-hipotéticos-e"></span>Characterization of Petroleum Fractions
 
-DWSIM provides three tools for characterization of petroleum fractions. One of them characterizes C7+ fractions from bulk properties (Figure [41](#fig:figura-ps1)). The other characterizes the oil from an ASTM or TBP distillation curve (Figure [42](#fig:Characterizing-petroleum-from)). There is also a tool to create pseudocompounds from tabular data.
+DWSIM provides three tools for characterization of petroleum fractions. One of them characterizes C7+ fractions from bulk properties (Figure [40](#fig:figura-ps1)). The other characterizes the oil from an ASTM or TBP distillation curve (Figure [41](#fig:Characterizing-petroleum-from)). There is also a tool to create pseudocompounds from tabular data.
 
-####### ***- Characterization from bulk properties*** {#characterization-from-bulk-properties .unnumbered}
+####### ***- Characterization from bulk properties*** {#characterization-from-bulk-properties-.unnumbered}
 
-The method itself requires a minimum of information to generate the pseudocomponents, though the more data the user provides, the better will be the results (Figure [41](#fig:figura-ps1)). It is recommended that the user provides the specific gravity of the C7+ fraction at least. Viscosity data is also very important.
+The method itself requires a minimum of information to generate the pseudocomponents, though the more data the user provides, the better will be the results (Figure [40](#fig:figura-ps1)). It is recommended that the user provides the specific gravity of the C7+ fraction at least. Viscosity data is also very important.
 
 The tool splits the plus fraction alone, and the fractions it produces are fractions of that plus fraction. The rest of the fluid, which a reservoir or a gas analysis reports compound by compound, the inerts and the light hydrocarbons, goes in the Defined Composition list beside it: one row per compound, with its percentage of the whole fluid, on a molar, mass or liquid volume basis. The pseudocomponents are then scaled down to what that composition leaves them, in the proportions the distribution gave them, and the defined compounds are selected into the simulation and written into the stream. Leaving the list empty characterizes the plus fraction on its own.
 
@@ -853,22 +853,22 @@ What may be declared there is measured against the plus fraction rather than aga
 <a id="fig:figura-ps1"></a>
 ![<span id="fig:figura-ps1" data-label="fig:figura-ps1"></span>C7+ petroleum fraction characterization utility.](images/snaps/pic0009.png)
 
-*<span id="fig:figura-ps1" data-label="fig:figura-ps1"></span>C7+ petroleum fraction characterization utility.*
+*Figure 40: <span id="fig:figura-ps1" data-label="fig:figura-ps1"></span>C7+ petroleum fraction characterization utility.*
 
 
 
-####### ***- Characterization from distillation curves*** {#characterization-from-distillation-curves .unnumbered}
+####### ***- Characterization from distillation curves*** {#characterization-from-distillation-curves-.unnumbered}
 
 This tool gets data from an ASTM or TBP distillation curve to generate pseudocomponents. It is also possible to include viscosity, molecular weight and specific gravity curves to enhance the characterization.
 
-The interface has a wizard-like style, with various customization options (Figure [42](#fig:Characterizing-petroleum-from)):
+The interface has a wizard-like style, with various customization options (Figure [41](#fig:Characterizing-petroleum-from)):
 
 
 
 <a id="fig:Characterizing-petroleum-from"></a>
 ![<span id="fig:Characterizing-petroleum-from" data-label="fig:Characterizing-petroleum-from"></span>Characterizing petroleum from distillation curves.](images/snaps/pf5.jpg)
 
-*<span id="fig:Characterizing-petroleum-from" data-label="fig:Characterizing-petroleum-from"></span>Characterizing petroleum from distillation curves.*
+*Figure 41: <span id="fig:Characterizing-petroleum-from" data-label="fig:Characterizing-petroleum-from"></span>Characterizing petroleum from distillation curves.*
 
 
 
@@ -879,20 +879,20 @@ After the pseudocomponents are created, a material stream with a defined composi
 > | *<span class="image placeholder" original-image-src="dialog-warning.png" original-image-title="">image</span>* | <span class="sans-serif">*The hypo and pseudocomponents are available for use only in the simulation in which they were generated, even if there is more than one opened simulation in DWSIM. Nevertheless, the user can export these components to a file and import them into another simulation.*</span> |
 > |:---|:--:|
 
-####### ***- Bulk/Batch creation of pseudocomponents/pseudocompounds*** {#bulkbatch-creation-of-pseudocomponentspseudocompounds .unnumbered}
+####### ***- Bulk/Batch creation of pseudocomponents/pseudocompounds*** {#bulkbatch-creation-of-pseudocomponentspseudocompounds-.unnumbered}
 
-The Bulk Create Pseudocompounds tool can be used to create pseudocompounds in a batch when you have the required data in a tabular format, or only part of the data. If some data is missing, DWSIM can estimate it before exporting the compounds to XML, JSON or add them to the Flowsheet (Figure [43](#fig:figura-ps1-1)).
+The Bulk Create Pseudocompounds tool can be used to create pseudocompounds in a batch when you have the required data in a tabular format, or only part of the data. If some data is missing, DWSIM can estimate it before exporting the compounds to XML, JSON or add them to the Flowsheet (Figure [42](#fig:figura-ps1-1)).
 
 
 
 <a id="fig:figura-ps1-1"></a>
 ![<span id="fig:figura-ps1-1" data-label="fig:figura-ps1-1"></span>Bulk creation of pseudocomponents/pseudocompounds.](images/screens82/bulkcreatepseudos.png)
 
-*<span id="fig:figura-ps1-1" data-label="fig:figura-ps1-1"></span>Bulk creation of pseudocomponents/pseudocompounds.*
+*Figure 42: <span id="fig:figura-ps1-1" data-label="fig:figura-ps1-1"></span>Bulk creation of pseudocomponents/pseudocompounds.*
 
 
 
-####### ***- Light ends*** {#light-ends .unnumbered}
+####### ***- Light ends*** {#light-ends-.unnumbered}
 
 A crude assay reports its light ends apart from the distillation curve. The curve is run on what is left after they are stripped off, and the light ends come as a short list of real compounds, methane through the pentanes, with a fraction of the whole crude beside each of them. They are only a few per cent, but they set the front end of the flash: a crude characterized from the curve alone will not make the gas the real one makes, and nothing in the numbers says so, because the cuts still add up to one.
 
@@ -904,7 +904,7 @@ Only a compound that can be a light end is accepted. One that boils above the n-
 
 The light ends belong to the assay, so they are kept with the simulation and can be read back in the Petroleum Assay Manager along with the curve and the contaminants.
 
-####### ***- Contaminant and PNA composition on pseudocomponents*** {#contaminant-and-pna-composition-on-pseudocomponents .unnumbered}
+####### ***- Contaminant and PNA composition on pseudocomponents*** {#contaminant-and-pna-composition-on-pseudocomponents-.unnumbered}
 
 Starting with DWSIM 8.9, every generated pseudocomponent can carry a *contaminant vector* (total and mercaptan sulfur, nitrogen, Ni/V/Fe/Na, Conradson carbon, asphaltenes, TAN) and a *paraffin/naphthene/aromatic (PNA) triplet.* These optional properties are stored on the compound constants alongside molecular weight, specific gravity and NBP, and are propagated through the flowsheet by every refining unit operation (see the Refining Unit Operations chapter).
 

@@ -24,14 +24,14 @@ In practical terms, it automatically applies accurate and responsive correction 
 
 ##### Fundamental Operation
 
-The distinguishing feature of the PID controller is the ability to use the three control terms of proportional, integral and derivative influence on the controller output to apply accurate and optimal control. The block diagram on ([54](#fig:dyn1-1)) shows the principles of how these terms are generated and applied. It shows a PID controller, which continuously calculates an error value $e(t)$ as the difference between a desired setpoint $\textrm{SP}=r(t)$ and a measured process variable $\textrm{PV}=y(t)$ , and applies a correction based on proportional, integral, and derivative terms. The controller attempts to minimize the error over time by adjustment of a control variable $u(t)$ , such as the opening of a control valve, to a new value determined by a weighted sum of the control terms.
+The distinguishing feature of the PID controller is the ability to use the three control terms of proportional, integral and derivative influence on the controller output to apply accurate and optimal control. The block diagram on ([1](#fig:dyn1-1)) shows the principles of how these terms are generated and applied. It shows a PID controller, which continuously calculates an error value $e(t)$ as the difference between a desired setpoint $\textrm{SP}=r(t)$ and a measured process variable $\textrm{PV}=y(t)$ , and applies a correction based on proportional, integral, and derivative terms. The controller attempts to minimize the error over time by adjustment of a control variable $u(t)$ , such as the opening of a control valve, to a new value determined by a weighted sum of the control terms.
 
 
 
 <a id="fig:dyn1-1"></a>
 ![<span id="fig:dyn1-1" data-label="fig:dyn1-1"></span>A block diagram of a PID controller in a feedback loop. r(t) is the desired process value or setpoint (SP), and y(t) is the measured process value (PV). (source: wikipedia)](images/screens60/PID_en.png)
 
-*<span id="fig:dyn1-1" data-label="fig:dyn1-1"></span>A block diagram of a PID controller in a feedback loop. r(t) is the desired process value or setpoint (SP), and y(t) is the measured process value (PV). (source: wikipedia)*
+*Figure 1: <span id="fig:dyn1-1" data-label="fig:dyn1-1"></span>A block diagram of a PID controller in a feedback loop. r(t) is the desired process value or setpoint (SP), and y(t) is the measured process value (PV). (source: wikipedia)*
 
 
 

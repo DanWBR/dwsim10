@@ -9,7 +9,7 @@ At vapor–liquid equilibrium (VLE), the fugacity of every component is equal in
 <a id="eq:elv1"></a>
 
 \[
-f_{i}^{L}=f_{i}^{V}
+f_{i}^{L}=f_{i}^{V}\tag{1}
 \]
 
 
@@ -77,7 +77,7 @@ Z^{V}=\frac{PV^{V}}{RT}
 
 ##### Fugacity Coefficient calculation models
 
-###### *Peng-Robinson Equation of State* {#peng-robinson-equation-of-state .unnumbered}
+###### *Peng-Robinson Equation of State* {#peng-robinson-equation-of-state-.unnumbered}
 
 The Peng–Robinson (PR) equation is a cubic equation of state that relates temperature, pressure, and molar volume for pure components and mixtures. Cubic equations of state are the simplest models capable of representing both liquid and vapor phases simultaneously. The PR EOS is written as
 
@@ -85,7 +85,7 @@ The Peng–Robinson (PR) equation is a cubic equation of state that relates temp
 <a id="eq:PR"></a>
 
 \[
-P=\frac{RT}{(V-b)}-\frac{a(T)}{V(V+b)+b(V-b)}
+P=\frac{RT}{(V-b)}-\frac{a(T)}{V(V+b)+b(V-b)}\tag{2}
 \]
 
 
@@ -143,14 +143,14 @@ $T_{r}$ reduced temperature, $T/Tc$
 
 
 
-For mixtures, Equation[§](#eq:PR) is applied with mixture-averaged parameters $a_{m}$ and $b_{m}$ computed from the van der Waals one-fluid mixing rules:
+For mixtures, Equation[2](#eq:PR) is applied with mixture-averaged parameters $a_{m}$ and $b_{m}$ computed from the van der Waals one-fluid mixing rules:
 
 
 
 <a id="eq:mixrule1"></a>
 
 \[
-a_{m}=\sum_{i}\sum_{j}x_{i}x_{j}\sqrt{(a_{i}a_{j})}(1-k_{ij})
+a_{m}=\sum_{i}\sum_{j}x_{i}x_{j}\sqrt{(a_{i}a_{j})}(1-k_{ij})\tag{3}
 \]
 
 
@@ -159,7 +159,7 @@ a_{m}=\sum_{i}\sum_{j}x_{i}x_{j}\sqrt{(a_{i}a_{j})}(1-k_{ij})
 <a id="eq:mixrule2"></a>
 
 \[
-b_{m}=\sum_{i}x_{i}b_{i}
+b_{m}=\sum_{i}x_{i}b_{i}\tag{4}
 \]
 
 
@@ -195,14 +195,14 @@ The fugacity coefficient obtained from the Peng–Robinson EOS is given by
 \]
 
 
-where $Z$ is the phase compressibility factor (liquid or vapor), obtained by solving the cubic polynomial derived from Equation [§](#eq:PR),
+where $Z$ is the phase compressibility factor (liquid or vapor), obtained by solving the cubic polynomial derived from Equation [2](#eq:PR),
 
 
 
 <a id="eq:PR_Z"></a>
 
 \[
-Z^{3}-(1-B)Z^{2}+(A-3B^{2}-2B)Z-(AB-B^{2}-2B)=0,
+Z^{3}-(1-B)Z^{2}+(A-3B^{2}-2B)Z-(AB-B^{2}-2B)=0,\tag{5}
 \]
 
 
@@ -227,7 +227,7 @@ Z=\frac{PV}{RT}
 \]
 
 
-###### *Peng-Robinson (1978) Equation of State* {#peng-robinson-1978-equation-of-state .unnumbered}
+###### *Peng-Robinson (1978) Equation of State* {#peng-robinson-1978-equation-of-state-.unnumbered}
 
 The 1978 version of the PR EOS introduces a modification to the $a$ term:
 
@@ -256,7 +256,7 @@ a_{i}=[1+c_{i}(1-T_{r}^{(1/2)})]^{2}0.45724(R^{2}T_{c}^{2})/P_{c}
 \]
 
 
-###### *Soave-Redlich-Kwong Equation of State* {#soave-redlich-kwong-equation-of-state .unnumbered}
+###### *Soave-Redlich-Kwong Equation of State* {#soave-redlich-kwong-equation-of-state-.unnumbered}
 
 The Soave-Redlich-Kwong Equation is also a cubic equation of state in volume,
 
@@ -265,7 +265,7 @@ The Soave-Redlich-Kwong Equation is also a cubic equation of state in volume,
 <a id="eq:SRK"></a>
 
 \[
-P=\frac{RT}{(V-b)}-\frac{a(T)}{V(V+b)},
+P=\frac{RT}{(V-b)}-\frac{a(T)}{V(V+b)},\tag{6}
 \]
 
 
@@ -285,7 +285,7 @@ b=0.08664(RT_{c})/P_{c}
 \]
 
 
-The equations [§](#eq:mixrule1) and [§](#eq:mixrule2) are used to calculate mixture parameters. Fugacity is calculated by
+The equations [3](#eq:mixrule1) and [4](#eq:mixrule2) are used to calculate mixture parameters. Fugacity is calculated by
 
 
 
@@ -294,14 +294,14 @@ The equations [§](#eq:mixrule1) and [§](#eq:mixrule2) are used to calculate mi
 \]
 
 
-The phase compressibility factor $Z$ is obtained from the equation [§](#eq:SRK),
+The phase compressibility factor $Z$ is obtained from the equation [6](#eq:SRK),
 
 
 
 <a id="eq:SRK_Z"></a>
 
 \[
-Z^{3}-Z^{2}+(A-B-B^{2})Z-AB=0,
+Z^{3}-Z^{2}+(A-B-B^{2})Z-AB=0,\tag{7}
 \]
 
 
@@ -326,9 +326,9 @@ Z=\frac{PV}{RT}
 \]
 
 
-The equations [§](#eq:PR_Z) and [§](#eq:SRK_Z), in low temperature and pressure conditions, can provide three roots for $Z$ . In this case, if liquid properties are being calculated, the smallest root is used. If the phase is vapor, the largest root is used. The remaining root has no physical meaning; at high temperatures and pressures (conditions above the pseudocritical point), the equations [§](#eq:PR_Z) and [§](#eq:SRK_Z) provides only one real root.
+The equations [5](#eq:PR_Z) and [7](#eq:SRK_Z), in low temperature and pressure conditions, can provide three roots for $Z$ . In this case, if liquid properties are being calculated, the smallest root is used. If the phase is vapor, the largest root is used. The remaining root has no physical meaning; at high temperatures and pressures (conditions above the pseudocritical point), the equations [5](#eq:PR_Z) and [7](#eq:SRK_Z) provides only one real root.
 
-###### *Peng-Robinson with Volume Translation* {#peng-robinson-with-volume-translation .unnumbered}
+###### *Peng-Robinson with Volume Translation* {#peng-robinson-with-volume-translation-.unnumbered}
 
 Volume translation addresses the well-known deficiency of two-parameter cubic equations of state: inaccurate prediction of liquid molar volumes. A component-specific constant is subtracted from the EOS-calculated molar volume:
 
@@ -352,7 +352,7 @@ v_{L}=v_{L}^{EOS}-\sum x_{i}c_{i}
 
 Volume translation can be applied to any two-parameter cubic equation of state, substantially reducing the liquid-density prediction errors inherent in all such models .
 
-###### *Peng-Robinson-Stryjek-Vera* {#peng-robinson-stryjek-vera .unnumbered}
+###### *Peng-Robinson-Stryjek-Vera* {#peng-robinson-stryjek-vera-.unnumbered}
 
 
 
@@ -420,11 +420,11 @@ PRSV2 is particularly advantageous for VLE calculations. While PRSV1 does offer 
 
 Chao-Seader () and Grayson-Streed () are older, semi-empirical models. The Grayson-Streed correlation is an extension of the Chao-Seader method with special applicability to hydrogen. In DWSIM, only the equilibrium values produced by these correlations are used in the calculations. The Lee-Kesler method is used to determine the enthalpy and entropy of liquid and vapor phases.
 
-####### *Chao Seader* {#chao-seader .unnumbered}
+####### *Chao Seader* {#chao-seader-.unnumbered}
 
 This method is applicable to heavy hydrocarbon systems at pressures below 10 342 kPa (1 500 psia) and temperatures between -18 °C and 260 °C.
 
-####### *Grayson Streed* {#grayson-streed .unnumbered}
+####### *Grayson Streed* {#grayson-streed-.unnumbered}
 
 Recommended for simulating heavy hydrocarbon systems with a high hydrogen content.
 
@@ -441,7 +441,7 @@ The activity coefficient $\gamma_{i}$ quantifies the deviation of component $i$ 
 
 where $G^{E}$ represents the excess Gibbs energy of the liquid solution, which is a measure of how far the solution is from ideal behavior. For an ideal solution, $\gamma_{i}$ = 1. Expressions for $G^{E}/RT$ provide values for the activity coefficients.
 
-###### *UNIQUAC and UNIFAC models* {#uniquac-and-unifac-models .unnumbered}
+###### *UNIQUAC and UNIFAC models* {#uniquac-and-unifac-models-.unnumbered}
 
 The UNIQUAC (Universal Quasi-Chemical) model expresses the dimensionless excess Gibbs energy $g\equiv G^{E}/RT$ as the sum of two contributions: a combinatorial term $g^{C}$ that accounts for differences in molecular size and shape, and a residual term $g^{R}$ that accounts for energetic interactions between molecules:
 
@@ -505,7 +505,7 @@ An expression for $\gamma_{i}$ is found through the application of the following
 <a id="eq:gamaiuniquac"></a>
 
 \[
-\ln\gamma_{i}=\left[\partial(nG^{E}/RT)/\partial n_{i}\right]{}_{(P,T,n_{j\neq i})}
+\ln\gamma_{i}=\left[\partial(nG^{E}/RT)/\partial n_{i}\right]{}_{(P,T,n_{j\neq i})}\tag{8}
 \]
 
 
@@ -523,7 +523,7 @@ The result is represented by the following equations:
 <a id="eq:gic"></a>
 
 \[
-\ln\gamma_{i}^{C}=1-J_{i}+\ln J_{i}-5q_{i}(1-J_{i}/L_{i}+\ln J_{i}/L_{i})
+\ln\gamma_{i}^{C}=1-J_{i}+\ln J_{i}-5q_{i}(1-J_{i}/L_{i}+\ln J_{i}/L_{i})\tag{9}
 \]
 
 
@@ -532,7 +532,7 @@ The result is represented by the following equations:
 <a id="eq:ric"></a>
 
 \[
-\ln\gamma_{i}^{R}=q_{i}(1-\ln s_{i}-\sum_{j}\theta_{j}\tau_{ij}/s_{j})
+\ln\gamma_{i}^{R}=q_{i}(1-\ln s_{i}-\sum_{j}\theta_{j}\tau_{ij}/s_{j})\tag{10}
 \]
 
 
@@ -544,8 +544,8 @@ where
 
 \[
 \begin{eqnarray}
-J_{i}=r_{i}/(\sum_{j}r_{j}x_{j})\\
-L=q_{i}/(\sum_{j}q_{j}x_{j})
+J_{i}=r_{i}/(\sum_{j}r_{j}x_{j})\tag{11}\\
+L=q_{i}/(\sum_{j}q_{j}x_{j})\tag{12}
 \end{eqnarray}
 \]
 
@@ -563,7 +563,7 @@ The UNIFAC method for the estimation of activity coefficients depends on the con
 
 The activity coefficients do not only depend on the subgroup properties, but also on the interactions between these groups. Similar subgroups are related to a main group, like “CH2”, “OH”, “ACH” etc.; the identification of the main groups are only descriptive. All the subgroups that belongs to the same main group are considered identical with respect to the interaction between groups. Consequently, the parameters which characterize the interactions between the groups are identified by pairs of the main groups.
 
-The UNIFAC method is based on the UNIQUAC equation, where the activity coefficients are given by the equation [§](#eq:gamaiuniquac). When applied to a solution of groups, the equations [§](#eq:gic) and [§](#eq:ric) are written in the form:
+The UNIFAC method is based on the UNIQUAC equation, where the activity coefficients are given by the equation [8](#eq:gamaiuniquac). When applied to a solution of groups, the equations [9](#eq:gic) and [10](#eq:ric) are written in the form:
 
 
 
@@ -579,7 +579,7 @@ The UNIFAC method is based on the UNIQUAC equation, where the activity coefficie
 \]
 
 
-The parameters $J_{i}$ e $L_{i}$ are still given by eqs. [§](#eq:ji) and [§](#eq:li). Furthermore, the following definitions apply:
+The parameters $J_{i}$ e $L_{i}$ are still given by eqs. [11](#eq:ji) and [12](#eq:li). Furthermore, the following definitions apply:
 
 
 \[
@@ -638,7 +638,7 @@ s_{i}=\sum_{l}\theta_{l}\tau_{li}
 
 The $i$ subscript identify the species, and $j$ is an index that goes through all the species. The $k$ subscript identify the subgroups, and $m$ is an index that goes through all the subgroups. The parameter $\nu_{k}^{(i)}$ is the number of the $k$ subgroup in a molecule of the $i$ species. The subgroup parameter values $R_{k}$ and $Q_{k}$ and the interaction parameters $-a_{mk}$ are obtained in the literature.
 
-###### ***Modified UNIFAC (Dortmund) model*** {#modified-unifac-dortmund-model .unnumbered}
+###### ***Modified UNIFAC (Dortmund) model*** {#modified-unifac-dortmund-model-.unnumbered}
 
 The UNIFAC model, despite being widely used in various applications, has some limitations which are, in some way, inherent to the model. Some of these limitations are:
 
@@ -675,7 +675,7 @@ These limitations of the original UNIFAC model have led several authors to propo
 
 \[
 \begin{eqnarray}
-J_{i}=r_{i}^{3/4}/(\sum_{j}r_{j}^{3/4}x_{j})
+J_{i}=r_{i}^{3/4}/(\sum_{j}r_{j}^{3/4}x_{j})\tag{13}
 \end{eqnarray}
 \]
 
@@ -693,11 +693,11 @@ The residual part is still given by the solution for groups, just as in the orig
 
 These parameters must be estimated from experimental phase equilibrium data. Gmehling et al. (1993) presented an array of parameters for 45 major groups, adjusted using data from the vapor-liquid equilibrium, excess enthalpies, activity coefficients at infinite dilution and liquid-liquid equilibrium. enthalpy and entropy of liquid and vapor.
 
-###### *Modified UNIFAC (NIST) model* {#modified-unifac-nist-model .unnumbered}
+###### *Modified UNIFAC (NIST) model* {#modified-unifac-nist-model-.unnumbered}
 
 This model is similar to the Modified UNIFAC (Dortmund), with new modified UNIFAC parameters reported for 89 main groups and 984 group–group interactions using critically evaluated phase equilibrium data including vapor–liquid equilibrium (VLE), liquid–liquid equilibrium (LLE), solid–liquid equilibrium (SLE), excess enthalpy (HE), infinite dilution activity coefficient (AINF) and excess heat capacity (CPE) data. A new algorithmic framework for quality assessment of phase equilibrium data was applied for qualifying the consistency of data and screening out possible erroneous data. Substantial improvement over previous versions of UNIFAC is observed due to inclusion of experimental data from recent publications and proper weighting based on a quality assessment procedure. The systems requiring further verification of phase equilibrium data were identified where insufficient number of experimental data points is available or where existing data are conflicting.
 
-###### *NRTL model* {#nrtl-model .unnumbered}
+###### *NRTL model* {#nrtl-model-.unnumbered}
 
 Wilson (1964) presented a model relating $g^{E}$ to the molar fraction, based mainly on molecular considerations, using the concept of local composition. Basically, the concept of local composition states that the composition of the system in the vicinity of a given molecule is not equal to the overall composition of the system, because of intermolecular forces.
 
@@ -753,7 +753,7 @@ For ideal or moderately ideal systems, the NRTL model does not offer much advant
 
 #### Enthalpy, Entropy and Heat Capacities
 
-###### *Peng-Robinson, Soave-Redlich-Kwong* {#peng-robinson-soave-redlich-kwong .unnumbered}
+###### *Peng-Robinson, Soave-Redlich-Kwong* {#peng-robinson-soave-redlich-kwong-.unnumbered}
 
 > 
 >
@@ -769,7 +769,7 @@ For cubic equations of state, enthalpy, entropy, and heat capacities are compute
 \]
 
 
-values for $X$ and $Y$ are calculated by the PR and SRK EOS, according to the table [25](#tab:Entalpia/Entropia-por-equações):\
+values for $X$ and $Y$ are calculated by the PR and SRK EOS, according to the table [1](#tab:Entalpia/Entropia-por-equações):\
 
 
 
@@ -785,7 +785,7 @@ values for $X$ and $Y$ are calculated by the PR and SRK EOS, according to the ta
 | SRK | $Z-1-\frac{1}{bRT}\left[a-T\frac{da}{dT}\right]\times$ | $\ln(Z-B)-\ln\frac{P}{P^{0}}-\frac{A}{B}\left[\frac{T}{a}\frac{da}{dT}\right]\times$ |
 |  | $\times\ln\left[1+\frac{b}{V}\right]$ | $\times\ln\left[1+\frac{B}{Z}\right]$ |
 
-Enthalpy/Entropy calculation with an EOS
+Table 1: Enthalpy/Entropy calculation with an EOS
 
 
 
@@ -810,7 +810,7 @@ C_{p}-C_{v}=-T\frac{\left(\frac{\partial P}{\partial T}\right)_{V}^{2}}{\left(\f
 \]
 
 
-###### *Lee-Kesler* {#lee-kesler .unnumbered}
+###### *Lee-Kesler* {#lee-kesler-.unnumbered}
 
 Enthalpies, entropies and heat capacities are calculated by the Lee-Kesler model through the following equations:
 
@@ -819,7 +819,7 @@ Enthalpies, entropies and heat capacities are calculated by the Lee-Kesler model
 <a id="eq:LKH"></a>
 
 \[
-\frac{H-H^{id}}{RT_{c}}=T_{r}\left(Z-1-\frac{b_{2}+2b_{3}/T_{r}+3b_{4}/T_{r}^{2}}{T_{r}V_{r}}-\frac{c_{2}-3c_{3}/T_{r}^{2}}{2T_{r}V_{r}^{2}}+\frac{d_{2}}{5T_{r}V_{r}^{2}}+3E\right)
+\frac{H-H^{id}}{RT_{c}}=T_{r}\left(Z-1-\frac{b_{2}+2b_{3}/T_{r}+3b_{4}/T_{r}^{2}}{T_{r}V_{r}}-\frac{c_{2}-3c_{3}/T_{r}^{2}}{2T_{r}V_{r}^{2}}+\frac{d_{2}}{5T_{r}V_{r}^{2}}+3E\right)\tag{14}
 \]
 
 
@@ -895,9 +895,9 @@ Z=Z^{(0)}+\frac{\omega}{\omega^{(r)}}\left(Z^{(r)}-Z^{(0)}\right),
 
 where the $(0)$ superscript refers to the simple fluid while the $(r)$ superscript refers to the reference fluid. This way, property calculation by the Lee-Kesler model should follow the sequence below (enthalpy calculation example):
 
-1.  $V_{r}$ and $Z^{(0)}$ are calculated for the simple fluid at the fluid $T_{r}$ and $P_{r}$ . using the equation [§](#eq:LKH), and with the constants for the simple fluid, as shown in the table [26](#tab:Constantes-para-o), $(H-H^{0})/RT_{c}$ is calculated. This term is $\left[(H-H^{0})/RT_{c}\right]^{(0)}$ . in this calculation, $Z$ in the equation [§](#eq:LKH) is $Z^{(0)}$ .
+1.  $V_{r}$ and $Z^{(0)}$ are calculated for the simple fluid at the fluid $T_{r}$ and $P_{r}$ . using the equation [14](#eq:LKH), and with the constants for the simple fluid, as shown in the table [2](#tab:Constantes-para-o), $(H-H^{0})/RT_{c}$ is calculated. This term is $\left[(H-H^{0})/RT_{c}\right]^{(0)}$ . in this calculation, $Z$ in the equation [14](#eq:LKH) is $Z^{(0)}$ .
 
-2.  The step 1 is repeated, using the same $T_{r}$ and $P_{r}$ , but using the constants for the reference fluid as shown in table [26](#tab:Constantes-para-o). With these values, the equation [§](#eq:LKH) allows the calculation of $\left[(H-H^{0})/RT_{c}\right]^{(r)}$ . In this step, $Z$ in the equation [§](#eq:LKH) is $Z^{(r)}$ .
+2.  The step 1 is repeated, using the same $T_{r}$ and $P_{r}$ , but using the constants for the reference fluid as shown in table [2](#tab:Constantes-para-o). With these values, the equation [14](#eq:LKH) allows the calculation of $\left[(H-H^{0})/RT_{c}\right]^{(r)}$ . In this step, $Z$ in the equation [14](#eq:LKH) is $Z^{(r)}$ .
 
 3.  Finally, one determines the residual enthalpy for the fluid of interest by
 
@@ -935,7 +935,7 @@ where $\omega^{(r)}=0,3978$ .\
 |       $\beta$       |   0.65392    |      1.226      |
 |      $\gamma$       |   0.060167   |     0.03754     |
 
-Constants for the Lee-Kesler model
+Table 2: Constants for the Lee-Kesler model
 
 
 

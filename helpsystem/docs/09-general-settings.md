@@ -1,13 +1,13 @@
 # General Settings
 
-The application settings can be accessed through the **Edit \> General Settings** menu item (Figure [44](#fig:generalconfig1)):
+The application settings can be accessed through the **Edit \> General Settings** menu item (Figure [1](#fig:generalconfig1)):
 
 
 
 <a id="fig:generalconfig1"></a>
 ![<span id="fig:generalconfig1" data-label="fig:generalconfig1"></span>General Settings section.](images/screens58/cui_gensettings.png)
 
-*<span id="fig:generalconfig1" data-label="fig:generalconfig1"></span>General Settings section.*
+*Figure 1: <span id="fig:generalconfig1" data-label="fig:generalconfig1"></span>General Settings section.*
 
 
 

@@ -110,7 +110,7 @@ The LCIA applies the CML 2001 baseline midpoint method . For each impact categ
 <a id="eq:lcia"></a>
 
 \[
-I_j = \sum_{i} m_i \times \mathrm{CF}_{i,j}
+I_j = \sum_{i} m_i \times \mathrm{CF}_{i,j}\tag{1}
 \]
 
 
@@ -148,7 +148,7 @@ Total annual impacts are normalised to the functional unit:
 <a id="eq:norm"></a>
 
 \[
-I_j^{\mathrm{FU}} = I_j \times \frac{m_{\mathrm{FU}}}{m_{\mathrm{product,annual}}}
+I_j^{\mathrm{FU}} = I_j \times \frac{m_{\mathrm{FU}}}{m_{\mathrm{product,annual}}}\tag{2}
 \]
 
 
@@ -178,7 +178,7 @@ Normalised impacts are computed as:
 <a id="eq:lca_norm"></a>
 
 \[
-I_j^{\mathrm{norm}} = \frac{I_j^{\mathrm{FU}}}{R_j}
+I_j^{\mathrm{norm}} = \frac{I_j^{\mathrm{FU}}}{R_j}\tag{3}
 \]
 
 
@@ -210,7 +210,7 @@ The weighted single score is:
 <a id="eq:lca_single"></a>
 
 \[
-S = \sum_j I_j^{\mathrm{norm}} \times \frac{w_j}{100}
+S = \sum_j I_j^{\mathrm{norm}} \times \frac{w_j}{100}\tag{4}
 \]
 
 
@@ -285,7 +285,7 @@ The plant-wide LCA is launched from the **Tools** menu under **Life Cycle Assess
 
 - **Tab: Hotspot Analysis**: Top 3 contributors per impact category.
 
-- **Tab: Normalization & Weighting**: Normalised scores using CML 2001 world references, with editable weights per category and an aggregate single score (see §[2.3](#sec:lca_normweight)).
+- **Tab: Normalization & Weighting**: Normalised scores using CML 2001 world references, with editable weights per category and an aggregate single score (see §[Normalization and Weighting](#sec:lca_normweight)).
 
 - **Tab: Report**: Markdown report viewer. The report is auto-generated after each analysis run and includes impact results, contribution analysis, per-category hotspots, full life cycle inventory, and normalization/weighting results. The report can be enriched with AI-generated analysis.
 

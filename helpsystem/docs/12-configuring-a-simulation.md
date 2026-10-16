@@ -55,7 +55,7 @@ The added packages are listed underneath in a grid, where the name can be edited
 <a id="fig:Viewing-Property-Packages"></a>
 ![<span id="fig:Viewing-Property-Packages" data-label="fig:Viewing-Property-Packages"></span>Added property packages on the Thermodynamics tab of the Simulation Settings window.](images/screens102/Captura de tela 2026-08-21 101745.png)
 
-*<span id="fig:Viewing-Property-Packages" data-label="fig:Viewing-Property-Packages"></span>Added property packages on the Thermodynamics tab of the Simulation Settings window.*
+*Figure 1: <span id="fig:Viewing-Property-Packages" data-label="fig:Viewing-Property-Packages"></span>Added property packages on the Thermodynamics tab of the Simulation Settings window.*
 
 
 
@@ -70,7 +70,7 @@ The added packages are listed underneath in a grid, where the name can be edited
 
 ###### Multiple Property Packages
 
-DWSIM allows multiple Property Packages to be added to a single simulation (Figure [45](#fig:Viewing-Property-Packages)), which can be associated with each unit operation and material stream on an individual basis.
+DWSIM allows multiple Property Packages to be added to a single simulation (Figure [1](#fig:Viewing-Property-Packages)), which can be associated with each unit operation and material stream on an individual basis.
 
 ####### Skip Equilibrium Calculation in Well-Defined Streams
 

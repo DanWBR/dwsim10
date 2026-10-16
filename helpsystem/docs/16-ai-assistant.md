@@ -118,7 +118,7 @@ The following models are officially supported and tested with DWSIM Assistant. M
 | `qwen3:14b` | $\sim$<!-- -->9 GB | 16 GB | 10 GB (required) | High quality; requires a dedicated GPU |
 | `qwen3:32b` | $\sim$<!-- -->20 GB | 32 GB | 20 GB (required) | Excellent quality; requires a powerful GPU |
 
-Recommended Ollama Models for DWSIM Assistant
+Table 1: Recommended Ollama Models for DWSIM Assistant
 
 
 
@@ -144,7 +144,7 @@ Once Ollama is installed and a model has been downloaded:
 
 The Assistant will now use your local Ollama installation for all AI requests.
 
-####### Changing the Ollama Port {#changing-the-ollama-port .unnumbered}
+####### Changing the Ollama Port {#changing-the-ollama-port-.unnumbered}
 
 If you configured Ollama to run on a port other than the default 11434 (for example, to avoid conflicts with other software), you can update the port in the Ollama tab of the Settings panel. Enter the custom port number in the **Ollama Port** field and click **Save Settings**.
 
@@ -154,21 +154,21 @@ The **Ollama** tab in the Settings panel includes a built-in model manager that 
 
 ###### Troubleshooting
 
-####### The Assistant shows "Server not running" or cannot connect. {#the-assistant-shows-server-not-running-or-cannot-connect. .unnumbered}
+####### The Assistant shows "Server not running" or cannot connect. {#the-assistant-shows-server-not-running-or-cannot-connect.-.unnumbered}
 
 Verify that Ollama is running by opening a terminal and running `ollama list` . If the command is not recognised, reinstall Ollama. If the command works but DWSIM still cannot connect, check that no firewall or antivirus software is blocking port 11434.
 
-####### The model responds very slowly. {#the-model-responds-very-slowly. .unnumbered}
+####### The model responds very slowly. {#the-model-responds-very-slowly.-.unnumbered}
 
 This is normal when running on CPU only. Consider downloading a smaller model such as `qwen3.5:0.8b` or `qwen3.5:2b` , or upgrade to a computer with a compatible GPU.
 
-####### No models appear in the model selector. {#no-models-appear-in-the-model-selector. .unnumbered}
+####### No models appear in the model selector. {#no-models-appear-in-the-model-selector.-.unnumbered}
 
 At least one model must be downloaded via\
 `ollama pull <model-name>`\
 before it appears in DWSIM. The model manager in the Ollama settings tab can also be used to install models directly.
 
-####### I get an error about tool calling not being supported. {#i-get-an-error-about-tool-calling-not-being-supported. .unnumbered}
+####### I get an error about tool calling not being supported. {#i-get-an-error-about-tool-calling-not-being-supported.-.unnumbered}
 
 A small number of Ollama models do not support the tool calling feature required by DWSIM Assistant. Use one of the models listed in the table above, which are all verified to support this capability.
 

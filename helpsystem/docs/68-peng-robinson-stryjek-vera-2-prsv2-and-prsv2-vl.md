@@ -9,7 +9,7 @@ PRSV2 keeps the Peng-Robinson assembly but makes the alpha parameter temperature
 \[
 \begin{aligned}\kappa_{i} & =\kappa_{0,i}+\left[\kappa_{1,i}+\kappa_{2,i}\!\left(\kappa_{3,i}-T_{r,i}\right)\!\left(1-\sqrt{T_{r,i}}\right)\right]\\
  & \quad{}\times\left(1+\sqrt{T_{r,i}}\right)\!\left(0.7-T_{r,i}\right)
-\end{aligned}
+\end{aligned}\tag{1}
 \]
 
 
@@ -20,7 +20,7 @@ with $T_{r,i}=T/T_{c,i}$ and $\kappa_{0,i}=0.378893+1.4897153\,\omega_{i}-0.1713
 <a id="eq:d-prsv2-dadt"></a>
 
 \[
-\frac{da_{i}}{dT}=\Omega_{a}\frac{R^{2}T_{c,i}^{2}}{P_{c,i}}\,2\sqrt{\alpha_{i}}\left[\frac{d\kappa_{i}}{dT}\!\left(1-\sqrt{T_{r,i}}\right)-\frac{\kappa_{i}}{2\sqrt{T\,T_{c,i}}}\right]
+\frac{da_{i}}{dT}=\Omega_{a}\frac{R^{2}T_{c,i}^{2}}{P_{c,i}}\,2\sqrt{\alpha_{i}}\left[\frac{d\kappa_{i}}{dT}\!\left(1-\sqrt{T_{r,i}}\right)-\frac{\kappa_{i}}{2\sqrt{T\,T_{c,i}}}\right]\tag{2}
 \]
 
 
@@ -33,7 +33,7 @@ The PRSV2-VL variant replaces that mixing rule with the van Laar form
 <a id="eq:d-prsv2vl-aij"></a>
 
 \[
-a_{ij}=\sqrt{a_{i}a_{j}}\left(1-\frac{k_{ij}k_{ji}}{x_{i}k_{ij}+x_{j}k_{ji}}\right)
+a_{ij}=\sqrt{a_{i}a_{j}}\left(1-\frac{k_{ij}k_{ji}}{x_{i}k_{ij}+x_{j}k_{ji}}\right)\tag{3}
 \]
 
 
@@ -44,9 +44,9 @@ which carries two interaction matrices and depends on composition, but not on te
 <a id="eq:d-prsv2vl-daijdt"></a>
 
 \[
-\frac{\partial a_{ij}}{\partial T}=\frac{a_{ij}}{2}\left(\frac{1}{a_{i}}\frac{da_{i}}{dT}+\frac{1}{a_{j}}\frac{da_{j}}{dT}\right)
+\frac{\partial a_{ij}}{\partial T}=\frac{a_{ij}}{2}\left(\frac{1}{a_{i}}\frac{da_{i}}{dT}+\frac{1}{a_{j}}\frac{da_{j}}{dT}\right)\tag{4}
 \]
 
 
-with $da_{i}/dT$ from equation [§](#eq:d-prsv2-dadt). Only the temperature derivative is available in closed form for this variant; the composition derivative falls back to finite differences. Two guards keep the analytical result faithful to the function it differentiates: the routine declines to answer, and the caller reverts to finite differences, whenever the root-checking step has displaced the pressure, because that branch adds a term the derivative was not taken of; and it reproduces the same numerical guard the fugacity routine applies to its correction sum, so that the two can never end up differentiating different expressions.
+with $da_{i}/dT$ from equation [2](#eq:d-prsv2-dadt). Only the temperature derivative is available in closed form for this variant; the composition derivative falls back to finite differences. Two guards keep the analytical result faithful to the function it differentiates: the routine declines to answer, and the caller reverts to finite differences, whenever the root-checking step has displaced the pressure, because that branch adds a term the derivative was not taken of; and it reproduces the same numerical guard the fugacity routine applies to its correction sum, so that the two can never end up differentiating different expressions.
 

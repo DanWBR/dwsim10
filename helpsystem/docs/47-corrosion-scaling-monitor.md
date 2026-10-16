@@ -8,7 +8,7 @@ The calculation is organised in four sequential modules: (1) ionic speciation; 
 
 Ionic speciation determines the concentrations and activities of ions in solution from the analytical (total) composition of the stream (total carbon, sulfide, sulfate and metal cation concentrations) and the operating conditions $T$ and $P$.
 
-##### Ionic Strength {#ionic-strength-2 .unnumbered}
+##### Ionic Strength {#ionic-strength-2-.unnumbered}
 
 The ionic strength $I$ (mol kg$^{-1}$) is calculated as:
 
@@ -16,13 +16,13 @@ The ionic strength $I$ (mol kg$^{-1}$) is calculated as:
 <a id="eq:ionic_strength"></a>
 
 \[
-I = \frac{1}{2}\sum_{i} m_i z_i^2
+I = \frac{1}{2}\sum_{i} m_i z_i^2\tag{1}
 \]
 
 
 where $m_i$ is the molality of ion $i$ (mol kg$^{-1}$) and $z_i$ is its charge number.
 
-##### Activity Coefficients {#activity-coefficients-2 .unnumbered}
+##### Activity Coefficients {#activity-coefficients-2-.unnumbered}
 
 The Extended Debye–Hückel model (EDHE) is used with individual ionic size parameters $a_i$ :
 
@@ -31,7 +31,7 @@ The Extended Debye–Hückel model (EDHE) is used with individual ionic size par
 
 \[
 \log_{10}\gamma_i
-    = -\frac{A\,z_i^2\,\sqrt{I}}{1 + B\,a_i\,\sqrt{I}}
+    = -\frac{A\,z_i^2\,\sqrt{I}}{1 + B\,a_i\,\sqrt{I}}\tag{2}
 \]
 
 
@@ -44,8 +44,9 @@ The Debye–Hückel parameters $A$ and $B$ vary with temperature according to th
 \begin{align}
   A(T) &= 1.131 + 1.335\times10^{-3}(T-298.15)
             + 1.164\times10^{-5}(T-298.15)^2
-   \\
+  \tag{3} \\
   B(T) &= 3.281 + 5.793\times10^{-3}(T-298.15)
+  \tag{4}
 \end{align}
 \]
 
@@ -58,11 +59,11 @@ where $T$ is temperature in kelvin. For ionic strengths above 0.5 mol kg$^{-1
 \[
 \log_{10}\gamma_i
     = -A\,z_i^2
-      \left(\frac{\sqrt{I}}{1+\sqrt{I}} - 0.3\,I\right)
+      \left(\frac{\sqrt{I}}{1+\sqrt{I}} - 0.3\,I\right)\tag{5}
 \]
 
 
-##### Equilibrium Constants {#equilibrium-constants .unnumbered}
+##### Equilibrium Constants {#equilibrium-constants-.unnumbered}
 
 All equilibrium constants are corrected for temperature. The water ionization constant follows :
 
@@ -71,7 +72,7 @@ All equilibrium constants are corrected for temperature. The water ionization co
 
 \[
 \ln K_w(T)
-    = -\frac{4808.1}{T} - 7.077\ln T + 26.88
+    = -\frac{4808.1}{T} - 7.077\ln T + 26.88\tag{6}
 \]
 
 
@@ -84,9 +85,10 @@ For the carbonate system, the first and second dissociation constants of carboni
 \begin{align}
   \log_{10}K_{a1,\mathrm{CO_{2}}}(T)
     &\approx -6.35 + 5.0\times10^{-3}(T-298.15)
-   \\
+  \tag{7} \\
   \log_{10}K_{a2,\mathrm{CO_{2}}}(T)
     &\approx -10.33 - 1.4\times10^{-2}(T-298.15)
+  \tag{8}
 \end{align}
 \]
 
@@ -98,11 +100,11 @@ and for the sulfide system :
 
 \[
 \log_{10}K_{a1,\mathrm{H_{2}S}}(T)
-    \approx -6.99 - 6.0\times10^{-3}(T-298.15)
+    \approx -6.99 - 6.0\times10^{-3}(T-298.15)\tag{9}
 \]
 
 
-##### Solution Procedure {#solution-procedure .unnumbered}
+##### Solution Procedure {#solution-procedure-.unnumbered}
 
 The electrical charge balance of the solution is:
 
@@ -111,7 +113,7 @@ The electrical charge balance of the solution is:
 
 \[
 \sum_{\mathrm{cations}} z_i m_i
-    = \sum_{\mathrm{anions}} |z_j| m_j
+    = \sum_{\mathrm{anions}} |z_j| m_j\tag{10}
 \]
 
 
@@ -121,11 +123,11 @@ The pH is determined iteratively by Newton–Raphson until $|\Delta\mathrm{pH}| 
 <a id="eq:activity"></a>
 
 \[
-a_i = \gamma_i \, m_i
+a_i = \gamma_i \, m_i\tag{11}
 \]
 
 
-Table [60](#tab:ion_params) lists the ionic size parameters $a_i$ and charges $z_i$ used in the EDHE model.
+Table [1](#tab:ion_params) lists the ionic size parameters $a_i$ and charges $z_i$ used in the EDHE model.
 
 
 
@@ -152,7 +154,7 @@ Table [60](#tab:ion_params) lists the ionic size parameters $a_i$ and charges $
 | Bisulfide   | HS$^{-}$      |   -1    |     3.5     |
 | Sulfide     | S$^{2-}$      |   -2    |     5.0     |
 
-Ionic parameters for the Extended Debye–Hückel model .
+Table 1: Ionic parameters for the Extended Debye–Hückel model .
 
 
 
@@ -166,11 +168,11 @@ Three corrosion mechanisms are evaluated independently. The total corrosion rate
 \[
 \mathrm{CR}_{\mathrm{total}} = \mathrm{CR}_{\mathrm{CO_{2}}}
                                + \mathrm{CR}_{\mathrm{O_{2}}}
-                               + \mathrm{CR}_{\mathrm{H_{2}S}}
+                               + \mathrm{CR}_{\mathrm{H_{2}S}}\tag{12}
 \]
 
 
-Risk is classified according to the thresholds of NACE SP0775 (Table [61](#tab:corr_risk)).
+Risk is classified according to the thresholds of NACE SP0775 (Table [2](#tab:corr_risk)).
 
 
 
@@ -186,7 +188,7 @@ Risk is classified according to the thresholds of NACE SP0775 (Table [61](#tab
 | High           |             $0.25$–$1.0$             |
 | Severe         |                 $>1.0$                 |
 
-Corrosion risk classification .
+Table 2: Corrosion risk classification .
 
 
 
@@ -199,7 +201,7 @@ The CO$_{2}$ corrosion rate is calculated using the de Waard & Milliams model ,
 
 \[
 \log_{10}\mathrm{CR}_{\mathrm{base}}
-    = 5.8 - \frac{1710}{T} + 0.67\,\log_{10}p_{\mathrm{CO_{2}}}
+    = 5.8 - \frac{1710}{T} + 0.67\,\log_{10}p_{\mathrm{CO_{2}}}\tag{13}
 \]
 
 
@@ -213,11 +215,11 @@ The corrected rate is:
 \[
 \mathrm{CR}_{\mathrm{CO_{2}}}
     = \mathrm{CR}_{\mathrm{base}}\;
-      f_{T}\; f_{\mathrm{pH}}\; f_{m}\; f_{\mathrm{mat}}
+      f_{T}\; f_{\mathrm{pH}}\; f_{m}\; f_{\mathrm{mat}}\tag{14}
 \]
 
 
-**Temperature factor** $f_{T}$: above approximately 60 °C a precipitated FeCO$_{3}$ layer becomes protective, reducing the corrosion rate. Values are based on NORSOK M-506 (Table [62](#tab:fT)).
+**Temperature factor** $f_{T}$: above approximately 60 °C a precipitated FeCO$_{3}$ layer becomes protective, reducing the corrosion rate. Values are based on NORSOK M-506 (Table [3](#tab:fT)).
 
 
 
@@ -233,7 +235,7 @@ The corrected rate is:
 |     100–120      |   0.30    |
 |     $>120$     |   0.15    |
 
-Temperature factor $f_{T}$ for CO$_{2}$ corrosion .
+Table 3: Temperature factor $f_{T}$ for CO$_{2}$ corrosion .
 
 
 
@@ -245,7 +247,7 @@ Temperature factor $f_{T}$ for CO$_{2}$ corrosion .
 \[
 f_{\mathrm{pH}}
     = \min\!\left(10,\;
-        10^{0.317\,(\mathrm{pH}_{\mathrm{ref}} - \mathrm{pH})}\right)
+        10^{0.317\,(\mathrm{pH}_{\mathrm{ref}} - \mathrm{pH})}\right)\tag{15}
 \]
 
 
@@ -258,16 +260,16 @@ The upper limit of 10 prevents pH from reducing the rate by more than one order 
 
 \[
 \begin{align}
-  \frac{1}{\mathrm{CR}} &= \frac{1}{V_{r}} + \frac{1}{V_{m}}  \\
-  V_{m} &= 2.45\,\frac{U^{0.8}}{d^{0.2}}\,p_{\mathrm{CO_{2}}}  \\
-  f_{m} &= \frac{V_{m}}{V_{r} + V_{m}}
+  \frac{1}{\mathrm{CR}} &= \frac{1}{V_{r}} + \frac{1}{V_{m}} \tag{16} \\
+  V_{m} &= 2.45\,\frac{U^{0.8}}{d^{0.2}}\,p_{\mathrm{CO_{2}}} \tag{17} \\
+  f_{m} &= \frac{V_{m}}{V_{r} + V_{m}} \tag{18}
 \end{align}
 \]
 
 
 where $V_{r} = \mathrm{CR}_{\mathrm{base}}\,f_{\mathrm{pH}}$ is the reaction-controlled rate (mm/yr), $V_{m}$ is the mass-transfer-limited rate (mm/yr), $U$ is the liquid velocity (m s$^{-1}$), $d$ is the internal diameter (m) and $p_{\mathrm{CO_{2}}}$ is in bar. The factor approaches 1 when mass transfer is fast ($V_{m} \gg V_{r}$) and falls as the flow slows. When no velocity is available the factor is 1.
 
-**Material factor** $f_{\mathrm{mat}}$: corrosion-resistant alloys exhibit substantially lower rates than carbon steel (Table [63](#tab:fmat)).
+**Material factor** $f_{\mathrm{mat}}$: corrosion-resistant alloys exhibit substantially lower rates than carbon steel (Table [4](#tab:fmat)).
 
 
 
@@ -283,7 +285,7 @@ where $V_{r} = \mathrm{CR}_{\mathrm{base}}\,f_{\mathrm{pH}}$ is the reaction-con
 | Inconel 625                    |        0.001         |
 | Titanium Gr. 2                 |        0.000         |
 
-Material factor $f_{\mathrm{mat}}$ for CO$_{2}$ corrosion.
+Table 4: Material factor $f_{\mathrm{mat}}$ for CO$_{2}$ corrosion.
 
 
 
@@ -295,7 +297,7 @@ Oxygen corrosion is controlled by the cathodic limiting current for O$_{2}$ redu
 <a id="eq:iL_O2"></a>
 
 \[
-i_{L} = 4F\,k_{m,\mathrm{O_{2}}}\,[\mathrm{O_{2}}]
+i_{L} = 4F\,k_{m,\mathrm{O_{2}}}\,[\mathrm{O_{2}}]\tag{19}
 \]
 
 
@@ -307,7 +309,7 @@ where $F = 96485$ C mol$^{-1}$, $k_{m,\mathrm{O_{2}}}$ is the O$_{2}$ mass-tr
 \[
 \mathrm{CR}_{\mathrm{O_{2}}}
     = i_{L}\,f_{T}\,f_{\mathrm{Cl}}\,f_{\mathrm{mat}}
-      \times 1.16\times10^{-3}
+      \times 1.16\times10^{-3}\tag{20}
 \]
 
 
@@ -318,7 +320,7 @@ The chloride factor accounts for passive film breakdown:
 
 \[
 f_{\mathrm{Cl}}
-    = 1 + 0.5\,\log_{10}\!\left(1 + \frac{m_{\mathrm{Cl^{-}}}}{0.1}\right)
+    = 1 + 0.5\,\log_{10}\!\left(1 + \frac{m_{\mathrm{Cl^{-}}}}{0.1}\right)\tag{21}
 \]
 
 
@@ -333,7 +335,7 @@ The uniform H$_{2}$S corrosion rate follows :
 \mathrm{CR}_{\mathrm{H_{2}S}}
     = 0.1\,p_{\mathrm{H_{2}S}}^{0.36}\,
       \exp\!\left[-3200\!\left(\frac{1}{T}-\frac{1}{298.15}\right)\right]
-      f_{v}\,f_{\mathrm{pH}}\,f_{\mathrm{mat}}
+      f_{v}\,f_{\mathrm{pH}}\,f_{\mathrm{mat}}\tag{22}
 \]
 
 
@@ -343,7 +345,7 @@ where $p_{\mathrm{H_{2}S}}$ is in kPa and:
 <a id="eq:fv_H2S"></a>
 
 \[
-f_{v} = 1 + 0.15\,v^{1.2}
+f_{v} = 1 + 0.15\,v^{1.2}\tag{23}
 \]
 
 
@@ -357,9 +359,10 @@ with $v$ the fluid velocity in m s$^{-1}$.
 \[
 \begin{align}
   \mathrm{IS} &= \mathrm{pH}_{\mathrm{lim}} - \mathrm{pH}
-   \\
+  \tag{24} \\
   \mathrm{pH}_{\mathrm{lim}}
     &= 3.5 + 0.5\,\log_{10}\!\left(\frac{p_{\mathrm{H_{2}S}}}{100}\right)
+  \tag{25}
 \end{align}
 \]
 
@@ -374,15 +377,15 @@ The general saturation index $\mathrm{SI}_{i}$ for mineral species $i$ is:
 <a id="eq:SI"></a>
 
 \[
-\mathrm{SI}_{i} = \log_{10}\!\frac{Q_{i}}{K_{\mathrm{sp},i}(T)}
+\mathrm{SI}_{i} = \log_{10}\!\frac{Q_{i}}{K_{\mathrm{sp},i}(T)}\tag{26}
 \]
 
 
 where $Q_{i}$ is the ionic product computed from ionic activities and $K_{\mathrm{sp},i}(T)$ is the solubility product. $\mathrm{SI} > 0$ indicates supersaturation (precipitation risk); $\mathrm{SI} < 0$ indicates undersaturation.
 
-##### Solubility Products {#solubility-products .unnumbered}
+##### Solubility Products {#solubility-products-.unnumbered}
 
-Temperature-dependent $K_{\mathrm{sp}}$ values are given in Table [64](#tab:Ksp).
+Temperature-dependent $K_{\mathrm{sp}}$ values are given in Table [5](#tab:Ksp).
 
 
 
@@ -400,13 +403,13 @@ Temperature-dependent $K_{\mathrm{sp}}$ values are given in Table [64](#tab:Ksp
 | Siderite | FeCO$_{3}$ | $-10.89 + 3.0\times10^{-3}(T-298.15)$ |
 | Mackinawite | FeS | $-3.60 - 8.0\times10^{-3}(T-298.15)$ |
 
-Solubility product correlations for the main mineral phases.
+Table 5: Solubility product correlations for the main mineral phases.
 
 
 
 $T$ in kelvin; $T_{C} = T - 273.15$ in °C.
 
-##### Langelier Saturation Index (LSI) {#langelier-saturation-index-lsi .unnumbered}
+##### Langelier Saturation Index (LSI) {#langelier-saturation-index-lsi-.unnumbered}
 
 The LSI quantifies the CaCO$_{3}$ precipitation tendency:
 
@@ -414,7 +417,7 @@ The LSI quantifies the CaCO$_{3}$ precipitation tendency:
 <a id="eq:LSI"></a>
 
 \[
-\mathrm{LSI} = \mathrm{pH} - \mathrm{pH}_{s}
+\mathrm{LSI} = \mathrm{pH} - \mathrm{pH}_{s}\tag{27}
 \]
 
 
@@ -426,13 +429,13 @@ The LSI quantifies the CaCO$_{3}$ precipitation tendency:
 \mathrm{pH}_{s}
     = \log_{10}\!\frac{K_{a2}}{K_{\mathrm{sp,calcite}}}
       - \log_{10}(a_{\mathrm{Ca^{2+}}})
-      - \log_{10}(a_{\mathrm{HCO_{3}^{-}}})
+      - \log_{10}(a_{\mathrm{HCO_{3}^{-}}})\tag{28}
 \]
 
 
 LSI $> 0$: scale-forming; LSI $< 0$: corrosive (undersaturated).
 
-##### Ryznar Stability Index (RSI) {#ryznar-stability-index-rsi .unnumbered}
+##### Ryznar Stability Index (RSI) {#ryznar-stability-index-rsi-.unnumbered}
 
 The RSI provides better field correlation than LSI:
 
@@ -440,11 +443,11 @@ The RSI provides better field correlation than LSI:
 <a id="eq:RSI"></a>
 
 \[
-\mathrm{RSI} = 2\,\mathrm{pH}_{s} - \mathrm{pH}
+\mathrm{RSI} = 2\,\mathrm{pH}_{s} - \mathrm{pH}\tag{29}
 \]
 
 
-Interpretation is given in Table [65](#tab:RSI).
+Interpretation is given in Table [6](#tab:RSI).
 
 
 
@@ -462,11 +465,11 @@ Interpretation is given in Table [65](#tab:RSI).
 | 8.0–9.0  | Corrosive                        |
 | $>9.0$ | Highly corrosive                 |
 
-Interpretation of the Ryznar Stability Index .
+Table 6: Interpretation of the Ryznar Stability Index .
 
 
 
-##### Stiff–Davis Index (SDI) {#stiffdavis-index-sdi .unnumbered}
+##### Stiff–Davis Index (SDI) {#stiffdavis-index-sdi-.unnumbered}
 
 For high-ionic-strength solutions ($I > 0.5$ mol kg$^{-1}$, e.g. seawater and produced brines), the SDI corrects for the salinity effect on calcite solubility:
 
@@ -474,7 +477,7 @@ For high-ionic-strength solutions ($I > 0.5$ mol kg$^{-1}$, e.g. seawater an
 <a id="eq:SDI"></a>
 
 \[
-\mathrm{SDI} = \mathrm{pH} - (p\mathrm{Ca} + p\mathrm{Alk} + K')
+\mathrm{SDI} = \mathrm{pH} - (p\mathrm{Ca} + p\mathrm{Alk} + K')\tag{30}
 \]
 
 
@@ -486,7 +489,7 @@ For high-ionic-strength solutions ($I > 0.5$ mol kg$^{-1}$, e.g. seawater an
 K'(T,I)
     = \bigl[1.845 + 8.0\times10^{-3}\,T_{C}
             - 1.0\times10^{-4}\,T_{C}^{2}\bigr]
-      - 0.45\,\sqrt{I} - 0.06\,I
+      - 0.45\,\sqrt{I} - 0.06\,I\tag{31}
 \]
 
 
@@ -494,7 +497,7 @@ K'(T,I)
 
 The Remaining Useful Life (RUL) analysis follows API570 and API 579-1 / ASME FFS-1 .
 
-##### Retirement Thickness {#retirement-thickness .unnumbered}
+##### Retirement Thickness {#retirement-thickness-.unnumbered}
 
 The minimum required thickness per ASME B31.3 §304.1.2 is:
 
@@ -503,13 +506,13 @@ The minimum required thickness per ASME B31.3 §304.1.2 is:
 
 \[
 t_{\mathrm{req}}
-    = \frac{P\,D}{2(SE + PY)}
+    = \frac{P\,D}{2(SE + PY)}\tag{32}
 \]
 
 
 where $P$ is design pressure (MPa), $D$ outside diameter (mm), $S$ allowable stress (MPa), $E$ weld joint efficiency, and $Y = 0.4$ for carbon/alloy steel below 482 °C. The retirement thickness is $t_{\mathrm{ret}} = \max(t_{\min}, t_{\mathrm{req}})$.
 
-##### Design Corrosion Rate {#design-corrosion-rate .unnumbered}
+##### Design Corrosion Rate {#design-corrosion-rate-.unnumbered}
 
 The design rate is the more conservative of the mechanistic model and the inspection-derived rate:
 
@@ -518,7 +521,7 @@ The design rate is the more conservative of the mechanistic model and the inspec
 
 \[
 \mathrm{CR}_{\mathrm{design}}
-    = \max(\mathrm{CR}_{\mathrm{model}},\;\mathrm{CR}_{\mathrm{measured}})
+    = \max(\mathrm{CR}_{\mathrm{model}},\;\mathrm{CR}_{\mathrm{measured}})\tag{33}
 \]
 
 
@@ -529,11 +532,11 @@ The design rate is the more conservative of the mechanistic model and the inspec
 \[
 \mathrm{CR}_{\mathrm{measured}}
     = \frac{t_{\mathrm{prev}} - t_{\mathrm{last}}}
-           {\Delta t_{\mathrm{insp}}}
+           {\Delta t_{\mathrm{insp}}}\tag{34}
 \]
 
 
-##### RUL Calculation (API 570 Eq. 6.1) {#rul-calculation-api-570-eq.-6.1 .unnumbered}
+##### RUL Calculation (API 570 Eq. 6.1) {#rul-calculation-api-570-eq.-6.1-.unnumbered}
 
 The estimated current thickness is:
 
@@ -542,7 +545,7 @@ The estimated current thickness is:
 
 \[
 t_{\mathrm{current}}
-    = t_{\mathrm{last}} - \mathrm{CR}_{\mathrm{design}}\,\Delta t
+    = t_{\mathrm{last}} - \mathrm{CR}_{\mathrm{design}}\,\Delta t\tag{35}
 \]
 
 
@@ -554,17 +557,17 @@ and the remaining useful life:
 \[
 \mathrm{RUL}
     = \frac{t_{\mathrm{current}} - t_{\mathrm{ret}}}
-           {\mathrm{CR}_{\mathrm{design}}}
+           {\mathrm{CR}_{\mathrm{design}}}\tag{36}
 \]
 
 
 The projected life is capped at 100 years, since a corrosion rate close to zero gives an unbounded value.
 
-##### Component Basis in the Extension Run {#component-basis-in-the-extension-run .unnumbered}
+##### Component Basis in the Extension Run {#component-basis-in-the-extension-run-.unnumbered}
 
 When the monitor runs as an extension, the remaining life is evaluated where the corrosion rate is highest: the pipe section with the highest rate, or the exchanger segment with the highest rate. The wall is taken as new at its nominal thickness, since the flowsheet carries no inspection history, and the design pressure is the inlet pressure of the pipe or of the exchanger’s process side. For a pipe, $t_{\min}$ is a structural minimum by pipe size (1.8 mm up to NPS 2, 2.0 mm for NPS 3, 2.3 mm for NPS 4, 2.8 mm for NPS 6 to 18 and 3.1 mm above), limited to half the nominal wall. For an exchanger tube, $t_{\min}$ is 60 % of the nominal wall, which corresponds to the usual plugging criterion of 40 % wall loss. When the exchanger has no shell-and-tube geometry, a 19.05 mm $\times$ 2.11 mm tube is assumed.
 
-##### MAWP and Inspection Interval {#mawp-and-inspection-interval .unnumbered}
+##### MAWP and Inspection Interval {#mawp-and-inspection-interval-.unnumbered}
 
 The Maximum Allowable Working Pressure at the current thickness (ASME B31.3) is:
 
@@ -573,7 +576,7 @@ The Maximum Allowable Working Pressure at the current thickness (ASME B31.3) is
 
 \[
 \mathrm{MAWP}
-    = \frac{2\,S\,E\,t_{\mathrm{current}}}{D - 2\,Y\,t_{\mathrm{current}}}
+    = \frac{2\,S\,E\,t_{\mathrm{current}}}{D - 2\,Y\,t_{\mathrm{current}}}\tag{37}
 \]
 
 
@@ -586,7 +589,7 @@ The inspection interval is set to the lesser of the risk-category maximum and ha
 
 \[
 t_{\mathrm{insp}}
-    = \min\!\bigl(t_{\mathrm{max,cat}},\;\tfrac{1}{2}\,\mathrm{RUL}\bigr)
+    = \min\!\bigl(t_{\mathrm{max,cat}},\;\tfrac{1}{2}\,\mathrm{RUL}\bigr)\tag{38}
 \]
 
 
@@ -604,15 +607,15 @@ t_{\mathrm{insp}}
 | High           |                2                 |
 | Severe         |                1                 |
 
-Maximum inspection intervals by risk category .
+Table 7: Maximum inspection intervals by risk category .
 
 
 
 #### Chemical Inhibitor Dosing {#sec:csm:inhibitors}
 
-In the extension run, the corrosion inhibitor is sized at the point with the highest corrosion rate and the scale inhibitors at the point with the highest LSI. The injection volumes use the liquid volumetric flow of the host’s inlet stream, with the default targets of Table [68](#tab:params).
+In the extension run, the corrosion inhibitor is sized at the point with the highest corrosion rate and the scale inhibitors at the point with the highest LSI. The injection volumes use the liquid volumetric flow of the host’s inlet stream, with the default targets of Table [9](#tab:params).
 
-##### Corrosion Inhibitor {#corrosion-inhibitor .unnumbered}
+##### Corrosion Inhibitor {#corrosion-inhibitor-.unnumbered}
 
 The inhibition efficiency of film-forming amines and phosphates follows the Langmuir adsorption model :
 
@@ -620,7 +623,7 @@ The inhibition efficiency of film-forming amines and phosphates follows the Lang
 <a id="eq:IE"></a>
 
 \[
-\eta = 100\,\bigl[1 - e^{-k_{\mathrm{ads}}\,C_{\mathrm{inh}}}\bigr]
+\eta = 100\,\bigl[1 - e^{-k_{\mathrm{ads}}\,C_{\mathrm{inh}}}\bigr]\tag{39}
 \]
 
 
@@ -631,11 +634,11 @@ The inhibition efficiency of film-forming amines and phosphates follows the Lang
 \[
 k_{\mathrm{ads}}(T)
     = k_{\mathrm{ads}}^{0}\,
-      \exp\!\left[-E_{a}\!\left(\frac{1}{T}-\frac{1}{298.15}\right)\right]
+      \exp\!\left[-E_{a}\!\left(\frac{1}{T}-\frac{1}{298.15}\right)\right]\tag{40}
 \]
 
 
-Parameters by inhibitor family are listed in Table [67](#tab:inh_params).
+Parameters by inhibitor family are listed in Table [8](#tab:inh_params).
 
 
 
@@ -650,7 +653,7 @@ Parameters by inhibitor family are listed in Table [67](#tab:inh_params).
 | Zinc salt + phosphate | O$_{2}$ | 0.040 | — |
 | Zinc phosphate film-former | General | 0.050 | — |
 
-Adsorption parameters for the main corrosion inhibitor families .
+Table 8: Adsorption parameters for the main corrosion inhibitor families .
 
 
 
@@ -663,7 +666,7 @@ The required dose and daily product volume are:
 C_{\mathrm{inh}}
     = -\frac{1}{k_{\mathrm{ads}}}\,
        \ln(1 - \eta^{*}), \qquad
-  \eta^{*} = 1 - \frac{\mathrm{CR}^{*}}{\mathrm{CR}_{\mathrm{total}}}
+  \eta^{*} = 1 - \frac{\mathrm{CR}^{*}}{\mathrm{CR}_{\mathrm{total}}}\tag{41}
 \]
 
 
@@ -673,13 +676,13 @@ C_{\mathrm{inh}}
 
 \[
 V_{\mathrm{prod}}
-    = \frac{C_{\mathrm{inh}}\,Q}{1000\,\chi_{\mathrm{active}}}
+    = \frac{C_{\mathrm{inh}}\,Q}{1000\,\chi_{\mathrm{active}}}\tag{42}
 \]
 
 
 where $Q$ is the fluid flow rate (m$^{3}$ day$^{-1}$) and $\chi_{\mathrm{active}}$ is the mass fraction of active ingredient in the commercial product.
 
-##### Scale Inhibitors: Threshold Model {#scale-inhibitors-threshold-model .unnumbered}
+##### Scale Inhibitors: Threshold Model {#scale-inhibitors-threshold-model-.unnumbered}
 
 Threshold inhibition relies on sub-stoichiometric phosphonate or polymer concentrations to block crystal growth . The threshold dose for CaCO$_{3}$ is:
 
@@ -694,7 +697,7 @@ C_{\mathrm{th,CaCO_{3}}}
             \frac{c_{\mathrm{HCO_{3}^{-}}}}{1000}}\;
       (\mathrm{LSI})^{0.6}\;
       e^{0.02(T_{C} - 25)}\;
-      (1 + 0.3\sqrt{I})
+      (1 + 0.3\sqrt{I})\tag{43}
 \]
 
 
@@ -711,7 +714,7 @@ C_{\mathrm{th,BaSO_{4}}}
       \sqrt{c_{\mathrm{Ba^{2+}}}}\;
       \mathrm{SI}_{\mathrm{Barite}}^{0.7}\;
       e^{0.025(T_{C} - 25)}\;
-      (1 + 0.5\sqrt{I})
+      (1 + 0.5\sqrt{I})\tag{44}
 \]
 
 
@@ -729,7 +732,7 @@ C_{\mathrm{th,CaSO_{4}}}
             \cdot
             \frac{c_{\mathrm{SO_{4}^{2-}}}}{1000}}\;
       (\mathrm{SI}_{\mathrm{max}} + 1)^{0.7}\;
-      e^{0.015(T_{C} - 25)}
+      e^{0.015(T_{C} - 25)}\tag{45}
 \]
 
 
@@ -741,7 +744,7 @@ The estimated daily chemical cost is:
 \[
 C_{\mathrm{chem}}
     = c_{\mathrm{unit}}\,
-      \sum_{j} V_{\mathrm{prod},j}
+      \sum_{j} V_{\mathrm{prod},j}\tag{46}
 \]
 
 
@@ -758,9 +761,10 @@ The temperature gradient along a heat exchanger alters local equilibrium constan
 \begin{align}
   T_{\mathrm{fluid},i}
     &= T_{\mathrm{in}} + \frac{i}{N-1}\,(T_{\mathrm{out}} - T_{\mathrm{in}})
-   \\
+  \tag{47} \\
   T_{\mathrm{wall},i}
     &= T_{w,\mathrm{in}} + \frac{i}{N-1}\,(T_{w,\mathrm{out}} - T_{w,\mathrm{in}})
+  \tag{48}
 \end{align}
 \]
 
@@ -771,7 +775,7 @@ The precipitation front is defined as the relative axial position $x_{f}$ where 
 
 #### Configuration Parameters {#sec:csm:params}
 
-All configurable parameters and their defaults are listed in Table [68](#tab:params). When the monitor runs as an extension, the geometry, velocity, pressure and flow come from the host unit operation (Sections [10.4](#sec:csm:rul) and [10.5](#sec:csm:inhibitors)) and the other entries keep their defaults.
+All configurable parameters and their defaults are listed in Table [9](#tab:params). When the monitor runs as an extension, the geometry, velocity, pressure and flow come from the host unit operation (Sections [Remaining Useful Life](#sec:csm:rul) and [Chemical Inhibitor Dosing](#sec:csm:inhibitors)) and the other entries keep their defaults.
 
 
 
@@ -780,7 +784,7 @@ All configurable parameters and their defaults are listed in Table [68](#tab:pa
 
 
 <table>
-<caption>Configuration parameters of the Corrosion &amp; Scaling Monitor.</caption>
+<caption>Table 9: Configuration parameters of the Corrosion &amp; Scaling Monitor.</caption>
 <thead>
 <tr>
 <th style="text-align: left;">Parameter</th>
@@ -941,7 +945,7 @@ All configurable parameters and their defaults are listed in Table [68](#tab:pa
 
 #### Output Properties {#sec:csm:outputs}
 
-After calculation, results are available as `ExtraProperties` of the host unit operation, accessible through the DWSIM object editor, the IronPython console, and the CAPE-OPEN API (Table [69](#tab:outputs)). A pipe segment also carries per-section keys (`CSA_Sec{n}_…`) and per-increment profiles (`CSA_Inc…`); a heat exchanger carries the conditions of its worst corrosion and scaling segments (`CSA_WorstCR_…`, `CSA_WorstLSI_…`).
+After calculation, results are available as `ExtraProperties` of the host unit operation, accessible through the DWSIM object editor, the IronPython console, and the CAPE-OPEN API (Table [10](#tab:outputs)). A pipe segment also carries per-section keys (`CSA_Sec{n}_…`) and per-increment profiles (`CSA_Inc…`); a heat exchanger carries the conditions of its worst corrosion and scaling segments (`CSA_WorstCR_…`, `CSA_WorstLSI_…`).
 
 
 
@@ -967,7 +971,7 @@ After calculation, results are available as `ExtraProperties` of the host unit o
 | `CSA_TreatmentStrategy`      | —       | Primary treatment strategy         |
 | `CSA_MarkdownReport`         | —       | Full report (Markdown)             |
 
-Main output properties of the Corrosion & Scaling Monitor.
+Table 10: Main output properties of the Corrosion & Scaling Monitor.
 
 
 

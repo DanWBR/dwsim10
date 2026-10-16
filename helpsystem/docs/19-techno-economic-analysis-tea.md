@@ -14,7 +14,7 @@ Each unit operation is matched to a published cost correlation of the form :
 <a id="eq:tea_cost"></a>
 
 \[
-C_{\mathrm{p}}^{0} = a + b\,S^{n}
+C_{\mathrm{p}}^{0} = a + b\,S^{n}\tag{1}
 \]
 
 
@@ -51,7 +51,7 @@ Equipment costs are escalated from the correlation base year to the current year
 
 \[
 C_{\mathrm{p}} = C_{\mathrm{p}}^{0} \times
-    \frac{\mathrm{CEPCI}_{\mathrm{current}}}{\mathrm{CEPCI}_{\mathrm{base}}}
+    \frac{\mathrm{CEPCI}_{\mathrm{current}}}{\mathrm{CEPCI}_{\mathrm{base}}}\tag{2}
 \]
 
 
@@ -69,7 +69,7 @@ C_{\mathrm{effective}} =
   \begin{cases}
     C_{\mathrm{override}} & \text{if override is set,}\\
     C_{\mathrm{base}} \times f_{\mathrm{correction}} & \text{otherwise.}
-  \end{cases}
+  \end{cases}\tag{3}
 \]
 
 
@@ -130,7 +130,7 @@ Hydrodesulfurizer (HDS), Hydrocracker (HCR), Catalytic Reformer, Isomerization, 
 <a id="eq:reactor_volume"></a>
 
 \[
-V_{\mathrm{reactor}} = \frac{\dot V_{\mathrm{feed}}}{\mathrm{LHSV}}
+V_{\mathrm{reactor}} = \frac{\dot V_{\mathrm{feed}}}{\mathrm{LHSV}}\tag{4}
 \]
 
 
@@ -178,7 +178,7 @@ Costed against the *Separator* correlation (absorption/separation skid) using th
 
 ###### CFB Fast Pyrolysis
 
-The riser is a vertical cylindrical pressure vessel; the capacity parameter is the riser internal volume computed from the user-supplied diameter and height ($V_\mathrm{riser} = \pi (D/2)^2 H$), matched against the *Reactor* correlation. When the sand-supply mode is `InternalCharCombustor`, the effective volume is multiplied by a factor of $1.3$ to cover the additional char-combustor vessel, cyclone, and downcomer; in `External` mode no scaling is applied and only the riser is costed (the external heater/sand loop is accounted for as an OPEX heating utility in the LCI; see §[2.2.2.5](20-life-cycle-assessment-lca.md#sec:lca_bio)).
+The riser is a vertical cylindrical pressure vessel; the capacity parameter is the riser internal volume computed from the user-supplied diameter and height ($V_\mathrm{riser} = \pi (D/2)^2 H$), matched against the *Reactor* correlation. When the sand-supply mode is `InternalCharCombustor`, the effective volume is multiplied by a factor of $1.3$ to cover the additional char-combustor vessel, cyclone, and downcomer; in `External` mode no scaling is applied and only the riser is costed (the external heater/sand loop is accounted for as an OPEX heating utility in the LCI; see §[Bio operations](20-life-cycle-assessment-lca.md#sec:lca_bio)).
 
 #### Vessel Sizing {#sec:tea_vessel}
 
@@ -192,7 +192,7 @@ The allowable vapour velocity is :
 <a id="eq:souders_brown"></a>
 
 \[
-u_{\mathrm{v}} = K \sqrt{\frac{\rho_L - \rho_V}{\rho_V}}
+u_{\mathrm{v}} = K \sqrt{\frac{\rho_L - \rho_V}{\rho_V}}\tag{5}
 \]
 
 
@@ -228,7 +228,7 @@ The shell weight is estimated from vessel dimensions, wall thickness (from ASME 
 \[
 W = \rho_{\mathrm{steel}} \left[
     \pi\,D\,t\,L + 2 \times \tfrac{\pi}{4}D^2 \times t
-  \right]
+  \right]\tag{6}
 \]
 
 
@@ -263,7 +263,7 @@ The total capital investment (TCI) is built up from the purchased equipment cost
 <a id="eq:direct_capital"></a>
 
 \[
-C_{\mathrm{DC}} = C_{\mathrm{equip}} \left(1 + \sum_{i} f_{i}^{\mathrm{direct}}\right)
+C_{\mathrm{DC}} = C_{\mathrm{equip}} \left(1 + \sum_{i} f_{i}^{\mathrm{direct}}\right)\tag{7}
 \]
 
 
@@ -288,7 +288,7 @@ C_{\mathrm{DC}} = C_{\mathrm{equip}} \left(1 + \sum_{i} f_{i}^{\mathrm{direct}}\
 <a id="eq:tci"></a>
 
 \[
-\mathrm{TCI} = C_{\mathrm{DC}} \left(1 + \sum_{j} f_{j}^{\mathrm{indirect}}\right) + C_{\mathrm{WC}}
+\mathrm{TCI} = C_{\mathrm{DC}} \left(1 + \sum_{j} f_{j}^{\mathrm{indirect}}\right) + C_{\mathrm{WC}}\tag{8}
 \]
 
 
@@ -315,7 +315,7 @@ Raw material costs (from feed stream mass flows and user-specified prices), util
 <a id="eq:opex"></a>
 
 \[
-C_{\mathrm{OPEX}} = C_{\mathrm{fixed}} + C_{\mathrm{variable}} + C_{\mathrm{misc}}
+C_{\mathrm{OPEX}} = C_{\mathrm{fixed}} + C_{\mathrm{variable}} + C_{\mathrm{misc}}\tag{9}
 \]
 
 
@@ -331,7 +331,7 @@ The annual net cash flow in operating year $k$ is:
 <a id="eq:ncf"></a>
 
 \[
-\mathrm{NCF}_k = (R - C_{\mathrm{OPEX}} - D)(1 - t) + D
+\mathrm{NCF}_k = (R - C_{\mathrm{OPEX}} - D)(1 - t) + D\tag{10}
 \]
 
 
@@ -343,7 +343,7 @@ The NPV is:
 <a id="eq:npv"></a>
 
 \[
-\mathrm{NPV} = \sum_{k=0}^{N} \frac{\mathrm{NCF}_k}{(1 + r)^k}
+\mathrm{NPV} = \sum_{k=0}^{N} \frac{\mathrm{NCF}_k}{(1 + r)^k}\tag{11}
 \]
 
 
@@ -357,7 +357,7 @@ The IRR is the discount rate $r^{*}$ that sets $\mathrm{NPV} = 0$:
 <a id="eq:irr"></a>
 
 \[
-\mathrm{NPV}(r^{*}) = 0
+\mathrm{NPV}(r^{*}) = 0\tag{12}
 \]
 
 
@@ -369,7 +369,7 @@ The payback period is the smallest year $k$ for which the cumulative undiscounte
 <a id="eq:pbp"></a>
 
 \[
-\mathrm{PBP} = \min\left\{k : \sum_{i=0}^{k} \mathrm{NCF}_i \geq 0 \right\}
+\mathrm{PBP} = \min\left\{k : \sum_{i=0}^{k} \mathrm{NCF}_i \geq 0 \right\}\tag{13}
 \]
 
 
@@ -380,7 +380,7 @@ The payback period is the smallest year $k$ for which the cumulative undiscounte
 <a id="eq:roi"></a>
 
 \[
-\mathrm{ROI} = \frac{\overline{\mathrm{NCF}}}{\mathrm{TCI}}
+\mathrm{ROI} = \frac{\overline{\mathrm{NCF}}}{\mathrm{TCI}}\tag{14}
 \]
 
 
@@ -394,7 +394,7 @@ The cost of production per unit of product is:
 <a id="eq:prod_cost"></a>
 
 \[
-c_{\mathrm{prod}} = \frac{C_{\mathrm{OPEX}} + C_{\mathrm{capital\,charge}}}{m_{\mathrm{product}}}
+c_{\mathrm{prod}} = \frac{C_{\mathrm{OPEX}} + C_{\mathrm{capital\,charge}}}{m_{\mathrm{product}}}\tag{15}
 \]
 
 
@@ -459,7 +459,7 @@ When both TEA and LCA have been run, the eco-efficiency index combines economic 
 
 \[
 \text{EEI} = \frac{1}{c_{\mathrm{prod}} \times \text{GWP}_{\mathrm{per\,kg}}}
-  \quad [\text{kg}/(\$ \cdot \text{kgCO}_2\text{eq})]
+  \quad [\text{kg}/(\$ \cdot \text{kgCO}_2\text{eq})]\tag{16}
 \]
 
 
@@ -473,7 +473,7 @@ The plant-wide TEA is launched from the **Tools** menu under **Techno-Economic A
 
 - **Tab: Report Setup**: Report name, description, base date, cost update index (CEPCI or IPC), current index value, reference currency, and base location (with location factors for regional construction cost correction).
 
-- **Tab: Equipment Mapping**: Editable grid listing all unit operations with matched correlations. Each row shows the property type, an editable sizing parameter, units, the computed base price, an editable correction factor, the resulting corrected price, an optional override price (user-specified fixed price that bypasses the correlation), and the effective price. Multi-item equipment (columns, air coolers) produces separate rows for each sub-item (see §[1.2.4](#sec:tea_multiitem)).
+- **Tab: Equipment Mapping**: Editable grid listing all unit operations with matched correlations. Each row shows the property type, an editable sizing parameter, units, the computed base price, an editable correction factor, the resulting corrected price, an optional override price (user-specified fixed price that bypasses the correlation), and the effective price. Multi-item equipment (columns, air coolers) produces separate rows for each sub-item (see §[Multi-Item Equipment](#sec:tea_multiitem)).
 
 - **Tab: Material Stream Mapping**: Feed and product streams with mass flows and annual costs. Each row includes the material type (Raw Material or Product), the material composition (selected from the cost database), the dominant compound, unit price per kilogram, and an editable correction factor.
 
@@ -485,7 +485,7 @@ The plant-wide TEA is launched from the **Tools** menu under **Techno-Economic A
 
 - **Tab: Cash Flow Analysis**: Economic parameters summary, key indicators (NPV, IRR, Payback, ROI, Production Cost), and year-by-year discounted cash-flow table. Parameters are configurable via the “Edit Parameters” dialog (discount rate, plant life, tax rate, construction period, depreciation, working capital fraction, operating hours, and product selling price).
 
-- **Tab: Breakeven**: Three breakeven points (selling price, production rate, CAPEX) and the eco-efficiency index (see §[1.12](#sec:tea_ecoeff)).
+- **Tab: Breakeven**: Three breakeven points (selling price, production rate, CAPEX) and the eco-efficiency index (see §[Eco-Efficiency Index](#sec:tea_ecoeff)).
 
 - **Tab: Sensitivity**: Tornado-ordered sensitivity results showing base value, $\pm 20\%$ values, NPV at each extreme, and swing for each parameter.
 

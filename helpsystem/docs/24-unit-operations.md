@@ -21,7 +21,7 @@ Mixer Connections
 
 The Mixer solves the following balances across all $N$ connected inlet streams, indexed by $k$ .
 
-###### Total mass flow: {#total-mass-flow .unnumbered}
+###### Total mass flow: {#total-mass-flow-.unnumbered}
 
 
 
@@ -30,7 +30,7 @@ The Mixer solves the following balances across all $N$ connected inlet streams, 
 \]
 
 
-###### Component mass fractions (mixing rule by mass): {#component-mass-fractions-mixing-rule-by-mass .unnumbered}
+###### Component mass fractions (mixing rule by mass): {#component-mass-fractions-mixing-rule-by-mass-.unnumbered}
 
 
 
@@ -41,7 +41,7 @@ w_{i,\text{out}}=\frac{{\displaystyle \sum_{k=1}^{N}\dot{m}_{k}\,w_{i,k}}}{\dot{
 
 where $w_{i,k}$ is the mass fraction of component $i$ in stream $k$ .
 
-###### Specific enthalpy (energy balance, adiabatic): {#specific-enthalpy-energy-balance-adiabatic .unnumbered}
+###### Specific enthalpy (energy balance, adiabatic): {#specific-enthalpy-energy-balance-adiabatic-.unnumbered}
 
 
 
@@ -105,7 +105,7 @@ Splitter Operating Modes
 
 ##### Calculation
 
-###### Split Ratios mode: outlet mass flows {#split-ratios-mode-outlet-mass-flows .unnumbered}
+###### Split Ratios mode: outlet mass flows {#split-ratios-mode-outlet-mass-flows-.unnumbered}
 
 
 
@@ -123,7 +123,7 @@ The last split fraction is always computed as the complement:
 \]
 
 
-###### Stream Mass Flow Specification mode: {#stream-mass-flow-specification-mode .unnumbered}
+###### Stream Mass Flow Specification mode: {#stream-mass-flow-specification-mode-.unnumbered}
 
 
 
@@ -138,11 +138,11 @@ The last split fraction is always computed as the complement:
 
 with the constraint $\dot{m}{\text{spec},1}+\dot{m}{\text{spec},2}\leq\dot{m}_{\text{in}}$ .
 
-###### Stream Mole Flow Specification mode {#stream-mole-flow-specification-mode .unnumbered}
+###### Stream Mole Flow Specification mode {#stream-mole-flow-specification-mode-.unnumbered}
 
 Identical in structure to mass flow specification, applied to molar flows $\dot{n}_{i}$ .
 
-###### Property propagation {#property-propagation .unnumbered}
+###### Property propagation {#property-propagation-.unnumbered}
 
 For every outlet $i$ , regardless of mode:
 
@@ -437,15 +437,15 @@ The orifice area defines the effective flow area of the valve when fully open. T
 
 In DWSIM, the Tank model applies a user-specified pressure drop to the process fluid at constant temperature (adiabatic operation).
 
-###### *Input Parameters* {#input-parameters-1 .unnumbered}
+###### *Input Parameters* {#input-parameters-1-.unnumbered}
 
 - Pressure drop: pressure difference between the outlet and inlet streams.
 
-###### *Calculation Method* {#calculation-method-1 .unnumbered}
+###### *Calculation Method* {#calculation-method-1-.unnumbered}
 
 The outlet pressure is computed as the inlet pressure minus the specified pressure drop. The temperature is assumed constant (no heat exchange). A TP flash is then performed at the outlet conditions to determine the phase distribution and thermodynamic properties of the outlet stream.
 
-###### *Output Parameters* {#output-parameters-2 .unnumbered}
+###### *Output Parameters* {#output-parameters-2-.unnumbered}
 
 There are no output parameters for this object.
 
@@ -455,7 +455,7 @@ The Pipe Segment unit operation models single- and two-phase fluid flow through 
 
 The pipe is subdivided into sections, each of which can represent a straight tube, a fitting (valve, elbow, tee, etc.), or a change in elevation. Each section is further discretized into a user-specified number of increments for the numerical integration of the pressure and temperature profiles.
 
-###### *Input Parameters* {#input-parameters-2 .unnumbered}
+###### *Input Parameters* {#input-parameters-2-.unnumbered}
 
 - Hydraulic profile: the pipe hydraulic profile editor allows the user to define each section’s type (straight tube, fitting, etc.), number of computational increments, pipe material, length, elevation change, and internal and external diameters.
 
@@ -463,7 +463,7 @@ The pipe is subdivided into sections, each of which can represent a straight tub
 
 - Thermal profile: In the thermal profile editor it is possible to define how the temperature profile in the pipe should be calculated. The configurations in this window are valid for the **entire** pipe segment. Changes are saved automatically.
 
-###### *Calculation Method* {#calculation-method-2 .unnumbered}
+###### *Calculation Method* {#calculation-method-2-.unnumbered}
 
 The pipe segment is solved by marching incrementally along the pipe length, performing coupled mass and energy balances at each increment. The algorithm uses three nested iteration loops: the outer loop advances through successive increments, the middle loop converges the temperature, and the inner loop converges the pressure. The procedure at each increment is as follows:
 
@@ -490,7 +490,7 @@ Q=UA\Delta T_{ml}
 
 7.  Once both the pressure and temperature have converged within their respective tolerances, the computed outlet conditions become the inlet conditions for the next increment, and the procedure repeats.
 
-###### *Output Parameters* {#output-parameters-3 .unnumbered}
+###### *Output Parameters* {#output-parameters-3-.unnumbered}
 
 - Delta-T: temperature variation in the pipe segment.
 
@@ -796,15 +796,15 @@ If $f_{T}$ is less than the convergence tolerance, the temperature has converged
 
 The Valve models an isenthalpic throttling process: the fluid undergoes a pressure reduction at constant enthalpy, and the outlet temperature and phase state are determined by a Pressure–Enthalpy (PH) flash at the reduced pressure.
 
-###### *Input Parameters* {#input-parameters-3 .unnumbered}
+###### *Input Parameters* {#input-parameters-3-.unnumbered}
 
 - Pressure drop: pressure difference between the outlet and inlet streams.
 
-###### *Calculation Method* {#calculation-method-3 .unnumbered}
+###### *Calculation Method* {#calculation-method-3-.unnumbered}
 
 The outlet pressure is computed as the inlet pressure minus the specified pressure drop. A Pressure–Enthalpy (PH) flash at the outlet pressure and the inlet enthalpy then determines the outlet temperature and phase state. Because the process is isenthalpic, the outlet temperature is typically equal to or lower than the inlet temperature (Joule–Thomson cooling), except for fluids whose Joule–Thomson coefficient is negative at the operating conditions.
 
-###### *Output Parameters* {#output-parameters-4 .unnumbered}
+###### *Output Parameters* {#output-parameters-4-.unnumbered}
 
 - Delta-T: temperature drop observed in the valve expansion process.
 
@@ -856,7 +856,7 @@ Actual flow coefficient value is determined by interpolating data from a user-de
 
 The Pump increases the pressure of a liquid stream by converting shaft work into hydraulic energy. The ideal (isentropic) work is corrected by a user-specified adiabatic efficiency to account for irreversibilities (friction, recirculation losses, etc.).
 
-###### *Calculation Modes* {#calculation-modes-1 .unnumbered}
+###### *Calculation Modes* {#calculation-modes-1-.unnumbered}
 
 The calculation mode decides which values the user specifies and which ones the pump calculates.
 
@@ -872,7 +872,7 @@ The calculation mode decides which values the user specifies and which ones the 
 
 - Positive Displacement: the flow rate comes from the displacement, the speed and the volumetric efficiency (see below).
 
-###### *Input Parameters* {#input-parameters-4 .unnumbered}
+###### *Input Parameters* {#input-parameters-4-.unnumbered}
 
 - Efficiency (%): pump adiabatic efficiency. It is used in every mode except Performance Curves with an efficiency curve.
 
@@ -882,7 +882,7 @@ The calculation mode decides which values the user specifies and which ones the 
 
 - Positive Displacement: the displacement per revolution, the volumetric efficiency, the relief valve setting, the operating speed and the outlet pressure.
 
-###### *Calculation Method* {#calculation-method-4 .unnumbered}
+###### *Calculation Method* {#calculation-method-4-.unnumbered}
 
 In the Pressure Increase and Outlet Pressure modes the discharge pressure is known:
 
@@ -962,7 +962,7 @@ $g$ gravitational acceleration
 
 
 
-###### *Outlet Parameters* {#outlet-parameters .unnumbered}
+###### *Outlet Parameters* {#outlet-parameters-.unnumbered}
 
 - Pressure Increase and Outlet Pressure, when they are not the specification.
 
@@ -974,7 +974,7 @@ $g$ gravitational acceleration
 
 - Available NPSH.
 
-###### *Performance Curves* {#performance-curves .unnumbered}
+###### *Performance Curves* {#performance-curves-.unnumbered}
 
 In the Performance Curves calculation mode the pump is described by its measured curves instead of a fixed efficiency: head, power, efficiency and NPSHr against flow rate, each a table of points with its own units, edited in the curve editor of either interface. The head curve is required; with the efficiency curve disabled the pump falls back to the efficiency typed in the editor, and with the power curve disabled the power follows from the head and the efficiency. The pump refuses to extrapolate: a flow rate outside the range of a curve is reported as an error rather than guessed.
 
@@ -982,7 +982,7 @@ A pump driven by a variable-frequency drive runs at a speed other than the one i
 
 A manufacturer usually publishes a dataset for a variable-frequency pump: one set of curves per measured speed. The curve editor takes any number of them, each keyed by the speed it was measured at and labelled with the supply frequency that would drive the pump there, which follows from the frequency given for the reference speed. Between two measured speeds the pump reads the operating point off both sets at the actual flow rate and interpolates linearly between the two readings, so the measured efficiency and NPSHr are followed instead of assumed. Above the highest measured speed or below the lowest, the nearest set is scaled with the affinity laws and the flowsheet log records that the curves were extrapolated. The sets are saved with the simulation, and the classic curve editor exports and imports the whole dataset as a JSON file.
 
-###### *Positive Displacement* {#positive-displacement .unnumbered}
+###### *Positive Displacement* {#positive-displacement-.unnumbered}
 
 A metering, dosing or plunger pump is the opposite of a centrifugal one: it delivers the volume it sweeps per revolution, times its speed and its volumetric efficiency, so the flow rate is linear in the rotation and does not depend on the discharge pressure. The Positive Displacement calculation mode models the machine that way. The displacement, the volumetric efficiency and the relief setting are entered with the other pump data; the pressure at the discharge is the one the line imposes, limited by the relief setting, which stands for the relief valve every such machine needs. The shaft power follows from the delivered flow rate, the pressure rise and the pump efficiency.
 
@@ -992,7 +992,7 @@ The delivered volumetric and mass flow rates are reported as properties of the p
 
 The Compressor/Expander models the compression or expansion of a vapor-phase stream. The ideal reference process is isentropic (constant entropy); irreversibilities are accounted for through a user-specified efficiency. The user selects between an adiabatic (isentropic) or polytropic thermodynamic path, depending on the available performance data.
 
-###### *Input Parameters* {#input-parameters-5 .unnumbered}
+###### *Input Parameters* {#input-parameters-5-.unnumbered}
 
 - Delta-P: pressure change in the equipment.
 
@@ -1002,7 +1002,7 @@ The Compressor/Expander models the compression or expansion of a vapor-phase str
 
 - Thermodynamic path: select the thermodynamic path according to the experimental/field data available.
 
-###### *Calculation Method* {#calculation-method-5 .unnumbered}
+###### *Calculation Method* {#calculation-method-5-.unnumbered}
 
 Isentropic (Adiabatic) or Polytropic power is calculated from:
 
@@ -1101,7 +1101,7 @@ $g$ Gravitational Constant (9.8 m/s2)
 
 The Heater and Cooler are single-sided heat exchange models: they add or remove thermal energy from a process stream without explicitly modeling the utility-side fluid. They are used to represent furnaces, electric heaters, cooling-water exchangers, or any other device whose duty or outlet condition is known but whose utility stream need not be simulated.
 
-###### *Calculation Modes* {#calculation-modes-2 .unnumbered}
+###### *Calculation Modes* {#calculation-modes-2-.unnumbered}
 
 - **Energy Stream:** the energy flow from a connected stream is used to heat or cool the inlet stream.
 
@@ -1113,7 +1113,7 @@ The Heater and Cooler are single-sided heat exchange models: they add or remove 
 
 - **Heat Added/Removed:** the heat added or removed is defined directly from the unit operation.
 
-###### *Input/Output Parameters* {#inputoutput-parameters .unnumbered}
+###### *Input/Output Parameters* {#inputoutput-parameters-.unnumbered}
 
 - **Pressure Drop (input only):** defines the pressure drop in the heater/cooler.
 
@@ -1170,7 +1170,7 @@ The distribution of all remaining (distributed) non-key components between the t
 
 ##### Calculation Sequence
 
-###### Step 1: Feed Characterization {#step-1-feed-characterization .unnumbered}
+###### Step 1: Feed Characterization {#step-1-feed-characterization-.unnumbered}
 
 The feed thermal condition parameter $q$ is computed from the feed enthalpy relative to its bubble-point and dew-point enthalpies:
 
@@ -1183,7 +1183,7 @@ q=1+\frac{h_{\text{bub}}-h_{F}}{h_{\text{dew}}-h_{\text{bub}}}
 
 where $h_{F}$ is the molar enthalpy of the feed, $h_{\text{bub}}$ is the enthalpy at the bubble point, and $h_{\text{dew}}$ is the enthalpy at the dew point at the feed pressure.
 
-###### Step 2: Relative Volatilities {#step-2-relative-volatilities .unnumbered}
+###### Step 2: Relative Volatilities {#step-2-relative-volatilities-.unnumbered}
 
 K-values for all components are evaluated at the feed temperature and pressure using the selected property package. The relative volatility of each component is defined with respect to the heavy key:
 
@@ -1196,7 +1196,7 @@ K-values for all components are evaluated at the feed temperature and pressure u
 
 Components are then classified as light non-keys ( $\alpha_{i}>\alpha_{\text{LK}}$ ), distributed non-keys ( $\alpha_{\text{HK}}<\alpha_{i}<\alpha_{\text{LK}}$ ), or heavy non-keys ( $\alpha_{i}<\alpha_{\text{HK}}$ ).
 
-###### Step 3: Minimum Number of Stages (Fenske Equation) {#step-3-minimum-number-of-stages-fenske-equation .unnumbered}
+###### Step 3: Minimum Number of Stages (Fenske Equation) {#step-3-minimum-number-of-stages-fenske-equation-.unnumbered}
 
 The minimum number of ideal stages at total reflux is:
 
@@ -1209,7 +1209,7 @@ N_{\min}=\frac{\ln\!\left(\dfrac{x_{D,\text{LK}}}{x_{D,\text{HK}}}\cdot\dfrac{x_
 
 The Fenske equation is also used iteratively to distribute each non-key component between the two products, consistent with the specified key recoveries.
 
-###### Step 4: Minimum Reflux Ratio (Underwood’s Method) {#step-4-minimum-reflux-ratio-underwoods-method .unnumbered}
+###### Step 4: Minimum Reflux Ratio (Underwood’s Method) {#step-4-minimum-reflux-ratio-underwoods-method-.unnumbered}
 
 The Underwood equation finds the root \$\theta\$ (in the interval $\alpha_{\text{HK}}<\theta<\alpha_{\text{LK}}$ ) of:
 
@@ -1231,7 +1231,7 @@ R_{\min}=\sum_{i=1}^{C}\frac{\alpha_{i}\,x_{D,i}}{\alpha_{i}-\theta}-1
 
 When distributed non-keys are present, multiple $\theta$ roots exist (one between each pair of adjacent component $\alpha$ values) and the resulting system of equations is solved by matrix inversion. If the specified reflux ratio is lower than $R_{\min}$ , the calculation raises an error.
 
-###### Step 5: Actual Number of Stages (Gilliland Correlation) {#step-5-actual-number-of-stages-gilliland-correlation .unnumbered}
+###### Step 5: Actual Number of Stages (Gilliland Correlation) {#step-5-actual-number-of-stages-gilliland-correlation-.unnumbered}
 
 The actual number of ideal stages is obtained from the Gilliland correlation:
 
@@ -1258,7 +1258,7 @@ N=\frac{Y+N_{\min}}{1-Y}
 
 where $R$ is the specified operating reflux ratio.
 
-###### Step 6: Internal Flow Rates {#step-6-internal-flow-rates .unnumbered}
+###### Step 6: Internal Flow Rates {#step-6-internal-flow-rates-.unnumbered}
 
 The molar flow rates in each column section are:
 
@@ -1276,7 +1276,7 @@ V' &= L' - B & &\text{(stripping vapor)}
 
 where $D$ is the distillate molar flow, $B$ is the bottoms molar flow, and $F$ is the feed molar flow.
 
-###### Step 7: Optimal Feed Stage (Kirkbride/Fenske) {#step-7-optimal-feed-stage-kirkbridefenske .unnumbered}
+###### Step 7: Optimal Feed Stage (Kirkbride/Fenske) {#step-7-optimal-feed-stage-kirkbridefenske-.unnumbered}
 
 The optimal feed stage location from the top is estimated as:
 
@@ -1289,13 +1289,13 @@ N_{F}=\frac{N_{\min,S}}{N_{\min}}\cdot N
 
 where $N_{\min,S}$ is the Fenske minimum stages for the stripping section alone, calculated using the stripping-section relative volatility and the bottoms key component compositions.
 
-###### Step 8: Product Temperatures and Enthalpies {#step-8-product-temperatures-and-enthalpies .unnumbered}
+###### Step 8: Product Temperatures and Enthalpies {#step-8-product-temperatures-and-enthalpies-.unnumbered}
 
 The distillate temperature is computed by flashing the distillate composition at the condenser pressure to a vapor fraction of 0 (total condenser) or 1 (partial condenser).
 
 The bottoms temperature is computed by flashing the bottoms composition at the reboiler pressure to a vapor fraction of 0 (bubble point).
 
-###### Step 9: Heat Duties {#step-9-heat-duties .unnumbered}
+###### Step 9: Heat Duties {#step-9-heat-duties-.unnumbered}
 
 **Condenser duty** (negative, heat removal):
 
@@ -1519,7 +1519,7 @@ The condenser and reboiler specifications fix quantities of the column itself: r
 
 - **Product:** the column product the property is read on (distillate, overhead vapor, bottoms or a side draw).
 
-- **Property:** a distillation curve point such as `D86 95%` or `TBP 10%`, a product property of the Distillation Curves utility such as `Flash Point (Closed Cup)` or `Density @ 20 C` (Section [9.4](46-other-properties.md#sec:distillation-curves)), or the ID of any material stream property.
+- **Property:** a distillation curve point such as `D86 95%` or `TBP 10%`, a product property of the Distillation Curves utility such as `Flash Point (Closed Cup)` or `Density @ 20 C` (Section [Distillation Curves and Petroleum Product Properties](46-other-properties.md#sec:distillation-curves)), or the ID of any material stream property.
 
 - **Target and tolerance:** the value to reach and the largest acceptable difference from it. A zero tolerance takes 0.1 % of the target.
 
@@ -1654,7 +1654,7 @@ For gas absorption, connect the gas feed to a stage near the bottom and the lean
 
 The Heat Exchanger models a two-stream, countercurrent heat exchange device. It supports phase change (boiling, condensation) and multiphase flow on either side, evaluating enthalpy changes from the selected property package to correctly account for latent heat effects.
 
-###### *Input Parameters* {#input-parameters-6 .unnumbered}
+###### *Input Parameters* {#input-parameters-6-.unnumbered}
 
 The heat exchanger in DWSIM has seven calculation modes:
 
@@ -1672,7 +1672,7 @@ The heat exchanger in DWSIM has seven calculation modes:
 
 7.  Specify Outlet Vapor Fraction (Stream 1 or Stream 2)
 
-###### *Calculation Mode* {#calculation-mode .unnumbered}
+###### *Calculation Mode* {#calculation-mode-.unnumbered}
 
 All calculation modes are based on the fundamental heat-transfer rate equation:
 
@@ -1708,7 +1708,7 @@ Depending on the selected mode, the unknowns are resolved as follows:
 
 5.  Rate Shell and Tube exchanger: exchanger geometry information.
 
-###### ***Results*** {#results-1 .unnumbered}
+###### ***Results*** {#results-1-.unnumbered}
 
 The output quantities computed by the heat exchanger depend on the selected mode:
 
@@ -1964,14 +1964,14 @@ $F_{h}$ fraction of total flow that crosses $S_{s}$
 
 
 
-$M$ and $N_{h}$ are correction factors obtained from the tables in Figures [46](#fig:Shell-side-heat-transfer), [47](#fig:Shell-side-pressure-drop), [48](#fig:Shell-side-heat-transfer-1), [49](#fig:Shell-side-pressure-drop-1), [50](#fig:Shell-side-heat-transfer-2) and [51](#fig:Shell-side-pressure-drop-2).
+$M$ and $N_{h}$ are correction factors obtained from the tables in Figures [1](#fig:Shell-side-heat-transfer), [2](#fig:Shell-side-pressure-drop), [3](#fig:Shell-side-heat-transfer-1), [4](#fig:Shell-side-pressure-drop-1), [5](#fig:Shell-side-heat-transfer-2) and [6](#fig:Shell-side-pressure-drop-2).
 
 
 
 <a id="fig:Shell-side-heat-transfer"></a>
 ![<span id="fig:Shell-side-heat-transfer" data-label="fig:Shell-side-heat-transfer"></span>Shell-side heat transfer characteristic for triangle layout.](images/screens90/tinker1.png)
 
-*<span id="fig:Shell-side-heat-transfer" data-label="fig:Shell-side-heat-transfer"></span>Shell-side heat transfer characteristic for triangle layout.*
+*Figure 1: <span id="fig:Shell-side-heat-transfer" data-label="fig:Shell-side-heat-transfer"></span>Shell-side heat transfer characteristic for triangle layout.*
 
 
 
@@ -1980,7 +1980,7 @@ $M$ and $N_{h}$ are correction factors obtained from the tables in Figures [46](
 <a id="fig:Shell-side-pressure-drop"></a>
 ![<span id="fig:Shell-side-pressure-drop" data-label="fig:Shell-side-pressure-drop"></span>Shell-side pressure drop characteristic for triangle layout.](images/screens90/tinker2.png)
 
-*<span id="fig:Shell-side-pressure-drop" data-label="fig:Shell-side-pressure-drop"></span>Shell-side pressure drop characteristic for triangle layout.*
+*Figure 2: <span id="fig:Shell-side-pressure-drop" data-label="fig:Shell-side-pressure-drop"></span>Shell-side pressure drop characteristic for triangle layout.*
 
 
 
@@ -1989,7 +1989,7 @@ $M$ and $N_{h}$ are correction factors obtained from the tables in Figures [46](
 <a id="fig:Shell-side-heat-transfer-1"></a>
 ![<span id="fig:Shell-side-heat-transfer-1" data-label="fig:Shell-side-heat-transfer-1"></span>Shell-side heat transfer characteristic for square layout.](images/screens90/tinker3.png)
 
-*<span id="fig:Shell-side-heat-transfer-1" data-label="fig:Shell-side-heat-transfer-1"></span>Shell-side heat transfer characteristic for square layout.*
+*Figure 3: <span id="fig:Shell-side-heat-transfer-1" data-label="fig:Shell-side-heat-transfer-1"></span>Shell-side heat transfer characteristic for square layout.*
 
 
 
@@ -1998,7 +1998,7 @@ $M$ and $N_{h}$ are correction factors obtained from the tables in Figures [46](
 <a id="fig:Shell-side-pressure-drop-1"></a>
 ![<span id="fig:Shell-side-pressure-drop-1" data-label="fig:Shell-side-pressure-drop-1"></span>Shell-side pressure drop characteristic for square layout.](images/screens90/tinker4.png)
 
-*<span id="fig:Shell-side-pressure-drop-1" data-label="fig:Shell-side-pressure-drop-1"></span>Shell-side pressure drop characteristic for square layout.*
+*Figure 4: <span id="fig:Shell-side-pressure-drop-1" data-label="fig:Shell-side-pressure-drop-1"></span>Shell-side pressure drop characteristic for square layout.*
 
 
 
@@ -2007,7 +2007,7 @@ $M$ and $N_{h}$ are correction factors obtained from the tables in Figures [46](
 <a id="fig:Shell-side-heat-transfer-2"></a>
 ![<span id="fig:Shell-side-heat-transfer-2" data-label="fig:Shell-side-heat-transfer-2"></span>Shell-side heat transfer characteristic for rotated square layout.](images/screens90/tinker5.png)
 
-*<span id="fig:Shell-side-heat-transfer-2" data-label="fig:Shell-side-heat-transfer-2"></span>Shell-side heat transfer characteristic for rotated square layout.*
+*Figure 5: <span id="fig:Shell-side-heat-transfer-2" data-label="fig:Shell-side-heat-transfer-2"></span>Shell-side heat transfer characteristic for rotated square layout.*
 
 
 
@@ -2016,7 +2016,7 @@ $M$ and $N_{h}$ are correction factors obtained from the tables in Figures [46](
 <a id="fig:Shell-side-pressure-drop-2"></a>
 ![<span id="fig:Shell-side-pressure-drop-2" data-label="fig:Shell-side-pressure-drop-2"></span>Shell-side pressure drop characteristic for rotated square.](images/screens90/tinker6.png)
 
-*<span id="fig:Shell-side-pressure-drop-2" data-label="fig:Shell-side-pressure-drop-2"></span>Shell-side pressure drop characteristic for rotated square.*
+*Figure 6: <span id="fig:Shell-side-pressure-drop-2" data-label="fig:Shell-side-pressure-drop-2"></span>Shell-side pressure drop characteristic for rotated square.*
 
 
 
@@ -2089,7 +2089,7 @@ By knowing how $\Delta T$ changes inside the exchanger, the above expression can
 
 where $LMTD$ is the log mean temperature difference for the exchanger conditions, calculated as if the exchanger is countercurrent, with only one shell pass and one tube pass.
 
-$F$ is a correction factor which is given in formulas and charts such as in Figure [52](#fig:Shell-side-heat-transfer-3), where P and R are given by
+$F$ is a correction factor which is given in formulas and charts such as in Figure [7](#fig:Shell-side-heat-transfer-3), where P and R are given by
 
 
 
@@ -2110,13 +2110,13 @@ R=\frac{T_{s1}-T_{s2}}{T_{t2}-T_{t1}}
 <a id="fig:Shell-side-heat-transfer-3"></a>
 ![<span id="fig:Shell-side-heat-transfer-3" data-label="fig:Shell-side-heat-transfer-3"></span>Correction factor for LMTD.](images/screens90/tinker7.png)
 
-*<span id="fig:Shell-side-heat-transfer-3" data-label="fig:Shell-side-heat-transfer-3"></span>Correction factor for LMTD.*
+*Figure 7: <span id="fig:Shell-side-heat-transfer-3" data-label="fig:Shell-side-heat-transfer-3"></span>Correction factor for LMTD.*
 
 
 
 ####### Film Coefficient
 
-The film coefficient $h_{e}$ is obtained from the charts in Figures [46](#fig:Shell-side-heat-transfer), [48](#fig:Shell-side-heat-transfer-1) and [50](#fig:Shell-side-heat-transfer-2) as a function of the Reynolds number $Re_{h}$ and the $\nicefrac{s}{d_{e}}$ :
+The film coefficient $h_{e}$ is obtained from the charts in Figures [1](#fig:Shell-side-heat-transfer), [3](#fig:Shell-side-heat-transfer-1) and [5](#fig:Shell-side-heat-transfer-2) as a function of the Reynolds number $Re_{h}$ and the $\nicefrac{s}{d_{e}}$ :
 
 
 
@@ -2182,7 +2182,7 @@ $C_{x}=1.414$ for ◇ arrangement
 
 
 
-$\left(1+\frac{Ys}{D_{i}}\right)$ is obtained from the charts in Figures [46](#fig:Shell-side-heat-transfer), [48](#fig:Shell-side-heat-transfer-1) and [50](#fig:Shell-side-heat-transfer-2). $N'_{B}$ is the number of spaces between baffles and is given by $N'_{B}=N_{B}+1$ where $N_{B}$ is the number of baffles.
+$\left(1+\frac{Ys}{D_{i}}\right)$ is obtained from the charts in Figures [1](#fig:Shell-side-heat-transfer), [3](#fig:Shell-side-heat-transfer-1) and [5](#fig:Shell-side-heat-transfer-2). $N'_{B}$ is the number of spaces between baffles and is given by $N'_{B}=N_{B}+1$ where $N_{B}$ is the number of baffles.
 
 #### Air Cooler
 
@@ -2197,7 +2197,7 @@ $\left(1+\frac{Ys}{D_{i}}\right)$ is obtained from the charts in Figures [46](#f
 
 The Air Cooler models a fin-fan heat exchanger in which the process fluid flows through tube bundles and ambient air is the cooling medium on the shell (external) side. The calculation is based on a simplified variant of the shell-and-tube heat-transfer model.
 
-###### *Input Parameters* {#input-parameters-7 .unnumbered}
+###### *Input Parameters* {#input-parameters-7-.unnumbered}
 
 The Air Cooler model in DWSIM has three calculation modes:
 
@@ -2209,7 +2209,7 @@ The Air Cooler model in DWSIM has three calculation modes:
 
 You can provide the pressure drop for the hot fluid in the exchanger for modes 1 and 3 only.
 
-###### *Calculation Mode* {#calculation-mode-1 .unnumbered}
+###### *Calculation Mode* {#calculation-mode-1-.unnumbered}
 
 The Air Cooler is calculated using the fundamental heat-transfer rate equation:
 
@@ -2237,11 +2237,11 @@ where $\dot{m}$ is the mass flow rate and $\Delta H$ is the specific enthalpy ch
 
 The Component Separator is an idealized mass-balance unit operation that partitions the feed components between two product streams according to user-specified split fractions or absolute flow rates. No thermodynamic equilibrium is solved for the separation itself; after the component split is applied, the energy balance and phase states of the outlet streams are computed via flash calculations.
 
-###### *Input Parameters* {#input-parameters-8 .unnumbered}
+###### *Input Parameters* {#input-parameters-8-.unnumbered}
 
 - Specified stream: sets the stream to which the separation specifications will be applied. ”0” corresponds to the Outlet stream 1 (overhead) and ”1” corresponds to the Outlet stream 2 (bottoms).
 
-###### ***Results*** {#results-2 .unnumbered}
+###### ***Results*** {#results-2-.unnumbered}
 
 - Energy imbalance: Difference between enthalpy of outlet and inlet streams. in some cases it can be interpreted as the energy necessary to do the separation.
 
@@ -2249,7 +2249,7 @@ The Component Separator is an idealized mass-balance unit operation that partiti
 
 This model implements the ISO 5167 standard for thin-plate orifice flow meters. It computes the differential pressure across the orifice as well as the permanent pressure loss. When used in conjunction with the Adjust logical operation, it can be employed to back-calculate stream flow rates from a measured differential pressure.
 
-###### *Input Parameters* {#input-parameters-9 .unnumbered}
+###### *Input Parameters* {#input-parameters-9-.unnumbered}
 
 - Pressure tappings: select the option which corresponds to the arrangement of the tappings for pressure reading.
 
@@ -2259,7 +2259,7 @@ This model implements the ISO 5167 standard for thin-plate orifice flow meters. 
 
 - Correction factor: multiplier for the mass flow rate used in the calculation of the pressure drop across the orifice. Default is 1.
 
-###### ***Results*** {#results-3 .unnumbered}
+###### ***Results*** {#results-3-.unnumbered}
 
 - Orifice pressure drop: Pressure drop across the orifice. This is the value that is read through the tappings.
 
@@ -2305,13 +2305,13 @@ Supported Languages are IronPython, IronRuby, VBScript and JScript. You can use 
 
 The Solids Separator splits a multiphase feed stream into a liquid product and a solids product, based on user-specified separation efficiencies for each phase.
 
-###### *Input Parameters* {#input-parameters-10 .unnumbered}
+###### *Input Parameters* {#input-parameters-10-.unnumbered}
 
 - Solids Separation Efficiency: defines the amount of solids in the liquid stream. 100% efficiency means no solids in the liquid stream.
 
 - Liquids Separation Efficiency: defines the amount of liquid in the solids stream. 100% efficiency means no liquid in the solids stream.
 
-###### *Calculation Method* {#calculation-method-6 .unnumbered}
+###### *Calculation Method* {#calculation-method-6-.unnumbered}
 
 The solids separator performs a component mass balance, distributing the solid and liquid phases of the inlet stream into two distinct product streams according to the specified efficiencies.
 
@@ -2319,7 +2319,7 @@ The solids separator performs a component mass balance, distributing the solid a
 
 In a continuous filter, the feed, filtrate and cake move at steady constant rates. It is evident that the process consists of several steps in series - cake formation, washing, drying and discharging - and that each step involves progressive and continual change in conditions. The pressure drop across the filter during cake formation is, however, held constant.
 
-###### *Calculation Method* {#calculation-method-7 .unnumbered}
+###### *Calculation Method* {#calculation-method-7-.unnumbered}
 
 For a continuous cake filter, the equation that relates the filter characteristics with the rate of solids production is
 
@@ -2356,7 +2356,7 @@ $n$ drum speed, $s^{-1}$
 
 
 
-###### *Input and Output Parameters* {#input-and-output-parameters .unnumbered}
+###### *Input and Output Parameters* {#input-and-output-parameters-.unnumbered}
 
 - Filter Medium Resistance: filter medium flow resistance;
 
@@ -2486,7 +2486,7 @@ Electrolysis of water, also known as electrochemical water splitting, is the pro
 
 Electrolysis of water requires a minimum potential difference of 1.23 volts, though at that voltage external heat is required from the environment.
 
-####### Setup and Calculation Guide {#setup-and-calculation-guide .unnumbered}
+####### Setup and Calculation Guide {#setup-and-calculation-guide-.unnumbered}
 
 - The Water Electrolyzer model requires Water, Hydrogen and Oxygen added to the simulation with Liquid Water present in the inlet stream.
 
@@ -2511,7 +2511,7 @@ A Hydroelectric Turbine is a rotary machine that converts kinetic energy and pot
 
 Water turbines were developed in the 19th century and were widely used for industrial power prior to electrical grids. Now, they are mostly used for electric power generation. Water turbines are mostly found in dams to generate electric power from water potential energy.
 
-###### Setup and Calculation Guide {#setup-and-calculation-guide-1 .unnumbered}
+###### Setup and Calculation Guide {#setup-and-calculation-guide-1-.unnumbered}
 
 - The Hydroelectric Turbine model converts head and velocity from the inlet stream into usable energy for the process.
 
@@ -2591,7 +2591,7 @@ h_{v}=\frac{v_{in}^{2}-v_{out}^{2}}{2g}
 
 A wind turbine is a device that converts the kinetic energy of wind into electrical energy. Hundreds of thousands of large turbines, in installations known as wind farms. They are an increasingly important source of intermittent renewable energy, and are used in many countries to lower energy costs and reduce reliance on fossil fuels.
 
-###### Setup and Calculation Guide {#setup-and-calculation-guide-2 .unnumbered}
+###### Setup and Calculation Guide {#setup-and-calculation-guide-2-.unnumbered}
 
 - The Wind Turbine model converts energy from air (wind) into usable energy for the process.
 
@@ -2634,7 +2634,7 @@ where $ρ$ is the air density. The actual generated power is given by
 
 A solar cell panel, solar electric panel, photo-voltaic (PV) module or solar panel is an assembly of photo-voltaic cells mounted in a framework for installation. Solar panels use sunlight as a source of energy to generate direct current electricity. A collection of PV modules is called a PV panel, and a system of PV panels is called an array. Arrays of a photovoltaic system supply solar electricity to electrical equipment.
 
-###### Setup and Calculation Guide {#setup-and-calculation-guide-3 .unnumbered}
+###### Setup and Calculation Guide {#setup-and-calculation-guide-3-.unnumbered}
 
 - The Solar Panel converts energy from solar irradiation into usable energy for the process.
 
@@ -2811,7 +2811,7 @@ C_{p}(T)=a+bT+cT^{2}+dT^{3}
 \]
 
 
-where $a$ , $b$ , $c$ , and $d$ are species-specific coefficients listed in Table  [§](#tab:Cp_coefficients) .
+where $a$ , $b$ , $c$ , and $d$ are species-specific coefficients listed in Table  [1](#tab:Cp_coefficients) .
 
 
 
@@ -2828,7 +2828,7 @@ where $a$ , $b$ , $c$ , and $d$ are species-specific coefficients listed in Tabl
 | $\text{SO}_{2}$ | 25.78 | $5.795\times10^{-2}$ | $-3.812\times10^{-5}$ | $8.612\times10^{-9}$ |
 | $\text{Ar}$ | 20.786 | 0 | 0 | 0 |
 
-Polynomial coefficients for molar heat capacity $C_{p}$ \[$\text{J}/(\text{mol}\cdot\text{K})$\].
+Table 1: Polynomial coefficients for molar heat capacity $C_{p}$ \[$\text{J}/(\text{mol}\cdot\text{K})$\].
 
 
 
@@ -2982,7 +2982,7 @@ The Nusselt number $\text{Nu}$ for crossflow over a bank of tubes is:
 \]
 
 
-where $\text{Re}=\rho_{g}\;V_{\max}\;D_{o}/\mu_{g}$ is the Reynolds number based on the maximum velocity $V_{\max}$ in the minimum flow area, $\text{Pr}=\mu_{g}\;C_{p,g}/(k_{g}\;M_{fg})$ is the Prandtl number of the flue gas, $\rho_{g}$ is the gas density \[ $\text{kg}/\text{m}^{3}$ \], $\mu_{g}$ is the dynamic viscosity \[ $\text{Pa}\cdot\text{s}$ \], $k_{g}$ is the thermal conductivity \[ $\text{W}/(\text{m}\cdot\text{K})$ \], and the constants $C_{1}$ and $m$ depend on the Reynolds range and tube arrangement as shown in Table  [§](#tab:zukauskas) .
+where $\text{Re}=\rho_{g}\;V_{\max}\;D_{o}/\mu_{g}$ is the Reynolds number based on the maximum velocity $V_{\max}$ in the minimum flow area, $\text{Pr}=\mu_{g}\;C_{p,g}/(k_{g}\;M_{fg})$ is the Prandtl number of the flue gas, $\rho_{g}$ is the gas density \[ $\text{kg}/\text{m}^{3}$ \], $\mu_{g}$ is the dynamic viscosity \[ $\text{Pa}\cdot\text{s}$ \], $k_{g}$ is the thermal conductivity \[ $\text{W}/(\text{m}\cdot\text{K})$ \], and the constants $C_{1}$ and $m$ depend on the Reynolds range and tube arrangement as shown in Table  [2](#tab:zukauskas) .
 
 
 
@@ -2991,7 +2991,7 @@ where $\text{Re}=\rho_{g}\;V_{\max}\;D_{o}/\mu_{g}$ is the Reynolds number based
 
 
 <table>
-<caption>Zukauskas correlation constants for crossflow over tube banks.</caption>
+<caption>Table 2: Zukauskas correlation constants for crossflow over tube banks.</caption>
 <thead>
 <tr>
 <th style="text-align: left;"><strong>Re range</strong></th>
@@ -3311,7 +3311,7 @@ Convergence is typically achieved in $10$ – $30$ outer iterations with a sub-r
 | RefractoryEmissivity | Refractory wall emissivity | – |
 | RefractoryThickness | Refractory lining thickness | m |
 
-Radiant section geometry parameters.
+Table 3: Radiant section geometry parameters.
 
 
 
@@ -3338,7 +3338,7 @@ Radiant section geometry parameters.
 | FinDensity | Fins per unit length | $1/\text{m}$ |
 | FinThermalConductivity | Fin material conductivity ($k_{f}$) | $\text{W}/(\text{m}\cdot\text{K})$ |
 
-Convection section geometry parameters.
+Table 4: Convection section geometry parameters.
 
 
 
@@ -3358,7 +3358,7 @@ Convection section geometry parameters.
 | WallHeatLossFraction | Heat loss as fraction of $Q_{\text{rel}}$ ($f_{\text{wall}}$) | – |
 | DraftType | Natural, forced, or induced | – |
 
-Stack and general operating parameters.
+Table 5: Stack and general operating parameters.
 
 
 
@@ -3408,7 +3408,7 @@ For the Langmuir and DSL models, the affinity constant follows a van’t Hoff r
 <a id="eq:vantHoff"></a>
 
 \[
-b_i(T) = b_{0,i} \exp\!\left(\frac{\Delta H_i}{R T}\right)
+b_i(T) = b_{0,i} \exp\!\left(\frac{\Delta H_i}{R T}\right)\tag{1}
 \]
 
 
@@ -3423,7 +3423,7 @@ The pure-component single-site Langmuir isotherm is
 
 \[
 q_i = \frac{q_{\mathrm{sat},i}\, b_i(T)\, p_i}
-               {1 + b_i(T)\, p_i}
+               {1 + b_i(T)\, p_i}\tag{2}
 \]
 
 
@@ -3436,7 +3436,7 @@ For a multicomponent mixture the **extended Langmuir** mixing rule is applied:
 
 \[
 q_i = \frac{q_{\mathrm{sat},i}\, b_i(T)\, p_i}
-               {1 + \displaystyle\sum_{j=1}^{N} b_j(T)\, p_j}
+               {1 + \displaystyle\sum_{j=1}^{N} b_j(T)\, p_j}\tag{3}
 \]
 
 
@@ -3453,7 +3453,7 @@ Zeolites often present two structurally distinct adsorption sites (e.g. cation 
 q_i = \frac{q_{\mathrm{sat}1,i}\, b_{1,i}(T)\, p_i}
                {1 + b_{1,i}(T)\, p_i}
         + \frac{q_{\mathrm{sat}2,i}\, b_{2,i}(T)\, p_i}
-               {1 + b_{2,i}(T)\, p_i}
+               {1 + b_{2,i}(T)\, p_i}\tag{4}
 \]
 
 
@@ -3466,7 +3466,7 @@ For a mixture, each site type is treated as independent and the competitive Lang
 q_i = \frac{q_{\mathrm{sat}1,i}\, b_{1,i}(T)\, p_i}
                {1 + \displaystyle\sum_j b_{1,j}(T)\, p_j}
         + \frac{q_{\mathrm{sat}2,i}\, b_{2,i}(T)\, p_i}
-               {1 + \displaystyle\sum_j b_{2,j}(T)\, p_j}
+               {1 + \displaystyle\sum_j b_{2,j}(T)\, p_j}\tag{5}
 \]
 
 
@@ -3478,7 +3478,7 @@ The Freundlich isotherm is an empirical power-law expression:
 <a id="eq:freundlich"></a>
 
 \[
-q_i = K_i\, p_i^{1/n_i}
+q_i = K_i\, p_i^{1/n_i}\tag{6}
 \]
 
 
@@ -3497,7 +3497,7 @@ The *working* (or *delta*) capacity is the difference in equilibrium loading bet
 
 \[
 \Delta q_i = q_i(T_{\mathrm{ads}}, p_i^{\mathrm{ads}})
-               - q_i(T_{\mathrm{des}}, p_i^{\mathrm{des}})
+               - q_i(T_{\mathrm{des}}, p_i^{\mathrm{des}})\tag{7}
 \]
 
 
@@ -3507,7 +3507,7 @@ where the desorption partial pressures are approximated as
 <a id="eq:des_partial"></a>
 
 \[
-p_i^{\mathrm{des}} = y_i^{\mathrm{feed}}\, P_{\mathrm{des}}
+p_i^{\mathrm{des}} = y_i^{\mathrm{feed}}\, P_{\mathrm{des}}\tag{8}
 \]
 
 
@@ -3522,7 +3522,7 @@ In Equilibrium mode the model converts the cycle working capacity into an equiva
 
 \[
 \dot{n}_{i}^{\mathrm{ads}} = \frac{\Delta q_i\, M_{\mathrm{ads}}}
-                                       {t_{\mathrm{cyc}}}
+                                       {t_{\mathrm{cyc}}}\tag{9}
 \]
 
 
@@ -3535,7 +3535,7 @@ The raffinate flow before purge correction is
 
 \[
 \dot{n}_{i}^{\mathrm{raff,0}} = \dot{n}_{i}^{\mathrm{feed}}
-                                  - \dot{n}_{i}^{\mathrm{ads}}
+                                  - \dot{n}_{i}^{\mathrm{ads}}\tag{10}
 \]
 
 
@@ -3548,10 +3548,11 @@ A fraction $\phi_{\mathrm{purge}}$ of the net raffinate is recycled as purge gas
 \begin{align}
     \dot{n}_{i}^{\mathrm{raff}} &= \dot{n}_{i}^{\mathrm{raff,0}}
                                  \left(1 - \phi_{\mathrm{purge}}\right)
-    \\[4pt]
+    \tag{11}\\[4pt]
     \dot{n}_{i}^{\mathrm{des}}  &= \dot{n}_{i}^{\mathrm{ads}}
                                  + \phi_{\mathrm{purge}}\,
                                    \dot{n}_{i}^{\mathrm{raff,0}}
+    \tag{12}
 \end{align}
 \]
 
@@ -3585,7 +3586,7 @@ The bed is pressurised from $P_{\mathrm{des}}$ to $P_{\mathrm{ads}}$ using raffi
 \[
 \Delta n_{\mathrm{press}}
         = \underbrace{\frac{V_{\mathrm{void}}(P_{\mathrm{ads}}-P_{\mathrm{des}})}{Z\,R\,T_{\mathrm{ads}}}}_{\text{void filling}}
-        + \underbrace{f_{\mathrm{press}} \sum_i \Delta q_i\, M_{\mathrm{ads}}}_{\text{adsorbent loading}}
+        + \underbrace{f_{\mathrm{press}} \sum_i \Delta q_i\, M_{\mathrm{ads}}}_{\text{adsorbent loading}}\tag{13}
 \]
 
 
@@ -3595,7 +3596,7 @@ where $Z$ is the gas compressibility factor at adsorption conditions, derived fr
 <a id="eq:bed_volume"></a>
 
 \[
-V_{\mathrm{bed}} = \frac{M_{\mathrm{ads}}}{\rho_{\mathrm{bulk}}(1-\varepsilon)}
+V_{\mathrm{bed}} = \frac{M_{\mathrm{ads}}}{\rho_{\mathrm{bulk}}(1-\varepsilon)}\tag{14}
 \]
 
 
@@ -3610,7 +3611,7 @@ Feed gas flows into the bed at $P_{\mathrm{ads}}$. The heavy (more-adsorbed) com
 
 \[
 \Delta n_{i}^{\mathrm{feed}} = \frac{1-f_{\mathrm{press}}}{2}
-                                   \Delta q_i\, M_{\mathrm{ads}}
+                                   \Delta q_i\, M_{\mathrm{ads}}\tag{15}
 \]
 
 
@@ -3622,7 +3623,7 @@ The per-component raffinate from this step is
 \[
 \Delta n_{i}^{\mathrm{raff}} = \max\!\left(0,\;
         \dot{n}_{i}^{\mathrm{feed}}\, t_{\mathrm{feed}}
-        - \Delta n_{i}^{\mathrm{feed}}\right)
+        - \Delta n_{i}^{\mathrm{feed}}\right)\tag{16}
 \]
 
 
@@ -3637,9 +3638,10 @@ Pressure drops from $P_{\mathrm{ads}}$ to $P_{\mathrm{des}}$ co-currently. Gas r
 \begin{align}
     \Delta n_{\mathrm{void}}^{\mathrm{blow}}
         &= \frac{V_{\mathrm{void}}(P_{\mathrm{ads}}-P_{\mathrm{des}})}{Z\,R\,T_{\mathrm{des}}}
-    \\[4pt]
+    \tag{17}\\[4pt]
     \Delta n_{i}^{\mathrm{des,blow}}
         &= \tfrac{1}{2}\,\Delta q_i\, M_{\mathrm{ads}}
+    \tag{18}
 \end{align}
 \]
 
@@ -3662,11 +3664,12 @@ The cycle-averaged molar flows (mol s$^{-1}$) returned to the DWSIM streams ar
     \dot{n}_{i}^{\mathrm{des}} &=
         \frac{\Delta n_{i}^{\mathrm{blow}} + \Delta n_{i}^{\mathrm{purge,out}}}
              {t_{\mathrm{cyc}}}
-    \\[4pt]
+    \tag{19}\\[4pt]
     \dot{n}_{i}^{\mathrm{raff}} &=
         \max\!\left(0,\;\frac{\Delta n_{i}^{\mathrm{raff}}}{t_{\mathrm{cyc}}}
         - \frac{\Delta n_{\mathrm{press}}}{t_{\mathrm{cyc}}}\,y_i
         - \phi_{\mathrm{purge}}\,\dot{n}_{i}^{\mathrm{raff}}\right)
+    \tag{20}
 \end{align}
 \]
 
@@ -3685,12 +3688,13 @@ The model reports the following key performance indicators for the most-adsorbed
 \begin{align}
     \text{Recovery} &= \frac{\dot{n}_k^{\mathrm{des}}}
                             {\dot{n}_k^{\mathrm{feed}}}
-    \\[6pt]
+    \tag{21}\\[6pt]
     \text{Purity (desorbate)} &= \frac{\dot{n}_k^{\mathrm{des}}}
                                       {\displaystyle\sum_i \dot{n}_i^{\mathrm{des}}}
-    \\[6pt]
+    \tag{22}\\[6pt]
     \text{Purity (raffinate)} &= \frac{\dot{n}_k^{\mathrm{raff}}}
                                       {\displaystyle\sum_i \dot{n}_i^{\mathrm{raff}}}
+    \tag{23}
 \end{align}
 \]
 
@@ -3707,7 +3711,7 @@ When the bed geometry parameters (vessel diameter, bed length, particle diameter
     = \frac{150\,\mu\,u\,(1-\varepsilon)^2}
            {\varphi^2\,d_p^2\,\varepsilon^3}
     + \frac{1.75\,\rho\,u^2\,(1-\varepsilon)}
-           {\varphi\,d_p\,\varepsilon^3}
+           {\varphi\,d_p\,\varepsilon^3}\tag{24}
 \]
 
 
@@ -3719,7 +3723,7 @@ The first term represents viscous (Blake–Kozeny) losses and the second term re
 <a id="eq:dp_total"></a>
 
 \[
-\Delta P = \frac{\Delta P}{L}\, L
+\Delta P = \frac{\Delta P}{L}\, L\tag{25}
 \]
 
 
@@ -3734,7 +3738,7 @@ u = \frac{Q_{\mathrm{vol}}}{A_{\mathrm{cross}}}
     Q_{\mathrm{vol}} = \frac{\dot{m}_{\mathrm{total}}}
                             {\rho\, N_{\mathrm{beds}}}
     \;,\qquad
-    A_{\mathrm{cross}} = \frac{\pi}{4}\,D^2
+    A_{\mathrm{cross}} = \frac{\pi}{4}\,D^2\tag{26}
 \]
 
 
@@ -3767,7 +3771,7 @@ An approximate heat duty associated with adsorption is computed from the isoster
 <a id="eq:heat_ads"></a>
 
 \[
-\dot{Q}_{\mathrm{ads}} = \sum_i \dot{n}_i^{\mathrm{ads}}\,\Delta H_i
+\dot{Q}_{\mathrm{ads}} = \sum_i \dot{n}_i^{\mathrm{ads}}\,\Delta H_i\tag{27}
 \]
 
 
@@ -3860,11 +3864,11 @@ Indicative Langmuir and DSL parameters for common zeolite–gas systems are prov
 
 3.  **Real gas in void space**: the void-space inventory uses the compressibility factor $Z$ derived from the property-package molar density at adsorption conditions. The same $Z$ is applied at desorption conditions as an approximation.
 
-4.  **Simplified desorption composition**: the desorption partial pressures are approximated using feed mole fractions ([§](#eq:des_partial)). In reality the desorbate is enriched in the heavy component; a more rigorous treatment requires solving the column material balance iteratively.
+4.  **Simplified desorption composition**: the desorption partial pressures are approximated using feed mole fractions ([8](#eq:des_partial)). In reality the desorbate is enriched in the heavy component; a more rigorous treatment requires solving the column material balance iteratively.
 
-5.  **Isothermal operation**: for PSA calculations the bed temperature is held constant. Heat effects due to adsorption and desorption are not fed back into the energy balance; they are reported separately as $\dot{Q}_{\mathrm{ads}}$ ([§](#eq:heat_ads)).
+5.  **Isothermal operation**: for PSA calculations the bed temperature is held constant. Heat effects due to adsorption and desorption are not fed back into the energy balance; they are reported separately as $\dot{Q}_{\mathrm{ads}}$ ([27](#eq:heat_ads)).
 
-6.  **Ergun pressure drop**: the pressure drop is estimated from the Ergun equation ([§](#eq:ergun)) using the gas density and viscosity from the property package. The calculation assumes uniform, isothermal, single-phase gas flow through a homogeneous packed bed.
+6.  **Ergun pressure drop**: the pressure drop is estimated from the Ergun equation ([24](#eq:ergun)) using the gas density and viscosity from the property package. The calculation assumes uniform, isothermal, single-phase gas flow through a homogeneous packed bed.
 
 ##### Numerical Solution Procedure
 
@@ -3874,22 +3878,22 @@ Indicative Langmuir and DSL parameters for common zeolite–gas systems are prov
 
 3.  Compute partial pressures $p_i = y_i P_{\mathrm{ads}}$.
 
-4.  Evaluate equilibrium loadings at adsorption conditions $q_i^{\mathrm{ads}}$ using the selected isotherm ([§](#eq:langmuir_multi), [§](#eq:DSL_multi), or [§](#eq:freundlich)).
+4.  Evaluate equilibrium loadings at adsorption conditions $q_i^{\mathrm{ads}}$ using the selected isotherm ([3](#eq:langmuir_multi), [5](#eq:DSL_multi), or [6](#eq:freundlich)).
 
 5.  Evaluate equilibrium loadings at desorption conditions $q_i^{\mathrm{des}}$.
 
-6.  Compute working capacities $\Delta q_i$ ([§](#eq:working_capacity)).
+6.  Compute working capacities $\Delta q_i$ ([7](#eq:working_capacity)).
 
 7.  Obtain the gas molar density $\rho_{\mathrm{mol}}$ from the property-package vapor-phase density and the feed mass and molar flows. Derive $Z = P/({\rho_{\mathrm{mol}}\,R\,T})$ for void-space calculations.
 
-8.  *Equilibrium mode:* apply [§](#eq:ads_flow)–[§](#eq:des_flow).\
-    *PSA Cycle mode:* execute the four Skarstrom steps and compute cycle-averaged flows ([§](#eq:pressurisation)–[§](#eq:raff_avg)).
+8.  *Equilibrium mode:* apply [9](#eq:ads_flow)–[12](#eq:des_flow).\
+    *PSA Cycle mode:* execute the four Skarstrom steps and compute cycle-averaged flows ([13](#eq:pressurisation)–[20](#eq:raff_avg)).
 
-9.  Compute bed pressure drop via the Ergun equation ([§](#eq:ergun)) if geometry parameters are specified.
+9.  Compute bed pressure drop via the Ergun equation ([24](#eq:ergun)) if geometry parameters are specified.
 
 10. Set outlet stream temperatures, pressures and molar flows. The raffinate pressure is reduced by $\Delta P$.
 
-11. Compute separation performance indicators ([§](#eq:recovery)–[§](#eq:purity_raff)) and heat of adsorption estimate ([§](#eq:heat_ads)).
+11. Compute separation performance indicators ([21](#eq:recovery)–[23](#eq:purity_raff)) and heat of adsorption estimate ([27](#eq:heat_ads)).
 
 No iteration is required for either mode; the calculation is explicit given the isotherm parameters and operating conditions.
 
@@ -3920,8 +3924,8 @@ Mercury occurs in natural gas at trace concentrations (typically 0.001–10,000�
 
 \[
 \begin{align}
-    \ce{Hg^0 + CuS &-> HgS + Cu}      \\
-    \ce{Hg^0 + Cu  &-> Cu\text{--}Hg} \quad \text{(amalgam)}
+    \ce{Hg^0 + CuS &-> HgS + Cu}      \tag{28}\\
+    \ce{Hg^0 + Cu  &-> Cu\text{--}Hg} \quad \text{(amalgam)} \tag{29}
 \end{align}
 \]
 
@@ -3968,7 +3972,7 @@ The mass concentration of mercury at operating conditions is
 
 \[
 C_{\mathrm{act}} \; [\mu\text{g/m}^3]
-    = y_{\mathrm{Hg}}\, \rho_{\mathrm{mol}}\, M_{\mathrm{Hg}} \times 10^6
+    = y_{\mathrm{Hg}}\, \rho_{\mathrm{mol}}\, M_{\mathrm{Hg}} \times 10^6\tag{30}
 \]
 
 
@@ -3983,7 +3987,7 @@ where $y_{\mathrm{Hg}}$ is the mercury mole fraction, $\rho_{\mathrm{mol}}$ (mol
 \[
 C_{\mathrm{Nm}^3} \; [\mu\text{g/Nm}^3]
     = C_{\mathrm{act}} \cdot \frac{\rho_{\mathrm{mol}}^{\mathrm{NTP}}}
-                                   {\rho_{\mathrm{mol}}}
+                                   {\rho_{\mathrm{mol}}}\tag{31}
 \]
 
 
@@ -3998,7 +4002,7 @@ Both isotherm models use the Hg partial pressure $p_{\mathrm{Hg}} = y_{\mathrm{H
 <a id="eq:loading_conv"></a>
 
 \[
-q \; [\text{mg Hg/g}] = q \; [\text{mol/kg}] \times M_{\mathrm{Hg}} \; [\text{g/mol}]
+q \; [\text{mg Hg/g}] = q \; [\text{mol/kg}] \times M_{\mathrm{Hg}} \; [\text{g/mol}]\tag{32}
 \]
 
 
@@ -4011,7 +4015,7 @@ The single-site Langmuir model with temperature-dependent affinity constant is
 
 \[
 q = \frac{q_{\mathrm{sat}}\, b(T)\, p_{\mathrm{Hg}}}
-             {1 + b(T)\, p_{\mathrm{Hg}}}
+             {1 + b(T)\, p_{\mathrm{Hg}}}\tag{33}
 \]
 
 
@@ -4021,7 +4025,7 @@ where $q_{\mathrm{sat}}$ (mol kg$^{-1}$) is the saturation capacity and the te
 <a id="eq:vanthoff_hg"></a>
 
 \[
-b(T) = b_0 \exp\!\left(\frac{\Delta H}{R T}\right)
+b(T) = b_0 \exp\!\left(\frac{\Delta H}{R T}\right)\tag{34}
 \]
 
 
@@ -4035,7 +4039,7 @@ At the trace concentrations found in natural gas ($p_{\mathrm{Hg}} \ll
 
 \[
 q \approx q_{\mathrm{sat}}\, b(T)\, p_{\mathrm{Hg}}
-    \qquad (b\,p_{\mathrm{Hg}} \ll 1)
+    \qquad (b\,p_{\mathrm{Hg}} \ll 1)\tag{35}
 \]
 
 
@@ -4049,7 +4053,7 @@ The empirical Freundlich model is
 <a id="eq:freundlich_hg"></a>
 
 \[
-q = K_F\, p_{\mathrm{Hg}}^{1/n_F}
+q = K_F\, p_{\mathrm{Hg}}^{1/n_F}\tag{36}
 \]
 
 
@@ -4066,7 +4070,7 @@ The total mercury storage capacity of the bed is
 
 \[
 \hat{N} = q_{\max} \; [\text{mg/g}] \times W_s \; [\text{kg}] \times 10^3
-    \; [\text{g/kg}]  \quad [\text{mg Hg}]
+    \; [\text{g/kg}]  \quad [\text{mg Hg}]\tag{37}
 \]
 
 
@@ -4076,7 +4080,7 @@ The actual volumetric gas flow at operating conditions is
 <a id="eq:vol_flow"></a>
 
 \[
-Q = \frac{\dot{m}_{\mathrm{total}}}{\rho}
+Q = \frac{\dot{m}_{\mathrm{total}}}{\rho}\tag{38}
 \]
 
 
@@ -4091,7 +4095,7 @@ The bed lifetime (time from start-up to breakthrough) is
 t_b = \frac{\hat{N} \; [\text{mg Hg}] \times 10^3 \; [\mu\text{g/mg}]}
                {C_{\mathrm{in}} \; [\mu\text{g/m}^3] \times Q \; [\text{m}^3/\text{s}]}
          = \frac{q_{\max}\, W_s \times 10^6}
-               {C_{\mathrm{in}}\, Q}
+               {C_{\mathrm{in}}\, Q}\tag{39}
 \]
 
 
@@ -4110,11 +4114,11 @@ The stoichiometric breakthrough time corresponds to the ideal (infinitely sharp)
 
 \[
 t_s = \frac{q_e \; [\text{mg/g}] \times W_s \; [\text{kg}] \times 10^6}
-               {C_{\mathrm{in}} \; [\mu\text{g/m}^3] \times Q \; [\text{m}^3/\text{s}]}
+               {C_{\mathrm{in}} \; [\mu\text{g/m}^3] \times Q \; [\text{m}^3/\text{s}]}\tag{40}
 \]
 
 
-where $q_e$ is the equilibrium loading at the inlet concentration, obtained from Eq. [§](#eq:langmuir_hg) or Eq. [§](#eq:freundlich_hg) and converted by Eq. [§](#eq:loading_conv). The factor $10^6$ converts kg mg/g $\to$ μg consistently with $C_{\mathrm{in}}$ expressed in μg/m$^3$.
+where $q_e$ is the equilibrium loading at the inlet concentration, obtained from Eq. [33](#eq:langmuir_hg) or Eq. [36](#eq:freundlich_hg) and converted by Eq. [32](#eq:loading_conv). The factor $10^6$ converts kg mg/g $\to$ μg consistently with $C_{\mathrm{in}}$ expressed in μg/m$^3$.
 
 ###### Wheeler-Jonas breakthrough time
 
@@ -4124,13 +4128,13 @@ The mass-transfer zone (MTZ) shifts the breakthrough curve relative to the stoic
 <a id="eq:wj_time"></a>
 
 \[
-t_b = t_s - \frac{1}{k_v} \ln\!\left(\frac{C_{\mathrm{in}}}{C_b} - 1\right)
+t_b = t_s - \frac{1}{k_v} \ln\!\left(\frac{C_{\mathrm{in}}}{C_b} - 1\right)\tag{41}
 \]
 
 
 where $k_v$ (s$^{-1}$) is the overall first-order volumetric mass-transfer coefficient and $C_b$ (μg/m$^3$) is the breakthrough concentration (outlet specification at actual conditions).
 
-The second term in Eq. [§](#eq:wj_time) is the mass-transfer correction $\delta t = k_v^{-1} \ln(C_{\mathrm{in}}/C_b - 1)$, which is negative when $C_b < C_{\mathrm{in}}/2$ (typical of stringent specifications), meaning that real beds break through *earlier* than the stoichiometric prediction. Equations [§](#eq:t_stoich) and [§](#eq:wj_time) are valid provided $C_b < C_{\mathrm{in}}$.
+The second term in Eq. [41](#eq:wj_time) is the mass-transfer correction $\delta t = k_v^{-1} \ln(C_{\mathrm{in}}/C_b - 1)$, which is negative when $C_b < C_{\mathrm{in}}/2$ (typical of stringent specifications), meaning that real beds break through *earlier* than the stoichiometric prediction. Equations [40](#eq:t_stoich) and [41](#eq:wj_time) are valid provided $C_b < C_{\mathrm{in}}$.
 
 ###### Breakthrough concentration profile
 
@@ -4141,7 +4145,7 @@ At any elapsed service time $t$ (s) the outlet concentration is given by the log
 
 \[
 C_{\mathrm{out}}(t) = \frac{C_{\mathrm{in}}}
-                              {1 + \exp\!\left[k_v \left(t_b - t\right)\right]}
+                              {1 + \exp\!\left[k_v \left(t_b - t\right)\right]}\tag{42}
 \]
 
 
@@ -4155,7 +4159,7 @@ The fraction of the bed capacity consumed at age $t$ is approximated as
 <a id="eq:saturation"></a>
 
 \[
-f_{\mathrm{sat}} = \min\!\left(1,\; \frac{t}{t_b}\right)
+f_{\mathrm{sat}} = \min\!\left(1,\; \frac{t}{t_b}\right)\tag{43}
 \]
 
 
@@ -4172,9 +4176,10 @@ The molar flow of mercury removed is computed from the actual concentration diff
 \begin{align}
     \dot{m}_{\mathrm{Hg}}^{\mathrm{removed}} \; [\mu\text{g/s}]
         &= \left(C_{\mathrm{in}} - C_{\mathrm{out}}\right) \times Q
-    \\[6pt]
+    \tag{44}\\[6pt]
     \dot{n}_{\mathrm{Hg}}^{\mathrm{removed}} \; [\text{mol/s}]
         &= \frac{\dot{m}_{\mathrm{Hg}}^{\mathrm{removed}}}{M_{\mathrm{Hg}} \times 10^6}
+    \tag{45}
 \end{align}
 \]
 
@@ -4187,7 +4192,7 @@ where the factor $10^6$ converts μg mol$^{-1}$ to g mol$^{-1}$. The outlet 
 \[
 \dot{n}_{\mathrm{Hg}}^{\mathrm{out}} =
         \max\!\left(0,\; \dot{n}_{\mathrm{Hg}}^{\mathrm{feed}}
-        - \dot{n}_{\mathrm{Hg}}^{\mathrm{removed}}\right)
+        - \dot{n}_{\mathrm{Hg}}^{\mathrm{removed}}\right)\tag{46}
 \]
 
 
@@ -4200,7 +4205,7 @@ All other components pass through the bed unchanged.
 <a id="eq:removal_eff"></a>
 
 \[
-\eta = \frac{C_{\mathrm{in}} - C_{\mathrm{out}}}{C_{\mathrm{in}}}
+\eta = \frac{C_{\mathrm{in}} - C_{\mathrm{out}}}{C_{\mathrm{in}}}\tag{47}
 \]
 
 
@@ -4216,7 +4221,7 @@ When bed geometry parameters (vessel diameter, bed length, particle diameter, pa
     = \frac{150\,\mu\,u\,(1-\varepsilon)^2}
            {\varphi^2\,d_p^2\,\varepsilon^3}
     + \frac{1.75\,\rho\,u^2\,(1-\varepsilon)}
-           {\varphi\,d_p\,\varepsilon^3}
+           {\varphi\,d_p\,\varepsilon^3}\tag{48}
 \]
 
 
@@ -4234,7 +4239,7 @@ u = \frac{Q}{A}
     \;,\qquad
     Q = \frac{\dot{m}_{\mathrm{total}}}{\rho}
     \;,\qquad
-    A = \frac{\pi}{4}\,D^2
+    A = \frac{\pi}{4}\,D^2\tag{49}
 \]
 
 
@@ -4347,7 +4352,7 @@ The Langmuir isotherm parameters for each preset correspond to near-saturation b
 
 
 
-$^\dagger$Used only when the Mercury compound is absent from the feed stream; otherwise the concentration is derived from the mole fraction via Eq. [§](#eq:c_act).
+$^\dagger$Used only when the Mercury compound is absent from the feed stream; otherwise the concentration is derived from the mole fraction via Eq. [30](#eq:c_act).
 
 ##### Assumptions and Limitations
 
@@ -4357,7 +4362,7 @@ $^\dagger$Used only when the Mercury compound is absent from the feed stream; ot
 
 3.  **Local equilibrium in Wheeler-Jonas mode**: the model assumes that the axial dispersion and external film resistance are lumped into the single parameter $k_v$. Rigorous mass-transfer analysis (e.g. linear driving force or pore-diffusion models) is beyond the scope of this unit operation.
 
-4.  **Ergun pressure drop**: the pressure drop is estimated from the Ergun equation ([§](#eq:ergun_hg)) using the gas density and viscosity from the property package. The calculation assumes uniform, isothermal, single-phase gas flow through a homogeneous packed bed.
+4.  **Ergun pressure drop**: the pressure drop is estimated from the Ergun equation ([48](#eq:ergun_hg)) using the gas density and viscosity from the property package. The calculation assumes uniform, isothermal, single-phase gas flow through a homogeneous packed bed.
 
 5.  **Isothermal operation**: the outlet gas temperature is set equal to the inlet value. The heat released by chemisorption ($\Delta H \approx 50\text{--}80$ kJ/mol) is not fed back into the energy balance; it is reported implicitly through the removed molar flow and the isosteric heat parameter.
 
@@ -4371,37 +4376,37 @@ $^\dagger$Used only when the Mercury compound is absent from the feed stream; ot
 
 1.  Resolve feed stream conditions: $T$, $P$, $\{y_i\}$, $\dot{n}_{\mathrm{total}}$.
 
-2.  Determine the inlet Hg concentration $C_{\mathrm{in,act}}$ (μg/m$^3$) from the stream mole fraction (Eq. [§](#eq:c_act)) or from the user-specified value converted by the inverse of Eq. [§](#eq:c_norm).
+2.  Determine the inlet Hg concentration $C_{\mathrm{in,act}}$ (μg/m$^3$) from the stream mole fraction (Eq. [30](#eq:c_act)) or from the user-specified value converted by the inverse of Eq. [31](#eq:c_norm).
 
-3.  Compute the actual volumetric flow $Q$ from the mass flow and property-package density (Eq. [§](#eq:vol_flow)), and derive the gas molar density $\rho_{\mathrm{mol}} = \dot{n}_{\mathrm{total}} / Q$.
+3.  Compute the actual volumetric flow $Q$ from the mass flow and property-package density (Eq. [38](#eq:vol_flow)), and derive the gas molar density $\rho_{\mathrm{mol}} = \dot{n}_{\mathrm{total}} / Q$.
 
-4.  Convert the breakthrough specification $C_b$ from μg/Nm$^3$ to actual conditions using Eq. [§](#eq:c_norm).
+4.  Convert the breakthrough specification $C_b$ from μg/Nm$^3$ to actual conditions using Eq. [31](#eq:c_norm).
 
 5.  *Capacity-Based mode:*
 
-    1.  Compute total bed capacity $\hat{N}$ (Eq. [§](#eq:total_cap)).
+    1.  Compute total bed capacity $\hat{N}$ (Eq. [37](#eq:total_cap)).
 
-    2.  Compute bed lifetime $t_b$ (Eq. [§](#eq:lifetime_cap)).
+    2.  Compute bed lifetime $t_b$ (Eq. [39](#eq:lifetime_cap)).
 
     3.  Set $C_{\mathrm{out}} = C_b$ (design assumption).
 
 6.  *Wheeler-Jonas mode:*
 
-    1.  Compute $p_{\mathrm{Hg}} = y_{\mathrm{Hg}} P$ and evaluate the equilibrium loading $q_e$ from the selected isotherm (Eqs. [§](#eq:langmuir_hg) or [§](#eq:freundlich_hg)).
+    1.  Compute $p_{\mathrm{Hg}} = y_{\mathrm{Hg}} P$ and evaluate the equilibrium loading $q_e$ from the selected isotherm (Eqs. [33](#eq:langmuir_hg) or [36](#eq:freundlich_hg)).
 
-    2.  Convert $q_e$ to mg/g (Eq. [§](#eq:loading_conv)).
+    2.  Convert $q_e$ to mg/g (Eq. [32](#eq:loading_conv)).
 
-    3.  Compute the stoichiometric breakthrough time $t_s$ (Eq. [§](#eq:t_stoich)) and the Wheeler-Jonas breakthrough time $t_b$ (Eq. [§](#eq:wj_time)).
+    3.  Compute the stoichiometric breakthrough time $t_s$ (Eq. [40](#eq:t_stoich)) and the Wheeler-Jonas breakthrough time $t_b$ (Eq. [41](#eq:wj_time)).
 
-    4.  Compute the outlet concentration at the specified bed age (Eq. [§](#eq:wj_profile)).
+    4.  Compute the outlet concentration at the specified bed age (Eq. [42](#eq:wj_profile)).
 
-    5.  Compute the bed saturation fraction (Eq. [§](#eq:saturation)).
+    5.  Compute the bed saturation fraction (Eq. [43](#eq:saturation)).
 
-7.  Compute Hg removal efficiency $\eta$ (Eq. [§](#eq:removal_eff)) and the removed molar flow (Eqs. [§](#eq:hg_removed_mass) and [§](#eq:hg_removed_mol)).
+7.  Compute Hg removal efficiency $\eta$ (Eq. [47](#eq:removal_eff)) and the removed molar flow (Eqs. [44](#eq:hg_removed_mass) and [45](#eq:hg_removed_mol)).
 
-8.  Compute bed pressure drop via the Ergun equation ([§](#eq:ergun_hg)) if geometry parameters are specified.
+8.  Compute bed pressure drop via the Ergun equation ([48](#eq:ergun_hg)) if geometry parameters are specified.
 
-9.  Set the outlet stream: all non-Hg components unchanged; Mercury molar flow set to $\dot{n}_{\mathrm{Hg}}^{\mathrm{out}}$ (Eq. [§](#eq:hg_out)); $T$ equal to inlet value; $P_{\mathrm{out}} = P_{\mathrm{in}} - \Delta P$.
+9.  Set the outlet stream: all non-Hg components unchanged; Mercury molar flow set to $\dot{n}_{\mathrm{Hg}}^{\mathrm{out}}$ (Eq. [46](#eq:hg_out)); $T$ equal to inlet value; $P_{\mathrm{out}} = P_{\mathrm{in}} - \Delta P$.
 
 The calculation is explicit (no iteration required) in both modes.
 
@@ -4449,7 +4454,7 @@ C_{\mathrm{in,act}} = 100 \times \frac{\rho_{\mathrm{mol}}}{\rho_{\mathrm{mol}}^
 \]
 
 
-From Eq. [§](#eq:lifetime_cap) the bed lifetime in Capacity-Based mode is
+From Eq. [39](#eq:lifetime_cap) the bed lifetime in Capacity-Based mode is
 
 
 \[
@@ -4516,17 +4521,17 @@ Sources and sinks impose boundary conditions on the network. Each can be specifi
 
 ###### Node
 
-Junction nodes mix or split streams. The model enforces per-node overall mass, pressure, and energy balances (see [2.31.3](#sec:node_balances)). An optional *rigorous heat balance* mode uses the full stream enthalpy from the thermodynamic property package rather than an ideal mixing approximation.
+Junction nodes mix or split streams. The model enforces per-node overall mass, pressure, and energy balances (see [Node Balance Equations](#sec:node_balances)). An optional *rigorous heat balance* mode uses the full stream enthalpy from the thermodynamic property package rather than an ideal mixing approximation.
 
 ###### Pipe
 
-The pipe segment calculates the pressure drop and thermal profile for a single pipe section given its geometry, orientation, and selected two-phase flow correlation (see [2.31.4](#sec:pressure_drop)). A per-segment equilibrium flash can be performed at configurable intervals to update stream thermodynamic properties along the pipe length.
+The pipe segment calculates the pressure drop and thermal profile for a single pipe section given its geometry, orientation, and selected two-phase flow correlation (see [Pressure Drop (Ergun Equation)](#sec:pressure_drop)). A per-segment equilibrium flash can be performed at configurable intervals to update stream thermodynamic properties along the pipe length.
 
 ###### Pump, Compressor, and Valve
 
 These objects wrap the corresponding DWSIM base unit operations in $\Delta P$ calculation mode, allowing them to be embedded directly in the network without separate flowsheet connections.
 
-A valve is solved on its flow coefficient, and how the opening reaches that coefficient is the valve’s own business: with the opening versus $K_v$ relationship enabled, the coefficient follows the opening through the characteristic chosen there (linear, equal percentage, quick opening, a table or an expression), which is what lets a controller, or the actuator of [2.31.7](#sec:pn_dynamic), move the valve during a run. With the relationship disabled, which is the default, the coefficient entered in the valve stands whatever the opening says. A coefficient of zero is a shut branch.
+A valve is solved on its flow coefficient, and how the opening reaches that coefficient is the valve’s own business: with the opening versus $K_v$ relationship enabled, the coefficient follows the opening through the characteristic chosen there (linear, equal percentage, quick opening, a table or an expression), which is what lets a controller, or the actuator of [Dynamic Mode](#sec:pn_dynamic), move the valve during a run. With the relationship disabled, which is the default, the coefficient entered in the valve stands whatever the opening says. A coefficient of zero is a shut branch.
 
 ###### Separator
 
@@ -4534,7 +4539,7 @@ Performs an adiabatic flash split. The vapour outlet supplies the gas phase stre
 
 ###### Additional Blocks (Nodal Solver)
 
-With the nodal Newton solver ([2.31.6](#sec:solver)) the palette adds blocks for water distribution and petroleum production: a **Water Pipe** (a lightweight single-phase pipe using the Hazen–Williams  or Darcy–Weisbach correlation with static head, for water grids), a **Reservoir/Tank** fixed-head boundary, a **Pressure Control Valve** (a reducing PRV holding the downstream pressure, or a sustaining PSV holding the upstream pressure), an **Inflow Performance (IPR)** well block, and a **Choke** bean restriction (see [2.31.8](#sec:pn_nodal)).
+With the nodal Newton solver ([Network Solver](#sec:solver)) the palette adds blocks for water distribution and petroleum production: a **Water Pipe** (a lightweight single-phase pipe using the Hazen–Williams  or Darcy–Weisbach correlation with static head, for water grids), a **Reservoir/Tank** fixed-head boundary, a **Pressure Control Valve** (a reducing PRV holding the downstream pressure, or a sustaining PSV holding the upstream pressure), an **Inflow Performance (IPR)** well block, and a **Choke** bean restriction (see [Producing Wells and Nodal Analysis](#sec:pn_nodal)).
 
 ##### Node Balance Equations {#sec:node_balances}
 
@@ -4549,7 +4554,7 @@ For a node $k$ with $n_{\mathrm{in}}$ inlets and $n_{\mathrm{out}}$ outlets, thr
 \[
 r_{m,k} = \frac{\displaystyle\sum_{i \in \mathrm{in}} \dot{m}_i
                   - \displaystyle\sum_{j \in \mathrm{out}} \dot{m}_j}
-                   {\dot{m}_{\mathrm{total}}}
+                   {\dot{m}_{\mathrm{total}}}\tag{50}
 \]
 
 
@@ -4565,7 +4570,7 @@ All streams leaving a node share the same node pressure $P_k$. Streams arriving 
 r_{P,k} = \frac{1}{n_{\mathrm{in}}}
                \sum_{i \in \mathrm{in}} \left(\frac{P_i}{P_k}\right)^{\!2}
              - \frac{1}{n_{\mathrm{out}}}
-               \sum_{j \in \mathrm{out}} \left(\frac{P_j}{P_k}\right)^{\!2}
+               \sum_{j \in \mathrm{out}} \left(\frac{P_j}{P_k}\right)^{\!2}\tag{51}
 \]
 
 
@@ -4578,7 +4583,7 @@ r_{P,k} = \frac{1}{n_{\mathrm{in}}}
 \[
 r_{E,k} = \frac{\displaystyle\sum_{i \in \mathrm{in}} \dot{m}_i h_i
                   - \displaystyle\sum_{j \in \mathrm{out}} \dot{m}_j h_j}
-                   {\dot{H}_{\mathrm{total}}}
+                   {\dot{H}_{\mathrm{total}}}\tag{52}
 \]
 
 
@@ -4597,7 +4602,7 @@ For a pipe of length $L$, internal diameter $D$, and friction factor $f$ carryin
 <a id="eq:dw"></a>
 
 \[
-\Delta P = f \frac{L}{D} \frac{\rho u^2}{2} + \rho g L \sin\theta
+\Delta P = f \frac{L}{D} \frac{\rho u^2}{2} + \rho g L \sin\theta\tag{53}
 \]
 
 
@@ -4610,11 +4615,11 @@ where $\theta$ is the pipe inclination angle from the horizontal and $g$ is the 
 \[
 \frac{1}{\sqrt{f}} = -2\log_{10}\!\left(
         \frac{\varepsilon}{3.7\,D} + \frac{2.51}{Re\sqrt{f}}
-    \right)
+    \right)\tag{54}
 \]
 
 
-where $\varepsilon$ is the pipe roughness and $Re = \rho u D / \mu$ is the Reynolds number. Equation [§](#eq:colebrook) is solved iteratively (or via the explicit Swamee–Jain approximation for initialisation).
+where $\varepsilon$ is the pipe roughness and $Re = \rho u D / \mu$ is the Reynolds number. Equation [54](#eq:colebrook) is solved iteratively (or via the explicit Swamee–Jain approximation for initialisation).
 
 ###### Beggs and Brill (1973)
 
@@ -4630,7 +4635,7 @@ The total pressure gradient is decomposed as
 \left.\frac{dP}{dz}\right|_{\mathrm{total}} =
         \left.\frac{dP}{dz}\right|_{\mathrm{fric}}
       + \left.\frac{dP}{dz}\right|_{\mathrm{el}}
-      + \left.\frac{dP}{dz}\right|_{\mathrm{acc}}
+      + \left.\frac{dP}{dz}\right|_{\mathrm{acc}}\tag{55}
 \]
 
 
@@ -4641,7 +4646,7 @@ The friction term uses the mixture density $\rho_m$ and the two-phase friction f
 
 \[
 \left.\frac{dP}{dz}\right|_{\mathrm{fric}}
-        = f_{tp}\,\frac{\rho_m u_m^2}{2D}
+        = f_{tp}\,\frac{\rho_m u_m^2}{2D}\tag{56}
 \]
 
 
@@ -4654,7 +4659,7 @@ The elevation (hydrostatic) term uses the in-situ average density:
 \left.\frac{dP}{dz}\right|_{\mathrm{el}}
         = \bar{\rho}\,g\sin\theta,
     \qquad
-    \bar{\rho} = \rho_L H_L + \rho_G (1 - H_L)
+    \bar{\rho} = \rho_L H_L + \rho_G (1 - H_L)\tag{57}
 \]
 
 
@@ -4664,7 +4669,7 @@ The flow-pattern map identifies four regimes (segregated, intermittent, distribu
 <a id="eq:bb_ftwo"></a>
 
 \[
-f_{tp} = f_{ns}\,e^S
+f_{tp} = f_{ns}\,e^S\tag{58}
 \]
 
 
@@ -4680,7 +4685,7 @@ The Lockhart–Martinelli correlation relates the two-phase pressure gradient to
 
 \[
 \left.\frac{dP}{dz}\right|_{tp}
-        = \phi_L^2 \left.\frac{dP}{dz}\right|_{L}
+        = \phi_L^2 \left.\frac{dP}{dz}\right|_{L}\tag{59}
 \]
 
 
@@ -4690,7 +4695,7 @@ The multiplier is correlated against the Martinelli parameter $X$:
 <a id="eq:martinelli_X"></a>
 
 \[
-X = \sqrt{\frac{(dP/dz)_L}{(dP/dz)_G}}
+X = \sqrt{\frac{(dP/dz)_L}{(dP/dz)_G}}\tag{60}
 \]
 
 
@@ -4700,7 +4705,7 @@ The Chisholm  parameterisation is used for $\phi_L^2$:
 <a id="eq:chisholm"></a>
 
 \[
-\phi_L^2 = 1 + \frac{C}{X} + \frac{1}{X^2}
+\phi_L^2 = 1 + \frac{C}{X} + \frac{1}{X^2}\tag{61}
 \]
 
 
@@ -4719,7 +4724,7 @@ The temperature profile along each pipe segment is determined from the steady-st
 <a id="eq:energy_pipe"></a>
 
 \[
-\dot{m}\,\frac{dh}{dz} = q(z) - \dot{m}\,g\sin\theta
+\dot{m}\,\frac{dh}{dz} = q(z) - \dot{m}\,g\sin\theta\tag{62}
 \]
 
 
@@ -4733,7 +4738,7 @@ An optional **Joule-Thomson correction** accounts for the isenthalpic temperatur
 
 \[
 \mu_{JT} = \left(\frac{\partial T}{\partial P}\right)_h
-             = -\frac{1}{\dot{m}\,c_P}\left(\frac{\partial H}{\partial P}\right)_T
+             = -\frac{1}{\dot{m}\,c_P}\left(\frac{\partial H}{\partial P}\right)_T\tag{63}
 \]
 
 
@@ -4751,7 +4756,7 @@ The network is cast as a nonlinear optimisation problem. The decision variables 
 
 \[
 x_i = \ln\!\left(\frac{v_i}{s_i}\right),
-    \qquad v_i = s_i\,e^{x_i}
+    \qquad v_i = s_i\,e^{x_i}\tag{64}
 \]
 
 
@@ -4764,7 +4769,7 @@ The objective function to be minimised is the sum of squared node residuals:
 <a id="eq:objective"></a>
 
 \[
-F(\mathbf{x}) = \sum_k \left(r_{m,k}^2 + r_{P,k}^2 + r_{E,k}^2\right)
+F(\mathbf{x}) = \sum_k \left(r_{m,k}^2 + r_{P,k}^2 + r_{E,k}^2\right)\tag{65}
 \]
 
 
@@ -4786,7 +4791,7 @@ The recommended default for new networks is a sparse nodal Newton method based o
 
 ###### Flow Models
 
-The nodal Newton solver offers two flow models. In the **incompressible** (single-phase) model each pipe is a closed-form pressure-drop law, Hazen–Williams  or Darcy–Weisbach with the Churchill friction factor , plus the static head; this is the model for water distribution grids. In the **compositional** (multiphase) model each pipe wraps the full two-phase pipe segment ([2.31.4](#sec:pressure_drop)) as a black box, and an outer loop refreshes the pressure and temperature of every branch while the inner Newton step resolves the hydraulics; this is the model for petroleum gathering and production networks.
+The nodal Newton solver offers two flow models. In the **incompressible** (single-phase) model each pipe is a closed-form pressure-drop law, Hazen–Williams  or Darcy–Weisbach with the Churchill friction factor , plus the static head; this is the model for water distribution grids. In the **compositional** (multiphase) model each pipe wraps the full two-phase pipe segment ([Pressure Drop (Ergun Equation)](#sec:pressure_drop)) as a black box, and an outer loop refreshes the pressure and temperature of every branch while the inner Newton step resolves the hydraulics; this is the model for petroleum gathering and production networks.
 
 ###### Spatial Discretisation and Richardson Extrapolation
 
@@ -4799,11 +4804,11 @@ Two grids and an extrapolation buy considerably more. Writing $f(h)$ for the out
 <a id="eq:richardson"></a>
 
 \[
-f_{\mathrm{exact}} \;\approx\; 2\,f(h/2) - f(h),
+f_{\mathrm{exact}} \;\approx\; 2\,f(h/2) - f(h),\tag{66}
 \]
 
 
-which cancels the leading term. With **Richardson extrapolation** enabled, every pipe is evaluated on its own grid and on one twice as fine, and [§](#eq:richardson) is applied to the outlet pressure and temperature. It costs three pipe calculations where there was one, and in exchange it typically reaches a converged answer from the discretisation the network already carries.
+which cancels the leading term. With **Richardson extrapolation** enabled, every pipe is evaluated on its own grid and on one twice as fine, and [66](#eq:richardson) is applied to the outlet pressure and temperature. It costs three pipe calculations where there was one, and in exchange it typically reaches a converged answer from the discretisation the network already carries.
 
 The extrapolation is applied only where it is meaningful. When the two grids disagree by more than a quarter of the pressure drop, the pair is not in the asymptotic range, there is no single leading term to cancel, and the finer grid is delivered unextrapolated; the same fallback applies if the extrapolated state would be unphysical. This also sets the honest expectation for the feature: it corrects a discretisation that is already close, and it is not a substitute for one that is too coarse to be in the asymptotic range at all. A network whose rate is still moving substantially between successive grid refinements needs more increments, not extrapolation.
 
@@ -4864,7 +4869,7 @@ A command issued at time $t$ becomes the target $x_{\mathrm{sp}}$ after the dead
 \[
 x(t + \Delta t) = x(t)
         + \left[x_{\mathrm{sp}} - x(t)\right]
-          \left(1 - e^{-\Delta t / \tau}\right)
+          \left(1 - e^{-\Delta t / \tau}\right)\tag{67}
 \]
 
 
@@ -4915,7 +4920,7 @@ The IPR block sets the rate the reservoir delivers to the bottomhole as a functi
 <a id="eq:ipr_pi"></a>
 
 \[
-q = J\,(P_r - P_{wf}),
+q = J\,(P_r - P_{wf}),\tag{68}
 \]
 
 
@@ -4926,7 +4931,7 @@ and Vogel’s solution-gas-drive relationship for saturated reservoirs,
 
 \[
 \frac{q}{q_{\max}} = 1 - 0.2\,\frac{P_{wf}}{P_r}
-                          - 0.8\left(\frac{P_{wf}}{P_r}\right)^{\!2}.
+                          - 0.8\left(\frac{P_{wf}}{P_r}\right)^{\!2}.\tag{69}
 \]
 
 
@@ -4940,7 +4945,7 @@ The choke is a subcritical restriction defined by a bean diameter and a discharg
 <a id="eq:gilbert"></a>
 
 \[
-P_1 = \frac{A\,q_L\,\mathrm{GLR}^{B}}{d^{C}},
+P_1 = \frac{A\,q_L\,\mathrm{GLR}^{B}}{d^{C}},\tag{70}
 \]
 
 
@@ -4968,7 +4973,7 @@ Selecting a solved pipe segment and choosing *Flow Assurance* from the designer�
 <a id="eq:turner"></a>
 
 \[
-V_c = \frac{C\,\sigma^{1/4}(\rho_L - \rho_g)^{1/4}}{\rho_g^{1/2}}
+V_c = \frac{C\,\sigma^{1/4}(\rho_L - \rho_g)^{1/4}}{\rho_g^{1/2}}\tag{71}
 \]
 
 
@@ -4982,7 +4987,7 @@ Selecting a solved pipe segment and choosing *Scaling & Corrosion* from the Tool
 <a id="eq:si"></a>
 
 \[
-\mathrm{SI} = \log_{10}\!\left(\frac{\mathrm{IAP}}{K_{sp}}\right) > 0
+\mathrm{SI} = \log_{10}\!\left(\frac{\mathrm{IAP}}{K_{sp}}\right) > 0\tag{72}
 \]
 
 
@@ -5022,7 +5027,7 @@ For gas headers the network runs the *Compressible Gas* flow model: every pipe i
 \[
 -\mathrm{d}p = \frac{f}{D}\,\frac{\rho v^2}{2}\,\mathrm{d}x
     + K_f\,\frac{\rho v^2}{2}\,\frac{\mathrm{d}x}{L}
-    + G^2\,\mathrm{d}\!\left(\frac{1}{\rho}\right) + \rho g\,\mathrm{d}z
+    + G^2\,\mathrm{d}\!\left(\frac{1}{\rho}\right) + \rho g\,\mathrm{d}z\tag{73}
 \]
 
 
@@ -5036,7 +5041,7 @@ The knockout drum is the inline separator with the API 521 sizing check: the all
 <a id="eq:pn_radiation"></a>
 
 \[
-K = \frac{\tau F Q}{4 \pi D^2}
+K = \frac{\tau F Q}{4 \pi D^2}\tag{74}
 \]
 
 
@@ -5060,7 +5065,7 @@ A scenario is one contingency: the devices that relieve together and their rates
 
 ###### Validation against the API worked examples
 
-The relief-network calculations were checked against the worked examples of API RP 520 Part I  and API RP 521 , run through the same code the blocks use. Table [7](#tab:pn_flare_valid) lists the cases, the section of the standard each one comes from, the value the standard gives and the value DWSIM returns.
+The relief-network calculations were checked against the worked examples of API RP 520 Part I  and API RP 521 , run through the same code the blocks use. Table [6](#tab:pn_flare_valid) lists the cases, the section of the standard each one comes from, the value the standard gives and the value DWSIM returns.
 
 
 
@@ -5090,7 +5095,7 @@ The relief-network calculations were checked against the worked examples of API 
 | Vertical drum diameter for the same case | API 521, eq. 49 | 3.6 m | 3.68 m |
 | Flare noise at 30 m (14.6 kg/s, $c$ = 353 m/s, PR = 3) | API 521, 5.4.4.3 | 114 dB | 113.6 dB |
 
-Flare network calculations against the API RP 520 / 521 worked examples
+Table 6: Flare network calculations against the API RP 520 / 521 worked examples
 
 
 
@@ -5169,7 +5174,7 @@ For each node, the solver also reports the dimensionless mass, pressure, and ene
 
 ##### Assumptions and Limitations
 
-1.  **Steady state, or quasi-steady**: the model does not resolve transient behaviour such as surge, water hammer, or slug initiation. All flows and pressures represent time-averaged steady-state conditions. In a dynamic simulation the network still solves in steady state at each step, against that instant’s boundary conditions ([2.31.7](#sec:pn_dynamic)); what changes with time are the boundaries and the actuator positions, not the state of the fluid in the line.
+1.  **Steady state, or quasi-steady**: the model does not resolve transient behaviour such as surge, water hammer, or slug initiation. All flows and pressures represent time-averaged steady-state conditions. In a dynamic simulation the network still solves in steady state at each step, against that instant’s boundary conditions ([Dynamic Mode](#sec:pn_dynamic)); what changes with time are the boundaries and the actuator positions, not the state of the fluid in the line.
 
 2.  **One-dimensional flow**: each pipe segment is treated as a 1-D plug-flow element. Radial temperature and concentration gradients within the pipe cross-section are neglected.
 
@@ -5183,7 +5188,7 @@ For each node, the solver also reports the dimensionless mass, pressure, and ene
 
 7.  **Single composition throughout**: the network does not currently support reactions. Composition changes arise only from phase equilibrium at separator or equilibrium-flash-enabled pipe objects.
 
-8.  **Spatial discretisation**: the increment walk along a pipe is first order, so the number of increments a segment is divided into is an accuracy setting and not only a reporting resolution. On multiphase flow the computed rate can move by a few percent between a coarse discretisation and a converged one, which on such a network is a larger error than any of the numerical tolerances. Refine a segment until the answer stops moving, or enable the Richardson extrapolation described in [2.31.6](#sec:solver). A single-phase liquid line is unaffected, its gradient being essentially constant along the pipe.
+8.  **Spatial discretisation**: the increment walk along a pipe is first order, so the number of increments a segment is divided into is an accuracy setting and not only a reporting resolution. On multiphase flow the computed rate can move by a few percent between a coarse discretisation and a converged one, which on such a network is a larger error than any of the numerical tolerances. Refine a segment until the answer stops moving, or enable the Richardson extrapolation described in [Network Solver](#sec:solver). A single-phase liquid line is unaffected, its gradient being essentially constant along the pipe.
 
 9.  **Pressure-drop correlation range**: the empirical correlations (Beggs–Brill, Lockhart–Martinelli) were developed from data sets at specific pressure, velocity, and fluid-property ranges. Extrapolation beyond these ranges may reduce accuracy. The Petalas–Aziz mechanistic model generally has wider applicability.
 
@@ -5195,7 +5200,7 @@ For each node, the solver also reports the dimensionless mass, pressure, and ene
 
 3.  Initialise all internal stream conditions by propagating boundary values from sources through the network.
 
-4.  Formulate the decision variable vector $\mathbf{x}$ using log-transformed source pressures and/or flow rates ([§](#eq:log_transform)).
+4.  Formulate the decision variable vector $\mathbf{x}$ using log-transformed source pressures and/or flow rates ([64](#eq:log_transform)).
 
 5.  At each solver iteration:
 
@@ -5205,9 +5210,9 @@ For each node, the solver also reports the dimensionless mass, pressure, and ene
 
     3.  Calculate all network blocks sequentially: pipes, pumps, compressors, valves, separators.
 
-    4.  Assemble node residuals $r_{m,k}$, $r_{P,k}$, $r_{E,k}$ ([§](#eq:mass_balance)–[§](#eq:energy_balance)).
+    4.  Assemble node residuals $r_{m,k}$, $r_{P,k}$, $r_{E,k}$ ([50](#eq:mass_balance)–[52](#eq:energy_balance)).
 
-    5.  Evaluate the objective function $F(\mathbf{x})$ ([§](#eq:objective)).
+    5.  Evaluate the objective function $F(\mathbf{x})$ ([65](#eq:objective)).
 
 6.  Continue until $F < \epsilon^2$ or the maximum iteration count $N_{\max}$ is reached.
 
@@ -5231,7 +5236,7 @@ For each node, the solver also reports the dimensionless mass, pressure, and ene
 
 8.  Inspect results by opening the network editor: each object displays its pressure, temperature, and flow results, and nodes show their balance residuals as convergence indicators.
 
-9.  To carry the converged network into a dynamic run, set the boundary streams to a flow specification, give the actuated blocks a time constant on their editors, review the **Dynamics** tab of the network editor, and drive it from the flowsheet’s Dynamics Manager ([2.31.7](#sec:pn_dynamic)).
+9.  To carry the converged network into a dynamic run, set the boundary streams to a flow specification, give the actuated blocks a time constant on their editors, review the **Dynamics** tab of the network editor, and drive it from the flowsheet’s Dynamics Manager ([Dynamic Mode](#sec:pn_dynamic)).
 
 #### Restriction Orifice {#sec:restriction_orifice}
 
@@ -5273,7 +5278,7 @@ The diameter ratio (beta ratio) is
 <a id="eq:ro_beta"></a>
 
 \[
-\beta = \frac{d_o}{D}
+\beta = \frac{d_o}{D}\tag{75}
 \]
 
 
@@ -5283,7 +5288,7 @@ and the orifice cross-sectional area is
 <a id="eq:ro_area"></a>
 
 \[
-A_o = \frac{\pi d_o^2}{4}
+A_o = \frac{\pi d_o^2}{4}\tag{76}
 \]
 
 
@@ -5295,7 +5300,7 @@ The user specifies the *permanent* (irrecoverable) pressure drop $\Delta P_{\mat
 <a id="eq:ro_dp"></a>
 
 \[
-\Delta P_o = \frac{\Delta P_{\mathrm{perm}}}{1 - \beta^2}
+\Delta P_o = \frac{\Delta P_{\mathrm{perm}}}{1 - \beta^2}\tag{77}
 \]
 
 
@@ -5305,7 +5310,7 @@ The downstream pressure at Outlet 1 is
 <a id="eq:ro_P2"></a>
 
 \[
-P_2 = P_1 - \Delta P_{\mathrm{perm}}
+P_2 = P_1 - \Delta P_{\mathrm{perm}}\tag{78}
 \]
 
 
@@ -5315,7 +5320,7 @@ and the pressure ratio used in the expansion factor calculation is
 <a id="eq:ro_Pi"></a>
 
 \[
-\Pi = \frac{P_2}{P_1}
+\Pi = \frac{P_2}{P_1}\tag{79}
 \]
 
 
@@ -5327,7 +5332,7 @@ The Reynolds number is based on the orifice diameter and the local flow conditio
 <a id="eq:ro_Re"></a>
 
 \[
-Re = \frac{\dot{m}\,d_o}{A_o\,\mu}
+Re = \frac{\dot{m}\,d_o}{A_o\,\mu}\tag{80}
 \]
 
 
@@ -5341,7 +5346,7 @@ The discharge coefficient $C$ is computed from the ISO 5167-2 correlation for *
 <a id="eq:ro_A1"></a>
 
 \[
-A_1 = \left(\frac{19000\,\beta}{Re}\right)^{0.8}
+A_1 = \left(\frac{19000\,\beta}{Re}\right)^{0.8}\tag{81}
 \]
 
 
@@ -5359,7 +5364,7 @@ c_1 = 0.5961
         - 0.216\beta^8
         + 0.000521\!\left(\frac{10^6\beta}{Re}\right)^{\!0.7}
         + \left(0.0188 + 0.0063 A_1\right)\beta^{3.5}
-          \left(\frac{10^6}{Re}\right)^{\!0.3}
+          \left(\frac{10^6}{Re}\right)^{\!0.3}\tag{82}
 \]
 
 
@@ -5372,7 +5377,7 @@ For corner taps the tap-position coefficients in ISO 5167-2 evaluate to zero, g
 
 \[
 c_2 = (0.043 + 0.080 - 0.123)(1 - 0.11 A_1)
-          \frac{\beta^4}{1-\beta^4} = 0
+          \frac{\beta^4}{1-\beta^4} = 0\tag{83}
 \]
 
 
@@ -5388,7 +5393,7 @@ c_3 = \begin{cases}
         \!\left(2.8 - \dfrac{d_o\,[\text{mm}]}{25.4}\right) &
         d_o < 71.12\ \text{mm} \\[8pt]
         0 & d_o \geq 71.12\ \text{mm}
-    \end{cases}
+    \end{cases}\tag{84}
 \]
 
 
@@ -5399,7 +5404,7 @@ c_3 = \begin{cases}
 <a id="eq:ro_C"></a>
 
 \[
-C = c_1 + c_2 + c_3 = c_1 + c_3
+C = c_1 + c_2 + c_3 = c_1 + c_3\tag{85}
 \]
 
 
@@ -5416,7 +5421,7 @@ The expansion factor $Y$ corrects for the reduction in gas density as it acceler
 <a id="eq:ro_Y_sub"></a>
 
 \[
-Y = 1 - \frac{1-\Pi}{\kappa}\left(0.41 + 0.35\beta^4\right)
+Y = 1 - \frac{1-\Pi}{\kappa}\left(0.41 + 0.35\beta^4\right)\tag{86}
 \]
 
 
@@ -5429,7 +5434,7 @@ Y = 1 - \frac{1-\Pi}{\kappa}\left(0.41 + 0.35\beta^4\right)
 \[
 Y = 1 - \frac{0.4604}{\kappa}
           - \frac{0.413}{\kappa}\beta^4
-          + \left(0.49 + 0.45\beta^4\right)\frac{\Pi}{\kappa}
+          + \left(0.49 + 0.45\beta^4\right)\frac{\Pi}{\kappa}\tag{87}
 \]
 
 
@@ -5443,7 +5448,7 @@ Combining all factors, the volumetric flow rate through the orifice is
 <a id="eq:ro_Q"></a>
 
 \[
-Q = A_o\,C\,Y\,\sqrt{\frac{2\,\Delta P_o}{\rho_1}}
+Q = A_o\,C\,Y\,\sqrt{\frac{2\,\Delta P_o}{\rho_1}}\tag{88}
 \]
 
 
@@ -5453,7 +5458,7 @@ and the corresponding mass flow rate is
 <a id="eq:ro_mdot"></a>
 
 \[
-\dot{m} = \rho_1\,Q
+\dot{m} = \rho_1\,Q\tag{89}
 \]
 
 
@@ -5465,7 +5470,7 @@ Because $C$ depends on $Re$ and $Re$ depends on $\dot{m}$ (or $d_o$), the system
 
 ###### Sizing Mode
 
-Rearranging [§](#eq:ro_Q) for $d_o$ yields the iteration update:
+Rearranging [88](#eq:ro_Q) for $d_o$ yields the iteration update:
 
 
 <a id="eq:ro_iter_sizing"></a>
@@ -5474,7 +5479,7 @@ Rearranging [§](#eq:ro_Q) for $d_o$ yields the iteration update:
 d_o^{(k+1)} = \left[
         \frac{4Q_{\mathrm{spec}}}{\pi\,C^{(k)}\,Y^{(k)}}
         \sqrt{\frac{\rho_1}{2\,\Delta P_o^{(k)}}}
-    \right]^{1/2}
+    \right]^{1/2}\tag{90}
 \]
 
 
@@ -5482,14 +5487,14 @@ where $Q_{\mathrm{spec}} = \dot{m}_{\mathrm{spec}}/\rho_1$.
 
 ###### Operation Mode
 
-Substituting the fixed $d_o$ directly into [§](#eq:ro_Q) gives the update:
+Substituting the fixed $d_o$ directly into [88](#eq:ro_Q) gives the update:
 
 
 <a id="eq:ro_iter_op"></a>
 
 \[
 Q^{(k+1)} = A_o\,C^{(k)}\,Y^{(k)}
-                \sqrt{\frac{2\,\Delta P_o}{\rho_1}}
+                \sqrt{\frac{2\,\Delta P_o}{\rho_1}}\tag{91}
 \]
 
 
@@ -5501,7 +5506,7 @@ Both modes iterate until the absolute change in the primary variable falls below
 <a id="eq:ro_conv"></a>
 
 \[
-\left|x^{(k+1)} - x^{(k)}\right| < 10^{-8}
+\left|x^{(k+1)} - x^{(k)}\right| < 10^{-8}\tag{92}
 \]
 
 
@@ -5573,7 +5578,7 @@ A physical constraint enforces $\dot{m} \le \dot{m}_{\mathrm{in}}$; an exception
 
 1.  **Gas phase only**: the inlet stream must be 100 % vapour. Liquid or two-phase streams are rejected with an error message.
 
-2.  **Corner taps**: the discharge coefficient is evaluated for corner-tap geometry ($L_1 = L_2 = 0$). The pressure-recovery term $c_2$ vanishes identically for this configuration ([§](#eq:ro_c2)).
+2.  **Corner taps**: the discharge coefficient is evaluated for corner-tap geometry ($L_1 = L_2 = 0$). The pressure-recovery term $c_2$ vanishes identically for this configuration ([83](#eq:ro_c2)).
 
 3.  **ISO 5167 applicability range**: the correlation is validated for $0.10 < \beta < 0.75$ and $Re > 4000$ (turbulent flow). Results outside these ranges are unreliable.
 
@@ -5661,12 +5666,12 @@ The following intermediate quantities are computed once from the user inputs :
 
 \[
 \begin{align}
-  D_\mathit{otl}  &= D_s - D_{sb},                               \\
-  D_\mathit{ctl}  &= D_\mathit{otl} - d_o,                       \\
-  N_b              &= \left\lfloor\frac{L_t - L_{bi} - L_{bo}}{L_b}\right\rfloor + 1,   \\
-  S_m              &= L_b\left(D_s - D_\mathit{otl} + D_\mathit{ctl}\,\frac{P_t' - d_o}{P_t'}\right),   \\
-  A_\mathit{sb}    &= \pi\,D_s\,\frac{D_{sb}}{2}\,(1 - B_c),    \\
-  A_\mathit{tb}    &= \frac{\pi}{4}\bigl[(d_o + d_{tb})^2 - d_o^2\bigr]\,N_t\,(1-F_w),
+  D_\mathit{otl}  &= D_s - D_{sb},                              \tag{93} \\
+  D_\mathit{ctl}  &= D_\mathit{otl} - d_o,                      \tag{94} \\
+  N_b              &= \left\lfloor\frac{L_t - L_{bi} - L_{bo}}{L_b}\right\rfloor + 1,  \tag{95} \\
+  S_m              &= L_b\left(D_s - D_\mathit{otl} + D_\mathit{ctl}\,\frac{P_t' - d_o}{P_t'}\right),  \tag{96} \\
+  A_\mathit{sb}    &= \pi\,D_s\,\frac{D_{sb}}{2}\,(1 - B_c),   \tag{97} \\
+  A_\mathit{tb}    &= \frac{\pi}{4}\bigl[(d_o + d_{tb})^2 - d_o^2\bigr]\,N_t\,(1-F_w),  \tag{98}
 \end{align}
 \]
 
@@ -5679,7 +5684,7 @@ The total outside heat-transfer area is:
 <a id="eq:ahx:area"></a>
 
 \[
-A = N_t\,\pi\,d_o\,L_t.
+A = N_t\,\pi\,d_o\,L_t.\tag{99}
 \]
 
 
@@ -5691,7 +5696,7 @@ The exchanger is divided into $N$ equal-area increments. At each increment $k$, 
 <a id="eq:ahx:dQ"></a>
 
 \[
-\delta Q_k = U_k\,\delta A\,\Delta T_k,
+\delta Q_k = U_k\,\delta A\,\Delta T_k,\tag{100}
 \]
 
 
@@ -5704,8 +5709,8 @@ After each increment, the new enthalpies are:
 
 \[
 \begin{align}
-  H_{h,k+1} &= H_{h,k} - \frac{\delta Q_k}{\dot{m}_h},  \\
-  H_{c,k+1} &= H_{c,k} + \frac{\delta Q_k}{\dot{m}_c},
+  H_{h,k+1} &= H_{h,k} - \frac{\delta Q_k}{\dot{m}_h}, \tag{101} \\
+  H_{c,k+1} &= H_{c,k} + \frac{\delta Q_k}{\dot{m}_c}, \tag{102}
 \end{align}
 \]
 
@@ -5723,7 +5728,7 @@ The ideal (un-corrected) shell-side heat-transfer coefficient is computed from t
 
 \[
 h_\mathit{id} = j_i\,\frac{c_p\,G_s}{\Pr^{2/3}}
-                  \left(\frac{\mu}{\mu_w}\right)^{0.14},
+                  \left(\frac{\mu}{\mu_w}\right)^{0.14},\tag{103}
 \]
 
 
@@ -5735,7 +5740,7 @@ where $G_s = \dot{m}_s / S_m$ is the shell-side mass velocity, $\Pr$ is the Pran
 \[
 j_i = a_1\left(\frac{1.33}{P_t/d_o}\right)^{a}\,\Re_s^{a_2},
   \qquad
-  a = \frac{a_3}{1 + 0.14\,\Re_s^{a_4}},
+  a = \frac{a_3}{1 + 0.14\,\Re_s^{a_4}},\tag{104}
 \]
 
 
@@ -5749,7 +5754,7 @@ The actual shell-side coefficient is:
 <a id="eq:ahx:hs"></a>
 
 \[
-h_s = h_\mathit{id}\,J_c\,J_l\,J_b\,J_s\,J_r,
+h_s = h_\mathit{id}\,J_c\,J_l\,J_b\,J_s\,J_r,\tag{105}
 \]
 
 
@@ -5784,7 +5789,7 @@ The single-phase tube-side coefficient is computed from the Gnielinski correlati
 \[
 \Nu = \frac{(f/8)\,(\Re - 1000)\,\Pr}
              {1 + 12.7\,\sqrt{f/8}\,(\Pr^{2/3} - 1)}
-       \left(\frac{\mu}{\mu_w}\right)^{0.14},
+       \left(\frac{\mu}{\mu_w}\right)^{0.14},\tag{106}
 \]
 
 
@@ -5797,7 +5802,7 @@ where $f = (0.79\ln\Re - 1.64)^{-2}$ is the Petukhov friction factor.
 <a id="eq:ahx:sieder"></a>
 
 \[
-\Nu = \max\!\left(3.66,\; 1.86\,\Gz^{1/3}\left(\frac{\mu}{\mu_w}\right)^{0.14}\right),
+\Nu = \max\!\left(3.66,\; 1.86\,\Gz^{1/3}\left(\frac{\mu}{\mu_w}\right)^{0.14}\right),\tag{107}
 \]
 
 
@@ -5819,7 +5824,7 @@ The turbulent–turbulent Martinelli parameter is used by several correlations:
 \[
 X_\mathit{tt} = \left(\frac{1-x}{x}\right)^{0.9}
                   \left(\frac{\rho_V}{\rho_L}\right)^{0.5}
-                  \left(\frac{\mu_L}{\mu_V}\right)^{0.1},
+                  \left(\frac{\mu_L}{\mu_V}\right)^{0.1},\tag{108}
 \]
 
 
@@ -5836,8 +5841,9 @@ The shell-side condensation coefficient is taken as the maximum of a gravity-con
 \begin{align}
   h_\mathrm{grav} &= 0.725\left[\frac{\rho_L(\rho_L - \rho_V)\,g\,h_{fg}\,k_L^3}
                      {N_r\,\mu_L\,d_o\,\Delta T_\mathrm{film}}\right]^{0.25},
-                      \\
+                     \tag{109} \\
   h_\mathrm{shear} &= h_{L}\sqrt{\frac{\rho_L}{\rho_\mathit{TP}}},
+                     \tag{110}
 \end{align}
 \]
 
@@ -5852,7 +5858,7 @@ The Shah  condensation correlation modifies the liquid-only coefficient:
 <a id="eq:ahx:shah_cond"></a>
 
 \[
-h_\mathrm{cond} = h_L\left(0.55 + \frac{2.09}{X_\mathit{tt}^{0.38}}\right).
+h_\mathrm{cond} = h_L\left(0.55 + \frac{2.09}{X_\mathit{tt}^{0.38}}\right).\tag{111}
 \]
 
 
@@ -5864,7 +5870,7 @@ Shell-side boiling uses the Chen  superposition of nucleate pool boiling (Mosti
 <a id="eq:ahx:chen_shell"></a>
 
 \[
-h_\mathrm{boil} = S\,h_\mathit{nb} + F\,h_L,
+h_\mathrm{boil} = S\,h_\mathit{nb} + F\,h_L,\tag{112}
 \]
 
 
@@ -5876,7 +5882,7 @@ where $h_\mathit{nb}$ is the Mostinski nucleate boiling coefficient:
 \[
 h_\mathit{nb} = 0.00417\,P_c^{0.69}\,q^{0.7}\,F_P,
   \qquad
-  F_P = 1.8\,P_r^{0.17} + 4\,P_r^{1.2} + 10\,P_r^{10},
+  F_P = 1.8\,P_r^{0.17} + 4\,P_r^{1.2} + 10\,P_r^{10},\tag{113}
 \]
 
 
@@ -5888,9 +5894,10 @@ and the Chen enhancement factor $F$ and suppression factor $S$ are:
 \[
 \begin{align}
   F &= \max\!\left(1,\; 2.35\,(1/X_\mathit{tt} + 0.213)^{0.736}\right),
-       \\
+      \tag{114} \\
   S &= \frac{1}{1 + 2.53 \times 10^{-6}\,\Re_\mathit{TP}^{1.17}},
       \quad \Re_\mathit{TP} = \Re_L\,F^{1.25}.
+      \tag{115}
 \end{align}
 \]
 
@@ -5906,7 +5913,7 @@ Tube-side flow boiling uses the full Chen  correlation with the Forster–Zuber
 h_\mathit{FZ} = 0.00122\,
       \frac{k_L^{0.79}\,c_{p,L}^{0.45}\,\rho_L^{0.49}}
            {\sigma^{0.5}\,\mu_L^{0.29}\,h_{fg}^{0.24}\,\rho_V^{0.24}}
-      \,\Delta T_\mathrm{sat}^{0.24}\,\Delta P_\mathrm{sat}^{0.75},
+      \,\Delta T_\mathrm{sat}^{0.24}\,\Delta P_\mathrm{sat}^{0.75},\tag{116}
 \]
 
 
@@ -5922,7 +5929,7 @@ The maximum (critical) heat flux is checked using the Zuber  correlation:
 \[
 q_\mathrm{max} = 0.149\,h_{fg}\,\rho_V
       \left[\frac{\sigma\,g\,(\rho_L - \rho_V)}{\rho_V^2}\right]^{0.25}
-      \!\cdot f_b,
+      \!\cdot f_b,\tag{117}
 \]
 
 
@@ -5939,7 +5946,7 @@ The local overall coefficient based on the outside tube area is:
 \frac{1}{U} = \frac{1}{h_s} + R_{f,s}
                 + \frac{d_o\,\ln(d_o/d_i)}{2\,k_w}
                 + \frac{d_o}{d_i}\,R_{f,t}
-                + \frac{d_o}{d_i}\,\frac{1}{h_t},
+                + \frac{d_o}{d_i}\,\frac{1}{h_t},\tag{118}
 \]
 
 
@@ -5956,7 +5963,7 @@ The log-mean temperature difference for counter-current flow is:
 \Delta T_\mathrm{lm} = \frac{(T_{h,\mathrm{in}} - T_{c,\mathrm{out}})
                                - (T_{h,\mathrm{out}} - T_{c,\mathrm{in}})}
                               {\ln\!\dfrac{T_{h,\mathrm{in}} - T_{c,\mathrm{out}}}
-                                          {T_{h,\mathrm{out}} - T_{c,\mathrm{in}}}}.
+                                          {T_{h,\mathrm{out}} - T_{c,\mathrm{in}}}}.\tag{119}
 \]
 
 
@@ -5970,7 +5977,7 @@ P = \frac{T_{c,\mathrm{out}} - T_{c,\mathrm{in}}}
            {T_{h,\mathrm{in}} - T_{c,\mathrm{in}}},
   \qquad
   R = \frac{T_{h,\mathrm{in}} - T_{h,\mathrm{out}}}
-           {T_{c,\mathrm{out}} - T_{c,\mathrm{in}}},
+           {T_{c,\mathrm{out}} - T_{c,\mathrm{in}}},\tag{120}
 \]
 
 
@@ -5987,7 +5994,7 @@ The total shell-side pressure drop comprises four contributions:
 
 \[
 \Delta P_s = \Delta P_\mathrm{cross} + \Delta P_\mathrm{window}
-             + \Delta P_\mathrm{end} + \Delta P_\mathrm{nozzle}.
+             + \Delta P_\mathrm{end} + \Delta P_\mathrm{nozzle}.\tag{121}
 \]
 
 
@@ -5997,7 +6004,7 @@ The ideal cross-flow drop per baffle space is:
 <a id="eq:ahx:dPid"></a>
 
 \[
-\Delta P_\mathrm{id} = 2\,f_i\,N_{cl}\,\frac{G_s^2}{\rho_s},
+\Delta P_\mathrm{id} = 2\,f_i\,N_{cl}\,\frac{G_s^2}{\rho_s},\tag{122}
 \]
 
 
@@ -6009,11 +6016,12 @@ where $f_i$ is the ideal friction factor (tabulated by layout and $\Re_s$) and $
 \[
 \begin{align}
   \Delta P_\mathrm{cross}  &= (N_b - 1)\,\Delta P_\mathrm{id}\,R_l\,R_b,
-       \\
+      \tag{123} \\
   \Delta P_\mathrm{window} &= N_b\,(2 + 0.6\,N_{tw})\,\frac{G_w^2}{2\,\rho_s}\,R_l,
-       \\
+      \tag{124} \\
   \Delta P_\mathrm{end}    &= 2\,\Delta P_\mathrm{id}
       \left(1 + \frac{N_{cw}}{N_{cl}}\right) R_b,
+      \tag{125}
 \end{align}
 \]
 
@@ -6030,7 +6038,7 @@ The tube-side pressure drop is computed using the Darcy–Weisbach equation with
 \[
 \Delta P_t = N_{tp}\,f\,\frac{L_t}{d_i}\,\frac{\rho\,v^2}{2}
              + N_{tp}\,4\,\frac{\rho\,v^2}{2}
-             + \Delta P_\mathrm{nozzle},
+             + \Delta P_\mathrm{nozzle},\tag{126}
 \]
 
 
@@ -6044,7 +6052,7 @@ When a two-phase flow is detected, single-phase pressure drops are multiplied by
 <a id="eq:ahx:LM_mult"></a>
 
 \[
-\phi_L^2 = 1 + \frac{C}{X_\mathit{tt}} + \frac{1}{X_\mathit{tt}^2},
+\phi_L^2 = 1 + \frac{C}{X_\mathit{tt}} + \frac{1}{X_\mathit{tt}^2},\tag{127}
 \]
 
 
@@ -6054,7 +6062,7 @@ with $C = 20$ (turbulent–turbulent). On the shell side, the Grant correlation 
 <a id="eq:ahx:grant"></a>
 
 \[
-\phi_\mathrm{Grant}^2 = 1 + x\left(\frac{\rho_L}{\rho_V} - 1\right).
+\phi_\mathrm{Grant}^2 = 1 + x\left(\frac{\rho_L}{\rho_V} - 1\right).\tag{128}
 \]
 
 
@@ -6068,7 +6076,7 @@ A tube vibration check is performed at the end of every rating calculation. Thre
 <a id="eq:ahx:fn"></a>
 
 \[
-f_n = \frac{22.4}{2\pi}\sqrt{\frac{EI}{m_\mathrm{total}\,L_b^4}},
+f_n = \frac{22.4}{2\pi}\sqrt{\frac{EI}{m_\mathrm{total}\,L_b^4}},\tag{129}
 \]
 
 
@@ -6083,7 +6091,7 @@ f_n = \frac{22.4}{2\pi}\sqrt{\frac{EI}{m_\mathrm{total}\,L_b^4}},
 
 \[
 v_\mathrm{crit} = 3.3\,f_n\,d_o
-              \sqrt{\frac{2\pi\,\zeta\,m_\mathrm{total}}{\rho_s\,d_o^2}},
+              \sqrt{\frac{2\pi\,\zeta\,m_\mathrm{total}}{\rho_s\,d_o^2}},\tag{130}
 \]
 
 
@@ -6099,7 +6107,7 @@ The exchanger can be run as a kettle reboiler (TEMA K shell), the usual choice f
 
 ###### Thermal model {#thermal-model}
 
-The shell side of a kettle is a pool of liquid at one temperature, with no baffles and no flow across the bundle. The incremental integration of Section [2.33.4](#sec:ahx:rating) is kept for the tube side, and the shell side is taken as a well-mixed pool at the outlet state of the process fluid: the pool temperature and vapor fraction are the outlet temperature and vapor fraction, and are settled with the outer iterations of the rating. The coefficient on the bundle is the nucleate boiling coefficient of Mostinski  at the pseudo-critical pressure of the mixture (the mole-fraction average of the critical pressures), solved together with the local heat flux, once the pool is at its bubble point; while the pool is still subcooled the coefficient is that of natural convection over a horizontal tube (Churchill and Chu). The Bell–Delaware corrections, the shell-side pressure drop and the vibration checks do not apply to a pool and are not computed.
+The shell side of a kettle is a pool of liquid at one temperature, with no baffles and no flow across the bundle. The incremental integration of Section [Incremental Integration (Rating Mode)](#sec:ahx:rating) is kept for the tube side, and the shell side is taken as a well-mixed pool at the outlet state of the process fluid: the pool temperature and vapor fraction are the outlet temperature and vapor fraction, and are settled with the outer iterations of the rating. The coefficient on the bundle is the nucleate boiling coefficient of Mostinski  at the pseudo-critical pressure of the mixture (the mole-fraction average of the critical pressures), solved together with the local heat flux, once the pool is at its bubble point; while the pool is still subcooled the coefficient is that of natural convection over a horizontal tube (Churchill and Chu). The Bell–Delaware corrections, the shell-side pressure drop and the vibration checks do not apply to a pool and are not computed.
 
 ###### Kettle shell
 
@@ -6123,7 +6131,7 @@ The design heat flux $q = Q/A$ is compared with the critical heat flux of the bu
 \[
 q_{c,b} = \phi_b \, q_{c,1}, \qquad
   q_{c,1} = 3.67 \times 10^{4}\, P_c\, P_r^{0.35}\,(1 - P_r)^{0.9}, \qquad
-  \phi_b = \min\!\left(1,\; 3.1\,\frac{D_b}{N_t\, d_o}\right),
+  \phi_b = \min\!\left(1,\; 3.1\,\frac{D_b}{N_t\, d_o}\right),\tag{131}
 \]
 
 
@@ -6131,7 +6139,7 @@ where $q_{c,1}$ is the single-tube critical flux of Mostinski ($P_c$ in bar, res
 
 ###### Design of a kettle
 
-In Design mode the duty can be given as the molar fraction of the bottoms liquid that has to be vaporized, the number the column gives (the vapor returned to the column over the liquid to the reboiler); the duty follows from a pressure and vapor fraction flash of the shell fluid. The hot outlet temperature specification of Section [2.33.12](#sec:ahx:design) remains available. After the tube count is settled for the duty, the heat flux is checked; when it is above the limit the tube count is raised until the flux is within it ($q \propto 1/N_t$ while $q_{c,b} \propto 1/\sqrt{N_t}$), and a warning tells that the area is set by the flux and that the heating medium has to be throttled to hold the specified vaporization.
+In Design mode the duty can be given as the molar fraction of the bottoms liquid that has to be vaporized, the number the column gives (the vapor returned to the column over the liquid to the reboiler); the duty follows from a pressure and vapor fraction flash of the shell fluid. The hot outlet temperature specification of Section [Design Mode](#sec:ahx:design) remains available. After the tube count is settled for the duty, the heat flux is checked; when it is above the limit the tube count is raised until the flux is within it ($q \propto 1/N_t$ while $q_{c,b} \propto 1/\sqrt{N_t}$), and a warning tells that the area is set by the flux and that the heating medium has to be throttled to hold the specified vaporization.
 
 ###### Methodology
 
@@ -6149,13 +6157,13 @@ In Fouling Factor mode both outlet temperatures are specified. The model compute
 <a id="eq:ahx:Rf"></a>
 
 \[
-R_f = \frac{1}{U_\mathrm{dirty}} - \frac{1}{U_\mathrm{clean}}.
+R_f = \frac{1}{U_\mathrm{dirty}} - \frac{1}{U_\mathrm{clean}}.\tag{132}
 \]
 
 
 ##### Parameters Summary
 
-Table [8](#tab:ahx:params) lists the principal user-configurable parameters.
+Table [7](#tab:ahx:params) lists the principal user-configurable parameters.
 
 
 
@@ -6164,7 +6172,7 @@ Table [8](#tab:ahx:params) lists the principal user-configurable parameters.
 
 
 <table>
-<caption>Principal parameters of the Advanced Heat Exchanger.</caption>
+<caption>Table 7: Principal parameters of the Advanced Heat Exchanger.</caption>
 <thead>
 <tr>
 <th style="text-align: left;">Parameter</th>
@@ -6366,7 +6374,7 @@ After a successful calculation the following results are available:
 
 - Vibration warnings (if any).
 
-- Kettle reboiler: shell diameter, weir height, vapor space, free surface, vapor velocity, vapor generated, heat flux against the bundle critical flux, liquid inventory and the kettle checks (Section [2.33.13](#sec:ahx:kettle)).
+- Kettle reboiler: shell diameter, weir height, vapor space, free surface, vapor velocity, vapor generated, heat flux against the bundle critical flux, liquid inventory and the kettle checks (Section [Kettle Reboiler](#sec:ahx:kettle)).
 
 #### Vapor Compression Chiller {#sec:vcc}
 
@@ -6408,7 +6416,7 @@ Between one and three compression stages may be specified. Interstage pressures 
 \[
 r = \left(\frac{P_{\mathrm{cond}}}{P_{\mathrm{evap}}}\right)^{1/N},
   \qquad
-  P_i = P_{\mathrm{evap}}\,r^{i}, \quad i = 0, 1, \ldots, N,
+  P_i = P_{\mathrm{evap}}\,r^{i}, \quad i = 0, 1, \ldots, N,\tag{133}
 \]
 
 
@@ -6422,7 +6430,7 @@ An open-cycle flash economizer may optionally be installed between any two adjac
 <a id="eq:vcc:econ_flash"></a>
 
 \[
-H_{\mathrm{in}} = H_{\mathrm{liq}}\,(1-\psi) + H_{\mathrm{vap}}\,\psi,
+H_{\mathrm{in}} = H_{\mathrm{liq}}\,(1-\psi) + H_{\mathrm{vap}}\,\psi,\tag{134}
 \]
 
 
@@ -6457,10 +6465,10 @@ The actual specific work and discharge state for each stage are:
 
 \[
 \begin{align}
-  w_{\mathrm{is}} &= H_{2\mathrm{s}} - H_1,  \\
-  w_{\mathrm{act}} &= \frac{w_{\mathrm{is}}}{\eta_{\mathrm{is}}},  \\
-  H_2 &= H_1 + w_{\mathrm{act}},  \\
-  \dot{W}_{\mathrm{shaft},i} &= \dot{n}_{\mathrm{ref},i}\,\frac{w_{\mathrm{act}}}{\eta_{\mathrm{mech}}},
+  w_{\mathrm{is}} &= H_{2\mathrm{s}} - H_1, \tag{135} \\
+  w_{\mathrm{act}} &= \frac{w_{\mathrm{is}}}{\eta_{\mathrm{is}}}, \tag{136} \\
+  H_2 &= H_1 + w_{\mathrm{act}}, \tag{137} \\
+  \dot{W}_{\mathrm{shaft},i} &= \dot{n}_{\mathrm{ref},i}\,\frac{w_{\mathrm{act}}}{\eta_{\mathrm{mech}}}, \tag{138}
 \end{align}
 \]
 
@@ -6475,7 +6483,7 @@ The molar flow rate at the evaporator level is determined from the process-strea
 <a id="eq:vcc:refflow"></a>
 
 \[
-\dot{n}_{\mathrm{ref}} = \frac{\dot{Q}_{\mathrm{evap}}}{H_1 - H_4},
+\dot{n}_{\mathrm{ref}} = \frac{\dot{Q}_{\mathrm{evap}}}{H_1 - H_4},\tag{139}
 \]
 
 
@@ -6489,7 +6497,7 @@ The overall energy balance is:
 <a id="eq:vcc:energy"></a>
 
 \[
-\dot{Q}_{\mathrm{cond}} = \dot{Q}_{\mathrm{evap}} + \sum_{i=1}^{N} \dot{W}_{\mathrm{shaft},i}.
+\dot{Q}_{\mathrm{cond}} = \dot{Q}_{\mathrm{evap}} + \sum_{i=1}^{N} \dot{W}_{\mathrm{shaft},i}.\tag{140}
 \]
 
 
@@ -6500,7 +6508,7 @@ The overall energy balance is:
 <a id="eq:vcc:cop"></a>
 
 \[
-\mathrm{COP} = \frac{\dot{Q}_{\mathrm{evap}}}{\displaystyle\sum_{i=1}^{N} \dot{W}_{\mathrm{shaft},i}}.
+\mathrm{COP} = \frac{\dot{Q}_{\mathrm{evap}}}{\displaystyle\sum_{i=1}^{N} \dot{W}_{\mathrm{shaft},i}}.\tag{141}
 \]
 
 
@@ -6530,7 +6538,7 @@ For each stage the actual volumetric flow at suction conditions is:
 <a id="eq:vcc:vdot"></a>
 
 \[
-\dot{V}_{\mathrm{suc}} = \dot{n}_{\mathrm{ref},i}\,\hat{V}_{m,\mathrm{suc}},
+\dot{V}_{\mathrm{suc}} = \dot{n}_{\mathrm{ref},i}\,\hat{V}_{m,\mathrm{suc}},\tag{142}
 \]
 
 
@@ -6546,7 +6554,7 @@ The polytropic index $n$ is estimated from the isentropic temperature ratio and 
   \qquad
   \eta_p = \frac{\gamma - 1}{\gamma}\,\frac{\ln r}{\ln\!\left(T_2/T_1\right)},
   \qquad
-  \frac{n}{n-1} = \eta_p\,\frac{\gamma}{\gamma - 1},
+  \frac{n}{n-1} = \eta_p\,\frac{\gamma}{\gamma - 1},\tag{143}
 \]
 
 
@@ -6559,7 +6567,7 @@ The polytropic head (Schultz method, simplified) is:
 
 \[
 H_p = \frac{R\,T_{\mathrm{suc}}}{M_w}\,\frac{n}{n-1}
-        \left[\left(\frac{P_{\mathrm{dis}}}{P_{\mathrm{suc}}}\right)^{(n-1)/n} - 1\right],
+        \left[\left(\frac{P_{\mathrm{dis}}}{P_{\mathrm{suc}}}\right)^{(n-1)/n} - 1\right],\tag{144}
 \]
 
 
@@ -6571,7 +6579,7 @@ For *centrifugal* compressors, the dimensionless specific speed is:
 <a id="eq:vcc:ns"></a>
 
 \[
-N_s = \frac{n_{\mathrm{rev}}\,\sqrt{\dot{V}_{\mathrm{suc}}}}{H_p^{3/4}},
+N_s = \frac{n_{\mathrm{rev}}\,\sqrt{\dot{V}_{\mathrm{suc}}}}{H_p^{3/4}},\tag{145}
 \]
 
 
@@ -6583,7 +6591,7 @@ For *reciprocating* compressors, the volumetric efficiency is:
 <a id="eq:vcc:etavol"></a>
 
 \[
-\eta_{\mathrm{vol}} = 1 + c - c\,r^{1/n},
+\eta_{\mathrm{vol}} = 1 + c - c\,r^{1/n},\tag{146}
 \]
 
 
@@ -6593,7 +6601,7 @@ where $c$ is the clearance ratio (user input). The required piston displacement 
 <a id="eq:vcc:disp"></a>
 
 \[
-\dot{V}_{\mathrm{disp}} = \frac{\dot{V}_{\mathrm{suc}}}{\eta_{\mathrm{vol}}}.
+\dot{V}_{\mathrm{disp}} = \frac{\dot{V}_{\mathrm{suc}}}{\eta_{\mathrm{vol}}}.\tag{147}
 \]
 
 
@@ -6605,7 +6613,7 @@ Both the evaporator and condenser are sized by the LMTD method. For counter-curr
 <a id="eq:vcc:lmtd"></a>
 
 \[
-\Delta T_{\mathrm{lm}} = \frac{\Delta T_1 - \Delta T_2}{\ln(\Delta T_1/\Delta T_2)},
+\Delta T_{\mathrm{lm}} = \frac{\Delta T_1 - \Delta T_2}{\ln(\Delta T_1/\Delta T_2)},\tag{148}
 \]
 
 
@@ -6617,7 +6625,7 @@ The required heat transfer area is:
 <a id="eq:vcc:area"></a>
 
 \[
-A = \frac{\dot{Q}}{U\,\Delta T_{\mathrm{lm}}},
+A = \frac{\dot{Q}}{U\,\Delta T_{\mathrm{lm}}},\tag{149}
 \]
 
 
@@ -6627,7 +6635,7 @@ with the overall heat transfer coefficient:
 <a id="eq:vcc:U"></a>
 
 \[
-\frac{1}{U} = \frac{1}{h_{\mathrm{ref}}} + \frac{1}{h_{\mathrm{fluid}}} + R_f,
+\frac{1}{U} = \frac{1}{h_{\mathrm{ref}}} + \frac{1}{h_{\mathrm{fluid}}} + R_f,\tag{150}
 \]
 
 
@@ -6642,7 +6650,7 @@ The boiling heat transfer coefficient is estimated by the Cooper reduced-pressur
 
 \[
 h_{\mathrm{boil}} = 55\,P_r^{0.12}\,\bigl(-\log_{10} P_r\bigr)^{-0.55}
-                      M_w^{-0.5}\,q^{0.67},
+                      M_w^{-0.5}\,q^{0.67},\tag{151}
 \]
 
 
@@ -6654,7 +6662,7 @@ in W/m$^2$ K, where $P_r = P/P_c$ is the reduced pressure, $M_w$ is the molar 
 \[
 h_{\mathrm{boil}}
     = \left[55\,P_r^{0.12}\,\bigl(-\log_{10} P_r\bigr)^{-0.55} M_w^{-0.5}
-      \,\Delta T_{\mathrm{lm}}^{0.67}\right]^{1/0.33}.
+      \,\Delta T_{\mathrm{lm}}^{0.67}\right]^{1/0.33}.\tag{152}
 \]
 
 
@@ -6668,7 +6676,7 @@ The condensing heat transfer coefficient is estimated by the Shah correlation  
 <a id="eq:vcc:shah"></a>
 
 \[
-h_{\mathrm{cond}} = h_L\left(0.55 + \frac{2.09}{P_r^{0.38}}\right),
+h_{\mathrm{cond}} = h_L\left(0.55 + \frac{2.09}{P_r^{0.38}}\right),\tag{153}
 \]
 
 
@@ -6680,7 +6688,7 @@ The heat transfer coefficient on the process (evaporator) or cooling (condenser)
 
 ##### Parameters Summary
 
-Table [9](#tab:vcc:params) lists all user-configurable parameters.
+Table [8](#tab:vcc:params) lists all user-configurable parameters.
 
 
 
@@ -6689,7 +6697,7 @@ Table [9](#tab:vcc:params) lists all user-configurable parameters.
 
 
 <table>
-<caption>Parameters of the Vapor Compression Chiller.</caption>
+<caption>Table 8: Parameters of the Vapor Compression Chiller.</caption>
 <thead>
 <tr>
 <th style="text-align: left;">Parameter</th>
@@ -6917,7 +6925,7 @@ The actual volumetric air flow is proportional to the fan speed relative to a re
 
 \[
 \dot{V}_{\mathrm{air}} = \dot{V}_{\mathrm{ref}}
-        \frac{N_{\mathrm{actual}}}{N_{\mathrm{ref}}}
+        \frac{N_{\mathrm{actual}}}{N_{\mathrm{ref}}}\tag{154}
 \]
 
 
@@ -6941,7 +6949,7 @@ All modes use the fundamental heat-exchanger equations:
 <a id="eq:ac_UAFLMTD"></a>
 
 \[
-Q = U A F \,\Delta T_{\mathrm{lm}}
+Q = U A F \,\Delta T_{\mathrm{lm}}\tag{155}
 \]
 
 
@@ -6951,7 +6959,7 @@ Q = U A F \,\Delta T_{\mathrm{lm}}
 
 \[
 Q = -\dot{m}_h \bigl(h_{h,\mathrm{out}} - h_{h,\mathrm{in}}\bigr)
-      =  \dot{m}_c \bigl(h_{c,\mathrm{out}} - h_{c,\mathrm{in}}\bigr)
+      =  \dot{m}_c \bigl(h_{c,\mathrm{out}} - h_{c,\mathrm{in}}\bigr)\tag{156}
 \]
 
 
@@ -6969,7 +6977,7 @@ The log-mean temperature difference for counter-current flow is
         \frac{(T_{h,\mathrm{in}}-T_{c,\mathrm{out}})
             - (T_{h,\mathrm{out}}-T_{c,\mathrm{in}})}
              {\ln\!\dfrac{T_{h,\mathrm{in}}-T_{c,\mathrm{out}}}
-                         {T_{h,\mathrm{out}}-T_{c,\mathrm{in}}}}
+                         {T_{h,\mathrm{out}}-T_{c,\mathrm{in}}}}\tag{157}
 \]
 
 
@@ -6982,7 +6990,7 @@ The correction factor $F$ accounts for the multi-pass (1 shell–2 tube pass) ge
 R = \frac{T_{h,\mathrm{in}}-T_{h,\mathrm{out}}}
              {T_{c,\mathrm{out}}-T_{c,\mathrm{in}}}, \qquad
     P = \frac{T_{c,\mathrm{out}}-T_{c,\mathrm{in}}}
-             {T_{h,\mathrm{in}}-T_{c,\mathrm{in}}}
+             {T_{h,\mathrm{in}}-T_{c,\mathrm{in}}}\tag{158}
 \]
 
 
@@ -6994,7 +7002,7 @@ and the auxiliary variable $S = \dfrac{(1-RP)/(1-P)-1}{(1-RP)/(1-P)-R}$, the cor
 \[
 F = \frac{\sqrt{R^2+1}\ln\!\dfrac{1-S}{1-RS}}
              {(R-1)\ln\!\dfrac{2-S\!\left(R+1-\sqrt{R^2+1}\right)}
-                              {2-S\!\left(R+1+\sqrt{R^2+1}\right)}}
+                              {2-S\!\left(R+1+\sqrt{R^2+1}\right)}}\tag{159}
 \]
 
 
@@ -7011,7 +7019,7 @@ The internal heat-transfer coefficient $h_i$ (W m$^{-2}$ K$^{-1}$) is evalua
 \[
 h_i = \frac{k_h}{D_i}\,
           \frac{(f/8)(Re_t - 1000)\,Pr_t}
-               {1 + 12.7\sqrt{f/8}\,(Pr_t^{2/3}-1)}
+               {1 + 12.7\sqrt{f/8}\,(Pr_t^{2/3}-1)}\tag{160}
 \]
 
 
@@ -7025,7 +7033,7 @@ The tube-side Darcy friction factor $f$ is computed using an explicit approximat
 
 \[
 \Delta P_{\mathrm{tube}} = f\,\frac{L\,n_{\mathrm{pass}}}{D_i}
-        \,\frac{\rho_h u_t^2}{2}
+        \,\frac{\rho_h u_t^2}{2}\tag{161}
 \]
 
 
@@ -7039,7 +7047,7 @@ The external (air-side) heat-transfer coefficient $h_e$ (W m$^{-2}$ K$^{-1}$
 <a id="eq:ac_he"></a>
 
 \[
-\frac{h_e D_e}{k_c} = 0.287\,Re_e^{0.61}\,Pr_c^{1/3}
+\frac{h_e D_e}{k_c} = 0.287\,Re_e^{0.61}\,Pr_c^{1/3}\tag{162}
 \]
 
 
@@ -7056,7 +7064,7 @@ The overall heat-transfer coefficient based on the external area is
 \frac{1}{U} = \frac{D_e}{h_i D_i}
                 + r_f \frac{D_e}{D_i}
                 + \frac{D_e}{2k_t}\ln\frac{D_e}{D_i}
-                + \frac{1}{h_e}
+                + \frac{1}{h_e}\tag{163}
 \]
 
 
@@ -7069,7 +7077,7 @@ where $r_f$ (m$^2$ K W$^{-1}$) is the tube-side fouling resistance and $k_t$
 <a id="eq:ac_area"></a>
 
 \[
-A = N_{\mathrm{tubes}}\,\pi D_e (L - 2D_e)
+A = N_{\mathrm{tubes}}\,\pi D_e (L - 2D_e)\tag{164}
 \]
 
 
@@ -7081,7 +7089,7 @@ When $UA$ is specified, the outlet temperatures are found from the number of tra
 <a id="eq:ac_ntu"></a>
 
 \[
-P = \frac{1 - \exp[(R-1)\,NTU]}{1 - R\exp[(R-1)\,NTU]}
+P = \frac{1 - \exp[(R-1)\,NTU]}{1 - R\exp[(R-1)\,NTU]}\tag{165}
 \]
 
 
@@ -7175,7 +7183,7 @@ The evaporation path is divided into $N_{\mathrm{steps}}$ intervals. At each ste
 <a id="eq:ffe_dQ"></a>
 
 \[
-\delta Q_i = \dot{m}\,(h_i - h_{i-1})
+\delta Q_i = \dot{m}\,(h_i - h_{i-1})\tag{166}
 \]
 
 
@@ -7186,7 +7194,7 @@ and the total heat duty is
 
 \[
 Q = \sum_{i=1}^{N_{\mathrm{steps}}} \delta Q_i
-      = \dot{m}\,(h_{\mathrm{out}} - h_{\mathrm{in}})
+      = \dot{m}\,(h_{\mathrm{out}} - h_{\mathrm{in}})\tag{167}
 \]
 
 
@@ -7196,7 +7204,7 @@ The pressure decreases linearly along the tube length:
 <a id="eq:ffe_P"></a>
 
 \[
-P_i = P_{\mathrm{in}} - \frac{\Delta P_{\mathrm{tube}}}{N_{\mathrm{steps}}}\,i
+P_i = P_{\mathrm{in}} - \frac{\Delta P_{\mathrm{tube}}}{N_{\mathrm{steps}}}\,i\tag{168}
 \]
 
 
@@ -7210,8 +7218,9 @@ After integration, the outlet stream is split at the exit vapour mass fraction $
 \[
 \begin{align}
     \dot{m}_{\mathrm{vapour}} &= \dot{m}\,\psi_v
-    \\
+    \tag{169}\\
     \dot{m}_{\mathrm{liquid}} &= \dot{m}\,(1 - \psi_v)
+    \tag{170}
 \end{align}
 \]
 
@@ -7255,7 +7264,7 @@ Up to 6 energy inlets; 1 energy outlet.
 <a id="eq:emix"></a>
 
 \[
-\dot{E}_{\mathrm{out}} = \sum_{i=1}^{N} \dot{E}_i
+\dot{E}_{\mathrm{out}} = \sum_{i=1}^{N} \dot{E}_i\tag{171}
 \]
 
 
@@ -7279,7 +7288,7 @@ The **Energy Splitter** divides one inlet energy stream into up to three outlet 
 <a id="eq:esplit_ratio"></a>
 
 \[
-\dot{E}_i = r_i\,\dot{E}_{\mathrm{in}}
+\dot{E}_i = r_i\,\dot{E}_{\mathrm{in}}\tag{172}
 \]
 
 
@@ -7295,6 +7304,7 @@ The **Energy Splitter** divides one inlet energy stream into up to three outlet 
                   \dot{E}_3 &= \dot{E}_{\mathrm{in}}
                                - \dot{E}_{1,\mathrm{spec}}
                                - \dot{E}_{2,\mathrm{spec}}
+                  \tag{173}
     \end{align}
 \]
 
@@ -7338,7 +7348,7 @@ The routing rule is:
         0 & \text{otherwise}
     \end{cases}
     \quad
-    \dot{E}_{\mathrm{out\,2}} = \dot{E}_{\mathrm{in}} - \dot{E}_{\mathrm{out\,1}}
+    \dot{E}_{\mathrm{out\,2}} = \dot{E}_{\mathrm{in}} - \dot{E}_{\mathrm{out\,1}}\tag{174}
 \]
 
 
@@ -7390,7 +7400,7 @@ The **Material Stream Switch** routes an inlet material stream to one of two out
     \text{Outlet 2} \leftarrow \begin{cases}
         \text{zero flow}    & \text{if expression is TRUE} \\
         \text{inlet stream} & \text{otherwise}
-    \end{cases}
+    \end{cases}\tag{175}
 \]
 
 
@@ -7445,7 +7455,7 @@ The **Material Stream Mapper** copies an inlet material stream to an outlet stre
                       \dot{n}_{c,\mathrm{spec}} M_c & \text{(Molar Flow mode)} \\
                       \dot{m}_c^{\mathrm{in}} \times v_c/100 &
                                   \text{(Percentage of Source mode)}
-                  \end{cases}
+                  \end{cases}\tag{176}
 \]
 
 
@@ -7460,7 +7470,7 @@ The **Material Stream Mapper** copies an inlet material stream to an outlet stre
 \dot{m}_{c_2}^{\mathrm{out}} \mathrel{+}=
                       \dot{m}_{c_1}^{\mathrm{in}},
                   \qquad
-                  \dot{m}_{c_1}^{\mathrm{out}} = 0
+                  \dot{m}_{c_1}^{\mathrm{out}} = 0\tag{177}
 \]
 
 
@@ -7511,7 +7521,7 @@ The outlet stream is a direct copy of the inlet stream ($\text{outlet} \leftarro
 
 1.  **Air Cooler 2, pure-air assumption**: the cold-side fluid is treated as 100 % air using the Raoult property package. Humid air or alternative cooling media are not supported.
 
-2.  **Air Cooler 2, no fin model**: the current model computes the bare-tube external surface area (Eq. [§](#eq:ac_area)) and does not account for extended surfaces (fins). Users with finned tubes should apply an equivalent fin-efficiency correction to $A$ externally.
+2.  **Air Cooler 2, no fin model**: the current model computes the bare-tube external surface area (Eq. [164](#eq:ac_area)) and does not account for extended surfaces (fins). Users with finned tubes should apply an equivalent fin-efficiency correction to $A$ externally.
 
 3.  **Air Cooler 2, cross-flow correction**: the correction factor $F$ is derived for a one-shell, two-tube-pass arrangement. Other configurations require manual adjustment of $F$.
 
@@ -7570,12 +7580,12 @@ Every rate constant is of the Arrhenius form $k = A\,\exp(-E/RT)$, with the pre-
 \[
 \begin{align}
     \text{Initiation:}    &\quad \ce{I ->[k_d] 2R^{.}}, \qquad
-                                  \ce{R^{.} + M ->[k_i] P_1^{.}} \\
-    \text{Propagation:}   &\quad \ce{P_n^{.} + M ->[k_p] P_{n+1}^{.}} \\
+                                  \ce{R^{.} + M ->[k_i] P_1^{.}} \tag{178}\\
+    \text{Propagation:}   &\quad \ce{P_n^{.} + M ->[k_p] P_{n+1}^{.}} \tag{179}\\
     \text{Termination:}   &\quad \ce{P_n^{.} + P_m^{.} ->[k_{tc}] D_{n+m}}, \quad
-                                  \ce{P_n^{.} + P_m^{.} ->[k_{td}] D_n + D_m} \\
+                                  \ce{P_n^{.} + P_m^{.} ->[k_{td}] D_n + D_m} \tag{180}\\
     \text{Transfer:}      &\quad \ce{P_n^{.} + M ->[k_{trM}] D_n + P_1^{.}}, \quad
-                                  \ce{P_n^{.} + S ->[k_{trS}] D_n + P_1^{.}}
+                                  \ce{P_n^{.} + S ->[k_{trS}] D_n + P_1^{.}} \tag{181}
 \end{align}
 \]
 
@@ -7590,7 +7600,7 @@ The live-radical concentration is obtained from the quasi-steady-state assumptio
 <a id="eq:poly_mu0"></a>
 
 \[
-\mu_0 = \sqrt{\frac{f\,k_d\,[I]}{k_t}}
+\mu_0 = \sqrt{\frac{f\,k_d\,[I]}{k_t}}\tag{182}
 \]
 
 
@@ -7604,7 +7614,7 @@ In a perfectly mixed reactor of volume $V$ fed at volumetric rate $Q$, the resid
 <a id="eq:poly_initiator"></a>
 
 \[
-[I] = \frac{[I]_{\mathrm{in}}}{1 + k_d\,\theta}
+[I] = \frac{[I]_{\mathrm{in}}}{1 + k_d\,\theta}\tag{183}
 \]
 
 
@@ -7618,7 +7628,7 @@ and the monomer, consumed by propagation and transfer to monomer, follows
     \qquad
     X = 1 - \frac{[M]}{[M]_{\mathrm{in}}},
     \qquad
-    R_p = k_p\,\mu_0\,[M]
+    R_p = k_p\,\mu_0\,[M]\tag{184}
 \]
 
 
@@ -7634,7 +7644,7 @@ With the most-probable closure (exact in the long-chain limit), the live moments
 \[
 \alpha = \frac{k_p\,[M]}{k_p\,[M] + \Psi},
     \qquad
-    \Psi = k_t\,\mu_0 + k_{trM}\,[M] + k_{trS}\,[S]
+    \Psi = k_t\,\mu_0 + k_{trM}\,[M] + k_{trS}\,[S]\tag{185}
 \]
 
 
@@ -7646,7 +7656,7 @@ where $\Psi$ is the total chain-stopping rate. The first two live moments are
 \[
 \mu_1 = \frac{\mu_0}{1-\alpha},
     \qquad
-    \mu_2 = \frac{\mu_0\,(1+\alpha)}{(1-\alpha)^2}
+    \mu_2 = \frac{\mu_0\,(1+\alpha)}{(1-\alpha)^2}\tag{186}
 \]
 
 
@@ -7658,10 +7668,11 @@ The dead chains are generated by termination and transfer. Writing the transfer 
 \[
 \begin{align}
     G_0 &= \tau\,\mu_0 + \left(k_{td} + \tfrac{1}{2}k_{tc}\right)\mu_0^2
-    \\
+    \tag{187}\\
     G_1 &= \tau\,\mu_1 + k_t\,\mu_0\,\mu_1
-    \\
+    \tag{188}\\
     G_2 &= \tau\,\mu_2 + k_t\,\mu_0\,\mu_2 + k_{tc}\,\mu_1^2
+    \tag{189}
 \end{align}
 \]
 
@@ -7672,7 +7683,7 @@ The $\tfrac{1}{2}k_{tc}$ factor in $G_0$ counts one dead chain per combination e
 <a id="eq:poly_deadmoments"></a>
 
 \[
-\lambda_k = \theta\,G_k
+\lambda_k = \theta\,G_k\tag{190}
 \]
 
 
@@ -7686,7 +7697,7 @@ M_n = M_0\,\frac{\lambda_1}{\lambda_0},
     \qquad
     M_w = M_0\,\frac{\lambda_2}{\lambda_1},
     \qquad
-    \mathrm{PDI} = \frac{\lambda_0\,\lambda_2}{\lambda_1^2}
+    \mathrm{PDI} = \frac{\lambda_0\,\lambda_2}{\lambda_1^2}\tag{191}
 \]
 
 
@@ -7702,7 +7713,7 @@ With a second monomer the reactor uses the terminal model, in which the reactivi
 \[
 r_1 = \frac{k_{p,11}}{k_{p,12}},
     \qquad
-    r_2 = \frac{k_{p,22}}{k_{p,21}}
+    r_2 = \frac{k_{p,22}}{k_{p,21}}\tag{192}
 \]
 
 
@@ -7712,7 +7723,7 @@ The fraction of radicals ending in monomer 1 follows from the steady state on t
 <a id="eq:poly_phi"></a>
 
 \[
-\phi_1 = \frac{k_{p,21}\,[M_1]}{k_{p,21}\,[M_1] + k_{p,12}\,[M_2]}
+\phi_1 = \frac{k_{p,21}\,[M_1]}{k_{p,21}\,[M_1] + k_{p,12}\,[M_2]}\tag{193}
 \]
 
 
@@ -7723,11 +7734,11 @@ and the instantaneous copolymer composition is the Mayo-Lewis equation
 
 \[
 F_1 = \frac{r_1 f_1^2 + f_1 f_2}
-               {r_1 f_1^2 + 2 f_1 f_2 + r_2 f_2^2}
+               {r_1 f_1^2 + 2 f_1 f_2 + r_2 f_2^2}\tag{194}
 \]
 
 
-where $f_i = [M_i]/([M_1]+[M_2])$ is the monomer mole fraction and $F_1$ is the mole fraction of monomer 1 in the copolymer formed. The reactor recovers $F_1$ directly from the monomer consumption rates, so it is identical to Eq. [§](#eq:poly_mayolewis) by construction.
+where $f_i = [M_i]/([M_1]+[M_2])$ is the monomer mole fraction and $F_1$ is the mole fraction of monomer 1 in the copolymer formed. The reactor recovers $F_1$ directly from the monomer consumption rates, so it is identical to Eq. [194](#eq:poly_mayolewis) by construction.
 
 ###### Molar mass by the pseudo-kinetic method
 
@@ -7737,11 +7748,11 @@ The molar-mass averages are obtained by treating the copolymerization as a homop
 <a id="eq:poly_mbar"></a>
 
 \[
-\bar{M} = F_1\,M_{0,1} + (1 - F_1)\,M_{0,2}
+\bar{M} = F_1\,M_{0,1} + (1 - F_1)\,M_{0,2}\tag{195}
 \]
 
 
-Equations [§](#eq:poly_alpha)–[§](#eq:poly_mnmw) then apply with $k_p \to \bar{k}_p$, $M_0 \to \bar{M}$, and the transfer terms built from the averaged constants. The reactivity ratios are unchanged by chain transfer and by the gel effect, so the composition and the molar mass are decoupled: the composition always follows Eq. [§](#eq:poly_mayolewis), while transfer and the gel effect act only on the chain length.
+Equations [185](#eq:poly_alpha)–[191](#eq:poly_mnmw) then apply with $k_p \to \bar{k}_p$, $M_0 \to \bar{M}$, and the transfer terms built from the averaged constants. The reactivity ratios are unchanged by chain transfer and by the gel effect, so the composition and the molar mass are decoupled: the composition always follows Eq. [194](#eq:poly_mayolewis), while transfer and the gel effect act only on the chain length.
 
 ##### Gel (Trommsdorff) Effect {#sec:poly_gel}
 
@@ -7751,7 +7762,7 @@ At high conversion the medium thickens and chain termination becomes diffusion-c
 <a id="eq:poly_gel"></a>
 
 \[
-g(X) = \exp\!\left[-\left(c_1 X + c_2 X^2 + c_3 X^3\right)\right]
+g(X) = \exp\!\left[-\left(c_1 X + c_2 X^2 + c_3 X^3\right)\right]\tag{196}
 \]
 
 
@@ -7759,13 +7770,13 @@ so that $k_t(X) = k_{t,0}\,g_t(X)$ and $k_p(X) = k_{p,0}\,g_p(X)$. Because the f
 
 ##### Plug-Flow and Batch Operation {#sec:poly_pfr}
 
-A plug-flow reactor (equivalently a batch reactor, with the residence time read as the reaction time) is not perfectly mixed in the direction of flow, so the composition *drifts* as conversion builds. The monomer, initiator, dead-chain moment, and incorporated-monomer balances are integrated along the residence time by a fourth-order Runge-Kutta method, with the instantaneous kinetics of Sections [2.44.4](#sec:poly_cstr) and [2.44.5](#sec:poly_copolymer) evaluated pointwise. The reactor reports both the *instantaneous* composition (the Mayo-Lewis value at the local monomer ratio, which moves along the reactor) and the *cumulative* composition (the average over all polymer formed),
+A plug-flow reactor (equivalently a batch reactor, with the residence time read as the reaction time) is not perfectly mixed in the direction of flow, so the composition *drifts* as conversion builds. The monomer, initiator, dead-chain moment, and incorporated-monomer balances are integrated along the residence time by a fourth-order Runge-Kutta method, with the instantaneous kinetics of Sections [Steady-State CSTR](#sec:poly_cstr) and [Binary Copolymerization (Terminal Model)](#sec:poly_copolymer) evaluated pointwise. The reactor reports both the *instantaneous* composition (the Mayo-Lewis value at the local monomer ratio, which moves along the reactor) and the *cumulative* composition (the average over all polymer formed),
 
 
 <a id="eq:poly_cumcomp"></a>
 
 \[
-F_1^{\mathrm{cum}} = \frac{\Psi_1}{\Psi_1 + \Psi_2}
+F_1^{\mathrm{cum}} = \frac{\Psi_1}{\Psi_1 + \Psi_2}\tag{197}
 \]
 
 
@@ -7787,11 +7798,11 @@ The heat released by polymerization is proportional to the monomer converted,
 <a id="eq:poly_qgen"></a>
 
 \[
-\dot{Q}_{\mathrm{gen}} = \dot{n}_{\mathrm{conv}}\,(-\Delta H_p)
+\dot{Q}_{\mathrm{gen}} = \dot{n}_{\mathrm{conv}}\,(-\Delta H_p)\tag{198}
 \]
 
 
-where $\dot{n}_{\mathrm{conv}}$ is the molar rate of monomer added to chains (both monomers in copolymer mode) and $\Delta H_p < 0$ is the heat of polymerization per mole of monomer. In isothermal or outlet-temperature operation the duty holds the reactor at the set temperature, $\dot{Q} = \dot{m}\,c_p\,(T_r - T_{\mathrm{in}}) - \dot{Q}_{\mathrm{gen}}$ (negative when heat is removed, the usual case for an exothermic polymerization). In adiabatic operation no heat is removed and the temperature rise and the conversion are coupled through Eq. [§](#eq:poly_qgen) and the Arrhenius constants; they are solved together to a fixed point.
+where $\dot{n}_{\mathrm{conv}}$ is the molar rate of monomer added to chains (both monomers in copolymer mode) and $\Delta H_p < 0$ is the heat of polymerization per mole of monomer. In isothermal or outlet-temperature operation the duty holds the reactor at the set temperature, $\dot{Q} = \dot{m}\,c_p\,(T_r - T_{\mathrm{in}}) - \dot{Q}_{\mathrm{gen}}$ (negative when heat is removed, the usual case for an exothermic polymerization). In adiabatic operation no heat is removed and the temperature rise and the conversion are coupled through Eq. [198](#eq:poly_qgen) and the Arrhenius constants; they are solved together to a fixed point.
 
 ###### Mass balance
 
@@ -7826,13 +7837,13 @@ Each constant is entered as a pre-exponential $A$ and an activation energy $E$: 
 
 ###### Gel effect and distribution
 
-The gel model is off by default. When enabled, the termination coefficients $c_1$, $c_2$, $c_3$ (and optionally the propagation coefficients) of Eq. [§](#eq:poly_gel) are supplied by the user. The distribution emission is controlled by the number of cuts and the distribution shape.
+The gel model is off by default. When enabled, the termination coefficients $c_1$, $c_2$, $c_3$ (and optionally the propagation coefficients) of Eq. [196](#eq:poly_gel) are supplied by the user. The distribution emission is controlled by the number of cuts and the distribution shape.
 
 ##### Assumptions and Limitations
 
 1.  **Homogeneous, isothermal medium**: the reactor contents are a single well-mixed phase (CSTR, semibatch, dynamic) or a plug-flow stream (PFR), at a uniform temperature. Emulsion, suspension, and precipitation polymerizations are not represented.
 
-2.  **Quasi-steady-state radicals**: the live-radical population follows Eq. [§](#eq:poly_mu0); the radical lifetime is assumed far shorter than the reactor or step time.
+2.  **Quasi-steady-state radicals**: the live-radical population follows Eq. [182](#eq:poly_mu0); the radical lifetime is assumed far shorter than the reactor or step time.
 
 3.  **Long-chain / most-probable closure**: the live-radical moments are closed with the most-probable distribution, exact in the long-chain limit.
 
@@ -7840,7 +7851,7 @@ The gel model is off by default. When enabled, the termination coefficients $c_1
 
 5.  **Constant density**: the volumetric flow (and, in semibatch, the holdup volume) are additive in the feed; volume change on reaction is neglected.
 
-6.  **Empirical gel effect**: the gel and glass factors are an empirical correlation in conversion (Eq. [§](#eq:poly_gel)); the coefficients are system-specific and must be fitted to data.
+6.  **Empirical gel effect**: the gel and glass factors are an empirical correlation in conversion (Eq. [196](#eq:poly_gel)); the coefficients are system-specific and must be fitted to data.
 
 ##### Numerical Solution Procedure
 
@@ -7850,15 +7861,15 @@ The gel model is off by default. When enabled, the termination coefficients $c_1
 
 3.  Solve the kinetics at $T_r$:
 
-    1.  *CSTR:* the closed-form balances (Eqs. [§](#eq:poly_initiator)–[§](#eq:poly_deadmoments)), with an outer fixed point for the gel factors and, in copolymer mode, an inner iteration for the coupled monomer balances.
+    1.  *CSTR:* the closed-form balances (Eqs. [183](#eq:poly_initiator)–[190](#eq:poly_deadmoments)), with an outer fixed point for the gel factors and, in copolymer mode, an inner iteration for the coupled monomer balances.
 
     2.  *PFR / batch:* integrate the balances along the residence time by Runge-Kutta.
 
     3.  *Semibatch / dynamic:* integrate the total-amount balances in time, adding the feed each step.
 
-4.  Form $M_n$, $M_w$, PDI (Eq. [§](#eq:poly_mnmw)) and, in copolymer mode, the composition (Eq. [§](#eq:poly_mayolewis) or [§](#eq:poly_cumcomp)).
+4.  Form $M_n$, $M_w$, PDI (Eq. [191](#eq:poly_mnmw)) and, in copolymer mode, the composition (Eq. [194](#eq:poly_mayolewis) or [197](#eq:poly_cumcomp)).
 
-5.  Apply the energy balance (Eq. [§](#eq:poly_qgen)) and set the heat duty.
+5.  Apply the energy balance (Eq. [198](#eq:poly_qgen)) and set the heat duty.
 
 6.  Write the outlet: unreacted monomer(s) and initiator, plus the polymer (the reacted monomer and the consumed initiator, and any feed polymer at its own mass) as a lumped compound at $M_n$ or as the emitted distribution.
 
@@ -7910,7 +7921,7 @@ and, with the **Rigorous Energy Balance (UV)** property on, the internal energy 
 U_{1} = m_{0}\,h_{0} - P_{0}\,V
             + \sum_{\text{in}} \dot{m}_{i} h_{i}\,\Delta t
             - \sum_{\text{out}} \dot{m}_{o} h_{o}\,\Delta t
-            + Q\,\Delta t .
+            + Q\,\Delta t .\tag{199}
 \]
 
 
@@ -7935,7 +7946,7 @@ The blowdown valve is a Valve block in $K_v$ mode with the **Use Orifice Flow** 
 G(P_{t}) = \frac{\sqrt{2\,\left[h_{0} - h(P_{t}, s_{0})\right]}}
                     {v(P_{t}, s_{0})} ,
     \qquad
-    \dot{m} = C_d\,\frac{\pi d^{2}}{4}\,\max_{P_{2} \le P_{t} \le P_{1}} G(P_{t}) ,
+    \dot{m} = C_d\,\frac{\pi d^{2}}{4}\,\max_{P_{2} \le P_{t} \le P_{1}} G(P_{t}) ,\tag{200}
 \]
 
 
@@ -7955,7 +7966,7 @@ A still vessel has no forced convection, so the film coefficients are those of t
 \[
 \mathrm{Nu} = 0.13\,(\mathrm{Gr}\,\mathrm{Pr})^{1/3}
     \quad \Rightarrow \quad
-    h = 0.13\,k\left(\frac{g\,\beta\,|T_{w} - T|\,\rho^{2}}{\mu^{2}}\,\mathrm{Pr}\right)^{1/3} ,
+    h = 0.13\,k\left(\frac{g\,\beta\,|T_{w} - T|\,\rho^{2}}{\mu^{2}}\,\mathrm{Pr}\right)^{1/3} ,\tag{201}
 \]
 
 
@@ -7967,7 +7978,7 @@ In the fire case the heat absorbed by the liquid follows API 521 ,
 <a id="eq:blowdown_fire"></a>
 
 \[
-Q_{\text{fire}} = C\,F\,A_{w}^{0.82} ,
+Q_{\text{fire}} = C\,F\,A_{w}^{0.82} ,\tag{202}
 \]
 
 
@@ -8001,7 +8012,7 @@ With the wall switched off, the content of a blowdown must stay on the isentrope
 
 ###### Nitrogen blowdown of Haque et al. {#nitrogen-blowdown-of-haque-et-al.}
 
-Haque, Richardson, Saville, Chamberlain and Shirvill blew down nitrogen from 150 bar and about 20 $^{\circ}$C in a 0.273 m ID $\times$ 1.524 m vertical vessel with a 25 mm carbon steel wall through a 6.35 mm top orifice; the record is redrawn in the review of Shafiq et al. , Fig. 5b, as changes from the initial temperature. Table [10](#tab:blowdown_haque) compares the run with the figure. The wall is reproduced, the pressure is reproduced, and the gas minimum comes out 15 to 20 K warmer than measured with the natural-convection coefficient as estimated; a factor of 0.6 to 0.7 on the coefficient reproduces the measured gas curve, which is why the factor is exposed. The adiabatic bound is given for reference.
+Haque, Richardson, Saville, Chamberlain and Shirvill blew down nitrogen from 150 bar and about 20 $^{\circ}$C in a 0.273 m ID $\times$ 1.524 m vertical vessel with a 25 mm carbon steel wall through a 6.35 mm top orifice; the record is redrawn in the review of Shafiq et al. , Fig. 5b, as changes from the initial temperature. Table [9](#tab:blowdown_haque) compares the run with the figure. The wall is reproduced, the pressure is reproduced, and the gas minimum comes out 15 to 20 K warmer than measured with the natural-convection coefficient as estimated; a factor of 0.6 to 0.7 on the coefficient reproduces the measured gas curve, which is why the factor is exposed. The adiabatic bound is given for reference.
 
 
 
@@ -8016,13 +8027,13 @@ Haque, Richardson, Saville, Chamberlain and Shirvill blew down nitrogen from 150
 | Inner wall temperature drop | 5.5 K | 4 K | 2.6 K | 0 |
 | Time to atmospheric pressure | $\approx$<!-- -->100 s | 2 bar at 82 s, 1 bar at 100 s | 2 bar at 84 s | 2 bar at 78 s |
 
-Nitrogen blowdown of Haque et al. : 150 bar, 6.35 mm orifice, 0.0892 m$^3$, 25 mm wall.
+Table 9: Nitrogen blowdown of Haque et al. : 150 bar, 6.35 mm orifice, 0.0892 m$^3$, 25 mm wall.
 
 
 
 ###### CO$_2$ blowdown of Fredenhagen and Eggers
 
-Fredenhagen and Eggers blew down CO$_2$ with a nitrogen impurity from a top-vented, liquid-full 0.05 m$^3$ vessel (0.242 m ID) at 14 MPa and 298 K through a 17 mm$^2$ orifice; pressure and temperature transients are redrawn in , Figs. 10 and 11. The nitrogen content is not given in the review and was inferred from the kink of the pressure record at 8 MPa, the end of the liquid-full stage: 6 mol% gives a bubble pressure of 7.3 MPa at 286 K, and the Peng-Robinson bubble curve ends between 7 and 8 % at that temperature. The vessel was run with a 25 mm carbon steel wall and $C_d = 0.8$. Table [11](#tab:blowdown_co2) gives the comparison for pure CO$_2$ and for the inferred mixture. The two-phase stage, which is the one of interest, is reproduced within 0.5 MPa and 5 K to 100 s. The duration of the liquid-full stage is right for pure CO$_2$ and too short for the mixture, whose dense phase Peng-Robinson makes too compressible near the critical locus; at the end of the run the mixture cools too fast as it approaches the triple point of CO$_2$, which the model does not represent.
+Fredenhagen and Eggers blew down CO$_2$ with a nitrogen impurity from a top-vented, liquid-full 0.05 m$^3$ vessel (0.242 m ID) at 14 MPa and 298 K through a 17 mm$^2$ orifice; pressure and temperature transients are redrawn in , Figs. 10 and 11. The nitrogen content is not given in the review and was inferred from the kink of the pressure record at 8 MPa, the end of the liquid-full stage: 6 mol% gives a bubble pressure of 7.3 MPa at 286 K, and the Peng-Robinson bubble curve ends between 7 and 8 % at that temperature. The vessel was run with a 25 mm carbon steel wall and $C_d = 0.8$. Table [10](#tab:blowdown_co2) gives the comparison for pure CO$_2$ and for the inferred mixture. The two-phase stage, which is the one of interest, is reproduced within 0.5 MPa and 5 K to 100 s. The duration of the liquid-full stage is right for pure CO$_2$ and too short for the mixture, whose dense phase Peng-Robinson makes too compressible near the critical locus; at the end of the run the mixture cools too fast as it approaches the triple point of CO$_2$, which the model does not represent.
 
 
 
@@ -8037,13 +8048,13 @@ Fredenhagen and Eggers blew down CO$_2$ with a nitrogen impurity from a top-vent
 | Temperature at 20 / 40 / 80 s, K | 277 / 270 / 255 | 279 / 271 / 257 | 275 / 266 / 251 |
 | Temperature at 150 s, K | 236 | 241 | 225 |
 
-CO$_2$ blowdown of Fredenhagen and Eggers : 0.05 m$^3$, 14 MPa, 298 K, 17 mm$^2$ orifice, liquid-full.
+Table 10: CO$_2$ blowdown of Fredenhagen and Eggers : 0.05 m$^3$, 14 MPa, 298 K, 17 mm$^2$ orifice, liquid-full.
 
 
 
 ###### Ethylene hole flows of Saville, Richardson and Barker
 
-Saville, Richardson and Barker computed with the BLOWDOWN program the flow of ethylene at 10 $^{\circ}$C from a pipeline through 10 and 50 mm holes to the atmosphere, with the fluid supercritical (90, 79, 69 and 59.6 bar) or gaseous (44 and 28 bar), and found the hole choked even for the all-liquid dense phase, at a throat pressure of 41 to 45 bar, far above the ideal-gas critical ratio. These are predictions of a homogeneous-equilibrium model, not measurements, so the comparison in Table [12](#tab:blowdown_ethylene) is between two implementations of the same physics. The orifice model of equation ([§](#eq:blowdown_hem)) with $C_d = 1$ reproduces the flows within 8 % for the dense phase and 3 % for the gas, and the dense-phase throat within 4 bar. The model runs 3 to 8 % high in the dense phase, consistent with the Peng-Robinson density at 90 bar (367 kg/m$^3$, some 6 % below the real value). In the gas cases the flux curve is bimodal, with a gas-side maximum near 27 bar and a two-phase one near 15 bar of the same height; the paper reports the two-phase one.
+Saville, Richardson and Barker computed with the BLOWDOWN program the flow of ethylene at 10 $^{\circ}$C from a pipeline through 10 and 50 mm holes to the atmosphere, with the fluid supercritical (90, 79, 69 and 59.6 bar) or gaseous (44 and 28 bar), and found the hole choked even for the all-liquid dense phase, at a throat pressure of 41 to 45 bar, far above the ideal-gas critical ratio. These are predictions of a homogeneous-equilibrium model, not measurements, so the comparison in Table [11](#tab:blowdown_ethylene) is between two implementations of the same physics. The orifice model of equation ([200](#eq:blowdown_hem)) with $C_d = 1$ reproduces the flows within 8 % for the dense phase and 3 % for the gas, and the dense-phase throat within 4 bar. The model runs 3 to 8 % high in the dense phase, consistent with the Peng-Robinson density at 90 bar (367 kg/m$^3$, some 6 % below the real value). In the gas cases the flux curve is bimodal, with a gas-side maximum near 27 bar and a two-phase one near 15 bar of the same height; the paper reports the two-phase one.
 
 
 
@@ -8062,13 +8073,13 @@ Saville, Richardson and Barker computed with the BLOWDOWN program the flow of et
 | 90 | 50 | dense | 114 | 118 | +3.6 % | 45.4 | 37.8 |
 | 44 | 50 | gas | 24 | 24.4 | +1.7 % | 17.7 | 27.4 |
 
-Ethylene at 283 K through a hole to the atmosphere, $C_d = 1$: BLOWDOWN predictions against the orifice model. $\dot{m}$ is the mass flow and $P_t$ the throat pressure.
+Table 11: Ethylene at 283 K through a hole to the atmosphere, $C_d = 1$: BLOWDOWN predictions against the orifice model. $\dot{m}$ is the mass flow and $P_t$ the throat pressure.
 
 
 
 ###### LPG pipeline blowdown of Richardson and Saville
 
-Richardson and Saville compared BLOWDOWN with the Isle of Grain tests, in which 100 m lines full of LPG (95 mol% propane, 5 % butane) were blown down through orifices at their end. Test P47 used the 154 mm ID line (7.3 mm wall, 1.86 m$^3$) at 21.3 bar and 14.6 $^{\circ}$C, ambient 15.4 $^{\circ}$C, with a 50 mm nominal orifice for which the paper adopts an equivalent diameter of 70.4 mm and $C_d = 0.80$. The orifice is small against the bore, and the paper notes that the open- and closed-end pressures nearly coincide in this test, so the line can be treated as a vessel. BLOWDOWN takes the flow along the line as homogeneous two-phase, and Table [13](#tab:blowdown_lpg) compares the measured record (Fig. 4 of the paper, closed end) with the model run the same way, the outlet taking the bulk quality, and with the stratified run in which the hole passes the phase at its level. The homogeneous run follows the measurement to about 60 s, within 0.6 bar, 3 K and 0.07 t; it then empties the line, as the BLOWDOWN prediction also did, whereas the measured inventory keeps a residual of about 0.1 t because the orifice acts as a dam, and the measured pressure and temperature tail off more slowly. The stratified run holds the liquid back below the hole and lets the pressure fall too fast, which is why the homogeneous option exists.
+Richardson and Saville compared BLOWDOWN with the Isle of Grain tests, in which 100 m lines full of LPG (95 mol% propane, 5 % butane) were blown down through orifices at their end. Test P47 used the 154 mm ID line (7.3 mm wall, 1.86 m$^3$) at 21.3 bar and 14.6 $^{\circ}$C, ambient 15.4 $^{\circ}$C, with a 50 mm nominal orifice for which the paper adopts an equivalent diameter of 70.4 mm and $C_d = 0.80$. The orifice is small against the bore, and the paper notes that the open- and closed-end pressures nearly coincide in this test, so the line can be treated as a vessel. BLOWDOWN takes the flow along the line as homogeneous two-phase, and Table [12](#tab:blowdown_lpg) compares the measured record (Fig. 4 of the paper, closed end) with the model run the same way, the outlet taking the bulk quality, and with the stratified run in which the hole passes the phase at its level. The homogeneous run follows the measurement to about 60 s, within 0.6 bar, 3 K and 0.07 t; it then empties the line, as the BLOWDOWN prediction also did, whereas the measured inventory keeps a residual of about 0.1 t because the orifice acts as a dam, and the measured pressure and temperature tail off more slowly. The stratified run holds the liquid back below the hole and lets the pressure fall too fast, which is why the homogeneous option exists.
 
 
 
@@ -8077,7 +8088,7 @@ Richardson and Saville compared BLOWDOWN with the Isle of Grain tests, in which 
 
 
 <table>
-<caption>Isle of Grain test P47 <span class="citation" data-cites="Richardson1996"></span>: LPG, 21.3 bar, 14.6 <span class="math inline">\(^{\circ}\)</span>C, 70.4 mm equivalent orifice, <span class="math inline">\(C_d = 0.80\)</span>. Closed-end pressure and temperature; inventory in tonnes. The measured pressure at 0 s is the value after the sub-second expansion of the compressed liquid.</caption>
+<caption>Table 12: Isle of Grain test P47 <span class="citation" data-cites="Richardson1996"></span>: LPG, 21.3 bar, 14.6 <span class="math inline">\(^{\circ}\)</span>C, 70.4 mm equivalent orifice, <span class="math inline">\(C_d = 0.80\)</span>. Closed-end pressure and temperature; inventory in tonnes. The measured pressure at 0 s is the value after the sub-second expansion of the compressed liquid.</caption>
 <tbody>
 <tr>
 <td style="text-align: center;">Time (s)</td>
@@ -8420,7 +8431,7 @@ Unless the internals section gives them, the gas diffusivities come from Fuller,
 
 ##### Validation
 
-The tray hydraulics reproduce Example 11.11 of Towler and Sinnott , the bottom plate of an acetone-water column (Table [14](#tab:internals_towler)). The differences come from the chart readings of the book and from its rounding of the areas (the book rounds the net area to 0.44 m$^2$ and the hole area to 0.038 m$^2$).
+The tray hydraulics reproduce Example 11.11 of Towler and Sinnott , the bottom plate of an acetone-water column (Table [13](#tab:internals_towler)). The differences come from the chart readings of the book and from its rounding of the areas (the book rounds the net area to 0.44 m$^2$ and the hole area to 0.038 m$^2$).
 
 
 
@@ -8444,13 +8455,13 @@ The tray hydraulics reproduce Example 11.11 of Towler and Sinnott , the bottom p
 | Entrainment $\psi$                       | 0.018    | 0.016      |
 | Diameter for 85 % flood, m                 | 0.77     | 0.74       |
 
-Sieve plate of Towler and Sinnott Example 11.11: 0.79 m diameter, 0.5 m spacing, 12 % downcomer, 50 mm weir, 5 mm holes at 10 % of the active area; vapour 0.81 kg/s at 0.72 kg/m$^3$, liquid 4.06 kg/s at 954 kg/m$^3$, $\sigma$ = 57 mN/m.
+Table 13: Sieve plate of Towler and Sinnott Example 11.11: 0.79 m diameter, 0.5 m spacing, 12 % downcomer, 50 mm weir, 5 mm holes at 10 % of the active area; vapour 0.81 kg/s at 0.72 kg/m$^3$, liquid 4.06 kg/s at 954 kg/m$^3$, $\sigma$ = 57 mN/m.
 
 
 
 The Kister and Haas transition height matches the first trial of Kister’s sizing example (section 6.5 of ): with 0.5 in holes, a 10 % hole area and 6.45 gpm per inch of weir the water value is 0.937 in in the book and 0.950 in here.
 
-The Billet and Schultes implementation reproduces the worked examples of Seader and Henley (Table [15](#tab:internals_seader)). In Example 6.15 the book prints a holdup of 0.0128 for the 1.5 in Pall-like rings, while its own equations 6-97 and 6-101 with the stated numbers give 0.0182; the transfer units in the table were checked with the book’s holdup so that equations 6-132 and 6-133 are compared on their own.
+The Billet and Schultes implementation reproduces the worked examples of Seader and Henley (Table [14](#tab:internals_seader)). In Example 6.15 the book prints a holdup of 0.0128 for the 1.5 in Pall-like rings, while its own equations 6-97 and 6-101 with the stated numbers give 0.0182; the transfer units in the table were checked with the book’s holdup so that equations 6-132 and 6-133 are compared on their own.
 
 
 
@@ -8471,7 +8482,7 @@ The Billet and Schultes implementation reproduces the worked examples of Seader 
 | Ex. 6.15, $H_L$, $H_G$, m | 0.26, 1.03 | 0.260, 1.031 |
 | Ex. 6.15, $H_{OG}$, HETP, ft | 3.96, 4.73 | 3.97, 4.75 |
 
-Billet and Schultes examples of Seader and Henley.
+Table 14: Billet and Schultes examples of Seader and Henley.
 
 
 

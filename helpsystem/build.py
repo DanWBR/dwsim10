@@ -1465,6 +1465,13 @@ def step_rewrite_paths_and_refs(sections: list[dict], label_map: dict[str, tuple
     # Collect labels emitted as `[]{#name}` or `\\label{name}` from pandoc raw
     # Also reflect every section's own anchor.
     extra_labels: dict[str, tuple[str, str]] = {}
+    # A LyX label may hold spaces ("eq:PVAP LK"); a link to it would not parse as Markdown
+    def _no_spaces(m):
+        return m.group(1) + m.group(2).replace(" ", "-")
+
+    for s in sections:
+        s["body"] = re.sub(r'(\bid="|data-label="|\{#|\]\(#|\\label\{|\\ref\{|reference=")([^"}\)\n]*)',
+                           _no_spaces, s["body"])
     for s in sections:
         if s["anchor"]:
             extra_labels[s["anchor"]] = (_slug_filename(s["nav_idx"], s["title"]), s["anchor"])
@@ -1495,7 +1502,15 @@ def step_rewrite_paths_and_refs(sections: list[dict], label_map: dict[str, tuple
             inner = re.sub(r"\s*\\end\{equation\*?\}$", "", inner)
             # Capture \label{...} so we can emit an HTML anchor for cross-references
             labels = re.findall(r"\\label\{([^}]*)\}", inner)
-            inner = re.sub(r"\\label\{[^}]*\}", "", inner)
+            # A labelled equation gets a \tag with a placeholder that step_number_targets
+            # turns into the equation's number on its page: on its own line in a
+            # multi-line environment, at the end of a single equation.
+            if re.match(r"\\begin\{(align|alignat|eqnarray|gather|multline|flalign)\*?\}", inner.strip()):
+                inner = re.sub(r"\\label\{([^}]*)\}", r"\\tag{@@EQ:\1@@}", inner)
+            else:
+                inner = re.sub(r"\\label\{[^}]*\}", "", inner)
+                if labels:
+                    inner = inner.rstrip() + f"\\tag{{@@EQ:{labels[0]}@@}}"
             inner = re.sub(r"\\(nonumber|notag)\b", "", inner)
             # Collapse blank/whitespace-only lines that would break MathJax
             inner = re.sub(r"\n[ \t]*\n+", "\n", inner)
@@ -1529,6 +1544,17 @@ def step_rewrite_paths_and_refs(sections: list[dict], label_map: dict[str, tuple
             inner = m.group(2)
             id_m = re.search(r'\bid="([^"]+)"', attrs)
             anchor = f'<a id="{id_m.group(1)}"></a>' if id_m else ""
+            if id_m and id_m.group(1).startswith("tab:") and "<caption>" in inner:
+                inner = inner.replace("<caption>", f"<caption>@@TAB:{id_m.group(1)}@@", 1)
+            elif id_m and id_m.group(1).startswith("tab:"):
+                # the caption is the text paragraph of the table float; mark it for
+                # step_number_targets, which writes the table's number in front of it
+                paras = re.split(r"\n[ \t]*\n", inner)
+                caps = [i for i, p in enumerate(paras) if p.strip() and p.strip()[0] not in "|+<-:"]
+                if caps:
+                    i = caps[-1]
+                    paras[i] = f"@@TAB:{id_m.group(1)}@@" + paras[i].lstrip()
+                    inner = "\n\n".join(paras)
             return f"\n\n{anchor}\n\n{inner}\n\n"
 
         body = re.sub(
@@ -1599,7 +1625,12 @@ def step_rewrite_paths_and_refs(sections: list[dict], label_map: dict[str, tuple
             src = _norm_src(src_m.group(1))
             cap = cap_m.group(1).strip() if cap_m else ""
             cap = re.sub(r"\s+", " ", cap)
-            return (f"\n\n{anchor}\n![{cap}]({src})\n\n*{cap}*\n\n" if cap
+            fig_id = id_m.group(1) if id_m else None
+            if not fig_id:
+                lab_m = re.search(r'data-label="(fig:[^"]+)"', inner)
+                fig_id = lab_m.group(1) if lab_m else None
+            mark = f"@@FIG:{fig_id}@@" if fig_id else ""
+            return (f"\n\n{anchor}\n![{cap}]({src})\n\n*{mark}{cap}*\n\n" if cap
                     else f"\n\n{anchor}\n![]({src})\n\n")
 
         body = re.sub(r"<figure[^>]*>(.*?)</figure>", _figure_repl, body, flags=re.DOTALL)
@@ -1678,6 +1709,77 @@ def step_rewrite_paths_and_refs(sections: list[dict], label_map: dict[str, tuple
         body = re.sub(r"\]\(#([^)\s]+)\)", _xpage_repl, body)
 
         s["body"] = body
+
+
+def step_number_targets(sections: list[dict]) -> None:
+    """Number the figures, tables and equations of each page and write those numbers
+    into captions, equation tags and the text of the links that point to them.
+
+    The pages carry no chapter numbers, so the numbers restart on every page. The
+    LaTeX numbers pandoc put in the link texts count across the whole guide and
+    match nothing on the site; a link to a section shows the section's title, a
+    link to a figure, table or equation on another page also names that page."""
+    print("[opt] Numbering figures, tables and equations")
+    kinds = {"FIG": "Figure", "TAB": "Table", "EQ": "Equation"}
+    numbers: dict[tuple[str, str], str] = {}
+    titles: dict[tuple[str, str], str] = {}
+    page_titles: dict[str, str] = {}
+
+    def _clean_title(t: str) -> str:
+        t = re.sub(r"\{#[^}]*\}", "", t)
+        t = re.sub(r"<a id=\"[^\"]*\"></a>", "", t)
+        t = re.sub(r"<span[^>]*>(.*?)</span>", r"\1", t)
+        t = t.replace("**", "")
+        return t.strip()
+
+    for s in sections:
+        f = _slug_filename(s["nav_idx"], s["title"])
+        page_titles[f] = s["title"]
+        counters = {k: 0 for k in kinds}
+
+        def _mark(m):
+            kind, label = m.group(1), m.group(2)
+            key = (f, label)
+            if key not in numbers:
+                counters[kind] += 1
+                numbers[key] = str(counters[kind])
+            if kind == "EQ":
+                return numbers[key]
+            return f"{kinds[kind]} {numbers[key]}: "
+
+        s["body"] = re.sub(r"@@(FIG|TAB|EQ):([^@]+)@@", _mark, s["body"])
+
+        # section titles: anchors on a heading line or on the line just above it
+        pending: list[str] = []
+        for line in s["body"].splitlines():
+            ids = re.findall(r'\bid="([^"]+)"', line) + re.findall(r"\{#([^}\s]+)\}", line)
+            hm = re.match(r"^#{1,6}\s+(.*)$", line)
+            if hm:
+                for a in pending + ids:
+                    titles.setdefault((f, a), _clean_title(hm.group(1)))
+                pending = []
+            elif line.strip():
+                pending = ids if re.fullmatch(r"(\s*<a id=\"[^\"]+\"></a>)+\s*", line) else []
+
+    for s in sections:
+        this_file = _slug_filename(s["nav_idx"], s["title"])
+
+        def _link(m):
+            text, target, anchor = m.group(1), m.group(2), m.group(3)
+            if not (text == "§" or re.fullmatch(r"\d+(\.\d+)*", text)):
+                return m.group(0)
+            f = target or this_file
+            if (f, anchor) in numbers:
+                new = numbers[(f, anchor)]
+                if f != this_file:
+                    new += f" ({page_titles.get(f, '')})"
+            elif (f, anchor) in titles:
+                new = titles[(f, anchor)]
+            else:
+                new = "§"
+            return f"[{new}]({target}#{anchor})"
+
+        s["body"] = re.sub(r"(?<!!)\[([^\[\]]*)\]\(([^)#\s]*)#([^)\s]+)\)", _link, s["body"])
 
 
 def step_write_section_files(sections: list[dict]) -> None:
@@ -2469,6 +2571,7 @@ def main():
         sections, label_map = step_split_sections(md)
         step_copy_images()
         step_rewrite_paths_and_refs(sections, label_map)
+        step_number_targets(sections)
         step_write_section_files(sections)
         step_prune_unreferenced_images()
         step_write_mkdocs_yml(sections)

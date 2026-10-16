@@ -2,7 +2,7 @@
 
 #### Thermal Conductivity
 
-###### *Liquid Phase* {#liquid-phase-2 .unnumbered}
+###### *Liquid Phase* {#liquid-phase-2-.unnumbered}
 
 When experimental data is not available, the contribution of each component for the thermal conductivity of the liquid phase is calculated by the *Latini* method *,*
 
@@ -63,7 +63,7 @@ where
 
 
 
-###### *Vapor Phase* {#vapor-phase-2 .unnumbered}
+###### *Vapor Phase* {#vapor-phase-2-.unnumbered}
 
 When experimental data is not available, vapor phase thermal conductivity is calculated by the *Ely and Hanley* method ,
 

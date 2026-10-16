@@ -39,11 +39,11 @@ w_{c \rightarrow k}
       = \tfrac{1}{2}\!\left[
           \mathrm{erf}\!\left(\frac{T_{b,c} - T_{k-1}}{\sigma\sqrt{2}}\right)
         - \mathrm{erf}\!\left(\frac{T_{b,c} - T_{k}}{\sigma\sqrt{2}}\right)
-        \right]
+        \right]\tag{1}
 \]
 
 
-where $T_{k-1}$ and $T_{k}$ are the lower and upper TBP cut points of product $k$ and $\sigma$ (K) is the cut-point uncertainty. When $\sigma \rightarrow 0$ [§](#eq:cdu_cutweight) reduces to a sharp-cut assignment.
+where $T_{k-1}$ and $T_{k}$ are the lower and upper TBP cut points of product $k$ and $\sigma$ (K) is the cut-point uncertainty. When $\sigma \rightarrow 0$ [1](#eq:cdu_cutweight) reduces to a sharp-cut assignment.
 
 The product mass flow is obtained by summing the cut fractions over all pseudocomponents:
 
@@ -51,7 +51,7 @@ The product mass flow is obtained by summing the cut fractions over all pseudoco
 <a id="eq:cdu_mprod"></a>
 
 \[
-\dot m_k = \sum_{c} w_{c \rightarrow k}\, \dot m_c
+\dot m_k = \sum_{c} w_{c \rightarrow k}\, \dot m_c\tag{2}
 \]
 
 
@@ -63,7 +63,7 @@ Contaminants (S, N, Ni, V, Fe, CCR, asphaltenes) are distributed according to us
 <a id="eq:cdu_contam"></a>
 
 \[
-x_k^{\mathrm{cont}} = f_{\mathrm{cont}}(T_{b,k})
+x_k^{\mathrm{cont}} = f_{\mathrm{cont}}(T_{b,k})\tag{3}
 \]
 
 
@@ -100,7 +100,7 @@ The pseudo-homogeneous sulfur conversion rate is
 <a id="eq:hds_rate"></a>
 
 \[
-r_{\mathrm{S}} = k(T)\, C_{\mathrm{S}}^{\,n}\, P_{\mathrm{H_2}}^{\,m}
+r_{\mathrm{S}} = k(T)\, C_{\mathrm{S}}^{\,n}\, P_{\mathrm{H_2}}^{\,m}\tag{4}
 \]
 
 
@@ -110,20 +110,20 @@ with
 <a id="eq:hds_arrhenius"></a>
 
 \[
-k(T) = k_0\, \exp\!\left(-\frac{E_a}{R T}\right)
+k(T) = k_0\, \exp\!\left(-\frac{E_a}{R T}\right)\tag{5}
 \]
 
 
 where $n$ is the reaction order in sulfur (typically 1.5–2), $m$ is the hydrogen partial-pressure order, $k_0$ is the pre-exponential factor, $E_a$ is the apparent activation energy, $T$ is the reactor temperature, and $C_{\mathrm{S}}$ is the sulfur mass concentration in the liquid phase.
 
-Integrating [§](#eq:hds_rate) over the reactor residence time $\tau = 1/\mathrm{LHSV}$ for $n \ne 1$ gives the sulfur conversion:
+Integrating [4](#eq:hds_rate) over the reactor residence time $\tau = 1/\mathrm{LHSV}$ for $n \ne 1$ gives the sulfur conversion:
 
 
 <a id="eq:hds_conversion"></a>
 
 \[
 X_{\mathrm{S}} = 1 - \left[\,1 + (n-1)\, k\, P_{\mathrm{H_2}}^m
-          \, C_{\mathrm{S,0}}^{\,n-1}\, \tau\,\right]^{-1/(n-1)}
+          \, C_{\mathrm{S,0}}^{\,n-1}\, \tau\,\right]^{-1/(n-1)}\tag{6}
 \]
 
 
@@ -139,7 +139,7 @@ Chemical hydrogen consumption is proportional to the mass of sulfur and (optiona
 \[
 \dot n_{\mathrm{H_2}}^{\mathrm{chem}}
         = \alpha_{\mathrm{S}}\, \dot m_{\mathrm{S,rem}}
-        + \alpha_{\mathrm{N}}\, \dot m_{\mathrm{N,rem}}
+        + \alpha_{\mathrm{N}}\, \dot m_{\mathrm{N,rem}}\tag{7}
 \]
 
 
@@ -183,6 +183,7 @@ The classical Weekman & Nace three-lump formulation tracks gas-oil ($A$), gasoli
     A \xrightarrow{k_1} B, \qquad
     A \xrightarrow{k_3} C, \qquad
     B \xrightarrow{k_2} C
+    \tag{8}
 \end{align}
 \]
 
@@ -196,6 +197,7 @@ Assuming second-order gas-oil cracking and first-order gasoline overcracking, th
 \begin{align}
     \frac{\mathrm d A}{\mathrm d\tau} &= -(k_1 + k_3)\, A^2 \\
     \frac{\mathrm d B}{\mathrm d\tau} &= k_1\, A^2 - k_2\, B
+    \tag{9}
 \end{align}
 \]
 
@@ -212,7 +214,7 @@ When the *Slate* method is selected, product yields $Y_i^0$ at a reference CCR a
 \[
 Y_{\mathrm{coke}} = Y_{\mathrm{coke}}^0 + \beta_{\mathrm{CCR}}
                         \left(\mathrm{CCR}_{\mathrm{feed}}
-                            - \mathrm{CCR}_{\mathrm{ref}}\right)
+                            - \mathrm{CCR}_{\mathrm{ref}}\right)\tag{10}
 \]
 
 
@@ -227,7 +229,7 @@ The coke combustion duty in the regenerator is
 
 \[
 \dot Q_{\mathrm{regen}} = \dot m_{\mathrm{coke}}\,
-                              \Delta H_{\mathrm{coke}}^{\mathrm{comb}}
+                              \Delta H_{\mathrm{coke}}^{\mathrm{comb}}\tag{11}
 \]
 
 
@@ -269,7 +271,7 @@ At the target conversion $X$, the yield of each light cut is
 
 \[
 Y_i = Y_i^{\mathrm{base}}
-         \left( 1 + \gamma_i \left( X - X_{\mathrm{base}} \right) \right)
+         \left( 1 + \gamma_i \left( X - X_{\mathrm{base}} \right) \right)\tag{12}
 \]
 
 
@@ -284,7 +286,7 @@ The net reactor exotherm is
 
 \[
 \dot Q_{\mathrm{rxn}} = - \dot m_{\mathrm{feed}}\, X\,
-                              \Delta H_{\mathrm{conv}}
+                              \Delta H_{\mathrm{conv}}\tag{13}
 \]
 
 
@@ -324,7 +326,7 @@ The coke yield is a linear function of feed Conradson carbon residue (CCR):
 <a id="eq:coker_cokeyield"></a>
 
 \[
-Y_{\mathrm{coke}} = f_{\mathrm{coke}}\,\mathrm{CCR}_{\mathrm{feed}}
+Y_{\mathrm{coke}} = f_{\mathrm{coke}}\,\mathrm{CCR}_{\mathrm{feed}}\tag{14}
 \]
 
 
@@ -339,6 +341,7 @@ Total gas and total naphtha are expressed as
                      + b_{\mathrm{gas}}\,\mathrm{CCR}_{\mathrm{feed}} \\
     Y_{\mathrm{nph}} &= a_{\mathrm{nph}}
                      + b_{\mathrm{nph}}\,\mathrm{CCR}_{\mathrm{feed}}
+    \tag{15}
 \end{align}
 \]
 
@@ -377,7 +380,7 @@ Let $R$ be the target reformate RON and $R_{\mathrm{base}}$ the reference severi
 
 \[
 Y_i = Y_i^{\mathrm{base}}
-        + s_i\,(R - R_{\mathrm{base}}),\qquad i \in \{\mathrm{H_2, LE, Reformate}\}
+        + s_i\,(R - R_{\mathrm{base}}),\qquad i \in \{\mathrm{H_2, LE, Reformate}\}\tag{16}
 \]
 
 
@@ -418,6 +421,7 @@ For each acid gas component $i \in \{\mathrm{H_2S, CO_2}\}$,
                                   \dot n_{i}^{\mathrm{feed}}\\
     \dot n_{i}^{\mathrm{sweet}} &= (1 - X_i^{\mathrm{rem}})\,
                                    \dot n_{i}^{\mathrm{feed}}
+    \tag{17}
 \end{align}
 \]
 
@@ -428,7 +432,7 @@ A small hydrocarbon slip $\phi_{\mathrm{HC}}$ (mol fraction of sweet-gas hydroca
 <a id="eq:amine_circ"></a>
 
 \[
-\dot V_{\mathrm{amine}} = \lambda\, \dot n_{\mathrm{H_2S}}^{\mathrm{acid}}
+\dot V_{\mathrm{amine}} = \lambda\, \dot n_{\mathrm{H_2S}}^{\mathrm{acid}}\tag{18}
 \]
 
 
@@ -466,7 +470,7 @@ The overall Claus reaction is
 
 \[
 3\,\mathrm{H_2S} + \tfrac{3}{2}\,\mathrm{O_2}
-        \rightarrow \tfrac{3}{n}\,\mathrm{S}_n + 3\,\mathrm{H_2O}
+        \rightarrow \tfrac{3}{n}\,\mathrm{S}_n + 3\,\mathrm{H_2O}\tag{19}
 \]
 
 
@@ -477,7 +481,7 @@ The moles of H$_2$S reacted are
 
 \[
 \dot n_{\mathrm{H_2S}}^{\mathrm{rxn}} = X_{\mathrm{rec}}\,
-                                            \dot n_{\mathrm{H_2S}}^{\mathrm{feed}}
+                                            \dot n_{\mathrm{H_2S}}^{\mathrm{feed}}\tag{20}
 \]
 
 
@@ -492,7 +496,7 @@ The reaction releases a user-tuneable heat per mol of H$_2$S reacted $\Delta H_{
 
 \[
 \dot Q_{\mathrm{WHB}} = \dot n_{\mathrm{H_2S}}^{\mathrm{rxn}}\,
-                             \Delta H_{\mathrm{rxn}}
+                             \Delta H_{\mathrm{rxn}}\tag{21}
 \]
 
 
@@ -517,6 +521,7 @@ The outlet mass and enthalpy follow simple conservation:
 \begin{align}
     \dot m_{\mathrm{out}} &= \sum_{j=1}^{n_{\mathrm{inlets}}} \dot m_j \\
     \dot H_{\mathrm{out}} &= \sum_{j=1}^{n_{\mathrm{inlets}}} \dot H_j
+    \tag{22}
 \end{align}
 \]
 
@@ -532,6 +537,7 @@ The outlet pressure is either
         \qquad\text{(mode \textit{Min}, conservative)} \\
     P_{\mathrm{out}} &= \frac{\sum_j \dot m_j\, P_j}{\sum_j \dot m_j}
         \qquad\text{(mode \textit{Average}, mass-weighted)}
+    \tag{23}
 \end{align}
 \]
 
@@ -544,7 +550,7 @@ The outlet temperature is the mass-flow-weighted average of the inlet temperatur
 \[
 x_{\mathrm{out}}^{\mathrm{cont}}
         = \frac{\displaystyle\sum_{j} \dot m_j\, x_j^{\mathrm{cont}}}
-               {\displaystyle\sum_{j} \dot m_j}
+               {\displaystyle\sum_{j} \dot m_j}\tag{24}
 \]
 
 
@@ -569,13 +575,14 @@ The blend fractions $f_j$ are the inlet volumetric flows at stream conditions (b
           M &= \bar m + b_1 \left(\bar m\,\bar s - \overline{ms}\right)
                       + b_2 \left(\bar O^2 - \overline{O^2}\right)
                       + b_3 \left[\frac{\bar A^2 - \overline{A^2}}{100}\right]^2
+          \tag{25}
   \end{align}
 \]
 
 
   with $a_1 = 0.03324$, $a_2 = 0.00085$, $a_3 = 0$, $b_1 = 0.04285$, $b_2 = 0.00066$ and $b_3 = -0.00632$.
 
-- *User Coefficients*: equation [§](#eq:blender_ethyl) with the six coefficients entered by the user (they default to the published set).
+- *User Coefficients*: equation [25](#eq:blender_ethyl) with the six coefficients entered by the user (they default to the published set).
 
 The anti-knock index $(R + M)/2$, the sensitivity $R - M$ and the linear averages are reported alongside the blended values.
 
@@ -587,7 +594,7 @@ The RVP methods are *Linear*, $\mathrm{RVP} = \sum_j f_j\,
 
 \[
 \mathrm{RVP}_{\mathrm{blend}}
-        = \left(\sum_j f_j\, \mathrm{RVP}_j^{1.25}\right)^{1/1.25}
+        = \left(\sum_j f_j\, \mathrm{RVP}_j^{1.25}\right)^{1/1.25}\tag{26}
 \]
 
 
@@ -627,7 +634,7 @@ Let $R_{\mathrm{iso}}$ and $R_{\mathrm{feed}}$ be the isomerate and feed RON. Yi
 \[
 Y_i = Y_i^{\mathrm{base}}
         + s_i\,(R_{\mathrm{iso}} - R_{\mathrm{feed}}),\qquad i \in
-        \{\mathrm{Isomerate, LightEnds}\}
+        \{\mathrm{Isomerate, LightEnds}\}\tag{27}
 \]
 
 
@@ -666,7 +673,7 @@ Let $\dot m_{\mathrm{ol}}$ be the olefin mass flow and $X_{\mathrm{ol}}$ the ole
 
 \[
 \dot m_{\mathrm{alk}} = y_{\mathrm{alk}}\, X_{\mathrm{ol}}\,
-                            \dot m_{\mathrm{ol}}
+                            \dot m_{\mathrm{ol}}\tag{28}
 \]
 
 
@@ -677,7 +684,7 @@ where $y_{\mathrm{alk}}$ (typical 1.7–2.2) is the alkylate yield per kg of ole
 
 \[
 \dot Q_{\mathrm{cool}} = -\, X_{\mathrm{ol}}\, \dot m_{\mathrm{ol}}\,
-                              \Delta H_{\mathrm{alk}}
+                              \Delta H_{\mathrm{alk}}\tag{29}
 \]
 
 
@@ -721,7 +728,7 @@ In addition to the contaminant vector, each pseudocomponent may carry a paraffin
         \frac{\displaystyle\sum_{c \in \mathcal{C}_{\mathrm{PF}}}
               \dot m_{c}\, x_{i,c}}
              {\displaystyle\sum_{c \in \mathcal{C}_{\mathrm{PF}}} \dot m_{c}},
-        \qquad i \in \{\mathrm{P}, \mathrm{N}, \mathrm{A}\}
+        \qquad i \in \{\mathrm{P}, \mathrm{N}, \mathrm{A}\}\tag{30}
 \]
 
 
@@ -736,7 +743,7 @@ Each PNA-aware unit applies a multiplicative modulation of the form
 \[
 y'_{j} \;=\; y_{j}\,\bigl(1 + \alpha_{j}\,(\bar{x}_{i} - \bar{x}^{\mathrm{ref}}_{i})\bigr),
     \qquad
-    \bar{x}^{\mathrm{ref}}_{i} \;\text{user-configurable}
+    \bar{x}^{\mathrm{ref}}_{i} \;\text{user-configurable}\tag{31}
 \]
 
 
@@ -783,7 +790,7 @@ All refining unit operations follow the same explicit calculation pattern:
 
 2.  Initialise the pseudocomponent list from the feed `SelectedCompounds` collection.
 
-3.  Evaluate the conversion / yield equations of the unit as a function of the configured operating conditions ([§](#eq:hds_conversion), [§](#eq:fcc_lumps), [§](#eq:hcr_yield), [§](#eq:reformer_yield), [§](#eq:claus_hsrxn), etc.).
+3.  Evaluate the conversion / yield equations of the unit as a function of the configured operating conditions ([6](#eq:hds_conversion), [8](#eq:fcc_lumps), [12](#eq:hcr_yield), [16](#eq:reformer_yield), [20](#eq:claus_hsrxn), etc.).
 
 4.  Partition the feed mass among the outlet streams; close the mass balance by adjusting the residue / UCO / purge stream.
 

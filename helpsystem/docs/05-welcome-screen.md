@@ -7,7 +7,7 @@ When DWSIM is opened, the welcome screen is shown (Figure [1](#fig:figura-boasvi
 <a id="fig:figura-boasvindas"></a>
 ![DWSIM welcome screen.](images/screens100/15.png)
 
-*DWSIM welcome screen.*
+*Figure 1: DWSIM welcome screen.*
 
 
 

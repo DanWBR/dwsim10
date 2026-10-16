@@ -32,7 +32,7 @@ DWSIM provides two kinetic reactor models for simulating systems governed by rea
 
 ##### Overview {#overview-22}
 
-###### Supported Reaction Types {#supported-reaction-types .unnumbered}
+###### Supported Reaction Types {#supported-reaction-types-.unnumbered}
 
 Both the CSTR and PFR support the following reaction types:
 
@@ -44,9 +44,9 @@ Both the CSTR and PFR support the following reaction types:
 
 Equilibrium and conversion reactions are not supported by these two reactor models; they are handled by the Equilibrium, Gibbs, and Conversion reactor unit operations.
 
-###### Reaction Rate Expressions {#reaction-rate-expressions .unnumbered}
+###### Reaction Rate Expressions {#reaction-rate-expressions-.unnumbered}
 
-####### Kinetic Reactions {#kinetic-reactions .unnumbered}
+####### Kinetic Reactions {#kinetic-reactions-.unnumbered}
 
 For a kinetic reaction with base component B, the net volumetric rate of reaction is
 
@@ -90,7 +90,7 @@ Temperature limits If $T<T_{min}$ or $T>T_{max}$ (user-specified bounds), both 
 
 
 
-####### Heterogeneous Catalytic Reactions {#heterogeneous-catalytic-reactions .unnumbered}
+####### Heterogeneous Catalytic Reactions {#heterogeneous-catalytic-reactions-.unnumbered}
 
 For reactions following the Langmuir–Hinshelwood mechanism, the rate is expressed as
 
@@ -103,7 +103,7 @@ r=\frac{f_{\text{num}}(R_{1},R_{2},\ldots,P_{1},P_{2},\ldots,T)}{f_{\text{den}}(
 
 where $R_{j}$ and $P_{j}$ denote the concentrations of the j-th reactant and product, respectively, and $T$ is the temperature. Both the numerator and denominator are user-supplied analytical expressions. The variables $R_{1}$ , $R_{2}$ , ... and $P_{1}$ , $P_{2}$ , ... are assigned in the order the components appear in the reaction definition.
 
-###### Component Production Rates {#component-production-rates .unnumbered}
+###### Component Production Rates {#component-production-rates-.unnumbered}
 
 Once the base reaction rate r is determined and converted to SI units, the molar production (or consumption) rate of each component i participating in reaction j is
 
@@ -119,7 +119,7 @@ R_{i,j}=\begin{cases}
 
 where $\nu_{i}$ is the stoichiometric coefficient of component $i$ (negative for reactants, positive for products), $\nu_{B}$ is the stoichiometric coefficient of the base component, $V_{r}$ is the reaction phase volume (m³), and $W_{cat}$ is the catalyst mass (kg).
 
-###### Reaction Heat {#reaction-heat .unnumbered}
+###### Reaction Heat {#reaction-heat-.unnumbered}
 
 The heat released or absorbed by each reaction is calculated as
 
@@ -132,7 +132,7 @@ The heat released or absorbed by each reaction is calculated as
 
 where $\Delta H_{rxn,j}$ is the user-supplied heat of reaction (kJ/kmol) and $\xi_{j}$ is the molar extent of reaction j (mol/s). The factor $10^{-3}$ converts from kmol to mol basis.
 
-###### Concentration Basis and Conversion Factors {#concentration-basis-and-conversion-factors .unnumbered}
+###### Concentration Basis and Conversion Factors {#concentration-basis-and-conversion-factors-.unnumbered}
 
 Internally, concentrations are always stored as molar concentrations (mol/m³). The user may, however, define reaction rate expressions in a different basis. The conversion factor $\alpha_{i}$ applied to component $i$ transforms the internal molar concentration to the user-selected basis according to the following table.
 
@@ -152,11 +152,11 @@ Internally, concentrations are always stored as molar concentrations (mol/m³). 
 | Fugacity | $\gamma_i Z R T$ | $\dfrac{\gamma_i \bar{M}\,P}{1000\,\rho}$ | $\dfrac{\gamma_i \bar{M}\,P}{1000\,\rho}$ |
 | Partial pressure | $ZRT$ | — | — |
 
-Concentration conversion factors $\alpha_i$ for different reaction bases. $Z$: compressibility factor; $\bar{M}$: phase average molecular weight (kg kmol$^{-1}$); $\rho$: phase density (kg m$^{-3}$); $\gamma_i$: activity/fugacity coefficient of component $i$; $P$: pressure (Pa).
+Table 1: Concentration conversion factors $\alpha_i$ for different reaction bases. $Z$: compressibility factor; $\bar{M}$: phase average molecular weight (kg kmol$^{-1}$); $\rho$: phase density (kg m$^{-3}$); $\gamma_i$: activity/fugacity coefficient of component $i$; $P$: pressure (Pa).
 
 
 
-###### Reaction Phases and Reaction Volume {#reaction-phases-and-reaction-volume .unnumbered}
+###### Reaction Phases and Reaction Volume {#reaction-phases-and-reaction-volume-.unnumbered}
 
 Each reaction is assigned a reaction phase, which determines the volume in which the reaction takes place and the source of component concentrations.
 
@@ -175,7 +175,7 @@ Each reaction is assigned a reaction phase, which determines the volume in which
 | Vapour–Solid | $\dfrac{Q_S}{Q_L + Q_S}\,V$ $\dfrac{Q_S}{Q}\,V$ | $C_i = (\dot{n}_{i,V} + \dot{n}_{i,S}) / (Q_V + Q_S)$ |
 | Liquid–Solid | $V$ | $C_i = (\dot{n}_{i,L} + \dot{n}_{i,S}) / (Q_L + Q_S)$ |
 
-Reaction volume $V_r$ and concentration source for each reaction phase. $V$: reactor liquid volume; $V_h$: headspace volume; $Q_L, Q_V, Q_S, Q$: volumetric flow rates of liquid, vapour, solid, and total mixture.
+Table 2: Reaction volume $V_r$ and concentration source for each reaction phase. $V$: reactor liquid volume; $V_h$: headspace volume; $Q_L, Q_V, Q_S, Q$: volumetric flow rates of liquid, vapour, solid, and total mixture.
 
 
 
@@ -185,7 +185,7 @@ In single-outlet mode, the reaction volume is the fractional share of the total 
 
 The CSTR models an ideally mixed reactor where the composition and temperature inside the vessel are uniform and equal to the outlet conditions. In DWSIM, the steady-state solution is obtained by a pseudo-transient algorithm that integrates the unsteady molar balance forward in time until steady state is reached.
 
-###### Input Parameters {#input-parameters-12 .unnumbered}
+###### Input Parameters {#input-parameters-12-.unnumbered}
 
 
 
@@ -194,7 +194,7 @@ The CSTR models an ideally mixed reactor where the composition and temperature i
 
 
 <table>
-<caption>CSTR input parameters.</caption>
+<caption>Table 3: CSTR input parameters.</caption>
 <thead>
 <tr>
 <th style="text-align: left;"><strong>Parameter</strong></th>
@@ -380,7 +380,7 @@ The CSTR models an ideally mixed reactor where the composition and temperature i
 
 
 
-###### Governing Equations {#governing-equations .unnumbered}
+###### Governing Equations {#governing-equations-.unnumbered}
 
 At steady state, the molar balance for each component i in the reactor is
 
@@ -389,13 +389,13 @@ At steady state, the molar balance for each component i in the reactor is
 <a id="eq:cstr_balance"></a>
 
 \[
-\dot{n}_{i,\text{out}}=\dot{n}_{i,\text{in}}+\sum_{j}R_{i,j}
+\dot{n}_{i,\text{out}}=\dot{n}_{i,\text{in}}+\sum_{j}R_{i,j}\tag{1}
 \]
 
 
 where $n_{i,in}$ and $n_{i,out}$ are the inlet and outlet molar flow rates and $R_{i,j}$ is the production rate of component $i$ in reaction $j$ , given by the rate expression of the reaction over the reaction volume.
 
-###### Residence Time {#residence-time .unnumbered}
+###### Residence Time {#residence-time-.unnumbered}
 
 The liquid and vapor residence times are defined as
 
@@ -404,15 +404,15 @@ The liquid and vapor residence times are defined as
 <a id="eq:cstr_restime"></a>
 
 \[
-\tau_{L}=\frac{V}{Q_{L}+Q_{S}},\qquad\tau_{V}=\frac{V_{h}}{Q_{V}}
+\tau_{L}=\frac{V}{Q_{L}+Q_{S}},\qquad\tau_{V}=\frac{V_{h}}{Q_{V}}\tag{2}
 \]
 
 
 In single-outlet mode (no separate vapor exit), $tau_{L}=tau_{V}=V/Q$ .
 
-###### Operating Modes and Energy Balance {#operating-modes-and-energy-balance .unnumbered}
+###### Operating Modes and Energy Balance {#operating-modes-and-energy-balance-.unnumbered}
 
-####### Isothermal Mode {#isothermal-mode .unnumbered}
+####### Isothermal Mode {#isothermal-mode-.unnumbered}
 
 The reactor temperature is held constant at the inlet temperature $T_{0}$ . The required heat duty is
 
@@ -421,13 +421,13 @@ The reactor temperature is held constant at the inlet temperature $T_{0}$ . The 
 <a id="eq:cstr_iso"></a>
 
 \[
-\dot{Q}=\sum_{i}\Delta H_{f,i}^{\circ}\,M_{i}\,\frac{\dot{n}_{i,\text{out}}-\dot{n}_{i,\text{in}}}{1000}+\dot{H}_{\text{out}}-\dot{H}_{\text{in}}
+\dot{Q}=\sum_{i}\Delta H_{f,i}^{\circ}\,M_{i}\,\frac{\dot{n}_{i,\text{out}}-\dot{n}_{i,\text{in}}}{1000}+\dot{H}_{\text{out}}-\dot{H}_{\text{in}}\tag{3}
 \]
 
 
 where <span class="roman">$\Delta H_{f,i}^{\circ}$</span> is the standard enthalpy of formation at 25 °C (kJ/kmol), $M_{i}$ the molar mass (kg/kmol), and <span class="roman">$\mathring{H}$</span> denotes the enthalpy flow rate (kW).
 
-####### Adiabatic Mode {#adiabatic-mode .unnumbered}
+####### Adiabatic Mode {#adiabatic-mode-.unnumbered}
 
 No heat is exchanged with the surroundings (Q = 0). The outlet temperature is determined by an enthalpy–pressure flash. At each iteration of the convergence loop, the product enthalpy is computed from
 
@@ -436,17 +436,17 @@ No heat is exchanged with the surroundings (Q = 0). The outlet temperature is de
 <a id="eq:cstr_adiabatic"></a>
 
 \[
-\dot{H}_{\text{out}}=\dot{H}_{\text{in}}-\dot{Q}_{\text{rxn}}
+\dot{H}_{\text{out}}=\dot{H}_{\text{in}}-\dot{Q}_{\text{rxn}}\tag{4}
 \]
 
 
 where $\dot{Q}_{\text{rxn}}=\sum_{j}\dot{Q}_{\text{rxn},j}$ is the total heat released by the reactions. A pressure–enthalpy flash is then performed to obtain the new temperature.
 
-####### Outlet Temperature Mode {#outlet-temperature-mode .unnumbered}
+####### Outlet Temperature Mode {#outlet-temperature-mode-.unnumbered}
 
-The outlet temperature $T_{out}$ is specified by the user. The heat duty is calculated from Eq.  [§](#eq:cstr_iso) with the outlet enthalpy evaluated at $T_{out}$ .
+The outlet temperature $T_{out}$ is specified by the user. The heat duty is calculated from Eq.  [3](#eq:cstr_iso) with the outlet enthalpy evaluated at $T_{out}$ .
 
-####### Heat Exchange Mode {#heat-exchange-mode .unnumbered}
+####### Heat Exchange Mode {#heat-exchange-mode-.unnumbered}
 
 In this mode, the reactor exchanges heat with a utility fluid (jacket or external heat exchanger). The heat transfer rate is calculated from Newton’s law of cooling:
 
@@ -455,7 +455,7 @@ In this mode, the reactor exchanges heat with a utility fluid (jacket or externa
 <a id="eq:cstr_hx"></a>
 
 \[
-\dot{Q}=U\,A\,(T_{c}-T)
+\dot{Q}=U\,A\,(T_{c}-T)\tag{5}
 \]
 
 
@@ -466,7 +466,7 @@ where $U$ is the overall heat transfer coefficient (W/m $^{2}$ /K), $A$ is the h
 <a id="eq:cstr_hx_balance"></a>
 
 \[
-\dot{H}_{\text{out}}=\dot{H}_{\text{in}}-\dot{Q}_{\text{rxn}}+\frac{\dot{Q}}{1000}
+\dot{H}_{\text{out}}=\dot{H}_{\text{in}}-\dot{Q}_{\text{rxn}}+\frac{\dot{Q}}{1000}\tag{6}
 \]
 
 
@@ -481,7 +481,7 @@ Three coolant flow configurations are supported:
 <a id="eq:cstr_Tc_eff"></a>
 
 \[
-T_{c,\text{eff}}=\frac{T_{c,\text{in}}+T_{c,\text{out}}}{2},\qquad T_{c,\text{out}}=T_{c,\text{in}}+\frac{\dot{Q}}{\dot{m}_{c}\,c_{p,c}}
+T_{c,\text{eff}}=\frac{T_{c,\text{in}}+T_{c,\text{out}}}{2},\qquad T_{c,\text{out}}=T_{c,\text{in}}+\frac{\dot{Q}}{\dot{m}_{c}\,c_{p,c}}\tag{7}
 \]
 
 
@@ -496,13 +496,13 @@ When the area calculation mode is set to**Auto from Geometry**, the heat exchang
 <a id="eq:cstr_hx_area"></a>
 
 \[
-A=\pi\,D\,H=\frac{4\,V}{D}
+A=\pi\,D\,H=\frac{4\,V}{D}\tag{8}
 \]
 
 
 where $D$ is the reactor diameter and $V$ is the reactor volume. Alternatively, the area can be specified directly by the user.
 
-####### Wall Thermal Resistance {#wall-thermal-resistance .unnumbered}
+####### Wall Thermal Resistance {#wall-thermal-resistance-.unnumbered}
 
 When **Use Wall Properties** is enabled, the overall heat transfer coefficient $U$ is computed from the individual resistances of the internal film, the reactor wall, and the external film:
 
@@ -511,13 +511,13 @@ When **Use Wall Properties** is enabled, the overall heat transfer coefficient $
 <a id="eq:cstr_wall_resistance"></a>
 
 \[
-\frac{1}{U}=\frac{1}{h_{i}}+\frac{\delta_{w}}{k_{w}}+\frac{1}{h_{o}}
+\frac{1}{U}=\frac{1}{h_{i}}+\frac{\delta_{w}}{k_{w}}+\frac{1}{h_{o}}\tag{9}
 \]
 
 
 where $h_{i}$ is the process-side (internal) heat transfer coefficient, $h_{o}$ is the coolant-side (external) heat transfer coefficient, $\delta_{w}$ is the wall thickness, and $k_{w}$ is the wall thermal conductivity. The wall thermal conductivity is temperature-dependent and is determined from the selected wall material (using the same correlations as the Pipe unit operation). The supported materials are Steel, Carbon Steel, Cast Iron, Stainless Steel, PVC, and Commercial Copper.
 
-####### Automatic HTC Calculation {#automatic-htc-calculation .unnumbered}
+####### Automatic HTC Calculation {#automatic-htc-calculation-.unnumbered}
 
 When wall properties are enabled, DWSIM can optionally auto-calculate the internal and external heat transfer coefficients from process and coolant fluid properties.
 
@@ -528,7 +528,7 @@ When wall properties are enabled, DWSIM can optionally auto-calculate the intern
 <a id="eq:cstr_stirred_htc"></a>
 
 \[
-\text{Nu}=C\,\text{Re}_{imp}^{2/3}\,\text{Pr}^{1/3},\qquad h_{i}=\frac{\text{Nu}\,k}{D}
+\text{Nu}=C\,\text{Re}_{imp}^{2/3}\,\text{Pr}^{1/3},\qquad h_{i}=\frac{\text{Nu}\,k}{D}\tag{10}
 \]
 
 
@@ -541,15 +541,15 @@ where the impeller Reynolds number is $\text{Re}_{imp}=\rho\,N\,d_{imp}^{2}/\mu$
 <a id="eq:cstr_jacket_htc"></a>
 
 \[
-\text{Nu}=0.023\,\text{Re}^{0.8}\,\text{Pr}^{0.4},\qquad h_{o}=\frac{\text{Nu}\,k_{c}}{D_{h}}
+\text{Nu}=0.023\,\text{Re}^{0.8}\,\text{Pr}^{0.4},\qquad h_{o}=\frac{\text{Nu}\,k_{c}}{D_{h}}\tag{11}
 \]
 
 
 where $D_{h}=D_{j}-D_{o}$ is the hydraulic diameter of the annular jacket, $D_{j}$ is the jacket diameter, $D_{o}=D+2\delta_{w}$ is the outer wall diameter, and the Reynolds number is computed from the coolant flow rate, density, and viscosity in the annular cross section $A_{ann}=\tfrac{\pi}{4}(D_{j}^{2}-D_{o}^{2})$ . The coolant properties (density, viscosity, thermal conductivity, specific heat) can be specified manually or read from a connected utility stream.
 
-####### Solution Algorithm {#solution-algorithm-1 .unnumbered}
+####### Solution Algorithm {#solution-algorithm-1-.unnumbered}
 
-Because the outlet composition depends on the reaction rates, which themselves depend on the outlet composition (through the well-mixed assumption), the steady-state balance (Eq.  [§](#eq:cstr_balance) ) is solved iteratively using a pseudo-transient approach. The algorithm tracks the molar inventory $N_{i}$ (mol) of each component inside the reactor and marches forward in discrete time steps until the composition reaches steady state.
+Because the outlet composition depends on the reaction rates, which themselves depend on the outlet composition (through the well-mixed assumption), the steady-state balance (Eq.  [1](#eq:cstr_balance) ) is solved iteratively using a pseudo-transient approach. The algorithm tracks the molar inventory $N_{i}$ (mol) of each component inside the reactor and marches forward in discrete time steps until the composition reaches steady state.
 
 
 
@@ -566,7 +566,7 @@ Step 1: Initialization The reactor inventory is initialized from the inlet str
 <a id="eq:cstr_init"></a>
 
 \[
-N_{i}^{(0)}=\dot{n}_{i,\text{in}}\;\tau
+N_{i}^{(0)}=\dot{n}_{i,\text{in}}\;\tau\tag{12}
 \]
 
 
@@ -587,7 +587,7 @@ Step 2: Molar balance At each iteration $k$ , the reaction rates $R_{i}$ are 
 <a id="eq:cstr_residual"></a>
 
 \[
-b_{i}=\dot{n}_{i,\text{in}}+R_{i}-\dot{n}_{i,\text{out}}
+b_{i}=\dot{n}_{i,\text{in}}+R_{i}-\dot{n}_{i,\text{out}}\tag{13}
 \]
 
 
@@ -606,7 +606,7 @@ Step 3: Adaptive time step. The time step is reset to $\Delta t=0.2\,\tau_{L
 <a id="eq:cstr_dt_limit"></a>
 
 \[
-\Delta t\leq\min_{i}\left\{ \frac{0.8\,N_{i}^{(k)}}{|b_{i}|}\;\bigg|\;b_{i}<0,\;N_{i}^{(k)}>0\right\}
+\Delta t\leq\min_{i}\left\{ \frac{0.8\,N_{i}^{(k)}}{|b_{i}|}\;\bigg|\;b_{i}<0,\;N_{i}^{(k)}>0\right\}\tag{14}
 \]
 
 
@@ -627,7 +627,7 @@ Step 4: Inventory update The inventory is updated and clamped to non-negative
 <a id="eq:cstr_update"></a>
 
 \[
-N_{i}^{(k+1)}=\max\!\left(0,\;N_{i}^{(k)}+b_{i}\,\Delta t\right)
+N_{i}^{(k+1)}=\max\!\left(0,\;N_{i}^{(k)}+b_{i}\,\Delta t\right)\tag{15}
 \]
 
 
@@ -648,7 +648,7 @@ Step 5: Oscillation damping If the composition error $E^{(k)}$ increases comp
 <a id="eq:cstr_damping"></a>
 
 \[
-y_{i}^{(k+1)}\leftarrow(1-\lambda)\,y_{i}^{(k+1)}+\lambda\,y_{i}^{(k)},\qquad\lambda=\max\!\left(0.3,\;0.5^{n_{\text{osc}}}\right)
+y_{i}^{(k+1)}\leftarrow(1-\lambda)\,y_{i}^{(k+1)}+\lambda\,y_{i}^{(k)},\qquad\lambda=\max\!\left(0.3,\;0.5^{n_{\text{osc}}}\right)\tag{16}
 \]
 
 
@@ -671,7 +671,7 @@ Step 7: Convergence check The composition error is
 <a id="eq:cstr_comperr"></a>
 
 \[
-E^{(k)}=\sum_{i}\left|y_{i}^{(k+1)}-y_{i}^{(k)}\right|
+E^{(k)}=\sum_{i}\left|y_{i}^{(k+1)}-y_{i}^{(k)}\right|\tag{17}
 \]
 
 
@@ -682,13 +682,13 @@ The loop terminates when $E^{(k)}<\epsilon$ . In adiabatic and heat exchange mod
 <a id="eq:cstr_temperr"></a>
 
 \[
-\frac{\left|T^{(k+1)}-T^{(k)}\right|}{T^{(k)}}<\varepsilon
+\frac{\left|T^{(k+1)}-T^{(k)}\right|}{T^{(k)}}<\varepsilon\tag{18}
 \]
 
 
 Both conditions must be satisfied simultaneously for the algorithm to converge in adiabatic and heat exchange modes.
 
-###### Component Conversions {#component-conversions .unnumbered}
+###### Component Conversions {#component-conversions-.unnumbered}
 
 After convergence, the conversion of each component is computed as
 
@@ -697,17 +697,17 @@ After convergence, the conversion of each component is computed as
 <a id="eq:cstr_conversion"></a>
 
 \[
-X_{i}=\frac{|\dot{n}_{i,\text{in}}-\dot{n}_{i,\text{out}}|}{\dot{n}_{i,\text{in}}},\qquad\dot{n}_{i,\text{in}}>0
+X_{i}=\frac{|\dot{n}_{i,\text{in}}-\dot{n}_{i,\text{out}}|}{\dot{n}_{i,\text{in}}},\qquad\dot{n}_{i,\text{in}}>0\tag{19}
 \]
 
 
-###### Outlet Modes {#outlet-modes .unnumbered}
+###### Outlet Modes {#outlet-modes-.unnumbered}
 
 - Single outlet: all phases exit through a single stream; the outlet composition equals the overall mixture composition in the reactor.
 
 - Two outlets: vapor exits through outlet 2; liquid and solid exit through outlet 1. Vapor-phase reactions occur in the headspace volume V_h; liquid/solid reactions occur in the reactor volume V.
 
-###### Dynamic Mode {#dynamic-mode-5 .unnumbered}
+###### Dynamic Mode {#dynamic-mode-5-.unnumbered}
 
 When running in dynamic mode, the CSTR performs a single iteration per integration step (the time step is set by the flowsheet integrator). The accumulation stream tracks the reactor contents over time, and temperature and pressure are updated via flash calculations at each step.
 
@@ -715,7 +715,7 @@ When running in dynamic mode, the CSTR performs a single iteration per integrati
 
 The PFR models a tubular reactor in which the fluid flows through the tube with no axial mixing. Composition and temperature vary along the reactor length. The governing equations are a system of ordinary differential equations (ODEs) integrated over the reactor volume.
 
-###### Input Parameters {#input-parameters-13 .unnumbered}
+###### Input Parameters {#input-parameters-13-.unnumbered}
 
 
 
@@ -724,7 +724,7 @@ The PFR models a tubular reactor in which the fluid flows through the tube with 
 
 
 <table>
-<caption>PFR input parameters.</caption>
+<caption>Table 4: PFR input parameters.</caption>
 <thead>
 <tr>
 <th style="text-align: left;"><strong>Parameter</strong></th>
@@ -905,13 +905,13 @@ The reactor geometry satisfies
 <a id="eq:pfr_geometry"></a>
 
 \[
-V=N_{t}\cdot\frac{\pi D^{2}}{4}\cdot L
+V=N_{t}\cdot\frac{\pi D^{2}}{4}\cdot L\tag{20}
 \]
 
 
 and either $L$ or $D$ can be calculated from the other two quantities.
 
-###### Governing Equations {#governing-equations-1 .unnumbered}
+###### Governing Equations {#governing-equations-1-.unnumbered}
 
 The molar flow of each component i varies along the reactor volume according to
 
@@ -920,28 +920,28 @@ The molar flow of each component i varies along the reactor volume according to
 <a id="eq:pfr_ode"></a>
 
 \[
-\frac{d\dot{n}_{i}}{dV}=-R_{i}
+\frac{d\dot{n}_{i}}{dV}=-R_{i}\tag{21}
 \]
 
 
 where $R_{i}$ is the net rate of consumption of component $i$ (mol/(m³·s)), evaluated from the reaction rate expressions. The system is integrated from $V=0$ (inlet) to $V=V_{total}$ (outlet).
 
-###### Residence Time {#residence-time-1 .unnumbered}
+###### Residence Time {#residence-time-1-.unnumbered}
 
 
 
 <a id="eq:pfr_restime"></a>
 
 \[
-\tau=\frac{V}{Q}
+\tau=\frac{V}{Q}\tag{22}
 \]
 
 
 where $Q$ is the total volumetric flow rate at the inlet.
 
-###### Operating Modes and Energy Balance {#operating-modes-and-energy-balance-1 .unnumbered}
+###### Operating Modes and Energy Balance {#operating-modes-and-energy-balance-1-.unnumbered}
 
-####### Isothermal Mode {#isothermal-mode-1 .unnumbered}
+####### Isothermal Mode {#isothermal-mode-1-.unnumbered}
 
 The temperature is constant along the reactor: $T(V)=T_{0}$ . The heat duty required to maintain this condition is
 
@@ -950,11 +950,11 @@ The temperature is constant along the reactor: $T(V)=T_{0}$ . The heat duty requ
 <a id="eq:pfr_iso"></a>
 
 \[
-\dot{Q}=\sum_{i}\Delta H_{f,i}^{\circ}\,M_{i}\,\frac{\dot{n}_{i,\text{out}}-\dot{n}_{i,\text{in}}}{1000}+\dot{H}_{\text{out}}-\dot{H}_{\text{in}}
+\dot{Q}=\sum_{i}\Delta H_{f,i}^{\circ}\,M_{i}\,\frac{\dot{n}_{i,\text{out}}-\dot{n}_{i,\text{in}}}{1000}+\dot{H}_{\text{out}}-\dot{H}_{\text{in}}\tag{23}
 \]
 
 
-####### Adiabatic Mode {#adiabatic-mode-1 .unnumbered}
+####### Adiabatic Mode {#adiabatic-mode-1-.unnumbered}
 
 No heat is exchanged ( $Q=0$ ). At each volume step, the temperature is updated from the enthalpy balance:
 
@@ -963,13 +963,13 @@ No heat is exchanged ( $Q=0$ ). At each volume step, the temperature is updated 
 <a id="eq:pfr_adiabatic"></a>
 
 \[
-H_{\text{out}}(V+\Delta V)=H_{\text{in}}(V)-\Delta H_{\text{rxn}}(V)
+H_{\text{out}}(V+\Delta V)=H_{\text{in}}(V)-\Delta H_{\text{rxn}}(V)\tag{24}
 \]
 
 
 A pressure–enthalpy flash at each step yields the new temperature T(V + Delta V).
 
-####### Non-isothermal, Non-adiabatic Mode {#non-isothermal-non-adiabatic-mode .unnumbered}
+####### Non-isothermal, Non-adiabatic Mode {#non-isothermal-non-adiabatic-mode-.unnumbered}
 
 An external energy stream provides a heat duty $Q_{ext}$ . At each volume step, the enthalpy increment includes the external heat proportional to the volume fraction:
 
@@ -978,11 +978,11 @@ An external energy stream provides a heat duty $Q_{ext}$ . At each volume step, 
 <a id="eq:pfr_noniso"></a>
 
 \[
-H_{\text{out}}=H_{\text{in}}-\Delta H_{\text{rxn}}+\dot{Q}_{\text{ext}}\cdot\delta V
+H_{\text{out}}=H_{\text{in}}-\Delta H_{\text{rxn}}+\dot{Q}_{\text{ext}}\cdot\delta V\tag{25}
 \]
 
 
-####### Outlet Temperature Mode {#outlet-temperature-mode-1 .unnumbered}
+####### Outlet Temperature Mode {#outlet-temperature-mode-1-.unnumbered}
 
 The temperature is linearly interpolated from $T_{0}$ at the inlet to $T_{out}$ at the outlet:
 
@@ -991,13 +991,13 @@ The temperature is linearly interpolated from $T_{0}$ at the inlet to $T_{out}$ 
 <a id="eq:pfr_outletT"></a>
 
 \[
-T(V)=T_{0}+(T_{\text{out}}-T_{0})\cdot\frac{V}{V_{\text{total}}}
+T(V)=T_{0}+(T_{\text{out}}-T_{0})\cdot\frac{V}{V_{\text{total}}}\tag{26}
 \]
 
 
 The required heat duty is computed after integration from the overall enthalpy balance.
 
-####### Heat Exchange Mode {#heat-exchange-mode-1 .unnumbered}
+####### Heat Exchange Mode {#heat-exchange-mode-1-.unnumbered}
 
 In this mode, the reactor exchanges heat with a utility fluid flowing through a jacket or shell side. At each volume step $\delta V$ , the local heat transfer rate is
 
@@ -1006,7 +1006,7 @@ In this mode, the reactor exchanges heat with a utility fluid flowing through a 
 <a id="eq:pfr_hx"></a>
 
 \[
-\delta\dot{Q}=U\,\delta A\,(T_{c}-T)
+\delta\dot{Q}=U\,\delta A\,(T_{c}-T)\tag{27}
 \]
 
 
@@ -1017,7 +1017,7 @@ where $U$ is the overall heat transfer coefficient (W/m $^{2}$ /K), $T_{c}$ is t
 <a id="eq:pfr_dA"></a>
 
 \[
-\delta A=\pi\,D\,L\,\delta V\,N_{t}
+\delta A=\pi\,D\,L\,\delta V\,N_{t}\tag{28}
 \]
 
 
@@ -1028,7 +1028,7 @@ or as a user-specified fraction of the total area: $\delta A=A_{\text{user}}\cdo
 <a id="eq:pfr_hx_balance"></a>
 
 \[
-\dot{H}_{\text{out}}=\dot{H}_{\text{in}}-\Delta H_{\text{rxn}}+\frac{\delta\dot{Q}}{1000}
+\dot{H}_{\text{out}}=\dot{H}_{\text{in}}-\Delta H_{\text{rxn}}+\frac{\delta\dot{Q}}{1000}\tag{29}
 \]
 
 
@@ -1043,7 +1043,7 @@ Three coolant flow configurations are supported:
 <a id="eq:pfr_cocurrent"></a>
 
 \[
-T_{c}(V+\delta V)=T_{c}(V)-\frac{\delta\dot{Q}}{\dot{m}_{c}\,c_{p,c}}
+T_{c}(V+\delta V)=T_{c}(V)-\frac{\delta\dot{Q}}{\dot{m}_{c}\,c_{p,c}}\tag{30}
 \]
 
 
@@ -1051,7 +1051,7 @@ T_{c}(V+\delta V)=T_{c}(V)-\frac{\delta\dot{Q}}{\dot{m}_{c}\,c_{p,c}}
 
 The coolant properties can be specified as simple parameters (inlet temperature, mass flow rate, specific heat) or read from a connected utility material stream. When a utility stream is connected, its phase properties are used for $c_{p,c}$ and $\dot{m}_{c}$ , and the outlet utility stream is updated with the calculated coolant outlet conditions.
 
-####### Wall Thermal Resistance {#wall-thermal-resistance-1 .unnumbered}
+####### Wall Thermal Resistance {#wall-thermal-resistance-1-.unnumbered}
 
 When **Use Wall Properties** is enabled, the overall heat transfer coefficient $U$ is computed from the individual resistances at each volume step:
 
@@ -1060,13 +1060,13 @@ When **Use Wall Properties** is enabled, the overall heat transfer coefficient $
 <a id="eq:pfr_wall_resistance"></a>
 
 \[
-\frac{1}{U}=\frac{1}{h_{i}}+\frac{\delta_{w}}{k_{w}}+\frac{1}{h_{o}}
+\frac{1}{U}=\frac{1}{h_{i}}+\frac{\delta_{w}}{k_{w}}+\frac{1}{h_{o}}\tag{31}
 \]
 
 
 where $h_{i}$ is the tube-side (internal) heat transfer coefficient, $h_{o}$ is the shell/jacket-side (external) heat transfer coefficient, $\delta_{w}$ is the tube wall thickness, and $k_{w}$ is the wall thermal conductivity. The wall thermal conductivity is temperature-dependent and is determined from the selected wall material (using the same correlations as the Pipe unit operation). Supported materials are Steel, Carbon Steel, Cast Iron, Stainless Steel, PVC, and Commercial Copper. Since $U$ depends on temperature through $k_{w}(T)$ , it is recomputed at each volume step.
 
-####### Automatic HTC Calculation {#automatic-htc-calculation-1 .unnumbered}
+####### Automatic HTC Calculation {#automatic-htc-calculation-1-.unnumbered}
 
 When wall properties are enabled, DWSIM can optionally auto-calculate the internal and external heat transfer coefficients at each volume step from the local process and coolant fluid properties.
 
@@ -1077,7 +1077,7 @@ When wall properties are enabled, DWSIM can optionally auto-calculate the intern
 <a id="eq:pfr_tube_htc"></a>
 
 \[
-\text{Nu}=0.023\,\text{Re}^{0.8}\,\text{Pr}^{n},\qquad h_{i}=\frac{\text{Nu}\,k}{D}
+\text{Nu}=0.023\,\text{Re}^{0.8}\,\text{Pr}^{n},\qquad h_{i}=\frac{\text{Nu}\,k}{D}\tag{32}
 \]
 
 
@@ -1090,13 +1090,13 @@ where $n=0.4$ for heating ( $T_{c}>T$ ) and $n=0.3$ for cooling, the Reynolds nu
 <a id="eq:pfr_jacket_htc"></a>
 
 \[
-\text{Nu}=0.023\,\text{Re}^{0.8}\,\text{Pr}^{0.4},\qquad h_{o}=\frac{\text{Nu}\,k_{c}}{D_{h}}
+\text{Nu}=0.023\,\text{Re}^{0.8}\,\text{Pr}^{0.4},\qquad h_{o}=\frac{\text{Nu}\,k_{c}}{D_{h}}\tag{33}
 \]
 
 
 where $D_{h}=D_{j}-D_{o}$ is the hydraulic diameter of the annular jacket, $D_{j}$ is the jacket diameter, $D_{o}=D+2\delta_{w}$ is the tube outer diameter, and the Reynolds number is computed from the coolant flow in the annular cross section $A_{ann}=\tfrac{\pi}{4}(D_{j}^{2}-D_{o}^{2})$ . The coolant properties (density, viscosity, thermal conductivity) can be specified manually or read from a connected utility stream.
 
-###### ODE Integration Methods {#ode-integration-methods .unnumbered}
+###### ODE Integration Methods {#ode-integration-methods-.unnumbered}
 
 DWSIM provides five numerical integrators for the PFR, selectable via the solver option:
 
@@ -1114,11 +1114,11 @@ DWSIM provides five numerical integrators for the PFR, selectable via the solver
 | 3 | Gear’s BDF | For very stiff systems |
 | 4 | OSLO RK4(5) | Adaptive Runge–Kutta with built-in step control |
 
-Available ODE solvers for the PFR.
+Table 5: Available ODE solvers for the PFR.
 
 
 
-###### Adaptive Step Size Control {#adaptive-step-size-control .unnumbered}
+###### Adaptive Step Size Control {#adaptive-step-size-control-.unnumbered}
 
 The PFR uses a two-level adaptive strategy to ensure physically valid solutions (non-negative molar flows).
 
@@ -1137,7 +1137,7 @@ Outer level If negative molar flows are detected after integrating with the def
 <a id="eq:pfr_outer_adapt"></a>
 
 \[
-\delta V\;\longrightarrow\;0.1\,\delta V\;\longrightarrow\;0.05\,\delta V
+\delta V\;\longrightarrow\;0.1\,\delta V\;\longrightarrow\;0.05\,\delta V\tag{34}
 \]
 
 
@@ -1156,17 +1156,17 @@ Inner level At each volume step, if negative concentrations are found, the step
 <a id="eq:pfr_inner_adapt"></a>
 
 \[
-\delta V\;\leftarrow\;\frac{\delta V}{2}
+\delta V\;\leftarrow\;\frac{\delta V}{2}\tag{35}
 \]
 
 
 up to 30 times. Concentrations that are negative but below the threshold $|C_{i}|<10^{-6}$ mol/m³ are clamped to zero rather than triggering a step reduction.
 
-###### Pressure Drop Calculation {#pressure-drop-calculation .unnumbered}
+###### Pressure Drop Calculation {#pressure-drop-calculation-.unnumbered}
 
 The PFR supports two pressure drop correlations, selected automatically based on whether a catalyst bed is present.
 
-####### Packed Bed: Ergun Equation {#packed-bed-ergun-equation .unnumbered}
+####### Packed Bed: Ergun Equation {#packed-bed-ergun-equation-.unnumbered}
 
 For reactors containing a catalyst bed, the pressure drop per unit length is
 
@@ -1175,28 +1175,28 @@ For reactors containing a catalyst bed, the pressure drop per unit length is
 <a id="eq:ergun"></a>
 
 \[
--\frac{dP}{dL}=\frac{150\,\mu\,(1-\varepsilon_{b})^{2}}{\varepsilon_{b}^{3}\,d_{p}^{2}}\,u+\frac{1.75\,\rho\,(1-\varepsilon_{b})}{\varepsilon_{b}^{3}\,d_{p}}\,u^{2}
+-\frac{dP}{dL}=\frac{150\,\mu\,(1-\varepsilon_{b})^{2}}{\varepsilon_{b}^{3}\,d_{p}^{2}}\,u+\frac{1.75\,\rho\,(1-\varepsilon_{b})}{\varepsilon_{b}^{3}\,d_{p}}\,u^{2}\tag{36}
 \]
 
 
 where $\mu$ is the fluid viscosity (Pa·s), $\epsilon_{b}$ the bed void fraction, $d_{p}$ the particle diameter (m), $\rho$ the fluid density (kg/m³), and $u$ the superficial velocity (m/s).
 
-####### Empty Tube: Beggs & Brill Correlation {#empty-tube-beggs-brill-correlation .unnumbered}
+####### Empty Tube: Beggs & Brill Correlation {#empty-tube-beggs-brill-correlation-.unnumbered}
 
 For empty tubes (no catalyst), the Beggs & Brill multiphase flow correlation is used, which accounts for liquid holdup, flow pattern, and friction for gas–liquid systems.
 
-###### Component Conversions {#component-conversions-1 .unnumbered}
+###### Component Conversions {#component-conversions-1-.unnumbered}
 
 
 
 <a id="eq:pfr_conversion"></a>
 
 \[
-X_{i}=\frac{|\dot{n}_{i,\text{in}}-\dot{n}_{i,\text{out}}|}{\dot{n}_{i,\text{in}}}
+X_{i}=\frac{|\dot{n}_{i,\text{in}}-\dot{n}_{i,\text{out}}|}{\dot{n}_{i,\text{in}}}\tag{37}
 \]
 
 
-###### Output Profiles {#output-profiles .unnumbered}
+###### Output Profiles {#output-profiles-.unnumbered}
 
 The PFR records concentration, temperature, and pressure at each volume step, producing axial profiles that can be visualized in the DWSIM graphical interface.
 
@@ -1227,7 +1227,7 @@ The PFR records concentration, temperature, and pressure at each volume step, pr
 | Auto internal HTC | Stirred vessel (Nu $= C\,\text{Re}_{imp}^{2/3}\,\text{Pr}^{1/3}$) | Dittus–Boelter (tube side) |
 | Auto external HTC | Annular jacket (Dittus–Boelter) | Annular jacket (Dittus–Boelter) |
 
-Summary comparison of the CSTR and PFR models in DWSIM.
+Table 6: Summary comparison of the CSTR and PFR models in DWSIM.
 
 
 
@@ -1235,17 +1235,17 @@ Summary comparison of the CSTR and PFR models in DWSIM.
 
 ##### Conversion Reactor
 
-###### Overview {#overview-23 .unnumbered}
+###### Overview {#overview-23-.unnumbered}
 
 The Conversion Reactor is the simplest reaction model available in DWSIM. The user specifies directly the fractional conversion of one or more reactions, and the model calculates the resulting outlet composition and energy balance. It does not require kinetic expressions or equilibrium data, making it ideal for preliminary studies, mass balance verification, or situations where only the overall conversion is known.
 
-###### Operating Principle {#operating-principle .unnumbered}
+###### Operating Principle {#operating-principle-.unnumbered}
 
 For each reaction assigned to the reactor, the user defines a conversion value between 0 and 1 (or a temperature-dependent expression). The model consumes the base component according to that conversion and adjusts all other species through the reaction stoichiometry.
 
 When multiple reactions are present, they are grouped by rank (priority). All reactions of the same rank are solved simultaneously using a Simplex optimization algorithm that finds the set of reaction extents satisfying the specified conversions. Reactions of different ranks are solved sequentially, from lowest to highest rank, so that the products of one group become the reactants of the next.
 
-###### Conversion Definition {#conversion-definition .unnumbered}
+###### Conversion Definition {#conversion-definition-.unnumbered}
 
 The conversion of the base component of reaction \$j\$ is defined as:
 
@@ -1254,13 +1254,13 @@ The conversion of the base component of reaction \$j\$ is defined as:
 <a id="eq:conv_def"></a>
 
 \[
-X_{j}=\frac{n_{0,j}-n_{f,j}}{n_{0,j}}
+X_{j}=\frac{n_{0,j}-n_{f,j}}{n_{0,j}}\tag{38}
 \]
 
 
 where $n_{0,j}$ is the initial molar flow of the base component and $n_{f,j}$ is its final molar flow. The conversion can be a fixed value or a function of temperature $T$ (in Kelvin), entered as a mathematical expression in the reaction settings.
 
-###### Calculation of Molar Flows {#calculation-of-molar-flows .unnumbered}
+###### Calculation of Molar Flows {#calculation-of-molar-flows-.unnumbered}
 
 For a reaction with stoichiometric coefficients $\nu_{i}$ (negative for reactants, positive for products) and base component $b$ , the molar flow of each species at the outlet is:
 
@@ -1269,11 +1269,11 @@ For a reaction with stoichiometric coefficients $\nu_{i}$ (negative for reactant
 <a id="eq:conv_moles"></a>
 
 \[
-n_{i,\text{out}}=n_{i,\text{in}}+\frac{\nu_{i}}{\left|\nu_{b}\right|}\cdot X_{j}\cdot n_{b,\text{in}}
+n_{i,\text{out}}=n_{i,\text{in}}+\frac{\nu_{i}}{\left|\nu_{b}\right|}\cdot X_{j}\cdot n_{b,\text{in}}\tag{39}
 \]
 
 
-###### Parallel Reactions and Simplex Optimization {#parallel-reactions-and-simplex-optimization .unnumbered}
+###### Parallel Reactions and Simplex Optimization {#parallel-reactions-and-simplex-optimization-.unnumbered}
 
 When two or more reactions of the same rank share common reactants, their extents are determined simultaneously. The model builds an objective function that minimizes the sum of squared differences between the calculated conversions and the target conversions:
 
@@ -1282,13 +1282,13 @@ When two or more reactions of the same rank share common reactants, their extent
 <a id="eq:conv_simplex"></a>
 
 \[
-\min_{\xi_{1},\dots,\xi_{m}}\sum_{j=1}^{m}\left(X_{j}^{\text{calc}}-X_{j}^{\text{target}}\right)^{2}
+\min_{\xi_{1},\dots,\xi_{m}}\sum_{j=1}^{m}\left(X_{j}^{\text{calc}}-X_{j}^{\text{target}}\right)^{2}\tag{40}
 \]
 
 
 This problem is solved using the Nelder-Mead Simplex method.
 
-###### Energy Balance {#energy-balance-2 .unnumbered}
+###### Energy Balance {#energy-balance-2-.unnumbered}
 
 After the outlet composition is determined, a thermodynamic flash calculation (T-P or P-H, depending on the operating mode) provides the final phase distribution and properties. The heat of reaction $\Delta H_{r}$ for each reaction is computed from the component enthalpies.
 
@@ -1299,13 +1299,13 @@ In isothermal mode, the reactor calculates the heat duty $Q$ required to maintai
 <a id="eq:conv_energy"></a>
 
 \[
-Q=H_{\text{out}}-H_{\text{in}}
+Q=H_{\text{out}}-H_{\text{in}}\tag{41}
 \]
 
 
 In adiabatic mode ( $Q=0$ ), the outlet temperature is found iteratively using a P-H flash.
 
-###### Supported Operating Modes {#supported-operating-modes .unnumbered}
+###### Supported Operating Modes {#supported-operating-modes-.unnumbered}
 
 
 
@@ -1319,11 +1319,11 @@ In adiabatic mode ( $Q=0$ ), the outlet temperature is found iteratively using a
 | Adiabatic                    | $P$ ($Q=0$)           | $T_{\text{out}}$ |
 | Non-isothermal/non-adiabatic | $Q$, $P$              | $T_{\text{out}}$ |
 
-Conversion Reactor operating modes
+Table 7: Conversion Reactor operating modes
 
 
 
-###### Practical Tips {#practical-tips .unnumbered}
+###### Practical Tips {#practical-tips-.unnumbered}
 
 - Make sure the specified conversion does not exceed the limiting-reagent constraint; otherwise the model may produce negative molar flows.
 
@@ -1333,17 +1333,17 @@ Conversion Reactor operating modes
 
 ##### Equilibrium Reactor
 
-###### Overview {#overview-24 .unnumbered}
+###### Overview {#overview-24-.unnumbered}
 
 The Equilibrium Reactor calculates the outlet composition based on chemical equilibrium. Instead of specifying how fast or how far a reaction proceeds, the user defines the equilibrium relationship, and the model finds the set of reaction extents that satisfy those equilibrium conditions simultaneously.
 
 This model is appropriate when the reactions are fast enough that the outlet stream approaches thermodynamic equilibrium, which is common in high-temperature processes such as reforming, water-gas shift, and combustion.
 
-###### Operating Principle {#operating-principle-1 .unnumbered}
+###### Operating Principle {#operating-principle-1-.unnumbered}
 
 For each equilibrium reaction, the model needs the equilibrium constant \$K\_{eq}\$ as a function of temperature. Based on the equilibrium expressions and the feed composition, the model solves a system of nonlinear equations to find the reaction extents \$\xi_j\$ that satisfy all equilibrium conditions simultaneously.
 
-###### Equilibrium Constant {#equilibrium-constant .unnumbered}
+###### Equilibrium Constant {#equilibrium-constant-.unnumbered}
 
 The equilibrium constant can be provided in several ways:
 
@@ -1361,7 +1361,7 @@ The equilibrium constant can be provided in several ways:
 | Mole fraction       | $K_x = \prod_i x_i^{\nu_i}$       |
 | Partial pressure    | $K_p = \prod_i p_i^{\nu_i}$       |
 
-Available bases for the equilibrium constant
+Table 8: Available bases for the equilibrium constant
 
 
 
@@ -1378,13 +1378,13 @@ The temperature dependence of $K_{eq}$ can be supplied in three forms:
 <a id="eq:eq_Ke_gibbs"></a>
 
 \[
-\ln K_{eq}(T)=-\frac{\Delta G_{r}^{\circ}(T)}{RT}
+\ln K_{eq}(T)=-\frac{\Delta G_{r}^{\circ}(T)}{RT}\tag{42}
 \]
 
 
 where $\Delta G_{r}^{\circ}=\sum_{i}\nu_{i},G_{f,i}^{\circ}$ is the standard Gibbs energy of reaction.
 
-###### Equilibrium Equation {#equilibrium-equation .unnumbered}
+###### Equilibrium Equation {#equilibrium-equation-.unnumbered}
 
 For each reaction $j$ , the equilibrium condition written in logarithmic form is:
 
@@ -1393,13 +1393,13 @@ For each reaction $j$ , the equilibrium condition written in logarithmic form is
 <a id="eq:eq_condition"></a>
 
 \[
-f_{j}(\boldsymbol{\xi})=\sum_{i}\nu_{i,j}\ln\!\left(\frac{n_{i}(\boldsymbol{\xi})}{n_{\text{total}}(\boldsymbol{\xi})}\right)-\ln K_{eq,j}(T)=0
+f_{j}(\boldsymbol{\xi})=\sum_{i}\nu_{i,j}\ln\!\left(\frac{n_{i}(\boldsymbol{\xi})}{n_{\text{total}}(\boldsymbol{\xi})}\right)-\ln K_{eq,j}(T)=0\tag{43}
 \]
 
 
 where $n_{i}(\boldsymbol{\xi})$ are the molar flows as functions of all reaction extents, and $n_{\text{total}}$ is the total molar flow. The exact form depends on the chosen basis (activity, fugacity, etc.).
 
-###### Solution Method {#solution-method .unnumbered}
+###### Solution Method {#solution-method-.unnumbered}
 
 The system of \$m\$ nonlinear equations (one per reaction) in $m$ unknowns (the reaction extents $\xi_{1},\dots,\xi_{m}$ ) is solved using a Newton-Raphson method. The Jacobian is estimated numerically, and the extents are updated iteratively:
 
@@ -1408,13 +1408,13 @@ The system of \$m\$ nonlinear equations (one per reaction) in $m$ unknowns (the 
 <a id="eq:eq_newton"></a>
 
 \[
-\boldsymbol{\xi}^{(k+1)}=\boldsymbol{\xi}^{(k)}-\mathbf{J}^{-1}\cdot\mathbf{f}\!\left(\boldsymbol{\xi}^{(k)}\right)
+\boldsymbol{\xi}^{(k+1)}=\boldsymbol{\xi}^{(k)}-\mathbf{J}^{-1}\cdot\mathbf{f}\!\left(\boldsymbol{\xi}^{(k)}\right)\tag{44}
 \]
 
 
 The iteration continues until the residuals are below the specified tolerance (default: $10^{-6}$ ). To improve robustness, the model limits the step size of each extent update to avoid overshooting into nonphysical regions (negative molar flows).
 
-###### Energy Balance {#energy-balance-3 .unnumbered}
+###### Energy Balance {#energy-balance-3-.unnumbered}
 
 The energy balance works identically to the Conversion Reactor:
 
@@ -1422,7 +1422,7 @@ The energy balance works identically to the Conversion Reactor:
 
 - **Adiabatic mode:** the outlet temperature is found iteratively (the equilibrium must be re-solved at each candidate temperature until $Q=0$ ).
 
-###### Practical Tips {#practical-tips-1 .unnumbered}
+###### Practical Tips {#practical-tips-1-.unnumbered}
 
 - When using the "From Gibbs energy" option for $K_{eq}$ , the accuracy depends on the quality of the Gibbs energy of formation data in the compound database.
 
@@ -1432,13 +1432,13 @@ The energy balance works identically to the Conversion Reactor:
 
 ##### Gibbs Reactor
 
-###### Overview {#overview-25 .unnumbered}
+###### Overview {#overview-25-.unnumbered}
 
 The Gibbs Reactor finds the outlet composition that minimizes the total Gibbs energy of the system, subject to element balance constraints. Unlike the Equilibrium Reactor, it does not require the user to specify which reactions occur: the model determines the equilibrium composition automatically based on thermodynamic principles.
 
 This is the most general equilibrium model available. It is especially useful when the reaction network is complex or unknown, since only the list of possible product species needs to be defined.
 
-###### Thermodynamic Foundation {#thermodynamic-foundation .unnumbered}
+###### Thermodynamic Foundation {#thermodynamic-foundation-.unnumbered}
 
 At constant temperature and pressure, a closed system reaches equilibrium when its total Gibbs energy is at a minimum. The total Gibbs energy of the mixture is:
 
@@ -1447,13 +1447,13 @@ At constant temperature and pressure, a closed system reaches equilibrium when i
 <a id="eq:gibbs_total"></a>
 
 \[
-G_{\text{total}}=\sum_{i=1}^{N}n_{i}\,\mu_{i}=\sum_{i=1}^{N}n_{i}\left[G_{f,i}^{\circ}+RT\ln\!\left(\frac{n_{i}}{\sum_{k}n_{k}}\right)\right]
+G_{\text{total}}=\sum_{i=1}^{N}n_{i}\,\mu_{i}=\sum_{i=1}^{N}n_{i}\left[G_{f,i}^{\circ}+RT\ln\!\left(\frac{n_{i}}{\sum_{k}n_{k}}\right)\right]\tag{45}
 \]
 
 
 where $n_{i}$ is the molar amount of species \$i\$, \$\mu_i\$ is its chemical potential, $G_{f,i}^{\circ}$ is the standard Gibbs energy of formation, $R$ is the gas constant, and $T$ is the absolute temperature.
 
-###### Optimization Problem {#optimization-problem .unnumbered}
+###### Optimization Problem {#optimization-problem-.unnumbered}
 
 The model solves the following constrained minimization:
 
@@ -1462,7 +1462,7 @@ The model solves the following constrained minimization:
 <a id="eq:gibbs_min"></a>
 
 \[
-\min_{\mathbf{n}}\;G_{\text{total}}(\mathbf{n})
+\min_{\mathbf{n}}\;G_{\text{total}}(\mathbf{n})\tag{46}
 \]
 
 
@@ -1473,7 +1473,7 @@ subject to element balance constraints:
 <a id="eq:gibbs_elem"></a>
 
 \[
-\sum_{i=1}^{N}a_{e,i}\,n_{i}=b_{e},\quad e=1,\dots,E
+\sum_{i=1}^{N}a_{e,i}\,n_{i}=b_{e},\quad e=1,\dots,E\tag{47}
 \]
 
 
@@ -1484,13 +1484,13 @@ and non-negativity:
 <a id="eq:gibbs_nonneg"></a>
 
 \[
-n_{i}\geq0,\quad i=1,\dots,N
+n_{i}\geq0,\quad i=1,\dots,N\tag{48}
 \]
 
 
 where $a_{e,i}$ is the number of atoms of element $e$ in species $i$ , $b_{e}$ is the total amount of element $e$ in the feed (conserved), and $E$ is the number of distinct elements.
 
-###### Solution Method {#solution-method-1 .unnumbered}
+###### Solution Method {#solution-method-1-.unnumbered}
 
 DWSIM uses the IPOPT (Interior Point OPTimizer) solver, a state-of-the-art nonlinear programming algorithm. The main features of the implementation are:
 
@@ -1502,7 +1502,7 @@ DWSIM uses the IPOPT (Interior Point OPTimizer) solver, a state-of-the-art nonli
 
 - **AI-assisted convergence:** for difficult cases, the model can use artificial intelligence techniques to generate better initial estimates.
 
-###### Operating Modes {#operating-modes-4 .unnumbered}
+###### Operating Modes {#operating-modes-4-.unnumbered}
 
 The Gibbs Reactor supports two distinct calculation approaches:
 
@@ -1517,13 +1517,13 @@ The Gibbs Reactor supports two distinct calculation approaches:
 | Direct minimization | Minimizes total Gibbs energy with no reaction definitions needed. The user only selects which species may be present. |
 | Reaction extents | Uses specified reactions and minimizes $G$ with respect to the reaction extents $\xi_j$, similar to the Equilibrium Reactor but solved via optimization rather than root-finding. |
 
-Gibbs Reactor calculation modes
+Table 9: Gibbs Reactor calculation modes
 
 
 
 For thermal modes, the same options apply as the other reactors (isothermal, adiabatic, and specified heat duty).
 
-###### Practical Tips {#practical-tips-2 .unnumbered}
+###### Practical Tips {#practical-tips-2-.unnumbered}
 
 - In direct minimization mode, the set of species you include determines the solution. If a possible product species is absent from the list, it cannot appear in the outlet. Conversely, including too many species that are thermodynamically negligible usually does not cause problems; their equilibrium amounts will simply be very small.
 
@@ -1546,7 +1546,7 @@ For thermal modes, the same options apply as the other reactors (isothermal, adi
 
 The Reaktoro version of the Gibbs Reactor is a general-purpose isothermal reactor where the product species are determined on-the-fly. The user defines the reactive compounds, active elements and other parameters. The products formed will be a function of the global system Gibbs Free Energy according to the selected reactants and elements.
 
-###### Setup and Calculation Guide {#setup-and-calculation-guide-4 .unnumbered}
+###### Setup and Calculation Guide {#setup-and-calculation-guide-4-.unnumbered}
 
 1.  Setup the reactor connections.
 

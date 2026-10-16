@@ -9,7 +9,7 @@ Composition derivatives are reported on a mole-number basis, evaluated at a tota
 <a id="eq:d-project"></a>
 
 \[
-\frac{\partial\ln\gamma_{i}}{\partial n_{j}}=\frac{\partial\ln\gamma_{i}}{\partial x_{j}}-\sum_{k}x_{k}\frac{\partial\ln\gamma_{i}}{\partial x_{k}}
+\frac{\partial\ln\gamma_{i}}{\partial n_{j}}=\frac{\partial\ln\gamma_{i}}{\partial x_{j}}-\sum_{k}x_{k}\frac{\partial\ln\gamma_{i}}{\partial x_{k}}\tag{1}
 \]
 
 
@@ -22,7 +22,7 @@ The K-value and its derivatives are
 <a id="eq:d-kdef"></a>
 
 \[
-K_{i}=\frac{\varphi_{i}^{L}}{\varphi_{i}^{V}}\;\text{(EOS)},\qquad K_{i}=\frac{\gamma_{i}P_{i}^{\mathrm{sat}}}{\varphi_{i}^{V}P}\;\text{(activity)}
+K_{i}=\frac{\varphi_{i}^{L}}{\varphi_{i}^{V}}\;\text{(EOS)},\qquad K_{i}=\frac{\gamma_{i}P_{i}^{\mathrm{sat}}}{\varphi_{i}^{V}P}\;\text{(activity)}\tag{2}
 \]
 
 
@@ -33,7 +33,7 @@ K_{i}=\frac{\varphi_{i}^{L}}{\varphi_{i}^{V}}\;\text{(EOS)},\qquad K_{i}=\frac{\
 \[
 \begin{aligned}\frac{\partial K_{i}}{\partial T} & =K_{i}\!\left(\frac{\partial\ln\varphi_{i}^{L}}{\partial T}-\frac{\partial\ln\varphi_{i}^{V}}{\partial T}\right)\\
 \frac{\partial K_{i}}{\partial n_{j}} & =K_{i}\,\frac{\partial\ln\varphi_{i}^{L}}{\partial n_{j}}
-\end{aligned}
+\end{aligned}\tag{3}
 \]
 
 

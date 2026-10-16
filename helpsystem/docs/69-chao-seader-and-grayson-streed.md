@@ -7,7 +7,7 @@ These two are semi-empirical correlations rather than equations of state, and bo
 <a id="eq:d-cs-phi"></a>
 
 \[
-\varphi_{i}^{L}=\nu_{i}\,\gamma_{i},\qquad\log_{10}\nu_{i}=\log_{10}\nu_{i}^{(0)}+\omega_{i}^{\mathrm{CS}}\log_{10}\nu_{i}^{(1)}
+\varphi_{i}^{L}=\nu_{i}\,\gamma_{i},\qquad\log_{10}\nu_{i}=\log_{10}\nu_{i}^{(0)}+\omega_{i}^{\mathrm{CS}}\log_{10}\nu_{i}^{(1)}\tag{1}
 \]
 
 
@@ -18,7 +18,7 @@ where $\log_{10}\nu_{i}^{(0)}$ is a polynomial in the reduced temperature $T_{r,
 <a id="eq:d-cs-dnudt"></a>
 
 \[
-\frac{\partial\ln\nu_{i}}{\partial T}=\frac{\ln10}{T_{c,i}}\left(\frac{d\log_{10}\nu_{i}^{(0)}}{dT_{r,i}}+\omega_{i}^{\mathrm{CS}}\frac{d\log_{10}\nu_{i}^{(1)}}{dT_{r,i}}\right)
+\frac{\partial\ln\nu_{i}}{\partial T}=\frac{\ln10}{T_{c,i}}\left(\frac{d\log_{10}\nu_{i}^{(0)}}{dT_{r,i}}+\omega_{i}^{\mathrm{CS}}\frac{d\log_{10}\nu_{i}^{(1)}}{dT_{r,i}}\right)\tag{2}
 \]
 
 
@@ -29,7 +29,7 @@ The activity coefficient is the regular-solution expression $\ln\gamma_{i}=V_{i}
 <a id="eq:d-cs-dgammadt"></a>
 
 \[
-\frac{\partial\ln\gamma_{i}}{\partial T}=-\frac{\ln\gamma_{i}}{T}
+\frac{\partial\ln\gamma_{i}}{\partial T}=-\frac{\ln\gamma_{i}}{T}\tag{3}
 \]
 
 
@@ -40,7 +40,7 @@ The vapour phase of both correlations is Redlich-Kwong, and two properties of th
 <a id="eq:d-cs-dabdt"></a>
 
 \[
-\frac{\partial A}{\partial T}=-\frac{5A}{2T},\qquad\frac{\partial B}{\partial T}=-\frac{B}{T}
+\frac{\partial A}{\partial T}=-\frac{5A}{2T},\qquad\frac{\partial B}{\partial T}=-\frac{B}{T}\tag{4}
 \]
 
 

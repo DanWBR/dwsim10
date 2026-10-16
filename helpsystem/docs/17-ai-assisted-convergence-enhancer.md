@@ -54,7 +54,7 @@ Before querying any provider, ACE validates the input: requests containing any `
 
 Each local ANN is a fully connected feedforward network  with the following structure:
 
-- **Input layer**: normalised scalar variables and per-component molar flows (see Section [3.9](#sec:convenhancer_operations)).
+- **Input layer**: normalised scalar variables and per-component molar flows (see Section [Supported Thermodynamic Operations](#sec:convenhancer_operations)).
 
 - **Hidden layers**: $L$ layers (configurable, $2 \le L \le 6$) where the number of neurons in layer $\ell$ is
 
@@ -63,7 +63,7 @@ Each local ANN is a fully connected feedforward network  with the following str
 
 \[
 n_\ell = \left\lfloor \frac{n_1}{2^{\ell-1}} \right\rfloor,
-                \qquad \ell = 1, \ldots, L
+                \qquad \ell = 1, \ldots, L\tag{1}
 \]
 
 
@@ -73,7 +73,7 @@ n_\ell = \left\lfloor \frac{n_1}{2^{\ell-1}} \right\rfloor,
 <a id="eq:ace_relu"></a>
 
 \[
-\sigma(z) = \max(0, z)
+\sigma(z) = \max(0, z)\tag{2}
 \]
 
 
@@ -89,7 +89,7 @@ All inputs and outputs are rescaled to the range $[-1, 1]$ before training and i
 <a id="eq:ace_scale"></a>
 
 \[
-\tilde{x} = \frac{x - x_{\min}}{x_{\max} - x_{\min}} \times 2 - 1
+\tilde{x} = \frac{x - x_{\min}}{x_{\max} - x_{\min}} \times 2 - 1\tag{3}
 \]
 
 
@@ -100,7 +100,7 @@ The per-feature extrema $x_{\min}$ and $x_{\max}$ are computed from the training
 
 \[
 \hat{y}_{\mathrm{phys}} = \frac{(\hat{y} + 1)}{2}
-        \,(y_{\max} - y_{\min}) + y_{\min}
+        \,(y_{\max} - y_{\min}) + y_{\min}\tag{4}
 \]
 
 
@@ -113,7 +113,7 @@ The network is trained by minimising the mean squared error (MSE) loss over the 
 
 \[
 \mathcal{L} = \frac{1}{N_{\mathrm{train}}}\sum_{i=1}^{N_{\mathrm{train}}}
-        \bigl\|\hat{\mathbf{y}}_i - \mathbf{y}_i\bigr\|^2
+        \bigl\|\hat{\mathbf{y}}_i - \mathbf{y}_i\bigr\|^2\tag{5}
 \]
 
 
@@ -123,7 +123,7 @@ where $\hat{\mathbf{y}}_i$ is the network prediction and $\mathbf{y}_i$ is the t
 <a id="eq:ace_batch"></a>
 
 \[
-B = \min\!\bigl(5000,\; \lfloor 0.5\,N_{\mathrm{train}} \rfloor\bigr)
+B = \min\!\bigl(5000,\; \lfloor 0.5\,N_{\mathrm{train}} \rfloor\bigr)\tag{6}
 \]
 
 
@@ -134,7 +134,7 @@ Training runs for up to $E_{\max}$ epochs (default 10 000). An early stopping 
 
 \[
 \frac{|\mathcal{L}_e - \mathcal{L}_{e-1}|}{\mathcal{L}_{e-1}}
-        < \varepsilon_{\mathrm{stop}}
+        < \varepsilon_{\mathrm{stop}}\tag{7}
 \]
 
 
@@ -156,7 +156,7 @@ Raw network outputs are post-processed to enforce physical consistency before be
 \[
 \hat{n}_k^{\mathrm{corr}} = \hat{n}_k
                       \,\frac{\displaystyle\sum_{j} n_j^{\mathrm{in}}}
-                             {\displaystyle\sum_{j} \hat{n}_j}
+                             {\displaystyle\sum_{j} \hat{n}_j}\tag{8}
 \]
 
 
@@ -230,7 +230,7 @@ Users may explicitly generate a synthetic training dataset from an existing flow
 
 \[
 x_j^{(k)} = x_j \left(1 + \delta \, \frac{2k - (M+1)}{M-1}\right),
-    \qquad k = 1, \ldots, M
+    \qquad k = 1, \ldots, M\tag{9}
 \]
 
 
@@ -244,7 +244,7 @@ A background timer checks the local database every $\Delta t_{\mathrm{upd}}$ sec
 
 2.  Groups records by compound set and property package; only groups with at least $N_{\mathrm{thr}}$ samples are processed.
 
-3.  Calls the appropriate model trainer, which constructs the input/output matrices, scales the data (Eq. [§](#eq:ace_scale)), and trains a new ANN as described above.
+3.  Calls the appropriate model trainer, which constructs the input/output matrices, scales the data (Eq. [3](#eq:ace_scale)), and trains a new ANN as described above.
 
 4.  Saves the trained model as a ZIP archive containing the serialised TensorFlow graph and a JSON metadata file with the model MSE, compound list, property package name, sample count, and scaling boundaries.
 
@@ -276,7 +276,7 @@ When ACE needs to run inference it queries the local model store and selects the
 
 - Among all qualifying models, the one with the lowest test-set MSE is selected.
 
-If no qualifying model exists, the provider returns null and the next provider in the cascade is queried (Section [3.4](#sec:convenhancer_cascade)).
+If no qualifying model exists, the provider returns null and the next provider in the cascade is queried (Section [Solution Provider Cascade](#sec:convenhancer_cascade)).
 
 Compound names are sorted alphabetically before constructing both the training feature vector and the inference input vector, ensuring that a model is agnostic to the component ordering used in the flowsheet.
 
@@ -346,7 +346,7 @@ where `<type>` is the operation type (e.g. `PT`), `<package>` is the property p
 
 #### Assumptions and Limitations
 
-1.  **Accuracy depends on training coverage**: ANN predictions are reliable only within the region of the input space covered by the training data. Extrapolation to conditions far outside the training range may produce unphysical results; the non-negativity and material-balance constraints (Section [3.8](#sec:ace_constraints)) reduce but do not eliminate this risk.
+1.  **Accuracy depends on training coverage**: ANN predictions are reliable only within the region of the input space covered by the training data. Extrapolation to conditions far outside the training range may produce unphysical results; the non-negativity and material-balance constraints (Section [Post-Prediction Constraints](#sec:ace_constraints)) reduce but do not eliminate this risk.
 
 2.  **Compound set and property package specificity**: each model is strictly tied to the compound set and thermodynamic property package used during training. Changing either requires a new model to be trained from scratch.
 
