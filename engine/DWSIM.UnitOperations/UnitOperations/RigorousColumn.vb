@@ -6799,7 +6799,10 @@ Namespace UnitOperations
         Private Function SolveBubblePointRetry(bpsolver As ColumnSolver) As ColumnSolverOutputData
             SetColumnSolver(bpsolver)
             Try
-                Return Solver.SolveColumn(GetSolverInputData(True))
+                ' the retry starts from the products split by volatility (when the specifications leave their
+                ' compositions open): the stage temperatures and compositions then start on the line between
+                ' two separated products, where a column the feed-composition start cannot settle often converges
+                Return Solver.SolveColumn(GetSolverInputData(True, True))
             Catch oex As OperationCanceledException
                 Throw
             Catch bpex As Exception

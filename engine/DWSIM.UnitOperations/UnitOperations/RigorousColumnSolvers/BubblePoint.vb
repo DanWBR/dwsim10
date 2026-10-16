@@ -1178,6 +1178,12 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
             Dim maxDT As Double = 50.0
 
             Dim Kfac(ns) As Double
+            ' The wide-boiling path (Mode 1) moves the temperatures by Broyden steps and recomputes K at them, so
+            ' its stages are not at their bubble points until it converges; its exit also asks the bubble point
+            ' equation to hold, since small steps alone can stop it on a profile that is still off (a demethanizer
+            ' left with sum K x - 1 = 0.015 and its bottoms 4 K too warm).
+            Dim bpres As Double = 0.0
+            Dim bptol As Double = Math.Min(tolerance, 0.0001)
 
             Dim fx(ns), xtj(ns), dfdx(ns, ns), fxb(ns), xtjb(ns), dxtj(ns) As Double
 
@@ -1534,6 +1540,14 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                 If noliq0 Then
                     Tj(0) = Tj(1)
                     K(0) = DirectCast(K(1).Clone(), Double())
+                End If
+
+                If Mode <> 0 Then
+                    bpres = 0.0
+                    For i = 0 To ns
+                        If i = 0 AndAlso noliq0 Then Continue For
+                        bpres = Math.Max(bpres, Math.Abs(1.0 - K(i).MultiplyY(xc(i)).SumY()))
+                    Next
                 End If
 
                 For i = 0 To ns
@@ -1906,7 +1920,7 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                 reporter?.AppendLine()
                 reporter?.AppendLine()
 
-            Loop Until (t_error + vf_error) < tolerance * ns / 100 And x_error < tolerance And ic > 1 And Not bpfailed
+            Loop Until (t_error + vf_error) < tolerance * ns / 100 And x_error < tolerance And ic > 1 And Not bpfailed And (Mode = 0 OrElse bpres < bptol)
 
             'check mass balance
             For i = 0 To ns

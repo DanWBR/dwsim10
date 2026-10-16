@@ -11504,9 +11504,9 @@
       <SolverScheme>Direct</SolverScheme>
       <CondenserType>Total_Condenser</CondenserType>
       <ColumnType>DistillationColumn</ColumnType>
-      <MaxIterations>100</MaxIterations>
-      <InternalLoopTolerance>0.1</InternalLoopTolerance>
-      <ExternalLoopTolerance>0.1</ExternalLoopTolerance>
+      <MaxIterations>500</MaxIterations>
+      <InternalLoopTolerance>0.0001</InternalLoopTolerance>
+      <ExternalLoopTolerance>0.0001</ExternalLoopTolerance>
       <VaporFlowRateUnit>m3/d @ SC</VaporFlowRateUnit>
       <VaporFlowRate>336.805315</VaporFlowRate>
       <DistillateFlowRate>360.862837</DistillateFlowRate>
