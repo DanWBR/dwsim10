@@ -2310,6 +2310,40 @@ Namespace UnitOperations
         ''' Whether the external solver registered under this name takes the column: what it says through
         ''' <see cref="IExternalColumnSolverSupport"/>, or distillation columns only when it says nothing.
         ''' </summary>
+        ''' <summary>True when a free water product is connected to the condenser.</summary>
+        Public Function HasFreeWaterProduct() As Boolean
+            Return MaterialStreams.Values.Any(Function(s) s.StreamBehavior = StreamInformation.Behavior.FreeWater)
+        End Function
+
+        ''' <summary>The index of water among the compounds when a free water product is connected, or -1.</summary>
+        Public Function FreeWaterCompoundIndex() As Integer
+            If Not HasFreeWaterProduct() Then Return -1
+            Dim k = 0
+            For Each c In FlowSheet.SelectedCompounds.Values
+                If c.CAS_Number = "7732-18-5" OrElse String.Equals(c.Name, "Water", StringComparison.OrdinalIgnoreCase) Then Return k
+                k += 1
+            Next
+            Return -1
+        End Function
+
+        ''' <summary>Connects a stream to a side connector as the free water decanted from the condenser.</summary>
+        Public Sub ConnectFreeWater(stream As Interfaces.ISimulationObject)
+            Dim i As Integer = 0
+            For Each con In GraphicObject.OutputConnectors
+                If Not con.IsAttached AndAlso con.ConnectorName.Contains("Side") Then
+                    FlowSheet.ConnectObjects(GraphicObject, stream.GraphicObject, i, 0)
+                    MaterialStreams.Add(stream.Name, New StreamInformation With {.ID = stream.Name, .StreamID = stream.Name,
+                        .AssociatedStage = Stages(0).ID,
+                        .StreamBehavior = StreamInformation.Behavior.FreeWater,
+                        .StreamType = StreamInformation.Type.Material,
+                        .StreamPhase = StreamInformation.Phase.L})
+                    Return
+                End If
+                i += 1
+            Next
+            Throw New Exception("No side connector available for the free water product")
+        End Sub
+
         Public Shared Function ExternalSolverSupports(name As String, column As Column) As Boolean
             If name Is Nothing OrElse Not ExternalColumnSolvers.ContainsKey(name) Then Return False
             Dim support = TryCast(ExternalColumnSolvers(name), IExternalColumnSolverSupport)
@@ -3472,6 +3506,13 @@ Namespace UnitOperations
                             Else
                                 Me.GraphicObject.OutputConnectors(idx).Position = New Point.Point(Me.GraphicObject.X, Me.GraphicObject.Y + 0.02 * Me.GraphicObject.Height)
                             End If
+                        Case StreamInformation.Behavior.FreeWater
+                            idx = FlowSheet.GraphicObjects(strinfo.StreamID).InputConnectors(0).AttachedConnector.AttachedFromConnectorIndex
+                            If Not Me.GraphicObject.FlippedH Then
+                                Me.GraphicObject.OutputConnectors(idx).Position = New Point.Point(Me.GraphicObject.X + Me.GraphicObject.Width, Me.GraphicObject.Y + 0.18 * Me.GraphicObject.Height)
+                            Else
+                                Me.GraphicObject.OutputConnectors(idx).Position = New Point.Point(Me.GraphicObject.X, Me.GraphicObject.Y + 0.18 * Me.GraphicObject.Height)
+                            End If
                         Case StreamInformation.Behavior.Sidedraw
                             idx = FlowSheet.GraphicObjects(strinfo.StreamID).InputConnectors(0).AttachedConnector.AttachedFromConnectorIndex
                             If Me.GraphicObject.FlippedH Then
@@ -3541,6 +3582,9 @@ Namespace UnitOperations
         Public Lf As Double() = New Double() {}
         Public LSS0 As Double() = New Double() {}
         Public LSSf As Double() = New Double() {}
+
+        ''' <summary>Free water decanted from the condenser in the last solution, mol/s.</summary>
+        Public FreeWaterFlow As Double = 0.0
         Public VSS0 As Double() = New Double() {}
         Public VSSf As Double() = New Double() {}
         Public P0 As Double() = New Double() {}
@@ -7069,6 +7113,10 @@ Namespace UnitOperations
             VSSf = so.VaporSideDraws.ToArray()
             LSSf = so.LiquidSideDraws.ToArray()
             Q = so.StageHeats.ToArray()
+            FreeWaterFlow = so.FreeWaterFlow
+            If HasFreeWaterProduct() AndAlso Not so.FreeWaterDecanted Then
+                FlowSheet.ShowMessage(GraphicObject.Tag + ": the " + SolvingMethodName + " solver does not decant free water; the free water product is empty and the water stays with the condenser liquid.", IFlowsheet.MessageType.Warning)
+            End If
 
             'generate properties profile
 
@@ -7272,6 +7320,34 @@ Namespace UnitOperations
                                 i = 0
                                 For Each subst As BaseClasses.Compound In .Phases(0).Compounds.Values
                                     subst.MassFraction = pp.AUX_CONVERT_MOL_TO_MASS(xf(ns))(i)
+                                    i += 1
+                                Next
+                                .Phases(3).Properties.molarfraction = 1.0
+                                .CopyCompositions(PhaseLabel.Mixture, PhaseLabel.Liquid1)
+                                .AtEquilibrium = True
+                            End With
+                        Case StreamInformation.Behavior.FreeWater
+                            msm = FlowSheet.SimulationObjects(sinf.StreamID)
+                            Dim iw = FreeWaterCompoundIndex()
+                            'pure water at the condenser temperature and pressure
+                            Dim zw(comps.Count - 1) As Double
+                            If iw >= 0 Then zw(iw) = 1.0
+                            Dim fw = If(iw >= 0, FreeWaterFlow, 0.0)
+                            With msm
+                                pp.CurrentMaterialStream = msm
+                                .Clear()
+                                .SpecType = StreamSpec.Pressure_and_Enthalpy
+                                .DefinedFlow = FlowSpec.Mass
+                                .Phases(0).Properties.massflow = If(iw >= 0, fw * pp.RET_VMM()(iw) / 1000, 0.0)
+                                .Phases(0).Properties.molarflow = fw
+                                .Phases(0).Properties.temperature = Tf(0)
+                                .Phases(0).Properties.pressure = P(0)
+                                If iw >= 0 Then .Phases(0).Properties.enthalpy = pp.DW_CalcEnthalpy(zw, Tf(0), P(0), PropertyPackages.State.Liquid)
+                                i = 0
+                                For Each subst As BaseClasses.Compound In .Phases(0).Compounds.Values
+                                    subst.MoleFraction = zw(i)
+                                    subst.MassFraction = zw(i)
+                                    If i = iw Then compound_balances(subst.Name) -= fw
                                     i += 1
                                 Next
                                 .Phases(3).Properties.molarfraction = 1.0
@@ -7620,6 +7696,16 @@ Namespace UnitOperations
                                 For Each subst As BaseClasses.Compound In .Phases(0).Compounds.Values
                                     subst.MoleFraction = 0
                                     i += 1
+                                Next
+                            End With
+                        Case StreamInformation.Behavior.FreeWater
+                            msm = FlowSheet.SimulationObjects(sinf.StreamID)
+                            With msm
+                                .Phases(0).Properties.massflow = 0
+                                .Phases(0).Properties.temperature = 0
+                                .Phases(0).Properties.pressure = 0
+                                For Each subst As BaseClasses.Compound In .Phases(0).Compounds.Values
+                                    subst.MoleFraction = 0
                                 Next
                             End With
                         Case StreamInformation.Behavior.Sidedraw
@@ -8316,6 +8402,12 @@ Namespace UnitOperations.Auxiliary.SepOps
         Public Property LiquidSideDraws As List(Of Double)
         Public Property Kvalues As List(Of Double())
 
+        ''' <summary>Free water decanted from the condenser, mol/s, pure water; zero when the solver does not decant it.</summary>
+        Public Property FreeWaterFlow As Double = 0.0
+
+        ''' <summary>True when the solver handled the free water product (even at zero flow).</summary>
+        Public Property FreeWaterDecanted As Boolean = False
+
     End Class
 
     <System.Serializable()> Public Class StreamInformation
@@ -8337,6 +8429,8 @@ Namespace UnitOperations.Auxiliary.SepOps
             SideOpVaporProduct = 6
             Steam = 7
             InterExchanger = 8
+            ''' <summary>Water decanted from the condenser as a free water phase (a side connector of the column).</summary>
+            FreeWater = 9
         End Enum
 
         Public Enum Phase

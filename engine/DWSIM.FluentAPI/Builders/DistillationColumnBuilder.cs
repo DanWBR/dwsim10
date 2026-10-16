@@ -54,6 +54,13 @@ namespace DWSIM.Automation.FluentAPI.Builders
         { Object.ConnectSideDraw(stream.Object, stageNumber, vapor, molarFlow.SI); return this; }
 
         /// <summary>
+        /// Connects the free water decanted from the condenser (it needs a column solver that decants it, such as the
+        /// Inside-Out solver of the Refining pack): the condenser liquid returns as reflux without its water.
+        /// </summary>
+        public DistillationColumnBuilder WithFreeWater(MaterialStreamBuilder stream)
+        { Object.ConnectFreeWater(stream.Object); return this; }
+
+        /// <summary>
         /// Adds a secondary specification: a property of a product (a distillation curve point such as
         /// <c>"D86 95%"</c>, a product property such as <c>"Flash Point (Closed Cup)"</c>, or a stream property
         /// ID) reached by moving the condenser or reboiler specification value, or the rate of a side draw.

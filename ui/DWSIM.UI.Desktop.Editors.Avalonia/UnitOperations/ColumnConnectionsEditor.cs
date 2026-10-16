@@ -175,12 +175,27 @@ namespace DWSIM.UI.Desktop.Editors
 
             public string PhaseName
             {
-                get { return _info.StreamPhase == StreamInformation.Phase.V ? "Vapor" : "Liquid"; }
+                get
+                {
+                    if (_info.StreamBehavior == StreamInformation.Behavior.FreeWater) return "Free Water";
+                    return _info.StreamPhase == StreamInformation.Phase.V ? "Vapor" : "Liquid";
+                }
                 set
                 {
-                    _info.StreamPhase = value == "Vapor"
-                        ? StreamInformation.Phase.V
-                        : StreamInformation.Phase.L;
+                    if (value == "Free Water")
+                    {
+                        // water decanted from the condenser: its rate comes out of the solution
+                        _info.StreamBehavior = StreamInformation.Behavior.FreeWater;
+                        _info.StreamPhase = StreamInformation.Phase.L;
+                        if (_column.Stages.Count > 0) _info.AssociatedStage = _column.Stages[0].ID;
+                    }
+                    else
+                    {
+                        _info.StreamBehavior = StreamInformation.Behavior.Sidedraw;
+                        _info.StreamPhase = value == "Vapor"
+                            ? StreamInformation.Phase.V
+                            : StreamInformation.Phase.L;
+                    }
                     Raise("PhaseName");
                 }
             }
@@ -279,8 +294,9 @@ namespace DWSIM.UI.Desktop.Editors
             var sideDrawGrid = Grid();
             sideDrawGrid.ItemsSource = sideDrawSpecs;
             sideDrawGrid.Columns.Add(TextColumn("Stream", "Stream", 1.4, readOnly: true));
-            sideDrawGrid.Columns.Add(ComboColumn("Phase", "PhaseName",
-                new List<string> { "Liquid", "Vapor" }, 1.0));
+            var phases = new List<string> { "Liquid", "Vapor" };
+            if (column is DWSIM.UnitOperations.UnitOperations.DistillationColumn) phases.Add("Free Water");
+            sideDrawGrid.Columns.Add(ComboColumn("Phase", "PhaseName", phases, 1.0));
             sideDrawGrid.Columns.Add(TextColumn("Molar Flow (" + su.molarflow + ")", "FlowRate", 1.2));
 
             tabs.Items.Add(new TabItem { Header = "Side Draw Specs", Content = sideDrawGrid });
@@ -307,7 +323,7 @@ namespace DWSIM.UI.Desktop.Editors
 
                 associations.Add(new AssociationRow(column, si, kind, names, ids));
 
-                if (si.StreamBehavior == StreamInformation.Behavior.Sidedraw)
+                if (si.StreamBehavior == StreamInformation.Behavior.Sidedraw || si.StreamBehavior == StreamInformation.Behavior.FreeWater)
                     sideDraws.Add(new SideDrawRow(column, si, su, nf));
             }
 
@@ -327,6 +343,7 @@ namespace DWSIM.UI.Desktop.Editors
             {
                 case StreamInformation.Behavior.Feed: return "Feed";
                 case StreamInformation.Behavior.Sidedraw: return "Side Draw";
+                case StreamInformation.Behavior.FreeWater: return "Free Water";
                 case StreamInformation.Behavior.Distillate: return "Distillate";
                 case StreamInformation.Behavior.OverheadVapor: return "Overhead Vapor";
                 case StreamInformation.Behavior.BottomsLiquid: return "Bottoms Product";
