@@ -444,7 +444,7 @@ where $\dot{Q}_{\text{rxn}}=\sum_{j}\dot{Q}_{\text{rxn},j}$ is the total heat re
 
 ####### Outlet Temperature Mode {#outlet-temperature-mode .unnumbered}
 
-The outlet temperature $T_{out}$ is specified by the user. The heat duty is calculated from Eq. $[§](#eq:cstr_iso)$ with the outlet enthalpy evaluated at $T_{out}$ .
+The outlet temperature $T_{out}$ is specified by the user. The heat duty is calculated from Eq.  [§](#eq:cstr_iso) with the outlet enthalpy evaluated at $T_{out}$ .
 
 ####### Heat Exchange Mode {#heat-exchange-mode .unnumbered}
 
@@ -549,7 +549,7 @@ where $D_{h}=D_{j}-D_{o}$ is the hydraulic diameter of the annular jacket, $D_{j
 
 ####### Solution Algorithm {#solution-algorithm-1 .unnumbered}
 
-Because the outlet composition depends on the reaction rates, which themselves depend on the outlet composition (through the well-mixed assumption), the steady-state balance (Eq. $[§](#eq:cstr_balance)$ ) is solved iteratively using a pseudo-transient approach. The algorithm tracks the molar inventory $N_{i}$ (mol) of each component inside the reactor and marches forward in discrete time steps until the composition reaches steady state.
+Because the outlet composition depends on the reaction rates, which themselves depend on the outlet composition (through the well-mixed assumption), the steady-state balance (Eq.  [§](#eq:cstr_balance) ) is solved iteratively using a pseudo-transient approach. The algorithm tracks the molar inventory $N_{i}$ (mol) of each component inside the reactor and marches forward in discrete time steps until the composition reaches steady state.
 
 
 

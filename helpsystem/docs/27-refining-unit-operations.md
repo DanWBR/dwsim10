@@ -43,7 +43,7 @@ w_{c \rightarrow k}
 \]
 
 
-where $T_{k-1}$ and $T_{k}$ are the lower and upper TBP cut points of product $k$ and $\sigma$ (K) is the cut-point uncertainty. When $\sigma \rightarrow 0$ [\[eq:cdu_cutweight\]](#eq:cdu_cutweight) reduces to a sharp-cut assignment.
+where $T_{k-1}$ and $T_{k}$ are the lower and upper TBP cut points of product $k$ and $\sigma$ (K) is the cut-point uncertainty. When $\sigma \rightarrow 0$ [§](#eq:cdu_cutweight) reduces to a sharp-cut assignment.
 
 The product mass flow is obtained by summing the cut fractions over all pseudocomponents:
 
@@ -116,7 +116,7 @@ k(T) = k_0\, \exp\!\left(-\frac{E_a}{R T}\right)
 
 where $n$ is the reaction order in sulfur (typically 1.5–2), $m$ is the hydrogen partial-pressure order, $k_0$ is the pre-exponential factor, $E_a$ is the apparent activation energy, $T$ is the reactor temperature, and $C_{\mathrm{S}}$ is the sulfur mass concentration in the liquid phase.
 
-Integrating [\[eq:hds_rate\]](#eq:hds_rate) over the reactor residence time $\tau = 1/\mathrm{LHSV}$ for $n \ne 1$ gives the sulfur conversion:
+Integrating [§](#eq:hds_rate) over the reactor residence time $\tau = 1/\mathrm{LHSV}$ for $n \ne 1$ gives the sulfur conversion:
 
 
 <a id="eq:hds_conversion"></a>
@@ -575,7 +575,7 @@ The blend fractions $f_j$ are the inlet volumetric flows at stream conditions (b
 
   with $a_1 = 0.03324$, $a_2 = 0.00085$, $a_3 = 0$, $b_1 = 0.04285$, $b_2 = 0.00066$ and $b_3 = -0.00632$.
 
-- *User Coefficients*: equation [\[eq:blender_ethyl\]](#eq:blender_ethyl) with the six coefficients entered by the user (they default to the published set).
+- *User Coefficients*: equation [§](#eq:blender_ethyl) with the six coefficients entered by the user (they default to the published set).
 
 The anti-knock index $(R + M)/2$, the sensitivity $R - M$ and the linear averages are reported alongside the blended values.
 
@@ -783,7 +783,7 @@ All refining unit operations follow the same explicit calculation pattern:
 
 2.  Initialise the pseudocomponent list from the feed `SelectedCompounds` collection.
 
-3.  Evaluate the conversion / yield equations of the unit as a function of the configured operating conditions ([\[eq:hds_conversion\]](#eq:hds_conversion), [\[eq:fcc_lumps\]](#eq:fcc_lumps), [\[eq:hcr_yield\]](#eq:hcr_yield), [\[eq:reformer_yield\]](#eq:reformer_yield), [\[eq:claus_hsrxn\]](#eq:claus_hsrxn), etc.).
+3.  Evaluate the conversion / yield equations of the unit as a function of the configured operating conditions ([§](#eq:hds_conversion), [§](#eq:fcc_lumps), [§](#eq:hcr_yield), [§](#eq:reformer_yield), [§](#eq:claus_hsrxn), etc.).
 
 4.  Partition the feed mass among the outlet streams; close the mass balance by adjusting the residue / UCO / purge stream.
 

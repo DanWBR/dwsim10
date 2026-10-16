@@ -244,7 +244,7 @@ A background timer checks the local database every $\Delta t_{\mathrm{upd}}$ sec
 
 2.  Groups records by compound set and property package; only groups with at least $N_{\mathrm{thr}}$ samples are processed.
 
-3.  Calls the appropriate model trainer, which constructs the input/output matrices, scales the data (Eq. [\[eq:ace_scale\]](#eq:ace_scale)), and trains a new ANN as described above.
+3.  Calls the appropriate model trainer, which constructs the input/output matrices, scales the data (Eq. [§](#eq:ace_scale)), and trains a new ANN as described above.
 
 4.  Saves the trained model as a ZIP archive containing the serialised TensorFlow graph and a JSON metadata file with the model MSE, compound list, property package name, sample count, and scaling boundaries.
 

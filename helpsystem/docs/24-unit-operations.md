@@ -1519,7 +1519,7 @@ The condenser and reboiler specifications fix quantities of the column itself: r
 
 - **Product:** the column product the property is read on (distillate, overhead vapor, bottoms or a side draw).
 
-- **Property:** a distillation curve point such as `D86 95%` or `TBP 10%`, a product property of the Distillation Curves utility such as `Flash Point (Closed Cup)` or `Density @ 20 C` (Section [9.4](#sec:distillation-curves)), or the ID of any material stream property.
+- **Property:** a distillation curve point such as `D86 95%` or `TBP 10%`, a product property of the Distillation Curves utility such as `Flash Point (Closed Cup)` or `Density @ 20 C` (Section [9.4](46-other-properties.md#sec:distillation-curves)), or the ID of any material stream property.
 
 - **Target and tolerance:** the value to reach and the largest acceptable difference from it. A zero tolerance takes 0.1 % of the target.
 
@@ -2811,7 +2811,7 @@ C_{p}(T)=a+bT+cT^{2}+dT^{3}
 \]
 
 
-where $a$ , $b$ , $c$ , and $d$ are species-specific coefficients listed in Table $~§$ .
+where $a$ , $b$ , $c$ , and $d$ are species-specific coefficients listed in Table  [§](#tab:Cp_coefficients) .
 
 
 
@@ -2982,7 +2982,7 @@ The Nusselt number $\text{Nu}$ for crossflow over a bank of tubes is:
 \]
 
 
-where $\text{Re}=\rho_{g}\;V_{\max}\;D_{o}/\mu_{g}$ is the Reynolds number based on the maximum velocity $V_{\max}$ in the minimum flow area, $\text{Pr}=\mu_{g}\;C_{p,g}/(k_{g}\;M_{fg})$ is the Prandtl number of the flue gas, $\rho_{g}$ is the gas density \[ $\text{kg}/\text{m}^{3}$ \], $\mu_{g}$ is the dynamic viscosity \[ $\text{Pa}\cdot\text{s}$ \], $k_{g}$ is the thermal conductivity \[ $\text{W}/(\text{m}\cdot\text{K})$ \], and the constants $C_{1}$ and $m$ depend on the Reynolds range and tube arrangement as shown in Table $~§$ .
+where $\text{Re}=\rho_{g}\;V_{\max}\;D_{o}/\mu_{g}$ is the Reynolds number based on the maximum velocity $V_{\max}$ in the minimum flow area, $\text{Pr}=\mu_{g}\;C_{p,g}/(k_{g}\;M_{fg})$ is the Prandtl number of the flue gas, $\rho_{g}$ is the gas density \[ $\text{kg}/\text{m}^{3}$ \], $\mu_{g}$ is the dynamic viscosity \[ $\text{Pa}\cdot\text{s}$ \], $k_{g}$ is the thermal conductivity \[ $\text{W}/(\text{m}\cdot\text{K})$ \], and the constants $C_{1}$ and $m$ depend on the Reynolds range and tube arrangement as shown in Table  [§](#tab:zukauskas) .
 
 
 
@@ -3860,11 +3860,11 @@ Indicative Langmuir and DSL parameters for common zeolite–gas systems are prov
 
 3.  **Real gas in void space**: the void-space inventory uses the compressibility factor $Z$ derived from the property-package molar density at adsorption conditions. The same $Z$ is applied at desorption conditions as an approximation.
 
-4.  **Simplified desorption composition**: the desorption partial pressures are approximated using feed mole fractions ([\[eq:des_partial\]](#eq:des_partial)). In reality the desorbate is enriched in the heavy component; a more rigorous treatment requires solving the column material balance iteratively.
+4.  **Simplified desorption composition**: the desorption partial pressures are approximated using feed mole fractions ([§](#eq:des_partial)). In reality the desorbate is enriched in the heavy component; a more rigorous treatment requires solving the column material balance iteratively.
 
-5.  **Isothermal operation**: for PSA calculations the bed temperature is held constant. Heat effects due to adsorption and desorption are not fed back into the energy balance; they are reported separately as $\dot{Q}_{\mathrm{ads}}$ ([\[eq:heat_ads\]](#eq:heat_ads)).
+5.  **Isothermal operation**: for PSA calculations the bed temperature is held constant. Heat effects due to adsorption and desorption are not fed back into the energy balance; they are reported separately as $\dot{Q}_{\mathrm{ads}}$ ([§](#eq:heat_ads)).
 
-6.  **Ergun pressure drop**: the pressure drop is estimated from the Ergun equation ([\[eq:ergun\]](#eq:ergun)) using the gas density and viscosity from the property package. The calculation assumes uniform, isothermal, single-phase gas flow through a homogeneous packed bed.
+6.  **Ergun pressure drop**: the pressure drop is estimated from the Ergun equation ([§](#eq:ergun)) using the gas density and viscosity from the property package. The calculation assumes uniform, isothermal, single-phase gas flow through a homogeneous packed bed.
 
 ##### Numerical Solution Procedure
 
@@ -3874,22 +3874,22 @@ Indicative Langmuir and DSL parameters for common zeolite–gas systems are prov
 
 3.  Compute partial pressures $p_i = y_i P_{\mathrm{ads}}$.
 
-4.  Evaluate equilibrium loadings at adsorption conditions $q_i^{\mathrm{ads}}$ using the selected isotherm ([\[eq:langmuir_multi\]](#eq:langmuir_multi), [\[eq:DSL_multi\]](#eq:DSL_multi), or [\[eq:freundlich\]](#eq:freundlich)).
+4.  Evaluate equilibrium loadings at adsorption conditions $q_i^{\mathrm{ads}}$ using the selected isotherm ([§](#eq:langmuir_multi), [§](#eq:DSL_multi), or [§](#eq:freundlich)).
 
 5.  Evaluate equilibrium loadings at desorption conditions $q_i^{\mathrm{des}}$.
 
-6.  Compute working capacities $\Delta q_i$ ([\[eq:working_capacity\]](#eq:working_capacity)).
+6.  Compute working capacities $\Delta q_i$ ([§](#eq:working_capacity)).
 
 7.  Obtain the gas molar density $\rho_{\mathrm{mol}}$ from the property-package vapor-phase density and the feed mass and molar flows. Derive $Z = P/({\rho_{\mathrm{mol}}\,R\,T})$ for void-space calculations.
 
-8.  *Equilibrium mode:* apply [\[eq:ads_flow\]](#eq:ads_flow)–[\[eq:des_flow\]](#eq:des_flow).\
-    *PSA Cycle mode:* execute the four Skarstrom steps and compute cycle-averaged flows ([\[eq:pressurisation\]](#eq:pressurisation)–[\[eq:raff_avg\]](#eq:raff_avg)).
+8.  *Equilibrium mode:* apply [§](#eq:ads_flow)–[§](#eq:des_flow).\
+    *PSA Cycle mode:* execute the four Skarstrom steps and compute cycle-averaged flows ([§](#eq:pressurisation)–[§](#eq:raff_avg)).
 
-9.  Compute bed pressure drop via the Ergun equation ([\[eq:ergun\]](#eq:ergun)) if geometry parameters are specified.
+9.  Compute bed pressure drop via the Ergun equation ([§](#eq:ergun)) if geometry parameters are specified.
 
 10. Set outlet stream temperatures, pressures and molar flows. The raffinate pressure is reduced by $\Delta P$.
 
-11. Compute separation performance indicators ([\[eq:recovery\]](#eq:recovery)–[\[eq:purity_raff\]](#eq:purity_raff)) and heat of adsorption estimate ([\[eq:heat_ads\]](#eq:heat_ads)).
+11. Compute separation performance indicators ([§](#eq:recovery)–[§](#eq:purity_raff)) and heat of adsorption estimate ([§](#eq:heat_ads)).
 
 No iteration is required for either mode; the calculation is explicit given the isotherm parameters and operating conditions.
 
@@ -4114,7 +4114,7 @@ t_s = \frac{q_e \; [\text{mg/g}] \times W_s \; [\text{kg}] \times 10^6}
 \]
 
 
-where $q_e$ is the equilibrium loading at the inlet concentration, obtained from Eq. [\[eq:langmuir_hg\]](#eq:langmuir_hg) or Eq. [\[eq:freundlich_hg\]](#eq:freundlich_hg) and converted by Eq. [\[eq:loading_conv\]](#eq:loading_conv). The factor $10^6$ converts kg mg/g $\to$ μg consistently with $C_{\mathrm{in}}$ expressed in μg/m$^3$.
+where $q_e$ is the equilibrium loading at the inlet concentration, obtained from Eq. [§](#eq:langmuir_hg) or Eq. [§](#eq:freundlich_hg) and converted by Eq. [§](#eq:loading_conv). The factor $10^6$ converts kg mg/g $\to$ μg consistently with $C_{\mathrm{in}}$ expressed in μg/m$^3$.
 
 ###### Wheeler-Jonas breakthrough time
 
@@ -4130,7 +4130,7 @@ t_b = t_s - \frac{1}{k_v} \ln\!\left(\frac{C_{\mathrm{in}}}{C_b} - 1\right)
 
 where $k_v$ (s$^{-1}$) is the overall first-order volumetric mass-transfer coefficient and $C_b$ (μg/m$^3$) is the breakthrough concentration (outlet specification at actual conditions).
 
-The second term in Eq. [\[eq:wj_time\]](#eq:wj_time) is the mass-transfer correction $\delta t = k_v^{-1} \ln(C_{\mathrm{in}}/C_b - 1)$, which is negative when $C_b < C_{\mathrm{in}}/2$ (typical of stringent specifications), meaning that real beds break through *earlier* than the stoichiometric prediction. Equations [\[eq:t_stoich\]](#eq:t_stoich) and [\[eq:wj_time\]](#eq:wj_time) are valid provided $C_b < C_{\mathrm{in}}$.
+The second term in Eq. [§](#eq:wj_time) is the mass-transfer correction $\delta t = k_v^{-1} \ln(C_{\mathrm{in}}/C_b - 1)$, which is negative when $C_b < C_{\mathrm{in}}/2$ (typical of stringent specifications), meaning that real beds break through *earlier* than the stoichiometric prediction. Equations [§](#eq:t_stoich) and [§](#eq:wj_time) are valid provided $C_b < C_{\mathrm{in}}$.
 
 ###### Breakthrough concentration profile
 
@@ -4347,7 +4347,7 @@ The Langmuir isotherm parameters for each preset correspond to near-saturation b
 
 
 
-$^\dagger$Used only when the Mercury compound is absent from the feed stream; otherwise the concentration is derived from the mole fraction via Eq. [\[eq:c_act\]](#eq:c_act).
+$^\dagger$Used only when the Mercury compound is absent from the feed stream; otherwise the concentration is derived from the mole fraction via Eq. [§](#eq:c_act).
 
 ##### Assumptions and Limitations
 
@@ -4357,7 +4357,7 @@ $^\dagger$Used only when the Mercury compound is absent from the feed stream; ot
 
 3.  **Local equilibrium in Wheeler-Jonas mode**: the model assumes that the axial dispersion and external film resistance are lumped into the single parameter $k_v$. Rigorous mass-transfer analysis (e.g. linear driving force or pore-diffusion models) is beyond the scope of this unit operation.
 
-4.  **Ergun pressure drop**: the pressure drop is estimated from the Ergun equation ([\[eq:ergun_hg\]](#eq:ergun_hg)) using the gas density and viscosity from the property package. The calculation assumes uniform, isothermal, single-phase gas flow through a homogeneous packed bed.
+4.  **Ergun pressure drop**: the pressure drop is estimated from the Ergun equation ([§](#eq:ergun_hg)) using the gas density and viscosity from the property package. The calculation assumes uniform, isothermal, single-phase gas flow through a homogeneous packed bed.
 
 5.  **Isothermal operation**: the outlet gas temperature is set equal to the inlet value. The heat released by chemisorption ($\Delta H \approx 50\text{--}80$ kJ/mol) is not fed back into the energy balance; it is reported implicitly through the removed molar flow and the isosteric heat parameter.
 
@@ -4371,37 +4371,37 @@ $^\dagger$Used only when the Mercury compound is absent from the feed stream; ot
 
 1.  Resolve feed stream conditions: $T$, $P$, $\{y_i\}$, $\dot{n}_{\mathrm{total}}$.
 
-2.  Determine the inlet Hg concentration $C_{\mathrm{in,act}}$ (μg/m$^3$) from the stream mole fraction (Eq. [\[eq:c_act\]](#eq:c_act)) or from the user-specified value converted by the inverse of Eq. [\[eq:c_norm\]](#eq:c_norm).
+2.  Determine the inlet Hg concentration $C_{\mathrm{in,act}}$ (μg/m$^3$) from the stream mole fraction (Eq. [§](#eq:c_act)) or from the user-specified value converted by the inverse of Eq. [§](#eq:c_norm).
 
-3.  Compute the actual volumetric flow $Q$ from the mass flow and property-package density (Eq. [\[eq:vol_flow\]](#eq:vol_flow)), and derive the gas molar density $\rho_{\mathrm{mol}} = \dot{n}_{\mathrm{total}} / Q$.
+3.  Compute the actual volumetric flow $Q$ from the mass flow and property-package density (Eq. [§](#eq:vol_flow)), and derive the gas molar density $\rho_{\mathrm{mol}} = \dot{n}_{\mathrm{total}} / Q$.
 
-4.  Convert the breakthrough specification $C_b$ from μg/Nm$^3$ to actual conditions using Eq. [\[eq:c_norm\]](#eq:c_norm).
+4.  Convert the breakthrough specification $C_b$ from μg/Nm$^3$ to actual conditions using Eq. [§](#eq:c_norm).
 
 5.  *Capacity-Based mode:*
 
-    1.  Compute total bed capacity $\hat{N}$ (Eq. [\[eq:total_cap\]](#eq:total_cap)).
+    1.  Compute total bed capacity $\hat{N}$ (Eq. [§](#eq:total_cap)).
 
-    2.  Compute bed lifetime $t_b$ (Eq. [\[eq:lifetime_cap\]](#eq:lifetime_cap)).
+    2.  Compute bed lifetime $t_b$ (Eq. [§](#eq:lifetime_cap)).
 
     3.  Set $C_{\mathrm{out}} = C_b$ (design assumption).
 
 6.  *Wheeler-Jonas mode:*
 
-    1.  Compute $p_{\mathrm{Hg}} = y_{\mathrm{Hg}} P$ and evaluate the equilibrium loading $q_e$ from the selected isotherm (Eqs. [\[eq:langmuir_hg\]](#eq:langmuir_hg) or [\[eq:freundlich_hg\]](#eq:freundlich_hg)).
+    1.  Compute $p_{\mathrm{Hg}} = y_{\mathrm{Hg}} P$ and evaluate the equilibrium loading $q_e$ from the selected isotherm (Eqs. [§](#eq:langmuir_hg) or [§](#eq:freundlich_hg)).
 
-    2.  Convert $q_e$ to mg/g (Eq. [\[eq:loading_conv\]](#eq:loading_conv)).
+    2.  Convert $q_e$ to mg/g (Eq. [§](#eq:loading_conv)).
 
-    3.  Compute the stoichiometric breakthrough time $t_s$ (Eq. [\[eq:t_stoich\]](#eq:t_stoich)) and the Wheeler-Jonas breakthrough time $t_b$ (Eq. [\[eq:wj_time\]](#eq:wj_time)).
+    3.  Compute the stoichiometric breakthrough time $t_s$ (Eq. [§](#eq:t_stoich)) and the Wheeler-Jonas breakthrough time $t_b$ (Eq. [§](#eq:wj_time)).
 
-    4.  Compute the outlet concentration at the specified bed age (Eq. [\[eq:wj_profile\]](#eq:wj_profile)).
+    4.  Compute the outlet concentration at the specified bed age (Eq. [§](#eq:wj_profile)).
 
-    5.  Compute the bed saturation fraction (Eq. [\[eq:saturation\]](#eq:saturation)).
+    5.  Compute the bed saturation fraction (Eq. [§](#eq:saturation)).
 
-7.  Compute Hg removal efficiency $\eta$ (Eq. [\[eq:removal_eff\]](#eq:removal_eff)) and the removed molar flow (Eqs. [\[eq:hg_removed_mass\]](#eq:hg_removed_mass) and [\[eq:hg_removed_mol\]](#eq:hg_removed_mol)).
+7.  Compute Hg removal efficiency $\eta$ (Eq. [§](#eq:removal_eff)) and the removed molar flow (Eqs. [§](#eq:hg_removed_mass) and [§](#eq:hg_removed_mol)).
 
-8.  Compute bed pressure drop via the Ergun equation ([\[eq:ergun_hg\]](#eq:ergun_hg)) if geometry parameters are specified.
+8.  Compute bed pressure drop via the Ergun equation ([§](#eq:ergun_hg)) if geometry parameters are specified.
 
-9.  Set the outlet stream: all non-Hg components unchanged; Mercury molar flow set to $\dot{n}_{\mathrm{Hg}}^{\mathrm{out}}$ (Eq. [\[eq:hg_out\]](#eq:hg_out)); $T$ equal to inlet value; $P_{\mathrm{out}} = P_{\mathrm{in}} - \Delta P$.
+9.  Set the outlet stream: all non-Hg components unchanged; Mercury molar flow set to $\dot{n}_{\mathrm{Hg}}^{\mathrm{out}}$ (Eq. [§](#eq:hg_out)); $T$ equal to inlet value; $P_{\mathrm{out}} = P_{\mathrm{in}} - \Delta P$.
 
 The calculation is explicit (no iteration required) in both modes.
 
@@ -4449,7 +4449,7 @@ C_{\mathrm{in,act}} = 100 \times \frac{\rho_{\mathrm{mol}}}{\rho_{\mathrm{mol}}^
 \]
 
 
-From Eq. [\[eq:lifetime_cap\]](#eq:lifetime_cap) the bed lifetime in Capacity-Based mode is
+From Eq. [§](#eq:lifetime_cap) the bed lifetime in Capacity-Based mode is
 
 
 \[
@@ -4614,7 +4614,7 @@ where $\theta$ is the pipe inclination angle from the horizontal and $g$ is the 
 \]
 
 
-where $\varepsilon$ is the pipe roughness and $Re = \rho u D / \mu$ is the Reynolds number. Equation [\[eq:colebrook\]](#eq:colebrook) is solved iteratively (or via the explicit Swamee–Jain approximation for initialisation).
+where $\varepsilon$ is the pipe roughness and $Re = \rho u D / \mu$ is the Reynolds number. Equation [§](#eq:colebrook) is solved iteratively (or via the explicit Swamee–Jain approximation for initialisation).
 
 ###### Beggs and Brill (1973)
 
@@ -4803,7 +4803,7 @@ f_{\mathrm{exact}} \;\approx\; 2\,f(h/2) - f(h),
 \]
 
 
-which cancels the leading term. With **Richardson extrapolation** enabled, every pipe is evaluated on its own grid and on one twice as fine, and [\[eq:richardson\]](#eq:richardson) is applied to the outlet pressure and temperature. It costs three pipe calculations where there was one, and in exchange it typically reaches a converged answer from the discretisation the network already carries.
+which cancels the leading term. With **Richardson extrapolation** enabled, every pipe is evaluated on its own grid and on one twice as fine, and [§](#eq:richardson) is applied to the outlet pressure and temperature. It costs three pipe calculations where there was one, and in exchange it typically reaches a converged answer from the discretisation the network already carries.
 
 The extrapolation is applied only where it is meaningful. When the two grids disagree by more than a quarter of the pressure drop, the pair is not in the asymptotic range, there is no single leading term to cancel, and the finer grid is delivered unextrapolated; the same fallback applies if the extrapolated state would be unphysical. This also sets the honest expectation for the feature: it corrects a discretisation that is already close, and it is not a substitute for one that is too coarse to be in the asymptotic range at all. A network whose rate is still moving substantially between successive grid refinements needs more increments, not extrapolation.
 
@@ -5195,7 +5195,7 @@ For each node, the solver also reports the dimensionless mass, pressure, and ene
 
 3.  Initialise all internal stream conditions by propagating boundary values from sources through the network.
 
-4.  Formulate the decision variable vector $\mathbf{x}$ using log-transformed source pressures and/or flow rates ([\[eq:log_transform\]](#eq:log_transform)).
+4.  Formulate the decision variable vector $\mathbf{x}$ using log-transformed source pressures and/or flow rates ([§](#eq:log_transform)).
 
 5.  At each solver iteration:
 
@@ -5205,9 +5205,9 @@ For each node, the solver also reports the dimensionless mass, pressure, and ene
 
     3.  Calculate all network blocks sequentially: pipes, pumps, compressors, valves, separators.
 
-    4.  Assemble node residuals $r_{m,k}$, $r_{P,k}$, $r_{E,k}$ ([\[eq:mass_balance\]](#eq:mass_balance)–[\[eq:energy_balance\]](#eq:energy_balance)).
+    4.  Assemble node residuals $r_{m,k}$, $r_{P,k}$, $r_{E,k}$ ([§](#eq:mass_balance)–[§](#eq:energy_balance)).
 
-    5.  Evaluate the objective function $F(\mathbf{x})$ ([\[eq:objective\]](#eq:objective)).
+    5.  Evaluate the objective function $F(\mathbf{x})$ ([§](#eq:objective)).
 
 6.  Continue until $F < \epsilon^2$ or the maximum iteration count $N_{\max}$ is reached.
 
@@ -5465,7 +5465,7 @@ Because $C$ depends on $Re$ and $Re$ depends on $\dot{m}$ (or $d_o$), the system
 
 ###### Sizing Mode
 
-Rearranging [\[eq:ro_Q\]](#eq:ro_Q) for $d_o$ yields the iteration update:
+Rearranging [§](#eq:ro_Q) for $d_o$ yields the iteration update:
 
 
 <a id="eq:ro_iter_sizing"></a>
@@ -5482,7 +5482,7 @@ where $Q_{\mathrm{spec}} = \dot{m}_{\mathrm{spec}}/\rho_1$.
 
 ###### Operation Mode
 
-Substituting the fixed $d_o$ directly into [\[eq:ro_Q\]](#eq:ro_Q) gives the update:
+Substituting the fixed $d_o$ directly into [§](#eq:ro_Q) gives the update:
 
 
 <a id="eq:ro_iter_op"></a>
@@ -5573,7 +5573,7 @@ A physical constraint enforces $\dot{m} \le \dot{m}_{\mathrm{in}}$; an exception
 
 1.  **Gas phase only**: the inlet stream must be 100 % vapour. Liquid or two-phase streams are rejected with an error message.
 
-2.  **Corner taps**: the discharge coefficient is evaluated for corner-tap geometry ($L_1 = L_2 = 0$). The pressure-recovery term $c_2$ vanishes identically for this configuration ([\[eq:ro_c2\]](#eq:ro_c2)).
+2.  **Corner taps**: the discharge coefficient is evaluated for corner-tap geometry ($L_1 = L_2 = 0$). The pressure-recovery term $c_2$ vanishes identically for this configuration ([§](#eq:ro_c2)).
 
 3.  **ISO 5167 applicability range**: the correlation is validated for $0.10 < \beta < 0.75$ and $Re > 4000$ (turbulent flow). Results outside these ranges are unreliable.
 
@@ -7511,7 +7511,7 @@ The outlet stream is a direct copy of the inlet stream ($\text{outlet} \leftarro
 
 1.  **Air Cooler 2, pure-air assumption**: the cold-side fluid is treated as 100 % air using the Raoult property package. Humid air or alternative cooling media are not supported.
 
-2.  **Air Cooler 2, no fin model**: the current model computes the bare-tube external surface area (Eq. [\[eq:ac_area\]](#eq:ac_area)) and does not account for extended surfaces (fins). Users with finned tubes should apply an equivalent fin-efficiency correction to $A$ externally.
+2.  **Air Cooler 2, no fin model**: the current model computes the bare-tube external surface area (Eq. [§](#eq:ac_area)) and does not account for extended surfaces (fins). Users with finned tubes should apply an equivalent fin-efficiency correction to $A$ externally.
 
 3.  **Air Cooler 2, cross-flow correction**: the correction factor $F$ is derived for a one-shell, two-tube-pass arrangement. Other configurations require manual adjustment of $F$.
 
@@ -7727,7 +7727,7 @@ F_1 = \frac{r_1 f_1^2 + f_1 f_2}
 \]
 
 
-where $f_i = [M_i]/([M_1]+[M_2])$ is the monomer mole fraction and $F_1$ is the mole fraction of monomer 1 in the copolymer formed. The reactor recovers $F_1$ directly from the monomer consumption rates, so it is identical to Eq. [\[eq:poly_mayolewis\]](#eq:poly_mayolewis) by construction.
+where $f_i = [M_i]/([M_1]+[M_2])$ is the monomer mole fraction and $F_1$ is the mole fraction of monomer 1 in the copolymer formed. The reactor recovers $F_1$ directly from the monomer consumption rates, so it is identical to Eq. [§](#eq:poly_mayolewis) by construction.
 
 ###### Molar mass by the pseudo-kinetic method
 
@@ -7741,7 +7741,7 @@ The molar-mass averages are obtained by treating the copolymerization as a homop
 \]
 
 
-Equations [\[eq:poly_alpha\]](#eq:poly_alpha)–[\[eq:poly_mnmw\]](#eq:poly_mnmw) then apply with $k_p \to \bar{k}_p$, $M_0 \to \bar{M}$, and the transfer terms built from the averaged constants. The reactivity ratios are unchanged by chain transfer and by the gel effect, so the composition and the molar mass are decoupled: the composition always follows Eq. [\[eq:poly_mayolewis\]](#eq:poly_mayolewis), while transfer and the gel effect act only on the chain length.
+Equations [§](#eq:poly_alpha)–[§](#eq:poly_mnmw) then apply with $k_p \to \bar{k}_p$, $M_0 \to \bar{M}$, and the transfer terms built from the averaged constants. The reactivity ratios are unchanged by chain transfer and by the gel effect, so the composition and the molar mass are decoupled: the composition always follows Eq. [§](#eq:poly_mayolewis), while transfer and the gel effect act only on the chain length.
 
 ##### Gel (Trommsdorff) Effect {#sec:poly_gel}
 
@@ -7791,7 +7791,7 @@ The heat released by polymerization is proportional to the monomer converted,
 \]
 
 
-where $\dot{n}_{\mathrm{conv}}$ is the molar rate of monomer added to chains (both monomers in copolymer mode) and $\Delta H_p < 0$ is the heat of polymerization per mole of monomer. In isothermal or outlet-temperature operation the duty holds the reactor at the set temperature, $\dot{Q} = \dot{m}\,c_p\,(T_r - T_{\mathrm{in}}) - \dot{Q}_{\mathrm{gen}}$ (negative when heat is removed, the usual case for an exothermic polymerization). In adiabatic operation no heat is removed and the temperature rise and the conversion are coupled through Eq. [\[eq:poly_qgen\]](#eq:poly_qgen) and the Arrhenius constants; they are solved together to a fixed point.
+where $\dot{n}_{\mathrm{conv}}$ is the molar rate of monomer added to chains (both monomers in copolymer mode) and $\Delta H_p < 0$ is the heat of polymerization per mole of monomer. In isothermal or outlet-temperature operation the duty holds the reactor at the set temperature, $\dot{Q} = \dot{m}\,c_p\,(T_r - T_{\mathrm{in}}) - \dot{Q}_{\mathrm{gen}}$ (negative when heat is removed, the usual case for an exothermic polymerization). In adiabatic operation no heat is removed and the temperature rise and the conversion are coupled through Eq. [§](#eq:poly_qgen) and the Arrhenius constants; they are solved together to a fixed point.
 
 ###### Mass balance
 
@@ -7826,13 +7826,13 @@ Each constant is entered as a pre-exponential $A$ and an activation energy $E$: 
 
 ###### Gel effect and distribution
 
-The gel model is off by default. When enabled, the termination coefficients $c_1$, $c_2$, $c_3$ (and optionally the propagation coefficients) of Eq. [\[eq:poly_gel\]](#eq:poly_gel) are supplied by the user. The distribution emission is controlled by the number of cuts and the distribution shape.
+The gel model is off by default. When enabled, the termination coefficients $c_1$, $c_2$, $c_3$ (and optionally the propagation coefficients) of Eq. [§](#eq:poly_gel) are supplied by the user. The distribution emission is controlled by the number of cuts and the distribution shape.
 
 ##### Assumptions and Limitations
 
 1.  **Homogeneous, isothermal medium**: the reactor contents are a single well-mixed phase (CSTR, semibatch, dynamic) or a plug-flow stream (PFR), at a uniform temperature. Emulsion, suspension, and precipitation polymerizations are not represented.
 
-2.  **Quasi-steady-state radicals**: the live-radical population follows Eq. [\[eq:poly_mu0\]](#eq:poly_mu0); the radical lifetime is assumed far shorter than the reactor or step time.
+2.  **Quasi-steady-state radicals**: the live-radical population follows Eq. [§](#eq:poly_mu0); the radical lifetime is assumed far shorter than the reactor or step time.
 
 3.  **Long-chain / most-probable closure**: the live-radical moments are closed with the most-probable distribution, exact in the long-chain limit.
 
@@ -7840,7 +7840,7 @@ The gel model is off by default. When enabled, the termination coefficients $c_1
 
 5.  **Constant density**: the volumetric flow (and, in semibatch, the holdup volume) are additive in the feed; volume change on reaction is neglected.
 
-6.  **Empirical gel effect**: the gel and glass factors are an empirical correlation in conversion (Eq. [\[eq:poly_gel\]](#eq:poly_gel)); the coefficients are system-specific and must be fitted to data.
+6.  **Empirical gel effect**: the gel and glass factors are an empirical correlation in conversion (Eq. [§](#eq:poly_gel)); the coefficients are system-specific and must be fitted to data.
 
 ##### Numerical Solution Procedure
 
@@ -7850,15 +7850,15 @@ The gel model is off by default. When enabled, the termination coefficients $c_1
 
 3.  Solve the kinetics at $T_r$:
 
-    1.  *CSTR:* the closed-form balances (Eqs. [\[eq:poly_initiator\]](#eq:poly_initiator)–[\[eq:poly_deadmoments\]](#eq:poly_deadmoments)), with an outer fixed point for the gel factors and, in copolymer mode, an inner iteration for the coupled monomer balances.
+    1.  *CSTR:* the closed-form balances (Eqs. [§](#eq:poly_initiator)–[§](#eq:poly_deadmoments)), with an outer fixed point for the gel factors and, in copolymer mode, an inner iteration for the coupled monomer balances.
 
     2.  *PFR / batch:* integrate the balances along the residence time by Runge-Kutta.
 
     3.  *Semibatch / dynamic:* integrate the total-amount balances in time, adding the feed each step.
 
-4.  Form $M_n$, $M_w$, PDI (Eq. [\[eq:poly_mnmw\]](#eq:poly_mnmw)) and, in copolymer mode, the composition (Eq. [\[eq:poly_mayolewis\]](#eq:poly_mayolewis) or [\[eq:poly_cumcomp\]](#eq:poly_cumcomp)).
+4.  Form $M_n$, $M_w$, PDI (Eq. [§](#eq:poly_mnmw)) and, in copolymer mode, the composition (Eq. [§](#eq:poly_mayolewis) or [§](#eq:poly_cumcomp)).
 
-5.  Apply the energy balance (Eq. [\[eq:poly_qgen\]](#eq:poly_qgen)) and set the heat duty.
+5.  Apply the energy balance (Eq. [§](#eq:poly_qgen)) and set the heat duty.
 
 6.  Write the outlet: unreacted monomer(s) and initiator, plus the polymer (the reacted monomer and the consumed initiator, and any feed polymer at its own mass) as a lumped compound at $M_n$ or as the emitted distribution.
 
@@ -8043,7 +8043,7 @@ CO$_2$ blowdown of Fredenhagen and Eggers : 0.05 m$^3$, 14 MPa, 298 K, 17 mm
 
 ###### Ethylene hole flows of Saville, Richardson and Barker
 
-Saville, Richardson and Barker computed with the BLOWDOWN program the flow of ethylene at 10 $^{\circ}$C from a pipeline through 10 and 50 mm holes to the atmosphere, with the fluid supercritical (90, 79, 69 and 59.6 bar) or gaseous (44 and 28 bar), and found the hole choked even for the all-liquid dense phase, at a throat pressure of 41 to 45 bar, far above the ideal-gas critical ratio. These are predictions of a homogeneous-equilibrium model, not measurements, so the comparison in Table [12](#tab:blowdown_ethylene) is between two implementations of the same physics. The orifice model of equation ([\[eq:blowdown_hem\]](#eq:blowdown_hem)) with $C_d = 1$ reproduces the flows within 8 % for the dense phase and 3 % for the gas, and the dense-phase throat within 4 bar. The model runs 3 to 8 % high in the dense phase, consistent with the Peng-Robinson density at 90 bar (367 kg/m$^3$, some 6 % below the real value). In the gas cases the flux curve is bimodal, with a gas-side maximum near 27 bar and a two-phase one near 15 bar of the same height; the paper reports the two-phase one.
+Saville, Richardson and Barker computed with the BLOWDOWN program the flow of ethylene at 10 $^{\circ}$C from a pipeline through 10 and 50 mm holes to the atmosphere, with the fluid supercritical (90, 79, 69 and 59.6 bar) or gaseous (44 and 28 bar), and found the hole choked even for the all-liquid dense phase, at a throat pressure of 41 to 45 bar, far above the ideal-gas critical ratio. These are predictions of a homogeneous-equilibrium model, not measurements, so the comparison in Table [12](#tab:blowdown_ethylene) is between two implementations of the same physics. The orifice model of equation ([§](#eq:blowdown_hem)) with $C_d = 1$ reproduces the flows within 8 % for the dense phase and 3 % for the gas, and the dense-phase throat within 4 bar. The model runs 3 to 8 % high in the dense phase, consistent with the Peng-Robinson density at 90 bar (367 kg/m$^3$, some 6 % below the real value). In the gas cases the flux curve is bimodal, with a gas-side maximum near 27 bar and a two-phase one near 15 bar of the same height; the paper reports the two-phase one.
 
 
 

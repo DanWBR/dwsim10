@@ -255,7 +255,7 @@ eNRTL recommended operating envelope
 
 ###### Parameter database
 
-The DWSIM eNRTL implementation ships with the JSON parameter file `enrtl_parameters.json` containing **137 water–electrolyte $\tau$ pairs**: 45 from the original Chen & Evans  fit (NaCl, KCl, LiCl, HCl, NaBr, KBr, NaI, NaOH, KOH, NaNO$_3$, KNO$_3$, NH$_4$Cl, Na$_2$SO$_4$, K$_2$SO$_4$, CaCl$_2$, MgCl$_2$, BaCl$_2$, MgSO$_4$, CaSO$_4$, H$_2$SO$_4$, plus 25 additional 1–1, 1–2, 2–1, 3–1 pairs) and 92 auto-fitted entries derived from Kim & Frederick  single-salt Pitzer parameters (transition-metal halides, perchlorates, nitrates, sulfates and selected 1–1 oxoanion salts). Temperature dependence is encoded with the three-parameter form of Eq. [\[eq:tau_T\]](#eq:tau_T) where measured calorimetric data are available; otherwise the $\Delta h$ and $\Delta c_{p}$ coefficients default to zero.
+The DWSIM eNRTL implementation ships with the JSON parameter file `enrtl_parameters.json` containing **137 water–electrolyte $\tau$ pairs**: 45 from the original Chen & Evans  fit (NaCl, KCl, LiCl, HCl, NaBr, KBr, NaI, NaOH, KOH, NaNO$_3$, KNO$_3$, NH$_4$Cl, Na$_2$SO$_4$, K$_2$SO$_4$, CaCl$_2$, MgCl$_2$, BaCl$_2$, MgSO$_4$, CaSO$_4$, H$_2$SO$_4$, plus 25 additional 1–1, 1–2, 2–1, 3–1 pairs) and 92 auto-fitted entries derived from Kim & Frederick  single-salt Pitzer parameters (transition-metal halides, perchlorates, nitrates, sulfates and selected 1–1 oxoanion salts). Temperature dependence is encoded with the three-parameter form of Eq. [§](#eq:tau_T) where measured calorimetric data are available; otherwise the $\Delta h$ and $\Delta c_{p}$ coefficients default to zero.
 
 ###### Application domains
 
@@ -449,7 +449,7 @@ Water uses the symmetric (Raoult) convention: $\ln\gamma_{\mathrm{w}} =
 | $u_{ij}^{0}$ | Base interaction energy (K) | fitted |
 | $u_{ij}^{T}$ | Temperature coefficient of $u_{ij}$ | fitted |
 | $b$ | Debye–Hückel $b$ parameter (kg/mol)$^{1/2}$ | 1.5 |
-| $A_{0},A_{1},A_{2}$ | Polynomial coefficients of $A(T)$ | Eq. [\[eq:A_T\]](#eq:A_T) |
+| $A_{0},A_{1},A_{2}$ | Polynomial coefficients of $A(T)$ | Eq. [§](#eq:A_T) |
 
 Extended UNIQUAC model parameters
 
@@ -815,7 +815,7 @@ Jones–Dole $B$-coefficients at 25 °C (L/mol)
 
 ###### Implementation
 
-For the eNRTL and Extended UNIQUAC property packages, which carry explicit ionic species on the material stream, the correction factor is computed directly from the phase composition. For the Sour Water package, which embeds speciation in modified $K$-values, the ionic concentrations are first obtained from its speciation model (Section [6.7](#sec:sourwater)) and then fed to Eq. [\[eq:jones_dole\]](#eq:jones_dole).
+For the eNRTL and Extended UNIQUAC property packages, which carry explicit ionic species on the material stream, the correction factor is computed directly from the phase composition. For the Sour Water package, which embeds speciation in modified $K$-values, the ionic concentrations are first obtained from its speciation model (Section [6.7](#sec:sourwater)) and then fed to Eq. [§](#eq:jones_dole).
 
 The correction is clamped to the range $[0.5,\;5.0]$ to guard against extrapolation beyond the correlation’s valid concentration range.
 
@@ -1411,7 +1411,7 @@ Most published constants are on the molality scale with every solute at infinite
 \]
 
 
-where $\Delta\nu_{s}$ is the number of solute species formed less the number consumed (water excluded) and $M_{w} = 0.018015$ kg/mol. For the protonation constants of the amines, reaction [\[rxn:cap_r4\]](#rxn:cap_r4), the amine is then moved to its pure-liquid reference:
+where $\Delta\nu_{s}$ is the number of solute species formed less the number consumed (water excluded) and $M_{w} = 0.018015$ kg/mol. For the protonation constants of the amines, reaction [§](#rxn:cap_r4), the amine is then moved to its pure-liquid reference:
 
 
 <a id="eq:cap_k4"></a>
@@ -1434,7 +1434,7 @@ The three piperazine carbamate constants come from the $^{1}$H NMR measurements 
 \]
 
 
-The values at 313.15 K are those of the source. The reaction enthalpies were shifted by small amounts in the fit of the pair parameters to the $\ce{CO2}$ partial pressures and heats up to 150 °C, since the NMR data stop at 333 K. Reactions [\[rxn:cap_r5\]](#rxn:cap_r5) and [\[rxn:cap_r7\]](#rxn:cap_r7) for PZ are obtained by combining these constants with reaction [\[rxn:cap_r2\]](#rxn:cap_r2), and PZ is moved to its pure-liquid reference with $\ln\gamma_{\mathrm{PZ}}^{\infty}$ as in Eq. [\[eq:cap_k4\]](#eq:cap_k4).
+The values at 313.15 K are those of the source. The reaction enthalpies were shifted by small amounts in the fit of the pair parameters to the $\ce{CO2}$ partial pressures and heats up to 150 °C, since the NMR data stop at 333 K. Reactions [§](#rxn:cap_r5) and [§](#rxn:cap_r7) for PZ are obtained by combining these constants with reaction [§](#rxn:cap_r2), and PZ is moved to its pure-liquid reference with $\ln\gamma_{\mathrm{PZ}}^{\infty}$ as in Eq. [§](#eq:cap_k4).
 
 
 
@@ -1444,20 +1444,20 @@ The values at 313.15 K are those of the source. The reaction enthalpies were sh
 
 | Reaction | Correlation | Source |
 |:---|:---|:---|
-| [\[rxn:cap_r1\]](#rxn:cap_r1) | $\ln K_{m} = 140.932 - 13445.9/T - 22.4773\ln T$ | Edwards et al.  |
-| [\[rxn:cap_r2\]](#rxn:cap_r2) | $\ln K_{m} = 235.482 - 12092.1/T - 36.7816\ln T$ | Edwards et al.  |
-| [\[rxn:cap_r3\]](#rxn:cap_r3) | $\ln K_{m} = 220.067 - 12431.7/T - 35.4819\ln T$ | Edwards et al.  |
-| [\[rxn:cap_r4\]](#rxn:cap_r4), MEA | $\mathrm{p}K_{m} = 2677.91/T + 0.3869 + 0.0004277\,T$ | Bates and Pinching , Eq. 10 |
-| [\[rxn:cap_r4\]](#rxn:cap_r4), DEA | $\ln K_{m} = -26.5 - 4035/T + 3.44\ln T$ | Posey , Table 5.8 |
-| [\[rxn:cap_r4\]](#rxn:cap_r4), MDEA | $\ln K_{m} = -59.55 - 1709/T + 8.01\ln T$ | Posey , Table 5.8 |
-| [\[rxn:cap_r4\]](#rxn:cap_r4), PZ | $\mathrm{p}K_{m} = 9.86$ at 20 °C, dissociation enthalpy 42.87 kJ/mol at 25 °C, $\Delta C_{p} = 75$ J/(mol K) | Hetzer, Robinson and Bates , as summarized by Cullinane , Table 5.9 |
-| [\[rxn:cap_r5\]](#rxn:cap_r5), MEA | $\ln K_{x} = 2.8898 - 3635.09/T$ | Austgen , Table 4.1 (25 to 120 °C) |
-| [\[rxn:cap_r5\]](#rxn:cap_r5), DEA | $\ln K_{x} = 4.5146 - 3417.34/T$ | Austgen , Table 4.1 (25 to 120 °C) |
+| [§](#rxn:cap_r1) | $\ln K_{m} = 140.932 - 13445.9/T - 22.4773\ln T$ | Edwards et al.  |
+| [§](#rxn:cap_r2) | $\ln K_{m} = 235.482 - 12092.1/T - 36.7816\ln T$ | Edwards et al.  |
+| [§](#rxn:cap_r3) | $\ln K_{m} = 220.067 - 12431.7/T - 35.4819\ln T$ | Edwards et al.  |
+| [§](#rxn:cap_r4), MEA | $\mathrm{p}K_{m} = 2677.91/T + 0.3869 + 0.0004277\,T$ | Bates and Pinching , Eq. 10 |
+| [§](#rxn:cap_r4), DEA | $\ln K_{m} = -26.5 - 4035/T + 3.44\ln T$ | Posey , Table 5.8 |
+| [§](#rxn:cap_r4), MDEA | $\ln K_{m} = -59.55 - 1709/T + 8.01\ln T$ | Posey , Table 5.8 |
+| [§](#rxn:cap_r4), PZ | $\mathrm{p}K_{m} = 9.86$ at 20 °C, dissociation enthalpy 42.87 kJ/mol at 25 °C, $\Delta C_{p} = 75$ J/(mol K) | Hetzer, Robinson and Bates , as summarized by Cullinane , Table 5.9 |
+| [§](#rxn:cap_r5), MEA | $\ln K_{x} = 2.8898 - 3635.09/T$ | Austgen , Table 4.1 (25 to 120 °C) |
+| [§](#rxn:cap_r5), DEA | $\ln K_{x} = 4.5146 - 3417.34/T$ | Austgen , Table 4.1 (25 to 120 °C) |
 | $\mathrm{PZ + CO_2(aq)} \rightleftharpoons \mathrm{PZCOO^{-} + H^{+}}$ | $K_{x}(313.15\,\mathrm{K}) = 9.24\times10^{-6}$; $\Delta H = -26.64$ kJ/mol (source $-25.3$) | Ermatchkov et al. , via Cullinane , Table 5.12 |
-| [\[rxn:cap_r6\]](#rxn:cap_r6) | $K_{x}(313.15\,\mathrm{K}) = 1.13\times10^{-11}$; $\Delta H = +33.72$ kJ/mol (source $+29.0$) | same |
+| [§](#rxn:cap_r6) | $K_{x}(313.15\,\mathrm{K}) = 1.13\times10^{-11}$; $\Delta H = +33.72$ kJ/mol (source $+29.0$) | same |
 | $\mathrm{PZCOO^{-} + CO_2(aq)} \rightleftharpoons \mathrm{PZ(COO^{-})_2 + H^{+}}$ | $K_{x}(313.15\,\mathrm{K}) = 8.86\times10^{-7}$; $\Delta H = -7.12$ kJ/mol (source $-6.2$) | same |
 
-Equilibrium constants of the CO$_2$ Capture package ($T$ in K). $K_{m}$: molality scale, converted with Eqs. [\[eq:cap_kx_km\]](#eq:cap_kx_km) and [\[eq:cap_k4\]](#eq:cap_k4); $K_{x}$: mole-fraction scale.
+Equilibrium constants of the CO$_2$ Capture package ($T$ in K). $K_{m}$: molality scale, converted with Eqs. [§](#eq:cap_kx_km) and [§](#eq:cap_k4); $K_{x}$: mole-fraction scale.
 
 
 
@@ -1804,7 +1804,7 @@ where $x_{i}$ and $\gamma_{i}$ are the true mole fraction and activity coefficie
 
 and $\bar{v}_{\ce{CO2}}^{\infty} = 34$ cm$^{3}$/mol is the partial molar volume of $\ce{CO2}$ at infinite dilution in water. The fugacity coefficient the flash uses is $\varphi_{i}^{L} = f_{i}^{L}/(x_{i}^{\mathrm{app}}P)$, with $x_{i}^{\mathrm{app}}$ the apparent mole fraction. The vapour phase follows the Peng–Robinson equation of state .
 
-The speciation solves the equilibrium equations [\[eq:cap_keq\]](#eq:cap_keq) together with the balances of each amine, carbon and oxygen and electroneutrality, by Newton’s method on the logarithms of the true amounts (8 to 13 unknowns), with the derivatives of the activity coefficients in the Jacobian and a line search. Each speciation starts from the nearest of the recent ones. Gases other than $\ce{CO2}$ ($\ce{N2}$, $\ce{O2}$, $\ce{H2S}$ and so on) take part in no reaction: they dissolve physically (Henry’s law for $\ce{H2S}$ and the supercritical gases) and only dilute the true species. The package therefore does not describe $\ce{H2S}$ treating.
+The speciation solves the equilibrium equations [§](#eq:cap_keq) together with the balances of each amine, carbon and oxygen and electroneutrality, by Newton’s method on the logarithms of the true amounts (8 to 13 unknowns), with the derivatives of the activity coefficients in the Jacobian and a line search. Each speciation starts from the nearest of the recent ones. Gases other than $\ce{CO2}$ ($\ce{N2}$, $\ce{O2}$, $\ce{H2S}$ and so on) take part in no reaction: they dissolve physically (Henry’s law for $\ce{H2S}$ and the supercritical gases) and only dilute the true species. The package therefore does not describe $\ce{H2S}$ treating.
 
 The PT flash solves $\ln K_{i} = \ln\varphi_{i}^{L}(\boldsymbol{x})
 - \ln\varphi_{i}^{V}(\boldsymbol{y})$ with Newton’s method on $\ln K$ after a few damped substitution steps. Near a loading of 0.5 mol/mol the $\ce{CO2}$ partial pressure rises tenfold within a few hundredths of loading, and plain successive substitution oscillates there. The Rachford–Rice equation is solved as a negative flash, so the PV and TV flashes locate the bubble or dew point by bracketing on a continuous vapour fraction. The PH and PS flashes call the PT flash; for MDEA + PZ they bracket the temperature directly, because the steep boiling curve of the blend near its bubble point could stop the standard PH algorithm at a wrong temperature. A trial liquid in which $\ce{CO2}$ is more than half of water + amine + $\ce{CO2}$ lies outside the model and takes the molecular fugacities described below for streams without an amine.
@@ -2315,7 +2315,7 @@ The pH and the ionic strength of a liquid come from a carbonate speciation at it
 \]
 
 
-dissolved $\ce{CO2}$ takes the Duan–Sun coefficient of Eq. [\[eq:duansun_gamma\]](#eq:duansun_gamma), and the water activity is that of Eq. [\[eq:storage_fw\]](#eq:storage_fw). The pH is $-\log_{10}(\gamma_{\ce{H+}}
+dissolved $\ce{CO2}$ takes the Duan–Sun coefficient of Eq. [§](#eq:duansun_gamma), and the water activity is that of Eq. [§](#eq:storage_fw). The pH is $-\log_{10}(\gamma_{\ce{H+}}
 m_{\ce{H+}})$. The Davies equation loses accuracy above an ionic strength of about 0.5 mol/kg, so the pH of concentrated brines is indicative.
 
 ##### Mineral Trapping
@@ -2372,7 +2372,7 @@ CO$_2$ Storage PP recommended operating envelope
 
 
 
-- Duan and Sun count $\ce{K+}$ as $\ce{Na+}$ and $\ce{Mg^{2+}}$ as $\ce{Ca^{2+}}$ (Eq. [\[eq:duansun_gamma\]](#eq:duansun_gamma)). In KCl, $\ce{CaCl2}$ and $\ce{MgCl2}$ brines the model salts out more $\ce{CO2}$ than measured, most at high molality and low temperature: on average 18 % low in KCl, 11 % in $\ce{CaCl2}$ and 10 % in $\ce{MgCl2}$ (Table [46](#tab:storage_co2_solubility)), and up to 24 % at 6 mol/kg $\ce{CaCl2}$ and 15 % at 5 mol/kg $\ce{MgCl2}$.
+- Duan and Sun count $\ce{K+}$ as $\ce{Na+}$ and $\ce{Mg^{2+}}$ as $\ce{Ca^{2+}}$ (Eq. [§](#eq:duansun_gamma)). In KCl, $\ce{CaCl2}$ and $\ce{MgCl2}$ brines the model salts out more $\ce{CO2}$ than measured, most at high molality and low temperature: on average 18 % low in KCl, 11 % in $\ce{CaCl2}$ and 10 % in $\ce{MgCl2}$ (Table [46](#tab:storage_co2_solubility)), and up to 24 % at 6 mol/kg $\ce{CaCl2}$ and 15 % at 5 mol/kg $\ce{MgCl2}$.
 
 - The flash forms no solid salt phase. At 473 K and 1 bar a brine can dry out completely, and the package does not precipitate the salt.
 
@@ -2671,7 +2671,7 @@ The reduced density (packing fraction $\eta$) is found by bracketing the sign ch
 
 ###### Bounded site-fraction solve
 
-The site fractions of Equation [\[eq:pcsaft_xa\]](#eq:pcsaft_xa) are solved by damped successive substitution, which keeps every fraction in $(0,1]$ by construction. An unconstrained minimiser can return a negative fraction and turn the $\ln X^{A_i}$ terms into a non-number, especially for a high-segment associating chain.
+The site fractions of Equation [§](#eq:pcsaft_xa) are solved by damped successive substitution, which keeps every fraction in $(0,1]$ by construction. An unconstrained minimiser can return a negative fraction and turn the $\ln X^{A_i}$ terms into a non-number, especially for a high-segment associating chain.
 
 ##### Liquid–Liquid Equilibrium
 
@@ -2860,7 +2860,7 @@ An ionic liquid that the package does not carry can be added to a simulation. It
 
 3.  **Enter the PC-SAFT parameters.** Open the editor of the Ionic Liquids (PC-SAFT) package. The new compound has a row of its own with zeros. Enter $m$, $\sigma$ (Å) and $\varepsilon/k$ (K), and the association volume and energy; the values of the shipped ionic liquids, $\kappa^{AB} = 0.026$ and $\varepsilon^{AB}/k = 3134$ K, are a consistent choice. A compound left with zero parameters stops the calculation with a message about missing PC-SAFT parameters.
 
-4.  **Enter the binary parameters.** In the same editor, enter $k_{ij}$ for each pair of the new ionic liquid with the other compounds, and $k_{ij,T}$ (1/K) where the parameter depends on temperature (Eq. [\[eq:il_kij\]](#eq:il_kij)). Pairs left blank have $k_{ij} = 0$. Without data, the generic parameters of the package are a reasonable start: $k_{ij} = -0.0615$ and $k_{ij,T} = 8.90\times10^{-4}$ K$^{-1}$ with $\ce{CH4}$, $-0.0275$ and 0 with $\ce{N2}$, $-0.380$ and $1.21\times10^{-3}$ K$^{-1}$ with $\ce{H2}$, $-0.0151$ and $5.67\times10^{-5}$ K$^{-1}$ with $\ce{H2S}$. For $\ce{CO2}$ and water the fitted values vary too much from one ionic liquid to another for a generic value; take those of the closest shipped ionic liquid.
+4.  **Enter the binary parameters.** In the same editor, enter $k_{ij}$ for each pair of the new ionic liquid with the other compounds, and $k_{ij,T}$ (1/K) where the parameter depends on temperature (Eq. [§](#eq:il_kij)). Pairs left blank have $k_{ij} = 0$. Without data, the generic parameters of the package are a reasonable start: $k_{ij} = -0.0615$ and $k_{ij,T} = 8.90\times10^{-4}$ K$^{-1}$ with $\ce{CH4}$, $-0.0275$ and 0 with $\ce{N2}$, $-0.380$ and $1.21\times10^{-3}$ K$^{-1}$ with $\ce{H2}$, $-0.0151$ and $5.67\times10^{-5}$ K$^{-1}$ with $\ce{H2S}$. For $\ce{CO2}$ and water the fitted values vary too much from one ionic liquid to another for a generic value; take those of the closest shipped ionic liquid.
 
 5.  **Save the flowsheet.** The parameters live in the simulation file. To reuse them, keep a template flowsheet with the compound and its parameters.
 
@@ -3031,7 +3031,7 @@ where $\Omega_{a}$ and $\Omega_{b}$ are roots of the criticality conditions that
 
 ##### Mixing Rules
 
-The same van der Waals one-fluid mixing rules as in Eq. [\[eq:pt_abc\]](#eq:pt_abc)–[\[eq:pt_omega\]](#eq:pt_omega) are used, with $\omega$ evaluated at the mixture-average acentric factor $\bar\omega = \sum_{i}x_{i}\omega_{i}$.
+The same van der Waals one-fluid mixing rules as in Eq. [§](#eq:pt_abc)–[§](#eq:pt_omega) are used, with $\omega$ evaluated at the mixture-average acentric factor $\bar\omega = \sum_{i}x_{i}\omega_{i}$.
 
 #### Cubic-Plus-Association (CPA) Equation of State {#sec:cpa}
 
@@ -3206,7 +3206,7 @@ with the Lorentz–Berthelot combining rules $\sigma_{ij} = (\sigma_{i}+\sigma_{
 
 ##### Association Term
 
-The association term follows Eq. [\[eq:cpa_assoc\]](#eq:cpa_assoc)–[\[eq:cpa_delta\]](#eq:cpa_delta) with the hard-chain radial distribution function $g^{\mathrm{hc}}$ replacing $g^{\mathrm{hs}}$, and using SAFT-type combining rules for cross-associating pairs .
+The association term follows Eq. [§](#eq:cpa_assoc)–[§](#eq:cpa_delta) with the hard-chain radial distribution function $g^{\mathrm{hc}}$ replacing $g^{\mathrm{hs}}$, and using SAFT-type combining rules for cross-associating pairs .
 
 ##### Pure-Component Parameters
 
@@ -3421,7 +3421,7 @@ Coefficients $a_{n}$ are polynomial functions of $1/T$ with up to five terms eac
 
 ##### Derived Properties
 
-All thermodynamic properties are derived analytically from Eq. [\[eq:mbwr19\]](#eq:mbwr19)–[\[eq:mbwr32\]](#eq:mbwr32) via standard thermodynamic identities. The residual Helmholtz energy is obtained by integration:
+All thermodynamic properties are derived analytically from Eq. [§](#eq:mbwr19)–[§](#eq:mbwr32) via standard thermodynamic identities. The residual Helmholtz energy is obtained by integration:
 
 
 \[

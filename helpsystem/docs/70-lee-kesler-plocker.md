@@ -74,7 +74,7 @@ k_{\mathrm{CO_{2}},k}=0.9276+0.10719\,X+0.04505\,X^{2},\qquad X=\ln\frac{T_{c,k}
 \]
 
 
-with $V_{c,k}$ in m3/kmol, and hydrogen sulfide the carbon dioxide value less 0.027. Equation [\[eq:d-lkp-hckij\]](#eq:d-lkp-hckij) fits the 87 hydrocarbon pairs of the table with an rms deviation of 0.011, and the nitrogen row within 0.02; both correlations were fitted to the table and to parameters regressed from about 800 solubility points of methane, ethane, nitrogen, carbon monoxide, carbon dioxide and hydrogen sulfide in heavy alkanes, aromatics and naphthenes. All other pairs take 1. Table values and values set by the user are never replaced, and the parameter editor shows the estimates.
+with $V_{c,k}$ in m3/kmol, and hydrogen sulfide the carbon dioxide value less 0.027. Equation [§](#eq:d-lkp-hckij) fits the 87 hydrocarbon pairs of the table with an rms deviation of 0.011, and the nitrogen row within 0.02; both correlations were fitted to the table and to parameters regressed from about 800 solubility points of methane, ethane, nitrogen, carbon monoxide, carbon dioxide and hydrogen sulfide in heavy alkanes, aromatics and naphthenes. All other pairs take 1. Table values and values set by the user are never replaced, and the parameter editor shows the estimates.
 
 #### Compressibility and fugacity coefficient
 

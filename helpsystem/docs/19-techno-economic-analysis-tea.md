@@ -178,7 +178,7 @@ Costed against the *Separator* correlation (absorption/separation skid) using th
 
 ###### CFB Fast Pyrolysis
 
-The riser is a vertical cylindrical pressure vessel; the capacity parameter is the riser internal volume computed from the user-supplied diameter and height ($V_\mathrm{riser} = \pi (D/2)^2 H$), matched against the *Reactor* correlation. When the sand-supply mode is `InternalCharCombustor`, the effective volume is multiplied by a factor of $1.3$ to cover the additional char-combustor vessel, cyclone, and downcomer; in `External` mode no scaling is applied and only the riser is costed (the external heater/sand loop is accounted for as an OPEX heating utility in the LCI; see §[2.2.2.5](#sec:lca_bio)).
+The riser is a vertical cylindrical pressure vessel; the capacity parameter is the riser internal volume computed from the user-supplied diameter and height ($V_\mathrm{riser} = \pi (D/2)^2 H$), matched against the *Reactor* correlation. When the sand-supply mode is `InternalCharCombustor`, the effective volume is multiplied by a factor of $1.3$ to cover the additional char-combustor vessel, cyclone, and downcomer; in `External` mode no scaling is applied and only the riser is costed (the external heater/sand loop is accounted for as an OPEX heating utility in the LCI; see §[2.2.2.5](20-life-cycle-assessment-lca.md#sec:lca_bio)).
 
 #### Vessel Sizing {#sec:tea_vessel}
 

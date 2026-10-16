@@ -143,7 +143,7 @@ $T_{r}$ reduced temperature, $T/Tc$
 
 
 
-For mixtures, Equation[\[eq:PR\]](#eq:PR) is applied with mixture-averaged parameters $a_{m}$ and $b_{m}$ computed from the van der Waals one-fluid mixing rules:
+For mixtures, Equation[§](#eq:PR) is applied with mixture-averaged parameters $a_{m}$ and $b_{m}$ computed from the van der Waals one-fluid mixing rules:
 
 
 
@@ -195,7 +195,7 @@ The fugacity coefficient obtained from the Peng–Robinson EOS is given by
 \]
 
 
-where $Z$ is the phase compressibility factor (liquid or vapor), obtained by solving the cubic polynomial derived from Equation [\[eq:PR\]](#eq:PR),
+where $Z$ is the phase compressibility factor (liquid or vapor), obtained by solving the cubic polynomial derived from Equation [§](#eq:PR),
 
 
 
@@ -285,7 +285,7 @@ b=0.08664(RT_{c})/P_{c}
 \]
 
 
-The equations [\[eq:mixrule1\]](#eq:mixrule1) and [\[eq:mixrule2\]](#eq:mixrule2) are used to calculate mixture parameters. Fugacity is calculated by
+The equations [§](#eq:mixrule1) and [§](#eq:mixrule2) are used to calculate mixture parameters. Fugacity is calculated by
 
 
 
@@ -294,7 +294,7 @@ The equations [\[eq:mixrule1\]](#eq:mixrule1) and [\[eq:mixrule2\]](#eq:mixrule2
 \]
 
 
-The phase compressibility factor $Z$ is obtained from the equation [\[eq:SRK\]](#eq:SRK),
+The phase compressibility factor $Z$ is obtained from the equation [§](#eq:SRK),
 
 
 
@@ -326,7 +326,7 @@ Z=\frac{PV}{RT}
 \]
 
 
-The equations [\[eq:PR_Z\]](#eq:PR_Z) and [\[eq:SRK_Z\]](#eq:SRK_Z), in low temperature and pressure conditions, can provide three roots for $Z$ . In this case, if liquid properties are being calculated, the smallest root is used. If the phase is vapor, the largest root is used. The remaining root has no physical meaning; at high temperatures and pressures (conditions above the pseudocritical point), the equations [\[eq:PR_Z\]](#eq:PR_Z) and [\[eq:SRK_Z\]](#eq:SRK_Z) provides only one real root.
+The equations [§](#eq:PR_Z) and [§](#eq:SRK_Z), in low temperature and pressure conditions, can provide three roots for $Z$ . In this case, if liquid properties are being calculated, the smallest root is used. If the phase is vapor, the largest root is used. The remaining root has no physical meaning; at high temperatures and pressures (conditions above the pseudocritical point), the equations [§](#eq:PR_Z) and [§](#eq:SRK_Z) provides only one real root.
 
 ###### *Peng-Robinson with Volume Translation* {#peng-robinson-with-volume-translation .unnumbered}
 
@@ -563,7 +563,7 @@ The UNIFAC method for the estimation of activity coefficients depends on the con
 
 The activity coefficients do not only depend on the subgroup properties, but also on the interactions between these groups. Similar subgroups are related to a main group, like “CH2”, “OH”, “ACH” etc.; the identification of the main groups are only descriptive. All the subgroups that belongs to the same main group are considered identical with respect to the interaction between groups. Consequently, the parameters which characterize the interactions between the groups are identified by pairs of the main groups.
 
-The UNIFAC method is based on the UNIQUAC equation, where the activity coefficients are given by the equation [\[eq:gamaiuniquac\]](#eq:gamaiuniquac). When applied to a solution of groups, the equations [\[eq:gic\]](#eq:gic) and [\[eq:ric\]](#eq:ric) are written in the form:
+The UNIFAC method is based on the UNIQUAC equation, where the activity coefficients are given by the equation [§](#eq:gamaiuniquac). When applied to a solution of groups, the equations [§](#eq:gic) and [§](#eq:ric) are written in the form:
 
 
 
@@ -579,7 +579,7 @@ The UNIFAC method is based on the UNIQUAC equation, where the activity coefficie
 \]
 
 
-The parameters $J_{i}$ e $L_{i}$ are still given by eqs. [\[eq:ji\]](#eq:ji) and [\[eq:li\]](#eq:li). Furthermore, the following definitions apply:
+The parameters $J_{i}$ e $L_{i}$ are still given by eqs. [§](#eq:ji) and [§](#eq:li). Furthermore, the following definitions apply:
 
 
 \[
@@ -895,9 +895,9 @@ Z=Z^{(0)}+\frac{\omega}{\omega^{(r)}}\left(Z^{(r)}-Z^{(0)}\right),
 
 where the $(0)$ superscript refers to the simple fluid while the $(r)$ superscript refers to the reference fluid. This way, property calculation by the Lee-Kesler model should follow the sequence below (enthalpy calculation example):
 
-1.  $V_{r}$ and $Z^{(0)}$ are calculated for the simple fluid at the fluid $T_{r}$ and $P_{r}$ . using the equation [\[eq:LKH\]](#eq:LKH), and with the constants for the simple fluid, as shown in the table [26](#tab:Constantes-para-o), $(H-H^{0})/RT_{c}$ is calculated. This term is $\left[(H-H^{0})/RT_{c}\right]^{(0)}$ . in this calculation, $Z$ in the equation [\[eq:LKH\]](#eq:LKH) is $Z^{(0)}$ .
+1.  $V_{r}$ and $Z^{(0)}$ are calculated for the simple fluid at the fluid $T_{r}$ and $P_{r}$ . using the equation [§](#eq:LKH), and with the constants for the simple fluid, as shown in the table [26](#tab:Constantes-para-o), $(H-H^{0})/RT_{c}$ is calculated. This term is $\left[(H-H^{0})/RT_{c}\right]^{(0)}$ . in this calculation, $Z$ in the equation [§](#eq:LKH) is $Z^{(0)}$ .
 
-2.  The step 1 is repeated, using the same $T_{r}$ and $P_{r}$ , but using the constants for the reference fluid as shown in table [26](#tab:Constantes-para-o). With these values, the equation [\[eq:LKH\]](#eq:LKH) allows the calculation of $\left[(H-H^{0})/RT_{c}\right]^{(r)}$ . In this step, $Z$ in the equation [\[eq:LKH\]](#eq:LKH) is $Z^{(r)}$ .
+2.  The step 1 is repeated, using the same $T_{r}$ and $P_{r}$ , but using the constants for the reference fluid as shown in table [26](#tab:Constantes-para-o). With these values, the equation [§](#eq:LKH) allows the calculation of $\left[(H-H^{0})/RT_{c}\right]^{(r)}$ . In this step, $Z$ in the equation [§](#eq:LKH) is $Z^{(r)}$ .
 
 3.  Finally, one determines the residual enthalpy for the fluid of interest by
 

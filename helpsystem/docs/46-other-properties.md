@@ -42,7 +42,7 @@ A_{12}=\left(\frac{\partial^{2}A}{\partial n_{1}\partial n_{2}}\right)_{T,V}
 \]
 
 
-All the $A$ terms in the equations [\[eq:PC1\]](#eq:PC1) and [\[eq:PC2\]](#eq:PC2) are the second derivatives of the total Helmholtz energy $\underline{A}$ with respect to mols and constant $T$ and $V$ . The determinants expressed by [\[eq:PC1\]](#eq:PC1) and [\[eq:PC2\]](#eq:PC2) are simultaneously solved for the critical volume and temperature. The critical pressure is then found by using the original EOS.
+All the $A$ terms in the equations [§](#eq:PC1) and [§](#eq:PC2) are the second derivatives of the total Helmholtz energy $\underline{A}$ with respect to mols and constant $T$ and $V$ . The determinants expressed by [§](#eq:PC1) and [§](#eq:PC2) are simultaneously solved for the critical volume and temperature. The critical pressure is then found by using the original EOS.
 
 DWSIM utilizes the method described by Heidemann and Khalil for the true critical point calculation using the *Peng-Robinson* and *Soave-Redlich-Kwong* equations of state.
 
@@ -411,7 +411,7 @@ The aniline point (API 2B9.1), smoke point (API 2B10.1), refraction index, pour,
 
 ##### Using the Results
 
-Every curve point and property of an attached utility becomes a property of its stream, named as in the utility’s table: for example `D86 95%`, `TBP 10%`, `EFV 50%` or `Flash Point (Closed Cup)`. They can be read from the spreadsheet, swept in a sensitivity study, used by an Adjust, and used as secondary specifications of the rigorous distillation column (Section ). The utility recalculates whenever its stream changes, and its settings are saved with the simulation.
+Every curve point and property of an attached utility becomes a property of its stream, named as in the utility’s table: for example `D86 95%`, `TBP 10%`, `EFV 50%` or `Flash Point (Closed Cup)`. They can be read from the spreadsheet, swept in a sensitivity study, used by an Adjust, and used as secondary specifications of the rigorous distillation column (Section [§](24-unit-operations.md#sec:column-secondary-specs)). The utility recalculates whenever its stream changes, and its settings are saved with the simulation.
 
 ##### Validation
 

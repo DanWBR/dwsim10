@@ -1477,6 +1477,9 @@ def step_rewrite_paths_and_refs(sections: list[dict], label_map: dict[str, tuple
         # find <a id="..."> anchors emitted for equation labels
         for m in re.finditer(r'<a id="([^"]+)"></a>', s["body"]):
             extra_labels.setdefault(m.group(1), (_slug_filename(s["nav_idx"], s["title"]), m.group(1)))
+        # and any other element pandoc gave an id (spans after headings, divs, figures)
+        for m in re.finditer(r'\bid="([^"]+)"', s["body"]):
+            extra_labels.setdefault(m.group(1), (_slug_filename(s["nav_idx"], s["title"]), m.group(1)))
 
     label_map.update(extra_labels)
 
@@ -1619,6 +1622,9 @@ def step_rewrite_paths_and_refs(sections: list[dict], label_map: dict[str, tuple
                 return f"[§]({target_file}#{anchor})"
             return f"§"  # broken ref
 
+        # A \ref LyX left inside inline math ("Table $~\ref{x}$") comes out of the math first,
+        # or its link would land inside the formula
+        body = re.sub(r"\$\s*~?\s*(\\ref\{[^}]+\})\s*\$", r" \1", body)
         body = re.sub(r"\\ref\{([^}]+)\}", _ref_repl, body)
 
         # Drop stray \label{} (already captured above) so they don't show as text
@@ -1641,7 +1647,7 @@ def step_rewrite_paths_and_refs(sections: list[dict], label_map: dict[str, tuple
         def _dead_ref_repl(m):
             anchor = m.group(2)
             if anchor in label_map:
-                return m.group(0)
+                return f"[§](#{anchor})"
             if anchor.startswith("eq:"):
                 return "(eq.)"
             if anchor.startswith("fig:"):
@@ -1655,6 +1661,21 @@ def step_rewrite_paths_and_refs(sections: list[dict], label_map: dict[str, tuple
             _dead_ref_repl,
             body,
         )
+
+        # Pandoc writes a \ref as a link to a bare anchor; an anchor on another
+        # page needs that page's file in front of it.
+        this_file = _slug_filename(s["nav_idx"], s["title"])
+        local_ids = set(re.findall(r'\bid="([^"]+)"', body)) | set(re.findall(r"\{#([^}\s]+)\}", body))
+
+        def _xpage_repl(m):
+            anchor = m.group(1)
+            if anchor in label_map and anchor not in local_ids:
+                target_file, _ = label_map[anchor]
+                if target_file != this_file:
+                    return f"]({target_file}#{anchor})"
+            return m.group(0)
+
+        body = re.sub(r"\]\(#([^)\s]+)\)", _xpage_repl, body)
 
         s["body"] = body
 

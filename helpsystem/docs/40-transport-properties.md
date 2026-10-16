@@ -42,7 +42,7 @@ $R$ Ideal Gas constant (8,314 J/\[mol.K\])
 > | *<span class="image placeholder" original-image-src="dialog-information.png" original-image-title="">image</span>* | <span class="sans-serif">*If $T\geqslant T_{cm},$ the Rackett method does not provide a value for $V_{s}$ and, in this case, DWSIM uses the EOS-generated compressibility factor to calculate the density of the liquid phase.*</span> |
 > |:---|:--:|
 
-For mixtures, the equation [\[eq:liqdens\]](#eq:liqdens) becomes
+For mixtures, the equation [§](#eq:liqdens) becomes
 
 
 

@@ -581,7 +581,7 @@ If all object properties were correctly defined, it will be calculated by DWSIM 
 
 ##### Cut/Copy/Paste objects
 
-DWSIM also supports cutting, copying and pasting flowsheet objects inside a flowsheet or between different flowsheets. When copying objects between flowsheets, DWSIM may also copy compounds and property packages from one flowsheet to another. Cut/Copy/Paste behavior is an application setting and can be set in the General Settings menu (Section ).
+DWSIM also supports cutting, copying and pasting flowsheet objects inside a flowsheet or between different flowsheets. When copying objects between flowsheets, DWSIM may also copy compounds and property packages from one flowsheet to another. Cut/Copy/Paste behavior is an application setting and can be set in the General Settings menu (Section [§](09-general-settings.md#subsec:Other)).
 
 ##### Simulation
 
@@ -783,7 +783,7 @@ Added/Attached Utilities will be visible on the context menu located on the obje
 
 
 
-- ***Distillation Curves*** - the TBP, ASTM D86, D1160, D2887 and EFV curves of a stream, with the properties of a petroleum product (flash point, densities, viscosities, cold flow points and cetane index). See Section [9.4](#sec:distillation-curves).
+- ***Distillation Curves*** - the TBP, ASTM D86, D1160, D2887 and EFV curves of a stream, with the properties of a petroleum product (flash point, densities, viscosities, cold flow points and cetane index). See Section [9.4](46-other-properties.md#sec:distillation-curves).
 
 - ***Petroleum Cold Flow Properties*** - special properties of petroleum fractions, like cetane index, flash point, refraction index, etc. (Figure [38](#fig:figura-utDB-1)).
 

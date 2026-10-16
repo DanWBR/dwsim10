@@ -385,8 +385,8 @@ The majority of properties of the hypothetical components is calculated, when ne
 | Critical pressure | $P_{c}$ | Joback |
 | Critical volume | $V_{c}$ | Joback |
 | Normal boiling point | $T_{b}$ | Joback |
-| Vapor pressure | $P^{pv}$ | Lee-Kesler (Eq. [\[eq:PVAP LK\]](#eq:PVAP LK)) |
-| Acentric factor | $\omega$ | Lee-Kesler (Eq. [\[eq:W LK\]](#eq:W LK)) |
+| Vapor pressure | $P^{pv}$ | Lee-Kesler (Eq. [§](#eq:PVAP LK)) |
+| Acentric factor | $\omega$ | Lee-Kesler (Eq. [§](#eq:W LK)) |
 | Vaporization enthalpy | $\Delta H_{vap}$ | Vetere |
 | Ideal gas heat capacity | $C_{p}^{gi}$ | Harrison-Seaton |
 | Ideal gas enthalpy of formation | $\Delta H_{f}^{298}$ | Marrero-Gani |
