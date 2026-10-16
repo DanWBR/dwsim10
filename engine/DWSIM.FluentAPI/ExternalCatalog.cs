@@ -134,6 +134,8 @@ namespace DWSIM.Automation.FluentAPI
             public const string FallingFilmEvaporator = "Falling Film Evaporator";
             /// <summary>Thermodynamic property editor - overrides PP interaction parameters within a simulation.</summary>
             public const string ThermoPropertyEditor = "Thermo Property Editor";
+            /// <summary>Divided-wall (Petlyuk) distillation column, solved simultaneously, with shortcut design and interlink optimization.</summary>
+            public const string DividedWallColumn = "Divided-Wall Column";
 
             /// <summary>Every advanced-Plus display name as a flat list.</summary>
             public static IReadOnlyList<string> All => new[]
@@ -142,7 +144,7 @@ namespace DWSIM.Automation.FluentAPI
                 VaporCompressionChiller, ZeoliteAdsorber, CopperBedHgAdsorber,
                 AirCooler2, EnergyMixer, EnergySplitter, EnergyStreamSwitch,
                 MaterialStreamSwitch, MaterialStreamMapper, FallingFilmEvaporator,
-                ThermoPropertyEditor
+                ThermoPropertyEditor, DividedWallColumn
             };
         }
 
