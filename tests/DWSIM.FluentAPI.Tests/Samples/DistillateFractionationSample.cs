@@ -62,14 +62,6 @@ namespace DWSIM.FluentAPI.Tests
                 names.Add(cut); vol.Add(v); sg.Add(s);
                 u.NbpC[cut] = tbC;
             }
-            // viscosities as the characterization sets them (Abbott)
-            foreach (var cp in fs.Inner.SelectedCompounds.Values.Cast<DWSIM.Thermodynamics.BaseClasses.ConstantProperties>())
-            {
-                cp.PF_Tv1 = 311;
-                cp.PF_Tv2 = 372;
-                cp.PF_v1 = Methods.PropertyMethods.Visc37_Abbott(cp.NBP.GetValueOrDefault(), cp.PF_SG.GetValueOrDefault());
-                cp.PF_v2 = Methods.PropertyMethods.Visc98_Abbott(cp.NBP.GetValueOrDefault(), cp.PF_SG.GetValueOrDefault());
-            }
             fs = fs.WithPropertyPackage(PropertyPackages.PengRobinson);
 
             double msum = vol.Select((v, i) => v * sg[i]).Sum();

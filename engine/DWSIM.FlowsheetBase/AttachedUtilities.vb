@@ -397,7 +397,7 @@ Namespace Utilities
             "Flash Point", "Pour Point", "Cloud Point", "Freezing Point",
             "Reid Vapor Pressure @ 100 F", "True Vapor Pressure @ 100 F",
             "Refraction Index @ 20 C", "Cetane Index",
-            "Viscosity @ 100 F", "Viscosity @ 210 F"}
+            "Viscosity @ 100 F", "Viscosity @ 210 F", "T 10% ASTM D86", "T 10% TBP"}
 
         Public Overrides Function GetUtilityType() As FlowsheetUtility
             Return FlowsheetUtility.PetroleumProperties
@@ -409,12 +409,12 @@ Namespace Utilities
             If su Is Nothing Then Return ""
 
             Select Case pname
-                Case "Flash Point", "Pour Point", "Cloud Point", "Freezing Point"
+                Case "Flash Point", "Pour Point", "Cloud Point", "Freezing Point", "T 10% ASTM D86", "T 10% TBP"
                     Return su.temperature
                 Case "Reid Vapor Pressure @ 100 F", "True Vapor Pressure @ 100 F"
                     Return su.pressure
                 Case "Viscosity @ 100 F", "Viscosity @ 210 F"
-                    Return su.cinematic_viscosity
+                    Return su.viscosity
                 Case Else
                     Return ""
             End Select
@@ -440,14 +440,46 @@ Namespace Utilities
             Results("Refraction Index @ 20 C") = res.RefractionIndex
             Results("Cetane Index") = res.CetaneIndex
             ' the engine reports these at 37.8 and 98.9 C, which is 100 and 210 F
-            Results("Viscosity @ 100 F") = Convert(su?.cinematic_viscosity, res.Viscosity37C)
-            Results("Viscosity @ 210 F") = Convert(su?.cinematic_viscosity, res.Viscosity98C)
+            Results("Viscosity @ 100 F") = Convert(su?.viscosity, res.Viscosity37C)
+            Results("Viscosity @ 210 F") = Convert(su?.viscosity, res.Viscosity98C)
+            Results("T 10% ASTM D86") = Convert(su?.temperature, res.T10ASTMD86)
+            Results("T 10% TBP") = Convert(su?.temperature, res.T10TBP)
 
         End Sub
 
         Private Shared Function Convert(unit As String, value As Double) As Double
             If unit Is Nothing Then Return value
             Return SystemsOfUnits.Converter.ConvertFromSI(unit, value)
+        End Function
+
+    End Class
+
+    ''' <summary>
+    ''' The inputs of a vessel depressurization study attached to a stream. The study itself runs in its
+    ''' own window; this keeps its inputs, under the names the Windows interface saves, so a simulation
+    ''' carries them between the two interfaces.
+    ''' </summary>
+    Public Class DepressurizationUtility
+
+        Inherits AttachedUtility
+
+        Private Shared ReadOnly TextInputs As String() = {"P0", "T0", "LiqFrac", "Diameter", "Length", "Wall", "OutletElev", "Orifice", "Cd", "Cv", "BackP", "OpenTime",
+                                                         "Ambient", "HtcFactor", "FireF", "DryFlux", "Elevation", "Step", "Duration", "StopP"}
+
+        Public Sub New()
+            For Each p In {"Orientation", "Head", "Material", "Mode"}
+                Settings(p) = 0
+            Next
+            For Each p In {"Wall_Included", "Drainage", "Homogeneous"}
+                Settings(p) = False
+            Next
+            For Each p In TextInputs
+                Settings(p) = ""
+            Next
+        End Sub
+
+        Public Overrides Function GetUtilityType() As FlowsheetUtility
+            Return FlowsheetUtility.Depressurization
         End Function
 
     End Class

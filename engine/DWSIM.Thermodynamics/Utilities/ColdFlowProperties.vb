@@ -36,6 +36,12 @@ Namespace Utilities.PetroleumProperties
         Public Property RefractionIndex As Double
         Public Property CetaneIndex As Double
 
+        ''' <summary>ASTM D86 temperature at 10 % distilled, in K.</summary>
+        Public Property T10ASTMD86 As Double
+
+        ''' <summary>Temperature at which 10 % of the liquid volume has vaporized at 1 atm, in K.</summary>
+        Public Property T10TBP As Double
+
         Public Property MeanAverageBoilingPoint As Double
         Public Property SpecificGravity As Double
         Public Property WatsonK As Double
@@ -50,14 +56,24 @@ Namespace Utilities.PetroleumProperties
     Public Class ColdFlowProperties
 
         ''' <summary>
-        ''' Calculates the cold flow properties of a copy of the given stream. The stream is
-        ''' modified during the calculation, so pass a clone.
+        ''' Calculates the cold flow properties of a stream. The calculation works on a copy, so the stream
+        ''' itself is left as it was.
         ''' </summary>
-        Public Shared Function Calculate(mat As MaterialStream) As ColdFlowResults
+        Public Shared Function Calculate(stream As MaterialStream) As ColdFlowResults
+
+            Dim pp As PropertyPackages.PropertyPackage = stream.PropertyPackage
+            Dim previous = pp.CurrentMaterialStream
+            Try
+                Return Calculate(stream.ShallowClone(), pp)
+            Finally
+                pp.CurrentMaterialStream = previous
+            End Try
+
+        End Function
+
+        Private Shared Function Calculate(mat As MaterialStream, pp As PropertyPackages.PropertyPackage) As ColdFlowResults
 
             Dim res As New ColdFlowResults
-
-            Dim pp As PropertyPackages.PropertyPackage = mat.PropertyPackage
             Dim MABP, CABP, MeABP, K, SG, API As Double
             Dim TVP, v1, v2, kv1, t10ASTM, t10TBP, bt, dp As Double
 
@@ -142,6 +158,8 @@ Namespace Utilities.PetroleumProperties
             res.ReidVaporPressure = PetroleumCorrelations.ReidVaporPressure(TVP)
 
             res.TrueVaporPressure = TVP
+            res.T10ASTMD86 = t10ASTM
+            res.T10TBP = t10TBP
             res.Viscosity37C = v1
             res.Viscosity98C = v2
             res.MeanAverageBoilingPoint = MeABP

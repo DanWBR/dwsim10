@@ -3,6 +3,7 @@ using System.IO;
 using DWSIM.Interfaces;
 using DWSIM.Thermodynamics.BaseClasses;
 using PseudoBuilder = DWSIM.Thermodynamics.Utilities.PetroleumCharacterization.Methods.PseudoBuilder;
+using PropertyMethods = DWSIM.Thermodynamics.Utilities.PetroleumCharacterization.Methods.PropertyMethods;
 
 namespace DWSIM.Automation.FluentAPI
 {
@@ -28,6 +29,8 @@ namespace DWSIM.Automation.FluentAPI
         /// <param name="naphtenicFrac">Optional measured naphtenic mass fraction.</param>
         /// <param name="aromaticFrac">Optional measured aromatic mass fraction.</param>
         /// <param name="refractiveIndexN20">Optional measured n_D at 20 °C.</param>
+        /// <param name="kinematicViscosity100F">Optional measured kinematic viscosity at 100 °F, in m2/s. Estimated by Abbott when not given.</param>
+        /// <param name="kinematicViscosity210F">Optional measured kinematic viscosity at 210 °F, in m2/s. Estimated by Abbott when not given.</param>
         public static Flowsheet WithPseudoComponent(this Flowsheet fs,
             string name,
             Quantity normalBoilingPoint,
@@ -39,7 +42,9 @@ namespace DWSIM.Automation.FluentAPI
             double? paraffinFrac = null,
             double? naphtenicFrac = null,
             double? aromaticFrac = null,
-            double? refractiveIndexN20 = null)
+            double? refractiveIndexN20 = null,
+            double? kinematicViscosity100F = null,
+            double? kinematicViscosity210F = null)
         {
             if (fs == null) throw new ArgumentNullException(nameof(fs));
             if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Pseudo name is required", nameof(name));
@@ -58,6 +63,13 @@ namespace DWSIM.Automation.FluentAPI
             if (naphtenicFrac.HasValue) cp.PF_xN = naphtenicFrac.Value;
             if (aromaticFrac.HasValue) cp.PF_xA = aromaticFrac.Value;
             if (refractiveIndexN20.HasValue) cp.PF_n20 = refractiveIndexN20.Value;
+
+            // the oil viscosity model (Twu) interpolates between the kinematic viscosities at 100 F and 210 F;
+            // without them the liquid viscosity of the pseudocomponent is meaningless
+            cp.PF_Tv1 = 311.0;
+            cp.PF_Tv2 = 372.0;
+            cp.PF_v1 = kinematicViscosity100F ?? PropertyMethods.Visc37_Abbott(normalBoilingPoint.SI, specificGravity);
+            cp.PF_v2 = kinematicViscosity210F ?? PropertyMethods.Visc98_Abbott(normalBoilingPoint.SI, specificGravity);
 
             // PseudoBuilder needs PF_vA / PF_vB (kinematic viscosities @ 100 °F / 210 °F) for
             // Farah Tc/Pc; for the default Riazi correlations they are unused but FinalizeCompoundProperties
