@@ -53,6 +53,8 @@ INCLUDED_TEX = [
     "model_descriptions",
     "thermopack_model_descriptions",
     "corrosion_scaling_manual",
+    "column_internals_model",
+    "distillation_curves_model",
 ]
 
 PANDOC = os.environ.get("PANDOC", r"C:\Program Files\Pandoc\pandoc.exe")

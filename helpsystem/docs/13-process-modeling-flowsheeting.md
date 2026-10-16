@@ -229,6 +229,8 @@ DWSIM includes a number of utilities which give the user more information about 
 
 - **Petroleum Cold Flow Properties** - the cold flow properties of a petroleum stream.
 
+- **Distillation Curves** - the distillation curves of a stream and the properties of a petroleum product. Every curve point and property becomes a property of the stream.
+
 - **Pressure Safety Valve Sizing** - the orifice area required by a relief valve.
 
 - **Gas-Liquid Separator Sizing** - vertical and horizontal separator dimensions.

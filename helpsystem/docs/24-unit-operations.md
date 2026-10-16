@@ -1436,6 +1436,20 @@ Available Solving Methods
 
 External (third-party) solvers can also be registered through the plug-in interface.
 
+When the bubble-point methods (Wang-Henke and Modified Wang-Henke) do not converge, DWSIM tries the following steps in turn and stops at the first one that converges:
+
+- the solver runs at the column’s own temperature step (the Temperature Step Fraction of the convergence parameters) and its full iteration budget;
+
+- the temperature step is reduced to 0.25 and then to 0.1, each attempt on a smaller iteration budget;
+
+- the wide-boiling path, which moves the stage temperatures by Broyden steps; its solution is accepted only when the stage bubble points close within the tolerance;
+
+- the column is solved again from new initial estimates, built from the products split by volatility;
+
+- the Naphtali-Sandholm solver, from the same initial estimates.
+
+A warning in the log reports each step. When every step fails, the error of the bubble-point solver is reported. A column that converges at the first step is solved exactly as before.
+
 ##### Initialization Strategies
 
 Good initial estimates are critical for convergence of rigorous column calculations. DWSIM offers four initialization schemes:
@@ -1496,6 +1510,30 @@ Additional tray hydraulic parameters are available for detailed design: dry tray
 | Inter-Exchangers | In/Out | Energy | Stage-level heating or cooling duties |
 
 Distillation Column Connections
+
+##### Secondary Specifications<span id="sec:column-secondary-specs" label="sec:column-secondary-specs"></span>
+
+The condenser and reboiler specifications fix quantities of the column itself: reflux ratio, product rates, duties, compositions. A refinery tower is operated to meet product qualities, such as the D86 95 % point of the diesel or the flash point of the kerosene. Secondary specifications set these qualities directly: each one names a property of a column product and a target value, and moves one of the column’s free variables until the product reaches the target.
+
+**Where to find them:** in the Windows interface, open the column editor and select the Secondary tab in the specifications area. In the cross-platform interface, the Secondary tab sits under Specifications in the column editor. Each row is one specification, with the following fields:
+
+- **Product:** the column product the property is read on (distillate, overhead vapor, bottoms or a side draw).
+
+- **Property:** a distillation curve point such as `D86 95%` or `TBP 10%`, a product property of the Distillation Curves utility such as `Flash Point (Closed Cup)` or `Density @ 20 C` (Section [9.4](#sec:distillation-curves)), or the ID of any material stream property.
+
+- **Target and tolerance:** the value to reach and the largest acceptable difference from it. A zero tolerance takes 0.1 % of the target.
+
+- **Manipulated variable:** the value of the condenser specification, the value of the reboiler specification, or the molar flow of a side draw.
+
+- **Minimum and maximum:** limits of the manipulated variable, in its own units. Equal limits leave the variable unbounded.
+
+**Solution:** the secondary specifications form an outer loop around the column solver, and every evaluation is a full column solve. The loop starts from the column solved at the current values of the variables, builds a Jacobian by finite differences (a step of 2 % of each variable), and takes Newton steps, updating the Jacobian by Broyden after each one. No variable moves by more than half of its value in one step, and the step is halved while the residuals do not fall. The property of each product is evaluated on a copy of the product at the stage temperature and pressure, with the same calculations as the Distillation Curves utility. The products are written once, from the final solution.
+
+**Rules:** each variable serves one specification only, and the number of active specifications cannot exceed the free variables of the column (the condenser and reboiler specifications plus one per side draw). When a target is not reached within 30 iterations, the column keeps the closest solution found and a warning names the specifications that were missed. The iterations are listed in the column’s secondary specifications log. With the products and side draws all specified by flow, the overall mass balance leaves no rate free to move: one end of the column then needs a reflux ratio or a duty as its specification.
+
+**Automation:** the fluent API adds a specification with `WithSecondarySpec` on the distillation column builder (target and tolerance in SI units).
+
+**Example:** on an atmospheric crude tower with kerosene and diesel side draws, the specifications kerosene D86 95 % = 274 °C and diesel D86 95 % = 374 °C, moving the two side draw rates, converge in 2 iterations and 6 column solves.
 
 ##### Physical Dimensions
 

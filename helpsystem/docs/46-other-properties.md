@@ -261,6 +261,170 @@ $API$ API degree of the oil
 
 
 
+#### Distillation Curves and Petroleum Product Properties {#sec:distillation-curves}
+
+The Distillation Curves utility reports the distillation curves of any material stream (real compounds, pseudocomponents or both) together with the product properties a pool check needs: flash point, densities, viscosities, cold flow points and cetane index. It is meant for the products of crude and vacuum towers, where each cut has to be checked against the pool it goes to (naphtha, jet fuel, diesel, gas oil).
+
+###### Where to find it
+
+In the Windows interface, open it from **Utilities \> Distillation Curves** or attach it to a stream through **Utilities \> Add Utility** (Material Stream, Distillation Curves). In the cross-platform interface, use **Utilities \> Distillation Curves...** or the Utilities tab of the stream editor. The window has the inputs on the left and the curves (plot and table) and product properties on the right; **Copy data** places the tables on the clipboard.
+
+###### Settings
+
+- **Liquid phase only:** calculates the curves of the stream’s liquid phase instead of the whole stream.
+
+- **TBP basis:** liquid volume (default), mass or mole percent distilled for the TBP curve. The D86, D1160 and EFV curves are always on liquid volume and the D2887 curve on mass, as their test methods define them.
+
+- **Percents distilled:** the points to report, separated by commas, from 0 (initial boiling point) to 100 (final boiling point). The default is 0, 5, 10, 30, 50, 70, 90, 95 and 100.
+
+- **D1160 pressure:** the pressure of the D1160 curve (10 mmHg by default).
+
+- **EFV pressure and method:** the pressure of the equilibrium flash vaporization curve, and whether it comes from flash calculations or from the Riazi-Daubert correlation.
+
+##### TBP Curve from the Stream Composition
+
+The true boiling point curve is built from the compounds themselves. The compounds are sorted by normal boiling point $T_{b,i}$; each one occupies its share of the stream on the chosen basis, and boils at its normal boiling point at the middle of that share. On a liquid volume basis the share of compound $i$ is
+
+
+\[
+v_{i}=\frac{x_{i}M_{i}/\rho_{i}^{60}}{\sum_{k}x_{k}M_{k}/\rho_{k}^{60}}
+\]
+
+
+where $\rho_{i}^{60}$ is the standard liquid density of the compound at 60°F (from its specific gravity for a pseudocomponent). With the cumulative fraction $V_{i}=\sum_{k\le i}v_{k}$, compound $i$ gives the point $\left(100\,(V_{i}-v_{i}/2),\;T_{b,i}\right)$, and the curve passes through these points by monotone cubic (Fritsch-Carlson) interpolation, extrapolated linearly to 0 and 100 %. Traces of compounds that fall on the same percent are merged into one point. A stream cut from an assay with several pseudocomponents gives back the assay’s TBP curve; a stream with few compounds gives a coarse curve, and the traces of light or heavy cuts in a side draw show up at the ends of its TBP curve.
+
+##### ASTM D86
+
+The D86 curve comes from the TBP curve by API procedure 3A1.1 in reverse. The 50 % points are related by
+
+
+\[
+T_{50}^{TBP}=0.87180\,\left(T_{50}^{D86}\right)^{1.0258}
+\]
+
+
+(temperatures in °F), and each segment of the curve by $\Delta T^{TBP}=A\,\left(\Delta T^{D86}\right)^{B}$, with the coefficients of Table [58](#tab:d86-tbp). Inverting the power law gives the D86 segments. A D86 segment is never wider than its TBP segment: past that point the inverted power law runs away (a few light ends in a side draw place the TBP initial boiling point far below its 10 % point), so each D86 segment is limited to the TBP segment it comes from.
+
+
+
+<a id="tab:d86-tbp"></a>
+
+
+
+| Segment (vol %) |  $A$  |  $B$  |
+|:----------------|:-------:|:-------:|
+| 100–90          | 0.11798 | 1.6606  |
+| 90–70           | 3.0419  | 0.75497 |
+| 70–50           | 2.5282  | 0.82002 |
+| 50–30           | 3.0305  | 0.80076 |
+| 30–10           | 4.9004  | 0.71644 |
+| 10–0            | 7.4012  | 0.60244 |
+
+API procedure 3A1.1 coefficients
+
+
+
+##### ASTM D2887 (Simulated Distillation)
+
+The D2887 curve (mass percent) comes from the TBP curve by API procedure 3A3.1 in reverse: the 50 % points are equal, and each segment follows $\Delta T^{TBP}=C\,\left(\Delta T^{SD}\right)^{D}$ with the coefficients of Table [59](#tab:sd-tbp).
+
+
+
+<a id="tab:sd-tbp"></a>
+
+
+
+| Segment (%) |  $C$   | $D$  |
+|:------------|:--------:|:------:|
+| 100–95      | 0.02172  | 1.9733 |
+| 95–90       | 0.97476  | 0.8723 |
+| 90–70       | 0.31531  | 1.2938 |
+| 70–50       | 0.19861  | 1.3975 |
+| 50–30       | 0.05342  | 1.6988 |
+| 30–10       | 0.011903 | 2.0253 |
+| 10–5        | 0.15779  | 1.4296 |
+
+API procedure 3A3.1 coefficients
+
+
+
+##### ASTM D1160
+
+The D1160 curve is a vacuum distillation. The TBP curve is first brought to 10 mmHg with the Maxwell-Bonnell vapor pressure relation (API procedure 5A1.19), and the D1160 curve at 10 mmHg follows from the Edmister-Okamoto relation of API figure 3A2.1: the 50 % points are equal, the segments above 50 % are equal, and the segments below 50 % follow the digitized curves of the figure. A pressure other than 10 mmHg is reached again through Maxwell-Bonnell.
+
+##### Equilibrium Flash Vaporization (EFV)
+
+Two methods are offered:
+
+- **Flash:** each EFV point is the temperature at which the vapor holds the given share of the stream’s standard liquid volume, at the EFV pressure. The temperature is found between the bubble and dew points by the Illinois method, with a flash calculation of the property package at each step.
+
+- **Riazi-Daubert correlation:** each EFV point comes from the D86 point at the same percent and the specific gravity ,
+
+
+\[
+T^{EFV}=a\,\left(T^{D86}\right)^{b}SG^{c}
+\]
+
+
+  with temperatures in K and the coefficients of Riazi’s equation 3.16 for each percent.
+
+##### Product Properties
+
+###### Specific gravity, API gravity and Watson K
+
+The specific gravity is the mass of the stream over its standard liquid volume at 60°F, relative to water. The mean average boiling point (MeABP) is the mean of the molal and cubic average boiling points, and the Watson characterization factor is $K_{W}=(1.8\,\mathrm{MeABP})^{1/3}/SG$.
+
+###### Densities and kinematic viscosities
+
+The density at 15°C is anchored on the standard liquid density of the compounds (their specific gravity, which is what the assay measured); the property package gives only how the density changes with temperature. For any temperature $T$,
+
+
+\[
+\rho(T)=SG\,\rho_{w}^{60}\,\frac{\rho_{PP}(T)}{\rho_{PP}(60\,\text{\textdegree F})}
+\]
+
+
+This keeps the densities of heavy cuts right where the liquid density of a cubic equation of state is far off. The densities at 15 and 20°C and the kinematic viscosities at 40 and 100°C (the property package’s dynamic viscosity over this density) are reported.
+
+###### Flash point
+
+API procedure 2B7.1, from the D86 10 % point (°F): closed cup $FP=0.69\,T_{10}^{D86}-118.2$, open cup $FP=0.68\,T_{10}^{D86}-109.6$.
+
+###### Cetane index
+
+Two values are given: the API procedure 2B13.1 index from the API gravity and the MeABP, and the calculated cetane index of ASTM D4737 (procedure A) from the D86 10, 50 and 90 % points (°C) and the density at 15°C (g/mL):
+
+
+\[
+\begin{eqnarray}
+CCI & = & 45.2+0.0892\,T_{10N}+(0.131+0.901B)\,T_{50N}+(0.0523-0.420B)\,T_{90N}\\
+ &  & +0.00049\,(T_{10N}^{2}-T_{90N}^{2})+107B+60B^{2}
+\end{eqnarray}
+\]
+
+
+with $T_{10N}=T_{10}-215$, $T_{50N}=T_{50}-260$, $T_{90N}=T_{90}-310$, $B=\exp(-3.5\,(\rho_{15}-0.85))-1$.
+
+###### Other properties
+
+The aniline point (API 2B9.1), smoke point (API 2B10.1), refraction index, pour, cloud and freezing points and Reid vapor pressure use the correlations of the Petroleum Cold Flow Properties utility, fed with the D86 curve and the specific gravity calculated here. The pour point is left empty when the kinematic viscosity at 100°F lies outside the range the correlation was fitted on (up to about 1000 cSt). The sulfur content is the mass-weighted sulfur of the compounds that carry it.
+
+##### Using the Results
+
+Every curve point and property of an attached utility becomes a property of its stream, named as in the utility’s table: for example `D86 95%`, `TBP 10%`, `EFV 50%` or `Flash Point (Closed Cup)`. They can be read from the spreadsheet, swept in a sensitivity study, used by an Adjust, and used as secondary specifications of the rigorous distillation column (Section ). The utility recalculates whenever its stream changes, and its settings are saved with the simulation.
+
+##### Validation
+
+The conversions reproduce the worked examples of the API Technical Data Book: procedure 3A1.1 (D86 10/30/50/70/90 % points of 350, 380, 404, 433 and 469°F give a TBP of 316.6, 372.6, 411.2, 451.2 and 496.7°F, and back), 3A2.1 (D1160 to TBP at 10 mmHg) and 3A3.1 (simulated distillation to TBP); the Riazi-Daubert EFV correlation reproduces Riazi’s example 3.2, and the product correlations the examples of procedures 2B7.1, 2B9.1, 2B10.1 and 2B13.1. A stream built from pseudocomponents cut from a known TBP curve returns that curve.
+
+##### Limitations
+
+- The curves come from the compounds and their normal boiling points: a stream with few compounds gives a coarse curve.
+
+- The D86, D1160 and D2887 conversions are those of the API Technical Data Book, with its accuracy (a few °F on smooth curves). Points outside the range of a test method, such as the heavy D86 points of an atmospheric residue, are extrapolations.
+
+- The product property correlations were fitted on petroleum fractions; for streams of real compounds far from that class they are indicative only.
+
 #### Chao-Seader Parameters
 
 The Chao-Seader parameters needed by the CS/GS models are the Modified Acentric Factor, Solubility Parameter and Liquid Molar Volume. When absent, the Modified Acentric Factor is taken as the normal acentric factor, either read from the databases or calculated by using the methods described before in this document. The Solubility Parameter is given by
