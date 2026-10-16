@@ -3450,6 +3450,10 @@ Imports DWSIM.ExtensionMethods
                             obj.CreateConnectors(0, 0)
                             obj.Owner = Nothing
                             DirectCast(euo, Interfaces.ISimulationObject).GraphicObject = Nothing
+                            'The palette instance builds the ports of its default configuration; a unit with more
+                            'feeds or products than that needs room for every saved port before the connections
+                            'below are restored. The unit trims the spare ones the next time it builds its ports.
+                            ExternalUnitOperationGraphic.PadSavedConnectors(obj, xel)
                         Else
                             Try
                                 obj.CreateConnectors(0, 0)
