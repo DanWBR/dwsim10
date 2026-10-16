@@ -182,7 +182,7 @@ public sealed class StreamDistillationCurvesWindow : Window
         p.CreateAndAddDescriptionRow("By flash, each EFV point is the temperature where the vapour is that share of the stream's standard liquid volume.");
 
         p.CreateAndAddLabelRow("Methods");
-        p.CreateAndAddDescriptionRow("D86: API procedure 3A1.1. D2887: API procedure 3A3.1. D1160: API figure 3A2.1 and procedure 5A1.19. Flash point: API 2B7.1 from the D86 10 % point. Pour, cloud, freezing, aniline and smoke points, refraction and cetane index: API chapter 2. Calculated cetane index: ASTM D4737. Densities and viscosities: the stream's property package.");
+        p.CreateAndAddDescriptionRow("D86: API procedure 3A1.1. D2887: API procedure 3A3.1. D1160: API figure 3A2.1 and procedure 5A1.19. Flash point: API 2B7.1 from the D86 10 % point. Pour, cloud, freezing, aniline and smoke points, refraction and cetane index: API chapter 2. Calculated cetane index: ASTM D4737. Densities: the compounds' specific gravity, corrected for temperature by the stream's property package. Viscosities: the property package.");
 
         if (_utility == null)
         {

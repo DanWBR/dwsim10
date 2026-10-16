@@ -2306,6 +2306,17 @@ Namespace UnitOperations
 
         Public Shared ExternalColumnSolvers As New Dictionary(Of String, IExternalColumnSolver)
 
+        ''' <summary>
+        ''' Whether the external solver registered under this name takes the column: what it says through
+        ''' <see cref="IExternalColumnSolverSupport"/>, or distillation columns only when it says nothing.
+        ''' </summary>
+        Public Shared Function ExternalSolverSupports(name As String, column As Column) As Boolean
+            If name Is Nothing OrElse Not ExternalColumnSolvers.ContainsKey(name) Then Return False
+            Dim support = TryCast(ExternalColumnSolvers(name), IExternalColumnSolverSupport)
+            If support IsNot Nothing Then Return support.Supports(column)
+            Return TypeOf column Is DistillationColumn
+        End Function
+
         Public Property InitialEstimatesProvider As String = "Internal (Default)"
 
         Public Overrides ReadOnly Property EquipmentTypes As List(Of String)
@@ -6954,6 +6965,9 @@ Namespace UnitOperations
                         Throw New Exception($"Unable to find column solver with name '{SolvingMethodName}'.")
                     End If
                 End If
+            ElseIf TypeOf Me Is AbsorptionColumn AndAlso ExternalSolverSupports(SolvingMethodName, Me) Then
+                'an external solver that says it takes this absorber
+                so = Column.ExternalColumnSolvers(SolvingMethodName).SolveColumn(Me, inputdata)
             ElseIf TypeOf Me Is AbsorptionColumn Then
                 If SolvingMethodName.Contains("Rates") Then
                     SetColumnSolver(New SolvingMethods.BurninghamOttoMethod())

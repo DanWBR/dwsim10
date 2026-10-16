@@ -360,9 +360,15 @@ Namespace Utilities.PetroleumProperties
             Dim x As New List(Of Double), y As New List(Of Double)
             Dim cum = 0.0
             For Each it In items
-                x.Add(100 * (cum + it.A / 2) / total)
-                y.Add(it.T)
+                Dim xm = 100 * (cum + it.A / 2) / total
                 cum += it.A
+                ' traces share the percent of their neighbour: keep one point per percent
+                If x.Count > 0 AndAlso xm - x(x.Count - 1) < 0.000000001 Then
+                    y(y.Count - 1) = it.T
+                    Continue For
+                End If
+                x.Add(xm)
+                y.Add(it.T)
             Next
 
             Return percents.Select(Function(p) InterpolateMonotone(x.ToArray(), y.ToArray(), p)).ToArray()
@@ -511,20 +517,29 @@ Namespace Utilities.PetroleumProperties
                                  Return mat.Phases(1).Properties.viscosity.GetValueOrDefault()
                              End Function
 
+            ' densities are anchored on the standard liquid density of the compounds (their specific gravity, what
+            ' the assay measured); the property package gives only how the density changes with temperature, as its
+            ' liquid density for heavy pseudocomponents can be far off (a residue at 1200 kg/m3 for SG 0.94)
+            Dim rhoScale = 1.0
             Try
-                props.Density15C = liquidProp("density", 288.15)
-                props.Density20C = liquidProp("density", 293.15)
-                Dim rho40 = liquidProp("density", 313.15)
-                props.KinematicViscosity40C = liquidProp("viscosity", 313.15) / rho40
-                Dim rho100 = liquidProp("density", 373.15)
-                props.KinematicViscosity100C = liquidProp("viscosity", 373.15) / rho100
+                Dim rho60 = liquidProp("density", 288.7056)
+                If props.SpecificGravity > 0.0 AndAlso rho60 > 0.0 Then rhoScale = props.SpecificGravity * WaterDensity60F / rho60
+            Catch
+            End Try
+            Dim liquidDensity = Function(T As Double) liquidProp("density", T) * rhoScale
+
+            Try
+                props.Density15C = liquidDensity(288.15)
+                props.Density20C = liquidDensity(293.15)
+                props.KinematicViscosity40C = liquidProp("viscosity", 313.15) / liquidDensity(313.15)
+                props.KinematicViscosity100C = liquidProp("viscosity", 373.15) / liquidDensity(373.15)
             Catch ex As Exception
                 res.Messages.Add("Liquid density and viscosity could not be calculated (" & ex.Message & ").")
             End Try
 
             Dim kv38 = 0.0
             Try
-                kv38 = liquidProp("viscosity", 310.95) / liquidProp("density", 310.95)
+                kv38 = liquidProp("viscosity", 310.95) / liquidDensity(310.95)
             Catch
             End Try
 
@@ -591,6 +606,8 @@ Namespace Utilities.PetroleumProperties
 
         ''' <summary>Pour point, API 2B8.1. MeABP in K, kinematic viscosity at 100 F in m2/s. K.</summary>
         Public Shared Function PourPoint(SG As Double, MeABP As Double, KinViscosity100F As Double) As Double
+            ' the correlation was fitted on distillates with viscosities at 100 F up to about 1000 cSt
+            If Not (KinViscosity100F > 0.0 AndAlso KinViscosity100F < 0.001) Then Return Double.NaN
             Return (753 + 136 * (1 - Exp(-0.15 * KinViscosity100F * 1000000.0)) - 572 * SG + 0.0512 * KinViscosity100F * 1000000.0 + 0.139 * (MeABP * 1.8)) / 1.8
         End Function
 

@@ -276,12 +276,15 @@ Namespace Utilities.PetroleumCharacterization.Methods
             Dim t = Ttbp.Select(Function(x) KToF(x)).ToArray()
             Dim d(6) As Double
 
+            ' a D86 segment is never wider than its TBP segment: past that the inverted power law runs away
+            ' (a few light ends in a side draw put the TBP IBP 200 F below its 10 % point)
+            Dim seg = Function(dt As Double, k As Integer) Min(dt, (dt / D86TBP_A(k)) ^ (1 / D86TBP_B(k)))
             d(3) = Exp(Log(t(3) / 0.8718) / 1.0258)
             For i = 2 To 0 Step -1
-                d(i) = d(i + 1) - (Max(0.0, t(i + 1) - t(i)) / D86TBP_A(i)) ^ (1 / D86TBP_B(i))
+                d(i) = d(i + 1) - seg(Max(0.0, t(i + 1) - t(i)), i)
             Next
             For i = 4 To 6
-                d(i) = d(i - 1) + (Max(0.0, t(i) - t(i - 1)) / D86TBP_A(i - 1)) ^ (1 / D86TBP_B(i - 1))
+                d(i) = d(i - 1) + seg(Max(0.0, t(i) - t(i - 1)), i - 1)
             Next
 
             Return d.Select(Function(x) FToK(x)).ToArray()

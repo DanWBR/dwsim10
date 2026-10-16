@@ -31,3 +31,14 @@ Public Interface IExternalColumnSolver
     Function SolveColumn(column As Column, initialestimates As ColumnSolverInputData) As ColumnSolverOutputData
 
 End Interface
+
+''' <summary>
+''' Optional for an <see cref="IExternalColumnSolver"/>: the columns it can solve. A solver that does not implement it
+''' is offered, and called, for distillation columns only.
+''' </summary>
+Public Interface IExternalColumnSolverSupport
+
+    ''' <summary>True when the solver handles this column (its type and, for an absorber, its operation mode).</summary>
+    Function Supports(column As Column) As Boolean
+
+End Interface

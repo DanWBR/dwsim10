@@ -283,7 +283,7 @@ namespace DWSIM.UI.Desktop.Editors
             });
         }
 
-        /// <summary>The solvers the Windows form offers, per column type, plus the external ones on a distillation column (the only kind that hands its solve to them).</summary>
+        /// <summary>The solvers the Windows form offers, per column type, plus the external ones that take this column.</summary>
         private static List<string> SolverNames(Column column)
         {
             var names = column is AbsorptionColumn
@@ -299,11 +299,8 @@ namespace DWSIM.UI.Desktop.Editors
                     "Modified Wang-Henke (Bubble Point)"
                 };
 
-            if (column is DistillationColumn)
-            {
-                try { names.AddRange(Column.ExternalColumnSolvers.Keys); }
-                catch (Exception) { }
-            }
+            try { names.AddRange(Column.ExternalColumnSolvers.Keys.Where(k => Column.ExternalSolverSupports(k, column))); }
+            catch (Exception) { }
 
             return names;
         }
