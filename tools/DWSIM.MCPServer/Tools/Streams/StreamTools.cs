@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json.Linq;
 using DWSIM.Automation.FluentAPI;
+using DWSIM.Automation.FluentAPI.Builders;
 using DWSIM.MCPServer.Sessions;
 
 using static DWSIM.Automation.FluentAPI.Q;
@@ -23,23 +24,25 @@ namespace DWSIM.MCPServer.Tools.Streams
             [McpParam("Mass flow in kg/s", Required = false)] double mass_flow_kg_s = 0,
             [McpParam("Molar flow in mol/s", Required = false)] double molar_flow_mol_s = 0,
             [McpParam("Vapor fraction (0-1)", Required = false)] double vapor_fraction = -1,
-            [McpParam("Composition as {compound: mass_fraction} object", Required = false, JsonType = "object")] JObject composition = null)
+            [McpParam("Composition as {compound: mass_fraction} object; the fractions are normalized and compounds not named are set to zero. Without mass_flow_kg_s or molar_flow_mol_s the values are compound mass flows in kg/s and their sum is the total flow", Required = false, JsonType = "object")] JObject composition = null)
         {
             var fs = _sessions.GetFlowsheet(flowsheet_id);
             var builder = fs.AddMaterialStream(name);
 
             if (temperature_K > 0) builder.WithTemperature(temperature_K.Kelvin());
             if (pressure_Pa > 0) builder.WithPressure(pressure_Pa.Pascal());
-            if (mass_flow_kg_s > 0) builder.WithMassFlow(mass_flow_kg_s.KgPerSecond());
-            if (molar_flow_mol_s > 0) builder.WithMolarFlow(molar_flow_mol_s.MolPerSecond());
             if (vapor_fraction >= 0) builder.WithVaporFraction(vapor_fraction);
 
-            if (composition != null)
+            // composition first, as mass fractions; the total flow is set after it so the
+            // fractions never replace it
+            ApplyComposition(builder, composition);
+            if (mass_flow_kg_s > 0) builder.WithMassFlow(mass_flow_kg_s.KgPerSecond());
+            if (molar_flow_mol_s > 0) builder.WithMolarFlow(molar_flow_mol_s.MolPerSecond());
+            if (mass_flow_kg_s <= 0 && molar_flow_mol_s <= 0 && composition != null && composition.Properties().Any())
             {
-                foreach (var prop in composition.Properties())
-                {
-                    builder.SetCompoundMassFlow(prop.Name, prop.Value.Value<double>());
-                }
+                // no total flow given: the values are the compound mass flows, as before
+                var total = composition.Properties().Sum(p => p.Value.Value<double>());
+                if (total > 0) builder.WithMassFlow(total.KgPerSecond());
             }
 
             return new JObject { ["stream"] = name, ["type"] = "MaterialStream" };
@@ -114,25 +117,33 @@ namespace DWSIM.MCPServer.Tools.Streams
             [McpParam("Pressure in Pascal", Required = false)] double pressure_Pa = 0,
             [McpParam("Mass flow in kg/s", Required = false)] double mass_flow_kg_s = 0,
             [McpParam("Molar flow in mol/s", Required = false)] double molar_flow_mol_s = 0,
-            [McpParam("Composition as {compound: mass_fraction} object", Required = false, JsonType = "object")] JObject composition = null)
+            [McpParam("Composition as {compound: mass_fraction} object; the fractions are normalized, compounds not named are set to zero and the total flow is kept (or set by mass_flow_kg_s / molar_flow_mol_s)", Required = false, JsonType = "object")] JObject composition = null)
         {
             var fs = _sessions.GetFlowsheet(flowsheet_id);
             var builder = fs.MaterialStream(name);
 
             if (temperature_K > 0) builder.WithTemperature(temperature_K.Kelvin());
             if (pressure_Pa > 0) builder.WithPressure(pressure_Pa.Pascal());
+
+            ApplyComposition(builder, composition);
             if (mass_flow_kg_s > 0) builder.WithMassFlow(mass_flow_kg_s.KgPerSecond());
             if (molar_flow_mol_s > 0) builder.WithMolarFlow(molar_flow_mol_s.MolPerSecond());
 
-            if (composition != null)
+            return new JObject { ["updated"] = name };
+        }
+
+        /// <summary>
+        /// Applies {compound: mass_fraction} as fractions (normalized, unnamed compounds at zero),
+        /// keeping the stream's total flow on its own basis.
+        /// </summary>
+        private static void ApplyComposition(MaterialStreamBuilder builder, JObject composition)
+        {
+            if (composition == null || !composition.Properties().Any()) return;
+            builder.WithComposition(cb =>
             {
                 foreach (var prop in composition.Properties())
-                {
-                    builder.SetCompoundMassFlow(prop.Name, prop.Value.Value<double>());
-                }
-            }
-
-            return new JObject { ["updated"] = name };
+                    cb.Mass(prop.Name, prop.Value.Value<double>());
+            });
         }
     }
 }
