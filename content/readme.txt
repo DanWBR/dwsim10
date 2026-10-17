@@ -1,6 +1,6 @@
 ==================================================
 DWSIM - Open Source Process Simulator
-Version 10.2.11
+Version 10.2.12
 Copyright (c) 2017-2026 Daniel Wagner and contributors
 Copyright (c) 2008-2016 Daniel Wagner, Gregor Reichert, Gustavo Leon
 ==================================================
@@ -38,6 +38,23 @@ VERSION HISTORY / CHANGELOG
 ==================================================
 
 The full changelog including souce code changes can be viewed at https://github.com/DanWBR/dwsim10/commits/windows
+
+Version 10.2.12
+
+- [NEW] Distillation Curves utility: TBP, ASTM D86, D1160, D2887 and equilibrium flash vaporization curves of any stream, with the flash point, cold flow points, densities at 15 and 20 C, kinematic viscosities, API gravity, Watson K and calculated cetane index (ASTM D4737); every point and property can be used in the spreadsheet, sensitivity studies and column secondary specifications
+- [NEW] Rigorous column: secondary specifications on product quality (a distillation curve point, flash point, density or any stream property of a product), each reached by moving the condenser specification, the reboiler specification or a side draw rate
+- [NEW] Case library: straight-run distillate fractionation with the distillation curves of each product checked against Jet A-1 and EN 590, and the same column converged on the kerosene and diesel D86 95 % points
+- [NEW] User guide, offline help and an advanced tutorial for the distillation curves and the column secondary specifications
+- [CHG] Each column lists only the external solvers that take it
+- [CHG] Classic stream editor: the Attach Utility menu also offers Distillation Curves and Vessel Depressurization
+- [CHG] Cross-platform tables and charts on the flowsheet: Copy Data to Clipboard, as in the Windows interface
+- [CHG] Natural Gas Processing Unit sample: demethanizer loop tolerances of 1e-4 and up to 500 iterations
+- [FIX] Bubble-point column solver accepted wide-boiling columns whose stages were up to 1.5 % off their bubble points; the Natural Gas Processing Unit demethanizer now converges at -12.9 C in 3 s
+- [FIX] ChemSep CAPE-OPEN package could fail to return the vapour thermal conductivity above atmospheric pressure
+- [FIX] Petroleum cold flow utility: D86 and TBP 10 % temperatures always 0 in the Windows form, dynamic viscosities shown with a kinematic unit, and the stream left modified after the calculation
+- [FIX] Pseudocomponents created from scripts had no viscosity data (a kerosene came out at 384 cSt)
+- [FIX] A depressurization study attached to a stream on Windows was lost when the simulation was opened without the Windows interface
+- [FIX] Offline help: links to sections, figures, tables and equations on other pages went nowhere and showed numbers that did not appear in the help
 
 Version 10.2.11
 
