@@ -1503,7 +1503,7 @@ Namespace Reactors
 
                                     If UseIPOPTSolver Then
 
-                                        NFv = ipo.Solve(Function(xn)
+                                        Dim ipoObj As Func(Of Double(), Double) = Function(xn)
                                                             Dim gval = FunctionValue2G2(xn, T)
                                                             Dim ebal_i As Double
                                                             ebal = 0.0
@@ -1521,7 +1521,24 @@ Namespace Reactors
                                                             IObj?.Paragraphs.Add(String.Format("<tr><td>{0}</td><td>{1}</td><td>{2}</td><td>{3}</td></tr>",
                                                                             icount, errval, ebal, wbal))
                                                             Return errval
-                                                        End Function, Nothing, ival, lbo, ubo)
+                                                        End Function
+
+                                        NFv = ipo.Solve(ipoObj, Nothing, ival, lbo, ubo)
+
+                                        ' A component left on its lower bound can mean IPOPT stopped at a point that
+                                        ' is not the minimum (seen on Linux, where the last digits of exp and log
+                                        ' differ, issue 109). Solve again from that point and keep the lower
+                                        ' objective; the point kept is evaluated last so the balances refer to it.
+                                        If NFv.Any(Function(v) v <= 0.000000001) Then
+                                            Dim f1 = ipoObj(NFv)
+                                            Dim NFv2 = ipo.Solve(ipoObj, Nothing, NFv.Select(Function(v) Math.Max(v, 0.000000001)).ToArray(), lbo, ubo)
+                                            Dim f2 = ipoObj(NFv2)
+                                            If f2 < f1 Then
+                                                NFv = NFv2
+                                            Else
+                                                ipoObj(NFv)
+                                            End If
+                                        End If
 
                                     Else
 
