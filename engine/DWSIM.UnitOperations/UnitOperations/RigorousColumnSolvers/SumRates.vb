@@ -199,7 +199,7 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
             Dim ic As Integer
             Dim t_error, comperror As Double
             Dim Tj(ns), Tj_ant(ns) As Double
-            Dim Fj(ns), Lj(ns), Vj(ns), Vj_ant(ns), xc(ns)(), fcj(ns)(), yc(ns)(), yc_ant(ns)(), lc(ns)(), vc(ns)(), zc(ns)(), K(ns)() As Double
+            Dim Fj(ns), Lj(ns), Vj(ns), Vj_ant(ns), xc(ns)(), fcj(ns)(), yc(ns)(), yc_ant(ns)(), lc(ns)(), vc(ns)(), zc(ns)(), K(ns)(), Ke(ns)() As Double
             Dim Hfj(ns), Hv(ns), Hl(ns) As Double
             Dim VSSj(ns), LSSj(ns) As Double
             Dim sum1(ns), sum2(ns), sum3(ns) As Double
@@ -220,6 +220,7 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                 Array.Resize(zc(i), nc)
                 Array.Resize(zc(i), nc)
                 Array.Resize(K(i), nc)
+                Array.Resize(Ke(i), nc)
             Next
 
             For i = 0 To ns
@@ -401,16 +402,33 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                     End If
                 Next
 
+                ' Murphree stage efficiencies: the vapour leaving stage i is y = E K x + (1 - E) y(i+1),
+                ' taken with the compositions of the last pass, and the balances below use the effective
+                ' K = y / x of that vapour. The vapour entering the bottom stage is its feed (the gas
+                ' of an absorber); without a feed there the stage stays at equilibrium. With every
+                ' efficiency at 1 this is K itself.
+                For i = 0 To ns
+                    For j = 0 To nc - 1
+                        Ke(i)(j) = K(i)(j)
+                        If eff(i) <> 1.0 AndAlso (i < ns OrElse Fj(ns) > 0.0) AndAlso xc(i)(j) > 0.0 Then
+                            Dim ystar As Double = K(i)(j) * xc(i)(j)
+                            Dim ynext As Double = If(i < ns, yc(i + 1)(j), fcj(ns)(j))
+                            Dim e As Double = Ef(Nothing, eff, i, j, ystar, ynext)
+                            Ke(i)(j) = (e * ystar + (1.0 - e) * ynext) / xc(i)(j)
+                        End If
+                    Next
+                Next
+
                 For i = 0 To nc - 1
                     For j = 0 To ns
                         dt(i)(j) = -Fj(j) * fcj(j)(i)
                         If j < ns Then
-                            bt(i)(j) = -(Vj(j + 1) + sum1(j) - Vj(0) + LSSj(j) + (Vj(j) + VSSj(j)) * K(j)(i))
+                            bt(i)(j) = -(Vj(j + 1) + sum1(j) - Vj(0) + LSSj(j) + (Vj(j) + VSSj(j)) * Ke(j)(i))
                         Else
-                            bt(i)(j) = -(sum1(j) - Vj(0) + LSSj(j) + (Vj(j) + VSSj(j)) * K(j)(i))
+                            bt(i)(j) = -(sum1(j) - Vj(0) + LSSj(j) + (Vj(j) + VSSj(j)) * Ke(j)(i))
                         End If
                         'tdma solve
-                        If j < ns Then ct(i)(j) = Vj(j + 1) * K(j + 1)(i)
+                        If j < ns Then ct(i)(j) = Vj(j + 1) * Ke(j + 1)(i)
                         If j > 0 Then at(i)(j) = Vj(j) + sum2(j) - Vj(0)
                     Next
                 Next
@@ -491,7 +509,7 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                 For i = 0 To ns
                     For j = 0 To nc - 1
                         xc(i)(j) = lc(i)(j) / sumx(i)
-                        yc(i)(j) = xc(i)(j) * K(i)(j)
+                        yc(i)(j) = xc(i)(j) * Ke(i)(j)
                         sumy(i) += yc(i)(j)
                     Next
                 Next
@@ -540,7 +558,7 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                 For i = 0 To ns
                     sumz(i) = 0
                     For j = 0 To nc - 1
-                        vc(i)(j) = xc(i)(j) * Vj(i) * K(i)(j)
+                        vc(i)(j) = xc(i)(j) * Vj(i) * Ke(i)(j)
                         zc(i)(j) = (lc(i)(j) + vc(i)(j)) / (Lj(i) + Vj(i))
                         sumz(i) += zc(i)(j)
                     Next
@@ -780,6 +798,13 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                         End If
                         yc_ant(i)(j) = yc(i)(j)
                         yc(i)(j) = K(i)(j) * xc(i)(j)
+                        If eff(i) <> 1.0 AndAlso (i < ns OrElse Fj(ns) > 0.0) Then
+                            ' the vapour leaving the stage at its Murphree efficiency, as in the balances
+                            ' above (the stage below still holds this pass's vapour)
+                            Dim yin As Double = If(i < ns, yc(i + 1)(j), fcj(ns)(j))
+                            Dim e As Double = Ef(Nothing, eff, i, j, yc(i)(j), yin)
+                            yc(i)(j) = e * yc(i)(j) + (1.0 - e) * yin
+                        End If
                         If RelaxCompositionUpdates Then
                             ' Persistently damp the vapor-composition update too, so the K<->y feedback that
                             ' drives the composition error cannot sustain a limit cycle on stiff systems.
