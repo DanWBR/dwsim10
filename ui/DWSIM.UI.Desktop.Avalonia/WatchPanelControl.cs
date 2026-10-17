@@ -82,7 +82,7 @@ public sealed class WatchPanelControl : UserControl
         _grid.Columns.Add(new DataGridTextColumn
         {
             Header = "Value",
-            Binding = new global::Avalonia.Data.Binding("Value") { Mode = global::Avalonia.Data.BindingMode.TwoWay },
+            Binding = new global::Avalonia.Data.Binding("Value") { Mode = global::Avalonia.Data.BindingMode.TwoWay, UpdateSourceTrigger = global::Avalonia.Data.UpdateSourceTrigger.LostFocus },
             Width = new DataGridLength(1, DataGridLengthUnitType.Star)
         });
         _grid.ItemsSource = _rows;

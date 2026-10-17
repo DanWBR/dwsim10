@@ -110,7 +110,7 @@ public sealed class AssayManagerWindow : Window
             _gridCurve.Columns.Add(new DataGridTextColumn
             {
                 Header = header,
-                Binding = new global::Avalonia.Data.Binding(path) { Mode = global::Avalonia.Data.BindingMode.TwoWay },
+                Binding = new global::Avalonia.Data.Binding(path) { Mode = global::Avalonia.Data.BindingMode.TwoWay, UpdateSourceTrigger = global::Avalonia.Data.UpdateSourceTrigger.LostFocus },
                 Width = new DataGridLength(1, DataGridLengthUnitType.Star)
             });
         }

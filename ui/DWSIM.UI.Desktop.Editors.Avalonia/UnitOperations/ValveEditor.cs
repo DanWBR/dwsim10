@@ -231,13 +231,13 @@ namespace DWSIM.UI.Desktop.Editors
             grid.Columns.Add(new DataGridTextColumn
             {
                 Header = "Opening (%)",
-                Binding = new Binding("Opening") { Mode = BindingMode.TwoWay },
+                Binding = new Binding("Opening") { Mode = BindingMode.TwoWay, UpdateSourceTrigger = UpdateSourceTrigger.LostFocus },
                 Width = new DataGridLength(1, DataGridLengthUnitType.Star)
             });
             grid.Columns.Add(new DataGridTextColumn
             {
                 Header = "Kv/Kvmax (%)",
-                Binding = new Binding("Kv") { Mode = BindingMode.TwoWay },
+                Binding = new Binding("Kv") { Mode = BindingMode.TwoWay, UpdateSourceTrigger = UpdateSourceTrigger.LostFocus },
                 Width = new DataGridLength(1, DataGridLengthUnitType.Star)
             });
 

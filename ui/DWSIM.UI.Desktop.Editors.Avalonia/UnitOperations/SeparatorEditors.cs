@@ -673,7 +673,7 @@ namespace DWSIM.UI.Desktop.Editors
             return new DataGridTextColumn
             {
                 Header = header,
-                Binding = new Binding(path) { Mode = readOnly ? BindingMode.OneWay : BindingMode.TwoWay },
+                Binding = new Binding(path) { Mode = readOnly ? BindingMode.OneWay : BindingMode.TwoWay, UpdateSourceTrigger = UpdateSourceTrigger.LostFocus },
                 IsReadOnly = readOnly,
                 Width = new DataGridLength(width, DataGridLengthUnitType.Star)
             };

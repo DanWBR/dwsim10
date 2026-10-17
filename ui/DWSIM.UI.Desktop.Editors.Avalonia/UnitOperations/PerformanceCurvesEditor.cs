@@ -278,13 +278,13 @@ namespace DWSIM.UI.Desktop.Editors
             grid.Columns.Add(new DataGridTextColumn
             {
                 Header = "X (" + curve.xunit + ")",
-                Binding = new Binding("X") { Mode = BindingMode.TwoWay },
+                Binding = new Binding("X") { Mode = BindingMode.TwoWay, UpdateSourceTrigger = UpdateSourceTrigger.LostFocus },
                 Width = new DataGridLength(1, DataGridLengthUnitType.Star)
             });
             grid.Columns.Add(new DataGridTextColumn
             {
                 Header = "Y (" + curve.yunit + ")",
-                Binding = new Binding("Y") { Mode = BindingMode.TwoWay },
+                Binding = new Binding("Y") { Mode = BindingMode.TwoWay, UpdateSourceTrigger = UpdateSourceTrigger.LostFocus },
                 Width = new DataGridLength(1, DataGridLengthUnitType.Star)
             });
 

@@ -1153,19 +1153,19 @@ namespace DWSIM.UI.Desktop.Editors
             grid.Columns.Add(new DataGridTextColumn
             {
                 Header = "Length/Depth (" + su.distance + ")",
-                Binding = new Binding("Length") { Mode = BindingMode.TwoWay },
+                Binding = new Binding("Length") { Mode = BindingMode.TwoWay, UpdateSourceTrigger = UpdateSourceTrigger.LostFocus },
                 Width = new DataGridLength(1, DataGridLengthUnitType.Star)
             });
             grid.Columns.Add(new DataGridTextColumn
             {
                 Header = "Ambient T (" + su.temperature + ")",
-                Binding = new Binding("Temperature") { Mode = BindingMode.TwoWay },
+                Binding = new Binding("Temperature") { Mode = BindingMode.TwoWay, UpdateSourceTrigger = UpdateSourceTrigger.LostFocus },
                 Width = new DataGridLength(1, DataGridLengthUnitType.Star)
             });
             grid.Columns.Add(new DataGridTextColumn
             {
                 Header = "Overall HTC (" + su.heat_transf_coeff + ")",
-                Binding = new Binding("U") { Mode = BindingMode.TwoWay },
+                Binding = new Binding("U") { Mode = BindingMode.TwoWay, UpdateSourceTrigger = UpdateSourceTrigger.LostFocus },
                 Width = new DataGridLength(1, DataGridLengthUnitType.Star)
             });
 

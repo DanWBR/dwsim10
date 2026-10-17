@@ -102,7 +102,7 @@ public sealed class BulkPseudocompoundsWindow : Window
             _grid.Columns.Add(new DataGridTextColumn
             {
                 Header = header,
-                Binding = new global::Avalonia.Data.Binding(path) { Mode = global::Avalonia.Data.BindingMode.TwoWay },
+                Binding = new global::Avalonia.Data.Binding(path) { Mode = global::Avalonia.Data.BindingMode.TwoWay, UpdateSourceTrigger = global::Avalonia.Data.UpdateSourceTrigger.LostFocus },
                 Width = new DataGridLength(width)
             });
         }
