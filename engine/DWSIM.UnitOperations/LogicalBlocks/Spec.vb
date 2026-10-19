@@ -183,6 +183,20 @@ Namespace SpecialOps
             End Set
         End Property
 
+        ''' <summary>Name (ID) of the source object, as the solver looks it up.</summary>
+        Public ReadOnly Property SourceObjectID As String Implements ISpec.SourceObjectID
+            Get
+                Return If(m_SourceObjectData?.ID, "")
+            End Get
+        End Property
+
+        ''' <summary>Name (ID) of the target object, as the solver looks it up.</summary>
+        Public ReadOnly Property TargetObjectID As String Implements ISpec.TargetObjectID
+            Get
+                Return If(m_TargetObjectData?.ID, "")
+            End Get
+        End Property
+
         ''' <summary>Gets or sets the source simulation object instance (not serialized).</summary>
         <Xml.Serialization.XmlIgnore()> Public Property SourceObject() As SharedClasses.UnitOperations.BaseClass
             Get

@@ -75,6 +75,12 @@ Public Interface ISpec
 
     Property ReferenceObjectID As String
 
+    ''' <summary>Name (ID) of the object the spec reads its source value from; empty when not set.</summary>
+    ReadOnly Property SourceObjectID As String
+
+    ''' <summary>Name (ID) of the object the spec writes its result to; empty when not set.</summary>
+    ReadOnly Property TargetObjectID As String
+
 End Interface
 
 <InterfaceType(ComInterfaceType.InterfaceIsIDispatch)>
