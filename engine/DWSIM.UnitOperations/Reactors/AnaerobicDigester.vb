@@ -144,6 +144,11 @@ Namespace Reactors
         ''' Anaerobic digestion is only mildly exothermic, ~ -3500 J/g COD (~ 8 % of aerobic).</summary>
         Public Property HeatPerGCODremoved_Jg As Double = -3500.0
 
+        ''' <summary>When True, the biogas leaves saturated with water vapor at the outlet temperature
+        ''' (y_H2O = Psat/P). The water comes out of the effluent and its heat of vaporization is added to
+        ''' the duty (or, adiabatic, taken from the outlet temperature). False keeps the dry biogas.</summary>
+        Public Property SaturateBiogasWithWater As Boolean = False
+
         ''' <summary>Model fidelity selector (BlackBox Buswell or ADM1-Lite reduced dynamic model).</summary>
         Public Property Model As DigesterModel = DigesterModel.BlackBox
 
@@ -285,6 +290,9 @@ Namespace Reactors
 
         ''' <summary>Biogas molar flow (mol/s).</summary>
         Public Property Result_BiogasFlow_mols As Double = 0.0
+
+        ''' <summary>Water vapor leaving in the biogas (kg/s); zero unless SaturateBiogasWithWater is on.</summary>
+        Public Property Result_BiogasWater_kgs As Double = 0.0
 
         ''' <summary>Methane flow (kg/s).</summary>
         Public Property Result_CH4_kgs As Double = 0.0
@@ -910,6 +918,7 @@ Namespace Reactors
                     Q_duty_W = m_dot * cp_L_mass * (T_out_K - T_in_K) - Q_met_W
             End Select
 
+            ApplyBiogasWaterSaturation(effMass, gasMass, h2o, ims, P, m_dot, cp_L_mass, T_out_K, Q_duty_W, totalEffMass, totalGasMass)
             Result_OutletTemperature_K = T_out_K
             Result_Q_duty_kW = Q_duty_W / 1000.0
 
@@ -1430,6 +1439,7 @@ Namespace Reactors
                     If OutletTemperature > 0 Then T_out_K = OutletTemperature Else T_out_K = T_in_K
                     Q_duty_W = m_dot * cp_L_mass * (T_out_K - T_in_K) - Q_met_W
             End Select
+            ApplyBiogasWaterSaturation(effMass, gasMass, h2o, ims, P, m_dot, cp_L_mass, T_out_K, Q_duty_W, totalEffMass, totalGasMass)
             Result_OutletTemperature_K = T_out_K
             Result_Q_duty_kW = Q_duty_W / 1000.0
 
@@ -1855,6 +1865,7 @@ Namespace Reactors
                     If OutletTemperature > 0 Then T_out_K = OutletTemperature Else T_out_K = T_in_K
                     Q_duty_W = m_dot * cp_L_mass * (T_out_K - T_in_K) - Q_met_W
             End Select
+            ApplyBiogasWaterSaturation(effMass, gasMass, h2o, ims, P, m_dot, cp_L_mass, T_out_K, Q_duty_W, totalEffMass, totalGasMass)
             Result_OutletTemperature_K = T_out_K
             Result_Q_duty_kW = Q_duty_W / 1000.0
 
@@ -1931,6 +1942,87 @@ Namespace Reactors
             End Try
             Return ok
         End Function
+
+        ''' <summary>
+        ''' Saturates the biogas with water vapor at the outlet temperature: moves water from the effluent to
+        ''' the gas up to the saturated vapor fraction (limited by the water in the effluent) and charges the
+        ''' heat of vaporization to the duty or, in adiabatic mode, to the outlet temperature. The saturated
+        ''' fraction comes from a PT flash of the dry gas with excess water in the property package, so the
+        ''' biogas written out is at its own dew point; Psat/P is the fallback. Does nothing unless
+        ''' <see cref="SaturateBiogasWithWater"/> is on.
+        ''' </summary>
+        Private Sub ApplyBiogasWaterSaturation(effMass As Dictionary(Of String, Double), gasMass As Dictionary(Of String, Double),
+                                               h2o As Compound, ims As MaterialStream, P As Double,
+                                               m_dot As Double, cp_L_mass As Double, ByRef T_out_K As Double, ByRef Q_duty_W As Double,
+                                               ByRef totalEffMass As Double, ByRef totalGasMass As Double)
+
+            Result_BiogasWater_kgs = 0.0
+            If Not SaturateBiogasWithWater OrElse h2o Is Nothing OrElse P <= 0.0 Then Return
+
+            Dim compounds = ims.Phases(0).Compounds
+            PropertyPackage.CurrentMaterialStream = ims
+
+            Dim names = PropertyPackage.RET_VNAMES()
+            Dim iw = Array.IndexOf(names, h2o.Name)
+            Dim nDry(names.Length - 1) As Double ' mol/s
+            Dim n_dry = 0.0
+            For i = 0 To names.Length - 1
+                If i <> iw AndAlso gasMass.ContainsKey(names(i)) AndAlso gasMass(names(i)) > 0.0 Then
+                    nDry(i) = gasMass(names(i)) / compounds(names(i)).ConstantProperties.Molar_Weight * 1000.0
+                    n_dry += nDry(i)
+                End If
+            Next
+            If n_dry <= 0.0 OrElse iw < 0 Then Return
+
+            Dim ySat = Function(Tk As Double) As Double
+                           Dim y0 = Min(PropertyPackage.AUX_PVAPi(h2o.Name, Tk) / P, 0.9)
+                           Try
+                               Dim z = DirectCast(nDry.Clone(), Double())
+                               z(iw) = n_dry * Max(2.0 * y0 / (1.0 - y0), 0.01)
+                               Dim zs = z.Sum()
+                               For i = 0 To z.Length - 1 : z(i) /= zs : Next
+                               Dim r = PropertyPackage.FlashBase.Flash_PT(z, P, Tk, PropertyPackage)
+                               Dim V = CDbl(r(1)), Vy = DirectCast(r(3), Double())
+                               If V > 0.0 AndAlso V < 1.0 AndAlso Vy(iw) > 0.0 AndAlso Vy(iw) < 1.0 Then Return Vy(iw)
+                           Catch
+                           End Try
+                           Return y0
+                       End Function
+
+            Dim MW_w = h2o.ConstantProperties.Molar_Weight
+            Dim m_avail = effMass(h2o.Name)
+            Dim waterAt = Function(Tk As Double) As Double
+                              Dim y = ySat(Tk)
+                              Return Min(n_dry * y / (1.0 - y) * MW_w / 1000.0, m_avail)
+                          End Function
+
+            Dim T_sat = T_out_K
+            If ThermalMode = BioReactorThermalMode.Adiabatic AndAlso m_dot > 0.0 AndAlso cp_L_mass > 0.0 Then
+                ' T = T_out - m_w(T) * Hvap(T) / (m cp): the right side falls with T, so bisect between the
+                ' temperature reached by evaporating all the available water and the dry-gas outlet temperature.
+                Dim cool = Function(Tk As Double) waterAt(Tk) * PropertyPackage.AUX_HVAPi(h2o.Name, Tk) * 1000.0 / (m_dot * cp_L_mass)
+                Dim hi = T_out_K
+                Dim lo = Max(T_out_K - m_avail * PropertyPackage.AUX_HVAPi(h2o.Name, T_out_K) * 1000.0 / (m_dot * cp_L_mass), 200.0)
+                For iter = 1 To 60
+                    Dim mid = 0.5 * (lo + hi)
+                    If mid - T_out_K + cool(mid) > 0.0 Then hi = mid Else lo = mid
+                    If hi - lo < 0.0001 Then Exit For
+                Next
+                T_sat = 0.5 * (lo + hi)
+            End If
+
+            Dim m_w = waterAt(T_sat)
+            If m_w <= 0.0 Then Return
+            Dim hvap = PropertyPackage.AUX_HVAPi(h2o.Name, T_sat) ' kJ/kg
+
+            effMass(h2o.Name) = m_avail - m_w
+            gasMass(h2o.Name) = gasMass(h2o.Name) + m_w
+            totalEffMass -= m_w
+            totalGasMass += m_w
+            If ThermalMode = BioReactorThermalMode.Adiabatic Then T_out_K = T_sat Else Q_duty_W += m_w * hvap * 1000.0
+            Result_BiogasWater_kgs = m_w
+
+        End Sub
 
         ''' <summary>Writes a compound-mass-dictionary to a MaterialStream at (T, P). Used by the ADM1-Lite path.</summary>
         Private Shared Sub WriteSplitStream(ms As MaterialStream, m As Dictionary(Of String, Double),
@@ -2074,6 +2166,7 @@ Namespace Reactors
             "Methane Fraction Override",
             "Thermal Mode",
             "Heat per g COD removed",
+            "Saturate Biogas with Water",
             "Digester Model",
             "Influent Sulfate Sulfur",
             "Substrate Organic Sulfur",
@@ -2100,6 +2193,7 @@ Namespace Reactors
             "COD Removed",
             "Substrate Consumed",
             "Biogas Molar Flow",
+            "Biogas Water Vapor",
             "Methane Mass Flow",
             "CO2 Mass Flow",
             "Methane Mole Fraction",
@@ -2162,6 +2256,7 @@ Namespace Reactors
                 Case "Methane Fraction Override" : Return MethaneFractionOverride
                 Case "Thermal Mode" : Return ThermalMode.ToString()
                 Case "Heat per g COD removed" : Return HeatPerGCODremoved_Jg
+                Case "Saturate Biogas with Water" : Return SaturateBiogasWithWater
                 Case "Digester Model" : Return Model.ToString()
                 Case "Influent Sulfate Sulfur" : Return InfluentSulfateS_mgL
                 Case "Substrate Organic Sulfur" : Return SubstrateOrganicS_gPerKg
@@ -2185,6 +2280,7 @@ Namespace Reactors
                 Case "COD Removed" : Return Result_CODremoved_kgs
                 Case "Substrate Consumed" : Return Result_SubstrateConsumed_kgs
                 Case "Biogas Molar Flow" : Return Result_BiogasFlow_mols
+                Case "Biogas Water Vapor" : Return Result_BiogasWater_kgs
                 Case "Methane Mass Flow" : Return Result_CH4_kgs
                 Case "CO2 Mass Flow" : Return Result_CO2_kgs
                 Case "Methane Mole Fraction" : Return Result_CH4MoleFraction
@@ -2227,6 +2323,7 @@ Namespace Reactors
                      "Methane Mass Flow",
                      "CO2 Mass Flow",
                      "H2S Mass Flow",
+                     "Biogas Water Vapor",
                      "Sludge Production" : Return "kg/s"
                 Case "Biogas Molar Flow" : Return "mol/s"
                 Case "Specific CH4 Yield" : Return "Nm3/kg"
@@ -2274,6 +2371,10 @@ Namespace Reactors
                     If [Enum].TryParse(Of BioReactorThermalMode)(propval?.ToString(), tm) Then ThermalMode = tm
                     Return True
                 Case "Heat per g COD removed" : HeatPerGCODremoved_Jg = d : Return True
+                Case "Saturate Biogas with Water"
+                    Dim b As Boolean
+                    If Boolean.TryParse(propval?.ToString(), b) Then SaturateBiogasWithWater = b Else SaturateBiogasWithWater = d <> 0.0
+                    Return True
                 Case "Digester Model"
                     Dim m As DigesterModel
                     If [Enum].TryParse(Of DigesterModel)(propval?.ToString(), m) Then Model = m
@@ -2365,6 +2466,12 @@ Namespace Reactors
             container.CreateAndAddDropDownRow("Thermal Mode", thermalNames, CInt(ThermalMode),
                 Sub(dd, e)
                     ThermalMode = CType(dd.SelectedIndex, BioReactorThermalMode)
+                    If GlobalSettings.Settings.CallSolverOnEditorPropertyChanged Then FlowSheet.RequestCalculation()
+                End Sub)
+
+            container.CreateAndAddCheckBoxRow("Saturate Biogas with Water", SaturateBiogasWithWater,
+                Sub(chk, e)
+                    SaturateBiogasWithWater = chk.IsChecked.GetValueOrDefault()
                     If GlobalSettings.Settings.CallSolverOnEditorPropertyChanged Then FlowSheet.RequestCalculation()
                 End Sub)
 

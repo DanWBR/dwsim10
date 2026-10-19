@@ -20,6 +20,8 @@ namespace DWSIM.Automation.FluentAPI.Builders.Bioprocess
         public AnaerobicDigesterBuilder WithMethaneFractionOverride(double frac) { Object.MethaneFractionOverride = frac; return this; }
         /// <summary>Sets <c>Thermal Mode</c> and returns this builder for chaining.</summary>
         public AnaerobicDigesterBuilder WithThermalMode(BioReactorThermalMode m) { Object.ThermalMode = m; return this; }
+        /// <summary>Biogas leaves saturated with water vapor at the outlet temperature; the water comes from the effluent and its heat of vaporization goes to the duty.</summary>
+        public AnaerobicDigesterBuilder WithSaturatedBiogas(bool on = true) { Object.SaturateBiogasWithWater = on; return this; }
         /// <summary>Sets <c>Model</c> and returns this builder for chaining.</summary>
         public AnaerobicDigesterBuilder WithModel(DigesterModel m) { Object.Model = m; return this; }
 
