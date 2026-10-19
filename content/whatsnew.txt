@@ -4,13 +4,29 @@
 - [NEW] Rigorous column: secondary specifications on product quality (a distillation curve point, flash point, density or any stream property of a product), each reached by moving the condenser specification, the reboiler specification or a side draw rate
 - [NEW] Case library: straight-run distillate fractionation with the distillation curves of each product checked against Jet A-1 and EN 590, and the same column converged on the kerosene and diesel D86 95 % points
 - [NEW] User guide, offline help and an advanced tutorial for the distillation curves and the column secondary specifications
+- [NEW] Anaerobic digester: Saturate Biogas with Water option, the biogas leaves at its water dew point and the heat of vaporization goes to the duty
+- [NEW] Pipe Network: a source can take its flow from the connected stream, so a flare fed by a splitter keeps the splitter's rate
+- [NEW] MCP server: reaction tools for conversion and equilibrium reactions, reaction sets and the compounds of a Gibbs reactor
+- [NEW] User guide and offline help: water-saturated biogas, metabolic heat of digestion, critical pressure of biomass compounds, network source fed by another unit and Spec blocks sharing an object
 - [CHG] Each column lists only the external solvers that take it
 - [CHG] Classic stream editor: the Attach Utility menu also offers Distillation Curves and Vessel Depressurization
 - [CHG] Cross-platform tables and charts on the flowsheet: Copy Data to Clipboard, as in the Windows interface
 - [CHG] Natural Gas Processing Unit sample: demethanizer loop tolerances of 1e-4 and up to 500 iterations
+- [CHG] Anaerobic digester: default metabolic heat of -500 J/g COD for new digesters (was -3500)
+- [CHG] Conversion, equilibrium and Gibbs reactors: calculation mode, conversions, extents and Gibbs energies available as read-only properties
 - [FIX] Bubble-point column solver accepted wide-boiling columns whose stages were up to 1.5 % off their bubble points; the Natural Gas Processing Unit demethanizer now converges at -12.9 C in 3 s
 - [FIX] ChemSep CAPE-OPEN package could fail to return the vapour thermal conductivity above atmospheric pressure
 - [FIX] Petroleum cold flow utility: D86 and TBP 10 % temperatures always 0 in the Windows form, dynamic viscosities shown with a kinematic unit, and the stream left modified after the calculation
 - [FIX] Pseudocomponents created from scripts had no viscosity data (a kerosene came out at 384 cSt)
 - [FIX] A depressurization study attached to a stream on Windows was lost when the simulation was opened without the Windows interface
 - [FIX] Offline help: links to sections, figures, tables and equations on other pages went nowhere and showed numbers that did not appear in the help
+- [FIX] Immiscible water option: the water in the vapour stayed at its saturation value when the gas could take all of it, so the vapour fractions added up to more than 1 (a wet syngas compressor at 113 C and 2.3 kW against 162 C and 3.9 kW)
+- [FIX] CAPE-OPEN packages whose liquid phase is not called "Liquid": wrong heat duty in a Cooler and other units using the package's flash
+- [FIX] Biomass Compound Creator: a critical pressure of 3.2 bar made a slurry carrying the compound flash its water to vapour with Peng-Robinson; it now follows from the molar volume
+- [FIX] Spec blocks: when two blocks read the same object, only the one created last ran
+- [FIX] Sum Rates column solver ignored stage efficiencies below 1
+- [FIX] Conversion reactor: two identical parallel reactions added the heat of conversions that cancelled out (-14.9 kW for a duty of -1.4 kW)
+- [FIX] Gibbs reactor could return full conversion of the water-gas shift at 700 K, reported on Linux
+- [FIX] Cross-platform tables: the text of a numeric cell was rewritten while typing
+- [FIX] MCP server: a stream composition was applied as compound mass flows and replaced the total flow
+- [FIX] MCP server: reactor results came back with internal codes as labels and without conversions or extents

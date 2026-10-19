@@ -171,7 +171,7 @@ In all modes the computed $\dot{Q}_{duty}$ (kW, positive = heating, negative = c
 
 ###### Compounds and the Biomass Compound Creator {#compounds-and-the-biomass-compound-creator-.unnumbered}
 
-Biomass is treated as a regular DWSIM compound with a user-defined elemental formula (typically C $_{a}$ H $_{b}$ O $_{c}$ N $_{d}$ , e.g. CH $_{1.8}$ O $_{0.5}$ N $_{0.2}$ for a representative dry cell). A helper form,*Biomass Compound Creator*, is provided under the compound database tools: the user enters the formula, C-molecular weight and a few kinetic defaults, and the tool generates a JSON compound definition (including a Heijnen-style estimate of the heat of formation).
+Biomass is treated as a regular DWSIM compound with a user-defined elemental formula (typically C $_{a}$ H $_{b}$ O $_{c}$ N $_{d}$ , e.g. CH $_{1.8}$ O $_{0.5}$ N $_{0.2}$ for a representative dry cell). A helper form,*Biomass Compound Creator*, is provided under the compound database tools: the user enters the formula, C-molecular weight and a few kinetic defaults, and the tool generates a JSON compound definition (including a Heijnen-style estimate of the heat of formation). The generated compound keeps a critical temperature of 8000 K, so it never vaporizes, and takes its critical pressure from the molar volume at a liquid density of 1100 kg/m $^{3}$ , which gives a cubic equation of state (Peng-Robinson, SRK) a covolume the size of the molecule. A slurry that carries such compounds then stays liquid with those packages.
 
 A small database of common micro-organisms ships with DWSIM and can be added to a simulation like any regular compound:*Escherichia coli*, *Saccharomyces cerevisiae* (baker’s yeast), *Pichia pastoris* (Komagataella phaffii), *CHO* (mammalian cells), generic photosynthetic *Microalgae*, mixed-culture *Activated Sludge*, and a generic *Biomass* placeholder (CH $_{1.8}$ O $_{0.5}$ N $_{0.2}$ ).
 
@@ -286,7 +286,7 @@ Sulfur bound in the substrate formula needs no separate treatment here: Buswell 
 
 - **Effluent (outlet)**: stabilised liquid with residual COD, NH $_{3}$ and biomass (sludge).
 
-- **Biogas (outlet)**: CH $_{4}$ / CO $_{2}$ mixture, plus H $_{2}$ S if the feed carries sulfur (see Sulfur Balance below), plus any dissolved gas carried in from the feed.
+- **Biogas (outlet)**: CH $_{4}$ / CO $_{2}$ mixture, plus H $_{2}$ S if the feed carries sulfur (see Sulfur Balance below), plus any dissolved gas carried in from the feed. With Saturate Biogas with Water on, the biogas also carries water vapor up to its dew point at the outlet temperature.
 
 - **Heat Duty (energy stream)**: net thermal duty required to hold the selected Thermal Mode.
 
@@ -298,7 +298,7 @@ Sulfur bound in the substrate formula needs no separate treatment here: Buswell 
 
 - **Digester Parameters**: COD Removal Efficiency (0–1), Biomass Yield on COD (g VSS / g COD), Methane Mole Fraction Override.
 
-- **Thermal Balance**: Thermal Mode, Heat per g COD Removed (J/g).
+- **Thermal Balance**: Thermal Mode, Heat per g COD Removed (J/g, default -500), Saturate Biogas with Water (off by default). Anaerobic digestion is close to thermoneutral: the heat released is the heat of combustion of the substrate less that of the methane formed, about -700 J/g COD for carbohydrates and close to zero, or slightly endothermic, for fatty acids, lipids and proteins; -200 to -800 J/g COD covers most feeds. When it is on, water moves from the effluent into the biogas until the gas reaches its dew point at the outlet temperature and pressure; the dew point comes from a flash of the dry biogas with excess water in the reactor’s property package. The heat of vaporization of that water is added to the heat duty, or, in adiabatic mode, lowers the outlet temperature. Turn it on when the units downstream (desulfurisation, gas holder, compression) must see the real water load of the biogas; off, the biogas leaves dry, as in earlier versions.
 
 ###### Sulfur Balance {#sulfur-balance-.unnumbered}
 

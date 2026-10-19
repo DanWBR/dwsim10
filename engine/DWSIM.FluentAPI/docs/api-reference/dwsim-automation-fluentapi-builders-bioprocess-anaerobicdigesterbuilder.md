@@ -58,6 +58,10 @@ Sets `Methane Fraction Override` and returns this builder for chaining.
 
 Sets `Model` and returns this builder for chaining.
 
+### `WithSaturatedBiogas(bool)`
+
+Biogas leaves saturated with water vapor at the outlet temperature; the water comes from the effluent and its heat of vaporization goes to the duty.
+
 ### `WithSubstrateOrganicSulfurGPerKg(double)`
 
 Sets the organic sulfur bound in the substrate (g S/kg substrate). Pass -1 to read it from the substrate compound's elemental formula, which keeps it consistent with the theoretical COD; pass >= 0 only to declare sulfur the formula omits. Unlike sulfate, this sulfur arrives already reduced and makes H2S at no cost in methane.

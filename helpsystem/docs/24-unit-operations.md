@@ -4519,6 +4519,8 @@ Sources and sinks impose boundary conditions on the network. Each can be specifi
 
 
 
+A source fed by another unit operation of the flowsheet, such as a splitter or a compressor, can take its rate from that stream: with *Flow from the connected stream* checked, the mass, molar and volumetric flow setpoints are copied from the associated material stream before each solve, and the network computes the pressure it needs at the source. Checking it turns a pressure-only (or free) source into a mass flow one. Without it, a source specified by pressure computes its own rate and writes it back over the rate of the upstream unit, which breaks the mass balance of the flowsheet around that unit.
+
 ###### Node
 
 Junction nodes mix or split streams. The model enforces per-node overall mass, pressure, and energy balances (see [Node Balance Equations](#sec:node_balances)). An optional *rigorous heat balance* mode uses the full stream enthalpy from the thermodynamic property package rather than an ideal mixing approximation.

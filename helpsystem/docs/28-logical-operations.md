@@ -212,7 +212,7 @@ When enabled, multiple Adjust blocks are solved simultaneously as a system of eq
 
 ##### Overview {#overview-49}
 
-The Specification (Spec) logical block establishes an algebraic relationship between a source variable and a target variable using a user-defined mathematical expression. Unlike the Adjust block (which iterates), the Spec block directly computes and assigns the target variable value from the expression.
+The Specification (Spec) logical block establishes an algebraic relationship between a source variable and a target variable using a user-defined mathematical expression. Unlike the Adjust block (which iterates), the Spec block directly computes and assigns the target variable value from the expression. An object can be the source or the target of several Spec blocks, for instance one energy stream that feeds both an electricity and a recovered-heat estimate; each block runs at its own calculation point.
 
 ##### Expression Evaluation
 

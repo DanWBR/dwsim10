@@ -31,6 +31,12 @@ fs.AddAnaerobicDigester("AD-1")
   .ConnectProduct(digestate, 1);
 ```
 
+The anaerobic digester writes a dry biogas unless `.WithSaturatedBiogas()` is set: the gas then
+leaves saturated with water vapor at the outlet temperature and pressure, the water comes out of
+the effluent and its heat of vaporization is added to the duty (adiabatic mode: it lowers the
+outlet temperature). The metabolic heat defaults to -500 J/g COD removed; set
+`HeatPerGCODremoved_Jg` through `Configure` for carbohydrate-rich feeds (about -700).
+
 Use `Configure(action)` for any property without a typed setter. The
 underlying object remains accessible through `Object` (typed) and
 `Object` properties exposed by DWSIM's UnitOperations DLL.
