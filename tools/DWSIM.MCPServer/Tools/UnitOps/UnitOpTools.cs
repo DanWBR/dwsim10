@@ -232,8 +232,12 @@ namespace DWSIM.MCPServer.Tools.UnitOps
                 {
                     if (entry.Value == null) continue;
                     if (dynamicNames.Contains(entry.Id)) continue;
+                    // a conversion of a compound the feed does not carry comes out infinite
+                    if (entry.Value is double d && (double.IsNaN(d) || double.IsInfinity(d))) continue;
 
-                    var label = string.IsNullOrEmpty(entry.Description) ? entry.Id : entry.Description;
+                    // a PROP_ code means nothing to a reader, a named property already reads well
+                    var label = !entry.Id.StartsWith("PROP_", StringComparison.Ordinal) || string.IsNullOrEmpty(entry.Description)
+                        ? entry.Id : entry.Description;
                     props[label] = new JObject { ["value"] = entry.Value.ToString(), ["units"] = entry.Units };
                 }
             }

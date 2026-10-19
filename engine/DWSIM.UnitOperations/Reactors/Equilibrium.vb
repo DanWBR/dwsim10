@@ -3549,7 +3549,7 @@ Namespace Reactors
                     For i = 0 To 1
                         proplist.Add("PROP_EQ_" + CStr(i))
                     Next
-                Case PropertyType.ALL
+                Case PropertyType.ALL, PropertyType.RO
                     For i = 0 To 1
                         proplist.Add("PROP_EQ_" + CStr(i))
                     Next

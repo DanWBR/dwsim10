@@ -1086,7 +1086,7 @@ Namespace Reactors
                     For i = 0 To 0
                         proplist.Add("PROP_CR_" + CStr(i))
                     Next
-                Case PropertyType.ALL
+                Case PropertyType.ALL, PropertyType.RO
                     For i = 0 To 0
                         proplist.Add("PROP_CR_" + CStr(i))
                     Next
