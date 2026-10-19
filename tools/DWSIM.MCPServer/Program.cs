@@ -13,6 +13,7 @@ using DWSIM.MCPServer.Tools.UnitOps;
 using DWSIM.MCPServer.Tools.Solve;
 using DWSIM.MCPServer.Tools.Graphics;
 using DWSIM.MCPServer.Tools.Dynamics;
+using DWSIM.MCPServer.Tools.Reactions;
 using DWSIM.MCPServer.Transport;
 
 namespace DWSIM.MCPServer
@@ -102,6 +103,7 @@ namespace DWSIM.MCPServer
             registry.RegisterToolsFrom(new SolveTools(sessions));
             registry.RegisterToolsFrom(new GraphicTools(sessions));
             registry.RegisterToolsFrom(new DynamicsTools(sessions, dynamicsJobs));
+            registry.RegisterToolsFrom(new ReactionTools(sessions));
 
             var dispatcher = new JsonRpcDispatcher(registry);
 
