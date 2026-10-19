@@ -141,8 +141,10 @@ Namespace Reactors
         Public Property ThermalMode As BioReactorThermalMode = BioReactorThermalMode.Isothermal
 
         ''' <summary>Heat release per gram of COD removed (J/g COD, negative = exothermic).
-        ''' Anaerobic digestion is only mildly exothermic, ~ -3500 J/g COD (~ 8 % of aerobic).</summary>
-        Public Property HeatPerGCODremoved_Jg As Double = -3500.0
+        ''' Anaerobic digestion is nearly thermoneutral: the heat is the combustion heat of the substrate minus that
+        ''' of the methane formed (13.9 kJ/g COD), about -700 J/g COD for carbohydrates and about zero, or slightly
+        ''' endothermic, for VFAs, lipids and proteins. Default -500 J/g COD (about 3.5 % of aerobic oxidation).</summary>
+        Public Property HeatPerGCODremoved_Jg As Double = -500.0
 
         ''' <summary>When True, the biogas leaves saturated with water vapor at the outlet temperature
         ''' (y_H2O = Psat/P). The water comes out of the effluent and its heat of vaporization is added to
