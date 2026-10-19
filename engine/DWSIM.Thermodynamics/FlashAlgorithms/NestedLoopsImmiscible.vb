@@ -168,11 +168,17 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
 
             nHCy = V
 
-            nWy = nHCy * Vy(wid) / (1 - Vy(wid))
+            ' Water saturates the vapor (y = Psat/P) only while a free-water phase is left. When the
+            ' vapor can take all of it, or Psat >= P, all the water is vapor and its fraction follows
+            ' from the amounts (issue 112: y kept at Psat/P gave sum(y) > 1).
+            Dim unsaturated As Boolean = Vy(wid) >= 1.0
+            If Not unsaturated Then
+                nWy = nHCy * Vy(wid) / (1 - Vy(wid))
+                nWx = nwm - nWy
+                unsaturated = nWx < 0.0
+            End If
 
-            nWx = nwm - nWy
-
-            If nWx < 0.0 Then
+            If unsaturated Then
                 nWy = nwm
                 nWx = 0.0
             End If
@@ -181,6 +187,8 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
 
             V = nHCy + nWy
             xl2 = nWx
+
+            If unsaturated Then Vy(wid) = If(V > 0, nWy / V, 0.0)
 
             For i = 0 To n
                 If i <> wid Then
