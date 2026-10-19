@@ -953,8 +953,11 @@ Namespace PropertyPackages
 
                 Me.DW_CalcOverallProps()
 
-            ElseIf phase = "Liquid" Then
+            ElseIf phase = "Liquid" OrElse myphase = PropertyPackages.Phase.Liquid Then
 
+                ' the overall liquid is built from the liquid phases whatever the package calls them (a
+                ' package whose liquid is labelled e.g. "LIQUID1" left it empty, and the mixture enthalpy
+                ' of the T-P flash below came out wrong)
                 Me.DW_CalcLiqMixtureProps()
 
             End If
