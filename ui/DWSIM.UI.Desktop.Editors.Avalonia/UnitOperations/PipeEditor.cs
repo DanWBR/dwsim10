@@ -168,6 +168,8 @@ namespace DWSIM.UI.Desktop.Editors
                 pipe.DeltaT.GetValueOrDefault());
             panel.CreateAndAddResultRow(pipe, "Heat Load", UnitOfMeasure.heatflow,
                 pipe.DeltaQ.GetValueOrDefault());
+
+            PipeProfilesViewer.AddToResults(pipe, panel);
         }
 
         // ---------------------------------------------------------------------
