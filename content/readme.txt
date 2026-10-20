@@ -50,6 +50,8 @@ Version 10.2.12
 - [NEW] MCP server: reaction tools for conversion and equilibrium reactions, reaction sets and the compounds of a Gibbs reactor
 - [NEW] User guide and offline help: water-saturated biogas, metabolic heat of digestion, critical pressure of biomass compounds, network source fed by another unit and Spec blocks sharing an object
 - [NEW] Cross-platform pipe segment: pressure profile in the results and a profiles window with a chart of any variable and a table of every increment
+- [NEW] Divided-Wall Column (Plus, Level 2): wall in the middle, at the top or at the bottom, heat transfer through the wall, side draws, secondary specifications, shortcut design, wall split optimization, size, cost and life-cycle inventory
+- [NEW] Divided-Wall Column samples and advanced tutorial
 - [CHG] Each column lists only the external solvers that take it
 - [CHG] Classic stream editor: the Attach Utility menu also offers Distillation Curves and Vessel Depressurization
 - [CHG] Cross-platform tables and charts on the flowsheet: Copy Data to Clipboard, as in the Windows interface
@@ -72,6 +74,7 @@ Version 10.2.12
 - [FIX] Cross-platform tables: the text of a numeric cell was rewritten while typing
 - [FIX] MCP server: a stream composition was applied as compound mass flows and replaced the total flow
 - [FIX] MCP server: reactor results came back with internal codes as labels and without conversions or extents
+- [FIX] Flowsheet spreadsheet: formulas and numbers were stored with the separators of the saving computer and could be misread on a computer with another decimal separator
 
 Version 10.2.11
 
