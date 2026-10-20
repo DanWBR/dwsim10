@@ -49,6 +49,7 @@ Version 10.2.12
 - [NEW] Pipe Network: a source can take its flow from the connected stream, so a flare fed by a splitter keeps the splitter's rate
 - [NEW] MCP server: reaction tools for conversion and equilibrium reactions, reaction sets and the compounds of a Gibbs reactor
 - [NEW] User guide and offline help: water-saturated biogas, metabolic heat of digestion, critical pressure of biomass compounds, network source fed by another unit and Spec blocks sharing an object
+- [NEW] Cross-platform pipe segment: pressure profile in the results and a profiles window with a chart of any variable and a table of every increment
 - [CHG] Each column lists only the external solvers that take it
 - [CHG] Classic stream editor: the Attach Utility menu also offers Distillation Curves and Vessel Depressurization
 - [CHG] Cross-platform tables and charts on the flowsheet: Copy Data to Clipboard, as in the Windows interface
