@@ -48,3 +48,4 @@
 - [FIX] Cross-platform Python Script: input variables could not be added, removed, renamed or edited (issue 103)
 - [FIX] Cross-platform flowsheet: Delete, Backspace and Ctrl+C/V/A in an editor field also acted on flowsheet objects
 - [FIX] DWSIM MCP Debian package failed to install with exit status 127 (issue 102)
+- [FIX] Pipe wall material saved in another interface language stopped the calculation (invalid thermal conductivity expression) or was taken with zero roughness
