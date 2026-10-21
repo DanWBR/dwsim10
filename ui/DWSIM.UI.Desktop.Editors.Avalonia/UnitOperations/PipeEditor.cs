@@ -869,6 +869,13 @@ namespace DWSIM.UI.Desktop.Editors
                     if (list[i].IsUserDefined) continue;
                     if (s == list[i].Stored || list[i].Aliases.Contains(s)) return i;
                 }
+                // a name written by an interface in another language
+                var known = Pipe.KnownWallMaterial(s);
+                if (known != null)
+                {
+                    for (int i = 0; i < list.Count; i++)
+                        if (!list[i].IsUserDefined && Pipe.KnownWallMaterial(list[i].Stored) == known) return i;
+                }
                 return list.FindIndex(m => m.IsUserDefined);
             }
         }

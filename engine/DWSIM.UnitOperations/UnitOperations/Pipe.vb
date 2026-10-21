@@ -2298,6 +2298,62 @@ Namespace UnitOperations
 
         End Function
 
+        Private Shared ReadOnly WallMaterialNames As Dictionary(Of String, String) = BuildWallMaterialNames()
+
+        Private Shared ReadOnly WallMaterialKeys As String()() = {
+            New String() {"AoComum", "Steel"}, New String() {"AoCarbono", "CarbonSteel"},
+            New String() {"FerroBottomido", "CastIron"}, New String() {"AoInoxidvel", "StainlessSteel"},
+            New String() {"CommercialCopper", "CommercialCopper"}}
+
+        Private Shared Function BuildWallMaterialNames() As Dictionary(Of String, String)
+            Dim d As New Dictionary(Of String, String)(StringComparer.OrdinalIgnoreCase)
+            For Each n In {"Steel", "Raw Steel", "Aço Comum", "Rohstahl", "Acero crudo"} : d(n) = "Steel" : Next
+            For Each n In {"CarbonSteel", "Carbon Steel", "Aço Carbono", "schwarzer Stahl (C-Stahl)", "Acero al carbono"} : d(n) = "CarbonSteel" : Next
+            For Each n In {"CastIron", "Cast Iron", "Ferro Fundido", "Gußeisen", "Hierro Fundido"} : d(n) = "CastIron" : Next
+            For Each n In {"StainlessSteel", "Stainless Steel", "Aço Inoxidável", "Stahl", "Acero"} : d(n) = "StainlessSteel" : Next
+            d("PVC") = "PVC"
+            For Each n In {"PVC+PFRV", "PVC+PRFV"} : d(n) = "PVC+PFRV" : Next
+            For Each n In {"CommercialCopper", "Commercial Copper", "Cobre Comercial"} : d(n) = "CommercialCopper" : Next
+            Return d
+        End Function
+
+        ''' <summary>
+        ''' The built-in wall material ("Steel", "CarbonSteel", ...) a name in any interface language or an
+        ''' invariant name stands for, or Nothing when the name is not a built-in material.
+        ''' </summary>
+        Public Shared Function KnownWallMaterial(ByVal material As String) As String
+            Dim canonical As String = Nothing
+            If WallMaterialNames.TryGetValue(If(material, "").Trim(), canonical) Then Return canonical
+            Return Nothing
+        End Function
+
+        ''' <summary>
+        ''' The built-in wall material a stored name stands for ("Steel", "CarbonSteel", "CastIron",
+        ''' "StainlessSteel", "PVC", "PVC+PFRV" or "CommercialCopper"), or the name itself when it is
+        ''' not one of them. Sections store the material name in the language of the interface that wrote
+        ''' them, so the names of every interface language are recognised, together with the flowsheet's
+        ''' own translation.
+        ''' </summary>
+        Public Function CanonicalWallMaterial(ByVal material As String) As String
+
+            Dim name = If(material, "").Trim()
+            Dim canonical = KnownWallMaterial(name)
+
+            If canonical IsNot Nothing Then Return canonical
+
+            If FlowSheet IsNot Nothing Then
+                For Each k In WallMaterialKeys
+                    Try
+                        If String.Equals(If(FlowSheet.GetTranslatedString(k(0)), "").Trim(), name, StringComparison.OrdinalIgnoreCase) Then Return k(1)
+                    Catch ex As Exception
+                    End Try
+                Next
+            End If
+
+            Return material
+
+        End Function
+
         ''' <summary>Returns the pipe-wall rugosity (m) for the given material name and section.</summary>
         Public Function GetRugosity(ByVal material As String, section As PipeSection) As Double
 
@@ -2305,20 +2361,20 @@ Namespace UnitOperations
 
             'pipe wall rugosity in m
 
-            Select Case material
-                Case FlowSheet.GetTranslatedString("AoComum"), "Steel"
+            Select Case CanonicalWallMaterial(material)
+                Case "Steel"
                     epsilon = 0.0000457
-                Case FlowSheet.GetTranslatedString("AoCarbono"), "CarbonSteel"
+                Case "CarbonSteel"
                     epsilon = 0.000045
-                Case FlowSheet.GetTranslatedString("FerroBottomido"), "CastIron"
+                Case "CastIron"
                     epsilon = 0.000259
-                Case FlowSheet.GetTranslatedString("AoInoxidvel"), "StainlessSteel"
+                Case "StainlessSteel"
                     epsilon = 0.000045
                 Case "PVC"
                     epsilon = 0.0000015
-                Case "PVC+PFRV", "PVC+PRFV"
+                Case "PVC+PFRV"
                     epsilon = 0.0000015
-                Case FlowSheet.GetTranslatedString("CommercialCopper"), "CommercialCopper"
+                Case "CommercialCopper"
                     epsilon = 0.0000015
                 Case Else
                     epsilon = section.PipeWallRugosity
@@ -2341,20 +2397,20 @@ Namespace UnitOperations
 
             Dim kp As Double
 
-            Select Case material
-                Case FlowSheet.GetTranslatedString("AoComum"), "Steel"
+            Select Case CanonicalWallMaterial(material)
+                Case "Steel"
                     kp = -0.000000004 * T ^ 3 - 0.00002 * T ^ 2 + 0.021 * T + 33.743
-                Case FlowSheet.GetTranslatedString("AoCarbono"), "CarbonSteel", "Carbon Steel"
+                Case "CarbonSteel"
                     kp = 0.000000007 * T ^ 3 - 0.00002 * T ^ 2 - 0.0291 * T + 70.765
-                Case FlowSheet.GetTranslatedString("FerroBottomido"), "CastIron", "Cast Iron"
+                Case "CastIron"
                     kp = -0.00000008 * T ^ 3 + 0.0002 * T ^ 2 - 0.211 * T + 127.99
-                Case FlowSheet.GetTranslatedString("AoInoxidvel"), "StainlessSteel", "Stainless Steel"
+                Case "StainlessSteel"
                     kp = 14.6 + 0.0127 * (T - 273.15)
                 Case "PVC"
                     kp = 0.16
-                Case "PVC+PFRV", "PVC+PRFV"
+                Case "PVC+PFRV"
                     kp = 0.16
-                Case FlowSheet.GetTranslatedString("CommercialCopper"), "CommercialCopper", "Commercial Copper"
+                Case "CommercialCopper"
                     kp = 420.75 - 0.068493 * T
                 Case Else
                     Try
