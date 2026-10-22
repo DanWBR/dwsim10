@@ -15,16 +15,29 @@ namespace DWSIM.UI.Shared.Avalonia;
 /// puts it in a real window, and on a single-view host it goes to <see cref="EditorWindow.Presenter"/>
 /// and lands in whatever that host draws its forms in.
 ///
-/// It carries the three window members these forms actually use — <see cref="Title"/>,
-/// <see cref="CanResize"/> and <see cref="WindowStartupLocation"/> — so a form changes its base class
-/// and nothing else.
+/// It carries the window members these forms actually use — <see cref="Title"/>, <see cref="Icon"/>,
+/// <see cref="CanResize"/>, <see cref="WindowStartupLocation"/>, Show with an owner, ShowDialog with a
+/// result — so a form changes its base class and nothing else.
 /// </remarks>
 public class PlusWindow : UserControl
 {
     private Window? _window;
     private IPresentedEditor? _presented;
+    private object? _result;
+    private string _title = "";
 
-    public string Title { get; set; } = "";
+    public string Title
+    {
+        get => _title;
+        set
+        {
+            _title = value ?? "";
+            if (_window is not null) _window.Title = _title;
+        }
+    }
+
+    /// <summary>The desktop window's icon. Ignored on a single-view host.</summary>
+    public WindowIcon? Icon { get; set; }
 
     public bool CanResize { get; set; } = true;
 
@@ -54,14 +67,18 @@ public class PlusWindow : UserControl
     /// <summary>The desktop window behind this form once shown; null before that and on a single-view host.</summary>
     public Window? NativeWindow => _window;
 
-    public void Show()
+    public void Show() => Show(null);
+
+    /// <summary>Shows it over an owner — a window, another form or a control — where the desktop can.</summary>
+    public void Show(object? owner)
     {
         if (EditorWindow.Presenter is not null)
         {
             Present(modal: false);
             return;
         }
-        Native().Show();
+        var host = OwnerWindow(owner);
+        if (host is null) Native().Show(); else Native().Show(host);
     }
 
     /// <summary>
@@ -80,12 +97,22 @@ public class PlusWindow : UserControl
         return host is null ? Native().ShowDialog(Native()) : Native().ShowDialog(host);
     }
 
+    /// <summary>Shows it modally and returns what <see cref="Close(object?)"/> was given.</summary>
+    public async Task<T> ShowDialog<T>(object? owner = null)
+    {
+        await ShowDialog(owner);
+        return _result is T value ? value : default!;
+    }
+
     public void Activate() => _window?.Activate();
 
-    public void Close()
+    public void Close() => Close(null);
+
+    public void Close(object? result)
     {
+        _result = result;
         if (_presented is not null) { _presented.Close(); return; }
-        _window?.Close();
+        _window?.Close(result);
     }
 
     /// <summary>The window behind an owner, whatever kind of thing the caller passed.</summary>
@@ -104,6 +131,8 @@ public class PlusWindow : UserControl
         var height = double.IsNaN(Height) ? 600 : Height;
         Width = double.NaN;
         Height = double.NaN;
+        ClearValue(MinWidthProperty);
+        ClearValue(MinHeightProperty);
 
         _presented = EditorWindow.Presenter!(Title, (int)width, (int)height, this, modal);
         _presented.Closed.ContinueWith(_ => Closed?.Invoke(this, EventArgs.Empty),
@@ -117,12 +146,18 @@ public class PlusWindow : UserControl
         // The form sized itself; hand that to the window and let the control fill it.
         var width = Width;
         var height = Height;
+        var minWidth = MinWidth;
+        var minHeight = MinHeight;
         Width = double.NaN;
         Height = double.NaN;
+        ClearValue(MinWidthProperty);
+        ClearValue(MinHeightProperty);
 
         _window = new Window
         {
             Title = Title,
+            MinWidth = minWidth,
+            MinHeight = minHeight,
             Content = this,
             CanResize = CanResize,
             WindowStartupLocation = WindowStartupLocation,
@@ -130,6 +165,7 @@ public class PlusWindow : UserControl
         if (!double.IsNaN(width)) _window.Width = width;
         if (!double.IsNaN(height)) _window.Height = height;
         _window.SizeToContent = SizeToContent;
+        if (Icon is not null) _window.Icon = Icon;
         if (Position is PixelPoint p)
         {
             _window.WindowStartupLocation = WindowStartupLocation.Manual;
