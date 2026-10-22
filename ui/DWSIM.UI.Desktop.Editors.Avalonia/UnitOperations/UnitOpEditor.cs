@@ -59,6 +59,15 @@ namespace DWSIM.UI.Desktop.Editors
             if (parameters.Children.Count > 0)
                 stack.Children.Add(Group("Calculation Parameters", parameters));
 
+            // the dynamic-mode parameters (volumes, heights, conductances, initial conditions), which
+            // the Windows editors show in the grid at their right side
+            if (simobj.SupportsDynamicMode)
+            {
+                var dynamics = new AvaloniaEditorPanel();
+                AvaloniaTabBuilders.PopulateDynamics(simobj, dynamics);
+                stack.Children.Add(Group("Dynamic Properties", dynamics));
+            }
+
             if (results != null)
             {
                 var panel = new AvaloniaEditorPanel();
