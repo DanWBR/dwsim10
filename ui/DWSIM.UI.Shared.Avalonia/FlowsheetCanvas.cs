@@ -35,7 +35,12 @@ public class FlowsheetCanvas : Control
     private WriteableBitmap? _bitmap;
     // Android and iOS draw through OpenGL ES / Metal, which do not take a BGRA bitmap as a texture: the
     // image never reaches the screen. They get RGBA.
+#if NET5_0_OR_GREATER
     private static readonly bool Mobile = OperatingSystem.IsAndroid() || OperatingSystem.IsIOS();
+#else
+    // netstandard2.0 is the classic Windows build
+    private static readonly bool Mobile = false;
+#endif
     private MouseButton _lastPressButton;
 
     // -------------------------------------------------------------------------
