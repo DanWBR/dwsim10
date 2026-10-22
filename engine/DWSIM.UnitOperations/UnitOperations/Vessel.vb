@@ -267,6 +267,8 @@ Namespace UnitOperations
             AddDynamicProperty("Minimum Wetted Wall Temperature", "Lowest wetted-wall temperature since the content was (re)initialized (read-only)", 0.0, UnitOfMeasure.temperature, 1.0.GetType())
             AddDynamicProperty("Minimum Dry Wall Temperature", "Lowest dry-wall temperature since the content was (re)initialized (read-only)", 0.0, UnitOfMeasure.temperature, 1.0.GetType())
             AddDynamicProperty("Maximum Dry Wall Temperature", "Highest dry-wall temperature since the content was (re)initialized; the fire-case metal check (read-only)", 0.0, UnitOfMeasure.temperature, 1.0.GetType())
+            AddDynamicProperty("Interface Level", "Height of the heavy liquid layer above the vessel bottom when a third outlet draws it (read-only)", 0.0, UnitOfMeasure.distance, 1.0.GetType())
+            AddDynamicProperty("Initialize at Liquid Level", "With Initialize using Inlet Stream, build the first content with the inlet liquid up to the Liquid Level and its vapour above it (an all-liquid inlet gets a blanket of the vapour it would first give off, at the inlet pressure), instead of the inlet mixture filling the volume", False, UnitOfMeasure.none, True.GetType())
 
         End Sub
 
@@ -393,10 +395,6 @@ Namespace UnitOperations
                 Throw New Exception("Only Adiabatic and Legacy mode are supported in dynamic mode.")
             End If
 
-            If oms3 IsNot Nothing Then
-                Throw New Exception("The Gas-Liquid Separator currently supports only a single liquid phase in Dynamic Mode.")
-            End If
-
             Dim imsmix As MaterialStream = Nothing
 
             For i = 0 To 5
@@ -430,24 +428,33 @@ Namespace UnitOperations
 
             If AccumulationStream Is Nothing Then
 
-                If InitializeFromInlet Then
+                If InitializeFromInlet AndAlso DynamicBool("Initialize at Liquid Level", False) AndAlso BuildContentAtLevel(imsmix, Vol) Then
 
-                    AccumulationStream = imsmix.CloneXML
+                    'the content holds the inlet's liquid up to the given level and its vapour above it
 
                 Else
 
-                    AccumulationStream = imsmix.Subtract(oms1, timestep)
-                    AccumulationStream = AccumulationStream.Subtract(oms2, timestep)
+                    If InitializeFromInlet Then
+
+                        AccumulationStream = imsmix.CloneXML
+
+                    Else
+
+                        AccumulationStream = imsmix.Subtract(oms1, timestep)
+                        AccumulationStream = AccumulationStream.Subtract(oms2, timestep)
+                        If oms3 IsNot Nothing Then AccumulationStream = AccumulationStream.Subtract(oms3, timestep)
+
+                    End If
+
+                    Dim density = AccumulationStream.Phases(0).Properties.density.GetValueOrDefault
+
+                    AccumulationStream.SetMassFlow(density * Vol)
+                    AccumulationStream.SpecType = StreamSpec.Temperature_and_Pressure
+                    AccumulationStream.PropertyPackage = PropertyPackage
+                    AccumulationStream.PropertyPackage.CurrentMaterialStream = AccumulationStream
+                    AccumulationStream.Calculate()
 
                 End If
-
-                Dim density = AccumulationStream.Phases(0).Properties.density.GetValueOrDefault
-
-                AccumulationStream.SetMassFlow(density * Vol)
-                AccumulationStream.SpecType = StreamSpec.Temperature_and_Pressure
-                AccumulationStream.PropertyPackage = PropertyPackage
-                AccumulationStream.PropertyPackage.CurrentMaterialStream = AccumulationStream
-                AccumulationStream.Calculate()
 
                 'Initialize the persistent wall temperatures (lumped, wetted, dry) and the min/max
                 'trackers to the initial fluid temperature.
@@ -485,6 +492,11 @@ Namespace UnitOperations
                     oms2.Calculate()
                 End If
 
+                If oms3 IsNot Nothing AndAlso (Not oms3.AtEquilibrium And oms3.GetMassFlow() > 0) Then
+                    oms3.AssignSelfToPP()
+                    oms3.Calculate()
+                End If
+
                 If omsr IsNot Nothing AndAlso (Not omsr.AtEquilibrium And omsr.GetMassFlow() > 0) Then
                     omsr.AssignSelfToPP()
                     omsr.Calculate()
@@ -492,10 +504,12 @@ Namespace UnitOperations
 
                 If oms1.GetMassFlow() > 0 Then Eout += oms1.GetMassFlow() * oms1.GetMassEnthalpy() * timestep
                 If oms2.GetMassFlow() > 0 Then Eout += oms2.GetMassFlow() * oms2.GetMassEnthalpy() * timestep
+                If oms3 IsNot Nothing AndAlso oms3.GetMassFlow() > 0 Then Eout += oms3.GetMassFlow() * oms3.GetMassEnthalpy() * timestep
                 If omsr IsNot Nothing AndAlso omsr.GetMassFlow() > 0 Then Eout += omsr.GetMassFlow() * omsr.GetMassEnthalpy() * timestep
 
                 If oms1.GetMassFlow() > 0 Then AccumulationStream = AccumulationStream.Subtract(oms1, timestep)
                 If oms2.GetMassFlow() > 0 Then AccumulationStream = AccumulationStream.Subtract(oms2, timestep)
+                If oms3 IsNot Nothing AndAlso oms3.GetMassFlow() > 0 Then AccumulationStream = AccumulationStream.Subtract(oms3, timestep)
                 If omsr IsNot Nothing Then
                     If omsr.GetMassFlow() > 0 Then AccumulationStream = AccumulationStream.Subtract(omsr, timestep)
                 End If
@@ -805,6 +819,10 @@ Namespace UnitOperations
             SetDynamicProperty("Operating Pressure", Pressure)
             TrackMin("Minimum Fluid Temperature", AccumulationStream.GetTemperature())
 
+            Dim lightLiquid, heavyLiquid As PhaseLabel
+            Dim heavyVolume = LiquidLayers(lightLiquid, heavyLiquid)
+            If oms3 IsNot Nothing Then SetDynamicProperty("Interface Level", Math.Min(1.0, heavyVolume / Vol) * Height)
+
             For i = 0 To 5
                 If Me.GraphicObject.InputConnectors(i).IsAttached Then
                     GetInletMaterialStream(i).SetPressure(Pressure)
@@ -868,18 +886,129 @@ Namespace UnitOperations
                     omsr.AtEquilibrium = False
                 End If
 
+                'With a third outlet the vessel separates two liquids: the liquid outlet draws the light
+                'layer and the third outlet (the boot) the heavy one. Either draws the other liquid once
+                'its own layer is gone, as a nozzle does when the interface passes it.
                 If gasFraction >= 1.0 Then
                     oms2.AssignFromPhase(PhaseLabel.Vapor, AccumulationStream, False)
                 ElseIf gasFraction <= 0.0 Then
-                    oms2.AssignFromPhase(PhaseLabel.LiquidMixture, AccumulationStream, False)
+                    oms2.AssignFromPhase(If(oms3 IsNot Nothing, lightLiquid, PhaseLabel.LiquidMixture), AccumulationStream, False)
                 Else
                     AssignOutletBlend(oms2, gasFraction)
                 End If
                 oms2.AtEquilibrium = False
 
+                If oms3 IsNot Nothing Then
+                    If gasFraction >= 1.0 Then
+                        oms3.AssignFromPhase(PhaseLabel.Vapor, AccumulationStream, False)
+                    Else
+                        oms3.AssignFromPhase(heavyLiquid, AccumulationStream, False)
+                    End If
+                    oms3.AtEquilibrium = False
+                End If
+
             End If
 
         End Sub
+
+        ''' <summary>
+        ''' Picks the light and the heavy liquid of the content by density and returns the volume of
+        ''' the heavy one (m3). With a single liquid both labels point at it and the volume is zero.
+        ''' </summary>
+        Private Function LiquidLayers(ByRef light As PhaseLabel, ByRef heavy As PhaseLabel) As Double
+            Dim acc = AccumulationStream
+            light = PhaseLabel.LiquidMixture
+            heavy = PhaseLabel.LiquidMixture
+            If acc Is Nothing Then Return 0.0
+            Dim has1 = acc.Phases(3).Properties.molarfraction.GetValueOrDefault > 0.0
+            Dim has2 = acc.Phases(4).Properties.molarfraction.GetValueOrDefault > 0.0
+            If has1 AndAlso has2 Then
+                Dim rho1 = acc.Phases(3).Properties.density.GetValueOrDefault
+                Dim rho2 = acc.Phases(4).Properties.density.GetValueOrDefault
+                If rho2 >= rho1 Then
+                    light = PhaseLabel.Liquid1
+                    heavy = PhaseLabel.Liquid2
+                    Return acc.Phases(4).Properties.volumetric_flow.GetValueOrDefault
+                Else
+                    light = PhaseLabel.Liquid2
+                    heavy = PhaseLabel.Liquid1
+                    Return acc.Phases(3).Properties.volumetric_flow.GetValueOrDefault
+                End If
+            End If
+            Return 0.0
+        End Function
+
+        ''' <summary>
+        ''' Builds the first content from the inlet with its liquid filling the vessel up to the Liquid
+        ''' Level property and its vapour filling the rest, at the inlet temperature and pressure.
+        ''' Returns False (and leaves the content alone) when the inlet carries no liquid.
+        ''' </summary>
+        Private Function BuildContentAtLevel(ims As MaterialStream, Vol As Double) As Boolean
+
+            Dim height As Double = GetDynamicProperty("Height")
+            If GetDynamicProperty("Get Height from Dimensions") Then height = Dimensions(1).Value
+            Dim level = DynamicDouble("Liquid Level", 0.0)
+            If height <= 0.0 OrElse level <= 0.0 OrElse Vol <= 0.0 Then Return False
+
+            Dim liq = ims.Phases(1)
+            Dim vap = ims.Phases(2)
+            If liq.Properties.molarfraction.GetValueOrDefault <= 0.0 Then Return False
+
+            Dim rhol = liq.Properties.density.GetValueOrDefault
+            Dim mwl = liq.Properties.molecularWeight.GetValueOrDefault
+            If rhol <= 0.0 OrElse mwl <= 0.0 Then Return False
+
+            Dim VL = Math.Min(0.98, level / height) * Vol
+            Dim nL = VL * rhol / mwl * 1000.0
+            Dim nV = 0.0
+            Dim names = ims.Phases(0).Compounds.Keys.ToList()
+            Dim y(names.Count - 1) As Double
+            If vap.Properties.molarfraction.GetValueOrDefault > 0.0 Then
+                Dim rhov = vap.Properties.density.GetValueOrDefault
+                Dim mwv = vap.Properties.molecularWeight.GetValueOrDefault
+                If rhov > 0.0 AndAlso mwv > 0.0 Then nV = (Vol - VL) * rhov / mwv * 1000.0
+                For i = 0 To names.Count - 1
+                    y(i) = vap.Compounds(names(i)).MoleFraction.GetValueOrDefault
+                Next
+            Else
+                'an all-liquid inlet leaves nothing for the gas space, and a drum with a third of liquid and
+                'the rest empty sits at the vapour pressure: blanket it with the vapour the liquid would
+                'first give off, at the inlet pressure (ideal gas)
+                Try
+                    Dim bub As MaterialStream = ims.CloneXML
+                    bub.PropertyPackage = PropertyPackage
+                    bub.PropertyPackage.CurrentMaterialStream = bub
+                    bub.SpecType = StreamSpec.Temperature_and_VaporFraction
+                    bub.Phases(2).Properties.molarfraction = 0.0001
+                    bub.Calculate()
+                    For i = 0 To names.Count - 1
+                        y(i) = bub.Phases(2).Compounds(names(i)).MoleFraction.GetValueOrDefault
+                    Next
+                    If y.Sum() > 0.0 Then nV = ims.GetPressure() * (Vol - VL) / (8.314 * ims.GetTemperature())
+                Catch ex As Exception
+                    nV = 0.0
+                End Try
+            End If
+
+            Dim z(names.Count - 1) As Double
+            For i = 0 To names.Count - 1
+                Dim x = liq.Compounds(names(i)).MoleFraction.GetValueOrDefault
+                z(i) = (nL * x + nV * y(i)) / (nL + nV)
+            Next
+
+            Dim acc As MaterialStream = ims.CloneXML
+            acc.SetOverallComposition(z)
+            acc.SetTemperature(ims.GetTemperature())
+            acc.SetPressure(ims.GetPressure())
+            acc.SetMolarFlow(nL + nV)
+            acc.SpecType = StreamSpec.Temperature_and_Pressure
+            acc.PropertyPackage = PropertyPackage
+            acc.PropertyPackage.CurrentMaterialStream = acc
+            acc.Calculate()
+            AccumulationStream = acc
+            Return True
+
+        End Function
 
         ''' <summary>A dynamic property as a number; the default when the file predates the property.</summary>
         Private Function DynamicDouble(name As String, defaultValue As Double) As Double

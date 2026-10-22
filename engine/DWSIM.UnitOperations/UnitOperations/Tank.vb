@@ -170,6 +170,7 @@ Namespace UnitOperations
             AddDynamicProperty("Ambient UA Product", "Overall heat transfer coefficient times area for ambient heat loss (W/K). Set to 0 to disable.", 0.0, UnitOfMeasure.none, 1.0.GetType())
             AddDynamicProperty("Operating Pressure", "Current operating pressure (read-only in open tank mode).", 101325.0, UnitOfMeasure.pressure, 1.0.GetType())
             AddDynamicProperty("Minimum Pressure", "Minimum dynamic pressure.", 101325.0, UnitOfMeasure.pressure, 1.0.GetType())
+            AddDynamicProperty("Initialize at Liquid Level", "With Initialize using Inlet Stream, fill the tank with the inlet liquid up to the Liquid Level instead of taking the inlet flow as the content", False, UnitOfMeasure.none, True.GetType())
 
         End Sub
 
@@ -218,6 +219,17 @@ Namespace UnitOperations
                     If InitializeFromInlet Then
 
                         AccumulationStream = ims.CloneXML
+
+                        'the inlet stream carries a flow, not an inventory: fill the tank up to the given level
+                        Dim atLevel = GetDynamicProperty("Initialize at Liquid Level")
+                        If atLevel IsNot Nothing AndAlso Convert.ToBoolean(atLevel) Then
+                            Dim level0 As Double = GetDynamicProperty("Liquid Level")
+                            Dim rho0 = ims.Phases(3).Properties.density.GetValueOrDefault
+                            If rho0 <= 0.0 Then rho0 = ims.Phases(0).Properties.density.GetValueOrDefault
+                            If Height > 0.0 AndAlso level0 > 0.0 AndAlso rho0 > 0.0 AndAlso Volume > 0.0 Then
+                                AccumulationStream.SetMassFlow(Math.Min(1.0, level0 / Height) * Volume * rho0)
+                            End If
+                        End If
 
                     Else
 

@@ -514,6 +514,24 @@ Namespace UnitOperations
             Me.POut = Pi + DeltaPdyn
             Me.DeltaQ = If(Wi > 0.0, Wi * 9.81 * head / eff / 1000.0, 0.0)
 
+            'Without a map the head above is the pressure rise over the suction density, which for a
+            'gas overstates the work (the gas gets denser as it is compressed). The shaft power is the
+            'isentropic enthalpy rise to the discharge pressure over the adiabatic efficiency, as at
+            'steady state.
+            If CalcMode <> CalculationMode.Curves AndAlso Wi > 0.0 AndAlso DeltaPdyn > 1.0 Then
+                Try
+                    Dim effAd = AdiabaticEfficiency / 100.0
+                    If effAd <= 0.0 Then effAd = eff
+                    PropertyPackage.CurrentMaterialStream = ims
+                    Dim ise = PropertyPackage.CalculateEquilibrium2(FlashCalculationType.PressureEntropy, Pi + DeltaPdyn,
+                                                                    ims.Phases(0).Properties.entropy.GetValueOrDefault, ims.GetTemperature())
+                    Dim dHs = ise.CalculatedEnthalpy - ims.GetMassEnthalpy()
+                    If Not Double.IsNaN(dHs) AndAlso dHs > 0.0 Then Me.DeltaQ = Wi * dHs / effAd
+                Catch ex As Exception
+                    'keep the head-based estimate
+                End Try
+            End If
+
             'an adiabatic machine puts all of its shaft power into the gas
             Dim H2 = ims.GetMassEnthalpy() + If(Wi > 0.0, Me.DeltaQ / Wi, 0.0)
 

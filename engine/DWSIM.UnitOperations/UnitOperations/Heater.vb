@@ -277,6 +277,7 @@ Namespace UnitOperations
             AddDynamicProperty("Ambient UA Product", "Overall heat transfer coefficient times area for ambient heat loss (W/K). Set to 0 to disable.", 0.0, UnitOfMeasure.none, 1.0.GetType())
             AddDynamicProperty("Wall Thermal Mass", "Product of wall mass and specific heat capacity (J/K). Set to 0 to disable wall dynamics.", 0.0, UnitOfMeasure.none, 1.0.GetType())
             AddDynamicProperty("Wall Temperature", "Current wall temperature (K). Used when wall thermal mass > 0.", 298.15, UnitOfMeasure.temperature, 1.0.GetType())
+            AddDynamicProperty(IncompressibleHoldup.PropertyName, IncompressibleHoldup.PropertyDescription, False, UnitOfMeasure.none, True.GetType())
 
         End Sub
 
@@ -437,7 +438,11 @@ Namespace UnitOperations
 
             'm3/mol
 
-            If M > 0 Then
+            If IncompressibleHoldup.Enabled(Me) AndAlso IncompressibleHoldup.TrySolve(Me, AccumulationStream, ims, oms, Vol, Pmin, timestep, Pressure) Then
+
+                'liquid-full: the mass that fills the volume, at the pressure the downstream valve needs
+
+            ElseIf M > 0 Then
 
                 prevM = currentM
 
