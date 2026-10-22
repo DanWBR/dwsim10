@@ -1,53 +1,5 @@
-﻿Version 10.2.12
+﻿Version 10.2.13
 
-- [NEW] Distillation Curves utility: TBP, ASTM D86, D1160, D2887 and equilibrium flash vaporization curves of any stream, with the flash point, cold flow points, densities at 15 and 20 C, kinematic viscosities, API gravity, Watson K and calculated cetane index (ASTM D4737); every point and property can be used in the spreadsheet, sensitivity studies and column secondary specifications
-- [NEW] Rigorous column: secondary specifications on product quality (a distillation curve point, flash point, density or any stream property of a product), each reached by moving the condenser specification, the reboiler specification or a side draw rate
-- [NEW] Case library: straight-run distillate fractionation with the distillation curves of each product checked against Jet A-1 and EN 590, and the same column converged on the kerosene and diesel D86 95 % points
-- [NEW] User guide, offline help and an advanced tutorial for the distillation curves and the column secondary specifications
-- [NEW] Anaerobic digester: Saturate Biogas with Water option, the biogas leaves at its water dew point and the heat of vaporization goes to the duty
-- [NEW] Pipe Network: a source can take its flow from the connected stream, so a flare fed by a splitter keeps the splitter's rate
-- [NEW] MCP server: reaction tools for conversion and equilibrium reactions, reaction sets and the compounds of a Gibbs reactor
-- [NEW] User guide and offline help: water-saturated biogas, metabolic heat of digestion, critical pressure of biomass compounds, network source fed by another unit and Spec blocks sharing an object
-- [NEW] Cross-platform pipe segment: pressure profile in the results and a profiles window with a chart of any variable and a table of every increment
-- [NEW] Divided-Wall Column (Plus, Level 2): wall in the middle, at the top or at the bottom, heat transfer through the wall, side draws, secondary specifications, shortcut design, wall split optimization, size, cost and life-cycle inventory
-- [NEW] Divided-Wall Column samples and advanced tutorial
-- [CHG] Each column lists only the external solvers that take it
-- [CHG] Classic stream editor: the Attach Utility menu also offers Distillation Curves and Vessel Depressurization
-- [CHG] Cross-platform tables and charts on the flowsheet: Copy Data to Clipboard, as in the Windows interface
-- [CHG] Natural Gas Processing Unit sample: demethanizer loop tolerances of 1e-4 and up to 500 iterations
-- [CHG] Anaerobic digester: default metabolic heat of -500 J/g COD for new digesters (was -3500)
-- [CHG] Conversion, equilibrium and Gibbs reactors: calculation mode, conversions, extents and Gibbs energies available as read-only properties
-- [FIX] Bubble-point column solver accepted wide-boiling columns whose stages were up to 1.5 % off their bubble points; the Natural Gas Processing Unit demethanizer now converges at -12.9 C in 3 s
-- [FIX] ChemSep CAPE-OPEN package could fail to return the vapour thermal conductivity above atmospheric pressure
-- [FIX] Petroleum cold flow utility: D86 and TBP 10 % temperatures always 0 in the Windows form, dynamic viscosities shown with a kinematic unit, and the stream left modified after the calculation
-- [FIX] Pseudocomponents created from scripts had no viscosity data (a kerosene came out at 384 cSt)
-- [FIX] A depressurization study attached to a stream on Windows was lost when the simulation was opened without the Windows interface
-- [FIX] Offline help: links to sections, figures, tables and equations on other pages went nowhere and showed numbers that did not appear in the help
-- [FIX] Immiscible water option: the water in the vapour stayed at its saturation value when the gas could take all of it, so the vapour fractions added up to more than 1 (a wet syngas compressor at 113 C and 2.3 kW against 162 C and 3.9 kW)
-- [FIX] CAPE-OPEN packages whose liquid phase is not called "Liquid": wrong heat duty in a Cooler and other units using the package's flash
-- [FIX] Biomass Compound Creator: a critical pressure of 3.2 bar made a slurry carrying the compound flash its water to vapour with Peng-Robinson; it now follows from the molar volume
-- [FIX] Spec blocks: when two blocks read the same object, only the one created last ran
-- [FIX] Sum Rates column solver ignored stage efficiencies below 1
-- [FIX] Conversion reactor: two identical parallel reactions added the heat of conversions that cancelled out (-14.9 kW for a duty of -1.4 kW)
-- [FIX] Gibbs reactor could return full conversion of the water-gas shift at 700 K, reported on Linux
-- [FIX] Cross-platform tables: the text of a numeric cell was rewritten while typing
-- [FIX] MCP server: a stream composition was applied as compound mass flows and replaced the total flow
-- [FIX] MCP server: reactor results came back with internal codes as labels and without conversions or extents
-- [FIX] Flowsheet spreadsheet: formulas and numbers were stored with the separators of the saving computer and could be misread on a computer with another decimal separator
-- [FIX] Nested Loops bubble point discarded a converged answer and could return the other root, 80 K away for a CO2 liquid with dissolved hydrogen (issue 97, contributed by Jan Boshoff)
-- [FIX] PT flash took a stream near its dew point as all vapour without checking the equation of state (issue 100)
-- [FIX] Enthalpy flash accepted a narrow temperature bracket before reaching the enthalpy tolerance
-- [FIX] CAPE-OPEN 1.0 packages: phase properties without the package's phase names, fugacity coefficients left at zero and the last listed property skipped
-- [FIX] Cross-platform spreadsheet: Import Data wrote GETPROPVAL with ";" separators, blank on comma-separator computers and dropped on save (issue 101)
-- [FIX] Cross-platform column editor: the top pressure set stage 1 only and the other stages stayed at 1 atm (issue 96)
-- [FIX] Bubble-point column solver: bottoms rate search outside the feed with reboiler specifications, and the reboiler fraction of another compound reported
-- [FIX] Naphtali-Sandholm: reboiler component fraction read on the wrong basis and feed recovery without the reboiler target
-- [FIX] Liquid-liquid extractor counted the extract twice; the Liquid-Liquid Extraction and Biodiesel Production samples converge
-- [FIX] Flowsheet unit operation could not find its sub-flowsheet when the simulation was opened from scripts
-- [FIX] Cross-platform interface: CAPE-OPEN property packages and package managers could not be selected (issue 104)
-- [FIX] Cross-platform Python Script: input variables could not be added, removed, renamed or edited (issue 103)
-- [FIX] Cross-platform flowsheet: Delete, Backspace and Ctrl+C/V/A in an editor field also acted on flowsheet objects
-- [FIX] DWSIM MCP Debian package failed to install with exit status 127 (issue 102)
-- [FIX] Pipe wall material saved in another interface language stopped the calculation (invalid thermal conductivity expression) or was taken with zero roughness
-- [FIX] Advanced Heat Exchanger: shell, tube, baffle, fouling, nozzle and kettle data were not saved and came back with their default values
-- [FIX] Cross-platform unit operation editors: the dynamic properties (tank height, liquid level, ...) could not be set
+- [FIX] Distillation Curves: a compound present only as a trace (a heavy cut carried into a side draw) set the end of the TBP curve and moved the TBP and D86 95 % points by several degrees
+- [FIX] Distillation Curves: the D86 curve applied the 90-95 % segment of API procedure 3A1.1 to the 90-100 % span of the TBP curve; the D86 95 % point now comes from the procedure and the end point is extrapolated from the 90-95 % slope
+- [IMP] Case library, user guide and advanced tutorial: the column secondary specification example follows the corrected D86 curves

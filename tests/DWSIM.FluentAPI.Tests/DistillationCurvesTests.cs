@@ -209,6 +209,40 @@ namespace DWSIM.FluentAPI.Tests
         }
 
         [Test]
+        public void ATraceOfAHeavyCompoundDoesNotMoveThe95PercentPoints()
+        {
+            // issue 117: a C9-C16 n-paraffin cut, equal moles, with n-eicosane at a trace mole fraction
+            var cut = new[] { "N-nonane", "N-decane", "N-undecane", "N-dodecane", "N-tridecane", "N-tetradecane", "N-pentadecane", "N-hexadecane" };
+            var fs = Flowsheet.Create("DistCurvesTrace");
+            foreach (var c in cut) fs = fs.WithCompound(c);
+            fs = fs.WithCompound("N-eicosane").WithPropertyPackage(PropertyPackages.PengRobinson);
+
+            var traces = new[] { 0.0, 1e-15, 1e-9, 1e-6, 1e-3 };
+            var streams = traces.Select((tr, k) => fs.AddMaterialStream("s" + k)
+                .At(298.15.Kelvin(), 101325.0.Pascal())
+                .WithMolarFlow(1.MolPerSecond())
+                .WithComposition(c => { foreach (var n in cut) c.Mole(n, (1 - tr) / cut.Length); c.Mole("N-eicosane", tr); })).ToArray();
+            fs.Solve();
+
+            var tbp95 = new double[traces.Length];
+            var d86_95 = new double[traces.Length];
+            for (int k = 0; k < traces.Length; k++)
+            {
+                var res = DistillationCurves.Calculate(streams[k].Object);
+                tbp95[k] = res.Curves[DistillationCurveType.TBP].TemperatureAt(95) - 273.15;
+                d86_95[k] = res.Curves[DistillationCurveType.ASTM_D86].TemperatureAt(95) - 273.15;
+                Console.WriteLine($"{traces[k]:g}: TBP 95 % {tbp95[k]:F2} C, D86 95 % {d86_95[k]:F2} C");
+            }
+            for (int k = 1; k < 4; k++)
+            {
+                Assert.That(tbp95[k], Is.EqualTo(tbp95[0]).Within(0.01), $"TBP 95 % at {traces[k]:g}");
+                Assert.That(d86_95[k], Is.EqualTo(d86_95[0]).Within(0.01), $"D86 95 % at {traces[k]:g}");
+            }
+            Assert.That(tbp95[4] - tbp95[0], Is.InRange(0.0, 1.0), "TBP 95 % at 1e-3");
+            Assert.That(d86_95[4] - d86_95[0], Is.InRange(0.0, 1.0), "D86 95 % at 1e-3");
+        }
+
+        [Test]
         public void TheAttachedUtilityExposesTheCurvePointsAndSurvivesASave()
         {
             var fs = Flowsheet.Create("DistCurvesUtility")

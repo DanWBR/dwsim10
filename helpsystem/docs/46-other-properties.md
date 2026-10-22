@@ -291,7 +291,15 @@ v_{i}=\frac{x_{i}M_{i}/\rho_{i}^{60}}{\sum_{k}x_{k}M_{k}/\rho_{k}^{60}}
 \]
 
 
-where $\rho_{i}^{60}$ is the standard liquid density of the compound at 60°F (from its specific gravity for a pseudocomponent). With the cumulative fraction $V_{i}=\sum_{k\le i}v_{k}$, compound $i$ gives the point $\left(100\,(V_{i}-v_{i}/2),\;T_{b,i}\right)$, and the curve passes through these points by monotone cubic (Fritsch-Carlson) interpolation, extrapolated linearly to 0 and 100 %. Traces of compounds that fall on the same percent are merged into one point. A stream cut from an assay with several pseudocomponents gives back the assay’s TBP curve; a stream with few compounds gives a coarse curve, and the traces of light or heavy cuts in a side draw show up at the ends of its TBP curve.
+where $\rho_{i}^{60}$ is the standard liquid density of the compound at 60°F (from its specific gravity for a pseudocomponent). With the cumulative fraction $V_{i}=\sum_{k\le i}v_{k}$, compound $i$ gives the point $\left(100\,(V_{i}-v_{i}/2),\;T_{b,i}\right)$, and the curve passes through these points by monotone cubic (Fritsch-Carlson) interpolation, extrapolated linearly to 0 and 100 %. Traces of compounds that fall on the same percent are merged into one point. A compound whose share is much smaller than its neighbour’s would set the end of the curve on its own: the curve would run from the neighbour’s point to the trace’s boiling point across half of the neighbour’s share, and a heavy compound at a mole fraction of $10^{-15}$ would move the 95 % point by several degrees. Going outward from the compound with the largest share, a point whose half share $h_{i}$ is less than a tenth of the half share $h_{a}$ of its inner neighbour is drawn toward the temperature $T_{ref}$ of the straight line through the two points inside it,
+
+
+\[
+T_{i}=T_{ref}+\left(\frac{h_{i}}{0.1\,h_{a}}\right)^{2}\left(T_{b,i}-T_{ref}\right)
+\]
+
+
+so a trace leaves the curve as it vanishes from the stream, and a curve point used as a column secondary specification changes smoothly with the column’s variables. A stream cut from an assay with several pseudocomponents gives back the assay’s TBP curve; a stream with few compounds gives a coarse curve.
 
 ##### ASTM D86
 
@@ -303,7 +311,7 @@ T_{50}^{TBP}=0.87180\,\left(T_{50}^{D86}\right)^{1.0258}
 \]
 
 
-(temperatures in °F), and each segment of the curve by $\Delta T^{TBP}=A\,\left(\Delta T^{D86}\right)^{B}$, with the coefficients of Table [1](#tab:d86-tbp). Inverting the power law gives the D86 segments. A D86 segment is never wider than its TBP segment: past that point the inverted power law runs away (a few light ends in a side draw place the TBP initial boiling point far below its 10 % point), so each D86 segment is limited to the TBP segment it comes from.
+(temperatures in °F), and each segment of the curve by $\Delta T^{TBP}=A\,\left(\Delta T^{D86}\right)^{B}$, with the coefficients of Table [1](#tab:d86-tbp). Inverting the power law gives the D86 segments. The procedure ends at 95 %: its last segment is 90–95 %, so it is applied to the TBP 95 % point, and the D86 curve past 95 % is extrapolated with the slope of that segment. The Riazi-Daubert EFV correlation, which works on the D86 points up to 100 %, takes the extrapolated end point. A D86 segment is never wider than its TBP segment: past that point the inverted power law runs away (a few light ends in a side draw place the TBP initial boiling point far below its 10 % point), so each D86 segment is limited to the TBP segment it comes from.
 
 
 
@@ -313,7 +321,7 @@ T_{50}^{TBP}=0.87180\,\left(T_{50}^{D86}\right)^{1.0258}
 
 | Segment (vol %) |  $A$  |  $B$  |
 |:----------------|:-------:|:-------:|
-| 100–90          | 0.11798 | 1.6606  |
+| 95–90           | 0.11798 | 1.6606  |
 | 90–70           | 3.0419  | 0.75497 |
 | 70–50           | 2.5282  | 0.82002 |
 | 50–30           | 3.0305  | 0.80076 |

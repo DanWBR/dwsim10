@@ -1533,7 +1533,7 @@ The condenser and reboiler specifications fix quantities of the column itself: r
 
 **Automation:** the fluent API adds a specification with `WithSecondarySpec` on the distillation column builder (target and tolerance in SI units).
 
-**Example:** on an atmospheric crude tower with kerosene and diesel side draws, the specifications kerosene D86 95 % = 274 °C and diesel D86 95 % = 374 °C, moving the two side draw rates, converge in 2 iterations and 6 column solves.
+**Example:** on an atmospheric crude tower with kerosene and diesel side draws, the specifications kerosene D86 95 % = 259 °C and diesel D86 95 % = 377 °C, moving the two side draw rates, converge in 3 iterations and 7 column solves.
 
 ##### Physical Dimensions
 

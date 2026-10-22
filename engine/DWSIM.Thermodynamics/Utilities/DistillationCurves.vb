@@ -144,10 +144,13 @@ Namespace Utilities.PetroleumProperties
     ''' The TBP curve comes from the compounds themselves: each compound occupies its share of the
     ''' stream on the chosen basis, its normal boiling point sits at the middle of that share, and a
     ''' monotone interpolation joins the points. A stream of pseudocomponents cut from a TBP curve
-    ''' therefore returns that curve. The ASTM curves are converted from the TBP curve on a liquid
-    ''' volume basis with the API Technical Data Book procedures: 3A1.1 for D86, 3A3.1 for D2887 and
-    ''' figure 3A2.1 with procedure 5A1.19 for D1160. The EFV curve is either flashed with the stream's
-    ''' property package or converted from D86 with the Riazi-Daubert correlation.
+    ''' therefore returns that curve. A compound whose share is much smaller than its neighbour's
+    ''' (a trace) is drawn toward the curve of the others, so traces do not set the ends of the curve.
+    ''' The ASTM curves are converted from the TBP curve on a liquid volume basis with the API
+    ''' Technical Data Book procedures: 3A1.1 for D86 (up to 95 %, extrapolated past it with the
+    ''' 90-95 % slope), 3A3.1 for D2887 and figure 3A2.1 with procedure 5A1.19 for D1160. The EFV
+    ''' curve is either flashed with the stream's property package or converted from D86 with the
+    ''' Riazi-Daubert correlation.
     ''' </remarks>
     Public Class DistillationCurves
 
@@ -158,7 +161,9 @@ Namespace Utilities.PetroleumProperties
         Public Const WaterDensity60F As Double = 999.016
 
         ''' <summary>The points the API conversions work on, in percent distilled.</summary>
-        Private Shared ReadOnly D86Points As Double() = {0, 10, 30, 50, 70, 90, 100}
+        Private Shared ReadOnly ConversionPoints As Double() = {0, 10, 30, 50, 70, 90, 100}
+        ''' <summary>Procedure 3A1.1 ends at 95 %: its last segment is 90-95 %.</summary>
+        Private Shared ReadOnly D86Points As Double() = {0, 10, 30, 50, 70, 90, 95}
         Private Shared ReadOnly D2887Points As Double() = {5, 10, 30, 50, 70, 90, 95, 100}
 
         Private Const Patm As Double = 101325
@@ -217,7 +222,8 @@ Namespace Utilities.PetroleumProperties
                 Next
 
                 ' TBP on liquid volume, used by all the conversions
-                Dim tbpv = TBPFromComposition(nbp, vol, D86Points)
+                Dim tbpv = TBPFromComposition(nbp, vol, ConversionPoints)
+                Dim tbpv86 = TBPFromComposition(nbp, vol, D86Points)
                 Dim tbpv8 = TBPFromComposition(nbp, vol, D2887Points)
 
                 Dim tbpAmounts As Double()
@@ -249,7 +255,8 @@ Namespace Utilities.PetroleumProperties
                 props.WatsonK = (1.8 * props.MeanAverageBoilingPoint) ^ (1 / 3) / props.SpecificGravity
 
                 ' ASTM D86
-                Dim d86 = DistillationCurveConversion.TBPToASTMD86_Daubert(tbpv)
+                ' the last pair of 3A1.1 coefficients is the 90-95 % segment, so it is fed the TBP 95 % point
+                Dim d86 = DistillationCurveConversion.TBPToASTMD86_Daubert(tbpv86)
                 res.Curves(DistillationCurveType.ASTM_D86) = New DistillationCurve With {
                     .CurveType = DistillationCurveType.ASTM_D86, .Basis = DistillationCurveBasis.LiquidVolume, .Pressure = Patm,
                     .Percents = settings.Percents.ToArray(),
@@ -282,7 +289,7 @@ Namespace Utilities.PetroleumProperties
                 res.Curves(DistillationCurveType.ASTM_D1160) = New DistillationCurve With {
                     .CurveType = DistillationCurveType.ASTM_D1160, .Basis = DistillationCurveBasis.LiquidVolume, .Pressure = settings.D1160Pressure,
                     .Percents = settings.Percents.ToArray(),
-                    .Temperatures = settings.Percents.Select(Function(p) InterpolateMonotone(D86Points, d1160, p)).ToArray()}
+                    .Temperatures = settings.Percents.Select(Function(p) InterpolateMonotone(ConversionPoints, d1160, p)).ToArray()}
 
                 ' EFV
                 Dim efv As DistillationCurve = Nothing
@@ -294,14 +301,16 @@ Namespace Utilities.PetroleumProperties
                     End Try
                 End If
                 If efv Is Nothing Then
-                    Dim efv7 = DistillationCurveConversion.ASTMD86ToEFV_RiaziDaubert(d86, props.SpecificGravity)
+                    ' Riazi-Daubert works on the D86 points at 0 to 100 %
+                    Dim d86to100 = d86.Take(6).Concat({d86(6) + (d86(6) - d86(5))}).ToArray()
+                    Dim efv7 = DistillationCurveConversion.ASTMD86ToEFV_RiaziDaubert(d86to100, props.SpecificGravity)
                     If Abs(settings.EFVPressure - Patm) > 1.0 Then
                         efv7 = efv7.Select(Function(t) DistillationCurveConversion.PEVToPEVsub_MaxwellBonnel(t, settings.EFVPressure, kw)).ToArray()
                     End If
                     efv = New DistillationCurve With {
                         .CurveType = DistillationCurveType.EFV, .Basis = DistillationCurveBasis.LiquidVolume, .Pressure = settings.EFVPressure,
                         .Percents = settings.Percents.ToArray(),
-                        .Temperatures = settings.Percents.Select(Function(p) InterpolateMonotone(D86Points, efv7, p)).ToArray()}
+                        .Temperatures = settings.Percents.Select(Function(p) InterpolateMonotone(ConversionPoints, efv7, p)).ToArray()}
                 End If
                 res.Curves(DistillationCurveType.EFV) = efv
 
@@ -357,7 +366,7 @@ Namespace Utilities.PetroleumProperties
             If items.Count = 0 Then Throw New ArgumentException("The stream has no composition.")
 
             Dim total = items.Sum(Function(it) it.A)
-            Dim x As New List(Of Double), y As New List(Of Double)
+            Dim x As New List(Of Double), y As New List(Of Double), h As New List(Of Double)
             Dim cum = 0.0
             For Each it In items
                 Dim xm = 100 * (cum + it.A / 2) / total
@@ -365,11 +374,34 @@ Namespace Utilities.PetroleumProperties
                 ' traces share the percent of their neighbour: keep one point per percent
                 If x.Count > 0 AndAlso xm - x(x.Count - 1) < 0.000000001 Then
                     y(y.Count - 1) = it.T
+                    h(h.Count - 1) += 50 * it.A / total
                     Continue For
                 End If
                 x.Add(xm)
                 y.Add(it.T)
+                h.Add(50 * it.A / total)
             Next
+
+            ' A point stands for the band of its compound, and a trace's band is tiny: left as it is, the
+            ' curve would run from its neighbour's point to the trace's boiling point over the neighbour's
+            ' half band. Going outward from the widest band, a point whose half band is less than a tenth
+            ' of its inner neighbour's is drawn toward the line through the two points inside it, with a
+            ' weight that goes to zero with the square of that ratio, so a trace leaves the curve as it
+            ' vanishes from the stream.
+            Dim n = x.Count
+            If n > 2 Then
+                Const ratio As Double = 0.1
+                Dim pull = Sub(i As Integer, a As Integer, b As Integer)
+                               Dim r = h(i) / h(a)
+                               If r >= ratio Then Return
+                               Dim tref = y(a)
+                               If b >= 0 AndAlso b < n Then tref += (y(a) - y(b)) / (x(a) - x(b)) * (x(i) - x(a))
+                               y(i) = tref + (r / ratio) ^ 2 * (y(i) - tref)
+                           End Sub
+                Dim k = Enumerable.Range(0, n).OrderByDescending(Function(i) h(i)).First()
+                For i = k + 1 To n - 1 : pull(i, i - 1, i - 2) : Next
+                For i = k - 1 To 0 Step -1 : pull(i, i + 1, i + 2) : Next
+            End If
 
             Return percents.Select(Function(p) InterpolateMonotone(x.ToArray(), y.ToArray(), p)).ToArray()
 

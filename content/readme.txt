@@ -39,6 +39,12 @@ VERSION HISTORY / CHANGELOG
 
 The full changelog including souce code changes can be viewed at https://github.com/DanWBR/dwsim10/commits/windows
 
+Version 10.2.13
+
+- [FIX] Distillation Curves: a compound present only as a trace (a heavy cut carried into a side draw) set the end of the TBP curve and moved the TBP and D86 95 % points by several degrees
+- [FIX] Distillation Curves: the D86 curve applied the 90-95 % segment of API procedure 3A1.1 to the 90-100 % span of the TBP curve; the D86 95 % point now comes from the procedure and the end point is extrapolated from the 90-95 % slope
+- [IMP] Case library, user guide and advanced tutorial: the column secondary specification example follows the corrected D86 curves
+
 Version 10.2.12
 
 - [NEW] Distillation Curves utility: TBP, ASTM D86, D1160, D2887 and equilibrium flash vaporization curves of any stream, with the flash point, cold flow points, densities at 15 and 20 C, kinematic viscosities, API gravity, Watson K and calculated cetane index (ASTM D4737); every point and property can be used in the spreadsheet, sensitivity studies and column secondary specifications

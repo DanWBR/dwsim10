@@ -168,13 +168,13 @@ namespace DWSIM.FluentAPI.Tests
             // a kerosene end point 4 C heavier and a diesel end point 4 C lighter, each moved by its own draw
             var sk = new SecSpec
             {
-                Name = "Kerosene D86 95%", ProductStreamID = u.Kerosene.Object.Name, PropertyName = "D86 95%", TargetValue = 274.0 + 273.15,
+                Name = "Kerosene D86 95%", ProductStreamID = u.Kerosene.Object.Name, PropertyName = "D86 95%", TargetValue = 259.0 + 273.15,
                 ManipulatedVariable = SecSpec.ManipulatedVariableType.SideDrawRate, ManipulatedStreamID = u.Kerosene.Object.Name,
                 Tolerance = 0.2, MinValue = 0.5 * k0, MaxValue = 1.5 * k0
             };
             var sg = new SecSpec
             {
-                Name = "Diesel D86 95%", ProductStreamID = u.Diesel.Object.Name, PropertyName = "D86 95%", TargetValue = 374.0 + 273.15,
+                Name = "Diesel D86 95%", ProductStreamID = u.Diesel.Object.Name, PropertyName = "D86 95%", TargetValue = 377.0 + 273.15,
                 ManipulatedVariable = SecSpec.ManipulatedVariableType.SideDrawRate, ManipulatedStreamID = u.Diesel.Object.Name,
                 Tolerance = 0.2, MinValue = 0.5 * g0, MaxValue = 1.5 * g0
             };
