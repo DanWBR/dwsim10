@@ -1,10 +1,12 @@
 ﻿using System;
+using System.Collections.Generic;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
+using Avalonia.Threading;
 using SkiaSharp;
 
 namespace DWSIM.UI.Shared.Avalonia;
@@ -31,6 +33,9 @@ namespace DWSIM.UI.Shared.Avalonia;
 public class FlowsheetCanvas : Control
 {
     private WriteableBitmap? _bitmap;
+    // Android and iOS draw through OpenGL ES / Metal, which do not take a BGRA bitmap as a texture: the
+    // image never reaches the screen. They get RGBA.
+    private static readonly bool Mobile = OperatingSystem.IsAndroid() || OperatingSystem.IsIOS();
     private MouseButton _lastPressButton;
 
     // -------------------------------------------------------------------------
@@ -50,6 +55,34 @@ public class FlowsheetCanvas : Control
 
     /// <summary>Fired when a palette item is dropped onto the canvas. Args: (itemName, deviceX, deviceY).</summary>
     public event Action<string, int, int>? PaletteItemDropped;
+
+    // -------------------------------------------------------------------------
+    // Touch. A touch screen has no right button, wheel or modifier keys: a long press stands for the
+    // right-click, two fingers pinch to zoom, and a one-finger drag reports TouchModifiers. Mouse and
+    // pen input never reach any of this.
+    // -------------------------------------------------------------------------
+
+    /// <summary>Fired when a finger is held still on the canvas: the touch right-click. Args: (deviceX, deviceY).
+    /// The press has already selected the object under the finger.</summary>
+    public event Action<int, int>? InputLongPress;
+
+    /// <summary>Fired as two fingers pinch. Args: (factor since the last report, deviceX, deviceY of their centre).</summary>
+    public event Action<double, int, int>? PinchZoomed;
+
+    /// <summary>
+    /// The modifier keys a one-finger touch reports to <see cref="KeyboardStateSink"/>. A host whose
+    /// surface multi-selects sets Shift, so a drag over empty space moves the view as a Shift-drag does
+    /// with the mouse, instead of drawing a selection rectangle under the finger.
+    /// </summary>
+    public KeyModifiers TouchModifiers { get; set; }
+
+    private const int LongPressMs = 600;
+    private const double TouchSlop = 10;
+    private readonly Dictionary<IPointer, Point> _touches = new();
+    private Point _touchStart;
+    private DispatcherTimer? _holdTimer;
+    private bool _touchHeld, _pinching;
+    private double _pinchSpan;
 
     // -------------------------------------------------------------------------
     // Constructor
@@ -102,8 +135,10 @@ public class FlowsheetCanvas : Control
         if (logW <= 0 || logH <= 0) return;
 
         var dpiScale = GetDpiScale();
-        var devW = (int)(logW * dpiScale * dpiScale);
-        var devH = (int)(logH * dpiScale * dpiScale);
+        // A phone's scaling is 2 to 3, and squared that is a bitmap of 4 to 9 times the screen. On mobile
+        // the bitmap is the screen's own pixels, which is also where the input coordinates point.
+        var devW = (int)(logW * dpiScale * (Mobile ? 1 : dpiScale));
+        var devH = (int)(logH * dpiScale * (Mobile ? 1 : dpiScale));
         if (devW <= 0 || devH <= 0) return;
 
         // Create bitmap at device-pixel resolution for crisp rendering
@@ -114,14 +149,14 @@ public class FlowsheetCanvas : Control
             _bitmap?.Dispose();
             _bitmap = new WriteableBitmap(
                 new PixelSize(devW, devH),
-                new Vector(96 * dpiScale, 96 * dpiScale),
-                PixelFormats.Bgra8888,
+                Mobile ? new Vector(96, 96) : new Vector(96 * dpiScale, 96 * dpiScale),
+                Mobile ? PixelFormats.Rgba8888 : PixelFormats.Bgra8888,
                 AlphaFormat.Premul);
         }
 
         using (var fb = _bitmap.Lock())
         {
-            var info = new SKImageInfo(devW, devH, SKColorType.Bgra8888, SKAlphaType.Premul);
+            var info = new SKImageInfo(devW, devH, Mobile ? SKColorType.Rgba8888 : SKColorType.Bgra8888, SKAlphaType.Premul);
             using var surface = SKSurface.Create(info, fb.Address, fb.RowBytes);
 
             if (PaintCallback != null)
@@ -172,6 +207,11 @@ public class FlowsheetCanvas : Control
 
     private void OnPointerPressed(object? sender, PointerPressedEventArgs e)
     {
+        if (e.Pointer.Type == PointerType.Touch)
+        {
+            OnTouchPressed(e);
+            return;
+        }
         Focus();
         UpdateKeyboardState(e.KeyModifiers);
         var (px, py) = DevicePt(e.GetPosition(this));
@@ -196,6 +236,11 @@ public class FlowsheetCanvas : Control
 
     private void OnPointerReleased(object? sender, PointerReleasedEventArgs e)
     {
+        if (e.Pointer.Type == PointerType.Touch)
+        {
+            OnTouchReleased(e);
+            return;
+        }
         UpdateKeyboardState(e.KeyModifiers);
 
         if (e.InitialPressMouseButton == MouseButton.Left)
@@ -213,6 +258,11 @@ public class FlowsheetCanvas : Control
 
     private void OnPointerMoved(object? sender, PointerEventArgs e)
     {
+        if (e.Pointer.Type == PointerType.Touch)
+        {
+            OnTouchMoved(e);
+            return;
+        }
         UpdateKeyboardState(e.KeyModifiers);
         var (px, py) = DevicePt(e.GetPosition(this));
         InputMoveCallback?.Invoke(px, py);
@@ -233,6 +283,127 @@ public class FlowsheetCanvas : Control
             (mods & global::Avalonia.Input.KeyModifiers.Shift) != 0,
             (mods & global::Avalonia.Input.KeyModifiers.Control) != 0,
             (mods & global::Avalonia.Input.KeyModifiers.Alt) != 0);
+    }
+
+    private void OnTouchPressed(PointerPressedEventArgs e)
+    {
+        var at = e.GetPosition(this);
+        _touches[e.Pointer] = at;
+        e.Pointer.Capture(this);
+        e.Handled = true;
+
+        if (_touches.Count == 2)
+        {
+            // the second finger turns the gesture into a pinch: whatever the first one started ends here
+            CancelHold();
+            if (!_touchHeld && !_pinching) InputReleaseCallback?.Invoke();
+            _pinching = true;
+            _pinchSpan = Span();
+            InvalidateVisual();
+            return;
+        }
+        if (_touches.Count > 2) return;
+
+        _touchStart = at;
+        _touchHeld = false;
+        _pinching = false;
+        UpdateKeyboardState(TouchModifiers);
+        var (px, py) = DevicePt(at);
+        InputPressCallback?.Invoke(px, py);
+        InvalidateVisual();
+
+        _holdTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(LongPressMs) };
+        _holdTimer.Tick += (_, _) =>
+        {
+            CancelHold();
+            _touchHeld = true;
+            // ends the press where it is, so the finger moving afterwards drags nothing
+            InputReleaseCallback?.Invoke();
+            InvalidateVisual();
+            var (hx, hy) = DevicePt(_touchStart);
+            InputLongPress?.Invoke(hx, hy);
+        };
+        _holdTimer.Start();
+    }
+
+    private void OnTouchMoved(PointerEventArgs e)
+    {
+        if (!_touches.ContainsKey(e.Pointer)) return;
+        var at = e.GetPosition(this);
+        _touches[e.Pointer] = at;
+        e.Handled = true;
+
+        if (_pinching)
+        {
+            if (_touches.Count < 2) return;
+            var span = Span();
+            if (_pinchSpan > 1 && span > 1)
+            {
+                var c = Centre();
+                var (cx, cy) = DevicePt(c);
+                PinchZoomed?.Invoke(span / _pinchSpan, cx, cy);
+                InvalidateVisual();
+            }
+            _pinchSpan = span;
+            return;
+        }
+        if (_touchHeld) return;
+
+        if (_holdTimer != null)
+        {
+            var d = at - _touchStart;
+            if (Math.Sqrt(d.X * d.X + d.Y * d.Y) < TouchSlop) return;
+            CancelHold();
+        }
+        var (px, py) = DevicePt(at);
+        InputMoveCallback?.Invoke(px, py);
+        InvalidateVisual();
+    }
+
+    private void OnTouchReleased(PointerReleasedEventArgs e)
+    {
+        if (!_touches.Remove(e.Pointer)) return;
+        e.Pointer.Capture(null);
+        e.Handled = true;
+
+        if (_pinching)
+        {
+            // the gesture stays a pinch until the last finger lifts
+            if (_touches.Count == 0) _pinching = false;
+            return;
+        }
+        CancelHold();
+        if (!_touchHeld)
+        {
+            InputReleaseCallback?.Invoke();
+            InputReleased?.Invoke(this, EventArgs.Empty);
+        }
+        _touchHeld = false;
+        UpdateKeyboardState(KeyModifiers.None);
+        InvalidateVisual();
+    }
+
+    private void CancelHold()
+    {
+        _holdTimer?.Stop();
+        _holdTimer = null;
+    }
+
+    private double Span()
+    {
+        var e = _touches.Values.GetEnumerator();
+        e.MoveNext(); var a = e.Current;
+        e.MoveNext(); var b = e.Current;
+        var d = a - b;
+        return Math.Sqrt(d.X * d.X + d.Y * d.Y);
+    }
+
+    private Point Centre()
+    {
+        var e = _touches.Values.GetEnumerator();
+        e.MoveNext(); var a = e.Current;
+        e.MoveNext(); var b = e.Current;
+        return new Point((a.X + b.X) / 2, (a.Y + b.Y) / 2);
     }
 
     private void OnDoubleTapped(object? sender, TappedEventArgs e)
