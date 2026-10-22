@@ -458,6 +458,8 @@ Namespace UnitOperations
         ''' makes at that flow and at the speed it is turning at. In Curves mode the head comes from
         ''' the map, and otherwise from the flow conductance scaled by the square of the speed ratio.
         ''' </summary>
+        <Xml.Serialization.XmlIgnore> <NonSerialized> Private LastInletDensity As Double = 0.0
+
         Private Sub RunDynamicModelAsPressureFlowElement(currentSpeed As Double)
 
             Dim ims As MaterialStream = Me.GetInletMaterialStream(0)
@@ -468,10 +470,20 @@ Namespace UnitOperations
             Dim Wi = ims.GetMassFlow()
             Dim Pi = ims.GetPressure()
             Dim rho = ims.Phases(0).Properties.density.GetValueOrDefault
+            'on the steps between two equilibrium calculations the inlet may carry no density: keep the last one,
+            'or the head comes out NaN and so does the outlet enthalpy
+            If rho > 0.0 AndAlso Not Double.IsNaN(rho) Then
+                LastInletDensity = rho
+            ElseIf LastInletDensity > 0.0 Then
+                rho = LastInletDensity
+            End If
 
             Dim head As Double = Double.NaN
             ' the efficiency that goes with the head of the selected process path
             Dim eff As Double = If(ProcessPath = ProcessPathType.Polytropic, PolytropicEfficiency, AdiabaticEfficiency) / 100.0
+            ' the shaft power comes from the map only when the map gives it
+            Dim powerFromMap As Boolean = False
+            Dim effFromMap As Boolean = False
 
             If CalcMode = CalculationMode.Curves AndAlso rho > 0.0 AndAlso Wi > 0.0 Then
                 Try
@@ -482,11 +494,13 @@ Namespace UnitOperations
                     ElseIf Not Double.IsNaN(mappower) Then
                         head = mappower * 1000.0 / Wi / 9.8
                     End If
+                    powerFromMap = Not Double.IsNaN(mappower)
                     If Not Double.IsNaN(head) Then
                         CurveHead = head
                         CurveFlow = Wi / rho
                         If Not Double.IsNaN(mapeff) AndAlso mapeff > 0.0 Then
                             eff = mapeff
+                            effFromMap = True
                             CurveEff = mapeff * 100
                         End If
                     End If
@@ -518,9 +532,11 @@ Namespace UnitOperations
             'gas overstates the work (the gas gets denser as it is compressed). The shaft power is the
             'isentropic enthalpy rise to the discharge pressure over the adiabatic efficiency, as at
             'steady state.
-            If CalcMode <> CalculationMode.Curves AndAlso Wi > 0.0 AndAlso DeltaPdyn > 1.0 Then
+            'A head map without a power curve is read the same way: the pressure rise it gives is the
+            'head times the suction density, so the power is again the isentropic rise over the efficiency.
+            If Not powerFromMap AndAlso Wi > 0.0 AndAlso DeltaPdyn > 1.0 Then
                 Try
-                    Dim effAd = AdiabaticEfficiency / 100.0
+                    Dim effAd = If(effFromMap, eff, AdiabaticEfficiency / 100.0)
                     If effAd <= 0.0 Then effAd = eff
                     PropertyPackage.CurrentMaterialStream = ims
                     Dim ise = PropertyPackage.CalculateEquilibrium2(FlashCalculationType.PressureEntropy, Pi + DeltaPdyn,

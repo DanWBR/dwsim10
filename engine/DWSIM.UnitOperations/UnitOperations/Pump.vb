@@ -806,6 +806,8 @@ Namespace UnitOperations
         ''' from the measured map, and otherwise from the conductance of the casing scaled by the
         ''' square of the speed ratio, as the capacity model did.
         ''' </summary>
+        <Xml.Serialization.XmlIgnore> <NonSerialized> Private LastInletDensity As Double = 0.0
+
         Private Sub RunDynamicModelAsPressureFlowElement(currentSpeed As Double)
 
             Dim ims As MaterialStream = Me.GetInletMaterialStream(0)
@@ -821,13 +823,32 @@ Namespace UnitOperations
             Dim Wi = ims.GetMassFlow()
             Dim Pi = ims.GetPressure()
             Dim rho = ims.Phases(0).Properties.density.GetValueOrDefault
+            'on the steps between two equilibrium calculations the inlet may carry no density: keep the last one,
+            'or the head comes out NaN and so does the outlet enthalpy
+            If rho > 0.0 AndAlso Not Double.IsNaN(rho) Then
+                LastInletDensity = rho
+            ElseIf LastInletDensity > 0.0 Then
+                rho = LastInletDensity
+            End If
 
             Dim head As Double = Double.NaN
             Dim eff As Double = Me.Eficiencia.GetValueOrDefault / 100
 
-            If CalcMode = CalculationMode.Curves AndAlso rho > 0.0 AndAlso Wi > 0.0 Then
+            'a stopped pump makes no head: the curve read at zero speed came back at the measured speed
+            If currentSpeed <= 0.0 Then head = 0.0
+
+            If CalcMode = CalculationMode.Curves AndAlso rho > 0.0 AndAlso Wi >= 0.0 AndAlso currentSpeed > 0.0 Then
                 Try
-                    Dim reading = ReadOperatingPoint(Wi / rho, currentSpeed)
+                    Dim reading As CurveReading
+                    Try
+                        reading = ReadOperatingPoint(Wi / rho, currentSpeed)
+                    Catch exr As ArgumentException
+                        'past the end of the measured curve: read its end instead (a flat extension). The
+                        'conductance below grows with the square of the flow and ran the head away.
+                        Dim q = ClampToHeadCurve(Wi / rho, currentSpeed)
+                        If Double.IsNaN(q) Then Throw
+                        reading = ReadOperatingPoint(q, currentSpeed)
+                    End Try
                     head = reading.Head
                     CurveHead = reading.Head
                     CurveSysHead = reading.Head
@@ -1167,6 +1188,23 @@ Namespace UnitOperations
         ''' <c>qli/sratio</c> on the measured curves, head and NPSHr scale with <c>sratio^2</c>,
         ''' power with <c>sratio^3</c>, and efficiency is invariant along the affinity parabola.
         ''' </summary>
+        ''' <summary>
+        ''' The flow rate brought inside the head curve of a single measured set, scaled to the speed the
+        ''' pump runs at; NaN for a dataset of several speeds or a curve with no points.
+        ''' </summary>
+        Private Function ClampToHeadCurve(qli As Double, speed As Double) As Double
+            If MeasuredCurveSets().Count > 1 Then Return Double.NaN
+            Dim c = PumpCurveSet.CurveHead
+            Dim n = Math.Min(c.x.Count, c.y.Count)
+            If n = 0 Then Return Double.NaN
+            Dim xs = Enumerable.Range(0, n).Select(Function(i) SystemsOfUnits.Converter.ConvertToSI(c.xunit, c.x(i))).ToList()
+            Dim sratio = If(speed > 0.0 AndAlso PumpCurveSet.ImpellerSpeed > 0.0, speed / PumpCurveSet.ImpellerSpeed, 1.0)
+            Dim qmin = xs.Min() * sratio
+            Dim qmax = xs.Max() * sratio
+            Dim margin = (qmax - qmin) * 0.00001
+            Return Math.Max(qmin + margin, Math.Min(qmax - margin, qli))
+        End Function
+
         Private Function ReadCurveSet(cset As PumpOps.CurveSet, qli As Double, sratio As Double) As CurveReading
 
             Dim chead = cset.CurveHead

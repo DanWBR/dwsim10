@@ -43,6 +43,23 @@ Namespace UnitOperations
             Dim downstream = NextValve(fs, oms)
             Dim upstream = PreviousValve(fs, ims)
 
+            If upstream Is Nothing Then
+                'nothing upstream sets the flow (a pump, a vessel): the content passes the pressure on, less
+                'its own drop, and the valve downstream draws what it passes at that pressure. Solving for the
+                'pressure that passes what arrived instead pinned the flow, whatever the valve opening.
+                Dim dp = 0.0
+                If TypeOf uo Is Heater Then
+                    dp = DirectCast(uo, Heater).DeltaP.GetValueOrDefault()
+                ElseIf TypeOf uo Is Cooler Then
+                    dp = DirectCast(uo, Cooler).DeltaP.GetValueOrDefault()
+                End If
+                Dim pin = ims.GetPressure()
+                If pin > 0.0 Then
+                    pressure = Math.Max(pin - dp, Pmin)
+                    Return True
+                End If
+            End If
+
             'what has to leave on top of the inflow: the excess (or shortfall) of the content over three steps
             Dim win = Math.Max(0.0, ims.GetMassFlow())
             Dim correction = (acc.GetMassFlow() - rho * Vol) / (3.0 * Math.Max(timestep, 0.001))

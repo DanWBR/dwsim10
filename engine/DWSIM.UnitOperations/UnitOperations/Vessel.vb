@@ -396,14 +396,20 @@ Namespace UnitOperations
             End If
 
             Dim imsmix As MaterialStream = Nothing
+            Dim mixedInlets As Integer = 0
+            Dim minInletPressure As Double = Double.MaxValue
 
             For i = 0 To 5
                 If Me.GraphicObject.InputConnectors(i).IsAttached Then
                     Dim imsx = GetInletMaterialStream(i)
+                    If imsx.GetPressure() > 0.0 Then minInletPressure = Math.Min(minInletPressure, imsx.GetPressure())
                     If imsmix Is Nothing Then
                         imsmix = imsx.CloneXML()
                     Else
-                        If Not Double.IsNaN(imsx.GetMassFlow()) AndAlso imsx.GetMassFlow() > 0 Then imsmix = imsmix.Add(imsx)
+                        If Not Double.IsNaN(imsx.GetMassFlow()) AndAlso imsx.GetMassFlow() > 0 Then
+                            imsmix = imsmix.Add(imsx)
+                            mixedInlets += 1
+                        End If
                     End If
                 End If
             Next
@@ -427,6 +433,20 @@ Namespace UnitOperations
             Dim m0 = 0.0, h0 = 0.0, P0 = 0.0, Ein = 0.0, Eout = 0.0
 
             If AccumulationStream Is Nothing Then
+
+                If mixedInlets > 0 AndAlso InitializeFromInlet Then
+                    'Add sums the inlets but leaves the phase split of the first one: a gas inlet plus a
+                    'liquid inlet looked like gas alone, and the content was built from it. Flash the
+                    'blend at the lowest inlet pressure before building the first content.
+                    Try
+                        imsmix.SetPressure(minInletPressure)
+                        imsmix.SpecType = StreamSpec.Pressure_and_Enthalpy
+                        imsmix.PropertyPackage = PropertyPackage
+                        imsmix.PropertyPackage.CurrentMaterialStream = imsmix
+                        imsmix.Calculate(True, True)
+                    Catch ex As Exception
+                    End Try
+                End If
 
                 If InitializeFromInlet AndAlso DynamicBool("Initialize at Liquid Level", False) AndAlso BuildContentAtLevel(imsmix, Vol) Then
 
