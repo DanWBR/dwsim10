@@ -49,3 +49,5 @@
 - [FIX] Cross-platform flowsheet: Delete, Backspace and Ctrl+C/V/A in an editor field also acted on flowsheet objects
 - [FIX] DWSIM MCP Debian package failed to install with exit status 127 (issue 102)
 - [FIX] Pipe wall material saved in another interface language stopped the calculation (invalid thermal conductivity expression) or was taken with zero roughness
+- [FIX] Advanced Heat Exchanger: shell, tube, baffle, fouling, nozzle and kettle data were not saved and came back with their default values
+- [FIX] Cross-platform unit operation editors: the dynamic properties (tank height, liquid level, ...) could not be set
