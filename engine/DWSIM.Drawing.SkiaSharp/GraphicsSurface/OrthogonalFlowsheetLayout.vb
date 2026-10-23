@@ -88,6 +88,18 @@ Public Class OrthogonalFlowsheetLayout
             Catch
             End Try
         Next
+        ' a controller set up in code has no graphic links: the object it moves (its valve, as a P&ID draws it),
+        ' or else the one it measures
+        For Each pname In {"ManipulatedObjectData", "ControlledObjectData"}
+            Try
+                If o.Owner IsNot Nothing Then
+                    Dim p = o.Owner.GetType().GetProperty(pname)
+                    Dim info = If(p IsNot Nothing, TryCast(p.GetValue(o.Owner), ISpecialOpObjectInfo), Nothing)
+                    If info IsNot Nothing AndAlso Not String.IsNullOrEmpty(info.ID) AndAlso byName.ContainsKey(info.ID) Then Return byName(info.ID)
+                End If
+            Catch
+            End Try
+        Next
         Try
             If o.Owner IsNot Nothing Then
                 Dim p = o.Owner.GetType().GetProperty("SelectedObjectID")
@@ -99,6 +111,29 @@ Public Class OrthogonalFlowsheetLayout
         Catch
         End Try
         Return Nothing
+    End Function
+
+    ''' <summary>
+    ''' The object an unconnected object belongs to when it names one: an indicator with SelectedObjectID (a
+    ''' transmitter of the Operator Training extension), or any object whose GetLayoutAnchor() gives the name or
+    ''' tag of another (a fan bank its cooler, an exchanger link its hot side). Without this they were laid out
+    ''' as orphans, in a row below the drawing far from the blocks they measure.
+    ''' </summary>
+    Private Shared Function AnchorTarget(o As IGraphicObject, byName As Dictionary(Of String, IGraphicObject)) As IGraphicObject
+        If o.Owner Is Nothing Then Return Nothing
+        Dim key As String = Nothing
+        Try
+            Dim m = o.Owner.GetType().GetMethod("GetLayoutAnchor", Type.EmptyTypes)
+            If m IsNot Nothing Then key = TryCast(m.Invoke(o.Owner, Nothing), String)
+            If String.IsNullOrEmpty(key) Then
+                Dim p = o.Owner.GetType().GetProperty("SelectedObjectID")
+                If p IsNot Nothing Then key = TryCast(p.GetValue(o.Owner), String)
+            End If
+        Catch
+        End Try
+        If String.IsNullOrEmpty(key) Then Return Nothing
+        If byName.ContainsKey(key) Then Return If(byName(key) Is o, Nothing, byName(key))
+        Return byName.Values.FirstOrDefault(Function(g) g IsNot o AndAlso g.Tag = key)
     End Function
 
     ''' <summary>Vertical offset of a port from the centre of its object (unrotated, unmirrored object).</summary>
@@ -184,7 +219,18 @@ Public Class OrthogonalFlowsheetLayout
             ElseIf o.ObjectType = ObjectType.EnergyStream Then
                 Dim ls = links.Where(Function(l) l.From Is o OrElse l.[To] Is o).ToList()
                 If ls.Count = 1 Then satellites(o) = If(ls(0).From Is o, ls(0).[To], ls(0).From)
+            ElseIf Not links.Any(Function(l) l.From Is o OrElse l.[To] Is o) Then
+                Dim t = AnchorTarget(o, byName)
+                If t IsNot Nothing AndAlso Not IsDecorative(t) Then satellites(o) = t
             End If
+        Next
+        ' a satellite of a satellite (a controller on a transmitter) goes beside the object the first one is on
+        For Each s In satellites.Keys.ToList()
+            Dim t = satellites(s), hops = 0
+            While satellites.ContainsKey(t) AndAlso hops < 5
+                t = satellites(t) : hops += 1
+            End While
+            satellites(s) = t
         Next
 
         ' the layered part: every other object with a link
@@ -288,18 +334,34 @@ Public Class OrthogonalFlowsheetLayout
                     cands.Add(New Double() {px, t.Y + t.Height + gap + s.Height / 2.0, 0, 1})
                     cands.Add(New Double() {px, t.Y - gap - s.Height / 2.0, 0, -1})
                 End If
-            Else
-                cands.Add(New Double() {tcx, t.Y - 30 - s.Height / 2.0, 0, -1})
-                cands.Add(New Double() {tcx, t.Y + t.Height + 30 + s.Height / 2.0, 0, 1})
             End If
             Dim pick As Double() = Nothing
-            For k = 0 To 12
-                For Each c In cands
-                    Dim cx = c(0) + c(2) * k * (s.Width + 15), cy = c(1) + c(3) * k * (s.Height + 15)
-                    If isFreeFor(s, cx, cy) Then pick = New Double() {cx, cy} : Exit For
+            If s.ObjectType = ObjectType.EnergyStream Then
+                For k = 0 To 12
+                    For Each c In cands
+                        Dim cx = c(0) + c(2) * k * (s.Width + 15), cy = c(1) + c(3) * k * (s.Height + 15)
+                        If isFreeFor(s, cx, cy) Then pick = New Double() {cx, cy} : Exit For
+                    Next
+                    If pick IsNot Nothing Then Exit For
                 Next
-                If pick IsNot Nothing Then Exit For
-            Next
+            Else
+                ' anything else in rows hugging the object, above first and then below: the centre, then
+                ' alternately right and left, then the next row out. Six instruments on one vessel used
+                ' to stack in a single tall column above it.
+                Dim pitchX = Math.Max(s.Width, 6.5 * If(s.Tag, "").Length) + 15.0, pitchY = s.Height + 30.0
+                cands.Add(New Double() {tcx, t.Y - 30 - s.Height / 2.0})
+                For k = 0 To 6
+                    For Each side In {-1, 1}
+                        Dim cy = If(side < 0, t.Y - 30 - s.Height / 2.0 - k * pitchY, t.Y + t.Height + 30 + s.Height / 2.0 + k * pitchY)
+                        For Each j In {0, 1, -1, 2, -2, 3, -3}
+                            Dim cx = tcx + j * pitchX
+                            If isFreeFor(s, cx, cy) Then pick = New Double() {cx, cy} : Exit For
+                        Next
+                        If pick IsNot Nothing Then Exit For
+                    Next
+                    If pick IsNot Nothing Then Exit For
+                Next
+            End If
             If pick Is Nothing Then pick = New Double() {cands(0)(0), cands(0)(1)}
             s.X = CInt(Math.Round(pick(0) - s.Width / 2.0)) : s.Y = CInt(Math.Round(pick(1) - s.Height / 2.0))
             rects.Add(boxOf(s, pick(0), pick(1)))
