@@ -1789,7 +1789,8 @@ Public Delegate Sub CustomEvent2(ByVal objinfo As CalculationArgs)
 
                 fs.FlowsheetOptions.Metadata.Score = Evaluation.GetScore(fs)
 
-                If Not Settings.AutomationMode Then Task.Run(Sub() fs.SaveCurrentStateAsLastSuccessfulSolution())
+                'a dynamic run solves every time step: a full copy of the flowsheet after each one costs more than the step
+                If Not Settings.AutomationMode AndAlso Not fs.DynamicMode Then Task.Run(Sub() fs.SaveCurrentStateAsLastSuccessfulSolution())
 
             Else
 
