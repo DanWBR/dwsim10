@@ -1804,6 +1804,16 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
 
                 IObj2?.Paragraphs.Add(String.Format("Updated Temperature estimate: {0} K", x1))
 
+                'Stalled: the temperature moves less than 1e-5 K and the enthalpy error has stopped falling. A
+                'three-phase PT flash that starts from the answer at the previous temperature resolves the
+                'enthalpy to about 0.01 kJ/kg, against a tolEXT of 1e-4: its errors and that of the first (cold)
+                'flash disagree in sign at the same temperature, the bracket closes on the start temperature, and
+                'the loop ran all its iterations (300 PT flashes) before keeping that temperature anyway.
+                If cnt > 0 AndAlso Math.Abs(x1 - x_prev) < 0.00001 AndAlso Math.Abs(fx) >= 0.5 * Math.Abs(fx_ant) Then
+                    IObj2?.Close()
+                    Exit Do
+                End If
+
                 cnt += 1
 
                 IObj2?.Close()
@@ -5735,7 +5745,7 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
 
             IObj?.Close()
 
-            WriteDebugInfo("PH Flash [NL]: Current T = " & T & ", Current H Error = " & herr)
+            If Settings.DebugLevel > 0 Then WriteDebugInfo("PH Flash [NL]: Current T = " & T & ", Current H Error = " & herr)
 
             If Not PP.CurrentMaterialStream.Flowsheet Is Nothing Then PP.CurrentMaterialStream.Flowsheet.CheckStatus()
 

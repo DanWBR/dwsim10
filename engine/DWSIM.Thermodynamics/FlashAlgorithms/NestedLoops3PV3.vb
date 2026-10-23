@@ -794,7 +794,7 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
             L1 = L1est
             L2 = L2est
 
-            WriteDebugInfo("PT Flash [NL-3PV3]: Iteration #" & ecount & ", VF = " & V & ", L1 = " & L1 & ", L2 = " & L2)
+            If Settings.DebugLevel > 0 Then WriteDebugInfo("PT Flash [NL-3PV3]: Iteration #" & ecount & ", VF = " & V & ", L1 = " & L1 & ", L2 = " & L2)
 
             Dim F1 = 0.0#, F2 = 0.0#
             Dim dF1dL1 = 0.0#, dF1dL2 = 0.0#, dF2dL1 = 0.0#, dF2dL2 = 0.0#
@@ -1008,7 +1008,7 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
 
                 ecount += 1
 
-                WriteDebugInfo("PT Flash [NL-3PV3]: Iteration #" & ecount & ", VF = " & V & ", L1 = " & L1 & ", L2 = " & L2)
+                If Settings.DebugLevel > 0 Then WriteDebugInfo("PT Flash [NL-3PV3]: Iteration #" & ecount & ", VF = " & V & ", L1 = " & L1 & ", L2 = " & L2)
 
             Loop
 
