@@ -1227,6 +1227,9 @@ Public Delegate Sub CustomEvent2(ByVal objinfo As CalculationArgs)
 
         GlobalSettings.Settings.LockModelParameters = True
 
+        'off the efficiency cores for good, whether or not the window is in front
+        GlobalSettings.PowerThrottling.KeepFullSpeed()
+
         If GlobalSettings.Settings.CalculatorActivated Then
 
             Dim fs As IFlowsheet = TryCast(fobj, IFlowsheet)
