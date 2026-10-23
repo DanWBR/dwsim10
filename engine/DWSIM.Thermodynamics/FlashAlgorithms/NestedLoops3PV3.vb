@@ -173,6 +173,13 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
 
             Else
 
+                'A liquid-liquid result (V = 0) leaves no vapour composition to start Flash_PT_3P from: its K-values
+                'came out NaN and it threw, so inside a PH loop every second temperature of a mixture with two liquids
+                'and no vapour failed, and UniversalFlash answered with its ideal fail-safe (water/n-octane/n-heptane
+                'at 30 bar: 395 K with an enthalpy 243 kJ/kg off the one asked for, instead of 400 K). Such a result
+                'is solved from scratch; CheckPhases still tests the liquids for a vapour.
+                If prevres IsNot Nothing AndAlso Not (prevres.V > 0.0 AndAlso prevres.Vy IsNot Nothing AndAlso prevres.Vy.Sum() > 0.0) Then prevres = Nothing
+
                 If prevres IsNot Nothing Then
 
                     'jump to 3pflash
@@ -2207,6 +2214,13 @@ out:
             itol = Me.FlashSettings(Interfaces.Enums.FlashSetting.PTFlash_Internal_Loop_Tolerance).ToDoubleFromInvariant
             maxit_i = Me.FlashSettings(Interfaces.Enums.FlashSetting.PTFlash_Maximum_Number_Of_Internal_Iterations)
 
+            'The loop below hands its iterates to SimpleLLE through Vx1EST and Vx2EST, element by element: on the
+            'caller's arrays that overwrote them, and the caller's arrays can be the feed itself (Flash_PV passes
+            'prevres, and a NestedLoops answer of one liquid returns the feed array as that liquid). Water/propane at
+            '20 bar left the caller's mixture at 0.96 propane, and every later flash on it was of the wrong mixture.
+            Vx1EST = Vx1EST.Clone()
+            Vx2EST = Vx2EST.Clone()
+
             n = Vz.Length - 1
 
             proppack = PP
@@ -2419,6 +2433,13 @@ out:        L1 = L1 * (1 - V) 'calculate global phase fractions
             maxit_e = Me.FlashSettings(Interfaces.Enums.FlashSetting.PTFlash_Maximum_Number_Of_External_Iterations)
             itol = Me.FlashSettings(Interfaces.Enums.FlashSetting.PTFlash_Internal_Loop_Tolerance).ToDoubleFromInvariant
             maxit_i = Me.FlashSettings(Interfaces.Enums.FlashSetting.PTFlash_Maximum_Number_Of_Internal_Iterations)
+
+            'The loop below hands its iterates to SimpleLLE through Vx1EST and Vx2EST, element by element: on the
+            'caller's arrays that overwrote them, and the caller's arrays can be the feed itself (Flash_PV passes
+            'prevres, and a NestedLoops answer of one liquid returns the feed array as that liquid). Water/propane at
+            '20 bar left the caller's mixture at 0.96 propane, and every later flash on it was of the wrong mixture.
+            Vx1EST = Vx1EST.Clone()
+            Vx2EST = Vx2EST.Clone()
 
             n = Vz.Length - 1
 
