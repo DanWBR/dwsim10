@@ -216,6 +216,8 @@ Namespace DWSIM.Flowsheet
 
         Public Property SimultaneousAdjustSolverEnabled As Boolean = True Implements Interfaces.IFlowsheetOptions.SimultaneousAdjustSolverEnabled
 
+        Public Property SolverStrategy As SolverStrategy = SolverStrategy.SequentialModular Implements Interfaces.IFlowsheetOptions.SolverStrategy
+
         Public Property SpreadsheetUseRegionalSeparator As Boolean = False Implements Interfaces.IFlowsheetOptions.SpreadsheetUseRegionalSeparator
 
         Public Property EnergyBalanceCheck As Enums.WarningType = Enums.WarningType.ShowWarning Implements IFlowsheetOptions.EnergyBalanceCheck

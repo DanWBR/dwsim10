@@ -45,6 +45,48 @@ Public Delegate Sub CustomEvent2(ByVal objinfo As CalculationArgs)
     Private Shared _callback As IFlowsheetSolveCallback
 
     ''' <summary>
+    ''' Flowsheet-level solvers registered for the process, by ID. A host that scans extension assemblies adds the
+    ''' ones it finds to each flowsheet's ExternalSolvers; a library or a script that has no host registers here.
+    ''' Both are consulted when a flowsheet's SolverStrategy is not SequentialModular.
+    ''' </summary>
+    Public Shared ReadOnly Property FlowsheetSolvers As New Dictionary(Of String, IExternalFlowsheetSolver)
+
+    Public Shared Sub RegisterFlowsheetSolver(solver As IExternalFlowsheetSolver)
+        SyncLock FlowsheetSolvers
+            FlowsheetSolvers(solver.ID) = solver
+        End SyncLock
+    End Sub
+
+    ''' <summary>
+    ''' The flowsheet solver the flowsheet's SolverStrategy selects, or Nothing when the sequential solver should
+    ''' run: none registered, strategy SequentialModular, or Auto with no solver preferring this flowsheet.
+    ''' </summary>
+    Public Shared Function ResolveFlowsheetSolver(fs As IFlowsheet) As IExternalFlowsheetSolver
+        If fs Is Nothing OrElse fs.FlowsheetOptions Is Nothing Then Return Nothing
+        Dim strategy = fs.FlowsheetOptions.SolverStrategy
+        If strategy = SolverStrategy.SequentialModular Then Return Nothing
+        Dim candidates As New List(Of IExternalFlowsheetSolver)
+        If fs.ExternalSolvers IsNot Nothing Then
+            For Each es In fs.ExternalSolvers.Values
+                If TypeOf es Is IExternalFlowsheetSolver Then candidates.Add(DirectCast(es, IExternalFlowsheetSolver))
+            Next
+        End If
+        SyncLock FlowsheetSolvers
+            For Each es In FlowsheetSolvers.Values
+                If Not candidates.Contains(es) Then candidates.Add(es)
+            Next
+        End SyncLock
+        For Each c In candidates
+            Try
+                If strategy = SolverStrategy.Simultaneous OrElse c.Prefers(fs) Then Return c
+            Catch ex As Exception
+                'a solver that cannot even look at the flowsheet does not get it
+            End Try
+        Next
+        Return Nothing
+    End Function
+
+    ''' <summary>
     ''' The mode a spec actually runs in: its own mode, or the flowsheet option when it is set to GlobalSetting
     ''' (a missing spec object also falls back to the flowsheet option).
     ''' </summary>
@@ -1486,6 +1528,23 @@ Public Delegate Sub CustomEvent2(ByVal objinfo As CalculationArgs)
                     maintask = TaskHelper.Run(Sub()
 
                                                   Dim icount As Integer = 0
+
+                                                  'a flowsheet-level solver, when the options select one, takes the whole solve. It hands
+                                                  'back (Nothing) when it cannot, and the sequential loop below runs as it always has.
+                                                  'An adjust re-solving the flowsheet and a dynamic step stay with the sequential loop.
+                                                  If Not Adjusting AndAlso Not fbag.DynamicMode Then
+                                                      Dim fsolver = ResolveFlowsheetSolver(fs)
+                                                      If fsolver IsNot Nothing Then
+                                                          fgui.ShowMessage(String.Format("Solving with {0}...", fsolver.DisplayText), IFlowsheet.MessageType.Information)
+                                                          Dim fsex = fsolver.SolveFlowsheet(fs)
+                                                          If fsex IsNot Nothing Then
+                                                              exlist = fsex
+                                                              converged = True
+                                                          Else
+                                                              fgui.ShowMessage(String.Format("{0} handed the flowsheet back; running the sequential solver.", fsolver.DisplayText), IFlowsheet.MessageType.Warning)
+                                                          End If
+                                                      End If
+                                                  End If
 
                                                   While Not converged
 
