@@ -57,6 +57,9 @@ Public Interface IFlowsheetOptions
 
     Property SimultaneousAdjustSolverEnabled As Boolean
 
+    ''' <summary>Which solver takes the flowsheet: the sequential one, a registered flowsheet solver, or whichever fits (see Enums.SolverStrategy).</summary>
+    Property SolverStrategy As Enums.SolverStrategy
+
     Property SpreadsheetUseRegionalSeparator As Boolean
 
     Property SpreadsheetUnitLockingMode As Boolean

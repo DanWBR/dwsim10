@@ -1179,6 +1179,7 @@ public partial class FlowsheetView : UserControl
         MenuSimultAdjust.IsChecked = BtnSimultAdjust.IsChecked.GetValueOrDefault();
         MenuCalculatorActive.IsChecked = BtnCalculatorActive.IsChecked.GetValueOrDefault();
         BtnDynamicsMode.IsChecked = _flowsheet?.DynamicMode ?? false;
+        ShowSolverStrategy();
         RefreshStoredSolutions();
 
         // the engine places the floating tables against its own idea of the viewport size,
@@ -1474,6 +1475,33 @@ public partial class FlowsheetView : UserControl
     // -------------------------------------------------------------------------
     // Log / status helpers
     // -------------------------------------------------------------------------
+
+    private void ShowSolverStrategy()
+    {
+        var strategy = _flowsheet?.FlowsheetOptions.SolverStrategy ?? Interfaces.Enums.SolverStrategy.SequentialModular;
+        MenuStrategySequential.IsChecked = strategy == Interfaces.Enums.SolverStrategy.SequentialModular;
+        MenuStrategySimultaneous.IsChecked = strategy == Interfaces.Enums.SolverStrategy.Simultaneous;
+        MenuStrategyAuto.IsChecked = strategy == Interfaces.Enums.SolverStrategy.Auto;
+    }
+
+    private void SetSolverStrategy(Interfaces.Enums.SolverStrategy strategy)
+    {
+        if (_flowsheet == null) { ShowSolverStrategy(); return; }
+        _flowsheet.FlowsheetOptions.SolverStrategy = strategy;
+        ShowSolverStrategy();
+        if (strategy != Interfaces.Enums.SolverStrategy.SequentialModular &&
+            DWSIM.FlowsheetSolver.FlowsheetSolver.ResolveFlowsheetSolver(_flowsheet) == null &&
+            DWSIM.FlowsheetSolver.FlowsheetSolver.FlowsheetSolvers.Count == 0 &&
+            !_flowsheet.ExternalSolvers.Values.Any(es => es is Interfaces.IExternalFlowsheetSolver))
+        {
+            AppendLog("Solver strategy set, but no flowsheet solver is installed: the sequential solver will run until one is.",
+                      Interfaces.IFlowsheet.MessageType.Warning);
+        }
+        else
+        {
+            AppendLog($"Solver strategy: {strategy}.");
+        }
+    }
 
     public void AppendLog(string message)
     {
@@ -1968,6 +1996,11 @@ public partial class FlowsheetView : UserControl
         };
         MenuSimultAdjust.Click += (_, _) =>
             BtnSimultAdjust.IsChecked = MenuSimultAdjust.IsChecked;
+
+        // Solver strategy: which solver takes the flowsheet when Solve is pressed (saved with the simulation)
+        MenuStrategySequential.Click += (_, _) => SetSolverStrategy(Interfaces.Enums.SolverStrategy.SequentialModular);
+        MenuStrategySimultaneous.Click += (_, _) => SetSolverStrategy(Interfaces.Enums.SolverStrategy.Simultaneous);
+        MenuStrategyAuto.Click += (_, _) => SetSolverStrategy(Interfaces.Enums.SolverStrategy.Auto);
 
         // View: Close All Editors, Sub-Toolbar
         MenuCloseAllEditors.Click += (_, _) => CloseAllEditors();

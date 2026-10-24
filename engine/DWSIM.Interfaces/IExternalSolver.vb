@@ -123,3 +123,28 @@ Public Interface IExternalODESolver
     Sub Solve(y0 As Double(), x0 As Double, deltax As Double, xf As Double, odesolution As Action(Of Double, Double()), tolerance As Double)
 
 End Interface
+
+''' <summary>
+''' A solver that takes a whole flowsheet in place of the sequential pass, for instance one that converges every
+''' recycle and adjust at once. The flowsheet solver hands over to it when the flowsheet's SolverStrategy selects
+''' it. It must leave the flowsheet the way the sequential solver would: objects calculated, recycle blocks
+''' reporting convergence, adjusts met.
+''' </summary>
+Public Interface IExternalFlowsheetSolver
+
+    Inherits IExternalSolverIdentification
+
+    ''' <summary>
+    ''' True when this solver would rather take the flowsheet than leave it to the sequential one, for instance
+    ''' because it kept the state of an earlier solve. Consulted by SolverStrategy.Auto.
+    ''' </summary>
+    Function Prefers(flowsheet As IFlowsheet) As Boolean
+
+    ''' <summary>
+    ''' Solves the flowsheet. Returns an empty list when solved, the exceptions met when it failed in a way the
+    ''' user should see, or Nothing when it could not take the flowsheet and the sequential solver should run as
+    ''' if nothing had happened.
+    ''' </summary>
+    Function SolveFlowsheet(flowsheet As IFlowsheet) As List(Of Exception)
+
+End Interface

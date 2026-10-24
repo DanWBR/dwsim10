@@ -614,6 +614,20 @@ Namespace Enums
         NonLinearSystem = 1
         NonLinearMinimization = 2
         OrdinaryDifferentialEquations = 3
+        ''' <summary>Takes a whole flowsheet in place of the sequential pass (see IExternalFlowsheetSolver).</summary>
+        Flowsheet = 4
+
+    End Enum
+
+    ''' <summary>How a flowsheet is solved when the user presses Solve.</summary>
+    Public Enum SolverStrategy
+
+        ''' <summary>The sequential-modular solver: objects in order, recycles by substitution, adjusts in outer loops.</summary>
+        SequentialModular = 0
+        ''' <summary>A registered flowsheet solver (IExternalFlowsheetSolver) takes the whole solve; the sequential solver runs only if it hands back.</summary>
+        Simultaneous = 1
+        ''' <summary>A registered flowsheet solver takes the solve when it says it prefers this flowsheet (for instance, when it kept the state of an earlier solve); otherwise the sequential solver runs.</summary>
+        Auto = 2
 
     End Enum
 
