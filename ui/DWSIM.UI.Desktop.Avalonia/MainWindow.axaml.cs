@@ -952,6 +952,17 @@ public partial class MainWindow : Window
                 {
                     try
                     {
+                        // a flowsheet-level solver registers with the solver, so that a flowsheet whose
+                        // SolverStrategy asks for one finds it
+                        if (t.GetInterfaces().Contains(typeof(IExternalFlowsheetSolver))
+                            && !t.IsAbstract && !t.IsInterface)
+                        {
+                            if (Activator.CreateInstance(t) is IExternalFlowsheetSolver fsolver)
+                            {
+                                DWSIM.FlowsheetSolver.FlowsheetSolver.RegisterFlowsheetSolver(fsolver);
+                                Console.WriteLine($"Loaded flowsheet solver: {fsolver.DisplayText}");
+                            }
+                        }
                         if (t.GetInterfaces().Contains(typeof(IUnitOperationExtension))
                             && !t.IsAbstract && !t.IsInterface)
                         {

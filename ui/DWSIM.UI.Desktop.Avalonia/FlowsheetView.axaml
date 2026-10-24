@@ -48,6 +48,12 @@
         <Separator />
         <MenuItem Header="Flowsheet _Calculator Active" Name="MenuCalculatorActive" ToggleType="CheckBox" InputGesture="F6" />
         <MenuItem Header="Si_multaneous Adjust Solver"  Name="MenuSimultAdjust"     ToggleType="CheckBox" InputGesture="F7" />
+        <Separator />
+        <MenuItem Header="Solver St_rategy" Name="MenuSolverStrategy">
+          <MenuItem Header="_Sequential-Modular"                       Name="MenuStrategySequential"   ToggleType="CheckBox" />
+          <MenuItem Header="S_imultaneous (registered flowsheet solver)" Name="MenuStrategySimultaneous" ToggleType="CheckBox" />
+          <MenuItem Header="_Auto (simultaneous when it has a warm start)" Name="MenuStrategyAuto"       ToggleType="CheckBox" />
+        </MenuItem>
       </MenuItem>
       <MenuItem Header="_Tools">
         <MenuItem Header="_Unit Operation Extension Manager..." Name="MenuUOExtManager" />
