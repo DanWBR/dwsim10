@@ -77,11 +77,18 @@ namespace DWSIM.Engine.SmokeTests
             Assert.That(solution.StageTemps.Count, Is.EqualTo(column.Stages.Count));
             Assert.That(solution.StageTemps.Select(t => t.Value), Is.All.GreaterThan(300.0));
 
+            Assert.That(column.GetDynamicContents(), Is.NaN, "nothing is held before the holdups are seeded");
+
             var result = new IntegratorRunner(flowsheet).Run(new IntegratorRunOptions { MaxSteps = 3, EnableHistorian = false });
 
             Assert.That(result.Exceptions, Is.Empty, string.Join("; ", result.Exceptions.Select(e => e.Message)));
             Assert.That(result.Steps, Is.EqualTo(3));
             Assert.That(column.Stages.All(s => s.AccumulationStream != null), Is.True);
+
+            // the dynamic contents are the stages and the sump, so the implicit Euler step sees the column settle
+            double held = column.Stages.Sum(s => s.AccumulationStream.GetMassFlow()) + column.BottomsAccumulationStream.GetMassFlow();
+            Assert.That(column.GetDynamicContents(), Is.EqualTo(held).Within(1e-9 * held));
+            Assert.That(held, Is.GreaterThan(1000.0));
         }
 
         // Implicit Euler solves a step more than once and restores the holdups before each solve. The column keeps

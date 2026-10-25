@@ -92,6 +92,15 @@ Namespace UnitOperations
 
         End Sub
 
+        ''' <summary>The mass the column holds: every stage and the sump, in kg. NaN until the holdups are seeded. The
+        ''' implicit Euler step reads it to decide whether the solves of a step have settled.</summary>
+        Public Overrides Function GetDynamicContents() As Double
+            If Stages.Count = 0 OrElse Stages.Any(Function(s) s.AccumulationStream Is Nothing) Then Return MyBase.GetDynamicContents()
+            Dim m = Stages.Sum(Function(s) s.AccumulationStream.GetMassFlow())
+            If BottomsAccumulationStream IsNot Nothing Then m += BottomsAccumulationStream.GetMassFlow()
+            Return m
+        End Function
+
         Private Function CopyHoldup(ms As MaterialStream) As MaterialStream
             If ms Is Nothing Then Return Nothing
             If ms.FlowSheet Is Nothing Then ms.SetFlowsheet(FlowSheet)
