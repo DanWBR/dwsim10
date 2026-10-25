@@ -43,7 +43,7 @@ namespace DWSIM.Engine.SmokeTests
         // Feed at 37.9 bar and 1 kg/s into a 3 m3 separator whose vapour leaves through a Kv = 10
         // valve to a vent at 1 atm. The file was saved after a run, so the vessel carries its
         // content stream. https://github.com/DanWBR/dwsim10/issues/57, /58, /59
-        private static DWSIM.DynamicRunner.Flowsheet Load()
+        private static DWSIM.DynamicRunner.Flowsheet Load(Action<string, DWSIM.Interfaces.IFlowsheet.MessageType> listener = null)
         {
             var folder = TestContext.CurrentContext.TestDirectory;
             while (folder != null && !Directory.Exists(Path.Combine(folder, "tests", "flowsheets")))
@@ -53,7 +53,7 @@ namespace DWSIM.Engine.SmokeTests
 
             Assert.That(folder, Is.Not.Null, "could not find tests/flowsheets above the test directory");
 
-            var flowsheet = new DWSIM.DynamicRunner.Flowsheet(null, null);
+            var flowsheet = new DWSIM.DynamicRunner.Flowsheet(listener, null);
             flowsheet.Init();
             flowsheet.LoadFromXML(XDocument.Load(Path.Combine(folder, "tests", "flowsheets", "VesselDepressurization.dwxml")));
 
@@ -123,6 +123,41 @@ namespace DWSIM.Engine.SmokeTests
             Assert.That(finalPa, Is.EqualTo(feedPressure).Within(0.05 * feedPressure));
             double lastBar = double.Parse(last.PropertyValue, System.Globalization.CultureInfo.InvariantCulture);
             Assert.That(lastBar, Is.EqualTo(finalPa / 1e5).Within(1e-6));
+        }
+
+        // An implicit Euler step that used every iteration used to move on with an unconverged answer and no word
+        // about it.
+        [Test]
+        public void AnImplicitStepThatRunsOutOfIterationsIsCountedAndReported()
+        {
+            string warning = null;
+            DWSIM.Interfaces.IDynamicsIntegrator Implicit(DWSIM.DynamicRunner.Flowsheet fs)
+            {
+                var errors = fs.SolveFlowsheet2();
+                Assert.That(errors, Is.Empty, "steady state: " + string.Join("; ", errors.Select(e => e.Message)));
+                var schedule = IntegratorRunner.ResolveSchedule(fs, null);
+                var integrator = fs.DynamicsManager.IntegratorList[schedule.CurrentIntegrator];
+                integrator.IntegrationMethod = DWSIM.Interfaces.Enums.Dynamics.IntegrationMethod.ImplicitEuler;
+                return integrator;
+            }
+
+            // at the file's own step the iteration settles, and nothing is reported
+            var settled = Load((m, t) => { if (m.StartsWith("Implicit Euler")) warning = m; });
+            Implicit(settled);
+            var first = new IntegratorRunner(settled).Run(new IntegratorRunOptions { MaxSteps = 10, EnableHistorian = false });
+            Assert.That(first.Exceptions, Is.Empty, string.Join("; ", first.Exceptions.Select(e => e.Message)));
+            Assert.That(first.UnconvergedImplicitSteps, Is.EqualTo(0));
+            Assert.That(warning, Is.Null);
+
+            // two iterations against a tolerance no pass reaches: every step runs out of them
+            var stuck = Load((m, t) => { if (m.StartsWith("Implicit Euler")) warning = m; });
+            var tight = Implicit(stuck);
+            tight.MaxIterations = 2;
+            tight.ConvergenceTolerance = 1e-14;
+            var second = new IntegratorRunner(stuck).Run(new IntegratorRunOptions { MaxSteps = 5, EnableHistorian = false });
+            Assert.That(second.UnconvergedImplicitSteps, Is.EqualTo(second.Steps));
+            Assert.That(second.Steps, Is.EqualTo(5));
+            Assert.That(warning, Does.Contain("did not converge"));
         }
     }
 }

@@ -133,8 +133,10 @@ namespace DWSIM.Automation.DynamicRunner
     public sealed class IntegratorRunResult
     {
         internal IntegratorRunResult(IDynamicsSchedule schedule, IDynamicsIntegrator integrator,
-            int steps, double finalTimeSeconds, TimeSpan wallClock, bool aborted, List<Exception> exceptions)
+            int steps, double finalTimeSeconds, TimeSpan wallClock, bool aborted, List<Exception> exceptions,
+            int unconvergedImplicitSteps = 0)
         {
+            UnconvergedImplicitSteps = unconvergedImplicitSteps;
             Schedule = schedule;
             Integrator = integrator;
             Steps = steps;
@@ -165,6 +167,12 @@ namespace DWSIM.Automation.DynamicRunner
 
         /// <summary>True when the run finished without exceptions and without being aborted.</summary>
         public bool Completed => Exceptions.Count == 0 && !Aborted;
+
+        /// <summary>
+        /// Implicit Euler steps that used every iteration without the inventories settling; their answer is not
+        /// converged. Zero for the other methods.
+        /// </summary>
+        public int UnconvergedImplicitSteps { get; }
     }
 
     /// <summary>
@@ -365,6 +373,7 @@ namespace DWSIM.Automation.DynamicRunner
 
             var aborted = false;
             var steps = 0;
+            var unconvergedSteps = 0;
 
             // Simulated time already covered, which a resumed run carries on from.
             double i = options.Resume ? (integrator.CurrentTime - new DateTime()).TotalSeconds : 0;
@@ -437,6 +446,8 @@ namespace DWSIM.Automation.DynamicRunner
                                 Task.Delay(200).Wait();
                         },
                         interval);
+
+                    if (!DWSIM.DynamicsManager.IntegrationStrategies.LastStepConverged) unconvergedSteps++;
 
                     if (stepErrors != null && stepErrors.Count > 0)
                     {
@@ -516,7 +527,19 @@ namespace DWSIM.Automation.DynamicRunner
                 _flowsheetClone = null;
             }
 
-            return new IntegratorRunResult(schedule, integrator, steps, i, runClock.Elapsed, aborted, exceptions);
+            // an implicit step that runs out of iterations moves on with an unconverged answer: say so once, after the
+            // run, with the messages back on
+            if (unconvergedSteps > 0)
+            {
+                flowsheet.ShowMessage(
+                    "Implicit Euler: " + unconvergedSteps + " of " + steps + " step(s) did not converge within " +
+                    integrator.MaxIterations + " iterations (tolerance " + integrator.ConvergenceTolerance.ToString("G3") +
+                    "), and the results of those steps are not converged. Use a smaller integration step, raise the " +
+                    "maximum number of iterations, or use the explicit Euler method.",
+                    IFlowsheet.MessageType.Warning);
+            }
+
+            return new IntegratorRunResult(schedule, integrator, steps, i, runClock.Elapsed, aborted, exceptions, unconvergedSteps);
         }
 
         private static void Pace(long milliseconds, CancellationToken token)

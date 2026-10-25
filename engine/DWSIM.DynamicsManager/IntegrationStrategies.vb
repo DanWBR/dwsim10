@@ -6,11 +6,20 @@ Public Class IntegrationStrategies
 
     Public Shared Property ActualStepTaken As Double = 0.0
 
+    ''' <summary>False when the last implicit Euler step used every iteration without the inventories settling.</summary>
+    Public Shared Property LastStepConverged As Boolean = True
+
+    ''' <summary>Flowsheet solves the last step took.</summary>
+    Public Shared Property LastIterations As Integer = 1
+
     Public Shared Sub ExecuteStep(
         flowsheet As IFlowsheet,
         integrator As IDynamicsIntegrator,
         solveAction As Action,
         interval As Double)
+
+        LastStepConverged = True
+        LastIterations = 1
 
         Select Case integrator.IntegrationMethod
             Case Enums.Dynamics.IntegrationMethod.ExplicitEuler
@@ -67,18 +76,27 @@ Public Class IntegrationStrategies
         Dim tol = integrator.ConvergenceTolerance
 
         solveAction()
+        Dim iterations = 1
+        Dim converged = maxIter <= 1
 
         For iter = 1 To maxIter - 1
             Dim prevContents = CaptureDynamicContents(flowsheet)
 
             RestoreAllStates(flowsheet, savedStates)
             solveAction()
+            iterations += 1
 
             Dim newContents = CaptureDynamicContents(flowsheet)
             Dim err = ComputeErrorFromContents(prevContents, newContents)
 
-            If err < tol Then Exit For
+            If err < tol Then
+                converged = True
+                Exit For
+            End If
         Next
+
+        LastIterations = iterations
+        LastStepConverged = converged
 
         ActualStepTaken = interval
         LastErrorEstimate = 0.0
