@@ -783,7 +783,7 @@ Added/Attached Utilities will be visible on the context menu located on the obje
 
 
 
-- ***Distillation Curves*** - the TBP, ASTM D86, D1160, D2887 and EFV curves of a stream, with the properties of a petroleum product (flash point, densities, viscosities, cold flow points and cetane index). See Section [Distillation Curves and Petroleum Product Properties](46-other-properties.md#sec:distillation-curves).
+- ***Distillation Curves*** - the TBP, ASTM D86, D1160, D2887 and EFV curves of a stream, with the properties of a petroleum product (flash point, densities, viscosities, cold flow points and cetane index). See Section [Distillation Curves and Petroleum Product Properties](47-other-properties.md#sec:distillation-curves).
 
 - ***Petroleum Cold Flow Properties*** - special properties of petroleum fractions, like cetane index, flash point, refraction index, etc. (Figure [37](#fig:figura-utDB-1)).
 

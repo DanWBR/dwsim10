@@ -1519,7 +1519,7 @@ The condenser and reboiler specifications fix quantities of the column itself: r
 
 - **Product:** the column product the property is read on (distillate, overhead vapor, bottoms or a side draw).
 
-- **Property:** a distillation curve point such as `D86 95%` or `TBP 10%`, a product property of the Distillation Curves utility such as `Flash Point (Closed Cup)` or `Density @ 20 C` (Section [Distillation Curves and Petroleum Product Properties](46-other-properties.md#sec:distillation-curves)), or the ID of any material stream property.
+- **Property:** a distillation curve point such as `D86 95%` or `TBP 10%`, a product property of the Distillation Curves utility such as `Flash Point (Closed Cup)` or `Density @ 20 C` (Section [Distillation Curves and Petroleum Product Properties](47-other-properties.md#sec:distillation-curves)), or the ID of any material stream property.
 
 - **Target and tolerance:** the value to reach and the largest acceptable difference from it. A zero tolerance takes 0.1 % of the target.
 

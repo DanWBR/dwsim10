@@ -90,51 +90,52 @@ nav:
     - Bioprocess Operations: 26-bioprocess-operations.md
     - Refining Unit Operations: 27-refining-unit-operations.md
     - Logical Operations: 28-logical-operations.md
+    - Simultaneous Flowsheet Solver: 29-simultaneous-flowsheet-solver.md
   - Dynamic Modeling and Simulation:
-    - Introduction: 30-introduction.md
-    - Dynamic Simulation Structure and Configuration: 31-dynamic-simulation-structure-and-configuration.md
-    - Dynamic Simulation Flowsheet Blocks: 32-dynamic-simulation-flowsheet-blocks.md
-    - Unit Operation Dynamic Properties: 33-unit-operation-dynamic-properties.md
-    - Dynamic Simulation Tools: 34-dynamic-simulation-tools.md
-    - Supported Unit Operations: 35-supported-unit-operations.md
-    - Operator Training Simulator (OTS): 36-operator-training-simulator-ots.md
+    - Introduction: 31-introduction.md
+    - Dynamic Simulation Structure and Configuration: 32-dynamic-simulation-structure-and-configuration.md
+    - Dynamic Simulation Flowsheet Blocks: 33-dynamic-simulation-flowsheet-blocks.md
+    - Unit Operation Dynamic Properties: 34-unit-operation-dynamic-properties.md
+    - Dynamic Simulation Tools: 35-dynamic-simulation-tools.md
+    - Supported Unit Operations: 36-supported-unit-operations.md
+    - Operator Training Simulator (OTS): 37-operator-training-simulator-ots.md
   - "Technical Basis: Methods and Procedures":
-    - Introduction: 38-introduction.md
-    - Thermodynamic Properties: 39-thermodynamic-properties.md
-    - Transport Properties: 40-transport-properties.md
-    - Thermal Properties: 41-thermal-properties.md
-    - Aqueous Solution Properties: 42-aqueous-solution-properties.md
-    - Specialized Models / Property Packages: 43-specialized-models-property-packages.md
-    - Reactions: 44-reactions.md
-    - Property Estimation Methods: 45-property-estimation-methods.md
-    - Other Properties: 46-other-properties.md
-    - "Corrosion & Scaling Monitor": 47-corrosion-scaling-monitor.md
+    - Introduction: 39-introduction.md
+    - Thermodynamic Properties: 40-thermodynamic-properties.md
+    - Transport Properties: 41-transport-properties.md
+    - Thermal Properties: 42-thermal-properties.md
+    - Aqueous Solution Properties: 43-aqueous-solution-properties.md
+    - Specialized Models / Property Packages: 44-specialized-models-property-packages.md
+    - Reactions: 45-reactions.md
+    - Property Estimation Methods: 46-property-estimation-methods.md
+    - Other Properties: 47-other-properties.md
+    - "Corrosion & Scaling Monitor": 48-corrosion-scaling-monitor.md
   - How-To Tutorials:
-    - Methane Steam Reforming: 49-methane-steam-reforming.md
-    - Pressure-Swing Distillation: 50-pressure-swing-distillation.md
-    - Flowsheet Control with Python Scripts: 51-flowsheet-control-with-python-scripts.md
-    - Basic Dynamic Simulation Tutorial: 52-basic-dynamic-simulation-tutorial.md
+    - Methane Steam Reforming: 50-methane-steam-reforming.md
+    - Pressure-Swing Distillation: 51-pressure-swing-distillation.md
+    - Flowsheet Control with Python Scripts: 52-flowsheet-control-with-python-scripts.md
+    - Basic Dynamic Simulation Tutorial: 53-basic-dynamic-simulation-tutorial.md
   - Advanced Topics:
-    - Python Scripting: 54-python-scripting.md
-    - Model Customization: 55-model-customization.md
-    - Overriding Calculated Properties: 56-overriding-calculated-properties.md
-    - Automation: 57-automation.md
-    - Excel Add-In for Thermo Calculations: 58-excel-add-in-for-thermo-calculations.md
-    - Property Package Methods and Correlation Profiles: 59-property-package-methods-and-correlation-profiles.md
-    - CAPE-OPEN Subsystem: 60-cape-open-subsystem.md
+    - Python Scripting: 55-python-scripting.md
+    - Model Customization: 56-model-customization.md
+    - Overriding Calculated Properties: 57-overriding-calculated-properties.md
+    - Automation: 58-automation.md
+    - Excel Add-In for Thermo Calculations: 59-excel-add-in-for-thermo-calculations.md
+    - Property Package Methods and Correlation Profiles: 60-property-package-methods-and-correlation-profiles.md
+    - CAPE-OPEN Subsystem: 61-cape-open-subsystem.md
   - Additional Resources:
-    - Online Courses and Videos: 62-online-courses-and-videos.md
-    - Learning Resources: 63-learning-resources.md
-    - Programming Help: 64-programming-help.md
+    - Online Courses and Videos: 63-online-courses-and-videos.md
+    - Learning Resources: 64-learning-resources.md
+    - Programming Help: 65-programming-help.md
   - "Appendix: Analytical Thermodynamic Derivatives":
-    - Overview: 65-appendix-analytical-thermodynamic-derivatives.md
-    - Scope and Notation: 66-scope-and-notation.md
-    - "Cubic Equations of State (PR, SRK, PR78)": 67-cubic-equations-of-state-pr-srk-pr78.md
-    - Peng-Robinson-Stryjek-Vera 2 (PRSV2 and PRSV2-VL): 68-peng-robinson-stryjek-vera-2-prsv2-and-prsv2-vl.md
-    - Chao-Seader and Grayson-Streed: 69-chao-seader-and-grayson-streed.md
-    - Lee-Kesler-Plocker: 70-lee-kesler-plocker.md
-    - Activity-Coefficient Models: 71-activity-coefficient-models.md
-    - Electrolyte Activity Models: 72-electrolyte-activity-models.md
-    - Add-on Activity Models: 73-add-on-activity-models.md
-    - Advanced Equation-of-State Packages: 74-advanced-equation-of-state-packages.md
-    - Use in the Flash and Column Solvers: 75-use-in-the-flash-and-column-solvers.md
+    - Overview: 66-appendix-analytical-thermodynamic-derivatives.md
+    - Scope and Notation: 67-scope-and-notation.md
+    - "Cubic Equations of State (PR, SRK, PR78)": 68-cubic-equations-of-state-pr-srk-pr78.md
+    - Peng-Robinson-Stryjek-Vera 2 (PRSV2 and PRSV2-VL): 69-peng-robinson-stryjek-vera-2-prsv2-and-prsv2-vl.md
+    - Chao-Seader and Grayson-Streed: 70-chao-seader-and-grayson-streed.md
+    - Lee-Kesler-Plocker: 71-lee-kesler-plocker.md
+    - Activity-Coefficient Models: 72-activity-coefficient-models.md
+    - Electrolyte Activity Models: 73-electrolyte-activity-models.md
+    - Add-on Activity Models: 74-add-on-activity-models.md
+    - Advanced Equation-of-State Packages: 75-advanced-equation-of-state-packages.md
+    - Use in the Flash and Column Solvers: 76-use-in-the-flash-and-column-solvers.md

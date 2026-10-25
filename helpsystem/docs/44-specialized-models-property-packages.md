@@ -82,7 +82,7 @@ More information about CoolProp can be found at <http://www.coolprop.org>.
 
 #### Electrolyte NRTL (eNRTL) {#sec:enrtl}
 
-##### Overview {#overview-51}
+##### Overview {#overview-52}
 
 The Electrolyte Non-Random Two-Liquid (eNRTL) model computes activity coefficients for aqueous electrolyte solutions by splitting the excess Gibbs energy into two additive contributions :
 
@@ -277,7 +277,7 @@ When a salt encountered at runtime has no $\tau$ entry in `enrtl_parameters.json
 
 #### Extended UNIQUAC {#sec:exuniquac}
 
-##### Overview {#overview-52}
+##### Overview {#overview-53}
 
 The Extended UNIQUAC model of Thomsen et al.  computes activity coefficients for water and ionic species in aqueous electrolyte solutions. It adds an extended Debye–Hückel electrostatic term to the standard UNIQUAC expression :
 
@@ -503,7 +503,7 @@ For Fe$^{2+/3+}$, Cu$^{2+}$, Zn$^{2+}$, Ni$^{2+}$, Co$^{2+}$, Mn$^{2+}$, Cd$^{2+
 
 #### Sour Water (Edwards Model) {#sec:sourwater}
 
-##### Overview {#overview-53}
+##### Overview {#overview-54}
 
 The Sour Water model is based on the fugacity-based VLE framework of Edwards, Maurer, Newman and Prausnitz . It targets aqueous systems containing $\ce{H2S}$, $\ce{NH3}$, $\ce{CO2}$, and $\ce{HCN}$ dissolved in water. Activity coefficients for the dissolved molecular species are calculated by a simplified Margules–Pitzer expression. The package finds the five compounds by name (`Water`, `Hydrogen sulfide`, `Ammonia`, `Carbon dioxide`, `Hydrogen cyanide`); a stream may hold any subset of them, in any order, together with other compounds.
 
@@ -912,7 +912,7 @@ For the eNRTL and Extended UNIQUAC packages, the sum is taken over all ionic spe
 
 #### H$_2$O–HCl (Pitzer) {#sec:hcl_pitzer}
 
-##### Overview {#overview-54}
+##### Overview {#overview-55}
 
 The H$_2$O–HCl property package implements the binary Pitzer ion-interaction model with the high-temperature parameter fit of Ruaya & Seward , validated experimentally to 350 $^{\circ}$C and 3 mol/kg HCl. HCl is treated as a fully dissociated 1–1 strong electrolyte ($\ce{HCl(aq) -> H+ + Cl-}$); the model returns mean ionic and individual-ion activity coefficients, water activity, osmotic coefficient, solution pH, HCl partial pressure, and the integral heat of solution and apparent molar heat capacity of HCl.
 
@@ -1333,7 +1333,7 @@ For 2–2 electrolytes a fourth coefficient $\beta^{2}$ is included with $\alpha
 
 #### Carbon Capture (eNRTL) {#sec:ccus_capture}
 
-##### Overview {#overview-55}
+##### Overview {#overview-56}
 
 The CO$_2$ Capture property package describes aqueous amine solvents loaded with $\ce{CO2}$, as found in the absorbers and strippers of post-combustion capture and gas treating units. It covers five solvents: monoethanolamine (MEA), diethanolamine (DEA), methyldiethanolamine (MDEA), piperazine (PZ), and the blend of MDEA with piperazine.
 
@@ -2054,7 +2054,7 @@ MDEA + PZ: the parameters of each amine plus one MDEA-PZ term fitted to the lean
 
 #### CO$_2$ Transport (Span-Wagner / PR) {#sec:ccus_transport}
 
-##### Overview {#overview-56}
+##### Overview {#overview-57}
 
 The CO$_2$ Transport property package provides high-accuracy thermodynamic and transport properties for CO$_2$-rich streams in pipeline and shipping applications. Two equation-of-state regimes are used depending on stream purity:
 
@@ -2186,7 +2186,7 @@ Pure CO$_2$ density from Span–Wagner matches the NIST WebBook reference data t
 
 #### CO$_2$ Storage (Duan–Sun) {#sec:ccus_storage}
 
-##### Overview {#overview-57}
+##### Overview {#overview-58}
 
 The CO$_2$ Storage property package describes $\ce{CO2}$ with water and chloride brines at the conditions of geological storage: saline aquifer injection, CO$_2$-enhanced oil recovery and the brine chemistry that leads to mineral trapping. The apparent compounds are water, $\ce{CO2}$, other gases, and the ions or salts of the brine. Ions and salts are non-volatile and stay in the liquid.
 
@@ -2542,7 +2542,7 @@ The first row of each mineral is the package. llnl.dat values are moved to the C
 
 #### PC-SAFT for Polymers {#sec:pcsaft_polymers}
 
-##### Overview {#overview-58}
+##### Overview {#overview-59}
 
 The Perturbed-Chain SAFT equation of state  writes the residual Helmholtz energy of a mixture as the sum of a hard-chain reference, a dispersion contribution and, for hydrogen-bonding species, an association term :
 
@@ -2746,7 +2746,7 @@ The polymer model is accurate for non-associating and weakly interacting polymer
 
 #### Ionic Liquids (PC-SAFT) {#sec:ionic_liquids}
 
-##### Overview {#overview-59}
+##### Overview {#overview-60}
 
 The Ionic Liquids (PC-SAFT) property package (DWSIM Patreon) describes ionic liquids used as physical solvents for $\ce{CO2}$, $\ce{H2S}$, $\ce{CH4}$, $\ce{N2}$, $\ce{H2}$ and water: the removal of $\ce{CO2}$ from natural gas, syngas or biogas, where the gas dissolves in the liquid without reacting and is released again by lowering the pressure or by mild heating . It is the PC-SAFT package of Section [PC-SAFT for Polymers](#sec:pcsaft_polymers) with two parameter tables of its own and a viscosity rule for phases that hold an ionic liquid. The equation of state, the flash and the caloric properties are those of the PC-SAFT package.
 
@@ -2870,7 +2870,7 @@ Fitting $m$, $\sigma$ and $\varepsilon/k$ to liquid densities over temperature a
 
 #### Patel–Teja Equation of State {#sec:pt}
 
-##### Overview {#overview-60}
+##### Overview {#overview-61}
 
 The Patel–Teja (PT) equation of state  is a three-parameter cubic EOS that generalises the Peng–Robinson and Soave–Redlich–Kwong forms by introducing an additional volume-translation parameter $c$:
 
@@ -2984,7 +2984,7 @@ Patel–Teja EOS parameters
 
 #### Schmidt–Wenzel Equation of State {#sec:sw}
 
-##### Overview {#overview-61}
+##### Overview {#overview-62}
 
 The Schmidt–Wenzel (SW) EOS  is a three-parameter cubic equation that incorporates the acentric factor $\omega$ directly into the repulsive/attractive volume term, giving a single, acentric-factor-dependent EOS form:
 
@@ -3037,7 +3037,7 @@ The same van der Waals one-fluid mixing rules as in Eq. [60](#eq:pt_abc)–[6
 
 #### Cubic-Plus-Association (CPA) Equation of State {#sec:cpa}
 
-##### Overview {#overview-62}
+##### Overview {#overview-63}
 
 The Cubic-Plus-Association (CPA) EOS, proposed by Kontogeorgis et al. , combines a standard cubic EOS with the associating term from Wertheim’s first-order perturbation theory . Two variants are available depending on the underlying cubic:
 
@@ -3145,7 +3145,7 @@ Each associating compound requires five CPA parameters: $a_{0}$ (J$\cdot$m$^{3}$
 
 #### Perturbed-Chain Statistical Associating Fluid Theory (PC-SAFT) {#sec:pcsaft}
 
-##### Overview {#overview-63}
+##### Overview {#overview-64}
 
 The Perturbed-Chain SAFT (PC-SAFT) EOS of Gross & Sadowski  models molecules as chains of hard-sphere segments with dispersive (van der Waals) and associative interactions. The total residual Helmholtz energy per mole is
 
@@ -3216,7 +3216,7 @@ Each non-associating molecule requires three pure-component parameters: $m$ (seg
 
 #### Simplified Perturbed-Chain SAFT (SPC-SAFT) {#sec:spcsaft}
 
-##### Overview {#overview-64}
+##### Overview {#overview-65}
 
 SPC-SAFT  retains the PC-SAFT chain and association terms but replaces the full second-order perturbation dispersion with a simplified first-order expression based on a mean-field approximation. The residual Helmholtz energy is
 
@@ -3242,7 +3242,7 @@ This formulation reduces computational cost while preserving accuracy for indust
 
 #### SAFT-VR Mie Equation of State {#sec:saftvrmie}
 
-##### Overview {#overview-65}
+##### Overview {#overview-66}
 
 The SAFT-VR Mie EOS of Lafitte et al.  uses the generalised Mie pair potential instead of the hard-sphere/square-well potentials of earlier SAFT variants. This provides an additional degree of freedom in modelling the “softness” of the repulsive core and the range of the attractive well.
 
@@ -3325,7 +3325,7 @@ SAFT-VR Mie pure-component parameters
 
 #### SAFT-VRQ Mie Equation of State {#sec:saftvrqmie}
 
-##### Overview {#overview-66}
+##### Overview {#overview-67}
 
 SAFT-VRQ Mie  extends SAFT-VR Mie to quantum-mechanical effects relevant for light molecules such as $\ce{H2}$, $\ce{D2}$, $\ce{He}$, and $\ce{Ne}$. Quantum corrections are incorporated via the Feynman–Hibbs (FH) perturbation approach .
 
@@ -3372,7 +3372,7 @@ Larger $Q$ (smaller mass, smaller potential well) indicates stronger quantum eff
 
 #### Modified Benedict–Webb–Rubin Equation (MBWR) {#sec:mbwr}
 
-##### Overview {#overview-67}
+##### Overview {#overview-68}
 
 The Modified Benedict–Webb–Rubin (MBWR) equation is a high-accuracy multiparameter EOS expressed as a power series in molar density $\rho$. Two variants are available in the ThermoPack library:
 
@@ -3434,7 +3434,7 @@ All thermodynamic properties are derived analytically from Eq. [70](#eq:mbwr19)
 
 #### NIST Multiparameter Equation of State (NIST-MEOS) {#sec:nistmeos}
 
-##### Overview {#overview-68}
+##### Overview {#overview-69}
 
 The NIST multiparameter equations of state, developed predominantly by Span, Lemmon, Wagner, and co-workers , represent the state of the art in pure-fluid thermodynamic accuracy. They are formulated as explicit functions of the reduced Helmholtz energy $\alpha(\delta,\tau)$:
 
