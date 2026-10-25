@@ -2908,7 +2908,47 @@ Namespace UnitOperations
 
         Public Function GetLastSolution() As InitialEstimates
 
+            ' the last solution lives only in memory; a column loaded from a file rebuilds it from the saved profiles
+            If LastSolution Is Nothing Then LastSolution = SolutionFromProfiles()
+
             Return LastSolution
+
+        End Function
+
+        ''' <summary>The stage temperatures, flows and compositions of the last solve (the profiles saved with the
+        ''' file), as estimates. Nothing when there are no profiles or they do not fit the stages and compounds.</summary>
+        Private Function SolutionFromProfiles() As InitialEstimates
+
+            Dim n = Stages.Count
+            If n = 0 OrElse Tf Is Nothing OrElse Vf Is Nothing OrElse Lf Is Nothing OrElse LSSf Is Nothing Then Return Nothing
+            If xf Is Nothing OrElse yf Is Nothing Then Return Nothing
+            If Tf.Length <> n OrElse Vf.Length <> n OrElse Lf.Length <> n OrElse LSSf.Length = 0 Then Return Nothing
+            If xf.Count <> n OrElse yf.Count <> n Then Return Nothing
+            If Not (Vf.IsValid And Lf.IsValid And LSSf.IsValid And Tf.IsValid) Then Return Nothing
+
+            Dim sol = RebuildEstimates()
+            If sol.StageTemps.Count <> n Then Return Nothing
+            sol.VaporProductFlowRate = Vf(0)
+            sol.DistillateFlowRate = LSSf(0)
+            sol.BottomsFlowRate = Lf(0)
+            For i = 0 To n - 1
+                Dim x = TryCast(xf(i), Double()), y = TryCast(yf(i), Double())
+                If x Is Nothing OrElse y Is Nothing OrElse x.Length <> sol.LiqCompositions(i).Count OrElse y.Length <> sol.VapCompositions(i).Count Then Return Nothing
+                sol.StageTemps(i).Value = Tf(i)
+                sol.VapMolarFlows(i).Value = Vf(i)
+                sol.LiqMolarFlows(i).Value = Lf(i)
+                Dim j = 0
+                For Each par As Parameter In sol.LiqCompositions(i).Values
+                    par.Value = x(j)
+                    j += 1
+                Next
+                j = 0
+                For Each par As Parameter In sol.VapCompositions(i).Values
+                    par.Value = y(j)
+                    j += 1
+                Next
+            Next
+            Return sol
 
         End Function
 
