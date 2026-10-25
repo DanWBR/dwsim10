@@ -41,9 +41,31 @@ The full changelog including souce code changes can be viewed at https://github.
 
 Version 10.2.13
 
+- [NEW] Simultaneous flowsheet solver (Patreon): with Solver Strategy set to Simultaneous or Auto, every Recycle, Energy Recycle and Adjust is converged at once by a damped Newton method, starting from the solution saved with the file; a solve that does not converge goes back to the sequential solver, and the log names the variables that do not close when the specifications cannot fix a steady state
+- [NEW] Gas-Liquid Separator: a third outlet draws the heavy liquid layer, with the Interface Level property in dynamic runs
+- [NEW] Vessel and Tank: Initialize at Liquid Level starts a dynamic run with the inlet liquid up to the Liquid Level and vapour above it
+- [NEW] Heater and Cooler: Incompressible Liquid Holdup keeps a liquid-full exchanger at the pressure the downstream valve needs in dynamic runs, instead of a volume flash
+- [NEW] Operator Training: fan bank, amine contactor, amine regenerator and exchanger link process units
+- [NEW] Operator Training: guided exercises with a briefing, a duration and hints given at a set time or on a condition, edited from the instructor station
+- [NEW] Operator Training: running, stopped and tripped status lamps on machine symbols and faceplates
+- [CHG] Case library, user guide and advanced tutorial: the column secondary specification example follows the corrected D86 curves
+- [CHG] Dynamic simulation: steps skip the copy of the last solution, and on Windows the solver stays on the performance cores of the processor
+- [CHG] Implicit Euler: at the end of a run the log says how many steps did not converge and what to change
+- [CHG] Operator Training: a valve's flow is carried back through pumps, compressors and liquid-full exchangers to the holdup it draws from
+- [CHG] Operator Training: backtrack states recorded every 30 s of simulated time, and the exercise report shown formatted
+- [CHG] Orthogonal layout: controllers and instruments are placed next to the block they read or manipulate
 - [FIX] Distillation Curves: a compound present only as a trace (a heavy cut carried into a side draw) set the end of the TBP curve and moved the TBP and D86 95 % points by several degrees
 - [FIX] Distillation Curves: the D86 curve applied the 90-95 % segment of API procedure 3A1.1 to the 90-100 % span of the TBP curve; the D86 95 % point now comes from the procedure and the end point is extrapolated from the 90-95 % slope
-- [IMP] Case library, user guide and advanced tutorial: the column secondary specification example follows the corrected D86 curves
+- [FIX] Three-phase PT flash: a two-phase start that did not converge returned an ideal estimate next to three-phase states
+- [FIX] Three-phase flashes: a liquid-liquid result seeded the next PT flash, and the PV and TV flashes changed the liquid estimates passed to them
+- [FIX] PH flash: kept iterating to its limit after the temperature step had shrunk to nothing
+- [FIX] Dynamic column: with the implicit Euler and Runge-Kutta 4 methods the holdups were not restored between the solves of a step, so the column ran at twice the clock
+- [FIX] Dynamic column: a column opened from a file stopped the first dynamic step with an error
+- [FIX] Dynamic simulation: vessel first content from one inlet only, head added by stopped pumps, compressor power from the pressure rise over the suction density, inlet density lost between equilibrium calculations, no pressure passed on by a liquid-full holdup with no valve upstream
+- [FIX] Operator Training: scenarios started from the schedule's initial state, PID bubbles showed ---, the set point box of a faceplate was empty when it opened
+- [FIX] Convergence assistant: the status bar forced a memory collection at each refresh
+- [FIX] Windows Patreon installer: the TensorFlow libraries were missing, so the neural network unit operation could not run
+- [FIX] OTS aftercooler sample: the cooler duty and its controller follow the current sign convention
 
 Version 10.2.12
 
