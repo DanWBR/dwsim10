@@ -97,7 +97,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
                 Next
             Next
 
-            Return val
+            Return SymmetricKij(val)
 
         End Function
 

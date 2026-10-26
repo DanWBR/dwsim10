@@ -271,7 +271,7 @@ Namespace PropertyPackages
                     Next
                 Next
 
-                Return val
+                Return SymmetricKij(val)
 
             Else
 
@@ -296,7 +296,7 @@ Namespace PropertyPackages
                 Next
             Next
 
-            KijMatrix = val
+            KijMatrix = SymmetricKij(val)
 
         End Sub
 

@@ -10763,6 +10763,27 @@ Final3:
             Return RET_VKij()
         End Function
 
+        ''' <summary>
+        ''' The kij matrix made symmetric, each pair at the mean of its two entries, in place. The quadratic mixing rule
+        ''' a_m = sum_i sum_j x_i x_j a_ij sees only that mean; the fugacity coefficient takes a row or a column of a_ij,
+        ''' and with two different entries for a pair it would not be the derivative of the mixture's Gibbs energy.
+        ''' A symmetric matrix comes back unchanged.
+        ''' </summary>
+        Public Shared Function SymmetricKij(k As Double(,)) As Double(,)
+            If k Is Nothing Then Return k
+            Dim n As Integer = k.GetLength(0) - 1
+            For i As Integer = 0 To n
+                For j As Integer = i + 1 To n
+                    If k(i, j) <> k(j, i) Then
+                        Dim m As Double = 0.5 * (k(i, j) + k(j, i))
+                        k(i, j) = m
+                        k(j, i) = m
+                    End If
+                Next
+            Next
+            Return k
+        End Function
+
         Public Function RET_VCSACIDS()
 
             Dim val(Me.CurrentMaterialStream.Phases(0).Compounds.Count - 1) As String
@@ -14569,10 +14590,14 @@ Final3:
                                     End If
                                 End If
                             Else
-                                If Not pp.m_pr.InteractionParameters(xel.@Compound1).ContainsKey(xel.@Compound2) Then
-                                    pp.m_pr.InteractionParameters(xel.@Compound1).Add(xel.@Compound2, ip)
-                                Else
+                                ' the pair may be held the other way round (the database's order): that entry takes the value, or
+                                ' the pair would carry two kij
+                                If pp.m_pr.InteractionParameters(xel.@Compound1).ContainsKey(xel.@Compound2) Then
                                     pp.m_pr.InteractionParameters(xel.@Compound1)(xel.@Compound2) = ip
+                                ElseIf pp.m_pr.InteractionParameters.ContainsKey(xel.@Compound2) AndAlso pp.m_pr.InteractionParameters(xel.@Compound2).ContainsKey(xel.@Compound1) Then
+                                    pp.m_pr.InteractionParameters(xel.@Compound2)(xel.@Compound1) = ip
+                                Else
+                                    pp.m_pr.InteractionParameters(xel.@Compound1).Add(xel.@Compound2, ip)
                                 End If
                             End If
                         Next
@@ -14600,10 +14625,14 @@ Final3:
                                     End If
                                 End If
                             Else
-                                If Not pp.m_pr.InteractionParameters(xel.@Compound1).ContainsKey(xel.@Compound2) Then
-                                    pp.m_pr.InteractionParameters(xel.@Compound1).Add(xel.@Compound2, ip)
-                                Else
+                                ' the pair may be held the other way round (the database's order): that entry takes the value, or
+                                ' the pair would carry two kij
+                                If pp.m_pr.InteractionParameters(xel.@Compound1).ContainsKey(xel.@Compound2) Then
                                     pp.m_pr.InteractionParameters(xel.@Compound1)(xel.@Compound2) = ip
+                                ElseIf pp.m_pr.InteractionParameters.ContainsKey(xel.@Compound2) AndAlso pp.m_pr.InteractionParameters(xel.@Compound2).ContainsKey(xel.@Compound1) Then
+                                    pp.m_pr.InteractionParameters(xel.@Compound2)(xel.@Compound1) = ip
+                                Else
+                                    pp.m_pr.InteractionParameters(xel.@Compound1).Add(xel.@Compound2, ip)
                                 End If
                             End If
                         Next
@@ -14691,10 +14720,14 @@ Final3:
                                     End If
                                 End If
                             Else
-                                If Not pp.m_pr.InteractionParameters(xel.@Compound1).ContainsKey(xel.@Compound2) Then
-                                    pp.m_pr.InteractionParameters(xel.@Compound1).Add(xel.@Compound2, ip)
-                                Else
+                                ' the pair may be held the other way round (the database's order): that entry takes the value, or
+                                ' the pair would carry two kij
+                                If pp.m_pr.InteractionParameters(xel.@Compound1).ContainsKey(xel.@Compound2) Then
                                     pp.m_pr.InteractionParameters(xel.@Compound1)(xel.@Compound2) = ip
+                                ElseIf pp.m_pr.InteractionParameters.ContainsKey(xel.@Compound2) AndAlso pp.m_pr.InteractionParameters(xel.@Compound2).ContainsKey(xel.@Compound1) Then
+                                    pp.m_pr.InteractionParameters(xel.@Compound2)(xel.@Compound1) = ip
+                                Else
+                                    pp.m_pr.InteractionParameters(xel.@Compound1).Add(xel.@Compound2, ip)
                                 End If
                             End If
                         Next
@@ -14721,10 +14754,14 @@ Final3:
                                 End If
                             End If
                         Else
-                            If Not pp.m_pr.InteractionParameters(xel.@Compound1).ContainsKey(xel.@Compound2) Then
-                                pp.m_pr.InteractionParameters(xel.@Compound1).Add(xel.@Compound2, ip)
-                            Else
+                            ' the pair may be held the other way round (the database's order): that entry takes the value, or
+                            ' the pair would carry two kij
+                            If pp.m_pr.InteractionParameters(xel.@Compound1).ContainsKey(xel.@Compound2) Then
                                 pp.m_pr.InteractionParameters(xel.@Compound1)(xel.@Compound2) = ip
+                            ElseIf pp.m_pr.InteractionParameters.ContainsKey(xel.@Compound2) AndAlso pp.m_pr.InteractionParameters(xel.@Compound2).ContainsKey(xel.@Compound1) Then
+                                pp.m_pr.InteractionParameters(xel.@Compound2)(xel.@Compound1) = ip
+                            Else
+                                pp.m_pr.InteractionParameters(xel.@Compound1).Add(xel.@Compound2, ip)
                             End If
                         End If
                     Next
@@ -14749,10 +14786,14 @@ Final3:
                                 End If
                             End If
                         Else
-                            If Not pp.m_pr.InteractionParameters(xel.@Compound1).ContainsKey(xel.@Compound2) Then
-                                pp.m_pr.InteractionParameters(xel.@Compound1).Add(xel.@Compound2, ip)
-                            Else
+                            ' the pair may be held the other way round (the database's order): that entry takes the value, or
+                            ' the pair would carry two kij
+                            If pp.m_pr.InteractionParameters(xel.@Compound1).ContainsKey(xel.@Compound2) Then
                                 pp.m_pr.InteractionParameters(xel.@Compound1)(xel.@Compound2) = ip
+                            ElseIf pp.m_pr.InteractionParameters.ContainsKey(xel.@Compound2) AndAlso pp.m_pr.InteractionParameters(xel.@Compound2).ContainsKey(xel.@Compound1) Then
+                                pp.m_pr.InteractionParameters(xel.@Compound2)(xel.@Compound1) = ip
+                            Else
+                                pp.m_pr.InteractionParameters(xel.@Compound1).Add(xel.@Compound2, ip)
                             End If
                         End If
                     Next
@@ -14776,10 +14817,14 @@ Final3:
                                 End If
                             End If
                         Else
-                            If Not pp.m_pr.InteractionParameters(xel.@Compound1).ContainsKey(xel.@Compound2) Then
-                                pp.m_pr.InteractionParameters(xel.@Compound1).Add(xel.@Compound2, ip)
-                            Else
+                            ' the pair may be held the other way round (the database's order): that entry takes the value, or
+                            ' the pair would carry two kij
+                            If pp.m_pr.InteractionParameters(xel.@Compound1).ContainsKey(xel.@Compound2) Then
                                 pp.m_pr.InteractionParameters(xel.@Compound1)(xel.@Compound2) = ip
+                            ElseIf pp.m_pr.InteractionParameters.ContainsKey(xel.@Compound2) AndAlso pp.m_pr.InteractionParameters(xel.@Compound2).ContainsKey(xel.@Compound1) Then
+                                pp.m_pr.InteractionParameters(xel.@Compound2)(xel.@Compound1) = ip
+                            Else
+                                pp.m_pr.InteractionParameters(xel.@Compound1).Add(xel.@Compound2, ip)
                             End If
                         End If
                     Next
@@ -14804,10 +14849,14 @@ Final3:
                                     End If
                                 End If
                             Else
-                                If Not pp.m_pr.InteractionParameters(xel.@Compound1).ContainsKey(xel.@Compound2) Then
-                                    pp.m_pr.InteractionParameters(xel.@Compound1).Add(xel.@Compound2, ip)
-                                Else
+                                ' the pair may be held the other way round (the database's order): that entry takes the value, or
+                                ' the pair would carry two kij
+                                If pp.m_pr.InteractionParameters(xel.@Compound1).ContainsKey(xel.@Compound2) Then
                                     pp.m_pr.InteractionParameters(xel.@Compound1)(xel.@Compound2) = ip
+                                ElseIf pp.m_pr.InteractionParameters.ContainsKey(xel.@Compound2) AndAlso pp.m_pr.InteractionParameters(xel.@Compound2).ContainsKey(xel.@Compound1) Then
+                                    pp.m_pr.InteractionParameters(xel.@Compound2)(xel.@Compound1) = ip
+                                Else
+                                    pp.m_pr.InteractionParameters(xel.@Compound1).Add(xel.@Compound2, ip)
                                 End If
                             End If
                         Next
@@ -14856,10 +14905,14 @@ Final3:
                                     End If
                                 End If
                             Else
-                                If Not pp.m_pr.InteractionParameters(xel.@Compound1).ContainsKey(xel.@Compound2) Then
-                                    pp.m_pr.InteractionParameters(xel.@Compound1).Add(xel.@Compound2, ip)
-                                Else
+                                ' the pair may be held the other way round (the database's order): that entry takes the value, or
+                                ' the pair would carry two kij
+                                If pp.m_pr.InteractionParameters(xel.@Compound1).ContainsKey(xel.@Compound2) Then
                                     pp.m_pr.InteractionParameters(xel.@Compound1)(xel.@Compound2) = ip
+                                ElseIf pp.m_pr.InteractionParameters.ContainsKey(xel.@Compound2) AndAlso pp.m_pr.InteractionParameters(xel.@Compound2).ContainsKey(xel.@Compound1) Then
+                                    pp.m_pr.InteractionParameters(xel.@Compound2)(xel.@Compound1) = ip
+                                Else
+                                    pp.m_pr.InteractionParameters(xel.@Compound1).Add(xel.@Compound2, ip)
                                 End If
                             End If
                         Next
@@ -14907,10 +14960,14 @@ Final3:
                                     End If
                                 End If
                             Else
-                                If Not pp.m_pr.InteractionParameters(xel.@Compound1).ContainsKey(xel.@Compound2) Then
-                                    pp.m_pr.InteractionParameters(xel.@Compound1).Add(xel.@Compound2, ip)
-                                Else
+                                ' the pair may be held the other way round (the database's order): that entry takes the value, or
+                                ' the pair would carry two kij
+                                If pp.m_pr.InteractionParameters(xel.@Compound1).ContainsKey(xel.@Compound2) Then
                                     pp.m_pr.InteractionParameters(xel.@Compound1)(xel.@Compound2) = ip
+                                ElseIf pp.m_pr.InteractionParameters.ContainsKey(xel.@Compound2) AndAlso pp.m_pr.InteractionParameters(xel.@Compound2).ContainsKey(xel.@Compound1) Then
+                                    pp.m_pr.InteractionParameters(xel.@Compound2)(xel.@Compound1) = ip
+                                Else
+                                    pp.m_pr.InteractionParameters(xel.@Compound1).Add(xel.@Compound2, ip)
                                 End If
                             End If
                         Next
@@ -14953,10 +15010,14 @@ Final3:
                                 End If
                             End If
                         Else
-                            If Not pp.m_pr.InteractionParameters(xel.@Compound1).ContainsKey(xel.@Compound2) Then
-                                pp.m_pr.InteractionParameters(xel.@Compound1).Add(xel.@Compound2, ip)
-                            Else
+                            ' the pair may be held the other way round (the database's order): that entry takes the value, or
+                            ' the pair would carry two kij
+                            If pp.m_pr.InteractionParameters(xel.@Compound1).ContainsKey(xel.@Compound2) Then
                                 pp.m_pr.InteractionParameters(xel.@Compound1)(xel.@Compound2) = ip
+                            ElseIf pp.m_pr.InteractionParameters.ContainsKey(xel.@Compound2) AndAlso pp.m_pr.InteractionParameters(xel.@Compound2).ContainsKey(xel.@Compound1) Then
+                                pp.m_pr.InteractionParameters(xel.@Compound2)(xel.@Compound1) = ip
+                            Else
+                                pp.m_pr.InteractionParameters(xel.@Compound1).Add(xel.@Compound2, ip)
                             End If
                         End If
                     Next

@@ -222,7 +222,7 @@ Namespace PropertyPackages
                 i = i + 1
             Next
 
-            Return val
+            Return SymmetricKij(val)
 
         End Function
 
