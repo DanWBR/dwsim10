@@ -26,7 +26,8 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
     ''' The derivatives of a converged column's results with respect to its feeds, from the implicit function theorem on
     ''' the MESH equations: at the solution x of F(x, u) = 0, dx/du = -(dF/dx)^-1 dF/du, with dF/dx the solver's own
     ''' Jacobian. The inputs are, for each feed stage in FeedStages, the component feed flows (mol/s) and then the feed
-    ''' enthalpy flow (kW). The outputs are, for each stage, T (K), V, L, VSS, LSS (mol/s), x and y, then Q(0) and Q(ns)
+    ''' enthalpy flow (kW), and after them the condenser and the reboiler specification values, in the units the solver
+    ''' takes them (SI, or the plain number of a fraction, ratio or recovery). The outputs are, for each stage, T (K), V, L, VSS, LSS (mol/s), x and y, then Q(0) and Q(ns)
     ''' (kW, as the solver returns them).
     ''' </summary>
     Public Class ColumnSensitivities
@@ -38,6 +39,11 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
         Public Derivatives As Double(,)
         ''' <summary>The largest scaled MESH residual at the solution the derivatives were taken at.</summary>
         Public Residual As Double
+        ''' <summary>
+        ''' How far that point is from a solution of these equations: the largest stage temperature change (K) of the
+        ''' Newton step that would correct it. Large when the column's own solver stopped short of the MESH solution.
+        ''' </summary>
+        Public Offset As Double
 
         Public ReadOnly Property Block As Integer
             Get
@@ -82,6 +88,11 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
             Return feed * (NumberOfCompounds + 1) + If(compound < 0, NumberOfCompounds, compound)
         End Function
 
+        ''' <summary>The input column of the condenser (top) or the reboiler specification value.</summary>
+        Public Function SpecIndex(top As Boolean) As Integer
+            Return FeedStages.Length * (NumberOfCompounds + 1) + If(top, 0, 1)
+        End Function
+
     End Class
 
     Partial Public Class NaphtaliSandholmMethod
@@ -91,6 +102,39 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
         ''' around one solve on its own thread.
         ''' </summary>
         <ThreadStatic> Public Shared SensitivityCapture As ColumnSensitivities
+
+        Private _captureOnly As Boolean = False
+        Private _captureTarget As ColumnSensitivities
+
+        ''' <summary>
+        ''' The derivatives at the point the input data carries (the column's own solution, whichever of its solvers found
+        ''' it), without solving: the equations are set up there and the implicit function theorem applied as it stands.
+        ''' Residual says how far that point is from satisfying these equations.
+        ''' </summary>
+        Public Function SensitivitiesAt(input As ColumnSolverInputData) As ColumnSensitivities
+            Dim col = input.ColumnObject
+            Dim llextractor As Boolean = False
+            Dim myabs As AbsorptionColumn = TryCast(col, AbsorptionColumn)
+            If myabs IsNot Nothing AndAlso myabs.OperationMode <> AbsorptionColumn.OpMode.Absorber Then llextractor = True
+            _subcoolingDeltaT = input.SubcoolingDeltaT
+            Dim sens As New ColumnSensitivities
+            _captureOnly = True
+            _captureTarget = sens
+            Try
+                Solve(col, input.NumberOfCompounds, input.NumberOfStages, input.MaximumIterations, input.Tolerances.ToArray(),
+                      input.FeedFlows.ToArray(), input.VaporFlows.ToArray(), input.StageHeats.ToArray(), input.LiquidFlows.ToArray(),
+                      input.VaporSideDraws.ToArray(), input.LiquidSideDraws.ToArray(), input.Kvalues.ToArray(),
+                      input.LiquidCompositions.ToArray(), input.VaporCompositions.ToArray(), input.OverallCompositions.ToArray(),
+                      input.FeedCompositions.ToArray(), input.FeedEnthalpies.ToArray(), input.StageTemperatures.ToArray(),
+                      input.StagePressures.ToArray(), input.CondenserType, input.StageEfficiencies.ToArray(), input.ColumnType,
+                      col.PropertyPackage, col.Specs, input.CalculationMode, llextractor,
+                      If(input.ComponentEfficiencies Is Nothing, Nothing, input.ComponentEfficiencies.ToArray()))
+            Finally
+                _captureOnly = False
+                _captureTarget = Nothing
+            End Try
+            Return sens
+        End Function
 
         Private Sub CaptureSensitivities(xvar As Double(), sens As ColumnSensitivities)
 
@@ -110,7 +154,7 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
 
             ' dF/du: the residuals are linear in the feed flows and in the feed enthalpy flow, so a central difference of
             ' the residual function at fixed x is exact to roundoff
-            Dim m = feeds.Length * (nc + 1)
+            Dim m = feeds.Length * (nc + 1) + 2
             Dim Ju As New DenseMatrix(n, m)
             Dim flow0 = DirectCast(_F.Clone(), Double())
             Dim fc0 = _fc.Select(Function(r) DirectCast(r.Clone(), Double())).ToArray()
@@ -133,7 +177,23 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                 Next
             Next
 
-            Dim dx = J.LU().Solve(-Ju)
+            Dim spec0 = {_spval1, _spval2}
+            For k = 0 To 1
+                Dim h = 0.000001 * Math.Max(Math.Abs(spec0(k)), 0.001)
+                SetSpec(k, spec0(k) + h)
+                Dim up = FunctionValue(xvar)
+                SetSpec(k, spec0(k) - h)
+                Dim dn = FunctionValue(xvar)
+                SetSpec(k, spec0(k))
+                For r = 0 To n - 1
+                    Ju(r, sens.SpecIndex(k = 0)) = (up(r) - dn(r)) / (2 * h)
+                Next
+            Next
+
+            Dim lu = J.LU()
+            Dim dx = lu.Solve(-Ju)
+            Dim correction = lu.Solve(-DenseVector.OfArray(res0))
+            sens.Offset = Enumerable.Range(0, ns + 1).Max(Function(i) Math.Abs(correction(i * (2 * nc + 1))) * _maxT)
 
             ' the outputs along each direction, by a central difference of the explicit map from (x, u) to the results: they
             ' depend on u directly as well (the duties close the energy balances with the feed enthalpies)
@@ -168,6 +228,27 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                 Next
             Next
 
+            For k = 0 To 1
+                Dim q = sens.SpecIndex(k = 0)
+                Dim col = dx.Column(q).ToArray()
+                Dim t = 0.000001 * Math.Max(Math.Abs(spec0(k)), 0.001)
+                Dim xscale = col.Select(Function(v) Math.Abs(v)).Max() * t
+                If xscale > 0.000001 Then t *= 0.000001 / xscale
+                Dim xp(n - 1), xm(n - 1) As Double
+                For r = 0 To n - 1
+                    xp(r) = xvar(r) + t * col(r)
+                    xm(r) = xvar(r) - t * col(r)
+                Next
+                SetSpec(k, spec0(k) + t)
+                Dim yp = Outputs(xp)
+                SetSpec(k, spec0(k) - t)
+                Dim ym = Outputs(xm)
+                SetSpec(k, spec0(k))
+                For r = 0 To ny - 1
+                    sens.Derivatives(r, q) = (yp(r) - ym(r)) / (2 * t)
+                Next
+            Next
+
             ' the solver's state back at the solution
             FunctionValue(xvar)
 
@@ -178,6 +259,11 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
             SetFeed(s, flows, Hflow, p, h)
             Return FunctionValue(xvar)
         End Function
+
+        ''' <summary>The condenser (k = 0) or the reboiler (k = 1) specification value, as the solver holds it.</summary>
+        Private Sub SetSpec(k As Integer, value As Double)
+            If k = 0 Then _spval1 = value Else _spval2 = value
+        End Sub
 
         ''' <summary>Feed stage s with its compound p flow (p = nc: its enthalpy flow) moved by h.</summary>
         Private Sub SetFeed(s As Integer, flows As Double(), Hflow As Double, p As Integer, h As Double)

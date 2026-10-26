@@ -1365,6 +1365,7 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
             End If
 
             'If CalcMode = 0 And esolv Is Nothing Then
+            If Not _captureOnly Then
             Try
                 'solve the column with the bubble point method (to convergence, with its fallbacks) to
                 'enhance the initial estimates. a warm-up cut to a few sweeps leaves some columns (the
@@ -1385,6 +1386,7 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                 Q = result(8)
             Catch ex As Exception
             End Try
+            End If
             'End If
 
             _Tj_ant = T.Clone
@@ -1645,6 +1647,11 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
             IObj?.Paragraphs.Add(String.Format("Upper Bounds: {0}", ub.ToMathArrayString))
 
             _IObj = IObj
+
+            If _captureOnly Then
+                CaptureSensitivities(xvar, _captureTarget)
+                Return Nothing
+            End If
 
             TryInitGpuColumn()
 
