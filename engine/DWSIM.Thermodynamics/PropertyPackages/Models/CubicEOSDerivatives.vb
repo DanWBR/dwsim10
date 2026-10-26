@@ -90,15 +90,25 @@ Namespace PropertyPackages.ThermoPlugs
                 Next
             Next
 
-            ' Mixture parameters and their T-derivatives
+            ' Mixture parameters and their T-derivatives. aml2(i) is the sum CalcLnFug puts in ln(phi_i): over the column,
+            ' sum_j x_j a(j,i), for PR and PR78 (Calc_SUM2), over the row, sum_j x_j a(i,j), for SRK (Calc_SUM3). With an
+            ' asymmetric kij matrix the two differ, and d(a_m)/dn_i takes both (amo2 is the other one)
+            Dim byRow As Boolean = (eosType = EOS_SRK)
             Dim aml As Double = 0.0, bml As Double = 0.0, damldT As Double = 0.0
-            Dim aml2(n), daml2dT(n) As Double
+            Dim aml2(n), amo2(n), daml2dT(n) As Double
             For i As Integer = 0 To n
                 bml += Vx(i) * bi(i)
                 For j As Integer = 0 To n
                     aml += Vx(i) * Vx(j) * aij(i, j)
-                    aml2(i) += Vx(j) * aij(i, j)
-                    daml2dT(i) += Vx(j) * daijdT(i, j)
+                    If byRow Then
+                        aml2(i) += Vx(j) * aij(i, j)
+                        amo2(i) += Vx(j) * aij(j, i)
+                        daml2dT(i) += Vx(j) * daijdT(i, j)
+                    Else
+                        aml2(i) += Vx(j) * aij(j, i)
+                        amo2(i) += Vx(j) * aij(i, j)
+                        daml2dT(i) += Vx(j) * daijdT(j, i)
+                    End If
                     damldT += Vx(i) * Vx(j) * daijdT(i, j)
                 Next
             Next
@@ -152,12 +162,12 @@ Namespace PropertyPackages.ThermoPlugs
             Dim dlnphidn(n, n) As Double
             For j As Integer = 0 To n
                 Dim dbml_j As Double = bi(j) - bml
-                Dim daml_j As Double = 2.0 * aml2(j) - 2.0 * aml
+                Dim daml_j As Double = aml2(j) + amo2(j) - 2.0 * aml
                 Dim dA_j As Double = A * daml_j / aml
                 Dim dB_j As Double = B * dbml_j / bml
                 Dim dZ_j As Double = DZ(Z, A, B, dA_j, dB_j, e1, e2, denom)
                 For i As Integer = 0 To n
-                    Dim daml2_ij As Double = aij(i, j) - aml2(i)
+                    Dim daml2_ij As Double = If(byRow, aij(i, j), aij(j, i)) - aml2(i)
                     dlnphidn(i, j) = DlnphiTerm(Z, A, B, aml, bml, aml2(i), bi(i), e1, e2,
                                                 dZ_j, dA_j, dB_j, daml_j, daml2_ij, dbml_j)
                 Next

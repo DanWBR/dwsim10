@@ -35,6 +35,7 @@ namespace DWSIM.Thermodynamics.Derivatives.Tests
             public double[] X;
             public double T, P;
             public int Phase;            // 0 = liquid, 1 = vapor
+            public double[,] Kij;        // null = all zero
             public override string ToString() => Name;
         }
 
@@ -54,6 +55,11 @@ namespace DWSIM.Thermodynamics.Derivatives.Tests
                 // heavy component (omega > 0.491) to exercise the PR78 high-acentric-factor kappa branch,
                 // away from any critical point (C1 supercritical, nC10 well into the liquid region)
                 yield return new Case { Name = $"{tag} C1nC10 liquid 320K 3MPa", Eos = eos, Comps = new[] { "C1", "nC10" }, X = new[] { 0.2, 0.8 }, T = 320.0, P = 3e6, Phase = 0 };
+                // an asymmetric kij matrix, as a flowsheet gets when it carries both i-j and j-i for a pair
+                // (Methanolsynthesis: CO2/water 0.0063 and water/CO2 -0.12155)
+                var asym = new double[,] { { 0.0, 0.0063, 0.09 }, { -0.12155, 0.0, 0.02 }, { 0.09, -0.04, 0.0 } };
+                yield return new Case { Name = $"{tag} CO2C3nC10 asymmetric kij liquid 320K 3MPa", Eos = eos, Comps = new[] { "CO2", "C3", "nC10" }, X = new[] { 0.3, 0.3, 0.4 }, T = 320.0, P = 3e6, Phase = 0, Kij = asym };
+                yield return new Case { Name = $"{tag} CO2C3nC10 asymmetric kij vapour 320K 1MPa", Eos = eos, Comps = new[] { "CO2", "C3", "nC10" }, X = new[] { 0.6, 0.39, 0.01 }, T = 320.0, P = 1e6, Phase = 1, Kij = asym };
             }
         }
 
@@ -79,7 +85,7 @@ namespace DWSIM.Thermodynamics.Derivatives.Tests
         {
             int n = c.X.Length - 1;
             var (Tc, Pc, w) = Constants(c.Comps);
-            var kij = new double[n + 1, n + 1];
+            var kij = c.Kij ?? new double[n + 1, n + 1];
 
             var res = (object[])CubicEOSDerivatives.Calc(c.Eos, c.T, c.P, c.X, kij, Tc, Pc, w, c.Phase);
             var lnphi = (double[])res[0];
@@ -114,7 +120,10 @@ namespace DWSIM.Thermodynamics.Derivatives.Tests
                 }
             }
 
-            // (3) Maxwell symmetry: d(ln phi_i)/dn_j == d(ln phi_j)/dn_i
+            // (3) Maxwell symmetry: d(ln phi_i)/dn_j == d(ln phi_j)/dn_i. Not with an asymmetric kij: CalcLnFug takes
+            // the partial a_m term from the columns of a(i,j) alone, which is not the derivative of any G, and its
+            // derivatives are not symmetric either
+            if (c.Kij != null) return;
             for (int i = 0; i <= n; i++)
                 for (int j = i + 1; j <= n; j++)
                     AssertClose(dn[i, j], dn[j, i], 1e-6, 1e-8, $"symmetry i={i} j={j}");
