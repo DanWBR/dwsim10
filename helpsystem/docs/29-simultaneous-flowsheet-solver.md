@@ -41,7 +41,7 @@ Without a Patreon membership the log says so and the sequential solver runs. Dyn
 
 ##### Unknowns and equations
 
-The unknowns $\mathbf{x}$ are the state of every torn stream (temperature, pressure and the mass flow of each compound), every recycled energy flow and every manipulated variable of an Adjust. The function $\mathbf{g}(\mathbf{x})$ is one sequential pass of the flowsheet with the recycle and adjust blocks taken out: the solver writes $\mathbf{x}$ into the torn streams and the manipulated variables, the unit operations are calculated in the usual order, and the pass returns the recalculated torn streams and the controlled variables. The residuals are
+The unknowns $\mathbf{x}$ are the state of every torn stream (temperature, pressure and the mass flow of each compound), every recycled energy flow and every manipulated variable of an Adjust. A torn stream of a single compound takes its mass enthalpy in place of the temperature, since DWSIM calculates such a stream from its pressure and enthalpy, and in two phases the temperature does not fix its state. The function $\mathbf{g}(\mathbf{x})$ is one sequential pass of the flowsheet with the recycle and adjust blocks taken out: the solver writes $\mathbf{x}$ into the torn streams and the manipulated variables, the unit operations are calculated in the usual order, and the pass returns the recalculated torn streams and the controlled variables. The residuals are
 
 
 <a id="eq:simultaneous_residuals"></a>
@@ -70,11 +70,15 @@ The system is solved by a damped Newton method,
 \]
 
 
-with a backtracking line search on $\lambda$, limits on the change of each variable in one step, and flows kept non-negative. The first matrix is minus the identity for the torn variables, so the first step is a plain successive-substitution step, plus one finite-difference column for each adjust. Broyden updates then shape the matrix from the passes the iteration makes anyway. A full finite-difference Jacobian is built only when the line search fails with the updated matrix; its columns are evaluated in parallel on copies of the flowsheet held in memory.
+with a backtracking line search on $\lambda$, limits on the change of each variable in one step, and flows kept non-negative. The first matrix is minus the identity for the torn variables, so the first step is a plain successive-substitution step, plus one finite-difference column for each adjust. Broyden updates then shape the matrix from the passes the iteration makes anyway. A full finite-difference Jacobian is built only when the line search fails with the updated matrix; its columns are evaluated in parallel on copies of the flowsheet held in memory. When the Jacobian has to be built again in the same solve, the columns that move disjoint sets of residuals in the first one are perturbed together, one pass per group.
 
 ##### Warm start
 
 The solution, and the Jacobian when one was built, are saved with the flowsheet. The next solve, in the same session or after the file is opened again, starts from them, and a small change of a feed usually converges in one or two iterations. If the current point cannot be evaluated (a unit operation fails), the solver tries the saved solution, then points halfway and a quarter of the way toward it.
+
+##### Confirmation
+
+When the solve converges, the solver reads the torn streams back from the flowsheet and runs one more pass. An answer that does not close on that pass (a unit operation that carries a state from one pass to the next) is solved again from there, and handed to the sequential solver if it still does not close.
 
 ##### When the solve does not converge
 
@@ -84,7 +88,7 @@ A solve that does not converge is handed to the sequential solver, and the log s
 
 ###### Noise floor
 
-Columns and other unit operations that iterate internally return results with a small noise. When the line search stops making progress with every error within ten times its tolerance, the solver stops at the best point and the log says how many times the tolerance was left; loosen the recycle or adjust tolerances, or tighten the convergence tolerances of the columns.
+Columns and other unit operations that iterate internally return results with a small noise. When the line search stops making progress, after a finite-difference Jacobian has been built, with every error within ten times its tolerance, the solver stops at the best point, without handing the flowsheet to the sequential solver, and the log says how many times the tolerance was left; loosen the recycle or adjust tolerances, or tighten the convergence tolerances of the columns. A matrix shaped by Broyden updates from the substitution start that stops making progress is replaced by a finite-difference Jacobian first.
 
 ###### Specifications without a steady state
 
