@@ -2060,6 +2060,7 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
             ' streams are written from
             If _specs("C").SType = ColumnSpec.SpecType.Heat_Duty Then Q(0) = spval1
             If _specs("R").SType = ColumnSpec.SpecType.Heat_Duty Then Q(ns) = -spval2
+            If SensitivityCapture IsNot Nothing Then CaptureSensitivities(xvar, SensitivityCapture)
             Return New Object() {Tj, Vj, Lj, VSSj, LSSj, yc, xc, K, Q, ec, il_err, ic, el_err}
 
         End Function
