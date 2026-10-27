@@ -1847,7 +1847,7 @@ Namespace Reactors
                 End With
             End If
 
-            If ReactorOperationMode <> OperationMode.Adiabatic Then
+            If ReactorOperationMode <> OperationMode.Adiabatic AndAlso GetInletEnergyStream(1) IsNot Nothing Then
                 'energy stream - update energy flow value (kW)
                 With GetInletEnergyStream(1)
                     .EnergyFlow = Me.DeltaQ.GetValueOrDefault
@@ -2729,10 +2729,12 @@ Namespace Reactors
             End If
 
             'energy stream - update energy flow value (kW)
-            With GetInletEnergyStream(1)
-                .EnergyFlow = Me.DeltaQ.GetValueOrDefault
-                .GraphicObject.Calculated = True
-            End With
+            If GetInletEnergyStream(1) IsNot Nothing Then
+                With GetInletEnergyStream(1)
+                    .EnergyFlow = Me.DeltaQ.GetValueOrDefault
+                    .GraphicObject.Calculated = True
+                End With
+            End If
 
             IObj?.Close()
 
