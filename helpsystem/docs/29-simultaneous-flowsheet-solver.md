@@ -305,9 +305,13 @@ The outlet's moles are the inlet's plus what the reactions make in the reactor a
 
 A distillation column or an absorber (without rate-based efficiencies, secondary specifications, a free water product or an external solver) gives its products from its feeds with its own solver, warm from the last solution, and its derivatives from the Naphtali-Sandholm solver started at that solution: the derivatives of every stage's flows, temperatures and compositions with respect to the feeds' moles and enthalpies and to the two specifications, by the implicit function theorem on the MESH equations. Finite differences would cost two column solves per feed variable.
 
+###### Spec blocks
+
+An active Spec block is an equation: its target property becomes an unknown, equal to the block's expression of the source (X) and of the target itself (Y) in the units of the flowsheet, held between the block's limits when it has both.
+
 ###### Black boxes
 
-A unit operation in another mode, an Expander, a Tank, a Component Separator, a Shortcut Column or a PFR (whose integration along its length is its own) enters through its own calculation: its inlets are put at their variables and flashed there, the unit is calculated, and its residuals are
+A unit operation in another mode, an Expander, a Tank, a Component Separator, a Shortcut Column, a PFR (whose integration along its length is its own) or a column the derivatives above do not cover (secondary specifications, rate-based efficiencies, an external solver) enters through its own calculation: its inlets are put at their variables and flashed there, the unit is calculated, and its residuals are
 
 
 <a id="eq:eo_blackbox"></a>
@@ -325,7 +329,7 @@ Each active Adjust and each active design specification adds an unknown, the pro
 
 ###### The simultaneous solver takes over
 
-A flowsheet with a stream of a package that treats it as one compound (Steam Tables, single-compound streams, the CoolProp incompressible mixtures), a unit operation outside the table and the black-box list (columns outside the ones above, CAPE-OPEN units, Spec blocks), two liquid phases in a flash, or a Newton iteration that does not converge is handed to the simultaneous solver, with a message that gives the reason.
+A flowsheet with a stream of a package that treats it as one compound (Steam Tables, single-compound streams, the CoolProp incompressible mixtures), a unit operation outside the table and the black-box list (CAPE-OPEN units, for one), two liquid phases in a flash, or a Newton iteration that does not converge is handed to the simultaneous solver, with a message that gives the reason.
 
 ###### After the solve
 
