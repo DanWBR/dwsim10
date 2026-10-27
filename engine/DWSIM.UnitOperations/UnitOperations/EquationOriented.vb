@@ -972,4 +972,226 @@ Namespace UnitOperations
 
     End Class
 
+    Partial Public Class HeatExchanger
+
+        ''' <summary>
+        ''' Equations of its own with a set outlet temperature on one side, a set heat load, or a set U and A: each side's
+        ''' compound flows go through with its pressure drop, the heat the hot side gives is what the cold side takes plus
+        ''' the heat loss, and the specification. With U and A, the heat load is U A F LMTD, the point where the unit's own
+        ''' iteration stops. The cold side is the inlet at the lower temperature, as the unit decides. The rating, pinch,
+        ''' efficiency and vapor fraction modes take the exchanger as a black box.
+        ''' </summary>
+        Public Overrides ReadOnly Property EOHasEquations As Boolean
+            Get
+                Select Case CalcMode
+                    Case HeatExchangerCalcMode.CalcTempHotOut, HeatExchangerCalcMode.CalcTempColdOut,
+                         HeatExchangerCalcMode.CalcBothTemp, HeatExchangerCalcMode.CalcBothTemp_UA
+                        Dim g = GraphicObject
+                        Return g.InputConnectors(0).IsAttached AndAlso g.InputConnectors(1).IsAttached AndAlso
+                               g.OutputConnectors(0).IsAttached AndAlso g.OutputConnectors(1).IsAttached
+                    Case Else
+                        Return False
+                End Select
+            End Get
+        End Property
+
+        Public Overrides Function EOParameters() As String()
+            If Not EOHasEquations Then Return MyBase.EOParameters()
+            Dim common = {"PROP_HX_28", "PROP_HX_32", "PROP_HX_33"}
+            Select Case CalcMode
+                Case HeatExchangerCalcMode.CalcTempHotOut : Return common.Concat({"PROP_HX_3"}).ToArray()
+                Case HeatExchangerCalcMode.CalcTempColdOut : Return common.Concat({"PROP_HX_4"}).ToArray()
+                Case HeatExchangerCalcMode.CalcBothTemp : Return common.Concat({"PROP_HX_2"}).ToArray()
+                Case Else : Return common.Concat({"PROP_HX_0", "PROP_HX_1"}).ToArray()
+            End Select
+        End Function
+
+        Public Overrides Function EOEquationCount(context As IEquationOrientedContext) As Integer
+            If Not EOHasEquations Then Return MyBase.EOEquationCount(context)
+            Return 2 * (context.CompoundCount + 2)
+        End Function
+
+        Public Overrides Function EOVariables(context As IEquationOrientedContext) As Integer()
+            If Not EOHasEquations Then Return MyBase.EOVariables(context)
+            Return EOStreamVariables(context, {EOInletOffset(context, 0), EOInletOffset(context, 1), EOOutletOffset(context, 0), EOOutletOffset(context, 1)}, EOParameters())
+        End Function
+
+        ' the sides: inlet and outlet offsets of the cold and the hot fluid
+        Private Sub EOSides(context As IEquationOrientedContext, x As Double(), ByRef ci As Integer, ByRef co As Integer, ByRef hi As Integer, ByRef ho As Integer)
+            Dim i0 = EOInletOffset(context, 0), i1 = EOInletOffset(context, 1)
+            Dim o0 = EOOutletOffset(context, 0), o1 = EOOutletOffset(context, 1)
+            If x(i0) < x(i1) Then
+                ci = i0 : co = o0 : hi = i1 : ho = o1
+            Else
+                ci = i1 : co = o1 : hi = i0 : ho = o0
+            End If
+        End Sub
+
+        ''' <summary>The log mean temperature difference times the correction factor, and its derivatives with respect to Th1, Tc1, Th2 and Tc2.</summary>
+        Private Function EOLMTD(Th1 As Double, Tc1 As Double, Th2 As Double, Tc2 As Double, ByRef d As Double()) As Double
+            Dim a, b As Double
+            Dim da(3), db(3) As Double
+            If FlowDir = FlowDirection.CoCurrent Then
+                a = Th1 - Tc1 : da(0) = 1 : da(1) = -1
+                b = Th2 - Tc2 : db(2) = 1 : db(3) = -1
+            Else
+                a = Th1 - Tc2 : da(0) = 1 : da(3) = -1
+                b = Th2 - Tc1 : db(2) = 1 : db(1) = -1
+            End If
+            ' the unit's own floor on the differences
+            If a < 0.001 Then a = 0.001 : da = New Double(3) {}
+            If b < 0.001 Then b = 0.001 : db = New Double(3) {}
+            Dim L, La, Lb As Double
+            If Math.Abs(a / b - 1.0) < 0.0001 Then
+                L = (a + b) / 2 : La = 0.5 : Lb = 0.5
+            Else
+                Dim lr = Math.Log(a / b)
+                L = (a - b) / lr
+                La = 1.0 / lr - (a - b) / (a * lr * lr)
+                Lb = -1.0 / lr + (a - b) / (b * lr * lr)
+            End If
+            d = New Double(3) {}
+            For k = 0 To 3
+                d(k) = (La * da(k) + Lb * db(k)) * CorrectionFactorLMTD
+            Next
+            Return L * CorrectionFactorLMTD
+        End Function
+
+        Public Overrides Sub EOResiduals(context As IEquationOrientedContext, x As Double(), r As Double(), row As Integer)
+            If Not EOHasEquations Then
+                MyBase.EOResiduals(context, x, r, row)
+                Return
+            End If
+            Dim c = context.CompoundCount
+            Dim ci, co, hi, ho As Integer
+            EOSides(context, x, ci, co, hi, ho)
+            Dim k = row
+            For Each side In {New Integer() {ci, co}, New Integer() {hi, ho}}
+                Dim ft = context.FlowTolerance(side(1))
+                For i = 0 To c - 1
+                    r(k) = (x(side(1) + 2 + i) - x(side(0) + 2 + i)) / ft
+                    k += 1
+                Next
+            Next
+            Dim tp = context.PressureTolerance
+            r(k) = (x(co + 1) - (x(ci + 1) - EOParameterValue(context, x, "PROP_HX_32", ColdSidePressureDrop))) / tp : k += 1
+            r(k) = (x(ho + 1) - (x(hi + 1) - EOParameterValue(context, x, "PROP_HX_33", HotSidePressureDrop))) / tp : k += 1
+            Dim te = context.EnergyTolerance(co) + context.EnergyTolerance(ho)
+            Dim dHc = context.Enthalpy(co, x) - context.Enthalpy(ci, x)
+            Dim dHh = context.Enthalpy(ho, x) - context.Enthalpy(hi, x)
+            Dim loss = EOParameterValue(context, x, "PROP_HX_28", HeatLoss)
+            Select Case CalcMode
+                Case HeatExchangerCalcMode.CalcTempHotOut
+                    r(k) = (x(co) - EOParameterValue(context, x, "PROP_HX_3", TempColdOut.GetValueOrDefault())) / context.TemperatureTolerance
+                    r(k + 1) = (dHc + dHh + loss) / te
+                Case HeatExchangerCalcMode.CalcTempColdOut
+                    r(k) = (x(ho) - EOParameterValue(context, x, "PROP_HX_4", TempHotOut.GetValueOrDefault())) / context.TemperatureTolerance
+                    r(k + 1) = (dHc + dHh + loss) / te
+                Case HeatExchangerCalcMode.CalcBothTemp
+                    Dim q = EOParameterValue(context, x, "PROP_HX_2", Me.Q.GetValueOrDefault())
+                    r(k) = (dHc - q) / te
+                    r(k + 1) = (dHh + q + loss) / te
+                Case Else
+                    Dim d As Double() = Nothing
+                    Dim L = EOLMTD(x(hi), x(ci), x(ho), x(co), d)
+                    Dim UA = EOParameterValue(context, x, "PROP_HX_0", OverallCoefficient.GetValueOrDefault()) * EOParameterValue(context, x, "PROP_HX_1", Area.GetValueOrDefault())
+                    r(k) = (dHc - UA * L / 1000.0) / te
+                    r(k + 1) = (dHc + dHh + loss) / te
+            End Select
+        End Sub
+
+        Public Overrides Function EOJacobian(context As IEquationOrientedContext, x As Double(), add As Action(Of Integer, Integer, Double)) As Boolean
+            If Not EOHasEquations Then Return MyBase.EOJacobian(context, x, add)
+            Dim c = context.CompoundCount
+            Dim ci, co, hi, ho As Integer
+            EOSides(context, x, ci, co, hi, ho)
+            Dim k = 0
+            For Each side In {New Integer() {ci, co}, New Integer() {hi, ho}}
+                Dim ft = context.FlowTolerance(side(1))
+                For i = 0 To c - 1
+                    add(k, side(1) + 2 + i, 1.0 / ft)
+                    add(k, side(0) + 2 + i, -1.0 / ft)
+                    k += 1
+                Next
+            Next
+            Dim tp = context.PressureTolerance
+            add(k, co + 1, 1.0 / tp) : add(k, ci + 1, -1.0 / tp)
+            Dim kp = context.ParameterIndex(Me, "PROP_HX_32")
+            If kp >= 0 Then add(k, kp, 1.0 / tp)
+            k += 1
+            add(k, ho + 1, 1.0 / tp) : add(k, hi + 1, -1.0 / tp)
+            kp = context.ParameterIndex(Me, "PROP_HX_33")
+            If kp >= 0 Then add(k, kp, 1.0 / tp)
+            k += 1
+            Dim te = context.EnergyTolerance(co) + context.EnergyTolerance(ho)
+            Dim hco = context.EnthalpyDerivatives(co, x), hci = context.EnthalpyDerivatives(ci, x)
+            Dim hho = context.EnthalpyDerivatives(ho, x), hhi = context.EnthalpyDerivatives(hi, x)
+            ' sign times d(dHc) and d(dHh) into a row
+            Dim addCold = Sub(row As Integer, sign As Double)
+                              For j = 0 To c + 1
+                                  add(row, co + j, sign * hco(j) / te)
+                                  add(row, ci + j, -sign * hci(j) / te)
+                              Next
+                          End Sub
+            Dim addHot = Sub(row As Integer, sign As Double)
+                             For j = 0 To c + 1
+                                 add(row, ho + j, sign * hho(j) / te)
+                                 add(row, hi + j, -sign * hhi(j) / te)
+                             Next
+                         End Sub
+            Dim kl = context.ParameterIndex(Me, "PROP_HX_28")
+            Select Case CalcMode
+                Case HeatExchangerCalcMode.CalcTempHotOut, HeatExchangerCalcMode.CalcTempColdOut
+                    Dim tt = context.TemperatureTolerance
+                    Dim code = If(CalcMode = HeatExchangerCalcMode.CalcTempHotOut, "PROP_HX_3", "PROP_HX_4")
+                    add(k, If(CalcMode = HeatExchangerCalcMode.CalcTempHotOut, co, ho), 1.0 / tt)
+                    Dim ks = context.ParameterIndex(Me, code)
+                    If ks >= 0 Then add(k, ks, -1.0 / tt)
+                    addCold(k + 1, 1.0) : addHot(k + 1, 1.0)
+                Case HeatExchangerCalcMode.CalcBothTemp
+                    addCold(k, 1.0)
+                    addHot(k + 1, 1.0)
+                    Dim kq = context.ParameterIndex(Me, "PROP_HX_2")
+                    If kq >= 0 Then add(k, kq, -1.0 / te) : add(k + 1, kq, 1.0 / te)
+                Case Else
+                    Dim d As Double() = Nothing
+                    Dim U = EOParameterValue(context, x, "PROP_HX_0", OverallCoefficient.GetValueOrDefault())
+                    Dim A = EOParameterValue(context, x, "PROP_HX_1", Area.GetValueOrDefault())
+                    Dim L = EOLMTD(x(hi), x(ci), x(ho), x(co), d)
+                    addCold(k, 1.0)
+                    Dim temps = {hi, ci, ho, co}
+                    For m = 0 To 3
+                        add(k, temps(m), -U * A * d(m) / 1000.0 / te)
+                    Next
+                    Dim kU = context.ParameterIndex(Me, "PROP_HX_0"), kA = context.ParameterIndex(Me, "PROP_HX_1")
+                    If kU >= 0 Then add(k, kU, -A * L / 1000.0 / te)
+                    If kA >= 0 Then add(k, kA, -U * L / 1000.0 / te)
+                    addCold(k + 1, 1.0) : addHot(k + 1, 1.0)
+            End Select
+            If kl >= 0 Then add(k + 1, kl, 1.0 / te)
+            Return True
+        End Function
+
+        Public Overrides Function EOEquationName(context As IEquationOrientedContext, k As Integer) As String
+            If Not EOHasEquations Then Return MyBase.EOEquationName(context, k)
+            Dim c = context.CompoundCount
+            If k < c Then Return "cold side flow " & k
+            If k < 2 * c Then Return "hot side flow " & (k - c)
+            Select Case k - 2 * c
+                Case 0 : Return "cold side pressure"
+                Case 1 : Return "hot side pressure"
+                Case 2
+                    Select Case CalcMode
+                        Case HeatExchangerCalcMode.CalcTempHotOut : Return "cold outlet temperature"
+                        Case HeatExchangerCalcMode.CalcTempColdOut : Return "hot outlet temperature"
+                        Case HeatExchangerCalcMode.CalcBothTemp : Return "heat the cold side takes"
+                        Case Else : Return "heat load = U A LMTD"
+                    End Select
+                Case Else
+                    Return If(CalcMode = HeatExchangerCalcMode.CalcBothTemp, "heat the hot side gives", "energy balance")
+            End Select
+        End Function
+
+    End Class
+
 End Namespace

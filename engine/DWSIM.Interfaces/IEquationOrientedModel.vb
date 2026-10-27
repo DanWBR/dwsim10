@@ -89,6 +89,9 @@ Public Interface IEquationOrientedContext
     ''' <summary>The number of compounds: a stream's variables are T (K), P (Pa) and the molar flow (mol/s) of each compound, in that order.</summary>
     ReadOnly Property CompoundCount As Integer
 
+    ''' <summary>The compounds' names, in the order of the flows.</summary>
+    ReadOnly Property CompoundNames As String()
+
     ''' <summary>The index of the first variable (the temperature) of the material stream with this name; -1 when it is not in the system.</summary>
     Function StreamOffset(streamName As String) As Integer
 
