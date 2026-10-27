@@ -168,7 +168,7 @@ The target is in the units shown. An empty tolerance stands for $10^{-6}$ of the
 
 ###### When they are met
 
-On every steady-state solve with the solver strategy set to Simultaneous or Auto (Auto takes the simultaneous solver whenever there are active specifications), while **Meet the specifications on every solve of the simultaneous solver** is checked. The line under the check box says whether they are met, and why not when they are not. A solve with specifications that does not converge is reported as failed: the sequential solver knows nothing of them, so the flowsheet is not handed to it. The usual reason is a target out of reach within the bounds of the variables, and the message names the variable held at its bound.
+On every steady-state solve with the solver strategy set to Simultaneous or Auto (Auto takes the simultaneous solver whenever there are active specifications), while **Meet the specifications on every solve of the simultaneous solver** is checked. The line under the check box says whether they are met, and why not when they are not. A solve with specifications that does not converge is reported as failed: the sequential solver knows nothing of them, so the flowsheet is not handed to it. The usual reason is a target out of reach within the bounds of the variables, and the message names the variable held at its bound. With **Solve the flowsheet as one system of equations (equation-oriented)** checked, the specifications are equations of the equation-oriented solver (Section [Equation-Oriented Solver](#sec:equation_oriented)).
 
 ##### Optimization
 
@@ -246,3 +246,71 @@ The redundancy is the number of measurements less the number of inputs moved (an
 ###### Results
 
 The line under the buttons gives the iterations, the flowsheet solves, the method, the sum of squares, the redundancy, the global test and the suspect measurement; the log lists every measurement and input in the units of the flowsheet. The flowsheet is left at the reconciled inputs.
+
+#### Equation-Oriented Solver {#sec:equation_oriented}
+
+The equation-oriented solver (Patreon Edition) solves the whole flowsheet as one system of equations. Its unknowns are the temperature, the pressure and the molar flow of each compound of every material stream; each unit operation writes the equations that tie its outlets to its inlets, and a damped Newton method solves all of them at once, with no pass of the unit operations inside the iteration. It is turned on with **Solve the flowsheet as one system of equations (equation-oriented)** in the **Design Specifications** tab of the window above (Figure [1](#fig:simultaneous_specifications)), and the choice is saved with the file. From then on every steady-state solve with the solver strategy set to Simultaneous or Auto goes to it first; Auto takes it whenever the box is checked.
+
+##### Equations
+
+Every residual is divided by the tolerance of its kind: $10^{-3}$ K for a temperature, 1 Pa for a pressure, $10^{-7}$ of the stream's molar flow for the flow of a compound and $10^{-4}$ kW per mol/s for an energy balance. The system is converged when
+
+
+<a id="eq:eo_converged"></a>
+
+\[
+\max_i \frac{\left|r_i(\mathbf{x})\right|}{\varepsilon_i} \le 1\tag{6}
+\]
+
+
+The phase equilibrium is a submodel: the PT flash of the property package, with the enthalpy and entropy of each phase. The derivatives of the phase split, the enthalpy and the entropy with respect to temperature, pressure and the moles come from the implicit function theorem on the equality of fugacities, so the unit operations below give their Jacobian analytically:
+
+| **Unit operation** | **Modes with equations of their own** |
+|:---|:---|
+| Mixer | without an energy inlet: flows, pressure by its rule, energy balance |
+| Splitter | split ratios |
+| Heater, Cooler | outlet temperature |
+| Valve | pressure drop or outlet pressure (isenthalpic) |
+| Pump | pressure increase or outlet pressure: the liquid takes $\Delta P/(\rho_L\,\eta)$ times its mass flow |
+| Compressor | adiabatic path, with pressure increase, outlet pressure or pressure ratio: the isentropic enthalpy rise over the efficiency |
+| Gas-Liquid Separator | adiabatic or at a set temperature, at the pressure of its inlets, two outlets |
+| Heat Exchanger | outlet temperature of one side, heat load, or $U$ and $A$ with $Q = U A F\,\Delta T_{\mathrm{lm}}$ |
+| Conversion Reactor | reactions in the mixture; adiabatic with one group of reactions, isothermal or at an outlet temperature |
+
+Feeds keep their state, and a Recycle block makes its outlet equal to its inlet.
+
+###### Black boxes
+
+A unit operation in another mode, an Expander, a Tank, a Component Separator or a Shortcut Column enters through its own calculation: its inlets are put at their variables and flashed there, the unit is calculated, and its residuals are
+
+
+<a id="eq:eo_blackbox"></a>
+
+\[
+\mathbf{r} = \mathbf{x}_{\mathrm{out}} - \mathbf{f}_{\mathrm{unit}}(\mathbf{x}_{\mathrm{in}})\tag{7}
+\]
+
+
+with derivatives by central differences of 0.1 %. The unit's own convergence noise makes these slower than the units with equations.
+
+###### Adjusts and design specifications
+
+Each active Adjust and each active design specification adds an unknown, the property it manipulates, and an equation, the controlled property at its target over the tolerance (the Adjust's own tolerance). The manipulated property is a number the unit's equations read (an outlet temperature, a pressure drop, a split ratio, a feed's flow) or, for a black box, a property written into the unit before it is calculated.
+
+###### The simultaneous solver takes over
+
+A flowsheet with a stream of a package that treats it as one compound (Steam Tables, single-compound streams, the CoolProp incompressible mixtures), a unit operation outside the table and the black-box list (rigorous columns; Equilibrium, Gibbs, CSTR and PFR reactors; CAPE-OPEN units; Spec blocks), two liquid phases in a flash, or a Newton iteration that does not converge is handed to the simultaneous solver, with a message that gives the reason.
+
+###### After the solve
+
+The solution is written into the streams and one pass of the unit operations runs on it, so every unit holds its results. The log lists the largest residual of each iteration with its equation, and the last line gives the iterations, the equations, the flashes, the calculations of black boxes and the time.
+
+###### Performance
+
+On the Cavett problem (four flash drums at set temperatures, three compressors, a mixer and three recycles) the solver closes 360 equations in 3 Newton iterations and 1.1 s, with the recycles closed to $3\times10^{-10}$ kg/s; the simultaneous solver over passes takes 14 s on the same file.
+
+###### Limitations
+
+- A conversion the reactants cannot sustain is not limited the way the Conversion Reactor's own solver limits it.
+- The final pass recalculates the units, whose pressure-enthalpy flashes close to their own tolerance: an outlet temperature can differ from the equation-oriented solution by a few thousandths of a kelvin.
+- The Heat Exchanger's own iteration on $U$ and $A$ stops when the load moves less than 0.1 %; the equation-oriented solver closes $Q = U A F\,\Delta T_{\mathrm{lm}}$, so the two differ by that much.
