@@ -311,7 +311,7 @@ An active Spec block is an equation: its target property becomes an unknown, equ
 
 ###### Black boxes
 
-A unit operation in another mode, an Expander, a Tank, a Component Separator, a Shortcut Column, a PFR (whose integration along its length is its own) or a column the derivatives above do not cover (secondary specifications, rate-based efficiencies, an external solver) enters through its own calculation: its inlets are put at their variables and flashed there, the unit is calculated, and its residuals are
+A unit operation in another mode, an Expander, a Tank, a Component Separator, a Shortcut Column, a PFR (whose integration along its length is its own) or a column the derivatives above do not cover (secondary specifications, rate-based efficiencies, an external solver) or a CAPE-OPEN unit operation (one call at a time, as a ChemSep column needs) enters through its own calculation: its inlets are put at their variables and flashed there, the unit is calculated, and its residuals are
 
 
 <a id="eq:eo_blackbox"></a>
@@ -321,7 +321,7 @@ A unit operation in another mode, an Expander, a Tank, a Component Separator, a 
 \]
 
 
-with derivatives by central differences of 0.1 %. The unit's own convergence noise makes these slower than the units with equations.
+with derivatives by central differences of 0.1 %, one-sided where the unit's own solver fails on the other side. The unit's own convergence noise makes these slower than the units with equations. A CAPE-OPEN unit whose solver stops on a message box is calculated once more; a second failure is an error.
 
 ###### Adjusts and design specifications
 
@@ -329,7 +329,7 @@ Each active Adjust and each active design specification adds an unknown, the pro
 
 ###### The simultaneous solver takes over
 
-A flowsheet with a stream of a package that treats it as one compound (Steam Tables, single-compound streams, the CoolProp incompressible mixtures), a unit operation outside the table and the black-box list (CAPE-OPEN units, for one), two liquid phases in a flash, or a Newton iteration that does not converge is handed to the simultaneous solver, with a message that gives the reason.
+A flowsheet with a stream of a package that treats it as one compound (Steam Tables, single-compound streams, the CoolProp incompressible mixtures), a unit operation outside the table and the black-box list (a Python script unit, for one), two liquid phases in a flash, or a Newton iteration that does not converge (or stalls: five iterations that do not halve the sum of the squared residuals) is handed to the simultaneous solver, with a message that gives the reason. A loop with no make-up of what it loses (a glycol loop whose only losses go to the products) has no well-defined inventory at steady state, and the Newton steps stall on it.
 
 ###### After the solve
 
