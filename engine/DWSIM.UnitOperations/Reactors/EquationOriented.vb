@@ -20,6 +20,7 @@ Imports DWSIM.Interfaces
 Imports DWSIM.Interfaces.Enums
 Imports DWSIM.Thermodynamics
 Imports DWSIM.Thermodynamics.Streams
+Imports DWSIM.Thermodynamics.BaseClasses
 
 Namespace Reactors
 
@@ -1032,6 +1033,226 @@ Namespace Reactors
                 Case 2 : Return "liquid pressure"
                 Case Else : Return If(ReactorOperationMode = OperationMode.Adiabatic, "energy balance", "temperature")
             End Select
+        End Function
+
+    End Class
+
+    Partial Public Class Reactor_CSTR
+
+        ''' <summary>
+        ''' Equations of its own with a single outlet, isothermal, adiabatic or at a set outlet temperature, for kinetic
+        ''' and heterogeneous catalytic reactions whose rates are expressions (not scripts), in the mixture, the liquid or
+        ''' the vapor: the outlet's moles are the inlet's plus what the reactions make in the reactor at the outlet's
+        ''' state (the steady state the unit's own time stepping approaches), the outlet pressure, and the energy balance
+        ''' with the heats of reaction, or the temperature. The rates are worked out from the outlet stream put at its
+        ''' variables, as the unit works them out from its contents; their derivatives come from central differences on it.
+        ''' </summary>
+        Public Overrides ReadOnly Property EOHasEquations As Boolean
+            Get
+                Try
+                    Dim g = GraphicObject
+                    If Not g.OutputConnectors(0).IsAttached OrElse g.OutputConnectors(1).IsAttached Then Return False
+                    Select Case ReactorOperationMode
+                        Case OperationMode.Isothermic, OperationMode.Adiabatic, OperationMode.OutletTemperature
+                        Case Else
+                            Return False
+                    End Select
+                    Dim any = False
+                    For Each rxnsb In FlowSheet.ReactionSets(ReactionSetID).Reactions.Values
+                        If Not rxnsb.IsActive Then Continue For
+                        Dim rxn = FlowSheet.Reactions(rxnsb.ReactionID)
+                        If rxn.ReactionType <> ReactionType.Kinetic AndAlso rxn.ReactionType <> ReactionType.Heterogeneous_Catalytic Then Continue For
+                        If rxn.ReactionKinetics <> ReactionKinetics.Expression Then Return False
+                        If rxn.ReactionPhase <> PhaseName.Mixture AndAlso rxn.ReactionPhase <> PhaseName.Liquid AndAlso rxn.ReactionPhase <> PhaseName.Vapor Then Return False
+                        If Not rxn.Components.ContainsKey(rxn.BaseReactant) Then Return False
+                        any = True
+                    Next
+                    Return any
+                Catch ex As Exception
+                    Return False
+                End Try
+            End Get
+        End Property
+
+        ''' <summary>
+        ''' What the reactions make in the reactor at the state of a stream (mol/s of each compound) and the heat they
+        ''' release (kW, last), as Calculate_Internal_1 works them out for a single outlet.
+        ''' </summary>
+        Private Function EOSource(ms As IMaterialStream) As Double()
+            Dim mstr = CType(ms, MaterialStream)
+            Dim names = mstr.Phases(0).Compounds.Keys.ToList()
+            Dim nc = names.Count
+            Dim src(nc) As Double
+            Dim T = mstr.Phases(0).Properties.temperature.GetValueOrDefault()
+            Dim Q = mstr.Phases(0).Properties.volumetric_flow.GetValueOrDefault()
+            Dim QV = mstr.Phases(2).Properties.volumetric_flow.GetValueOrDefault()
+            Dim QL = mstr.Phases(1).Properties.volumetric_flow.GetValueOrDefault()
+            For Each rxnsb In FlowSheet.ReactionSets(ReactionSetID).Reactions.Values
+                If Not rxnsb.IsActive Then Continue For
+                Dim rxn As Reaction = FlowSheet.Reactions(rxnsb.ReactionID)
+                If rxn.ReactionType <> ReactionType.Kinetic AndAlso rxn.ReactionType <> ReactionType.Heterogeneous_Catalytic Then Continue For
+                Dim scBC = Math.Abs(rxn.Components(rxn.BaseReactant).StoichCoeff)
+                Dim convfactors = GetConvFactors(rxn, mstr)
+                Dim conc As New Dictionary(Of String, Double)
+                Dim Qr As Double
+                Select Case rxn.ReactionPhase
+                    Case PhaseName.Liquid
+                        Qr = QL / Q * Volume
+                        For Each comp As Compound In mstr.Phases(1).Compounds.Values
+                            conc(comp.Name) = comp.Molarity.GetValueOrDefault()
+                        Next
+                    Case PhaseName.Vapor
+                        Qr = QV / Q * Volume
+                        For Each comp As Compound In mstr.Phases(2).Compounds.Values
+                            conc(comp.Name) = comp.Molarity.GetValueOrDefault()
+                        Next
+                    Case Else
+                        Qr = If(MixtureUsesHeadspaceInSingleOutlet, Volume + Headspace, Volume)
+                        For Each comp As Compound In mstr.Phases(0).Compounds.Values
+                            conc(comp.Name) = comp.MolarFlow.GetValueOrDefault() / Q
+                        Next
+                End Select
+                Dim rate, amount As Double
+                If rxn.ReactionType = ReactionType.Kinetic Then
+                    Dim kxf, kxr As Double
+                    If rxn.ReactionKinFwdType = ReactionKineticType.Arrhenius Then
+                        kxf = rxn.A_Forward * Math.Exp(-DWSIM.SharedClasses.SystemsOfUnits.Converter.Convert(rxn.E_Forward_Unit, "J/mol", rxn.E_Forward) / (8.314 * T))
+                    Else
+                        SetExpressionVariable(GetExpressionContext(rxn.ID), "T", T)
+                        kxf = GetCompiledExpression(rxn.ID, rxn.ReactionKinFwdExpression).Evaluate()
+                    End If
+                    If rxn.ReactionKinRevType = ReactionKineticType.Arrhenius Then
+                        kxr = rxn.A_Reverse * Math.Exp(-DWSIM.SharedClasses.SystemsOfUnits.Converter.Convert(rxn.E_Reverse_Unit, "J/mol", rxn.E_Reverse) / (8.314 * T))
+                    Else
+                        SetExpressionVariable(GetExpressionContext(rxn.ID), "T", T)
+                        kxr = GetCompiledExpression(rxn.ID, rxn.ReactionKinRevExpression).Evaluate()
+                    End If
+                    If T < rxn.Tmin Or T > rxn.Tmax Then
+                        kxf = 0.0
+                        kxr = 0.0
+                    End If
+                    Dim rxf = 1.0, rxr = 1.0
+                    For Each sb As ReactionStoichBase In rxn.Components.Values
+                        rxf *= (conc(sb.CompName) * convfactors(sb.CompName)) ^ sb.DirectOrder
+                        rxr *= (conc(sb.CompName) * convfactors(sb.CompName)) ^ sb.ReverseOrder
+                    Next
+                    rate = DWSIM.SharedClasses.SystemsOfUnits.Converter.ConvertToSI(rxn.VelUnit, kxf * rxf - kxr * rxr)
+                    amount = Qr
+                Else
+                    If T < rxn.Tmin Or T > rxn.Tmax Then
+                        rate = 0.0
+                    Else
+                        Dim context = GetExpressionContext(rxn.ID)
+                        SetExpressionVariable(context, "T", T)
+                        Dim ir = 1, ip = 1
+                        For Each sb As ReactionStoichBase In rxn.Components.Values
+                            If sb.StoichCoeff < 0 Then
+                                SetExpressionVariable(context, "R" & ir.ToString(), conc(sb.CompName) * convfactors(sb.CompName))
+                                ir += 1
+                            ElseIf sb.StoichCoeff > 0 Then
+                                SetExpressionVariable(context, "P" & ip.ToString(), conc(sb.CompName) * convfactors(sb.CompName))
+                                ip += 1
+                            End If
+                        Next
+                        Dim numval = GetCompiledExpression(rxn.ID, rxn.RateEquationNumerator).Evaluate()
+                        Dim denmval = GetCompiledExpression(rxn.ID, rxn.RateEquationDenominator).Evaluate()
+                        rate = DWSIM.SharedClasses.SystemsOfUnits.Converter.ConvertToSI(rxn.VelUnit, numval / denmval)
+                    End If
+                    amount = CatalystAmount
+                End If
+                For Each sb As ReactionStoichBase In rxn.Components.Values
+                    src(names.IndexOf(sb.CompName)) += rate * sb.StoichCoeff / scBC * amount
+                Next
+                ' the heat released: ReactionHeat (kJ/kmol of base reactant) times the base reactant converted
+                src(nc) += rxn.ReactionHeat * (rate / scBC * amount) * scBC * 0.001
+            Next
+            Return src
+        End Function
+
+        Private ReadOnly Property EOSourceName As String
+            Get
+                Return "CSTR source " & Name
+            End Get
+        End Property
+
+        Public Overrides Function EOParameters() As String()
+            If Not EOHasEquations Then Return MyBase.EOParameters()
+            Return {"PROP_CS_0"}
+        End Function
+
+        Public Overrides Function EOEquationCount(context As IEquationOrientedContext) As Integer
+            If Not EOHasEquations Then Return MyBase.EOEquationCount(context)
+            Return context.CompoundCount + 2
+        End Function
+
+        Public Overrides Function EOVariables(context As IEquationOrientedContext) As Integer()
+            If Not EOHasEquations Then Return MyBase.EOVariables(context)
+            Return EOStreamVariables(context, {EOInletOffset(context, 0), EOOutletOffset(context, 0)}, EOParameters())
+        End Function
+
+        Public Overrides Sub EOResiduals(context As IEquationOrientedContext, x As Double(), r As Double(), row As Integer)
+            If Not EOHasEquations Then
+                MyBase.EOResiduals(context, x, r, row)
+                Return
+            End If
+            Dim c = context.CompoundCount
+            Dim inlet = EOInletOffset(context, 0), outlet = EOOutletOffset(context, 0)
+            Dim src = context.StreamProperties(outlet, x, EOSourceName, AddressOf EOSource)
+            Dim ft = context.FlowTolerance(outlet)
+            For i = 0 To c - 1
+                r(row + i) = (x(outlet + 2 + i) - x(inlet + 2 + i) - src(i)) / ft
+            Next
+            r(row + c) = (x(outlet + 1) - (x(inlet + 1) - EOParameterValue(context, x, "PROP_CS_0", DeltaP.GetValueOrDefault()))) / context.PressureTolerance
+            Select Case ReactorOperationMode
+                Case OperationMode.Adiabatic
+                    r(row + c + 1) = (context.Enthalpy(outlet, x) - context.Enthalpy(inlet, x) + src(c)) / context.EnergyTolerance(outlet)
+                Case OperationMode.Isothermic
+                    r(row + c + 1) = (x(outlet) - x(inlet)) / context.TemperatureTolerance
+                Case Else
+                    r(row + c + 1) = (x(outlet) - OutletTemperature) / context.TemperatureTolerance
+            End Select
+        End Sub
+
+        Public Overrides Function EOJacobian(context As IEquationOrientedContext, x As Double(), add As Action(Of Integer, Integer, Double)) As Boolean
+            If Not EOHasEquations Then Return MyBase.EOJacobian(context, x, add)
+            Dim c = context.CompoundCount
+            Dim inlet = EOInletOffset(context, 0), outlet = EOOutletOffset(context, 0)
+            Dim dsrc = context.StreamPropertiesDerivatives(outlet, x, EOSourceName, AddressOf EOSource)
+            Dim ft = context.FlowTolerance(outlet)
+            For i = 0 To c - 1
+                add(i, outlet + 2 + i, 1.0 / ft)
+                add(i, inlet + 2 + i, -1.0 / ft)
+                For j = 0 To c + 1
+                    If dsrc(i, j) <> 0.0 Then add(i, outlet + j, -dsrc(i, j) / ft)
+                Next
+            Next
+            Dim tp = context.PressureTolerance
+            add(c, outlet + 1, 1.0 / tp) : add(c, inlet + 1, -1.0 / tp)
+            Dim kP = context.ParameterIndex(Me, "PROP_CS_0")
+            If kP >= 0 Then add(c, kP, 1.0 / tp)
+            Dim tt = context.TemperatureTolerance
+            Select Case ReactorOperationMode
+                Case OperationMode.Adiabatic
+                    Dim te = context.EnergyTolerance(outlet)
+                    Dim hout = context.EnthalpyDerivatives(outlet, x), hin = context.EnthalpyDerivatives(inlet, x)
+                    For j = 0 To c + 1
+                        add(c + 1, outlet + j, (hout(j) + dsrc(c, j)) / te)
+                        add(c + 1, inlet + j, -hin(j) / te)
+                    Next
+                Case OperationMode.Isothermic
+                    add(c + 1, outlet, 1.0 / tt) : add(c + 1, inlet, -1.0 / tt)
+                Case Else
+                    add(c + 1, outlet, 1.0 / tt)
+            End Select
+            Return True
+        End Function
+
+        Public Overrides Function EOEquationName(context As IEquationOrientedContext, k As Integer) As String
+            If Not EOHasEquations Then Return MyBase.EOEquationName(context, k)
+            Dim c = context.CompoundCount
+            If k < c Then Return "balance of compound " & k
+            If k = c Then Return "pressure"
+            Return If(ReactorOperationMode = OperationMode.Adiabatic, "energy balance", "temperature")
         End Function
 
     End Class

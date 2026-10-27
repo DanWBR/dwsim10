@@ -129,6 +129,12 @@ Public Interface IEquationOrientedContext
     ''' <summary>The derivatives of <see cref="StreamProperty"/> with respect to the stream's T, P and compound flows, by central differences.</summary>
     Function StreamPropertyDerivatives(offset As Integer, x As Double(), name As String, read As Func(Of IMaterialStream, Double)) As Double()
 
+    ''' <summary>Several properties of the stream at this offset at once, the stream put at the state x gives it; kept by the name and the state.</summary>
+    Function StreamProperties(offset As Integer, x As Double(), name As String, read As Func(Of IMaterialStream, Double())) As Double()
+
+    ''' <summary>The derivatives of <see cref="StreamProperties"/>: one row per property, one column per T, P and compound flow of the stream.</summary>
+    Function StreamPropertiesDerivatives(offset As Integer, x As Double(), name As String, read As Func(Of IMaterialStream, Double())) As Double(,)
+
     ''' <summary>
     ''' The offsets of the material streams that enter the object, those whose pressure does not come back around from the
     ''' object's own outlets first: where two pressures tie, the first decides, and a recycle that returns at the pressure
