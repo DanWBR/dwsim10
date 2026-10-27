@@ -276,8 +276,24 @@ The phase equilibrium is a submodel: the PT flash of the property package, with 
 | Gas-Liquid Separator | adiabatic or at a set temperature, at the pressure of its inlets, two outlets |
 | Heat Exchanger | outlet temperature of one side, heat load, or $U$ and $A$ with $Q = U A F\,\Delta T_{\mathrm{lm}}$ |
 | Conversion Reactor | reactions in the mixture; adiabatic with one group of reactions, isothermal or at an outlet temperature |
+| Equilibrium Reactor | reactions in the vapor or the liquid, with activity, fugacity, mole fraction or partial pressure as the basis |
+| Gibbs Reactor | reacting in the vapor, in the liquid, or in the phases the flash gives |
 
 Feeds keep their state, and a Recycle block makes its outlet equal to its inlet.
+
+###### Equilibrium and Gibbs reactors
+
+Both write the same equations. The overall moles $\mathbf{z}$ of the two outlets differ from the inlet's by a combination of the columns of a stoichiometric matrix $\mathbf{S}$, and every column is at equilibrium:
+
+
+<a id="eq:eo_chemical_equilibrium"></a>
+
+\[
+\sum_i S_{ir} \ln b_i = \ln K_r\tag{7}
+\]
+
+
+For the Equilibrium Reactor the columns are its reactions, $K_r$ is the reaction's constant at the temperature plus its approach, and the bases $b_i$ are the reactor's own, taken at the overall composition. For the Gibbs Reactor the columns are a basis of the reactions the elements of the reacting compounds allow, $\ln K_r = -\sum_i S_{ir}\,\Delta G_{f,i}/RT$, and $b_i$ is the fugacity over 1 atm in the reacting phase, so the equations hold at the minimum of the Gibbs energy. The outlets split by the flash of $\mathbf{z}$, and an adiabatic reactor carries the heat of reaction in its energy balance.
 
 ###### Black boxes
 
@@ -287,7 +303,7 @@ A unit operation in another mode, an Expander, a Tank, a Component Separator or 
 <a id="eq:eo_blackbox"></a>
 
 \[
-\mathbf{r} = \mathbf{x}_{\mathrm{out}} - \mathbf{f}_{\mathrm{unit}}(\mathbf{x}_{\mathrm{in}})\tag{7}
+\mathbf{r} = \mathbf{x}_{\mathrm{out}} - \mathbf{f}_{\mathrm{unit}}(\mathbf{x}_{\mathrm{in}})\tag{8}
 \]
 
 
@@ -299,7 +315,7 @@ Each active Adjust and each active design specification adds an unknown, the pro
 
 ###### The simultaneous solver takes over
 
-A flowsheet with a stream of a package that treats it as one compound (Steam Tables, single-compound streams, the CoolProp incompressible mixtures), a unit operation outside the table and the black-box list (rigorous columns; Equilibrium, Gibbs, CSTR and PFR reactors; CAPE-OPEN units; Spec blocks), two liquid phases in a flash, or a Newton iteration that does not converge is handed to the simultaneous solver, with a message that gives the reason.
+A flowsheet with a stream of a package that treats it as one compound (Steam Tables, single-compound streams, the CoolProp incompressible mixtures), a unit operation outside the table and the black-box list (rigorous columns; CSTR and PFR reactors; CAPE-OPEN units; Spec blocks), two liquid phases in a flash, or a Newton iteration that does not converge is handed to the simultaneous solver, with a message that gives the reason.
 
 ###### After the solve
 
@@ -314,3 +330,4 @@ On the Cavett problem (four flash drums at set temperatures, three compressors, 
 - A conversion the reactants cannot sustain is not limited the way the Conversion Reactor's own solver limits it.
 - The final pass recalculates the units, whose pressure-enthalpy flashes close to their own tolerance: an outlet temperature can differ from the equation-oriented solution by a few thousandths of a kelvin.
 - The Heat Exchanger's own iteration on $U$ and $A$ stops when the load moves less than 0.1 %; the equation-oriented solver closes $Q = U A F\,\Delta T_{\mathrm{lm}}$, so the two differ by that much.
+- The Equilibrium Reactor's own solver stops when the squares of $\ln(\prod b_i^{\nu_i}/K)$ sum to $10^{-3}$, and the Gibbs Reactor's minimization within a similar margin; Equation [7](#eq:eo_chemical_equilibrium) is closed to $10^{-6}$, so their results differ by that.

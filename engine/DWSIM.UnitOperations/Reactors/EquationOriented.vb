@@ -18,6 +18,8 @@
 
 Imports DWSIM.Interfaces
 Imports DWSIM.Interfaces.Enums
+Imports DWSIM.Thermodynamics
+Imports DWSIM.Thermodynamics.Streams
 
 Namespace Reactors
 
@@ -280,6 +282,750 @@ Namespace Reactors
             Dim c = context.CompoundCount
             If k < c Then Return "vapor flow " & k
             If k < 2 * c Then Return "liquid flow " & (k - c)
+            Select Case k - 2 * c
+                Case 0 : Return "liquid temperature"
+                Case 1 : Return "vapor pressure"
+                Case 2 : Return "liquid pressure"
+                Case Else : Return If(ReactorOperationMode = OperationMode.Adiabatic, "energy balance", "temperature")
+            End Select
+        End Function
+
+    End Class
+
+    ''' <summary>
+    ''' The equations of a reactor that brings its reactions to chemical equilibrium (the equilibrium and the Gibbs
+    ''' reactors), with a vapor and a liquid outlet. The overall moles z are the two outlets together; they differ from
+    ''' the inlet's by a combination of the columns of S (the conservation rows, one per free column of S transposed in
+    ''' row echelon form); each column of S is at equilibrium, the sum of its coefficients times the logarithms of the
+    ''' bases equal to ln K; the outlets split by the PT flash of z; and the energy balance carries the heat of reaction
+    ''' as the coefficients h times the change of z, or the temperature is set.
+    ''' </summary>
+    Friend Class EOChemicalEquilibrium
+
+        ''' <summary>Stoichiometry over the context's compounds, compounds by columns of equilibrium.</summary>
+        Public S As Double(,)
+        ''' <summary>ln K of each column at T.</summary>
+        Public LnK As Func(Of Double, Double())
+        ''' <summary>ln of the basis of each compound for each column (R x C) at T, P, the moles of the reacting phase and whether it is a vapor.</summary>
+        Public LnBasis As Func(Of Double, Double, Double(), Boolean, Double(,))
+        ''' <summary>The reacting phase: the overall moles, or the phase the flash leaves (the vapor when there is one).</summary>
+        Public FlashPhase As Boolean
+        ''' <summary>kW per mol/s of change of each compound.</summary>
+        Public H As Double()
+        Public Mode As OperationMode
+        Public Tset As Double
+        Public DeltaP As Double
+        Public Const TolLn As Double = 0.000001
+
+        Private R, C, nfree As Integer
+        Private M As Double(,)
+
+        ''' <summary>The free columns of S transposed in row echelon form give the conservation rows; false when the columns of S are dependent.</summary>
+        Public Function Prepare(c As Integer) As Boolean
+            Me.C = c
+            R = S.GetLength(1)
+            ' row echelon form of S transposed (R x C)
+            Dim A(R - 1, c - 1) As Double
+            For i = 0 To R - 1
+                For j = 0 To c - 1
+                    A(i, j) = S(j, i)
+                Next
+            Next
+            Dim pivots As New List(Of Integer)
+            Dim row = 0
+            For col = 0 To c - 1
+                If row >= R Then Exit For
+                Dim best = row
+                For i = row + 1 To R - 1
+                    If Math.Abs(A(i, col)) > Math.Abs(A(best, col)) Then best = i
+                Next
+                If Math.Abs(A(best, col)) < 0.000000001 Then Continue For
+                For j = 0 To c - 1
+                    Dim t = A(row, j) : A(row, j) = A(best, j) : A(best, j) = t
+                Next
+                Dim p = A(row, col)
+                For j = 0 To c - 1
+                    A(row, j) /= p
+                Next
+                For i = 0 To R - 1
+                    If i = row Then Continue For
+                    Dim f = A(i, col)
+                    If f = 0.0 Then Continue For
+                    For j = 0 To c - 1
+                        A(i, j) -= f * A(row, j)
+                    Next
+                Next
+                pivots.Add(col)
+                row += 1
+            Next
+            If pivots.Count < R Then Return False
+            Dim free = Enumerable.Range(0, c).Where(Function(j) Not pivots.Contains(j)).ToList()
+            nfree = free.Count
+            ReDim M(nfree - 1, c - 1)
+            For k = 0 To nfree - 1
+                M(k, free(k)) = 1.0
+                For q = 0 To R - 1
+                    M(k, pivots(q)) = -A(q, free(k))
+                Next
+            Next
+            Return True
+        End Function
+
+        Public Function Count() As Integer
+            Return 2 * C + 4
+        End Function
+
+        ' the overall moles and the reacting phase's moles with d(phase moles)/d(z), /dT and /dP
+        Private Function Phase(ctx As IEquationOrientedContext, vapor As Integer, T As Double, P As Double, z As Double(), derivatives As Boolean,
+                               ByRef dw As Double(,), ByRef dwT As Double(), ByRef dwP As Double(), ByRef isVapor As Boolean) As Double()
+            dw = New Double(C - 1, C - 1) {}
+            dwT = New Double(C - 1) {}
+            dwP = New Double(C - 1) {}
+            isVapor = True
+            If Not FlashPhase Then
+                For i = 0 To C - 1
+                    dw(i, i) = 1.0
+                Next
+                Return z
+            End If
+            Dim fl = ctx.Flash(vapor, T, P, z, derivatives)
+            Dim useVapor = fl.V.Sum() > 0.0000000001 * z.Sum()
+            isVapor = useVapor
+            Dim w = If(useVapor, fl.V, fl.L)
+            If derivatives Then
+                Dim sg = If(useVapor, 1.0, -1.0)
+                For i = 0 To C - 1
+                    For k = 0 To C - 1
+                        dw(i, k) = If(useVapor, 0.0, If(i = k, 1.0, 0.0)) + sg * fl.Vdn(i, k)
+                    Next
+                    dwT(i) = sg * fl.VdT(i)
+                    dwP(i) = sg * fl.VdP(i)
+                Next
+            End If
+            Return CType(w.Clone(), Double())
+        End Function
+
+        Public Sub Residuals(ctx As IEquationOrientedContext, x As Double(), res As Double(), row As Integer, inlet As Integer, vapor As Integer, liquid As Integer)
+            Dim z(C - 1) As Double
+            For i = 0 To C - 1
+                z(i) = x(vapor + 2 + i) + x(liquid + 2 + i)
+            Next
+            Dim P = x(inlet + 1) - DeltaP
+            Dim T = x(vapor)
+            Dim tf = ctx.FlowTolerance(inlet)
+            Dim split = ctx.Flash(vapor, T, P, z, False)
+            Dim k = row
+            For i = 0 To C - 1
+                res(k) = (x(vapor + 2 + i) - split.V(i)) / tf : k += 1
+            Next
+            For q = 0 To nfree - 1
+                Dim acc = 0.0
+                For j = 0 To C - 1
+                    acc += M(q, j) * (z(j) - x(inlet + 2 + j))
+                Next
+                res(k) = acc / tf : k += 1
+            Next
+            Dim dw As Double(,) = Nothing, dwT As Double() = Nothing, dwP As Double() = Nothing
+            Dim isVapor As Boolean
+            Dim w = Phase(ctx, vapor, T, P, z, False, dw, dwT, dwP, isVapor)
+            Dim lb = LnBasis(T, P, w, isVapor)
+            Dim lk = LnK(T)
+            For q = 0 To R - 1
+                Dim acc = -lk(q)
+                For j = 0 To C - 1
+                    If S(j, q) <> 0.0 Then acc += S(j, q) * lb(q, j)
+                Next
+                res(k) = acc / TolLn : k += 1
+            Next
+            res(k) = (x(liquid) - T) / ctx.TemperatureTolerance : k += 1
+            res(k) = (x(vapor + 1) - P) / ctx.PressureTolerance : k += 1
+            res(k) = (x(liquid + 1) - P) / ctx.PressureTolerance : k += 1
+            Select Case Mode
+                Case OperationMode.Adiabatic
+                    Dim e = split.H - ctx.Enthalpy(inlet, x)
+                    For j = 0 To C - 1
+                        e += H(j) * (z(j) - x(inlet + 2 + j))
+                    Next
+                    res(k) = e / ctx.EnergyTolerance(inlet)
+                Case OperationMode.Isothermic
+                    res(k) = (T - x(inlet)) / ctx.TemperatureTolerance
+                Case Else
+                    res(k) = (T - Tset) / ctx.TemperatureTolerance
+            End Select
+        End Sub
+
+        ''' <summary>kdP: the variable of the pressure drop, or -1.</summary>
+        Public Sub Jacobian(ctx As IEquationOrientedContext, x As Double(), add As Action(Of Integer, Integer, Double), inlet As Integer, vapor As Integer, liquid As Integer, kdP As Integer)
+            Dim z(C - 1) As Double
+            For i = 0 To C - 1
+                z(i) = x(vapor + 2 + i) + x(liquid + 2 + i)
+            Next
+            Dim P = x(inlet + 1) - DeltaP
+            Dim T = x(vapor)
+            Dim tf = ctx.FlowTolerance(inlet)
+            Dim e = ctx.Flash(vapor, T, P, z, True)
+            If e Is Nothing Then Throw New NotSupportedException("no products")
+            ' through P = P_in - dP
+            Dim addP = Sub(rw As Integer, v As Double)
+                           add(rw, inlet + 1, v)
+                           If kdP >= 0 Then add(rw, kdP, -v)
+                       End Sub
+            ' through z = n_v + n_l
+            Dim addZ = Sub(rw As Integer, j As Integer, v As Double)
+                           add(rw, vapor + 2 + j, v)
+                           add(rw, liquid + 2 + j, v)
+                       End Sub
+            Dim k = 0
+            For i = 0 To C - 1
+                add(k, vapor + 2 + i, 1.0 / tf)
+                For j = 0 To C - 1
+                    addZ(k, j, -e.Vdn(i, j) / tf)
+                Next
+                add(k, vapor, -e.VdT(i) / tf)
+                addP(k, -e.VdP(i) / tf)
+                k += 1
+            Next
+            For q = 0 To nfree - 1
+                For j = 0 To C - 1
+                    If M(q, j) <> 0.0 Then
+                        addZ(k, j, M(q, j) / tf)
+                        add(k, inlet + 2 + j, -M(q, j) / tf)
+                    End If
+                Next
+                k += 1
+            Next
+            ' the equilibrium rows: d(ln basis)/d(T, P, phase moles) by central differences on the smooth fugacity
+            ' coefficients, carried through the flash to z
+            Dim dw As Double(,) = Nothing, dwT As Double() = Nothing, dwP As Double() = Nothing
+            Dim isVapor As Boolean
+            Dim w = Phase(ctx, vapor, T, P, z, True, dw, dwT, dwP, isVapor)
+            Dim hT = 0.001, hP = Math.Max(0.00001 * P, 0.1), sw = Math.Max(w.Sum(), 1.0E-30)
+            Dim bT = Diff(Function(d) LnBasis(T + d, P, w, isVapor), hT)
+            Dim bP = Diff(Function(d) LnBasis(T, P + d, w, isVapor), hP)
+            Dim bw As New List(Of Double(,))
+            For mi = 0 To C - 1
+                Dim mm = mi
+                Dim hw = 0.000001 * sw
+                If w(mi) > hw Then
+                    bw.Add(Diff(Function(d)
+                                     Dim w2 = CType(w.Clone(), Double())
+                                     w2(mm) += d
+                                     Return LnBasis(T, P, w2, isVapor)
+                                 End Function, hw))
+                Else
+                    Dim w2 = CType(w.Clone(), Double())
+                    w2(mm) += hw
+                    Dim up = LnBasis(T, P, w2, isVapor), at = LnBasis(T, P, w, isVapor)
+                    Dim d0(R - 1, C - 1) As Double
+                    For q = 0 To R - 1
+                        For j = 0 To C - 1
+                            d0(q, j) = (up(q, j) - at(q, j)) / hw
+                        Next
+                    Next
+                    bw.Add(d0)
+                End If
+            Next
+            Dim lk0 = LnK(T + hT), lk1 = LnK(T - hT)
+            For q = 0 To R - 1
+                Dim gT = -(lk0(q) - lk1(q)) / (2 * hT)
+                Dim gP = 0.0
+                Dim gw(C - 1) As Double
+                For j = 0 To C - 1
+                    If S(j, q) = 0.0 Then Continue For
+                    gT += S(j, q) * bT(q, j)
+                    gP += S(j, q) * bP(q, j)
+                    For mi = 0 To C - 1
+                        gw(mi) += S(j, q) * bw(mi)(q, j)
+                    Next
+                Next
+                ' w = w(T, P, z)
+                For mi = 0 To C - 1
+                    gT += gw(mi) * dwT(mi)
+                    gP += gw(mi) * dwP(mi)
+                Next
+                For j = 0 To C - 1
+                    Dim gz = 0.0
+                    For mi = 0 To C - 1
+                        gz += gw(mi) * dw(mi, j)
+                    Next
+                    If gz <> 0.0 Then addZ(k, j, gz / TolLn)
+                Next
+                add(k, vapor, gT / TolLn)
+                addP(k, gP / TolLn)
+                k += 1
+            Next
+            Dim tt = ctx.TemperatureTolerance, tp = ctx.PressureTolerance
+            add(k, liquid, 1.0 / tt) : add(k, vapor, -1.0 / tt) : k += 1
+            add(k, vapor + 1, 1.0 / tp) : addP(k, -1.0 / tp) : k += 1
+            add(k, liquid + 1, 1.0 / tp) : addP(k, -1.0 / tp) : k += 1
+            Select Case Mode
+                Case OperationMode.Adiabatic
+                    Dim te = ctx.EnergyTolerance(inlet)
+                    add(k, vapor, e.HdT / te)
+                    addP(k, e.HdP / te)
+                    For j = 0 To C - 1
+                        addZ(k, j, (e.Hdn(j) + H(j)) / te)
+                        add(k, inlet + 2 + j, -H(j) / te)
+                    Next
+                    Dim hin = ctx.EnthalpyDerivatives(inlet, x)
+                    For j = 0 To C + 1
+                        add(k, inlet + j, -hin(j) / te)
+                    Next
+                Case OperationMode.Isothermic
+                    add(k, vapor, 1.0 / tt) : add(k, inlet, -1.0 / tt)
+                Case Else
+                    add(k, vapor, 1.0 / tt)
+            End Select
+        End Sub
+
+        ' central difference of an (R x C) function of one shift
+        Private Function Diff(f As Func(Of Double, Double(,)), h As Double) As Double(,)
+            Dim up = f(h), dn = f(-h)
+            Dim d(R - 1, C - 1) As Double
+            For q = 0 To R - 1
+                For j = 0 To C - 1
+                    d(q, j) = (up(q, j) - dn(q, j)) / (2 * h)
+                Next
+            Next
+            Return d
+        End Function
+
+        Public Function Name(k As Integer) As String
+            If k < C Then Return "vapor flow " & k
+            If k < C + nfree Then Return "conservation " & (k - C)
+            If k < 2 * C Then Return "chemical equilibrium " & (k - C - nfree)
+            Select Case k - 2 * C
+                Case 0 : Return "liquid temperature"
+                Case 1 : Return "vapor pressure"
+                Case 2 : Return "liquid pressure"
+                Case Else : Return If(Mode = OperationMode.Adiabatic, "energy balance", "temperature")
+            End Select
+        End Function
+
+    End Class
+
+    ''' <summary>The parts the equilibrium and the Gibbs reactors share in their equation-oriented models.</summary>
+    Friend Module EOReactorHelpers
+
+        ''' <summary>Fugacity coefficients with the package pointed at the reactor's inlet stream while it calculates.</summary>
+        Friend Function FugacityCoefficients(pp As PropertyPackages.PropertyPackage, inlet As MaterialStream, y As Double(), T As Double, P As Double, vapor As Boolean) As Double()
+            Dim keep = pp.CurrentMaterialStream
+            Try
+                pp.CurrentMaterialStream = inlet
+                Return pp.DW_CalcFugCoeff(y, T, P, If(vapor, PropertyPackages.State.Vapor, PropertyPackages.State.Liquid))
+            Finally
+                pp.CurrentMaterialStream = keep
+            End Try
+        End Function
+
+        ''' <summary>Whether the context's compounds are the package's, in its order.</summary>
+        Friend Function SameCompounds(ctxNames As String(), inlet As MaterialStream) As Boolean
+            Return ctxNames.SequenceEqual(inlet.Phases(0).Compounds.Keys)
+        End Function
+
+    End Module
+
+    Partial Public Class Reactor_Equilibrium
+
+        ''' <summary>
+        ''' Equations of their own for reactions in the vapor or in the liquid with activity, fugacity, mole fraction or
+        ''' partial pressure as the basis, adiabatic, isothermal or at a set outlet temperature, with a vapor and a liquid
+        ''' outlet: each reaction at its constant at the temperature plus its approach, the bases taken at the overall
+        ''' composition as the unit takes them. The unit's own solver stops when the squares of the logarithms of the
+        ''' ratios to the constants sum to 1e-3; these equations close them to 1e-6.
+        ''' </summary>
+        Public Overrides ReadOnly Property EOHasEquations As Boolean
+            Get
+                Try
+                    Dim g = GraphicObject
+                    If Not (g.OutputConnectors(0).IsAttached AndAlso g.OutputConnectors(1).IsAttached) Then Return False
+                    Select Case ReactorOperationMode
+                        Case OperationMode.Isothermic, OperationMode.OutletTemperature
+                        Case OperationMode.Adiabatic
+                            If GetInletEnergyStream(1) IsNot Nothing Then Return False
+                        Case Else
+                            Return False
+                    End Select
+                    Dim ids = EOReactions()
+                    If ids.Count = 0 Then Return False
+                    For Each id In ids
+                        Dim rx = FlowSheet.Reactions(id)
+                        If rx.ReactionPhase <> ReactionPhase.Vapor AndAlso rx.ReactionPhase <> ReactionPhase.Liquid Then Return False
+                        Select Case rx.ReactionBasis
+                            Case ReactionBasis.Activity, ReactionBasis.Fugacity, ReactionBasis.MolarFrac, ReactionBasis.PartialPress
+                            Case Else
+                                Return False
+                        End Select
+                        If Not rx.Components.ContainsKey(rx.BaseReactant) Then Return False
+                    Next
+                    Return True
+                Catch ex As Exception
+                    Return False
+                End Try
+            End Get
+        End Property
+
+        ' the active equilibrium reactions of the set
+        Private Function EOReactions() As List(Of String)
+            Return FlowSheet.ReactionSets(ReactionSetID).Reactions.Values.Where(Function(r) r.IsActive AndAlso FlowSheet.Reactions(r.ReactionID).ReactionType = ReactionType.Equilibrium).Select(Function(r) r.ReactionID).ToList()
+        End Function
+
+        Private Function EOModel(context As IEquationOrientedContext, x As Double()) As EOChemicalEquilibrium
+            Dim names = context.CompoundNames
+            Dim c = names.Length
+            Dim pp As PropertyPackages.PropertyPackage = PropertyPackage
+            If Not EOReactorHelpers.SameCompounds(names, GetInletMaterialStream(0)) Then Throw New NotSupportedException(GraphicObject.Tag & ": the package lists the compounds in another order")
+            Dim ids = EOReactions()
+            Dim rxs = ids.Select(Function(id) FlowSheet.Reactions(id)).ToList()
+            Dim nr = rxs.Count
+            Dim S(c - 1, nr - 1) As Double
+            For q = 0 To nr - 1
+                For Each sb In rxs(q).Components.Values
+                    S(Array.IndexOf(names, sb.CompName), q) = sb.StoichCoeff
+                Next
+            Next
+            ' the heat of reaction per extent: ReactionHeat (kJ/kmol of base reactant) times its coefficient; h = w (S^T S)^-1 S^T
+            Dim wr(nr - 1) As Double
+            For q = 0 To nr - 1
+                wr(q) = rxs(q).ReactionHeat * Math.Abs(rxs(q).Components(rxs(q).BaseReactant).StoichCoeff) / 1000.0
+            Next
+            Dim inletStream = GetInletMaterialStream(0)
+            Dim m As New EOChemicalEquilibrium With {
+                .S = S,
+                .FlashPhase = False,
+                .Mode = ReactorOperationMode,
+                .Tset = OutletTemperature,
+                .DeltaP = EOParameterValue(context, x, "PROP_EQ_0", DeltaP.GetValueOrDefault()),
+                .H = EOReactorHelpers2.ExtentHeat(S, wr),
+                .LnK = Function(T) rxs.Select(Function(rx) Math.Log(rx.EvaluateK(T + rx.Approach, pp))).ToArray(),
+                .LnBasis = Function(T, P, w, isVapor)
+                               Dim total = w.Sum()
+                               Dim y(c - 1) As Double
+                               For i = 0 To c - 1
+                                   y(i) = If(total > 0.0, w(i) / total, 0.0)
+                               Next
+                               Dim fv As Double() = Nothing, fl As Double() = Nothing
+                               If rxs.Any(Function(rx) rx.ReactionPhase = ReactionPhase.Vapor) Then fv = EOReactorHelpers.FugacityCoefficients(pp, inletStream, y, T, P, True)
+                               If rxs.Any(Function(rx) rx.ReactionPhase = ReactionPhase.Liquid) Then fl = EOReactorHelpers.FugacityCoefficients(pp, inletStream, y, T, P, False)
+                               Dim b(nr - 1, c - 1) As Double
+                               For q = 0 To nr - 1
+                                   Dim rx = rxs(q)
+                                   Dim vap = rx.ReactionPhase = ReactionPhase.Vapor
+                                   For j = 0 To c - 1
+                                       If S(j, q) = 0.0 Then Continue For
+                                       ' an absent compound counts at a mole fraction of 0.01, as the unit counts it
+                                       Dim yj = If(y(j) > 0.0, y(j), 0.01)
+                                       Dim phi = If(vap, fv(j), fl(j))
+                                       Select Case rx.ReactionBasis
+                                           Case ReactionBasis.Activity, ReactionBasis.Fugacity
+                                               b(q, j) = Math.Log(phi * yj * If(vap, P / 101325.0, 1.0))
+                                           Case ReactionBasis.MolarFrac
+                                               b(q, j) = Math.Log(yj)
+                                           Case Else
+                                               b(q, j) = Math.Log(DWSIM.SharedClasses.SystemsOfUnits.Converter.ConvertFromSI(rx.EquilibriumReactionBasisUnits, yj * phi * P))
+                                       End Select
+                                   Next
+                               Next
+                               Return b
+                           End Function
+            }
+            If Not m.Prepare(c) Then Throw New NotSupportedException(GraphicObject.Tag & ": the reactions are not independent")
+            Return m
+        End Function
+
+        Public Overrides Function EOParameters() As String()
+            If Not EOHasEquations Then Return MyBase.EOParameters()
+            Return {"PROP_EQ_0"}
+        End Function
+
+        Public Overrides Function EOEquationCount(context As IEquationOrientedContext) As Integer
+            If Not EOHasEquations Then Return MyBase.EOEquationCount(context)
+            Return 2 * context.CompoundCount + 4
+        End Function
+
+        Public Overrides Function EOVariables(context As IEquationOrientedContext) As Integer()
+            If Not EOHasEquations Then Return MyBase.EOVariables(context)
+            Return EOStreamVariables(context, {EOInletOffset(context, 0), EOOutletOffset(context, 0), EOOutletOffset(context, 1)}, EOParameters())
+        End Function
+
+        Public Overrides Sub EOResiduals(context As IEquationOrientedContext, x As Double(), r As Double(), row As Integer)
+            If Not EOHasEquations Then
+                MyBase.EOResiduals(context, x, r, row)
+                Return
+            End If
+            EOModel(context, x).Residuals(context, x, r, row, EOInletOffset(context, 0), EOOutletOffset(context, 0), EOOutletOffset(context, 1))
+        End Sub
+
+        Public Overrides Function EOJacobian(context As IEquationOrientedContext, x As Double(), add As Action(Of Integer, Integer, Double)) As Boolean
+            If Not EOHasEquations Then Return MyBase.EOJacobian(context, x, add)
+            EOModel(context, x).Jacobian(context, x, add, EOInletOffset(context, 0), EOOutletOffset(context, 0), EOOutletOffset(context, 1), context.ParameterIndex(Me, "PROP_EQ_0"))
+            Return True
+        End Function
+
+        Public Overrides Function EOEquationName(context As IEquationOrientedContext, k As Integer) As String
+            If Not EOHasEquations Then Return MyBase.EOEquationName(context, k)
+            Dim c = context.CompoundCount, nfree = c - EOReactions().Count
+            If k < c Then Return "vapor flow " & k
+            If k < c + nfree Then Return "conservation " & (k - c)
+            If k < 2 * c Then Return "chemical equilibrium of " & FlowSheet.Reactions(EOReactions()(k - c - nfree)).Name
+            Select Case k - 2 * c
+                Case 0 : Return "liquid temperature"
+                Case 1 : Return "vapor pressure"
+                Case 2 : Return "liquid pressure"
+                Case Else : Return If(ReactorOperationMode = OperationMode.Adiabatic, "energy balance", "temperature")
+            End Select
+        End Function
+
+    End Class
+
+    Friend Module EOReactorHelpers2
+
+        ''' <summary>h = w (S^T S)^-1 S^T: the heat of the extents that make a change of the moles in the span of S.</summary>
+        Friend Function ExtentHeat(S As Double(,), w As Double()) As Double()
+            Dim c = S.GetLength(0), nr = S.GetLength(1)
+            Dim G(nr - 1, nr - 1) As Double
+            For a = 0 To nr - 1
+                For b = 0 To nr - 1
+                    For j = 0 To c - 1
+                        G(a, b) += S(j, a) * S(j, b)
+                    Next
+                Next
+            Next
+            ' solve G v = w (G symmetric), then h = S v
+            Dim v = SolveSmall(G, w)
+            Dim h(c - 1) As Double
+            For j = 0 To c - 1
+                For a = 0 To nr - 1
+                    h(j) += S(j, a) * v(a)
+                Next
+            Next
+            Return h
+        End Function
+
+        ''' <summary>A basis of the null space of A (rows by columns): one vector per free column of its row echelon form.</summary>
+        Friend Function NullSpace(A0 As Double(,)) As List(Of Double())
+            Dim rows = A0.GetLength(0), n = A0.GetLength(1)
+            Dim A = CType(A0.Clone(), Double(,))
+            Dim pivots As New List(Of Integer)
+            Dim row = 0
+            For col = 0 To n - 1
+                If row >= rows Then Exit For
+                Dim best = row
+                For i = row + 1 To rows - 1
+                    If Math.Abs(A(i, col)) > Math.Abs(A(best, col)) Then best = i
+                Next
+                If Math.Abs(A(best, col)) < 0.000000001 Then Continue For
+                For j = 0 To n - 1
+                    Dim t = A(row, j) : A(row, j) = A(best, j) : A(best, j) = t
+                Next
+                Dim p = A(row, col)
+                For j = 0 To n - 1
+                    A(row, j) /= p
+                Next
+                For i = 0 To rows - 1
+                    If i = row Then Continue For
+                    Dim f = A(i, col)
+                    If f = 0.0 Then Continue For
+                    For j = 0 To n - 1
+                        A(i, j) -= f * A(row, j)
+                    Next
+                Next
+                pivots.Add(col)
+                row += 1
+            Next
+            Dim basis As New List(Of Double())
+            For f = 0 To n - 1
+                If pivots.Contains(f) Then Continue For
+                Dim v(n - 1) As Double
+                v(f) = 1.0
+                For q = 0 To pivots.Count - 1
+                    v(pivots(q)) = -A(q, f)
+                Next
+                basis.Add(v)
+            Next
+            Return basis
+        End Function
+
+        Friend Function SolveSmall(A0 As Double(,), b0 As Double()) As Double()
+            Dim n = b0.Length
+            Dim A = CType(A0.Clone(), Double(,)), b = CType(b0.Clone(), Double())
+            For col = 0 To n - 1
+                Dim best = col
+                For i = col + 1 To n - 1
+                    If Math.Abs(A(i, col)) > Math.Abs(A(best, col)) Then best = i
+                Next
+                For j = 0 To n - 1
+                    Dim t = A(col, j) : A(col, j) = A(best, j) : A(best, j) = t
+                Next
+                Dim tb = b(col) : b(col) = b(best) : b(best) = tb
+                For i = col + 1 To n - 1
+                    Dim f = A(i, col) / A(col, col)
+                    For j = col To n - 1
+                        A(i, j) -= f * A(col, j)
+                    Next
+                    b(i) -= f * b(col)
+                Next
+            Next
+            Dim xs(n - 1) As Double
+            For i = n - 1 To 0 Step -1
+                Dim s = b(i)
+                For j = i + 1 To n - 1
+                    s -= A(i, j) * xs(j)
+                Next
+                xs(i) = s / A(i, i)
+            Next
+            Return xs
+        End Function
+
+    End Module
+
+    Partial Public Class Reactor_Gibbs
+
+        ''' <summary>
+        ''' Equations of their own for the minimum of the Gibbs energy over the reacting compounds, adiabatic, isothermal or
+        ''' at a set outlet temperature, reacting in the vapor, in the liquid, or in the phases the flash gives, with a vapor
+        ''' and a liquid outlet: the element balances, and the chemical potentials of the unit's Gibbs energy (the energies
+        ''' of formation over RT, the logarithms of the fugacities over 1 atm) balanced along a basis of the reactions the
+        ''' elements allow. The unit's own minimization stops at its tolerance; these equations close the minimum.
+        ''' </summary>
+        Public Overrides ReadOnly Property EOHasEquations As Boolean
+            Get
+                Try
+                    Dim g = GraphicObject
+                    If Not (g.OutputConnectors(0).IsAttached AndAlso g.OutputConnectors(1).IsAttached) Then Return False
+                    Select Case ReactorOperationMode
+                        Case OperationMode.Isothermic, OperationMode.OutletTemperature
+                        Case OperationMode.Adiabatic
+                            If GetInletEnergyStream(1) IsNot Nothing Then Return False
+                        Case Else
+                            Return False
+                    End Select
+                    If ReactivePhaseBehavior = ReactivePhaseType.Solid Then Return False
+                    If ComponentIDs Is Nothing OrElse ComponentIDs.Count = 0 Then Return False
+                    Return True
+                Catch ex As Exception
+                    Return False
+                End Try
+            End Get
+        End Property
+
+        Private Function EOModel(context As IEquationOrientedContext, x As Double()) As EOChemicalEquilibrium
+            Dim names = context.CompoundNames
+            Dim c = names.Length
+            Dim pp As PropertyPackages.PropertyPackage = PropertyPackage
+            If Not EOReactorHelpers.SameCompounds(names, GetInletMaterialStream(0)) Then Throw New NotSupportedException(GraphicObject.Tag & ": the package lists the compounds in another order")
+            ' the element matrix over the reacting compounds, and a basis of the reactions it allows
+            Dim ids = ComponentIDs.ToList()
+            Dim els = ids.SelectMany(Function(id) FlowSheet.SelectedCompounds(id).Elements.Keys.Cast(Of String)()).Distinct().ToList()
+            Dim Ael(els.Count - 1, ids.Count - 1) As Double
+            For ei = 0 To els.Count - 1
+                For j = 0 To ids.Count - 1
+                    Dim elems = FlowSheet.SelectedCompounds(ids(j)).Elements
+                    If elems.ContainsKey(els(ei)) Then Ael(ei, j) = Convert.ToDouble(elems(els(ei)))
+                Next
+            Next
+            Dim nullBasis = EOReactorHelpers2.NullSpace(Ael)
+            Dim nr = nullBasis.Count
+            If nr = 0 Then Throw New NotSupportedException(GraphicObject.Tag & ": the elements allow no reaction")
+            Dim S(c - 1, nr - 1) As Double
+            For q = 0 To nr - 1
+                For j = 0 To ids.Count - 1
+                    S(Array.IndexOf(names, ids(j)), q) = nullBasis(q)(j)
+                Next
+            Next
+            ' the heat of reaction from the enthalpies of formation, as the unit takes it
+            Dim h(c - 1) As Double
+            For Each id In ids
+                Dim cp = FlowSheet.SelectedCompounds(id)
+                h(Array.IndexOf(names, id)) = cp.IG_Enthalpy_of_Formation_25C * cp.Molar_Weight / 1000.0
+            Next
+            Dim mw = context.MolecularWeights
+            Dim inletStream = GetInletMaterialStream(0)
+            Dim vapor = ReactivePhaseBehavior <> ReactivePhaseType.Liquid
+            Dim m As New EOChemicalEquilibrium With {
+                .S = S,
+                .FlashPhase = ReactivePhaseBehavior = ReactivePhaseType.CalculateEquilibrium,
+                .Mode = ReactorOperationMode,
+                .Tset = OutletTemperature,
+                .DeltaP = EOParameterValue(context, x, "PROP_GR_0", DeltaP.GetValueOrDefault()),
+                .H = h,
+                .LnK = Function(T)
+                           ' ln K = -sum of the coefficients times the energies of formation over RT
+                           Dim keep = pp.CurrentMaterialStream
+                           Dim g(c - 1) As Double
+                           Try
+                               pp.CurrentMaterialStream = inletStream
+                               For j = 0 To c - 1
+                                   If ids.Contains(names(j)) Then g(j) = pp.AUX_DELGF_T(298.15, T, names(j)) * mw(j)
+                               Next
+                           Finally
+                               pp.CurrentMaterialStream = keep
+                           End Try
+                           Dim lk(nr - 1) As Double
+                           For q = 0 To nr - 1
+                               For j = 0 To c - 1
+                                   lk(q) -= S(j, q) * g(j)
+                               Next
+                           Next
+                           Return lk
+                       End Function,
+                .LnBasis = Function(T, P, w, isVapor)
+                               Dim total = w.Sum()
+                               Dim y(c - 1) As Double
+                               For i = 0 To c - 1
+                                   y(i) = If(total > 0.0, w(i) / total, 0.0)
+                               Next
+                               ' the reacting phase: the vapor of the flash when there is one, else its liquid
+                               Dim inVapor = If(ReactivePhaseBehavior = ReactivePhaseType.CalculateEquilibrium, isVapor, vapor)
+                               Dim phi = EOReactorHelpers.FugacityCoefficients(pp, inletStream, y, T, P, inVapor)
+                               Dim b(nr - 1, c - 1) As Double
+                               For q = 0 To nr - 1
+                                   For j = 0 To c - 1
+                                       If S(j, q) = 0.0 Then Continue For
+                                       b(q, j) = Math.Log(Math.Max(y(j), 1.0E-20)) + Math.Log(phi(j) * P / 101325.0)
+                                   Next
+                               Next
+                               Return b
+                           End Function
+            }
+            If Not m.Prepare(c) Then Throw New NotSupportedException(GraphicObject.Tag & ": no basis of reactions")
+            Return m
+        End Function
+
+        Public Overrides Function EOParameters() As String()
+            If Not EOHasEquations Then Return MyBase.EOParameters()
+            Return {"PROP_GR_0"}
+        End Function
+
+        Public Overrides Function EOEquationCount(context As IEquationOrientedContext) As Integer
+            If Not EOHasEquations Then Return MyBase.EOEquationCount(context)
+            Return 2 * context.CompoundCount + 4
+        End Function
+
+        Public Overrides Function EOVariables(context As IEquationOrientedContext) As Integer()
+            If Not EOHasEquations Then Return MyBase.EOVariables(context)
+            Return EOStreamVariables(context, {EOInletOffset(context, 0), EOOutletOffset(context, 0), EOOutletOffset(context, 1)}, EOParameters())
+        End Function
+
+        Public Overrides Sub EOResiduals(context As IEquationOrientedContext, x As Double(), r As Double(), row As Integer)
+            If Not EOHasEquations Then
+                MyBase.EOResiduals(context, x, r, row)
+                Return
+            End If
+            EOModel(context, x).Residuals(context, x, r, row, EOInletOffset(context, 0), EOOutletOffset(context, 0), EOOutletOffset(context, 1))
+        End Sub
+
+        Public Overrides Function EOJacobian(context As IEquationOrientedContext, x As Double(), add As Action(Of Integer, Integer, Double)) As Boolean
+            If Not EOHasEquations Then Return MyBase.EOJacobian(context, x, add)
+            EOModel(context, x).Jacobian(context, x, add, EOInletOffset(context, 0), EOOutletOffset(context, 0), EOOutletOffset(context, 1), context.ParameterIndex(Me, "PROP_GR_0"))
+            Return True
+        End Function
+
+        Public Overrides Function EOEquationName(context As IEquationOrientedContext, k As Integer) As String
+            If Not EOHasEquations Then Return MyBase.EOEquationName(context, k)
+            Dim c = context.CompoundCount
+            If k < c Then Return "vapor flow " & k
+            If k < 2 * c Then Return "conservation or chemical equilibrium " & (k - c)
             Select Case k - 2 * c
                 Case 0 : Return "liquid temperature"
                 Case 1 : Return "vapor pressure"
