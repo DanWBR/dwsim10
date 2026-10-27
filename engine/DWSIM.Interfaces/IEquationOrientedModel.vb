@@ -68,6 +68,15 @@ Public Interface IEquationOrientedFlash
 
     ReadOnly Property Hdn As Double()
 
+    ''' <summary>Entropy flow of the mixture (kW/K), worked out when asked for.</summary>
+    ReadOnly Property S As Double
+
+    ReadOnly Property SdT As Double
+
+    ReadOnly Property SdP As Double
+
+    ReadOnly Property Sdn As Double()
+
 End Interface
 
 ''' <summary>
@@ -104,6 +113,18 @@ Public Interface IEquationOrientedContext
     ''' that hold them are filled too.
     ''' </summary>
     Function Flash(offset As Integer, T As Double, P As Double, n As Double(), derivatives As Boolean) As IEquationOrientedFlash
+
+    ''' <summary>The molar weight of each compound (g/mol), in the order of the variables.</summary>
+    ReadOnly Property MolecularWeights As Double()
+
+    ''' <summary>
+    ''' A property of the stream at this offset, with the stream put at the state x gives it (flashed there, its properties
+    ''' calculated) and read by the function; kept by the name and the state.
+    ''' </summary>
+    Function StreamProperty(offset As Integer, x As Double(), name As String, read As Func(Of IMaterialStream, Double)) As Double
+
+    ''' <summary>The derivatives of <see cref="StreamProperty"/> with respect to the stream's T, P and compound flows, by central differences.</summary>
+    Function StreamPropertyDerivatives(offset As Integer, x As Double(), name As String, read As Func(Of IMaterialStream, Double)) As Double()
 
     ''' <summary>
     ''' The offsets of the material streams that enter the object, those whose pressure does not come back around from the

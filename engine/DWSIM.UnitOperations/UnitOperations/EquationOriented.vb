@@ -122,7 +122,7 @@ Namespace UnitOperations
 
         Public Overrides Function EOParameters() As String()
             If Not EOHasEquations Then Return MyBase.EOParameters()
-            Return {"PROP_CO_0", "PROP_CO_2"}
+            Return {"PROP_CL_0", "PROP_CL_2"}
         End Function
 
         Public Overrides Function EOEquationCount(context As IEquationOrientedContext) As Integer
@@ -141,14 +141,14 @@ Namespace UnitOperations
                 Return
             End If
             SetTemperatureEquations.Residuals(context, x, r, row, EOInletOffset(context, 0), EOOutletOffset(context, 0),
-                                              EOParameterValue(context, x, "PROP_CO_2", OutletTemperature.GetValueOrDefault()),
-                                              EOParameterValue(context, x, "PROP_CO_0", DeltaP.GetValueOrDefault()))
+                                              EOParameterValue(context, x, "PROP_CL_2", OutletTemperature.GetValueOrDefault()),
+                                              EOParameterValue(context, x, "PROP_CL_0", DeltaP.GetValueOrDefault()))
         End Sub
 
         Public Overrides Function EOJacobian(context As IEquationOrientedContext, x As Double(), add As Action(Of Integer, Integer, Double)) As Boolean
             If Not EOHasEquations Then Return MyBase.EOJacobian(context, x, add)
             SetTemperatureEquations.Jacobian(context, add, EOInletOffset(context, 0), EOOutletOffset(context, 0),
-                                             context.ParameterIndex(Me, "PROP_CO_2"), context.ParameterIndex(Me, "PROP_CO_0"))
+                                             context.ParameterIndex(Me, "PROP_CL_2"), context.ParameterIndex(Me, "PROP_CL_0"))
             Return True
         End Function
 
@@ -662,6 +662,312 @@ Namespace UnitOperations
                 Case 2 : Return "liquid pressure"
                 Case Else : Return If(OverrideT, "set temperature", "energy balance")
             End Select
+        End Function
+
+    End Class
+
+    Partial Public Class Pump
+
+        ''' <summary>
+        ''' Equations of its own at a set pressure increase or outlet pressure: the compound flows go through, the outlet
+        ''' pressure, and the energy the liquid takes, the pressure rise over the inlet's liquid density and the efficiency
+        ''' times the mass flow. In the other modes the pump is a black box.
+        ''' </summary>
+        Public Overrides ReadOnly Property EOHasEquations As Boolean
+            Get
+                Return CalcMode = CalculationMode.Delta_P OrElse CalcMode = CalculationMode.OutletPressure
+            End Get
+        End Property
+
+        ' the pressure increase in that mode, the outlet pressure in the other
+        Private ReadOnly Property EOPressureCode As String
+            Get
+                Return If(CalcMode = CalculationMode.Delta_P, "PROP_PU_0", "PROP_PU_5")
+            End Get
+        End Property
+
+        Public Overrides Function EOParameters() As String()
+            If Not EOHasEquations Then Return MyBase.EOParameters()
+            Return {EOPressureCode, "PROP_PU_1"}
+        End Function
+
+        Public Overrides Function EOEquationCount(context As IEquationOrientedContext) As Integer
+            If Not EOHasEquations Then Return MyBase.EOEquationCount(context)
+            Return context.CompoundCount + 2
+        End Function
+
+        Public Overrides Function EOVariables(context As IEquationOrientedContext) As Integer()
+            If Not EOHasEquations Then Return MyBase.EOVariables(context)
+            Return EOStreamVariables(context, {EOInletOffset(context, 0), EOOutletOffset(context, 0)}, EOParameters())
+        End Function
+
+        Private Shared ReadOnly EOLiquidDensity As Func(Of IMaterialStream, Double) = Function(ms) ms.Phases(1).Properties.density.GetValueOrDefault()
+
+        ' the outlet pressure the specification gives, and its derivative with respect to the inlet pressure
+        Private Function EOOutletPressure(context As IEquationOrientedContext, x As Double(), inlet As Integer, ByRef dPin As Double) As Double
+            If CalcMode = CalculationMode.Delta_P Then
+                dPin = 1.0
+                Return x(inlet + 1) + EOParameterValue(context, x, "PROP_PU_0", DeltaP.GetValueOrDefault())
+            End If
+            dPin = 0.0
+            Return EOParameterValue(context, x, "PROP_PU_5", Pout)
+        End Function
+
+        ' the energy the pump gives the liquid, kW, as its calculation does
+        Private Function EOWork(context As IEquationOrientedContext, x As Double(), inlet As Integer, P2 As Double, ByRef rho As Double, ByRef W As Double, ByRef eff As Double) As Double
+            Dim c = context.CompoundCount
+            Dim mw = context.MolecularWeights
+            W = 0.0
+            For i = 0 To c - 1
+                W += x(inlet + 2 + i) * mw(i) / 1000.0
+            Next
+            eff = EOParameterValue(context, x, "PROP_PU_1", Eficiencia.GetValueOrDefault()) / 100.0
+            rho = context.StreamProperty(inlet, x, "liquid density", EOLiquidDensity)
+            ' no liquid: the pump passes the stream as it is
+            If rho <= 0.0 Then Return 0.0
+            Return (P2 - x(inlet + 1)) / rho / 1000.0 / eff * W
+        End Function
+
+        Public Overrides Sub EOResiduals(context As IEquationOrientedContext, x As Double(), r As Double(), row As Integer)
+            If Not EOHasEquations Then
+                MyBase.EOResiduals(context, x, r, row)
+                Return
+            End If
+            Dim c = context.CompoundCount
+            Dim inlet = EOInletOffset(context, 0), outlet = EOOutletOffset(context, 0)
+            Dim ft = context.FlowTolerance(outlet)
+            For i = 0 To c - 1
+                r(row + i) = (x(outlet + 2 + i) - x(inlet + 2 + i)) / ft
+            Next
+            Dim dPin As Double
+            Dim P2 = EOOutletPressure(context, x, inlet, dPin)
+            r(row + c) = (x(outlet + 1) - P2) / context.PressureTolerance
+            Dim rho, W, eff As Double
+            Dim work = EOWork(context, x, inlet, P2, rho, W, eff)
+            r(row + c + 1) = (context.Enthalpy(outlet, x) - context.Enthalpy(inlet, x) - work) / context.EnergyTolerance(outlet)
+        End Sub
+
+        Public Overrides Function EOJacobian(context As IEquationOrientedContext, x As Double(), add As Action(Of Integer, Integer, Double)) As Boolean
+            If Not EOHasEquations Then Return MyBase.EOJacobian(context, x, add)
+            Dim c = context.CompoundCount
+            Dim inlet = EOInletOffset(context, 0), outlet = EOOutletOffset(context, 0)
+            Dim ft = context.FlowTolerance(outlet)
+            For i = 0 To c - 1
+                add(i, outlet + 2 + i, 1.0 / ft)
+                add(i, inlet + 2 + i, -1.0 / ft)
+            Next
+            Dim tp = context.PressureTolerance
+            Dim dPin As Double
+            Dim P2 = EOOutletPressure(context, x, inlet, dPin)
+            Dim kP = context.ParameterIndex(Me, EOPressureCode)
+            add(c, outlet + 1, 1.0 / tp)
+            If dPin <> 0.0 Then add(c, inlet + 1, -dPin / tp)
+            If kP >= 0 Then add(c, kP, -1.0 / tp)
+            ' energy: H_out - H_in - W (P2 - P1) / (rho 1000 eff)
+            Dim te = context.EnergyTolerance(outlet)
+            Dim hout = context.EnthalpyDerivatives(outlet, x), hin = context.EnthalpyDerivatives(inlet, x)
+            For j = 0 To c + 1
+                add(c + 1, outlet + j, hout(j) / te)
+                add(c + 1, inlet + j, -hin(j) / te)
+            Next
+            Dim rho, W, eff As Double
+            Dim work = EOWork(context, x, inlet, P2, rho, W, eff)
+            If rho > 0.0 Then
+                Dim mw = context.MolecularWeights
+                Dim per = 1.0 / rho / 1000.0 / eff
+                Dim drho = context.StreamPropertyDerivatives(inlet, x, "liquid density", EOLiquidDensity)
+                ' through the density
+                For j = 0 To c + 1
+                    add(c + 1, inlet + j, work / rho * drho(j) / te)
+                Next
+                ' through the mass flow and the pressure rise
+                For i = 0 To c - 1
+                    add(c + 1, inlet + 2 + i, -(P2 - x(inlet + 1)) * per * mw(i) / 1000.0 / te)
+                Next
+                add(c + 1, inlet + 1, -W * per * (dPin - 1.0) / te)
+                If kP >= 0 Then add(c + 1, kP, -W * per / te)
+                Dim kE = context.ParameterIndex(Me, "PROP_PU_1")
+                If kE >= 0 Then add(c + 1, kE, work / (eff * 100.0) / te)
+            End If
+            Return True
+        End Function
+
+        Public Overrides Function EOEquationName(context As IEquationOrientedContext, k As Integer) As String
+            If Not EOHasEquations Then Return MyBase.EOEquationName(context, k)
+            Dim c = context.CompoundCount
+            Return If(k < c, "flow " & k, If(k = c, "pressure", "energy balance"))
+        End Function
+
+    End Class
+
+    Partial Public Class Compressor
+
+        ''' <summary>
+        ''' Equations of its own on the adiabatic path at a set pressure increase, outlet pressure or pressure ratio: the
+        ''' compound flows go through, the outlet pressure, and the outlet enthalpy the inlet's plus the isentropic rise over
+        ''' the efficiency. The isentropic rise ends where the inlet's moles at the outlet pressure have the inlet's entropy.
+        ''' In the other modes, and on the polytropic path, the compressor is a black box.
+        ''' </summary>
+        Public Overrides ReadOnly Property EOHasEquations As Boolean
+            Get
+                Return ProcessPath = ProcessPathType.Adiabatic AndAlso
+                    (CalcMode = CalculationMode.Delta_P OrElse CalcMode = CalculationMode.OutletPressure OrElse CalcMode = CalculationMode.PressureRatio)
+            End Get
+        End Property
+
+        Public Overrides Function EOParameters() As String()
+            If Not EOHasEquations Then Return MyBase.EOParameters()
+            Select Case CalcMode
+                Case CalculationMode.Delta_P : Return {"PROP_CO_0", "PROP_CO_1"}
+                Case CalculationMode.OutletPressure : Return {"PROP_CO_4", "PROP_CO_1"}
+                Case Else : Return {"PROP_CO_1"}
+            End Select
+        End Function
+
+        Public Overrides Function EOEquationCount(context As IEquationOrientedContext) As Integer
+            If Not EOHasEquations Then Return MyBase.EOEquationCount(context)
+            Return context.CompoundCount + 2
+        End Function
+
+        Public Overrides Function EOVariables(context As IEquationOrientedContext) As Integer()
+            If Not EOHasEquations Then Return MyBase.EOVariables(context)
+            Return EOStreamVariables(context, {EOInletOffset(context, 0), EOOutletOffset(context, 0)}, EOParameters())
+        End Function
+
+        ' the outlet pressure the specification gives, its derivative with respect to the inlet pressure, and the variable
+        ' of the specification when the solver moves it
+        Private Function EOOutletPressure(context As IEquationOrientedContext, x As Double(), inlet As Integer, ByRef dPin As Double, ByRef kP As Integer) As Double
+            Select Case CalcMode
+                Case CalculationMode.Delta_P
+                    dPin = 1.0
+                    kP = context.ParameterIndex(Me, "PROP_CO_0")
+                    Return x(inlet + 1) + EOParameterValue(context, x, "PROP_CO_0", DeltaP)
+                Case CalculationMode.OutletPressure
+                    dPin = 0.0
+                    kP = context.ParameterIndex(Me, "PROP_CO_4")
+                    Return EOParameterValue(context, x, "PROP_CO_4", POut)
+                Case Else
+                    dPin = PressureRatio
+                    kP = -1
+                    Return x(inlet + 1) * PressureRatio
+            End Select
+        End Function
+
+        ' the moles of the inlet, as the outlet carries them
+        Private Function EOMoles(context As IEquationOrientedContext, x As Double(), inlet As Integer) As Double()
+            Dim n(context.CompoundCount - 1) As Double
+            Array.Copy(x, inlet + 2, n, 0, n.Length)
+            Return n
+        End Function
+
+        ''' <summary>
+        ''' The isentropic outlet temperature: the inlet's moles at P2 with the inlet's entropy, by secants from the
+        ''' ideal-gas estimate.
+        ''' </summary>
+        Private Function EOIsentropicTemperature(context As IEquationOrientedContext, x As Double(), inlet As Integer, P2 As Double, n As Double()) As Double
+            Dim T1 = x(inlet), P1 = x(inlet + 1)
+            Dim S1 = context.Flash(inlet, T1, P1, n, False).S
+            Dim Ta = T1 * Math.Pow(Math.Max(P2, 1.0) / Math.Max(P1, 1.0), 0.2857)
+            Dim fa = context.Flash(inlet, Ta, P2, n, False).S - S1
+            Dim Tb = Ta + 1.0
+            Dim fb = context.Flash(inlet, Tb, P2, n, False).S - S1
+            For it = 1 To 60
+                If fb = fa Then Exit For
+                Dim step1 = -fb * (Tb - Ta) / (fb - fa)
+                step1 = Math.Max(-50.0, Math.Min(50.0, step1))
+                Ta = Tb : fa = fb
+                Tb = Math.Max(Tb + step1, 10.0)
+                fb = context.Flash(inlet, Tb, P2, n, False).S - S1
+                If Math.Abs(Tb - Ta) < 0.0000001 Then Exit For
+            Next
+            Return Tb
+        End Function
+
+        Public Overrides Sub EOResiduals(context As IEquationOrientedContext, x As Double(), r As Double(), row As Integer)
+            If Not EOHasEquations Then
+                MyBase.EOResiduals(context, x, r, row)
+                Return
+            End If
+            Dim c = context.CompoundCount
+            Dim inlet = EOInletOffset(context, 0), outlet = EOOutletOffset(context, 0)
+            Dim ft = context.FlowTolerance(outlet)
+            For i = 0 To c - 1
+                r(row + i) = (x(outlet + 2 + i) - x(inlet + 2 + i)) / ft
+            Next
+            Dim dPin As Double, kP As Integer
+            Dim P2 = EOOutletPressure(context, x, inlet, dPin, kP)
+            r(row + c) = (x(outlet + 1) - P2) / context.PressureTolerance
+            Dim n = EOMoles(context, x, inlet)
+            Dim te = context.EnergyTolerance(outlet)
+            Dim H1 = context.Enthalpy(inlet, x)
+            If n.Sum() <= 0.0 Then
+                r(row + c + 1) = (context.Enthalpy(outlet, x) - H1) / te
+                Return
+            End If
+            Dim eff = EOParameterValue(context, x, "PROP_CO_1", AdiabaticEfficiency) / 100.0
+            Dim Ts = EOIsentropicTemperature(context, x, inlet, P2, n)
+            Dim Hs = context.Flash(inlet, Ts, P2, n, False).H
+            r(row + c + 1) = (context.Enthalpy(outlet, x) - H1 - (Hs - H1) / eff) / te
+        End Sub
+
+        Public Overrides Function EOJacobian(context As IEquationOrientedContext, x As Double(), add As Action(Of Integer, Integer, Double)) As Boolean
+            If Not EOHasEquations Then Return MyBase.EOJacobian(context, x, add)
+            Dim c = context.CompoundCount
+            Dim inlet = EOInletOffset(context, 0), outlet = EOOutletOffset(context, 0)
+            Dim ft = context.FlowTolerance(outlet)
+            For i = 0 To c - 1
+                add(i, outlet + 2 + i, 1.0 / ft)
+                add(i, inlet + 2 + i, -1.0 / ft)
+            Next
+            Dim tp = context.PressureTolerance
+            Dim dPin As Double, kP As Integer
+            Dim P2 = EOOutletPressure(context, x, inlet, dPin, kP)
+            add(c, outlet + 1, 1.0 / tp)
+            If dPin <> 0.0 Then add(c, inlet + 1, -dPin / tp)
+            If kP >= 0 Then add(c, kP, -1.0 / tp)
+
+            Dim te = context.EnergyTolerance(outlet)
+            Dim hout = context.EnthalpyDerivatives(outlet, x)
+            For j = 0 To c + 1
+                add(c + 1, outlet + j, hout(j) / te)
+            Next
+            Dim n = EOMoles(context, x, inlet)
+            Dim hin = context.EnthalpyDerivatives(inlet, x)
+            If n.Sum() <= 0.0 Then
+                For j = 0 To c + 1
+                    add(c + 1, inlet + j, -hin(j) / te)
+                Next
+                Return True
+            End If
+            Dim eff = EOParameterValue(context, x, "PROP_CO_1", AdiabaticEfficiency) / 100.0
+            ' H_out - (1 - 1/eff) H_in - H_s / eff
+            For j = 0 To c + 1
+                add(c + 1, inlet + j, -(1.0 - 1.0 / eff) * hin(j) / te)
+            Next
+            ' H_s = H(T_s, P2, n) with S(T_s, P2, n) = S(T1, P1, n): T_s moves with the inlet and with P2
+            Dim Ts = EOIsentropicTemperature(context, x, inlet, P2, n)
+            Dim e1 = context.Flash(inlet, x(inlet), x(inlet + 1), n, True)
+            Dim es = context.Flash(inlet, Ts, P2, n, True)
+            If e1 Is Nothing OrElse es Is Nothing Then Throw New NotSupportedException(GraphicObject.Tag & ": no flow")
+            Dim dHsdP2 = es.HdP - es.HdT * es.SdP / es.SdT
+            add(c + 1, inlet, -es.HdT * e1.SdT / es.SdT / eff / te)
+            add(c + 1, inlet + 1, -(es.HdT * e1.SdP / es.SdT + dHsdP2 * dPin) / eff / te)
+            For i = 0 To c - 1
+                add(c + 1, inlet + 2 + i, -(es.Hdn(i) + es.HdT * (e1.Sdn(i) - es.Sdn(i)) / es.SdT) / eff / te)
+            Next
+            If kP >= 0 Then add(c + 1, kP, -dHsdP2 / eff / te)
+            Dim kE = context.ParameterIndex(Me, "PROP_CO_1")
+            If kE >= 0 Then
+                Dim H1 = context.Enthalpy(inlet, x)
+                add(c + 1, kE, (es.H - H1) / (eff * eff) / 100.0 / te)
+            End If
+            Return True
+        End Function
+
+        Public Overrides Function EOEquationName(context As IEquationOrientedContext, k As Integer) As String
+            If Not EOHasEquations Then Return MyBase.EOEquationName(context, k)
+            Dim c = context.CompoundCount
+            Return If(k < c, "flow " & k, If(k = c, "pressure", "energy balance"))
         End Function
 
     End Class
