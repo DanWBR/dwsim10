@@ -1236,6 +1236,12 @@ Namespace UnitOperations
             _tempdata = SaveData()
         End Sub
 
+        ''' <summary>
+        ''' The messages the unit operation's solver showed in windows during the last calculation, which DWSIM closed
+        ''' (ChemSep shows its solver's errors this way). Empty when the calculation showed none.
+        ''' </summary>
+        <Xml.Serialization.XmlIgnore> Public Property LastCalculationDialogs As List(Of String) = New List(Of String)
+
         ''' <summary>Gets or sets the ID of the reaction set used by the CAPE-OPEN unit operation.</summary>
         Public Property ReactionSetID() As String
             Get
@@ -1376,7 +1382,15 @@ Namespace UnitOperations
                             Next
                             Throw New Exception("CAPE-OPEN Unit Operation not validated. Reason: " + msg)
                         End If
-                        myuo.Calculate()
+                        ' a failed solve of the unit's own solver process can stop on a message box; the guard
+                        ' closes it, as the user's click would, and the text goes to the log
+                        Using guard As New CapeOpenDialogGuard()
+                            myuo.Calculate()
+                            LastCalculationDialogs = guard.Dialogs
+                        End Using
+                        For Each d In LastCalculationDialogs
+                            Me.FlowSheet.ShowMessage(Me.GraphicObject.Tag & ": the unit operation's solver showed a message, closed by DWSIM: " & d, IFlowsheet.MessageType.Warning)
+                        Next
                         UpdateParams()
                         For Each c As Interfaces.IConnectionPoint In Me.GraphicObject.OutputConnectors
                             If c.IsAttached And c.Type = ConType.ConOut Then
