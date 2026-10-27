@@ -57,6 +57,10 @@ Namespace UnitOperations
             Return context.BlackBoxEquationName(Me, k)
         End Function
 
+        Public Overridable Function EOIsSmooth(context As IEquationOrientedContext, x As Double(), k As Integer) As Boolean Implements IEquationOrientedModel.EOIsSmooth
+            Return True
+        End Function
+
         ''' <summary>The variable offset of the material stream on input connector port, or -1.</summary>
         Protected Function EOInletOffset(context As IEquationOrientedContext, port As Integer) As Integer
             Dim c = GraphicObject.InputConnectors(port)

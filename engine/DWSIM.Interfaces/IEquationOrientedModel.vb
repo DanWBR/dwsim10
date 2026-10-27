@@ -34,6 +34,40 @@ Public Interface IEquationOrientedModel
     ''' <summary>What equation k says, for the solver's messages.</summary>
     Function EOEquationName(context As IEquationOrientedContext, k As Integer) As String
 
+    ''' <summary>False for an equation with no derivative at x (a minimum of tied pressures), which a check of the derivatives leaves out.</summary>
+    Function EOIsSmooth(context As IEquationOrientedContext, x As Double(), k As Integer) As Boolean
+
+End Interface
+
+''' <summary>
+''' A PT flash of a mixture as the equation-oriented solver's submodel gives it: the moles in each phase and the enthalpy
+''' flow, and, when asked, their derivatives with respect to T, P and the moles of the mixture (by the implicit function
+''' theorem on the equality of fugacities).
+''' </summary>
+Public Interface IEquationOrientedFlash
+
+    ''' <summary>Molar flow of each compound in the vapor (mol/s).</summary>
+    ReadOnly Property V As Double()
+
+    ''' <summary>Molar flow of each compound in the liquid (mol/s).</summary>
+    ReadOnly Property L As Double()
+
+    ''' <summary>Enthalpy flow of the mixture (kW).</summary>
+    ReadOnly Property H As Double
+
+    ReadOnly Property VdT As Double()
+
+    ReadOnly Property VdP As Double()
+
+    ''' <summary>d(vapor moles of compound i)/d(moles of compound j in the mixture), as (i, j).</summary>
+    ReadOnly Property Vdn As Double(,)
+
+    ReadOnly Property HdT As Double
+
+    ReadOnly Property HdP As Double
+
+    ReadOnly Property Hdn As Double()
+
 End Interface
 
 ''' <summary>
@@ -64,6 +98,19 @@ Public Interface IEquationOrientedContext
 
     ''' <summary>The derivatives of <see cref="Enthalpy"/>: with respect to T, P and the molar flow of each compound, in that order.</summary>
     Function EnthalpyDerivatives(offset As Integer, x As Double()) As Double()
+
+    ''' <summary>
+    ''' A PT flash of the moles n at T and P with the package of the stream at this offset; with derivatives, the members
+    ''' that hold them are filled too.
+    ''' </summary>
+    Function Flash(offset As Integer, T As Double, P As Double, n As Double(), derivatives As Boolean) As IEquationOrientedFlash
+
+    ''' <summary>
+    ''' The offsets of the material streams that enter the object, those whose pressure does not come back around from the
+    ''' object's own outlets first: where two pressures tie, the first decides, and a recycle that returns at the pressure
+    ''' of a feed leaves the feed in charge.
+    ''' </summary>
+    Function InletOffsets(obj As ISimulationObject) As Integer()
 
     ''' <summary>The variable the solver made of this property of the object (an Adjust or a design variable moves it); -1 when it stays at the object's value.</summary>
     Function ParameterIndex(obj As ISimulationObject, propertyCode As String) As Integer
