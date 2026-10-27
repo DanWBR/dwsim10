@@ -48,12 +48,16 @@ Version 10.2.13
 - [NEW] Operator Training: fan bank, amine contactor, amine regenerator and exchanger link process units
 - [NEW] Operator Training: guided exercises with a briefing, a duration and hints given at a set time or on a condition, edited from the instructor station
 - [NEW] Operator Training: running, stopped and tripped status lamps on machine symbols and faceplates
+- [NEW] Design specifications (Patreon): properties brought to their targets by the simultaneous solver on every solve, without Adjust blocks, set in Flowsheet Analysis > Design Specifications, Optimization and Reconciliation and saved with the file
+- [NEW] Flowsheet optimization (Patreon): maximize or minimize a weighted sum or an expression of flowsheet properties over feed and unit variables, with bounds and constraints, on the converged flowsheet
+- [NEW] Data reconciliation (Patreon): plant measurements with their standard deviations reconciled against the converged flowsheet by moving feeds and unit parameters, with the chi-square test and the suspect measurement
 - [CHG] Case library, user guide and advanced tutorial: the column secondary specification example follows the corrected D86 curves
 - [CHG] Dynamic simulation: steps skip the copy of the last solution, and on Windows the solver stays on the performance cores of the processor
 - [CHG] Implicit Euler: at the end of a run the log says how many steps did not converge and what to change
 - [CHG] Operator Training: a valve's flow is carried back through pumps, compressors and liquid-full exchangers to the holdup it draws from
 - [CHG] Operator Training: backtrack states recorded every 30 s of simulated time, and the exercise report shown formatted
 - [CHG] Orthogonal layout: controllers and instruments are placed next to the block they read or manipulate
+- [CHG] CAPE-OPEN unit operations: a message box shown by the unit's solver (ChemSep) is closed by DWSIM and its text written to the log, so the calculation no longer waits for a click
 - [FIX] Distillation Curves: a compound present only as a trace (a heavy cut carried into a side draw) set the end of the TBP curve and moved the TBP and D86 95 % points by several degrees
 - [FIX] Distillation Curves: the D86 curve applied the 90-95 % segment of API procedure 3A1.1 to the 90-100 % span of the TBP curve; the D86 95 % point now comes from the procedure and the end point is extrapolated from the 90-95 % slope
 - [FIX] Three-phase PT flash: a two-phase start that did not converge returned an ideal estimate next to three-phase states
@@ -66,6 +70,8 @@ Version 10.2.13
 - [FIX] Convergence assistant: the status bar forced a memory collection at each refresh
 - [FIX] Windows Patreon installer: the TensorFlow libraries were missing, so the neural network unit operation could not run
 - [FIX] OTS aftercooler sample: the cooler duty and its controller follow the current sign convention
+- [FIX] Peng-Robinson, PR78 and SRK: a file that listed an interaction parameter pair in both orders left two values for one pair, and the packages disagreed on the fugacities
+- [FIX] Flowsheet solve: an energy stream on a material port of a unit stopped the mass and energy balance with an error after the solve, which was reported as failed
 
 Version 10.2.12
 
