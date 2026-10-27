@@ -279,6 +279,7 @@ The phase equilibrium is a submodel: the PT flash of the property package, with 
 | Equilibrium Reactor | reactions in the vapor or the liquid, with activity, fugacity, mole fraction or partial pressure as the basis |
 | Gibbs Reactor | reacting in the vapor, in the liquid, or in the phases the flash gives |
 | CSTR | one outlet; isothermal, adiabatic or at an outlet temperature; kinetic and catalytic reactions with expression rates |
+| Distillation Column, Absorber | the column's own solver with the derivatives of the Naphtali-Sandholm equations (below) |
 
 Feeds keep their state, and a Recycle block makes its outlet equal to its inlet.
 
@@ -300,6 +301,10 @@ For the Equilibrium Reactor the columns are its reactions, $K_r$ is the reaction
 
 The outlet's moles are the inlet's plus what the reactions make in the reactor at the outlet's state, the steady state the reactor's own time stepping approaches; the concentrations, the reacting volume and the conversion factors are worked out from the outlet stream as the reactor works them out from its contents.
 
+###### Columns
+
+A distillation column or an absorber (without rate-based efficiencies, secondary specifications, a free water product or an external solver) gives its products from its feeds with its own solver, warm from the last solution, and its derivatives from the Naphtali-Sandholm solver started at that solution: the derivatives of every stage's flows, temperatures and compositions with respect to the feeds' moles and enthalpies and to the two specifications, by the implicit function theorem on the MESH equations. Finite differences would cost two column solves per feed variable.
+
 ###### Black boxes
 
 A unit operation in another mode, an Expander, a Tank, a Component Separator, a Shortcut Column or a PFR (whose integration along its length is its own) enters through its own calculation: its inlets are put at their variables and flashed there, the unit is calculated, and its residuals are
@@ -320,7 +325,7 @@ Each active Adjust and each active design specification adds an unknown, the pro
 
 ###### The simultaneous solver takes over
 
-A flowsheet with a stream of a package that treats it as one compound (Steam Tables, single-compound streams, the CoolProp incompressible mixtures), a unit operation outside the table and the black-box list (rigorous columns, CAPE-OPEN units, Spec blocks), two liquid phases in a flash, or a Newton iteration that does not converge is handed to the simultaneous solver, with a message that gives the reason.
+A flowsheet with a stream of a package that treats it as one compound (Steam Tables, single-compound streams, the CoolProp incompressible mixtures), a unit operation outside the table and the black-box list (columns outside the ones above, CAPE-OPEN units, Spec blocks), two liquid phases in a flash, or a Newton iteration that does not converge is handed to the simultaneous solver, with a message that gives the reason.
 
 ###### After the solve
 

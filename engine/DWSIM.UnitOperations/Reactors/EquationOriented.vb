@@ -698,7 +698,16 @@ Namespace Reactors
                 .Tset = OutletTemperature,
                 .DeltaP = EOParameterValue(context, x, "PROP_EQ_0", DeltaP.GetValueOrDefault()),
                 .H = EOReactorHelpers2.ExtentHeat(S, wr),
-                .LnK = Function(T) rxs.Select(Function(rx) Math.Log(rx.EvaluateK(T + rx.Approach, pp))).ToArray(),
+                .LnK = Function(T)
+                           ' a constant from the Gibbs energies reads the package's current stream
+                           Dim keep = pp.CurrentMaterialStream
+                           Try
+                               pp.CurrentMaterialStream = inletStream
+                               Return rxs.Select(Function(rx) Math.Log(rx.EvaluateK(T + rx.Approach, pp))).ToArray()
+                           Finally
+                               pp.CurrentMaterialStream = keep
+                           End Try
+                       End Function,
                 .LnBasis = Function(T, P, w, isVapor)
                                Dim total = w.Sum()
                                Dim y(c - 1) As Double
