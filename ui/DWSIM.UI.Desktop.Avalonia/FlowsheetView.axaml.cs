@@ -444,11 +444,6 @@ public partial class FlowsheetView : UserControl
                 BtnCalculatorActive.IsChecked = !BtnCalculatorActive.IsChecked.GetValueOrDefault();
                 e.Handled = true;
             }
-            else if (e.Key == Key.F7)
-            {
-                BtnSimultAdjust.IsChecked = !BtnSimultAdjust.IsChecked.GetValueOrDefault();
-                e.Handled = true;
-            }
             else if (e.Key == Key.F8)
             {
                 MenuFlowsheetCheck.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
@@ -1175,8 +1170,6 @@ public partial class FlowsheetView : UserControl
     {
         // the toolbar toggles and the state selector belong to the flowsheet being opened
         BtnCalculatorActive.IsChecked = DWSIM.GlobalSettings.Settings.CalculatorActivated;
-        BtnSimultAdjust.IsChecked = _flowsheet?.FlowsheetOptions.SimultaneousAdjustSolverEnabled ?? false;
-        MenuSimultAdjust.IsChecked = BtnSimultAdjust.IsChecked.GetValueOrDefault();
         MenuCalculatorActive.IsChecked = BtnCalculatorActive.IsChecked.GetValueOrDefault();
         BtnDynamicsMode.IsChecked = _flowsheet?.DynamicMode ?? false;
         ShowSolverStrategy();
@@ -1983,19 +1976,6 @@ public partial class FlowsheetView : UserControl
 
         // Global Settings
         MenuGlobalSettings.Click += async (_, _) => { await new PreferencesWindow().ShowDialog(HostWindow); GlobalSettingsChanged?.Invoke(); };
-
-        // Simultaneous Adjust, on the toolbar as in the WinForms UI
-        BtnSimultAdjust.IsCheckedChanged += (_, _) =>
-        {
-            MenuSimultAdjust.IsChecked = BtnSimultAdjust.IsChecked.GetValueOrDefault();
-            if (_flowsheet == null) return;
-            _flowsheet.FlowsheetOptions.SimultaneousAdjustSolverEnabled =
-                BtnSimultAdjust.IsChecked.GetValueOrDefault();
-            var state = _flowsheet.FlowsheetOptions.SimultaneousAdjustSolverEnabled ? "enabled" : "disabled";
-            AppendLog($"Simultaneous Adjust Solver {state}.");
-        };
-        MenuSimultAdjust.Click += (_, _) =>
-            BtnSimultAdjust.IsChecked = MenuSimultAdjust.IsChecked;
 
         // Solver strategy: which solver takes the flowsheet when Solve is pressed (saved with the simulation)
         MenuStrategySequential.Click += (_, _) => SetSolverStrategy(Interfaces.Enums.SolverStrategy.SequentialModular);

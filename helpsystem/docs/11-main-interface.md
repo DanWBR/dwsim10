@@ -82,7 +82,7 @@ The menu bar belongs to the simulation that is in front:
 
 - **Edit** - undo and redo, the clipboard and selection commands, clone and disconnect, and the two configuration windows: Simulation Settings (Alt+M) and General Settings (Alt+G).
 
-- **Solver** - Solve (F5), Force Solve and Abort, plus the Flowsheet Calculator Active (F6) and Simultaneous Adjust Solver (F7) switches.
+- **Solver** - Solve (F5), Force Solve and Abort, plus the Flowsheet Calculator Active (F6) switch.
 
 - **Insert** - material and energy streams, property tables, master property tables, spreadsheet tables, charts and text blocks.
 

@@ -47,7 +47,6 @@
         <MenuItem Header="_Abort"                Name="MenuStop" />
         <Separator />
         <MenuItem Header="Flowsheet _Calculator Active" Name="MenuCalculatorActive" ToggleType="CheckBox" InputGesture="F6" />
-        <MenuItem Header="Si_multaneous Adjust Solver"  Name="MenuSimultAdjust"     ToggleType="CheckBox" InputGesture="F7" />
         <Separator />
         <MenuItem Header="Solver St_rategy" Name="MenuSolverStrategy">
           <MenuItem Header="_Sequential-Modular"                       Name="MenuStrategySequential"   ToggleType="CheckBox" />
@@ -182,7 +181,6 @@
         <Button       Name="BtnSolveForce" Classes="toolbar" ToolTip.Tip="Force Solve"        Content="⏩" FontSize="{DynamicResource ToolbarIconSize}" />
         <Button       Name="BtnSolve"      Classes="toolbar" ToolTip.Tip="Solve (F5)"         Content="▶" FontSize="{DynamicResource ToolbarIconSize}" Foreground="Green" />
         <Button       Name="BtnStop"       Classes="toolbar" ToolTip.Tip="Abort"              Content="⏹" FontSize="{DynamicResource ToolbarIconSize}" Foreground="Red" />
-        <ToggleButton Name="BtnSimultAdjust" Classes="toolbar" ToolTip.Tip="Simultaneous Adjust Solver Active (F7)" Content="⚡" FontSize="{DynamicResource ToolbarIconSize}" />
 
         <Separator />
         <Button Name="BtnUndo"    Classes="toolbar" ToolTip.Tip="Undo (Ctrl+Z)" Content="↩" FontSize="{DynamicResource ToolbarIconSize}" />

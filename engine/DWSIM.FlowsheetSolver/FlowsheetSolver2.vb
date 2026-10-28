@@ -1124,99 +1124,95 @@ Imports DWSIM.SharedClasses
         Dim fqueue As IFlowsheetCalculationQueue = TryCast(fobj, IFlowsheetCalculationQueue)
         Dim fs As IFlowsheet = TryCast(fobj, IFlowsheet)
 
-        If fs.FlowsheetOptions.SimultaneousAdjustSolverEnabled Then
+        'this is the cancellation token for background threads. it checks for calculator stop requests and passes the request to the tasks.
 
-            'this is the cancellation token for background threads. it checks for calculator stop requests and passes the request to the tasks.
+        Dim n As Integer = 0
 
-            Dim n As Integer = 0
+        For Each adj As IAdjust In fbag.SimulationObjects.Values.Where(Function(a) TypeOf a Is IAdjust)
+            If adj.SimultaneousAdjust And DirectCast(adj, ISimulationObject).GraphicObject.Active Then n += 1
+        Next
 
+        If n > 0 Then
+
+            n -= 1
+
+            Dim i As Integer = 0
+            Dim dfdx(n, n), dx(n), fx(n), x(n), tols(n) As Double
+            Dim il_err_ant As Double = 10000000000.0
+            Dim il_err As Double = 10000000000.0
+            Dim ic As Integer
+            Dim converged As Boolean = False
+
+            i = 0
             For Each adj As IAdjust In fbag.SimulationObjects.Values.Where(Function(a) TypeOf a Is IAdjust)
-                If adj.SimultaneousAdjust And DirectCast(adj, ISimulationObject).GraphicObject.Active Then n += 1
+                If adj.SimultaneousAdjust And DirectCast(adj, ISimulationObject).GraphicObject.Active Then
+                    x(i) = GetMnpVarValue(fobj, adj)
+                    tols(i) = adj.Tolerance
+                    i += 1
+                End If
             Next
 
-            If n > 0 Then
+            ic = 0
+            Do
 
-                n -= 1
+                fx = FunctionValueAsync(fobj, x, ct)
 
-                Dim i As Integer = 0
-                Dim dfdx(n, n), dx(n), fx(n), x(n), tols(n) As Double
-                Dim il_err_ant As Double = 10000000000.0
-                Dim il_err As Double = 10000000000.0
-                Dim ic As Integer
-                Dim converged As Boolean = False
+                converged = False
 
-                i = 0
-                For Each adj As IAdjust In fbag.SimulationObjects.Values.Where(Function(a) TypeOf a Is IAdjust)
-                    If adj.SimultaneousAdjust And DirectCast(adj, ISimulationObject).GraphicObject.Active Then
-                        x(i) = GetMnpVarValue(fobj, adj)
-                        tols(i) = adj.Tolerance
-                        i += 1
+                il_err_ant = il_err
+                il_err = fx.AbsSqrSumY
+                For i = 0 To x.Length - 1
+                    If Math.Abs(fx(i)) < tols(i) Then
+                        converged = True
+                    Else
+                        converged = False
+                        Exit For
                     End If
                 Next
 
-                ic = 0
-                Do
+                fgui.ShowMessage(fgui.GetTranslatedString("SimultaneousAdjust") & ": Iteration #" & ic + 1 & ", NSSE: " & il_err, IFlowsheet.MessageType.Information)
 
-                    fx = FunctionValueAsync(fobj, x, ct)
+                If converged Then Exit Do
 
-                    converged = False
+                dfdx = FunctionGradientAsync(fobj, x, ct)
 
-                    il_err_ant = il_err
-                    il_err = fx.AbsSqrSumY
+                Dim dfac As Double = 100000.0
+                Dim success = MathEx.SysLin.rsolve.rmatrixsolve(dfdx, fx, x.Length, dx)
+                If success Then
+
+                    dfac = (ic + 1) * 0.2
+                    If dfac > 1.0 Then dfac = 1.0
+
                     For i = 0 To x.Length - 1
-                        If Math.Abs(fx(i)) < tols(i) Then
-                            converged = True
-                        Else
-                            converged = False
+                        If Math.Abs(-dx(i) * dfac) > x(i) Then
+                            dfac /= 10
                             Exit For
                         End If
                     Next
 
-                    fgui.ShowMessage(fgui.GetTranslatedString("SimultaneousAdjust") & ": Iteration #" & ic + 1 & ", NSSE: " & il_err, IFlowsheet.MessageType.Information)
+                    For i = 0 To x.Length - 1
+                        dx(i) = -dx(i)
+                        x(i) += dfac * dx(i)
+                    Next
 
-                    If converged Then Exit Do
-
-                    dfdx = FunctionGradientAsync(fobj, x, ct)
-
-                    Dim dfac As Double = 100000.0
-                    Dim success = MathEx.SysLin.rsolve.rmatrixsolve(dfdx, fx, x.Length, dx)
-                    If success Then
-
-                        dfac = (ic + 1) * 0.2
-                        If dfac > 1.0 Then dfac = 1.0
-
-                        For i = 0 To x.Length - 1
-                            If Math.Abs(-dx(i) * dfac) > x(i) Then
-                                dfac /= 10
-                                Exit For
-                            End If
-                        Next
-
-                        For i = 0 To x.Length - 1
-                            dx(i) = -dx(i)
-                            x(i) += dfac * dx(i)
-                        Next
-
-                    End If
-
-                    fs.CheckStatus()
-                    fgui.UpdateInterface()
-
-                    ic += 1
-
-                    If ic >= 25 Then Throw New Exception(fgui.GetTranslatedString("SADJMaxIterationsReached"))
-                    If Double.IsNaN(il_err) Then Throw New Exception(fgui.GetTranslatedString("SADJGeneralError"))
-                    If Math.Abs(MathEx.Common.AbsSum(dx)) < 0.000001 Then Exit Do
-
-                Loop
-
-                If Not converged Then
-                    'the step vanished before the targets were met: the manipulated variables no longer move the
-                    'controlled ones, so the targets cannot be reached from here
-                    Dim tags = String.Join(", ", fbag.SimulationObjects.Values.Where(Function(a) TypeOf a Is IAdjust AndAlso DirectCast(a, IAdjust).SimultaneousAdjust AndAlso a.GraphicObject.Active).Select(Function(a) a.GraphicObject.Tag))
-                    Throw New Exception(String.Format("The simultaneous adjust solver stopped without meeting the targets of {0} (sum of squared errors {1:G4}). The manipulated variables no longer change the controlled ones: check that each target can be reached within the range of its manipulated variable.", tags, il_err))
                 End If
 
+                fs.CheckStatus()
+                fgui.UpdateInterface()
+
+                ic += 1
+
+                If ic >= 25 Then Throw New Exception(fgui.GetTranslatedString("SADJMaxIterationsReached"))
+                If Double.IsNaN(il_err) Then Throw New Exception(fgui.GetTranslatedString("SADJGeneralError"))
+                If Math.Abs(MathEx.Common.AbsSum(dx)) < 0.000001 Then Exit Do
+
+            Loop
+
+            If Not converged Then
+                'the step vanished before the targets were met: the manipulated variables no longer move the
+                'controlled ones, so the targets cannot be reached from here
+                Dim tags = String.Join(", ", fbag.SimulationObjects.Values.Where(Function(a) TypeOf a Is IAdjust AndAlso DirectCast(a, IAdjust).SimultaneousAdjust AndAlso a.GraphicObject.Active).Select(Function(a) a.GraphicObject.Tag))
+                Throw New Exception(String.Format("The simultaneous adjust solver stopped without meeting the targets of {0} (sum of squared errors {1:G4}). The manipulated variables no longer change the controlled ones: check that each target can be reached within the range of its manipulated variable.", tags, il_err))
             End If
 
         End If

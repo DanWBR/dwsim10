@@ -214,8 +214,6 @@ Namespace DWSIM.Flowsheet
 
         Public Property VisibleProperties As New Dictionary(Of String, List(Of String)) Implements Interfaces.IFlowsheetOptions.VisibleProperties
 
-        Public Property SimultaneousAdjustSolverEnabled As Boolean = True Implements Interfaces.IFlowsheetOptions.SimultaneousAdjustSolverEnabled
-
         Public Property SolverStrategy As SolverStrategy = SolverStrategy.SequentialModular Implements Interfaces.IFlowsheetOptions.SolverStrategy
 
         Public Property SpreadsheetUseRegionalSeparator As Boolean = False Implements Interfaces.IFlowsheetOptions.SpreadsheetUseRegionalSeparator
