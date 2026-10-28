@@ -323,6 +323,10 @@ A unit operation in another mode, an Expander, a Tank, a Component Separator, a 
 
 with derivatives by central differences of 0.1 %, one-sided where the unit's own solver fails on the other side (and none where it fails on both, as a ChemSep column does for a compound absent from a feed). The unit's own convergence noise makes these slower than the units with equations. A CAPE-OPEN unit whose solver stops on a message box is calculated once more; a second failure is an error.
 
+###### Energy recycles
+
+The power of the energy stream an energy recycle writes becomes an unknown, which the unit downstream (a compressor driven by an expander) reads through its own calculation, and the recycle's equation sets it equal to the power the unit upstream writes, through its own calculation, into the stream the recycle reads.
+
 ###### Adjusts and design specifications
 
 Each active Adjust and each active design specification adds an unknown, the property it manipulates, and an equation, the controlled property at its target over the tolerance (the Adjust's own tolerance). The manipulated property is a number the unit's equations read (an outlet temperature, a pressure drop, a split ratio, a feed's flow) or, for a black box, a property written into the unit before it is calculated.
