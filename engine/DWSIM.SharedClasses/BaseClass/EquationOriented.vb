@@ -61,6 +61,13 @@ Namespace UnitOperations
             Return True
         End Function
 
+        ''' <summary>False: equations that set a temperature or read a state by a flash at T and P do not hold next to a saturated stream.</summary>
+        Public Overridable ReadOnly Property EOTakesSaturatedStreams As Boolean Implements IEquationOrientedModel.EOTakesSaturatedStreams
+            Get
+                Return False
+            End Get
+        End Property
+
         ''' <summary>The variable offset of the material stream on input connector port, or -1.</summary>
         Protected Function EOInletOffset(context As IEquationOrientedContext, port As Integer) As Integer
             Dim c = GraphicObject.InputConnectors(port)

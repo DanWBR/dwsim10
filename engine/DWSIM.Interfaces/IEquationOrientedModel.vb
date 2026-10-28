@@ -37,6 +37,14 @@ Public Interface IEquationOrientedModel
     ''' <summary>False for an equation with no derivative at x (a minimum of tied pressures), which a check of the derivatives leaves out.</summary>
     Function EOIsSmooth(context As IEquationOrientedContext, x As Double(), k As Integer) As Boolean
 
+    ''' <summary>
+    ''' True when the equations hold next to a saturated stream (one whose extended vapor fraction is a variable, see
+    ''' <see cref="IEquationOrientedContext.VaporFractionIndex"/>): they read the streams only through their flows,
+    ''' pressures, enthalpies, vapor fractions and properties at the state the vapor fraction gives. False makes the
+    ''' solver take the object as a black box next to such a stream.
+    ''' </summary>
+    ReadOnly Property EOTakesSaturatedStreams As Boolean
+
 End Interface
 
 ''' <summary>
@@ -119,6 +127,20 @@ Public Interface IEquationOrientedContext
 
     ''' <summary>The molar weight of each compound (g/mol), in the order of the variables.</summary>
     ReadOnly Property MolecularWeights As Double()
+
+    ''' <summary>
+    ''' The variable of the extended vapor fraction of the stream at this offset, or -1. A stream of one compound, or one
+    ''' at saturation whose bubble and dew points are close, has one: its temperature then follows from it (inside 0..1 the
+    ''' saturation temperature, below 0 a subcooled liquid, above 1 a superheated vapor), and the vapor fraction is what
+    ''' the equations set.
+    ''' </summary>
+    Function VaporFractionIndex(offset As Integer) As Integer
+
+    ''' <summary>The tolerance of an equation written on a vapor fraction.</summary>
+    ReadOnly Property VaporFractionTolerance As Double
+
+    ''' <summary>The temperature (K) at which the stream at this offset, at the pressure and compound flows x gives it, has this vapor fraction.</summary>
+    Function SaturationTemperature(offset As Integer, x As Double(), vaporFraction As Double) As Double
 
     ''' <summary>
     ''' A property of the stream at this offset, with the stream put at the state x gives it (flashed there, its properties

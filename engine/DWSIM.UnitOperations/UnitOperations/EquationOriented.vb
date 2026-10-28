@@ -22,9 +22,11 @@ Namespace UnitOperations
 
     ''' <summary>
     ''' The equations of a heater or a cooler: the compound flows go through, the outlet pressure is the inlet's less the
-    ''' pressure drop, and the specification: the outlet temperature (set, or the inlet's plus a change), or the duty, which
-    ''' the efficiency scales into the outlet's enthalpy as the unit does (a cooler's removed). The duty is otherwise a
-    ''' result. Codes: 0 the pressure drop, 1 the efficiency, 2 the outlet temperature, 3 the duty, 5 the change.
+    ''' pressure drop, and the specification: the outlet temperature (set, or the inlet's plus a change), the duty, which
+    ''' the efficiency scales into the outlet's enthalpy as the unit does (a cooler's removed), or the outlet's vapor
+    ''' fraction: the outlet's extended vapor fraction when it has one (a condensate of one compound or near an azeotrope),
+    ''' else its temperature at that vapor fraction. The duty is otherwise a result. Codes: 0 the pressure drop, 1 the
+    ''' efficiency, 2 the outlet temperature, 3 the duty, 4 the vapor fraction, 5 the change.
     ''' </summary>
     Friend Module HeaterCoolerEquations
 
@@ -33,6 +35,7 @@ Namespace UnitOperations
             OutletTemperature
             TemperatureChange
             Duty
+            VaporFraction
         End Enum
 
         Friend Function Count(ctx As IEquationOrientedContext) As Integer
@@ -43,6 +46,7 @@ Namespace UnitOperations
             Select Case kind
                 Case Spec.OutletTemperature : Return {prefix & "0", prefix & "2"}
                 Case Spec.TemperatureChange : Return {prefix & "0", prefix & "5"}
+                Case Spec.VaporFraction : Return {prefix & "0", prefix & "4"}
                 Case Else : Return {prefix & "0", prefix & "3", prefix & "1"}
             End Select
         End Function
@@ -61,15 +65,28 @@ Namespace UnitOperations
                     r(row + c + 1) = (x(outlet) - value) / ctx.TemperatureTolerance
                 Case Spec.TemperatureChange
                     r(row + c + 1) = (x(outlet) - x(inlet) - value) / ctx.TemperatureTolerance
+                Case Spec.VaporFraction
+                    Dim kb = ctx.VaporFractionIndex(outlet)
+                    If kb >= 0 Then
+                        r(row + c + 1) = (x(kb) - value) / ctx.VaporFractionTolerance
+                    Else
+                        r(row + c + 1) = (x(outlet) - ctx.SaturationTemperature(outlet, x, value)) / ctx.TemperatureTolerance
+                    End If
                 Case Else
                     r(row + c + 1) = (ctx.Enthalpy(outlet, x) - ctx.Enthalpy(inlet, x) - sign * value * efficiency / 100.0) / ctx.EnergyTolerance(outlet)
             End Select
         End Sub
 
-        ''' <summary>kV, kdP and kEff: the variables of the specification, the pressure drop and the efficiency, or -1.</summary>
-        Friend Sub Jacobian(ctx As IEquationOrientedContext, x As Double(), add As Action(Of Integer, Integer, Double), inlet As Integer, outlet As Integer,
-                            kind As Spec, kV As Integer, kdP As Integer, kEff As Integer, value As Double, efficiency As Double, sign As Double)
+        ''' <summary>
+        ''' kV, kdP and kEff: the variables of the specification, the pressure drop and the efficiency, or -1. False at a
+        ''' set vapor fraction on an outlet without its own (the saturation temperature has no derivatives here): the solver
+        ''' differences the block.
+        ''' </summary>
+        Friend Function Jacobian(ctx As IEquationOrientedContext, x As Double(), add As Action(Of Integer, Integer, Double), inlet As Integer, outlet As Integer,
+                            kind As Spec, kV As Integer, kdP As Integer, kEff As Integer, value As Double, efficiency As Double, sign As Double) As Boolean
             Dim c = ctx.CompoundCount
+            Dim kb = If(kind = Spec.VaporFraction, ctx.VaporFractionIndex(outlet), -1)
+            If kind = Spec.VaporFraction AndAlso kb < 0 Then Return False
             Dim ft = ctx.FlowTolerance(outlet)
             For i = 0 To c - 1
                 add(i, outlet + 2 + i, 1.0 / ft)
@@ -87,6 +104,10 @@ Namespace UnitOperations
                     add(c + 1, outlet, 1.0 / tt)
                     add(c + 1, inlet, -1.0 / tt)
                     If kV >= 0 Then add(c + 1, kV, -1.0 / tt)
+                Case Spec.VaporFraction
+                    Dim tb = ctx.VaporFractionTolerance
+                    add(c + 1, kb, 1.0 / tb)
+                    If kV >= 0 Then add(c + 1, kV, -1.0 / tb)
                 Case Else
                     Dim te = ctx.EnergyTolerance(outlet)
                     Dim hout = ctx.EnthalpyDerivatives(outlet, x), hin = ctx.EnthalpyDerivatives(inlet, x)
@@ -97,7 +118,8 @@ Namespace UnitOperations
                     If kV >= 0 Then add(c + 1, kV, -sign * efficiency / 100.0 / te)
                     If kEff >= 0 Then add(c + 1, kEff, -sign * value / 100.0 / te)
             End Select
-        End Sub
+            Return True
+        End Function
 
         Friend Function Name(ctx As IEquationOrientedContext, k As Integer, kind As Spec) As String
             Dim c = ctx.CompoundCount
@@ -106,6 +128,7 @@ Namespace UnitOperations
             Select Case kind
                 Case Spec.OutletTemperature : Return "outlet temperature"
                 Case Spec.TemperatureChange : Return "temperature change"
+                Case Spec.VaporFraction : Return "outlet vapor fraction"
                 Case Else : Return "energy balance"
             End Select
         End Function
@@ -115,12 +138,20 @@ Namespace UnitOperations
     Partial Public Class Heater
 
         ''' <summary>
-        ''' Equations of its own at a set outlet temperature, a set temperature change or a set heat added; at a set vapor
-        ''' fraction or with an energy stream the heater is a black box.
+        ''' Equations of its own at a set outlet temperature, a set temperature change, a set heat added or a set outlet
+        ''' vapor fraction; with an energy stream the heater is a black box.
         ''' </summary>
         Public Overrides ReadOnly Property EOHasEquations As Boolean
             Get
-                Return CalcMode = CalculationMode.OutletTemperature OrElse CalcMode = CalculationMode.TemperatureChange OrElse CalcMode = CalculationMode.HeatAdded
+                Return CalcMode = CalculationMode.OutletTemperature OrElse CalcMode = CalculationMode.TemperatureChange OrElse CalcMode = CalculationMode.HeatAdded OrElse
+                    CalcMode = CalculationMode.OutletVaporFraction
+            End Get
+        End Property
+
+        ''' <summary>At a set vapor fraction the equations read the streams' flows and pressures and the outlet's vapor fraction: a condenser's saturated outlet keeps them.</summary>
+        Public Overrides ReadOnly Property EOTakesSaturatedStreams As Boolean
+            Get
+                Return CalcMode = CalculationMode.OutletVaporFraction
             End Get
         End Property
 
@@ -129,6 +160,7 @@ Namespace UnitOperations
                 Select Case CalcMode
                     Case CalculationMode.OutletTemperature : Return HeaterCoolerEquations.Spec.OutletTemperature
                     Case CalculationMode.TemperatureChange : Return HeaterCoolerEquations.Spec.TemperatureChange
+                    Case CalculationMode.OutletVaporFraction : Return HeaterCoolerEquations.Spec.VaporFraction
                     Case Else : Return HeaterCoolerEquations.Spec.Duty
                 End Select
             End Get
@@ -137,6 +169,8 @@ Namespace UnitOperations
         ' the specification's value and its code
         Private Function EOValue(context As IEquationOrientedContext, x As Double(), ByRef code As String) As Double
             Select Case EOSpec
+                Case HeaterCoolerEquations.Spec.VaporFraction
+                    code = "PROP_HT_4" : Return EOParameterValue(context, x, code, OutletVaporFraction.GetValueOrDefault())
                 Case HeaterCoolerEquations.Spec.OutletTemperature
                     code = "PROP_HT_2" : Return EOParameterValue(context, x, code, OutletTemperature.GetValueOrDefault())
                 Case HeaterCoolerEquations.Spec.TemperatureChange
@@ -177,11 +211,10 @@ Namespace UnitOperations
             If Not EOHasEquations Then Return MyBase.EOJacobian(context, x, add)
             Dim code As String = Nothing
             Dim v = EOValue(context, x, code)
-            HeaterCoolerEquations.Jacobian(context, x, add, EOInletOffset(context, 0), EOOutletOffset(context, 0), EOSpec,
-                                           context.ParameterIndex(Me, code), context.ParameterIndex(Me, "PROP_HT_0"),
-                                           If(EOSpec = HeaterCoolerEquations.Spec.Duty, context.ParameterIndex(Me, "PROP_HT_1"), -1),
-                                           v, EOParameterValue(context, x, "PROP_HT_1", Eficiencia.GetValueOrDefault()), 1.0)
-            Return True
+            Return HeaterCoolerEquations.Jacobian(context, x, add, EOInletOffset(context, 0), EOOutletOffset(context, 0), EOSpec,
+                                                  context.ParameterIndex(Me, code), context.ParameterIndex(Me, "PROP_HT_0"),
+                                                  If(EOSpec = HeaterCoolerEquations.Spec.Duty, context.ParameterIndex(Me, "PROP_HT_1"), -1),
+                                                  v, EOParameterValue(context, x, "PROP_HT_1", Eficiencia.GetValueOrDefault()), 1.0)
         End Function
 
         Public Overrides Function EOEquationName(context As IEquationOrientedContext, k As Integer) As String
@@ -194,12 +227,20 @@ Namespace UnitOperations
     Partial Public Class Cooler
 
         ''' <summary>
-        ''' Equations of its own at a set outlet temperature, a set temperature change or a set heat removed; at a set vapor
-        ''' fraction or with an energy stream the cooler is a black box.
+        ''' Equations of its own at a set outlet temperature, a set temperature change, a set heat removed or a set outlet
+        ''' vapor fraction; with an energy stream the cooler is a black box.
         ''' </summary>
         Public Overrides ReadOnly Property EOHasEquations As Boolean
             Get
-                Return CalcMode = CalculationMode.OutletTemperature OrElse CalcMode = CalculationMode.TemperatureChange OrElse CalcMode = CalculationMode.HeatRemoved
+                Return CalcMode = CalculationMode.OutletTemperature OrElse CalcMode = CalculationMode.TemperatureChange OrElse CalcMode = CalculationMode.HeatRemoved OrElse
+                    CalcMode = CalculationMode.OutletVaporFraction
+            End Get
+        End Property
+
+        ''' <summary>At a set vapor fraction the equations read the streams' flows and pressures and the outlet's vapor fraction: a condenser's saturated outlet keeps them.</summary>
+        Public Overrides ReadOnly Property EOTakesSaturatedStreams As Boolean
+            Get
+                Return CalcMode = CalculationMode.OutletVaporFraction
             End Get
         End Property
 
@@ -208,6 +249,7 @@ Namespace UnitOperations
                 Select Case CalcMode
                     Case CalculationMode.OutletTemperature : Return HeaterCoolerEquations.Spec.OutletTemperature
                     Case CalculationMode.TemperatureChange : Return HeaterCoolerEquations.Spec.TemperatureChange
+                    Case CalculationMode.OutletVaporFraction : Return HeaterCoolerEquations.Spec.VaporFraction
                     Case Else : Return HeaterCoolerEquations.Spec.Duty
                 End Select
             End Get
@@ -216,6 +258,8 @@ Namespace UnitOperations
         ' the specification's value and its code
         Private Function EOValue(context As IEquationOrientedContext, x As Double(), ByRef code As String) As Double
             Select Case EOSpec
+                Case HeaterCoolerEquations.Spec.VaporFraction
+                    code = "PROP_CL_4" : Return EOParameterValue(context, x, code, OutletVaporFraction.GetValueOrDefault())
                 Case HeaterCoolerEquations.Spec.OutletTemperature
                     code = "PROP_CL_2" : Return EOParameterValue(context, x, code, OutletTemperature.GetValueOrDefault())
                 Case HeaterCoolerEquations.Spec.TemperatureChange
@@ -256,11 +300,10 @@ Namespace UnitOperations
             If Not EOHasEquations Then Return MyBase.EOJacobian(context, x, add)
             Dim code As String = Nothing
             Dim v = EOValue(context, x, code)
-            HeaterCoolerEquations.Jacobian(context, x, add, EOInletOffset(context, 0), EOOutletOffset(context, 0), EOSpec,
-                                           context.ParameterIndex(Me, code), context.ParameterIndex(Me, "PROP_CL_0"),
-                                           If(EOSpec = HeaterCoolerEquations.Spec.Duty, context.ParameterIndex(Me, "PROP_CL_1"), -1),
-                                           v, EOParameterValue(context, x, "PROP_CL_1", Eficiencia.GetValueOrDefault()), -1.0)
-            Return True
+            Return HeaterCoolerEquations.Jacobian(context, x, add, EOInletOffset(context, 0), EOOutletOffset(context, 0), EOSpec,
+                                                  context.ParameterIndex(Me, code), context.ParameterIndex(Me, "PROP_CL_0"),
+                                                  If(EOSpec = HeaterCoolerEquations.Spec.Duty, context.ParameterIndex(Me, "PROP_CL_1"), -1),
+                                                  v, EOParameterValue(context, x, "PROP_CL_1", Eficiencia.GetValueOrDefault()), -1.0)
         End Function
 
         Public Overrides Function EOEquationName(context As IEquationOrientedContext, k As Integer) As String
@@ -881,6 +924,13 @@ Namespace UnitOperations
             If Not EOHasEquations Then Return MyBase.EOVariables(context)
             Return EOStreamVariables(context, {EOInletOffset(context, 0), EOOutletOffset(context, 0)}, EOParameters())
         End Function
+
+        ''' <summary>The equations read the streams' enthalpies and the inlet's liquid density, at the state a vapor fraction gives too.</summary>
+        Public Overrides ReadOnly Property EOTakesSaturatedStreams As Boolean
+            Get
+                Return EOHasEquations
+            End Get
+        End Property
 
         Private Shared ReadOnly EOLiquidDensity As Func(Of IMaterialStream, Double) = Function(ms) ms.Phases(1).Properties.density.GetValueOrDefault()
 
