@@ -321,15 +321,19 @@ A unit operation in another mode, an Expander, a Tank, a Component Separator, a 
 \]
 
 
-with derivatives by central differences of 0.1 %, one-sided where the unit's own solver fails on the other side. The unit's own convergence noise makes these slower than the units with equations. A CAPE-OPEN unit whose solver stops on a message box is calculated once more; a second failure is an error.
+with derivatives by central differences of 0.1 %, one-sided where the unit's own solver fails on the other side (and none where it fails on both, as a ChemSep column does for a compound absent from a feed). The unit's own convergence noise makes these slower than the units with equations. A CAPE-OPEN unit whose solver stops on a message box is calculated once more; a second failure is an error.
 
 ###### Adjusts and design specifications
 
 Each active Adjust and each active design specification adds an unknown, the property it manipulates, and an equation, the controlled property at its target over the tolerance (the Adjust's own tolerance). The manipulated property is a number the unit's equations read (an outlet temperature, a pressure drop, a split ratio, a feed's flow) or, for a black box, a property written into the unit before it is calculated.
 
+###### Streams of one compound
+
+The engine flashes a stream of one compound at its pressure and enthalpy. In one phase, its temperature and pressure give the enthalpy, and the stream enters like any other. In two phases, its temperature is the saturation one and leaves the enthalpy free; so does an azeotrope at its bubble point.
+
 ###### The simultaneous solver takes over
 
-A flowsheet with a stream of a package that treats it as one compound (Steam Tables, single-compound streams, the CoolProp incompressible mixtures), a unit operation outside the table and the black-box list (a Python script unit, for one), two liquid phases in a flash, or a Newton iteration that does not converge (or stalls: five iterations that do not halve the sum of the squared residuals) is handed to the simultaneous solver, with a message that gives the reason. A loop with no make-up of what it loses (a glycol loop whose only losses go to the products) has no well-defined inventory at steady state, and the Newton steps stall on it.
+A flowsheet with a stream of a package that takes every stream for one fluid (Steam Tables, CoolProp, seawater), a stream of one compound in two phases, a unit operation outside the table and the black-box list (a Python script unit, for one), two liquid phases in a flash, or a Newton iteration that does not converge (or stalls: five iterations that do not halve the sum of the squared residuals) is handed to the simultaneous solver, with a message that gives the reason. A loop with no make-up of what it loses (a glycol loop whose only losses go to the products) has no well-defined inventory at steady state, and the Newton steps stall on it.
 
 ###### After the solve
 
