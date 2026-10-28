@@ -68,6 +68,13 @@ Namespace UnitOperations
             End Get
         End Property
 
+        ''' <summary>As <see cref="EOTakesSaturatedStreams"/> unless the unit says its inlets are read only by flows, pressures, temperatures and enthalpies.</summary>
+        Public Overridable ReadOnly Property EOTakesSaturatedInlets As Boolean Implements IEquationOrientedModel.EOTakesSaturatedInlets
+            Get
+                Return EOTakesSaturatedStreams
+            End Get
+        End Property
+
         ''' <summary>The variable offset of the material stream on input connector port, or -1.</summary>
         Protected Function EOInletOffset(context As IEquationOrientedContext, port As Integer) As Integer
             Dim c = GraphicObject.InputConnectors(port)

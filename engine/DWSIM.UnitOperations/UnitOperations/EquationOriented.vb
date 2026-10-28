@@ -137,6 +137,13 @@ Namespace UnitOperations
 
     Partial Public Class Heater
 
+        ''' <summary>A saturated inlet keeps the equations: its equations read the inlet's flows, pressure, temperature and enthalpy.</summary>
+        Public Overrides ReadOnly Property EOTakesSaturatedInlets As Boolean
+            Get
+                Return EOHasEquations
+            End Get
+        End Property
+
         ''' <summary>
         ''' Equations of its own at a set outlet temperature, a set temperature change, a set heat added or a set outlet
         ''' vapor fraction; with an energy stream the heater is a black box.
@@ -228,6 +235,13 @@ Namespace UnitOperations
     End Class
 
     Partial Public Class Cooler
+
+        ''' <summary>A saturated inlet keeps the equations: its equations read the inlet's flows, pressure, temperature and enthalpy.</summary>
+        Public Overrides ReadOnly Property EOTakesSaturatedInlets As Boolean
+            Get
+                Return EOHasEquations
+            End Get
+        End Property
 
         ''' <summary>
         ''' Equations of its own at a set outlet temperature, a set temperature change, a set heat removed or a set outlet
@@ -763,6 +777,13 @@ Namespace UnitOperations
 
     Partial Public Class Vessel
 
+        ''' <summary>A saturated inlet keeps the equations: its equations read the inlets' flows, pressures and enthalpies (the flash is of their mixture).</summary>
+        Public Overrides ReadOnly Property EOTakesSaturatedInlets As Boolean
+            Get
+                Return EOHasEquations
+            End Get
+        End Property
+
         ''' <summary>
         ''' Equations of its own in the legacy mode, adiabatic or at a set temperature, at the pressure of its inlets, with
         ''' a vapor and a liquid outlet: the two phases of the PT flash of the inlets' mixture, at a common temperature and
@@ -1250,6 +1271,13 @@ Namespace UnitOperations
 
     Partial Public Class HeatExchanger
 
+        ''' <summary>A saturated inlet keeps the equations: its equations read the inlets' flows, pressures, temperatures and enthalpies.</summary>
+        Public Overrides ReadOnly Property EOTakesSaturatedInlets As Boolean
+            Get
+                Return EOHasEquations
+            End Get
+        End Property
+
         ''' <summary>
         ''' Equations of its own with a set outlet temperature on one side, a set heat load, a set U and A, or a set vapor
         ''' fraction at one outlet: each side's compound flows go through with its pressure drop, the heat the hot side gives
@@ -1271,6 +1299,17 @@ Namespace UnitOperations
                     Case Else
                         Return False
                 End Select
+            End Get
+        End Property
+
+        ''' <summary>
+        ''' At a set heat load or a set U and A the equations read the streams' enthalpies, at the state a vapor fraction gives
+        ''' too, and their temperatures, which follow a saturated stream's vapor fraction: a condensing or boiling side keeps
+        ''' them. A set outlet temperature or vapor fraction would fix what the vapor fraction leaves open.
+        ''' </summary>
+        Public Overrides ReadOnly Property EOTakesSaturatedStreams As Boolean
+            Get
+                Return EOHasEquations AndAlso (CalcMode = HeatExchangerCalcMode.CalcBothTemp OrElse CalcMode = HeatExchangerCalcMode.CalcBothTemp_UA)
             End Get
         End Property
 
@@ -1529,6 +1568,13 @@ Namespace UnitOperations
 
 
     Partial Public Class ComponentSeparator
+
+        ''' <summary>A saturated inlet keeps the equations: its equations read the inlet's flows, pressure and temperature.</summary>
+        Public Overrides ReadOnly Property EOTakesSaturatedInlets As Boolean
+            Get
+                Return EOHasEquations
+            End Get
+        End Property
 
         ''' <summary>
         ''' Equations of its own when every compound has a specification: both outlets at the inlet's temperature and

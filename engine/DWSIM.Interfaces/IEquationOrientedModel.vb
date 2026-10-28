@@ -45,6 +45,13 @@ Public Interface IEquationOrientedModel
     ''' </summary>
     ReadOnly Property EOTakesSaturatedStreams As Boolean
 
+    ''' <summary>
+    ''' True when the equations hold with a saturated stream at an inlet: they read the inlets only through their flows,
+    ''' pressures, temperatures and enthalpies (no flash of an inlet at its temperature and pressure, where a saturated
+    ''' stream's phases are not told). The outlets are judged by <see cref="EOTakesSaturatedStreams"/>.
+    ''' </summary>
+    ReadOnly Property EOTakesSaturatedInlets As Boolean
+
 End Interface
 
 ''' <summary>
