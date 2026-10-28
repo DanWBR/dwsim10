@@ -52,7 +52,7 @@ public partial class SplashWindow : Window
             // Load patrons list
             try
             {
-                var patronsList = Patrons.GetList();
+                var patronsList = Patrons.GetShortList();
                 Dispatcher.UIThread.Post(() =>
                     LblPatrons.Text = "Special thanks to the following Patrons/Sponsors: " + patronsList);
             }
