@@ -331,13 +331,13 @@ The power of the energy stream an energy recycle writes becomes an unknown, whic
 
 Each active Adjust and each active design specification adds an unknown, the property it manipulates, and an equation, the controlled property at its target over the tolerance (the Adjust's own tolerance). The manipulated property is a number the unit's equations read (an outlet temperature, a pressure drop, a split ratio, a feed's flow) or, for a black box, a property written into the unit before it is calculated.
 
-###### Streams of one compound
+###### Saturated streams
 
-The engine flashes a stream of one compound at its pressure and enthalpy. In one phase, its temperature and pressure give the enthalpy, and the stream enters like any other. In two phases, its temperature is the saturation one and leaves the enthalpy free; so does an azeotrope at its bubble point.
+A stream of one compound, or of an azeotrope, in two phases or at its bubble or dew point has its saturation temperature whatever its enthalpy, so its temperature, pressure and flows do not tell its state. Such a stream (one whose bubble and dew points are within 0.5 K of each other, with its temperature between them) takes its vapor fraction $\beta$ as one more unknown, and its temperature becomes an equation of it: the temperature at which its compounds, at its pressure, flash to $\beta$ (the compound's saturation temperature; for a mixture, the package's PVF flash). Its enthalpy comes from the phases of that state. A saturated feed holds its vapor fraction in place of its temperature, a recycle sets the two vapor fractions equal, a black box's saturated outlet is matched by the vapor fraction the unit calculates, and a unit with equations of its own next to a saturated stream is taken as a black box. $\beta$ stays within 0 and 1: a stream that would leave the two-phase region hands the flowsheet to the simultaneous solver.
 
 ###### The simultaneous solver takes over
 
-A flowsheet with a stream of a package that takes every stream for one fluid (Steam Tables, CoolProp, seawater), a stream of one compound in two phases, a unit operation outside the table and the black-box list (a Python script unit, for one), two liquid phases in a flash, or a Newton iteration that does not converge (or stalls: five iterations that do not halve the sum of the squared residuals) is handed to the simultaneous solver, with a message that gives the reason. A loop with no make-up of what it loses (a glycol loop whose only losses go to the products) has no well-defined inventory at steady state, and the Newton steps stall on it.
+A flowsheet with a stream of a package that takes every stream for one fluid (Steam Tables, CoolProp, seawater), a unit operation outside the table and the black-box list (a Python script unit, for one), two liquid phases in a flash, or a Newton iteration that does not converge (or stalls: five iterations that do not halve the sum of the squared residuals) is handed to the simultaneous solver, with a message that gives the reason. A loop with no make-up of what it loses (a glycol loop whose only losses go to the products) has no well-defined inventory at steady state, and the Newton steps stall on it.
 
 ###### After the solve
 
