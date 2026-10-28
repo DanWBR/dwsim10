@@ -274,7 +274,7 @@ The phase equilibrium is a submodel: the PT flash of the property package, with 
 | Pump | pressure increase or outlet pressure: the liquid takes $\Delta P/(\rho_L\,\eta)$ times its mass flow |
 | Compressor | adiabatic path, with pressure increase, outlet pressure or pressure ratio: the isentropic enthalpy rise over the efficiency |
 | Gas-Liquid Separator | adiabatic or at a set temperature, at the pressure of its inlets, two outlets |
-| Heat Exchanger | outlet temperature of one side, heat load, or $U$ and $A$ with $Q = U A F\,\Delta T_{\mathrm{lm}}$ |
+| Heat Exchanger | outlet temperature of one side, heat load, $U$ and $A$ with $Q = U A F\,\Delta T_{\mathrm{lm}}$, or the vapor fraction of one outlet: its temperature where its compounds, at its pressure, flash to that fraction (the bubble point at 0, the dew point at 1) |
 | Conversion Reactor | reactions in the mixture; adiabatic with one group of reactions, isothermal or at an outlet temperature |
 | Equilibrium Reactor | reactions in the vapor or the liquid, with activity, fugacity, mole fraction or partial pressure as the basis |
 | Gibbs Reactor | reacting in the vapor, in the liquid, or in the phases the flash gives |

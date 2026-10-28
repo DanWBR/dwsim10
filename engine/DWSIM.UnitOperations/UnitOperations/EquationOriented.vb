@@ -975,17 +975,20 @@ Namespace UnitOperations
     Partial Public Class HeatExchanger
 
         ''' <summary>
-        ''' Equations of its own with a set outlet temperature on one side, a set heat load, or a set U and A: each side's
-        ''' compound flows go through with its pressure drop, the heat the hot side gives is what the cold side takes plus
-        ''' the heat loss, and the specification. With U and A, the heat load is U A F LMTD, the point where the unit's own
-        ''' iteration stops. The cold side is the inlet at the lower temperature, as the unit decides. The rating, pinch,
-        ''' efficiency and vapor fraction modes take the exchanger as a black box.
+        ''' Equations of its own with a set outlet temperature on one side, a set heat load, a set U and A, or a set vapor
+        ''' fraction at one outlet: each side's compound flows go through with its pressure drop, the heat the hot side gives
+        ''' is what the cold side takes plus the heat loss, and the specification. With U and A, the heat load is U A F LMTD,
+        ''' the point where the unit's own iteration stops. A vapor fraction sets the outlet's temperature where that
+        ''' outlet's compounds, at its pressure, flash to it (the bubble point at 0, the dew point at 1), a condition smooth
+        ''' in the pressure and the flows where the vapor fraction itself is flat. The cold side is the inlet at the lower
+        ''' temperature, as the unit decides. The rating, pinch and efficiency modes take the exchanger as a black box.
         ''' </summary>
         Public Overrides ReadOnly Property EOHasEquations As Boolean
             Get
                 Select Case CalcMode
                     Case HeatExchangerCalcMode.CalcTempHotOut, HeatExchangerCalcMode.CalcTempColdOut,
-                         HeatExchangerCalcMode.CalcBothTemp, HeatExchangerCalcMode.CalcBothTemp_UA
+                         HeatExchangerCalcMode.CalcBothTemp, HeatExchangerCalcMode.CalcBothTemp_UA,
+                         HeatExchangerCalcMode.OutletVaporFraction1, HeatExchangerCalcMode.OutletVaporFraction2
                         Dim g = GraphicObject
                         Return g.InputConnectors(0).IsAttached AndAlso g.InputConnectors(1).IsAttached AndAlso
                                g.OutputConnectors(0).IsAttached AndAlso g.OutputConnectors(1).IsAttached
@@ -1002,6 +1005,8 @@ Namespace UnitOperations
                 Case HeatExchangerCalcMode.CalcTempHotOut : Return common.Concat({"PROP_HX_3"}).ToArray()
                 Case HeatExchangerCalcMode.CalcTempColdOut : Return common.Concat({"PROP_HX_4"}).ToArray()
                 Case HeatExchangerCalcMode.CalcBothTemp : Return common.Concat({"PROP_HX_2"}).ToArray()
+                Case HeatExchangerCalcMode.OutletVaporFraction1 : Return common.Concat({"PROP_HX_30"}).ToArray()
+                Case HeatExchangerCalcMode.OutletVaporFraction2 : Return common.Concat({"PROP_HX_31"}).ToArray()
                 Case Else : Return common.Concat({"PROP_HX_0", "PROP_HX_1"}).ToArray()
             End Select
         End Function
@@ -1057,6 +1062,32 @@ Namespace UnitOperations
             Return L * CorrectionFactorLMTD
         End Function
 
+        ' the vapor fraction mode's outlet (that of inlet 0 or 1), its specification and the specification's code
+        Private Function EOVaporFractionOutlet(context As IEquationOrientedContext, x As Double(), ByRef vf As Double, ByRef code As String) As Integer
+            Dim first = CalcMode = HeatExchangerCalcMode.OutletVaporFraction1
+            code = If(first, "PROP_HX_30", "PROP_HX_31")
+            vf = EOParameterValue(context, x, code, If(first, OutletVaporFraction1, OutletVaporFraction2))
+            Return EOOutletOffset(context, If(first, 0, 1))
+        End Function
+
+        ' the outlet's temperature at the vapor fraction, flashed by the package of the side's inlet; read by name and state
+        Private Function EOVaporFractionRead(vf As Double, ByRef name As String) As Func(Of IMaterialStream, Double)
+            Dim pp = GetInletMaterialStream(If(CalcMode = HeatExchangerCalcMode.OutletVaporFraction1, 0, 1)).PropertyPackage
+            name = Me.Name & " vapor fraction temperature " & vf.ToString("R", Globalization.CultureInfo.InvariantCulture)
+            Return Function(ms)
+                       pp.CurrentMaterialStream = ms
+                       Dim res = pp.CalculateEquilibrium2(Enums.FlashCalculationType.PressureVaporFraction, ms.GetPressure(), vf, ms.GetTemperature())
+                       Return res.CalculatedTemperature.GetValueOrDefault(Double.NaN)
+                   End Function
+        End Function
+
+        ''' <summary>The temperature at which the outlet's compounds, at its pressure, flash to the vapor fraction, as the unit flashes them.</summary>
+        Private Function EOVaporFractionTemperature(context As IEquationOrientedContext, x As Double(), offset As Integer, vf As Double) As Double
+            Dim name As String = Nothing
+            Dim read = EOVaporFractionRead(vf, name)
+            Return context.StreamProperty(offset, x, name, read)
+        End Function
+
         Public Overrides Sub EOResiduals(context As IEquationOrientedContext, x As Double(), r As Double(), row As Integer)
             If Not EOHasEquations Then
                 MyBase.EOResiduals(context, x, r, row)
@@ -1091,6 +1122,11 @@ Namespace UnitOperations
                     Dim q = EOParameterValue(context, x, "PROP_HX_2", Me.Q.GetValueOrDefault())
                     r(k) = (dHc - q) / te
                     r(k + 1) = (dHh + q + loss) / te
+                Case HeatExchangerCalcMode.OutletVaporFraction1, HeatExchangerCalcMode.OutletVaporFraction2
+                    Dim vf As Double, code As String = Nothing
+                    Dim so = EOVaporFractionOutlet(context, x, vf, code)
+                    r(k) = (x(so) - EOVaporFractionTemperature(context, x, so, vf)) / context.TemperatureTolerance
+                    r(k + 1) = (dHc + dHh + loss) / te
                 Case Else
                     Dim d As Double() = Nothing
                     Dim L = EOLMTD(x(hi), x(ci), x(ho), x(co), d)
@@ -1153,6 +1189,25 @@ Namespace UnitOperations
                     addHot(k + 1, 1.0)
                     Dim kq = context.ParameterIndex(Me, "PROP_HX_2")
                     If kq >= 0 Then add(k, kq, -1.0 / te) : add(k + 1, kq, 1.0 / te)
+                Case HeatExchangerCalcMode.OutletVaporFraction1, HeatExchangerCalcMode.OutletVaporFraction2
+                    Dim tt = context.TemperatureTolerance
+                    Dim vf As Double, code As String = Nothing, name As String = Nothing
+                    Dim so = EOVaporFractionOutlet(context, x, vf, code)
+                    add(k, so, 1.0 / tt)
+                    ' the flash temperature by central differences on the outlet's pressure and flows; the outlet's own
+                    ' temperature is only the flash's first estimate
+                    Dim read = EOVaporFractionRead(vf, name)
+                    Dim d = context.StreamPropertyDerivatives(so, x, name, read)
+                    For j = 1 To c + 1
+                        add(k, so + j, -d(j) / tt)
+                    Next
+                    Dim kv = context.ParameterIndex(Me, code)
+                    If kv >= 0 Then
+                        Dim lo = Math.Max(vf - 0.0001, 0.0), up = Math.Min(vf + 0.0001, 1.0)
+                        Dim dT = (EOVaporFractionTemperature(context, x, so, up) - EOVaporFractionTemperature(context, x, so, lo)) / (up - lo)
+                        add(k, kv, -dT / tt)
+                    End If
+                    addCold(k + 1, 1.0) : addHot(k + 1, 1.0)
                 Case Else
                     Dim d As Double() = Nothing
                     Dim U = EOParameterValue(context, x, "PROP_HX_0", OverallCoefficient.GetValueOrDefault())
@@ -1185,6 +1240,8 @@ Namespace UnitOperations
                         Case HeatExchangerCalcMode.CalcTempHotOut : Return "cold outlet temperature"
                         Case HeatExchangerCalcMode.CalcTempColdOut : Return "hot outlet temperature"
                         Case HeatExchangerCalcMode.CalcBothTemp : Return "heat the cold side takes"
+                        Case HeatExchangerCalcMode.OutletVaporFraction1, HeatExchangerCalcMode.OutletVaporFraction2
+                            Return "outlet temperature at its vapor fraction"
                         Case Else : Return "heat load = U A LMTD"
                     End Select
                 Case Else
