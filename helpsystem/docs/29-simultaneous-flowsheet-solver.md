@@ -268,11 +268,13 @@ The phase equilibrium is a submodel: the PT flash of the property package, with 
 | **Unit operation** | **Modes with equations of their own** |
 |:---|:---|
 | Mixer | without an energy inlet: flows, pressure by its rule, energy balance |
-| Splitter | split ratios |
-| Heater, Cooler | outlet temperature |
+| Splitter | split ratios, or the molar or mass flow of the first outlets with the last taking the rest |
+| Heater, Cooler | outlet temperature, temperature change, or the duty (scaled by the efficiency, as the unit does) |
 | Valve | pressure drop or outlet pressure (isenthalpic) |
 | Pump | pressure increase or outlet pressure: the liquid takes $\Delta P/(\rho_L\,\eta)$ times its mass flow |
 | Compressor | adiabatic path, with pressure increase, outlet pressure or pressure ratio: the isentropic enthalpy rise over the efficiency |
+| Expander | adiabatic path, with pressure drop, outlet pressure or pressure ratio: the efficiency times the isentropic enthalpy drop, the isentropic outlet by the package's PS flash |
+| Component Separator | every compound with a specification: both outlets at the inlet's temperature and pressure, the specified outlet with each compound's set flow or share |
 | Gas-Liquid Separator | adiabatic or at a set temperature, at the pressure of its inlets, two outlets |
 | Heat Exchanger | outlet temperature of one side, heat load, $U$ and $A$ with $Q = U A F\,\Delta T_{\mathrm{lm}}$, or the vapor fraction of one outlet: its temperature where its compounds, at its pressure, flash to that fraction (the bubble point at 0, the dew point at 1) |
 | Conversion Reactor | reactions in the mixture; adiabatic with one group of reactions, isothermal or at an outlet temperature |
@@ -311,7 +313,7 @@ An active Spec block is an equation: its target property becomes an unknown, equ
 
 ###### Black boxes
 
-A unit operation in another mode, an Expander, a Tank, a Component Separator, a Shortcut Column, a PFR (whose integration along its length is its own) or a column the derivatives above do not cover (secondary specifications, rate-based efficiencies, an external solver) or a CAPE-OPEN unit operation (one call at a time, as a ChemSep column needs) enters through its own calculation: its inlets are put at their variables and flashed there, the unit is calculated, and its residuals are
+A unit operation in another mode, a Tank, a Shortcut Column, a PFR (whose integration along its length is its own) or a column the derivatives above do not cover (secondary specifications, rate-based efficiencies, an external solver) or a CAPE-OPEN unit operation (one call at a time, as a ChemSep column needs) enters through its own calculation: its inlets are put at their variables and flashed there, the unit is calculated, and its residuals are
 
 
 <a id="eq:eo_blackbox"></a>
@@ -325,7 +327,7 @@ with derivatives by central differences of 0.1 %, one-sided where the unit's own
 
 ###### Energy recycles
 
-The power of the energy stream an energy recycle writes becomes an unknown, which the unit downstream (a compressor driven by an expander) reads through its own calculation, and the recycle's equation sets it equal to the power the unit upstream writes, through its own calculation, into the stream the recycle reads.
+The power of the energy stream an energy recycle writes becomes an unknown, which the unit downstream (a compressor driven by an expander) reads through its own calculation, and the recycle's equation sets it equal to the power the unit upstream writes, through its own calculation, into the stream the recycle reads; an expander with equations of its own writes the enthalpy its fluid gives up.
 
 ###### Adjusts and design specifications
 
