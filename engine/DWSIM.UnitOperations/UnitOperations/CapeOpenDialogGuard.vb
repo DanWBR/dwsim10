@@ -27,8 +27,10 @@ Namespace UnitOperations
     ''' <summary>
     ''' Watches, while a CAPE-OPEN unit operation calculates, for windows shown by the processes DWSIM started (ChemSep
     ''' runs its solver, wincs.exe, as a child process, and a failed solve stops on a message box until someone clicks
-    ''' OK). Each such window is read and closed, which is the click the user would give it; a process that keeps its
-    ''' window is ended. What the windows said is kept in <see cref="Dialogs"/>. Windows only; elsewhere it does nothing.
+    ''' OK), and for the message boxes the calculating thread itself opens (ChemSep's CAPE-OPEN library asks to retry or
+    ''' cancel when its solver stops answering). Each such window is read and closed, which is a click on OK or Cancel; a
+    ''' child process that keeps its window is ended, and a message box of DWSIM's own that stays open is cancelled. What
+    ''' the windows said is kept in <see cref="Dialogs"/>. Windows only; elsewhere it does nothing.
     ''' </summary>
     Friend NotInheritable Class CapeOpenDialogGuard
 
@@ -39,6 +41,8 @@ Namespace UnitOperations
         Private ReadOnly _stop As New ManualResetEventSlim(False)
         Private ReadOnly _thread As Thread
         Private ReadOnly _self As Integer
+        ''' <summary>The native thread that calculates the unit, whose message boxes are the unit's.</summary>
+        Private ReadOnly _caller As UInteger
 
         ''' <summary>How often the windows are looked for, in milliseconds.</summary>
         Private Const Interval As Integer = 200
@@ -48,6 +52,7 @@ Namespace UnitOperations
         Public Sub New()
             _self = Process.GetCurrentProcess().Id
             If Not RuntimeInformation.IsOSPlatform(OSPlatform.Windows) Then Return
+            _caller = GetCurrentThreadId()
             _thread = New Thread(AddressOf Watch) With {.IsBackground = True, .Name = "CAPE-OPEN dialog guard"}
             _thread.Start()
         End Sub
@@ -78,16 +83,21 @@ Namespace UnitOperations
 
         Private Sub Sweep()
             Dim children = Descendants(_self)
-            If children.Count = 0 Then Return
-            For Each hwnd In VisibleWindowsOf(children)
+            For Each hwnd In VisibleWindowsOf(children, CUInt(_self), _caller)
                 Dim pid As UInteger
                 GetWindowThreadProcessId(hwnd, pid)
+                Dim own = pid = CUInt(_self)
                 If _closedAt.ContainsKey(hwnd) Then
                     If (DateTime.UtcNow - _closedAt(hwnd)).TotalSeconds > Grace Then
-                        Try
-                            Process.GetProcessById(CInt(pid)).Kill()
-                        Catch ex As Exception
-                        End Try
+                        If own Then
+                            ' DWSIM's own process is never ended: the message box gets its Cancel button
+                            PostMessage(hwnd, WM_COMMAND, New IntPtr(IDCANCEL), IntPtr.Zero)
+                        Else
+                            Try
+                                Process.GetProcessById(CInt(pid)).Kill()
+                            Catch ex As Exception
+                            End Try
+                        End If
                     End If
                     Continue For
                 End If
@@ -135,12 +145,23 @@ Namespace UnitOperations
             Return found
         End Function
 
-        Private Shared Function VisibleWindowsOf(pids As HashSet(Of UInteger)) As List(Of IntPtr)
+        ''' <summary>
+        ''' The visible windows of the child processes, and the message boxes (dialog class #32770) of the calculating
+        ''' thread of DWSIM's own process.
+        ''' </summary>
+        Private Shared Function VisibleWindowsOf(pids As HashSet(Of UInteger), self As UInteger, caller As UInteger) As List(Of IntPtr)
             Dim list As New List(Of IntPtr)
             EnumWindows(Function(hwnd, lParam)
+                            If Not IsWindowVisible(hwnd) Then Return True
                             Dim pid As UInteger
-                            GetWindowThreadProcessId(hwnd, pid)
-                            If pids.Contains(pid) AndAlso IsWindowVisible(hwnd) Then list.Add(hwnd)
+                            Dim tid = GetWindowThreadProcessId(hwnd, pid)
+                            If pids.Contains(pid) Then
+                                list.Add(hwnd)
+                            ElseIf pid = self AndAlso tid = caller Then
+                                Dim cls As New StringBuilder(16)
+                                GetClassName(hwnd, cls, cls.Capacity)
+                                If cls.ToString() = "#32770" Then list.Add(hwnd)
+                            End If
                             Return True
                         End Function, IntPtr.Zero)
             Return list
@@ -149,7 +170,8 @@ Namespace UnitOperations
         ''' <summary>The window's title and the texts inside it, buttons left out.</summary>
         Private Shared Function Describe(hwnd As IntPtr) As String
             Dim parts As New List(Of String)
-            Dim title = TextOf(hwnd)
+            ' a title that ends in a colon ("Chemsep Cape Open:") reads the same without it, before the joining one
+            Dim title = TextOf(hwnd).TrimEnd(":"c).Trim()
             If title.Length > 0 Then parts.Add(title)
             EnumChildWindows(hwnd, Function(child, lParam)
                                        Dim cls As New StringBuilder(64)
@@ -181,6 +203,8 @@ Namespace UnitOperations
         ' ---------- Win32
 
         Private Const WM_CLOSE As UInteger = &H10
+        Private Const WM_COMMAND As UInteger = &H111
+        Private Const IDCANCEL As Integer = 2
         Private Const TH32CS_SNAPPROCESS As UInteger = &H2
         Private Shared ReadOnly INVALID_HANDLE_VALUE As New IntPtr(-1)
 
@@ -214,6 +238,10 @@ Namespace UnitOperations
 
         <DllImport("kernel32.dll", SetLastError:=True)>
         Private Shared Function CloseHandle(handle As IntPtr) As Boolean
+        End Function
+
+        <DllImport("kernel32.dll")>
+        Private Shared Function GetCurrentThreadId() As UInteger
         End Function
 
         <DllImport("user32.dll")>
