@@ -148,10 +148,13 @@ Namespace UnitOperations
             End Get
         End Property
 
-        ''' <summary>At a set vapor fraction the equations read the streams' flows and pressures and the outlet's vapor fraction: a condenser's saturated outlet keeps them.</summary>
+        ''' <summary>
+        ''' At a set vapor fraction the equations read the streams' flows and pressures and the outlet's vapor fraction (a
+        ''' condenser's saturated outlet keeps them), at a set duty their enthalpies, at the state a vapor fraction gives too.
+        ''' </summary>
         Public Overrides ReadOnly Property EOTakesSaturatedStreams As Boolean
             Get
-                Return CalcMode = CalculationMode.OutletVaporFraction
+                Return CalcMode = CalculationMode.OutletVaporFraction OrElse CalcMode = CalculationMode.HeatAdded
             End Get
         End Property
 
@@ -237,10 +240,13 @@ Namespace UnitOperations
             End Get
         End Property
 
-        ''' <summary>At a set vapor fraction the equations read the streams' flows and pressures and the outlet's vapor fraction: a condenser's saturated outlet keeps them.</summary>
+        ''' <summary>
+        ''' At a set vapor fraction the equations read the streams' flows and pressures and the outlet's vapor fraction (a
+        ''' condenser's saturated outlet keeps them), at a set duty their enthalpies, at the state a vapor fraction gives too.
+        ''' </summary>
         Public Overrides ReadOnly Property EOTakesSaturatedStreams As Boolean
             Get
-                Return CalcMode = CalculationMode.OutletVaporFraction
+                Return CalcMode = CalculationMode.OutletVaporFraction OrElse CalcMode = CalculationMode.HeatRemoved
             End Get
         End Property
 
@@ -322,6 +328,13 @@ Namespace UnitOperations
         Public Overrides ReadOnly Property EOHasEquations As Boolean
             Get
                 Return CalcMode = CalculationMode.DeltaP OrElse CalcMode = CalculationMode.OutletPressure
+            End Get
+        End Property
+
+        ''' <summary>The equations read the streams' flows, pressures and enthalpies: a saturated stream keeps them.</summary>
+        Public Overrides ReadOnly Property EOTakesSaturatedStreams As Boolean
+            Get
+                Return EOHasEquations
             End Get
         End Property
 
@@ -457,6 +470,13 @@ Namespace UnitOperations
             End Get
         End Property
 
+        ''' <summary>The equations read the streams' flows, pressures and enthalpies: a saturated stream keeps them.</summary>
+        Public Overrides ReadOnly Property EOTakesSaturatedStreams As Boolean
+            Get
+                Return EOHasEquations
+            End Get
+        End Property
+
         Public Overrides Function EOParameters() As String()
             If Not EOHasEquations Then Return MyBase.EOParameters()
             Return New String() {}
@@ -543,8 +563,16 @@ Namespace UnitOperations
         ''' <summary>
         ''' Equations of its own by split ratios, or by the molar or mass flow of the first outlets (two or three, on the
         ''' first connectors) with the last taking the rest: each outlet at the inlet's temperature and pressure, with its
-        ''' share of the flows. With a set flow the share is that flow over the inlet's.
+        ''' share of the flows. With a set flow the share is that flow over the inlet's. An outlet with an extended vapor
+        ''' fraction, of an inlet with one, takes the inlet's vapor fraction in place of its temperature (a stream of one
+        ''' compound in two phases has the same temperature at any vapor fraction).
         ''' </summary>
+        Public Overrides ReadOnly Property EOTakesSaturatedStreams As Boolean
+            Get
+                Return EOHasEquations
+            End Get
+        End Property
+
         Public Overrides ReadOnly Property EOHasEquations As Boolean
             Get
                 If OperationMode = OpMode.SplitRatios Then Return True
@@ -643,7 +671,12 @@ Namespace UnitOperations
                 Dim s = EOOutletOffset(context, ports(o))
                 Dim ratio = EORatio(context, x, o, ports, rest)
                 Dim ft = context.FlowTolerance(s)
-                r(row) = (x(s) - x(inlet)) / context.TemperatureTolerance
+                Dim kbo = context.VaporFractionIndex(s), kbi = context.VaporFractionIndex(inlet)
+                If kbo >= 0 AndAlso kbi >= 0 Then
+                    r(row) = (x(kbo) - x(kbi)) / context.VaporFractionTolerance
+                Else
+                    r(row) = (x(s) - x(inlet)) / context.TemperatureTolerance
+                End If
                 r(row + 1) = (x(s + 1) - x(inlet + 1)) / context.PressureTolerance
                 For i = 0 To c - 1
                     r(row + 2 + i) = (x(s + 2 + i) - ratio * x(inlet + 2 + i)) / ft
@@ -666,8 +699,14 @@ Namespace UnitOperations
                 Dim s = EOOutletOffset(context, ports(o))
                 Dim ratio = EORatio(context, x, o, ports, rest)
                 Dim ft = context.FlowTolerance(s)
-                add(k, s, 1.0 / tt)
-                add(k, inlet, -1.0 / tt)
+                Dim kbo = context.VaporFractionIndex(s), kbi = context.VaporFractionIndex(inlet)
+                If kbo >= 0 AndAlso kbi >= 0 Then
+                    add(k, kbo, 1.0 / context.VaporFractionTolerance)
+                    add(k, kbi, -1.0 / context.VaporFractionTolerance)
+                Else
+                    add(k, s, 1.0 / tt)
+                    add(k, inlet, -1.0 / tt)
+                End If
                 add(k + 1, s + 1, 1.0 / tp)
                 add(k + 1, inlet + 1, -1.0 / tp)
                 Dim last = o = ports.Length - 1
@@ -716,7 +755,8 @@ Namespace UnitOperations
             Dim c = context.CompoundCount
             Dim o = k \ (c + 2), j = k Mod (c + 2)
             Dim tag = GraphicObject.OutputConnectors(EOOutletPorts()(o)).AttachedConnector.AttachedTo.Tag
-            Return "outlet " & tag & ": " & If(j = 0, "temperature", If(j = 1, "pressure", "flow " & (j - 2)))
+            Dim saturated = context.VaporFractionIndex(EOOutletOffset(context, EOOutletPorts()(o))) >= 0 AndAlso context.VaporFractionIndex(EOInletOffset(context, 0)) >= 0
+            Return "outlet " & tag & ": " & If(j = 0, If(saturated, "vapor fraction", "temperature"), If(j = 1, "pressure", "flow " & (j - 2)))
         End Function
 
     End Class
@@ -726,11 +766,16 @@ Namespace UnitOperations
         ''' <summary>
         ''' Equations of its own in the legacy mode, adiabatic or at a set temperature, at the pressure of its inlets, with
         ''' a vapor and a liquid outlet: the two phases of the PT flash of the inlets' mixture, at a common temperature and
-        ''' pressure, and the energy balance (or the set temperature, whose duty is a result).
+        ''' pressure, and the energy balance (or the set temperature, whose duty is a result). The adiabatic mode is the
+        ''' same flash with no heat: its energy streams are left out of its calculation.
         ''' </summary>
         Public Overrides ReadOnly Property EOHasEquations As Boolean
             Get
-                If CalculationMode <> CalculationModes.Legacy OrElse OverrideP OrElse CalculateRigorousHeatBalance Then Return False
+                If OverrideP OrElse CalculateRigorousHeatBalance Then Return False
+                If CalculationMode = CalculationModes.Adiabatic Then
+                    Return GraphicObject.OutputConnectors(0).IsAttached AndAlso GraphicObject.OutputConnectors(1).IsAttached
+                End If
+                If CalculationMode <> CalculationModes.Legacy Then Return False
                 Dim g = GraphicObject
                 ' an energy inlet only carries the duty of a vessel at a set temperature
                 If Not OverrideT AndAlso g.InputConnectors.Count > 6 AndAlso g.InputConnectors(6).IsAttached Then Return False
