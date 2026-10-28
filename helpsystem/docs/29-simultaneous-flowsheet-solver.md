@@ -321,7 +321,7 @@ A unit operation in another mode, an Expander, a Tank, a Component Separator, a 
 \]
 
 
-with derivatives by central differences of 0.1 %, one-sided where the unit's own solver fails on the other side (and none where it fails on both, as a ChemSep column does for a compound absent from a feed). The unit's own convergence noise makes these slower than the units with equations. A CAPE-OPEN unit whose solver stops on a message box is calculated once more; a second failure is an error.
+with derivatives by central differences of 0.1 %, one-sided where the unit's own solver fails on the other side (and none where it fails on both, as a ChemSep column does for a compound absent from a feed). The unit's own convergence noise makes these slower than the units with equations. A CAPE-OPEN unit whose solver stops on a message box is calculated once more; a second failure is an error. The black boxes' blocks of the Jacobian are differenced on the first iteration only and updated by Broyden's formula from each step after it; they are differenced again when the line search fails or cuts a step taken with them, or the iterations stall.
 
 ###### Energy recycles
 
