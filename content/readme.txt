@@ -51,6 +51,7 @@ Version 10.2.13
 - [NEW] Design specifications (Patreon): properties brought to their targets by the simultaneous solver on every solve, without Adjust blocks, set in Flowsheet Analysis > Design Specifications, Optimization and Reconciliation and saved with the file
 - [NEW] Flowsheet optimization (Patreon): maximize or minimize a weighted sum or an expression of flowsheet properties over feed and unit variables, with bounds and constraints, on the converged flowsheet
 - [NEW] Data reconciliation (Patreon): plant measurements with their standard deviations reconciled against the converged flowsheet by moving feeds and unit parameters, with the chi-square test and the suspect measurement
+- [NEW] Equation-oriented solver (Patreon): with Solve the flowsheet as one system of equations checked in the problem editor, the whole flowsheet is solved as one system by a damped Newton method on the units' own equations with analytic derivatives; units without equations, CAPE-OPEN columns among them, enter through their own calculation, and a solve that does not converge goes to the simultaneous solver
 - [CHG] Case library, user guide and advanced tutorial: the column secondary specification example follows the corrected D86 curves
 - [CHG] Dynamic simulation: steps skip the copy of the last solution, and on Windows the solver stays on the performance cores of the processor
 - [CHG] Implicit Euler: at the end of a run the log says how many steps did not converge and what to change
@@ -72,6 +73,8 @@ Version 10.2.13
 - [FIX] OTS aftercooler sample: the cooler duty and its controller follow the current sign convention
 - [FIX] Peng-Robinson, PR78 and SRK: a file that listed an interaction parameter pair in both orders left two values for one pair, and the packages disagreed on the fugacities
 - [FIX] Flowsheet solve: an energy stream on a material port of a unit stopped the mass and energy balance with an error after the solve, which was reported as failed
+- [FIX] Heat Exchanger, Outlet Vapor Fraction 2: with inlet 1 as the hot side its outlet was flashed at the cold side pressure and the pressure drops of the two sides were swapped
+- [FIX] Heat Exchanger, vapor fraction modes: with the load cut to the maximum heat exchange, mode 1 recalculated the outlet with inlet 1's flow and composition, and both modes took the heat loss from the vapor fraction side
 
 Version 10.2.12
 

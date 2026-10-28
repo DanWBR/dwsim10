@@ -6,6 +6,8 @@ The sequential-modular solver converges a flowsheet one block at a time: each Re
 
 The **Simultaneous Flowsheet Solver** (Patreon Edition) converges every Recycle, Energy Recycle and Adjust of the flowsheet at once. The unit operations are calculated exactly as before, by their own models; only the outer iteration changes.
 
+The Patreon Edition also has an **equation-oriented solver** ([Equation-Oriented Solver](#sec:equation_oriented)), which solves the equations of the unit operations themselves together with the recycles and adjusts, as one system. [Choosing a solver](#sec:choosing_solver) compares the three.
+
 #### Selecting the solver strategy
 
 The strategy is a property of the flowsheet and is saved with it:
@@ -347,7 +349,16 @@ The solution is written into the streams and one pass of the unit operations run
 
 ###### Performance
 
-On the Cavett problem (four flash drums at set temperatures, three compressors, a mixer and three recycles) the solver closes 360 equations in 3 Newton iterations and 1.1 s, with the recycles closed to $3\times10^{-10}$ kg/s; the simultaneous solver over passes takes 14 s on the same file.
+On the Cavett problem (four flash drums at set temperatures, three compressors, a mixer and three recycles) the solver closes 360 equations in 3 Newton iterations and 1.1 s, with the recycles closed to $3\times10^{-10}$ kg/s; the simultaneous solver over passes takes 14 s on the same file. On flowsheets with ChemSep columns (CAPE-OPEN), each solved as saved:
+
+| Flowsheet | Equations | Sequential | Equation-oriented |
+|---|---:|---:|---:|
+| Methanol synthesis (reactor loop, one column) | 253 | 119 s | 4.9 s |
+| Stacked columns (three columns) | 61 | 19.5 s | 13.2 s |
+| Methanol and chloroform, pressure swing | 26 | 2.8 s | 6.6 s |
+| Natural gas processing with turbo-expansion (three columns) | 1576 | 5.8 s | 38 s |
+
+The equation-oriented solver wins where the sequential solver needs many passes around interacting loops, and loses where it spends its time on the columns' own solvers inside the Newton iterations and the sequential solver closes in one or two passes.
 
 ###### Limitations
 
@@ -355,3 +366,19 @@ On the Cavett problem (four flash drums at set temperatures, three compressors, 
 - The final pass recalculates the units, whose pressure-enthalpy flashes close to their own tolerance: an outlet temperature can differ from the equation-oriented solution by a few thousandths of a kelvin.
 - The Heat Exchanger's own iteration on $U$ and $A$ stops when the load moves less than 0.1 %; the equation-oriented solver closes $Q = U A F\,\Delta T_{\mathrm{lm}}$, so the two differ by that much.
 - The Equilibrium Reactor's own solver stops when the squares of $\ln(\prod b_i^{\nu_i}/K)$ sum to $10^{-3}$, and the Gibbs Reactor's minimization within a similar margin; Equation [7](#eq:eo_chemical_equilibrium) is closed to $10^{-6}$, so their results differ by that.
+- A loop whose inventory the specifications leave free stalls the Newton steps: a glycol loop with no make-up, or two columns around a recycle that both set their bottoms flow, so that the feed alone closes the overall balance.
+- Units with equations of their own next to a stream of one compound are taken as black boxes, so flowsheets of a pure fluid solve more slowly.
+
+#### Choosing a solver {#sec:choosing_solver}
+
+| | Sequential-modular | Simultaneous | Equation-oriented |
+|---|---|---|---|
+| Unknowns | each recycle's torn stream, each adjust's variable, one at a time | every torn stream and adjust variable at once | every stream's T, P and flows, and the adjust variables |
+| Unit operations | their own models, pass after pass | their own models, one pass per evaluation | their equations, with analytic derivatives; the others through their own models |
+| Iteration | substitution, Wegstein or Broyden per recycle; nested adjust loops | damped Newton over passes | damped Newton over all the equations |
+| Derivatives | none | finite differences of passes, or the units' sensitivities | analytic (flash by the implicit function theorem), differences for black boxes |
+| Recycles closed to | the recycle tolerances | the recycle tolerances | $10^{-7}$ of each stream's flow |
+| Best on | loosely coupled flowsheets, one recycle | interacting recycles, adjusts inside recycles, repeated solves | tightly coupled flowsheets of units with equations; design specifications |
+| Weak on | interacting loops, adjusts inside recycles | flowsheets whose passes are slow (columns), since a Jacobian takes passes | flowsheets dominated by black boxes (CAPE-OPEN columns); loops of free inventory |
+
+All three give the same answer within their tolerances. Each falls back to the one before it: the equation-oriented solver to the simultaneous solver, and the simultaneous solver to the sequential one.
