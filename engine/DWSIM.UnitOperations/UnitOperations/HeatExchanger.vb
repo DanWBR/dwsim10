@@ -2343,12 +2343,12 @@ Namespace UnitOperations
 
                         Q = MaxHeatExchange
 
-                        H11 = H10 - (Math.Sign(Q1) * Q - HeatLoss) / StIn1.GetMassFlow()
+                        H11 = H10 - Math.Sign(Q1) * Q / StIn0.GetMassFlow()
 
-                        StIn1.PropertyPackage.CurrentMaterialStream = StIn1
+                        StIn0.PropertyPackage.CurrentMaterialStream = StIn0
                         IObj?.SetCurrent()
-                        tmp = StIn1.PropertyPackage.CalculateEquilibrium2(FlashCalculationType.PressureEnthalpy, P1 - DP1, H11, T11)
-                        T11 = OverriddenTemperature(StIn1, P1 - DP1, H11, tmp.CalculatedTemperature.GetValueOrDefault())
+                        tmp = StIn0.PropertyPackage.CalculateEquilibrium2(FlashCalculationType.PressureEnthalpy, P1 - DP1, H11, T11)
+                        T11 = OverriddenTemperature(StIn0, P1 - DP1, H11, tmp.CalculatedTemperature.GetValueOrDefault())
 
                     End If
 
@@ -2431,7 +2431,7 @@ Namespace UnitOperations
 
                         Q = MaxHeatExchange
 
-                        H11 = H10 - (Math.Sign(Q1) * Q - HeatLoss) / StIn1.GetMassFlow()
+                        H11 = H10 - Math.Sign(Q1) * Q / StIn1.GetMassFlow()
 
                         StIn1.PropertyPackage.CurrentMaterialStream = StIn1
                         IObj?.SetCurrent()
