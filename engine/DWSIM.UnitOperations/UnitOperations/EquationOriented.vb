@@ -1433,9 +1433,9 @@ Namespace UnitOperations
         ''' temperature, as the unit decides. The area mode is the mode of its set outlet temperature, its area a result. At a
         ''' thermal efficiency (counter-current) the cold side takes that share of the largest heat the exchanger can move:
         ''' the lesser of the cold side's at the hot inlet's temperature and the hot side's at the cold inlet's, each at its
-        ''' outlet pressure. At a pinch the smallest difference between the two sides' temperature profiles, 26 points each
-        ''' by PH flashes along the heat as the unit makes them, is the minimum approach. The shell and tube modes and a
-        ''' co-current efficiency take the exchanger as a black box.
+        ''' outlet pressure (co-current: where the outlets meet, at the inlet pressures). At a pinch the smallest difference between the two sides' temperature profiles, 26 points each
+        ''' by PH flashes along the heat as the unit makes them, is the minimum approach. In co-current the largest heat is
+        ''' where the two outlets meet at one temperature. The shell and tube modes take the exchanger as a black box.
         ''' </summary>
         Public Overrides ReadOnly Property EOHasEquations As Boolean
             Get
@@ -1444,7 +1444,6 @@ Namespace UnitOperations
                          HeatExchangerCalcMode.CalcBothTemp, HeatExchangerCalcMode.CalcBothTemp_UA,
                          HeatExchangerCalcMode.OutletVaporFraction1, HeatExchangerCalcMode.OutletVaporFraction2,
                          HeatExchangerCalcMode.CalcArea, HeatExchangerCalcMode.PinchPoint, HeatExchangerCalcMode.ThermalEfficiency
-                        If CalcMode = HeatExchangerCalcMode.ThermalEfficiency AndAlso FlowDir <> FlowDirection.CounterCurrent Then Return False
                         Dim g = GraphicObject
                         Return g.InputConnectors(0).IsAttached AndAlso g.InputConnectors(1).IsAttached AndAlso
                                g.OutputConnectors(0).IsAttached AndAlso g.OutputConnectors(1).IsAttached
@@ -1579,6 +1578,7 @@ Namespace UnitOperations
         ''' pressure; and its derivatives by variable.
         ''' </summary>
         Private Function EOMaxHeat(context As IEquationOrientedContext, x As Double(), ci As Integer, co As Integer, hi As Integer, ho As Integer, ByRef d As Dictionary(Of Integer, Double)) As Double
+            If FlowDir = FlowDirection.CoCurrent Then Return EOMaxHeatCoCurrent(context, x, ci, hi, d)
             Dim c = context.CompoundCount
             Dim nc = Enumerable.Range(0, c).Select(Function(i) x(ci + 2 + i)).ToArray()
             Dim nh = Enumerable.Range(0, c).Select(Function(i) x(hi + 2 + i)).ToArray()
@@ -1613,6 +1613,59 @@ Namespace UnitOperations
                 put(hi + 2 + i, -fh.Hdn(i))
             Next
             Return qh
+        End Function
+
+        ''' <summary>
+        ''' The largest heat (kW) a co-current exchanger can move, as the unit takes it: the heat at which the two outlets
+        ''' meet at one temperature T*, each side at its inlet pressure. T* is the root of what the hot side gives less what
+        ''' the cold side takes, both by PT flashes; the derivatives come through T* by the implicit function theorem.
+        ''' </summary>
+        Private Function EOMaxHeatCoCurrent(context As IEquationOrientedContext, x As Double(), ci As Integer, hi As Integer, ByRef d As Dictionary(Of Integer, Double)) As Double
+            Dim c = context.CompoundCount
+            Dim nc = Enumerable.Range(0, c).Select(Function(i) x(ci + 2 + i)).ToArray()
+            Dim nh = Enumerable.Range(0, c).Select(Function(i) x(hi + 2 + i)).ToArray()
+            Dim Pc = x(ci + 1), Ph = x(hi + 1)
+            Dim Hc1 = context.Enthalpy(ci, x), Hh1 = context.Enthalpy(hi, x)
+            Dim g = Function(T As Double) (Hh1 - context.Flash(hi, T, Ph, nh, False).H) - (context.Flash(ci, T, Pc, nc, False).H - Hc1)
+            Dim Ts = MathNet.Numerics.RootFinding.Brent.FindRoot(g, x(ci), x(hi), 0.000001, 200)
+            Dim fc = context.Flash(ci, Ts, Pc, nc, True)
+            Dim fh = context.Flash(hi, Ts, Ph, nh, True)
+            Dim dd As New Dictionary(Of Integer, Double)
+            d = dd
+            Dim put = Sub(m As Integer, v As Double)
+                          If dd.ContainsKey(m) Then dd(m) += v Else dd(m) = v
+                      End Sub
+            ' g's derivatives at T* by variable, and T*'s
+            Dim dg As New Dictionary(Of Integer, Double)
+            Dim putg = Sub(m As Integer, v As Double)
+                           If dg.ContainsKey(m) Then dg(m) += v Else dg(m) = v
+                       End Sub
+            Dim dHh1 = context.EnthalpyDerivatives(hi, x), dHc1 = context.EnthalpyDerivatives(ci, x)
+            For j = 0 To c + 1
+                putg(hi + j, dHh1(j))
+                putg(ci + j, dHc1(j))
+            Next
+            putg(hi + 1, -fh.HdP)
+            putg(ci + 1, -fc.HdP)
+            For i = 0 To c - 1
+                putg(hi + 2 + i, -fh.Hdn(i))
+                putg(ci + 2 + i, -fc.Hdn(i))
+            Next
+            Dim dgdT = -(fh.HdT + fc.HdT)
+            ' Q = Hc(T*) - Hc1
+            For j = 0 To c + 1
+                put(ci + j, -dHc1(j))
+            Next
+            put(ci + 1, fc.HdP)
+            For i = 0 To c - 1
+                put(ci + 2 + i, fc.Hdn(i))
+            Next
+            If dgdT <> 0.0 Then
+                For Each kv In dg
+                    put(kv.Key, -fc.HdT * kv.Value / dgdT)
+                Next
+            End If
+            Return fc.H - Hc1
         End Function
 
         ''' <summary>
