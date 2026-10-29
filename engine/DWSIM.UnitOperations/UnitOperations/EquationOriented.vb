@@ -1867,4 +1867,338 @@ Namespace UnitOperations
 
     End Class
 
+    Partial Public Class Pipe
+
+        ''' <summary>
+        ''' Equations of its own when the length is given, at equilibrium, with the heat given or an overall coefficient
+        ''' against the surroundings (or no heat balance): one cell per increment of the hydraulic profile, whose ends are
+        ''' internal states of the system (T, P and the compound flows), the last one the outlet. Each cell carries the
+        ''' compounds through, drops the pressure by the mean of its own correlation's drop at its two ends (the trapezoidal
+        ''' rule; the pipe takes the drop at the increment's inlet), or by a gas pipeline equation's drop from its inlet, which
+        ''' is the increment's already, and holds the energy balance from the inlet to its end
+        ''' with the heat of the cells up to it, U A times the log mean of the differences to the surroundings, or the heat
+        ''' spread evenly. The drops come from the state put on a stream; their derivatives from central differences on it.
+        ''' </summary>
+        Public Overrides ReadOnly Property EOHasEquations As Boolean
+            Get
+                Try
+                    Dim g = GraphicObject
+                    If Not (g.InputConnectors(0).IsAttached AndAlso g.OutputConnectors(0).IsAttached) Then Return False
+                    If Specification <> Specmode.Length Then Return False
+                    If Profile Is Nothing OrElse Profile.Status <> Auxiliary.Pipe.PipeEditorStatus.OK OrElse Profile.Sections.Count = 0 Then Return False
+                    If Not CalculateEquilibrium Then Return False
+                    If CalculateHeatBalance Then
+                        Select Case ThermalProfile.TipoPerfil
+                            Case Auxiliary.Pipe.ThermalEditorDefinitions.ThermalProfileType.Definir_Q
+                            Case Auxiliary.Pipe.ThermalEditorDefinitions.ThermalProfileType.Definir_CGTC
+                                If ThermalProfile.IncludeSolarRadiation Then Return False
+                            Case Else
+                                Return False
+                        End Select
+                    End If
+                    Dim n = EOPipeCells().Count
+                    Return n >= 1 AndAlso n <= 200
+                Catch ex As Exception
+                    Return False
+                End Try
+            End Get
+        End Property
+
+        ''' <summary>One increment of the hydraulic profile: its section, length, elevation and where it starts along the pipe.</summary>
+        Private Structure EOPipeCell
+            Public Section As Auxiliary.Pipe.PipeSection
+            Public Length, Elevation, Start As Double
+        End Structure
+
+        ''' <summary>The increments in the order the pipe takes them; a fitting is 0.1 m long and level, as the pipe takes it.</summary>
+        Private Function EOPipeCells() As List(Of EOPipeCell)
+            Dim list As New List(Of EOPipeCell)
+            Dim pos = 0.0
+            For Each sec In Profile.Sections.Values
+                Dim straight = IsStraightSection(sec)
+                Dim len = If(straight, sec.Comprimento / sec.Incrementos, 0.1)
+                Dim el = If(straight, sec.Elevacao / sec.Incrementos, 0.0)
+                For q = 1 To sec.Quantidade
+                    For j = 1 To sec.Incrementos
+                        list.Add(New EOPipeCell With {.Section = sec, .Length = len, .Elevation = el, .Start = pos})
+                        pos += If(straight, sec.Comprimento, 0.1) / sec.Incrementos
+                    Next
+                Next
+            Next
+            Return list
+        End Function
+
+        Private Function EOPipeName(sec As Auxiliary.Pipe.PipeSection) As String
+            Return "Pipe drop " & Name & " " & sec.Indice
+        End Function
+
+        ''' <summary>The pressure drop (Pa) of one increment of this section at the state of a stream, as Calculate works it out.</summary>
+        Private Function EOPipeDrop(ms As IMaterialStream, sec As Auxiliary.Pipe.PipeSection, len As Double, el As Double) As Double
+            Dim oms = CType(ms, Thermodynamics.Streams.MaterialStream)
+            Dim Qlin = oms.OverallLiquid.Properties.volumetric_flow.GetValueOrDefault
+            Dim Qsin = oms.Solid.Properties.volumetric_flow.GetValueOrDefault
+            Dim rho_l = oms.OverallLiquid.Properties.density.GetValueOrDefault
+            If Double.IsNaN(rho_l) Then rho_l = 0.0
+            Dim eta_l As Double
+            If IncludeEmulsion AndAlso oms.Liquid1.Properties.volumetric_flow.GetValueOrDefault > 0.0 AndAlso oms.Liquid2.Properties.volumetric_flow.GetValueOrDefault > 0.0 Then
+                eta_l = EmulsionViscosity(oms)
+            Else
+                eta_l = oms.OverallLiquid.Properties.viscosity.GetValueOrDefault
+            End If
+            If SlurryViscosityMode = 1 AndAlso Qlin > 0.0 Then
+                Dim phi = Qsin / Qlin
+                eta_l *= 1.0 + 3.0 * phi / (1.0 - phi / 0.52)
+            End If
+            Dim tens = oms.Phases(0).Properties.surfaceTension.GetValueOrDefault
+            If Double.IsNaN(tens) Then tens = 0.0
+            Dim Qvin = oms.Phases(2).Properties.volumetric_flow.GetValueOrDefault
+            Dim rho_v = oms.Phases(2).Properties.density.GetValueOrDefault
+            Dim eta_v = oms.Phases(2).Properties.viscosity.GetValueOrDefault
+            Dim w_v = oms.Phases(2).Properties.massflow.GetValueOrDefault
+            Dim z = oms.Phases(2).Properties.compressibilityFactor.GetValueOrDefault
+            If Qvin + Qlin = 0.0 Then Return 0.0
+            Dim fpp As FlowPackages.FPBaseClass
+            Select Case SelectedFlowPackage
+                Case FlowPackage.Lockhart_Martinelli : fpp = New FlowPackages.LockhartMartinelli
+                Case FlowPackage.Petalas_Aziz : fpp = New FlowPackages.PetalasAziz
+                Case Else : fpp = New FlowPackages.BeggsBrill
+            End Select
+            Dim D = sec.DI * 0.0254
+            Dim T = oms.Phases(0).Properties.temperature.GetValueOrDefault
+            Dim P = oms.Phases(0).Properties.pressure.GetValueOrDefault
+            Dim MWv = oms.Phases(2).Properties.molecularWeight.GetValueOrDefault
+            Dim resv As Object()
+            If IsStraightSection(sec) Then
+                If IsGasPipelineEquation() Then
+                    resv = GasPipelineDeltaP(D, len, el, w_v, MWv, T, z, rho_v, P, PipelineEfficiency)
+                Else
+                    resv = fpp.CalculateDeltaP(D, len, el, GetRugosity(sec.Material, sec), Qvin * 24 * 3600, Qlin * 24 * 3600, eta_v * 1000, eta_l * 1000, rho_v, rho_l, tens)
+                End If
+            ElseIf sec.TipoSegmento.Contains("[27]") Then
+                ' a fitting with its drop set, in Pa
+                Return sec.DI
+            Else
+                Dim resf = Kfit(sec.TipoSegmento)
+                If resf(1) = 1.0 Then
+                    Dim L_eq = resf(0) * 0.0254 * sec.DI
+                    If IsGasPipelineEquation() Then
+                        resv = GasPipelineDeltaP(D, L_eq, 0, w_v, MWv, T, z, rho_v, P, PipelineEfficiency)
+                    Else
+                        resv = fpp.CalculateDeltaP(D, L_eq, 0, GetRugosity(sec.Material, sec), Qvin * 24 * 3600, Qlin * 24 * 3600, eta_v * 1000, eta_l * 1000, rho_v, rho_l, tens)
+                    End If
+                Else
+                    Dim area = D ^ 2 * Math.PI / 4
+                    Dim Ql = Qlin + Qsin
+                    Dim rho_mix = Ql / (Qvin + Ql) * rho_l + Qvin / (Qvin + Ql) * rho_v
+                    Return resf(0) * rho_mix * (Ql / area + Qvin / area) ^ 2 / 2
+                End If
+            End If
+            Return CDbl(resv(4))
+        End Function
+
+        ''' <summary>The heat (kW) cell k takes in, from its two ends' temperatures.</summary>
+        Private Function EOPipeHeat(cell As EOPipeCell, cells As Integer, Tin As Double, Tout As Double) As Double
+            If Not CalculateHeatBalance Then Return 0.0
+            If ThermalProfile.TipoPerfil = Auxiliary.Pipe.ThermalEditorDefinitions.ThermalProfileType.Definir_Q Then Return ThermalProfile.Calor_trocado / cells
+            Dim Text, dText_dL, U As Double
+            If ThermalProfile.UseUserDefinedU Then
+                Text = MathNet.Numerics.Interpolate.Linear(ThermalProfile.UserDefinedU_Length, ThermalProfile.UserDefinedU_Temp).Interpolate(cell.Start)
+                dText_dL = 0.0
+                U = MathNet.Numerics.Interpolate.Step(ThermalProfile.UserDefinedU_Length, ThermalProfile.UserDefinedU_U).Interpolate(cell.Start)
+            Else
+                Text = ThermalProfile.Temp_amb_definir
+                dText_dL = ThermalProfile.AmbientTemperatureGradient
+                U = ThermalProfile.CGTC_Definido
+            End If
+            Dim Tamb = If(UseGlobalWeather, FlowSheet.FlowsheetOptions.CurrentWeather.Temperature_C + 273.15, Text + dText_dL * cell.Start)
+            If U = 0.0 Then Return 0.0
+            Dim A = Math.PI * (cell.Section.DE * 0.0254) * cell.Length
+            Return LogMeanDeltaT(Tin, Tout, Tamb) * U / 1000 * A
+        End Function
+
+        ''' <summary>The offset of the state at boundary k: the inlet at 0, the internal states, the outlet at the last.</summary>
+        Private Function EOPipeBoundary(context As IEquationOrientedContext, k As Integer, cells As Integer) As Integer
+            If k = 0 Then Return EOInletOffset(context, 0)
+            If k = cells Then Return EOOutletOffset(context, 0)
+            Return context.InternalStateOffset(Me, k - 1)
+        End Function
+
+        ''' <summary>The energy balances' tolerance over the unit's: see the PFR's, whose flashes they share.</summary>
+        Private Const EOPipeEnergyTolerance As Double = 10.0
+
+        Public Overrides Function EOInternalStateCount(context As IEquationOrientedContext) As Integer
+            If Not EOHasEquations Then Return 0
+            Return EOPipeCells().Count - 1
+        End Function
+
+        ''' <summary>The pipe's last results at the start of the next increment, or a line from the inlet to the outlet.</summary>
+        Public Overrides Function EOInternalStateGuess(context As IEquationOrientedContext, k As Integer) As Double()
+            Dim names = context.CompoundNames
+            Dim c = names.Length
+            Dim g(c + 1) As Double
+            Dim inlet = GetInletMaterialStream(0), outlet = GetOutletMaterialStream(0)
+            For i = 0 To c - 1
+                g(2 + i) = inlet.Phases(0).Compounds(names(i)).MolarFlow.GetValueOrDefault()
+            Next
+            Dim results = Profile.Sections.Values.SelectMany(Function(s) s.Results).ToList()
+            Dim n = EOPipeCells().Count
+            If results.Count = n AndAlso results(k + 1).Temperature_Initial.HasValue AndAlso results(k + 1).Pressure_Initial.HasValue Then
+                g(0) = results(k + 1).Temperature_Initial.Value
+                g(1) = results(k + 1).Pressure_Initial.Value
+                Return g
+            End If
+            Dim z = (k + 1.0) / n
+            Dim outOk = outlet.GetTemperature() > 0.0 AndAlso outlet.GetPressure() > 0.0
+            Dim wz = If(outOk, z, 0.0)
+            g(0) = inlet.GetTemperature() + wz * (outlet.GetTemperature() - inlet.GetTemperature())
+            g(1) = inlet.GetPressure() + wz * (outlet.GetPressure() - inlet.GetPressure())
+            Return g
+        End Function
+
+        Public Overrides Function EOParameters() As String()
+            If Not EOHasEquations Then Return MyBase.EOParameters()
+            Return {}
+        End Function
+
+        Public Overrides Function EOEquationCount(context As IEquationOrientedContext) As Integer
+            If Not EOHasEquations Then Return MyBase.EOEquationCount(context)
+            Return EOPipeCells().Count * (context.CompoundCount + 2)
+        End Function
+
+        Public Overrides Function EOVariables(context As IEquationOrientedContext) As Integer()
+            If Not EOHasEquations Then Return MyBase.EOVariables(context)
+            Dim n = EOPipeCells().Count
+            Dim offsets = Enumerable.Range(0, n + 1).Select(Function(k) EOPipeBoundary(context, k, n)).ToArray()
+            Return EOStreamVariables(context, offsets, Nothing)
+        End Function
+
+        Public Overrides Sub EOResiduals(context As IEquationOrientedContext, x As Double(), r As Double(), row As Integer)
+            If Not EOHasEquations Then
+                MyBase.EOResiduals(context, x, r, row)
+                Return
+            End If
+            Dim c = context.CompoundCount
+            Dim cells = EOPipeCells()
+            For k = 1 To cells.Count
+                Dim res = EOPipeCellResiduals(context, x, cells, k)
+                Array.Copy(res, 0, r, row + (k - 1) * (c + 2), c + 2)
+            Next
+        End Sub
+
+        ''' <summary>The equations of cell k (from boundary k-1 to k), each over its tolerance.</summary>
+        Private Function EOPipeCellResiduals(context As IEquationOrientedContext, x As Double(), cells As List(Of EOPipeCell), k As Integer) As Double()
+            Dim c = context.CompoundCount
+            Dim n = cells.Count
+            Dim cell = cells(k - 1)
+            Dim inlet = EOPipeBoundary(context, 0, n)
+            Dim a = EOPipeBoundary(context, k - 1, n), b = EOPipeBoundary(context, k, n)
+            Dim outlet = EOOutletOffset(context, 0)
+            Dim ft = context.FlowTolerance(outlet)
+            Dim r(c + 1) As Double
+            For i = 0 To c - 1
+                r(i) = (x(b + 2 + i) - x(a + 2 + i)) / ft
+            Next
+            Dim name = EOPipeName(cell.Section)
+            Dim drop As Func(Of IMaterialStream, Double) = Function(ms) EOPipeDrop(ms, cell.Section, cell.Length, cell.Elevation)
+            Dim dpa = context.StreamProperty(a, x, name, drop)
+            ' a gas pipeline equation is already the drop over the increment from its inlet
+            Dim dpb = If(IsGasPipelineEquation(), dpa, context.StreamProperty(b, x, name, drop))
+            r(c) = (x(b + 1) - x(a + 1) + (dpa + dpb) / 2.0) / context.PressureTolerance
+            Dim q = 0.0
+            For j = 1 To k
+                q += EOPipeHeat(cells(j - 1), n, x(EOPipeBoundary(context, j - 1, n)), x(EOPipeBoundary(context, j, n)))
+            Next
+            r(c + 1) = (context.Enthalpy(b, x) - context.Enthalpy(inlet, x) - q) / (EOPipeEnergyTolerance * context.EnergyTolerance(outlet))
+            Return r
+        End Function
+
+        Public Overrides Function EOJacobian(context As IEquationOrientedContext, x As Double(), add As Action(Of Integer, Integer, Double)) As Boolean
+            If Not EOHasEquations Then Return MyBase.EOJacobian(context, x, add)
+            Dim c = context.CompoundCount
+            Dim cells = EOPipeCells()
+            Dim n = cells.Count
+            Dim inlet = EOPipeBoundary(context, 0, n)
+            Dim outlet = EOOutletOffset(context, 0)
+            Dim ft = context.FlowTolerance(outlet), tp = context.PressureTolerance
+            Dim tq = EOPipeEnergyTolerance * context.EnergyTolerance(outlet)
+            Dim h0 = context.EnthalpyDerivatives(inlet, x)
+            ' each cell's heat against the temperatures at its two ends
+            Dim dq(n - 1, 1) As Double
+            For j = 1 To n
+                Dim ta = EOPipeBoundary(context, j - 1, n), tb = EOPipeBoundary(context, j, n)
+                Dim cell = cells(j - 1)
+                Dim h = 0.001
+                dq(j - 1, 0) = (EOPipeHeat(cell, n, x(ta) + h, x(tb)) - EOPipeHeat(cell, n, x(ta) - h, x(tb))) / (2 * h)
+                dq(j - 1, 1) = (EOPipeHeat(cell, n, x(ta), x(tb) + h) - EOPipeHeat(cell, n, x(ta), x(tb) - h)) / (2 * h)
+            Next
+            For k = 1 To n
+                Dim cell = cells(k - 1)
+                Dim a = EOPipeBoundary(context, k - 1, n), b = EOPipeBoundary(context, k, n)
+                Dim e0 = (k - 1) * (c + 2)
+                For i = 0 To c - 1
+                    add(e0 + i, b + 2 + i, 1.0 / ft)
+                    add(e0 + i, a + 2 + i, -1.0 / ft)
+                Next
+                Dim name = EOPipeName(cell.Section)
+                Dim drop As Func(Of IMaterialStream, Double) = Function(ms) EOPipeDrop(ms, cell.Section, cell.Length, cell.Elevation)
+                Dim da = context.StreamPropertyDerivatives(a, x, name, drop)
+                add(e0 + c, b + 1, 1.0 / tp)
+                add(e0 + c, a + 1, -1.0 / tp)
+                If IsGasPipelineEquation() Then
+                    For j = 0 To c + 1
+                        If da(j) <> 0.0 Then add(e0 + c, a + j, da(j) / tp)
+                    Next
+                Else
+                    Dim db = context.StreamPropertyDerivatives(b, x, name, drop)
+                    For j = 0 To c + 1
+                        If da(j) <> 0.0 Then add(e0 + c, a + j, da(j) / 2.0 / tp)
+                        If db(j) <> 0.0 Then add(e0 + c, b + j, db(j) / 2.0 / tp)
+                    Next
+                End If
+                Dim hb = context.EnthalpyDerivatives(b, x)
+                For j = 0 To c + 1
+                    add(e0 + c + 1, b + j, hb(j) / tq)
+                    add(e0 + c + 1, inlet + j, -h0(j) / tq)
+                Next
+                For j = 1 To k
+                    add(e0 + c + 1, EOPipeBoundary(context, j - 1, n), -dq(j - 1, 0) / tq)
+                    add(e0 + c + 1, EOPipeBoundary(context, j, n), -dq(j - 1, 1) / tq)
+                Next
+            Next
+            Return True
+        End Function
+
+        ''' <summary>The cells solved one after the other from the inlet x holds, each from the state before it, as the PFR's.</summary>
+        Public Overrides Function EOInitialize(context As IEquationOrientedContext, x As Double()) As Boolean
+            If Not EOHasEquations Then Return False
+            Dim c = context.CompoundCount
+            Dim cells = EOPipeCells()
+            Dim n = cells.Count
+            For k = 1 To n
+                Dim a = EOPipeBoundary(context, k - 1, n), b = EOPipeBoundary(context, k, n)
+                Dim kept = Enumerable.Range(0, c + 2).Select(Function(j) x(b + j)).ToArray()
+                For j = 0 To c + 1
+                    x(b + j) = x(a + j)
+                Next
+                Dim cell = k
+                If Not EOSolveState(x, b, c + 2, Function(xv) EOPipeCellResiduals(context, xv, cells, cell)) Then
+                    For j = 0 To c + 1
+                        x(b + j) = kept(j)
+                    Next
+                    Exit For
+                End If
+            Next
+            Return True
+        End Function
+
+        Public Overrides Function EOEquationName(context As IEquationOrientedContext, k As Integer) As String
+            If Not EOHasEquations Then Return MyBase.EOEquationName(context, k)
+            Dim c = context.CompoundCount
+            Dim cell = k \ (c + 2) + 1, j = k Mod (c + 2)
+            Dim what = If(j < c, "flow of compound " & j, If(j = c, "pressure", "energy balance from the inlet"))
+            Return $"increment {cell} of {EOPipeCells().Count}: {what}"
+        End Function
+
+    End Class
+
 End Namespace

@@ -52,6 +52,22 @@ Public Interface IEquationOrientedModel
     ''' </summary>
     ReadOnly Property EOTakesSaturatedInlets As Boolean
 
+    ''' <summary>
+    ''' How many internal states the object adds as unknowns (the points along a reactor's or a pipe's length), each laid
+    ''' out as a stream's variables: T (K), P (Pa) and the molar flow of each compound. Their equations are among the
+    ''' object's; <see cref="IEquationOrientedContext.InternalStateOffset"/> gives where each one is.
+    ''' </summary>
+    Function EOInternalStateCount(context As IEquationOrientedContext) As Integer
+
+    ''' <summary>The first guess of internal state k: T, P and the molar flow of each compound.</summary>
+    Function EOInternalStateGuess(context As IEquationOrientedContext, k As Integer) As Double()
+
+    ''' <summary>
+    ''' Before the solve, puts the object's internal states and outlets in x at the solution of its own equations for
+    ''' the inlets x holds (a reactor marches along its length, cell by cell); False when it leaves x as it is.
+    ''' </summary>
+    Function EOInitialize(context As IEquationOrientedContext, x As Double()) As Boolean
+
 End Interface
 
 ''' <summary>
@@ -173,6 +189,13 @@ Public Interface IEquationOrientedContext
 
     ''' <summary>The variable the solver made of this property of the object (an Adjust or a design variable moves it); -1 when it stays at the object's value.</summary>
     Function ParameterIndex(obj As ISimulationObject, propertyCode As String) As Integer
+
+    ''' <summary>
+    ''' The index of the first variable (the temperature) of the object's internal state k (see
+    ''' <see cref="IEquationOrientedModel.EOInternalStateCount"/>). The members that take a stream's offset take it too,
+    ''' with the package and compounds of the object's first inlet.
+    ''' </summary>
+    Function InternalStateOffset(obj As ISimulationObject, k As Integer) As Integer
 
     ''' <summary>The equations of the object as a black box: its outlets as its own calculation gives them from its inlets.</summary>
     Function BlackBoxEquationCount(obj As ISimulationObject) As Integer

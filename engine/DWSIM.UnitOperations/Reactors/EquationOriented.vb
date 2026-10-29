@@ -1266,4 +1266,454 @@ Namespace Reactors
 
     End Class
 
+    Partial Public Class Reactor_PFR
+
+        ''' <summary>
+        ''' Equations of its own, isothermal, adiabatic, at a set outlet temperature or with the energy stream's duty spread
+        ''' along the length, for kinetic and heterogeneous catalytic reactions whose rates are expressions, in the mixture,
+        ''' the liquid or the vapor. The length is cut into cells whose boundaries are internal states of the system (T, P
+        ''' and the compound flows), the last one the outlet. Each cell writes the balance of each compound by the
+        ''' trapezoidal rule, (n_k - n_k-1) = dV/2 (r(k) + r(k-1)) with the rates per volume of the reactor's own
+        ''' integration, the pressure drop of the reactor's own correlation by the same rule, and the energy balance from
+        ''' the inlet to the cell's end with the enthalpies of formation, or the temperature. The rates and the pressure drop are worked out from the state
+        ''' put on a stream; their derivatives come from central differences on it.
+        ''' </summary>
+        Public Overrides ReadOnly Property EOHasEquations As Boolean
+            Get
+                Try
+                    Dim g = GraphicObject
+                    If Not (g.InputConnectors(0).IsAttached AndAlso g.OutputConnectors(0).IsAttached AndAlso g.InputConnectors(1).IsAttached) Then Return False
+                    Select Case ReactorOperationMode
+                        Case OperationMode.Isothermic, OperationMode.Adiabatic, OperationMode.OutletTemperature, OperationMode.NonIsothermalNonAdiabatic
+                        Case Else
+                            Return False
+                    End Select
+                    If Not String.IsNullOrEmpty(ExternalSolverID) AndAlso FlowSheet.ExternalSolvers.ContainsKey(ExternalSolverID) Then Return False
+                    Dim phase As ReactionPhase? = Nothing
+                    For Each rxnsb In FlowSheet.ReactionSets(ReactionSetID).Reactions.Values
+                        If Not rxnsb.IsActive Then Continue For
+                        Dim rxn = FlowSheet.Reactions(rxnsb.ReactionID)
+                        If rxn.ReactionType <> ReactionType.Kinetic AndAlso rxn.ReactionType <> ReactionType.Heterogeneous_Catalytic Then Continue For
+                        If rxn.ReactionKinetics <> ReactionKinetics.Expression Then Return False
+                        If rxn.ReactionPhase <> ReactionPhase.Mixture AndAlso rxn.ReactionPhase <> ReactionPhase.Liquid AndAlso rxn.ReactionPhase <> ReactionPhase.Vapor Then Return False
+                        If Not rxn.Components.ContainsKey(rxn.BaseReactant) Then Return False
+                        If phase.HasValue AndAlso phase.Value <> rxn.ReactionPhase Then Return False
+                        phase = rxn.ReactionPhase
+                    Next
+                    Return phase.HasValue
+                Catch ex As Exception
+                    Return False
+                End Try
+            End Get
+        End Property
+
+        ''' <summary>The cells along the length: the reactor's own sections, at most 50.</summary>
+        Private ReadOnly Property EOCells As Integer
+            Get
+                Dim d = If(dV > 0.0, dV, 0.01)
+                Return Math.Max(1, Math.Min(50, CInt(Math.Round(1.0 / d))))
+            End Get
+        End Property
+
+        ''' <summary>The reactions the cells write, active kinetic and heterogeneous catalytic ones.</summary>
+        Private Function EOReactions() As List(Of Reaction)
+            Dim list As New List(Of Reaction)
+            For Each rxnsb In FlowSheet.ReactionSets(ReactionSetID).Reactions.Values
+                If Not rxnsb.IsActive Then Continue For
+                Dim rxn As Reaction = FlowSheet.Reactions(rxnsb.ReactionID)
+                If rxn.ReactionType = ReactionType.Kinetic OrElse rxn.ReactionType = ReactionType.Heterogeneous_Catalytic Then list.Add(rxn)
+            Next
+            Return list
+        End Function
+
+        ''' <summary>The reactor's length and the diameter of each tube, from its volume and the one it sets.</summary>
+        Private Sub EOGeometry(ByRef len As Double, ByRef diam As Double)
+            If ReactorSizingType = SizingType.Length Then
+                len = Length
+                diam = (4 * Volume / NumberOfTubes / len / Math.PI) ^ 0.5
+            Else
+                diam = Diameter
+                len = 4 * Volume / NumberOfTubes / Math.PI / diam ^ 2
+            End If
+        End Sub
+
+        ''' <summary>
+        ''' At the state of a stream: what the reactions make per volume of reactor (mol/(m3.s) of each compound), as ODEFunc
+        ''' works it out, then the pressure drop of one cell (Pa), as Calculate_Internal works it out for a section.
+        ''' </summary>
+        Private Function EOCell(ms As IMaterialStream) As Double()
+            Dim mstr = CType(ms, MaterialStream)
+            Dim names = mstr.Phases(0).Compounds.Keys.ToList()
+            Dim nc = names.Count
+            Dim res(nc) As Double
+            Dim T = mstr.Phases(0).Properties.temperature.GetValueOrDefault()
+            Dim rxns = EOReactions()
+            Dim hasHetCat = rxns.Any(Function(rx) rx.ReactionType = ReactionType.Heterogeneous_Catalytic)
+            Dim Qf As Double
+            Select Case rxns(0).ReactionPhase
+                Case ReactionPhase.Vapor : Qf = mstr.Phases(2).Properties.volumetric_flow.GetValueOrDefault()
+                Case ReactionPhase.Liquid : Qf = mstr.Phases(1).Properties.volumetric_flow.GetValueOrDefault()
+                Case Else : Qf = mstr.Phases(0).Properties.volumetric_flow.GetValueOrDefault()
+            End Select
+            ' the whole stream in one phase, and not the one the reactions name
+            If Not Qf > 0.0 Then
+                For Each phaseid In New Integer() {2, 3, 4, 5, 6, 7}
+                    If mstr.Phases(phaseid).Properties.molarfraction.GetValueOrDefault > 0.9999999 Then Qf = mstr.Phases(0).Properties.volumetric_flow.GetValueOrDefault()
+                Next
+            End If
+            For Each rxn In rxns
+                If Not Qf > 0.0 Then Exit For
+                Dim scBC = Math.Abs(rxn.Components(rxn.BaseReactant).StoichCoeff)
+                Dim convfactors = GetConvFactors(rxn, mstr)
+                Dim conc As New Dictionary(Of String, Double)
+                For Each sb As ReactionStoichBase In rxn.Components.Values
+                    conc(sb.CompName) = Math.Max(mstr.Phases(0).Compounds(sb.CompName).MolarFlow.GetValueOrDefault(), 0.0) / Qf
+                Next
+                Dim rate As Double
+                If rxn.ReactionType = ReactionType.Kinetic Then
+                    Dim kxf, kxr As Double
+                    If rxn.ReactionKinFwdType = ReactionKineticType.Arrhenius Then
+                        kxf = rxn.A_Forward * Math.Exp(-DWSIM.SharedClasses.SystemsOfUnits.Converter.Convert(rxn.E_Forward_Unit, "J/mol", rxn.E_Forward) / (8.314 * T))
+                    Else
+                        SetExpressionVariable(GetExpressionContext(rxn.ID), "T", T)
+                        kxf = GetCompiledExpression(rxn.ID, rxn.ReactionKinFwdExpression).Evaluate()
+                    End If
+                    If rxn.ReactionKinRevType = ReactionKineticType.Arrhenius Then
+                        kxr = rxn.A_Reverse * Math.Exp(-DWSIM.SharedClasses.SystemsOfUnits.Converter.Convert(rxn.E_Reverse_Unit, "J/mol", rxn.E_Reverse) / (8.314 * T))
+                    Else
+                        SetExpressionVariable(GetExpressionContext(rxn.ID), "T", T)
+                        kxr = GetCompiledExpression(rxn.ID, rxn.ReactionKinRevExpression).Evaluate()
+                    End If
+                    If T < rxn.Tmin Or T > rxn.Tmax Then
+                        kxf = 0.0
+                        kxr = 0.0
+                    End If
+                    ' (the integration zeroes both rates where any compound of the reaction is absent, a zero-order product
+                    ' at the inlet too; here an absent compound of order zero leaves them, so that the rate is continuous)
+                    Dim rxf = 1.0, rxr = 1.0
+                    For Each sb As ReactionStoichBase In rxn.Components.Values
+                        Dim cvar = conc(sb.CompName) * convfactors(sb.CompName)
+                        If sb.DirectOrder <> 0.0 Then rxf *= cvar ^ sb.DirectOrder
+                        If sb.ReverseOrder <> 0.0 Then rxr *= cvar ^ sb.ReverseOrder
+                    Next
+                    rate = DWSIM.SharedClasses.SystemsOfUnits.Converter.ConvertToSI(rxn.VelUnit, kxf * rxf - kxr * rxr)
+                Else
+                    If T < rxn.Tmin Or T > rxn.Tmax Then
+                        rate = 0.0
+                    Else
+                        Dim context = GetExpressionContext(rxn.ID)
+                        SetExpressionVariable(context, "T", T)
+                        Dim ir = 1, ip = 1, ine = 1
+                        For Each sb As ReactionStoichBase In rxn.Components.Values
+                            Dim cvar = conc(sb.CompName) * convfactors(sb.CompName)
+                            If sb.StoichCoeff < 0 Then
+                                SetExpressionVariable(context, "R" & ir.ToString(), cvar)
+                                ir += 1
+                            ElseIf sb.StoichCoeff > 0 Then
+                                SetExpressionVariable(context, "P" & ip.ToString(), cvar)
+                                ip += 1
+                            Else
+                                SetExpressionVariable(context, "N" & ine.ToString(), cvar)
+                                ine += 1
+                            End If
+                        Next
+                        Dim numval = GetCompiledExpression(rxn.ID, rxn.RateEquationNumerator).Evaluate()
+                        Dim denmval = GetCompiledExpression(rxn.ID, rxn.RateEquationDenominator).Evaluate()
+                        rate = DWSIM.SharedClasses.SystemsOfUnits.Converter.ConvertToSI(rxn.VelUnit, numval / denmval)
+                    End If
+                    ' per kg of catalyst, over the volume the gas takes
+                    rate *= CatalystLoading / CatalystVoidFraction
+                End If
+                For Each sb As ReactionStoichBase In rxn.Components.Values
+                    res(names.IndexOf(sb.CompName)) += rate * sb.StoichCoeff / scBC
+                Next
+            Next
+            res(nc) = EOCellPressureDrop(mstr, hasHetCat)
+            Return res
+        End Function
+
+        ''' <summary>The pressure drop of one cell at the state of a stream, as Calculate_Internal takes it for a section.</summary>
+        Private Function EOCellPressureDrop(ms As MaterialStream, hasHetCat As Boolean) As Double
+            Dim n = EOCells
+            If UseUserDefinedPressureDrop Then Return UserDefinedPressureDrop / n
+            Dim len, diam As Double
+            EOGeometry(len, diam)
+            Dim L = len / n
+            Dim rho = ms.Phases(0).Properties.density.GetValueOrDefault
+            Dim Qlin = (ms.Phases(3).Properties.volumetric_flow.GetValueOrDefault + ms.Phases(4).Properties.volumetric_flow.GetValueOrDefault) / NumberOfTubes
+            Dim Qsin = ms.Phases(7).Properties.volumetric_flow.GetValueOrDefault / NumberOfTubes
+            Dim Qvin = ms.Phases(2).Properties.volumetric_flow.GetValueOrDefault / NumberOfTubes
+            Dim rho_l = ms.Phases(1).Properties.density.GetValueOrDefault
+            Dim eta_l = ms.Phases(1).Properties.viscosity.GetValueOrDefault
+            Dim tens = ms.Phases(0).Properties.surfaceTension.GetValueOrDefault
+            Dim rho_v = ms.Phases(2).Properties.density.GetValueOrDefault
+            Dim eta_v = ms.Phases(2).Properties.viscosity.GetValueOrDefault
+            Dim xv = ms.Phases(2).Properties.massfraction.GetValueOrDefault
+            Dim xl = ms.Phases(1).Properties.massfraction.GetValueOrDefault
+            If SlurryViscosityMode = 1 AndAlso Qlin > 0.0 Then
+                Dim phi = Qsin / Qlin
+                eta_l *= 1.0 + 3.0 * phi / (1.0 - phi / 0.52)
+            End If
+            Dim eta = eta_l * xl + eta_v * xv
+            If CatalystLoading > 0.0 And hasHetCat Then
+                ' Ergun, over a bed of catalyst
+                Dim vel As Double = (Qlin + Qvin + Qsin) / (Math.PI * diam ^ 2 / 4)
+                Dim dp As Double = CatalystParticleDiameter * CatalystParticleSphericity
+                Dim ev As Double = CatalystVoidFraction
+                Return 150 * eta * L / dp ^ 2 * (1 - ev) ^ 2 / ev ^ 3 * vel + 1.75 * L * rho / dp * (1 - ev) / ev ^ 3 * vel ^ 2
+            End If
+            ' the friction of Beggs and Brill
+            Dim fpp As New FlowPackages.BeggsBrill
+            Dim resv = fpp.CalculateDeltaP(diam, L, 0.0#, 0.000045, Qvin * 24 * 3600, (Qlin + Qsin) * 24 * 3600, eta_v * 1000, eta_l * 1000, rho_v, rho_l, tens)
+            Return CDbl(resv(2))
+        End Function
+
+        ''' <summary>
+        ''' The energy balances' tolerance over the unit's: a flash's enthalpy jumps by about the unit's tolerance under
+        ''' steps of 1e-5 K (its own convergence), and each point's balance, from the inlet, reads two of them. Ten of
+        ''' them leave each point within some 0.01 K, without adding up along the length.
+        ''' </summary>
+        Private Const EOEnergyTolerance As Double = 10.0
+
+        Private ReadOnly Property EOCellName As String
+            Get
+                Return "PFR cell " & Name
+            End Get
+        End Property
+
+        ''' <summary>The offset of the state at boundary k: the inlet at 0, the internal states, the outlet at the last.</summary>
+        Private Function EOBoundary(context As IEquationOrientedContext, k As Integer) As Integer
+            If k = 0 Then Return EOInletOffset(context, 0)
+            If k = EOCells Then Return EOOutletOffset(context, 0)
+            Return context.InternalStateOffset(Me, k - 1)
+        End Function
+
+        ''' <summary>Each compound's enthalpy of formation (kJ/mol), which the energy balance carries.</summary>
+        Private Function EOFormation(context As IEquationOrientedContext) As Double()
+            Dim ms = CType(GetInletMaterialStream(0), MaterialStream)
+            Return context.CompoundNames.Select(Function(k)
+                                                    Dim cp = ms.Phases(0).Compounds(k).ConstantProperties
+                                                    Return cp.IG_Enthalpy_of_Formation_25C * cp.Molar_Weight / 1000.0
+                                                End Function).ToArray()
+        End Function
+
+        Public Overrides Function EOInternalStateCount(context As IEquationOrientedContext) As Integer
+            If Not EOHasEquations Then Return 0
+            Return EOCells - 1
+        End Function
+
+        ''' <summary>The profile of the reactor's last calculation at the boundary's place, or a line from the inlet to the outlet.</summary>
+        Public Overrides Function EOInternalStateGuess(context As IEquationOrientedContext, k As Integer) As Double()
+            Dim names = context.CompoundNames
+            Dim c = names.Length
+            Dim z = (k + 1.0) / EOCells
+            Dim g(c + 1) As Double
+            Dim prof = Profile
+            If prof IsNot Nothing AndAlso prof.Count > 1 AndAlso prof.Last().Item1 > 0.0 Then
+                Dim pos = z * prof.Last().Item1
+                Dim j = 1
+                While j < prof.Count - 1 AndAlso prof(j).Item1 < pos
+                    j += 1
+                End While
+                Dim a = prof(j - 1), b = prof(j)
+                Dim w = If(b.Item1 > a.Item1, Math.Min(Math.Max((pos - a.Item1) / (b.Item1 - a.Item1), 0.0), 1.0), 1.0)
+                g(0) = a.Item2 + w * (b.Item2 - a.Item2)
+                g(1) = a.Item3 + w * (b.Item3 - a.Item3)
+                Dim complete = True
+                For i = 0 To c - 1
+                    Dim name = names(i)
+                    Dim na = a.Item4.FirstOrDefault(Function(p) p.Compound = name)
+                    Dim nb = b.Item4.FirstOrDefault(Function(p) p.Compound = name)
+                    If na Is Nothing OrElse nb Is Nothing Then
+                        complete = False
+                    Else
+                        g(2 + i) = na.MolarFlow + w * (nb.MolarFlow - na.MolarFlow)
+                    End If
+                Next
+                If complete AndAlso g.All(Function(v) Not Double.IsNaN(v)) Then Return g
+            End If
+            Dim inlet = GetInletMaterialStream(0), outlet = GetOutletMaterialStream(0)
+            Dim outOk = outlet.GetTemperature() > 0.0 AndAlso outlet.GetPressure() > 0.0
+            Dim wz = If(outOk, z, 0.0)
+            g(0) = inlet.GetTemperature() + wz * (outlet.GetTemperature() - inlet.GetTemperature())
+            g(1) = inlet.GetPressure() + wz * (outlet.GetPressure() - inlet.GetPressure())
+            For i = 0 To c - 1
+                Dim ni = inlet.Phases(0).Compounds(names(i)).MolarFlow.GetValueOrDefault()
+                Dim no = outlet.Phases(0).Compounds(names(i)).MolarFlow.GetValueOrDefault()
+                g(2 + i) = ni + wz * (no - ni)
+            Next
+            Return g
+        End Function
+
+        Public Overrides Function EOParameters() As String()
+            If Not EOHasEquations Then Return MyBase.EOParameters()
+            ' the volume, when the pressure drop does not read the geometry
+            Dim list As New List(Of String)
+            If UseUserDefinedPressureDrop Then list.Add("PROP_PF_2")
+            If ReactorOperationMode = OperationMode.OutletTemperature Then list.Add("PROP_PF_12")
+            Return list.ToArray()
+        End Function
+
+        Public Overrides Function EOEquationCount(context As IEquationOrientedContext) As Integer
+            If Not EOHasEquations Then Return MyBase.EOEquationCount(context)
+            Return EOCells * (context.CompoundCount + 2)
+        End Function
+
+        Public Overrides Function EOVariables(context As IEquationOrientedContext) As Integer()
+            If Not EOHasEquations Then Return MyBase.EOVariables(context)
+            Dim offsets = Enumerable.Range(0, EOCells + 1).Select(Function(k) EOBoundary(context, k)).ToArray()
+            Return EOStreamVariables(context, offsets, EOParameters())
+        End Function
+
+        ''' <summary>The energy stream's duty (kW), spread along the length in the non-isothermal, non-adiabatic mode.</summary>
+        Private Function EODuty() As Double
+            Dim es = GetInletEnergyStream(1)
+            Return If(es Is Nothing, 0.0, es.EnergyFlow.GetValueOrDefault())
+        End Function
+
+        Public Overrides Sub EOResiduals(context As IEquationOrientedContext, x As Double(), r As Double(), row As Integer)
+            If Not EOHasEquations Then
+                MyBase.EOResiduals(context, x, r, row)
+                Return
+            End If
+            Dim c = context.CompoundCount
+            For k = 1 To EOCells
+                Dim cell = EOCellResiduals(context, x, k)
+                Array.Copy(cell, 0, r, row + (k - 1) * (c + 2), c + 2)
+            Next
+        End Sub
+
+        ''' <summary>The equations of cell k (from boundary k-1 to k), each over its tolerance.</summary>
+        Private Function EOCellResiduals(context As IEquationOrientedContext, x As Double(), k As Integer) As Double()
+            Dim c = context.CompoundCount
+            Dim n = EOCells
+            Dim dVc = EOParameterValue(context, x, "PROP_PF_2", Volume) / n
+            Dim outlet = EOOutletOffset(context, 0)
+            Dim ft = context.FlowTolerance(outlet)
+            Dim inlet = EOBoundary(context, 0)
+            Dim a = EOBoundary(context, k - 1), b = EOBoundary(context, k)
+            Dim prev = context.StreamProperties(a, x, EOCellName, AddressOf EOCell)
+            Dim cur = context.StreamProperties(b, x, EOCellName, AddressOf EOCell)
+            Dim r(c + 1) As Double
+            For i = 0 To c - 1
+                r(i) = (x(b + 2 + i) - x(a + 2 + i) - dVc / 2.0 * (cur(i) + prev(i))) / ft
+            Next
+            r(c) = (x(b + 1) - x(a + 1) + (cur(c) + prev(c)) / 2.0) / context.PressureTolerance
+            Dim T0 = x(inlet)
+            Select Case ReactorOperationMode
+                Case OperationMode.Adiabatic, OperationMode.NonIsothermalNonAdiabatic
+                    Dim hf = EOFormation(context)
+                    Dim dhf = 0.0
+                    For i = 0 To c - 1
+                        dhf += hf(i) * (x(b + 2 + i) - x(inlet + 2 + i))
+                    Next
+                    Dim duty = If(ReactorOperationMode = OperationMode.NonIsothermalNonAdiabatic, EODuty(), 0.0)
+                    r(c + 1) = (context.Enthalpy(b, x) - context.Enthalpy(inlet, x) + dhf - duty * k / n) / (EOEnergyTolerance * context.EnergyTolerance(outlet))
+                Case OperationMode.Isothermic
+                    r(c + 1) = (x(b) - T0) / context.TemperatureTolerance
+                Case Else
+                    Dim Tout = EOParameterValue(context, x, "PROP_PF_12", OutletTemperature)
+                    r(c + 1) = (x(b) - (T0 + (Tout - T0) * k / n)) / context.TemperatureTolerance
+            End Select
+            Return r
+        End Function
+
+        ''' <summary>
+        ''' The cells solved one after the other from the inlet x holds, each from the state before it: the implicit
+        ''' trapezoidal rule marched along the length, so that the solve starts at the reactor's own profile for its inlet
+        ''' (a reaction that runs away moves its front, which a profile kept from another inlet puts elsewhere). A cell
+        ''' that does not solve keeps the guess it had, and so do the ones after it.
+        ''' </summary>
+        Public Overrides Function EOInitialize(context As IEquationOrientedContext, x As Double()) As Boolean
+            If Not EOHasEquations Then Return False
+            Dim c = context.CompoundCount
+            For k = 1 To EOCells
+                Dim a = EOBoundary(context, k - 1), b = EOBoundary(context, k)
+                Dim kept = Enumerable.Range(0, c + 2).Select(Function(j) x(b + j)).ToArray()
+                For j = 0 To c + 1
+                    x(b + j) = x(a + j)
+                Next
+                Dim cell = k
+                If Not EOSolveState(x, b, c + 2, Function(xv) EOCellResiduals(context, xv, cell)) Then
+                    For j = 0 To c + 1
+                        x(b + j) = kept(j)
+                    Next
+                    Exit For
+                End If
+            Next
+            Return True
+        End Function
+
+        Public Overrides Function EOJacobian(context As IEquationOrientedContext, x As Double(), add As Action(Of Integer, Integer, Double)) As Boolean
+            If Not EOHasEquations Then Return MyBase.EOJacobian(context, x, add)
+            Dim c = context.CompoundCount
+            Dim n = EOCells
+            Dim kV = context.ParameterIndex(Me, "PROP_PF_2")
+            Dim kT = context.ParameterIndex(Me, "PROP_PF_12")
+            Dim dVc = EOParameterValue(context, x, "PROP_PF_2", Volume) / n
+            Dim hf = EOFormation(context)
+            Dim outlet = EOOutletOffset(context, 0)
+            Dim ft = context.FlowTolerance(outlet), te = context.EnergyTolerance(outlet)
+            Dim tp = context.PressureTolerance, tt = context.TemperatureTolerance
+            Dim inlet = EOBoundary(context, 0)
+            Dim prev = context.StreamProperties(inlet, x, EOCellName, AddressOf EOCell)
+            Dim dprev = context.StreamPropertiesDerivatives(inlet, x, EOCellName, AddressOf EOCell)
+            Dim h0 As Double() = Nothing
+            If ReactorOperationMode = OperationMode.Adiabatic OrElse ReactorOperationMode = OperationMode.NonIsothermalNonAdiabatic Then h0 = context.EnthalpyDerivatives(inlet, x)
+            Dim tq = EOEnergyTolerance * te
+            For k = 1 To n
+                Dim a = EOBoundary(context, k - 1), b = EOBoundary(context, k)
+                Dim cur = context.StreamProperties(b, x, EOCellName, AddressOf EOCell)
+                Dim dcur = context.StreamPropertiesDerivatives(b, x, EOCellName, AddressOf EOCell)
+                Dim e0 = (k - 1) * (c + 2)
+                For i = 0 To c - 1
+                    add(e0 + i, b + 2 + i, 1.0 / ft)
+                    add(e0 + i, a + 2 + i, -1.0 / ft)
+                    For j = 0 To c + 1
+                        If dcur(i, j) <> 0.0 Then add(e0 + i, b + j, -dVc / 2.0 * dcur(i, j) / ft)
+                        If dprev(i, j) <> 0.0 Then add(e0 + i, a + j, -dVc / 2.0 * dprev(i, j) / ft)
+                    Next
+                    If kV >= 0 Then add(e0 + i, kV, -(cur(i) + prev(i)) / (2.0 * n) / ft)
+                Next
+                add(e0 + c, b + 1, 1.0 / tp)
+                add(e0 + c, a + 1, -1.0 / tp)
+                For j = 0 To c + 1
+                    If dcur(c, j) <> 0.0 Then add(e0 + c, b + j, dcur(c, j) / 2.0 / tp)
+                    If dprev(c, j) <> 0.0 Then add(e0 + c, a + j, dprev(c, j) / 2.0 / tp)
+                Next
+                Select Case ReactorOperationMode
+                    Case OperationMode.Adiabatic, OperationMode.NonIsothermalNonAdiabatic
+                        Dim hcur = context.EnthalpyDerivatives(b, x)
+                        For j = 0 To c + 1
+                            add(e0 + c + 1, b + j, hcur(j) / tq)
+                            add(e0 + c + 1, inlet + j, -h0(j) / tq)
+                        Next
+                        For i = 0 To c - 1
+                            add(e0 + c + 1, b + 2 + i, hf(i) / tq)
+                            add(e0 + c + 1, inlet + 2 + i, -hf(i) / tq)
+                        Next
+                    Case OperationMode.Isothermic
+                        add(e0 + c + 1, b, 1.0 / tt)
+                        add(e0 + c + 1, inlet, -1.0 / tt)
+                    Case Else
+                        add(e0 + c + 1, b, 1.0 / tt)
+                        add(e0 + c + 1, inlet, -(1.0 - CDbl(k) / n) / tt)
+                        If kT >= 0 Then add(e0 + c + 1, kT, -(CDbl(k) / n) / tt)
+                End Select
+                prev = cur
+                dprev = dcur
+            Next
+            Return True
+        End Function
+
+        Public Overrides Function EOEquationName(context As IEquationOrientedContext, k As Integer) As String
+            If Not EOHasEquations Then Return MyBase.EOEquationName(context, k)
+            Dim c = context.CompoundCount
+            Dim cell = k \ (c + 2) + 1, j = k Mod (c + 2)
+            Dim what = If(j < c, "balance of compound " & j, If(j = c, "pressure", If(ReactorOperationMode = OperationMode.Adiabatic OrElse ReactorOperationMode = OperationMode.NonIsothermalNonAdiabatic, "energy balance from the inlet", "temperature")))
+            Return $"cell {cell} of {EOCells}: {what}"
+        End Function
+
+    End Class
+
 End Namespace

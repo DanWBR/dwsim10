@@ -283,6 +283,8 @@ The phase equilibrium is a submodel: the PT flash of the property package, with 
 | Equilibrium Reactor | reactions in the vapor or the liquid, with activity, fugacity, mole fraction or partial pressure as the basis |
 | Gibbs Reactor | reacting in the vapor, in the liquid, or in the phases the flash gives |
 | CSTR | one outlet; isothermal, adiabatic or at an outlet temperature; kinetic and catalytic reactions with expression rates |
+| PFR | isothermal, adiabatic, at an outlet temperature or with the energy stream's duty; kinetic and catalytic reactions with expression rates, in one phase; the profile along the length as unknowns (below) |
+| Pipe Segment | length given; heat given, an overall coefficient against the surroundings, or no heat balance; the profile along the length as unknowns (below) |
 | Distillation Column, Absorber | the column's own solver with the derivatives of the Naphtali-Sandholm equations (below) |
 
 Feeds keep their state, and a Recycle block makes its outlet equal to its inlet. Controllers, switches and inputs act in dynamic simulation only and are left out.
@@ -305,6 +307,18 @@ For the Equilibrium Reactor the columns are its reactions, $K_r$ is the reaction
 
 The outlet's moles are the inlet's plus what the reactions make in the reactor at the outlet's state, the steady state the reactor's own time stepping approaches; the concentrations, the reacting volume and the conversion factors are worked out from the outlet stream as the reactor works them out from its contents.
 
+###### PFR and Pipe Segment
+
+Both are cut along their length into cells, and the states between the cells (temperature, pressure and the flow of each compound) are unknowns of the system next to the streams', the last one the outlet. A PFR has as many cells as its own sections, at most 50; a pipe one per increment of its hydraulic profile, at most 200. Each cell writes the balance of each compound, the pressure drop and the energy balance:
+
+- **Compounds:** a PFR's change of moles over the cell is the cell's volume times the mean of the reaction rates per volume at its two ends (the trapezoidal rule), with the rates, concentrations and conversion factors of the reactor's own integration; a pipe carries the compounds through.
+- **Pressure:** the mean of the drop the unit's own correlation gives at the two ends (the PFR's Ergun or Beggs and Brill, or its drop as set; the pipe's flow package, fittings included). A gas pipeline equation (Weymouth, Panhandle) already gives the drop over the increment from its inlet, and is taken there.
+- **Energy:** the enthalpy at the cell's end less the inlet's, with the enthalpies of formation of what reacted, equals the heat up to that cell: the PFR's duty spread along its length, the pipe's heat spread evenly or U A times the logarithmic mean of the differences to the surroundings. Isothermal and outlet-temperature reactors set the temperature instead.
+
+The energy balances are written from the inlet so that the noise of the flashes does not add up along the length, and are held to ten times the energy tolerance, since a flash's enthalpy moves by about one tolerance under steps of 1e-5 K. The rates and the drops are worked out on the state put on a stream, and differenced. Before the first iteration, the cells are solved one after the other from the inlet, as an implicit integration along the length, so that the solve starts at the unit's own profile for its inlet.
+
+The cells are of the second order in their length, and the units' own integrations of the first: the PFR freezes the state over each section and the pipe takes the drop and the heat at the inlet of each increment. With their default steps the cells are the closer to the limit of ever finer steps: in a test, an isothermal PFR at its default 1 % sections kept 0.21 mol/s more methanol than at 0.1 %, and 0.02 mol/s more than the limit, which the 50 cells reached within 0.001 mol/s; a pipe losing heat to its surroundings came out 1.03 K off the limit by its own increments and 0.002 K by the cells. The pass of the unit operations after the solve writes the units' own results.
+
 ###### Columns
 
 A distillation column or an absorber (without rate-based efficiencies, secondary specifications, a free water product or an external solver) gives its products from its feeds with its own solver, warm from the last solution, and its derivatives from the Naphtali-Sandholm solver started at that solution: the derivatives of every stage's flows, temperatures and compositions with respect to the feeds' moles and enthalpies and to the two specifications, by the implicit function theorem on the MESH equations. Finite differences would cost two column solves per feed variable.
@@ -315,7 +329,7 @@ An active Spec block is an equation: its target property becomes an unknown, equ
 
 ###### Black boxes
 
-A unit operation in another mode, a Tank, a Pipe Segment, an Orifice Plate, a Filter, a Solids Separator, a Shortcut Column, a PFR (whose integration along its length is its own), a Polymerization Reactor, a Python Script, Spreadsheet or Flowsheet unit operation, a column the derivatives above do not cover (secondary specifications, rate-based efficiencies, an external solver) or a CAPE-OPEN unit operation (one call at a time, as a ChemSep column needs) enters through its own calculation: its inlets are put at their variables and flashed there, the unit is calculated, and its residuals are
+A unit operation in another mode, a Tank, an Orifice Plate, a Filter, a Solids Separator, a Shortcut Column, a Polymerization Reactor, a Python Script, Spreadsheet or Flowsheet unit operation, a column the derivatives above do not cover (secondary specifications, rate-based efficiencies, an external solver) or a CAPE-OPEN unit operation (one call at a time, as a ChemSep column needs) enters through its own calculation: its inlets are put at their variables and flashed there, the unit is calculated, and its residuals are
 
 
 <a id="eq:eo_blackbox"></a>
@@ -368,6 +382,8 @@ The equation-oriented solver wins where the sequential solver needs many passes 
 - The Equilibrium Reactor's own solver stops when the squares of $\ln(\prod b_i^{\nu_i}/K)$ sum to $10^{-3}$, and the Gibbs Reactor's minimization within a similar margin; Equation [7](#eq:eo_chemical_equilibrium) is closed to $10^{-6}$, so their results differ by that.
 - A loop whose inventory the specifications leave free stalls the Newton steps: a glycol loop with no make-up, or two columns around a recycle that both set their bottoms flow, so that the feed alone closes the overall balance.
 - Units with equations of their own next to a stream of one compound are taken as black boxes, so flowsheets of a pure fluid solve more slowly.
+- A PFR whose reaction runs away within one cell (a front of hundreds of kelvin over a few percent of its length) does not solve cell by cell, and the Newton steps from there stall; so can a pipe whose flow package changes its flow pattern, and its drop, by a jump between two ends of a cell. The other two solvers take them.
+- A PFR's or a pipe's outlet is the cells' in the solution, and the unit's own integration after the pass: the two differ by the error of the unit's own steps.
 
 #### Choosing a solver {#sec:choosing_solver}
 
