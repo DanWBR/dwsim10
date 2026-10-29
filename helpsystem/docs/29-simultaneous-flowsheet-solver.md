@@ -311,7 +311,7 @@ A distillation column or an absorber (without rate-based efficiencies, secondary
 
 ###### Spec blocks
 
-An active Spec block is an equation: its target property becomes an unknown, equal to the block's expression of the source (X) and of the target itself (Y) in the units of the flowsheet, held between the block's limits when it has both.
+An active Spec block is an equation: its target property becomes an unknown, equal to the block's expression of the source (X) and of the target itself (Y) in the units of the flowsheet, held between the block's limits when it has both. An active Information Carrier writes one such equation for each of its targets: the target property, an unknown, equal to the source property in SI.
 
 ###### Black boxes
 
