@@ -4031,7 +4031,7 @@ public partial class FlowsheetView : UserControl
                             DWSIM.Interfaces.Enums.ExtenderCategory.Tools     => FindTopLevelMenu("Tools"),
                             DWSIM.Interfaces.Enums.ExtenderCategory.Utilities => FindTopLevelMenu("Utilities"),
                             DWSIM.Interfaces.Enums.ExtenderCategory.Dynamics  => FindTopLevelMenu("Dynamics"),
-                            DWSIM.Interfaces.Enums.ExtenderCategory.Optimization => FindTopLevelMenu("Tools"),
+                            DWSIM.Interfaces.Enums.ExtenderCategory.Optimization => FindTopLevelMenu("Flowsheet Analysis"),
                             DWSIM.Interfaces.Enums.ExtenderCategory.Results   => FindTopLevelMenu("Results"),
                             DWSIM.Interfaces.Enums.ExtenderCategory.Help      => FindTopLevelMenu("Help"),
                             // a collection filed under NewItem brings its own top-level menu, named after

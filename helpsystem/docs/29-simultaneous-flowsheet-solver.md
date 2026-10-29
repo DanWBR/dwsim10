@@ -137,7 +137,7 @@ On 59 flowsheets from the samples and the case library, solved as saved and agai
 
 #### Design Specifications, Optimization and Data Reconciliation
 
-With the simultaneous solver, the converged flowsheet is a model that can be solved for targets, optimized and fitted to plant data (Patreon Edition). The three problems are set up in one window, **Design Specifications, Optimization and Reconciliation**, opened from the `Flowsheet Analysis` menu in the classic interface and from the `Tools` menu in the cross-platform one. Each row of its tables picks an object and one of its properties from lists; the numbers are typed and shown in the units of the flowsheet. The problem, with the results of its last run, is saved with the file.
+With the simultaneous solver, the converged flowsheet is a model that can be solved for targets, optimized and fitted to plant data (Patreon Edition). The three problems are set up in one window, **Design Specifications, Optimization and Reconciliation**, opened from the `Flowsheet Analysis` menu in both interfaces. Each row of its tables picks an object and one of its properties from lists; the numbers are typed and shown in the units of the flowsheet. The problem, with the results of its last run, is saved with the file.
 
 The figures below come from a flash plant: two hydrocarbon feeds mixed, cooled and separated into vapor and liquid.
 
