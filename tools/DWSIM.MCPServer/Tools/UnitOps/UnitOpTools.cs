@@ -91,58 +91,105 @@ namespace DWSIM.MCPServer.Tools.UnitOps
             return new JObject { ["unitop"] = name, ["type"] = display_name };
         }
 
-        [McpTool("dwsim_unitop_connect", "Connect streams to a unit operation's ports. Specify feed and/or product material and energy streams by name.")]
+        [McpTool("dwsim_unitop_connect",
+            "Connect streams to a unit operation's ports. Specify feed and/or product material and energy streams by name. " +
+            "Material ports are the unit's inlet/outlet connector indices. Energy ports count the unit's energy connectors " +
+            "only, so a Heater's energy feed and a Cooler's energy product are both port 0. A connection that does not " +
+            "attach is an error that lists the unit's ports.")]
         public JObject Connect(
             [McpParam("Flowsheet handle")] string flowsheet_id,
             [McpParam("Unit operation tag/name")] string unitop,
             [McpParam("Feed material stream tag", Required = false)] string feed_stream = null,
-            [McpParam("Feed stream port index (default 0)", Required = false)] int feed_port = 0,
+            [McpParam("Inlet connector index of the feed (default 0)", Required = false)] int feed_port = 0,
             [McpParam("Product material stream tag", Required = false)] string product_stream = null,
-            [McpParam("Product stream port index (default 0)", Required = false)] int product_port = 0,
+            [McpParam("Outlet connector index of the product (default 0)", Required = false)] int product_port = 0,
             [McpParam("Energy feed stream tag", Required = false)] string energy_feed = null,
-            [McpParam("Energy feed port index (default 0)", Required = false)] int energy_feed_port = 0,
+            [McpParam("Index among the unit's energy inlets (default 0, the first: a Heater's, a Pump's)", Required = false)] int energy_feed_port = 0,
             [McpParam("Energy product stream tag", Required = false)] string energy_product = null,
-            [McpParam("Energy product port index (default 0)", Required = false)] int energy_product_port = 0)
+            [McpParam("Index among the unit's energy outlets (default 0, the first: a Cooler's, an Expander's)", Required = false)] int energy_product_port = 0)
         {
             var fs = _sessions.GetFlowsheet(flowsheet_id);
-            var uo = fs.Inner.SimulationObjects.Values
-                .First(o => o.GraphicObject?.Tag == unitop);
+            var uo = FindByTag(fs, unitop, "unit operation");
 
             var connections = new JArray();
 
             if (!string.IsNullOrEmpty(feed_stream))
             {
-                var stream = fs.Inner.SimulationObjects.Values
-                    .First(o => o.GraphicObject?.Tag == feed_stream);
-                uo.ConnectFeedMaterialStream(stream, feed_port);
+                var stream = FindByTag(fs, feed_stream, "stream");
+                Attach(uo, unitop, stream, true, $"{feed_stream} at inlet port {feed_port}", () => uo.ConnectFeedMaterialStream(stream, feed_port));
                 connections.Add($"feed:{feed_stream}->port{feed_port}");
             }
 
             if (!string.IsNullOrEmpty(product_stream))
             {
-                var stream = fs.Inner.SimulationObjects.Values
-                    .First(o => o.GraphicObject?.Tag == product_stream);
-                uo.ConnectProductMaterialStream(stream, product_port);
+                var stream = FindByTag(fs, product_stream, "stream");
+                Attach(uo, unitop, stream, false, $"{product_stream} at outlet port {product_port}", () => uo.ConnectProductMaterialStream(stream, product_port));
                 connections.Add($"product:{product_stream}->port{product_port}");
             }
 
             if (!string.IsNullOrEmpty(energy_feed))
             {
-                var stream = fs.Inner.SimulationObjects.Values
-                    .First(o => o.GraphicObject?.Tag == energy_feed);
-                uo.ConnectFeedEnergyStream(stream, energy_feed_port);
+                var stream = FindByTag(fs, energy_feed, "stream");
+                int raw = EnergyPort(uo, unitop, true, energy_feed_port);
+                Attach(uo, unitop, stream, true, $"{energy_feed} at energy inlet {energy_feed_port}", () => uo.ConnectFeedEnergyStream(stream, raw));
                 connections.Add($"energy_feed:{energy_feed}->port{energy_feed_port}");
             }
 
             if (!string.IsNullOrEmpty(energy_product))
             {
-                var stream = fs.Inner.SimulationObjects.Values
-                    .First(o => o.GraphicObject?.Tag == energy_product);
-                uo.ConnectProductEnergyStream(stream, energy_product_port);
+                var stream = FindByTag(fs, energy_product, "stream");
+                int raw = EnergyPort(uo, unitop, false, energy_product_port);
+                Attach(uo, unitop, stream, false, $"{energy_product} at energy outlet {energy_product_port}", () => uo.ConnectProductEnergyStream(stream, raw));
                 connections.Add($"energy_product:{energy_product}->port{energy_product_port}");
             }
 
             return new JObject { ["unitop"] = unitop, ["connections"] = connections };
+        }
+
+        private static DWSIM.Interfaces.ISimulationObject FindByTag(FluentFlowsheet fs, string tag, string what)
+        {
+            foreach (DWSIM.Interfaces.ISimulationObject o in fs.Inner.SimulationObjects.Values)
+                if (o.GraphicObject?.Tag == tag) return o;
+            throw new ArgumentException($"No {what} with tag '{tag}'.");
+        }
+
+        private static ArgumentException PortError(DWSIM.Interfaces.ISimulationObject uo, string unitop, string why) =>
+            new ArgumentException($"{unitop} {why}. Its ports: " + string.Join("; ", uo.GetConnectionPortsList()));
+
+        /// <summary>
+        /// The connector index of a unit's energy port: the port-th of its energy connectors on that side (a unit whose
+        /// energy connector is its own, as a Cooler's, has that one only), or the connector index of an energy connector
+        /// itself, as callers passed it before.
+        /// </summary>
+        private static int EnergyPort(DWSIM.Interfaces.ISimulationObject uo, string unitop, bool inlet, int port)
+        {
+            var g = uo.GraphicObject;
+            string side = inlet ? "inlet" : "outlet", param = inlet ? "energy_feed_port" : "energy_product_port";
+            if (!inlet && g.EnergyConnector != null && g.EnergyConnector.Active)
+            {
+                if (port == 0) return 0;
+                throw PortError(uo, unitop, $"has one energy outlet: {param} is 0");
+            }
+            var cons = inlet ? g.InputConnectors : g.OutputConnectors;
+            var energy = new List<int>();
+            for (int i = 0; i < cons.Count; i++)
+                if (cons[i].IsEnergyConnector || cons[i].Type == DWSIM.Interfaces.Enums.GraphicObjects.ConType.ConEn) energy.Add(i);
+            if (port >= 0 && port < energy.Count) return energy[port];
+            if (energy.Contains(port)) return port;
+            throw PortError(uo, unitop, energy.Count == 0 ? $"has no energy {side}"
+                                                          : $"has {energy.Count} energy {side}(s): {param} 0 to {energy.Count - 1}");
+        }
+
+        /// <summary>Makes the connection and checks that the stream is attached to the unit; an error lists the unit's ports otherwise.</summary>
+        private static void Attach(DWSIM.Interfaces.ISimulationObject uo, string unitop, DWSIM.Interfaces.ISimulationObject stream,
+                                   bool intoUnit, string what, Action connect)
+        {
+            try { connect(); }
+            catch (Exception ex) { throw PortError(uo, unitop, $"cannot take {what} ({ex.Message})"); }
+            var c = intoUnit ? stream.GraphicObject.OutputConnectors[0] : stream.GraphicObject.InputConnectors[0];
+            var other = c.IsAttached ? (intoUnit ? c.AttachedConnector?.AttachedTo : c.AttachedConnector?.AttachedFrom) : null;
+            if (other == null || other.Name != uo.GraphicObject.Name)
+                throw PortError(uo, unitop, $"did not take {what}");
         }
 
         [McpTool("dwsim_unitop_set",
