@@ -1512,6 +1512,431 @@ Namespace UnitOperations
         End Function
 
         ''' <summary>Calculates the heat-exchanger performance for the selected calculation mode.</summary>
+        ''' <summary>
+        ''' The LMTD correction factor F of the shell passes in series at the outlet temperatures, with the ratios R and P it
+        ''' takes; the prior value where F is not a number.
+        ''' </summary>
+        Private Function STCorrectionFactor(Tc1 As Double, Tc2 As Double, Th1 As Double, Th2 As Double, prior As Double, ByRef R As Double, ByRef P As Double) As Double
+
+            Dim F, Sf As Double
+
+            If STProperties.Tube_Fluid = 0 Then
+                'cold
+                R = (Th1 - Th2) / (Tc2 - Tc1)
+                P = (Tc2 - Tc1) / (Th1 - Tc1)
+            Else
+                'hot
+                R = (Tc1 - Tc2) / (Th2 - Th1)
+                P = (Th2 - Th1) / (Tc1 - Th1)
+            End If
+
+            ' The correction factor is the one for N shell passes in series. Two shells
+            ' in series count as two, which is the reason for putting them in series
+            ' when the streams cross; only the passes inside one shell were counted
+            ' before, so the arrangement made no difference to F.
+            Dim Nsp As Double = Math.Max(1.0, Me.STProperties.Shell_NumberOfShellsInSeries *
+                                              Me.STProperties.Shell_NumberOfPasses)
+
+            If R <> 1.0# Then
+                Dim alpha As Double
+                alpha = ((1 - R * P) / (1 - P)) ^ (1 / Nsp)
+                Sf = (alpha - 1) / (alpha - R)
+                F = (R ^ 2 + 1) ^ 0.5 * Math.Log((1 - Sf) / (1 - R * Sf)) / ((R - 1) * Math.Log((2 - Sf * (R + 1 - (R ^ 2 + 1) ^ 0.5)) / (2 - Sf * (R + 1 + (R ^ 2 + 1) ^ 0.5))))
+            Else
+                Sf = P / (Nsp * (1 - P) + P)
+                F = Sf * 2 ^ 0.5 / ((1 - Sf) * Math.Log((2 * (1 - Sf) + Sf * 2 ^ 0.5) / (2 * (1 - Sf) - Sf * 2 ^ 0.5)))
+            End If
+            If Double.IsNaN(F) Then
+                F = prior
+                'Throw New Exception("LMTD correction factor 'F'  could not be calculated. R = " & R & ", S = " & Sf)
+            End If
+
+            Return F
+
+        End Function
+
+        ''' <summary>The density, heat capacity, thermal conductivity and viscosity of an inlet's fluid at the temperature Tm, at its pressure.</summary>
+        Private Shared Function STMeanProperties(inlet As MaterialStream, Tm As Double, IObj As Inspector.InspectorItem) As Double()
+
+            Dim tms As MaterialStream = inlet.Clone
+            tms.SetFlowsheet(inlet.FlowSheet)
+            tms.Phases(0).Properties.temperature = Tm
+            tms.PropertyPackage.CurrentMaterialStream = tms
+            With tms.PropertyPackage
+                .CurrentMaterialStream = tms
+                IObj?.SetCurrent()
+                .DW_CalcEquilibrium(PropertyPackages.FlashSpec.T, PropertyPackages.FlashSpec.P)
+                If tms.Phases(3).Properties.molarfraction.GetValueOrDefault > 0 Then
+                    IObj?.SetCurrent()
+                    .DW_CalcPhaseProps(PropertyPackages.Phase.Liquid1)
+                Else
+                    .DW_ZerarPhaseProps(PropertyPackages.Phase.Liquid1)
+                End If
+                If tms.Phases(2).Properties.molarfraction.GetValueOrDefault > 0 Then
+                    IObj?.SetCurrent()
+                    .DW_CalcPhaseProps(PropertyPackages.Phase.Vapor)
+                Else
+                    .DW_ZerarPhaseProps(PropertyPackages.Phase.Vapor)
+                End If
+                If tms.Phases(2).Properties.molarfraction.GetValueOrDefault >= 0 And tms.Phases(2).Properties.molarfraction.GetValueOrDefault <= 1 Then
+                    IObj?.SetCurrent()
+                    .DW_CalcPhaseProps(PropertyPackages.Phase.Liquid)
+                Else
+                    .DW_ZerarPhaseProps(PropertyPackages.Phase.Liquid)
+                End If
+                IObj?.SetCurrent()
+                tms.PropertyPackage.DW_CalcPhaseProps(PropertyPackages.Phase.Mixture)
+            End With
+            Return {tms.Phases(0).Properties.density.GetValueOrDefault, tms.Phases(0).Properties.heatCapacityCp.GetValueOrDefault,
+                    tms.Phases(0).Properties.thermalConductivity.GetValueOrDefault, tms.Phases(0).Properties.viscosity.GetValueOrDefault}
+
+        End Function
+
+        ''' <summary>The shell and tube terms of one pass of the rating: the area, the pressure drops and the resistances.</summary>
+        Friend Class STTerms
+            ''' <summary>Heat transfer area (m2), tube and shell pressure drops (Pa).</summary>
+            Public A, dpt, dps As Double
+            ''' <summary>Resistances: tube film, tube fouling, wall, shell fouling, shell film (m2.K/W, on the outer area).</summary>
+            Public f1, f2, f3, f4, f5 As Double
+            ''' <summary>Shell and tube Reynolds numbers, the shell's flow area and mass flux, the tube velocity.</summary>
+            Public Res, Ret, Ssf, Gsf, vt As Double
+        End Class
+
+        ''' <summary>
+        ''' The shell and tube correlations (Tinker's method) for the two sides' fluid properties at their mean temperatures
+        ''' and their mass flows: the area, the tube and shell pressure drops and film coefficients, and the resistances.
+        ''' </summary>
+        Private Function STCorrelations(rhoc As Double, CPC As Double, kc As Double, muc As Double,
+                                        rhoh As Double, CPH As Double, kh As Double, muh As Double,
+                                        Wc As Double, Wh As Double, IObj As Inspector.InspectorItem) As STTerms
+
+            Dim rs, rt, Nc, di, de, pitch, L, n, hi, nt, vt, Ret, Prt, A As Double
+
+            rs = Me.STProperties.Shell_Fouling
+            rt = Me.STProperties.Tube_Fouling
+            Nc = STProperties.Shell_NumberOfShellsInSeries
+            de = STProperties.Tube_De / 1000
+            di = STProperties.Tube_Di / 1000
+            L = STProperties.Tube_Length
+            pitch = STProperties.Tube_Pitch / 1000
+            n = STProperties.Tube_NumberPerShell
+            nt = n / STProperties.Tube_PassesPerShell
+            ' the tube count is per shell, so the shells in series multiply the area, the
+            ' same way the geometry report does it
+            A = n * Nc * Math.PI * de * (L - 2 * de)
+
+            If pitch < de Then Throw New Exception("Invalid input: tube spacing (pitch) is smaller than the tube's external diameter.")
+
+            If STProperties.Tube_Fluid = 0 Then
+                'cold
+                vt = Wc / (rhoc * nt * Math.PI * di ^ 2 / 4)
+                Ret = rhoc * vt * di / muc
+                Prt = muc * CPC / kc * 1000
+            Else
+                'hot
+                vt = Wh / (rhoh * nt * Math.PI * di ^ 2 / 4)
+                Ret = rhoh * vt * di / muh
+                Prt = muh * CPH / kh * 1000
+            End If
+
+            IObj?.Paragraphs.Add("<mi>Re_{tube}</mi> = " & Ret)
+            IObj?.Paragraphs.Add("<mi>Pr_{tube}</mi> = " & Prt)
+
+            'calcular DeltaP
+
+            Dim dpt, dps As Double
+            'tube
+            dpt = 0.0#
+            Dim fric As Double = 0
+            Dim epsilon As Double = STProperties.Tube_Roughness / 1000
+            If Ret > 3250 Then
+                Dim a1 = Math.Log(((epsilon / di) ^ 1.1096) / 2.8257 + (7.149 / Ret) ^ 0.8961) / Math.Log(10.0#)
+                Dim b1 = -2 * Math.Log((epsilon / di) / 3.7065 - 5.0452 * a1 / Ret) / Math.Log(10.0#)
+                fric = (1 / b1) ^ 2
+            Else
+                fric = 64 / Ret
+            End If
+            Dim fric_dp As Double = fric * STProperties.Tube_Scaling_FricCorrFactor
+            If STProperties.Tube_Fluid = 0 Then
+                'cold
+                dpt = fric_dp * L * STProperties.Tube_PassesPerShell / di * vt ^ 2 / 2 * rhoc
+            Else
+                'hot
+                dpt = fric_dp * L * STProperties.Tube_PassesPerShell / di * vt ^ 2 / 2 * rhoh
+            End If
+
+            IObj?.Paragraphs.Add("<mi>\Delta P_{tube}</mi> = " & dpt & " Pa")
+
+            'tube heat transfer coeff (uses uncorrected friction factor)
+            If STProperties.Tube_Fluid = 0 Then
+                'cold
+                hi = kc / di * (fric / 8) * Ret * Prt / (1.07 + 12.7 * (fric / 8) ^ 0.5 * (Prt ^ (2 / 3) - 1))
+            Else
+                'hot
+                hi = kh / di * (fric / 8) * Ret * Prt / (1.07 + 12.7 * (fric / 8) ^ 0.5 * (Prt ^ (2 / 3) - 1))
+            End If
+
+            IObj?.Paragraphs.Add("<mi>h_{int,tube}</mi> = " & hi & " W/[m2.K]")
+
+            'shell internal diameter
+            Dim Dsi, Dsf, nsc, HDi, Nb As Double
+            Select Case STProperties.Tube_Layout
+                Case 0, 1
+                    nsc = 1.1 * n ^ 0.5
+                Case 2, 3
+                    nsc = 1.19 * n ^ 0.5
+            End Select
+            Dsf = (nsc - 1) * pitch + de
+            Dsi = STProperties.Shell_Di / 1000 'Dsf / 1.075
+
+            'Dsf = Dsi / 1.075 * Dsi
+            HDi = STProperties.Shell_BaffleCut / 100
+            Nb = Math.Max(Math.Floor(L / (STProperties.Shell_BaffleSpacing / 1000)) - 1, 1)
+
+            'shell pressure drop
+            Dim Gsf, Np, Fp, Ss, Ssf, fs, Cb, Ca, Res, Prs, jh, aa, bb, cc, xx, yy, Nh, Y As Double
+            xx = Dsi / (STProperties.Shell_BaffleSpacing / 1000)
+            yy = pitch / de
+            Select Case STProperties.Tube_Layout
+                Case 0, 1
+                    aa = 0.9078565328950694
+                    bb = 0.66331106126564476
+                    cc = -4.4329764639656482
+                    Nh = aa * xx ^ bb * yy ^ cc
+                    aa = 5.3718559074820611
+                    bb = -0.33416765138071414
+                    cc = 0.7267144209289168
+                    Y = aa * xx ^ bb * yy ^ cc
+                    aa = 0.53807650470841084
+                    bb = 0.3761125784751041
+                    cc = -3.8741224386187474
+                    Np = aa * xx ^ bb * yy ^ cc
+                Case 2
+                    aa = 0.84134824361715088
+                    bb = 0.61374520485097339
+                    cc = -4.2696318466170409
+                    Nh = aa * xx ^ bb * yy ^ cc
+                    aa = 4.9901814007765743
+                    bb = -0.32437442510328618
+                    cc = 1.084850423269188
+                    Y = aa * xx ^ bb * yy ^ cc
+                    aa = 0.5502379008813062
+                    bb = 0.36559560225434834
+                    cc = -3.99041305625483
+                    Np = aa * xx ^ bb * yy ^ cc
+                Case 3
+                    aa = 0.66738654406767639
+                    bb = 0.680260033886211
+                    cc = -4.522291113086232
+                    Nh = aa * xx ^ bb * yy ^ cc
+                    aa = 4.5749169651729105
+                    bb = -0.32201759442337358
+                    cc = 1.17295183743691
+                    Y = aa * xx ^ bb * yy ^ cc
+                    aa = 0.36869631130961067
+                    bb = 0.38397859475813922
+                    cc = -3.6273465996780421
+                    Np = aa * xx ^ bb * yy ^ cc
+            End Select
+            Fp = 1 / (0.8 + Np * (Dsi / pitch) ^ 0.5)
+            Select Case STProperties.Tube_Layout
+                Case 0, 1, 2
+                    Cb = 0.97
+                Case 3
+                    Cb = 1.37
+            End Select
+            Ca = Cb * (pitch - de) / pitch
+            Ss = Ca * STProperties.Shell_BaffleSpacing / 1000 * Dsf
+            Ssf = Ss / Fp
+            'Ssf = Math.PI / 4 * (Dsi ^ 2 - nt * de ^ 2)
+            If STProperties.Shell_Fluid = 0 Then
+                'cold
+                Gsf = Wc / Ssf
+                Res = Gsf * de / muc
+                Prs = muc * CPC / kc * 1000
+            Else
+                'hot
+                Gsf = Wh / Ssf
+                Res = Gsf * de / muh
+                Prs = muh * CPH / kh * 1000
+            End If
+
+            IObj?.Paragraphs.Add("<mi>Re_{shell}</mi> = " & Res)
+            IObj?.Paragraphs.Add("<mi>Pr_{shell}</mi> = " & Prs)
+
+            Select Case STProperties.Tube_Layout
+                Case 0, 1
+                    If Res < 100 Then
+                        jh = 0.497 * Res ^ 0.54
+                    Else
+                        jh = 0.378 * Res ^ 0.59
+                    End If
+                    If pitch / de <= 1.2 Then
+                        If Res < 100 Then
+                            fs = 276.46 * Res ^ -0.979
+                        ElseIf Res < 1000 Then
+                            fs = 30.26 * Res ^ -0.523
+                        Else
+                            fs = 2.93 * Res ^ -0.186
+                        End If
+                    ElseIf pitch / de <= 1.3 Then
+                        If Res < 100 Then
+                            fs = 208.14 * Res ^ -0.945
+                        ElseIf Res < 1000 Then
+                            fs = 27.6 * Res ^ -0.525
+                        Else
+                            fs = 2.27 * Res ^ -0.163
+                        End If
+                    ElseIf pitch / de <= 1.4 Then
+                        If Res < 100 Then
+                            fs = 122.73 * Res ^ -0.865
+                        ElseIf Res < 1000 Then
+                            fs = 17.82 * Res ^ -0.474
+                        Else
+                            fs = 1.86 * Res ^ -0.146
+                        End If
+                    ElseIf pitch / de <= 1.5 Then
+                        If Res < 100 Then
+                            fs = 104.33 * Res ^ -0.869
+                        ElseIf Res < 1000 Then
+                            fs = 12.69 * Res ^ -0.434
+                        Else
+                            fs = 1.526 * Res ^ -0.129
+                        End If
+                    Else
+                        Throw New Exception(String.Format("The ratio between tube spacing and tube external diameter needs to be less than or equal to 1.5 (current value: {0})", pitch / de))
+                    End If
+                Case 2, 3
+                    If Res < 100 Then
+                        If STProperties.Tube_Layout = 2 Then
+                            jh = 0.385 * Res ^ 0.526
+                        Else
+                            jh = 0.496 * Res ^ 0.54
+                        End If
+                    Else
+                        If STProperties.Tube_Layout = 2 Then
+                            jh = 0.2487 * Res ^ 0.625
+                        Else
+                            jh = 0.354 * Res ^ 0.61
+                        End If
+                    End If
+                    If pitch / de <= 1.2 Then
+                        If Res < 100 Then
+                            fs = 230 * Res ^ -1
+                        ElseIf Res < 1000 Then
+                            fs = 16.23 * Res ^ -0.43
+                        Else
+                            fs = 2.67 * Res ^ -0.173
+                        End If
+                    ElseIf pitch / de <= 1.3 Then
+                        If Res < 100 Then
+                            fs = 142.22 * Res ^ -0.949
+                        ElseIf Res < 1000 Then
+                            fs = 11.93 * Res ^ -0.43
+                        Else
+                            fs = 1.77 * Res ^ -0.144
+                        End If
+                    ElseIf pitch / de <= 1.4 Then
+                        If Res < 100 Then
+                            fs = 110.77 * Res ^ -0.965
+                        ElseIf Res < 1000 Then
+                            fs = 7.524 * Res ^ -0.4
+                        Else
+                            fs = 1.01 * Res ^ -0.104
+                        End If
+                    ElseIf pitch / de <= 1.5 Then
+                        If Res < 100 Then
+                            fs = 58.18 * Res ^ -0.862
+                        ElseIf Res < 1000 Then
+                            fs = 6.76 * Res ^ -0.411
+                        Else
+                            fs = 0.718 * Res ^ -0.008
+                        End If
+                    Else
+                        Throw New Exception(String.Format("The ratio between tube spacing and tube external diameter needs to be less than or equal to 1.5 (current value: {0})", pitch / de))
+                    End If
+            End Select
+
+            'Cx
+            Dim Cx As Double = 0
+            Select Case STProperties.Tube_Layout
+                Case 0, 1
+                    Cx = 1.154
+                Case 2
+                    Cx = 1.0#
+                Case 3
+                    Cx = 1.414
+            End Select
+            Dim Gsh, Ssh, Fh, Rsh, dis As Double
+            If STProperties.Shell_Fluid = 0 Then
+                dps = 4 * fs * Gsf ^ 2 / (2 * rhoc) * Cx * (1 - HDi) * Dsi / pitch * Nb * (1 + Y * pitch / Dsi)
+            Else
+                dps = 4 * fs * Gsf ^ 2 / (2 * rhoh) * Cx * (1 - HDi) * Dsi / pitch * Nb * (1 + Y * pitch / Dsi)
+            End If
+            dps *= Nc
+
+            IObj?.Paragraphs.Add("<mi>\Delta P_{shell}</mi> = " & dps & " Pa")
+
+            'shell htc
+
+            Dim M As Double = 0.96#
+            dis = STProperties.Shell_Di / 1000
+            Fh = 1 / (1 + Nh * (dis / pitch) ^ 0.5)
+            Ssh = Ss * M / Fh
+            'Ssh = Math.PI / 4 * (Dsi ^ 2 - nt * de ^ 2)
+            If STProperties.Shell_Fluid = 0 Then
+                Gsh = Wc / Ssh
+                Rsh = Gsh * de / muc
+            Else
+                Gsh = Wh / Ssh
+                Rsh = Gsh * de / muh
+            End If
+            Dim Ec, lb, he As Double
+            Select Case STProperties.Tube_Layout
+                Case 0, 1
+                    If Rsh < 100 Then
+                        jh = 0.497 * Rsh ^ 0.54
+                    Else
+                        jh = 0.378 * Rsh ^ 0.61
+                    End If
+                Case 2, 3
+                    If Rsh < 100 Then
+                        jh = 0.385 * Rsh ^ 0.526
+                    Else
+                        jh = 0.2487 * Rsh ^ 0.625
+                    End If
+            End Select
+            If STProperties.Shell_Fluid = 0 Then
+                he = jh * kc * Prs ^ 0.34 / de
+            Else
+                he = jh * kh * Prs ^ 0.34 / de
+            End If
+            Dim Bs As Double = STProperties.Shell_BaffleSpacing / 1000
+            lb = Bs * (Nb - 1)
+            If L - lb > 0 Then
+                Ec = (lb + (L - lb) * (2 * Bs / (L - lb)) ^ 0.6) / L
+            Else
+                Ec = 1.0
+            End If
+            If Double.IsNaN(Ec) OrElse Ec <= 0 OrElse Ec > 1 Then Ec = 1.0
+            he *= Ec
+
+            IObj?.Paragraphs.Add("<mi>h_{ext,shell}</mi> = " & he & " W/[m2.K]")
+
+            'global HTC (U)
+            Dim kt As Double = STProperties.Tube_ThermalConductivity
+            Dim f1, f2, f3, f4, f5 As Double
+            f1 = de / (hi * di)
+            f2 = rt * de / di
+            f3 = de / (2 * kt) * Math.Log(de / di)
+            f4 = rs
+            f5 = 1 / he
+
+            Return New STTerms With {.A = A, .dpt = dpt, .dps = dps, .f1 = f1, .f2 = f2, .f3 = f3, .f4 = f4, .f5 = f5,
+                                     .Res = Res, .Ret = Ret, .Ssf = Ssf, .Gsf = Gsf, .vt = vt}
+
+        End Function
+
         Public Overrides Sub Calculate(Optional ByVal args As Object = Nothing)
 
             Dim IObj As Inspector.InspectorItem = Inspector.Host.GetNewInspectorItem()
@@ -2577,41 +3002,12 @@ Namespace UnitOperations
 
                         If Not IgnoreLMTDError Then If Double.IsNaN(LMTD) Or Double.IsInfinity(LMTD) Then Throw New Exception(FlowSheet.GetTranslatedString("HXCalcError"))
 
-                        If STProperties.Tube_Fluid = 0 Then
-                            'cold
-                            R = (Th1 - Th2) / (Tc2 - Tc1)
-                            P = (Tc2 - Tc1) / (Th1 - Tc1)
-                        Else
-                            'hot
-                            R = (Tc1 - Tc2) / (Th2 - Th1)
-                            P = (Th2 - Th1) / (Tc1 - Th1)
-                        End If
+                        Fant = F
+                        F = STCorrectionFactor(Tc1, Tc2, Th1, Th2, Fant, R, P)
 
                         IObj?.Paragraphs.Add("<mi>R</mi> = " & R)
                         IObj?.Paragraphs.Add("<mi>P</mi> = " & P)
 
-                        Fant = F
-
-                        ' The correction factor is the one for N shell passes in series. Two shells
-                        ' in series count as two, which is the reason for putting them in series
-                        ' when the streams cross; only the passes inside one shell were counted
-                        ' before, so the arrangement made no difference to F.
-                        Dim Nsp As Double = Math.Max(1.0, Me.STProperties.Shell_NumberOfShellsInSeries *
-                                                          Me.STProperties.Shell_NumberOfPasses)
-
-                        If R <> 1.0# Then
-                            Dim alpha As Double
-                            alpha = ((1 - R * P) / (1 - P)) ^ (1 / Nsp)
-                            Sf = (alpha - 1) / (alpha - R)
-                            F = (R ^ 2 + 1) ^ 0.5 * Math.Log((1 - Sf) / (1 - R * Sf)) / ((R - 1) * Math.Log((2 - Sf * (R + 1 - (R ^ 2 + 1) ^ 0.5)) / (2 - Sf * (R + 1 + (R ^ 2 + 1) ^ 0.5))))
-                        Else
-                            Sf = P / (Nsp * (1 - P) + P)
-                            F = Sf * 2 ^ 0.5 / ((1 - Sf) * Math.Log((2 * (1 - Sf) + Sf * 2 ^ 0.5) / (2 * (1 - Sf) - Sf * 2 ^ 0.5)))
-                        End If
-                        If Double.IsNaN(F) Then
-                            F = Fant
-                            'Throw New Exception("LMTD correction factor 'F'  could not be calculated. R = " & R & ", S = " & Sf)
-                        End If
                         DTm = F * LMTD
                         '3
                         Tcm = (Tc2 - Tc1) / 2 + Tc1
@@ -2628,396 +3024,22 @@ Namespace UnitOperations
                         StInCold.PropertyPackage.CurrentMaterialStream = StInCold
                         IObj?.SetCurrent()
                         Dim tmp = StInCold.PropertyPackage.CalculateEquilibrium2(FlashCalculationType.PressureTemperature, Pc2, Tc2, 0)
-                        Dim tms As MaterialStream = StInCold.Clone
-                        tms.SetFlowsheet(StInCold.FlowSheet)
-                        tms.Phases(0).Properties.temperature = Tcm
-                        With tms.PropertyPackage
-                            .CurrentMaterialStream = tms
-                            IObj?.SetCurrent()
-                            .DW_CalcEquilibrium(PropertyPackages.FlashSpec.T, PropertyPackages.FlashSpec.P)
-                            If tms.Phases(3).Properties.molarfraction.GetValueOrDefault > 0 Then
-                                IObj?.SetCurrent()
-                                .DW_CalcPhaseProps(PropertyPackages.Phase.Liquid1)
-                            Else
-                                .DW_ZerarPhaseProps(PropertyPackages.Phase.Liquid1)
-                            End If
-                            If tms.Phases(2).Properties.molarfraction.GetValueOrDefault > 0 Then
-                                IObj?.SetCurrent()
-                                .DW_CalcPhaseProps(PropertyPackages.Phase.Vapor)
-                            Else
-                                .DW_ZerarPhaseProps(PropertyPackages.Phase.Vapor)
-                            End If
-                            If tms.Phases(2).Properties.molarfraction.GetValueOrDefault >= 0 And tms.Phases(2).Properties.molarfraction.GetValueOrDefault <= 1 Then
-                                IObj?.SetCurrent()
-                                .DW_CalcPhaseProps(PropertyPackages.Phase.Liquid)
-                            Else
-                                .DW_ZerarPhaseProps(PropertyPackages.Phase.Liquid)
-                            End If
-                            IObj?.SetCurrent()
-                            tms.PropertyPackage.DW_CalcPhaseProps(PropertyPackages.Phase.Mixture)
-                        End With
-                        rhoc = tms.Phases(0).Properties.density.GetValueOrDefault
-                        CPC = tms.Phases(0).Properties.heatCapacityCp.GetValueOrDefault
-                        kc = tms.Phases(0).Properties.thermalConductivity.GetValueOrDefault
-                        muc = tms.Phases(0).Properties.viscosity.GetValueOrDefault
-                        tms = StInHot.Clone
-                        tms.SetFlowsheet(StInHot.FlowSheet)
-                        tms.Phases(0).Properties.temperature = Thm
-                        tms.PropertyPackage.CurrentMaterialStream = tms
-                        With tms.PropertyPackage
-                            .CurrentMaterialStream = tms
-                            IObj?.SetCurrent()
-                            .DW_CalcEquilibrium(PropertyPackages.FlashSpec.T, PropertyPackages.FlashSpec.P)
-                            If tms.Phases(3).Properties.molarfraction.GetValueOrDefault > 0 Then
-                                IObj?.SetCurrent()
-                                .DW_CalcPhaseProps(PropertyPackages.Phase.Liquid1)
-                            Else
-                                .DW_ZerarPhaseProps(PropertyPackages.Phase.Liquid1)
-                            End If
-                            If tms.Phases(2).Properties.molarfraction.GetValueOrDefault > 0 Then
-                                IObj?.SetCurrent()
-                                .DW_CalcPhaseProps(PropertyPackages.Phase.Vapor)
-                            Else
-                                .DW_ZerarPhaseProps(PropertyPackages.Phase.Vapor)
-                            End If
-                            If tms.Phases(2).Properties.molarfraction.GetValueOrDefault >= 0 And tms.Phases(2).Properties.molarfraction.GetValueOrDefault <= 1 Then
-                                IObj?.SetCurrent()
-                                .DW_CalcPhaseProps(PropertyPackages.Phase.Liquid)
-                            Else
-                                .DW_ZerarPhaseProps(PropertyPackages.Phase.Liquid)
-                            End If
-                            IObj?.SetCurrent()
-                            tms.PropertyPackage.DW_CalcPhaseProps(PropertyPackages.Phase.Mixture)
-                        End With
-                        rhoh = tms.Phases(0).Properties.density.GetValueOrDefault
-                        CPH = tms.Phases(0).Properties.heatCapacityCp.GetValueOrDefault
-                        kh = tms.Phases(0).Properties.thermalConductivity.GetValueOrDefault
-                        muh = tms.Phases(0).Properties.viscosity.GetValueOrDefault
+                        Dim stProps = STMeanProperties(StInCold, Tcm, IObj)
+                        rhoc = stProps(0) : CPC = stProps(1) : kc = stProps(2) : muc = stProps(3)
+                        stProps = STMeanProperties(StInHot, Thm, IObj)
+                        rhoh = stProps(0) : CPH = stProps(1) : kh = stProps(2) : muh = stProps(3)
 
                         '6
 
-                        rs = Me.STProperties.Shell_Fouling
-                        rt = Me.STProperties.Tube_Fouling
-                        Nc = STProperties.Shell_NumberOfShellsInSeries
-                        de = STProperties.Tube_De / 1000
-                        di = STProperties.Tube_Di / 1000
-                        L = STProperties.Tube_Length
-                        pitch = STProperties.Tube_Pitch / 1000
-                        n = STProperties.Tube_NumberPerShell
-                        nt = n / STProperties.Tube_PassesPerShell
-                        ' the tube count is per shell, so the shells in series multiply the area, the
-                        ' same way the geometry report does it
-                        A = n * Nc * Math.PI * de * (L - 2 * de)
-
-                        If pitch < de Then Throw New Exception("Invalid input: tube spacing (pitch) is smaller than the tube's external diameter.")
-
+                        Dim stTerms = STCorrelations(rhoc, CPC, kc, muc, rhoh, CPH, kh, muh, Wc, Wh, IObj)
+                        A = stTerms.A
                         If CalculationMode = HeatExchangerCalcMode.ShellandTube_CalcFoulingFactor Then
                             Ud = Q * 1000 / (A * DTm)
                         End If
-                        If STProperties.Tube_Fluid = 0 Then
-                            'cold
-                            vt = Wc / (rhoc * nt * Math.PI * di ^ 2 / 4)
-                            Ret = rhoc * vt * di / muc
-                            Prt = muc * CPC / kc * 1000
-                        Else
-                            'hot
-                            vt = Wh / (rhoh * nt * Math.PI * di ^ 2 / 4)
-                            Ret = rhoh * vt * di / muh
-                            Prt = muh * CPH / kh * 1000
-                        End If
+                        vt = stTerms.vt : Ret = stTerms.Ret
+                        Dim dpt = stTerms.dpt, dps = stTerms.dps, Res = stTerms.Res, Ssf = stTerms.Ssf, Gsf = stTerms.Gsf
+                        Dim f1 = stTerms.f1, f2 = stTerms.f2, f3 = stTerms.f3, f4 = stTerms.f4, f5 = stTerms.f5
 
-                        IObj?.Paragraphs.Add("<mi>Re_{tube}</mi> = " & Ret)
-                        IObj?.Paragraphs.Add("<mi>Pr_{tube}</mi> = " & Prt)
-
-                        'calcular DeltaP
-
-                        Dim dpt, dps As Double
-                        'tube
-                        dpt = 0.0#
-                        Dim fric As Double = 0
-                        Dim epsilon As Double = STProperties.Tube_Roughness / 1000
-                        If Ret > 3250 Then
-                            Dim a1 = Math.Log(((epsilon / di) ^ 1.1096) / 2.8257 + (7.149 / Ret) ^ 0.8961) / Math.Log(10.0#)
-                            Dim b1 = -2 * Math.Log((epsilon / di) / 3.7065 - 5.0452 * a1 / Ret) / Math.Log(10.0#)
-                            fric = (1 / b1) ^ 2
-                        Else
-                            fric = 64 / Ret
-                        End If
-                        Dim fric_dp As Double = fric * STProperties.Tube_Scaling_FricCorrFactor
-                        If STProperties.Tube_Fluid = 0 Then
-                            'cold
-                            dpt = fric_dp * L * STProperties.Tube_PassesPerShell / di * vt ^ 2 / 2 * rhoc
-                        Else
-                            'hot
-                            dpt = fric_dp * L * STProperties.Tube_PassesPerShell / di * vt ^ 2 / 2 * rhoh
-                        End If
-
-                        IObj?.Paragraphs.Add("<mi>\Delta P_{tube}</mi> = " & dpt & " Pa")
-
-                        'tube heat transfer coeff (uses uncorrected friction factor)
-                        If STProperties.Tube_Fluid = 0 Then
-                            'cold
-                            hi = kc / di * (fric / 8) * Ret * Prt / (1.07 + 12.7 * (fric / 8) ^ 0.5 * (Prt ^ (2 / 3) - 1))
-                        Else
-                            'hot
-                            hi = kh / di * (fric / 8) * Ret * Prt / (1.07 + 12.7 * (fric / 8) ^ 0.5 * (Prt ^ (2 / 3) - 1))
-                        End If
-
-                        IObj?.Paragraphs.Add("<mi>h_{int,tube}</mi> = " & hi & " W/[m2.K]")
-
-                        'shell internal diameter
-                        Dim Dsi, Dsf, nsc, HDi, Nb As Double
-                        Select Case STProperties.Tube_Layout
-                            Case 0, 1
-                                nsc = 1.1 * n ^ 0.5
-                            Case 2, 3
-                                nsc = 1.19 * n ^ 0.5
-                        End Select
-                        Dsf = (nsc - 1) * pitch + de
-                        Dsi = STProperties.Shell_Di / 1000 'Dsf / 1.075
-
-                        'Dsf = Dsi / 1.075 * Dsi
-                        HDi = STProperties.Shell_BaffleCut / 100
-                        Nb = Math.Max(Math.Floor(L / (STProperties.Shell_BaffleSpacing / 1000)) - 1, 1)
-
-                        'shell pressure drop
-                        Dim Gsf, Np, Fp, Ss, Ssf, fs, Cb, Ca, Res, Prs, jh, aa, bb, cc, xx, yy, Nh, Y As Double
-                        xx = Dsi / (STProperties.Shell_BaffleSpacing / 1000)
-                        yy = pitch / de
-                        Select Case STProperties.Tube_Layout
-                            Case 0, 1
-                                aa = 0.9078565328950694
-                                bb = 0.66331106126564476
-                                cc = -4.4329764639656482
-                                Nh = aa * xx ^ bb * yy ^ cc
-                                aa = 5.3718559074820611
-                                bb = -0.33416765138071414
-                                cc = 0.7267144209289168
-                                Y = aa * xx ^ bb * yy ^ cc
-                                aa = 0.53807650470841084
-                                bb = 0.3761125784751041
-                                cc = -3.8741224386187474
-                                Np = aa * xx ^ bb * yy ^ cc
-                            Case 2
-                                aa = 0.84134824361715088
-                                bb = 0.61374520485097339
-                                cc = -4.2696318466170409
-                                Nh = aa * xx ^ bb * yy ^ cc
-                                aa = 4.9901814007765743
-                                bb = -0.32437442510328618
-                                cc = 1.084850423269188
-                                Y = aa * xx ^ bb * yy ^ cc
-                                aa = 0.5502379008813062
-                                bb = 0.36559560225434834
-                                cc = -3.99041305625483
-                                Np = aa * xx ^ bb * yy ^ cc
-                            Case 3
-                                aa = 0.66738654406767639
-                                bb = 0.680260033886211
-                                cc = -4.522291113086232
-                                Nh = aa * xx ^ bb * yy ^ cc
-                                aa = 4.5749169651729105
-                                bb = -0.32201759442337358
-                                cc = 1.17295183743691
-                                Y = aa * xx ^ bb * yy ^ cc
-                                aa = 0.36869631130961067
-                                bb = 0.38397859475813922
-                                cc = -3.6273465996780421
-                                Np = aa * xx ^ bb * yy ^ cc
-                        End Select
-                        Fp = 1 / (0.8 + Np * (Dsi / pitch) ^ 0.5)
-                        Select Case STProperties.Tube_Layout
-                            Case 0, 1, 2
-                                Cb = 0.97
-                            Case 3
-                                Cb = 1.37
-                        End Select
-                        Ca = Cb * (pitch - de) / pitch
-                        Ss = Ca * STProperties.Shell_BaffleSpacing / 1000 * Dsf
-                        Ssf = Ss / Fp
-                        'Ssf = Math.PI / 4 * (Dsi ^ 2 - nt * de ^ 2)
-                        If STProperties.Shell_Fluid = 0 Then
-                            'cold
-                            Gsf = Wc / Ssf
-                            Res = Gsf * de / muc
-                            Prs = muc * CPC / kc * 1000
-                        Else
-                            'hot
-                            Gsf = Wh / Ssf
-                            Res = Gsf * de / muh
-                            Prs = muh * CPH / kh * 1000
-                        End If
-
-                        IObj?.Paragraphs.Add("<mi>Re_{shell}</mi> = " & Res)
-                        IObj?.Paragraphs.Add("<mi>Pr_{shell}</mi> = " & Prs)
-
-                        Select Case STProperties.Tube_Layout
-                            Case 0, 1
-                                If Res < 100 Then
-                                    jh = 0.497 * Res ^ 0.54
-                                Else
-                                    jh = 0.378 * Res ^ 0.59
-                                End If
-                                If pitch / de <= 1.2 Then
-                                    If Res < 100 Then
-                                        fs = 276.46 * Res ^ -0.979
-                                    ElseIf Res < 1000 Then
-                                        fs = 30.26 * Res ^ -0.523
-                                    Else
-                                        fs = 2.93 * Res ^ -0.186
-                                    End If
-                                ElseIf pitch / de <= 1.3 Then
-                                    If Res < 100 Then
-                                        fs = 208.14 * Res ^ -0.945
-                                    ElseIf Res < 1000 Then
-                                        fs = 27.6 * Res ^ -0.525
-                                    Else
-                                        fs = 2.27 * Res ^ -0.163
-                                    End If
-                                ElseIf pitch / de <= 1.4 Then
-                                    If Res < 100 Then
-                                        fs = 122.73 * Res ^ -0.865
-                                    ElseIf Res < 1000 Then
-                                        fs = 17.82 * Res ^ -0.474
-                                    Else
-                                        fs = 1.86 * Res ^ -0.146
-                                    End If
-                                ElseIf pitch / de <= 1.5 Then
-                                    If Res < 100 Then
-                                        fs = 104.33 * Res ^ -0.869
-                                    ElseIf Res < 1000 Then
-                                        fs = 12.69 * Res ^ -0.434
-                                    Else
-                                        fs = 1.526 * Res ^ -0.129
-                                    End If
-                                Else
-                                    Throw New Exception(String.Format("The ratio between tube spacing and tube external diameter needs to be less than or equal to 1.5 (current value: {0})", pitch / de))
-                                End If
-                            Case 2, 3
-                                If Res < 100 Then
-                                    If STProperties.Tube_Layout = 2 Then
-                                        jh = 0.385 * Res ^ 0.526
-                                    Else
-                                        jh = 0.496 * Res ^ 0.54
-                                    End If
-                                Else
-                                    If STProperties.Tube_Layout = 2 Then
-                                        jh = 0.2487 * Res ^ 0.625
-                                    Else
-                                        jh = 0.354 * Res ^ 0.61
-                                    End If
-                                End If
-                                If pitch / de <= 1.2 Then
-                                    If Res < 100 Then
-                                        fs = 230 * Res ^ -1
-                                    ElseIf Res < 1000 Then
-                                        fs = 16.23 * Res ^ -0.43
-                                    Else
-                                        fs = 2.67 * Res ^ -0.173
-                                    End If
-                                ElseIf pitch / de <= 1.3 Then
-                                    If Res < 100 Then
-                                        fs = 142.22 * Res ^ -0.949
-                                    ElseIf Res < 1000 Then
-                                        fs = 11.93 * Res ^ -0.43
-                                    Else
-                                        fs = 1.77 * Res ^ -0.144
-                                    End If
-                                ElseIf pitch / de <= 1.4 Then
-                                    If Res < 100 Then
-                                        fs = 110.77 * Res ^ -0.965
-                                    ElseIf Res < 1000 Then
-                                        fs = 7.524 * Res ^ -0.4
-                                    Else
-                                        fs = 1.01 * Res ^ -0.104
-                                    End If
-                                ElseIf pitch / de <= 1.5 Then
-                                    If Res < 100 Then
-                                        fs = 58.18 * Res ^ -0.862
-                                    ElseIf Res < 1000 Then
-                                        fs = 6.76 * Res ^ -0.411
-                                    Else
-                                        fs = 0.718 * Res ^ -0.008
-                                    End If
-                                Else
-                                    Throw New Exception(String.Format("The ratio between tube spacing and tube external diameter needs to be less than or equal to 1.5 (current value: {0})", pitch / de))
-                                End If
-                        End Select
-
-                        'Cx
-                        Dim Cx As Double = 0
-                        Select Case STProperties.Tube_Layout
-                            Case 0, 1
-                                Cx = 1.154
-                            Case 2
-                                Cx = 1.0#
-                            Case 3
-                                Cx = 1.414
-                        End Select
-                        Dim Gsh, Ssh, Fh, Rsh, dis As Double
-                        If STProperties.Shell_Fluid = 0 Then
-                            dps = 4 * fs * Gsf ^ 2 / (2 * rhoc) * Cx * (1 - HDi) * Dsi / pitch * Nb * (1 + Y * pitch / Dsi)
-                        Else
-                            dps = 4 * fs * Gsf ^ 2 / (2 * rhoh) * Cx * (1 - HDi) * Dsi / pitch * Nb * (1 + Y * pitch / Dsi)
-                        End If
-                        dps *= Nc
-
-                        IObj?.Paragraphs.Add("<mi>\Delta P_{shell}</mi> = " & dps & " Pa")
-
-                        'shell htc
-
-                        Dim M As Double = 0.96#
-                        dis = STProperties.Shell_Di / 1000
-                        Fh = 1 / (1 + Nh * (dis / pitch) ^ 0.5)
-                        Ssh = Ss * M / Fh
-                        'Ssh = Math.PI / 4 * (Dsi ^ 2 - nt * de ^ 2)
-                        If STProperties.Shell_Fluid = 0 Then
-                            Gsh = Wc / Ssh
-                            Rsh = Gsh * de / muc
-                        Else
-                            Gsh = Wh / Ssh
-                            Rsh = Gsh * de / muh
-                        End If
-                        Dim Ec, lb, he As Double
-                        Select Case STProperties.Tube_Layout
-                            Case 0, 1
-                                If Rsh < 100 Then
-                                    jh = 0.497 * Rsh ^ 0.54
-                                Else
-                                    jh = 0.378 * Rsh ^ 0.61
-                                End If
-                            Case 2, 3
-                                If Rsh < 100 Then
-                                    jh = 0.385 * Rsh ^ 0.526
-                                Else
-                                    jh = 0.2487 * Rsh ^ 0.625
-                                End If
-                        End Select
-                        If STProperties.Shell_Fluid = 0 Then
-                            he = jh * kc * Prs ^ 0.34 / de
-                        Else
-                            he = jh * kh * Prs ^ 0.34 / de
-                        End If
-                        Dim Bs As Double = STProperties.Shell_BaffleSpacing / 1000
-                        lb = Bs * (Nb - 1)
-                        If L - lb > 0 Then
-                            Ec = (lb + (L - lb) * (2 * Bs / (L - lb)) ^ 0.6) / L
-                        Else
-                            Ec = 1.0
-                        End If
-                        If Double.IsNaN(Ec) OrElse Ec <= 0 OrElse Ec > 1 Then Ec = 1.0
-                        he *= Ec
-
-                        IObj?.Paragraphs.Add("<mi>h_{ext,shell}</mi> = " & he & " W/[m2.K]")
-
-                        'global HTC (U)
-                        Dim kt As Double = STProperties.Tube_ThermalConductivity
-                        Dim f1, f2, f3, f4, f5 As Double
-                        f1 = de / (hi * di)
-                        f2 = rt * de / di
-                        f3 = de / (2 * kt) * Math.Log(de / di)
-                        f4 = rs
-                        f5 = 1 / he
                         If CalculationMode = HeatExchangerCalcMode.ShellandTube_CalcFoulingFactor Then
                             Ur = f1 + f3 + f5
                             Ur = 1 / Ur

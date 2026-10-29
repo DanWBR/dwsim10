@@ -1435,7 +1435,10 @@ Namespace UnitOperations
         ''' the lesser of the cold side's at the hot inlet's temperature and the hot side's at the cold inlet's, each at its
         ''' outlet pressure (co-current: where the outlets meet, at the inlet pressures). At a pinch the smallest difference between the two sides' temperature profiles, 26 points each
         ''' by PH flashes along the heat as the unit makes them, is the minimum approach. In co-current the largest heat is
-        ''' where the two outlets meet at one temperature. The shell and tube modes take the exchanger as a black box.
+        ''' where the two outlets meet at one temperature. In shell and tube rating each side's outlet pressure is its inlet's
+        ''' less the pressure drop of the side it flows in, and the heat load is U A F LMTD (at most the largest heat), U and
+        ''' the drops from the unit's correlations at each side's properties at its mean temperature, differenced; the
+        ''' fouling factor mode sets both outlet temperatures, its pressures as the rating's.
         ''' </summary>
         Public Overrides ReadOnly Property EOHasEquations As Boolean
             Get
@@ -1443,7 +1446,8 @@ Namespace UnitOperations
                     Case HeatExchangerCalcMode.CalcTempHotOut, HeatExchangerCalcMode.CalcTempColdOut,
                          HeatExchangerCalcMode.CalcBothTemp, HeatExchangerCalcMode.CalcBothTemp_UA,
                          HeatExchangerCalcMode.OutletVaporFraction1, HeatExchangerCalcMode.OutletVaporFraction2,
-                         HeatExchangerCalcMode.CalcArea, HeatExchangerCalcMode.PinchPoint, HeatExchangerCalcMode.ThermalEfficiency
+                         HeatExchangerCalcMode.CalcArea, HeatExchangerCalcMode.PinchPoint, HeatExchangerCalcMode.ThermalEfficiency,
+                         HeatExchangerCalcMode.ShellandTube_Rating, HeatExchangerCalcMode.ShellandTube_CalcFoulingFactor
                         Dim g = GraphicObject
                         Return g.InputConnectors(0).IsAttached AndAlso g.InputConnectors(1).IsAttached AndAlso
                                g.OutputConnectors(0).IsAttached AndAlso g.OutputConnectors(1).IsAttached
@@ -1474,6 +1478,8 @@ Namespace UnitOperations
 
         Public Overrides Function EOParameters() As String()
             If Not EOHasEquations Then Return MyBase.EOParameters()
+            If CalcMode = HeatExchangerCalcMode.ShellandTube_Rating Then Return {"PROP_HX_28"}
+            If CalcMode = HeatExchangerCalcMode.ShellandTube_CalcFoulingFactor Then Return {"PROP_HX_3", "PROP_HX_4"}
             Dim common = {"PROP_HX_28", "PROP_HX_32", "PROP_HX_33"}
             Select Case EOCalcMode
                 Case HeatExchangerCalcMode.ThermalEfficiency : Return common.Concat({"PROP_HX_25"}).ToArray()
@@ -1615,6 +1621,45 @@ Namespace UnitOperations
             Return qh
         End Function
 
+        Private ReadOnly Property EOShellAndTube As Boolean
+            Get
+                Return CalcMode = HeatExchangerCalcMode.ShellandTube_Rating OrElse CalcMode = HeatExchangerCalcMode.ShellandTube_CalcFoulingFactor
+            End Get
+        End Property
+
+        ''' <summary>The density, heat capacity, conductivity and viscosity of a side's inlet fluid at the temperature Tm, as the rating takes them, and its mass flow.</summary>
+        Private Function EOMeanProperties(context As IEquationOrientedContext, x As Double(), inlet As Integer, Tm As Double) As Double()
+            Dim name = Me.Name & " mean properties " & Tm.ToString("R", Globalization.CultureInfo.InvariantCulture)
+            Return context.StreamProperties(inlet, x, name,
+                Function(ms)
+                    Dim pr = STMeanProperties(DirectCast(ms, DWSIM.Thermodynamics.Streams.MaterialStream), Tm, Nothing)
+                    Return {pr(0), pr(1), pr(2), pr(3), ms.GetMassFlow()}
+                End Function)
+        End Function
+
+        ''' <summary>
+        ''' The shell and tube rating at x, as one pass of the unit's iteration makes it: the heat load U A F LMTD (kW) and
+        ''' the cold and hot sides' pressure drops (Pa), from each side's properties at its mean temperature.
+        ''' </summary>
+        Private Function EOShellTube(context As IEquationOrientedContext, x As Double(), ci As Integer, co As Integer, hi As Integer, ho As Integer) As Double()
+            Dim Tc1 = x(ci), Tc2 = x(co), Th1 = x(hi), Th2 = x(ho)
+            Dim pc = EOMeanProperties(context, x, ci, (Tc1 + Tc2) / 2)
+            Dim ph = EOMeanProperties(context, x, hi, (Th1 + Th2) / 2)
+            Dim terms = STCorrelations(pc(0), pc(1), pc(2), pc(3), ph(0), ph(1), ph(2), ph(3), pc(4), ph(4), Nothing)
+            Dim R, P As Double
+            Dim F = STCorrectionFactor(Tc1, Tc2, Th1, Th2, 1.0, R, P)
+            Dim a, b As Double
+            If FlowDir = FlowDirection.CoCurrent Then
+                a = Th1 - Tc1 : b = Th2 - Tc2
+            Else
+                a = Th1 - Tc2 : b = Th2 - Tc1
+            End If
+            Dim lm = If(Math.Abs(a - b) < 0.000000001 * Math.Max(Math.Abs(a), 1.0), a, (a - b) / Math.Log(a / b)) * CorrectionFactorLMTD
+            Dim U = 1.0 / (terms.f1 + terms.f2 + terms.f3 + terms.f4 + terms.f5)
+            Dim shellCold = STProperties.Shell_Fluid = 0
+            Return {U * terms.A * F * lm / 1000.0, If(shellCold, terms.dps, terms.dpt), If(shellCold, terms.dpt, terms.dps)}
+        End Function
+
         ''' <summary>
         ''' The largest heat (kW) a co-current exchanger can move, as the unit takes it: the heat at which the two outlets
         ''' meet at one temperature T*, each side at its inlet pressure. T* is the root of what the hot side gives less what
@@ -1726,13 +1771,30 @@ Namespace UnitOperations
                 Next
             Next
             Dim tp = context.PressureTolerance
-            r(k) = (x(co + 1) - (x(ci + 1) - EOParameterValue(context, x, "PROP_HX_32", ColdSidePressureDrop))) / tp : k += 1
-            r(k) = (x(ho + 1) - (x(hi + 1) - EOParameterValue(context, x, "PROP_HX_33", HotSidePressureDrop))) / tp : k += 1
+            Dim stq As Double() = Nothing
+            If EOShellAndTube Then
+                ' the drop of the side each fluid flows in
+                stq = EOShellTube(context, x, ci, co, hi, ho)
+                r(k) = (x(co + 1) - (x(ci + 1) - stq(1))) / tp : k += 1
+                r(k) = (x(ho + 1) - (x(hi + 1) - stq(2))) / tp : k += 1
+            Else
+                r(k) = (x(co + 1) - (x(ci + 1) - EOParameterValue(context, x, "PROP_HX_32", ColdSidePressureDrop))) / tp : k += 1
+                r(k) = (x(ho + 1) - (x(hi + 1) - EOParameterValue(context, x, "PROP_HX_33", HotSidePressureDrop))) / tp : k += 1
+            End If
             Dim te = context.EnergyTolerance(co) + context.EnergyTolerance(ho)
             Dim dHc = context.Enthalpy(co, x) - context.Enthalpy(ci, x)
             Dim dHh = context.Enthalpy(ho, x) - context.Enthalpy(hi, x)
             Dim loss = EOParameterValue(context, x, "PROP_HX_28", HeatLoss)
             Select Case EOCalcMode
+                Case HeatExchangerCalcMode.ShellandTube_Rating
+                    ' the load at most the largest heat, as the unit caps it; the heat loss on the shell side's fluid
+                    Dim dqx As Dictionary(Of Integer, Double) = Nothing
+                    Dim q = Math.Min(stq(0), EOMaxHeat(context, x, ci, co, hi, ho, dqx))
+                    r(k) = (dHc - (q - If(STProperties.Shell_Fluid = 0, loss, 0.0))) / te
+                    r(k + 1) = (dHc + dHh + loss) / te
+                Case HeatExchangerCalcMode.ShellandTube_CalcFoulingFactor
+                    r(k) = (x(co) - EOParameterValue(context, x, "PROP_HX_3", TempColdOut.GetValueOrDefault())) / context.TemperatureTolerance
+                    r(k + 1) = (x(ho) - EOParameterValue(context, x, "PROP_HX_4", TempHotOut.GetValueOrDefault())) / context.TemperatureTolerance
                 Case HeatExchangerCalcMode.ThermalEfficiency
                     Dim eff = EOParameterValue(context, x, "PROP_HX_25", ThermalEfficiency) / 100.0
                     Dim dqx As Dictionary(Of Integer, Double) = Nothing
@@ -1780,14 +1842,50 @@ Namespace UnitOperations
                 Next
             Next
             Dim tp = context.PressureTolerance
-            add(k, co + 1, 1.0 / tp) : add(k, ci + 1, -1.0 / tp)
-            Dim kp = context.ParameterIndex(Me, "PROP_HX_32")
-            If kp >= 0 Then add(k, kp, 1.0 / tp)
-            k += 1
-            add(k, ho + 1, 1.0 / tp) : add(k, hi + 1, -1.0 / tp)
-            kp = context.ParameterIndex(Me, "PROP_HX_33")
-            If kp >= 0 Then add(k, kp, 1.0 / tp)
-            k += 1
+            Dim stq As Double() = Nothing
+            Dim dst As New Dictionary(Of Integer, Double())
+            If EOShellAndTube Then
+                ' the rating's load and drops by central differences on the inlets' states and the outlets' temperatures
+                stq = EOShellTube(context, x, ci, co, hi, ho)
+                Dim xt = CType(x.Clone(), Double())
+                Dim cols As New List(Of Integer)
+                For j = 0 To c + 1
+                    cols.Add(ci + j) : cols.Add(hi + j)
+                Next
+                cols.Add(co) : cols.Add(ho)
+                For Each m In cols
+                    Dim o = If(m >= hi AndAlso m <= hi + c + 1, hi, ci)
+                    Dim j = m - o
+                    If m = co OrElse m = ho Then j = 0
+                    Dim h = If(j = 0, 0.01, If(j = 1, 0.0001 * Math.Max(x(m), 10000.0), 0.0001 * Math.Max(Math.Abs(x(m)), 0.000001 * EOSideFlow(x, o, c))))
+                    Dim hb = If(j < 2, h, Math.Min(h, Math.Max(x(m), 0.0)))
+                    xt(m) = x(m) + h
+                    Dim up = EOShellTube(context, xt, ci, co, hi, ho)
+                    xt(m) = x(m) - hb
+                    Dim dn = EOShellTube(context, xt, ci, co, hi, ho)
+                    xt(m) = x(m)
+                    dst(m) = {(up(0) - dn(0)) / (h + hb), (up(1) - dn(1)) / (h + hb), (up(2) - dn(2)) / (h + hb)}
+                Next
+                add(k, co + 1, 1.0 / tp) : add(k, ci + 1, -1.0 / tp)
+                For Each kv In dst
+                    If kv.Value(1) <> 0.0 Then add(k, kv.Key, kv.Value(1) / tp)
+                Next
+                k += 1
+                add(k, ho + 1, 1.0 / tp) : add(k, hi + 1, -1.0 / tp)
+                For Each kv In dst
+                    If kv.Value(2) <> 0.0 Then add(k, kv.Key, kv.Value(2) / tp)
+                Next
+                k += 1
+            Else
+                add(k, co + 1, 1.0 / tp) : add(k, ci + 1, -1.0 / tp)
+                Dim kp = context.ParameterIndex(Me, "PROP_HX_32")
+                If kp >= 0 Then add(k, kp, 1.0 / tp)
+                k += 1
+                add(k, ho + 1, 1.0 / tp) : add(k, hi + 1, -1.0 / tp)
+                kp = context.ParameterIndex(Me, "PROP_HX_33")
+                If kp >= 0 Then add(k, kp, 1.0 / tp)
+                k += 1
+            End If
             Dim te = context.EnergyTolerance(co) + context.EnergyTolerance(ho)
             Dim hco = context.EnthalpyDerivatives(co, x), hci = context.EnthalpyDerivatives(ci, x)
             Dim hho = context.EnthalpyDerivatives(ho, x), hhi = context.EnthalpyDerivatives(hi, x)
@@ -1806,6 +1904,29 @@ Namespace UnitOperations
                          End Sub
             Dim kl = context.ParameterIndex(Me, "PROP_HX_28")
             Select Case EOCalcMode
+                Case HeatExchangerCalcMode.ShellandTube_Rating
+                    Dim dq As Dictionary(Of Integer, Double) = Nothing
+                    Dim qmax = EOMaxHeat(context, x, ci, co, hi, ho, dq)
+                    addCold(k, 1.0)
+                    If stq(0) <= qmax Then
+                        For Each kv In dst
+                            If kv.Value(0) <> 0.0 Then add(k, kv.Key, -kv.Value(0) / te)
+                        Next
+                    Else
+                        For Each kv In dq
+                            add(k, kv.Key, -kv.Value / te)
+                        Next
+                    End If
+                    If kl >= 0 AndAlso STProperties.Shell_Fluid = 0 Then add(k, kl, 1.0 / te)
+                    addCold(k + 1, 1.0) : addHot(k + 1, 1.0)
+                Case HeatExchangerCalcMode.ShellandTube_CalcFoulingFactor
+                    Dim tt = context.TemperatureTolerance
+                    add(k, co, 1.0 / tt)
+                    add(k + 1, ho, 1.0 / tt)
+                    Dim k3 = context.ParameterIndex(Me, "PROP_HX_3"), k4 = context.ParameterIndex(Me, "PROP_HX_4")
+                    If k3 >= 0 Then add(k, k3, -1.0 / tt)
+                    If k4 >= 0 Then add(k + 1, k4, -1.0 / tt)
+                    Return True
                 Case HeatExchangerCalcMode.ThermalEfficiency
                     Dim eff = EOParameterValue(context, x, "PROP_HX_25", ThermalEfficiency) / 100.0
                     Dim dq As Dictionary(Of Integer, Double) = Nothing
@@ -1894,10 +2015,13 @@ Namespace UnitOperations
             If k < c Then Return "cold side flow " & k
             If k < 2 * c Then Return "hot side flow " & (k - c)
             Select Case k - 2 * c
-                Case 0 : Return "cold side pressure"
-                Case 1 : Return "hot side pressure"
+                Case 0 : Return If(EOShellAndTube, "cold side pressure at its rated drop", "cold side pressure")
+                Case 1 : Return If(EOShellAndTube, "hot side pressure at its rated drop", "hot side pressure")
                 Case 2
                     Select Case EOCalcMode
+                        Case HeatExchangerCalcMode.ShellandTube_Rating : Return "heat load = U A F LMTD of the rating"
+                        Case HeatExchangerCalcMode.ShellandTube_CalcFoulingFactor : Return "cold outlet temperature"
+
                         Case HeatExchangerCalcMode.ThermalEfficiency : Return "heat load at the thermal efficiency"
                         Case HeatExchangerCalcMode.PinchPoint : Return "minimum internal temperature approach"
                         Case HeatExchangerCalcMode.CalcTempHotOut : Return "cold outlet temperature"
@@ -1908,6 +2032,7 @@ Namespace UnitOperations
                         Case Else : Return "heat load = U A LMTD"
                     End Select
                 Case Else
+                    If CalcMode = HeatExchangerCalcMode.ShellandTube_CalcFoulingFactor Then Return "hot outlet temperature"
                     Return If(CalcMode = HeatExchangerCalcMode.CalcBothTemp, "heat the hot side gives", "energy balance")
             End Select
         End Function
