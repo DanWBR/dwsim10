@@ -494,7 +494,7 @@ Namespace PropertyPackages
             If water Is Nothing Then Throw New Exception("Water compound not found. Please setup your simulation accordingly.")
             If salt Is Nothing Then Throw New Exception("Salt compound not found. Please setup your simulation accordingly.")
 
-            Dim salinity As Double = salt.MassFraction.GetValueOrDefault / water.MassFraction.GetValueOrDefault
+            Dim salinity As Double = CalcSalinity()
 
             If Phase1 = Phase.Liquid Then
                 Return Me.SIA.sea_viscosity(salinity, T)
@@ -541,9 +541,7 @@ Namespace PropertyPackages
             If water Is Nothing Then Throw New Exception("Water compound not found. Please setup your simulation accordingly.")
             If salt Is Nothing Then Throw New Exception("Salt compound not found. Please setup your simulation accordingly.")
 
-            Dim salinity As Double = salt.MassFraction.GetValueOrDefault / water.MassFraction.GetValueOrDefault
-
-            Return Me.SIA.sea_vaporpressure(salinity, T)
+            Return VaporPressureAtSalinity(CalcSalinity(), T)
 
         End Function
 
@@ -571,6 +569,10 @@ Namespace PropertyPackages
                     Case State.Liquid
                         Return Me.SIA.sea_enthalpy_si(CalcSalinity(Vx), T, P) / 1000
                     Case State.Vapor
+                        ' the vapour is pure water: IAPWS-95's, the same water as the liquid part's; the liquid plus the
+                        ' compound's heat of vaporisation where IAPWS-95 has no vapour at (T, P)
+                        Dim hv As Double = (Me.SIA.vap_g_si(0, 0, T, P) - T * Me.SIA.vap_g_si(1, 0, T, P)) / 1000
+                        If Not Double.IsNaN(hv) AndAlso Not Double.IsInfinity(hv) Then Return hv
                         Return Me.SIA.sea_enthalpy_si(CalcSalinity(Vx), T, P) / 1000 + Me.RET_HVAPM(AUX_CONVERT_MOL_TO_MASS(Vx), T)
                 End Select
             Else
@@ -588,16 +590,15 @@ Namespace PropertyPackages
         End Function
 
         Public Overrides Function DW_CalcBubP(ByVal Vx As System.Array, ByVal T As Double, Optional ByVal Pref As Double = 0, Optional ByVal K As System.Array = Nothing, Optional ByVal ReuseK As Boolean = False) As Object
-            Return New Object() {Me.SIA.sea_vaporpressure(CalcSalinity(Vx), T)}
+            Return New Object() {VaporPressure(DirectCast(Vx, Double()), T)}
         End Function
 
         Public Overrides Function DW_CalcBubT(ByVal Vx As System.Array, ByVal P As Double, Optional ByVal Tref As Double = 0, Optional ByVal K As System.Array = Nothing, Optional ByVal ReuseK As Boolean = False) As Object
-            Dim water As Interfaces.ICompound = (From subst As Interfaces.ICompound In Me.CurrentMaterialStream.Phases(0).Compounds.Values Select subst Where subst.ConstantProperties.CAS_Number = "7732-18-5").SingleOrDefault
-            Return New Object() {Me.AUX_TSATi(P, water.Name)}
+            Return New Object() {SaturationTemperature(DirectCast(Vx, Double()), P)}
         End Function
 
         Public Overrides Function DW_CalcDewP(ByVal Vx As System.Array, ByVal T As Double, Optional ByVal Pref As Double = 0, Optional ByVal K As System.Array = Nothing, Optional ByVal ReuseK As Boolean = False) As Object
-            Return New Object() {Me.SIA.sea_vaporpressure(CalcSalinity(Vx), T)}
+            Return New Object() {VaporPressure(DirectCast(Vx, Double()), T)}
         End Function
 
         Public Overrides Function DW_CalcDewT(ByVal Vx As System.Array, ByVal P As Double, Optional ByVal Tref As Double = 0, Optional ByVal K As System.Array = Nothing, Optional ByVal ReuseK As Boolean = False) As Object
@@ -627,6 +628,8 @@ Namespace PropertyPackages
                     Case State.Liquid
                         Return Me.SIA.sea_entropy_si(CalcSalinity, T, P) / 1000
                     Case State.Vapor
+                        Dim sv As Double = -Me.SIA.vap_g_si(1, 0, T, P) / 1000
+                        If Not Double.IsNaN(sv) AndAlso Not Double.IsInfinity(sv) Then Return sv
                         Return Me.SIA.sea_entropy_si(CalcSalinity(Vx), T, P) / 1000 + Me.RET_HVAPM(AUX_CONVERT_MOL_TO_MASS(Vx), T) / T
                 End Select
             Else
@@ -705,7 +708,7 @@ Namespace PropertyPackages
 
             If water.Name = sub1 Then
 
-                Return Me.SIA.sea_vaporpressure(CalcSalinity, T)
+                Return VaporPressureAtSalinity(CalcSalinity(), T)
 
             ElseIf salt.Name = sub1 Then
 
@@ -722,23 +725,50 @@ Namespace PropertyPackages
         Public Function VaporPressure(Vx As Double(), T As Double) As Double
 
             If Vx.Sum > 0.0000000002 Then
-                Return Me.SIA.sea_vaporpressure(CalcSalinity(Vx), T)
+                Return VaporPressureAtSalinity(CalcSalinity(Vx), T)
             Else
                 Return Me.m_iapws97.pSatW(T) * 100000
             End If
 
         End Function
 
+        ''' <summary>
+        ''' The vapour pressure (Pa) of seawater at the absolute salinity S (kg/kg) and T, from IAPWS-08 itself: the pressure
+        ''' at which the water's chemical potential in seawater, the liquid's Gibbs energy (IAPWS-95) plus the saline part's,
+        ''' equals the vapour's (IAPWS-95). Newton from Raoult's law on that saline part.
+        ''' </summary>
+        Public Function VaporPressureAtSalinity(S As Double, T As Double) As Double
+
+            Dim p0 As Double = Me.m_iapws97.pSatW(T) * 100000
+            If S <= 0.0 Then Return p0
+            Const Rw As Double = 8.314472 / 0.01801528
+            Dim p As Double = p0 * Math.Exp(Me.SIA.sal_chempot_h2o_si(S, T, p0) / (Rw * T))
+            For i As Integer = 1 To 30
+                Dim f As Double = Me.SIA.liq_g_si(0, 0, T, p) + Me.SIA.sal_chempot_h2o_si(S, T, p) - Me.SIA.vap_g_si(0, 0, T, p)
+                Dim dp As Double = -f / (Me.SIA.liq_g_si(0, 1, T, p) - Me.SIA.vap_g_si(0, 1, T, p))
+                If Double.IsNaN(dp) OrElse Double.IsInfinity(dp) Then Exit For
+                p += dp
+                If Math.Abs(dp) < 0.0000000001 * p Then Return p
+            Next
+            Throw New Exception(String.Format("Seawater vapor pressure did not converge at {0} K and {1} kg/kg.", T, S))
+
+        End Function
+
+        ''' <summary>The temperature (K) at which seawater of composition Vx boils at P: a few K at most above pure water's.</summary>
         Public Function SaturationTemperature(Vx As Double(), P As Double) As Double
 
-            Dim pvapt As Double
-            Return MathNet.Numerics.RootFinding.Brent.FindRoot(Function(T)
-                                                                   pvapt = VaporPressure(Vx, T)
-                                                                   If Double.IsNaN(pvapt) Or Double.IsNaN(P) Then
-                                                                       Throw New Exception(String.Format("Error calculation vapor pressure."))
-                                                                   End If
-                                                                   Return pvapt - P
-                                                               End Function, 273.15, 1000)
+            Dim f = Function(T As Double)
+                        Dim pvapt = VaporPressure(Vx, T)
+                        If Double.IsNaN(pvapt) Or Double.IsNaN(P) Then
+                            Throw New Exception(String.Format("Error calculation vapor pressure."))
+                        End If
+                        Return pvapt - P
+                    End Function
+            Dim t0 As Double = Me.m_iapws97.tSatW(P / 100000)
+            If f(t0 - 0.5) < 0.0 AndAlso f(t0 + 20.0) > 0.0 Then
+                Return MathNet.Numerics.RootFinding.Brent.FindRoot(f, t0 - 0.5, t0 + 20.0, 0.00000001, 100)
+            End If
+            Return MathNet.Numerics.RootFinding.Brent.FindRoot(f, 273.15, 1000)
 
         End Function
 
@@ -762,9 +792,10 @@ Namespace PropertyPackages
 
             Dim vxw As Double() = Me.AUX_CONVERT_MOL_TO_MASS(Vx)
 
-            Dim salinity As Double = vxw(ids) / vxw(idw)
+            ' the absolute salinity: kg of salt per kg of seawater
+            Dim salinity As Double = If(vxw(ids) + vxw(idw) > 0.0, vxw(ids) / (vxw(ids) + vxw(idw)), 0.0)
 
-            If Double.IsInfinity(salinity) Then salinity = 0.0#
+            If Double.IsInfinity(salinity) Or Double.IsNaN(salinity) Then salinity = 0.0#
 
             If Not IgnoreSalinityLimit Then
                 If salinity > Seawater.sal_smax Then
@@ -788,9 +819,11 @@ Namespace PropertyPackages
             If water Is Nothing Then Throw New Exception("Water compound not found. Please setup your simulation accordingly.")
             If salt Is Nothing Then Throw New Exception("Salt compound not found. Please setup your simulation accordingly.")
 
-            Dim salinity As Double = salt.MassFraction.GetValueOrDefault / water.MassFraction.GetValueOrDefault
+            ' the absolute salinity: kg of salt per kg of seawater
+            Dim ws As Double = salt.MassFraction.GetValueOrDefault, ww As Double = water.MassFraction.GetValueOrDefault
+            Dim salinity As Double = If(ws + ww > 0.0, ws / (ws + ww), 0.0)
 
-            If Double.IsInfinity(salinity) Then salinity = 0.0#
+            If Double.IsInfinity(salinity) Or Double.IsNaN(salinity) Then salinity = 0.0#
 
             If Not IgnoreSalinityLimit Then
                 If salinity > Seawater.sal_smax Then
@@ -822,8 +855,9 @@ Namespace PropertyPackages
                 i += 1
             Next
 
-            DT = 0.00831447 * Tnfp ^ 2 / DHm * Math.Log(Vxl(idw))
-            Td = Tnfp - DT
+            ' lowered by the saline part of the water's chemical potential (IAPWS-08): -1.92 C at 35 g/kg
+            DT = Me.SIA.sal_chempot_h2o_si(CalcSalinity(Vxl), Tnfp, 101325.0) * Tnfp / (DHm * 1000.0 / 0.01801528)
+            Td = Tnfp + DT
 
             Return Td
 

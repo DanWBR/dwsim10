@@ -25,7 +25,7 @@ namespace DWSIM.Validation.Tests.Thermodynamics
             double rho = s.Object.Phases[0].Properties.density.GetValueOrDefault();
 
             new ResultTable("Seawater (IAPWS-08) - S=35 g/kg, 25 °C, 1 atm")
-                .Row("ρ (IAPWS-08 ≈ 1023.4)", 1023.4, rho, 0.01, "kg/m³")
+                .Row("ρ (IAPWS-08 sea_density_si at S = 0.035 kg/kg)", 1023.220, rho, 0.0001, "kg/m³")
                 .PrintAndThrowIfFailed();
         }
     }

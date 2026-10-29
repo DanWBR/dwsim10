@@ -139,6 +139,31 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
 
             Dim Tfus As Double = DirectCast(PP, SeawaterPropertyPackage).TemperatureOfFusion(Vxl, T)
 
+            'partial evaporation: above the feed's bubble point water leaves until the brine left boils at P, the salt
+            'staying in the liquid. The brine's salinity solves p_vap(S, T) = P (IAPWS-08). Only when no brine within
+            'the salinity limit boils at P does all the water evaporate, as the loop below has it.
+
+            Dim sw = DirectCast(PP, SeawaterPropertyPackage)
+            Dim sid As Integer = CompoundProperties.FindIndex(Function(c) c.Name = "Salt")
+            If include_vapor AndAlso n = 1 AndAlso wid >= 0 AndAlso sid >= 0 AndAlso T >= Tfus AndAlso Vnf(sid) > 0.0 AndAlso
+                sw.VaporPressure(Vnf, T) > P Then
+                Dim S0 As Double = sw.CalcSalinity(Vnf)
+                Dim Smax As Double = If(sw.IgnoreSalinityLimit, maxsol / (1.0 + maxsol), Global.DWSIM.Thermodynamics.PropertyPackages.Auxiliary.Seawater.sal_smax)
+                If S0 < Smax AndAlso sw.VaporPressureAtSalinity(Smax, T) <= P Then
+                    Dim Seq As Double = MathNet.Numerics.RootFinding.Brent.FindRoot(Function(Sx) sw.VaporPressureAtSalinity(Sx, T) - P, S0, Smax, 0.000000000001, 200)
+                    Dim mw As Double = CompoundProperties(wid).Molar_Weight, ms As Double = CompoundProperties(sid).Molar_Weight
+                    Vxl = PP.RET_NullVector()
+                    Vxl(sid) = Seq / ms / (Seq / ms + (1.0 - Seq) / mw)
+                    Vxl(wid) = 1.0 - Vxl(sid)
+                    L = Vnf(sid) / Vxl(sid)
+                    V = 1.0 - L
+                    Vxv = PP.RET_NullVector()
+                    Vxv(wid) = 1.0
+                    WriteDebugInfo("PT Flash [Seawater]: partial evaporation, brine at " & Seq & " kg/kg.")
+                    Return New Object() {L, V, Vxl, Vxv, 0, 0.0#, PP.RET_NullVector, 0.0#, PP.RET_NullVector}
+                End If
+            End If
+
             Do
 
                 Vp(wid) = DirectCast(PP, SeawaterPropertyPackage).VaporPressure(Vxl, T)
@@ -267,108 +292,18 @@ out:        Return New Object() {L, V, Vxl, Vxv, ecount, 0.0#, PP.RET_NullVector
             Dim tolINT As Double = Me.FlashSettings(Interfaces.Enums.FlashSetting.PHFlash_Internal_Loop_Tolerance).ToDoubleFromInvariant
             Dim tolEXT As Double = Me.FlashSettings(Interfaces.Enums.FlashSetting.PHFlash_External_Loop_Tolerance).ToDoubleFromInvariant
 
-            Dim Tsup, Tinf
-
-            Tinf = 100
-            Tsup = 2000
-
-            Dim bo As New BrentOpt.Brent
-            bo.DefineFuncDelegate(AddressOf Herror)
-            WriteDebugInfo("PH Flash: Starting calculation for " & Tinf & " <= T <= " & Tsup)
-
-            Dim fx, fx2, dfdx, x1 As Double
-
-            Dim cnt As Integer = 0
-
-            Tref = 300.0#
-            x1 = Tref
-            Do
-                fx = Herror(x1, {P, Vz, PP})
-                fx2 = Herror(x1 + 1, {P, Vz, PP})
-                If Abs(fx) < etol Then Exit Do
-                dfdx = (fx2 - fx)
-                x1 = x1 - fx / dfdx
-                If x1 < 0 Then GoTo alt
-                cnt += 1
-            Loop Until cnt > 100 Or Double.IsNaN(x1)
-            If Double.IsNaN(x1) Then
-alt:            T = bo.BrentOpt(Tinf, Tsup, 100, tolEXT, maxitEXT, {P, Vz, PP})
-            Else
-                T = x1
-            End If
-
-            Dim Hs, Hl, Hv, xl, xv, xs As Double
-
-            Dim wid As Integer = CompoundProperties.IndexOf((From c As Interfaces.ICompoundConstantProperties In CompoundProperties Select c Where c.CAS_Number = "7732-18-5").SingleOrDefault)
-
-            Hs = PP.DW_CalcEnthalpy(Vz, T, P, State.Solid)
-            Hl = PP.DW_CalcEnthalpy(Vz, T, P, State.Liquid)
-            Hv = PP.DW_CalcEnthalpy(Vz, T, P, State.Vapor)
-
-            Dim Tsat As Double = PP.AUX_TSATi(P, wid)
-
+            'the temperature at which the P-T flash's enthalpy is H, by Brent: that flash is continuous in T now that it
+            'evaporates part of the water, and where it jumps (ice melting) the phases split between the two sides
+            Dim res = SolveForTemperature(Vz, P, Tref, PP, Function(Tx) Herror(Tx, {P, Vz, PP}))
+            T = res(4)
+            L = res(0)
+            V = res(1)
+            S = res(6)
+            Vx = res(2)
+            Vy = res(3)
+            Vs = res(7)
             Dim tmp As Object() = Nothing
-
-            If T > Tsat Then
-                'vapor only
-                tmp = Flash_PT(Vz, P, T, PP)
-                L = tmp(0)
-                V = tmp(1)
-                S = tmp(7)
-                Vx = tmp(2)
-                Vy = tmp(3)
-                Vs = tmp(8)
-            ElseIf H <= Hs Then
-                'solids only.
-                L = 0.0#
-                V = 0.0#
-                S = 1.0#
-                Vx = PP.RET_NullVector()
-                Vy = PP.RET_NullVector()
-                Vs = Vz
-            ElseIf H > Hs And H <= Hl Then
-                'partial liquefaction.
-                xl = (H - Hs) / (Hl - Hs)
-                If xl < 0.999 Then
-                    xs = 1 - xl
-                Else
-                    xl = 1.0
-                    xs = 0.0
-                End If
-                tmp = Flash_PT(Vz, P, T, PP)
-                L = xl
-                V = 0.0#
-                S = xs
-                Vx = Vz
-                Vy = PP.RET_NullVector()
-                Vs = PP.RET_NullVector()
-                Vs(wid) = 1.0
-            ElseIf H > Hl And H <= Hv Then
-                'partial vaporization.
-                xv = (H - Hl) / (Hv - Hl)
-                xl = 1 - xv
-                Vz(wid) -= xv
-                Vz = Vz.NormalizeY()
-                tmp = Flash_PT(Vz, P, T, PP)
-                L = tmp(0) * xl
-                V = xv
-                S = tmp(7) * xl
-                Vx = tmp(2)
-                Vy = PP.RET_NullVector()
-                Vy(wid) = 1.0#
-                Vs = tmp(8)
-            Else
-                'vapor only.
-                tmp = Flash_PT(Vz, P, T, PP)
-                L = tmp(0)
-                V = tmp(1)
-                S = tmp(7)
-                Vx = tmp(2)
-                Vy = tmp(3)
-                Vs = tmp(8)
-            End If
-
-            If tmp IsNot Nothing Then ecount = tmp(4)
+            ecount = res(5)
 
             For i = 0 To n
                 Ki(i) = Vy(i) / Vx(i)
@@ -411,108 +346,17 @@ alt:            T = bo.BrentOpt(Tinf, Tsup, 100, tolEXT, maxitEXT, {P, Vz, PP})
             Dim tolINT As Double = Me.FlashSettings(Interfaces.Enums.FlashSetting.PHFlash_Internal_Loop_Tolerance).ToDoubleFromInvariant
             Dim tolEXT As Double = Me.FlashSettings(Interfaces.Enums.FlashSetting.PHFlash_External_Loop_Tolerance).ToDoubleFromInvariant
 
-            Dim Tsup, Tinf ', Ssup, Sinf
+            'as the PH flash: the temperature at which the P-T flash's entropy is S
+            Dim res = SolveForTemperature(Vz, P, Tref, PP, Function(Tx) Serror(Tx, {P, Vz, PP}))
+            T = res(4)
+            L = res(0)
+            V = res(1)
+            Ss = res(6)
+            Vx = res(2)
+            Vy = res(3)
+            Vs = res(7)
+            ecount = res(5)
 
-            If Tref <> 0 Then
-                Tinf = Tref - 200
-                Tsup = Tref + 200
-            Else
-                Tinf = 100
-                Tsup = 2000
-            End If
-            If Tinf < 100 Then Tinf = 100
-            Dim bo As New BrentOpt.Brent
-            bo.DefineFuncDelegate(AddressOf Serror)
-            WriteDebugInfo("PS Flash: Starting calculation for " & Tinf & " <= T <= " & Tsup)
-
-            Dim fx, fx2, dfdx, x1 As Double
-
-            Dim cnt As Integer = 0
-
-            If Tref = 0 Then Tref = 298.15
-            x1 = Tref
-            Do
-                fx = Serror(x1, {P, Vz, PP})
-                fx2 = Serror(x1 + 1, {P, Vz, PP})
-                If Abs(fx) < etol Then Exit Do
-                dfdx = (fx2 - fx)
-                x1 = x1 - fx / dfdx
-                If x1 < 0 Then GoTo alt
-                cnt += 1
-            Loop Until cnt > 50 Or Double.IsNaN(x1)
-            If Double.IsNaN(x1) Then
-alt:            T = bo.BrentOpt(Tinf, Tsup, 10, tolEXT, maxitEXT, {P, Vz, PP})
-            Else
-                T = x1
-            End If
-
-            Dim Ss1, Sl, Sv, xl, xv, xs As Double
-
-            Dim wid As Integer = CompoundProperties.IndexOf((From c As Interfaces.ICompoundConstantProperties In CompoundProperties Select c Where c.CAS_Number = "7732-18-5").SingleOrDefault)
-
-            Ss1 = PP.DW_CalcEntropy(Vz, T, P, State.Solid)
-            Sl = PP.DW_CalcEntropy(Vz, T, P, State.Liquid)
-            Sv = PP.DW_CalcEntropy(Vz, T, P, State.Vapor)
-
-            Dim Tsat As Double = PP.AUX_TSATi(P, wid)
-
-            Dim tmp As Object() = Nothing
-
-            If T > Tsat Then
-                'vapor only
-                tmp = Flash_PT(Vz, P, T, PP)
-                L = tmp(0)
-                V = tmp(1)
-                Ss = tmp(7)
-                Vx = tmp(2)
-                Vy = tmp(3)
-                Vs = tmp(8)
-            ElseIf S <= Ss1 Then
-                'solids only.
-                tmp = Flash_PT(Vz, P, T, PP)
-                L = 0.0#
-                V = 0.0#
-                Ss = 1.0#
-                Vx = PP.RET_NullVector()
-                Vy = PP.RET_NullVector()
-                Vs = Vz
-            ElseIf S > Ss1 And S <= Sl Then
-                'partial liquefaction.
-                xl = (S - Ss) / (Sl - Ss1)
-                xs = 1 - xl
-                tmp = Flash_PT(Vz, P, T, PP)
-                L = xl
-                V = 0.0#
-                Ss = xs
-                Vx = Vz
-                Vy = PP.RET_NullVector()
-                Vs = Vz
-            ElseIf S > Sl And S <= Sv Then
-                'partial vaporization.
-                xv = (S - Sl) / (Sv - Sl)
-                xl = 1 - xv
-                Vz(wid) -= xv
-                Vz = Vz.NormalizeY()
-                tmp = Flash_PT(Vz, P, T, PP)
-                L = tmp(0) * xl
-                V = xv
-                Ss = tmp(7) * xl
-                Vx = tmp(2)
-                Vy = PP.RET_NullVector()
-                Vy(wid) = 1.0#
-                Vs = tmp(8)
-            Else
-                'vapor only.
-                tmp = Flash_PT(Vz, P, T, PP)
-                L = tmp(0)
-                V = tmp(1)
-                Ss = tmp(7)
-                Vx = tmp(2)
-                Vy = tmp(3)
-                Vs = tmp(8)
-            End If
-
-            ecount = tmp(4)
 
             For i = 0 To n
                 Ki(i) = Vy(i) / Vx(i)
@@ -604,6 +448,64 @@ alt:            T = bo.BrentOpt(Tinf, Tsup, 10, tolEXT, maxitEXT, {P, Vz, PP})
             Return OBJ_FUNC_PS_FLASH(Tt, Sf, otherargs(0), otherargs(1), otherargs(2))
         End Function
 
+        ''' <summary>
+        ''' The temperature at which the P-T flash makes err (the enthalpy or entropy wanted less the flash's) zero, by
+        ''' Brent within a bracket walked out from Tref, and the flash there: {L, V, Vx, Vy, T, ecount, S, Vs}. Where the
+        ''' flash jumps at one temperature (ice melting), the phases there split between its two sides in proportion.
+        ''' </summary>
+        Private Function SolveForTemperature(Vz As Double(), P As Double, Tref As Double, PP As PropertyPackages.PropertyPackage, err As Func(Of Double, Double)) As Object()
+
+            Dim T0 As Double = If(Tref > 150.0 AndAlso Tref < 2000.0, Tref, 300.0)
+            Dim e0 As Double = err(T0)
+            Dim lo, hi As Double
+            Dim stp As Double = 5.0
+            If e0 > 0.0 Then
+                lo = T0 : hi = T0 + stp
+                Do While err(hi) > 0.0
+                    lo = hi
+                    stp *= 2.0
+                    hi = Math.Min(hi + stp, 2000.0)
+                    If lo >= 2000.0 Then Throw New Exception(Calculator.GetLocalString("PP_FlashMaxIt2"))
+                Loop
+            Else
+                hi = T0 : lo = T0 - stp
+                Do While err(lo) < 0.0
+                    hi = lo
+                    stp *= 2.0
+                    lo = Math.Max(lo - stp, 150.0)
+                    If hi <= 150.0 Then Throw New Exception(Calculator.GetLocalString("PP_FlashMaxIt2"))
+                Loop
+            End If
+
+            Dim T As Double = MathNet.Numerics.RootFinding.Brent.FindRoot(Function(x) err(x), lo, hi, 0.0000001, 200)
+
+            Dim tmp As Object() = Flash_PT(Vz, P, T, PP)
+            Dim ea As Double = err(T - 0.0001), eb As Double = err(T + 0.0001)
+            If ea > 0.0 AndAlso eb < 0.0 AndAlso Math.Abs(ea - eb) > 0.001 * (Math.Abs(ea) + Math.Abs(eb) + 0.000001) AndAlso
+                Math.Abs(err(T)) > 0.000001 * (1.0 + Math.Abs(ea - eb)) Then
+                'a jump: the phases of the two sides in proportion
+                Dim a As Object() = Flash_PT(Vz, P, T - 0.0001, PP)
+                Dim b As Object() = Flash_PT(Vz, P, T + 0.0001, PP)
+                Dim f As Double = ea / (ea - eb)
+                Dim n = Vz.Length - 1
+                Dim mixed = Function(ka As Integer, kx As Integer) As Object()
+                                Dim amount As Double = (1.0 - f) * a(ka) + f * b(ka)
+                                Dim x(n) As Double
+                                If amount > 0.0 Then
+                                    For i = 0 To n
+                                        x(i) = ((1.0 - f) * a(ka) * DirectCast(a(kx), Double())(i) + f * b(ka) * DirectCast(b(kx), Double())(i)) / amount
+                                    Next
+                                End If
+                                Return New Object() {amount, x}
+                            End Function
+                Dim lq = mixed(0, 2), vp = mixed(1, 3), sd = mixed(7, 8)
+                tmp = New Object() {lq(0), vp(0), lq(1), vp(1), a(4), 0.0#, PP.RET_NullVector, sd(0), sd(1)}
+            End If
+
+            Return New Object() {tmp(0), tmp(1), tmp(2), tmp(3), T, tmp(4), tmp(7), tmp(8)}
+
+        End Function
+
         Public Overrides Function Flash_TV(ByVal Vz As Double(), ByVal T As Double, ByVal V As Double, ByVal Pref As Double, ByVal PP As PropertyPackages.PropertyPackage, Optional ByVal ReuseKI As Boolean = False, Optional ByVal PrevKi As Double() = Nothing) As Object
 
             Dim n, ecount As Integer
@@ -624,13 +526,14 @@ alt:            T = bo.BrentOpt(Tinf, Tsup, 10, tolEXT, maxitEXT, {P, Vz, PP})
             xv = V
             xl = 1 - V
 
-            P = DirectCast(PP, SeawaterPropertyPackage).VaporPressure(Vz, T)
-
             Dim tmp As Object() = Nothing
 
+            'the vapour leaves first: the pressure is the brine's left
             If xv < Vz(wid) Then
+                Vz = DirectCast(Vz.Clone(), Double())
                 Vz(wid) -= xv
                 Vz = Vz.NormalizeY()
+                P = DirectCast(PP, SeawaterPropertyPackage).VaporPressure(Vz, T)
                 tmp = Flash_PT_Internal(False, Vz, P, T, PP)
             Else
                 Throw New InvalidOperationException("Vapor fraction higher than water mole fraction in the mixture.")
@@ -682,13 +585,14 @@ alt:            T = bo.BrentOpt(Tinf, Tsup, 10, tolEXT, maxitEXT, {P, Vz, PP})
             xv = V
             xl = 1 - V
 
-            T = DirectCast(PP, SeawaterPropertyPackage).SaturationTemperature(Vz, P)
-
             Dim tmp As Object() = Nothing
 
+            'the vapour leaves first: the temperature is the bubble point of the brine left
             If xv < Vz(wid) Then
+                Vz = DirectCast(Vz.Clone(), Double())
                 Vz(wid) -= xv
                 Vz = Vz.NormalizeY()
+                T = DirectCast(PP, SeawaterPropertyPackage).SaturationTemperature(Vz, P)
                 tmp = Flash_PT_Internal(False, Vz, P, T, PP)
             Else
                 Throw New InvalidOperationException("Vapor fraction higher than water mole fraction in the mixture.")
