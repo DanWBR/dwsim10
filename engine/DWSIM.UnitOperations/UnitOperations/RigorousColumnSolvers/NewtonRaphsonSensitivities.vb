@@ -136,6 +136,119 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
             Return sens
         End Function
 
+        Private _setupOnly As Boolean = False
+        Private _setupX As Double()
+
+        ''' <summary>
+        ''' Sets the MESH equations up at the point the input data carries, without solving, for a caller that solves them
+        ''' with others (an equation-oriented flowsheet solver): returns the variables there, scaled as the solver takes
+        ''' them (each stage's T over <see cref="ScaleT"/>, then its vapor and liquid compound flows over
+        ''' <see cref="ScaleV"/> and <see cref="ScaleL"/>). The feeds and the specification values can then be moved with
+        ''' <see cref="SetFeedStage"/> and <see cref="SetSpecificationValue"/>, and the residuals and their derivatives taken
+        ''' with <see cref="FunctionValue"/> and <see cref="Jacobian"/>.
+        ''' </summary>
+        Public Function SetUpAt(input As ColumnSolverInputData) As Double()
+            Dim col = input.ColumnObject
+            Dim llextractor As Boolean = False
+            Dim myabs As AbsorptionColumn = TryCast(col, AbsorptionColumn)
+            If myabs IsNot Nothing AndAlso myabs.OperationMode <> AbsorptionColumn.OpMode.Absorber Then llextractor = True
+            _subcoolingDeltaT = input.SubcoolingDeltaT
+            _captureOnly = True
+            _setupOnly = True
+            Try
+                Solve(col, input.NumberOfCompounds, input.NumberOfStages, input.MaximumIterations, input.Tolerances.ToArray(),
+                      input.FeedFlows.ToArray(), input.VaporFlows.ToArray(), input.StageHeats.ToArray(), input.LiquidFlows.ToArray(),
+                      input.VaporSideDraws.ToArray(), input.LiquidSideDraws.ToArray(), input.Kvalues.ToArray(),
+                      input.LiquidCompositions.ToArray(), input.VaporCompositions.ToArray(), input.OverallCompositions.ToArray(),
+                      input.FeedCompositions.ToArray(), input.FeedEnthalpies.ToArray(), input.StageTemperatures.ToArray(),
+                      input.StagePressures.ToArray(), input.CondenserType, input.StageEfficiencies.ToArray(), input.ColumnType,
+                      col.PropertyPackage, col.Specs, input.CalculationMode, llextractor,
+                      If(input.ComponentEfficiencies Is Nothing, Nothing, input.ComponentEfficiencies.ToArray()))
+            Finally
+                _captureOnly = False
+                _setupOnly = False
+            End Try
+            Return _setupX
+        End Function
+
+        ''' <summary>The scale of the stage temperatures (K) in the variables.</summary>
+        Public ReadOnly Property ScaleT As Double
+            Get
+                Return _maxT
+            End Get
+        End Property
+
+        ''' <summary>The scale of the vapor compound flows (mol/s) in the variables.</summary>
+        Public ReadOnly Property ScaleV As Double
+            Get
+                Return _maxvc
+            End Get
+        End Property
+
+        ''' <summary>The scale of the liquid compound flows (mol/s) in the variables.</summary>
+        Public ReadOnly Property ScaleL As Double
+            Get
+                Return _maxlc
+            End Get
+        End Property
+
+        ''' <summary>Each stage's pressure (Pa).</summary>
+        Public ReadOnly Property StagePressures As Double()
+            Get
+                Return _P
+            End Get
+        End Property
+
+        ''' <summary>Each stage's vapor side draw (mol/s), as the equations hold it.</summary>
+        Public ReadOnly Property VaporSideDraws As Double()
+            Get
+                Return _VSS
+            End Get
+        End Property
+
+        ''' <summary>Each stage's liquid side draw (mol/s), as the equations hold it.</summary>
+        Public ReadOnly Property LiquidSideDraws As Double()
+            Get
+                Return _LSS
+            End Get
+        End Property
+
+        ''' <summary>The column type the equations are written for (an absorber with a reboiler or a condenser counts as one).</summary>
+        Public ReadOnly Property EquationsColumnType As Column.ColType
+            Get
+                Return _coltype
+            End Get
+        End Property
+
+        ''' <summary>The condenser the equations are written for.</summary>
+        Public ReadOnly Property EquationsCondenserType As Column.condtype
+            Get
+                Return _condtype
+            End Get
+        End Property
+
+        ''' <summary>The feed of stage s: its compound flows (mol/s) and its enthalpy flow (kW).</summary>
+        Public Sub SetFeedStage(s As Integer, flows As Double(), Hflow As Double)
+            Dim Ft = flows.Sum()
+            _F(s) = Ft
+            _fc(s) = If(Ft > 0.0, flows.MultiplyConstY(1.0 / Ft), New Double(_nc - 1) {})
+            _HF(s) = If(Ft > 0.0, Hflow / Ft, 0.0)
+        End Sub
+
+        ''' <summary>The condenser (top) or the reboiler specification value, in the units the solver takes it (SI, or the plain number of a fraction, ratio or recovery).</summary>
+        Public Sub SetSpecificationValue(top As Boolean, value As Double)
+            SetSpec(If(top, 0, 1), value)
+        End Sub
+
+        Public Function SpecificationValue(top As Boolean) As Double
+            Return If(top, _spval1, _spval2)
+        End Function
+
+        ''' <summary>The derivatives of <see cref="FunctionValue"/> with respect to the scaled variables, as the solver takes them.</summary>
+        Public Function Jacobian(xvar As Double()) As Double(,)
+            Return FunctionGradient(_jacEpsilon, xvar)
+        End Function
+
         Private Sub CaptureSensitivities(xvar As Double(), sens As ColumnSensitivities)
 
             Dim nc = _nc, ns = _ns

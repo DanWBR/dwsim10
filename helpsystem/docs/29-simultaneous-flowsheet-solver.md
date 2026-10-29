@@ -285,7 +285,7 @@ The phase equilibrium is a submodel: the PT flash of the property package, with 
 | CSTR | one outlet; isothermal, adiabatic or at an outlet temperature; kinetic and catalytic reactions with expression rates |
 | PFR | isothermal, adiabatic, at an outlet temperature or with the energy stream's duty; kinetic and catalytic reactions with expression rates, in one phase; the profile along the length as unknowns (below) |
 | Pipe Segment | length given; heat given, an overall coefficient against the surroundings, or no heat balance; the profile along the length as unknowns (below) |
-| Distillation Column, Absorber | the column's own solver with the derivatives of the Naphtali-Sandholm equations (below) |
+| Distillation Column, Absorber | the MESH equations of the Naphtali-Sandholm solver, each stage's temperature and flows unknowns of the system (below) |
 
 Feeds keep their state, and a Recycle block makes its outlet equal to its inlet. Controllers, switches and inputs act in dynamic simulation only and are left out.
 
@@ -321,7 +321,9 @@ The cells are of the second order in their length, and the units' own integratio
 
 ###### Columns
 
-A distillation column or an absorber (without rate-based efficiencies, secondary specifications, a free water product or an external solver) gives its products from its feeds with its own solver, warm from the last solution, and its derivatives from the Naphtali-Sandholm solver started at that solution: the derivatives of every stage's flows, temperatures and compositions with respect to the feeds' moles and enthalpies and to the two specifications, by the implicit function theorem on the MESH equations. Finite differences would cost two column solves per feed variable.
+A distillation column or an absorber (without rate-based efficiencies, secondary specifications, a free water product or an external solver) writes its MESH equations into the system: each stage's temperature and its vapor and liquid compound flows are unknowns, two internal states a stage at the stage's temperature and pressure, and its equations are the Naphtali-Sandholm solver's own, the material and energy balances, the equilibrium relations with the stage efficiencies, and the two specifications in place of the condenser's and the reboiler's energy balances. The feeds are the system's streams and enter the balances with their flows and enthalpies; each product is the flow of its stage times the composition there (a side draw its set flow), at the stage's temperature and pressure. The derivatives of the stages' equations are the solver's own Jacobian, analytic where the property package gives them; a recovery specification's are differenced on the feeds, and a specification value an Adjust moves is a variable of the equations. The equations start from the column's last solution, so a column solved once by its own solver joins the system already converged.
+
+Where the solver's equations do not cover the column (a partial condenser, whose specifications read a liquid distillate its equations do not make; a subcooled distillate; a feed the column splits between stages; a column with no solution of its own yet), the column gives its products from its feeds with its own solver, warm from the last solution, and its derivatives come from the Naphtali-Sandholm solver started at that solution, by the implicit function theorem on the MESH equations; the log says which and why.
 
 ###### Spec blocks
 

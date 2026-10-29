@@ -1649,7 +1649,11 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
             _IObj = IObj
 
             If _captureOnly Then
-                CaptureSensitivities(xvar, _captureTarget)
+                If _setupOnly Then
+                    _setupX = xvar
+                Else
+                    CaptureSensitivities(xvar, _captureTarget)
+                End If
                 Return Nothing
             End If
 
