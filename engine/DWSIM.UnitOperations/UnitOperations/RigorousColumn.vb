@@ -3684,6 +3684,31 @@ Namespace UnitOperations
             composition2 = savedComposition
         End Sub
 
+        ''' <summary>
+        ''' Adds a feed to its stage: the stage's feed flow is the sum of the feeds on it, and its composition, molar
+        ''' enthalpy and temperature their flow-weighted means (two feeds on one stage both reach the column).
+        ''' </summary>
+        Private Shared Sub MixFeedIntoStage(stream As MaterialStream, si As Integer, F As Double(), HF As Double(), FT As Double(),
+                                            fc As Double()(), z As Double()(), sumcf As Double())
+            Dim f0 As Double = F(si)
+            Dim fs As Double = stream.Phases(0).Properties.molarflow.GetValueOrDefault
+            Dim hs As Double = stream.Phases(0).Properties.enthalpy.GetValueOrDefault * stream.Phases(0).Properties.molecularWeight.GetValueOrDefault
+            Dim ts As Double = stream.Phases(0).Properties.temperature.GetValueOrDefault
+            Dim ft0 As Double = f0 + fs
+            Dim w0 As Double = If(ft0 > 0.0, f0 / ft0, 0.0), ws As Double = If(ft0 > 0.0, fs / ft0, 1.0)
+            F(si) = ft0
+            HF(si) = w0 * HF(si) + ws * hs
+            FT(si) = w0 * FT(si) + ws * ts
+            Dim j As Integer = 0
+            For Each comp As Thermodynamics.BaseClasses.Compound In stream.Phases(0).Compounds.Values
+                Dim xs As Double = comp.MoleFraction.GetValueOrDefault
+                fc(si)(j) = w0 * fc(si)(j) + ws * xs
+                z(si)(j) = fc(si)(j)
+                sumcf(j) += xs * fs
+                j += 1
+            Next
+        End Sub
+
         Public Overridable Function GetSolverInputData(Optional ByVal ignoreuserestimates As Boolean = False,
                                                        Optional ByVal splitFeedByVolatility As Boolean = False) As ColumnSolverInputData
 
@@ -3817,18 +3842,8 @@ Namespace UnitOperations
                     Case StreamInformation.Behavior.Feed
                         stream = FlowSheet.SimulationObjects(ms.StreamID)
                         pp.CurrentMaterialStream = stream
-                        F(StageIndex(ms.AssociatedStage)) = stream.Phases(0).Properties.molarflow.GetValueOrDefault
-                        HF(StageIndex(ms.AssociatedStage)) = stream.Phases(0).Properties.enthalpy.GetValueOrDefault *
-                                                                stream.Phases(0).Properties.molecularWeight.GetValueOrDefault
-                        FT(StageIndex(ms.AssociatedStage)) = stream.Phases(0).Properties.temperature.GetValueOrDefault
-                        sumF += F(StageIndex(ms.AssociatedStage))
-                        j = 0
-                        For Each comp As Thermodynamics.BaseClasses.Compound In stream.Phases(0).Compounds.Values
-                            fc(StageIndex(ms.AssociatedStage))(j) = comp.MoleFraction.GetValueOrDefault
-                            z(StageIndex(ms.AssociatedStage))(j) = comp.MoleFraction.GetValueOrDefault
-                            sumcf(j) += comp.MoleFraction.GetValueOrDefault * F(StageIndex(ms.AssociatedStage))
-                            j = j + 1
-                        Next
+                        MixFeedIntoStage(stream, StageIndex(ms.AssociatedStage), F, HF, FT, fc, z, sumcf)
+                        sumF += stream.Phases(0).Properties.molarflow.GetValueOrDefault
                     Case StreamInformation.Behavior.Sidedraw
                         If ms.StreamPhase = StreamInformation.Phase.V Then
                             VSS(StageIndex(ms.AssociatedStage)) = ms.FlowRate.Value
@@ -4880,18 +4895,8 @@ Namespace UnitOperations
                     Case StreamInformation.Behavior.Feed
                         stream = FlowSheet.SimulationObjects(ms.StreamID)
                         pp.CurrentMaterialStream = stream
-                        F(StageIndex(ms.AssociatedStage)) = stream.Phases(0).Properties.molarflow.GetValueOrDefault
-                        HF(StageIndex(ms.AssociatedStage)) = stream.Phases(0).Properties.enthalpy.GetValueOrDefault *
-                                                              stream.Phases(0).Properties.molecularWeight.GetValueOrDefault
-                        FT(StageIndex(ms.AssociatedStage)) = stream.Phases(0).Properties.temperature.GetValueOrDefault
-                        sumF += F(StageIndex(ms.AssociatedStage))
-                        j = 0
-                        For Each comp As Thermodynamics.BaseClasses.Compound In stream.Phases(0).Compounds.Values
-                            fc(StageIndex(ms.AssociatedStage))(j) = comp.MoleFraction.GetValueOrDefault
-                            z(StageIndex(ms.AssociatedStage))(j) = comp.MoleFraction.GetValueOrDefault
-                            sumcf(j) += comp.MoleFraction.GetValueOrDefault * F(StageIndex(ms.AssociatedStage))
-                            j = j + 1
-                        Next
+                        MixFeedIntoStage(stream, StageIndex(ms.AssociatedStage), F, HF, FT, fc, z, sumcf)
+                        sumF += stream.Phases(0).Properties.molarflow.GetValueOrDefault
                     Case StreamInformation.Behavior.Sidedraw
                         If ms.StreamPhase = StreamInformation.Phase.V Then
                             VSS(StageIndex(ms.AssociatedStage)) = ms.FlowRate.Value
@@ -5890,18 +5895,8 @@ Namespace UnitOperations
                         Dim stream As MaterialStream = FlowSheet.SimulationObjects(ms.StreamID)
                         pp.CurrentMaterialStream = stream
                         Dim si = StageIndex(ms.AssociatedStage)
-                        F(si) = stream.Phases(0).Properties.molarflow.GetValueOrDefault
-                        HF(si) = stream.Phases(0).Properties.enthalpy.GetValueOrDefault *
-                                 stream.Phases(0).Properties.molecularWeight.GetValueOrDefault
-                        FT(si) = stream.Phases(0).Properties.temperature.GetValueOrDefault
-                        sumF += F(si)
-                        j = 0
-                        For Each comp As Thermodynamics.BaseClasses.Compound In stream.Phases(0).Compounds.Values
-                            fc(si)(j) = comp.MoleFraction.GetValueOrDefault
-                            z(si)(j) = comp.MoleFraction.GetValueOrDefault
-                            sumcf(j) += comp.MoleFraction.GetValueOrDefault * F(si)
-                            j += 1
-                        Next
+                        MixFeedIntoStage(stream, si, F, HF, FT, fc, z, sumcf)
+                        sumF += stream.Phases(0).Properties.molarflow.GetValueOrDefault
                     Case StreamInformation.Behavior.Sidedraw
                         If ms.StreamPhase = StreamInformation.Phase.V Then
                             VSS(StageIndex(ms.AssociatedStage)) = ms.FlowRate.Value

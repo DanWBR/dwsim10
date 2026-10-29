@@ -55,6 +55,8 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
         Dim _Kval()() As Double
         Dim _maxtchange, _Tj_ant(), _maxT, _maxvc, _maxlc As Double
         Dim _scalef As Double
+        'a total condenser's subcooling: the first stage's temperature is the subcooled liquid's (its enthalpies), and its
+        'equilibrium holds at the bubble point, this much above it (as in the bubble-point solver)
         Dim _subcoolingDeltaT As Double
 
         Private _gpuColumnEnabled As Boolean = False
@@ -401,20 +403,20 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                                                              Else
                                                                  If _pp.ShouldUseKvalueMethod3 Then
                                                                      If ipar = 0 And Math.Abs(_subcoolingDeltaT) > 0 Then
-                                                                         tmp0 = _pp.DW_CalcKvalue3(xc(ipar).MultiplyConstY(Lj(ipar)), yc(ipar).MultiplyConstY(Vj(ipar)), Tj(ipar) - _subcoolingDeltaT, P(ipar))
+                                                                         tmp0 = _pp.DW_CalcKvalue3(xc(ipar).MultiplyConstY(Lj(ipar)), yc(ipar).MultiplyConstY(Vj(ipar)), Tj(ipar) + _subcoolingDeltaT, P(ipar))
                                                                      Else
                                                                          tmp0 = _pp.DW_CalcKvalue3(xc(ipar).MultiplyConstY(Lj(ipar)), yc(ipar).MultiplyConstY(Vj(ipar)), Tj(ipar), P(ipar))
                                                                      End If
                                                                  ElseIf _pp.ShouldUseKvalueMethod2 Then
                                                                      Dim zk = xc(ipar).MultiplyConstY(Lj(ipar)).AddY(yc(ipar).MultiplyConstY(Vj(ipar))).MultiplyConstY(1 / (Lj(ipar) + Vj(ipar)))
                                                                      If ipar = 0 And Math.Abs(_subcoolingDeltaT) > 0 Then
-                                                                         tmp0 = _pp.DW_CalcKvalue(zk, Tj(ipar) - _subcoolingDeltaT, P(ipar))
+                                                                         tmp0 = _pp.DW_CalcKvalue(zk, Tj(ipar) + _subcoolingDeltaT, P(ipar))
                                                                      Else
                                                                          tmp0 = _pp.DW_CalcKvalue(zk, Tj(ipar), P(ipar))
                                                                      End If
                                                                  Else
                                                                      If ipar = 0 And Math.Abs(_subcoolingDeltaT) > 0 Then
-                                                                         tmp0 = _pp.DW_CalcKvalue(xc(ipar), yc(ipar), Tj(ipar) - _subcoolingDeltaT, P(ipar))
+                                                                         tmp0 = _pp.DW_CalcKvalue(xc(ipar), yc(ipar), Tj(ipar) + _subcoolingDeltaT, P(ipar))
                                                                      Else
                                                                          tmp0 = _pp.DW_CalcKvalue(xc(ipar), yc(ipar), Tj(ipar), P(ipar))
                                                                      End If
@@ -901,20 +903,20 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
             Else
                 If _pp.ShouldUseKvalueMethod3 Then
                     If i = 0 And Math.Abs(_subcoolingDeltaT) > 0 Then
-                        tmp0 = _pp.DW_CalcKvalue3(xc(i).MultiplyConstY(Lj(i)), yc(i).MultiplyConstY(Vj(i)), Tj(i) - _subcoolingDeltaT, P(i))
+                        tmp0 = _pp.DW_CalcKvalue3(xc(i).MultiplyConstY(Lj(i)), yc(i).MultiplyConstY(Vj(i)), Tj(i) + _subcoolingDeltaT, P(i))
                     Else
                         tmp0 = _pp.DW_CalcKvalue3(xc(i).MultiplyConstY(Lj(i)), yc(i).MultiplyConstY(Vj(i)), Tj(i), P(i))
                     End If
                 ElseIf _pp.ShouldUseKvalueMethod2 Then
                     Dim zk = xc(i).MultiplyConstY(Lj(i)).AddY(yc(i).MultiplyConstY(Vj(i))).MultiplyConstY(1 / (Lj(i) + Vj(i)))
                     If i = 0 And Math.Abs(_subcoolingDeltaT) > 0 Then
-                        tmp0 = _pp.DW_CalcKvalue(zk, Tj(i) - _subcoolingDeltaT, P(i))
+                        tmp0 = _pp.DW_CalcKvalue(zk, Tj(i) + _subcoolingDeltaT, P(i))
                     Else
                         tmp0 = _pp.DW_CalcKvalue(zk, Tj(i), P(i))
                     End If
                 Else
                     If i = 0 And Math.Abs(_subcoolingDeltaT) > 0 Then
-                        tmp0 = _pp.DW_CalcKvalue(xc(i), yc(i), Tj(i) - _subcoolingDeltaT, P(i))
+                        tmp0 = _pp.DW_CalcKvalue(xc(i), yc(i), Tj(i) + _subcoolingDeltaT, P(i))
                     Else
                         tmp0 = _pp.DW_CalcKvalue(xc(i), yc(i), Tj(i), P(i))
                     End If
@@ -1016,9 +1018,10 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
             Dim g(nv - 1, nv - 1) As Double
 
             For i As Integer = 0 To ns
-                Dim dKdT = DirectCast(_pp.DW_CalcdKdT(_stxc(i), _styc(i), _stTj(i), P(i)), Double())
-                Dim dKnL = DirectCast(_pp.DW_CalcdKdComposition(_stxc(i), _styc(i), _stTj(i), P(i), PropertyPackages.State.Liquid), Double(,))
-                Dim dKnV = DirectCast(_pp.DW_CalcdKdComposition(_stxc(i), _styc(i), _stTj(i), P(i), PropertyPackages.State.Vapor), Double(,))
+                Dim TK As Double = _stTj(i) + If(i = 0 AndAlso Not llextr, _subcoolingDeltaT, 0.0)
+                Dim dKdT = DirectCast(_pp.DW_CalcdKdT(_stxc(i), _styc(i), TK, P(i)), Double())
+                Dim dKnL = DirectCast(_pp.DW_CalcdKdComposition(_stxc(i), _styc(i), TK, P(i), PropertyPackages.State.Liquid), Double(,))
+                Dim dKnV = DirectCast(_pp.DW_CalcdKdComposition(_stxc(i), _styc(i), TK, P(i), PropertyPackages.State.Vapor), Double(,))
                 Dim svsum As Double = _stsumv(i), slsum As Double = _stsuml(i), e As Double = _steff(i)
                 Dim sldraw As Double = _stSl(i), svdraw As Double = _stSv(i)
                 Dim bc As Integer = i * block
