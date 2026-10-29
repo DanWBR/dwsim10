@@ -878,9 +878,8 @@ Namespace UnitOperations
                                             Else
                                                 SR = ThermalProfile.SolarRadiationAbsorptionEfficiency * ThermalProfile.SolarRadiationValue_kWh_m2
                                             End If
-                                            SR *= 3600 'kJ/m2
-                                            Dim Asec = Math.PI * Lcell * .DE * 0.0254
-                                            Qrad = SR * substep_multpl / timestep * Asec 'kJ/m2 / s * m2 = kW
+                                            ' the irradiance (kW/m2) on the increment's projected area, as the vessel takes it
+                                            Qrad = SR * (.DE * 0.0254) * Lcell
                                             DQ += Qrad
                                             DQmax += Qrad
                                             results.Absorbed_Radiation = Qrad
@@ -1417,7 +1416,9 @@ Namespace UnitOperations
                         End With
 
                         Dim eqcheck = 0
-                        Dim calceq = False
+                        ' the first increment of a section flashes too: skipping it kept its outlet at the inlet's
+                        ' temperature and recomputed the enthalpy there, which threw its heat away
+                        Dim calceq = True
                         Dim lastFlashP = Pin
                         Dim lastFlashT = Tin
 
@@ -1677,10 +1678,9 @@ Namespace UnitOperations
                                                     Else
                                                         SR = ThermalProfile.SolarRadiationAbsorptionEfficiency * ThermalProfile.SolarRadiationValue_kWh_m2
                                                     End If
-                                                    'SR *= 3600
-                                                    Dim Asec = Math.PI * Lcell * .DE * 0.0254
-                                                    Dim tflux = (Math.PI * (.DE * 0.0254) ^ 2 / 4) * Lcell / ims.GetVolumetricFlow()
-                                                    Qrad = SR / tflux * Asec
+                                                    ' the irradiance (kW/m2) on the increment's projected area, as the vessel takes
+                                                    ' it: the heat of a length is the same however finely it is cut
+                                                    Qrad = SR * (.DE * 0.0254) * Lcell
                                                     DQ += Qrad
                                                     DQmax += Qrad
                                                     results.Absorbed_Radiation = Qrad
@@ -1725,7 +1725,9 @@ Namespace UnitOperations
                                 Tout_ant = Tout
                                 IObj5?.SetCurrent()
 
-                                If calceq And CalculateEquilibrium Then
+                                ' an increment that takes heat in is flashed whatever the interval: without the flash
+                                ' its temperature stays and the enthalpy, recomputed there, loses the heat
+                                If (calceq OrElse DQ <> 0.0) AndAlso CalculateEquilibrium Then
                                     Dim flashresult = oms.PropertyPackage.FlashBase.CalculateEquilibrium(PropertyPackages.FlashSpec.P, PropertyPackages.FlashSpec.H, Pout, Hout, oms.PropertyPackage, oms.PropertyPackage.RET_VMOL(PropertyPackages.Phase.Mixture), Nothing, Tout)
                                     If flashresult.ResultException IsNot Nothing Then Throw flashresult.ResultException
                                     Tout = flashresult.CalculatedTemperature
@@ -1802,7 +1804,7 @@ Namespace UnitOperations
 
                             IObj4?.SetCurrent()
 
-                            If calceq And CalculateEquilibrium Then
+                            If (calceq OrElse DQ <> 0.0) AndAlso CalculateEquilibrium Then
                                 oms.Calculate(True, True)
                             Else
                                 oms.Calculate(False, True)
@@ -1920,7 +1922,15 @@ Namespace UnitOperations
                             If Double.IsNaN(x) Or Double.IsInfinity(x) Then Throw New Exception(FlowSheet.GetTranslatedString("Erroaocalculartemper"))
                             ThermalProfile.Calor_trocado = x
                         Else
-                            ThermalProfile.Calor_trocado += 0.1
+                            ' the first steps take the heat the gap needs at the inlet's heat capacity: steps of 0.1 kW
+                            ' moved the outlet by less than the flashes' noise on a fine profile, and the secant that
+                            ' followed them could step to a heat that drove the pressure negative
+                            Dim cpIn = ims.Phases(0).Properties.heatCapacityCp.GetValueOrDefault
+                            If cpIn > 0.0 AndAlso Win > 0.0 AndAlso Not Double.IsNaN(fx) Then
+                                ThermalProfile.Calor_trocado -= fx * Win * cpIn
+                            Else
+                                ThermalProfile.Calor_trocado += 0.1
+                            End If
                         End If
                     End If
                 ElseIf Specification = Specmode.OutletPressure Then

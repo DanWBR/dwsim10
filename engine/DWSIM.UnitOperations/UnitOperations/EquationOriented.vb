@@ -2351,24 +2351,21 @@ Namespace UnitOperations
         ''' is the increment's already, and holds the energy balance from the inlet to its end
         ''' with the heat of the cells up to it, U A times the log mean of the differences to the surroundings, or the heat
         ''' spread evenly. The drops come from the state put on a stream; their derivatives from central differences on it.
+        ''' An estimated coefficient is the pipe's own, from the properties at each cell's inlet (holdup, velocities, heat
+        ''' capacities, conductivities, viscosities and densities) at the cell's mean temperature; the solar radiation the
+        ''' pipe adds where the coefficient is not zero, on each cell's projected area. With the outlet temperature set the
+        ''' pipe spreads the heat that reaches it evenly: each boundary's enthalpy is the inlet's plus its share of the
+        ''' outlet's change, and the last equation is the outlet temperature.
         ''' </summary>
         Public Overrides ReadOnly Property EOHasEquations As Boolean
             Get
                 Try
                     Dim g = GraphicObject
                     If Not (g.InputConnectors(0).IsAttached AndAlso g.OutputConnectors(0).IsAttached) Then Return False
-                    If Specification <> Specmode.Length Then Return False
+                    If Specification = Specmode.OutletPressure Then Return False
+                    If Specification = Specmode.OutletTemperature AndAlso Not CalculateHeatBalance Then Return False
                     If Profile Is Nothing OrElse Profile.Status <> Auxiliary.Pipe.PipeEditorStatus.OK OrElse Profile.Sections.Count = 0 Then Return False
                     If Not CalculateEquilibrium Then Return False
-                    If CalculateHeatBalance Then
-                        Select Case ThermalProfile.TipoPerfil
-                            Case Auxiliary.Pipe.ThermalEditorDefinitions.ThermalProfileType.Definir_Q
-                            Case Auxiliary.Pipe.ThermalEditorDefinitions.ThermalProfileType.Definir_CGTC
-                                If ThermalProfile.IncludeSolarRadiation Then Return False
-                            Case Else
-                                Return False
-                        End Select
-                    End If
                     Dim n = EOPipeCells().Count
                     Return n >= 1 AndAlso n <= 200
                 Catch ex As Exception
@@ -2407,6 +2404,11 @@ Namespace UnitOperations
 
         ''' <summary>The pressure drop (Pa) of one increment of this section at the state of a stream, as Calculate works it out.</summary>
         Private Function EOPipeDrop(ms As IMaterialStream, sec As Auxiliary.Pipe.PipeSection, len As Double, el As Double) As Double
+            Return EOPipeHydraulics(ms, sec, len, el)(0)
+        End Function
+
+        ''' <summary>The pressure drop (Pa) and the liquid holdup of one increment of this section at the state of a stream, as Calculate works them out.</summary>
+        Private Function EOPipeHydraulics(ms As IMaterialStream, sec As Auxiliary.Pipe.PipeSection, len As Double, el As Double) As Double()
             Dim oms = CType(ms, Thermodynamics.Streams.MaterialStream)
             Dim Qlin = oms.OverallLiquid.Properties.volumetric_flow.GetValueOrDefault
             Dim Qsin = oms.Solid.Properties.volumetric_flow.GetValueOrDefault
@@ -2429,7 +2431,7 @@ Namespace UnitOperations
             Dim eta_v = oms.Phases(2).Properties.viscosity.GetValueOrDefault
             Dim w_v = oms.Phases(2).Properties.massflow.GetValueOrDefault
             Dim z = oms.Phases(2).Properties.compressibilityFactor.GetValueOrDefault
-            If Qvin + Qlin = 0.0 Then Return 0.0
+            If Qvin + Qlin = 0.0 Then Return {0.0, 0.0}
             Dim fpp As FlowPackages.FPBaseClass
             Select Case SelectedFlowPackage
                 Case FlowPackage.Lockhart_Martinelli : fpp = New FlowPackages.LockhartMartinelli
@@ -2449,7 +2451,7 @@ Namespace UnitOperations
                 End If
             ElseIf sec.TipoSegmento.Contains("[27]") Then
                 ' a fitting with its drop set, in Pa
-                Return sec.DI
+                Return {sec.DI, (Qlin + Qsin) / (Qvin + Qlin + Qsin)}
             Else
                 Dim resf = Kfit(sec.TipoSegmento)
                 If resf(1) = 1.0 Then
@@ -2463,30 +2465,141 @@ Namespace UnitOperations
                     Dim area = D ^ 2 * Math.PI / 4
                     Dim Ql = Qlin + Qsin
                     Dim rho_mix = Ql / (Qvin + Ql) * rho_l + Qvin / (Qvin + Ql) * rho_v
-                    Return resf(0) * rho_mix * (Ql / area + Qvin / area) ^ 2 / 2
+                    Return {resf(0) * rho_mix * (Ql / area + Qvin / area) ^ 2 / 2, Ql / (Qvin + Ql)}
                 End If
             End If
-            Return CDbl(resv(4))
+            Return {CDbl(resv(4)), CDbl(resv(1))}
         End Function
 
-        ''' <summary>The heat (kW) cell k takes in, from its two ends' temperatures.</summary>
-        Private Function EOPipeHeat(cell As EOPipeCell, cells As Integer, Tin As Double, Tout As Double) As Double
+        ''' <summary>
+        ''' What the estimated coefficient reads at a cell's inlet, as the pipe has it there: the holdup, the vapor and the
+        ''' liquid velocity, and the liquid's and the vapor's heat capacity, conductivity, viscosity and density.
+        ''' </summary>
+        Private Function EOPipeHTCProperties(ms As IMaterialStream, sec As Auxiliary.Pipe.PipeSection, len As Double, el As Double) As Double()
+            Dim oms = CType(ms, Thermodynamics.Streams.MaterialStream)
+            Dim holdup = EOPipeHydraulics(ms, sec, len, el)(1)
+            Dim Qlin = oms.OverallLiquid.Properties.volumetric_flow.GetValueOrDefault
+            Dim Qsin = oms.Solid.Properties.volumetric_flow.GetValueOrDefault
+            Dim rho_l = oms.OverallLiquid.Properties.density.GetValueOrDefault
+            If Double.IsNaN(rho_l) Then rho_l = 0.0
+            Dim eta_l As Double
+            If IncludeEmulsion AndAlso oms.Liquid1.Properties.volumetric_flow.GetValueOrDefault > 0.0 AndAlso oms.Liquid2.Properties.volumetric_flow.GetValueOrDefault > 0.0 Then
+                eta_l = EmulsionViscosity(oms)
+            Else
+                eta_l = oms.OverallLiquid.Properties.viscosity.GetValueOrDefault
+            End If
+            If SlurryViscosityMode = 1 AndAlso Qlin > 0.0 Then
+                Dim phi = Qsin / Qlin
+                eta_l *= 1.0 + 3.0 * phi / (1.0 - phi / 0.52)
+            End If
+            Dim area = Math.PI * (sec.DI * 0.0254) ^ 2 / 4
+            Dim v = oms.Phases(2).Properties
+            Dim l = oms.OverallLiquid.Properties
+            Return {holdup, v.volumetric_flow.GetValueOrDefault / area, (Qlin + Qsin) / area,
+                    l.heatCapacityCp.GetValueOrDefault, v.heatCapacityCp.GetValueOrDefault,
+                    l.thermalConductivity.GetValueOrDefault, v.thermalConductivity.GetValueOrDefault,
+                    eta_l, v.viscosity.GetValueOrDefault, rho_l, v.density.GetValueOrDefault}
+        End Function
+
+        ''' <summary>The surroundings' temperature at the start of a cell, as the pipe takes it for its heat profile.</summary>
+        Private Function EOPipeAmbient(cell As EOPipeCell) As Double
+            If UseGlobalWeather Then Return FlowSheet.FlowsheetOptions.CurrentWeather.Temperature_C + 273.15
+            If ThermalProfile.TipoPerfil = Auxiliary.Pipe.ThermalEditorDefinitions.ThermalProfileType.Estimar_CGTC Then
+                Return ThermalProfile.Temp_amb_estimar + ThermalProfile.AmbientTemperatureGradient_EstimateHTC * cell.Start
+            End If
+            If ThermalProfile.UseUserDefinedU Then
+                Return MathNet.Numerics.Interpolate.Linear(ThermalProfile.UserDefinedU_Length, ThermalProfile.UserDefinedU_Temp).Interpolate(cell.Start)
+            End If
+            Return ThermalProfile.Temp_amb_definir + ThermalProfile.AmbientTemperatureGradient * cell.Start
+        End Function
+
+        ''' <summary>Whether a cell's heat reads the properties at its inlet (an estimated coefficient).</summary>
+        Private ReadOnly Property EOPipeEstimatedU As Boolean
+            Get
+                Return CalculateHeatBalance AndAlso ThermalProfile.TipoPerfil = Auxiliary.Pipe.ThermalEditorDefinitions.ThermalProfileType.Estimar_CGTC
+            End Get
+        End Property
+
+        ''' <summary>
+        ''' The heat (kW) a cell takes in from its two ends' temperatures, as the pipe works it out: the heat set spread
+        ''' evenly, or U A times the log mean of the differences to the surroundings (U set, or estimated from the
+        ''' properties at the cell's inlet at its mean temperature) plus the solar radiation where U is not zero.
+        ''' </summary>
+        Private Function EOPipeHeatAt(cell As EOPipeCell, cells As Integer, Tin As Double, Tout As Double, props As Double()) As Double
             If Not CalculateHeatBalance Then Return 0.0
             If ThermalProfile.TipoPerfil = Auxiliary.Pipe.ThermalEditorDefinitions.ThermalProfileType.Definir_Q Then Return ThermalProfile.Calor_trocado / cells
-            Dim Text, dText_dL, U As Double
-            If ThermalProfile.UseUserDefinedU Then
-                Text = MathNet.Numerics.Interpolate.Linear(ThermalProfile.UserDefinedU_Length, ThermalProfile.UserDefinedU_Temp).Interpolate(cell.Start)
-                dText_dL = 0.0
+            Dim sec = cell.Section
+            Dim Tamb = EOPipeAmbient(cell)
+            Dim U As Double
+            If ThermalProfile.TipoPerfil = Auxiliary.Pipe.ThermalEditorDefinitions.ThermalProfileType.Estimar_CGTC Then
+                U = CalcOverallHeatTransferCoefficient(sec, sec.Material, props(0), cell.Length, sec.DI * 0.0254, sec.DE * 0.0254, GetRugosity(sec.Material, sec),
+                                                       (Tin + Tout) / 2, Tamb, props(1), props(2), props(3), props(4), props(5), props(6), props(7), props(8), props(9), props(10),
+                                                       ThermalProfile.Incluir_cti, ThermalProfile.Incluir_isolamento, ThermalProfile.Incluir_paredes, ThermalProfile.Incluir_cte)(0)
+            ElseIf ThermalProfile.UseUserDefinedU Then
                 U = MathNet.Numerics.Interpolate.Step(ThermalProfile.UserDefinedU_Length, ThermalProfile.UserDefinedU_U).Interpolate(cell.Start)
             Else
-                Text = ThermalProfile.Temp_amb_definir
-                dText_dL = ThermalProfile.AmbientTemperatureGradient
                 U = ThermalProfile.CGTC_Definido
             End If
-            Dim Tamb = If(UseGlobalWeather, FlowSheet.FlowsheetOptions.CurrentWeather.Temperature_C + 273.15, Text + dText_dL * cell.Start)
             If U = 0.0 Then Return 0.0
-            Dim A = Math.PI * (cell.Section.DE * 0.0254) * cell.Length
-            Return LogMeanDeltaT(Tin, Tout, Tamb) * U / 1000 * A
+            Dim A = Math.PI * (sec.DE * 0.0254) * cell.Length
+            Dim q = LogMeanDeltaT(Tin, Tout, Tamb) * U / 1000 * A
+            If ThermalProfile.IncludeSolarRadiation Then
+                Dim SR = ThermalProfile.SolarRadiationAbsorptionEfficiency *
+                         If(ThermalProfile.UseGlobalSolarRadiation, FlowSheet.FlowsheetOptions.CurrentWeather.SolarIrradiation_kWh_m2, ThermalProfile.SolarRadiationValue_kWh_m2)
+                q += SR * (sec.DE * 0.0254) * cell.Length
+            End If
+            Return q
+        End Function
+
+        Private Function EOPipeHTCName(cell As EOPipeCell) As String
+            Return "Pipe HTC properties " & Name & " " & cell.Section.Indice
+        End Function
+
+        ''' <summary>The heat (kW) cell j (from boundary j-1 to j) takes in at x.</summary>
+        Private Function EOPipeCellHeat(context As IEquationOrientedContext, x As Double(), cells As List(Of EOPipeCell), j As Integer) As Double
+            Dim n = cells.Count
+            Dim cell = cells(j - 1)
+            Dim a = EOPipeBoundary(context, j - 1, n), b = EOPipeBoundary(context, j, n)
+            Dim props As Double() = Nothing
+            If EOPipeEstimatedU Then props = context.StreamProperties(a, x, EOPipeHTCName(cell), Function(ms) EOPipeHTCProperties(ms, cell.Section, cell.Length, cell.Elevation))
+            Return EOPipeHeatAt(cell, n, x(a), x(b), props)
+        End Function
+
+        ''' <summary>
+        ''' The derivatives of cell j's heat by variable: its two ends' temperatures by differences, the properties at its
+        ''' inlet by their derivatives on the inlet's state.
+        ''' </summary>
+        Private Function EOPipeCellHeatDerivatives(context As IEquationOrientedContext, x As Double(), cells As List(Of EOPipeCell), j As Integer) As Dictionary(Of Integer, Double)
+            Dim d As New Dictionary(Of Integer, Double)
+            Dim put = Sub(m As Integer, v As Double)
+                          If v = 0.0 OrElse Double.IsNaN(v) Then Return
+                          If d.ContainsKey(m) Then d(m) += v Else d(m) = v
+                      End Sub
+            Dim c = context.CompoundCount
+            Dim n = cells.Count
+            Dim cell = cells(j - 1)
+            Dim a = EOPipeBoundary(context, j - 1, n), b = EOPipeBoundary(context, j, n)
+            Dim props As Double() = Nothing
+            Dim read As Func(Of IMaterialStream, Double()) = Function(ms) EOPipeHTCProperties(ms, cell.Section, cell.Length, cell.Elevation)
+            If EOPipeEstimatedU Then props = context.StreamProperties(a, x, EOPipeHTCName(cell), read)
+            Dim f = Function(Ta As Double, Tb As Double, pr As Double()) EOPipeHeatAt(cell, n, Ta, Tb, pr)
+            Dim h = 0.001
+            put(a, (f(x(a) + h, x(b), props) - f(x(a) - h, x(b), props)) / (2 * h))
+            put(b, (f(x(a), x(b) + h, props) - f(x(a), x(b) - h, props)) / (2 * h))
+            If props IsNot Nothing Then
+                Dim dp = context.StreamPropertiesDerivatives(a, x, EOPipeHTCName(cell), read)
+                For p = 0 To props.Length - 1
+                    Dim hp = 0.000001 * Math.Max(Math.Abs(props(p)), 0.000000001)
+                    Dim up = CType(props.Clone(), Double()), dn = CType(props.Clone(), Double())
+                    up(p) += hp : dn(p) -= hp
+                    Dim dq = (f(x(a), x(b), up) - f(x(a), x(b), dn)) / (2 * hp)
+                    If dq = 0.0 OrElse Double.IsNaN(dq) Then Continue For
+                    For m = 0 To c + 1
+                        put(a + m, dq * dp(p, m))
+                    Next
+                Next
+            End If
+            Return d
         End Function
 
         ''' <summary>The offset of the state at boundary k: the inlet at 0, the internal states, the outlet at the last.</summary>
@@ -2577,9 +2690,19 @@ Namespace UnitOperations
             ' a gas pipeline equation is already the drop over the increment from its inlet
             Dim dpb = If(IsGasPipelineEquation(), dpa, context.StreamProperty(b, x, name, drop))
             r(c) = (x(b + 1) - x(a + 1) + (dpa + dpb) / 2.0) / context.PressureTolerance
+            If Specification = Specmode.OutletTemperature Then
+                ' the heat spread evenly: the boundary's share of the outlet's change, and the outlet at its temperature
+                If k = n Then
+                    r(c + 1) = (x(b) - OutletTemperature) / context.TemperatureTolerance
+                Else
+                    Dim h0 = context.Enthalpy(inlet, x)
+                    r(c + 1) = (context.Enthalpy(b, x) - h0 - CDbl(k) / n * (context.Enthalpy(outlet, x) - h0)) / (EOPipeEnergyTolerance * context.EnergyTolerance(outlet))
+                End If
+                Return r
+            End If
             Dim q = 0.0
             For j = 1 To k
-                q += EOPipeHeat(cells(j - 1), n, x(EOPipeBoundary(context, j - 1, n)), x(EOPipeBoundary(context, j, n)))
+                q += EOPipeCellHeat(context, x, cells, j)
             Next
             r(c + 1) = (context.Enthalpy(b, x) - context.Enthalpy(inlet, x) - q) / (EOPipeEnergyTolerance * context.EnergyTolerance(outlet))
             Return r
@@ -2595,15 +2718,15 @@ Namespace UnitOperations
             Dim ft = context.FlowTolerance(outlet), tp = context.PressureTolerance
             Dim tq = EOPipeEnergyTolerance * context.EnergyTolerance(outlet)
             Dim h0 = context.EnthalpyDerivatives(inlet, x)
-            ' each cell's heat against the temperatures at its two ends
-            Dim dq(n - 1, 1) As Double
-            For j = 1 To n
-                Dim ta = EOPipeBoundary(context, j - 1, n), tb = EOPipeBoundary(context, j, n)
-                Dim cell = cells(j - 1)
-                Dim h = 0.001
-                dq(j - 1, 0) = (EOPipeHeat(cell, n, x(ta) + h, x(tb)) - EOPipeHeat(cell, n, x(ta) - h, x(tb))) / (2 * h)
-                dq(j - 1, 1) = (EOPipeHeat(cell, n, x(ta), x(tb) + h) - EOPipeHeat(cell, n, x(ta), x(tb) - h)) / (2 * h)
-            Next
+            Dim tspec = Specification = Specmode.OutletTemperature
+            ' each cell's heat by variable
+            Dim dq As New List(Of Dictionary(Of Integer, Double))
+            If Not tspec Then
+                For j = 1 To n
+                    dq.Add(EOPipeCellHeatDerivatives(context, x, cells, j))
+                Next
+            End If
+            Dim hn = context.EnthalpyDerivatives(outlet, x)
             For k = 1 To n
                 Dim cell = cells(k - 1)
                 Dim a = EOPipeBoundary(context, k - 1, n), b = EOPipeBoundary(context, k, n)
@@ -2628,14 +2751,29 @@ Namespace UnitOperations
                         If db(j) <> 0.0 Then add(e0 + c, b + j, db(j) / 2.0 / tp)
                     Next
                 End If
-                Dim hb = context.EnthalpyDerivatives(b, x)
+                If tspec Then
+                    If k = n Then
+                        add(e0 + c + 1, b, 1.0 / context.TemperatureTolerance)
+                    Else
+                        Dim hb = context.EnthalpyDerivatives(b, x)
+                        Dim share = CDbl(k) / n
+                        For j = 0 To c + 1
+                            add(e0 + c + 1, b + j, hb(j) / tq)
+                            add(e0 + c + 1, inlet + j, -(1.0 - share) * h0(j) / tq)
+                            add(e0 + c + 1, outlet + j, -share * hn(j) / tq)
+                        Next
+                    End If
+                    Continue For
+                End If
+                Dim hbk = context.EnthalpyDerivatives(b, x)
                 For j = 0 To c + 1
-                    add(e0 + c + 1, b + j, hb(j) / tq)
+                    add(e0 + c + 1, b + j, hbk(j) / tq)
                     add(e0 + c + 1, inlet + j, -h0(j) / tq)
                 Next
                 For j = 1 To k
-                    add(e0 + c + 1, EOPipeBoundary(context, j - 1, n), -dq(j - 1, 0) / tq)
-                    add(e0 + c + 1, EOPipeBoundary(context, j, n), -dq(j - 1, 1) / tq)
+                    For Each kv In dq(j - 1)
+                        add(e0 + c + 1, kv.Key, -kv.Value / tq)
+                    Next
                 Next
             Next
             Return True
@@ -2668,7 +2806,8 @@ Namespace UnitOperations
             If Not EOHasEquations Then Return MyBase.EOEquationName(context, k)
             Dim c = context.CompoundCount
             Dim cell = k \ (c + 2) + 1, j = k Mod (c + 2)
-            Dim what = If(j < c, "flow of compound " & j, If(j = c, "pressure", "energy balance from the inlet"))
+            Dim what = If(j < c, "flow of compound " & j, If(j = c, "pressure",
+                       If(Specification = Specmode.OutletTemperature, If(cell = EOPipeCells().Count, "outlet temperature at its specification", "share of the outlet's enthalpy change"), "energy balance from the inlet")))
             Return $"increment {cell} of {EOPipeCells().Count}: {what}"
         End Function
 

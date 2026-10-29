@@ -284,7 +284,7 @@ The phase equilibrium is a submodel: the PT flash of the property package, with 
 | Gibbs Reactor | reacting in the vapor, in the liquid, or in the phases the flash gives |
 | CSTR | one outlet; isothermal, adiabatic or at an outlet temperature; kinetic and catalytic reactions with expression rates |
 | PFR | isothermal, adiabatic, at an outlet temperature or with the energy stream's duty; kinetic and catalytic reactions with expression rates, in one phase; the profile along the length as unknowns (below) |
-| Pipe Segment | length given; heat given, an overall coefficient against the surroundings, or no heat balance; the profile along the length as unknowns (below) |
+| Pipe Segment | length or outlet temperature given; heat given, an overall coefficient against the surroundings (given or estimated from the fluid's properties at each cell's inlet), solar radiation on the projected area, or no heat balance; the profile along the length as unknowns (below) |
 | Distillation Column, Absorber | the MESH equations of the Naphtali-Sandholm solver, each stage's temperature and flows unknowns of the system (below) |
 
 Feeds keep their state, and a Recycle block makes its outlet equal to its inlet. Controllers, switches and inputs act in dynamic simulation only and are left out.
