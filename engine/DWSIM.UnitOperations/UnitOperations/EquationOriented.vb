@@ -777,37 +777,78 @@ Namespace UnitOperations
 
     Partial Public Class Vessel
 
-        ''' <summary>A saturated inlet keeps the equations: its equations read the inlets' flows, pressures and enthalpies (the flash is of their mixture).</summary>
+        ''' <summary>A saturated inlet keeps the equations: its equations read the inlets' flows, pressures, temperatures and enthalpies (the flash is of their mixture).</summary>
         Public Overrides ReadOnly Property EOTakesSaturatedInlets As Boolean
             Get
                 Return EOHasEquations
             End Get
         End Property
 
-        ''' <summary>
-        ''' Equations of its own in the legacy mode, adiabatic or at a set temperature, at the pressure of its inlets, with
-        ''' a vapor and a liquid outlet: the two phases of the PT flash of the inlets' mixture, at a common temperature and
-        ''' pressure, and the energy balance (or the set temperature, whose duty is a result). The adiabatic mode is the
-        ''' same flash with no heat: its energy streams are left out of its calculation.
-        ''' </summary>
-        Public Overrides ReadOnly Property EOHasEquations As Boolean
+        ''' <summary>The mode the vessel runs in: a set temperature or pressure turns it to the legacy mode, as Calculate does.</summary>
+        Private ReadOnly Property EOMode As CalculationModes
             Get
-                If OverrideP OrElse CalculateRigorousHeatBalance Then Return False
-                If CalculationMode = CalculationModes.Adiabatic Then
-                    Return GraphicObject.OutputConnectors(0).IsAttached AndAlso GraphicObject.OutputConnectors(1).IsAttached
-                End If
-                If CalculationMode <> CalculationModes.Legacy Then Return False
-                Dim g = GraphicObject
-                ' an energy inlet only carries the duty of a vessel at a set temperature
-                If Not OverrideT AndAlso g.InputConnectors.Count > 6 AndAlso g.InputConnectors(6).IsAttached Then Return False
-                If g.OutputConnectors.Count > 2 AndAlso g.OutputConnectors(2).IsAttached Then Return False
-                Return g.OutputConnectors(0).IsAttached AndAlso g.OutputConnectors(1).IsAttached
+                Return If(OverrideP OrElse OverrideT, CalculationModes.Legacy, CalculationMode)
             End Get
         End Property
 
+        ''' <summary>The vessel's pressure is a variable of its own: the isothermal heating or cooling mode moves it to hold the temperature.</summary>
+        Private ReadOnly Property EOFreePressure As Boolean
+            Get
+                Return EOMode = CalculationModes.HeatingCoolingIsothermic
+            End Get
+        End Property
+
+        ''' <summary>
+        ''' Equations of its own with a vapor and a liquid outlet: the two phases of the PT flash of the inlets' mixture, at a
+        ''' common temperature and pressure. The pressure is the inlets' by the vessel's rule, or the one set; the temperature
+        ''' comes from the energy balance with the heat the vessel takes in (its energy stream, its heating or cooling
+        ''' amount, the heat its thermal profile gives), or is the one set, or, with only the pressure set, the inlets'
+        ''' temperatures averaged by mass, as the vessel takes it. In the isothermal heating or cooling mode the temperature
+        ''' is the inlets' mixture's at their pressure, and the pressure the one where the heat leaves it there. A second
+        ''' liquid outlet (three phases), and a rigorous heat balance against the surroundings, take it as a black box.
+        ''' </summary>
+        Public Overrides ReadOnly Property EOHasEquations As Boolean
+            Get
+                Dim g = GraphicObject
+                If Not (g.OutputConnectors(0).IsAttached AndAlso g.OutputConnectors(1).IsAttached) Then Return False
+                If g.OutputConnectors.Count > 2 AndAlso g.OutputConnectors(2).IsAttached Then Return False
+                If CalculateRigorousHeatBalance Then
+                    ' the heat given, added before the mode's own; the adiabatic mode reads its single inlet over it
+                    If ThermalProperties.TipoPerfil <> Auxiliary.Pipe.ThermalEditorDefinitions.ThermalProfileType.Definir_Q Then Return False
+                    If EOMode = CalculationModes.Adiabatic Then Return False
+                End If
+                Return True
+            End Get
+        End Property
+
+        ''' <summary>The heat the vessel takes in (kW) besides its inlets', in the mode it runs in.</summary>
+        Private Function EODuty() As Double
+            Dim q = If(CalculateRigorousHeatBalance, ThermalProperties.Calor_trocado, 0.0)
+            Dim es = GetInletEnergyStream(6), esout = GetOutletEnergyStream(4)
+            Select Case EOMode
+                Case CalculationModes.Legacy
+                    Dim d = 0.0
+                    If es IsNot Nothing Then d = es.EnergyFlow.GetValueOrDefault()
+                    If esout IsNot Nothing Then d = -esout.EnergyFlow.GetValueOrDefault()
+                    q += d
+                Case CalculationModes.HeatingCoolingIsobaric, CalculationModes.HeatingCoolingIsothermic
+                    If HeatingCoolingAmount.GetValueOrDefault() > 0 Then
+                        q += HeatingCoolingAmount.GetValueOrDefault()
+                    ElseIf es IsNot Nothing Then
+                        q += es.EnergyFlow.GetValueOrDefault()
+                    ElseIf HeatingCoolingAmount.GetValueOrDefault() < 0 Then
+                        q += HeatingCoolingAmount.GetValueOrDefault()
+                    End If
+            End Select
+            Return q
+        End Function
+
         Public Overrides Function EOParameters() As String()
             If Not EOHasEquations Then Return MyBase.EOParameters()
-            Return If(OverrideT, New String() {"PROP_SV_0"}, New String() {})
+            Dim list As New List(Of String)
+            If OverrideT Then list.Add("PROP_SV_0")
+            If OverrideP Then list.Add("PROP_SV_1")
+            Return list.ToArray()
         End Function
 
         Public Overrides Function EOEquationCount(context As IEquationOrientedContext) As Integer
@@ -837,6 +878,42 @@ Namespace UnitOperations
             Return z
         End Function
 
+        ''' <summary>The vessel's pressure and the weights of the variables it moves with: the inlets' by the rule, the one set, or the vapor outlet's own.</summary>
+        Private Function EOPressure(context As IEquationOrientedContext, x As Double(), inlets As Integer(), ByRef weights As Dictionary(Of Integer, Double)) As Double
+            Dim vapor = EOOutletOffset(context, 0)
+            weights = New Dictionary(Of Integer, Double)
+            If EOFreePressure Then
+                weights(vapor + 1) = 1.0
+                Return x(vapor + 1)
+            End If
+            If OverrideP Then
+                Dim k = context.ParameterIndex(Me, "PROP_SV_1")
+                If k >= 0 Then weights(k) = 1.0
+                Return EOParameterValue(context, x, "PROP_SV_1", FlashPressure)
+            End If
+            Dim rule = PressureCalculation.ToString()
+            For Each w In InletPressureRule.Weights(context, x, inlets, rule)
+                weights(w.Key + 1) = w.Value
+            Next
+            Return InletPressureRule.Pressure(context, x, inlets, rule)
+        End Function
+
+        ''' <summary>The inlets' temperatures averaged by their mass flows, as the vessel takes its temperature with only the pressure set.</summary>
+        Private Function EOMassMeanTemperature(context As IEquationOrientedContext, x As Double(), inlets As Integer()) As Double
+            Dim mw = context.MolecularWeights
+            Dim c = context.CompoundCount
+            Dim W = 0.0, WT = 0.0
+            For Each o In inlets
+                Dim wo = 0.0
+                For i = 0 To c - 1
+                    wo += x(o + 2 + i) * mw(i) / 1000.0
+                Next
+                W += wo
+                WT += wo * x(o)
+            Next
+            Return If(W > 0.0, WT / W, 273.15)
+        End Function
+
         Public Overrides Sub EOResiduals(context As IEquationOrientedContext, x As Double(), r As Double(), row As Integer)
             If Not EOHasEquations Then
                 MyBase.EOResiduals(context, x, r, row)
@@ -847,25 +924,39 @@ Namespace UnitOperations
             Dim vapor = EOOutletOffset(context, 0), liquid = EOOutletOffset(context, 1)
             Dim tf, te As Double
             Dim z = EOFeed(context, x, inlets, tf, te)
-            Dim P = InletPressureRule.Pressure(context, x, inlets, PressureCalculation.ToString())
+            Dim weights As Dictionary(Of Integer, Double) = Nothing
+            Dim P = EOPressure(context, x, inlets, weights)
             Dim T = x(vapor)
             Dim split = context.Flash(vapor, T, P, z, False)
             For i = 0 To c - 1
                 r(row + i) = (x(vapor + 2 + i) - split.V(i)) / tf
                 r(row + c + i) = (x(liquid + 2 + i) - split.L(i)) / tf
             Next
-            r(row + 2 * c) = (x(liquid) - T) / context.TemperatureTolerance
-            r(row + 2 * c + 1) = (x(vapor + 1) - P) / context.PressureTolerance
-            r(row + 2 * c + 2) = (x(liquid + 1) - P) / context.PressureTolerance
-            If OverrideT Then
-                r(row + 2 * c + 3) = (T - EOParameterValue(context, x, "PROP_SV_0", FlashTemperature)) / context.TemperatureTolerance
-                Return
-            End If
+            Dim tt = context.TemperatureTolerance, tp = context.PressureTolerance
+            r(row + 2 * c) = (x(liquid) - T) / tt
             Dim hin = 0.0
             For Each o In inlets
                 hin += context.Enthalpy(o, x)
             Next
-            r(row + 2 * c + 3) = (split.H - hin) / te
+            If EOFreePressure Then
+                ' the liquid at the vessel's pressure; that pressure where the heat leaves the mixture's temperature
+                Dim rule = PressureCalculation.ToString()
+                Dim Pin = InletPressureRule.Pressure(context, x, inlets, rule)
+                r(row + 2 * c + 1) = (x(liquid + 1) - P) / tp
+                r(row + 2 * c + 2) = (split.H - hin - EODuty()) / te
+                Dim mix = context.Flash(vapor, T, Pin, z, False)
+                r(row + 2 * c + 3) = (mix.H - hin - If(CalculateRigorousHeatBalance, ThermalProperties.Calor_trocado, 0.0)) / te
+                Return
+            End If
+            r(row + 2 * c + 1) = (x(vapor + 1) - P) / tp
+            r(row + 2 * c + 2) = (x(liquid + 1) - P) / tp
+            If OverrideT Then
+                r(row + 2 * c + 3) = (T - EOParameterValue(context, x, "PROP_SV_0", FlashTemperature)) / tt
+            ElseIf OverrideP Then
+                r(row + 2 * c + 3) = (T - EOMassMeanTemperature(context, x, inlets)) / tt
+            Else
+                r(row + 2 * c + 3) = (split.H - hin - EODuty()) / te
+            End If
         End Sub
 
         Public Overrides Function EOJacobian(context As IEquationOrientedContext, x As Double(), add As Action(Of Integer, Integer, Double)) As Boolean
@@ -875,24 +966,23 @@ Namespace UnitOperations
             Dim vapor = EOOutletOffset(context, 0), liquid = EOOutletOffset(context, 1)
             Dim tf, te As Double
             Dim z = EOFeed(context, x, inlets, tf, te)
-            Dim rule = PressureCalculation.ToString()
-            Dim P = InletPressureRule.Pressure(context, x, inlets, rule)
+            Dim weights As Dictionary(Of Integer, Double) = Nothing
+            Dim P = EOPressure(context, x, inlets, weights)
             Dim T = x(vapor)
             Dim e = context.Flash(vapor, T, P, z, True)
             If e Is Nothing Then Throw New NotSupportedException(GraphicObject.Tag & ": no feed")
-            Dim weights = InletPressureRule.Weights(context, x, inlets, rule)
             For i = 0 To c - 1
                 ' vapor: n_v - V(T, P, z)
                 add(i, vapor + 2 + i, 1.0 / tf)
                 add(i, vapor, -e.VdT(i) / tf)
                 For Each w In weights
-                    add(i, w.Key + 1, -e.VdP(i) * w.Value / tf)
+                    add(i, w.Key, -e.VdP(i) * w.Value / tf)
                 Next
                 ' liquid: n_l - (z - V)
                 add(c + i, liquid + 2 + i, 1.0 / tf)
                 add(c + i, vapor, e.VdT(i) / tf)
                 For Each w In weights
-                    add(c + i, w.Key + 1, e.VdP(i) * w.Value / tf)
+                    add(c + i, w.Key, e.VdP(i) * w.Value / tf)
                 Next
                 For Each o In inlets
                     For j = 0 To c - 1
@@ -904,40 +994,87 @@ Namespace UnitOperations
             Dim tt = context.TemperatureTolerance, tp = context.PressureTolerance
             add(2 * c, liquid, 1.0 / tt)
             add(2 * c, vapor, -1.0 / tt)
+            ' minus the inlets' enthalpies, into a row
+            Dim addInlets = Sub(row As Integer)
+                                For Each o In inlets
+                                    If Enumerable.Range(0, c).Sum(Function(i) x(o + 2 + i)) <= 0.0 Then Continue For
+                                    Dim hin = context.EnthalpyDerivatives(o, x)
+                                    For j = 0 To c + 1
+                                        add(row, o + j, -hin(j) / te)
+                                    Next
+                                Next
+                            End Sub
+            ' H(T, P, z) of a flash with its pressure's weights, into a row
+            Dim addFlash = Sub(row As Integer, f As IEquationOrientedFlash, pw As IEnumerable(Of KeyValuePair(Of Integer, Double)))
+                               add(row, vapor, f.HdT / te)
+                               For Each w In pw
+                                   add(row, w.Key, f.HdP * w.Value / te)
+                               Next
+                               For Each o In inlets
+                                   For j = 0 To c - 1
+                                       add(row, o + 2 + j, f.Hdn(j) / te)
+                                   Next
+                               Next
+                           End Sub
+            If EOFreePressure Then
+                add(2 * c + 1, liquid + 1, 1.0 / tp)
+                add(2 * c + 1, vapor + 1, -1.0 / tp)
+                addFlash(2 * c + 2, e, weights)
+                addInlets(2 * c + 2)
+                Dim rule = PressureCalculation.ToString()
+                Dim Pin = InletPressureRule.Pressure(context, x, inlets, rule)
+                Dim mix = context.Flash(vapor, T, Pin, z, True)
+                If mix Is Nothing Then Throw New NotSupportedException(GraphicObject.Tag & ": no feed")
+                addFlash(2 * c + 3, mix, InletPressureRule.Weights(context, x, inlets, rule).Select(Function(w) New KeyValuePair(Of Integer, Double)(w.Key + 1, w.Value)))
+                addInlets(2 * c + 3)
+                Return True
+            End If
             add(2 * c + 1, vapor + 1, 1.0 / tp)
             add(2 * c + 2, liquid + 1, 1.0 / tp)
             For Each w In weights
-                add(2 * c + 1, w.Key + 1, -w.Value / tp)
-                add(2 * c + 2, w.Key + 1, -w.Value / tp)
+                add(2 * c + 1, w.Key, -w.Value / tp)
+                add(2 * c + 2, w.Key, -w.Value / tp)
             Next
             Dim k = 2 * c + 3
             If OverrideT Then
                 add(k, vapor, 1.0 / tt)
                 Dim kT = context.ParameterIndex(Me, "PROP_SV_0")
                 If kT >= 0 Then add(k, kT, -1.0 / tt)
-                Return True
+            ElseIf OverrideP Then
+                ' T less the inlets' temperatures averaged by mass
+                add(k, vapor, 1.0 / tt)
+                Dim mw = context.MolecularWeights
+                Dim W = 0.0
+                For Each o In inlets
+                    For i = 0 To c - 1
+                        W += x(o + 2 + i) * mw(i) / 1000.0
+                    Next
+                Next
+                If W > 0.0 Then
+                    Dim Tm = EOMassMeanTemperature(context, x, inlets)
+                    For Each o In inlets
+                        Dim wo = 0.0
+                        For i = 0 To c - 1
+                            wo += x(o + 2 + i) * mw(i) / 1000.0
+                        Next
+                        add(k, o, -wo / W / tt)
+                        For i = 0 To c - 1
+                            add(k, o + 2 + i, -mw(i) / 1000.0 * (x(o) - Tm) / W / tt)
+                        Next
+                    Next
+                End If
+            Else
+                addFlash(k, e, weights)
+                addInlets(k)
             End If
-            ' energy: H(T, P, z) less the inlets' enthalpies
-            add(k, vapor, e.HdT / te)
-            For Each w In weights
-                add(k, w.Key + 1, e.HdP * w.Value / te)
-            Next
-            For Each o In inlets
-                For j = 0 To c - 1
-                    add(k, o + 2 + j, e.Hdn(j) / te)
-                Next
-                If Enumerable.Range(0, c).Sum(Function(i) x(o + 2 + i)) <= 0.0 Then Continue For
-                Dim hin = context.EnthalpyDerivatives(o, x)
-                For j = 0 To c + 1
-                    add(k, o + j, -hin(j) / te)
-                Next
-            Next
             Return True
         End Function
 
-        ' every row but the liquid temperature reads the block's pressure
+        ' every row but the liquid temperature reads the block's pressure, which ties the inlets' by the rule
         Public Overrides Function EOIsSmooth(context As IEquationOrientedContext, x As Double(), k As Integer) As Boolean
             If Not EOHasEquations Then Return MyBase.EOIsSmooth(context, x, k)
+            If OverrideP Then Return True
+            If EOFreePressure Then Return k <> 2 * context.CompoundCount + 3 OrElse Not InletPressureRule.Tied(context, x, context.InletOffsets(Me), PressureCalculation.ToString())
             Return k = 2 * context.CompoundCount OrElse Not InletPressureRule.Tied(context, x, context.InletOffsets(Me), PressureCalculation.ToString())
         End Function
 
@@ -946,11 +1083,19 @@ Namespace UnitOperations
             Dim c = context.CompoundCount
             If k < c Then Return "vapor flow " & k
             If k < 2 * c Then Return "liquid flow " & (k - c)
+            If EOFreePressure Then
+                Select Case k - 2 * c
+                    Case 0 : Return "liquid temperature"
+                    Case 1 : Return "liquid pressure"
+                    Case 2 : Return "energy balance at the vessel's pressure"
+                    Case Else : Return "temperature of the inlets' mixture"
+                End Select
+            End If
             Select Case k - 2 * c
                 Case 0 : Return "liquid temperature"
                 Case 1 : Return "vapor pressure"
                 Case 2 : Return "liquid pressure"
-                Case Else : Return If(OverrideT, "set temperature", "energy balance")
+                Case Else : Return If(OverrideT, "set temperature", If(OverrideP, "inlets' temperature by mass", "energy balance"))
             End Select
         End Function
 
@@ -1285,14 +1430,21 @@ Namespace UnitOperations
         ''' the point where the unit's own iteration stops. A vapor fraction sets the outlet's temperature where that
         ''' outlet's compounds, at its pressure, flash to it (the bubble point at 0, the dew point at 1), a condition smooth
         ''' in the pressure and the flows where the vapor fraction itself is flat. The cold side is the inlet at the lower
-        ''' temperature, as the unit decides. The rating, pinch and efficiency modes take the exchanger as a black box.
+        ''' temperature, as the unit decides. The area mode is the mode of its set outlet temperature, its area a result. At a
+        ''' thermal efficiency (counter-current) the cold side takes that share of the largest heat the exchanger can move:
+        ''' the lesser of the cold side's at the hot inlet's temperature and the hot side's at the cold inlet's, each at its
+        ''' outlet pressure. At a pinch the smallest difference between the two sides' temperature profiles, 26 points each
+        ''' by PH flashes along the heat as the unit makes them, is the minimum approach. The shell and tube modes and a
+        ''' co-current efficiency take the exchanger as a black box.
         ''' </summary>
         Public Overrides ReadOnly Property EOHasEquations As Boolean
             Get
                 Select Case CalcMode
                     Case HeatExchangerCalcMode.CalcTempHotOut, HeatExchangerCalcMode.CalcTempColdOut,
                          HeatExchangerCalcMode.CalcBothTemp, HeatExchangerCalcMode.CalcBothTemp_UA,
-                         HeatExchangerCalcMode.OutletVaporFraction1, HeatExchangerCalcMode.OutletVaporFraction2
+                         HeatExchangerCalcMode.OutletVaporFraction1, HeatExchangerCalcMode.OutletVaporFraction2,
+                         HeatExchangerCalcMode.CalcArea, HeatExchangerCalcMode.PinchPoint, HeatExchangerCalcMode.ThermalEfficiency
+                        If CalcMode = HeatExchangerCalcMode.ThermalEfficiency AndAlso FlowDir <> FlowDirection.CounterCurrent Then Return False
                         Dim g = GraphicObject
                         Return g.InputConnectors(0).IsAttached AndAlso g.InputConnectors(1).IsAttached AndAlso
                                g.OutputConnectors(0).IsAttached AndAlso g.OutputConnectors(1).IsAttached
@@ -1313,10 +1465,20 @@ Namespace UnitOperations
             End Get
         End Property
 
+        ''' <summary>The mode the equations write: the area mode is that of the outlet temperature it sets.</summary>
+        Private ReadOnly Property EOCalcMode As HeatExchangerCalcMode
+            Get
+                If CalcMode <> HeatExchangerCalcMode.CalcArea Then Return CalcMode
+                Return If(DefinedTemperature = SpecifiedTemperature.Cold_Fluid, HeatExchangerCalcMode.CalcTempHotOut, HeatExchangerCalcMode.CalcTempColdOut)
+            End Get
+        End Property
+
         Public Overrides Function EOParameters() As String()
             If Not EOHasEquations Then Return MyBase.EOParameters()
             Dim common = {"PROP_HX_28", "PROP_HX_32", "PROP_HX_33"}
-            Select Case CalcMode
+            Select Case EOCalcMode
+                Case HeatExchangerCalcMode.ThermalEfficiency : Return common.Concat({"PROP_HX_25"}).ToArray()
+                Case HeatExchangerCalcMode.PinchPoint : Return common.Concat({"PROP_HX_27"}).ToArray()
                 Case HeatExchangerCalcMode.CalcTempHotOut : Return common.Concat({"PROP_HX_3"}).ToArray()
                 Case HeatExchangerCalcMode.CalcTempColdOut : Return common.Concat({"PROP_HX_4"}).ToArray()
                 Case HeatExchangerCalcMode.CalcBothTemp : Return common.Concat({"PROP_HX_2"}).ToArray()
@@ -1403,6 +1565,97 @@ Namespace UnitOperations
             Return context.StreamProperty(offset, x, name, read)
         End Function
 
+        Private Shared Function EOSideFlow(x As Double(), o As Integer, c As Integer) As Double
+            Dim s = 0.0
+            For i = 0 To c - 1
+                s += x(o + 2 + i)
+            Next
+            Return s
+        End Function
+
+        ''' <summary>
+        ''' The largest heat (kW) a counter-current exchanger can move, as the unit takes it: the lesser of the cold side's
+        ''' enthalpy rise to the hot inlet's temperature and the hot side's fall to the cold inlet's, each at its outlet
+        ''' pressure; and its derivatives by variable.
+        ''' </summary>
+        Private Function EOMaxHeat(context As IEquationOrientedContext, x As Double(), ci As Integer, co As Integer, hi As Integer, ho As Integer, ByRef d As Dictionary(Of Integer, Double)) As Double
+            Dim c = context.CompoundCount
+            Dim nc = Enumerable.Range(0, c).Select(Function(i) x(ci + 2 + i)).ToArray()
+            Dim nh = Enumerable.Range(0, c).Select(Function(i) x(hi + 2 + i)).ToArray()
+            Dim fc = context.Flash(ci, x(hi), x(co + 1), nc, True)
+            Dim fh = context.Flash(hi, x(ci), x(ho + 1), nh, True)
+            Dim qc = fc.H - context.Enthalpy(ci, x)
+            Dim qh = context.Enthalpy(hi, x) - fh.H
+            Dim dd As New Dictionary(Of Integer, Double)
+            d = dd
+            Dim put = Sub(m As Integer, v As Double)
+                          If dd.ContainsKey(m) Then dd(m) += v Else dd(m) = v
+                      End Sub
+            If qc <= qh Then
+                put(hi, fc.HdT)
+                put(co + 1, fc.HdP)
+                For i = 0 To c - 1
+                    put(ci + 2 + i, fc.Hdn(i))
+                Next
+                Dim h1 = context.EnthalpyDerivatives(ci, x)
+                For j = 0 To c + 1
+                    put(ci + j, -h1(j))
+                Next
+                Return qc
+            End If
+            Dim h2 = context.EnthalpyDerivatives(hi, x)
+            For j = 0 To c + 1
+                put(hi + j, h2(j))
+            Next
+            put(ci, -fh.HdT)
+            put(ho + 1, -fh.HdP)
+            For i = 0 To c - 1
+                put(hi + 2 + i, -fh.Hdn(i))
+            Next
+            Return qh
+        End Function
+
+        ''' <summary>
+        ''' The smallest temperature difference between the two sides along the heat, as the unit's pinch mode takes it:
+        ''' each side's temperature at 26 points of its enthalpy and pressure from inlet to outlet (PH flashes of the side's
+        ''' inlet), the hot side's reversed in counter-current unless the pinch is taken at the outlets.
+        ''' </summary>
+        Private Function EOPinch(context As IEquationOrientedContext, x As Double(), ci As Integer, co As Integer, hi As Integer, ho As Integer) As Double
+            Const steps As Integer = 25
+            Dim q = context.Enthalpy(co, x) - context.Enthalpy(ci, x)
+            Dim tc = EOProfile(context, x, ci, q, x(ci + 1) - x(co + 1), steps)
+            Dim th = EOProfile(context, x, hi, -q, x(hi + 1) - x(ho + 1), steps)
+            If Not PinchPointAtOutlets AndAlso FlowDir = FlowDirection.CounterCurrent Then th = th.Reverse().ToArray()
+            Dim dmin = Double.MaxValue
+            For i = 0 To steps
+                dmin = Math.Min(dmin, Math.Abs(th(i) - tc(i)))
+            Next
+            Return dmin
+        End Function
+
+        ''' <summary>A side's temperatures at steps + 1 points as its inlet takes the heat q (kW) and loses the pressure dp, by PH flashes of the inlet.</summary>
+        Private Function EOProfile(context As IEquationOrientedContext, x As Double(), inlet As Integer, q As Double, dp As Double, steps As Integer) As Double()
+            Dim inv = Globalization.CultureInfo.InvariantCulture
+            Dim name = Me.Name & " profile " & q.ToString("R", inv) & " " & dp.ToString("R", inv)
+            Return context.StreamProperties(inlet, x, name,
+                Function(ms)
+                    Dim pp = ms.PropertyPackage
+                    Dim W = ms.GetMassFlow()
+                    Dim H1 = ms.GetMassEnthalpy(), P1 = ms.GetPressure()
+                    Dim T = ms.GetTemperature()
+                    Dim res(steps) As Double
+                    For i = 0 To steps
+                        Dim f = CDbl(i) / steps
+                        pp.CurrentMaterialStream = ms
+                        Dim fl = pp.CalculateEquilibrium2(Enums.FlashCalculationType.PressureEnthalpy, P1 - f * dp, H1 + f * q / W, T)
+                        Dim tv As Object = fl.CalculatedTemperature
+                        res(i) = If(tv Is Nothing, Double.NaN, CDbl(tv))
+                        T = res(i)
+                    Next
+                    Return res
+                End Function)
+        End Function
+
         Public Overrides Sub EOResiduals(context As IEquationOrientedContext, x As Double(), r As Double(), row As Integer)
             If Not EOHasEquations Then
                 MyBase.EOResiduals(context, x, r, row)
@@ -1426,7 +1679,15 @@ Namespace UnitOperations
             Dim dHc = context.Enthalpy(co, x) - context.Enthalpy(ci, x)
             Dim dHh = context.Enthalpy(ho, x) - context.Enthalpy(hi, x)
             Dim loss = EOParameterValue(context, x, "PROP_HX_28", HeatLoss)
-            Select Case CalcMode
+            Select Case EOCalcMode
+                Case HeatExchangerCalcMode.ThermalEfficiency
+                    Dim eff = EOParameterValue(context, x, "PROP_HX_25", ThermalEfficiency) / 100.0
+                    Dim dqx As Dictionary(Of Integer, Double) = Nothing
+                    r(k) = (dHc - eff * EOMaxHeat(context, x, ci, co, hi, ho, dqx)) / te
+                    r(k + 1) = (dHc + dHh + loss) / te
+                Case HeatExchangerCalcMode.PinchPoint
+                    r(k) = (EOPinch(context, x, ci, co, hi, ho) - EOParameterValue(context, x, "PROP_HX_27", MITA)) / context.TemperatureTolerance
+                    r(k + 1) = (dHc + dHh + loss) / te
                 Case HeatExchangerCalcMode.CalcTempHotOut
                     r(k) = (x(co) - EOParameterValue(context, x, "PROP_HX_3", TempColdOut.GetValueOrDefault())) / context.TemperatureTolerance
                     r(k + 1) = (dHc + dHh + loss) / te
@@ -1491,11 +1752,43 @@ Namespace UnitOperations
                              Next
                          End Sub
             Dim kl = context.ParameterIndex(Me, "PROP_HX_28")
-            Select Case CalcMode
+            Select Case EOCalcMode
+                Case HeatExchangerCalcMode.ThermalEfficiency
+                    Dim eff = EOParameterValue(context, x, "PROP_HX_25", ThermalEfficiency) / 100.0
+                    Dim dq As Dictionary(Of Integer, Double) = Nothing
+                    Dim qmax = EOMaxHeat(context, x, ci, co, hi, ho, dq)
+                    addCold(k, 1.0)
+                    For Each kv In dq
+                        add(k, kv.Key, -eff * kv.Value / te)
+                    Next
+                    Dim ke = context.ParameterIndex(Me, "PROP_HX_25")
+                    If ke >= 0 Then add(k, ke, -qmax / 100.0 / te)
+                    addCold(k + 1, 1.0) : addHot(k + 1, 1.0)
+                Case HeatExchangerCalcMode.PinchPoint
+                    ' the pinch by central differences on the four streams' variables
+                    Dim tt = context.TemperatureTolerance
+                    Dim xt = CType(x.Clone(), Double())
+                    For Each o In {ci, co, hi, ho}
+                        For j = 0 To c + 1
+                            Dim m = o + j
+                            Dim h = If(j = 0, 0.05, If(j = 1, 0.001 * Math.Max(x(m), 10000.0), 0.0001 * Math.Max(Math.Abs(x(m)), 0.000001 * EOSideFlow(x, o, c))))
+                            Dim hb = If(j < 2, h, Math.Min(h, Math.Max(x(m), 0.0)))
+                            xt(m) = x(m) + h
+                            Dim up = EOPinch(context, xt, ci, co, hi, ho)
+                            xt(m) = x(m) - hb
+                            Dim down = EOPinch(context, xt, ci, co, hi, ho)
+                            xt(m) = x(m)
+                            Dim dv = (up - down) / (h + hb)
+                            If dv <> 0.0 AndAlso Not Double.IsNaN(dv) Then add(k, m, dv / tt)
+                        Next
+                    Next
+                    Dim km = context.ParameterIndex(Me, "PROP_HX_27")
+                    If km >= 0 Then add(k, km, -1.0 / tt)
+                    addCold(k + 1, 1.0) : addHot(k + 1, 1.0)
                 Case HeatExchangerCalcMode.CalcTempHotOut, HeatExchangerCalcMode.CalcTempColdOut
                     Dim tt = context.TemperatureTolerance
-                    Dim code = If(CalcMode = HeatExchangerCalcMode.CalcTempHotOut, "PROP_HX_3", "PROP_HX_4")
-                    add(k, If(CalcMode = HeatExchangerCalcMode.CalcTempHotOut, co, ho), 1.0 / tt)
+                    Dim code = If(EOCalcMode = HeatExchangerCalcMode.CalcTempHotOut, "PROP_HX_3", "PROP_HX_4")
+                    add(k, If(EOCalcMode = HeatExchangerCalcMode.CalcTempHotOut, co, ho), 1.0 / tt)
                     Dim ks = context.ParameterIndex(Me, code)
                     If ks >= 0 Then add(k, ks, -1.0 / tt)
                     addCold(k + 1, 1.0) : addHot(k + 1, 1.0)
@@ -1551,7 +1844,9 @@ Namespace UnitOperations
                 Case 0 : Return "cold side pressure"
                 Case 1 : Return "hot side pressure"
                 Case 2
-                    Select Case CalcMode
+                    Select Case EOCalcMode
+                        Case HeatExchangerCalcMode.ThermalEfficiency : Return "heat load at the thermal efficiency"
+                        Case HeatExchangerCalcMode.PinchPoint : Return "minimum internal temperature approach"
                         Case HeatExchangerCalcMode.CalcTempHotOut : Return "cold outlet temperature"
                         Case HeatExchangerCalcMode.CalcTempColdOut : Return "hot outlet temperature"
                         Case HeatExchangerCalcMode.CalcBothTemp : Return "heat the cold side takes"
