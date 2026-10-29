@@ -285,7 +285,7 @@ The phase equilibrium is a submodel: the PT flash of the property package, with 
 | CSTR | one outlet; isothermal, adiabatic or at an outlet temperature; kinetic and catalytic reactions with expression rates |
 | Distillation Column, Absorber | the column's own solver with the derivatives of the Naphtali-Sandholm equations (below) |
 
-Feeds keep their state, and a Recycle block makes its outlet equal to its inlet.
+Feeds keep their state, and a Recycle block makes its outlet equal to its inlet. Controllers, switches and inputs act in dynamic simulation only and are left out.
 
 ###### Equilibrium and Gibbs reactors
 
@@ -315,7 +315,7 @@ An active Spec block is an equation: its target property becomes an unknown, equ
 
 ###### Black boxes
 
-A unit operation in another mode, a Tank, a Shortcut Column, a PFR (whose integration along its length is its own) or a column the derivatives above do not cover (secondary specifications, rate-based efficiencies, an external solver) or a CAPE-OPEN unit operation (one call at a time, as a ChemSep column needs) enters through its own calculation: its inlets are put at their variables and flashed there, the unit is calculated, and its residuals are
+A unit operation in another mode, a Tank, a Pipe Segment, an Orifice Plate, a Filter, a Solids Separator, a Shortcut Column, a PFR (whose integration along its length is its own), a Polymerization Reactor, a Python Script, Spreadsheet or Flowsheet unit operation, a column the derivatives above do not cover (secondary specifications, rate-based efficiencies, an external solver) or a CAPE-OPEN unit operation (one call at a time, as a ChemSep column needs) enters through its own calculation: its inlets are put at their variables and flashed there, the unit is calculated, and its residuals are
 
 
 <a id="eq:eo_blackbox"></a>
