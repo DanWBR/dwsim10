@@ -136,6 +136,12 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
             Return sens
         End Function
 
+        ''' <summary>
+        ''' The liquid distillate (mol/s) of a partial condenser, for a caller that solves for it with its own equation (the
+        ''' vapor product at its set rate). Nothing, as the solver leaves it, takes the vapor as the only product.
+        ''' </summary>
+        Public Property PartialCondenserDistillate As Double?
+
         Private _setupOnly As Boolean = False
         Private _setupX As Double()
 

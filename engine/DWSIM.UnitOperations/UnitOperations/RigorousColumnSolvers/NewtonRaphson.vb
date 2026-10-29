@@ -354,6 +354,9 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
             ElseIf _coltype <> ColType.AbsorptionColumn And _condtype = condtype.Total_Condenser Then
                 LSSj(0) = vc(0).Sum
                 yc(0) = _pp.DW_CalcBubT(xc(0), P(0), Tj(0), Nothing, False)(3)
+            ElseIf _coltype <> ColType.AbsorptionColumn AndAlso _condtype = condtype.Partial_Condenser AndAlso Not llextr AndAlso PartialCondenserDistillate.HasValue Then
+                'the liquid distillate of a partial condenser, as a caller that solves for it hands it over
+                LSSj(0) = PartialCondenserDistillate.Value
             Else
                 'For an extractor Vj(0) is the second liquid-phase product. It already
                 'carries the extract out; adding a liquid draw here counts that outlet twice.
