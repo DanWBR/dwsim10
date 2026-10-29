@@ -184,6 +184,28 @@ Namespace GraphicObjects
 
         End Sub
 
+        ''' <summary>
+        ''' Undoes on the canvas what the flowsheet surface does before it draws this object: the flowsheet's object zoom,
+        ''' the rotation and the flip, all about the object's center. Lines to other objects, which are in the flowsheet's
+        ''' coordinates, are drawn after it.
+        ''' </summary>
+        Public Sub UnTransformCanvas(canvas As SKCanvas)
+
+            Dim cx = X + Width / 2, cy = Y + Height / 2
+            Dim zl As Double = 1.0
+            If Flowsheet IsNot Nothing AndAlso Flowsheet.FlowsheetOptions IsNot Nothing Then zl = Flowsheet.FlowsheetOptions.CurrentFlowsheetObjectZoomLevel
+            If zl > 0.0 AndAlso Math.Abs(zl - 1.0) > 0.000001 Then canvas.Scale(CSng(1.0 / zl), CSng(1.0 / zl), cx, cy)
+            If Rotation <> 0.0 Then canvas.RotateDegrees(-Rotation, cx, cy)
+            If FlippedV And Not FlippedH Then
+                canvas.Scale(1, -1, cx, cy)
+            ElseIf FlippedH And Not FlippedV Then
+                canvas.Scale(-1, 1, cx, cy)
+            ElseIf FlippedH And FlippedV Then
+                canvas.Scale(-1, -1, cx, cy)
+            End If
+
+        End Sub
+
         Public Overridable Function LoadData(data As System.Collections.Generic.List(Of System.Xml.Linq.XElement)) As Boolean Implements ICustomXMLSerialization.LoadData
 
             XMLSerializer.XMLSerializer.Deserialize(Me, data)

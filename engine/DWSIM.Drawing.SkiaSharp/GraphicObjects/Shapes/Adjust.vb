@@ -107,15 +107,19 @@ Namespace GraphicObjects.Shapes
                         .PathEffect = SKPathEffect.CreateDash(New Single() {2.0F, 3.0F, 2.0F, 3.0F}, 2.0F)
                     End With
 
-                    If Not Me.ConnectedToMv Is Nothing Then
-                        canvas.DrawPoints(SKPointMode.Polygon, New SKPoint() {New SKPoint(Me.X + Me.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_mvPT.X + Me.m_mvPT.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_mvPT.X + Me.m_mvPT.Width / 2, Me.m_mvPT.Y + Me.m_mvPT.Height / 2)}, aPen)
-                    End If
-                    If Not Me.ConnectedToCv Is Nothing Then
-                        canvas.DrawPoints(SKPointMode.Polygon, New SKPoint() {New SKPoint(Me.X + Me.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_cvPT.X + Me.m_cvPT.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_cvPT.X + Me.m_cvPT.Width / 2, Me.m_cvPT.Y + Me.m_cvPT.Height / 2)}, aPen)
-                    End If
-                    If Not Me.ConnectedToRv Is Nothing Then
-                        canvas.DrawPoints(SKPointMode.Polygon, New SKPoint() {New SKPoint(Me.X + Me.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_rvPT.X + Me.m_rvPT.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_rvPT.X + Me.m_rvPT.Width / 2, Me.m_rvPT.Y + Me.m_rvPT.Height / 2)}, aPen)
-                    End If
+                    Using New SKAutoCanvasRestore(canvas)
+                        'the lines run in the flowsheet's coordinates: undo the object's flip, rotation and zoom
+                        UnTransformCanvas(canvas)
+                        If Not Me.ConnectedToMv Is Nothing Then
+                            canvas.DrawPoints(SKPointMode.Polygon, New SKPoint() {New SKPoint(Me.X + Me.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_mvPT.X + Me.m_mvPT.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_mvPT.X + Me.m_mvPT.Width / 2, Me.m_mvPT.Y + Me.m_mvPT.Height / 2)}, aPen)
+                        End If
+                        If Not Me.ConnectedToCv Is Nothing Then
+                            canvas.DrawPoints(SKPointMode.Polygon, New SKPoint() {New SKPoint(Me.X + Me.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_cvPT.X + Me.m_cvPT.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_cvPT.X + Me.m_cvPT.Width / 2, Me.m_cvPT.Y + Me.m_cvPT.Height / 2)}, aPen)
+                        End If
+                        If Not Me.ConnectedToRv Is Nothing Then
+                            canvas.DrawPoints(SKPointMode.Polygon, New SKPoint() {New SKPoint(Me.X + Me.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_rvPT.X + Me.m_rvPT.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_rvPT.X + Me.m_rvPT.Width / 2, Me.m_rvPT.Y + Me.m_rvPT.Height / 2)}, aPen)
+                        End If
+                    End Using
                     End Using
 
                     Dim centerC As SKColor, edgeC As SKColor, outlineC As SKColor, textC As SKColor
@@ -151,15 +155,19 @@ Namespace GraphicObjects.Shapes
                         .PathEffect = SKPathEffect.CreateDash(New Single() {2.0F, 3.0F, 2.0F, 3.0F}, 2.0F)
                     End With
 
-                    If Not Me.ConnectedToMv Is Nothing Then
-                        canvas.DrawPoints(SKPointMode.Polygon, New SKPoint() {New SKPoint(Me.X + Me.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_mvPT.X + Me.m_mvPT.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_mvPT.X + Me.m_mvPT.Width / 2, Me.m_mvPT.Y + Me.m_mvPT.Height / 2)}, aPen)
-                    End If
-                    If Not Me.ConnectedToCv Is Nothing Then
-                        canvas.DrawPoints(SKPointMode.Polygon, New SKPoint() {New SKPoint(Me.X + Me.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_cvPT.X + Me.m_cvPT.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_cvPT.X + Me.m_cvPT.Width / 2, Me.m_cvPT.Y + Me.m_cvPT.Height / 2)}, aPen)
-                    End If
-                    If Not Me.ConnectedToRv Is Nothing Then
-                        canvas.DrawPoints(SKPointMode.Polygon, New SKPoint() {New SKPoint(Me.X + Me.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_rvPT.X + Me.m_rvPT.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_rvPT.X + Me.m_rvPT.Width / 2, Me.m_rvPT.Y + Me.m_rvPT.Height / 2)}, aPen)
-                    End If
+                    Using New SKAutoCanvasRestore(canvas)
+                        'the lines run in the flowsheet's coordinates: undo the object's flip, rotation and zoom
+                        UnTransformCanvas(canvas)
+                        If Not Me.ConnectedToMv Is Nothing Then
+                            canvas.DrawPoints(SKPointMode.Polygon, New SKPoint() {New SKPoint(Me.X + Me.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_mvPT.X + Me.m_mvPT.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_mvPT.X + Me.m_mvPT.Width / 2, Me.m_mvPT.Y + Me.m_mvPT.Height / 2)}, aPen)
+                        End If
+                        If Not Me.ConnectedToCv Is Nothing Then
+                            canvas.DrawPoints(SKPointMode.Polygon, New SKPoint() {New SKPoint(Me.X + Me.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_cvPT.X + Me.m_cvPT.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_cvPT.X + Me.m_cvPT.Width / 2, Me.m_cvPT.Y + Me.m_cvPT.Height / 2)}, aPen)
+                        End If
+                        If Not Me.ConnectedToRv Is Nothing Then
+                            canvas.DrawPoints(SKPointMode.Polygon, New SKPoint() {New SKPoint(Me.X + Me.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_rvPT.X + Me.m_rvPT.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_rvPT.X + Me.m_rvPT.Width / 2, Me.m_rvPT.Y + Me.m_rvPT.Height / 2)}, aPen)
+                        End If
+                    End Using
                     End Using
 
                     Using New SKAutoCanvasRestore(canvas)

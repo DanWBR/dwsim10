@@ -113,18 +113,22 @@
                         .PathEffect = SKPathEffect.CreateDash(New Single() {2.0F, 3.0F, 2.0F, 3.0F}, 2.0F)
                     End With
 
-                    If Not Me.ConnectedToSv Is Nothing Then
-                        canvas.DrawPoints(SKPointMode.Polygon, New SKPoint() {New SKPoint(Me.X + Me.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_svPT.X + Me.m_svPT.Width / 2, Me.Y + Me.Height / 2), Me.m_svPT.GetCenterPosition}, aPen)
-                    End If
-                    If Not Me.ConnectedToTv Is Nothing Then
-                        canvas.DrawPoints(SKPointMode.Polygon, New SKPoint() {New SKPoint(Me.X + Me.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_tvPT.X + Me.m_tvPT.Height / 2, Me.Y + Me.Height / 2), Me.m_tvPT.GetCenterPosition}, aPen)
-                    End If
-                    If Not Me.ConnectedToTv2 Is Nothing Then
-                        canvas.DrawPoints(SKPointMode.Polygon, New SKPoint() {New SKPoint(Me.X + Me.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_tvPT2.X + Me.m_tvPT2.Height / 2, Me.Y + Me.Height / 2), Me.m_tvPT2.GetCenterPosition}, aPen)
-                    End If
-                    If Not Me.ConnectedToTv3 Is Nothing Then
-                        canvas.DrawPoints(SKPointMode.Polygon, New SKPoint() {New SKPoint(Me.X + Me.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_tvPT3.X + Me.m_tvPT3.Height / 2, Me.Y + Me.Height / 2), Me.m_tvPT3.GetCenterPosition}, aPen)
-                    End If
+                    Using New SKAutoCanvasRestore(canvas)
+                        'the lines run in the flowsheet's coordinates: undo the object's flip, rotation and zoom
+                        UnTransformCanvas(canvas)
+                        If Not Me.ConnectedToSv Is Nothing Then
+                            canvas.DrawPoints(SKPointMode.Polygon, New SKPoint() {New SKPoint(Me.X + Me.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_svPT.X + Me.m_svPT.Width / 2, Me.Y + Me.Height / 2), Me.m_svPT.GetCenterPosition}, aPen)
+                        End If
+                        If Not Me.ConnectedToTv Is Nothing Then
+                            canvas.DrawPoints(SKPointMode.Polygon, New SKPoint() {New SKPoint(Me.X + Me.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_tvPT.X + Me.m_tvPT.Width / 2, Me.Y + Me.Height / 2), Me.m_tvPT.GetCenterPosition}, aPen)
+                        End If
+                        If Not Me.ConnectedToTv2 Is Nothing Then
+                            canvas.DrawPoints(SKPointMode.Polygon, New SKPoint() {New SKPoint(Me.X + Me.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_tvPT2.X + Me.m_tvPT2.Width / 2, Me.Y + Me.Height / 2), Me.m_tvPT2.GetCenterPosition}, aPen)
+                        End If
+                        If Not Me.ConnectedToTv3 Is Nothing Then
+                            canvas.DrawPoints(SKPointMode.Polygon, New SKPoint() {New SKPoint(Me.X + Me.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_tvPT3.X + Me.m_tvPT3.Width / 2, Me.Y + Me.Height / 2), Me.m_tvPT3.GetCenterPosition}, aPen)
+                        End If
+                    End Using
                     End Using
 
                     Dim centerC As SKColor, edgeC As SKColor, outlineC As SKColor, textC As SKColor
@@ -160,18 +164,22 @@
                         .PathEffect = SKPathEffect.CreateDash(New Single() {2, 2}, 4)
                     End With
 
-                    If Not Me.ConnectedToSv Is Nothing Then
-                        canvas.DrawPoints(SKPointMode.Polygon, New SKPoint() {New SKPoint(Me.X + Me.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_svPT.X, Me.Y + Me.Height / 2), Me.m_svPT.GetPosition}, aPen)
-                    End If
-                    If Not Me.ConnectedToTv Is Nothing Then
-                        canvas.DrawPoints(SKPointMode.Polygon, New SKPoint() {New SKPoint(Me.X + Me.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_tvPT.X, Me.Y + Me.Height / 2), Me.m_tvPT.GetPosition}, aPen)
-                    End If
-                    If Not Me.ConnectedToTv2 Is Nothing Then
-                        canvas.DrawPoints(SKPointMode.Polygon, New SKPoint() {New SKPoint(Me.X + Me.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_tvPT2.X + Me.m_tvPT2.Height / 2, Me.Y + Me.Height / 2), Me.m_tvPT2.GetCenterPosition}, aPen)
-                    End If
-                    If Not Me.ConnectedToTv3 Is Nothing Then
-                        canvas.DrawPoints(SKPointMode.Polygon, New SKPoint() {New SKPoint(Me.X + Me.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_tvPT3.X + Me.m_tvPT3.Height / 2, Me.Y + Me.Height / 2), Me.m_tvPT3.GetCenterPosition}, aPen)
-                    End If
+                    Using New SKAutoCanvasRestore(canvas)
+                        'the lines run in the flowsheet's coordinates: undo the object's flip, rotation and zoom
+                        UnTransformCanvas(canvas)
+                        If Not Me.ConnectedToSv Is Nothing Then
+                            canvas.DrawPoints(SKPointMode.Polygon, New SKPoint() {New SKPoint(Me.X + Me.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_svPT.X + Me.m_svPT.Width / 2, Me.Y + Me.Height / 2), Me.m_svPT.GetCenterPosition}, aPen)
+                        End If
+                        If Not Me.ConnectedToTv Is Nothing Then
+                            canvas.DrawPoints(SKPointMode.Polygon, New SKPoint() {New SKPoint(Me.X + Me.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_tvPT.X + Me.m_tvPT.Width / 2, Me.Y + Me.Height / 2), Me.m_tvPT.GetCenterPosition}, aPen)
+                        End If
+                        If Not Me.ConnectedToTv2 Is Nothing Then
+                            canvas.DrawPoints(SKPointMode.Polygon, New SKPoint() {New SKPoint(Me.X + Me.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_tvPT2.X + Me.m_tvPT2.Width / 2, Me.Y + Me.Height / 2), Me.m_tvPT2.GetCenterPosition}, aPen)
+                        End If
+                        If Not Me.ConnectedToTv3 Is Nothing Then
+                            canvas.DrawPoints(SKPointMode.Polygon, New SKPoint() {New SKPoint(Me.X + Me.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.m_tvPT3.X + Me.m_tvPT3.Width / 2, Me.Y + Me.Height / 2), Me.m_tvPT3.GetCenterPosition}, aPen)
+                        End If
+                    End Using
                     End Using
 
                     Using New SKAutoCanvasRestore(canvas)

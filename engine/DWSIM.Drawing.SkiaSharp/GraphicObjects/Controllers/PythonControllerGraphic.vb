@@ -91,23 +91,27 @@
                     .PathEffect = SKPathEffect.CreateDash(New Single() {10.0F, 5.0F, 2.0F, 5.0F}, 1.0F)
                 End With
 
-                If Not Me.ConnectedToMv Is Nothing Then
-                    If Y < ConnectedToMv.Y Then
-                        canvas.DrawPoints(SKPointMode.Polygon, New SKPoint() {New SKPoint(Me.X + Me.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.ConnectedToMv.X + Me.ConnectedToMv.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.ConnectedToMv.X + Me.ConnectedToMv.Width / 2, Me.ConnectedToMv.Y)}, aPen)
-                    Else
-                        canvas.DrawPoints(SKPointMode.Polygon, New SKPoint() {New SKPoint(Me.X + Me.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.ConnectedToMv.X + Me.ConnectedToMv.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.ConnectedToMv.X + Me.ConnectedToMv.Width / 2, Me.ConnectedToMv.Y + Me.ConnectedToMv.Height)}, aPen)
+                Using New SKAutoCanvasRestore(canvas)
+                    'the lines run in the flowsheet's coordinates: undo the object's flip, rotation and zoom
+                    UnTransformCanvas(canvas)
+                    If Not Me.ConnectedToMv Is Nothing Then
+                        If Y < ConnectedToMv.Y Then
+                            canvas.DrawPoints(SKPointMode.Polygon, New SKPoint() {New SKPoint(Me.X + Me.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.ConnectedToMv.X + Me.ConnectedToMv.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.ConnectedToMv.X + Me.ConnectedToMv.Width / 2, Me.ConnectedToMv.Y)}, aPen)
+                        Else
+                            canvas.DrawPoints(SKPointMode.Polygon, New SKPoint() {New SKPoint(Me.X + Me.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.ConnectedToMv.X + Me.ConnectedToMv.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.ConnectedToMv.X + Me.ConnectedToMv.Width / 2, Me.ConnectedToMv.Y + Me.ConnectedToMv.Height)}, aPen)
+                        End If
                     End If
-                End If
-                If Not Me.ConnectedToCv Is Nothing Then
-                    If Y < ConnectedToCv.Y Then
-                        canvas.DrawPoints(SKPointMode.Polygon, New SKPoint() {New SKPoint(Me.X + Me.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.ConnectedToCv.X + Me.ConnectedToCv.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.ConnectedToCv.X + Me.ConnectedToCv.Width / 2, Me.ConnectedToCv.Y)}, aPen)
-                    Else
-                        canvas.DrawPoints(SKPointMode.Polygon, New SKPoint() {New SKPoint(Me.X + Me.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.ConnectedToCv.X + Me.ConnectedToCv.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.ConnectedToCv.X + Me.ConnectedToCv.Width / 2, Me.ConnectedToCv.Y + Me.ConnectedToCv.Height)}, aPen)
+                    If Not Me.ConnectedToCv Is Nothing Then
+                        If Y < ConnectedToCv.Y Then
+                            canvas.DrawPoints(SKPointMode.Polygon, New SKPoint() {New SKPoint(Me.X + Me.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.ConnectedToCv.X + Me.ConnectedToCv.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.ConnectedToCv.X + Me.ConnectedToCv.Width / 2, Me.ConnectedToCv.Y)}, aPen)
+                        Else
+                            canvas.DrawPoints(SKPointMode.Polygon, New SKPoint() {New SKPoint(Me.X + Me.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.ConnectedToCv.X + Me.ConnectedToCv.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.ConnectedToCv.X + Me.ConnectedToCv.Width / 2, Me.ConnectedToCv.Y + Me.ConnectedToCv.Height)}, aPen)
+                        End If
                     End If
-                End If
-                If Not Me.ConnectedToRv Is Nothing Then
-                    canvas.DrawPoints(SKPointMode.Polygon, New SKPoint() {New SKPoint(Me.X + Me.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.ConnectedToRv.X + Me.ConnectedToRv.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.ConnectedToRv.X + Me.ConnectedToRv.Width / 2, Me.ConnectedToRv.Y + Me.ConnectedToRv.Height / 2)}, aPen)
-                End If
+                    If Not Me.ConnectedToRv Is Nothing Then
+                        canvas.DrawPoints(SKPointMode.Polygon, New SKPoint() {New SKPoint(Me.X + Me.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.ConnectedToRv.X + Me.ConnectedToRv.Width / 2, Me.Y + Me.Height / 2), New SKPoint(Me.ConnectedToRv.X + Me.ConnectedToRv.Width / 2, Me.ConnectedToRv.Y + Me.ConnectedToRv.Height / 2)}, aPen)
+                    End If
+                End Using
             End Using
 
             If Image Is Nothing Then
