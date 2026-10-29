@@ -51,7 +51,7 @@ Version 10.2.13
 - [NEW] Design specifications (Patreon): properties brought to their targets by the simultaneous solver on every solve, without Adjust blocks, set in Flowsheet Analysis > Design Specifications, Optimization and Reconciliation and saved with the file
 - [NEW] Flowsheet optimization (Patreon): maximize or minimize a weighted sum or an expression of flowsheet properties over feed and unit variables, with bounds and constraints, on the converged flowsheet
 - [NEW] Data reconciliation (Patreon): plant measurements with their standard deviations reconciled against the converged flowsheet by moving feeds and unit parameters, with the chi-square test and the suspect measurement
-- [NEW] Equation-oriented solver (Patreon): with Solve the flowsheet as one system of equations checked in the problem editor, the whole flowsheet is solved as one system by a damped Newton method on the units' own equations with analytic derivatives, distillation and absorption columns (total or partial condenser), the PFR, the pipe segment and most heat exchanger and vessel modes included; units without equations, CAPE-OPEN columns among them, enter through their own calculation, and a solve that does not converge goes to the simultaneous solver
+- [NEW] Equation-oriented solver (Patreon): with Solve the flowsheet as one system of equations checked in the problem editor, the whole flowsheet is solved as one system by a damped Newton method on the units' own equations with analytic derivatives, distillation and absorption columns (total or partial condenser), the PFR, the pipe segment, all heat exchanger modes and most vessel modes included; units without equations, CAPE-OPEN columns among them, enter through their own calculation, and a solve that does not converge goes to the simultaneous solver
 - [CHG] Case library, user guide and advanced tutorial: the column secondary specification example follows the corrected D86 curves
 - [CHG] Dynamic simulation: steps skip the copy of the last solution, and on Windows the solver stays on the performance cores of the processor
 - [CHG] Implicit Euler: at the end of a run the log says how many steps did not converge and what to change
@@ -81,6 +81,15 @@ Version 10.2.13
 - [FIX] CAPE-OPEN unit operations (cross-platform version): a unit with an integer parameter failed to load, and reading the default, bounds or units of a real parameter failed
 - [FIX] Sensitivity analysis: a second varied property read from a flowsheet result took the object of the first one
 - [FIX] Extractive Distillation sample: both bottoms fixed at 0.5 mol/s against a 0.9986 mol/s feed left the mass balance open; the bottoms are now set by a 1e-4 impurity
+- [FIX] Seawater IAPWS-08: heaters, valves and vessels that boiled or flashed seawater stopped with a flash error; part of the water now evaporates and the brine concentrates, and vapour fraction specifications take the bubble point of the brine left
+- [FIX] Seawater IAPWS-08: salinity, boiling point elevation (10 to 14 % high), vapour enthalpy and freezing point (+1.15 C at 35 g/kg) now follow IAPWS-08 and IAPWS-95
+- [FIX] Distillation column, Naphtali-Sandholm: a subcooled total condenser put the distillate above its bubble point instead of below
+- [FIX] Columns: with two feeds on the same stage only the last one reached the column
+- [FIX] Pipe Segment: the first increment of each section lost its heat, so a pipe with few increments exchanged too little
+- [FIX] Pipe Segment: solar radiation grew with the number of increments; it is now the irradiance on the projected area, as for vessels
+- [FIX] Pipe Segment with the outlet temperature specified: the heat search could stop with a negative pressure on finely divided pipes
+- [FIX] Flowsheet drawing: the connection lines of Specification, Adjust, Information Carrier and controller blocks pointed away from their objects when the block was flipped or rotated
+- [FIX] MCP server: energy port 0 failed on a Heater, and a connection that did not attach returned no error
 
 Version 10.2.12
 
