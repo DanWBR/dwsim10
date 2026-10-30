@@ -99,9 +99,11 @@ Namespace UnitOperations
         ''' Replaces the built-in condenser and reboiler with separate flowsheet objects, for a dynamic simulation that
         ''' models them as vessels with their own holdup and controllers.
         ''' The condenser becomes a vessel fed by the vapor of the top stage; its liquid goes to a splitter that sends
-        ''' the distillate out and the reflux through a pump, a valve and a recycle block back to the top stage.
-        ''' The reboiler becomes a kettle: a vessel fed by the liquid of the bottom stage, whose vapor returns through
-        ''' a recycle block to the bottom stage and whose liquid leaves through a pump and a valve as the bottoms.
+        ''' the distillate out through a valve and the reflux through a valve, a pump and a recycle block back to the
+        ''' top stage. The reboiler becomes a kettle: a vessel fed by the liquid of the bottom stage, whose vapor returns
+        ''' through a valve and a recycle block to the bottom stage and whose liquid leaves through a valve and a pump
+        ''' as the bottoms. The valves are sized from the last solution, the vessels hold five minutes of liquid, and
+        ''' two level controllers move the distillate and the bottoms valves.
         ''' The product and duty streams are moved to the new objects, the end stages are removed and
         ''' <see cref="ReboiledAbsorber"/> and <see cref="RefluxedAbsorber"/> are set. Everything is checked before
         ''' the flowsheet is touched, so a column that cannot be converted is left as it was.
@@ -158,34 +160,37 @@ Namespace UnitOperations
             Dim cdutystream = findStream(StreamInformation.Behavior.Distillate, True)
             Dim rdutystream = findStream(StreamInformation.Behavior.BottomsLiquid, True)
 
-            ' the share of the condensed liquid that leaves as distillate: from the last solution, else from the reflux
-            ' ratio spec (total condenser)
-            Dim distShare As Double = Double.NaN
-            If hascondenser AndAlso diststream IsNot Nothing Then
-                Dim sol = GetLastSolution()
-                If sol IsNot Nothing AndAlso sol.LiqMolarFlows.Count > 0 AndAlso sol.DistillateFlowRate.HasValue Then
-                    Dim D = sol.DistillateFlowRate.Value, L = sol.LiqMolarFlows(0).Value
-                    If D.IsValidDouble() AndAlso L.IsValidDouble() AndAlso D + L > 0 Then distShare = D / (D + L)
-                End If
-                If Not distShare.IsValidDouble() AndAlso Specs("C").SType = ColumnSpec.SpecType.Stream_Ratio AndAlso Specs("C").SpecValue > 0 Then
-                    distShare = 1.0 / (1.0 + Specs("C").SpecValue)
-                End If
-                If Not distShare.IsValidDouble() OrElse distShare < 0 OrElse distShare > 1 Then distShare = 0.5
-            End If
-
-            ' the reflux and the boilup of the last solution start the two recycle loops where the column was, so the
-            ' flowsheet converges back to the same column (a kettle at a fixed duty fed nothing but the feed liquid
-            ' boils it all away)
+            ' the last solution: the share of the condensed liquid that leaves as distillate, and the flows, compositions
+            ' and temperatures of the condenser and the reboiler, which seed the two recycle loops (a kettle at a fixed
+            ' duty fed nothing but the feed liquid boils it all away) and size the vessels and valves for the dynamic run
             Dim seed = GetLastSolution()
             Dim nst = Stages.Count
             If seed IsNot Nothing AndAlso (seed.StageTemps.Count <> nst OrElse seed.LiqMolarFlows.Count <> nst OrElse seed.VapMolarFlows.Count <> nst OrElse
                                           seed.LiqCompositions.Count <> nst OrElse seed.VapCompositions.Count <> nst) Then seed = Nothing
-            Dim refluxSeed, boilupSeed As Tuple(Of Double(), Double, Double, Double) 'composition, mol/s, K, Pa
+            Dim comp = Function(d As Dictionary(Of String, Parameter)) d.Values.Select(Function(v) v.Value).ToArray()
+
+            Dim distShare As Double = Double.NaN
+            Dim Dflow As Double = 0.0, Lflow As Double = 0.0, Vprod As Double = 0.0
             If seed IsNot Nothing Then
-                refluxSeed = Tuple.Create(seed.LiqCompositions(0).Values.Select(Function(v) v.Value).ToArray(), seed.LiqMolarFlows(0).Value,
-                                          seed.StageTemps(0).Value, Stages(Math.Min(1, nst - 1)).P)
-                boilupSeed = Tuple.Create(seed.VapCompositions(nst - 1).Values.Select(Function(v) v.Value).ToArray(), seed.VapMolarFlows(nst - 1).Value,
-                                          seed.StageTemps(nst - 1).Value, Stages(nst - 1).P)
+                Lflow = seed.LiqMolarFlows(0).Value
+                If seed.DistillateFlowRate.HasValue Then Dflow = seed.DistillateFlowRate.Value
+                If seed.VaporProductFlowRate.HasValue Then Vprod = seed.VaporProductFlowRate.Value
+                If Dflow.IsValidDouble() AndAlso Lflow.IsValidDouble() AndAlso Dflow + Lflow > 0 Then distShare = Dflow / (Dflow + Lflow)
+            End If
+            If Not distShare.IsValidDouble() AndAlso Specs("C").SType = ColumnSpec.SpecType.Stream_Ratio AndAlso Specs("C").SpecValue > 0 Then
+                distShare = 1.0 / (1.0 + Specs("C").SpecValue)
+            End If
+            If Not distShare.IsValidDouble() OrElse distShare < 0 OrElse distShare > 1 Then distShare = 0.5
+
+            ' composition, mol/s, K, Pa; the new top and bottom stages are the second and the last but one
+            Dim condLiquid, vaporProduct, refluxSeed, kettleLiquid, boilupSeed As Tuple(Of Double(), Double, Double, Double)
+            If seed IsNot Nothing Then
+                Dim Ptop = Stages(1).P, Pbot = Stages(nst - 2).P
+                condLiquid = Tuple.Create(comp(seed.LiqCompositions(0)), Dflow + Lflow, seed.StageTemps(0).Value, Ptop)
+                vaporProduct = Tuple.Create(comp(seed.VapCompositions(0)), Vprod, seed.StageTemps(0).Value, Ptop)
+                refluxSeed = Tuple.Create(comp(seed.LiqCompositions(0)), Lflow, seed.StageTemps(0).Value, Ptop)
+                kettleLiquid = Tuple.Create(comp(seed.LiqCompositions(nst - 1)), seed.LiqMolarFlows(nst - 1).Value, seed.StageTemps(nst - 1).Value, Pbot)
+                boilupSeed = Tuple.Create(comp(seed.VapCompositions(nst - 1)), seed.VapMolarFlows(nst - 1).Value, seed.StageTemps(nst - 1).Value, Pbot)
             End If
 
             ' a uniform pressure profile keeps the pressures of the stages that remain
@@ -199,13 +204,17 @@ Namespace UnitOperations
             Dim xl As Integer = CInt(GraphicObject.X), yt As Integer = CInt(GraphicObject.Y)
             Dim xr As Integer = xl + CInt(GraphicObject.Width), yb As Integer = yt + CInt(GraphicObject.Height)
 
+            ' In a dynamic run a valve sets the flow of the streams it touches and a vessel draws what its outlet stream
+            ' carries, so every vessel outlet meets a valve before any pump (a pump passes its inlet flow on). The level
+            ' controllers move the distillate and the bottoms valves.
+
             If hascondenser Then
 
                 Dim cond = FlowSheet.AddObject(GraphicObjects.ObjectType.Vessel, xr + 21, yt - 34, tag & "_cond_vessel")
-                Dim condpump = FlowSheet.AddObject(GraphicObjects.ObjectType.Pump, xr + 163, yt + 50, tag & "_cond_pump")
+                Dim refluxvalve = FlowSheet.AddObject(GraphicObjects.ObjectType.Valve, xr + 163, yt + 50, tag & "_reflux_valve")
+                refluxvalve.GraphicObject.FlippedH = True
+                Dim condpump = FlowSheet.AddObject(GraphicObjects.ObjectType.Pump, xr + 36, yt + 44, tag & "_cond_pump")
                 condpump.GraphicObject.FlippedH = True
-                Dim condvalve = FlowSheet.AddObject(GraphicObjects.ObjectType.Valve, xr + 36, yt + 44, tag & "_cond_valve")
-                condvalve.GraphicObject.FlippedH = True
                 Dim condrec = FlowSheet.AddObject(GraphicObjects.ObjectType.OT_Recycle, xl - 75, yt + 10, tag & "_cond_rec")
 
                 ' the duty leaves the vessel
@@ -215,16 +224,22 @@ Namespace UnitOperations
                     FlowSheet.Connect(cond, cdutystream, 4, 0)
                 End If
 
-                ' the vapor of the condenser (none for a total condenser, but the vessel needs the outlet)
+                ' the vapor of the condenser: through a valve to the vapor product, or into a stream of its own for a
+                ' total condenser (the vessel needs the outlet)
                 If vapstream IsNot Nothing Then
                     FlowSheet.Disconnect(Me, vapstream)
                     RemoveStreamInformation(MaterialStreams, vapstream.Name)
+                    Dim vapvalve = FlowSheet.AddObject(GraphicObjects.ObjectType.Valve, xr + 90, yt - 70, tag & "_vapor_valve")
+                    FlowSheet.Connect(cond, vapvalve, 0, 0)
+                    FlowSheet.Connect(vapvalve, vapstream, 0, 0)
+                    SizeValveForDynamics(DirectCast(vapvalve, Valve), vaporProduct, True)
                 Else
                     vapstream = FlowSheet.AddObject(GraphicObjects.ObjectType.MaterialStream, xr + 90, yt - 70, tag & "_cond_vapor")
+                    FlowSheet.Connect(cond, vapstream, 0, 0)
                 End If
-                FlowSheet.Connect(cond, vapstream, 0, 0)
 
-                ' the liquid: distillate and reflux
+                ' the liquid: the distillate through its valve, the reflux through its valve and the pump
+                Dim levelvalve = refluxvalve
                 If diststream IsNot Nothing Then
                     Dim condspl = FlowSheet.AddObject(GraphicObjects.ObjectType.Splitter, xr + 157, yt - 9, tag & "_cond_split")
                     With DirectCast(condspl, Splitter)
@@ -233,26 +248,29 @@ Namespace UnitOperations
                         .Ratios(1) = 1.0 - distShare
                         .Ratios(2) = 0.0
                     End With
+                    Dim distvalve = FlowSheet.AddObject(GraphicObjects.ObjectType.Valve, xr + 230, yt - 9, tag & "_dist_valve")
                     FlowSheet.Disconnect(Me, diststream)
                     RemoveStreamInformation(MaterialStreams, diststream.Name)
                     FlowSheet.Connect(cond, condspl, 1, 0)
-                    FlowSheet.Connect(condspl, diststream, 0, 0)
-                    FlowSheet.Connect(condspl, condpump, 1, 0)
+                    FlowSheet.Connect(condspl, distvalve, 0, 0)
+                    FlowSheet.Connect(distvalve, diststream, 0, 0)
+                    FlowSheet.Connect(condspl, refluxvalve, 1, 0)
+                    If condLiquid IsNot Nothing Then
+                        SizeValveForDynamics(DirectCast(distvalve, Valve), Tuple.Create(condLiquid.Item1, Dflow, condLiquid.Item3, condLiquid.Item4), False)
+                    End If
+                    levelvalve = distvalve
                 Else
                     ' full reflux
-                    FlowSheet.Connect(cond, condpump, 1, 0)
+                    FlowSheet.Connect(cond, refluxvalve, 1, 0)
                 End If
-                FlowSheet.Connect(condpump, condvalve, 0, 0)
-                FlowSheet.Connect(condvalve, condrec, 0, 0)
+                FlowSheet.Connect(refluxvalve, condpump, 0, 0)
+                FlowSheet.Connect(condpump, condrec, 0, 0)
+                SizeValveForDynamics(DirectCast(refluxvalve, Valve), refluxSeed, False)
 
-                ' the pump lifts the reflux one bar and the valve lets it into the top stage at its pressure
+                ' the pump lifts the reflux one bar, into the top stage
                 With DirectCast(condpump, Pump)
                     .CalcMode = Pump.CalculationMode.Delta_P
                     .DeltaP = 100000.0
-                End With
-                With DirectCast(condvalve, Valve)
-                    .CalcMode = Valve.CalculationMode.OutletPressure
-                    .OutletPressure = Stages.First().P
                 End With
 
                 ' the reflux enters the new top stage
@@ -266,6 +284,19 @@ Namespace UnitOperations
                 Dim overhead = cond.GraphicObject.InputConnectors(0).AttachedConnector.AttachedFrom
                 AddStreamInformation(overhead.Name, Stages.First().ID, StreamInformation.Behavior.OverheadVapor, StreamInformation.Phase.V)
 
+                Dim level = SizeVesselForDynamics(DirectCast(cond, Vessel), condLiquid)
+                If level > 0 Then AddLevelController(tag & "_LC_cond", cond, levelvalve, level, xr + 240, yt - 80)
+
+                ' the drum pressure is held by the condenser duty (the duty stream carries the heat removed, positive;
+                ' the cooling never closes completely)
+                If cdutystream IsNot Nothing AndAlso level > 0 Then
+                    Dim Qc0 = DirectCast(cdutystream, Streams.EnergyStream).EnergyFlow.GetValueOrDefault()
+                    If Qc0 > 0 Then
+                        AddController(tag & "_PC_cond", cond, "Operating Pressure", "Pa", UnitOfMeasure.pressure, cdutystream, "PROP_ES_0", "kW",
+                                      Stages.First().P, 2.0, 0.02, 0.2 * Qc0, 3.0 * Qc0, Qc0, Qc0, xr + 240, yt - 130)
+                    End If
+                End If
+
                 ReboiledAbsorber = True
 
             End If
@@ -273,8 +304,10 @@ Namespace UnitOperations
             If hasreboiler Then
 
                 Dim reb = FlowSheet.AddObject(GraphicObjects.ObjectType.Vessel, xr + 31, yb - 25, tag & "_reb_vessel")
-                Dim rebpump = FlowSheet.AddObject(GraphicObjects.ObjectType.Pump, xr + 129, yb + 20, tag & "_reb_pump")
-                Dim rebvalve = FlowSheet.AddObject(GraphicObjects.ObjectType.Valve, xr + 181, yb + 14, tag & "_reb_valve")
+                Dim boilupvalve = FlowSheet.AddObject(GraphicObjects.ObjectType.Valve, xr + 40, yb - 80, tag & "_boilup_valve")
+                boilupvalve.GraphicObject.FlippedH = True
+                Dim rebvalve = FlowSheet.AddObject(GraphicObjects.ObjectType.Valve, xr + 129, yb + 14, tag & "_bottoms_valve")
+                Dim rebpump = FlowSheet.AddObject(GraphicObjects.ObjectType.Pump, xr + 181, yb + 20, tag & "_reb_pump")
                 Dim rebrec = FlowSheet.AddObject(GraphicObjects.ObjectType.OT_Recycle, xl - 75, yb - 10, tag & "_reb_rec")
 
                 ' the duty enters the kettle
@@ -284,24 +317,21 @@ Namespace UnitOperations
                     FlowSheet.Connect(rdutystream, reb, 0, 6)
                 End If
 
-                ' the liquid of the kettle is the bottoms product
+                ' the liquid of the kettle is the bottoms product, through its valve and the pump
                 If bottomstream IsNot Nothing Then
                     FlowSheet.Disconnect(Me, bottomstream)
                     RemoveStreamInformation(MaterialStreams, bottomstream.Name)
                 Else
                     bottomstream = FlowSheet.AddObject(GraphicObjects.ObjectType.MaterialStream, xr + 240, yb + 14, tag & "_bottoms")
                 End If
-                FlowSheet.Connect(reb, rebpump, 1, 0)
-                FlowSheet.Connect(rebpump, rebvalve, 0, 0)
-                FlowSheet.Connect(rebvalve, bottomstream, 0, 0)
+                FlowSheet.Connect(reb, rebvalve, 1, 0)
+                FlowSheet.Connect(rebvalve, rebpump, 0, 0)
+                FlowSheet.Connect(rebpump, bottomstream, 0, 0)
+                SizeValveForDynamics(DirectCast(rebvalve, Valve), kettleLiquid, False)
 
-                ' the pump lifts the bottoms one bar and the valve takes it back down, to the pressure of the kettle
+                ' the pump lifts the bottoms one bar
                 With DirectCast(rebpump, Pump)
                     .CalcMode = Pump.CalculationMode.Delta_P
-                    .DeltaP = 100000.0
-                End With
-                With DirectCast(rebvalve, Valve)
-                    .CalcMode = Valve.CalculationMode.DeltaP
                     .DeltaP = 100000.0
                 End With
 
@@ -310,12 +340,25 @@ Namespace UnitOperations
                 Dim kettlefeed = reb.GraphicObject.InputConnectors(0).AttachedConnector.AttachedFrom
                 AddStreamInformation(kettlefeed.Name, Stages.Last().ID, StreamInformation.Behavior.BottomsLiquid, StreamInformation.Phase.L)
 
-                ' the vapor of the kettle returns to the new bottom stage
-                FlowSheet.Connect(reb, rebrec, 0, 0)
+                ' the vapor of the kettle returns to the new bottom stage through its valve
+                FlowSheet.Connect(reb, boilupvalve, 0, 0)
+                FlowSheet.Connect(boilupvalve, rebrec, 0, 0)
                 FlowSheet.Connect(rebrec, Me, 0, -1)
+                ' The boilup valve sees the bottom stage pressure, which rises with the vapor rate through the trays: across
+                ' a drop much smaller than the column's, a small swing of that pressure shuts or opens it wide and the
+                ' boilup and the bottom pressure chase each other. Twice the column drop keeps that loop gain below one.
+                SizeValveForDynamics(DirectCast(boilupvalve, Valve), boilupSeed, True, 2.0 * (Stages.Last().P - Stages.First().P))
                 Dim boilup = rebrec.GraphicObject.OutputConnectors(0).AttachedConnector.AttachedTo
                 AddStreamInformation(boilup.Name, Stages.Last().ID, StreamInformation.Behavior.Feed, StreamInformation.Phase.V)
                 SeedStream(boilup.Name, boilupSeed)
+
+                ' the kettle holds the liquid it passes on: the bottoms and the liquid it boils
+                Dim kettleHoldup As Tuple(Of Double(), Double, Double, Double) = Nothing
+                If kettleLiquid IsNot Nothing AndAlso boilupSeed IsNot Nothing Then
+                    kettleHoldup = Tuple.Create(kettleLiquid.Item1, kettleLiquid.Item2 + boilupSeed.Item2, kettleLiquid.Item3, kettleLiquid.Item4)
+                End If
+                Dim level = SizeVesselForDynamics(DirectCast(reb, Vessel), kettleHoldup)
+                If level > 0 Then AddLevelController(tag & "_LC_reb", reb, rebvalve, level, xr + 129, yb + 70)
 
                 RefluxedAbsorber = True
 
@@ -387,6 +430,128 @@ Namespace UnitOperations
                 .StreamBehavior = behavior, .StreamPhase = phase, .StreamType = StreamInformation.Type.Material,
                 .StreamPosition = If(phase = StreamInformation.Phase.V AndAlso behavior = StreamInformation.Behavior.Feed, StreamInformation.Position.Below, StreamInformation.Position.Above)}
             MaterialStreams(si.ID) = si
+        End Sub
+
+        ''' <summary>A saturated stream (liquid at its bubble point, or vapor at its dew point) of a composition and
+        ''' molar flow at a pressure, flashed; Nothing when the data are not usable or the flash fails.</summary>
+        Private Function SaturatedStream(data As Tuple(Of Double(), Double, Double, Double), vapor As Boolean) As MaterialStream
+            If data Is Nothing OrElse data.Item1 Is Nothing OrElse data.Item1.Sum() <= 0 OrElse Not data.Item2.IsValidDouble() OrElse data.Item2 <= 0 OrElse
+               Not data.Item4.IsValidDouble() OrElse data.Item4 <= 0 Then Return Nothing
+            Try
+                Dim ms As New MaterialStream("", "", FlowSheet, PropertyPackage)
+                FlowSheet.AddCompoundsToMaterialStream(ms)
+                If ms.Phases(0).Compounds.Count <> data.Item1.Length Then Return Nothing
+                ms.SetOverallMolarComposition(data.Item1.NormalizeY())
+                ms.SetMolarFlow(data.Item2)
+                ms.SetPressure(data.Item4)
+                ms.SpecType = StreamSpec.Pressure_and_VaporFraction
+                ms.Phases(2).Properties.molarfraction = If(vapor, 1.0, 0.0)
+                ms.AssignSelfToPP()
+                ms.Calculate()
+                If ms.GetMassFlow().IsValidDouble() AndAlso ms.Phases(0).Properties.density.GetValueOrDefault() > 0 Then Return ms
+            Catch ex As Exception
+            End Try
+            Return Nothing
+        End Function
+
+        ''' <summary>
+        ''' Sizes a valve for the dynamic run: Kv mode on a linear characteristic, with the Kv that passes the flow of the
+        ''' last solution at half opening across a small pressure drop: half the drop at which the saturated liquid
+        ''' chokes, or for a vapor three percent of the pressure or <paramref name="minimumDrop"/> if larger. Left as it
+        ''' is without a usable flow.
+        ''' </summary>
+        Private Sub SizeValveForDynamics(valve As Valve, data As Tuple(Of Double(), Double, Double, Double), vapor As Boolean, Optional minimumDrop As Double = 0.0)
+            Dim ms = SaturatedStream(data, vapor)
+            If ms Is Nothing Then Exit Sub
+            Try
+                Dim P = data.Item4, Ti = ms.GetTemperature()
+                Dim pp = DirectCast(ms.PropertyPackage, PropertyPackages.PropertyPackage)
+                pp.CurrentMaterialStream = ms
+                Dim W = ms.GetMassFlow() * 3600.0
+                Dim rho = ms.Phases(0).Properties.density.GetValueOrDefault()
+                Dim unit As Double
+                If vapor Then
+                    Dim Cp = pp.AUX_CPm(PropertyPackages.Phase.Vapor, Ti) * ms.Phases(0).Properties.molecularWeight.GetValueOrDefault()
+                    Dim k = Cp / (Cp - 8.314)
+                    If Not k.IsValidDouble() OrElse k <= 1.0 Then k = 1.3
+                    Dim dP = Math.Min(Math.Max(0.03 * P, minimumDrop), 0.5 * P)
+                    unit = valve.WGas(1.0, P / 100000.0, (P - dP) / 100000.0, k, rho)
+                Else
+                    Dim Pv = pp.AUX_PVAPM(PropertyPackages.Phase.Liquid, Ti)
+                    Dim Pc = pp.AUX_PCM(PropertyPackages.Phase.Liquid)
+                    If Not Pv.IsValidDouble() OrElse Pv <= 0 Then Pv = P
+                    If Not Pc.IsValidDouble() OrElse Pc <= P Then Pc = 10.0 * P
+                    Dim FF = 0.96 - 0.28 * Math.Sqrt(Math.Min(Pv / Pc, 1.0))
+                    Dim dP = 0.5 * 0.9 ^ 2 * Math.Max(P - FF * Pv, 0.01 * P)
+                    unit = valve.WLiquid(1.0, P / 100000.0, (P - dP) / 100000.0, rho, Pv / 100000.0, Pc / 100000.0)
+                End If
+                If Not unit.IsValidDouble() OrElse unit <= 0 Then Exit Sub
+                valve.CalcMode = Valve.CalculationMode.Kv_General
+                valve.Kv = 2.0 * W / unit
+                valve.EnableOpeningKvRelationship = True
+                valve.DefinedOpeningKvRelationShipType = Valve.OpeningKvRelationshipType.Linear
+                valve.OpeningPct = 50.0
+            Catch ex As Exception
+                ' the valve keeps its steady-state settings
+            End Try
+        End Sub
+
+        ''' <summary>
+        ''' Sizes a vessel for the dynamic run: a vertical drum three diameters tall that holds five minutes of the liquid
+        ''' it passes when half full, starting half full of that liquid, with the internal-energy balance. Returns the
+        ''' starting level (m), the set point of
+        ''' its level controller, or zero when there is no usable flow.
+        ''' </summary>
+        Private Function SizeVesselForDynamics(vessel As Vessel, liquid As Tuple(Of Double(), Double, Double, Double)) As Double
+            Dim ms = SaturatedStream(liquid, False)
+            If ms Is Nothing Then Return 0.0
+            Dim Q = ms.GetMassFlow() / ms.Phases(0).Properties.density.GetValueOrDefault()
+            If Not Q.IsValidDouble() OrElse Q <= 0 Then Return 0.0
+            Dim vol = 2.0 * 300.0 * Q
+            Dim D = (4.0 * vol / (3.0 * Math.PI)) ^ (1.0 / 3.0)
+            Dim H = 3.0 * D
+            vessel.SetDynamicProperty("Volume", vol)
+            vessel.SetDynamicProperty("Height", H)
+            vessel.SetDynamicProperty("Liquid Level", 0.5 * H)
+            vessel.SetDynamicProperty("Initialize using Inlet Stream", True)
+            vessel.SetDynamicProperty("Initialize at Liquid Level", True)
+            ' the internal-energy balance lets the duty move the pressure: a kettle that boils more than it sends out
+            ' pressurizes, which pushes the boilup up (heating at constant pressure only boils, and the volume flash at the
+            ' boiling temperature condenses the vapor back, so the pressure stays at the vapor pressure)
+            vessel.SetDynamicProperty("Rigorous Energy Balance (UV)", True)
+            ' the default floor is the atmosphere, above the pressure of a vacuum column
+            vessel.SetDynamicProperty("Minimum Pressure", 0.1 * liquid.Item4)
+            Return 0.5 * H
+        End Function
+
+        ''' <summary>Adds a PI controller that holds the liquid level of a vessel by the opening of the valve its liquid
+        ''' leaves through: more level, more opening.</summary>
+        Private Sub AddLevelController(controllerTag As String, vessel As ISimulationObject, valve As ISimulationObject, setpoint As Double, x As Integer, y As Integer)
+            AddController(controllerTag, vessel, "Liquid Level", "m", UnitOfMeasure.distance, valve, "PROP_VA_5", "",
+                          setpoint, 1.5, 0.01, 0.0, 100.0, 50.0, 100.0, x, y)
+        End Sub
+
+        ''' <summary>Adds a reverse-acting PI controller (the output rises with the measured value).</summary>
+        Private Sub AddController(controllerTag As String, measured As ISimulationObject, measuredProperty As String, measuredUnits As String,
+                                  measuredUnitsType As UnitOfMeasure, manipulated As ISimulationObject, manipulatedProperty As String,
+                                  manipulatedUnits As String, setpoint As Double, kp As Double, ki As Double, outMin As Double, outMax As Double,
+                                  offset As Double, span As Double, x As Integer, y As Integer)
+            Dim pid = TryCast(FlowSheet.AddObject(GraphicObjects.ObjectType.Controller_PID, x, y, controllerTag), SpecialOps.PIDController)
+            If pid Is Nothing Then Exit Sub
+            pid.ControlledObjectData = New SpecialOps.Helpers.SpecialOpObjectInfo With {.ID = measured.Name, .Name = measured.GraphicObject.Tag,
+                .PropertyName = measuredProperty, .ObjectType = measured.GetDisplayName(), .Units = measuredUnits, .UnitsType = measuredUnitsType}
+            pid.ManipulatedObjectData = New SpecialOps.Helpers.SpecialOpObjectInfo With {.ID = manipulated.Name, .Name = manipulated.GraphicObject.Tag,
+                .PropertyName = manipulatedProperty, .ObjectType = manipulated.GetDisplayName(), .Units = manipulatedUnits, .UnitsType = UnitOfMeasure.none}
+            pid.SetPoint = setpoint
+            pid.Kp = kp
+            pid.Ki = ki
+            pid.Kd = 0.0
+            pid.OutputMin = outMin
+            pid.OutputMax = outMax
+            pid.Offset = offset
+            pid.ManipulatedVariableSpan = span
+            pid.WindupGuard = 100.0
+            pid.ReverseActing = True
         End Sub
 
         ''' <summary>Connects a feed to the stage named as the editor shows it, e.g. "Stage10" (Stage1 is the

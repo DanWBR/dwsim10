@@ -299,13 +299,30 @@ Namespace SpecialOps
             End If
 
             msto = FlowSheet.SimulationObjects(Me.GraphicObject.OutputConnectors(0).AttachedConnector.AttachedTo.Name)
+
+            'In the pressure-flow network the block is a plain connection. The flow goes forward; a pressure that the
+            'equipment downstream wrote on the outlet since the last step (a column stage or a vessel sets the pressure
+            'of its inlets) goes back to the inlet, so a valve upstream sees the pressure it discharges into.
+            Dim pDown = msto.GetPressure()
+            Dim downstreamSetPressure = _dynOutletPressure.IsValidDouble() AndAlso pDown.IsValidDouble() AndAlso pDown > 0 AndAlso
+                                        Math.Abs(pDown - _dynOutletPressure) > 1.0E-6 * _dynOutletPressure
+
             Dim prevspec = msto.SpecType
             msto.Assign(msfrom)
             msto.AssignProps(msfrom)
             msto.SpecType = prevspec
             msto.AtEquilibrium = False
 
+            If downstreamSetPressure Then
+                msto.SetPressure(pDown)
+                msfrom.SetPressure(pDown)
+            End If
+            _dynOutletPressure = msto.GetPressure()
+
         End Sub
+
+        'the outlet pressure this block wrote on its last dynamic step
+        <NonSerialized> <Xml.Serialization.XmlIgnore> Private _dynOutletPressure As Double = Double.NaN
 
         ''' <summary>
         ''' Performs one iteration of the recycle convergence check, optionally applying Wegstein or Broyden

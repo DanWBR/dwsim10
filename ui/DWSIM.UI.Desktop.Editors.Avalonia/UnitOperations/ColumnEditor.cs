@@ -292,8 +292,9 @@ namespace DWSIM.UI.Desktop.Editors
             body.Children.Add(bp);
             body.Children.Add(new TextBlock
             {
-                Text = "This will remove the condenser and the reboiler stages of the column and add a condenser vessel " +
-                       "with reflux and a kettle reboiler as separate objects on the flowsheet. Continue?",
+                Text = "This will remove the condenser and the reboiler stages of the column and add a condenser drum " +
+                       "with reflux and a kettle reboiler, with their valves and level and pressure controllers, as separate " +
+                       "objects on the flowsheet. Continue?",
                 TextWrapping = global::Avalonia.Media.TextWrapping.Wrap, Margin = new Thickness(16)
             });
             dlg.Content = body;

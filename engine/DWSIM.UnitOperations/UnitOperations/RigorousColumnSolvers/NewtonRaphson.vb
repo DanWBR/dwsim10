@@ -51,6 +51,12 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
         Dim _specs As Dictionary(Of String, SepOps.ColumnSpec)
         Dim _bx, _dbx As Double()
         Dim _condtype As DistillationColumn.condtype
+
+        ''' <summary>The top stage is a condenser: a distillation column or a refluxed absorber. A reboiled absorber (a
+        ''' distillation column without its condenser) has a plain top stage, whatever condenser type it keeps.</summary>
+        Private Function HasCondenser() As Boolean
+            Return _coltype = Column.ColType.DistillationColumn OrElse _coltype = Column.ColType.RefluxedAbsorber
+        End Function
         Dim llextr As Boolean = False
         Dim _Kval()() As Double
         Dim _maxtchange, _Tj_ant(), _maxT, _maxvc, _maxlc As Double
@@ -315,7 +321,7 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                 Lj(i) = sumlkj(i)
             Next
 
-            If _coltype <> ColType.AbsorptionColumn And _condtype = condtype.Total_Condenser Then
+            If HasCondenser() And _condtype = condtype.Total_Condenser Then
                 sumvkj(0) = 0.0
                 Vj(0) = 0.0
             End If
@@ -351,12 +357,12 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
             For i = 1 To ns
                 sumLSS += LSSj(i)
             Next
-            If _coltype <> ColType.AbsorptionColumn And _condtype = Column.condtype.Full_Reflux Then
+            If HasCondenser() And _condtype = Column.condtype.Full_Reflux Then
                 LSSj(0) = 0.0#
-            ElseIf _coltype <> ColType.AbsorptionColumn And _condtype = condtype.Total_Condenser Then
+            ElseIf HasCondenser() And _condtype = condtype.Total_Condenser Then
                 LSSj(0) = vc(0).Sum
                 yc(0) = _pp.DW_CalcBubT(xc(0), P(0), Tj(0), Nothing, False)(3)
-            ElseIf _coltype <> ColType.AbsorptionColumn AndAlso _condtype = condtype.Partial_Condenser AndAlso Not llextr AndAlso PartialCondenserDistillate.HasValue Then
+            ElseIf HasCondenser() AndAlso _condtype = condtype.Partial_Condenser AndAlso Not llextr AndAlso PartialCondenserDistillate.HasValue Then
                 'the liquid distillate of a partial condenser, as a caller that solves for it hands it over
                 LSSj(0) = PartialCondenserDistillate.Value
             Else
@@ -711,7 +717,7 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                     E_ant(i, j) = E(i, j)
                     H_ant(i) = H(i)
                     If i = 0 Then
-                        If _coltype <> ColType.AbsorptionColumn Then
+                        If HasCondenser() Then
                             If _condtype = Column.condtype.Full_Reflux Then
                                 M(i, j) = lc(i)(j) * (1 + Sl(i)) + vc(i)(j) * (1 + Sv(i)) - vc(i + 1)(j) - fc(i)(j)
                                 'no liquid leaves the stage (the bubble-point solver's model of full reflux)

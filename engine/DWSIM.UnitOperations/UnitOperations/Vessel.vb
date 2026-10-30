@@ -699,6 +699,10 @@ Namespace UnitOperations
 
                 If es IsNot Nothing Then Qval = es.EnergyFlow.GetValueOrDefault
 
+                'the Heat-Out stream takes its duty out of the content, as in the steady state (a condenser drum)
+                Dim esout = GetOutletEnergyStream(4)
+                If esout IsNot Nothing Then Qval -= esout.EnergyFlow.GetValueOrDefault
+
             End If
 
             If Qval <> 0.0 AndAlso Not uvBalance Then
@@ -969,6 +973,23 @@ Namespace UnitOperations
             If GetDynamicProperty("Get Height from Dimensions") Then height = Dimensions(1).Value
             Dim level = DynamicDouble("Liquid Level", 0.0)
             If height <= 0.0 OrElse level <= 0.0 OrElse Vol <= 0.0 Then Return False
+
+            'a drum that takes heat out of an all-vapour inlet (a condenser) holds its condensate: the inlet condensed at
+            'its bubble point
+            If ims.Phases(1).Properties.molarfraction.GetValueOrDefault <= 0.0 AndAlso GraphicObject.OutputConnectors.Count > 4 AndAlso
+               GraphicObject.OutputConnectors(4).IsAttached Then
+                Try
+                    Dim condensate As MaterialStream = ims.CloneXML
+                    condensate.PropertyPackage = PropertyPackage
+                    condensate.PropertyPackage.CurrentMaterialStream = condensate
+                    condensate.SpecType = StreamSpec.Pressure_and_VaporFraction
+                    condensate.Phases(2).Properties.molarfraction = 0.0
+                    condensate.Calculate()
+                    ims = condensate
+                Catch ex As Exception
+                    Return False
+                End Try
+            End If
 
             Dim liq = ims.Phases(1)
             Dim vap = ims.Phases(2)
