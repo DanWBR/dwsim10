@@ -123,6 +123,10 @@ namespace DWSIM.Automation.FluentAPI
             /// binary parameters with CO2, CH4, N2, H2, H2S and water.</summary>
             public const string IonicLiquids = "Ionic Liquids (PC-SAFT)";
 
+            /// <summary>Crude oils with asphaltenes - PC-SAFT without association (Chapman's approach), the oil as light gases
+            /// plus SARA pseudo-components, asphaltene precipitation as an asphaltene-rich second liquid.</summary>
+            public const string Asphaltenes = "Asphaltenes (PC-SAFT)";
+
             /// <summary>Every Plus property-package name as a flat list (electrolyte + ThermoPack suites).</summary>
             public static IReadOnlyList<string> All => new[]
             {
@@ -131,7 +135,7 @@ namespace DWSIM.Automation.FluentAPI
                 MBWR19, MBWR32, NISTMEOS, PatelTeja, PCPSAFT, PRCPA,
                 SAFTVRMie, SAFTVRQMie, SchmidtWensel, SPCSAFT, SRKCPA,
                 CarbonCapture, CO2Transport, CO2Storage,
-                IonicLiquids
+                IonicLiquids, Asphaltenes
             };
         }
 
