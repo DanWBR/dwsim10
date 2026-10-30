@@ -204,6 +204,9 @@ Namespace UnitOperations
             Dim xl As Integer = CInt(GraphicObject.X), yt As Integer = CInt(GraphicObject.Y)
             Dim xr As Integer = xl + CInt(GraphicObject.Width), yb As Integer = yt + CInt(GraphicObject.Height)
 
+            ' the new objects by role, laid out around the column at the end
+            Dim placed As New Dictionary(Of String, ISimulationObject)
+
             ' In a dynamic run a valve sets the flow of the streams it touches and a vessel draws what its outlet stream
             ' carries, so every vessel outlet meets a valve before any pump (a pump passes its inlet flow on). The level
             ' controllers move the distillate and the bottoms valves.
@@ -216,6 +219,11 @@ Namespace UnitOperations
                 Dim condpump = FlowSheet.AddObject(GraphicObjects.ObjectType.Pump, xr + 36, yt + 44, tag & "_cond_pump")
                 condpump.GraphicObject.FlippedH = True
                 Dim condrec = FlowSheet.AddObject(GraphicObjects.ObjectType.OT_Recycle, xl - 75, yt + 10, tag & "_cond_rec")
+                placed("drum") = cond
+                placed("refluxvalve") = refluxvalve
+                placed("condpump") = condpump
+                placed("condrec") = condrec
+                If cdutystream IsNot Nothing Then placed("qc") = cdutystream
 
                 ' the duty leaves the vessel
                 If cdutystream IsNot Nothing Then
@@ -233,10 +241,12 @@ Namespace UnitOperations
                     FlowSheet.Connect(cond, vapvalve, 0, 0)
                     FlowSheet.Connect(vapvalve, vapstream, 0, 0)
                     SizeValveForDynamics(DirectCast(vapvalve, Valve), vaporProduct, True)
+                    placed("vapvalve") = vapvalve
                 Else
                     vapstream = FlowSheet.AddObject(GraphicObjects.ObjectType.MaterialStream, xr + 90, yt - 70, tag & "_cond_vapor")
                     FlowSheet.Connect(cond, vapstream, 0, 0)
                 End If
+                placed("vapor") = vapstream
 
                 ' the liquid: the distillate through its valve, the reflux through its valve and the pump
                 Dim levelvalve = refluxvalve
@@ -259,6 +269,9 @@ Namespace UnitOperations
                         SizeValveForDynamics(DirectCast(distvalve, Valve), Tuple.Create(condLiquid.Item1, Dflow, condLiquid.Item3, condLiquid.Item4), False)
                     End If
                     levelvalve = distvalve
+                    placed("split") = condspl
+                    placed("distvalve") = distvalve
+                    placed("dist") = diststream
                 Else
                     ' full reflux
                     FlowSheet.Connect(cond, refluxvalve, 1, 0)
@@ -285,14 +298,14 @@ Namespace UnitOperations
                 AddStreamInformation(overhead.Name, Stages.First().ID, StreamInformation.Behavior.OverheadVapor, StreamInformation.Phase.V)
 
                 Dim level = SizeVesselForDynamics(DirectCast(cond, Vessel), condLiquid)
-                If level > 0 Then AddLevelController(tag & "_LC_cond", cond, levelvalve, level, xr + 240, yt - 80)
+                If level > 0 Then placed("LC_cond") = AddLevelController(tag & "_LC_cond", cond, levelvalve, level, xr + 240, yt - 80)
 
                 ' the drum pressure is held by the condenser duty (the duty stream carries the heat removed, positive;
                 ' the cooling never closes completely)
                 If cdutystream IsNot Nothing AndAlso level > 0 Then
                     Dim Qc0 = DirectCast(cdutystream, Streams.EnergyStream).EnergyFlow.GetValueOrDefault()
                     If Qc0 > 0 Then
-                        AddController(tag & "_PC_cond", cond, "Operating Pressure", "Pa", UnitOfMeasure.pressure, cdutystream, "PROP_ES_0", "kW",
+                        placed("PC_cond") = AddController(tag & "_PC_cond", cond, "Operating Pressure", "Pa", UnitOfMeasure.pressure, cdutystream, "PROP_ES_0", "kW",
                                       Stages.First().P, 2.0, 0.02, 0.2 * Qc0, 3.0 * Qc0, Qc0, Qc0, xr + 240, yt - 130)
                     End If
                 End If
@@ -309,6 +322,12 @@ Namespace UnitOperations
                 Dim rebvalve = FlowSheet.AddObject(GraphicObjects.ObjectType.Valve, xr + 129, yb + 14, tag & "_bottoms_valve")
                 Dim rebpump = FlowSheet.AddObject(GraphicObjects.ObjectType.Pump, xr + 181, yb + 20, tag & "_reb_pump")
                 Dim rebrec = FlowSheet.AddObject(GraphicObjects.ObjectType.OT_Recycle, xl - 75, yb - 10, tag & "_reb_rec")
+                placed("kettle") = reb
+                placed("boilupvalve") = boilupvalve
+                placed("bottomsvalve") = rebvalve
+                placed("rebpump") = rebpump
+                placed("rebrec") = rebrec
+                If rdutystream IsNot Nothing Then placed("qr") = rdutystream
 
                 ' the duty enters the kettle
                 If rdutystream IsNot Nothing Then
@@ -328,6 +347,7 @@ Namespace UnitOperations
                 FlowSheet.Connect(rebvalve, rebpump, 0, 0)
                 FlowSheet.Connect(rebpump, bottomstream, 0, 0)
                 SizeValveForDynamics(DirectCast(rebvalve, Valve), kettleLiquid, False)
+                placed("bottoms") = bottomstream
 
                 ' the pump lifts the bottoms one bar
                 With DirectCast(rebpump, Pump)
@@ -343,7 +363,15 @@ Namespace UnitOperations
                 ' the vapor of the kettle returns to the new bottom stage through its valve
                 FlowSheet.Connect(reb, boilupvalve, 0, 0)
                 FlowSheet.Connect(boilupvalve, rebrec, 0, 0)
-                FlowSheet.Connect(rebrec, Me, 0, -1)
+                ' into the lowest free feed port, at the bottom of the column on the drawing
+                Dim boilupPort = -1
+                For ip = GraphicObject.InputConnectors.Count - 1 To 0 Step -1
+                    If Not GraphicObject.InputConnectors(ip).IsAttached AndAlso GraphicObject.InputConnectors(ip).Type = GraphicObjects.ConType.ConIn Then
+                        boilupPort = ip
+                        Exit For
+                    End If
+                Next
+                FlowSheet.Connect(rebrec, Me, 0, boilupPort)
                 ' The boilup valve sees the bottom stage pressure, which rises with the vapor rate through the trays: across
                 ' a drop much smaller than the column's, a small swing of that pressure shuts or opens it wide and the
                 ' boilup and the bottom pressure chase each other. Twice the column drop keeps that loop gain below one.
@@ -358,7 +386,7 @@ Namespace UnitOperations
                     kettleHoldup = Tuple.Create(kettleLiquid.Item1, kettleLiquid.Item2 + boilupSeed.Item2, kettleLiquid.Item3, kettleLiquid.Item4)
                 End If
                 Dim level = SizeVesselForDynamics(DirectCast(reb, Vessel), kettleHoldup)
-                If level > 0 Then AddLevelController(tag & "_LC_reb", reb, rebvalve, level, xr + 129, yb + 70)
+                If level > 0 Then placed("LC_reb") = AddLevelController(tag & "_LC_reb", reb, rebvalve, level, xr + 129, yb + 70)
 
                 RefluxedAbsorber = True
 
@@ -372,6 +400,8 @@ Namespace UnitOperations
             ' with no drum to take up the vapor, the pressure-driven vapor holdup of the explicit dynamic model hunts
             ' and drains the trays; the quasi-steady vapor model holds the column at its steady state
             SetDynamicProperty("Quasi-Steady Vapor", True)
+
+            ArrangeConversionLayout(placed)
 
             RefreshStageNames()
 
@@ -526,18 +556,18 @@ Namespace UnitOperations
 
         ''' <summary>Adds a PI controller that holds the liquid level of a vessel by the opening of the valve its liquid
         ''' leaves through: more level, more opening.</summary>
-        Private Sub AddLevelController(controllerTag As String, vessel As ISimulationObject, valve As ISimulationObject, setpoint As Double, x As Integer, y As Integer)
-            AddController(controllerTag, vessel, "Liquid Level", "m", UnitOfMeasure.distance, valve, "PROP_VA_5", "",
+        Private Function AddLevelController(controllerTag As String, vessel As ISimulationObject, valve As ISimulationObject, setpoint As Double, x As Integer, y As Integer) As ISimulationObject
+            Return AddController(controllerTag, vessel, "Liquid Level", "m", UnitOfMeasure.distance, valve, "PROP_VA_5", "",
                           setpoint, 1.5, 0.01, 0.0, 100.0, 50.0, 100.0, x, y)
-        End Sub
+        End Function
 
         ''' <summary>Adds a reverse-acting PI controller (the output rises with the measured value).</summary>
-        Private Sub AddController(controllerTag As String, measured As ISimulationObject, measuredProperty As String, measuredUnits As String,
+        Private Function AddController(controllerTag As String, measured As ISimulationObject, measuredProperty As String, measuredUnits As String,
                                   measuredUnitsType As UnitOfMeasure, manipulated As ISimulationObject, manipulatedProperty As String,
                                   manipulatedUnits As String, setpoint As Double, kp As Double, ki As Double, outMin As Double, outMax As Double,
-                                  offset As Double, span As Double, x As Integer, y As Integer)
+                                  offset As Double, span As Double, x As Integer, y As Integer) As ISimulationObject
             Dim pid = TryCast(FlowSheet.AddObject(GraphicObjects.ObjectType.Controller_PID, x, y, controllerTag), SpecialOps.PIDController)
-            If pid Is Nothing Then Exit Sub
+            If pid Is Nothing Then Return Nothing
             pid.ControlledObjectData = New SpecialOps.Helpers.SpecialOpObjectInfo With {.ID = measured.Name, .Name = measured.GraphicObject.Tag,
                 .PropertyName = measuredProperty, .ObjectType = measured.GetDisplayName(), .Units = measuredUnits, .UnitsType = measuredUnitsType}
             pid.ManipulatedObjectData = New SpecialOps.Helpers.SpecialOpObjectInfo With {.ID = manipulated.Name, .Name = manipulated.GraphicObject.Tag,
@@ -552,6 +582,83 @@ Namespace UnitOperations
             pid.ManipulatedVariableSpan = span
             pid.WindupGuard = 100.0
             pid.ReverseActing = True
+            Return pid
+        End Function
+
+        ''' <summary>
+        ''' Lays out the objects the conversion added around the column, now drawn as an absorber (0.3 times as wide as it
+        ''' is tall): above the top, the condenser drum with its splitter and valves to the right and the reflux line
+        ''' coming back under them; below the bottom, the kettle with the bottoms line to the right and the boilup valve
+        ''' under the column; the recycle blocks to the left; the controllers above their valves; and every stream
+        ''' between two of them halfway along. The drawing surface pushes a new object that lands on another one down until
+        ''' it finds room, which scattered them.
+        ''' </summary>
+        Private Sub ArrangeConversionLayout(placed As Dictionary(Of String, ISimulationObject))
+
+            Dim go = GraphicObject
+            Dim H = go.Height
+            go.Width = 0.3 * H
+            Dim X0 = go.X, Y0 = go.Y, R = X0 + go.Width, Yb = Y0 + H
+
+            Dim place = Sub(key As String, x As Double, y As Double, flipped As Boolean)
+                            Dim o As ISimulationObject = Nothing
+                            If placed.TryGetValue(key, o) AndAlso o IsNot Nothing Then
+                                o.GraphicObject.X = x
+                                o.GraphicObject.Y = y
+                                o.GraphicObject.FlippedH = flipped
+                            End If
+                        End Sub
+
+            ' condenser above the top: drum, the vapor and the liquid to the right, the reflux coming back underneath
+            place("drum", R + 110, Y0 - 150, False)
+            place("qc", R + 125, Y0 - 220, False)
+            place("PC_cond", R + 110, Y0 - 300, False)
+            place("vapvalve", R + 250, Y0 - 180, False)
+            place("vapor", If(placed.ContainsKey("vapvalve"), R + 370, R + 250), Y0 - 180, False)
+            place("split", R + 250, Y0 - 100, False)
+            place("distvalve", R + 370, Y0 - 100, False)
+            place("dist", R + 490, Y0 - 100, False)
+            place("LC_cond", R + 370, Y0 - 300, False)
+            place("refluxvalve", R + 250, Y0 - 30, True)
+            place("condpump", R + 130, Y0 - 32, True)
+            place("condrec", X0 - 90, Y0 - 60, False)
+
+            ' reboiler below the bottom: kettle and the bottoms to the right, the boilup going back left under the column
+            place("kettle", R + 110, Yb + 20, False)
+            place("boilupvalve", X0 + go.Width / 2 - 10, Yb + 90, True)
+            place("qr", R + 125, Yb + 110, False)
+            place("bottomsvalve", R + 250, Yb + 50, False)
+            place("rebpump", R + 370, Yb + 48, False)
+            place("bottoms", R + 490, Yb + 50, False)
+            place("LC_reb", R + 250, Yb + 130, False)
+            place("rebrec", X0 - 90, Yb + 90, False)
+
+            ' the streams between two of these objects (or one of them and the column), halfway along
+            Dim owners = placed.Values.Where(Function(o) o IsNot Nothing).Select(Function(o) o.GraphicObject).ToList()
+            owners.Add(go)
+            Dim streams As New HashSet(Of IGraphicObject)
+            For Each g In owners
+                For Each c In g.OutputConnectors
+                    If c.IsAttached AndAlso c.AttachedConnector IsNot Nothing Then streams.Add(c.AttachedConnector.AttachedTo)
+                Next
+                For Each c In g.InputConnectors
+                    If c.IsAttached AndAlso c.AttachedConnector IsNot Nothing Then streams.Add(c.AttachedConnector.AttachedFrom)
+                Next
+            Next
+            For Each st In streams
+                If st Is Nothing OrElse owners.Contains(st) Then Continue For
+                If st.ObjectType <> GraphicObjects.ObjectType.MaterialStream AndAlso st.ObjectType <> GraphicObjects.ObjectType.EnergyStream Then Continue For
+                If Not st.InputConnectors(0).IsAttached OrElse Not st.OutputConnectors(0).IsAttached Then Continue For
+                Dim a = st.InputConnectors(0).AttachedConnector.AttachedFrom
+                Dim b = st.OutputConnectors(0).AttachedConnector.AttachedTo
+                If Not owners.Contains(a) OrElse Not owners.Contains(b) Then Continue For
+                Dim leftward = b.X + b.Width / 2 < a.X + a.Width / 2
+                Dim xa = If(leftward, a.X, a.X + a.Width), xb = If(leftward, b.X + b.Width, b.X)
+                st.X = (xa + xb) / 2 - st.Width / 2
+                st.Y = (a.Y + a.Height / 2 + b.Y + b.Height / 2) / 2 - st.Height / 2
+                st.FlippedH = leftward
+            Next
+
         End Sub
 
         ''' <summary>Connects a feed to the stage named as the editor shows it, e.g. "Stage10" (Stage1 is the
