@@ -915,6 +915,7 @@ public partial class SimulationSettingsWindow : Window
         {
             if (GridCompounds.SelectedItem is CompoundRow row) row.Added = !row.Added;
         };
+        BtnCreateCompound.Click += async (_, _) => await ImportFromAsync(new CompoundCreatorWindow(_flowsheet));
         BtnImportJson.Click += (_, _) => ImportCompoundFromJson();
         BtnImportThermoData.Click += async (_, _) => await ImportFromAsync(new CompoundImportThermoDataWindow(_flowsheet));
         BtnImportOnline.Click += async (_, _) => await ImportFromAsync(new CompoundImportOnlineWindow(_flowsheet));

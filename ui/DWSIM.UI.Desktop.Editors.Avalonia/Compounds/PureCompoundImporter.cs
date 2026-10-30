@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using DWSIM.PureCompoundData.Builder;
 using DWSIM.PureCompoundData.Core;
+using DWSIM.PureCompoundData.Fragmentation;
 using DWSIM.PureCompoundData.Index;
 using ConstantProperties = DWSIM.Thermodynamics.BaseClasses.ConstantProperties;
 
@@ -335,6 +336,100 @@ namespace DWSIM.UI.Desktop.Editors
 
             return cp;
         }
+
+        /// <summary>
+        /// Fills from the SMILES what a compound typed in by hand leaves out: the UNIFAC and
+        /// Dortmund groups, and the Joback ideal gas heat capacity and, when they are zero, the
+        /// formation properties, with the engine's Joback table the Windows compound creator uses.
+        /// Returns what was estimated, empty when there was no SMILES or it could not be split
+        /// into groups.
+        /// </summary>
+        public static List<string> EstimateFromStructure(ConstantProperties cp)
+        {
+            var estimated = new List<string>();
+            if (cp == null || string.IsNullOrWhiteSpace(cp.SMILES)) return estimated;
+
+            var unifacComplete = false;
+            var unifac = SmilesFragmenter.Fragment(cp.SMILES, GroupDefinitions.Unifac);
+            if (unifac != null && unifac.IsComplete && unifac.Groups.Count > 0)
+            {
+                var map = GroupIdMap.Unifac();
+                unifacComplete = unifac.Groups.Keys.All(map.ContainsKey);
+                AddGroups(new Dictionary<string, int>(unifac.Groups), map, cp.UNIFACGroups);
+                if (cp.UNIFACGroups.Count > 0) estimated.Add("UNIFAC groups");
+            }
+            var dortmund = SmilesFragmenter.Fragment(cp.SMILES, GroupDefinitions.Dortmund);
+            if (dortmund != null && dortmund.IsComplete && dortmund.Groups.Count > 0)
+            {
+                var groups = new Dictionary<string, int>(dortmund.Groups);
+                AddGroups(groups, GroupIdMap.Dortmund(), cp.MODFACGroups);
+                AddGroups(groups, GroupIdMap.NistMfac(), cp.NISTMODFACGroups);
+                if (cp.MODFACGroups.Count > 0) estimated.Add("Modified UNIFAC groups");
+            }
+
+            // the Joback groups straight from the structure, which tells ring carbons apart; the
+            // UNIFAC subgroups, which do not, when the structure has a group outside the table
+            var joback = new DWSIM.Thermodynamics.Utilities.Hypos.Methods.Joback();
+            int[] jc = null;
+            var jobackGroups = SmilesFragmenter.Fragment(cp.SMILES, GroupDefinitions.Joback);
+            if (jobackGroups != null && jobackGroups.IsComplete && jobackGroups.Groups.Count > 0 &&
+                jobackGroups.Groups.Keys.All(k => Array.IndexOf(JobackGroupOrder, k) >= 0))
+            {
+                jc = joback.JGroups.Values
+                    .Select(g => g.ID >= 1 && g.ID <= JobackGroupOrder.Length &&
+                                 jobackGroups.Groups.TryGetValue(JobackGroupOrder[g.ID - 1], out var n) ? n : 0)
+                    .ToArray();
+            }
+            else if (unifacComplete && cp.UNIFACGroups.Count > 0)
+            {
+                jc = joback.GetJCFromUNIFAC(joback.GetUNIFACList(cp.UNIFACGroups));
+            }
+            if (jc == null || jc.All(n => n == 0)) return estimated;
+
+            if (string.IsNullOrEmpty(cp.IdealgasCpEquation))
+            {
+                // Joback gives kJ/(kmol.K); equation 4 takes J/(kmol.K)
+                cp.IdealgasCpEquation = "4";
+                cp.Ideal_Gas_Heat_Capacity_Const_A = joback.CalcCpA(jc) * 1000;
+                cp.Ideal_Gas_Heat_Capacity_Const_B = joback.CalcCpB(jc) * 1000;
+                cp.Ideal_Gas_Heat_Capacity_Const_C = joback.CalcCpC(jc) * 1000;
+                cp.Ideal_Gas_Heat_Capacity_Const_D = joback.CalcCpD(jc) * 1000;
+                cp.Ideal_Gas_Heat_Capacity_Const_E = 0;
+                estimated.Add("ideal gas heat capacity (Joback)");
+            }
+
+            // kJ/kmol to kJ/kg
+            if (cp.Molar_Weight > 0)
+            {
+                if (cp.IG_Enthalpy_of_Formation_25C == 0)
+                {
+                    cp.IG_Enthalpy_of_Formation_25C = joback.CalcDHf(jc) / cp.Molar_Weight;
+                    estimated.Add("enthalpy of formation (Joback)");
+                }
+                if (cp.IG_Gibbs_Energy_of_Formation_25C == 0)
+                {
+                    cp.IG_Gibbs_Energy_of_Formation_25C = joback.CalcDGf(jc) / cp.Molar_Weight;
+                    estimated.Add("Gibbs energy of formation (Joback)");
+                }
+            }
+
+            return estimated;
+        }
+
+        /// <summary>
+        /// The fragmenter's Joback group names in the order of Joback and Reid's table, which is
+        /// the order of the IDs (1 to 41) of the engine's Joback groups.
+        /// </summary>
+        private static readonly string[] JobackGroupOrder =
+        {
+            "-CH3", "-CH2-", ">CH-", ">C<", "=CH2", "=CH-", "=C<", "=C=", "CH", "C",
+            "ring-CH2-", "ring>CH-", "ring>C<", "ring=CH-", "ring=C<",
+            "-F", "-Cl", "-Br", "-I",
+            "-OH (alcohol)", "-OH (phenol)", "-O- (non-ring)", "-O- (ring)", ">C=O (non-ring)", ">C=O (ring)",
+            "O=CH- (aldehyde)", "-COOH (acid)", "-COO- (ester)", "=O (other than above)",
+            "-NH2", ">NH (non-ring)", ">NH (ring)", ">N- (non-ring)", "-N= (non-ring)", "-N= (ring)", "=NH",
+            "-CN", "-NO2", "-SH", "-S- (non-ring)", "-S- (ring)"
+        };
 
         private static void SetCoefficients(double[] values, params Action<double>[] setters)
         {

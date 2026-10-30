@@ -1,136 +1,271 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
-using System.Reflection;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 using Avalonia.Controls;
+using Avalonia.Platform.Storage;
 using DWSIM.Interfaces;
+using DWSIM.UI.Desktop.Editors;
+using ConstantProperties = DWSIM.Thermodynamics.BaseClasses.ConstantProperties;
+using PROPS = DWSIM.Thermodynamics.PropertyPackages.Auxiliary.PROPS;
+using UserDB = DWSIM.Thermodynamics.Databases.UserDB;
 
 namespace DWSIM.UI.Desktop.Avalonia;
 
 /// <summary>
-/// Minimal Avalonia compound creator. Builds a ConstantProperties instance via reflection
-/// (the concrete type lives in DWSIM.Thermodynamics, which is loaded lazily by the engine
-/// resolver) and registers it in IFlowsheet.AvailableCompounds. Once present, the user
-/// can pick it from the Simulation Settings dialog like any other compound.
+/// Quick compound creator: a user compound from its essential constants. Opened from a
+/// simulation it adds the compound to it; from the welcome screen, or with the second button,
+/// it saves the compound to a user database, which every new simulation loads.
 ///
-/// This is intentionally a thin first cut: just the essential constants needed by PR/SRK
-/// and a few helpers. Joback estimation, NIST/KDB import and DIPPR coefficients are
-/// follow-up scope.
+/// The compound is stored as a "User" compound, the database the property packages read the
+/// equations of. What the form does not ask for comes from the inputs (Rackett parameter from the
+/// liquid density, boiling point from Lee-Kesler, critical volume from Pitzer) and, with a SMILES,
+/// from the structure (Joback ideal gas heat capacity and formation properties, UNIFAC groups).
 /// </summary>
 public partial class CompoundCreatorWindow : Window
 {
-    private readonly IFlowsheet _flowsheet;
+    private readonly IFlowsheet? _flowsheet;
 
-    // Parameterless ctor required by the Avalonia XAML compiler.
-    public CompoundCreatorWindow() : this(null!) { }
+    /// <summary>True once the compound went into the simulation.</summary>
+    public bool Added { get; private set; }
 
-    public CompoundCreatorWindow(IFlowsheet flowsheet)
+    public CompoundCreatorWindow() : this(null) { }
+
+    public CompoundCreatorWindow(IFlowsheet? flowsheet)
     {
-        _flowsheet = flowsheet!;
+        _flowsheet = flowsheet;
         InitializeComponent();
         IconHelper.ApplyWindowIcon(this);
-        if (flowsheet == null) return;
 
-        BtnAdd.Click    += (_, _) => TryAdd();
+        if (_flowsheet == null)
+        {
+            BtnAdd.IsVisible = false;
+            BtnSaveDb.IsDefault = true;
+        }
+
+        BtnAdd.Click    += (_, _) => AddToFlowsheet();
+        BtnSaveDb.Click += async (_, _) => await SaveToUserDatabaseAsync();
         BtnCancel.Click += (_, _) => Close();
     }
 
-    private void TryAdd()
+    private void AddToFlowsheet()
     {
-        var name = TbName.Text?.Trim() ?? "";
-        if (string.IsNullOrEmpty(name))
-        {
-            LblStatus.Text = "Name is required.";
-            return;
-        }
-        if (_flowsheet.AvailableCompounds.ContainsKey(name))
-        {
-            LblStatus.Text = $"A compound called '{name}' already exists in the database.";
-            return;
-        }
+        if (_flowsheet == null) return;
 
-        if (!TryParse(TbMW.Text, out var mw) || mw <= 0) { LblStatus.Text = "Molecular Weight must be > 0."; return; }
-        if (!TryParse(TbTc.Text, out var tc) || tc <= 0) { LblStatus.Text = "Critical Temperature must be > 0."; return; }
-        if (!TryParse(TbPc.Text, out var pc) || pc <= 0) { LblStatus.Text = "Critical Pressure must be > 0."; return; }
-        if (!TryParse(TbOmega.Text, out var omega)) { LblStatus.Text = "Acentric Factor must be numeric."; return; }
-        TryParse(TbVc.Text,   out var vc);
-        TryParse(TbTb.Text,   out var tb);
-        TryParse(TbRhoL.Text, out var rho);
-        TryParse(TbHform.Text, out var hform);
+        var compound = BuildCompound(out var estimated);
+        if (compound == null) return;
 
-        ICompoundConstantProperties? compound = TryCreateConstantProperties();
-        if (compound == null)
+        if (_flowsheet.AvailableCompounds.ContainsKey(compound.Name))
         {
-            LblStatus.Text = "Could not instantiate ConstantProperties type. The engine assembly may not be loaded yet.";
+            LblStatus.Text = $"A compound called '{compound.Name}' already exists. Choose another name.";
             return;
         }
 
-        compound.Name = name;
-        compound.CAS_Number = TbCAS.Text ?? "";
-        compound.Formula    = TbFormula.Text ?? "";
-        compound.SMILES     = TbSmiles.Text ?? "";
-        compound.Molar_Weight        = mw;
-        compound.Critical_Temperature = tc;
-        compound.Critical_Pressure   = pc;
-        compound.Critical_Volume     = vc;
-        compound.Acentric_Factor     = omega;
+        var message = CompoundImportSupport.AddToFlowsheet(_flowsheet, compound);
+        if (!_flowsheet.SelectedCompounds.ContainsKey(compound.Name))
+        {
+            LblStatus.Text = message;
+            return;
+        }
 
-        // Set "Normal_Boiling_Point" and others reflectively because they are not all on the
-        // base interface (only on the concrete ConstantProperties class).
-        SetIfWritable(compound, "Normal_Boiling_Point", tb);
-        SetIfWritable(compound, "Standard_Density",     rho);
-        SetIfWritable(compound, "IG_Enthalpy_of_Formation_25C", hform);
-        SetIfWritable(compound, "OriginalDB", "Avalonia Creator");
-        SetIfWritable(compound, "CurrentDB",  "Avalonia Creator");
+        Added = true;
+        _flowsheet.ShowMessage(Summary(compound, estimated, $"'{compound.Name}' added to the simulation."),
+            HasIdealGasCp(compound) ? IFlowsheet.MessageType.Information : IFlowsheet.MessageType.Warning);
+        Close();
+    }
+
+    private async Task SaveToUserDatabaseAsync()
+    {
+        var compound = BuildCompound(out var estimated);
+        if (compound == null) return;
+
+        var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = "Save to User Database (new or existing file)",
+            SuggestedFileName = "user_compounds.xml",
+            DefaultExtension = "xml",
+            ShowOverwritePrompt = false,
+            FileTypeChoices = new[] { new FilePickerFileType("DWSIM User Database") { Patterns = new[] { "*.xml" } } }
+        });
+        var path = file?.TryGetLocalPath();
+        if (string.IsNullOrEmpty(path)) return;
 
         try
         {
-            _flowsheet.AvailableCompounds[name] = compound;
-            LblStatus.Text = $"'{name}' added to AvailableCompounds. Open Simulation Settings → Compounds to attach it.";
+            if (File.Exists(path) && UserDB.ReadComps(path).Any(c => c.Name == compound.Name))
+            {
+                LblStatus.Text = $"'{Path.GetFileName(path)}' already holds a compound called '{compound.Name}'.";
+                return;
+            }
+
+            // the database writer appends to the XML it is handed, or starts one on an empty stream
+            using (var stream = new MemoryStream())
+            {
+                if (File.Exists(path))
+                {
+                    using (var existing = File.OpenRead(path)) existing.CopyTo(stream);
+                    stream.Position = 0;
+                }
+                UserDB.AddCompounds(new ICompoundConstantProperties[] { compound }, stream, true);
+                File.WriteAllBytes(path, stream.ToArray());
+            }
+
+            var databases = DWSIM.GlobalSettings.Settings.UserDatabases;
+            if (!databases.Contains(path))
+            {
+                databases.Add(path);
+                try { DWSIM.GlobalSettings.Settings.SaveSettings("dwsim_newui.ini"); } catch { }
+            }
+
+            LblStatus.Text = Summary(compound, estimated,
+                $"'{compound.Name}' saved to {Path.GetFileName(path)}, which is in the list of user databases: new simulations offer it with the other compounds.");
         }
         catch (Exception ex)
         {
-            LblStatus.Text = "Failed to register: " + ex.Message;
+            LblStatus.Text = "Could not save the compound: " + ex.Message;
         }
-    }
-
-    private static bool TryParse(string? text, out double value)
-    {
-        if (!double.TryParse(text, NumberStyles.Any, CultureInfo.InvariantCulture, out value))
-        {
-            value = 0;
-            return false;
-        }
-        return true;
     }
 
     /// <summary>
-    /// Looks up DWSIM.Thermodynamics.BaseClasses.ConstantProperties via reflection — that's
-    /// the concrete type implementing ICompoundConstantProperties that every database loads.
+    /// Reads the form into a user compound and fills what it leaves out. Null, with the reason
+    /// in the status line, when an input is missing or out of range.
     /// </summary>
-    private static ICompoundConstantProperties? TryCreateConstantProperties()
+    private ConstantProperties? BuildCompound(out List<string> estimated)
     {
-        foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+        estimated = new List<string>();
+
+        var name = TbName.Text?.Trim() ?? "";
+        if (string.IsNullOrEmpty(name)) { LblStatus.Text = "Name is required."; return null; }
+
+        if (!TryParse(TbMW.Text, out var mw) || mw <= 0) { LblStatus.Text = "Molecular Weight must be > 0."; return null; }
+        if (!TryParse(TbTc.Text, out var tc) || tc <= 0) { LblStatus.Text = "Critical Temperature must be > 0."; return null; }
+        if (!TryParse(TbPc.Text, out var pc) || pc <= 0) { LblStatus.Text = "Critical Pressure must be > 0."; return null; }
+        if (!TryParse(TbOmega.Text, out var omega)) { LblStatus.Text = "Acentric Factor must be numeric."; return null; }
+
+        var hasVc = TryParse(TbVc.Text, out var vc) && vc > 0;
+        var hasTb = TryParse(TbTb.Text, out var tb) && tb > 0;
+        var hasRho = TryParse(TbRhoL.Text, out var rho) && rho > 0;
+        TryParse(TbHform.Text, out var hform);
+
+        const double R = 8314.46; // J/(kmol.K)
+
+        double zc;
+        if (hasVc)
         {
-            var t = asm.GetType("DWSIM.Thermodynamics.BaseClasses.ConstantProperties");
-            if (t != null && typeof(ICompoundConstantProperties).IsAssignableFrom(t))
-                return (ICompoundConstantProperties)Activator.CreateInstance(t)!;
+            zc = pc * vc / (R * tc);
+            if (zc < 0.1 || zc > 0.6)
+            {
+                LblStatus.Text = $"The critical volume gives a critical compressibility of {zc:G3}, where 0.2 to 0.4 is expected. " +
+                                 "The field is in m³/kmol: 1 cm³/mol is 0.001 m³/kmol.";
+                return null;
+            }
         }
-        // Force-load DWSIM.Thermodynamics through the assembly resolver and retry.
-        try
+        else
         {
-            var asm = Assembly.Load("DWSIM.Thermodynamics");
-            var t = asm.GetType("DWSIM.Thermodynamics.BaseClasses.ConstantProperties");
-            if (t != null) return (ICompoundConstantProperties)Activator.CreateInstance(t)!;
+            // Pitzer
+            zc = 0.291 - 0.080 * omega;
+            vc = zc * R * tc / pc;
+            estimated.Add("critical volume");
         }
-        catch { }
-        return null;
+
+        if (hasTb && tb >= tc) { LblStatus.Text = "The normal boiling point must be below the critical temperature."; return null; }
+        if (!hasTb)
+        {
+            tb = LeeKeslerBoilingPoint(tc, pc, omega);
+            if (double.IsNaN(tb))
+            {
+                LblStatus.Text = "The critical pressure is below 1 atm: enter the normal boiling point.";
+                return null;
+            }
+            estimated.Add("normal boiling point");
+        }
+
+        var compound = new ConstantProperties
+        {
+            Name = name,
+            CAS_Number = TbCAS.Text?.Trim() ?? "",
+            Formula = TbFormula.Text?.Trim() ?? "",
+            SMILES = TbSmiles.Text?.Trim() ?? "",
+            // the property packages read the equations of the "User" database and estimate what
+            // they leave empty (Lee-Kesler vapour pressure, Rackett density, Vetere enthalpy of
+            // vaporization); a name of their own would fall through to zero
+            OriginalDB = "User",
+            CurrentDB = "User",
+            ID = NewId(),
+            Molar_Weight = mw,
+            Critical_Temperature = tc,
+            Critical_Pressure = pc,
+            Critical_Volume = vc,
+            Critical_Compressibility = zc,
+            Acentric_Factor = omega,
+            Normal_Boiling_Point = tb,
+            NBP = tb,
+            IG_Enthalpy_of_Formation_25C = hform,
+        };
+
+        // Rackett parameter that reproduces the density at 15 °C
+        const double Tstd = 288.15;
+        if (hasRho && Tstd < tc)
+        {
+            var v = mw / rho; // m3/kmol
+            compound.Z_Rackett = Math.Pow(v * pc / (R * tc), 1.0 / (1.0 + Math.Pow(1.0 - Tstd / tc, 2.0 / 7.0)));
+        }
+
+        try { estimated.AddRange(PureCompoundImporter.EstimateFromStructure(compound)); }
+        catch { /* a SMILES the fragmenter cannot read leaves the structure estimates out */ }
+
+        compound.Comments = "Created with the Compound Creator on " + DateTime.Now.ToString("yyyy-MM-dd") + "." +
+                            (estimated.Count > 0 ? " Estimated: " + string.Join(", ", estimated) + "." : "");
+
+        return compound;
     }
 
-    private static void SetIfWritable(object target, string propName, object? value)
+    private static bool HasIdealGasCp(ConstantProperties compound) => !string.IsNullOrEmpty(compound.IdealgasCpEquation);
+
+    private static string Summary(ConstantProperties compound, List<string> estimated, string head)
     {
-        var p = target.GetType().GetProperty(propName);
-        if (p == null || !p.CanWrite) return;
-        try { p.SetValue(target, Convert.ChangeType(value, p.PropertyType, CultureInfo.InvariantCulture)); }
-        catch { /* best-effort: ignore type-mismatch */ }
+        var text = head;
+        if (estimated.Count > 0) text += " Estimated: " + string.Join(", ", estimated) + ".";
+        if (!HasIdealGasCp(compound))
+            text += " Without a SMILES the ideal gas heat capacity is the 3.5 R default: give a SMILES, or enter the equation " +
+                    "with Edit Selected Compound in the simulation settings.";
+        return text;
+    }
+
+    /// <summary>An ID no compound of the simulation uses; the property packages cache by it.</summary>
+    private int NewId()
+    {
+        var used = _flowsheet?.AvailableCompounds.Values.Select(c => c.ID).ToHashSet() ?? new HashSet<int>();
+        int id;
+        do { id = Random.Shared.Next(100000, int.MaxValue); } while (used.Contains(id));
+        return id;
+    }
+
+    /// <summary>Temperature where the Lee-Kesler vapour pressure reaches 1 atm; NaN when Pc is below it.</summary>
+    private static double LeeKeslerBoilingPoint(double tc, double pc, double omega)
+    {
+        const double Patm = 101325.0;
+        if (pc <= Patm) return double.NaN;
+        double Pvap(double t) => Convert.ToDouble(PROPS.Pvp_leekesler(t, tc, pc, omega), CultureInfo.InvariantCulture);
+        double lo = 0.2 * tc, hi = 0.9999 * tc;
+        if (Pvap(lo) > Patm) return double.NaN;
+        for (var i = 0; i < 100; i++)
+        {
+            var mid = 0.5 * (lo + hi);
+            if (Pvap(mid) > Patm) hi = mid; else lo = mid;
+            if (hi - lo < 1e-6) break;
+        }
+        return 0.5 * (lo + hi);
+    }
+
+    /// <summary>Parses a number in the regional format or with a decimal point.</summary>
+    private static bool TryParse(string? text, out double value)
+    {
+        value = 0;
+        if (string.IsNullOrWhiteSpace(text)) return false;
+        return double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out value)
+            || double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value);
     }
 }

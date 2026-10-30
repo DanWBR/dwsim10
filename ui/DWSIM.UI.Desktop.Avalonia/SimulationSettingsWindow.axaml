@@ -53,7 +53,9 @@
                 <Button DockPanel.Dock="Left" Name="BtnViewCompound" Classes="panel"
                         Content="Edit Selected Compound" ToolTip.Tip="Opens the compound editor: every property with its explanation, the temperature-dependent equations explained, a link to a JSON file, and validation. Changes reach the simulation only when you press OK." />
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6">
-                  <TextBlock Text="Import From" VerticalAlignment="Center" />
+                  <Button Name="BtnCreateCompound" Classes="panel" Content="Create New"
+                          ToolTip.Tip="Creates a compound from its essential constants (molecular weight, critical properties, acentric factor) and adds it to the simulation." />
+                  <TextBlock Text="Import From" VerticalAlignment="Center" Margin="6,0,0,0" />
                   <Button Name="BtnImportThermoData" Classes="panel" Content="ThermoData" />
                   <Button Name="BtnImportOnline" Classes="panel" Content="Online" />
                   <Button Name="BtnImportJson" Classes="panel" Content="JSON" />

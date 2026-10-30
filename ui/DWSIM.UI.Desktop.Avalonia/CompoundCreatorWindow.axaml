@@ -9,6 +9,7 @@
 
     <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal"
                 HorizontalAlignment="Right" Spacing="8" Margin="0,14,0,0">
+      <Button Name="BtnSaveDb" Classes="dialog" Content="Save to User Database..." Width="200" />
       <Button Name="BtnAdd"    Classes="dialog" Content="Add to Flowsheet" Width="160" IsDefault="True" />
       <Button Name="BtnCancel" Classes="dialog" Content="Cancel" Width="100" IsCancel="True" />
     </StackPanel>
@@ -44,7 +45,7 @@
           <TextBox   Grid.Row="4" Grid.Column="1" Name="TbOmega" Margin="0,6,0,0" />
           <TextBlock Grid.Row="5" Text="Normal Boiling Point (K)" VerticalAlignment="Center" Margin="0,6,0,0" />
           <TextBox   Grid.Row="5" Grid.Column="1" Name="TbTb" Margin="0,6,0,0" />
-          <TextBlock Grid.Row="6" Text="Std Liquid Density (kg/m³)" VerticalAlignment="Center" Margin="0,6,0,0" />
+          <TextBlock Grid.Row="6" Text="Liquid Density at 15 °C (kg/m³)" VerticalAlignment="Center" Margin="0,6,0,0" />
           <TextBox   Grid.Row="6" Grid.Column="1" Name="TbRhoL" Margin="0,6,0,0" />
           <TextBlock Grid.Row="7" Text="Standard Enthalpy of Formation (kJ/kg)" VerticalAlignment="Center" Margin="0,6,0,0" />
           <TextBox   Grid.Row="7" Grid.Column="1" Name="TbHform" Margin="0,6,0,0" />
@@ -52,7 +53,7 @@
 
         <Separator Margin="0,8" />
 
-        <TextBlock Name="LblStatus" Text="Fill in at least Name, MW, Tc, Pc and Acentric Factor."
+        <TextBlock Name="LblStatus" Text="Fill in at least Name, MW, Tc, Pc and Acentric Factor. With a SMILES, the ideal gas heat capacity, the formation properties left empty and the UNIFAC groups are estimated from the structure."
                    FontSize="{DynamicResource FontSizeSmall}" Foreground="#666" TextWrapping="Wrap" />
 
       </StackPanel>
