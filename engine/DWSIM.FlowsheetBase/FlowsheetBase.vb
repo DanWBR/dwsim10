@@ -404,10 +404,10 @@ Imports DWSIM.ExtensionMethods
     ''' <param name="fromidx">The output connector index on the upstream object.</param>
     ''' <param name="toidx">The input connector index on the downstream object.</param>
     Public Sub Connect(objFrom As ISimulationObject, objTo As ISimulationObject, fromidx As Integer, toidx As Integer) Implements IFlowsheet.Connect
-        If TypeOf objFrom Is IUnitOperation And TypeOf objTo Is IUnitOperation Then
+        If (TypeOf objFrom Is IUnitOperation Or TypeOf objFrom Is IRecycle) And (TypeOf objTo Is IUnitOperation Or TypeOf objTo Is IRecycle) Then
             Dim x = (objTo.GraphicObject.X + objFrom.GraphicObject.X + objFrom.GraphicObject.Width) / 2
             Dim y = (objTo.GraphicObject.Y + objFrom.GraphicObject.Y) / 2
-            Dim stream = AddObject(ObjectType.MaterialStream, x, y)
+            Dim stream = AddObject(ObjectType.MaterialStream, CInt(x), CInt(y), "")
             If objTo.GraphicObject.X < objFrom.GraphicObject.X Then stream.GraphicObject.FlippedH = True
             ConnectObjects(objFrom.GraphicObject, stream.GraphicObject, fromidx, 0)
             ConnectObjects(stream.GraphicObject, objTo.GraphicObject, 0, toidx)

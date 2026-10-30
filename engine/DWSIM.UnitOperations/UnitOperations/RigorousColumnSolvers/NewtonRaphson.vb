@@ -1476,8 +1476,15 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
 
             Dim rebabs As Boolean = False, refabs As Boolean = False
             If TypeOf dc Is DistillationColumn Then
-                If DirectCast(dc, DistillationColumn).ReboiledAbsorber Then coltype = Column.ColType.ReboiledAbsorber
-                If DirectCast(dc, DistillationColumn).RefluxedAbsorber Then coltype = Column.ColType.RefluxedAbsorber
+                'no condenser and no reboiler (both moved out to flowsheet objects) is an absorber
+                Dim nocond = DirectCast(dc, DistillationColumn).ReboiledAbsorber, noreb = DirectCast(dc, DistillationColumn).RefluxedAbsorber
+                If nocond AndAlso noreb Then
+                    coltype = Column.ColType.AbsorptionColumn
+                ElseIf nocond Then
+                    coltype = Column.ColType.ReboiledAbsorber
+                ElseIf noreb Then
+                    coltype = Column.ColType.RefluxedAbsorber
+                End If
             End If
 
             Dim cv As New SystemsOfUnits.Converter

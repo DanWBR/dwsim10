@@ -29,11 +29,75 @@ Namespace UnitOperations
         Private _qsExcess As Double() = Nothing
         Private _qsVfilt As Double() = Nothing
 
+        'the pressure the top stage vents to when its vapor leaves the column, for want of a holdup downstream
+        Private _dynTopPressure As Double = Double.NaN
+
         ''' <summary>Forgets the state of the quasi-steady sweep (called when the holdups are seeded).</summary>
         Private Sub ResetQuasiSteadyState()
             _qsExcess = Nothing
             _qsVfilt = Nothing
+            _dynTopPressure = Double.NaN
         End Sub
+
+        ''' <summary>True when the condenser of a distillation column was moved out to flowsheet objects
+        ''' (<see cref="DistillationColumn.ConvertToComplex"/>): the top stage is a tray and the column sends its vapor
+        ''' on to the equipment downstream.</summary>
+        Private ReadOnly Property TopStageIsTray As Boolean
+            Get
+                Dim dc = TryCast(Me, DistillationColumn)
+                Return dc IsNot Nothing AndAlso dc.ReboiledAbsorber
+            End Get
+        End Property
+
+        ''' <summary>True when the reboiler of a distillation column was moved out to flowsheet objects: the bottom stage
+        ''' is a tray and the liquid over its weir leaves the column as the bottoms.</summary>
+        Private ReadOnly Property BottomStageIsTray As Boolean
+            Get
+                Dim dc = TryCast(Me, DistillationColumn)
+                Return dc IsNot Nothing AndAlso dc.RefluxedAbsorber
+            End Get
+        End Property
+
+        ''' <summary>The pressure the overhead vapor flows into: the holdup of the vessel (or tank) the overhead stream
+        ''' feeds, else the pressure the top stage had when the run started.</summary>
+        Private Function OverheadDestinationPressure(topProduct As StreamInformation, ownPressure As Double) As Double
+            If topProduct IsNot Nothing AndAlso FlowSheet.SimulationObjects.ContainsKey(topProduct.StreamID) Then
+                Dim go = FlowSheet.SimulationObjects(topProduct.StreamID).GraphicObject
+                If go.OutputConnectors.Count > 0 AndAlso go.OutputConnectors(0).IsAttached Then
+                    Dim dest = TryCast(FlowSheet.SimulationObjects(go.OutputConnectors(0).AttachedConnector.AttachedTo.Name), UnitOpBaseClass)
+                    If dest IsNot Nothing AndAlso dest.AccumulationStream IsNot Nothing Then
+                        Dim p = dest.AccumulationStream.GetPressure()
+                        If p.IsValidDouble() AndAlso p > 0 Then Return p
+                    End If
+                End If
+            End If
+            If Not _dynTopPressure.IsValidDouble() Then _dynTopPressure = ownPressure
+            Return _dynTopPressure
+        End Function
+
+        ''' <summary>The vapor a top stage with no condenser sends downstream over a sub-step: the vapor its free volume
+        ''' does not hold at the destination pressure (the vapor line has no holdup and no drop of its own), no more
+        ''' than nine tenths of its vapor. Nothing when the vapor fits. The molar rate is returned in
+        ''' <paramref name="molarRate"/>.</summary>
+        Private Function OverheadVent(top As MaterialStream, destPressure As Double, dt As Double, ByRef molarRate As Double) As MaterialStream
+            molarRate = 0.0
+            Dim vap = top.Phases(2).Properties
+            Dim nV = vap.molarflow.GetValueOrDefault(), wV = vap.massflow.GetValueOrDefault(), vvap = vap.volumetric_flow.GetValueOrDefault()
+            Dim P = top.GetPressure()
+            If nV <= 0 OrElse wV <= 0 OrElse vvap <= 0 OrElse P <= 0 OrElse Not destPressure.IsValidDouble() OrElse destPressure <= 0 Then Return Nothing
+            Dim freeVol = Math.Max(StageVolume(0, Stages.Count + 1) - top.OverallLiquid.Properties.volumetric_flow.GetValueOrDefault(), 0.0)
+            'the vapor the free volume holds at the destination pressure, at the molar volume it has now scaled to that pressure
+            Dim capacity = freeVol / (vvap / nV) * destPressure / P
+            Dim V = Math.Min((nV - capacity) / dt, 0.9 * nV / dt)
+            If Not V.IsValidDouble() OrElse V <= 0 Then Return Nothing
+            molarRate = V
+            Dim vt = DirectCast(top.CloneXML(), MaterialStream)
+            vt.AssignFromPhase(PhaseLabel.Vapor, top, True)
+            vt.SetMassFlow(V * wV / nV)
+            vt.PropertyPackage = PropertyPackage
+            vt.SetFlowsheet(FlowSheet)
+            Return vt
+        End Function
 
         ''' <summary>
         ''' One sub-step of the dynamic column with quasi-steady vapor. The liquid holdups are the states: each
@@ -53,7 +117,8 @@ Namespace UnitOperations
                                             topProduct As StreamInformation, distillate As StreamInformation, bottomsProduct As StreamInformation,
                                             dt As Double, maxDP As Double, maxDV As Double, C_SB As Double, applyMurphree As Boolean,
                                             minP As Double, coolantT As Double, weeping As Boolean,
-                                            ByRef floodingDetected As Boolean, ByRef weepingDetected As Boolean)
+                                            ByRef floodingDetected As Boolean, ByRef weepingDetected As Boolean,
+                                            ByRef overheadMass As Double, ByRef bottomsMass As Double)
 
             Dim ns = Stages.Count
             Dim colArea = Math.PI * EstimatedDiameter ^ 2 / 4.0
@@ -63,6 +128,9 @@ Namespace UnitOperations
             'it, as a kettle or thermosiphon reboiler does with the column bottoms. The separate sump holdup of the
             'explicit formulation is carried along empty.
             Dim reb = ns - 1
+            'a column whose condenser or reboiler was moved out has trays at its ends: the top tray sends its vapor
+            'downstream and sits at the pressure there, the bottom tray passes its liquid over the weir as the bottoms
+            Dim topTray = TopStageIsTray, botTray = BottomStageIsTray
 
             If _qsExcess Is Nothing OrElse _qsExcess.Length <> streams.Count Then
                 _qsExcess = Enumerable.Repeat(Double.NaN, streams.Count).ToArray()
@@ -91,7 +159,7 @@ Namespace UnitOperations
                         dPdry = 101325.0 * Stages(i - 1).DryTrayPressureDropCoefficient * rhov * uh ^ 2
                     End If
                 End If
-                Dim head = If(Stages(i - 1).IsPacked OrElse i - 1 = 0, 0.0, above.OverallLiquid.Properties.density.GetValueOrDefault() * 9.80665 * Stages(i - 1).LiquidLevel)
+                Dim head = If(Stages(i - 1).IsPacked OrElse (i - 1 = 0 AndAlso Not topTray), 0.0, above.OverallLiquid.Properties.density.GetValueOrDefault() * 9.80665 * Stages(i - 1).LiquidLevel)
                 If Not head.IsValidDouble() Then head = 0.0
                 Dim Phyd = above.GetPressure() + dPdry + head
                 Dim Pnew = st.GetPressure() + relax * (Phyd - st.GetPressure())
@@ -115,7 +183,7 @@ Namespace UnitOperations
                     streams(i) = DrawProduct(streams(i), sidestream, If(side.StreamPhase = StreamInformation.Phase.V, PhaseLabel.Vapor, PhaseLabel.Liquid1), dt)
                 End If
                 If i = 0 Then
-                    If topProduct IsNot Nothing Then
+                    If topProduct IsNot Nothing AndAlso Not topTray Then
                         Dim topstream = DirectCast(FlowSheet.SimulationObjects(topProduct.StreamID), MaterialStream)
                         streams(i) = DrawProduct(streams(i), topstream, PhaseLabel.Vapor, dt)
                     End If
@@ -124,7 +192,7 @@ Namespace UnitOperations
                         streams(i) = DrawProduct(streams(i), diststream, PhaseLabel.Liquid1, dt)
                     End If
                 ElseIf i = reb Then
-                    If bottomsProduct IsNot Nothing Then
+                    If bottomsProduct IsNot Nothing AndAlso Not botTray Then
                         Dim bottomstream = DirectCast(FlowSheet.SimulationObjects(bottomsProduct.StreamID), MaterialStream)
                         streams(i) = DrawProduct(streams(i), bottomstream, PhaseLabel.Liquid1, dt)
                     End If
@@ -151,7 +219,7 @@ Namespace UnitOperations
                     Continue For
                 End If
                 Dim vl = vliq / ql
-                If i = reb Then
+                If i = reb AndAlso Not botTray Then
                     'the reboiler keeps its liquid
                     Stages(i).LiquidLevel = vliq / colArea
                     Stages(i).Lout.Value = 0.0
@@ -192,14 +260,19 @@ Namespace UnitOperations
             For i = 0 To ns - 1
                 If lTrans(i) IsNot Nothing Then
                     streams(i) = streams(i).Subtract(lTrans(i), dt)
-                    streams(i + 1) = streams(i + 1).Add(lTrans(i), dt)
+                    If i = reb AndAlso botTray Then
+                        'over the weir of the bottom tray and out of the column
+                        bottomsMass += lTrans(i).GetMassFlow() * dt
+                    Else
+                        streams(i + 1) = streams(i + 1).Add(lTrans(i), dt)
+                    End If
                 End If
             Next
 
             ' ---------------------------------------------------------------- vapor, swept from the sump upward
             Dim Vflow(streams.Count - 1) As Double
             Dim vTrans(streams.Count - 1) As MaterialStream
-            For i = reb To 1 Step -1
+            For i = reb To If(topTray, 0, 1) Step -1
                 Dim st = streams(i)
                 FlashHoldup(st)
                 Dim vap = st.Phases(2).Properties
@@ -232,15 +305,20 @@ Namespace UnitOperations
                         vTrans(i) = vt
                         Vflow(i) = V
                         streams(i) = streams(i).Subtract(vt, dt)
-                        streams(i - 1) = streams(i - 1).Add(vt, dt)
+                        If i > 0 Then
+                            streams(i - 1) = streams(i - 1).Add(vt, dt)
+                        Else
+                            'the top tray sends its vapor out of the column
+                            overheadMass += vt.GetMassFlow() * dt
+                        End If
                     End If
                 End If
                 Stages(i).Vout.Value = Vflow(i)
-                Stages(i - 1).Vin.Value = Vflow(i)
+                If i > 0 Then Stages(i - 1).Vin.Value = Vflow(i)
                 _qsVfilt(i) = If(_qsVfilt(i).IsValidDouble(), 0.8 * _qsVfilt(i) + 0.2 * Vflow(i), Vflow(i))
             Next
-            Stages(0).Vout.Value = 0.0
-            Stages(reb).Vin.Value = 0.0
+            If Not topTray Then Stages(0).Vout.Value = 0.0
+            If Not botTray Then Stages(reb).Vin.Value = 0.0
 
             'Murphree vapor efficiency: the vapor a stage sends up is E parts of its own equilibrium vapor and
             '(1-E) parts of the vapor it received, at the same transfer mass (the same blend as the explicit path)
@@ -267,7 +345,16 @@ Namespace UnitOperations
             'arriving vapor brings sub-cools the liquid and the pressure falls, which is what a pressure controller
             'on the condenser duty reads. The change per sub-step is limited by "Max. P change".
             FlashHoldup(streams(0))
-            If streams(0).GetMolarFlow() > 1.0E-10 Then
+            If topTray Then
+                'no drum: the top tray sits at the pressure of the equipment its vapor flows into
+                Dim P1i = streams(0).GetPressure()
+                Dim P1 = OverheadDestinationPressure(topProduct, P1i)
+                If P1.IsValidDouble() AndAlso P1 > 0 AndAlso P1i > 0 Then
+                    If Math.Abs((P1 - P1i) / P1i * 100) > maxDP Then P1 = P1i * (1 + maxDP / 100.0 * Math.Sign(P1 - P1i))
+                    streams(0).SetPressure(P1)
+                    FlashHoldup(streams(0))
+                End If
+            ElseIf streams(0).GetMolarFlow() > 1.0E-10 Then
                 Dim P1i = streams(0).GetPressure()
                 Try
                     streams(0).AssignSelfToPP()
@@ -298,11 +385,11 @@ Namespace UnitOperations
             ' ---------------------------------------------------------------- levels, temperatures, checks
             For i = 0 To ns - 1
                 Dim st = streams(i)
-                Stages(i).LiquidLevel = st.OverallLiquid.Properties.volumetric_flow.GetValueOrDefault() / If(i = reb, colArea, colArea - Stages(i).DowncomerArea)
+                Stages(i).LiquidLevel = st.OverallLiquid.Properties.volumetric_flow.GetValueOrDefault() / If(i = reb AndAlso Not botTray, colArea, colArea - Stages(i).DowncomerArea)
                 Stages(i).P = st.GetPressure()
                 Stages(i).T = st.GetTemperature()
             Next
-            BottomLiquidLevel = Stages(reb).LiquidLevel
+            BottomLiquidLevel = If(botTray, 0.0, Stages(reb).LiquidLevel)
 
             If C_SB > 0 OrElse Stages.Any(Function(s) s.IsPacked) Then
                 For i = 1 To ns - 2
@@ -334,8 +421,8 @@ Namespace UnitOperations
         ''' tray, the reboiler stage height plus the top spacing for the sump.</summary>
         Private Function StageVolume(i As Integer, streamCount As Integer) As Double
             Dim colArea = Math.PI * EstimatedDiameter ^ 2 / 4.0
-            If i >= Stages.Count - 1 Then Return colArea * (Stages(Stages.Count - 1).StageHeight + TopSpacing)
-            If i = 0 Then Return colArea * BottomSpacing
+            If i >= Stages.Count - 1 AndAlso Not BottomStageIsTray Then Return colArea * (Stages(Stages.Count - 1).StageHeight + TopSpacing)
+            If i = 0 AndAlso Not TopStageIsTray Then Return colArea * BottomSpacing
             Return colArea * Math.Max(Stages(i).StageHeight, 0.05)
         End Function
 

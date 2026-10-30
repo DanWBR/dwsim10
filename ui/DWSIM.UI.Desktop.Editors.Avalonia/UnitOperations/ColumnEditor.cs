@@ -248,8 +248,9 @@ namespace DWSIM.UI.Desktop.Editors
 
             if (column is DistillationColumn dc)
             {
-                panel.CreateAndAddButtonRow("Convert to Complex Dynamic Column", null, (btn, e) =>
+                panel.CreateAndAddButtonRow("Convert to Complex Dynamic Column", null, async (btn, e) =>
                 {
+                    if (!await ConfirmConversionAsync(btn)) return;
                     try
                     {
                         dc.ConvertToComplex();
@@ -265,6 +266,41 @@ namespace DWSIM.UI.Desktop.Editors
             }
 
             return panel;
+        }
+
+        /// <summary>Asks before the column is converted, as the Windows editor does: the end stages are removed and
+        /// new objects are added to the flowsheet.</summary>
+        private static async System.Threading.Tasks.Task<bool> ConfirmConversionAsync(Control anchor)
+        {
+            if (TopLevel.GetTopLevel(anchor) is not Window owner) return true;
+            var result = false;
+            var yes = new Button { Content = "Yes", Width = 80, IsDefault = true };
+            var no = new Button { Content = "No", Width = 80, IsCancel = true };
+            var dlg = new Window
+            {
+                Title = "Convert Column for Dynamic Simulation", Width = 460, Height = 190, CanResize = false,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner, Icon = owner.Icon
+            };
+            var body = new DockPanel();
+            var bp = new StackPanel
+            {
+                Orientation = global::Avalonia.Layout.Orientation.Horizontal,
+                HorizontalAlignment = global::Avalonia.Layout.HorizontalAlignment.Right,
+                Spacing = 8, Margin = new Thickness(0, 0, 16, 12), Children = { no, yes }
+            };
+            DockPanel.SetDock(bp, Dock.Bottom);
+            body.Children.Add(bp);
+            body.Children.Add(new TextBlock
+            {
+                Text = "This will remove the condenser and the reboiler stages of the column and add a condenser vessel " +
+                       "with reflux and a kettle reboiler as separate objects on the flowsheet. Continue?",
+                TextWrapping = global::Avalonia.Media.TextWrapping.Wrap, Margin = new Thickness(16)
+            });
+            dlg.Content = body;
+            yes.Click += (_, _) => { result = true; dlg.Close(); };
+            no.Click += (_, _) => dlg.Close();
+            await dlg.ShowDialog(owner);
+            return result;
         }
 
         private static void AddPropertyPackageRow(Column column, AvaloniaEditorPanel panel)

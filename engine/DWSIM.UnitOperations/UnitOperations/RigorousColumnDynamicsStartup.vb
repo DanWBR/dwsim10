@@ -86,9 +86,11 @@ Namespace UnitOperations
             For i As Integer = 0 To Stages.Count - 1
                 Dim s = Stages(i)
                 Dim area = Math.Max(colArea - s.DowncomerArea, 1.0E-6)
-                'the reboiler stage is the sump of the quasi-steady model: it takes the initial sump level
-                If i = Stages.Count - 1 Then area = colArea
-                s.AccumulationStream = FilmHoldup(z, T0, P0, If(i = Stages.Count - 1, Math.Max(hSump, EmptyStageFilm), EmptyStageFilm) * area)
+                'the reboiler stage is the sump of the quasi-steady model: it takes the initial sump level (a column
+                'whose reboiler was moved out ends in a tray, with a film like the others)
+                Dim isSump = i = Stages.Count - 1 AndAlso Not BottomStageIsTray
+                If isSump Then area = colArea
+                s.AccumulationStream = FilmHoldup(z, T0, P0, If(isSump, Math.Max(hSump, EmptyStageFilm), EmptyStageFilm) * area)
                 s.LiquidLevel = s.AccumulationStream.OverallLiquid.Properties.volumetric_flow.GetValueOrDefault() / area
                 s.P = P0
                 s.T = T0
@@ -99,7 +101,7 @@ Namespace UnitOperations
             Next
 
             BottomsAccumulationStream = FilmHoldup(z, T0, P0, EmptyStageFilm * colArea)
-            BottomLiquidLevel = Stages(Stages.Count - 1).LiquidLevel
+            BottomLiquidLevel = If(BottomStageIsTray, 0.0, Stages(Stages.Count - 1).LiquidLevel)
 
         End Sub
 

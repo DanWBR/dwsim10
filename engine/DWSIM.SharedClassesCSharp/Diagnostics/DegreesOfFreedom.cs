@@ -698,6 +698,10 @@ namespace DWSIM.Automation.FluentAPI.Diagnostics
 
             var hasCondenser = type == ObjectType.DistillationColumn || type == ObjectType.RefluxedAbsorber;
             var hasReboiler = type == ObjectType.DistillationColumn || type == ObjectType.ReboiledAbsorber;
+            // a distillation column without its condenser or reboiler (unticked, or moved out to flowsheet objects)
+            // has no specification for it
+            if (Prop(obj, "ReboiledAbsorber") is bool noCondenser && noCondenser) hasCondenser = false;
+            if (Prop(obj, "RefluxedAbsorber") is bool noReboiler && noReboiler) hasReboiler = false;
 
             var specs = Prop(obj, "Specs") as IDictionary;
             if (hasCondenser) slots.Add(ColumnSpec(specs, "C", "Condenser specification"));
