@@ -11,6 +11,10 @@
 - [NEW] Flowsheet optimization (Patreon): maximize or minimize a weighted sum or an expression of flowsheet properties over feed and unit variables, with bounds and constraints, on the converged flowsheet
 - [NEW] Data reconciliation (Patreon): plant measurements with their standard deviations reconciled against the converged flowsheet by moving feeds and unit parameters, with the chi-square test and the suspect measurement
 - [NEW] Equation-oriented solver (Patreon): with Solve the flowsheet as one system of equations checked in the problem editor, the whole flowsheet is solved as one system by a damped Newton method on the units' own equations with analytic derivatives, distillation and absorption columns (total or partial condenser), the PFR, the pipe segment, all heat exchanger modes and most vessel modes included; units without equations, CAPE-OPEN columns among them, enter through their own calculation, and a solve that does not converge goes to the simultaneous solver
+- [NEW] Asphaltenes (PC-SAFT) property package (Patreon): asphaltene precipitation from crude oils characterized from their SARA analysis, with the precipitate reported in the solid phase
+- [NEW] Asphaltene Characterization, Asphaltene Envelope and Asphaltene Tuning tools (Patreon): oil characterization, onset pressures, gas injection, titration and fitting to measured onsets
+- [NEW] Pipe Network flow assurance: asphaltene precipitated along the pipe when its fluid uses the Asphaltenes (PC-SAFT) package
+- [NEW] Sample flowsheet: Asphaltene Precipitation in a Choke
 - [CHG] Case library, user guide and advanced tutorial: the column secondary specification example follows the corrected D86 curves
 - [CHG] Dynamic simulation: steps skip the copy of the last solution, and on Windows the solver stays on the performance cores of the processor
 - [CHG] Implicit Euler: at the end of a run the log says how many steps did not converge and what to change
