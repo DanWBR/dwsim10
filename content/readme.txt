@@ -96,6 +96,7 @@ Version 10.2.13
 - [FIX] Recycle block in dynamic runs: a pressure set downstream did not reach the inlet stream
 - [FIX] Colour Streams By: the legend was tiny on high resolution displays and in exported images
 - [FIX] Welcome screen: the API reference link opened the old class library pages, and the lists did not fill their width
+- [FIX] Create New Compound (cross-platform interface): the buttons did nothing from the welcome screen, the compound did not reach the simulation and its vapour pressure and ideal gas heat capacity came out zero; it now goes into the simulation or a user database, with the ideal gas heat capacity, formation properties and UNIFAC groups estimated from the SMILES
 
 Version 10.2.12
 
