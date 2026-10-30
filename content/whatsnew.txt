@@ -49,3 +49,9 @@
 - [FIX] Pipe Segment with the outlet temperature specified: the heat search could stop with a negative pressure on finely divided pipes
 - [FIX] Flowsheet drawing: the connection lines of Specification, Adjust, Information Carrier and controller blocks pointed away from their objects when the block was flipped or rotated
 - [FIX] MCP server: energy port 0 failed on a Heater, and a connection that did not attach returned no error
+- [FIX] Distillation column: conversion to a complex dynamic column failed in the cross-platform interface, crashed the classic editor and left a column that gave wrong products; it now builds the condenser drum, a kettle reboiler, sized valves, level and pressure controllers and lays them out around the column
+- [FIX] Distillation column, Newton-Raphson solver: the condenser equations were applied to columns without a condenser
+- [FIX] Vessel in dynamic runs: heat taken out through the energy outlet was ignored
+- [FIX] Recycle block in dynamic runs: a pressure set downstream did not reach the inlet stream
+- [FIX] Colour Streams By: the legend was tiny on high resolution displays and in exported images
+- [FIX] Welcome screen: the API reference link opened the old class library pages, and the lists did not fill their width
