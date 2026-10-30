@@ -269,11 +269,12 @@ Public Class StreamColoring
     End Function
 
     ''' <summary>
-    ''' Draws the legend of the flowsheet's colour mode in the bottom-left corner of the view, in
-    ''' screen pixels. Draws nothing in Status mode.
+    ''' Draws the legend of the flowsheet's colour mode in the bottom-left corner of the view, at a fixed size on
+    ''' screen: the sizes below are interface pixels, and <paramref name="scale"/> is the number of canvas pixels in
+    ''' one of them. Draws nothing in Status mode.
     ''' </summary>
     Public Shared Sub DrawLegend(canvas As SKCanvas, flowsheet As IFlowsheet, viewWidth As Single, viewHeight As Single,
-                                 darkMode As Boolean, typeface As SKTypeface)
+                                 darkMode As Boolean, typeface As SKTypeface, Optional scale As Single = 1.0F)
 
         Dim mode = ModeOf(flowsheet)
         If mode = StreamColorMode.Status Then Return
@@ -282,15 +283,17 @@ Public Class StreamColoring
         Dim min, max As Double
         GetRange(flowsheet, mode, min, max)
 
-        Const barWidth As Single = 180
-        Const barHeight As Single = 12
+        If scale <= 0 OrElse Single.IsNaN(scale) Then scale = 1.0F
+
+        Const barWidth As Single = 200
+        Const barHeight As Single = 14
         Const margin As Single = 14
         Const pad As Single = 8
 
         Dim textColor = If(darkMode, SKColors.WhiteSmoke, SKColors.Black)
         Dim boxColor = If(darkMode, New SKColor(30, 30, 30, 220), New SKColor(255, 255, 255, 220))
 
-        Using textPaint As New SKPaint With {.Color = textColor, .IsAntialias = True, .TextSize = 11, .Typeface = typeface}
+        Using textPaint As New SKPaint With {.Color = textColor, .IsAntialias = True, .TextSize = 13, .Typeface = typeface}
         Using boxPaint As New SKPaint With {.Color = boxColor, .IsAntialias = True, .IsStroke = False}
         Using borderPaint As New SKPaint With {.Color = If(darkMode, SKColors.DimGray, SKColors.LightGray), .IsAntialias = True, .IsStroke = True, .StrokeWidth = 1}
 
@@ -298,33 +301,34 @@ Public Class StreamColoring
             If IsLogScale(mode, min, max) Then heading &= ", log scale"
 
             Dim rows As Integer = If(mode = StreamColorMode.Phase, 4, 1)
-            Dim boxHeight As Single = pad + 14 + pad + If(mode = StreamColorMode.Phase, rows * 16, barHeight + 14) + pad
+            Dim boxHeight As Single = pad + 16 + pad + If(mode = StreamColorMode.Phase, rows * 19, barHeight + 16) + pad
             Dim boxWidth As Single = Math.Max(barWidth, textPaint.MeasureText(heading)) + 2 * pad
             Dim left = margin
-            Dim top = viewHeight - margin - boxHeight
+            Dim top = viewHeight / scale - margin - boxHeight
 
             canvas.Save()
             canvas.ResetMatrix()
+            canvas.Scale(scale)
 
             Dim box = New SKRect(left, top, left + boxWidth, top + boxHeight)
             canvas.DrawRoundRect(box, 4, 4, boxPaint)
             canvas.DrawRoundRect(box, 4, 4, borderPaint)
 
-            canvas.DrawText(heading, left + pad, top + pad + 11, textPaint)
+            canvas.DrawText(heading, left + pad, top + pad + 13, textPaint)
 
             If mode = StreamColorMode.Phase Then
                 Dim entries = {Tuple.Create(LiquidColor, "Liquid"), Tuple.Create(VaporColor, "Vapour"),
                                Tuple.Create(TwoPhaseColor, "Two-phase"), Tuple.Create(SolidColor, "Solid")}
-                Dim y = top + pad + 14 + pad
+                Dim y = top + pad + 16 + pad
                 For Each entry In entries
                     Using swatch As New SKPaint With {.Color = entry.Item1, .IsAntialias = True, .IsStroke = False}
-                        canvas.DrawRoundRect(New SKRect(left + pad, y + 2, left + pad + 14, y + 12), 2, 2, swatch)
+                        canvas.DrawRoundRect(New SKRect(left + pad, y + 2, left + pad + 16, y + 14), 2, 2, swatch)
                     End Using
-                    canvas.DrawText(entry.Item2, left + pad + 20, y + 11, textPaint)
-                    y += 16
+                    canvas.DrawText(entry.Item2, left + pad + 24, y + 13, textPaint)
+                    y += 19
                 Next
             Else
-                Dim barTop = top + pad + 14 + pad
+                Dim barTop = top + pad + 16 + pad
                 Dim barLeft = left + pad
                 Const steps As Integer = 40
                 For i = 0 To steps - 1
@@ -336,8 +340,8 @@ Public Class StreamColoring
 
                 Dim lo = Label(mode, min, su)
                 Dim hi = Label(mode, max, su)
-                canvas.DrawText(lo, barLeft, barTop + barHeight + 12, textPaint)
-                canvas.DrawText(hi, barLeft + barWidth - textPaint.MeasureText(hi), barTop + barHeight + 12, textPaint)
+                canvas.DrawText(lo, barLeft, barTop + barHeight + 14, textPaint)
+                canvas.DrawText(hi, barLeft + barWidth - textPaint.MeasureText(hi), barTop + barHeight + 14, textPaint)
             End If
 
             canvas.Restore()

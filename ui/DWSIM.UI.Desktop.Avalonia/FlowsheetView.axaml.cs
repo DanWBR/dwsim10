@@ -1190,6 +1190,8 @@ public partial class FlowsheetView : UserControl
         PaintCallback = (surf, _) =>
         {
             SyncSurfaceSize();
+            // the stream colour legend is drawn in screen space at the bitmap's own density
+            surface.OverlayScale = (float)Canvas.PixelsPerDip;
             // the padlocks of locked objects show on screen only, never in exported images
             surface.DrawLockMarkers = true;
             try { surface.UpdateSurface(surf); }
@@ -3732,6 +3734,10 @@ public partial class FlowsheetView : UserControl
             int w = Math.Max(64, (int)Canvas.Bounds.Width);
             int h = Math.Max(64, (int)Canvas.Bounds.Height);
 
+            // the stream colour legend at the export's own density: 2 for the PNG, 1 for the vector formats
+            var screenOverlay = _surface.OverlayScale;
+            _surface.OverlayScale = format == FlowsheetExportFormat.Png ? 2.0f : 1.0f;
+            try
             {
                 switch (format)
                 {
@@ -3772,6 +3778,10 @@ public partial class FlowsheetView : UserControl
                         break;
                     }
                 }
+            }
+            finally
+            {
+                _surface.OverlayScale = screenOverlay;
             }
 
             AppendLog($"Flowsheet exported to {path}.");

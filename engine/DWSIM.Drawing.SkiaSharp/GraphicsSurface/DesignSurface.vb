@@ -259,6 +259,11 @@ Public Class GraphicsSurface
 
     Public Property Zoom() As Single = 1.0
 
+    ''' <summary>Canvas pixels per interface pixel, for what is drawn in screen space (the stream colour legend).
+    ''' Zero means the display scale (<c>Settings.DpiScale</c>), right for a canvas in device pixels; a host whose
+    ''' bitmap has another density sets it.</summary>
+    Public Property OverlayScale As Single = 0.0
+
     Public Overridable Property ShowGrid() As Boolean = False
 
     Public Property GridColor() As SKColor
@@ -667,8 +672,9 @@ Public Class GraphicsSurface
         ' The colour scale of the stream colour mode, in screen pixels over everything else.
         If Not NetworkMode Then
             Dim bounds = DrawingCanvas.DeviceClipBounds
+            Dim overlay = If(OverlayScale > 0, OverlayScale, CSng(GlobalSettings.Settings.DpiScale))
             StreamColoring.DrawLegend(DrawingCanvas, Flowsheet, bounds.Width, bounds.Height,
-                                      GlobalSettings.Settings.DarkMode, RegularTypeFace)
+                                      GlobalSettings.Settings.DarkMode, RegularTypeFace, overlay)
         End If
 
         RaiseEvent FinishedDrawing(DrawingCanvas)

@@ -122,6 +122,10 @@ public class FlowsheetCanvas : Control
     /// <summary>The render/DPI scale (RenderScaling); 2.0 at 200% display scaling.</summary>
     public double DpiScale => GetDpiScale();
 
+    /// <summary>Bitmap pixels in one interface pixel: the bitmap is drawn at the square of the render scale on the
+    /// desktop and at the render scale on a phone (see Render).</summary>
+    public double PixelsPerDip => GetDpiScale() * (Mobile ? 1.0 : GetDpiScale());
+
     /// <summary>Canvas width in DEVICE pixels (Bounds x DpiScale) - the space the drawing surface, its
     /// input coordinates and <c>ZoomAll</c> work in. Use this, not <c>Bounds.Width</c>, for fit/centre math.</summary>
     public int DeviceWidth => (int)(Bounds.Width * GetDpiScale());
