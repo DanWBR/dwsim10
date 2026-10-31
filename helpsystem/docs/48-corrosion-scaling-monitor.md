@@ -795,7 +795,7 @@ All configurable parameters and their defaults are listed in Table [9](#tab:par
 </thead>
 <tbody>
 <tr>
-<td colspan="4" style="text-align: center;">Table <a href="#tab:params" data-reference-type="ref" data-reference="tab:params">68</a> (continued)</td>
+<td colspan="4" style="text-align: center;">Table <a href="#tab:params" data-reference-type="ref" data-reference="tab:params">72</a> (continued)</td>
 </tr>
 <tr>
 <td style="text-align: left;">Parameter</td>

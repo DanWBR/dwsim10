@@ -2868,9 +2868,326 @@ An ionic liquid that the package does not carry can be added to a simulation. It
 
 Fitting $m$, $\sigma$ and $\varepsilon/k$ to liquid densities over temperature and pressure, as for the shipped compounds, gives the best results; the fit scripts in the `Fitting` folder of the package source can be used for that. With the association fixed at the values above, the three parameters of an ionic liquid of a shipped family can also be interpolated from the members of the family in Table (tab.), which vary linearly with the molar mass.
 
-#### Patel–Teja Equation of State {#sec:pt}
+#### Asphaltenes (PC-SAFT) {#sec:asphaltenes_pcsaft}
 
 ##### Overview {#overview-61}
+
+The Asphaltenes (PC-SAFT) property package (DWSIM Patreon) predicts when and how much asphaltene leaves a crude oil as a separate phase as its pressure, temperature or composition change: the depletion of a live oil above its bubble point, the injection of $\ce{CO2}$, $\ce{N2}$ or a hydrocarbon gas, and the dilution of a dead oil with a paraffinic solvent. It follows the approach of Chapman and co-workers . The oil is described with the PC-SAFT equation of state of Section [PC-SAFT for Polymers](#sec:pcsaft_polymers) without the association term. The asphaltene is a single pseudo-component of pre-aggregated molecules, 1700 g/mol by default, and its precipitation is a liquid–liquid split of the oil into the remaining oil and a dense, asphaltene-rich phase. In this picture the precipitation is reversible: the asphaltene-rich phase forms below the upper onset pressure, grows down to the bubble point, and dissolves again as gas leaves the oil, until the lower onset pressure.
+
+The package is the PC-SAFT package with three additions: a characterization of the oil from its SARA analysis, a table of binary interaction parameters for the pseudo-components, and a flash that adds the asphaltene-rich phase to the result of the PC-SAFT flash. The asphaltene-rich phase is reported in the solid phase of the stream, so the precipitated amount reads as the solid flow of the stream and a filter or a solids separator can take it out of the flowsheet.
+
+##### Oil Characterization
+
+The live fluid is entered as its light gases (database compounds such as $\ce{N2}$, $\ce{CO2}$, $\ce{H2S}$, methane, ethane and propane), an optional lump of the C$_4$–C$_6$ heavy gas with its molar mass, and the stock-tank oil with its molar mass $M_{\mathrm{oil}}$, its density at 15 °C and its SARA analysis (saturates, aromatics, resins and asphaltenes, in mass percent). A separator gas and a stock-tank oil can also be recombined at a gas–oil ratio. The stock-tank oil becomes three pseudo-components following Panuganti et al. : saturates (S), aromatics + resins (AR) and asphaltenes (A).
+
+###### Molar masses
+
+The asphaltene takes the molar mass $M_A$ set by the user (1700 g/mol by default). The molar masses of the saturates and of the aromatics + resins follow from the molar mass of the oil and a set ratio $r = M_{AR}/M_S$ (1.4 by default):
+
+
+<a id="eq:asph_mw"></a>
+
+\[
+\frac{1}{M_{\mathrm{oil}}} = \frac{w_S}{M_S} + \frac{w_{AR}}{r\,M_S} + \frac{w_A}{M_A}\tag{57}
+\]
+
+
+where $w$ are the mass fractions of the SARA analysis.
+
+###### PC-SAFT parameters
+
+The saturates and the heavy gas take the correlations of the $n$-alkanes, with $M$ in g/mol, $\sigma$ in Å and $\varepsilon/k$ in K:
+
+
+<a id="eq:asph_sat"></a>
+
+\[
+m = 0.0257\,M + 0.8444, \qquad
+  \sigma = 4.047 - 4.8013\,\frac{\ln M}{M}, \qquad
+  \ln\frac{\varepsilon}{k} = 5.5769 - \frac{9.523}{M}\tag{58}
+\]
+
+
+The aromatics + resins and the asphaltene blend a benzene-derivative (BD) and a polynuclear-aromatic (PNA) correlation through an aromaticity $\gamma$, each parameter as $(1-\gamma)\,\theta_{BD} + \gamma\,\theta_{PNA}$:
+
+
+<a id="eq:asph_bd"></a><a id="eq:asph_pna"></a>
+
+\[
+\begin{align}
+  m_{BD} &= 0.0223\,M + 0.751, & \sigma_{BD} &= 4.1377 - \frac{38.1483}{M}, &
+  (\varepsilon/k)_{BD} &= 0.00436\,M + 283.93 \tag{59}\\
+  m_{PNA} &= 0.0101\,M + 1.7296, & \sigma_{PNA} &= 4.6169 - \frac{93.98}{M}, &
+  (\varepsilon/k)_{PNA} &= 508 - \frac{234100}{M^{1.5}} \tag{60}
+\end{align}
+\]
+
+
+The aromaticity of the aromatics + resins is adjusted, by bisection between 0 and 1, until the three pseudo-components give the measured density of the stock-tank oil at 15 °C and 1 atm; without a measured density it takes the value entered (0.35 by default). The asphaltene aromaticity (0.5 by default) is the parameter that places the onset pressures, and it is meant to be tuned to a measured onset (Section [Tools](#sec:asph_tools)). The $m$, $\sigma$ and $\varepsilon/k$ of the asphaltene can also be entered directly.
+
+###### Other constants
+
+For the other properties of the package the pseudo-components need critical constants, a normal boiling point and an ideal-gas heat capacity. These come from the petroleum correlations of the compound creator (Riazi–Daubert critical constants, Lee–Kesler acentric factor) at a specific gravity computed from the PC-SAFT density of each pseudo-component. The boiling point inverts the Riazi–Daubert molar mass correlation and is capped at 1100 K for the asphaltene, which lies far outside the range of that correlation. The PC-SAFT parameters and the SARA class are stored in the compound itself, so a saved flowsheet keeps them.
+
+##### Binary Interaction Parameters
+
+The default $k_{ij}$ are those of Panuganti et al.  as tabulated by Arya , Table [30](#tab:asph_kij). The package looks a pair up first by the CAS numbers of the two compounds and then by the SARA class of each pseudo-component, so they apply to any oil characterized with the package. Database compounds from the butanes to the hexanes take the heavy-gas row against the pseudo-components; $n$-heptane, used as a titration precipitant, has pairs of its own with the asphaltene and the aromatics + resins and follows the saturates otherwise. The gas–gas pairs of the table replace those of the PC-SAFT package, so that the gas side is the one the method was developed with. Any pair can be changed in the package editor.
+
+
+
+<a id="tab:asph_kij"></a>
+
+
+
+|                    | Heavy gas | Saturates | Aromatics + resins | Asphaltenes |
+|:-------------------|----------:|----------:|-------------------:|------------:|
+| $\ce{N2}$        |     0.075 |      0.14 |              0.158 |        0.16 |
+| $\ce{CO2}$       |      0.12 |      0.13 |               0.10 |       0.191 |
+| $\ce{H2S}$       |      0.07 |      0.09 |              0.015 |       0.015 |
+| Methane            |      0.03 |      0.03 |              0.029 |        0.07 |
+| Ethane             |      0.02 |     0.012 |              0.025 |        0.06 |
+| Propane            |     0.015 |      0.01 |               0.01 |        0.01 |
+| Heavy gas          |           |     0.005 |              0.012 |        0.01 |
+| Saturates          |           |           |              0.007 |  $-0.004$ |
+| Aromatics + resins |           |           |                    |           0 |
+| $n$-Heptane      |           |           |               0.01 |        0.01 |
+
+Table 30: Default binary interaction parameters $k_{ij}$ of the Asphaltenes (PC-SAFT) package .
+
+
+
+##### Flash Calculations
+
+Each flash runs in three steps.
+
+1.  The PC-SAFT flash of the package computes the vapour and liquid phases (and a water-rich liquid when there is one). The oil is the liquid that holds most of the asphaltene.
+
+2.  A stability test  on the oil decides whether an asphaltene-rich phase forms. The test starts from two asphaltene-rich trial phases (asphaltene mole fractions of 0.3 and 0.05) and minimizes the modified tangent plane distance
+
+
+<a id="eq:asph_tm"></a>
+
+\[
+tm^{*}(\mathbf{W}) = 1 + \sum_i W_i \left( \ln W_i + \ln\hat\varphi_i(\mathbf{W}) - d_i - 1 \right),
+              \qquad d_i = \ln x_i + \ln\hat\varphi_i(\mathbf{x})\tag{61}
+\]
+
+
+    by successive substitution, accelerated every fifth step by the general dominant eigenvalue method . The oil is unstable when $tm^{*} < -10^{-6}$ at a trial phase that is richer in asphaltene than the oil (more than twice its asphaltene mole fraction); a trial that falls back near the oil composition is discarded, so the noise of the density solution never splits a stable oil.
+
+3.  An unstable oil is split into the oil and the asphaltene-rich phase by successive substitution on a liquid–liquid Rachford–Rice equation, finished by Newton’s method on the mole numbers of the asphaltene-rich phase. Below the bubble point the vapour, the oil and the asphaltene-rich phase are solved together, with a two-unknown Rachford–Rice equation and then Newton’s method, since taking the asphaltene out of the oil changes the vapour fraction and the reverse. With a water-rich liquid the precipitate is taken out of the oil and the rest of the fluid is flashed again.
+
+Pressure–enthalpy and pressure–entropy flashes iterate on the temperature with this pressure–temperature flash, starting from the result of the PC-SAFT flash; the volume-specified flashes add the asphaltene-rich phase at the temperature and pressure they find.
+
+###### Properties of the asphaltene-rich phase
+
+The asphaltene-rich phase is a liquid of the model. Its density comes from the equation of state, and its enthalpy and entropy are those of a liquid of the same composition, without a heat of fusion. For fluid A of Table [31](#tab:asph_envelope) it holds about 52 wt% asphaltene, the rest being mostly aromatics + resins.
+
+##### Tools {#sec:asph_tools}
+
+Three utilities (Utilities menu, Classic and cross-platform interfaces) work with the package:
+
+- **Asphaltene Characterization:** takes the inputs of the oil characterization above, shows the pseudo-components and their parameters, and adds the compounds, the package (when the flowsheet has none) and a stream with the live fluid to the flowsheet. The inputs can be saved to a case file (`.dwasph`) and loaded into another flowsheet.
+
+- **Asphaltene Envelope:** for a stream that uses the package, the bubble-point line and the upper and lower onset pressures against temperature, optionally for several shares of an injected gas taken from another stream; the precipitated amount along an isotherm; and the onset of a titration of the dead oil with a precipitant ($n$-heptane, $n$-pentane), in mL of precipitant per gram of oil. Both onsets are searched from the bubble point, the upper one upward (up to 1500 bar) with the stability test and the lower one downward with the flash, in steps until the oil is stable again, and refined by bisection.
+
+- **Asphaltene Tuning:** fits the asphaltene aromaticity or its dispersion energy $\varepsilon/k$ to measured onset pressures (upper or lower, at one or more temperatures, with or without injected gas). One point is matched by bisection from a bracket around the current value; several points by a golden-section search on the sum of squared deviations. A measured upper onset that lies below the bubble point of the model cannot be reached; the tool fits it at the bubble point and says so, since it usually points to a gas composition or a characterization that does not reproduce the saturation pressure of the fluid. The fitted value can be written to the asphaltene compound and the package.
+
+The settings of the last envelope study and the onsets of the last fit are saved with the flowsheet, in the package, and come back when the tools are opened again. The envelope points, the isotherm pressures and the titration run in parallel.
+
+The same calculations are available from scripts (`WithAsphalteneOil`, `AsphalteneEnvelope` and `TuneAsphaltene` of the FluentAPI flowsheet). The flow assurance report of the Pipe Network computes the precipitated amount along a pipe whose fluid uses the package, in place of the de Boer screening. The sample flowsheet *Asphaltene Precipitation in a Choke* takes fluid A from 300 to 200 bar at 400 K, where 28 % of its asphaltene precipitates, and then to 170 bar, below the lower onset, where it dissolves again.
+
+##### Validation
+
+The package was checked against an independent implementation of the same model on the PC-SAFT equation of state of ThermoPack , for Jamaluddin’s fluid A  with the parameters of Panuganti et al. as given by Arya . The reference scripts and data are in the fitting folder of the package source (`Fitting`). Table [31](#tab:asph_envelope) compares the envelope and Table [32](#tab:asph_amount) the precipitated amount along the 400 K isotherm. The two implementations agree within 0.05 % for the pressures and within 0.01 percentage point for the amounts. With 10 mol% $\ce{N2}$ injected the upper onset at 419 K is 431.3 bar in both. Fitting the asphaltene $\varepsilon/k$ to the measured onset at 361 K (373 bar) with the tuning tool returns 413.4 K, against the 413.2 K published by Panuganti et al. for the same fluid. The $n$-heptane titration of the dead oil at 25 °C gives an onset at 0.61 mL/g; there is no measured value for this oil.
+
+
+
+<a id="tab:asph_envelope"></a>
+
+
+
+<table>
+<caption>Table 31: Fluid A: lower onset (LOP), bubble point (<span class="math inline">\(P_b\)</span>) and upper onset (UOP) pressures in bar, ThermoPack reference and DWSIM, with the measured upper onsets <span class="citation" data-cites="Jamaluddin2002Asph"></span>.</caption>
+<thead>
+<tr>
+<th style="text-align: right;"></th>
+<th colspan="2" style="text-align: center;">LOP</th>
+<th colspan="2" style="text-align: center;"><span class="math inline">\(P_b\)</span></th>
+<th colspan="3" style="text-align: center;">UOP</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;"><span>2-3</span>(lr)<span>4-5</span>(lr)<span>6-8</span> <span class="math inline">\(T\)</span> (K)</td>
+<td style="text-align: right;">ThermoPack</td>
+<td style="text-align: right;">DWSIM</td>
+<td style="text-align: right;">ThermoPack</td>
+<td style="text-align: right;">DWSIM</td>
+<td style="text-align: right;">ThermoPack</td>
+<td style="text-align: right;">DWSIM</td>
+<td style="text-align: right;">measured</td>
+</tr>
+<tr>
+<td style="text-align: right;">383</td>
+<td style="text-align: right;">159.8</td>
+<td style="text-align: right;">159.8</td>
+<td style="text-align: right;">189.5</td>
+<td style="text-align: right;">189.5</td>
+<td style="text-align: right;">274.3</td>
+<td style="text-align: right;">274.2</td>
+<td style="text-align: right;">280</td>
+</tr>
+<tr>
+<td style="text-align: right;">400</td>
+<td style="text-align: right;">175.9</td>
+<td style="text-align: right;">175.9</td>
+<td style="text-align: right;">197.6</td>
+<td style="text-align: right;">197.6</td>
+<td style="text-align: right;">248.8</td>
+<td style="text-align: right;">248.8</td>
+<td style="text-align: right;">251</td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+<a id="tab:asph_amount"></a>
+
+
+
+| $P$ (bar) | ThermoPack |  DWSIM |
+|------------:|-----------:|-------:|
+|         300 |          0 |      0 |
+|         240 |      5.572 |  5.573 |
+|         220 |     17.506 | 17.506 |
+|         200 |     28.495 | 28.495 |
+|         190 |     21.358 | 21.357 |
+|         180 |      6.844 |  6.844 |
+|         170 |          0 |      0 |
+
+Table 32: Fluid A at 400 K: asphaltene precipitated, in percent of the asphaltene in the feed.
+
+
+
+Against the measurements, the published parameters reproduce the upper onsets from 361 to 400 K within 2 % (366.1, 274.3 and 248.8 bar against 373, 280 and 251 bar) and fall 8 % low at 422 K (240.2 against 262 bar). The bubble point at 397 K is 6 % below the measured 209.9 bar in both implementations; it depends on the gas $k_{ij}$ of the method, which were fitted to onsets. The upper onsets with 5 to 20 mol% $\ce{N2}$ are 13 to 19 % low. These deviations belong to the characterization. The expected use of the package is a fit of the asphaltene to one measured onset and, when the bubble point is known, a check of the gas parameters against it.
+
+###### Gas injection
+
+Fluid 1 of Arya , a light oil studied by AlHammadi et al. , was measured with 0 to 30 mol% of a hydrocarbon gas injected (72 mol% methane, 4 mol% $\ce{CO2}$). Arya’s parameters for this oil were fitted to the onsets with 5 mol% gas, so the other levels are predictions. DWSIM and ThermoPack agree within 0.03 % on the ten bubble points and eight onsets of Table [33](#tab:asph_fluid1), and both find no onset at 0 mol% and 347 or 394 K, where the oil at its bubble point is stable. Those two measured onsets lie below the bubble point of the model. The predictions with more gas run high at 347 K and close to the data at 394 K.
+
+
+
+<a id="tab:asph_fluid1"></a>
+
+
+
+<table>
+<caption>Table 33: Fluid 1 with injected gas: upper onset pressures in bar, measured <span class="citation" data-cites="AlHammadi2015Asph Arya2017Asph"></span> and calculated (DWSIM, equal to ThermoPack within 0.03 %), with Arya’s parameters and with the oil characterized from its SARA analysis and tuned to the 5 mol% onsets.</caption>
+<thead>
+<tr>
+<th style="text-align: right;">Gas (mol%)</th>
+<th style="text-align: right;"><span class="math inline">\(T\)</span> (K)</th>
+<th style="text-align: right;">measured</th>
+<th style="text-align: right;">Arya’s parameters</th>
+<th style="text-align: right;">SARA, tuned</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">347</td>
+<td style="text-align: right;">126</td>
+<td style="text-align: right;">none<span class="math inline">\(^a\)</span></td>
+<td style="text-align: right;"></td>
+</tr>
+<tr>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">394</td>
+<td style="text-align: right;">152</td>
+<td style="text-align: right;">none<span class="math inline">\(^a\)</span></td>
+<td style="text-align: right;"></td>
+</tr>
+<tr>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">347</td>
+<td style="text-align: right;">193</td>
+<td style="text-align: right;">193.2</td>
+<td style="text-align: right;">193.9<span class="math inline">\(^b\)</span></td>
+</tr>
+<tr>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">394</td>
+<td style="text-align: right;">168</td>
+<td style="text-align: right;">169.9</td>
+<td style="text-align: right;">none<span class="math inline">\(^c\)</span></td>
+</tr>
+<tr>
+<td style="text-align: right;">15</td>
+<td style="text-align: right;">347</td>
+<td style="text-align: right;">296</td>
+<td style="text-align: right;">362.2</td>
+<td style="text-align: right;">362.5</td>
+</tr>
+<tr>
+<td style="text-align: right;">15</td>
+<td style="text-align: right;">394</td>
+<td style="text-align: right;">257</td>
+<td style="text-align: right;">271.4</td>
+<td style="text-align: right;">270.6</td>
+</tr>
+<tr>
+<td style="text-align: right;">30</td>
+<td style="text-align: right;">347</td>
+<td style="text-align: right;">630</td>
+<td style="text-align: right;">835.5</td>
+<td style="text-align: right;">811.6</td>
+</tr>
+<tr>
+<td style="text-align: right;">30</td>
+<td style="text-align: right;">394</td>
+<td style="text-align: right;">481</td>
+<td style="text-align: right;">471.9</td>
+<td style="text-align: right;">472.6</td>
+</tr>
+<tr>
+<td colspan="5" style="text-align: left;"><span class="math inline">\(^a\)</span> the oil is stable at its bubble point (132.7 and 147.1 bar).</td>
+</tr>
+<tr>
+<td colspan="5" style="text-align: left;"><span class="math inline">\(^b\)</span> fitted point.</td>
+</tr>
+<tr>
+<td colspan="5" style="text-align: left;"><span class="math inline">\(^c\)</span> the measured onset lies below the bubble point of this characterization (178 bar).</td>
+</tr>
+</tbody>
+</table>
+
+
+
+###### Characterization from the SARA analysis and tuning
+
+The expected use of the package starts from the SARA analysis alone. For fluid A the characterization of the package, with the asphaltene aromaticity tuned to the onset at 361 K (aromaticity 0.64), predicts the onsets at 383, 400 and 422 K at 286.5, 262.6 and 254.9 bar (measured 280, 251 and 262 bar, within 5 %) and the onsets with 5, 10 and 20 mol% $\ce{N2}$ at 419 K at 344.2, 446.4 and 703.8 bar (measured 379, 532 and 804 bar, 9 to 16 % low, against 13 to 19 % for the published parameters). For fluid 1 the characterization from the SARA analysis (66.26, 25.59, 5.35 and 2.8 wt%, stock-tank oil of 193 g/mol and 823 kg/m$^3$) gives a bubble point of 177.7 bar at 394 K with 5 mol% gas, above the measured onset of 168 bar; the tuning flags that point, follows the one at 347 K (aromaticity 0.35), and the predictions with 15 and 30 mol% gas match those of Arya’s parameters within 3 % (Table [33](#tab:asph_fluid1)). The validation cases x30 to x34 of the DWSIM validation suite run all of these comparisons.
+
+##### Scope and Limitations
+
+- Thermodynamic equilibrium only. The rate of aggregation, the deposition of the precipitate on a wall and the effect of inhibitors or dispersants are not represented. The amount reported is the amount that can precipitate at equilibrium.
+
+- The asphaltene is one pseudo-component of fixed molar mass. The onset pressures are well described once tuned; the precipitated amounts are less certain, since they depend on the asphaltene molar mass and on its polydispersity.
+
+- No association term. The interaction between resins and asphaltenes is carried by the dispersion energy and the $k_{ij}$, as in the method of Panuganti et al.
+
+- The correlations and default $k_{ij}$ were developed on light and medium oils. For another oil, tune the asphaltene to a measured onset; without one, the onset pressures are estimates.
+
+- The precipitate is a liquid of the model, reported in the solid phase. Its enthalpy has no heat of fusion, and its transport properties are those of a liquid of its composition.
+
+- A titration with a precipitant other than $n$-heptane uses the saturates parameters for its pairs; adjust them in the package editor when titration data are available.
+
+#### Patel–Teja Equation of State {#sec:pt}
+
+##### Overview {#overview-62}
 
 The Patel–Teja (PT) equation of state  is a three-parameter cubic EOS that generalises the Peng–Robinson and Soave–Redlich–Kwong forms by introducing an additional volume-translation parameter $c$:
 
@@ -2879,7 +3196,7 @@ The Patel–Teja (PT) equation of state  is a three-parameter cubic EOS that ge
 
 \[
 P = \frac{RT}{v - b}
-    - \frac{a(T)}{v(v+b) + c(v-b)}\tag{57}
+    - \frac{a(T)}{v(v+b) + c(v-b)}\tag{62}
 \]
 
 
@@ -2895,7 +3212,7 @@ The temperature-dependent attractive parameter is
 \[
 a(T) = a(T_{\mathrm{c}})\,\alpha(T),
   \qquad
-  \alpha(T) = \left[1 + F\!\left(1 - \sqrt{\frac{T}{T_{\mathrm{c}}}}\right)\right]^{2}\tag{58}
+  \alpha(T) = \left[1 + F\!\left(1 - \sqrt{\frac{T}{T_{\mathrm{c}}}}\right)\right]^{2}\tag{63}
 \]
 
 
@@ -2905,7 +3222,7 @@ where the substance-specific parameter $F$ is correlated with the acentric facto
 <a id="eq:pt_F"></a>
 
 \[
-F = 0.452413 + 1.30982\,\omega - 0.295937\,\omega^{2}\tag{59}
+F = 0.452413 + 1.30982\,\omega - 0.295937\,\omega^{2}\tag{64}
 \]
 
 
@@ -2921,7 +3238,7 @@ a(T_{\mathrm{c}}) = \Omega_{a}\,\frac{R^{2}T_{\mathrm{c}}^{2}}{P_{\mathrm{c}}},
   \quad
   b = \Omega_{b}\,\frac{RT_{\mathrm{c}}}{P_{\mathrm{c}}},
   \quad
-  c = \Omega_{c}\,\frac{RT_{\mathrm{c}}}{P_{\mathrm{c}}}\tag{60}
+  c = \Omega_{c}\,\frac{RT_{\mathrm{c}}}{P_{\mathrm{c}}}\tag{65}
 \]
 
 
@@ -2937,7 +3254,7 @@ The dimensionless parameters $\Omega_{b}$ and $\Omega_{a}$ satisfy:
   \Omega_{c} = 1 - 3\zeta_{\mathrm{c}},
   \quad
   \Omega_{a} = 3\zeta_{\mathrm{c}}^{2} + 3(1-2\zeta_{\mathrm{c}})\Omega_{b}
-             + \Omega_{b}^{2} + \Omega_{c}\tag{61}
+             + \Omega_{b}^{2} + \Omega_{c}\tag{66}
 \]
 
 
@@ -2984,7 +3301,7 @@ Patel–Teja EOS parameters
 
 #### Schmidt–Wenzel Equation of State {#sec:sw}
 
-##### Overview {#overview-62}
+##### Overview {#overview-63}
 
 The Schmidt–Wenzel (SW) EOS  is a three-parameter cubic equation that incorporates the acentric factor $\omega$ directly into the repulsive/attractive volume term, giving a single, acentric-factor-dependent EOS form:
 
@@ -2993,7 +3310,7 @@ The Schmidt–Wenzel (SW) EOS  is a three-parameter cubic equation that incorpo
 
 \[
 P = \frac{RT}{v - b}
-    - \frac{a(T)}{v^{2} + (1 + 3\omega)\,b\,v - 3\omega\,b^{2}}\tag{62}
+    - \frac{a(T)}{v^{2} + (1 + 3\omega)\,b\,v - 3\omega\,b^{2}}\tag{67}
 \]
 
 
@@ -3033,11 +3350,11 @@ where $\Omega_{a}$ and $\Omega_{b}$ are roots of the criticality conditions that
 
 ##### Mixing Rules
 
-The same van der Waals one-fluid mixing rules as in Eq. [60](#eq:pt_abc)–[61](#eq:pt_omega) are used, with $\omega$ evaluated at the mixture-average acentric factor $\bar\omega = \sum_{i}x_{i}\omega_{i}$.
+The same van der Waals one-fluid mixing rules as in Eq. [65](#eq:pt_abc)–[66](#eq:pt_omega) are used, with $\omega$ evaluated at the mixture-average acentric factor $\bar\omega = \sum_{i}x_{i}\omega_{i}$.
 
 #### Cubic-Plus-Association (CPA) Equation of State {#sec:cpa}
 
-##### Overview {#overview-63}
+##### Overview {#overview-64}
 
 The Cubic-Plus-Association (CPA) EOS, proposed by Kontogeorgis et al. , combines a standard cubic EOS with the associating term from Wertheim’s first-order perturbation theory . Two variants are available depending on the underlying cubic:
 
@@ -3051,7 +3368,7 @@ The pressure expression is
 <a id="eq:cpa_pressure"></a>
 
 \[
-P = P_{\mathrm{cubic}}(T,v) + P_{\mathrm{assoc}}(T,v,\mathbf{x})\tag{63}
+P = P_{\mathrm{cubic}}(T,v) + P_{\mathrm{assoc}}(T,v,\mathbf{x})\tag{68}
 \]
 
 
@@ -3087,7 +3404,7 @@ The residual Helmholtz energy from association is :
 \[
 \frac{A^{\mathrm{assoc}}}{NkT}
   = \sum_{i} x_{i} \sum_{A_{i}}
-    \left[\ln X^{A_{i}} - \frac{X^{A_{i}}}{2} + \frac{1}{2}\right]\tag{64}
+    \left[\ln X^{A_{i}} - \frac{X^{A_{i}}}{2} + \frac{1}{2}\right]\tag{69}
 \]
 
 
@@ -3098,7 +3415,7 @@ where $X^{A_{i}}$ is the monomer fraction at association site $A$ of species $i$
 
 \[
 X^{A_{i}} = \frac{1}{1 + \rho\displaystyle\sum_{j}x_{j}
-                        \sum_{B_{j}} X^{B_{j}}\,\Delta^{A_{i}B_{j}}}\tag{65}
+                        \sum_{B_{j}} X^{B_{j}}\,\Delta^{A_{i}B_{j}}}\tag{70}
 \]
 
 
@@ -3112,7 +3429,7 @@ The association strength between sites $A_{i}$ and $B_{j}$ is
 \[
 \Delta^{A_{i}B_{j}}
   = g^{\mathrm{hs}}(\bar{\sigma})\,b_{ij}\,\beta^{A_{i}B_{j}}
-    \left[\exp\!\left(\frac{\varepsilon^{A_{i}B_{j}}}{kT}\right) - 1\right]\tag{66}
+    \left[\exp\!\left(\frac{\varepsilon^{A_{i}B_{j}}}{kT}\right) - 1\right]\tag{71}
 \]
 
 
@@ -3120,7 +3437,7 @@ where $g^{\mathrm{hs}}$ is the radial distribution function at contact for hard 
 
 ##### Association Schemes
 
-Common association schemes and their site types are listed in Table [30](#tab:cpa_schemes).
+Common association schemes and their site types are listed in Table [34](#tab:cpa_schemes).
 
 
 
@@ -3135,7 +3452,7 @@ Common association schemes and their site types are listed in Table [30](#tab:c
 | 4C     | 2              | 2              |
 | 1A     | 1              | 0 (inert)      |
 
-Table 30: Standard association schemes used in CPA
+Table 34: Standard association schemes used in CPA
 
 
 
@@ -3145,7 +3462,7 @@ Each associating compound requires five CPA parameters: $a_{0}$ (J$\cdot$m$^{3}$
 
 #### Perturbed-Chain Statistical Associating Fluid Theory (PC-SAFT) {#sec:pcsaft}
 
-##### Overview {#overview-64}
+##### Overview {#overview-65}
 
 The Perturbed-Chain SAFT (PC-SAFT) EOS of Gross & Sadowski  models molecules as chains of hard-sphere segments with dispersive (van der Waals) and associative interactions. The total residual Helmholtz energy per mole is
 
@@ -3208,7 +3525,7 @@ with the Lorentz–Berthelot combining rules $\sigma_{ij} = (\sigma_{i}+\sigma_{
 
 ##### Association Term
 
-The association term follows Eq. [64](#eq:cpa_assoc)–[66](#eq:cpa_delta) with the hard-chain radial distribution function $g^{\mathrm{hc}}$ replacing $g^{\mathrm{hs}}$, and using SAFT-type combining rules for cross-associating pairs .
+The association term follows Eq. [69](#eq:cpa_assoc)–[71](#eq:cpa_delta) with the hard-chain radial distribution function $g^{\mathrm{hc}}$ replacing $g^{\mathrm{hs}}$, and using SAFT-type combining rules for cross-associating pairs .
 
 ##### Pure-Component Parameters
 
@@ -3216,7 +3533,7 @@ Each non-associating molecule requires three pure-component parameters: $m$ (seg
 
 #### Simplified Perturbed-Chain SAFT (SPC-SAFT) {#sec:spcsaft}
 
-##### Overview {#overview-65}
+##### Overview {#overview-66}
 
 SPC-SAFT  retains the PC-SAFT chain and association terms but replaces the full second-order perturbation dispersion with a simplified first-order expression based on a mean-field approximation. The residual Helmholtz energy is
 
@@ -3242,7 +3559,7 @@ This formulation reduces computational cost while preserving accuracy for indust
 
 #### SAFT-VR Mie Equation of State {#sec:saftvrmie}
 
-##### Overview {#overview-66}
+##### Overview {#overview-67}
 
 The SAFT-VR Mie EOS of Lafitte et al.  uses the generalised Mie pair potential instead of the hard-sphere/square-well potentials of earlier SAFT variants. This provides an additional degree of freedom in modelling the “softness” of the repulsive core and the range of the attractive well.
 
@@ -3261,7 +3578,7 @@ u(r) = C\,\varepsilon
   \right],
   \quad
   C = \frac{\lambda_{r}}{\lambda_{r}-\lambda_{a}}
-      \left(\frac{\lambda_{r}}{\lambda_{a}}\right)^{\!\lambda_{a}/(\lambda_{r}-\lambda_{a})}\tag{67}
+      \left(\frac{\lambda_{r}}{\lambda_{a}}\right)^{\!\lambda_{a}/(\lambda_{r}-\lambda_{a})}\tag{72}
 \]
 
 
@@ -3276,7 +3593,7 @@ The total residual Helmholtz energy per mole is
 
 \[
 \tilde{a}^{\mathrm{res}}
-  = \tilde{a}^{\mathrm{mono}} + \tilde{a}^{\mathrm{chain}} + \tilde{a}^{\mathrm{assoc}}\tag{68}
+  = \tilde{a}^{\mathrm{mono}} + \tilde{a}^{\mathrm{chain}} + \tilde{a}^{\mathrm{assoc}}\tag{73}
 \]
 
 
@@ -3325,7 +3642,7 @@ SAFT-VR Mie pure-component parameters
 
 #### SAFT-VRQ Mie Equation of State {#sec:saftvrqmie}
 
-##### Overview {#overview-67}
+##### Overview {#overview-68}
 
 SAFT-VRQ Mie  extends SAFT-VR Mie to quantum-mechanical effects relevant for light molecules such as $\ce{H2}$, $\ce{D2}$, $\ce{He}$, and $\ce{Ne}$. Quantum corrections are incorporated via the Feynman–Hibbs (FH) perturbation approach .
 
@@ -3338,7 +3655,7 @@ The effective pair potential at first order in the de Broglie thermal wavelengt
 
 \[
 u^{\mathrm{FH1}}(r) = u^{\mathrm{Mie}}(r)
-    + \frac{\hbar^{2}}{24\mu\,kT}\nabla^{2}u^{\mathrm{Mie}}(r)\tag{69}
+    + \frac{\hbar^{2}}{24\mu\,kT}\nabla^{2}u^{\mathrm{Mie}}(r)\tag{74}
 \]
 
 
@@ -3372,7 +3689,7 @@ Larger $Q$ (smaller mass, smaller potential well) indicates stronger quantum eff
 
 #### Modified Benedict–Webb–Rubin Equation (MBWR) {#sec:mbwr}
 
-##### Overview {#overview-68}
+##### Overview {#overview-69}
 
 The Modified Benedict–Webb–Rubin (MBWR) equation is a high-accuracy multiparameter EOS expressed as a power series in molar density $\rho$. Two variants are available in the ThermoPack library:
 
@@ -3390,7 +3707,7 @@ The pressure is :
 \[
 P = \rho RT + \sum_{n=2}^{9} a_{n}(T)\,\rho^{n}
     + \exp\!\left(-\gamma\rho^{2}\right)
-      \sum_{n=1}^{5} a_{n+9}(T)\,\rho^{2n-1}\tag{70}
+      \sum_{n=1}^{5} a_{n+9}(T)\,\rho^{2n-1}\tag{75}
 \]
 
 
@@ -3415,7 +3732,7 @@ The Younglove–Ely MBWR32 equation  uses 32 terms:
 \[
 P = \sum_{n=1}^{9} a_{n}(T)\,\rho^{n}
     + \exp\!\left(-\gamma\rho^{2}\right)
-      \sum_{n=10}^{15} a_{n}(T)\,\rho^{2n-21}\tag{71}
+      \sum_{n=10}^{15} a_{n}(T)\,\rho^{2n-21}\tag{76}
 \]
 
 
@@ -3423,7 +3740,7 @@ Coefficients $a_{n}$ are polynomial functions of $1/T$ with up to five terms eac
 
 ##### Derived Properties
 
-All thermodynamic properties are derived analytically from Eq. [70](#eq:mbwr19)–[71](#eq:mbwr32) via standard thermodynamic identities. The residual Helmholtz energy is obtained by integration:
+All thermodynamic properties are derived analytically from Eq. [75](#eq:mbwr19)–[76](#eq:mbwr32) via standard thermodynamic identities. The residual Helmholtz energy is obtained by integration:
 
 
 \[
@@ -3434,7 +3751,7 @@ All thermodynamic properties are derived analytically from Eq. [70](#eq:mbwr19)
 
 #### NIST Multiparameter Equation of State (NIST-MEOS) {#sec:nistmeos}
 
-##### Overview {#overview-69}
+##### Overview {#overview-70}
 
 The NIST multiparameter equations of state, developed predominantly by Span, Lemmon, Wagner, and co-workers , represent the state of the art in pure-fluid thermodynamic accuracy. They are formulated as explicit functions of the reduced Helmholtz energy $\alpha(\delta,\tau)$:
 
@@ -3443,7 +3760,7 @@ The NIST multiparameter equations of state, developed predominantly by Span, Lem
 
 \[
 \frac{A(\rho,T)}{RT} = \alpha(\delta,\tau)
-    = \alpha^{\mathrm{o}}(\delta,\tau) + \alpha^{\mathrm{r}}(\delta,\tau)\tag{72}
+    = \alpha^{\mathrm{o}}(\delta,\tau) + \alpha^{\mathrm{r}}(\delta,\tau)\tag{77}
 \]
 
 
@@ -3459,7 +3776,7 @@ The ideal-gas Helmholtz contribution is :
 \[
 \alpha^{\mathrm{o}}(\delta,\tau)
   = \ln\delta + a_{1} + a_{2}\tau + a_{3}\ln\tau
-  + \sum_{k=4}^{K} a_{k}\ln\!\left[1 - \exp(-\vartheta_{k}\tau)\right]\tag{73}
+  + \sum_{k=4}^{K} a_{k}\ln\!\left[1 - \exp(-\vartheta_{k}\tau)\right]\tag{78}
 \]
 
 
@@ -3478,7 +3795,7 @@ The residual Helmholtz energy is a multi-term functional of the form:
   + \sum_{k=K_{1}+1}^{K_{2}} n_{k}\,\delta^{d_{k}}\,\tau^{t_{k}}
     \exp(-\delta^{c_{k}})
   + \sum_{k=K_{2}+1}^{K_{3}} n_{k}\,\delta^{d_{k}}\,\tau^{t_{k}}
-    \exp\!\left[-\eta_{k}(\delta-\varepsilon_{k})^{2}-\beta_{k}(\tau-\gamma_{k})^{2}\right]\tag{74}
+    \exp\!\left[-\eta_{k}(\delta-\varepsilon_{k})^{2}-\beta_{k}(\tau-\gamma_{k})^{2}\right]\tag{79}
 \]
 
 
