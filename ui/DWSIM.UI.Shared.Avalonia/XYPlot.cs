@@ -57,6 +57,8 @@ public sealed class XYPlot : Control
     public string PlotSubtitle = "";
     public string XAxisTitle = "";
     public string YAxisTitle = "";
+    /// <summary>Shown in the middle of the plot while it has no data.</summary>
+    public string EmptyText = "No data. Set up the calculation and press Build.";
 
     public readonly List<PlotSeries> Series = new();
 
@@ -152,7 +154,7 @@ public sealed class XYPlot : Control
 
         if (Series.Count == 0 || Series.All(s => s.Count == 0))
         {
-            DrawText(ctx, "No data. Set up the calculation and press Build.",
+            DrawText(ctx, EmptyText,
                 full.Center.X, full.Center.Y - 8, 12, Foreground, TextAlign.Center);
             return;
         }
