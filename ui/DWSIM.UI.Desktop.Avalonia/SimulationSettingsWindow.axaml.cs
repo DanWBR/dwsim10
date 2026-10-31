@@ -172,6 +172,22 @@ public partial class SimulationSettingsWindow : Window
 
     private IFlowsheetOptions Options => _flowsheet.FlowsheetOptions;
 
+    /// <summary>Lets the user reorder the compounds, starting from the order shown now; on OK, switches to the Custom ordering.</summary>
+    private async System.Threading.Tasks.Task<bool> EditCustomCompoundOrder()
+    {
+        var window = new ItemOrderWindow("Custom Compound Order", "Compounds (in display order)", _flowsheet.SelectedCompounds.Keys);
+        var order = await window.ShowDialog<List<string>>(this);
+        if (order == null) return false;
+
+        Options.CustomCompoundOrder = order;
+        Options.CompoundOrderingMode = CompoundOrdering.Custom;
+        _loading = true;
+        CbOrderCompoundsBy.SelectedIndex = (int)CompoundOrdering.Custom;
+        _loading = false;
+        _flowsheet.UpdateOpenEditForms();
+        return true;
+    }
+
     // =========================================================================
     // Compounds
     // =========================================================================
@@ -1063,12 +1079,24 @@ public partial class SimulationSettingsWindow : Window
         {
             if (!_loading) Options.InformationCarrierCalculationMode = (SpecCalcMode)CbInfoCarrierCalcMode.SelectedIndex;
         };
-        CbOrderCompoundsBy.SelectionChanged += (_, _) =>
+        CbOrderCompoundsBy.SelectionChanged += async (_, _) =>
         {
             if (_loading) return;
+            if (CbOrderCompoundsBy.SelectedIndex == (int)CompoundOrdering.Custom && Options.CustomCompoundOrder.Count == 0)
+            {
+                // no custom order yet: ask for one
+                if (!await EditCustomCompoundOrder())
+                {
+                    _loading = true;
+                    CbOrderCompoundsBy.SelectedIndex = (int)Options.CompoundOrderingMode;
+                    _loading = false;
+                }
+                return;
+            }
             Options.CompoundOrderingMode = (CompoundOrdering)CbOrderCompoundsBy.SelectedIndex;
             _flowsheet.UpdateOpenEditForms();
         };
+        BtnCustomCompoundOrder.Click += async (_, _) => await EditCustomCompoundOrder();
         CbNumberFormat.SelectionChanged += (_, _) =>
         {
             if (_loading || CbNumberFormat.SelectedItem is not string f) return;

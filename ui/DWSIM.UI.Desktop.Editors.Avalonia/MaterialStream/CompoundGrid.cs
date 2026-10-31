@@ -204,7 +204,10 @@ namespace DWSIM.UI.Desktop.Editors
                 try
                 {
                     var amounts = CompoundAmounts.Read(stream, phase, _basis, _su, _percentage);
-                    foreach (var item in amounts) _rows.Add(new Row(item.Key, item.Value, _nf));
+                    // rows in the flowsheet's compound order
+                    var order = phase.Compounds.Values.InFlowsheetOrder(c => c.ConstantProperties, stream.GetFlowsheet()?.FlowsheetOptions);
+                    foreach (var c in order)
+                        if (amounts.TryGetValue(c.Name, out var value)) _rows.Add(new Row(c.Name, value, _nf));
                 }
                 catch (Exception) { }
             }

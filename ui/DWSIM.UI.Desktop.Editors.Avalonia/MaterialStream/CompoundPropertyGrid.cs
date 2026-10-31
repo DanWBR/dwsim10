@@ -5,6 +5,7 @@ using System.Globalization;
 using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Data;
+using DWSIM.ExtensionMethods;
 using DWSIM.Interfaces;
 
 using cv = DWSIM.SharedClasses.SystemsOfUnits.Converter;
@@ -65,6 +66,9 @@ namespace DWSIM.UI.Desktop.Editors
         protected override System.Type StyleKeyOverride => typeof(DataGrid);
 
 
+        /// <summary>The flowsheet options whose compound ordering the rows follow; null sorts by name.</summary>
+        public IFlowsheetOptions Options { get; set; }
+
         public CompoundPropertyGrid(IUnitsOfMeasure su, string numberFormat)
         {
             _su = su;
@@ -116,7 +120,10 @@ namespace DWSIM.UI.Desktop.Editors
 
             if (phase?.Compounds == null) return;
 
-            foreach (var compound in phase.Compounds.Values.OrderBy(x => x.Name))
+            var compounds = Options != null
+                ? phase.Compounds.Values.InFlowsheetOrder(c => c.ConstantProperties, Options)
+                : phase.Compounds.Values.OrderBy(x => x.Name);
+            foreach (var compound in compounds)
             {
                 double? si;
                 try { si = ValueOf(compound, _property); }

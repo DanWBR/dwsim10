@@ -562,6 +562,7 @@ Namespace Enums
         CAS_DESC = 8
         TAG_ASC = 9
         TAG_DESC = 10
+        Custom = 11
 
     End Enum
 

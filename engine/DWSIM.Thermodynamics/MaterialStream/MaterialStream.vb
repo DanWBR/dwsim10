@@ -2903,24 +2903,7 @@ Namespace Streams
             Dim complist = Phases(0).Compounds.Values.ToList()
 
             If FlowSheet IsNot Nothing Then
-                Select Case FlowSheet.Options.CompoundOrderingMode
-                    Case CompoundOrdering.CAS_ASC
-                        complist = complist.OrderBy(Function(c) c.ConstantProperties.CAS_Number).ToList
-                    Case CompoundOrdering.CAS_DESC
-                        complist = complist.OrderByDescending(Function(c) c.ConstantProperties.CAS_Number).ToList
-                    Case CompoundOrdering.MW_ASC
-                        complist = complist.OrderBy(Function(c) c.ConstantProperties.Molar_Weight).ToList
-                    Case CompoundOrdering.MW_DESC
-                        complist = complist.OrderByDescending(Function(c) c.ConstantProperties.Molar_Weight).ToList
-                    Case CompoundOrdering.Name_ASC
-                        complist = complist.OrderBy(Function(c) c.ConstantProperties.Name).ToList
-                    Case CompoundOrdering.Name_DESC
-                        complist = complist.OrderByDescending(Function(c) c.ConstantProperties.Name).ToList
-                    Case CompoundOrdering.NBP_ASC
-                        complist = complist.OrderBy(Function(c) c.ConstantProperties.NBP.GetValueOrDefault).ToList
-                    Case CompoundOrdering.NBP_DESC
-                        complist = complist.OrderByDescending(Function(c) c.ConstantProperties.NBP.GetValueOrDefault).ToList
-                End Select
+                complist = complist.InFlowsheetOrder(Function(c) c.ConstantProperties, FlowSheet.Options).ToList
             End If
 
             Dim comps = complist.Select(Function(c) c.Name).ToArray()
@@ -7785,7 +7768,7 @@ Namespace Streams
 
             Dim props As String() = PropertyPackage.GetSinglePhasePropList()
             Dim overallprops As String() = PropertyPackage.GetOverallPropList()
-            Dim comps As String() = PropertyPackage.RET_VNAMES2(GetFlowsheet().FlowsheetOptions.CompoundOrderingMode)
+            Dim comps As String() = Phases(0).Compounds.Values.InFlowsheetOrder(Function(c) c.ConstantProperties, GetFlowsheet().FlowsheetOptions).Select(Function(c) c.ConstantProperties.Name).ToArray
 
             Dim comps0 = PropertyPackage.RET_VNAMES2(CompoundOrdering.AsAdded).ToList
 
@@ -8153,7 +8136,7 @@ Namespace Streams
 
             Dim props As String() = PropertyPackage.GetSinglePhasePropList()
             Dim overallprops As String() = PropertyPackage.GetOverallPropList()
-            Dim comps As String() = PropertyPackage.RET_VNAMES2(GetFlowsheet().FlowsheetOptions.CompoundOrderingMode)
+            Dim comps As String() = Phases(0).Compounds.Values.InFlowsheetOrder(Function(c) c.ConstantProperties, GetFlowsheet().FlowsheetOptions).Select(Function(c) c.ConstantProperties.Name).ToArray
             Dim comps0 = PropertyPackage.RET_VNAMES2(CompoundOrdering.AsAdded).ToList
 
             Dim units As IUnitsOfMeasure = GetFlowsheet().FlowsheetOptions.SelectedUnitSystem

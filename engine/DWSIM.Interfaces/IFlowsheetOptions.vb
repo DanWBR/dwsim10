@@ -92,6 +92,9 @@ Public Interface IFlowsheetOptions
 
     Property CompoundOrderingMode As CompoundOrdering
 
+    ''' <summary>Compound names in the order shown when <see cref="CompoundOrderingMode"/> is Custom.</summary>
+    Property CustomCompoundOrder As List(Of String)
+
     Property SkipEquilibriumCalculationOnDefinedStreams As Boolean
 
     Property ForceStreamPhase As Enums.ForcedPhase

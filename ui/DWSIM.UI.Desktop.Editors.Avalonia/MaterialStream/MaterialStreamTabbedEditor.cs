@@ -226,7 +226,7 @@ namespace DWSIM.UI.Desktop.Editors
             var compPropTabs = new TabControl();
             foreach (var phase in RealPhases)
             {
-                var grid = new CompoundPropertyGrid(su, nff);
+                var grid = new CompoundPropertyGrid(su, nff) { Options = ms.GetFlowsheet()?.FlowsheetOptions };
                 compoundPropertyGrids.Add((grid, phase.Index));
                 compPropTabs.Items.Add(Tab(phase.Title, grid));
             }

@@ -281,7 +281,7 @@
                           Content="Force object calculation even when input parameters don't change" />
                 <CheckBox Name="ChkRestoreUnitOpState"
                           Content="Restore Unit Operation state after a failed calculation (beta)" />
-                <Grid ColumnDefinitions="*,240" RowDefinitions="Auto,Auto,Auto">
+                <Grid ColumnDefinitions="*,240" RowDefinitions="Auto,Auto,Auto,Auto">
                   <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Margin="0,4"
                              Text="Calculation Mode for Specification Blocks" />
                   <ComboBox Grid.Row="0" Grid.Column="1" Name="CbSpecCalcMode" Margin="0,4"
@@ -315,7 +315,11 @@
                     <ComboBoxItem Content="CAS Number (Descending)" />
                     <ComboBoxItem Content="Tag (Ascending)" />
                     <ComboBoxItem Content="Tag (Descending)" />
+                    <ComboBoxItem Content="Custom (User-Defined)" />
                   </ComboBox>
+                  <Button Grid.Row="3" Grid.Column="1" Name="BtnCustomCompoundOrder" Margin="0,4"
+                          HorizontalAlignment="Right" Content="Custom Order..."
+                          ToolTip.Tip="Sets the order of the compounds and switches to it." />
                 </Grid>
                 <Grid ColumnDefinitions="*,240" RowDefinitions="Auto">
                   <TextBlock Grid.Column="0" VerticalAlignment="Center" Margin="0,4"
