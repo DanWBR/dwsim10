@@ -1,6 +1,6 @@
 ==================================================
 DWSIM - Open Source Process Simulator
-Version 10.2.12
+Version 10.2.13
 Copyright (c) 2017-2026 Daniel Wagner and contributors
 Copyright (c) 2008-2016 Daniel Wagner, Gregor Reichert, Gustavo Leon
 ==================================================
