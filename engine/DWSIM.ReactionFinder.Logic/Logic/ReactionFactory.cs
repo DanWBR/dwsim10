@@ -219,6 +219,38 @@ namespace DWSIM.Extensions.ReactionFinder.Logic
         }
 
         /// <summary>
+        /// Sets the heat of reaction, the Gibbs energy of reaction (both kJ/kmol of
+        /// base reactant, from the ideal gas formation properties at 25 C) and the
+        /// mass balance, as the Reactions Manager editors do.
+        /// </summary>
+        public static void SetHeatAndBalance(IReaction rxn, Func<string, ICompoundConstantProperties> compoundOf)
+        {
+            double hr = 0, hp = 0, gr = 0, gp = 0, br = 0, bp = 0, brsc = 1.0;
+            foreach (var kv in rxn.Components)
+            {
+                var cp = compoundOf(kv.Key);
+                if (cp == null) continue;
+                var a = Math.Abs(kv.Value.StoichCoeff);
+                if (kv.Value.StoichCoeff < 0)
+                {
+                    hr += a * cp.IG_Enthalpy_of_Formation_25C * cp.Molar_Weight;
+                    gr += a * cp.IG_Gibbs_Energy_of_Formation_25C * cp.Molar_Weight;
+                    br += a * cp.Molar_Weight;
+                }
+                else if (kv.Value.StoichCoeff > 0)
+                {
+                    hp += a * cp.IG_Enthalpy_of_Formation_25C * cp.Molar_Weight;
+                    gp += a * cp.IG_Gibbs_Energy_of_Formation_25C * cp.Molar_Weight;
+                    bp += a * cp.Molar_Weight;
+                }
+                if (kv.Value.IsBaseReactant && a > 0) brsc = a;
+            }
+            rxn.ReactionHeat = (hp - hr) / brsc;
+            rxn.ReactionGibbsEnergy = (gp - gr) / brsc;
+            rxn.StoichBalance = bp - br;
+        }
+
+        /// <summary>
         /// Produces "A + 2 B &lt;--&gt; C + D" style string using compound Name keys.
         /// </summary>
         public static string BuildEquationString(IReaction rxn)

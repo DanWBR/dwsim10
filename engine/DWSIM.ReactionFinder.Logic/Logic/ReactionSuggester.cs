@@ -82,6 +82,10 @@ namespace DWSIM.Extensions.ReactionFinder.Logic
                 });
             }
             unique.AddRange(variants);
+
+            foreach (var s in unique)
+                if (s.Reaction != null) ReactionFactory.SetHeatAndBalance(s.Reaction, idx.FindByName);
+
             return unique;
         }
     }
