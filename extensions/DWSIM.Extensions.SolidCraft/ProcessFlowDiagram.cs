@@ -37,12 +37,15 @@ namespace DWSIM.Extensions.SolidCraft
     /// the units of the flowsheet, and a sheet with border, zones and title block in the chosen
     /// style. Saved as DXF and DWG, and plotted to PDF and PNG.
     /// </summary>
-    public static class ProcessFlowDiagram
+    public static partial class ProcessFlowDiagram
     {
         public class Result
         {
             public string Drawing, Dwg, Pdf, Png, Error, Sheet;
             public int Units, Streams;
+
+            /// <summary>The lines that kept the flowsheet's route because the items left no clear way.</summary>
+            public int Unrouted;
             public List<string> Failed = new List<string>();
         }
 
@@ -71,6 +74,9 @@ namespace DWSIM.Extensions.SolidCraft
 
             /// <summary>The connection points on the items at the start and the end of the line (null at a battery limit).</summary>
             public IConnectionPoint StartCp, EndCp;
+
+            /// <summary>The items at the start and the end of the line.</summary>
+            public IGraphicObject StartGo, EndGo;
         }
 
         struct Pt
@@ -154,15 +160,30 @@ namespace DWSIM.Extensions.SolidCraft
                 C("layer.new", new JObject { ["name"] = name, ["color"] = "white", ["linetype"] = lt, ["lineweight"] = lw });
             C("ltscale", new JObject { ["scale"] = 0.5 });
 
-            // the routes, horizontal and vertical only; where an end slides along its item's face
-            // to take a small step out, the nozzle and the header follow it
+            // the routes: the shortest with horizontal and vertical segments only that keep clear
+            // of the items, from nozzle to nozzle (the flowsheet's own route where the items leave
+            // no way through); where an end slides along its item's face to take a small step
+            // out, the nozzle and the header follow it
+            var itemBoxes = units.Select(u => new Router.Box(T(u.Go.X, u.Go.Y).X, T(u.Go.X, u.Go.Y).Y, T(u.Go.X + u.Go.Width, u.Go.Y + u.Go.Height).X, T(u.Go.X + u.Go.Width, u.Go.Y + u.Go.Height).Y)).ToList();
+            var textBoxes = units.Where(u => u.Symbol != Symbol.PassThrough && u.Symbol != Symbol.Node).Select(u =>
+                {
+                    var c = T(u.Go.X + u.Go.Width / 2.0, u.Go.Y + u.Go.Height / 2.0);
+                    var half = Math.Max((u.Go.Tag ?? "").Length * 3.0, Service(u.Obj).Length * TextHeight) * 0.45;
+                    return new Router.Box(c.X - half, c.Y - u.Go.Height * k / 2 - 14, c.X + half, c.Y - u.Go.Height * k / 2 - 1);
+                }).ToList();
+            var router = new Router(itemBoxes, textBoxes, Clearance);
+            var tight = new Router(itemBoxes, textBoxes, Clearance * 0.3);
             var routes = new Dictionary<Line, List<Pt>>();
             var moved = new Dictionary<IConnectionPoint, Pt>();
-            foreach (var l in lines)
+            foreach (var l in lines.OrderBy(l => l.Energy).ThenBy(l => l.Number))
             {
-                var r = Orthogonal(l.Points.Select(q => T(q.X, q.Y)).ToList(),
+                var routed = RouteLine(router, l, T) ?? RouteLine(tight, l, T);
+                if (routed == null) result.Unrouted++;
+                var r = Orthogonal(routed ?? l.Points.Select(q => T(q.X, q.Y)).ToList(),
                     l.Feed || Horizontal(l.StartCp), l.Product || Horizontal(l.EndCp),
                     l.Feed || l.StartCp == null, l.Product || l.EndCp == null, out var sm, out var em);
+                router.Add(r);
+                tight.Add(r);
                 routes[l] = r;
                 if (r.Count < 2) continue;
                 if (l.StartCp != null && (sm.X != 0 || sm.Y != 0)) moved[l.StartCp] = r[0];
@@ -263,9 +284,11 @@ namespace DWSIM.Extensions.SolidCraft
                 }
 
                 // the number in its diamond, or the energy stream's name and duty, by the icon
-                var ic = T(l.Icon.X + l.Icon.Width / 2.0, l.Icon.Y + l.Icon.Height / 2.0);
-                var horizontal = Horizontal(p, ic);
-                var at = horizontal ? new Pt(ic.X, ic.Y + 5) : new Pt(ic.X - 5, ic.Y);
+                // by the middle of the longest run of the line
+                var longest = Enumerable.Range(0, p.Count - 1).OrderByDescending(i => Dist(p[i], p[i + 1])).First();
+                var mid = new Pt((p[longest].X + p[longest + 1].X) / 2, (p[longest].Y + p[longest + 1].Y) / 2);
+                var horizontal = Math.Abs(p[longest].Y - p[longest + 1].Y) < 0.01;
+                var at = horizontal ? new Pt(mid.X, mid.Y + 5) : new Pt(mid.X - 5, mid.Y);
                 if (l.Energy)
                 {
                     var q = Duty(fs, l.Icon.Owner as IEnergyStream);
@@ -495,6 +518,7 @@ namespace DWSIM.Extensions.SolidCraft
                     l.Points.AddRange(Route(cin));
                     l.From = cin.AttachedFrom?.Tag ?? "";
                     l.StartCp = EndOf(cin, true);
+                    l.StartGo = cin.AttachedFrom;
                 }
                 else
                 {
@@ -506,6 +530,7 @@ namespace DWSIM.Extensions.SolidCraft
                     l.Points.AddRange(Route(cout));
                     l.To = cout.AttachedTo?.Tag ?? "";
                     l.EndCp = EndOf(cout, false);
+                    l.EndGo = cout.AttachedTo;
                     // into a recycle the line goes on: no arrow there
                     var to = cout.AttachedTo?.ObjectType;
                     if (to == ObjectType.OT_Recycle || to == ObjectType.OT_EnergyRecycle) l.ArrowAtEnd = false;
@@ -552,6 +577,71 @@ namespace DWSIM.Extensions.SolidCraft
         }
 
         static bool Horizontal(IConnectionPoint cp) => cp == null || cp.Direction == ConDir.Left || cp.Direction == ConDir.Right;
+
+        /// <summary>The clearance, in millimetres on the sheet, the lines keep from the items.</summary>
+        const double Clearance = 4;
+
+        /// <summary>
+        /// Where a line leaves or enters an item: out of the edge of the item's icon nearest to the
+        /// connection point, square to it (0 +x, 1 +y, 2 -x, 3 -y), and the point the clearance
+        /// away from that edge.
+        /// </summary>
+        static int Outward(IGraphicObject go, Pt p, Func<double, double, Pt> T, double c, out Pt clear)
+        {
+            var a = T(go.X, go.Y); var b = T(go.X + go.Width, go.Y + go.Height);
+            double x0 = Math.Min(a.X, b.X), x1 = Math.Max(a.X, b.X), y0 = Math.Min(a.Y, b.Y), y1 = Math.Max(a.Y, b.Y);
+            double dl = Math.Abs(p.X - x0), dr = Math.Abs(x1 - p.X), db = Math.Abs(p.Y - y0), dt = Math.Abs(y1 - p.Y);
+            var m = Math.Min(Math.Min(dl, dr), Math.Min(db, dt));
+            if (m == dr) { clear = new Pt(Math.Max(x1, p.X) + c, p.Y); return 0; }
+            if (m == dl) { clear = new Pt(Math.Min(x0, p.X) - c, p.Y); return 2; }
+            if (m == dt) { clear = new Pt(p.X, Math.Max(y1, p.Y) + c); return 1; }
+            clear = new Pt(p.X, Math.Min(y0, p.Y) - c); return 3;
+        }
+
+        /// <summary>
+        /// A line's shortest clear route between its ends: out of the source nozzle the way it
+        /// faces, into the destination nozzle the way the flow enters it; a battery limit end
+        /// stays where the stream's icon is, on the side that faces the other end. Null when the
+        /// items leave no way through.
+        /// </summary>
+        static List<Pt> RouteLine(Router router, Line l, Func<double, double, Pt> T)
+        {
+            try
+            {
+                var go = l.Icon;
+                Pt Left() => T(go.X, go.Y + go.Height / 2.0);
+                Pt Right() => T(go.X + go.Width, go.Y + go.Height / 2.0);
+                Pt start, end, s, e;
+                int sd, ed;
+                if (l.StartCp != null && l.StartGo != null)
+                {
+                    start = T(l.StartCp.Position.X, l.StartCp.Position.Y);
+                    sd = Outward(l.StartGo, start, T, router.Clearance, out s);
+                }
+                else
+                {
+                    // a feed comes in from its icon, on the side that faces its item
+                    var to = l.EndCp != null ? T(l.EndCp.Position.X, l.EndCp.Position.Y) : Right();
+                    var toRight = to.X >= Left().X;
+                    start = toRight ? Left() : Right(); sd = toRight ? 0 : 2;
+                    s = new Pt(start.X + (toRight ? router.Clearance : -router.Clearance), start.Y);
+                }
+                if (l.EndCp != null && l.EndGo != null)
+                {
+                    end = T(l.EndCp.Position.X, l.EndCp.Position.Y);
+                    ed = (Outward(l.EndGo, end, T, router.Clearance, out e) + 2) % 4;
+                }
+                else
+                {
+                    // a product goes out to its icon
+                    var toRight = start.X <= Right().X;
+                    end = toRight ? Right() : Left(); ed = toRight ? 0 : 2;
+                    e = new Pt(end.X - (toRight ? router.Clearance : -router.Clearance), end.Y);
+                }
+                return router.Route(start, s, sd, e, end, ed);
+            }
+            catch (Exception) { return null; }
+        }
 
         /// <summary>The largest step, in millimetres on the sheet, taken out of a line by sliding its end along the item's face.</summary>
         const double Jog = 3;
