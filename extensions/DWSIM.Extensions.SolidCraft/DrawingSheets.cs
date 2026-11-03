@@ -121,14 +121,14 @@ namespace DWSIM.Extensions.SolidCraft
         /// <summary>Text; <paramref name="just"/> is L, C or R, with B, M or T in front (as "MC").</summary>
         public void Text(double x, double y, string s, double h, string just = "BL")
         {
-            G(0, "TEXT"); G(8, Layer); G(10, x); G(20, y); G(30, 0.0); G(40, h); G(1, Clean(s)); G(7, "SANS");
+            G(0, "TEXT"); G(8, Layer); G(10, x); G(20, y); G(30, 0.0); G(40, h); G(1, Clean(s)); G(7, DrawingSheets.TextStyle);
             Justify(x, y, just, false);
         }
 
         /// <summary>An attribute definition: a field filled in when the block is inserted, and edited later in CAD.</summary>
         public void Attribute(string tag, double x, double y, double h, string just = "BL")
         {
-            G(0, "ATTDEF"); G(8, Layer); G(10, x); G(20, y); G(30, 0.0); G(40, h); G(1, ""); G(3, tag); G(2, tag); G(70, 0); G(7, "SANS");
+            G(0, "ATTDEF"); G(8, Layer); G(10, x); G(20, y); G(30, 0.0); G(40, h); G(1, ""); G(3, tag); G(2, tag); G(70, 0); G(7, DrawingSheets.TextStyle);
             Justify(x, y, just, true);
         }
 
@@ -149,6 +149,9 @@ namespace DWSIM.Extensions.SolidCraft
     /// <summary>The border, the reference zones and the title block of a sheet, per style.</summary>
     public static class DrawingSheets
     {
+        /// <summary>The text style of the drawings: CADCraft's single-stroke drafting lettering.</summary>
+        public const string TextStyle = "DRAFTING";
+
         /// <summary>Space between the sheet edge and the border: left (binding edge), and the other sides.</summary>
         public static void Margins(DrawingStyle style, out double left, out double other)
         {
@@ -302,7 +305,7 @@ namespace DWSIM.Extensions.SolidCraft
 
             // the revision table above the title block: header and the first issue
             var rh = 6.0;
-            double[] col = style == DrawingStyle.ASME ? new[] { 0, 14, 110, 140, 180.0 } : new[] { 0, 14, 104, 123, 142, 161, 180.0 };
+            double[] col = style == DrawingStyle.ASME ? new[] { 0, 14, 110, 140, 180.0 } : new[] { 0, 14, 96, 115, 134, 153, 180.0 };
             string[] head = style == DrawingStyle.ASME
                 ? new[] { "REV", "DESCRIPTION", "DATE", "APPROVED" }
                 : new[] { "REV.", "DESCRIPTION", "BY", "CHECK.", "APPR.", "DATE" };
@@ -325,10 +328,10 @@ namespace DWSIM.Extensions.SolidCraft
         static string Fit(string s, int n) => s == null || s.Length <= n ? s ?? "" : s.Substring(0, n - 1) + ".";
 
         /// <summary>The attribute values of the title block.</summary>
-        public static Dictionary<string, string> Attributes(TitleData t, SheetSize size) => new Dictionary<string, string>
+        public static Dictionary<string, string> Attributes(TitleData t, SheetSize size, DrawingStyle style) => new Dictionary<string, string>
         {
-            ["OWNER"] = t.Owner,
-            ["PROJECT"] = Fit(t.Project, 30),
+            ["PROJECT"] = Fit(t.Project, style == DrawingStyle.ISO ? 20 : style == DrawingStyle.ASME ? 30 : 40),
+            ["OWNER"] = Fit(t.Owner, 28),
             ["AREA"] = t.Area,
             ["TITLE"] = t.Title,
             ["SUBTITLE"] = t.Subtitle,

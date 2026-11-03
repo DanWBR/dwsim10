@@ -76,7 +76,7 @@ namespace DWSIM.Extensions.SolidCraft
             public Pt(double x, double y) { X = x; Y = y; }
         }
 
-        const double ColumnWidth = 26, LabelWidth = 44, RowHeight = 6, TextHeight = 2.5;
+        const double ColumnWidth = 30, LabelWidth = 52, RowHeight = 6, TextHeight = 2.5;
 
         /// <summary>The compounds listed one by one in the stream table; the others share a row.</summary>
         const int MaxCompounds = 20;
@@ -101,7 +101,7 @@ namespace DWSIM.Extensions.SolidCraft
             double bx0 = pts.Min(p => p.X), by0 = pts.Min(p => p.Y), bx1 = pts.Max(p => p.X), by1 = pts.Max(p => p.Y);
             double bw = Math.Max(bx1 - bx0, 50), bh = Math.Max(by1 - by0, 50);
             // room on the sheet, in millimetres, for the names at the battery limits and the labels under the items
-            double TextWidth(string t) => (t ?? "").Length * TextHeight * 0.8 + 6;
+            double TextWidth(string t) => (t ?? "").Length * TextHeight * 0.9 + 6;
             var mxL = Math.Max(6, lines.Where(l => l.Feed).Select(l => TextWidth(l.Tag)).DefaultIfEmpty(0).Max());
             var mxR = Math.Max(6, lines.Where(l => l.Product).Select(l => TextWidth(l.Tag)).DefaultIfEmpty(0).Max());
             const double myT = 10, myB = 16;
@@ -144,7 +144,8 @@ namespace DWSIM.Extensions.SolidCraft
 
             // layers: line weights of ISO 128 for the process lines and the symbols
             C("linetype", new JObject { ["load"] = "*" });
-            C("style", new JObject { ["name"] = "SANS", ["font"] = "Arial", ["current"] = true });
+            // CADCraft's single-stroke drafting lettering
+            C("style", new JObject { ["name"] = DrawingSheets.TextStyle, ["font"] = "CADCraft Stroke", ["current"] = true });
             foreach (var (name, lt, lw) in new[] { ("EQUIPMENT", "Continuous", 0.5), ("PROCESS", "Continuous", 0.5), ("UTILITY", "DASHED", 0.35),
                 ("STREAMNUMBER", "Continuous", 0.25), ("TEXT", "Continuous", 0.25), ("TABLE", "Continuous", 0.25), ("BORDER", "Continuous", 0.7), ("TITLE", "Continuous", 0.35), ("VIEWPORT", "Continuous", 0.0) })
                 C("layer.new", new JObject { ["name"] = name, ["color"] = "white", ["linetype"] = lt, ["lineweight"] = lw });
@@ -282,14 +283,14 @@ namespace DWSIM.Extensions.SolidCraft
             C("insert", new JObject
             {
                 ["name"] = "TITLE_BLOCK", ["file"] = tb.Replace('\\', '/'), ["at"] = new JArray(sheet.Width - mo, mo),
-                ["attribs"] = JObject.FromObject(DrawingSheets.Attributes(title, sheet))
+                ["attribs"] = JObject.FromObject(DrawingSheets.Attributes(title, sheet, style))
             }, "the title block");
 
             if (table.Count > 0)
             {
                 C("tablestyle", new JObject { ["name"] = "STREAMS", ["textHeight"] = TextHeight, ["margin"] = 0.8, ["current"] = true });
                 foreach (var cs in new[] { "Header", "Data" })
-                    C("tablestyle.cellstyle", new JObject { ["style"] = "STREAMS", ["name"] = cs, ["textStyle"] = "SANS", ["textHeight"] = TextHeight });
+                    C("tablestyle.cellstyle", new JObject { ["style"] = "STREAMS", ["name"] = cs, ["textStyle"] = DrawingSheets.TextStyle, ["textHeight"] = TextHeight });
                 C("layer.current", new JObject { ["name"] = "TABLE" });
             }
 
@@ -870,7 +871,7 @@ namespace DWSIM.Extensions.SolidCraft
             streams = streams.Where(s => s.Stream != null).OrderBy(s => s.Number).ToList();
             if (streams.Count == 0) return rows;
             var u = fs.FlowsheetOptions.SelectedUnitSystem;
-            string[] Row(string label, Func<Line, string> value) => new[] { label }.Concat(streams.Select(value)).ToArray();
+            string[] Row(string label, Func<Line, string> value) => new[] { label.Length <= 22 ? label : label.Substring(0, 21) + "." }.Concat(streams.Select(value)).ToArray();
             double Si(Func<IMaterialStream, double> f, IMaterialStream ms) { try { return f(ms); } catch (Exception) { return double.NaN; } }
 
             rows.Add(Row("STREAM", s => s.Id));
