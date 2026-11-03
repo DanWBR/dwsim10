@@ -95,7 +95,7 @@ namespace DWSIM.Extensions.SolidCraft
             var folder = SolidCraftRunner.FindInstallFolder();
             if (folder == null)
             {
-                fs.ShowMessage("SolidCraft was not found. Install it, or set SOLIDCRAFT_HOME to the folder that holds solidcraft-cli.",
+                fs.ShowMessage("SolidCraft was not found. Install it, or set the folder that holds solidcraft-cli in Settings > Other > SolidCraft.",
                     IFlowsheet.MessageType.GeneralError);
                 return;
             }

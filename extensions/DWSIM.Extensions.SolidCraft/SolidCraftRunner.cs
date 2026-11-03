@@ -44,12 +44,14 @@ namespace DWSIM.Extensions.SolidCraft
         static readonly Regex StepPattern = new Regex(@"step (\d+) \(([^)]*)\):\s*(.*)");
 
         /// <summary>
-        /// The folder of solidcraft-cli: SOLIDCRAFT_HOME, the usual install folders, then the PATH.
-        /// Null when SolidCraft is not installed.
+        /// The folder of solidcraft-cli: the one set in the settings, SOLIDCRAFT_HOME, the usual
+        /// install folders, then the PATH. Null when SolidCraft is not installed.
         /// </summary>
         public static string FindInstallFolder()
         {
             var candidates = new List<string>();
+            var configured = GlobalSettings.Settings.SolidCraftPath;
+            if (!string.IsNullOrWhiteSpace(configured)) candidates.Add(configured.Trim());
             var env = Environment.GetEnvironmentVariable("SOLIDCRAFT_HOME");
             if (!string.IsNullOrWhiteSpace(env)) candidates.Add(env);
 

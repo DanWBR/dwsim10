@@ -133,6 +133,9 @@ Public Class Settings
 
     Public Shared Property PythonPath As String = ""
 
+    ''' <summary>Folder of SolidCraft (solidcraft-cli) for the 3D plant model; empty to look in the usual places.</summary>
+    Public Shared Property SolidCraftPath As String = ""
+
     Public Shared Property PythonTimeoutInMinutes As Double = 1
 
     Public Shared Property PythonInitialized As Boolean = False
@@ -824,6 +827,10 @@ Public Class Settings
         OctavePath = source.Configs("OctaveBridge").GetString("OctavePath", "")
         OctaveTimeoutInMinutes = source.Configs("OctaveBridge").GetFloat("OctaveProcessTimeout", 15)
 
+        If source.Configs("SolidCraft") Is Nothing Then source.AddConfig("SolidCraft")
+
+        SolidCraftPath = source.Configs("SolidCraft").GetString("SolidCraftPath", "")
+
         If source.Configs("PythonBridge") Is Nothing Then source.AddConfig("PythonBridge")
 
         PythonPath = source.Configs("PythonBridge").GetString("PythonPath", "")
@@ -959,6 +966,10 @@ Public Class Settings
 
         source.Configs("OctaveBridge").Set("OctavePath", OctavePath)
         source.Configs("OctaveBridge").Set("OctaveProcessTimeout", OctaveTimeoutInMinutes)
+
+        If source.Configs("SolidCraft") Is Nothing Then source.AddConfig("SolidCraft")
+
+        source.Configs("SolidCraft").Set("SolidCraftPath", SolidCraftPath)
 
         If source.Configs("PythonBridge") Is Nothing Then source.AddConfig("PythonBridge")
 

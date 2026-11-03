@@ -65,6 +65,7 @@ public partial class PreferencesWindow : Window
 
     // python
     private TextBox _pythonPath = null!;
+    private TextBox _solidCraftPath = null!;
 
     // other
     private CheckBox _checkUpdates = null!;
@@ -474,11 +475,35 @@ public partial class PreferencesWindow : Window
             S.LoadExtensionsAndPlugins, null);
         page.CreateAndAddDescriptionRow("Takes effect the next time the application starts.");
 
+        page.CreateAndAddLabelRow("SolidCraft (3D Plant Model)");
+
+        _solidCraftPath = page.CreateAndAddStringEditorRow("SolidCraft Folder", S.SolidCraftPath ?? "", null);
+        page.CreateAndAddButtonRow("Browse for the SolidCraft Folder...", null,
+            async (btn, e) => await BrowseSolidCraftAsync());
+        page.CreateAndAddDescriptionRow(
+            "The folder that holds solidcraft-cli, for Tools > Export 3D Plant Model. Leave it empty " +
+            "to look in the usual install folders and on the PATH.");
+
         page.CreateAndAddLabelRow("Debug Mode");
 
         _debugLevel = page.CreateAndAddNumericEditorRow("Debug Level (0 = off)", S.DebugLevel, 0, 3, 0, null);
 
         return page;
+    }
+
+    private async System.Threading.Tasks.Task BrowseSolidCraftAsync()
+    {
+        var storage = TopLevel.GetTopLevel(this)?.StorageProvider;
+        if (storage == null) return;
+
+        var folders = await storage.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        {
+            Title = "Select the SolidCraft Folder",
+            AllowMultiple = false
+        });
+
+        var path = folders?.FirstOrDefault()?.TryGetLocalPath();
+        if (!string.IsNullOrEmpty(path)) _solidCraftPath.Text = path;
     }
 
     // -------------------------------------------------------------------------
@@ -555,6 +580,9 @@ public partial class PreferencesWindow : Window
 
         // python
         S.PythonPath = _pythonPath.Text ?? "";
+
+        // SolidCraft
+        S.SolidCraftPath = _solidCraftPath.Text ?? "";
 
         // other
         S.CheckForUpdates = _checkUpdates.IsChecked.GetValueOrDefault();
