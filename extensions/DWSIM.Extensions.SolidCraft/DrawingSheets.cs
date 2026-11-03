@@ -379,7 +379,7 @@ namespace DWSIM.Extensions.SolidCraft
             ["AREA"] = t.Area,
             ["TITLE"] = t.Title,
             ["SUBTITLE"] = t.Subtitle,
-            ["NUMBER"] = t.Number,
+            ["NUMBER"] = Fit(t.Number, style == DrawingStyle.ISO ? 20 : 24),
             ["REVISION"] = t.Revision,
             ["DOCUMENTTYPE"] = t.DocumentType,
             ["STATUS"] = t.Status,
