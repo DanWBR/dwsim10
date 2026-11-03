@@ -59,7 +59,17 @@ namespace DWSIM.Extensions.SolidCraft
                     ["org.dwsim.flowsheet"] = new JObject
                     {
                         ["name"] = model.Name,
-                        ["scale_mm_per_canvas_unit"] = Math.Round(model.Scale, 2)
+                        ["scale_mm_per_canvas_unit"] = Math.Round(model.Scale, 2),
+                        // where each item was put: moving an item in SolidCraft changes its
+                        // occurrence's transform from here, which the next export reads back
+                        ["placements"] = new JObject(model.Equipment.Where(e => e.Visible).Select(e =>
+                            new JProperty(e.Tag, new JObject
+                            {
+                                ["x"] = Math.Round(e.Origin.X),
+                                ["y"] = Math.Round(e.Origin.Y),
+                                ["z"] = Math.Round(e.Origin.Z),
+                                ["rot"] = e.Rotation
+                            })))
                     }
                 }
             });
@@ -67,7 +77,8 @@ namespace DWSIM.Extensions.SolidCraft
             foreach (var item in model.Equipment.Where(e => e.Visible))
             {
                 var subject = item.Tag;
-                Add(cmds, "component.create", subject, new JObject { ["name"] = item.Tag, ["parent"] = "root", ["grounded"] = true });
+                // not grounded, so it can be moved in SolidCraft and the move read back
+                Add(cmds, "component.create", subject, new JObject { ["name"] = item.Tag, ["parent"] = "root", ["grounded"] = false });
 
                 foreach (var part in item.Parts)
                 {
@@ -83,7 +94,7 @@ namespace DWSIM.Extensions.SolidCraft
                                 ["diameter"] = Round(p.Diameter),
                                 ["height"] = Round(p.Height),
                                 ["base"] = new JArray(p.Point.ToArray()),
-                                ["axis"] = p.Axis,
+                                ["axis"] = p.AxisVector.HasValue ? (JToken)Dir(p.AxisVector.Value) : p.Axis,
                                 ["body_name"] = body
                             });
                             break;

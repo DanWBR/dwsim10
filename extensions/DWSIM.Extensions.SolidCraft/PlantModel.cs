@@ -46,10 +46,29 @@ namespace DWSIM.Extensions.SolidCraft
         public double[] ToArray() => new[] { Math.Round(X), Math.Round(Y), Math.Round(Z) };
 
         public static readonly Vec3 PlusX = new Vec3(1, 0, 0), MinusX = new Vec3(-1, 0, 0);
+
+        /// <summary>The vector turned about Z by a whole number of quarter turns (degrees, counterclockwise from above).</summary>
+        public Vec3 TurnedZ(int degrees)
+        {
+            switch (((degrees / 90) % 4 + 4) % 4)
+            {
+                case 1: return new Vec3(-Y, X, Z);
+                case 2: return new Vec3(-X, -Y, Z);
+                case 3: return new Vec3(Y, -X, Z);
+                default: return this;
+            }
+        }
         public static readonly Vec3 PlusZ = new Vec3(0, 0, 1), MinusZ = new Vec3(0, 0, -1);
     }
 
     public enum PrimitiveKind { Cylinder, Box, Sphere }
+
+    /// <summary>Where an item stands in the 3D model: its origin on the ground (mm) and its turn about Z (degrees).</summary>
+    public class Placement
+    {
+        public double X, Y, Z;
+        public int Rot;
+    }
 
     /// <summary>One solid of an equipment item, in the item's local coordinates.</summary>
     public class Primitive
@@ -70,6 +89,9 @@ namespace DWSIM.Extensions.SolidCraft
 
         /// <summary>Cylinder axis: X, Y or Z.</summary>
         public string Axis = "Z";
+
+        /// <summary>The cylinder axis as a vector, once the part has been turned; null to use <see cref="Axis"/>.</summary>
+        public Vec3? AxisVector;
 
         /// <summary>Cylinder and sphere diameter.</summary>
         public double Diameter;
@@ -247,6 +269,44 @@ namespace DWSIM.Extensions.SolidCraft
 
         /// <summary>Half the footprint along X and Y, for the layout. Defaults to the envelope.</summary>
         public double FootprintX, FootprintY;
+
+        /// <summary>Turn about Z, in quarter turns (0, 90, 180, 270), and whether the place comes from a saved layout.</summary>
+        public int Rotation;
+        public bool Placed;
+
+        /// <summary>
+        /// Turns the item about its origin by quarter turns: parts, the column's own lines and the
+        /// footprint. The envelope stays in the item's own frame; nozzles are turned as they are placed.
+        /// </summary>
+        public void Turn(int degrees)
+        {
+            Rotation = ((degrees % 360) + 360) % 360;
+            if (Rotation == 0) return;
+            var odd = (Rotation / 90) % 2 == 1;
+            foreach (var p in Parts)
+            {
+                p.Point = p.Point.TurnedZ(Rotation);
+                if (p.Kind == PrimitiveKind.Cylinder)
+                {
+                    var axis = p.Axis == "X" ? Vec3.PlusX : p.Axis == "Y" ? new Vec3(0, 1, 0) : Vec3.PlusZ;
+                    p.AxisVector = axis.TurnedZ(Rotation);
+                }
+                if (p.Kind == PrimitiveKind.Box && odd)
+                {
+                    var sx = p.SizeX;
+                    p.SizeX = p.SizeY;
+                    p.SizeY = sx;
+                }
+            }
+            foreach (var run in InternalPipes)
+                for (var i = 0; i < run.Path.Count; i++) run.Path[i] = run.Path[i].TurnedZ(Rotation);
+            if (odd)
+            {
+                var fx = FootprintX;
+                FootprintX = FootprintY;
+                FootprintY = fx;
+            }
+        }
     }
 
     /// <summary>A pipe between two nozzles, or from a nozzle to the battery limit.</summary>

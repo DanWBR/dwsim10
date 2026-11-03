@@ -38,7 +38,7 @@ namespace DWSIM.Extensions.SolidCraft
         // the gap kept between the footprints of neighbouring items when the canvas is scaled
         const double LayoutGap = 2000;
 
-        public static PlantModel Build(IFlowsheet fs, string name)
+        public static PlantModel Build(IFlowsheet fs, string name, IDictionary<string, Placement> layout = null)
         {
             var model = new PlantModel { Name = name };
             var byGraphic = new Dictionary<string, EquipmentItem>();
@@ -67,6 +67,14 @@ namespace DWSIM.Extensions.SolidCraft
                 item.CanvasY = go.Y + go.Height / 2.0;
                 if (item.FootprintX <= 0) item.FootprintX = item.Envelope.HalfX;
                 if (item.FootprintY <= 0) item.FootprintY = item.Envelope.HalfY;
+
+                // an item placed in SolidCraft before keeps its place and turn
+                if (layout != null && layout.TryGetValue(obj.Name, out var placed))
+                {
+                    item.Turn(placed.Rot);
+                    item.Origin = new Vec3(placed.X, placed.Y, placed.Z);
+                    item.Placed = true;
+                }
 
                 model.Equipment.Add(item);
                 byGraphic[go.Name] = item;
@@ -804,7 +812,8 @@ namespace DWSIM.Extensions.SolidCraft
                 if (go.FlippedV) v = 1 - v;
             }
             item.Envelope.Locate(u, v, out var local, out direction);
-            position = item.Origin + local;
+            position = item.Origin + local.TurnedZ(item.Rotation);
+            direction = direction.TurnedZ(item.Rotation);
         }
 
         #endregion
@@ -840,7 +849,7 @@ namespace DWSIM.Extensions.SolidCraft
             model.CanvasOriginX = items.Count > 0 ? (items.Min(e => e.CanvasX) + items.Max(e => e.CanvasX)) / 2 : 0;
             model.CanvasOriginY = items.Count > 0 ? (items.Min(e => e.CanvasY) + items.Max(e => e.CanvasY)) / 2 : 0;
 
-            foreach (var item in items)
+            foreach (var item in items.Where(e => !e.Placed))
                 item.Origin = ToWorld(model, item.CanvasX, item.CanvasY);
         }
 

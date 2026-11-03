@@ -185,6 +185,33 @@ namespace DWSIM.Extensions.SolidCraft
             return kept;
         }
 
+        /// <summary>
+        /// Runs read-only commands on a design and returns their results in order; null when the
+        /// design cannot be read. The design itself is not changed.
+        /// </summary>
+        public static JArray Query(string folder, string design, JArray commands)
+        {
+            var cli = Path.Combine(folder, Exe("solidcraft-cli"));
+            var script = Path.Combine(Path.GetTempPath(), "dwsim-solidcraft-query-" + Guid.NewGuid().ToString("N") + ".json");
+            var output = Path.ChangeExtension(script, ".out.json");
+            try
+            {
+                File.WriteAllText(script, new JObject { ["commands"] = commands }.ToString(), new UTF8Encoding(false));
+                var exit = Execute(cli, "run " + Quote(script) + " --in " + Quote(design) + " --results --json-out " + Quote(output), 300, out _);
+                if (exit != 0 || !File.Exists(output)) return null;
+                return JToken.Parse(File.ReadAllText(output)) as JArray;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+            finally
+            {
+                try { File.Delete(script); } catch { }
+                try { File.Delete(output); } catch { }
+            }
+        }
+
         /// <summary>Opens the design in the SolidCraft application.</summary>
         public static void OpenInApp(string folder, string design)
         {

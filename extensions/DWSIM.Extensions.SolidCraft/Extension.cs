@@ -39,7 +39,7 @@ namespace DWSIM.Extensions.SolidCraft
 
         public ExtenderLevel Level => ExtenderLevel.FlowsheetWindow;
 
-        public List<IExtender> Collection { get; } = new List<IExtender> { new PlantModelExtender() };
+        public List<IExtender> Collection { get; } = new List<IExtender> { new PlantModelExtender(), new ResetLayoutExtender() };
 
         public int InsertAtPosition => -1;
 
@@ -60,22 +60,7 @@ namespace DWSIM.Extensions.SolidCraft
 
         public string DisplayText => "Export 3D Plant Model (SolidCraft)";
 
-        public byte[] DisplayImage
-        {
-            get
-            {
-                if (_icon != null) return _icon;
-                var asm = Assembly.GetExecutingAssembly();
-                var name = asm.GetManifestResourceNames().FirstOrDefault(n => n.EndsWith(".Plant3D.png", StringComparison.OrdinalIgnoreCase));
-                if (name == null) return _icon = new byte[0];
-                using (var s = asm.GetManifestResourceStream(name))
-                using (var ms = new MemoryStream())
-                {
-                    s.CopyTo(ms);
-                    return _icon = ms.ToArray();
-                }
-            }
-        }
+        public byte[] DisplayImage => Icon();
 
         public int InsertAtPosition => -1;
 
@@ -119,19 +104,36 @@ namespace DWSIM.Extensions.SolidCraft
         /// <summary>Builds and saves the model; returns the run result. Public for tests and scripts.</summary>
         public static SolidCraftRunner.Result Export(IFlowsheet fs, string solidcraftFolder, bool openInApp, string outputFolder = null)
         {
-            var file = fs.FlowsheetOptions?.FilePath;
-            var name = string.IsNullOrWhiteSpace(file) ? "Flowsheet" : Path.GetFileNameWithoutExtension(file);
-            if (outputFolder == null)
-            {
-                var root = string.IsNullOrWhiteSpace(file) || !Directory.Exists(Path.GetDirectoryName(file))
-                    ? Path.Combine(Path.GetTempPath(), "DWSIM")
-                    : Path.GetDirectoryName(file);
-                outputFolder = Path.Combine(root, name + " - 3D model");
-            }
+            var name = ModelName(fs);
+            if (outputFolder == null) outputFolder = OutputFolder(fs);
             Directory.CreateDirectory(outputFolder);
-
-            var model = PlantModelBuilder.Build(fs, name);
             var outputBase = Path.Combine(outputFolder, name);
+
+            // the layout: the places kept with the simulation, updated with what was moved in the
+            // design exported last time (so a move made in SolidCraft is never lost to a new export)
+            var layout = PlantLayout.Load(fs);
+            if (File.Exists(outputBase + ".sc"))
+            {
+                var warnings = new List<string>();
+                var moves = PlantLayout.ReadMoves(solidcraftFolder, outputBase + ".sc", warnings);
+                foreach (var w in warnings) fs.ShowMessage("3D plant model: " + w, IFlowsheet.MessageType.Warning);
+                var kept = 0;
+                foreach (var obj in fs.SimulationObjects.Values)
+                {
+                    var tag = obj.GraphicObject?.Tag;
+                    if (tag == null || !moves.TryGetValue(tag, out var place)) continue;
+                    layout[obj.Name] = place;
+                    kept++;
+                }
+                if (kept > 0)
+                {
+                    PlantLayout.Save(fs, layout);
+                    fs.ShowMessage("3D plant model: the places of " + kept + " items moved in SolidCraft are kept with the simulation; save it to keep them.",
+                        IFlowsheet.MessageType.Information);
+                }
+            }
+
+            var model = PlantModelBuilder.Build(fs, name, layout);
             var commands = SolidCraftScript.Create(model);
             var extras = SolidCraftScript.CreateLabels(model);
             extras.AddRange(FlowAnimation.Create(model, outputBase + " - flow.gif"));
@@ -161,6 +163,86 @@ namespace DWSIM.Extensions.SolidCraft
             if (openInApp) SolidCraftRunner.OpenInApp(solidcraftFolder, result.Design);
 
             return result;
+        }
+
+        internal static string ModelName(IFlowsheet fs)
+        {
+            var file = fs.FlowsheetOptions?.FilePath;
+            return string.IsNullOrWhiteSpace(file) ? "Flowsheet" : Path.GetFileNameWithoutExtension(file);
+        }
+
+        /// <summary>The folder of the 3D model: next to the simulation, or in the temporary folder when it has not been saved.</summary>
+        internal static string OutputFolder(IFlowsheet fs)
+        {
+            var file = fs.FlowsheetOptions?.FilePath;
+            var root = string.IsNullOrWhiteSpace(file) || !Directory.Exists(Path.GetDirectoryName(file))
+                ? Path.Combine(Path.GetTempPath(), "DWSIM")
+                : Path.GetDirectoryName(file);
+            return Path.Combine(root, ModelName(fs) + " - 3D model");
+        }
+
+        internal static byte[] Icon()
+        {
+            if (_icon != null) return _icon;
+            var asm = Assembly.GetExecutingAssembly();
+            var name = asm.GetManifestResourceNames().FirstOrDefault(n => n.EndsWith(".Plant3D.png", StringComparison.OrdinalIgnoreCase));
+            if (name == null) return _icon = new byte[0];
+            using (var s = asm.GetManifestResourceStream(name))
+            using (var ms = new MemoryStream())
+            {
+                s.CopyTo(ms);
+                return _icon = ms.ToArray();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Goes back to the layout of the flowsheet drawing: forgets the places kept with the simulation
+    /// and sets the last design aside, so the next export does not read its moves again.
+    /// </summary>
+    public class ResetLayoutExtender : IExtender, IExtender3
+    {
+        IFlowsheet Flowsheet;
+
+        public string ID => "c41f2a87-5e3d-4b9a-8f62-1d7e0a5b9c34";
+
+        public string DisplayText => "Reset 3D Plant Layout";
+
+        public byte[] DisplayImage => PlantModelExtender.Icon();
+
+        public int InsertAtPosition => -1;
+
+        public void SetMainWindow(object mainwindow) { }
+
+        public void SetFlowsheet(IFlowsheet form) => Flowsheet = form;
+
+        public void ReleaseResources() => Flowsheet = null;
+
+        public void Run()
+        {
+            var fs = Flowsheet;
+            if (fs == null) return;
+
+            PlantLayout.Save(fs, null);
+
+            var design = Path.Combine(PlantModelExtender.OutputFolder(fs), PlantModelExtender.ModelName(fs) + ".sc");
+            var aside = Path.Combine(Path.GetDirectoryName(design), PlantModelExtender.ModelName(fs) + " - before layout reset.sc");
+            try
+            {
+                if (File.Exists(design))
+                {
+                    if (File.Exists(aside)) File.Delete(aside);
+                    File.Move(design, aside);
+                }
+                fs.ShowMessage("3D plant model: the layout follows the flowsheet drawing again" +
+                    (File.Exists(aside) ? "; the last design was kept as " + aside : "") + ". Save the simulation to keep the change.",
+                    IFlowsheet.MessageType.Information);
+            }
+            catch (Exception ex)
+            {
+                fs.ShowMessage("3D plant model: the layout was reset, but the last design could not be set aside (" + ex.Message +
+                    "); close it in SolidCraft before the next export.", IFlowsheet.MessageType.Warning);
+            }
         }
     }
 }
