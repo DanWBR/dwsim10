@@ -51,7 +51,7 @@ namespace DWSIM.Extensions.SolidCraft
         /// The letter of a measurement: from the kind of its property; when that is not set, from the
         /// property's name (in English), and last from the instrument's own tag (LC-01 is a level loop).
         /// </summary>
-        static string Letter(IFlowsheet fs, UnitOfMeasure kind, string property, string tag)
+        internal static string Letter(IFlowsheet fs, UnitOfMeasure kind, string property, string tag)
         {
             var letter = Letter(kind);
             if (letter != "A") return letter;

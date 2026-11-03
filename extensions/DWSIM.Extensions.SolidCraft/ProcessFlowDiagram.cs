@@ -49,7 +49,7 @@ namespace DWSIM.Extensions.SolidCraft
             public List<string> Failed = new List<string>();
         }
 
-        enum Symbol { None, PassThrough, Node, VesselV, VesselH, Tank, Column, Pump, Compressor, Expander, Heater, Cooler, Exchanger, AirCooler, Valve, Reactor, Cstr, Pfr, Filter, Separator, Generic }
+        enum Symbol { None, PassThrough, Node, VesselV, VesselH, Tank, Column, Pump, Compressor, Expander, Heater, Cooler, Exchanger, AirCooler, Valve, Relief, Reactor, Cstr, Pfr, Filter, Separator, Generic }
 
         class Unit
         {
@@ -90,9 +90,18 @@ namespace DWSIM.Extensions.SolidCraft
         /// <summary>The compounds listed one by one in the stream table; the others share a row.</summary>
         const int MaxCompounds = 20;
 
-        public static Result Export(IFlowsheet fs, string cadcraftFolder, string outputBase, DrawingStyle style, TitleData title)
+        /// <summary>
+        /// Draws the diagram: the process flow diagram, or with <paramref name="pid"/> the piping and
+        /// instrumentation diagram (line numbers in place of the stream numbers and table, the
+        /// control loops with their transmitters, controllers and control valves, the local
+        /// indicators and the relief valves).
+        /// </summary>
+        public static Result Export(IFlowsheet fs, string cadcraftFolder, string outputBase, DrawingStyle style, TitleData title, bool pid = false)
         {
             var result = new Result();
+            var layout = pid ? "PID" : "PFD";
+            var actuated = pid ? Instruments.ControlledValves(fs) : new Dictionary<string, string>();
+            var lineData = pid ? LineData(fs) : new Dictionary<string, PipeRun>();
             var units = Units(fs);
             var lines = Lines(fs);
             result.Units = units.Count(u => u.Symbol != Symbol.PassThrough);
@@ -116,7 +125,7 @@ namespace DWSIM.Extensions.SolidCraft
             const double myT = 10, myB = 16;
 
             // the stream table, split into column groups as wide as the sheet allows
-            var table = StreamTable(fs, lines.Where(l => !l.Energy).ToList());
+            var table = pid ? new List<string[]>() : StreamTable(fs, lines.Where(l => !l.Energy).ToList());
 
             // the smallest sheet on which the icons come out at a readable size
             SheetSize sheet = null;
@@ -156,6 +165,7 @@ namespace DWSIM.Extensions.SolidCraft
             // ISO 3098 lettering (osifont), or CADCraft's own where it is not installed
             C("style", new JObject { ["name"] = DrawingSheets.TextStyle, ["font"] = DrawingSheets.Font, ["current"] = true });
             foreach (var (name, lt, lw) in new[] { ("EQUIPMENT", "Continuous", 0.5), ("PROCESS", "Continuous", 0.5), ("UTILITY", "DASHED", 0.35),
+                ("INSTRUMENT", "Continuous", 0.25), ("SIGNAL", "DASHED", 0.25),
                 ("STREAMNUMBER", "Continuous", 0.25), ("TEXT", "Continuous", 0.25), ("TABLE", "Continuous", 0.25), ("BORDER", "Continuous", 0.7), ("TITLE", "Continuous", 0.35), ("VIEWPORT", "Continuous", 0.0) })
                 C("layer.new", new JObject { ["name"] = name, ["color"] = "white", ["linetype"] = lt, ["lineweight"] = lw });
             C("ltscale", new JObject { ["scale"] = 0.5 });
@@ -192,6 +202,7 @@ namespace DWSIM.Extensions.SolidCraft
             Pt At(IConnectionPoint cp) => moved.TryGetValue(cp, out var m) ? m : T(cp.Position.X, cp.Position.Y);
 
             // equipment: one block per item, drawn at its real size on the sheet
+            var outline = new Dictionary<string, Pt>();
             var n = 0;
             var used = new HashSet<string>();
             foreach (var u in units.Where(u => u.Symbol != Symbol.PassThrough && u.Symbol != Symbol.Node))
@@ -200,7 +211,8 @@ namespace DWSIM.Extensions.SolidCraft
                 double w = u.Go.Width * k, h = u.Go.Height * k;
                 var c = T(u.Go.X + u.Go.Width / 2.0, u.Go.Y + u.Go.Height / 2.0);
                 var d = new Dxf();
-                var half = Draw(d, u.Symbol, w, h, u.Go.FlippedH);
+                var half = Draw(d, u.Symbol, w, h, u.Go.FlippedH, actuated.ContainsKey(u.Obj.Name));
+                outline[u.Obj.Name] = half;
                 var file = Path.Combine(temp, "u" + n + ".dxf");
                 d.Save(file);
                 var block = BlockName(u.Go.Tag, used);
@@ -289,7 +301,16 @@ namespace DWSIM.Extensions.SolidCraft
                 var mid = new Pt((p[longest].X + p[longest + 1].X) / 2, (p[longest].Y + p[longest + 1].Y) / 2);
                 var horizontal = Math.Abs(p[longest].Y - p[longest + 1].Y) < 0.01;
                 var at = horizontal ? new Pt(mid.X, mid.Y + 5) : new Pt(mid.X - 5, mid.Y);
-                if (l.Energy)
+                if (pid && !l.Energy)
+                {
+                    // the line number along the line: size, fluid, number and insulation
+                    C("layer.current", new JObject { ["name"] = "TEXT" });
+                    var number = LineNumber(l, lineData);
+                    C("text", horizontal
+                        ? new JObject { ["at"] = new JArray(mid.X, Math.Round(mid.Y + 1.2, 2)), ["text"] = number, ["height"] = TextHeight, ["justify"] = "BC" }
+                        : new JObject { ["at"] = new JArray(Math.Round(mid.X - 1.2, 2), mid.Y), ["text"] = number, ["height"] = TextHeight, ["justify"] = "BC", ["rotation"] = 90 }, "line " + l.Tag);
+                }
+                else if (l.Energy)
                 {
                     var q = Duty(fs, l.Icon.Owner as IEnergyStream);
                     C("text", new JObject { ["at"] = new JArray(at.X, at.Y), ["text"] = l.Tag + (q.Length > 0 ? "  " + q : ""), ["height"] = TextHeight, ["justify"] = horizontal ? "BC" : "MR" }, "stream " + l.Tag);
@@ -304,14 +325,16 @@ namespace DWSIM.Extensions.SolidCraft
                 }
             }
 
+            if (pid) DrawInstruments(fs, cmds, units, lines, routes, actuated, outline, itemBoxes, textBoxes, tight, T, k);
+
             // the sheet: border and zones, title block, stream table and the viewport on the diagram
-            C("layout.new", new JObject { ["name"] = "PFD", ["viewport"] = false });
+            C("layout.new", new JObject { ["name"] = layout, ["viewport"] = false });
             C("pagesetup", new JObject
             {
-                ["layout"] = "PFD", ["device"] = "CADCraft PDF", ["width"] = sheet.Width, ["height"] = sheet.Height, ["landscape"] = true,
+                ["layout"] = layout, ["device"] = "CADCraft PDF", ["width"] = sheet.Width, ["height"] = sheet.Height, ["landscape"] = true,
                 ["margins"] = new JArray(0, 0, 0, 0), ["plotArea"] = "layout", ["scale"] = 1, ["lineweights"] = true, ["plotStyleTable"] = "monochrome.ctb"
             });
-            C("layout.set", new JObject { ["name"] = "PFD" });
+            C("layout.set", new JObject { ["name"] = layout });
             C("pspace", new JObject());
             var border = Path.Combine(temp, "border.dxf");
             DrawingSheets.Border(style, sheet).Save(border);
@@ -381,8 +404,8 @@ namespace DWSIM.Extensions.SolidCraft
                 result.Pdf = outputBase + ".pdf";
                 result.Png = outputBase + ".png";
                 foreach (var f in new[] { result.Drawing, result.Dwg, result.Pdf, result.Png }) if (File.Exists(f)) File.Delete(f);
-                session.Execute("plot", new JObject { ["path"] = result.Pdf, ["layout"] = "PFD" }, 300);
-                session.Execute("plot", new JObject { ["path"] = result.Png, ["layout"] = "PFD", ["device"] = "CADCraft PNG" }, 300);
+                session.Execute("plot", new JObject { ["path"] = result.Pdf, ["layout"] = layout }, 300);
+                session.Execute("plot", new JObject { ["path"] = result.Png, ["layout"] = layout, ["device"] = "CADCraft PNG" }, 300);
                 session.Tool("save", new JObject { ["path"] = result.Dwg }, "save DWG");
                 session.Tool("save", new JObject { ["path"] = result.Drawing }, "save DXF");
                 result.Failed.AddRange(session.Failed);
@@ -417,9 +440,17 @@ namespace DWSIM.Extensions.SolidCraft
             return list;
         }
 
+        /// <summary>The top of a control valve's stem and the radius of its actuator's diaphragm, above the valve's centre.</summary>
+        static void ActuatorTop(double w, double h, out double stemTop, out double r)
+        {
+            var vh = Math.Min(h, w * 0.6) / 2;
+            r = Math.Max(1.5, w * 0.32);
+            stemTop = vh + Math.Max(2.5, vh * 1.2);
+        }
+
         static Symbol SymbolFor(ISimulationObject obj, IGraphicObject go)
         {
-            if (obj.GetType().Name == "ReliefValve") return Symbol.Valve;
+            if (obj.GetType().Name == "ReliefValve") return Symbol.Relief;
             switch (go.ObjectType)
             {
                 case ObjectType.Vessel:
@@ -845,7 +876,7 @@ namespace DWSIM.Extensions.SolidCraft
         /// Draws the symbol of an item centred on the origin in a w x h box (ISO 10628 and the
         /// usual PFD shapes) and returns the half sizes of its outline, where the nozzles end.
         /// </summary>
-        static Pt Draw(Dxf d, Symbol s, double w, double h, bool flip)
+        static Pt Draw(Dxf d, Symbol s, double w, double h, bool flip, bool actuated = false)
         {
             double f = flip ? -1 : 1;
             switch (s)
@@ -965,10 +996,26 @@ namespace DWSIM.Extensions.SolidCraft
                         return new Pt(w / 2, h / 2);
                     }
                 case Symbol.Valve:
+                case Symbol.Relief:
                     {
                         // two triangles tip to tip
                         var vh = Math.Min(h, w * 0.6) / 2;
                         d.Poly(true, -w / 2, -vh, -w / 2, vh, w / 2, -vh, w / 2, vh);
+                        if (s == Symbol.Relief)
+                        {
+                            // the spring over the seat, and its cap
+                            var top = vh * 2.6;
+                            d.Poly(false, 0, 0, 0, vh * 0.8, -vh * 0.4, vh * 1.0, vh * 0.4, vh * 1.4, -vh * 0.4, vh * 1.8, vh * 0.4, vh * 2.2, 0, vh * 2.4, 0, top);
+                            d.Line(-vh * 0.5, top, vh * 0.5, top);
+                        }
+                        else if (actuated)
+                        {
+                            // diaphragm actuator on its stem
+                            ActuatorTop(w, h, out var stemTop, out var r);
+                            d.Line(0, 0, 0, stemTop);
+                            d.Line(-r, stemTop, r, stemTop);
+                            d.Arc(0, stemTop, r, 0, 180);
+                        }
                         return new Pt(w / 2, vh);
                     }
                 case Symbol.Filter:

@@ -40,7 +40,7 @@ namespace DWSIM.Extensions.SolidCraft
 
         public ExtenderLevel Level => ExtenderLevel.FlowsheetWindow;
 
-        public List<IExtender> Collection { get; } = new List<IExtender> { new PlantModelExtender(), new UpdateDataExtender(), new ResetLayoutExtender(), new ProcessFlowDiagramExtender() };
+        public List<IExtender> Collection { get; } = new List<IExtender> { new PlantModelExtender(), new UpdateDataExtender(), new ResetLayoutExtender(), new ProcessFlowDiagramExtender(), new PipingAndInstrumentationExtender() };
 
         public int InsertAtPosition => -1;
 
@@ -374,8 +374,9 @@ namespace DWSIM.Extensions.SolidCraft
             => Path.Combine(Path.GetDirectoryName(PlantModelExtender.OutputFolder(fs)), PlantModelExtender.ModelName(fs) + " - drawings");
 
         /// <summary>Draws and saves the diagram; returns the result. Public for tests and scripts.</summary>
-        public static ProcessFlowDiagram.Result Export(IFlowsheet fs, string cadcraftFolder, bool openInApp, string outputFolder = null)
+        public static ProcessFlowDiagram.Result Export(IFlowsheet fs, string cadcraftFolder, bool openInApp, string outputFolder = null, bool pid = false)
         {
+            var what = pid ? "P&ID" : "Process flow diagram";
             var name = PlantModelExtender.ModelName(fs);
             if (outputFolder == null) outputFolder = DrawingsFolder(fs);
             Directory.CreateDirectory(outputFolder);
@@ -385,38 +386,81 @@ namespace DWSIM.Extensions.SolidCraft
             {
                 Owner = options.DrawingOwner ?? "",
                 Project = string.IsNullOrWhiteSpace(project) ? name : project,
-                Title = "PROCESS FLOW DIAGRAM",
+                Title = pid ? "PIPING AND INSTRUMENTATION DIAGRAM" : "PROCESS FLOW DIAGRAM",
                 Subtitle = name,
-                Number = "PFD-001",
-                DocumentType = "PFD",
+                Number = pid ? "PID-001" : "PFD-001",
+                DocumentType = pid ? "P&ID" : "PFD",
                 Status = "PRELIMINARY",
                 Date = DateTime.Today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
                 PreparedBy = fs.FlowsheetOptions?.SimulationAuthor ?? ""
             };
-            var result = ProcessFlowDiagram.Export(fs, cadcraftFolder, Path.Combine(outputFolder, name + " - PFD"), options.Style, title);
+            var result = ProcessFlowDiagram.Export(fs, cadcraftFolder, Path.Combine(outputFolder, name + (pid ? " - PID" : " - PFD")), options.Style, title, pid);
 
             foreach (var f in result.Failed.Take(5))
-                fs.ShowMessage("Process flow diagram: left out " + f, IFlowsheet.MessageType.Warning);
+                fs.ShowMessage(what + ": left out " + f, IFlowsheet.MessageType.Warning);
             if (result.Failed.Count > 5)
-                fs.ShowMessage("Process flow diagram: " + (result.Failed.Count - 5) + " more drawing steps left out.", IFlowsheet.MessageType.Warning);
+                fs.ShowMessage(what + ": " + (result.Failed.Count - 5) + " more drawing steps left out.", IFlowsheet.MessageType.Warning);
             if (result.Drawing == null)
             {
-                fs.ShowMessage("CADCraft could not draw the process flow diagram: " + result.Error, IFlowsheet.MessageType.GeneralError);
+                fs.ShowMessage("CADCraft could not draw the " + (pid ? "P&ID" : "process flow diagram") + ": " + result.Error, IFlowsheet.MessageType.GeneralError);
                 return result;
             }
-            fs.ShowMessage(string.Format("Process flow diagram: {0} items and {1} streams on an {2} sheet ({3}), saved to {4} (DXF{5}{6}{7}).",
-                result.Units, result.Streams, result.Sheet, options.Style, outputFolder,
+            fs.ShowMessage(string.Format("{0}: {1} items and {2} lines on an {3} sheet ({4}), saved to {5} (DXF{6}{7}{8}).",
+                what, result.Units, result.Streams, result.Sheet, options.Style, outputFolder,
                 result.Dwg != null ? ", DWG" : "", result.Pdf != null ? ", PDF" : "", result.Png != null ? ", PNG" : ""),
                 IFlowsheet.MessageType.Information);
             if (!DrawingSheets.FontInstalled())
             {
                 string font = null;
                 try { font = DrawingSheets.WriteFont(outputFolder); } catch (Exception) { }
-                fs.ShowMessage("Process flow diagram: the drawing is lettered in osifont, the free ISO 3098 font for CAD, which is not installed on this computer, so CADCraft used its own lettering." +
+                fs.ShowMessage(what + ": the drawing is lettered in osifont, the free ISO 3098 font for CAD, which is not installed on this computer, so CADCraft used its own lettering." +
                     (font != null ? " Install " + font + " to see it in CADCraft and in other CAD programs, then export again." : ""), IFlowsheet.MessageType.Information);
             }
             if (openInApp) CADCraftSession.OpenInApp(cadcraftFolder, result.Drawing);
             return result;
+        }
+    }
+
+    /// <summary>
+    /// Draws the piping and instrumentation diagram of the flowsheet in CADCraft: the process flow
+    /// diagram's items and lines with line numbers, the control loops, indicators and relief
+    /// valves; saved as DXF, DWG, PDF and PNG next to the simulation and opened in CADCraft.
+    /// </summary>
+    public class PipingAndInstrumentationExtender : IExtender, IExtender3
+    {
+        IFlowsheet Flowsheet;
+
+        public string ID => "f2a7c6d9-3e18-4b5a-9c40-8d1e6b2f7a35";
+
+        public string DisplayText => "Export P&ID (CADCraft)";
+
+        public byte[] DisplayImage => PlantModelExtender.Icon();
+
+        public int InsertAtPosition => -1;
+
+        public void SetMainWindow(object mainwindow) { }
+
+        public void SetFlowsheet(IFlowsheet form) => Flowsheet = form;
+
+        public void ReleaseResources() => Flowsheet = null;
+
+        public void Run()
+        {
+            var fs = Flowsheet;
+            if (fs == null) return;
+            var folder = CADCraftSession.FindInstallFolder();
+            if (folder == null)
+            {
+                fs.ShowMessage("CADCraft was not found. Install it (it comes on its own or with SolidCraft in the ArtCraft suite), or set CADCRAFT_HOME to the folder that holds cadcraft-cli.",
+                    IFlowsheet.MessageType.GeneralError);
+                return;
+            }
+            fs.ShowMessage("Drawing the P&ID with CADCraft...", IFlowsheet.MessageType.Information);
+            Task.Run(() =>
+            {
+                try { ProcessFlowDiagramExtender.Export(fs, folder, true, null, true); }
+                catch (Exception ex) { fs.ShowMessage("P&ID: " + ex.Message, IFlowsheet.MessageType.GeneralError); }
+            });
         }
     }
 

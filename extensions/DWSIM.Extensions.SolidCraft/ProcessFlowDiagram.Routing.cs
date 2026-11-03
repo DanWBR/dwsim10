@@ -80,8 +80,13 @@ namespace DWSIM.Extensions.SolidCraft
             /// then the shortest clear way to <paramref name="e"/>, and straight into the end in
             /// <paramref name="endDir"/>. Null when the items leave no way through.
             /// </summary>
-            public List<Pt> Route(Pt start, Pt s, int startDir, Pt e, Pt end, int endDir)
+            public List<Pt> Route(Pt start, Pt s, int startDir, Pt e, Pt end, int endDir, bool slideEnd = false)
             {
+                // on the grid's own rounding; with slideEnd, an end point inside an item's clearance
+                // (an actuator on its valve) is reached by a straight run in from outside it
+                Pt R(Pt p) => new Pt(Math.Round(p.X, 3), Math.Round(p.Y, 3));
+                s = R(s); e = R(e);
+                if (slideEnd) e = Out(e, (endDir + 2) % 4);
                 if (hard.Any(b => b.Inside(s.X, s.Y)) || hard.Any(b => b.Inside(e.X, e.Y))) return null;
 
                 // the grid: the grown items' edges, the lanes half way between them, the two ends
@@ -154,6 +159,22 @@ namespace DWSIM.Extensions.SolidCraft
                 path.Add(end);
                 return Simplify(path);
             }
+
+            /// <summary>A point moved along a direction until no item's clearance holds it (a few boxes at most).</summary>
+            Pt Out(Pt p, int dir)
+            {
+                for (var n = 0; n < 4; n++)
+                {
+                    var box = hard.FirstOrDefault(b => b.Inside(p.X, p.Y));
+                    if (box.X1 <= box.X0) break;
+                    p = dir == 0 ? new Pt(box.X1, p.Y) : dir == 1 ? new Pt(p.X, box.Y1) : dir == 2 ? new Pt(box.X0, p.Y) : new Pt(p.X, box.Y0);
+                    p = new Pt(Math.Round(p.X, 3), Math.Round(p.Y, 3));
+                }
+                return p;
+            }
+
+            /// <summary>Adds an obstacle (an instrument bubble), kept clear like the items.</summary>
+            public void Block(Box b) => hard.Add(b.Grown(clearance));
 
             /// <summary>Keeps a route, so the next ones keep off it.</summary>
             public void Add(List<Pt> route)
