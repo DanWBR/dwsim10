@@ -96,6 +96,7 @@ namespace DWSIM.Extensions.SolidCraft
                             ["a"] = new JObject { ["occurrence"] = line, ["point"] = new JArray(at.ToArray()), ["z"] = Axis(dir) },
                             ["b"] = new JObject { ["occurrence"] = name + ":1", ["point"] = new JArray(at.ToArray()), ["z"] = Axis(dir) },
                             // the slide of one loop, kept here for the study (not a SolidCraft parameter)
+                            ["$study"] = StudyName,
                             ["$travel"] = SolidCraftScript.Round(spacing)
                         });
                     }
@@ -119,25 +120,27 @@ namespace DWSIM.Extensions.SolidCraft
         }
 
         /// <summary>
-        /// Fills in the keys of the motion study from the joints still in the script (the runner
-        /// leaves out the bands it cannot make) and strips the private travel field.
+        /// Fills in the keys of each motion study (the flow and the dynamic replay) from the joints
+        /// still in the script that belong to it (the runner leaves out what it cannot make): a flow
+        /// band slides one spacing per loop, a replay marker follows its own points.
         /// </summary>
         public static void Prepare(List<SolidCraftScript.Command> cmds)
         {
-            var keys = new JArray();
-            foreach (var c in cmds.Where(c => c.Name == "joint.create"))
+            foreach (var study in cmds.Where(c => c.Name == "motion.study"))
             {
-                var travel = c.Params["$travel"];
-                if (travel == null) continue;
-                keys.Add(new JObject
+                var name = (string)study.Params["name"];
+                var keys = new JArray();
+                foreach (var c in cmds.Where(c => c.Name == "joint.create" && (string)c.Params["$study"] == name))
                 {
-                    ["joint"] = c.Params["name"],
-                    ["points"] = new JArray(new JArray(0, 0), new JArray(Steps, travel))
-                });
-            }
-            foreach (var c in cmds)
-            {
-                if (c.Name == "motion.study") c.Params["keys"] = keys;
+                    var points = c.Params["$points"] as JArray;
+                    var travel = c.Params["$travel"];
+                    keys.Add(new JObject
+                    {
+                        ["joint"] = c.Params["name"],
+                        ["points"] = points != null ? points.DeepClone() : new JArray(new JArray(0, 0), new JArray(Steps, travel))
+                    });
+                }
+                study.Params["keys"] = keys;
             }
         }
 
@@ -148,6 +151,8 @@ namespace DWSIM.Extensions.SolidCraft
             {
                 var p = (JObject)c.Params.DeepClone();
                 p.Remove("$travel");
+                p.Remove("$study");
+                p.Remove("$points");
                 return new SolidCraftScript.Command { Name = c.Name, Params = p, Subject = c.Subject };
             }).ToList();
         }

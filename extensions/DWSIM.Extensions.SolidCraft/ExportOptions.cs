@@ -32,6 +32,9 @@ namespace DWSIM.Extensions.SolidCraft
         public bool Platforms = true;
         public bool Instruments = true;
 
+        /// <summary>Replay the last dynamic run (its monitored variables) on gauges in the model.</summary>
+        public bool DynamicReplay = true;
+
         /// <summary>Top of the pipe rack steel, m.</summary>
         public double RackHeight = 6;
 

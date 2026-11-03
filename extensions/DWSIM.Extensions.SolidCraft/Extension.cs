@@ -177,6 +177,12 @@ namespace DWSIM.Extensions.SolidCraft
             var commands = SolidCraftScript.Create(model);
             var extras = options.Labels ? SolidCraftScript.CreateLabels(model) : new List<SolidCraftScript.Command>();
             if (options.FlowAnimation) extras.AddRange(FlowAnimation.Create(model, outputBase + " - flow.gif"));
+            var replayNotes = new List<string>();
+            if (options.DynamicReplay)
+            {
+                var replay = DynamicReplay.Collect(fs);
+                if (replay != null) extras.AddRange(DynamicReplay.Create(model, fs, replay, outputBase + " - dynamic replay.gif", replayNotes));
+            }
             var result = SolidCraftRunner.Run(solidcraftFolder, commands, extras, outputBase);
 
             foreach (var w in model.Warnings)
@@ -199,6 +205,9 @@ namespace DWSIM.Extensions.SolidCraft
                 result.Picture != null ? ", picture" : "",
                 result.Animation != null ? ", flow animation: play the \"" + FlowAnimation.StudyName + "\" motion study in SolidCraft" : ""),
                 IFlowsheet.MessageType.Information);
+
+            if (result.AnimationError == null)
+                foreach (var note in replayNotes) fs.ShowMessage("3D plant model: " + note, IFlowsheet.MessageType.Information);
 
             if (openInApp) SolidCraftRunner.OpenInApp(solidcraftFolder, result.Design);
 
