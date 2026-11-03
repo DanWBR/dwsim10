@@ -289,6 +289,9 @@ namespace DWSIM.Extensions.SolidCraft
         public int Rotation;
         public bool Placed;
 
+        /// <summary>A transmitter or an indicator: placed at its measuring point on every export.</summary>
+        public bool IsInstrument;
+
         /// <summary>
         /// Turns the item about its origin by quarter turns: parts, the column's own lines and the
         /// footprint. The envelope stays in the item's own frame; nozzles are turned as they are placed.

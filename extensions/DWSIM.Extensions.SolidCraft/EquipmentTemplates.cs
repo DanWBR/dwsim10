@@ -296,11 +296,42 @@ namespace DWSIM.Extensions.SolidCraft
             }
             else
             {
+                // a hand valve: body, bonnet and handwheel
                 item.Parts.Add(Primitive.Sphere("body", new Vec3(0, 0, z), 360, Valve));
-                item.Parts.Add(Primitive.Cylinder("actuator stem", new Vec3(0, 0, z + 150), "Z", 80, 300, Skid));
-                item.Parts.Add(Primitive.Cylinder("actuator", new Vec3(0, 0, z + 450), "Z", 380, 220, Valve));
+                item.Parts.Add(Primitive.Cylinder("bonnet", new Vec3(0, 0, z + 150), "Z", 120, 250, Valve));
+                item.Parts.Add(Primitive.Cylinder("stem", new Vec3(0, 0, z + 400), "Z", 40, 120, Skid));
+                item.Parts.Add(Primitive.Torus("handwheel", new Vec3(0, 0, z + 520), 160, 15, Skid));
             }
             item.Envelope = new Envelope { Kind = EnvelopeKind.Box, HalfX = 220, HalfY = 220, ZBottom = z - 200, ZTop = z + 200 };
+            return item;
+        }
+
+        /// <summary>A control valve: body, yoke and a diaphragm actuator, with the positioner on the front.</summary>
+        public static EquipmentItem ControlValve()
+        {
+            var item = new EquipmentItem();
+            const double z = 1500;
+            item.Parts.Add(Primitive.Sphere("body", new Vec3(0, 0, z), 360, Valve));
+            item.Parts.Add(Primitive.Cylinder("yoke", new Vec3(0, 0, z + 150), "Z", 90, 330, Skid));
+            item.Parts.Add(Primitive.Cylinder("diaphragm case", new Vec3(0, 0, z + 480), "Z", 460, 140, Valve));
+            var dome = Head("diaphragm dome", new Vec3(0, 0, z + 620), 460, 0.5, Vec3.PlusZ, Valve);
+            dome.Metallic = false;
+            item.Parts.Add(dome);
+            item.Parts.Add(Primitive.Box("positioner", new Vec3(0, -130, z + 330), 140, 100, 160, "#4a6fa5"));
+            item.Envelope = new Envelope { Kind = EnvelopeKind.Box, HalfX = 220, HalfY = 220, ZBottom = z - 200, ZTop = z + 200 };
+            return item;
+        }
+
+        /// <summary>A pressure relief valve: body on the inlet, a tall spring bonnet and a side outlet.</summary>
+        public static EquipmentItem ReliefValve()
+        {
+            var item = new EquipmentItem();
+            const double z = 1500;
+            item.Parts.Add(Primitive.Sphere("body", new Vec3(0, 0, z), 340, Valve));
+            item.Parts.Add(Primitive.Cylinder("bonnet", new Vec3(0, 0, z + 140), "Z", 200, 620, Valve));
+            item.Parts.Add(Primitive.Cylinder("cap", new Vec3(0, 0, z + 760), "Z", 120, 120, Skid));
+            item.Parts.Add(Primitive.Cylinder("outlet", new Vec3(0, 0, z), "X", 220, 300, Valve));
+            item.Envelope = new Envelope { Kind = EnvelopeKind.Box, HalfX = 300, HalfY = 200, ZBottom = z - 200, ZTop = z + 200 };
             return item;
         }
 

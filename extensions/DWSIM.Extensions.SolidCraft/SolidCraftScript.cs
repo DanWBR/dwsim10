@@ -62,7 +62,7 @@ namespace DWSIM.Extensions.SolidCraft
                         ["scale_mm_per_canvas_unit"] = Math.Round(model.Scale, 2),
                         // where each item was put: moving an item in SolidCraft changes its
                         // occurrence's transform from here, which the next export reads back
-                        ["placements"] = new JObject(model.Equipment.Where(e => e.Visible).Select(e =>
+                        ["placements"] = new JObject(model.Equipment.Where(e => e.Visible && !e.IsInstrument).Select(e =>
                             new JProperty(e.Tag, new JObject
                             {
                                 ["x"] = Math.Round(e.Origin.X),
@@ -263,7 +263,7 @@ namespace DWSIM.Extensions.SolidCraft
                 var subject = "label " + item.Tag;
                 var height = Clamp(0.25 * 2 * item.Envelope.HalfX, 150, 500);
                 var lines = item.Label.Split('\n').Length;
-                var origin = item.Origin + new Vec3(0, 0, item.Envelope.ZTop + 1500 + (lines - 1) * 1.6 * height);
+                var origin = item.Origin + new Vec3(0, 0, item.Envelope.ZTop + (item.IsInstrument ? 250 : 1500) + (lines - 1) * 1.6 * height);
                 var name = "Label " + item.Tag;
                 Add(cmds, "component.activate", subject, new JObject { ["component"] = item.Tag });
                 AddLabel(cmds, subject, name, item.Label, origin, Vec3.PlusX, height, item.Tag + " label");

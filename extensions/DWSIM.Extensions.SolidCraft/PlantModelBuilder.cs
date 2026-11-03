@@ -42,6 +42,7 @@ namespace DWSIM.Extensions.SolidCraft
         {
             var model = new PlantModel { Name = name };
             var byGraphic = new Dictionary<string, EquipmentItem>();
+            ControlledValves = Instruments.ControlledValves(fs);
 
             foreach (var obj in fs.SimulationObjects.Values.OrderBy(o => o.GraphicObject?.Tag))
             {
@@ -129,6 +130,10 @@ namespace DWSIM.Extensions.SolidCraft
                 }
             }
 
+            // transmitters and indicators where the controllers and gauges measure
+            try { Instruments.Add(model, fs); }
+            catch (Exception ex) { model.Warnings.Add("instruments left out (" + ex.Message + ")."); }
+
             return model;
         }
 
@@ -162,9 +167,15 @@ namespace DWSIM.Extensions.SolidCraft
 
         #region Equipment
 
+        /// <summary>The valves a controller moves, set for the build in progress.</summary>
+        [ThreadStatic] static Dictionary<string, string> ControlledValves;
+
         static EquipmentItem CreateItem(ISimulationObject obj, ObjectType type, List<string> warnings)
         {
             var tag = obj.GraphicObject.Tag;
+
+            // a relief valve comes from the external catalogue: recognised by its class
+            if (obj.GetType().Name == "ReliefValve") return EquipmentTemplates.ReliefValve();
 
             switch (type)
             {
@@ -236,6 +247,12 @@ namespace DWSIM.Extensions.SolidCraft
                     }
 
                 case ObjectType.Valve:
+                    if (ControlledValves != null && ControlledValves.TryGetValue(obj.Name, out var loop))
+                    {
+                        var cv = EquipmentTemplates.ControlValve();
+                        cv.Properties["Service"] = "Control valve (" + loop + "V)";
+                        return cv;
+                    }
                     return EquipmentTemplates.InlineValve(false);
 
                 case ObjectType.OrificePlate:
