@@ -40,7 +40,7 @@ namespace DWSIM.Extensions.SolidCraft
 
         public ExtenderLevel Level => ExtenderLevel.FlowsheetWindow;
 
-        public List<IExtender> Collection { get; } = new List<IExtender> { new PlantModelExtender(), new UpdateDataExtender(), new ResetLayoutExtender() };
+        public List<IExtender> Collection { get; } = new List<IExtender> { new PlantModelExtender(), new UpdateDataExtender(), new ResetLayoutExtender(), new ProcessFlowDiagramExtender() };
 
         public int InsertAtPosition => -1;
 
@@ -325,6 +325,91 @@ namespace DWSIM.Extensions.SolidCraft
             fs.ShowMessage(error == null
                 ? "3D plant model: " + why + "; the data were written into the saved model (" + outputBase + ".sc)" + (skipped.Count > 0 ? ", " + skipped.Count + " items not in it" : "") + "."
                 : "3D plant model: the data could not be written (" + error + ").", error == null ? IFlowsheet.MessageType.Information : IFlowsheet.MessageType.Warning);
+        }
+    }
+
+    /// <summary>
+    /// Draws the process flow diagram of the flowsheet in CADCraft and saves it as DXF, DWG, PDF and
+    /// PNG in a folder next to the simulation, then opens it in CADCraft.
+    /// </summary>
+    public class ProcessFlowDiagramExtender : IExtender, IExtender3
+    {
+        IFlowsheet Flowsheet;
+
+        public string ID => "c41d8e27-5b9a-4f63-a0e2-7d3f1b6c9e84";
+
+        public string DisplayText => "Export Process Flow Diagram (CADCraft)";
+
+        public byte[] DisplayImage => PlantModelExtender.Icon();
+
+        public int InsertAtPosition => -1;
+
+        public void SetMainWindow(object mainwindow) { }
+
+        public void SetFlowsheet(IFlowsheet form) => Flowsheet = form;
+
+        public void ReleaseResources() => Flowsheet = null;
+
+        public void Run()
+        {
+            var fs = Flowsheet;
+            if (fs == null) return;
+            var folder = CADCraftSession.FindInstallFolder();
+            if (folder == null)
+            {
+                fs.ShowMessage("CADCraft was not found. Install it (it comes on its own or with SolidCraft in the ArtCraft suite), or set CADCRAFT_HOME to the folder that holds cadcraft-cli.",
+                    IFlowsheet.MessageType.GeneralError);
+                return;
+            }
+            fs.ShowMessage("Drawing the process flow diagram with CADCraft...", IFlowsheet.MessageType.Information);
+            Task.Run(() =>
+            {
+                try { Export(fs, folder, true); }
+                catch (Exception ex) { fs.ShowMessage("Process flow diagram: " + ex.Message, IFlowsheet.MessageType.GeneralError); }
+            });
+        }
+
+        /// <summary>The folder of the drawings: next to the simulation, or in the temporary folder when it has not been saved.</summary>
+        internal static string DrawingsFolder(IFlowsheet fs)
+            => Path.Combine(Path.GetDirectoryName(PlantModelExtender.OutputFolder(fs)), PlantModelExtender.ModelName(fs) + " - drawings");
+
+        /// <summary>Draws and saves the diagram; returns the result. Public for tests and scripts.</summary>
+        public static ProcessFlowDiagram.Result Export(IFlowsheet fs, string cadcraftFolder, bool openInApp, string outputFolder = null)
+        {
+            var name = PlantModelExtender.ModelName(fs);
+            if (outputFolder == null) outputFolder = DrawingsFolder(fs);
+            Directory.CreateDirectory(outputFolder);
+            var options = ExportOptions.Load();
+            var project = fs.FlowsheetOptions?.SimulationName;
+            var title = new TitleData
+            {
+                Owner = options.DrawingOwner ?? "",
+                Project = string.IsNullOrWhiteSpace(project) ? name : project,
+                Title = "PROCESS FLOW DIAGRAM",
+                Subtitle = name,
+                Number = "PFD-001",
+                DocumentType = "PFD",
+                Status = "PRELIMINARY",
+                Date = DateTime.Today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                PreparedBy = fs.FlowsheetOptions?.SimulationAuthor ?? ""
+            };
+            var result = ProcessFlowDiagram.Export(fs, cadcraftFolder, Path.Combine(outputFolder, name + " - PFD"), options.Style, title);
+
+            foreach (var f in result.Failed.Take(5))
+                fs.ShowMessage("Process flow diagram: left out " + f, IFlowsheet.MessageType.Warning);
+            if (result.Failed.Count > 5)
+                fs.ShowMessage("Process flow diagram: " + (result.Failed.Count - 5) + " more drawing steps left out.", IFlowsheet.MessageType.Warning);
+            if (result.Drawing == null)
+            {
+                fs.ShowMessage("CADCraft could not draw the process flow diagram: " + result.Error, IFlowsheet.MessageType.GeneralError);
+                return result;
+            }
+            fs.ShowMessage(string.Format("Process flow diagram: {0} items and {1} streams on an {2} sheet ({3}), saved to {4} (DXF{5}{6}{7}).",
+                result.Units, result.Streams, result.Sheet, options.Style, outputFolder,
+                result.Dwg != null ? ", DWG" : "", result.Pdf != null ? ", PDF" : "", result.Png != null ? ", PNG" : ""),
+                IFlowsheet.MessageType.Information);
+            if (openInApp) CADCraftSession.OpenInApp(cadcraftFolder, result.Drawing);
+            return result;
         }
     }
 

@@ -44,6 +44,14 @@ namespace DWSIM.Extensions.SolidCraft
         /// <summary>Smallest gap kept between neighbouring items when the drawing is scaled to the plot plan, m.</summary>
         public double ItemGap = 2;
 
+        /// <summary>The conventions of the CADCraft drawings: ISO, ASME or Petrobras (see <see cref="SolidCraft.DrawingStyle"/>).</summary>
+        public string DrawingStandard = "ISO";
+
+        /// <summary>The company in the title block of the drawings (legal owner, client).</summary>
+        public string DrawingOwner = "";
+
+        public DrawingStyle Style => Enum.TryParse<DrawingStyle>(DrawingStandard, true, out var s) ? s : DrawingStyle.ISO;
+
         public static ExportOptions Load()
         {
             var text = GlobalSettings.Settings.SolidCraftOptions;

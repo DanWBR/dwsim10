@@ -68,6 +68,9 @@ public partial class PreferencesWindow : Window
     private TextBox _solidCraftPath = null!;
     private CheckBox _scLabels = null!, _scFlow = null!, _scInsulation = null!, _scPlatforms = null!, _scInstruments = null!, _scReplay = null!, _scRender = null!;
     private NumericUpDown _scRackHeight = null!, _scItemGap = null!;
+    private ComboBox _ccStandard = null!;
+    private TextBox _ccOwner = null!;
+    private static readonly string[] DrawingStandards = { "ISO", "ASME", "Petrobras" };
 
     // other
     private CheckBox _checkUpdates = null!;
@@ -498,6 +501,15 @@ public partial class PreferencesWindow : Window
         _scRackHeight = page.CreateAndAddNumericEditorRow("Pipe rack height (m)", sc.Value<double?>("RackHeight") ?? 6, 2.5, 30, 1, null);
         _scItemGap = page.CreateAndAddNumericEditorRow("Smallest gap between items (m)", sc.Value<double?>("ItemGap") ?? 2, 0.5, 20, 1, null);
 
+        page.CreateAndAddLabelRow("CADCraft (Process Flow Diagram)");
+        var standard = Array.FindIndex(DrawingStandards, s => string.Equals(s, sc.Value<string>("DrawingStandard"), StringComparison.OrdinalIgnoreCase));
+        _ccStandard = page.CreateAndAddDropDownRow("Drawing standard",
+            new List<string> { "ISO (ISO 7200 title block, A sheets)", "ASME (Y14.1 title block, ANSI sheets)", "Petrobras (N-381 legend, A sheets)" }, Math.Max(0, standard), null);
+        _ccOwner = page.CreateAndAddStringEditorRow("Company in the title block", sc.Value<string>("DrawingOwner") ?? "", null);
+        page.CreateAndAddDescriptionRow(
+            "Tools > Export Process Flow Diagram draws the flowsheet in CADCraft (installed separately, " +
+            "with SolidCraft in the ArtCraft suite) and saves it as DXF, DWG, PDF and PNG.");
+
         page.CreateAndAddLabelRow("Debug Mode");
 
         _debugLevel = page.CreateAndAddNumericEditorRow("Debug Level (0 = off)", S.DebugLevel, 0, 3, 0, null);
@@ -619,6 +631,8 @@ public partial class PreferencesWindow : Window
         options["Render"] = _scRender.IsChecked.GetValueOrDefault();
         options["RackHeight"] = (double)(_scRackHeight.Value ?? 6);
         options["ItemGap"] = (double)(_scItemGap.Value ?? 2);
+        options["DrawingStandard"] = DrawingStandards[Math.Max(0, _ccStandard.SelectedIndex)];
+        options["DrawingOwner"] = _ccOwner.Text ?? "";
         S.SolidCraftOptions = options.ToString(Newtonsoft.Json.Formatting.None);
 
         // other
