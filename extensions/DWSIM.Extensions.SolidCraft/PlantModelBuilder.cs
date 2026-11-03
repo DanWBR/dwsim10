@@ -707,6 +707,11 @@ namespace DWSIM.Extensions.SolidCraft
             {
                 var a1 = Lift(pa + da * stub, run);
                 var b1 = Lift(pb + db * stub, run);
+                run.CanRack = true;
+                run.A = pa; run.A1 = a1; run.B = pb; run.B1 = b1;
+                // a top or bottom nozzle sits over the item: on the rack the line first steps clear of it
+                if (Math.Abs(da.Z) > 0.5) run.AClearY = from.Origin.Y + from.FootprintY + 800 + run.OuterDiameter / 2 + run.Insulation;
+                if (Math.Abs(db.Z) > 0.5) run.BClearY = to.Origin.Y + to.FootprintY + 800 + run.OuterDiameter / 2 + run.Insulation;
                 if (da.X > 0.5 && db.X < -0.5 && b1.X > a1.X + 1)
                 {
                     // facing nozzles, the common left-to-right flow: a Z-shaped run at nozzle height
@@ -723,10 +728,6 @@ namespace DWSIM.Extensions.SolidCraft
                 {
                     // otherwise on the pipe rack, laid out once every rack line is known
                     run.OnRack = true;
-                    run.A = pa; run.A1 = a1; run.B = pb; run.B1 = b1;
-                    // a top or bottom nozzle sits over the item: the line first steps clear of it
-                    if (Math.Abs(da.Z) > 0.5) run.AClearY = from.Origin.Y + from.FootprintY + 800 + run.OuterDiameter / 2 + run.Insulation;
-                    if (Math.Abs(db.Z) > 0.5) run.BClearY = to.Origin.Y + to.FootprintY + 800 + run.OuterDiameter / 2 + run.Insulation;
                     return run;
                 }
             }
@@ -771,10 +772,16 @@ namespace DWSIM.Extensions.SolidCraft
         /// Lays the rack lines out: the rack runs along X behind the plant (on its +Y side, away from
         /// the iso view), each line on its own lane on top of the beams. A line rises (or drops) from
         /// its nozzle to a transfer level over the rack, crosses to its lane, drops onto the rack,
-        /// runs along it and leaves the same way, so its crossings pass above the other lanes.
+        /// runs along it and leaves the same way. A direct line that runs through an item goes on the
+        /// rack too, and each rack line tries other transfer levels and other places to rise and
+        /// drop until its route keeps clear of the items and of the lines already laid.
         /// </summary>
         static void LayOutRack(PlantModel model)
         {
+            var solids = ClashCheck.Solids(model);
+            foreach (var run in model.Pipes.Where(r => r.CanRack && !r.OnRack))
+                if (solids.Sum(kv => ClashCheck.Inside(run, run.Path, kv.Key, kv.Value, out _)) > 0) run.OnRack = true;
+
             var lines = model.Pipes.Where(r => r.OnRack).ToList();
             if (lines.Count == 0) return;
 
@@ -783,33 +790,44 @@ namespace DWSIM.Extensions.SolidCraft
             var y0 = (visible.Count > 0 ? visible.Max(e => e.Origin.Y + e.FootprintY) : 0) + 3000;
             // lanes as wide as the line with its insulation
             var width = Math.Max(2000, lines.Sum(r => r.OuterDiameter + 2 * r.Insulation + gap) + 2 * gap);
-            var transfer = top + Math.Max(900, lines.Max(r => r.OuterDiameter + 2 * r.Insulation) + 600);
+            var biggest = lines.Max(r => r.OuterDiameter + 2 * r.Insulation);
+            var transfer = top + Math.Max(900, biggest + 600);
+            var tierStep = biggest + 300;
 
+            // the candidates in order of preference: the plain route first, then other levels and shifts
+            var shifts = new[] { 0.0, 1500, -1500, 3000, -3000 };
+            var candidates = (from tier in new[] { 0, 1, 2 }
+                              from dxa in shifts
+                              from dxb in shifts
+                              orderby Math.Abs(dxa) + Math.Abs(dxb) + tier * 1000.0
+                              select new { tier, dxa, dxb }).ToList();
+
+            var laid = model.Pipes.Where(r => !r.OnRack).ToList();
             var y = y0 + gap;
             foreach (var run in lines)
             {
                 var lane = y + run.OuterDiameter / 2 + run.Insulation;
                 y += run.OuterDiameter + 2 * run.Insulation + gap;
                 var zl = top + run.OuterDiameter / 2;
-                var zt = transfer;
-                var ya = double.IsNaN(run.AClearY) ? run.A1.Y : run.AClearY;
-                var yb = double.IsNaN(run.BClearY) ? run.B1.Y : run.BClearY;
-                run.Path = Simplify(new List<Vec3>
+
+                List<Vec3> best = null;
+                var bestPenalty = double.MaxValue;
+                foreach (var c in candidates)
                 {
-                    run.A, run.A1,
-                    new Vec3(run.A1.X, ya, run.A1.Z),
-                    new Vec3(run.A1.X, ya, zt),
-                    new Vec3(run.A1.X, lane, zt),
-                    new Vec3(run.A1.X, lane, zl),
-                    new Vec3(run.B1.X, lane, zl),
-                    new Vec3(run.B1.X, lane, zt),
-                    new Vec3(run.B1.X, yb, zt),
-                    new Vec3(run.B1.X, yb, run.B1.Z),
-                    run.B1, run.B
-                });
+                    var path = RackPath(run, lane, zl, transfer + c.tier * tierStep, c.dxa, c.dxb);
+                    var penalty = ClashCheck.Penalty(run, path, solids, laid);
+                    if (penalty < bestPenalty)
+                    {
+                        best = path;
+                        bestPenalty = penalty;
+                    }
+                    if (penalty <= 0) break;
+                }
+                run.Path = best;
+                laid.Add(run);
             }
 
-            var xs = lines.SelectMany(r => new[] { r.A1.X, r.B1.X }).ToList();
+            var xs = lines.SelectMany(r => r.Path.Where(v => v.Z >= top - 1).Select(v => v.X)).ToList();
             model.Rack = new PipeRack
             {
                 X0 = xs.Min() - 1500,
@@ -818,6 +836,33 @@ namespace DWSIM.Extensions.SolidCraft
                 Width = width,
                 Top = top
             };
+        }
+
+        /// <summary>
+        /// A rack route: off the nozzle, aside to rise <paramref name="dxa"/> along X (and clear of the
+        /// item for a top or bottom nozzle), up to the transfer level, across to the lane, down onto
+        /// it, along it, and back the same way to the other nozzle.
+        /// </summary>
+        static List<Vec3> RackPath(PipeRun run, double lane, double zl, double zt, double dxa, double dxb)
+        {
+            var ya = double.IsNaN(run.AClearY) ? run.A1.Y : run.AClearY;
+            var yb = double.IsNaN(run.BClearY) ? run.B1.Y : run.BClearY;
+            double xa = run.A1.X + dxa, xb = run.B1.X + dxb;
+            return Simplify(new List<Vec3>
+            {
+                run.A, run.A1,
+                new Vec3(run.A1.X, ya, run.A1.Z),
+                new Vec3(xa, ya, run.A1.Z),
+                new Vec3(xa, ya, zt),
+                new Vec3(xa, lane, zt),
+                new Vec3(xa, lane, zl),
+                new Vec3(xb, lane, zl),
+                new Vec3(xb, lane, zt),
+                new Vec3(xb, yb, zt),
+                new Vec3(xb, yb, run.B1.Z),
+                new Vec3(run.B1.X, yb, run.B1.Z),
+                run.B1, run.B
+            });
         }
 
         /// <summary>Keeps a pipe off the ground.</summary>

@@ -374,6 +374,9 @@ namespace DWSIM.Extensions.SolidCraft
         internal bool OnRack;
         internal Vec3 A, A1, B, B1;
 
+        /// <summary>The line joins two items, so it can go on the rack when its direct route runs into something.</summary>
+        internal bool CanRack;
+
         /// <summary>
         /// For a nozzle on the top or the bottom of an item: the Y, clear of the item on the rack
         /// side, where the line turns to go up or down; NaN for a side nozzle.

@@ -42,78 +42,102 @@ namespace DWSIM.Extensions.SolidCraft
 
         const double Step = 50;   // mm between samples along a line
 
+        /// <summary>The solids of each visible item that lines must keep out of (platforms and ladders left out).</summary>
+        public static Dictionary<EquipmentItem, List<Primitive>> Solids(PlantModel model)
+            => model.Equipment.Where(e => e.Visible).ToDictionary(e => e, e => e.Parts.Where(p => !p.NoClash).Select(p => p.Moved(e.Origin)).ToList());
+
+        /// <summary>
+        /// Length of a route inside an item, mm, and where it first goes in. A line is inside its own
+        /// item where it leaves the nozzle, so that stretch does not count, nor a graze of 300 mm
+        /// next to it; a column's own lines are its business.
+        /// </summary>
+        public static double Inside(PipeRun run, List<Vec3> path, EquipmentItem item, List<Primitive> solids, out Vec3 first)
+        {
+            first = default;
+            var own = item.Tag == run.From || item.Tag == run.To;
+            if (own && run.From == run.To) return 0;
+            if (solids.Count == 0 || path.Count < 2) return 0;
+
+            var r = run.OuterDiameter / 2 + run.Insulation;
+            var allowance = Math.Max(150, 1.5 * run.OuterDiameter) + 2 * run.OuterDiameter;
+            var total = RouteLength(path);
+            double inside = 0, along = 0;
+            for (var i = 1; i < path.Count; i++)
+            {
+                var a = path[i - 1];
+                var b = path[i];
+                var length = (b - a).Length;
+                var n = Math.Max(1, (int)Math.Ceiling(length / Step));
+                for (var k = 0; k < n; k++)
+                {
+                    var s = along + (k + 0.5) / n * length;
+                    if (own && ((item.Tag == run.From && s < allowance) || (item.Tag == run.To && total - s < allowance))) continue;
+                    var p = a + (b - a) * ((k + 0.5) / n);
+                    if (solids.Any(prim => Inside(prim, p, r)))
+                    {
+                        if (inside == 0) first = p;
+                        inside += length / n;
+                    }
+                }
+                along += length;
+            }
+            return inside > (own ? 300 : 0) ? inside : 0;
+        }
+
+        /// <summary>
+        /// How far two routes cut into each other, mm (0 when they keep clear), and where. Lines that
+        /// join at the same item (a mixer, a splitter, a recycle) meet there by design.
+        /// </summary>
+        public static double Meet(PipeRun p, List<Vec3> pp, PipeRun q, List<Vec3> qp, out Vec3 at)
+        {
+            at = default;
+            if (pp.Count < 2 || qp.Count < 2) return 0;
+            var gap = p.OuterDiameter / 2 + p.Insulation + q.OuterDiameter / 2 + q.Insulation;
+            double worst = 0;
+            for (var a = 1; a < pp.Count; a++)
+                for (var b = 1; b < qp.Count; b++)
+                {
+                    var d = SegmentDistance(pp[a - 1], pp[a], qp[b - 1], qp[b], out var c);
+                    if (gap - d > worst) { worst = gap - d; at = c; }
+                }
+            if (worst <= 1) return 0;
+            var ends = new[] { pp[0], pp[pp.Count - 1], qp[0], qp[qp.Count - 1] };
+            var meetAt = at;
+            var shared = new[] { p.From, p.To }.Intersect(new[] { q.From, q.To }).Any(t => t != "battery limit");
+            if (shared && ends.Any(e => (e - meetAt).Length < 1500)) return 0;
+            return worst;
+        }
+
+        /// <summary>A penalty for a route: mm inside items plus ten times the depth it cuts into the lines already laid.</summary>
+        public static double Penalty(PipeRun run, List<Vec3> path, Dictionary<EquipmentItem, List<Primitive>> solids, IEnumerable<PipeRun> laid)
+        {
+            double penalty = 0;
+            foreach (var kv in solids) penalty += Inside(run, path, kv.Key, kv.Value, out _);
+            foreach (var other in laid)
+                if (!ReferenceEquals(other, run)) penalty += 10 * Meet(run, path, other, other.Path, out _);
+            return penalty;
+        }
+
         public static List<Clash> Find(PlantModel model)
         {
             var clashes = new List<Clash>();
             var items = model.Equipment.Where(e => e.Visible).ToList();
-            var solids = items.ToDictionary(e => e, e => e.Parts.Where(p => !p.NoClash).Select(p => p.Moved(e.Origin)).ToList());
+            var solids = Solids(model);
 
-            // lines through items
             foreach (var run in model.Pipes)
-            {
-                var r = run.OuterDiameter / 2 + run.Insulation;
-                var internalLine = run.From == run.To;
-                var allowance = Math.Max(150, 1.5 * run.OuterDiameter) + 2 * run.OuterDiameter;
-                var total = RouteLength(run.Path);
-
                 foreach (var item in items)
                 {
-                    // a line is inside its own item where it leaves the nozzle; a column's own lines are its business
-                    var own = item.Tag == run.From || item.Tag == run.To;
-                    if (own && internalLine) continue;
-
-                    double inside = 0;
-                    Vec3 first = default;
-                    var along = 0.0;
-                    for (var i = 1; i < run.Path.Count; i++)
-                    {
-                        var a = run.Path[i - 1];
-                        var b = run.Path[i];
-                        var length = (b - a).Length;
-                        var n = Math.Max(1, (int)Math.Ceiling(length / Step));
-                        for (var k = 0; k < n; k++)
-                        {
-                            var s = along + (k + 0.5) / n * length;
-                            if (own && ((item.Tag == run.From && s < allowance) || (item.Tag == run.To && total - s < allowance))) continue;
-                            var p = a + (b - a) * ((k + 0.5) / n);
-                            if (solids[item].Any(prim => Inside(prim, p, r)))
-                            {
-                                if (inside == 0) first = p;
-                                inside += length / n;
-                            }
-                        }
-                        along += length;
-                    }
-                    // a graze next to its own nozzle is not a line through the item
-                    if (inside > (own ? 300 : 0))
+                    var inside = Inside(run, run.Path, item, solids[item], out var first);
+                    if (inside > 0)
                         clashes.Add(new Clash { A = run.Tag, B = item.Tag, Kind = "line through item", Amount = inside / 1000, At = first });
                 }
-            }
 
-            // lines that meet
             for (var i = 0; i < model.Pipes.Count; i++)
-            {
                 for (var j = i + 1; j < model.Pipes.Count; j++)
                 {
-                    var p = model.Pipes[i];
-                    var q = model.Pipes[j];
-                    var gap = p.OuterDiameter / 2 + p.Insulation + q.OuterDiameter / 2 + q.Insulation;
-                    double worst = 0;
-                    Vec3 at = default;
-                    for (var a = 1; a < p.Path.Count; a++)
-                        for (var b = 1; b < q.Path.Count; b++)
-                        {
-                            var d = SegmentDistance(p.Path[a - 1], p.Path[a], q.Path[b - 1], q.Path[b], out var c);
-                            if (gap - d > worst) { worst = gap - d; at = c; }
-                        }
-                    if (worst <= 1) continue;
-                    // lines that join at the same item (a mixer, a splitter, a recycle) meet there by design
-                    var ends = new[] { p.Path[0], p.Path[p.Path.Count - 1], q.Path[0], q.Path[q.Path.Count - 1] };
-                    var shared = new[] { p.From, p.To }.Intersect(new[] { q.From, q.To }).Any(t => t != "battery limit");
-                    if (shared && ends.Any(e => (e - at).Length < 1500)) continue;
-                    clashes.Add(new Clash { A = p.Tag, B = q.Tag, Kind = "lines meet", Amount = worst, At = at });
+                    var worst = Meet(model.Pipes[i], model.Pipes[i].Path, model.Pipes[j], model.Pipes[j].Path, out var at);
+                    if (worst > 0) clashes.Add(new Clash { A = model.Pipes[i].Tag, B = model.Pipes[j].Tag, Kind = "lines meet", Amount = worst, At = at });
                 }
-            }
 
             // items that overlap, on their bounding boxes
             var boxes = items.ToDictionary(e => e, e => Bounds(solids[e]));
@@ -153,8 +177,18 @@ namespace DWSIM.Extensions.SolidCraft
             switch (s.Kind)
             {
                 case PrimitiveKind.Sphere:
-                case PrimitiveKind.Head:
                     return (p - s.Point).Length < s.Diameter / 2 + r;
+                case PrimitiveKind.Head:
+                    {
+                        // a half spheroid: the shell's radius across, the head depth along the axis
+                        var ax = s.AxisVector ?? Vec3.PlusZ;
+                        var dh = p - s.Point;
+                        var th = Vec3.Dot(dh, ax);
+                        if (th < -r) return false;
+                        var radial = (dh - ax * th).Length / (s.Diameter / 2 + r);
+                        var along = Math.Max(0, th) / (s.Depth + r);
+                        return radial * radial + along * along < 1;
+                    }
                 case PrimitiveKind.Box:
                     return Math.Abs(p.X - s.Point.X) < s.SizeX / 2 + r
                         && Math.Abs(p.Y - s.Point.Y) < s.SizeY / 2 + r
@@ -181,13 +215,12 @@ namespace DWSIM.Extensions.SolidCraft
                         hi = s.Point + new Vec3(s.SizeX / 2, s.SizeY / 2, s.SizeZ / 2);
                         break;
                     case PrimitiveKind.Sphere:
-                    case PrimitiveKind.Head:
                         lo = s.Point - new Vec3(s.Diameter / 2, s.Diameter / 2, s.Diameter / 2);
                         hi = s.Point + new Vec3(s.Diameter / 2, s.Diameter / 2, s.Diameter / 2);
                         break;
                     default:
                         var axis = s.AxisVector ?? (s.Axis == "X" ? Vec3.PlusX : s.Axis == "Y" ? new Vec3(0, 1, 0) : Vec3.PlusZ);
-                        var e = s.Point + axis * s.Height;
+                        var e = s.Point + axis * (s.Kind == PrimitiveKind.Head ? s.Depth : s.Height);
                         var rr = s.Diameter / 2;
                         lo = new Vec3(Math.Min(s.Point.X, e.X) - rr, Math.Min(s.Point.Y, e.Y) - rr, Math.Min(s.Point.Z, e.Z) - (Math.Abs(axis.Z) > 0.99 ? 0 : rr));
                         hi = new Vec3(Math.Max(s.Point.X, e.X) + rr, Math.Max(s.Point.Y, e.Y) + rr, Math.Max(s.Point.Z, e.Z) + (Math.Abs(axis.Z) > 0.99 ? 0 : rr));
