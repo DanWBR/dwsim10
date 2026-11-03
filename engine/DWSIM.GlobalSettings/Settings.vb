@@ -136,6 +136,9 @@ Public Class Settings
     ''' <summary>Folder of SolidCraft (solidcraft-cli) for the 3D plant model; empty to look in the usual places.</summary>
     Public Shared Property SolidCraftPath As String = ""
 
+    ''' <summary>What the 3D plant model draws (JSON, see the SolidCraft extension's ExportOptions); empty for the defaults.</summary>
+    Public Shared Property SolidCraftOptions As String = ""
+
     Public Shared Property PythonTimeoutInMinutes As Double = 1
 
     Public Shared Property PythonInitialized As Boolean = False
@@ -830,6 +833,7 @@ Public Class Settings
         If source.Configs("SolidCraft") Is Nothing Then source.AddConfig("SolidCraft")
 
         SolidCraftPath = source.Configs("SolidCraft").GetString("SolidCraftPath", "")
+        SolidCraftOptions = source.Configs("SolidCraft").GetString("SolidCraftOptions", "")
 
         If source.Configs("PythonBridge") Is Nothing Then source.AddConfig("PythonBridge")
 
@@ -970,6 +974,7 @@ Public Class Settings
         If source.Configs("SolidCraft") Is Nothing Then source.AddConfig("SolidCraft")
 
         source.Configs("SolidCraft").Set("SolidCraftPath", SolidCraftPath)
+        source.Configs("SolidCraft").Set("SolidCraftOptions", SolidCraftOptions)
 
         If source.Configs("PythonBridge") Is Nothing Then source.AddConfig("PythonBridge")
 

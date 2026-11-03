@@ -404,6 +404,9 @@ namespace DWSIM.Extensions.SolidCraft
         /// <summary>The pipe rack, when a line runs on it.</summary>
         public PipeRack Rack;
 
+        /// <summary>What the export draws.</summary>
+        public ExportOptions Options = new ExportOptions();
+
         /// <summary>mm of plot plan per unit of canvas, and the canvas point placed at the world origin.</summary>
         public double Scale, CanvasOriginX, CanvasOriginY;
     }

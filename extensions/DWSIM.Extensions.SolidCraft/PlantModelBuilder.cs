@@ -35,12 +35,10 @@ namespace DWSIM.Extensions.SolidCraft
     /// </summary>
     public static class PlantModelBuilder
     {
-        // the gap kept between the footprints of neighbouring items when the canvas is scaled
-        const double LayoutGap = 2000;
-
-        public static PlantModel Build(IFlowsheet fs, string name, IDictionary<string, Placement> layout = null)
+        public static PlantModel Build(IFlowsheet fs, string name, IDictionary<string, Placement> layout = null, ExportOptions options = null)
         {
-            var model = new PlantModel { Name = name };
+            var model = new PlantModel { Name = name, Options = options ?? new ExportOptions() };
+            Options = model.Options;
             var byGraphic = new Dictionary<string, EquipmentItem>();
             ControlledValves = Instruments.ControlledValves(fs);
 
@@ -114,6 +112,14 @@ namespace DWSIM.Extensions.SolidCraft
                 }
             }
 
+            if (!model.Options.Insulation)
+                foreach (var run in model.Pipes)
+                {
+                    run.Insulation = 0;
+                    run.InsulationService = "";
+                    run.Properties.Remove("Insulation (mm)");
+                }
+
             LayOutRack(model);
             model.Pipes.RemoveAll(r => r.Path.Count < 2);
 
@@ -131,7 +137,8 @@ namespace DWSIM.Extensions.SolidCraft
             }
 
             // transmitters and indicators where the controllers and gauges measure
-            try { Instruments.Add(model, fs); }
+            if (model.Options.Instruments)
+                try { Instruments.Add(model, fs); }
             catch (Exception ex) { model.Warnings.Add("instruments left out (" + ex.Message + ")."); }
 
             return model;
@@ -169,6 +176,9 @@ namespace DWSIM.Extensions.SolidCraft
 
         /// <summary>The valves a controller moves, set for the build in progress.</summary>
         [ThreadStatic] static Dictionary<string, string> ControlledValves;
+
+        /// <summary>What the build in progress draws.</summary>
+        [ThreadStatic] static ExportOptions Options;
 
         static EquipmentItem CreateItem(ISimulationObject obj, ObjectType type, List<string> warnings)
         {
@@ -349,7 +359,7 @@ namespace DWSIM.Extensions.SolidCraft
             var item = horizontal
                 ? EquipmentTemplates.HorizontalVessel(d, l, 1000, EquipmentTemplates.Steel, heads)
                 : EquipmentTemplates.VerticalVessel(d, l, 1000 + d / 2, EquipmentTemplates.Steel, heads);
-            EquipmentTemplates.AddPlatforms(item, d);
+            if (Options == null || Options.Platforms) EquipmentTemplates.AddPlatforms(item, d);
             item.Properties["Heads"] = (obj as Vessel)?.HeadType ?? "Hemispherical";
             item.Properties["Orientation"] = horizontal ? "Horizontal" : "Vertical";
             Describe(item, "Diameter (mm)", d, estimated);
@@ -435,7 +445,7 @@ namespace DWSIM.Extensions.SolidCraft
 
             var item = EquipmentTemplates.VerticalVessel(d, h, 3000, EquipmentTemplates.ColumnShell, 0.5);
             EquipmentTemplates.AddColumnAuxiliaries(item, d, condenser, reboiler);
-            EquipmentTemplates.AddPlatforms(item, d);
+            if (Options == null || Options.Platforms) EquipmentTemplates.AddPlatforms(item, d);
             item.Properties["Stages"] = stages.ToString(CultureInfo.InvariantCulture);
             Describe(item, "Diameter (mm)", d, estimated);
             Describe(item, "Height T/T (mm)", h, false);
@@ -785,7 +795,8 @@ namespace DWSIM.Extensions.SolidCraft
             var lines = model.Pipes.Where(r => r.OnRack).ToList();
             if (lines.Count == 0) return;
 
-            const double top = 6000, gap = 150;
+            const double gap = 150;
+            var top = model.Options.RackHeight * 1000;
             var visible = model.Equipment.Where(e => e.Visible).ToList();
             var y0 = (visible.Count > 0 ? visible.Max(e => e.Origin.Y + e.FootprintY) : 0) + 3000;
             // lanes as wide as the line with its insulation
@@ -943,11 +954,12 @@ namespace DWSIM.Extensions.SolidCraft
 
         /// <summary>
         /// Scales the canvas to the plot plan: the smallest scale that keeps every pair of items at
-        /// least <see cref="LayoutGap"/> apart along X or Y, so the flowsheet arrangement is kept.
+        /// least the item gap of the options apart along X or Y, so the flowsheet arrangement is kept.
         /// </summary>
         static void Layout(PlantModel model)
         {
             var items = model.Equipment;
+            var gap = model.Options.ItemGap * 1000;
             double scale = 15;
             for (var i = 0; i < items.Count; i++)
             {
@@ -958,8 +970,8 @@ namespace DWSIM.Extensions.SolidCraft
                     var dx = Math.Abs(a.CanvasX - b.CanvasX);
                     var dy = Math.Abs(a.CanvasY - b.CanvasY);
                     if (dx < 1 && dy < 1) continue;
-                    var sx = dx >= 1 ? (a.FootprintX + b.FootprintX + LayoutGap) / dx : double.MaxValue;
-                    var sy = dy >= 1 ? (a.FootprintY + b.FootprintY + LayoutGap) / dy : double.MaxValue;
+                    var sx = dx >= 1 ? (a.FootprintX + b.FootprintX + gap) / dx : double.MaxValue;
+                    var sy = dy >= 1 ? (a.FootprintY + b.FootprintY + gap) / dy : double.MaxValue;
                     scale = Math.Max(scale, Math.Min(sx, sy));
                 }
             }

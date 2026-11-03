@@ -134,7 +134,8 @@ namespace DWSIM.Extensions.SolidCraft
                 }
             }
 
-            var model = PlantModelBuilder.Build(fs, name, layout);
+            var options = ExportOptions.Load();
+            var model = PlantModelBuilder.Build(fs, name, layout, options);
 
             // the line list and the take-off, written first: they need no SolidCraft
             var lineList = outputBase + " - line list.csv";
@@ -174,8 +175,8 @@ namespace DWSIM.Extensions.SolidCraft
                     run.Tag, run.Size, run.Hydraulics.Length, run.Hydraulics.Bends, run.Hydraulics.Check, run.Hydraulics.Total),
                     IFlowsheet.MessageType.Warning);
             var commands = SolidCraftScript.Create(model);
-            var extras = SolidCraftScript.CreateLabels(model);
-            extras.AddRange(FlowAnimation.Create(model, outputBase + " - flow.gif"));
+            var extras = options.Labels ? SolidCraftScript.CreateLabels(model) : new List<SolidCraftScript.Command>();
+            if (options.FlowAnimation) extras.AddRange(FlowAnimation.Create(model, outputBase + " - flow.gif"));
             var result = SolidCraftRunner.Run(solidcraftFolder, commands, extras, outputBase);
 
             foreach (var w in model.Warnings)

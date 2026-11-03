@@ -66,6 +66,8 @@ public partial class PreferencesWindow : Window
     // python
     private TextBox _pythonPath = null!;
     private TextBox _solidCraftPath = null!;
+    private CheckBox _scLabels = null!, _scFlow = null!, _scInsulation = null!, _scPlatforms = null!, _scInstruments = null!;
+    private NumericUpDown _scRackHeight = null!, _scItemGap = null!;
 
     // other
     private CheckBox _checkUpdates = null!;
@@ -484,11 +486,33 @@ public partial class PreferencesWindow : Window
             "The folder that holds solidcraft-cli, for Tools > Export 3D Plant Model. Leave it empty " +
             "to look in the usual install folders and on the PATH.");
 
+        // what the export draws, kept as one JSON text (the extension's ExportOptions)
+        var sc = ReadSolidCraftOptions();
+        _scLabels = page.CreateAndAddCheckBoxRow("3D labels with tags and operating conditions", sc.Value<bool?>("Labels") ?? true, null);
+        _scFlow = page.CreateAndAddCheckBoxRow("Flow animation", sc.Value<bool?>("FlowAnimation") ?? true, null);
+        _scInsulation = page.CreateAndAddCheckBoxRow("Insulation on hot and cold lines", sc.Value<bool?>("Insulation") ?? true, null);
+        _scPlatforms = page.CreateAndAddCheckBoxRow("Platforms and ladders on tall columns and vessels", sc.Value<bool?>("Platforms") ?? true, null);
+        _scInstruments = page.CreateAndAddCheckBoxRow("Transmitters and indicators", sc.Value<bool?>("Instruments") ?? true, null);
+        _scRackHeight = page.CreateAndAddNumericEditorRow("Pipe rack height (m)", sc.Value<double?>("RackHeight") ?? 6, 2.5, 30, 1, null);
+        _scItemGap = page.CreateAndAddNumericEditorRow("Smallest gap between items (m)", sc.Value<double?>("ItemGap") ?? 2, 0.5, 20, 1, null);
+
         page.CreateAndAddLabelRow("Debug Mode");
 
         _debugLevel = page.CreateAndAddNumericEditorRow("Debug Level (0 = off)", S.DebugLevel, 0, 3, 0, null);
 
         return page;
+    }
+
+    /// <summary>The 3D export options saved in the settings; settings the extension adds later are kept as they are.</summary>
+    private static Newtonsoft.Json.Linq.JObject ReadSolidCraftOptions()
+    {
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(S.SolidCraftOptions))
+                return Newtonsoft.Json.Linq.JObject.Parse(S.SolidCraftOptions);
+        }
+        catch (Exception) { }
+        return new Newtonsoft.Json.Linq.JObject();
     }
 
     private async System.Threading.Tasks.Task BrowseSolidCraftAsync()
@@ -583,6 +607,15 @@ public partial class PreferencesWindow : Window
 
         // SolidCraft
         S.SolidCraftPath = _solidCraftPath.Text ?? "";
+        var options = ReadSolidCraftOptions();
+        options["Labels"] = _scLabels.IsChecked.GetValueOrDefault();
+        options["FlowAnimation"] = _scFlow.IsChecked.GetValueOrDefault();
+        options["Insulation"] = _scInsulation.IsChecked.GetValueOrDefault();
+        options["Platforms"] = _scPlatforms.IsChecked.GetValueOrDefault();
+        options["Instruments"] = _scInstruments.IsChecked.GetValueOrDefault();
+        options["RackHeight"] = (double)(_scRackHeight.Value ?? 6);
+        options["ItemGap"] = (double)(_scItemGap.Value ?? 2);
+        S.SolidCraftOptions = options.ToString(Newtonsoft.Json.Formatting.None);
 
         // other
         S.CheckForUpdates = _checkUpdates.IsChecked.GetValueOrDefault();
