@@ -15,6 +15,7 @@
 - [NEW] Asphaltene Characterization, Asphaltene Envelope and Asphaltene Tuning tools (Patreon): oil characterization, onset pressures, gas injection, titration and fitting to measured onsets
 - [NEW] Pipe Network flow assurance: asphaltene precipitated along the pipe and the margin to the onset pressure when its fluid uses the Asphaltenes (PC-SAFT) package
 - [NEW] Sample flowsheet: Asphaltene Precipitation in a Choke
+- [NEW] Custom compound order: a Custom (User-Defined) option in the simulation settings, with a Custom Order button that moves each compound up or down; streams, stream editors and reports follow it in both interfaces and the order is saved with the file
 - [CHG] Case library, user guide and advanced tutorial: the column secondary specification example follows the corrected D86 curves
 - [CHG] Dynamic simulation: steps skip the copy of the last solution, and on Windows the solver stays on the performance cores of the processor
 - [CHG] Implicit Euler: at the end of a run the log says how many steps did not converge and what to change
@@ -60,3 +61,4 @@
 - [FIX] Colour Streams By: the legend was tiny on high resolution displays and in exported images
 - [FIX] Welcome screen: the API reference link opened the old class library pages, and the lists did not fill their width
 - [FIX] Create New Compound (cross-platform interface): the buttons did nothing from the welcome screen, the compound did not reach the simulation and its vapour pressure and ideal gas heat capacity came out zero; it now goes into the simulation or a user database, with the ideal gas heat capacity, formation properties and UNIFAC groups estimated from the SMILES
+- [FIX] Reaction Finder: reactions were added with a heat of reaction of zero, so reactors left out the heat of reaction (methane burned in air in an adiabatic conversion reactor left at the feed temperature); the Finder now stores the heat of reaction, the Gibbs energy of reaction and the mass balance
