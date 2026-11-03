@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Resources\Plant3D.png" LogicalName="$(RootNamespace).Plant3D.png" />
+    <EmbeddedResource Include="Resources\osifont.ttf" LogicalName="$(RootNamespace).osifont.ttf" />
   </ItemGroup>
 
   <ItemGroup>

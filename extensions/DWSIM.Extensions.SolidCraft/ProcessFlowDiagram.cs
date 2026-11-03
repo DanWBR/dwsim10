@@ -68,6 +68,9 @@ namespace DWSIM.Extensions.SolidCraft
             public bool Feed, Product, ArrowAtEnd = true;
             public string From = "", To = "";
             public IMaterialStream Stream;
+
+            /// <summary>The connection points on the items at the start and the end of the line (null at a battery limit).</summary>
+            public IConnectionPoint StartCp, EndCp;
         }
 
         struct Pt
@@ -144,12 +147,28 @@ namespace DWSIM.Extensions.SolidCraft
 
             // layers: line weights of ISO 128 for the process lines and the symbols
             C("linetype", new JObject { ["load"] = "*" });
-            // CADCraft's single-stroke drafting lettering
-            C("style", new JObject { ["name"] = DrawingSheets.TextStyle, ["font"] = "CADCraft Stroke", ["current"] = true });
+            // ISO 3098 lettering (osifont), or CADCraft's own where it is not installed
+            C("style", new JObject { ["name"] = DrawingSheets.TextStyle, ["font"] = DrawingSheets.Font, ["current"] = true });
             foreach (var (name, lt, lw) in new[] { ("EQUIPMENT", "Continuous", 0.5), ("PROCESS", "Continuous", 0.5), ("UTILITY", "DASHED", 0.35),
                 ("STREAMNUMBER", "Continuous", 0.25), ("TEXT", "Continuous", 0.25), ("TABLE", "Continuous", 0.25), ("BORDER", "Continuous", 0.7), ("TITLE", "Continuous", 0.35), ("VIEWPORT", "Continuous", 0.0) })
                 C("layer.new", new JObject { ["name"] = name, ["color"] = "white", ["linetype"] = lt, ["lineweight"] = lw });
             C("ltscale", new JObject { ["scale"] = 0.5 });
+
+            // the routes, horizontal and vertical only; where an end slides along its item's face
+            // to take a small step out, the nozzle and the header follow it
+            var routes = new Dictionary<Line, List<Pt>>();
+            var moved = new Dictionary<IConnectionPoint, Pt>();
+            foreach (var l in lines)
+            {
+                var r = Orthogonal(l.Points.Select(q => T(q.X, q.Y)).ToList(),
+                    l.Feed || Horizontal(l.StartCp), l.Product || Horizontal(l.EndCp),
+                    l.Feed || l.StartCp == null, l.Product || l.EndCp == null, out var sm, out var em);
+                routes[l] = r;
+                if (r.Count < 2) continue;
+                if (l.StartCp != null && (sm.X != 0 || sm.Y != 0)) moved[l.StartCp] = r[0];
+                if (l.EndCp != null && (em.X != 0 || em.Y != 0)) moved[l.EndCp] = r[r.Count - 1];
+            }
+            Pt At(IConnectionPoint cp) => moved.TryGetValue(cp, out var m) ? m : T(cp.Position.X, cp.Position.Y);
 
             // equipment: one block per item, drawn at its real size on the sheet
             var n = 0;
@@ -171,7 +190,7 @@ namespace DWSIM.Extensions.SolidCraft
                 C("layer.current", new JObject { ["name"] = "PROCESS" });
                 foreach (var cp in Connectors(u.Go).Where(p => p.IsAttached && Drawn(p, u.Go, lines)))
                 {
-                    var p = T(cp.Position.X, cp.Position.Y);
+                    var p = At(cp);
                     var q = Stub(cp, p, c, half, w, h);
                     if (Dist(p, q) > 0.3) C("pline", new JObject { ["vertices"] = new JArray(A(p), A(q)) }, u.Go.Tag + " nozzle");
                 }
@@ -196,7 +215,7 @@ namespace DWSIM.Extensions.SolidCraft
                 C("layer.current", new JObject { ["name"] = "PROCESS" });
                 foreach (var cp in Connectors(u.Go).Where(p => p.IsAttached && Drawn(p, u.Go, lines)))
                 {
-                    var p = T(cp.Position.X, cp.Position.Y);
+                    var p = At(cp);
                     C("pline", new JObject { ["vertices"] = new JArray(A(p), new JArray(c.X, p.Y), A(c)) }, u.Go.Tag);
                 }
                 C("donut", new JObject { ["center"] = A(c), ["inside"] = 0, ["outside"] = 1.6 }, u.Go.Tag);
@@ -206,8 +225,8 @@ namespace DWSIM.Extensions.SolidCraft
             foreach (var u in units.Where(u => u.Symbol == Symbol.PassThrough))
             {
                 if (u.Go.InputConnectors.Count == 0 || u.Go.OutputConnectors.Count == 0) continue;
-                var a = T(u.Go.InputConnectors[0].Position.X, u.Go.InputConnectors[0].Position.Y);
-                var b = T(u.Go.OutputConnectors[0].Position.X, u.Go.OutputConnectors[0].Position.Y);
+                var a = At(u.Go.InputConnectors[0]);
+                var b = At(u.Go.OutputConnectors[0]);
                 C("layer.current", new JObject { ["name"] = "PROCESS" });
                 C("pline", new JObject { ["vertices"] = Math.Abs(a.Y - b.Y) < 0.1 ? new JArray(A(a), A(b)) : new JArray(A(a), new JArray((a.X + b.X) / 2, a.Y), new JArray((a.X + b.X) / 2, b.Y), A(b)) }, u.Go.Tag);
                 if (u.Go.ObjectType == ObjectType.OrificePlate)
@@ -226,8 +245,7 @@ namespace DWSIM.Extensions.SolidCraft
             // the streams, with their number, arrow and battery limit names
             foreach (var l in lines)
             {
-                var p = l.Points.Select(q => T(q.X, q.Y)).ToList();
-                p = Simplify(p);
+                var p = routes[l];
                 if (p.Count < 2) continue;
                 C("layer.current", new JObject { ["name"] = l.Energy ? "UTILITY" : "PROCESS" });
                 C("pline", new JObject { ["vertices"] = new JArray(p.Select(A)) }, "stream " + l.Tag);
@@ -476,6 +494,7 @@ namespace DWSIM.Extensions.SolidCraft
                 {
                     l.Points.AddRange(Route(cin));
                     l.From = cin.AttachedFrom?.Tag ?? "";
+                    l.StartCp = EndOf(cin, true);
                 }
                 else
                 {
@@ -486,6 +505,7 @@ namespace DWSIM.Extensions.SolidCraft
                 {
                     l.Points.AddRange(Route(cout));
                     l.To = cout.AttachedTo?.Tag ?? "";
+                    l.EndCp = EndOf(cout, false);
                     // into a recycle the line goes on: no arrow there
                     var to = cout.AttachedTo?.ObjectType;
                     if (to == ObjectType.OT_Recycle || to == ObjectType.OT_EnergyRecycle) l.ArrowAtEnd = false;
@@ -514,6 +534,101 @@ namespace DWSIM.Extensions.SolidCraft
             }
             OwnTags = own;
             return lines;
+        }
+
+        /// <summary>The connection point a connector leaves from (<paramref name="from"/>) or goes into, on its item.</summary>
+        static IConnectionPoint EndOf(IConnectorGraphicObject con, bool from)
+        {
+            try
+            {
+                var go = from ? con.AttachedFrom : con.AttachedTo;
+                if (go == null) return null;
+                if (from ? con.AttachedFromEnergy : con.AttachedToEnergy) return go.EnergyConnector;
+                var list = from ? go.OutputConnectors : go.InputConnectors;
+                var i = from ? con.AttachedFromConnectorIndex : con.AttachedToConnectorIndex;
+                return i >= 0 && i < list.Count ? list[i] : null;
+            }
+            catch (Exception) { return null; }
+        }
+
+        static bool Horizontal(IConnectionPoint cp) => cp == null || cp.Direction == ConDir.Left || cp.Direction == ConDir.Right;
+
+        /// <summary>The largest step, in millimetres on the sheet, taken out of a line by sliding its end along the item's face.</summary>
+        const double Jog = 3;
+
+        /// <summary>
+        /// Makes a route of horizontal and vertical segments only: a slanted segment gets a corner,
+        /// turned so the line goes on as it came and meets the item the way its nozzle faces, and a
+        /// small step (a few millimetres, from icons not quite in line on the flowsheet) is taken
+        /// out by moving the run after it, or the end of the line along the item's face, into line.
+        /// The ends' moves come back in <paramref name="startMove"/> and <paramref name="endMove"/>.
+        /// </summary>
+        static List<Pt> Orthogonal(List<Pt> pts, bool startHorizontal, bool endHorizontal, bool startFree, bool endFree, out Pt startMove, out Pt endMove)
+        {
+            startMove = new Pt(0, 0); endMove = new Pt(0, 0);
+            var p = Simplify(pts);
+            if (p.Count < 2) return p;
+            const double e = 0.01;
+            bool IsH(Pt a, Pt b) => Math.Abs(a.Y - b.Y) <= e;
+            bool IsV(Pt a, Pt b) => Math.Abs(a.X - b.X) <= e;
+
+            // corners for the slanted segments
+            var o = new List<Pt> { p[0] };
+            for (var i = 0; i + 1 < p.Count; i++)
+            {
+                Pt a = o[o.Count - 1], b = p[i + 1];
+                if (!IsH(a, b) && !IsV(a, b))
+                {
+                    bool horizontalFirst;
+                    if (i + 2 == p.Count) horizontalFirst = !endHorizontal;
+                    else if (o.Count == 1) horizontalFirst = startHorizontal;
+                    else horizontalFirst = IsH(o[o.Count - 2], a);
+                    o.Add(horizontalFirst ? new Pt(b.X, a.Y) : new Pt(a.X, b.Y));
+                }
+                o.Add(b);
+            }
+            p = Simplify(o);
+
+            // small steps between two runs going the same way
+            for (var pass = 0; pass < 50; pass++)
+            {
+                var done = true;
+                for (var k = 1; k + 2 < p.Count; k++)
+                {
+                    Pt a = p[k - 1], b = p[k], c = p[k + 1], d = p[k + 2];
+                    var vertical = IsV(b, c);
+                    var step = vertical ? c.Y - b.Y : c.X - b.X;
+                    if (Math.Abs(step) > Jog || Math.Abs(step) <= e) continue;
+                    // a Z (the runs on both sides go the same way), not a U
+                    var before = vertical ? b.X - a.X : b.Y - a.Y;
+                    var after = vertical ? d.X - c.X : d.Y - c.Y;
+                    if (before * after <= 0) continue;
+
+                    // move the run after the step into line with the run before it (or the
+                    // other way round); at an end of the line, that end slides along its item's
+                    // face, a free end (battery limit) first
+                    var last = k + 2 == p.Count - 1;
+                    var first = k - 1 == 0;
+                    var moveAfter = !last || (first && (endFree || !startFree));
+                    if (moveAfter)
+                    {
+                        if (last && !endFree) endMove = vertical ? new Pt(endMove.X, endMove.Y - step) : new Pt(endMove.X - step, endMove.Y);
+                        p[k + 1] = vertical ? new Pt(c.X, b.Y) : new Pt(b.X, c.Y);
+                        p[k + 2] = vertical ? new Pt(d.X, b.Y) : new Pt(b.X, d.Y);
+                    }
+                    else
+                    {
+                        if (first && !startFree) startMove = vertical ? new Pt(startMove.X, startMove.Y + step) : new Pt(startMove.X + step, startMove.Y);
+                        p[k - 1] = vertical ? new Pt(a.X, c.Y) : new Pt(c.X, a.Y);
+                        p[k] = vertical ? new Pt(b.X, c.Y) : new Pt(c.X, b.Y);
+                    }
+                    done = false;
+                    break;
+                }
+                p = Simplify(p);
+                if (done) break;
+            }
+            return p;
         }
 
         /// <summary>The points of a connector as the flowsheet routes it.</summary>

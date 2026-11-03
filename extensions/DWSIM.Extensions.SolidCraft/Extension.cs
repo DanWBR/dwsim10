@@ -408,6 +408,13 @@ namespace DWSIM.Extensions.SolidCraft
                 result.Units, result.Streams, result.Sheet, options.Style, outputFolder,
                 result.Dwg != null ? ", DWG" : "", result.Pdf != null ? ", PDF" : "", result.Png != null ? ", PNG" : ""),
                 IFlowsheet.MessageType.Information);
+            if (!DrawingSheets.FontInstalled())
+            {
+                string font = null;
+                try { font = DrawingSheets.WriteFont(outputFolder); } catch (Exception) { }
+                fs.ShowMessage("Process flow diagram: the drawing is lettered in osifont, the free ISO 3098 font for CAD, which is not installed on this computer, so CADCraft used its own lettering." +
+                    (font != null ? " Install " + font + " to see it in CADCraft and in other CAD programs, then export again." : ""), IFlowsheet.MessageType.Information);
+            }
             if (openInApp) CADCraftSession.OpenInApp(cadcraftFolder, result.Drawing);
             return result;
         }

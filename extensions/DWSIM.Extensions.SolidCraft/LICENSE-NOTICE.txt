@@ -1,0 +1,13 @@
+DWSIM 3D plant model and drawings extension - third-party material
+==================================================================
+
+Resources/osifont.ttf
+  osifont, a free TrueType font for CAD drawings after ISO 3098.
+  Source: https://github.com/hikikomori82/osifont (file osifont.ttf, unmodified)
+  License: GNU General Public License, version 3, with the GPL font exception
+  (as stated in the osifont README for osifont.ttf).
+  The extension embeds the font and writes it next to a process flow diagram,
+  for the user to install, when it is not installed on the computer.
+
+SolidCraft and CADCraft are separate programs the user installs; the extension
+only runs their command-line tools and links nothing of them.

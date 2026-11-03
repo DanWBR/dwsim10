@@ -149,8 +149,52 @@ namespace DWSIM.Extensions.SolidCraft
     /// <summary>The border, the reference zones and the title block of a sheet, per style.</summary>
     public static class DrawingSheets
     {
-        /// <summary>The text style of the drawings: CADCraft's single-stroke drafting lettering.</summary>
+        /// <summary>The text style of the drawings.</summary>
         public const string TextStyle = "DRAFTING";
+
+        /// <summary>
+        /// The lettering: osifont, the free ISO 3098 font for CAD drawings. Where it is not
+        /// installed, CADCraft (and other CAD programs) put their own lettering in its place.
+        /// </summary>
+        public const string Font = "osifont";
+
+        /// <summary>Whether osifont is installed for this user or for the computer.</summary>
+        public static bool FontInstalled()
+        {
+            var folders = new List<string>();
+            var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            if (Path.DirectorySeparatorChar == '\\')
+            {
+                folders.Add(Environment.GetFolderPath(Environment.SpecialFolder.Fonts));
+                folders.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Microsoft", "Windows", "Fonts"));
+            }
+            else
+            {
+                folders.AddRange(new[] { Path.Combine(home, "Library", "Fonts"), "/Library/Fonts", Path.Combine(home, ".local", "share", "fonts"),
+                    Path.Combine(home, ".fonts"), "/usr/share/fonts", "/usr/local/share/fonts" });
+            }
+            foreach (var f in folders.Where(f => !string.IsNullOrEmpty(f) && Directory.Exists(f)))
+            {
+                try
+                {
+                    if (Directory.EnumerateFiles(f, "osifont*", SearchOption.AllDirectories).Any()) return true;
+                }
+                catch (Exception) { }
+            }
+            return false;
+        }
+
+        /// <summary>Writes the osifont file the extension carries into a folder; returns its path, or null.</summary>
+        public static string WriteFont(string folder)
+        {
+            var asm = typeof(DrawingSheets).Assembly;
+            var name = asm.GetManifestResourceNames().FirstOrDefault(n => n.EndsWith(".osifont.ttf", StringComparison.OrdinalIgnoreCase));
+            if (name == null) return null;
+            var path = Path.Combine(folder, "osifont.ttf");
+            using (var s = asm.GetManifestResourceStream(name))
+            using (var f = File.Create(path)) s.CopyTo(f);
+            return path;
+        }
 
         /// <summary>Space between the sheet edge and the border: left (binding edge), and the other sides.</summary>
         public static void Margins(DrawingStyle style, out double left, out double other)
