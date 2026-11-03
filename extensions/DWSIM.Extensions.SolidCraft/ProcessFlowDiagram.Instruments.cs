@@ -76,6 +76,7 @@ namespace DWSIM.Extensions.SolidCraft
             // the bubbles are placed first and drawn, then the signals are routed round them
             var toDraw = new List<(Pt At, string Letters, string Loop, bool Shared, string What)>();
             var signals = new List<(Pt From, Pt To, bool ToBubble, bool FromAbove, string What)>();
+            var setpoints = new List<(Pt At, string Text, string What)>();
 
             Pt Center(Unit u) => T(u.Go.X + u.Go.Width / 2.0, u.Go.Y + u.Go.Height / 2.0);
             Pt Half(Unit u) => outline.TryGetValue(u.Obj.Name, out var h) ? h : new Pt(u.Go.Width * k / 2, u.Go.Height * k / 2);
@@ -171,6 +172,15 @@ namespace DWSIM.Extensions.SolidCraft
                 if (!Free(ctl)) ctl = Place(icon, 0, 12, 8);
                 bubbles.Add(ctl);
                 toDraw.Add((ctl, letter + "IC", loop, true, what));
+
+                // the set point beside the controller, in the units the controller is set in
+                var adjust = (IAdjust)obj;
+                var sp = adjust.AdjustValue;
+                if (!double.IsNaN(sp) && !double.IsInfinity(sp))
+                {
+                    var spUnits = adjust.ControlledObjectData?.Units ?? "";
+                    setpoints.Add((new Pt(ctl.X + Bubble + 1.5, ctl.Y), "SP " + Fmt(sp) + (spUnits.Length > 0 ? " " + spUnits : ""), what));
+                }
                 signals.Add((at, ctl, true, true, what));
 
                 var mv = ((IAdjust)obj).ManipulatedObjectData?.ID;
@@ -207,6 +217,13 @@ namespace DWSIM.Extensions.SolidCraft
             {
                 DrawBubble(cmds, b.At, b.Letters, b.Loop, b.Shared, b.What);
                 router.Block(new Router.Box(b.At.X - Bubble, b.At.Y - Bubble, b.At.X + Bubble, b.At.Y + Bubble));
+            }
+            foreach (var t in setpoints)
+            {
+                const double h = 2.0;
+                C("layer.current", new JObject { ["name"] = "TEXT" }, t.What);
+                C("text", new JObject { ["at"] = A(t.At), ["text"] = t.Text, ["height"] = h, ["justify"] = "ML" }, t.What);
+                router.Block(new Router.Box(t.At.X, t.At.Y - h, t.At.X + t.Text.Length * h * 0.9, t.At.Y + h));
             }
             foreach (var s in signals) Signal(cmds, router, s.From, s.To, s.ToBubble, s.What, s.FromAbove);
         }
