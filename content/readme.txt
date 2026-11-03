@@ -46,6 +46,7 @@ Version 10.2.14
 - [NEW] P&ID (Tools > Export P&ID): draws the flowsheet in CADCraft with line numbers, ISA control loops (transmitters, controllers with their set points, signal lines and control valves), local indicators and relief valves, saved as DXF, DWG, PDF and PNG
 - [NEW] Equipment drawings (Tools > Export Equipment Drawings): a general arrangement drawing of each vessel, column, tank and exchanger in CADCraft, with front and plan views to scale, main dimensions, nozzle schedule and item data, saved as DXF, DWG, PDF and PNG
 - [NEW] Piping isometrics (Tools > Export Piping Isometrics): one CADCraft drawing per line of the 3D model, with leg lengths, elevations, end coordinates, line data, preliminary design conditions and a bill of materials, saved as DXF, DWG, PDF and PNG
+- [NEW] Data sheets (Tools > Export Data Sheets): one CADCraft sheet per item of equipment, control loop and local indicator, with operating and process data, preliminary design conditions, materials, dimensions, nozzles and control valve sizing, saved as DXF, DWG, PDF and PNG
 
 Version 10.2.13
 

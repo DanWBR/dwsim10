@@ -80,7 +80,7 @@ namespace DWSIM.Extensions.SolidCraft
             var onLine = new Dictionary<Line, int>();
             var onUnit = new Dictionary<string, int>();
             var bubbles = new List<Pt>();
-            var seq = 100;
+            var loops = InstrumentLoops(fs).ToDictionary(x => x.Obj.Name, x => x.Loop);
 
             // the bubbles are placed first and drawn, then the signals are routed round them
             var toDraw = new List<(Pt At, string Letters, string Loop, bool Shared, string What)>();
@@ -164,7 +164,7 @@ namespace DWSIM.Extensions.SolidCraft
                     measured = gauge.SelectedObjectID;
                     letter = Instruments.Letter(fs, gauge.SelectedPropertyType, gauge.SelectedProperty, go.Tag);
                 }
-                var loop = Loop(go.Tag, ref seq);
+                var loop = loops[obj.Name];
                 var what = "instrument " + go.Tag;
                 if (!Measure(measured, what, out var at)) continue;
 
@@ -238,6 +238,29 @@ namespace DWSIM.Extensions.SolidCraft
         }
 
         /// <summary>The loop number: the digits of the instrument's tag, or the next free number.</summary>
+        /// <summary>
+        /// The controllers and gauges of the flowsheet in tag order, with the first letter of what
+        /// they measure and their loop number (the digits of their tag, else numbered from 101).
+        /// </summary>
+        internal static List<(ISimulationObject Obj, string Letter, string Loop, bool Controller)> InstrumentLoops(IFlowsheet fs)
+        {
+            var list = new List<(ISimulationObject, string, string, bool)>();
+            var seq = 100;
+            foreach (var obj in fs.SimulationObjects.Values.OrderBy(o => o.GraphicObject?.Tag))
+            {
+                var go = obj.GraphicObject;
+                if (go == null) continue;
+                var isController = go.ObjectType.ToString().StartsWith("Controller_") && obj is IAdjust;
+                var gauge = obj as IIndicator;
+                if (!isController && gauge == null) continue;
+                var letter = isController
+                    ? Instruments.Letter(fs, ((IAdjust)obj).ControlledObjectData?.UnitsType ?? UnitOfMeasure.none, ((IAdjust)obj).ControlledObjectData?.PropertyName, go.Tag)
+                    : Instruments.Letter(fs, gauge.SelectedPropertyType, gauge.SelectedProperty, go.Tag);
+                list.Add((obj, letter, Loop(go.Tag, ref seq), isController));
+            }
+            return list;
+        }
+
         static string Loop(string tag, ref int seq)
         {
             var digits = Regex.Match(tag ?? "", @"\d+").Value;

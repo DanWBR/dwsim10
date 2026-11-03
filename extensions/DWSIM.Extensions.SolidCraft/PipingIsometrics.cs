@@ -416,7 +416,7 @@ namespace DWSIM.Extensions.SolidCraft
             C("layer.current", new JObject { ["name"] = "TABLE" });
             var tx = sheet.Width - mo - DrawingSheets.TitleWidth;
             var top = sheet.Height - mo - 5;
-            var design = Design.For(run);
+            var design = DesignBasis.For(run);
             var fromText = fromItem == null ? "Battery limit" : fromItem.Tag + Nz(EquipmentDrawings.NozzleMark(model, fromItem, run, true));
             var toText = toItem == null ? "Battery limit" : toItem.Tag + Nz(EquipmentDrawings.NozzleMark(model, toItem, run, false));
             var data = LineData(run, fromText, toText, design);
@@ -673,71 +673,7 @@ namespace DWSIM.Extensions.SolidCraft
             return r;
         }
 
-        /// <summary>
-        /// Preliminary design conditions from the operating ones: design pressure 10 % (at least
-        /// 1 bar) over the operating, design temperature 25 C over (cold lines: 5 C under, with 50 C
-        /// for upsets), the material by temperature, the flange class from the ASME B16.5 ratings
-        /// and the hydrostatic test at 1.5 times the design pressure (ASME B31.3).
-        /// </summary>
-        class Design
-        {
-            public double OperatingT = double.NaN, OperatingP = double.NaN, MaxT, MinT, Pressure, Test;
-            public bool Cold;
-            public string Pipe, Fitting, Flange, Class;
-
-            static readonly double[] Temps = { 38, 50, 100, 150, 200, 250, 300, 325, 350, 375, 400, 425, 450, 475, 500, 538 };
-            static readonly (int Class, double[] Bar)[] Ratings =
-            {
-                (150, new[] { 19.6, 19.2, 17.7, 15.8, 13.8, 12.1, 10.2, 9.3, 8.4, 7.4, 6.5, 5.5, 4.6, 3.7, 2.8, 1.4 }),
-                (300, new[] { 51.1, 50.1, 46.6, 45.1, 43.8, 41.9, 39.8, 38.7, 37.6, 36.4, 34.7, 28.8, 23.0, 17.4, 11.8, 5.9 }),
-                (600, new[] { 102.1, 100.2, 93.2, 90.2, 87.6, 83.9, 79.6, 77.4, 75.1, 72.7, 69.4, 57.5, 46.0, 34.9, 23.5, 11.8 }),
-                (900, new[] { 153.2, 150.4, 139.8, 135.2, 131.4, 125.8, 119.5, 116.1, 112.7, 109.1, 104.2, 86.3, 69.0, 52.3, 35.3, 17.7 }),
-                (1500, new[] { 255.3, 250.6, 233.0, 225.4, 219.0, 209.7, 199.1, 193.6, 187.8, 181.8, 173.6, 143.8, 115.0, 87.2, 58.8, 29.5 }),
-                (2500, new[] { 425.5, 417.7, 388.3, 375.6, 365.0, 349.5, 331.8, 322.6, 313.0, 303.1, 289.3, 239.7, 191.7, 145.3, 97.9, 49.2 }),
-            };
-
-            /// <summary>Austenitic stainless steel (group 2.3) up to 38 C, relative to carbon steel (group 1.1).</summary>
-            const double StainlessFactor = 15.9 / 19.6;
-
-            public static Design For(PipeRun run)
-            {
-                var d = new Design();
-                if (run.Temperature > 0) d.OperatingT = run.Temperature - 273.15;
-                if (run.Pressure > 0) d.OperatingP = run.Pressure / 1e5 - 1.01325;
-                var t = double.IsNaN(d.OperatingT) ? 25 : d.OperatingT;
-                var p = double.IsNaN(d.OperatingP) ? 0 : d.OperatingP;
-                d.Cold = t < 0;
-                d.MaxT = d.Cold ? 50 : Math.Max(50, t + 25);
-                d.MinT = d.Cold ? t - 5 : Math.Min(0, t);
-                d.Pressure = Math.Max(3.5, Math.Max(1.1 * p, p + 1));
-                d.Test = 1.5 * d.Pressure;
-
-                var stainless = false;
-                if (d.MinT < -46) { d.Pipe = "SS A312 TP304L"; d.Fitting = "A403 WP304L"; d.Flange = "A182 F304L"; stainless = true; }
-                else if (d.MinT < -29) { d.Pipe = "LTCS A333 Gr.6"; d.Fitting = "A420 WPL6"; d.Flange = "A350 LF2"; }
-                else if (d.MaxT > 425) { d.Pipe = "1.25Cr-0.5Mo A335 P11"; d.Fitting = "A234 WP11"; d.Flange = "A182 F11"; }
-                else { d.Pipe = "CS A106 Gr.B"; d.Fitting = "A234 WPB"; d.Flange = "A105"; }
-
-                d.Class = "special";
-                if (d.MaxT <= 538)
-                    foreach (var (cls, bar) in Ratings)
-                    {
-                        var rating = Interpolate(bar, d.MaxT) * (stainless ? StainlessFactor : 1);
-                        if (rating >= d.Pressure) { d.Class = "CL" + cls; break; }
-                    }
-                return d;
-            }
-
-            static double Interpolate(double[] bar, double t)
-            {
-                if (t <= Temps[0]) return bar[0];
-                for (var i = 1; i < Temps.Length; i++)
-                    if (t <= Temps[i]) return bar[i - 1] + (bar[i] - bar[i - 1]) * (t - Temps[i - 1]) / (Temps[i] - Temps[i - 1]);
-                return bar[bar.Length - 1];
-            }
-        }
-
-        static List<KeyValuePair<string, string>> LineData(PipeRun run, string from, string to, Design d)
+        static List<KeyValuePair<string, string>> LineData(PipeRun run, string from, string to, DesignBasis d)
         {
             var list = new List<KeyValuePair<string, string>>();
             void Add(string k, string v) { if (!string.IsNullOrEmpty(v)) list.Add(new KeyValuePair<string, string>(k, v)); }
@@ -762,7 +698,7 @@ namespace DWSIM.Extensions.SolidCraft
         }
 
         /// <summary>The bill of materials: pipe by length, elbows, flanges, gaskets, bolts and insulation.</summary>
-        static List<KeyValuePair<string, string>> Materials(PipeRun run, double[] lengths, int elbows, int blinds, Design d)
+        static List<KeyValuePair<string, string>> Materials(PipeRun run, double[] lengths, int elbows, int blinds, DesignBasis d)
         {
             var list = new List<KeyValuePair<string, string>>();
             void Add(string k, string v) => list.Add(new KeyValuePair<string, string>(k, v));

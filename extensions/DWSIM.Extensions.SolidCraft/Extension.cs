@@ -40,7 +40,7 @@ namespace DWSIM.Extensions.SolidCraft
 
         public ExtenderLevel Level => ExtenderLevel.FlowsheetWindow;
 
-        public List<IExtender> Collection { get; } = new List<IExtender> { new PlantModelExtender(), new UpdateDataExtender(), new ResetLayoutExtender(), new ProcessFlowDiagramExtender(), new PipingAndInstrumentationExtender(), new EquipmentDrawingsExtender(), new PipingIsometricsExtender() };
+        public List<IExtender> Collection { get; } = new List<IExtender> { new PlantModelExtender(), new UpdateDataExtender(), new ResetLayoutExtender(), new ProcessFlowDiagramExtender(), new PipingAndInstrumentationExtender(), new EquipmentDrawingsExtender(), new PipingIsometricsExtender(), new DataSheetsExtender() };
 
         public int InsertAtPosition => -1;
 
@@ -611,6 +611,82 @@ namespace DWSIM.Extensions.SolidCraft
                 return result;
             }
             fs.ShowMessage(string.Format("Piping isometrics: {0} drawings saved to {1} (DXF, DWG, PDF and PNG).", result.Drawings.Count, outputFolder),
+                IFlowsheet.MessageType.Information);
+            if (openInApp) CADCraftSession.OpenInApp(cadcraftFolder, result.Drawings[0]);
+            return result;
+        }
+    }
+
+    /// <summary>
+    /// Writes the data sheets of the flowsheet's equipment, control loops and local indicators in
+    /// CADCraft and saves them next to the simulation with the other drawings.
+    /// </summary>
+    public class DataSheetsExtender : IExtender, IExtender3
+    {
+        IFlowsheet Flowsheet;
+
+        public string ID => "5b2f9e47-1c8a-4d36-9e0b-7a4c3d18f2e6";
+
+        public string DisplayText => "Export Data Sheets (CADCraft)";
+
+        public byte[] DisplayImage => PlantModelExtender.Icon();
+
+        public int InsertAtPosition => -1;
+
+        public void SetMainWindow(object mainwindow) { }
+
+        public void SetFlowsheet(IFlowsheet form) => Flowsheet = form;
+
+        public void ReleaseResources() => Flowsheet = null;
+
+        public void Run()
+        {
+            var fs = Flowsheet;
+            if (fs == null) return;
+            var folder = CADCraftSession.FindInstallFolder();
+            if (folder == null)
+            {
+                fs.ShowMessage("CADCraft was not found. Install it (it comes on its own or with SolidCraft in the ArtCraft suite), or set CADCRAFT_HOME to the folder that holds cadcraft-cli.",
+                    IFlowsheet.MessageType.GeneralError);
+                return;
+            }
+            fs.ShowMessage("Writing the data sheets with CADCraft...", IFlowsheet.MessageType.Information);
+            Task.Run(() =>
+            {
+                try { Export(fs, folder, true); }
+                catch (Exception ex) { fs.ShowMessage("Data sheets: " + ex.Message, IFlowsheet.MessageType.GeneralError); }
+            });
+        }
+
+        /// <summary>Writes and saves the data sheets; returns the result. Public for tests and scripts.</summary>
+        public static DataSheets.Result Export(IFlowsheet fs, string cadcraftFolder, bool openInApp, string outputFolder = null)
+        {
+            var name = PlantModelExtender.ModelName(fs);
+            if (outputFolder == null) outputFolder = ProcessFlowDiagramExtender.DrawingsFolder(fs);
+            Directory.CreateDirectory(outputFolder);
+            var options = ExportOptions.Load();
+            var project = fs.FlowsheetOptions?.SimulationName;
+            var result = DataSheets.Export(fs, cadcraftFolder, outputFolder, name, options.Style, (kind, subtitle, number) => new TitleData
+            {
+                Owner = options.DrawingOwner ?? "",
+                Project = string.IsNullOrWhiteSpace(project) ? name : project,
+                Title = kind,
+                Subtitle = subtitle,
+                Number = number,
+                DocumentType = "DS",
+                Status = "PRELIMINARY",
+                Date = DateTime.Today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                PreparedBy = fs.FlowsheetOptions?.SimulationAuthor ?? ""
+            });
+
+            foreach (var f in result.Failed.Take(5))
+                fs.ShowMessage("Data sheets: left out " + f, IFlowsheet.MessageType.Warning);
+            if (result.Drawings.Count == 0)
+            {
+                fs.ShowMessage("CADCraft could not write the data sheets: " + result.Error, IFlowsheet.MessageType.GeneralError);
+                return result;
+            }
+            fs.ShowMessage(string.Format("Data sheets: {0} sheets saved to {1} (DXF, DWG, PDF and PNG).", result.Drawings.Count, outputFolder),
                 IFlowsheet.MessageType.Information);
             if (openInApp) CADCraftSession.OpenInApp(cadcraftFolder, result.Drawings[0]);
             return result;

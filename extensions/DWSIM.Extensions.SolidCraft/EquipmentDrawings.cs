@@ -44,7 +44,7 @@ namespace DWSIM.Extensions.SolidCraft
 
         const double TextHeight = 2.5;
 
-        class Nozzle
+        internal class Nozzle
         {
             public string Mark, Size, Service;
             public Vec3 Base, Face, Dir;
@@ -360,7 +360,7 @@ namespace DWSIM.Extensions.SolidCraft
         /// The nozzles of an item: where the lines meet it, at the flange faces of the 3D model, in
         /// the item's own frame, marked N1, N2... (inlets first, from the top or the left).
         /// </summary>
-        static List<Nozzle> Nozzles(PlantModel model, EquipmentItem item)
+        internal static List<Nozzle> Nozzles(PlantModel model, EquipmentItem item)
         {
             var unturn = (360 - item.Rotation) % 360;
             Vec3 Local(Vec3 world) => (world - item.Origin).TurnedZ(unturn);
