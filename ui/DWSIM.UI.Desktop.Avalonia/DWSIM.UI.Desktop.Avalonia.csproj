@@ -119,10 +119,11 @@
     dependencies, DWSIM.Automation and DWSIM.Automation.FluentAPI among them, are referenced by the
     application, so they sit beside it. The assistant server executable itself is a separate,
     proprietary program: it is not built here, and is placed under extenders/AIAssistantFiles/ by the
-    release process.
+    release process. The 3D plant model extension (SolidCraft) is built and dropped the same way.
   -->
   <PropertyGroup>
     <AssistantExtenderProject>$(MSBuildThisFileDirectory)..\..\extensions\DWSIM.Extensions.AI.Assistant\DWSIM.Extensions.AI.Assistant.vbproj</AssistantExtenderProject>
+    <SolidCraftExtenderProject>$(MSBuildThisFileDirectory)..\..\extensions\DWSIM.Extensions.SolidCraft\DWSIM.Extensions.SolidCraft.csproj</SolidCraftExtenderProject>
   </PropertyGroup>
 
   <!--
@@ -132,7 +133,7 @@
     restore a project it does not reference.
   -->
   <Target Name="_ResolveAssistantExtender">
-    <MSBuild Projects="$(AssistantExtenderProject)" Targets="Restore;Build" Properties="Configuration=$(Configuration);RuntimeIdentifier=;SelfContained=false;PublishReadyToRun=false">
+    <MSBuild Projects="$(AssistantExtenderProject);$(SolidCraftExtenderProject)" Targets="Restore;Build" Properties="Configuration=$(Configuration);RuntimeIdentifier=;SelfContained=false;PublishReadyToRun=false">
       <Output TaskParameter="TargetOutputs" ItemName="AssistantExtenderDll" />
     </MSBuild>
   </Target>

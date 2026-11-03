@@ -1,0 +1,264 @@
+//    Copyright 2026 Daniel Wagner O. de Medeiros
+//
+//    This file is part of DWSIM.
+//
+//    DWSIM is free software: you can redistribute it and/or modify
+//    it under the terms of the GNU General Public License as published by
+//    the Free Software Foundation, either version 3 of the License, or
+//    (at your option) any later version.
+//
+//    DWSIM is distributed in the hope that it will be useful,
+//    but WITHOUT ANY WARRANTY; without even the implied warranty of
+//    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//    GNU General Public License for more details.
+//
+//    You should have received a copy of the GNU General Public License
+//    along with DWSIM.  If not, see <http://www.gnu.org/licenses/>.
+
+using System;
+using System.Collections.Generic;
+
+namespace DWSIM.Extensions.SolidCraft
+{
+    // The 3D plant model: equipment made of simple solids and pipe runs between their nozzles.
+    // Every length is in mm, Z points up and the ground is Z = 0.
+
+    public struct Vec3
+    {
+        public double X, Y, Z;
+
+        public Vec3(double x, double y, double z) { X = x; Y = y; Z = z; }
+
+        public static Vec3 operator +(Vec3 a, Vec3 b) => new Vec3(a.X + b.X, a.Y + b.Y, a.Z + b.Z);
+        public static Vec3 operator -(Vec3 a, Vec3 b) => new Vec3(a.X - b.X, a.Y - b.Y, a.Z - b.Z);
+        public static Vec3 operator *(Vec3 a, double f) => new Vec3(a.X * f, a.Y * f, a.Z * f);
+
+        public double Length => Math.Sqrt(X * X + Y * Y + Z * Z);
+
+        public Vec3 Normalized() { var l = Length; return l > 0 ? this * (1 / l) : this; }
+
+        public static double Dot(Vec3 a, Vec3 b) => a.X * b.X + a.Y * b.Y + a.Z * b.Z;
+
+        public double[] ToArray() => new[] { Math.Round(X, 1), Math.Round(Y, 1), Math.Round(Z, 1) };
+
+        public static readonly Vec3 PlusX = new Vec3(1, 0, 0), MinusX = new Vec3(-1, 0, 0);
+        public static readonly Vec3 PlusZ = new Vec3(0, 0, 1), MinusZ = new Vec3(0, 0, -1);
+    }
+
+    public enum PrimitiveKind { Cylinder, Box, Sphere }
+
+    /// <summary>One solid of an equipment item, in the item's local coordinates.</summary>
+    public class Primitive
+    {
+        public PrimitiveKind Kind;
+        public string Name;
+        public string Color;
+        public bool Metallic;
+
+        /// <summary>Cylinder: centre of the base. Box and sphere: centre.</summary>
+        public Vec3 Point;
+
+        /// <summary>Cylinder axis: X, Y or Z.</summary>
+        public string Axis = "Z";
+
+        /// <summary>Cylinder and sphere diameter.</summary>
+        public double Diameter;
+
+        /// <summary>Cylinder height along its axis.</summary>
+        public double Height;
+
+        /// <summary>Box sizes along X, Y and Z.</summary>
+        public double SizeX, SizeY, SizeZ;
+
+        public static Primitive Cylinder(string name, Vec3 baseCentre, string axis, double diameter, double height, string color, bool metallic = false)
+            => new Primitive { Kind = PrimitiveKind.Cylinder, Name = name, Point = baseCentre, Axis = axis, Diameter = diameter, Height = height, Color = color, Metallic = metallic };
+
+        public static Primitive Box(string name, Vec3 centre, double sx, double sy, double sz, string color, bool metallic = false)
+            => new Primitive { Kind = PrimitiveKind.Box, Name = name, Point = centre, SizeX = sx, SizeY = sy, SizeZ = sz, Color = color, Metallic = metallic };
+
+        public static Primitive Sphere(string name, Vec3 centre, double diameter, string color, bool metallic = false)
+            => new Primitive { Kind = PrimitiveKind.Sphere, Name = name, Point = centre, Diameter = diameter, Color = color, Metallic = metallic };
+
+        public Primitive Moved(Vec3 offset)
+        {
+            var p = (Primitive)MemberwiseClone();
+            p.Point = Point + offset;
+            return p;
+        }
+    }
+
+    public enum EnvelopeKind { VerticalCylinder, HorizontalCylinder, Box, Point }
+
+    /// <summary>
+    /// The outer shape the nozzles sit on. A connector of the 2D icon is carried to the face of the
+    /// envelope on the same side of the icon, at the same relative height.
+    /// </summary>
+    public class Envelope
+    {
+        public EnvelopeKind Kind;
+
+        /// <summary>Half the size along X (a horizontal cylinder: tangent half-length plus the head).</summary>
+        public double HalfX;
+
+        /// <summary>Half the size along Y.</summary>
+        public double HalfY;
+
+        /// <summary>Bottom and top of the part the nozzles may use (above a skirt or legs).</summary>
+        public double ZBottom, ZTop;
+
+        /// <summary>Vertical cylinder: the top is a hemispherical head of radius HalfX.</summary>
+        public bool HeadedTop;
+
+        public double ZCentre => (ZBottom + ZTop) / 2;
+
+        /// <summary>
+        /// Nozzle position (local) and outward direction for a connector at (u, v) of the icon, both
+        /// 0 to 1 from the top left corner.
+        /// </summary>
+        public void Locate(double u, double v, out Vec3 position, out Vec3 direction)
+        {
+            u = Clamp(u, 0, 1);
+            v = Clamp(v, 0, 1);
+
+            if (Kind == EnvelopeKind.Point)
+            {
+                position = new Vec3(0, 0, ZCentre);
+                direction = u < 0.5 ? Vec3.MinusX : Vec3.PlusX;
+                return;
+            }
+
+            // which edge of the icon the connector is nearest to
+            var dLeft = u; var dRight = 1 - u; var dTop = v; var dBottom = 1 - v;
+            var min = Math.Min(Math.Min(dLeft, dRight), Math.Min(dTop, dBottom));
+
+            var h = ZTop - ZBottom;
+
+            if (min == dTop && dTop < 0.2)
+            {
+                switch (Kind)
+                {
+                    case EnvelopeKind.VerticalCylinder:
+                        var x = (u - 0.5) * HalfX;
+                        var z = HeadedTop ? ZTop - HalfX + Math.Sqrt(Math.Max(0, HalfX * HalfX - x * x)) : ZTop;
+                        position = new Vec3(x, 0, z);
+                        break;
+                    case EnvelopeKind.HorizontalCylinder:
+                        position = new Vec3((u - 0.5) * 1.6 * Math.Max(HalfX - HalfY, HalfY), 0, ZTop);
+                        break;
+                    default:
+                        position = new Vec3((u - 0.5) * 1.6 * HalfX, 0, ZTop);
+                        break;
+                }
+                direction = Vec3.PlusZ;
+                return;
+            }
+
+            if (min == dBottom && dBottom < 0.2 && ZBottom > 500)
+            {
+                // an elevated item takes bottom nozzles from below; a vertical vessel's bottom sits
+                // inside its skirt, so its bottom nozzles go out of the side just above the skirt
+                if (Kind == EnvelopeKind.HorizontalCylinder || Kind == EnvelopeKind.Box)
+                {
+                    var hx = Kind == EnvelopeKind.HorizontalCylinder ? Math.Max(HalfX - HalfY, HalfY) : HalfX;
+                    position = new Vec3((u - 0.5) * 1.6 * hx, 0, ZBottom);
+                    direction = Vec3.MinusZ;
+                    return;
+                }
+            }
+
+            var left = u < 0.5;
+            double zs;
+            if (min == dBottom) zs = ZBottom + Math.Min(300, 0.1 * h);
+            else if (min == dTop) zs = ZTop - Math.Min(300, 0.1 * h);
+            else zs = ZTop - v * h;
+
+            switch (Kind)
+            {
+                case EnvelopeKind.HorizontalCylinder:
+                    // a connector high or low on the side of the icon becomes a nozzle on the top or
+                    // the bottom of the shell near that end (two side connectors of an exchanger icon
+                    // would otherwise share the head); one at mid height goes into the head
+                    var shellEnd = 0.8 * Math.Max(HalfX - HalfY, HalfY);
+                    if (v < 0.35)
+                    {
+                        position = new Vec3(left ? -shellEnd : shellEnd, 0, ZTop);
+                        direction = Vec3.PlusZ;
+                        return;
+                    }
+                    if (v > 0.65)
+                    {
+                        position = new Vec3(left ? -shellEnd : shellEnd, 0, ZBottom);
+                        direction = Vec3.MinusZ;
+                        return;
+                    }
+                    position = new Vec3(left ? -HalfX : HalfX, 0, ZCentre);
+                    break;
+                case EnvelopeKind.VerticalCylinder:
+                    var top = HeadedTop ? ZTop - HalfX : ZTop;
+                    zs = Clamp(zs, ZBottom + Math.Min(300, 0.1 * h), top - Math.Min(300, 0.1 * h));
+                    position = new Vec3(left ? -HalfX : HalfX, 0, zs);
+                    break;
+                default:
+                    zs = Clamp(zs, ZBottom + Math.Min(150, 0.1 * h), ZTop - Math.Min(150, 0.1 * h));
+                    position = new Vec3(left ? -HalfX : HalfX, 0, zs);
+                    break;
+            }
+            direction = left ? Vec3.MinusX : Vec3.PlusX;
+        }
+
+        internal static double Clamp(double x, double a, double b) => x < a ? a : (x > b ? b : x);
+    }
+
+    /// <summary>One flowsheet unit operation as a group of solids.</summary>
+    public class EquipmentItem
+    {
+        public string Name;
+        public string Tag;
+        public string Description;
+
+        /// <summary>Centre of the item on the ground, in world coordinates.</summary>
+        public Vec3 Origin;
+
+        /// <summary>Centre of the 2D icon on the flowsheet canvas.</summary>
+        public double CanvasX, CanvasY;
+
+        public Envelope Envelope;
+        public List<Primitive> Parts = new List<Primitive>();
+        public Dictionary<string, string> Properties = new Dictionary<string, string>();
+
+        /// <summary>Lines that belong to the item (a column's overhead line), in local coordinates.</summary>
+        public List<PipeRun> InternalPipes = new List<PipeRun>();
+
+        /// <summary>A point node (a recycle block) has no solids: lines only pass through it.</summary>
+        public bool Visible => Parts.Count > 0;
+
+        /// <summary>Half the footprint along X and Y, for the layout. Defaults to the envelope.</summary>
+        public double FootprintX, FootprintY;
+    }
+
+    /// <summary>A pipe between two nozzles, or from a nozzle to the battery limit.</summary>
+    public class PipeRun
+    {
+        public string Tag;
+        public string Phase;
+        public string Size;
+        public double OuterDiameter;
+        public double Wall;
+        public string Color;
+        public List<Vec3> Path = new List<Vec3>();
+
+        /// <summary>The run ends at the battery limit: draw a flange there.</summary>
+        public bool OpenEnd, OpenStart;
+    }
+
+    public class PlantModel
+    {
+        public string Name;
+        public List<EquipmentItem> Equipment = new List<EquipmentItem>();
+        public List<PipeRun> Pipes = new List<PipeRun>();
+        public List<string> Warnings = new List<string>();
+
+        /// <summary>mm of plot plan per unit of canvas, and the canvas point placed at the world origin.</summary>
+        public double Scale, CanvasOriginX, CanvasOriginY;
+    }
+}

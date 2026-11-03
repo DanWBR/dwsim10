@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Builds a 3D plant model of the flowsheet with SolidCraft. The extension writes a SolidCraft
+    command script and runs solidcraft-cli, a separate program the user installs, so nothing of
+    SolidCraft is linked here. Loaded at run time from extenders/.
+  -->
+
+  <PropertyGroup>
+    <RootNamespace>DWSIM.Extensions.SolidCraft</RootNamespace>
+    <AssemblyName>DWSIM.Extensions.SolidCraft</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\Plant3D.png" LogicalName="$(RootNamespace).Plant3D.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\engine\DWSIM.Interfaces\DWSIM.Interfaces.vbproj" />
+    <ProjectReference Include="..\..\engine\DWSIM.SharedClasses\DWSIM.SharedClasses.vbproj" />
+    <ProjectReference Include="..\..\engine\DWSIM.Thermodynamics\DWSIM.Thermodynamics.vbproj" />
+    <ProjectReference Include="..\..\engine\DWSIM.UnitOperations\DWSIM.UnitOperations.vbproj" />
+  </ItemGroup>
+
+</Project>

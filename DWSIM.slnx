@@ -63,6 +63,7 @@
   </Folder>
   <Folder Name="/extensions/">
     <Project Path="extensions/DWSIM.Extensions.AI.Assistant/DWSIM.Extensions.AI.Assistant.vbproj" />
+    <Project Path="extensions/DWSIM.Extensions.SolidCraft/DWSIM.Extensions.SolidCraft.csproj" />
   </Folder>
   <Folder Name="/plugins/">
     <Project Path="plugins/DWSIM.Plugins.NaturalGas/DWSIM.Plugins.NaturalGas.vbproj" />
