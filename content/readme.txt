@@ -47,6 +47,7 @@ Version 10.2.14
 - [NEW] Equipment drawings (Tools > Export Equipment Drawings): a general arrangement drawing of each vessel, column, tank, exchanger, pump and compressor in CADCraft, with front and plan views to scale, main dimensions, nozzle schedule and item data, saved as DXF, DWG, PDF and PNG
 - [NEW] Piping isometrics (Tools > Export Piping Isometrics): one CADCraft drawing per line of the 3D model, with leg lengths, elevations, end coordinates, line data, preliminary design conditions and a bill of materials, saved as DXF, DWG, PDF and PNG
 - [NEW] Data sheets (Tools > Export Data Sheets): one CADCraft sheet per item of equipment, control loop and local indicator, with operating and process data, preliminary design conditions, materials, dimensions, nozzles and control valve sizing, saved as DXF, DWG, PDF and PNG
+- [NEW] Plot plan (Tools > Export Plot Plan): the 3D model's equipment from above in CADCraft, with coordinates, pipe rack, access road, battery limit, north arrow and equipment location table, saved as DXF, DWG, PDF and PNG
 
 Version 10.2.13
 
