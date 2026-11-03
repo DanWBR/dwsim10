@@ -2,7 +2,7 @@
 
 **User Guide**
 
-**Version 10.2.11**
+**Version 10.2.13**
 
-October 2026
+November 2026
 
