@@ -32,7 +32,7 @@ namespace DWSIM.Extensions.SolidCraft
     /// the simulation, and the sheet and title block of the chosen standard. Drawn in CADCraft,
     /// one drawing per item, saved as DXF and DWG and plotted to PDF and PNG.
     /// </summary>
-    public static class EquipmentDrawings
+    public static partial class EquipmentDrawings
     {
         public class Result
         {
@@ -64,8 +64,8 @@ namespace DWSIM.Extensions.SolidCraft
             catch (Exception ex) { result.Error = "the plant model could not be built (" + ex.Message + ")"; return result; }
 
             var items = model.Equipment.Where(e => e.Visible && !e.IsInstrument && e.Envelope != null &&
-                (e.Envelope.Kind == EnvelopeKind.VerticalCylinder || e.Envelope.Kind == EnvelopeKind.HorizontalCylinder)).ToList();
-            if (items.Count == 0) { result.Error = "the flowsheet has no vessels, columns, tanks or exchangers"; return result; }
+                (e.Envelope.Kind == EnvelopeKind.VerticalCylinder || e.Envelope.Kind == EnvelopeKind.HorizontalCylinder || IsMachine(fs, e))).ToList();
+            if (items.Count == 0) { result.Error = "the flowsheet has no vessels, columns, tanks, exchangers, pumps or compressors"; return result; }
 
             var temp = Path.Combine(Path.GetTempPath(), "dwsim-ga-" + Guid.NewGuid().ToString("N").Substring(0, 8));
             Directory.CreateDirectory(temp);
@@ -75,7 +75,10 @@ namespace DWSIM.Extensions.SolidCraft
                 {
                     try
                     {
-                        var file = Draw(session, model, item, Path.Combine(outputFolder, name + " - GA " + Safe(item.Tag)), style, titleFor(item), temp);
+                        var outputBase = Path.Combine(outputFolder, name + " - GA " + Safe(item.Tag));
+                        var file = IsMachine(fs, item)
+                            ? DrawMachine(session, fs, model, item, outputBase, style, titleFor(item), temp)
+                            : Draw(session, model, item, outputBase, style, titleFor(item), temp);
                         if (file != null)
                         {
                             result.Drawings.Add(file);
@@ -285,7 +288,31 @@ namespace DWSIM.Extensions.SolidCraft
             C("text", new JObject { ["at"] = P((fx0 + fx1) / 2, -(vertical ? 10 : 22) * S), ["text"] = "FRONT VIEW  " + scaleText, ["height"] = 3.5 * S, ["justify"] = "TC" });
             C("text", new JObject { ["at"] = P(planAt.X, planAt.Y + py0 - 10 * S), ["text"] = "PLAN VIEW  " + scaleText, ["height"] = 3.5 * S, ["justify"] = "TC" });
 
-            // the sheet
+            var data = ItemData(item, r, tlB - tlA, vertical);
+            var rows = NozzleRows(nozzles, n => vertical ? Math.Sqrt(n.Face.X * n.Face.X + n.Face.Y * n.Face.Y) : Math.Sqrt(Math.Pow(n.Face.Y, 2) + Math.Pow(n.Face.Z - zc, 2)));
+            double mx0 = fx0 - 32 * S, mx1 = vertical ? planAt.X + fx1 + 10 * S : fx1 + 10 * S;
+            double my0 = Math.Min(-16 * S, planAt.Y + py0 - 16 * S), my1 = vertical ? Math.Max(fz1, planAt.Y + py1) + 10 * S : fz1 + 32 * S;
+            return Finish(session, cmds, item, title, scaleText, sheet, style, data, rows, areaX0, areaY0, areaX1, areaY1, mx0, mx1, my0, my1, S, outputBase, temp);
+        }
+
+        /// <summary>The nozzle schedule: mark, size, service, elevation, orientation and projection (from <paramref name="projection"/>).</summary>
+        static List<JArray> NozzleRows(List<Nozzle> nozzles, Func<Nozzle, double> projection) => nozzles.Select(n => new JArray(n.Mark, n.Size, Short(n.Service, 14), Mm(n.Face.Z),
+            Math.Abs(n.Dir.Z) > 0.7 ? (n.Dir.Z > 0 ? "TOP" : "BOTTOM") : Mm((Math.Atan2(n.Dir.Y, n.Dir.X) * 180 / Math.PI + 360) % 360) + "%%d",
+            Mm(projection(n)))).ToList();
+
+        /// <summary>
+        /// The sheet of a drawing whose views are already in <paramref name="cmds"/>: border, title
+        /// block, the item's data and the nozzle schedule over the title block, the viewport over
+        /// the model extents at 1:S, then the PDF and PNG plots and the DWG and DXF files.
+        /// </summary>
+        static string Finish(CADCraftSession session, List<(string Name, JObject P)> cmds, EquipmentItem item, TitleData title, string scaleText, SheetSize sheet, DrawingStyle style,
+            List<KeyValuePair<string, string>> data, List<JArray> rows, double areaX0, double areaY0, double areaX1, double areaY1,
+            double mx0, double mx1, double my0, double my1, double S, string outputBase, string temp)
+        {
+            void C(string n, JObject p) => cmds.Add((n, p));
+            JArray P(double x, double y) => new JArray(Math.Round(x, 1), Math.Round(y, 1));
+            DrawingSheets.Margins(style, out _, out var mo);
+
             title.Scale = scaleText;
             C("layout.new", new JObject { ["name"] = "GA", ["viewport"] = false });
             C("pagesetup", new JObject
@@ -300,7 +327,7 @@ namespace DWSIM.Extensions.SolidCraft
             C("layer.current", new JObject { ["name"] = "BORDER" });
             C("insert", new JObject { ["name"] = "SHEET_BORDER", ["file"] = border.Replace('\\', '/'), ["at"] = P(0, 0) });
             var tb = Path.Combine(temp, Safe(item.Tag) + "-title.dxf");
-            DrawingSheets.TitleBlock(style, out var titleHeight).Save(tb);
+            DrawingSheets.TitleBlock(style, out _).Save(tb);
             C("layer.current", new JObject { ["name"] = "TITLE" });
             C("insert", new JObject
             {
@@ -315,24 +342,18 @@ namespace DWSIM.Extensions.SolidCraft
             C("layer.current", new JObject { ["name"] = "TABLE" });
             var tx = sheet.Width - mo - DrawingSheets.TitleWidth;
             var top = sheet.Height - mo - 5;
-            var data = ItemData(item, r, tlB - tlA, vertical);
             C("table", new JObject
             {
                 ["at"] = P(tx, top), ["rows"] = data.Count, ["cols"] = 2, ["rowHeight"] = 6, ["colWidth"] = DrawingSheets.TitleWidth / 2,
                 ["header"] = new JArray("ITEM", item.Tag), ["cells"] = new JArray(data.Select(kv => new JArray(kv.Key, kv.Value)))
             });
             top -= (data.Count + 1) * 6 + 6;
-            if (nozzles.Count > 0)
-            {
-                var rows = nozzles.Select(n => new JArray(n.Mark, n.Size, Short(n.Service, 14), Mm(n.Face.Z),
-                    Math.Abs(n.Dir.Z) > 0.7 ? (n.Dir.Z > 0 ? "TOP" : "BOTTOM") : Mm((Math.Atan2(n.Dir.Y, n.Dir.X) * 180 / Math.PI + 360) % 360) + "%%d",
-                    Mm(vertical ? Math.Sqrt(n.Face.X * n.Face.X + n.Face.Y * n.Face.Y) : Math.Sqrt(Math.Pow(n.Face.Y, 2) + Math.Pow(n.Face.Z - zc, 2))))).ToList();
+            if (rows.Count > 0)
                 C("table", new JObject
                 {
                     ["at"] = P(tx, top), ["rows"] = rows.Count, ["cols"] = 6, ["rowHeight"] = 6, ["colWidth"] = DrawingSheets.TitleWidth / 6,
                     ["header"] = new JArray("MARK", "SIZE", "SERVICE", "ELEV.", "ORIENT.", "PROJ."), ["cells"] = new JArray(rows)
                 });
-            }
 
             File.Delete(outputBase + ".dxf");
             if (session.Tool("new_drawing", new JObject { ["metric"] = true }, "new drawing for " + item.Tag) == null) return null;
@@ -343,8 +364,6 @@ namespace DWSIM.Extensions.SolidCraft
             session.Execute("layer.set", new JObject { ["name"] = "VIEWPORT", ["plot"] = false });
             var vp = session.Execute("mview", new JObject { ["p1"] = P(areaX0, areaY0), ["p2"] = P(areaX1, areaY1) });
             var handle = vp == null ? null : (JObject.Parse(vp)["viewports"] as JArray)?.FirstOrDefault()?.ToString();
-            double mx0 = fx0 - 32 * S, mx1 = vertical ? planAt.X + fx1 + 10 * S : fx1 + 10 * S;
-            double my0 = Math.Min(-16 * S, planAt.Y + py0 - 16 * S), my1 = vertical ? Math.Max(fz1, planAt.Y + py1) + 10 * S : fz1 + 32 * S;
             if (handle != null)
                 session.Execute("viewport.set", new JObject { ["handle"] = handle, ["scale"] = 1.0 / S, ["locked"] = true, ["center"] = P((mx0 + mx1) / 2, (my0 + my1) / 2) });
 

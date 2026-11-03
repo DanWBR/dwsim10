@@ -30,20 +30,6 @@ namespace DWSIM.Extensions.SolidCraft
         /// <summary>Radius of an instrument bubble, mm on the sheet.</summary>
         const double Bubble = 5;
 
-        /// <summary>The lines of the 3D model by stream tag: their sizes and insulation, for the line numbers.</summary>
-        static Dictionary<string, PipeRun> LineData(IFlowsheet fs)
-        {
-            try
-            {
-                var model = PlantModelBuilder.Build(fs, "P&ID", PlantLayout.Load(fs), ExportOptions.Load());
-                return model.Pipes.GroupBy(r => r.Tag).ToDictionary(g => g.Key, g => g.First());
-            }
-            catch (Exception)
-            {
-                return new Dictionary<string, PipeRun>();
-            }
-        }
-
         /// <summary>The P&amp;ID line number and number alone of each material stream, by tag, as the P&amp;ID shows them.</summary>
         internal static Dictionary<string, (string Number, string Id)> LineNumbers(IFlowsheet fs, Dictionary<string, PipeRun> data)
         {

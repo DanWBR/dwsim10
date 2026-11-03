@@ -238,7 +238,7 @@ namespace DWSIM.Extensions.SolidCraft
         static readonly double[] MotorSizes = { 0.37, 0.55, 0.75, 1.1, 1.5, 2.2, 3, 4, 5.5, 7.5, 11, 15, 18.5, 22, 30, 37, 45, 55, 75, 90, 110, 132, 160, 200, 250, 315, 355, 400, 450, 500, 560, 630, 710, 800, 900, 1000, 1250, 1600, 2000, 2500, 3150, 4000, 5000 };
 
         /// <summary>The IEC motor size for a shaft power, with a 10 % margin.</summary>
-        static string Motor(double kw)
+        internal static string Motor(double kw)
         {
             if (double.IsNaN(kw) || kw <= 0) return "";
             var need = 1.1 * kw;

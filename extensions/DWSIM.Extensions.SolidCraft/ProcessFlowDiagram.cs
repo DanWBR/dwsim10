@@ -42,6 +42,9 @@ namespace DWSIM.Extensions.SolidCraft
         public class Result
         {
             public string Drawing, Dwg, Pdf, Png, Error, Sheet;
+
+            /// <summary>The P&amp;ID's legend sheet, plotted on its own.</summary>
+            public string LegendPdf, LegendPng;
             public int Units, Streams;
 
             /// <summary>The lines that kept the flowsheet's route because the items left no clear way.</summary>
@@ -101,7 +104,9 @@ namespace DWSIM.Extensions.SolidCraft
             var result = new Result();
             var layout = pid ? "PID" : "PFD";
             var actuated = pid ? Instruments.ControlledValves(fs) : new Dictionary<string, string>();
-            var lineData = pid ? LineData(fs) : new Dictionary<string, PipeRun>();
+            var model = pid ? PidModel(fs) : null;
+            var lineData = model == null ? new Dictionary<string, PipeRun>() : model.Pipes.GroupBy(r => r.Tag).ToDictionary(g => g.Key, g => g.First());
+            if (pid) title.Sheet = "1/2";
             var units = Units(fs);
             var lines = Lines(fs);
             result.Units = units.Count(u => u.Symbol != Symbol.PassThrough);
@@ -183,6 +188,21 @@ namespace DWSIM.Extensions.SolidCraft
                 }).ToList();
             var router = new Router(itemBoxes, textBoxes, Clearance);
             var tight = new Router(itemBoxes, textBoxes, Clearance * 0.3);
+            // the utility lines over the heated and cooled items keep the routes off them
+            var utilities = new Dictionary<Unit, List<Utility>>();
+            if (pid)
+                foreach (var u in units.Where(u => u.Symbol != Symbol.PassThrough && u.Symbol != Symbol.Node))
+                {
+                    var list = Utilities(u);
+                    if (list.Count == 0) continue;
+                    utilities[u] = list;
+                    if (list.All(x => x.Role.Length > 0)) continue;
+                    var c = T(u.Go.X + u.Go.Width / 2.0, u.Go.Y + u.Go.Height / 2.0);
+                    double w = u.Go.Width * k, h = u.Go.Height * k;
+                    UtilityStubs(c, w, h, out var st, out var rt);
+                    var box = new Router.Box(st.X - 3, c.Y + h / 2, rt.X + 3, st.Y + 4);
+                    router.Block(box); tight.Block(box);
+                }
             var routes = new Dictionary<Line, List<Pt>>();
             var moved = new Dictionary<IConnectionPoint, Pt>();
             foreach (var l in lines.OrderBy(l => l.Energy).ThenBy(l => l.Number))
@@ -226,6 +246,20 @@ namespace DWSIM.Extensions.SolidCraft
                     var p = At(cp);
                     var q = Stub(cp, p, c, half, w, h);
                     if (Dist(p, q) > 0.3) C("pline", new JObject { ["vertices"] = new JArray(A(p), A(q)) }, u.Go.Tag + " nozzle");
+                    if (pid && u.Symbol != Symbol.Valve && u.Symbol != Symbol.Relief)
+                    {
+                        var mark = NozzleMark(model, u, cp);
+                        if (mark != null) DrawNozzleMark(cmds, mark, p, q, u.Go.Tag);
+                    }
+                }
+
+                // the utilities: supply and return lines over a heated or cooled item, the
+                // condenser's and the reboiler's under a column's figures
+                var columnUtilities = "";
+                if (utilities.TryGetValue(u, out var uts))
+                {
+                    foreach (var ut in uts.Where(x => x.Role.Length == 0)) DrawUtility(cmds, ut, c, half, w, h, u.Go.Tag);
+                    columnUtilities = string.Join("  ", uts.Where(x => x.Role.Length > 0).Select(x => x.Role + " " + x.Supply));
                 }
 
                 // tag, service and the key figure under the item
@@ -239,6 +273,8 @@ namespace DWSIM.Extensions.SolidCraft
                 var data = KeyData(fs, u.Obj, u.Go.ObjectType);
                 if (data.Length > 0)
                     C("text", new JObject { ["at"] = new JArray(c.X, Math.Round(y - (service.Length > 0 ? 8.5 : 4.5), 2)), ["text"] = data, ["height"] = TextHeight, ["justify"] = "TC" }, u.Go.Tag + " data");
+                if (columnUtilities.Length > 0)
+                    C("text", new JObject { ["at"] = new JArray(c.X, Math.Round(y - (service.Length > 0 ? 4.5 : 0) - (data.Length > 0 ? 4 : 0) - 4.5, 2)), ["text"] = columnUtilities, ["height"] = TextHeight, ["justify"] = "TC" }, u.Go.Tag + " utilities");
             }
 
             // mixers and splitters: a header, the branches meeting on it
@@ -398,6 +434,17 @@ namespace DWSIM.Extensions.SolidCraft
                         ["handle"] = handle, ["scale"] = 1, ["locked"] = true,
                         ["center"] = new JArray(Math.Round((bw * k + mxR - mxL) / 2, 2), Math.Round((myT - bh * k - myB) / 2, 2))
                     });
+
+                if (pid)
+                {
+                    try
+                    {
+                        Legend(session, outputBase, style, title, units, actuated,
+                            InstrumentLoops(fs).Any(x => x.Controller), InstrumentLoops(fs).Any(x => !x.Controller),
+                            utilities.Values.SelectMany(x => x).ToList(), model != null, temp, result);
+                    }
+                    catch (Exception ex) { result.Failed.Add("legend: " + ex.Message); }
+                }
 
                 result.Drawing = outputBase + ".dxf";
                 result.Dwg = outputBase + ".dwg";
@@ -749,6 +796,14 @@ namespace DWSIM.Extensions.SolidCraft
                 p = Simplify(p);
                 if (done) break;
             }
+
+            // drift under 0.1 mm (a corner that small is simplified away): onto the run before it
+            for (var i = 0; i + 1 < p.Count; i++)
+            {
+                double dx = Math.Abs(p[i + 1].X - p[i].X), dy = Math.Abs(p[i + 1].Y - p[i].Y);
+                if (dy > 0 && dy <= 0.1 && dx > dy) p[i + 1] = new Pt(p[i + 1].X, p[i].Y);
+                else if (dx > 0 && dx <= 0.1 && dy > dx) p[i + 1] = new Pt(p[i].X, p[i + 1].Y);
+            }
             return p;
         }
 
@@ -1057,6 +1112,12 @@ namespace DWSIM.Extensions.SolidCraft
         /// <summary>The duty or power of an item, or its stages, in the units of the flowsheet.</summary>
         static string KeyData(IFlowsheet fs, ISimulationObject obj, ObjectType type)
         {
+            // a relief valve: its set pressure, gauge
+            if (obj.GetType().Name == "ReliefValve")
+            {
+                var set = Number(obj, "SetPointPressure");
+                return set.HasValue && set.Value > 0 ? "SET " + Fmt(set.Value / 1e5 - 1.01325) + " bar g" : "";
+            }
             var heat = fs.FlowsheetOptions.SelectedUnitSystem.heatflow;
             string Heat(double kw) => Fmt(Converter.ConvertFromSI(heat, kw)) + " " + heat;
             switch (type)
