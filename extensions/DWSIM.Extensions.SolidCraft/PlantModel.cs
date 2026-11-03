@@ -329,6 +329,10 @@ namespace DWSIM.Extensions.SolidCraft
         /// <summary>The fluid: K, Pa, kg/s, kg/m3 (homogeneous) and Pa.s.</summary>
         public double Temperature, Pressure, MassFlow, Density, Viscosity;
 
+        /// <summary>Insulation thickness, mm (0 for none), and what it is for: "hot" or "cold".</summary>
+        public double Insulation;
+        public string InsulationService = "";
+
         /// <summary>The hydraulics along the route (see <see cref="LineHydraulics"/>); NaN until worked out.</summary>
         public LineHydraulics.Result Hydraulics;
 
@@ -347,6 +351,12 @@ namespace DWSIM.Extensions.SolidCraft
         /// </summary>
         internal bool OnRack;
         internal Vec3 A, A1, B, B1;
+
+        /// <summary>
+        /// For a nozzle on the top or the bottom of an item: the Y, clear of the item on the rack
+        /// side, where the line turns to go up or down; NaN for a side nozzle.
+        /// </summary>
+        internal double AClearY = double.NaN, BClearY = double.NaN;
     }
 
     /// <summary>A single-tier pipe rack along X: the lines run on top of its beams, one lane each.</summary>

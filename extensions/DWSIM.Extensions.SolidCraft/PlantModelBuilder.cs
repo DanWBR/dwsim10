@@ -626,6 +626,21 @@ namespace DWSIM.Extensions.SolidCraft
                 var muv = Finite(ms.Phases[2].Properties.viscosity.GetValueOrDefault());
                 var x = Finite(ms.Phases[2].Properties.massfraction.GetValueOrDefault());
                 run.Viscosity = vf > 0.995 ? muv : vf < 0.005 ? mul : x * muv + (1 - x) * mul;
+
+                // insulation for heat conservation above 60 C and against heat gain and condensation
+                // below 0 C, thicker the further from ambient (typical thicknesses for small lines)
+                if (t > 60)
+                {
+                    run.InsulationService = "hot";
+                    run.Insulation = t < 150 ? 40 : t < 250 ? 65 : 90;
+                }
+                else if (t < 0)
+                {
+                    run.InsulationService = "cold";
+                    run.Insulation = t > -50 ? 50 : t > -100 ? 80 : 120;
+                }
+                if (run.Insulation > 0)
+                    run.Properties["Insulation (mm)"] = Fmt(run.Insulation, "0") + " (" + run.InsulationService + ")";
             }
             return run;
         }
@@ -688,6 +703,9 @@ namespace DWSIM.Extensions.SolidCraft
                     // otherwise on the pipe rack, laid out once every rack line is known
                     run.OnRack = true;
                     run.A = pa; run.A1 = a1; run.B = pb; run.B1 = b1;
+                    // a top or bottom nozzle sits over the item: the line first steps clear of it
+                    if (Math.Abs(da.Z) > 0.5) run.AClearY = from.Origin.Y + from.FootprintY + 800 + run.OuterDiameter / 2 + run.Insulation;
+                    if (Math.Abs(db.Z) > 0.5) run.BClearY = to.Origin.Y + to.FootprintY + 800 + run.OuterDiameter / 2 + run.Insulation;
                     return run;
                 }
             }
@@ -704,6 +722,11 @@ namespace DWSIM.Extensions.SolidCraft
                     var dir = Math.Abs(d.X) > 0.5 ? d.X : (from != null ? 1 : -1);
                     end.X = p1.X + Math.Sign(dir) * 1500;
                 }
+                // a side nozzle whose stream icon lies behind the item: the line would cross the
+                // item to get there, so it ends straight out of the nozzle instead
+                var flat = new Vec3(d.X, d.Y, 0);
+                if (flat.Length > 0.5 && Vec3.Dot(end - p1, flat) < 500)
+                    end = p1 + flat.Normalized() * 1500;
                 path.Add(p);
                 path.Add(p1);
                 path.Add(new Vec3(end.X, p1.Y, p1.Z));
@@ -737,25 +760,30 @@ namespace DWSIM.Extensions.SolidCraft
             const double top = 6000, gap = 150;
             var visible = model.Equipment.Where(e => e.Visible).ToList();
             var y0 = (visible.Count > 0 ? visible.Max(e => e.Origin.Y + e.FootprintY) : 0) + 3000;
-            var width = Math.Max(2000, lines.Sum(r => r.OuterDiameter + gap) + 2 * gap);
-            var transfer = top + Math.Max(900, lines.Max(r => r.OuterDiameter) + 600);
+            // lanes as wide as the line with its insulation
+            var width = Math.Max(2000, lines.Sum(r => r.OuterDiameter + 2 * r.Insulation + gap) + 2 * gap);
+            var transfer = top + Math.Max(900, lines.Max(r => r.OuterDiameter + 2 * r.Insulation) + 600);
 
             var y = y0 + gap;
             foreach (var run in lines)
             {
-                var lane = y + run.OuterDiameter / 2;
-                y += run.OuterDiameter + gap;
+                var lane = y + run.OuterDiameter / 2 + run.Insulation;
+                y += run.OuterDiameter + 2 * run.Insulation + gap;
                 var zl = top + run.OuterDiameter / 2;
                 var zt = transfer;
+                var ya = double.IsNaN(run.AClearY) ? run.A1.Y : run.AClearY;
+                var yb = double.IsNaN(run.BClearY) ? run.B1.Y : run.BClearY;
                 run.Path = Simplify(new List<Vec3>
                 {
                     run.A, run.A1,
-                    new Vec3(run.A1.X, run.A1.Y, zt),
+                    new Vec3(run.A1.X, ya, run.A1.Z),
+                    new Vec3(run.A1.X, ya, zt),
                     new Vec3(run.A1.X, lane, zt),
                     new Vec3(run.A1.X, lane, zl),
                     new Vec3(run.B1.X, lane, zl),
                     new Vec3(run.B1.X, lane, zt),
-                    new Vec3(run.B1.X, run.B1.Y, zt),
+                    new Vec3(run.B1.X, yb, zt),
+                    new Vec3(run.B1.X, yb, run.B1.Z),
                     run.B1, run.B
                 });
             }

@@ -145,12 +145,14 @@ namespace DWSIM.Extensions.SolidCraft
 
                 var failed = cmds[i];
                 skipped.Add(failed.Subject + " (" + failed.Name + "): " + m.Groups[3].Value.Trim());
-                if (failed.Subject.StartsWith("line ") || failed.Subject.StartsWith("label ") || failed.Subject.StartsWith("flow "))
+                if (failed.Subject.StartsWith("line ") || failed.Subject.StartsWith("label ") || failed.Subject.StartsWith("flow ") || failed.Subject.StartsWith("insulation "))
                 {
-                    // the commands of a line, a label or a band need each other: leave all of them
+                    // the commands of a line, a label, a band or a jacket need each other: leave all of them
                     // out, and their sketches out of the command that hides the sketches
-                    var gone = cmds.Where(c => c.Subject == failed.Subject).ToList();
-                    cmds.RemoveAll(c => c.Subject == failed.Subject);
+                    // a line takes its jacket with it
+                    var jacket = failed.Subject.StartsWith("line ") ? "insulation " + failed.Subject.Substring(5) : null;
+                    var gone = cmds.Where(c => c.Subject == failed.Subject || c.Subject == jacket).ToList();
+                    cmds.RemoveAll(c => c.Subject == failed.Subject || c.Subject == jacket);
                     ForgetSketches(cmds, gone);
                 }
                 else

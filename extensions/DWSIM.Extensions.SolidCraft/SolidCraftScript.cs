@@ -187,6 +187,9 @@ namespace DWSIM.Extensions.SolidCraft
                 for (var f = 0; f < run.Flanges.Count; f++)
                     AddFlange(cmds, subject, run, run.Flanges[f].Item1, run.Flanges[f].Item2, body + " flange " + (f + 1));
 
+                // its own subject: a jacket SolidCraft cannot make is left out without the line
+                if (run.Insulation > 0) AddInsulation(cmds, "insulation " + run.Tag, run, sketch, straights, elbows, n, body, sketches);
+
                 var props = new JObject();
                 foreach (var kv in run.Properties) props[kv.Key] = kv.Value;
                 Add(cmds, "component.metadata.set", subject, new JObject
@@ -328,7 +331,8 @@ namespace DWSIM.Extensions.SolidCraft
                 // tangent length that fits: at most 45 % of each neighbouring run, the incoming one
                 // counted from where the previous bend ended
                 var room = Math.Min((pts[i] - current).Length, 0.45 * (pts[i + 1] - pts[i]).Length);
-                var radius = Math.Min(1.5 * run.OuterDiameter, tanHalf > 1e-6 ? room / tanHalf : 0);
+                var preferred = Math.Max(1.5 * run.OuterDiameter, 1.1 * (run.OuterDiameter / 2 + run.Insulation));
+                var radius = Math.Min(preferred, tanHalf > 1e-6 ? room / tanHalf : 0);
                 if (theta < 0.01 || radius < run.OuterDiameter)
                 {
                     // no room for a bend: a sharp corner, the two runs stopping 2 mm short of it
@@ -359,6 +363,9 @@ namespace DWSIM.Extensions.SolidCraft
         /// about the bend's centre (an exact torus in the STEP file).
         /// </summary>
         static void AddElbow(List<Command> cmds, string subject, PipeRun run, Elbow e, string sketch, string body)
+            => AddElbow(cmds, subject, run.OuterDiameter, run.OuterDiameter - 2 * run.Wall, e, sketch, body);
+
+        static void AddElbow(List<Command> cmds, string subject, double outer, double inner, Elbow e, string sketch, string body)
         {
             // sketch x towards the centre and y their cross product, so the sketch faces along the line
             var y = Cross(e.Along, e.ToCentre);
@@ -372,8 +379,8 @@ namespace DWSIM.Extensions.SolidCraft
                     ["y_dir"] = Dir(y)
                 }
             });
-            Add(cmds, "sketch.circle.center", subject, new JObject { ["center"] = new JArray(0, 0), ["diameter"] = Round(run.OuterDiameter) });
-            Add(cmds, "sketch.circle.center", subject, new JObject { ["center"] = new JArray(0, 0), ["diameter"] = Round(run.OuterDiameter - 2 * run.Wall) });
+            Add(cmds, "sketch.circle.center", subject, new JObject { ["center"] = new JArray(0, 0), ["diameter"] = Round(outer) });
+            Add(cmds, "sketch.circle.center", subject, new JObject { ["center"] = new JArray(0, 0), ["diameter"] = Round(inner) });
             Add(cmds, "sketch.finish", subject, new JObject());
             Add(cmds, "solid.revolve", subject, new JObject
             {
@@ -382,6 +389,40 @@ namespace DWSIM.Extensions.SolidCraft
                 ["angle"] = Math.Round(e.Degrees, 4),
                 ["body_name"] = body
             });
+        }
+
+        /// <summary>
+        /// The insulation of a line: a sleeve over each straight run and each bend with an aluminium
+        /// cladding finish. A bend too tight for the sleeve (its radius under the sleeve's) is left bare.
+        /// </summary>
+        static void AddInsulation(List<Command> cmds, string subject, PipeRun run, string sketch, int straights, List<Elbow> elbows, int n, string body, List<string> sketches)
+        {
+            var outer = run.OuterDiameter + 2 * run.Insulation;
+            var jackets = new JArray();
+            for (var k = 1; k <= straights; k++)
+            {
+                var piece = body + " insulation " + k;
+                Add(cmds, "solid.pipe", subject, new JObject
+                {
+                    ["path_sketch"] = sketch,
+                    ["path"] = new JArray("w" + k),
+                    ["diameter"] = Round(outer),
+                    ["wall"] = Round(run.Insulation),
+                    ["body_name"] = piece
+                });
+                jackets.Add(piece);
+            }
+            for (var k = 0; k < elbows.Count; k++)
+            {
+                if (elbows[k].Radius <= outer / 2 + 5) continue;
+                var name = "Insulation " + n + "." + (k + 1) + " " + run.Tag;
+                var piece = body + " insulation elbow " + (k + 1);
+                AddElbow(cmds, subject, outer, run.OuterDiameter, elbows[k], name, piece);
+                sketches.Add(name);
+                jackets.Add(piece);
+            }
+            if (jackets.Count > 0)
+                Add(cmds, "appearance.assign", subject, new JObject { ["bodies"] = jackets, ["appearance"] = "starter.metal.aluminum-bead-blast" });
         }
 
         static Vec3 Cross(Vec3 a, Vec3 b) => new Vec3(a.Y * b.Z - a.Z * b.Y, a.Z * b.X - a.X * b.Z, a.X * b.Y - a.Y * b.X);

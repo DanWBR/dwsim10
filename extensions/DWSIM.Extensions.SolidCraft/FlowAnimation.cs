@@ -78,7 +78,7 @@ namespace DWSIM.Extensions.SolidCraft
                         SolidCraftScript.Add(cmds, "component.create", subject, new JObject { ["name"] = name, ["parent"] = "root", ["grounded"] = false });
                         SolidCraftScript.Add(cmds, "solid.cylinder", subject, new JObject
                         {
-                            ["diameter"] = SolidCraftScript.Round(run.OuterDiameter * 1.5),
+                            ["diameter"] = SolidCraftScript.Round(Math.Max(run.OuterDiameter * 1.5, run.OuterDiameter + 2 * run.Insulation + 30)),
                             ["height"] = SolidCraftScript.Round(band),
                             ["base"] = new JArray((at - dir * (band / 2)).ToArray()),
                             ["axis"] = Axis(dir),

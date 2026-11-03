@@ -148,6 +148,27 @@ namespace DWSIM.Extensions.SolidCraft
             {
                 fs.ShowMessage("3D plant model: the line list could not be written (" + ex.Message + ").", IFlowsheet.MessageType.Warning);
             }
+            // where the model runs into itself
+            var clashes = ClashCheck.Find(model);
+            try
+            {
+                var clashFile = outputBase + " - clashes.csv";
+                if (clashes.Count > 0) LineReports.WriteClashes(clashes, clashFile, CultureInfo.CurrentCulture);
+                else if (File.Exists(clashFile)) File.Delete(clashFile);
+            }
+            catch (Exception) { }
+            foreach (var c in clashes.Take(10))
+                fs.ShowMessage("3D plant model: " + (c.Kind == "line through item"
+                        ? string.Format(CultureInfo.InvariantCulture, "line {0} passes through {1} ({2:0.##} m inside).", c.A, c.B, c.Amount)
+                        : c.Kind == "lines meet"
+                            ? string.Format(CultureInfo.InvariantCulture, "lines {0} and {1} meet (they cut {2:0} mm into each other).", c.A, c.B, c.Amount)
+                            : string.Format(CultureInfo.InvariantCulture, "{0} and {1} overlap ({2:0} mm).", c.A, c.B, c.Amount)),
+                    IFlowsheet.MessageType.Warning);
+            if (clashes.Count > 10)
+                fs.ShowMessage("3D plant model: " + (clashes.Count - 10) + " more clashes, listed in " + outputBase + " - clashes.csv.", IFlowsheet.MessageType.Warning);
+            if (clashes.Count > 0)
+                fs.ShowMessage("3D plant model: move the items in SolidCraft and export again to clear the clashes; the new places are kept.", IFlowsheet.MessageType.Information);
+
             foreach (var run in model.Pipes.Where(r => r.Hydraulics != null && r.Hydraulics.Check.Length > 0))
                 fs.ShowMessage(string.Format(CultureInfo.InvariantCulture, "3D plant model: line {0} ({1}, {2:0} m, {3} bends): {4}; pressure drop {5:0.###} bar, which the simulation does not include.",
                     run.Tag, run.Size, run.Hydraulics.Length, run.Hydraulics.Bends, run.Hydraulics.Check, run.Hydraulics.Total),

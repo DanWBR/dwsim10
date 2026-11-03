@@ -38,7 +38,7 @@ namespace DWSIM.Extensions.SolidCraft
         {
             var csv = new Csv(culture);
             csv.Row("Line", "From", "To", "Size", "OD (mm)", "Wall (mm)", "Phase", "Temperature (C)", "Pressure (bar)",
-                "Mass flow (kg/h)", "Density (kg/m3)", "Viscosity (cP)", "Velocity (m/s)", "Length (m)", "Bends", "Flanges",
+                "Mass flow (kg/h)", "Density (kg/m3)", "Viscosity (cP)", "Velocity (m/s)", "Length (m)", "Bends", "Flanges", "Insulation (mm)",
                 "Rise (m)", "Reynolds", "Friction factor", "Friction and fittings dP (bar)", "Static dP (bar)", "Total dP (bar)",
                 "dP per 100 m (bar)", "On pipe rack", "Check");
             foreach (var run in model.Pipes)
@@ -47,7 +47,7 @@ namespace DWSIM.Extensions.SolidCraft
                 csv.Row(run.Tag, run.From, run.To, run.Size, Num(run.OuterDiameter, 1), Num(run.Wall, 2), run.Phase,
                     Num(run.Temperature > 0 ? run.Temperature - 273.15 : double.NaN, 1), Num(run.Pressure > 0 ? run.Pressure / 1e5 : double.NaN, 3),
                     Num(run.MassFlow * 3600, 2), Num(run.Density, 2), Num(run.Viscosity * 1000, 4), Num(run.Velocity, 2),
-                    Num(h.Length, 1), h.Bends, run.Flanges.Count, Num(h.Rise, 1), Num(h.Reynolds, 0), Num(h.FrictionFactor, 4),
+                    Num(h.Length, 1), h.Bends, run.Flanges.Count, run.Insulation > 0 ? run.Insulation.ToString("0", culture) + " " + run.InsulationService : "", Num(h.Rise, 1), Num(h.Reynolds, 0), Num(h.FrictionFactor, 4),
                     Num(h.Friction, 4), Num(h.Static, 4), Num(h.Total, 4), Num(h.Length > 0 ? h.Friction / h.Length * 100 : double.NaN, 3),
                     run.OnRack ? "yes" : "no", h.Check);
             }
@@ -72,6 +72,22 @@ namespace DWSIM.Extensions.SolidCraft
             var total = model.Pipes.Sum(r => r.Hydraulics?.Length ?? 0);
             csv.Row("Total", "", "", Num(total, 1));
 
+            var insulated = model.Pipes.Where(r => r.Insulation > 0).ToList();
+            if (insulated.Count > 0)
+            {
+                csv.Row();
+                csv.Row("Insulation");
+                csv.Row("Size", "Service", "Thickness (mm)", "Length (m)", "Cladding area (m2)", "Insulation volume (m3)");
+                foreach (var g in insulated.GroupBy(r => new { r.Size, r.InsulationService, r.Insulation }).OrderBy(g => g.First().OuterDiameter))
+                {
+                    var od = g.First().OuterDiameter / 1000;
+                    var t = g.Key.Insulation / 1000;
+                    var length = g.Sum(r => r.Hydraulics?.Length ?? 0);
+                    csv.Row(g.Key.Size, g.Key.InsulationService, Num(g.Key.Insulation, 0), Num(length, 1),
+                        Num(Math.PI * (od + 2 * t) * length, 1), Num(Math.PI / 4 * (Math.Pow(od + 2 * t, 2) - od * od) * length, 2));
+                }
+            }
+
             if (model.Rack != null)
             {
                 var rack = model.Rack;
@@ -93,6 +109,16 @@ namespace DWSIM.Extensions.SolidCraft
             foreach (var item in model.Equipment.Where(e => e.Visible))
                 csv.Row(item.Tag, item.Description, string.Join("; ", item.Properties.Select(kv => kv.Key + " " + kv.Value)));
 
+            csv.Save(path);
+        }
+
+        public static void WriteClashes(List<ClashCheck.Clash> clashes, string path, CultureInfo culture)
+        {
+            var csv = new Csv(culture);
+            csv.Row("What", "A", "B", "Amount", "Unit", "X (m)", "Y (m)", "Z (m)");
+            foreach (var c in clashes)
+                csv.Row(c.Kind, c.A, c.B, Num(c.Amount, c.Kind == "line through item" ? 2 : 0), c.Kind == "line through item" ? "m inside" : "mm",
+                    Num(c.At.X / 1000, 2), Num(c.At.Y / 1000, 2), Num(c.At.Z / 1000, 2));
             csv.Save(path);
         }
 
