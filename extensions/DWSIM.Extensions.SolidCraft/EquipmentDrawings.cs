@@ -49,6 +49,8 @@ namespace DWSIM.Extensions.SolidCraft
             public string Mark, Size, Service;
             public Vec3 Base, Face, Dir;
             public double OD;
+            public PipeRun Run;
+            public bool Outlet;
         }
 
         enum View { Front, Plan }
@@ -107,17 +109,7 @@ namespace DWSIM.Extensions.SolidCraft
             var parts = item.Parts.Where(p => !p.NoClash && p.Kind != PrimitiveKind.Torus &&
                 !new[] { "reflux", "reboiler", "platform", "handrail", "ladder" }.Any(x => (p.Name ?? "").StartsWith(x))).ToList();
 
-            // the nozzles: where the lines meet the item, the flange faces of the 3D model
-            var nozzles = new List<Nozzle>();
-            foreach (var run in model.Pipes)
-            {
-                var k = 0;
-                if (run.From == item.Tag && run.Flanges.Count > k) nozzles.Add(MakeNozzle(run, run.Flanges[k], true, Local));
-                if (run.From != "battery limit") k++;
-                if (run.To == item.Tag && run.Flanges.Count > k) nozzles.Add(MakeNozzle(run, run.Flanges[k], false, Local));
-            }
-            nozzles = nozzles.OrderBy(n => n.Service.EndsWith("outlet") ? 1 : 0).ThenByDescending(n => vertical ? n.Face.Z : -n.Face.X).ToList();
-            for (var i = 0; i < nozzles.Count; i++) nozzles[i].Mark = "N" + (i + 1);
+            var nozzles = Nozzles(model, item);
 
             // the main dimensions, in the item's own frame
             var shell = parts.FirstOrDefault(p => p.Name == "shell");
@@ -364,6 +356,32 @@ namespace DWSIM.Extensions.SolidCraft
             return File.Exists(outputBase + ".dxf") ? outputBase + ".dxf" : null;
         }
 
+        /// <summary>
+        /// The nozzles of an item: where the lines meet it, at the flange faces of the 3D model, in
+        /// the item's own frame, marked N1, N2... (inlets first, from the top or the left).
+        /// </summary>
+        static List<Nozzle> Nozzles(PlantModel model, EquipmentItem item)
+        {
+            var unturn = (360 - item.Rotation) % 360;
+            Vec3 Local(Vec3 world) => (world - item.Origin).TurnedZ(unturn);
+            var vertical = item.Envelope?.Kind == EnvelopeKind.VerticalCylinder;
+            var nozzles = new List<Nozzle>();
+            foreach (var run in model.Pipes)
+            {
+                var k = 0;
+                if (run.From == item.Tag && run.Flanges.Count > k) nozzles.Add(MakeNozzle(run, run.Flanges[k], true, Local));
+                if (run.From != "battery limit") k++;
+                if (run.To == item.Tag && run.Flanges.Count > k) nozzles.Add(MakeNozzle(run, run.Flanges[k], false, Local));
+            }
+            nozzles = nozzles.OrderBy(n => n.Outlet ? 1 : 0).ThenByDescending(n => vertical ? n.Face.Z : -n.Face.X).ToList();
+            for (var i = 0; i < nozzles.Count; i++) nozzles[i].Mark = "N" + (i + 1);
+            return nozzles;
+        }
+
+        /// <summary>The mark of the nozzle a line leaves (<paramref name="outlet"/>) or enters an item by, as on the item's drawing; null for none.</summary>
+        internal static string NozzleMark(PlantModel model, EquipmentItem item, PipeRun run, bool outlet)
+            => Nozzles(model, item).FirstOrDefault(n => n.Run == run && n.Outlet == outlet)?.Mark;
+
         static string Short(string s, int n) => s == null || s.Length <= n ? s ?? "" : s.Substring(0, n - 1) + ".";
 
         static Nozzle MakeNozzle(PipeRun run, Tuple<Vec3, Vec3> flange, bool outlet, Func<Vec3, Vec3> local)
@@ -375,7 +393,7 @@ namespace DWSIM.Extensions.SolidCraft
             var l0 = local(baseW); var l1 = local(face);
             return new Nozzle
             {
-                Size = run.Size, OD = run.OuterDiameter, Service = run.Tag + (outlet ? " outlet" : " inlet"),
+                Size = run.Size, OD = run.OuterDiameter, Service = run.Tag + (outlet ? " outlet" : " inlet"), Run = run, Outlet = outlet,
                 Base = l0, Face = l1, Dir = (l1 - l0).Normalized()
             };
         }

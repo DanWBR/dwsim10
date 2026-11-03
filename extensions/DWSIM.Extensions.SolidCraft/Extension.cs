@@ -40,7 +40,7 @@ namespace DWSIM.Extensions.SolidCraft
 
         public ExtenderLevel Level => ExtenderLevel.FlowsheetWindow;
 
-        public List<IExtender> Collection { get; } = new List<IExtender> { new PlantModelExtender(), new UpdateDataExtender(), new ResetLayoutExtender(), new ProcessFlowDiagramExtender(), new PipingAndInstrumentationExtender(), new EquipmentDrawingsExtender() };
+        public List<IExtender> Collection { get; } = new List<IExtender> { new PlantModelExtender(), new UpdateDataExtender(), new ResetLayoutExtender(), new ProcessFlowDiagramExtender(), new PipingAndInstrumentationExtender(), new EquipmentDrawingsExtender(), new PipingIsometricsExtender() };
 
         public int InsertAtPosition => -1;
 
@@ -535,6 +535,82 @@ namespace DWSIM.Extensions.SolidCraft
                 return result;
             }
             fs.ShowMessage(string.Format("Equipment drawings: {0} general arrangement drawings saved to {1} (DXF, DWG, PDF and PNG).", result.Drawings.Count, outputFolder),
+                IFlowsheet.MessageType.Information);
+            if (openInApp) CADCraftSession.OpenInApp(cadcraftFolder, result.Drawings[0]);
+            return result;
+        }
+    }
+
+    /// <summary>
+    /// Draws the piping isometric of each line of the flowsheet's 3D plant model in CADCraft and
+    /// saves them next to the simulation with the other drawings.
+    /// </summary>
+    public class PipingIsometricsExtender : IExtender, IExtender3
+    {
+        IFlowsheet Flowsheet;
+
+        public string ID => "c41e7a20-93d5-4b8f-a6e2-5f0b9d3c1e84";
+
+        public string DisplayText => "Export Piping Isometrics (CADCraft)";
+
+        public byte[] DisplayImage => PlantModelExtender.Icon();
+
+        public int InsertAtPosition => -1;
+
+        public void SetMainWindow(object mainwindow) { }
+
+        public void SetFlowsheet(IFlowsheet form) => Flowsheet = form;
+
+        public void ReleaseResources() => Flowsheet = null;
+
+        public void Run()
+        {
+            var fs = Flowsheet;
+            if (fs == null) return;
+            var folder = CADCraftSession.FindInstallFolder();
+            if (folder == null)
+            {
+                fs.ShowMessage("CADCraft was not found. Install it (it comes on its own or with SolidCraft in the ArtCraft suite), or set CADCRAFT_HOME to the folder that holds cadcraft-cli.",
+                    IFlowsheet.MessageType.GeneralError);
+                return;
+            }
+            fs.ShowMessage("Drawing the piping isometrics with CADCraft...", IFlowsheet.MessageType.Information);
+            Task.Run(() =>
+            {
+                try { Export(fs, folder, true); }
+                catch (Exception ex) { fs.ShowMessage("Piping isometrics: " + ex.Message, IFlowsheet.MessageType.GeneralError); }
+            });
+        }
+
+        /// <summary>Draws and saves the isometrics; returns the result. Public for tests and scripts.</summary>
+        public static PipingIsometrics.Result Export(IFlowsheet fs, string cadcraftFolder, bool openInApp, string outputFolder = null)
+        {
+            var name = PlantModelExtender.ModelName(fs);
+            if (outputFolder == null) outputFolder = ProcessFlowDiagramExtender.DrawingsFolder(fs);
+            Directory.CreateDirectory(outputFolder);
+            var options = ExportOptions.Load();
+            var project = fs.FlowsheetOptions?.SimulationName;
+            var result = PipingIsometrics.Export(fs, cadcraftFolder, outputFolder, name, options.Style, (run, number, id) => new TitleData
+            {
+                Owner = options.DrawingOwner ?? "",
+                Project = string.IsNullOrWhiteSpace(project) ? name : project,
+                Title = "PIPING ISOMETRIC",
+                Subtitle = number,
+                Number = "ISO-" + id,
+                DocumentType = "ISO",
+                Status = "PRELIMINARY",
+                Date = DateTime.Today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                PreparedBy = fs.FlowsheetOptions?.SimulationAuthor ?? ""
+            });
+
+            foreach (var f in result.Failed.Take(5))
+                fs.ShowMessage("Piping isometrics: left out " + f, IFlowsheet.MessageType.Warning);
+            if (result.Drawings.Count == 0)
+            {
+                fs.ShowMessage("CADCraft could not draw the isometrics: " + result.Error, IFlowsheet.MessageType.GeneralError);
+                return result;
+            }
+            fs.ShowMessage(string.Format("Piping isometrics: {0} drawings saved to {1} (DXF, DWG, PDF and PNG).", result.Drawings.Count, outputFolder),
                 IFlowsheet.MessageType.Information);
             if (openInApp) CADCraftSession.OpenInApp(cadcraftFolder, result.Drawings[0]);
             return result;

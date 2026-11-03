@@ -44,6 +44,15 @@ namespace DWSIM.Extensions.SolidCraft
             }
         }
 
+        /// <summary>The P&amp;ID line number and number alone of each material stream, by tag, as the P&amp;ID shows them.</summary>
+        internal static Dictionary<string, (string Number, string Id)> LineNumbers(IFlowsheet fs, Dictionary<string, PipeRun> data)
+        {
+            var map = new Dictionary<string, (string, string)>();
+            foreach (var l in Lines(fs).Where(l => !l.Energy && l.Tag != null))
+                map[l.Tag] = (LineNumber(l, data), l.Id);
+            return map;
+        }
+
         /// <summary>A line number: nominal size, fluid code (P, process), number, and H or C for hot or cold insulation.</summary>
         static string LineNumber(Line l, Dictionary<string, PipeRun> data)
         {

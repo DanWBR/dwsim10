@@ -45,6 +45,7 @@ Version 10.2.14
 - [NEW] Process flow diagram (Tools > Export Process Flow Diagram): draws the flowsheet in CADCraft, a free CAD program installed separately, with equipment symbols, the streams routed nozzle to nozzle, horizontal and vertical and clear of the items, with their numbers, a stream table in the flowsheet units and a title block in the ISO, ASME or Petrobras standard, saved as DXF, DWG, PDF and PNG
 - [NEW] P&ID (Tools > Export P&ID): draws the flowsheet in CADCraft with line numbers, ISA control loops (transmitters, controllers with their set points, signal lines and control valves), local indicators and relief valves, saved as DXF, DWG, PDF and PNG
 - [NEW] Equipment drawings (Tools > Export Equipment Drawings): a general arrangement drawing of each vessel, column, tank and exchanger in CADCraft, with front and plan views to scale, main dimensions, nozzle schedule and item data, saved as DXF, DWG, PDF and PNG
+- [NEW] Piping isometrics (Tools > Export Piping Isometrics): one CADCraft drawing per line of the 3D model, with leg lengths, elevations, end coordinates, line data, preliminary design conditions and a bill of materials, saved as DXF, DWG, PDF and PNG
 
 Version 10.2.13
 
