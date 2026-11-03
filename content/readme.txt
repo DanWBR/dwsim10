@@ -39,6 +39,10 @@ VERSION HISTORY / CHANGELOG
 
 The full changelog including souce code changes can be viewed at https://github.com/DanWBR/dwsim10/commits/windows
 
+Version 10.2.14
+
+- [NEW] 3D plant model (Tools > Export 3D Plant Model): builds the flowsheet in SolidCraft, a free CAD program installed separately, with equipment sized from its data or its streams, lines sized and routed between the nozzles, steel finishes, operating conditions as properties and 3D labels, and a flow animation; the model is saved next to the simulation as a SolidCraft design, a STEP file and a picture
+
 Version 10.2.13
 
 - [NEW] Simultaneous flowsheet solver (Patreon): with Solver Strategy set to Simultaneous or Auto, every Recycle, Energy Recycle and Adjust is converged at once by a damped Newton method, starting from the solution saved with the file; a solve that does not converge goes back to the sequential solver, and the log names the variables that do not close when the specifications cannot fix a steady state
