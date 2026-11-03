@@ -23,6 +23,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
+using Newtonsoft.Json.Linq;
 
 namespace DWSIM.Extensions.SolidCraft
 {
@@ -96,6 +97,7 @@ namespace DWSIM.Extensions.SolidCraft
             res.Success = res.Error == null && File.Exists(res.Design);
             if (!res.Success) return res;
 
+            if (extras != null) extras = WithoutFailedLines(extras, res.Skipped);
             if (extras != null && extras.Count > 0)
             {
                 var gif = outputBase + " - flow.gif";
@@ -145,8 +147,11 @@ namespace DWSIM.Extensions.SolidCraft
                 skipped.Add(failed.Subject + " (" + failed.Name + "): " + m.Groups[3].Value.Trim());
                 if (failed.Subject.StartsWith("line ") || failed.Subject.StartsWith("label ") || failed.Subject.StartsWith("flow "))
                 {
-                    // the commands of a line, a label or a band need each other: leave all of them out
+                    // the commands of a line, a label or a band need each other: leave all of them
+                    // out, and their sketches out of the command that hides the sketches
+                    var gone = cmds.Where(c => c.Subject == failed.Subject).ToList();
                     cmds.RemoveAll(c => c.Subject == failed.Subject);
+                    ForgetSketches(cmds, gone);
                 }
                 else
                 {
@@ -156,6 +161,28 @@ namespace DWSIM.Extensions.SolidCraft
                         cmds.RemoveAt(i);
                 }
             }
+        }
+
+        /// <summary>Takes the sketches the removed commands would have made out of the browser.visibility lists.</summary>
+        static void ForgetSketches(List<SolidCraftScript.Command> cmds, List<SolidCraftScript.Command> removed)
+        {
+            var names = new HashSet<string>(removed.Where(c => c.Name == "sketch.create").Select(c => (string)c.Params["name"]));
+            if (names.Count == 0) return;
+            foreach (var c in cmds.Where(c => c.Name == "browser.visibility"))
+            {
+                if (!(c.Params["items"] is JArray items)) continue;
+                foreach (var item in items.Where(i => names.Contains((string)i)).ToList()) item.Remove();
+            }
+        }
+
+        /// <summary>Leaves out the labels and flow bands of the lines the model run had to leave out.</summary>
+        static List<SolidCraftScript.Command> WithoutFailedLines(List<SolidCraftScript.Command> extras, List<string> skipped)
+        {
+            var tags = skipped.Where(s => s.StartsWith("line ")).Select(s => s.Substring(5, s.IndexOf(" (", StringComparison.Ordinal) - 5)).ToList();
+            if (tags.Count == 0) return extras;
+            var kept = extras.Where(c => !tags.Any(t => c.Subject == "label " + t || c.Subject.StartsWith("flow " + t + " "))).ToList();
+            ForgetSketches(kept, extras.Except(kept).ToList());
+            return kept;
         }
 
         /// <summary>Opens the design in the SolidCraft application.</summary>

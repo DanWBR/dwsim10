@@ -39,7 +39,11 @@ namespace DWSIM.Extensions.SolidCraft
 
         public static double Dot(Vec3 a, Vec3 b) => a.X * b.X + a.Y * b.Y + a.Z * b.Z;
 
-        public double[] ToArray() => new[] { Math.Round(X, 1), Math.Round(Y, 1), Math.Round(Z, 1) };
+        /// <summary>
+        /// Whole millimetres: SolidCraft fails to sweep a straight pipe tens of metres from the origin
+        /// when its ends carry fractions of a millimetre (42958.4 fails where 42958 works).
+        /// </summary>
+        public double[] ToArray() => new[] { Math.Round(X), Math.Round(Y), Math.Round(Z) };
 
         public static readonly Vec3 PlusX = new Vec3(1, 0, 0), MinusX = new Vec3(-1, 0, 0);
         public static readonly Vec3 PlusZ = new Vec3(0, 0, 1), MinusZ = new Vec3(0, 0, -1);
@@ -265,8 +269,25 @@ namespace DWSIM.Extensions.SolidCraft
         /// <summary>The 3D label along the line; null for none.</summary>
         public string Label;
 
-        /// <summary>The run ends at the battery limit: draw a flange there.</summary>
-        public bool OpenEnd, OpenStart;
+        /// <summary>Flanges along the line: the face position and the direction the flange faces.</summary>
+        public List<Tuple<Vec3, Vec3>> Flanges = new List<Tuple<Vec3, Vec3>>();
+
+        /// <summary>
+        /// The line runs on the pipe rack: its path is laid out once every rack line is known, from
+        /// the nozzles (A, B) and the points just off them (A1, B1).
+        /// </summary>
+        internal bool OnRack;
+        internal Vec3 A, A1, B, B1;
+    }
+
+    /// <summary>A single-tier pipe rack along X: the lines run on top of its beams, one lane each.</summary>
+    public class PipeRack
+    {
+        /// <summary>Ends along X, the -Y side, the width along Y and the top of the steel, mm.</summary>
+        public double X0, X1, Y0, Width, Top;
+
+        public const double BayLength = 6000;
+        public const double BeamHeight = 250;
     }
 
     public class PlantModel
@@ -275,6 +296,9 @@ namespace DWSIM.Extensions.SolidCraft
         public List<EquipmentItem> Equipment = new List<EquipmentItem>();
         public List<PipeRun> Pipes = new List<PipeRun>();
         public List<string> Warnings = new List<string>();
+
+        /// <summary>The pipe rack, when a line runs on it.</summary>
+        public PipeRack Rack;
 
         /// <summary>mm of plot plan per unit of canvas, and the canvas point placed at the world origin.</summary>
         public double Scale, CanvasOriginX, CanvasOriginY;

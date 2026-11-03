@@ -36,7 +36,7 @@ namespace DWSIM.Extensions.SolidCraft
         const int Steps = 40;
 
         // more bands than this makes the run slow and the picture busy: the spacing is widened
-        const int MaxBands = 300;
+        const int MaxBands = 150;
 
         const string BandColor = "#fff36b";
 
@@ -107,8 +107,8 @@ namespace DWSIM.Extensions.SolidCraft
             {
                 ["study"] = StudyName,
                 ["path"] = gifPath,
-                ["width"] = 1280,
-                ["height"] = 800,
+                ["width"] = 1024,
+                ["height"] = 640,
                 ["fps"] = 20,
                 ["samples"] = Steps,
                 ["grid"] = false,
@@ -154,8 +154,11 @@ namespace DWSIM.Extensions.SolidCraft
 
         static string JointName(PipeRun run, int k) => "flow " + run.Tag + " " + k;
 
-        /// <summary>Band spacing, mm: 0.5 s of travel at the line velocity, within 300 mm and 4 m.</summary>
-        static double Spacing(PipeRun run, double factor) => Math.Min(Math.Max(run.Velocity * 500, 300), 4000) * factor;
+        /// <summary>
+        /// Band spacing, mm: 0.5 s of travel at the line velocity, within 1.2 m (closer bands turn a
+        /// small line into a string of beads) and 4 m.
+        /// </summary>
+        static double Spacing(PipeRun run, double factor) => Math.Min(Math.Max(run.Velocity * 500, 1200), 4000) * factor;
 
         static int Count(double length, double spacing) => (int)Math.Floor(length / spacing);
 
@@ -166,7 +169,7 @@ namespace DWSIM.Extensions.SolidCraft
             {
                 var d = run.Path[i] - run.Path[i - 1];
                 var l = d.Length;
-                var margin = run.OuterDiameter;
+                var margin = 2.5 * run.OuterDiameter;   // clear of the bends
                 if (l <= 2 * margin) continue;
                 var dir = d.Normalized();
                 yield return Tuple.Create(run.Path[i - 1] + dir * margin, dir, l - 2 * margin);

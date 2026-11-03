@@ -104,6 +104,9 @@ namespace DWSIM.Extensions.SolidCraft
                 }
             }
 
+            LayOutRack(model);
+            model.Pipes.RemoveAll(r => r.Path.Count < 2);
+
             return model;
         }
 
@@ -622,33 +625,36 @@ namespace DWSIM.Extensions.SolidCraft
             if (from == null && to == null) return null;
 
             var run = SizePipe(ms, sgo.Tag);
-            var stub = Math.Max(500, 3 * run.OuterDiameter);
+            var stub = Math.Max(800, 4 * run.OuterDiameter);
             var path = new List<Vec3>();
+
+            // the flanged nozzles where the line meets its items
+            if (from != null) run.Flanges.Add(Tuple.Create(pa + da * NozzleNeck(run), da));
+            if (to != null) run.Flanges.Add(Tuple.Create(pb + db * NozzleNeck(run), db));
 
             if (from != null && to != null)
             {
                 var a1 = Lift(pa + da * stub, run);
                 var b1 = Lift(pb + db * stub, run);
-                path.Add(pa);
-                path.Add(a1);
                 if (da.X > 0.5 && db.X < -0.5 && b1.X > a1.X + 1)
                 {
                     // facing nozzles, the common left-to-right flow: a Z-shaped run at nozzle height
                     var mx = (a1.X + b1.X) / 2;
+                    path.Add(pa);
+                    path.Add(a1);
                     path.Add(new Vec3(mx, a1.Y, a1.Z));
                     path.Add(new Vec3(mx, b1.Y, a1.Z));
                     path.Add(new Vec3(mx, b1.Y, b1.Z));
+                    path.Add(b1);
+                    path.Add(pb);
                 }
                 else
                 {
-                    // otherwise over the top, each line on its own level so parallel runs do not meet
-                    var zr = Math.Max(a1.Z, b1.Z) + 1000 + (index % 5) * 350;
-                    path.Add(new Vec3(a1.X, a1.Y, zr));
-                    path.Add(new Vec3(b1.X, a1.Y, zr));
-                    path.Add(new Vec3(b1.X, b1.Y, zr));
+                    // otherwise on the pipe rack, laid out once every rack line is known
+                    run.OnRack = true;
+                    run.A = pa; run.A1 = a1; run.B = pb; run.B1 = b1;
+                    return run;
                 }
-                path.Add(b1);
-                path.Add(pb);
             }
             else
             {
@@ -668,12 +674,66 @@ namespace DWSIM.Extensions.SolidCraft
                 path.Add(new Vec3(end.X, p1.Y, p1.Z));
                 path.Add(end);
                 if (to != null) path.Reverse();
-                run.OpenStart = to != null;
-                run.OpenEnd = from != null;
+
+                // a blind flange at the battery limit, facing out of the line
+                var last = Simplify(from != null ? path : Enumerable.Reverse(path).ToList());
+                if (last.Count >= 2)
+                    run.Flanges.Add(Tuple.Create(last[last.Count - 1], (last[last.Count - 1] - last[last.Count - 2]).Normalized()));
             }
 
             run.Path = Simplify(path);
             return run.Path.Count >= 2 ? run : null;
+        }
+
+        /// <summary>Distance from the shell to the nozzle flange face, mm.</summary>
+        static double NozzleNeck(PipeRun run) => Math.Max(150, 1.5 * run.OuterDiameter);
+
+        /// <summary>
+        /// Lays the rack lines out: the rack runs along X behind the plant (on its +Y side, away from
+        /// the iso view), each line on its own lane on top of the beams. A line rises (or drops) from
+        /// its nozzle to a transfer level over the rack, crosses to its lane, drops onto the rack,
+        /// runs along it and leaves the same way, so its crossings pass above the other lanes.
+        /// </summary>
+        static void LayOutRack(PlantModel model)
+        {
+            var lines = model.Pipes.Where(r => r.OnRack).ToList();
+            if (lines.Count == 0) return;
+
+            const double top = 6000, gap = 150;
+            var visible = model.Equipment.Where(e => e.Visible).ToList();
+            var y0 = (visible.Count > 0 ? visible.Max(e => e.Origin.Y + e.FootprintY) : 0) + 3000;
+            var width = Math.Max(2000, lines.Sum(r => r.OuterDiameter + gap) + 2 * gap);
+            var transfer = top + Math.Max(900, lines.Max(r => r.OuterDiameter) + 600);
+
+            var y = y0 + gap;
+            foreach (var run in lines)
+            {
+                var lane = y + run.OuterDiameter / 2;
+                y += run.OuterDiameter + gap;
+                var zl = top + run.OuterDiameter / 2;
+                var zt = transfer;
+                run.Path = Simplify(new List<Vec3>
+                {
+                    run.A, run.A1,
+                    new Vec3(run.A1.X, run.A1.Y, zt),
+                    new Vec3(run.A1.X, lane, zt),
+                    new Vec3(run.A1.X, lane, zl),
+                    new Vec3(run.B1.X, lane, zl),
+                    new Vec3(run.B1.X, lane, zt),
+                    new Vec3(run.B1.X, run.B1.Y, zt),
+                    run.B1, run.B
+                });
+            }
+
+            var xs = lines.SelectMany(r => new[] { r.A1.X, r.B1.X }).ToList();
+            model.Rack = new PipeRack
+            {
+                X0 = xs.Min() - 1500,
+                X1 = xs.Max() + 1500,
+                Y0 = y0,
+                Width = width,
+                Top = top
+            };
         }
 
         /// <summary>Keeps a pipe off the ground.</summary>
@@ -776,8 +836,9 @@ namespace DWSIM.Extensions.SolidCraft
             model.Scale = Math.Min(scale, 600);
             if (scale > 600) model.Warnings.Add("Some icons overlap on the flowsheet; their equipment overlaps too.");
 
-            model.CanvasOriginX = items.Count > 0 ? items.Min(e => e.CanvasX) : 0;
-            model.CanvasOriginY = items.Count > 0 ? items.Min(e => e.CanvasY) : 0;
+            // the plant centred on the origin, so the coordinates stay as small as they can
+            model.CanvasOriginX = items.Count > 0 ? (items.Min(e => e.CanvasX) + items.Max(e => e.CanvasX)) / 2 : 0;
+            model.CanvasOriginY = items.Count > 0 ? (items.Min(e => e.CanvasY) + items.Max(e => e.CanvasY)) / 2 : 0;
 
             foreach (var item in items)
                 item.Origin = ToWorld(model, item.CanvasX, item.CanvasY);
