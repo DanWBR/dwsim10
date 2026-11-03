@@ -46,7 +46,7 @@ namespace DWSIM.Extensions.SolidCraft
         {
             var clashes = new List<Clash>();
             var items = model.Equipment.Where(e => e.Visible).ToList();
-            var solids = items.ToDictionary(e => e, e => e.Parts.Select(p => p.Moved(e.Origin)).ToList());
+            var solids = items.ToDictionary(e => e, e => e.Parts.Where(p => !p.NoClash).Select(p => p.Moved(e.Origin)).ToList());
 
             // lines through items
             foreach (var run in model.Pipes)
@@ -153,6 +153,7 @@ namespace DWSIM.Extensions.SolidCraft
             switch (s.Kind)
             {
                 case PrimitiveKind.Sphere:
+                case PrimitiveKind.Head:
                     return (p - s.Point).Length < s.Diameter / 2 + r;
                 case PrimitiveKind.Box:
                     return Math.Abs(p.X - s.Point.X) < s.SizeX / 2 + r
@@ -180,6 +181,7 @@ namespace DWSIM.Extensions.SolidCraft
                         hi = s.Point + new Vec3(s.SizeX / 2, s.SizeY / 2, s.SizeZ / 2);
                         break;
                     case PrimitiveKind.Sphere:
+                    case PrimitiveKind.Head:
                         lo = s.Point - new Vec3(s.Diameter / 2, s.Diameter / 2, s.Diameter / 2);
                         hi = s.Point + new Vec3(s.Diameter / 2, s.Diameter / 2, s.Diameter / 2);
                         break;

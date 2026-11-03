@@ -67,37 +67,113 @@ namespace DWSIM.Extensions.SolidCraft
             }
         }
 
-        public static EquipmentItem VerticalVessel(double d, double tangent, double skirt, string color)
+        public const string Grating = "#7b7f5a";
+        public const string SafetyYellow = "#e0b020";
+
+        /// <summary>
+        /// Head depth over the radius for a vessel head type: 1 hemispherical, 0.5 ellipsoidal 2:1,
+        /// about 0.3 to 0.4 torispherical, 0 flat.
+        /// </summary>
+        public static double HeadRatio(string headType)
+        {
+            switch (headType)
+            {
+                case "Ellipsoidal (2:1)": return 0.5;
+                case "Torispherical (ASME F&D)": return 0.34;
+                case "Torispherical (Standard F&D)": return 0.3;
+                case "Torispherical (80:10 F&D)": return 0.4;
+                case "Flat": return 0;
+                default: return 1;
+            }
+        }
+
+        /// <summary>The thickness of a flat head, mm.</summary>
+        static double FlatCover(double d) => Math.Max(30, 0.03 * d);
+
+        /// <summary>
+        /// A head on the end of a shell facing <paramref name="axis"/>: a hemisphere, a half spheroid
+        /// to the head depth (a quarter ellipse turned about the axis, exact in the STEP file) or a
+        /// flat cover.
+        /// </summary>
+        public static Primitive Head(string name, Vec3 centre, double d, double ratio, Vec3 axis, string color)
+        {
+            if (ratio <= 0)
+            {
+                var cover = FlatCover(d);
+                var start = axis.X < -0.5 ? centre - new Vec3(cover, 0, 0) : centre;
+                return Primitive.Cylinder(name, start, Math.Abs(axis.Z) > 0.5 ? "Z" : "X", d, cover, color, true);
+            }
+            if (ratio > 0.999) return Primitive.Sphere(name, centre, d, color, true);
+            return new Primitive { Kind = PrimitiveKind.Head, Name = name, Point = centre, AxisVector = axis, Diameter = d, Depth = ratio * d / 2, Color = color, Metallic = true };
+        }
+
+        public static EquipmentItem VerticalVessel(double d, double tangent, double skirt, string color, double headRatio = 1)
         {
             var item = new EquipmentItem();
+            var depth = headRatio > 0 ? headRatio * d / 2 : FlatCover(d);
             // a painted carbon steel skirt; the shell is bare metal
             item.Parts.Add(Primitive.Cylinder("skirt", new Vec3(0, 0, 0), "Z", d, skirt, Skirt));
             item.Parts.Add(Primitive.Cylinder("shell", new Vec3(0, 0, skirt), "Z", d, tangent, color, true));
-            item.Parts.Add(Primitive.Sphere("top head", new Vec3(0, 0, skirt + tangent), d, color, true));
+            item.Parts.Add(Head("top head", new Vec3(0, 0, skirt + tangent), d, headRatio, Vec3.PlusZ, color));
             item.Envelope = new Envelope
             {
                 Kind = EnvelopeKind.VerticalCylinder,
                 HalfX = d / 2,
                 HalfY = d / 2,
                 ZBottom = skirt,
-                ZTop = skirt + tangent + d / 2,
-                HeadedTop = true
+                ZTop = skirt + tangent + depth,
+                HeadedTop = headRatio > 0,
+                HeadDepth = depth
             };
             return item;
         }
 
-        public static EquipmentItem HorizontalVessel(double d, double tangent, double elevation, string color)
+        /// <summary>
+        /// Platforms on a tall vertical vessel every 6 m and near the top, with a handrail, and a
+        /// ladder from grade on the front (-Y) side. Lines pass through platforms by their openings.
+        /// </summary>
+        public static void AddPlatforms(EquipmentItem item, double d)
+        {
+            var env = item.Envelope;
+            var tangentTop = env.ZTop - env.HeadDepth;
+            if (tangentTop < 8000) return;
+
+            var levels = new List<double>();
+            for (var z = env.ZBottom + 1500; z < tangentTop - 2500; z += 6000) levels.Add(z);
+            levels.Add(tangentTop - 500);
+
+            var platform = d + 2000;
+            var k = 0;
+            foreach (var z in levels)
+            {
+                k++;
+                item.Parts.Add(new Primitive { Kind = PrimitiveKind.Cylinder, Name = "platform " + k, Point = new Vec3(0, 0, z), Axis = "Z", Diameter = platform, Height = 50, Color = Grating, NoClash = true });
+                item.Parts.Add(Primitive.Torus("handrail " + k, new Vec3(0, 0, z + 1100), platform / 2 - 30, 25, SafetyYellow));
+            }
+
+            var ladderTop = levels[levels.Count - 1] + 1100;
+            var y = -(d / 2 + 250);
+            foreach (var x in new[] { -225.0, 225.0 })
+                item.Parts.Add(new Primitive { Kind = PrimitiveKind.Box, Name = "ladder rail " + (x < 0 ? "A" : "B"), Point = new Vec3(x, y, ladderTop / 2), SizeX = 60, SizeY = 60, SizeZ = ladderTop, Color = SafetyYellow, NoClash = true });
+
+            item.FootprintX = Math.Max(item.FootprintX, platform / 2);
+            item.FootprintY = Math.Max(item.FootprintY, platform / 2);
+        }
+
+        public static EquipmentItem HorizontalVessel(double d, double tangent, double elevation, string color, double headRatio = 1)
         {
             var item = new EquipmentItem();
             var zc = elevation + d / 2;
+            var depth = headRatio > 0 ? headRatio * d / 2 : FlatCover(d);
             item.Parts.Add(Primitive.Cylinder("shell", new Vec3(-tangent / 2, 0, zc), "X", d, tangent, color, true));
-            item.Parts.Add(Primitive.Sphere("head A", new Vec3(-tangent / 2, 0, zc), d, color, true));
-            item.Parts.Add(Primitive.Sphere("head B", new Vec3(tangent / 2, 0, zc), d, color, true));
+            item.Parts.Add(Head("head A", new Vec3(-tangent / 2, 0, zc), d, headRatio, Vec3.MinusX, color));
+            item.Parts.Add(Head("head B", new Vec3(tangent / 2, 0, zc), d, headRatio, Vec3.PlusX, color));
             AddSaddles(item, tangent, d, zc);
             item.Envelope = new Envelope
             {
                 Kind = EnvelopeKind.HorizontalCylinder,
-                HalfX = tangent / 2 + d / 2,
+                HeadDepth = depth,
+                HalfX = tangent / 2 + depth,
                 HalfY = d / 2,
                 ZBottom = zc - d / 2,
                 ZTop = zc + d / 2
@@ -137,12 +213,18 @@ namespace DWSIM.Extensions.SolidCraft
             var channel = Math.Max(300, 0.6 * d);
             item.Parts.Add(Primitive.Cylinder("shell", new Vec3(-length / 2, 0, zc), "X", d, length, ExchangerShell));
             item.Parts.Add(Primitive.Cylinder("channel", new Vec3(-length / 2 - channel, 0, zc), "X", d * 1.1, channel, ExchangerHead));
-            item.Parts.Add(Primitive.Sphere("rear head", new Vec3(length / 2, 0, zc), d, ExchangerShell));
+            var rear = Head("rear head", new Vec3(length / 2, 0, zc), d, 0.5, Vec3.PlusX, ExchangerShell);
+            rear.Metallic = false;
+            item.Parts.Add(rear);
+            // girth flanges where the shell meets the channel and the rear head, and the channel cover
+            item.Parts.Add(Primitive.Cylinder("front girth flange", new Vec3(-length / 2 - 40, 0, zc), "X", d * 1.18, 80, ExchangerHead));
+            item.Parts.Add(Primitive.Cylinder("rear girth flange", new Vec3(length / 2 - 40, 0, zc), "X", d * 1.18, 80, ExchangerHead));
+            item.Parts.Add(Primitive.Cylinder("channel cover", new Vec3(-length / 2 - channel - 60, 0, zc), "X", d * 1.18, 60, ExchangerHead));
             AddSaddles(item, length, d, zc);
             item.Envelope = new Envelope
             {
                 Kind = EnvelopeKind.HorizontalCylinder,
-                HalfX = length / 2 + Math.Max(channel, d / 2),
+                HalfX = length / 2 + Math.Max(channel + 60, d / 4),
                 HalfY = d * 0.55,
                 ZBottom = zc - d / 2,
                 ZTop = zc + d / 2
@@ -281,7 +363,7 @@ namespace DWSIM.Extensions.SolidCraft
                 var ld = 3 * dd;
                 var y = -(d / 2 + 1500 + dd / 2);
                 var zc = 3000 + dd / 2;
-                var drum = HorizontalVessel(dd, ld, 3000, Steel);
+                var drum = HorizontalVessel(dd, ld, 3000, Steel, 0.5);
                 foreach (var p in drum.Parts)
                 {
                     var q = p.Moved(new Vec3(0, y, 0));

@@ -259,7 +259,7 @@ namespace DWSIM.Extensions.SolidCraft
                         var estimated = !(v > 0);
                         if (estimated) v = 1;
                         var d = Clamp(Math.Pow(4 * v / (1.5 * Math.PI), 1.0 / 3), 0.5, 8) * 1000;
-                        var item = EquipmentTemplates.VerticalVessel(d, 1.5 * d, 1000 + d / 2, EquipmentTemplates.Reactor);
+                        var item = EquipmentTemplates.VerticalVessel(d, 1.5 * d, 1000 + d / 2, EquipmentTemplates.Reactor, 0.5);
                         var top = item.Envelope.ZTop;
                         item.Parts.Add(Primitive.Cylinder("agitator drive", new Vec3(0, 0, top - 0.05 * d), "Z", 0.25 * d, 0.35 * d, EquipmentTemplates.Motor));
                         Describe(item, "Volume (m3)", v, estimated);
@@ -276,7 +276,7 @@ namespace DWSIM.Extensions.SolidCraft
                         if (n > 1)
                         {
                             var ds = Clamp(1.3 * dt * Math.Sqrt(n) + 100, 300, 6000);
-                            item = EquipmentTemplates.VerticalVessel(ds, Clamp(l, 1000, 30000), 2000 + ds / 2, EquipmentTemplates.Reactor);
+                            item = EquipmentTemplates.VerticalVessel(ds, Clamp(l, 1000, 30000), 2000 + ds / 2, EquipmentTemplates.Reactor, 0.5);
                         }
                         else
                         {
@@ -297,7 +297,7 @@ namespace DWSIM.Extensions.SolidCraft
                         var estimated = !(v > 0);
                         if (estimated) v = Clamp(InletVolumetricFlow(obj) * 600, 1, 500);
                         var d = Clamp(Math.Pow(4 * v / (3 * Math.PI), 1.0 / 3), 0.6, 8) * 1000;
-                        var item = EquipmentTemplates.VerticalVessel(d, 3 * d, 1000 + d / 2, EquipmentTemplates.Reactor);
+                        var item = EquipmentTemplates.VerticalVessel(d, 3 * d, 1000 + d / 2, EquipmentTemplates.Reactor, 0.5);
                         Describe(item, "Volume (m3)", v, estimated);
                         if (estimated) warnings.Add(tag + ": volume estimated for 10 min of the inlet flow.");
                         return item;
@@ -328,9 +328,12 @@ namespace DWSIM.Extensions.SolidCraft
                 warnings.Add(tag + ": diameter and length estimated from the outlet streams (Souders-Brown, 5 min of liquid).");
             }
 
+            var heads = EquipmentTemplates.HeadRatio((obj as Vessel)?.HeadType);
             var item = horizontal
-                ? EquipmentTemplates.HorizontalVessel(d, l, 1000, EquipmentTemplates.Steel)
-                : EquipmentTemplates.VerticalVessel(d, l, 1000 + d / 2, EquipmentTemplates.Steel);
+                ? EquipmentTemplates.HorizontalVessel(d, l, 1000, EquipmentTemplates.Steel, heads)
+                : EquipmentTemplates.VerticalVessel(d, l, 1000 + d / 2, EquipmentTemplates.Steel, heads);
+            EquipmentTemplates.AddPlatforms(item, d);
+            item.Properties["Heads"] = (obj as Vessel)?.HeadType ?? "Hemispherical";
             item.Properties["Orientation"] = horizontal ? "Horizontal" : "Vertical";
             Describe(item, "Diameter (mm)", d, estimated);
             Describe(item, "Length T/T (mm)", l, estimated);
@@ -413,8 +416,9 @@ namespace DWSIM.Extensions.SolidCraft
             if (!(h > 0)) h = stages * 600 + 2000;
             h = Math.Max(h, 3 * d);
 
-            var item = EquipmentTemplates.VerticalVessel(d, h, 3000, EquipmentTemplates.ColumnShell);
+            var item = EquipmentTemplates.VerticalVessel(d, h, 3000, EquipmentTemplates.ColumnShell, 0.5);
             EquipmentTemplates.AddColumnAuxiliaries(item, d, condenser, reboiler);
+            EquipmentTemplates.AddPlatforms(item, d);
             item.Properties["Stages"] = stages.ToString(CultureInfo.InvariantCulture);
             Describe(item, "Diameter (mm)", d, estimated);
             Describe(item, "Height T/T (mm)", h, false);

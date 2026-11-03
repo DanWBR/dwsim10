@@ -118,6 +118,45 @@ namespace DWSIM.Extensions.SolidCraft
                                 ["body_name"] = body
                             });
                             break;
+                        case PrimitiveKind.Head:
+                            if (!(p.Diameter > 0 && p.Depth > 0) || !p.AxisVector.HasValue) continue;
+                            {
+                                // a quarter ellipse in a plane through the axis, turned about it: a
+                                // scaled sphere would not go into the STEP file
+                                var axis = p.AxisVector.Value;
+                                var across = Math.Abs(axis.Z) > 0.5 ? Vec3.PlusX : new Vec3(-axis.Y, axis.X, 0);
+                                var headSketch = "Head " + item.Tag + " " + part.Name;
+                                var r = Round(p.Diameter / 2);
+                                Add(cmds, "sketch.create", subject, new JObject
+                                {
+                                    ["name"] = headSketch,
+                                    ["plane"] = new JObject { ["origin"] = new JArray(p.Point.ToArray()), ["x_dir"] = Dir(across), ["y_dir"] = Dir(axis) }
+                                });
+                                Add(cmds, "sketch.ellipse", subject, new JObject { ["center"] = new JArray(0, 0), ["major"] = new JArray(r, 0), ["minor_radius"] = Round(p.Depth) });
+                                Add(cmds, "sketch.line", subject, new JObject { ["points"] = new JArray(new JArray(0, 0), new JArray(r, 0)) });
+                                Add(cmds, "sketch.line", subject, new JObject { ["points"] = new JArray(new JArray(0, 0), new JArray(0, Round(p.Depth))) });
+                                Add(cmds, "sketch.finish", subject, new JObject());
+                                Add(cmds, "solid.revolve", subject, new JObject
+                                {
+                                    ["sketch"] = headSketch,
+                                    ["profiles"] = new JArray(new JObject { ["point"] = new JArray(Round(r / 3), Round(p.Depth / 3)) }),
+                                    ["axis"] = "y",
+                                    ["angle"] = 360,
+                                    ["body_name"] = body
+                                });
+                                sketches.Add(headSketch);
+                            }
+                            break;
+                        case PrimitiveKind.Torus:
+                            if (!(p.Major > p.Minor && p.Minor > 0)) continue;
+                            Add(cmds, "solid.torus", subject, new JObject
+                            {
+                                ["major"] = Round(p.Major),
+                                ["minor"] = Round(p.Minor),
+                                ["center"] = new JArray(p.Point.ToArray()),
+                                ["body_name"] = body
+                            });
+                            break;
                     }
                     Add(cmds, "appearance.assign", subject, Look(body, p));
                     if (p.Material != null)

@@ -61,7 +61,7 @@ namespace DWSIM.Extensions.SolidCraft
         public static readonly Vec3 PlusZ = new Vec3(0, 0, 1), MinusZ = new Vec3(0, 0, -1);
     }
 
-    public enum PrimitiveKind { Cylinder, Box, Sphere }
+    public enum PrimitiveKind { Cylinder, Box, Sphere, Torus, Head }
 
     /// <summary>Where an item stands in the 3D model: its origin on the ground (mm) and its turn about Z (degrees).</summary>
     public class Placement
@@ -93,6 +93,15 @@ namespace DWSIM.Extensions.SolidCraft
         /// <summary>The cylinder axis as a vector, once the part has been turned; null to use <see cref="Axis"/>.</summary>
         public Vec3? AxisVector;
 
+        /// <summary>Head: depth along its axis (<see cref="AxisVector"/>, outward from the shell), mm; the diameter is the shell's.</summary>
+        public double Depth;
+
+        /// <summary>Torus radii (major to the tube centre, minor of the tube), about a vertical axis.</summary>
+        public double Major, Minor;
+
+        /// <summary>Platforms, ladders and rails: lines pass through their openings, so the clash check leaves them out.</summary>
+        public bool NoClash;
+
         /// <summary>Cylinder and sphere diameter.</summary>
         public double Diameter;
 
@@ -107,6 +116,9 @@ namespace DWSIM.Extensions.SolidCraft
 
         public static Primitive Box(string name, Vec3 centre, double sx, double sy, double sz, string color, bool metallic = false)
             => new Primitive { Kind = PrimitiveKind.Box, Name = name, Point = centre, SizeX = sx, SizeY = sy, SizeZ = sz, Color = color, Metallic = metallic };
+
+        public static Primitive Torus(string name, Vec3 centre, double major, double minor, string color)
+            => new Primitive { Kind = PrimitiveKind.Torus, Name = name, Point = centre, Major = major, Minor = minor, Color = color, NoClash = true };
 
         public static Primitive Sphere(string name, Vec3 centre, double diameter, string color, bool metallic = false)
             => new Primitive { Kind = PrimitiveKind.Sphere, Name = name, Point = centre, Diameter = diameter, Color = color, Metallic = metallic };
@@ -141,6 +153,9 @@ namespace DWSIM.Extensions.SolidCraft
         /// <summary>Vertical cylinder: the top is a hemispherical head of radius HalfX.</summary>
         public bool HeadedTop;
 
+        /// <summary>Depth of the top head of a vertical cylinder, or of the end heads of a horizontal one, mm.</summary>
+        public double HeadDepth;
+
         public double ZCentre => (ZBottom + ZTop) / 2;
 
         /// <summary>
@@ -171,7 +186,7 @@ namespace DWSIM.Extensions.SolidCraft
                 {
                     case EnvelopeKind.VerticalCylinder:
                         var x = (u - 0.5) * HalfX;
-                        var z = HeadedTop ? ZTop - HalfX + Math.Sqrt(Math.Max(0, HalfX * HalfX - x * x)) : ZTop;
+                        var z = HeadedTop ? ZTop - HeadDepth + HeadDepth * Math.Sqrt(Math.Max(0, 1 - x * x / (HalfX * HalfX))) : ZTop;
                         position = new Vec3(x, 0, z);
                         break;
                     case EnvelopeKind.HorizontalCylinder:
@@ -226,7 +241,7 @@ namespace DWSIM.Extensions.SolidCraft
                     position = new Vec3(left ? -HalfX : HalfX, 0, ZCentre);
                     break;
                 case EnvelopeKind.VerticalCylinder:
-                    var top = HeadedTop ? ZTop - HalfX : ZTop;
+                    var top = HeadedTop ? ZTop - HeadDepth : ZTop;
                     zs = Clamp(zs, ZBottom + Math.Min(300, 0.1 * h), top - Math.Min(300, 0.1 * h));
                     position = new Vec3(left ? -HalfX : HalfX, 0, zs);
                     break;
@@ -286,7 +301,11 @@ namespace DWSIM.Extensions.SolidCraft
             foreach (var p in Parts)
             {
                 p.Point = p.Point.TurnedZ(Rotation);
-                if (p.Kind == PrimitiveKind.Cylinder)
+                if (p.AxisVector.HasValue)
+                {
+                    p.AxisVector = p.AxisVector.Value.TurnedZ(Rotation);
+                }
+                else if (p.Kind == PrimitiveKind.Cylinder)
                 {
                     var axis = p.Axis == "X" ? Vec3.PlusX : p.Axis == "Y" ? new Vec3(0, 1, 0) : Vec3.PlusZ;
                     p.AxisVector = axis.TurnedZ(Rotation);
