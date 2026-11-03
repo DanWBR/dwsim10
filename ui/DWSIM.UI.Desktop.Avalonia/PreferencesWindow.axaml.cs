@@ -66,7 +66,7 @@ public partial class PreferencesWindow : Window
     // python
     private TextBox _pythonPath = null!;
     private TextBox _solidCraftPath = null!;
-    private CheckBox _scLabels = null!, _scFlow = null!, _scInsulation = null!, _scPlatforms = null!, _scInstruments = null!, _scReplay = null!;
+    private CheckBox _scLabels = null!, _scFlow = null!, _scInsulation = null!, _scPlatforms = null!, _scInstruments = null!, _scReplay = null!, _scRender = null!;
     private NumericUpDown _scRackHeight = null!, _scItemGap = null!;
 
     // other
@@ -494,6 +494,7 @@ public partial class PreferencesWindow : Window
         _scPlatforms = page.CreateAndAddCheckBoxRow("Platforms and ladders on tall columns and vessels", sc.Value<bool?>("Platforms") ?? true, null);
         _scInstruments = page.CreateAndAddCheckBoxRow("Transmitters and indicators", sc.Value<bool?>("Instruments") ?? true, null);
         _scReplay = page.CreateAndAddCheckBoxRow("Replay the last dynamic run on gauges", sc.Value<bool?>("DynamicReplay") ?? true, null);
+        _scRender = page.CreateAndAddCheckBoxRow("Photorealistic rendering (GPU path tracing)", sc.Value<bool?>("Render") ?? true, null);
         _scRackHeight = page.CreateAndAddNumericEditorRow("Pipe rack height (m)", sc.Value<double?>("RackHeight") ?? 6, 2.5, 30, 1, null);
         _scItemGap = page.CreateAndAddNumericEditorRow("Smallest gap between items (m)", sc.Value<double?>("ItemGap") ?? 2, 0.5, 20, 1, null);
 
@@ -615,6 +616,7 @@ public partial class PreferencesWindow : Window
         options["Platforms"] = _scPlatforms.IsChecked.GetValueOrDefault();
         options["Instruments"] = _scInstruments.IsChecked.GetValueOrDefault();
         options["DynamicReplay"] = _scReplay.IsChecked.GetValueOrDefault();
+        options["Render"] = _scRender.IsChecked.GetValueOrDefault();
         options["RackHeight"] = (double)(_scRackHeight.Value ?? 6);
         options["ItemGap"] = (double)(_scItemGap.Value ?? 2);
         S.SolidCraftOptions = options.ToString(Newtonsoft.Json.Formatting.None);

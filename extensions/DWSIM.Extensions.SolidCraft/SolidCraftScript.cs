@@ -247,6 +247,77 @@ namespace DWSIM.Extensions.SolidCraft
         }
 
         /// <summary>
+        /// The operating data of every item and line as component properties: what a data update
+        /// sends to the open model, without building anything again.
+        /// </summary>
+        public static List<Command> DataCommands(PlantModel model)
+        {
+            var cmds = new List<Command>();
+            foreach (var item in model.Equipment.Where(e => e.Visible))
+            {
+                var props = new JObject { ["DWSIM object"] = item.Description };
+                foreach (var kv in item.Properties) props[kv.Key] = kv.Value;
+                Add(cmds, "component.metadata.set", item.Tag, new JObject { ["component"] = item.Tag, ["description"] = item.Description, ["properties"] = props });
+            }
+            foreach (var run in model.Pipes)
+            {
+                var props = new JObject();
+                foreach (var kv in run.Properties) props[kv.Key] = kv.Value;
+                Add(cmds, "component.metadata.set", "line " + run.Tag, new JObject
+                {
+                    ["component"] = LineComponent(run),
+                    ["description"] = "Line " + run.Tag + " (" + run.Size + ", " + run.Phase.ToLowerInvariant() + ")",
+                    ["properties"] = props
+                });
+            }
+            return cmds;
+        }
+
+        public const string RenderSetup = "DWSIM Plant";
+
+        /// <summary>
+        /// A render setup for a picture of the whole plant: path tracing on the GPU in a plant HDR
+        /// environment, the camera at the iso angle fitted to the model.
+        /// </summary>
+        public static List<Command> CreateRenderSetup(PlantModel model)
+        {
+            var cmds = new List<Command>();
+            var pts = new List<Vec3>();
+            foreach (var e in model.Equipment.Where(e => e.Visible))
+            {
+                pts.Add(e.Origin + new Vec3(-e.FootprintX, -e.FootprintY, 0));
+                pts.Add(e.Origin + new Vec3(e.FootprintX, e.FootprintY, e.Envelope.ZTop));
+                if (model.Options.Labels && !string.IsNullOrEmpty(e.Label))
+                {
+                    // the label over the item (see CreateLabels)
+                    var height = Clamp(0.25 * 2 * e.Envelope.HalfX, 150, 500);
+                    var top = e.Envelope.ZTop + (e.IsInstrument ? 250 : 1500) + (e.Label.Split('\n').Length + 0.5) * 1.6 * height;
+                    var half = e.Label.Split('\n').Max(l => l.Length) * 0.35 * height;
+                    pts.Add(e.Origin + new Vec3(-half, 0, top));
+                    pts.Add(e.Origin + new Vec3(half, 0, top));
+                }
+            }
+            foreach (var r in model.Pipes) pts.AddRange(r.Path);
+            if (pts.Count == 0) return cmds;
+            var lo = new Vec3(pts.Min(p => p.X), pts.Min(p => p.Y), pts.Min(p => p.Z));
+            var hi = new Vec3(pts.Max(p => p.X), pts.Max(p => p.Y), pts.Max(p => p.Z));
+            var centre = (lo + hi) * 0.5;
+            const double fov = 0.7;
+            var distance = (hi - lo).Length / 2 / Math.Tan(fov / 2) * 1.1;
+            Add(cmds, "render.settings.set", "the render", new JObject
+            {
+                ["name"] = RenderSetup,
+                ["set"] = new JObject
+                {
+                    ["job"] = new JObject { ["method"] = "gpu_path" },
+                    ["camera"] = new JObject { ["target"] = new JArray(centre.ToArray()), ["yaw"] = -0.785, ["pitch"] = 0.55, ["distance"] = Math.Round(distance), ["fov"] = fov }
+                }
+            });
+            Add(cmds, "render.library.environment.apply", "the render", new JObject { ["id"] = "HDR-008", ["name"] = RenderSetup });
+            return cmds;
+        }
+
+        /// <summary>
         /// The 3D labels, run on the saved design after the STEP export: lettering is heavy B-rep
         /// that would bloat the STEP file, and the labels are only there for viewing. Each label goes
         /// into the component of its item or line.

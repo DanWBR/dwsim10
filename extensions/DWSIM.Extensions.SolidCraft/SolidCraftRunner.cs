@@ -33,7 +33,7 @@ namespace DWSIM.Extensions.SolidCraft
         public class Result
         {
             public bool Success;
-            public string Design, Step, Picture, Script, Animation;
+            public string Design, Step, Picture, Script, Animation, Render;
             public List<string> Skipped = new List<string>();
             public string Error, AnimationError;
         }
@@ -116,6 +116,16 @@ namespace DWSIM.Extensions.SolidCraft
             Execute(cli, "snapshot --in " + Quote(res.Design) + " --out " + Quote(res.Picture) + " --width 1600 --height 1000 --view iso", 300, out _);
             if (!File.Exists(res.Picture)) res.Picture = null;
 
+            // the photorealistic picture, when the extras set a render up
+            if (extras != null && extras.Any(c => c.Name == "render.settings.set") && res.AnimationError == null)
+            {
+                var render = outputBase + " - render.png";
+                if (File.Exists(render)) File.Delete(render);
+                Execute(cli, "render " + Quote(res.Design) + " --setup " + Quote(SolidCraftScript.RenderSetup) + " --out " + Quote(render) +
+                    " --width 1600 --height 1000 --overwrite --timeout 600", 660, out _);
+                if (File.Exists(render) && new FileInfo(render).Length > 20000) res.Render = render;
+            }
+
             return res;
         }
 
@@ -163,6 +173,19 @@ namespace DWSIM.Extensions.SolidCraft
                         cmds.RemoveAt(i);
                 }
             }
+        }
+
+        /// <summary>Runs commands on the saved design and saves it again; returns null on success, else the error.</summary>
+        public static string UpdateDesign(string folder, List<SolidCraftScript.Command> commands, string outputBase, List<string> skipped)
+        {
+            var cli = Path.Combine(folder, Exe("solidcraft-cli"));
+            var updated = outputBase + ".update.sc";
+            if (File.Exists(updated)) File.Delete(updated);
+            var error = RunStage(cli, commands, outputBase + " - data update.json", outputBase + ".sc", updated, null, null, skipped);
+            if (error != null) return error;
+            File.Delete(outputBase + ".sc");
+            File.Move(updated, outputBase + ".sc");
+            return null;
         }
 
         /// <summary>Takes the sketches the removed commands would have made out of the browser.visibility lists.</summary>

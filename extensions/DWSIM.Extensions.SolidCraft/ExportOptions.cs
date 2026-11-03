@@ -35,6 +35,9 @@ namespace DWSIM.Extensions.SolidCraft
         /// <summary>Replay the last dynamic run (its monitored variables) on gauges in the model.</summary>
         public bool DynamicReplay = true;
 
+        /// <summary>A photorealistic picture (path tracing in an HDR environment) next to the model.</summary>
+        public bool Render = true;
+
         /// <summary>Top of the pipe rack steel, m.</summary>
         public double RackHeight = 6;
 

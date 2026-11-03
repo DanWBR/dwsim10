@@ -40,7 +40,7 @@ namespace DWSIM.Extensions.SolidCraft
 
         public ExtenderLevel Level => ExtenderLevel.FlowsheetWindow;
 
-        public List<IExtender> Collection { get; } = new List<IExtender> { new PlantModelExtender(), new ResetLayoutExtender() };
+        public List<IExtender> Collection { get; } = new List<IExtender> { new PlantModelExtender(), new UpdateDataExtender(), new ResetLayoutExtender() };
 
         public int InsertAtPosition => -1;
 
@@ -149,6 +149,14 @@ namespace DWSIM.Extensions.SolidCraft
             {
                 fs.ShowMessage("3D plant model: the line list could not be written (" + ex.Message + ").", IFlowsheet.MessageType.Warning);
             }
+            // the model for a browser, for whoever has no SolidCraft
+            var viewer = outputBase + " - 3D viewer.html";
+            try { WebViewer.Write(model, viewer); }
+            catch (Exception ex)
+            {
+                viewer = null;
+                fs.ShowMessage("3D plant model: the web viewer could not be written (" + ex.Message + ").", IFlowsheet.MessageType.Warning);
+            }
             // where the model runs into itself
             var clashes = ClashCheck.Find(model);
             try
@@ -177,6 +185,7 @@ namespace DWSIM.Extensions.SolidCraft
             var commands = SolidCraftScript.Create(model);
             var extras = options.Labels ? SolidCraftScript.CreateLabels(model) : new List<SolidCraftScript.Command>();
             if (options.FlowAnimation) extras.AddRange(FlowAnimation.Create(model, outputBase + " - flow.gif"));
+            if (options.Render) extras.AddRange(SolidCraftScript.CreateRenderSetup(model));
             var replayNotes = new List<string>();
             if (options.DynamicReplay)
             {
@@ -202,7 +211,7 @@ namespace DWSIM.Extensions.SolidCraft
 
             fs.ShowMessage(string.Format("3D plant model: {0} items and {1} lines saved to {2} (SolidCraft design, STEP, line list, material take-off{3}{4}).",
                 model.Equipment.Count(e => e.Visible), model.Pipes.Count, outputFolder,
-                result.Picture != null ? ", picture" : "",
+                (result.Picture != null ? ", picture" : "") + (result.Render != null ? ", rendering" : "") + (viewer != null ? ", web viewer" : ""),
                 result.Animation != null ? ", flow animation: play the \"" + FlowAnimation.StudyName + "\" motion study in SolidCraft" : ""),
                 IFlowsheet.MessageType.Information);
 
@@ -242,6 +251,80 @@ namespace DWSIM.Extensions.SolidCraft
                 s.CopyTo(ms);
                 return _icon = ms.ToArray();
             }
+        }
+    }
+
+    /// <summary>
+    /// Sends the operating data of the solved flowsheet to the 3D model without building it again:
+    /// to the SolidCraft application when it is open on this model, otherwise into the saved design.
+    /// The line list and the take-off are written again too.
+    /// </summary>
+    public class UpdateDataExtender : IExtender, IExtender3
+    {
+        IFlowsheet Flowsheet;
+
+        public string ID => "e7a3c915-0b6d-4f28-9d41-5c2b8e7f1a60";
+
+        public string DisplayText => "Update 3D Plant Model Data";
+
+        public byte[] DisplayImage => PlantModelExtender.Icon();
+
+        public int InsertAtPosition => -1;
+
+        public void SetMainWindow(object mainwindow) { }
+
+        public void SetFlowsheet(IFlowsheet form) => Flowsheet = form;
+
+        public void ReleaseResources() => Flowsheet = null;
+
+        public void Run()
+        {
+            var fs = Flowsheet;
+            if (fs == null) return;
+            var folder = SolidCraftRunner.FindInstallFolder();
+            if (folder == null)
+            {
+                fs.ShowMessage("SolidCraft was not found. Install it, or set the folder that holds solidcraft-cli in Settings > Other > SolidCraft.", IFlowsheet.MessageType.GeneralError);
+                return;
+            }
+            Task.Run(() =>
+            {
+                try { Update(fs, folder); }
+                catch (Exception ex) { fs.ShowMessage("3D plant model: " + ex.Message, IFlowsheet.MessageType.GeneralError); }
+            });
+        }
+
+        public static void Update(IFlowsheet fs, string folder)
+        {
+            var name = PlantModelExtender.ModelName(fs);
+            var outputBase = Path.Combine(PlantModelExtender.OutputFolder(fs), name);
+            var model = PlantModelBuilder.Build(fs, name, PlantLayout.Load(fs), ExportOptions.Load());
+            var cmds = SolidCraftScript.DataCommands(model);
+
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(outputBase));
+                LineReports.WriteLineList(model, outputBase + " - line list.csv", CultureInfo.CurrentCulture);
+                LineReports.WriteTakeOff(model, outputBase + " - material take-off.csv", CultureInfo.CurrentCulture);
+            }
+            catch (Exception) { }
+
+            if (LiveLink.TryRun(folder, name, cmds, out var failed, out var why))
+            {
+                fs.ShowMessage("3D plant model: the operating data of " + (cmds.Count - failed) + " items and lines were sent to the model open in SolidCraft" +
+                    (failed > 0 ? " (" + failed + " not in the model: export it again)" : "") + ".", IFlowsheet.MessageType.Information);
+                return;
+            }
+            if (!File.Exists(outputBase + ".sc"))
+            {
+                fs.ShowMessage("3D plant model: " + why + ", and there is no exported model yet: use Export 3D Plant Model first.", IFlowsheet.MessageType.Warning);
+                return;
+            }
+            var skipped = new List<string>();
+            var error = SolidCraftRunner.UpdateDesign(folder, cmds, outputBase, skipped);
+            fs.ShowMessage(error == null
+                ? "3D plant model: " + why + "; the data were written into the saved model (" + outputBase + ".sc)" + (skipped.Count > 0 ? ", " + skipped.Count + " items not in it" : "") + "."
+                : "3D plant model: the data could not be written (" + error + ").", error == null ? IFlowsheet.MessageType.Information : IFlowsheet.MessageType.Warning);
         }
     }
 

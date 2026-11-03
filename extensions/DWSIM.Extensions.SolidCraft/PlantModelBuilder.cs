@@ -331,8 +331,32 @@ namespace DWSIM.Extensions.SolidCraft
                     }
 
                 default:
-                    return EquipmentTemplates.Block(2000, 2000, 2500);
+                    return Generic(obj, warnings);
             }
+        }
+
+        /// <summary>
+        /// A unit operation with no model of its own (Plus units, CAPE-OPEN, scripts): a vessel when
+        /// its dimensions give a diameter, a height or a volume, otherwise a block.
+        /// </summary>
+        static EquipmentItem Generic(ISimulationObject obj, List<string> warnings)
+        {
+            var d = DimensionValue(obj, DimensionName.Diameter);
+            var h = DimensionValue(obj, DimensionName.Height);
+            if (!(h > 0)) h = DimensionValue(obj, DimensionName.Length);
+            var v = DimensionValue(obj, DimensionName.Volume);
+            if (d > 0 && d < 20) d *= 1000;        // diameters come in m or mm
+            if (h > 0 && h < 100) h *= 1000;
+            if (!(d > 0) && v > 0) d = Math.Pow(4 * v / (3 * Math.PI), 1.0 / 3) * 1000;
+            if (d > 0)
+            {
+                if (!(h > 0)) h = v > 0 ? v / (Math.PI * Math.Pow(d / 1000, 2) / 4) * 1000 : 3 * d;
+                var item = EquipmentTemplates.VerticalVessel(Clamp(d, 300, 10000), Clamp(h, 500, 60000), 1000 + d / 4, EquipmentTemplates.Generic, 0.5);
+                Describe(item, "Diameter (mm)", d, false);
+                Describe(item, "Height (mm)", h, false);
+                return item;
+            }
+            return EquipmentTemplates.Block(2000, 2000, 2500);
         }
 
         static EquipmentItem CreateVessel(ISimulationObject obj, string tag, List<string> warnings)
