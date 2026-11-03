@@ -323,6 +323,15 @@ namespace DWSIM.Extensions.SolidCraft
         /// <summary>Mean velocity in the line, m/s (0 when the stream has no flow).</summary>
         public double Velocity;
 
+        /// <summary>Where the line comes from and goes to: an item's tag, or "battery limit".</summary>
+        public string From = "battery limit", To = "battery limit";
+
+        /// <summary>The fluid: K, Pa, kg/s, kg/m3 (homogeneous) and Pa.s.</summary>
+        public double Temperature, Pressure, MassFlow, Density, Viscosity;
+
+        /// <summary>The hydraulics along the route (see <see cref="LineHydraulics"/>); NaN until worked out.</summary>
+        public LineHydraulics.Result Hydraulics;
+
         /// <summary>Operating conditions of the stream, saved as properties of the line.</summary>
         public Dictionary<string, string> Properties = new Dictionary<string, string>();
 

@@ -17,6 +17,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -134,6 +135,23 @@ namespace DWSIM.Extensions.SolidCraft
             }
 
             var model = PlantModelBuilder.Build(fs, name, layout);
+
+            // the line list and the take-off, written first: they need no SolidCraft
+            var lineList = outputBase + " - line list.csv";
+            var takeOff = outputBase + " - material take-off.csv";
+            try
+            {
+                LineReports.WriteLineList(model, lineList, CultureInfo.CurrentCulture);
+                LineReports.WriteTakeOff(model, takeOff, CultureInfo.CurrentCulture);
+            }
+            catch (Exception ex)
+            {
+                fs.ShowMessage("3D plant model: the line list could not be written (" + ex.Message + ").", IFlowsheet.MessageType.Warning);
+            }
+            foreach (var run in model.Pipes.Where(r => r.Hydraulics != null && r.Hydraulics.Check.Length > 0))
+                fs.ShowMessage(string.Format(CultureInfo.InvariantCulture, "3D plant model: line {0} ({1}, {2:0} m, {3} bends): {4}; pressure drop {5:0.###} bar, which the simulation does not include.",
+                    run.Tag, run.Size, run.Hydraulics.Length, run.Hydraulics.Bends, run.Hydraulics.Check, run.Hydraulics.Total),
+                    IFlowsheet.MessageType.Warning);
             var commands = SolidCraftScript.Create(model);
             var extras = SolidCraftScript.CreateLabels(model);
             extras.AddRange(FlowAnimation.Create(model, outputBase + " - flow.gif"));
@@ -154,7 +172,7 @@ namespace DWSIM.Extensions.SolidCraft
             if (result.AnimationError != null)
                 fs.ShowMessage("3D plant model: the labels and the flow animation were left out: " + result.AnimationError, IFlowsheet.MessageType.Warning);
 
-            fs.ShowMessage(string.Format("3D plant model: {0} items and {1} lines saved to {2} (SolidCraft design, STEP{3}{4}).",
+            fs.ShowMessage(string.Format("3D plant model: {0} items and {1} lines saved to {2} (SolidCraft design, STEP, line list, material take-off{3}{4}).",
                 model.Equipment.Count(e => e.Visible), model.Pipes.Count, outputFolder,
                 result.Picture != null ? ", picture" : "",
                 result.Animation != null ? ", flow animation: play the \"" + FlowAnimation.StudyName + "\" motion study in SolidCraft" : ""),

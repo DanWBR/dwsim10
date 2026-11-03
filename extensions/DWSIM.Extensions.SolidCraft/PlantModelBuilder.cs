@@ -87,6 +87,7 @@ namespace DWSIM.Extensions.SolidCraft
                 foreach (var p in item.InternalPipes)
                 {
                     p.Tag = item.Tag + " " + p.Tag;
+                    p.From = p.To = item.Tag;
                     p.Path = p.Path.Select(v => v + item.Origin).ToList();
                     model.Pipes.Add(p);
                 }
@@ -114,6 +115,19 @@ namespace DWSIM.Extensions.SolidCraft
 
             LayOutRack(model);
             model.Pipes.RemoveAll(r => r.Path.Count < 2);
+
+            // the hydraulics along each route, kept with the line in SolidCraft too
+            foreach (var run in model.Pipes)
+            {
+                var h = run.Hydraulics = LineHydraulics.Compute(run);
+                run.Properties["Length (m)"] = Fmt(h.Length, "0.#");
+                run.Properties["Bends"] = h.Bends.ToString(CultureInfo.InvariantCulture);
+                if (!double.IsNaN(h.Total))
+                {
+                    run.Properties["Pressure drop (bar)"] = Fmt(h.Total, "0.####") + " (friction and fittings " + Fmt(h.Friction, "0.####") + ", static " + Fmt(h.Static, "0.####") + ")";
+                    if (h.Check.Length > 0) run.Properties["Check"] = h.Check;
+                }
+            }
 
             return model;
         }
@@ -601,6 +615,17 @@ namespace DWSIM.Extensions.SolidCraft
                 run.Properties["Vapor fraction"] = Fmt(vf, "0.####");
                 run.Properties["Velocity (m/s)"] = Fmt(run.Velocity, "0.##");
                 if (p > 0) run.Label += "  " + Fmt(t, "0.#") + " °C  " + Fmt(p, "0.##") + " bar";
+
+                // the fluid for the line hydraulics: homogeneous density from the flows, and the
+                // viscosity of the phase present (mass-weighted between the phases when both are)
+                run.Temperature = Finite(ms.GetTemperature());
+                run.Pressure = Finite(ms.GetPressure());
+                run.MassFlow = Finite(ms.GetMassFlow());
+                run.Density = q > 0 ? run.MassFlow / q : 0;
+                var mul = Finite(ms.Phases[1].Properties.viscosity.GetValueOrDefault());
+                var muv = Finite(ms.Phases[2].Properties.viscosity.GetValueOrDefault());
+                var x = Finite(ms.Phases[2].Properties.massfraction.GetValueOrDefault());
+                run.Viscosity = vf > 0.995 ? muv : vf < 0.005 ? mul : x * muv + (1 - x) * mul;
             }
             return run;
         }
@@ -633,6 +658,8 @@ namespace DWSIM.Extensions.SolidCraft
             if (from == null && to == null) return null;
 
             var run = SizePipe(ms, sgo.Tag);
+            if (from != null) run.From = from.Tag;
+            if (to != null) run.To = to.Tag;
             var stub = Math.Max(800, 4 * run.OuterDiameter);
             var path = new List<Vec3>();
 
