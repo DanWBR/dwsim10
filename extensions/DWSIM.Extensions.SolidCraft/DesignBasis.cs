@@ -36,6 +36,9 @@ namespace DWSIM.Extensions.SolidCraft
 
         /// <summary>Pipe, fitting, flange, plate (vessel shell) and casting (pump and valve casing) materials, and the corrosion allowance (mm).</summary>
         public string Pipe, Fitting, Flange, Plate, Casting, Class;
+
+        /// <summary>Heat exchanger tubes of the same material.</summary>
+        public string Tubes;
         public double CorrosionAllowance;
 
         static readonly double[] Temps = { 38, 50, 100, 150, 200, 250, 300, 325, 350, 375, 400, 425, 450, 475, 500, 538 };
@@ -73,10 +76,10 @@ namespace DWSIM.Extensions.SolidCraft
             d.Test = 1.5 * d.Pressure;
 
             var stainless = false;
-            if (d.MinT < -46) { d.Pipe = "SS A312 TP304L"; d.Fitting = "A403 WP304L"; d.Flange = "A182 F304L"; d.Plate = "SA-240 304L"; d.Casting = "A351 CF3"; d.CorrosionAllowance = 0; stainless = true; }
-            else if (d.MinT < -29) { d.Pipe = "LTCS A333 Gr.6"; d.Fitting = "A420 WPL6"; d.Flange = "A350 LF2"; d.Plate = "SA-516 Gr.70 (impact tested)"; d.Casting = "A352 LCB"; d.CorrosionAllowance = 3; }
-            else if (d.MaxT > 425) { d.Pipe = "1.25Cr-0.5Mo A335 P11"; d.Fitting = "A234 WP11"; d.Flange = "A182 F11"; d.Plate = "SA-387 Gr.11 Cl.2"; d.Casting = "A217 WC6"; d.CorrosionAllowance = 3; }
-            else { d.Pipe = "CS A106 Gr.B"; d.Fitting = "A234 WPB"; d.Flange = "A105"; d.Plate = "SA-516 Gr.70"; d.Casting = "A216 WCB"; d.CorrosionAllowance = 3; }
+            if (d.MinT < -46) { d.Pipe = "SS A312 TP304L"; d.Fitting = "A403 WP304L"; d.Flange = "A182 F304L"; d.Plate = "SA-240 304L"; d.Casting = "A351 CF3"; d.Tubes = "SA-213 TP304L"; d.CorrosionAllowance = 0; stainless = true; }
+            else if (d.MinT < -29) { d.Pipe = "LTCS A333 Gr.6"; d.Fitting = "A420 WPL6"; d.Flange = "A350 LF2"; d.Plate = "SA-516 Gr.70 (impact tested)"; d.Casting = "A352 LCB"; d.Tubes = "SA-334 Gr.6"; d.CorrosionAllowance = 3; }
+            else if (d.MaxT > 425) { d.Pipe = "1.25Cr-0.5Mo A335 P11"; d.Fitting = "A234 WP11"; d.Flange = "A182 F11"; d.Plate = "SA-387 Gr.11 Cl.2"; d.Casting = "A217 WC6"; d.Tubes = "SA-213 T11"; d.CorrosionAllowance = 3; }
+            else { d.Pipe = "CS A106 Gr.B"; d.Fitting = "A234 WPB"; d.Flange = "A105"; d.Plate = "SA-516 Gr.70"; d.Casting = "A216 WCB"; d.Tubes = "SA-179"; d.CorrosionAllowance = 3; }
 
             d.Class = "special";
             if (d.MaxT <= 538)

@@ -186,8 +186,9 @@ namespace DWSIM.Extensions.SolidCraft
                     var half = Math.Max((u.Go.Tag ?? "").Length * 3.0, Service(u.Obj).Length * TextHeight) * 0.45;
                     return new Router.Box(c.X - half, c.Y - u.Go.Height * k / 2 - 14, c.X + half, c.Y - u.Go.Height * k / 2 - 1);
                 }).ToList();
-            var router = new Router(itemBoxes, textBoxes, Clearance);
-            var tight = new Router(itemBoxes, textBoxes, Clearance * 0.3);
+            var clearance = ExportOptions.Load().LineClearance;
+            var router = new Router(itemBoxes, textBoxes, clearance);
+            var tight = new Router(itemBoxes, textBoxes, clearance * 0.3);
             // the utility lines over the heated and cooled items keep the routes off them
             var utilities = new Dictionary<Unit, List<Utility>>();
             if (pid)
@@ -321,14 +322,20 @@ namespace DWSIM.Extensions.SolidCraft
                 if (l.ArrowAtEnd) Arrow(cmds, p[p.Count - 2], p[p.Count - 1], l.Tag);
 
                 C("layer.current", new JObject { ["name"] = "TEXT" });
+                // the names at the battery limits, kept clear by the instruments placed after them
+                var tw = (l.Tag ?? "").Length * TextHeight * 0.9;
                 if (l.Feed)
+                {
                     C("text", new JObject { ["at"] = new JArray(p[0].X - 2, p[0].Y), ["text"] = l.Tag, ["height"] = TextHeight, ["justify"] = "MR" }, "stream " + l.Tag);
+                    textBoxes.Add(new Router.Box(p[0].X - 2 - tw, p[0].Y - TextHeight, p[0].X - 2, p[0].Y + TextHeight));
+                }
                 if (l.Product)
                 {
                     var e = p[p.Count - 1];
                     var dir = Math.Sign(e.X - p[p.Count - 2].X);
                     if (dir >= 0) C("text", new JObject { ["at"] = new JArray(e.X + 2, e.Y), ["text"] = l.Tag, ["height"] = TextHeight, ["justify"] = "ML" }, "stream " + l.Tag);
                     else C("text", new JObject { ["at"] = new JArray(e.X - 2, e.Y), ["text"] = l.Tag, ["height"] = TextHeight, ["justify"] = "MR" }, "stream " + l.Tag);
+                    textBoxes.Add(dir >= 0 ? new Router.Box(e.X + 2, e.Y - TextHeight, e.X + 2 + tw, e.Y + TextHeight) : new Router.Box(e.X - 2 - tw, e.Y - TextHeight, e.X - 2, e.Y + TextHeight));
                 }
 
                 // the number in its diamond, or the energy stream's name and duty, by the icon
@@ -441,7 +448,9 @@ namespace DWSIM.Extensions.SolidCraft
                     {
                         Legend(session, outputBase, style, title, units, actuated,
                             InstrumentLoops(fs).Any(x => x.Controller), InstrumentLoops(fs).Any(x => !x.Controller),
-                            utilities.Values.SelectMany(x => x).ToList(), model != null, temp, result);
+                            utilities.Values.SelectMany(x => x).ToList(), model != null, temp, result,
+                            fs.SimulationObjects.Values.OfType<IIndicator>().Any(g => g.HighAlarmEnabled || g.LowAlarmEnabled || g.VeryHighAlarmEnabled || g.VeryLowAlarmEnabled),
+                            fs.SimulationObjects.Values.OfType<ISwitch>().Any());
                     }
                     catch (Exception ex) { result.Failed.Add("legend: " + ex.Message); }
                 }
@@ -657,7 +666,6 @@ namespace DWSIM.Extensions.SolidCraft
         static bool Horizontal(IConnectionPoint cp) => cp == null || cp.Direction == ConDir.Left || cp.Direction == ConDir.Right;
 
         /// <summary>The clearance, in millimetres on the sheet, the lines keep from the items.</summary>
-        const double Clearance = 4;
 
         /// <summary>
         /// Where a line leaves or enters an item: out of the edge of the item's icon nearest to the

@@ -43,6 +43,9 @@ namespace DWSIM.Extensions.SolidCraft
 
         const double TextHeight = 2.5;
 
+        /// <summary>The longest spool, mm of pipe: what a truck carries.</summary>
+        const double SpoolLength = 12000;
+
         /// <summary>Shortest and longest leg on the sheet, mm.</summary>
         const double MinLeg = 12, MaxLeg = 110;
 
@@ -129,6 +132,8 @@ namespace DWSIM.Extensions.SolidCraft
             var n = path.Count - 1;
             var dirs = new Vec3[n]; var lengths = new double[n];
             for (var i = 0; i < n; i++) { var v = path[i + 1] - path[i]; lengths[i] = v.Length; dirs[i] = v.Normalized(); }
+            var cum = new double[n + 1];
+            for (var i = 0; i < n; i++) cum[i + 1] = cum[i] + lengths[i];
 
             // the sheet: the isometric on the left, the tables over the title block, notes underneath
             DrawingSheets.Margins(style, out var ml, out var mo);
@@ -140,6 +145,7 @@ namespace DWSIM.Extensions.SolidCraft
                 "2. NOT TO SCALE. NORTH IS +Y OF THE PLOT PLAN.",
                 "3. DESIGN CONDITIONS, MATERIAL AND FLANGE RATING ARE PRELIMINARY ESTIMATES FROM THE",
                 "   OPERATING CONDITIONS (ASME B31.3 AND B16.5).",
+                "4. WELDS: W SHOP, FW FIELD. SPOOLS (SP) OF UP TO 12 M OF PIPE, SPLIT AT THE FIELD WELDS.",
             };
             double ax0 = ml + 12, ax1 = sheet.Width - mo - DrawingSheets.TitleWidth - 12;
             double ay0 = mo + 12 + notes.Length * 4.2, ay1 = sheet.Height - mo - 12;
@@ -226,7 +232,7 @@ namespace DWSIM.Extensions.SolidCraft
                     }
             var rr = new double[n + 1];
             for (var i = 1; i < n; i++) rr[i] = Math.Min(2.5, 0.3 * Math.Min((q[i] - q[i - 1]).Length, (q[i + 1] - q[i]).Length));
-            var welds = new List<P2>();
+            var welds = new List<(P2 At, double S, bool Joint)>();
             var pipes = new List<List<P2>>();
             var cur = new List<P2> { q[0] };
             for (var i = 0; i < n; i++)
@@ -251,7 +257,7 @@ namespace DWSIM.Extensions.SolidCraft
                         var t = sgm / 6.0;
                         cur.Add(e * ((1 - t) * (1 - t)) + q[i + 1] * (2 * t * (1 - t)) + t2 * (t * t));
                     }
-                    welds.Add(e); welds.Add(t2);
+                    welds.Add((e, cum[i + 1] - 1e-3, false)); welds.Add((t2, cum[i + 1] + 1e-3, false));
                 }
             }
             pipes.Add(cur);
@@ -271,11 +277,11 @@ namespace DWSIM.Extensions.SolidCraft
             foreach (var e in ends)
             {
                 var t = Across(e.Dir3) * 2.6;
+                welds.Add((e.At + e.Into * 1.2, e.Outlet ? 0 : cum[n], false));
                 var outside = e.At - e.Into * 1.0;
                 C("line", new JObject { ["points"] = new JArray(A(e.At - t), A(e.At + t)) });
                 C("line", new JObject { ["points"] = new JArray(A(outside - t), A(outside + t)) });
                 clutter.Segs.Add((e.At - t, e.At + t)); clutter.Segs.Add((outside - t, outside + t));
-                welds.Add(e.At + e.Into * 1.2);
                 if (e.Item == null)
                 {
                     var b = outside - e.Into * 0.9;
@@ -290,7 +296,24 @@ namespace DWSIM.Extensions.SolidCraft
                     clutter.Segs.Add((outside, neck));
                 }
             }
-            foreach (var w in welds) C("donut", new JObject { ["center"] = A(w), ["inside"] = 0, ["outside"] = 1.0 });
+            // a leg longer than a spool gets field joints along it, every 12 m of pipe
+            for (var i = 0; i < n; i++)
+                for (var j = 1; j * SpoolLength < lengths[i] - 500; j++)
+                    welds.Add((q[i] + (q[i + 1] - q[i]) * (j * SpoolLength / lengths[i]), cum[i] + j * SpoolLength, true));
+            // the spools: as much pipe as fits in one, from weld to weld; where the next weld would
+            // make it longer, this one is made in the field
+            welds = welds.OrderBy(w => w.S).ToList();
+            var fieldWeld = new bool[welds.Count];
+            {
+                double s0 = 0;
+                for (var w = 1; w < welds.Count - 1; w++)
+                {
+                    if (welds[w].Joint || welds[w + 1].S - s0 > SpoolLength) { fieldWeld[w] = true; s0 = welds[w].S; }
+                }
+            }
+            var spoolStarts = new List<double> { 0 };
+            for (var w = 0; w < welds.Count; w++) if (fieldWeld[w]) spoolStarts.Add(welds[w].S);
+            foreach (var w in welds) C("donut", new JObject { ["center"] = A(w.At), ["inside"] = 0, ["outside"] = 1.0 });
 
             // the flow arrow on the longest leg
             var longest = Enumerable.Range(0, n).OrderByDescending(i => (q[i + 1] - q[i]).Length).First();
@@ -386,6 +409,22 @@ namespace DWSIM.Extensions.SolidCraft
                 lastZ = path[i].Z;
             }
 
+            // the weld numbers, along the line, and a spool number in the middle of each spool
+            for (var w = 0; w < welds.Count; w++)
+                PlaceLabel(clutter, welds[w].At, (fieldWeld[w] ? "FW" : "W") + (w + 1).ToString(CultureInfo.InvariantCulture), 1.6, new[] { 2.2, 3.5, 5.0 }, Text);
+            P2 Along(double sAt)
+            {
+                for (var i = 0; i < n; i++)
+                    if (sAt <= cum[i + 1] || i == n - 1)
+                        return q[i] + (q[i + 1] - q[i]) * (lengths[i] > 0 ? Math.Max(0, Math.Min(1, (sAt - cum[i]) / lengths[i])) : 0);
+                return q[n];
+            }
+            for (var sp = 0; sp < spoolStarts.Count; sp++)
+            {
+                var sEnd = sp + 1 < spoolStarts.Count ? spoolStarts[sp + 1] : cum[n];
+                PlaceLabel(clutter, Along((spoolStarts[sp] + sEnd) / 2), "SP" + (sp + 1).ToString(CultureInfo.InvariantCulture), 2.2, new[] { 4.0, 6.5, 9.0 }, Text);
+            }
+
             // the sheet
             title.Scale = "NTS";
             C("layout.new", new JObject { ["name"] = "ISO", ["viewport"] = false });
@@ -420,6 +459,7 @@ namespace DWSIM.Extensions.SolidCraft
             var fromText = fromItem == null ? "Battery limit" : fromItem.Tag + Nz(EquipmentDrawings.NozzleMark(model, fromItem, run, true));
             var toText = toItem == null ? "Battery limit" : toItem.Tag + Nz(EquipmentDrawings.NozzleMark(model, toItem, run, false));
             var data = LineData(run, fromText, toText, design);
+            data.Add(new KeyValuePair<string, string>("Spools (12 m max.)", spoolStarts.Count.ToString(CultureInfo.InvariantCulture)));
             C("table", new JObject
             {
                 ["at"] = new JArray(tx, top), ["rows"] = data.Count, ["cols"] = 2, ["rowHeight"] = 5.5, ["colWidth"] = DrawingSheets.TitleWidth / 2,
@@ -427,6 +467,9 @@ namespace DWSIM.Extensions.SolidCraft
             });
             top -= (data.Count + 1) * 5.5 + 5;
             var bom = Materials(run, lengths, n - 1, fromItem == null || toItem == null ? 1 : 0, design);
+            var fields = fieldWeld.Count(f => f);
+            bom.Add(new KeyValuePair<string, string>("Butt welds, shop " + run.Size, (welds.Count - fields).ToString(CultureInfo.InvariantCulture)));
+            if (fields > 0) bom.Add(new KeyValuePair<string, string>("Butt welds, field " + run.Size, fields.ToString(CultureInfo.InvariantCulture)));
             C("table", new JObject
             {
                 ["at"] = new JArray(tx, top), ["rows"] = bom.Count, ["cols"] = 2, ["rowHeight"] = 5.5, ["colWidth"] = DrawingSheets.TitleWidth / 2,
@@ -467,6 +510,23 @@ namespace DWSIM.Extensions.SolidCraft
             if (a > 90.01) a -= 180;
             if (a <= -89.99) a += 180;
             return a;
+        }
+
+        /// <summary>A short text by a point: tried round it at a few distances, kept where it is clearest.</summary>
+        static void PlaceLabel(Clutter clutter, P2 p, string s, double h, double[] radii, Action<P2, string, double, string, double> text)
+        {
+            double best = double.MaxValue; P2 at = p; string just = "BL";
+            foreach (var r in radii)
+                for (var k = 0; k < 8; k++)
+                {
+                    var a = k * Math.PI / 4 + Math.PI / 8;
+                    double c = Math.Cos(a), sn = Math.Sin(a);
+                    var q = p + new P2(c, sn) * r;
+                    var j = (sn > 0.3 ? "B" : sn < -0.3 ? "T" : "M") + (c > 0.3 ? "L" : c < -0.3 ? "R" : "C");
+                    var cost = clutter.Cost(new List<(P2, P2)>(), new[] { TextBox(q, s, h, j, 0, 0.4) }) + r * 0.05;
+                    if (cost < best) { best = cost; at = q; just = j; }
+                }
+            text(at, s, h, just, 0);
         }
 
         /// <summary>

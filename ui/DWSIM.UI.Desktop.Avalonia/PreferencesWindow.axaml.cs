@@ -70,6 +70,7 @@ public partial class PreferencesWindow : Window
     private NumericUpDown _scRackHeight = null!, _scItemGap = null!;
     private ComboBox _ccStandard = null!;
     private TextBox _ccOwner = null!;
+    private NumericUpDown _ccClearance = null!;
     private static readonly string[] DrawingStandards = { "ISO", "ASME", "Petrobras" };
 
     // other
@@ -506,6 +507,7 @@ public partial class PreferencesWindow : Window
         _ccStandard = page.CreateAndAddDropDownRow("Drawing standard",
             new List<string> { "ISO (ISO 7200 title block, A sheets)", "ASME (Y14.1 title block, ANSI sheets)", "Petrobras (N-381 legend, A sheets)" }, Math.Max(0, standard), null);
         _ccOwner = page.CreateAndAddStringEditorRow("Company in the title block", sc.Value<string>("DrawingOwner") ?? "", null);
+        _ccClearance = page.CreateAndAddNumericEditorRow("Line clearance on the PFD and P&ID (mm)", sc.Value<double?>("LineClearance") ?? 4, 1, 15, 1, null);
         page.CreateAndAddDescriptionRow(
             "Tools > Export Process Flow Diagram draws the flowsheet in CADCraft (installed separately, " +
             "with SolidCraft in the ArtCraft suite) and saves it as DXF, DWG, PDF and PNG.");
@@ -633,6 +635,7 @@ public partial class PreferencesWindow : Window
         options["ItemGap"] = (double)(_scItemGap.Value ?? 2);
         options["DrawingStandard"] = DrawingStandards[Math.Max(0, _ccStandard.SelectedIndex)];
         options["DrawingOwner"] = _ccOwner.Text ?? "";
+        options["LineClearance"] = (double)(_ccClearance.Value ?? 4);
         S.SolidCraftOptions = options.ToString(Newtonsoft.Json.Formatting.None);
 
         // other

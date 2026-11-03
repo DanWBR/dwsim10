@@ -300,10 +300,13 @@ namespace DWSIM.Extensions.SolidCraft
                 process.Add("Energy stream " + e.Obj.GraphicObject?.Tag + " (kW)", Fmt(Math.Abs(Si(() => ((IEnergyStream)e.Obj).GetEnergyFlow()))));
             if (process.Rows.Count > 0) sheet.Sections.Add(process);
 
-            var design = new Section("DESIGN");
-            AddDesign(design, d, vessel);
-            design.Add("Insulation", Insulation(d));
-            sheet.Sections.Add(design);
+            if (type != ObjectType.HeatExchanger || !Exchanger(sheet, fs, obj, item))
+            {
+                var design = new Section("DESIGN");
+                AddDesign(design, d, vessel);
+                design.Add("Insulation", Insulation(d));
+                sheet.Sections.Add(design);
+            }
 
             var mech = new Section(vessel ? "MECHANICAL" : rotating ? "DRIVER" : "CONSTRUCTION");
             if (vessel) Mechanical(mech, item);
@@ -322,7 +325,7 @@ namespace DWSIM.Extensions.SolidCraft
                 }
             }
             // what else the 3D model knows of the item (tubes of an exchanger), numbers rounded
-            var known = new[] { "Operating", "Orientation", "Heads", "Diameter", "Height", "Length", "Stages", "Service", "Power", "Volume", "Duty" };
+            var known = new[] { "Operating", "Orientation", "Heads", "Diameter", "Height", "Length", "Stages", "Service", "Power", "Volume", "Duty", "Shell diameter", "Tube length", "Area" };
             foreach (var kv in item.Properties.Where(kv => !known.Any(kv.Key.StartsWith)))
                 mech.Add(kv.Key, double.TryParse(kv.Value, NumberStyles.Float, Inv, out var v) ? Fmt(v) : kv.Value);
             if (mech.Rows.Count > 0) sheet.Sections.Add(mech);
@@ -422,6 +425,103 @@ namespace DWSIM.Extensions.SolidCraft
                     }
                     break;
             }
+        }
+
+        /// <summary>
+        /// A shell and tube exchanger: its TEMA type, which fluid goes in the shell and which in the
+        /// tubes, the shell, tube and baffle geometry, and the design of each side. In shell and tube
+        /// rating the exchanger's own geometry is used; otherwise it is estimated: fixed tubesheet
+        /// (BEM) unless the fluids' inlets differ by more than 100 C (floating head, AES), the fluid
+        /// at the higher pressure in the tubes, 3/4" tubes BWG 14 on a 15/16" triangular pitch, two
+        /// passes, the shell and its length from the 3D model, the tube count from the area,
+        /// segmental baffles cut 25 % and spaced 0.4 shell diameters.
+        /// </summary>
+        static bool Exchanger(Sheet sheet, IFlowsheet fs, ISimulationObject obj, EquipmentItem item)
+        {
+            var hx = obj as DWSIM.UnitOperations.UnitOperations.HeatExchanger;
+            var go = obj.GraphicObject;
+            IMaterialStream Side(bool inlet, int i)
+            {
+                var cps = inlet ? go.InputConnectors : go.OutputConnectors;
+                if (i >= cps.Count || !cps[i].IsAttached) return null;
+                var other = inlet ? cps[i].AttachedConnector?.AttachedFrom : cps[i].AttachedConnector?.AttachedTo;
+                return other != null && fs.SimulationObjects.TryGetValue(other.Name, out var o) ? o as IMaterialStream : null;
+            }
+            IMaterialStream[] ins = { Side(true, 0), Side(true, 1) }, outs = { Side(false, 0), Side(false, 1) };
+            if (ins[0] == null || ins[1] == null) return false;
+            var hot = TempC(ins[1]) > TempC(ins[0]) ? 1 : 0;
+            var cold = 1 - hot;
+            var st = hx?.STProperties;
+            var rating = hx != null && st != null && (hx.CalculationMode == DWSIM.UnitOperations.UnitOperations.HeatExchangerCalcMode.ShellandTube_Rating ||
+                hx.CalculationMode == DWSIM.UnitOperations.UnitOperations.HeatExchangerCalcMode.ShellandTube_CalcFoulingFactor);
+            var shell = rating ? (st.Shell_Fluid == 1 ? hot : cold) : (PressG(ins[hot]) > PressG(ins[cold]) ? cold : hot);
+            var tube = 1 - shell;
+            string Tag(IMaterialStream ms) => ms == null ? "" : ((ISimulationObject)ms).GraphicObject?.Tag ?? "";
+            string Fluid(int i) => Tag(ins[i]) + (outs[i] != null ? " to " + Tag(outs[i]) : "") + (i == hot ? " (hot)" : " (cold)");
+
+            var s = new Section("SHELL AND TUBE");
+            var shellPart = item.Parts.FirstOrDefault(p => p.Name == "shell");
+            double shellId, tubeOd, wall, length, pitch, cut, spacing;
+            int tubes, passes, shells, baffles;
+            string layout, tema, joint = "Expanded";
+            if (rating)
+            {
+                shellId = st.Shell_Di; tubeOd = st.Tube_De; wall = (st.Tube_De - st.Tube_Di) / 2; length = st.Tube_Length * 1000;
+                pitch = st.Tube_Pitch; tubes = st.Tube_NumberPerShell; passes = st.Tube_PassesPerShell; shells = st.Shell_NumberOfShellsInSeries;
+                layout = st.Tube_Layout <= 1 ? "triangular" + (st.Tube_Layout == 1 ? " rotated" : "") : "square" + (st.Tube_Layout == 3 ? " rotated" : "");
+                cut = st.Shell_BaffleCut; spacing = st.Shell_BaffleSpacing;
+                baffles = st.Result_NumberOfBaffles > 0 ? st.Result_NumberOfBaffles : Math.Max(0, (int)(length / Math.Max(1, spacing)) - 1);
+                tema = st.TEMA_FrontHeadType + (st.Shell_NumberOfPasses >= 2 ? "F" : "E") + st.TEMA_RearHeadType;
+                joint = st.TubesheetJointType.ToString();
+            }
+            else
+            {
+                shellId = shellPart?.Diameter ?? 500; length = shellPart?.Height ?? 6000;
+                tubeOd = 19.05; wall = 2.11; pitch = 23.81; passes = 2; shells = 1; layout = "triangular";
+                var area = hx?.Area.GetValueOrDefault() ?? 0;
+                if (area <= 0 && item.Properties.TryGetValue("Area (m2)", out var a)) double.TryParse(a.Split(' ')[0], NumberStyles.Float, Inv, out area);
+                tubes = area > 0 ? (int)Math.Ceiling(area / (Math.PI * tubeOd / 1000 * length / 1000)) : 0;
+                cut = 25; spacing = Math.Round(Math.Max(50, 0.4 * shellId) / 10) * 10;
+                baffles = Math.Max(0, (int)(length / spacing) - 1);
+                tema = TempC(ins[hot]) - TempC(ins[cold]) > 100 ? "AES" : "BEM";
+            }
+            s.Add("TEMA type", tema + (rating ? "" : " (est.)"));
+            s.Add("Shell side", Fluid(shell));
+            s.Add("Tube side", Fluid(tube));
+            s.Add("Shells in series", shells.ToString(Inv));
+            s.Add("Shell inside diameter (mm)", F(shellId, "0"));
+            s.Add("Tubes per shell", tubes > 0 ? tubes.ToString(Inv) : "");
+            s.Add("Tube OD x wall (mm)", F(tubeOd, "0.00") + " x " + F(wall, "0.00"));
+            s.Add("Tube length (mm)", F(Math.Round(length / 10) * 10, "0"));
+            s.Add("Tube passes per shell", passes.ToString(Inv));
+            s.Add("Tube pitch (mm), layout", F(pitch, "0.00") + ", " + layout);
+            s.Add("Baffles", "segmental, " + F(cut, "0") + " % cut, " + F(spacing, "0") + " mm apart, " + baffles.ToString(Inv));
+            s.Add("Tube to tubesheet joint", joint);
+            if (rating && (st.Shell_Fouling > 0 || st.Tube_Fouling > 0))
+                s.Add("Fouling shell / tube (m2.K/W)", Fmt(st.Shell_Fouling) + " / " + Fmt(st.Tube_Fouling));
+            sheet.Sections.Add(s);
+
+            // the design of each side, from its own fluid
+            DesignBasis Basis(int i)
+            {
+                var t = new[] { TempC(ins[i]), outs[i] != null ? TempC(outs[i]) : double.NaN }.Where(v => !double.IsNaN(v)).DefaultIfEmpty(double.NaN).ToList();
+                var p = new[] { PressG(ins[i]), outs[i] != null ? PressG(outs[i]) : double.NaN }.Where(v => !double.IsNaN(v)).DefaultIfEmpty(double.NaN).ToList();
+                return DesignBasis.For(t.Max(), p.Max(), t.Min());
+            }
+            DesignBasis ds = Basis(shell), dt = Basis(tube);
+            var g = new Section("DESIGN") { Header = new[] { "Shell side", "Tube side" }, Corner = "" };
+            void Row(string label, Func<DesignBasis, string> f) => g.Rows.Add(new[] { label, f(ds), f(dt) });
+            Row("Design pressure (bar g)", d => F(d.Pressure, "0.0"));
+            Row("Design temperature (C)", d => d.Cold ? F(d.MinT, "0") + " / " + F(d.MaxT, "0") : F(d.MaxT, "0"));
+            Row("Hydrotest pressure (bar g)", d => F(d.Test, "0.0"));
+            g.Rows.Add(new[] { "Material", ds.Plate, dt.Plate + " (channel)" });
+            g.Rows.Add(new[] { "Tubes", "", dt.Tubes });
+            Row("Corrosion allowance (mm)", d => F(d.CorrosionAllowance, "0.0"));
+            Row("Flange rating", d => d.Class + " RF");
+            g.Rows.Add(new[] { "Insulation", Insulation(Basis(hot)), "" });
+            g.Rows.Add(new[] { "Design code", "ASME VIII Div. 1, TEMA R", "" });
+            sheet.Sections.Add(g);
+            return true;
         }
 
         /// <summary>The main dimensions of a vessel, column, tank or exchanger, from the 3D model.</summary>

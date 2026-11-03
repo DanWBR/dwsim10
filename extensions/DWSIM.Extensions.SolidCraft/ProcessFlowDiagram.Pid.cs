@@ -208,7 +208,7 @@ namespace DWSIM.Extensions.SolidCraft
         /// (the second of the drawing), plotted next to the diagram.
         /// </summary>
         static void Legend(CADCraftSession session, string outputBase, DrawingStyle style, TitleData title, List<Unit> units, Dictionary<string, string> actuated,
-            bool loops, bool gauges, List<Utility> utilities, bool nozzleMarks, string temp, Result result)
+            bool loops, bool gauges, List<Utility> utilities, bool nozzleMarks, string temp, Result result, bool alarms = false, bool interlocks = false)
         {
             var sheet = SheetSize.For(style).First();
             DrawingSheets.Margins(style, out var ml, out var mo);
@@ -360,6 +360,25 @@ namespace DWSIM.Extensions.SolidCraft
                 C("layer.current", new JObject { ["name"] = "TEXT" });
                 C("text", new JObject { ["at"] = new JArray(Math.Round(cell.X, 2), Math.Round(cell.Y - cellH / 2, 2)), ["text"] = "T IC I V", ["height"] = TextHeight, ["justify"] = "ML" });
                 Text(cell, "Then: transmitter, controller, indicator, valve");
+                if (alarms)
+                {
+                    cell = Next();
+                    C("layer.current", new JObject { ["name"] = "TEXT" });
+                    C("text", new JObject { ["at"] = new JArray(Math.Round(cell.X, 2), Math.Round(cell.Y - cellH / 2, 2)), ["text"] = "LAH 2.5 m", ["height"] = 1.8, ["justify"] = "ML" });
+                    Text(cell, "Alarm: AH, AL high, low; AHH, ALL very high, very low");
+                }
+            }
+            if (interlocks)
+            {
+                if (!(loops || gauges)) Heading("INSTRUMENTS");
+                var cell = Next();
+                var c0 = new Pt(cell.X + sym / 2, cell.Y - cellH / 2);
+                C("layer.current", new JObject { ["name"] = "INSTRUMENT" });
+                C("pline", new JObject { ["vertices"] = new JArray(A(new Pt(c0.X - Bubble, c0.Y)), A(new Pt(c0.X, c0.Y + Bubble)), A(new Pt(c0.X + Bubble, c0.Y)), A(new Pt(c0.X, c0.Y - Bubble))), ["closed"] = true });
+                C("layer.current", new JObject { ["name"] = "TEXT" });
+                C("text", new JObject { ["at"] = new JArray(c0.X, Math.Round(c0.Y + 1.2, 2)), ["text"] = "I", ["height"] = 1.8, ["justify"] = "MC" });
+                C("text", new JObject { ["at"] = new JArray(c0.X, Math.Round(c0.Y - 1.6, 2)), ["text"] = "1", ["height"] = 1.6, ["justify"] = "MC" });
+                Text(cell, "Interlock, from a hand switch (HS), with the values it sets");
             }
 
             var used = utilities.GroupBy(u => u.Supply).Select(g => g.First()).ToList();

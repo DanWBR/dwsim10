@@ -50,6 +50,9 @@ namespace DWSIM.Extensions.SolidCraft
         /// <summary>The company in the title block of the drawings (legal owner, client).</summary>
         public string DrawingOwner = "";
 
+        /// <summary>The space the PFD and P&amp;ID lines keep from the items and from each other, mm on the sheet.</summary>
+        public double LineClearance = 4;
+
         public DrawingStyle Style => Enum.TryParse<DrawingStyle>(DrawingStandard, true, out var s) ? s : DrawingStyle.ISO;
 
         public static ExportOptions Load()
@@ -61,6 +64,7 @@ namespace DWSIM.Extensions.SolidCraft
                 var o = JsonConvert.DeserializeObject<ExportOptions>(text) ?? new ExportOptions();
                 o.RackHeight = Math.Max(2.5, Math.Min(30, o.RackHeight));
                 o.ItemGap = Math.Max(0.5, Math.Min(20, o.ItemGap));
+                o.LineClearance = Math.Max(1, Math.Min(15, o.LineClearance));
                 return o;
             }
             catch (Exception)
