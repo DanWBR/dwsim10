@@ -161,7 +161,9 @@ namespace DWSIM.Extensions.SolidCraft
         {
             var app = Path.Combine(folder, Exe("solidcraft"));
             if (!File.Exists(app)) return;
-            Process.Start(new ProcessStartInfo(app, Quote(design)) { UseShellExecute = false, WorkingDirectory = Path.GetDirectoryName(design) });
+            // through the shell, so the application inherits none of DWSIM's handles (its console
+            // output among them) and lives on its own after DWSIM closes
+            Process.Start(new ProcessStartInfo(app, Quote(design)) { UseShellExecute = true, WorkingDirectory = Path.GetDirectoryName(design) });
         }
 
         static int Execute(string cli, string args, int timeoutSeconds, out string output)
