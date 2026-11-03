@@ -55,6 +55,12 @@ namespace DWSIM.Extensions.SolidCraft
         public string Color;
         public bool Metallic;
 
+        /// <summary>A SolidCraft library look (starter.metal.*) used instead of the colour.</summary>
+        public string Look;
+
+        /// <summary>The physical material (mass, bill of materials); null leaves the default.</summary>
+        public string Material = "Steel";
+
         /// <summary>Cylinder: centre of the base. Box and sphere: centre.</summary>
         public Vec3 Point;
 
@@ -226,6 +232,9 @@ namespace DWSIM.Extensions.SolidCraft
         public List<Primitive> Parts = new List<Primitive>();
         public Dictionary<string, string> Properties = new Dictionary<string, string>();
 
+        /// <summary>The 3D label over the item: tag and operating conditions, one line each.</summary>
+        public string Label;
+
         /// <summary>Lines that belong to the item (a column's overhead line), in local coordinates.</summary>
         public List<PipeRun> InternalPipes = new List<PipeRun>();
 
@@ -246,6 +255,15 @@ namespace DWSIM.Extensions.SolidCraft
         public double Wall;
         public string Color;
         public List<Vec3> Path = new List<Vec3>();
+
+        /// <summary>Mean velocity in the line, m/s (0 when the stream has no flow).</summary>
+        public double Velocity;
+
+        /// <summary>Operating conditions of the stream, saved as properties of the line.</summary>
+        public Dictionary<string, string> Properties = new Dictionary<string, string>();
+
+        /// <summary>The 3D label along the line; null for none.</summary>
+        public string Label;
 
         /// <summary>The run ends at the battery limit: draw a flange there.</summary>
         public bool OpenEnd, OpenStart;

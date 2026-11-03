@@ -62,6 +62,7 @@ namespace DWSIM.Extensions.SolidCraft
                 item.Name = obj.Name;
                 item.Tag = go.Tag;
                 item.Description = SafeDisplayName(obj);
+                AddOperatingData(item, obj);
                 item.CanvasX = go.X + go.Width / 2.0;
                 item.CanvasY = go.Y + go.Height / 2.0;
                 if (item.FootprintX <= 0) item.FootprintX = item.Envelope.HalfX;
@@ -472,6 +473,29 @@ namespace DWSIM.Extensions.SolidCraft
             return item;
         }
 
+        /// <summary>
+        /// The operating conditions of an item, from its first outlet stream (its first inlet when it
+        /// has none): saved as properties and shown on its label.
+        /// </summary>
+        static void AddOperatingData(EquipmentItem item, ISimulationObject obj)
+        {
+            item.Label = item.Tag;
+            var go = obj.GraphicObject;
+            IMaterialStream ms = null;
+            for (var i = 0; i < go.OutputConnectors.Count && ms == null; i++) ms = OutletStream(go, i);
+            if (ms == null) ms = InletStreams(obj).FirstOrDefault();
+            if (ms == null) return;
+
+            var t = Finite(ms.GetTemperature()) - 273.15;
+            var p = Finite(ms.GetPressure()) / 1e5;
+            if (!(p > 0)) return;
+            item.Properties["Operating temperature (C)"] = Fmt(t, "0.0");
+            item.Properties["Operating pressure (bar)"] = Fmt(p, "0.###");
+            item.Label = item.Tag + "\n" + Fmt(t, "0.#") + " °C  " + Fmt(p, "0.##") + " bar";
+        }
+
+        static string Fmt(double x, string format) => x.ToString(format, CultureInfo.InvariantCulture);
+
         static void Describe(EquipmentItem item, string key, double value, bool estimated)
         {
             item.Properties[key] = value.ToString("0.###", CultureInfo.InvariantCulture) + (estimated ? " (estimated)" : "");
@@ -541,15 +565,33 @@ namespace DWSIM.Extensions.SolidCraft
                 ? PipeSizes.ForInsideDiameter(Math.Sqrt(4 * q / (Math.PI * velocity)) * 1000)
                 : PipeSizes.Table[1];   // 3" when the stream has no flow yet
 
-            return new PipeRun
+            var run = new PipeRun
             {
                 Tag = tag,
                 Phase = phase,
                 Size = size.Name,
                 OuterDiameter = size.OD,
                 Wall = size.Wall,
-                Color = PipeSizes.ColorFor(phase)
+                Color = PipeSizes.ColorFor(phase),
+                Velocity = q > 0 ? q / (Math.PI * Math.Pow(size.ID / 1000, 2) / 4) : 0,
+                Label = tag + " " + size.Name
             };
+
+            run.Properties["Size"] = size.Name;
+            run.Properties["Phase"] = phase;
+            if (ms != null)
+            {
+                var t = Finite(ms.GetTemperature()) - 273.15;
+                var p = Finite(ms.GetPressure()) / 1e5;
+                run.Properties["Temperature (C)"] = Fmt(t, "0.0");
+                run.Properties["Pressure (bar)"] = Fmt(p, "0.###");
+                run.Properties["Mass flow (kg/h)"] = Fmt(Finite(ms.GetMassFlow()) * 3600, "0.##");
+                run.Properties["Volumetric flow (m3/h)"] = Fmt(q * 3600, "0.###");
+                run.Properties["Vapor fraction"] = Fmt(vf, "0.####");
+                run.Properties["Velocity (m/s)"] = Fmt(run.Velocity, "0.##");
+                if (p > 0) run.Label += "  " + Fmt(t, "0.#") + " °C  " + Fmt(p, "0.##") + " bar";
+            }
+            return run;
         }
 
         static PipeRun RouteStream(PlantModel model, Dictionary<string, EquipmentItem> items, IMaterialStream ms, IGraphicObject sgo, int index)

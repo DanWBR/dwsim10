@@ -43,9 +43,34 @@ namespace DWSIM.Extensions.SolidCraft
         public const string Furnace = "#8a4b3a";
         public const string Generic = "#8e9aa8";
 
+        public const string CarbonSteelLook = "starter.metal.carbon-steel-polished";
+        public const string StainlessLook = "starter.metal.stainless-soft-satin";
+
+        /// <summary>
+        /// The finish of a part: bare metal parts take a library metal look (stainless for reactors,
+        /// carbon steel otherwise) and every part a physical material, so SolidCraft can weigh the
+        /// plant; painted parts keep their colour.
+        /// </summary>
+        public static void ApplyFinish(Primitive p)
+        {
+            if (p.Color == Concrete) p.Material = null;
+            else if (p.Color == PumpCasing) p.Material = "Cast Iron";
+            if (!p.Metallic || p.Look != null) return;
+            if (p.Color == Reactor)
+            {
+                p.Look = StainlessLook;
+                p.Material = "Stainless Steel";
+            }
+            else
+            {
+                p.Look = CarbonSteelLook;
+            }
+        }
+
         public static EquipmentItem VerticalVessel(double d, double tangent, double skirt, string color)
         {
             var item = new EquipmentItem();
+            // a painted carbon steel skirt; the shell is bare metal
             item.Parts.Add(Primitive.Cylinder("skirt", new Vec3(0, 0, 0), "Z", d, skirt, Skirt));
             item.Parts.Add(Primitive.Cylinder("shell", new Vec3(0, 0, skirt), "Z", d, tangent, color, true));
             item.Parts.Add(Primitive.Sphere("top head", new Vec3(0, 0, skirt + tangent), d, color, true));
@@ -272,6 +297,7 @@ namespace DWSIM.Extensions.SolidCraft
                     OuterDiameter = od.OD,
                     Wall = od.Wall,
                     Color = PipeSizes.ColorFor("Vapor"),
+                    Velocity = 10,
                     Path = new List<Vec3>
                     {
                         new Vec3(0, 0, env.ZTop),
@@ -306,6 +332,7 @@ namespace DWSIM.Extensions.SolidCraft
                     OuterDiameter = od.OD,
                     Wall = od.Wall,
                     Color = PipeSizes.ColorFor("Two-phase"),
+                    Velocity = 3,
                     Path = new List<Vec3>
                     {
                         new Vec3(0, y, zTop),

@@ -32,14 +32,16 @@ namespace DWSIM.Extensions.SolidCraft
         public class Result
         {
             public bool Success;
-            public string Design, Step, Picture, Script;
+            public string Design, Step, Picture, Script, Animation;
             public List<string> Skipped = new List<string>();
-            public string Error;
+            public string Error, AnimationError;
         }
 
         static bool IsWindows => RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
 
         static string Exe(string name) => IsWindows ? name + ".exe" : name;
+
+        static readonly Regex StepPattern = new Regex(@"step (\d+) \(([^)]*)\):\s*(.*)");
 
         /// <summary>
         /// The folder of solidcraft-cli: SOLIDCRAFT_HOME, the usual install folders, then the PATH.
@@ -72,11 +74,11 @@ namespace DWSIM.Extensions.SolidCraft
         }
 
         /// <summary>
-        /// Runs the script and saves the design, a STEP file and a picture next to it. A command that
-        /// fails stops a SolidCraft run, so the failing command is left out and the run is repeated,
-        /// at most <paramref name="maxSkips"/> times; the result lists what was left out.
+        /// Builds the design and its STEP file from the model script, then adds the labels and the
+        /// flow animation (<paramref name="extras"/>) in a second run on that design, so they stay
+        /// out of the STEP file and a failure there never costs the model, and takes a picture.
         /// </summary>
-        public static Result Run(string folder, List<SolidCraftScript.Command> commands, string outputBase, int maxSkips = 30)
+        public static Result Run(string folder, List<SolidCraftScript.Command> model, List<SolidCraftScript.Command> extras, string outputBase)
         {
             var cli = Path.Combine(folder, Exe("solidcraft-cli"));
             var res = new Result
@@ -87,53 +89,71 @@ namespace DWSIM.Extensions.SolidCraft
                 Picture = outputBase + ".png"
             };
 
+            foreach (var f in new[] { res.Design, res.Step }) if (File.Exists(f)) File.Delete(f);
+            res.Error = RunStage(cli, model, res.Script, null, res.Design, res.Step, null, res.Skipped);
+            res.Success = res.Error == null && File.Exists(res.Design);
+            if (!res.Success) return res;
+
+            if (extras != null && extras.Count > 0)
+            {
+                var gif = outputBase + " - flow.gif";
+                var animated = outputBase + ".flow.sc";
+                if (File.Exists(gif)) File.Delete(gif);
+                if (File.Exists(animated)) File.Delete(animated);
+                res.AnimationError = RunStage(cli, extras, outputBase + " - labels and flow.json", res.Design, animated, null, FlowAnimation.Prepare, res.Skipped);
+                if (res.AnimationError == null && File.Exists(animated))
+                {
+                    File.Delete(res.Design);
+                    File.Move(animated, res.Design);
+                    if (File.Exists(gif)) res.Animation = gif;
+                }
+            }
+
+            Execute(cli, "snapshot --in " + Quote(res.Design) + " --out " + Quote(res.Picture) + " --width 1600 --height 1000 --view iso", 300, out _);
+            if (!File.Exists(res.Picture)) res.Picture = null;
+
+            return res;
+        }
+
+        /// <summary>
+        /// Runs a script, optionally on an existing design. A command that fails stops a SolidCraft
+        /// run, so the failing command is left out and the run repeated (a line, a label or a flow
+        /// band is left out whole); returns null on success, else the error.
+        /// </summary>
+        static string RunStage(string cli, List<SolidCraftScript.Command> commands, string script, string input, string save, string step,
+            Action<List<SolidCraftScript.Command>> prepare, List<string> skipped, int maxSkips = 40)
+        {
             var cmds = new List<SolidCraftScript.Command>(commands);
-            var stepPattern = new Regex(@"step (\d+) \(([^)]*)\):\s*(.*)");
 
             for (var attempt = 0; ; attempt++)
             {
-                File.WriteAllText(res.Script, SolidCraftScript.ToJson(cmds), new UTF8Encoding(false));
-                foreach (var f in new[] { res.Design, res.Step }) if (File.Exists(f)) File.Delete(f);
+                prepare?.Invoke(cmds);
+                File.WriteAllText(script, SolidCraftScript.ToJson(FlowAnimation.Clean(cmds)), new UTF8Encoding(false));
 
-                var exit = Execute(cli, Quote(res.Script) + " --save " + Quote(res.Design) + " --out " + Quote(res.Step) + " --quiet", 600, out var output);
-                if (exit == 0 && File.Exists(res.Design))
-                {
-                    res.Success = true;
-                    break;
-                }
+                var args = "run " + Quote(script) + (input != null ? " --in " + Quote(input) : "") + " --save " + Quote(save)
+                    + (step != null ? " --out " + Quote(step) : "") + " --quiet";
+                var exit = Execute(cli, args, 900, out var output);
+                if (exit == 0 && File.Exists(save)) return null;
 
-                var m = stepPattern.Match(output);
-                if (!m.Success || attempt >= maxSkips)
-                {
-                    res.Error = output.Trim();
-                    return res;
-                }
+                var m = StepPattern.Match(output);
+                var i = m.Success ? int.Parse(m.Groups[1].Value) - 1 : -1;
+                if (i < 0 || i >= cmds.Count || attempt >= maxSkips) return output.Trim();
 
-                var i = int.Parse(m.Groups[1].Value) - 1;
-                if (i < 0 || i >= cmds.Count)
-                {
-                    res.Error = output.Trim();
-                    return res;
-                }
                 var failed = cmds[i];
-                res.Skipped.Add(failed.Subject + " (" + failed.Name + "): " + m.Groups[3].Value.Trim());
-                if (failed.Subject.StartsWith("line "))
+                skipped.Add(failed.Subject + " (" + failed.Name + "): " + m.Groups[3].Value.Trim());
+                if (failed.Subject.StartsWith("line ") || failed.Subject.StartsWith("label ") || failed.Subject.StartsWith("flow "))
                 {
-                    // a line is a sketch and a sweep that need each other: leave the whole line out
+                    // the commands of a line, a label or a band need each other: leave all of them out
                     cmds.RemoveAll(c => c.Subject == failed.Subject);
                 }
                 else
                 {
                     cmds.RemoveAt(i);
-                    // and the look of the body the failed command would have made
-                    if (i < cmds.Count && cmds[i].Name == "appearance.assign" && cmds[i].Subject == failed.Subject) cmds.RemoveAt(i);
+                    // and the look and material of the body the failed command would have made
+                    while (i < cmds.Count && (cmds[i].Name == "appearance.assign" || cmds[i].Name == "material.assign") && cmds[i].Subject == failed.Subject)
+                        cmds.RemoveAt(i);
                 }
             }
-
-            Execute(cli, "snapshot --in " + Quote(res.Design) + " --out " + Quote(res.Picture) + " --width 1600 --height 1000 --view iso", 300, out _, "");
-            if (!File.Exists(res.Picture)) res.Picture = null;
-
-            return res;
         }
 
         /// <summary>Opens the design in the SolidCraft application.</summary>
@@ -144,9 +164,9 @@ namespace DWSIM.Extensions.SolidCraft
             Process.Start(new ProcessStartInfo(app, Quote(design)) { UseShellExecute = false, WorkingDirectory = Path.GetDirectoryName(design) });
         }
 
-        static int Execute(string cli, string args, int timeoutSeconds, out string output, string verb = "run ")
+        static int Execute(string cli, string args, int timeoutSeconds, out string output)
         {
-            var psi = new ProcessStartInfo(cli, verb + args)
+            var psi = new ProcessStartInfo(cli, args)
             {
                 UseShellExecute = false,
                 RedirectStandardOutput = true,

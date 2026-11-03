@@ -131,8 +131,11 @@ namespace DWSIM.Extensions.SolidCraft
             Directory.CreateDirectory(outputFolder);
 
             var model = PlantModelBuilder.Build(fs, name);
+            var outputBase = Path.Combine(outputFolder, name);
             var commands = SolidCraftScript.Create(model);
-            var result = SolidCraftRunner.Run(solidcraftFolder, commands, Path.Combine(outputFolder, name));
+            var extras = SolidCraftScript.CreateLabels(model);
+            extras.AddRange(FlowAnimation.Create(model, outputBase + " - flow.gif"));
+            var result = SolidCraftRunner.Run(solidcraftFolder, commands, extras, outputBase);
 
             foreach (var w in model.Warnings)
                 fs.ShowMessage("3D plant model: " + w, IFlowsheet.MessageType.Information);
@@ -146,8 +149,13 @@ namespace DWSIM.Extensions.SolidCraft
                 return result;
             }
 
-            fs.ShowMessage(string.Format("3D plant model: {0} items and {1} lines saved to {2} (SolidCraft design, STEP{3}).",
-                model.Equipment.Count(e => e.Visible), model.Pipes.Count, outputFolder, result.Picture != null ? " and picture" : ""),
+            if (result.AnimationError != null)
+                fs.ShowMessage("3D plant model: the labels and the flow animation were left out: " + result.AnimationError, IFlowsheet.MessageType.Warning);
+
+            fs.ShowMessage(string.Format("3D plant model: {0} items and {1} lines saved to {2} (SolidCraft design, STEP{3}{4}).",
+                model.Equipment.Count(e => e.Visible), model.Pipes.Count, outputFolder,
+                result.Picture != null ? ", picture" : "",
+                result.Animation != null ? ", flow animation: play the \"" + FlowAnimation.StudyName + "\" motion study in SolidCraft" : ""),
                 IFlowsheet.MessageType.Information);
 
             if (openInApp) SolidCraftRunner.OpenInApp(solidcraftFolder, result.Design);
