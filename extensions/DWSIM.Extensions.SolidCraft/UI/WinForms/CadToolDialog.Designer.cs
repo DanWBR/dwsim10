@@ -1267,6 +1267,7 @@ namespace DWSIM.Extensions.SolidCraft
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
             this.Text = "CAD Tools";
             this.Load += new System.EventHandler(this.CadToolDialog_Load);
+            this.Shown += new System.EventHandler(this.CadToolDialog_Shown);
             this.tlpRoot.ResumeLayout(false);
             this.tlpRoot.PerformLayout();
             this.gbProgram.ResumeLayout(false);

@@ -136,9 +136,13 @@ namespace DWSIM.Extensions.SolidCraft
             cbSamples.SelectedIndex = Math.Max(0, samples.FindIndex(s => s.Samples == o.RenderSamples));
             cbView.SelectedIndex = Math.Max(0, Array.FindIndex(CadTools.RenderViews, v => v.Id == o.RenderView));
             chkRender_CheckedChanged(chkRender, EventArgs.Empty);
-            // the boxes that take typing keep no text selected
-            cbResolution.SelectionLength = cbStatus.SelectionLength = 0;
+            ClearSelection();
         }
+
+        /// <summary>The boxes that take typing keep no text selected (showing the window selects it again).</summary>
+        void ClearSelection() => cbResolution.SelectionLength = cbStatus.SelectionLength = 0;
+
+        private void CadToolDialog_Shown(object sender, EventArgs e) => ClearSelection();
 
         void UpdateProgramStatus()
         {
