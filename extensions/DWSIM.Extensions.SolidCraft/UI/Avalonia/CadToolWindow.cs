@@ -40,7 +40,7 @@ namespace DWSIM.Extensions.SolidCraft
         readonly List<(int Samples, string Text)> Samples;
 
         TextBox programFolder, output, owner, clearance, rackHeight, itemGap;
-        TextBlock programStatus, problem;
+        TextBlock programStatus, problem, renderTime;
         CheckBox openInApp, labels, flowAnimation, insulation, platforms, instruments, dynamicReplay, render;
         ComboBox standard, resolution, samples;
 
@@ -169,9 +169,17 @@ namespace DWSIM.Extensions.SolidCraft
                 resolution.SelectedIndex = Sizes.FindIndex(s => s.Width == o.RenderWidth && s.Height == o.RenderHeight);
                 samples = new ComboBox { ItemsSource = Samples.Select(s => s.Text).ToList(), MinWidth = 200 };
                 samples.SelectedIndex = Samples.FindIndex(s => s.Samples == o.RenderSamples);
-                render.IsCheckedChanged += (_, _) => resolution.IsEnabled = samples.IsEnabled = render.IsChecked == true;
+                renderTime = new TextBlock { TextWrapping = TextWrapping.Wrap, FontSize = UiScale.Font(12) };
+                render.IsCheckedChanged += (_, _) =>
+                {
+                    resolution.IsEnabled = samples.IsEnabled = render.IsChecked == true;
+                    UpdateRenderTime();
+                };
+                resolution.SelectionChanged += (_, _) => UpdateRenderTime();
+                samples.SelectionChanged += (_, _) => UpdateRenderTime();
                 resolution.IsEnabled = samples.IsEnabled = o.Render;
-                root.Children.Add(Group("Photorealistic picture", Rows((null, render), ("Resolution (pixels)", resolution), ("Samples per pixel", samples))));
+                UpdateRenderTime();
+                root.Children.Add(Group("Photorealistic picture", Rows((null, render), ("Resolution (pixels)", resolution), ("Samples per pixel", samples), (null, renderTime))));
             }
 
             problem = new TextBlock { Foreground = Brushes.Firebrick, TextWrapping = TextWrapping.Wrap, IsVisible = false, Margin = new Thickness(0, 6, 0, 0) };
@@ -192,6 +200,17 @@ namespace DWSIM.Extensions.SolidCraft
                 Children = { cancel, run }
             });
             return root;
+        }
+
+        /// <summary>The estimate of the render time for the size and samples chosen.</summary>
+        void UpdateRenderTime()
+        {
+            if (renderTime == null || resolution.SelectedIndex < 0 || samples.SelectedIndex < 0) return;
+            var size = Sizes[resolution.SelectedIndex];
+            var n = Samples[samples.SelectedIndex].Samples;
+            renderTime.Opacity = render.IsChecked == true ? 1 : 0.5;
+            renderTime.Foreground = CadTools.RenderSeconds(size.Width, size.Height, n) > CadTools.LongRenderSeconds ? Brushes.DarkOrange : Brushes.Gray;
+            renderTime.Text = "Render time: " + CadTools.RenderTimeText(size.Width, size.Height, n) + ", longer on a slower one.";
         }
 
         void UpdateProgramStatus()

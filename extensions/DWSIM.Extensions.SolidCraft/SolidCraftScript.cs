@@ -304,12 +304,15 @@ namespace DWSIM.Extensions.SolidCraft
             var centre = (lo + hi) * 0.5;
             const double fov = 0.7;
             var distance = (hi - lo).Length / 2 / Math.Tan(fov / 2) * 1.1;
+            // the samples belong to the saved setup: the render command refuses --samples next to --setup
+            var job = new JObject { ["method"] = "gpu_path" };
+            if (model.Options != null && model.Options.RenderSamples > 0) job["options"] = new JObject { ["samples"] = model.Options.RenderSamples };
             Add(cmds, "render.settings.set", "the render", new JObject
             {
                 ["name"] = RenderSetup,
                 ["set"] = new JObject
                 {
-                    ["job"] = new JObject { ["method"] = "gpu_path" },
+                    ["job"] = job,
                     ["camera"] = new JObject { ["target"] = new JArray(centre.ToArray()), ["yaw"] = -0.785, ["pitch"] = 0.55, ["distance"] = Math.Round(distance), ["fov"] = fov }
                 }
             });

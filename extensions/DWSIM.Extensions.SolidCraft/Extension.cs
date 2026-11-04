@@ -280,6 +280,8 @@ namespace DWSIM.Extensions.SolidCraft
 
             if (result.AnimationError != null)
                 fs.ShowMessage("3D plant model: the labels and the flow animation were left out: " + result.AnimationError, IFlowsheet.MessageType.Warning);
+            if (result.RenderError != null)
+                fs.ShowMessage("3D plant model: the photorealistic picture could not be rendered: " + result.RenderError, IFlowsheet.MessageType.Warning);
 
             fs.ShowMessage(string.Format("3D plant model: {0} items and {1} lines saved to {2} (SolidCraft design, STEP, line list, material take-off{3}{4}).",
                 model.Equipment.Count(e => e.Visible), model.Pipes.Count, outputFolder,

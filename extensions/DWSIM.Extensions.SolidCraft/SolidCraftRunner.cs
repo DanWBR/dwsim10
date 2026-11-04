@@ -36,7 +36,7 @@ namespace DWSIM.Extensions.SolidCraft
             public bool Success;
             public string Design, Step, Picture, Script, Animation, Render;
             public List<string> Skipped = new List<string>();
-            public string Error, AnimationError;
+            public string Error, AnimationError, RenderError;
         }
 
         static bool IsWindows => RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
@@ -125,15 +125,17 @@ namespace DWSIM.Extensions.SolidCraft
             {
                 var render = outputBase + " - render.png";
                 if (File.Exists(render)) File.Delete(render);
-                int width = options?.RenderWidth ?? 1600, height = options?.RenderHeight ?? 1000;
-                // the time a render takes grows with its pixels: 10 minutes for the default size
-                var timeout = (int)Math.Max(600, 600.0 * width * height / (1600 * 1000));
-                CadJob.Report(string.Format(CultureInfo.InvariantCulture, "SolidCraft: rendering the photorealistic picture ({0} x {1}{2}), which takes minutes",
-                    width, height, options != null && options.RenderSamples > 0 ? ", " + options.RenderSamples + " samples per pixel" : ""));
-                Execute(cli, "render " + Quote(res.Design) + " --setup " + Quote(SolidCraftScript.RenderSetup) + " --out " + Quote(render) +
-                    string.Format(CultureInfo.InvariantCulture, " --width {0} --height {1}{2} --overwrite --timeout {3}",
-                        width, height, options != null && options.RenderSamples > 0 ? " --samples " + options.RenderSamples : "", timeout), timeout + 60, out _);
+                int width = options?.RenderWidth ?? 1600, height = options?.RenderHeight ?? 1000, samples = options?.RenderSamples ?? 0;
+                // the time grows with the pixels and the samples (they are in the setup, see CreateRenderSetup); the
+                // limit only stops a render that hangs, with room for a GPU much slower than the one the estimate is from
+                var estimate = CadTools.RenderSeconds(width, height, samples);
+                var timeout = (int)Math.Max(900, 8 * estimate);
+                CadJob.Report(string.Format(CultureInfo.InvariantCulture, "SolidCraft: rendering the photorealistic picture ({0} x {1}, {2} samples per pixel), {3}",
+                    width, height, samples > 0 ? samples : CadTools.DefaultRenderSamples, CadTools.RenderTimeText(width, height, samples)));
+                var exit = Execute(cli, "render " + Quote(res.Design) + " --setup " + Quote(SolidCraftScript.RenderSetup) + " --out " + Quote(render) +
+                    string.Format(CultureInfo.InvariantCulture, " --width {0} --height {1} --overwrite --timeout {2}", width, height, timeout), timeout + 60, out var output);
                 if (File.Exists(render) && new FileInfo(render).Length > 20000) res.Render = render;
+                else res.RenderError = exit == -1 ? output : output.Trim().Split('\n').LastOrDefault(l => l.Trim().Length > 0)?.Trim() ?? "SolidCraft wrote no picture";
             }
 
             return res;

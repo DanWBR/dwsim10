@@ -55,6 +55,7 @@ namespace DWSIM.Extensions.SolidCraft
             this.cbResolution = new System.Windows.Forms.ComboBox();
             this.lblSamples = new System.Windows.Forms.Label();
             this.cbSamples = new System.Windows.Forms.ComboBox();
+            this.lblRenderTime = new System.Windows.Forms.Label();
             this.flpButtons = new System.Windows.Forms.FlowLayoutPanel();
             this.btnRun = new System.Windows.Forms.Button();
             this.btnCancel = new System.Windows.Forms.Button();
@@ -504,14 +505,16 @@ namespace DWSIM.Extensions.SolidCraft
             this.tlpRender.Controls.Add(this.cbResolution, 1, 1);
             this.tlpRender.Controls.Add(this.lblSamples, 0, 2);
             this.tlpRender.Controls.Add(this.cbSamples, 1, 2);
+            this.tlpRender.Controls.Add(this.lblRenderTime, 0, 3);
             this.tlpRender.Dock = System.Windows.Forms.DockStyle.Fill;
             this.tlpRender.Location = new System.Drawing.Point(3, 16);
             this.tlpRender.Name = "tlpRender";
-            this.tlpRender.RowCount = 3;
+            this.tlpRender.RowCount = 4;
             this.tlpRender.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
             this.tlpRender.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
             this.tlpRender.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
-            this.tlpRender.Size = new System.Drawing.Size(556, 81);
+            this.tlpRender.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
+            this.tlpRender.Size = new System.Drawing.Size(556, 101);
             this.tlpRender.TabIndex = 0;
             //
             // chkRender
@@ -544,6 +547,7 @@ namespace DWSIM.Extensions.SolidCraft
             this.cbResolution.Name = "cbResolution";
             this.cbResolution.Size = new System.Drawing.Size(180, 21);
             this.cbResolution.TabIndex = 2;
+            this.cbResolution.SelectedIndexChanged += new System.EventHandler(this.cbRender_SelectedIndexChanged);
             //
             // lblSamples
             //
@@ -563,6 +567,19 @@ namespace DWSIM.Extensions.SolidCraft
             this.cbSamples.Name = "cbSamples";
             this.cbSamples.Size = new System.Drawing.Size(180, 21);
             this.cbSamples.TabIndex = 4;
+            this.cbSamples.SelectedIndexChanged += new System.EventHandler(this.cbRender_SelectedIndexChanged);
+            //
+            // lblRenderTime
+            //
+            this.lblRenderTime.AutoSize = true;
+            this.tlpRender.SetColumnSpan(this.lblRenderTime, 2);
+            this.lblRenderTime.Location = new System.Drawing.Point(3, 81);
+            this.lblRenderTime.Margin = new System.Windows.Forms.Padding(3, 4, 3, 3);
+            this.lblRenderTime.MaximumSize = new System.Drawing.Size(540, 0);
+            this.lblRenderTime.Name = "lblRenderTime";
+            this.lblRenderTime.Size = new System.Drawing.Size(200, 13);
+            this.lblRenderTime.TabIndex = 5;
+            this.lblRenderTime.Text = "Render time";
             //
             // flpButtons
             //
@@ -686,6 +703,7 @@ namespace DWSIM.Extensions.SolidCraft
         private System.Windows.Forms.ComboBox cbResolution;
         private System.Windows.Forms.Label lblSamples;
         private System.Windows.Forms.ComboBox cbSamples;
+        private System.Windows.Forms.Label lblRenderTime;
         private System.Windows.Forms.FlowLayoutPanel flpButtons;
         private System.Windows.Forms.Button btnRun;
         private System.Windows.Forms.Button btnCancel;

@@ -17,6 +17,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using DWSIM.Interfaces;
 
@@ -215,15 +216,37 @@ namespace DWSIM.Extensions.SolidCraft
             (3840, 2160, "3840 x 2160 (4K UHD)")
         };
 
+        /// <summary>The samples per pixel of SolidCraft's GPU path tracer when the setup gives none.</summary>
+        public const int DefaultRenderSamples = 64;
+
         /// <summary>The render sample counts offered in the dialogs; 0 is SolidCraft's own.</summary>
         public static readonly (int Samples, string Text)[] RenderSamples =
         {
-            (0, "SolidCraft default"),
-            (64, "64 (draft)"),
+            (16, "16 (draft)"),
+            (0, "64 (SolidCraft default)"),
             (256, "256"),
             (1024, "1024"),
             (4096, "4096 (final)")
         };
+
+        /// <summary>
+        /// The time a render takes on a recent graphics card, s: about 25 s to load the scene, then
+        /// 0.03 s per million pixel-samples (measured from 640 x 400 at 16 samples to 1920 x 1080 at 256).
+        /// </summary>
+        public static double RenderSeconds(int width, int height, int samples)
+            => 25 + 0.03 * width * height / 1e6 * (samples > 0 ? samples : DefaultRenderSamples);
+
+        /// <summary>"about 3 min on a recent graphics card".</summary>
+        public static string RenderTimeText(int width, int height, int samples)
+        {
+            var t = RenderSeconds(width, height, samples);
+            var text = t < 90 ? "1 min" : t < 5400 ? Math.Round(t / 60).ToString(CultureInfo.InvariantCulture) + " min"
+                : (t / 3600).ToString("0.#", CultureInfo.InvariantCulture) + " h";
+            return "about " + text + " on a recent graphics card";
+        }
+
+        /// <summary>Renders longer than this get the estimate in the warning colour.</summary>
+        public const double LongRenderSeconds = 600;
 
         public static readonly string[] Standards = { "ISO", "ASME", "Petrobras" };
 

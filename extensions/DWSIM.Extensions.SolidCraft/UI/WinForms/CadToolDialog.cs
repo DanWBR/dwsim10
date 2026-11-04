@@ -152,6 +152,26 @@ namespace DWSIM.Extensions.SolidCraft
         private void chkRender_CheckedChanged(object sender, EventArgs e)
         {
             cbResolution.Enabled = cbSamples.Enabled = chkRender.Checked;
+            UpdateRenderTime();
+        }
+
+        private void cbRender_SelectedIndexChanged(object sender, EventArgs e) => UpdateRenderTime();
+
+        /// <summary>The estimate of the render time for the size and samples chosen.</summary>
+        void UpdateRenderTime()
+        {
+            var sizes = cbResolution.Tag as System.Collections.Generic.List<(int Width, int Height, string Text)>;
+            var samples = cbSamples.Tag as System.Collections.Generic.List<(int Samples, string Text)>;
+            if (sizes == null || samples == null || cbResolution.SelectedIndex < 0 || cbSamples.SelectedIndex < 0)
+            {
+                lblRenderTime.Text = "";
+                return;
+            }
+            var size = sizes[cbResolution.SelectedIndex];
+            var n = samples[cbSamples.SelectedIndex].Samples;
+            lblRenderTime.Enabled = chkRender.Checked;
+            lblRenderTime.ForeColor = CadTools.RenderSeconds(size.Width, size.Height, n) > CadTools.LongRenderSeconds ? Color.DarkOrange : SystemColors.GrayText;
+            lblRenderTime.Text = "Render time: " + CadTools.RenderTimeText(size.Width, size.Height, n) + ", longer on a slower one.";
         }
 
         static bool TryRead(string text, out double value)

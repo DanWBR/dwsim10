@@ -79,6 +79,8 @@ namespace DWSIM.Extensions.SolidCraft
                 o.RenderWidth = Math.Max(320, Math.Min(7680, o.RenderWidth));
                 o.RenderHeight = Math.Max(200, Math.Min(4320, o.RenderHeight));
                 o.RenderSamples = Math.Max(0, Math.Min(16384, o.RenderSamples));
+                // the old "64 (draft)" entry is SolidCraft's own count
+                if (o.RenderSamples == CadTools.DefaultRenderSamples) o.RenderSamples = 0;
                 return o;
             }
             catch (Exception)
