@@ -246,6 +246,11 @@ public class PropertyPackageEditorWindow : Window
             Margin = new Thickness(0, 0, 0, 6)
         });
 
+        var estimateRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Margin = new Thickness(0, 0, 0, 6) };
+        estimateRow.Children.Add(MakeEstimateKijButton("Estimate Missing", "Estimate the kij of the pairs that are zero from the critical volumes (Chueh-Prausnitz).", comps, ipc, true));
+        estimateRow.Children.Add(MakeEstimateKijButton("Estimate All", "Replace every kij with the estimate from the critical volumes (Chueh-Prausnitz).", comps, ipc, false));
+        panel.Children.Add(estimateRow);
+
         var grid = new Grid();
         grid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
         foreach (var _ in comps) grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(92)));
@@ -324,6 +329,38 @@ public class PropertyPackageEditorWindow : Window
             HorizontalScrollBarVisibility = global::Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
             VerticalScrollBarVisibility = global::Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled
         });
+    }
+
+    // Same estimate as the classic editor: kij = 1 - 8 sqrt(Vc1 Vc2) / (Vc1^(1/3) + Vc2^(1/3))^3.
+    // A pair is skipped when either compound has no critical volume.
+    private Button MakeEstimateKijButton(string text, string tip, List<string> comps,
+        Dictionary<string, Dictionary<string, PR_IPData>> ipc, bool onlyZero)
+    {
+        var btn = new Button
+        {
+            Content = text,
+            FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
+            Padding = new Thickness(8, 2)
+        };
+        btn.Classes.Add("panel");
+        ToolTip.SetTip(btn, tip);
+        btn.Click += (_, _) =>
+        {
+            foreach (var c1 in comps)
+                foreach (var c2 in comps)
+                {
+                    if (c1 == c2 || !ipc.ContainsKey(c1) || !ipc[c1].ContainsKey(c2)) continue;
+                    var d = ipc[c1][c2];
+                    if (onlyZero && d.kij != 0.0) continue;
+                    var vc1 = _flowsheet.SelectedCompounds[c1].Critical_Volume;
+                    var vc2 = _flowsheet.SelectedCompounds[c2].Critical_Volume;
+                    if (!(vc1 > 0.0) || !(vc2 > 0.0)) continue;
+                    d.kij = 1.0 - 8.0 * Math.Sqrt(vc1 * vc2) / Math.Pow(Math.Pow(vc1, 1.0 / 3.0) + Math.Pow(vc2, 1.0 / 3.0), 3.0);
+                }
+            _pp.AreModelParametersDirty = true;
+            RefreshIPTab();
+        };
+        return btn;
     }
 
     // --- PC-SAFT (compound parameters incl. polymer m/M and association scheme, plus kij) ---
