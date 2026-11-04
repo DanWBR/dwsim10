@@ -35,16 +35,18 @@ namespace DWSIM.Extensions.SolidCraft
     {
         static bool IsWindows => RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
 
-        static string Exe(string name) => IsWindows ? name + ".exe" : name;
+        internal static string Exe(string name) => IsWindows ? name + ".exe" : name;
 
         /// <summary>
-        /// The folder of cadcraft-cli: CADCRAFT_HOME, the usual install folders (CADCraft comes on
-        /// its own or in the ArtCraft suite, next to SolidCraft), then the PATH. Null when CADCraft
-        /// is not installed.
+        /// The folder of cadcraft-cli: the one chosen in a CAD Tools dialog, CADCRAFT_HOME, the usual
+        /// install folders (CADCraft comes on its own or in the ArtCraft suite, next to SolidCraft),
+        /// then the PATH. Null when CADCraft is not installed.
         /// </summary>
         public static string FindInstallFolder()
         {
             var candidates = new List<string>();
+            var configured = ExportOptions.Load().CADCraftPath;
+            if (!string.IsNullOrWhiteSpace(configured)) candidates.Add(configured.Trim());
             var env = Environment.GetEnvironmentVariable("CADCRAFT_HOME");
             if (!string.IsNullOrWhiteSpace(env)) candidates.Add(env);
             var solidcraft = GlobalSettings.Settings.SolidCraftPath;

@@ -14,10 +14,21 @@
   <ItemGroup>
     <EmbeddedResource Include="Resources\Plant3D.png" LogicalName="$(RootNamespace).Plant3D.png" />
     <EmbeddedResource Include="Resources\osifont.ttf" LogicalName="$(RootNamespace).osifont.ttf" />
+    <EmbeddedResource Include="Resources\Model3D.ico" LogicalName="$(RootNamespace).Model3D.ico" />
+    <EmbeddedResource Include="Resources\Sheets.ico" LogicalName="$(RootNamespace).Sheets.ico" />
+  </ItemGroup>
+
+  <!--
+    The CAD Tools dialogs: this build runs in the cross-platform (Avalonia) interface, the Windows
+    interface compiles UI\WinForms instead (DWSIM_Private/DWSIM.Extensions.SolidCraft).
+  -->
+  <ItemGroup>
+    <Compile Remove="UI\WinForms\**" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" />
+    <PackageReference Include="Avalonia" ExcludeAssets="runtime" />
   </ItemGroup>
 
   <ItemGroup>
@@ -26,6 +37,7 @@
     <ProjectReference Include="..\..\engine\DWSIM.SharedClasses\DWSIM.SharedClasses.vbproj" />
     <ProjectReference Include="..\..\engine\DWSIM.Thermodynamics\DWSIM.Thermodynamics.vbproj" />
     <ProjectReference Include="..\..\engine\DWSIM.UnitOperations\DWSIM.UnitOperations.vbproj" />
+    <ProjectReference Include="..\..\ui\DWSIM.UI.Shared.Avalonia\DWSIM.UI.Shared.Avalonia.csproj" Private="false" />
   </ItemGroup>
 
 </Project>

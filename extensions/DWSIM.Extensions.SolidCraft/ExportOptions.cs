@@ -53,6 +53,17 @@ namespace DWSIM.Extensions.SolidCraft
         /// <summary>The space the PFD and P&amp;ID lines keep from the items and from each other, mm on the sheet.</summary>
         public double LineClearance = 4;
 
+        /// <summary>The folder that holds cadcraft-cli, when the user chose one; empty to search for it.</summary>
+        public string CADCraftPath = "";
+
+        /// <summary>The size of the photorealistic picture, pixels.</summary>
+        public int RenderWidth = 1600;
+        public int RenderHeight = 1000;
+
+        /// <summary>Path tracing samples per pixel of the picture; 0 leaves SolidCraft's own.</summary>
+        public int RenderSamples = 0;
+
+        [JsonIgnore]
         public DrawingStyle Style => Enum.TryParse<DrawingStyle>(DrawingStandard, true, out var s) ? s : DrawingStyle.ISO;
 
         public static ExportOptions Load()
@@ -65,6 +76,9 @@ namespace DWSIM.Extensions.SolidCraft
                 o.RackHeight = Math.Max(2.5, Math.Min(30, o.RackHeight));
                 o.ItemGap = Math.Max(0.5, Math.Min(20, o.ItemGap));
                 o.LineClearance = Math.Max(1, Math.Min(15, o.LineClearance));
+                o.RenderWidth = Math.Max(320, Math.Min(7680, o.RenderWidth));
+                o.RenderHeight = Math.Max(200, Math.Min(4320, o.RenderHeight));
+                o.RenderSamples = Math.Max(0, Math.Min(16384, o.RenderSamples));
                 return o;
             }
             catch (Exception)

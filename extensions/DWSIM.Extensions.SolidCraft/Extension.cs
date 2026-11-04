@@ -27,24 +27,90 @@ using DWSIM.Interfaces.Enums;
 
 namespace DWSIM.Extensions.SolidCraft
 {
-    /// <summary>Registers the 3D model export in the flowsheet Tools menu.</summary>
+    /// <summary>
+    /// The CAD Tools menu of the flowsheet: the 3D plant model (SolidCraft) and the drawings
+    /// (CADCraft). Each item opens a dialog with the program, the output and the options.
+    /// </summary>
     public class Handler : IExtenderCollection, IExtenderCollection2
     {
         public string ID => "5f0c7a3e-2d4b-4e8a-9a51-6c3e1b7d2f90";
 
-        public string Description => "3D plant model of the flowsheet with SolidCraft";
+        public string Description => "3D plant model and drawings of the flowsheet with SolidCraft and CADCraft";
 
-        public string DisplayText => "3D Plant Model";
+        /// <summary>A collection filed under NewItem gets a top-level menu with this name in both interfaces.</summary>
+        public string DisplayText => "CAD Tools";
 
-        public ExtenderCategory Category => ExtenderCategory.Tools;
+        public ExtenderCategory Category => ExtenderCategory.NewItem;
 
         public ExtenderLevel Level => ExtenderLevel.FlowsheetWindow;
 
         public List<IExtender> Collection { get; } = new List<IExtender> { new PlantModelExtender(), new UpdateDataExtender(), new ResetLayoutExtender(), new ProcessFlowDiagramExtender(), new PipingAndInstrumentationExtender(), new EquipmentDrawingsExtender(), new PipingIsometricsExtender(), new DataSheetsExtender(), new PlotPlanExtender() };
 
-        public int InsertAtPosition => -1;
+        /// <summary>After Results, before the menus of the window itself.</summary>
+        public int InsertAtPosition => 9;
 
         public void SetMenuItem(object menuitem) { }
+    }
+
+    /// <summary>Opens the dialog of a CAD tool and runs the tool with what the user chose there.</summary>
+    internal static class CadToolCommand
+    {
+        internal static void Start(IFlowsheet fs, CadTool tool)
+        {
+            if (fs == null) return;
+            CadToolPrompt.Ask(CadTools.Request(fs, tool), r =>
+            {
+                CadTools.Accept(fs, r);
+                Run(fs, r);
+            });
+        }
+
+        static void Run(IFlowsheet fs, CadToolRequest r)
+        {
+            var folder = r.ProgramFolder?.Trim();
+            var open = r.OpenInApp;
+            switch (r.Tool)
+            {
+                case CadTool.PlantModel:
+                    Background(fs, "3D plant model", "Building the 3D plant model with SolidCraft...", () => PlantModelExtender.Export(fs, folder, open, r.Output));
+                    break;
+                case CadTool.UpdatePlantModel:
+                    Background(fs, "3D plant model", null, () => UpdateDataExtender.Update(fs, folder, r.Output));
+                    break;
+                case CadTool.ResetLayout:
+                    ResetLayoutExtender.Reset(fs, r.Output);
+                    break;
+                case CadTool.ProcessFlowDiagram:
+                    Background(fs, "Process flow diagram", "Drawing the process flow diagram with CADCraft...", () => ProcessFlowDiagramExtender.Export(fs, folder, open, null, false, r.OutputBase));
+                    break;
+                case CadTool.PipingAndInstrumentation:
+                    Background(fs, "P&ID", "Drawing the P&ID with CADCraft...", () => ProcessFlowDiagramExtender.Export(fs, folder, open, null, true, r.OutputBase));
+                    break;
+                case CadTool.EquipmentDrawings:
+                    Background(fs, "Equipment drawings", "Drawing the equipment with CADCraft...", () => EquipmentDrawingsExtender.Export(fs, folder, open, r.Output));
+                    break;
+                case CadTool.PipingIsometrics:
+                    Background(fs, "Piping isometrics", "Drawing the piping isometrics with CADCraft...", () => PipingIsometricsExtender.Export(fs, folder, open, r.Output));
+                    break;
+                case CadTool.DataSheets:
+                    Background(fs, "Data sheets", "Writing the data sheets with CADCraft...", () => DataSheetsExtender.Export(fs, folder, open, r.Output));
+                    break;
+                case CadTool.PlotPlan:
+                    Background(fs, "Plot plan", "Drawing the plot plan with CADCraft...", () => PlotPlanExtender.Export(fs, folder, open, null, r.OutputBase));
+                    break;
+            }
+        }
+
+        /// <summary>SolidCraft and CADCraft take seconds to minutes on a large flowsheet: keep the interface free.</summary>
+        static void Background(IFlowsheet fs, string what, string starting, Action work)
+        {
+            if (starting != null) fs.ShowMessage(starting, IFlowsheet.MessageType.Information);
+            Task.Run(() =>
+            {
+                try { work(); }
+                catch (Exception ex) { fs.ShowMessage(what + ": " + ex.Message, IFlowsheet.MessageType.GeneralError); }
+            });
+        }
     }
 
     /// <summary>
@@ -59,7 +125,7 @@ namespace DWSIM.Extensions.SolidCraft
 
         public string ID => "9b2e64d1-7c0f-4f3a-b8d5-3a1e9c6f4b27";
 
-        public string DisplayText => "Export 3D Plant Model (SolidCraft)";
+        public string DisplayText => "Export 3D Plant Model (SolidCraft)...";
 
         public byte[] DisplayImage => Icon();
 
@@ -73,34 +139,7 @@ namespace DWSIM.Extensions.SolidCraft
 
         public void ReleaseResources() => Flowsheet = null;
 
-        public void Run()
-        {
-            var fs = Flowsheet;
-            if (fs == null) return;
-
-            var folder = SolidCraftRunner.FindInstallFolder();
-            if (folder == null)
-            {
-                fs.ShowMessage("SolidCraft was not found. Install it, or set the folder that holds solidcraft-cli in Settings > Other > SolidCraft.",
-                    IFlowsheet.MessageType.GeneralError);
-                return;
-            }
-
-            fs.ShowMessage("Building the 3D plant model with SolidCraft...", IFlowsheet.MessageType.Information);
-
-            // SolidCraft takes seconds to minutes on a large flowsheet: keep the interface free
-            Task.Run(() =>
-            {
-                try
-                {
-                    Export(fs, folder, true);
-                }
-                catch (Exception ex)
-                {
-                    fs.ShowMessage("3D plant model: " + ex.Message, IFlowsheet.MessageType.GeneralError);
-                }
-            });
-        }
+        public void Run() => CadToolCommand.Start(Flowsheet, CadTool.PlantModel);
 
         /// <summary>Builds and saves the model; returns the run result. Public for tests and scripts.</summary>
         public static SolidCraftRunner.Result Export(IFlowsheet fs, string solidcraftFolder, bool openInApp, string outputFolder = null)
@@ -192,7 +231,7 @@ namespace DWSIM.Extensions.SolidCraft
                 var replay = DynamicReplay.Collect(fs);
                 if (replay != null) extras.AddRange(DynamicReplay.Create(model, fs, replay, outputBase + " - dynamic replay.gif", replayNotes));
             }
-            var result = SolidCraftRunner.Run(solidcraftFolder, commands, extras, outputBase);
+            var result = SolidCraftRunner.Run(solidcraftFolder, commands, extras, outputBase, options);
 
             foreach (var w in model.Warnings)
                 fs.ShowMessage("3D plant model: " + w, IFlowsheet.MessageType.Information);
@@ -265,7 +304,7 @@ namespace DWSIM.Extensions.SolidCraft
 
         public string ID => "e7a3c915-0b6d-4f28-9d41-5c2b8e7f1a60";
 
-        public string DisplayText => "Update 3D Plant Model Data";
+        public string DisplayText => "Update 3D Plant Model Data...";
 
         public byte[] DisplayImage => PlantModelExtender.Icon();
 
@@ -277,27 +316,12 @@ namespace DWSIM.Extensions.SolidCraft
 
         public void ReleaseResources() => Flowsheet = null;
 
-        public void Run()
-        {
-            var fs = Flowsheet;
-            if (fs == null) return;
-            var folder = SolidCraftRunner.FindInstallFolder();
-            if (folder == null)
-            {
-                fs.ShowMessage("SolidCraft was not found. Install it, or set the folder that holds solidcraft-cli in Settings > Other > SolidCraft.", IFlowsheet.MessageType.GeneralError);
-                return;
-            }
-            Task.Run(() =>
-            {
-                try { Update(fs, folder); }
-                catch (Exception ex) { fs.ShowMessage("3D plant model: " + ex.Message, IFlowsheet.MessageType.GeneralError); }
-            });
-        }
+        public void Run() => CadToolCommand.Start(Flowsheet, CadTool.UpdatePlantModel);
 
-        public static void Update(IFlowsheet fs, string folder)
+        public static void Update(IFlowsheet fs, string folder, string modelFolder = null)
         {
             var name = PlantModelExtender.ModelName(fs);
-            var outputBase = Path.Combine(PlantModelExtender.OutputFolder(fs), name);
+            var outputBase = Path.Combine(modelFolder ?? PlantModelExtender.OutputFolder(fs), name);
             var model = PlantModelBuilder.Build(fs, name, PlantLayout.Load(fs), ExportOptions.Load());
             var cmds = SolidCraftScript.DataCommands(model);
 
@@ -338,7 +362,7 @@ namespace DWSIM.Extensions.SolidCraft
 
         public string ID => "c41d8e27-5b9a-4f63-a0e2-7d3f1b6c9e84";
 
-        public string DisplayText => "Export Process Flow Diagram (CADCraft)";
+        public string DisplayText => "Export Process Flow Diagram (CADCraft)...";
 
         public byte[] DisplayImage => PlantModelExtender.Icon();
 
@@ -350,34 +374,18 @@ namespace DWSIM.Extensions.SolidCraft
 
         public void ReleaseResources() => Flowsheet = null;
 
-        public void Run()
-        {
-            var fs = Flowsheet;
-            if (fs == null) return;
-            var folder = CADCraftSession.FindInstallFolder();
-            if (folder == null)
-            {
-                fs.ShowMessage("CADCraft was not found. Install it (it comes on its own or with SolidCraft in the ArtCraft suite), or set CADCRAFT_HOME to the folder that holds cadcraft-cli.",
-                    IFlowsheet.MessageType.GeneralError);
-                return;
-            }
-            fs.ShowMessage("Drawing the process flow diagram with CADCraft...", IFlowsheet.MessageType.Information);
-            Task.Run(() =>
-            {
-                try { Export(fs, folder, true); }
-                catch (Exception ex) { fs.ShowMessage("Process flow diagram: " + ex.Message, IFlowsheet.MessageType.GeneralError); }
-            });
-        }
+        public void Run() => CadToolCommand.Start(Flowsheet, CadTool.ProcessFlowDiagram);
 
         /// <summary>The folder of the drawings: next to the simulation, or in the temporary folder when it has not been saved.</summary>
         internal static string DrawingsFolder(IFlowsheet fs)
             => Path.Combine(Path.GetDirectoryName(PlantModelExtender.OutputFolder(fs)), PlantModelExtender.ModelName(fs) + " - drawings");
 
         /// <summary>Draws and saves the diagram; returns the result. Public for tests and scripts.</summary>
-        public static ProcessFlowDiagram.Result Export(IFlowsheet fs, string cadcraftFolder, bool openInApp, string outputFolder = null, bool pid = false)
+        public static ProcessFlowDiagram.Result Export(IFlowsheet fs, string cadcraftFolder, bool openInApp, string outputFolder = null, bool pid = false, string outputBase = null)
         {
             var what = pid ? "P&ID" : "Process flow diagram";
             var name = PlantModelExtender.ModelName(fs);
+            if (outputBase != null) outputFolder = Path.GetDirectoryName(outputBase);
             if (outputFolder == null) outputFolder = DrawingsFolder(fs);
             Directory.CreateDirectory(outputFolder);
             var options = ExportOptions.Load();
@@ -394,7 +402,7 @@ namespace DWSIM.Extensions.SolidCraft
                 Date = DateTime.Today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
                 PreparedBy = fs.FlowsheetOptions?.SimulationAuthor ?? ""
             };
-            var result = ProcessFlowDiagram.Export(fs, cadcraftFolder, Path.Combine(outputFolder, name + (pid ? " - PID" : " - PFD")), options.Style, title, pid);
+            var result = ProcessFlowDiagram.Export(fs, cadcraftFolder, outputBase ?? Path.Combine(outputFolder, name + (pid ? " - PID" : " - PFD")), options.Style, title, pid);
 
             foreach (var f in result.Failed.Take(5))
                 fs.ShowMessage(what + ": left out " + f, IFlowsheet.MessageType.Warning);
@@ -432,7 +440,7 @@ namespace DWSIM.Extensions.SolidCraft
 
         public string ID => "f2a7c6d9-3e18-4b5a-9c40-8d1e6b2f7a35";
 
-        public string DisplayText => "Export P&ID (CADCraft)";
+        public string DisplayText => "Export P&ID (CADCraft)...";
 
         public byte[] DisplayImage => PlantModelExtender.Icon();
 
@@ -444,24 +452,7 @@ namespace DWSIM.Extensions.SolidCraft
 
         public void ReleaseResources() => Flowsheet = null;
 
-        public void Run()
-        {
-            var fs = Flowsheet;
-            if (fs == null) return;
-            var folder = CADCraftSession.FindInstallFolder();
-            if (folder == null)
-            {
-                fs.ShowMessage("CADCraft was not found. Install it (it comes on its own or with SolidCraft in the ArtCraft suite), or set CADCRAFT_HOME to the folder that holds cadcraft-cli.",
-                    IFlowsheet.MessageType.GeneralError);
-                return;
-            }
-            fs.ShowMessage("Drawing the P&ID with CADCraft...", IFlowsheet.MessageType.Information);
-            Task.Run(() =>
-            {
-                try { ProcessFlowDiagramExtender.Export(fs, folder, true, null, true); }
-                catch (Exception ex) { fs.ShowMessage("P&ID: " + ex.Message, IFlowsheet.MessageType.GeneralError); }
-            });
-        }
+        public void Run() => CadToolCommand.Start(Flowsheet, CadTool.PipingAndInstrumentation);
     }
 
     /// <summary>
@@ -475,7 +466,7 @@ namespace DWSIM.Extensions.SolidCraft
 
         public string ID => "8d3b1f64-27c9-4e0a-b5f8-6a1c2e9d4b73";
 
-        public string DisplayText => "Export Equipment Drawings (CADCraft)";
+        public string DisplayText => "Export Equipment Drawings (CADCraft)...";
 
         public byte[] DisplayImage => PlantModelExtender.Icon();
 
@@ -487,24 +478,7 @@ namespace DWSIM.Extensions.SolidCraft
 
         public void ReleaseResources() => Flowsheet = null;
 
-        public void Run()
-        {
-            var fs = Flowsheet;
-            if (fs == null) return;
-            var folder = CADCraftSession.FindInstallFolder();
-            if (folder == null)
-            {
-                fs.ShowMessage("CADCraft was not found. Install it (it comes on its own or with SolidCraft in the ArtCraft suite), or set CADCRAFT_HOME to the folder that holds cadcraft-cli.",
-                    IFlowsheet.MessageType.GeneralError);
-                return;
-            }
-            fs.ShowMessage("Drawing the equipment with CADCraft...", IFlowsheet.MessageType.Information);
-            Task.Run(() =>
-            {
-                try { Export(fs, folder, true); }
-                catch (Exception ex) { fs.ShowMessage("Equipment drawings: " + ex.Message, IFlowsheet.MessageType.GeneralError); }
-            });
-        }
+        public void Run() => CadToolCommand.Start(Flowsheet, CadTool.EquipmentDrawings);
 
         /// <summary>Draws and saves the drawings; returns the result. Public for tests and scripts.</summary>
         public static EquipmentDrawings.Result Export(IFlowsheet fs, string cadcraftFolder, bool openInApp, string outputFolder = null)
@@ -551,7 +525,7 @@ namespace DWSIM.Extensions.SolidCraft
 
         public string ID => "c41e7a20-93d5-4b8f-a6e2-5f0b9d3c1e84";
 
-        public string DisplayText => "Export Piping Isometrics (CADCraft)";
+        public string DisplayText => "Export Piping Isometrics (CADCraft)...";
 
         public byte[] DisplayImage => PlantModelExtender.Icon();
 
@@ -563,24 +537,7 @@ namespace DWSIM.Extensions.SolidCraft
 
         public void ReleaseResources() => Flowsheet = null;
 
-        public void Run()
-        {
-            var fs = Flowsheet;
-            if (fs == null) return;
-            var folder = CADCraftSession.FindInstallFolder();
-            if (folder == null)
-            {
-                fs.ShowMessage("CADCraft was not found. Install it (it comes on its own or with SolidCraft in the ArtCraft suite), or set CADCRAFT_HOME to the folder that holds cadcraft-cli.",
-                    IFlowsheet.MessageType.GeneralError);
-                return;
-            }
-            fs.ShowMessage("Drawing the piping isometrics with CADCraft...", IFlowsheet.MessageType.Information);
-            Task.Run(() =>
-            {
-                try { Export(fs, folder, true); }
-                catch (Exception ex) { fs.ShowMessage("Piping isometrics: " + ex.Message, IFlowsheet.MessageType.GeneralError); }
-            });
-        }
+        public void Run() => CadToolCommand.Start(Flowsheet, CadTool.PipingIsometrics);
 
         /// <summary>Draws and saves the isometrics; returns the result. Public for tests and scripts.</summary>
         public static PipingIsometrics.Result Export(IFlowsheet fs, string cadcraftFolder, bool openInApp, string outputFolder = null)
@@ -627,7 +584,7 @@ namespace DWSIM.Extensions.SolidCraft
 
         public string ID => "5b2f9e47-1c8a-4d36-9e0b-7a4c3d18f2e6";
 
-        public string DisplayText => "Export Data Sheets (CADCraft)";
+        public string DisplayText => "Export Data Sheets (CADCraft)...";
 
         public byte[] DisplayImage => PlantModelExtender.Icon();
 
@@ -639,24 +596,7 @@ namespace DWSIM.Extensions.SolidCraft
 
         public void ReleaseResources() => Flowsheet = null;
 
-        public void Run()
-        {
-            var fs = Flowsheet;
-            if (fs == null) return;
-            var folder = CADCraftSession.FindInstallFolder();
-            if (folder == null)
-            {
-                fs.ShowMessage("CADCraft was not found. Install it (it comes on its own or with SolidCraft in the ArtCraft suite), or set CADCRAFT_HOME to the folder that holds cadcraft-cli.",
-                    IFlowsheet.MessageType.GeneralError);
-                return;
-            }
-            fs.ShowMessage("Writing the data sheets with CADCraft...", IFlowsheet.MessageType.Information);
-            Task.Run(() =>
-            {
-                try { Export(fs, folder, true); }
-                catch (Exception ex) { fs.ShowMessage("Data sheets: " + ex.Message, IFlowsheet.MessageType.GeneralError); }
-            });
-        }
+        public void Run() => CadToolCommand.Start(Flowsheet, CadTool.DataSheets);
 
         /// <summary>Writes and saves the data sheets; returns the result. Public for tests and scripts.</summary>
         public static DataSheets.Result Export(IFlowsheet fs, string cadcraftFolder, bool openInApp, string outputFolder = null)
@@ -703,7 +643,7 @@ namespace DWSIM.Extensions.SolidCraft
 
         public string ID => "e7a14c92-6b3d-4f58-8c1e-2d9b0f6a3c51";
 
-        public string DisplayText => "Export Plot Plan (CADCraft)";
+        public string DisplayText => "Export Plot Plan (CADCraft)...";
 
         public byte[] DisplayImage => PlantModelExtender.Icon();
 
@@ -715,29 +655,13 @@ namespace DWSIM.Extensions.SolidCraft
 
         public void ReleaseResources() => Flowsheet = null;
 
-        public void Run()
-        {
-            var fs = Flowsheet;
-            if (fs == null) return;
-            var folder = CADCraftSession.FindInstallFolder();
-            if (folder == null)
-            {
-                fs.ShowMessage("CADCraft was not found. Install it (it comes on its own or with SolidCraft in the ArtCraft suite), or set CADCRAFT_HOME to the folder that holds cadcraft-cli.",
-                    IFlowsheet.MessageType.GeneralError);
-                return;
-            }
-            fs.ShowMessage("Drawing the plot plan with CADCraft...", IFlowsheet.MessageType.Information);
-            Task.Run(() =>
-            {
-                try { Export(fs, folder, true); }
-                catch (Exception ex) { fs.ShowMessage("Plot plan: " + ex.Message, IFlowsheet.MessageType.GeneralError); }
-            });
-        }
+        public void Run() => CadToolCommand.Start(Flowsheet, CadTool.PlotPlan);
 
         /// <summary>Draws and saves the plot plan; returns the result. Public for tests and scripts.</summary>
-        public static PlotPlan.Result Export(IFlowsheet fs, string cadcraftFolder, bool openInApp, string outputFolder = null)
+        public static PlotPlan.Result Export(IFlowsheet fs, string cadcraftFolder, bool openInApp, string outputFolder = null, string outputBase = null)
         {
             var name = PlantModelExtender.ModelName(fs);
+            if (outputBase != null) outputFolder = Path.GetDirectoryName(outputBase);
             if (outputFolder == null) outputFolder = ProcessFlowDiagramExtender.DrawingsFolder(fs);
             Directory.CreateDirectory(outputFolder);
             var options = ExportOptions.Load();
@@ -754,7 +678,7 @@ namespace DWSIM.Extensions.SolidCraft
                 Date = DateTime.Today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
                 PreparedBy = fs.FlowsheetOptions?.SimulationAuthor ?? ""
             };
-            var result = PlotPlan.Export(fs, cadcraftFolder, Path.Combine(outputFolder, name + " - Plot Plan"), name, options.Style, title);
+            var result = PlotPlan.Export(fs, cadcraftFolder, outputBase ?? Path.Combine(outputFolder, name + " - Plot Plan"), name, options.Style, title);
             foreach (var f in result.Failed.Take(5))
                 fs.ShowMessage("Plot plan: " + f, IFlowsheet.MessageType.Warning);
             if (result.Drawing == null)
@@ -779,7 +703,7 @@ namespace DWSIM.Extensions.SolidCraft
 
         public string ID => "c41f2a87-5e3d-4b9a-8f62-1d7e0a5b9c34";
 
-        public string DisplayText => "Reset 3D Plant Layout";
+        public string DisplayText => "Reset 3D Plant Layout...";
 
         public byte[] DisplayImage => PlantModelExtender.Icon();
 
@@ -791,14 +715,14 @@ namespace DWSIM.Extensions.SolidCraft
 
         public void ReleaseResources() => Flowsheet = null;
 
-        public void Run()
-        {
-            var fs = Flowsheet;
-            if (fs == null) return;
+        public void Run() => CadToolCommand.Start(Flowsheet, CadTool.ResetLayout);
 
+        /// <summary>Resets the layout; the last design is looked for in <paramref name="modelFolder"/> (the 3D model folder when null).</summary>
+        public static void Reset(IFlowsheet fs, string modelFolder = null)
+        {
             PlantLayout.Save(fs, null);
 
-            var design = Path.Combine(PlantModelExtender.OutputFolder(fs), PlantModelExtender.ModelName(fs) + ".sc");
+            var design = Path.Combine(modelFolder ?? PlantModelExtender.OutputFolder(fs), PlantModelExtender.ModelName(fs) + ".sc");
             var aside = Path.Combine(Path.GetDirectoryName(design), PlantModelExtender.ModelName(fs) + " - before layout reset.sc");
             try
             {

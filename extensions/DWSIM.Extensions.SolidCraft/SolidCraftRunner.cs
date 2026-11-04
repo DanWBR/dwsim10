@@ -18,6 +18,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -81,7 +82,7 @@ namespace DWSIM.Extensions.SolidCraft
         /// flow animation (<paramref name="extras"/>) in a second run on that design, so they stay
         /// out of the STEP file and a failure there never costs the model, and takes a picture.
         /// </summary>
-        public static Result Run(string folder, List<SolidCraftScript.Command> model, List<SolidCraftScript.Command> extras, string outputBase)
+        public static Result Run(string folder, List<SolidCraftScript.Command> model, List<SolidCraftScript.Command> extras, string outputBase, ExportOptions options = null)
         {
             var cli = Path.Combine(folder, Exe("solidcraft-cli"));
             var res = new Result
@@ -121,8 +122,12 @@ namespace DWSIM.Extensions.SolidCraft
             {
                 var render = outputBase + " - render.png";
                 if (File.Exists(render)) File.Delete(render);
+                int width = options?.RenderWidth ?? 1600, height = options?.RenderHeight ?? 1000;
+                // the time a render takes grows with its pixels: 10 minutes for the default size
+                var timeout = (int)Math.Max(600, 600.0 * width * height / (1600 * 1000));
                 Execute(cli, "render " + Quote(res.Design) + " --setup " + Quote(SolidCraftScript.RenderSetup) + " --out " + Quote(render) +
-                    " --width 1600 --height 1000 --overwrite --timeout 600", 660, out _);
+                    string.Format(CultureInfo.InvariantCulture, " --width {0} --height {1}{2} --overwrite --timeout {3}",
+                        width, height, options != null && options.RenderSamples > 0 ? " --samples " + options.RenderSamples : "", timeout), timeout + 60, out _);
                 if (File.Exists(render) && new FileInfo(render).Length > 20000) res.Render = render;
             }
 
