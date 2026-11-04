@@ -18,6 +18,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using DWSIM.Interfaces;
 using Newtonsoft.Json;
@@ -59,11 +60,50 @@ namespace DWSIM.Extensions.SolidCraft
             else props[Key] = JsonConvert.SerializeObject(layout);
         }
 
+        /// <summary>The design whose places were last read, and its time then, kept with the simulation.</summary>
+        const string ReadKey = "SolidCraftDesignRead";
+
+        class DesignRead
+        {
+            public string Design;
+            public long Written;
+        }
+
+        /// <summary>Notes that the places of the items in <paramref name="design"/> are in the layout as the file stands now.</summary>
+        public static void MarkRead(IFlowsheet fs, string design)
+        {
+            var props = fs?.ExtraProperties as IDictionary<string, object>;
+            if (props == null || !File.Exists(design)) return;
+            props[ReadKey] = JsonConvert.SerializeObject(new DesignRead { Design = Path.GetFullPath(design), Written = File.GetLastWriteTimeUtc(design).Ticks });
+        }
+
+        /// <summary>
+        /// True when <paramref name="design"/> was saved (in SolidCraft) after DWSIM last read the places
+        /// of its items, or was never read: items moved there may not be in the layout yet.
+        /// </summary>
+        public static bool DesignChanged(IFlowsheet fs, string design)
+        {
+            if (!File.Exists(design)) return false;
+            var props = fs?.ExtraProperties as IDictionary<string, object>;
+            if (props == null || !props.TryGetValue(ReadKey, out var value) || value == null) return true;
+            try
+            {
+                var read = JsonConvert.DeserializeObject<DesignRead>(value.ToString());
+                if (read == null || !string.Equals(read.Design, Path.GetFullPath(design), StringComparison.OrdinalIgnoreCase)) return true;
+                // a second of slack for file systems that keep coarse times
+                return File.GetLastWriteTimeUtc(design).Ticks > read.Written + TimeSpan.TicksPerSecond;
+            }
+            catch (Exception)
+            {
+                return true;
+            }
+        }
+
         /// <summary>
         /// The places of the items moved in an exported design: each item's place when the design was
         /// written (in its metadata) carried through its occurrence's transform. Keyed by tag; items
-        /// left where they were are not returned. A turn that is not a quarter turn about the vertical
-        /// is rounded to one, and a tilt is ignored; both are reported.
+        /// left where they were are not returned; null when the design cannot be read. A turn that is
+        /// not a quarter turn about the vertical is rounded to one, and a tilt is ignored; both are reported.
         /// </summary>
         public static Dictionary<string, Placement> ReadMoves(string solidcraftFolder, string design, List<string> warnings)
         {
@@ -73,7 +113,11 @@ namespace DWSIM.Extensions.SolidCraft
                 new JObject { ["command"] = "document.metadata", ["params"] = new JObject() },
                 new JObject { ["command"] = "component.list", ["params"] = new JObject() }
             });
-            if (results == null || results.Count < 2) return moves;
+            if (results == null || results.Count < 2)
+            {
+                warnings.Add("the last design could not be read, so the places of the items moved in it were not taken.");
+                return null;
+            }
 
             var placements = results[0]?["metadata"]?["org.dwsim.flowsheet"]?["placements"] as JObject;
             if (placements == null) return moves;

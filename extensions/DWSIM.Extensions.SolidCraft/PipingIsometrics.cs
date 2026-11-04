@@ -67,7 +67,8 @@ namespace DWSIM.Extensions.SolidCraft
         static P2 Iso(Vec3 v) => new P2((v.X + v.Y) * C30, (v.Y - v.X) * S30 + v.Z);
 
         /// <summary>Draws every line of the 3D model; <paramref name="titleFor"/> fills each title block from the line, its number and its short id.</summary>
-        public static Result Export(IFlowsheet fs, string cadcraftFolder, string outputFolder, string name, DrawingStyle style, Func<PipeRun, string, string, TitleData> titleFor)
+        public static Result Export(IFlowsheet fs, string cadcraftFolder, string outputFolder, string name, DrawingStyle style, Func<PipeRun, string, string, TitleData> titleFor,
+            ICollection<string> only = null)
         {
             var result = new Result();
             PlantModel model;
@@ -84,9 +85,10 @@ namespace DWSIM.Extensions.SolidCraft
             var next = numbers.Values.Select(v => int.TryParse(v.Id, out var i) ? i : 0).DefaultIfEmpty(0).Max();
             using (var session = new CADCraftSession(cadcraftFolder))
             {
-                foreach (var run in model.Pipes)
+                var runs = only == null ? model.Pipes : model.Pipes.Where(r => only.Contains(r.Tag)).ToList();
+                foreach (var run in runs)
                 {
-                    CadJob.Report(string.Format(CultureInfo.InvariantCulture, "CADCraft: drawing {0} of {1}, line {2}", model.Pipes.IndexOf(run) + 1, model.Pipes.Count, run.Tag));
+                    CadJob.Report(string.Format(CultureInfo.InvariantCulture, "CADCraft: drawing {0} of {1}, line {2}", runs.IndexOf(run) + 1, runs.Count, run.Tag));
                     try
                     {
                         if (!numbers.TryGetValue(run.Tag ?? "", out var n))
@@ -495,12 +497,7 @@ namespace DWSIM.Extensions.SolidCraft
             if (handle != null)
                 session.Execute("viewport.set", new JObject { ["handle"] = handle, ["scale"] = 1.0, ["locked"] = true, ["center"] = new JArray((ax0 + ax1) / 2, (ay0 + ay1) / 2) });
 
-            foreach (var ext in new[] { ".dxf", ".dwg", ".pdf", ".png" }) if (File.Exists(outputBase + ext)) File.Delete(outputBase + ext);
-            session.Execute("plot", new JObject { ["path"] = outputBase + ".pdf", ["layout"] = "ISO" }, 300);
-            session.Execute("plot", new JObject { ["path"] = outputBase + ".png", ["layout"] = "ISO", ["device"] = "CADCraft PNG" }, 300);
-            session.Tool("save", new JObject { ["path"] = outputBase + ".dwg" }, "save DWG of line " + run.Tag);
-            session.Tool("save", new JObject { ["path"] = outputBase + ".dxf" }, "save DXF of line " + run.Tag);
-            return File.Exists(outputBase + ".dxf") ? outputBase + ".dxf" : null;
+            return DrawingSheets.Save(session, outputBase, "ISO", "line " + run.Tag);
         }
 
         static string Nz(string mark) => mark == null ? "" : " (" + mark + ")";

@@ -44,7 +44,7 @@ namespace DWSIM.Extensions.SolidCraft
 
         public ExtenderLevel Level => ExtenderLevel.FlowsheetWindow;
 
-        public List<IExtender> Collection { get; } = new List<IExtender> { new PlantModelExtender(), new UpdateDataExtender(), new ResetLayoutExtender(), new ProcessFlowDiagramExtender(), new PipingAndInstrumentationExtender(), new EquipmentDrawingsExtender(), new PipingIsometricsExtender(), new DataSheetsExtender(), new PlotPlanExtender() };
+        public List<IExtender> Collection { get; } = new List<IExtender> { new PlantModelExtender(), new UpdateDataExtender(), new ResetLayoutExtender(), new ProcessFlowDiagramExtender(), new PipingAndInstrumentationExtender(), new EquipmentDrawingsExtender(), new PipingIsometricsExtender(), new DataSheetsExtender(), new PlotPlanExtender(), new AllDrawingsExtender() };
 
         /// <summary>After Results, before the menus of the window itself.</summary>
         public int InsertAtPosition => 9;
@@ -115,32 +115,56 @@ namespace DWSIM.Extensions.SolidCraft
                 case CadTool.EquipmentDrawings:
                     Background(fs, r, "Equipment drawings", "Drawing the equipment with CADCraft...", () =>
                     {
-                        var res = EquipmentDrawingsExtender.Export(fs, folder, open, r.Output);
+                        var res = EquipmentDrawingsExtender.Export(fs, folder, open, r.Output, r.ChosenTags);
                         return res.Drawings.Count > 0 ? null : "CADCraft could not draw the equipment: " + res.Error;
                     });
                     break;
                 case CadTool.PipingIsometrics:
                     Background(fs, r, "Piping isometrics", "Drawing the piping isometrics with CADCraft...", () =>
                     {
-                        var res = PipingIsometricsExtender.Export(fs, folder, open, r.Output);
+                        ReadMovesFirst(fs, r);
+                        var res = PipingIsometricsExtender.Export(fs, folder, open, r.Output, r.ChosenTags);
                         return res.Drawings.Count > 0 ? null : "CADCraft could not draw the isometrics: " + res.Error;
                     });
                     break;
                 case CadTool.DataSheets:
                     Background(fs, r, "Data sheets", "Writing the data sheets with CADCraft...", () =>
                     {
-                        var res = DataSheetsExtender.Export(fs, folder, open, r.Output);
+                        var res = DataSheetsExtender.Export(fs, folder, open, r.Output, r.ChosenTags);
                         return res.Drawings.Count > 0 ? null : "CADCraft could not write the data sheets: " + res.Error;
                     });
                     break;
                 case CadTool.PlotPlan:
                     Background(fs, r, "Plot plan", "Drawing the plot plan with CADCraft...", () =>
                     {
+                        ReadMovesFirst(fs, r);
                         var res = PlotPlanExtender.Export(fs, folder, open, null, r.OutputBase);
                         return res.Drawing != null ? null : "CADCraft could not draw the plot plan: " + res.Error;
                     });
                     break;
+                case CadTool.AllDrawings:
+                    Background(fs, r, "All drawings", "Drawing all the drawings with CADCraft...", () =>
+                    {
+                        ReadMovesFirst(fs, r);
+                        return AllDrawingsExtender.Export(fs, folder, open, r.Output);
+                    });
+                    break;
             }
+        }
+
+        /// <summary>Reads the places of the items moved in SolidCraft into the layout, when the dialog asked for it.</summary>
+        static void ReadMovesFirst(IFlowsheet fs, CadToolRequest r)
+        {
+            if (!r.ReadMoves || r.Design == null) return;
+            var solidcraft = SolidCraftRunner.FindInstallFolder();
+            if (solidcraft == null)
+            {
+                fs.ShowMessage(r.Title + ": SolidCraft was not found, so the places of the items moved in the 3D model could not be read; the drawings use the places DWSIM has.",
+                    IFlowsheet.MessageType.Warning);
+                return;
+            }
+            CadJob.Report("SolidCraft: reading the places of the items moved in the 3D model");
+            PlantModelExtender.ReadMoves(fs, solidcraft, r.Design);
         }
 
         /// <summary>
@@ -195,28 +219,12 @@ namespace DWSIM.Extensions.SolidCraft
 
             // the layout: the places kept with the simulation, updated with what was moved in the
             // design exported last time (so a move made in SolidCraft is never lost to a new export)
-            var layout = PlantLayout.Load(fs);
             if (File.Exists(outputBase + ".sc"))
             {
                 CadJob.Report("SolidCraft: reading the places of the items moved in the last design");
-                var warnings = new List<string>();
-                var moves = PlantLayout.ReadMoves(solidcraftFolder, outputBase + ".sc", warnings);
-                foreach (var w in warnings) fs.ShowMessage("3D plant model: " + w, IFlowsheet.MessageType.Warning);
-                var kept = 0;
-                foreach (var obj in fs.SimulationObjects.Values)
-                {
-                    var tag = obj.GraphicObject?.Tag;
-                    if (tag == null || !moves.TryGetValue(tag, out var place)) continue;
-                    layout[obj.Name] = place;
-                    kept++;
-                }
-                if (kept > 0)
-                {
-                    PlantLayout.Save(fs, layout);
-                    fs.ShowMessage("3D plant model: the places of " + kept + " items moved in SolidCraft are kept with the simulation; save it to keep them.",
-                        IFlowsheet.MessageType.Information);
-                }
+                ReadMoves(fs, solidcraftFolder, outputBase + ".sc");
             }
+            var layout = PlantLayout.Load(fs);
 
             CadJob.Report("Building the 3D model of the flowsheet");
             var options = ExportOptions.Load();
@@ -306,9 +314,41 @@ namespace DWSIM.Extensions.SolidCraft
             if (result.AnimationError == null)
                 foreach (var note in replayNotes) fs.ShowMessage("3D plant model: " + note, IFlowsheet.MessageType.Information);
 
+            // the design holds the layout as it is now: nothing in it is left to read
+            PlantLayout.MarkRead(fs, result.Design);
+
             if (openInApp) SolidCraftRunner.OpenInApp(solidcraftFolder, result.Design);
 
             return result;
+        }
+
+        /// <summary>
+        /// Takes the places of the items moved in a SolidCraft design into the layout kept with the
+        /// simulation (so the next model and the drawings have them); returns how many were taken.
+        /// </summary>
+        public static int ReadMoves(IFlowsheet fs, string solidcraftFolder, string design)
+        {
+            var warnings = new List<string>();
+            var moves = PlantLayout.ReadMoves(solidcraftFolder, design, warnings);
+            foreach (var w in warnings) fs.ShowMessage("3D plant model: " + w, IFlowsheet.MessageType.Warning);
+            if (moves == null) return 0;
+            var layout = PlantLayout.Load(fs);
+            var kept = 0;
+            foreach (var obj in fs.SimulationObjects.Values)
+            {
+                var tag = obj.GraphicObject?.Tag;
+                if (tag == null || !moves.TryGetValue(tag, out var place)) continue;
+                layout[obj.Name] = place;
+                kept++;
+            }
+            if (kept > 0)
+            {
+                PlantLayout.Save(fs, layout);
+                fs.ShowMessage("3D plant model: the places of " + kept + " items moved in SolidCraft are kept with the simulation; save it to keep them.",
+                    IFlowsheet.MessageType.Information);
+            }
+            PlantLayout.MarkRead(fs, design);
+            return kept;
         }
 
         internal static string ModelName(IFlowsheet fs)
@@ -397,8 +437,11 @@ namespace DWSIM.Extensions.SolidCraft
                 return "There is no exported 3D model in " + Path.GetDirectoryName(outputBase) + " yet: export it first.";
             }
             CadJob.Report("SolidCraft: writing the data into the saved design");
+            // the update rewrites the design: it stays read only if it was read before
+            var wasRead = !PlantLayout.DesignChanged(fs, outputBase + ".sc");
             var skipped = new List<string>();
             var error = SolidCraftRunner.UpdateDesign(folder, cmds, outputBase, skipped);
+            if (error == null && wasRead) PlantLayout.MarkRead(fs, outputBase + ".sc");
             fs.ShowMessage(error == null
                 ? "3D plant model: " + why + "; the data were written into the saved model (" + outputBase + ".sc)" + (skipped.Count > 0 ? ", " + skipped.Count + " items not in it" : "") + "."
                 : "3D plant model: the data could not be written (" + error + ").", error == null ? IFlowsheet.MessageType.Information : IFlowsheet.MessageType.Warning);
@@ -535,7 +578,7 @@ namespace DWSIM.Extensions.SolidCraft
         public void Run() => CadToolCommand.Start(Flowsheet, CadTool.EquipmentDrawings);
 
         /// <summary>Draws and saves the drawings; returns the result. Public for tests and scripts.</summary>
-        public static EquipmentDrawings.Result Export(IFlowsheet fs, string cadcraftFolder, bool openInApp, string outputFolder = null)
+        public static EquipmentDrawings.Result Export(IFlowsheet fs, string cadcraftFolder, bool openInApp, string outputFolder = null, ICollection<string> only = null)
         {
             var name = PlantModelExtender.ModelName(fs);
             if (outputFolder == null) outputFolder = ProcessFlowDiagramExtender.DrawingsFolder(fs);
@@ -553,7 +596,7 @@ namespace DWSIM.Extensions.SolidCraft
                 Status = "PRELIMINARY",
                 Date = DateTime.Today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
                 PreparedBy = fs.FlowsheetOptions?.SimulationAuthor ?? ""
-            });
+            }, only);
 
             foreach (var f in result.Failed.Take(5))
                 fs.ShowMessage("Equipment drawings: left out " + f, IFlowsheet.MessageType.Warning);
@@ -562,7 +605,7 @@ namespace DWSIM.Extensions.SolidCraft
                 fs.ShowMessage("CADCraft could not draw the equipment: " + result.Error, IFlowsheet.MessageType.GeneralError);
                 return result;
             }
-            fs.ShowMessage(string.Format("Equipment drawings: {0} general arrangement drawings saved to {1} (DXF, DWG, PDF and PNG).", result.Drawings.Count, outputFolder),
+            fs.ShowMessage(string.Format("Equipment drawings: {0} general arrangement drawings saved to {1} ({2}).", result.Drawings.Count, outputFolder, DrawingSheets.FormatsText(options)),
                 IFlowsheet.MessageType.Information);
             if (openInApp) CADCraftSession.OpenInApp(cadcraftFolder, result.Drawings[0]);
             return result;
@@ -594,7 +637,7 @@ namespace DWSIM.Extensions.SolidCraft
         public void Run() => CadToolCommand.Start(Flowsheet, CadTool.PipingIsometrics);
 
         /// <summary>Draws and saves the isometrics; returns the result. Public for tests and scripts.</summary>
-        public static PipingIsometrics.Result Export(IFlowsheet fs, string cadcraftFolder, bool openInApp, string outputFolder = null)
+        public static PipingIsometrics.Result Export(IFlowsheet fs, string cadcraftFolder, bool openInApp, string outputFolder = null, ICollection<string> only = null)
         {
             var name = PlantModelExtender.ModelName(fs);
             if (outputFolder == null) outputFolder = ProcessFlowDiagramExtender.DrawingsFolder(fs);
@@ -612,7 +655,7 @@ namespace DWSIM.Extensions.SolidCraft
                 Status = "PRELIMINARY",
                 Date = DateTime.Today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
                 PreparedBy = fs.FlowsheetOptions?.SimulationAuthor ?? ""
-            });
+            }, only);
 
             foreach (var f in result.Failed.Take(5))
                 fs.ShowMessage("Piping isometrics: left out " + f, IFlowsheet.MessageType.Warning);
@@ -621,7 +664,7 @@ namespace DWSIM.Extensions.SolidCraft
                 fs.ShowMessage("CADCraft could not draw the isometrics: " + result.Error, IFlowsheet.MessageType.GeneralError);
                 return result;
             }
-            fs.ShowMessage(string.Format("Piping isometrics: {0} drawings saved to {1} (DXF, DWG, PDF and PNG).", result.Drawings.Count, outputFolder),
+            fs.ShowMessage(string.Format("Piping isometrics: {0} drawings saved to {1} ({2}).", result.Drawings.Count, outputFolder, DrawingSheets.FormatsText(options)),
                 IFlowsheet.MessageType.Information);
             if (openInApp) CADCraftSession.OpenInApp(cadcraftFolder, result.Drawings[0]);
             return result;
@@ -653,7 +696,7 @@ namespace DWSIM.Extensions.SolidCraft
         public void Run() => CadToolCommand.Start(Flowsheet, CadTool.DataSheets);
 
         /// <summary>Writes and saves the data sheets; returns the result. Public for tests and scripts.</summary>
-        public static DataSheets.Result Export(IFlowsheet fs, string cadcraftFolder, bool openInApp, string outputFolder = null)
+        public static DataSheets.Result Export(IFlowsheet fs, string cadcraftFolder, bool openInApp, string outputFolder = null, ICollection<string> only = null)
         {
             var name = PlantModelExtender.ModelName(fs);
             if (outputFolder == null) outputFolder = ProcessFlowDiagramExtender.DrawingsFolder(fs);
@@ -671,7 +714,7 @@ namespace DWSIM.Extensions.SolidCraft
                 Status = "PRELIMINARY",
                 Date = DateTime.Today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
                 PreparedBy = fs.FlowsheetOptions?.SimulationAuthor ?? ""
-            });
+            }, only);
 
             foreach (var f in result.Failed.Take(5))
                 fs.ShowMessage("Data sheets: left out " + f, IFlowsheet.MessageType.Warning);
@@ -680,7 +723,7 @@ namespace DWSIM.Extensions.SolidCraft
                 fs.ShowMessage("CADCraft could not write the data sheets: " + result.Error, IFlowsheet.MessageType.GeneralError);
                 return result;
             }
-            fs.ShowMessage(string.Format("Data sheets: {0} sheets saved to {1} (DXF, DWG, PDF and PNG).", result.Drawings.Count, outputFolder),
+            fs.ShowMessage(string.Format("Data sheets: {0} sheets saved to {1} ({2}).", result.Drawings.Count, outputFolder, DrawingSheets.FormatsText(options)),
                 IFlowsheet.MessageType.Information);
             if (openInApp) CADCraftSession.OpenInApp(cadcraftFolder, result.Drawings[0]);
             return result;
@@ -740,10 +783,135 @@ namespace DWSIM.Extensions.SolidCraft
                 fs.ShowMessage("CADCraft could not draw the plot plan: " + result.Error, IFlowsheet.MessageType.GeneralError);
                 return result;
             }
-            fs.ShowMessage(string.Format("Plot plan: {0} items on a {1} sheet, saved to {2} (DXF, DWG, PDF and PNG).", result.Items, result.Sheet, outputFolder),
+            fs.ShowMessage(string.Format("Plot plan: {0} items on a {1} sheet, saved to {2} ({3}).", result.Items, result.Sheet, outputFolder, DrawingSheets.FormatsText(options)),
                 IFlowsheet.MessageType.Information);
             if (openInApp) CADCraftSession.OpenInApp(cadcraftFolder, result.Drawing);
             return result;
+        }
+    }
+
+    /// <summary>
+    /// Draws every drawing of the flowsheet into one folder (the PFD, the P&amp;ID, the equipment
+    /// drawings, the piping isometrics, the data sheets and the plot plan) and binds their PDFs into
+    /// one drawing set that opens with the drawing list.
+    /// </summary>
+    public class AllDrawingsExtender : IExtender, IExtender3
+    {
+        IFlowsheet Flowsheet;
+
+        public string ID => "3b9e5d71-a2c4-4f08-8e6d-1c7f2a940b56";
+
+        public string DisplayText => "Export All Drawings (CADCraft)...";
+
+        public byte[] DisplayImage => PlantModelExtender.Icon();
+
+        public int InsertAtPosition => -1;
+
+        public void SetMainWindow(object mainwindow) { }
+
+        public void SetFlowsheet(IFlowsheet form) => Flowsheet = form;
+
+        public void ReleaseResources() => Flowsheet = null;
+
+        public void Run() => CadToolCommand.Start(Flowsheet, CadTool.AllDrawings);
+
+        /// <summary>
+        /// Draws them all and binds the drawing set; returns null when at least one kind of drawing was
+        /// made, else the reason. A kind that fails is reported and the others go on. Public for tests and scripts.
+        /// </summary>
+        public static string Export(IFlowsheet fs, string cadcraftFolder, bool openSet, string outputFolder = null)
+        {
+            var name = PlantModelExtender.ModelName(fs);
+            if (outputFolder == null) outputFolder = ProcessFlowDiagramExtender.DrawingsFolder(fs);
+            Directory.CreateDirectory(outputFolder);
+            var options = ExportOptions.Load();
+            var entries = new List<DrawingSet.Entry>();
+            var missing = new List<string>();
+            const int parts = 6;
+
+            // the tags as the files have them (a * becomes _) back to the tags themselves, for the drawing list
+            var tags = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var obj in fs.SimulationObjects.Values)
+            {
+                var tag = obj.GraphicObject?.Tag;
+                if (!string.IsNullOrEmpty(tag)) tags[CadTools.Safe(tag)] = tag;
+            }
+
+            void Part(int i, string what) => CadJob.Stage(string.Format(CultureInfo.InvariantCulture, "Part {0} of {1}: {2}", i, parts, what));
+            string Subject(string pdf, string prefix)
+            {
+                var stem = Path.GetFileNameWithoutExtension(pdf);
+                if (stem.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) stem = stem.Substring(prefix.Length);
+                return tags.TryGetValue(stem, out var tag) ? tag : stem;
+            }
+            void Sheets(IEnumerable<string> pdfs, string kind, string prefix, string label)
+                => entries.AddRange(pdfs.Select(p => new DrawingSet.Entry { Pdf = p, Kind = kind, Subject = label + Subject(p, prefix) }));
+
+            Part(1, "process flow diagram");
+            var pfd = ProcessFlowDiagramExtender.Export(fs, cadcraftFolder, false, null, false, Path.Combine(outputFolder, name + " - PFD"));
+            if (pfd.Drawing != null) entries.Add(new DrawingSet.Entry { Pdf = pfd.Pdf, Kind = "Process flow diagram" });
+            else missing.Add("the process flow diagram");
+
+            Part(2, "P&ID");
+            var pid = ProcessFlowDiagramExtender.Export(fs, cadcraftFolder, false, null, true, Path.Combine(outputFolder, name + " - PID"));
+            if (pid.Drawing != null)
+            {
+                entries.Add(new DrawingSet.Entry { Pdf = pid.Pdf, Kind = "P&ID", Subject = "Diagram" });
+                entries.Add(new DrawingSet.Entry { Pdf = pid.LegendPdf, Kind = "P&ID", Subject = "Legend" });
+            }
+            else missing.Add("the P&ID");
+
+            Part(3, "equipment drawings");
+            var ga = EquipmentDrawingsExtender.Export(fs, cadcraftFolder, false, outputFolder);
+            if (ga.Drawings.Count > 0) Sheets(ga.Pdfs, "General arrangement", name + " - GA ", "");
+            else missing.Add("the equipment drawings");
+
+            Part(4, "piping isometrics");
+            var iso = PipingIsometricsExtender.Export(fs, cadcraftFolder, false, outputFolder);
+            if (iso.Drawings.Count > 0) Sheets(iso.Pdfs, "Piping isometric", name + " - ISO ", "Line ");
+            else missing.Add("the piping isometrics");
+
+            Part(5, "data sheets");
+            var ds = DataSheetsExtender.Export(fs, cadcraftFolder, false, outputFolder);
+            if (ds.Drawings.Count > 0) Sheets(ds.Pdfs, "Data sheet", name + " - DS ", "");
+            else missing.Add("the data sheets");
+
+            Part(6, "plot plan");
+            var plot = PlotPlanExtender.Export(fs, cadcraftFolder, false, null, Path.Combine(outputFolder, name + " - Plot Plan"));
+            if (plot.Drawing != null) entries.Add(new DrawingSet.Entry { Pdf = plot.Pdf, Kind = "Plot plan" });
+            else missing.Add("the plot plan");
+
+            CadJob.Stage(null);
+            var made = parts - missing.Count;
+            if (made == 0) return "CADCraft could not make any of the drawings: the flowsheet messages say why.";
+
+            string set = null;
+            if (options.DrawingSet && options.SavePdf)
+            {
+                CadJob.Check();
+                CadJob.Report("Binding the drawing set");
+                var path = Path.Combine(outputFolder, CadTools.DrawingSetFile(name));
+                var project = fs.FlowsheetOptions?.SimulationName;
+                try
+                {
+                    var bound = DrawingSet.Write(path, string.IsNullOrWhiteSpace(project) ? name : project, options.DrawingOwner, entries);
+                    if (bound > 0)
+                    {
+                        set = path;
+                        fs.ShowMessage("All drawings: the drawing set " + path + " has the drawing list and " + bound + " drawings.", IFlowsheet.MessageType.Information);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    fs.ShowMessage("All drawings: the drawing set could not be bound (" + ex.Message + ").", IFlowsheet.MessageType.Warning);
+                }
+            }
+
+            fs.ShowMessage(string.Format("All drawings: {0} of {1} kinds of drawing saved to {2}{3}.", made, parts, outputFolder,
+                missing.Count > 0 ? "; " + string.Join(", ", missing) + (missing.Count == 1 ? " was" : " were") + " not made" : ""),
+                missing.Count > 0 ? IFlowsheet.MessageType.Warning : IFlowsheet.MessageType.Information);
+            if (openSet && set != null) CadJob.Open(set);
+            return null;
         }
     }
 

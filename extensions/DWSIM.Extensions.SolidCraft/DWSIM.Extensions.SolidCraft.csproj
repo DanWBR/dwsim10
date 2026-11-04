@@ -29,6 +29,8 @@
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" />
     <PackageReference Include="Avalonia" ExcludeAssets="runtime" />
+    <!-- the drawing set PDF; the application ships iTextSharp already -->
+    <PackageReference Include="iTextSharp-LGPL" ExcludeAssets="runtime" />
   </ItemGroup>
 
   <ItemGroup>

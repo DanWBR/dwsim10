@@ -41,7 +41,7 @@ namespace DWSIM.Extensions.SolidCraft
 
         readonly CancellationTokenSource cancel = new CancellationTokenSource();
         readonly List<Process> processes = new List<Process>();
-        volatile string step = "Preparing...";
+        volatile string step = "Preparing...", stage;
         volatile string outcome;
         volatile bool finished, failed;
         DateTime started = DateTime.Now, ended;
@@ -63,7 +63,7 @@ namespace DWSIM.Extensions.SolidCraft
             catch (Exception) { OutputFolder = null; }
         }
 
-        public string Step => step;
+        public string Step => stage == null || Cancelled ? step : stage + "\n" + step;
 
         /// <summary>What happened, once the job is over.</summary>
         public string Outcome => outcome;
@@ -142,6 +142,15 @@ namespace DWSIM.Extensions.SolidCraft
             if (job != null && !job.Cancelled) job.step = text;
         }
 
+        /// <summary>Shows, over the step, the part of a longer job it belongs to ("Part 2 of 6: P&amp;ID"); null clears it.</summary>
+        public static void Stage(string text)
+        {
+            var job = Current;
+            if (job == null) return;
+            job.stage = text;
+            if (text != null && !job.Cancelled) job.step = "Preparing...";
+        }
+
         /// <summary>Ends the job of this thread when it was cancelled.</summary>
         public static void Check() => Current?.cancel.Token.ThrowIfCancellationRequested();
 
@@ -191,13 +200,18 @@ namespace DWSIM.Extensions.SolidCraft
         /// <summary>Opens the output folder in the file manager.</summary>
         public void OpenFolder()
         {
-            if (string.IsNullOrWhiteSpace(OutputFolder) || !Directory.Exists(OutputFolder)) return;
+            if (!string.IsNullOrWhiteSpace(OutputFolder) && Directory.Exists(OutputFolder)) Open(OutputFolder);
+        }
+
+        /// <summary>Opens a file or a folder with the program the system has for it.</summary>
+        public static void Open(string path)
+        {
             try
             {
                 if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                    Process.Start(new ProcessStartInfo(OutputFolder) { UseShellExecute = true });
+                    Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
                 else
-                    Process.Start(new ProcessStartInfo(RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ? "open" : "xdg-open", "\"" + OutputFolder + "\"") { UseShellExecute = false });
+                    Process.Start(new ProcessStartInfo(RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ? "open" : "xdg-open", "\"" + path + "\"") { UseShellExecute = false });
             }
             catch (Exception) { }
         }

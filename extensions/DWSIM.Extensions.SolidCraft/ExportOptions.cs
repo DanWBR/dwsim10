@@ -63,6 +63,12 @@ namespace DWSIM.Extensions.SolidCraft
         /// <summary>Path tracing samples per pixel of the picture; 0 leaves SolidCraft's own.</summary>
         public int RenderSamples = 0;
 
+        /// <summary>The files saved next to each drawing's DXF, which is always saved.</summary>
+        public bool SaveDwg = true, SavePdf = true, SavePng = true;
+
+        /// <summary>Export All Drawings also binds the PDFs into one drawing set with a drawing list.</summary>
+        public bool DrawingSet = true;
+
         [JsonIgnore]
         public DrawingStyle Style => Enum.TryParse<DrawingStyle>(DrawingStandard, true, out var s) ? s : DrawingStyle.ISO;
 

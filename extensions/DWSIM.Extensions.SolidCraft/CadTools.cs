@@ -21,6 +21,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using DWSIM.Interfaces;
+using Newtonsoft.Json;
 
 namespace DWSIM.Extensions.SolidCraft
 {
@@ -35,7 +36,17 @@ namespace DWSIM.Extensions.SolidCraft
         EquipmentDrawings,
         PipingIsometrics,
         DataSheets,
-        PlotPlan
+        PlotPlan,
+        AllDrawings
+    }
+
+    /// <summary>An item or line a drawing tool draws a sheet of, for the user to choose in its dialog.</summary>
+    public class CadToolItem
+    {
+        public string Tag, Text;
+        public bool Checked = true;
+
+        public override string ToString() => Text;
     }
 
     /// <summary>
@@ -83,6 +94,33 @@ namespace DWSIM.Extensions.SolidCraft
         /// <summary>Move the files the tool would replace to a Superseded folder before it runs.</summary>
         public bool KeepOldCopies;
 
+        /// <summary>What the tools that draw a sheet per item or line would draw, to choose from; null for the others.</summary>
+        public List<CadToolItem> Items;
+
+        /// <summary>The SolidCraft design of the 3D model, when the drawings take the places of its items from it; null when there is none.</summary>
+        public string Design;
+
+        /// <summary>The design was saved in SolidCraft after DWSIM last read the places of its items.</summary>
+        public bool DesignChanged;
+
+        /// <summary>Read the places of the items moved in SolidCraft before drawing.</summary>
+        public bool ReadMoves;
+
+        /// <summary>What the dialogs say about <see cref="Design"/>.</summary>
+        public string DesignText => Design == null ? ""
+            : DesignChanged
+                ? "The 3D model (" + Path.GetFileName(Design) + ") was saved in SolidCraft after DWSIM last read the places of its items: items moved there since then are not in the drawings unless they are read first."
+                : "The places of the items in the 3D model (" + Path.GetFileName(Design) + ") are the ones DWSIM has: nothing was moved in SolidCraft since they were read.";
+
+        public bool ShowsItems => Items != null;
+
+        /// <summary>The tags of the items chosen; null when all of them are.</summary>
+        public List<string> ChosenTags => Items == null || Items.All(i => i.Checked) ? null : Items.Where(i => i.Checked).Select(i => i.Tag).ToList();
+
+        public bool ShowsDrawingSet => Tool == CadTool.AllDrawings;
+
+        public string OpenInAppText => Tool == CadTool.AllDrawings ? "Open the drawing set when finished" : "Open in " + Program + " when finished";
+
         public bool HasProgram => !string.IsNullOrEmpty(Program);
 
         public bool IsDrawing => Program == "CADCraft";
@@ -91,7 +129,7 @@ namespace DWSIM.Extensions.SolidCraft
         public bool ShowsModelOptions => Tool == CadTool.PlantModel;
 
         /// <summary>The PFD and the P&amp;ID route their lines, and the clearance applies to them.</summary>
-        public bool ShowsClearance => Tool == CadTool.ProcessFlowDiagram || Tool == CadTool.PipingAndInstrumentation;
+        public bool ShowsClearance => Tool == CadTool.ProcessFlowDiagram || Tool == CadTool.PipingAndInstrumentation || Tool == CadTool.AllDrawings;
 
         /// <summary>The tool opens what it made in the program.</summary>
         public bool ShowsOpenInApp => Tool != CadTool.UpdatePlantModel && Tool != CadTool.ResetLayout;
@@ -113,15 +151,101 @@ namespace DWSIM.Extensions.SolidCraft
     /// <summary>Fills a <see cref="CadToolRequest"/> for a flowsheet and keeps what the user chose.</summary>
     public static class CadTools
     {
-        /// <summary>The outputs chosen in this session, by flowsheet and tool.</summary>
-        static readonly Dictionary<string, string> Outputs = new Dictionary<string, string>();
+        /// <summary>The outputs chosen in the dialogs, kept in the flowsheet's extra properties (saved with the simulation).</summary>
+        const string OutputsKey = "CadToolsOutputs";
 
         /// <summary>The 3D model, its data update and the layout reset share one folder.</summary>
-        static string Key(IFlowsheet fs, CadTool tool)
+        static string Group(CadTool tool) => (tool == CadTool.UpdatePlantModel || tool == CadTool.ResetLayout ? CadTool.PlantModel : tool).ToString();
+
+        static string SimulationFolder(IFlowsheet fs)
         {
-            var file = fs.FlowsheetOptions?.FilePath;
-            var group = tool == CadTool.UpdatePlantModel || tool == CadTool.ResetLayout ? CadTool.PlantModel : tool;
-            return (string.IsNullOrWhiteSpace(file) ? "flowsheet:" + fs.GetHashCode() : file) + "|" + group;
+            var file = fs?.FlowsheetOptions?.FilePath;
+            try { return string.IsNullOrWhiteSpace(file) ? null : Path.GetDirectoryName(Path.GetFullPath(file)); }
+            catch (Exception) { return null; }
+        }
+
+        static Dictionary<string, string> SavedOutputs(IFlowsheet fs)
+        {
+            var props = fs?.ExtraProperties as IDictionary<string, object>;
+            if (props == null || !props.TryGetValue(OutputsKey, out var value) || value == null) return new Dictionary<string, string>();
+            try { return JsonConvert.DeserializeObject<Dictionary<string, string>>(value.ToString()) ?? new Dictionary<string, string>(); }
+            catch (Exception) { return new Dictionary<string, string>(); }
+        }
+
+        /// <summary>
+        /// The output last chosen for a tool in this simulation; null when none was. A path inside the
+        /// simulation's folder is kept relative to it, so it follows the simulation when the folder moves.
+        /// </summary>
+        public static string SavedOutput(IFlowsheet fs, CadTool tool)
+        {
+            if (!SavedOutputs(fs).TryGetValue(Group(tool), out var path) || string.IsNullOrWhiteSpace(path)) return null;
+            try
+            {
+                if (Path.IsPathRooted(path)) return path;
+                var home = SimulationFolder(fs);
+                return home == null ? null : Path.GetFullPath(Path.Combine(home, path));
+            }
+            catch (Exception) { return null; }
+        }
+
+        static void SaveOutput(IFlowsheet fs, CadTool tool, string output)
+        {
+            var props = fs?.ExtraProperties as IDictionary<string, object>;
+            if (props == null || string.IsNullOrWhiteSpace(output)) return;
+            var saved = SavedOutputs(fs);
+            var home = SimulationFolder(fs);
+            var path = output.Trim();
+            if (home != null && path.StartsWith(home.TrimEnd('\\', '/') + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                path = path.Substring(home.TrimEnd('\\', '/').Length + 1);
+            saved[Group(tool)] = path;
+            props[OutputsKey] = JsonConvert.SerializeObject(saved);
+        }
+
+        /// <summary>The folder of the 3D model: the one chosen for it in this simulation, else the default next to the simulation.</summary>
+        public static string PlantModelFolder(IFlowsheet fs) => SavedOutput(fs, CadTool.PlantModel) ?? PlantModelExtender.OutputFolder(fs);
+
+        /// <summary>The items a tool that draws a sheet each would draw; ticked: the ones selected in the flowsheet, or all when none of them is.</summary>
+        static List<CadToolItem> Items(IFlowsheet fs, CadTool tool, string name)
+        {
+            List<(string Tag, string Text, string Object)> items;
+            try
+            {
+                if (tool == CadTool.DataSheets)
+                    items = DataSheets.List(fs, name).Select(s => (s.Tag, s.Tag + "  (" + (s.Kind ?? "").ToLowerInvariant() + ")", s.Object)).ToList();
+                else
+                {
+                    var model = PlantModelBuilder.Build(fs, name, PlantLayout.Load(fs), ExportOptions.Load());
+                    items = tool == CadTool.EquipmentDrawings
+                        ? EquipmentDrawings.Items(fs, model).Select(e => (e.Tag, e.Tag + (string.IsNullOrWhiteSpace(e.Description) ? "" : "  (" + e.Description + ")"), e.Name)).ToList()
+                        : model.Pipes.Where(p => !string.IsNullOrEmpty(p.Tag)).GroupBy(p => p.Tag)
+                            .Select(g => (g.Key, "Line " + g.Key + "  (" + g.First().Size + ")", fs.GetFlowsheetSimulationObject(g.Key)?.Name)).ToList();
+                }
+            }
+            catch (Exception) { return null; }
+            var onSurface = SelectedNames(fs);
+            var selected = new HashSet<string>(items.Where(i => i.Object != null && onSurface.Contains(i.Object)).Select(i => i.Tag));
+            return items.Select(i => new CadToolItem { Tag = i.Tag, Text = i.Text, Checked = selected.Count == 0 || selected.Contains(i.Tag) }).ToList();
+        }
+
+        /// <summary>
+        /// The names of the objects selected on the flowsheet drawing, from its surface (the same class
+        /// in both interfaces, read by name so the extension needs no drawing library). The Selected flag
+        /// of an object is not used: a simulation file keeps it from the last time it was saved.
+        /// </summary>
+        static HashSet<string> SelectedNames(IFlowsheet fs)
+        {
+            var names = new HashSet<string>();
+            try
+            {
+                var surface = fs.GetSurface();
+                if (surface == null) return names;
+                var type = surface.GetType();
+                if (type.GetProperty("SelectedObjects")?.GetValue(surface) is System.Collections.IDictionary many)
+                    foreach (var g in many.Values.OfType<IGraphicObject>()) if (g.Name != null) names.Add(g.Name);
+                if (type.GetProperty("SelectedObject")?.GetValue(surface) is IGraphicObject one && one.Name != null) names.Add(one.Name);
+            }
+            catch (Exception) { }
+            return names;
         }
 
         public static CadToolRequest Request(IFlowsheet fs, CadTool tool)
@@ -183,6 +307,23 @@ namespace DWSIM.Extensions.SolidCraft
                     r.OutputIsFile = true;
                     r.Output = Path.Combine(drawings, name + " - Plot Plan.dxf");
                     break;
+                case CadTool.AllDrawings:
+                    r.Title = "All Drawings";
+                    r.Description = "Draws the process flow diagram, the P&ID, the equipment drawings, the piping isometrics, the data sheets and the plot plan into one folder, and binds their PDFs into one drawing set that opens with a drawing list.";
+                    r.Output = drawings;
+                    break;
+            }
+            if (tool == CadTool.EquipmentDrawings || tool == CadTool.PipingIsometrics || tool == CadTool.DataSheets) r.Items = Items(fs, tool, name);
+            // the isometrics and the plot plan place the items where the 3D model has them
+            if (tool == CadTool.PipingIsometrics || tool == CadTool.PlotPlan || tool == CadTool.AllDrawings)
+            {
+                var design = Path.Combine(PlantModelFolder(fs), name + ".sc");
+                if (File.Exists(design))
+                {
+                    r.Design = design;
+                    r.DesignChanged = PlantLayout.DesignChanged(fs, design);
+                    r.ReadMoves = r.DesignChanged;
+                }
             }
             if (r.OutputIsFile) r.OutputLabel = "Drawing file";
             if (tool == CadTool.PlantModel || tool == CadTool.UpdatePlantModel)
@@ -197,11 +338,12 @@ namespace DWSIM.Extensions.SolidCraft
                 r.ProgramExe = "cadcraft-cli";
                 r.ProgramFolder = CADCraftSession.FindInstallFolder() ?? r.Options.CADCraftPath ?? "";
             }
-            if (Outputs.TryGetValue(Key(fs, tool), out var kept)) r.Output = kept;
+            var kept = SavedOutput(fs, tool);
+            if (kept != null) r.Output = kept;
             return r;
         }
 
-        /// <summary>Keeps the program folder and the options in the settings, and the output for this session.</summary>
+        /// <summary>Keeps the program folder and the options in the settings, and the output with the simulation.</summary>
         public static void Accept(IFlowsheet fs, CadToolRequest r)
         {
             var folder = (r.ProgramFolder ?? "").Trim();
@@ -210,7 +352,7 @@ namespace DWSIM.Extensions.SolidCraft
             else if (r.Program == "CADCraft" && folder != CADCraftSession.FindInstallFolder())
                 r.Options.CADCraftPath = folder;
             GlobalSettings.Settings.SolidCraftOptions = r.Options.ToJson();
-            Outputs[Key(fs, r.Tool)] = r.Output;
+            SaveOutput(fs, r.Tool, r.Output);
         }
 
         /// <summary>The render sizes offered in the dialogs.</summary>
@@ -284,8 +426,26 @@ namespace DWSIM.Extensions.SolidCraft
                     case CadTool.DataSheets:
                         if (!Directory.Exists(r.Output)) break;
                         var prefix = r.ModelName + (r.Tool == CadTool.EquipmentDrawings ? " - GA " : r.Tool == CadTool.PipingIsometrics ? " - ISO " : " - DS ");
+                        var chosen = r.ChosenTags;
                         found.AddRange(Directory.GetFiles(r.Output, prefix + "*")
                             .Where(f => DrawingExtensions.Contains(Path.GetExtension(f).ToLowerInvariant()))
+                            // only the sheets of the items chosen are drawn again
+                            .Where(f => chosen == null || chosen.Any(t => string.Equals(Path.GetFileNameWithoutExtension(f), prefix + Safe(t), StringComparison.OrdinalIgnoreCase)))
+                            .OrderBy(f => f, StringComparer.OrdinalIgnoreCase));
+                        break;
+                    case CadTool.AllDrawings:
+                        if (!Directory.Exists(r.Output)) break;
+                        var n = r.ModelName;
+                        var singles = new[] { n + " - PFD", n + " - PID", n + " - PID legend", n + " - Plot Plan" };
+                        found.AddRange(Directory.GetFiles(r.Output, n + " - *")
+                            .Where(f => DrawingExtensions.Contains(Path.GetExtension(f).ToLowerInvariant()))
+                            .Where(f =>
+                            {
+                                var stem = Path.GetFileNameWithoutExtension(f);
+                                return singles.Contains(stem, StringComparer.OrdinalIgnoreCase) || stem.StartsWith(n + " - GA ", StringComparison.OrdinalIgnoreCase) ||
+                                    stem.StartsWith(n + " - ISO ", StringComparison.OrdinalIgnoreCase) || stem.StartsWith(n + " - DS ", StringComparison.OrdinalIgnoreCase) ||
+                                    string.Equals(Path.GetFileName(f), DrawingSetFile(n), StringComparison.OrdinalIgnoreCase);
+                            })
                             .OrderBy(f => f, StringComparer.OrdinalIgnoreCase));
                         break;
                 }
@@ -293,6 +453,12 @@ namespace DWSIM.Extensions.SolidCraft
             catch (Exception) { }
             return found;
         }
+
+        /// <summary>The file of the drawing set Export All Drawings binds.</summary>
+        public static string DrawingSetFile(string modelName) => modelName + " - drawing set.pdf";
+
+        /// <summary>A tag as the drawing tools put it in a file name.</summary>
+        internal static string Safe(string s) => string.Concat((s ?? "item").Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c));
 
         /// <summary>The warning the dialogs show before an export replaces <paramref name="files"/>.</summary>
         public static string OverwriteWarning(List<string> files)
@@ -320,6 +486,8 @@ namespace DWSIM.Extensions.SolidCraft
                 return r.Program + " was not found in " + (string.IsNullOrWhiteSpace(r.ProgramFolder) ? "the folder given" : r.ProgramFolder) +
                     ": choose the folder that holds " + CADCraftSession.Exe(r.ProgramExe) + ".";
             if (string.IsNullOrWhiteSpace(r.Output)) return "Choose where to save the output.";
+            if (r.Items != null && !r.Items.Any(i => i.Checked)) return "Choose at least one " + (r.Tool == CadTool.PipingIsometrics ? "line." : "item.");
+            if (r.ShowsDrawingSet && r.Options.DrawingSet && !r.Options.SavePdf) return "The drawing set is bound from the PDF files: tick PDF, or leave the drawing set out.";
             try
             {
                 var full = Path.GetFullPath(r.Output);

@@ -42,6 +42,8 @@ namespace DWSIM.Extensions.SolidCraft
         TextBox programFolder, output, owner, clearance, rackHeight, itemGap;
         TextBlock programStatus, problem, renderTime, overwriteText;
         CheckBox openInApp, labels, flowAnimation, insulation, platforms, instruments, dynamicReplay, render, keepCopy;
+        CheckBox dwg, pdf, png, drawingSet, readMoves;
+        List<CheckBox> itemChecks;
         StackPanel overwrite;
         Button run;
         ComboBox standard, resolution, samples;
@@ -133,7 +135,7 @@ namespace DWSIM.Extensions.SolidCraft
             var outputRows = new List<(string, Control)> { (r.OutputLabel, PathRow(output, BrowseOutput)) };
             if (r.ShowsOpenInApp)
             {
-                openInApp = new CheckBox { Content = "Open in " + r.Program + " when finished", IsChecked = r.OpenInApp };
+                openInApp = new CheckBox { Content = r.OpenInAppText, IsChecked = r.OpenInApp };
                 outputRows.Add((null, openInApp));
             }
             root.Children.Add(Group("Output", Rows(outputRows.ToArray())));
@@ -149,7 +151,58 @@ namespace DWSIM.Extensions.SolidCraft
                     clearance = new TextBox { Text = o.LineClearance.ToString(CultureInfo.CurrentCulture), Width = 90, HorizontalAlignment = HorizontalAlignment.Left };
                     rows.Add(("Line clearance (mm, 1 to 15)", clearance));
                 }
+                dwg = new CheckBox { Content = "DWG", IsChecked = o.SaveDwg };
+                pdf = new CheckBox { Content = "PDF", IsChecked = o.SavePdf };
+                png = new CheckBox { Content = "PNG", IsChecked = o.SavePng };
+                rows.Add(("Also save (DXF always)", new StackPanel { Orientation = Orientation.Horizontal, Spacing = 14, Children = { dwg, pdf, png } }));
+                if (r.ShowsDrawingSet)
+                {
+                    drawingSet = new CheckBox { Content = "One PDF with a drawing list", IsChecked = o.DrawingSet };
+                    rows.Add(("Drawing set", drawingSet));
+                }
                 root.Children.Add(Group("Drawing", Rows(rows.ToArray())));
+            }
+
+            if (r.ShowsItems)
+            {
+                itemChecks = r.Items.Select(i => new CheckBox { Content = i.Text, IsChecked = i.Checked, Tag = i }).ToList();
+                foreach (var c in itemChecks) c.IsCheckedChanged += (_, _) => HideOverwrite();
+                var list = new UniformGrid { Columns = 2 };
+                foreach (var c in itemChecks) list.Children.Add(c);
+                Button Pick(string text, bool value)
+                {
+                    var b = new Button { Content = text, MinWidth = 70 };
+                    b.Click += (_, _) => { foreach (var c in itemChecks) c.IsChecked = value; };
+                    return b;
+                }
+                root.Children.Add(Group(r.Tool == CadTool.PipingIsometrics ? "Lines to draw" : r.Tool == CadTool.DataSheets ? "Data sheets to write" : "Items to draw", new StackPanel
+                {
+                    Spacing = 6,
+                    Children =
+                    {
+                        new TextBlock { Text = "Ticked: the ones selected in the flowsheet, or all of them when none is selected.", Opacity = 0.7, FontSize = UiScale.Font(12), TextWrapping = TextWrapping.Wrap },
+                        new Border
+                        {
+                            BorderBrush = Brushes.Gray, BorderThickness = new Thickness(1), Padding = new Thickness(6, 4),
+                            Child = new ScrollViewer { MaxHeight = 170, Content = list }
+                        },
+                        new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { Pick("All", true), Pick("None", false) } }
+                    }
+                }));
+            }
+
+            if (r.Design != null)
+            {
+                readMoves = new CheckBox { Content = "Read the places of the items moved in SolidCraft first", IsChecked = r.ReadMoves };
+                root.Children.Add(Group("3D model", new StackPanel
+                {
+                    Spacing = 6,
+                    Children =
+                    {
+                        new TextBlock { Text = r.DesignText, TextWrapping = TextWrapping.Wrap, Foreground = r.DesignChanged ? Brushes.DarkOrange : null },
+                        readMoves
+                    }
+                }));
             }
 
             if (r.ShowsModelOptions)
@@ -190,12 +243,7 @@ namespace DWSIM.Extensions.SolidCraft
             overwrite.IsVisible = false;
             root.Children.Add(overwrite);
             // another output: the warning about the old files no longer applies
-            output.TextChanged += (_, _) =>
-            {
-                if (!overwrite.IsVisible) return;
-                overwrite.IsVisible = false;
-                run.Content = r.RunText;
-            };
+            output.TextChanged += (_, _) => HideOverwrite();
 
             problem = new TextBlock { Foreground = Brushes.Firebrick, TextWrapping = TextWrapping.Wrap, IsVisible = false, Margin = new Thickness(0, 6, 0, 0) };
             root.Children.Add(problem);
@@ -226,6 +274,14 @@ namespace DWSIM.Extensions.SolidCraft
             renderTime.Opacity = render.IsChecked == true ? 1 : 0.5;
             renderTime.Foreground = CadTools.RenderSeconds(size.Width, size.Height, n) > CadTools.LongRenderSeconds ? Brushes.DarkOrange : Brushes.Gray;
             renderTime.Text = "Render time: " + CadTools.RenderTimeText(size.Width, size.Height, n) + ", longer on a slower one.";
+        }
+
+        /// <summary>Another output or choice of items: the warning about the old files is worked out again.</summary>
+        void HideOverwrite()
+        {
+            if (overwrite == null || !overwrite.IsVisible) return;
+            overwrite.IsVisible = false;
+            run.Content = Request.RunText;
         }
 
         void UpdateProgramStatus()
@@ -311,8 +367,16 @@ namespace DWSIM.Extensions.SolidCraft
             if (r.OutputIsFile && r.Output.Length > 0 && !r.Output.EndsWith(".dxf", StringComparison.OrdinalIgnoreCase)) r.Output += ".dxf";
             if (openInApp != null) r.OpenInApp = openInApp.IsChecked == true;
 
+            if (itemChecks != null)
+                foreach (var c in itemChecks) ((CadToolItem)c.Tag).Checked = c.IsChecked == true;
+            r.ReadMoves = readMoves != null && readMoves.IsChecked == true;
+
             if (r.IsDrawing)
             {
+                o.SaveDwg = dwg.IsChecked == true;
+                o.SavePdf = pdf.IsChecked == true;
+                o.SavePng = png.IsChecked == true;
+                if (drawingSet != null) o.DrawingSet = drawingSet.IsChecked == true;
                 o.DrawingStandard = CadTools.Standards[Math.Max(0, standard.SelectedIndex)];
                 o.DrawingOwner = owner.Text ?? "";
                 if (clearance != null)

@@ -69,36 +69,25 @@ namespace DWSIM.Extensions.SolidCraft
         class Sheet
         {
             public string Tag, Kind, Subtitle, Number;
+
+            /// <summary>The name of the flowsheet object the sheet describes.</summary>
+            public string Source;
+
             public List<Section> Sections = new List<Section>();
         }
 
         /// <summary>Writes every data sheet; <paramref name="titleFor"/> fills each title block from its title, subtitle and number.</summary>
-        public static Result Export(IFlowsheet fs, string cadcraftFolder, string outputFolder, string name, DrawingStyle style, Func<string, string, string, TitleData> titleFor)
+        public static Result Export(IFlowsheet fs, string cadcraftFolder, string outputFolder, string name, DrawingStyle style, Func<string, string, string, TitleData> titleFor,
+            ICollection<string> only = null)
         {
             var result = new Result();
             PlantModel model;
             try { model = PlantModelBuilder.Build(fs, name, PlantLayout.Load(fs), ExportOptions.Load()); }
             catch (Exception ex) { result.Error = "the plant model could not be built (" + ex.Message + ")"; return result; }
 
-            Dictionary<string, (string Number, string Id)> lineNumbers;
-            try { lineNumbers = ProcessFlowDiagram.LineNumbers(fs, model.Pipes.GroupBy(r => r.Tag).ToDictionary(g => g.Key, g => g.First())); }
-            catch (Exception) { lineNumbers = new Dictionary<string, (string, string)>(); }
-
-            var sheets = new List<Sheet>();
-            var actuated = Instruments.ControlledValves(fs);
-            foreach (var item in model.Equipment.Where(e => e.Visible && !e.IsInstrument && e.Name != null))
-            {
-                if (!fs.SimulationObjects.TryGetValue(item.Name, out var obj) || obj.GraphicObject == null) continue;
-                if (Skip(obj.GraphicObject.ObjectType) || actuated.ContainsKey(obj.Name)) continue;
-                try { sheets.Add(Equipment(fs, model, item, obj, name)); }
-                catch (Exception ex) { result.Failed.Add(item.Tag + ": " + ex.Message); }
-            }
-            foreach (var loop in ProcessFlowDiagram.InstrumentLoops(fs))
-            {
-                try { sheets.Add(loop.Controller ? Loop(fs, model, loop.Obj, loop.Letter, loop.Loop, lineNumbers, name) : Indicator(fs, model, loop.Obj, loop.Letter, loop.Loop, lineNumbers, name)); }
-                catch (Exception ex) { result.Failed.Add(loop.Obj.GraphicObject?.Tag + ": " + ex.Message); }
-            }
+            var sheets = Sheets(fs, model, name, result.Failed);
             if (sheets.Count == 0) { result.Error = "the flowsheet has no equipment or instruments"; return result; }
+            if (only != null) sheets = sheets.Where(s => only.Contains(s.Tag)).ToList();
 
             var temp = Path.Combine(Path.GetTempPath(), "dwsim-ds-" + Guid.NewGuid().ToString("N").Substring(0, 8));
             Directory.CreateDirectory(temp);
@@ -249,6 +238,47 @@ namespace DWSIM.Extensions.SolidCraft
         }
 
         /// <summary>An equipment data sheet.</summary>
+        /// <summary>The data sheets of the flowsheet, filled but not drawn; the ones that cannot be made go to <paramref name="failed"/>.</summary>
+        static List<Sheet> Sheets(IFlowsheet fs, PlantModel model, string name, List<string> failed)
+        {
+            Dictionary<string, (string Number, string Id)> lineNumbers;
+            try { lineNumbers = ProcessFlowDiagram.LineNumbers(fs, model.Pipes.GroupBy(r => r.Tag).ToDictionary(g => g.Key, g => g.First())); }
+            catch (Exception) { lineNumbers = new Dictionary<string, (string, string)>(); }
+
+            var sheets = new List<Sheet>();
+            var actuated = Instruments.ControlledValves(fs);
+            foreach (var item in model.Equipment.Where(e => e.Visible && !e.IsInstrument && e.Name != null))
+            {
+                if (!fs.SimulationObjects.TryGetValue(item.Name, out var obj) || obj.GraphicObject == null) continue;
+                if (Skip(obj.GraphicObject.ObjectType) || actuated.ContainsKey(obj.Name)) continue;
+                try
+                {
+                    var sheet = Equipment(fs, model, item, obj, name);
+                    sheet.Source = obj.Name;
+                    sheets.Add(sheet);
+                }
+                catch (Exception ex) { failed.Add(item.Tag + ": " + ex.Message); }
+            }
+            foreach (var loop in ProcessFlowDiagram.InstrumentLoops(fs))
+            {
+                try
+                {
+                    var sheet = loop.Controller ? Loop(fs, model, loop.Obj, loop.Letter, loop.Loop, lineNumbers, name) : Indicator(fs, model, loop.Obj, loop.Letter, loop.Loop, lineNumbers, name);
+                    sheet.Source = loop.Obj.Name;
+                    sheets.Add(sheet);
+                }
+                catch (Exception ex) { failed.Add(loop.Obj.GraphicObject?.Tag + ": " + ex.Message); }
+            }
+            return sheets;
+        }
+
+        /// <summary>The data sheets <see cref="Export"/> writes: the tag, the kind of sheet and the flowsheet object it describes.</summary>
+        public static List<(string Tag, string Kind, string Object)> List(IFlowsheet fs, string name)
+        {
+            var model = PlantModelBuilder.Build(fs, name, PlantLayout.Load(fs), ExportOptions.Load());
+            return Sheets(fs, model, name, new List<string>()).Select(s => (s.Tag, s.Kind, s.Source)).ToList();
+        }
+
         static Sheet Equipment(IFlowsheet fs, PlantModel model, EquipmentItem item, ISimulationObject obj, string flowsheetName)
         {
             var type = obj.GraphicObject.ObjectType;
@@ -844,12 +874,7 @@ namespace DWSIM.Extensions.SolidCraft
                 y[col] -= (1 + (s.Header != null ? 1 : 0) + rows.Count) * RowHeight + Gap;
             }
 
-            foreach (var ext in new[] { ".dxf", ".dwg", ".pdf", ".png" }) if (File.Exists(outputBase + ext)) File.Delete(outputBase + ext);
-            session.Execute("plot", new JObject { ["path"] = outputBase + ".pdf", ["layout"] = "DS" }, 300);
-            session.Execute("plot", new JObject { ["path"] = outputBase + ".png", ["layout"] = "DS", ["device"] = "CADCraft PNG" }, 300);
-            session.Tool("save", new JObject { ["path"] = outputBase + ".dwg" }, "save DWG of " + sheet.Tag);
-            session.Tool("save", new JObject { ["path"] = outputBase + ".dxf" }, "save DXF of " + sheet.Tag);
-            return File.Exists(outputBase + ".dxf") ? outputBase + ".dxf" : null;
+            return DrawingSheets.Save(session, outputBase, "DS", sheet.Tag);
         }
 
         /// <summary>

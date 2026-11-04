@@ -21,6 +21,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using Newtonsoft.Json.Linq;
 
 namespace DWSIM.Extensions.SolidCraft
 {
@@ -157,6 +158,37 @@ namespace DWSIM.Extensions.SolidCraft
         /// installed, CADCraft (and other CAD programs) put their own lettering in its place.
         /// </summary>
         public const string Font = "osifont";
+
+        /// <summary>The files of a drawing: the DXF, then the DWG, PDF and PNG saved next to it.</summary>
+        public static readonly string[] Extensions = { ".dxf", ".dwg", ".pdf", ".png" };
+
+        /// <summary>
+        /// Saves a drawing: plots its layout to PDF and PNG and saves the DWG, as chosen in the
+        /// settings, and always the DXF. The files of an earlier export are removed first, so none is
+        /// left behind that no longer matches the drawing. Returns the DXF, or null when it was not saved.
+        /// </summary>
+        internal static string Save(CADCraftSession session, string outputBase, string layout, string what)
+        {
+            var o = ExportOptions.Load();
+            foreach (var ext in Extensions) if (File.Exists(outputBase + ext)) File.Delete(outputBase + ext);
+            // a drawing of many keeps its "drawing 3 of 10" in the window
+            if (string.IsNullOrEmpty(what)) CadJob.Report("CADCraft: saving " + FormatsText(o));
+            if (o.SavePdf) session.Execute("plot", new JObject { ["path"] = outputBase + ".pdf", ["layout"] = layout }, 300);
+            if (o.SavePng) session.Execute("plot", new JObject { ["path"] = outputBase + ".png", ["layout"] = layout, ["device"] = "CADCraft PNG" }, 300);
+            if (o.SaveDwg) session.Tool("save", new JObject { ["path"] = outputBase + ".dwg" }, "save DWG" + (string.IsNullOrEmpty(what) ? "" : " of " + what));
+            session.Tool("save", new JObject { ["path"] = outputBase + ".dxf" }, "save DXF" + (string.IsNullOrEmpty(what) ? "" : " of " + what));
+            return File.Exists(outputBase + ".dxf") ? outputBase + ".dxf" : null;
+        }
+
+        /// <summary>"DXF, DWG, PDF and PNG": the files a drawing is saved as.</summary>
+        public static string FormatsText(ExportOptions o)
+        {
+            var f = new List<string> { "DXF" };
+            if (o.SaveDwg) f.Add("DWG");
+            if (o.SavePdf) f.Add("PDF");
+            if (o.SavePng) f.Add("PNG");
+            return f.Count == 1 ? f[0] : string.Join(", ", f.Take(f.Count - 1)) + " and " + f.Last();
+        }
 
         /// <summary>Whether osifont is installed for this user or for the computer.</summary>
         public static bool FontInstalled()

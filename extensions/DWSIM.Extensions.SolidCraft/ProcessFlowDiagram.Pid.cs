@@ -397,8 +397,9 @@ namespace DWSIM.Extensions.SolidCraft
             foreach (var c in cmds) session.Execute(c.Name, c.Params);
             var pdf = outputBase + " legend.pdf"; var png = outputBase + " legend.png";
             foreach (var f in new[] { pdf, png }) if (File.Exists(f)) File.Delete(f);
-            session.Execute("plot", new JObject { ["path"] = pdf, ["layout"] = "LEGEND" }, 300);
-            session.Execute("plot", new JObject { ["path"] = png, ["layout"] = "LEGEND", ["device"] = "CADCraft PNG" }, 300);
+            var o = ExportOptions.Load();
+            if (o.SavePdf) session.Execute("plot", new JObject { ["path"] = pdf, ["layout"] = "LEGEND" }, 300);
+            if (o.SavePng) session.Execute("plot", new JObject { ["path"] = png, ["layout"] = "LEGEND", ["device"] = "CADCraft PNG" }, 300);
             if (File.Exists(pdf)) result.LegendPdf = pdf;
             if (File.Exists(png)) result.LegendPng = png;
         }

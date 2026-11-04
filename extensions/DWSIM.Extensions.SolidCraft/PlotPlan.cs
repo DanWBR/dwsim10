@@ -304,12 +304,7 @@ namespace DWSIM.Extensions.SolidCraft
                 if (handle != null)
                     session.Execute("viewport.set", new JObject { ["handle"] = handle, ["scale"] = 1.0 / S, ["locked"] = true, ["center"] = P((mx0 + mx1) / 2, (my0 + my1) / 2) });
 
-                foreach (var ext in new[] { ".dxf", ".dwg", ".pdf", ".png" }) if (File.Exists(outputBase + ext)) File.Delete(outputBase + ext);
-                CadJob.Report("CADCraft: saving the PDF, PNG, DWG and DXF");
-                session.Execute("plot", new JObject { ["path"] = outputBase + ".pdf", ["layout"] = "PLOT" }, 300);
-                session.Execute("plot", new JObject { ["path"] = outputBase + ".png", ["layout"] = "PLOT", ["device"] = "CADCraft PNG" }, 300);
-                session.Tool("save", new JObject { ["path"] = outputBase + ".dwg" }, "save DWG");
-                session.Tool("save", new JObject { ["path"] = outputBase + ".dxf" }, "save DXF");
+                DrawingSheets.Save(session, outputBase, "PLOT", null);
                 result.Failed.AddRange(session.Failed);
             }
             try { Directory.Delete(temp, true); } catch (Exception) { }

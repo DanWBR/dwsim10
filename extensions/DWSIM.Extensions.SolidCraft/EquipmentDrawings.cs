@@ -56,16 +56,17 @@ namespace DWSIM.Extensions.SolidCraft
         enum View { Front, Plan }
 
         /// <summary>Draws every vessel, column, tank and exchanger of the flowsheet; <paramref name="titleFor"/> fills each title block.</summary>
-        public static Result Export(IFlowsheet fs, string cadcraftFolder, string outputFolder, string name, DrawingStyle style, Func<EquipmentItem, TitleData> titleFor)
+        public static Result Export(IFlowsheet fs, string cadcraftFolder, string outputFolder, string name, DrawingStyle style, Func<EquipmentItem, TitleData> titleFor,
+            ICollection<string> only = null)
         {
             var result = new Result();
             PlantModel model;
             try { model = PlantModelBuilder.Build(fs, name, PlantLayout.Load(fs), ExportOptions.Load()); }
             catch (Exception ex) { result.Error = "the plant model could not be built (" + ex.Message + ")"; return result; }
 
-            var items = model.Equipment.Where(e => e.Visible && !e.IsInstrument && e.Envelope != null &&
-                (e.Envelope.Kind == EnvelopeKind.VerticalCylinder || e.Envelope.Kind == EnvelopeKind.HorizontalCylinder || IsMachine(fs, e))).ToList();
+            var items = Items(fs, model);
             if (items.Count == 0) { result.Error = "the flowsheet has no vessels, columns, tanks, exchangers, pumps or compressors"; return result; }
+            if (only != null) items = items.Where(i => only.Contains(i.Tag)).ToList();
 
             var temp = Path.Combine(Path.GetTempPath(), "dwsim-ga-" + Guid.NewGuid().ToString("N").Substring(0, 8));
             Directory.CreateDirectory(temp);
@@ -95,6 +96,11 @@ namespace DWSIM.Extensions.SolidCraft
             if (result.Drawings.Count == 0 && result.Error == null) result.Error = "CADCraft did not save any drawing" + (result.Failed.Count > 0 ? " (" + result.Failed.Last() + ")" : "");
             return result;
         }
+
+        /// <summary>The items that get a general arrangement drawing: the vessels, columns, tanks, exchangers, pumps and compressors.</summary>
+        public static List<EquipmentItem> Items(IFlowsheet fs, PlantModel model)
+            => model.Equipment.Where(e => e.Visible && !e.IsInstrument && e.Envelope != null &&
+                (e.Envelope.Kind == EnvelopeKind.VerticalCylinder || e.Envelope.Kind == EnvelopeKind.HorizontalCylinder || IsMachine(fs, e))).ToList();
 
         static string Safe(string s) => string.Concat((s ?? "item").Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c));
 
@@ -369,12 +375,7 @@ namespace DWSIM.Extensions.SolidCraft
             if (handle != null)
                 session.Execute("viewport.set", new JObject { ["handle"] = handle, ["scale"] = 1.0 / S, ["locked"] = true, ["center"] = P((mx0 + mx1) / 2, (my0 + my1) / 2) });
 
-            foreach (var ext in new[] { ".dxf", ".dwg", ".pdf", ".png" }) if (File.Exists(outputBase + ext)) File.Delete(outputBase + ext);
-            session.Execute("plot", new JObject { ["path"] = outputBase + ".pdf", ["layout"] = "GA" }, 300);
-            session.Execute("plot", new JObject { ["path"] = outputBase + ".png", ["layout"] = "GA", ["device"] = "CADCraft PNG" }, 300);
-            session.Tool("save", new JObject { ["path"] = outputBase + ".dwg" }, "save DWG of " + item.Tag);
-            session.Tool("save", new JObject { ["path"] = outputBase + ".dxf" }, "save DXF of " + item.Tag);
-            return File.Exists(outputBase + ".dxf") ? outputBase + ".dxf" : null;
+            return DrawingSheets.Save(session, outputBase, "GA", item.Tag);
         }
 
         /// <summary>

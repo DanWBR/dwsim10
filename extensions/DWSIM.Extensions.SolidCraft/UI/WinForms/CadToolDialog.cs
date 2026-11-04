@@ -59,7 +59,7 @@ namespace DWSIM.Extensions.SolidCraft
             lblOutput.Text = r.OutputLabel;
             tbOutput.Text = r.Output ?? "";
             chkOpenInApp.Visible = r.ShowsOpenInApp;
-            chkOpenInApp.Text = "Open in " + (r.Program ?? "") + " when finished";
+            chkOpenInApp.Text = r.OpenInAppText;
             chkOpenInApp.Checked = r.OpenInApp;
 
             gbDrawing.Visible = r.IsDrawing;
@@ -68,6 +68,24 @@ namespace DWSIM.Extensions.SolidCraft
             tbOwner.Text = o.DrawingOwner ?? "";
             lblClearance.Visible = tbClearance.Visible = r.ShowsClearance;
             tbClearance.Text = o.LineClearance.ToString(CultureInfo.CurrentCulture);
+            chkDwg.Checked = o.SaveDwg;
+            chkPdf.Checked = o.SavePdf;
+            chkPng.Checked = o.SavePng;
+            chkDrawingSet.Visible = r.ShowsDrawingSet;
+            chkDrawingSet.Checked = o.DrawingSet;
+
+            gbItems.Visible = r.ShowsItems;
+            if (r.ShowsItems)
+            {
+                gbItems.Text = r.Tool == CadTool.PipingIsometrics ? "Lines to draw" : r.Tool == CadTool.DataSheets ? "Data sheets to write" : "Items to draw";
+                foreach (var item in r.Items) clbItems.Items.Add(item, item.Checked);
+                clbItems.ItemCheck += (s, args) => ResetOverwrite();
+            }
+
+            gbDesign.Visible = r.Design != null;
+            lblDesign.Text = r.DesignText;
+            lblDesign.ForeColor = r.DesignChanged ? Color.DarkOrange : SystemColors.ControlText;
+            chkReadMoves.Checked = r.ReadMoves;
 
             gbModel.Visible = gbRender.Visible = r.ShowsModelOptions;
             chkLabels.Checked = o.Labels;
@@ -149,6 +167,24 @@ namespace DWSIM.Extensions.SolidCraft
             }
         }
 
+        private void btnAllItems_Click(object sender, EventArgs e) => CheckAll(true);
+
+        private void btnNoItems_Click(object sender, EventArgs e) => CheckAll(false);
+
+        void CheckAll(bool value)
+        {
+            for (var i = 0; i < clbItems.Items.Count; i++) clbItems.SetItemChecked(i, value);
+            ResetOverwrite();
+        }
+
+        /// <summary>Another choice of items: the warning about the old files is worked out again.</summary>
+        void ResetOverwrite()
+        {
+            if (!gbOverwrite.Visible) return;
+            gbOverwrite.Visible = false;
+            btnRun.Text = Request.RunText;
+        }
+
         /// <summary>Another output: the warning about the old files no longer applies.</summary>
         private void tbOutput_TextChanged(object sender, EventArgs e)
         {
@@ -195,8 +231,16 @@ namespace DWSIM.Extensions.SolidCraft
             if (r.OutputIsFile && r.Output.Length > 0 && !r.Output.EndsWith(".dxf", StringComparison.OrdinalIgnoreCase)) r.Output += ".dxf";
             r.OpenInApp = chkOpenInApp.Checked;
 
+            if (r.ShowsItems)
+                for (var i = 0; i < clbItems.Items.Count; i++) ((CadToolItem)clbItems.Items[i]).Checked = clbItems.GetItemChecked(i);
+            r.ReadMoves = r.Design != null && chkReadMoves.Checked;
+
             if (r.IsDrawing)
             {
+                o.SaveDwg = chkDwg.Checked;
+                o.SavePdf = chkPdf.Checked;
+                o.SavePng = chkPng.Checked;
+                if (r.ShowsDrawingSet) o.DrawingSet = chkDrawingSet.Checked;
                 o.DrawingStandard = CadTools.Standards[Math.Max(0, cbStandard.SelectedIndex)];
                 o.DrawingOwner = tbOwner.Text;
                 if (r.ShowsClearance)
