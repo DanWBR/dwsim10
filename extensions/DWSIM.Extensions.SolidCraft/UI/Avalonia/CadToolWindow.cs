@@ -40,8 +40,10 @@ namespace DWSIM.Extensions.SolidCraft
         readonly List<(int Samples, string Text)> Samples;
 
         TextBox programFolder, output, owner, clearance, rackHeight, itemGap;
-        TextBlock programStatus, problem, renderTime;
-        CheckBox openInApp, labels, flowAnimation, insulation, platforms, instruments, dynamicReplay, render;
+        TextBlock programStatus, problem, renderTime, overwriteText;
+        CheckBox openInApp, labels, flowAnimation, insulation, platforms, instruments, dynamicReplay, render, keepCopy;
+        StackPanel overwrite;
+        Button run;
         ComboBox standard, resolution, samples;
 
         public CadToolWindow(CadToolRequest request)
@@ -182,10 +184,23 @@ namespace DWSIM.Extensions.SolidCraft
                 root.Children.Add(Group("Photorealistic picture", Rows((null, render), ("Resolution (pixels)", resolution), ("Samples per pixel", samples), (null, renderTime))));
             }
 
+            overwriteText = new TextBlock { Foreground = Brushes.DarkOrange, TextWrapping = TextWrapping.Wrap };
+            keepCopy = new CheckBox { Content = "Keep the old files: move them to a \"Superseded\" folder first" };
+            overwrite = Group("Files from an earlier export", new StackPanel { Spacing = 6, Children = { overwriteText, keepCopy } });
+            overwrite.IsVisible = false;
+            root.Children.Add(overwrite);
+            // another output: the warning about the old files no longer applies
+            output.TextChanged += (_, _) =>
+            {
+                if (!overwrite.IsVisible) return;
+                overwrite.IsVisible = false;
+                run.Content = r.RunText;
+            };
+
             problem = new TextBlock { Foreground = Brushes.Firebrick, TextWrapping = TextWrapping.Wrap, IsVisible = false, Margin = new Thickness(0, 6, 0, 0) };
             root.Children.Add(problem);
 
-            var run = new Button { Content = r.RunText, IsDefault = true, MinWidth = 90 };
+            run = new Button { Content = r.RunText, IsDefault = true, MinWidth = 90 };
             run.Classes.Add("dialog");
             run.Click += (_, _) => Accept();
             var cancel = new Button { Content = "Cancel", IsCancel = true, MinWidth = 90 };
@@ -327,6 +342,18 @@ namespace DWSIM.Extensions.SolidCraft
 
             var why = CadTools.Validate(r);
             if (why != null) { ShowProblem(why); return; }
+
+            // files of an earlier export: say so first, and go on only on the second click
+            var existing = CadTools.ExistingOutputs(r);
+            if (existing.Count > 0 && !overwrite.IsVisible)
+            {
+                problem.IsVisible = false;
+                overwriteText.Text = CadTools.OverwriteWarning(existing);
+                overwrite.IsVisible = true;
+                run.Content = "Replace";
+                return;
+            }
+            r.KeepOldCopies = existing.Count > 0 && keepCopy.IsChecked == true;
             Close(true);
         }
     }

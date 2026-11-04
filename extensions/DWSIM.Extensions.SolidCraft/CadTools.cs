@@ -19,6 +19,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using DWSIM.Interfaces;
 
 namespace DWSIM.Extensions.SolidCraft
@@ -76,6 +77,12 @@ namespace DWSIM.Extensions.SolidCraft
         /// <summary>The options of the drawings and of the 3D model, kept in the settings.</summary>
         public ExportOptions Options;
 
+        /// <summary>The simulation's name, which the drawing files start with.</summary>
+        public string ModelName;
+
+        /// <summary>Move the files the tool would replace to a Superseded folder before it runs.</summary>
+        public bool KeepOldCopies;
+
         public bool HasProgram => !string.IsNullOrEmpty(Program);
 
         public bool IsDrawing => Program == "CADCraft";
@@ -121,7 +128,7 @@ namespace DWSIM.Extensions.SolidCraft
         {
             var name = PlantModelExtender.ModelName(fs);
             var drawings = ProcessFlowDiagramExtender.DrawingsFolder(fs);
-            var r = new CadToolRequest { Tool = tool, Options = ExportOptions.Load(), OutputLabel = "Output folder" };
+            var r = new CadToolRequest { Tool = tool, Options = ExportOptions.Load(), OutputLabel = "Output folder", ModelName = name };
             switch (tool)
             {
                 case CadTool.PlantModel:
@@ -249,6 +256,62 @@ namespace DWSIM.Extensions.SolidCraft
         public const double LongRenderSeconds = 600;
 
         public static readonly string[] Standards = { "ISO", "ASME", "Petrobras" };
+
+        static readonly string[] DrawingExtensions = { ".dxf", ".dwg", ".pdf", ".png" };
+
+        /// <summary>
+        /// The files of an earlier export that the drawing tool would replace: the drawing with its DWG,
+        /// PDF and PNG (and the P&amp;ID's legend sheet), or, for the tools that draw a sheet per item or
+        /// line, the sheets of this simulation already in the folder. The 3D model is left out: a new
+        /// export keeps what was moved in SolidCraft, and replacing the model is how it is updated.
+        /// </summary>
+        public static List<string> ExistingOutputs(CadToolRequest r)
+        {
+            var found = new List<string>();
+            try
+            {
+                switch (r.Tool)
+                {
+                    case CadTool.ProcessFlowDiagram:
+                    case CadTool.PipingAndInstrumentation:
+                    case CadTool.PlotPlan:
+                        var b = r.OutputBase;
+                        found.AddRange(DrawingExtensions.Select(e => b + e).Where(File.Exists));
+                        if (r.Tool == CadTool.PipingAndInstrumentation) found.AddRange(new[] { b + " legend.pdf", b + " legend.png" }.Where(File.Exists));
+                        break;
+                    case CadTool.EquipmentDrawings:
+                    case CadTool.PipingIsometrics:
+                    case CadTool.DataSheets:
+                        if (!Directory.Exists(r.Output)) break;
+                        var prefix = r.ModelName + (r.Tool == CadTool.EquipmentDrawings ? " - GA " : r.Tool == CadTool.PipingIsometrics ? " - ISO " : " - DS ");
+                        found.AddRange(Directory.GetFiles(r.Output, prefix + "*")
+                            .Where(f => DrawingExtensions.Contains(Path.GetExtension(f).ToLowerInvariant()))
+                            .OrderBy(f => f, StringComparer.OrdinalIgnoreCase));
+                        break;
+                }
+            }
+            catch (Exception) { }
+            return found;
+        }
+
+        /// <summary>The warning the dialogs show before an export replaces <paramref name="files"/>.</summary>
+        public static string OverwriteWarning(List<string> files)
+        {
+            var names = files.Select(Path.GetFileName).ToList();
+            var shown = string.Join(", ", names.Take(6)) + (names.Count > 6 ? " and " + (names.Count - 6) + " more" : "");
+            return (names.Count == 1 ? "1 file" : names.Count + " files") + " from an earlier export will be replaced: " + shown +
+                ". Changes made to them in CADCraft or another CAD program are lost unless the old files are kept.";
+        }
+
+        /// <summary>Moves the files to a "Superseded" folder, named by date and time, next to them; returns the folder, or null when there was nothing to move.</summary>
+        public static string SetAside(List<string> files)
+        {
+            if (files.Count == 0) return null;
+            var folder = Path.Combine(Path.GetDirectoryName(files[0]), "Superseded " + DateTime.Now.ToString("yyyy-MM-dd HHmmss", CultureInfo.InvariantCulture));
+            Directory.CreateDirectory(folder);
+            foreach (var f in files) File.Move(f, Path.Combine(folder, Path.GetFileName(f)));
+            return folder;
+        }
 
         /// <summary>Checks the request before the tool runs; returns the problem, or null.</summary>
         public static string Validate(CadToolRequest r)

@@ -61,6 +61,20 @@ namespace DWSIM.Extensions.SolidCraft
             CadToolPrompt.Ask(CadTools.Request(fs, tool), r =>
             {
                 CadTools.Accept(fs, r);
+                if (r.KeepOldCopies)
+                {
+                    try
+                    {
+                        var aside = CadTools.SetAside(CadTools.ExistingOutputs(r));
+                        if (aside != null) fs.ShowMessage(r.Title + ": the files of the earlier export were moved to " + aside + ".", IFlowsheet.MessageType.Information);
+                    }
+                    catch (Exception ex)
+                    {
+                        fs.ShowMessage(r.Title + ": the files of the earlier export could not be moved (" + ex.Message + "); close them in CADCraft or the program that has them open, then export again.",
+                            IFlowsheet.MessageType.GeneralError);
+                        return;
+                    }
+                }
                 Run(fs, r);
             });
         }

@@ -149,6 +149,14 @@ namespace DWSIM.Extensions.SolidCraft
             }
         }
 
+        /// <summary>Another output: the warning about the old files no longer applies.</summary>
+        private void tbOutput_TextChanged(object sender, EventArgs e)
+        {
+            if (!gbOverwrite.Visible) return;
+            gbOverwrite.Visible = false;
+            btnRun.Text = Request.RunText;
+        }
+
         private void chkRender_CheckedChanged(object sender, EventArgs e)
         {
             cbResolution.Enabled = cbSamples.Enabled = chkRender.Checked;
@@ -220,6 +228,17 @@ namespace DWSIM.Extensions.SolidCraft
 
             var problem = CadTools.Validate(r);
             if (problem != null) { Problem(problem); return; }
+
+            // files of an earlier export: say so first, and go on only on the second click
+            var existing = CadTools.ExistingOutputs(r);
+            if (existing.Count > 0 && !gbOverwrite.Visible)
+            {
+                lblOverwrite.Text = CadTools.OverwriteWarning(existing);
+                gbOverwrite.Visible = true;
+                btnRun.Text = "Replace";
+                return;
+            }
+            r.KeepOldCopies = existing.Count > 0 && chkKeepCopy.Checked;
             DialogResult = DialogResult.OK;
             Close();
         }

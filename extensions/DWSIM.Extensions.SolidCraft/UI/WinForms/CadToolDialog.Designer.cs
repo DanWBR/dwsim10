@@ -56,6 +56,10 @@ namespace DWSIM.Extensions.SolidCraft
             this.lblSamples = new System.Windows.Forms.Label();
             this.cbSamples = new System.Windows.Forms.ComboBox();
             this.lblRenderTime = new System.Windows.Forms.Label();
+            this.gbOverwrite = new System.Windows.Forms.GroupBox();
+            this.tlpOverwrite = new System.Windows.Forms.TableLayoutPanel();
+            this.lblOverwrite = new System.Windows.Forms.Label();
+            this.chkKeepCopy = new System.Windows.Forms.CheckBox();
             this.flpButtons = new System.Windows.Forms.FlowLayoutPanel();
             this.btnRun = new System.Windows.Forms.Button();
             this.btnCancel = new System.Windows.Forms.Button();
@@ -70,6 +74,8 @@ namespace DWSIM.Extensions.SolidCraft
             this.tlpModel.SuspendLayout();
             this.gbRender.SuspendLayout();
             this.tlpRender.SuspendLayout();
+            this.gbOverwrite.SuspendLayout();
+            this.tlpOverwrite.SuspendLayout();
             this.flpButtons.SuspendLayout();
             this.SuspendLayout();
             //
@@ -85,12 +91,14 @@ namespace DWSIM.Extensions.SolidCraft
             this.tlpRoot.Controls.Add(this.gbDrawing, 0, 3);
             this.tlpRoot.Controls.Add(this.gbModel, 0, 4);
             this.tlpRoot.Controls.Add(this.gbRender, 0, 5);
-            this.tlpRoot.Controls.Add(this.flpButtons, 0, 6);
+            this.tlpRoot.Controls.Add(this.gbOverwrite, 0, 6);
+            this.tlpRoot.Controls.Add(this.flpButtons, 0, 7);
             this.tlpRoot.Dock = System.Windows.Forms.DockStyle.Fill;
             this.tlpRoot.Location = new System.Drawing.Point(0, 0);
             this.tlpRoot.Name = "tlpRoot";
             this.tlpRoot.Padding = new System.Windows.Forms.Padding(8);
-            this.tlpRoot.RowCount = 7;
+            this.tlpRoot.RowCount = 8;
+            this.tlpRoot.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
             this.tlpRoot.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
             this.tlpRoot.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
             this.tlpRoot.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
@@ -237,6 +245,7 @@ namespace DWSIM.Extensions.SolidCraft
             this.tbOutput.Name = "tbOutput";
             this.tbOutput.Size = new System.Drawing.Size(392, 20);
             this.tbOutput.TabIndex = 1;
+            this.tbOutput.TextChanged += new System.EventHandler(this.tbOutput_TextChanged);
             //
             // btnOutput
             //
@@ -581,6 +590,57 @@ namespace DWSIM.Extensions.SolidCraft
             this.lblRenderTime.TabIndex = 5;
             this.lblRenderTime.Text = "Render time";
             //
+            // gbOverwrite
+            //
+            this.gbOverwrite.AutoSize = true;
+            this.gbOverwrite.Controls.Add(this.tlpOverwrite);
+            this.gbOverwrite.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.gbOverwrite.Location = new System.Drawing.Point(11, 575);
+            this.gbOverwrite.Name = "gbOverwrite";
+            this.gbOverwrite.Size = new System.Drawing.Size(562, 70);
+            this.gbOverwrite.TabIndex = 6;
+            this.gbOverwrite.TabStop = false;
+            this.gbOverwrite.Text = "Files from an earlier export";
+            this.gbOverwrite.Visible = false;
+            //
+            // tlpOverwrite
+            //
+            this.tlpOverwrite.AutoSize = true;
+            this.tlpOverwrite.ColumnCount = 1;
+            this.tlpOverwrite.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            this.tlpOverwrite.Controls.Add(this.lblOverwrite, 0, 0);
+            this.tlpOverwrite.Controls.Add(this.chkKeepCopy, 0, 1);
+            this.tlpOverwrite.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.tlpOverwrite.Location = new System.Drawing.Point(3, 16);
+            this.tlpOverwrite.Name = "tlpOverwrite";
+            this.tlpOverwrite.RowCount = 2;
+            this.tlpOverwrite.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
+            this.tlpOverwrite.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
+            this.tlpOverwrite.Size = new System.Drawing.Size(556, 51);
+            this.tlpOverwrite.TabIndex = 0;
+            //
+            // lblOverwrite
+            //
+            this.lblOverwrite.AutoSize = true;
+            this.lblOverwrite.ForeColor = System.Drawing.Color.DarkOrange;
+            this.lblOverwrite.Location = new System.Drawing.Point(3, 3);
+            this.lblOverwrite.Margin = new System.Windows.Forms.Padding(3, 3, 3, 6);
+            this.lblOverwrite.MaximumSize = new System.Drawing.Size(540, 0);
+            this.lblOverwrite.Name = "lblOverwrite";
+            this.lblOverwrite.Size = new System.Drawing.Size(200, 13);
+            this.lblOverwrite.TabIndex = 0;
+            this.lblOverwrite.Text = "Files will be replaced";
+            //
+            // chkKeepCopy
+            //
+            this.chkKeepCopy.AutoSize = true;
+            this.chkKeepCopy.Location = new System.Drawing.Point(3, 25);
+            this.chkKeepCopy.Name = "chkKeepCopy";
+            this.chkKeepCopy.Size = new System.Drawing.Size(300, 17);
+            this.chkKeepCopy.TabIndex = 1;
+            this.chkKeepCopy.Text = "Keep the old files: move them to a \"Superseded\" folder first";
+            this.chkKeepCopy.UseVisualStyleBackColor = true;
+            //
             // flpButtons
             //
             this.flpButtons.AutoSize = true;
@@ -592,7 +652,7 @@ namespace DWSIM.Extensions.SolidCraft
             this.flpButtons.Margin = new System.Windows.Forms.Padding(3, 8, 3, 3);
             this.flpButtons.Name = "flpButtons";
             this.flpButtons.Size = new System.Drawing.Size(562, 29);
-            this.flpButtons.TabIndex = 6;
+            this.flpButtons.TabIndex = 7;
             //
             // btnRun
             //
@@ -655,6 +715,10 @@ namespace DWSIM.Extensions.SolidCraft
             this.gbRender.PerformLayout();
             this.tlpRender.ResumeLayout(false);
             this.tlpRender.PerformLayout();
+            this.gbOverwrite.ResumeLayout(false);
+            this.gbOverwrite.PerformLayout();
+            this.tlpOverwrite.ResumeLayout(false);
+            this.tlpOverwrite.PerformLayout();
             this.flpButtons.ResumeLayout(false);
             this.ResumeLayout(false);
             this.PerformLayout();
@@ -704,6 +768,10 @@ namespace DWSIM.Extensions.SolidCraft
         private System.Windows.Forms.Label lblSamples;
         private System.Windows.Forms.ComboBox cbSamples;
         private System.Windows.Forms.Label lblRenderTime;
+        private System.Windows.Forms.GroupBox gbOverwrite;
+        private System.Windows.Forms.TableLayoutPanel tlpOverwrite;
+        private System.Windows.Forms.Label lblOverwrite;
+        private System.Windows.Forms.CheckBox chkKeepCopy;
         private System.Windows.Forms.FlowLayoutPanel flpButtons;
         private System.Windows.Forms.Button btnRun;
         private System.Windows.Forms.Button btnCancel;
