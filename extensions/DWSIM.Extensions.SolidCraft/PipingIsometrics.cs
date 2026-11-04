@@ -86,6 +86,7 @@ namespace DWSIM.Extensions.SolidCraft
             {
                 foreach (var run in model.Pipes)
                 {
+                    CadJob.Report(string.Format(CultureInfo.InvariantCulture, "CADCraft: drawing {0} of {1}, line {2}", model.Pipes.IndexOf(run) + 1, model.Pipes.Count, run.Tag));
                     try
                     {
                         if (!numbers.TryGetValue(run.Tag ?? "", out var n))
@@ -100,6 +101,7 @@ namespace DWSIM.Extensions.SolidCraft
                             if (File.Exists(Path.ChangeExtension(file, ".pdf"))) result.Pdfs.Add(Path.ChangeExtension(file, ".pdf"));
                         }
                     }
+                    catch (OperationCanceledException) { throw; }
                     catch (Exception ex) { result.Failed.Add(run.Tag + ": " + ex.Message); }
                 }
                 result.Failed.AddRange(session.Failed);

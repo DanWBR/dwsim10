@@ -106,6 +106,7 @@ namespace DWSIM.Extensions.SolidCraft
             {
                 foreach (var sheet in sheets)
                 {
+                    CadJob.Report(string.Format(CultureInfo.InvariantCulture, "CADCraft: data sheet {0} of {1}, {2}", sheets.IndexOf(sheet) + 1, sheets.Count, sheet.Tag));
                     try
                     {
                         var file = Draw(session, sheet, Path.Combine(outputFolder, name + " - DS " + Safe(sheet.Tag)), style, titleFor(sheet.Kind, sheet.Subtitle, sheet.Number), temp);
@@ -115,6 +116,7 @@ namespace DWSIM.Extensions.SolidCraft
                             if (File.Exists(Path.ChangeExtension(file, ".pdf"))) result.Pdfs.Add(Path.ChangeExtension(file, ".pdf"));
                         }
                     }
+                    catch (OperationCanceledException) { throw; }
                     catch (Exception ex) { result.Failed.Add(sheet.Tag + ": " + ex.Message); }
                 }
                 result.Failed.AddRange(session.Failed);

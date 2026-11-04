@@ -72,44 +72,74 @@ namespace DWSIM.Extensions.SolidCraft
             switch (r.Tool)
             {
                 case CadTool.PlantModel:
-                    Background(fs, "3D plant model", "Building the 3D plant model with SolidCraft...", () => PlantModelExtender.Export(fs, folder, open, r.Output));
+                    Background(fs, r, "3D plant model", "Building the 3D plant model with SolidCraft...", () =>
+                    {
+                        var res = PlantModelExtender.Export(fs, folder, open, r.Output);
+                        return res.Success ? null : "SolidCraft could not build the model: " + res.Error;
+                    });
                     break;
                 case CadTool.UpdatePlantModel:
-                    Background(fs, "3D plant model", null, () => UpdateDataExtender.Update(fs, folder, r.Output));
+                    Background(fs, r, "3D plant model", null, () => UpdateDataExtender.Update(fs, folder, r.Output));
                     break;
                 case CadTool.ResetLayout:
                     ResetLayoutExtender.Reset(fs, r.Output);
                     break;
                 case CadTool.ProcessFlowDiagram:
-                    Background(fs, "Process flow diagram", "Drawing the process flow diagram with CADCraft...", () => ProcessFlowDiagramExtender.Export(fs, folder, open, null, false, r.OutputBase));
+                    Background(fs, r, "Process flow diagram", "Drawing the process flow diagram with CADCraft...", () =>
+                    {
+                        var res = ProcessFlowDiagramExtender.Export(fs, folder, open, null, false, r.OutputBase);
+                        return res.Drawing != null ? null : "CADCraft could not draw the process flow diagram: " + res.Error;
+                    });
                     break;
                 case CadTool.PipingAndInstrumentation:
-                    Background(fs, "P&ID", "Drawing the P&ID with CADCraft...", () => ProcessFlowDiagramExtender.Export(fs, folder, open, null, true, r.OutputBase));
+                    Background(fs, r, "P&ID", "Drawing the P&ID with CADCraft...", () =>
+                    {
+                        var res = ProcessFlowDiagramExtender.Export(fs, folder, open, null, true, r.OutputBase);
+                        return res.Drawing != null ? null : "CADCraft could not draw the P&ID: " + res.Error;
+                    });
                     break;
                 case CadTool.EquipmentDrawings:
-                    Background(fs, "Equipment drawings", "Drawing the equipment with CADCraft...", () => EquipmentDrawingsExtender.Export(fs, folder, open, r.Output));
+                    Background(fs, r, "Equipment drawings", "Drawing the equipment with CADCraft...", () =>
+                    {
+                        var res = EquipmentDrawingsExtender.Export(fs, folder, open, r.Output);
+                        return res.Drawings.Count > 0 ? null : "CADCraft could not draw the equipment: " + res.Error;
+                    });
                     break;
                 case CadTool.PipingIsometrics:
-                    Background(fs, "Piping isometrics", "Drawing the piping isometrics with CADCraft...", () => PipingIsometricsExtender.Export(fs, folder, open, r.Output));
+                    Background(fs, r, "Piping isometrics", "Drawing the piping isometrics with CADCraft...", () =>
+                    {
+                        var res = PipingIsometricsExtender.Export(fs, folder, open, r.Output);
+                        return res.Drawings.Count > 0 ? null : "CADCraft could not draw the isometrics: " + res.Error;
+                    });
                     break;
                 case CadTool.DataSheets:
-                    Background(fs, "Data sheets", "Writing the data sheets with CADCraft...", () => DataSheetsExtender.Export(fs, folder, open, r.Output));
+                    Background(fs, r, "Data sheets", "Writing the data sheets with CADCraft...", () =>
+                    {
+                        var res = DataSheetsExtender.Export(fs, folder, open, r.Output);
+                        return res.Drawings.Count > 0 ? null : "CADCraft could not write the data sheets: " + res.Error;
+                    });
                     break;
                 case CadTool.PlotPlan:
-                    Background(fs, "Plot plan", "Drawing the plot plan with CADCraft...", () => PlotPlanExtender.Export(fs, folder, open, null, r.OutputBase));
+                    Background(fs, r, "Plot plan", "Drawing the plot plan with CADCraft...", () =>
+                    {
+                        var res = PlotPlanExtender.Export(fs, folder, open, null, r.OutputBase);
+                        return res.Drawing != null ? null : "CADCraft could not draw the plot plan: " + res.Error;
+                    });
                     break;
             }
         }
 
-        /// <summary>SolidCraft and CADCraft take seconds to minutes on a large flowsheet: keep the interface free.</summary>
-        static void Background(IFlowsheet fs, string what, string starting, Action work)
+        /// <summary>
+        /// SolidCraft and CADCraft take seconds to minutes on a large flowsheet (a render can take an
+        /// hour): the tool runs in the background with a window that shows its step and can cancel it.
+        /// <paramref name="work"/> returns null when the tool made what it should, else the reason.
+        /// </summary>
+        static void Background(IFlowsheet fs, CadToolRequest r, string what, string starting, Func<string> work)
         {
             if (starting != null) fs.ShowMessage(starting, IFlowsheet.MessageType.Information);
-            Task.Run(() =>
-            {
-                try { work(); }
-                catch (Exception ex) { fs.ShowMessage(what + ": " + ex.Message, IFlowsheet.MessageType.GeneralError); }
-            });
+            var job = new CadJob(r);
+            CadToolPrompt.Watch(job);
+            job.Start(fs, what, work);
         }
     }
 
@@ -154,6 +184,7 @@ namespace DWSIM.Extensions.SolidCraft
             var layout = PlantLayout.Load(fs);
             if (File.Exists(outputBase + ".sc"))
             {
+                CadJob.Report("SolidCraft: reading the places of the items moved in the last design");
                 var warnings = new List<string>();
                 var moves = PlantLayout.ReadMoves(solidcraftFolder, outputBase + ".sc", warnings);
                 foreach (var w in warnings) fs.ShowMessage("3D plant model: " + w, IFlowsheet.MessageType.Warning);
@@ -173,6 +204,7 @@ namespace DWSIM.Extensions.SolidCraft
                 }
             }
 
+            CadJob.Report("Building the 3D model of the flowsheet");
             var options = ExportOptions.Load();
             var model = PlantModelBuilder.Build(fs, name, layout, options);
 
@@ -231,6 +263,7 @@ namespace DWSIM.Extensions.SolidCraft
                 var replay = DynamicReplay.Collect(fs);
                 if (replay != null) extras.AddRange(DynamicReplay.Create(model, fs, replay, outputBase + " - dynamic replay.gif", replayNotes));
             }
+            CadJob.Check();
             var result = SolidCraftRunner.Run(solidcraftFolder, commands, extras, outputBase, options);
 
             foreach (var w in model.Warnings)
@@ -318,8 +351,10 @@ namespace DWSIM.Extensions.SolidCraft
 
         public void Run() => CadToolCommand.Start(Flowsheet, CadTool.UpdatePlantModel);
 
-        public static void Update(IFlowsheet fs, string folder, string modelFolder = null)
+        /// <summary>Sends the data; returns null when they reached the model, else the reason.</summary>
+        public static string Update(IFlowsheet fs, string folder, string modelFolder = null)
         {
+            CadJob.Report("Building the 3D model data");
             var name = PlantModelExtender.ModelName(fs);
             var outputBase = Path.Combine(modelFolder ?? PlantModelExtender.OutputFolder(fs), name);
             var model = PlantModelBuilder.Build(fs, name, PlantLayout.Load(fs), ExportOptions.Load());
@@ -333,22 +368,25 @@ namespace DWSIM.Extensions.SolidCraft
             }
             catch (Exception) { }
 
+            CadJob.Report("Sending the data to SolidCraft");
             if (LiveLink.TryRun(folder, name, cmds, out var failed, out var why))
             {
                 fs.ShowMessage("3D plant model: the operating data of " + (cmds.Count - failed) + " items and lines were sent to the model open in SolidCraft" +
                     (failed > 0 ? " (" + failed + " not in the model: export it again)" : "") + ".", IFlowsheet.MessageType.Information);
-                return;
+                return null;
             }
             if (!File.Exists(outputBase + ".sc"))
             {
                 fs.ShowMessage("3D plant model: " + why + ", and there is no exported model yet: use Export 3D Plant Model first.", IFlowsheet.MessageType.Warning);
-                return;
+                return "There is no exported 3D model in " + Path.GetDirectoryName(outputBase) + " yet: export it first.";
             }
+            CadJob.Report("SolidCraft: writing the data into the saved design");
             var skipped = new List<string>();
             var error = SolidCraftRunner.UpdateDesign(folder, cmds, outputBase, skipped);
             fs.ShowMessage(error == null
                 ? "3D plant model: " + why + "; the data were written into the saved model (" + outputBase + ".sc)" + (skipped.Count > 0 ? ", " + skipped.Count + " items not in it" : "") + "."
                 : "3D plant model: the data could not be written (" + error + ").", error == null ? IFlowsheet.MessageType.Information : IFlowsheet.MessageType.Warning);
+            return error == null ? null : "The data could not be written: " + error;
         }
     }
 

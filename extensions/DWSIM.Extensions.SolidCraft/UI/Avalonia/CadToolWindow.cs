@@ -328,5 +328,20 @@ namespace DWSIM.Extensions.SolidCraft
                 Console.WriteLine("CAD Tools: " + ex);
             }
         }
+
+        /// <summary>Shows the window of a running tool over the main window.</summary>
+        internal static void Watch(CadJob job)
+        {
+            try
+            {
+                var desktop = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
+                var owner = desktop?.Windows.FirstOrDefault(w => w.IsActive) ?? desktop?.MainWindow;
+                new CadToolProgressWindow(job).Show(owner);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("CAD Tools: " + ex);
+            }
+        }
     }
 }

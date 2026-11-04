@@ -285,6 +285,7 @@ namespace DWSIM.Extensions.SolidCraft
             }
 
             File.Delete(outputBase + ".dxf");
+            CadJob.Report("CADCraft: drawing the plot plan");
             using (var session = new CADCraftSession(cadcraftFolder))
             {
                 if (session.Tool("new_drawing", new JObject { ["metric"] = true }, "new drawing") == null)
@@ -304,6 +305,7 @@ namespace DWSIM.Extensions.SolidCraft
                     session.Execute("viewport.set", new JObject { ["handle"] = handle, ["scale"] = 1.0 / S, ["locked"] = true, ["center"] = P((mx0 + mx1) / 2, (my0 + my1) / 2) });
 
                 foreach (var ext in new[] { ".dxf", ".dwg", ".pdf", ".png" }) if (File.Exists(outputBase + ext)) File.Delete(outputBase + ext);
+                CadJob.Report("CADCraft: saving the PDF, PNG, DWG and DXF");
                 session.Execute("plot", new JObject { ["path"] = outputBase + ".pdf", ["layout"] = "PLOT" }, 300);
                 session.Execute("plot", new JObject { ["path"] = outputBase + ".png", ["layout"] = "PLOT", ["device"] = "CADCraft PNG" }, 300);
                 session.Tool("save", new JObject { ["path"] = outputBase + ".dwg" }, "save DWG");

@@ -106,7 +106,9 @@ namespace DWSIM.Extensions.SolidCraft
                 StandardOutputEncoding = Encoding.UTF8,
                 WorkingDirectory = Path.GetTempPath()
             };
+            CadJob.Check();
             process = Process.Start(psi);
+            CadJob.Watch(process);
             process.ErrorDataReceived += (s, e) => { };
             process.BeginErrorReadLine();
             Call("initialize", new JObject
@@ -128,12 +130,18 @@ namespace DWSIM.Extensions.SolidCraft
 
         JObject Call(string method, JObject prms, int timeoutSeconds)
         {
+            // a cancel closes CADCraft: the call in progress ends without an answer, and the next one never starts
+            CadJob.Check();
             id++;
             Send(new JObject { ["jsonrpc"] = "2.0", ["id"] = id, ["method"] = method, ["params"] = prms });
             while (true)
             {
                 var read = Task.Run(() => process.StandardOutput.ReadLine());
-                if (!read.Wait(timeoutSeconds * 1000) || read.Result == null) throw new TimeoutException("CADCraft did not answer");
+                if (!read.Wait(timeoutSeconds * 1000) || read.Result == null)
+                {
+                    CadJob.Check();
+                    throw new TimeoutException("CADCraft did not answer");
+                }
                 var answer = JObject.Parse(read.Result);
                 if (answer["id"]?.Value<int>() == id) return answer;
             }
@@ -160,6 +168,7 @@ namespace DWSIM.Extensions.SolidCraft
         {
             try { process.StandardInput.Close(); } catch { }
             try { if (!process.WaitForExit(5000)) process.Kill(); } catch { }
+            CadJob.Forget(process);
             process.Dispose();
         }
     }

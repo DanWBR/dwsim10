@@ -217,5 +217,14 @@ namespace DWSIM.Extensions.SolidCraft
                 if (dialog.ShowDialog(Form.ActiveForm) == DialogResult.OK) run(request);
             }
         }
+
+        /// <summary>Shows the window of a running tool over the main window.</summary>
+        internal static void Watch(CadJob job)
+        {
+            var owner = Form.ActiveForm;
+            if (owner == null || !owner.Visible || owner is CadToolDialog || owner is CadToolProgress)
+                owner = Application.OpenForms.Cast<Form>().FirstOrDefault(f => f.Visible && f.TopLevel && !(f is CadToolDialog) && !(f is CadToolProgress));
+            new CadToolProgress(job).Show(owner);
+        }
     }
 }

@@ -93,6 +93,7 @@ namespace DWSIM.Extensions.SolidCraft
                 Picture = outputBase + ".png"
             };
 
+            CadJob.Report("SolidCraft: building the design and the STEP file");
             foreach (var f in new[] { res.Design, res.Step }) if (File.Exists(f)) File.Delete(f);
             res.Error = RunStage(cli, model, res.Script, null, res.Design, res.Step, null, res.Skipped);
             res.Success = res.Error == null && File.Exists(res.Design);
@@ -105,6 +106,7 @@ namespace DWSIM.Extensions.SolidCraft
                 var animated = outputBase + ".flow.sc";
                 if (File.Exists(gif)) File.Delete(gif);
                 if (File.Exists(animated)) File.Delete(animated);
+                CadJob.Report("SolidCraft: adding the labels and the animations");
                 res.AnimationError = RunStage(cli, extras, outputBase + " - labels and flow.json", res.Design, animated, null, FlowAnimation.Prepare, res.Skipped);
                 if (res.AnimationError == null && File.Exists(animated))
                 {
@@ -114,6 +116,7 @@ namespace DWSIM.Extensions.SolidCraft
                 }
             }
 
+            CadJob.Report("SolidCraft: taking the picture");
             Execute(cli, "snapshot --in " + Quote(res.Design) + " --out " + Quote(res.Picture) + " --width 1600 --height 1000 --view iso", 300, out _);
             if (!File.Exists(res.Picture)) res.Picture = null;
 
@@ -125,6 +128,8 @@ namespace DWSIM.Extensions.SolidCraft
                 int width = options?.RenderWidth ?? 1600, height = options?.RenderHeight ?? 1000;
                 // the time a render takes grows with its pixels: 10 minutes for the default size
                 var timeout = (int)Math.Max(600, 600.0 * width * height / (1600 * 1000));
+                CadJob.Report(string.Format(CultureInfo.InvariantCulture, "SolidCraft: rendering the photorealistic picture ({0} x {1}{2}), which takes minutes",
+                    width, height, options != null && options.RenderSamples > 0 ? ", " + options.RenderSamples + " samples per pixel" : ""));
                 Execute(cli, "render " + Quote(res.Design) + " --setup " + Quote(SolidCraftScript.RenderSetup) + " --out " + Quote(render) +
                     string.Format(CultureInfo.InvariantCulture, " --width {0} --height {1}{2} --overwrite --timeout {3}",
                         width, height, options != null && options.RenderSamples > 0 ? " --samples " + options.RenderSamples : "", timeout), timeout + 60, out _);
@@ -143,9 +148,11 @@ namespace DWSIM.Extensions.SolidCraft
             Action<List<SolidCraftScript.Command>> prepare, List<string> skipped, int maxSkips = 40)
         {
             var cmds = new List<SolidCraftScript.Command>(commands);
+            var what = CadJob.Current?.Step;
 
             for (var attempt = 0; ; attempt++)
             {
+                if (attempt > 0 && what != null) CadJob.Report(what + " (attempt " + (attempt + 1) + ", without the commands that failed)");
                 prepare?.Invoke(cmds);
                 File.WriteAllText(script, SolidCraftScript.ToJson(FlowAnimation.Clean(cmds)), new UTF8Encoding(false));
 
@@ -231,6 +238,7 @@ namespace DWSIM.Extensions.SolidCraft
                 if (exit != 0 || !File.Exists(output)) return null;
                 return JToken.Parse(File.ReadAllText(output)) as JArray;
             }
+            catch (OperationCanceledException) { throw; }
             catch (Exception)
             {
                 return null;
@@ -268,16 +276,25 @@ namespace DWSIM.Extensions.SolidCraft
             {
                 p.OutputDataReceived += (s, e) => { if (e.Data != null) lock (sb) sb.AppendLine(e.Data); };
                 p.ErrorDataReceived += (s, e) => { if (e.Data != null) lock (sb) sb.AppendLine(e.Data); };
+                CadJob.Check();
                 p.Start();
-                p.BeginOutputReadLine();
-                p.BeginErrorReadLine();
-                if (!p.WaitForExit(timeoutSeconds * 1000))
+                // a cancel closes it, and the wait ends there
+                CadJob.Watch(p);
+                try
                 {
-                    try { p.Kill(); } catch { }
-                    output = "SolidCraft did not finish in " + timeoutSeconds + " s.";
-                    return -1;
+                    p.BeginOutputReadLine();
+                    p.BeginErrorReadLine();
+                    if (!p.WaitForExit(timeoutSeconds * 1000))
+                    {
+                        try { p.Kill(); } catch { }
+                        CadJob.Check();
+                        output = "SolidCraft did not finish in " + timeoutSeconds + " s.";
+                        return -1;
+                    }
+                    p.WaitForExit();
                 }
-                p.WaitForExit();
+                finally { CadJob.Forget(p); }
+                CadJob.Check();
                 output = sb.ToString();
                 return p.ExitCode;
             }
