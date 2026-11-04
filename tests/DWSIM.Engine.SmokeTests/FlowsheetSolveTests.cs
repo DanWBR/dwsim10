@@ -95,6 +95,19 @@ namespace DWSIM.Engine.SmokeTests
                         "the property packages did not register");
         }
 
+        [TestCase("Peng-Robinson (PR)")]
+        [TestCase("Peng-Robinson 1978 (PR78)")]
+        [TestCase("Peng-Robinson / Lee-Kesler (PR/LK)")]
+        [TestCase("Soave-Redlich-Kwong (SRK)")]
+        public void ThePropertyPackageIsAvailable(string name)
+        {
+            var flowsheet = new DWSIM.DynamicRunner.Flowsheet(null, null);
+            flowsheet.Init();
+
+            Assert.That(flowsheet.AvailablePropertyPackages.ContainsKey(name), Is.True,
+                        name + " is missing from the property package list");
+        }
+
         [TestCase("BiodieselProduction.dwxmz")]
         [TestCase("CavettProblem.dwxml")]
         [TestCase("ExtractiveDistillation.dwxmz")]

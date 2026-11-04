@@ -173,6 +173,10 @@ namespace DWSIM.Automation
                 PRPP.ComponentName = "Peng-Robinson (PR)";
                 plist.Add(PRPP);
 
+                var PRLKPP = new PengRobinsonLKPropertyPackage();
+                PRLKPP.ComponentName = "Peng-Robinson / Lee-Kesler (PR/LK)";
+                plist.Add(PRLKPP);
+
             });
 
             var t3 = TaskHelper.Run(() =>

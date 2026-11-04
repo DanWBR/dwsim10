@@ -4098,6 +4098,10 @@ Label_00CC:
                                     PRPP.ComponentName = "Peng-Robinson (PR)"
                                     plist.Add(PRPP)
 
+                                    Dim PRLKPP As PengRobinsonLKPropertyPackage = New PengRobinsonLKPropertyPackage()
+                                    PRLKPP.ComponentName = "Peng-Robinson / Lee-Kesler (PR/LK)"
+                                    plist.Add(PRLKPP)
+
                                 End Sub)
 
         Dim t3 = TaskHelper.Run(Sub()
