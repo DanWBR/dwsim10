@@ -2,6 +2,7 @@ Imports System.IO
 Imports System.Linq
 Imports System.Net
 Imports System.Text
+Imports Newtonsoft.Json
 Imports Newtonsoft.Json.Linq
 
 ''' <summary>
@@ -20,9 +21,12 @@ Public Class CaseLibraryFlowsheet
 End Class
 
 ''' <summary>
-''' Lists and downloads the flowsheets kept in the DWSIM Case Library GitHub repository. The
-''' repository has no manifest, so the index is read straight off the git tree and every .dwxmz /
-''' .dwxml under cases/ becomes an entry, downloaded from its raw URL. Mirrors FOSSEEFlowsheets.
+''' Lists and downloads the flowsheets kept in the DWSIM Case Library GitHub repository. The list
+''' comes from cases/index.json, which a workflow of the repository keeps up to date, read off
+''' raw.githubusercontent.com; the git tree through the GitHub API is the fall-back (it allows 60
+''' requests an hour per network, and some proxies block it), and the list read last time is kept
+''' for when neither answers. Every .dwxmz / .dwxml under cases/ becomes an entry, downloaded from
+''' its raw URL. Mirrors FOSSEEFlowsheets.
 ''' </summary>
 Public Class CaseLibraryFlowsheets
 
@@ -50,14 +54,14 @@ Public Class CaseLibraryFlowsheets
         End Try
     End Sub
 
-    Private Shared Function DownloadString(url As String) As String
+    Private Shared Function DownloadString(url As String, Optional accept As String = Nothing) As String
         Dim target As New Uri(url)
         Dim request = DirectCast(WebRequest.Create(target), HttpWebRequest)
         request.Method = "GET"
         request.Timeout = 30000
         request.ReadWriteTimeout = 30000
         request.UserAgent = "DWSIM"
-        request.Accept = "application/vnd.github+json"
+        If accept IsNot Nothing Then request.Accept = accept
         ApplySystemProxy(request, target)
 
         Using response = DirectCast(request.GetResponse(), HttpWebResponse)
@@ -69,27 +73,115 @@ Public Class CaseLibraryFlowsheets
         End Using
     End Function
 
+    ''' <summary>The list read last time, for when the Case Library cannot be reached.</summary>
+    Private Shared ReadOnly Property CacheFile As String
+        Get
+            Return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "DWSIM", "caselibrary-index.json")
+        End Get
+    End Property
+
     ''' <summary>
-    ''' Reads the flowsheet index off the case-library repository. It is a web request, so callers
-    ''' run it on a background thread and fill the list when it lands.
+    ''' Reads the list of the case library. It is a web request, so callers run it on a background
+    ''' thread and fill the list when it lands. Throws, with the reason, when nothing can be read.
     ''' </summary>
     Public Shared Function GetCaseLibraryFlowsheets() As List(Of CaseLibraryFlowsheet)
+        Return GetCaseLibraryFlowsheets(Nothing)
+    End Function
 
-        Dim apiUrl As String = $"https://api.github.com/repos/{Owner}/{Repo}/git/trees/{Branch}?recursive=1"
+    ''' <summary>
+    ''' Reads the list of the case library: cases/index.json, else the git tree through the GitHub
+    ''' API, else the list read last time. <paramref name="note"/> says when the list is that last copy,
+    ''' and why; it is Nothing for a list just read. Throws, with the reason, when nothing can be read.
+    ''' </summary>
+    Public Shared Function GetCaseLibraryFlowsheets(ByRef note As String) As List(Of CaseLibraryFlowsheet)
 
-        Dim json As String = DownloadString(apiUrl)
-        Dim root As JObject = JObject.Parse(json)
-        Dim tree = TryCast(root("tree"), JArray)
+        note = Nothing
+        Dim errors As New List(Of String)
+        Dim paths As List(Of String) = Nothing
+
+        Try
+            paths = PathsFromIndex(DownloadString(RawUrl("cases/index.json")))
+        Catch ex As Exception
+            errors.Add("the case index: " & Describe(ex))
+        End Try
+
+        If paths Is Nothing OrElse paths.Count = 0 Then
+            Try
+                paths = PathsFromTree(DownloadString($"https://api.github.com/repos/{Owner}/{Repo}/git/trees/{Branch}?recursive=1", "application/vnd.github+json"))
+            Catch ex As Exception
+                errors.Add("the GitHub API: " & Describe(ex))
+            End Try
+        End If
+
+        If paths IsNot Nothing AndAlso paths.Count > 0 Then
+            Try
+                Directory.CreateDirectory(Path.GetDirectoryName(CacheFile))
+                File.WriteAllText(CacheFile, JsonConvert.SerializeObject(paths), New UTF8Encoding(False))
+            Catch
+            End Try
+            Return Build(paths)
+        End If
+
+        Try
+            If File.Exists(CacheFile) Then
+                Dim cached = JsonConvert.DeserializeObject(Of List(Of String))(File.ReadAllText(CacheFile))
+                If cached IsNot Nothing AndAlso cached.Count > 0 Then
+                    note = "The Case Library could not be reached (" & String.Join("; ", errors) & "): this is the list from " &
+                        File.GetLastWriteTime(CacheFile).ToString("yyyy-MM-dd") & "."
+                    Return Build(cached)
+                End If
+            End If
+        Catch
+        End Try
+
+        Throw New Exception("The Case Library could not be reached: " & String.Join("; ", errors) & ".")
+
+    End Function
+
+    ''' <summary>The flowsheets of cases/index.json.</summary>
+    Private Shared Function PathsFromIndex(json As String) As List(Of String)
+        Dim cases = TryCast(JObject.Parse(json)("cases"), JArray)
+        If cases Is Nothing Then Return New List(Of String)
+        Return cases.Select(Function(c) c("path")?.ToString()).Where(Function(p) Not String.IsNullOrEmpty(p)).ToList()
+    End Function
+
+    ''' <summary>The files of the git tree the GitHub API returns.</summary>
+    Private Shared Function PathsFromTree(json As String) As List(Of String)
+        Dim tree = TryCast(JObject.Parse(json)("tree"), JArray)
+        If tree Is Nothing Then Return New List(Of String)
+        Return tree.Where(Function(n) n("type")?.ToString() = "blob").Select(Function(n) n("path")?.ToString()).Where(Function(p) Not String.IsNullOrEmpty(p)).ToList()
+    End Function
+
+    ''' <summary>What went wrong with a request, in words a user can act on.</summary>
+    Private Shared Function Describe(ex As Exception) As String
+        Dim we = TryCast(ex, WebException)
+        If we Is Nothing Then Return ex.Message
+        Dim response = TryCast(we.Response, HttpWebResponse)
+        If response IsNot Nothing Then
+            Dim code = CInt(response.StatusCode)
+            If (code = 403 OrElse code = 429) AndAlso response.Headers("X-RateLimit-Remaining") = "0" Then
+                Return "GitHub refused it, the 60 requests an hour allowed to this network are used up"
+            End If
+            Return "the server answered " & code & " " & response.StatusDescription
+        End If
+        Select Case we.Status
+            Case WebExceptionStatus.NameResolutionFailure
+                Return "the address could not be found (no internet, or a proxy or firewall blocks it)"
+            Case WebExceptionStatus.Timeout
+                Return "no answer in 30 s"
+            Case WebExceptionStatus.TrustFailure, WebExceptionStatus.SecureChannelFailure
+                Return "the secure connection failed (" & we.Message & "), often a proxy or antivirus that inspects HTTPS"
+            Case Else
+                Return we.Message
+        End Select
+    End Function
+
+    ''' <summary>The entries of the flowsheets among <paramref name="paths"/>, by category and title.</summary>
+    Private Shared Function Build(paths As IEnumerable(Of String)) As List(Of CaseLibraryFlowsheet)
 
         Dim list As New List(Of CaseLibraryFlowsheet)
-        If tree Is Nothing Then Return list
 
-        For Each node In tree
-
-            If node("type") Is Nothing OrElse node("type").ToString() <> "blob" Then Continue For
-
-            Dim p As String = If(node("path")?.ToString(), "")
-            If p = "" Then Continue For
+        For Each p In paths
 
             Dim lower = p.ToLowerInvariant()
             If Not lower.StartsWith("cases/") Then Continue For

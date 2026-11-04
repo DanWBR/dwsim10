@@ -431,8 +431,10 @@ public partial class MainWindow : Window
 
         try
         {
+            // the list, or the copy from last time when the Case Library cannot be reached (note says so)
+            string note = null;
             var list = await System.Threading.Tasks.Task.Run(
-                () => DWSIM.SharedClasses.CaseLibraryFlowsheets.GetCaseLibraryFlowsheets());
+                () => DWSIM.SharedClasses.CaseLibraryFlowsheets.GetCaseLibraryFlowsheets(ref note));
 
             CaseLibraryList.Items.Clear();
 
@@ -442,13 +444,15 @@ public partial class MainWindow : Window
                 return;
             }
 
+            if (note != null) CaseLibraryList.Items.Add("(" + note + ")");
             foreach (var flowsheet in list)
                 CaseLibraryList.Items.Add(new CaseLibraryItem(flowsheet));
         }
         catch (Exception ex)
         {
             CaseLibraryList.Items.Clear();
-            CaseLibraryList.Items.Add("(Could not reach the Case Library: " + ex.Message + ")");
+            // the message names what failed and why
+            CaseLibraryList.Items.Add("(" + ex.Message + ")");
         }
     }
 
