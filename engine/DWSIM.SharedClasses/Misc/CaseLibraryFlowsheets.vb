@@ -18,6 +18,29 @@ Public Class CaseLibraryFlowsheet
     Public Property PreviewUrl As String = ""
     Public Property DisplayName As String = ""
 
+    ''' <summary>
+    ''' The components of the DWSIM Patreon Edition the case uses (a unit operation, property package
+    ''' or extension the open-source DWSIM does not have), by name, as the case index lists them.
+    ''' </summary>
+    Public Property PatreonComponents As New List(Of String)
+
+    ''' <summary>The assemblies of those components, in the same order.</summary>
+    Public Property PatreonAssemblies As New List(Of String)
+
+    ''' <summary>
+    ''' The Patreon Edition components the case uses that this DWSIM does not have: the case does
+    ''' not open here. Empty in the Patreon Edition and for the cases that need none.
+    ''' </summary>
+    Public ReadOnly Property MissingComponents As List(Of String)
+        Get
+            Dim missing As New List(Of String)
+            For i = 0 To PatreonAssemblies.Count - 1
+                If Not CaseLibraryFlowsheets.HasAssembly(PatreonAssemblies(i)) Then missing.Add(PatreonComponents(i))
+            Next
+            Return missing
+        End Get
+    End Property
+
 End Class
 
 ''' <summary>
@@ -97,34 +120,34 @@ Public Class CaseLibraryFlowsheets
 
         note = Nothing
         Dim errors As New List(Of String)
-        Dim paths As List(Of String) = Nothing
+        Dim entries As List(Of JObject) = Nothing
 
         Try
-            paths = PathsFromIndex(DownloadString(RawUrl("cases/index.json")))
+            entries = EntriesFromIndex(DownloadString(RawUrl("cases/index.json")))
         Catch ex As Exception
             errors.Add("the case index: " & Describe(ex))
         End Try
 
-        If paths Is Nothing OrElse paths.Count = 0 Then
+        If entries Is Nothing OrElse entries.Count = 0 Then
             Try
-                paths = PathsFromTree(DownloadString($"https://api.github.com/repos/{Owner}/{Repo}/git/trees/{Branch}?recursive=1", "application/vnd.github+json"))
+                entries = EntriesFromTree(DownloadString($"https://api.github.com/repos/{Owner}/{Repo}/git/trees/{Branch}?recursive=1", "application/vnd.github+json"))
             Catch ex As Exception
                 errors.Add("the GitHub API: " & Describe(ex))
             End Try
         End If
 
-        If paths IsNot Nothing AndAlso paths.Count > 0 Then
+        If entries IsNot Nothing AndAlso entries.Count > 0 Then
             Try
                 Directory.CreateDirectory(Path.GetDirectoryName(CacheFile))
-                File.WriteAllText(CacheFile, JsonConvert.SerializeObject(paths), New UTF8Encoding(False))
+                File.WriteAllText(CacheFile, New JObject From {{"version", 1}, {"cases", New JArray(entries)}}.ToString(Formatting.None), New UTF8Encoding(False))
             Catch
             End Try
-            Return Build(paths)
+            Return Build(entries)
         End If
 
         Try
             If File.Exists(CacheFile) Then
-                Dim cached = JsonConvert.DeserializeObject(Of List(Of String))(File.ReadAllText(CacheFile))
+                Dim cached = EntriesFromIndex(File.ReadAllText(CacheFile))
                 If cached IsNot Nothing AndAlso cached.Count > 0 Then
                     note = "The Case Library could not be reached (" & String.Join("; ", errors) & "): this is the list from " &
                         File.GetLastWriteTime(CacheFile).ToString("yyyy-MM-dd") & "."
@@ -138,18 +161,41 @@ Public Class CaseLibraryFlowsheets
 
     End Function
 
-    ''' <summary>The flowsheets of cases/index.json.</summary>
-    Private Shared Function PathsFromIndex(json As String) As List(Of String)
+    ''' <summary>The cases of cases/index.json: path, preview and the Patreon Edition components they use.</summary>
+    Private Shared Function EntriesFromIndex(json As String) As List(Of JObject)
         Dim cases = TryCast(JObject.Parse(json)("cases"), JArray)
-        If cases Is Nothing Then Return New List(Of String)
-        Return cases.Select(Function(c) c("path")?.ToString()).Where(Function(p) Not String.IsNullOrEmpty(p)).ToList()
+        If cases Is Nothing Then Return New List(Of JObject)
+        Return cases.OfType(Of JObject).Where(Function(c) Not String.IsNullOrEmpty(c("path")?.ToString())).ToList()
     End Function
 
-    ''' <summary>The files of the git tree the GitHub API returns.</summary>
-    Private Shared Function PathsFromTree(json As String) As List(Of String)
+    ''' <summary>The files of the git tree the GitHub API returns, as index entries without components.</summary>
+    Private Shared Function EntriesFromTree(json As String) As List(Of JObject)
         Dim tree = TryCast(JObject.Parse(json)("tree"), JArray)
-        If tree Is Nothing Then Return New List(Of String)
-        Return tree.Where(Function(n) n("type")?.ToString() = "blob").Select(Function(n) n("path")?.ToString()).Where(Function(p) Not String.IsNullOrEmpty(p)).ToList()
+        If tree Is Nothing Then Return New List(Of JObject)
+        Return tree.Where(Function(n) n("type")?.ToString() = "blob").Select(Function(n) n("path")?.ToString()).
+            Where(Function(p) Not String.IsNullOrEmpty(p)).Select(Function(p) New JObject From {{"path", p}}).ToList()
+    End Function
+
+    Private Shared ReadOnly Assemblies As New Dictionary(Of String, Boolean)(StringComparer.OrdinalIgnoreCase)
+
+    ''' <summary>
+    ''' True when this DWSIM has the assembly: loaded, or in its folder or the folders it loads
+    ''' unit operations, property packages and extensions from.
+    ''' </summary>
+    Friend Shared Function HasAssembly(name As String) As Boolean
+        SyncLock Assemblies
+            Dim known As Boolean
+            If Assemblies.TryGetValue(name, known) Then Return known
+            Dim found = AppDomain.CurrentDomain.GetAssemblies().Any(Function(a) String.Equals(a.GetName().Name, name, StringComparison.OrdinalIgnoreCase))
+            If Not found Then
+                Dim root = AppDomain.CurrentDomain.BaseDirectory
+                For Each folder In {"", "unitops", "ppacks", "extenders", "plugins"}
+                    If File.Exists(Path.Combine(root, folder, name & ".dll")) Then found = True : Exit For
+                Next
+            End If
+            Assemblies(name) = found
+            Return found
+        End SyncLock
     End Function
 
     ''' <summary>What went wrong with a request, in words a user can act on.</summary>
@@ -176,12 +222,14 @@ Public Class CaseLibraryFlowsheets
         End Select
     End Function
 
-    ''' <summary>The entries of the flowsheets among <paramref name="paths"/>, by category and title.</summary>
-    Private Shared Function Build(paths As IEnumerable(Of String)) As List(Of CaseLibraryFlowsheet)
+    ''' <summary>The flowsheets among <paramref name="entries"/>, by category and title.</summary>
+    Private Shared Function Build(entries As IEnumerable(Of JObject)) As List(Of CaseLibraryFlowsheet)
 
         Dim list As New List(Of CaseLibraryFlowsheet)
 
-        For Each p In paths
+        For Each entry In entries
+
+            Dim p As String = entry("path").ToString()
 
             Dim lower = p.ToLowerInvariant()
             If Not lower.StartsWith("cases/") Then Continue For
@@ -203,6 +251,18 @@ Public Class CaseLibraryFlowsheets
             Dim pngPath As String = p.Substring(0, p.Length - Path.GetExtension(p).Length) & ".png"
             fs.PreviewUrl = RawUrl(pngPath)
             fs.DisplayName = If(category = "", fs.Title, category & " - " & fs.Title)
+
+            Dim requires = TryCast(entry("requires"), JArray)
+            If requires IsNot Nothing Then
+                For Each r In requires.OfType(Of JObject)
+                    Dim asm = r("assembly")?.ToString()
+                    If String.IsNullOrEmpty(asm) Then Continue For
+                    fs.PatreonAssemblies.Add(asm)
+                    fs.PatreonComponents.Add(If(r("name")?.ToString(), asm))
+                Next
+            End If
+            ' this DWSIM lacks what the case needs: say so in the list
+            If fs.MissingComponents.Count > 0 Then fs.DisplayName &= "  [needs DWSIM Patreon Edition]"
 
             list.Add(fs)
 
