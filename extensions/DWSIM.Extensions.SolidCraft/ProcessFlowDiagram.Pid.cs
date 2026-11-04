@@ -238,6 +238,8 @@ namespace DWSIM.Extensions.SolidCraft
                 ["name"] = "LEGEND_TITLE", ["file"] = tb.Replace('\\', '/'), ["at"] = new JArray(sheet.Width - mo, mo),
                 ["attribs"] = JObject.FromObject(DrawingSheets.Attributes(t2, sheet, style))
             });
+            var logo = DrawingSheets.Logo(style, sheet.Width - mo, mo, "LEGEND_LOGO");
+            if (logo != null) C("insert", logo);
 
             // the entries flow in rows of cells, each heading on a row of its own; cells over the
             // title block are skipped

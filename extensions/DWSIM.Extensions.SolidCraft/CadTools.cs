@@ -140,6 +140,55 @@ namespace DWSIM.Extensions.SolidCraft
         public bool ProgramFoundIn(string folder)
             => !string.IsNullOrWhiteSpace(folder) && File.Exists(Path.Combine(folder.Trim(), CADCraftSession.Exe(ProgramExe)));
 
+        /// <summary>
+        /// What the dialogs say about the program in <paramref name="folder"/>: found and its version,
+        /// older than DWSIM needs, or not there. <paramref name="level"/> is 0, 1 or 2 in that order.
+        /// </summary>
+        public string ProgramStatus(string folder, out int level)
+        {
+            var exe = CADCraftSession.Exe(ProgramExe);
+            if (!ProgramFoundIn(folder))
+            {
+                level = 2;
+                return string.IsNullOrWhiteSpace(folder) ? Program + " was not found on this computer: choose the folder that holds " + exe + "." : exe + " is not in this folder.";
+            }
+            var version = CadTools.ProgramVersion(Path.Combine(folder.Trim(), exe));
+            var needed = Program == "SolidCraft" ? CadTools.MinSolidCraft : CadTools.MinCADCraft;
+            if (version != null && version < needed)
+            {
+                level = 1;
+                return exe + " " + version + " found in this folder, but DWSIM needs " + Program + " " + needed.ToString(2) + " or newer: parts of the export may fail. Update " + Program + ".";
+            }
+            level = 0;
+            return exe + (version != null ? " " + version : "") + " found in this folder.";
+        }
+
+        /// <summary>The flowsheet the dialog is for (the render preview builds its camera from it).</summary>
+        public IFlowsheet Flowsheet;
+
+        /// <summary>The output the tool has before anything was chosen for it, for the Defaults button.</summary>
+        public string DefaultOutput;
+
+        /// <summary>The length units of the flowsheet: the dialogs show the lengths of the 3D model in them.</summary>
+        public string LengthUnits = "m";
+
+        /// <summary>A length of the options (m) in <see cref="LengthUnits"/>.</summary>
+        public double ToLength(double meters)
+        {
+            try { return LengthUnits == "m" ? meters : SharedClasses.SystemsOfUnits.Converter.ConvertFromSI(LengthUnits, meters); }
+            catch (Exception) { return meters; }
+        }
+
+        /// <summary>A length in <see cref="LengthUnits"/> in metres, for the options.</summary>
+        public double FromLength(double value)
+        {
+            try { return LengthUnits == "m" ? value : SharedClasses.SystemsOfUnits.Converter.ConvertToSI(LengthUnits, value); }
+            catch (Exception) { return value; }
+        }
+
+        /// <summary>The 3D model's render preview needs the saved design.</summary>
+        public bool CanPreview(string output) => ShowsModelOptions && Flowsheet != null && !string.IsNullOrWhiteSpace(output) && File.Exists(Path.Combine(output.Trim(), ModelName + ".sc"));
+
         /// <summary>The window icon: the 3D model for the SolidCraft tools, drawing sheets for the CADCraft ones.</summary>
         public Stream Icon()
             => typeof(CadToolRequest).Assembly.GetManifestResourceStream("DWSIM.Extensions.SolidCraft." + (IsDrawing ? "Sheets.ico" : "Model3D.ico"));
@@ -252,7 +301,9 @@ namespace DWSIM.Extensions.SolidCraft
         {
             var name = PlantModelExtender.ModelName(fs);
             var drawings = ProcessFlowDiagramExtender.DrawingsFolder(fs);
-            var r = new CadToolRequest { Tool = tool, Options = ExportOptions.Load(), OutputLabel = "Output folder", ModelName = name };
+            var r = new CadToolRequest { Tool = tool, Options = ExportOptions.Load(), OutputLabel = "Output folder", ModelName = name, Flowsheet = fs };
+            var units = fs.FlowsheetOptions?.SelectedUnitSystem?.distance;
+            if (!string.IsNullOrWhiteSpace(units)) r.LengthUnits = units;
             switch (tool)
             {
                 case CadTool.PlantModel:
@@ -338,6 +389,7 @@ namespace DWSIM.Extensions.SolidCraft
                 r.ProgramExe = "cadcraft-cli";
                 r.ProgramFolder = CADCraftSession.FindInstallFolder() ?? r.Options.CADCraftPath ?? "";
             }
+            r.DefaultOutput = r.Output;
             var kept = SavedOutput(fs, tool);
             if (kept != null) r.Output = kept;
             return r;
@@ -397,7 +449,102 @@ namespace DWSIM.Extensions.SolidCraft
         /// <summary>Renders longer than this get the estimate in the warning colour.</summary>
         public const double LongRenderSeconds = 600;
 
+        /// <summary>
+        /// The views of the photorealistic picture: the turn about the vertical (0 looks at the front of
+        /// the plant, as SolidCraft's front view does) and the height above the horizon, radians.
+        /// </summary>
+        public static readonly (string Id, string Text, double Yaw, double Pitch)[] RenderViews =
+        {
+            ("iso", "Isometric, front right", -0.785, 0.55),
+            ("iso-front-left", "Isometric, front left", 0.785, 0.55),
+            ("iso-back-left", "Isometric, back left", 2.356, 0.55),
+            ("iso-back-right", "Isometric, back right", -2.356, 0.55),
+            ("front", "Front elevation", 0, 0.05),
+            ("side", "Side elevation", -1.5708, 0.05),
+            ("plan", "Plan, from above", 0, 1.5)
+        };
+
+        /// <summary>Reads a picture size, "1920 x 1080" (x, X, * or a comma between); false when it is not two whole numbers.</summary>
+        public static bool TryReadSize(string text, out int width, out int height)
+        {
+            width = height = 0;
+            var m = System.Text.RegularExpressions.Regex.Match(text ?? "", @"^\s*(\d{2,5})\s*[xX*,×]\s*(\d{2,5})");
+            if (!m.Success) return false;
+            width = Math.Max(320, Math.Min(7680, int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture)));
+            height = Math.Max(200, Math.Min(4320, int.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture)));
+            return true;
+        }
+
+        /// <summary>The text of a picture size: the name of the preset it is, else "W x H".</summary>
+        public static string SizeText(int width, int height)
+            => RenderSizes.Where(s => s.Width == width && s.Height == height).Select(s => s.Text).FirstOrDefault() ?? width + " x " + height;
+
+        /// <summary>The oldest versions the exports were made and tested with: an older one may lack commands they use.</summary>
+        public static readonly Version MinSolidCraft = new Version(0, 30, 0), MinCADCraft = new Version(0, 17, 0);
+
+        static readonly Dictionary<string, (DateTime Written, Version Version)> Versions = new Dictionary<string, (DateTime, Version)>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>The version a SolidCraft or CADCraft command-line program reports (--version); null when it says none.</summary>
+        public static Version ProgramVersion(string exe)
+        {
+            if (!File.Exists(exe)) return null;
+            var written = File.GetLastWriteTimeUtc(exe);
+            lock (Versions)
+                if (Versions.TryGetValue(exe, out var known) && known.Written == written) return known.Version;
+            Version version = null;
+            try
+            {
+                var psi = new System.Diagnostics.ProcessStartInfo(exe, "--version")
+                {
+                    UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true, CreateNoWindow = true
+                };
+                using (var p = System.Diagnostics.Process.Start(psi))
+                {
+                    var read = p.StandardOutput.ReadToEndAsync();
+                    if (p.WaitForExit(5000) && read.Wait(1000))
+                    {
+                        var m = System.Text.RegularExpressions.Regex.Match(read.Result, @"(\d+)\.(\d+)(?:\.(\d+))?");
+                        if (m.Success)
+                            version = new Version(int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture), int.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture),
+                                m.Groups[3].Success ? int.Parse(m.Groups[3].Value, CultureInfo.InvariantCulture) : 0);
+                    }
+                    else try { p.Kill(); } catch (Exception) { }
+                }
+            }
+            catch (Exception) { version = null; }
+            lock (Versions) Versions[exe] = (written, version);
+            return version;
+        }
+
+        /// <summary>
+        /// A quick picture of the 3D model as the dialog stands: the saved design with the camera of the
+        /// view chosen, 800 x 500 with 16 samples (half a minute or so), opened when it is done.
+        /// </summary>
+        public static void Preview(CadToolRequest r)
+        {
+            var fs = r.Flowsheet;
+            var folder = (r.ProgramFolder ?? "").Trim();
+            var output = (r.Output ?? "").Trim();
+            var design = Path.Combine(output, r.ModelName + ".sc");
+            var picture = Path.Combine(output, r.ModelName + " - render preview.png");
+            var options = r.Options;
+            var job = new CadJob(new CadToolRequest { Tool = CadTool.PlantModel, Title = "Render Preview", Output = output, Program = "SolidCraft" });
+            CadToolPrompt.Watch(job);
+            job.Start(fs, "Render preview", () =>
+            {
+                CadJob.Report("Building the 3D model of the flowsheet");
+                var model = PlantModelBuilder.Build(fs, r.ModelName, PlantLayout.Load(fs), options);
+                var error = SolidCraftRunner.Preview(folder, design, SolidCraftScript.CreateRenderSetup(model, 16), picture, 800, 500);
+                if (error != null) return "SolidCraft could not render the preview: " + error;
+                CadJob.Open(picture);
+                return null;
+            });
+        }
+
         public static readonly string[] Standards = { "ISO", "ASME", "Petrobras" };
+
+        /// <summary>The document statuses offered for the title block (another can be typed).</summary>
+        public static readonly string[] Statuses = { "PRELIMINARY", "FOR REVIEW", "FOR APPROVAL", "APPROVED", "FOR CONSTRUCTION", "AS BUILT" };
 
         static readonly string[] DrawingExtensions = { ".dxf", ".dwg", ".pdf", ".png" };
 

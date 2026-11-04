@@ -36,37 +36,36 @@ namespace DWSIM.Extensions.SolidCraft
     public sealed class CadToolWindow : PlusWindow
     {
         readonly CadToolRequest Request;
-        readonly List<(int Width, int Height, string Text)> Sizes;
         readonly List<(int Samples, string Text)> Samples;
 
         TextBox programFolder, output, owner, clearance, rackHeight, itemGap;
+        TextBox projectNumber, department, preparedBy, area, checkedBy, revision, approvedBy, revisionText, logo;
         TextBlock programStatus, problem, renderTime, overwriteText;
         CheckBox openInApp, labels, flowAnimation, insulation, platforms, instruments, dynamicReplay, render, keepCopy;
         CheckBox dwg, pdf, png, drawingSet, readMoves;
         List<CheckBox> itemChecks;
         StackPanel overwrite;
-        Button run;
-        ComboBox standard, resolution, samples;
+        Button run, preview;
+        ComboBox standard, status, resolution, samples, view;
 
         public CadToolWindow(CadToolRequest request)
         {
             Request = request;
             var o = request.Options;
-            // a size chosen elsewhere (an edited settings file) is offered as it is
-            Sizes = CadTools.RenderSizes.ToList();
-            if (!Sizes.Any(s => s.Width == o.RenderWidth && s.Height == o.RenderHeight))
-                Sizes.Add((o.RenderWidth, o.RenderHeight, o.RenderWidth + " x " + o.RenderHeight));
+            // a count chosen elsewhere (an edited settings file) is offered as it is
             Samples = CadTools.RenderSamples.ToList();
             if (!Samples.Any(s => s.Samples == o.RenderSamples)) Samples.Add((o.RenderSamples, o.RenderSamples.ToString(CultureInfo.CurrentCulture)));
 
             Title = request.Title;
             using (var icon = request.Icon())
                 if (icon != null) Icon = new WindowIcon(icon);
-            Width = 620;
+            Width = 640;
             SizeToContent = SizeToContent.Height;
             CanResize = false;
             Content = Build();
+            ShowOptions(o);
             UpdateProgramStatus();
+            UpdatePreview();
         }
 
         static TextBlock Label(string text) => new TextBlock { Text = text, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 0) };
@@ -104,6 +103,26 @@ namespace DWSIM.Extensions.SolidCraft
             return g;
         }
 
+        /// <summary>Label and field pairs two to a row; a pair whose field is wide takes the whole row.</summary>
+        static Grid Pairs(params (string Label, Control Field, bool Wide)[] pairs)
+        {
+            var g = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto,*"), RowSpacing = 6 };
+            int row = -1, col = 2;
+            foreach (var p in pairs)
+            {
+                if (p.Wide || col == 2) { row++; col = 0; g.RowDefinitions.Add(new RowDefinition(GridLength.Auto)); }
+                else col = 2;
+                var l = Label(p.Label);
+                if (col == 2) l.Margin = new Thickness(12, 0, 10, 0);
+                Grid.SetRow(l, row); Grid.SetColumn(l, col);
+                Grid.SetRow(p.Field, row); Grid.SetColumn(p.Field, col + 1);
+                if (p.Wide) { Grid.SetColumnSpan(p.Field, 3); col = 2; }
+                g.Children.Add(l);
+                g.Children.Add(p.Field);
+            }
+            return g;
+        }
+
         /// <summary>A path field with its Browse button.</summary>
         static Grid PathRow(TextBox box, Func<Task> browse)
         {
@@ -116,10 +135,11 @@ namespace DWSIM.Extensions.SolidCraft
             return g;
         }
 
+        static TextBox Short() => new TextBox { Width = 90, HorizontalAlignment = HorizontalAlignment.Left };
+
         Control Build()
         {
             var r = Request;
-            var o = r.Options;
             var root = new StackPanel { Margin = new Thickness(14, 10, 14, 12), Spacing = 2 };
             root.Children.Add(new TextBlock { Text = r.Description, TextWrapping = TextWrapping.Wrap, Opacity = 0.85, Margin = new Thickness(0, 0, 0, 4) });
 
@@ -132,6 +152,8 @@ namespace DWSIM.Extensions.SolidCraft
             }
 
             output = new TextBox { Text = r.Output ?? "" };
+            // another output: the warning about the old files no longer applies
+            output.TextChanged += (_, _) => { HideOverwrite(); UpdatePreview(); };
             var outputRows = new List<(string, Control)> { (r.OutputLabel, PathRow(output, BrowseOutput)) };
             if (r.ShowsOpenInApp)
             {
@@ -143,24 +165,34 @@ namespace DWSIM.Extensions.SolidCraft
             if (r.IsDrawing)
             {
                 standard = new ComboBox { ItemsSource = CadTools.Standards, MinWidth = 160 };
-                standard.SelectedIndex = Math.Max(0, Array.FindIndex(CadTools.Standards, s => string.Equals(s, o.DrawingStandard, StringComparison.OrdinalIgnoreCase)));
-                owner = new TextBox { Text = o.DrawingOwner ?? "" };
+                owner = new TextBox();
                 var rows = new List<(string, Control)> { ("Drawing standard", standard), ("Company in the title block", owner) };
                 if (r.ShowsClearance)
                 {
-                    clearance = new TextBox { Text = o.LineClearance.ToString(CultureInfo.CurrentCulture), Width = 90, HorizontalAlignment = HorizontalAlignment.Left };
+                    clearance = Short();
                     rows.Add(("Line clearance (mm, 1 to 15)", clearance));
                 }
-                dwg = new CheckBox { Content = "DWG", IsChecked = o.SaveDwg };
-                pdf = new CheckBox { Content = "PDF", IsChecked = o.SavePdf };
-                png = new CheckBox { Content = "PNG", IsChecked = o.SavePng };
+                dwg = new CheckBox { Content = "DWG" };
+                pdf = new CheckBox { Content = "PDF" };
+                png = new CheckBox { Content = "PNG" };
                 rows.Add(("Also save (DXF always)", new StackPanel { Orientation = Orientation.Horizontal, Spacing = 14, Children = { dwg, pdf, png } }));
                 if (r.ShowsDrawingSet)
                 {
-                    drawingSet = new CheckBox { Content = "One PDF with a drawing list", IsChecked = o.DrawingSet };
+                    drawingSet = new CheckBox { Content = "One PDF with a drawing list" };
                     rows.Add(("Drawing set", drawingSet));
                 }
                 root.Children.Add(Group("Drawing", Rows(rows.ToArray())));
+
+                projectNumber = new TextBox(); department = new TextBox(); preparedBy = new TextBox(); area = new TextBox();
+                checkedBy = new TextBox(); revision = new TextBox(); approvedBy = new TextBox(); revisionText = new TextBox(); logo = new TextBox();
+                status = new ComboBox { ItemsSource = CadTools.Statuses, IsEditable = true, HorizontalAlignment = HorizontalAlignment.Stretch };
+                root.Children.Add(Group("Title block", Pairs(
+                    ("Project number", projectNumber, false), ("Department", department, false),
+                    ("Prepared by", preparedBy, false), ("Area / unit", area, false),
+                    ("Checked by", checkedBy, false), ("Revision", revision, false),
+                    ("Approved by", approvedBy, false), ("Status", status, false),
+                    ("Revision description", revisionText, true),
+                    ("Logo (DXF or DWG)", PathRow(logo, BrowseLogo), true))));
             }
 
             if (r.ShowsItems)
@@ -207,34 +239,42 @@ namespace DWSIM.Extensions.SolidCraft
 
             if (r.ShowsModelOptions)
             {
-                labels = new CheckBox { Content = "Labels over the items", IsChecked = o.Labels };
-                flowAnimation = new CheckBox { Content = "Flow animation", IsChecked = o.FlowAnimation };
-                insulation = new CheckBox { Content = "Insulation", IsChecked = o.Insulation };
-                platforms = new CheckBox { Content = "Platforms and ladders", IsChecked = o.Platforms };
-                instruments = new CheckBox { Content = "Instruments", IsChecked = o.Instruments };
-                dynamicReplay = new CheckBox { Content = "Replay of the last dynamic run", IsChecked = o.DynamicReplay };
+                labels = new CheckBox { Content = "Labels over the items" };
+                flowAnimation = new CheckBox { Content = "Flow animation" };
+                insulation = new CheckBox { Content = "Insulation" };
+                platforms = new CheckBox { Content = "Platforms and ladders" };
+                instruments = new CheckBox { Content = "Instruments" };
+                dynamicReplay = new CheckBox { Content = "Replay of the last dynamic run" };
                 var checks = new UniformGrid { Columns = 2 };
                 foreach (var c in new[] { labels, flowAnimation, insulation, platforms, instruments, dynamicReplay }) checks.Children.Add(c);
-                rackHeight = new TextBox { Text = o.RackHeight.ToString(CultureInfo.CurrentCulture), Width = 90, HorizontalAlignment = HorizontalAlignment.Left };
-                itemGap = new TextBox { Text = o.ItemGap.ToString(CultureInfo.CurrentCulture), Width = 90, HorizontalAlignment = HorizontalAlignment.Left };
-                root.Children.Add(Group("3D model", Rows((null, checks), ("Top of the pipe rack (m)", rackHeight), ("Smallest gap between items (m)", itemGap))));
+                rackHeight = Short();
+                itemGap = Short();
+                root.Children.Add(Group("3D model", Rows((null, checks),
+                    ("Top of the pipe rack (" + r.LengthUnits + ")", rackHeight), ("Smallest gap between items (" + r.LengthUnits + ")", itemGap))));
 
-                render = new CheckBox { Content = "Render a photorealistic picture of the model (path tracing)", IsChecked = o.Render };
-                resolution = new ComboBox { ItemsSource = Sizes.Select(s => s.Text).ToList(), MinWidth = 200 };
-                resolution.SelectedIndex = Sizes.FindIndex(s => s.Width == o.RenderWidth && s.Height == o.RenderHeight);
+                render = new CheckBox { Content = "Render a photorealistic picture of the model (path tracing)" };
+                // a preset, or a size typed as "width x height"
+                resolution = new ComboBox { ItemsSource = CadTools.RenderSizes.Select(s => s.Text).ToList(), IsEditable = true, MinWidth = 200 };
                 samples = new ComboBox { ItemsSource = Samples.Select(s => s.Text).ToList(), MinWidth = 200 };
-                samples.SelectedIndex = Samples.FindIndex(s => s.Samples == o.RenderSamples);
+                view = new ComboBox { ItemsSource = CadTools.RenderViews.Select(v => v.Text).ToList(), MinWidth = 200 };
                 renderTime = new TextBlock { TextWrapping = TextWrapping.Wrap, FontSize = UiScale.Font(12) };
+                preview = new Button { Content = "Preview the view (the 3D model saved last)" };
+                preview.Click += (_, _) =>
+                {
+                    var why = Collect();
+                    if (why != null) ShowProblem(why);
+                    else CadTools.Preview(Request);
+                };
                 render.IsCheckedChanged += (_, _) =>
                 {
-                    resolution.IsEnabled = samples.IsEnabled = render.IsChecked == true;
+                    resolution.IsEnabled = samples.IsEnabled = view.IsEnabled = render.IsChecked == true;
                     UpdateRenderTime();
+                    UpdatePreview();
                 };
-                resolution.SelectionChanged += (_, _) => UpdateRenderTime();
+                resolution.PropertyChanged += (_, e) => { if (e.Property == ComboBox.TextProperty || e.Property == SelectingItemsControl.SelectedIndexProperty) UpdateRenderTime(); };
                 samples.SelectionChanged += (_, _) => UpdateRenderTime();
-                resolution.IsEnabled = samples.IsEnabled = o.Render;
-                UpdateRenderTime();
-                root.Children.Add(Group("Photorealistic picture", Rows((null, render), ("Resolution (pixels)", resolution), ("Samples per pixel", samples), (null, renderTime))));
+                root.Children.Add(Group("Photorealistic picture", Rows((null, render), ("Resolution (pixels)", resolution), ("Samples per pixel", samples),
+                    ("View", view), (null, renderTime), (null, preview))));
             }
 
             overwriteText = new TextBlock { Foreground = Brushes.DarkOrange, TextWrapping = TextWrapping.Wrap };
@@ -242,8 +282,6 @@ namespace DWSIM.Extensions.SolidCraft
             overwrite = Group("Files from an earlier export", new StackPanel { Spacing = 6, Children = { overwriteText, keepCopy } });
             overwrite.IsVisible = false;
             root.Children.Add(overwrite);
-            // another output: the warning about the old files no longer applies
-            output.TextChanged += (_, _) => HideOverwrite();
 
             problem = new TextBlock { Foreground = Brushes.Firebrick, TextWrapping = TextWrapping.Wrap, IsVisible = false, Margin = new Thickness(0, 6, 0, 0) };
             root.Children.Add(problem);
@@ -254,26 +292,92 @@ namespace DWSIM.Extensions.SolidCraft
             var cancel = new Button { Content = "Cancel", IsCancel = true, MinWidth = 90 };
             cancel.Classes.Add("dialog");
             cancel.Click += (_, _) => Close(false);
+            var defaults = new Button { Content = "Defaults", MinWidth = 90, Margin = new Thickness(0, 0, 16, 0) };
+            defaults.Classes.Add("dialog");
+            defaults.Click += (_, _) =>
+            {
+                ShowOptions(new ExportOptions { CADCraftPath = Request.Options.CADCraftPath });
+                if (!string.IsNullOrEmpty(Request.DefaultOutput)) output.Text = Request.DefaultOutput;
+            };
             root.Children.Add(new StackPanel
             {
                 Orientation = Orientation.Horizontal,
                 HorizontalAlignment = HorizontalAlignment.Right,
                 Spacing = 8,
                 Margin = new Thickness(0, 10, 0, 0),
-                Children = { cancel, run }
+                Children = { defaults, cancel, run }
             });
-            return root;
+            // a tall dialog (many items, the title block) scrolls on a small screen
+            return new ScrollViewer { Content = root, MaxHeight = 900, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
         }
+
+        /// <summary>Puts the options in the controls (on opening, and for the Defaults button).</summary>
+        void ShowOptions(ExportOptions o)
+        {
+            var r = Request;
+            if (standard != null)
+            {
+                standard.SelectedIndex = Math.Max(0, Array.FindIndex(CadTools.Standards, s => string.Equals(s, o.DrawingStandard, StringComparison.OrdinalIgnoreCase)));
+                owner.Text = o.DrawingOwner ?? "";
+                if (clearance != null) clearance.Text = o.LineClearance.ToString(CultureInfo.CurrentCulture);
+                dwg.IsChecked = o.SaveDwg;
+                pdf.IsChecked = o.SavePdf;
+                png.IsChecked = o.SavePng;
+                if (drawingSet != null) drawingSet.IsChecked = o.DrawingSet;
+                projectNumber.Text = o.ProjectNumber ?? "";
+                department.Text = o.Department ?? "";
+                preparedBy.Text = o.PreparedBy ?? "";
+                area.Text = o.Area ?? "";
+                checkedBy.Text = o.CheckedBy ?? "";
+                revision.Text = o.Revision ?? "";
+                approvedBy.Text = o.ApprovedBy ?? "";
+                status.Text = o.Status ?? "";
+                revisionText.Text = o.RevisionText ?? "";
+                logo.Text = o.Logo ?? "";
+            }
+            if (render != null)
+            {
+                labels.IsChecked = o.Labels;
+                flowAnimation.IsChecked = o.FlowAnimation;
+                insulation.IsChecked = o.Insulation;
+                platforms.IsChecked = o.Platforms;
+                instruments.IsChecked = o.Instruments;
+                dynamicReplay.IsChecked = o.DynamicReplay;
+                rackHeight.Text = r.ToLength(o.RackHeight).ToString("0.###", CultureInfo.CurrentCulture);
+                itemGap.Text = r.ToLength(o.ItemGap).ToString("0.###", CultureInfo.CurrentCulture);
+                render.IsChecked = o.Render;
+                var preset = Array.FindIndex(CadTools.RenderSizes, s => s.Width == o.RenderWidth && s.Height == o.RenderHeight);
+                if (preset >= 0) resolution.SelectedIndex = preset;
+                else { resolution.SelectedIndex = -1; resolution.Text = CadTools.SizeText(o.RenderWidth, o.RenderHeight); }
+                samples.SelectedIndex = Math.Max(0, Samples.FindIndex(s => s.Samples == o.RenderSamples));
+                view.SelectedIndex = Math.Max(0, Array.FindIndex(CadTools.RenderViews, v => v.Id == o.RenderView));
+                resolution.IsEnabled = samples.IsEnabled = view.IsEnabled = o.Render;
+                UpdateRenderTime();
+                UpdatePreview();
+            }
+        }
+
+        /// <summary>The size typed or picked in the resolution box.</summary>
+        string ResolutionText => resolution.SelectedIndex >= 0 ? CadTools.RenderSizes[resolution.SelectedIndex].Text : resolution.Text;
 
         /// <summary>The estimate of the render time for the size and samples chosen.</summary>
         void UpdateRenderTime()
         {
-            if (renderTime == null || resolution.SelectedIndex < 0 || samples.SelectedIndex < 0) return;
-            var size = Sizes[resolution.SelectedIndex];
+            if (renderTime == null || samples.SelectedIndex < 0 || !CadTools.TryReadSize(ResolutionText, out var width, out var height))
+            {
+                if (renderTime != null) renderTime.Text = "";
+                return;
+            }
             var n = Samples[samples.SelectedIndex].Samples;
             renderTime.Opacity = render.IsChecked == true ? 1 : 0.5;
-            renderTime.Foreground = CadTools.RenderSeconds(size.Width, size.Height, n) > CadTools.LongRenderSeconds ? Brushes.DarkOrange : Brushes.Gray;
-            renderTime.Text = "Render time: " + CadTools.RenderTimeText(size.Width, size.Height, n) + ", longer on a slower one.";
+            renderTime.Foreground = CadTools.RenderSeconds(width, height, n) > CadTools.LongRenderSeconds ? Brushes.DarkOrange : Brushes.Gray;
+            renderTime.Text = "Render time: " + CadTools.RenderTimeText(width, height, n) + ", longer on a slower one.";
+        }
+
+        /// <summary>The preview needs the design the 3D model saved last, in the output folder.</summary>
+        void UpdatePreview()
+        {
+            if (preview != null) preview.IsEnabled = render.IsChecked == true && Request.CanPreview(output.Text);
         }
 
         /// <summary>Another output or choice of items: the warning about the old files is worked out again.</summary>
@@ -287,14 +391,8 @@ namespace DWSIM.Extensions.SolidCraft
         void UpdateProgramStatus()
         {
             if (programStatus == null) return;
-            var exe = CADCraftSession.Exe(Request.ProgramExe);
-            var found = Request.ProgramFoundIn(programFolder.Text);
-            programStatus.Foreground = found ? Brushes.SeaGreen : Brushes.Firebrick;
-            programStatus.Text = found
-                ? exe + " found in this folder."
-                : string.IsNullOrWhiteSpace(programFolder.Text)
-                    ? Request.Program + " was not found on this computer: choose the folder that holds " + exe + "."
-                    : exe + " is not in this folder.";
+            programStatus.Text = Request.ProgramStatus(programFolder.Text, out var level);
+            programStatus.Foreground = level == 0 ? Brushes.SeaGreen : level == 1 ? Brushes.DarkOrange : Brushes.Firebrick;
         }
 
         IStorageProvider Storage => TopLevel.GetTopLevel(this)?.StorageProvider;
@@ -348,6 +446,21 @@ namespace DWSIM.Extensions.SolidCraft
             if (path != null) output.Text = path;
         }
 
+        async Task BrowseLogo()
+        {
+            if (Storage == null) return;
+            string folder = null;
+            try { folder = Path.GetDirectoryName(logo.Text); } catch (Exception) { }
+            var picked = await Storage.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = "The logo for the title block",
+                SuggestedStartLocation = await Folder(folder),
+                FileTypeFilter = new[] { new FilePickerFileType("Drawings (DXF, DWG)") { Patterns = new[] { "*.dxf", "*.dwg" } } }
+            });
+            var path = picked.FirstOrDefault()?.TryGetLocalPath();
+            if (path != null) logo.Text = path;
+        }
+
         static bool TryRead(string text, out double value)
             => double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out value) ||
                double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value);
@@ -358,7 +471,8 @@ namespace DWSIM.Extensions.SolidCraft
             problem.IsVisible = true;
         }
 
-        void Accept()
+        /// <summary>Takes what the controls hold into the request and its options; returns the problem, or null.</summary>
+        string Collect()
         {
             var r = Request;
             var o = r.Options;
@@ -366,7 +480,6 @@ namespace DWSIM.Extensions.SolidCraft
             r.Output = output.Text?.Trim() ?? "";
             if (r.OutputIsFile && r.Output.Length > 0 && !r.Output.EndsWith(".dxf", StringComparison.OrdinalIgnoreCase)) r.Output += ".dxf";
             if (openInApp != null) r.OpenInApp = openInApp.IsChecked == true;
-
             if (itemChecks != null)
                 foreach (var c in itemChecks) ((CadToolItem)c.Tag).Checked = c.IsChecked == true;
             r.ReadMoves = readMoves != null && readMoves.IsChecked == true;
@@ -381,9 +494,20 @@ namespace DWSIM.Extensions.SolidCraft
                 o.DrawingOwner = owner.Text ?? "";
                 if (clearance != null)
                 {
-                    if (!TryRead(clearance.Text, out var c)) { ShowProblem("The line clearance is not a number."); return; }
+                    if (!TryRead(clearance.Text, out var c)) return "The line clearance is not a number.";
                     o.LineClearance = Math.Max(1, Math.Min(15, c));
                 }
+                o.ProjectNumber = projectNumber.Text?.Trim() ?? "";
+                o.Department = department.Text?.Trim() ?? "";
+                o.PreparedBy = preparedBy.Text?.Trim() ?? "";
+                o.Area = area.Text?.Trim() ?? "";
+                o.CheckedBy = checkedBy.Text?.Trim() ?? "";
+                o.Revision = revision.Text?.Trim() ?? "";
+                o.ApprovedBy = approvedBy.Text?.Trim() ?? "";
+                o.Status = (status.SelectedIndex >= 0 ? CadTools.Statuses[status.SelectedIndex] : status.Text)?.Trim() ?? "";
+                o.RevisionText = revisionText.Text?.Trim() ?? "";
+                o.Logo = logo.Text?.Trim() ?? "";
+                if (o.Logo.Length > 0 && !File.Exists(o.Logo)) return "The logo was not found: " + o.Logo;
             }
             if (r.ShowsModelOptions)
             {
@@ -393,18 +517,24 @@ namespace DWSIM.Extensions.SolidCraft
                 o.Platforms = platforms.IsChecked == true;
                 o.Instruments = instruments.IsChecked == true;
                 o.DynamicReplay = dynamicReplay.IsChecked == true;
-                if (!TryRead(rackHeight.Text, out var rack)) { ShowProblem("The top of the pipe rack is not a number."); return; }
-                if (!TryRead(itemGap.Text, out var gap)) { ShowProblem("The gap between items is not a number."); return; }
-                o.RackHeight = Math.Max(2.5, Math.Min(30, rack));
-                o.ItemGap = Math.Max(0.5, Math.Min(20, gap));
+                if (!TryRead(rackHeight.Text, out var rack)) return "The top of the pipe rack is not a number.";
+                if (!TryRead(itemGap.Text, out var gap)) return "The gap between items is not a number.";
+                o.RackHeight = Math.Max(2.5, Math.Min(30, r.FromLength(rack)));
+                o.ItemGap = Math.Max(0.5, Math.Min(20, r.FromLength(gap)));
                 o.Render = render.IsChecked == true;
-                var size = Sizes[Math.Max(0, resolution.SelectedIndex)];
-                o.RenderWidth = size.Width;
-                o.RenderHeight = size.Height;
+                if (!CadTools.TryReadSize(ResolutionText, out var width, out var height)) return "The resolution is the width and the height in pixels, such as 2000 x 1250.";
+                o.RenderWidth = width;
+                o.RenderHeight = height;
                 o.RenderSamples = Samples[Math.Max(0, samples.SelectedIndex)].Samples;
+                o.RenderView = CadTools.RenderViews[Math.Max(0, view.SelectedIndex)].Id;
             }
+            return null;
+        }
 
-            var why = CadTools.Validate(r);
+        void Accept()
+        {
+            var r = Request;
+            var why = Collect() ?? CadTools.Validate(r);
             if (why != null) { ShowProblem(why); return; }
 
             // files of an earlier export: say so first, and go on only on the second click
@@ -439,7 +569,7 @@ namespace DWSIM.Extensions.SolidCraft
             }
         }
 
-        /// <summary>Shows the window of a running tool over the main window.</summary>
+        /// <summary>Shows the window of a running tool over the window in front (a tool's dialog for its preview, else the main window).</summary>
         internal static void Watch(CadJob job)
         {
             try

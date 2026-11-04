@@ -69,6 +69,17 @@ namespace DWSIM.Extensions.SolidCraft
         /// <summary>Export All Drawings also binds the PDFs into one drawing set with a drawing list.</summary>
         public bool DrawingSet = true;
 
+        /// <summary>
+        /// The title block of the drawings: the project number (put before each document number), the
+        /// revision and its description, the document status, the people (an empty Prepared by leaves
+        /// the simulation's author), the department and area, and a logo drawing (DXF or DWG).
+        /// </summary>
+        public string ProjectNumber = "", Revision = "0", RevisionText = "ORIGINAL ISSUE", Status = "PRELIMINARY",
+            PreparedBy = "", CheckedBy = "", ApprovedBy = "", Department = "", Area = "", Logo = "";
+
+        /// <summary>The view of the photorealistic picture (see <see cref="CadTools.RenderViews"/>).</summary>
+        public string RenderView = "iso";
+
         [JsonIgnore]
         public DrawingStyle Style => Enum.TryParse<DrawingStyle>(DrawingStandard, true, out var s) ? s : DrawingStyle.ISO;
 

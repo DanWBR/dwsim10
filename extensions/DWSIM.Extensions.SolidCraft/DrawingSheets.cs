@@ -279,6 +279,7 @@ namespace DWSIM.Extensions.SolidCraft
         {
             var d = new Dxf();
             const double w = TitleWidth, x0 = -w;
+            var logo = HasLogo(ExportOptions.Load());
             switch (style)
             {
                 case DrawingStyle.ASME:
@@ -300,7 +301,7 @@ namespace DWSIM.Extensions.SolidCraft
                         d.Text(ax + 59, 39.5, "DATE", 2.5, "MC");
 
                         foreach (var y in new[] { 8.0, 17, 30 }) d.Line(rx, y, 0, y);
-                        d.Attribute("OWNER", rx + 55, 37, 4, "MC");
+                        d.Attribute("OWNER", logo ? rx + 71 : rx + 55, 37, 4, "MC");
                         Cell(d, rx, 30, "TITLE");
                         d.Attribute("TITLE", rx + 55, 23.5, 4, "MC");
                         d.Attribute("SUBTITLE", rx + 55, 19.3, 2.5, "MC");
@@ -344,7 +345,7 @@ namespace DWSIM.Extensions.SolidCraft
                         Cell(d, x0, 50, "AREA / UNIT"); d.Attribute("AREA", x0 + 45, 41.5, 2.5, "BC");
                         Cell(d, x0 + 90, 50, "PROGRAM / PROJECT"); d.Attribute("PROJECT", x0 + 135, 41.5, 2.5, "BC");
                         d.Line(x0 + 60, 50, x0 + 60, height);
-                        d.Text(x0 + 30, 56, "DWSIM", 4, "MC");
+                        if (!logo) d.Text(x0 + 30, 56, "DWSIM", 4, "MC");
                         Cell(d, x0 + 60, height, "CLIENT"); d.Attribute("OWNER", x0 + 120, 54.5, 3.5, "MC");
                         break;
                     }
@@ -374,7 +375,7 @@ namespace DWSIM.Extensions.SolidCraft
                         foreach (var x in new[] { 45.0, 90 }) d.Line(x0 + x, 33, x0 + x, height);
                         Cell(d, x0, height, "RESPONSIBLE DEPT."); d.Attribute("DEPARTMENT", x0 + 22.5, 34.5, 2.5, "BC");
                         Cell(d, x0 + 45, height, "TECHNICAL REFERENCE"); d.Attribute("PROJECT", x0 + 67.5, 34.5, 2.5, "BC");
-                        Cell(d, x0 + 90, height, "LEGAL OWNER"); d.Attribute("OWNER", x0 + 135, 37, 3.5, "MC");
+                        Cell(d, x0 + 90, height, "LEGAL OWNER"); d.Attribute("OWNER", logo ? x0 + 150 : x0 + 135, 37, 3.5, "MC");
                         break;
                     }
             }
@@ -404,29 +405,107 @@ namespace DWSIM.Extensions.SolidCraft
         static string Fit(string s, int n) => s == null || s.Length <= n ? s ?? "" : s.Substring(0, n - 1) + ".";
 
         /// <summary>The attribute values of the title block.</summary>
-        public static Dictionary<string, string> Attributes(TitleData t, SheetSize size, DrawingStyle style) => new Dictionary<string, string>
+        /// <summary>
+        /// The texts of the title block: the drawing's own (<paramref name="t"/>) with the title block
+        /// fields of the settings over them where they are filled in.
+        /// </summary>
+        public static Dictionary<string, string> Attributes(TitleData t, SheetSize size, DrawingStyle style)
         {
-            ["PROJECT"] = Fit(t.Project, style == DrawingStyle.ISO ? 20 : style == DrawingStyle.ASME ? 30 : 40),
-            ["OWNER"] = Fit(t.Owner, 28),
-            ["AREA"] = t.Area,
-            ["TITLE"] = t.Title,
-            ["SUBTITLE"] = t.Subtitle,
-            ["NUMBER"] = Fit(t.Number, style == DrawingStyle.ISO ? 20 : 24),
-            ["REVISION"] = t.Revision,
-            ["DOCUMENTTYPE"] = t.DocumentType,
-            ["STATUS"] = t.Status,
-            ["SCALE"] = t.Scale,
-            ["DATE"] = t.Date,
-            ["SHEET"] = t.Sheet,
-            ["SIZE"] = size.Name,
-            ["LANGUAGE"] = t.Language,
-            ["PREPAREDBY"] = t.PreparedBy,
-            ["CHECKEDBY"] = t.CheckedBy,
-            ["APPROVEDBY"] = t.ApprovedBy,
-            ["DEPARTMENT"] = t.Department,
-            ["REVISION0"] = t.Revision,
-            ["REVISIONTEXT"] = "ORIGINAL ISSUE",
-            ["REVISIONDATE"] = t.Date
-        };
+            var o = ExportOptions.Load();
+            string Pick(string option, string own) => string.IsNullOrWhiteSpace(option) ? own : option.Trim();
+            var number = string.IsNullOrWhiteSpace(o.ProjectNumber) ? t.Number : o.ProjectNumber.Trim() + "-" + t.Number;
+            var revision = Pick(o.Revision, t.Revision);
+            return new Dictionary<string, string>
+            {
+                ["PROJECT"] = Fit(t.Project, style == DrawingStyle.ISO ? 20 : style == DrawingStyle.ASME ? 30 : 40),
+                // a logo takes part of the owner's field
+                ["OWNER"] = Fit(t.Owner, HasLogo(o) && style != DrawingStyle.Petrobras ? 18 : 28),
+                ["AREA"] = Pick(o.Area, t.Area),
+                ["TITLE"] = t.Title,
+                ["SUBTITLE"] = t.Subtitle,
+                ["NUMBER"] = Fit(number, style == DrawingStyle.ISO ? 24 : 28),
+                ["REVISION"] = revision,
+                ["DOCUMENTTYPE"] = t.DocumentType,
+                ["STATUS"] = Pick(o.Status, t.Status),
+                ["SCALE"] = t.Scale,
+                ["DATE"] = t.Date,
+                ["SHEET"] = t.Sheet,
+                ["SIZE"] = size.Name,
+                ["LANGUAGE"] = t.Language,
+                ["PREPAREDBY"] = Pick(o.PreparedBy, t.PreparedBy),
+                ["CHECKEDBY"] = Pick(o.CheckedBy, t.CheckedBy),
+                ["APPROVEDBY"] = Pick(o.ApprovedBy, t.ApprovedBy),
+                ["DEPARTMENT"] = Pick(o.Department, t.Department),
+                ["REVISION0"] = revision,
+                ["REVISIONTEXT"] = Pick(o.RevisionText, "ORIGINAL ISSUE"),
+                ["REVISIONDATE"] = t.Date
+            };
+        }
+
+        static bool HasLogo(ExportOptions o) => !string.IsNullOrWhiteSpace(o.Logo) && File.Exists(o.Logo.Trim());
+
+        static readonly Dictionary<string, (DateTime Written, double[] Extents)> LogoExtents = new Dictionary<string, (DateTime, double[])>();
+
+        /// <summary>The extents of a drawing (min x, min y, max x, max y), from cadcraft-cli info; null when it cannot be read.</summary>
+        static double[] Extents(string file)
+        {
+            var written = File.GetLastWriteTimeUtc(file);
+            lock (LogoExtents)
+                if (LogoExtents.TryGetValue(file, out var known) && known.Written == written) return known.Extents;
+            double[] extents = null;
+            try
+            {
+                var folder = CADCraftSession.FindInstallFolder();
+                if (folder == null) return null;
+                var psi = new System.Diagnostics.ProcessStartInfo(Path.Combine(folder, CADCraftSession.Exe("cadcraft-cli")), "info \"" + file + "\"")
+                {
+                    UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true, CreateNoWindow = true, StandardOutputEncoding = Encoding.UTF8
+                };
+                using (var p = System.Diagnostics.Process.Start(psi))
+                {
+                    var text = p.StandardOutput.ReadToEnd();
+                    p.WaitForExit(30000);
+                    var e = JObject.Parse(text)["extents"] as JArray;
+                    if (e != null && e.Count == 2)
+                        extents = new[] { (double)e[0][0], (double)e[0][1], (double)e[1][0], (double)e[1][1] };
+                }
+            }
+            catch (Exception) { extents = null; }
+            lock (LogoExtents) LogoExtents[file] = (written, extents);
+            return extents;
+        }
+
+        /// <summary>
+        /// The insert of the logo drawing chosen in the settings into the title block whose bottom right
+        /// corner is at (<paramref name="x"/>, <paramref name="y"/>), scaled into its box: beside the owner
+        /// (ISO, ASME) or in the brand field (Petrobras). Null when there is no logo or it cannot be read.
+        /// </summary>
+        public static JObject Logo(DrawingStyle style, double x, double y, string name = "TITLE_LOGO")
+        {
+            var o = ExportOptions.Load();
+            if (!HasLogo(o)) return null;
+            var file = o.Logo.Trim();
+            var e = Extents(file);
+            if (e == null) return null;
+            double w = e[2] - e[0], h = e[3] - e[1];
+            if (w <= 0 || h <= 0) return null;
+            const double x0 = -TitleWidth;
+            double bx0, by0, bx1, by1;
+            switch (style)
+            {
+                case DrawingStyle.ASME: bx0 = x0 + 72; by0 = 31; bx1 = x0 + 102; by1 = 43; break;
+                case DrawingStyle.Petrobras: bx0 = x0 + 3; by0 = 51; bx1 = x0 + 57; by1 = 61; break;
+                // under the cell's LEGAL OWNER heading
+                default: bx0 = x0 + 92; by0 = 34; bx1 = x0 + 120; by1 = 41.5; break;
+            }
+            var s = Math.Min((bx1 - bx0) / w, (by1 - by0) / h);
+            var ax = x + (bx0 + bx1) / 2 - (e[0] + w / 2) * s;
+            var ay = y + (by0 + by1) / 2 - (e[1] + h / 2) * s;
+            return new JObject
+            {
+                ["name"] = name, ["file"] = file.Replace('\\', '/'),
+                ["at"] = new JArray(Math.Round(ax, 3), Math.Round(ay, 3)), ["scale"] = Math.Round(s, 6)
+            };
+        }
     }
 }

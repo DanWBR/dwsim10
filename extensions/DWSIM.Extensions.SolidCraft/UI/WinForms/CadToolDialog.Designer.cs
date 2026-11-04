@@ -56,6 +56,34 @@ namespace DWSIM.Extensions.SolidCraft
             this.lblSamples = new System.Windows.Forms.Label();
             this.cbSamples = new System.Windows.Forms.ComboBox();
             this.lblRenderTime = new System.Windows.Forms.Label();
+            this.gbTitle = new System.Windows.Forms.GroupBox();
+            this.tlpTitle = new System.Windows.Forms.TableLayoutPanel();
+            this.lblProjectNumber = new System.Windows.Forms.Label();
+            this.lblDepartment = new System.Windows.Forms.Label();
+            this.lblPreparedBy = new System.Windows.Forms.Label();
+            this.lblArea = new System.Windows.Forms.Label();
+            this.lblCheckedBy = new System.Windows.Forms.Label();
+            this.lblRevision = new System.Windows.Forms.Label();
+            this.lblApprovedBy = new System.Windows.Forms.Label();
+            this.lblStatus = new System.Windows.Forms.Label();
+            this.lblRevisionText = new System.Windows.Forms.Label();
+            this.lblLogo = new System.Windows.Forms.Label();
+            this.tbProjectNumber = new System.Windows.Forms.TextBox();
+            this.tbDepartment = new System.Windows.Forms.TextBox();
+            this.tbPreparedBy = new System.Windows.Forms.TextBox();
+            this.tbArea = new System.Windows.Forms.TextBox();
+            this.tbCheckedBy = new System.Windows.Forms.TextBox();
+            this.tbRevision = new System.Windows.Forms.TextBox();
+            this.tbApprovedBy = new System.Windows.Forms.TextBox();
+            this.tbRevisionText = new System.Windows.Forms.TextBox();
+            this.cbStatus = new System.Windows.Forms.ComboBox();
+            this.tlpLogo = new System.Windows.Forms.TableLayoutPanel();
+            this.tbLogo = new System.Windows.Forms.TextBox();
+            this.btnLogo = new System.Windows.Forms.Button();
+            this.lblView = new System.Windows.Forms.Label();
+            this.cbView = new System.Windows.Forms.ComboBox();
+            this.btnPreview = new System.Windows.Forms.Button();
+            this.btnDefaults = new System.Windows.Forms.Button();
             this.lblFormats = new System.Windows.Forms.Label();
             this.flpFormats = new System.Windows.Forms.FlowLayoutPanel();
             this.chkDwg = new System.Windows.Forms.CheckBox();
@@ -92,6 +120,9 @@ namespace DWSIM.Extensions.SolidCraft
             this.gbRender.SuspendLayout();
             this.tlpRender.SuspendLayout();
             this.flpFormats.SuspendLayout();
+            this.gbTitle.SuspendLayout();
+            this.tlpTitle.SuspendLayout();
+            this.tlpLogo.SuspendLayout();
             this.gbItems.SuspendLayout();
             this.tlpItems.SuspendLayout();
             this.flpItemButtons.SuspendLayout();
@@ -112,17 +143,19 @@ namespace DWSIM.Extensions.SolidCraft
             this.tlpRoot.Controls.Add(this.gbProgram, 0, 1);
             this.tlpRoot.Controls.Add(this.gbOutput, 0, 2);
             this.tlpRoot.Controls.Add(this.gbDrawing, 0, 3);
-            this.tlpRoot.Controls.Add(this.gbItems, 0, 4);
-            this.tlpRoot.Controls.Add(this.gbDesign, 0, 5);
-            this.tlpRoot.Controls.Add(this.gbModel, 0, 6);
-            this.tlpRoot.Controls.Add(this.gbRender, 0, 7);
-            this.tlpRoot.Controls.Add(this.gbOverwrite, 0, 8);
-            this.tlpRoot.Controls.Add(this.flpButtons, 0, 9);
+            this.tlpRoot.Controls.Add(this.gbTitle, 0, 4);
+            this.tlpRoot.Controls.Add(this.gbItems, 0, 5);
+            this.tlpRoot.Controls.Add(this.gbDesign, 0, 6);
+            this.tlpRoot.Controls.Add(this.gbModel, 0, 7);
+            this.tlpRoot.Controls.Add(this.gbRender, 0, 8);
+            this.tlpRoot.Controls.Add(this.gbOverwrite, 0, 9);
+            this.tlpRoot.Controls.Add(this.flpButtons, 0, 10);
             this.tlpRoot.Dock = System.Windows.Forms.DockStyle.Fill;
             this.tlpRoot.Location = new System.Drawing.Point(0, 0);
             this.tlpRoot.Name = "tlpRoot";
             this.tlpRoot.Padding = new System.Windows.Forms.Padding(8);
-            this.tlpRoot.RowCount = 10;
+            this.tlpRoot.RowCount = 11;
+            this.tlpRoot.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
             this.tlpRoot.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
             this.tlpRoot.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
             this.tlpRoot.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
@@ -396,7 +429,7 @@ namespace DWSIM.Extensions.SolidCraft
             this.gbModel.Location = new System.Drawing.Point(11, 323);
             this.gbModel.Name = "gbModel";
             this.gbModel.Size = new System.Drawing.Size(562, 140);
-            this.gbModel.TabIndex = 6;
+            this.gbModel.TabIndex = 7;
             this.gbModel.TabStop = false;
             this.gbModel.Text = "3D model";
             //
@@ -530,7 +563,7 @@ namespace DWSIM.Extensions.SolidCraft
             this.gbRender.Location = new System.Drawing.Point(11, 469);
             this.gbRender.Name = "gbRender";
             this.gbRender.Size = new System.Drawing.Size(562, 100);
-            this.gbRender.TabIndex = 7;
+            this.gbRender.TabIndex = 8;
             this.gbRender.TabStop = false;
             this.gbRender.Text = "Photorealistic picture";
             //
@@ -545,11 +578,16 @@ namespace DWSIM.Extensions.SolidCraft
             this.tlpRender.Controls.Add(this.cbResolution, 1, 1);
             this.tlpRender.Controls.Add(this.lblSamples, 0, 2);
             this.tlpRender.Controls.Add(this.cbSamples, 1, 2);
-            this.tlpRender.Controls.Add(this.lblRenderTime, 0, 3);
+            this.tlpRender.Controls.Add(this.lblView, 0, 3);
+            this.tlpRender.Controls.Add(this.cbView, 1, 3);
+            this.tlpRender.Controls.Add(this.lblRenderTime, 0, 4);
+            this.tlpRender.Controls.Add(this.btnPreview, 0, 5);
             this.tlpRender.Dock = System.Windows.Forms.DockStyle.Fill;
             this.tlpRender.Location = new System.Drawing.Point(3, 16);
             this.tlpRender.Name = "tlpRender";
-            this.tlpRender.RowCount = 4;
+            this.tlpRender.RowCount = 6;
+            this.tlpRender.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
+            this.tlpRender.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
             this.tlpRender.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
             this.tlpRender.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
             this.tlpRender.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
@@ -581,7 +619,8 @@ namespace DWSIM.Extensions.SolidCraft
             //
             // cbResolution
             //
-            this.cbResolution.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.cbResolution.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDown;
+            this.cbResolution.TextChanged += new System.EventHandler(this.cbRender_SelectedIndexChanged);
             this.cbResolution.FormattingEnabled = true;
             this.cbResolution.Location = new System.Drawing.Point(281, 26);
             this.cbResolution.Name = "cbResolution";
@@ -686,6 +725,311 @@ namespace DWSIM.Extensions.SolidCraft
             this.chkDrawingSet.Text = "Drawing set (one PDF with a drawing list)";
             this.chkDrawingSet.UseVisualStyleBackColor = true;
             //
+            // gbTitle
+            //
+            this.gbTitle.AutoSize = true;
+            this.gbTitle.Controls.Add(this.tlpTitle);
+            this.gbTitle.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.gbTitle.Location = new System.Drawing.Point(11, 323);
+            this.gbTitle.Name = "gbTitle";
+            this.gbTitle.Size = new System.Drawing.Size(562, 190);
+            this.gbTitle.TabIndex = 4;
+            this.gbTitle.TabStop = false;
+            this.gbTitle.Text = "Title block";
+            //
+            // tlpTitle
+            //
+            this.tlpTitle.AutoSize = true;
+            this.tlpTitle.ColumnCount = 4;
+            this.tlpTitle.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.AutoSize));
+            this.tlpTitle.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
+            this.tlpTitle.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.AutoSize));
+            this.tlpTitle.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
+            this.tlpTitle.Controls.Add(this.lblProjectNumber, 0, 0);
+            this.tlpTitle.Controls.Add(this.lblDepartment, 2, 0);
+            this.tlpTitle.Controls.Add(this.lblPreparedBy, 0, 1);
+            this.tlpTitle.Controls.Add(this.lblArea, 2, 1);
+            this.tlpTitle.Controls.Add(this.lblCheckedBy, 0, 2);
+            this.tlpTitle.Controls.Add(this.lblRevision, 2, 2);
+            this.tlpTitle.Controls.Add(this.lblApprovedBy, 0, 3);
+            this.tlpTitle.Controls.Add(this.lblStatus, 2, 3);
+            this.tlpTitle.Controls.Add(this.lblRevisionText, 0, 4);
+            this.tlpTitle.Controls.Add(this.lblLogo, 0, 5);
+            this.tlpTitle.Controls.Add(this.tbProjectNumber, 1, 0);
+            this.tlpTitle.Controls.Add(this.tbDepartment, 3, 0);
+            this.tlpTitle.Controls.Add(this.tbPreparedBy, 1, 1);
+            this.tlpTitle.Controls.Add(this.tbArea, 3, 1);
+            this.tlpTitle.Controls.Add(this.tbCheckedBy, 1, 2);
+            this.tlpTitle.Controls.Add(this.tbRevision, 3, 2);
+            this.tlpTitle.Controls.Add(this.tbApprovedBy, 1, 3);
+            this.tlpTitle.Controls.Add(this.tbRevisionText, 1, 4);
+            this.tlpTitle.Controls.Add(this.cbStatus, 3, 3);
+            this.tlpTitle.Controls.Add(this.tlpLogo, 1, 5);
+            this.tlpTitle.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.tlpTitle.Location = new System.Drawing.Point(3, 16);
+            this.tlpTitle.Name = "tlpTitle";
+            this.tlpTitle.RowCount = 6;
+            this.tlpTitle.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
+            this.tlpTitle.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
+            this.tlpTitle.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
+            this.tlpTitle.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
+            this.tlpTitle.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
+            this.tlpTitle.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
+            this.tlpTitle.Size = new System.Drawing.Size(556, 171);
+            this.tlpTitle.TabIndex = 0;
+            this.tlpTitle.SetColumnSpan(this.tbRevisionText, 3);
+            this.tlpTitle.SetColumnSpan(this.tlpLogo, 3);
+            //
+            // lblProjectNumber
+            //
+            this.lblProjectNumber.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            this.lblProjectNumber.AutoSize = true;
+            this.lblProjectNumber.Location = new System.Drawing.Point(3, 6);
+            this.lblProjectNumber.Name = "lblProjectNumber";
+            this.lblProjectNumber.Size = new System.Drawing.Size(100, 13);
+            this.lblProjectNumber.TabIndex = 0;
+            this.lblProjectNumber.Text = "Project number";
+            //
+            // lblDepartment
+            //
+            this.lblDepartment.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            this.lblDepartment.AutoSize = true;
+            this.lblDepartment.Location = new System.Drawing.Point(280, 6);
+            this.lblDepartment.Name = "lblDepartment";
+            this.lblDepartment.Size = new System.Drawing.Size(100, 13);
+            this.lblDepartment.TabIndex = 1;
+            this.lblDepartment.Text = "Department";
+            //
+            // lblPreparedBy
+            //
+            this.lblPreparedBy.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            this.lblPreparedBy.AutoSize = true;
+            this.lblPreparedBy.Location = new System.Drawing.Point(3, 32);
+            this.lblPreparedBy.Name = "lblPreparedBy";
+            this.lblPreparedBy.Size = new System.Drawing.Size(100, 13);
+            this.lblPreparedBy.TabIndex = 2;
+            this.lblPreparedBy.Text = "Prepared by";
+            //
+            // lblArea
+            //
+            this.lblArea.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            this.lblArea.AutoSize = true;
+            this.lblArea.Location = new System.Drawing.Point(280, 32);
+            this.lblArea.Name = "lblArea";
+            this.lblArea.Size = new System.Drawing.Size(100, 13);
+            this.lblArea.TabIndex = 3;
+            this.lblArea.Text = "Area / unit";
+            //
+            // lblCheckedBy
+            //
+            this.lblCheckedBy.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            this.lblCheckedBy.AutoSize = true;
+            this.lblCheckedBy.Location = new System.Drawing.Point(3, 58);
+            this.lblCheckedBy.Name = "lblCheckedBy";
+            this.lblCheckedBy.Size = new System.Drawing.Size(100, 13);
+            this.lblCheckedBy.TabIndex = 4;
+            this.lblCheckedBy.Text = "Checked by";
+            //
+            // lblRevision
+            //
+            this.lblRevision.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            this.lblRevision.AutoSize = true;
+            this.lblRevision.Location = new System.Drawing.Point(280, 58);
+            this.lblRevision.Name = "lblRevision";
+            this.lblRevision.Size = new System.Drawing.Size(100, 13);
+            this.lblRevision.TabIndex = 5;
+            this.lblRevision.Text = "Revision";
+            //
+            // lblApprovedBy
+            //
+            this.lblApprovedBy.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            this.lblApprovedBy.AutoSize = true;
+            this.lblApprovedBy.Location = new System.Drawing.Point(3, 84);
+            this.lblApprovedBy.Name = "lblApprovedBy";
+            this.lblApprovedBy.Size = new System.Drawing.Size(100, 13);
+            this.lblApprovedBy.TabIndex = 6;
+            this.lblApprovedBy.Text = "Approved by";
+            //
+            // lblStatus
+            //
+            this.lblStatus.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            this.lblStatus.AutoSize = true;
+            this.lblStatus.Location = new System.Drawing.Point(280, 84);
+            this.lblStatus.Name = "lblStatus";
+            this.lblStatus.Size = new System.Drawing.Size(100, 13);
+            this.lblStatus.TabIndex = 7;
+            this.lblStatus.Text = "Status";
+            //
+            // lblRevisionText
+            //
+            this.lblRevisionText.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            this.lblRevisionText.AutoSize = true;
+            this.lblRevisionText.Location = new System.Drawing.Point(3, 110);
+            this.lblRevisionText.Name = "lblRevisionText";
+            this.lblRevisionText.Size = new System.Drawing.Size(100, 13);
+            this.lblRevisionText.TabIndex = 8;
+            this.lblRevisionText.Text = "Revision description";
+            //
+            // lblLogo
+            //
+            this.lblLogo.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            this.lblLogo.AutoSize = true;
+            this.lblLogo.Location = new System.Drawing.Point(3, 136);
+            this.lblLogo.Name = "lblLogo";
+            this.lblLogo.Size = new System.Drawing.Size(100, 13);
+            this.lblLogo.TabIndex = 9;
+            this.lblLogo.Text = "Logo (DXF or DWG)";
+            //
+            // tbProjectNumber
+            //
+            this.tbProjectNumber.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.tbProjectNumber.Location = new System.Drawing.Point(120, 3);
+            this.tbProjectNumber.Name = "tbProjectNumber";
+            this.tbProjectNumber.Size = new System.Drawing.Size(150, 20);
+            this.tbProjectNumber.TabIndex = 10;
+            //
+            // tbDepartment
+            //
+            this.tbDepartment.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.tbDepartment.Location = new System.Drawing.Point(400, 3);
+            this.tbDepartment.Name = "tbDepartment";
+            this.tbDepartment.Size = new System.Drawing.Size(150, 20);
+            this.tbDepartment.TabIndex = 11;
+            //
+            // tbPreparedBy
+            //
+            this.tbPreparedBy.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.tbPreparedBy.Location = new System.Drawing.Point(120, 29);
+            this.tbPreparedBy.Name = "tbPreparedBy";
+            this.tbPreparedBy.Size = new System.Drawing.Size(150, 20);
+            this.tbPreparedBy.TabIndex = 12;
+            //
+            // tbArea
+            //
+            this.tbArea.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.tbArea.Location = new System.Drawing.Point(400, 29);
+            this.tbArea.Name = "tbArea";
+            this.tbArea.Size = new System.Drawing.Size(150, 20);
+            this.tbArea.TabIndex = 13;
+            //
+            // tbCheckedBy
+            //
+            this.tbCheckedBy.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.tbCheckedBy.Location = new System.Drawing.Point(120, 55);
+            this.tbCheckedBy.Name = "tbCheckedBy";
+            this.tbCheckedBy.Size = new System.Drawing.Size(150, 20);
+            this.tbCheckedBy.TabIndex = 14;
+            //
+            // tbRevision
+            //
+            this.tbRevision.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.tbRevision.Location = new System.Drawing.Point(400, 55);
+            this.tbRevision.Name = "tbRevision";
+            this.tbRevision.Size = new System.Drawing.Size(150, 20);
+            this.tbRevision.TabIndex = 15;
+            //
+            // tbApprovedBy
+            //
+            this.tbApprovedBy.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.tbApprovedBy.Location = new System.Drawing.Point(120, 81);
+            this.tbApprovedBy.Name = "tbApprovedBy";
+            this.tbApprovedBy.Size = new System.Drawing.Size(150, 20);
+            this.tbApprovedBy.TabIndex = 16;
+            //
+            // tbRevisionText
+            //
+            this.tbRevisionText.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.tbRevisionText.Location = new System.Drawing.Point(120, 107);
+            this.tbRevisionText.Name = "tbRevisionText";
+            this.tbRevisionText.Size = new System.Drawing.Size(430, 20);
+            this.tbRevisionText.TabIndex = 17;
+            //
+            // cbStatus
+            //
+            this.cbStatus.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.cbStatus.FormattingEnabled = true;
+            this.cbStatus.Location = new System.Drawing.Point(400, 81);
+            this.cbStatus.Name = "cbStatus";
+            this.cbStatus.Size = new System.Drawing.Size(150, 21);
+            this.cbStatus.TabIndex = 18;
+            //
+            // tlpLogo
+            //
+            this.tlpLogo.AutoSize = true;
+            this.tlpLogo.ColumnCount = 2;
+            this.tlpLogo.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            this.tlpLogo.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.AutoSize));
+            this.tlpLogo.Controls.Add(this.tbLogo, 0, 0);
+            this.tlpLogo.Controls.Add(this.btnLogo, 1, 0);
+            this.tlpLogo.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.tlpLogo.Location = new System.Drawing.Point(117, 133);
+            this.tlpLogo.Margin = new System.Windows.Forms.Padding(0);
+            this.tlpLogo.Name = "tlpLogo";
+            this.tlpLogo.RowCount = 1;
+            this.tlpLogo.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
+            this.tlpLogo.Size = new System.Drawing.Size(436, 29);
+            this.tlpLogo.TabIndex = 19;
+            //
+            // tbLogo
+            //
+            this.tbLogo.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
+            this.tbLogo.Location = new System.Drawing.Point(3, 4);
+            this.tbLogo.Name = "tbLogo";
+            this.tbLogo.Size = new System.Drawing.Size(349, 20);
+            this.tbLogo.TabIndex = 0;
+            //
+            // btnLogo
+            //
+            this.btnLogo.Location = new System.Drawing.Point(358, 3);
+            this.btnLogo.Name = "btnLogo";
+            this.btnLogo.Size = new System.Drawing.Size(75, 23);
+            this.btnLogo.TabIndex = 1;
+            this.btnLogo.Text = "Browse...";
+            this.btnLogo.UseVisualStyleBackColor = true;
+            this.btnLogo.Click += new System.EventHandler(this.btnLogo_Click);
+            //
+            // lblView
+            //
+            this.lblView.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            this.lblView.AutoSize = true;
+            this.lblView.Location = new System.Drawing.Point(3, 84);
+            this.lblView.Name = "lblView";
+            this.lblView.Size = new System.Drawing.Size(30, 13);
+            this.lblView.TabIndex = 5;
+            this.lblView.Text = "View";
+            //
+            // cbView
+            //
+            this.cbView.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.cbView.FormattingEnabled = true;
+            this.cbView.Location = new System.Drawing.Point(281, 80);
+            this.cbView.Name = "cbView";
+            this.cbView.Size = new System.Drawing.Size(180, 21);
+            this.cbView.TabIndex = 6;
+            //
+            // btnPreview
+            //
+            this.btnPreview.AutoSize = true;
+            this.tlpRender.SetColumnSpan(this.btnPreview, 2);
+            this.btnPreview.Location = new System.Drawing.Point(3, 130);
+            this.btnPreview.Name = "btnPreview";
+            this.btnPreview.Size = new System.Drawing.Size(240, 23);
+            this.btnPreview.TabIndex = 8;
+            this.btnPreview.Text = "Preview the view (the 3D model saved last)";
+            this.btnPreview.UseVisualStyleBackColor = true;
+            this.btnPreview.Click += new System.EventHandler(this.btnPreview_Click);
+            //
+            // btnDefaults
+            //
+            this.btnDefaults.Location = new System.Drawing.Point(322, 3);
+            this.btnDefaults.Margin = new System.Windows.Forms.Padding(3, 3, 24, 3);
+            this.btnDefaults.Name = "btnDefaults";
+            this.btnDefaults.Size = new System.Drawing.Size(75, 23);
+            this.btnDefaults.TabIndex = 2;
+            this.btnDefaults.Text = "Defaults";
+            this.btnDefaults.UseVisualStyleBackColor = true;
+            this.btnDefaults.Click += new System.EventHandler(this.btnDefaults_Click);
+            //
             // gbItems
             //
             this.gbItems.AutoSize = true;
@@ -694,7 +1038,7 @@ namespace DWSIM.Extensions.SolidCraft
             this.gbItems.Location = new System.Drawing.Point(11, 323);
             this.gbItems.Name = "gbItems";
             this.gbItems.Size = new System.Drawing.Size(562, 220);
-            this.gbItems.TabIndex = 4;
+            this.gbItems.TabIndex = 5;
             this.gbItems.TabStop = false;
             this.gbItems.Text = "Drawings to make";
             //
@@ -778,7 +1122,7 @@ namespace DWSIM.Extensions.SolidCraft
             this.gbDesign.Location = new System.Drawing.Point(11, 549);
             this.gbDesign.Name = "gbDesign";
             this.gbDesign.Size = new System.Drawing.Size(562, 70);
-            this.gbDesign.TabIndex = 5;
+            this.gbDesign.TabIndex = 6;
             this.gbDesign.TabStop = false;
             this.gbDesign.Text = "3D model";
             //
@@ -827,7 +1171,7 @@ namespace DWSIM.Extensions.SolidCraft
             this.gbOverwrite.Location = new System.Drawing.Point(11, 575);
             this.gbOverwrite.Name = "gbOverwrite";
             this.gbOverwrite.Size = new System.Drawing.Size(562, 70);
-            this.gbOverwrite.TabIndex = 8;
+            this.gbOverwrite.TabIndex = 9;
             this.gbOverwrite.TabStop = false;
             this.gbOverwrite.Text = "Files from an earlier export";
             this.gbOverwrite.Visible = false;
@@ -875,13 +1219,14 @@ namespace DWSIM.Extensions.SolidCraft
             this.flpButtons.AutoSize = true;
             this.flpButtons.Controls.Add(this.btnRun);
             this.flpButtons.Controls.Add(this.btnCancel);
+            this.flpButtons.Controls.Add(this.btnDefaults);
             this.flpButtons.Dock = System.Windows.Forms.DockStyle.Fill;
             this.flpButtons.FlowDirection = System.Windows.Forms.FlowDirection.RightToLeft;
             this.flpButtons.Location = new System.Drawing.Point(11, 575);
             this.flpButtons.Margin = new System.Windows.Forms.Padding(3, 8, 3, 3);
             this.flpButtons.Name = "flpButtons";
             this.flpButtons.Size = new System.Drawing.Size(562, 29);
-            this.flpButtons.TabIndex = 9;
+            this.flpButtons.TabIndex = 10;
             //
             // btnRun
             //
@@ -946,6 +1291,12 @@ namespace DWSIM.Extensions.SolidCraft
             this.tlpRender.PerformLayout();
             this.flpFormats.ResumeLayout(false);
             this.flpFormats.PerformLayout();
+            this.gbTitle.ResumeLayout(false);
+            this.gbTitle.PerformLayout();
+            this.tlpTitle.ResumeLayout(false);
+            this.tlpTitle.PerformLayout();
+            this.tlpLogo.ResumeLayout(false);
+            this.tlpLogo.PerformLayout();
             this.gbItems.ResumeLayout(false);
             this.gbItems.PerformLayout();
             this.tlpItems.ResumeLayout(false);
@@ -1014,6 +1365,34 @@ namespace DWSIM.Extensions.SolidCraft
         private System.Windows.Forms.CheckBox chkPdf;
         private System.Windows.Forms.CheckBox chkPng;
         private System.Windows.Forms.CheckBox chkDrawingSet;
+        private System.Windows.Forms.GroupBox gbTitle;
+        private System.Windows.Forms.TableLayoutPanel tlpTitle;
+        private System.Windows.Forms.Label lblProjectNumber;
+        private System.Windows.Forms.Label lblDepartment;
+        private System.Windows.Forms.Label lblPreparedBy;
+        private System.Windows.Forms.Label lblArea;
+        private System.Windows.Forms.Label lblCheckedBy;
+        private System.Windows.Forms.Label lblRevision;
+        private System.Windows.Forms.Label lblApprovedBy;
+        private System.Windows.Forms.Label lblStatus;
+        private System.Windows.Forms.Label lblRevisionText;
+        private System.Windows.Forms.Label lblLogo;
+        private System.Windows.Forms.TextBox tbProjectNumber;
+        private System.Windows.Forms.TextBox tbDepartment;
+        private System.Windows.Forms.TextBox tbPreparedBy;
+        private System.Windows.Forms.TextBox tbArea;
+        private System.Windows.Forms.TextBox tbCheckedBy;
+        private System.Windows.Forms.TextBox tbRevision;
+        private System.Windows.Forms.TextBox tbApprovedBy;
+        private System.Windows.Forms.TextBox tbRevisionText;
+        private System.Windows.Forms.ComboBox cbStatus;
+        private System.Windows.Forms.TableLayoutPanel tlpLogo;
+        private System.Windows.Forms.TextBox tbLogo;
+        private System.Windows.Forms.Button btnLogo;
+        private System.Windows.Forms.Label lblView;
+        private System.Windows.Forms.ComboBox cbView;
+        private System.Windows.Forms.Button btnPreview;
+        private System.Windows.Forms.Button btnDefaults;
         private System.Windows.Forms.GroupBox gbItems;
         private System.Windows.Forms.TableLayoutPanel tlpItems;
         private System.Windows.Forms.Label lblItems;

@@ -852,6 +852,8 @@ namespace DWSIM.Extensions.SolidCraft
                 ["name"] = "TITLE_BLOCK", ["file"] = tb.Replace('\\', '/'), ["at"] = new JArray(size.Width - mo, mo),
                 ["attribs"] = JObject.FromObject(DrawingSheets.Attributes(title, size, style))
             });
+            var logo = DrawingSheets.Logo(style, size.Width - mo, mo, "TITLE_LOGO");
+            if (logo != null) C("insert", logo);
 
             C("tablestyle", new JObject { ["name"] = "DS", ["textHeight"] = TextHeight, ["margin"] = 0.8, ["current"] = true });
             foreach (var cs in new[] { "Title", "Header", "Data" })

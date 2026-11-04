@@ -451,6 +451,8 @@ namespace DWSIM.Extensions.SolidCraft
                 ["name"] = "TITLE_BLOCK", ["file"] = tb.Replace('\\', '/'), ["at"] = new JArray(sheet.Width - mo, mo),
                 ["attribs"] = JObject.FromObject(DrawingSheets.Attributes(title, sheet, style))
             });
+            var logo = DrawingSheets.Logo(style, sheet.Width - mo, mo, "TITLE_LOGO");
+            if (logo != null) C("insert", logo);
 
             // the tables over the title block: the line data and the bill of materials
             C("tablestyle", new JObject { ["name"] = "ISO", ["textHeight"] = TextHeight, ["margin"] = 0.8, ["current"] = true });

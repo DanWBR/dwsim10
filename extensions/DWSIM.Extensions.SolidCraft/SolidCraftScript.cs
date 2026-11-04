@@ -277,11 +277,34 @@ namespace DWSIM.Extensions.SolidCraft
 
         /// <summary>
         /// A render setup for a picture of the whole plant: path tracing on the GPU in a plant HDR
-        /// environment, the camera at the iso angle fitted to the model.
+        /// environment, the camera at the view chosen in the options, fitted to the model.
         /// </summary>
-        public static List<Command> CreateRenderSetup(PlantModel model)
+        public static List<Command> CreateRenderSetup(PlantModel model) => CreateRenderSetup(model, model.Options?.RenderSamples ?? 0);
+
+        /// <summary>The render setup with <paramref name="samples"/> samples per pixel (0: SolidCraft's own).</summary>
+        public static List<Command> CreateRenderSetup(PlantModel model, int samples)
         {
             var cmds = new List<Command>();
+            var camera = RenderCamera(model, model.Options?.RenderView);
+            if (camera == null) return cmds;
+            // the samples belong to the saved setup: the render command refuses --samples next to --setup
+            var job = new JObject { ["method"] = "gpu_path" };
+            if (samples > 0) job["options"] = new JObject { ["samples"] = samples };
+            Add(cmds, "render.settings.set", "the render", new JObject
+            {
+                ["name"] = RenderSetup,
+                ["set"] = new JObject { ["job"] = job, ["camera"] = camera }
+            });
+            Add(cmds, "render.library.environment.apply", "the render", new JObject { ["id"] = "HDR-008", ["name"] = RenderSetup });
+            return cmds;
+        }
+
+        /// <summary>
+        /// The camera of a view (<see cref="CadTools.RenderViews"/>) aimed at the middle of the plant, far
+        /// enough to take it all in with its labels; null for a model with nothing in it.
+        /// </summary>
+        public static JObject RenderCamera(PlantModel model, string view)
+        {
             var pts = new List<Vec3>();
             foreach (var e in model.Equipment.Where(e => e.Visible))
             {
@@ -298,26 +321,15 @@ namespace DWSIM.Extensions.SolidCraft
                 }
             }
             foreach (var r in model.Pipes) pts.AddRange(r.Path);
-            if (pts.Count == 0) return cmds;
+            if (pts.Count == 0) return null;
             var lo = new Vec3(pts.Min(p => p.X), pts.Min(p => p.Y), pts.Min(p => p.Z));
             var hi = new Vec3(pts.Max(p => p.X), pts.Max(p => p.Y), pts.Max(p => p.Z));
             var centre = (lo + hi) * 0.5;
             const double fov = 0.7;
             var distance = (hi - lo).Length / 2 / Math.Tan(fov / 2) * 1.1;
-            // the samples belong to the saved setup: the render command refuses --samples next to --setup
-            var job = new JObject { ["method"] = "gpu_path" };
-            if (model.Options != null && model.Options.RenderSamples > 0) job["options"] = new JObject { ["samples"] = model.Options.RenderSamples };
-            Add(cmds, "render.settings.set", "the render", new JObject
-            {
-                ["name"] = RenderSetup,
-                ["set"] = new JObject
-                {
-                    ["job"] = job,
-                    ["camera"] = new JObject { ["target"] = new JArray(centre.ToArray()), ["yaw"] = -0.785, ["pitch"] = 0.55, ["distance"] = Math.Round(distance), ["fov"] = fov }
-                }
-            });
-            Add(cmds, "render.library.environment.apply", "the render", new JObject { ["id"] = "HDR-008", ["name"] = RenderSetup });
-            return cmds;
+            var v = CadTools.RenderViews.FirstOrDefault(x => x.Id == view);
+            if (v.Id == null) v = CadTools.RenderViews[0];
+            return new JObject { ["target"] = new JArray(centre.ToArray()), ["yaw"] = v.Yaw, ["pitch"] = v.Pitch, ["distance"] = Math.Round(distance), ["fov"] = fov };
         }
 
         /// <summary>

@@ -36,6 +36,9 @@ namespace DWSIM.Extensions.SolidCraft
             InitializeComponent();
         }
 
+        /// <summary>The sample counts offered, with a count chosen elsewhere (an edited settings file) added.</summary>
+        System.Collections.Generic.List<(int Samples, string Text)> samples;
+
         private void CadToolDialog_Load(object sender, EventArgs e)
         {
             var r = Request;
@@ -62,17 +65,11 @@ namespace DWSIM.Extensions.SolidCraft
             chkOpenInApp.Text = r.OpenInAppText;
             chkOpenInApp.Checked = r.OpenInApp;
 
-            gbDrawing.Visible = r.IsDrawing;
+            gbDrawing.Visible = gbTitle.Visible = r.IsDrawing;
             cbStandard.Items.AddRange(CadTools.Standards);
-            cbStandard.SelectedIndex = Math.Max(0, Array.FindIndex(CadTools.Standards, s => string.Equals(s, o.DrawingStandard, StringComparison.OrdinalIgnoreCase)));
-            tbOwner.Text = o.DrawingOwner ?? "";
+            cbStatus.Items.AddRange(CadTools.Statuses);
             lblClearance.Visible = tbClearance.Visible = r.ShowsClearance;
-            tbClearance.Text = o.LineClearance.ToString(CultureInfo.CurrentCulture);
-            chkDwg.Checked = o.SaveDwg;
-            chkPdf.Checked = o.SavePdf;
-            chkPng.Checked = o.SavePng;
             chkDrawingSet.Visible = r.ShowsDrawingSet;
-            chkDrawingSet.Checked = o.DrawingSet;
 
             gbItems.Visible = r.ShowsItems;
             if (r.ShowsItems)
@@ -88,47 +85,70 @@ namespace DWSIM.Extensions.SolidCraft
             chkReadMoves.Checked = r.ReadMoves;
 
             gbModel.Visible = gbRender.Visible = r.ShowsModelOptions;
+            lblRackHeight.Text = "Top of the pipe rack (" + r.LengthUnits + ")";
+            lblItemGap.Text = "Smallest gap between items (" + r.LengthUnits + ")";
+            cbResolution.Items.AddRange(CadTools.RenderSizes.Select(s => s.Text).ToArray());
+            samples = CadTools.RenderSamples.ToList();
+            if (!samples.Any(s => s.Samples == o.RenderSamples)) samples.Add((o.RenderSamples, o.RenderSamples.ToString(CultureInfo.CurrentCulture)));
+            cbSamples.Items.AddRange(samples.Select(s => s.Text).ToArray());
+            cbView.Items.AddRange(CadTools.RenderViews.Select(v => v.Text).ToArray());
+
+            ShowOptions(o);
+            UpdateProgramStatus();
+            UpdatePreview();
+            ActiveControl = btnRun;
+            this.ChangeDefaultFont();
+        }
+
+        /// <summary>Puts the options in the controls (on opening, and for the Defaults button).</summary>
+        void ShowOptions(ExportOptions o)
+        {
+            var r = Request;
+            cbStandard.SelectedIndex = Math.Max(0, Array.FindIndex(CadTools.Standards, s => string.Equals(s, o.DrawingStandard, StringComparison.OrdinalIgnoreCase)));
+            tbOwner.Text = o.DrawingOwner ?? "";
+            tbClearance.Text = o.LineClearance.ToString(CultureInfo.CurrentCulture);
+            chkDwg.Checked = o.SaveDwg;
+            chkPdf.Checked = o.SavePdf;
+            chkPng.Checked = o.SavePng;
+            chkDrawingSet.Checked = o.DrawingSet;
+
+            tbProjectNumber.Text = o.ProjectNumber ?? "";
+            tbDepartment.Text = o.Department ?? "";
+            tbPreparedBy.Text = o.PreparedBy ?? "";
+            tbArea.Text = o.Area ?? "";
+            tbCheckedBy.Text = o.CheckedBy ?? "";
+            tbRevision.Text = o.Revision ?? "";
+            tbApprovedBy.Text = o.ApprovedBy ?? "";
+            cbStatus.Text = o.Status ?? "";
+            tbRevisionText.Text = o.RevisionText ?? "";
+            tbLogo.Text = o.Logo ?? "";
+
             chkLabels.Checked = o.Labels;
             chkFlowAnimation.Checked = o.FlowAnimation;
             chkInsulation.Checked = o.Insulation;
             chkPlatforms.Checked = o.Platforms;
             chkInstruments.Checked = o.Instruments;
             chkDynamicReplay.Checked = o.DynamicReplay;
-            tbRackHeight.Text = o.RackHeight.ToString(CultureInfo.CurrentCulture);
-            tbItemGap.Text = o.ItemGap.ToString(CultureInfo.CurrentCulture);
+            tbRackHeight.Text = r.ToLength(o.RackHeight).ToString("0.###", CultureInfo.CurrentCulture);
+            tbItemGap.Text = r.ToLength(o.ItemGap).ToString("0.###", CultureInfo.CurrentCulture);
             chkRender.Checked = o.Render;
-
-            // a size chosen elsewhere (an edited settings file) is offered as it is
-            var sizes = CadTools.RenderSizes.ToList();
-            if (!sizes.Any(s => s.Width == o.RenderWidth && s.Height == o.RenderHeight))
-                sizes.Add((o.RenderWidth, o.RenderHeight, o.RenderWidth + " x " + o.RenderHeight));
-            cbResolution.Items.AddRange(sizes.Select(s => s.Text).ToArray());
-            cbResolution.Tag = sizes;
-            cbResolution.SelectedIndex = sizes.FindIndex(s => s.Width == o.RenderWidth && s.Height == o.RenderHeight);
-            var samples = CadTools.RenderSamples.ToList();
-            if (!samples.Any(s => s.Samples == o.RenderSamples)) samples.Add((o.RenderSamples, o.RenderSamples.ToString(CultureInfo.CurrentCulture)));
-            cbSamples.Items.AddRange(samples.Select(s => s.Text).ToArray());
-            cbSamples.Tag = samples;
-            cbSamples.SelectedIndex = samples.FindIndex(s => s.Samples == o.RenderSamples);
+            cbResolution.Text = CadTools.SizeText(o.RenderWidth, o.RenderHeight);
+            cbSamples.SelectedIndex = Math.Max(0, samples.FindIndex(s => s.Samples == o.RenderSamples));
+            cbView.SelectedIndex = Math.Max(0, Array.FindIndex(CadTools.RenderViews, v => v.Id == o.RenderView));
             chkRender_CheckedChanged(chkRender, EventArgs.Empty);
-
-            UpdateProgramStatus();
-            ActiveControl = btnRun;
-            this.ChangeDefaultFont();
+            // the boxes that take typing keep no text selected
+            cbResolution.SelectionLength = cbStatus.SelectionLength = 0;
         }
 
         void UpdateProgramStatus()
         {
             if (!Request.HasProgram) return;
-            var exe = CADCraftSession.Exe(Request.ProgramExe);
-            var found = Request.ProgramFoundIn(tbProgramFolder.Text);
-            lblProgramStatus.ForeColor = found ? Color.DarkGreen : Color.Firebrick;
-            lblProgramStatus.Text = found
-                ? exe + " found in this folder."
-                : string.IsNullOrWhiteSpace(tbProgramFolder.Text)
-                    ? Request.Program + " was not found on this computer: choose the folder that holds " + exe + "."
-                    : exe + " is not in this folder.";
+            lblProgramStatus.Text = Request.ProgramStatus(tbProgramFolder.Text, out var level);
+            lblProgramStatus.ForeColor = level == 0 ? Color.DarkGreen : level == 1 ? Color.DarkOrange : Color.Firebrick;
         }
+
+        /// <summary>The preview needs the design the 3D model saved last, in the output folder.</summary>
+        void UpdatePreview() => btnPreview.Enabled = chkRender.Checked && Request.CanPreview(tbOutput.Text);
 
         private void tbProgramFolder_TextChanged(object sender, EventArgs e) => UpdateProgramStatus();
 
@@ -167,6 +187,20 @@ namespace DWSIM.Extensions.SolidCraft
             }
         }
 
+        private void btnLogo_Click(object sender, EventArgs e)
+        {
+            using (var dialog = new OpenFileDialog { Filter = "Drawings (*.dxf, *.dwg)|*.dxf;*.dwg", Title = "The logo for the title block" })
+            {
+                try
+                {
+                    var folder = Path.GetDirectoryName(tbLogo.Text);
+                    if (Directory.Exists(folder)) dialog.InitialDirectory = folder;
+                }
+                catch (Exception) { }
+                if (dialog.ShowDialog(this) == DialogResult.OK) tbLogo.Text = dialog.FileName;
+            }
+        }
+
         private void btnAllItems_Click(object sender, EventArgs e) => CheckAll(true);
 
         private void btnNoItems_Click(object sender, EventArgs e) => CheckAll(false);
@@ -177,7 +211,7 @@ namespace DWSIM.Extensions.SolidCraft
             ResetOverwrite();
         }
 
-        /// <summary>Another choice of items: the warning about the old files is worked out again.</summary>
+        /// <summary>Another output or choice of items: the warning about the old files is worked out again.</summary>
         void ResetOverwrite()
         {
             if (!gbOverwrite.Visible) return;
@@ -185,18 +219,17 @@ namespace DWSIM.Extensions.SolidCraft
             btnRun.Text = Request.RunText;
         }
 
-        /// <summary>Another output: the warning about the old files no longer applies.</summary>
         private void tbOutput_TextChanged(object sender, EventArgs e)
         {
-            if (!gbOverwrite.Visible) return;
-            gbOverwrite.Visible = false;
-            btnRun.Text = Request.RunText;
+            ResetOverwrite();
+            UpdatePreview();
         }
 
         private void chkRender_CheckedChanged(object sender, EventArgs e)
         {
-            cbResolution.Enabled = cbSamples.Enabled = chkRender.Checked;
+            cbResolution.Enabled = cbSamples.Enabled = cbView.Enabled = chkRender.Checked;
             UpdateRenderTime();
+            UpdatePreview();
         }
 
         private void cbRender_SelectedIndexChanged(object sender, EventArgs e) => UpdateRenderTime();
@@ -204,25 +237,36 @@ namespace DWSIM.Extensions.SolidCraft
         /// <summary>The estimate of the render time for the size and samples chosen.</summary>
         void UpdateRenderTime()
         {
-            var sizes = cbResolution.Tag as System.Collections.Generic.List<(int Width, int Height, string Text)>;
-            var samples = cbSamples.Tag as System.Collections.Generic.List<(int Samples, string Text)>;
-            if (sizes == null || samples == null || cbResolution.SelectedIndex < 0 || cbSamples.SelectedIndex < 0)
+            if (samples == null || cbSamples.SelectedIndex < 0 || !CadTools.TryReadSize(cbResolution.Text, out var width, out var height))
             {
                 lblRenderTime.Text = "";
                 return;
             }
-            var size = sizes[cbResolution.SelectedIndex];
             var n = samples[cbSamples.SelectedIndex].Samples;
             lblRenderTime.Enabled = chkRender.Checked;
-            lblRenderTime.ForeColor = CadTools.RenderSeconds(size.Width, size.Height, n) > CadTools.LongRenderSeconds ? Color.DarkOrange : SystemColors.GrayText;
-            lblRenderTime.Text = "Render time: " + CadTools.RenderTimeText(size.Width, size.Height, n) + ", longer on a slower one.";
+            lblRenderTime.ForeColor = CadTools.RenderSeconds(width, height, n) > CadTools.LongRenderSeconds ? Color.DarkOrange : SystemColors.GrayText;
+            lblRenderTime.Text = "Render time: " + CadTools.RenderTimeText(width, height, n) + ", longer on a slower one.";
+        }
+
+        private void btnPreview_Click(object sender, EventArgs e)
+        {
+            var problem = Collect();
+            if (problem != null) Problem(problem);
+            else CadTools.Preview(Request);
+        }
+
+        private void btnDefaults_Click(object sender, EventArgs e)
+        {
+            ShowOptions(new ExportOptions { CADCraftPath = Request.Options.CADCraftPath });
+            if (!string.IsNullOrEmpty(Request.DefaultOutput)) tbOutput.Text = Request.DefaultOutput;
         }
 
         static bool TryRead(string text, out double value)
             => double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out value) ||
                double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value);
 
-        private void btnRun_Click(object sender, EventArgs e)
+        /// <summary>Takes what the controls hold into the request and its options; returns the problem, or null.</summary>
+        string Collect()
         {
             var r = Request;
             var o = r.Options;
@@ -245,9 +289,20 @@ namespace DWSIM.Extensions.SolidCraft
                 o.DrawingOwner = tbOwner.Text;
                 if (r.ShowsClearance)
                 {
-                    if (!TryRead(tbClearance.Text, out var clearance)) { Problem("The line clearance is not a number."); return; }
+                    if (!TryRead(tbClearance.Text, out var clearance)) return "The line clearance is not a number.";
                     o.LineClearance = Math.Max(1, Math.Min(15, clearance));
                 }
+                o.ProjectNumber = tbProjectNumber.Text.Trim();
+                o.Department = tbDepartment.Text.Trim();
+                o.PreparedBy = tbPreparedBy.Text.Trim();
+                o.Area = tbArea.Text.Trim();
+                o.CheckedBy = tbCheckedBy.Text.Trim();
+                o.Revision = tbRevision.Text.Trim();
+                o.ApprovedBy = tbApprovedBy.Text.Trim();
+                o.Status = cbStatus.Text.Trim();
+                o.RevisionText = tbRevisionText.Text.Trim();
+                o.Logo = tbLogo.Text.Trim();
+                if (o.Logo.Length > 0 && !File.Exists(o.Logo)) return "The logo was not found: " + o.Logo;
             }
             if (r.ShowsModelOptions)
             {
@@ -257,20 +312,24 @@ namespace DWSIM.Extensions.SolidCraft
                 o.Platforms = chkPlatforms.Checked;
                 o.Instruments = chkInstruments.Checked;
                 o.DynamicReplay = chkDynamicReplay.Checked;
-                if (!TryRead(tbRackHeight.Text, out var rack)) { Problem("The top of the pipe rack is not a number."); return; }
-                if (!TryRead(tbItemGap.Text, out var gap)) { Problem("The gap between items is not a number."); return; }
-                o.RackHeight = Math.Max(2.5, Math.Min(30, rack));
-                o.ItemGap = Math.Max(0.5, Math.Min(20, gap));
+                if (!TryRead(tbRackHeight.Text, out var rack)) return "The top of the pipe rack is not a number.";
+                if (!TryRead(tbItemGap.Text, out var gap)) return "The gap between items is not a number.";
+                o.RackHeight = Math.Max(2.5, Math.Min(30, r.FromLength(rack)));
+                o.ItemGap = Math.Max(0.5, Math.Min(20, r.FromLength(gap)));
                 o.Render = chkRender.Checked;
-                var sizes = (System.Collections.Generic.List<(int Width, int Height, string Text)>)cbResolution.Tag;
-                var size = sizes[Math.Max(0, cbResolution.SelectedIndex)];
-                o.RenderWidth = size.Width;
-                o.RenderHeight = size.Height;
-                var samples = (System.Collections.Generic.List<(int Samples, string Text)>)cbSamples.Tag;
+                if (!CadTools.TryReadSize(cbResolution.Text, out var width, out var height)) return "The resolution is the width and the height in pixels, such as 2000 x 1250.";
+                o.RenderWidth = width;
+                o.RenderHeight = height;
                 o.RenderSamples = samples[Math.Max(0, cbSamples.SelectedIndex)].Samples;
+                o.RenderView = CadTools.RenderViews[Math.Max(0, cbView.SelectedIndex)].Id;
             }
+            return null;
+        }
 
-            var problem = CadTools.Validate(r);
+        private void btnRun_Click(object sender, EventArgs e)
+        {
+            var r = Request;
+            var problem = Collect() ?? CadTools.Validate(r);
             if (problem != null) { Problem(problem); return; }
 
             // files of an earlier export: say so first, and go on only on the second click
@@ -301,11 +360,11 @@ namespace DWSIM.Extensions.SolidCraft
             }
         }
 
-        /// <summary>Shows the window of a running tool over the main window.</summary>
+        /// <summary>Shows the window of a running tool over the window in front (a tool's dialog for its preview, else the main window).</summary>
         internal static void Watch(CadJob job)
         {
             var owner = Form.ActiveForm;
-            if (owner == null || !owner.Visible || owner is CadToolDialog || owner is CadToolProgress)
+            if (owner == null || !owner.Visible || owner is CadToolProgress)
                 owner = Application.OpenForms.Cast<Form>().FirstOrDefault(f => f.Visible && f.TopLevel && !(f is CadToolDialog) && !(f is CadToolProgress));
             new CadToolProgress(job).Show(owner);
         }

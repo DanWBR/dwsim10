@@ -189,6 +189,36 @@ namespace DWSIM.Extensions.SolidCraft
             }
         }
 
+        /// <summary>
+        /// A quick picture of a saved design with the render setup <paramref name="setup"/> (the camera
+        /// of the view chosen, few samples): the setup goes into a copy of the design, which is then
+        /// rendered small. Returns null when <paramref name="picture"/> was written, else the error.
+        /// </summary>
+        public static string Preview(string folder, string design, List<SolidCraftScript.Command> setup, string picture, int width, int height)
+        {
+            var cli = Path.Combine(folder, Exe("solidcraft-cli"));
+            var temp = Path.Combine(Path.GetTempPath(), "dwsim-render-preview-" + Guid.NewGuid().ToString("N").Substring(0, 8));
+            Directory.CreateDirectory(temp);
+            try
+            {
+                CadJob.Report("SolidCraft: setting the view up");
+                var script = Path.Combine(temp, "setup.json");
+                var copy = Path.Combine(temp, "preview.sc");
+                File.WriteAllText(script, SolidCraftScript.ToJson(setup), new UTF8Encoding(false));
+                if (Execute(cli, "run " + Quote(script) + " --in " + Quote(design) + " --save " + Quote(copy) + " --quiet", 300, out var output) != 0 || !File.Exists(copy))
+                    return output.Trim();
+                CadJob.Report(string.Format(CultureInfo.InvariantCulture, "SolidCraft: rendering the preview ({0} x {1})", width, height));
+                if (File.Exists(picture)) File.Delete(picture);
+                Execute(cli, "render " + Quote(copy) + " --setup " + Quote(SolidCraftScript.RenderSetup) + " --out " + Quote(picture) +
+                    string.Format(CultureInfo.InvariantCulture, " --width {0} --height {1} --overwrite --timeout 600", width, height), 660, out output);
+                return File.Exists(picture) ? null : output.Trim().Split('\n').LastOrDefault(l => l.Trim().Length > 0)?.Trim() ?? "SolidCraft wrote no picture";
+            }
+            finally
+            {
+                try { Directory.Delete(temp, true); } catch (Exception) { }
+            }
+        }
+
         /// <summary>Runs commands on the saved design and saves it again; returns null on success, else the error.</summary>
         public static string UpdateDesign(string folder, List<SolidCraftScript.Command> commands, string outputBase, List<string> skipped)
         {
