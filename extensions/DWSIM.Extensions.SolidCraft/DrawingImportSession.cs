@@ -40,6 +40,9 @@ namespace DWSIM.Extensions.SolidCraft
         public DrawingImportBuilder.Result Built;
         public List<ImportIssue> Solve = new List<ImportIssue>();
 
+        /// <summary>What <see cref="DrawingReading.Tidy"/> set straight in the reading.</summary>
+        public List<ImportIssue> Tidied = new List<ImportIssue>();
+
         public static readonly string[] Steps = { "Drawing", "Equipment", "Lines", "Process", "Check and build" };
 
         public static readonly string[] StepTexts =
@@ -84,6 +87,7 @@ namespace DWSIM.Extensions.SolidCraft
         /// </summary>
         public void Propose()
         {
+            Tidied = Reading.Tidy();
             Setup = new ImportSetup();
             var names = Reading.Process.Compounds.Concat(Reading.Lines.SelectMany(l => l.Compounds.Keys)).Distinct(StringComparer.OrdinalIgnoreCase);
             foreach (var n in names)
@@ -159,6 +163,7 @@ namespace DWSIM.Extensions.SolidCraft
                 issues.Add(new ImportIssue(ImportIssue.Levels.Warning, n, "not found in the compound database; its flows are left out"));
             if (Flowsheet.SimulationObjects.Count > 0)
                 issues.Add(new ImportIssue(ImportIssue.Levels.Info, "", "the flowsheet is not empty; the drawing is added to what is there"));
+            issues.AddRange(Tidied);
             return issues.OrderBy(i => i.Level).ToList();
         }
 

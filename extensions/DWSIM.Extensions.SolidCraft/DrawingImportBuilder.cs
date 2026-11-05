@@ -366,7 +366,16 @@ namespace DWSIM.Extensions.SolidCraft
                     res.Issues.Add(new ImportIssue(ImportIssue.Levels.Info, tag, "the compounds the table lists add up to " + Math.Round(100 * total / w.Value) + " % of the flow; the rest is left out"));
             }
             else if (feed && fs.SelectedCompounds.Count > 0)
-                res.Issues.Add(new ImportIssue(ImportIssue.Levels.Warning, tag, "no composition from the table; set it before solving"));
+            {
+                // a feed named after a compound ("Water", "NaOH", "Tripalmitin Feed") is taken as that compound
+                var named = NamedCompound(fs, tag);
+                if (named != null && so is MaterialStream single)
+                {
+                    foreach (var c in fs.SelectedCompounds.Keys) single.SetOverallCompoundMassFlow(c, c == named ? 1.0 : 0.0);
+                    res.Issues.Add(new ImportIssue(ImportIssue.Levels.Info, tag, "no composition on the drawing; taken as pure " + named + " from its name"));
+                }
+                else res.Issues.Add(new ImportIssue(ImportIssue.Levels.Warning, tag, "no composition from the table; set it before solving"));
+            }
             if (w.HasValue && w.Value > 0) ms.SetMassFlow(w.Value);
 
             // a pure compound at saturation: temperature and pressure do not tell vapor from
@@ -572,6 +581,16 @@ namespace DWSIM.Extensions.SolidCraft
                 if (hits.Count == 1) hit = hits[0];
             }
             return hit;
+        }
+
+        /// <summary>The flowsheet compound a stream's name is, or holds (its name or formula as a word), if just one.</summary>
+        static string NamedCompound(IFlowsheet fs, string streamName)
+        {
+            var words = System.Text.RegularExpressions.Regex.Split((streamName ?? "").ToLowerInvariant(), "[^a-z0-9]+").Where(w => w.Length > 0).ToList();
+            var plain = Plain(streamName);
+            var hits = fs.SelectedCompounds.Where(kv => (Plain(kv.Key).Length > 2 && plain.Contains(Plain(kv.Key))) ||
+                (!string.IsNullOrEmpty(kv.Value.Formula) && words.Contains(kv.Value.Formula.ToLowerInvariant()))).Select(kv => kv.Key).ToList();
+            return hits.Count == 1 ? hits[0] : null;
         }
 
         static string Plain(string s) => new string((s ?? "").ToLowerInvariant().Where(char.IsLetterOrDigit).ToArray());

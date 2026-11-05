@@ -184,8 +184,8 @@ namespace DWSIM.Extensions.SolidCraft
         static string Quote(string s) => "\"" + s.Replace("\"", "\\\"") + "\"";
 
         /// <summary>
-        /// A PDF of the drawing's sheet (its last named layout, else model space) and the text the
-        /// file holds, for a DXF or DWG.
+        /// A PDF of the drawing's sheet (its first named layout that is not a legend, else model
+        /// space) and the text the file holds, for a DXF or DWG.
         /// </summary>
         static string PlotCad(string file, string temp, out List<string> texts)
         {
@@ -202,11 +202,12 @@ namespace DWSIM.Extensions.SolidCraft
 
             var info = JObject.Parse(Run(exe, "info --compact " + Quote(dxf), 120));
             var layouts = ((info["layouts"] as JArray) ?? new JArray()).Select(t => t.ToString())
-                .Where(l => !Regex.IsMatch(l, "^(Layout\\d+|Model)$", RegexOptions.IgnoreCase)).ToList();
+                .Where(l => !Regex.IsMatch(l, "^(Layout\\d+|Model)$", RegexOptions.IgnoreCase))
+                .OrderBy(l => l.IndexOf("legend", StringComparison.OrdinalIgnoreCase) >= 0).ToList();
             var pdf = Path.Combine(temp, "drawing.pdf");
             if (layouts.Count > 0)
             {
-                var cmd = new JObject { ["path"] = pdf.Replace('\\', '/'), ["layout"] = layouts.Last(), ["device"] = "CADCraft PDF" };
+                var cmd = new JObject { ["path"] = pdf.Replace('\\', '/'), ["layout"] = layouts.First(), ["device"] = "CADCraft PDF" };
                 Run(exe, "run " + Quote(dxf) + " --cmd " + Quote("plot " + cmd.ToString(Newtonsoft.Json.Formatting.None)), 300);
             }
             if (!File.Exists(pdf)) Run(exe, "convert " + Quote(dxf) + " " + Quote(pdf), 300);

@@ -68,7 +68,9 @@ namespace DWSIM.Extensions.SolidCraft
         {
             var issues = new List<ImportIssue>();
             var items = r.ItemsByTag();
-            var lines = r.Lines.Where(l => l.Include).ToList();
+            var lines = r.Lines.Where(r.Takes).ToList();
+            var leftOut = r.Lines.Count(l => l.Include && !r.Takes(l));
+            if (leftOut > 0) issues.Add(new ImportIssue(ImportIssue.Levels.Info, "", leftOut + " lines end at items left out and are not built"));
 
             foreach (var g in r.Items.Where(i => i.Include).GroupBy(i => i.Tag, StringComparer.OrdinalIgnoreCase).Where(g => g.Count() > 1))
                 issues.Add(new ImportIssue(ImportIssue.Levels.Error, g.Key, "the tag is used by " + g.Count() + " items; give each its own tag"));
@@ -113,6 +115,9 @@ namespace DWSIM.Extensions.SolidCraft
                             "the table's flows do not balance: {0:G4} in, {1:G4} out ({2}); a line or a value may be read wrong", a, b, r.Units.MassFlow)));
                 }
             }
+
+            if (r.Units.MassFlow.StartsWith("m3", StringComparison.OrdinalIgnoreCase) || r.Units.MassFlow.EndsWith("m3/h", StringComparison.OrdinalIgnoreCase))
+                issues.Add(new ImportIssue(ImportIssue.Levels.Warning, "", "the drawing gives volume flows (" + r.Units.MassFlow + "); set a mass flow unit on the Process page"));
 
             if (r.Kind == "pfd")
                 foreach (var l in lines.Where(l => l.Feed && !l.Product))

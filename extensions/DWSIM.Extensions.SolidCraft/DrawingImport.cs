@@ -65,10 +65,10 @@ namespace DWSIM.Extensions.SolidCraft
             var us = o["units_system"] as JObject;
             if (us != null)
             {
-                r.Units.Temperature = Str(us["temperature"]) ?? r.Units.Temperature;
-                r.Units.Pressure = Str(us["pressure"]) ?? r.Units.Pressure;
-                r.Units.MassFlow = Str(us["massflow"]) ?? r.Units.MassFlow;
-                r.Units.Energy = Str(us["energy"]) ?? r.Units.Energy;
+                r.Units.Temperature = DrawingImport.Unit(Str(us["temperature"])) ?? r.Units.Temperature;
+                r.Units.Pressure = DrawingImport.Unit(Str(us["pressure"])) ?? r.Units.Pressure;
+                r.Units.MassFlow = DrawingImport.Unit(Str(us["massflow"])) ?? r.Units.MassFlow;
+                r.Units.Energy = DrawingImport.Unit(Str(us["energy"])) ?? r.Units.Energy;
             }
             foreach (var u in (o["units"] as JArray) ?? new JArray())
             {
@@ -159,6 +159,84 @@ namespace DWSIM.Extensions.SolidCraft
             if (t == null || t.Type == JTokenType.Null) return null;
             if (t.Type == JTokenType.Float || t.Type == JTokenType.Integer) return (double)t;
             return double.TryParse(t.ToString().Replace(",", "."), NumberStyles.Float, CultureInfo.InvariantCulture, out var v) ? v : (double?)null;
+        }
+
+        /// <summary>
+        /// Sets the reading straight where a P&amp;ID is read the way it is drawn, not the way it
+        /// flows: relief valves (no flow in normal operation) are left out with their lines, and
+        /// the junctions become what their lines make them, a mixer for several in and one out, a
+        /// splitter for one in and several out, a mixer and then a splitter for several of each.
+        /// </summary>
+        public List<ImportIssue> Tidy()
+        {
+            var notes = new List<ImportIssue>();
+            foreach (var i in Items.Where(i => i.Include && i.Category == "Relief"))
+            {
+                i.Include = false;
+                notes.Add(new ImportIssue(ImportIssue.Levels.Info, i.Tag, "relief valves carry no flow in normal operation; left out with their lines (tick it to build it)"));
+            }
+            bool Same(string a, string b) => string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
+
+            // flare, drain and vent connections and headers that only cross the sheet carry no
+            // process flow either
+            var service = new System.Text.RegularExpressions.Regex(@"flare|drain|dreno|vent\b|tocha|blowdown|al[ií]vio|relief", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            foreach (var l in Lines.Where(l => l.Include))
+            {
+                var name = StreamTag(l);
+                if (l.Feed && l.Product) { l.Include = false; notes.Add(new ImportIssue(ImportIssue.Levels.Info, name, "a header that only crosses the sheet; left out")); }
+                else if ((l.Feed || l.Product) && service.IsMatch(name + " " + l.LineNumber))
+                { l.Include = false; notes.Add(new ImportIssue(ImportIssue.Levels.Info, name, "a flare, drain or vent connection; left out (tick it to build it)")); }
+            }
+
+            // junctions left without a way in or out go too, as far as that reaches
+            for (var changed = true; changed;)
+            {
+                changed = false;
+                foreach (var node in Items.Where(i => i.Include && (i.Category == "Mixer" || i.Category == "Splitter")))
+                {
+                    var hasIn = Lines.Any(l => Takes(l) && Same(l.To, node.Tag));
+                    var hasOut = Lines.Any(l => Takes(l) && Same(l.From, node.Tag));
+                    if (hasIn && hasOut) continue;
+                    node.Include = false;
+                    changed = true;
+                    notes.Add(new ImportIssue(ImportIssue.Levels.Info, node.Tag, "a junction that only leads to what was left out; left out too"));
+                }
+            }
+
+            foreach (var node in Items.Where(i => i.Include && (i.Category == "Mixer" || i.Category == "Splitter")).ToList())
+            {
+                var ins = Lines.Where(l => Takes(l) && Same(l.To, node.Tag)).ToList();
+                var outs = Lines.Where(l => Takes(l) && Same(l.From, node.Tag)).ToList();
+                if (ins.Count > 1 && outs.Count > 1)
+                {
+                    var split = new ReadItem { Tag = node.Tag + "-S", Category = "Splitter", Type = "Splitter", X = node.X, Y = node.Y };
+                    Items.Add(split);
+                    foreach (var l in outs) l.From = split.Tag;
+                    Lines.Add(new ReadLine { Id = node.Tag + "-S", Name = node.Tag + " to " + split.Tag, From = node.Tag, To = split.Tag });
+                    node.Category = node.Type = "Mixer";
+                    notes.Add(new ImportIssue(ImportIssue.Levels.Info, node.Tag, "lines join and branch here: a mixer followed by the splitter " + split.Tag));
+                }
+                else if (ins.Count > 1 && node.Category != "Mixer")
+                {
+                    node.Category = node.Type = "Mixer";
+                    notes.Add(new ImportIssue(ImportIssue.Levels.Info, node.Tag, "lines join here: made a mixer"));
+                }
+                else if (outs.Count > 1 && node.Category != "Splitter")
+                {
+                    node.Category = node.Type = "Splitter";
+                    notes.Add(new ImportIssue(ImportIssue.Levels.Info, node.Tag, "the line branches here: made a splitter"));
+                }
+            }
+            return notes;
+        }
+
+        /// <summary>Whether a line takes part: included, and no end at an item left out.</summary>
+        public bool Takes(ReadLine l)
+        {
+            if (!l.Include) return false;
+            bool LeftOut(string tag) => tag.Length > 0 && Items.Any(i => string.Equals(i.Tag, tag, StringComparison.OrdinalIgnoreCase)) &&
+                !Items.Any(i => string.Equals(i.Tag, tag, StringComparison.OrdinalIgnoreCase) && i.Include);
+            return !LeftOut(l.From) && !LeftOut(l.To);
         }
 
         /// <summary>The items that take part in the import, by tag.</summary>
@@ -284,10 +362,31 @@ namespace DWSIM.Extensions.SolidCraft
             ("water and steam", "Water, steam and utility systems", new[] { "Steam Tables (IAPWS-IF97)", "IAPWS-08 Seawater" }),
             ("amines", "Amine gas treating (CO2, H2S)", new[] { "Electrolyte NRTL", "Sour Water" }),
             ("electrolytes", "Aqueous electrolytes, salts", new[] { "Electrolyte NRTL" }),
+            ("heat transfer fluid", "Thermal oil, hot oil and other heat transfer fluid loops", new[] { "CoolProp (Incompressible Fluids)", "Peng-Robinson (PR)" }),
             ("absorption cooling", "Lithium bromide and water absorption chillers and heat pumps", new[] { "CoolProp Incompressible Mixture" }),
             ("cryogenic", "Air separation, nitrogen, oxygen, argon", new[] { "Peng-Robinson (PR)", "Soave-Redlich-Kwong (SRK)" }),
             ("ideal", "Low pressure mixtures of similar compounds", new[] { "Raoult's Law", "NRTL" }),
         };
+
+        static readonly string[] KnownUnits =
+        {
+            "C", "K", "F", "R", "bar", "barg", "Pa", "kPa", "kPag", "MPa", "atm", "mbar", "kgf/cm2", "kgf/cm2g", "psi", "psig", "psia", "mmHg",
+            "kg/h", "kg/s", "g/s", "t/h", "kg/d", "lb/h", "lb/s", "m3/h", "m3/d", "kW", "MW", "W", "kcal/h", "Mcal/h", "BTU/h", "MMBTU/h", "kJ/h",
+        };
+
+        /// <summary>
+        /// A unit as written on a drawing ("°C", "kPa g", "kgf/cm²g", "Kg/hr") as DWSIM writes it
+        /// ("C", "kPag", "kgf/cm2g", "kg/h"); null for none.
+        /// </summary>
+        public static string Unit(string written)
+        {
+            if (string.IsNullOrWhiteSpace(written)) return null;
+            var s = written.Trim().Replace("°", "").Replace("º", "").Replace("²", "2").Replace("³", "3").Replace(" ", "");
+            s = System.Text.RegularExpressions.Regex.Replace(s, "/hr$", "/h", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            s = System.Text.RegularExpressions.Regex.Replace(s, "^deg", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            if (s.Length == 0) return null;
+            return KnownUnits.FirstOrDefault(k => string.Equals(k, s, StringComparison.OrdinalIgnoreCase)) ?? s;
+        }
 
         /// <summary>The recommended property package for a kind of process, or null for an unknown one.</summary>
         public static string[] PackagesFor(string processClass)
