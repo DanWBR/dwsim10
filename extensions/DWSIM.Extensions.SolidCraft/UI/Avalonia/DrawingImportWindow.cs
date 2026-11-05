@@ -498,7 +498,8 @@ namespace DWSIM.Extensions.SolidCraft
         {
             loading = true;
             var p = session.Reading.Process;
-            description.Text = (p.Description.Length > 0 ? p.Description : "The drawing's text does not tell the process.") +
+            description.Text = (session.Reading.TitleBlock.Count > 0 ? "Drawing: " + session.Reading.DrawingName() + "\n" : "") +
+                (p.Description.Length > 0 ? p.Description : "The drawing's text does not tell the process.") +
                 (p.Evidence.Length > 0 ? "\nEvidence: " + p.Evidence : "") + (p.Confidence.Length > 0 ? "\nConfidence: " + p.Confidence : "");
             processClass.SelectedIndex = Array.FindIndex(DrawingImport.ProcessClasses, c => string.Equals(c.Class, p.Class, StringComparison.OrdinalIgnoreCase)) + 1;
             package.SelectedItem = session.Setup.PropertyPackage;

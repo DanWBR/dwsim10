@@ -49,6 +49,15 @@ namespace DWSIM.Extensions.SolidCraft
         /// </summary>
         public List<string> CadTexts = new List<string>();
 
+        /// <summary>
+        /// The title block as read: document_number, title, revision, date, company, client,
+        /// project, unit, drawn_by, sheet (the fields the sheet shows).
+        /// </summary>
+        public Dictionary<string, string> TitleBlock = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>The sheet's general notes.</summary>
+        public List<string> Notes = new List<string>();
+
         /// <summary>The sheet as the model saw it (PNG), to show the reading on.</summary>
         public byte[] Overview;
 
@@ -110,6 +119,11 @@ namespace DWSIM.Extensions.SolidCraft
                 if (Str(t) is string text && text.Trim().Length > 0) r.Texts.Add(text.Trim());
             foreach (var t in (o["cad_texts"] as JArray) ?? new JArray())
                 if (Str(t) is string text && text.Trim().Length > 0) r.CadTexts.Add(text.Trim());
+            if (o["title_block"] is JObject tb)
+                foreach (var p in tb.Properties())
+                    if (Str(p.Value) is string v && v.Trim().Length > 0) r.TitleBlock[p.Name] = v.Trim();
+            foreach (var t in (o["notes"] as JArray) ?? new JArray())
+                if (Str(t) is string note && note.Trim().Length > 0) r.Notes.Add(note.Trim());
             if (Str(o["overview"]) is string png && png.Length > 0) try { r.Overview = Convert.FromBase64String(png); } catch (FormatException) { }
             var pr = o["process"] as JObject;
             if (pr != null)
@@ -142,6 +156,8 @@ namespace DWSIM.Extensions.SolidCraft
                 })),
                 ["texts"] = new JArray(Texts),
                 ["cad_texts"] = new JArray(CadTexts),
+                ["title_block"] = new JObject(TitleBlock.Select(kv => new JProperty(kv.Key, kv.Value))),
+                ["notes"] = new JArray(Notes),
                 ["overview"] = Overview == null ? "" : Convert.ToBase64String(Overview),
                 ["process"] = new JObject
                 {
@@ -237,6 +253,20 @@ namespace DWSIM.Extensions.SolidCraft
             bool LeftOut(string tag) => tag.Length > 0 && Items.Any(i => string.Equals(i.Tag, tag, StringComparison.OrdinalIgnoreCase)) &&
                 !Items.Any(i => string.Equals(i.Tag, tag, StringComparison.OrdinalIgnoreCase) && i.Include);
             return !LeftOut(l.From) && !LeftOut(l.To);
+        }
+
+        /// <summary>A field of the title block, or "" when the sheet does not show it.</summary>
+        public string Title(string field) => TitleBlock.TryGetValue(field, out var v) ? v : "";
+
+        /// <summary>The drawing's name for the simulation: its document number and title, else the file name.</summary>
+        public string DrawingName()
+        {
+            var number = Title("document_number");
+            var title = Title("title");
+            if (number.Length > 0 && title.Length > 0) return number + " - " + title;
+            if (title.Length > 0) return title;
+            if (number.Length > 0) return number;
+            return System.IO.Path.GetFileNameWithoutExtension(Source ?? "");
         }
 
         /// <summary>The items that take part in the import, by tag.</summary>

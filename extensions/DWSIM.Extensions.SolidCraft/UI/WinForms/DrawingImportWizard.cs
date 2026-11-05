@@ -434,7 +434,8 @@ namespace DWSIM.Extensions.SolidCraft
         {
             loading = true;
             var p = session.Reading.Process;
-            txtDescription.Text = (p.Description.Length > 0 ? p.Description : "The drawing's text does not tell the process.") +
+            txtDescription.Text = (session.Reading.TitleBlock.Count > 0 ? "Drawing: " + session.Reading.DrawingName() + Environment.NewLine : "") +
+                (p.Description.Length > 0 ? p.Description : "The drawing's text does not tell the process.") +
                 (p.Evidence.Length > 0 ? Environment.NewLine + "Evidence: " + p.Evidence : "") +
                 (p.Confidence.Length > 0 ? Environment.NewLine + "Confidence: " + p.Confidence : "");
             var k = Array.FindIndex(DrawingImport.ProcessClasses, c => string.Equals(c.Class, p.Class, StringComparison.OrdinalIgnoreCase));

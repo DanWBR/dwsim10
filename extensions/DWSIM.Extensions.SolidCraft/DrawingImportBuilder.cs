@@ -16,6 +16,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using DWSIM.Interfaces;
 using DWSIM.Interfaces.Enums.GraphicObjects;
@@ -65,6 +66,7 @@ namespace DWSIM.Extensions.SolidCraft
         public static Result Build(IFlowsheet fs, DrawingReading r, ImportSetup setup)
         {
             var res = new Result();
+            var wasEmpty = fs.SimulationObjects.Count == 0;
             void Note(ImportIssue.Levels level, string subject, string text) => res.Issues.Add(new ImportIssue(level, subject, text));
 
             // compounds first, so the streams are made with them
@@ -194,7 +196,49 @@ namespace DWSIM.Extensions.SolidCraft
 
             if (!useDrawing) try { fs.NaturalLayout(); } catch (Exception) { }
             if (units != null) fs.FlowsheetOptions.SelectedUnitSystem = units;
+            Describe(fs, r, setup, wasEmpty);
             return res;
+        }
+
+        /// <summary>
+        /// The simulation's name and comments from the drawing: the name is the drawing's number and
+        /// title when the flowsheet had no name or nothing in it; the comments get what the reading
+        /// found (the title block, the process, the compounds and package, the units, the notes),
+        /// after any comments already there. The author is left to the user.
+        /// </summary>
+        public static void Describe(IFlowsheet fs, DrawingReading r, ImportSetup setup, bool newFlowsheet)
+        {
+            var o = fs.FlowsheetOptions;
+            var name = r.DrawingName();
+            if (name.Length > 0 && (newFlowsheet || string.IsNullOrWhiteSpace(o.SimulationName))) o.SimulationName = name;
+
+            var t = new System.Text.StringBuilder();
+            t.AppendLine("Imported on " + DateTime.Now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + " from the " +
+                (r.Kind == "pid" ? "P&ID" : "process flow diagram") + " " + Path.GetFileName(r.Source ?? "") + ", read by the AI Assistant.");
+            if (r.Process.Description.Length > 0) t.AppendLine("Process: " + r.Process.Description);
+            void Line(string label, params string[] fields)
+            {
+                var v = string.Join(", ", fields.Select(r.Title).Where(x => x.Length > 0));
+                if (v.Length > 0) t.AppendLine(label + ": " + v);
+            }
+            Line("Drawing", "document_number");
+            Line("Title", "title");
+            Line("Revision", "revision", "date");
+            Line("Sheet", "sheet");
+            Line("Company", "company", "client");
+            Line("Project", "project", "unit");
+            Line("Drawn by", "drawn_by");
+            if (r.Process.Class.Length > 0) t.AppendLine("Kind of process: " + r.Process.Class + (setup.PropertyPackage.Length > 0 ? " (property package " + setup.PropertyPackage + ")" : ""));
+            if (setup.Compounds.Count > 0) t.AppendLine("Compounds: " + string.Join(", ", setup.Compounds));
+            t.AppendLine("Units of the drawing: " + string.Join(", ", new[] { r.Units.Temperature, r.Units.Pressure, r.Units.MassFlow, r.Units.Energy }.Where(x => !string.IsNullOrWhiteSpace(x))));
+            if (r.Process.Evidence.Length > 0) t.AppendLine("Evidence: " + r.Process.Evidence);
+            if (r.Notes.Count > 0)
+            {
+                t.AppendLine("Notes on the drawing:");
+                foreach (var n in r.Notes) t.AppendLine("- " + n);
+            }
+            var before = o.SimulationComments ?? "";
+            o.SimulationComments = (before.Trim().Length > 0 ? before.TrimEnd() + Environment.NewLine + Environment.NewLine : "") + t.ToString().TrimEnd();
         }
 
         #region items and nozzles
