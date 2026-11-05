@@ -439,10 +439,26 @@ namespace DWSIM.Extensions.SolidCraft
                     s.Add("Reboiler duty (kW)", Abs("ReboilerDuty"));
                     break;
                 case ObjectType.Valve:
-                    s.Add("Pressure drop (bar)", N("DeltaP", 1e-5));
-                    var kv = Number(obj, "ActualKv");
-                    if (kv.HasValue && kv.Value > 0) s.Add("Kv (m3/h)", Fmt(kv.Value));
-                    break;
+                    {
+                        s.Add("Pressure drop (bar)", N("DeltaP", 1e-5));
+                        var valve = obj as DWSIM.UnitOperations.UnitOperations.Valve;
+                        var outlet = streams.Where(a => !a.In).Select(a => a.Obj).OfType<IMaterialStream>().FirstOrDefault();
+                        var onKv = valve != null && valve.CalcMode >= DWSIM.UnitOperations.UnitOperations.Valve.CalculationMode.Kv_Liquid &&
+                            valve.CalcMode <= DWSIM.UnitOperations.UnitOperations.Valve.CalculationMode.Kv_General;
+                        if (onKv)
+                        {
+                            // the valve's own rated coefficient and opening, as the simulation runs it
+                            var cv = valve.FlowCoefficient == DWSIM.UnitOperations.UnitOperations.Valve.FlowCoefficientType.Cv;
+                            s.Add(cv ? "Rated Cv (US gpm)" : "Rated Kv (m3/h)", Fmt(valve.Kv));
+                            if (valve.EnableOpeningKvRelationship)
+                            {
+                                s.Add("Characteristic", valve.DefinedOpeningKvRelationShipType.ToString());
+                                s.Add("Opening (%)", Fmt(valve.OpeningPct));
+                            }
+                        }
+                        else if (inlet != null) Sizing(s, inlet, outlet);
+                        break;
+                    }
                 default:
                     if (type.ToString().StartsWith("RCT_"))
                     {
@@ -508,14 +524,13 @@ namespace DWSIM.Extensions.SolidCraft
             }
             else
             {
-                shellId = shellPart?.Diameter ?? 500; length = shellPart?.Height ?? 6000;
-                tubeOd = 19.05; wall = 2.11; pitch = 23.81; passes = 2; shells = 1; layout = "triangular";
+                tubeOd = 19.05; wall = 2.11; pitch = 23.81; shells = 1; layout = "triangular";
+                tema = TempC(ins[hot]) - TempC(ins[cold]) > 100 ? "AES" : "BEM";
                 var area = hx?.Area.GetValueOrDefault() ?? 0;
                 if (area <= 0 && item.Properties.TryGetValue("Area (m2)", out var a)) double.TryParse(a.Split(' ')[0], NumberStyles.Float, Inv, out area);
-                tubes = area > 0 ? (int)Math.Ceiling(area / (Math.PI * tubeOd / 1000 * length / 1000)) : 0;
+                Bundle(area, ins[tube], shellPart?.Height ?? 4880, tema, out tubes, out passes, out length, out shellId);
                 cut = 25; spacing = Math.Round(Math.Max(50, 0.4 * shellId) / 10) * 10;
                 baffles = Math.Max(0, (int)(length / spacing) - 1);
-                tema = TempC(ins[hot]) - TempC(ins[cold]) > 100 ? "AES" : "BEM";
             }
             s.Add("TEMA type", tema + (rating ? "" : " (est.)"));
             s.Add("Shell side", Fluid(shell));
@@ -554,6 +569,44 @@ namespace DWSIM.Extensions.SolidCraft
             g.Rows.Add(new[] { "Design code", "ASME VIII Div. 1, TEMA R", "" });
             sheet.Sections.Add(g);
             return true;
+        }
+
+        /// <summary>
+        /// A tube bundle for the area: 3/4" tubes BWG 14 on a 15/16" triangular pitch, of a standard
+        /// length near the shell's, as many tubes per pass as keep the tube-side fluid at 1.5 m/s
+        /// (liquid) or 15 m/s (gas), the most passes (up to eight) the area then allows, and the
+        /// shell around the bundle (bundle diameter after Sinnott's correlation, plus the clearance
+        /// of a fixed tubesheet or of a pull-through floating head).
+        /// </summary>
+        static void Bundle(double area, IMaterialStream tubeSide, double shellLength, string tema, out int tubes, out int passes, out double length, out double shellId)
+        {
+            const double od = 19.05, id = 19.05 - 2 * 2.11;
+            var lengths = new[] { 1830.0, 2440, 3050, 3660, 4880, 6100 };
+            length = lengths.OrderBy(l => Math.Abs(l - shellLength)).First();
+            var q = Si(() => tubeSide.GetVolumetricFlow());
+            var velocity = VapFrac(tubeSide) > 0.5 ? 15.0 : 1.5;
+            var perPass = double.IsNaN(q) || q <= 0 ? 1 : Math.Max(1, (int)Math.Ceiling(q / (velocity * Math.PI * id * id / 4e6)));
+            var byArea = area > 0 ? (int)Math.Ceiling(area / (Math.PI * od / 1000 * length / 1000)) : 2 * perPass;
+            passes = new[] { 8, 6, 4, 2, 1 }.FirstOrDefault(n => perPass * n <= byArea);
+            if (passes == 0)
+            {
+                // the flow needs more tubes than the area: one pass, the tubes shorter
+                passes = 1;
+                tubes = perPass;
+                if (area > 0) length = Math.Max(1000, Math.Round(area / (Math.PI * od / 1000 * tubes) * 1000 / 10) * 10);
+            }
+            else tubes = Math.Max(byArea, perPass * passes);
+            double k1, n1;
+            switch (passes)
+            {
+                case 1: k1 = 0.319; n1 = 2.142; break;
+                case 2: k1 = 0.249; n1 = 2.207; break;
+                case 4: k1 = 0.175; n1 = 2.285; break;
+                case 6: k1 = 0.0743; n1 = 2.499; break;
+                default: k1 = 0.0365; n1 = 2.675; break;
+            }
+            var bundle = od * Math.Pow(tubes / k1, 1 / n1);
+            shellId = Math.Max(150, Math.Ceiling((bundle + (tema == "AES" ? 90 : 15)) / 10) * 10);
         }
 
         /// <summary>The main dimensions of a vessel, column, tank or exchanger, from the 3D model.</summary>
@@ -708,6 +761,51 @@ namespace DWSIM.Extensions.SolidCraft
         };
 
         /// <summary>
+        /// The flow coefficient the valve needs at its operating point, after IEC 60534-2-1: liquid,
+        /// or gas with the expansion factor and choked at xT = 0.72; a liquid that flashes is sized
+        /// as it enters (indicative). NaN without a pressure drop.
+        /// </summary>
+        static double RequiredKv(IMaterialStream inlet, IMaterialStream outlet, out string note)
+        {
+            note = "";
+            var w = Si(() => inlet.GetMassFlow()) * 3600;
+            var p1 = Si(() => inlet.GetPressure()) / 1e5;
+            var p2 = outlet == null ? double.NaN : Si(() => outlet.GetPressure()) / 1e5;
+            var dp = p1 - p2;
+            var vf = VapFrac(inlet);
+            var rho = Si(() => inlet.Phases[0].Properties.density.GetValueOrDefault());
+            if (!(dp > 0 && rho > 0 && w > 0)) return double.NaN;
+            if (vf > 0.995)
+            {
+                const double xT = 0.72;
+                var x = dp / p1;
+                if (x >= xT) { x = xT; note = " (choked)"; }
+                var y = 1 - x / (3 * xT);
+                return w / (31.6 * y * Math.Sqrt(x * p1 * rho));
+            }
+            if (vf >= 0.005) note = " (homogeneous, indicative)";
+            else if (outlet != null && VapFrac(outlet) >= 0.005) note = " (flashing, indicative)";
+            return w / rho * Math.Sqrt(rho / 1000 / dp);
+        }
+
+        /// <summary>
+        /// The valve's coefficients: the one needed, its Cv, and the body the smallest whose Kv wide
+        /// open is 1.4 times the one needed (about 70 % open) with its rated Kv.
+        /// </summary>
+        static void Sizing(Section s, IMaterialStream inlet, IMaterialStream outlet)
+        {
+            var kv = RequiredKv(inlet, outlet, out var note);
+            s.Add("Required Kv (m3/h)", Fmt(kv) + (double.IsNaN(kv) ? "" : note));
+            s.Add("Required Cv (US gpm)", Fmt(1.156 * kv));
+            if (!double.IsNaN(kv))
+            {
+                var body = Bodies.FirstOrDefault(b => b.Kv >= 1.4 * kv);
+                s.Add("Body size (est.)", body.Size ?? "larger than 16\"");
+                if (body.Size != null) s.Add("Rated Kv (m3/h)", Fmt(body.Kv));
+            }
+        }
+
+        /// <summary>
         /// A control valve's data: the flowing conditions from its streams and the flow coefficient
         /// after IEC 60534-2-1 (liquid, or gas with the expansion factor and choked at xT = 0.72),
         /// the body the smallest whose Kv wide open is 1.4 times the one needed (about 70 % open).
@@ -739,32 +837,7 @@ namespace DWSIM.Extensions.SolidCraft
             s.Add("Inlet temperature (C)", Fmt(TempC(inlet)));
             s.Add("Inlet density (kg/m3)", Fmt(rho));
 
-            double kv = double.NaN;
-            var note = "";
-            if (dp > 0 && rho > 0 && w > 0)
-            {
-                if (vf > 0.995)
-                {
-                    const double xT = 0.72;
-                    var x = dp / p1;
-                    if (x >= xT) { x = xT; note = " (choked)"; }
-                    var y = 1 - x / (3 * xT);
-                    kv = w / (31.6 * y * Math.Sqrt(x * p1 * rho));
-                }
-                else
-                {
-                    kv = w / rho * Math.Sqrt(rho / 1000 / dp);
-                    if (vf >= 0.005) note = " (homogeneous, indicative)";
-                }
-            }
-            s.Add("Required Kv (m3/h)", Fmt(kv) + (double.IsNaN(kv) ? "" : note));
-            s.Add("Required Cv (US gpm)", Fmt(1.156 * kv));
-            if (!double.IsNaN(kv))
-            {
-                var body = Bodies.FirstOrDefault(b => b.Kv >= 1.4 * kv);
-                s.Add("Body size (est.)", body.Size ?? "larger than 16\"");
-                if (body.Size != null) s.Add("Rated Kv (m3/h)", Fmt(body.Kv));
-            }
+            Sizing(s, inlet, outlet);
             var d = DesignBasis.For(TempC(inlet), p1 - 1.01325);
             s.Add("Body", "Globe, " + d.Class + " RF, " + d.Flange);
             s.Add("Trim", "Equal percentage, 316 SS");
