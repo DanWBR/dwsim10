@@ -44,7 +44,7 @@ namespace DWSIM.Extensions.SolidCraft
 
         public ExtenderLevel Level => ExtenderLevel.FlowsheetWindow;
 
-        public List<IExtender> Collection { get; } = new List<IExtender> { new PlantModelExtender(), new UpdateDataExtender(), new ResetLayoutExtender(), new ProcessFlowDiagramExtender(), new PipingAndInstrumentationExtender(), new EquipmentDrawingsExtender(), new PipingIsometricsExtender(), new DataSheetsExtender(), new PlotPlanExtender(), new AllDrawingsExtender() };
+        public List<IExtender> Collection { get; } = new List<IExtender> { new PlantModelExtender(), new UpdateDataExtender(), new ResetLayoutExtender(), new ProcessFlowDiagramExtender(), new PipingAndInstrumentationExtender(), new EquipmentDrawingsExtender(), new PipingIsometricsExtender(), new DataSheetsExtender(), new PlotPlanExtender(), new AllDrawingsExtender(), new DrawingImportExtender() };
 
         /// <summary>After Results, before the menus of the window itself.</summary>
         public int InsertAtPosition => 9;
@@ -919,6 +919,35 @@ namespace DWSIM.Extensions.SolidCraft
     /// Goes back to the layout of the flowsheet drawing: forgets the places kept with the simulation
     /// and sets the last design aside, so the next export does not read its moves again.
     /// </summary>
+    /// <summary>
+    /// The way back from the drawings: reads a PFD or P&amp;ID (an image, a PDF or a CAD file) with
+    /// the AI Assistant's vision model and builds the flowsheet from it, in a wizard where the user
+    /// checks and corrects the reading step by step.
+    /// </summary>
+    public class DrawingImportExtender : IExtender, IExtender3
+    {
+        IFlowsheet Flowsheet;
+
+        public string ID => "e7d93c50-2a1f-4b6e-9c84-5f0b3a7d1e62";
+
+        public string DisplayText => "Import Flowsheet from Drawing (PFD, P&ID)...";
+
+        public byte[] DisplayImage => PlantModelExtender.Icon();
+
+        public int InsertAtPosition => -1;
+
+        public void SetMainWindow(object mainwindow) { }
+
+        public void SetFlowsheet(IFlowsheet form) => Flowsheet = form;
+
+        public void ReleaseResources() => Flowsheet = null;
+
+        public void Run()
+        {
+            if (Flowsheet != null) DrawingImportPrompt.Show(Flowsheet);
+        }
+    }
+
     public class ResetLayoutExtender : IExtender, IExtender3
     {
         IFlowsheet Flowsheet;
