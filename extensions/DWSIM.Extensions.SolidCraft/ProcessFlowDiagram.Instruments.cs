@@ -114,8 +114,8 @@ namespace DWSIM.Extensions.SolidCraft
                     var c = Center(u);
                     var half = Half(u);
                     double h = u.Go.Height * k;
-                    var right = u.Go.InputConnectors.Concat(u.Go.OutputConnectors).Where(p => p.IsAttached).Count(p => T(p.Position.X, p.Position.Y).X > c.X);
-                    var left = u.Go.InputConnectors.Concat(u.Go.OutputConnectors).Where(p => p.IsAttached).Count(p => T(p.Position.X, p.Position.Y).X < c.X);
+                    var right = u.Go.InputConnectors.Concat(u.Go.OutputConnectors).Where(p => p.IsAttached).Count(p => T(Where(p, u.Go).X, Where(p, u.Go).Y).X > c.X);
+                    var left = u.Go.InputConnectors.Concat(u.Go.OutputConnectors).Where(p => p.IsAttached).Count(p => T(Where(p, u.Go).X, Where(p, u.Go).Y).X < c.X);
                     var side = right <= left ? 1 : -1;
                     tap = new Pt(c.X + side * half.X, c.Y + h * 0.3 - n * (2 * Bubble + 3));
                     bubble = Place(new Pt(tap.X + side * (u.Go.Width * k / 2 - half.X + 13), tap.Y), side * 12, 0, 6);

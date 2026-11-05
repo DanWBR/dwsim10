@@ -220,7 +220,7 @@ namespace DWSIM.Extensions.SolidCraft
                 if (l.StartCp != null && (sm.X != 0 || sm.Y != 0)) moved[l.StartCp] = r[0];
                 if (l.EndCp != null && (em.X != 0 || em.Y != 0)) moved[l.EndCp] = r[r.Count - 1];
             }
-            Pt At(IConnectionPoint cp) => moved.TryGetValue(cp, out var m) ? m : T(cp.Position.X, cp.Position.Y);
+            Pt At(IConnectionPoint cp, IGraphicObject go) { if (moved.TryGetValue(cp, out var m)) return m; var q = Where(cp, go); return T(q.X, q.Y); }
 
             // equipment: one block per item, drawn at its real size on the sheet
             var outline = new Dictionary<string, Pt>();
@@ -244,7 +244,7 @@ namespace DWSIM.Extensions.SolidCraft
                 C("layer.current", new JObject { ["name"] = "PROCESS" });
                 foreach (var cp in Connectors(u.Go).Where(p => p.IsAttached && Drawn(p, u.Go, lines)))
                 {
-                    var p = At(cp);
+                    var p = At(cp, u.Go);
                     var q = Stub(cp, p, c, half, w, h);
                     if (Dist(p, q) > 0.3) C("pline", new JObject { ["vertices"] = new JArray(A(p), A(q)) }, u.Go.Tag + " nozzle");
                     if (pid && u.Symbol != Symbol.Valve && u.Symbol != Symbol.Relief)
@@ -263,19 +263,28 @@ namespace DWSIM.Extensions.SolidCraft
                     columnUtilities = string.Join("  ", uts.Where(x => x.Role.Length > 0).Select(x => x.Role + " " + x.Supply));
                 }
 
-                // tag, service and the key figure under the item
+                // tag, service and the key figure under the item, beside a line that leaves the
+                // item downwards through them
                 C("layer.current", new JObject { ["name"] = "TEXT" });
                 var y = c.Y - h / 2 - 2;
-                C("text", new JObject { ["at"] = new JArray(c.X, Math.Round(y, 2)), ["text"] = u.Go.Tag, ["height"] = 3.0, ["justify"] = "TC" }, u.Go.Tag + " tag");
                 var service = Service(u.Obj);
                 if (string.Equals(service, u.Go.Tag, StringComparison.OrdinalIgnoreCase)) service = "";
-                if (service.Length > 0)
-                    C("text", new JObject { ["at"] = new JArray(c.X, Math.Round(y - 4.5, 2)), ["text"] = service, ["height"] = TextHeight, ["justify"] = "TC" }, u.Go.Tag + " service");
                 var data = KeyData(fs, u.Obj, u.Go.ObjectType);
+                var tw = Math.Max((u.Go.Tag ?? "").Length * 3.0, new[] { service, data, columnUtilities }.Max(s => s.Length) * TextHeight) * 0.9;
+                var bottom = y - 3 - (service.Length > 0 ? 4.5 : 0) - (data.Length > 0 ? 4 : 0) - (columnUtilities.Length > 0 ? 4.5 : 0);
+                var through = routes.Values.SelectMany(r => Enumerable.Range(0, r.Count - 1).Select(i => new[] { r[i], r[i + 1] }))
+                    .Where(s => Math.Abs(s[0].X - s[1].X) < 0.01 && Math.Abs(s[0].X - c.X) < tw / 2 + 1 && Math.Max(s[0].Y, s[1].Y) > bottom && Math.Min(s[0].Y, s[1].Y) < y)
+                    .Select(s => s[0].X).ToList();
+                var tx = through.Count > 0 ? through.Max() + 1.5 : c.X;
+                var just = through.Count > 0 ? "TL" : "TC";
+                if (through.Count > 0) textBoxes[n - 1] = new Router.Box(tx, bottom, tx + tw, y);
+                C("text", new JObject { ["at"] = new JArray(tx, Math.Round(y, 2)), ["text"] = u.Go.Tag, ["height"] = 3.0, ["justify"] = just }, u.Go.Tag + " tag");
+                if (service.Length > 0)
+                    C("text", new JObject { ["at"] = new JArray(tx, Math.Round(y - 4.5, 2)), ["text"] = service, ["height"] = TextHeight, ["justify"] = just }, u.Go.Tag + " service");
                 if (data.Length > 0)
-                    C("text", new JObject { ["at"] = new JArray(c.X, Math.Round(y - (service.Length > 0 ? 8.5 : 4.5), 2)), ["text"] = data, ["height"] = TextHeight, ["justify"] = "TC" }, u.Go.Tag + " data");
+                    C("text", new JObject { ["at"] = new JArray(tx, Math.Round(y - (service.Length > 0 ? 8.5 : 4.5), 2)), ["text"] = data, ["height"] = TextHeight, ["justify"] = just }, u.Go.Tag + " data");
                 if (columnUtilities.Length > 0)
-                    C("text", new JObject { ["at"] = new JArray(c.X, Math.Round(y - (service.Length > 0 ? 4.5 : 0) - (data.Length > 0 ? 4 : 0) - 4.5, 2)), ["text"] = columnUtilities, ["height"] = TextHeight, ["justify"] = "TC" }, u.Go.Tag + " utilities");
+                    C("text", new JObject { ["at"] = new JArray(tx, Math.Round(y - (service.Length > 0 ? 4.5 : 0) - (data.Length > 0 ? 4 : 0) - 4.5, 2)), ["text"] = columnUtilities, ["height"] = TextHeight, ["justify"] = just }, u.Go.Tag + " utilities");
             }
 
             // mixers and splitters: a header, the branches meeting on it
@@ -285,7 +294,7 @@ namespace DWSIM.Extensions.SolidCraft
                 C("layer.current", new JObject { ["name"] = "PROCESS" });
                 foreach (var cp in Connectors(u.Go).Where(p => p.IsAttached && Drawn(p, u.Go, lines)))
                 {
-                    var p = At(cp);
+                    var p = At(cp, u.Go);
                     C("pline", new JObject { ["vertices"] = new JArray(A(p), new JArray(c.X, p.Y), A(c)) }, u.Go.Tag);
                 }
                 C("donut", new JObject { ["center"] = A(c), ["inside"] = 0, ["outside"] = 1.6 }, u.Go.Tag);
@@ -295,8 +304,8 @@ namespace DWSIM.Extensions.SolidCraft
             foreach (var u in units.Where(u => u.Symbol == Symbol.PassThrough))
             {
                 if (u.Go.InputConnectors.Count == 0 || u.Go.OutputConnectors.Count == 0) continue;
-                var a = At(u.Go.InputConnectors[0]);
-                var b = At(u.Go.OutputConnectors[0]);
+                var a = At(u.Go.InputConnectors[0], u.Go);
+                var b = At(u.Go.OutputConnectors[0], u.Go);
                 C("layer.current", new JObject { ["name"] = "PROCESS" });
                 C("pline", new JObject { ["vertices"] = Math.Abs(a.Y - b.Y) < 0.1 ? new JArray(A(a), A(b)) : new JArray(A(a), new JArray((a.X + b.X) / 2, a.Y), new JArray((a.X + b.X) / 2, b.Y), A(b)) }, u.Go.Tag);
                 if (u.Go.ObjectType == ObjectType.OrificePlate)
@@ -313,6 +322,7 @@ namespace DWSIM.Extensions.SolidCraft
             }
 
             // the streams, with their number, arrow and battery limit names
+            var labels = new List<Router.Box>();
             foreach (var l in lines)
             {
                 var p = routes[l];
@@ -338,30 +348,72 @@ namespace DWSIM.Extensions.SolidCraft
                     textBoxes.Add(dir >= 0 ? new Router.Box(e.X + 2, e.Y - TextHeight, e.X + 2 + tw, e.Y + TextHeight) : new Router.Box(e.X - 2 - tw, e.Y - TextHeight, e.X - 2, e.Y + TextHeight));
                 }
 
-                // the number in its diamond, or the energy stream's name and duty, by the icon
-                // by the middle of the longest run of the line
-                var longest = Enumerable.Range(0, p.Count - 1).OrderByDescending(i => Dist(p[i], p[i + 1])).First();
+                // the number in its diamond, the line number or the energy stream's name and duty:
+                // by the middle of the longest run of the line, or further along the runs where
+                // that spot would cover an item, its texts or a label already placed
+                var number = pid && !l.Energy ? LineNumber(l, lineData) : null;
+                var dw = Math.Max(3.5, (l.Id ?? "").Length * 1.1 + 1.5);
+                var duty = l.Energy ? Duty(fs, l.Icon.Owner as IEnergyStream) : "";
+                var energyText = l.Tag + (duty.Length > 0 ? "  " + duty : "");
+                Router.Box LabelBox(Pt m, bool hor)
+                {
+                    if (number != null)
+                    {
+                        var nw = number.Length * TextHeight * 0.9;
+                        return hor ? new Router.Box(m.X - nw / 2, m.Y + 1.2, m.X + nw / 2, m.Y + 1.2 + TextHeight)
+                            : new Router.Box(m.X - 1.2 - TextHeight, m.Y - nw / 2, m.X - 1.2, m.Y + nw / 2);
+                    }
+                    var a = hor ? new Pt(m.X, m.Y + 5) : new Pt(m.X - 5, m.Y);
+                    if (l.Energy)
+                    {
+                        var ew = energyText.Length * TextHeight * 0.9;
+                        return hor ? new Router.Box(a.X - ew / 2, a.Y, a.X + ew / 2, a.Y + TextHeight)
+                            : new Router.Box(a.X - ew, a.Y - TextHeight / 2, a.X, a.Y + TextHeight / 2);
+                    }
+                    return new Router.Box(a.X - dw, a.Y - 3.5, a.X + dw, a.Y + 3.5);
+                }
+                // what a spot covers, in square millimetres, plus how far the label would run past
+                // the ends of its run: the first spot that covers nothing wins, else the least bad
+                double Covered(Router.Box b) => textBoxes.Concat(itemBoxes).Concat(labels).Sum(o =>
+                    Math.Max(0, Math.Min(b.X1, o.X1) - Math.Max(b.X0, o.X0)) * Math.Max(0, Math.Min(b.Y1, o.Y1) - Math.Max(b.Y0, o.Y0)));
+                var runs = Enumerable.Range(0, p.Count - 1).OrderByDescending(i => Dist(p[i], p[i + 1])).ToList();
+                var longest = runs[0];
                 var mid = new Pt((p[longest].X + p[longest + 1].X) / 2, (p[longest].Y + p[longest + 1].Y) / 2);
                 var horizontal = Math.Abs(p[longest].Y - p[longest + 1].Y) < 0.01;
+                var best = double.MaxValue;
+                foreach (var i in runs)
+                {
+                    var hor = Math.Abs(p[i].Y - p[i + 1].Y) < 0.01;
+                    foreach (var f in new[] { 0.5, 0.35, 0.65, 0.2, 0.8 })
+                    {
+                        var m = new Pt(p[i].X + (p[i + 1].X - p[i].X) * f, p[i].Y + (p[i + 1].Y - p[i].Y) * f);
+                        var b = LabelBox(m, hor);
+                        // the label stays on its run, clear of the bends
+                        var along = hor ? b.X1 - b.X0 : b.Y1 - b.Y0;
+                        var past = Math.Max(0, along / 2 + 1 - Math.Min(Dist(m, p[i]), Dist(m, p[i + 1])));
+                        var cost = Covered(b) + past * TextHeight * 4;
+                        if (cost < best - 1e-9) { best = cost; mid = m; horizontal = hor; }
+                        if (best == 0) break;
+                    }
+                    if (best == 0) break;
+                }
+                labels.Add(LabelBox(mid, horizontal));
                 var at = horizontal ? new Pt(mid.X, mid.Y + 5) : new Pt(mid.X - 5, mid.Y);
                 if (pid && !l.Energy)
                 {
                     // the line number along the line: size, fluid, number and insulation
                     C("layer.current", new JObject { ["name"] = "TEXT" });
-                    var number = LineNumber(l, lineData);
                     C("text", horizontal
                         ? new JObject { ["at"] = new JArray(mid.X, Math.Round(mid.Y + 1.2, 2)), ["text"] = number, ["height"] = TextHeight, ["justify"] = "BC" }
                         : new JObject { ["at"] = new JArray(Math.Round(mid.X - 1.2, 2), mid.Y), ["text"] = number, ["height"] = TextHeight, ["justify"] = "BC", ["rotation"] = 90 }, "line " + l.Tag);
                 }
                 else if (l.Energy)
                 {
-                    var q = Duty(fs, l.Icon.Owner as IEnergyStream);
-                    C("text", new JObject { ["at"] = new JArray(at.X, at.Y), ["text"] = l.Tag + (q.Length > 0 ? "  " + q : ""), ["height"] = TextHeight, ["justify"] = horizontal ? "BC" : "MR" }, "stream " + l.Tag);
+                    C("text", new JObject { ["at"] = new JArray(at.X, at.Y), ["text"] = energyText, ["height"] = TextHeight, ["justify"] = horizontal ? "BC" : "MR" }, "stream " + l.Tag);
                 }
                 else
                 {
                     // a diamond wide enough for the number
-                    var dw = Math.Max(3.5, l.Id.Length * 1.1 + 1.5);
                     C("layer.current", new JObject { ["name"] = "STREAMNUMBER" });
                     C("pline", new JObject { ["vertices"] = new JArray(new JArray(at.X - dw, at.Y), new JArray(at.X, at.Y + 3.5), new JArray(at.X + dw, at.Y), new JArray(at.X, at.Y - 3.5)), ["closed"] = true }, "stream " + l.Tag);
                     C("text", new JObject { ["at"] = new JArray(at.X, at.Y), ["text"] = l.Id, ["height"] = l.Id.Length > 2 ? 2.0 : TextHeight, ["justify"] = "MC" }, "stream " + l.Tag);
@@ -702,20 +754,20 @@ namespace DWSIM.Extensions.SolidCraft
                 int sd, ed;
                 if (l.StartCp != null && l.StartGo != null)
                 {
-                    start = T(l.StartCp.Position.X, l.StartCp.Position.Y);
+                    start = T(Where(l.StartCp, l.StartGo).X, Where(l.StartCp, l.StartGo).Y);
                     sd = Outward(l.StartGo, start, T, router.Clearance, out s);
                 }
                 else
                 {
                     // a feed comes in from its icon, on the side that faces its item
-                    var to = l.EndCp != null ? T(l.EndCp.Position.X, l.EndCp.Position.Y) : Right();
+                    var to = l.EndCp != null ? T(Where(l.EndCp, l.EndGo).X, Where(l.EndCp, l.EndGo).Y) : Right();
                     var toRight = to.X >= Left().X;
                     start = toRight ? Left() : Right(); sd = toRight ? 0 : 2;
                     s = new Pt(start.X + (toRight ? router.Clearance : -router.Clearance), start.Y);
                 }
                 if (l.EndCp != null && l.EndGo != null)
                 {
-                    end = T(l.EndCp.Position.X, l.EndCp.Position.Y);
+                    end = T(Where(l.EndCp, l.EndGo).X, Where(l.EndCp, l.EndGo).Y);
                     ed = (Outward(l.EndGo, end, T, router.Clearance, out e) + 2) % 4;
                 }
                 else
@@ -816,6 +868,29 @@ namespace DWSIM.Extensions.SolidCraft
             return p;
         }
 
+        /// <summary>
+        /// Where a connection point is on the flowsheet: an icon keeps its connection points as if
+        /// upright and unflipped, and the flowsheet turns and mirrors them about the icon's centre,
+        /// as its connector lines do.
+        /// </summary>
+        static Pt Where(IConnectionPoint cp, IGraphicObject go)
+        {
+            double x = cp.Position.X, y = cp.Position.Y;
+            if (go == null) return new Pt(x, y);
+            double cx = go.X + go.Width / 2.0, cy = go.Y + go.Height / 2.0;
+            if (go.Rotation != 0)
+            {
+                var r = go.Rotation * Math.PI / 180;
+                double dx = x - cx, dy = y - cy;
+                // as the flowsheet's connector lines turn them
+                x = cx + (dx * Math.Cos(r) + dy * Math.Sin(r));
+                y = cy - (dx * -Math.Sin(r) + dy * Math.Cos(r));
+            }
+            if (go.FlippedV) y = 2 * cy - y;
+            if (go.FlippedH) x = 2 * cx - x;
+            return new Pt(x, y);
+        }
+
         /// <summary>The points of a connector as the flowsheet routes it.</summary>
         static IEnumerable<Pt> Route(IConnectorGraphicObject con)
         {
@@ -832,11 +907,10 @@ namespace DWSIM.Extensions.SolidCraft
             if (list.Count >= 2) return list;
 
             // straight across, with one vertical leg half way
-            var a = con.AttachedFrom.OutputConnectors.Count > con.AttachedFromConnectorIndex && con.AttachedFromConnectorIndex >= 0
-                ? con.AttachedFrom.OutputConnectors[con.AttachedFromConnectorIndex].Position : null;
-            var b = con.AttachedTo.InputConnectors.Count > con.AttachedToConnectorIndex && con.AttachedToConnectorIndex >= 0
-                ? con.AttachedTo.InputConnectors[con.AttachedToConnectorIndex].Position : null;
-            if (a == null || b == null) return list;
+            if (con.AttachedFromConnectorIndex < 0 || con.AttachedFromConnectorIndex >= con.AttachedFrom.OutputConnectors.Count ||
+                con.AttachedToConnectorIndex < 0 || con.AttachedToConnectorIndex >= con.AttachedTo.InputConnectors.Count) return list;
+            var a = Where(con.AttachedFrom.OutputConnectors[con.AttachedFromConnectorIndex], con.AttachedFrom);
+            var b = Where(con.AttachedTo.InputConnectors[con.AttachedToConnectorIndex], con.AttachedTo);
             var xm = (a.X + b.X) / 2;
             return new[] { new Pt(a.X, a.Y), new Pt(xm, a.Y), new Pt(xm, b.Y), new Pt(b.X, b.Y) };
         }
@@ -883,6 +957,14 @@ namespace DWSIM.Extensions.SolidCraft
         /// </summary>
         static Pt Stub(IConnectionPoint cp, Pt p, Pt c, Pt half, double w, double h)
         {
+            // a point beside the outline runs straight to it: on a flipped icon the connectors
+            // change sides and keep their direction, so the side is taken from where the point is
+            var besideX = Math.Abs(p.Y - c.Y) <= half.Y + 1e-6;
+            var besideY = Math.Abs(p.X - c.X) <= half.X + 1e-6;
+            if (besideX && p.X < c.X - half.X) return new Pt(c.X - half.X, p.Y);
+            if (besideX && p.X > c.X + half.X) return new Pt(c.X + half.X, p.Y);
+            if (besideY && p.Y > c.Y + half.Y) return new Pt(p.X, c.Y + half.Y);
+            if (besideY && p.Y < c.Y - half.Y) return new Pt(p.X, c.Y - half.Y);
             if (cp.Type == ConType.ConIn || cp.Type == ConType.ConOut)
             {
                 // canvas up is model +y

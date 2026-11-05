@@ -201,6 +201,10 @@ Namespace GraphicObjects
                 End If
             End If
 
+            'the rotation and the flips below change copies: the points are the icons' own connection points
+            StartPos = New Point(StartPos.X, StartPos.Y)
+            EndPos = New Point(EndPos.X, EndPos.Y)
+
             Dim DeltaX, DeltaY As Integer
             DeltaX = 10
             DeltaY = 10
