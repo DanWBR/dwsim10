@@ -60,6 +60,8 @@ namespace DWSIM.Extensions.SolidCraft
             cbPackage.Items.AddRange(session.AvailablePackages().Cast<object>().ToArray());
             if (session.Flowsheet.SimulationObjects.Count > 0) chkUnits.Checked = false;
             wpDrawing.AllowNext = false;
+            work = new WorkIndicator(lblReadStatus, prgRead) { ModelLabel = lblModel };
+            work.ShowModel();
         }
 
         #region pages
@@ -115,7 +117,6 @@ namespace DWSIM.Extensions.SolidCraft
             reading = new CancellationTokenSource();
             var token = reading.Token;
             SetBusy(true);
-            work = work ?? new WorkIndicator(lblReadStatus, prgRead);
             work.Start("Checking the AI Assistant's model");
             try
             {
@@ -170,6 +171,7 @@ namespace DWSIM.Extensions.SolidCraft
         {
             var why = DrawingImportClient.OpenAssistantSettings(session.Flowsheet, true);
             if (why != null) MessageBox.Show(this, why, Text);
+            work.ShowModel();
         }
 
         private void btnOpenReading_Click(object sender, EventArgs e)

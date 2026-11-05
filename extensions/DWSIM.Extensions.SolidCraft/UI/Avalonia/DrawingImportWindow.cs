@@ -41,15 +41,7 @@ namespace DWSIM.Extensions.SolidCraft
         const string BatteryLimit = "(battery limit)";
 
         readonly DrawingImportSession session;
-        readonly ListBox steps = new ListBox();
-        readonly TextBlock stepTitle = new TextBlock { FontWeight = FontWeight.SemiBold, FontSize = UiScale.Font(15) };
-        readonly TextBlock stepText = new TextBlock { TextWrapping = TextWrapping.Wrap, Opacity = 0.85, Margin = new Thickness(0, 2, 0, 8) };
-        readonly ContentControl host = new ContentControl();
-        readonly Button back = new Button { Content = "< Back", MinWidth = 90 };
-        readonly Button next = new Button { Content = "Next >", MinWidth = 90 };
-        readonly Button close = new Button { Content = "Close", MinWidth = 90 };
-        Control[] pages;
-        int page;
+        readonly WizardFrame frame;
         bool loading;
         CancellationTokenSource reading;
         Bitmap overview;
@@ -85,59 +77,32 @@ namespace DWSIM.Extensions.SolidCraft
             Title = "Import a Flowsheet from a Drawing";
             Width = 1180;
             Height = 780;
-            Content = Build();
-            ShowPage(0);
+            frame = new WizardFrame(() => Close(), DrawingImportSession.Steps, DrawingImportSession.StepTexts,
+                new[] { DrawingPage(), ItemsPage(), LinesPage(), ProcessPage(), BuildPage() },
+                "Nothing is added to the simulation until the flowsheet is built on the last step.")
+            {
+                Ready = () => session.Reading != null && reading == null,
+                // the process page's choices are taken when it is left, forwards or back
+                Leaving = (from, to) => { if (from == 3) TakeProcessPage(); },
+                Entered = p =>
+                {
+                    switch (p)
+                    {
+                        case 1: FillItems(); break;
+                        case 2: FillLines(); break;
+                        case 3: FillProcess(); break;
+                        case 4: FillChecks(); break;
+                    }
+                },
+            };
+            Content = frame.Build();
+            Closing += (_, _) => reading?.Cancel();
+            frame.Show(0);
+            frame.NextAllowed = false;
+            work.ShowModel();
         }
 
         static TextBlock Label(string text) => new TextBlock { Text = text, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 0) };
-
-        Control Build()
-        {
-            steps.ItemsSource = DrawingImportSession.Steps.Select((s, i) => (i + 1) + ". " + s).ToList();
-            steps.Width = 170;
-            steps.SelectionChanged += (_, _) => { if (!loading && steps.SelectedIndex >= 0 && steps.SelectedIndex != page) ShowPage(steps.SelectedIndex); };
-            back.Click += (_, _) => ShowPage(Math.Max(0, page - 1));
-            next.Click += (_, _) => ShowPage(Math.Min(4, page + 1));
-            close.Click += (_, _) => { reading?.Cancel(); Close(); };
-            pages = new[] { DrawingPage(), ItemsPage(), LinesPage(), ProcessPage(), BuildPage() };
-
-            var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Spacing = 8, Margin = new Thickness(0, 8, 0, 0), Children = { close, back, next } };
-            var right = new DockPanel { Margin = new Thickness(12, 0, 0, 0) };
-            var header = new StackPanel { Children = { stepTitle, stepText } };
-            DockPanel.SetDock(header, Dock.Top);
-            right.Children.Add(header);
-            right.Children.Add(host);
-            var root = new DockPanel { Margin = new Thickness(12) };
-            DockPanel.SetDock(buttons, Dock.Bottom);
-            DockPanel.SetDock(steps, Dock.Left);
-            root.Children.Add(buttons);
-            root.Children.Add(steps);
-            root.Children.Add(right);
-            return root;
-        }
-
-        void ShowPage(int p)
-        {
-            if (session.Reading == null) p = 0;
-            if (page == 3 && p != 3) TakeProcessPage();
-            page = p;
-            host.Content = pages[p];
-            stepTitle.Text = DrawingImportSession.Steps[p];
-            stepText.Text = DrawingImportSession.StepTexts[p];
-            loading = true;
-            steps.SelectedIndex = p;
-            loading = false;
-            back.IsEnabled = p > 0;
-            next.IsVisible = p < 4;
-            next.IsEnabled = session.Reading != null && reading == null;
-            switch (p)
-            {
-                case 1: FillItems(); break;
-                case 2: FillLines(); break;
-                case 3: FillProcess(); break;
-                case 4: FillChecks(); break;
-            }
-        }
 
         IStorageProvider Storage => TopLevel.GetTopLevel(this)?.StorageProvider;
 
@@ -186,7 +151,7 @@ namespace DWSIM.Extensions.SolidCraft
             DockPanel.SetDock(open, Dock.Right);
             d.Children.Add(open);
             d.Children.Add(text);
-            return d;
+            return new StackPanel { Spacing = 4, Children = { d, work.ModelText } };
         }
 
         async Task BrowseDrawing()
@@ -260,7 +225,7 @@ namespace DWSIM.Extensions.SolidCraft
             read.IsEnabled = !busy && File.Exists((file.Text ?? "").Trim());
             cancelRead.IsEnabled = busy;
             saveReading.IsEnabled = !busy && session.Reading != null;
-            next.IsEnabled = !busy && session.Reading != null;
+            frame.NextAllowed = !busy && session.Reading != null;
         }
 
         async Task OpenReading()
@@ -663,7 +628,6 @@ namespace DWSIM.Extensions.SolidCraft
                 session.Build(solve.IsChecked == true, s => summary.Text = s + "...");
                 summary.Text = session.Summary();
                 Show(results, session.Built.Issues.Concat(session.Solve));
-                close.Content = "Finish";
                 FillFit();
             }
             catch (Exception ex)
@@ -691,7 +655,8 @@ namespace DWSIM.Extensions.SolidCraft
             reading = new CancellationTokenSource();
             var token = reading.Token;
             fit.Content = "Stop";
-            fitChoices.IsEnabled = back.IsEnabled = close.IsEnabled = false;
+            fitChoices.IsEnabled = false;
+            frame.Lock(true);
             try
             {
                 await Task.Run(() => session.Fit(token, s => Dispatcher.UIThread.Post(() => summary.Text = s.Trim())));
@@ -710,7 +675,8 @@ namespace DWSIM.Extensions.SolidCraft
             {
                 reading = null;
                 fit.Content = "Fit to the table";
-                fitChoices.IsEnabled = back.IsEnabled = close.IsEnabled = true;
+                fitChoices.IsEnabled = true;
+                frame.Lock(false);
             }
         }
 

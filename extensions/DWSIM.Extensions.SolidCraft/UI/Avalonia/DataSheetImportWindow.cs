@@ -39,15 +39,7 @@ namespace DWSIM.Extensions.SolidCraft
         static readonly string[] Types = { "pump", "compressor", "expander", "heat_exchanger", "vessel", "control_valve", "air_cooler", "column", "relief_valve", "fired_heater", "other" };
 
         readonly DataSheetImportSession session;
-        readonly ListBox steps = new ListBox();
-        readonly TextBlock stepTitle = new TextBlock { FontWeight = FontWeight.SemiBold, FontSize = UiScale.Font(15) };
-        readonly TextBlock stepText = new TextBlock { TextWrapping = TextWrapping.Wrap, Opacity = 0.85, Margin = new Thickness(0, 2, 0, 8) };
-        readonly ContentControl host = new ContentControl();
-        readonly Button back = new Button { Content = "< Back", MinWidth = 90 };
-        readonly Button next = new Button { Content = "Next >", MinWidth = 90 };
-        readonly Button close = new Button { Content = "Close", MinWidth = 90 };
-        Control[] pages;
-        int page;
+        readonly WizardFrame frame;
         bool loading;
         CancellationTokenSource reading;
 
@@ -75,54 +67,23 @@ namespace DWSIM.Extensions.SolidCraft
             Title = "Set Equipment up from a Data Sheet";
             Width = 1180;
             Height = 780;
-            Content = Build();
-            ShowPage(0);
+            frame = new WizardFrame(() => Close(), DataSheetImportSession.Steps, DataSheetImportSession.StepTexts,
+                new Control[] { SheetPage(), ValuesPage(), EquipmentPage() },
+                "The equipment changes only when the changes are made on the last step.")
+            {
+                Ready = () => session.Reading != null && reading == null,
+                // the edits on the values page are taken when it is left, forwards or back
+                Leaving = (from, to) => { if (from == 1) TakeValues(); },
+                Entered = p => { if (p == 1) FillValues(); if (p == 2) FillEquipment(); },
+            };
+            Content = frame.Build();
+            Closing += (_, _) => reading?.Cancel();
+            frame.Show(0);
+            frame.NextAllowed = false;
+            work.ShowModel();
         }
 
         static TextBlock Label(string text) => new TextBlock { Text = text, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 0) };
-
-        Control Build()
-        {
-            steps.ItemsSource = DataSheetImportSession.Steps.Select((s, i) => (i + 1) + ". " + s).ToList();
-            steps.Width = 170;
-            steps.SelectionChanged += (_, _) => { if (!loading && steps.SelectedIndex >= 0 && steps.SelectedIndex != page) ShowPage(steps.SelectedIndex); };
-            back.Click += (_, _) => ShowPage(Math.Max(0, page - 1));
-            next.Click += (_, _) => ShowPage(Math.Min(2, page + 1));
-            close.Click += (_, _) => { reading?.Cancel(); Close(); };
-            pages = new[] { SheetPage(), ValuesPage(), EquipmentPage() };
-
-            var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Spacing = 8, Margin = new Thickness(0, 8, 0, 0), Children = { close, back, next } };
-            var right = new DockPanel { Margin = new Thickness(12, 0, 0, 0) };
-            var header = new StackPanel { Children = { stepTitle, stepText } };
-            DockPanel.SetDock(header, Dock.Top);
-            right.Children.Add(header);
-            right.Children.Add(host);
-            var root = new DockPanel { Margin = new Thickness(12) };
-            DockPanel.SetDock(buttons, Dock.Bottom);
-            DockPanel.SetDock(steps, Dock.Left);
-            root.Children.Add(buttons);
-            root.Children.Add(steps);
-            root.Children.Add(right);
-            return root;
-        }
-
-        void ShowPage(int p)
-        {
-            if (session.Reading == null) p = 0;
-            if (page == 1 && p != 1) TakeValues();
-            page = p;
-            host.Content = pages[p];
-            stepTitle.Text = DataSheetImportSession.Steps[p];
-            stepText.Text = DataSheetImportSession.StepTexts[p];
-            loading = true;
-            steps.SelectedIndex = p;
-            loading = false;
-            back.IsEnabled = p > 0;
-            next.IsVisible = p < 2;
-            next.IsEnabled = session.Reading != null && reading == null;
-            if (p == 1) FillValues();
-            if (p == 2) FillEquipment();
-        }
 
         IStorageProvider Storage => TopLevel.GetTopLevel(this)?.StorageProvider;
 
@@ -169,7 +130,7 @@ namespace DWSIM.Extensions.SolidCraft
             DockPanel.SetDock(open, Dock.Right);
             d.Children.Add(open);
             d.Children.Add(text);
-            return d;
+            return new StackPanel { Spacing = 4, Children = { d, work.ModelText } };
         }
 
         async Task Browse()
@@ -248,7 +209,7 @@ namespace DWSIM.Extensions.SolidCraft
             read.IsEnabled = !busy && File.Exists((file.Text ?? "").Trim());
             cancelRead.IsEnabled = busy;
             saveReading.IsEnabled = !busy && session.Reading != null;
-            next.IsEnabled = !busy && session.Reading != null;
+            frame.NextAllowed = !busy && session.Reading != null;
         }
 
         async Task OpenReading()
@@ -274,7 +235,7 @@ namespace DWSIM.Extensions.SolidCraft
         async Task SaveReading()
         {
             if (Storage == null || session.Reading == null) return;
-            if (page == 1) TakeValues();
+            if (frame.Page == 1) TakeValues();
             var picked = await Storage.SaveFilePickerAsync(new FilePickerSaveOptions
             {
                 Title = "Save the data sheet reading",
@@ -456,7 +417,6 @@ namespace DWSIM.Extensions.SolidCraft
                 session.Apply();
                 summary.Text = session.Results.FirstOrDefault()?.Text + (session.Results.Any(i => i.Level == ImportIssue.Levels.Warning) ? "; the outlet differs from the sheet where marked below." : ".");
                 Show(session.Results.Concat(session.Issues.Where(i => i.Level != ImportIssue.Levels.Info)));
-                close.Content = "Finish";
                 loading = true;
                 var targets = session.Targets();
                 target.ItemsSource = targets;

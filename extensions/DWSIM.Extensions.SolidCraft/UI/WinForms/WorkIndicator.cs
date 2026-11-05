@@ -67,6 +67,25 @@ namespace DWSIM.Extensions.SolidCraft
 
         string localAccepted;
 
+        /// <summary>Where the model the assistant reads with is shown (the first page).</summary>
+        public Label ModelLabel;
+
+        /// <summary>Shows the model the assistant reads with, starting the assistant when it is not running; the window stays free meanwhile.</summary>
+        public async void ShowModel()
+        {
+            if (ModelLabel == null) return;
+            ModelLabel.Text = "Asking the AI Assistant which model it reads with...";
+            try
+            {
+                var m = await Task.Run(() => DrawingImportClient.Model(CancellationToken.None));
+                if (!ModelLabel.IsDisposed) ModelLabel.Text = DrawingImportClient.ModelLine(m);
+            }
+            catch (Exception ex)
+            {
+                if (!ModelLabel.IsDisposed) ModelLabel.Text = "The AI Assistant's model could not be read: " + ex.GetBaseException().Message;
+            }
+        }
+
         /// <summary>
         /// The model the assistant will read with; null when it is a local model met for the first
         /// time, which the status then explains, so that the next read goes ahead with it.
@@ -74,6 +93,7 @@ namespace DWSIM.Extensions.SolidCraft
         public async Task<DrawingImportClient.AssistantModel> Model(CancellationToken ct, string what)
         {
             var m = await Task.Run(() => DrawingImportClient.Model(ct, s => status.BeginInvoke((Action)(() => Step(s)))));
+            if (ModelLabel != null && !ModelLabel.IsDisposed) ModelLabel.Text = DrawingImportClient.ModelLine(m);
             if (!m.Local || localAccepted == m.ToString()) return m;
             localAccepted = m.ToString();
             Stop();

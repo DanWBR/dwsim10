@@ -35,6 +35,7 @@ namespace DWSIM.Extensions.SolidCraft
             this.flpVision = new System.Windows.Forms.FlowLayoutPanel();
             this.lblVision = new System.Windows.Forms.Label();
             this.lnkAssistantSettings = new System.Windows.Forms.LinkLabel();
+            this.lblModel = new System.Windows.Forms.Label();
             this.lblFile = new System.Windows.Forms.Label();
             this.txtFile = new System.Windows.Forms.TextBox();
             this.btnBrowse = new System.Windows.Forms.Button();
@@ -276,6 +277,8 @@ namespace DWSIM.Extensions.SolidCraft
             this.tlpDrawing.SetColumnSpan(this.flpVision, 3);
             this.flpVision.Controls.Add(this.lblVision);
             this.flpVision.Controls.Add(this.lnkAssistantSettings);
+            this.flpVision.Controls.Add(this.lblModel);
+            this.flpVision.SetFlowBreak(this.lnkAssistantSettings, true);
             this.flpVision.Dock = System.Windows.Forms.DockStyle.Fill;
             this.flpVision.Name = "flpVision";
             this.flpVision.TabIndex = 20;
@@ -289,6 +292,15 @@ namespace DWSIM.Extensions.SolidCraft
             this.lblVision.Name = "lblVision";
             this.lblVision.TabIndex = 0;
             this.lblVision.Text = "The AI Assistant reads the drawing with the model chosen in its settings: choose one that reads images (a vision model, such as Claude, GPT-4o or Gemini).";
+            //
+            // lblModel
+            //
+            this.lblModel.AutoSize = true;
+            this.lblModel.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
+            this.lblModel.Margin = new System.Windows.Forms.Padding(3, 4, 3, 3);
+            this.lblModel.MaximumSize = new System.Drawing.Size(960, 0);
+            this.lblModel.Name = "lblModel";
+            this.lblModel.TabIndex = 2;
             //
             // lnkAssistantSettings
             //
@@ -1276,6 +1288,7 @@ namespace DWSIM.Extensions.SolidCraft
         private System.Windows.Forms.FlowLayoutPanel flpVision;
         private System.Windows.Forms.Label lblVision;
         private System.Windows.Forms.LinkLabel lnkAssistantSettings;
+        private System.Windows.Forms.Label lblModel;
         private System.Windows.Forms.Label lblFile;
         private System.Windows.Forms.TextBox txtFile;
         private System.Windows.Forms.Button btnBrowse;

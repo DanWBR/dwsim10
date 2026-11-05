@@ -145,6 +145,10 @@ namespace DWSIM.Extensions.SolidCraft
             return new AssistantModel { Backend = (string)o["backend"] ?? "", Model = (string)o["model"] ?? "" };
         }
 
+        /// <summary>The line the wizards' first page shows: the model the assistant reads with now.</summary>
+        public static string ModelLine(AssistantModel m) => "The AI Assistant reads with " + m + "." +
+            (m.Local ? " A model that runs on this computer seldom reads a document well; a vision model such as Claude, GPT or Gemini does it better." : "");
+
         /// <summary>What the wizards say before reading with a local model.</summary>
         public static string LocalModelNote(AssistantModel m, string what) =>
             "The AI Assistant is set to " + m + ", a model that runs on this computer and seldom reads " + what + " well. " +
