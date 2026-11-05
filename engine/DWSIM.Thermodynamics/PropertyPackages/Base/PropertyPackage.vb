@@ -7514,15 +7514,51 @@ redirect2:                  IObj?.SetCurrent()
 
         End Function
 
+        'IAPWS G7-04 (2004), Table 2: Henry's constants of gases in liquid H2O, Eq. (3). CAS -> {a, b, c}
+        Private Shared ReadOnly IAPWS_G704 As New Dictionary(Of String, Double()) From {
+            {"7440-59-7", {-3.52839, 7.12983, 4.4777}},      'helium
+            {"7440-01-9", {-3.18301, 5.31448, 5.43774}},     'neon
+            {"7440-37-1", {-8.40954, 4.29587, 10.52779}},    'argon
+            {"7439-90-9", {-8.97358, 3.61508, 11.29963}},    'krypton
+            {"7440-63-3", {-14.21635, 4.00041, 15.60999}},   'xenon
+            {"1333-74-0", {-4.73284, 6.08954, 6.06066}},     'hydrogen
+            {"7727-37-9", {-9.67578, 4.72162, 11.70585}},    'nitrogen
+            {"7782-44-7", {-9.44833, 4.43822, 11.42005}},    'oxygen
+            {"630-08-0", {-10.52862, 5.13259, 12.01421}},    'carbon monoxide
+            {"124-38-9", {-8.55445, 4.01195, 9.52345}},      'carbon dioxide
+            {"7783-06-4", {-4.51499, 5.23538, 4.42126}},     'hydrogen sulfide
+            {"74-82-8", {-10.44708, 4.66491, 12.12986}},     'methane
+            {"74-84-0", {-19.67563, 4.51222, 20.62567}},     'ethane
+            {"2551-62-4", {-16.56118, 2.15289, 20.3544}}}    'sulfur hexafluoride
+
         Public Function HasHenryConstants(compname As String) As Boolean
 
             Dim CAS = Me.CurrentMaterialStream.Phases(0).Compounds(compname).ConstantProperties.CAS_Number
             If CAS <> "" Then
-                Return m_Henry.ContainsKey(CAS)
+                Return IAPWS_G704.ContainsKey(CAS) OrElse m_Henry.ContainsKey(CAS)
             Else
                 Return False
             End If
 
+        End Function
+
+        ''' <summary>
+        ''' Henry's constant kH = lim f2/x2 of a gas in water [Pa], IAPWS G7-04 Eq. (3), with water's vapor pressure from Eq. (4).
+        ''' </summary>
+        Private Shared Function KHenryIAPWS(g As Double(), T As Double) As Double
+            Dim Tr As Double = Math.Min(T, 647.0) / 647.096, tau As Double = 1.0 - Tr
+            Dim lnps As Double = (-7.85951783 * tau + 1.84408259 * tau ^ 1.5 - 11.7866497 * tau ^ 3 + 22.6807411 * tau ^ 3.5 -
+                                  15.9618719 * tau ^ 4 + 1.80122502 * tau ^ 7.5) / Tr
+            Return 22064000.0 * Exp(lnps + g(0) / Tr + g(1) * tau ^ 0.355 / Tr + g(2) * Tr ^ -0.41 * Exp(tau))
+        End Function
+
+        ''' <summary>
+        ''' Density of saturated liquid water [kg/m3] (Wagner and Pruss; IAPWS G7-04 Table 3).
+        ''' </summary>
+        Private Shared Function RhoSatLiquidWater(T As Double) As Double
+            Dim tau As Double = 1.0 - Math.Min(T, 647.0) / 647.096
+            Return 322.0 * (1.0 + 1.99274064 * tau ^ (1 / 3) + 1.09965342 * tau ^ (2 / 3) - 0.510839303 * tau ^ (5 / 3) -
+                            1.75493479 * tau ^ (16 / 3) - 45.5170352 * tau ^ (43 / 3) - 674694.45 * tau ^ (110 / 3))
         End Function
 
         Public Function AUX_KHenry(ByVal CompName As String, ByVal T As Double) As Double
@@ -7537,15 +7573,27 @@ redirect2:                  IObj?.SetCurrent()
             IObj?.Paragraphs.Add(String.Format("Temperature: {0} K", T))
 
             Dim KHx As Double
-            Dim MW As Double = 18 'mol weight of water [g/mol]
-            Dim DW As Double = 996 'density of water at 298.15 K [Kg/m3]
-            Dim KHCP As Double = 0.0000064 'nitrogen [mol/m3/Pa]
-            Dim C As Double = 1600 'nitrogen
+            Dim MW As Double = 18.015268 'mol weight of water [g/mol]
+            Dim KHCP As Double = 0.0 '[mol/m3/Pa]
+            Dim C As Double = 0.0
             Dim CAS As String
 
             CAS = Me.CurrentMaterialStream.Phases(0).Compounds(CompName).ConstantProperties.CAS_Number
 
             IObj?.Paragraphs.Add(String.Format("CAS Number: {0}", CAS))
+
+            If IAPWS_G704.ContainsKey(CAS) Then
+
+                KHx = KHenryIAPWS(IAPWS_G704(CAS), T)
+
+                IObj?.Paragraphs.Add("Source: IAPWS G7-04 (2004), Eq. (3)")
+                IObj?.Paragraphs.Add(String.Format("Henry's Constant: {0} Pa", KHx))
+
+                IObj?.Close()
+
+                Return KHx '[Pa]
+
+            End If
 
             SyncLock m_Henry
                 If m_Henry.ContainsKey(CAS) Then
@@ -7554,8 +7602,26 @@ redirect2:                  IObj?.SetCurrent()
                 End If
             End SyncLock
 
+            If KHCP = 0.0 Then
+
+                'no Henry's constant for this compound: use its vapor pressure
+
+                KHx = AUX_PVAPi(CompName, T)
+
+                IObj?.Paragraphs.Add(String.Format("No Henry's Constant available, using the Vapor Pressure: {0} Pa", KHx))
+
+                IObj?.Close()
+
+                Return KHx '[Pa]
+
+            End If
+
             IObj?.Paragraphs.Add(String.Format("KHCP: {0}", KHCP))
             IObj?.Paragraphs.Add(String.Format("C: {0}", C))
+
+            Dim DW As Double = RhoSatLiquidWater(T) 'density of water at T [Kg/m3]
+
+            IObj?.Paragraphs.Add(String.Format("Water Density: {0} kg/m3", DW))
 
             KHx = 1 / (KHCP * MW / DW / 1000 * Exp(C * (1 / T - 1 / 298.15)))
 
@@ -14012,7 +14078,7 @@ Final3:
                         End Using
                     End Using
 
-                    For i = 3 To HenryLines.Length - 2
+                    For i = 2 To HenryLines.Length - 2
                         Dim HP As New HenryParam
                         Dim cols = HenryLines(i).Split(",")
                         HP.Component = cols(4).Replace(Chr(34), "")
@@ -14023,7 +14089,7 @@ Final3:
                         If val1 <> "" And val3 <> "" And val2.Contains("L") Then
                             HP.KHcp = val1.ToDoubleFromInvariant()
                             HP.C = val3.ToDoubleFromInvariant()
-                            If Not m_Henry.ContainsKey(HP.CAS) Then
+                            If HP.CAS <> "" AndAlso Not m_Henry.ContainsKey(HP.CAS) Then
                                 m_Henry.Add(HP.CAS, HP)
                             End If
                         End If

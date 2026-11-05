@@ -1256,7 +1256,12 @@ Namespace PropertyPackages
                         IObj?.Paragraphs.Add(String.Format("Fugacity Coefficient: {0}", Exp(lnfug(i))))
                     Else 'do interpolation at proximity of critical point
                         IObj?.SetCurrent()
-                        Dim a2 As Double = AUX_KHenry(Me.RET_VNAMES(i), 1.02 * Tc(i))
+                        Dim a2 As Double
+                        If UseHenryConstants And HasHenryConstants(constprop(i).Name) Then
+                            a2 = AUX_KHenry(constprop(i).Name, 1.02 * Tc(i))
+                        Else
+                            a2 = AUX_PVAPi(i, 1.02 * Tc(i))
+                        End If
                         Dim a1 As Double = ativ(i) * Me.AUX_PVAPi(i, 0.98 * Tc(i))
                         If Not Double.IsNaN(a1) Then
                             lnfug(i) = Math.Log(((Tr - 0.98) / (1.02 - 0.98) * (a2 - a1) + a1) / P)
