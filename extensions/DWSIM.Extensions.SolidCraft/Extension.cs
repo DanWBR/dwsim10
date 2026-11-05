@@ -44,7 +44,7 @@ namespace DWSIM.Extensions.SolidCraft
 
         public ExtenderLevel Level => ExtenderLevel.FlowsheetWindow;
 
-        public List<IExtender> Collection { get; } = new List<IExtender> { new PlantModelExtender(), new UpdateDataExtender(), new ResetLayoutExtender(), new ProcessFlowDiagramExtender(), new PipingAndInstrumentationExtender(), new EquipmentDrawingsExtender(), new PipingIsometricsExtender(), new DataSheetsExtender(), new PlotPlanExtender(), new AllDrawingsExtender(), new DrawingImportExtender(), new IsometricImportExtender() };
+        public List<IExtender> Collection { get; } = new List<IExtender> { new PlantModelExtender(), new UpdateDataExtender(), new ResetLayoutExtender(), new ProcessFlowDiagramExtender(), new PipingAndInstrumentationExtender(), new EquipmentDrawingsExtender(), new PipingIsometricsExtender(), new DataSheetsExtender(), new PlotPlanExtender(), new AllDrawingsExtender(), new DrawingImportExtender(), new IsometricImportExtender(), new DataSheetImportExtender() };
 
         /// <summary>After Results, before the menus of the window itself.</summary>
         public int InsertAtPosition => 9;
@@ -970,6 +970,31 @@ namespace DWSIM.Extensions.SolidCraft
         public void Run()
         {
             if (Flowsheet != null) IsometricImportPrompt.Show(Flowsheet);
+        }
+    }
+
+    /// <summary>Sets equipment up from its data sheet, read by the AI Assistant.</summary>
+    public class DataSheetImportExtender : IExtender, IExtender3
+    {
+        IFlowsheet Flowsheet;
+
+        public string ID => "9d2c6e41-5b7a-4e08-b3f1-6a4d8c2e7b90";
+
+        public string DisplayText => "Set Equipment up from Data Sheet...";
+
+        public byte[] DisplayImage => PlantModelExtender.Icon();
+
+        public int InsertAtPosition => -1;
+
+        public void SetMainWindow(object mainwindow) { }
+
+        public void SetFlowsheet(IFlowsheet form) => Flowsheet = form;
+
+        public void ReleaseResources() => Flowsheet = null;
+
+        public void Run()
+        {
+            if (Flowsheet != null) DataSheetImportPrompt.Show(Flowsheet);
         }
     }
 
