@@ -14,6 +14,8 @@
 // <http://www.gnu.org/licenses/>.
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace DWSIM.Extensions.SolidCraft
@@ -27,7 +29,7 @@ namespace DWSIM.Extensions.SolidCraft
     {
         readonly Label status;
         readonly ProgressBar bar;
-        readonly Timer timer = new Timer { Interval = 1000 };
+        readonly System.Windows.Forms.Timer timer = new System.Windows.Forms.Timer { Interval = 1000 };
         DateTime started;
         string step = "";
 
@@ -61,6 +63,22 @@ namespace DWSIM.Extensions.SolidCraft
         {
             timer.Stop();
             bar.Visible = false;
+        }
+
+        string localAccepted;
+
+        /// <summary>
+        /// The model the assistant will read with; null when it is a local model met for the first
+        /// time, which the status then explains, so that the next read goes ahead with it.
+        /// </summary>
+        public async Task<DrawingImportClient.AssistantModel> Model(CancellationToken ct, string what)
+        {
+            var m = await Task.Run(() => DrawingImportClient.Model(ct, s => status.BeginInvoke((Action)(() => Step(s)))));
+            if (!m.Local || localAccepted == m.ToString()) return m;
+            localAccepted = m.ToString();
+            Stop();
+            status.Text = DrawingImportClient.LocalModelNote(m, what);
+            return null;
         }
 
         void Show()

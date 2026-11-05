@@ -198,13 +198,16 @@ namespace DWSIM.Extensions.SolidCraft
             reading = new CancellationTokenSource();
             var token = reading.Token;
             SetBusy(true);
-            work.Start("Sending the isometric to the AI Assistant");
+            work.Start("Checking the AI Assistant's model");
             try
             {
+                var model = await work.Model(token, "an isometric");
+                if (model == null) { read.Content = "Read with the local model"; return; }
+                read.Content = "Read the isometric";
                 await Task.Run(() => session.Read(token, s => Dispatcher.UIThread.Post(() => { if (!token.IsCancellationRequested) work.Step(s); })));
                 session.Propose();
                 work.Stop();
-                readStatus.Text = string.Format(CultureInfo.CurrentCulture, "{0} legs read in {1}. Check them on the next page.", session.Reading.Legs.Count, DrawingImportClient.Elapsed(work.Elapsed));
+                readStatus.Text = string.Format(CultureInfo.CurrentCulture, "{0} legs read by {2} in {1}. Check them on the next page.", session.Reading.Legs.Count, DrawingImportClient.Elapsed(work.Elapsed), model);
                 Loaded();
             }
             catch (Exception ex) when (token.IsCancellationRequested || ex is OperationCanceledException)

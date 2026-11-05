@@ -125,14 +125,17 @@ namespace DWSIM.Extensions.SolidCraft
             var token = reading.Token;
             SetBusy(true);
             work = work ?? new WorkIndicator(lblReadStatus, prgRead);
-            work.Start("Sending the data sheet to the AI Assistant");
+            work.Start("Checking the AI Assistant's model");
             try
             {
+                var model = await work.Model(token, "a data sheet");
+                if (model == null) { btnRead.Text = "Read with the local model"; return; }
+                btnRead.Text = "Read the data sheet";
                 await Task.Run(() => session.Read(token, s => BeginInvoke((Action)(() => { if (!token.IsCancellationRequested) work.Step(s); }))));
                 session.Loaded();
                 work.Stop();
-                lblReadStatus.Text = string.Format(CultureInfo.CurrentCulture, "A {0} data sheet ({1}), {2} values read in {3}. Check them on the next page.",
-                    session.Reading.EquipmentType.Replace("_", " "), session.Reading.Tag, session.Reading.Fields.Count, DrawingImportClient.Elapsed(work.Elapsed));
+                lblReadStatus.Text = string.Format(CultureInfo.CurrentCulture, "A {0} data sheet ({1}), {2} values read by {4} in {3}. Check them on the next page.",
+                    session.Reading.EquipmentType.Replace("_", " "), session.Reading.Tag, session.Reading.Fields.Count, DrawingImportClient.Elapsed(work.Elapsed), model);
                 Loaded();
             }
             catch (Exception ex) when (token.IsCancellationRequested || ex is OperationCanceledException)

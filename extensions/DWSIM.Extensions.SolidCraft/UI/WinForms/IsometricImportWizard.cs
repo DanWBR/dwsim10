@@ -124,14 +124,17 @@ namespace DWSIM.Extensions.SolidCraft
             var token = reading.Token;
             SetBusy(true);
             work = work ?? new WorkIndicator(lblReadStatus, prgRead);
-            work.Start("Sending the isometric to the AI Assistant");
+            work.Start("Checking the AI Assistant's model");
             try
             {
+                var model = await work.Model(token, "an isometric");
+                if (model == null) { btnRead.Text = "Read with the local model"; return; }
+                btnRead.Text = "Read the isometric";
                 await Task.Run(() => session.Read(token, s => BeginInvoke((Action)(() => { if (!token.IsCancellationRequested) work.Step(s); }))));
                 session.Propose();
                 work.Stop();
-                lblReadStatus.Text = string.Format(CultureInfo.CurrentCulture, "{0} legs read in {1}. Check them on the next page.",
-                    session.Reading.Legs.Count, DrawingImportClient.Elapsed(work.Elapsed));
+                lblReadStatus.Text = string.Format(CultureInfo.CurrentCulture, "{0} legs read by {2} in {1}. Check them on the next page.",
+                    session.Reading.Legs.Count, DrawingImportClient.Elapsed(work.Elapsed), model);
                 Loaded();
             }
             catch (Exception ex) when (token.IsCancellationRequested || ex is OperationCanceledException)

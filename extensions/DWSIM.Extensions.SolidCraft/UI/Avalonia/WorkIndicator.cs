@@ -14,6 +14,8 @@
 // <http://www.gnu.org/licenses/>.
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Threading;
 
@@ -62,6 +64,22 @@ namespace DWSIM.Extensions.SolidCraft
         {
             timer.Stop();
             Bar.IsVisible = false;
+        }
+
+        string localAccepted;
+
+        /// <summary>
+        /// The model the assistant will read with; null when it is a local model met for the first
+        /// time, which the status then explains, so that the next read goes ahead with it.
+        /// </summary>
+        public async Task<DrawingImportClient.AssistantModel> Model(CancellationToken ct, string what)
+        {
+            var m = await Task.Run(() => DrawingImportClient.Model(ct, s => Dispatcher.UIThread.Post(() => Step(s))));
+            if (!m.Local || localAccepted == m.ToString()) return m;
+            localAccepted = m.ToString();
+            Stop();
+            status.Text = DrawingImportClient.LocalModelNote(m, what);
+            return null;
         }
 
         void Show() => status.Text = step + " (" + DrawingImportClient.Elapsed(Elapsed) + ")";
