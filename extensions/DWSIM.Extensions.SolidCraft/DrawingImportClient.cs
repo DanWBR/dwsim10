@@ -104,9 +104,24 @@ namespace DWSIM.Extensions.SolidCraft
         /// </summary>
         public static DrawingReading Read(string file, string kind, CancellationToken ct, Action<string> step = null)
         {
+            var o = ReadRaw(file, kind, ct, step, out var overview, out var cadTexts);
+            var reading = DrawingReading.FromJson(o.ToString(), kind == "pfd" || kind == "pid" ? kind : null);
+            reading.Source = file;
+            reading.Overview = overview;
+            reading.CadTexts.AddRange(cadTexts);
+            return reading;
+        }
+
+        /// <summary>The model's reading of a drawing as it comes (pfd, pid or iso), and the sheet it saw.</summary>
+        public static JObject ReadRaw(string file, string kind, CancellationToken ct, Action<string> step, out byte[] overview) =>
+            ReadRaw(file, kind, ct, step, out overview, out _);
+
+        static JObject ReadRaw(string file, string kind, CancellationToken ct, Action<string> step, out byte[] overview, out List<string> cadTexts)
+        {
             if (!EnsureAssistant(out var why)) throw new InvalidOperationException(why);
+            overview = null;
             var send = file;
-            var cadTexts = new List<string>();
+            cadTexts = new List<string>();
             string temp = null;
             try
             {
@@ -124,11 +139,8 @@ namespace DWSIM.Extensions.SolidCraft
                     ["filename"] = Path.GetFileName(send),
                     ["kind"] = kind ?? "auto",
                 }, ct);
-                var reading = DrawingReading.FromJson(o["reading"].ToString(), kind == "pfd" || kind == "pid" ? kind : null);
-                reading.Source = file;
-                if (o["overview"] != null) try { reading.Overview = Convert.FromBase64String(o["overview"].ToString()); } catch (FormatException) { }
-                reading.CadTexts.AddRange(cadTexts);
-                return reading;
+                if (o["overview"] != null) try { overview = Convert.FromBase64String(o["overview"].ToString()); } catch (FormatException) { }
+                return (JObject)o["reading"];
             }
             finally
             {

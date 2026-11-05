@@ -44,7 +44,7 @@ namespace DWSIM.Extensions.SolidCraft
 
         public ExtenderLevel Level => ExtenderLevel.FlowsheetWindow;
 
-        public List<IExtender> Collection { get; } = new List<IExtender> { new PlantModelExtender(), new UpdateDataExtender(), new ResetLayoutExtender(), new ProcessFlowDiagramExtender(), new PipingAndInstrumentationExtender(), new EquipmentDrawingsExtender(), new PipingIsometricsExtender(), new DataSheetsExtender(), new PlotPlanExtender(), new AllDrawingsExtender(), new DrawingImportExtender() };
+        public List<IExtender> Collection { get; } = new List<IExtender> { new PlantModelExtender(), new UpdateDataExtender(), new ResetLayoutExtender(), new ProcessFlowDiagramExtender(), new PipingAndInstrumentationExtender(), new EquipmentDrawingsExtender(), new PipingIsometricsExtender(), new DataSheetsExtender(), new PlotPlanExtender(), new AllDrawingsExtender(), new DrawingImportExtender(), new IsometricImportExtender() };
 
         /// <summary>After Results, before the menus of the window itself.</summary>
         public int InsertAtPosition => 9;
@@ -945,6 +945,31 @@ namespace DWSIM.Extensions.SolidCraft
         public void Run()
         {
             if (Flowsheet != null) DrawingImportPrompt.Show(Flowsheet);
+        }
+    }
+
+    /// <summary>Makes the hydraulic profile of a Pipe Segment from a piping isometric read by the AI Assistant.</summary>
+    public class IsometricImportExtender : IExtender, IExtender3
+    {
+        IFlowsheet Flowsheet;
+
+        public string ID => "3b8e5d14-7c2a-4f96-a1d0-8e6c2b9f4a57";
+
+        public string DisplayText => "Import Pipe Segment from Piping Isometric...";
+
+        public byte[] DisplayImage => PlantModelExtender.Icon();
+
+        public int InsertAtPosition => -1;
+
+        public void SetMainWindow(object mainwindow) { }
+
+        public void SetFlowsheet(IFlowsheet form) => Flowsheet = form;
+
+        public void ReleaseResources() => Flowsheet = null;
+
+        public void Run()
+        {
+            if (Flowsheet != null) IsometricImportPrompt.Show(Flowsheet);
         }
     }
 
