@@ -74,8 +74,9 @@ namespace DWSIM.Extensions.SolidCraft
         // build page
         StackPanel issues, results;
         CheckBox specs, useUnits, solve;
-        Button build;
+        Button build, fit;
         TextBlock summary;
+        StackPanel fitRow, fitChoices;
 
         public DrawingImportWindow(IFlowsheet fs)
         {
@@ -561,14 +562,28 @@ namespace DWSIM.Extensions.SolidCraft
             build = new Button { Content = "Build the flowsheet" };
             build.Click += async (_, _) => await BuildFlowsheet();
             summary = new TextBlock { TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 6) };
-            var g = new Grid { RowDefinitions = new RowDefinitions("*,Auto,Auto,*"), RowSpacing = 6 };
+            // the fit of what the drawing does not give (Patreon edition), once the flowsheet is solved
+            fitChoices = new StackPanel { Spacing = 2 };
+            fit = new Button { Content = "Fit to the table", VerticalAlignment = VerticalAlignment.Center };
+            fit.Click += async (_, _) => await FitFlowsheet();
+            fitRow = new StackPanel
+            {
+                Orientation = Orientation.Horizontal, Spacing = 14, IsVisible = false,
+                Children =
+                {
+                    new TextBlock { Text = "Fit what the drawing does not give\nto the stream table:", VerticalAlignment = VerticalAlignment.Center },
+                    new ScrollViewer { Content = fitChoices, MaxHeight = 90, MinWidth = 320 },
+                    fit,
+                },
+            };
+            var g = new Grid { RowDefinitions = new RowDefinitions("*,Auto,Auto,Auto,*"), RowSpacing = 6 };
             var top = new ScrollViewer { Content = issues };
             var options = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 14, Children = { specs, useUnits, solve, build } };
             var bottom = new ScrollViewer { Content = results };
-            Grid.SetRow(options, 1); Grid.SetRow(summary, 2); Grid.SetRow(bottom, 3);
+            Grid.SetRow(options, 1); Grid.SetRow(summary, 2); Grid.SetRow(fitRow, 3); Grid.SetRow(bottom, 4);
             g.Children.Add(new Border { BorderBrush = Brushes.Gray, BorderThickness = new Thickness(1), Padding = new Thickness(6), Child = top });
-            g.Children.Add(options); g.Children.Add(summary);
-            g.Children.Add(new Border { BorderBrush = Brushes.Gray, BorderThickness = new Thickness(1), Padding = new Thickness(6), Child = bottom, [Grid.RowProperty] = 3 });
+            g.Children.Add(options); g.Children.Add(summary); g.Children.Add(fitRow);
+            g.Children.Add(new Border { BorderBrush = Brushes.Gray, BorderThickness = new Thickness(1), Padding = new Thickness(6), Child = bottom, [Grid.RowProperty] = 4 });
             return g;
         }
 
@@ -613,10 +628,53 @@ namespace DWSIM.Extensions.SolidCraft
                 summary.Text = session.Summary();
                 Show(results, session.Built.Issues.Concat(session.Solve));
                 close.Content = "Finish";
+                FillFit();
             }
             catch (Exception ex)
             {
                 summary.Text = "The flowsheet could not be built: " + ex.GetBaseException().Message;
+            }
+        }
+
+        /// <summary>The parameters the fit may move (Patreon edition), shown once the flowsheet is built and solved.</summary>
+        void FillFit()
+        {
+            fitRow.IsVisible = session.CanFit && solve.IsChecked == true;
+            fitChoices.Children.Clear();
+            foreach (var p in session.FitParameters)
+            {
+                var box = new CheckBox { Content = p.ToString(), IsChecked = p.Use, Tag = p };
+                box.IsCheckedChanged += (_, _) => p.Use = box.IsChecked == true;
+                fitChoices.Children.Add(box);
+            }
+        }
+
+        async Task FitFlowsheet()
+        {
+            if (reading != null) { reading.Cancel(); return; }
+            reading = new CancellationTokenSource();
+            var token = reading.Token;
+            fit.Content = "Stop";
+            fitChoices.IsEnabled = back.IsEnabled = close.IsEnabled = false;
+            try
+            {
+                await Task.Run(() => session.Fit(token, s => Dispatcher.UIThread.Post(() => summary.Text = s.Trim())));
+                summary.Text = "Solving the flowsheet at the fitted values...";
+                await Task.Delay(50);
+                session.FinishFit();
+                summary.Text = session.Summary();
+                Show(results, session.Built.Issues.Concat(session.Solve));
+                FillFit();
+            }
+            catch (Exception ex)
+            {
+                summary.Text = "The fit failed: " + ex.GetBaseException().Message;
+            }
+            finally
+            {
+                reading = null;
+                fit.Content = "Fit to the table";
+                fitChoices.IsEnabled = back.IsEnabled = close.IsEnabled = true;
             }
         }
 

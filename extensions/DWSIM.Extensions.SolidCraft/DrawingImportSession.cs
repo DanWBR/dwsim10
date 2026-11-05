@@ -40,6 +40,12 @@ namespace DWSIM.Extensions.SolidCraft
         public DrawingImportBuilder.Result Built;
         public List<ImportIssue> Solve = new List<ImportIssue>();
 
+        /// <summary>The equipment parameters the fit may move, found after a build where the Patreon edition's reconciliation is installed.</summary>
+        public List<DrawingImportFit.Parameter> FitParameters = new List<DrawingImportFit.Parameter>();
+
+        /// <summary>What the last fit did, null before one.</summary>
+        public DrawingImportFit.Outcome Fitted;
+
         /// <summary>What <see cref="DrawingReading.Tidy"/> set straight in the reading.</summary>
         public List<ImportIssue> Tidied = new List<ImportIssue>();
 
@@ -189,6 +195,36 @@ namespace DWSIM.Extensions.SolidCraft
             }
             foreach (var e in errors.Take(10))
                 Solve.Add(new ImportIssue(ImportIssue.Levels.Error, "", e.GetBaseException().Message));
+            Solve.AddRange(DrawingImportBuilder.Compare(Reading, Built));
+            Fitted = null;
+            FitParameters = DrawingImportFit.Available ? DrawingImportFit.Parameters(Reading, Built) : new List<DrawingImportFit.Parameter>();
+            try { Flowsheet.UpdateInterface(); } catch (Exception) { }
+        }
+
+        /// <summary>Whether the built flowsheet has parameters the fit can move and the fit is installed.</summary>
+        public bool CanFit => Built != null && FitParameters.Count > 0 && DrawingImportFit.Available;
+
+        /// <summary>
+        /// Fits the equipment parameters to the table with the data reconciliation (Patreon edition).
+        /// It may run off the interface's thread; <see cref="FinishFit"/> then solves and compares.
+        /// </summary>
+        public void Fit(CancellationToken ct, Action<string> log)
+        {
+            Fitted = DrawingImportFit.Fit(Flowsheet, Reading, Built, FitParameters, ct, log);
+        }
+
+        /// <summary>Solves the flowsheet at the fitted values and compares it with the table again.</summary>
+        public void FinishFit()
+        {
+            if (Fitted == null) return;
+            if (Fitted.Iterations == 0 && !Fitted.Converged)
+            {
+                Solve.Insert(0, new ImportIssue(ImportIssue.Levels.Warning, "", "the fit did not run: " + Fitted.Message));
+                return;
+            }
+            var errors = Flowsheet.RequestCalculationAndWait() ?? new List<Exception>();
+            Solve = new List<ImportIssue> { new ImportIssue(ImportIssue.Levels.Info, "", DrawingImportFit.Describe(Fitted)) };
+            foreach (var e in errors.Take(10)) Solve.Add(new ImportIssue(ImportIssue.Levels.Error, "", e.GetBaseException().Message));
             Solve.AddRange(DrawingImportBuilder.Compare(Reading, Built));
             try { Flowsheet.UpdateInterface(); } catch (Exception) { }
         }

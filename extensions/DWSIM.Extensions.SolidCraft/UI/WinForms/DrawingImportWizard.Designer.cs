@@ -88,6 +88,10 @@ namespace DWSIM.Extensions.SolidCraft
             this.chkSolve = new System.Windows.Forms.CheckBox();
             this.btnBuild = new System.Windows.Forms.Button();
             this.lblSummary = new System.Windows.Forms.Label();
+            this.flpFit = new System.Windows.Forms.FlowLayoutPanel();
+            this.lblFit = new System.Windows.Forms.Label();
+            this.clbFit = new System.Windows.Forms.CheckedListBox();
+            this.btnFit = new System.Windows.Forms.Button();
             this.dgvResults = new System.Windows.Forms.DataGridView();
             this.colResLevel = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.colResSubject = new System.Windows.Forms.DataGridViewTextBoxColumn();
@@ -123,6 +127,7 @@ namespace DWSIM.Extensions.SolidCraft
             this.tlpBuild.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dgvIssues)).BeginInit();
             this.flpBuild.SuspendLayout();
+            this.flpFit.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dgvResults)).BeginInit();
             this.flpButtons.SuspendLayout();
             this.SuspendLayout();
@@ -866,12 +871,14 @@ namespace DWSIM.Extensions.SolidCraft
             this.tlpBuild.Controls.Add(this.dgvIssues, 0, 0);
             this.tlpBuild.Controls.Add(this.flpBuild, 0, 1);
             this.tlpBuild.Controls.Add(this.lblSummary, 0, 2);
-            this.tlpBuild.Controls.Add(this.dgvResults, 0, 3);
+            this.tlpBuild.Controls.Add(this.flpFit, 0, 3);
+            this.tlpBuild.Controls.Add(this.dgvResults, 0, 4);
             this.tlpBuild.Dock = System.Windows.Forms.DockStyle.Fill;
             this.tlpBuild.Location = new System.Drawing.Point(0, 0);
             this.tlpBuild.Name = "tlpBuild";
-            this.tlpBuild.RowCount = 4;
+            this.tlpBuild.RowCount = 5;
             this.tlpBuild.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 50F));
+            this.tlpBuild.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
             this.tlpBuild.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
             this.tlpBuild.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
             this.tlpBuild.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 50F));
@@ -994,6 +1001,51 @@ namespace DWSIM.Extensions.SolidCraft
             this.lblSummary.Name = "lblSummary";
             this.lblSummary.Size = new System.Drawing.Size(0, 17);
             this.lblSummary.TabIndex = 2;
+            //
+            // flpFit
+            //
+            this.flpFit.AutoSize = true;
+            this.flpFit.Controls.Add(this.lblFit);
+            this.flpFit.Controls.Add(this.clbFit);
+            this.flpFit.Controls.Add(this.btnFit);
+            this.flpFit.Location = new System.Drawing.Point(3, 348);
+            this.flpFit.Name = "flpFit";
+            this.flpFit.Size = new System.Drawing.Size(900, 72);
+            this.flpFit.TabIndex = 4;
+            this.flpFit.Visible = false;
+            //
+            // lblFit
+            //
+            this.lblFit.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            this.lblFit.AutoSize = true;
+            this.lblFit.Location = new System.Drawing.Point(3, 27);
+            this.lblFit.MaximumSize = new System.Drawing.Size(260, 0);
+            this.lblFit.Name = "lblFit";
+            this.lblFit.Size = new System.Drawing.Size(250, 17);
+            this.lblFit.TabIndex = 0;
+            this.lblFit.Text = "Fit what the drawing does not give to the stream table:";
+            //
+            // clbFit
+            //
+            this.clbFit.CheckOnClick = true;
+            this.clbFit.FormattingEnabled = true;
+            this.clbFit.IntegralHeight = false;
+            this.clbFit.Location = new System.Drawing.Point(262, 3);
+            this.clbFit.Name = "clbFit";
+            this.clbFit.Size = new System.Drawing.Size(460, 66);
+            this.clbFit.TabIndex = 1;
+            //
+            // btnFit
+            //
+            this.btnFit.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            this.btnFit.AutoSize = true;
+            this.btnFit.Location = new System.Drawing.Point(728, 22);
+            this.btnFit.Name = "btnFit";
+            this.btnFit.Size = new System.Drawing.Size(140, 27);
+            this.btnFit.TabIndex = 2;
+            this.btnFit.Text = "Fit to the table";
+            this.btnFit.UseVisualStyleBackColor = true;
+            this.btnFit.Click += new System.EventHandler(this.btnFit_Click);
             //
             // dgvResults
             //
@@ -1141,6 +1193,8 @@ namespace DWSIM.Extensions.SolidCraft
             ((System.ComponentModel.ISupportInitialize)(this.dgvIssues)).EndInit();
             this.flpBuild.ResumeLayout(false);
             this.flpBuild.PerformLayout();
+            this.flpFit.ResumeLayout(false);
+            this.flpFit.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dgvResults)).EndInit();
             this.flpButtons.ResumeLayout(false);
             this.flpButtons.PerformLayout();
@@ -1223,6 +1277,10 @@ namespace DWSIM.Extensions.SolidCraft
         private System.Windows.Forms.CheckBox chkSolve;
         private System.Windows.Forms.Button btnBuild;
         private System.Windows.Forms.Label lblSummary;
+        private System.Windows.Forms.FlowLayoutPanel flpFit;
+        private System.Windows.Forms.Label lblFit;
+        private System.Windows.Forms.CheckedListBox clbFit;
+        private System.Windows.Forms.Button btnFit;
         private System.Windows.Forms.DataGridView dgvResults;
         private System.Windows.Forms.DataGridViewTextBoxColumn colResLevel;
         private System.Windows.Forms.DataGridViewTextBoxColumn colResSubject;

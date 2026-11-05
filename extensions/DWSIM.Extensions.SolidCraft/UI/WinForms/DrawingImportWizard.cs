@@ -554,12 +554,53 @@ namespace DWSIM.Extensions.SolidCraft
                 lblSummary.Text = session.Summary();
                 Fill(dgvResults, session.Built.Issues.Concat(session.Solve));
                 btnClose.Text = "Finish";
+                FillFit();
             }
             catch (Exception ex)
             {
                 lblSummary.Text = "The flowsheet could not be built: " + ex.GetBaseException().Message;
             }
             finally { UseWaitCursor = false; }
+        }
+
+        /// <summary>The parameters the fit may move (Patreon edition), shown once the flowsheet is built and solved.</summary>
+        void FillFit()
+        {
+            flpFit.Visible = session.CanFit && chkSolve.Checked;
+            clbFit.Items.Clear();
+            foreach (var p in session.FitParameters) clbFit.Items.Add(p, p.Use);
+        }
+
+        private async void btnFit_Click(object sender, EventArgs e)
+        {
+            if (reading != null) { reading.Cancel(); return; }
+            for (var i = 0; i < clbFit.Items.Count; i++) ((DrawingImportFit.Parameter)clbFit.Items[i]).Use = clbFit.GetItemChecked(i);
+            reading = new CancellationTokenSource();
+            var token = reading.Token;
+            btnFit.Text = "Stop";
+            clbFit.Enabled = btnBack.Enabled = btnClose.Enabled = false;
+            UseWaitCursor = true;
+            try
+            {
+                await Task.Run(() => session.Fit(token, s => BeginInvoke((Action)(() => lblSummary.Text = s.Trim()))));
+                lblSummary.Text = "Solving the flowsheet at the fitted values...";
+                lblSummary.Refresh();
+                session.FinishFit();
+                lblSummary.Text = session.Summary();
+                Fill(dgvResults, session.Built.Issues.Concat(session.Solve));
+                FillFit();
+            }
+            catch (Exception ex)
+            {
+                lblSummary.Text = "The fit failed: " + ex.GetBaseException().Message;
+            }
+            finally
+            {
+                reading = null;
+                btnFit.Text = "Fit to the table";
+                clbFit.Enabled = btnBack.Enabled = btnClose.Enabled = true;
+                UseWaitCursor = false;
+            }
         }
 
         #endregion
