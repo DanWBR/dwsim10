@@ -1,6 +1,6 @@
 ==================================================
 DWSIM - Open Source Process Simulator
-Version 10.2.14
+Version 10.2.15
 Copyright (c) 2017-2026 Daniel Wagner and contributors
 Copyright (c) 2008-2016 Daniel Wagner, Gregor Reichert, Gustavo Leon
 ==================================================
@@ -48,6 +48,9 @@ Version 10.2.15
 - [CHG] Pipe Segment hydraulic profile editor: a new section takes the material and the diameters of the section before it
 - [FIX] PFD and P&ID export: lines on mirrored or turned items left from the wrong side of the symbol, and labels could land on an item's text
 - [FIX] Data sheets: every valve showed Kv 100 m3/h, the default, and exchangers not in shell and tube rating got a tube count from the area alone that could not run in rating
+- [FIX] Henry's constants of gases in water (Raoult's law and activity coefficient packages): gases dissolved too little in hot water (nitrogen 0.66 of the IAPWS G7-04 value at 72 °C, 0.09 at 200 °C); 14 gases now follow IAPWS G7-04 and the others use water's density at the temperature
+- [FIX] Compounds without a Henry's constant, user compounds without a CAS number among them, got another compound's constant, which near their critical point made them far too volatile in the activity coefficient packages; they use their own vapor pressure
+- [FIX] Cross-platform interface: an error in a window or editor, such as a connection refused in the Connections tab, closed the application; it goes to the flowsheet's log
 
 Version 10.2.14
 
