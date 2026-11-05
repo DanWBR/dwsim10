@@ -1622,16 +1622,35 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                     End If
                 Next
 
+                ' Murphree stage efficiencies: the vapour leaving stage i is y = E K x + (1 - E) y(i+1),
+                ' taken with the compositions of the last pass, and the balances below use the effective
+                ' K = y / x of that vapour. A reboiler has no vapour from below and stays at equilibrium;
+                ' a bottom stage without one takes its feed as that vapour. With every efficiency at 1
+                ' this is K itself.
+                Dim Ke(ns)() As Double
+                For i = 0 To ns
+                    Ke(i) = DirectCast(K(i).Clone(), Double())
+                    If i = ns AndAlso Not (refabs AndAlso Fj(ns) > 0.0) Then Continue For
+                    For j = 0 To nc - 1
+                        If Ef(_effc, eff, i, j) <> 1.0 AndAlso xc(i)(j) > 0.0 Then
+                            Dim ystar As Double = K(i)(j) * xc(i)(j)
+                            Dim ynext As Double = If(i < ns, yc(i + 1)(j), fcj(ns)(j))
+                            Dim e As Double = Ef(_effc, eff, i, j, ystar, ynext)
+                            Ke(i)(j) = (e * ystar + (1.0 - e) * ynext) / xc(i)(j)
+                        End If
+                    Next
+                Next
+
                 For i = 0 To nc - 1
                     For j = 0 To ns
                         dt(i)(j) = -Fj(j) * fcj(j)(i)
                         If j < ns Then
-                            bt(i)(j) = -(Vj(j + 1) + sum1(j) - Vj(0) + LSSj(j) + (Vj(j) + VSSj(j)) * K(j)(i))
+                            bt(i)(j) = -(Vj(j + 1) + sum1(j) - Vj(0) + LSSj(j) + (Vj(j) + VSSj(j)) * Ke(j)(i))
                         Else
-                            bt(i)(j) = -(sum1(j) - Vj(0) + LSSj(j) + (Vj(j) + VSSj(j)) * K(j)(i))
+                            bt(i)(j) = -(sum1(j) - Vj(0) + LSSj(j) + (Vj(j) + VSSj(j)) * Ke(j)(i))
                         End If
                         'tdma solve
-                        If j < ns Then ct(i)(j) = Vj(j + 1) * K(j + 1)(i)
+                        If j < ns Then ct(i)(j) = Vj(j + 1) * Ke(j + 1)(i)
                         If j > 0 Then at(i)(j) = Vj(j) + sum2(j) - Vj(0)
                     Next
                 Next
@@ -1826,11 +1845,15 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                 For i = ns To 0 Step -1
                     sumy(i) = 0
                     For j = 0 To nc - 1
-                        If i = ns Then
-                            yc(i)(j) = K(i)(j) * xc(i)(j)
-                        Else
+                        If i < ns Then
                             Dim ej = Ef(_effc, eff, i, j, K(i)(j) * xc(i)(j), yc(i + 1)(j))
                             yc(i)(j) = ej * K(i)(j) * xc(i)(j) + (1 - ej) * yc(i + 1)(j)
+                        ElseIf refabs AndAlso Fj(ns) > 0.0 Then
+                            'no reboiler: the bottom stage's feed is the vapour from below
+                            Dim ej = Ef(_effc, eff, i, j, K(i)(j) * xc(i)(j), fcj(ns)(j))
+                            yc(i)(j) = ej * K(i)(j) * xc(i)(j) + (1 - ej) * fcj(ns)(j)
+                        Else
+                            yc(i)(j) = K(i)(j) * xc(i)(j)
                         End If
                         sumy(i) += yc(i)(j)
                     Next
@@ -1982,10 +2005,6 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                 For i = 2 To ns
                     Vj(i) = (gamma(i - 1) - alpha(i - 1) * Vj(i - 1)) / beta(i - 1)
                     If Vj(i) < 0 Then Vj(i) = 0.0000000001
-                Next
-
-                For i = 1 To ns - 1
-                    Vj(i) = eff(i) * Vj(i) + (1 - eff(i)) * Vj(i + 1)
                 Next
 
                 vf_error = Vj.SubtractY(Vj_ant).DivideY(Vj_ant.AddConstY(0.0000000001)).AbsSqrSumY

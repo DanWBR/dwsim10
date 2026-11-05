@@ -17,6 +17,7 @@
 
 using System.IO;
 using System.Linq;
+using System.Xml.Linq;
 using DWSIM.GlobalSettings;
 using DWSIM.Thermodynamics.Streams;
 using DWSIM.UnitOperations.Streams;
@@ -51,7 +52,15 @@ namespace DWSIM.Engine.SmokeTests
 
             var flowsheet = new DWSIM.DynamicRunner.Flowsheet(null, null);
             flowsheet.Init();
-            flowsheet.LoadZippedXML(Path.Combine(folder, "tests", "flowsheets", filename));
+            var path = Path.Combine(folder, "tests", "flowsheets", filename);
+            if (Path.GetExtension(path).ToLowerInvariant().EndsWith("z"))
+            {
+                flowsheet.LoadZippedXML(path);
+            }
+            else
+            {
+                flowsheet.LoadFromXML(XDocument.Load(path));
+            }
 
             return flowsheet;
         }
@@ -426,6 +435,84 @@ namespace DWSIM.Engine.SmokeTests
                         Is.EqualTo(bottomsT).Within(1.0), "bottoms temperature, K");
             Assert.That(reboiler.EnergyFlow.GetValueOrDefault(),
                         Is.EqualTo(duty).Within(1.0).Percent, "the specified duty, reported on the energy stream with its sign");
+        }
+
+        private static double BottomStageSumKx(Column column)
+        {
+            int ns = column.Stages.Count - 1;
+            var k = (double[])column.Kf[ns];
+            var x = (double[])column.xf[ns];
+            return k.Zip(x, (ki, xi) => ki * xi).Sum();
+        }
+
+        // A stage efficiency below 1 on the reboiled naphtha stripper. Naphtali-Sandholm wrote the
+        // bottom stage as y = E K x, with no vapour from below, so the reboiler settled where the sum
+        // of K x was 1/E, above its liquid's bubble point. The bubble-point method applied the
+        // efficiency to the vapour's enthalpy only, and its component balances kept the equilibrium
+        // K values: the column separated as if every stage were at equilibrium. The reboiler is now
+        // an equilibrium stage on both methods, the bubble-point balances take the Murphree vapour
+        // through an effective K, and the two methods give the same column.
+        // https://github.com/DanWBR/dwsim10/issues/134
+        [Test]
+        public void BothRigorousMethodsApplyTheStageEfficiency()
+        {
+            double PropaneInBottoms(string method, double efficiency, out double bottomsT, out double sumKx)
+            {
+                var flowsheet = Load("TraceMethaneStripper.dwxmz");
+                var column = flowsheet.SimulationObjects.Values.OfType<DistillationColumn>().Single();
+                column.SolvingMethodName = method;
+                foreach (var stage in column.Stages) stage.Efficiency = efficiency;
+
+                var errors = flowsheet.SolveFlowsheet2();
+                Assert.That(errors, Is.Empty,
+                            method + " at " + efficiency + ": " + string.Join("; ", errors.Select(e => e.Message)));
+
+                var bottoms = flowsheet.SimulationObjects.Values.OfType<MaterialStream>().Single(s => s.GraphicObject.Tag == "BOTTOMS");
+                bottomsT = bottoms.Phases[0].Properties.temperature.GetValueOrDefault();
+                sumKx = BottomStageSumKx(column);
+                return bottoms.Phases[0].Compounds["Propane"].MolarFlow.GetValueOrDefault();
+            }
+
+            double atOne = PropaneInBottoms("Wang-Henke (Bubble Point)", 1.0, out _, out _);
+            double bp = PropaneInBottoms("Wang-Henke (Bubble Point)", 0.7, out double bpT, out double bpSum);
+            double ns = PropaneInBottoms("Naphtali-Sandholm", 0.7, out double nsT, out double nsSum);
+
+            Assert.That(bp, Is.GreaterThan(2.0 * atOne), "stages at 0.7 strip less propane than equilibrium stages");
+            Assert.That(nsSum, Is.EqualTo(1.0).Within(1e-3), "the reboiler at its liquid's bubble point (sum of K x)");
+            Assert.That(bpSum, Is.EqualTo(1.0).Within(1e-3), "the reboiler at its liquid's bubble point (sum of K x)");
+            Assert.That(nsT, Is.EqualTo(bpT).Within(0.2), "bottoms temperature, K, on the two methods");
+            Assert.That(ns, Is.EqualTo(bp).Within(5.0).Percent, "propane in the bottoms on the two methods");
+        }
+
+        // The absorber's gas enters its bottom stage as a feed. With y = E K x there, a lower
+        // efficiency absorbed MORE: the bottom stage settled tens of kelvin above its liquid's
+        // bubble point. Murphree's form now takes that gas as the vapour from below, as the Sum Rates
+        // solver does, and a lower efficiency absorbs less.
+        // https://github.com/DanWBR/dwsim10/issues/134
+        [Test]
+        public void ALowerEfficiencyAbsorbsLess()
+        {
+            double ResidueGas(double efficiency, out double sumKx)
+            {
+                var flowsheet = Load("SimpleAbsorberSample.dwxml");
+                var column = flowsheet.SimulationObjects.Values.OfType<AbsorptionColumn>().Single();
+                column.SolvingMethodName = "Naphtali-Sandholm";
+                foreach (var stage in column.Stages) stage.Efficiency = efficiency;
+
+                var errors = flowsheet.SolveFlowsheet2();
+                Assert.That(errors, Is.Empty,
+                            "efficiency " + efficiency + ": " + string.Join("; ", errors.Select(e => e.Message)));
+
+                sumKx = BottomStageSumKx(column);
+                var gas = flowsheet.SimulationObjects.Values.OfType<MaterialStream>().Single(s => s.GraphicObject.Tag == "Residue Gas");
+                return gas.Phases[0].Properties.molarflow.GetValueOrDefault();
+            }
+
+            double atOne = ResidueGas(1.0, out _);
+            double atHalf = ResidueGas(0.5, out double sumKx);
+
+            Assert.That(atHalf, Is.GreaterThan(atOne), "less gas absorbed at 0.5");
+            Assert.That(sumKx, Is.EqualTo(1.0).Within(1e-3), "the bottom stage at its liquid's bubble point (sum of K x)");
         }
     }
 }

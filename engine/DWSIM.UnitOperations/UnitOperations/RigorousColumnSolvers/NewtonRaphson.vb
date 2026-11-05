@@ -57,6 +57,16 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
         Private Function HasCondenser() As Boolean
             Return _coltype = Column.ColType.DistillationColumn OrElse _coltype = Column.ColType.RefluxedAbsorber
         End Function
+
+        ''' <summary>The composition of the vapour entering the bottom stage from below, for Murphree's form there: the feed
+        ''' of an absorber's bottom stage (its gas). A reboiler, or a bottom stage with no feed, has no vapour from below and
+        ''' is an equilibrium stage (Nothing).</summary>
+        Private Function BottomInletVapour() As Double()
+            If _coltype = Column.ColType.DistillationColumn OrElse _coltype = Column.ColType.ReboiledAbsorber Then Return Nothing
+            If _F(_ns) <= 0.0 Then Return Nothing
+            Return _fc(_ns).NormalizeY()
+        End Function
+
         Dim llextr As Boolean = False
         Dim _Kval()() As Double
         Dim _maxtchange, _Tj_ant(), _maxT, _maxvc, _maxlc As Double
@@ -711,6 +721,8 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                 Next
             Next
 
+            Dim ybot = BottomInletVapour()
+
             For i = 0 To ns
                 For j = 0 To nc - 1
                     M_ant(i, j) = M(i, j)
@@ -744,7 +756,14 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                         End If
                     ElseIf i = ns Then
                         M(i, j) = lc(i)(j) * (1 + Sl(i)) + vc(i)(j) * (1 + Sv(i)) - lc(i - 1)(j) - fc(i)(j)
-                        E(i, j) = Ef(_effc, eff, i, j) * Kval(i)(j) * lvr(i)(j) - vc(i)(j)
+                        If ybot Is Nothing Then
+                            'no vapour from below (a reboiler): an equilibrium stage
+                            E(i, j) = Kval(i)(j) * lvr(i)(j) - vc(i)(j)
+                        Else
+                            'an absorber's bottom stage: Murphree's form, its gas feed being the vapour from below
+                            Dim yb As Double = ybot(j) * sumvkj(i)
+                            E(i, j) = Ef(_effc, eff, i, j, Kval(i)(j) * lvr(i)(j), yb) * (Kval(i)(j) * lvr(i)(j) - yb) + yb - vc(i)(j)
+                        End If
                     Else
                         M(i, j) = lc(i)(j) * (1 + Sl(i)) + vc(i)(j) * (1 + Sv(i)) - lc(i - 1)(j) - vc(i + 1)(j) - fc(i)(j)
                         E(i, j) = Ef(_effc, eff, i, j, Kval(i)(j) * lvr(i)(j), vc(i + 1)(j) * sumvkj(i) / sumvkj(i + 1)) * (Kval(i)(j) * lvr(i)(j) - vc(i + 1)(j) * sumvkj(i) / sumvkj(i + 1)) + vc(i + 1)(j) * sumvkj(i) / sumvkj(i + 1) - vc(i)(j)
@@ -977,6 +996,8 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
             _jacCacheActive = False : _jacCacheFill = False
             FunctionValue(x)
 
+            Dim ybot = BottomInletVapour()
+
             ' Reactions present? (skip Hr finite differences for the common non-reactive case)
             Dim hasRx As Boolean = False
             For i As Integer = 0 To ns
@@ -1059,8 +1080,12 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                     Dim lcj As Double = _stlc(i)(j), vcj As Double = _stvc(i)(j)
                     Dim rE As Integer = bc + 1 + nc + j
                     Dim rM As Integer = bc + 1 + j
-                    Dim ej As Double = Ef(_effc, _steff, i, j)
-                    If i < ns Then ej = Ef(_effc, _steff, i, j, K * lcj * svsum / slsum, _stvc(i + 1)(j) * svsum / _stsumv(i + 1))
+                    Dim ej As Double = 1.0
+                    If i < ns Then
+                        ej = Ef(_effc, _steff, i, j, K * lcj * svsum / slsum, _stvc(i + 1)(j) * svsum / _stsumv(i + 1))
+                    ElseIf ybot IsNot Nothing Then
+                        ej = Ef(_effc, _steff, i, j, K * lcj * svsum / slsum, ybot(j) * svsum)
+                    End If
 
                     ' E row: dE/dT(i)
                     g(rE, bc) = ej * dKdT(j) * lcj * svsum / slsum * sT
@@ -1073,7 +1098,11 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                         g(rE, colL) = dEdlc * sL
                         ' dE/dvc(i,m): K via yc chain (dKnV), svsum factor, and -vcj term
                         Dim dEdvc As Double = ej * lcj / slsum * (dKnV(j, m) + K) - kr
-                        If i < ns Then dEdvc += (1.0 - ej) * _stvc(i + 1)(j) / _stsumv(i + 1)
+                        If i < ns Then
+                            dEdvc += (1.0 - ej) * _stvc(i + 1)(j) / _stsumv(i + 1)
+                        ElseIf ybot IsNot Nothing Then
+                            dEdvc += (1.0 - ej) * ybot(j)
+                        End If
                         g(rE, colV) = dEdvc * sV
                         ' M row (with side-draw terms; reduces to +-1 coefficients when no draws)
                         g(rM, colL) = (kr * (1.0 + sldraw) - lcj * sldraw / slsum) * 1000000.0 * sL
