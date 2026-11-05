@@ -138,6 +138,11 @@ namespace DWSIM.Extensions.SolidCraft
                 var inAt = new Dictionary<ReadLine, int>();
                 var outAt = new Dictionary<ReadLine, int>();
 
+                if (obj is Column column)
+                {
+                    ConnectColumn(fs, r, column, item, ins, outs, res, setup.SpecsFromTable);
+                    continue;
+                }
                 if (obj.GraphicObject.ObjectType == ObjectType.HeatExchanger && ins.Count == 2 && outs.Count == 2)
                 {
                     // each pass keeps its flow: pair the inlets with the outlets of the same flow
@@ -178,6 +183,18 @@ namespace DWSIM.Extensions.SolidCraft
                 fs.ConnectObjects(go, rec.GraphicObject, 0, 0);
                 fs.ConnectObjects(rec.GraphicObject, back.GraphicObject, 0, 0);
                 fs.ConnectObjects(back.GraphicObject, to.GraphicObject, 0, toIndex);
+                if (to is Column tc)
+                {
+                    // the column knows its feeds by stream: the recycle's outlet takes the stage
+                    var info = tc.MaterialStreams.Values.FirstOrDefault(s => s.StreamID == ms.Name);
+                    if (info != null)
+                    {
+                        tc.MaterialStreams.Remove(info.ID);
+                        info.ID = back.Name;
+                        info.StreamID = back.Name;
+                        tc.MaterialStreams[info.ID] = info;
+                    }
+                }
                 if (setup.SpecsFromTable) SetStream(fs, back, l, r.Units, res, false);
                 res.Recycles++;
             }
@@ -350,6 +367,156 @@ namespace DWSIM.Extensions.SolidCraft
                 if (cp.Type != ConType.ConEn || cp.IsAttached) continue;
                 var e = fs.AddObject(ObjectType.EnergyStream, (int)(go.X - 60), (int)(go.Y + go.Height + 30), FreeTag(fs, (i > 1 ? "E" + i + "-" : "E-") + go.Tag));
                 Connect(fs, e, obj, 0, i, res, go.Tag);
+            }
+        }
+
+        /// <summary>
+        /// A rigorous column: its stages (the drawing's trays, plus the condenser and the reboiler
+        /// of a distillation column), each feed on the stage its nozzle points to, the products at
+        /// the top, at the bottom and drawn from the side, the duties, and from the table the top
+        /// pressure, the pressure drop and the product flow the column works to.
+        /// </summary>
+        static void ConnectColumn(IFlowsheet fs, DrawingReading r, Column col, ReadItem item, List<ReadLine> ins, List<ReadLine> outs, Result res, bool fromTable)
+        {
+            var tag = item.Tag;
+            var u = r.Units;
+            void Note(ImportIssue.Levels level, string text) => res.Issues.Add(new ImportIssue(level, tag, text));
+            var distillation = col is DistillationColumn;
+            if (item.Stages.HasValue)
+            {
+                try
+                {
+                    col.SetNumberOfStages(Math.Max(4, item.Stages.Value + (distillation ? 2 : 0)));
+                    Note(ImportIssue.Levels.Info, item.Stages.Value + " trays on the drawing: " + col.NumberOfStages + " equilibrium stages" +
+                        (distillation ? " with the condenser and the reboiler" : "") + "; set the stage efficiency for real trays");
+                }
+                catch (Exception ex) { Note(ImportIssue.Levels.Warning, "the number of stages could not be set: " + ex.GetBaseException().Message); }
+            }
+            else Note(ImportIssue.Levels.Warning, "the drawing does not give the number of trays; " + col.NumberOfStages + " stages are used");
+
+            int first = distillation ? 1 : 0, last = col.Stages.Count - (distillation ? 2 : 1);
+            var guessed = new List<string>();
+            int Stage(ReadLine l, bool inlet)
+            {
+                var name = r.StreamTag(l);
+                var tray = System.Text.RegularExpressions.Regex.Match(name, @"(?:tray|prato)\s*#?\s*(\d+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                if (tray.Success) return Math.Max(first, Math.Min(last, first + int.Parse(tray.Groups[1].Value) - 1));
+                var end = r.ColumnEnd(l, inlet);
+                if (end < 0) return first;
+                if (end > 0) return last;
+                var level = inlet ? l.ToLevel : l.FromLevel;
+                if (level.HasValue && level.Value >= 0 && level.Value <= 1) return first + (int)Math.Round(level.Value * (last - first));
+                if (inlet)
+                {
+                    // a return from the equipment a product goes to: the reboiler's vapor at the
+                    // bottom, the condenser's liquid at the top
+                    var tags = System.Text.RegularExpressions.Regex.Matches(name, @"\b[A-Z]{1,4}-?\d{3,5}[A-Z]?\b").Cast<System.Text.RegularExpressions.Match>().Select(m => m.Value).ToList();
+                    bool Shares(ReadLine o) => tags.Any(t => r.StreamTag(o).IndexOf(t, StringComparison.OrdinalIgnoreCase) >= 0);
+                    var products = outs.Where(Shares).Select(o => r.ColumnEnd(o, false)).ToList();
+                    if (products.Contains(1)) return last;
+                    if (products.Contains(-1)) return first;
+                }
+                guessed.Add(name);
+                return (first + last) / 2;
+            }
+            bool Vapor(ReadLine l)
+            {
+                if (l.VaporFraction.HasValue) return l.VaporFraction.Value > 0.5;
+                var words = (r.StreamTag(l) + " " + l.FromPort).ToLowerInvariant();
+                return words.Contains("vap") || words.Contains("gas") || words.Contains("overhead");
+            }
+            void Try(Action connect, ReadLine l)
+            {
+                try { connect(); }
+                catch (Exception ex) { Note(ImportIssue.Levels.Warning, r.StreamTag(l) + " could not be connected: " + ex.GetBaseException().Message); }
+            }
+
+            foreach (var l in ins)
+                Try(() => { if (col is DistillationColumn dcf) dcf.ConnectFeed(res.Streams[l], Stage(l, true)); else ((AbsorptionColumn)col).ConnectFeed(res.Streams[l], Stage(l, true)); }, l);
+
+            // the products: by the nozzle or the name, else the lightest at the top and the heaviest at the bottom
+            var top = outs.Where(l => r.ColumnEnd(l, false) < 0).ToList();
+            var bottom = outs.Where(l => r.ColumnEnd(l, false) > 0).ToList();
+            var side = outs.Except(top).Except(bottom).ToList();
+            double Light(ReadLine l) => (l.VaporFraction ?? 0.5) * 1000 - (l.T ?? 0);
+            if (top.Count == 0 && side.Count > 0) { var t = side.OrderByDescending(Light).First(); top.Add(t); side.Remove(t); }
+            if (bottom.Count == 0 && side.Count > 0) { var b = side.OrderBy(Light).First(); bottom.Add(b); side.Remove(b); }
+
+            ReadLine vapor = null;
+            if (col is DistillationColumn dc)
+            {
+                vapor = top.FirstOrDefault(Vapor);
+                var distillate = top.FirstOrDefault(l => l != vapor);
+                if (vapor != null) Try(() => dc.ConnectVaporProduct(res.Streams[vapor]), vapor);
+                if (distillate != null) Try(() => dc.ConnectDistillate(res.Streams[distillate]), distillate);
+                dc.CondenserType = vapor == null ? Column.condtype.Total_Condenser : distillate == null ? Column.condtype.Full_Reflux : Column.condtype.Partial_Condenser;
+                side.AddRange(top.Where(l => l != vapor && l != distillate));
+
+                var go = col.GraphicObject;
+                var ec = fs.AddObject(ObjectType.EnergyStream, (int)(go.X + go.Width + 30), (int)(go.Y - 40), FreeTag(fs, "E-" + go.Tag + "-C"));
+                var er = fs.AddObject(ObjectType.EnergyStream, (int)(go.X + go.Width + 30), (int)(go.Y + go.Height + 30), FreeTag(fs, "E-" + go.Tag + "-R"));
+                try { dc.ConnectCondenserDuty(ec); dc.ConnectReboilerDuty(er); }
+                catch (Exception ex) { Note(ImportIssue.Levels.Warning, "the duties could not be connected: " + ex.GetBaseException().Message); }
+            }
+            else if (col is AbsorptionColumn ac && top.Count > 0)
+            {
+                vapor = top[0];
+                Try(() => ac.ConnectTopProduct(res.Streams[vapor]), vapor);
+                side.AddRange(top.Skip(1));
+            }
+            if (bottom.Count > 0)
+            {
+                var bs = res.Streams[bottom[0]];
+                Try(() => { if (col is DistillationColumn dcb) dcb.ConnectBottoms(bs); else ((AbsorptionColumn)col).ConnectBottoms(bs); }, bottom[0]);
+                side.AddRange(bottom.Skip(1));
+            }
+
+            foreach (var l in side)
+            {
+                // the draw's rate, in moles, from the table's flow and composition
+                var w = fromTable ? SI(u.MassFlow, l.W, res, tag) : null;
+                double moles = 0, mass = 0;
+                foreach (var c in l.Compounds)
+                {
+                    var name = MatchSelected(fs, c.Key);
+                    if (name == null || c.Value <= 0) continue;
+                    mass += c.Value;
+                    moles += c.Value / fs.SelectedCompounds[name].Molar_Weight;
+                }
+                var rate = w.HasValue && moles > 0 ? w.Value * 1000 * moles / mass : 0.0;
+                if (rate <= 0) Note(ImportIssue.Levels.Warning, r.StreamTag(l) + " is a side draw without a flow on the drawing; set its rate in the column's editor");
+                Try(() => col.ConnectSideDraw(res.Streams[l], Stage(l, false), Vapor(l), rate), l);
+            }
+            if (guessed.Count > 0)
+                Note(ImportIssue.Levels.Info, string.Join(", ", guessed.Distinct()) + ": the drawing does not tell where on the column; put on the middle stage, move in the column's editor");
+
+            if (!fromTable) return;
+            var pt = top.Concat(ins.Where(l => r.ColumnEnd(l, true) < 0)).Select(l => SI(u.Pressure, l.P, res, tag)).FirstOrDefault(x => x.HasValue);
+            var pb = bottom.Concat(ins.Where(l => r.ColumnEnd(l, true) > 0)).Select(l => SI(u.Pressure, l.P, res, tag)).FirstOrDefault(x => x.HasValue);
+            if (pt.HasValue)
+            {
+                col.SetTopPressure(pt.Value);
+                col.ColumnPressureDrop = pb.HasValue ? Math.Max(0, pb.Value - pt.Value) : 0.0;
+            }
+            else Note(ImportIssue.Levels.Warning, "the table does not give the top pressure; set it before solving");
+
+            if (col is DistillationColumn d)
+            {
+                var wv = vapor == null ? null : SI(u.MassFlow, vapor.W, res, tag);
+                var wb = bottom.Count == 0 ? null : SI(u.MassFlow, bottom[0].W, res, tag);
+                var tb = bottom.Count == 0 ? null : SI(u.Temperature, bottom[0].T, res, tag);
+                if (d.CondenserType == Column.condtype.Full_Reflux && wv.HasValue)
+                {
+                    d.SetCondenserSpec("Product_Mass_Flow_Rate", wv.Value, "kg/s");
+                    if (tb.HasValue) d.SetReboilerSpec("Temperature", tb.Value, "K");
+                    Note(ImportIssue.Levels.Info, "the condenser works to the overhead flow" + (tb.HasValue ? " and the reboiler to the bottoms temperature" : "") + " of the table");
+                }
+                else if (wb.HasValue)
+                {
+                    d.SetReboilerSpec("Product_Mass_Flow_Rate", wb.Value, "kg/s");
+                    Note(ImportIssue.Levels.Info, "the reboiler works to the bottoms flow of the table; the reflux ratio is not on the drawing, the condenser keeps its default");
+                }
+                else Note(ImportIssue.Levels.Warning, "the table gives no product flows; set the condenser and reboiler specifications before solving");
             }
         }
 

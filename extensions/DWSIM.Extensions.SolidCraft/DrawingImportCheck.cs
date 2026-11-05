@@ -54,6 +54,8 @@ namespace DWSIM.Extensions.SolidCraft
                 case "Splitter": inlets = 1; outlets = 3; break;
                 case "Vessel": inlets = 6; outlets = 3; break;
                 case "ShortcutColumn": inlets = 1; outlets = 2; break;
+                case "DistillationColumn": inlets = 10; outlets = 10; break;
+                case "AbsorptionColumn": inlets = 10; outlets = 10; break;
                 case "HeatExchanger": inlets = 2; outlets = 2; break;
                 case "RCT_Conversion":
                 case "RCT_Equilibrium":
@@ -95,8 +97,8 @@ namespace DWSIM.Extensions.SolidCraft
                 if (ins == 0 && outs == 0) issues.Add(new ImportIssue(ImportIssue.Levels.Warning, item.Tag, "no line reaches it; it is built unconnected"));
                 else if (ins == 0) issues.Add(new ImportIssue(ImportIssue.Levels.Error, item.Tag, "nothing flows into it"));
                 else if (outs == 0) issues.Add(new ImportIssue(ImportIssue.Levels.Error, item.Tag, "nothing flows out of it"));
-                if (ins > maxIn) issues.Add(new ImportIssue(ImportIssue.Levels.Error, item.Tag, ins + " lines go in, and a " + item.Type + " takes " + maxIn + (item.Type == "ShortcutColumn" ? "; add a mixer before the column" : "")));
-                if (outs > maxOut) issues.Add(new ImportIssue(ImportIssue.Levels.Error, item.Tag, outs + " lines come out, and a " + item.Type + " has " + maxOut + " outlets"));
+                if (ins > maxIn) issues.Add(new ImportIssue(ImportIssue.Levels.Error, item.Tag, ins + " lines go in, and a " + item.Type + " takes " + maxIn + (item.Type == "ShortcutColumn" ? "; make it a rigorous column" : "")));
+                if (outs > maxOut) issues.Add(new ImportIssue(ImportIssue.Levels.Error, item.Tag, outs + " lines come out, and a " + item.Type + " has " + maxOut + " outlets" + (item.Type == "ShortcutColumn" ? "; make it a rigorous column" : "")));
                 if (item.Type == "HeatExchanger" && (ins != 2 || outs != 2) && ins + outs > 0)
                     issues.Add(new ImportIssue(ImportIssue.Levels.Warning, item.Tag, "a two-stream exchanger needs two lines in and two out; with one side only, make it a heater or a cooler"));
                 if (item.Category == "Generic") issues.Add(new ImportIssue(ImportIssue.Levels.Warning, item.Tag, "the drawing does not say what it is; it becomes a " + item.Type));

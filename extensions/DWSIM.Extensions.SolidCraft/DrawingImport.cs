@@ -88,6 +88,8 @@ namespace DWSIM.Extensions.SolidCraft
                     X = Num(u["x"]) ?? double.NaN,
                     Y = Num(u["y"]) ?? double.NaN,
                 };
+                var stages = Num(u["stages"]);
+                if (stages.HasValue && stages.Value >= 1) item.Stages = (int)Math.Round(stages.Value);
                 item.Type = Str(u["type"]) ?? DrawingImport.DefaultType(item.Category);
                 if (item.Tag.Length > 0) r.Items.Add(item);
             }
@@ -106,6 +108,8 @@ namespace DWSIM.Extensions.SolidCraft
                     P = Num(s["P"]),
                     W = Num(s["W"]),
                     VaporFraction = Num(s["vf"]),
+                    FromLevel = Num(s["from_level"]),
+                    ToLevel = Num(s["to_level"]),
                 };
                 if (s["compounds"] is JObject cs)
                     foreach (var p in cs.Properties())
@@ -152,11 +156,12 @@ namespace DWSIM.Extensions.SolidCraft
                 ["kind"] = Kind,
                 ["source"] = Source,
                 ["units_system"] = new JObject { ["temperature"] = Units.Temperature, ["pressure"] = Units.Pressure, ["massflow"] = Units.MassFlow, ["energy"] = Units.Energy },
-                ["units"] = new JArray(Items.Select(i => new JObject { ["tag"] = i.Tag, ["category"] = i.Category, ["type"] = i.Type, ["x"] = N(i.X), ["y"] = N(i.Y), ["include"] = i.Include })),
+                ["units"] = new JArray(Items.Select(i => new JObject { ["tag"] = i.Tag, ["category"] = i.Category, ["type"] = i.Type, ["x"] = N(i.X), ["y"] = N(i.Y), ["stages"] = N(i.Stages), ["include"] = i.Include })),
                 ["streams"] = new JArray(Lines.Select(l => new JObject
                 {
                     ["id"] = l.Id, ["name"] = l.Name, ["line_number"] = l.LineNumber, ["from"] = l.From, ["to"] = l.To,
                     ["from_port"] = l.FromPort, ["to_port"] = l.ToPort, ["T"] = N(l.T), ["P"] = N(l.P), ["W"] = N(l.W), ["vf"] = N(l.VaporFraction),
+                    ["from_level"] = N(l.FromLevel), ["to_level"] = N(l.ToLevel),
                     ["compounds"] = new JObject(l.Compounds.Select(c => new JProperty(c.Key, c.Value))), ["include"] = l.Include,
                 })),
                 ["texts"] = new JArray(Texts),
@@ -249,7 +254,69 @@ namespace DWSIM.Extensions.SolidCraft
                     notes.Add(new ImportIssue(ImportIssue.Levels.Info, node.Tag, "the line branches here: made a splitter"));
                 }
             }
+
+            // columns: the trays the drawing writes, and the column type their lines make
+            var columns = Items.Where(i => i.Include && i.Category == "Column").ToList();
+            if (columns.Count == 1 && !columns[0].Stages.HasValue)
+            {
+                var trays = TraysInTexts();
+                if (trays > 0)
+                {
+                    columns[0].Stages = trays;
+                    notes.Add(new ImportIssue(ImportIssue.Levels.Info, columns[0].Tag, trays + " trays from the drawing's text"));
+                }
+            }
+            foreach (var col in columns.Where(c => c.Type == "ShortcutColumn"))
+            {
+                var ins = Lines.Where(l => Takes(l) && Same(l.To, col.Tag)).ToList();
+                var outs = Lines.Where(l => Takes(l) && Same(l.From, col.Tag)).ToList();
+                if (ins.Any(l => ColumnEnd(l, true) != 0))
+                {
+                    col.Type = "AbsorptionColumn";
+                    notes.Add(new ImportIssue(ImportIssue.Levels.Info, col.Tag, "lines go into the top or the bottom (reflux, boil-up, solvent or gas from outside): made a rigorous column without condenser and reboiler"));
+                }
+                else if (ins.Count > 1 || outs.Count > 2)
+                {
+                    col.Type = "DistillationColumn";
+                    notes.Add(new ImportIssue(ImportIssue.Levels.Info, col.Tag, ins.Count + " lines in and " + outs.Count + " out: made a rigorous distillation column"));
+                }
+            }
             return notes;
+        }
+
+        static readonly System.Text.RegularExpressions.Regex TopWords = new System.Text.RegularExpressions.Regex(@"\b(top|topo|overhead|reflux|refluxo|distillate|destilado)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        static readonly System.Text.RegularExpressions.Regex BottomWords = new System.Text.RegularExpressions.Regex(@"\b(bottom|bottoms|fundo|reboil|reboiler|refervedor|boil-?up)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        /// <summary>
+        /// Which end of a column a line is at: -1 the top, 1 the bottom, 0 the side or not known;
+        /// the nozzle the drawing names first, then the nozzle's height, then the line's name
+        /// (reflux and overhead at the top, reboiler and bottoms at the bottom).
+        /// </summary>
+        public int ColumnEnd(ReadLine l, bool inlet)
+        {
+            var port = ((inlet ? l.ToPort : l.FromPort) ?? "").ToLowerInvariant();
+            if (port.Contains("top") || port.Contains("overhead")) return -1;
+            if (port.Contains("bot")) return 1;
+            var level = inlet ? l.ToLevel : l.FromLevel;
+            if (level.HasValue && level.Value <= 1) return level.Value < 0.05 ? -1 : level.Value > 0.95 ? 1 : 0;
+            var name = StreamTag(l);
+            if (TopWords.IsMatch(name)) return -1;
+            if (BottomWords.IsMatch(name)) return 1;
+            return 0;
+        }
+
+        /// <summary>The trays the drawing's text gives a column ("THIRTY (30) ... TRAYS", "20 PRATOS"), added up; 0 when none.</summary>
+        int TraysInTexts()
+        {
+            var total = 0;
+            var word = new System.Text.RegularExpressions.Regex(@"\b(trays?|pratos?|stages|est[aá]gios)\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            foreach (var t in Texts.Where(t => word.IsMatch(t)))
+            {
+                var m = System.Text.RegularExpressions.Regex.Match(t, @"\((\d{1,3})\)");
+                if (!m.Success) m = System.Text.RegularExpressions.Regex.Match(t, @"\b(\d{1,3})\s+(?:[\w\-/.]+\s+){0,6}?(trays?|pratos?|stages|est[aá]gios)\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                if (m.Success && int.TryParse(m.Groups[1].Value, out var n) && n >= 2 && n <= 200) total += n;
+            }
+            return total;
         }
 
         /// <summary>Whether a line takes part: included, and no end at an item left out.</summary>
@@ -309,6 +376,9 @@ namespace DWSIM.Extensions.SolidCraft
         /// <summary>The item's centre on the sheet, 0 to 1 from the left and from the top (NaN when not known).</summary>
         public double X = double.NaN, Y = double.NaN;
 
+        /// <summary>A column's trays or stages as the drawing gives them, null when it does not.</summary>
+        public int? Stages;
+
         public bool Include = true;
     }
 
@@ -321,6 +391,9 @@ namespace DWSIM.Extensions.SolidCraft
         public string FromPort = "", ToPort = "";
 
         public double? T, P, W, VaporFraction;
+
+        /// <summary>Where the line leaves or enters a column: the nozzle's height, 0 at the top to 1 at the bottom (null when not known).</summary>
+        public double? FromLevel, ToLevel;
 
         /// <summary>The mass flow of each compound the table lists, in the table's mass flow unit.</summary>
         public Dictionary<string, double> Compounds = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
@@ -361,7 +434,7 @@ namespace DWSIM.Extensions.SolidCraft
             {
                 case "Vessel": return new[] { "Vessel" };
                 case "Tank": return new[] { "Tank", "Vessel" };
-                case "Column": return new[] { "ShortcutColumn" };
+                case "Column": return new[] { "ShortcutColumn", "DistillationColumn", "AbsorptionColumn" };
                 case "Pump": return new[] { "Pump" };
                 case "Compressor": return new[] { "Compressor" };
                 case "Expander": return new[] { "Expander", "Valve" };
