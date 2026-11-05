@@ -214,19 +214,45 @@ namespace DWSIM.Extensions.SolidCraft
                 else if ((l.Feed || l.Product) && service.IsMatch(name + " " + l.LineNumber))
                 { l.Include = false; notes.Add(new ImportIssue(ImportIssue.Levels.Info, name, "a flare, drain or vent connection; left out (tick it to build it)")); }
             }
+            var feeding = new HashSet<string>(Lines.Where(l => l.Include && !l.Feed).Select(l => l.From), StringComparer.OrdinalIgnoreCase);
 
-            // junctions left without a way in or out go too, as far as that reaches
+            // a fired heater keeps its process coil: the fuel, the pilot gas and the combustion and
+            // instrument air drawn into it are left out
+            foreach (var h in Items.Where(i => i.Include && i.Category == "Heater"))
+            {
+                var ins = Lines.Where(l => Takes(l) && Same(l.To, h.Tag)).ToList();
+                if (ins.Count < 2) continue;
+                var utility = ins.Where(UtilityLine).ToList();
+                if (utility.Count == 0 || utility.Count == ins.Count) continue;
+                foreach (var l in utility) l.Include = false;
+                notes.Add(new ImportIssue(ImportIssue.Levels.Info, h.Tag, "a fired heater: " + string.Join(", ", utility.Select(StreamTag)) +
+                    " (fuel, air) left out; the heater keeps its process side"));
+            }
+
+            // an item that only burns or uses what it takes (a gas turbine, a burner) ends its lines
+            foreach (var c in Items.Where(i => i.Include && i.Category == "Generic" && !feeding.Contains(i.Tag)).ToList())
+            {
+                var ins = Lines.Where(l => Takes(l) && Same(l.To, c.Tag)).ToList();
+                if (ins.Count == 0) continue;
+                foreach (var l in ins) l.To = "";
+                c.Include = false;
+                notes.Add(new ImportIssue(ImportIssue.Levels.Info, c.Tag, "nothing leaves it on the drawing: a consumer; the lines into it end the flowsheet"));
+            }
+
+            // junctions left without a way in or out go too, and items that only fed what was left
+            // out, as far as that reaches
             for (var changed = true; changed;)
             {
                 changed = false;
-                foreach (var node in Items.Where(i => i.Include && (i.Category == "Mixer" || i.Category == "Splitter")))
+                foreach (var node in Items.Where(i => i.Include))
                 {
+                    var junction = node.Category == "Mixer" || node.Category == "Splitter";
                     var hasIn = Lines.Any(l => Takes(l) && Same(l.To, node.Tag));
                     var hasOut = Lines.Any(l => Takes(l) && Same(l.From, node.Tag));
-                    if (hasIn && hasOut) continue;
+                    if (junction ? hasIn && hasOut : hasOut || !feeding.Contains(node.Tag)) continue;
                     node.Include = false;
                     changed = true;
-                    notes.Add(new ImportIssue(ImportIssue.Levels.Info, node.Tag, "a junction that only leads to what was left out; left out too"));
+                    notes.Add(new ImportIssue(ImportIssue.Levels.Info, node.Tag, (junction ? "a junction" : "an item") + " that only leads to what was left out; left out too"));
                 }
             }
 
@@ -282,6 +308,21 @@ namespace DWSIM.Extensions.SolidCraft
                 }
             }
             return notes;
+        }
+
+        static readonly System.Text.RegularExpressions.Regex UtilityWords = new System.Text.RegularExpressions.Regex(
+            @"combust|fuel|queimador|piloto|pilot|burner|\bar\b|\bair\b|instrument|nitrog|steam|purga|purge", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        /// <summary>The service codes of fuel gas, air, nitrogen and steam lines in line numbers (6"-FG-1234, 2"-AI-...).</summary>
+        static readonly HashSet<string> UtilityCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        { "FG", "GC", "AI", "IA", "AC", "AP", "AS", "PA", "UA", "N", "N2", "NI", "ST", "LS", "MS", "HS", "VA", "VB", "VM" };
+
+        /// <summary>A line that carries fuel, air, nitrogen or steam: by its name, or by the service code of its line number.</summary>
+        bool UtilityLine(ReadLine l)
+        {
+            if (UtilityWords.IsMatch(l.Name + " " + l.Id)) return true;
+            var parts = (l.LineNumber ?? "").Split('-');
+            return parts.Length > 2 && UtilityCodes.Contains(parts[1].Trim());
         }
 
         static readonly System.Text.RegularExpressions.Regex TopWords = new System.Text.RegularExpressions.Regex(@"\b(top|topo|overhead|reflux|refluxo|distillate|destilado)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
