@@ -14,12 +14,23 @@ namespace DWSIM.Extensions.SolidCraft
 
         private void InitializeComponent()
         {
-            this.tlpRoot = new System.Windows.Forms.TableLayoutPanel();
-            this.lstSteps = new System.Windows.Forms.ListBox();
-            this.tlpHeader = new System.Windows.Forms.TableLayoutPanel();
-            this.lblStepTitle = new System.Windows.Forms.Label();
-            this.lblStepText = new System.Windows.Forms.Label();
-            this.pnlPages = new System.Windows.Forms.Panel();
+            this.wizard = new AeroWizard.StepWizardControl();
+            this.wpDrawing = new AeroWizard.WizardPage();
+            this.lblDrawingHelp = new System.Windows.Forms.Label();
+            this.wpItems = new AeroWizard.WizardPage();
+            this.lblItemsHelp = new System.Windows.Forms.Label();
+            this.wpLines = new AeroWizard.WizardPage();
+            this.lblLinesHelp = new System.Windows.Forms.Label();
+            this.wpProcess = new AeroWizard.WizardPage();
+            this.lblProcessHelp = new System.Windows.Forms.Label();
+            this.wpBuild = new AeroWizard.WizardPage();
+            this.lblBuildHelp = new System.Windows.Forms.Label();
+            ((System.ComponentModel.ISupportInitialize)(this.wizard)).BeginInit();
+            this.wpDrawing.SuspendLayout();
+            this.wpItems.SuspendLayout();
+            this.wpLines.SuspendLayout();
+            this.wpProcess.SuspendLayout();
+            this.wpBuild.SuspendLayout();
             this.tlpDrawing = new System.Windows.Forms.TableLayoutPanel();
             this.flpVision = new System.Windows.Forms.FlowLayoutPanel();
             this.lblVision = new System.Windows.Forms.Label();
@@ -100,13 +111,6 @@ namespace DWSIM.Extensions.SolidCraft
             this.colResLevel = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.colResSubject = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.colResText = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.flpButtons = new System.Windows.Forms.FlowLayoutPanel();
-            this.btnNext = new System.Windows.Forms.Button();
-            this.btnBack = new System.Windows.Forms.Button();
-            this.btnClose = new System.Windows.Forms.Button();
-            this.tlpRoot.SuspendLayout();
-            this.tlpHeader.SuspendLayout();
-            this.pnlPages.SuspendLayout();
             this.tlpDrawing.SuspendLayout();
             this.flpVision.SuspendLayout();
             this.flpRead.SuspendLayout();
@@ -134,92 +138,137 @@ namespace DWSIM.Extensions.SolidCraft
             this.flpBuild.SuspendLayout();
             this.flpFit.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dgvResults)).BeginInit();
-            this.flpButtons.SuspendLayout();
             this.SuspendLayout();
             //
-            // tlpRoot
+            // wizard
             //
-            this.tlpRoot.ColumnCount = 2;
-            this.tlpRoot.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 170F));
-            this.tlpRoot.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            this.tlpRoot.Controls.Add(this.lstSteps, 0, 0);
-            this.tlpRoot.Controls.Add(this.tlpHeader, 1, 0);
-            this.tlpRoot.Controls.Add(this.pnlPages, 1, 1);
-            this.tlpRoot.Controls.Add(this.flpButtons, 0, 2);
-            this.tlpRoot.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.tlpRoot.Location = new System.Drawing.Point(0, 0);
-            this.tlpRoot.Name = "tlpRoot";
-            this.tlpRoot.Padding = new System.Windows.Forms.Padding(6);
-            this.tlpRoot.RowCount = 3;
-            this.tlpRoot.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
-            this.tlpRoot.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            this.tlpRoot.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
-            this.tlpRoot.Size = new System.Drawing.Size(1184, 761);
-            this.tlpRoot.TabIndex = 0;
+            this.wizard.BackButtonToolTipText = "Back to the previous page";
+            this.wizard.CancelButtonText = "Close";
+            this.wizard.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.wizard.FinishButtonText = "Finish";
+            this.wizard.Location = new System.Drawing.Point(0, 0);
+            this.wizard.Name = "wizard";
+            this.wizard.NextButtonText = "Next >";
+            this.wizard.Pages.Add(this.wpDrawing);
+            this.wizard.Pages.Add(this.wpItems);
+            this.wizard.Pages.Add(this.wpLines);
+            this.wizard.Pages.Add(this.wpProcess);
+            this.wizard.Pages.Add(this.wpBuild);
+            this.wizard.Size = new System.Drawing.Size(1184, 761);
+            this.wizard.TabIndex = 0;
+            this.wizard.Title = "Import a Flowsheet from a Drawing";
             //
-            // lstSteps
+            // wpDrawing
             //
-            this.lstSteps.BorderStyle = System.Windows.Forms.BorderStyle.None;
-            this.lstSteps.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.lstSteps.FormattingEnabled = true;
-            this.lstSteps.IntegralHeight = false;
-            this.lstSteps.ItemHeight = 20;
-            this.lstSteps.Location = new System.Drawing.Point(9, 9);
-            this.lstSteps.Name = "lstSteps";
-            this.tlpRoot.SetRowSpan(this.lstSteps, 2);
-            this.lstSteps.Size = new System.Drawing.Size(164, 702);
-            this.lstSteps.TabIndex = 0;
-            this.lstSteps.SelectedIndexChanged += new System.EventHandler(this.lstSteps_SelectedIndexChanged);
+            this.wpDrawing.Controls.Add(this.tlpDrawing);
+            this.wpDrawing.Controls.Add(this.lblDrawingHelp);
+            this.wpDrawing.Name = "wpDrawing";
+            this.wpDrawing.Size = new System.Drawing.Size(980, 606);
+            this.wpDrawing.TabIndex = 0;
+            this.wpDrawing.Text = "Drawing";
             //
-            // tlpHeader
+            // lblDrawingHelp
             //
-            this.tlpHeader.AutoSize = true;
-            this.tlpHeader.ColumnCount = 1;
-            this.tlpHeader.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            this.tlpHeader.Controls.Add(this.lblStepTitle, 0, 0);
-            this.tlpHeader.Controls.Add(this.lblStepText, 0, 1);
-            this.tlpHeader.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.tlpHeader.Location = new System.Drawing.Point(179, 9);
-            this.tlpHeader.Name = "tlpHeader";
-            this.tlpHeader.RowCount = 2;
-            this.tlpHeader.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
-            this.tlpHeader.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
-            this.tlpHeader.Size = new System.Drawing.Size(996, 46);
-            this.tlpHeader.TabIndex = 1;
+            this.lblDrawingHelp.AutoSize = true;
+            this.lblDrawingHelp.Dock = System.Windows.Forms.DockStyle.Top;
+            this.lblDrawingHelp.Location = new System.Drawing.Point(0, 0);
+            this.lblDrawingHelp.MaximumSize = new System.Drawing.Size(960, 0);
+            this.lblDrawingHelp.Name = "lblDrawingHelp";
+            this.lblDrawingHelp.Padding = new System.Windows.Forms.Padding(0, 0, 0, 8);
+            this.lblDrawingHelp.Size = new System.Drawing.Size(960, 25);
+            this.lblDrawingHelp.TabIndex = 1;
+            this.lblDrawingHelp.Text = "Choose the PFD or P&ID: an image, a PDF or a DXF/DWG drawing. The AI Assistant reads it with the model set up in its settings.";
             //
-            // lblStepTitle
+            // wpItems
             //
-            this.lblStepTitle.AutoSize = true;
-            this.lblStepTitle.Font = new System.Drawing.Font("Segoe UI", 11F, System.Drawing.FontStyle.Bold);
-            this.lblStepTitle.Location = new System.Drawing.Point(3, 0);
-            this.lblStepTitle.Name = "lblStepTitle";
-            this.lblStepTitle.Size = new System.Drawing.Size(60, 20);
-            this.lblStepTitle.TabIndex = 0;
-            this.lblStepTitle.Text = "Drawing";
+            this.wpItems.Controls.Add(this.splitItems);
+            this.wpItems.Controls.Add(this.lblItemsHelp);
+            this.wpItems.Name = "wpItems";
+            this.wpItems.Size = new System.Drawing.Size(980, 606);
+            this.wpItems.TabIndex = 1;
+            this.wpItems.Text = "Equipment";
+            this.wpItems.Initialize += new System.EventHandler<AeroWizard.WizardPageInitEventArgs>(this.wpItems_Initialize);
             //
-            // lblStepText
+            // lblItemsHelp
             //
-            this.lblStepText.AutoSize = true;
-            this.lblStepText.Location = new System.Drawing.Point(3, 23);
-            this.lblStepText.Margin = new System.Windows.Forms.Padding(3, 3, 3, 6);
-            this.lblStepText.MaximumSize = new System.Drawing.Size(980, 0);
-            this.lblStepText.Name = "lblStepText";
-            this.lblStepText.Size = new System.Drawing.Size(40, 17);
-            this.lblStepText.TabIndex = 1;
-            this.lblStepText.Text = "Step";
+            this.lblItemsHelp.AutoSize = true;
+            this.lblItemsHelp.Dock = System.Windows.Forms.DockStyle.Top;
+            this.lblItemsHelp.Location = new System.Drawing.Point(0, 0);
+            this.lblItemsHelp.MaximumSize = new System.Drawing.Size(960, 0);
+            this.lblItemsHelp.Name = "lblItemsHelp";
+            this.lblItemsHelp.Padding = new System.Windows.Forms.Padding(0, 0, 0, 8);
+            this.lblItemsHelp.Size = new System.Drawing.Size(960, 25);
+            this.lblItemsHelp.TabIndex = 1;
+            this.lblItemsHelp.Text = "The items read on the drawing. Correct the tags and what each one is; clear the ones not to build. The dots show where each item was found.";
             //
-            // pnlPages
+            // wpLines
             //
-            this.pnlPages.Controls.Add(this.tlpDrawing);
-            this.pnlPages.Controls.Add(this.splitItems);
-            this.pnlPages.Controls.Add(this.splitLines);
-            this.pnlPages.Controls.Add(this.tlpProcess);
-            this.pnlPages.Controls.Add(this.tlpBuild);
-            this.pnlPages.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.pnlPages.Location = new System.Drawing.Point(179, 61);
-            this.pnlPages.Name = "pnlPages";
-            this.pnlPages.Size = new System.Drawing.Size(996, 650);
-            this.pnlPages.TabIndex = 2;
+            this.wpLines.Controls.Add(this.splitLines);
+            this.wpLines.Controls.Add(this.lblLinesHelp);
+            this.wpLines.Name = "wpLines";
+            this.wpLines.Size = new System.Drawing.Size(980, 606);
+            this.wpLines.TabIndex = 2;
+            this.wpLines.Text = "Lines";
+            this.wpLines.Initialize += new System.EventHandler<AeroWizard.WizardPageInitEventArgs>(this.wpLines_Initialize);
+            //
+            // lblLinesHelp
+            //
+            this.lblLinesHelp.AutoSize = true;
+            this.lblLinesHelp.Dock = System.Windows.Forms.DockStyle.Top;
+            this.lblLinesHelp.Location = new System.Drawing.Point(0, 0);
+            this.lblLinesHelp.MaximumSize = new System.Drawing.Size(960, 0);
+            this.lblLinesHelp.Name = "lblLinesHelp";
+            this.lblLinesHelp.Padding = new System.Windows.Forms.Padding(0, 0, 0, 8);
+            this.lblLinesHelp.Size = new System.Drawing.Size(960, 25);
+            this.lblLinesHelp.TabIndex = 1;
+            this.lblLinesHelp.Text = "The lines between the items, with the stream table's values. Correct where each line comes from and goes to; the sketch shows the connections.";
+            //
+            // wpProcess
+            //
+            this.wpProcess.Controls.Add(this.tlpProcess);
+            this.wpProcess.Controls.Add(this.lblProcessHelp);
+            this.wpProcess.Name = "wpProcess";
+            this.wpProcess.Size = new System.Drawing.Size(980, 606);
+            this.wpProcess.TabIndex = 3;
+            this.wpProcess.Text = "Process";
+            this.wpProcess.Initialize += new System.EventHandler<AeroWizard.WizardPageInitEventArgs>(this.wpProcess_Initialize);
+            this.wpProcess.Commit += new System.EventHandler<AeroWizard.WizardPageConfirmEventArgs>(this.wpProcess_Commit);
+            this.wpProcess.Rollback += new System.EventHandler<AeroWizard.WizardPageConfirmEventArgs>(this.wpProcess_Commit);
+            //
+            // lblProcessHelp
+            //
+            this.lblProcessHelp.AutoSize = true;
+            this.lblProcessHelp.Dock = System.Windows.Forms.DockStyle.Top;
+            this.lblProcessHelp.Location = new System.Drawing.Point(0, 0);
+            this.lblProcessHelp.MaximumSize = new System.Drawing.Size(960, 0);
+            this.lblProcessHelp.Name = "lblProcessHelp";
+            this.lblProcessHelp.Padding = new System.Windows.Forms.Padding(0, 0, 0, 8);
+            this.lblProcessHelp.Size = new System.Drawing.Size(960, 25);
+            this.lblProcessHelp.TabIndex = 1;
+            this.lblProcessHelp.Text = "The kind of process, inferred from the drawing's text, and the compounds, property package and units of the flowsheet.";
+            //
+            // wpBuild
+            //
+            this.wpBuild.Controls.Add(this.tlpBuild);
+            this.wpBuild.Controls.Add(this.lblBuildHelp);
+            this.wpBuild.IsFinishPage = true;
+            this.wpBuild.Name = "wpBuild";
+            this.wpBuild.Size = new System.Drawing.Size(980, 606);
+            this.wpBuild.TabIndex = 4;
+            this.wpBuild.Text = "Check and build";
+            this.wpBuild.Initialize += new System.EventHandler<AeroWizard.WizardPageInitEventArgs>(this.wpBuild_Initialize);
+            //
+            // lblBuildHelp
+            //
+            this.lblBuildHelp.AutoSize = true;
+            this.lblBuildHelp.Dock = System.Windows.Forms.DockStyle.Top;
+            this.lblBuildHelp.Location = new System.Drawing.Point(0, 0);
+            this.lblBuildHelp.MaximumSize = new System.Drawing.Size(960, 0);
+            this.lblBuildHelp.Name = "lblBuildHelp";
+            this.lblBuildHelp.Padding = new System.Windows.Forms.Padding(0, 0, 0, 8);
+            this.lblBuildHelp.Size = new System.Drawing.Size(960, 25);
+            this.lblBuildHelp.TabIndex = 1;
+            this.lblBuildHelp.Text = "The checks on the reading. Build the flowsheet when there are no errors left; the items are set up from the stream table and the flowsheet is solved.";
             //
             // flpVision
             //
@@ -350,6 +399,7 @@ namespace DWSIM.Extensions.SolidCraft
             // btnRead
             //
             this.btnRead.AutoSize = true;
+            this.btnRead.Enabled = false;
             this.btnRead.Location = new System.Drawing.Point(3, 3);
             this.btnRead.Name = "btnRead";
             this.btnRead.Size = new System.Drawing.Size(120, 27);
@@ -1141,60 +1191,12 @@ namespace DWSIM.Extensions.SolidCraft
             this.colResText.Name = "colResText";
             this.colResText.ReadOnly = true;
             //
-            // flpButtons
-            //
-            this.flpButtons.AutoSize = true;
-            this.tlpRoot.SetColumnSpan(this.flpButtons, 2);
-            this.flpButtons.Controls.Add(this.btnNext);
-            this.flpButtons.Controls.Add(this.btnBack);
-            this.flpButtons.Controls.Add(this.btnClose);
-            this.flpButtons.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.flpButtons.FlowDirection = System.Windows.Forms.FlowDirection.RightToLeft;
-            this.flpButtons.Location = new System.Drawing.Point(9, 717);
-            this.flpButtons.Name = "flpButtons";
-            this.flpButtons.Size = new System.Drawing.Size(1166, 35);
-            this.flpButtons.TabIndex = 3;
-            //
-            // btnNext
-            //
-            this.btnNext.AutoSize = true;
-            this.btnNext.Location = new System.Drawing.Point(1063, 3);
-            this.btnNext.Name = "btnNext";
-            this.btnNext.Size = new System.Drawing.Size(100, 29);
-            this.btnNext.TabIndex = 0;
-            this.btnNext.Text = "Next >";
-            this.btnNext.UseVisualStyleBackColor = true;
-            this.btnNext.Click += new System.EventHandler(this.btnNext_Click);
-            //
-            // btnBack
-            //
-            this.btnBack.AutoSize = true;
-            this.btnBack.Location = new System.Drawing.Point(957, 3);
-            this.btnBack.Name = "btnBack";
-            this.btnBack.Size = new System.Drawing.Size(100, 29);
-            this.btnBack.TabIndex = 1;
-            this.btnBack.Text = "< Back";
-            this.btnBack.UseVisualStyleBackColor = true;
-            this.btnBack.Click += new System.EventHandler(this.btnBack_Click);
-            //
-            // btnClose
-            //
-            this.btnClose.AutoSize = true;
-            this.btnClose.DialogResult = System.Windows.Forms.DialogResult.Cancel;
-            this.btnClose.Location = new System.Drawing.Point(851, 3);
-            this.btnClose.Name = "btnClose";
-            this.btnClose.Size = new System.Drawing.Size(100, 29);
-            this.btnClose.TabIndex = 2;
-            this.btnClose.Text = "Close";
-            this.btnClose.UseVisualStyleBackColor = true;
-            //
             // DrawingImportWizard
             //
             this.AutoScaleDimensions = new System.Drawing.SizeF(96F, 96F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Dpi;
-            this.CancelButton = this.btnClose;
             this.ClientSize = new System.Drawing.Size(1184, 761);
-            this.Controls.Add(this.tlpRoot);
+            this.Controls.Add(this.wizard);
             this.Font = new System.Drawing.Font("Segoe UI", 9.75F);
             this.MinimizeBox = false;
             this.Name = "DrawingImportWizard";
@@ -1204,11 +1206,6 @@ namespace DWSIM.Extensions.SolidCraft
             this.Text = "Import a Flowsheet from a Drawing";
             this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.DrawingImportWizard_FormClosing);
             this.Load += new System.EventHandler(this.DrawingImportWizard_Load);
-            this.tlpRoot.ResumeLayout(false);
-            this.tlpRoot.PerformLayout();
-            this.tlpHeader.ResumeLayout(false);
-            this.tlpHeader.PerformLayout();
-            this.pnlPages.ResumeLayout(false);
             this.tlpDrawing.ResumeLayout(false);
             this.flpVision.ResumeLayout(false);
             this.flpVision.PerformLayout();
@@ -1247,19 +1244,34 @@ namespace DWSIM.Extensions.SolidCraft
             this.flpFit.ResumeLayout(false);
             this.flpFit.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dgvResults)).EndInit();
-            this.flpButtons.ResumeLayout(false);
-            this.flpButtons.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.wizard)).EndInit();
+            this.wpDrawing.ResumeLayout(false);
+            this.wpDrawing.PerformLayout();
+            this.wpItems.ResumeLayout(false);
+            this.wpItems.PerformLayout();
+            this.wpLines.ResumeLayout(false);
+            this.wpLines.PerformLayout();
+            this.wpProcess.ResumeLayout(false);
+            this.wpProcess.PerformLayout();
+            this.wpBuild.ResumeLayout(false);
+            this.wpBuild.PerformLayout();
             this.ResumeLayout(false);
         }
 
         #endregion
 
-        private System.Windows.Forms.TableLayoutPanel tlpRoot;
-        private System.Windows.Forms.ListBox lstSteps;
-        private System.Windows.Forms.TableLayoutPanel tlpHeader;
-        private System.Windows.Forms.Label lblStepTitle;
-        private System.Windows.Forms.Label lblStepText;
-        private System.Windows.Forms.Panel pnlPages;
+        private AeroWizard.StepWizardControl wizard;
+        private AeroWizard.WizardPage wpDrawing;
+        private System.Windows.Forms.Label lblDrawingHelp;
+        private AeroWizard.WizardPage wpItems;
+        private System.Windows.Forms.Label lblItemsHelp;
+        private AeroWizard.WizardPage wpLines;
+        private System.Windows.Forms.Label lblLinesHelp;
+        private AeroWizard.WizardPage wpProcess;
+        private System.Windows.Forms.Label lblProcessHelp;
+        private AeroWizard.WizardPage wpBuild;
+        private System.Windows.Forms.Label lblBuildHelp;
+
         private System.Windows.Forms.TableLayoutPanel tlpDrawing;
         private System.Windows.Forms.FlowLayoutPanel flpVision;
         private System.Windows.Forms.Label lblVision;
@@ -1340,9 +1352,5 @@ namespace DWSIM.Extensions.SolidCraft
         private System.Windows.Forms.DataGridViewTextBoxColumn colResLevel;
         private System.Windows.Forms.DataGridViewTextBoxColumn colResSubject;
         private System.Windows.Forms.DataGridViewTextBoxColumn colResText;
-        private System.Windows.Forms.FlowLayoutPanel flpButtons;
-        private System.Windows.Forms.Button btnNext;
-        private System.Windows.Forms.Button btnBack;
-        private System.Windows.Forms.Button btnClose;
     }
 }

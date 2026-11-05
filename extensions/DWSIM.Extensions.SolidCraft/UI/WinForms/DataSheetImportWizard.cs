@@ -22,6 +22,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using AeroWizard;
 using DWSIM.ExtensionMethods;
 using DWSIM.Interfaces;
 
@@ -33,7 +34,6 @@ namespace DWSIM.Extensions.SolidCraft
         readonly DataSheetImportSession session;
         CancellationTokenSource reading;
         WorkIndicator work;
-        int page;
         bool loading;
 
         public DataSheetImportWizard(IFlowsheet fs)
@@ -45,44 +45,18 @@ namespace DWSIM.Extensions.SolidCraft
         private void DataSheetImportWizard_Load(object sender, EventArgs e)
         {
             this.ChangeDefaultFont();
-            lstSteps.Items.AddRange(DataSheetImportSession.Steps.Select((s, i) => (object)((i + 1) + ". " + s)).ToArray());
             colFieldKey.Items.AddRange(DataSheetImportSession.Keys.Cast<object>().ToArray());
-            ShowPage(0);
+            wpDrawing.AllowNext = false;
         }
 
         #region pages
 
-        void ShowPage(int p)
-        {
-            if (session.Reading == null) p = 0;
-            if (page == 1 && p != 1) TakeValues();
-            page = p;
-            tlpDrawing.Visible = p == 0;
-            tlpValues.Visible = p == 1;
-            tlpEquipment.Visible = p == 2;
-            lblStepTitle.Text = DataSheetImportSession.Steps[p];
-            lblStepText.Text = DataSheetImportSession.StepTexts[p];
-            loading = true;
-            lstSteps.SelectedIndex = p;
-            loading = false;
-            btnBack.Enabled = p > 0;
-            btnNext.Visible = p < 2;
-            btnNext.Enabled = session.Reading != null && reading == null;
-            if (p == 1) FillValues();
-            if (p == 2) FillEquipment();
-        }
+        private void wpValues_Initialize(object sender, WizardPageInitEventArgs e) => FillValues();
 
-        private void btnNext_Click(object sender, EventArgs e) => ShowPage(Math.Min(2, page + 1));
+        /// <summary>The edits on the values page are taken when it is left, forwards or back.</summary>
+        private void wpValues_Commit(object sender, WizardPageConfirmEventArgs e) => TakeValues();
 
-        private void btnBack_Click(object sender, EventArgs e) => ShowPage(Math.Max(0, page - 1));
-
-        private void btnClose_Click(object sender, EventArgs e) => Close();
-
-        private void lstSteps_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            if (loading || lstSteps.SelectedIndex < 0 || lstSteps.SelectedIndex == page) return;
-            ShowPage(lstSteps.SelectedIndex);
-        }
+        private void wpEquipment_Initialize(object sender, WizardPageInitEventArgs e) => FillEquipment();
 
         private void DataSheetImportWizard_FormClosing(object sender, FormClosingEventArgs e)
         {
@@ -170,7 +144,7 @@ namespace DWSIM.Extensions.SolidCraft
             btnOpenReading.Enabled = !busy;
             btnSaveReading.Enabled = !busy && session.Reading != null;
             btnBrowse.Enabled = !busy;
-            btnNext.Enabled = !busy && session.Reading != null;
+            wpDrawing.AllowNext = !busy && session.Reading != null;
         }
 
         private void btnCancelRead_Click(object sender, EventArgs e)
@@ -200,7 +174,7 @@ namespace DWSIM.Extensions.SolidCraft
         private void btnSaveReading_Click(object sender, EventArgs e)
         {
             if (session.Reading == null) return;
-            if (page == 1) TakeValues();
+            if (wizard.SelectedPage == wpValues) TakeValues();
             using (var d = new SaveFileDialog { Filter = "Data sheet readings (*.json)|*.json", FileName = Path.GetFileNameWithoutExtension(session.File) + " - reading.json" })
             {
                 if (d.ShowDialog(this) != DialogResult.OK) return;
@@ -351,7 +325,6 @@ namespace DWSIM.Extensions.SolidCraft
                 session.Apply();
                 lblSummary.Text = session.Results.FirstOrDefault()?.Text + (session.Results.Any(i => i.Level == ImportIssue.Levels.Warning) ? "; the outlet differs from the sheet where marked below." : ".");
                 Fill(session.Results.Concat(session.Issues.Where(i => i.Level != ImportIssue.Levels.Info)));
-                btnClose.Text = "Finish";
                 loading = true;
                 var targets = session.Targets();
                 cbTarget.Items.Clear();

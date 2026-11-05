@@ -23,6 +23,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using AeroWizard;
 using DWSIM.ExtensionMethods;
 using DWSIM.Interfaces;
 
@@ -36,7 +37,6 @@ namespace DWSIM.Extensions.SolidCraft
         readonly DrawingImportSession session;
         CancellationTokenSource reading;
         WorkIndicator work;
-        int page;
         bool loading;
         Image overview;
 
@@ -49,7 +49,6 @@ namespace DWSIM.Extensions.SolidCraft
         private void DrawingImportWizard_Load(object sender, EventArgs e)
         {
             this.ChangeDefaultFont();
-            lstSteps.Items.AddRange(DrawingImportSession.Steps.Select((s, i) => (object)((i + 1) + ". " + s)).ToArray());
             cbKind.SelectedIndex = 0;
             colItemCategory.Items.AddRange(DrawingImport.Categories.Cast<object>().ToArray());
             cbUnitT.Items.AddRange(DrawingImportSession.TemperatureUnits.Cast<object>().ToArray());
@@ -60,47 +59,21 @@ namespace DWSIM.Extensions.SolidCraft
             cbClass.Items.AddRange(DrawingImport.ProcessClasses.Select(c => (object)(c.Class + ": " + c.Description)).ToArray());
             cbPackage.Items.AddRange(session.AvailablePackages().Cast<object>().ToArray());
             if (session.Flowsheet.SimulationObjects.Count > 0) chkUnits.Checked = false;
-            ShowPage(0);
+            wpDrawing.AllowNext = false;
         }
 
         #region pages
 
-        void ShowPage(int p)
-        {
-            if (session.Reading == null) p = 0;
-            if (page == 3 && p != 3) TakeProcessPage();
-            page = p;
-            tlpDrawing.Visible = p == 0;
-            splitItems.Visible = p == 1;
-            splitLines.Visible = p == 2;
-            tlpProcess.Visible = p == 3;
-            tlpBuild.Visible = p == 4;
-            lblStepTitle.Text = DrawingImportSession.Steps[p];
-            lblStepText.Text = DrawingImportSession.StepTexts[p];
-            loading = true;
-            lstSteps.SelectedIndex = p;
-            loading = false;
-            btnBack.Enabled = p > 0;
-            btnNext.Visible = p < 4;
-            btnNext.Enabled = session.Reading != null && reading == null;
-            switch (p)
-            {
-                case 1: FillItems(); break;
-                case 2: FillLines(); break;
-                case 3: FillProcess(); break;
-                case 4: FillChecks(); break;
-            }
-        }
+        private void wpItems_Initialize(object sender, WizardPageInitEventArgs e) => FillItems();
 
-        private void btnNext_Click(object sender, EventArgs e) => ShowPage(Math.Min(4, page + 1));
+        private void wpLines_Initialize(object sender, WizardPageInitEventArgs e) => FillLines();
 
-        private void btnBack_Click(object sender, EventArgs e) => ShowPage(Math.Max(0, page - 1));
+        private void wpProcess_Initialize(object sender, WizardPageInitEventArgs e) => FillProcess();
 
-        private void lstSteps_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            if (loading || lstSteps.SelectedIndex < 0 || lstSteps.SelectedIndex == page) return;
-            ShowPage(lstSteps.SelectedIndex);
-        }
+        /// <summary>The process page's choices are taken when it is left, forwards or back.</summary>
+        private void wpProcess_Commit(object sender, WizardPageConfirmEventArgs e) => TakeProcessPage();
+
+        private void wpBuild_Initialize(object sender, WizardPageInitEventArgs e) => FillChecks();
 
         private void DrawingImportWizard_FormClosing(object sender, FormClosingEventArgs e)
         {
@@ -182,7 +155,7 @@ namespace DWSIM.Extensions.SolidCraft
             btnOpenReading.Enabled = !busy;
             btnSaveReading.Enabled = !busy && session.Reading != null;
             btnBrowse.Enabled = !busy;
-            btnNext.Enabled = !busy && session.Reading != null;
+            wpDrawing.AllowNext = !busy && session.Reading != null;
         }
 
         private void btnCancelRead_Click(object sender, EventArgs e)
@@ -579,7 +552,6 @@ namespace DWSIM.Extensions.SolidCraft
                 session.Build(chkSolve.Checked, s => { lblSummary.Text = s + "..."; lblSummary.Refresh(); });
                 lblSummary.Text = session.Summary();
                 Fill(dgvResults, session.Built.Issues.Concat(session.Solve));
-                btnClose.Text = "Finish";
                 FillFit();
             }
             catch (Exception ex)
@@ -604,7 +576,7 @@ namespace DWSIM.Extensions.SolidCraft
             reading = new CancellationTokenSource();
             var token = reading.Token;
             btnFit.Text = "Stop";
-            clbFit.Enabled = btnBack.Enabled = btnClose.Enabled = false;
+            clbFit.Enabled = wpBuild.AllowBack = wpBuild.AllowNext = wpBuild.AllowCancel = false;
             UseWaitCursor = true;
             try
             {
@@ -624,7 +596,7 @@ namespace DWSIM.Extensions.SolidCraft
             {
                 reading = null;
                 btnFit.Text = "Fit to the table";
-                clbFit.Enabled = btnBack.Enabled = btnClose.Enabled = true;
+                clbFit.Enabled = wpBuild.AllowBack = wpBuild.AllowNext = wpBuild.AllowCancel = true;
                 UseWaitCursor = false;
             }
         }
