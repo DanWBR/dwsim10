@@ -23,6 +23,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
+using DWSIM.Interfaces;
 using Newtonsoft.Json.Linq;
 
 namespace DWSIM.Extensions.SolidCraft
@@ -60,6 +61,37 @@ namespace DWSIM.Extensions.SolidCraft
             // reading the property makes the extension set the token up when it has not yet
             try { h?.GetProperty("AssistantToken", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic)?.GetValue(null); } catch (Exception) { }
             return Environment.GetEnvironmentVariable("DWSIM_ASSISTANT_TOKEN") ?? "";
+        }
+
+        /// <summary>The note the import wizards show: the reading needs a model that reads images.</summary>
+        public const string VisionModelNote = "The AI Assistant reads the drawing with the model chosen in its settings: choose one that reads images (a vision model, such as Claude, GPT-4o or Gemini).";
+
+        /// <summary>
+        /// Opens the AI Assistant's settings: its own dialog in the Windows interface, its settings
+        /// page in the web browser in the cross-platform one (the import wizards are modal there,
+        /// and the page the assistant docks would open behind them). Returns why it could not.
+        /// </summary>
+        public static string OpenAssistantSettings(IFlowsheet fs, bool windows)
+        {
+            var h = Helper();
+            if (h == null) return "The AI Assistant is not installed or not loaded.";
+            try
+            {
+                if (windows)
+                {
+                    var type = h.Assembly.GetTypes().FirstOrDefault(t => t.Name == "AIAssistantSettingsExtender");
+                    if (type == null) return "The AI Assistant has no settings window here.";
+                    var ext = (IExtender)Activator.CreateInstance(type);
+                    ext.SetFlowsheet(fs);
+                    ext.Run();
+                    return null;
+                }
+                if (!EnsureAssistant(out var why)) return why;
+                var token = h.GetProperty("AssistantToken", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic)?.GetValue(null) as string ?? Token();
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("http://localhost:" + Port + "/settings?token=" + Uri.EscapeDataString(token ?? "")) { UseShellExecute = true });
+                return null;
+            }
+            catch (Exception ex) { return "The AI Assistant's settings could not be opened: " + ex.GetBaseException().Message; }
         }
 
         /// <summary>Whether the assistant program is running, starting it through the AI Assistant extension when it is not.</summary>

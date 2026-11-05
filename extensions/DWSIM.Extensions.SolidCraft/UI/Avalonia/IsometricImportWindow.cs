@@ -148,10 +148,27 @@ namespace DWSIM.Extensions.SolidCraft
             var g = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"), RowDefinitions = new RowDefinitions("Auto,Auto,Auto,*"), RowSpacing = 6 };
             void Put(Control c, int row, int col, int span = 1) { Grid.SetRow(c, row); Grid.SetColumn(c, col); Grid.SetColumnSpan(c, span); g.Children.Add(c); }
             Put(Label("Isometric"), 0, 0); Put(file, 0, 1); Put(browse, 0, 2);
-            Put(new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { read, cancelRead, open, saveReading } }, 1, 0, 3);
+            Put(new StackPanel { Spacing = 8, Children = { VisionNote(), new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { read, cancelRead, open, saveReading } } } }, 1, 0, 3);
             Put(readStatus, 2, 0, 3);
             Put(new Border { BorderBrush = Brushes.Gray, BorderThickness = new Thickness(1), Background = Brushes.White, Child = preview }, 3, 0, 3);
             return g;
+        }
+
+        /// <summary>The note that the reading needs a vision model, with a button to the AI Assistant's settings.</summary>
+        Control VisionNote()
+        {
+            var open = new Button { Content = "Open the AI Assistant settings", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 0, 0) };
+            var text = new TextBlock { Text = DrawingImportClient.VisionModelNote, TextWrapping = TextWrapping.Wrap, Opacity = 0.75, VerticalAlignment = VerticalAlignment.Center };
+            open.Click += (_, _) =>
+            {
+                var why = DrawingImportClient.OpenAssistantSettings(session.Flowsheet, false);
+                if (why != null) text.Text = why;
+            };
+            var d = new DockPanel();
+            DockPanel.SetDock(open, Dock.Right);
+            d.Children.Add(open);
+            d.Children.Add(text);
+            return d;
         }
 
         async Task Browse()

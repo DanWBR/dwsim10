@@ -21,6 +21,9 @@ namespace DWSIM.Extensions.SolidCraft
             this.lblStepText = new System.Windows.Forms.Label();
             this.pnlPages = new System.Windows.Forms.Panel();
             this.tlpDrawing = new System.Windows.Forms.TableLayoutPanel();
+            this.flpVision = new System.Windows.Forms.FlowLayoutPanel();
+            this.lblVision = new System.Windows.Forms.Label();
+            this.lnkAssistantSettings = new System.Windows.Forms.LinkLabel();
             this.lblFile = new System.Windows.Forms.Label();
             this.txtFile = new System.Windows.Forms.TextBox();
             this.btnBrowse = new System.Windows.Forms.Button();
@@ -81,6 +84,7 @@ namespace DWSIM.Extensions.SolidCraft
             this.tlpHeader.SuspendLayout();
             this.pnlPages.SuspendLayout();
             this.tlpDrawing.SuspendLayout();
+            this.flpVision.SuspendLayout();
             this.flpRead.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.picDrawing)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.splitRoute)).BeginInit();
@@ -180,22 +184,54 @@ namespace DWSIM.Extensions.SolidCraft
             this.pnlPages.Size = new System.Drawing.Size(996, 650);
             this.pnlPages.TabIndex = 2;
             //
+            // flpVision
+            //
+            this.flpVision.AutoSize = true;
+            this.tlpDrawing.SetColumnSpan(this.flpVision, 3);
+            this.flpVision.Controls.Add(this.lblVision);
+            this.flpVision.Controls.Add(this.lnkAssistantSettings);
+            this.flpVision.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.flpVision.Name = "flpVision";
+            this.flpVision.TabIndex = 20;
+            //
+            // lblVision
+            //
+            this.lblVision.AutoSize = true;
+            this.lblVision.ForeColor = System.Drawing.SystemColors.GrayText;
+            this.lblVision.Margin = new System.Windows.Forms.Padding(3, 4, 3, 3);
+            this.lblVision.MaximumSize = new System.Drawing.Size(720, 0);
+            this.lblVision.Name = "lblVision";
+            this.lblVision.TabIndex = 0;
+            this.lblVision.Text = "The AI Assistant reads the drawing with the model chosen in its settings: choose one that reads images (a vision model, such as Claude, GPT-4o or Gemini).";
+            //
+            // lnkAssistantSettings
+            //
+            this.lnkAssistantSettings.AutoSize = true;
+            this.lnkAssistantSettings.Margin = new System.Windows.Forms.Padding(3, 4, 3, 3);
+            this.lnkAssistantSettings.Name = "lnkAssistantSettings";
+            this.lnkAssistantSettings.TabIndex = 1;
+            this.lnkAssistantSettings.TabStop = true;
+            this.lnkAssistantSettings.Text = "Open the AI Assistant settings";
+            this.lnkAssistantSettings.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.lnkAssistantSettings_LinkClicked);
+            //
             // tlpDrawing
             //
             this.tlpDrawing.ColumnCount = 3;
             this.tlpDrawing.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.AutoSize));
             this.tlpDrawing.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
             this.tlpDrawing.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.AutoSize));
+            this.tlpDrawing.Controls.Add(this.flpVision, 0, 1);
             this.tlpDrawing.Controls.Add(this.lblFile, 0, 0);
             this.tlpDrawing.Controls.Add(this.txtFile, 1, 0);
             this.tlpDrawing.Controls.Add(this.btnBrowse, 2, 0);
-            this.tlpDrawing.Controls.Add(this.flpRead, 0, 1);
-            this.tlpDrawing.Controls.Add(this.lblReadStatus, 0, 2);
-            this.tlpDrawing.Controls.Add(this.picDrawing, 0, 3);
+            this.tlpDrawing.Controls.Add(this.flpRead, 0, 2);
+            this.tlpDrawing.Controls.Add(this.lblReadStatus, 0, 3);
+            this.tlpDrawing.Controls.Add(this.picDrawing, 0, 4);
             this.tlpDrawing.Dock = System.Windows.Forms.DockStyle.Fill;
             this.tlpDrawing.Location = new System.Drawing.Point(0, 0);
             this.tlpDrawing.Name = "tlpDrawing";
-            this.tlpDrawing.RowCount = 4;
+            this.tlpDrawing.RowCount = 5;
+            this.tlpDrawing.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
             this.tlpDrawing.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
             this.tlpDrawing.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
             this.tlpDrawing.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
@@ -818,6 +854,8 @@ namespace DWSIM.Extensions.SolidCraft
             this.tlpHeader.PerformLayout();
             this.pnlPages.ResumeLayout(false);
             this.tlpDrawing.ResumeLayout(false);
+            this.flpVision.ResumeLayout(false);
+            this.flpVision.PerformLayout();
             this.tlpDrawing.PerformLayout();
             this.flpRead.ResumeLayout(false);
             this.flpRead.PerformLayout();
@@ -852,6 +890,9 @@ namespace DWSIM.Extensions.SolidCraft
         private System.Windows.Forms.Label lblStepText;
         private System.Windows.Forms.Panel pnlPages;
         private System.Windows.Forms.TableLayoutPanel tlpDrawing;
+        private System.Windows.Forms.FlowLayoutPanel flpVision;
+        private System.Windows.Forms.Label lblVision;
+        private System.Windows.Forms.LinkLabel lnkAssistantSettings;
         private System.Windows.Forms.Label lblFile;
         private System.Windows.Forms.TextBox txtFile;
         private System.Windows.Forms.Button btnBrowse;

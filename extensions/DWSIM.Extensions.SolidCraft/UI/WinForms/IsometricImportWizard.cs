@@ -161,6 +161,12 @@ namespace DWSIM.Extensions.SolidCraft
 
         private void btnCancelRead_Click(object sender, EventArgs e) => reading?.Cancel();
 
+        private void lnkAssistantSettings_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+        {
+            var why = DrawingImportClient.OpenAssistantSettings(session.Flowsheet, true);
+            if (why != null) MessageBox.Show(this, why, Text);
+        }
+
         private void btnOpenReading_Click(object sender, EventArgs e)
         {
             using (var d = new OpenFileDialog { Filter = "Isometric readings (*.json)|*.json" })
