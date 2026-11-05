@@ -481,11 +481,8 @@ namespace DWSIM.Extensions.SolidCraft
 
         public IsometricImportSession(IFlowsheet fs) { Flowsheet = fs; }
 
-        public void Read(CancellationToken ct, Action<string> step)
-        {
-            Reading = IsometricImport.Read(File, ct, step);
-            Propose();
-        }
+        /// <summary>Reads the isometric on a worker thread, without touching the flowsheet; call <see cref="Propose"/> on the UI thread afterwards.</summary>
+        public void Read(CancellationToken ct, Action<string> step) => Reading = IsometricImport.Read(File, ct, step);
 
         public void Open(string json)
         {

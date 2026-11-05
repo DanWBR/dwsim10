@@ -1,0 +1,73 @@
+// Copyright 2026 Daniel Wagner O. de Medeiros
+//
+// This file is part of DWSIM.
+//
+// DWSIM is free software: you can redistribute it and/or modify it under the terms of the GNU
+// General Public License as published by the Free Software Foundation, either version 3 of the
+// License, or (at your option) any later version.
+//
+// DWSIM is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+// the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+// Public License for more details.
+//
+// You should have received a copy of the GNU General Public License along with DWSIM. If not, see
+// <http://www.gnu.org/licenses/>.
+
+using System;
+using System.Windows.Forms;
+
+namespace DWSIM.Extensions.SolidCraft
+{
+    /// <summary>
+    /// What the import wizards show while the AI Assistant works: a moving bar, the step under
+    /// way and the time it has taken so far, so a reading of a few minutes does not look like a
+    /// window that stopped answering.
+    /// </summary>
+    internal sealed class WorkIndicator : IDisposable
+    {
+        readonly Label status;
+        readonly ProgressBar bar;
+        readonly Timer timer = new Timer { Interval = 1000 };
+        DateTime started;
+        string step = "";
+
+        public WorkIndicator(Label status, ProgressBar bar)
+        {
+            this.status = status;
+            this.bar = bar;
+            timer.Tick += (s, e) => Show();
+        }
+
+        public TimeSpan Elapsed => DateTime.Now - started;
+
+        public void Start(string first)
+        {
+            started = DateTime.Now;
+            step = first;
+            bar.Style = ProgressBarStyle.Marquee;
+            bar.Visible = true;
+            timer.Start();
+            Show();
+        }
+
+        /// <summary>The step under way; called on the UI thread.</summary>
+        public void Step(string text)
+        {
+            step = text;
+            Show();
+        }
+
+        public void Stop()
+        {
+            timer.Stop();
+            bar.Visible = false;
+        }
+
+        void Show()
+        {
+            if (!status.IsDisposed) status.Text = step + " (" + DrawingImportClient.Elapsed(Elapsed) + ")";
+        }
+
+        public void Dispose() => timer.Dispose();
+    }
+}

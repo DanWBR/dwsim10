@@ -28,6 +28,7 @@ namespace DWSIM.Extensions.SolidCraft
             this.txtFile = new System.Windows.Forms.TextBox();
             this.btnBrowse = new System.Windows.Forms.Button();
             this.flpRead = new System.Windows.Forms.FlowLayoutPanel();
+            this.prgRead = new System.Windows.Forms.ProgressBar();
             this.btnRead = new System.Windows.Forms.Button();
             this.btnCancelRead = new System.Windows.Forms.Button();
             this.btnOpenReading = new System.Windows.Forms.Button();
@@ -278,6 +279,7 @@ namespace DWSIM.Extensions.SolidCraft
             this.flpRead.Controls.Add(this.btnCancelRead);
             this.flpRead.Controls.Add(this.btnOpenReading);
             this.flpRead.Controls.Add(this.btnSaveReading);
+            this.flpRead.Controls.Add(this.prgRead);
             this.flpRead.Location = new System.Drawing.Point(3, 36);
             this.flpRead.Name = "flpRead";
             this.flpRead.Size = new System.Drawing.Size(600, 33);
@@ -328,6 +330,17 @@ namespace DWSIM.Extensions.SolidCraft
             this.btnSaveReading.Text = "Save the reading...";
             this.btnSaveReading.UseVisualStyleBackColor = true;
             this.btnSaveReading.Click += new System.EventHandler(this.btnSaveReading_Click);
+            //
+            // prgRead
+            //
+            this.prgRead.Location = new System.Drawing.Point(566, 7);
+            this.prgRead.Margin = new System.Windows.Forms.Padding(12, 7, 3, 3);
+            this.prgRead.MarqueeAnimationSpeed = 30;
+            this.prgRead.Name = "prgRead";
+            this.prgRead.Size = new System.Drawing.Size(180, 20);
+            this.prgRead.Style = System.Windows.Forms.ProgressBarStyle.Marquee;
+            this.prgRead.TabIndex = 4;
+            this.prgRead.Visible = false;
             //
             // lblReadStatus
             //
@@ -897,6 +910,7 @@ namespace DWSIM.Extensions.SolidCraft
         private System.Windows.Forms.TextBox txtFile;
         private System.Windows.Forms.Button btnBrowse;
         private System.Windows.Forms.FlowLayoutPanel flpRead;
+        private System.Windows.Forms.ProgressBar prgRead;
         private System.Windows.Forms.Button btnRead;
         private System.Windows.Forms.Button btnCancelRead;
         private System.Windows.Forms.Button btnOpenReading;

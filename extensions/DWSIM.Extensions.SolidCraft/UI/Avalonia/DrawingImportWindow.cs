@@ -59,6 +59,7 @@ namespace DWSIM.Extensions.SolidCraft
         ComboBox kind;
         Button read, cancelRead, saveReading;
         TextBlock readStatus;
+        WorkIndicator work;
         Image preview;
 
         // equipment and lines pages
@@ -152,19 +153,20 @@ namespace DWSIM.Extensions.SolidCraft
             read = new Button { Content = "Read the drawing", IsEnabled = false };
             read.Click += async (_, _) => await Read();
             cancelRead = new Button { Content = "Cancel", IsEnabled = false };
-            cancelRead.Click += (_, _) => reading?.Cancel();
+            cancelRead.Click += (_, _) => CancelRead();
             var open = new Button { Content = "Open a saved reading..." };
             open.Click += async (_, _) => await OpenReading();
             saveReading = new Button { Content = "Save the reading...", IsEnabled = false };
             saveReading.Click += async (_, _) => await SaveReading();
             readStatus = new TextBlock { TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 6) };
+            work = new WorkIndicator(readStatus);
             preview = new Image { Stretch = Stretch.Uniform };
 
             var g = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"), RowDefinitions = new RowDefinitions("Auto,Auto,Auto,Auto,*"), RowSpacing = 6 };
             void Put(Control c, int row, int col, int span = 1) { Grid.SetRow(c, row); Grid.SetColumn(c, col); Grid.SetColumnSpan(c, span); g.Children.Add(c); }
             Put(Label("Drawing"), 0, 0); Put(file, 0, 1); Put(browse, 0, 2);
             Put(Label("Type"), 1, 0); Put(kind, 1, 1);
-            Put(new StackPanel { Spacing = 8, Children = { VisionNote(), new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { read, cancelRead, open, saveReading } } } }, 2, 0, 3);
+            Put(new StackPanel { Spacing = 8, Children = { VisionNote(), new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { read, cancelRead, open, saveReading, work.Bar } } } }, 2, 0, 3);
             Put(readStatus, 3, 0, 3);
             Put(new Border { BorderBrush = Brushes.Gray, BorderThickness = new Thickness(1), Background = Brushes.White, Child = preview }, 4, 0, 3);
             return g;
@@ -213,27 +215,41 @@ namespace DWSIM.Extensions.SolidCraft
             reading = new CancellationTokenSource();
             var token = reading.Token;
             SetBusy(true);
-            var started = DateTime.Now;
+            work.Start("Sending the drawing to the AI Assistant");
             try
             {
-                await Task.Run(() => session.Read(token, s => Dispatcher.UIThread.Post(() => readStatus.Text = s)));
-                readStatus.Text = string.Format(CultureInfo.CurrentCulture, "{0} items and {1} lines read in {2:0} s. Check them on the next pages.",
-                    session.Reading.Items.Count, session.Reading.Lines.Count, (DateTime.Now - started).TotalSeconds);
+                await Task.Run(() => session.Read(token, s => Dispatcher.UIThread.Post(() => { if (!token.IsCancellationRequested) work.Step(s); })));
+                work.Step("Matching the compounds and the property package");
+                session.Propose();
+                work.Stop();
+                readStatus.Text = string.Format(CultureInfo.CurrentCulture, "{0} items and {1} lines read in {2}. Check them on the next pages.",
+                    session.Reading.Items.Count, session.Reading.Lines.Count, DrawingImportClient.Elapsed(work.Elapsed));
                 Loaded();
             }
             catch (Exception ex) when (token.IsCancellationRequested || ex is OperationCanceledException)
             {
+                work.Stop();
                 readStatus.Text = "Reading cancelled.";
             }
             catch (Exception ex)
             {
-                readStatus.Text = "The drawing could not be read: " + ex.GetBaseException().Message;
+                work.Stop();
+                readStatus.Text = "The drawing could not be read: " + ex.GetBaseException().Message + " (the details are in the flowsheet's log)";
+                session.Flowsheet.ShowMessage("Import Flowsheet from Drawing: " + ex, IFlowsheet.MessageType.GeneralError);
             }
             finally
             {
                 reading = null;
                 SetBusy(false);
             }
+        }
+
+        void CancelRead()
+        {
+            if (reading == null) return;
+            reading.Cancel();
+            cancelRead.IsEnabled = false;
+            work.Step("Cancelling");
         }
 
         void SetBusy(bool busy)

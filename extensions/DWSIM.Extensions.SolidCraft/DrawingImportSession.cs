@@ -67,7 +67,12 @@ namespace DWSIM.Extensions.SolidCraft
 
         public DrawingImportSession(IFlowsheet fs) { Flowsheet = fs; }
 
-        /// <summary>Reads the drawing and infers the process; then the compounds, package and units are proposed.</summary>
+        /// <summary>
+        /// Reads the drawing and infers the process, on a worker thread: it does not touch the
+        /// flowsheet (the Windows interface reaches its compounds and packages through the main
+        /// window, which a worker thread does not see). Call <see cref="Propose"/> on the UI
+        /// thread afterwards.
+        /// </summary>
         public void Read(CancellationToken ct, Action<string> step)
         {
             Reading = DrawingImportClient.Read(File, Kind, ct, step);
@@ -75,7 +80,6 @@ namespace DWSIM.Extensions.SolidCraft
             try { DrawingImportClient.Infer(Reading, ct); }
             catch (OperationCanceledException) { throw; }
             catch (Exception ex) { Reading.Process.Evidence = "The process could not be inferred: " + ex.GetBaseException().Message; }
-            Propose();
         }
 
         public void Open(string json)

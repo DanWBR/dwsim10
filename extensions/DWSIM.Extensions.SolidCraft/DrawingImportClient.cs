@@ -63,6 +63,11 @@ namespace DWSIM.Extensions.SolidCraft
             return Environment.GetEnvironmentVariable("DWSIM_ASSISTANT_TOKEN") ?? "";
         }
 
+        /// <summary>A time the wizards show while the assistant works: "42 s", "2 min 05 s".</summary>
+        public static string Elapsed(TimeSpan t) => t.TotalMinutes >= 1
+            ? string.Format(System.Globalization.CultureInfo.CurrentCulture, "{0} min {1:00} s", (int)t.TotalMinutes, t.Seconds)
+            : string.Format(System.Globalization.CultureInfo.CurrentCulture, "{0} s", (int)t.TotalSeconds);
+
         /// <summary>The note the import wizards show: the reading needs a model that reads images.</summary>
         public const string VisionModelNote = "The AI Assistant reads the drawing with the model chosen in its settings: choose one that reads images (a vision model, such as Claude, GPT-4o or Gemini).";
 
@@ -150,7 +155,9 @@ namespace DWSIM.Extensions.SolidCraft
 
         static JObject ReadRaw(string file, string kind, CancellationToken ct, Action<string> step, out byte[] overview, out List<string> cadTexts)
         {
+            if (!Listening()) step?.Invoke("Starting the AI Assistant");
             if (!EnsureAssistant(out var why)) throw new InvalidOperationException(why);
+            ct.ThrowIfCancellationRequested();
             overview = null;
             var send = file;
             cadTexts = new List<string>();
@@ -164,7 +171,8 @@ namespace DWSIM.Extensions.SolidCraft
                     Directory.CreateDirectory(temp);
                     send = PlotCad(file, temp, out cadTexts);
                 }
-                step?.Invoke("AI Assistant: reading the drawing (this takes a minute or two)");
+                var what = kind == "iso" ? "the isometric" : kind == "datasheet" ? "the data sheet" : "the drawing";
+                step?.Invoke("AI Assistant: the model is reading " + what + "; it usually takes one to three minutes");
                 var o = Post("/api/drawing/read", new JObject
                 {
                     ["file"] = Convert.ToBase64String(File.ReadAllBytes(send)),

@@ -32,6 +32,7 @@ namespace DWSIM.Extensions.SolidCraft
     {
         readonly DataSheetImportSession session;
         CancellationTokenSource reading;
+        WorkIndicator work;
         int page;
         bool loading;
 
@@ -83,7 +84,11 @@ namespace DWSIM.Extensions.SolidCraft
             ShowPage(lstSteps.SelectedIndex);
         }
 
-        private void DataSheetImportWizard_FormClosing(object sender, FormClosingEventArgs e) => reading?.Cancel();
+        private void DataSheetImportWizard_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            reading?.Cancel();
+            work?.Dispose();
+        }
 
         #endregion
 
@@ -119,21 +124,27 @@ namespace DWSIM.Extensions.SolidCraft
             reading = new CancellationTokenSource();
             var token = reading.Token;
             SetBusy(true);
-            var started = DateTime.Now;
+            work = work ?? new WorkIndicator(lblReadStatus, prgRead);
+            work.Start("Sending the data sheet to the AI Assistant");
             try
             {
-                await Task.Run(() => session.Read(token, s => BeginInvoke((Action)(() => lblReadStatus.Text = s))));
-                lblReadStatus.Text = string.Format(CultureInfo.CurrentCulture, "A {0} data sheet ({1}), {2} values read in {3:0} s. Check them on the next page.",
-                    session.Reading.EquipmentType.Replace("_", " "), session.Reading.Tag, session.Reading.Fields.Count, (DateTime.Now - started).TotalSeconds);
+                await Task.Run(() => session.Read(token, s => BeginInvoke((Action)(() => { if (!token.IsCancellationRequested) work.Step(s); }))));
+                session.Loaded();
+                work.Stop();
+                lblReadStatus.Text = string.Format(CultureInfo.CurrentCulture, "A {0} data sheet ({1}), {2} values read in {3}. Check them on the next page.",
+                    session.Reading.EquipmentType.Replace("_", " "), session.Reading.Tag, session.Reading.Fields.Count, DrawingImportClient.Elapsed(work.Elapsed));
                 Loaded();
             }
             catch (Exception ex) when (token.IsCancellationRequested || ex is OperationCanceledException)
             {
+                work.Stop();
                 lblReadStatus.Text = "Reading cancelled.";
             }
             catch (Exception ex)
             {
-                lblReadStatus.Text = "The data sheet could not be read: " + ex.GetBaseException().Message;
+                work.Stop();
+                lblReadStatus.Text = "The data sheet could not be read: " + ex.GetBaseException().Message + " (the details are in the flowsheet's log)";
+                session.Flowsheet.ShowMessage("Set Equipment up from Data Sheet: " + ex, IFlowsheet.MessageType.GeneralError);
             }
             finally
             {
@@ -157,10 +168,15 @@ namespace DWSIM.Extensions.SolidCraft
             btnSaveReading.Enabled = !busy && session.Reading != null;
             btnBrowse.Enabled = !busy;
             btnNext.Enabled = !busy && session.Reading != null;
-            UseWaitCursor = busy;
         }
 
-        private void btnCancelRead_Click(object sender, EventArgs e) => reading?.Cancel();
+        private void btnCancelRead_Click(object sender, EventArgs e)
+        {
+            if (reading == null) return;
+            reading.Cancel();
+            btnCancelRead.Enabled = false;
+            work?.Step("Cancelling");
+        }
 
         private void btnOpenReading_Click(object sender, EventArgs e)
         {

@@ -35,6 +35,7 @@ namespace DWSIM.Extensions.SolidCraft
 
         readonly DrawingImportSession session;
         CancellationTokenSource reading;
+        WorkIndicator work;
         int page;
         bool loading;
         Image overview;
@@ -101,7 +102,11 @@ namespace DWSIM.Extensions.SolidCraft
             ShowPage(lstSteps.SelectedIndex);
         }
 
-        private void DrawingImportWizard_FormClosing(object sender, FormClosingEventArgs e) => reading?.Cancel();
+        private void DrawingImportWizard_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            reading?.Cancel();
+            work?.Dispose();
+        }
 
         #endregion
 
@@ -137,21 +142,28 @@ namespace DWSIM.Extensions.SolidCraft
             reading = new CancellationTokenSource();
             var token = reading.Token;
             SetBusy(true);
-            var started = DateTime.Now;
+            work = work ?? new WorkIndicator(lblReadStatus, prgRead);
+            work.Start("Sending the drawing to the AI Assistant");
             try
             {
-                await Task.Run(() => session.Read(token, s => BeginInvoke((Action)(() => lblReadStatus.Text = s))));
-                lblReadStatus.Text = string.Format(CultureInfo.CurrentCulture, "{0} items and {1} lines read in {2:0} s. Check them on the next pages.",
-                    session.Reading.Items.Count, session.Reading.Lines.Count, (DateTime.Now - started).TotalSeconds);
+                await Task.Run(() => session.Read(token, s => BeginInvoke((Action)(() => { if (!token.IsCancellationRequested) work.Step(s); }))));
+                work.Step("Matching the compounds and the property package");
+                session.Propose();
+                work.Stop();
+                lblReadStatus.Text = string.Format(CultureInfo.CurrentCulture, "{0} items and {1} lines read in {2}. Check them on the next pages.",
+                    session.Reading.Items.Count, session.Reading.Lines.Count, DrawingImportClient.Elapsed(work.Elapsed));
                 Loaded();
             }
             catch (Exception ex) when (token.IsCancellationRequested || ex is OperationCanceledException)
             {
+                work.Stop();
                 lblReadStatus.Text = "Reading cancelled.";
             }
             catch (Exception ex)
             {
-                lblReadStatus.Text = "The drawing could not be read: " + ex.GetBaseException().Message;
+                work.Stop();
+                lblReadStatus.Text = "The drawing could not be read: " + ex.GetBaseException().Message + " (the details are in the flowsheet's log)";
+                session.Flowsheet.ShowMessage("Import Flowsheet from Drawing: " + ex, IFlowsheet.MessageType.GeneralError);
             }
             finally
             {
@@ -168,10 +180,15 @@ namespace DWSIM.Extensions.SolidCraft
             btnSaveReading.Enabled = !busy && session.Reading != null;
             btnBrowse.Enabled = !busy;
             btnNext.Enabled = !busy && session.Reading != null;
-            UseWaitCursor = busy;
         }
 
-        private void btnCancelRead_Click(object sender, EventArgs e) => reading?.Cancel();
+        private void btnCancelRead_Click(object sender, EventArgs e)
+        {
+            if (reading == null) return;
+            reading.Cancel();
+            btnCancelRead.Enabled = false;
+            work?.Step("Cancelling");
+        }
 
         private void lnkAssistantSettings_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
         {

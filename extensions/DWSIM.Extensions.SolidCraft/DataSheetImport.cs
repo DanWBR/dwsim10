@@ -926,11 +926,8 @@ namespace DWSIM.Extensions.SolidCraft
 
         public DataSheetImportSession(IFlowsheet fs) { Flowsheet = fs; }
 
-        public void Read(CancellationToken ct, Action<string> step)
-        {
-            Reading = DataSheetImport.Read(File, ct, step);
-            Loaded();
-        }
+        /// <summary>Reads the data sheet on a worker thread, without touching the flowsheet; call <see cref="Loaded"/> on the UI thread afterwards.</summary>
+        public void Read(CancellationToken ct, Action<string> step) => Reading = DataSheetImport.Read(File, ct, step);
 
         public void Open(string json)
         {
@@ -939,7 +936,8 @@ namespace DWSIM.Extensions.SolidCraft
             Loaded();
         }
 
-        void Loaded()
+        /// <summary>The operating case and the item the sheet goes into, from a reading just made or opened.</summary>
+        public void Loaded()
         {
             Case = DataSheetImport.DefaultCase(Reading);
             // the object named on the sheet (its tag, or a tag written beside it, "PV-012 (PV-01)")
