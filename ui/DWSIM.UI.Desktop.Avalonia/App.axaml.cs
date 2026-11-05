@@ -27,6 +27,11 @@ public class App : Application
 
     public override void OnFrameworkInitializationCompleted()
     {
+        // An exception that escapes a UI event handler would otherwise end the process at once
+        // (issue #133: a connection the surface refused closed the app on macOS). Report it in the
+        // active simulation's log and keep running, as the classic edition does with its error form.
+        global::Avalonia.Threading.Dispatcher.UIThread.UnhandledException += OnUIThreadException;
+
         // Persisted settings are written back on close, but were never read back at startup:
         // UIScalingFactor, DarkMode, CurrentCulture and the rest always came up at their defaults
         // (scaling reverted to 1.0 every restart). Load them before anything reads them.
@@ -79,6 +84,25 @@ public class App : Application
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    private void OnUIThreadException(object? sender, global::Avalonia.Threading.DispatcherUnhandledExceptionEventArgs e)
+    {
+        var ex = e.Exception is System.Reflection.TargetInvocationException tie && tie.InnerException != null
+            ? tie.InnerException : e.Exception;
+
+        System.Console.Error.WriteLine("Unhandled exception on the UI thread: " + ex);
+
+        var main = (ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow as MainWindow;
+        var fs = main?.ActiveFlowsheet?.CurrentFlowsheet;
+        if (fs == null) return; // nowhere to report it: let the runtime handle it as before
+
+        try
+        {
+            fs.ShowMessage("Unexpected error: " + ex.Message, DWSIM.Interfaces.IFlowsheet.MessageType.GeneralError);
+            e.Handled = true;
+        }
+        catch { }
     }
 
     /// <summary>

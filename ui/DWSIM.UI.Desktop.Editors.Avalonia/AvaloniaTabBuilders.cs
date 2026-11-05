@@ -146,20 +146,30 @@ namespace DWSIM.UI.Desktop.Editors
                 if (partnerObj == null) return;
 
                 int fromIdx, toIdx;
-                if (isInput)
+                try
                 {
-                    // partner is a stream feeding us: stream's output 0 -> our connector index
-                    fromIdx = 0;
-                    toIdx = simobj.GraphicObject.InputConnectors.IndexOf(connector);
-                    fs.ConnectObjects(partnerObj, simobj.GraphicObject, fromIdx, toIdx);
+                    if (isInput)
+                    {
+                        // partner is a stream feeding us: stream's output 0 -> our connector index
+                        fromIdx = 0;
+                        toIdx = simobj.GraphicObject.InputConnectors.IndexOf(connector);
+                        fs.ConnectObjects(partnerObj, simobj.GraphicObject, fromIdx, toIdx);
+                    }
+                    else
+                    {
+                        // we're feeding the partner: our connector index -> stream's input 0
+                        fromIdx = simobj.GraphicObject.OutputConnectors.IndexOf(connector);
+                        if (fromIdx < 0 && connector == simobj.GraphicObject.EnergyConnector) fromIdx = 0;
+                        toIdx = 0;
+                        fs.ConnectObjects(simobj.GraphicObject, partnerObj, fromIdx, toIdx);
+                    }
                 }
-                else
+                catch (Exception ex)
                 {
-                    // we're feeding the partner: our connector index -> stream's input 0
-                    fromIdx = simobj.GraphicObject.OutputConnectors.IndexOf(connector);
-                    if (fromIdx < 0 && connector == simobj.GraphicObject.EnergyConnector) fromIdx = 0;
-                    toIdx = 0;
-                    fs.ConnectObjects(simobj.GraphicObject, partnerObj, fromIdx, toIdx);
+                    // the surface refuses some connections ("This connection is not allowed."); an
+                    // exception left to escape this handler takes the whole application down
+                    fs.ShowMessage(simobj.GraphicObject.Tag + ": could not connect '" + newTag + "': " + ex.Message,
+                        IFlowsheet.MessageType.GeneralError);
                 }
 
                 fs.UpdateInterface();

@@ -208,6 +208,9 @@ public partial class FlowsheetView : UserControl
     private AvaloniaFlowsheet? _flowsheet;
     private GraphicsSurface? _surface;
 
+    /// <summary>The simulation shown in this view, or null before one is loaded.</summary>
+    internal AvaloniaFlowsheet? CurrentFlowsheet => _flowsheet;
+
     /// <summary>
     /// Public accessor matching the Eto FlowsheetForm.FlowsheetObject property.
     /// Used by extensions (IExtender.SetFlowsheet) and plugins (IUtilityPlugin5.SetFlowsheet).
