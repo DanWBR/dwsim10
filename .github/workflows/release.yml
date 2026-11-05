@@ -187,9 +187,6 @@ jobs:
     needs: payloads
     runs-on: windows-latest
     env:
-      # a SignPath API token for a user who submits to the DWSIM_Simulator project; without it the
-      # installer is produced unsigned
-      SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
       # a direct download URL for the ChemSep Lite installer (lite.exe); without it the installer is
       # built without the optional ChemSep component. Kept out of the repository so a public mirror
       # does not redistribute a third-party binary.
@@ -249,48 +246,11 @@ jobs:
           /DOutputDir=%CD%\artifacts
           packaging\windows\dwsim.iss
 
-      # Authenticode signing through SignPath, when configured. The built installer is submitted with
-      # the SignPath PowerShell module and the signed one comes back; the private key never leaves
-      # SignPath. The identifiers live in repository variables, the API token in a secret. Signing is
-      # best-effort: if it is not configured the installer ships unsigned rather than failing.
-      # Signing stays best-effort, but it says so out loud: a failure leaves a
-      # ::warning:: on the run instead of a green step. `continue-on-error`
-      # alone reported the step as successful even when SignPath rejected the
-      # request, which is how an exhausted quota shipped unsigned installers
-      # unnoticed. Any failure also clears the half-written output so the
-      # staging step below falls back to the unsigned artifact.
-      - name: Sign installer (SignPath)
-        if: env.SIGNPATH_API_TOKEN != ''
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $exe = (Get-ChildItem artifacts\*.exe | Select-Object -First 1).FullName
-          New-Item -ItemType Directory -Force signed | Out-Null
-          $out = Join-Path signed (Split-Path $exe -Leaf)
-          try {
-            Install-Module -Name SignPath -Repository PSGallery -Force -Scope CurrentUser -AllowClobber
-            Submit-SigningRequest `
-              -InputArtifactPath  $exe `
-              -ApiToken           $env:SIGNPATH_API_TOKEN `
-              -OrganizationId     "${{ vars.SIGNPATH_ORGANIZATION_ID }}" `
-              -ProjectSlug        "${{ vars.SIGNPATH_PROJECT_SLUG }}" `
-              -SigningPolicySlug  "${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}" `
-              -OutputArtifactPath $out `
-              -WaitForCompletion
-          } catch {
-            Remove-Item -Force $out -ErrorAction SilentlyContinue
-            Write-Host "::warning title=Installer not signed::SignPath signing failed; the installer ships unsigned. $($_.Exception.Message)"
-          }
-
       - name: Stage the installer
         shell: bash
         run: |
           mkdir -p dist
-          if ls signed/*.exe >/dev/null 2>&1; then
-            cp signed/*.exe dist/
-          else
-            cp artifacts/*.exe dist/
-          fi
+          cp artifacts/*.exe dist/
 
       - uses: actions/upload-artifact@v4
         with:

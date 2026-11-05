@@ -76,36 +76,6 @@ approved.
    ```
    The commands with no redirection prompt for the value and hide it.
 
-## Signing the Windows installer (SignPath)
-
-The Windows installer is Authenticode-signed through SignPath: the built installer is submitted with
-the SignPath PowerShell module on the Windows runner and the signed one comes back; the private key
-never leaves SignPath. Signing is best-effort: with nothing configured the installer ships unsigned.
-
-Set these on the repository (the identifiers as **Variables**, the token as a **Secret**), from the
-SignPath organization and project:
-
-| Name | Kind | What it is |
-|---|---|---|
-| `SIGNPATH_API_TOKEN` | secret | a SignPath API token for a user who submits to the signing policy |
-| `SIGNPATH_ORGANIZATION_ID` | variable | the organization id |
-| `SIGNPATH_PROJECT_SLUG` | variable | the project slug |
-| `SIGNPATH_SIGNING_POLICY_SLUG` | variable | the signing policy slug |
-
-Under the SignPath Foundation program for open-source projects, signing runs against a self-signed
-**test** certificate first (so the signature shows an untrusted root); SignPath orders and imports the
-real production certificate after reviewing the working setup, after which the same workflow produces
-a trusted signature with no change.
-
-Set the variables with, for example:
-
-```bash
-gh variable set SIGNPATH_ORGANIZATION_ID --repo DanWBR/dwsim10 --body "<org id>"
-gh variable set SIGNPATH_PROJECT_SLUG --repo DanWBR/dwsim10 --body "<project slug>"
-gh variable set SIGNPATH_SIGNING_POLICY_SLUG --repo DanWBR/dwsim10 --body "<policy slug>"
-gh secret set SIGNPATH_API_TOKEN --repo DanWBR/dwsim10
-```
-
 ## The optional ChemSep component
 
 The Windows installer can offer ChemSep Lite as an optional component. Its installer (`lite.exe`) is a
