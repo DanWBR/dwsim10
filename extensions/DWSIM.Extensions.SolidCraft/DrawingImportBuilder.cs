@@ -237,6 +237,20 @@ namespace DWSIM.Extensions.SolidCraft
                 t.AppendLine("Notes on the drawing:");
                 foreach (var n in r.Notes) t.AppendLine("- " + n);
             }
+            // the metadata the flowsheet summary, the report and the evaluation read
+            var m = o.Metadata;
+            if (m != null)
+            {
+                var type = ProcessType(r, fs);
+                if (newFlowsheet || m.ProcessType == DWSIM.Interfaces.Enums.ProcessType.Unspecified) m.ProcessType = type;
+                if (r.Process.Description.Length > 0 && (newFlowsheet || string.IsNullOrWhiteSpace(m.ProcessDescription))) m.ProcessDescription = r.Process.Description;
+                List<string> Matched(IEnumerable<string> names) => names.Select(n => MatchSelected(fs, n) ?? MatchSelected(fs, CompoundName(fs, n) ?? "")).Where(n => n != null).Distinct().ToList();
+                if (newFlowsheet || m.KeyCompounds.Count == 0) { m.KeyCompounds.Clear(); m.KeyCompounds.AddRange(Matched(r.Process.Compounds.Count > 0 ? r.Process.Compounds : setup.Compounds)); }
+                if (newFlowsheet || m.KeyReactants.Count == 0) { m.KeyReactants.Clear(); m.KeyReactants.AddRange(Matched(r.Process.KeyReactants)); }
+                if (newFlowsheet || m.KeyProducts.Count == 0) { m.KeyProducts.Clear(); m.KeyProducts.AddRange(Matched(r.Process.KeyProducts)); }
+                t.AppendLine("Process type: " + m.ProcessType);
+            }
+
             var before = o.SimulationComments ?? "";
             o.SimulationComments = (before.Trim().Length > 0 ? before.TrimEnd() + Environment.NewLine + Environment.NewLine : "") + t.ToString().TrimEnd();
         }
@@ -625,6 +639,25 @@ namespace DWSIM.Extensions.SolidCraft
                 if (hits.Count == 1) hit = hits[0];
             }
             return hit;
+        }
+
+        /// <summary>
+        /// The DWSIM process type: the model's choice when it made one, else from what the drawing
+        /// holds (a reactor transforms, a refrigeration loop cycles, amines separate chemically,
+        /// pipes, pumps, compressors and valves alone transport, the rest separates physically).
+        /// </summary>
+        static DWSIM.Interfaces.Enums.ProcessType ProcessType(DrawingReading r, IFlowsheet fs)
+        {
+            if (Enum.TryParse(r.Process.Type ?? "", true, out DWSIM.Interfaces.Enums.ProcessType chosen) && chosen != DWSIM.Interfaces.Enums.ProcessType.Unspecified) return chosen;
+            var cats = r.Items.Where(i => i.Include).Select(i => i.Category).ToList();
+            if (cats.Any(c => c == "Reactor" || c == "Cstr" || c == "Pfr")) return DWSIM.Interfaces.Enums.ProcessType.Transformation;
+            var cls = (r.Process.Class ?? "").ToLowerInvariant();
+            if (cls == "refrigeration" || cls == "absorption cooling") return DWSIM.Interfaces.Enums.ProcessType.RefrigerationCycle;
+            if (cls == "amines" || cls == "electrolytes") return DWSIM.Interfaces.Enums.ProcessType.ChemicalSeparation;
+            if (cats.Count > 0 && cats.All(c => c == "Pipe" || c == "Pump" || c == "Compressor" || c == "Valve" || c == "Orifice" || c == "Mixer" || c == "Splitter"))
+                return DWSIM.Interfaces.Enums.ProcessType.Transportation;
+            if (cats.Any(c => c == "Vessel" || c == "Column" || c == "Separator" || c == "Filter" || c == "Tank")) return DWSIM.Interfaces.Enums.ProcessType.PhysicalSeparation;
+            return DWSIM.Interfaces.Enums.ProcessType.Unspecified;
         }
 
         /// <summary>The flowsheet compound a stream's name is, or holds (its name or formula as a word), if just one.</summary>

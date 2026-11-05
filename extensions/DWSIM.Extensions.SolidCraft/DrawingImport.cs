@@ -133,6 +133,11 @@ namespace DWSIM.Extensions.SolidCraft
                 r.Process.PropertyPackage = Str(pr["property_package"]) ?? "";
                 r.Process.Confidence = pr["confidence"] is JObject conf ? string.Join(", ", conf.Properties().Select(p => p.Name + " " + p.Value)) : Str(pr["confidence"]) ?? "";
                 r.Process.Evidence = Str(pr["evidence"]) ?? "";
+                r.Process.Type = Str(pr["process_type"] ?? pr["type"]) ?? "";
+                foreach (var c in (pr["key_reactants"] as JArray) ?? new JArray())
+                    if (Str(c) is string name && name.Length > 0) r.Process.KeyReactants.Add(name);
+                foreach (var c in (pr["key_products"] as JArray) ?? new JArray())
+                    if (Str(c) is string name && name.Length > 0) r.Process.KeyProducts.Add(name);
                 foreach (var c in (pr["compounds"] as JArray) ?? new JArray())
                     if (Str(c) is string name && name.Length > 0) r.Process.Compounds.Add(name);
             }
@@ -163,6 +168,7 @@ namespace DWSIM.Extensions.SolidCraft
                 {
                     ["description"] = Process.Description, ["class"] = Process.Class, ["property_package"] = Process.PropertyPackage,
                     ["confidence"] = Process.Confidence, ["evidence"] = Process.Evidence, ["compounds"] = new JArray(Process.Compounds),
+                    ["process_type"] = Process.Type, ["key_reactants"] = new JArray(Process.KeyReactants), ["key_products"] = new JArray(Process.KeyProducts),
                 },
             };
             return o.ToString();
@@ -331,6 +337,11 @@ namespace DWSIM.Extensions.SolidCraft
     {
         public string Description = "", Class = "", PropertyPackage = "", Confidence = "", Evidence = "";
         public List<string> Compounds = new List<string>();
+
+        /// <summary>The DWSIM process type the model chose (PhysicalSeparation, Transformation, ...), "" when none.</summary>
+        public string Type = "";
+
+        public List<string> KeyReactants = new List<string>(), KeyProducts = new List<string>();
     }
 
     /// <summary>The fixed tables of the import: categories, DWSIM types and the property package for each kind of process.</summary>

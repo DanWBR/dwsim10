@@ -155,6 +155,9 @@ namespace DWSIM.Extensions.SolidCraft
             r.Process.Class = guess.Process.Class;
             r.Process.Confidence = guess.Process.Confidence;
             r.Process.Evidence = guess.Process.Evidence;
+            r.Process.Type = guess.Process.Type;
+            r.Process.KeyReactants = guess.Process.KeyReactants;
+            r.Process.KeyProducts = guess.Process.KeyProducts;
             if (guess.Process.Compounds.Count > 0) { r.Process.Compounds.Clear(); r.Process.Compounds.AddRange(guess.Process.Compounds); }
             // the units the drawing shows stay; the guess fills in the rest
             if (r.Kind == "pid" && p["units_system"] is JObject)
