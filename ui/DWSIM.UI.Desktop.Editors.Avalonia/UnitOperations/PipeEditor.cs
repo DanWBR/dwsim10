@@ -308,7 +308,7 @@ namespace DWSIM.UI.Desktop.Editors
 
                 var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
                 actions.Children.Add(ActionButton("Add Section", "Appends a section at the end of the pipe.",
-                    () => Restructure(list => list.Add(NewSection()))));
+                    () => Restructure(list => list.Add(NewSection(list, list.Count)))));
                 actions.Children.Add(ActionButton("Remove All Sections", "Removes every section of the pipe.",
                     () => Restructure(list => list.Clear())));
                 panel.CreateAndAddControlRow(actions);
@@ -375,6 +375,35 @@ namespace DWSIM.UI.Desktop.Editors
                     if (i >= 0) return i + 1;
                 }
                 return 0;
+            }
+
+            /// <summary>
+            /// A new section at position <paramref name="at"/> of <paramref name="list"/>: the
+            /// material of the section before it and the diameters of the nearest section before
+            /// it that has them (fittings may have no external diameter, and the Fixed Delta-P
+            /// fitting holds a pressure drop in the internal diameter); the defaults when it is
+            /// the first.
+            /// </summary>
+            private PipeSection NewSection(List<PipeSection> list, int at)
+            {
+                var sec = NewSection();
+                if (at < 1 || at > list.Count) return sec;
+
+                var prev = list[at - 1];
+                if (!string.IsNullOrEmpty(prev.Material))
+                {
+                    sec.Material = prev.Material;
+                    sec.PipeWallRugosity = prev.PipeWallRugosity;
+                    sec.PipeWallThermalConductivityExpression = prev.PipeWallThermalConductivityExpression;
+                }
+
+                var sized = list.Take(at).Reverse().Where(s => !IsFixedDeltaP(s)).ToList();
+                var withDE = sized.FirstOrDefault(s => s.DE > 0.0);
+                var withDI = sized.FirstOrDefault(s => s.DI > 0.0);
+                if (withDE != null) sec.DE = withDE.DE;
+                if (withDI != null) sec.DI = withDI.DI;
+
+                return sec;
             }
 
             private PipeSection NewSection()
@@ -659,7 +688,7 @@ namespace DWSIM.UI.Desktop.Editors
                 // insert after / remove, as the Windows toolbar does on the current column
                 var buttons = new UniformGrid { Columns = 2, Margin = new Thickness(0, 2, 0, 2) };
                 buttons.Children.Add(ActionButton("Insert", "Inserts a new section after this one.",
-                    () => Restructure(list => list.Insert(c + 1, NewSection()))));
+                    () => Restructure(list => list.Insert(c + 1, NewSection(list, c + 1)))));
                 buttons.Children.Add(ActionButton("Remove", "Removes this section.",
                     () => Restructure(list => list.RemoveAt(c))));
                 foreach (var b in buttons.Children.OfType<Button>())
