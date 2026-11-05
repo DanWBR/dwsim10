@@ -373,9 +373,10 @@ namespace DWSIM.Extensions.SolidCraft
 
         Control LinesPage()
         {
-            linesGrid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,1.6*,1.4*,1.4*,*,*,*,0.8*"), ColumnSpacing = 4, RowSpacing = 3 };
+            // fixed widths: the table sits in a scroller, where star columns would take the content's width
+            linesGrid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,130,125,125,80,90,90,64"), ColumnSpacing = 4, RowSpacing = 3 };
             linesSheet = new SheetView(() => session.Reading, true);
-            return Split(linesGrid, linesSheet, "1.7*,1*");
+            return Split(linesGrid, linesSheet, "2.6*,1*");
         }
 
         static string Num(double? v) => v.HasValue ? v.Value.ToString("G6", CultureInfo.CurrentCulture) : "";
@@ -575,12 +576,17 @@ namespace DWSIM.Extensions.SolidCraft
         {
             panel.Children.Clear();
             foreach (var i in list)
-                panel.Children.Add(new TextBlock
+            {
+                var line = new TextBlock
                 {
                     Text = (i.Level == ImportIssue.Levels.Error ? "Error" : i.Level == ImportIssue.Levels.Warning ? "Warning" : "Note") + (i.Subject.Length > 0 ? " (" + i.Subject + ")" : "") + ": " + i.Text,
                     TextWrapping = TextWrapping.Wrap,
-                    Foreground = i.Level == ImportIssue.Levels.Error ? Brushes.IndianRed : i.Level == ImportIssue.Levels.Warning ? Brushes.DarkGoldenrod : null,
-                });
+                };
+                // a note keeps the theme's text colour
+                if (i.Level == ImportIssue.Levels.Error) line.Foreground = Brushes.IndianRed;
+                else if (i.Level == ImportIssue.Levels.Warning) line.Foreground = Brushes.DarkGoldenrod;
+                panel.Children.Add(line);
+            }
             if (panel.Children.Count == 0) panel.Children.Add(new TextBlock { Text = "Nothing to report.", Opacity = 0.7 });
         }
 
