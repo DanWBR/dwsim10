@@ -1,0 +1,168 @@
+{
+ "kind": "pfd",
+ "source": "Tutorial 08 - Refrigeration Cycle.dwxmz",
+ "units_system": {
+  "temperature": "C",
+  "pressure": "bar",
+  "massflow": "kg/h",
+  "energy": "kW"
+ },
+ "units": [
+  {
+   "tag": "EV-1",
+   "category": "Heater",
+   "type": "Heater",
+   "x": 0.9714286073597407,
+   "y": 0.026373593206393223,
+   "stages": null,
+   "include": true
+  },
+  {
+   "tag": "V-1",
+   "category": "Valve",
+   "type": "Valve",
+   "x": 0.6593406853216587,
+   "y": 0.027473163638485534,
+   "stages": null,
+   "include": true
+  },
+  {
+   "tag": "CD-1",
+   "category": "Cooler",
+   "type": "Cooler",
+   "x": 0.3450549638497105,
+   "y": 0.026375135851259522,
+   "stages": null,
+   "include": true
+  },
+  {
+   "tag": "C-1",
+   "category": "Compressor",
+   "type": "Compressor",
+   "x": 0.02637357643851424,
+   "y": 0.026375940709450638,
+   "stages": null,
+   "include": true
+  }
+ ],
+ "streams": [
+  {
+   "id": "5",
+   "name": "5_evap_out",
+   "line_number": "",
+   "from": "EV-1",
+   "to": "",
+   "from_port": "",
+   "to_port": "",
+   "T": -20.149999972380243,
+   "P": 2.45,
+   "W": 158.74423199999998,
+   "vf": 1.0,
+   "from_level": null,
+   "to_level": null,
+   "compounds": {
+    "Propane": 158.74423199999998
+   },
+   "include": true
+  },
+  {
+   "id": "4",
+   "name": "4_valve_out",
+   "line_number": "",
+   "from": "V-1",
+   "to": "EV-1",
+   "from_port": "",
+   "to_port": "",
+   "T": -20.155420379329826,
+   "P": 2.45,
+   "W": 158.74423199999998,
+   "vf": 0.3372166176846523,
+   "from_level": null,
+   "to_level": null,
+   "compounds": {
+    "Propane": 158.74423199999998
+   },
+   "include": true
+  },
+  {
+   "id": "3",
+   "name": "3_cond_out",
+   "line_number": "",
+   "from": "CD-1",
+   "to": "V-1",
+   "from_port": "",
+   "to_port": "",
+   "T": 31.849999963092444,
+   "P": 12.5,
+   "W": 158.74423199999998,
+   "vf": 0.0,
+   "from_level": null,
+   "to_level": null,
+   "compounds": {
+    "Propane": 158.74423199999998
+   },
+   "include": true
+  },
+  {
+   "id": "2",
+   "name": "2_comp_out",
+   "line_number": "",
+   "from": "C-1",
+   "to": "CD-1",
+   "from_port": "",
+   "to_port": "",
+   "T": 51.98796613713057,
+   "P": 12.5,
+   "W": 158.74423199999998,
+   "vf": 1.0,
+   "from_level": null,
+   "to_level": null,
+   "compounds": {
+    "Propane": 158.74423199999998
+   },
+   "include": true
+  },
+  {
+   "id": "1",
+   "name": "1_evap_out",
+   "line_number": "",
+   "from": "",
+   "to": "C-1",
+   "from_port": "",
+   "to_port": "",
+   "T": -20.155420379329826,
+   "P": 2.45,
+   "W": 158.74423199999998,
+   "vf": 1.0,
+   "from_level": null,
+   "to_level": null,
+   "compounds": {
+    "Propane": 158.74423199999998
+   },
+   "include": true
+  }
+ ],
+ "texts": [
+  "EV-1",
+  "V-1",
+  "CD-1",
+  "C-1"
+ ],
+ "cad_texts": [],
+ "title_block": {},
+ "notes": [],
+ "overview": "",
+ "process": {
+  "description": "Refrigeration cycle",
+  "class": "refrigeration",
+  "property_package": "",
+  "confidence": "",
+  "evidence": "",
+  "compounds": [
+   "Propane"
+  ],
+  "process_type": "",
+  "key_reactants": [],
+  "key_products": []
+ }
+}

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using DWSIM.Drawing.SkiaSharp.Appearance;
 using DWSIM.Drawing.SkiaSharp.GraphicObjects;
 using DWSIM.Drawing.SkiaSharp.GraphicObjects.Charts;
 using DWSIM.Drawing.SkiaSharp.GraphicObjects.Shapes;
@@ -14,7 +15,8 @@ using FB = DWSIM.FlowsheetBase.FlowsheetBase;
 namespace DWSIM.Automation.FluentAPI
 {
     /// <summary>
-    /// The annotations of a flowsheet: chart objects, property tables, master tables, text and pictures.
+    /// The annotations of a flowsheet: chart objects, property tables, master tables, text, formatted text,
+    /// rectangles and pictures.
     /// They are graphics with no simulation object behind them; each builder places one on the drawing
     /// surface and wires what it shows.
     /// </summary>
@@ -70,6 +72,25 @@ namespace DWSIM.Automation.FluentAPI
             return new ImageBuilder(this, g);
         }
 
+        /// <summary>A rectangle on the PFD, to frame a section of the drawing, with optional text inside.</summary>
+        public RectangleBuilder AddRectangle(string tag, int x, int y, int width, int height)
+        {
+            var g = (RectangleGraphic)AddAnnotation(ObjectType.GO_Rectangle, tag, x, y);
+            g.Width = width; g.Height = height;
+            g.Text = "";
+            return new RectangleBuilder(this, g);
+        }
+
+        /// <summary>Formatted text on the PFD, written as HTML (headings, bold, lists). Its width and height bound the
+        /// area the text is laid out in.</summary>
+        public FormattedTextBuilder AddFormattedText(string tag, string html, int x, int y, int width = 400, int height = 200)
+        {
+            var g = (HTMLTextGraphic)AddAnnotation(ObjectType.GO_HTMLText, tag, x, y);
+            g.Text = html;
+            g.Width = width; g.Height = height;
+            return new FormattedTextBuilder(this, g);
+        }
+
         /// <summary>The annotations of the flowsheet, by tag.</summary>
         public IReadOnlyList<IGraphicObject> Annotations
             => ((DWSIM.Drawing.SkiaSharp.GraphicsSurface)Inner.GetSurface()).DrawingObjects.Cast<IGraphicObject>()
@@ -92,11 +113,22 @@ namespace DWSIM.Automation.FluentAPI
         protected TSelf Self => (TSelf)this;
         public TSelf PositionAt(int x, int y) { Object.X = x; Object.Y = y; return Self; }
         public TSelf WithSize(int width, int height) { Object.Width = width; Object.Height = height; return Self; }
+
+        /// <summary>Keeps the annotation where it is: dragging, aligning, snapping and the automatic layouts leave it
+        /// in place.</summary>
+        public TSelf LockPosition(bool locked = true) { Object.PositionLocked = locked; return Self; }
+
+        /// <summary>Clockwise rotation about the center, in degrees. Offered by the builders whose annotation is drawn
+        /// rotated (text, formatted text, pictures and charts).</summary>
+        protected TSelf RotateBy(int degrees) { Object.Rotation = ((degrees % 360) + 360) % 360; return Self; }
     }
 
     public sealed class ChartObjectBuilder : AnnotationBuilder<OxyPlotGraphic, ChartObjectBuilder>
     {
         internal ChartObjectBuilder(Flowsheet flowsheet, OxyPlotGraphic graphic) : base(flowsheet, graphic) { }
+
+        /// <summary>Clockwise rotation about the center, in degrees.</summary>
+        public ChartObjectBuilder Rotate(int degrees) => RotateBy(degrees);
 
         /// <summary>Shows the monitored variables of a dynamics integrator, as the integrator window plots them.</summary>
         public ChartObjectBuilder ForIntegrator(string integratorName)
@@ -193,10 +225,79 @@ namespace DWSIM.Automation.FluentAPI
         public TextBuilder WithText(string text) { Object.Text = text; return this; }
         public TextBuilder WithFontSize(double size) { Object.Size = size; return this; }
         public TextBuilder WithColor(byte red, byte green, byte blue) { Object.Color = new SKColor(red, green, blue); return this; }
+        /// <summary>The text color as "#RRGGBB". On a dark background the text is drawn light.</summary>
+        public TextBuilder WithColor(string color) { Object.Color = Flowsheet.ParseColor(color); return this; }
+        public TextBuilder WithFontStyle(FontStyle style) { Object.FontStyle = style; return this; }
+        /// <summary>Clockwise rotation about the center, in degrees (90 runs the text down the page).</summary>
+        public TextBuilder Rotate(int degrees) => RotateBy(degrees);
+    }
+
+    public sealed class FormattedTextBuilder : AnnotationBuilder<HTMLTextGraphic, FormattedTextBuilder>
+    {
+        internal FormattedTextBuilder(Flowsheet flowsheet, HTMLTextGraphic graphic) : base(flowsheet, graphic) { }
+        public FormattedTextBuilder WithHtml(string html) { Object.Text = html; return this; }
+        /// <summary>The size of text that has no size of its own in the HTML, in points.</summary>
+        public FormattedTextBuilder WithFontSize(double size) { Object.Size = size; return this; }
+        /// <summary>The color of text that has no color of its own in the HTML, as "#RRGGBB".</summary>
+        public FormattedTextBuilder WithColor(string color) { Object.Color = Flowsheet.ParseColor(color); return this; }
+        public FormattedTextBuilder WithFontStyle(FontStyle style) { Object.FontStyle = style; return this; }
+        /// <summary>Clockwise rotation about the center, in degrees.</summary>
+        public FormattedTextBuilder Rotate(int degrees) => RotateBy(degrees);
+    }
+
+    public sealed class RectangleBuilder : AnnotationBuilder<RectangleGraphic, RectangleBuilder>
+    {
+        internal RectangleBuilder(Flowsheet flowsheet, RectangleGraphic graphic) : base(flowsheet, graphic) { }
+        /// <summary>Text written inside the rectangle, at its top.</summary>
+        public RectangleBuilder WithText(string text, double fontSize = 0)
+        {
+            Object.Text = text;
+            if (fontSize > 0) Object.FontSize = fontSize;
+            return this;
+        }
+        /// <summary>The color of the text inside the rectangle, as "#RRGGBB".</summary>
+        public RectangleBuilder WithTextColor(string color) { Object.FontColor = Flowsheet.ParseColor(color); return this; }
+        /// <summary>A plain fill, as "#RRGGBB" (drawn semi-transparent).</summary>
+        public RectangleBuilder WithFill(string color) { Object.GradientMode = false; Object.FillColor = Flowsheet.ParseColor(color); return this; }
+        /// <summary>A vertical gradient fill from <paramref name="top"/> to <paramref name="bottom"/>, as "#RRGGBB";
+        /// the border is drawn in the bottom color.</summary>
+        public RectangleBuilder WithGradient(string top, string bottom)
+        {
+            Object.GradientMode = true;
+            Object.GradientColor1 = Flowsheet.ParseColor(top);
+            Object.GradientColor2 = Flowsheet.ParseColor(bottom);
+            return this;
+        }
+        /// <summary>Opacity of the gradient fill and the border, 0 (transparent) to 255 (opaque).</summary>
+        public RectangleBuilder WithOpacity(int opacity) { Object.Opacity = Math.Max(0, Math.Min(255, opacity)); return this; }
+        /// <summary>Border thickness, in pixels.</summary>
+        public RectangleBuilder WithBorderWidth(int width) { Object.LineWidth = Math.Max(1, width); return this; }
+        public RectangleBuilder WithRoundedCorners(bool rounded = true) { Object.RoundEdges = rounded; return this; }
     }
 
     public sealed class ImageBuilder : AnnotationBuilder<EmbeddedImageGraphic, ImageBuilder>
     {
         internal ImageBuilder(Flowsheet flowsheet, EmbeddedImageGraphic graphic) : base(flowsheet, graphic) { }
+
+        /// <summary>
+        /// Whether a new width or height takes the other dimension along at the picture's current proportions (on by
+        /// default; applies to <see cref="WithWidth"/> and <see cref="WithHeight"/> and to the appearance editors).
+        /// </summary>
+        public ImageBuilder KeepProportions(bool keep = true) { Object.KeepAspectRatio = keep; return this; }
+
+        /// <summary>A new width; with proportions kept, the height follows.</summary>
+        public ImageBuilder WithWidth(int width) { AppearanceDescriptors.Find("Width").SetValue(Object, width); return this; }
+
+        /// <summary>A new height; with proportions kept, the width follows.</summary>
+        public ImageBuilder WithHeight(int height) { AppearanceDescriptors.Find("Height").SetValue(Object, height); return this; }
+
+        /// <summary>The size of the picture itself, one flowsheet pixel per picture pixel.</summary>
+        public ImageBuilder OriginalSize() { AppearanceDescriptors.SetOriginalSize(Object); return this; }
+
+        public ImageBuilder FlipHorizontal(bool flipped = true) { Object.FlippedH = flipped; return this; }
+        public ImageBuilder FlipVertical(bool flipped = true) { Object.FlippedV = flipped; return this; }
+
+        /// <summary>Clockwise rotation about the center, in degrees.</summary>
+        public ImageBuilder Rotate(int degrees) => RotateBy(degrees);
     }
 }

@@ -1,0 +1,122 @@
+{
+ "kind": "iso",
+ "line_number": "2\"-P-1",
+ "size": "2\"",
+ "od_mm": 60.3,
+ "wall_mm": 3.91,
+ "schedule": "",
+ "material": "CS A106 Gr.B",
+ "from": "Battery limit",
+ "to": "MIX-1 (N2)",
+ "start": {
+  "e": -4.594,
+  "n": 0.006,
+  "el": 2.51
+ },
+ "end": {
+  "e": -2.532,
+  "n": 0.015,
+  "el": 1.86
+ },
+ "dimension_units": "mm",
+ "legs": [
+  {
+   "direction": "N",
+   "length_mm": 9,
+   "rise_mm": 0,
+   "fittings": [
+    "flange",
+    "elbow 90"
+   ]
+  },
+  {
+   "direction": "E",
+   "length_mm": 2062,
+   "rise_mm": 0,
+   "fittings": [
+    "elbow 90"
+   ]
+  },
+  {
+   "direction": "down",
+   "length_mm": 650,
+   "rise_mm": -650,
+   "fittings": [
+    "flange"
+   ]
+  }
+ ],
+ "elevations": [
+  "EL +2.510",
+  "EL +1.860"
+ ],
+ "bom": [
+  {
+   "item": "Pipe 2\" SMLS BE CS A106 Gr.B, 3.91 mm",
+   "quantity": "2.8 m"
+  },
+  {
+   "item": "Elbow 90 LR 2\" BW A234 WPB",
+   "quantity": "2"
+  },
+  {
+   "item": "Flange WN RF 2\" CL150 A105",
+   "quantity": "2"
+  },
+  {
+   "item": "Blind flange RF 2\" CL150 A105",
+   "quantity": "1"
+  },
+  {
+   "item": "Gasket spiral wound 2\" CL150",
+   "quantity": "2"
+  },
+  {
+   "item": "Stud bolt set 2\" CL150",
+   "quantity": "2"
+  },
+  {
+   "item": "Butt welds, shop 2\"",
+   "quantity": "6"
+  }
+ ],
+ "conditions": {
+  "temperature": "26.9 C",
+  "pressure": "0.00 bar g",
+  "flow": "3600 kg/h",
+  "phase": "Liquid",
+  "design_temperature": "52 C",
+  "design_pressure": "3.5 bar g",
+  "hydrotest_pressure": "5.3 bar g",
+  "velocity": "0.46 m/s",
+  "pressure_drop": "-0.075 bar",
+  "flange_rating": "CL150 RF",
+  "insulation": "none",
+  "stream": "Fresh-Feed"
+ },
+ "texts": [
+  "FROM BATTERY LIMIT",
+  "TO MIX-1 NOZZLE N2",
+  "2\"-P-1",
+  "SP1",
+  "Spools (12 m max.): 1"
+ ],
+ "title_block": {
+  "document_number": "ISO-1",
+  "title": "PIPING ISOMETRIC 2\"-P-1",
+  "revision": "0",
+  "date": "2026-11-05",
+  "company": "",
+  "client": "",
+  "project": "RecycleTutorial",
+  "unit": "",
+  "drawn_by": "",
+  "sheet": "1/1"
+ },
+ "notes": [
+  "DIMENSIONS IN MM. COORDINATES AND ELEVATIONS IN M, ELEVATIONS FROM GRADE (EL +0.000).",
+  "NOT TO SCALE. NORTH IS +Y OF THE PLOT PLAN.",
+  "DESIGN CONDITIONS, MATERIAL AND FLANGE RATING ARE PRELIMINARY ESTIMATES FROM THE OPERATING CONDITIONS (ASME B31.3 AND B16.5).",
+  "WELDS: W SHOP, FW FIELD. SPOOLS (SP) OF UP TO 12 M OF PIPE, SPLIT AT THE FIELD WELDS."
+ ]
+}

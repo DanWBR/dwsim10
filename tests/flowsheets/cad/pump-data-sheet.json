@@ -1,0 +1,457 @@
+{
+ "kind": "datasheet",
+ "equipment_type": "pump",
+ "tag": "PUMP-066",
+ "service": "",
+ "cases": [],
+ "fields": [
+  {
+   "label": "Type",
+   "key": "",
+   "value": "Pump",
+   "number": null,
+   "unit": "",
+   "case": "",
+   "side": "",
+   "stream": ""
+  },
+  {
+   "label": "Quantity",
+   "key": "",
+   "value": "2 (1 operating + 1 spare)",
+   "number": 2,
+   "unit": "",
+   "case": "",
+   "side": "",
+   "stream": ""
+  },
+  {
+   "label": "Simulation",
+   "key": "",
+   "value": "Methanol Synthesis by CO2 Hydrogenation",
+   "number": null,
+   "unit": "",
+   "case": "",
+   "side": "",
+   "stream": ""
+  },
+  {
+   "label": "Temperature",
+   "key": "inlet_temperature",
+   "value": "68.87",
+   "number": 68.87,
+   "unit": "C",
+   "case": "",
+   "side": "",
+   "stream": "inlet MSTR-064"
+  },
+  {
+   "label": "Temperature",
+   "key": "outlet_temperature",
+   "value": "68.89",
+   "number": 68.89,
+   "unit": "C",
+   "case": "",
+   "side": "",
+   "stream": "outlet MSTR-067"
+  },
+  {
+   "label": "Pressure",
+   "key": "inlet_pressure",
+   "value": "0",
+   "number": 0,
+   "unit": "bar g",
+   "case": "",
+   "side": "",
+   "stream": "inlet MSTR-064"
+  },
+  {
+   "label": "Pressure",
+   "key": "outlet_pressure",
+   "value": "0.9868",
+   "number": 0.9868,
+   "unit": "bar g",
+   "case": "",
+   "side": "",
+   "stream": "outlet MSTR-067"
+  },
+  {
+   "label": "Mass flow",
+   "key": "mass_flow",
+   "value": "247.5",
+   "number": 247.5,
+   "unit": "kg/h",
+   "case": "",
+   "side": "",
+   "stream": "inlet MSTR-064"
+  },
+  {
+   "label": "Mass flow",
+   "key": "mass_flow",
+   "value": "247.5",
+   "number": 247.5,
+   "unit": "kg/h",
+   "case": "",
+   "side": "",
+   "stream": "outlet MSTR-067"
+  },
+  {
+   "label": "Vapor fraction (molar)",
+   "key": "vapor_fraction",
+   "value": "0",
+   "number": 0,
+   "unit": "",
+   "case": "",
+   "side": "",
+   "stream": "inlet MSTR-064"
+  },
+  {
+   "label": "Vapor fraction (molar)",
+   "key": "vapor_fraction",
+   "value": "0",
+   "number": 0,
+   "unit": "",
+   "case": "",
+   "side": "",
+   "stream": "outlet MSTR-067"
+  },
+  {
+   "label": "Volumetric flow",
+   "key": "volume_flow",
+   "value": "0.2986",
+   "number": 0.2986,
+   "unit": "m3/h",
+   "case": "",
+   "side": "",
+   "stream": "inlet MSTR-064"
+  },
+  {
+   "label": "Volumetric flow",
+   "key": "volume_flow",
+   "value": "0.2986",
+   "number": 0.2986,
+   "unit": "m3/h",
+   "case": "",
+   "side": "",
+   "stream": "outlet MSTR-067"
+  },
+  {
+   "label": "Liquid density",
+   "key": "density",
+   "value": "828.9",
+   "number": 828.9,
+   "unit": "kg/m3",
+   "case": "",
+   "side": "",
+   "stream": "inlet MSTR-064"
+  },
+  {
+   "label": "Liquid density",
+   "key": "density",
+   "value": "829",
+   "number": 829,
+   "unit": "kg/m3",
+   "case": "",
+   "side": "",
+   "stream": "outlet MSTR-067"
+  },
+  {
+   "label": "Liquid viscosity",
+   "key": "viscosity",
+   "value": "0.3717",
+   "number": 0.3717,
+   "unit": "cP",
+   "case": "",
+   "side": "",
+   "stream": "inlet MSTR-064"
+  },
+  {
+   "label": "Liquid viscosity",
+   "key": "viscosity",
+   "value": "0.3717",
+   "number": 0.3717,
+   "unit": "cP",
+   "case": "",
+   "side": "",
+   "stream": "outlet MSTR-067"
+  },
+  {
+   "label": "Molar mass",
+   "key": "molar_mass",
+   "value": "24.12",
+   "number": 24.12,
+   "unit": "kg/kmol",
+   "case": "",
+   "side": "",
+   "stream": "inlet MSTR-064"
+  },
+  {
+   "label": "Molar mass",
+   "key": "molar_mass",
+   "value": "24.12",
+   "number": 24.12,
+   "unit": "kg/kmol",
+   "case": "",
+   "side": "",
+   "stream": "outlet MSTR-067"
+  },
+  {
+   "label": "Pump type",
+   "key": "pump_type",
+   "value": "Centrifugal",
+   "number": null,
+   "unit": "",
+   "case": "",
+   "side": "",
+   "stream": ""
+  },
+  {
+   "label": "Rated flow",
+   "key": "rated_flow",
+   "value": "0.3284",
+   "number": 0.3284,
+   "unit": "m3/h",
+   "case": "",
+   "side": "",
+   "stream": ""
+  },
+  {
+   "label": "Differential pressure",
+   "key": "differential_pressure",
+   "value": "0.9868",
+   "number": 0.9868,
+   "unit": "bar",
+   "case": "",
+   "side": "",
+   "stream": ""
+  },
+  {
+   "label": "Differential head",
+   "key": "differential_head",
+   "value": "12.13",
+   "number": 12.13,
+   "unit": "m",
+   "case": "",
+   "side": "",
+   "stream": ""
+  },
+  {
+   "label": "Efficiency",
+   "key": "efficiency",
+   "value": "75",
+   "number": 75,
+   "unit": "%",
+   "case": "",
+   "side": "",
+   "stream": ""
+  },
+  {
+   "label": "Shaft power",
+   "key": "shaft_power",
+   "value": "0.0109",
+   "number": 0.0109,
+   "unit": "kW",
+   "case": "",
+   "side": "",
+   "stream": ""
+  },
+  {
+   "label": "Hydraulic power",
+   "key": "hydraulic_power",
+   "value": "0.0082",
+   "number": 0.0082,
+   "unit": "kW",
+   "case": "",
+   "side": "",
+   "stream": ""
+  },
+  {
+   "label": "Energy stream ESTR-068",
+   "key": "",
+   "value": "0.0109",
+   "number": 0.0109,
+   "unit": "kW",
+   "case": "",
+   "side": "",
+   "stream": ""
+  },
+  {
+   "label": "Design pressure",
+   "key": "design_pressure",
+   "value": "3.5",
+   "number": 3.5,
+   "unit": "bar g",
+   "case": "",
+   "side": "",
+   "stream": ""
+  },
+  {
+   "label": "Design temperature",
+   "key": "design_temperature",
+   "value": "94",
+   "number": 94,
+   "unit": "C",
+   "case": "",
+   "side": "",
+   "stream": ""
+  },
+  {
+   "label": "Hydrotest pressure",
+   "key": "",
+   "value": "5.3",
+   "number": 5.3,
+   "unit": "bar g",
+   "case": "",
+   "side": "",
+   "stream": ""
+  },
+  {
+   "label": "Casing material",
+   "key": "material",
+   "value": "A216 WCB",
+   "number": null,
+   "unit": "",
+   "case": "",
+   "side": "",
+   "stream": ""
+  },
+  {
+   "label": "Corrosion allowance",
+   "key": "",
+   "value": "3.0",
+   "number": 3.0,
+   "unit": "mm",
+   "case": "",
+   "side": "",
+   "stream": ""
+  },
+  {
+   "label": "Flange rating",
+   "key": "",
+   "value": "CL150 RF",
+   "number": null,
+   "unit": "",
+   "case": "",
+   "side": "",
+   "stream": ""
+  },
+  {
+   "label": "Insulation",
+   "key": "",
+   "value": "40 mm, heat conservation",
+   "number": 40,
+   "unit": "mm",
+   "case": "",
+   "side": "",
+   "stream": ""
+  },
+  {
+   "label": "Driver",
+   "key": "",
+   "value": "Electric motor",
+   "number": null,
+   "unit": "",
+   "case": "",
+   "side": "",
+   "stream": ""
+  },
+  {
+   "label": "Rated power (est.)",
+   "key": "",
+   "value": "0.37",
+   "number": 0.37,
+   "unit": "kW",
+   "case": "",
+   "side": "",
+   "stream": ""
+  },
+  {
+   "label": "Supply",
+   "key": "",
+   "value": "400 V, 3 phase, 50 Hz",
+   "number": 400,
+   "unit": "V",
+   "case": "",
+   "side": "",
+   "stream": ""
+  },
+  {
+   "label": "Nozzle N1 size",
+   "key": "",
+   "value": "2\"",
+   "number": 2,
+   "unit": "in",
+   "case": "",
+   "side": "",
+   "stream": "inlet MSTR-064"
+  },
+  {
+   "label": "Nozzle N1 rating",
+   "key": "",
+   "value": "CL150",
+   "number": null,
+   "unit": "",
+   "case": "",
+   "side": "",
+   "stream": "inlet MSTR-064"
+  },
+  {
+   "label": "Nozzle N1 facing",
+   "key": "",
+   "value": "RF",
+   "number": null,
+   "unit": "",
+   "case": "",
+   "side": "",
+   "stream": "inlet MSTR-064"
+  },
+  {
+   "label": "Nozzle N2 size",
+   "key": "",
+   "value": "2\"",
+   "number": 2,
+   "unit": "in",
+   "case": "",
+   "side": "",
+   "stream": "outlet MSTR-067"
+  },
+  {
+   "label": "Nozzle N2 rating",
+   "key": "",
+   "value": "CL150",
+   "number": null,
+   "unit": "",
+   "case": "",
+   "side": "",
+   "stream": "outlet MSTR-067"
+  },
+  {
+   "label": "Nozzle N2 facing",
+   "key": "",
+   "value": "RF",
+   "number": null,
+   "unit": "",
+   "case": "",
+   "side": "",
+   "stream": "outlet MSTR-067"
+  }
+ ],
+ "curves": [],
+ "title_block": {
+  "document_number": "DS-PUMP-066",
+  "title": "EQUIPMENT DATA SHEET - PUMP-066 - PUMP",
+  "revision": "0",
+  "date": "2026-11-05",
+  "company": "",
+  "client": "",
+  "project": "Methanol Synthesis .",
+  "unit": "",
+  "drawn_by": "WS40\\stefan.heyne",
+  "sheet": "1/1"
+ },
+ "notes": [
+  "Preliminary data sheet from the DWSIM simulation, at its solved case.",
+  "Design conditions, materials and flange rating are estimates from the operating conditions.",
+  "Pressures in bar g, temperatures in C."
+ ]
+}

@@ -62,6 +62,8 @@ nav:
       - Patron Activation: getting-started/patron-activation.md
   - API Reference:
       - Flowsheet: api/flowsheet.md
+      - Drawing: api/drawing.md
+      - CAD Imports: api/cad-imports.md
       - Quantities & Units: api/quantities.md
       - Property Packages: api/property-packages.md
       - Streams: api/streams.md

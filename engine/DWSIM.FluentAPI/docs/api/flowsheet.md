@@ -112,6 +112,11 @@ fs.AutoLayout();   // re-runs DWSIM's auto-layout pass
 Stream / UO placement otherwise advances on a 80-pixel grid set by the
 internal cursor each time you add an object.
 
+The background, grid, layout lock and annotations (text, rectangles, pictures,
+charts, tables) are on [Drawing](drawing.md); building a flowsheet from a PFD,
+a pipe segment from an isometric and equipment from a data sheet is on
+[CAD Imports](cad-imports.md).
+
 ## LCA & TEA (Plus)
 
 ```csharp
