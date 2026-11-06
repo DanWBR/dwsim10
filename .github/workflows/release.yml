@@ -259,12 +259,12 @@ jobs:
           if-no-files-found: error
           retention-days: 1   # the release job downloads it in this same run; kept short to save storage
 
-  # Bundling, signing, notarising and stapling all need macOS. macos-14 is arm64; the Intel
+  # Bundling, signing, notarising and stapling all need macOS. macos-15 is arm64; the Intel
   # payload is bundled there too, which is fine because nothing here runs it.
   macos:
     name: bundle ${{ matrix.rid }}
     needs: payloads
-    runs-on: macos-14
+    runs-on: macos-15
     strategy:
       fail-fast: false
       matrix:
