@@ -242,6 +242,7 @@ public partial class MainWindow : Window
         // Process Modeling
         LnkNew.Click += (_, _) => OpenNewFlowsheet();
         LnkNewWizard.Click += async (_, _) => await OpenNewWithWizardAsync();
+        LnkNewFromDrawing.Click += (_, _) => OpenNewFromDrawing();
         LnkLoadFile.Click += async (_, _) => await OpenFileDialogAsync();
 
         // Compound creation / data regression. Both tools work over a flowsheet, so a new
@@ -839,6 +840,33 @@ public partial class MainWindow : Window
     {
         var view = AddDocument("");
         await view.NewWithoutWizardAsync();
+    }
+
+    /// <summary>
+    /// A new, empty flowsheet with the Import Flowsheet from Drawing wizard (CAD Tools) open on it, to build the
+    /// flowsheet from a process flow diagram or a P&amp;ID.
+    /// </summary>
+    private async void OpenNewFromDrawing()
+    {
+        const string drawingImportId = "e7d93c50-2a1f-4b6e-9c84-5f0b3a7d1e62";
+        var importer = Extenders.SelectMany(c => c.Collection).OfType<IExtender>().FirstOrDefault(x => x.ID == drawingImportId);
+        if (importer == null)
+        {
+            await ConfirmAsync("Create New from PFD or P&ID", "The import from a PFD or P&ID is part of the CAD Tools extension, which was not found.", okOnly: true);
+            return;
+        }
+
+        // the import sets the compounds and the property package up from the drawing
+        var view = AddDocument("");
+        await view.NewWithoutWizardAsync();
+        if (view.FlowsheetObject == null) return;
+
+        if (importer is IExtender6 gui)
+        {
+            try { gui.SetFlowsheetGUI(view); } catch { }
+        }
+        importer.SetFlowsheet(view.FlowsheetObject);
+        importer.Run();
     }
 
     private async System.Threading.Tasks.Task OpenFileDialogAsync()

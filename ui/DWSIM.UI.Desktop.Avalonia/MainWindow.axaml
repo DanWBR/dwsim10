@@ -74,6 +74,8 @@
                          Classes="welcomeSubtitle" />
               <Button Name="LnkNew"          Classes="link" Content="Create New" />
               <Button Name="LnkNewWizard"    Classes="link" Content="Create New with Wizard" />
+              <Button Name="LnkNewFromDrawing" Classes="link" Content="Create New from PFD or P&amp;ID"
+                      ToolTip.Tip="A new, empty flowsheet built from a process flow diagram or a P&amp;ID read by the AI Assistant." />
               <Button Name="LnkLoadFile"     Classes="link" Content="Load File" />
             </StackPanel>
 
