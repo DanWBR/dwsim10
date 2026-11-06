@@ -866,7 +866,13 @@ public partial class MainWindow : Window
             try { gui.SetFlowsheetGUI(view); } catch { }
         }
         importer.SetFlowsheet(view.FlowsheetObject);
-        importer.Run();
+        // the "Loading databases" window closes on a posted call: open the wizard after it is gone, or the
+        // wizard takes that closing window as its owner and closes with it
+        global::Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            Activate();
+            importer.Run();
+        }, global::Avalonia.Threading.DispatcherPriority.Background);
     }
 
     private async System.Threading.Tasks.Task OpenFileDialogAsync()

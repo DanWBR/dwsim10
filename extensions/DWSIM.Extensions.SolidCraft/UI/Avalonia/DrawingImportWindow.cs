@@ -788,6 +788,7 @@ namespace DWSIM.Extensions.SolidCraft
             catch (Exception ex)
             {
                 Console.WriteLine("Drawing import: " + ex);
+                try { fs.ShowMessage("Import Flowsheet from Drawing could not open: " + ex.GetBaseException().Message, IFlowsheet.MessageType.GeneralError); } catch { }
             }
         }
     }
