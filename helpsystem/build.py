@@ -20,6 +20,7 @@ import io
 import os
 import re
 import shutil
+import stat
 import subprocess
 import sys
 from pathlib import Path
@@ -1434,6 +1435,15 @@ def _slug_filename(nav_idx: int, title: str) -> str:
     return f"{nav_idx:02d}-{slug}.md"
 
 
+def _rmtree(path: Path) -> None:
+    """shutil.rmtree that also removes read-only entries: copytree carries over the read-only flag of
+    OneDrive folders, and Windows refuses to delete a read-only directory."""
+    def clear_and_retry(func, p, _exc):
+        os.chmod(p, stat.S_IWRITE)
+        func(p)
+    shutil.rmtree(path, onexc=clear_and_retry)
+
+
 def step_copy_images() -> list[Path]:
     print("[6/8] Copying images and rewriting paths")
     img_root = DOCS_DIR / "images"
@@ -1444,7 +1454,7 @@ def step_copy_images() -> list[Path]:
         if entry.is_dir() and any(entry.name.startswith(p) for p in _IMAGE_DIR_PREFIXES):
             dest = img_root / entry.name
             if dest.exists():
-                shutil.rmtree(dest)
+                _rmtree(dest)
             shutil.copytree(entry, dest)
             copied.append(dest)
     # Also copy the pandoc-extracted media (if any)
@@ -1453,7 +1463,7 @@ def step_copy_images() -> list[Path]:
         for sub in extracted.iterdir():
             dest = img_root / sub.name
             if dest.exists():
-                shutil.rmtree(dest)
+                _rmtree(dest)
             shutil.copytree(sub, dest)
             copied.append(dest)
     print(f"  - copied {len(copied)} image directories")
