@@ -46,6 +46,7 @@ namespace DWSIM.MCPServer
             string token = null;
             string host = "localhost";
             string pythonPath = null;
+            string licenseKey = null;
 
             for (int i = 0; i < args.Length; i++)
             {
@@ -74,6 +75,12 @@ namespace DWSIM.MCPServer
                         // libpython shared library, e.g. /usr/lib/x86_64-linux-gnu/libpython3.12.so.1.0.
                         if (i + 1 < args.Length) pythonPath = args[++i];
                         break;
+                    case "--license-key":
+                        // Patreon Edition only: the membership key that unlocks the Patreon property
+                        // packages and unit operations. DWSIM_LICENSE_KEY does the same and keeps the
+                        // key out of the process list.
+                        if (i + 1 < args.Length) licenseKey = args[++i];
+                        break;
                 }
             }
 
@@ -88,6 +95,8 @@ namespace DWSIM.MCPServer
 
             Console.Error.WriteLine("[dwsim-mcp] Initializing DWSIM automation engine...");
             DWSIM.Automation.FluentAPI.Flowsheet.RegisterAssemblyResolver();
+
+            PatreonLicense.Activate(licenseKey ?? Environment.GetEnvironmentVariable("DWSIM_LICENSE_KEY"));
 
             Console.Error.WriteLine("[dwsim-mcp] Loading compounds and property packages...");
             var automation = new Automation3();
