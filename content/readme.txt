@@ -45,7 +45,9 @@ Version 10.2.15
 - [NEW] Fit to the stream table (Patreon Edition): the drawing import fits compressor, expander and pump efficiencies and rigorous column reflux ratios to the stream table with the data reconciliation and the simultaneous solver
 - [NEW] Pipe Segment from a piping isometric (CAD Tools > Import Pipe Segment from Piping Isometric): the route leg by leg with lengths and rises, elbows, bends, tees and valves as fittings, diameters and roughness from the size and the material, checked against the bill of materials and the elevations, into the chosen pipe segment or a new one
 - [NEW] Equipment from its data sheet (CAD Tools > Set Equipment up from Data Sheet): pumps, compressors, expanders, shell and tube exchangers, vessels and control valves set up from the sheet, each change ticked against the value it replaces, the sheet checked against itself and the simulation's operating point, the outlet compared after solving, or a new item made with its streams
+- [NEW] Flowsheet Appearance (right-click an empty area of the flowsheet): a background color, ready colors or a vertical gradient, and the grid, saved with the flowsheet; lines and text turn light on a dark background and dark on a light one
 - [CHG] Pipe Segment hydraulic profile editor: a new section takes the material and the diameters of the section before it
+- [CHG] Edit Appearance window: names the kind of object; pictures keep their proportions, mirror and go back to their original size; formatted text takes a color, size and style; text rotates; in the classic interface a double click on a picture, text or rectangle opens it
 - [FIX] PFD and P&ID export: lines on mirrored or turned items left from the wrong side of the symbol, and labels could land on an item's text
 - [FIX] Data sheets: every valve showed Kv 100 m3/h, the default, and exchangers not in shell and tube rating got a tube count from the area alone that could not run in rating
 - [FIX] AI Assistant: the model and API keys chosen in its settings were forgotten at each start, going back to the local Ollama model; they are now kept (keys encrypted on Windows)
@@ -53,6 +55,7 @@ Version 10.2.15
 - [FIX] Compounds without a Henry's constant, user compounds without a CAS number among them, got another compound's constant, which near their critical point made them far too volatile in the activity coefficient packages; they use their own vapor pressure
 - [FIX] Cross-platform interface: an error in a window or editor, such as a connection refused in the Connections tab, closed the application; it goes to the flowsheet's log
 - [FIX] Column stage efficiencies below 1: on Naphtali-Sandholm the reboiler settled above its bubble point and a lower efficiency made an absorber absorb more, and the bubble-point methods separated as if every stage were at equilibrium; both methods now apply the efficiency the same way
+- [FIX] Cross-platform interface: the grid and snap to grid were not saved with the flowsheet
 
 Version 10.2.14
 

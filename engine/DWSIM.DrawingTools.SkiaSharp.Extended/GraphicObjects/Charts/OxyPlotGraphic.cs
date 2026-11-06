@@ -213,7 +213,7 @@ namespace DWSIM.Drawing.SkiaSharp.GraphicObjects.Charts
         private void PaintInstructions(SKCanvas canvas, string text)
         {
 
-            var tpaint = GetPaint(GlobalSettings.Settings.DarkMode ? LineColorDark : LineColor);
+            var tpaint = GetPaint(DWSIM.Drawing.SkiaSharp.GraphicsSurface.DarkCanvas ? LineColorDark : LineColor);
 
             var size = this.MeasureString(text, tpaint);
 
@@ -222,7 +222,7 @@ namespace DWSIM.Drawing.SkiaSharp.GraphicObjects.Charts
 
             canvas.DrawText(text, X + (Width - width) / 2, Y + (Height - height) / 2, tpaint);
 
-            canvas.DrawRect(new SKRect(X, Y, X + Width, Y + Height), GetStrokePaint(GlobalSettings.Settings.DarkMode ? LineColorDark : LineColor, 1.0f));
+            canvas.DrawRect(new SKRect(X, Y, X + Width, Y + Height), GetStrokePaint(DWSIM.Drawing.SkiaSharp.GraphicsSurface.DarkCanvas ? LineColorDark : LineColor, 1.0f));
 
         }
 

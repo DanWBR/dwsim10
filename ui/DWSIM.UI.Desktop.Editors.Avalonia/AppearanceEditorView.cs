@@ -47,6 +47,7 @@ namespace DWSIM.UI.Desktop.Editors
         private readonly List<Control> _positionEditors = new();
         private readonly Dictionary<string, Control> _editors = new();
         private TextBlock _positionNote;
+        private TextBlock _heading;
         private bool _loading;
 
         /// <param name="objects">The objects to edit; the first one decides which fields are shown.</param>
@@ -83,6 +84,14 @@ namespace DWSIM.UI.Desktop.Editors
                     return;
                 }
 
+                // what the object is: a picture, formatted text or a unit operation can carry any name
+                _heading = new TextBlock
+                {
+                    Text = AppearanceDescriptors.DescribeObjects(_objects),
+                    FontWeight = FontWeight.SemiBold, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 4)
+                };
+                Children.Add(_heading);
+
                 var descriptors = AppearanceDescriptors.ForObject(_objects[0]);
                 if (descriptors.Count == 0)
                 {
@@ -91,7 +100,7 @@ namespace DWSIM.UI.Desktop.Editors
                 }
 
                 if (_objects.Count > 1)
-                    Children.Add(Description($"{_objects.Count} objects selected. A change applies to every selected object that has the property; a blank field means their values differ."));
+                    Children.Add(Description("A change applies to every selected object that has the property; a blank field means their values differ."));
 
                 Children.Add(_showHelp);
 
@@ -105,7 +114,11 @@ namespace DWSIM.UI.Desktop.Editors
                         Margin = new Thickness(0, 10, 0, 4)
                     };
                     Children.Add(header);
-                    foreach (var d in group) AddRow(d);
+                    foreach (var d in group)
+                    {
+                        AddRow(d);
+                        if (d.Key == "KeepAspectRatio") AddOriginalSizeRow();
+                    }
                     if (group.Key == AppearanceGroup.Position)
                     {
                         _positionNote = Description("");
@@ -161,7 +174,45 @@ namespace DWSIM.UI.Desktop.Editors
                 finally { _loading = false; }
             }
             if (d.Key == "PositionLocked") UpdatePositionState();
+            // a picture that keeps its proportions changed the other dimension as well
+            if (d.Key == "Width" || d.Key == "Height") RefreshSize();
             _changed();
+        }
+
+        /// <summary>Reads the width and height again, and the heading that shows a picture's size.</summary>
+        private void RefreshSize()
+        {
+            _loading = true;
+            try
+            {
+                foreach (var key in new[] { "Width", "Height" })
+                {
+                    if (!_editors.TryGetValue(key, out var ed) || ed is not NumericUpDown nud) continue;
+                    var common = AppearanceDescriptors.Find(key).GetCommonValue(_objects);
+                    nud.Value = common == null ? null : (decimal?)Convert.ToDecimal(common);
+                }
+                if (_heading != null) _heading.Text = AppearanceDescriptors.DescribeObjects(_objects);
+            }
+            finally
+            {
+                _loading = false;
+            }
+        }
+
+        /// <summary>A button that gives the pictures the size of the pictures themselves.</summary>
+        private void AddOriginalSizeRow()
+        {
+            var b = new Button { Content = "Original size", Padding = new Thickness(8, 2) };
+            ToolTip.SetTip(b, "Show the picture at its own size, one flowsheet pixel per picture pixel.");
+            b.Click += (_, _) =>
+            {
+                var any = false;
+                foreach (var o in _objects) any |= AppearanceDescriptors.SetOriginalSize(o);
+                if (!any) return;
+                RefreshSize();
+                _changed();
+            };
+            Children.Add(AvaloniaEditorPanel.MakeLabelControlRow("", b));
         }
 
         private void AddRow(AppearancePropertyDescriptor d)

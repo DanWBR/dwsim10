@@ -178,4 +178,16 @@ Public Interface IFlowsheetOptions
     ''' </summary>
     Property FlowsheetLockLayout As Boolean
 
+    ''' <summary>
+    ''' Background color of the flowsheet drawing as #RRGGBB. Empty follows the interface theme (white, or dark
+    ''' grey with the dark theme). Lines and text turn light on a dark color and dark on a light one.
+    ''' </summary>
+    Property FlowsheetBackgroundColor As String
+
+    ''' <summary>
+    ''' Bottom color of a vertical gradient from FlowsheetBackgroundColor at the top, as #RRGGBB. Empty draws a plain
+    ''' background. The gradient is fixed to the view: it does not move when the flowsheet is panned or zoomed.
+    ''' </summary>
+    Property FlowsheetBackgroundColor2 As String
+
 End Interface

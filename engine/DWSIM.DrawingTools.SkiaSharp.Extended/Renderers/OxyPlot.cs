@@ -560,7 +560,7 @@ namespace DWSIM.Drawing.SkiaSharp.Renderers
         {
             this.paint.Style = SKPaintStyle.Fill;
             this.paint.Color = fill.ToSKColor();
-            if (this.paint.Color == SKColors.Black && GlobalSettings.Settings.DarkMode) this.paint.Color = SKColors.White;
+            if (this.paint.Color == SKColors.Black && DWSIM.Drawing.SkiaSharp.GraphicsSurface.DarkCanvas) this.paint.Color = SKColors.White;
             this.paint.IsAntialias = true;
         }
 
@@ -576,7 +576,7 @@ namespace DWSIM.Drawing.SkiaSharp.Renderers
         {
             this.paint.Style = SKPaintStyle.Stroke;
             this.paint.Color = stroke.ToSKColor();
-            if (this.paint.Color == SKColors.Black && GlobalSettings.Settings.DarkMode) this.paint.Color = SKColors.White;
+            if (this.paint.Color == SKColors.Black && DWSIM.Drawing.SkiaSharp.GraphicsSurface.DarkCanvas) this.paint.Color = SKColors.White;
             this.paint.StrokeWidth = this.Convert(thickness);
             this.paint.StrokeJoin = lineJoin.Convert();
             if (dashArray != null)

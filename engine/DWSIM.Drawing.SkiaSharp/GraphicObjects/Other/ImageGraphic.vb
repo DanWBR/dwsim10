@@ -79,6 +79,12 @@ Namespace GraphicObjects.Shapes
 
         Public Property Image() As SKImage
 
+        ''' <summary>
+        ''' When True, changing the width or the height in the appearance editors changes the other one too, so the
+        ''' picture keeps the proportions it has on the flowsheet.
+        ''' </summary>
+        Public Property KeepAspectRatio As Boolean = True
+
         Public Overrides Function GetImage() As SKImage
             Return Me.Image
         End Function

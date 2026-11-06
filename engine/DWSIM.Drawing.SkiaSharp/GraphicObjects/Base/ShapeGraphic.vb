@@ -23,7 +23,7 @@ Namespace GraphicObjects
                 If Me.Active Then
                     Select Case Status
                         Case Status.Calculated
-                            If s.DarkMode Then
+                            If GraphicsSurface.DarkCanvas Then
                                 LineColor = SKColors.WhiteSmoke
                             Else
                                 LineColor = SKColors.SteelBlue
@@ -261,7 +261,7 @@ Namespace GraphicObjects
                     With tpaint
                         .TextSize = FontSize
                         .IsAntialias = GlobalSettings.Settings.DrawingAntiAlias
-                        .Color = If(s.DarkMode, LineColorDark, LineColor)
+                        .Color = If(GraphicsSurface.DarkCanvas, LineColorDark, LineColor)
                         .IsStroke = False
                         .Typeface = GetFont()
                     End With
@@ -280,7 +280,7 @@ Namespace GraphicObjects
                                 .TextSize = FontSize
                                 .IsAntialias = GlobalSettings.Settings.DrawingAntiAlias
                                 .Typeface = BoldTypeFace
-                                .Color = If(s.DarkMode, SKColors.Transparent, SKColors.White.WithAlpha(200))
+                                .Color = If(GraphicsSurface.DarkCanvas, SKColors.Transparent, GraphicsSurface.BackgroundColor.WithAlpha(200))
                                 .IsStroke = True
                                 .StrokeWidth = 2
                                 .BlendMode = SKBlendMode.Overlay
@@ -289,7 +289,7 @@ Namespace GraphicObjects
                             framepaint = New SKPaint()
                             With framepaint
                                 .IsAntialias = GlobalSettings.Settings.DrawingAntiAlias
-                                .Color = If(s.DarkMode, SKColors.Transparent, SKColors.LightGray)
+                                .Color = If(GraphicsSurface.DarkCanvas, SKColors.Transparent, SKColors.LightGray)
                                 .IsStroke = False
                                 .BlendMode = SKBlendMode.Luminosity
                             End With
@@ -416,7 +416,7 @@ Namespace GraphicObjects
                     With tpaint
                         .TextSize = FontSize
                         .IsAntialias = GlobalSettings.Settings.DrawingAntiAlias
-                        .Color = If(s.DarkMode, LineColorDark, LineColor)
+                        .Color = If(GraphicsSurface.DarkCanvas, LineColorDark, LineColor)
                         .IsStroke = False
                         .Typeface = GetFont()
                     End With
@@ -450,7 +450,7 @@ Namespace GraphicObjects
                                 .TextSize = FontSize
                                 .IsAntialias = GlobalSettings.Settings.DrawingAntiAlias
                                 .Typeface = BoldTypeFace
-                                .Color = If(s.DarkMode, SKColors.Transparent, SKColors.White.WithAlpha(200))
+                                .Color = If(GraphicsSurface.DarkCanvas, SKColors.Transparent, GraphicsSurface.BackgroundColor.WithAlpha(200))
                                 .IsStroke = True
                                 .StrokeWidth = 2
                                 .BlendMode = SKBlendMode.Overlay
@@ -671,7 +671,7 @@ Namespace GraphicObjects
                     'default
 
                     With myPen
-                        .Color = If(s.DarkMode, LineColorDark, LineColor)
+                        .Color = If(GraphicsSurface.DarkCanvas, LineColorDark, LineColor)
                         .StrokeWidth = LineWidth
                         .IsStroke = True
                         .IsAntialias = GlobalSettings.Settings.DrawingAntiAlias
@@ -682,7 +682,7 @@ Namespace GraphicObjects
                     With tPen
                         .TextSize = FontSize
                         .TextEncoding = SKTextEncoding.Utf8
-                        .Color = If(s.DarkMode, LineColorDark, LineColor)
+                        .Color = If(GraphicsSurface.DarkCanvas, LineColorDark, LineColor)
                         .Typeface = BoldTypeFace
                         .IsAntialias = GlobalSettings.Settings.DrawingAntiAlias
                     End With

@@ -243,6 +243,19 @@ Public Class GraphicsSurface
 
     Public Shared Property DarkForegroundColor As SKColor = SKColors.WhiteSmoke
 
+    Private Shared _darkCanvas As Boolean? = Nothing
+
+    ''' <summary>
+    ''' True when the flowsheet being drawn has a dark background: the dark theme's, or a dark color chosen for
+    ''' the flowsheet. Objects pick their line and text colors from it. Set at the start of every frame; before
+    ''' the first one it follows the theme.
+    ''' </summary>
+    Public Shared ReadOnly Property DarkCanvas As Boolean
+        Get
+            Return If(_darkCanvas, GlobalSettings.Settings.DarkMode)
+        End Get
+    End Property
+
     Public Property ResizingMode As Boolean = False
 
     Public Property ResizingMode_KeepAR As Boolean = True
@@ -301,7 +314,7 @@ Public Class GraphicsSurface
         Dim gpaint As New SKPaint
 
         With gpaint
-            .Color = If(GlobalSettings.Settings.DarkMode, SKColors.SlateGray.WithAlpha(60), SKColors.LightSteelBlue.WithAlpha(50))
+            .Color = If(DarkCanvas, SKColors.SlateGray.WithAlpha(60), SKColors.LightSteelBlue.WithAlpha(50))
             .StrokeWidth = 1
             .IsStroke = True
             .IsAntialias = GlobalSettings.Settings.DrawingAntiAlias
@@ -320,7 +333,7 @@ Public Class GraphicsSurface
         Dim spaint As New SKPaint
         With spaint
             .IsStroke = False
-            .Color = If(GlobalSettings.Settings.DarkMode, SKColors.SteelBlue.WithAlpha(60), SKColors.LightSalmon.WithAlpha(25))
+            .Color = If(DarkCanvas, SKColors.SteelBlue.WithAlpha(60), SKColors.LightSalmon.WithAlpha(25))
         End With
 
         Dim normalizedRectangle As New SKRect
@@ -355,7 +368,7 @@ Public Class GraphicsSurface
     ''' </summary>
     Private Sub DrawPositionLocks(canvas As SKCanvas)
 
-        Dim color = If(GlobalSettings.Settings.DarkMode, New SKColor(200, 200, 200, 210), New SKColor(90, 90, 90, 200))
+        Dim color = If(DarkCanvas, New SKColor(200, 200, 200, 210), New SKColor(90, 90, 90, 200))
         Dim scale As Single = CSng(Math.Min(2.0, Math.Max(1.0, 1.0 / Math.Max(Zoom, 0.01))))
 
         Using body As New SKPaint With {.Color = color, .IsAntialias = True, .IsStroke = False},
@@ -393,17 +406,38 @@ Public Class GraphicsSurface
 
         If Me.SelectedObject Is Nothing Then Me.SelectedObjects.Clear()
 
-        ' Keep the surface background/foreground in step with the active theme, so the
-        ' clear below and the objects/connectors/corner text all read the same variant.
-        If GlobalSettings.Settings.DarkMode Then
-            BackgroundColor = DarkBackgroundColor
-            ForegroundColor = DarkForegroundColor
+        ' The background is the flowsheet's own color, or vertical gradient, when it has one, otherwise
+        ' the theme's. Lines and text follow the background (DarkCanvas), so the clear below and the
+        ' objects, connectors and corner text all read the same variant.
+        Dim custom, bottom As SKColor
+        Dim gradient As Boolean = False
+        If Appearance.FlowsheetBackground.TryGetColor(CurrentOptions(), custom) Then
+            gradient = Appearance.FlowsheetBackground.TryGetGradientColor(CurrentOptions(), bottom)
+            If gradient Then
+                BackgroundColor = Appearance.FlowsheetBackground.Middle(custom, bottom)
+                _darkCanvas = Appearance.FlowsheetBackground.IsDark(custom, bottom)
+            Else
+                BackgroundColor = custom
+                _darkCanvas = Appearance.FlowsheetBackground.IsDark(custom)
+            End If
         Else
-            BackgroundColor = SKColors.White
-            ForegroundColor = SKColors.Black
+            BackgroundColor = If(GlobalSettings.Settings.DarkMode, DarkBackgroundColor, SKColors.White)
+            _darkCanvas = GlobalSettings.Settings.DarkMode
         End If
+        ForegroundColor = If(_darkCanvas, DarkForegroundColor, SKColors.Black)
 
-        DrawingCanvas.Clear(BackgroundColor)
+        If gradient Then
+            ' top to bottom of the view, before the zoom: every row is one color, so it costs what the
+            ' plain clear does, and it stays put when the flowsheet is panned or zoomed
+            Dim area = DrawingCanvas.LocalClipBounds
+            Using shader = SKShader.CreateLinearGradient(New SKPoint(0, area.Top), New SKPoint(0, area.Bottom),
+                                                         New SKColor() {custom, bottom}, SKShaderTileMode.Clamp),
+                  paint As New SKPaint With {.Shader = shader, .IsDither = True}
+                DrawingCanvas.DrawRect(area, paint)
+            End Using
+        Else
+            DrawingCanvas.Clear(BackgroundColor)
+        End If
 
         If ShowGrid Then DrawGrid(DrawingCanvas)
 
@@ -674,7 +708,7 @@ Public Class GraphicsSurface
             Dim bounds = DrawingCanvas.DeviceClipBounds
             Dim overlay = If(OverlayScale > 0, OverlayScale, CSng(GlobalSettings.Settings.DpiScale))
             StreamColoring.DrawLegend(DrawingCanvas, Flowsheet, bounds.Width, bounds.Height,
-                                      GlobalSettings.Settings.DarkMode, RegularTypeFace, overlay)
+                                      DarkCanvas, RegularTypeFace, overlay)
         End If
 
         RaiseEvent FinishedDrawing(DrawingCanvas)
@@ -1931,7 +1965,7 @@ Public Class GraphicsSurface
             .IsStroke = False
             Dim colors = New SKColors()
             Try
-                If GlobalSettings.Settings.DarkMode Then
+                If DarkCanvas Then
                     .Color = ForegroundColor
                 Else
                     .Color = colors.GetType().GetField(gobj.Owner.GetFlowsheet.FlowsheetOptions.DisplayCornerPropertyListFontColor).GetValue(colors)

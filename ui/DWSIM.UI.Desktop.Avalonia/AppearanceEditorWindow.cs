@@ -47,7 +47,9 @@ public sealed class AppearanceEditorWindow : Window
 
         try { flowsheet?.RegisterSnapshot(SnapshotType.ObjectLayout); } catch { }
 
-        Title = list.Count == 1 ? "Edit Appearance - " + (list[0].Tag ?? list[0].Name) : $"Edit Appearance - {list.Count} objects";
+        Title = list.Count == 1
+            ? "Edit Appearance - " + (list[0].Tag ?? list[0].Name) + " (" + AppearanceDescriptors.TypeName(list[0]) + ")"
+            : $"Edit Appearance - {list.Count} objects";
         Width = 470;
         Height = 640;
         MinWidth = 380;

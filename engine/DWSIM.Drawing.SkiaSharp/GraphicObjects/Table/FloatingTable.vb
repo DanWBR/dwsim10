@@ -92,7 +92,7 @@ Namespace GraphicObjects.Tables
                     With tpaint
                         .TextSize = FontSize / zoom
                         .IsAntialias = GlobalSettings.Settings.DrawingAntiAlias
-                        .Color = If(GlobalSettings.Settings.DarkMode, SKColors.WhiteSmoke, SKColors.SteelBlue)
+                        .Color = If(GraphicsSurface.DarkCanvas, SKColors.WhiteSmoke, SKColors.SteelBlue)
                         .IsStroke = False
                         .Typeface = RegularTypeFace
                     End With
@@ -100,7 +100,7 @@ Namespace GraphicObjects.Tables
                     With tbpaint
                         .TextSize = FontSize / zoom
                         .IsAntialias = GlobalSettings.Settings.DrawingAntiAlias
-                        .Color = If(GlobalSettings.Settings.DarkMode, SKColors.WhiteSmoke, SKColors.SteelBlue)
+                        .Color = If(GraphicsSurface.DarkCanvas, SKColors.WhiteSmoke, SKColors.SteelBlue)
                         .IsStroke = False
                         .Typeface = BoldTypeFace
                     End With
@@ -114,7 +114,7 @@ Namespace GraphicObjects.Tables
 
                     With bpaint2
                         .IsAntialias = GlobalSettings.Settings.DrawingAntiAlias
-                        .Color = If(GlobalSettings.Settings.DarkMode, SKColors.WhiteSmoke, SKColors.SteelBlue)
+                        .Color = If(GraphicsSurface.DarkCanvas, SKColors.WhiteSmoke, SKColors.SteelBlue)
                         .IsStroke = True
                         .StrokeWidth = LineWidth / zoom
                     End With
@@ -339,7 +339,7 @@ Namespace GraphicObjects.Tables
 
                                 'draw shadow
 
-                                If Not s.DarkMode Then
+                                If Not GraphicsSurface.DarkCanvas Then
                                     Me.DrawRoundRect(g, XD + 4 / zoom, YD + 4 / zoom, Width, Height, 2 / zoom, spaint)
                                 End If
                                 Dim rect0 As SKRect = GetRect(XD + 4 / zoom, YD + 4 / zoom, Width, Height)
@@ -411,7 +411,7 @@ Namespace GraphicObjects.Tables
 
                                 'draw shadow
 
-                                If Not s.DarkMode Then
+                                If Not GraphicsSurface.DarkCanvas Then
                                     Me.DrawRoundRect(g, XD + 4 / zoom, YD + 4 / zoom, Width, Height, 2 / zoom, spaint)
                                 End If
                                 Dim rect0 As SKRect = GetRect(XD + 4 / zoom, YD + 4 / zoom, Width, Height)

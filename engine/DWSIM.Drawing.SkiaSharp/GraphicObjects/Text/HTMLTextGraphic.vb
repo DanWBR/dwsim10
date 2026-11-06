@@ -56,7 +56,7 @@ Namespace GraphicObjects
                     With tpaint
                         .TextSize = Size
                         .IsAntialias = GlobalSettings.Settings.DrawingAntiAlias
-                        .Color = If(GlobalSettings.Settings.DarkMode, SKColors.LightSteelBlue, Color)
+                        .Color = If(GraphicsSurface.DarkCanvas, SKColors.LightSteelBlue, Color)
                         .IsStroke = False
                         .Typeface = GetFont()
                     End With

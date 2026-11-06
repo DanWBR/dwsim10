@@ -132,7 +132,7 @@ Namespace GraphicObjects
             canvas.Restore()
 
             Using paint As New SKPaint With {.TextSize = 10.0 * f, .IsAntialias = True}
-                If GlobalSettings.Settings.DarkMode Then
+                If GraphicsSurface.DarkCanvas Then
                     paint.Color = SKColors.White
                 Else
                     paint.Color = SKColors.Blue

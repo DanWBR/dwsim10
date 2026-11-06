@@ -424,7 +424,7 @@ Namespace GraphicObjects.Tables
                 With tpaint
                     .TextSize = FontSize
                     .IsAntialias = GlobalSettings.Settings.DrawingAntiAlias
-                    If GlobalSettings.Settings.DarkMode Then
+                    If GraphicsSurface.DarkCanvas Then
                         .Color = TextColorDark
                     Else
                         .Color = TextColor
@@ -439,7 +439,7 @@ Namespace GraphicObjects.Tables
                 With tpaint2
                     .TextSize = FontSize
                     .IsAntialias = GlobalSettings.Settings.DrawingAntiAlias
-                    If GlobalSettings.Settings.DarkMode Then
+                    If GraphicsSurface.DarkCanvas Then
                         .Color = TextColorDark
                     Else
                         .Color = TextColor
@@ -452,7 +452,7 @@ Namespace GraphicObjects.Tables
 
                 With bpaint
                     .IsAntialias = GlobalSettings.Settings.DrawingAntiAlias
-                    If GlobalSettings.Settings.DarkMode Then
+                    If GraphicsSurface.DarkCanvas Then
                         .Color = BorderColorDark
                     Else
                         .Color = BorderColor

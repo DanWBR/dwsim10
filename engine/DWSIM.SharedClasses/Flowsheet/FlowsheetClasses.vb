@@ -254,6 +254,10 @@ Namespace DWSIM.Flowsheet
 
         Public Property FlowsheetLockLayout As Boolean = False Implements IFlowsheetOptions.FlowsheetLockLayout
 
+        Public Property FlowsheetBackgroundColor As String = "" Implements IFlowsheetOptions.FlowsheetBackgroundColor
+
+        Public Property FlowsheetBackgroundColor2 As String = "" Implements IFlowsheetOptions.FlowsheetBackgroundColor2
+
         Public Property SkipEquilibriumCalculationOnDefinedStreams As Boolean = True Implements IFlowsheetOptions.SkipEquilibriumCalculationOnDefinedStreams
 
         Public Property ForceStreamPhase As ForcedPhase = ForcedPhase.None Implements IFlowsheetOptions.ForceStreamPhase

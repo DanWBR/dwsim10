@@ -56,8 +56,14 @@ Namespace Appearance
         Rectangle
         Table
         Button
-        ''' <summary>Pictures, charts, animations and formatted text: only size and position.</summary>
+        ''' <summary>Charts and animations: size, rotation and position.</summary>
         Other
+        ''' <summary>Pictures added to the flowsheet.</summary>
+        Picture
+        ''' <summary>Formatted (HTML) text.</summary>
+        FormattedText
+        ''' <summary>Floating property tables, which size themselves: position only.</summary>
+        FloatingTable
     End Enum
 
     ''' <summary>
@@ -188,7 +194,20 @@ Namespace Appearance
                     converted = value.ToString()
             End Select
 
+            ' a picture that keeps its proportions takes the other dimension along, at the ratio it has now
+            Dim keepRatio = (Key = "Width" OrElse Key = "Height") AndAlso TypeOf gobj Is Shapes.EmbeddedImageGraphic AndAlso
+                            DirectCast(gobj, Shapes.EmbeddedImageGraphic).KeepAspectRatio AndAlso gobj.Width > 0 AndAlso gobj.Height > 0
+            Dim ratio = If(gobj.Width > 0, gobj.Height / CDbl(gobj.Width), 1.0)
+
             info.SetValue(gobj, converted)
+
+            If keepRatio Then
+                If Key = "Width" Then
+                    gobj.Height = Math.Max(1, CInt(Math.Round(gobj.Width * ratio)))
+                Else
+                    gobj.Width = Math.Max(1, CInt(Math.Round(gobj.Height / ratio)))
+                End If
+            End If
 
             If Key = "LineColor" AndAlso AppearanceDescriptors.GetTarget(gobj) = AppearanceTarget.FlowsheetObject Then
                 Dim ov = gobj.GetType().GetProperty("OverrideColors")
@@ -274,13 +293,69 @@ Namespace Appearance
                     Return AppearanceTarget.Table
                 Case ObjectType.GO_Button
                     Return AppearanceTarget.Button
-                Case ObjectType.GO_Image, ObjectType.GO_Chart, ObjectType.GO_Animation, ObjectType.GO_HTMLText,
-                     ObjectType.GO_FloatingTable, ObjectType.Nenhum
+                Case ObjectType.GO_Image
+                    Return AppearanceTarget.Picture
+                Case ObjectType.GO_HTMLText
+                    Return AppearanceTarget.FormattedText
+                Case ObjectType.GO_FloatingTable
+                    Return AppearanceTarget.FloatingTable
+                Case ObjectType.GO_Chart, ObjectType.GO_Animation, ObjectType.Nenhum
                     Return AppearanceTarget.Other
                 Case Else
                     If TypeOf gobj Is ShapeGraphic Then Return AppearanceTarget.FlowsheetObject
                     Return AppearanceTarget.Other
             End Select
+        End Function
+
+        ''' <summary>
+        ''' The heading of the editors: the kind of object, and for a picture its size on the flowsheet and the size of
+        ''' the picture itself. Several objects give their count and kinds.
+        ''' </summary>
+        Public Shared Function DescribeObjects(objects As IReadOnlyList(Of IGraphicObject)) As String
+            If objects Is Nothing OrElse objects.Count = 0 Then Return ""
+            If objects.Count > 1 Then
+                Return String.Format("{0} objects: {1}", objects.Count, String.Join(", ", objects.Select(Function(o) TypeName(o)).Distinct()))
+            End If
+            Dim gobj = objects(0)
+            If gobj.ObjectType = ObjectType.GO_Image Then
+                Dim img = TryCast(gobj, Shapes.EmbeddedImageGraphic)?.Image
+                If img Is Nothing Then Return "Picture (no picture loaded)"
+                Return String.Format("Picture, {0} x {1} on the flowsheet; the picture itself is {2} x {3} pixels",
+                                     gobj.Width, gobj.Height, img.Width, img.Height)
+            End If
+            Return TypeName(gobj)
+        End Function
+
+        ''' <summary>The kind of object in a few words: "Picture", "Formatted text (HTML)", "Pump" and so on.</summary>
+        Public Shared Function TypeName(gobj As IGraphicObject) As String
+            If gobj Is Nothing Then Return ""
+            Select Case gobj.ObjectType
+                Case ObjectType.GO_Image : Return "Picture"
+                Case ObjectType.GO_HTMLText : Return "Formatted text (HTML)"
+                Case ObjectType.GO_Text : Return "Text"
+                Case ObjectType.GO_Rectangle : Return "Rectangle"
+                Case ObjectType.GO_Table : Return "Property table"
+                Case ObjectType.GO_MasterTable : Return "Master property table"
+                Case ObjectType.GO_SpreadsheetTable : Return "Spreadsheet table"
+                Case ObjectType.GO_FloatingTable : Return "Floating property table"
+                Case ObjectType.GO_Chart : Return "Chart"
+                Case ObjectType.GO_Animation : Return "Animation"
+                Case ObjectType.GO_Button : Return "Button"
+            End Select
+            Try
+                If gobj.Owner IsNot Nothing Then Return gobj.Owner.GetDisplayName()
+            Catch
+            End Try
+            Return gobj.ObjectType.ToString()
+        End Function
+
+        ''' <summary>Gives a picture the size of the picture itself. Returns True when the object is a picture.</summary>
+        Public Shared Function SetOriginalSize(gobj As IGraphicObject) As Boolean
+            Dim img = TryCast(gobj, Shapes.EmbeddedImageGraphic)?.Image
+            If img Is Nothing Then Return False
+            gobj.Width = img.Width
+            gobj.Height = img.Height
+            Return True
         End Function
 
         ''' <summary>
@@ -346,6 +421,9 @@ Namespace Appearance
             Dim tbl = AppearanceTarget.Table
             Dim btn = AppearanceTarget.Button
             Dim oth = AppearanceTarget.Other
+            Dim pic = AppearanceTarget.Picture
+            Dim html = AppearanceTarget.FormattedText
+            Dim ftb = AppearanceTarget.FloatingTable
 
             Dim fontStyles As New List(Of KeyValuePair(Of Object, String)) From {
                 New KeyValuePair(Of Object, String)(FontStyle.Regular, "Regular"),
@@ -405,8 +483,8 @@ Namespace Appearance
                 "Text shown on the flowsheet.",
                 {txt, rect, btn}, includeInReset:=False, multiline:=True))
             list.Add(New AppearancePropertyDescriptor("Color", "Text color", T, kC,
-                "Color of the text. In the dark theme the text is drawn in a light color so it stays readable.",
-                {txt}))
+                "Color of the text. On a dark background the text is drawn in a light color so it stays readable.",
+                {txt, html}))
             list.Add(New AppearancePropertyDescriptor("FontColor", "Text color", T, kC,
                 "Color of the text written inside the rectangle.",
                 {rect}))
@@ -417,14 +495,14 @@ Namespace Appearance
                 "Color of the table text when the dark theme is active.",
                 {tbl}))
             list.Add(New AppearancePropertyDescriptor("Size", "Font size", T, kD,
-                "Size of the text, in points.",
-                {txt}, 4, 200, 1))
+                "Size of the text, in points. For formatted text, the size of the text that has none of its own.",
+                {txt, html}, 4, 200, 1))
             list.Add(New AppearancePropertyDescriptor("FontSize", "Font size", T, kD,
                 "Size of the text, in points. For a flowsheet object this is the size of its name label.",
                 {fo, rect, tbl, btn}, 4, 72, 1))
             list.Add(New AppearancePropertyDescriptor("FontStyle", "Font style", T, kE,
                 "Regular, bold, italic or bold italic text.",
-                {fo, txt, tbl}, options:=fontStyles))
+                {fo, txt, tbl, html}, options:=fontStyles))
             list.Add(New AppearancePropertyDescriptor("Padding", "Cell padding", T, kI,
                 "Space between the text and the cell borders, in pixels.",
                 {tbl}, 0, 50))
@@ -435,32 +513,35 @@ Namespace Appearance
             ' Shape and size
             list.Add(New AppearancePropertyDescriptor("Width", "Width", S, kI,
                 "Width of the object, in pixels.",
-                {fo, rect, btn, oth}, 5, 5000, includeInReset:=False))
+                {fo, rect, btn, oth, pic, html}, 1, 10000, includeInReset:=False))
             list.Add(New AppearancePropertyDescriptor("Height", "Height", S, kI,
                 "Height of the object, in pixels.",
-                {fo, rect, btn, oth}, 5, 5000, includeInReset:=False))
+                {fo, rect, btn, oth, pic, html}, 1, 10000, includeInReset:=False))
+            list.Add(New AppearancePropertyDescriptor("KeepAspectRatio", "Keep proportions", S, kB,
+                "Changing the width changes the height too, and the other way round, so the picture keeps its proportions.",
+                {pic}, includeInReset:=False))
 
             ' Orientation
             list.Add(New AppearancePropertyDescriptor("Rotation", "Rotation (degrees)", O, kI,
                 "Clockwise rotation of the object around its center. Use 0, 90, 180 or 270 for objects connected to streams, so the ports stay on the sides.",
-                {fo, oth}, 0, 359, presets:=New Double() {0, 90, 180, 270}))
+                {fo, txt, oth, pic, html}, 0, 359, presets:=New Double() {0, 90, 180, 270}))
             list.Add(New AppearancePropertyDescriptor("FlippedH", "Flip horizontally", O, kB,
-                "Mirror the object left to right, so the inlets are on the right.",
-                {fo}))
+                "Mirror the object left to right. On a unit operation the inlets go to the right.",
+                {fo, pic}))
             list.Add(New AppearancePropertyDescriptor("FlippedV", "Flip vertically", O, kB,
                 "Mirror the object top to bottom.",
-                {fo}))
+                {fo, pic}))
 
             ' Position
             list.Add(New AppearancePropertyDescriptor("X", "X", P, kD,
                 "Horizontal position of the top left corner, in flowsheet pixels. Panning and zooming the view change it.",
-                {fo, txt, rect, tbl, btn, oth}, -1000000, 1000000, isPosition:=True, includeInReset:=False))
+                {fo, txt, rect, tbl, btn, oth, pic, html, ftb}, -1000000, 1000000, isPosition:=True, includeInReset:=False))
             list.Add(New AppearancePropertyDescriptor("Y", "Y", P, kD,
                 "Vertical position of the top left corner, in flowsheet pixels. Panning and zooming the view change it.",
-                {fo, txt, rect, tbl, btn, oth}, -1000000, 1000000, isPosition:=True, includeInReset:=False))
+                {fo, txt, rect, tbl, btn, oth, pic, html, ftb}, -1000000, 1000000, isPosition:=True, includeInReset:=False))
             list.Add(New AppearancePropertyDescriptor("PositionLocked", "Lock position", P, kB,
                 "Keep the object where it is. Dragging, aligning, snapping to the grid, the automatic layouts and the arrow keys leave it in place. Size, rotation and colors can still be changed.",
-                {fo, txt, rect, tbl, btn, oth}, includeInReset:=False))
+                {fo, txt, rect, tbl, btn, oth, pic, html, ftb}, includeInReset:=False))
 
             Return list
 

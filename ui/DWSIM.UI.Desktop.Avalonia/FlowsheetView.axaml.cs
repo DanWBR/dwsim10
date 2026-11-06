@@ -1232,6 +1232,11 @@ public partial class FlowsheetView : UserControl
         };
 
         ChkLockLayout.IsChecked = surface.LockLayout;
+        var opts = _flowsheet?.FlowsheetOptions;
+        surface.ShowGrid = opts?.FlowsheetDisplayGrid ?? false;
+        surface.SnapToGrid = opts?.FlowsheetSnapToGrid ?? false;
+        ChkDrawGrid.IsChecked = surface.ShowGrid;
+        ChkSnapToGrid.IsChecked = surface.SnapToGrid;
 
         WheelCallback = (delta, px, py, cw, ch) =>
         {
@@ -1738,17 +1743,20 @@ public partial class FlowsheetView : UserControl
 
     private void WireSubToolbar()
     {
+        // stored in the flowsheet options, so they are saved with the file
         ChkDrawGrid.IsCheckedChanged += (_, _) =>
         {
-            if (_surface != null)
-                _surface.ShowGrid = ChkDrawGrid.IsChecked.GetValueOrDefault();
+            var on = ChkDrawGrid.IsChecked.GetValueOrDefault();
+            if (_surface != null) _surface.ShowGrid = on;
+            if (_flowsheet != null) _flowsheet.FlowsheetOptions.FlowsheetDisplayGrid = on;
             Canvas.Refresh();
         };
 
         ChkSnapToGrid.IsCheckedChanged += (_, _) =>
         {
-            if (_surface != null)
-                _surface.SnapToGrid = ChkSnapToGrid.IsChecked.GetValueOrDefault();
+            var on = ChkSnapToGrid.IsChecked.GetValueOrDefault();
+            if (_surface != null) _surface.SnapToGrid = on;
+            if (_flowsheet != null) _flowsheet.FlowsheetOptions.FlowsheetSnapToGrid = on;
         };
 
         ChkMultiSelect.IsCheckedChanged += (_, _) =>
@@ -3003,6 +3011,13 @@ public partial class FlowsheetView : UserControl
             ToolTip.SetTip(lockLayout, "Keep every object where it is. Panning and zooming still work.");
             lockLayout.Click += (_, _) => ChkLockLayout.IsChecked = !(_surface?.LockLayout ?? false);
             ctx.Items.Add(lockLayout);
+
+            ctx.Items.Add(new Separator());
+
+            var appearance = new MenuItem { Header = "Flowsheet Appearance...", Icon = IconHelper.MIcon("🎨") };
+            ToolTip.SetTip(appearance, "Background color and grid of the flowsheet drawing.");
+            appearance.Click += (_, _) => ShowFlowsheetAppearance();
+            ctx.Items.Add(appearance);
         }
 
         Canvas.ContextMenu = ctx;
@@ -3527,6 +3542,15 @@ public partial class FlowsheetView : UserControl
         AppendLog(objects.Count == 1
             ? $"{objects[0].Tag}: position {(locked ? "locked" : "unlocked")}."
             : $"{objects.Count} objects: position {(locked ? "locked" : "unlocked")}.");
+    }
+
+    /// <summary>The background color and grid of the drawing, from the context menu of an empty area.</summary>
+    private void ShowFlowsheetAppearance()
+    {
+        if (_flowsheet == null) return;
+        var window = new FlowsheetAppearanceWindow(_flowsheet.FlowsheetOptions, _surface, () => Canvas.Refresh(),
+                                                   on => ChkDrawGrid.IsChecked = on, on => ChkSnapToGrid.IsChecked = on);
+        window.Show(HostWindow);
     }
 
     /// <summary>

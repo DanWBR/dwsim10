@@ -305,7 +305,8 @@ namespace DWSIM.Engine.SmokeTests
             Assert.That(text.ObjectType, Is.EqualTo(ObjectType.GO_Text));
             var textKeys = Keys(text);
             Assert.That(textKeys, Is.SupersetOf(new[] { "Text", "Color", "Size", "FontStyle", "X", "Y", "PositionLocked" }));
-            Assert.That(textKeys, Has.None.AnyOf("Width", "LineColor", "Rotation", "FontSize"));
+            Assert.That(textKeys, Does.Contain("Rotation"));
+            Assert.That(textKeys, Has.None.AnyOf("Width", "LineColor", "FontSize"));
 
             var rect = new RectangleGraphic(new SKPoint(10, 10), "box");
             Assert.That(rect.ObjectType, Is.EqualTo(ObjectType.GO_Rectangle));
@@ -403,6 +404,87 @@ namespace DWSIM.Engine.SmokeTests
             AppearanceDescriptors.ResetToDefaults(rect);
             Assert.That(rect.Text, Is.EqualTo("keep me"));
             Assert.That(rect.Opacity, Is.EqualTo(new RectangleGraphic().Opacity));
+        }
+
+        // A picture says what it is and how big it is, keeps its proportions when resized (at the ratio
+        // it has on the flowsheet, so a stretched rule stays stretched), mirrors, and goes back to the
+        // size of the picture itself.
+        [Test]
+        public void APictureSaysWhatItIsAndKeepsItsProportions()
+        {
+            using var bitmap = new SKBitmap(200, 100);
+            var pic = new EmbeddedImageGraphic(10, 10, 400, 200, SKImage.FromBitmap(bitmap));
+
+            var heading = AppearanceDescriptors.DescribeObjects(new List<IGraphicObject> { pic });
+            Assert.That(heading, Does.StartWith("Picture"));
+            Assert.That(heading, Does.Contain("400 x 200 on the flowsheet"));
+            Assert.That(heading, Does.Contain("200 x 100 pixels"));
+
+            var keys = AppearanceDescriptors.ForObject(pic).Select(d => d.Key).ToList();
+            Assert.That(keys, Is.SupersetOf(new[] { "Width", "Height", "KeepAspectRatio", "Rotation", "FlippedH", "FlippedV", "X", "Y" }));
+
+            Assert.That(pic.KeepAspectRatio, Is.True);
+            AppearanceDescriptors.Find("Width").SetValue(pic, 300);
+            Assert.That(pic.Height, Is.EqualTo(150), "the height follows the width");
+            AppearanceDescriptors.Find("Height").SetValue(pic, 60);
+            Assert.That(pic.Width, Is.EqualTo(120), "the width follows the height");
+
+            AppearanceDescriptors.Find("KeepAspectRatio").SetValue(pic, false);
+            AppearanceDescriptors.Find("Width").SetValue(pic, 500);
+            Assert.That(pic.Height, Is.EqualTo(60), "without proportions the height stays");
+
+            Assert.That(AppearanceDescriptors.SetOriginalSize(pic), Is.True);
+            Assert.That((pic.Width, pic.Height), Is.EqualTo((200, 100)));
+            Assert.That(AppearanceDescriptors.SetOriginalSize(new RectangleGraphic()), Is.False);
+        }
+
+        // Formatted text takes its color, size and style from the editor; plain text rotates; a floating
+        // table sizes itself, so only its position is offered.
+        [Test]
+        public void EveryAnnotationOffersWhatItsDrawingUses()
+        {
+            var html = AppearanceDescriptors.ForObject(new DWSIM.Drawing.SkiaSharp.GraphicObjects.HTMLTextGraphic()).Select(d => d.Key).ToList();
+            Assert.That(html, Is.SupersetOf(new[] { "Color", "Size", "FontStyle", "Width", "Height", "Rotation" }));
+            Assert.That(AppearanceDescriptors.TypeName(new DWSIM.Drawing.SkiaSharp.GraphicObjects.HTMLTextGraphic()), Is.EqualTo("Formatted text (HTML)"));
+
+            var text = AppearanceDescriptors.ForObject(new DWSIM.Drawing.SkiaSharp.GraphicObjects.TextGraphic()).Select(d => d.Key).ToList();
+            Assert.That(text, Does.Contain("Rotation"));
+
+            var floating = AppearanceDescriptors.ForObject(new FloatingTableGraphic()).Select(d => d.Key).ToList();
+            Assert.That(floating, Is.EquivalentTo(new[] { "X", "Y", "PositionLocked" }));
+        }
+
+        // The rotation offered for a text is drawn: at 90 degrees the text runs down the page.
+        [Test]
+        public void ATextIsDrawnAtItsRotation()
+        {
+            var c = Build();
+            c.Surface.Flowsheet = c.Fs.Inner;
+            var text = new DWSIM.Drawing.SkiaSharp.GraphicObjects.TextGraphic(750, 300, "ROTATED LABEL") { Size = 24, Color = SKColors.Black };
+            c.Surface.DrawingObjects.Add(text);
+
+            (int w, int h) Ink(int rotation)
+            {
+                text.Rotation = rotation;
+                using var bmp = new SKBitmap(1200, 800);
+                // the first frame measures the text, the second turns it about its middle
+                for (int i = 0; i < 2; i++)
+                    using (var canvas = new SKCanvas(bmp)) c.Surface.UpdateCanvas(canvas);
+                int x0 = int.MaxValue, x1 = -1, y0 = int.MaxValue, y1 = -1;
+                for (int x = 620; x < 1150; x++)
+                    for (int y = 60; y < 700; y++)
+                    {
+                        var p = bmp.GetPixel(x, y);
+                        if (p.Alpha < 128 || p.Red > 120) continue;
+                        x0 = Math.Min(x0, x); x1 = Math.Max(x1, x); y0 = Math.Min(y0, y); y1 = Math.Max(y1, y);
+                    }
+                return (x1 - x0, y1 - y0);
+            }
+
+            var flat = Ink(0);
+            var turned = Ink(90);
+            Assert.That(flat.w, Is.GreaterThan(flat.h), "unrotated text is wider than tall");
+            Assert.That(turned.h, Is.GreaterThan(turned.w), "at 90 degrees the text is taller than wide");
         }
     }
 }
