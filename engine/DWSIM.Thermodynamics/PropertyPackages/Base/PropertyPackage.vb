@@ -501,6 +501,13 @@ Namespace PropertyPackages
 
         Public Overridable ReadOnly Property DisplayDescription As String = "A Property Package consists in a set of property methods and procedures used to calculate chemical phase equilibria and physical properties." Implements IPropertyPackage.DisplayDescription
 
+        ''' <summary>Seconds of one fugacity coefficient call of this package in DW_CalcKvalue, averaged over the
+        ''' calls made one after the other; negative before the first.</summary>
+        <NonSerialized> Private _lnFugSeconds As Double = -1.0
+        <NonSerialized> Private _lnFugCalls As Integer = 0
+        ''' <summary>Above this cost of one fugacity coefficient call, DW_CalcKvalue takes the two phases in parallel.</summary>
+        Public Shared Property ParallelLnFugSeconds As Double = 0.0001
+
         Public Property OverrideKvalFugCoeff As Boolean = False
 
         Public KvalFugacityCoefficientOverride As Func(Of Double(), Double, Double, State, PropertyPackage, Double())
@@ -1510,14 +1517,22 @@ Namespace PropertyPackages
 
                 IObj?.SetCurrent()
 
-                If Settings.EnableParallelProcessing Then
+                'the two phases at the same time only when one call costs more than starting a task does: for a
+                'cubic or an activity model the task costs as much as the call, and the callers (a column's
+                'stages, a solver's copies of the flowsheet) are often parallel already. Every 32nd call is
+                'timed one after the other to keep the estimate current.
+                Dim fugCalls = Threading.Interlocked.Increment(_lnFugCalls)
+                If Settings.EnableParallelProcessing AndAlso _lnFugSeconds > ParallelLnFugSeconds AndAlso fugCalls Mod 32 <> 0 Then
                     Dim t1 = Task.Run(Sub() lnfugliq = Me.DW_CalcLnFugCoeff(Vx, T, P, State.Liquid))
                     Dim t2 = Task.Run(Sub() lnfugvap = Me.DW_CalcLnFugCoeff(Vy, T, P, st2))
                     Task.WaitAll(t1, t2)
                 Else
+                    Dim t0 = Stopwatch.GetTimestamp()
                     lnfugliq = Me.DW_CalcLnFugCoeff(Vx, T, P, State.Liquid)
                     IObj?.SetCurrent()
                     lnfugvap = Me.DW_CalcLnFugCoeff(Vy, T, P, st2)
+                    Dim one = (Stopwatch.GetTimestamp() - t0) / Stopwatch.Frequency / 2.0
+                    _lnFugSeconds = If(_lnFugSeconds < 0.0, one, 0.8 * _lnFugSeconds + 0.2 * one)
                 End If
 
                 For i = 0 To n
