@@ -3146,8 +3146,12 @@ Imports DWSIM.ExtensionMethods
         xel = xdoc.Element("DWSIM_Simulation_Data").Element("GeneralInfo")
 
         'The loader reads the build version to decide which defaults a file predates, so a
-        'headless save writes it too; without an entry assembly it is this assembly's version.
-        Dim appver = If(Assembly.GetEntryAssembly()?.GetName().Version, GetType(FlowsheetBase).Assembly.GetName().Version)
+        'headless save writes it too; without an entry assembly, or with one older than the engine
+        '(an automation program of its own at 1.0.0.0, read back as a file from before 5.0), it is
+        'this assembly's version.
+        Dim engineVersion = GetType(FlowsheetBase).Assembly.GetName().Version
+        Dim appver = Assembly.GetEntryAssembly()?.GetName().Version
+        If appver Is Nothing OrElse appver < engineVersion Then appver = engineVersion
         xel.Add(New XElement("BuildVersion", appver.ToString))
         If Not DWSIM.GlobalSettings.Settings.AutomationMode Then
             xel.Add(New XElement("BuildDate", CType("01/01/2000", DateTime).AddDays(appver.Build).AddSeconds(appver.Revision * 2)))

@@ -151,6 +151,81 @@ Public Class Utility
 
     End Function
 
+    'the legacy (before 5.0) type names, by the end of the name, in the order they are tried
+    Private Shared ReadOnly LegacyTypeNames As String(,) = {
+        {"Streams.MaterialStream", "DWSIM.Thermodynamics.Streams.MaterialStream"},
+        {"Streams.EnergyStream", "DWSIM.UnitOperations.Streams.EnergyStream"},
+        {"UnitOps.Vessel", "DWSIM.UnitOperations.UnitOperations.Vessel"},
+        {"UnitOps.Compressor", "DWSIM.UnitOperations.UnitOperations.Compressor"},
+        {"UnitOps.Expander", "DWSIM.UnitOperations.UnitOperations.Expander"},
+        {"UnitOps.Heater", "DWSIM.UnitOperations.UnitOperations.Heater"},
+        {"UnitOps.Cooler", "DWSIM.UnitOperations.UnitOperations.Cooler"},
+        {"UnitOps.HeatExchanger", "DWSIM.UnitOperations.UnitOperations.HeatExchanger"},
+        {"UnitOps.Filter", "DWSIM.UnitOperations.UnitOperations.Filter"},
+        {"UnitOps.Mixer", "DWSIM.UnitOperations.UnitOperations.Mixer"},
+        {"UnitOps.Splitter", "DWSIM.UnitOperations.UnitOperations.Splitter"},
+        {"UnitOps.ComponentSeparator", "DWSIM.UnitOperations.UnitOperations.ComponentSeparator"},
+        {"UnitOps.ShortcutColumn", "DWSIM.UnitOperations.UnitOperations.ShortcutColumn"},
+        {"UnitOps.CustomUO", "DWSIM.UnitOperations.UnitOperations.CustomUO"},
+        {"UnitOps.CapeOpenUO", "DWSIM.UnitOperations.UnitOperations.CapeOpenUO"},
+        {"UnitOps.Flowsheet", "DWSIM.UnitOperations.UnitOperations.Flowsheet"},
+        {"UnitOps.OrificePlate", "DWSIM.UnitOperations.UnitOperations.OrificePlate"},
+        {"UnitOps.SolidsSeparator", "DWSIM.UnitOperations.UnitOperations.SolidsSeparator"},
+        {"UnitOps.ExcelUO", "DWSIM.UnitOperations.UnitOperations.ExcelUO"},
+        {"UnitOps.Tank", "DWSIM.UnitOperations.UnitOperations.Tank"},
+        {"UnitOps.Valve", "DWSIM.UnitOperations.UnitOperations.Valve"},
+        {"UnitOps.Pump", "DWSIM.UnitOperations.UnitOperations.Pump"},
+        {"UnitOps.Pipe", "DWSIM.UnitOperations.UnitOperations.Pipe"},
+        {"UnitOps.DistillationColumn", "DWSIM.UnitOperations.UnitOperations.DistillationColumn"},
+        {"UnitOps.AbsorptionColumn", "DWSIM.UnitOperations.UnitOperations.AbsorptionColumn"},
+        {"UnitOps.ReboiledAbsorber", "DWSIM.UnitOperations.UnitOperations.ReboiledAbsorber"},
+        {"UnitOps.RefluxedAbsorber", "DWSIM.UnitOperations.UnitOperations.RefluxedAbsorber"},
+        {"Reactors.Reactor_Conversion", "DWSIM.UnitOperations.Reactors.Reactor_Conversion"},
+        {"Reactors.Reactor_Equilibrium", "DWSIM.UnitOperations.Reactors.Reactor_Equilibrium"},
+        {"Reactors.Reactor_Gibbs", "DWSIM.UnitOperations.Reactors.Reactor_Gibbs"},
+        {"Reactors.Reactor_PFR", "DWSIM.UnitOperations.Reactors.Reactor_PFR"},
+        {"Reactors.Reactor_CSTR", "DWSIM.UnitOperations.Reactors.Reactor_CSTR"},
+        {"SpecialOps.Adjust", "DWSIM.UnitOperations.SpecialOps.Adjust"},
+        {"SpecialOps.Spec", "DWSIM.UnitOperations.SpecialOps.Spec"},
+        {"SpecialOps.Recycle", "DWSIM.UnitOperations.SpecialOps.Recycle"},
+        {"SpecialOps.EnergyRecycle", "DWSIM.UnitOperations.SpecialOps.EnergyRecycle"},
+        {"DWSIM.MaterialStream", "DWSIM.Thermodynamics.Streams.MaterialStream"},
+        {"DWSIM.EnergyStream", "DWSIM.UnitOperations.Streams.EnergyStream"},
+        {"DWSIM.Vessel", "DWSIM.UnitOperations.UnitOperations.Vessel"},
+        {"DWSIM.Compressor", "DWSIM.UnitOperations.UnitOperations.Compressor"},
+        {"DWSIM.Expander", "DWSIM.UnitOperations.UnitOperations.Expander"},
+        {"DWSIM.Heater", "DWSIM.UnitOperations.UnitOperations.Heater"},
+        {"DWSIM.Cooler", "DWSIM.UnitOperations.UnitOperations.Cooler"},
+        {"DWSIM.HeatExchanger", "DWSIM.UnitOperations.UnitOperations.HeatExchanger"},
+        {"DWSIM.Filter", "DWSIM.UnitOperations.UnitOperations.Filter"},
+        {"DWSIM.Mixer", "DWSIM.UnitOperations.UnitOperations.Mixer"},
+        {"DWSIM.Splitter", "DWSIM.UnitOperations.UnitOperations.Splitter"},
+        {"DWSIM.ComponentSeparator", "DWSIM.UnitOperations.UnitOperations.ComponentSeparator"},
+        {"DWSIM.ShortcutColumn", "DWSIM.UnitOperations.UnitOperations.ShortcutColumn"},
+        {"DWSIM.CustomUO", "DWSIM.UnitOperations.UnitOperations.CustomUO"},
+        {"DWSIM.CapeOpenUO", "DWSIM.UnitOperations.UnitOperations.CapeOpenUO"},
+        {"DWSIM.Flowsheet", "DWSIM.UnitOperations.UnitOperations.Flowsheet"},
+        {"DWSIM.OrificePlate", "DWSIM.UnitOperations.UnitOperations.OrificePlate"},
+        {"DWSIM.SolidsSeparator", "DWSIM.UnitOperations.UnitOperations.SolidsSeparator"},
+        {"DWSIM.ExcelUO", "DWSIM.UnitOperations.UnitOperations.ExcelUO"},
+        {"DWSIM.Tank", "DWSIM.UnitOperations.UnitOperations.Tank"},
+        {"DWSIM.Valve", "DWSIM.UnitOperations.UnitOperations.Valve"},
+        {"DWSIM.Pump", "DWSIM.UnitOperations.UnitOperations.Pump"},
+        {"DWSIM.Pipe", "DWSIM.UnitOperations.UnitOperations.Pipe"},
+        {"DWSIM.DistillationColumn", "DWSIM.UnitOperations.UnitOperations.DistillationColumn"},
+        {"DWSIM.AbsorptionColumn", "DWSIM.UnitOperations.UnitOperations.AbsorptionColumn"},
+        {"DWSIM.ReboiledAbsorber", "DWSIM.UnitOperations.UnitOperations.ReboiledAbsorber"},
+        {"DWSIM.RefluxedAbsorber", "DWSIM.UnitOperations.UnitOperations.RefluxedAbsorber"},
+        {"DWSIM.Reactor_Conversion", "DWSIM.UnitOperations.Reactors.Reactor_Conversion"},
+        {"DWSIM.Reactor_Equilibrium", "DWSIM.UnitOperations.Reactors.Reactor_Equilibrium"},
+        {"DWSIM.Reactor_Gibbs", "DWSIM.UnitOperations.Reactors.Reactor_Gibbs"},
+        {"DWSIM.Reactor_PFR", "DWSIM.UnitOperations.Reactors.Reactor_PFR"},
+        {"DWSIM.Reactor_CSTR", "DWSIM.UnitOperations.Reactors.Reactor_CSTR"},
+        {"DWSIM.Adjust", "DWSIM.UnitOperations.SpecialOps.Adjust"},
+        {"DWSIM.Spec", "DWSIM.UnitOperations.SpecialOps.Spec"},
+        {"DWSIM.Recycle", "DWSIM.UnitOperations.SpecialOps.Recycle"},
+        {"DWSIM.EnergyRecycle", "DWSIM.UnitOperations.SpecialOps.EnergyRecycle"}}
+
     Shared Sub UpdateElement(xel As XElement)
 
         If xel.Name = "TipoObjeto" Then xel.Name = "ObjectType"
@@ -160,94 +235,23 @@ Public Class Utility
         If xel.Name = "FracaoMolar" Then xel.Name = "MoleFraction"
         If xel.Name = "FracaoMassica" Then xel.Name = "MassFraction"
         If xel.Name = "FracaoDePetroleo" Then xel.Name = "PetroleumFraction"
-        If xel.Value = "Nenhum" Then xel.Value = "None"
-        If xel.Value = "Destino" Then xel.Value = "Target"
-        If xel.Value = "Fonte" Then xel.Value = "Source"
-        If xel.Value = "Manipulada" Then xel.Value = "Manipulated"
-        If xel.Value = "Referencia" Then xel.Value = "Referenced"
-        If xel.Value = "Controlada" Then xel.Value = "Controlled"
 
-        If xel.Value.EndsWith("Streams.MaterialStream") Then xel.Value = "DWSIM.Thermodynamics.Streams.MaterialStream"
+        'the value of an element with children is the text of all of them: read once, and again only after a rule
+        'changes it
+        Dim v = xel.Value
+        If v = "Nenhum" Then xel.Value = "None" : v = xel.Value
+        If v = "Destino" Then xel.Value = "Target" : v = xel.Value
+        If v = "Fonte" Then xel.Value = "Source" : v = xel.Value
+        If v = "Manipulada" Then xel.Value = "Manipulated" : v = xel.Value
+        If v = "Referencia" Then xel.Value = "Referenced" : v = xel.Value
+        If v = "Controlada" Then xel.Value = "Controlled" : v = xel.Value
 
-        If xel.Value.EndsWith("Streams.EnergyStream") Then xel.Value = "DWSIM.UnitOperations.Streams.EnergyStream"
-
-        If xel.Value.EndsWith("UnitOps.Vessel") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.Vessel"
-        If xel.Value.EndsWith("UnitOps.Compressor") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.Compressor"
-        If xel.Value.EndsWith("UnitOps.Expander") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.Expander"
-        If xel.Value.EndsWith("UnitOps.Heater") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.Heater"
-        If xel.Value.EndsWith("UnitOps.Cooler") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.Cooler"
-        If xel.Value.EndsWith("UnitOps.HeatExchanger") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.HeatExchanger"
-        If xel.Value.EndsWith("UnitOps.Filter") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.Filter"
-        If xel.Value.EndsWith("UnitOps.Mixer") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.Mixer"
-        If xel.Value.EndsWith("UnitOps.Splitter") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.Splitter"
-        If xel.Value.EndsWith("UnitOps.ComponentSeparator") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.ComponentSeparator"
-        If xel.Value.EndsWith("UnitOps.ShortcutColumn") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.ShortcutColumn"
-        If xel.Value.EndsWith("UnitOps.CustomUO") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.CustomUO"
-        If xel.Value.EndsWith("UnitOps.CapeOpenUO") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.CapeOpenUO"
-        If xel.Value.EndsWith("UnitOps.Flowsheet") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.Flowsheet"
-        If xel.Value.EndsWith("UnitOps.OrificePlate") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.OrificePlate"
-        If xel.Value.EndsWith("UnitOps.SolidsSeparator") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.SolidsSeparator"
-        If xel.Value.EndsWith("UnitOps.ExcelUO") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.ExcelUO"
-        If xel.Value.EndsWith("UnitOps.Tank") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.Tank"
-        If xel.Value.EndsWith("UnitOps.Valve") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.Valve"
-        If xel.Value.EndsWith("UnitOps.Pump") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.Pump"
-        If xel.Value.EndsWith("UnitOps.Pipe") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.Pipe"
-        If xel.Value.EndsWith("UnitOps.DistillationColumn") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.DistillationColumn"
-        If xel.Value.EndsWith("UnitOps.AbsorptionColumn") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.AbsorptionColumn"
-        If xel.Value.EndsWith("UnitOps.ReboiledAbsorber") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.ReboiledAbsorber"
-        If xel.Value.EndsWith("UnitOps.RefluxedAbsorber") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.RefluxedAbsorber"
-
-        If xel.Value.EndsWith("Reactors.Reactor_Conversion") Then xel.Value = "DWSIM.UnitOperations.Reactors.Reactor_Conversion"
-        If xel.Value.EndsWith("Reactors.Reactor_Equilibrium") Then xel.Value = "DWSIM.UnitOperations.Reactors.Reactor_Equilibrium"
-        If xel.Value.EndsWith("Reactors.Reactor_Gibbs") Then xel.Value = "DWSIM.UnitOperations.Reactors.Reactor_Gibbs"
-        If xel.Value.EndsWith("Reactors.Reactor_PFR") Then xel.Value = "DWSIM.UnitOperations.Reactors.Reactor_PFR"
-        If xel.Value.EndsWith("Reactors.Reactor_CSTR") Then xel.Value = "DWSIM.UnitOperations.Reactors.Reactor_CSTR"
-
-        If xel.Value.EndsWith("SpecialOps.Adjust") Then xel.Value = "DWSIM.UnitOperations.SpecialOps.Adjust"
-        If xel.Value.EndsWith("SpecialOps.Spec") Then xel.Value = "DWSIM.UnitOperations.SpecialOps.Spec"
-        If xel.Value.EndsWith("SpecialOps.Recycle") Then xel.Value = "DWSIM.UnitOperations.SpecialOps.Recycle"
-        If xel.Value.EndsWith("SpecialOps.EnergyRecycle") Then xel.Value = "DWSIM.UnitOperations.SpecialOps.EnergyRecycle"
-
-        If xel.Value.EndsWith("DWSIM.MaterialStream") Then xel.Value = "DWSIM.Thermodynamics.Streams.MaterialStream"
-
-        If xel.Value.EndsWith("DWSIM.EnergyStream") Then xel.Value = "DWSIM.UnitOperations.Streams.EnergyStream"
-
-        If xel.Value.EndsWith("DWSIM.Vessel") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.Vessel"
-        If xel.Value.EndsWith("DWSIM.Compressor") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.Compressor"
-        If xel.Value.EndsWith("DWSIM.Expander") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.Expander"
-        If xel.Value.EndsWith("DWSIM.Heater") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.Heater"
-        If xel.Value.EndsWith("DWSIM.Cooler") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.Cooler"
-        If xel.Value.EndsWith("DWSIM.HeatExchanger") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.HeatExchanger"
-        If xel.Value.EndsWith("DWSIM.Filter") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.Filter"
-        If xel.Value.EndsWith("DWSIM.Mixer") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.Mixer"
-        If xel.Value.EndsWith("DWSIM.Splitter") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.Splitter"
-        If xel.Value.EndsWith("DWSIM.ComponentSeparator") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.ComponentSeparator"
-        If xel.Value.EndsWith("DWSIM.ShortcutColumn") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.ShortcutColumn"
-        If xel.Value.EndsWith("DWSIM.CustomUO") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.CustomUO"
-        If xel.Value.EndsWith("DWSIM.CapeOpenUO") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.CapeOpenUO"
-        If xel.Value.EndsWith("DWSIM.Flowsheet") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.Flowsheet"
-        If xel.Value.EndsWith("DWSIM.OrificePlate") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.OrificePlate"
-        If xel.Value.EndsWith("DWSIM.SolidsSeparator") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.SolidsSeparator"
-        If xel.Value.EndsWith("DWSIM.ExcelUO") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.ExcelUO"
-        If xel.Value.EndsWith("DWSIM.Tank") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.Tank"
-        If xel.Value.EndsWith("DWSIM.Valve") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.Valve"
-        If xel.Value.EndsWith("DWSIM.Pump") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.Pump"
-        If xel.Value.EndsWith("DWSIM.Pipe") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.Pipe"
-        If xel.Value.EndsWith("DWSIM.DistillationColumn") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.DistillationColumn"
-        If xel.Value.EndsWith("DWSIM.AbsorptionColumn") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.AbsorptionColumn"
-        If xel.Value.EndsWith("DWSIM.ReboiledAbsorber") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.ReboiledAbsorber"
-        If xel.Value.EndsWith("DWSIM.RefluxedAbsorber") Then xel.Value = "DWSIM.UnitOperations.UnitOperations.RefluxedAbsorber"
-
-        If xel.Value.EndsWith("DWSIM.Reactor_Conversion") Then xel.Value = "DWSIM.UnitOperations.Reactors.Reactor_Conversion"
-        If xel.Value.EndsWith("DWSIM.Reactor_Equilibrium") Then xel.Value = "DWSIM.UnitOperations.Reactors.Reactor_Equilibrium"
-        If xel.Value.EndsWith("DWSIM.Reactor_Gibbs") Then xel.Value = "DWSIM.UnitOperations.Reactors.Reactor_Gibbs"
-        If xel.Value.EndsWith("DWSIM.Reactor_PFR") Then xel.Value = "DWSIM.UnitOperations.Reactors.Reactor_PFR"
-        If xel.Value.EndsWith("DWSIM.Reactor_CSTR") Then xel.Value = "DWSIM.UnitOperations.Reactors.Reactor_CSTR"
-
-        If xel.Value.EndsWith("DWSIM.Adjust") Then xel.Value = "DWSIM.UnitOperations.SpecialOps.Adjust"
-        If xel.Value.EndsWith("DWSIM.Spec") Then xel.Value = "DWSIM.UnitOperations.SpecialOps.Spec"
-        If xel.Value.EndsWith("DWSIM.Recycle") Then xel.Value = "DWSIM.UnitOperations.SpecialOps.Recycle"
-        If xel.Value.EndsWith("DWSIM.EnergyRecycle") Then xel.Value = "DWSIM.UnitOperations.SpecialOps.EnergyRecycle"
+        For k As Integer = 0 To LegacyTypeNames.GetLength(0) - 1
+            If v.EndsWith(LegacyTypeNames(k, 0), StringComparison.Ordinal) Then
+                xel.Value = LegacyTypeNames(k, 1)
+                v = xel.Value
+            End If
+        Next
 
     End Sub
 
