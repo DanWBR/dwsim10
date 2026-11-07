@@ -39,6 +39,18 @@ VERSION HISTORY / CHANGELOG
 
 The full changelog including souce code changes can be viewed at https://github.com/DanWBR/dwsim10/commits/windows
 
+Version 10.2.16
+
+- [NEW] MCP server for the Patreon Edition on Linux: the dwsim-patreon-mcp package (x64 and ARM64) installs over dwsim-mcp, and the membership key in /etc/dwsim-mcp/dwsim-mcp.conf (DWSIM_LICENSE_KEY) or --license-key unlocks the Patreon property packages and unit operations
+- [CHG] K-values: the liquid and vapor fugacity coefficients are calculated in parallel only for packages whose calculation takes over 0.1 ms, so the cubic and activity coefficient packages no longer wait on parallel tasks (Biodiesel Production in the equation-oriented solver: 35.4 to 32.8 s)
+- [CHG] Equation-oriented solver (Patreon): each column starts its own solver at the profiles the system converged to when the results are written (Extractive Distillation: 42 to 1.2 s)
+- [CHG] Equation-oriented solver (Patreon): the Newton step is solved on the sparse matrix in both interfaces (1576 equations: 6 to 0.04 s)
+- [CHG] Equation-oriented solver (Patreon): the derivatives of rigorous columns solved by their own solver are shared among four copies of the flowsheet (Biodiesel Production: 43 to 35 s)
+- [CHG] Equation-oriented solver (Patreon): the log gives the time of each part of the solve, the slowest blocks and why a column is solved by its own solver
+- [FIX] Equation-oriented solver (Patreon): the same flowsheet could take a different number of iterations from one solve to the next on a busy computer
+- [FIX] FluentAPI and MCP server in a Patreon Edition install: the Patreon property packages and unit operations were refused; License.ActivateWithKey validates the membership key
+- [FIX] Flowsheets saved by an automation program with a version number below 5.0 reopened as files from before DWSIM 5 and loaded slowly
+
 Version 10.2.15
 
 - [NEW] Flowsheet from a PFD or P&ID (CAD Tools > Import Flowsheet from Drawing, or Create New from PFD or P&ID on the start page): the AI Assistant reads the drawing (image, PDF, DXF or DWG) and a five-step wizard shows the reading over it for correction, the equipment, the lines with the stream table and the kind of process inferred from the drawing's text (property package, compounds and units), checks it (open line ends, nozzle counts, the table's mass balance, tags against the CAD text) and builds the flowsheet with the items where the drawing has them, feeds and specifications from the stream table, rigorous columns with each feed on its stage and a recycle on each loop, then solves it and compares it with the table; P&IDs are set straight first (relief, flare, drain and vent lines, fuel and air of fired heaters, junctions), and the simulation name, comments and metadata come from the drawing; the first page of the three imports shows the AI Assistant's model, a local model reads only after a second click, and a moving bar, the step and the time taken show while reading
