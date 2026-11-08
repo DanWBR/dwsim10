@@ -10,3 +10,4 @@
 - [FIX] FluentAPI and MCP server in a Patreon Edition install: the Patreon property packages and unit operations were refused; License.ActivateWithKey validates the membership key
 - [FIX] Flowsheets saved by an automation program with a version number below 5.0 reopened as files from before DWSIM 5 and loaded slowly
 - [FIX] Distillation column with No reboiler and a feed on the bottom stage: Wang-Henke solved it with a hidden reboiler duty and failed the mass balance, and Naphtali-Sandholm diverged
+- [FIX] Pipe Network: a network whose Simplex, BFGS, IPOPT or simplified Newton solver stopped above its tolerance wrote its outlets anyway; it now stops with an error that gives the reason
