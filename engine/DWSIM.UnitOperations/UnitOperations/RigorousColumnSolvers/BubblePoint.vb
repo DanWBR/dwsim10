@@ -1106,7 +1106,17 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                         B = (sum3 - sum4 - Vj(0) * Hv(0) - Q(ns)) / Hl(ns)
                 End Select
             Else
-                B = Lj(ns)
+                'no reboiler: nothing heats the bottom stage, and the overall energy balance with no duty there gives
+                'the bottoms (the liquid leaving it was its own estimate, so the bottoms never left the first guess)
+                Q(ns) = 0.0
+                Dim sum3r, sum4r As Double
+                For i = 0 To ns
+                    sum3r += F(i) * Hfj(i) - LSSj(i) * Hl(i) - VSSj(i) * Hv(i)
+                Next
+                For i = 0 To ns - 1
+                    sum4r += Q(i)
+                Next
+                B = (sum3r - sum4r - Vj(0) * Hv(0)) / Hl(ns)
             End If
 
             If Not rebabs Then
@@ -1690,7 +1700,17 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                             B = (sum3 - sum4 - Vj(0) * Hv(0) - Q(ns)) / Hl(ns)
                     End Select
                 Else
-                    B = Lj(ns)
+                    'no reboiler: nothing heats the bottom stage, and the overall energy balance with no duty there gives
+                    'the bottoms (the liquid leaving it was its own estimate, so the bottoms never left the first guess)
+                    Q(ns) = 0.0
+                    Dim sum3r, sum4r As Double
+                    For i = 0 To ns
+                        sum3r += F(i) * Hfj(i) - LSSj(i) * Hl(i) - VSSj(i) * Hv(i)
+                    Next
+                    For i = 0 To ns - 1
+                        sum4r += Q(i)
+                    Next
+                    B = (sum3r - sum4r - Vj(0) * Hv(0)) / Hl(ns)
                 End If
 
                 sumF = 0
@@ -1813,6 +1833,7 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                             Q(ns) = sum3 - sum4 - Vj(0) * Hv(0) - Lj(ns) * Hl(ns)
                         End If
                         If rebabs Then Q(0) = 0.0
+                        If refabs Then Q(ns) = 0.0
                     Case Column.ColType.AbsorptionColumn
                         'use provided values
                     Case Column.ColType.RefluxedAbsorber

@@ -1651,7 +1651,7 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                 LSSj(i) = LSS(i)
             Next
 
-            If coltype = ColType.DistillationColumn And condt = condtype.Total_Condenser Then
+            If (coltype = ColType.DistillationColumn OrElse coltype = ColType.RefluxedAbsorber) And condt = condtype.Total_Condenser Then
                 vc(0) = lc(0).MultiplyConstY(LSS(0) / L(0))
             End If
 
@@ -2028,7 +2028,7 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
             For i = 1 To ns
                 sumLSS += LSSj(i)
             Next
-            If coltype = ColType.DistillationColumn Then
+            If HasCondenser() Then
                 If condt = Column.condtype.Full_Reflux Then
                     Vj(0) = F.Sum - Lj(ns) - sumLSS - sumVSS
                     LSSj(0) = 0.0#
@@ -2048,7 +2048,7 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
 
             For i = 0 To ns
                 Lj(i) = sumlkj(i)
-                If coltype = ColType.DistillationColumn And i = 0 Then
+                If HasCondenser() And i = 0 Then
                     If condt = condtype.Total_Condenser Then
                         LSSj(0) = Vj(0)
                         Vj(0) = 0.0
