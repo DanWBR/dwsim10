@@ -17,3 +17,4 @@
 - [FIX] Solid enthalpy from the solid heat capacity: the sensible heat used the heat capacity at the final temperature times the temperature change; it is now integrated (graphite from 25 to 800 °C: 17.1 to 13.4 kJ/mol, tables 13.3)
 - [FIX] Solid heat capacity and solid density of user compounds without a surface tension equation: a numbered equation was read as a constant equal to its number (Coal: 5 J/kmol/K at any temperature)
 - [FIX] Compounds marked as solids or listed in the forced solids take their solid enthalpy from the solid heat capacity even when the solid enthalpy is calculated from the liquid (silicon dioxide in Raoult's Law at 25 °C: −93,630 to 0 kJ/kg); the other solids keep the liquid route
+- [FIX] Flash with forced solids: compounds that crystallize from the liquid (carbon at 25 °C, water below 0 °C) stayed in the liquid; they now join the solid phase

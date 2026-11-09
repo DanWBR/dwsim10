@@ -173,7 +173,7 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
 
                 IObj?.SetCurrent
 
-                If PP.RET_VTF.SumY > 0.0 And S = 0.0 Then
+                If PP.RET_VTF.SumY > 0.0 Then
 
                     result = nl3.Flash_SL(Vx1, P, T, PP)
 
@@ -181,11 +181,18 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
 
                     'Return New Object() {L, 1 - L, 0.0#, Vx, Vs, L - L_old, ecount, d2 - d1}
 
-                    S = result(1) * L1
+                    If S = 0.0 Then
+                        S = result(1) * L1
+                        Vs = result(4)
+                    ElseIf result(1) > 0.0 Then
+                        'compounds that crystallize from the liquid join the forced solids
+                        Dim Sl As Double = result(1) * L1
+                        Vs = Vs.MultiplyConstY(S).AddY(DirectCast(result(4), Double()).MultiplyConstY(Sl)).NormalizeY()
+                        S += Sl
+                    End If
                     L1 = result(0) * L1
 
                     Vx1 = result(3)
-                    Vs = result(4)
 
                 End If
 
@@ -200,7 +207,7 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                         'Return New Object() {L, 1 - L, 0.0#, Vx, Vs, L - L_old, ecount, d2 - d1}
 
                         Vx2 = result(3)
-                        Vs = Vs.MultiplyConstY(S).AddY(DirectCast(result(4), Double()).MultiplyConstY(result(1))).NormalizeY()
+                        If result(1) > 0.0 Then Vs = Vs.MultiplyConstY(S).AddY(DirectCast(result(4), Double()).MultiplyConstY(result(1) * L2)).NormalizeY()
 
                         S = S + result(1) * L2
                         L2 = result(0) * L2
