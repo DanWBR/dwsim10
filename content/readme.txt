@@ -55,6 +55,7 @@ Version 10.2.16
 - [FIX] Flash with forced solids: when the rest of the mixture formed a liquid, the phases did not add up to the feed (a mixer of streams at 25 °C came out at 68.5 °C, a Gibbs reactor stopped with a flash error)
 - [FIX] Carbon Combustion sample: solid carbon had wrong formation and fusion enthalpies, and the reactor needed 19,963 kW of heat to burn carbon; it now removes 787.8 kW
 - [FIX] Carbon and Graphite (additional compounds): Carbon had the formation values of carbon gas, so burning it released about 995 kJ/mol instead of 393.5, and both had an enthalpy of fusion of 115 kJ/mol; both are now solid graphite with a heat capacity from the graphite tables
+- [FIX] Solid enthalpy from the solid heat capacity: the sensible heat used the heat capacity at the final temperature times the temperature change; it is now integrated (graphite from 25 to 800 °C: 17.1 to 13.4 kJ/mol, tables 13.3)
 
 Version 10.2.15
 
