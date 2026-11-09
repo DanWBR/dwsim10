@@ -2729,7 +2729,7 @@ Namespace BaseClasses
                 E = Solid_Density_Const_E
                 message = "Calculated using Experimental/Regressed data."
                 If eqno <> "" Then
-                    If Integer.TryParse(SurfaceTensionEquation, New Integer) Then
+                    If Integer.TryParse(eqno, New Integer) Then
                         result = PropertyPackages.PropertyPackage.CalcCSTDepProp(eqno, A, B, C, D, E, T, 0) 'kmol/m3
                     Else
                         result = PropertyPackages.PropertyPackage.ParseEquation(eqno, A, B, C, D, E, T) 'kmol/m3
@@ -2774,7 +2774,7 @@ Namespace BaseClasses
                 D = Solid_Heat_Capacity_Const_D
                 E = Solid_Heat_Capacity_Const_E
                 message = "Calculated using Experimental/Regressed data."
-                If Integer.TryParse(SurfaceTensionEquation, New Integer) Then
+                If Integer.TryParse(eqno, New Integer) Then
                     result = PropertyPackages.PropertyPackage.CalcCSTDepProp(eqno, A, B, C, D, E, T, 0) 'J/kmol/K
                 Else
                     result = PropertyPackages.PropertyPackage.ParseEquation(eqno, A, B, C, D, E, T) 'J/kmol/K
