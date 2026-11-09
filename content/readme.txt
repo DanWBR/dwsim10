@@ -54,6 +54,7 @@ Version 10.2.16
 - [FIX] Pipe Network: a network whose Simplex, BFGS, IPOPT or simplified Newton solver stopped above its tolerance wrote its outlets anyway; it now stops with an error that gives the reason
 - [FIX] Flash with forced solids: when the rest of the mixture formed a liquid, the phases did not add up to the feed (a mixer of streams at 25 °C came out at 68.5 °C, a Gibbs reactor stopped with a flash error)
 - [FIX] Carbon Combustion sample: solid carbon had wrong formation and fusion enthalpies, and the reactor needed 19,963 kW of heat to burn carbon; it now removes 787.8 kW
+- [FIX] Carbon and Graphite (additional compounds): Carbon had the formation values of carbon gas, so burning it released about 995 kJ/mol instead of 393.5, and both had an enthalpy of fusion of 115 kJ/mol; both are now solid graphite with a heat capacity from the graphite tables
 
 Version 10.2.15
 
