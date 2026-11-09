@@ -638,9 +638,13 @@ Namespace PropertyPackages
                             H = RET_Hid_FromLiqCp(Vx, T, P)
                     End Select
                 ElseIf st = State.Solid Then
-                    If SolidPhaseEnthalpy_UsesCp Then
+                    Dim refSolids = SplitSolidsAtReference(Vx)
+                    If SolidPhaseEnthalpy_UsesCp OrElse refSolids.AllAtReference Then
                         H = CalcSolidEnthalpyFromCp(T, Vx, DW_GetConstantProperties)
                     Else
+                        'compounds solid at the reference state take the solid heat capacity; the rest, this route
+                        Dim Vwhole = Vx
+                        Vx = refSolids.Rest
                         Select Case EnthalpyEntropyCpCvCalculationMode
                             Case 0, 1 'Ideal
                                 H = Me.RET_Hid(298.15, T, Vx) + P / 1000 / Me.AUX_LIQDENS(T, Vx, P) - Me.RET_HVAPM(Me.AUX_CONVERT_MOL_TO_MASS(Vx), T) - RET_HFUSM(Me.AUX_CONVERT_MOL_TO_MASS(Vx), T)
@@ -649,6 +653,8 @@ Namespace PropertyPackages
                             Case 3, 4 'Experimental Liquid
                                 H = AUX_INT_CPDTm_L(298.15, T, Me.AUX_CONVERT_MOL_TO_MASS(Vx)) + P / 1000 / Me.AUX_LIQDENS(T, Vx, P) - RET_HFUSM(Me.AUX_CONVERT_MOL_TO_MASS(Vx), T)
                         End Select
+                        Vx = Vwhole
+                        H = refSolids.Combine(H, Function() CalcSolidEnthalpyFromCp(T, refSolids.Reference, DW_GetConstantProperties))
                     End If
                 End If
 
@@ -749,9 +755,13 @@ Namespace PropertyPackages
                             S = RET_Sid_FromLiqCp(Vx, T, P)
                     End Select
                 ElseIf st = State.Solid Then
-                    If SolidPhaseEnthalpy_UsesCp Then
+                    Dim refSolids = SplitSolidsAtReference(Vx)
+                    If SolidPhaseEnthalpy_UsesCp OrElse refSolids.AllAtReference Then
                         S = CalcSolidEnthalpyFromCp(T, Vx, DW_GetConstantProperties) / T
                     Else
+                        'compounds solid at the reference state take the solid heat capacity; the rest, this route
+                        Dim Vwhole = Vx
+                        Vx = refSolids.Rest
                         Select Case EnthalpyEntropyCpCvCalculationMode
                             Case 0, 1 'Ideal
                                 S = Me.RET_Sid(298.15, T, P, Vx) + P / 1000 / Me.AUX_LIQDENS(T, Vx, P) / T - Me.RET_HVAPM(Me.AUX_CONVERT_MOL_TO_MASS(Vx), T) / T - Me.RET_HFUSM(Me.AUX_CONVERT_MOL_TO_MASS(Vx), T) / T
@@ -760,6 +770,8 @@ Namespace PropertyPackages
                             Case 3, 4 'Experimental Liquid
                                 S = AUX_INT_CPDTm_L(298.15, T, Me.AUX_CONVERT_MOL_TO_MASS(Vx)) / T - RET_HFUSM(Me.AUX_CONVERT_MOL_TO_MASS(Vx), T) / T + P / 1000 / Me.AUX_LIQDENS(T, Vx, P) / T
                         End Select
+                        Vx = Vwhole
+                        S = refSolids.Combine(S, Function() CalcSolidEnthalpyFromCp(T, refSolids.Reference, DW_GetConstantProperties) / T)
                     End If
                 End If
 

@@ -10284,6 +10284,58 @@ Final3:
 
         End Function
 
+        ''' <summary>
+        ''' A solid phase split into the compounds that are solid at the reference state (marked as solids, or listed in
+        ''' the forced solids of the package) and the rest.
+        ''' </summary>
+        ''' <remarks>
+        ''' The formation values of a compound that is solid at 25 C refer to the solid, so its enthalpy comes from the solid
+        ''' heat capacity. The rest keep the package's route (liquid minus fusion), which is the right one for compounds that
+        ''' melt and boil, such as ice against liquid water.
+        ''' </remarks>
+        Public Class SolidReferenceSplit
+            ''' <summary>Mass fraction of the compounds solid at the reference state.</summary>
+            Public ReferenceMassFraction As Double
+            ''' <summary>Mole fractions of those compounds, normalized.</summary>
+            Public Reference As Double()
+            ''' <summary>Mole fractions of the other compounds, normalized; the whole phase when there are none.</summary>
+            Public Rest As Double()
+            Public ReadOnly Property AllAtReference As Boolean
+                Get
+                    Return ReferenceMassFraction >= 1.0
+                End Get
+            End Property
+            ''' <summary>The mass-weighted property of the phase from the value of the rest and that of the reference solids.</summary>
+            Public Function Combine(restValue As Double, referenceValue As Func(Of Double)) As Double
+                If ReferenceMassFraction <= 0.0 Then Return restValue
+                Return (1.0 - ReferenceMassFraction) * restValue + ReferenceMassFraction * referenceValue()
+            End Function
+        End Class
+
+        ''' <summary>Splits the solid phase Vx (mole fractions) into the compounds solid at the reference state and the rest.</summary>
+        Public Function SplitSolidsAtReference(Vx As Array) As SolidReferenceSplit
+            Dim x As Double() = TryCast(Vx, Double())
+            If x Is Nothing Then x = Vx.Cast(Of Double).ToArray()
+            Dim cprops = DW_GetConstantProperties()
+            Dim names = RET_VNAMES()
+            Dim mw = RET_VMM()
+            Dim n = x.Length
+            Dim ref(n - 1), rest(n - 1) As Double
+            Dim wref, wtot As Double
+            For i = 0 To n - 1
+                Dim m = x(i) * mw(i)
+                wtot += m
+                If x(i) > 0.0 AndAlso (cprops(i).IsSolid OrElse (ForcedSolids IsNot Nothing AndAlso ForcedSolids.Contains(names(i)))) Then
+                    ref(i) = x(i)
+                    wref += m
+                Else
+                    rest(i) = x(i)
+                End If
+            Next
+            If wref <= 0.0 OrElse wtot <= 0.0 Then Return New SolidReferenceSplit With {.ReferenceMassFraction = 0.0, .Reference = ref, .Rest = x}
+            Return New SolidReferenceSplit With {.ReferenceMassFraction = wref / wtot, .Reference = ref.NormalizeY(), .Rest = If(wref < wtot, rest.NormalizeY(), rest)}
+        End Function
+
         Public Function CalcSolidEnthalpyFromCp(ByVal T As Double, ByVal Vx As Double(), cprops As List(Of Interfaces.ICompoundConstantProperties)) As Double
 
             Dim n As Integer = Vx.Length - 1

@@ -57,6 +57,7 @@ Version 10.2.16
 - [FIX] Carbon and Graphite (additional compounds): Carbon had the formation values of carbon gas, so burning it released about 995 kJ/mol instead of 393.5, and both had an enthalpy of fusion of 115 kJ/mol; both are now solid graphite with a heat capacity from the graphite tables
 - [FIX] Solid enthalpy from the solid heat capacity: the sensible heat used the heat capacity at the final temperature times the temperature change; it is now integrated (graphite from 25 to 800 °C: 17.1 to 13.4 kJ/mol, tables 13.3)
 - [FIX] Solid heat capacity and solid density of user compounds without a surface tension equation: a numbered equation was read as a constant equal to its number (Coal: 5 J/kmol/K at any temperature)
+- [FIX] Compounds marked as solids or listed in the forced solids take their solid enthalpy from the solid heat capacity even when the solid enthalpy is calculated from the liquid (silicon dioxide in Raoult's Law at 25 °C: −93,630 to 0 kJ/kg); the other solids keep the liquid route
 
 Version 10.2.15
 
