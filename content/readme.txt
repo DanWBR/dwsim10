@@ -54,11 +54,12 @@ Version 10.2.16
 - [FIX] Pipe Network: a network whose Simplex, BFGS, IPOPT or simplified Newton solver stopped above its tolerance wrote its outlets anyway; it now stops with an error that gives the reason
 - [FIX] Flash with forced solids: when the rest of the mixture formed a liquid, the phases did not add up to the feed (a mixer of streams at 25 °C came out at 68.5 °C, a Gibbs reactor stopped with a flash error)
 - [FIX] Carbon Combustion sample: solid carbon had wrong formation and fusion enthalpies, and the reactor needed 19,963 kW of heat to burn carbon; it now removes 787.8 kW
-- [FIX] Carbon and Graphite (additional compounds): Carbon had the formation values of carbon gas, so burning it released about 995 kJ/mol instead of 393.5, and both had an enthalpy of fusion of 115 kJ/mol; both are now solid graphite with a heat capacity from the graphite tables
+- [FIX] Carbon and Graphite (additional compounds): Carbon had the formation values of carbon gas, so burning it released about 995 kJ/mol instead of 393.5, and both had an enthalpy of fusion of 115 kJ/mol; both are now solid graphite with a heat capacity from the graphite tables, marked as solids
 - [FIX] Solid enthalpy from the solid heat capacity: the sensible heat used the heat capacity at the final temperature times the temperature change; it is now integrated (graphite from 25 to 800 °C: 17.1 to 13.4 kJ/mol, tables 13.3)
 - [FIX] Solid heat capacity and solid density of user compounds without a surface tension equation: a numbered equation was read as a constant equal to its number (Coal: 5 J/kmol/K at any temperature)
 - [FIX] Compounds marked as solids or listed in the forced solids take their solid enthalpy from the solid heat capacity even when the solid enthalpy is calculated from the liquid (silicon dioxide in Raoult's Law at 25 °C: −93,630 to 0 kJ/kg); the other solids keep the liquid route
 - [FIX] Flash with forced solids: compounds that crystallize from the liquid stayed in it (carbon next to forced silicon dioxide at 25 °C); they now join the solid phase
+- [FIX] Solid-liquid equilibrium with an equation of state: the activity coefficient used the vapor pressure correlation as the pure-liquid reference (water with traces of H2S and HCl in Peng-Robinson did not freeze at −10 °C); the reference is now the pure liquid in the same model
 
 Version 10.2.15
 

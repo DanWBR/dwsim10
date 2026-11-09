@@ -573,6 +573,21 @@ out:        Return New Object() {L, V, Vx, Vy, ecount, 0.0#, PP.RET_NullVector, 
                 Vp(i) = PP.AUX_PVAPi(i, T)
             Next
 
+            'reference: each compound as a pure liquid at T and P with the same model, so that the activity
+            'coefficient of a compound tends to one as it becomes pure (the vapor pressure correlation and the
+            'equation of state disagree by 15 % for water at -10 C, which moved its freezing point by 16 K)
+            Dim PhiPure(n) As Double
+            For i = 0 To n
+                PhiPure(i) = Vp(i) / P
+                If Vz(i) > 0.0 And Not TypeOf PP Is IdealElectrolytePropertyPackage Then
+                    Dim pure = PP.RET_NullVector()
+                    pure(i) = 1.0
+                    IObj?.SetCurrent
+                    Dim phi = PP.DW_CalcFugCoeff(pure, T, P, State.Liquid)(i)
+                    If phi > 0.0 And Not Double.IsInfinity(phi) And Not Double.IsNaN(phi) Then PhiPure(i) = phi
+                End If
+            Next
+
             IObj?.Paragraphs.Add(String.Format("<h2>Calculations</h2>"))
 
             ecount = 0
@@ -588,7 +603,7 @@ out:        Return New Object() {L, V, Vx, Vy, ecount, 0.0#, PP.RET_NullVector, 
                 If TypeOf PP Is IdealElectrolytePropertyPackage Then
                     ActCoeff = PP.RET_UnitaryVector()
                 Else
-                    ActCoeff = PP.DW_CalcFugCoeff(Vx, T, P, State.Liquid).MultiplyConstY(P).DivideY(Vp)
+                    ActCoeff = PP.DW_CalcFugCoeff(Vx, T, P, State.Liquid).DivideY(PhiPure)
                 End If
                 MaxX = MaxAct.DivideY(ActCoeff)
                 For i = 0 To n

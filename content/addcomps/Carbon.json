@@ -62,6 +62,7 @@
   "IsModified": false,
   "IsPF": 0,
   "IsSalt": false,
+  "IsSolid": true,
   "Liquid_Density_Const_A": 0.0,
   "Liquid_Density_Const_B": 0.0,
   "Liquid_Density_Const_C": 0.0,
