@@ -88,6 +88,9 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
 
             Dim n = Vz.Length - 1
 
+            'the fluid part of the feed: the whole feed, or the feed without the forced solids
+            Dim Vfluid As Double() = Vz
+
             If PP.ForcedSolids.Count > 0 Then
 
                 'we have forced solids
@@ -102,6 +105,7 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                 S = Vs.Sum
                 Vzns = Vzns.NormalizeY
                 Vs = Vs.NormalizeY
+                Vfluid = Vzns
 
                 IObj?.SetCurrent
 
@@ -144,7 +148,8 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
 
                     If L2 > 0.0 Then
 
-                        result = nl2.Flash_PT_3P(Vz, V, L1, L2, Vy, Vx1, Vx2, P, T, PP)
+                        'the three-phase flash works on the fluid part alone, with phase fractions of that part
+                        result = nl2.Flash_PT_3P(Vfluid, V / (1 - S), L1 / (1 - S), L2 / (1 - S), Vy, Vx1, Vx2, P, T, PP)
 
                     End If
 
