@@ -65,15 +65,78 @@ namespace DWSIM.Extensions.SolidCraft
             return null;
         }
 
-        /// <summary>The Python that runs the script: the one of DWSIM's settings, else the one on the PATH.</summary>
+        /// <summary>
+        /// The Python that runs the script, the first of these that is 3.12 or newer (pyDEXPI needs
+        /// it): DWSIM_DEXPI_PYTHON, the ones installed for the user or the computer, the one on
+        /// the PATH, the one of DWSIM's settings. The settings' Python comes last: it is the one
+        /// DWSIM's scripts run on, often an older distribution. Null when there is none.
+        /// </summary>
         static string Python()
         {
             var name = CADCraftSession.Exe("python");
+            var candidates = new List<string>();
+            var env = Environment.GetEnvironmentVariable("DWSIM_DEXPI_PYTHON");
+            if (!string.IsNullOrWhiteSpace(env)) candidates.Add(env.Trim());
+            if (CADCraftSession.IsWindows)
+            {
+                var roots = new[]
+                {
+                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "Python"),
+                    Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+                };
+                foreach (var root in roots.Where(Directory.Exists))
+                    try
+                    {
+                        candidates.AddRange(Directory.GetDirectories(root, "Python3*")
+                            .OrderByDescending(d => { int v; return int.TryParse(Path.GetFileName(d).Substring(7), out v) ? v : 0; })
+                            .Select(d => Path.Combine(d, name)).Where(File.Exists));
+                    }
+                    catch (Exception) { }
+                candidates.Add("python");
+            }
+            else
+            {
+                candidates.Add("python3");
+                candidates.Add("python");
+            }
             var configured = (GlobalSettings.Settings.PythonPath ?? "").Trim();
             if (configured.Length > 0)
-                foreach (var candidate in new[] { Path.Combine(configured, name), Path.Combine(configured, "bin", "python3") })
-                    if (File.Exists(candidate)) return candidate;
-            return CADCraftSession.IsWindows ? "python" : "python3";
+                candidates.AddRange(new[] { Path.Combine(configured, name), Path.Combine(configured, "bin", "python3") }.Where(File.Exists));
+            return candidates.FirstOrDefault(Suits);
+        }
+
+        /// <summary>Whether a Python starts and is 3.12 or newer.</summary>
+        static bool Suits(string python)
+        {
+            try
+            {
+                using (var p = new Process { StartInfo = Start(python, "-c \"import sys; sys.exit(0 if sys.version_info >= (3, 12) else 3)\"") })
+                {
+                    p.Start();
+                    if (!p.WaitForExit(15000)) { try { p.Kill(); } catch (Exception) { } return false; }
+                    return p.ExitCode == 0;
+                }
+            }
+            catch (Exception) { return false; }
+        }
+
+        /// <summary>
+        /// A hidden process with its output redirected, without the PYTHONHOME that DWSIM sets for
+        /// the Python of its settings (another Python would look for its library there).
+        /// </summary>
+        static ProcessStartInfo Start(string program, string args)
+        {
+            var psi = new ProcessStartInfo(program, args)
+            {
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true,
+                StandardOutputEncoding = Encoding.UTF8,
+                StandardErrorEncoding = Encoding.UTF8
+            };
+            psi.EnvironmentVariables.Remove("PYTHONHOME");
+            return psi;
         }
 
         /// <summary>The reading of a DEXPI file, as the JSON <see cref="DrawingReading.FromJson"/> takes.</summary>
@@ -86,15 +149,11 @@ namespace DWSIM.Extensions.SolidCraft
             var script = converter.EndsWith(".py", StringComparison.OrdinalIgnoreCase);
             var output = Path.Combine(Path.GetTempPath(), "dwsim-dexpi-" + Guid.NewGuid().ToString("N") + ".json");
             var args = (script ? Quote(converter) + " " : "") + Quote(file) + " -o " + Quote(output);
-            var psi = new ProcessStartInfo(script ? Python() : converter, args)
-            {
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                CreateNoWindow = true,
-                StandardOutputEncoding = Encoding.UTF8,
-                StandardErrorEncoding = Encoding.UTF8
-            };
+            var python = script ? Python() : null;
+            if (script && python == null)
+                throw new InvalidOperationException(Script + " needs Python 3.12 or newer, and none was found. " +
+                    "Install it, or set DWSIM_DEXPI_PYTHON to its python executable.");
+            var psi = Start(script ? python : converter, args);
             step?.Invoke("Reading the DEXPI model with " + Program);
             var log = new StringBuilder();
             try

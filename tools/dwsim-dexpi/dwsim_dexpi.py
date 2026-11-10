@@ -31,15 +31,18 @@ Values are written in C, bar (absolute) and kg/h.
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import logging
+import re
 import sys
+import tempfile
 from collections import Counter
 from pathlib import Path
 
 from pydexpi import get_graph, load_json_file, load_xml_file
 from pydexpi.toolkits import process_toolkit as pt
-from pydexpi.toolkits.diagram_toolkit import object_extents
+from pydexpi.toolkits.diagram_toolkit import Bounds, object_extents
 from pydexpi.toolkits.display_name import get_tag
 
 ITEM, PASS, END = "item", "pass", "end"
@@ -394,6 +397,36 @@ def plant_network(model) -> tuple[Network, list[str]]:
 
 # -- the reading ----------------------------------------------------------------------------
 
+OVERVIEW_PIXELS = 2400
+
+
+def overview(model) -> tuple[str, Bounds | None]:
+    """The model's diagram as a PNG (base64) and the part of the sheet it shows.
+
+    ("", None) when the model has no diagram or pyDEXPI's PNG export (the resvg package) is not
+    installed: the reading then goes without a picture.
+    """
+    if model.diagram is None:
+        return "", None
+    try:
+        from pydexpi.exports.png_export import svg_to_png
+        from pydexpi.exports.svg_export import DrawDiagram
+
+        svg = DrawDiagram(model.diagram, padding=5.0).draw_svg(return_element=False, background=True)
+        box = re.search(r'viewBox="([^"]+)"', svg)
+        x, y, width, height = (float(v) for v in box.group(1).split())
+        if width <= 0 or height <= 0:
+            return "", None
+        with tempfile.TemporaryDirectory() as folder:
+            png = Path(folder) / "overview.png"
+            svg_to_png(svg, png, scale=OVERVIEW_PIXELS / max(width, height))
+            data = png.read_bytes()
+        return base64.b64encode(data).decode("ascii"), Bounds(x, y, x + width, y + height)
+    except Exception as ex:  # noqa: BLE001 - the picture is a convenience, the reading does not depend on it
+        print(f"  - no picture of the diagram: {ex}", file=sys.stderr)
+        return "", None
+
+
 def reading(path: Path, strict: bool) -> dict:
     load = load_json_file if path.suffix.lower() == ".json" else load_xml_file
     model = load(str(path), strict=strict)
@@ -406,6 +439,10 @@ def reading(path: Path, strict: bool) -> dict:
     sheet = None
     for b in extents.values():
         sheet = b if sheet is None else sheet.union(b)
+    # with the diagram rendered, the items are placed on that picture
+    picture, frame = overview(model)
+    if frame is not None:
+        sheet = frame
 
     def place(key):
         b = extents.get(key)
@@ -448,6 +485,7 @@ def reading(path: Path, strict: bool) -> dict:
                     "evidence": "DEXPI " + ("process" if is_process else "plant") + " model" + (", from " + origin if origin else "")},
         "texts": [],
         "notes": net.notes,
+        "overview": picture,
         "title_block": {"title": path.stem},
     }
 

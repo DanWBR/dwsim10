@@ -12,6 +12,9 @@ It reads DEXPI 2.0 and 2.0.1 (XML and JSON) and Proteus XML (DEXPI 1.3) through
 | Process model | PFD | process steps as equipment, streams with temperature, pressure, mass flow and mass composition, the diagram's layout |
 | Plant model (P&ID) | P&ID | equipment, control and safety valves, the piping between them with line numbers, the diagram's layout |
 
+The diagram is rendered as the picture the import shows the items on (pyDEXPI's PNG export, the
+`resvg` package; without it the reading has no picture).
+
 Block valves, check valves, reducers and other in-line pieces are passed through, dead-end
 branches (drains, instrument taps) are left out and tees become mixers or splitters.
 
@@ -25,8 +28,9 @@ python dwsim_dexpi.py model.xml -o model.reading.json
 Python 3.12 or newer. DWSIM runs the program by itself when a `.xml` file is chosen in the
 import: it looks for `dwsim-dexpi` (a frozen executable) or `dwsim_dexpi.py` in the folder named
 by the `DWSIM_DEXPI_HOME` environment variable, in `extenders/dexpi` and `tools/dwsim-dexpi`
-under DWSIM's folder, and on the `PATH`. The script runs with the Python of DWSIM's settings, or
-the one on the `PATH`.
+under DWSIM's folder, and on the `PATH`. The script runs with the first Python 3.12 or newer among: the
+one named by `DWSIM_DEXPI_PYTHON`, the ones installed for the user or the computer, the one on the
+`PATH` and the one of DWSIM's settings.
 
 ## License
 
