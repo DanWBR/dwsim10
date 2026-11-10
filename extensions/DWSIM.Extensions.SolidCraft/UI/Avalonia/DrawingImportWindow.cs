@@ -160,7 +160,7 @@ namespace DWSIM.Extensions.SolidCraft
             var picked = await Storage.OpenFilePickerAsync(new FilePickerOpenOptions
             {
                 Title = "The PFD or P&ID",
-                FileTypeFilter = new[] { new FilePickerFileType(DrawingImportSession.FileFilterText) { Patterns = DrawingImportClient.Extensions.Select(x => "*" + x).ToArray() }, FilePickerFileTypes.All }
+                FileTypeFilter = new[] { new FilePickerFileType(DrawingImportSession.FileFilterText) { Patterns = DrawingImportSession.FileExtensions.Select(x => "*" + x).ToArray() }, FilePickerFileTypes.All }
             });
             var path = picked.FirstOrDefault()?.TryGetLocalPath();
             if (path == null) return;
@@ -168,7 +168,7 @@ namespace DWSIM.Extensions.SolidCraft
             try
             {
                 var ext = Path.GetExtension(path).ToLowerInvariant();
-                preview.Source = ext == ".pdf" || ext == ".dxf" || ext == ".dwg" ? null : new Bitmap(path);
+                preview.Source = ext == ".pdf" || ext == ".dxf" || ext == ".dwg" || DexpiImport.IsDexpi(path) ? null : new Bitmap(path);
             }
             catch (Exception) { preview.Source = null; }
         }
@@ -180,10 +180,11 @@ namespace DWSIM.Extensions.SolidCraft
             reading = new CancellationTokenSource();
             var token = reading.Token;
             SetBusy(true);
-            work.Start("Checking the AI Assistant's model");
+            var dexpi = DexpiImport.IsDexpi(session.File);
+            work.Start(dexpi ? "Reading the DEXPI model" : "Checking the AI Assistant's model");
             try
             {
-                var model = await work.Model(token, "a drawing");
+                var model = dexpi ? (object)DexpiImport.Program : await work.Model(token, "a drawing");
                 if (model == null) { read.Content = "Read with the local model"; return; }
                 read.Content = "Read the drawing";
                 await Task.Run(() => session.Read(token, s => Dispatcher.UIThread.Post(() => { if (!token.IsCancellationRequested) work.Step(s); })));

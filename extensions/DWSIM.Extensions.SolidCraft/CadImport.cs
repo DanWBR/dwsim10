@@ -36,8 +36,8 @@ namespace DWSIM.Extensions.SolidCraft
     public static class CadImport
     {
         /// <summary>
-        /// Builds a flowsheet from a process flow diagram or a P&amp;ID (image, PDF, DXF or DWG), or from a reading saved
-        /// as .json. The compounds and the property package are the ones the reading suggests unless given. With
+        /// Builds a flowsheet from a process flow diagram or a P&amp;ID (image, PDF, DXF or DWG), from a DEXPI model
+        /// (.xml, read by dwsim-dexpi without the assistant), or from a reading saved as .json. The compounds and the property package are the ones the reading suggests unless given. With
         /// <paramref name="solve"/> the flowsheet is solved and compared with the drawing's stream table; with
         /// <paramref name="fitToTable"/> (Patreon Edition) the equipment efficiencies and column reflux ratios are then
         /// fitted to the table. Errors from the checks stop the build: they are in the session's <c>Check()</c>.

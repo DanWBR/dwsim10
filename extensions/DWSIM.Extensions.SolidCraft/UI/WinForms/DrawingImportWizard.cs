@@ -91,7 +91,7 @@ namespace DWSIM.Extensions.SolidCraft
 
         private void btnBrowse_Click(object sender, EventArgs e)
         {
-            using (var d = new OpenFileDialog { Filter = DrawingImportSession.FileFilterText + "|" + string.Join(";", DrawingImportClient.Extensions.Select(x => "*" + x)) + "|All files|*.*" })
+            using (var d = new OpenFileDialog { Filter = DrawingImportSession.FileFilterText + "|" + string.Join(";", DrawingImportSession.FileExtensions.Select(x => "*" + x)) + "|All files|*.*" })
             {
                 if (d.ShowDialog(this) != DialogResult.OK) return;
                 txtFile.Text = d.FileName;
@@ -104,7 +104,7 @@ namespace DWSIM.Extensions.SolidCraft
             try
             {
                 var ext = Path.GetExtension(file).ToLowerInvariant();
-                if (ext == ".pdf" || ext == ".dxf" || ext == ".dwg") { picDrawing.Image = null; return; }
+                if (ext == ".pdf" || ext == ".dxf" || ext == ".dwg" || DexpiImport.IsDexpi(file)) { picDrawing.Image = null; return; }
                 using (var fs = File.OpenRead(file)) picDrawing.Image = Image.FromStream(fs);
             }
             catch (Exception) { picDrawing.Image = null; }
@@ -117,10 +117,11 @@ namespace DWSIM.Extensions.SolidCraft
             reading = new CancellationTokenSource();
             var token = reading.Token;
             SetBusy(true);
-            work.Start("Checking the AI Assistant's model");
+            var dexpi = DexpiImport.IsDexpi(session.File);
+            work.Start(dexpi ? "Reading the DEXPI model" : "Checking the AI Assistant's model");
             try
             {
-                var model = await work.Model(token, "a drawing");
+                var model = dexpi ? (object)DexpiImport.Program : await work.Model(token, "a drawing");
                 if (model == null) { btnRead.Text = "Read with the local model"; return; }
                 btnRead.Text = "Read the drawing";
                 await Task.Run(() => session.Read(token, s => BeginInvoke((Action)(() => { if (!token.IsCancellationRequested) work.Step(s); }))));

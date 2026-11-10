@@ -33,7 +33,7 @@ namespace DWSIM.Extensions.SolidCraft
     /// </summary>
     public sealed class CADCraftSession : IDisposable
     {
-        static bool IsWindows => RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+        internal static bool IsWindows => RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
 
         internal static string Exe(string name) => IsWindows ? name + ".exe" : name;
 
