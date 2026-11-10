@@ -13,22 +13,24 @@
 // You should have received a copy of the GNU General Public License along with DWSIM. If not, see
 // <http://www.gnu.org/licenses/>.
 
+#nullable disable
+
 using System;
 using System.Collections.Generic;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
-using DWSIM.UI.Shared.Avalonia;
 
-namespace DWSIM.Extensions.SolidCraft
+namespace DWSIM.UI.Shared.Avalonia
 {
     /// <summary>
-    /// The frame of the import wizards, laid out as the Simulation Setup Wizard: the step and its
+    /// The frame of a wizard, laid out as the Simulation Setup Wizard: the step and its
     /// description on top, the steps listed on the left (a click goes to one), the page in the
-    /// middle, and a note with Back, Next, Finish and Close at the bottom.
+    /// middle, and a note with Back, Next, Finish and Close at the bottom. Shared by the wizards
+    /// of the extensions, so that they look and behave as one.
     /// </summary>
-    internal sealed class WizardFrame
+    public sealed class WizardFrame
     {
         readonly string[] steps, texts;
         readonly Control[] pages;
