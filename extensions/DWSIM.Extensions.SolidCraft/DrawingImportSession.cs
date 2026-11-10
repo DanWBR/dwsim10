@@ -105,7 +105,7 @@ namespace DWSIM.Extensions.SolidCraft
         {
             Tidied = Reading.Tidy();
             Setup = new ImportSetup();
-            var names = Reading.Process.Compounds.Concat(Reading.Lines.SelectMany(l => l.Compounds.Keys)).Distinct(StringComparer.OrdinalIgnoreCase);
+            var names = Reading.Process.Compounds.Concat(Reading.Lines.SelectMany(l => l.Compounds.Keys.Concat(l.MoleFractions.Keys))).Distinct(StringComparer.OrdinalIgnoreCase);
             foreach (var n in names)
             {
                 var db = DrawingImportBuilder.CompoundName(Flowsheet, n);
@@ -117,7 +117,7 @@ namespace DWSIM.Extensions.SolidCraft
         }
 
         /// <summary>The names in the reading the database did not match.</summary>
-        public List<string> UnmatchedCompounds() => Reading.Process.Compounds.Concat(Reading.Lines.SelectMany(l => l.Compounds.Keys))
+        public List<string> UnmatchedCompounds() => Reading.Process.Compounds.Concat(Reading.Lines.SelectMany(l => l.Compounds.Keys.Concat(l.MoleFractions.Keys)))
             .Distinct(StringComparer.OrdinalIgnoreCase).Where(n => DrawingImportBuilder.CompoundName(Flowsheet, n) == null).ToList();
 
         /// <summary>The first package of a kind of process that this DWSIM has.</summary>

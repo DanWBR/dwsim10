@@ -114,6 +114,14 @@ namespace DWSIM.Extensions.SolidCraft
         {
             session.File = txtFile.Text.Trim();
             session.Kind = cbKind.SelectedIndex == 1 ? "pfd" : cbKind.SelectedIndex == 2 ? "pid" : "auto";
+            if (DexpiImport.IsDexpi(session.File) && DexpiImport.FindConverter() == null)
+            {
+                lblReadStatus.Text = DexpiImport.MissingText;
+                if (MessageBox.Show(this, DexpiImport.MissingText + Environment.NewLine + Environment.NewLine + "Open the download page?", Text,
+                        MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
+                    DexpiImport.OpenDownloadPage();
+                return;
+            }
             reading = new CancellationTokenSource();
             var token = reading.Token;
             SetBusy(true);

@@ -63,6 +63,26 @@ namespace DWSIM.Extensions.SolidCraft
             public int Recycles;
         }
 
+        /// <summary>
+        /// The compounds' mass flows of the lines that give their composition in mole fractions and
+        /// their mass flow, with the molar weights of the flowsheet's compounds.
+        /// </summary>
+        static void MassFlowsFromMoleFractions(IFlowsheet fs, DrawingReading r)
+        {
+            foreach (var l in r.Lines.Where(l => l.Compounds.Count == 0 && l.MoleFractions.Count > 0 && l.W.HasValue))
+            {
+                var mass = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+                foreach (var c in l.MoleFractions)
+                {
+                    var name = MatchSelected(fs, c.Key);
+                    if (name != null && c.Value > 0) mass[c.Key] = c.Value * fs.SelectedCompounds[name].Molar_Weight;
+                }
+                var total = mass.Values.Sum();
+                if (total <= 0) continue;
+                foreach (var c in mass) l.Compounds[c.Key] = l.W.Value * c.Value / total;
+            }
+        }
+
         public static Result Build(IFlowsheet fs, DrawingReading r, ImportSetup setup)
         {
             var res = new Result();
@@ -87,6 +107,7 @@ namespace DWSIM.Extensions.SolidCraft
                     try { package = fs.CreateAndAddPropertyPackage(setup.PropertyPackage); }
                     catch (Exception ex) { Note(ImportIssue.Levels.Error, setup.PropertyPackage, "the property package could not be added: " + ex.GetBaseException().Message); }
             }
+            MassFlowsFromMoleFractions(fs, r);
             var units = setup.UseDrawingUnits ? UnitSystem(fs, r.Units, res) : fs.FlowsheetOptions.SelectedUnitSystem;
 
             // where the items go: the drawing's layout, scaled onto the canvas

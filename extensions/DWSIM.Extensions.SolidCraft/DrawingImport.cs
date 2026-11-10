@@ -117,6 +117,12 @@ namespace DWSIM.Extensions.SolidCraft
                         var v = Num(p.Value);
                         if (v.HasValue) line.Compounds[p.Name] = v.Value;
                     }
+                if (s["mole_fractions"] is JObject ms)
+                    foreach (var p in ms.Properties())
+                    {
+                        var v = Num(p.Value);
+                        if (v.HasValue) line.MoleFractions[p.Name] = v.Value;
+                    }
                 r.Lines.Add(line);
             }
             foreach (var t in (o["texts"] as JArray) ?? new JArray())
@@ -162,7 +168,8 @@ namespace DWSIM.Extensions.SolidCraft
                     ["id"] = l.Id, ["name"] = l.Name, ["line_number"] = l.LineNumber, ["from"] = l.From, ["to"] = l.To,
                     ["from_port"] = l.FromPort, ["to_port"] = l.ToPort, ["T"] = N(l.T), ["P"] = N(l.P), ["W"] = N(l.W), ["vf"] = N(l.VaporFraction),
                     ["from_level"] = N(l.FromLevel), ["to_level"] = N(l.ToLevel),
-                    ["compounds"] = new JObject(l.Compounds.Select(c => new JProperty(c.Key, c.Value))), ["include"] = l.Include,
+                    ["compounds"] = new JObject(l.Compounds.Select(c => new JProperty(c.Key, c.Value))),
+                    ["mole_fractions"] = new JObject(l.MoleFractions.Select(c => new JProperty(c.Key, c.Value))), ["include"] = l.Include,
                 })),
                 ["texts"] = new JArray(Texts),
                 ["cad_texts"] = new JArray(CadTexts),
@@ -438,6 +445,12 @@ namespace DWSIM.Extensions.SolidCraft
 
         /// <summary>The mass flow of each compound the table lists, in the table's mass flow unit.</summary>
         public Dictionary<string, double> Compounds = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// The mole fraction of each compound, for a source that gives the composition in moles (a
+        /// DEXPI model); the build turns it into the compounds' mass flows once the compounds are known.
+        /// </summary>
+        public Dictionary<string, double> MoleFractions = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
 
         public bool Include = true;
 

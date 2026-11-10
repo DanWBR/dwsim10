@@ -25,14 +25,32 @@ namespace DWSIM.Extensions.SolidCraft
 {
     /// <summary>
     /// Reads a DEXPI model (DEXPI 2.0 and 2.0.1 XML, Proteus XML) as a drawing reading, through
-    /// dwsim-dexpi: a separate program (tools/dwsim-dexpi, it uses pyDEXPI) that the extension
-    /// only runs. A process model gives a PFD reading with its stream data, a plant model a
+    /// dwsim-dexpi: a separate program (github.com/DanWBR/dwsim-dexpi, it uses pyDEXPI) that the
+    /// user installs and the extension only runs. A process model gives a PFD reading with its stream data, a plant model a
     /// P&amp;ID reading. No AI Assistant is needed.
     /// </summary>
     public static class DexpiImport
     {
         public const string Program = "dwsim-dexpi";
         const string Script = "dwsim_dexpi.py";
+
+        /// <summary>Where dwsim-dexpi is downloaded from.</summary>
+        public const string DownloadUrl = "https://github.com/DanWBR/dwsim-dexpi/releases/latest";
+
+        /// <summary>The folder under DWSIM's where the program is looked for first.</summary>
+        public static string InstallFolder => Path.Combine(Path.GetDirectoryName(typeof(DexpiImport).Assembly.Location) ?? AppDomain.CurrentDomain.BaseDirectory, "dexpi");
+
+        /// <summary>What to tell the user when the program is not installed.</summary>
+        public static string MissingText =>
+            "DEXPI models are read by " + Program + ", a separate free program that is not installed. Download it from " + DownloadUrl +
+            ", unpack it into " + InstallFolder + " (or set DWSIM_DEXPI_HOME to its folder) and read the file again.";
+
+        /// <summary>Opens the download page in the browser.</summary>
+        public static void OpenDownloadPage()
+        {
+            try { Process.Start(new ProcessStartInfo(DownloadUrl) { UseShellExecute = true }); }
+            catch (Exception) { }
+        }
 
         /// <summary>The file types read as DEXPI models.</summary>
         public static readonly string[] Extensions = { ".xml" };
@@ -41,9 +59,9 @@ namespace DWSIM.Extensions.SolidCraft
             Extensions.Any(x => (file ?? "").Trim().EndsWith(x, StringComparison.OrdinalIgnoreCase));
 
         /// <summary>
-        /// The converter: the frozen program or its Python script, in DWSIM_DEXPI_HOME, in
-        /// extenders/dexpi or tools/dwsim-dexpi under DWSIM's folder, then on the PATH. Null when
-        /// it is not there.
+        /// The converter: the program or its Python script, in DWSIM_DEXPI_HOME, in extenders/dexpi
+        /// under DWSIM's folder, then on the PATH; in each folder, also in the dwsim-dexpi folder the
+        /// download unpacks to. Null when it is not there.
         /// </summary>
         public static string FindConverter()
         {
@@ -55,11 +73,10 @@ namespace DWSIM.Extensions.SolidCraft
             {
                 folders.Add(Path.Combine(root, "dexpi"));
                 folders.Add(Path.Combine(root, "extenders", "dexpi"));
-                folders.Add(Path.Combine(root, "tools", Program));
             }
             folders.AddRange((Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator).Where(p => !string.IsNullOrWhiteSpace(p)));
             foreach (var f in folders)
-                foreach (var name in new[] { CADCraftSession.Exe(Program), Script })
+                foreach (var name in new[] { CADCraftSession.Exe(Program), Path.Combine(Program, CADCraftSession.Exe(Program)), Script })
                     try { if (File.Exists(Path.Combine(f, name))) return Path.Combine(f, name); }
                     catch (ArgumentException) { }
             return null;
@@ -144,8 +161,7 @@ namespace DWSIM.Extensions.SolidCraft
         {
             var converter = FindConverter();
             if (converter == null)
-                throw new InvalidOperationException("DEXPI files are read by " + Program + ", a separate program that was not found. " +
-                    "Install it (tools/" + Program + " of DWSIM's sources, with pyDEXPI) and set DWSIM_DEXPI_HOME to its folder.");
+                throw new InvalidOperationException(MissingText);
             var script = converter.EndsWith(".py", StringComparison.OrdinalIgnoreCase);
             var output = Path.Combine(Path.GetTempPath(), "dwsim-dexpi-" + Guid.NewGuid().ToString("N") + ".json");
             var args = (script ? Quote(converter) + " " : "") + Quote(file) + " -o " + Quote(output);
