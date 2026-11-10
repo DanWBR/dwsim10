@@ -23,6 +23,8 @@ using DWSIM.Interfaces.Enums.GraphicObjects;
 using DWSIM.SharedClasses.SystemsOfUnits;
 using DWSIM.Thermodynamics.Streams;
 using DWSIM.UnitOperations.Reactors;
+using DWSIM.UnitOperations.SpecialOps;
+using DWSIM.UnitOperations.SpecialOps.Helpers;
 using DWSIM.UnitOperations.UnitOperations;
 
 namespace DWSIM.Extensions.SolidCraft
@@ -233,6 +235,7 @@ namespace DWSIM.Extensions.SolidCraft
                 Note(ImportIssue.Levels.Warning, kv.Value.GraphicObject.Tag, "a feed without data: set its conditions, flow and composition");
 
             if (!useDrawing) try { fs.NaturalLayout(); } catch (Exception) { }
+            AddControllers(fs, r, res);
             if (units != null) fs.FlowsheetOptions.SelectedUnitSystem = units;
             Describe(fs, r, setup, wasEmpty);
             return res;
@@ -252,7 +255,8 @@ namespace DWSIM.Extensions.SolidCraft
 
             var t = new System.Text.StringBuilder();
             t.AppendLine("Imported on " + DateTime.Now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + " from the " +
-                (r.Kind == "pid" ? "P&ID" : "process flow diagram") + " " + Path.GetFileName(r.Source ?? "") + ", read by the AI Assistant.");
+                (r.Kind == "pid" ? "P&ID" : "process flow diagram") + " " + Path.GetFileName(r.Source ?? "") +
+                (DexpiImport.IsDexpi(r.Source) ? ", a DEXPI model read by " + DexpiImport.Program + "." : ", read by the AI Assistant."));
             if (r.Process.Description.Length > 0) t.AppendLine("Process: " + r.Process.Description);
             void Line(string label, params string[] fields)
             {
@@ -648,6 +652,7 @@ namespace DWSIM.Extensions.SolidCraft
         static void Specify(IFlowsheet fs, ISimulationObject obj, ReadItem item, List<ReadLine> lines, UnitsUsed u, Result res)
         {
             var tag = item.Tag;
+            var issuesBefore = res.Issues.Count;
             var ins = lines.Where(l => string.Equals(l.To, tag, StringComparison.OrdinalIgnoreCase)).ToList();
             var outs = lines.Where(l => string.Equals(l.From, tag, StringComparison.OrdinalIgnoreCase)).ToList();
             var tOut = outs.Count == 1 ? SI(u.Temperature, outs[0].T, res, tag) : null;
@@ -728,6 +733,132 @@ namespace DWSIM.Extensions.SolidCraft
                     res.Issues.Add(new ImportIssue(ImportIssue.Levels.Warning, tag, "add the reactions and the reactor's specifications before solving"));
                     break;
             }
+            ApplySpecs(obj, item, pIn, tOut.HasValue, pOut.HasValue, issuesBefore, res);
+        }
+
+        /// <summary>
+        /// What the model gives for the item itself (a DEXPI process step's duty, efficiency,
+        /// pressure ratio, reflux ratio, area, volume, temperature and pressure), where the stream
+        /// table left the item's specification open. The warning about that goes with it.
+        /// </summary>
+        static void ApplySpecs(ISimulationObject obj, ReadItem item, double? pIn, bool tOut, bool pOut, int issuesBefore, Result res)
+        {
+            if (item.Specs.Count == 0) return;
+            double? V(string key) => item.Specs.TryGetValue(key, out var v) && !double.IsNaN(v) && !double.IsInfinity(v) ? v : (double?)null;
+            bool Open() => res.Issues.Skip(issuesBefore).Any(i => i.Text.StartsWith("the table does not give", StringComparison.Ordinal));
+            var used = new List<string>();
+            var settled = false;
+            var duty = V("duty");
+            var efficiency = V("efficiency");
+            var polytropic = V("polytropic_efficiency");
+            string Kw(double w) => (Math.Abs(w) / 1000).ToString("G4", CultureInfo.InvariantCulture) + " kW";
+            string Percent(double f) => (100 * f).ToString("G3", CultureInfo.InvariantCulture) + " %";
+
+            switch (obj)
+            {
+                case Heater h:
+                    if (!tOut && duty.HasValue) { h.CalcMode = Heater.CalculationMode.HeatAdded; h.DeltaQ = Math.Abs(duty.Value) / 1000; settled = true; used.Add("duty " + Kw(duty.Value)); }
+                    break;
+                case Cooler c:
+                    if (!tOut && duty.HasValue) { c.CalcMode = Cooler.CalculationMode.HeatRemoved; c.DeltaQ = Math.Abs(duty.Value) / 1000; settled = true; used.Add("duty " + Kw(duty.Value)); }
+                    break;
+                case Pump pu:
+                    if (efficiency.HasValue && efficiency.Value > 0 && efficiency.Value <= 1) { pu.Eficiencia = 100 * efficiency.Value; used.Add("efficiency " + Percent(efficiency.Value)); }
+                    break;
+                case Compressor co:
+                    if (polytropic.HasValue && polytropic.Value > 0 && polytropic.Value <= 1)
+                    { co.ProcessPath = Compressor.ProcessPathType.Polytropic; co.PolytropicEfficiency = 100 * polytropic.Value; used.Add("polytropic efficiency " + Percent(polytropic.Value)); }
+                    else if (efficiency.HasValue && efficiency.Value > 0 && efficiency.Value <= 1) { co.AdiabaticEfficiency = 100 * efficiency.Value; used.Add("efficiency " + Percent(efficiency.Value)); }
+                    if (!pOut && pIn.HasValue && V("pressure_ratio") is double ratio && ratio > 1)
+                    { co.CalcMode = Compressor.CalculationMode.OutletPressure; co.POut = ratio * pIn.Value; settled = true; used.Add("pressure ratio " + ratio.ToString("G4", CultureInfo.InvariantCulture)); }
+                    break;
+                case Expander ex:
+                    if (efficiency.HasValue && efficiency.Value > 0 && efficiency.Value <= 1) { ex.AdiabaticEfficiency = 100 * efficiency.Value; used.Add("efficiency " + Percent(efficiency.Value)); }
+                    break;
+                case HeatExchanger hx:
+                    if (!Open()) break;
+                    if (duty.HasValue) { hx.CalculationMode = HeatExchangerCalcMode.CalcBothTemp; hx.Q = Math.Abs(duty.Value) / 1000; settled = true; used.Add("duty " + Kw(duty.Value)); }
+                    else if (V("area") is double area && V("u") is double coefficient && area > 0 && coefficient > 0)
+                    { hx.CalculationMode = HeatExchangerCalcMode.CalcBothTemp_UA; hx.Area = area; hx.OverallCoefficient = coefficient; settled = true; used.Add("area and overall coefficient"); }
+                    break;
+                case Vessel ve:
+                    if (!ve.OverrideT && V("temperature") is double t) { ve.OverrideT = true; ve.FlashTemperature = t; used.Add("temperature"); }
+                    if (!ve.OverrideP && V("pressure") is double p) { ve.OverrideP = true; ve.FlashPressure = p; used.Add("pressure"); }
+                    break;
+                case ShortcutColumn sc:
+                    if (V("reflux_ratio") is double reflux && reflux > 0) { sc.m_refluxratio = reflux; used.Add("reflux ratio " + reflux.ToString("G4", CultureInfo.InvariantCulture)); }
+                    break;
+                case Reactor_CSTR cstr:
+                    if (V("volume") is double vc && vc > 0) { cstr.Volume = vc; used.Add("volume"); }
+                    break;
+                case Reactor_PFR pfr:
+                    if (V("volume") is double vp && vp > 0) { pfr.Volume = vp; used.Add("volume"); }
+                    break;
+            }
+            if (used.Count == 0) return;
+            if (settled)
+                for (var i = res.Issues.Count - 1; i >= issuesBefore; i--)
+                    if (res.Issues[i].Text.StartsWith("the table does not give", StringComparison.Ordinal)) res.Issues.RemoveAt(i);
+            res.Issues.Add(new ImportIssue(ImportIssue.Levels.Info, item.Tag, "from the model: " + string.Join(", ", used)));
+        }
+
+        /// <summary>
+        /// The control loops of the reading as PID controllers: each one measures a stream's
+        /// temperature, pressure or mass flow, or a vessel's level, and moves its valve's opening.
+        /// They are left inactive: the setpoint and the tuning are not in a drawing.
+        /// </summary>
+        static void AddControllers(IFlowsheet fs, DrawingReading r, Result res)
+        {
+            foreach (var c in r.Controllers)
+            {
+                var name = c.Tag.Length > 0 ? c.Tag : c.Variable + "C-" + c.Valve;
+                void Skip(string why) => res.Issues.Add(new ImportIssue(ImportIssue.Levels.Info, name, "control loop not built: " + why));
+                var valve = Get(res, c.Valve);
+                if (valve == null || valve.GraphicObject.ObjectType != ObjectType.Valve) { Skip("its valve " + c.Valve + " is not in the flowsheet"); continue; }
+
+                ISimulationObject measured = null;
+                string property = null;
+                var item = c.MeasuredItem.Length > 0 ? Get(res, c.MeasuredItem) : null;
+                var line = c.MeasuredLine.HasValue && c.MeasuredLine.Value >= 0 && c.MeasuredLine.Value < r.Lines.Count ? r.Lines[c.MeasuredLine.Value] : null;
+                if (c.Variable == "L" && item != null && (item.GraphicObject.ObjectType == ObjectType.Vessel || item.GraphicObject.ObjectType == ObjectType.Tank))
+                { measured = item; property = "Liquid Level"; }
+                else if (c.Variable == "T" || c.Variable == "P" || c.Variable == "F")
+                {
+                    // an item's temperature, pressure or flow is read on the first line out of it
+                    if (line == null && item != null)
+                        line = r.Lines.FirstOrDefault(l => res.Streams.ContainsKey(l) && string.Equals(l.From, c.MeasuredItem, StringComparison.OrdinalIgnoreCase));
+                    if (line != null && res.Streams.TryGetValue(line, out var stream))
+                    { measured = stream; property = c.Variable == "T" ? "PROP_MS_0" : c.Variable == "P" ? "PROP_MS_1" : "PROP_MS_2"; }
+                }
+                if (measured == null) { Skip("what it measures (" + c.Variable + ") was not found in the flowsheet"); continue; }
+
+                var created = fs.AddObject(ObjectType.Controller_PID, (int)valve.GraphicObject.X + 40, (int)valve.GraphicObject.Y - 70, FreeTag(fs, name));
+                if (!(created is PIDController pid)) { Skip("the flowsheet did not make a controller"); continue; }
+                pid.ControlledObjectData = Refer(fs, measured, property);
+                pid.ManipulatedObjectData = Refer(fs, valve, "PROP_VA_5");
+                pid.ManipulatedVariableSpan = 100.0;
+                pid.OutputMin = 0.0;
+                pid.OutputMax = 100.0;
+                pid.Active = false;
+                res.Issues.Add(new ImportIssue(ImportIssue.Levels.Info, name, "control loop built inactive: it reads " + measured.GraphicObject.Tag +
+                    " and moves " + valve.GraphicObject.Tag + "; set its setpoint and tuning before a dynamic run"));
+            }
+        }
+
+        static SpecialOpObjectInfo Refer(IFlowsheet fs, ISimulationObject obj, string property)
+        {
+            var su = fs.FlowsheetOptions.SelectedUnitSystem;
+            var units = "";
+            var unitsType = DWSIM.Interfaces.Enums.UnitOfMeasure.none;
+            try
+            {
+                if (obj.IsDynamicProperty(property)) { unitsType = obj.GetDynamicPropertyUnitType(property); units = su.GetCurrentUnits(unitsType); }
+                else units = obj.GetPropertyUnit(property, su);
+            }
+            catch (Exception) { }
+            var type = obj.GetType().Name;
+            try { type = obj.GetDisplayName(); } catch (Exception) { }
+            return new SpecialOpObjectInfo { ID = obj.Name, Name = obj.GraphicObject.Tag, PropertyName = property, ObjectType = type, Units = units ?? "", UnitsType = unitsType };
         }
 
         /// <summary>

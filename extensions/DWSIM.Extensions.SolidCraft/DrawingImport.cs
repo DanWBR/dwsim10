@@ -38,6 +38,10 @@ namespace DWSIM.Extensions.SolidCraft
         public UnitsUsed Units = new UnitsUsed();
         public List<ReadItem> Items = new List<ReadItem>();
         public List<ReadLine> Lines = new List<ReadLine>();
+
+        /// <summary>The control loops a model names (a DEXPI P&amp;ID): what is measured and the valve it moves.</summary>
+        public List<ReadController> Controllers = new List<ReadController>();
+
         public ProcessGuess Process = new ProcessGuess();
 
         /// <summary>The text on the sheet that tells about the process (services, names, notes, legend).</summary>
@@ -91,6 +95,12 @@ namespace DWSIM.Extensions.SolidCraft
                 var stages = Num(u["stages"]);
                 if (stages.HasValue && stages.Value >= 1) item.Stages = (int)Math.Round(stages.Value);
                 item.Type = Str(u["type"]) ?? DrawingImport.DefaultType(item.Category);
+                if (u["specs"] is JObject sp)
+                    foreach (var p in sp.Properties())
+                    {
+                        var v = Num(p.Value);
+                        if (v.HasValue) item.Specs[p.Name] = v.Value;
+                    }
                 if (item.Tag.Length > 0) r.Items.Add(item);
             }
             foreach (var s in ((o["streams"] ?? o["lines"]) as JArray) ?? new JArray())
@@ -124,6 +134,19 @@ namespace DWSIM.Extensions.SolidCraft
                         if (v.HasValue) line.MoleFractions[p.Name] = v.Value;
                     }
                 r.Lines.Add(line);
+            }
+            foreach (var c in (o["controllers"] as JArray) ?? new JArray())
+            {
+                var line = Num(c["measured_line"]);
+                var ctl = new ReadController
+                {
+                    Tag = (Str(c["tag"]) ?? "").Trim(),
+                    Variable = (Str(c["variable"]) ?? "").Trim().ToUpperInvariant(),
+                    Valve = (Str(c["valve"]) ?? "").Trim(),
+                    MeasuredItem = (Str(c["measured_item"]) ?? "").Trim(),
+                    MeasuredLine = line.HasValue ? (int)Math.Round(line.Value) : (int?)null,
+                };
+                if (ctl.Valve.Length > 0) r.Controllers.Add(ctl);
             }
             foreach (var t in (o["texts"] as JArray) ?? new JArray())
                 if (Str(t) is string text && text.Trim().Length > 0) r.Texts.Add(text.Trim());
@@ -162,7 +185,8 @@ namespace DWSIM.Extensions.SolidCraft
                 ["kind"] = Kind,
                 ["source"] = Source,
                 ["units_system"] = new JObject { ["temperature"] = Units.Temperature, ["pressure"] = Units.Pressure, ["massflow"] = Units.MassFlow, ["energy"] = Units.Energy },
-                ["units"] = new JArray(Items.Select(i => new JObject { ["tag"] = i.Tag, ["category"] = i.Category, ["type"] = i.Type, ["x"] = N(i.X), ["y"] = N(i.Y), ["stages"] = N(i.Stages), ["include"] = i.Include })),
+                ["units"] = new JArray(Items.Select(i => new JObject { ["tag"] = i.Tag, ["category"] = i.Category, ["type"] = i.Type, ["x"] = N(i.X), ["y"] = N(i.Y), ["stages"] = N(i.Stages),
+                    ["specs"] = new JObject(i.Specs.Select(s => new JProperty(s.Key, s.Value))), ["include"] = i.Include })),
                 ["streams"] = new JArray(Lines.Select(l => new JObject
                 {
                     ["id"] = l.Id, ["name"] = l.Name, ["line_number"] = l.LineNumber, ["from"] = l.From, ["to"] = l.To,
@@ -170,6 +194,11 @@ namespace DWSIM.Extensions.SolidCraft
                     ["from_level"] = N(l.FromLevel), ["to_level"] = N(l.ToLevel),
                     ["compounds"] = new JObject(l.Compounds.Select(c => new JProperty(c.Key, c.Value))),
                     ["mole_fractions"] = new JObject(l.MoleFractions.Select(c => new JProperty(c.Key, c.Value))), ["include"] = l.Include,
+                })),
+                ["controllers"] = new JArray(Controllers.Select(c => new JObject
+                {
+                    ["tag"] = c.Tag, ["variable"] = c.Variable, ["valve"] = c.Valve, ["measured_item"] = c.MeasuredItem,
+                    ["measured_line"] = c.MeasuredLine.HasValue ? (JToken)c.MeasuredLine.Value : JValue.CreateNull(),
                 })),
                 ["texts"] = new JArray(Texts),
                 ["cad_texts"] = new JArray(CadTexts),
@@ -427,7 +456,24 @@ namespace DWSIM.Extensions.SolidCraft
         /// <summary>A column's trays or stages as the drawing gives them, null when it does not.</summary>
         public int? Stages;
 
+        /// <summary>
+        /// What a model gives for the item itself, in SI units (a DEXPI process step): duty (W),
+        /// pressure (Pa), temperature (K), efficiency and polytropic_efficiency (fractions),
+        /// pressure_ratio, reflux_ratio, area (m2), u (W/m2/K), volume (m3). Used where the stream
+        /// table leaves the item's specification open.
+        /// </summary>
+        public Dictionary<string, double> Specs = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+
         public bool Include = true;
+    }
+
+    /// <summary>A control loop: the variable measured (P, T, F or L) at an item or on a line, and the valve it moves.</summary>
+    public class ReadController
+    {
+        public string Tag = "", Variable = "", Valve = "", MeasuredItem = "";
+
+        /// <summary>The measured line, as its position in the reading's lines; null when an item is measured.</summary>
+        public int? MeasuredLine;
     }
 
     /// <summary>A process line (stream) read off the drawing, with the stream table's values in the drawing's units.</summary>

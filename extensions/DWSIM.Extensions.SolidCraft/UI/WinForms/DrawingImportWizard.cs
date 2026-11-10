@@ -623,4 +623,17 @@ namespace DWSIM.Extensions.SolidCraft
             using (var wizard = new DrawingImportWizard(fs)) wizard.ShowDialog(Form.ActiveForm);
         }
     }
+
+    /// <summary>Asks where the DEXPI process model goes, in the Windows interface, and writes it.</summary>
+    internal static class DexpiExportPrompt
+    {
+        internal static void Show(IFlowsheet fs)
+        {
+            using (var d = new SaveFileDialog { Title = "Export DEXPI Process Model", Filter = "DEXPI models (*.xml)|*.xml", FileName = DexpiExportExtender.SuggestedName(fs) })
+            {
+                if (d.ShowDialog(Form.ActiveForm) != DialogResult.OK) return;
+                DexpiExportExtender.Export(fs, d.FileName);
+            }
+        }
+    }
 }

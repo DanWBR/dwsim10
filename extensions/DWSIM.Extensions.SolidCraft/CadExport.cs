@@ -99,6 +99,15 @@ namespace DWSIM.Extensions.SolidCraft
             => PlotPlanExtender.Export(flowsheet, CADCraft(), false, null, Base(dxf));
 
         /// <summary>
+        /// Writes the flowsheet as a DEXPI 2.0.1 process model (XML): the unit operations as process steps, the
+        /// material streams with their conditions and compositions, and the flowsheet's layout as the diagram.
+        /// Needs neither SolidCraft nor CADCraft. A null file is the simulation's name with ".dexpi.xml" in the
+        /// drawings folder.
+        /// </summary>
+        public static DexpiExport.Result ExportDexpi(IFlowsheet flowsheet, string file = null)
+            => DexpiExport.ExportProcessModel(flowsheet, file ?? Path.Combine(ProcessFlowDiagramExtender.DrawingsFolder(flowsheet), PlantModelExtender.ModelName(flowsheet) + ".dexpi.xml"));
+
+        /// <summary>
         /// Draws them all into <paramref name="folder"/> and binds the drawing set; returns the drawing
         /// set's file (null when the options leave it out). Throws when no drawing could be made.
         /// </summary>

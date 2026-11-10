@@ -799,4 +799,31 @@ namespace DWSIM.Extensions.SolidCraft
             }
         }
     }
+
+    /// <summary>Asks where the DEXPI process model goes, in the cross-platform interface, and writes it.</summary>
+    internal static class DexpiExportPrompt
+    {
+        internal static async void Show(IFlowsheet fs)
+        {
+            try
+            {
+                var desktop = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
+                var owner = desktop?.Windows.FirstOrDefault(w => w.IsActive) ?? desktop?.MainWindow;
+                if (owner == null) return;
+                var picked = await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+                {
+                    Title = "Export DEXPI Process Model",
+                    SuggestedFileName = DexpiExportExtender.SuggestedName(fs),
+                    DefaultExtension = "xml",
+                    FileTypeChoices = new[] { new FilePickerFileType("DEXPI models") { Patterns = new[] { "*.xml" } } }
+                });
+                var path = picked?.TryGetLocalPath();
+                if (path != null) DexpiExportExtender.Export(fs, path);
+            }
+            catch (Exception ex)
+            {
+                try { fs.ShowMessage("DEXPI export could not open: " + ex.GetBaseException().Message, IFlowsheet.MessageType.GeneralError); } catch { }
+            }
+        }
+    }
 }
