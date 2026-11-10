@@ -10,8 +10,19 @@ using Avalonia.Styling;
 
 namespace DWSIM.UI.Shared.Avalonia;
 
+/// <summary>How a <see cref="PlotSeries"/> is drawn.</summary>
+public enum PlotSeriesKind
+{
+    /// <summary>Connected line, or markers when <see cref="PlotSeries.Scatter"/> is set.</summary>
+    Line,
+    /// <summary>Vertical bars from <see cref="PlotSeries.BarBase"/> to each Y, centered on X.</summary>
+    Bars,
+    /// <summary>Horizontal bars from X to X2 on the category axis; Y holds the category index.</summary>
+    HorizontalBars,
+}
+
 /// <summary>
-/// A single curve or point cloud on an <see cref="XYPlot"/>.
+/// A single curve, point cloud or set of bars on an <see cref="XYPlot"/>.
 /// </summary>
 public sealed class PlotSeries
 {
@@ -26,7 +37,29 @@ public sealed class PlotSeries
     /// <summary>Dash pattern in multiples of the stroke thickness. Null means solid.</summary>
     public double[]? Dashes;
 
-    public int Count => Math.Min(X.Count, Y.Count);
+    public PlotSeriesKind Kind = PlotSeriesKind.Line;
+    /// <summary>Bar ends for <see cref="PlotSeriesKind.HorizontalBars"/>.</summary>
+    public IReadOnlyList<double> X2 = Array.Empty<double>();
+    /// <summary>Bar width in X units for <see cref="PlotSeriesKind.Bars"/>; 0 picks 80 % of the closest spacing.</summary>
+    public double BarWidth;
+    /// <summary>Where vertical bars start.</summary>
+    public double BarBase;
+    /// <summary>Fill of the bars below the base; null uses <see cref="Color"/>.</summary>
+    public Color? NegativeColor;
+
+    public int Count => Kind == PlotSeriesKind.HorizontalBars
+        ? Math.Min(Math.Min(X.Count, Y.Count), X2.Count)
+        : Math.Min(X.Count, Y.Count);
+}
+
+/// <summary>A horizontal or vertical reference line across the plot area, with an optional label.</summary>
+public sealed class PlotLine
+{
+    public bool Vertical;
+    public double Value;
+    public string Label = "";
+    public Color? Color;
+    public double[]? Dashes;
 }
 
 /// <summary>
@@ -62,6 +95,15 @@ public sealed class XYPlot : Control
 
     public readonly List<PlotSeries> Series = new();
 
+    /// <summary>Reference lines (for instance zero, or a median), drawn over the series. They do not widen the axes: a line outside the data range is not drawn.</summary>
+    public readonly List<PlotLine> Lines = new();
+
+    /// <summary>
+    /// When set, the Y axis is a category axis: category i sits at Y = i, the first one on top,
+    /// and its label replaces the numeric ticks. Used with <see cref="PlotSeriesKind.HorizontalBars"/>.
+    /// </summary>
+    public IReadOnlyList<string>? CategoryLabels;
+
     public XYPlot()
     {
         MinHeight = 200;
@@ -74,6 +116,8 @@ public sealed class XYPlot : Control
     public void Clear()
     {
         Series.Clear();
+        Lines.Clear();
+        CategoryLabels = null;
         PlotTitle = PlotSubtitle = XAxisTitle = YAxisTitle = "";
         InvalidateVisual();
     }
@@ -112,6 +156,71 @@ public sealed class XYPlot : Control
         return s;
     }
 
+    /// <summary>Adds vertical bars (a histogram when <paramref name="barWidth"/> is the bin width).</summary>
+    public PlotSeries? AddBars(string title, IReadOnlyList<double>? x, IReadOnlyList<double>? y,
+        double barWidth = 0, double barBase = 0)
+    {
+        var s = AddSeries(title, x, y);
+        if (s == null) return null;
+        s.Kind = PlotSeriesKind.Bars;
+        s.BarWidth = barWidth;
+        s.BarBase = barBase;
+        return s;
+    }
+
+    /// <summary>
+    /// Adds horizontal bars on the category axis (see <see cref="CategoryLabels"/>): bar i spans
+    /// from <paramref name="start"/>[i] to <paramref name="end"/>[i] on category i. Bars with a
+    /// non-finite end are left out.
+    /// </summary>
+    public PlotSeries? AddHorizontalBars(string title, IReadOnlyList<double>? start, IReadOnlyList<double>? end)
+    {
+        if (start == null || end == null) return null;
+        int n = Math.Min(start.Count, end.Count);
+        var xs = new List<double>(n);
+        var x2 = new List<double>(n);
+        var ys = new List<double>(n);
+        for (int i = 0; i < n; i++)
+        {
+            if (!IsFinite(start[i]) || !IsFinite(end[i])) continue;
+            xs.Add(start[i]);
+            x2.Add(end[i]);
+            ys.Add(i);
+        }
+        if (xs.Count == 0) return null;
+        var s = new PlotSeries
+        {
+            Title = title,
+            X = xs,
+            X2 = x2,
+            Y = ys,
+            Kind = PlotSeriesKind.HorizontalBars,
+            Color = Palette[Series.Count % Palette.Length],
+        };
+        Series.Add(s);
+        return s;
+    }
+
+    /// <summary>Adds a reference line across the plot area.</summary>
+    public PlotLine AddLine(bool vertical, double value, string label = "", Color? color = null, double[]? dashes = null)
+    {
+        var l = new PlotLine { Vertical = vertical, Value = value, Label = label, Color = color, Dashes = dashes };
+        Lines.Add(l);
+        return l;
+    }
+
+    private static bool IsFinite(double v) => !double.IsNaN(v) && !double.IsInfinity(v);
+
+    /// <summary>Width of the vertical bars of a series, in X units.</summary>
+    private static double BarWidthOf(PlotSeries s)
+    {
+        if (s.BarWidth > 0) return s.BarWidth;
+        var xs = Enumerable.Range(0, s.Count).Select(i => s.X[i]).Distinct().OrderBy(v => v).ToList();
+        double gap = double.MaxValue;
+        for (int i = 1; i < xs.Count; i++) gap = Math.Min(gap, xs[i] - xs[i - 1]);
+        return gap == double.MaxValue || gap <= 0 ? 1.0 : 0.8 * gap;
+    }
+
     /// <summary>Tab-separated dump of every series, for the clipboard.</summary>
     public string ToDelimitedText()
     {
@@ -119,6 +228,21 @@ public sealed class XYPlot : Control
         foreach (var s in Series)
         {
             sb.AppendLine(s.Title);
+            if (s.Kind == PlotSeriesKind.HorizontalBars)
+            {
+                sb.AppendLine($"\t{XAxisTitle}\t");
+                for (int i = 0; i < s.Count; i++)
+                {
+                    int c = (int)s.Y[i];
+                    sb.Append(CategoryLabels != null && c >= 0 && c < CategoryLabels.Count ? CategoryLabels[c] : c.ToString(CultureInfo.InvariantCulture));
+                    sb.Append('\t');
+                    sb.Append(s.X[i].ToString("G6", CultureInfo.InvariantCulture));
+                    sb.Append('\t');
+                    sb.AppendLine(s.X2[i].ToString("G6", CultureInfo.InvariantCulture));
+                }
+                sb.AppendLine();
+                continue;
+            }
             sb.AppendLine($"{XAxisTitle}\t{YAxisTitle}");
             for (int i = 0; i < s.Count; i++)
             {
@@ -182,25 +306,40 @@ public sealed class XYPlot : Control
         // ---- axis ranges -----------------------------------------------------
         double xMin = double.MaxValue, xMax = double.MinValue;
         double yMin = double.MaxValue, yMax = double.MinValue;
+        void TakeX(double v) { if (v < xMin) xMin = v; if (v > xMax) xMax = v; }
+        void TakeY(double v) { if (v < yMin) yMin = v; if (v > yMax) yMax = v; }
         foreach (var s in Series)
         {
+            double half = s.Kind == PlotSeriesKind.Bars ? BarWidthOf(s) / 2 : 0;
             for (int i = 0; i < s.Count; i++)
             {
-                if (s.X[i] < xMin) xMin = s.X[i];
-                if (s.X[i] > xMax) xMax = s.X[i];
-                if (s.Y[i] < yMin) yMin = s.Y[i];
-                if (s.Y[i] > yMax) yMax = s.Y[i];
+                TakeX(s.X[i] - half);
+                TakeX(s.X[i] + half);
+                TakeY(s.Y[i]);
+                if (s.Kind == PlotSeriesKind.Bars) TakeY(s.BarBase);
+                if (s.Kind == PlotSeriesKind.HorizontalBars) TakeX(s.X2[i]);
             }
         }
+
+        bool categories = CategoryLabels != null && CategoryLabels.Count > 0;
         Pad(ref xMin, ref xMax);
-        Pad(ref yMin, ref yMax);
+        if (categories)
+        {
+            yMin = -0.5;
+            yMax = CategoryLabels!.Count - 0.5;
+        }
+        else
+        {
+            Pad(ref yMin, ref yMax);
+        }
 
         var xTicks = NiceTicks(xMin, xMax, 8);
-        var yTicks = NiceTicks(yMin, yMax, 6);
+        var yTicks = categories ? new List<double>() : NiceTicks(yMin, yMax, 6);
 
-        // Left margin has to fit the widest Y tick label plus the rotated axis title.
-        double labelWidth = yTicks
-            .Select(t => MeasureWidth(FormatTick(t, yTicks), 10, normal))
+        // Left margin has to fit the widest Y tick (or category) label plus the rotated axis title.
+        double labelWidth = (categories
+                ? CategoryLabels!.Select(c => MeasureWidth(c, 10, normal))
+                : yTicks.Select(t => MeasureWidth(FormatTick(t, yTicks), 10, normal)))
             .DefaultIfEmpty(30)
             .Max();
 
@@ -215,7 +354,10 @@ public sealed class XYPlot : Control
         if (plot.Width < 30 || plot.Height < 30) return;
 
         double sx(double v) => plot.X + (v - xMin) / (xMax - xMin) * plot.Width;
-        double sy(double v) => plot.Bottom - (v - yMin) / (yMax - yMin) * plot.Height;
+        // categories run from the top down; numbers from the bottom up
+        double sy(double v) => categories
+            ? plot.Y + (v - yMin) / (yMax - yMin) * plot.Height
+            : plot.Bottom - (v - yMin) / (yMax - yMin) * plot.Height;
 
         // ---- grid, ticks, axis labels ---------------------------------------
         var gridPen = new Pen(GridBrush, 1, new DashStyle(new double[] { 3, 3 }, 0));
@@ -234,6 +376,15 @@ public sealed class XYPlot : Control
             ctx.DrawLine(gridPen, new Point(plot.X, y), new Point(plot.Right, y));
             ctx.DrawLine(axisPen, new Point(plot.X - 4, y), new Point(plot.X, y));
             DrawText(ctx, FormatTick(t, yTicks), plot.X - 6, y - 7, 10, Foreground, TextAlign.Right);
+        }
+        if (categories)
+        {
+            for (int c = 0; c < CategoryLabels!.Count; c++)
+            {
+                double y = sy(c);
+                ctx.DrawLine(axisPen, new Point(plot.X - 4, y), new Point(plot.X, y));
+                DrawText(ctx, CategoryLabels[c], plot.X - 6, y - 7, 10, Foreground, TextAlign.Right);
+            }
         }
 
         ctx.DrawRectangle(null, axisPen, plot);
@@ -257,6 +408,32 @@ public sealed class XYPlot : Control
             foreach (var s in Series)
             {
                 var brush = new SolidColorBrush(s.Color);
+
+                if (s.Kind == PlotSeriesKind.Bars)
+                {
+                    double half = BarWidthOf(s) / 2;
+                    var negative = s.NegativeColor.HasValue ? new SolidColorBrush(s.NegativeColor.Value) : brush;
+                    for (int i = 0; i < s.Count; i++)
+                    {
+                        double x0 = sx(s.X[i] - half), x1 = sx(s.X[i] + half);
+                        double y0 = sy(s.BarBase), y1 = sy(s.Y[i]);
+                        var r = new Rect(Math.Min(x0, x1), Math.Min(y0, y1), Math.Max(1, Math.Abs(x1 - x0) - 1), Math.Abs(y1 - y0));
+                        ctx.FillRectangle(s.Y[i] < s.BarBase ? negative : brush, r);
+                    }
+                    continue;
+                }
+
+                if (s.Kind == PlotSeriesKind.HorizontalBars)
+                {
+                    double h = Math.Abs(sy(0.3) - sy(-0.3));
+                    for (int i = 0; i < s.Count; i++)
+                    {
+                        double x0 = sx(s.X[i]), x1 = sx(s.X2[i]);
+                        double yc = sy(s.Y[i]);
+                        ctx.FillRectangle(brush, new Rect(Math.Min(x0, x1), yc - h / 2, Math.Max(1, Math.Abs(x1 - x0)), h));
+                    }
+                    continue;
+                }
 
                 if (s.Scatter)
                 {
@@ -285,6 +462,25 @@ public sealed class XYPlot : Control
                     g.EndFigure(false);
                 }
                 ctx.DrawGeometry(null, pen, geo);
+            }
+
+            foreach (var l in Lines)
+            {
+                if (!IsFinite(l.Value)) continue;
+                var lb = l.Color.HasValue ? (IBrush)new SolidColorBrush(l.Color.Value) : Foreground;
+                var lp = new Pen(lb, 1.2, l.Dashes == null ? null : new DashStyle(l.Dashes, 0));
+                if (l.Vertical)
+                {
+                    double x = sx(l.Value);
+                    ctx.DrawLine(lp, new Point(x, plot.Y), new Point(x, plot.Bottom));
+                    if (!string.IsNullOrEmpty(l.Label)) DrawText(ctx, l.Label, x + 3, plot.Y + 2, 10, lb, TextAlign.Left);
+                }
+                else
+                {
+                    double y = sy(l.Value);
+                    ctx.DrawLine(lp, new Point(plot.X, y), new Point(plot.Right, y));
+                    if (!string.IsNullOrEmpty(l.Label)) DrawText(ctx, l.Label, plot.Right - 3, y - 14, 10, lb, TextAlign.Right);
+                }
             }
         }
     }
@@ -330,7 +526,11 @@ public sealed class XYPlot : Control
             foreach (var (s, w) in line)
             {
                 var brush = new SolidColorBrush(s.Color);
-                if (s.Scatter)
+                if (s.Kind != PlotSeriesKind.Line)
+                {
+                    ctx.FillRectangle(brush, new Rect(x + 2, y + 3, swatch - 4, 9));
+                }
+                else if (s.Scatter)
                 {
                     ctx.DrawEllipse(brush, null, new Point(x + swatch / 2, y + 7), 3, 3);
                 }
@@ -429,6 +629,8 @@ public sealed class XYPlot : Control
 
         double step = ticks.Count > 1 ? Math.Abs(ticks[1] - ticks[0]) : Math.Abs(value);
         int decimals = step <= 0 ? 2 : Math.Max(0, Math.Min(6, (int)Math.Ceiling(-Math.Log10(step)) + 1));
+        // whole-number steps (1, 2, 5, 10...) need no decimals
+        if (step >= 1 && Math.Abs(step - Math.Round(step)) < 1e-9) decimals = 0;
         return value.ToString("F" + decimals, CultureInfo.CurrentCulture);
     }
 }
