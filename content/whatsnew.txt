@@ -28,3 +28,4 @@
 - [FIX] TEA Monte Carlo analysis: the triangular distribution was sampled with a wrong formula and the NPV histogram had two peaks
 - [FIX] TEA and LCA integration settings in the Cross-Platform interface were not kept when the dialog closed with OK
 - [FIX] Cross-platform engine: a program that opened many flowsheets in turn (automation scripts, the MCP server) could stop with an error after a flowsheet with embedded files was dropped without being closed
+- [FIX] Cross-Platform interface on Windows: the taskbar showed a generic icon in place of the DWSIM icon
