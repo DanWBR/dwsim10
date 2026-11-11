@@ -459,7 +459,7 @@ namespace DWSIM.Extensions.SolidCraft
         /// <summary>
         /// What a model gives for the item itself, in SI units (a DEXPI process step): duty (W),
         /// pressure (Pa), temperature (K), efficiency and polytropic_efficiency (fractions),
-        /// pressure_ratio, reflux_ratio, area (m2), u (W/m2/K), volume (m3). Used where the stream
+        /// pressure_ratio, reflux_ratio, area (m2), u (W/m2/K), volume (m3), head (m). Used where the stream
         /// table leaves the item's specification open.
         /// </summary>
         public Dictionary<string, double> Specs = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);

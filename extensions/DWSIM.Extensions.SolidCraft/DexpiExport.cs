@@ -216,8 +216,8 @@ namespace DWSIM.Extensions.SolidCraft
                         .Data("Identifier", Str("MT-1"))
                         .Data("Label", Str(Short(string.Join(", ", compounds))))
                         .Data("NumberOfMaterialComponents", Int(compounds.Count))
-                        .Data("NumberOfPhases", Int(1))
-                        .Data("PhaseLabel", Str("Overall"));
+                        .Data("NumberOfPhases", Int(PhaseLabels.Length))
+                        .Data("PhaseLabel", PhaseLabels.Select(l => (object)Str(l)).ToArray());
                     process.Comp("MaterialComponents", components).Comp("ListsOfMaterialComponents", list).Comp("MaterialTemplates", template);
                 }
                 Result.Compounds = compounds.Count;
@@ -562,7 +562,50 @@ namespace DWSIM.Extensions.SolidCraft
 
             #region streams
 
-            /// <summary>The stream's temperature, pressure and mass flow, and its material state with the composition.</summary>
+            /// <summary>The phases a stream's state is split into, with the flowsheet's phase each one is read from.</summary>
+            static readonly string[] PhaseLabels = { "Vapour", "Liquid", "Solid" };
+            static readonly int[] PhaseIndices = { 2, 1, 7 };
+
+            /// <summary>
+            /// A phase, or the overall mixture, as a DEXPI material state type: its mass flow, the
+            /// composition in mole fractions and in the mass flow of each compound, and its density,
+            /// viscosity, volume flow and specific enthalpy where the flowsheet has them. Null for a
+            /// phase without a composition.
+            /// </summary>
+            Obj StateType(IPhase phase, List<string> compounds, double? flow, string label, string identifier, string description)
+            {
+                bool Real(double? v) => v.HasValue && !double.IsNaN(v.Value) && !double.IsInfinity(v.Value);
+                var moles = new double[compounds.Count];
+                var mass = new double[compounds.Count];
+                for (var i = 0; i < compounds.Count; i++)
+                    if (phase.Compounds.TryGetValue(compounds[i], out var c) && c != null)
+                    {
+                        moles[i] = Real(c.MoleFraction) ? Math.Max(0, c.MoleFraction.Value) : 0;
+                        mass[i] = Real(c.MassFraction) ? Math.Max(0, c.MassFraction.Value) : 0;
+                    }
+                if (moles.Sum() <= 0) return null;
+
+                var composition = new Obj(Id("Composition"), "Process/Process.Composition")
+                    .Comp("MoleFractions", Value(Agg("Core/PhysicalQuantities.PhysicalQuantityVector",
+                        ("Unit", new object[] { Enum("Core/PhysicalQuantities.RatioUnit.Fraction") }),
+                        ("Values", Normalized(moles).Select(x => (object)Dbl(x)).ToArray()))));
+                if (flow.HasValue && mass.Sum() > 0)
+                {
+                    var fractions = Normalized(mass);
+                    composition.Comp("MassFlow", fractions.Select(x => Value("MassFlowRateUnit.KilogramPerHour", Round(x * flow.Value))).ToArray());
+                }
+                var type = new Obj(Id("MaterialStateType"), "Process/Process.MaterialStateType").Comp("Composition", composition)
+                    .Data("Description", Text(description)).Data("Identifier", Str(identifier)).Data("Label", Str(label));
+                if (flow.HasValue) type.Comp("MassFlow", Value("MassFlowRateUnit.KilogramPerHour", Round(flow.Value)));
+                var props = phase.Properties;
+                if (Real(props.density) && props.density.Value > 0) type.Comp("Density", Value("DensityUnit.KilogramPerMetreCubed", Round(props.density.Value)));
+                if (Real(props.viscosity) && props.viscosity.Value > 0) type.Comp("Viscosity", Value("DynamicViscosityUnit.PascalSecond", Round(props.viscosity.Value)));
+                if (Real(props.volumetric_flow) && props.volumetric_flow.Value > 0) type.Comp("VolumeFlow", Value("VolumeFlowRateUnit.MetreCubedPerHour", Round(props.volumetric_flow.Value * 3600)));
+                if (Real(props.enthalpy)) type.Comp("SpecificEnthalpy", Value("MassSpecificEnergyUnit.KilojoulePerKilogram", Round(props.enthalpy.Value)));
+                return type;
+            }
+
+            /// <summary>The stream's temperature, pressure and mass flow, and its material state: the overall mixture and each phase present.</summary>
             void Conditions(Obj stream, IMaterialStream ms, Obj template, List<string> compounds, string tag)
             {
                 bool Real(double v) => !double.IsNaN(v) && !double.IsInfinity(v);
@@ -580,31 +623,21 @@ namespace DWSIM.Extensions.SolidCraft
                 IPhase overall = null;
                 try { overall = ms.Phases[0]; } catch (Exception) { }
                 if (overall == null) return;
-                var moles = new double[compounds.Count];
-                var mass = new double[compounds.Count];
-                for (var i = 0; i < compounds.Count; i++)
-                    if (overall.Compounds.TryGetValue(compounds[i], out var c) && c != null)
-                    {
-                        moles[i] = c.MoleFraction.HasValue && Real(c.MoleFraction.Value) ? Math.Max(0, c.MoleFraction.Value) : 0;
-                        mass[i] = c.MassFraction.HasValue && Real(c.MassFraction.Value) ? Math.Max(0, c.MassFraction.Value) : 0;
-                    }
-                var total = moles.Sum();
-                if (total <= 0) return;
-
-                var composition = new Obj(Id("Composition"), "Process/Process.Composition")
-                    .Comp("MoleFractions", Value(Agg("Core/PhysicalQuantities.PhysicalQuantityVector",
-                        ("Unit", new object[] { Enum("Core/PhysicalQuantities.RatioUnit.Fraction") }),
-                        ("Values", Normalized(moles).Select(x => (object)Dbl(x)).ToArray()))));
-                if (flow.HasValue && mass.Sum() > 0)
-                {
-                    var fractions = Normalized(mass);
-                    composition.Comp("MassFlow", fractions.Select(x => Value("MassFlowRateUnit.KilogramPerHour", Round(x * flow.Value))).ToArray());
-                }
-                var type = new Obj(Id("MaterialStateType"), "Process/Process.MaterialStateType").Comp("Composition", composition)
-                    .Data("Description", Text("Overall state of " + tag)).Data("Identifier", Str("MST-" + tag)).Data("Label", Str(tag));
-                if (flow.HasValue) type.Comp("MassFlow", Value("MassFlowRateUnit.KilogramPerHour", Round(flow.Value)));
+                var type = StateType(overall, compounds, flow, tag, "MST-" + tag, "Overall state of " + tag);
+                if (type == null) return;
                 var state = new Obj(Id("MaterialState"), "Process/Process.MaterialState").Comp("State", type)
                     .Data("Description", Str("Material state of " + tag)).Data("Identifier", Str("MS-" + tag)).Data("Label", Str(tag));
+
+                // the phases present, each with its own flow, composition and properties
+                for (var k = 0; k < PhaseIndices.Length; k++)
+                {
+                    IPhase phase = null;
+                    try { phase = ms.Phases[PhaseIndices[k]]; } catch (Exception) { }
+                    var phaseFlow = phase?.Properties.massflow;
+                    if (phase == null || !phaseFlow.HasValue || !Real(phaseFlow.Value) || phaseFlow.Value <= 0) continue;
+                    var part = StateType(phase, compounds, phaseFlow.Value * 3600, PhaseLabels[k], "MST-" + tag + "-" + PhaseLabels[k], PhaseLabels[k] + " phase of " + tag);
+                    if (part != null) state.Comp("Phases", part);
+                }
                 states.Add(state);
                 stream.Ref("MaterialStateReference", state);
             }

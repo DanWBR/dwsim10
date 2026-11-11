@@ -533,6 +533,8 @@ namespace DWSIM.Extensions.SolidCraft
 
         void FillChecks()
         {
+            chkUpdate.Visible = session.MatchingTags() > 0;
+            if (!chkUpdate.Visible && chkUpdate.Checked) chkUpdate.Checked = false;
             var issues = session.Check();
             Fill(dgvIssues, issues);
             btnBuild.Enabled = session.Built == null && !issues.Any(i => i.Level == ImportIssue.Levels.Error);
@@ -549,6 +551,13 @@ namespace DWSIM.Extensions.SolidCraft
                 var k = grid.Rows.Add(i.Level == ImportIssue.Levels.Error ? "Error" : i.Level == ImportIssue.Levels.Warning ? "Warning" : "Note", i.Subject, i.Text);
                 grid.Rows[k].DefaultCellStyle.ForeColor = i.Level == ImportIssue.Levels.Error ? Color.DarkRed : i.Level == ImportIssue.Levels.Warning ? Color.DarkGoldenrod : SystemColors.ControlText;
             }
+        }
+
+        private void chkUpdate_CheckedChanged(object sender, EventArgs e)
+        {
+            session.UpdateExisting = chkUpdate.Checked;
+            btnBuild.Text = chkUpdate.Checked ? "Update the flowsheet" : "Build the flowsheet";
+            if (session.Built == null) FillChecks();
         }
 
         private void btnBuild_Click(object sender, EventArgs e)

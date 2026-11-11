@@ -73,6 +73,33 @@ namespace DWSIM.Extensions.SolidCraft
         }
 
         /// <summary>
+        /// Brings a flowsheet up to date with a new revision of its drawing or DEXPI model (or a reading saved as
+        /// .json): the items and streams are found by their tags, the feeds take the conditions, flows and
+        /// compositions of the reading and the items its specifications, and nothing is added. With
+        /// <paramref name="solve"/> the flowsheet is solved and compared with the reading's stream data; what was
+        /// not found on either side is in the session's <c>Built.Issues</c>.
+        /// </summary>
+        public static DrawingImportSession UpdateFromDrawing(this IFlowsheet fs, string file, bool solve = true,
+            string kind = "auto", Action<string> progress = null, CancellationToken cancel = default)
+        {
+            var s = new DrawingImportSession(fs) { UpdateExisting = true };
+            if (DrawingImportSession.IsReading(file))
+                s.Open(ReadText(file));
+            else
+            {
+                s.File = Existing(file);
+                s.Kind = kind ?? "auto";
+                s.Read(cancel, progress);
+                s.Propose();
+            }
+            s.Setup.UseDrawingUnits = false;
+            if (s.MatchingTags() == 0)
+                throw new InvalidOperationException("Nothing to update: the flowsheet has none of the items of the drawing, by their tags.");
+            s.Build(solve, progress);
+            return s;
+        }
+
+        /// <summary>
         /// Puts the route of a piping isometric (image or PDF, or a reading saved as .json) in the hydraulic profile of
         /// the pipe segment tagged <paramref name="pipeTag"/>, or of a new pipe segment named after the line when no
         /// tag is given. The checks against the bill of materials and the elevations are in the session's <c>Issues</c>.

@@ -63,6 +63,73 @@ namespace DWSIM.Extensions.SolidCraft
             public Dictionary<ReadLine, ISimulationObject> Streams = new Dictionary<ReadLine, ISimulationObject>();
             public List<ImportIssue> Issues = new List<ImportIssue>();
             public int Recycles;
+
+            /// <summary>True when the reading updated the flowsheet's own items and streams, with nothing added.</summary>
+            public bool Updated;
+        }
+
+        /// <summary>
+        /// Brings a flowsheet up to date with a reading of the same plant: the items and the streams
+        /// are found by their tags (a stream also by the two items it joins), the feeds take the
+        /// reading's conditions, flows and compositions and the items its specifications. Nothing is
+        /// added or connected; what the flowsheet lacks and what the reading lacks are listed.
+        /// </summary>
+        public static Result Update(IFlowsheet fs, DrawingReading r, ImportSetup setup)
+        {
+            var res = new Result { Updated = true };
+            MassFlowsFromMoleFractions(fs, r);
+            var items = r.ItemsByTag();
+            foreach (var item in items.Values)
+            {
+                var obj = fs.GetFlowsheetSimulationObject(item.Tag);
+                if (obj != null && obj.GraphicObject.ObjectType != ObjectType.MaterialStream && obj.GraphicObject.ObjectType != ObjectType.EnergyStream)
+                    res.Items[item.Tag] = obj;
+                else
+                    res.Issues.Add(new ImportIssue(ImportIssue.Levels.Info, item.Tag, "not in the flowsheet; an update adds nothing"));
+            }
+
+            // a stream by its tag, else the one stream that joins the same two items
+            ISimulationObject Joining(ReadLine l)
+            {
+                var from = l.Feed ? null : Get(res, l.From);
+                var to = l.Product ? null : Get(res, l.To);
+                if (from == null || to == null) return null;
+                var found = new List<ISimulationObject>();
+                foreach (var con in from.GraphicObject.OutputConnectors)
+                {
+                    var stream = con.IsAttached ? con.AttachedConnector?.AttachedTo : null;
+                    if (stream == null || stream.ObjectType != ObjectType.MaterialStream) continue;
+                    var next = stream.OutputConnectors.Count > 0 && stream.OutputConnectors[0].IsAttached ? stream.OutputConnectors[0].AttachedConnector?.AttachedTo : null;
+                    if (next != null && next.Name == to.Name && fs.SimulationObjects.TryGetValue(stream.Name, out var so)) found.Add(so);
+                }
+                return found.Count == 1 ? found[0] : null;
+            }
+            var lines = r.Lines.Where(l => l.Include && (l.Feed || items.ContainsKey(l.From)) && (l.Product || items.ContainsKey(l.To)) && !(l.Feed && l.Product)).ToList();
+            var taken = new HashSet<string>();
+            foreach (var l in lines)
+            {
+                var stream = fs.GetFlowsheetSimulationObject(r.StreamTag(l));
+                if (stream == null || stream.GraphicObject.ObjectType != ObjectType.MaterialStream) stream = Joining(l);
+                if (stream != null && taken.Add(stream.Name)) res.Streams[l] = stream;
+                else res.Issues.Add(new ImportIssue(ImportIssue.Levels.Info, r.StreamTag(l), "not found in the flowsheet by its tag or by the items it joins; left out of the update"));
+            }
+            var known = new HashSet<string>(res.Items.Values.Select(o => o.Name).Concat(res.Streams.Values.Select(o => o.Name)));
+            var extra = fs.SimulationObjects.Values.Where(o => o.GraphicObject != null && !known.Contains(o.Name) &&
+                o.GraphicObject.ObjectType != ObjectType.EnergyStream && o.GraphicObject.ObjectType != ObjectType.OT_Recycle &&
+                o.GraphicObject.ObjectType != ObjectType.MaterialStream).Select(o => o.GraphicObject.Tag).ToList();
+            if (extra.Count > 0)
+                res.Issues.Add(new ImportIssue(ImportIssue.Levels.Info, "", "in the flowsheet and absent from the reading, left as they are: " + string.Join(", ", extra.Take(20)) + (extra.Count > 20 ? ", ..." : "")));
+
+            if (setup.SpecsFromTable)
+            {
+                var matched = lines.Where(res.Streams.ContainsKey).ToList();
+                foreach (var kv in res.Streams.Where(s => s.Key.Feed && s.Key.HasData)) SetStream(fs, kv.Value, kv.Key, r.Units, res, true);
+                foreach (var item in items.Values)
+                    if (res.Items.TryGetValue(item.Tag, out var obj)) Specify(fs, obj, item, matched, r.Units, res);
+            }
+            res.Issues.Insert(0, new ImportIssue(ImportIssue.Levels.Info, "", res.Items.Count + " of " + items.Count + " items and " + res.Streams.Count + " of " + lines.Count +
+                " lines of the reading were found in the flowsheet" + (setup.SpecsFromTable ? "; the feeds and the items' specifications were set from it" : "")));
+            return res;
         }
 
         /// <summary>
@@ -764,6 +831,17 @@ namespace DWSIM.Extensions.SolidCraft
                     break;
                 case Pump pu:
                     if (efficiency.HasValue && efficiency.Value > 0 && efficiency.Value <= 1) { pu.Eficiencia = 100 * efficiency.Value; used.Add("efficiency " + Percent(efficiency.Value)); }
+                    if (!pOut && V("head") is double head && head > 0)
+                    {
+                        // the pressure rise of the head on water: the fluid's density is not known before the flowsheet is solved
+                        pu.CalcMode = Pump.CalculationMode.Delta_P;
+                        pu.DeltaP = 1000 * 9.80665 * head;
+                        settled = true;
+                        used.Add("pressure rise from the head of " + head.ToString("G4", CultureInfo.InvariantCulture) + " m at 1000 kg/m3 (correct it for the fluid's density)");
+                    }
+                    break;
+                case Tank tank:
+                    if (V("volume") is double vt && vt > 0) { tank.Volume = vt; used.Add("volume " + vt.ToString("G4", CultureInfo.InvariantCulture) + " m3"); }
                     break;
                 case Compressor co:
                     if (polytropic.HasValue && polytropic.Value > 0 && polytropic.Value <= 1)
@@ -796,6 +874,8 @@ namespace DWSIM.Extensions.SolidCraft
                     break;
             }
             if (used.Count == 0) return;
+            if (used.Any(u => u.Contains("efficiency")))
+                res.Issues.RemoveAll(i => i.Subject == item.Tag && i.Text.StartsWith("the drawing gives no efficiency", StringComparison.Ordinal));
             if (settled)
                 for (var i = res.Issues.Count - 1; i >= issuesBefore; i--)
                     if (res.Issues[i].Text.StartsWith("the table does not give", StringComparison.Ordinal)) res.Issues.RemoveAt(i);

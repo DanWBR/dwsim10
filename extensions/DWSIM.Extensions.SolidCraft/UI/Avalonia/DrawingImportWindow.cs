@@ -66,7 +66,7 @@ namespace DWSIM.Extensions.SolidCraft
 
         // build page
         StackPanel issues, results;
-        CheckBox specs, useUnits, solve;
+        CheckBox specs, useUnits, solve, update;
         Button build, fit;
         TextBlock summary;
         StackPanel fitRow, fitChoices;
@@ -567,6 +567,13 @@ namespace DWSIM.Extensions.SolidCraft
             specs = new CheckBox { Content = "Set the items up from the stream table", IsChecked = true };
             useUnits = new CheckBox { Content = "Use the drawing's units", IsChecked = session.Flowsheet.SimulationObjects.Count == 0 };
             solve = new CheckBox { Content = "Solve and compare with the table", IsChecked = true };
+            update = new CheckBox { Content = "Update the items with the same tags, add nothing", IsChecked = false, IsVisible = false };
+            update.IsCheckedChanged += (_, _) =>
+            {
+                session.UpdateExisting = update.IsChecked == true;
+                build.Content = session.UpdateExisting ? "Update the flowsheet" : "Build the flowsheet";
+                if (session.Built == null) FillChecks();
+            };
             build = new Button { Content = "Build the flowsheet" };
             build.Click += async (_, _) => await BuildFlowsheet();
             summary = new TextBlock { TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 6) };
@@ -586,7 +593,7 @@ namespace DWSIM.Extensions.SolidCraft
             };
             var g = new Grid { RowDefinitions = new RowDefinitions("*,Auto,Auto,Auto,*"), RowSpacing = 6 };
             var top = new ScrollViewer { Content = issues };
-            var options = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 14, Children = { specs, useUnits, solve, build } };
+            var options = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 14, Children = { specs, useUnits, solve, update, build } };
             var bottom = new ScrollViewer { Content = results };
             Grid.SetRow(options, 1); Grid.SetRow(summary, 2); Grid.SetRow(fitRow, 3); Grid.SetRow(bottom, 4);
             g.Children.Add(new Border { BorderBrush = Brushes.Gray, BorderThickness = new Thickness(1), Padding = new Thickness(6), Child = top });
@@ -615,6 +622,8 @@ namespace DWSIM.Extensions.SolidCraft
 
         void FillChecks()
         {
+            update.IsVisible = session.MatchingTags() > 0;
+            if (!update.IsVisible && session.UpdateExisting) update.IsChecked = false;
             var list = session.Check();
             Show(issues, list);
             var errors = list.Any(i => i.Level == ImportIssue.Levels.Error);
