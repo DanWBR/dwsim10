@@ -45,11 +45,14 @@ Version 10.2.16
 - [NEW] Flowsheet from a DEXPI model (CAD Tools > Import Flowsheet from Drawing): a DEXPI 2.0, 2.0.1 or Proteus .xml file is read without the AI Assistant; a process model gives the equipment, the streams with conditions and compositions and the equipment data, a P&ID model the equipment, valves, piping with line numbers, nozzle heights and the control loops as inactive PID controllers; the model's diagram shows with the items marked; read by dwsim-dexpi, a free program with its own download, which the wizard points to when it is missing
 - [NEW] DEXPI export (CAD Tools > Export DEXPI Process Model): the flowsheet as a DEXPI 2.0.1 process model, with the unit operations, the streams with conditions and compositions, the equipment data and the layout as the diagram; CadExport.ExportDexpi for scripts
 - [NEW] User Guide: a DEXPI Models section in the CAD Tools part
+- [NEW] Import of simulations from other process simulators (Patreon; File > Import files from other process simulators, or Import from Other Simulators on the welcome screen): a wizard reads Aspen Plus (.bkp), Aspen HYSYS (.xml), AVEVA Process Simulation (.simx), COCO (.fsd) and PRO/II (.prz, .inp) cases, shows every conversion decision, then builds and solves the flowsheet and compares it with the source results
+- [NEW] User Guide: an Importing Simulations from Other Process Simulators part
 - [CHG] K-values: the liquid and vapor fugacity coefficients are calculated in parallel only for packages whose calculation takes over 0.1 ms, so the cubic and activity coefficient packages no longer wait on parallel tasks (Biodiesel Production in the equation-oriented solver: 35.4 to 32.8 s)
 - [CHG] Equation-oriented solver (Patreon): each column starts its own solver at the profiles the system converged to when the results are written (Extractive Distillation: 42 to 1.2 s)
 - [CHG] Equation-oriented solver (Patreon): the Newton step is solved on the sparse matrix in both interfaces (1576 equations: 6 to 0.04 s)
 - [CHG] Equation-oriented solver (Patreon): the derivatives of rigorous columns solved by their own solver are shared among four copies of the flowsheet (Biodiesel Production: 43 to 35 s)
 - [CHG] Equation-oriented solver (Patreon): the log gives the time of each part of the solve, the slowest blocks and why a column is solved by its own solver
+- [CHG] TEA and LCA windows (Patreon) on the depressurization layout in both interfaces: inputs left with Load Case, Save Case and Run, results right with charts; cases in .dwtea and .dwlca files, LCA inputs saved with the flowsheet, sensitivity range and Monte Carlo settings in the TEA settings
 - [FIX] Equation-oriented solver (Patreon): the same flowsheet could take a different number of iterations from one solve to the next on a busy computer
 - [FIX] FluentAPI and MCP server in a Patreon Edition install: the Patreon property packages and unit operations were refused; License.ActivateWithKey validates the membership key
 - [FIX] Flowsheets saved by an automation program with a version number below 5.0 reopened as files from before DWSIM 5 and loaded slowly
@@ -63,6 +66,8 @@ Version 10.2.16
 - [FIX] Compounds marked as solids or listed in the forced solids take their solid enthalpy from the solid heat capacity even when the solid enthalpy is calculated from the liquid (silicon dioxide in Raoult's Law at 25 °C: −93,630 to 0 kJ/kg); the other solids keep the liquid route
 - [FIX] Flash with forced solids: compounds that crystallize from the liquid stayed in it (carbon next to forced silicon dioxide at 25 °C); they now join the solid phase
 - [FIX] Solid-liquid equilibrium with an equation of state: the activity coefficient used the vapor pressure correlation as the pure-liquid reference (water with traces of H2S and HCl in Peng-Robinson did not freeze at −10 °C); the reference is now the pure liquid in the same model
+- [FIX] TEA Monte Carlo analysis: the triangular distribution was sampled with a wrong formula and the NPV histogram had two peaks
+- [FIX] TEA and LCA integration settings in the Cross-Platform interface were not kept when the dialog closed with OK
 
 Version 10.2.15
 
