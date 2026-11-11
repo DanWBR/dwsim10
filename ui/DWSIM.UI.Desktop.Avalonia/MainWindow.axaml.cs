@@ -243,6 +243,7 @@ public partial class MainWindow : Window
         LnkNew.Click += (_, _) => OpenNewFlowsheet();
         LnkNewWizard.Click += async (_, _) => await OpenNewWithWizardAsync();
         LnkNewFromDrawing.Click += (_, _) => OpenNewFromDrawing();
+        LnkImportSimulation.Click += (_, _) => ImportFromOtherSimulators();
         LnkLoadFile.Click += async (_, _) => await OpenFileDialogAsync();
 
         // Compound creation / data regression. Both tools work over a flowsheet, so a new
@@ -873,6 +874,29 @@ public partial class MainWindow : Window
             Activate();
             importer.Run();
         }, global::Avalonia.Threading.DispatcherPriority.Background);
+    }
+
+    /// <summary>
+    /// Opens the wizard that imports a simulation of another process simulator (File > Import files from other
+    /// process simulators on a simulation window), for the shortcut of the welcome screen.
+    /// </summary>
+    private async void ImportFromOtherSimulators()
+    {
+        const string simulationImportId = "7C2B9E14-5A3D-4F8B-9E61-3D0A6B1C4E71";
+        var importer = Extenders.SelectMany(c => c.Collection).OfType<IExtender>().FirstOrDefault(x => x.ID == simulationImportId);
+        if (importer == null)
+        {
+            await ConfirmAsync("Import from Other Simulators", "The import of files from other process simulators is an extension of the Patreon edition, which was not found.", okOnly: true);
+            return;
+        }
+
+        // the wizard opens over this window, which is also what opens the flowsheet it builds
+        importer.SetMainWindow(this);
+        if (importer is IExtender6 gui)
+        {
+            try { gui.SetFlowsheetGUI(this); } catch { }
+        }
+        importer.Run();
     }
 
     private async System.Threading.Tasks.Task OpenFileDialogAsync()

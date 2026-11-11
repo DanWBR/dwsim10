@@ -77,6 +77,8 @@
               <Button Name="LnkNewFromDrawing" Classes="link" Content="Create New from PFD or P&amp;ID"
                       ToolTip.Tip="A new, empty flowsheet built from a process flow diagram or a P&amp;ID read by the AI Assistant." />
               <Button Name="LnkLoadFile"     Classes="link" Content="Load File" />
+              <Button Name="LnkImportSimulation" Classes="link" Content="Import from Other Simulators"
+                      ToolTip.Tip="A DWSIM flowsheet built from a simulation file of another process simulator." />
             </StackPanel>
 
             <!-- Compound creation / data regression -->
