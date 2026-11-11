@@ -6,7 +6,7 @@
 - [NEW] User Guide: a DEXPI Models section in the CAD Tools part
 - [NEW] Import of simulations from other process simulators (Patreon; File > Import Flowsheets from Other Process Simulators, or Import from Other Simulators on the welcome screen): a wizard reads Aspen Plus (.bkp), Aspen HYSYS (.xml), AVEVA Process Simulation (.simx), COCO (.fsd) and PRO/II (.prz, .inp) cases, shows every conversion decision, then builds and solves the flowsheet and compares it with the source results
 - [NEW] User Guide: an Importing Simulations from Other Process Simulators part
-- [CHG] K-values: the liquid and vapor fugacity coefficients are calculated in parallel only for packages whose calculation takes over 0.1 ms, so the cubic and activity coefficient packages no longer wait on parallel tasks (Biodiesel Production in the equation-oriented solver: 35.4 to 32.8 s)
+- [CHG] K-values: the liquid and vapor fugacity coefficients are calculated in parallel only for packages whose calculation takes over 0.1 ms, so the cubic and activity coefficient packages don't wait on parallel tasks anymore (Biodiesel Production in the equation-oriented solver: 35.4 to 32.8 s)
 - [CHG] Equation-oriented solver (Patreon): each column starts its own solver at the profiles the system converged to when the results are written (Extractive Distillation: 42 to 1.2 s)
 - [CHG] Equation-oriented solver (Patreon): the Newton step is solved on the sparse matrix in both interfaces (1576 equations: 6 to 0.04 s)
 - [CHG] Equation-oriented solver (Patreon): the derivatives of rigorous columns solved by their own solver are shared among four copies of the flowsheet (Biodiesel Production: 43 to 35 s)
