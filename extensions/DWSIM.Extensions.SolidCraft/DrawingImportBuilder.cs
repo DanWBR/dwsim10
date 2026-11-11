@@ -78,6 +78,9 @@ namespace DWSIM.Extensions.SolidCraft
             /// <summary>The pipe segments made of the sized lines.</summary>
             public int Pipes;
 
+            /// <summary>The controllers made of the reading's control loops.</summary>
+            public List<ISimulationObject> Controllers = new List<ISimulationObject>();
+
             /// <summary>True when the reading updated the flowsheet's own items and streams, with nothing added.</summary>
             public bool Updated;
         }
@@ -793,9 +796,16 @@ namespace DWSIM.Extensions.SolidCraft
                 else if (wb.HasValue)
                 {
                     d.SetReboilerSpec("Product_Mass_Flow_Rate", wb.Value, "kg/s");
-                    Note(ImportIssue.Levels.Info, "the reboiler works to the bottoms flow of the table; the reflux ratio is not on the drawing, the condenser keeps its default");
+                    Note(ImportIssue.Levels.Info, "the reboiler works to the bottoms flow of the table" +
+                        (item.Specs.ContainsKey("reflux_ratio") ? "" : "; the reflux ratio is not on the drawing, the condenser keeps its default"));
                 }
                 else Note(ImportIssue.Levels.Warning, "the table gives no product flows; set the condenser and reboiler specifications before solving");
+                // the reflux ratio a model gives for the column itself
+                if (d.CondenserType != Column.condtype.Full_Reflux && item.Specs.TryGetValue("reflux_ratio", out var modelReflux) && modelReflux > 0)
+                {
+                    d.SetCondenserSpec("Stream_Ratio", modelReflux, "");
+                    Note(ImportIssue.Levels.Info, "from the model: reflux ratio " + modelReflux.ToString("G4", CultureInfo.InvariantCulture));
+                }
             }
         }
 
@@ -1060,7 +1070,17 @@ namespace DWSIM.Extensions.SolidCraft
                     if (!ve.OverrideP && V("pressure") is double p) { ve.OverrideP = true; ve.FlashPressure = p; used.Add("pressure"); }
                     break;
                 case ShortcutColumn sc:
-                    if (V("reflux_ratio") is double reflux && reflux > 0) { sc.m_refluxratio = reflux; used.Add("reflux ratio " + reflux.ToString("G4", CultureInfo.InvariantCulture)); }
+                    if (V("reflux_ratio") is double reflux && reflux > 0)
+                    {
+                        sc.m_refluxratio = reflux;
+                        used.Add("reflux ratio " + reflux.ToString("G4", CultureInfo.InvariantCulture));
+                        // the note on the keys said the drawing did not give it
+                        foreach (var note in res.Issues.Skip(issuesBefore).Where(i => i.Subject == item.Tag))
+                        {
+                            var at = note.Text.IndexOf("; the reflux ratio is not on the drawing", StringComparison.Ordinal);
+                            if (at > 0) note.Text = note.Text.Substring(0, at);
+                        }
+                    }
                     break;
                 case Reactor_CSTR cstr:
                     if (V("volume") is double vc && vc > 0) { cstr.Volume = vc; used.Add("volume"); }
@@ -1116,9 +1136,43 @@ namespace DWSIM.Extensions.SolidCraft
                 pid.OutputMin = 0.0;
                 pid.OutputMax = 100.0;
                 pid.Active = false;
+                res.Controllers.Add(created);
                 res.Issues.Add(new ImportIssue(ImportIssue.Levels.Info, name, "control loop built inactive: it reads " + measured.GraphicObject.Tag +
                     " and moves " + valve.GraphicObject.Tag + "; set its setpoint and tuning before a dynamic run"));
             }
+        }
+
+        /// <summary>
+        /// Once the flowsheet is solved, gives each controller made of a control loop the solved
+        /// value of what it measures as its setpoint, and the opening its valve has as the output it
+        /// starts from. The controllers stay inactive.
+        /// </summary>
+        public static List<ImportIssue> SettleControllers(IFlowsheet fs, Result res)
+        {
+            var issues = new List<ImportIssue>();
+            foreach (var created in res.Controllers)
+            {
+                if (!(created is PIDController pid) || pid.ControlledObjectData == null) continue;
+                try
+                {
+                    if (!fs.SimulationObjects.TryGetValue(pid.ControlledObjectData.ID, out var measured) || !measured.Calculated) continue;
+                    var si = Convert.ToDouble(measured.GetPropertyValue(pid.ControlledObjectData.PropertyName), CultureInfo.InvariantCulture);
+                    if (double.IsNaN(si) || double.IsInfinity(si)) continue;
+                    var value = string.IsNullOrEmpty(pid.ControlledObjectData.Units) ? si : DWSIM.SharedClasses.SystemsOfUnits.Converter.ConvertFromSI(pid.ControlledObjectData.Units, si);
+                    // a steady state does not hold liquid in a vessel: a level loop keeps the setpoint it has
+                    var level = pid.ControlledObjectData.PropertyName == "Liquid Level";
+                    if (!level) pid.SetPoint = value;
+                    if (fs.SimulationObjects.TryGetValue(pid.ManipulatedObjectData?.ID ?? "", out var valve))
+                    {
+                        var opening = Convert.ToDouble(valve.GetPropertyValue("PROP_VA_5"), CultureInfo.InvariantCulture);
+                        if (!double.IsNaN(opening) && opening >= 0 && opening <= 100) pid.Offset = opening;
+                    }
+                    if (!level) issues.Add(new ImportIssue(ImportIssue.Levels.Info, created.GraphicObject.Tag, "setpoint at the solved value, " +
+                        value.ToString("G5", CultureInfo.InvariantCulture) + " " + pid.ControlledObjectData.Units));
+                }
+                catch (Exception) { }
+            }
+            return issues;
         }
 
         static SpecialOpObjectInfo Refer(IFlowsheet fs, ISimulationObject obj, string property)

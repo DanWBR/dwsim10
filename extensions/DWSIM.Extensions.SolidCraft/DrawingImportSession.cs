@@ -218,6 +218,7 @@ namespace DWSIM.Extensions.SolidCraft
                 Solve.Add(new ImportIssue(ImportIssue.Levels.Error, "", e.GetBaseException().Message));
             Solve.AddRange(DrawingImportBuilder.Compare(Reading, Built));
             Solve.AddRange(DrawingImportBuilder.DesignCheck(Flowsheet, Reading, Built));
+            Solve.AddRange(DrawingImportBuilder.SettleControllers(Flowsheet, Built));
             Fitted = null;
             FitParameters = DrawingImportFit.Available ? DrawingImportFit.Parameters(Reading, Built) : new List<DrawingImportFit.Parameter>();
             try { Flowsheet.UpdateInterface(); } catch (Exception) { }

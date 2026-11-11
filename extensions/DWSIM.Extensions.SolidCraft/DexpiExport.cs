@@ -444,6 +444,15 @@ namespace DWSIM.Extensions.SolidCraft
                         {
                             var reflux = Num(unit, "RefluxRatio");
                             if (reflux > 0 && type != ObjectType.ReboiledAbsorber) step.Comp("RefluxRatio", Value(Dbl(reflux.Value)));
+                            // the stages between the condenser and the reboiler, as trays
+                            var stages = Num(unit, "NumberOfStages");
+                            var columnTag = Identifier(unit.GraphicObject.Tag);
+                            var trays = (int)Math.Round(stages ?? 0) - (type == ObjectType.DistillationColumn ? 2 : type == ObjectType.AbsorptionColumn ? 0 : 1);
+                            if (trays >= 2 && trays <= 500)
+                                step.Comp("ProcessStepDetails", Enumerable.Range(1, trays).Select(n =>
+                                    new Obj(Id("Tray"), "Process/Process.ContactingOnTray")
+                                        .Data("Description", Text("Stage " + n + " of " + columnTag + ", from the top"))
+                                        .Data("Identifier", Str(columnTag + ".T" + n)).Data("Label", Str("Stage " + n)).Data("Number", Int(n))).ToArray());
                             var condenser = Positive(Num(unit, "CondenserDuty"));
                             if (condenser > 0 && type != ObjectType.ReboiledAbsorber) Put("CondenserDuty", kW, condenser);
                             var reboiler = Positive(Num(unit, "ReboilerDuty"));
@@ -576,8 +585,7 @@ namespace DWSIM.Extensions.SolidCraft
             #region streams
 
             /// <summary>The phases a stream's state is split into, with the flowsheet's phase each one is read from.</summary>
-            static readonly string[] PhaseLabels = { "Vapour", "Liquid", "Solid" };
-            static readonly int[] PhaseIndices = { 2, 1, 7 };
+            static readonly string[] PhaseLabels = { "Vapour", "Liquid", "Liquid 2", "Solid" };
 
             /// <summary>
             /// A phase, or the overall mixture, as a DEXPI material state type: its mass flow, the
@@ -642,13 +650,21 @@ namespace DWSIM.Extensions.SolidCraft
                     .Data("Description", Str("Material state of " + tag)).Data("Identifier", Str("MS-" + tag)).Data("Label", Str(tag));
 
                 // the phases present, each with its own flow, composition and properties
-                for (var k = 0; k < PhaseIndices.Length; k++)
+                double Flow(int index)
                 {
-                    IPhase phase = null;
-                    try { phase = ms.Phases[PhaseIndices[k]]; } catch (Exception) { }
-                    var phaseFlow = phase?.Properties.massflow;
-                    if (phase == null || !phaseFlow.HasValue || !Real(phaseFlow.Value) || phaseFlow.Value <= 0) continue;
-                    var part = StateType(phase, compounds, phaseFlow.Value * 3600, PhaseLabels[k], "MST-" + tag + "-" + PhaseLabels[k], PhaseLabels[k] + " phase of " + tag);
+                    try { var f = ms.Phases[index]?.Properties.massflow; return f.HasValue && Real(f.Value) ? f.Value : 0; }
+                    catch (Exception) { return 0; }
+                }
+                // two liquids are written each on its own, a single one as the liquid of the stream
+                var twoLiquids = Flow(3) > 0 && Flow(4) > 0;
+                var written = twoLiquids
+                    ? new[] { (Index: 2, Label: "Vapour"), (Index: 3, Label: "Liquid"), (Index: 4, Label: "Liquid 2"), (Index: 7, Label: "Solid") }
+                    : new[] { (Index: 2, Label: "Vapour"), (Index: 1, Label: "Liquid"), (Index: 7, Label: "Solid") };
+                foreach (var one in written)
+                {
+                    var phaseFlow = Flow(one.Index);
+                    if (phaseFlow <= 0) continue;
+                    var part = StateType(ms.Phases[one.Index], compounds, phaseFlow * 3600, one.Label, "MST-" + tag + "-" + one.Label.Replace(" ", ""), one.Label + " phase of " + tag);
                     if (part != null) state.Comp("Phases", part);
                 }
                 states.Add(state);
