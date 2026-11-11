@@ -258,7 +258,7 @@ namespace DWSIM.Extensions.SolidCraft
                 if (obj != null && obj.GraphicObject.ObjectType != ObjectType.MaterialStream && obj.GraphicObject.ObjectType != ObjectType.EnergyStream)
                     res.Items[item.Tag] = obj;
                 else
-                    res.Issues.Add(new ImportIssue(ImportIssue.Levels.Info, item.Tag, "not in the flowsheet; an update adds nothing"));
+                    res.Issues.Add(new ImportIssue(ImportIssue.Levels.Info, item.Tag, "not in the flowsheet; an update doesn't add it"));
             }
 
             // a stream by its tag, else the one stream that joins the same two items

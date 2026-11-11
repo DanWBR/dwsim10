@@ -78,7 +78,7 @@ namespace DWSIM.Extensions.SolidCraft
         /// <summary>
         /// Brings a flowsheet up to date with a new revision of its drawing or DEXPI model (or a reading saved as
         /// .json): the items and streams are found by their tags, the feeds take the conditions, flows and
-        /// compositions of the reading and the items its specifications, and nothing is added. With
+        /// compositions of the reading and the items its specifications, and nothing new is created. With
         /// <paramref name="solve"/> the flowsheet is solved and compared with the reading's stream data; what was
         /// not found on either side is in the session's <c>Built.Issues</c>.
         /// </summary>
@@ -97,7 +97,7 @@ namespace DWSIM.Extensions.SolidCraft
             }
             s.Setup.UseDrawingUnits = false;
             if (s.MatchingTags() == 0)
-                throw new InvalidOperationException("Nothing to update: the flowsheet has none of the items of the drawing, by their tags.");
+                throw new InvalidOperationException("Nothing to update: the flowsheet doesn't have any of the items of the drawing, by their tags.");
             s.Build(solve, progress);
             return s;
         }

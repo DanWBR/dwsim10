@@ -190,7 +190,7 @@ namespace DWSIM.Extensions.SolidCraft
                 issues.Add(new ImportIssue(ImportIssue.Levels.Warning, n, "not found in the compound database; its flows are left out"));
             if (Flowsheet.SimulationObjects.Count > 0)
                 issues.Add(new ImportIssue(ImportIssue.Levels.Info, "", UpdateExisting
-                    ? "the items and streams of the flowsheet with the reading's tags are brought up to date; nothing is added"
+                    ? "the items and streams of the flowsheet with the reading's tags are brought up to date; nothing new is created"
                     : "the flowsheet is not empty; the drawing is added to what is there"));
             issues.AddRange(Tidied);
             return issues.OrderBy(i => i.Level).ToList();

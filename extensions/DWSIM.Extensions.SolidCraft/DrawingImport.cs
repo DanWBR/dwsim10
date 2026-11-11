@@ -248,7 +248,7 @@ namespace DWSIM.Extensions.SolidCraft
             foreach (var i in Items.Where(i => i.Include && i.Category == "Relief"))
             {
                 i.Include = false;
-                notes.Add(new ImportIssue(ImportIssue.Levels.Info, i.Tag, "relief valves carry no flow in normal operation; left out with their lines (tick it to build it)" +
+                notes.Add(new ImportIssue(ImportIssue.Levels.Info, i.Tag, "relief valves don't carry flow in normal operation; left out with their lines (tick it to build it)" +
                     (i.Specs.TryGetValue("set_pressure", out var set) ? "; set at " + ((set - 101325) / 1e5).ToString("G4", CultureInfo.InvariantCulture) + " bar g" : "")));
             }
             bool Same(string a, string b) => string.Equals(a, b, StringComparison.OrdinalIgnoreCase);

@@ -20,7 +20,7 @@ Resources/dexpi_identifiers.tsv
   Interest (https://www.ebi.ac.uk/chebi), EMBL-EBI, licensed under the Creative
   Commons Attribution 4.0 International License (CC BY 4.0),
   https://creativecommons.org/licenses/by/4.0/. Only the identifiers are used;
-  nothing was changed in them.
+  they weren't changed.
 
 SolidCraft and CADCraft are separate programs the user installs; the extension
 only runs their command-line tools and links nothing of them.
