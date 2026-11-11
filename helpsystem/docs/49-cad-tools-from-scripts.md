@@ -28,3 +28,5 @@ From Python with the Automation API (pythonnet), pass the `Inner` flowsheet of t
 | **`ExportEquipmentDrawings`, `ExportPipingIsometrics`, `ExportDataSheets` (flowsheet, folder, tags)** | The drawings of one sheet per item, line or loop; all of them when no tag is given. |
 | **`ExportAllDrawings(flowsheet, folder)`** | Everything, and returns the drawing set file. |
 
+The DEXPI tools are scripted the same way: `CadExport.ExportDexpi` and `CadExport.ExportDexpiPid` write the process model and the P&ID model, `ImportFromDrawing` takes DEXPI files, and `UpdateFromDrawing` brings a flowsheet up to date from a new revision of its drawing or model. The section DEXPI Models lists them.
+

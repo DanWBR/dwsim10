@@ -26,6 +26,10 @@ The build places each item where the drawing has it, makes a stream for each lin
 
 A P&ID is drawn the way it is built, and the wizard sets it straight before the checks: relief valves and the flare, drain and vent connections are left out (they carry no flow in normal operation), the fuel gas, pilot gas, combustion air and instrument air of a fired heater are left out so it keeps its process coil, an item that only burns what it takes (a gas turbine) ends its lines, and junctions where lines meet become mixers and splitters. Each of these is listed among the checks, and anything left out can be ticked to build it.
 
+A DEXPI model can be chosen in place of a drawing: an .xml file, or several selected together, is read by the dwsim-dexpi program, without the AI Assistant, and goes through the same pages. The section DEXPI Models describes what a model gives.
+
+The last page has, besides the build, the options that apply to the reading at hand. Update the items with the same tags, add nothing shows when the flowsheet already has items with the tags of the reading: it brings those items and their streams up to date and leaves the rest as it is, for a new revision of a drawing already imported. Pipe segments for the sized lines shows when the lines give their size in the line number (DN80-..., 6"-P-1234): it makes a Pipe Segment of each one, a straight run of 10 m with the diameters of its size. A relief valve ticked on the Equipment page is built as a Relief Valve object; a plain valve can still be chosen there.
+
 
 
 
