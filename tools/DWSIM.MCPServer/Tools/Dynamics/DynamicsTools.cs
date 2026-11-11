@@ -155,7 +155,7 @@ namespace DWSIM.MCPServer.Tools.Dynamics
 
             if (unnamed > 0)
             {
-                result["note"] = "Ids without a description have no friendly name in the engine; identify them by their units and current value.";
+                result["note"] = "Ids without a description don't have a friendly name in the engine; identify them by their units and current value.";
             }
 
             if (matching.Count > MaxProperties) result["truncated"] = true;
@@ -266,7 +266,7 @@ namespace DWSIM.MCPServer.Tools.Dynamics
 
         [McpTool("dwsim_dynamics_monitor",
             "Manage the variables an integrator records. Only monitored variables appear in the results, so " +
-            "a run with none produces no series. Variables are given as \"TAG.PropertyId\"; find the ids " +
+            "a run without them doesn't produce any series. Variables are given as \"TAG.PropertyId\"; find the ids " +
             "with dwsim_dynamics_properties.")]
         public JObject Monitor(
             [McpParam("Flowsheet handle")] string flowsheet_id,
@@ -390,7 +390,7 @@ namespace DWSIM.MCPServer.Tools.Dynamics
         [McpTool("dwsim_dynamics_controller",
             "Read or set up the PID controllers on a flowsheet: what each one reads and writes, its setpoint, " +
             "gains, output limits and action. A controller without both a process and a manipulated variable " +
-            "does nothing during a run.")]
+            "doesn't do anything during a run.")]
         public JObject Controller(
             [McpParam("Flowsheet handle")] string flowsheet_id,
             [McpParam("list or set", Required = false)] string action = "list",
@@ -517,7 +517,7 @@ namespace DWSIM.MCPServer.Tools.Dynamics
                         .Distinct(StringComparer.Ordinal)
                         .Take(MaxListItems);
 
-                    throw new ArgumentException("'" + tag + "' has no settable property '" + entry.Key +
+                    throw new ArgumentException("'" + tag + "' doesn't have a settable property '" + entry.Key +
                         "'. Available: " + string.Join(", ", known.Select(p => "'" + p + "'")) + ".");
                 }
             }
@@ -689,7 +689,7 @@ namespace DWSIM.MCPServer.Tools.Dynamics
 
         [McpTool("dwsim_dynamics_status",
             "Check on a run. While it runs, returns progress; once it has finished, returns a per-variable " +
-            "summary — first, last, minimum, maximum and whether the variable settled. Returns no time-series " +
+            "summary — first, last, minimum, maximum and whether the variable settled. Doesn't return time-series " +
             "points; call dwsim_dynamics_series for those.")]
         public JObject Status(
             [McpParam("Run handle from dwsim_dynamics_run")] string run_id,
@@ -760,7 +760,7 @@ namespace DWSIM.MCPServer.Tools.Dynamics
                 {
                     ["run_id"] = run_id,
                     ["series"] = new JObject(),
-                    ["note"] = "The integrator recorded no variables. Add some with dwsim_dynamics_monitor and run again."
+                    ["note"] = "The integrator didn't record any variables. Add some with dwsim_dynamics_monitor and run again."
                 };
             }
 
@@ -899,7 +899,7 @@ namespace DWSIM.MCPServer.Tools.Dynamics
             "transient, and controllers whose action is reversed. Each finding carries a fix.")]
         public JObject Diagnose(
             [McpParam("Run handle; omit to check the flowsheet instead", Required = false)] string run_id = null,
-            [McpParam("Flowsheet handle, when no run is given", Required = false)] string flowsheet_id = null)
+            [McpParam("Flowsheet handle, when a run isn't given", Required = false)] string flowsheet_id = null)
         {
             if (!string.IsNullOrEmpty(run_id))
             {
@@ -913,7 +913,7 @@ namespace DWSIM.MCPServer.Tools.Dynamics
                         ["run_id"] = run_id,
                         ["state"] = job.State.ToString().ToLowerInvariant(),
                         ["findings"] = new JArray(),
-                        ["note"] = "The run has produced no results yet."
+                        ["note"] = "The run hasn't produced any results yet."
                     };
                 }
 
@@ -942,7 +942,7 @@ namespace DWSIM.MCPServer.Tools.Dynamics
         [McpTool("dwsim_dynamics_tune_pid",
             "Tune PID controllers by simulation: a bounded simplex search (COBYLA) over their gains, running the schedule " +
             "once per trial and scoring the transient. Returns a run_id; poll dwsim_dynamics_status. Needs a " +
-            "stored initial state to make trials comparable, and captures one when the schedule has none.")]
+            "stored initial state to make trials comparable, and captures one when the schedule doesn't have one.")]
         public JObject TunePid(
             [McpParam("Flowsheet handle")] string flowsheet_id,
             [McpParam("Controller tags to tune; all of them when omitted", Required = false)] string[] controllers = null,
@@ -1013,7 +1013,7 @@ namespace DWSIM.MCPServer.Tools.Dynamics
             if (!fs.Inner.DynamicsManager.IntegratorList.ContainsKey(schedule.CurrentIntegrator))
             {
                 throw new InvalidOperationException("Schedule '" + schedule.Description +
-                    "' has no integrator. Call dwsim_dynamics_setup first.");
+                    "' doesn't have an integrator. Call dwsim_dynamics_setup first.");
             }
             return fs.Inner.DynamicsManager.IntegratorList[schedule.CurrentIntegrator].Description;
         }
@@ -1040,7 +1040,7 @@ namespace DWSIM.MCPServer.Tools.Dynamics
             if (job.Result == null)
             {
                 throw new InvalidOperationException("Run " + runId + " is " +
-                    job.State.ToString().ToLowerInvariant() + " and has no results yet." +
+                    job.State.ToString().ToLowerInvariant() + " and doesn't have results yet." +
                     (job.Error == null ? "" : " It failed: " + BaseMessage(job.Error)));
             }
 
@@ -1057,7 +1057,7 @@ namespace DWSIM.MCPServer.Tools.Dynamics
                 DynamicsSeries series;
                 if (!result.TryGetSeries(name, out series))
                 {
-                    throw new ArgumentException("No monitored variable named '" + name + "'. Available: " +
+                    throw new ArgumentException("There isn't a monitored variable named '" + name + "'. Available: " +
                         string.Join(", ", result.Series.Select(s => "'" + s.Name + "'")) + ".");
                 }
                 selected.Add(series);

@@ -167,7 +167,7 @@ public sealed class EosExplorerWindow : Window
         var p = new AvaloniaEditorPanel();
 
         p.CreateAndAddLabelRow("Compound and equation");
-        p.CreateAndAddDescriptionRow("The equation is evaluated in its textbook form, P = RT/(V - b) - a(T)/((V + eps b)(V + sigma b)), from the compound's critical temperature, critical pressure and acentric factor. Nothing else of the property package is used, so what you see is the equation itself.");
+        p.CreateAndAddDescriptionRow("The equation is evaluated in its textbook form, P = RT/(V - b) - a(T)/((V + eps b)(V + sigma b)), from the compound's critical temperature, critical pressure and acentric factor. The tool doesn't use anything else of the property package, so what you see is the equation itself.");
         _compoundBox = p.CreateAndAddDropDownRow("Compound", _compounds, Math.Max(0, _compounds.IndexOf(_in.CompoundName)), (dd, _) =>
         {
             if (dd.SelectedIndex < 0) return;
@@ -180,7 +180,7 @@ public sealed class EosExplorerWindow : Window
         p.CreateAndAddLabelRow("Isotherms");
         _tempBox = p.CreateAndAddStringEditorRow("Temperatures (" + _su.temperature + "), separated by ;", TemperaturesShown(), (tb, _) => ReadTemperatures(tb.Text));
         p.CreateAndAddButtonRow("Use 0.8, 0.9, 1.0 and 1.1 Tc", null, (_, _) => { _in.Temperatures = ""; ShowDefaultTemperatures(); });
-        p.CreateAndAddDescriptionRow("Below Tc the isotherm loops: the equation has three volume roots between the liquid and the vapour, and the flat line the Maxwell construction draws across the loop, at equal fugacity of the two roots, is the saturation pressure the equation predicts. At Tc the loop shrinks to an inflection; above it there is one root at every pressure and no condensation.");
+        p.CreateAndAddDescriptionRow("Below Tc the isotherm loops: the equation has three volume roots between the liquid and the vapour, and the flat line the Maxwell construction draws across the loop, at equal fugacity of the two roots, is the saturation pressure the equation predicts. At Tc the loop shrinks to an inflection; above it there is one root at every pressure and the fluid doesn't condense.");
         p.CreateAndAddTextBoxRow(_nf, "Largest volume, in critical volumes", _in.VolumeRangeInCriticalVolumes, (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v)) _in.VolumeRangeInCriticalVolumes = v; });
         p.CreateAndAddTextBoxRow(_nf, "Points per isotherm", _in.Points, (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v)) _in.Points = (int)v; });
         return p;

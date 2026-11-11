@@ -210,7 +210,7 @@ Namespace Reactors
             Dim T = x(vapor)
             Dim tf = context.FlowTolerance(inlet), te = context.EnergyTolerance(inlet)
             Dim e = context.Flash(vapor, T, P, z, True)
-            If e Is Nothing Then Throw New NotSupportedException(GraphicObject.Tag & ": no products")
+            If e Is Nothing Then Throw New NotSupportedException(GraphicObject.Tag & ": doesn't have any products")
             ' through P = P_in - dP
             Dim addP = Sub(row As Integer, v As Double)
                            add(row, inlet + 1, v)
@@ -465,7 +465,7 @@ Namespace Reactors
             Dim T = x(vapor)
             Dim tf = ctx.FlowTolerance(inlet)
             Dim e = ctx.Flash(vapor, T, P, z, True)
-            If e Is Nothing Then Throw New NotSupportedException("no products")
+            If e Is Nothing Then Throw New NotSupportedException("doesn't have any products")
             ' through P = P_in - dP
             Dim addP = Sub(rw As Integer, v As Double)
                            add(rw, inlet + 1, v)
@@ -936,7 +936,7 @@ Namespace Reactors
             Next
             Dim nullBasis = EOReactorHelpers2.NullSpace(Ael)
             Dim nr = nullBasis.Count
-            If nr = 0 Then Throw New NotSupportedException(GraphicObject.Tag & ": the elements allow no reaction")
+            If nr = 0 Then Throw New NotSupportedException(GraphicObject.Tag & ": the elements don't allow any reaction")
             Dim S(c - 1, nr - 1) As Double
             For q = 0 To nr - 1
                 For j = 0 To ids.Count - 1
@@ -998,7 +998,7 @@ Namespace Reactors
                                Return b
                            End Function
             }
-            If Not m.Prepare(c) Then Throw New NotSupportedException(GraphicObject.Tag & ": no basis of reactions")
+            If Not m.Prepare(c) Then Throw New NotSupportedException(GraphicObject.Tag & ": couldn't find a basis of reactions")
             Return m
         End Function
 

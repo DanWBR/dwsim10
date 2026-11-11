@@ -284,7 +284,7 @@ public sealed class BulkPseudocompoundsWindow : Window
     {
         var clipboard = Clipboard;
         var text = clipboard == null ? null : await clipboard.GetTextAsync();
-        if (string.IsNullOrWhiteSpace(text)) { _status.Text = "The clipboard has no text."; return; }
+        if (string.IsNullOrWhiteSpace(text)) { _status.Text = "The clipboard doesn't have any text."; return; }
 
         var setters = new Action<PseudoRow, string>[]
         {

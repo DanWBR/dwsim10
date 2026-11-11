@@ -566,7 +566,7 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                 'we are below boiling point
                 IObj?.SetCurrent
                 IObj?.Paragraphs.Add(String.Format("Specified Pressure ({0} Pa) is above Boiling Pressure ({1} Pa).", P, Pvap))
-                IObj?.Paragraphs.Add(String.Format("No vapor phase exists. Final solution is found."))
+                IObj?.Paragraphs.Add(String.Format("A vapor phase doesn't exist. Final solution is found."))
                 result = {L1, 0, Vx1, PP.RET_NullVector, T, L2, Vx2, 0, PP.RET_NullVector}
             Else
                 'we are abov boiling point
@@ -981,7 +981,7 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
 
                     ElseIf V <= 0.0# Or Abs(L1) > 1.0# Or Abs(L2) > 1.0# Then
 
-                        IObj2?.Paragraphs.Add("No vapor phase in the current estimate. Switching to Simple LLE FLash Algorithm...")
+                        IObj2?.Paragraphs.Add("The current estimate doesn't have a vapor phase. Switching to Simple LLE FLash Algorithm...")
                         'switch to simple LLE flash procedure.
                         Dim slle As New SimpleLLE() With {.InitialEstimatesForPhase1 = Vx1EST, .InitialEstimatesForPhase2 = Vx2EST, .UseInitialEstimatesForPhase1 = True, .UseInitialEstimatesForPhase2 = True}
                         IObj2?.SetCurrent
@@ -1668,7 +1668,7 @@ out:
                 b = c
                 fb = fc
                 If Abs(b - a) < 0.000001 Then
-                    Throw New Exception(String.Format("PS Flash [NL3P]: no temperature gives the specified entropy at {0} Pa. The entropy of the PT flash jumps across it at T = {1:G8} K.", P, b))
+                    Throw New Exception(String.Format("PS Flash [NL3P]: there isn't a temperature that gives the specified entropy at {0} Pa. The entropy of the PT flash jumps across it at T = {1:G8} K.", P, b))
                 End If
                 If icount >= maxit Then Throw New Exception(Calculator.GetLocalString("PropPack_FlashMaxIt"))
             Loop
@@ -2156,7 +2156,7 @@ out:
                     Dim vfb As Double = rb(1), vfa As Double = ra(1)
                     If (V <= 0.0 AndAlso vfb > 0.0 AndAlso vfb < 0.01) OrElse (V >= 1.0 AndAlso vfb < 1.0 AndAlso vfb > 0.99) Then Return VFResult(rb, b, isPV, count, PP)
                     If (V <= 0.0 AndAlso vfa > 0.0 AndAlso vfa < 0.01) OrElse (V >= 1.0 AndAlso vfa < 1.0 AndAlso vfa > 0.99) Then Return VFResult(ra, a, isPV, count, PP)
-                    Throw New Exception(String.Format("{0} Flash [NL3P]: no {1} gives a vapour fraction of {2}. The vapour fraction of the PT flash jumps across it at {1} = {3:G8}.",
+                    Throw New Exception(String.Format("{0} Flash [NL3P]: there isn't a {1} that gives a vapour fraction of {2}. The vapour fraction of the PT flash jumps across it at {1} = {3:G8}.",
                                                       If(isPV, "PV", "TV"), If(isPV, "temperature", "pressure"), V, If(isPV, b, Exp(b))))
                 End If
                 If count >= maxit Then Throw New Exception(Calculator.GetLocalString("PropPack_FlashMaxIt"))

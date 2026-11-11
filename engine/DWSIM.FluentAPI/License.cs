@@ -113,7 +113,7 @@ namespace DWSIM.Automation.FluentAPI
             var init = Initialization;
             if (init == null)
             {
-                LastMessage = "this build has no Patreon components";
+                LastMessage = "this build doesn't have Patreon components";
                 return false;
             }
             var activate = init.GetMethod("ActivateHeadless", BindingFlags.Public | BindingFlags.Static);

@@ -137,7 +137,7 @@ internal sealed class KdbSearchDialog : RegressionSearchDialogBase
 
         foreach (var s in _searchResult.Sets) _rows.Add(new KdbSetRow(s));
         StatusLabel.Text = _rows.Count == 0
-            ? "No datasets found for this compound pair."
+            ? "The search didn't find datasets for this compound pair."
             : $"{_rows.Count} dataset(s) found. Select one and click Load Selected.";
         if (_rows.Count > 0) Grid.SelectedIndex = 0;
     }
@@ -252,7 +252,7 @@ internal sealed class PhaseEqSearchDialog : RegressionSearchDialogBase
 
         foreach (var ds in _results) _rows.Add(new DatasetRow(ds));
         StatusLabel.Text = _rows.Count == 0
-            ? "No datasets found for these compounds."
+            ? "The search didn't find datasets for these compounds."
             : $"{_rows.Count} dataset(s) found.";
         if (_rows.Count > 0) Grid.SelectedIndex = 0;
     }

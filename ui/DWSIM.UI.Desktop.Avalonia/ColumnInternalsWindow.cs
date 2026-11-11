@@ -465,7 +465,7 @@ public sealed class ColumnInternalsWindow : Window
                 p.CreateAndAddTwoLabelsRow("Packing factor Fp", F(pk.Fp, "0") + " 1/m" + (double.IsNaN(pk.Fpd) ? "" : ", Fpd " + F(pk.Fpd, "0") + " 1/m"));
                 p.CreateAndAddTwoLabelsRow("Area, void fraction", F(pk.a, "0") + " m2/m3, " + F(pk.Epsilon, "0.000"));
                 if (pk.Structured) p.CreateAndAddTwoLabelsRow("Corrugation side, angle", F(pk.EffectiveCorrugationSide * 1000, "0.0") + " mm" + (double.IsNaN(pk.CorrugationSide) ? " (estimated)" : "") + ", " + F(pk.CorrugationAngle, "0") + " deg");
-                p.CreateAndAddTwoLabelsRow("Billet-Schultes constants", pk.HasBilletHydraulics ? "C_h " + F(pk.Ch, "0.000") + ", C_p " + F(pk.Cp, "0.000") + ", C_s " + F(pk.Cs, "0.000") + ", C_Fl " + F(pk.CFl, "0.000") + (pk.HasBilletMassTransfer ? ", C_L " + F(pk.CL, "0.000") + ", C_V " + F(pk.CV, "0.000") : ", no mass transfer constants") : "not available");
+                p.CreateAndAddTwoLabelsRow("Billet-Schultes constants", pk.HasBilletHydraulics ? "C_h " + F(pk.Ch, "0.000") + ", C_p " + F(pk.Cp, "0.000") + ", C_s " + F(pk.Cs, "0.000") + ", C_Fl " + F(pk.CFl, "0.000") + (pk.HasBilletMassTransfer ? ", C_L " + F(pk.CL, "0.000") + ", C_V " + F(pk.CV, "0.000") : ", without mass transfer constants") : "not available");
                 p.CreateAndAddTwoLabelsRow("Source", pk.Source);
             }
             p.CreateAndAddTextBoxRow(_nf, "Bed height (" + _su.distance + ", 0 = stages times HETP)", s.BedHeight > 0 ? Show(_su.distance, s.BedHeight) : 0.0,
@@ -573,7 +573,7 @@ public sealed class ColumnInternalsWindow : Window
             ShowResult(result);
             var warn = result.Sections.Sum(s => s.Warnings.Count + s.Stages.Sum(r => r.Warnings.Count));
             var head = iterate ? (result.Converged ? "Settled after " + result.Iterations + " pass(es). " : "Not settled after " + result.Iterations + " pass(es); see the summary. ") : "Done. ";
-            _status.Text = head + (warn == 0 ? "No warnings." : warn + " warning(s); see the notes column and the summary.");
+            _status.Text = head + (warn == 0 ? "There aren't any warnings." : warn + " warning(s); see the notes column and the summary.");
             _export.IsEnabled = true;
             _applyP.IsEnabled = !iterate;
             _applyE.IsEnabled = !iterate && result.Sections.Any(sec => sec.Stages.Any(r => !double.IsNaN(r.OConnellEfficiency)));

@@ -161,7 +161,7 @@ namespace DWSIM.UI.Desktop.Editors
                                    .OrderBy(o => o.GraphicObject.Tag).ToList();
             if (objects.Count == 0)
             {
-                panel.CreateAndAddDescriptionRow("The flowsheet has no objects to show yet.");
+                panel.CreateAndAddDescriptionRow("The flowsheet doesn't have objects to show yet.");
                 return;
             }
 
@@ -216,7 +216,7 @@ namespace DWSIM.UI.Desktop.Editors
                                     .Distinct().OrderBy(t => t.ToString()).ToList();
             if (families.Count == 0)
             {
-                panel.CreateAndAddDescriptionRow("The flowsheet has no objects to show yet.");
+                panel.CreateAndAddDescriptionRow("The flowsheet doesn't have objects to show yet.");
                 return;
             }
 
@@ -432,7 +432,7 @@ namespace DWSIM.UI.Desktop.Editors
             var scripts = flowsheet.Scripts.Values.Select(x => x.Title).ToList();
             if (scripts.Count == 0)
             {
-                panel.CreateAndAddDescriptionRow("There are no scripts in this simulation yet.");
+                panel.CreateAndAddDescriptionRow("There aren't any scripts in this simulation yet.");
                 return;
             }
 
@@ -446,7 +446,7 @@ namespace DWSIM.UI.Desktop.Editors
             panel.CreateAndAddLabelRow("Image");
             panel.CreateAndAddDescriptionRow(
                 image.Image == null
-                    ? "This object has no picture yet."
+                    ? "This object doesn't have a picture yet."
                     : $"Embedded picture, {image.Image.Width} by {image.Image.Height} pixels.");
         }
 

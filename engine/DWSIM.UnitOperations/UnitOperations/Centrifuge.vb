@@ -369,7 +369,7 @@ Namespace UnitOperations
             Dim Q = liquid.volumetric_flow.GetValueOrDefault
             If Not Q > 0.0 AndAlso rhoL > 0.0 Then Q = liquid.massflow.GetValueOrDefault / rhoL
             If Not (rhoL > 0.0 AndAlso muL > 0.0 AndAlso Q > 0.0) Then
-                Throw New Exception("Centrifuge (Sigma theory): the feed has no liquid phase to take the throughput, density and viscosity from.")
+                Throw New Exception("Centrifuge (Sigma theory): the feed doesn't have a liquid phase to take the throughput, density and viscosity from.")
             End If
 
             Dim sigma = SigmaAtBowlSpeed()

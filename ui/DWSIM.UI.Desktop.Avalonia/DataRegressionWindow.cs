@@ -94,7 +94,7 @@ public sealed class DataRegressionWindow : Window
     {
         IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.NoWrap,
         FontFamily = new FontFamily("Consolas,Courier New,monospace"), FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(12),
-        VerticalContentAlignment = VerticalAlignment.Top, Text = "(no regression run yet)"
+        VerticalContentAlignment = VerticalAlignment.Top, Text = "(a regression hasn't run yet)"
     };
 
     private readonly Button _btnRun = new() { Content = "Run Regression" };
@@ -717,7 +717,7 @@ public sealed class DataRegressionWindow : Window
     private void RefreshStats()
     {
         var rows = RegressionStatsBuilder.Build(_case);
-        if (rows == null || rows.Count == 0) { _tbStats.Text = "(no results yet)"; return; }
+        if (rows == null || rows.Count == 0) { _tbStats.Text = "(there aren't any results yet)"; return; }
 
         var cols = StatsColumns.VisibleFor(_case.datatype);
         var sb = new StringBuilder();
@@ -746,7 +746,7 @@ public sealed class DataRegressionWindow : Window
         var p = _engine.RegressedParameters;
         if (p == null || p.Count == 0)
         {
-            _tbBips.Text = "(no regression run yet)";
+            _tbBips.Text = "(a regression hasn't run yet)";
             _btnExportBips.IsEnabled = false;
             _btnTransfer.IsEnabled = false;
             return;
@@ -837,7 +837,7 @@ public sealed class DataRegressionWindow : Window
         var top = GetTopLevel(this);
         if (top?.Clipboard == null) return;
         var text = await top.Clipboard.GetTextAsync();
-        if (string.IsNullOrWhiteSpace(text)) { _status.Text = "The clipboard has no text."; return; }
+        if (string.IsNullOrWhiteSpace(text)) { _status.Text = "The clipboard doesn't have any text."; return; }
 
         int added = 0;
         foreach (var line in text.Replace("\r\n", "\n").Split('\n'))
@@ -862,7 +862,7 @@ public sealed class DataRegressionWindow : Window
             });
             added += 1;
         }
-        _status.Text = added > 0 ? $"{added} data point(s) pasted." : "No numeric rows found in the clipboard.";
+        _status.Text = added > 0 ? $"{added} data point(s) pasted." : "The clipboard doesn't have numeric rows.";
     }
 
     private async Task ExportBipsAsync()

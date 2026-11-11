@@ -931,7 +931,7 @@ Namespace UnitOperations
                                      Convert.ToDouble(Speed), maphead, mappower, mapeff)
 
                         If Double.IsNaN(maphead) AndAlso Double.IsNaN(mappower) Then
-                            Throw New ArgumentException("No performance curve is enabled on this machine. Enable the head, power or efficiency curve of at least one rotation speed to run in Performance Curves mode.")
+                            Throw New ArgumentException("A performance curve isn't enabled on this machine. Enable the head, power or efficiency curve of at least one rotation speed to run in Performance Curves mode.")
                         End If
 
                         If Not Double.IsNaN(maphead) Then

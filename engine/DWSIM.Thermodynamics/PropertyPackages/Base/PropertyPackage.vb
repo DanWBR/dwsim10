@@ -4983,7 +4983,7 @@ redirect2:                  IObj?.SetCurrent()
                                             VB.Add(1 / Me.AUX_LIQDENS(T, Vz, P, P) * Me.AUX_MMM(Phase.Mixture))
                                             KI = rOk(6)
                                             bubK.Add(DirectCast(KI.Clone(), Double()))
-                                            Flowsheet?.ShowMessage("Phase Envelope generation: the liquid has no stable bubble point from " & tFail.ToString("G6") & " K down; the bubble line starts at " & tOk.ToString("G6") & " K.", IFlowsheet.MessageType.Warning)
+                                            Flowsheet?.ShowMessage("Phase Envelope generation: the liquid doesn't have a stable bubble point from " & tFail.ToString("G6") & " K down; the bubble line starts at " & tOk.ToString("G6") & " K.", IFlowsheet.MessageType.Warning)
                                             T += options.BubbleCurveDeltaT
                                             beta = 10.0
                                             consecutiveFailures = 0
@@ -7623,7 +7623,7 @@ redirect2:                  IObj?.SetCurrent()
 
                 KHx = AUX_PVAPi(CompName, T)
 
-                IObj?.Paragraphs.Add(String.Format("No Henry's Constant available, using the Vapor Pressure: {0} Pa", KHx))
+                IObj?.Paragraphs.Add(String.Format("Henry's Constant isn't available, using the Vapor Pressure: {0} Pa", KHx))
 
                 IObj?.Close()
 

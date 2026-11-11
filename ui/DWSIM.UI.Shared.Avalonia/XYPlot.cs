@@ -91,7 +91,7 @@ public sealed class XYPlot : Control
     public string XAxisTitle = "";
     public string YAxisTitle = "";
     /// <summary>Shown in the middle of the plot while it has no data.</summary>
-    public string EmptyText = "No data. Set up the calculation and press Build.";
+    public string EmptyText = "There isn't any data. Set up the calculation and press Build.";
 
     public readonly List<PlotSeries> Series = new();
 

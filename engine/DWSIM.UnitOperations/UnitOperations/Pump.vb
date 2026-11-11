@@ -1132,7 +1132,7 @@ Namespace UnitOperations
         Private Function InterpolateCurve(x As List(Of Double), y As List(Of Double), qli As Double, curvename As String, sratio As Double) As Double
 
             If x.Count = 0 Then
-                Throw New ArgumentException(String.Format("The pump {0} curve is enabled but has no data points.", curvename))
+                Throw New ArgumentException(String.Format("The pump {0} curve is enabled but doesn't have any data points.", curvename))
             End If
 
             'the barycentric weights are built for the nodes in ascending order,

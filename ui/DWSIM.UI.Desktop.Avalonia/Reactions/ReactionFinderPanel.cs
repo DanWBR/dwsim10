@@ -97,7 +97,7 @@ namespace DWSIM.UI.Desktop.Avalonia.Reactions
                 _map[cb] = s;
                 _list.Children.Add(cb);
             }
-            _details.Text = _suggestions.Count == 0 ? "No reactions were suggested for the current compounds." : "";
+            _details.Text = _suggestions.Count == 0 ? "The finder didn't suggest any reactions for the current compounds." : "";
         }
 
         private void ShowDetails(SuggestedReaction s)

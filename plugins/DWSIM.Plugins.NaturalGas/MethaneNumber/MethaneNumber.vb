@@ -299,7 +299,7 @@ Public Class MethaneNumber
         End If 'compositionzero
         'build error string
         If gceErrors = GasCompositionErrors.noErrors Then
-            strErrorNotes = "No calculation errors or warnings."
+            strErrorNotes = "There weren't any calculation errors or warnings."
         Else
             strErrorNotes = ""
             If (gceErrors And GasCompositionErrors.compositionZero) > 0 Then

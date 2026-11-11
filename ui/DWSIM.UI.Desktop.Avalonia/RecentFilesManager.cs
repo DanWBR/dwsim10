@@ -67,7 +67,7 @@ internal static class RecentFilesMenu
 
         if (files.Count == 0)
         {
-            parent.Items.Add(new MenuItem { Header = "(no recent files)", IsEnabled = false });
+            parent.Items.Add(new MenuItem { Header = "(there aren't any recent files)", IsEnabled = false });
             return;
         }
 

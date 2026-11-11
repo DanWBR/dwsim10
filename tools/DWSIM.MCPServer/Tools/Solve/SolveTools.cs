@@ -19,7 +19,7 @@ namespace DWSIM.MCPServer.Tools.Solve
 
         [McpTool("dwsim_flowsheet_check",
             "Check the flowsheet for the faults that stop it solving - dangling streams, unconnected " +
-            "unit operations, feeds with no flow, a loop with no recycle - without solving it. " +
+            "unit operations, feeds without flow, a loop without a recycle - without solving it. " +
             "Cheap, so call it before dwsim_solve_run. Each finding carries the fix for it.")]
         public JObject Check(
             [McpParam("Flowsheet handle")] string flowsheet_id)
@@ -49,7 +49,7 @@ namespace DWSIM.MCPServer.Tools.Solve
 
             var obj = inner.SimulationObjects.Values.FirstOrDefault(o =>
                 o.GraphicObject != null && string.Equals(o.GraphicObject.Tag, object_name, StringComparison.OrdinalIgnoreCase));
-            if (obj == null) throw new ArgumentException("No object is tagged '" + object_name + "'.");
+            if (obj == null) throw new ArgumentException("There isn't an object tagged '" + object_name + "'.");
 
             var dof = DegreesOfFreedomAnalysis.Analyze(inner, obj);
             if (dof == null) throw new ArgumentException("'" + object_name + "' is not a process object.");
@@ -58,7 +58,7 @@ namespace DWSIM.MCPServer.Tools.Solve
 
         [McpTool("dwsim_explain_finding",
             "Explain a diagnostic code in full: what it means, why it happens, how to fix it and " +
-            "where to read more. With no code, lists every code the checks can emit.")]
+            "where to read more. Without a code, lists every code the checks can emit.")]
         public JObject ExplainFinding(
             [McpParam("A diagnostic code such as FEED_NO_TEMPERATURE; omit to list them all", Required = false)] string code = null)
         {
@@ -85,8 +85,8 @@ namespace DWSIM.MCPServer.Tools.Solve
             var inner = fs.Inner;
             var obj = inner.SimulationObjects.Values.FirstOrDefault(o =>
                 o.GraphicObject != null && string.Equals(o.GraphicObject.Tag, object_name, StringComparison.OrdinalIgnoreCase));
-            if (obj == null) throw new ArgumentException("No object is tagged '" + object_name + "'.");
-            if (!UnitInsightStudy.Supports(obj)) throw new ArgumentException("'" + object_name + "' is a " + obj.GraphicObject.ObjectType + "; there is no explanation for that type yet.");
+            if (obj == null) throw new ArgumentException("There isn't an object tagged '" + object_name + "'.");
+            if (!UnitInsightStudy.Supports(obj)) throw new ArgumentException("'" + object_name + "' is a " + obj.GraphicObject.ObjectType + "; there isn't an explanation for that type yet.");
 
             var r = UnitInsightStudy.Explain(inner, obj);
             var tables = new JArray();
@@ -154,8 +154,8 @@ namespace DWSIM.MCPServer.Tools.Solve
             ScenarioSnapshot a, b;
             lock (_snapshots)
             {
-                if (!_snapshots.TryGetValue(flowsheet_id + "|" + label_a, out a)) throw new ArgumentException("No snapshot labelled '" + label_a + "' for this flowsheet.");
-                if (!_snapshots.TryGetValue(flowsheet_id + "|" + label_b, out b)) throw new ArgumentException("No snapshot labelled '" + label_b + "' for this flowsheet.");
+                if (!_snapshots.TryGetValue(flowsheet_id + "|" + label_a, out a)) throw new ArgumentException("There isn't a snapshot labelled '" + label_a + "' for this flowsheet.");
+                if (!_snapshots.TryGetValue(flowsheet_id + "|" + label_b, out b)) throw new ArgumentException("There isn't a snapshot labelled '" + label_b + "' for this flowsheet.");
             }
             var r = ScenarioComparison.Compare(a, b);
             var rows = new JArray();

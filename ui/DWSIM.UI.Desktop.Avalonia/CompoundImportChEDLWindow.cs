@@ -178,7 +178,7 @@ public sealed class CompoundImportChEDLWindow : Window
 
         if (string.IsNullOrEmpty(_match.Text))
         {
-            _status.Text = "No compound matched the search text.";
+            _status.Text = "The search text didn't match any compound.";
             return;
         }
 
@@ -213,7 +213,7 @@ public sealed class CompoundImportChEDLWindow : Window
 
         if (_compound == null)
         {
-            _status.Text = "The library has no data for this compound.";
+            _status.Text = "The library doesn't have data for this compound.";
             return;
         }
 

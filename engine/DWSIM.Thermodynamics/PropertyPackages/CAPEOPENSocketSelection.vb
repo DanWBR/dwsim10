@@ -43,7 +43,7 @@ Namespace PropertyPackages
             Dim copp = _copp
             If copp Is Nothing Then
                 Dim who = If(String.IsNullOrEmpty(Me.Tag), Me.ComponentName, Me.Tag)
-                Throw New InvalidOperationException(who & ": no CAPE-OPEN property package has been selected. " & NoPackageSelectedMessage)
+                Throw New InvalidOperationException(who & ": a CAPE-OPEN property package hasn't been selected. " & NoPackageSelectedMessage)
             End If
             Return copp
         End Function

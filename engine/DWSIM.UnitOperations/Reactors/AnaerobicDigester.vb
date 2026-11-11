@@ -678,7 +678,7 @@ Namespace Reactors
                 If cpSub.Elements.Contains("N") Then d = Convert.ToDouble(cpSub.Elements("N"))
             End If
             Dim eSulfur As Double = SulfurAtoms(cpSub)
-            If a <= 0 Then Throw New Exception("AnaerobicDigester: Substrate compound has no elemental formula - cannot build Buswell stoichiometry.")
+            If a <= 0 Then Throw New Exception("AnaerobicDigester: Substrate compound doesn't have an elemental formula - cannot build Buswell stoichiometry.")
             Dim MW_S As Double = cpSub.Molar_Weight
 
             ' Theoretical COD of the substrate (g COD / g substrate)
@@ -1084,7 +1084,7 @@ Namespace Reactors
 
             Dim sub_ = compounds(SubstrateCompound)
             Dim cpSub = sub_.ConstantProperties
-            If cpSub Is Nothing Then Throw New Exception("AnaerobicDigester (ADM1-Lite): Substrate compound has no ConstantProperties.")
+            If cpSub Is Nothing Then Throw New Exception("AnaerobicDigester (ADM1-Lite): Substrate compound doesn't have ConstantProperties.")
 
             ' Substrate elemental formula (used for carbon balance on CO2 after COD allocation)
             Dim aSub As Double = 0, bSub As Double = 0, cSub As Double = 0, dSub As Double = 0
@@ -1584,7 +1584,7 @@ Namespace Reactors
                 Throw New Exception(String.Format(
                     "AnaerobicDigester (ADM1-Full): the influent COD concentration comes out at {0:G4} kg COD/m3, " &
                     "which is not physical for an aqueous digester feed (a real slurry is mostly water). This " &
-                    "usually means the feed carries too little water, or it flashed to almost no liquid. Check the " &
+                    "usually means the feed carries too little water, or it flashed to hardly any liquid. Check the " &
                     "feed composition (water fraction) and that the feed stream converged.", S_in_COD_check))
             End If
 
@@ -1804,7 +1804,7 @@ Namespace Reactors
                         effMass(so4Comp.Name) = so4Out_kmols / sPerMol * so4Comp.ConstantProperties.Molar_Weight
                     Else
                         FlowSheet?.ShowMessage(String.Format(
-                            "{0}: {1:G4} kg S/s of sulfate was fed but not reduced, and no sulfate compound is " &
+                            "{0}: {1:G4} kg S/s of sulfate was fed but not reduced, and a sulfate compound isn't " &
                             "selected to carry it out. Pick one under Compound Mapping or that sulfur leaves the " &
                             "flowsheet unaccounted.", Me.GraphicObject.Tag, so4Out_kmols * MW_Sulfur),
                             IFlowsheet.MessageType.Warning)
@@ -2502,8 +2502,8 @@ Namespace Reactors
 
             container.CreateAndAddLabelRow("Sulfur Balance")
             container.CreateAndAddDescriptionRow(
-                "Sulfate sulfur carries no COD, so reducing it to sulfide costs 64 kg COD/kmol S out of " &
-                "the methane pool; organic sulfur arrives already reduced and makes H2S at no cost in " &
+                "Sulfate sulfur doesn't carry COD, so reducing it to sulfide costs 64 kg COD/kmol S out of " &
+                "the methane pool; organic sulfur arrives already reduced and makes H2S without any cost in " &
                 "methane. Black Box and ADM1-Lite and ADM1 Full debit that COD up front and assume all " &
                 "the sulfate is reduced. ADM1-S instead grows four sulfate-reducing populations that " &
                 "compete with the methanogens for hydrogen, acetate, propionate and butyrate, so the " &
@@ -2667,7 +2667,7 @@ Namespace Reactors
         Private Sub ShowADM1ResultsFormAvalonia(nf As String)
             Dim cnt As AvaloniaEditorPanel = AvaloniaCommon.GetDefaultContainer()
             If ADM1LastTrajectory Is Nothing OrElse ADM1LastTrajectory.States Is Nothing OrElse ADM1LastTrajectory.States.Count = 0 Then
-                cnt.CreateAndAddDescriptionRow("No ADM1 trajectory available. Run the digester in ADM1-Lite or ADM1 Full mode first.")
+                cnt.CreateAndAddDescriptionRow("An ADM1 trajectory isn't available. Run the digester in ADM1-Lite or ADM1 Full mode first.")
             Else
                 cnt.CreateAndAddLabelRow("ADM1 Final-State Summary")
                 cnt.CreateAndAddResultRow("Trajectory points", ADM1LastTrajectory.States.Count.ToString())

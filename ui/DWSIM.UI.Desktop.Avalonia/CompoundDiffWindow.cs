@@ -113,7 +113,7 @@ public sealed class CompoundDiffWindow : Window
         var top = new StackPanel { Margin = new Thickness(12, 10, 12, 6), Spacing = 6 };
         top.Children.Add(new TextBlock
         {
-            Text = "Highlighted rows differ. " + (canTake ? "Take copies the file's value into the editor; nothing reaches the simulation until you press OK in the editor." : "This compound is read-only."),
+            Text = "Highlighted rows differ. " + (canTake ? "Take copies the file's value into the editor; the simulation doesn't receive anything until you press OK in the editor." : "This compound is read-only."),
             TextWrapping = TextWrapping.Wrap, FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11), Opacity = 0.75
         });
         var topRow = new DockPanel();
@@ -167,7 +167,7 @@ public sealed class CompoundDiffWindow : Window
         _grid.ItemsSource = null;
         _grid.ItemsSource = shown;
         var n = _rows.Count(r => r.Differs);
-        _summary.Text = n == 0 ? "No differences left." : $"{n} propert{(n == 1 ? "y" : "ies")} differ.";
+        _summary.Text = n == 0 ? "There aren't any differences left." : $"{n} propert{(n == 1 ? "y" : "ies")} differ.";
     }
 
     private void Take(Row row)

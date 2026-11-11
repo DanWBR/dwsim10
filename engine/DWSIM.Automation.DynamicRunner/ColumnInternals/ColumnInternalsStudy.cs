@@ -113,7 +113,7 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
             var stages = (IList)c.Stages;
             int n = Tf.Length;
             if (n == 0 || Vf.Length < n || Lf.Length < n || xf.Count < n || yf.Count < n)
-                throw new InvalidOperationException("The column has no stored stage profiles; solve it again.");
+                throw new InvalidOperationException("The column doesn't have stored stage profiles; solve it again.");
 
             dynamic pp = c.PropertyPackage;
             var ms = (IMaterialStream)host.AddObject(ObjectType.MaterialStream, 0, 0, "internals_probe_" + Guid.NewGuid().ToString("N").Substring(0, 6));
@@ -304,7 +304,7 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
             foreach (var s in input.Sections.Where(x => !x.IsTray && x.BedHeight > 0).OrderByDescending(x => x.FromStage).ToList())
             {
                 var sr = result.Sections.FirstOrDefault(x => x.Section.Name == s.Name && x.Section.FromStage == s.FromStage && x.Section.ToStage == s.ToStage);
-                if (sr == null || double.IsNaN(sr.AverageHETP) || sr.AverageHETP <= 0) { log.Add(s.Name + ": no HETP to re-stage with."); continue; }
+                if (sr == null || double.IsNaN(sr.AverageHETP) || sr.AverageHETP <= 0) { log.Add(s.Name + ": there isn't an HETP to re-stage with."); continue; }
                 int nOld = s.ToStage - s.FromStage + 1;
                 int nNew = Math.Max(1, (int)Math.Round(s.BedHeight / sr.AverageHETP));
                 if (nNew == nOld) { log.Add(s.Name + ": " + nOld + " stages already match the bed (" + s.BedHeight.ToString("0.00") + " m / HETP " + sr.AverageHETP.ToString("0.000") + " m)."); continue; }
@@ -438,15 +438,15 @@ namespace DWSIM.Automation.DynamicRunner.ColumnInternals
             {
                 var sr = new SectionRating { Section = s };
                 var stages = props.Where(p => p.Stage >= s.FromStage && p.Stage <= s.ToStage).ToList();
-                if (stages.Count == 0) { sr.Warnings.Add("The section has no stages in the column."); result.Sections.Add(sr); continue; }
+                if (stages.Count == 0) { sr.Warnings.Add("The section doesn't have any stages in the column."); result.Sections.Add(sr); continue; }
                 var usable = stages.Where(p => p.VaporMassFlow > 0 && p.LiquidMassFlow > 0 && p.VaporDensity > 0 && p.LiquidDensity > 0).ToList();
-                if (usable.Count == 0) { sr.Warnings.Add("No stage of the section carries both vapour and liquid."); result.Sections.Add(sr); continue; }
+                if (usable.Count == 0) { sr.Warnings.Add("The section doesn't have a stage that carries both vapour and liquid."); result.Sections.Add(sr); continue; }
 
                 PackingData packing = null;
                 if (!s.IsTray)
                 {
                     packing = s.ResolvePacking();
-                    if (packing == null) { sr.Warnings.Add("No packing selected for the section."); result.Sections.Add(sr); continue; }
+                    if (packing == null) { sr.Warnings.Add("A packing isn't selected for the section."); result.Sections.Add(sr); continue; }
                 }
                 if (s.Type == InternalType.BubbleCapTray && s.FloodModel == TrayFloodModel.KisterHaas) sr.Warnings.Add("Kister and Haas covers sieve and valve trays; the bubble-cap section was rated with Fair's flooding correlation.");
 

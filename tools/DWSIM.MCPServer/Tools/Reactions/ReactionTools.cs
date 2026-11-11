@@ -139,7 +139,7 @@ namespace DWSIM.MCPServer.Tools.Reactions
                 o => o.GraphicObject != null && (o.GraphicObject.Tag == name || o.Name == name));
 
             if (obj == null)
-                throw new ArgumentException($"No unit operation with tag or id '{name}'.");
+                throw new ArgumentException($"There isn't a unit operation with tag or id '{name}'.");
             if (!(obj is Reactor_Gibbs gibbs))
                 throw new ArgumentException($"'{name}' is a {obj.GraphicObject.ObjectType}, not a Gibbs reactor.");
             if (!gibbs.GraphicObject.InputConnectors[0].IsAttached)

@@ -126,7 +126,7 @@ Namespace Utilities.Biomass
                                       kinetics As BiomassKineticDefaults) As Dictionary(Of String, Object)
 
             Dim c = ParseFormula(formula)
-            If Not c.IsValid Then Throw New ArgumentException("Invalid formula - no carbon found.")
+            If Not c.IsValid Then Throw New ArgumentException("Invalid formula - carbon wasn't found.")
 
             Dim mw = MolarWeight(c)
             Dim gamma = DegreeOfReduction(c)

@@ -196,7 +196,7 @@ namespace DWSIM.MCPServer.Sessions
         {
             DynamicsJob job;
             if (_jobs.TryGetValue(runId, out job)) return job;
-            throw new InvalidOperationException("No dynamics run with id '" + runId + "'. It may have expired.");
+            throw new InvalidOperationException("There isn't a dynamics run with id '" + runId + "'. It may have expired.");
         }
 
         /// <summary>Asks a running job to stop at the next step boundary.</summary>

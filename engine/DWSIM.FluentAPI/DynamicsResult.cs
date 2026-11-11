@@ -104,9 +104,9 @@ namespace DWSIM.Automation.FluentAPI
             if (_byName.TryGetValue(name, out found)) return found;
 
             var available = Series.Count == 0
-                ? "the integrator recorded none — add monitored variables before running"
+                ? "the integrator didn't record any — add monitored variables before running"
                 : string.Join(", ", Series.Select(s => "'" + s.Name + "'"));
-            throw new KeyNotFoundException("No monitored variable named '" + name + "'. Available: " + available + ".");
+            throw new KeyNotFoundException("There isn't a monitored variable named '" + name + "'. Available: " + available + ".");
         }
 
         /// <summary>Looks up a series without throwing.</summary>

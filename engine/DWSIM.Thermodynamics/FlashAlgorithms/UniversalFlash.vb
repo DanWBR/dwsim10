@@ -118,7 +118,7 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                         IObj?.Paragraphs.Add("Heuristics Result: Liquid Phase Split")
                     Else
                         Flashtype = "VLE"
-                        IObj?.Paragraphs.Add("Heuristics Result: Neither Solid nor Liquid Phase Split")
+                        IObj?.Paragraphs.Add("Heuristics Result: There Isn't a Solid Phase or a Liquid Phase Split")
                     End If
                 End If
             End If
@@ -289,7 +289,7 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                         IObj?.Paragraphs.Add("Heuristics Result: Liquid Phase Split")
                     Else
                         Flashtype = "VLE"
-                        IObj?.Paragraphs.Add("Heuristics Result: Neither Solid nor Liquid Phase Split")
+                        IObj?.Paragraphs.Add("Heuristics Result: There Isn't a Solid Phase or a Liquid Phase Split")
                     End If
                 End If
             End If
@@ -461,7 +461,7 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                         IObj?.Paragraphs.Add("Heuristics Result: Liquid Phase Split")
                     Else
                         Flashtype = "VLE"
-                        IObj?.Paragraphs.Add("Heuristics Result: Neither Solid nor Liquid Phase Split")
+                        IObj?.Paragraphs.Add("Heuristics Result: There Isn't a Solid Phase or a Liquid Phase Split")
                     End If
                 End If
             End If
@@ -564,7 +564,7 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                         IObj?.Paragraphs.Add("Heuristics Result: Liquid Phase Split")
                     Else
                         Flashtype = "VLE"
-                        IObj?.Paragraphs.Add("Heuristics Result: Neither Solid nor Liquid Phase Split")
+                        IObj?.Paragraphs.Add("Heuristics Result: There Isn't a Solid Phase or a Liquid Phase Split")
                     End If
                 End If
             End If
@@ -772,7 +772,7 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                         IObj?.Paragraphs.Add("Heuristics Result: Liquid Phase Split")
                     Else
                         Flashtype = "VLE"
-                        IObj?.Paragraphs.Add("Heuristics Result: Neither Solid nor Liquid Phase Split")
+                        IObj?.Paragraphs.Add("Heuristics Result: There Isn't a Solid Phase or a Liquid Phase Split")
                     End If
                 End If
             End If

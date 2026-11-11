@@ -970,7 +970,7 @@ Namespace UnitOperations
             Dim P = EOPressure(context, x, inlets, weights)
             Dim T = x(vapor)
             Dim e = context.Flash(vapor, T, P, z, True)
-            If e Is Nothing Then Throw New NotSupportedException(GraphicObject.Tag & ": no feed")
+            If e Is Nothing Then Throw New NotSupportedException(GraphicObject.Tag & ": doesn't have a feed")
             For i = 0 To c - 1
                 ' vapor: n_v - V(T, P, z)
                 add(i, vapor + 2 + i, 1.0 / tf)
@@ -1024,7 +1024,7 @@ Namespace UnitOperations
                 Dim rule = PressureCalculation.ToString()
                 Dim Pin = InletPressureRule.Pressure(context, x, inlets, rule)
                 Dim mix = context.Flash(vapor, T, Pin, z, True)
-                If mix Is Nothing Then Throw New NotSupportedException(GraphicObject.Tag & ": no feed")
+                If mix Is Nothing Then Throw New NotSupportedException(GraphicObject.Tag & ": doesn't have a feed")
                 addFlash(2 * c + 3, mix, InletPressureRule.Weights(context, x, inlets, rule).Select(Function(w) New KeyValuePair(Of Integer, Double)(w.Key + 1, w.Value)))
                 addInlets(2 * c + 3)
                 Return True
@@ -1390,7 +1390,7 @@ Namespace UnitOperations
             Dim Ts = EOIsentropicTemperature(context, x, inlet, P2, n)
             Dim e1 = context.Flash(inlet, x(inlet), x(inlet + 1), n, True)
             Dim es = context.Flash(inlet, Ts, P2, n, True)
-            If e1 Is Nothing OrElse es Is Nothing Then Throw New NotSupportedException(GraphicObject.Tag & ": no flow")
+            If e1 Is Nothing OrElse es Is Nothing Then Throw New NotSupportedException(GraphicObject.Tag & ": doesn't have any flow")
             Dim dHsdP2 = es.HdP - es.HdT * es.SdP / es.SdT
             add(c + 1, inlet, -es.HdT * e1.SdT / es.SdT / eff / te)
             add(c + 1, inlet + 1, -(es.HdT * e1.SdP / es.SdT + dHsdP2 * dPin) / eff / te)
@@ -2316,7 +2316,7 @@ Namespace UnitOperations
             Dim Ts = EOIsentropicTemperature(context, x, inlet, P2, n)
             Dim e1 = context.Flash(inlet, x(inlet), x(inlet + 1), n, True)
             Dim es = context.Flash(inlet, Ts, P2, n, True)
-            If e1 Is Nothing OrElse es Is Nothing Then Throw New NotSupportedException(GraphicObject.Tag & ": no flow")
+            If e1 Is Nothing OrElse es Is Nothing Then Throw New NotSupportedException(GraphicObject.Tag & ": doesn't have any flow")
             Dim dHsdP2 = es.HdP - es.HdT * es.SdP / es.SdT
             add(c + 1, inlet, -eff * es.HdT * e1.SdT / es.SdT / te)
             add(c + 1, inlet + 1, -eff * (es.HdT * e1.SdP / es.SdT + dHsdP2 * dPin) / te)

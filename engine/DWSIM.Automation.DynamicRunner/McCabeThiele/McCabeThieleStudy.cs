@@ -187,7 +187,7 @@ namespace DWSIM.Automation.DynamicRunner.McCabeThiele
             if (!double.IsNaN(r.Azeotrope))
             {
                 r.Warnings.Add("The equilibrium curve crosses the diagonal at x = " + r.Azeotrope.ToString("F4", CultureInfo.InvariantCulture) +
-                               ": an azeotrope. No number of stages takes the distillate past it.");
+                               ": an azeotrope. The distillate can't get past it with any number of stages.");
                 if (input.DistillateComposition >= r.Azeotrope && yEq(input.FeedComposition) > input.FeedComposition)
                 {
                     r.Warnings.Add("The distillate composition is beyond the azeotrope; the construction cannot reach it.");
@@ -214,7 +214,7 @@ namespace DWSIM.Automation.DynamicRunner.McCabeThiele
                     double rr = (xD - y) / (y - x);
                     if (rr > rmin) rmin = rr;
                 }
-                if (rmin <= 0) { r.Warnings.Add("No pinch found between the feed and the distillate; check the compositions."); r.Feasible = false; }
+                if (rmin <= 0) { r.Warnings.Add("Didn't find a pinch between the feed and the distillate; check the compositions."); r.Feasible = false; }
             }
             r.MinimumReflux = rmin;
 
@@ -327,7 +327,7 @@ namespace DWSIM.Automation.DynamicRunner.McCabeThiele
             if (!string.IsNullOrEmpty(tag)) found = host.PropertyPackages.Values.FirstOrDefault(p => p.Tag == tag);
             if (found == null) found = host.PropertyPackages.Values.FirstOrDefault();
             var pp = found as PropertyPackage;
-            if (pp == null) throw new ArgumentException("The flowsheet has no property package to compute the equilibrium with.");
+            if (pp == null) throw new ArgumentException("The flowsheet doesn't have a property package to compute the equilibrium with.");
             return pp;
         }
 

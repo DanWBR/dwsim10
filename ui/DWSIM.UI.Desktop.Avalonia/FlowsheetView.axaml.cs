@@ -909,7 +909,7 @@ public partial class FlowsheetView : UserControl
     {
         if (_flowsheet == null)
         {
-            editor.AppendOutput("No simulation loaded.");
+            editor.AppendOutput("A simulation isn't loaded.");
             editor.NotifyRunCompleted();
             return;
         }
@@ -1095,7 +1095,7 @@ public partial class FlowsheetView : UserControl
 
     private async Task SaveAsAsync()
     {
-        if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
+        if (_flowsheet == null) { AppendLog("A simulation isn't loaded."); return; }
 
         var topLevel = TopLevel.GetTopLevel(this) ?? throw new InvalidOperationException("No top level");
 
@@ -1124,7 +1124,7 @@ public partial class FlowsheetView : UserControl
     {
         if (_flowsheet == null)
         {
-            AppendLog("No simulation loaded.");
+            AppendLog("A simulation isn't loaded.");
             return;
         }
 
@@ -1497,7 +1497,7 @@ public partial class FlowsheetView : UserControl
             DWSIM.FlowsheetSolver.FlowsheetSolver.FlowsheetSolvers.Count == 0 &&
             !_flowsheet.ExternalSolvers.Values.Any(es => es is Interfaces.IExternalFlowsheetSolver))
         {
-            AppendLog("Solver strategy set, but no flowsheet solver is installed: the sequential solver will run until one is.",
+            AppendLog("Solver strategy set, but a flowsheet solver isn't installed: the sequential solver will run until one is.",
                       Interfaces.IFlowsheet.MessageType.Warning);
         }
         else
@@ -2006,73 +2006,73 @@ public partial class FlowsheetView : UserControl
         MenuUtilBE.Click  += (_, _) => OpenUtilityWindow(Interfaces.Enums.FlowsheetUtility.PhaseEnvelopeBinary);
         MenuUnitSystems.Click += (_, _) =>
         {
-            if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
+            if (_flowsheet == null) { AppendLog("A simulation isn't loaded."); return; }
             new UnitSystemEditorWindow(_flowsheet).Show(HostWindow);
         };
         MenuPetroleumChar.Click += (_, _) =>
         {
-            if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
+            if (_flowsheet == null) { AppendLog("A simulation isn't loaded."); return; }
             new PetroleumCharacterizationWindow(_flowsheet).Show(HostWindow);
         };
         MenuDistCurve.Click += (_, _) =>
         {
-            if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
+            if (_flowsheet == null) { AppendLog("A simulation isn't loaded."); return; }
             new DistillationCurveWindow(_flowsheet).Show(HostWindow);
         };
         MenuAssayManager.Click += (_, _) =>
         {
-            if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
+            if (_flowsheet == null) { AppendLog("A simulation isn't loaded."); return; }
             new AssayManagerWindow(_flowsheet).Show(HostWindow);
         };
         MenuPolymerChar.Click += (_, _) =>
         {
-            if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
+            if (_flowsheet == null) { AppendLog("A simulation isn't loaded."); return; }
             new PolymerCharacterizationWindow(_flowsheet).Show(HostWindow);
         };
         MenuBulkPseudos.Click += (_, _) =>
         {
-            if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
+            if (_flowsheet == null) { AppendLog("A simulation isn't loaded."); return; }
             new BulkPseudocompoundsWindow(_flowsheet).Show(HostWindow);
         };
         MenuUtilLLE.Click += (_, _) =>
         {
-            if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
+            if (_flowsheet == null) { AppendLog("A simulation isn't loaded."); return; }
             new LLEEnvelopeWindow(_flowsheet).Show(HostWindow);
         };
         MenuPureComp.Click += (_, _) =>
         {
-            if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
+            if (_flowsheet == null) { AppendLog("A simulation isn't loaded."); return; }
             new CompoundPropertyEditorWindow(_flowsheet).Show(HostWindow);
         };
         MenuHydrates.Click += (_, _) =>
         {
-            if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
+            if (_flowsheet == null) { AppendLog("A simulation isn't loaded."); return; }
             new HydratesWindow(_flowsheet).Show(HostWindow);
         };
         MenuColdFlow.Click += (_, _) =>
         {
-            if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
+            if (_flowsheet == null) { AppendLog("A simulation isn't loaded."); return; }
             new ColdFlowPropertiesWindow(_flowsheet).Show(HostWindow);
         };
         MenuStreamDistCurves.Click += (_, _) =>
         {
-            if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
+            if (_flowsheet == null) { AppendLog("A simulation isn't loaded."); return; }
             var sel = _surface?.SelectedObject;
             new StreamDistillationCurvesWindow(_flowsheet, sel != null && sel.ObjectType == ObjectType.MaterialStream ? sel.Tag : null).Show(HostWindow);
         };
         MenuSepSizing.Click += (_, _) =>
         {
-            if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
+            if (_flowsheet == null) { AppendLog("A simulation isn't loaded."); return; }
             new SeparatorSizingWindow(_flowsheet).Show(HostWindow);
         };
         MenuDepressurization.Click += (_, _) =>
         {
-            if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
+            if (_flowsheet == null) { AppendLog("A simulation isn't loaded."); return; }
             new DepressurizationWindow(_flowsheet).Show(HostWindow);
         };
         MenuColumnInternals.Click += (_, _) =>
         {
-            if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
+            if (_flowsheet == null) { AppendLog("A simulation isn't loaded."); return; }
             new ColumnInternalsWindow(_flowsheet).Show(HostWindow);
         };
         DWSIM.UI.Desktop.Editors.AttachedUtilitiesEditor.OpenUtility = utility =>
@@ -2083,72 +2083,72 @@ public partial class FlowsheetView : UserControl
         };
         MenuMcCabeThiele.Click += (_, _) =>
         {
-            if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
+            if (_flowsheet == null) { AppendLog("A simulation isn't loaded."); return; }
             if (_flowsheet.SelectedCompounds.Count < 2) { AppendLog("The McCabe-Thiele diagram needs two compounds in the simulation."); return; }
             new McCabeThieleWindow(_flowsheet).Show(HostWindow);
         };
         MenuPackageComparison.Click += (_, _) =>
         {
-            if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
+            if (_flowsheet == null) { AppendLog("A simulation isn't loaded."); return; }
             if (_flowsheet.SelectedCompounds.Count < 2) { AppendLog("The property package comparison needs two compounds in the simulation."); return; }
             new PackageComparisonWindow(_flowsheet).Show(HostWindow);
         };
         MenuEosExplorer.Click += (_, _) =>
         {
-            if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
+            if (_flowsheet == null) { AppendLog("A simulation isn't loaded."); return; }
             if (_flowsheet.SelectedCompounds.Count < 1) { AppendLog("The equation of state explorer needs a compound in the simulation."); return; }
             new EosExplorerWindow(_flowsheet).Show(HostWindow);
         };
         MenuPsvSizing.Click += (_, _) =>
         {
-            if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
+            if (_flowsheet == null) { AppendLog("A simulation isn't loaded."); return; }
             new PsvSizingWindow(_flowsheet).Show(HostWindow);
         };
 
         MenuReactions.Click += (_, _) =>
         {
-            if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
+            if (_flowsheet == null) { AppendLog("A simulation isn't loaded."); return; }
             new ReactionManagerWindow(_flowsheet).Show();
         };
 
         MenuSensitivity.Click += (_, _) =>
         {
-            if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
+            if (_flowsheet == null) { AppendLog("A simulation isn't loaded."); return; }
             new SensitivityAnalysisWindow(_flowsheet).Show();
         };
         MenuOptimizer.Click += (_, _) =>
         {
-            if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
+            if (_flowsheet == null) { AppendLog("A simulation isn't loaded."); return; }
             new OptimizerWindow(_flowsheet).Show();
         };
         MenuPropertyChart.Click += (_, _) =>
         {
-            if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
+            if (_flowsheet == null) { AppendLog("A simulation isn't loaded."); return; }
             new PropertyChartWindow(_flowsheet).Show();
         };
         MenuBalance.Click += (_, _) =>
         {
-            if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
+            if (_flowsheet == null) { AppendLog("A simulation isn't loaded."); return; }
             new BalanceSummaryWindow(_flowsheet).Show();
         };
         MenuLiveSliders.Click += (_, _) =>
         {
-            if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
+            if (_flowsheet == null) { AppendLog("A simulation isn't loaded."); return; }
             new LiveSlidersWindow(_flowsheet).Show(HostWindow);
         };
         MenuScenarioComparison.Click += (_, _) =>
         {
-            if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
+            if (_flowsheet == null) { AppendLog("A simulation isn't loaded."); return; }
             new ScenarioComparisonWindow(_flowsheet).Show(HostWindow);
         };
         MenuExplainResult.Click += (_, _) =>
         {
-            if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
+            if (_flowsheet == null) { AppendLog("A simulation isn't loaded."); return; }
             new ExplainResultWindow(_flowsheet, _surface?.SelectedObject?.Name).Show(HostWindow);
         };
         MenuFlowsheetCheck.Click += (_, _) =>
         {
-            if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
+            if (_flowsheet == null) { AppendLog("A simulation isn't loaded."); return; }
             new FlowsheetCheckWindow(_flowsheet, name =>
             {
                 if (_flowsheet.SimulationObjects.TryGetValue(name, out var obj) && obj.GraphicObject != null)
@@ -2164,14 +2164,14 @@ public partial class FlowsheetView : UserControl
         };
         MenuCreateCompound.Click += (_, _) =>
         {
-            if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
+            if (_flowsheet == null) { AppendLog("A simulation isn't loaded."); return; }
             new CompoundCreatorWindow(_flowsheet).Show();
         };
         MenuBiomassCompound.Click += (_, _) =>
             new BiomassCompoundCreatorWindow(_flowsheet).Show(HostWindow);
         MenuDataRegression.Click += (_, _) =>
         {
-            if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
+            if (_flowsheet == null) { AppendLog("A simulation isn't loaded."); return; }
             new DataRegressionWindow(_flowsheet).Show(HostWindow);
         };
 
@@ -2189,7 +2189,7 @@ public partial class FlowsheetView : UserControl
 
         MenuSimSettings.Click += async (_, _) =>
         {
-            if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
+            if (_flowsheet == null) { AppendLog("A simulation isn't loaded."); return; }
             var dlg = new SimulationSettingsWindow(_flowsheet, refreshCanvas: () => Canvas?.Refresh());
             await dlg.ShowDialog(HostWindow);
         };
@@ -2270,7 +2270,7 @@ public partial class FlowsheetView : UserControl
 
         MenuSave.Click += async (_, _) =>
         {
-            if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
+            if (_flowsheet == null) { AppendLog("A simulation isn't loaded."); return; }
             var path = _flowsheet.FilePath;
             if (string.IsNullOrEmpty(path))
                 await SaveAsAsync();
@@ -2290,7 +2290,7 @@ public partial class FlowsheetView : UserControl
         // --- Dynamics menu ---
         MenuDynamicsToggle.Click += (_, _) =>
         {
-            if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
+            if (_flowsheet == null) { AppendLog("A simulation isn't loaded."); return; }
             _flowsheet.DynamicMode = !_flowsheet.DynamicMode;
             var state = _flowsheet.DynamicMode ? "enabled" : "disabled";
             AppendLog($"Dynamic mode {state}.");
@@ -2298,26 +2298,26 @@ public partial class FlowsheetView : UserControl
         };
         MenuDynManager.Click += (_, _) =>
         {
-            if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
+            if (_flowsheet == null) { AppendLog("A simulation isn't loaded."); return; }
             // Activate the Dynamics Manager document tab
             if (_dockFactory?.DynamicsManagerDocument != null)
                 _dockFactory.DynamicsManagerDocument.IsActive = true;
         };
         MenuDynIntegrator.Click += (_, _) =>
         {
-            if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
+            if (_flowsheet == null) { AppendLog("A simulation isn't loaded."); return; }
             // Activate the Integrator tool tab in the bottom dock
             if (_dockFactory?.IntegratorTool != null)
                 _dockFactory.IntegratorTool.IsActive = true;
         };
         MenuDynPIDTuning.Click += (_, _) =>
         {
-            if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
+            if (_flowsheet == null) { AppendLog("A simulation isn't loaded."); return; }
             new PIDTuningWindow(_flowsheet).Show(HostWindow);
         };
         MenuDynWizard.Click += (_, _) =>
         {
-            if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
+            if (_flowsheet == null) { AppendLog("A simulation isn't loaded."); return; }
             var wizard = new DynamicsWizard(_flowsheet);
             // The manager builds its lists once; anything the wizard creates needs it to reload.
             wizard.OnApplied = () => DynManagerPanel?.Populate();
@@ -2327,12 +2327,12 @@ public partial class FlowsheetView : UserControl
         // --- Results menu ---
         MenuResultsReport.Click += (_, _) =>
         {
-            if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
+            if (_flowsheet == null) { AppendLog("A simulation isn't loaded."); return; }
             new ReportConfigWindow(_flowsheet, SimulationName + " - Results Report").Show(HostWindow);
         };
         MenuMarkdownReport.Click += (_, _) =>
         {
-            if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
+            if (_flowsheet == null) { AppendLog("A simulation isn't loaded."); return; }
             OpenMarkdownReportViewer();
         };
 
@@ -2348,7 +2348,7 @@ public partial class FlowsheetView : UserControl
         // --- UO Extensions Manager ---
         MenuUOExtManager.Click += (_, _) =>
         {
-            if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
+            if (_flowsheet == null) { AppendLog("A simulation isn't loaded."); return; }
             new UnitOpExtensionsManagerWindow(_flowsheet).Show(HostWindow);
         };
     }
@@ -2794,7 +2794,7 @@ public partial class FlowsheetView : UserControl
                             {
                                 new TextBox
                                 {
-                                    Text = report ?? "(no debug data)",
+                                    Text = report ?? "(there isn't any debug data)",
                                     IsReadOnly = true,
                                     AcceptsReturn = true,
                                     TextWrapping = global::Avalonia.Media.TextWrapping.Wrap,
@@ -3655,7 +3655,7 @@ public partial class FlowsheetView : UserControl
     /// </summary>
     private void WriteIntegratorResultsToSpreadsheet()
     {
-        if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
+        if (_flowsheet == null) { AppendLog("A simulation isn't loaded."); return; }
         if (_spreadsheet == null) { AppendLog("The spreadsheet is not available."); return; }
 
         try
@@ -3666,14 +3666,14 @@ public partial class FlowsheetView : UserControl
 
             var schedule = dm.ScheduleList[dm.CurrentSchedule];
             if (!dm.IntegratorList.ContainsKey(schedule.CurrentIntegrator))
-            { AppendLog("The selected schedule has no integrator."); return; }
+            { AppendLog("The selected schedule doesn't have an integrator."); return; }
 
             var integrator = dm.IntegratorList[schedule.CurrentIntegrator];
 
             if (integrator.MonitoredVariables.Count == 0)
-            { AppendLog("No monitored variables are defined for this integrator."); return; }
+            { AppendLog("Monitored variables aren't defined for this integrator."); return; }
             if (integrator.MonitoredVariableValues.Count == 0)
-            { AppendLog("No results stored yet. Run the integrator first."); return; }
+            { AppendLog("There aren't any stored results yet. Run the integrator first."); return; }
 
             var sheet = _spreadsheet.Grid.NewWorksheet("Integrator Results");
             sheet.RowCount = integrator.MonitoredVariableValues.Count + 1;
@@ -3730,7 +3730,7 @@ public partial class FlowsheetView : UserControl
     /// </summary>
     private async Task ExportFlowsheetAsync(FlowsheetExportFormat format)
     {
-        if (_flowsheet == null || _surface == null) { AppendLog("No simulation loaded."); return; }
+        if (_flowsheet == null || _surface == null) { AppendLog("A simulation isn't loaded."); return; }
 
         var (ext, description) = format switch
         {
@@ -3822,7 +3822,7 @@ public partial class FlowsheetView : UserControl
 
     private void OpenUtilityWindow(Interfaces.Enums.FlowsheetUtility utility)
     {
-        if (_flowsheet == null) { AppendLog("No simulation loaded."); return; }
+        if (_flowsheet == null) { AppendLog("A simulation isn't loaded."); return; }
 
         // Pre-select the stream picked on the canvas, if there is one. Every utility
         // window also exposes its own picker, so a non-stream selection is not an error.

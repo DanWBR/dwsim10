@@ -196,7 +196,7 @@ public partial class MainWindow : Window
             }
             else
             {
-                SamplesList.Items.Add("(No samples directory found)");
+                SamplesList.Items.Add("(The samples directory wasn't found)");
             }
         }
         catch
@@ -335,7 +335,7 @@ public partial class MainWindow : Window
 
             if (list == null || list.Count == 0)
             {
-                FosseeList.Items.Add("(No flowsheets returned)");
+                FosseeList.Items.Add("(The server didn't return any flowsheets)");
                 return;
             }
 
@@ -442,7 +442,7 @@ public partial class MainWindow : Window
 
             if (list == null || list.Count == 0)
             {
-                CaseLibraryList.Items.Add("(No cases returned)");
+                CaseLibraryList.Items.Add("(The server didn't return any cases)");
                 return;
             }
 

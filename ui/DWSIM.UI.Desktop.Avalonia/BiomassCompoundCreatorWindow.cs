@@ -112,7 +112,7 @@ public sealed class BiomassCompoundCreatorWindow : Window
         p.CreateAndAddLabelAndControlRow("Y_XS (g/g)", _tbYXS);
         p.CreateAndAddDescriptionRow("Biomass-on-substrate yield. Aerobic glucose fermentation is typically 0.40-0.55.");
         p.CreateAndAddLabelAndControlRow("Y_PS (g/g)", _tbYPS);
-        p.CreateAndAddDescriptionRow("Product-on-substrate yield. Leave at zero when there is no primary extracellular product.");
+        p.CreateAndAddDescriptionRow("Product-on-substrate yield. Leave at zero when there isn't a primary extracellular product.");
         p.CreateAndAddLabelAndControlRow("Maintenance (g/g/h)", _tbMs);
         p.CreateAndAddDescriptionRow("Substrate consumed for non-growth activities per g cell per hour.");
         p.CreateAndAddLabelAndControlRow("Death Rate (1/h)", _tbKd);
@@ -158,7 +158,7 @@ public sealed class BiomassCompoundCreatorWindow : Window
         if (!c.IsValid)
         {
             _lblMW.Text = _lblGamma.Text = _lblPerCmol.Text = _lblDHf.Text = "-";
-            _status.Text = "Invalid formula: no carbon found.";
+            _status.Text = "Invalid formula: it doesn't contain carbon.";
             return;
         }
 

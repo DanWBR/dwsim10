@@ -293,7 +293,7 @@ namespace DWSIM.Automation.FluentAPI.Dynamics
                 match = flowsheet.SimulationObjects[tagOrId];
 
             if (match == null)
-                throw new KeyNotFoundException("No simulation object with tag or id '" + tagOrId + "'.");
+                throw new KeyNotFoundException("There isn't a simulation object with tag or id '" + tagOrId + "'.");
 
             return match;
         }

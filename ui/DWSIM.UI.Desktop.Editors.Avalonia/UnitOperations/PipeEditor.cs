@@ -516,7 +516,7 @@ namespace DWSIM.UI.Desktop.Editors
                     grid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
                     Place(grid, new TextBlock
                     {
-                        Text = "No sections. Use Add Section to define the pipe.",
+                        Text = "There aren't any sections. Use Add Section to define the pipe.",
                         VerticalAlignment = VerticalAlignment.Center,
                         Margin = new Thickness(8, 0, 0, 0)
                     }, 1, 1);
@@ -777,7 +777,7 @@ namespace DWSIM.UI.Desktop.Editors
             /// </summary>
             private string Validate()
             {
-                if (profile.Sections.Count == 0) return "No sections defined.";
+                if (profile.Sections.Count == 0) return "Sections aren't defined.";
 
                 foreach (var sec in profile.Sections.Values)
                 {

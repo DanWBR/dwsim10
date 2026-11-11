@@ -225,7 +225,7 @@ namespace DWSIM.Automation.DynamicRunner.Depressurization
                 options.SelectedComponents[kv.Key] = kv.Value;
             dynamic srcDyn = srcObj;
             IPropertyPackage hostPp = srcDyn.PropertyPackage as IPropertyPackage;
-            if (hostPp == null) throw new ArgumentException("The source stream has no property package.");
+            if (hostPp == null) throw new ArgumentException("The source stream doesn't have a property package.");
             var pp = hostPp.Clone();
             if (pp == null) pp = (IPropertyPackage)Activator.CreateInstance(((object)hostPp).GetType());
             pp.Flowsheet = fs;

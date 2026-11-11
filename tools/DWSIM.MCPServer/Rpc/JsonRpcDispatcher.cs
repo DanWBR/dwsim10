@@ -29,14 +29,14 @@ namespace DWSIM.MCPServer.Rpc
             "STEADY STATE: dwsim_flowsheet_create (or _load) -> dwsim_thermo_add_compounds -> " +
             "dwsim_thermo_set_property_package -> dwsim_stream_add_material -> dwsim_unitop_add -> " +
             "dwsim_unitop_connect -> dwsim_solve_run -> dwsim_stream_get_results. " +
-            "Compounds and a property package must come before any stream, or nothing can be flashed. " +
+            "Compounds and a property package must come before any stream, or streams can't be flashed. " +
             "Reactions come after the compounds: dwsim_reaction_add_conversion or _add_equilibrium puts them in " +
             "DefaultSet, which every new reactor uses. A Gibbs reactor needs dwsim_reactor_set_compounds " +
             "instead, once its feed is connected and specified.\n\n" +
             "DYNAMICS (time domain): dwsim_dynamics_inspect to see what the flowsheet offers -> " +
             "dwsim_dynamics_properties to find property ids, which are never guessable -> " +
             "dwsim_dynamics_setup (integrator step and duration, schedule) -> dwsim_dynamics_monitor " +
-            "(nothing is recorded otherwise) -> dwsim_dynamics_event for step changes and ramps -> " +
+            "(otherwise it doesn't record anything) -> dwsim_dynamics_event for step changes and ramps -> " +
             "dwsim_dynamics_check -> dwsim_dynamics_run -> poll dwsim_dynamics_status -> " +
             "dwsim_dynamics_series or dwsim_dynamics_analyze. When a run misbehaves, dwsim_dynamics_diagnose " +
             "names the cause and the fix; for a sluggish or oscillating control loop, dwsim_dynamics_tune_pid " +

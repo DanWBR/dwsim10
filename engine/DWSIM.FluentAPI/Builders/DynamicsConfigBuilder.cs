@@ -192,10 +192,10 @@ namespace DWSIM.Automation.FluentAPI.Builders
         private static Exception NotFound(string kind, string name, IReadOnlyList<string> available)
         {
             var list = available.Count == 0
-                ? "none are defined"
+                ? "there aren't any defined"
                 : string.Join(", ", available.Select(x => "'" + x + "'"));
             return new KeyNotFoundException(
-                "No " + kind + " named '" + name + "' on this flowsheet. Available: " + list + ".");
+                "This flowsheet doesn't have any " + kind + " named '" + name + "'. Available: " + list + ".");
         }
     }
 }

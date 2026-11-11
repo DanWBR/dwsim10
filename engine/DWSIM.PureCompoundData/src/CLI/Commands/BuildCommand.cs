@@ -21,7 +21,7 @@ namespace DWSIM.PureCompoundData.CLI.Commands
             var records = index.Query.GetAllForCompound(cas);
             if (records.Count == 0)
             {
-                stderr.WriteLine($"No records for CAS {cas}.");
+                stderr.WriteLine($"There aren't any records for CAS {cas}.");
                 return ExitCodes.DataError;
             }
 

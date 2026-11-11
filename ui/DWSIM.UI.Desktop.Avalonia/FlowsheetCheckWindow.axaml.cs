@@ -122,7 +122,7 @@ public partial class FlowsheetCheckWindow : Window
         var open = _dof?.Remaining ?? 0;
 
         LblSummary.Text = _findings.Count == 0
-            ? _title + ": nothing known to be wrong."
+            ? _title + ": the check didn't find anything wrong."
             : _title + ": " + blockers + " blocker(s), " + warnings + " warning(s), " + infos + " note(s)" +
               (open > 0 ? "; " + open + " specification(s) still missing." : ".");
 
@@ -151,7 +151,7 @@ public partial class FlowsheetCheckWindow : Window
         if (finding == null)
         {
             LblTitle.Text = _findings.Count == 0
-                ? "Nothing to report."
+                ? "There isn't anything to report."
                 : "Select a finding to read what it means.";
             LblCode.Text = ""; LblMessage.Text = ""; LblFix.Text = "";
             LblMeaning.Text = ""; LblWhy.Text = ""; LblHow.Text = "";
@@ -253,7 +253,7 @@ public partial class FlowsheetCheckWindow : Window
         var sb = new StringBuilder();
         sb.AppendLine(_title.ToUpperInvariant());
         sb.AppendLine(new string('-', 60));
-        if (_findings.Count == 0) sb.AppendLine("Nothing known to be wrong.");
+        if (_findings.Count == 0) sb.AppendLine("The check didn't find anything wrong.");
         foreach (var f in _findings) sb.AppendLine(f.ToString());
         sb.AppendLine();
 

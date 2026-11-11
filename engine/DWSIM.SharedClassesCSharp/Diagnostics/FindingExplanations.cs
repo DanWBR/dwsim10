@@ -67,10 +67,10 @@ namespace DWSIM.Automation.FluentAPI.Diagnostics
 
             string summary;
             if (string.IsNullOrEmpty(code) || !(FlowsheetCodes.All.TryGetValue(code, out summary) || DiagnosticCodes.All.TryGetValue(code, out summary)))
-                summary = "No description is available for this code.";
+                summary = "A description isn't available for this code.";
 
             return new FindingExplanation(code ?? "", Titleise(code), summary,
-                "This code has no written explanation yet.",
+                "This code doesn't have a written explanation yet.",
                 "Follow the fix on the finding itself.",
                 CataloguePage + "#" + (code ?? "").ToLowerInvariant());
         }
@@ -174,14 +174,14 @@ namespace DWSIM.Automation.FluentAPI.Diagnostics
             {
                 // ── Setup ──────────────────────────────────────────────────────
                 Entry(FlowsheetCodes.EmptyFlowsheet, "Empty flowsheet",
-                    "There is nothing on the flowsheet to solve.",
+                    "There isn't anything on the flowsheet to solve.",
                     "A simulation is a set of streams and unit operations connected in the order the material flows. " +
-                    "Until at least one stream exists there is nothing for the solver to compute.",
+                    "Until at least one stream exists there isn't anything for the solver to compute.",
                     "Add the compounds, choose a property package, then insert a material stream and the first unit operation.",
                     "beginner/01-your-first-simulation.html"),
 
                 Entry(FlowsheetCodes.NoCompounds, "No compounds",
-                    "The flowsheet has no chemical compounds, so no stream can carry any material.",
+                    "The flowsheet doesn't have any chemical compounds, so the streams can't carry any material.",
                     "Every stream is a mixture of the compounds selected for the flowsheet. Compositions, flows and " +
                     "properties all refer to that list, so it has to exist before anything else.",
                     "Open the simulation settings and add the compounds. Add every species that appears anywhere in the " +
@@ -189,7 +189,7 @@ namespace DWSIM.Automation.FluentAPI.Diagnostics
                     "beginner/01-your-first-simulation.html"),
 
                 Entry(FlowsheetCodes.NoPropertyPackage, "No property package",
-                    "The flowsheet has no thermodynamic model, so no stream can be flashed and no property can be computed.",
+                    "The flowsheet doesn't have a thermodynamic model, so streams can't be flashed and properties can't be computed.",
                     "A property package is the set of equations that turns temperature, pressure and composition into " +
                     "phases, enthalpies, densities and everything else. Without one the simulator cannot say whether a " +
                     "stream is liquid or vapour.",
@@ -208,7 +208,7 @@ namespace DWSIM.Automation.FluentAPI.Diagnostics
                 // ── Connectivity ───────────────────────────────────────────────
                 Entry(FlowsheetCodes.StreamDangling, "Dangling stream",
                     "A stream is not connected to anything at either end.",
-                    "A stream only has meaning as the inlet or outlet of a unit operation. One that touches nothing is " +
+                    "A stream only has meaning as the inlet or outlet of a unit operation. One that doesn't touch anything is " +
                     "not part of the process; it is a leftover from an edit, or a stream that was meant to be connected " +
                     "and was not.",
                     "Drag the stream onto a port of the unit it belongs to, or delete it. A feed is connected at its " +
@@ -216,30 +216,30 @@ namespace DWSIM.Automation.FluentAPI.Diagnostics
                     "beginner/02-mixer-basics.html"),
 
                 Entry(FlowsheetCodes.UnitUnconnected, "Unconnected unit operation",
-                    "A unit operation has no stream attached to any of its ports.",
-                    "The solver walks from the feeds through the units in flow order. A unit with no connections is " +
+                    "A unit operation doesn't have a stream attached to any of its ports.",
+                    "The solver walks from the feeds through the units in flow order. A unit without connections is " +
                     "not on any path, so it never receives anything to compute.",
                     "Connect an inlet stream and an outlet stream, or remove the unit.",
                     "beginner/02-mixer-basics.html"),
 
                 Entry(FlowsheetCodes.UnitNoFeed, "Unit without a feed",
-                    "A unit operation has an outlet but no inlet stream.",
-                    "A unit transforms what enters it. With no inlet there is no material, no temperature and no " +
+                    "A unit operation has an outlet but doesn't have an inlet stream.",
+                    "A unit transforms what enters it. Without an inlet there isn't any material, temperature or " +
                     "composition to work from, so the outlet cannot be computed.",
                     "Connect a material stream to one of the inlet ports. If the unit is the first in the process, that " +
                     "stream is a feed and you specify it by hand.",
                     "beginner/02-mixer-basics.html"),
 
                 Entry(FlowsheetCodes.UnitNoProduct, "Unit without a product",
-                    "A unit operation has an inlet but no outlet stream.",
-                    "The result of the unit is written to its outlet streams. With none attached the result has nowhere " +
-                    "to go, and the units downstream have nothing to read.",
+                    "A unit operation has an inlet but doesn't have an outlet stream.",
+                    "The result of the unit is written to its outlet streams. Without one attached the result doesn't have anywhere " +
+                    "to go, and the units downstream don't have anything to read.",
                     "Connect a material stream to the outlet port. A separator needs one outlet per phase it produces.",
                     "beginner/02-mixer-basics.html"),
 
                 // ── Feeds ──────────────────────────────────────────────────────
                 Entry(FlowsheetCodes.FeedNoPressure, "Feed without a pressure",
-                    "A feed stream has no pressure, so its state cannot be computed.",
+                    "A feed stream doesn't have a pressure, so its state cannot be computed.",
                     "A feed is where you tell the simulator what enters the process. Its state needs two intensive " +
                     "variables, and pressure is one of them in almost every specification pair.",
                     "Open the stream and enter its pressure. Remember it is absolute: 1 atm is 101325 Pa, and a gauge " +
@@ -247,7 +247,7 @@ namespace DWSIM.Automation.FluentAPI.Diagnostics
                     "beginner/01-your-first-simulation.html"),
 
                 Entry(FlowsheetCodes.FeedNoTemperature, "Feed without a temperature",
-                    "A feed stream is specified by temperature and has none.",
+                    "A feed stream is specified by temperature and doesn't have one.",
                     "With temperature and pressure the simulator runs a flash and finds the phases, the enthalpy and " +
                     "every other property. Without the temperature it cannot start.",
                     "Enter the temperature, or change the specification to pressure and vapour fraction if what you know " +
@@ -255,17 +255,17 @@ namespace DWSIM.Automation.FluentAPI.Diagnostics
                     "beginner/01-your-first-simulation.html"),
 
                 Entry(FlowsheetCodes.FeedNoFlow, "Feed without a flow",
-                    "A feed stream carries no material, so everything downstream of it is empty.",
+                    "A feed stream doesn't carry any material, so everything downstream of it is empty.",
                     "Flow is the extensive variable of a stream. The state (temperature, pressure, composition) says what " +
                     "the material is; the flow says how much of it. Zero flow gives zero duties and zero products " +
-                    "everywhere downstream, with no error.",
+                    "everywhere downstream, without any error.",
                     "Enter a mass, molar or volumetric flow. One basis is enough; the others follow.",
                     "beginner/01-your-first-simulation.html"),
 
                 Entry(FlowsheetCodes.FeedNoComposition, "Feed without a composition",
                     "Every compound in a feed stream is at zero.",
-                    "The composition says which compounds the stream carries and in what proportion. All zeros is no " +
-                    "material at all, so the flash has nothing to work with.",
+                    "The composition says which compounds the stream carries and in what proportion. All zeros means there isn't any " +
+                    "material at all, so the flash doesn't have anything to work with.",
                     "Open the stream, choose a basis (mole or mass fractions, or flows per compound) and enter the " +
                     "composition. The fractions are normalised to sum to 1.",
                     "beginner/01-your-first-simulation.html"),
@@ -281,7 +281,7 @@ namespace DWSIM.Automation.FluentAPI.Diagnostics
                 Entry(FlowsheetCodes.VaporFractionOutOfRange, "Vapour fraction outside 0 to 1",
                     "A feed is specified by a vapour fraction below 0 or above 1.",
                     "The vapour fraction is the mole fraction of the stream that is vapour: 0 for a saturated liquid, 1 " +
-                    "for a saturated vapour, anything between for a two-phase mixture. Values outside that range have no " +
+                    "for a saturated vapour, anything between for a two-phase mixture. Values outside that range don't have any " +
                     "physical meaning, and 50 was probably meant as 0.5.",
                     "Enter a value between 0 and 1. If the feed is a subcooled liquid or a superheated vapour, specify " +
                     "temperature and pressure instead.",
@@ -302,7 +302,7 @@ namespace DWSIM.Automation.FluentAPI.Diagnostics
                 Entry(FlowsheetCodes.EfficiencyOutOfRange, "Efficiency outside 0 to 100 %",
                     "A pump, compressor, expander, heater or cooler has an efficiency at or below 0 % or above 100 %.",
                     "Efficiency compares the real duty with the ideal one. It is entered in percent, so 75 means 75 %. " +
-                    "Entering 0.75 gives an almost useless machine, and 0 divides by nothing.",
+                    "Entering 0.75 gives an almost useless machine, and 0 makes it divide by zero.",
                     "Enter the efficiency as a percentage between 0 and 100. Typical values: 70 to 85 % for pumps and " +
                     "compressors, 100 % for a heater whose losses you ignore.",
                     null),
@@ -317,7 +317,7 @@ namespace DWSIM.Automation.FluentAPI.Diagnostics
                     "beginner/02-mixer-basics.html"),
 
                 Entry(FlowsheetCodes.ReactorNoReactions, "Reactor without reactions",
-                    "A reactor has no reaction set, or its set has no active reaction.",
+                    "A reactor doesn't have a reaction set, or its set doesn't have an active reaction.",
                     "A reactor is a flash with chemistry. The chemistry lives in the reaction manager: each reaction has " +
                     "stoichiometry and a conversion, an equilibrium constant or a rate. The reactor only points at a set " +
                     "of those reactions. Without the set it is an expensive pipe.",
@@ -340,7 +340,7 @@ namespace DWSIM.Automation.FluentAPI.Diagnostics
                     "An adjust or a specification block does not name both the variable it reads and the one it writes.",
                     "An adjust changes one variable (the manipulated one) until another (the controlled one) reaches a " +
                     "set-point. A specification block copies a value from a source to a target through an expression. " +
-                    "Either one with a side missing simply does nothing, and the solver does not complain.",
+                    "Either one with a side missing simply doesn't do anything, and the solver does not complain.",
                     "Open the block and select both objects and both properties. For an adjust, also set the set-point " +
                     "and sensible bounds for the manipulated variable.",
                     "intermediate/04-recycle-loops.html"),
@@ -359,7 +359,7 @@ namespace DWSIM.Automation.FluentAPI.Diagnostics
                 Entry(FlowsheetCodes.InfiniteLoop, "Loop without a recycle",
                     "The solver found a cycle of units it cannot order.",
                     "A sequential-modular solver computes units one after another, each from its inlets. When a unit's " +
-                    "inlet depends on its own outlet, through a loop, there is no first unit to start from. A recycle " +
+                    "inlet depends on its own outlet, through a loop, there isn't a first unit to start from. A recycle " +
                     "block tears the loop by supplying a guess for one stream.",
                     "Insert a Recycle block on one stream of the loop, usually the one with the smallest flow or the one " +
                     "you can estimate best.",
@@ -402,7 +402,7 @@ namespace DWSIM.Automation.FluentAPI.Diagnostics
                     "A heater, cooler, pump, compressor, expander or valve left its outlet identical to its inlet.",
                     "Each unit reads its specification from the field its calculation mode names. A cooler is created " +
                     "in Heat Removed mode, so giving it an outlet temperature and leaving the mode alone leaves the duty " +
-                    "at zero: the unit solves, reports no error, and does nothing.",
+                    "at zero: the unit solves, doesn't report an error, and doesn't do anything.",
                     "Open the unit, set the calculation mode to the one that reads the value you know, then check the " +
                     "value itself.",
                     "beginner/03-heater-cooler.html"),
@@ -436,7 +436,7 @@ namespace DWSIM.Automation.FluentAPI.Diagnostics
                 Entry(FlowsheetCodes.HeatExchangerTemperatureCross, "Temperature cross in a heat exchanger",
                     "One outlet of a heat exchanger went past the inlet temperature of the other side.",
                     "Heat flows from hot to cold, so the hot outlet can approach the cold inlet and the cold outlet can " +
-                    "approach the hot inlet, and neither can pass it. In a real exchanger that limit is the minimum " +
+                    "approach the hot inlet, and they can't pass it. In a real exchanger that limit is the minimum " +
                     "temperature approach; a cross means the specified outlet temperature or duty asks for more heat " +
                     "than the temperature driving force allows.",
                     "Relax the outlet temperature or the duty, increase the flow of the side that limits, or check that " +
@@ -462,7 +462,7 @@ namespace DWSIM.Automation.FluentAPI.Diagnostics
                 Entry(FlowsheetCodes.ColumnRefluxBelowMinimum, "Reflux below the minimum",
                     "A shortcut column is set to a reflux ratio below the minimum for the separation.",
                     "The minimum reflux ratio is the reflux at which the separation would need infinitely many stages. " +
-                    "Below it no number of stages achieves the specified key recoveries. Real columns run at 1.2 to 1.5 " +
+                    "Below it the specified key recoveries can't be achieved with any number of stages. Real columns run at 1.2 to 1.5 " +
                     "times the minimum, trading reflux (energy) against stages (capital).",
                     "Raise the reflux ratio above the minimum the column reports, or loosen the key recoveries.",
                     "intermediate/01-distillation-column.html"),
@@ -470,8 +470,8 @@ namespace DWSIM.Automation.FluentAPI.Diagnostics
                 Entry(FlowsheetCodes.MixerPressureMismatch, "Mixer inlets at different pressures",
                     "The streams entering a mixer arrive at noticeably different pressures.",
                     "Streams can only mix at one pressure. The mixer takes the lowest inlet pressure by default, so a " +
-                    "high-pressure stream is silently let down to the lowest one, and the pressure drop happens with " +
-                    "no valve to account for it.",
+                    "high-pressure stream is silently let down to the lowest one, and the pressure drop happens " +
+                    "without a valve to account for it.",
                     "Put a valve on the high-pressure inlet, or a pump on the low-pressure one, so the mixing pressure " +
                     "is a decision. If the drop is intended, the finding can be ignored.",
                     "beginner/02-mixer-basics.html"),
@@ -480,14 +480,14 @@ namespace DWSIM.Automation.FluentAPI.Diagnostics
                     "The stream feeding a pump carries vapour: part of it, or all of it, in which case the pump cannot be solved.",
                     "A pump moves liquid. Its head and power come from the liquid volumetric flow and density, so any " +
                     "vapour in the feed is left out of the calculation, and in a real pump it cavitates or vapour-locks " +
-                    "the impeller. A feed that is all vapour leaves nothing to pump, and the solver stops.",
+                    "the impeller. A feed that is all vapour doesn't leave anything to pump, and the solver stops.",
                     "Cool or pressurise the feed until it is liquid, connect the pump to the liquid product of the " +
                     "separator, or use a compressor if the stream really is a gas.",
                     "beginner/04-simple-flash-drum.html"),
 
                 Entry(FlowsheetCodes.PropertyPackageChanged, "Results from a replaced property package",
-                    "The object still shows results computed with a property package it no longer uses.",
-                    "Replacing a property package clears nothing: every object keeps its numbers and its solved status " +
+                    "The object still shows results computed with a property package it doesn't use anymore.",
+                    "Replacing a property package doesn't clear anything: every object keeps its numbers and its solved status " +
                     "until the flowsheet is solved again, so the table in front of you was computed with the old model.",
                     "Solve the flowsheet again before reading or comparing results.",
                     "fundamentals/04-choosing-a-thermodynamic-model.html")

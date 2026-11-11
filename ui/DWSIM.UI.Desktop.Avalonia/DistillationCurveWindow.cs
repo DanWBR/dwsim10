@@ -122,7 +122,7 @@ public sealed class DistillationCurveWindow : Window
         p.CreateAndAddTextBoxRow(nf, "Aromatics (wt %)", _c.pnaAromatics, (tb, e) => { if (UtilityHelpers.TryVal(tb.Text, out var v)) _c.pnaAromatics = v; });
 
         p.CreateAndAddLabelRow("Light Ends");
-        p.CreateAndAddDescriptionRow("The compounds an assay reports apart from the curve: methane through the pentanes, each with its fraction of the whole crude. They are a few per cent and they set the front end of the flash. Add one row per compound, with its percentage beside it; a compound that is not in the simulation yet is added when the characterization runs. Leave the list empty if the assay has none.");
+        p.CreateAndAddDescriptionRow("The compounds an assay reports apart from the curve: methane through the pentanes, each with its fraction of the whole crude. They are a few per cent and they set the front end of the flash. Add one row per compound, with its percentage beside it; a compound that is not in the simulation yet is added when the characterization runs. Leave the list empty if the assay doesn't report any.");
         _lightEndsBasis = p.CreateAndAddDropDownRow("Light Ends Basis",
             new List<string> { "Molar (%)", "Mass (%)", "Liquid Volume (%)" }, 0, null);
         p.CreateAndAddDescriptionRow("The volume basis counts each light end with its liquid density at 15.6 C, which for the lightest of them is the pseudo-liquid density the assay itself is written with.");

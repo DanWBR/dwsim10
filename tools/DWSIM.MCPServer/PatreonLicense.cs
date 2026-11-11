@@ -36,7 +36,7 @@ namespace DWSIM.MCPServer
             if (!License.IsPatreonEdition)
             {
                 if (!string.IsNullOrWhiteSpace(key))
-                    Console.Error.WriteLine("[dwsim-mcp] A licence key was given, but this is the open-source build: it has no Patreon components to unlock.");
+                    Console.Error.WriteLine("[dwsim-mcp] A licence key was given, but this is the open-source build: it doesn't have Patreon components to unlock.");
                 return;
             }
 

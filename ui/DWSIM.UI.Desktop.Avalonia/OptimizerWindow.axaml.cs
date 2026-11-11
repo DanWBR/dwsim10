@@ -414,7 +414,7 @@ public partial class OptimizerWindow : Window
         if (c.objfunctype == OPTObjectiveFunctionType.Expression && string.IsNullOrWhiteSpace(c.expression))
         { TbProgress.Text = "Enter an expression for the objective function."; return; }
         if (c.variables.Values.Any(v => !string.IsNullOrEmpty(v.objectID) && !_flowsheet.SimulationObjects.ContainsKey(v.objectID)))
-        { TbProgress.Text = "One of the variables points at an object that is no longer on the flowsheet."; return; }
+        { TbProgress.Text = "One of the variables points at an object that isn't on the flowsheet anymore."; return; }
         if (c.variables.Values.Any(v => string.IsNullOrEmpty(v.objectID) || string.IsNullOrEmpty(v.propID)))
         { TbProgress.Text = "Every variable needs an object and a property assigned."; return; }
 

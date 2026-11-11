@@ -202,7 +202,7 @@ namespace DWSIM.Automation.FluentAPI.Builders
                     e => string.Equals(e.Description, referenceEventDescription, StringComparison.OrdinalIgnoreCase));
                 if (match == null)
                     throw new KeyNotFoundException(
-                        "No event named '" + referenceEventDescription + "' in event set '" + _set.Name + "'.");
+                        "Event set '" + _set.Name + "' doesn't have an event named '" + referenceEventDescription + "'.");
                 Object.TransitionReferenceEventID = match.ID;
                 Object.TransitionReference = DynEnums.DynamicsEventTransitionReferenceType.SpecificEvent;
             }

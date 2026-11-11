@@ -65,7 +65,7 @@ namespace DWSIM.PhaseEquilibriumData.Sources.ThermoML
                     .ToList();
                 if (compounds.Count == 0)
                 {
-                    _warn?.Invoke($"pmod {pmod.Index}: no resolvable compounds; skipping.");
+                    _warn?.Invoke($"pmod {pmod.Index}: doesn't have resolvable compounds; skipping.");
                     continue;
                 }
 

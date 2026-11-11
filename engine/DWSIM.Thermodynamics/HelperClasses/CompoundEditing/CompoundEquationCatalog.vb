@@ -111,7 +111,7 @@ Namespace CompoundEditing
                 If IsNotDefined(key) Then
                     info.IsNotDefined = True
                     info.Formula = "Not defined"
-                    info.PlainDescription = "No equation is set for this property, so DWSIM estimates it from the basic constants (see the note on the property block for which estimate it uses). That keeps the simulation running but the values are approximate."
+                    info.PlainDescription = "An equation isn't set for this property, so DWSIM estimates it from the basic constants (see the note on the property block for which estimate it uses). That keeps the simulation running but the values are approximate."
                 ElseIf IsExpression(key) Then
                     info.IsExpression = True
                     info.Formula = key

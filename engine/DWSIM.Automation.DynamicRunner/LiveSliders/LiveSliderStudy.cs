@@ -181,7 +181,7 @@ namespace DWSIM.Automation.DynamicRunner.LiveSliders
             for (int i = 0; i < sliders.Count && i < values.Length; i++)
             {
                 ISimulationObject obj;
-                if (!fs.SimulationObjects.TryGetValue(sliders[i].ObjectName, out obj)) { sample.Error = "The object of slider " + (i + 1) + " is no longer on the flowsheet."; return sample; }
+                if (!fs.SimulationObjects.TryGetValue(sliders[i].ObjectName, out obj)) { sample.Error = "The object of slider " + (i + 1) + " isn't on the flowsheet anymore."; return sample; }
                 try { obj.SetPropertyValue(sliders[i].Property, values[i], su); }
                 catch (Exception ex) { sample.Error = obj.GraphicObject.Tag + ": " + ex.Message; return sample; }
             }

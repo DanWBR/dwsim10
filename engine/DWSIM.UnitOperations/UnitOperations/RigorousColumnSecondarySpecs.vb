@@ -144,7 +144,7 @@ Namespace UnitOperations
                 End If
                 i += 1
             Next
-            If Not success Then Throw New Exception("No side draw port available")
+            If Not success Then Throw New Exception("A side draw port isn't available")
 
         End Sub
 
@@ -175,7 +175,7 @@ Namespace UnitOperations
                     Throw New Exception(String.Format("{0}: the secondary specification '{1}' names a stream that is not a product of the column.", GraphicObject.Tag, label))
                 End If
                 If String.IsNullOrWhiteSpace(s.PropertyName) Then
-                    Throw New Exception(String.Format("{0}: the secondary specification '{1}' has no property.", GraphicObject.Tag, label))
+                    Throw New Exception(String.Format("{0}: the secondary specification '{1}' doesn't have a property.", GraphicObject.Tag, label))
                 End If
                 Dim key = s.ManipulatedVariable.ToString()
                 If s.ManipulatedVariable = ColumnSecondarySpec.ManipulatedVariableType.SideDrawRate Then
@@ -410,7 +410,7 @@ Namespace UnitOperations
                         SecondarySpecsLog.Add(String.Format(ci, "iteration {0}: largest residual {1:G4} tolerances, {2} column solves", iter, r.Max(Function(v) Math.Abs(v)), solves))
                         If done(r) Then Exit For
                         If Not accepted Then
-                            SecondarySpecsLog.Add("No step along the Newton direction reduced the residual; the column keeps the best solution found.")
+                            SecondarySpecsLog.Add("The steps along the Newton direction didn't reduce the residual; the column keeps the best solution found.")
                             Exit For
                         End If
                     Next

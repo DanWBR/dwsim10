@@ -131,7 +131,7 @@ namespace DWSIM.Automation.DynamicRunner.Insight
             if (!Supports(obj))
             {
                 r.Title = r.ObjectTag;
-                r.Lines.Add("There is no written explanation for a " + r.ObjectType + " yet.");
+                r.Lines.Add("There isn't a written explanation for a " + r.ObjectType + " yet.");
                 r.TextReport = Render(r);
                 return r;
             }
@@ -432,7 +432,7 @@ namespace DWSIM.Automation.DynamicRunner.Insight
 
             if (!twoPhase)
             {
-                c.Line("Since only one phase exists there is nothing to split. The composition of that phase is the composition of the stream itself, and all the property package had to do was evaluate its properties at this temperature and pressure.");
+                c.Line("Since only one phase exists there isn't anything to split. The composition of that phase is the composition of the stream itself, and all the property package had to do was evaluate its properties at this temperature and pressure.");
                 return;
             }
 
@@ -492,14 +492,14 @@ namespace DWSIM.Automation.DynamicRunner.Insight
                 row.Add(c.N(c.C(fin - fout, c.Su.molarflow), "E2"));
                 t.Rows.Add(row.ToArray());
             }
-            c.Line("Nothing is created or consumed in a separator, so every mole of each compound that comes in has to leave in one of the products. In symbols, F z_i = V y_i + L x_i for each compound i. The last column of the table shows how well that closes; the largest gap is " + c.Mol(worst) + ", which is round-off from the solver.");
+            c.Line("A separator doesn't create or consume anything, so every mole of each compound that comes in has to leave in one of the products. In symbols, F z_i = V y_i + L x_i for each compound i. The last column of the table shows how well that closes; the largest gap is " + c.Mol(worst) + ", which is round-off from the solver.");
 
             c.Heading("Energy balance");
             double hin = feeds.Sum(s => EnergyFlow(s));
             double hout = EnergyFlow(vap) + EnergyFlow(liq) + (liq2 != null ? EnergyFlow(liq2) : 0);
             double q = v.DeltaQ.GetValueOrDefault();
             c.Line("The energy balance says that the enthalpy carried in by the feeds, plus any duty on the vessel, equals the enthalpy carried out by the products. In numbers, sum(m H)_in + Q = sum(m H)_out:  " + c.Qsi(hin) + " + " + c.Qsi(q) + " = " + c.Qsi(hout) + (Math.Abs(hin + q - hout) < 1e-3 * Math.Max(1, Math.Abs(hout)) ? ", which closes." : ", leaving a residual of " + c.Q(hin + q - hout) + "."));
-            if (Math.Abs(q) < 1e-9) c.Line("There is no duty on this vessel, so the flash is adiabatic. The outlet temperature was not typed anywhere: it is whatever temperature makes the products carry exactly the enthalpy the feeds brought in. That is a pressure-enthalpy (PH) flash, and it is why the outlet temperature can differ from the feed temperature when part of the feed vaporises or condenses on the way in.");
+            if (Math.Abs(q) < 1e-9) c.Line("This vessel doesn't have a duty, so the flash is adiabatic. The outlet temperature was not typed anywhere: it is whatever temperature makes the products carry exactly the enthalpy the feeds brought in. That is a pressure-enthalpy (PH) flash, and it is why the outlet temperature can differ from the feed temperature when part of the feed vaporises or condenses on the way in.");
 
             double V = MolarFlow(vap), L = MolarFlow(liq) + (liq2 != null ? MolarFlow(liq2) : 0);
             double beta = V + L > 0 ? V / (V + L) : 0;
@@ -544,12 +544,12 @@ namespace DWSIM.Automation.DynamicRunner.Insight
 
             c.Heading("Energy balance");
             c.Line("The " + (heater ? "heater" : "cooler") + " is calculated in the mode \"" + modeText + "\", with an efficiency of " + c.N(eff) + " %.");
-            c.Line("At steady state, with one stream in, one stream out and no moving parts, the first law reduces to a single statement: the duty is the change in enthalpy of the stream between its inlet and its outlet.");
+            c.Line("At steady state, with one stream in and one stream out, and without moving parts, the first law reduces to a single statement: the duty is the change in enthalpy of the stream between its inlet and its outlet.");
             c.Line("    Q = m (H_out - H_in)" + (heater ? " / (eff / 100)" : " * (eff / 100)"));
             c.Line("    " + c.Msi(m) + " * (" + c.Hsi(h2) + " - " + c.Hsi(h1) + ")" + (Math.Abs(eff - 100) > 1e-9 ? (heater ? " / " : " * ") + c.N(eff / 100) : "") + " = " + c.Qsi(q));
             double qStream = m * (h2 - h1);
             c.Line("So the stream " + (qStream >= 0 ? "gains " : "loses ") + c.Q(Math.Abs(qStream)) + " between inlet and outlet. The " + (heater ? "heater itself draws " : "cooler itself rejects ") + c.Q(Math.Abs(q)) + " through its energy stream" + (Math.Abs(eff - 100) > 1e-9 ? "; the difference between the two numbers is the part of the duty that never reaches the stream, the efficiency loss" : "") + ".");
-            c.Line("A note on the enthalpy values themselves: they are the property package's, with the reference state chosen so that H = 0 for the ideal gas formed from the elements at 25 C. Their absolute values (often negative) mean nothing on their own; only differences between two states do, and a difference is all the balance uses.");
+            c.Line("A note on the enthalpy values themselves: they are the property package's, with the reference state chosen so that H = 0 for the ideal gas formed from the elements at 25 C. Their absolute values (often negative) don't mean anything on their own; only differences between two states do, and a difference is all the balance uses.");
             c.Line("The pressure falls by the drop you set: P_out = P_in - dP = " + c.P(p1) + " - " + c.U(dp, c.Su.deltaP) + " = " + c.P(p2) + ".");
             c.Line("The temperature goes from " + c.T(t1) + " to " + c.T(t2) + ", and the vapour fraction from " + c.N(VapFrac(sin), "F4") + " to " + c.N(VapFrac(sout), "F4") + ".");
             if (Math.Abs(t2 - t1) < 1e-6 && Math.Abs(q) > 1e-9) c.Line("Notice that the temperature did not change even though heat was exchanged. The stream is boiling or condensing, and all of the heat went into changing phase (latent heat) rather than into moving the temperature.");
@@ -613,7 +613,7 @@ namespace DWSIM.Automation.DynamicRunner.Insight
             double lmtd = Math.Abs(dt1 - dt2) < 1e-9 ? dt1 : (dt1 - dt2) / Math.Log(dt1 / dt2);
             c.Line("Heat only flows from the hotter fluid to the colder one, and how fast it flows depends on how far apart the two temperatures are at each point along the exchanger. At the two ends the differences are dT1 = " + c.U(dt1, c.Su.deltaT) + " and dT2 = " + c.U(dt2, c.Su.deltaT) + ".");
             if (dt1 <= 0 || dt2 <= 0)
-                c.Line("One of those differences is zero or negative. That is a temperature cross: at that end the cold fluid would have to be hotter than the hot fluid, which no exchanger with this flow arrangement can achieve. The duty or the outlet temperatures you specified are not consistent with each other.");
+                c.Line("One of those differences is zero or negative. That is a temperature cross: at that end the cold fluid would have to be hotter than the hot fluid, which an exchanger with this flow arrangement can't achieve. The duty or the outlet temperatures you specified are not consistent with each other.");
             else
                 c.Line("Because the difference changes along the exchanger, the effective driving force is the logarithmic mean of the two end values: LMTD = (dT1 - dT2) / ln(dT1 / dT2) = " + c.U(lmtd, c.Su.deltaT) + ". The exchanger reports " + c.U(hx.LMTD, c.Su.deltaT) + ".");
             double F = hx.LMTD_F > 0 ? hx.LMTD_F : 1.0;
@@ -734,7 +734,7 @@ namespace DWSIM.Automation.DynamicRunner.Insight
 
             c.Heading("Energy balance");
             c.Line("The machine is calculated in the mode \"" + mode + "\" along the " + path + " path, with an adiabatic efficiency of " + c.N(effA) + " % and a polytropic efficiency of " + c.N(effP) + " %.");
-            c.Line("The machine exchanges no heat with its surroundings, so the shaft work is exactly the change of enthalpy of the gas: W = m (H_out - H_in) = " + c.Msi(m) + " * (" + c.Hsi(h2) + " - " + c.Hsi(h1) + ") = " + c.Qsi(m * (h2 - h1)) + ". The machine reports " + c.Q(w) + ".");
+            c.Line("The machine doesn't exchange heat with its surroundings, so the shaft work is exactly the change of enthalpy of the gas: W = m (H_out - H_in) = " + c.Msi(m) + " * (" + c.Hsi(h2) + " - " + c.Hsi(h1) + ") = " + c.Qsi(m * (h2 - h1)) + ". The machine reports " + c.Q(w) + ".");
             c.Line("The pressure ratio is P_out / P_in = " + c.P(p2) + " / " + c.P(p1) + " = " + c.N(p2 / p1, "F3") + ", and the temperature goes from " + c.T(t1) + " to " + c.T(t2) + ".");
 
             c.Heading("Isentropic reference");
@@ -792,11 +792,11 @@ namespace DWSIM.Automation.DynamicRunner.Insight
             double h1 = Enth(sin), h2 = Enth(sout), p1 = Pres(sin), p2 = Pres(sout), t1 = Temp(sin), t2 = Temp(sout);
             c.Heading("Energy balance");
             c.Line("The valve is calculated in the mode \"" + v.CalcMode + "\".");
-            c.Line("A valve exchanges no heat, does no work and involves no change of elevation, so the enthalpy of the stream is the same before and after it: H_out = H_in, " + c.H(h2) + " = " + c.H(h1) + ". The pressure drops, and everything else follows from that one fact.");
+            c.Line("A valve doesn't exchange heat, do work or involve a change of elevation, so the enthalpy of the stream is the same before and after it: H_out = H_in, " + c.H(h2) + " = " + c.H(h1) + ". The pressure drops, and everything else follows from that one fact.");
             c.Line("The outlet state is therefore found by a pressure-enthalpy flash at P_out = " + c.P(p2) + " and H = " + c.H(h1) + ", which gives T_out = " + c.T(t2) + ", a change of " + c.U(t2 - t1, c.Su.deltaT) + ".");
             double vf1 = VapFrac(sin), vf2 = VapFrac(sout);
             if (vf2 > vf1 + 1e-6) c.Line("The vapour fraction rises from " + c.N(vf1, "F4") + " to " + c.N(vf2, "F4") + ". At the lower pressure part of the liquid boils off, and the latent heat it needs is taken from the stream itself, which is why the stream cools.");
-            else if (Math.Abs(t2 - t1) > 1e-6) c.Line("The temperature changed even though no phase change took place. This is the Joule-Thomson effect. For an ideal gas the enthalpy depends on temperature alone, so an expansion at constant enthalpy would leave the temperature untouched; a real gas " + (t2 < t1 ? "cools" : "warms") + " on expansion because its enthalpy also depends on pressure, through the forces between its molecules.");
+            else if (Math.Abs(t2 - t1) > 1e-6) c.Line("The temperature changed even though the stream didn't change phase. This is the Joule-Thomson effect. For an ideal gas the enthalpy depends on temperature alone, so an expansion at constant enthalpy would leave the temperature untouched; a real gas " + (t2 < t1 ? "cools" : "warms") + " on expansion because its enthalpy also depends on pressure, through the forces between its molecules.");
             c.Line("The entropy rises across the valve, S_out - S_in = " + c.S(Entr(sout) - Entr(sin)) + ". An expansion through a valve is irreversible: the pressure thrown away could have driven a turbine and produced work, and the entropy generated is the measure of that lost opportunity.");
 
             var ps = new List<double>(); var ts = new List<double>(); var vfs = new List<double>();
@@ -838,7 +838,7 @@ namespace DWSIM.Automation.DynamicRunner.Insight
             c.Line("For each compound, the flows arriving through the inlets add up to the flow leaving; the table shows the sum next to the outlet. In total mass: " + string.Join(" + ", ins.Select(s => c.M(MassFlow(s)))) + " = " + c.M(MassFlow(sout)) + ".");
             c.Heading("Energy balance");
             c.Line("The enthalpy carried by the inlets adds up to the enthalpy carried by the outlet: sum(m_i H_i) = m_out H_out, that is " + string.Join(" + ", ins.Select(s => c.Qsi(EnergyFlow(s)))) + " = " + c.Qsi(EnergyFlow(sout)) + ".");
-            c.Line("The outlet temperature is not typed anywhere. It is the temperature at which the mixed stream carries exactly that enthalpy, found by a pressure-enthalpy flash: T_out = " + c.T(Temp(sout)) + ", with the inlets at " + string.Join(", ", ins.Select(s => c.T(Temp(s)))) + ". Only when nothing boils, condenses or gives off heat on mixing does this reduce to the familiar average weighted by flow and heat capacity.");
+            c.Line("The outlet temperature is not typed anywhere. It is the temperature at which the mixed stream carries exactly that enthalpy, found by a pressure-enthalpy flash: T_out = " + c.T(Temp(sout)) + ", with the inlets at " + string.Join(", ", ins.Select(s => c.T(Temp(s)))) + ". Only when the mixture doesn't boil, condense or give off heat on mixing does this reduce to the familiar average weighted by flow and heat capacity.");
             c.Heading("Pressure");
             c.Line("The outlet pressure follows the rule \"" + mx.PressureCalculation + "\" applied to the inlet pressures (" + string.Join(", ", ins.Select(s => c.P(Pres(s)))) + "), which gives " + c.P(Pres(sout)) + ". In a real plant two streams at different pressures cannot meet in a pipe, because the one at the higher pressure would push the other back. The lowest inlet pressure is the physically sensible choice, and the difference to the other inlets is a pressure drop that happens somewhere upstream of the junction.");
         }
@@ -850,7 +850,7 @@ namespace DWSIM.Automation.DynamicRunner.Insight
             if (ins.Count == 0 || outs.Count == 0) { c.Warn("Connect the inlet and the outlets."); return; }
             var sin = ins[0];
             c.Heading("Mass balance");
-            c.Line("A splitter only divides the flow. Nothing is separated, heated or throttled, so every outlet carries exactly the composition, temperature and pressure of the inlet; only the amounts differ.");
+            c.Line("A splitter only divides the flow. It doesn't separate, heat or throttle anything, so every outlet carries exactly the composition, temperature and pressure of the inlet; only the amounts differ.");
             double total = MassFlow(sin);
             foreach (var o in outs)
                 c.Line("    " + c.Tag(o) + ": " + c.M(MassFlow(o)) + " = " + c.N(total > 0 ? MassFlow(o) / total : 0, "F4") + " of " + c.M(total) + ", T = " + c.T(Temp(o)) + ", P = " + c.P(Pres(o)));
@@ -871,11 +871,11 @@ namespace DWSIM.Automation.DynamicRunner.Insight
             c.Heading("What fixes the extent");
             switch (type)
             {
-                case ObjectType.RCT_Conversion: c.Line("A conversion reactor does not work out how far the reactions go. You tell it, through the conversion of the base compound of each reaction (a number, or an expression in temperature), and it applies the stoichiometry to find how much of everything else is consumed or formed. No kinetics and no equilibrium are involved, so the result is only as good as the conversions you supplied."); break;
+                case ObjectType.RCT_Conversion: c.Line("A conversion reactor does not work out how far the reactions go. You tell it, through the conversion of the base compound of each reaction (a number, or an expression in temperature), and it applies the stoichiometry to find how much of everything else is consumed or formed. Kinetics and equilibrium aren't involved, so the result is only as good as the conversions you supplied."); break;
                 case ObjectType.RCT_Equilibrium: c.Line("An equilibrium reactor assumes the reactions have all the time they need. It finds the extent of each reaction at which the equilibrium constant K(T) equals the product of the activities (or fugacities) raised to their stoichiometric coefficients. At that point the forward and reverse rates balance and the composition stops changing; the outlet is that composition."); break;
-                case ObjectType.RCT_Gibbs: c.Line("A Gibbs reactor takes a different route to equilibrium: it looks for the outlet composition with the lowest total Gibbs energy while keeping the amount of each element fixed. No reactions have to be written, because at that minimum every conceivable reaction among the compounds present is already at equilibrium; anything the elements can form is allowed to form."); break;
+                case ObjectType.RCT_Gibbs: c.Line("A Gibbs reactor takes a different route to equilibrium: it looks for the outlet composition with the lowest total Gibbs energy while keeping the amount of each element fixed. Reactions don't have to be written, because at that minimum every conceivable reaction among the compounds present is already at equilibrium; anything the elements can form is allowed to form."); break;
                 case ObjectType.RCT_CSTR: c.Line("A CSTR (continuous stirred-tank reactor) is assumed to be perfectly mixed, so the composition and temperature are the same everywhere inside the vessel and equal to those of the outlet. The reaction rate is therefore evaluated once, at the outlet conditions, and the balance of each compound reads F_i,in - F_i,out + r_i V = 0: what comes in, minus what goes out, plus what the reactions make in the volume V, is zero."); break;
-                case ObjectType.RCT_PFR: c.Line("A PFR (plug-flow reactor) has no mixing along its length: each slice of fluid moves through the tube as a plug and reacts as it goes. The composition changes from inlet to outlet and the rate changes with it, so the balance is written per unit of volume, dF_i/dV = r_i, and integrated along the reactor from the inlet to the outlet."); break;
+                case ObjectType.RCT_PFR: c.Line("A PFR (plug-flow reactor) doesn't have any mixing along its length: each slice of fluid moves through the tube as a plug and reacts as it goes. The composition changes from inlet to outlet and the rate changes with it, so the balance is written per unit of volume, dF_i/dV = r_i, and integrated along the reactor from the inlet to the outlet."); break;
             }
             c.Line("The reactor operates in the mode \"" + rc.ReactorOperationMode + "\". The outlet temperature is " + c.T(rc.OutletTemperature) + " and the duty is " + c.Q(rc.DeltaQ.GetValueOrDefault()) + ".");
 
@@ -903,10 +903,10 @@ namespace DWSIM.Automation.DynamicRunner.Insight
                     if (!rc.Conversions.TryGetValue(rxn.ID, out conv)) rc.ComponentConversions.TryGetValue(rxn.BaseReactant, out conv);
                     rt.Rows.Add(new[] { rxn.Name, rxn.Equation, rxn.ReactionType.ToString(), rxn.BaseReactant, c.N(100 * conv, "F2"), c.N(rxn.ReactionHeat / 1000.0, "F2") });
                 }
-                c.Line("Multiplying the heat of reaction by the extent of each reaction gives the heat released (or absorbed) inside the reactor. In adiabatic operation that heat has nowhere to go but the stream, so it sets the outlet temperature; in isothermal operation it is removed (or supplied) through the duty, which is what the duty above represents.");
+                c.Line("Multiplying the heat of reaction by the extent of each reaction gives the heat released (or absorbed) inside the reactor. In adiabatic operation that heat can't go anywhere but the stream, so it sets the outlet temperature; in isothermal operation it is removed (or supplied) through the duty, which is what the duty above represents.");
                 if (type == ObjectType.RCT_CSTR || type == ObjectType.RCT_PFR) Levenspiel(c, rc, set, ins[0], outs);
             }
-            else c.Warn("The reactor has no reaction set.");
+            else c.Warn("The reactor doesn't have a reaction set.");
         }
 
         /// <summary>
@@ -921,7 +921,7 @@ namespace DWSIM.Automation.DynamicRunner.Insight
                 IReaction r;
                 if (rsb.IsActive && c.Fs.Reactions.TryGetValue(rsb.ReactionID, out r) && r.ReactionType == ReactionType.Kinetic) { rxn = r; break; }
             }
-            if (rxn == null) { c.Line("None of the reactions in this set has a kinetic rate expression, so there is no rate to plot against conversion and no Levenspiel plot."); return; }
+            if (rxn == null) { c.Line("The reactions in this set don't have a kinetic rate expression, so there isn't a rate to plot against conversion or a Levenspiel plot."); return; }
             if (rxn.ReactionKinetics != ReactionKinetics.Expression || rxn.ReactionKinFwdType != ReactionKineticType.Arrhenius || (rxn.A_Reverse != 0 && rxn.ReactionKinRevType != ReactionKineticType.Arrhenius))
             {
                 c.Line("The rate of " + rxn.Name + " is given by a user expression or a script. The Levenspiel plot is drawn only for Arrhenius power-law kinetics, whose rate this tool can evaluate at any conversion.");
@@ -945,7 +945,7 @@ namespace DWSIM.Automation.DynamicRunner.Insight
                 default: phase = 0; break;
             }
             Qv = feed.Phases[phase].Properties.volumetric_flow.GetValueOrDefault();
-            if (Qv <= 0) { c.Line("The feed carries no " + rxn.ReactionPhase + " phase, and the Levenspiel plot needs the reaction phase to be present at the inlet to define the starting concentrations."); return; }
+            if (Qv <= 0) { c.Line("The feed doesn't carry a " + rxn.ReactionPhase + " phase, and the Levenspiel plot needs the reaction phase to be present at the inlet to define the starting concentrations."); return; }
             foreach (var sb in rxn.Components.Values)
                 conc0[sb.CompName] = feed.Phases[phase].Compounds[sb.CompName].MolarFlow.GetValueOrDefault() / Qv;
             var convf = rc.GetConvFactors(reaction, feed);
@@ -954,7 +954,7 @@ namespace DWSIM.Automation.DynamicRunner.Insight
             double kr = rxn.A_Reverse * Math.Exp(-Converter.Convert(rxn.E_Reverse_Unit, "J/mol", rxn.E_Reverse) / (8.314 * T));
             if (T < rxn.Tmin || T > rxn.Tmax) { kf = 0; kr = 0; }
             double cA0 = conc0[A];
-            if (cA0 <= 0) { c.Line("The base compound " + A + " is absent from the feed, so there is no conversion to follow."); return; }
+            if (cA0 <= 0) { c.Line("The base compound " + A + " is absent from the feed, so there isn't any conversion to follow."); return; }
 
             // -rA(X) in mol/(m3 s), constant volumetric flow (liquid, or a gas with no mole change)
             Func<double, double> rateA = X =>
@@ -989,7 +989,7 @@ namespace DWSIM.Automation.DynamicRunner.Insight
                 if (r <= 0 || double.IsNaN(r) || double.IsInfinity(r)) break;
                 xs.Add(X); inv.Add(1.0 / r);
             }
-            if (xs.Count < 3) { c.Line("The rate comes out zero or negative over the whole conversion range, either because the reaction is at equilibrium or because the temperature is outside the range the kinetics are valid for. There is nothing to plot."); return; }
+            if (xs.Count < 3) { c.Line("The rate comes out zero or negative over the whole conversion range, either because the reaction is at equilibrium or because the temperature is outside the range the kinetics are valid for. There isn't anything to plot."); return; }
             double rOut = rateA(Xout);
             double vCstr = rOut > 0 ? FA0 * Xout / rOut : double.NaN;
             double vPfr = 0;
@@ -1020,7 +1020,7 @@ namespace DWSIM.Automation.DynamicRunner.Insight
             c.R.Title = kind + " " + c.R.ObjectTag + ": stage by stage";
             int n = col.NumberOfStages;
             var Tf = col.Tf; var Lf = col.Lf; var Vf = col.Vf;
-            if (Tf == null || Tf.Length < n || Lf.Length < n || Vf.Length < n || col.xf.Count < n) { c.Warn("The column has no stored stage profiles; solve it again."); return; }
+            if (Tf == null || Tf.Length < n || Lf.Length < n || Vf.Length < n || col.xf.Count < n) { c.Warn("The column doesn't have stored stage profiles; solve it again."); return; }
             var names = new List<string>();
             foreach (var id in col.compids) names.Add(id.ToString());
             int nc = names.Count;
@@ -1119,7 +1119,7 @@ namespace DWSIM.Automation.DynamicRunner.Insight
                     if (xDh > 0 && xBl > 0 && alpha > 1)
                     {
                         double nmin = Math.Log((xDl / xDh) * (xBh / xBl)) / Math.Log(alpha);
-                        c.Line("Fenske: N_min = ln[(x_D,LK / x_D,HK)(x_B,HK / x_B,LK)] / ln(alpha) = ln[(" + c.N(xDl, "F4") + " / " + c.N(xDh, "F4") + ")(" + c.N(xBh, "F4") + " / " + c.N(xBl, "F4") + ")] / ln(" + c.N(alpha, "F3") + ") = " + c.N(nmin, "F1") + ". That is the smallest number of stages that could make this split, and only at total reflux, with all the condensate returned and no product drawn. This column has " + n + " stages.");
+                        c.Line("Fenske: N_min = ln[(x_D,LK / x_D,HK)(x_B,HK / x_B,LK)] / ln(alpha) = ln[(" + c.N(xDl, "F4") + " / " + c.N(xDh, "F4") + ")(" + c.N(xBh, "F4") + " / " + c.N(xBl, "F4") + ")] / ln(" + c.N(alpha, "F3") + ") = " + c.N(nmin, "F1") + ". That is the smallest number of stages that could make this split, and only at total reflux, with all the condensate returned and without a product draw. This column has " + n + " stages.");
                         if (xBl < 1e-4 || xDh < 1e-4) c.Line("One of the keys is below 0.0001 in a product. With a product that pure, Fenske's count hinges on a trace composition and on an average volatility, and it can come out higher than the stages the column actually has. The rigorous solution is the one to trust here: the column reaches the purity with fewer stages because the relative volatility is larger in the section where the separation is made.");
                         // Underwood with the feed-stage volatilities, q from the feed's vapour fraction
                         var z = names.Select(nm => feeds.Sum(f => f.Item1.Phases[0].Compounds[nm].MolarFlow.GetValueOrDefault())).ToArray();
@@ -1137,7 +1137,7 @@ namespace DWSIM.Automation.DynamicRunner.Insight
                         {
                             double rmin = -1; for (int i = 0; i < nc; i++) rmin += a[i] * dist.Phases[0].Compounds[names[i]].MoleFraction.GetValueOrDefault() / (a[i] - theta);
                             double ratio = rmin > 0 ? col.RefluxRatio / rmin : double.NaN;
-                            c.Line("Underwood's method gives the other limit, the smallest reflux that could make the split if the column had infinitely many stages. With the volatilities of the feed stage and the feed quality q = " + c.N(q, "F3") + " (1 for a liquid at its bubble point, 0 for a saturated vapour), the Underwood root is theta = " + c.N(theta, "F4") + ", between alpha_HK = 1 and alpha_LK = " + c.N(a[lk], "F3") + ", and the minimum reflux comes out as R_min = sum_i alpha_i x_D,i / (alpha_i - theta) - 1 = " + c.N(rmin, "F3") + ". This column runs at R / R_min = " + c.N(ratio, "F2") + (ratio < 1.05 ? ", so close to the minimum that the stages around the feed are doing almost nothing: the profile is pinched there, and a small upset would lose the specification." : ratio > 3 ? ", well above the 1.2 to 1.5 that designs usually settle on. The reboiler is working harder than the separation needs; a lower reflux would save energy at the expense of a few more stages." : ", inside the range that designs usually settle on, between about 1.2 and 1.5 times the minimum."));
+                            c.Line("Underwood's method gives the other limit, the smallest reflux that could make the split if the column had infinitely many stages. With the volatilities of the feed stage and the feed quality q = " + c.N(q, "F3") + " (1 for a liquid at its bubble point, 0 for a saturated vapour), the Underwood root is theta = " + c.N(theta, "F4") + ", between alpha_HK = 1 and alpha_LK = " + c.N(a[lk], "F3") + ", and the minimum reflux comes out as R_min = sum_i alpha_i x_D,i / (alpha_i - theta) - 1 = " + c.N(rmin, "F3") + ". This column runs at R / R_min = " + c.N(ratio, "F2") + (ratio < 1.05 ? ", so close to the minimum that the stages around the feed are hardly doing anything: the profile is pinched there, and a small upset would lose the specification." : ratio > 3 ? ", well above the 1.2 to 1.5 that designs usually settle on. The reboiler is working harder than the separation needs; a lower reflux would save energy at the expense of a few more stages." : ", inside the range that designs usually settle on, between about 1.2 and 1.5 times the minimum."));
                         }
                         c.Line("To see these stages drawn one by one, open the McCabe-Thiele tool on the Utilities menu for the pair " + LK + " / " + HK + " at this reflux ratio.");
                     }
@@ -1158,7 +1158,7 @@ namespace DWSIM.Automation.DynamicRunner.Insight
                 Series(chX, names[j], stages, Enumerable.Range(0, n).Select(i => ((double[])col.xf[i])[jj]));
             }
             c.Heading("Profiles");
-            c.Line("The charts show what happens stage by stage. The temperature rises from the top to the bottom, because the top is rich in the lighter compounds, which boil at lower temperatures, and the bottom in the heavier ones. In the composition profile, a stretch of stages where nothing changes is a warning sign: those stages are doing little, either because there are more stages than this reflux can use or because the profile is pinched near the feed. The liquid and vapour flows jump at the feed stage, by the amount of liquid and vapour the feed brings in.");
+            c.Line("The charts show what happens stage by stage. The temperature rises from the top to the bottom, because the top is rich in the lighter compounds, which boil at lower temperatures, and the bottom in the heavier ones. In the composition profile, a stretch of stages where the composition doesn't change is a warning sign: those stages are doing little, either because there are more stages than this reflux can use or because the profile is pinched near the feed. The liquid and vapour flows jump at the feed stage, by the amount of liquid and vapour the feed brings in.");
         }
 
         // ------------------------------------------------------------------ shortcut column
@@ -1183,11 +1183,11 @@ namespace DWSIM.Automation.DynamicRunner.Insight
             double sep = (xDl / xDh) * (xBh / xBl);
             double alpha = Nmin > 0 ? Math.Exp(Math.Log(sep) / Nmin) : double.NaN;
             c.Line("N_min = ln[(x_D,LK / x_D,HK)(x_B,HK / x_B,LK)] / ln(alpha_LK,HK) = ln[(" + c.N(xDl, "F4") + " / " + c.N(xDh, "F4") + ")(" + c.N(xBh, "F4") + " / " + c.N(xBl, "F4") + ")] / ln(" + c.N(alpha, "F4") + ") = " + c.N(Nmin, "F2"));
-            c.Line("At total reflux everything that condenses at the top flows back down and no product is drawn, so each stage works as a full equilibrium step and the separation per stage is as large as it can be. Under those conditions " + c.N(Nmin, "F1") + " stages are needed, and no reflux ratio, however large, can do it with fewer. The alpha used here, " + c.N(alpha, "F3") + ", is the geometric mean of the relative volatility at the top and at the bottom.");
+            c.Line("At total reflux everything that condenses at the top flows back down and a product isn't drawn, so each stage works as a full equilibrium step and the separation per stage is as large as it can be. Under those conditions " + c.N(Nmin, "F1") + " stages are needed, and a reflux ratio, however large, can't do it with fewer. The alpha used here, " + c.N(alpha, "F3") + ", is the geometric mean of the relative volatility at the top and at the bottom.");
 
             c.Heading("Underwood: minimum reflux with infinite stages");
             c.Line("The other limit is the minimum reflux, the smallest reflux that could still make the split if the column had infinitely many stages. Underwood's method finds it in two steps: first solve sum_i alpha_i z_i / (alpha_i - theta) = 1 - q for the root theta that lies between the volatilities of the two keys, then evaluate R_min + 1 = sum_i alpha_i x_D,i / (alpha_i - theta).");
-            c.Line("That gives R_min = " + c.N(Rmin, "F3") + ". Below this reflux the operating line touches the equilibrium curve (a pinch) and no number of stages would make the split. The column runs at R / R_min = " + c.N(R / Rmin, "F2") + ".");
+            c.Line("That gives R_min = " + c.N(Rmin, "F3") + ". Below this reflux the operating line touches the equilibrium curve (a pinch) and the split can't be made with any number of stages. The column runs at R / R_min = " + c.N(R / Rmin, "F2") + ".");
 
             c.Heading("Gilliland: stages at the operating reflux");
             double X = (R - Rmin) / (R + 1), Y = (N - Nmin) / (N + 1);

@@ -72,7 +72,7 @@ Namespace CompoundEditing
                        storedUnit As String, unitSelector As Func(Of IUnitsOfMeasure, String),
                        isReadOnly As Boolean, isAdvanced As Boolean, help As String)
             _info = InterfaceType.GetProperty(key)
-            If _info Is Nothing Then Throw New ArgumentException("ICompoundConstantProperties has no property named " & key)
+            If _info Is Nothing Then Throw New ArgumentException("ICompoundConstantProperties doesn't have a property named " & key)
             Me.Key = key
             Me.DisplayName = displayName
             Me.Group = group
@@ -463,13 +463,13 @@ Namespace CompoundEditing
               "Boiling temperature at 1 atm. Used by thermal-conductivity and other estimation methods and as a sanity anchor for the vapor-pressure curve. It must be below the critical temperature.",
               "K", Function(su) su.temperature)
             D("Z_Rackett", "Rackett parameter (ZRA)", CompoundPropertyGroup.Constants, CompoundPropertyKind.Double,
-              "The Rackett compressibility used to estimate saturated liquid density when no liquid-density equation is set. Leave it at zero to let DWSIM derive it from the acentric factor (ZRA = 0.29056 - 0.08775 w).")
+              "The Rackett compressibility used to estimate saturated liquid density when a liquid-density equation isn't set. Leave it at zero to let DWSIM derive it from the acentric factor (ZRA = 0.29056 - 0.08775 w).")
             D("Dipole_Moment", "Dipole moment", CompoundPropertyGroup.Constants, CompoundPropertyKind.Double,
               "Electric dipole moment in C.m. Read by a few transport-property correlations; zero is fine for most purposes.", "C.m")
 
             ' ---------------------------------------------------------------- formation
             D("IG_Enthalpy_of_Formation_25C", "Ideal gas enthalpy of formation (25 C)", CompoundPropertyGroup.Formation, CompoundPropertyKind.Double,
-              "Enthalpy of forming the compound from its elements at 25 C in the ideal gas state, per kg. It sets the enthalpy reference of the compound, so reaction heat effects and heating values come out right only when every reacting compound has it. With it at zero a reactor reports no heat of reaction.",
+              "Enthalpy of forming the compound from its elements at 25 C in the ideal gas state, per kg. It sets the enthalpy reference of the compound, so reaction heat effects and heating values come out right only when every reacting compound has it. With it at zero a reactor doesn't report any heat of reaction.",
               "kJ/kg", Function(su) su.enthalpy)
             D("IG_Gibbs_Energy_of_Formation_25C", "Ideal gas Gibbs energy of formation (25 C)", CompoundPropertyGroup.Formation, CompoundPropertyKind.Double,
               "Gibbs energy of formation at 25 C, per kg. Used by Gibbs-minimization reactors and to compute equilibrium constants from thermodynamics. Not needed for kinetic or conversion reactors.",
@@ -490,7 +490,7 @@ Namespace CompoundEditing
             D("EnthalpyOfFusionAtTf", "Enthalpy of fusion", CompoundPropertyGroup.Solid, CompoundPropertyKind.Double,
               "Heat absorbed on melting at the melting point, in kJ/mol (note: per mol, not per kg). Needed for solid-liquid equilibrium and for the enthalpy of a solid phase.", "kJ/mol")
             D("SolidTs", "Solid density reference temperature", CompoundPropertyGroup.Solid, CompoundPropertyKind.Double,
-              "Temperature at which the single-point solid density below was measured. Used only when no solid-density equation is set.",
+              "Temperature at which the single-point solid density below was measured. Used only when a solid-density equation isn't set.",
               "K", Function(su) su.temperature)
             D("SolidDensityAtTs", "Single-point solid density", CompoundPropertyGroup.Solid, CompoundPropertyKind.Double,
               "Density of the solid at the reference temperature above. DWSIM uses it when the solid-density equation is empty; if both are missing, the solid gets a very large placeholder density and any solid volume is meaningless.",
@@ -542,7 +542,7 @@ Namespace CompoundEditing
 
             ' ---------------------------------------------------------------- electrolyte
             D("IsIon", "Is an ion", CompoundPropertyGroup.Electrolyte, CompoundPropertyKind.Boolean,
-              "Marks a charged species. Ions have no vapor pressure and are only handled by electrolyte property packages.", isAdvanced:=True)
+              "Marks a charged species. Ions don't have a vapor pressure and are only handled by electrolyte property packages.", isAdvanced:=True)
             D("IsSalt", "Is a salt", CompoundPropertyGroup.Electrolyte, CompoundPropertyKind.Boolean,
               "Marks a salt that dissociates into the ions named below.", isAdvanced:=True)
             D("IsHydratedSalt", "Is a hydrated salt", CompoundPropertyGroup.Electrolyte, CompoundPropertyKind.Boolean,
@@ -665,7 +665,7 @@ Namespace CompoundEditing
             Dim always As Func(Of ICompoundConstantProperties, Boolean) = Function(cp) True
 
             Blocks.Add(New TemperatureDependentBlock("VaporPressure", "Vapor pressure",
-                "Saturation pressure of the pure compound as a function of temperature: the property that decides how volatile the compound is in every flash. T is in K and the equation must return Pa. When no equation is set, DWSIM estimates it with the Lee-Kesler correlation from Tc, Pc and the acentric factor, which is fine for a non-volatile pseudo-compound but rough for anything that actually boils in the process.",
+                "Saturation pressure of the pure compound as a function of temperature: the property that decides how volatile the compound is in every flash. T is in K and the equation must return Pa. When an equation isn't set, DWSIM estimates it with the Lee-Kesler correlation from Tc, Pc and the acentric factor, which is fine for a non-volatile pseudo-compound but rough for anything that actually boils in the process.",
                 "VaporPressureEquation", {"Vapor_Pressure_Constant_A", "Vapor_Pressure_Constant_B", "Vapor_Pressure_Constant_C", "Vapor_Pressure_Constant_D", "Vapor_Pressure_Constant_E"},
                 "Vapor_Pressure_TMIN", "Vapor_Pressure_TMAX", "Vapor_Pressure_Regression_Fit", "Vapor_Pressure_Tabular_Data",
                 "Pa", Function(su) su.pressure,
@@ -968,7 +968,7 @@ Namespace CompoundEditing
                     End If
                     If d1 IsNot Nothing Then Exit For
                 Next
-                If d1 Is Nothing Then Throw New KeyNotFoundException("No compound property descriptor for '" & key & "'.")
+                If d1 Is Nothing Then Throw New KeyNotFoundException("There isn't a compound property descriptor for '" & key & "'.")
                 _blockOwned(key) = d1
             End SyncLock
             Return d1

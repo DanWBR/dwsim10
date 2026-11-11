@@ -130,7 +130,7 @@ namespace DWSIM.UI.Desktop.Editors
             var panel = new AvaloniaEditorPanel();
 
             panel.CreateAndAddDescriptionRow(
-                "Compounds taken into account by the Gibbs energy minimization. With none checked, " +
+                "Compounds taken into account by the Gibbs energy minimization. If you don't check any, " +
                 "every compound is treated as reactive.");
 
             if (reactor.ComponentIDs == null) reactor.ComponentIDs = new List<string>();

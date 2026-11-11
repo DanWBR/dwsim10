@@ -84,7 +84,7 @@ namespace DWSIM.UI.Desktop.Editors
 
             if (objects.Count == 0)
             {
-                panel.CreateAndAddDescriptionRow("No other objects on the flowsheet yet.");
+                panel.CreateAndAddDescriptionRow("The flowsheet doesn't have other objects yet.");
                 return;
             }
 

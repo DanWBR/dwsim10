@@ -808,7 +808,7 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                         ' D2 > 0 for every composition, so g_mix is strictly convex, no common tangent can
                         ' exist and the mixture cannot split. This is a proof, not a heuristic, so the
                         ' answer is settled here and there is nothing to iterate.
-                        IObj?.Paragraphs.Add("D2 = d2(g_mix/RT)/dx1^2 is positive over the whole composition range, so g_mix is strictly convex and no liquid-liquid split is possible. Reporting a single phase without iterating.")
+                        IObj?.Paragraphs.Add("D2 = d2(g_mix/RT)/dx1^2 is positive over the whole composition range, so g_mix is strictly convex and a liquid-liquid split isn't possible. Reporting a single phase without iterating.")
                         provablySinglePhase = True
 
                     Case SpinodalState.WindowFound
@@ -856,7 +856,7 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                 If Not seeded AndAlso Not provablySinglePhase Then
                     ' Feed appears stable per TPD; fall back to the composition-deviation
                     ' heuristic as a perturbation to probe for any edge cases.
-                    IObj?.Paragraphs.Add("Stability test found no instability - using heuristic perturbation as initial estimate.")
+                    IObj?.Paragraphs.Add("Stability test didn't find an instability - using heuristic perturbation as initial estimate.")
                     Dim meanZ As Double = Vz.Sum() / (n + 1)
                     Dim maxDev As Double = -1.0
                     Dim splitComp As Integer = 0

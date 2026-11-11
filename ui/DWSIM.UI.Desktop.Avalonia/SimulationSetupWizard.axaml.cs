@@ -279,7 +279,7 @@ public partial class SimulationSetupWizard : Window
 
         stack.Children.Add(new TextBlock
         {
-            Text = "Nothing here is exclusive to the wizard. Everything can be changed later in " +
+            Text = "These settings aren't exclusive to the wizard. Everything can be changed later in " +
                    "Simulation Settings, and every change you make is applied to the simulation " +
                    "as you make it, so you can close the wizard whenever you want.",
             TextWrapping = TextWrapping.Wrap
@@ -832,8 +832,8 @@ public partial class SimulationSetupWizard : Window
 
         solving.Children.Add(smart);
         solving.Children.Add(Note(
-            "DWSIM can skip the calculation of a flowsheet object when none of its input " +
-            "parameters, including the inlet streams, has changed since the last run."));
+            "DWSIM can skip the calculation of a flowsheet object when its input " +
+            "parameters, including the inlet streams, haven't changed since the last run."));
 
         stack.Children.Add(Group("Smart Object Solving", solving));
 

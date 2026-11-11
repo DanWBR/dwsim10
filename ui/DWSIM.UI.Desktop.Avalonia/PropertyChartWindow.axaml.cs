@@ -90,7 +90,7 @@ public partial class PropertyChartWindow : Window
     {
         if (_currentObjects.Count == 0 || CbProperty.SelectedItem is not string prop)
         {
-            StatusLabel.Text = "Nothing to plot.";
+            StatusLabel.Text = "There isn't anything to plot.";
             return;
         }
 

@@ -62,28 +62,28 @@ namespace DWSIM.Automation.FluentAPI.Diagnostics
         /// <summary>Every code, mapped to a one-line explanation.</summary>
         public static readonly IReadOnlyDictionary<string, string> All = new Dictionary<string, string>
         {
-            { EmptyFlowsheet, "The flowsheet has no objects." },
-            { NoCompounds, "The flowsheet has no compounds, so no stream can carry anything." },
-            { NoPropertyPackage, "The flowsheet has no property package, so nothing can be flashed." },
+            { EmptyFlowsheet, "The flowsheet doesn't have any objects." },
+            { NoCompounds, "The flowsheet doesn't have any compounds, so the streams can't carry anything." },
+            { NoPropertyPackage, "The flowsheet doesn't have a property package, so streams can't be flashed." },
             { DuplicateTag, "Two or more objects share a tag, so addressing one by tag is ambiguous." },
-            { StreamDangling, "A stream is connected to nothing at either end." },
-            { UnitUnconnected, "A unit operation has nothing connected to it." },
-            { UnitNoFeed, "A unit operation has no feed, so it has nothing to process." },
-            { UnitNoProduct, "A unit operation has no product, so its result has nowhere to go." },
-            { FeedNoPressure, "A boundary feed has no pressure." },
-            { FeedNoTemperature, "A boundary feed has no temperature." },
-            { FeedNoFlow, "A boundary feed carries no flow." },
+            { StreamDangling, "A stream isn't connected to anything at either end." },
+            { UnitUnconnected, "A unit operation doesn't have anything connected to it." },
+            { UnitNoFeed, "A unit operation doesn't have a feed, so it doesn't have anything to process." },
+            { UnitNoProduct, "A unit operation doesn't have a product, so its result can't go anywhere." },
+            { FeedNoPressure, "A boundary feed doesn't have a pressure." },
+            { FeedNoTemperature, "A boundary feed doesn't have a temperature." },
+            { FeedNoFlow, "A boundary feed doesn't carry any flow." },
             { FeedNoComposition, "Every compound in a boundary feed is at zero." },
             { FeedCompositionNotNormalised, "The mole fractions of a boundary feed do not sum to 1." },
             { VaporFractionOutOfRange, "A feed is specified by a vapour fraction outside 0 to 1." },
             { SpecMissing, "A unit operation lacks a specification its calculation mode needs." },
             { EfficiencyOutOfRange, "An efficiency is outside 0 to 100 %." },
             { SplitterRatiosNotNormalised, "The split ratios of a splitter do not sum to 1." },
-            { ReactorNoReactions, "A reactor has no active reactions to compute." },
+            { ReactorNoReactions, "A reactor doesn't have any active reactions to compute." },
             { RecycleNoEstimate, "A recycle starts from a zero estimate." },
             { LogicalTargetMissing, "An adjust or specification does not name both the object it reads and the one it writes." },
             { SolverException, "The solver raised an exception." },
-            { InfiniteLoop, "The solver found a cycle with no recycle to tear it." },
+            { InfiniteLoop, "The solver found a cycle without a recycle to tear it." },
             { NotConverged, "A unit operation did not solve." },
             { StreamNotFinite, "A stream carries a flow that is not a finite number." },
             { NegativeFlow, "A stream carries a negative flow." },
@@ -98,7 +98,7 @@ namespace DWSIM.Automation.FluentAPI.Diagnostics
             { ColumnRefluxBelowMinimum, "A shortcut column runs below its minimum reflux ratio." },
             { MixerPressureMismatch, "The inlets of a mixer arrive at different pressures." },
             { PumpVaporInlet, "The stream feeding a pump carries vapour." },
-            { PropertyPackageChanged, "The results of an object were computed with a property package it no longer uses." }
+            { PropertyPackageChanged, "The results of an object were computed with a property package it doesn't use anymore." }
         };
     }
 }

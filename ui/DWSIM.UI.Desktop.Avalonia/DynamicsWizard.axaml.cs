@@ -130,11 +130,11 @@ public partial class DynamicsWizard : Window
     private static readonly (string Title, string Description)[] Steps =
     {
         ("Introduction", "What this wizard sets up, and what it found in the flowsheet as it stands."),
-        ("Holdup", "Vessels, tanks and reactors need a volume before they can accumulate anything. Heaters, coolers, exchangers, machines and column drums carry a holdup too, and ship with placeholder volumes; each is checked against the flow it carries. Without a volume the unit passes material straight through and the process shows no lag."),
+        ("Holdup", "Vessels, tanks and reactors need a volume before they can accumulate anything. Heaters, coolers, exchangers, machines and column drums carry a holdup too, and ship with placeholder volumes; each is checked against the flow it carries. Without a volume the unit passes material straight through and the process doesn't show any lag."),
         ("Hydraulics", "In dynamic mode the pressures decide the flow. A valve needs a flow coefficient and a working opening before it can resolve one; a heater or exchanger needs a flow conductance that reproduces its steady-state pressure drop, and a pump or compressor one that gives it a small internal loss."),
         ("Boundary Specs", "The edges of the pressure-flow network. A feed holds its flow and a product holds its pressure; the network resolves everything in between."),
-        ("Control", "Loops that keep the process where you want it. A vessel with no level control fills or empties until the run fails."),
-        ("Integrator", "How far to step, how long to run, and which variables to record. A run with no monitored variables finishes normally and leaves no results behind."),
+        ("Control", "Loops that keep the process where you want it. A vessel without level control fills or empties until the run fails."),
+        ("Integrator", "How far to step, how long to run, and which variables to record. A run without monitored variables finishes normally and doesn't leave any results behind."),
         ("Summary", "What changed, what is still outstanding, and a short run to check that the flowsheet integrates.")
     };
 
@@ -264,7 +264,7 @@ public partial class DynamicsWizard : Window
         var blockers = _issues.Count(i => i.Severity == DynamicsIssueSeverity.Blocker);
         LblFooter.Text = blockers > 0
             ? blockers + " blocker" + (blockers == 1 ? "" : "s") + " left; the run will fail until they are settled."
-            : "Nothing is written until you click Apply on a step.";
+            : "The wizard doesn't write anything until you click Apply on a step.";
 
         BtnBack.IsEnabled = page > 0;
         BtnNext.IsEnabled = page < _pages.Count - 1;
@@ -362,7 +362,7 @@ public partial class DynamicsWizard : Window
         var warnings = _issues.Count(i => i.Severity == DynamicsIssueSeverity.Warning);
 
         _scanSummary.Text = _issues.Count == 0
-            ? "Nothing to change: this flowsheet is ready to run dynamically."
+            ? "There isn't anything to change: this flowsheet is ready to run dynamically."
             : blockers + " blocker" + (blockers == 1 ? "" : "s") + ", " +
               warnings + " warning" + (warnings == 1 ? "" : "s") +
               ". The steps on the left cover them in the order they matter.";
@@ -374,7 +374,7 @@ public partial class DynamicsWizard : Window
 
         _unsupported.Text = unsupported.Count == 0
             ? "Every object in this flowsheet has a dynamic model."
-            : "Solved at steady state on every step, because they have no dynamic model: " +
+            : "Solved at steady state on every step, because they don't have a dynamic model: " +
               string.Join(", ", unsupported) + ".";
     }
 
@@ -506,7 +506,7 @@ public partial class DynamicsWizard : Window
 
         var empty = new TextBlock
         {
-            Text = "Nothing to change on this step.",
+            Text = "There isn't anything to change on this step.",
             FontWeight = FontWeight.SemiBold,
             Opacity = 0.8,
             Margin = new Thickness(0, 4)
@@ -698,7 +698,7 @@ public partial class DynamicsWizard : Window
         var chosen = rows.Where(r => r.Selected && r.CanApply).ToList();
         if (chosen.Count == 0)
         {
-            _flowsheet.ShowMessage("Nothing selected to apply on this step.", IFlowsheet.MessageType.Information);
+            _flowsheet.ShowMessage("You haven't selected anything to apply on this step.", IFlowsheet.MessageType.Information);
             return;
         }
 
@@ -787,12 +787,12 @@ public partial class DynamicsWizard : Window
         var parts = new List<string>();
 
         parts.Add(_applied.Count == 0
-            ? "Nothing has been applied yet."
+            ? "You haven't applied anything yet."
             : _applied.Count + " change" + (_applied.Count == 1 ? "" : "s") + " applied:\n  " +
               string.Join("\n  ", _applied.Distinct().Take(40)));
 
         parts.Add(outstanding == 0
-            ? "No blockers remain. The flowsheet is ready to integrate."
+            ? "There aren't any blockers left. The flowsheet is ready to integrate."
             : outstanding + " blocker" + (outstanding == 1 ? "" : "s") +
               " still outstanding; the run will fail until they are settled.");
 

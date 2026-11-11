@@ -228,7 +228,7 @@ Namespace Reactors.ADM1
             Dim t0 = DateTime.Now
             Dim res As New ADM1RegressionResult()
             If specs Is Nothing OrElse specs.Count = 0 Then
-                res.Message = "No parameters selected for regression."
+                res.Message = "Parameters aren't selected for regression."
                 Return res
             End If
             If dataset Is Nothing OrElse dataset.Times Is Nothing OrElse dataset.Times.Count < 2 Then
@@ -236,7 +236,7 @@ Namespace Reactors.ADM1
                 Return res
             End If
             If dataset.Observations Is Nothing OrElse dataset.Observations.Count = 0 Then
-                res.Message = "Dataset has no observable columns."
+                res.Message = "Dataset doesn't have observable columns."
                 Return res
             End If
 

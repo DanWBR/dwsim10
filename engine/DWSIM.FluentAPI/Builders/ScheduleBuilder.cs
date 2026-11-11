@@ -33,7 +33,7 @@ namespace DWSIM.Automation.FluentAPI.Builders
         {
             var integrator = _flowsheet.Inner.DynamicsManager.GetIntegrator(integratorName);
             if (integrator == null)
-                throw new KeyNotFoundException("No integrator named '" + integratorName + "' on this flowsheet.");
+                throw new KeyNotFoundException("This flowsheet doesn't have an integrator named '" + integratorName + "'.");
             Object.CurrentIntegrator = integrator.ID;
             return this;
         }
@@ -43,7 +43,7 @@ namespace DWSIM.Automation.FluentAPI.Builders
         {
             var set = _flowsheet.Inner.DynamicsManager.GetEventSet(eventSetName);
             if (set == null)
-                throw new KeyNotFoundException("No event set named '" + eventSetName + "' on this flowsheet.");
+                throw new KeyNotFoundException("This flowsheet doesn't have an event set named '" + eventSetName + "'.");
             Object.CurrentEventList = set.ID;
             Object.UsesEventList = true;
             return this;
@@ -61,7 +61,7 @@ namespace DWSIM.Automation.FluentAPI.Builders
         {
             var matrix = _flowsheet.Inner.DynamicsManager.GetCauseAndEffectMatrix(matrixName);
             if (matrix == null)
-                throw new KeyNotFoundException("No cause-and-effect matrix named '" + matrixName + "' on this flowsheet.");
+                throw new KeyNotFoundException("This flowsheet doesn't have a cause-and-effect matrix named '" + matrixName + "'.");
             Object.CurrentCauseAndEffectMatrix = matrix.ID;
             Object.UsesCauseAndEffectMatrix = true;
             return this;
@@ -92,7 +92,7 @@ namespace DWSIM.Automation.FluentAPI.Builders
         {
             if (!_flowsheet.Inner.StoredSolutions.ContainsKey(storedStateId))
                 throw new KeyNotFoundException(
-                    "No stored state named '" + storedStateId + "'. Call Dynamics.StoreCurrentStateAs first.");
+                    "There isn't a stored state named '" + storedStateId + "'. Call Dynamics.StoreCurrentStateAs first.");
             Object.InitialFlowsheetStateID = storedStateId;
             Object.UseCurrentStateAsInitial = false;
             return this;

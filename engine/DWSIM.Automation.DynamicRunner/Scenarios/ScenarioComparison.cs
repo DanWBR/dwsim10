@@ -227,11 +227,11 @@ namespace DWSIM.Automation.DynamicRunner.Scenarios
             string la = string.IsNullOrEmpty(r.LabelA) ? "A" : r.LabelA, lb = string.IsNullOrEmpty(r.LabelB) ? "B" : r.LabelB;
             var inputs = r.Differences.Where(d => d.Changed && d.IsInput).ToList();
             var outputs = r.Differences.Where(d => d.Changed && !d.IsInput).ToList();
-            if (inputs.Count == 0 && outputs.Count == 0) { r.Summary.Add("The two scenarios are the same: no specification and no result differs."); return; }
+            if (inputs.Count == 0 && outputs.Count == 0) { r.Summary.Add("The two scenarios are the same: the specifications and results don't differ."); return; }
             if (inputs.Count > 0)
                 r.Summary.Add(inputs.Count + " specification(s) changed from " + la + " to " + lb + ": " + string.Join("; ", inputs.Take(6).Select(d => d.ObjectTag + " " + d.Name + " " + Fmt(d.A) + " -> " + Fmt(d.B) + (string.IsNullOrEmpty(d.Unit) ? "" : " " + d.Unit))) + (inputs.Count > 6 ? "; ..." : "") + ".");
             else
-                r.Summary.Add("No specification changed, yet " + outputs.Count + " result(s) differ: the flowsheet was solved from a different starting point, a recycle converged elsewhere, or something outside the properties listed here (a reaction, a property package parameter) was edited.");
+                r.Summary.Add("The specifications didn't change, yet " + outputs.Count + " result(s) differ: the flowsheet was solved from a different starting point, a recycle converged elsewhere, or something outside the properties listed here (a reaction, a property package parameter) was edited.");
             if (outputs.Count > 0)
             {
                 var top = outputs.Where(d => !double.IsNaN(d.Percent)).Take(6).ToList();

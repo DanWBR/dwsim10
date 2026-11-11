@@ -112,7 +112,7 @@ namespace DWSIM.MCPServer.Tools.Flowsheet
             var obj = fs.Inner.SimulationObjects.Values.FirstOrDefault(
                 o => o.GraphicObject != null && (o.GraphicObject.Tag == name || o.Name == name));
             if (obj == null)
-                throw new ArgumentException($"No simulation object with tag or id '{name}'.");
+                throw new ArgumentException($"There isn't a simulation object with tag or id '{name}'.");
 
             obj.GraphicObject.Tag = new_name;
             return new JObject

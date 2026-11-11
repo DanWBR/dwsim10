@@ -162,7 +162,7 @@ public sealed class CompoundImportThermoDataWindow : Window
         {
             _search.IsEnabled = false;
             _btnSearch.IsEnabled = false;
-            _status.Text = "The local database is not installed, so there is nothing to search.";
+            _status.Text = "The local database is not installed, so there isn't anything to search.";
             return;
         }
 
@@ -230,7 +230,7 @@ public sealed class CompoundImportThermoDataWindow : Window
 
         if (_candidates.Count == 0)
         {
-            _status.Text = $"No compounds matched '{text}'.";
+            _status.Text = $"'{text}' didn't match any compounds.";
             return;
         }
 
@@ -262,7 +262,7 @@ public sealed class CompoundImportThermoDataWindow : Window
 
         if (built == null)
         {
-            _status.Text = "The index has no records for this compound.";
+            _status.Text = "The index doesn't have records for this compound.";
             return;
         }
 

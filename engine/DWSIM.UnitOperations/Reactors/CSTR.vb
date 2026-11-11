@@ -588,34 +588,34 @@ Namespace Reactors
             End If
 
             'Check Reaction type, Base components and reaction volume
-            If FlowSheet.ReactionSets(Me.ReactionSetID).Reactions.Count = 0 Then Throw New Exception("No reaction defined")
-            ErrCode = "No kinetic Or catalytic reaction found"
+            If FlowSheet.ReactionSets(Me.ReactionSetID).Reactions.Count = 0 Then Throw New Exception("A reaction isn't defined")
+            ErrCode = "A kinetic or catalytic reaction wasn't found"
             For Each rxnsb As ReactionSetBase In FlowSheet.ReactionSets(Me.ReactionSetID).Reactions.Values
                 rxn = FlowSheet.Reactions(rxnsb.ReactionID)
                 If Not rxn.Components.ContainsKey(rxn.BaseReactant) Then
-                    Throw New Exception("No base reactant defined for reaction '" + rxn.Name + "'.")
+                    Throw New Exception("A base reactant isn't defined for reaction '" + rxn.Name + "'.")
                 End If
                 If (rxn.ReactionType = ReactionType.Kinetic Or rxn.ReactionType = ReactionType.Heterogeneous_Catalytic) And rxnsb.IsActive Then
                     BC = rxn.BaseReactant
                     If BC = "" Then
-                        ErrCode = "No Base Component defined for reaction " & rxn.Name
+                        ErrCode = "A Base Component isn't defined for reaction " & rxn.Name
                         Exit For
                     End If
 
                     'Check if reaction has a volume 
                     Dim twoOutlets As Boolean = Me.GraphicObject.OutputConnectors(1).IsAttached
                     If (rxn.ReactionPhase = PhaseName.Liquid And Volume <= 0) Then
-                        ErrCode = "No reactor volume defined"
+                        ErrCode = "The reactor volume isn't defined"
                     ElseIf (rxn.ReactionPhase = PhaseName.Vapor And Headspace <= 0 And twoOutlets) Then
                         'the headspace is the vapour volume only with two outlets; with one outlet the vapour reacts in Volume
-                        ErrCode = "No reactor headspace defined"
+                        ErrCode = "The reactor headspace isn't defined"
                     ElseIf (rxn.ReactionPhase = PhaseName.Vapor And Volume <= 0 And Not twoOutlets) Then
-                        ErrCode = "No reactor volume defined"
+                        ErrCode = "The reactor volume isn't defined"
                     ElseIf (rxn.ReactionPhase = PhaseName.Mixture And Volume <= 0 And Not twoOutlets And Not MixtureUsesHeadspaceInSingleOutlet) Then
                         'one outlet: mixture reactions use Volume only
-                        ErrCode = "No reactor volume defined"
+                        ErrCode = "The reactor volume isn't defined"
                     ElseIf (rxn.ReactionPhase = PhaseName.Mixture And Volume + Headspace <= 0) Then
-                        ErrCode = "No reactor volume and headspace defined"
+                        ErrCode = "The reactor volume and headspace aren't defined"
                     Else
                         ErrCode = ""
                     End If

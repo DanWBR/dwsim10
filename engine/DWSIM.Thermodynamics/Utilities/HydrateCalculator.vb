@@ -89,7 +89,7 @@ Namespace Utilities.Hydrates
             mat.PropertyPackage.CurrentMaterialStream = mat
 
             If Not HasWater(mat) Then
-                Throw New Exception("There is no water in the stream, so no hydrate can form.")
+                Throw New Exception("There isn't any water in the stream, so hydrates can't form.")
             End If
 
             Dim n As Integer = mat.Phases(0).Compounds.Count - 1

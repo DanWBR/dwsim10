@@ -131,7 +131,7 @@ public partial class BinaryEnvelopeWindow : Window
         }
         if (_cbPackage.SelectedIndex < 0)
         {
-            StatusLabel.Text = "The flowsheet has no property package to calculate with.";
+            StatusLabel.Text = "The flowsheet doesn't have a property package to calculate with.";
             return;
         }
 

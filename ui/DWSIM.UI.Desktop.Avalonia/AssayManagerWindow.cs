@@ -211,7 +211,7 @@ public sealed class AssayManagerWindow : Window
             _current = null;
             _detail.Children.Clear();
             _curve.Clear();
-            _status.Text = "This simulation has no petroleum assays yet.";
+            _status.Text = "This simulation doesn't have petroleum assays yet.";
         }
     }
 
@@ -284,7 +284,7 @@ public sealed class AssayManagerWindow : Window
         p.CreateAndAddLabelRow("Light Ends");
         if (a.LightEndsCompounds == null || a.LightEndsCompounds.Count == 0)
         {
-            p.CreateAndAddDescriptionRow("None declared. An assay reports its light ends apart from the curve, and they are added in the distillation curve characterization tool.");
+            p.CreateAndAddDescriptionRow("The assay doesn't declare any. An assay reports its light ends apart from the curve, and they are added in the distillation curve characterization tool.");
         }
         else
         {

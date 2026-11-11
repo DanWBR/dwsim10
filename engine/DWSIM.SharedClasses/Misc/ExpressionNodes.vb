@@ -71,7 +71,7 @@ Public NotInheritable Class NameNode
 
         Throw New ExpressionEvaluationException(
             String.Format(CultureInfo.InvariantCulture,
-                          "There is no variable or constant named '{0}' (position {1}).", _name, _pos + 1))
+                          "There isn't a variable or constant named '{0}' (position {1}).", _name, _pos + 1))
 
     End Function
 
@@ -491,7 +491,7 @@ Public NotInheritable Class FunctionNode
 
         Throw New ExpressionEvaluationException(
             String.Format(CultureInfo.InvariantCulture,
-                          "There is no function named '{0}' (position {1}).", _name, _pos + 1))
+                          "There isn't a function named '{0}' (position {1}).", _name, _pos + 1))
 
     End Function
 

@@ -866,7 +866,7 @@ namespace DWSIM.UI.Desktop.Editors
             return CompoundCoefficientGrid.Build(unit, unit.SievingCoefficients, "Sieving Coefficient",
                 compound =>
                 {
-                    if (compound.Molar_Weight <= 0) return (unit.DefaultSievingCoefficient, "default (no MW)");
+                    if (compound.Molar_Weight <= 0) return (unit.DefaultSievingCoefficient, "default (MW isn't set)");
                     if (compound.Molar_Weight < 200) return (1.0, "small-MW default");
                     if (compound.Molar_Weight < 1000) return (0.5, "mid-MW default");
                     return (0.0, "macromolecule default");

@@ -101,7 +101,7 @@ public static class CoolProp
 
         if (NativeGetGlobalParamString(ParamName, buffer, BufferSize) != 1)
         {
-            throw new CoolPropException("CoolProp has no global parameter named '" + ParamName + "'.");
+            throw new CoolPropException("CoolProp doesn't have a global parameter named '" + ParamName + "'.");
         }
 
         return buffer.ToString();
@@ -115,7 +115,7 @@ public static class CoolProp
         if (NativeGetFluidParamString(FluidName, ParamName, buffer, BufferSize) != 1)
         {
             throw new CoolPropException(
-                "CoolProp has no parameter named '" + ParamName + "' for fluid '" + FluidName + "'.");
+                "CoolProp doesn't have a parameter named '" + ParamName + "' for fluid '" + FluidName + "'.");
         }
 
         return buffer.ToString();

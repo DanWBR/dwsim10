@@ -327,8 +327,8 @@ namespace DWSIM.UI.Desktop.Editors
                 if (tstart >= Tmax)
                 {
                     throw new Exception("The light ends take " + (share * 100).ToString("N2") +
-                        " % of the crude, which is past the top of the distillation curve. There is " +
-                        "nothing left to cut into pseudocomponents.");
+                        " % of the crude, which is past the top of the distillation curve. There isn't " +
+                        "anything left to cut into pseudocomponents.");
                 }
                 Tmin = tstart;
             }

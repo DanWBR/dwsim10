@@ -124,7 +124,7 @@ public sealed class HydratesWindow : Window
         _btnRun.IsEnabled = true;
         _status.Text = res.FormsHydrate
             ? "Hydrates form at the stream conditions."
-            : "No hydrates form at the stream conditions.";
+            : "Hydrates don't form at the stream conditions.";
     }
 
     private void ShowResults(HydrateResults res, bool vaporOnly)

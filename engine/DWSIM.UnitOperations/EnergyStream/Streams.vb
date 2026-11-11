@@ -358,7 +358,7 @@ Namespace Streams
                     Return m_tUp
                 Case Else
                     ' an unknown item used to come back as "work", so a temperature written to it became the duty
-                    Throw New CapeOpen.CapeInvalidArgumentException("Energy stream " & Me.ComponentName & " has no parameter " & index.ToString(), New ArgumentException(), 0)
+                    Throw New CapeOpen.CapeInvalidArgumentException("Energy stream " & Me.ComponentName & " doesn't have a parameter " & index.ToString(), New ArgumentException(), 0)
             End Select
         End Function
 

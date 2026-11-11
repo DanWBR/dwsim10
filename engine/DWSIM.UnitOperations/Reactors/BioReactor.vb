@@ -857,7 +857,7 @@ Namespace Reactors
             If ssrcE.S <= 0.0 Then
                 If ssrcComp IsNot Nothing Then
                     FlowSheet.ShowMessage(String.Format(
-                        "BioReactor '{0}': sulfur carrier '{1}' declares no sulfur in its elemental formula. " &
+                        "BioReactor '{0}': sulfur carrier '{1}' doesn't declare sulfur in its elemental formula. " &
                         "The sulfur balance is being skipped.", Me.GraphicObject.Tag, ssrcComp.Name),
                         IFlowsheet.MessageType.Warning)
                     ssrcComp = Nothing
@@ -1005,7 +1005,7 @@ Namespace Reactors
                 Select Case regime
                     Case "Washout"
                         FlowSheet.ShowMessage(String.Format(
-                            "BioReactor '{0}': washout. The dilution rate Q/V ({1:G4} 1/h) is above the net growth rate the culture can reach at the feed substrate level, and the feed carries no cells, so the broth leaves with the feed composition.",
+                            "BioReactor '{0}': washout. The dilution rate Q/V ({1:G4} 1/h) is above the net growth rate the culture can reach at the feed substrate level, and the feed doesn't carry any cells, so the broth leaves with the feed composition.",
                             Me.GraphicObject.Tag, Q_liquid / Volume * 3600.0),
                             IFlowsheet.MessageType.Warning)
                     Case "SubstrateLimited"

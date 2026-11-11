@@ -254,7 +254,7 @@ Public Class IniConfigSource
 
     Public Sub Save(path As String)
 
-        If String.IsNullOrEmpty(path) Then Throw New InvalidOperationException("This settings file has no path to save to.")
+        If String.IsNullOrEmpty(path) Then Throw New InvalidOperationException("This settings file doesn't have a path to save to.")
 
         Dim text As New StringBuilder()
 

@@ -144,7 +144,7 @@ namespace DWSIM.Automation.DynamicRunner.EosExplorer
             if (string.IsNullOrEmpty(input.CompoundName) || !host.SelectedCompounds.TryGetValue(input.CompoundName, out cp))
                 throw new ArgumentException("Pick a compound of the flowsheet.");
             if (cp.Critical_Temperature <= 0 || cp.Critical_Pressure <= 0)
-                throw new ArgumentException("'" + input.CompoundName + "' has no critical constants; a cubic equation needs Tc and Pc.");
+                throw new ArgumentException("'" + input.CompoundName + "' doesn't have critical constants; a cubic equation needs Tc and Pc.");
             if (input.Points < 50) input.Points = 50;
             if (input.VolumeRangeInCriticalVolumes < 2) input.VolumeRangeInCriticalVolumes = 2;
 
@@ -201,7 +201,7 @@ namespace DWSIM.Automation.DynamicRunner.EosExplorer
                         iso.LiquidVolume = zl * R * T / psat;
                         iso.VaporVolume = zv * R * T / psat;
                     }
-                    else r.Warnings.Add("No saturation pressure could be found at " + T.ToString("F2", CultureInfo.InvariantCulture) + " K.");
+                    else r.Warnings.Add("A saturation pressure couldn't be found at " + T.ToString("F2", CultureInfo.InvariantCulture) + " K.");
                     iso.DatabaseSaturationPressure = psatDb(T);
                 }
 
@@ -417,7 +417,7 @@ namespace DWSIM.Automation.DynamicRunner.EosExplorer
             {
                 if (!iso.Subcritical)
                 {
-                    sb.AppendLine(iso.Temperature.ToString("F2", ci).PadRight(10) + iso.ReducedTemperature.ToString("F3", ci).PadRight(8) + "supercritical: no condensation, one root at every pressure");
+                    sb.AppendLine(iso.Temperature.ToString("F2", ci).PadRight(10) + iso.ReducedTemperature.ToString("F3", ci).PadRight(8) + "supercritical: doesn't condense, one root at every pressure");
                     continue;
                 }
                 double dev = double.IsNaN(iso.DatabaseSaturationPressure) ? double.NaN : 100 * (iso.SaturationPressure / iso.DatabaseSaturationPressure - 1);

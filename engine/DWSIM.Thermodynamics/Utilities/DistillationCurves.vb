@@ -195,7 +195,7 @@ Namespace Utilities.PetroleumProperties
                     If mat.Phases(1).Properties.molarfraction.GetValueOrDefault() > 0.0 Then
                         phaseIndex = 1
                     Else
-                        res.Messages.Add("The stream has no liquid phase. The curves use the whole stream.")
+                        res.Messages.Add("The stream doesn't have a liquid phase. The curves use the whole stream.")
                     End If
                 End If
                 Dim i = 0
@@ -204,7 +204,7 @@ Namespace Utilities.PetroleumProperties
                     i += 1
                 Next
                 Dim zsum = z.Sum()
-                If zsum <= 0.0 Then Throw New ArgumentException("The stream has no composition.")
+                If zsum <= 0.0 Then Throw New ArgumentException("The stream doesn't have a composition.")
                 For i = 0 To n - 1 : z(i) /= zsum : Next
 
                 Dim nbp(n - 1), mw(n - 1), rho(n - 1) As Double
@@ -343,7 +343,7 @@ Namespace Utilities.PetroleumProperties
             Dim d = pp.AUX_LIQDENSi(cp, T)
             If Double.IsNaN(d) OrElse Double.IsInfinity(d) OrElse d <= 0.0 Then
                 If cp.PF_SG.GetValueOrDefault() > 0.0 Then Return cp.PF_SG.Value * WaterDensity60F
-                Throw New ArgumentException("No liquid density for " & cp.Name & ".")
+                Throw New ArgumentException("There isn't a liquid density for " & cp.Name & ".")
             End If
             Return d
 
@@ -363,7 +363,7 @@ Namespace Utilities.PetroleumProperties
                 Select(Function(k) New With {.T = nbp(k), .A = amounts(k)}).
                 OrderBy(Function(it) it.T).ToList()
 
-            If items.Count = 0 Then Throw New ArgumentException("The stream has no composition.")
+            If items.Count = 0 Then Throw New ArgumentException("The stream doesn't have a composition.")
 
             Dim total = items.Sum(Function(it) it.A)
             Dim x As New List(Of Double), y As New List(Of Double), h As New List(Of Double)

@@ -164,7 +164,7 @@ public sealed class DatabaseManagerWindow : Window
 
         if (Databases.Count == 0)
         {
-            _pathLabel.Text = "No user databases yet. Add an existing one or create a new database.";
+            _pathLabel.Text = "There aren't any user databases yet. Add an existing one or create a new database.";
             _rows.Clear();
             _status.Text = "";
             return;

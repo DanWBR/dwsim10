@@ -359,7 +359,7 @@ namespace DWSIM.Automation.FluentAPI.Builders
             var pp = Object.PropertyPackage as PP.PropertyPackage;
             if (pp == null)
                 throw new InvalidOperationException(
-                    "No property package assigned to this material stream. " +
+                    "A property package isn't assigned to this material stream. " +
                     "Add a property package to the flowsheet first.");
             pp.CurrentMaterialStream = Object;
             return pp;

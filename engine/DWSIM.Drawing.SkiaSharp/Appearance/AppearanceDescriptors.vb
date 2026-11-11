@@ -495,7 +495,7 @@ Namespace Appearance
                 "Color of the table text when the dark theme is active.",
                 {tbl}))
             list.Add(New AppearancePropertyDescriptor("Size", "Font size", T, kD,
-                "Size of the text, in points. For formatted text, the size of the text that has none of its own.",
+                "Size of the text, in points. For formatted text, the size of the text that doesn't have one of its own.",
                 {txt, html}, 4, 200, 1))
             list.Add(New AppearancePropertyDescriptor("FontSize", "Font size", T, kD,
                 "Size of the text, in points. For a flowsheet object this is the size of its name label.",

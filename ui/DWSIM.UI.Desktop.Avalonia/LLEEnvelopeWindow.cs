@@ -80,7 +80,7 @@ public sealed class LLEEnvelopeWindow : Window
         p.CreateAndAddTextBoxRow(_nf, "Pressure (" + _su.pressure + ")",
             cv.ConvertFromSI(_su.pressure, _p),
             (tb, e) => { if (UtilityHelpers.TryVal(tb.Text, out var v)) _p = cv.ConvertToSI(_su.pressure, v); });
-        p.CreateAndAddDescriptionRow("The property package must predict a liquid phase split, otherwise no tie lines are found.");
+        p.CreateAndAddDescriptionRow("The property package must predict a liquid phase split, otherwise the tool doesn't find any tie lines.");
 
         _grid.Columns.Add(Col("[1] x1", "L1X1"));
         _grid.Columns.Add(Col("[1] x2", "L1X2"));
@@ -189,7 +189,7 @@ public sealed class LLEEnvelopeWindow : Window
 
         _btnRun.IsEnabled = true;
         _status.Text = ties.Count == 0
-            ? "No liquid phase split found: the system is miscible at these conditions."
+            ? "A liquid phase split wasn't found: the system is miscible at these conditions."
             : $"{ties.Count} tie line(s) traced." + (errors.Count > 0 ? " " + errors[0] : "");
     }
 }

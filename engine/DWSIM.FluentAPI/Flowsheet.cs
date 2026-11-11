@@ -218,7 +218,7 @@ namespace DWSIM.Automation.FluentAPI
             var match = Inner.SimulationObjects.Values
                 .FirstOrDefault(o => string.Equals(o.GraphicObject?.Tag, tag, StringComparison.Ordinal));
             if (match == null)
-                throw new KeyNotFoundException($"No simulation object with tag '{tag}'.");
+                throw new KeyNotFoundException($"There isn't a simulation object with tag '{tag}'.");
             return match;
         }
 
@@ -329,7 +329,7 @@ namespace DWSIM.Automation.FluentAPI
             var registry = Inner.AvailableSimulationObjects;
             if (!registry.TryGetValue(displayName, out var template))
                 throw new KeyNotFoundException(
-                    "No external unit operation template with display name '" + displayName +
+                    "There isn't an external unit operation template with display name '" + displayName +
                     "'. Verify that the unit-op DLL is present in the 'unitops' folder. " +
                     "Use AvailableExternalUnitOperationNames to list what is registered.");
 

@@ -24,7 +24,7 @@ namespace DWSIM.PhaseEquilibriumData.CLI.Commands
             {
                 using var index = new ThermoMLIndex(db);
                 var ds = index.Query.GetById(id);
-                if (ds == null) { stderr.WriteLine($"No dataset with id {id}."); return ExitCodes.UserError; }
+                if (ds == null) { stderr.WriteLine($"There isn't a dataset with id {id}."); return ExitCodes.UserError; }
                 FormatterDispatch.WriteDataset(fmt, stdout, ds);
                 return ExitCodes.Success;
             }

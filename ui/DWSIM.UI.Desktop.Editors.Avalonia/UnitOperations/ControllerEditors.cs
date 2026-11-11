@@ -130,7 +130,7 @@ namespace DWSIM.UI.Desktop.Editors
             }
             else
             {
-                panel.CreateAndAddDescriptionRow("The controller is off, so it has no output yet.");
+                panel.CreateAndAddDescriptionRow("The controller is off, so it doesn't have an output yet.");
             }
 
             return panel;
@@ -539,7 +539,7 @@ namespace DWSIM.UI.Desktop.Editors
 
             if (objects.Count == 0)
             {
-                panel.CreateAndAddDescriptionRow("No other objects on the flowsheet yet.");
+                panel.CreateAndAddDescriptionRow("The flowsheet doesn't have other objects yet.");
                 window.Show();
                 return;
             }

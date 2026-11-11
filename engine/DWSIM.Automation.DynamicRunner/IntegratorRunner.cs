@@ -301,7 +301,7 @@ namespace DWSIM.Automation.DynamicRunner
             if (!flowsheet.DynamicsManager.IntegratorList.ContainsKey(schedule.CurrentIntegrator))
             {
                 throw new Exception("Schedule " + Quote(schedule.Description) +
-                    " has no integrator assigned. Assign one in the Dynamics Manager.");
+                    " doesn't have an integrator assigned. Assign one in the Dynamics Manager.");
             }
 
             var integrator = flowsheet.DynamicsManager.IntegratorList[schedule.CurrentIntegrator];
@@ -573,7 +573,7 @@ namespace DWSIM.Automation.DynamicRunner
             if (manager.ScheduleList.Count == 0)
             {
                 throw new Exception(
-                    "This flowsheet has no dynamics schedule. Create one in the Dynamics Manager, or with the Fluent API.");
+                    "This flowsheet doesn't have a dynamics schedule. Create one in the Dynamics Manager, or with the Fluent API.");
             }
 
             if (!string.IsNullOrWhiteSpace(nameOrId))

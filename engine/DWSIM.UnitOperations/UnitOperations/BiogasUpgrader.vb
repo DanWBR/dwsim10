@@ -242,7 +242,7 @@ Namespace UnitOperations
                                 feedComp(c.Name) > 0.0)
                 If h2s IsNot Nothing Then
                     FlowSheet.ShowMessage(GraphicObject.Tag & ": feed contains " & h2s.Name &
-                        " but no H2S compound is assigned, so the H2S removal efficiency is ignored" &
+                        " but an H2S compound isn't assigned, so the H2S removal efficiency is ignored" &
                         " and the H2S passes through to the upgraded gas. Set the H2S Compound role" &
                         " to remove it.", IFlowsheet.MessageType.Warning)
                 End If
@@ -332,7 +332,7 @@ Namespace UnitOperations
             Result_WobbeIndex = If(Result_RelativeDensity > 0.0, Result_HHV_MJm3 / Sqrt(Result_RelativeDensity), 0.0)
             If missing.Count > 0 AndAlso FlowSheet IsNot Nothing Then
                 FlowSheet.ShowMessage(GraphicObject.Tag & ": the heating value and Wobbe index leave out " &
-                    String.Join(", ", missing) & ", which have no ISO 6976 calorific value in this model.",
+                    String.Join(", ", missing) & ", which don't have an ISO 6976 calorific value in this model.",
                     IFlowsheet.MessageType.Warning)
             End If
 
@@ -403,7 +403,7 @@ Namespace UnitOperations
                 If FlowSheet IsNot Nothing Then
                     Dim y0 = nCH4Upg / (nCH4Upg + nOtherUpg + nCO2)
                     FlowSheet.ShowMessage(GraphicObject.Tag & ": the target CH4 purity of " & target.ToString("0.####") &
-                        " is below the purity with no CO2 removal (" & y0.ToString("0.####") & ", mole fraction). CO2 removal" &
+                        " is below the purity without CO2 removal (" & y0.ToString("0.####") & ", mole fraction). CO2 removal" &
                         " set to 0; the highest purity reachable is " & ymax.ToString("0.####") & ".",
                         IFlowsheet.MessageType.Warning)
                 End If

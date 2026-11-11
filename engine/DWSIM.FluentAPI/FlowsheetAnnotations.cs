@@ -135,7 +135,7 @@ namespace DWSIM.Automation.FluentAPI
         {
             var known = Flowsheet.Inner.DynamicsManager.IntegratorList.Values.Select(i => i.Description).ToList();
             if (!known.Contains(integratorName))
-                throw new KeyNotFoundException("No integrator named '" + integratorName + "'. Defined: " + (known.Count == 0 ? "none" : string.Join(", ", known)) + ".");
+                throw new KeyNotFoundException("There isn't an integrator named '" + integratorName + "'. Defined: " + (known.Count == 0 ? "none" : string.Join(", ", known)) + ".");
             Object.OwnerID = "Dynamic Mode Integrators";
             Object.ModelName = integratorName;
             return this;
@@ -147,7 +147,7 @@ namespace DWSIM.Automation.FluentAPI
             var obj = Flowsheet.ResolveByTag(objectTag);
             var names = obj.GetChartModelNames() ?? new List<string>();
             if (!names.Contains(chartName))
-                throw new KeyNotFoundException("'" + objectTag + "' has no chart '" + chartName + "'. Available: " + (names.Count == 0 ? "none" : string.Join(", ", names)) + ".");
+                throw new KeyNotFoundException("'" + objectTag + "' doesn't have a chart '" + chartName + "'. Available: " + (names.Count == 0 ? "none" : string.Join(", ", names)) + ".");
             Object.OwnerID = obj.Name;
             Object.ModelName = chartName;
             return this;
@@ -176,7 +176,7 @@ namespace DWSIM.Automation.FluentAPI
             var ids = propertyIds == null || propertyIds.Length == 0 ? all.ToList() : propertyIds.ToList();
             var unknown = ids.Where(id => !all.Contains(id)).ToList();
             if (unknown.Count > 0)
-                throw new KeyNotFoundException("'" + objectTag + "' has no property " + string.Join(", ", unknown.Select(u => "'" + u + "'")) + ".");
+                throw new KeyNotFoundException("'" + objectTag + "' doesn't have the property " + string.Join(", ", unknown.Select(u => "'" + u + "'")) + ".");
             Object.VisibleProperties[obj.Name] = ids;
             return this;
         }

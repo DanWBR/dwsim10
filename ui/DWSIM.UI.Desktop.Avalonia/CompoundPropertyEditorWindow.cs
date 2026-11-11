@@ -247,7 +247,7 @@ public sealed class CompoundPropertyEditorWindow : Window
         if (_blocks.SelectedIndex < 0) _blocks.SelectedIndex = 0; else RefreshExplainer();
         SetStatus(_readOnly
             ? "This compound is not in the simulation, so it is shown read-only. Add it to the simulation to edit it."
-            : "Original (no changes yet). Values are applied to the simulation only when you press OK.");
+            : "Original (you haven't made changes yet). Values are applied to the simulation only when you press OK.");
     }
 
     private void MarkDirty()
@@ -642,7 +642,7 @@ public sealed class CompoundPropertyEditorWindow : Window
         if (_clone == null) return;
         var issues = CompoundValidator.Validate(_clone).OrderByDescending(i => i.Severity).ToList();
         var nWarn = issues.Count(i => i.Severity == CompoundIssueSeverity.Warning);
-        _warningsHeader.Text = issues.Count == 0 ? "No warnings." : $"{nWarn} warning(s), {issues.Count - nWarn} note(s).";
+        _warningsHeader.Text = issues.Count == 0 ? "There aren't any warnings." : $"{nWarn} warning(s), {issues.Count - nWarn} note(s).";
         foreach (var i in issues)
         {
             var tb = new TextBlock

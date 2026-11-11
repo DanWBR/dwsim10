@@ -117,7 +117,7 @@ Namespace UnitOperations
             Dim hasreboiler = Not RefluxedAbsorber
 
             If Not hascondenser AndAlso Not hasreboiler Then
-                Throw New Exception("The column has no condenser or reboiler left to convert.")
+                Throw New Exception("The column doesn't have a condenser or reboiler left to convert.")
             End If
 
             Dim nleft = Stages.Count - If(hascondenser, 1, 0) - If(hasreboiler, 1, 0)
@@ -145,7 +145,7 @@ Namespace UnitOperations
             ' the reflux and the boilup come back through two free inlets
             Dim freeInlets = GraphicObject.InputConnectors.Where(Function(c) Not c.IsAttached AndAlso c.Type = GraphicObjects.ConType.ConIn).Count()
             Dim neededInlets = If(hascondenser, 1, 0) + If(hasreboiler, 1, 0)
-            If freeInlets < neededInlets Then Throw New Exception("The column has no free inlet for the reflux or the boilup.")
+            If freeInlets < neededInlets Then Throw New Exception("The column doesn't have a free inlet for the reflux or the boilup.")
 
             Dim findStream = Function(behavior As StreamInformation.Behavior, energy As Boolean) As ISimulationObject
                              Dim col = If(energy, EnergyStreams.Values, MaterialStreams.Values)
@@ -686,7 +686,7 @@ Namespace UnitOperations
                 End If
                 i += 1
             Next
-            If Not success Then Throw New Exception("No feed port available")
+            If Not success Then Throw New Exception("A feed port isn't available")
 
         End Sub
 
@@ -1405,7 +1405,7 @@ Namespace UnitOperations
                 End If
                 i += 1
             Next
-            If Not success Then Throw New Exception("No feed port available")
+            If Not success Then Throw New Exception("A feed port isn't available")
 
         End Sub
 
@@ -1946,13 +1946,13 @@ Namespace UnitOperations
             AddDynamicProperty("Apply Murphree Efficiency", "Apply stage Murphree efficiency to dynamic simulation. Stage efficiency values are used.", False, UnitOfMeasure.none, True.GetType())
             AddDynamicProperty("Quasi-Steady Vapor", "Treat the vapor as quasi-steady: a stage keeps the vapor its free volume holds and sends the excess up within the step, the condenser drum is the pressure state and the stage pressures follow from the tray hydraulics top-down. Off, the vapor holdup of every tray is integrated against the pressure-driven flow law, which needs sub-steps of milliseconds on a real column.", False, UnitOfMeasure.none, True.GetType())
             AddDynamicProperty("Calibrate Tray Coefficients", "When the dynamic holdup is seeded from the steady state, set the dry tray pressure drop coefficient of every tray so the steady-state vapor rate passes through its holes at the steady-state stage pressure drop. Without it the coefficients are whatever the stages carry.", False, UnitOfMeasure.none, True.GetType())
-            AddDynamicProperty("Start Empty", "Seed the first dynamic step with an empty column instead of the steady-state holdup: every stage and the sump hold a film of liquid of the feed composition at the initial temperature and pressure (the sump the initial level), with no vapor. The run is then a startup driven by the schedule: feed on, reboiler duty ramp, level controllers to automatic. Quasi-steady vapor and tray weeping on.", False, UnitOfMeasure.none, True.GetType())
+            AddDynamicProperty("Start Empty", "Seed the first dynamic step with an empty column instead of the steady-state holdup: every stage and the sump hold a film of liquid of the feed composition at the initial temperature and pressure (the sump the initial level), without vapor. The run is then a startup driven by the schedule: feed on, reboiler duty ramp, level controllers to automatic. Quasi-steady vapor and tray weeping on.", False, UnitOfMeasure.none, True.GetType())
             AddDynamicProperty("Initial Pressure", "Pressure of the empty column at the start (the inert blanket).", 101325.0, UnitOfMeasure.pressure, 1.0.GetType())
             AddDynamicProperty("Initial Temperature", "Temperature of the empty column at the start.", 298.15, UnitOfMeasure.temperature, 1.0.GetType())
             AddDynamicProperty("Initial Sump Level", "Liquid of the feed composition in the sump when the column starts empty.", 0.0, UnitOfMeasure.distance, 1.0.GetType())
-            AddDynamicProperty("Minimum Pressure", "The condenser drum pressure cannot fall below this value (an inert blanket, a vent to atmosphere). Zero for none. Quasi-steady vapor only.", 0.0, UnitOfMeasure.pressure, 1.0.GetType())
-            AddDynamicProperty("Coolant Temperature", "The condenser removes no heat from a holdup colder than this; a duty stage that holds only a film of liquid warms or cools by at most 25 K per sub-step.", 298.15, UnitOfMeasure.temperature, 1.0.GetType())
-            AddDynamicProperty("Tray Weeping", "Liquid weeps through the holes of a sieve tray when the dry pressure drop of the vapor cannot hold the liquid head (Fair criterion): with no vapor a tray drains to the stage below, and as the boilup rises the trays begin to hold liquid. Quasi-steady vapor only.", False, UnitOfMeasure.none, True.GetType())
+            AddDynamicProperty("Minimum Pressure", "The condenser drum pressure cannot fall below this value (an inert blanket, a vent to atmosphere). Zero disables it. Quasi-steady vapor only.", 0.0, UnitOfMeasure.pressure, 1.0.GetType())
+            AddDynamicProperty("Coolant Temperature", "The condenser doesn't remove heat from a holdup colder than this; a duty stage that holds only a film of liquid warms or cools by at most 25 K per sub-step.", 298.15, UnitOfMeasure.temperature, 1.0.GetType())
+            AddDynamicProperty("Tray Weeping", "Liquid weeps through the holes of a sieve tray when the dry pressure drop of the vapor cannot hold the liquid head (Fair criterion): without vapor a tray drains to the stage below, and as the boilup rises the trays begin to hold liquid. Quasi-steady vapor only.", False, UnitOfMeasure.none, True.GetType())
 
         End Sub
         ''' <summary>Seeds the dynamic holdup of every stage and of the sump from the last steady-state solution: the
@@ -2783,7 +2783,7 @@ Namespace UnitOperations
                 End If
                 i += 1
             Next
-            Throw New Exception("No side connector available for the free water product")
+            Throw New Exception("A side connector isn't available for the free water product")
         End Sub
 
         Public Shared Function ExternalSolverSupports(name As String, column As Column) As Boolean
@@ -3796,7 +3796,7 @@ Namespace UnitOperations
                 Dim n = If(Stages(i).Name, "")
                 If n.Equals(key, StringComparison.OrdinalIgnoreCase) OrElse n.StartsWith(key & " (", StringComparison.OrdinalIgnoreCase) Then Return i
             Next
-            Throw New ArgumentException(String.Format("The column has no stage named '{0}'. Its stages are Stage1 to Stage{1}.", stageName, Stages.Count))
+            Throw New ArgumentException(String.Format("The column doesn't have a stage named '{0}'. Its stages are Stage1 to Stage{1}.", stageName, Stages.Count))
         End Function
 
         Public Function StageNameFor(index As Integer, count As Integer) As String

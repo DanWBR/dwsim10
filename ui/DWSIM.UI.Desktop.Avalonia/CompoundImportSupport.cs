@@ -25,7 +25,7 @@ internal static class CompoundImportSupport
     public static string AddToFlowsheet(IFlowsheet flowsheet, ConstantProperties compound)
     {
         if (compound == null || string.IsNullOrEmpty(compound.Name))
-            return "The compound has no name and cannot be added.";
+            return "The compound doesn't have a name and cannot be added.";
 
         if (flowsheet.AvailableCompounds.ContainsKey(compound.Name))
             return $"'{compound.Name}' is already in the compound list.";
@@ -61,7 +61,7 @@ internal static class CompoundImportSupport
     /// <summary>Writes the compound to a JSON file, in the format the JSON importer reads.</summary>
     public static async Task<string> ExportJsonAsync(Window owner, ConstantProperties compound)
     {
-        if (compound == null) return "Nothing to export.";
+        if (compound == null) return "There isn't anything to export.";
 
         var file = await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
         {

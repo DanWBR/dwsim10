@@ -212,9 +212,9 @@ Public Class CaseLibraryFlowsheets
         End If
         Select Case we.Status
             Case WebExceptionStatus.NameResolutionFailure
-                Return "the address could not be found (no internet, or a proxy or firewall blocks it)"
+                Return "the address could not be found (the internet isn't available, or a proxy or firewall blocks it)"
             Case WebExceptionStatus.Timeout
-                Return "no answer in 30 s"
+                Return "the server didn't answer in 30 s"
             Case WebExceptionStatus.TrustFailure, WebExceptionStatus.SecureChannelFailure
                 Return "the secure connection failed (" & we.Message & "), often a proxy or antivirus that inspects HTTPS"
             Case Else

@@ -142,10 +142,10 @@ namespace DWSIM.Automation.FluentAPI.Builders
 
             var known = PropertyCatalog.DynamicFor(Object, Flowsheet.Inner.FlowsheetOptions.SelectedUnitSystem);
             var names = known.Count == 0
-                ? "it has none"
+                ? "it doesn't have any"
                 : string.Join(", ", System.Linq.Enumerable.Select(known, p => "'" + p.Id + "'"));
             throw new ArgumentException(
-                "'" + (Object.GraphicObject?.Tag ?? Object.Name) + "' has no dynamic property '" + name +
+                "'" + (Object.GraphicObject?.Tag ?? Object.Name) + "' doesn't have a dynamic property '" + name +
                 "'. Available: " + names + ".", nameof(name));
         }
 

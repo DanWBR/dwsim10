@@ -66,7 +66,7 @@ Namespace Utilities.PetroleumCharacterization.Assay
 
             If lightFractions Is Nothing Then lightFractions = New Double() {}
             If pseudoMoleFractions Is Nothing OrElse pseudoMoleFractions.Length = 0 Then
-                Throw New ArgumentException("There are no pseudocomponents to combine the light ends with.")
+                Throw New ArgumentException("There aren't any pseudocomponents to combine the light ends with.")
             End If
 
             Dim m = lightFractions.Length
@@ -208,7 +208,7 @@ Namespace Utilities.PetroleumCharacterization.Assay
             If total >= 1.0 Then
                 Throw New ArgumentException(
                     "The light ends add up to " & (total * 100).ToString("N2") &
-                    " % of the crude, which leaves nothing for the distillation curve. They are " &
+                    " % of the crude, which doesn't leave anything for the distillation curve. They are " &
                     "fractions of the whole crude, not of the light ends themselves.")
             End If
 
@@ -282,8 +282,8 @@ Namespace Utilities.PetroleumCharacterization.Assay
 
                 If t <= 0.0 Then
                     issues.Add(New Issue(name, False,
-                        "The normal boiling point of " & name & " is not in the database, so there is no " &
-                        "saying whether it belongs with the light ends."))
+                        "The normal boiling point of " & name & " is not in the database, so it isn't possible to tell " &
+                        "whether it belongs with the light ends."))
                 ElseIf t > HeptaneNBP Then
                     issues.Add(New Issue(name, True,
                         name & " boils at " & (t - 273.15).ToString("N1") & " C, well inside the range the " &
@@ -351,7 +351,7 @@ Namespace Utilities.PetroleumCharacterization.Assay
 
                 If m <= 0.0 Then
                     issues.Add(New Issue(name, False,
-                        "The molar weight of " & name & " is not in the database, so there is no saying " &
+                        "The molar weight of " & name & " is not in the database, so it isn't possible to tell " &
                         "whether it sits below the plus fraction."))
                 ElseIf plusFractionMW > 0.0 AndAlso m >= plusFractionMW Then
                     issues.Add(New Issue(name, True,

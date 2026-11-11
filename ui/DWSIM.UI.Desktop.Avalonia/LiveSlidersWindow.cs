@@ -151,7 +151,7 @@ public sealed class LiveSlidersWindow : Window
         DockPanel.SetDock(bottom, global::Avalonia.Controls.Dock.Bottom);
         root.Children.Add(bottom);
         root.Children.Add(grid);
-        _status.Text = _specObjects.Count == 0 ? "Solve the flowsheet first: no object offers a specification yet." : "Add a slider and a watched result.";
+        _status.Text = _specObjects.Count == 0 ? "Solve the flowsheet first: the objects don't offer a specification yet." : "Add a slider and a watched result.";
         return root;
     }
 

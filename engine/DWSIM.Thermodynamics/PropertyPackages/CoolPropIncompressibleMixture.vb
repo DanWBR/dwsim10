@@ -173,7 +173,7 @@ Namespace PropertyPackages
                 Return (CoolProp.PropsSI(prop, "P", P, "Q", 1.0, SolventCompound) -
                         CoolProp.PropsSI(prop, "P", P, "Q", 0.0, SolventCompound)) / 1000
             Catch ex As Exception
-                WriteWarningMessage("CoolProp Warning: no saturation line for " & SolventCompound &
+                WriteWarningMessage("CoolProp Warning: couldn't get the saturation line for " & SolventCompound &
                                     " at P = " & P & " Pa. Taking the heat of vaporisation as zero.")
                 Return 0.0
             End Try
@@ -280,7 +280,7 @@ Namespace PropertyPackages
             Catch ex As Exception
             End Try
 
-            WriteWarningMessage("CoolProp Warning: no vapour pressure for " & fluid & " at T = " & T &
+            WriteWarningMessage("CoolProp Warning: couldn't get the vapour pressure for " & fluid & " at T = " & T &
                                 " K. Taking the solution as entirely liquid.")
 
             Return 0.0

@@ -149,7 +149,7 @@ namespace DWSIM.Automation.FluentAPI.Builders
                     .Select(p => p.Id + " (" + p.Description + ")")
                     .ToList();
                 throw new KeyNotFoundException(
-                    "'" + objectTag + "' has no property '" + propertyId + "'. Monitorable properties: " +
+                    "'" + objectTag + "' doesn't have a property '" + propertyId + "'. Monitorable properties: " +
                     (candidates.Count == 0 ? "none" : string.Join(", ", candidates)) + ".");
             }
 

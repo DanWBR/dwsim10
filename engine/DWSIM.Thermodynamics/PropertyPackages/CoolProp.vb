@@ -1535,7 +1535,7 @@ Namespace PropertyPackages
                         If Double.IsNaN(vk(i)) Or Double.IsInfinity(vk(i)) Then
                             ' Last resort: the branch above already tried to extrapolate. Zero is not a
                             ' neutral value in a mass-weighted sum, so it is said out loud.
-                            WriteWarningMessage("CoolProp Warning: no finite value for compound " & vn(i) &
+                            WriteWarningMessage("CoolProp Warning: couldn't get a finite value for compound " & vn(i) &
                                                 " at T = " & T & " K and P = " & P & " Pa. Using zero.")
                             vk(i) = 0.0#
                         End If
@@ -1589,7 +1589,7 @@ Namespace PropertyPackages
                         If Double.IsNaN(vk(i)) Or Double.IsInfinity(vk(i)) Then
                             ' Last resort: the branch above already tried to extrapolate. Zero is not a
                             ' neutral value in a mass-weighted sum, so it is said out loud.
-                            WriteWarningMessage("CoolProp Warning: no finite value for compound " & vn(i) &
+                            WriteWarningMessage("CoolProp Warning: couldn't get a finite value for compound " & vn(i) &
                                                 " at T = " & T & " K and P = " & P & " Pa. Using zero.")
                             vk(i) = 0.0#
                         End If
@@ -1699,7 +1699,7 @@ Namespace PropertyPackages
                         If Double.IsNaN(vk(i)) Or Double.IsInfinity(vk(i)) Then
                             ' Last resort: the branch above already tried to extrapolate. Zero is not a
                             ' neutral value in a mass-weighted sum, so it is said out loud.
-                            WriteWarningMessage("CoolProp Warning: no finite value for compound " & vn(i) &
+                            WriteWarningMessage("CoolProp Warning: couldn't get a finite value for compound " & vn(i) &
                                                 " at T = " & T & " K and P = " & P & " Pa. Using zero.")
                             vk(i) = 0.0#
                         End If
@@ -1758,7 +1758,7 @@ Namespace PropertyPackages
                         If Double.IsNaN(vk(i)) Or Double.IsInfinity(vk(i)) Then
                             ' Last resort: the branch above already tried to extrapolate. Zero is not a
                             ' neutral value in a mass-weighted sum, so it is said out loud.
-                            WriteWarningMessage("CoolProp Warning: no finite value for compound " & vn(i) &
+                            WriteWarningMessage("CoolProp Warning: couldn't get a finite value for compound " & vn(i) &
                                                 " at T = " & T & " K and P = " & P & " Pa. Using zero.")
                             vk(i) = 0.0#
                         End If

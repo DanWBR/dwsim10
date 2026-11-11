@@ -187,7 +187,7 @@ namespace DWSIM.UI.Desktop.Editors
 
             if (column.Stages == null || column.Stages.Count == 0)
             {
-                stack.Children.Add(new TextBlock { Text = "The column has no stages yet." });
+                stack.Children.Add(new TextBlock { Text = "The column doesn't have stages yet." });
                 return stack;
             }
 
@@ -236,7 +236,7 @@ namespace DWSIM.UI.Desktop.Editors
             {
                 if (column.Tf == null || column.Tf.Length == 0)
                 {
-                    flowsheet.ShowMessage("There is no solution to read from. Solve the column first.",
+                    flowsheet.ShowMessage("There isn't a solution to read from. Solve the column first.",
                         IFlowsheet.MessageType.Warning);
                     return;
                 }

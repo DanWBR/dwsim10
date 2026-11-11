@@ -353,11 +353,11 @@ Namespace Reactors
 
         Public Overrides Sub Calculate(Optional ByVal args As Object = Nothing)
 
-            If Not Me.GraphicObject.InputConnectors(0).IsAttached Then Throw New Exception("No feed material stream connected.")
-            If Not Me.GraphicObject.OutputConnectors(0).IsAttached Then Throw New Exception("No product material stream connected.")
-            If String.IsNullOrEmpty(MonomerID) Then Throw New Exception("No monomer compound selected.")
-            If String.IsNullOrEmpty(InitiatorID) Then Throw New Exception("No initiator compound selected.")
-            If String.IsNullOrEmpty(PolymerID) Then Throw New Exception("No polymer product compound selected.")
+            If Not Me.GraphicObject.InputConnectors(0).IsAttached Then Throw New Exception("A feed material stream isn't connected.")
+            If Not Me.GraphicObject.OutputConnectors(0).IsAttached Then Throw New Exception("A product material stream isn't connected.")
+            If String.IsNullOrEmpty(MonomerID) Then Throw New Exception("A monomer compound isn't selected.")
+            If String.IsNullOrEmpty(InitiatorID) Then Throw New Exception("An initiator compound isn't selected.")
+            If String.IsNullOrEmpty(PolymerID) Then Throw New Exception("A polymer product compound isn't selected.")
             If Volume <= 0.0 Then Throw New Exception("Reactor volume must be greater than zero.")
 
             Dim ims As MaterialStream = GetInletMaterialStream(0)

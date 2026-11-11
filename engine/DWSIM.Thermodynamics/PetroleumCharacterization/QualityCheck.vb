@@ -87,8 +87,8 @@ Partial Public Class QualityCheck
             If first < NPentaneNBP Then
                 _report.AppendLine("Light Ends")
                 _report.AppendLine(String.Format(
-                    "   The curve starts at {0:N2} {1}, below the boiling point of n-pentane, and no light " &
-                    "ends were declared. Either the curve already covers them, and the assay is complete as " &
+                    "   The curve starts at {0:N2} {1}, below the boiling point of n-pentane, and light " &
+                    "ends weren't declared. Either the curve already covers them, and the assay is complete as " &
                     "it stands, or they were left out and this crude will not make the gas the real one makes.",
                     cv.ConvertFromSI(su.temperature, first), su.temperature))
                 _report.AppendLine()

@@ -358,7 +358,7 @@ Namespace Reactors
                 ' NaN, which used to surface as a bare "the solver found no solution"
                 If Qf <= 0.0 Then
                     Throw New Exception(String.Format(
-                        "The reactions are set to take place in the {0} phase, and the stream has no {0} phase " &
+                        "The reactions are set to take place in the {0} phase, and the stream doesn't have a {0} phase " &
                         "at {1:N2} K and {2:N0} Pa (phase molar fractions: vapour {3:N4}, liquid {4:N4}, solid {5:N4}). " &
                         "Check the reaction phase and the phase mapping of the property package.",
                         rxphase.ToString().Replace("_", " + "),
@@ -959,7 +959,7 @@ Namespace Reactors
             For Each rxnsb As ReactionSetBase In FlowSheet.ReactionSets(Me.ReactionSetID).Reactions.Values
                 rxn = FlowSheet.Reactions(rxnsb.ReactionID)
                 If Not rxn.Components.ContainsKey(rxn.BaseReactant) Then
-                    Throw New Exception("No base reactant defined for reaction '" + rxn.Name + "'.")
+                    Throw New Exception("A base reactant isn't defined for reaction '" + rxn.Name + "'.")
                 End If
                 If rxn.ReactionType = ReactionType.Kinetic And rxnsb.IsActive Then
                     Me.Reactions.Add(rxnsb.ReactionID)

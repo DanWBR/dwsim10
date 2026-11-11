@@ -363,7 +363,7 @@ public partial class SensitivityAnalysisWindow : Window
         if (string.IsNullOrEmpty(c.iv1.objectID) || string.IsNullOrEmpty(c.iv1.propID))
         { TbProgress.Text = "Select an independent variable first."; return; }
         if (!_flowsheet.SimulationObjects.ContainsKey(c.iv1.objectID))
-        { TbProgress.Text = "The independent variable's object is no longer on the flowsheet."; return; }
+        { TbProgress.Text = "The independent variable's object isn't on the flowsheet anymore."; return; }
         if (c.depvariables.Count == 0)
         { TbProgress.Text = "Add at least one dependent variable."; return; }
 

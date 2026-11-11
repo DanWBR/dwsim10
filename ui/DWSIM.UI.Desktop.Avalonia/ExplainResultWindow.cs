@@ -80,7 +80,7 @@ public sealed class ExplainResultWindow : Window
         root.Children.Add(top);
         root.Children.Add(bottom);
         root.Children.Add(new ScrollViewer { Content = _body, AllowAutoHide = false });
-        _body.Children.Add(new TextBlock { Text = _objects.Count == 0 ? "Nothing on the flowsheet can be explained yet." : "Pick an object and press Explain.", Opacity = 0.7 });
+        _body.Children.Add(new TextBlock { Text = _objects.Count == 0 ? "The flowsheet doesn't have anything to explain yet." : "Pick an object and press Explain.", Opacity = 0.7 });
         return root;
     }
 

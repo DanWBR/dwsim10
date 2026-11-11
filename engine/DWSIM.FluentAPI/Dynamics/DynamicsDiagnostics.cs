@@ -173,7 +173,7 @@ namespace DWSIM.Automation.FluentAPI.Dynamics
                         findings.Add(new Finding("MV_SATURATED", DiagnosticSeverity.Warning, tag,
                             "The manipulated variable sat at its limit for " +
                             Fmt(saturated * 100.0) + " % of the run.",
-                            "The loop has no authority left: widen the output limits, or resize the final control element."));
+                            "The loop doesn't have any authority left: widen the output limits, or resize the final control element."));
                     }
                 }
 

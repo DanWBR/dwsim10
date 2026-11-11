@@ -241,7 +241,7 @@ namespace DWSIM.Automation.FluentAPI
             var listed = string.Join(", ", known.Take(MaxListed).Select(p => "'" + p + "'"));
             var more = known.Count > MaxListed ? " (and " + (known.Count - MaxListed) + " more)" : "";
 
-            return "'" + tag + "' has no settable property '" + name + "'. Available: " + listed + more + ".";
+            return "'" + tag + "' doesn't have a settable property '" + name + "'. Available: " + listed + more + ".";
         }
 
         /// <summary>The plain .NET properties a caller could set.</summary>

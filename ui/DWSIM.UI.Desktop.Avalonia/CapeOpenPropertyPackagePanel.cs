@@ -161,7 +161,7 @@ public sealed class CapeOpenPropertyPackagePanel : UserControl
         _loading = false;
 
         if (_serverList.Count == 0)
-            _status.Text = "No CAPE-OPEN Property Package Manager or Thermo System is registered on this computer. " +
+            _status.Text = "A CAPE-OPEN Property Package Manager or Thermo System isn't registered on this computer. " +
                            "Install one (COCO's TEA, for example) and open this window again.";
         else if (current == null)
             _status.Text = "Select a Property Package Manager or Thermo System (" + _serverList.Count + " found on this computer).";
@@ -210,7 +210,7 @@ public sealed class CapeOpenPropertyPackagePanel : UserControl
             {
                 ListPackages("");
                 _status.Text = _packages.Items.Count == 0
-                    ? "'" + info.Name + "' offers no property packages. Use 'Edit manager settings' to create one."
+                    ? "'" + info.Name + "' doesn't offer any property packages. Use 'Edit manager settings' to create one."
                     : "Select one of the " + _packages.Items.Count + " property package(s) offered by '" + info.Name + "'.";
             }
             else
@@ -245,7 +245,7 @@ public sealed class CapeOpenPropertyPackagePanel : UserControl
         if (!TryRun(() => editable = _pp.EditServer())) return;
         if (!editable)
         {
-            _status.Text = "This Property Package Manager has no settings window of its own.";
+            _status.Text = "This Property Package Manager doesn't have a settings window of its own.";
             return;
         }
         // a manager can add or remove packages in its own editor
@@ -259,7 +259,7 @@ public sealed class CapeOpenPropertyPackagePanel : UserControl
         if (!TryRun(() => editable = _pp.EditPropertyPackage())) return;
         if (!editable)
         {
-            _status.Text = "This property package has no settings window of its own.";
+            _status.Text = "This property package doesn't have a settings window of its own.";
             return;
         }
         // the package's compounds may have changed in its own editor

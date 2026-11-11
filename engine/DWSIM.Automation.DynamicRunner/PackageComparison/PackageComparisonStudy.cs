@@ -178,7 +178,7 @@ namespace DWSIM.Automation.DynamicRunner.PackageComparison
 
             var wanted = input.PackageList();
             var packages = host.PropertyPackages.Values.Cast<IPropertyPackage>().Where(p => wanted.Count == 0 || wanted.Contains(p.Tag)).ToList();
-            if (packages.Count == 0) throw new ArgumentException("No property package to compare; add packages to the simulation.");
+            if (packages.Count == 0) throw new ArgumentException("There isn't a property package to compare; add packages to the simulation.");
 
             var r = new PackageComparisonResult { Kind = input.Kind, Compound1 = input.Compound1, Compound2 = input.Compound2, Pressure = input.Pressure, Temperature = input.Temperature, Data = input.Data() };
             int done = 0;
@@ -329,7 +329,7 @@ namespace DWSIM.Automation.DynamicRunner.PackageComparison
             string unitB = txy ? "K" : "%";
             var ok = r.Curves.Where(c => !c.Failed).ToList();
             foreach (var c in r.Curves.Where(c => c.Failed)) r.Warnings.Add(c.Tag + ": " + string.Join(" ", c.Warnings));
-            if (ok.Count == 0) { r.Warnings.Add("No package could trace the diagram."); return; }
+            if (ok.Count == 0) { r.Warnings.Add("The diagram couldn't be traced with any package."); return; }
 
             var scored = ok.Where(c => c.PointsCompared > 0).OrderBy(c => c.AadBubble).ToList();
             if (scored.Count > 0)
@@ -345,18 +345,18 @@ namespace DWSIM.Automation.DynamicRunner.PackageComparison
                     var fine = scored.Where(c => c.AadBubble <= good).Select(c => c.Tag).ToList();
                     if (fine.Count == scored.Count) r.Verdict.Add("Every package sits within " + good.ToString("F1", Ci) + " " + unitB + " of the data: for this pair the choice of model changes little, and the cheapest one will do.");
                     else if (fine.Count > 0) r.Verdict.Add("Within " + good.ToString("F1", Ci) + " " + unitB + " of the data: " + string.Join(", ", fine) + ". The others would carry their error into every flash, column and heat balance of the flowsheet.");
-                    else r.Verdict.Add("No package sits within " + good.ToString("F1", Ci) + " " + unitB + " of the data: either the binary interaction parameters are missing or estimated (regress them from these very points with the Data Regression tool) or the pair needs a different kind of model.");
+                    else r.Verdict.Add("The packages don't sit within " + good.ToString("F1", Ci) + " " + unitB + " of the data: either the binary interaction parameters are missing or estimated (regress them from these very points with the Data Regression tool) or the pair needs a different kind of model.");
                 }
             }
             else
             {
-                r.Verdict.Add("No measured data loaded: the diagrams are drawn for every package, and where they disagree the model matters. Load a dataset (or type points) to see which one is right.");
+                r.Verdict.Add("Measured data isn't loaded: the diagrams are drawn for every package, and where they disagree the model matters. Load a dataset (or type points) to see which one is right.");
             }
 
             // azeotropes: who sees one, and where
             var azeo = ok.Where(c => !double.IsNaN(c.Azeotrope)).ToList();
             if (azeo.Count > 0 && azeo.Count < ok.Count)
-                r.Verdict.Add("An azeotrope is predicted by " + string.Join(", ", azeo.Select(c => c.Tag + " (x1 = " + c.Azeotrope.ToString("F3", Ci) + ")")) + " and missed by " + string.Join(", ", ok.Where(c => double.IsNaN(c.Azeotrope)).Select(c => c.Tag)) + ". A model that misses an azeotrope will let a column separate what no column can; check the data near that composition.");
+                r.Verdict.Add("An azeotrope is predicted by " + string.Join(", ", azeo.Select(c => c.Tag + " (x1 = " + c.Azeotrope.ToString("F3", Ci) + ")")) + " and missed by " + string.Join(", ", ok.Where(c => double.IsNaN(c.Azeotrope)).Select(c => c.Tag)) + ". A model that misses an azeotrope will let a column separate what a real column can't; check the data near that composition.");
             else if (azeo.Count == ok.Count && azeo.Count > 0)
                 r.Verdict.Add("Every package predicts an azeotrope near x1 = " + azeo.Average(c => c.Azeotrope).ToString("F3", Ci) + ": the pair is strongly non-ideal, and ordinary distillation cannot cross that composition.");
 

@@ -129,7 +129,7 @@ public sealed class PIDTuningWindow : Window
             _controllerList.Children.Add(cb);
         }
         if (_checkBoxes.Count == 0)
-            _controllerList.Children.Add(new TextBlock { Text = "No PID controllers on this flowsheet.", FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11), Opacity = 0.8 });
+            _controllerList.Children.Add(new TextBlock { Text = "This flowsheet doesn't have PID controllers.", FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11), Opacity = 0.8 });
     }
 
     // -------------------------------------------------------------------------

@@ -794,7 +794,7 @@ Namespace UnitOperations
                     ResultRequiredArea = W / flux
                 End If
             Else
-                messages.Add("The inlet stream has no flow: the required area is zero.")
+                messages.Add("The inlet stream doesn't have any flow: the required area is zero.")
             End If
 
             'the orifice in use

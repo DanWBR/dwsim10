@@ -359,14 +359,14 @@ out:        Return New Object() {L, V, Vx, Vy, ecount, 0.0#, PP.RET_NullVector, 
             Dim cat = FindIon(PP, salt.PositiveIon)
             Dim an = FindIon(PP, salt.NegativeIon)
             If cat Is Nothing Or an Is Nothing Then
-                IObj?.Paragraphs.Add(String.Format("{0}: no solubility product available - the ion compounds ({1}, {2}) were not found, falling back on the melting-point relation.", salt.Name, salt.PositiveIon, salt.NegativeIon))
+                IObj?.Paragraphs.Add(String.Format("{0}: a solubility product isn't available - the ion compounds ({1}, {2}) were not found, falling back on the melting-point relation.", salt.Name, salt.PositiveIon, salt.NegativeIon))
                 Return Double.NaN
             End If
 
             ' A zero formation energy means the database carries no value, not that the species is a
             ' reference state: the one species for which zero is the convention is the proton.
             If Not HasFormationData(salt) OrElse Not HasFormationData(cat) OrElse Not HasFormationData(an) Then
-                IObj?.Paragraphs.Add(String.Format("{0}: no solubility product available - formation properties are missing for one of the three species, falling back on the melting-point relation.", salt.Name))
+                IObj?.Paragraphs.Add(String.Format("{0}: a solubility product isn't available - formation properties are missing for one of the three species, falling back on the melting-point relation.", salt.Name))
                 Return Double.NaN
             End If
 

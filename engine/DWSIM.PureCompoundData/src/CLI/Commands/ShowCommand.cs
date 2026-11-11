@@ -19,7 +19,7 @@ namespace DWSIM.PureCompoundData.CLI.Commands
             var r = index.Query.GetById(id);
             if (r == null)
             {
-                stderr.WriteLine($"No record with id {id}.");
+                stderr.WriteLine($"There isn't a record with id {id}.");
                 return ExitCodes.DataError;
             }
             stdout.WriteLine(Newtonsoft.Json.JsonConvert.SerializeObject(r, CoreJson.Options));

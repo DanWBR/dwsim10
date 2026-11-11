@@ -131,7 +131,7 @@ public sealed class CapeOpenSelectorWindow : Window
 
         if (_items.Count == 0)
         {
-            _status.Text = "No CAPE-OPEN unit operations are registered on this machine.";
+            _status.Text = "CAPE-OPEN unit operations aren't registered on this machine.";
             return;
         }
 

@@ -439,7 +439,7 @@ Namespace UnitOperations
                 Dim C0_gL = If(target_in > 0.0 AndAlso Q_vol > 0.0, target_in / Q_vol, 0.001) ' kg/s / (m3/s) = g/L
                 If target_in <= 0.0 Then
                     _thomasNominalC0 = True
-                    FlowSheet.ShowMessage(GraphicObject.Tag & ": no target compound in the feed, so the Thomas breakthrough curve uses a nominal feed concentration of 0.001 g/L.", IFlowsheet.MessageType.Warning)
+                    FlowSheet.ShowMessage(GraphicObject.Tag & ": the feed doesn't have the target compound, so the Thomas breakthrough curve uses a nominal feed concentration of 0.001 g/L.", IFlowsheet.MessageType.Warning)
                 End If
                 BuildThomasBreakthrough(C0_gL, Q_Ls)
             End If
@@ -600,7 +600,7 @@ Namespace UnitOperations
             s.AppendLine("Load volume per cycle:        " & (Result_LoadVolumeFraction * 100).ToString(numberformat, ci) & " % of CV")
             If Result_Saturated Then s.AppendLine("  Column is SATURATED - binding capacity exceeded.")
             If _thomasNominalC0 Then
-                s.AppendLine("  No target compound in the feed: the Thomas breakthrough curve uses a nominal feed concentration of 0.001 g/L.")
+                s.AppendLine("  The feed doesn't have the target compound: the Thomas breakthrough curve uses a nominal feed concentration of 0.001 g/L.")
             End If
             If Chemistry = ChromatographyChemistry.SizeExclusion AndAlso Result_LoadVolumeFraction > 0.05 Then
                 s.AppendLine("  Size exclusion load above 5 % of CV: resolution drops (typical 2 to 5 %).")

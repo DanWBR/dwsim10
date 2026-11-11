@@ -52,11 +52,11 @@ Namespace CompoundEditing
 
             Dim tmin = b.Tmin(cp), tmax = b.Tmax(cp)
             If b.TminKey Is Nothing Then
-                lines.Add("This property has no validity range fields; the equation is used at every temperature.")
+                lines.Add("This property doesn't have validity range fields; the equation is used at every temperature.")
             ElseIf tmax > tmin AndAlso tmin > 0.0 Then
                 lines.Add("Valid range: " & TempText(su, tmin, nf) & " to " & TempText(su, tmax, nf) & " " & su.temperature & ". Outside it DWSIM still uses the equation, as an extrapolation.")
             Else
-                lines.Add("No validity range is set. DWSIM uses the equation at any temperature, so check that it behaves where your process runs.")
+                lines.Add("A validity range isn't set. DWSIM uses the equation at any temperature, so check that it behaves where your process runs.")
             End If
 
             If Not b.EquationIsHonoured(cp) AndAlso Not info.IsNotDefined Then

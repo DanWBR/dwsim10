@@ -2791,7 +2791,7 @@ Namespace BaseClasses
                 message = "Calculated using Experimental/Regressed data."
                 val = PropertyPackages.PropertyPackage.CalcCSTDepProp(eqno, A, B, C, D, E, T, 0) 'kJ/kg/K
             Else
-                message = "Using default value when no data is available."
+                message = "Using default value when data isn't available."
                 val = 3 ' replacement if no params available
             End If
 

@@ -1007,7 +1007,7 @@ public class PropertyPackageEditorWindow : Window
         {
             panel.Children.Add(new TextBlock
             {
-                Text = "No reaction sets defined. Add reactions via Simulation Settings first.",
+                Text = "Reaction sets aren't defined. Add reactions via Simulation Settings first.",
                 FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11),
                 Foreground = Brushes.Gray,
                 TextWrapping = TextWrapping.Wrap,

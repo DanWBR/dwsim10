@@ -264,7 +264,7 @@ namespace DWSIM.UI.Desktop.Editors
         {
             var p = new AvaloniaEditorPanel();
             p.CreateAndAddLabelRow("Object not found");
-            p.CreateAndAddDescriptionRow($"No simulation object named '{name}' exists in the flowsheet.");
+            p.CreateAndAddDescriptionRow($"A simulation object named '{name}' doesn't exist in the flowsheet.");
             return p;
         }
     }

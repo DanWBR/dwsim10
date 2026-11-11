@@ -163,7 +163,7 @@ Namespace CompoundEditing
 
         Private Sub CheckMissingConstants(cp As ICompoundConstantProperties, issues As List(Of CompoundIssue))
             If cp.Molar_Weight <= 0.0 Then Add(issues, CompoundIssueSeverity.Warning, "MISSING_CRITICAL", "Molar_Weight",
-                "The molecular weight is missing. Nothing works without it: DWSIM cannot convert between mass and moles.")
+                "The molecular weight is missing. The simulation doesn't work without it: DWSIM cannot convert between mass and moles.")
             If cp.Critical_Temperature <= 0.0 Then Add(issues, CompoundIssueSeverity.Warning, "MISSING_CRITICAL", "Critical_Temperature",
                 "The critical temperature is missing. Equations of state and every estimation fallback (vapor pressure, liquid density, viscosity) need it.")
             If cp.Critical_Pressure <= 0.0 Then Add(issues, CompoundIssueSeverity.Warning, "MISSING_CRITICAL", "Critical_Pressure",
@@ -205,7 +205,7 @@ Namespace CompoundEditing
             End If
             If cp.Acentric_Factor > 0.8 AndAlso CompoundEquationCatalog.IsNotDefined(cp.VaporPressureEquation) AndAlso cp.IsPF = 0 Then
                 Add(issues, CompoundIssueSeverity.Warning, "OMEGA_HIGH_WITH_LK_PVAP", "Acentric_Factor",
-                    "The acentric factor is " & Fmt(cp.Acentric_Factor, "F2") & " and there is no vapor-pressure equation, so DWSIM estimates the vapor pressure with Lee-Kesler, which is reliable up to about 0.8. Far below the critical temperature the value is tiny anyway (a non-volatile compound); nearer to it, do not trust it.")
+                    "The acentric factor is " & Fmt(cp.Acentric_Factor, "F2") & " and there isn't a vapor-pressure equation, so DWSIM estimates the vapor pressure with Lee-Kesler, which is reliable up to about 0.8. Far below the critical temperature the value is tiny anyway (a non-volatile compound); nearer to it, do not trust it.")
             End If
         End Sub
 
@@ -223,7 +223,7 @@ Namespace CompoundEditing
         Private Sub CheckSolid(cp As ICompoundConstantProperties, issues As List(Of CompoundIssue))
             If cp.IsSolid AndAlso String.IsNullOrWhiteSpace(cp.SolidDensityEquation) AndAlso cp.SolidDensityAtTs <= 0.0 Then
                 Add(issues, CompoundIssueSeverity.Warning, "SOLID_WITHOUT_DENSITY", "SolidDensityAtTs",
-                    "The compound is marked as a solid but has neither a solid-density equation nor a single-point solid density, so DWSIM will use a placeholder density and any solid volume will be meaningless.")
+                    "The compound is marked as a solid but doesn't have a solid-density equation or a single-point solid density, so DWSIM will use a placeholder density and any solid volume will be meaningless.")
             End If
         End Sub
 
@@ -253,24 +253,24 @@ Namespace CompoundEditing
             If blk.Key = "IdealGasHeatCapacity" AndAlso (notDefined OrElse Not anyCoeff) Then
                 Dim def = If(cp.Molar_Weight > 0, 3.5 * 8.314 / cp.Molar_Weight, 0.0)
                 Add(issues, CompoundIssueSeverity.Warning, "CP_IG_MISSING", blk.EquationKey,
-                    "There is no ideal gas heat capacity equation. DWSIM will use a constant default of 3.5 R (" & Fmt(def, "F3") & " kJ/(kg.K) for this molecular weight), so enthalpy changes with temperature, and therefore heater and reactor duties, will be rough.")
+                    "There isn't an ideal gas heat capacity equation. DWSIM will use a constant default of 3.5 R (" & Fmt(def, "F3") & " kJ/(kg.K) for this molecular weight), so enthalpy changes with temperature, and therefore heater and reactor duties, will be rough.")
             ElseIf blk.Key = "EnthalpyOfVaporization" AndAlso notDefined AndAlso coeffs.Skip(1).Any(Function(c) c <> 0.0) Then
                 Add(issues, CompoundIssueSeverity.Warning, "HVAP_CONSTANTS_WITHOUT_EQUATION", blk.EquationKey,
-                    "Coefficients B to E of the enthalpy of vaporization are set but no equation number is chosen, so only A is used (as the value in kJ/kg at the boiling point) and the others are ignored.")
+                    "Coefficients B to E of the enthalpy of vaporization are set but an equation number isn't chosen, so only A is used (as the value in kJ/kg at the boiling point) and the others are ignored.")
             ElseIf notDefined Then
                 If anyCoeff Then
                     Add(issues, CompoundIssueSeverity.Info, "COEFFS_WITHOUT_EQUATION", blk.EquationKey,
-                        "Coefficients are set for the " & blk.DisplayName.ToLowerInvariant() & " but no equation number is chosen, so they are ignored and the property is estimated instead. Pick the equation the coefficients belong to.")
+                        "Coefficients are set for the " & blk.DisplayName.ToLowerInvariant() & " but an equation number isn't chosen, so they are ignored and the property is estimated instead. Pick the equation the coefficients belong to.")
                 End If
                 Select Case blk.Key
                     Case "VaporPressure"
                         If cp.IsPF = 0 AndAlso Not cp.IsIon AndAlso Not cp.IsSalt Then
-                            Add(issues, CompoundIssueSeverity.Info, "PVAP_ESTIMATED", blk.EquationKey, "No vapor-pressure equation: " & blk.NoEquationBehaviour)
+                            Add(issues, CompoundIssueSeverity.Info, "PVAP_ESTIMATED", blk.EquationKey, "There isn't a vapor-pressure equation: " & blk.NoEquationBehaviour)
                         End If
                     Case "LiquidDensity"
-                        Add(issues, CompoundIssueSeverity.Info, "LIQDENS_ESTIMATED", blk.EquationKey, "No liquid-density equation: " & blk.NoEquationBehaviour)
+                        Add(issues, CompoundIssueSeverity.Info, "LIQDENS_ESTIMATED", blk.EquationKey, "There isn't a liquid-density equation: " & blk.NoEquationBehaviour)
                     Case "LiquidHeatCapacity"
-                        Add(issues, CompoundIssueSeverity.Info, "LIQCP_ESTIMATED", blk.EquationKey, "No liquid heat capacity equation: " & blk.NoEquationBehaviour)
+                        Add(issues, CompoundIssueSeverity.Info, "LIQCP_ESTIMATED", blk.EquationKey, "There isn't a liquid heat capacity equation: " & blk.NoEquationBehaviour)
                 End Select
             End If
 

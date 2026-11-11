@@ -87,7 +87,7 @@ namespace DWSIM.UI.Desktop.Editors
 
                 panel.CreateAndAddLabelRow("Element Matrix");
                 panel.CreateAndAddDescriptionRow("One row per element, one coefficient per reactive compound: " +
-                    (compounds.Count > 0 ? string.Join(", ", compounds) : "no reactive compounds selected"));
+                    (compounds.Count > 0 ? string.Join(", ", compounds) : "you haven't selected reactive compounds"));
 
                 for (int i2 = 0; i2 < elements.Count; i2++)
                 {
@@ -201,7 +201,7 @@ namespace DWSIM.UI.Desktop.Editors
                 .OrderBy(x => x.GraphicObject.Tag).ToList();
             if (objs.Count == 0)
             {
-                panel.CreateAndAddDescriptionRow("No other objects on the flowsheet yet.");
+                panel.CreateAndAddDescriptionRow("The flowsheet doesn't have other objects yet.");
                 return;
             }
 
@@ -321,7 +321,7 @@ namespace DWSIM.UI.Desktop.Editors
             EnsureUnitRegistryWired(simobj.GetFlowsheet());
 
             panel.CreateAndAddLabelRow("Object Property Editor");
-            panel.CreateAndAddDescriptionRow("Property values are updated/stored as they are changed/edited. There's no need to press ENTER to commit the changes.");
+            panel.CreateAndAddDescriptionRow("Property values are updated/stored as they are changed/edited. You don't need to press ENTER to commit the changes.");
 
             panel.CreateAndAddLabelRow("Object Details");
             panel.CreateAndAddTwoLabelsRow("Type", simobj.GetDisplayName());
@@ -367,7 +367,7 @@ namespace DWSIM.UI.Desktop.Editors
                     panel.CreateAndAddLabelRow("CAPE-OPEN Unit Operation");
                     if (couo._seluo == null || string.IsNullOrEmpty(couo._seluo.Name))
                     {
-                        panel.CreateAndAddDescriptionRow("No CAPE-OPEN unit operation is assigned yet.");
+                        panel.CreateAndAddDescriptionRow("A CAPE-OPEN unit operation isn't assigned yet.");
                     }
                     else
                     {
@@ -1386,7 +1386,7 @@ namespace DWSIM.UI.Desktop.Editors
 
                     panel.CreateAndAddLabelRow("Script Variables");
                     panel.CreateAndAddDescriptionRow(
-                        "Enter one variable per line, separating its name (no special characters or spaces) from its value with a tab or a single space.");
+                        "Enter one variable per line, separating its name (without special characters or spaces) from its value with a tab or a single space.");
 
                     panel.CreateAndAddLabelRow2("Input Variables");
                     var inVars = new System.Text.StringBuilder();
@@ -1486,7 +1486,7 @@ namespace DWSIM.UI.Desktop.Editors
                             });
                             any = true;
                         }
-                        if (!any) panel.CreateAndAddDescriptionRow("No linked input variables are defined.");
+                        if (!any) panel.CreateAndAddDescriptionRow("Linked input variables aren't defined.");
                     }
                     break;
                 }
@@ -1816,7 +1816,7 @@ namespace DWSIM.UI.Desktop.Editors
             var ie = col.InitialEstimates;
             if (ie == null)
             {
-                panel.CreateAndAddDescriptionRow("No initial-estimates container present. Solve once to populate.");
+                panel.CreateAndAddDescriptionRow("An initial-estimates container isn't present. Solve once to populate.");
                 return;
             }
 

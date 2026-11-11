@@ -229,7 +229,7 @@ Namespace UnitOperations
                 If vaporConnected Then
                     m_vap = m_evap
                 Else
-                    FlowSheet.ShowMessage(Me.GraphicObject.Tag & ": no Vapor outlet connected, the evaporated solvent stays in the Mother Liquor outlet.",
+                    FlowSheet.ShowMessage(Me.GraphicObject.Tag & ": a Vapor outlet isn't connected, the evaporated solvent stays in the Mother Liquor outlet.",
                                           IFlowsheet.MessageType.Warning)
                 End If
             End If

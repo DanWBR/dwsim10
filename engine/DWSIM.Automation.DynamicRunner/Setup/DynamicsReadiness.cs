@@ -40,7 +40,7 @@ namespace DWSIM.Automation.DynamicRunner.Setup
             if (manager.ScheduleList.Count == 0)
             {
                 issues.Add(new DynamicsIssue("NO_SCHEDULE", DynamicsIssueSeverity.Blocker,
-                    "This flowsheet has no dynamics schedule.",
+                    "This flowsheet doesn't have a dynamics schedule.",
                     "Create one, together with an integrator, on the integrator step.")
                 { Category = DynamicsIssueCategory.Integrator });
 
@@ -66,7 +66,7 @@ namespace DWSIM.Automation.DynamicRunner.Setup
             if (!manager.IntegratorList.ContainsKey(schedule.CurrentIntegrator))
             {
                 issues.Add(new DynamicsIssue("NO_INTEGRATOR", DynamicsIssueSeverity.Blocker,
-                    "Schedule '" + schedule.Description + "' has no integrator assigned.",
+                    "Schedule '" + schedule.Description + "' doesn't have an integrator assigned.",
                     "Assign one on the integrator step.")
                 { Category = DynamicsIssueCategory.Integrator });
                 return Rank(issues);
@@ -85,7 +85,7 @@ namespace DWSIM.Automation.DynamicRunner.Setup
             {
                 issues.Add(new DynamicsIssue("NO_DYNAMIC_MODE", DynamicsIssueSeverity.Info,
                     "Dynamic mode is off.",
-                    "The run turns it on for its duration; nothing to do unless you are solving by hand.")
+                    "The run turns it on for its duration; you don't need to do anything unless you are solving by hand.")
                 { Category = DynamicsIssueCategory.Overview });
             }
 
@@ -102,7 +102,7 @@ namespace DWSIM.Automation.DynamicRunner.Setup
             if (flowsheet.PropertyPackages.Count == 0)
             {
                 issues.Add(new DynamicsIssue("NO_PROPERTY_PACKAGE", DynamicsIssueSeverity.Blocker,
-                    "The flowsheet has no property package, so nothing can be flashed.",
+                    "The flowsheet doesn't have a property package, so streams can't be flashed.",
                     "Add one before anything else.")
                 { Category = DynamicsIssueCategory.Overview });
                 return;
@@ -111,7 +111,7 @@ namespace DWSIM.Automation.DynamicRunner.Setup
             if (flowsheet.SelectedCompounds.Count == 0)
             {
                 issues.Add(new DynamicsIssue("NO_COMPOUNDS", DynamicsIssueSeverity.Blocker,
-                    "The flowsheet has no compounds.",
+                    "The flowsheet doesn't have any compounds.",
                     "Add them before anything else.")
                 { Category = DynamicsIssueCategory.Overview });
                 return;
@@ -137,7 +137,7 @@ namespace DWSIM.Automation.DynamicRunner.Setup
             if (integrator.MonitoredVariables.Count == 0)
             {
                 issues.Add(new DynamicsIssue("NO_MONITORED_VARS", DynamicsIssueSeverity.Warning,
-                    "Integrator '" + integrator.Description + "' records no variables, so the run will produce no series.",
+                    "Integrator '" + integrator.Description + "' doesn't record any variables, so the run won't produce any series.",
                     "Add some on the integrator step.")
                 { Category = DynamicsIssueCategory.Integrator });
             }
@@ -193,14 +193,14 @@ namespace DWSIM.Automation.DynamicRunner.Setup
             if (pressureSpecs == 0)
             {
                 issues.Add(new DynamicsIssue("NO_PRESSURE_SPEC", DynamicsIssueSeverity.Warning,
-                    "No material stream is specified by pressure, so the pressure-flow network has nothing to resolve against.",
+                    "The material streams aren't specified by pressure, so the pressure-flow network doesn't have anything to resolve against.",
                     "Mark the boundary streams: pressure on the product side, flow on the feed.")
                 { Category = DynamicsIssueCategory.BoundarySpecs });
             }
             else if (pressureSpecs == streams.Count && streams.Count > 1)
             {
                 issues.Add(new DynamicsIssue("ALL_FLOW_SPECS", DynamicsIssueSeverity.Info,
-                    "Every material stream is specified by pressure; no flow is being held.",
+                    "Every material stream is specified by pressure; the flow isn't held anywhere.",
                     "Mark the feed by flow if you meant to fix its flow rate.")
                 { Category = DynamicsIssueCategory.BoundarySpecs });
             }
@@ -215,8 +215,8 @@ namespace DWSIM.Automation.DynamicRunner.Setup
                 if (!obj.SupportsDynamicMode && !(obj is IMaterialStream))
                 {
                     issues.Add(new DynamicsIssue("UNSUPPORTED_OBJECT", DynamicsIssueSeverity.Info,
-                        SafeType(obj) + " has no dynamic model; it is solved at steady state on every step.",
-                        "Nothing to do, unless you expected it to hold up material.")
+                        SafeType(obj) + " doesn't have a dynamic model; it is solved at steady state on every step.",
+                        "You don't need to do anything, unless you expected it to hold up material.")
                     { ObjectId = obj.Name, ObjectTag = tag, Category = DynamicsIssueCategory.Overview });
                 }
 
@@ -239,7 +239,7 @@ namespace DWSIM.Automation.DynamicRunner.Setup
                     ObjectId = valve.Name,
                     ObjectTag = tag,
                     Category = DynamicsIssueCategory.Hydraulics,
-                    Message = "The valve has no flow coefficient (Kv = " + Fmt(valve.Kv) + ").",
+                    Message = "The valve doesn't have a flow coefficient (Kv = " + Fmt(valve.Kv) + ").",
                     Fix = "Size it from the converged operating point. Without a Kv the valve cannot pass a computed flow."
                 });
             }
@@ -276,7 +276,7 @@ namespace DWSIM.Automation.DynamicRunner.Setup
                     ObjectTag = tag,
                     Category = DynamicsIssueCategory.Hydraulics,
                     Message = "The valve passes its full Kv at any opening, so closing it does not stop the flow.",
-                    Fix = "Enable the opening-Kv characteristic. A controller manipulating the opening has no effect without it.",
+                    Fix = "Enable the opening-Kv characteristic. A controller manipulating the opening doesn't have any effect without it.",
                     CanAutoFix = true,
                     ValueLabel = "Opening affects Kv",
                     SuggestedValue = true,
@@ -297,7 +297,7 @@ namespace DWSIM.Automation.DynamicRunner.Setup
                     ObjectId = obj.Name,
                     ObjectTag = tag,
                     Category = DynamicsIssueCategory.Holdup,
-                    Message = "The vessel has no volume, so nothing accumulates in it.",
+                    Message = "The vessel doesn't have a volume, so material doesn't accumulate in it.",
                     Fix = "Set a volume, or take it from the vessel dimensions."
                 });
             }
@@ -312,7 +312,7 @@ namespace DWSIM.Automation.DynamicRunner.Setup
                     ObjectId = obj.Name,
                     ObjectTag = tag,
                     Category = DynamicsIssueCategory.Holdup,
-                    Message = "The tank has no volume, so nothing accumulates in it.",
+                    Message = "The tank doesn't have a volume, so material doesn't accumulate in it.",
                     Fix = "Set a volume and a height."
                 });
             }

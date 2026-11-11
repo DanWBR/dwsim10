@@ -542,7 +542,7 @@ namespace DWSIM.Automation.FluentAPI.Diagnostics
                 case "DeltaP":
                     var dp = Num(obj, "DeltaP");
                     slots.Add(new SpecificationSlot("Pressure drop", "DeltaP", dp, "Pa", true, dp.HasValue && dp.Value >= 0,
-                        "0 Pa is accepted; the valve then does nothing."));
+                        "0 Pa is accepted; the valve then doesn't do anything."));
                     break;
                 case "OutletPressure":
                     var pOut = Num(obj, "OutletPressure");
@@ -578,7 +578,7 @@ namespace DWSIM.Automation.FluentAPI.Diagnostics
 
             var mode = overrideT || overrideP ? "Override" : "From the inlet";
             return new ObjectDegreesOfFreedom(tag, "Vessel", mode, true, slots,
-                "A separator needs nothing from you: it splits the phases the inlet already has, unless you override T or P.");
+                "A separator doesn't need anything from you: it splits the phases the inlet already has, unless you override T or P.");
         }
 
         private static ObjectDegreesOfFreedom HeatExchanger(ISimulationObject obj, string tag)
@@ -712,7 +712,7 @@ namespace DWSIM.Automation.FluentAPI.Diagnostics
 
             var note = hasCondenser && hasReboiler
                 ? "Stages, two pressures, one condenser specification and one reboiler specification fix a distillation column."
-                : "An absorber has no condenser or reboiler, so stages and pressures are all it needs; the feeds do the rest.";
+                : "An absorber doesn't have a condenser or reboiler, so stages and pressures are all it needs; the feeds do the rest.";
 
             return new ObjectDegreesOfFreedom(tag, type.ToString(), Text(obj, "SolvingMethodName"), true, slots, note);
         }
@@ -747,7 +747,7 @@ namespace DWSIM.Automation.FluentAPI.Diagnostics
             var gibbs = type == ObjectType.RCT_Gibbs;
 
             slots.Add(new SpecificationSlot("Reaction set", "ReactionSetID", active, "", !gibbs, active > 0,
-                gibbs ? "A Gibbs reactor can minimise over the elements alone, with no reactions listed." :
+                gibbs ? "A Gibbs reactor can minimise over the elements alone, without any reactions listed." :
                         active + " active reaction(s) in the set."));
 
             switch (mode)
@@ -768,7 +768,7 @@ namespace DWSIM.Automation.FluentAPI.Diagnostics
                     break;
                 default:
                     slots.Add(new SpecificationSlot("Thermal mode", "ReactorOperationMode", null, "", false, true,
-                        mode == "Adiabatic" ? "No duty: the outlet temperature follows from the heat of reaction." :
+                        mode == "Adiabatic" ? "The duty is zero: the outlet temperature follows from the heat of reaction." :
                                               "Outlet at the inlet temperature; the duty is computed."));
                     break;
             }
@@ -879,7 +879,7 @@ namespace DWSIM.Automation.FluentAPI.Diagnostics
         private static ObjectDegreesOfFreedom Recycle(ISimulationObject obj, string tag)
         {
             return new ObjectDegreesOfFreedom(tag, "Recycle", "", true, new List<SpecificationSlot>(),
-                "A recycle needs no specification; it tears the loop and iterates until its inlet matches its outlet.");
+                "A recycle doesn't need a specification; it tears the loop and iterates until its inlet matches its outlet.");
         }
 
         // ── Helpers ───────────────────────────────────────────────────────────

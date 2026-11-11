@@ -447,7 +447,7 @@ Namespace Reactors
                 End If
                 If isAcidTechnology AndAlso Not acidAssigned Then
                     FlowSheet?.ShowMessage(String.Format(
-                        "{0}: no acid compound is assigned, so the combined severity takes pH {1:0.0}. Assign the acid in the feed " &
+                        "{0}: an acid compound isn't assigned, so the combined severity takes pH {1:0.0}. Assign the acid in the feed " &
                         "to have the pH computed from its concentration.", Me.GraphicObject.Tag, CalibrationPH),
                         IFlowsheet.MessageType.Warning)
                 End If

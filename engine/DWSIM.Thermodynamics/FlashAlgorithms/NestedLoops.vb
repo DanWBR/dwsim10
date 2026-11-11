@@ -2080,7 +2080,7 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                     'an interval that closes on a jump of the enthalpy holds no root: the bubble and dew points
                     'were no pair of this feed
                     If bracketed AndAlso Vhi - Vlo < 0.000001 AndAlso Math.Abs(H1) > 0.01 Then
-                        Throw New Exception("PH Flash [NL]: Invalid result: the enthalpy is met at no vapour fraction between the bubble and dew points (P = " & P & " Pa).")
+                        Throw New Exception("PH Flash [NL]: Invalid result: the enthalpy isn't met at any vapour fraction between the bubble and dew points (P = " & P & " Pa).")
                     End If
                     IObj?.Paragraphs.Add(String.Format("Enthalpy Error (Spec - Calculated): {0}", H1))
                 Loop Until Abs(H1) < itol Or ecount > maxitEXT
@@ -2716,7 +2716,7 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                     'an interval that closes on a jump of the entropy holds no root: the bubble and dew points
                     'were no pair of this feed
                     If bracketed AndAlso Vhi - Vlo < 0.000001 AndAlso Math.Abs(S1) > 0.01 Then
-                        Throw New Exception("PS Flash [NL]: Invalid result: the entropy is met at no vapour fraction between the bubble and dew points (P = " & P & " Pa).")
+                        Throw New Exception("PS Flash [NL]: Invalid result: the entropy isn't met at any vapour fraction between the bubble and dew points (P = " & P & " Pa).")
                     End If
                     IObj?.Paragraphs.Add(String.Format("Entropy Error (Spec - Calculated): {0}", S1))
                 Loop Until Abs(S1) < itol Or ecount > maxitEXT
@@ -3345,7 +3345,7 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
                         End Try
                     Next
                 End If
-                If unconfirmed OrElse (IsRestart AndAlso Double.IsNaN(P)) Then Throw New Exception("TV Flash [NL]: no bubble point found (the result at P = " & P & " Pa is not a saturation point).")
+                If unconfirmed OrElse (IsRestart AndAlso Double.IsNaN(P)) Then Throw New Exception("TV Flash [NL]: didn't find a bubble point (the result at P = " & P & " Pa is not a saturation point).")
 
             Else
 
@@ -3525,7 +3525,7 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
             End If
 
             If PP.AUX_CheckTrivial(Ki, 0.01, Vz) Then Throw New Exception("TV Flash [NL]: Invalid result: converged to the trivial solution (P = " & P & " ).")
-            If SaturationPointRejected(Vz, T, P, V, Vx, Vy, PP) Then Throw New Exception("TV Flash [NL]: Invalid result: the feed has no incipient phase at P = " & P & " Pa (not a saturation point).")
+            If SaturationPointRejected(Vz, T, P, V, Vx, Vy, PP) Then Throw New Exception("TV Flash [NL]: Invalid result: the feed doesn't have an incipient phase at P = " & P & " Pa (not a saturation point).")
 
             WriteDebugInfo("TV Flash [NL]: Converged in " & ecount & " iterations. Time taken: " & dt.TotalMilliseconds & " ms.")
 
@@ -3899,7 +3899,7 @@ out:        WriteDebugInfo("PT Flash [NL]: Converged in " & ecount & " iteration
             'fails outright, since the ideal-solution fallback below would put Raoult's law in its place. The
             'bubble and dew points of the azeotrope interpolation keep the earlier acceptance.
             If Not AcceptStalledSaturationPoint AndAlso Not CalculatingAzeotrope AndAlso result.Count > 1 AndAlso SaturationPointRejected(Vz, result(4), P, V, result(2), result(3), PP) Then
-                Throw New Exception("PV Flash [NL]: Invalid result: the feed has no incipient phase at T = " & result(4) & " K (not a saturation point).")
+                Throw New Exception("PV Flash [NL]: Invalid result: the feed doesn't have an incipient phase at T = " & result(4) & " K (not a saturation point).")
             End If
 
             'Nor is a result between the bubble and dew points that is no two-phase state of the model.

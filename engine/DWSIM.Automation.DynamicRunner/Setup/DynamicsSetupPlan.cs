@@ -326,7 +326,7 @@ namespace DWSIM.Automation.DynamicRunner.Setup
                         ? "The " + spec.Label + " of " + DynamicsReadiness.Fmt(current) + " m³ holds the flow for " + DescribeTime(tau) +
                           ", which is " + (tau < spec.TargetSeconds ? "much shorter" : "much longer") + " than the " + DescribeTime(spec.TargetSeconds) +
                           " this kind of equipment usually has."
-                        : "The " + spec.Label + " is zero, so nothing accumulates and the unit shows no lag.";
+                        : "The " + spec.Label + " is zero, so material doesn't accumulate and the unit doesn't show any lag.";
 
                     issues.Add(new DynamicsIssue
                     {
@@ -371,7 +371,7 @@ namespace DWSIM.Automation.DynamicRunner.Setup
                             Category = DynamicsIssueCategory.Holdup,
                             ObjectId = obj.Name,
                             ObjectTag = tag,
-                            Message = "The wall has no thermal mass, so the outlet temperature answers a change in duty or flow with no lag from the metal.",
+                            Message = "The wall doesn't have thermal mass, so the outlet temperature answers a change in duty or flow without any lag from the metal.",
                             Fix = "Enter the metal's mass times its specific heat (Wall Thermal Mass, kJ/K) if that lag matters to the study.",
                             CanAutoFix = false
                         });
@@ -570,7 +570,7 @@ namespace DWSIM.Automation.DynamicRunner.Setup
                                         " % of its differential, " + DynamicsReadiness.Fmt(dropSteady / 1000.0) + " kPa here."
                                       : "the steady state has " + DynamicsReadiness.Fmt(dropSteady / 1000.0) + " kPa."),
                         Fix = "Set it to " + DynamicsReadiness.Fmt(kNeeded) + " (flow over the square root of the pressure drop" +
-                              (dropSteady < tokenDrop ? ", with a token 1 kPa drop since the steady state has none" : "") +
+                              (dropSteady < tokenDrop ? ", with a token 1 kPa drop since the steady state doesn't have one" : "") +
                               (isMachine ? "), so the machine carries a realistic internal loss." : "), so the unit reproduces its steady-state pressure drop."),
                         CanAutoFix = true,
                         ValueLabel = property,
@@ -677,7 +677,7 @@ namespace DWSIM.Automation.DynamicRunner.Setup
                     ObjectId = obj.Name,
                     ObjectTag = tag,
                     Category = DynamicsIssueCategory.Control,
-                    Message = "Nothing controls the level in " + tag + ", which drains through " +
+                    Message = "The level in " + tag + " isn't controlled, and it drains through " +
                               finalElement.GraphicObject.Tag + ". It will fill or empty without limit.",
                     Fix = "Add a level controller holding " + DynamicsReadiness.Fmt(setpoint) +
                           " m by moving the opening of " + finalElement.GraphicObject.Tag + ".",

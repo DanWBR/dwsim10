@@ -180,7 +180,7 @@ namespace DWSIM.Automation.FluentAPI.Dynamics
             if (controllers.Count == 0)
             {
                 return new PidTuningResult(new TunedController[0], 0, 0, 0, false, false, log,
-                    new InvalidOperationException("No PID controller to tune on this flowsheet."));
+                    new InvalidOperationException("This flowsheet doesn't have a PID controller to tune."));
             }
 
             var unwired = controllers
@@ -194,7 +194,7 @@ namespace DWSIM.Automation.FluentAPI.Dynamics
             {
                 return new PidTuningResult(new TunedController[0], 0, 0, 0, false, false, log,
                     new InvalidOperationException(
-                        "These controllers have no process or manipulated variable wired: " +
+                        "These controllers don't have a process or manipulated variable wired: " +
                         string.Join(", ", unwired) + "."));
             }
 
@@ -213,7 +213,7 @@ namespace DWSIM.Automation.FluentAPI.Dynamics
                 schedule.InitialFlowsheetStateID = BaselineStateId;
                 schedule.UseCurrentStateAsInitial = false;
                 addedBaseline = true;
-                Report(options, log, "No initial state on schedule '" + schedule.Description +
+                Report(options, log, "There wasn't an initial state on schedule '" + schedule.Description +
                                      "'; captured the current one as the tuning baseline.");
             }
 
@@ -401,7 +401,7 @@ namespace DWSIM.Automation.FluentAPI.Dynamics
                               string.Equals(c.Name, t, StringComparison.OrdinalIgnoreCase))).ToList();
 
             if (missing.Count > 0)
-                throw new KeyNotFoundException("No PID controller tagged " +
+                throw new KeyNotFoundException("Couldn't find a PID controller tagged " +
                     string.Join(", ", missing.Select(m => "'" + m + "'")) + " on this flowsheet.");
 
             return selected;

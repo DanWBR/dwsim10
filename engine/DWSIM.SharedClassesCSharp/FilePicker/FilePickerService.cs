@@ -20,7 +20,7 @@ namespace DWSIM.SharedClassesCSharp.FilePicker
 
 
         private Func<IFilePicker> _filePickerFactory = () => throw new InvalidOperationException(
-            "No file picker was registered. The host calls SetFilePickerFactory at startup.");
+            "A file picker wasn't registered. The host calls SetFilePickerFactory at startup.");
         public void SetFilePickerFactory(Func<IFilePicker> filePickerFactory)
         {
             _filePickerFactory = filePickerFactory;

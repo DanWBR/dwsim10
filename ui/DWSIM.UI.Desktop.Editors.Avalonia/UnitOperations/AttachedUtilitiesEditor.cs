@@ -107,7 +107,7 @@ namespace DWSIM.UI.Desktop.Editors
 
             if (simobj.AttachedUtilities.Count == 0)
             {
-                panel.CreateAndAddDescriptionRow("Nothing attached to this object yet.");
+                panel.CreateAndAddDescriptionRow("There isn't anything attached to this object yet.");
                 return;
             }
 

@@ -189,7 +189,7 @@ public sealed class PackageComparisonWindow : Window
         p.CreateAndAddTextBoxRow(_nf, "Points per curve", _in.Points, (tb, _) => { if (UtilityHelpers.TryVal(tb.Text, out var v)) _in.Points = (int)v; });
 
         p.CreateAndAddLabelRow("Property packages");
-        if (_packages.Count == 0) p.CreateAndAddDescriptionRow("The simulation has no property package; add some (Peng-Robinson, NRTL, UNIFAC...) and open this tool again.");
+        if (_packages.Count == 0) p.CreateAndAddDescriptionRow("The simulation doesn't have a property package; add some (Peng-Robinson, NRTL, UNIFAC...) and open this tool again.");
         foreach (var tag in _packages)
         {
             var t = tag;
@@ -212,7 +212,7 @@ public sealed class PackageComparisonWindow : Window
     private string DataSummary()
     {
         int n = _in.Data().Count;
-        return n == 0 ? "No measured points loaded. The curves are still drawn and compared with each other." : n + " point(s)" + (string.IsNullOrEmpty(_in.DatasetLabel) ? "" : " from " + _in.DatasetLabel) + ".";
+        return n == 0 ? "Measured points aren't loaded. The curves are still drawn and compared with each other." : n + " point(s)" + (string.IsNullOrEmpty(_in.DatasetLabel) ? "" : " from " + _in.DatasetLabel) + ".";
     }
 
     private string DataToText()

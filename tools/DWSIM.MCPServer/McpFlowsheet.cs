@@ -53,10 +53,10 @@ namespace DWSIM.MCPServer
         public List<Exception> SolveFlowsheet(CancellationToken token, int timeoutSeconds = 300)
         {
             if (PropertyPackages.Count == 0)
-                throw new InvalidOperationException("No property package set. Call dwsim_thermo_set_property_package first.");
+                throw new InvalidOperationException("A property package isn't set. Call dwsim_thermo_set_property_package first.");
 
             if (SelectedCompounds.Count == 0)
-                throw new InvalidOperationException("No compounds added. Call dwsim_thermo_add_compounds first.");
+                throw new InvalidOperationException("Compounds haven't been added. Call dwsim_thermo_add_compounds first.");
 
             Task<List<Exception>> solveTask = new Task<List<Exception>>(() =>
             {

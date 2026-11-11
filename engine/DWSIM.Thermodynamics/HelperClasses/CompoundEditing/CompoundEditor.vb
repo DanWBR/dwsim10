@@ -135,7 +135,7 @@ Namespace CompoundEditing
             Dim text = File.ReadAllText(jsonPath)
             Dim cp = Newtonsoft.Json.JsonConvert.DeserializeObject(Of ConstantProperties)(text)
             If cp Is Nothing Then Throw New InvalidDataException("The file does not contain a DWSIM compound.")
-            If String.IsNullOrWhiteSpace(cp.Name) Then Throw New InvalidDataException("The compound in the file has no name.")
+            If String.IsNullOrWhiteSpace(cp.Name) Then Throw New InvalidDataException("The compound in the file doesn't have a name.")
             If String.IsNullOrWhiteSpace(cp.OriginalDB) Then cp.OriginalDB = "User"
             cp.CurrentDB = "User"
             cp.LinkedJsonFile = System.IO.Path.GetFullPath(jsonPath)

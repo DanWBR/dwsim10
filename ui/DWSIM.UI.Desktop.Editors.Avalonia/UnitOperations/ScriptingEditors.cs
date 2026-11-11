@@ -178,7 +178,7 @@ namespace DWSIM.UI.Desktop.Editors
                     var name = spreadsheet.EmbeddedFileName;
                     if (string.IsNullOrEmpty(name) || !flowsheet.FileDatabaseProvider.CheckIfExists(name))
                     {
-                        flowsheet.ShowMessage("No embedded spreadsheet is selected.", IFlowsheet.MessageType.GeneralError);
+                        flowsheet.ShowMessage("An embedded spreadsheet isn't selected.", IFlowsheet.MessageType.GeneralError);
                         return;
                     }
                     path = System.IO.Path.Combine(System.IO.Path.GetTempPath(),

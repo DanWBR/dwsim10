@@ -429,7 +429,7 @@ Namespace MathEx.Optimization
                             "  mindamp=" & mindamp.ToString("F2") &
                             "  t=" & t.ToString("E2") & "  backtracks=" & tries &
                             "  |F| " & fxsum.ToString("E3") & " -> " & ftrialsum.ToString("E3") &
-                            If(accepted, "", "   NO DECREASE, combination abandoned"))
+                            If(accepted, "", "   DIDN'T DECREASE, combination abandoned"))
                     End If
 
                     If Not accepted Then

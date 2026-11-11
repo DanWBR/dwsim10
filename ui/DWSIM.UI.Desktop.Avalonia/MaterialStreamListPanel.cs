@@ -202,7 +202,7 @@ public sealed class MaterialStreamListPanel : DockPanel
             if (_streams.Count == 0)
             {
                 _lblLastUpdate.Text = "Updated on: " + DateTime.Now.ToString("HH:mm:ss") +
-                                      " (no material streams)";
+                                      " (there aren't any material streams)";
                 return;
             }
 

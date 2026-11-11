@@ -2158,7 +2158,7 @@ Namespace Reactors
                 Dim lpstatus = MathEx.LinearProgramming.Simplex.Minimize(balance, totals, energies, resc)
 
                 If lpstatus <> MathEx.LinearProgramming.SimplexStatus.Optimal Then
-                    Throw New Exception("The element balance of this reactor has no non-negative solution (" &
+                    Throw New Exception("The element balance of this reactor doesn't have a non-negative solution (" &
                                         lpstatus.ToString() & "). Check the compounds and the inlet stream.")
                 End If
 

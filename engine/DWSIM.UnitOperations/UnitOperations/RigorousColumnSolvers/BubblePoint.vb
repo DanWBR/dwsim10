@@ -749,7 +749,7 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                     xa = xb : fa = fb
                     xb = xt : fb = ft
                 End If
-                If evals > maxits OrElse fails > 8 Then Throw New Exception("no bottoms rate in reach meets the reboiler specification")
+                If evals > maxits OrElse fails > 8 Then Throw New Exception("couldn't find a bottoms rate in reach that meets the reboiler specification")
                 Dim dir As Integer = Math.Sign(xb - xa)
                 Dim xend As Double = If(dir > 0, hi, lo)
                 Dim xmax As Double = xb + 0.5 * (xend - xb)
@@ -758,7 +758,7 @@ Namespace UnitOperations.Auxiliary.SepOps.SolvingMethods
                     Dim xs As Double = xb - fb * (xb - xa) / (fb - fa)
                     If (xs - xb) * dir > 0 AndAlso (xs - xmax) * dir < 0 Then xn = xs
                 End If
-                If Math.Abs(xn - xb) < 0.000000001 * (bhi - blo) Then Throw New Exception("no bottoms rate in reach meets the reboiler specification")
+                If Math.Abs(xn - xb) < 0.000000001 * (bhi - blo) Then Throw New Exception("couldn't find a bottoms rate in reach that meets the reboiler specification")
                 Dim fn As Double = fsafe(xn)
                 If Double.IsNaN(fn) Then
                     If dir > 0 Then hi = xn Else lo = xn

@@ -374,7 +374,7 @@ namespace DWSIM.Automation.FluentAPI
             if (fs == null) throw new ArgumentNullException(nameof(fs));
             if (configure == null) return fs;
             var pp = fs.Inner.PropertyPackages.Values.LastOrDefault()
-                  ?? throw new InvalidOperationException("No property package registered yet - call WithPropertyPackage first.");
+                  ?? throw new InvalidOperationException("A property package isn't registered yet - call WithPropertyPackage first.");
             configure(new PropertyPackageBuilder(fs, pp));
             return fs;
         }

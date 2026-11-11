@@ -138,9 +138,9 @@ public sealed class UnitOpExtensionsManagerWindow : Window
         }
 
         if (DWSIM.FlowsheetBase.FlowsheetBase.AvailableUnitOperationExtensions.Count == 0)
-            _status.Text = "No unit operation extensions are installed.";
+            _status.Text = "Unit operation extensions aren't installed.";
         else if (_unitOps.Count == 0)
-            _status.Text = "This flowsheet has no unit operations.";
+            _status.Text = "This flowsheet doesn't have any unit operations.";
         else
             _gridUnitOps.SelectedIndex = 0;
     }
@@ -178,7 +178,7 @@ public sealed class UnitOpExtensionsManagerWindow : Window
         if (_extensions.Count == 0)
             _extPanel.Children.Add(new TextBlock
             {
-                Text = "No unit operation extensions are installed.", FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11), Opacity = 0.8
+                Text = "Unit operation extensions aren't installed.", FontSize = DWSIM.UI.Shared.Avalonia.UiScale.Font(11), Opacity = 0.8
             });
         else
             ShowExtensionDetails(_extensions[0]);

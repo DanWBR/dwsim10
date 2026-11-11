@@ -150,7 +150,7 @@ namespace DWSIM.MCPServer.Tools.UnitOps
         {
             foreach (DWSIM.Interfaces.ISimulationObject o in fs.Inner.SimulationObjects.Values)
                 if (o.GraphicObject?.Tag == tag) return o;
-            throw new ArgumentException($"No {what} with tag '{tag}'.");
+            throw new ArgumentException($"There isn't any {what} with tag '{tag}'.");
         }
 
         private static ArgumentException PortError(DWSIM.Interfaces.ISimulationObject uo, string unitop, string why) =>
@@ -176,7 +176,7 @@ namespace DWSIM.MCPServer.Tools.UnitOps
                 if (cons[i].IsEnergyConnector || cons[i].Type == DWSIM.Interfaces.Enums.GraphicObjects.ConType.ConEn) energy.Add(i);
             if (port >= 0 && port < energy.Count) return energy[port];
             if (energy.Contains(port)) return port;
-            throw PortError(uo, unitop, energy.Count == 0 ? $"has no energy {side}"
+            throw PortError(uo, unitop, energy.Count == 0 ? $"doesn't have an energy {side}"
                                                           : $"has {energy.Count} energy {side}(s): {param} 0 to {energy.Count - 1}");
         }
 
@@ -196,7 +196,7 @@ namespace DWSIM.MCPServer.Tools.UnitOps
             "Configure a unit operation: outlet pressure, outlet temperature, efficiency, calculation " +
             "mode, and anything else the model exposes. Names are matched against the property system, " +
             "the dynamic properties and the model's own properties, so both 'PROP_CO_1' and " +
-            "'OutletPressure' work; an enum is given by name. A name that matches nothing comes back " +
+            "'OutletPressure' work; an enum is given by name. A name that doesn't match anything comes back " +
             "with the ones that would have. Call dwsim_unitop_get_results to see what a unit reports.")]
         public JObject Set(
             [McpParam("Flowsheet handle")] string flowsheet_id,
@@ -210,7 +210,7 @@ namespace DWSIM.MCPServer.Tools.UnitOps
                 o => o.GraphicObject != null && (o.GraphicObject.Tag == name || o.Name == name));
 
             if (obj == null)
-                throw new ArgumentException($"No unit operation with tag or id '{name}'.");
+                throw new ArgumentException($"There isn't a unit operation with tag or id '{name}'.");
 
             var applied = PropertySetter.Apply(obj, AsValues(properties),
                                                fs.Inner.FlowsheetOptions.SelectedUnitSystem);
