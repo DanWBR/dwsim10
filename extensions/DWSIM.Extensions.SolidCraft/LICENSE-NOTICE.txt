@@ -9,5 +9,18 @@ Resources/osifont.ttf
   The extension embeds the font and writes it next to a process flow diagram,
   for the user to install, when it is not installed on the computer.
 
+Resources/dexpi_identifiers.tsv
+  The IUPAC name and the ChEBI identifier of the compounds of DWSIM's databases,
+  by CAS number, written into the DEXPI models the extension exports.
+  Source: PubChem (https://pubchem.ncbi.nlm.nih.gov), National Center for
+  Biotechnology Information, U.S. National Library of Medicine, through its
+  PUG REST service: the IUPAC name computed by PubChem for each compound and the
+  ChEBI identifier it lists for it. PubChem data is in the public domain.
+  The ChEBI identifiers are those of ChEBI, Chemical Entities of Biological
+  Interest (https://www.ebi.ac.uk/chebi), EMBL-EBI, licensed under the Creative
+  Commons Attribution 4.0 International License (CC BY 4.0),
+  https://creativecommons.org/licenses/by/4.0/. Only the identifiers are used;
+  nothing was changed in them.
+
 SolidCraft and CADCraft are separate programs the user installs; the extension
 only runs their command-line tools and links nothing of them.

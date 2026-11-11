@@ -16,6 +16,7 @@
     <EmbeddedResource Include="Resources\osifont.ttf" LogicalName="$(RootNamespace).osifont.ttf" />
     <EmbeddedResource Include="Resources\Model3D.ico" LogicalName="$(RootNamespace).Model3D.ico" />
     <EmbeddedResource Include="Resources\Sheets.ico" LogicalName="$(RootNamespace).Sheets.ico" />
+    <EmbeddedResource Include="Resources\dexpi_identifiers.tsv" LogicalName="$(RootNamespace).dexpi_identifiers.tsv" />
   </ItemGroup>
 
   <!--

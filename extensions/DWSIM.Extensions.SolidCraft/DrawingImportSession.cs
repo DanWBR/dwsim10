@@ -110,7 +110,9 @@ namespace DWSIM.Extensions.SolidCraft
         public void Propose()
         {
             Tidied = Reading.Tidy();
-            var renamed = Reading.ResolveCompounds(n => DrawingImportBuilder.CompoundName(Flowsheet, n));
+            // by a name the database knows, else by the CAS number an IUPAC name or a ChEBI identifier stands for
+            var renamed = Reading.ResolveCompounds(n => DrawingImportBuilder.CompoundName(Flowsheet, n) ??
+                (DexpiIdentifiers.CasOf(n) is string cas ? DrawingImportBuilder.CompoundName(Flowsheet, cas) : null));
             if (renamed.Count > 0)
                 Tidied.Add(new ImportIssue(ImportIssue.Levels.Info, "", "compounds found by their CAS number or other name: " + string.Join(", ", renamed)));
             Setup = new ImportSetup();

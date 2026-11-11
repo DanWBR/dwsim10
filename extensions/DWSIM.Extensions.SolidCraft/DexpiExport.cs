@@ -215,6 +215,10 @@ namespace DWSIM.Extensions.SolidCraft
                         var c = new Obj(Id("Component"), "Process/Process.PureMaterialComponent").Data("Identifier", Str(name)).Data("Label", Str(name));
                         var cas = fs.SelectedCompounds[name]?.CAS_Number;
                         if (!string.IsNullOrWhiteSpace(cas)) c.Data("Description", Text("CAS " + cas.Trim()));
+                        // the identifiers the standard names a pure compound by, where the table has them
+                        var ids = DexpiIdentifiers.Of(cas);
+                        if (ids.Chebi.Length > 0) c.Data("ChEBI_Identifier", Str(ids.Chebi));
+                        if (ids.Iupac.Length > 0) c.Data("IUPAC_Identifier", Str(ids.Iupac));
                         return c;
                     }).ToArray();
                     var list = new Obj("ComponentList_1", "Process/Process.ListOfMaterialComponents").Ref("Component", components);
