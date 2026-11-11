@@ -26,6 +26,7 @@ using DWSIM.UnitOperations.Reactors;
 using DWSIM.UnitOperations.SpecialOps;
 using DWSIM.UnitOperations.SpecialOps.Helpers;
 using DWSIM.UnitOperations.UnitOperations;
+using DWSIM.UnitOperations.UnitOperations.Auxiliary.Pipe;
 
 namespace DWSIM.Extensions.SolidCraft
 {
@@ -43,6 +44,16 @@ namespace DWSIM.Extensions.SolidCraft
 
         /// <summary>Set the items from the stream table: outlet temperatures and pressures, split ratios, feeds.</summary>
         public bool SpecsFromTable = true;
+
+        /// <summary>
+        /// Make a pipe segment of each line whose line number gives its size (a P&amp;ID): a straight
+        /// run of <see cref="PipeLength"/> with the diameters of the size, for the user to give its
+        /// true route (by hand or from the line's isometric).
+        /// </summary>
+        public bool PipeSegments;
+
+        /// <summary>The length the pipe segments start with, in m.</summary>
+        public double PipeLength = 10.0;
     }
 
     /// <summary>
@@ -64,8 +75,167 @@ namespace DWSIM.Extensions.SolidCraft
             public List<ImportIssue> Issues = new List<ImportIssue>();
             public int Recycles;
 
+            /// <summary>The pipe segments made of the sized lines.</summary>
+            public int Pipes;
+
             /// <summary>True when the reading updated the flowsheet's own items and streams, with nothing added.</summary>
             public bool Updated;
+        }
+
+        /// <summary>
+        /// Adds a unit operation that does not have an object type of its own (the Relief Valve), by
+        /// the name it has among the flowsheet's objects. Null when the flowsheet does not have it or
+        /// cannot place it.
+        /// </summary>
+        static ISimulationObject AddExternal(IFlowsheet fs, string displayName, int x, int y, string tag)
+        {
+            try
+            {
+                if (fs.AvailableSimulationObjects == null || !fs.AvailableSimulationObjects.TryGetValue(displayName, out var template)) return null;
+                if (!(template is IExternalUnitOperation external)) return null;
+                var fresh = external.ReturnInstance(template.GetType().AssemblyQualifiedName) as IExternalUnitOperation;
+                if (fresh == null) return null;
+                // the cross-platform and automation flowsheets place objects themselves, the Classic one through its surface
+                object host = fs;
+                var method = fs.GetType().GetMethod("AddObjectToSurface");
+                if (method == null)
+                {
+                    host = fs.GetType().GetField("FormSurface")?.GetValue(fs);
+                    method = host?.GetType().GetMethod("AddObjectToSurface");
+                }
+                if (method == null) return null;
+                var args = method.GetParameters().Select(p =>
+                {
+                    switch (p.Name.ToLowerInvariant())
+                    {
+                        case "type": return (object)ObjectType.External;
+                        case "x": return x;
+                        case "y": return y;
+                        case "tag": return tag;
+                        case "uoobj": return fresh;
+                        default: return p.ParameterType == typeof(bool) ? false : p.ParameterType == typeof(string) ? "" : (p.HasDefaultValue ? p.DefaultValue : null);
+                    }
+                }).ToArray();
+                var id = method.Invoke(host, args) as string;
+                return id != null && fs.SimulationObjects.TryGetValue(id, out var so) ? so : null;
+            }
+            catch (Exception) { return null; }
+        }
+
+        /// <summary>
+        /// The solved flowsheet against the design limits a P&amp;ID gives for its equipment: the
+        /// pressure and the temperature of the streams on each item, against its design pressure and
+        /// temperature. A warning for each one out of its limits.
+        /// </summary>
+        public static List<ImportIssue> DesignCheck(IFlowsheet fs, DrawingReading r, Result res)
+        {
+            var issues = new List<ImportIssue>();
+            var limited = 0;
+            foreach (var item in r.ItemsByTag().Values)
+            {
+                if (!res.Items.TryGetValue(item.Tag, out var obj)) continue;
+                double? Limit(string key) => item.Specs.TryGetValue(key, out var v) && !double.IsNaN(v) ? v : (double?)null;
+                double? pMax = Limit("design_pressure_max"), pMin = Limit("design_pressure_min"), tMax = Limit("design_temperature_max"), tMin = Limit("design_temperature_min");
+                if (!pMax.HasValue && !pMin.HasValue && !tMax.HasValue && !tMin.HasValue) continue;
+                limited++;
+                var go = obj.GraphicObject;
+                foreach (var con in go.InputConnectors.Concat(go.OutputConnectors))
+                {
+                    var graphic = con.IsAttached ? con.AttachedConnector?.AttachedFrom == go ? con.AttachedConnector?.AttachedTo : con.AttachedConnector?.AttachedFrom : null;
+                    if (graphic == null || graphic.ObjectType != ObjectType.MaterialStream || !fs.SimulationObjects.TryGetValue(graphic.Name, out var stream) || !stream.Calculated) continue;
+                    double t, p;
+                    try
+                    {
+                        t = Convert.ToDouble(stream.GetPropertyValue("PROP_MS_0"), CultureInfo.InvariantCulture);
+                        p = Convert.ToDouble(stream.GetPropertyValue("PROP_MS_1"), CultureInfo.InvariantCulture);
+                    }
+                    catch (Exception) { continue; }
+                    string Barg(double pa) => ((pa - 101325) / 1e5).ToString("0.##", CultureInfo.InvariantCulture) + " bar g";
+                    string Celsius(double k) => (k - 273.15).ToString("0.#", CultureInfo.InvariantCulture) + " C";
+                    void Out(string what) => issues.Add(new ImportIssue(ImportIssue.Levels.Warning, item.Tag, graphic.Tag + " is at " + what));
+                    if (pMax.HasValue && p > pMax.Value * 1.0001) Out(Barg(p) + ", above the design pressure of " + Barg(pMax.Value));
+                    if (pMin.HasValue && p < pMin.Value * 0.9999) Out(Barg(p) + ", below the lowest design pressure of " + Barg(pMin.Value));
+                    if (tMax.HasValue && t > tMax.Value + 0.01) Out(Celsius(t) + ", above the design temperature of " + Celsius(tMax.Value));
+                    if (tMin.HasValue && t < tMin.Value - 0.01) Out(Celsius(t) + ", below the lowest design temperature of " + Celsius(tMin.Value));
+                }
+            }
+            if (limited > 0)
+                issues.Insert(0, new ImportIssue(ImportIssue.Levels.Info, "", limited + (limited == 1 ? " item" : " items") + " checked against the design limits: " +
+                    (issues.Count == 0 ? "every stream on them is within the design pressure and temperature" : issues.Count + " values out of the limits, listed below")));
+            return issues;
+        }
+
+        /// <summary>The size a line number starts with (DN80-..., 6"-P-1234, 1 1/2"-...), or null when it does not give one.</summary>
+        public static string LineSize(string lineNumber)
+        {
+            var first = (lineNumber ?? "").Trim();
+            var dn = System.Text.RegularExpressions.Regex.Match(first, @"^DN\s*\d+", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            if (dn.Success) return dn.Value;
+            var inches = System.Text.RegularExpressions.Regex.Match(first, @"^(\d+(?:\s+\d/\d|\.\d+)?|\d/\d)\s*(?:""|''|in\b)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            return inches.Success ? inches.Groups[1].Value + "\"" : null;
+        }
+
+        /// <summary>
+        /// A pipe segment on each line that has a size: the line's stream goes into it and a new
+        /// stream takes it to where the line went. Each segment is one straight, level run of the
+        /// given length with the diameters of the size (standard wall), named by the line number.
+        /// </summary>
+        static void AddPipes(IFlowsheet fs, DrawingReading r, List<ReadLine> lines, Result res, double length)
+        {
+            foreach (var l in lines.Where(res.Streams.ContainsKey).ToList())
+            {
+                var size = LineSize(l.LineNumber);
+                if (size == null || !IsometricImport.Diameters(new IsoReading { Size = size }, out var de, out var di, out var how)) continue;
+                var ms = res.Streams[l];
+                var go = ms.GraphicObject;
+                var con = go.OutputConnectors[0].AttachedConnector;
+                var toGraphic = con?.AttachedTo;
+                var toIndex = con?.AttachedToConnectorIndex ?? 0;
+                try
+                {
+                    if (toGraphic != null) fs.DisconnectObjects(go, toGraphic);
+                    var created = fs.AddObject(ObjectType.Pipe, (int)(go.X + 50), (int)go.Y, FreeTag(fs, "PIPE-" + l.LineNumber.Trim()));
+                    var after = fs.AddObject(ObjectType.MaterialStream, (int)(go.X + 100), (int)go.Y, FreeTag(fs, go.Tag + "-P"));
+                    if (!(created is Pipe pipe) || after == null) continue;
+                    try { created.PropertyPackage = ms.PropertyPackage; after.PropertyPackage = ms.PropertyPackage; } catch (Exception) { }
+                    fs.ConnectObjects(go, created.GraphicObject, 0, 0);
+                    fs.ConnectObjects(created.GraphicObject, after.GraphicObject, 0, 0);
+                    if (toGraphic != null)
+                    {
+                        fs.ConnectObjects(after.GraphicObject, toGraphic, 0, toIndex);
+                        // a column knows its feeds by stream: the stream after the pipe takes the stage
+                        if (fs.SimulationObjects.TryGetValue(toGraphic.Name, out var to) && to is Column column)
+                        {
+                            var info = column.MaterialStreams.Values.FirstOrDefault(s => s.StreamID == ms.Name);
+                            if (info != null)
+                            {
+                                column.MaterialStreams.Remove(info.ID);
+                                info.ID = after.Name;
+                                info.StreamID = after.Name;
+                                column.MaterialStreams[info.ID] = info;
+                            }
+                        }
+                    }
+                    var material = IsometricImport.Material("");
+                    pipe.Profile.Sections.Clear();
+                    pipe.Profile.Sections.Add(1, new PipeSection
+                    {
+                        Indice = 1, TipoSegmento = "Tubulaosimples", Quantidade = 1, Incrementos = Math.Max(5, Math.Min(50, (int)Math.Ceiling(length))),
+                        Material = material, Comprimento = length, Elevacao = 0, DE = de, DI = di,
+                    });
+                    pipe.Profile.DefaultMaterial = material;
+                    pipe.Profile.Status = PipeEditorStatus.OK;
+                    AddEnergyStreams(fs, created, res, true);
+                    res.Pipes++;
+                }
+                catch (Exception ex)
+                {
+                    res.Issues.Add(new ImportIssue(ImportIssue.Levels.Warning, l.LineNumber, "the pipe segment could not be made: " + ex.GetBaseException().Message));
+                }
+            }
+            if (res.Pipes > 0)
+                res.Issues.Add(new ImportIssue(ImportIssue.Levels.Info, "", res.Pipes + " pipe segments made of the sized lines, each a straight run of " +
+                    length.ToString("G4", CultureInfo.InvariantCulture) + " m with the diameters of its size: give each one its route, by hand or with Import Pipe Segment from Piping Isometric"));
         }
 
         /// <summary>
@@ -191,9 +361,24 @@ namespace DWSIM.Extensions.SolidCraft
             foreach (var item in items.Values)
             {
                 ObjectType type;
-                if (!Enum.TryParse(item.Type, out type)) { Note(ImportIssue.Levels.Error, item.Tag, "unknown object type " + item.Type); continue; }
                 var tag = FreeTag(fs, item.Tag);
-                var obj = fs.AddObject(type, (int)Px(item, n), (int)Py(item, n), tag);
+                ISimulationObject obj;
+                if (item.Type == "ReliefValve")
+                {
+                    // the relief valve does not have an object type of its own: it is added by its name, and where the
+                    // flowsheet cannot do that the item becomes a plain valve
+                    obj = AddExternal(fs, "Relief Valve", (int)Px(item, n), (int)Py(item, n), tag);
+                    if (obj == null)
+                    {
+                        Note(ImportIssue.Levels.Info, item.Tag, "the Relief Valve could not be added here; a plain valve is used");
+                        obj = fs.AddObject(ObjectType.Valve, (int)Px(item, n), (int)Py(item, n), tag);
+                    }
+                }
+                else
+                {
+                    if (!Enum.TryParse(item.Type, out type)) { Note(ImportIssue.Levels.Error, item.Tag, "unknown object type " + item.Type); continue; }
+                    obj = fs.AddObject(type, (int)Px(item, n), (int)Py(item, n), tag);
+                }
                 n++;
                 if (obj == null) { Note(ImportIssue.Levels.Error, item.Tag, "the flowsheet did not make a " + item.Type); continue; }
                 if (tag != item.Tag) Note(ImportIssue.Levels.Info, item.Tag, "the flowsheet already has this tag; the new item is " + tag);
@@ -288,6 +473,8 @@ namespace DWSIM.Extensions.SolidCraft
                 if (setup.SpecsFromTable) SetStream(fs, back, l, r.Units, res, false);
                 res.Recycles++;
             }
+
+            if (setup.PipeSegments) AddPipes(fs, r, lines, res, setup.PipeLength);
 
             if (setup.SpecsFromTable)
             {
@@ -838,6 +1025,15 @@ namespace DWSIM.Extensions.SolidCraft
                         pu.DeltaP = 1000 * 9.80665 * head;
                         settled = true;
                         used.Add("pressure rise from the head of " + head.ToString("G4", CultureInfo.InvariantCulture) + " m at 1000 kg/m3 (correct it for the fluid's density)");
+                    }
+                    break;
+                case ReliefValve relief:
+                    if (V("set_pressure") is double setPressure && setPressure > 0)
+                    {
+                        // fully open at 10 % over the set pressure, on the gauge
+                        relief.SetPointPressure = setPressure;
+                        relief.FullyOpenedPressure = 101325 + 1.1 * (setPressure - 101325);
+                        used.Add("set pressure " + ((setPressure - 101325) / 1e5).ToString("G4", CultureInfo.InvariantCulture) + " bar g");
                     }
                     break;
                 case Tank tank:

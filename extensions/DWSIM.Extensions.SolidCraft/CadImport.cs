@@ -37,14 +37,16 @@ namespace DWSIM.Extensions.SolidCraft
     {
         /// <summary>
         /// Builds a flowsheet from a process flow diagram or a P&amp;ID (image, PDF, DXF or DWG), from a DEXPI model
-        /// (.xml, read by dwsim-dexpi without the assistant), or from a reading saved as .json. The compounds and the property package are the ones the reading suggests unless given. With
+        /// (.xml, read by dwsim-dexpi without the assistant; several files separated by semicolons are read as one
+        /// plant, the sheets of a P&amp;ID joined and a process model giving its stream data), or from a reading saved as .json. The compounds and the property package are the ones the reading suggests unless given. With
         /// <paramref name="solve"/> the flowsheet is solved and compared with the drawing's stream table; with
         /// <paramref name="fitToTable"/> (Patreon Edition) the equipment efficiencies and column reflux ratios are then
-        /// fitted to the table. Errors from the checks stop the build: they are in the session's <c>Check()</c>.
+        /// fitted to the table. With <paramref name="pipeSegments"/> each line whose number gives its size gets a pipe
+        /// segment. Errors from the checks stop the build: they are in the session's <c>Check()</c>.
         /// </summary>
         public static DrawingImportSession ImportFromDrawing(this IFlowsheet fs, string file, bool solve = true,
             string propertyPackage = null, IEnumerable<string> compounds = null, bool fitToTable = false,
-            string kind = "auto", Action<string> progress = null, CancellationToken cancel = default)
+            string kind = "auto", Action<string> progress = null, CancellationToken cancel = default, bool pipeSegments = false)
         {
             var s = new DrawingImportSession(fs);
             if (DrawingImportSession.IsReading(file))
@@ -56,6 +58,7 @@ namespace DWSIM.Extensions.SolidCraft
                 s.Read(cancel, progress);
                 s.Propose();
             }
+            s.Setup.PipeSegments = pipeSegments;
             if (!string.IsNullOrWhiteSpace(propertyPackage)) s.Setup.PropertyPackage = propertyPackage;
             if (compounds != null) s.Setup.Compounds = compounds.ToList();
 
@@ -155,7 +158,8 @@ namespace DWSIM.Extensions.SolidCraft
 
         private static string Existing(string file)
         {
-            if (!File.Exists(file)) throw new FileNotFoundException("Document not found.", file);
+            // several DEXPI files go as one text, separated by semicolons
+            if (!File.Exists(file) && !(DexpiImport.IsDexpi(file) && DexpiImport.Exist(file))) throw new FileNotFoundException("Document not found.", file);
             return file;
         }
 

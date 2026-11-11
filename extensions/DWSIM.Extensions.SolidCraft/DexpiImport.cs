@@ -55,8 +55,25 @@ namespace DWSIM.Extensions.SolidCraft
         /// <summary>The file types read as DEXPI models.</summary>
         public static readonly string[] Extensions = { ".xml" };
 
-        public static bool IsDexpi(string file) =>
-            Extensions.Any(x => (file ?? "").Trim().EndsWith(x, StringComparison.OrdinalIgnoreCase));
+        /// <summary>
+        /// The files named in the import's file box: one, or several DEXPI files separated by
+        /// semicolons (the sheets of a P&amp;ID, and a process model of the same plant).
+        /// </summary>
+        public static string[] Files(string text) =>
+            (text ?? "").Split(';').Select(f => f.Trim().Trim('"')).Where(f => f.Length > 0).ToArray();
+
+        /// <summary>Whether every file named exists.</summary>
+        public static bool Exist(string text)
+        {
+            var files = Files(text);
+            return files.Length > 0 && files.All(File.Exists);
+        }
+
+        public static bool IsDexpi(string file)
+        {
+            var files = Files(file);
+            return files.Length > 0 && files.All(f => Extensions.Any(x => f.EndsWith(x, StringComparison.OrdinalIgnoreCase)));
+        }
 
         /// <summary>
         /// The converter: the program or its Python script, in DWSIM_DEXPI_HOME, in extenders/dexpi
@@ -164,7 +181,7 @@ namespace DWSIM.Extensions.SolidCraft
                 throw new InvalidOperationException(MissingText);
             var script = converter.EndsWith(".py", StringComparison.OrdinalIgnoreCase);
             var output = Path.Combine(Path.GetTempPath(), "dwsim-dexpi-" + Guid.NewGuid().ToString("N") + ".json");
-            var args = (script ? Quote(converter) + " " : "") + Quote(file) + " -o " + Quote(output);
+            var args = (script ? Quote(converter) + " " : "") + string.Join(" ", Files(file).Select(Quote)) + " -o " + Quote(output);
             var python = script ? Python() : null;
             if (script && python == null)
                 throw new InvalidOperationException(Script + " needs Python 3.12 or newer, and none was found. " +

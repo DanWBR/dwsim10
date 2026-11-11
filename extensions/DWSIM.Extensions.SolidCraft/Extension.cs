@@ -44,7 +44,7 @@ namespace DWSIM.Extensions.SolidCraft
 
         public ExtenderLevel Level => ExtenderLevel.FlowsheetWindow;
 
-        public List<IExtender> Collection { get; } = new List<IExtender> { new PlantModelExtender(), new UpdateDataExtender(), new ResetLayoutExtender(), new ProcessFlowDiagramExtender(), new PipingAndInstrumentationExtender(), new EquipmentDrawingsExtender(), new PipingIsometricsExtender(), new DataSheetsExtender(), new PlotPlanExtender(), new AllDrawingsExtender(), new DexpiExportExtender(), new DrawingImportExtender(), new IsometricImportExtender(), new DataSheetImportExtender() };
+        public List<IExtender> Collection { get; } = new List<IExtender> { new PlantModelExtender(), new UpdateDataExtender(), new ResetLayoutExtender(), new ProcessFlowDiagramExtender(), new PipingAndInstrumentationExtender(), new EquipmentDrawingsExtender(), new PipingIsometricsExtender(), new DataSheetsExtender(), new PlotPlanExtender(), new AllDrawingsExtender(), new DexpiExportExtender(), new DexpiPidExportExtender(), new DrawingImportExtender(), new IsometricImportExtender(), new DataSheetImportExtender() };
 
         /// <summary>After Results, before the menus of the window itself.</summary>
         public int InsertAtPosition => 9;
@@ -991,6 +991,51 @@ namespace DWSIM.Extensions.SolidCraft
         }
 
         internal static string SuggestedName(IFlowsheet fs) => PlantModelExtender.ModelName(fs) + ".dexpi.xml";
+    }
+
+    /// <summary>
+    /// Writes the flowsheet's P&amp;ID as a DEXPI plant model, with what the P&amp;ID drawing shows: the file
+    /// P&amp;ID tools read. Needs neither SolidCraft nor CADCraft.
+    /// </summary>
+    public class DexpiPidExportExtender : IExtender, IExtender3
+    {
+        IFlowsheet Flowsheet;
+
+        public string ID => "7e2b9a54-1c6f-4d83-b0e7-a93f5d281c4b";
+
+        public string DisplayText => "Export DEXPI P&ID Model...";
+
+        public byte[] DisplayImage => PlantModelExtender.Icon();
+
+        public int InsertAtPosition => -1;
+
+        public void SetMainWindow(object mainwindow) { }
+
+        public void SetFlowsheet(IFlowsheet form) => Flowsheet = form;
+
+        public void ReleaseResources() => Flowsheet = null;
+
+        public void Run()
+        {
+            if (Flowsheet != null) DexpiPidExportPrompt.Show(Flowsheet);
+        }
+
+        /// <summary>Writes the model to the file the user chose and tells the flowsheet's log what went in.</summary>
+        internal static void Export(IFlowsheet fs, string file)
+        {
+            try
+            {
+                var result = DexpiPlantExport.ExportPlantModel(fs, file);
+                fs.ShowMessage("DEXPI P&ID export: " + result + ".", IFlowsheet.MessageType.Information);
+                foreach (var note in result.Notes) fs.ShowMessage("DEXPI P&ID export: " + note, IFlowsheet.MessageType.Information);
+            }
+            catch (Exception ex)
+            {
+                fs.ShowMessage("DEXPI P&ID export: the model could not be written: " + ex.GetBaseException().Message, IFlowsheet.MessageType.GeneralError);
+            }
+        }
+
+        internal static string SuggestedName(IFlowsheet fs) => PlantModelExtender.ModelName(fs) + ".pid.dexpi.xml";
     }
 
     /// <summary>Makes the hydraulic profile of a Pipe Segment from a piping isometric read by the AI Assistant.</summary>

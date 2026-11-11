@@ -108,6 +108,15 @@ namespace DWSIM.Extensions.SolidCraft
             => DexpiExport.ExportProcessModel(flowsheet, file ?? Path.Combine(ProcessFlowDiagramExtender.DrawingsFolder(flowsheet), PlantModelExtender.ModelName(flowsheet) + ".dexpi.xml"));
 
         /// <summary>
+        /// Writes the flowsheet's P&amp;ID as a DEXPI 2.0.1 plant model (XML), with what the P&amp;ID drawing shows: the
+        /// equipment with its nozzles, the lines with their numbers and sizes, the valves, the feeds and products as
+        /// off-page connectors, the instrument loops and the flowsheet's layout as the diagram. Needs neither SolidCraft
+        /// nor CADCraft. A null file is the simulation's name with ".pid.dexpi.xml" in the drawings folder.
+        /// </summary>
+        public static DexpiPlantExport.Result ExportDexpiPid(IFlowsheet flowsheet, string file = null)
+            => DexpiPlantExport.ExportPlantModel(flowsheet, file ?? Path.Combine(ProcessFlowDiagramExtender.DrawingsFolder(flowsheet), PlantModelExtender.ModelName(flowsheet) + ".pid.dexpi.xml"));
+
+        /// <summary>
         /// Draws them all into <paramref name="folder"/> and binds the drawing set; returns the drawing
         /// set's file (null when the options leave it out). Throws when no drawing could be made.
         /// </summary>

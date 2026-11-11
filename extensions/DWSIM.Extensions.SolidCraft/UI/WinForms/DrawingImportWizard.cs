@@ -87,14 +87,16 @@ namespace DWSIM.Extensions.SolidCraft
 
         #region drawing
 
-        private void txtFile_TextChanged(object sender, EventArgs e) => btnRead.Enabled = File.Exists(txtFile.Text.Trim()) && reading == null;
+        private void txtFile_TextChanged(object sender, EventArgs e) => btnRead.Enabled = DexpiImport.Exist(txtFile.Text) && reading == null;
 
         private void btnBrowse_Click(object sender, EventArgs e)
         {
-            using (var d = new OpenFileDialog { Filter = DrawingImportSession.FileFilterText + "|" + string.Join(";", DrawingImportSession.FileExtensions.Select(x => "*" + x)) + "|All files|*.*" })
+            using (var d = new OpenFileDialog { Filter = DrawingImportSession.FileFilterText + "|" + string.Join(";", DrawingImportSession.FileExtensions.Select(x => "*" + x)) + "|All files|*.*", Multiselect = true })
             {
                 if (d.ShowDialog(this) != DialogResult.OK) return;
-                txtFile.Text = d.FileName;
+                // several files are for DEXPI models only: the sheets of a P&ID and a process model of the same plant
+                var several = d.FileNames.Length > 1 && d.FileNames.All(DexpiImport.IsDexpi);
+                txtFile.Text = several ? string.Join("; ", d.FileNames) : d.FileName;
                 ShowPreview(d.FileName);
             }
         }
@@ -160,7 +162,7 @@ namespace DWSIM.Extensions.SolidCraft
 
         void SetBusy(bool busy)
         {
-            btnRead.Enabled = !busy && File.Exists(txtFile.Text.Trim());
+            btnRead.Enabled = !busy && DexpiImport.Exist(txtFile.Text);
             btnCancelRead.Enabled = busy;
             btnOpenReading.Enabled = !busy;
             btnSaveReading.Enabled = !busy && session.Reading != null;
@@ -534,6 +536,7 @@ namespace DWSIM.Extensions.SolidCraft
         void FillChecks()
         {
             chkUpdate.Visible = session.MatchingTags() > 0;
+            chkPipes.Visible = session.SizedLines() > 0 && !chkUpdate.Checked;
             if (!chkUpdate.Visible && chkUpdate.Checked) chkUpdate.Checked = false;
             var issues = session.Check();
             Fill(dgvIssues, issues);
@@ -564,6 +567,7 @@ namespace DWSIM.Extensions.SolidCraft
         {
             session.Setup.SpecsFromTable = chkSpecs.Checked;
             session.Setup.UseDrawingUnits = chkUnits.Checked;
+            session.Setup.PipeSegments = chkPipes.Visible && chkPipes.Checked;
             btnBuild.Enabled = false;
             UseWaitCursor = true;
             Application.DoEvents();

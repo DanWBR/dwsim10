@@ -66,7 +66,7 @@ namespace DWSIM.Extensions.SolidCraft
 
         // build page
         StackPanel issues, results;
-        CheckBox specs, useUnits, solve, update;
+        CheckBox specs, useUnits, solve, update, pipes;
         Button build, fit;
         TextBlock summary;
         StackPanel fitRow, fitChoices;
@@ -111,7 +111,7 @@ namespace DWSIM.Extensions.SolidCraft
         Control DrawingPage()
         {
             file = new TextBox();
-            file.TextChanged += (_, _) => read.IsEnabled = File.Exists((file.Text ?? "").Trim()) && reading == null;
+            file.TextChanged += (_, _) => read.IsEnabled = DexpiImport.Exist(file.Text) && reading == null;
             var browse = new Button { Content = "Browse...", Margin = new Thickness(6, 0, 0, 0) };
             browse.Click += async (_, _) => await BrowseDrawing();
             kind = new ComboBox { ItemsSource = new[] { "Detect", "Process flow diagram (PFD)", "Piping and instrumentation diagram (P&ID)" }, SelectedIndex = 0, MinWidth = 320 };
@@ -160,11 +160,14 @@ namespace DWSIM.Extensions.SolidCraft
             var picked = await Storage.OpenFilePickerAsync(new FilePickerOpenOptions
             {
                 Title = "The PFD or P&ID",
+                AllowMultiple = true,
                 FileTypeFilter = new[] { new FilePickerFileType(DrawingImportSession.FileFilterText) { Patterns = DrawingImportSession.FileExtensions.Select(x => "*" + x).ToArray() }, FilePickerFileTypes.All }
             });
-            var path = picked.FirstOrDefault()?.TryGetLocalPath();
+            var paths = picked.Select(f => f.TryGetLocalPath()).Where(f => f != null).ToList();
+            var path = paths.FirstOrDefault();
             if (path == null) return;
-            file.Text = path;
+            // several files are for DEXPI models only: the sheets of a P&ID and a process model of the same plant
+            file.Text = paths.Count > 1 && paths.All(DexpiImport.IsDexpi) ? string.Join("; ", paths) : path;
             try
             {
                 var ext = Path.GetExtension(path).ToLowerInvariant();
@@ -229,7 +232,7 @@ namespace DWSIM.Extensions.SolidCraft
 
         void SetBusy(bool busy)
         {
-            read.IsEnabled = !busy && File.Exists((file.Text ?? "").Trim());
+            read.IsEnabled = !busy && DexpiImport.Exist(file.Text);
             cancelRead.IsEnabled = busy;
             saveReading.IsEnabled = !busy && session.Reading != null;
             frame.NextAllowed = !busy && session.Reading != null;
@@ -567,6 +570,7 @@ namespace DWSIM.Extensions.SolidCraft
             specs = new CheckBox { Content = "Set the items up from the stream table", IsChecked = true };
             useUnits = new CheckBox { Content = "Use the drawing's units", IsChecked = session.Flowsheet.SimulationObjects.Count == 0 };
             solve = new CheckBox { Content = "Solve and compare with the table", IsChecked = true };
+            pipes = new CheckBox { Content = "Pipe segments for the sized lines", IsChecked = false, IsVisible = false };
             update = new CheckBox { Content = "Update the items with the same tags, add nothing", IsChecked = false, IsVisible = false };
             update.IsCheckedChanged += (_, _) =>
             {
@@ -593,7 +597,7 @@ namespace DWSIM.Extensions.SolidCraft
             };
             var g = new Grid { RowDefinitions = new RowDefinitions("*,Auto,Auto,Auto,*"), RowSpacing = 6 };
             var top = new ScrollViewer { Content = issues };
-            var options = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 14, Children = { specs, useUnits, solve, update, build } };
+            var options = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 14, Children = { specs, useUnits, solve, pipes, update, build } };
             var bottom = new ScrollViewer { Content = results };
             Grid.SetRow(options, 1); Grid.SetRow(summary, 2); Grid.SetRow(fitRow, 3); Grid.SetRow(bottom, 4);
             g.Children.Add(new Border { BorderBrush = Brushes.Gray, BorderThickness = new Thickness(1), Padding = new Thickness(6), Child = top });
@@ -623,6 +627,7 @@ namespace DWSIM.Extensions.SolidCraft
         void FillChecks()
         {
             update.IsVisible = session.MatchingTags() > 0;
+            pipes.IsVisible = session.SizedLines() > 0 && update.IsChecked != true;
             if (!update.IsVisible && session.UpdateExisting) update.IsChecked = false;
             var list = session.Check();
             Show(issues, list);
@@ -636,6 +641,7 @@ namespace DWSIM.Extensions.SolidCraft
         {
             session.Setup.SpecsFromTable = specs.IsChecked == true;
             session.Setup.UseDrawingUnits = useUnits.IsChecked == true;
+            session.Setup.PipeSegments = pipes.IsVisible && pipes.IsChecked == true;
             build.IsEnabled = false;
             summary.Text = "Building the flowsheet...";
             await Task.Delay(50);

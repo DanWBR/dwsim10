@@ -236,7 +236,8 @@ namespace DWSIM.Extensions.SolidCraft
             foreach (var i in Items.Where(i => i.Include && i.Category == "Relief"))
             {
                 i.Include = false;
-                notes.Add(new ImportIssue(ImportIssue.Levels.Info, i.Tag, "relief valves carry no flow in normal operation; left out with their lines (tick it to build it)"));
+                notes.Add(new ImportIssue(ImportIssue.Levels.Info, i.Tag, "relief valves carry no flow in normal operation; left out with their lines (tick it to build it)" +
+                    (i.Specs.TryGetValue("set_pressure", out var set) ? "; set at " + ((set - 101325) / 1e5).ToString("G4", CultureInfo.InvariantCulture) + " bar g" : "")));
             }
             bool Same(string a, string b) => string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
 
@@ -459,7 +460,9 @@ namespace DWSIM.Extensions.SolidCraft
         /// <summary>
         /// What a model gives for the item itself, in SI units (a DEXPI process step): duty (W),
         /// pressure (Pa), temperature (K), efficiency and polytropic_efficiency (fractions),
-        /// pressure_ratio, reflux_ratio, area (m2), u (W/m2/K), volume (m3), head (m). Used where the stream
+        /// pressure_ratio, reflux_ratio, area (m2), u (W/m2/K), volume (m3), head (m), the set_pressure of a
+        /// relief valve (Pa), and the design limits design_pressure_max, design_pressure_min (Pa),
+        /// design_temperature_max and design_temperature_min (K), checked on the solved flowsheet. Used where the stream
         /// table leaves the item's specification open.
         /// </summary>
         public Dictionary<string, double> Specs = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
@@ -543,7 +546,7 @@ namespace DWSIM.Extensions.SolidCraft
                 case "Exchanger": return new[] { "HeatExchanger", "Heater", "Cooler" };
                 case "AirCooler": return new[] { "AirCooler2", "Cooler" };
                 case "Valve": return new[] { "Valve" };
-                case "Relief": return new[] { "Valve" };
+                case "Relief": return new[] { "ReliefValve", "Valve" };
                 case "Reactor": return new[] { "RCT_Conversion", "RCT_Equilibrium", "RCT_Gibbs" };
                 case "Cstr": return new[] { "RCT_CSTR", "RCT_Conversion" };
                 case "Pfr": return new[] { "RCT_PFR", "RCT_Conversion" };

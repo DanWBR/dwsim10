@@ -103,6 +103,7 @@ namespace DWSIM.Extensions.SolidCraft
             this.chkUnits = new System.Windows.Forms.CheckBox();
             this.chkSolve = new System.Windows.Forms.CheckBox();
             this.chkUpdate = new System.Windows.Forms.CheckBox();
+            this.chkPipes = new System.Windows.Forms.CheckBox();
             this.btnBuild = new System.Windows.Forms.Button();
             this.lblSummary = new System.Windows.Forms.Label();
             this.flpFit = new System.Windows.Forms.FlowLayoutPanel();
@@ -1048,6 +1049,7 @@ namespace DWSIM.Extensions.SolidCraft
             this.flpBuild.Controls.Add(this.chkSpecs);
             this.flpBuild.Controls.Add(this.chkUnits);
             this.flpBuild.Controls.Add(this.chkSolve);
+            this.flpBuild.Controls.Add(this.chkPipes);
             this.flpBuild.Controls.Add(this.chkUpdate);
             this.flpBuild.Controls.Add(this.btnBuild);
             this.flpBuild.Location = new System.Drawing.Point(3, 289);
@@ -1106,6 +1108,18 @@ namespace DWSIM.Extensions.SolidCraft
             this.chkUpdate.UseVisualStyleBackColor = true;
             this.chkUpdate.Visible = false;
             this.chkUpdate.CheckedChanged += new System.EventHandler(this.chkUpdate_CheckedChanged);
+            //
+            // chkPipes
+            //
+            this.chkPipes.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            this.chkPipes.AutoSize = true;
+            this.chkPipes.Location = new System.Drawing.Point(691, 8);
+            this.chkPipes.Name = "chkPipes";
+            this.chkPipes.Size = new System.Drawing.Size(230, 21);
+            this.chkPipes.TabIndex = 4;
+            this.chkPipes.Text = "Pipe segments for the sized lines";
+            this.chkPipes.UseVisualStyleBackColor = true;
+            this.chkPipes.Visible = false;
             //
             // btnBuild
             //
@@ -1371,6 +1385,7 @@ namespace DWSIM.Extensions.SolidCraft
         private System.Windows.Forms.CheckBox chkUnits;
         private System.Windows.Forms.CheckBox chkSolve;
         private System.Windows.Forms.CheckBox chkUpdate;
+        private System.Windows.Forms.CheckBox chkPipes;
         private System.Windows.Forms.Button btnBuild;
         private System.Windows.Forms.Label lblSummary;
         private System.Windows.Forms.FlowLayoutPanel flpFit;

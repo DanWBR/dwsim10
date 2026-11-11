@@ -214,6 +214,7 @@ namespace DWSIM.Extensions.SolidCraft
             foreach (var e in errors.Take(10))
                 Solve.Add(new ImportIssue(ImportIssue.Levels.Error, "", e.GetBaseException().Message));
             Solve.AddRange(DrawingImportBuilder.Compare(Reading, Built));
+            Solve.AddRange(DrawingImportBuilder.DesignCheck(Flowsheet, Reading, Built));
             Fitted = null;
             FitParameters = DrawingImportFit.Available ? DrawingImportFit.Parameters(Reading, Built) : new List<DrawingImportFit.Parameter>();
             try { Flowsheet.UpdateInterface(); } catch (Exception) { }
@@ -254,7 +255,8 @@ namespace DWSIM.Extensions.SolidCraft
             var withData = Built.Streams.Count(kv => !kv.Key.Feed && kv.Key.HasData);
             var off = Solve.Count(i => i.Level == ImportIssue.Levels.Warning && i.Subject.Length > 0);
             var errors = Solve.Count(i => i.Level == ImportIssue.Levels.Error);
-            return Built.Items.Count + " items and " + Built.Streams.Count + (Built.Updated ? " streams updated" : " streams built") + (Built.Recycles > 0 ? ", " + Built.Recycles + " recycles" : "") + ". " +
+            return Built.Items.Count + " items and " + Built.Streams.Count + (Built.Updated ? " streams updated" : " streams built") +
+                (Built.Pipes > 0 ? ", " + Built.Pipes + " pipe segments" : "") + (Built.Recycles > 0 ? ", " + Built.Recycles + " recycles" : "") + ". " +
                 (withData > 0 ? (withData - off) + " of " + withData + " streams match the drawing's table" + (errors > 0 ? "; the solver reported errors" : "") + "." : "");
         }
 
@@ -268,6 +270,9 @@ namespace DWSIM.Extensions.SolidCraft
                 return obj != null && obj.GraphicObject != null && obj.GraphicObject.ObjectType != DWSIM.Interfaces.Enums.GraphicObjects.ObjectType.MaterialStream;
             });
         }
+
+        /// <summary>How many of the reading's lines give their size in the line number: pipe segments are offered when there are any.</summary>
+        public int SizedLines() => Reading == null ? 0 : Reading.Lines.Count(l => l.Include && DrawingImportBuilder.LineSize(l.LineNumber) != null);
 
         public static bool IsReading(string file) => file.EndsWith(".json", StringComparison.OrdinalIgnoreCase);
 
