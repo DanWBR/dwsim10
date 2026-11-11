@@ -173,6 +173,9 @@ namespace DWSIM.Extensions.SolidCraft
                     if (Str(c) is string name && name.Length > 0) r.Process.KeyProducts.Add(name);
                 foreach (var c in (pr["compounds"] as JArray) ?? new JArray())
                     if (Str(c) is string name && name.Length > 0) r.Process.Compounds.Add(name);
+                if (pr["compound_aliases"] is JObject al)
+                    foreach (var a in al.Properties())
+                        r.Process.Aliases[a.Name] = ((a.Value as JArray) ?? new JArray()).Select(Str).Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
             }
             return r;
         }
@@ -209,6 +212,7 @@ namespace DWSIM.Extensions.SolidCraft
                 {
                     ["description"] = Process.Description, ["class"] = Process.Class, ["property_package"] = Process.PropertyPackage,
                     ["confidence"] = Process.Confidence, ["evidence"] = Process.Evidence, ["compounds"] = new JArray(Process.Compounds),
+                    ["compound_aliases"] = new JObject(Process.Aliases.Select(a => new JProperty(a.Key, new JArray(a.Value)))),
                     ["process_type"] = Process.Type, ["key_reactants"] = new JArray(Process.KeyReactants), ["key_products"] = new JArray(Process.KeyProducts),
                 },
             };
@@ -406,6 +410,33 @@ namespace DWSIM.Extensions.SolidCraft
             return !LeftOut(l.From) && !LeftOut(l.To);
         }
 
+        /// <summary>
+        /// Gives the compounds the database does not know by their name the name it knows them by,
+        /// found through their other names (a CAS number, an IUPAC name, a formula), in the list of
+        /// compounds and in the compositions of the lines. Returns the names changed.
+        /// </summary>
+        public List<string> ResolveCompounds(Func<string, string> find)
+        {
+            var renamed = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var kv in Process.Aliases)
+            {
+                if (find(kv.Key) != null) continue;
+                var known = kv.Value.Select(find).FirstOrDefault(x => x != null);
+                if (known != null) renamed[kv.Key] = known;
+            }
+            if (renamed.Count == 0) return new List<string>();
+            Process.Compounds = Process.Compounds.Select(c => renamed.TryGetValue(c, out var n) ? n : c).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            foreach (var l in Lines)
+                foreach (var set in new[] { l.Compounds, l.MoleFractions })
+                    foreach (var old in set.Keys.Where(renamed.ContainsKey).ToList())
+                    {
+                        var value = set[old];
+                        set.Remove(old);
+                        set[renamed[old]] = (set.TryGetValue(renamed[old], out var had) ? had : 0) + value;
+                    }
+            return renamed.Select(kv => kv.Key + " as " + kv.Value).ToList();
+        }
+
         /// <summary>A field of the title block, or "" when the sheet does not show it.</summary>
         public string Title(string field) => TitleBlock.TryGetValue(field, out var v) ? v : "";
 
@@ -513,6 +544,12 @@ namespace DWSIM.Extensions.SolidCraft
     {
         public string Description = "", Class = "", PropertyPackage = "", Confidence = "", Evidence = "";
         public List<string> Compounds = new List<string>();
+
+        /// <summary>
+        /// The other names a compound goes by in the source (a DEXPI model): its identifier, its
+        /// IUPAC name, its CAS number. Tried when the compound's own name is not in the database.
+        /// </summary>
+        public Dictionary<string, List<string>> Aliases = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>The DWSIM process type the model chose (PhysicalSeparation, Transformation, ...), "" when none.</summary>
         public string Type = "";

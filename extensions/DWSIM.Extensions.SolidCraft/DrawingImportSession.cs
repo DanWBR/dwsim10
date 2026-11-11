@@ -110,6 +110,9 @@ namespace DWSIM.Extensions.SolidCraft
         public void Propose()
         {
             Tidied = Reading.Tidy();
+            var renamed = Reading.ResolveCompounds(n => DrawingImportBuilder.CompoundName(Flowsheet, n));
+            if (renamed.Count > 0)
+                Tidied.Add(new ImportIssue(ImportIssue.Levels.Info, "", "compounds found by their CAS number or other name: " + string.Join(", ", renamed)));
             Setup = new ImportSetup();
             var names = Reading.Process.Compounds.Concat(Reading.Lines.SelectMany(l => l.Compounds.Keys.Concat(l.MoleFractions.Keys))).Distinct(StringComparer.OrdinalIgnoreCase);
             foreach (var n in names)
