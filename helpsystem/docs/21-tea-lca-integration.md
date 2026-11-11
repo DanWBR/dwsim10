@@ -4,7 +4,7 @@
 
 The **TEA/LCA Integration** extension provides a unified settings interface and automatic post-solve execution for both the TEA and LCA extensions. When enabled, the TEA and/or LCA analyses are automatically invoked after each flowsheet solve, keeping all results up to date without manual intervention.
 
-The integration is accessible from the **Tools** menu under **TEA/LCA Integration $\rightarrow$ TEA/LCA Integration Settings**.
+The integration is accessible from the **Edit** menu of the flowsheet window under **TEA/LCA Integration $\rightarrow$ TEA/LCA Integration Settings**.
 
 #### Settings
 
@@ -87,7 +87,7 @@ When both extensions are active, they interoperate automatically:
 
 - The TEA extension reads GWP values from the LCA results to compute a “Carbon Tax” line in the OPEX breakdown, using the user-specified carbon price (\$/tonne CO$_2$-eq).
 
-- The eco-efficiency index in the TEA Breakeven tab combines TEA production cost with LCA Global Warming Potential (see §[Eco-Efficiency Index](19-techno-economic-analysis-tea.md#sec:tea_ecoeff)).
+- The eco-efficiency index in the TEA results summary combines TEA production cost with LCA Global Warming Potential (see §[Eco-Efficiency Index](19-techno-economic-analysis-tea.md#sec:tea_ecoeff)).
 
 Both extensions work standalone; interoperation features are available only when both have been run.
 

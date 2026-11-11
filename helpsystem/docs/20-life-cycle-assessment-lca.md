@@ -10,7 +10,7 @@ The four-phase ISO 14040 framework is implemented as follows:
 
 ##### Phase 1: Goal and Scope Definition
 
-Configured via the Study Setup tab:
+Configured in the left panel of the LCA window:
 
 - **Functional unit**: user selects a product stream and quantity (default: 1 kg of the largest product stream).
 
@@ -214,7 +214,7 @@ S = \sum_j I_j^{\mathrm{norm}} \times \frac{w_j}{100}\tag{4}
 \]
 
 
-where $w_j$ is the user-assigned weight (%) for category $j$. Default weights are: GWP = 30, HTP = 20, AP/EP/ODP/POCP/ADP = 10 each. The weights are editable in the Normalization & Weighting tab grid.
+where $w_j$ is the user-assigned weight (%) for category $j$. Default weights are: GWP = 30, HTP = 20, AP/EP/ODP/POCP/ADP = 10 each. The weights are editable on the Normalization and weighting tab, are saved with the study, and **Default weights** restores them.
 
 #### System Boundary {#sec:lca_boundary}
 
@@ -271,31 +271,66 @@ Carbon intensity values (kg CO$_2$-eq/kWh) are provided for 20 regions based o
 
 #### User Interface {#sec:lca_ui}
 
-The plant-wide LCA is launched from the **Tools** menu under **Life Cycle Assessment $\rightarrow$ Plant-Wide LCA**. The main form contains:
+The plant-wide LCA is launched from the **Flowsheet Analysis** menu of the flowsheet window in the Classic interface, and from the **Tools** menu in the Cross-Platform interface, under **Life Cycle Assessment $\rightarrow$ Plant-Wide Life Cycle Assessment**. The window follows the layout of the TEA window (§[User Interface](19-techno-economic-analysis-tea.md#sec:tea_ui)):
 
-- **Status bar**: “Run LCA” button, GWP/FU/Method summary labels, “Export CSV” button, and “Analyze with AI” button.
+- **Left panel**: **Load case...** and **Save case...** on top; study name and description, product stream (or the main product, detected), functional unit quantity, system boundary (cradle-to-gate or gate-to-gate), allocation method, electricity grid mix region, operating hours per year, carbon tax rate and inclusion toggles (upstream, direct, utility emissions); **Run** and **Export CSV...** at the bottom, over a status line that shows the functional unit and the annual production.
 
-- **Tab: Study Setup**: Study name, description, product stream selection, functional unit quantity, system boundary (cradle-to-gate or gate-to-gate), allocation method, electricity grid mix region, operating hours per year, carbon tax rate, and inclusion toggles (upstream, direct, utility emissions).
+- **Right panel**: the seven impact categories per functional unit and per year, and the single score, on top; under a splitter, the tabs listed below.
 
-- **Tab: Life Cycle Inventory**: Grid of all material and energy flows with flow rates, annual amounts, source unit operations, and matched emission factor indicators.
+<!-- -->
 
-- **Tab: Impact Assessment**: Side-by-side layout with colour-coded impact category cards (showing per-FU and annual values) and a detailed results table.
+- **Inventory**: all material and energy flows that cross the boundary, with flow rates, annual amounts, source unit operations and whether an emission factor was matched, and a count of each kind of flow.
 
-- **Tab: Contribution Analysis**: Per-unit-operation breakdown across GWP, AP, EP, and ADP categories with GWP percentage and dominant category identification.
+- **Contribution**: per-unit-operation impacts in all seven categories, with the share of the category picked above the chart and the dominant category. The chart shows the twelve largest contributors and adds the rest in one bar (Figure [1](#fig:lca_contribution)).
 
-- **Tab: Hotspot Analysis**: Top 3 contributors per impact category.
+- **Hotspots**: top 3 contributors per impact category.
 
-- **Tab: Normalization & Weighting**: Normalised scores using CML 2001 world references, with editable weights per category and an aggregate single score (see §[Normalization and Weighting](#sec:lca_normweight)).
+- **Normalization and weighting**: normalised scores using CML 2001 world references, with editable weights per category and the aggregate single score (see §[Normalization and Weighting](#sec:lca_normweight)). An edited weight updates the score at once; **Default weights** restores the defaults.
 
-- **Tab: Report**: Markdown report viewer. The report is auto-generated after each analysis run and includes impact results, contribution analysis, per-category hotspots, full life cycle inventory, and normalization/weighting results. The report can be enriched with AI-generated analysis.
+- **Report**: the whole assessment as one document (impact results, contribution analysis, per-category hotspots, full life cycle inventory, and normalization/weighting results). **Copy report** puts it on the clipboard as Markdown.
+
+
+
+<a id="fig:lca_contribution"></a>
+![The Life Cycle Assessment window of the Classic interface: impacts per functional unit on top and the Contribution tab below.](images/screens_tealca/lca_contribution.png)
+
+*Figure 1: The Life Cycle Assessment window of the Classic interface: impacts per functional unit on top and the Contribution tab below.*
+
+
+
+
+
+<a id="fig:lca_norm"></a>
+![The Normalization and weighting tab.](images/screens_tealca/lca_normalization_and_weighting.png)
+
+*Figure 2: The Normalization and weighting tab.*
+
+
+
+##### Case Files
+
+The study (name, description, settings and weights) is stored in the flowsheet and saved with it; when the window is opened on a flowsheet that carries a study, the assessment runs by itself. **Save case...** and **Load case...** write and read the same study as a `.dwlca` file.
 
 ##### AI-Assisted Analysis
 
-The “Analyze with AI” button sends the full Markdown report to the DWSIM AI assistant, which provides expert insights on key environmental hotspots, improvement opportunities, benchmarking against typical values, data quality assessment, and prioritised recommendations. The AI response is streamed in real time and appended to the report.
+The “Analyze with AI” button on the Report tab sends the full report to the DWSIM AI assistant, which provides expert insights on key environmental hotspots, improvement opportunities, benchmarking against typical values, data quality assessment, and prioritised recommendations. The AI response is streamed in real time and appended to the report.
 
 ##### CSV Export
 
-The “Export CSV” button exports the complete analysis to a CSV file containing the life cycle inventory, total and normalised impact assessment results, and the unit operation breakdown.
+The “Export CSV...” button exports the complete analysis to a semicolon-separated file containing the impact results, the life cycle inventory, the unit operation breakdown and the normalization and weighting table.
+
+##### Cross-Platform Interface
+
+The Cross-Platform interface has the same window, inputs, tabs and chart (Figure [3](#fig:lca_av)). Its Report tab shows the report as Markdown text.
+
+
+
+<a id="fig:lca_av"></a>
+![The Life Cycle Assessment window of the Cross-Platform interface.](images/screens_tealca/av_lca_contribution.png)
+
+*Figure 3: The Life Cycle Assessment window of the Cross-Platform interface.*
+
+
 
 #### ExtraProperties Keys
 

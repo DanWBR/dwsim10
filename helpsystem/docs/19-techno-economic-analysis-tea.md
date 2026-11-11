@@ -294,7 +294,7 @@ C_{\mathrm{DC}} = C_{\mathrm{equip}} \left(1 + \sum_{i} f_{i}^{\mathrm{direct}}\
 
 where $C_{\mathrm{WC}}$ is the working capital (default 15 % of TCI).
 
-All CAPEX factor percentages and absolute/percentage modes are editable in the Capital Cost Summary tab.
+All CAPEX factor percentages and absolute/percentage modes are editable on the Capital cost tab.
 
 #### Operating Cost Estimation {#sec:tea_opex}
 
@@ -414,7 +414,7 @@ Each threshold is found by bisection on the NPV function with 100 iterations.
 
 #### Sensitivity Analysis {#sec:tea_sensitivity}
 
-The one-at-a-time sensitivity analysis varies each of seven key parameters by $\pm 20\%$ from its base value and records the resulting NPV. The parameters analysed are:
+The one-at-a-time sensitivity analysis varies each of seven key parameters by the sensitivity range (default $\pm 20\%$) from its base value and records the resulting NPV. The parameters analysed are:
 
 - Total Capital Investment (TCI)
 
@@ -430,11 +430,11 @@ The one-at-a-time sensitivity analysis varies each of seven key parameters by $\
 
 - Operating Hours per Year
 
-Results are sorted in descending order of NPV swing ($|\text{NPV}_{+20\%} - \text{NPV}_{-20\%}|$), forming a tornado diagram ordering.
+Results are sorted in descending order of NPV swing ($|\text{NPV}_{\mathrm{high}} - \text{NPV}_{\mathrm{low}}|$) and drawn as a tornado chart, the largest swing on top.
 
 #### Monte Carlo Uncertainty Analysis {#sec:tea_montecarlo}
 
-The Monte Carlo analysis performs 1000 stochastic iterations of the DCF analysis. Each iteration independently samples TCI, annual revenue, and annual OPEX from triangular distributions with $\pm 15\%$ bounds around the base-case value (used as the mode). The outputs are:
+The Monte Carlo analysis performs a set number of stochastic iterations of the DCF analysis (default 1000). Each iteration independently samples TCI, annual revenue, and annual OPEX from symmetric triangular distributions whose bounds are the Monte Carlo spread around the base-case value (default $\pm 15\%$; the base case is the mode). The sample count and the spread are set in the left panel of the window. The outputs are:
 
 - Mean and standard deviation of NPV
 
@@ -463,45 +463,107 @@ When both TEA and LCA have been run, the eco-efficiency index combines economic 
 \]
 
 
-Higher values indicate better eco-efficiency. This metric is displayed in the Breakeven tab and requires LCA to have been run previously.
+Higher values indicate better eco-efficiency. This metric is displayed in the results summary of the TEA window and requires LCA to have been run previously.
 
 #### User Interface {#sec:tea_ui}
 
-The plant-wide TEA is launched from the **Tools** menu under **Techno-Economic Analysis $\rightarrow$ Plant-Wide TEA**. The main form contains:
+The plant-wide TEA is launched from the **Flowsheet Analysis** menu of the flowsheet window in the Classic interface, and from the **Tools** menu in the Cross-Platform interface, under **Techno-Economic Analysis $\rightarrow$ Plant-Wide Techno-Economic Analysis**. The window has the same layout in both interfaces and in the other DWSIM study tools, such as the vessel depressurization tool (Figure [1](#fig:tea_window)):
 
-- **Status bar**: “Update All” button, CAPEX/OPEX summary labels, currency indicator, “Export CSV” button, and “Analyze with AI” button.
+- **Left panel**: the inputs of the study. **Load case...** and **Save case...** on top; then the study data (name, description, base date, cost index CEPCI or IPC and its current value, currency and base location), the economic parameters (discount rate, tax rate, plant life, construction and depreciation periods, working capital, salvage value, operating hours), the product (selling price, annual production, carbon tax) and the settings of the sensitivity and Monte Carlo analyses; **Run**, **Reset mapping** and **Export CSV...** at the bottom, over a status line.
 
-- **Tab: Report Setup**: Report name, description, base date, cost update index (CEPCI or IPC), current index value, reference currency, and base location (with location factors for regional construction cost correction).
+- **Right panel**: the results summary on top (capital investment, capital and equipment cost, operating cost, revenue, NPV, IRR, payback, ROI, production cost, the three breakeven values, the probability of a positive NPV and, after an LCA, the GWP per kg and the eco-efficiency index) and, under a splitter, the tabs listed below.
 
-- **Tab: Equipment Mapping**: Editable grid listing all unit operations with matched correlations. Each row shows the property type, an editable sizing parameter, units, the computed base price, an editable correction factor, the resulting corrected price, an optional override price (user-specified fixed price that bypasses the correlation), and the effective price. Multi-item equipment (columns, air coolers) produces separate rows for each sub-item (see §[Multi-Item Equipment](#sec:tea_multiitem)).
+**Run** maps the flowsheet and calculates everything. After the first run, an edit on any table of the right panel is applied at once: capital and operating costs, cash flow, charts, summary and report follow it. **Run** keeps the prices, overrides, material and utility choices and comments typed on the mapping tabs, and reads flow rates and sizes again; **Reset mapping** discards those edits and maps the flowsheet again from the price databases.
 
-- **Tab: Material Stream Mapping**: Feed and product streams with mass flows and annual costs. Each row includes the material type (Raw Material or Product), the material composition (selected from the cost database), the dominant compound, unit price per kilogram, and an editable correction factor.
 
-- **Tab: Utility Mapping**: Energy duties categorised by utility type with annual costs, unit prices, and editable correction factors.
 
-- **Tab: Capital Cost Summary**: Direct and indirect capital items with editable percentages (or absolute values) and running totals.
+<a id="fig:tea_window"></a>
+![The Techno-Economic Analysis window of the Classic interface, on the methanol synthesis sample: inputs on the left, results summary and Equipment tab on the right.](images/screens_tealca/tea_equipment.png)
 
-- **Tab: Operating Cost Summary**: Fixed, variable, and miscellaneous operating cost breakdown with automatic totals.
+*Figure 1: The Techno-Economic Analysis window of the Classic interface, on the methanol synthesis sample: inputs on the left, results summary and Equipment tab on the right.*
 
-- **Tab: Cash Flow Analysis**: Economic parameters summary, key indicators (NPV, IRR, Payback, ROI, Production Cost), and year-by-year discounted cash-flow table. Parameters are configurable via the “Edit Parameters” dialog (discount rate, plant life, tax rate, construction period, depreciation, working capital fraction, operating hours, and product selling price).
 
-- **Tab: Breakeven**: Three breakeven points (selling price, production rate, CAPEX) and the eco-efficiency index (see §[Eco-Efficiency Index](#sec:tea_ecoeff)).
 
-- **Tab: Sensitivity**: Tornado-ordered sensitivity results showing base value, $\pm 20\%$ values, NPV at each extreme, and swing for each parameter.
+The tabs of the right panel are:
 
-- **Tab: Monte Carlo**: Stochastic uncertainty results including statistical summary (mean, std dev, percentiles, probability of positive NPV, mean IRR, mean payback) and an NPV frequency histogram.
+- **Equipment**: all unit operations with matched correlations. Each row shows the equipment type, the sizing property, an editable sizing value, units, the computed base price, an editable correction factor, the corrected price, an optional override price (a fixed price that bypasses the correlation) and the effective price. **Active** takes a unit out of the estimate. Multi-item equipment (columns, air coolers) produces separate rows for each sub-item (see §[Multi-Item Equipment](#sec:tea_multiitem)).
 
-- **Tab: Scenario Comparison**: Save and compare multiple analysis runs side by side.
+- **Materials**: feed and product streams with mass flows and annual costs. Each row includes the material type (Raw Material or Product), the material selected from the cost database, the main compound, the unit price per kilogram and an editable correction factor. A typed price is taken as current money, so the cost index is not applied to it.
 
-- **Tab: Report**: Markdown report viewer. The report is auto-generated after each analysis run and includes all key indicators, equipment costs, CAPEX/OPEX breakdown, cash-flow table, breakeven results, sensitivity table, Monte Carlo summary, and scenario comparison. The report can be enriched with AI-generated analysis.
+- **Utilities**: energy streams (priced per kJ) and material streams billed as utilities (priced per kg), with utility type, unit price, annual cost and correction factor. Material rows are inactive by default.
+
+- **Capital cost** and **Operating cost**: the cost items of §[Capital Cost Estimation](#sec:tea_capex) and §[Operating Cost Estimation](#sec:tea_opex). Each factor is a percentage or an absolute value (column **Basis**); the column **Percentage of** names its base, and the totals follow every edit.
+
+- **Cash flow**: year-by-year discounted cash-flow table and a chart of the net cash flow of each year with the cumulative and the cumulative discounted cash flow (Figure [3](#fig:tea_cashflow)).
+
+- **Sensitivity**: the results of §[Sensitivity Analysis](#sec:tea_sensitivity) as a table and as a tornado chart (Figure [4](#fig:tea_tornado)).
+
+- **Monte Carlo**: the statistics of §[Monte Carlo Uncertainty Analysis](#sec:tea_montecarlo) and the NPV histogram, with the zero NPV and the median marked (Figure [5](#fig:tea_mc)).
+
+- **Scenarios**: **Save current results** keeps the main results under a name, to compare design alternatives side by side (§[Scenario Comparison](#sec:tea_scenarios)).
+
+- **Report**: the whole analysis as one document (indicators, equipment costs, materials, utilities, CAPEX/OPEX breakdown, cash-flow table, sensitivity, Monte Carlo summary and scenarios), regenerated after every change. **Copy report** puts it on the clipboard as Markdown.
+
+
+
+<a id="fig:tea_capital"></a>
+![The Capital cost tab: cost factors, their bases and the resulting costs.](images/screens_tealca/tea_capital_cost.png)
+
+*Figure 2: The Capital cost tab: cost factors, their bases and the resulting costs.*
+
+
+
+
+
+<a id="fig:tea_cashflow"></a>
+![The Cash flow tab.](images/screens_tealca/tea_cash_flow.png)
+
+*Figure 3: The Cash flow tab.*
+
+
+
+
+
+<a id="fig:tea_tornado"></a>
+![The tornado chart of the Sensitivity tab.](images/screens_tealca/tea_sensitivity.png)
+
+*Figure 4: The tornado chart of the Sensitivity tab.*
+
+
+
+
+
+<a id="fig:tea_mc"></a>
+![The NPV distribution on the Monte Carlo tab.](images/screens_tealca/tea_monte_carlo.png)
+
+*Figure 5: The NPV distribution on the Monte Carlo tab.*
+
+
+
+##### Case Files
+
+The study (setup, economic parameters, cost factors and every edit on the mapping tabs) is stored in the flowsheet and saved with it. When the window is opened on a flowsheet that carries a study, the analysis runs by itself. **Save case...** and **Load case...** write and read the same study as a `.dwtea` file, which carries it from one flowsheet to another.
 
 ##### AI-Assisted Analysis
 
-The “Analyze with AI” button sends the full Markdown report to the DWSIM AI assistant, which provides expert insights on economic viability, cost drivers, sensitivity, optimisation opportunities, benchmarking, and risk assessment. The AI response is streamed in real time and appended to the report.
+The “Analyze with AI” button on the Report tab sends the full report to the DWSIM AI assistant, which provides expert insights on economic viability, cost drivers, sensitivity, optimisation opportunities, benchmarking, and risk assessment. The AI response is streamed in real time and appended to the report.
 
 ##### CSV Export
 
-The “Export CSV” button exports the complete analysis to a CSV file containing key economic indicators, equipment costs (including override and effective prices), raw materials and products, utilities, CAPEX summary, OPEX summary, and full cash-flow table.
+The “Export CSV...” button exports the complete analysis to a semicolon-separated file: summary, equipment costs (including override and effective prices), raw materials and products, utilities, capital and operating cost items, cash-flow table, sensitivity and Monte Carlo results.
+
+##### Cross-Platform Interface
+
+The Cross-Platform interface has the same window, inputs, tabs and charts (Figure [6](#fig:tea_av)). Its Report tab shows the report as Markdown text.
+
+
+
+<a id="fig:tea_av"></a>
+![The Techno-Economic Analysis window of the Cross-Platform interface.](images/screens_tealca/av_tea_capital_cost.png)
+
+*Figure 6: The Techno-Economic Analysis window of the Cross-Platform interface.*
+
+
 
 #### ExtraProperties Keys
 

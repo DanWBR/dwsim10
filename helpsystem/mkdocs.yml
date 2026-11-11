@@ -99,50 +99,56 @@ nav:
     - Dynamic Simulation Tools: 35-dynamic-simulation-tools.md
     - Supported Unit Operations: 36-supported-unit-operations.md
     - Operator Training Simulator (OTS): 37-operator-training-simulator-ots.md
-  - "CAD Tools: 3D Plant Model and Drawings":
+  - Importing Simulations from Other Process Simulators:
     - Overview: 39-overview.md
-    - The 3D Plant Model: 40-the-3d-plant-model.md
-    - Drawings with CADCraft: 41-drawings-with-cadcraft.md
-    - Importing Documents with the AI Assistant: 42-importing-documents-with-the-ai-assistant.md
-    - CAD Tools from Scripts: 43-cad-tools-from-scripts.md
-    - Notes and Limitations: 44-notes-and-limitations.md
+    - The Import Wizard: 40-the-import-wizard.md
+    - What Is Converted: 41-what-is-converted.md
+    - Limitations: 42-limitations.md
+  - "CAD Tools: 3D Plant Model and Drawings":
+    - Overview: 44-overview.md
+    - The 3D Plant Model: 45-the-3d-plant-model.md
+    - Drawings with CADCraft: 46-drawings-with-cadcraft.md
+    - Importing Documents with the AI Assistant: 47-importing-documents-with-the-ai-assistant.md
+    - DEXPI Models: 48-dexpi-models.md
+    - CAD Tools from Scripts: 49-cad-tools-from-scripts.md
+    - Notes and Limitations: 50-notes-and-limitations.md
   - "Technical Basis: Methods and Procedures":
-    - Introduction: 46-introduction.md
-    - Thermodynamic Properties: 47-thermodynamic-properties.md
-    - Transport Properties: 48-transport-properties.md
-    - Thermal Properties: 49-thermal-properties.md
-    - Aqueous Solution Properties: 50-aqueous-solution-properties.md
-    - Specialized Models / Property Packages: 51-specialized-models-property-packages.md
-    - Reactions: 52-reactions.md
-    - Property Estimation Methods: 53-property-estimation-methods.md
-    - Other Properties: 54-other-properties.md
-    - "Corrosion & Scaling Monitor": 55-corrosion-scaling-monitor.md
+    - Introduction: 52-introduction.md
+    - Thermodynamic Properties: 53-thermodynamic-properties.md
+    - Transport Properties: 54-transport-properties.md
+    - Thermal Properties: 55-thermal-properties.md
+    - Aqueous Solution Properties: 56-aqueous-solution-properties.md
+    - Specialized Models / Property Packages: 57-specialized-models-property-packages.md
+    - Reactions: 58-reactions.md
+    - Property Estimation Methods: 59-property-estimation-methods.md
+    - Other Properties: 60-other-properties.md
+    - "Corrosion & Scaling Monitor": 61-corrosion-scaling-monitor.md
   - How-To Tutorials:
-    - Methane Steam Reforming: 57-methane-steam-reforming.md
-    - Pressure-Swing Distillation: 58-pressure-swing-distillation.md
-    - Flowsheet Control with Python Scripts: 59-flowsheet-control-with-python-scripts.md
-    - Basic Dynamic Simulation Tutorial: 60-basic-dynamic-simulation-tutorial.md
+    - Methane Steam Reforming: 63-methane-steam-reforming.md
+    - Pressure-Swing Distillation: 64-pressure-swing-distillation.md
+    - Flowsheet Control with Python Scripts: 65-flowsheet-control-with-python-scripts.md
+    - Basic Dynamic Simulation Tutorial: 66-basic-dynamic-simulation-tutorial.md
   - Advanced Topics:
-    - Python Scripting: 62-python-scripting.md
-    - Model Customization: 63-model-customization.md
-    - Overriding Calculated Properties: 64-overriding-calculated-properties.md
-    - Automation: 65-automation.md
-    - Excel Add-In for Thermo Calculations: 66-excel-add-in-for-thermo-calculations.md
-    - Property Package Methods and Correlation Profiles: 67-property-package-methods-and-correlation-profiles.md
-    - CAPE-OPEN Subsystem: 68-cape-open-subsystem.md
+    - Python Scripting: 68-python-scripting.md
+    - Model Customization: 69-model-customization.md
+    - Overriding Calculated Properties: 70-overriding-calculated-properties.md
+    - Automation: 71-automation.md
+    - Excel Add-In for Thermo Calculations: 72-excel-add-in-for-thermo-calculations.md
+    - Property Package Methods and Correlation Profiles: 73-property-package-methods-and-correlation-profiles.md
+    - CAPE-OPEN Subsystem: 74-cape-open-subsystem.md
   - Additional Resources:
-    - Online Courses and Videos: 70-online-courses-and-videos.md
-    - Learning Resources: 71-learning-resources.md
-    - Programming Help: 72-programming-help.md
+    - Online Courses and Videos: 76-online-courses-and-videos.md
+    - Learning Resources: 77-learning-resources.md
+    - Programming Help: 78-programming-help.md
   - "Appendix: Analytical Thermodynamic Derivatives":
-    - Overview: 73-appendix-analytical-thermodynamic-derivatives.md
-    - Scope and Notation: 74-scope-and-notation.md
-    - "Cubic Equations of State (PR, SRK, PR78)": 75-cubic-equations-of-state-pr-srk-pr78.md
-    - Peng-Robinson-Stryjek-Vera 2 (PRSV2 and PRSV2-VL): 76-peng-robinson-stryjek-vera-2-prsv2-and-prsv2-vl.md
-    - Chao-Seader and Grayson-Streed: 77-chao-seader-and-grayson-streed.md
-    - Lee-Kesler-Plocker: 78-lee-kesler-plocker.md
-    - Activity-Coefficient Models: 79-activity-coefficient-models.md
-    - Electrolyte Activity Models: 80-electrolyte-activity-models.md
-    - Add-on Activity Models: 81-add-on-activity-models.md
-    - Advanced Equation-of-State Packages: 82-advanced-equation-of-state-packages.md
-    - Use in the Flash and Column Solvers: 83-use-in-the-flash-and-column-solvers.md
+    - Overview: 79-appendix-analytical-thermodynamic-derivatives.md
+    - Scope and Notation: 80-scope-and-notation.md
+    - "Cubic Equations of State (PR, SRK, PR78)": 81-cubic-equations-of-state-pr-srk-pr78.md
+    - Peng-Robinson-Stryjek-Vera 2 (PRSV2 and PRSV2-VL): 82-peng-robinson-stryjek-vera-2-prsv2-and-prsv2-vl.md
+    - Chao-Seader and Grayson-Streed: 83-chao-seader-and-grayson-streed.md
+    - Lee-Kesler-Plocker: 84-lee-kesler-plocker.md
+    - Activity-Coefficient Models: 85-activity-coefficient-models.md
+    - Electrolyte Activity Models: 86-electrolyte-activity-models.md
+    - Add-on Activity Models: 87-add-on-activity-models.md
+    - Advanced Equation-of-State Packages: 88-advanced-equation-of-state-packages.md
+    - Use in the Flash and Column Solvers: 89-use-in-the-flash-and-column-solvers.md
