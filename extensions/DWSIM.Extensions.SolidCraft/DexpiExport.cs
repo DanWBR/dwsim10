@@ -673,10 +673,15 @@ namespace DWSIM.Extensions.SolidCraft
                 double t, p, w;
                 try { t = ms.GetTemperature(); p = ms.GetPressure(); w = ms.GetMassFlow(); }
                 catch (Exception) { Result.Notes.Add(tag + ": no conditions to write"); return; }
-                if (Real(t) && t > 0) stream.Comp("Temperature", temperatureValue = Value("TemperatureUnit.DegreeCelsius", Math.Round(t - 273.15, 6)));
-                if (Real(p) && p > 0) stream.Comp("Pressure", pressureValue = Value("PressureAbsoluteUnit.Bar", Math.Round(p / 1e5, 8)));
+                // the conditions of a feed are what the user specified, the others what the flowsheet calculated
+                var specified = false;
+                try { var go = (ms as ISimulationObject)?.GraphicObject; specified = go != null && go.InputConnectors.Count > 0 && !go.InputConnectors[0].IsAttached; } catch (Exception) { }
+                Obj Operating(Obj value) => value.Data("Provenance", Enum("Core/DataTypes.QuantityProvenance." + (specified ? "Specified" : "Calculated")))
+                    .Data("Scope", Enum("Core/DataTypes.Scope.Operating"));
+                if (Real(t) && t > 0) stream.Comp("Temperature", temperatureValue = Operating(Value("TemperatureUnit.DegreeCelsius", Math.Round(t - 273.15, 6))));
+                if (Real(p) && p > 0) stream.Comp("Pressure", pressureValue = Operating(Value("PressureAbsoluteUnit.Bar", Math.Round(p / 1e5, 8))));
                 var flow = Real(w) && w >= 0 ? w * 3600 : (double?)null;
-                if (flow.HasValue) stream.Comp("MassFlow", flowValue = Value("MassFlowRateUnit.KilogramPerHour", Round(flow.Value)));
+                if (flow.HasValue) stream.Comp("MassFlow", flowValue = Operating(Value("MassFlowRateUnit.KilogramPerHour", Round(flow.Value))));
                 if (template == null) return;
                 stream.Ref("MaterialTemplateReference", template);
 

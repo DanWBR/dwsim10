@@ -40,6 +40,9 @@ namespace DWSIM.Extensions.SolidCraft
     internal sealed class PidLine
     {
         public string Tag = "", Id = "", Number = "", Size = "", InsulationService = "";
+
+        /// <summary>The fluid code and the piping class of the line number, when the stream is named after one.</summary>
+        public string Fluid = "P", Class = "";
         public IGraphicObject Icon, StartGo, EndGo;
         public IConnectionPoint StartCp, EndCp;
         public IMaterialStream Stream;
@@ -94,6 +97,15 @@ namespace DWSIM.Extensions.SolidCraft
                     Tag = l.Tag ?? "", Id = l.Id ?? "", Number = LineNumber(l, lineData), Size = run?.Size ?? "", InsulationService = run?.InsulationService ?? "",
                     Icon = l.Icon, Stream = l.Stream, StartGo = l.StartGo, EndGo = l.EndGo, StartCp = l.StartCp, EndCp = l.EndCp,
                 };
+                // a stream named after a line number (a flowsheet built from a P&ID) gives its parts: size, fluid code, number, piping class
+                var parts = line.Number.Split('-');
+                if (parts.Length >= 3 && DrawingImportBuilder.LineSize(line.Number) != null && line.Number == System.Text.RegularExpressions.Regex.Replace(line.Tag, @"\s\(\d+\)$", ""))
+                {
+                    line.Size = parts[0].StartsWith("DN", StringComparison.OrdinalIgnoreCase) ? "DN " + parts[0].Substring(2).Trim() : parts[0];
+                    line.Fluid = parts[1];
+                    line.Id = parts[2];
+                    line.Class = parts.Length > 3 ? parts[3] : "";
+                }
                 foreach (var end in new[] { l.StartGo, l.EndGo })
                 {
                     // an object the drawing does not have a symbol for still ends its lines
@@ -613,10 +625,12 @@ namespace DWSIM.Extensions.SolidCraft
             /// </summary>
             Obj AddLine(PidLine line)
             {
-                var segment = new Obj(Id("PipingNetworkSegment"), "Plant/Piping.PipingNetworkSegment").Data("FluidCode", Str("P")).Data("SegmentNumber", Str("S1"));
+                var segment = new Obj(Id("PipingNetworkSegment"), "Plant/Piping.PipingNetworkSegment").Data("FluidCode", Str(line.Fluid)).Data("SegmentNumber", Str("S1"));
+                if (line.Class.Length > 0) segment.Data("PipingClassCode", Str(line.Class));
                 Diameter(segment, line.Size);
                 var system = new Obj(Id("PipingNetworkSystem"), "Plant/Piping.PipingNetworkSystem").Comp("Segments", segment)
-                    .Data("FluidCode", Str("P")).Data("LineNumber", Str(line.Id));
+                    .Data("FluidCode", Str(line.Fluid)).Data("LineNumber", Str(line.Id));
+                if (line.Class.Length > 0) system.Data("PipingClassCode", Str(line.Class));
                 Diameter(system, line.Size);
                 if (line.InsulationService.Length > 0) system.Data("InsulationType", Str(line.InsulationService));
                 segments[line.Icon.Name] = segment;

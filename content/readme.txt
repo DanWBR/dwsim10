@@ -51,6 +51,7 @@ Version 10.2.16
 - [NEW] Import of simulations from other process simulators (Patreon; File > Import Flowsheets from Other Process Simulators, or Import from Other Simulators on the welcome screen): a wizard reads Aspen Plus (.bkp), Aspen HYSYS (.xml), AVEVA Process Simulation (.simx), COCO (.fsd) and PRO/II (.prz, .inp) cases, shows every conversion decision, then builds and solves the flowsheet and compares it with the source results
 - [NEW] User Guide: an Importing Simulations from Other Process Simulators part
 - [CHG] Drawing import: a relief valve ticked for building becomes a Relief Valve object, with its set pressure from a DEXPI model
+- [CHG] CAD Tools: a stream named after a line number (a flowsheet built from a P&ID) keeps that number in the drawings, the line list and the DEXPI P&ID model
 - [CHG] K-values: the liquid and vapor fugacity coefficients are calculated in parallel only for packages whose calculation takes over 0.1 ms, so the cubic and activity coefficient packages don't wait on parallel tasks anymore (Biodiesel Production in the equation-oriented solver: 35.4 to 32.8 s)
 - [CHG] Equation-oriented solver (Patreon): each column starts its own solver at the profiles the system converged to when the results are written (Extractive Distillation: 42 to 1.2 s)
 - [CHG] Equation-oriented solver (Patreon): the Newton step is solved on the sparse matrix in both interfaces (1576 equations: 6 to 0.04 s)

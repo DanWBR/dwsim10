@@ -42,6 +42,9 @@ namespace DWSIM.Extensions.SolidCraft
         /// <summary>A line number: nominal size, fluid code (P, process), number, and H or C for hot or cold insulation.</summary>
         static string LineNumber(Line l, Dictionary<string, PipeRun> data)
         {
+            // a stream named after its line number (a flowsheet built from a P&ID) keeps that number
+            var own = System.Text.RegularExpressions.Regex.Replace(l.Tag ?? "", @"\s\(\d+\)$", "");
+            if (own.Contains("-") && DrawingImportBuilder.LineSize(own) != null) return own;
             data.TryGetValue(l.Tag ?? "", out var run);
             var size = run?.Size ?? "";
             var ins = run == null ? "" : run.InsulationService == "hot" ? "-H" : run.InsulationService == "cold" ? "-C" : "";
