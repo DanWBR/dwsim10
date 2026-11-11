@@ -680,6 +680,8 @@ namespace DWSIM.Extensions.SolidCraft
             var guessed = new List<string>();
             int Stage(ReadLine l, bool inlet)
             {
+                var given = inlet ? l.ToStage : l.FromStage;
+                if (given.HasValue) return Math.Max(first, Math.Min(last, first + given.Value - 1));
                 var name = r.StreamTag(l);
                 var tray = System.Text.RegularExpressions.Regex.Match(name, @"(?:tray|prato)\s*#?\s*(\d+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
                 if (tray.Success) return Math.Max(first, Math.Min(last, first + int.Parse(tray.Groups[1].Value) - 1));

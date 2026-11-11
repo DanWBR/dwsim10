@@ -449,10 +449,14 @@ namespace DWSIM.Extensions.SolidCraft
                             var columnTag = Identifier(unit.GraphicObject.Tag);
                             var trays = (int)Math.Round(stages ?? 0) - (type == ObjectType.DistillationColumn ? 2 : type == ObjectType.AbsorptionColumn ? 0 : 1);
                             if (trays >= 2 && trays <= 500)
-                                step.Comp("ProcessStepDetails", Enumerable.Range(1, trays).Select(n =>
+                            {
+                                var written = Enumerable.Range(1, trays).Select(n =>
                                     new Obj(Id("Tray"), "Process/Process.ContactingOnTray")
                                         .Data("Description", Text("Stage " + n + " of " + columnTag + ", from the top"))
-                                        .Data("Identifier", Str(columnTag + ".T" + n)).Data("Label", Str("Stage " + n)).Data("Number", Int(n))).ToArray());
+                                        .Data("Identifier", Str(columnTag + ".T" + n)).Data("Label", Str("Stage " + n)).Data("Number", Int(n))).ToArray();
+                                step.Comp("ProcessStepDetails", written);
+                                traysOf[unit.Name] = written;
+                            }
                             var condenser = Positive(Num(unit, "CondenserDuty"));
                             if (condenser > 0 && type != ObjectType.ReboiledAbsorber) Put("CondenserDuty", kW, condenser);
                             var reboiler = Positive(Num(unit, "ReboilerDuty"));
@@ -495,10 +499,18 @@ namespace DWSIM.Extensions.SolidCraft
             {
                 step.Ports++;
                 var role = step.Unit == null ? (outlet ? "Outlet" : "Inlet") : RoleOf(step.Unit, outlet, index, streamObject);
+                // a feed or a side draw of a rigorous column is on a tray: its port is the tray's, the others are the column's
+                var tray = step.Unit != null && streamObject != null && (!outlet || role == "Sidedraw") ? TrayOf(step.Unit, streamObject) : int.MinValue;
+                Obj[] trays = null;
+                var onTray = tray >= 1 && traysOf.TryGetValue(step.Unit.Name, out trays) && tray <= trays.Length;
+                // a feed on the condenser or on the reboiler stage is a reflux or a boil-up to the column
+                if (!outlet && role == "Feed" && tray == 0) role = "Reflux";
+                else if (!outlet && role == "Feed" && trays != null && tray == trays.Length + 1) role = "Reboil";
                 var port = new Obj(Id("Port"), "Process/Process.MaterialPort").Ref("ConnectorReference", stream).Ref("PerformedRoles", Role(role))
                     .Data("Identifier", Str("N" + step.Ports.ToString(CultureInfo.InvariantCulture)))
                     .Data("NominalDirection", Enum("Process/Enumerations.PortDirection." + (outlet ? "Outlet" : "Inlet")));
-                step.Object.Comp("Ports", port);
+                if (onTray) trays[tray - 1].Comp("Ports", port);
+                else step.Object.Comp("Ports", port);
                 var at = Where(step, outlet, index);
                 var position = new Obj(Id("Position"), "Process/Diagram.PortNodePosition").Ref("Port", port).Data("Position", Point(at.X, at.Y));
                 step.Drawn.Add((port, position, at.X, at.Y));
@@ -537,6 +549,34 @@ namespace DWSIM.Extensions.SolidCraft
                     default:
                         return outlet ? "Outlet" : "Inlet";
                 }
+            }
+
+            /// <summary>The trays written for each rigorous column, by the column's name, the first one at the top.</summary>
+            readonly Dictionary<string, Obj[]> traysOf = new Dictionary<string, Obj[]>();
+
+            /// <summary>
+            /// The tray a stream is on in a rigorous column, counted from the top among the stages
+            /// between the condenser and the reboiler: 0 is the condenser, one past the trays the reboiler;
+            /// int.MinValue when the column does not tell.
+            /// </summary>
+            static int TrayOf(ISimulationObject column, ISimulationObject stream)
+            {
+                try
+                {
+                    if (!(column.GetType().GetProperty("MaterialStreams")?.GetValue(column, null) is IDictionary list)) return int.MinValue;
+                    if (!(column.GetType().GetProperty("Stages")?.GetValue(column, null) is IList stages)) return int.MinValue;
+                    var type = column.GraphicObject.ObjectType;
+                    var first = type == ObjectType.DistillationColumn || type == ObjectType.RefluxedAbsorber ? 1 : 0;
+                    foreach (var info in list.Values)
+                    {
+                        if (info.GetType().GetProperty("StreamID")?.GetValue(info, null) as string != stream.Name) continue;
+                        var stageId = info.GetType().GetProperty("AssociatedStage")?.GetValue(info, null) as string;
+                        for (var i = 0; i < stages.Count; i++)
+                            if (stages[i].GetType().GetProperty("ID")?.GetValue(stages[i], null) as string == stageId) return i - first + 1;
+                    }
+                }
+                catch (Exception) { }
+                return int.MinValue;
             }
 
             /// <summary>What a stream is to a rigorous column (Feed, Distillate, BottomsLiquid, Sidedraw...), "" when the column does not tell.</summary>

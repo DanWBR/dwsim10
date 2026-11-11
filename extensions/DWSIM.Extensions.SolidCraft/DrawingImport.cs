@@ -120,6 +120,8 @@ namespace DWSIM.Extensions.SolidCraft
                     VaporFraction = Num(s["vf"]),
                     FromLevel = Num(s["from_level"]),
                     ToLevel = Num(s["to_level"]),
+                    FromStage = Tray(s["from_stage"]),
+                    ToStage = Tray(s["to_stage"]),
                 };
                 if (s["compounds"] is JObject cs)
                     foreach (var p in cs.Properties())
@@ -194,7 +196,7 @@ namespace DWSIM.Extensions.SolidCraft
                 {
                     ["id"] = l.Id, ["name"] = l.Name, ["line_number"] = l.LineNumber, ["from"] = l.From, ["to"] = l.To,
                     ["from_port"] = l.FromPort, ["to_port"] = l.ToPort, ["T"] = N(l.T), ["P"] = N(l.P), ["W"] = N(l.W), ["vf"] = N(l.VaporFraction),
-                    ["from_level"] = N(l.FromLevel), ["to_level"] = N(l.ToLevel),
+                    ["from_level"] = N(l.FromLevel), ["to_level"] = N(l.ToLevel), ["from_stage"] = N(l.FromStage), ["to_stage"] = N(l.ToStage),
                     ["compounds"] = new JObject(l.Compounds.Select(c => new JProperty(c.Key, c.Value))),
                     ["mole_fractions"] = new JObject(l.MoleFractions.Select(c => new JProperty(c.Key, c.Value))), ["include"] = l.Include,
                 })),
@@ -220,6 +222,12 @@ namespace DWSIM.Extensions.SolidCraft
         }
 
         static string Str(JToken t) => t == null || t.Type == JTokenType.Null ? null : t.ToString();
+
+        static int? Tray(JToken t)
+        {
+            var v = Num(t);
+            return v.HasValue && v.Value >= 1 ? (int)Math.Round(v.Value) : (int?)null;
+        }
 
         static double? Num(JToken t)
         {
@@ -377,8 +385,8 @@ namespace DWSIM.Extensions.SolidCraft
         public int ColumnEnd(ReadLine l, bool inlet)
         {
             var port = ((inlet ? l.ToPort : l.FromPort) ?? "").ToLowerInvariant();
-            if (port.Contains("top") || port.Contains("overhead")) return -1;
-            if (port.Contains("bot")) return 1;
+            if (port.Contains("top") || port.Contains("overhead") || port.Contains("reflux")) return -1;
+            if (port.Contains("bot") || port.Contains("reboil")) return 1;
             var level = inlet ? l.ToLevel : l.FromLevel;
             if (level.HasValue && level.Value <= 1) return level.Value < 0.05 ? -1 : level.Value > 0.95 ? 1 : 0;
             var name = StreamTag(l);
@@ -522,6 +530,12 @@ namespace DWSIM.Extensions.SolidCraft
 
         /// <summary>Where the line leaves or enters a column: the nozzle's height, 0 at the top to 1 at the bottom (null when not known).</summary>
         public double? FromLevel, ToLevel;
+
+        /// <summary>
+        /// The tray of a column the line leaves from or enters at, counted from the top among the
+        /// trays (the stages between the condenser and the reboiler), when the source gives it.
+        /// </summary>
+        public int? FromStage, ToStage;
 
         /// <summary>The mass flow of each compound the table lists, in the table's mass flow unit.</summary>
         public Dictionary<string, double> Compounds = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
