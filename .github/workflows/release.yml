@@ -247,8 +247,19 @@ jobs:
           /DOutputDir=%CD%\artifacts
           packaging\windows\dwsim.iss
 
-      # Authenticode with the SSL.com eSigner certificate (secrets ES_*); skipped with a warning when
-      # they are absent.
+      # eSigner counts every signing, so only what is published as a final release is signed: a tag
+      # push without -rc.
+      - name: Decide whether to sign
+        id: signing
+        shell: bash
+        run: |
+          sign=false
+          if [ "${{ github.event_name }}" = "push" ] && [[ "$GITHUB_REF_NAME" != *-rc* ]]; then sign=true; fi
+          if [ "$sign" = true ] && [ -z "$ES_USERNAME" ]; then
+            echo "::warning::ES_* secrets are not set - the installer ships unsigned"; sign=false
+          fi
+          echo "sign=$sign" >> "$GITHUB_OUTPUT"
+
       - name: Locate the installer
         id: installer
         shell: pwsh
@@ -258,7 +269,7 @@ jobs:
           "file=$($f[0].FullName)" >> $env:GITHUB_OUTPUT
 
       - name: Sign the installer
-        if: env.ES_USERNAME != ''
+        if: steps.signing.outputs.sign == 'true'
         uses: sslcom/esigner-codesign@v1.3.2
         with:
           command: sign
@@ -273,18 +284,13 @@ jobs:
           jvm_max_memory: 2048M
 
       - name: Verify the installer signature
-        if: env.ES_USERNAME != ''
+        if: steps.signing.outputs.sign == 'true'
         shell: pwsh
         run: |
           $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" |
             Sort-Object FullName | Select-Object -Last 1 -ExpandProperty FullName
           & $signtool verify /pa "${{ steps.installer.outputs.file }}"
           if ($LASTEXITCODE -ne 0) { exit 1 }
-
-      - name: Warn when the installer was not signed
-        if: env.ES_USERNAME == ''
-        shell: bash
-        run: echo "::warning::ES_* secrets are not set - the installer ships unsigned"
 
       - name: Stage the installer
         shell: bash
