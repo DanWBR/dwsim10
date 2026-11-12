@@ -8909,10 +8909,18 @@ Final3:
             If cpc.HeatCapacityDifferenceAtTf <> 0.0 Then Return cpc.HeatCapacityDifferenceAtTf / cpc.Molar_Weight
 
             If HasSolidHeatCapacityData(cpc) Then
+                'mean of the difference at T and at the melting point: with it the fusion terms integrate the heat
+                'capacities between the two temperatures to second order, and the solid keeps its own heat capacity
+                Dim Tfus = cpc.TemperatureOfFusion
                 Dim cps = cpc.GetSolidHeatCapacity(T)
-                If cps > 0.0 Then
+                Dim cpsf = If(Tfus > 0.0, cpc.GetSolidHeatCapacity(Tfus), cps)
+                If cps > 0.0 AndAlso cpsf > 0.0 Then
                     Dim dCp = AUX_LIQ_Cpi(cpc, T) - cps
-                    If Not Double.IsNaN(dCp) AndAlso Not Double.IsInfinity(dCp) Then Return dCp
+                    Dim dCpf = If(Tfus > 0.0, AUX_LIQ_Cpi(cpc, Tfus) - cpsf, dCp)
+                    If Not Double.IsNaN(dCp) AndAlso Not Double.IsInfinity(dCp) Then
+                        If Double.IsNaN(dCpf) OrElse Double.IsInfinity(dCpf) Then dCpf = dCp
+                        Return 0.5 * (dCp + dCpf)
+                    End If
                 End If
             End If
 
