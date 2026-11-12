@@ -349,13 +349,16 @@ Namespace FlowPackages
                 Dim dP_hh = rhom * deltaz
 
                 'calculo do delta P em funcao da friccao
-                Dim y = Math.Log(Cl / El_teta ^ 2)
+                ' y = Cl / El^2. The polynomial in ln(y) has a pole at y = 1.01665, which is why the
+                ' correlation switches to ln(2.2 y - 1.2) for 1 < y < 1.2: the interval is on y, not on ln(y).
+                Dim y = Cl / El_teta ^ 2
+                Dim lny = Math.Log(y)
 
                 Dim S = 0.0#
                 If y > 1 And y < 1.2 Then
-                    S = Math.Log(2.2 * Math.Exp(y) - 1.2)
+                    S = Math.Log(2.2 * y - 1.2)
                 Else
-                    S = y / (-0.0523 + 3.182 * y - 0.8725 * y ^ 2 + 0.01853 * y ^ 4)
+                    S = lny / (-0.0523 + 3.182 * lny - 0.8725 * lny ^ 2 + 0.01853 * lny ^ 4)
                 End If
 
                 IObj?.Paragraphs.Add("<mi>S</mi> = " & S)
@@ -548,12 +551,13 @@ Namespace FlowPackages
             Dim rhom = rhol * El_teta + rhov * (1 - El_teta)
             Dim dP_hh = rhom * deltaz
 
-            Dim y = Complex.Log(Cl / (El_teta * El_teta))
+            Dim y = Cl / (El_teta * El_teta)
+            Dim lny = Complex.Log(y)
             Dim S As Complex
             If y.Real > 1 And y.Real < 1.2 Then
-                S = Complex.Log(2.2 * Complex.Exp(y) - 1.2)
+                S = Complex.Log(2.2 * y - 1.2)
             Else
-                S = y / (-0.0523 + 3.182 * y - 0.8725 * y * y + 0.01853 * y * y * y * y)
+                S = lny / (-0.0523 + 3.182 * lny - 0.8725 * lny * lny + 0.01853 * lny * lny * lny * lny)
             End If
 
             Dim rho_ns = Cl * rhol + (1 - Cl) * rhov
