@@ -8854,9 +8854,81 @@ Final3:
             Dim cpc = Me.CurrentMaterialStream.Phases(0).Compounds(sub1).ConstantProperties
             Dim Tfus = cpc.TemperatureOfFusion
 
-            Dim cpterm = cpc.GetSolidHeatCapacity(T) * (T - Tfus)
+            'Away from the melting point the enthalpy of fusion changes with the difference between the liquid and the
+            'solid heat capacities: dHfus(T) = dHfus(Tf) + (CpL - CpS).(T - Tf).
+            Dim dCp As Double = FusionHeatCapacityDifference(cpc, T)
 
-            Return cpc.EnthalpyOfFusionAtTf * 1000 / cpc.Molar_Weight + cpterm
+            'the solid never has more enthalpy than the liquid at the same temperature
+            Return Math.Max(cpc.EnthalpyOfFusionAtTf * 1000 / cpc.Molar_Weight + dCp * (T - Tfus), 0.0)
+
+        End Function
+
+        ''' <summary>
+        ''' Entropy of fusion of a compound at T, kJ/[kg.K]: dSfus(T) = dHfus(Tf)/Tf + (CpL - CpS).ln(T/Tf).
+        ''' </summary>
+        ''' <remarks>
+        ''' The entropy of fusion is the enthalpy of fusion over the temperature only at the melting point. Away from it
+        ''' the two follow the heat capacity difference separately, and this form keeps the Gibbs energy of fusion equal to
+        ''' the one behind the solid-liquid equilibrium.
+        ''' </remarks>
+        Public Overridable Function AUX_SFUSi(ByVal sub1 As String, ByVal T As Double) As Double
+
+            Dim cpc = Me.CurrentMaterialStream.Phases(0).Compounds(sub1).ConstantProperties
+            Dim Tfus = cpc.TemperatureOfFusion
+            Dim Hf = cpc.EnthalpyOfFusionAtTf * 1000 / cpc.Molar_Weight
+
+            If Tfus <= 0.0 OrElse T <= 0.0 Then Return If(T > 0.0, Hf / T, 0.0)
+
+            Return Hf / Tfus + FusionHeatCapacityDifference(cpc, T) * Math.Log(T / Tfus)
+
+        End Function
+
+        ''' <summary>Entropy of fusion of a mixture at T from mass fractions, kJ/[kg.K].</summary>
+        Public Function RET_SFUSM(ByVal Vxw As Array, ByVal T As Double) As Double
+
+            Dim val As Double = 0.0#
+            Dim i As Integer = 0
+            For Each subst As Interfaces.ICompound In Me.CurrentMaterialStream.Phases(0).Compounds.Values
+                val += Vxw(i) * Me.AUX_SFUSi(subst.Name, T)
+                i += 1
+            Next
+            Return val
+
+        End Function
+
+        ''' <summary>
+        ''' Liquid minus solid heat capacity of a compound, kJ/[kg.K], for the enthalpy and the entropy of fusion away
+        ''' from the melting point.
+        ''' </summary>
+        ''' <remarks>
+        ''' It comes, in this order, from the value given with the compound (the same one the solid-liquid equilibrium
+        ''' uses), from the heat capacity correlations when the compound has solid heat capacity data, or is taken as zero.
+        ''' </remarks>
+        Protected Function FusionHeatCapacityDifference(cpc As Interfaces.ICompoundConstantProperties, T As Double) As Double
+
+            If cpc.HeatCapacityDifferenceAtTf <> 0.0 Then Return cpc.HeatCapacityDifferenceAtTf / cpc.Molar_Weight
+
+            If HasSolidHeatCapacityData(cpc) Then
+                Dim cps = cpc.GetSolidHeatCapacity(T)
+                If cps > 0.0 Then
+                    Dim dCp = AUX_LIQ_Cpi(cpc, T) - cps
+                    If Not Double.IsNaN(dCp) AndAlso Not Double.IsInfinity(dCp) Then Return dCp
+                End If
+            End If
+
+            Return 0.0
+
+        End Function
+
+        ''' <summary>
+        ''' True when the solid heat capacity of the compound comes from data or a correlation, and not from the fixed
+        ''' value that stands in when there is none.
+        ''' </summary>
+        Private Shared Function HasSolidHeatCapacityData(cpc As Interfaces.ICompoundConstantProperties) As Boolean
+
+            If cpc.OriginalDB = "ChemSep" OrElse cpc.OriginalDB = "ChEDL Thermo" Then Return cpc.SolidHeatCapacityEquation <> ""
+            If cpc.OriginalDB = "User" Then Return cpc.SolidHeatCapacityEquation <> "" AndAlso cpc.SolidHeatCapacityEquation <> "0"
+            Return False
 
         End Function
 

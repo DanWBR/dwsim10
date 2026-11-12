@@ -774,7 +774,7 @@ Namespace PropertyPackages
             ElseIf st = State.Vapor Then
                 S = Me.m_lk.S_LK_MIX("V", T, P, Vx, RET_VKij(), LKP_VTC(T), LKP_VPC(T), LKP_VW(), RET_VMM, Me.RET_Sid(298.15, T, P, Vx), Me.LKP_VVC(T))
             ElseIf st = State.Solid Then
-                S = Me.m_lk.S_LK_MIX("L", T, P, Vx, RET_VKij(), LKP_VTC(T), LKP_VPC(T), LKP_VW(), RET_VMM, Me.RET_Sid(298.15, T, P, Vx), Me.LKP_VVC(T)) - Me.RET_HFUSM(AUX_CONVERT_MOL_TO_MASS(Vx), T) / T
+                S = Me.m_lk.S_LK_MIX("L", T, P, Vx, RET_VKij(), LKP_VTC(T), LKP_VPC(T), LKP_VW(), RET_VMM, Me.RET_Sid(298.15, T, P, Vx), Me.LKP_VVC(T)) - Me.RET_SFUSM(AUX_CONVERT_MOL_TO_MASS(Vx), T)
             End If
 
             Return S
@@ -787,7 +787,7 @@ Namespace PropertyPackages
             If st = State.Liquid Then
                 S = Me.m_lk.S_LK_MIX("L", T, P, Vx, RET_VKij(), LKP_VTC(T), LKP_VPC(T), LKP_VW(), RET_VMM, 0, Me.LKP_VVC(T))
             ElseIf st = State.Solid Then
-                S = Me.m_lk.S_LK_MIX("L", T, P, Vx, RET_VKij(), LKP_VTC(T), LKP_VPC(T), LKP_VW(), RET_VMM, 0, Me.LKP_VVC(T)) - Me.RET_HFUSM(AUX_CONVERT_MOL_TO_MASS(Vx), T) / T
+                S = Me.m_lk.S_LK_MIX("L", T, P, Vx, RET_VKij(), LKP_VTC(T), LKP_VPC(T), LKP_VW(), RET_VMM, 0, Me.LKP_VVC(T)) - Me.RET_SFUSM(AUX_CONVERT_MOL_TO_MASS(Vx), T)
             Else
                 S = Me.m_lk.S_LK_MIX("V", T, P, Vx, RET_VKij(), LKP_VTC(T), LKP_VPC(T), LKP_VW(), RET_VMM, 0, Me.LKP_VVC(T))
             End If

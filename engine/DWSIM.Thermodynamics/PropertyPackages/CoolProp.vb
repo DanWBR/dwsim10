@@ -1627,6 +1627,18 @@ Namespace PropertyPackages
 
         End Function
 
+        Public Overrides Function AUX_SFUSi(ByVal sub1 As String, ByVal T As Double) As Double
+
+            'this package keeps the enthalpy of fusion constant, so the entropy of fusion is the one at the melting point
+            Dim cpc = Me.CurrentMaterialStream.Phases(0).Compounds(sub1).ConstantProperties
+            Dim Tfus = cpc.TemperatureOfFusion
+
+            If Tfus <= 0.0 Then Return If(T > 0.0, cpc.EnthalpyOfFusionAtTf * 1000 / cpc.Molar_Weight / T, 0.0)
+
+            Return cpc.EnthalpyOfFusionAtTf * 1000 / cpc.Molar_Weight / Tfus
+
+        End Function
+
         Public Overrides Function DW_CalcEntropy(ByVal Vx As System.Array, ByVal T As Double, ByVal P As Double, ByVal st As State) As Double
 
             SetCPDebugLevel()
@@ -1765,7 +1777,7 @@ Namespace PropertyPackages
                         vk(i) = Vxw(i) * vk(i)
                     Next
                 Case State.Solid
-                    Return DW_CalcEntropy(Vx, T, P, State.Liquid) - Me.RET_HFUSM(AUX_CONVERT_MOL_TO_MASS(Vx), T) / T
+                    Return DW_CalcEntropy(Vx, T, P, State.Liquid) - Me.RET_SFUSM(AUX_CONVERT_MOL_TO_MASS(Vx), T)
             End Select
 
             val = MathEx.Common.Sum(vk)

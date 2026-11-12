@@ -485,7 +485,7 @@ Namespace PropertyPackages
                 Case State.Liquid
                     Return Me.RET_Sid(298.15, T, P, Vx) - Me.RET_HVAPM(Me.AUX_CONVERT_MOL_TO_MASS(Vx), T) / T
                 Case State.Solid
-                    Return Me.RET_Sid(298.15, T, P, Vx) - Me.RET_HVAPM(Me.AUX_CONVERT_MOL_TO_MASS(Vx), T) / T - Me.RET_HFUSM(Me.AUX_CONVERT_MOL_TO_MASS(Vx), T) / T
+                    Return Me.RET_Sid(298.15, T, P, Vx) - Me.RET_HVAPM(Me.AUX_CONVERT_MOL_TO_MASS(Vx), T) / T - Me.RET_SFUSM(Me.AUX_CONVERT_MOL_TO_MASS(Vx), T)
                 Case State.Vapor
                     Return Me.RET_Sid(298.15, T, P, Vx)
             End Select

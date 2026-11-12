@@ -764,11 +764,11 @@ Namespace PropertyPackages
                         Vx = refSolids.Rest
                         Select Case EnthalpyEntropyCpCvCalculationMode
                             Case 0, 1 'Ideal
-                                S = Me.RET_Sid(298.15, T, P, Vx) + P / 1000 / Me.AUX_LIQDENS(T, Vx, P) / T - Me.RET_HVAPM(Me.AUX_CONVERT_MOL_TO_MASS(Vx), T) / T - Me.RET_HFUSM(Me.AUX_CONVERT_MOL_TO_MASS(Vx), T) / T
+                                S = Me.RET_Sid(298.15, T, P, Vx) + P / 1000 / Me.AUX_LIQDENS(T, Vx, P) / T - Me.RET_HVAPM(Me.AUX_CONVERT_MOL_TO_MASS(Vx), T) / T - Me.RET_SFUSM(Me.AUX_CONVERT_MOL_TO_MASS(Vx), T)
                             Case 2 'Excess
                                 Throw New Exception("Raoult's Law Property Package: Excess Enthalpy/Entropy/Cp calculation mode is not supported.")
                             Case 3, 4 'Experimental Liquid
-                                S = AUX_INT_CPDTm_L(298.15, T, Me.AUX_CONVERT_MOL_TO_MASS(Vx)) / T - RET_HFUSM(Me.AUX_CONVERT_MOL_TO_MASS(Vx), T) / T + P / 1000 / Me.AUX_LIQDENS(T, Vx, P) / T
+                                S = AUX_INT_CPDTm_L(298.15, T, Me.AUX_CONVERT_MOL_TO_MASS(Vx)) / T - RET_SFUSM(Me.AUX_CONVERT_MOL_TO_MASS(Vx), T) + P / 1000 / Me.AUX_LIQDENS(T, Vx, P) / T
                         End Select
                         Vx = Vwhole
                         S = refSolids.Combine(S, Function() CalcSolidEnthalpyFromCp(T, refSolids.Reference, DW_GetConstantProperties) / T)
@@ -789,7 +789,7 @@ Namespace PropertyPackages
             ElseIf st = State.Vapor Then
                 S = Me.m_id.S_RA_MIX("V", T, P, Vx, RET_VKij(), RET_VTC, RET_VPC, RET_VW, RET_VMM, 0, Me.RET_VHVAP(T))
             ElseIf st = State.Solid Then
-                S = Me.m_id.S_RA_MIX("L", T, P, Vx, RET_VKij(), RET_VTC, RET_VPC, RET_VW, RET_VMM, 0, Me.RET_VHVAP(T)) - Me.RET_HFUSM(AUX_CONVERT_MOL_TO_MASS(Vx), T) / T
+                S = Me.m_id.S_RA_MIX("L", T, P, Vx, RET_VKij(), RET_VTC, RET_VPC, RET_VW, RET_VMM, 0, Me.RET_VHVAP(T)) - Me.RET_SFUSM(AUX_CONVERT_MOL_TO_MASS(Vx), T)
             End If
 
             Return S

@@ -602,7 +602,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
             gerg = Nothing
 
             If st = State.Solid Then
-                Return S / AUX_MMM(Vx) + Sid - Me.RET_HFUSM(AUX_CONVERT_MOL_TO_MASS(Vx), T) / T
+                Return S / AUX_MMM(Vx) + Sid - Me.RET_SFUSM(AUX_CONVERT_MOL_TO_MASS(Vx), T)
             Else
                 Return S / AUX_MMM(Vx) + Sid
             End If
@@ -636,7 +636,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
             gerg = Nothing
 
             If st = State.Solid Then
-                Return S / AUX_MMM(Vx) - Me.RET_HFUSM(AUX_CONVERT_MOL_TO_MASS(Vx), T) / T
+                Return S / AUX_MMM(Vx) - Me.RET_SFUSM(AUX_CONVERT_MOL_TO_MASS(Vx), T)
             Else
                 Return S / AUX_MMM(Vx)
             End If

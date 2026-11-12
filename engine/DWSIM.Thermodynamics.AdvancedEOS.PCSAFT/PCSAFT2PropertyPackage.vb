@@ -596,7 +596,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
                 ElseIf st = State.Vapor Then
                     S = lk.S_LK_MIX("V", T, P, Vx, RET_VKij(), RET_VTC, RET_VPC, RET_VW, RET_VMM, Me.RET_Sid(298.15, T, P, Vx))
                 ElseIf st = State.Solid Then
-                    S = lk.S_LK_MIX("L", T, P, Vx, RET_VKij(), RET_VTC, RET_VPC, RET_VW, RET_VMM, Me.RET_Sid(298.15, T, P, Vx)) - RET_HFUSM(Me.AUX_CONVERT_MOL_TO_MASS(Vx), T) / T
+                    S = lk.S_LK_MIX("L", T, P, Vx, RET_VKij(), RET_VTC, RET_VPC, RET_VW, RET_VMM, Me.RET_Sid(298.15, T, P, Vx)) - RET_SFUSM(Me.AUX_CONVERT_MOL_TO_MASS(Vx), T)
                 End If
                 Return S
             Else
@@ -615,7 +615,7 @@ Namespace DWSIM.Thermodynamics.AdvancedEOS
             Dim S = pcs.CalcSr(T, P, If(st = State.Liquid, "liq", "gas"), Zest) / AUX_MMM(Vx)
 
             If st = State.Solid Then
-                Return S - Me.RET_HFUSM(AUX_CONVERT_MOL_TO_MASS(Vx), T) / T
+                Return S - Me.RET_SFUSM(AUX_CONVERT_MOL_TO_MASS(Vx), T)
             Else
                 Return S
             End If
