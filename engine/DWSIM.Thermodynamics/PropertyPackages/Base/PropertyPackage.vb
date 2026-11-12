@@ -9061,11 +9061,17 @@ Final3:
                 If LiquidViscosity_CorrectExpDataForPressure And LiquidViscosityCalculationMode_Subcritical = LiquidViscosityCalcMode.ExpData And subst.MoleFraction.GetValueOrDefault() > 0.0 Then
                     'pressure correction
                     Dim pcorr As Double = 1.0
+                    Dim psat As Double
                     If (T / subst.ConstantProperties.Critical_Temperature) > 1.0 Then
-                        pcorr = Auxiliary.PROPS.viscl_pcorrection_lucas(T / subst.ConstantProperties.Critical_Temperature, P, subst.ConstantProperties.Critical_Pressure, AUX_KHenry(subst.Name, T), subst.ConstantProperties.Acentric_Factor)
+                        psat = AUX_KHenry(subst.Name, T)
                     Else
-                        pcorr = Auxiliary.PROPS.viscl_pcorrection_lucas(T / subst.ConstantProperties.Critical_Temperature, P, subst.ConstantProperties.Critical_Pressure, AUX_PVAPi(subst.Name, T), subst.ConstantProperties.Acentric_Factor)
+                        psat = AUX_PVAPi(subst.Name, T)
                     End If
+                    'a vapor pressure extrapolated far beyond its range can overflow: the correction is skipped
+                    If Not Double.IsNaN(psat) AndAlso Not Double.IsInfinity(psat) Then
+                        pcorr = Auxiliary.PROPS.viscl_pcorrection_lucas(T / subst.ConstantProperties.Critical_Temperature, P, subst.ConstantProperties.Critical_Pressure, psat, subst.ConstantProperties.Acentric_Factor)
+                    End If
+                    If Double.IsNaN(pcorr) OrElse Double.IsInfinity(pcorr) OrElse pcorr <= 0.0 Then pcorr = 1.0
                     IObj?.Paragraphs.Add(String.Format("Compressed Liquid Viscosity Correction Factor: {0}", pcorr))
                     lval = lval * pcorr
                     IObj?.Paragraphs.Add(String.Format("Corrected Liquid Viscosity : {0} Pa.s", Exp(lval)))
