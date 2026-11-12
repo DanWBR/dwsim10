@@ -1049,6 +1049,12 @@ Public Interface ICompoundConstantProperties
     Property EnthalpyOfFusionAtTf As Double
 
     ''' <summary>
+    ''' Liquid minus solid heat capacity at the temperature of fusion, J/[mol.K]. Zero when unknown.
+    ''' </summary>
+    ''' <returns></returns>
+    Property HeatCapacityDifferenceAtTf As Double
+
+    ''' <summary>
     ''' Temperature for solid density (if a single value is available), K
     ''' </summary>
     ''' <returns></returns>

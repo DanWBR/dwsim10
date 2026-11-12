@@ -489,6 +489,8 @@ Namespace CompoundEditing
               "K", Function(su) su.temperature)
             D("EnthalpyOfFusionAtTf", "Enthalpy of fusion", CompoundPropertyGroup.Solid, CompoundPropertyKind.Double,
               "Heat absorbed on melting at the melting point, in kJ/mol (note: per mol, not per kg). Needed for solid-liquid equilibrium and for the enthalpy of a solid phase.", "kJ/mol")
+            D("HeatCapacityDifferenceAtTf", "Heat capacity change on fusion", CompoundPropertyGroup.Solid, CompoundPropertyKind.Double,
+              "Liquid minus solid heat capacity at the melting point, in J/(mol.K). Corrects the solubility of a solid far below its melting point, where the enthalpy of fusion alone underestimates it. Zero means unknown and leaves the correction out.", "J/(mol.K)")
             D("SolidTs", "Solid density reference temperature", CompoundPropertyGroup.Solid, CompoundPropertyKind.Double,
               "Temperature at which the single-point solid density below was measured. Used only when a solid-density equation isn't set.",
               "K", Function(su) su.temperature)

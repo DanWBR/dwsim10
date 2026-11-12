@@ -10415,10 +10415,30 @@ Final3:
 
         End Function
 
+        ''' <summary>
+        ''' Heat capacity term of the solid-liquid fugacity ratio, to be added to the exponent of the fusion term.
+        ''' </summary>
+        ''' <remarks>
+        ''' ln(fS/fL) = -dHf/(R.T).(1 - T/Tf) - dCp/R.((T - Tf)/T + ln(Tf/T)), where dCp is the liquid minus solid heat
+        ''' capacity at the melting point. The result is exactly zero for a compound without a dCp value, which keeps
+        ''' the fusion-only result.
+        ''' </remarks>
+        Public Function AUX_SolidFusionCpTerm(cprop As Interfaces.ICompoundConstantProperties, T As Double) As Double
+
+            Dim dCp = cprop.HeatCapacityDifferenceAtTf 'J/[mol.K]
+            Dim Tf = cprop.TemperatureOfFusion
+
+            If dCp = 0.0 OrElse Tf <= 0.0 OrElse T <= 0.0 Then Return 0.0
+
+            Return -dCp / 8.31446 * ((T - Tf) / T + Math.Log(Tf / T))
+
+        End Function
+
         Public Function DW_CalcSolidFugCoeff(T As Double, P As Double) As Double()
 
             Dim Tf = RET_VTF()
             Dim Hf = RET_VHF()
+            Dim cprops = DW_GetConstantProperties()
 
             Dim names = RET_VNAMES()
 
@@ -10433,7 +10453,7 @@ Final3:
             For i = 0 To n
                 cterm(i) = Math.Exp(Hf(i) * 1000 / (8.314 * Tf(i)) * (Tf(i) / T - 1))
                 Pvapl(i) = AUX_PVAPi(i, T)
-                Pvaps(i) = Math.Exp(Math.Log(Pvapl(i)) - Hf(i) * 1000 / 8.314 * (1 / T - 1 / Tf(i)))
+                Pvaps(i) = Math.Exp(Math.Log(Pvapl(i)) - Hf(i) * 1000 / 8.314 * (1 / T - 1 / Tf(i)) + AUX_SolidFusionCpTerm(cprops(i), T))
             Next
 
             For i = 0 To n

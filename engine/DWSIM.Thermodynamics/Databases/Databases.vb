@@ -1096,6 +1096,7 @@ Namespace Databases
                         .AppendChild(xmldoc.CreateNode(XmlNodeType.Element, "UNIQUAC_r", "")).InnerText = comp.UNIQUAC_Q.ToString(cult)
                         .AppendChild(xmldoc.CreateNode(XmlNodeType.Element, "Temperature_of_fusion", "")).InnerText = comp.TemperatureOfFusion.ToString(cult)
                         .AppendChild(xmldoc.CreateNode(XmlNodeType.Element, "Enthalpy_of_fusion", "")).InnerText = comp.EnthalpyOfFusionAtTf.ToString(cult)
+                        .AppendChild(xmldoc.CreateNode(XmlNodeType.Element, "Heat_capacity_difference_at_fusion", "")).InnerText = comp.HeatCapacityDifferenceAtTf.ToString(cult)
                         .AppendChild(xmldoc.CreateNode(XmlNodeType.Element, "PC_SAFT_sigma", "")).InnerText = comp.PC_SAFT_sigma.ToString(cult)
                         .AppendChild(xmldoc.CreateNode(XmlNodeType.Element, "PC_SAFT_m", "")).InnerText = comp.PC_SAFT_m.ToString(cult)
                         .AppendChild(xmldoc.CreateNode(XmlNodeType.Element, "PC_SAFT_epsilon_k", "")).InnerText = comp.PC_SAFT_epsilon_k.ToString(cult)
@@ -1439,6 +1440,8 @@ Namespace Databases
                                 .TemperatureOfFusion = Double.Parse(node2.InnerText, nf)
                             Case "Enthalpy_of_fusion"
                                 .EnthalpyOfFusionAtTf = Double.Parse(node2.InnerText, nf)
+                            Case "Heat_capacity_difference_at_fusion"
+                                .HeatCapacityDifferenceAtTf = Double.Parse(node2.InnerText, nf)
                             Case "SMILES"
                                 .SMILES = node2.InnerText
                             Case "ID"

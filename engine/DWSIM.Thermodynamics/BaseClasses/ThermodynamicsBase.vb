@@ -2873,6 +2873,8 @@ Namespace BaseClasses
 
         Public Property EnthalpyOfFusionAtTf As Double = 0.0# Implements Interfaces.ICompoundConstantProperties.EnthalpyOfFusionAtTf
 
+        Public Property HeatCapacityDifferenceAtTf As Double = 0.0# Implements Interfaces.ICompoundConstantProperties.HeatCapacityDifferenceAtTf
+
         Private _formula As String = ""
 
         Public Property Formula As String Implements Interfaces.ICompoundConstantProperties.Formula

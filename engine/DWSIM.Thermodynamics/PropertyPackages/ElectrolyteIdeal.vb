@@ -573,7 +573,7 @@ Namespace PropertyPackages
             ElseIf st = State.Solid Then
                 For i = 0 To n
                     If constprops(i).TemperatureOfFusion <> 0 Then
-                        fugcoeff(i) = Exp(-constprops(i).EnthalpyOfFusionAtTf / (0.00831447 * T) * (1 - T / constprops(i).TemperatureOfFusion))
+                        fugcoeff(i) = Exp(-constprops(i).EnthalpyOfFusionAtTf / (0.00831447 * T) * (1 - T / constprops(i).TemperatureOfFusion) + AUX_SolidFusionCpTerm(constprops(i), T))
                     Else
                         fugcoeff(i) = 1.0#
                     End If

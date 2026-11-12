@@ -132,7 +132,7 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                 ids.Add(CompoundProperties(i).Name)
                 Vp(i) = PP.AUX_PVAPi(i, T)
                 If CompoundProperties(i).TemperatureOfFusion <> 0.0# Then
-                    Ki(i) = Exp(-CompoundProperties(i).EnthalpyOfFusionAtTf / (0.00831447 * T) * (1 - T / CompoundProperties(i).TemperatureOfFusion))
+                    Ki(i) = Exp(-CompoundProperties(i).EnthalpyOfFusionAtTf / (0.00831447 * T) * (1 - T / CompoundProperties(i).TemperatureOfFusion) + PP.AUX_SolidFusionCpTerm(CompoundProperties(i), T))
                     If Ki(i) = 0.0# Then Ki(i) = 1.0E+20
                 Else
                     Ki(i) = 1.0E+20
@@ -195,7 +195,7 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
                 For i = 0 To n
                     If Not CompoundProperties(i).IsSalt Then activcoeff(i) = activcoeff(i) * P / Vp(i)
                     If CompoundProperties(i).TemperatureOfFusion <> 0.0# Then
-                        Ki(i) = (1 / activcoeff(i)) * Exp(-CompoundProperties(i).EnthalpyOfFusionAtTf / (0.00831447 * T) * (1 - T / CompoundProperties(i).TemperatureOfFusion))
+                        Ki(i) = (1 / activcoeff(i)) * Exp(-CompoundProperties(i).EnthalpyOfFusionAtTf / (0.00831447 * T) * (1 - T / CompoundProperties(i).TemperatureOfFusion) + PP.AUX_SolidFusionCpTerm(CompoundProperties(i), T))
                         If Ki(i) = 0.0# Then Ki(i) = 1.0E+20
                     Else
                         Ki(i) = 1.0E+20
@@ -490,7 +490,7 @@ out:        Return New Object() {L, V, Vx, Vy, ecount, 0.0#, PP.RET_NullVector, 
 
             Dim Vx(n), Vs(n), MaxAct(n), MaxX(n), MaxLiquPhase(n), Tf(n), Hf(n), Tc(n), ActCoeff(n), VnL(n), VnS(n), Vp(n) As Double
             Dim L, L_old, SF, SLP As Double
-            Dim cpl(n), cps(n), dCp(n) As Double
+            Dim dCp(n) As Double
             Dim Vn(n) As String
             Dim constprop As Interfaces.ICompoundConstantProperties
 
@@ -557,12 +557,8 @@ out:        Return New Object() {L, V, Vx, Vy, ecount, 0.0#, PP.RET_NullVector, 
             Vn = PP.RET_VNAMES()
             For i = 0 To n
                 constprop = PP.CurrentMaterialStream.Phases(0).Compounds(Vn(i)).ConstantProperties
-                IObj?.SetCurrent
-                cpl(i) = PP.AUX_LIQ_Cpi(constprop, Tf(i))
-                IObj?.SetCurrent
-                cps(i) = PP.AUX_SolidHeatCapacity(constprop, Tf(i))
-                'ignoring heat capacity difference due to issues with DWSIM characterization
-                dCp(i) = 0.0# '(cpl(i) - cps(i)) * constprop.Molar_Weight
+                'liquid minus solid heat capacity at the melting point, J/[mol.K], given with the compound (zero when unknown)
+                dCp(i) = constprop.HeatCapacityDifferenceAtTf
             Next
 
             'Calculate max activities for solubility of solids
@@ -1694,7 +1690,7 @@ out2:           If (Math.Abs(GL_old - L) < 0.0000005) And (Math.Abs(GV_old - V) 
                 ids.Add(CompoundProperties(i).Name)
                 Vp(i) = PP.AUX_PVAPi(i, T)
                 If CompoundProperties(i).TemperatureOfFusion <> 0.0# Then
-                    Ki(i) = Exp(-CompoundProperties(i).EnthalpyOfFusionAtTf / (0.00831447 * T) * (1 - T / CompoundProperties(i).TemperatureOfFusion))
+                    Ki(i) = Exp(-CompoundProperties(i).EnthalpyOfFusionAtTf / (0.00831447 * T) * (1 - T / CompoundProperties(i).TemperatureOfFusion) + PP.AUX_SolidFusionCpTerm(CompoundProperties(i), T))
                 Else
                     Ki(i) = 1.0E+20
                 End If
@@ -1752,7 +1748,7 @@ out2:           If (Math.Abs(GL_old - L) < 0.0000005) And (Math.Abs(GV_old - V) 
                         Vp(i) = PP.AUX_PVAPi(i, T)
                         activcoeff(i) = activcoeff(i) * P / Vp(i)
                         If CompoundProperties(i).TemperatureOfFusion <> 0.0# Then
-                            Ki(i) = (1 / activcoeff(i)) * Exp(-CompoundProperties(i).EnthalpyOfFusionAtTf / (0.00831447 * T) * (1 - T / CompoundProperties(i).TemperatureOfFusion))
+                            Ki(i) = (1 / activcoeff(i)) * Exp(-CompoundProperties(i).EnthalpyOfFusionAtTf / (0.00831447 * T) * (1 - T / CompoundProperties(i).TemperatureOfFusion) + PP.AUX_SolidFusionCpTerm(CompoundProperties(i), T))
                         Else
                             Ki(i) = 1.0E+20
                         End If
@@ -1822,10 +1818,10 @@ out2:           If (Math.Abs(GL_old - L) < 0.0000005) And (Math.Abs(GV_old - V) 
                     If CompoundProperties(i).TemperatureOfFusion <> 0.0# Then
                         Vp(i) = PP.AUX_PVAPi(i, T)
                         activcoeff(i) = activcoeff(i) * P / Vp(i)
-                        K1(i) = (1 / activcoeff(i)) * Exp(-CompoundProperties(i).EnthalpyOfFusionAtTf / (0.00831447 * T) * (1 - T / CompoundProperties(i).TemperatureOfFusion))
+                        K1(i) = (1 / activcoeff(i)) * Exp(-CompoundProperties(i).EnthalpyOfFusionAtTf / (0.00831447 * T) * (1 - T / CompoundProperties(i).TemperatureOfFusion) + PP.AUX_SolidFusionCpTerm(CompoundProperties(i), T))
                         Vp2(i) = PP.AUX_PVAPi(i, T + 0.01)
                         activcoeff2(i) = activcoeff2(i) * P / Vp2(i)
-                        K2(i) = (1 / activcoeff2(i)) * Exp(-CompoundProperties(i).EnthalpyOfFusionAtTf / (0.00831447 * (T + 0.01)) * (1 - (T + 0.01) / CompoundProperties(i).TemperatureOfFusion))
+                        K2(i) = (1 / activcoeff2(i)) * Exp(-CompoundProperties(i).EnthalpyOfFusionAtTf / (0.00831447 * (T + 0.01)) * (1 - (T + 0.01) / CompoundProperties(i).TemperatureOfFusion) + PP.AUX_SolidFusionCpTerm(CompoundProperties(i), T + 0.01))
                     Else
                         K1(i) = 1.0E+20
                         K2(i) = 1.0E+20
@@ -1934,7 +1930,7 @@ out2:           If (Math.Abs(GL_old - L) < 0.0000005) And (Math.Abs(GV_old - V) 
                 ids.Add(CompoundProperties(i).Name)
                 Vp(i) = PP.AUX_PVAPi(i, T)
                 If CompoundProperties(i).TemperatureOfFusion <> 0.0# Then
-                    Ki(i) = Exp(-CompoundProperties(i).EnthalpyOfFusionAtTf / (0.00831447 * T) * (1 - T / CompoundProperties(i).TemperatureOfFusion))
+                    Ki(i) = Exp(-CompoundProperties(i).EnthalpyOfFusionAtTf / (0.00831447 * T) * (1 - T / CompoundProperties(i).TemperatureOfFusion) + PP.AUX_SolidFusionCpTerm(CompoundProperties(i), T))
                 Else
                     Ki(i) = 1.0E+20
                 End If
