@@ -6670,8 +6670,9 @@ redirect2:                  IObj?.SetCurrent()
                         Dim L1, L2 As Double
 
                         If SolidSolution Then
-                            L1 = 0.0#
-                            L2 = 1.0#
+                            'solid fractions: series 1 is the solidus, series 2 the liquidus
+                            L1 = 1.0#
+                            L2 = 0.0#
                         Else
                             L1 = 0.001
                             L2 = 0.999

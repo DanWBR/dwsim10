@@ -1630,233 +1630,57 @@ out2:           If (Math.Abs(GL_old - L) < 0.0000005) And (Math.Abs(GV_old - V) 
 
         Public Function Flash_PSF_SS(ByVal Vz As Double(), ByVal P As Double, ByVal V As Double, ByVal Tref As Double, ByVal PP As PropertyPackages.PropertyPackage, Optional ByVal ReuseKI As Boolean = False, Optional ByVal PrevKi As Double() = Nothing) As Object
 
+            'V is the solid mole fraction. The temperature is found by bisection on the PT flash, as in the eutectic
+            'mode, so the phases returned close the material balance at any solid fraction.
+
             Dim i, n, ecount As Integer
             Dim d1, d2 As Date, dt As TimeSpan
-            Dim soma_x, soma_s As Double
-            Dim L, S, Lf, Sf, T, Tf As Double
-            Dim ids As New List(Of String)
+            Dim T, T0, T1, Sf As Double
+            Dim result As Object
 
             d1 = Date.Now
 
-            etol = Me.FlashSettings(Interfaces.Enums.FlashSetting.PTFlash_External_Loop_Tolerance).ToDoubleFromInvariant
-            maxit_e = Me.FlashSettings(Interfaces.Enums.FlashSetting.PTFlash_Maximum_Number_Of_External_Iterations)
             itol = Me.FlashSettings(Interfaces.Enums.FlashSetting.PTFlash_Internal_Loop_Tolerance).ToDoubleFromInvariant
-            maxit_i = Me.FlashSettings(Interfaces.Enums.FlashSetting.PTFlash_Maximum_Number_Of_Internal_Iterations)
 
             n = Vz.Length - 1
 
-            PP = PP
-            L = V
-            Lf = L
-            S = 1 - L
-            Lf = 1 - Sf
-            Tf = T
-
-            Dim Vn(n) As String, Vx(n), Vs(n), Vx_ant(1), Vs_ant(1), Vp(n), Vp2(n), Ki(n), Ki_ant(n), fi(n), activcoeff(n), activcoeff2(n) As Double
-            Dim Vt(n), VTF(n), Tmin, Tmax, dFdT As Double
-
-            Vn = PP.RET_VNAMES()
-            VTF = PP.RET_VTF()
-            fi = Vz.Clone
-
-            If Tref = 0.0# Then
-
-                i = 0
-                Tref = 0
-                Do
-                    If L = 0 Then
-                        Tref = MathEx.Common.Min(VTF)
-                    Else
-                        Tref += Vz(i) * VTF(i)
-                    End If
-                    Tmin += 0.1 * Vz(i) * VTF(i)
-                    Tmax += 2.0 * Vz(i) * VTF(i)
-                    i += 1
-                Loop Until i = n + 1
-
-            Else
-
-                Tmin = Tref - 50
-                Tmax = Tref + 50
-
+            If PP.AUX_IS_SINGLECOMP(Vz) Then
+                T = 0
+                For i = 0 To n
+                    T += Vz(i) * Me.CompoundProperties(i).TemperatureOfFusion
+                Next
+                result = Me.Flash_PT_SS(Vz, P, T, PP)
+                Return New Object() {result(0), result(1), result(2), result(3), T, 0, result(9), 0.0#, PP.RET_NullVector, result(7), result(8)}
             End If
 
-            T = Tref
-
-            'Calculate Ki`s
-
-            i = 0
-            Do
-                ids.Add(CompoundProperties(i).Name)
-                Vp(i) = PP.AUX_PVAPi(i, T)
-                If CompoundProperties(i).TemperatureOfFusion <> 0.0# Then
-                    Ki(i) = Exp(-CompoundProperties(i).EnthalpyOfFusionAtTf / (0.00831447 * T) * (1 - T / CompoundProperties(i).TemperatureOfFusion) + PP.AUX_SolidFusionCpTerm(CompoundProperties(i), T))
-                Else
-                    Ki(i) = 1.0E+20
+            'bracket from the melting points of the compounds that have one
+            Dim VTF As Double() = PP.RET_VTF()
+            T0 = Double.MaxValue
+            T1 = 0.0
+            For i = 0 To n
+                If VTF(i) > 0.0 Then
+                    If VTF(i) < T0 Then T0 = VTF(i)
+                    If VTF(i) > T1 Then T1 = VTF(i)
                 End If
-                i += 1
-            Loop Until i = n + 1
-
-            i = 0
-            Do
-                If Vz(i) <> 0.0# Then
-                    Vx(i) = Vz(i) * Ki(i) / ((Ki(i) - 1) * L + 1)
-                    If Ki(i) <> 0 Then Vs(i) = Vx(i) / Ki(i) Else Vs(i) = Vz(i)
-                    If Vs(i) < 0 Then Vs(i) = 0
-                    If Vx(i) < 0 Then Vx(i) = 0
-                Else
-                    Vs(i) = 0
-                    Vx(i) = 0
-                End If
-                i += 1
-            Loop Until i = n + 1
-
-            i = 0
-            soma_x = 0.0#
-            soma_s = 0.0#
-            Do
-                soma_x = soma_x + Vx(i)
-                soma_s = soma_s + Vs(i)
-                i = i + 1
-            Loop Until i = n + 1
-            i = 0
-            Do
-                Vx(i) = Vx(i) / soma_x
-                Vs(i) = Vs(i) / soma_s
-                i = i + 1
-            Loop Until i = n + 1
-
-            Dim marcador3, marcador2, marcador As Integer
-            'judge the inner loop on the first compound present: one at z = 0 stays at zero and passes the test at once
-            Dim ic As Integer = Math.Max(Array.FindIndex(Vz, Function(zi) zi <> 0.0), 0)
-            Dim stmp4_ant, stmp4, Tant, fval As Double
-            Dim chk As Boolean = False
+            Next
+            If T1 = 0.0 Then Throw New Exception("PSF Flash [NL-SLE]: the compounds do not have melting point data.")
+            T0 = T0 * 0.6
+            T1 = T1 + 10
 
             ecount = 0
             Do
-
-                marcador3 = 0
-
-                Dim cont_int = 0
-                Do
-
-                    Ki_ant = Ki.Clone
-
-                    activcoeff = PP.DW_CalcFugCoeff(Vx, T, P, State.Liquid)
-
-                    For i = 0 To n
-                        Vp(i) = PP.AUX_PVAPi(i, T)
-                        activcoeff(i) = activcoeff(i) * P / Vp(i)
-                        If CompoundProperties(i).TemperatureOfFusion <> 0.0# Then
-                            Ki(i) = (1 / activcoeff(i)) * Exp(-CompoundProperties(i).EnthalpyOfFusionAtTf / (0.00831447 * T) * (1 - T / CompoundProperties(i).TemperatureOfFusion) + PP.AUX_SolidFusionCpTerm(CompoundProperties(i), T))
-                        Else
-                            Ki(i) = 1.0E+20
-                        End If
-                    Next
-
-                    marcador = 0
-                    If stmp4_ant <> 0 Then
-                        marcador = 1
-                    End If
-                    stmp4_ant = stmp4
-
-                    If L = 0 Then
-                        i = 0
-                        stmp4 = 0
-                        Do
-                            stmp4 = stmp4 + Ki(i) * Vs(i)
-                            i = i + 1
-                        Loop Until i = n + 1
-                    Else
-                        i = 0
-                        stmp4 = 0
-                        Do
-                            stmp4 = stmp4 + Vx(i) / Ki(i)
-                            i = i + 1
-                        Loop Until i = n + 1
-                    End If
-
-                    If L = 0 Then
-                        i = 0
-                        Do
-                            Vx_ant(i) = Vx(i)
-                            Vx(i) = Ki(i) * Vs(i) / stmp4
-                            i = i + 1
-                        Loop Until i = n + 1
-                    Else
-                        i = 0
-                        Do
-                            Vs_ant(i) = Vs(i)
-                            Vs(i) = (Vx(i) / Ki(i)) / stmp4
-                            i = i + 1
-                        Loop Until i = n + 1
-                    End If
-
-                    marcador2 = 0
-                    If marcador = 1 Then
-                        If L = 0 Then
-                            If Math.Abs(Vx(ic) - Vx_ant(ic)) < itol Then
-                                marcador2 = 1
-                            End If
-                        Else
-                            If Math.Abs(Vs(ic) - Vs_ant(ic)) < itol Then
-                                marcador2 = 1
-                            End If
-                        End If
-                    End If
-
-                    cont_int = cont_int + 1
-
-                Loop Until marcador2 = 1 Or Double.IsNaN(stmp4) Or cont_int > maxit_i
-
-                Dim K1(n), K2(n), dKdT(n) As Double
-
-                activcoeff = PP.DW_CalcFugCoeff(Vx, T, P, State.Liquid)
-                activcoeff2 = PP.DW_CalcFugCoeff(Vx, T + 0.01, P, State.Liquid)
-
-                For i = 0 To n
-                    If CompoundProperties(i).TemperatureOfFusion <> 0.0# Then
-                        Vp(i) = PP.AUX_PVAPi(i, T)
-                        activcoeff(i) = activcoeff(i) * P / Vp(i)
-                        K1(i) = (1 / activcoeff(i)) * Exp(-CompoundProperties(i).EnthalpyOfFusionAtTf / (0.00831447 * T) * (1 - T / CompoundProperties(i).TemperatureOfFusion) + PP.AUX_SolidFusionCpTerm(CompoundProperties(i), T))
-                        Vp2(i) = PP.AUX_PVAPi(i, T + 0.01)
-                        activcoeff2(i) = activcoeff2(i) * P / Vp2(i)
-                        K2(i) = (1 / activcoeff2(i)) * Exp(-CompoundProperties(i).EnthalpyOfFusionAtTf / (0.00831447 * (T + 0.01)) * (1 - (T + 0.01) / CompoundProperties(i).TemperatureOfFusion) + PP.AUX_SolidFusionCpTerm(CompoundProperties(i), T + 0.01))
-                    Else
-                        K1(i) = 1.0E+20
-                        K2(i) = 1.0E+20
-                    End If
-                Next
-
-                For i = 0 To n
-                    dKdT(i) = (K2(i) - K1(i)) / 0.01
-                Next
-
-                fval = stmp4 - 1
-
+                T = (T0 + T1) / 2
+                Sf = Flash_PT_SS(Vz, P, T, PP)(7)
+                If SolidFractionAboveTarget(Sf, V) Then
+                    T0 = T
+                Else
+                    T1 = T
+                End If
                 ecount += 1
-
-                i = 0
-                dFdT = 0
-                Do
-                    If L = 0.0# Then
-                        dFdT = dFdT + Vs(i) * dKdT(i)
-                    Else
-                        dFdT = dFdT - Vx(i) / (Ki(i) ^ 2) * dKdT(i)
-                    End If
-                    i = i + 1
-                Loop Until i = n + 1
-
-                Tant = T
-                T = T - fval / dFdT
-                'If T < Tmin Then T = Tmin
-                'If T > Tmax Then T = Tmax
-
-                WriteDebugInfo("PV Flash [NL-SLE]: Iteration #" & ecount & ", T = " & T & ", LF = " & L)
-
                 If Not PP.CurrentMaterialStream.Flowsheet Is Nothing Then PP.CurrentMaterialStream.Flowsheet.CheckStatus()
+            Loop Until (T1 - T0) <= itol
 
-            Loop Until Math.Abs(T - Tant) < 0.01 Or Double.IsNaN(T) = True Or ecount > maxit_e Or Double.IsNaN(T) Or Double.IsInfinity(T)
+            result = Me.Flash_PT_SS(Vz, P, T, PP)
 
             d2 = Date.Now
 
@@ -1864,8 +1688,22 @@ out2:           If (Math.Abs(GL_old - L) < 0.0000005) And (Math.Abs(GV_old - V) 
 
             WriteDebugInfo("PSF Flash [NL-SLE]: Converged in " & ecount & " iterations. Time taken: " & dt.TotalMilliseconds & " ms.")
 
-            Return New Object() {L, V, Vx, PP.RET_NullVector, T, ecount, Ki, 0.0#, PP.RET_NullVector, S, Vs}
+            Return New Object() {result(0), result(1), result(2), result(3), T, ecount, result(9), 0.0#, PP.RET_NullVector, result(7), result(8)}
 
+        End Function
+
+        ''' <summary>
+        ''' Bisection test of the solid fraction flash: true when the temperature has to go up.
+        ''' </summary>
+        ''' <remarks>
+        ''' A fully solid specification asks for the highest temperature at which the mixture is still all solid. The
+        ''' solid fraction never exceeds one, so the plain comparison would send the search to the lower bound.
+        ''' </remarks>
+        Private Shared Function SolidFractionAboveTarget(Sf As Double, V As Double) As Boolean
+
+            If V >= 1.0 Then Return Sf >= 1.0 - 0.000000001
+
+            Return Sf > V
 
         End Function
 
@@ -1986,7 +1824,7 @@ out2:           If (Math.Abs(GL_old - L) < 0.0000005) And (Math.Abs(GV_old - V) 
                 T = (T0 + T1) / 2
                 Sf = Flash_PT(Vz, P, T, PP)(7)
 
-                If Sf > V Then
+                If SolidFractionAboveTarget(Sf, V) Then
                     T0 = T
                     SF0 = Sf
                 Else
