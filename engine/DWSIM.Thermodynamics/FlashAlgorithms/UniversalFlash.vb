@@ -58,6 +58,32 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
             End Get
         End Property
 
+        'last time each fail-safe warning was shown, so a flash repeated inside a loop doesn't flood the log
+        Private Shared ReadOnly SolidsWarningTimes As New Concurrent.ConcurrentDictionary(Of String, Date)
+
+        ''' <summary>
+        ''' Warns when the fail-safe calculation replaces a flash that handles solids, since the result it returns
+        ''' doesn't have a solid phase.
+        ''' </summary>
+        Private Sub WarnSolidsDropped(PP As PropertyPackage, flashType As String, spec As String, ex As Exception, failSafeMode As Integer)
+
+            If flashType <> "SVLE" AndAlso flashType <> "SVLLE" Then Exit Sub
+            If failSafeMode < 0 OrElse failSafeMode > 2 Then Exit Sub
+            If PP.Flowsheet Is Nothing Then Exit Sub
+
+            Dim tag As String = TryCast(PP.CurrentMaterialStream, Interfaces.ISimulationObject)?.GraphicObject?.Tag
+            If tag Is Nothing Then tag = ""
+
+            Dim key = PP.UniqueID & "|" & tag & "|" & spec
+            Dim last As Date
+            If SolidsWarningTimes.TryGetValue(key, last) AndAlso (Date.Now - last).TotalSeconds < 10.0 Then Exit Sub
+            SolidsWarningTimes(key) = Date.Now
+
+            PP.Flowsheet.ShowMessage(String.Format("{0}{1} flash with solids failed ({2}). The fail-safe calculation doesn't handle solids, so the result doesn't have a solid phase. Set the fail-safe mode of the property package to 'None' to get the error instead.",
+                                                   If(tag <> "", tag & ": ", ""), spec, ex?.Message), Interfaces.IFlowsheet.MessageType.Warning)
+
+        End Sub
+
         Public Overrides Function Flash_PT(Vz() As Double, P As Double, T As Double, PP As PropertyPackage, Optional ReuseKI As Boolean = False, Optional PrevKi() As Double = Nothing) As Object
 
             If Vz.HasNaN() Or Vz.HasInf() Then
@@ -187,6 +213,8 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
             If haderror Then
 
                 Dim FSMethod As Integer = FlashSettings(FlashSetting.FailSafeCalculationMode)
+
+                WarnSolidsDropped(PP, Flashtype, "PT", ex1, FSMethod)
 
                 Select Case FSMethod
 
@@ -360,6 +388,8 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
             If haderror Then
 
                 Dim FSMethod As Integer = FlashSettings(FlashSetting.FailSafeCalculationMode)
+
+                WarnSolidsDropped(PP, Flashtype, "PH", ex1, FSMethod)
 
                 Select Case FSMethod
 
@@ -627,6 +657,8 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
             If haderror Then
 
                 Dim FSMethod As Integer = FlashSettings(FlashSetting.FailSafeCalculationMode)
+
+                WarnSolidsDropped(PP, Flashtype, "PV", ex1, FSMethod)
 
                 Select Case FSMethod
 
