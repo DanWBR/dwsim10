@@ -88851,7 +88851,8 @@
 <HeatOfFormation name="IG heat of formation"  units="J/kmol"  value="-4.948E+08" />
 <GibbsEnergyOfFormation name="IG Gibbs energy of formation"  units="J/kmol"  value="-3.954E+08" />
 <AbsEntropy name="IG absolute entropy"  units="J/kmol/K"  value="399800" />
-<HeatOfFusionAtMeltingPoint name="Heat of fusion at melting point"  units="J/kmol"  value="1.959E+07" />
+<HeatOfFusionAtMeltingPoint name="Heat of fusion at melting point"  units="J/kmol"  value="2.709E+07" />
+<!-- DWSIM: heat of fusion changed from 1.959E+07 to 2.709E+07 J/kmol (Moodley, Rarey, Ramjugernath, Asian J. Pharm. Sci. 13 (2018) 265-278, Table 1) -->
 <HeatOfCombustion name="Standard net heat of combustion LHV"  units="J/kmol"  value="-2.8901E+09" />
 <SolidDensity name="Solid density"  units="kmol/m3" >
   <eqno value="2" />
@@ -89067,7 +89068,8 @@
 <HeatOfFormation name="IG heat of formation"  units="J/kmol"  value="-8.65E+08" />
 <GibbsEnergyOfFormation name="IG Gibbs energy of formation"  units="J/kmol"  value="-6.82E+08" />
 <AbsEntropy name="IG absolute entropy"  units="J/kmol/K"  value="482000" />
-<HeatOfFusionAtMeltingPoint name="Heat of fusion at melting point"  units="J/kmol"  value="1.67E+07" />
+<HeatOfFusionAtMeltingPoint name="Heat of fusion at melting point"  units="J/kmol"  value="3.37E+07" />
+<!-- DWSIM: heat of fusion changed from 1.67E+07 to 3.37E+07 J/kmol (Moodley, Rarey, Ramjugernath, Asian J. Pharm. Sci. 13 (2018) 265-278, Table 1) -->
 <HeatOfCombustion name="Standard net heat of combustion LHV"  units="J/kmol"  value="-2.58E+09" />
 <SolidDensity name="Solid density"  units="kmol/m3" >
   <eqno value="2" />

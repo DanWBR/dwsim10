@@ -45,7 +45,9 @@ namespace DWSIM.PureCompoundData.Estimation.Joback
 
             foreach (var kv in inputs.JobackGroups)
             {
-                if (!JobackGroupTable.Groups.TryGetValue(kv.Key, out var g)) continue;
+                // a group the table does not know would be left out of every sum and the numbers would look
+                // plausible while being wrong, so the method does not answer for that molecule
+                if (!JobackGroupTable.Groups.TryGetValue(kv.Key, out var g)) return new EstimationResult();
                 anyKnown = true;
                 int n = kv.Value;
                 totalAtoms += n * g.AtomCount;
