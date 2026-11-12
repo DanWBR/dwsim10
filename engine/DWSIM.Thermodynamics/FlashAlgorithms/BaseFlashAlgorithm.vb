@@ -395,7 +395,7 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
         Function CalculateMixtureEntropy(ByVal T As Double, ByVal P As Double, ByVal L As Double, ByVal L2 As Double, ByVal V As Double, ByVal S As Double,
                                   ByVal Vx As Double(), ByVal Vx2 As Double(), ByVal Vy As Double(), ByVal Vs As Double(), ByVal pp As PropertyPackage) As Double
 
-            Dim _Sv, _Sl, _Sl2 As Double
+            Dim _Sv, _Sl, _Sl2, _Ss As Double
 
             Dim n As Integer = Vx.Length - 1
 
@@ -407,15 +407,18 @@ Namespace PropertyPackages.Auxiliary.FlashAlgorithms
 
             If V > 0.0# And Vy.Sum > 0.0# Then _Sv = pp.DW_CalcEntropy(Vy, T, P, State.Vapor)
             If L > 0.0# And Vx.Sum > 0.0# Then _Sl = pp.DW_CalcEntropy(Vx, T, P, State.Liquid)
-            If L2 > 0.0# And Vx2.Sum > 0.0# Then _Sl2 = pp.DW_CalcEntropy(Vs, T, P, State.Solid)
+            If L2 > 0.0# And Vx2.Sum > 0.0# Then _Sl2 = pp.DW_CalcEntropy(Vx2, T, P, State.Liquid)
+            If S > 0.0# And Vs.Sum > 0.0# Then _Ss = pp.DW_CalcEntropy(Vs, T, P, State.Solid)
 
             If V > 0.0# And Vy.Sum > 0.0# Then mmg = pp.AUX_MMM(Vy)
             If L > 0.0# And Vx.Sum > 0.0# Then mml = pp.AUX_MMM(Vx)
             If L2 > 0.0# And Vx2.Sum > 0.0# Then mml2 = pp.AUX_MMM(Vx2)
+            If S > 0.0# And Vs.Sum > 0.0# Then mms = pp.AUX_MMM(Vs)
 
             Return (mmg * V / (mmg * V + mml * L + mml2 * L2 + mms * S)) * _Sv +
                 (mml * L / (mmg * V + mml * L + mml2 * L2 + mms * S)) * _Sl +
-                (mml2 * L2 / (mmg * V + mml * L + mml2 * L2 + mms * S)) * _Sl2
+                (mml2 * L2 / (mmg * V + mml * L + mml2 * L2 + mms * S)) * _Sl2 +
+                (mms * S / (mmg * V + mml * L + mml2 * L2 + mms * S)) * _Ss
 
         End Function
 

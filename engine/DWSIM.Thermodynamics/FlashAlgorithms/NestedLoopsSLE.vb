@@ -1037,11 +1037,29 @@ out:        d2 = Date.Now
 
                         Dim dfac = (ecount + 1) * 0.1
                         If dfac > 1.0 Then dfac = 1.0
-                        If -F / dF * dfac + Vant > 1.0 Or -F / dF * dfac + Vant < 0.0 Then
-                            dfac /= 50
-                        End If
 
                         V = -F / dF * dfac + Vant
+
+                        'the Rachford-Rice function at both ends of the interval tells where the root is
+                        Dim F0 = 0.0, F1 = 0.0
+                        For i = 0 To n
+                            If Vz(i) > 0 Then
+                                F0 += Vz(i) * (Ki(i) - 1)
+                                F1 += Vz(i) * (Ki(i) - 1) / Ki(i)
+                            End If
+                        Next
+                        If F0 <= 0.0 Then
+                            'root at or below zero: no vapor
+                            V = 0.0
+                        ElseIf F1 >= 0.0 Then
+                            'root at or above one: no liquid
+                            V = 1.0
+                        ElseIf V < 0.0 Then
+                            'root inside and the step overshot it: halve the distance to the bound
+                            V = Vant / 2
+                        ElseIf V > 1.0 Then
+                            V = (Vant + 1.0) / 2
+                        End If
 
                     IObj3?.Paragraphs.Add(String.Format("Updated Vapor Fraction (<math_inline>\beta</math_inline>) value: {0}", V))
 
