@@ -180,7 +180,7 @@ namespace DWSIM.Extensions.SolidCraft
             this.lblDrawingHelp.Padding = new System.Windows.Forms.Padding(0, 0, 0, 8);
             this.lblDrawingHelp.Size = new System.Drawing.Size(960, 25);
             this.lblDrawingHelp.TabIndex = 1;
-            this.lblDrawingHelp.Text = "Choose the PFD or P&ID: an image, a PDF or a DXF/DWG drawing. The AI Assistant reads it with the model set up in its settings.";
+            this.lblDrawingHelp.Text = "Choose the PFD or P&ID: an image, a PDF, a DXF/DWG drawing or one or more DEXPI models. The AI Assistant reads a drawing with the model set up in its settings, and dwsim-dexpi reads a DEXPI model.";
             //
             // wpItems
             //
@@ -1046,6 +1046,7 @@ namespace DWSIM.Extensions.SolidCraft
             // flpBuild
             //
             this.flpBuild.AutoSize = true;
+            this.flpBuild.Dock = System.Windows.Forms.DockStyle.Fill;
             this.flpBuild.Controls.Add(this.chkSpecs);
             this.flpBuild.Controls.Add(this.chkUnits);
             this.flpBuild.Controls.Add(this.chkSolve);

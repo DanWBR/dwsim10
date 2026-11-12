@@ -87,7 +87,16 @@ namespace DWSIM.Extensions.SolidCraft
 
         #region drawing
 
-        private void txtFile_TextChanged(object sender, EventArgs e) => btnRead.Enabled = DexpiImport.Exist(txtFile.Text) && reading == null;
+        private void txtFile_TextChanged(object sender, EventArgs e)
+        {
+            var exist = DexpiImport.Exist(txtFile.Text);
+            btnRead.Enabled = exist && reading == null;
+            // DEXPI models are read by dwsim-dexpi: its note replaces the AI Assistant's
+            var dexpi = exist && DexpiImport.IsDexpi(txtFile.Text);
+            lblVision.Text = dexpi ? DexpiImport.ReaderNote : DrawingImportClient.VisionModelNote;
+            lnkAssistantSettings.Visible = !dexpi;
+            lblModel.Visible = !dexpi;
+        }
 
         private void btnBrowse_Click(object sender, EventArgs e)
         {

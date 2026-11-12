@@ -51,6 +51,9 @@ namespace DWSIM.Extensions.SolidCraft
         ComboBox kind;
         Button read, cancelRead, saveReading;
         TextBlock readStatus;
+        // the AI Assistant's note for a drawing, the reader's for DEXPI models
+        Control visionNote;
+        TextBlock dexpiNote;
         WorkIndicator work;
         Image preview;
 
@@ -111,7 +114,12 @@ namespace DWSIM.Extensions.SolidCraft
         Control DrawingPage()
         {
             file = new TextBox();
-            file.TextChanged += (_, _) => read.IsEnabled = DexpiImport.Exist(file.Text) && reading == null;
+            file.TextChanged += (_, _) =>
+            {
+                var exist = DexpiImport.Exist(file.Text);
+                read.IsEnabled = exist && reading == null;
+                ShowReaderNote(exist && DexpiImport.IsDexpi(file.Text));
+            };
             var browse = new Button { Content = "Browse...", Margin = new Thickness(6, 0, 0, 0) };
             browse.Click += async (_, _) => await BrowseDrawing();
             kind = new ComboBox { ItemsSource = new[] { "Detect", "Process flow diagram (PFD)", "Piping and instrumentation diagram (P&ID)" }, SelectedIndex = 0, MinWidth = 320 };
@@ -131,10 +139,20 @@ namespace DWSIM.Extensions.SolidCraft
             void Put(Control c, int row, int col, int span = 1) { Grid.SetRow(c, row); Grid.SetColumn(c, col); Grid.SetColumnSpan(c, span); g.Children.Add(c); }
             Put(Label("Drawing"), 0, 0); Put(file, 0, 1); Put(browse, 0, 2);
             Put(Label("Type"), 1, 0); Put(kind, 1, 1);
-            Put(new StackPanel { Spacing = 8, Children = { VisionNote(), new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { read, cancelRead, open, saveReading, work.Bar } } } }, 2, 0, 3);
+            visionNote = VisionNote();
+            dexpiNote = new TextBlock { TextWrapping = TextWrapping.Wrap, Opacity = 0.75, IsVisible = false };
+            Put(new StackPanel { Spacing = 8, Children = { visionNote, dexpiNote, new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { read, cancelRead, open, saveReading, work.Bar } } } }, 2, 0, 3);
             Put(readStatus, 3, 0, 3);
             Put(new Border { BorderBrush = Brushes.Gray, BorderThickness = new Thickness(1), Background = Brushes.White, Child = preview }, 4, 0, 3);
             return g;
+        }
+
+        /// <summary>DEXPI models are read by dwsim-dexpi: its note replaces the AI Assistant's.</summary>
+        void ShowReaderNote(bool dexpi)
+        {
+            visionNote.IsVisible = !dexpi;
+            dexpiNote.IsVisible = dexpi;
+            if (dexpi) dexpiNote.Text = DexpiImport.ReaderNote;
         }
 
         /// <summary>The note that the reading needs a vision model, with a button to the AI Assistant's settings.</summary>
@@ -597,7 +615,18 @@ namespace DWSIM.Extensions.SolidCraft
             };
             var g = new Grid { RowDefinitions = new RowDefinitions("*,Auto,Auto,Auto,*"), RowSpacing = 6 };
             var top = new ScrollViewer { Content = issues };
-            var options = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 14, Children = { specs, useUnits, solve, pipes, update, build } };
+            // the options wrap when the window is narrow, so the build button stays in sight
+            var choices = new WrapPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            foreach (var c in new[] { specs, useUnits, solve, pipes, update })
+            {
+                c.Margin = new Thickness(0, 2, 14, 2);
+                choices.Children.Add(c);
+            }
+            build.VerticalAlignment = VerticalAlignment.Center;
+            var options = new DockPanel();
+            DockPanel.SetDock(build, Dock.Right);
+            options.Children.Add(build);
+            options.Children.Add(choices);
             var bottom = new ScrollViewer { Content = results };
             Grid.SetRow(options, 1); Grid.SetRow(summary, 2); Grid.SetRow(fitRow, 3); Grid.SetRow(bottom, 4);
             g.Children.Add(new Border { BorderBrush = Brushes.Gray, BorderThickness = new Thickness(1), Padding = new Thickness(6), Child = top });

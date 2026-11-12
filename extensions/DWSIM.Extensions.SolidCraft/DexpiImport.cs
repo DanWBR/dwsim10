@@ -45,6 +45,13 @@ namespace DWSIM.Extensions.SolidCraft
             "DEXPI models are read by " + Program + ", a separate free program that is not installed. Download it from " + DownloadUrl +
             ", unpack it into " + InstallFolder + " (or set DWSIM_DEXPI_HOME to its folder) and read the file again.";
 
+        /// <summary>
+        /// The note the import shows in place of the AI Assistant's when the files chosen are DEXPI
+        /// models: who reads them, or how to get it when it is missing.
+        /// </summary>
+        public static string ReaderNote =>
+            FindConverter() != null ? "DEXPI models are read by " + Program + ", without the AI Assistant." : MissingText;
+
         /// <summary>Opens the download page in the browser.</summary>
         public static void OpenDownloadPage()
         {

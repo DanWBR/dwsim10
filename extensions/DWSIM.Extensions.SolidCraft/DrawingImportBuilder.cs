@@ -925,6 +925,16 @@ namespace DWSIM.Extensions.SolidCraft
             var pOut = outs.Count == 1 ? SI(u.Pressure, outs[0].P, res, tag) : null;
             var pIn = ins.Count == 1 ? SI(u.Pressure, ins[0].P, res, tag) : null;
             void Missing(string what) => res.Issues.Add(new ImportIssue(ImportIssue.Levels.Warning, tag, "the table does not give " + what + "; set it before solving"));
+            // the outlets' mean weighted by their mass flows: the outlets of a drum may disagree a little in a
+            // model saved before its recycles closed, and the first one read would make the result depend on the
+            // order of the lines in the reading
+            double? Mean(Func<ReadLine, double?> of)
+            {
+                var values = outs.Select(l => (v: of(l), w: SI(u.MassFlow, l.W, res, tag))).Where(x => x.v.HasValue).ToList();
+                if (values.Count == 0) return null;
+                if (values.All(x => x.w.HasValue && x.w.Value > 0)) return values.Sum(x => x.v.Value * x.w.Value) / values.Sum(x => x.w.Value);
+                return values.Average(x => x.v.Value);
+            }
             void Efficiency()
             {
                 if (ins.Count == 1 && outs.Count == 1 && ins[0].T.HasValue && outs[0].T.HasValue)
@@ -956,8 +966,8 @@ namespace DWSIM.Extensions.SolidCraft
                 case Vessel ve:
                     // a flash at the outlets' conditions where the table shows the drum heated,
                     // cooled or let down
-                    var tv = outs.Select(l => SI(u.Temperature, l.T, res, tag)).FirstOrDefault(x => x.HasValue);
-                    var pv = outs.Select(l => SI(u.Pressure, l.P, res, tag)).FirstOrDefault(x => x.HasValue);
+                    var tv = Mean(l => SI(u.Temperature, l.T, res, tag));
+                    var pv = Mean(l => SI(u.Pressure, l.P, res, tag));
                     var ti = ins.Select(l => SI(u.Temperature, l.T, res, tag)).Where(x => x.HasValue).Select(x => x.Value).ToList();
                     var pi = ins.Select(l => SI(u.Pressure, l.P, res, tag)).Where(x => x.HasValue).Select(x => x.Value).ToList();
                     if (tv.HasValue && ti.Count > 0 && ti.Any(x => Math.Abs(x - tv.Value) > 0.5)) { ve.OverrideT = true; ve.FlashTemperature = tv.Value; }

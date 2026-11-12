@@ -59,7 +59,7 @@ namespace DWSIM.Extensions.SolidCraft
 
         public static readonly string[] StepTexts =
         {
-            "Choose the PFD or P&ID: an image, a PDF or a DXF/DWG drawing. The AI Assistant reads it with the model set up in its settings.",
+            "Choose the PFD or P&ID: an image, a PDF, a DXF/DWG drawing or one or more DEXPI models. The AI Assistant reads a drawing with the model set up in its settings, and dwsim-dexpi reads a DEXPI model.",
             "The items read on the drawing. Correct the tags and what each one is; clear the ones not to build. The dots show where each item was found.",
             "The lines between the items, with the stream table's values. Correct where each line comes from and goes to; the sketch shows the connections.",
             "The kind of process, inferred from the drawing's text, and the compounds, property package and units of the flowsheet.",
