@@ -1,0 +1,93 @@
+# Signs the Windows installers (*-setup.exe) already published on a release with the SSL.com eSigner
+# certificate and replaces them in place. Manual only. Each installer counts as one eSigner signing.
+# On a patreon-v* tag (private repository) the signed installers are mirrored to DanWBR/dwsim-patreon.
+name: sign-release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag whose installers are signed
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  list:
+    runs-on: ubuntu-latest
+    outputs:
+      assets: ${{ steps.list.outputs.assets }}
+    steps:
+      - id: list
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          assets=$(gh release view "${{ inputs.tag }}" --repo "$GITHUB_REPOSITORY" --json assets \
+            -q '[.assets[].name | select(endswith("-setup.exe"))]')
+          echo "$assets"
+          [ "$assets" != "[]" ] || { echo "::error::no *-setup.exe on ${{ inputs.tag }}"; exit 1; }
+          echo "assets=$assets" >> "$GITHUB_OUTPUT"
+
+  sign:
+    needs: list
+    name: sign ${{ matrix.asset }}
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        asset: ${{ fromJson(needs.list.outputs.assets) }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASES_REPO_TOKEN: ${{ secrets.RELEASES_REPO_TOKEN }}
+    steps:
+      - name: Download the installer
+        shell: bash
+        run: |
+          mkdir dl
+          gh release download "${{ inputs.tag }}" --repo "$GITHUB_REPOSITORY" --pattern "${{ matrix.asset }}" --dir dl
+
+      - name: Check it is not signed yet
+        shell: pwsh
+        run: |
+          $s = Get-AuthenticodeSignature "dl\${{ matrix.asset }}"
+          if ($s.Status -eq 'Valid') { throw "already signed by $($s.SignerCertificate.Subject)" }
+
+      - name: Sign
+        uses: sslcom/esigner-codesign@v1.3.2
+        with:
+          command: sign
+          username: ${{ secrets.ES_USERNAME }}
+          password: ${{ secrets.ES_PASSWORD }}
+          credential_id: ${{ secrets.ES_CREDENTIAL_ID }}
+          totp_secret: ${{ secrets.ES_TOTP_SECRET }}
+          file_path: ${{ github.workspace }}\dl\${{ matrix.asset }}
+          override: true
+          malware_block: false
+          environment_name: PROD
+          jvm_max_memory: 2048M
+
+      - name: Verify
+        shell: pwsh
+        run: |
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" |
+            Sort-Object FullName | Select-Object -Last 1 -ExpandProperty FullName
+          & $signtool verify /pa "dl\${{ matrix.asset }}"
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: Replace the release asset
+        shell: bash
+        run: gh release upload "${{ inputs.tag }}" "dl/${{ matrix.asset }}" --repo "$GITHUB_REPOSITORY" --clobber
+
+      - name: Mirror to DanWBR/dwsim-patreon
+        if: startsWith(inputs.tag, 'patreon-v') && env.RELEASES_REPO_TOKEN != ''
+        shell: bash
+        run: |
+          tag="${{ inputs.tag }}"; t="v${tag#patreon-v}"
+          if GH_TOKEN="$RELEASES_REPO_TOKEN" gh release view "$t" --repo DanWBR/dwsim-patreon --json assets \
+               -q '.assets[].name' | grep -qx "${{ matrix.asset }}"; then
+            GH_TOKEN="$RELEASES_REPO_TOKEN" gh release upload "$t" "dl/${{ matrix.asset }}" --repo DanWBR/dwsim-patreon --clobber
+            echo "Mirrored to DanWBR/dwsim-patreon $t"
+          else
+            echo "::notice::${{ matrix.asset }} is not on DanWBR/dwsim-patreon $t"
+          fi
