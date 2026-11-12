@@ -191,6 +191,7 @@ jobs:
       # built without the optional ChemSep component. Kept out of the repository so a public mirror
       # does not redistribute a third-party binary.
       CHEMSEP_LITE_URL: ${{ secrets.CHEMSEP_LITE_URL }}
+      ES_USERNAME: ${{ secrets.ES_USERNAME }}
     strategy:
       fail-fast: false
       matrix:
@@ -245,6 +246,45 @@ jobs:
           /DSourceDir=%CD%\publish\${{ matrix.rid }}
           /DOutputDir=%CD%\artifacts
           packaging\windows\dwsim.iss
+
+      # Authenticode with the SSL.com eSigner certificate (secrets ES_*); skipped with a warning when
+      # they are absent.
+      - name: Locate the installer
+        id: installer
+        shell: pwsh
+        run: |
+          $f = @(Get-ChildItem artifacts -Filter *.exe)
+          if ($f.Count -ne 1) { throw "expected one installer in artifacts, found $($f.Count)" }
+          "file=$($f[0].FullName)" >> $env:GITHUB_OUTPUT
+
+      - name: Sign the installer
+        if: env.ES_USERNAME != ''
+        uses: sslcom/esigner-codesign@v1.3.2
+        with:
+          command: sign
+          username: ${{ secrets.ES_USERNAME }}
+          password: ${{ secrets.ES_PASSWORD }}
+          credential_id: ${{ secrets.ES_CREDENTIAL_ID }}
+          totp_secret: ${{ secrets.ES_TOTP_SECRET }}
+          file_path: ${{ steps.installer.outputs.file }}
+          override: true
+          malware_block: false
+          environment_name: PROD
+          jvm_max_memory: 2048M
+
+      - name: Verify the installer signature
+        if: env.ES_USERNAME != ''
+        shell: pwsh
+        run: |
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" |
+            Sort-Object FullName | Select-Object -Last 1 -ExpandProperty FullName
+          & $signtool verify /pa "${{ steps.installer.outputs.file }}"
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: Warn when the installer was not signed
+        if: env.ES_USERNAME == ''
+        shell: bash
+        run: echo "::warning::ES_* secrets are not set - the installer ships unsigned"
 
       - name: Stage the installer
         shell: bash
